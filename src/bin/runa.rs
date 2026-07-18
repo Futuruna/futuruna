@@ -4808,6 +4808,62 @@ struct RustCodegen {
     source_name: Option<String>,
 }
 
+/// Per-function ownership analysis results.
+/// Computed once per function body, consumed during Rust emission to decide
+/// clone/move/borrow for each variable.
+struct OwnershipAnalysis {
+    /// Total use count per variable (for single-use → move optimization)
+    var_uses: BTreeMap<String, usize>,
+    /// Consuming use count per variable (args to non-borrow functions)
+    consuming_uses: BTreeMap<String, usize>,
+}
+
+impl OwnershipAnalysis {
+    /// Analyze a function body for ownership decisions.
+    /// `borrow_fns` maps function names to which params are borrow-only.
+    /// `self_fn_name` + `self_param_names` enable self-recursive passthrough detection.
+    fn analyze(
+        body: &Expr,
+        borrow_fns: &BTreeMap<String, Vec<bool>>,
+        self_fn_name: Option<&str>,
+        self_param_names: &[&str],
+    ) -> Self {
+        let mut var_uses = BTreeMap::new();
+        let mut consuming_uses = BTreeMap::new();
+        count_var_uses(body, &mut var_uses);
+        count_consuming_uses_borrow_aware(
+            body, &mut consuming_uses, borrow_fns,
+            self_fn_name, self_param_names,
+        );
+        OwnershipAnalysis { var_uses, consuming_uses }
+    }
+
+    /// Simple analysis without borrow-awareness (for rule bodies, etc.)
+    fn analyze_simple(body: &Expr) -> Self {
+        let mut var_uses = BTreeMap::new();
+        let mut consuming_uses = BTreeMap::new();
+        count_var_uses(body, &mut var_uses);
+        count_consuming_uses(body, &mut consuming_uses);
+        OwnershipAnalysis { var_uses, consuming_uses }
+    }
+
+    /// Analyze from statement references (for top-level code).
+    fn analyze_stmt_refs(
+        stmts: &[&Stmt],
+        borrow_fns: &BTreeMap<String, Vec<bool>>,
+    ) -> Self {
+        let mut var_uses = BTreeMap::new();
+        let mut consuming_uses = BTreeMap::new();
+        for stmt in stmts {
+            count_var_uses_stmt(stmt, &mut var_uses);
+            count_consuming_uses_borrow_aware_stmt(
+                stmt, &mut consuming_uses, borrow_fns, None, &[],
+            );
+        }
+        OwnershipAnalysis { var_uses, consuming_uses }
+    }
+}
+
 /// Count how many times each variable name appears as ExprKind::Var in an expression tree.
 /// This is the core of escape analysis: single-use variables can be moved, not cloned.
 fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
@@ -7637,14 +7693,10 @@ impl RustCodegen {
 
         // Emit main function — with escape analysis
         // Count variable uses across all main statements
-        self.var_use_counts.clear();
-        self.var_consuming_counts.clear();
         self.copy_vars.clear();
-        for stmt in &main_stmts {
-            count_var_uses_stmt(stmt, &mut self.var_use_counts);
-            // Phase 3b: Use borrow-aware counting for consuming uses
-            count_consuming_uses_borrow_aware_stmt(stmt, &mut self.var_consuming_counts, &self.borrow_only_params, None, &[]);
-        }
+        let main_ownership = OwnershipAnalysis::analyze_stmt_refs(&main_stmts, &self.borrow_only_params);
+        self.var_use_counts = main_ownership.var_uses;
+        self.var_consuming_counts = main_ownership.consuming_uses;
         // Detect Copy-type bindings in main (from literal type inference)
         for stmt in &main_stmts {
             if let Stmt::Bind(Pat::Var(name), Some(ty), _) = stmt {
@@ -8078,8 +8130,9 @@ impl RustCodegen {
                             let prev_counts = std::mem::take(&mut self.var_use_counts);
                             let prev_consuming = std::mem::take(&mut self.var_consuming_counts);
                             let prev_copy = std::mem::take(&mut self.copy_vars);
-                            count_var_uses(body, &mut self.var_use_counts);
-                            count_consuming_uses(body, &mut self.var_consuming_counts);
+                            let ownership = OwnershipAnalysis::analyze_simple(body);
+                            self.var_use_counts = ownership.var_uses;
+                            self.var_consuming_counts = ownership.consuming_uses;
                             let saved_indent = self.indent;
                             self.indent = 1;
                             out.push_str(&self.emit_expr_as_return(body));
@@ -8187,8 +8240,9 @@ impl RustCodegen {
                             let prev_counts = std::mem::take(&mut self.var_use_counts);
                             let prev_consuming = std::mem::take(&mut self.var_consuming_counts);
                             let prev_copy = std::mem::take(&mut self.copy_vars);
-                            count_var_uses(body, &mut self.var_use_counts);
-                            count_consuming_uses(body, &mut self.var_consuming_counts);
+                            let ownership = OwnershipAnalysis::analyze_simple(body);
+                            self.var_use_counts = ownership.var_uses;
+                            self.var_consuming_counts = ownership.consuming_uses;
                             let saved_indent = self.indent;
                             self.indent = 2;
                             let prev_in_self = self.in_self_method;
@@ -8244,8 +8298,9 @@ impl RustCodegen {
                         let prev_counts = std::mem::take(&mut self.var_use_counts);
                         let prev_consuming = std::mem::take(&mut self.var_consuming_counts);
                         let prev_copy = std::mem::take(&mut self.copy_vars);
-                        count_var_uses(body, &mut self.var_use_counts);
-                        count_consuming_uses(body, &mut self.var_consuming_counts);
+                        let ownership = OwnershipAnalysis::analyze_simple(body);
+                        self.var_use_counts = ownership.var_uses;
+                        self.var_consuming_counts = ownership.consuming_uses;
                         let saved_indent = self.indent;
                         self.indent = 1;
                         out.push_str(&self.emit_expr_as_return(body));
@@ -9214,8 +9269,10 @@ impl RustCodegen {
                 let prev_aliased = std::mem::take(&mut self.aliased_vars);
                 let prev_string_vars = std::mem::take(&mut self.string_typed_vars);
                 let prev_float_vars = std::mem::take(&mut self.float_typed_vars);
-                count_var_uses(body, &mut self.var_use_counts);
-                count_consuming_uses_borrow_aware(body, &mut self.var_consuming_counts, &self.borrow_only_params, Some(name.as_str()), &params.iter().map(|p| p.name.as_str()).collect::<Vec<_>>());
+                let param_names: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
+                let ownership = OwnershipAnalysis::analyze(body, &self.borrow_only_params, Some(name.as_str()), &param_names);
+                self.var_use_counts = ownership.var_uses;
+                self.var_consuming_counts = ownership.consuming_uses;
                 // Detect accumulators (variables rebound inside for loops) in function body
                 if let ExprKind::Block(body_stmts) = &body.kind {
                     let refs: Vec<&Stmt> = body_stmts.iter().collect();
