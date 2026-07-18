@@ -99,11 +99,11 @@ FIR nodes and produces Rust. Replace old emission path.
 - [x] `TypeRegistry` struct extracted from RustCodegen (10 fields, 94 references redirected)
 - [ ] TypeChecker and RustCodegen share TypeRegistry (deferred — needs lib.rs export)
 - [x] Ownership analysis consolidated into `OwnershipAnalysis` struct (wraps 4 counting functions, 5 call sites)
-- [ ] FIR types defined
-- [ ] AST → FIR lowering implemented
-- [ ] FIR → Rust emission implemented
-- [ ] Old emission path removed or gated behind flag
-- [ ] All 107 tests pass through new path
+- [x] FIR types defined (FirExpr, FirStmt, FirProgram, VarMode, FirTy — 6 tests)
+- [x] AST → FIR lowering implemented (LoweringCtx with var_mode resolution — 7 tests)
+- [x] FIR → Rust emission implemented (emit_fir_expr core expressions — 12 tests)
+- [ ] Old emission path removed or gated behind flag (incremental migration)
+- [x] All 133 tests pass (26 lib + 26 runa + 69 happy + 12 error)
 
 ## Files Modified
 

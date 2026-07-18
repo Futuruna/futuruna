@@ -5275,6 +5275,192 @@ impl<'a> LoweringCtx<'a> {
 }
 
 // ============================================================================
+// FIR → RUST EMISSION
+// ============================================================================
+//
+// Stateless walk of FIR nodes → Rust source string.
+// All ownership/type decisions are pre-computed in FIR — no mutable state needed
+// beyond indentation. This replaces the decision-making parts of emit_expr.
+
+/// Emit a FIR expression as Rust source code.
+/// This is the core of the new emission pipeline. It reads VarMode from FIR
+/// nodes instead of computing it from analysis state.
+fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
+    match &expr.kind {
+        FirExprKind::Var(name, mode) => {
+            // Check if it's a nullary constructor
+            if let Some(parent) = types.variant_parent.get(name.as_str()) {
+                if types.struct_types.contains(parent) {
+                    return name.clone();
+                }
+                return format!("{}::{}", parent, name);
+            }
+            let sname = sanitize_name(name);
+            match mode {
+                VarMode::Deref => format!("(*{})", sname),
+                VarMode::RuleClone | VarMode::Clone => format!("{}.clone()", sname),
+                VarMode::Borrow => format!("&{}", sname),
+                VarMode::Copy | VarMode::Move => sname,
+            }
+        }
+        FirExprKind::Lit(Literal::Str(s)) => format!("{:?}.to_string()", s),
+        FirExprKind::Lit(Literal::Int(n)) => format!("{}i64", n),
+        FirExprKind::Lit(Literal::Float(f)) => {
+            let s = format!("{}", f);
+            if s.contains('.') { s } else { format!("{}.0", s) }
+        }
+        FirExprKind::Lit(Literal::Char(c)) => format!("'{}'", c),
+        FirExprKind::Lit(Literal::Bool(b)) => format!("{}", b),
+        FirExprKind::BinOp(op, lhs, rhs) => {
+            let l = emit_fir_expr(lhs, types);
+            let r = emit_fir_expr(rhs, types);
+            // String concatenation
+            if op == "+" {
+                match (&lhs.ty, &rhs.ty) {
+                    (FirTy::String, _) | (_, FirTy::String) => {
+                        return format!("format!(\"{{}}{{}}\", {}, {})", l, r);
+                    }
+                    _ => {}
+                }
+            }
+            let rust_op = if op == "==" { "==" }
+                else if op == "!=" { "!=" }
+                else if op == "&&" { "&&" }
+                else if op == "||" { "||" }
+                else { op.as_str() };
+            format!("({} {} {})", l, rust_op, r)
+        }
+        FirExprKind::UnOp(op, inner) => {
+            format!("({}{})", op, emit_fir_expr(inner, types))
+        }
+        FirExprKind::If(cond, then_, else_) => {
+            format!("if {} {{ {} }} else {{ {} }}",
+                emit_fir_expr(cond, types),
+                emit_fir_expr(then_, types),
+                emit_fir_expr(else_, types))
+        }
+        FirExprKind::App(func, args) => {
+            let f = emit_fir_expr(func, types);
+            let arg_strs: Vec<String> = args.iter().map(|a| emit_fir_expr(a, types)).collect();
+            format!("{}({})", f, arg_strs.join(", "))
+        }
+        FirExprKind::Field(obj, field) => {
+            format!("{}.{}", emit_fir_expr(obj, types), field)
+        }
+        FirExprKind::Index(base, idx) => {
+            format!("{}[{} as usize]", emit_fir_expr(base, types), emit_fir_expr(idx, types))
+        }
+        FirExprKind::List(elems) => {
+            let items: Vec<String> = elems.iter().map(|e| emit_fir_expr(e, types)).collect();
+            format!("vec![{}]", items.join(", "))
+        }
+        FirExprKind::Tuple(elems) => {
+            let items: Vec<String> = elems.iter().map(|e| emit_fir_expr(e, types)).collect();
+            format!("({})", items.join(", "))
+        }
+        FirExprKind::Lambda(params, body) => {
+            let param_strs: Vec<String> = params.iter().map(|p| sanitize_name(&p.name)).collect();
+            format!("|{}| {{ {} }}", param_strs.join(", "), emit_fir_expr(body, types))
+        }
+        FirExprKind::Try(inner) => {
+            format!("{}?", emit_fir_expr(inner, types))
+        }
+        FirExprKind::Unit => "()".to_string(),
+        FirExprKind::Match(scrutinee, arms) => {
+            let mut out = format!("match {} {{\n", emit_fir_expr(scrutinee, types));
+            for arm in arms {
+                let pat_str = format_pat(&arm.pat);
+                if let Some(ref guard) = arm.guard {
+                    out.push_str(&format!("    {} if {} => {},\n",
+                        pat_str, emit_fir_expr(guard, types), emit_fir_expr(&arm.body, types)));
+                } else {
+                    out.push_str(&format!("    {} => {},\n",
+                        pat_str, emit_fir_expr(&arm.body, types)));
+                }
+            }
+            out.push_str("}");
+            out
+        }
+        FirExprKind::Pipe(lhs, rhs) => {
+            // Pipe desugars: a |> f → f(a), a |> f(y) → f(a, y)
+            match &rhs.kind {
+                FirExprKind::App(func, existing_args) => {
+                    let mut new_args = vec![emit_fir_expr(lhs, types)];
+                    new_args.extend(existing_args.iter().map(|a| emit_fir_expr(a, types)));
+                    format!("{}({})", emit_fir_expr(func, types), new_args.join(", "))
+                }
+                _ => {
+                    format!("{}({})", emit_fir_expr(rhs, types), emit_fir_expr(lhs, types))
+                }
+            }
+        }
+        // These require more context than the simple emitter provides — placeholder
+        FirExprKind::Effect(name, args) => {
+            let arg_strs: Vec<String> = args.iter().map(|a| emit_fir_expr(a, types)).collect();
+            format!("/* effect {} */ {}({})", name, name, arg_strs.join(", "))
+        }
+        FirExprKind::Handle { effect, body, .. } => {
+            format!("/* handle {} */ {}", effect, emit_fir_expr(body, types))
+        }
+        FirExprKind::Block(stmts) => {
+            let parts: Vec<String> = stmts.iter().map(|s| emit_fir_stmt(s, types)).collect();
+            format!("{{ {} }}", parts.join(" "))
+        }
+        FirExprKind::Conjunction(goals) => {
+            let parts: Vec<String> = goals.iter().map(|g| emit_fir_expr(g, types)).collect();
+            parts.join(" && ")
+        }
+    }
+}
+
+/// Emit a FIR statement as Rust source code.
+fn emit_fir_stmt(stmt: &FirStmt, types: &TypeRegistry) -> String {
+    match stmt {
+        FirStmt::Bind(Pat::Var(name), _, expr) => {
+            format!("let {} = {};", sanitize_name(name), emit_fir_expr(expr, types))
+        }
+        FirStmt::Bind(pat, _, expr) => {
+            format!("let {} = {};", format_pat(pat), emit_fir_expr(expr, types))
+        }
+        FirStmt::Expr(expr) => {
+            format!("{};", emit_fir_expr(expr, types))
+        }
+        FirStmt::For(var, iter_expr, body) => {
+            let body_strs: Vec<String> = body.iter().map(|s| emit_fir_stmt(s, types)).collect();
+            format!("for {} in {} {{ {} }}", sanitize_name(var), emit_fir_expr(iter_expr, types), body_strs.join(" "))
+        }
+        _ => "/* unhandled FIR stmt */".to_string(),
+    }
+}
+
+/// Format a pattern for Rust output (simple version for FIR emission).
+fn format_pat(pat: &Pat) -> String {
+    match pat {
+        Pat::Wild => "_".to_string(),
+        Pat::Var(name) => sanitize_name(name),
+        Pat::Lit(lit) => match lit {
+            Literal::Int(n) => format!("{}", n),
+            Literal::Float(f) => format!("{}", f),
+            Literal::Str(s) => format!("{:?}", s),
+            Literal::Char(c) => format!("'{}'", c),
+            Literal::Bool(b) => format!("{}", b),
+        },
+        Pat::Con(name, args) if args.is_empty() => name.clone(),
+        Pat::Con(name, args) => {
+            let arg_strs: Vec<String> = args.iter().map(format_pat).collect();
+            format!("{}({})", name, arg_strs.join(", "))
+        }
+        Pat::NamedCon(name, fields) => {
+            let field_strs: Vec<String> = fields.iter().map(|(k, v)| {
+                format!("{}: {}", k, format_pat(v))
+            }).collect();
+            format!("{} {{ {} }}", name, field_strs.join(", "))
+        }
+        Pat::As(pat, alias) => format!("{} @ {}", format_pat(pat), alias),
+    }
+}
+
+// ============================================================================
 // OWNERSHIP COUNTING FUNCTIONS
 // ============================================================================
 
@@ -13811,6 +13997,147 @@ mod tests {
                 assert!(matches!(lhs.kind, FirExprKind::Var(ref n, VarMode::Copy) if n == "n"),
                     "expected Copy for Copy-typed 'n', got: {:?}", lhs.kind);
             }
+        }
+    }
+
+    // ── FIR emission tests ──────────────────────────────────────────
+
+    fn fir_var(name: &str, mode: VarMode) -> FirExpr {
+        FirExpr { kind: FirExprKind::Var(name.into(), mode), span: Span::dummy(), ty: FirTy::Unknown }
+    }
+    fn fir_int(n: i64) -> FirExpr {
+        FirExpr { kind: FirExprKind::Lit(Literal::Int(n)), span: Span::dummy(), ty: FirTy::Int }
+    }
+    fn fir_str(s: &str) -> FirExpr {
+        FirExpr { kind: FirExprKind::Lit(Literal::Str(s.into())), span: Span::dummy(), ty: FirTy::String }
+    }
+
+    #[test]
+    fn emit_fir_var_move() {
+        let types = TypeRegistry::new();
+        assert_eq!(emit_fir_expr(&fir_var("x", VarMode::Move), &types), "x");
+    }
+
+    #[test]
+    fn emit_fir_var_clone() {
+        let types = TypeRegistry::new();
+        assert_eq!(emit_fir_expr(&fir_var("name", VarMode::Clone), &types), "name.clone()");
+    }
+
+    #[test]
+    fn emit_fir_var_deref() {
+        let types = TypeRegistry::new();
+        assert_eq!(emit_fir_expr(&fir_var("val", VarMode::Deref), &types), "(*val)");
+    }
+
+    #[test]
+    fn emit_fir_var_borrow() {
+        let types = TypeRegistry::new();
+        assert_eq!(emit_fir_expr(&fir_var("data", VarMode::Borrow), &types), "&data");
+    }
+
+    #[test]
+    fn emit_fir_int_literal() {
+        let types = TypeRegistry::new();
+        assert_eq!(emit_fir_expr(&fir_int(42), &types), "42i64");
+    }
+
+    #[test]
+    fn emit_fir_string_literal() {
+        let types = TypeRegistry::new();
+        assert_eq!(emit_fir_expr(&fir_str("hello"), &types), "\"hello\".to_string()");
+    }
+
+    #[test]
+    fn emit_fir_binop() {
+        let types = TypeRegistry::new();
+        let expr = FirExpr {
+            kind: FirExprKind::BinOp("+".into(), Box::new(fir_int(1)), Box::new(fir_int(2))),
+            span: Span::dummy(),
+            ty: FirTy::Int,
+        };
+        assert_eq!(emit_fir_expr(&expr, &types), "(1i64 + 2i64)");
+    }
+
+    #[test]
+    fn emit_fir_function_call() {
+        let types = TypeRegistry::new();
+        let expr = FirExpr {
+            kind: FirExprKind::App(
+                Box::new(fir_var("add", VarMode::Move)),
+                vec![fir_int(1), fir_int(2)],
+            ),
+            span: Span::dummy(),
+            ty: FirTy::Int,
+        };
+        assert_eq!(emit_fir_expr(&expr, &types), "add(1i64, 2i64)");
+    }
+
+    #[test]
+    fn emit_fir_if_else() {
+        let types = TypeRegistry::new();
+        let expr = FirExpr {
+            kind: FirExprKind::If(
+                Box::new(FirExpr { kind: FirExprKind::Lit(Literal::Bool(true)), span: Span::dummy(), ty: FirTy::Bool }),
+                Box::new(fir_int(1)),
+                Box::new(fir_int(0)),
+            ),
+            span: Span::dummy(),
+            ty: FirTy::Int,
+        };
+        assert_eq!(emit_fir_expr(&expr, &types), "if true { 1i64 } else { 0i64 }");
+    }
+
+    #[test]
+    fn emit_fir_pipe_simple() {
+        // x |> f → f(x)
+        let types = TypeRegistry::new();
+        let expr = FirExpr {
+            kind: FirExprKind::Pipe(
+                Box::new(fir_int(42)),
+                Box::new(fir_var("double", VarMode::Move)),
+            ),
+            span: Span::dummy(),
+            ty: FirTy::Int,
+        };
+        assert_eq!(emit_fir_expr(&expr, &types), "double(42i64)");
+    }
+
+    #[test]
+    fn emit_fir_list_literal() {
+        let types = TypeRegistry::new();
+        let expr = FirExpr {
+            kind: FirExprKind::List(vec![fir_int(1), fir_int(2), fir_int(3)]),
+            span: Span::dummy(),
+            ty: FirTy::List(Box::new(FirTy::Int)),
+        };
+        assert_eq!(emit_fir_expr(&expr, &types), "vec![1i64, 2i64, 3i64]");
+    }
+
+    #[test]
+    fn emit_fir_end_to_end_lower_and_emit() {
+        // Full pipeline: source → AST → FIR → Rust
+        let source = "= x = 1 + 2";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let types = TypeRegistry::new();
+        let copy_vars = BTreeSet::new();
+        let ref_match = BTreeSet::new();
+
+        if let Stmt::Bind(_, _, ref expr) = stmts[0] {
+            let ownership = OwnershipAnalysis::analyze_simple(expr);
+            let ctx = LoweringCtx {
+                types: &types,
+                ownership: &ownership,
+                copy_vars: &copy_vars,
+                ref_match_bindings: &ref_match,
+            };
+            let fir = ctx.lower_expr(expr);
+            let rust = emit_fir_expr(&fir, &types);
+            assert_eq!(rust, "(1i64 + 2i64)");
         }
     }
 }
