@@ -1066,9 +1066,11 @@ OwnershipAnalysis, FIR types + lowering + emission, `runa emit --fir` CLI flag.
 
 ## M30: Split RustCodegen into Passes
 
-**"One thing at a time."** Even with FIR, the lowering pass could become a new
-monolith. This milestone explicitly structures the compiler as a sequence of named
-passes, each doing one thing.
+**"One thing at a time."** — [detailed design](m30-passes.md)
+
+**Status:** Complete. scan_declarations (imports + types + effects + async),
+compute_borrow_flags (fixed-point analysis), emit_program (emission only).
+Pipeline is explicit: scan → borrow → emit.
 
 - [ ] **Pass 1: Declaration collection** — Walk AST once, build `TypeDecls`,
   `FnSigs`, `EffectDecls`. This is what the current `emit_program` does in its

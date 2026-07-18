@@ -53,10 +53,12 @@ first, then does emission only.
 
 ## Checklist
 
-- [ ] scan_declarations extracted from emit_program
-- [ ] Borrow analysis extracted as standalone pass
-- [ ] Pipeline orchestration function
-- [ ] All 143 tests pass
+- [x] scan_declarations extracted (~500 lines: imports, type registration, async detection, Rc computation)
+- [x] compute_borrow_flags extracted (fixed-point borrow analysis)
+- [x] emit_program calls passes explicitly: scan → borrow → emit
+- [x] runa emit --fir uses scan_declarations directly
+- [x] 4 scan tests (TypeRegistry population, struct detection, user functions)
+- [x] All 147 tests pass
 
 ## Verification
 
