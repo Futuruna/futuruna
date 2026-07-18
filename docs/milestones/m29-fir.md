@@ -98,7 +98,7 @@ FIR nodes and produces Rust. Replace old emission path.
 
 - [x] `TypeRegistry` struct extracted from RustCodegen (10 fields, 94 references redirected)
 - [ ] TypeChecker and RustCodegen share TypeRegistry (deferred — needs lib.rs export)
-- [ ] Ownership analysis consolidated into standalone pass
+- [x] Ownership analysis consolidated into `OwnershipAnalysis` struct (wraps 4 counting functions, 5 call sites)
 - [ ] FIR types defined
 - [ ] AST → FIR lowering implemented
 - [ ] FIR → Rust emission implemented
