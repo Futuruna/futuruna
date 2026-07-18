@@ -5362,6 +5362,8 @@ impl Interpreter {
             }
             "map" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
+                // TODO(perf): func.clone() per iteration is expensive (clones captured Env).
+                // Fix: wrap closures in Rc so clone is a refcount bump, or borrow via apply_ref.
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
@@ -5375,6 +5377,8 @@ impl Interpreter {
             }
             "filter" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
+                // TODO(perf): same closure cloning issue as map. Also list_to_vec walks
+                // entire Cons chain before filtering — should iterate lazily.
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
@@ -5392,6 +5396,8 @@ impl Interpreter {
                 if is_stream { Value::Stream(filtered) } else { Value::List(filtered) }
             }
             "foldl" => {
+                // TODO(perf): func.clone() and acc clone per iteration.
+                // Rc-wrapping closures would make this near-zero-cost.
                 match (args.get(0), args.get(1), args.get(2)) {
                     (Some(list), Some(init), Some(func)) => {
                         let items = list_to_vec(list);
@@ -5942,11 +5948,19 @@ impl Interpreter {
             "char_at" => match (args.get(0), args.get(1)) {
                 (Some(Value::Str(s)), Some(Value::Int(idx))) => {
                     let idx = *idx as usize;
-                    let chars: Vec<char> = s.chars().collect();
-                    if idx < chars.len() {
-                        Value::Str(chars[idx].to_string())
+                    // O(1) for ASCII strings (the common case for simple Latin text).
+                    // Falls back to O(n) char iteration for multi-byte UTF-8.
+                    if s.is_ascii() {
+                        if idx < s.len() {
+                            Value::Str(String::from(s.as_bytes()[idx] as char))
+                        } else {
+                            Value::Str(String::new())
+                        }
                     } else {
-                        Value::Str(String::new())
+                        match s.chars().nth(idx) {
+                            Some(c) => Value::Str(c.to_string()),
+                            None => Value::Str(String::new()),
+                        }
                     }
                 }
                 _ => Value::Str(String::new()),
