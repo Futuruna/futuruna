@@ -7887,6 +7887,62 @@ impl RustCodegen {
         all_stmts
     }
 
+    /// Pass 2: Compute borrow-only parameter flags for all functions.
+    /// Iterates to fixed point so transitive borrow info propagates.
+    fn compute_borrow_flags(&mut self, fn_stmts: &[&Stmt]) {
+        for _round in 0..8 {
+            let prev_count = self.borrow_only_params.len();
+            for stmt in fn_stmts {
+                if let Stmt::Defn(Defn::Fn { name, params, ret_ty, body, .. }) = stmt {
+                    let mut borrow_flags = analyze_borrow_only_params_named(
+                        params, body, ret_ty.as_ref(), &self.borrow_only_params,
+                        Some(name.as_str()),
+                    );
+                    // Disable ref-match for types with boxed (recursive) fields
+                    {
+                        let mut matched_vars: BTreeSet<String> = BTreeSet::new();
+                        collect_matched_vars(body, &mut matched_vars);
+                        for (idx, p) in params.iter().enumerate() {
+                            if borrow_flags[idx] && matched_vars.contains(&p.name) {
+                                if let Some(ty) = &p.ty {
+                                    let type_name = match ty {
+                                        Ty::App(base, _) => {
+                                            if let Ty::Name(n) = base.as_ref() { Some(n.as_str()) } else { None }
+                                        }
+                                        Ty::Name(n) => Some(n.as_str()),
+                                        _ => None,
+                                    };
+                                    if let Some(tn) = type_name {
+                                        let has_boxed = self.types.variant_boxed_args.iter().any(|(vname, indices)| {
+                                            !indices.is_empty()
+                                                && self.types.variant_parent.get(vname.as_str())
+                                                    .map(|p| {
+                                                        p == tn || self.types.type_rename.get(tn).map(|r| r == p).unwrap_or(false)
+                                                    })
+                                                    .unwrap_or(false)
+                                        });
+                                        if has_boxed {
+                                            borrow_flags[idx] = false;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if borrow_flags.iter().any(|f| *f) {
+                        self.borrow_only_params.insert(name.clone(), borrow_flags);
+                    }
+                    // Also pre-register inout params
+                    let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
+                    if inout_flags.iter().any(|f| *f) {
+                        self.types.inout_params.insert(name.clone(), inout_flags);
+                    }
+                }
+            }
+            if self.borrow_only_params.len() == prev_count { break; }
+        }
+    }
+
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
         let all_stmts = self.scan_declarations(input_stmts);
         let stmts = &all_stmts;
@@ -8047,60 +8103,8 @@ impl RustCodegen {
             }
         }
 
-        // Pre-pass: collect borrow analysis for all functions before emitting any.
-        // This ensures forward references get correct borrow info at call sites.
-        // Run to fixed point (max 3 iterations) so transitive borrow info propagates.
-        for _round in 0..8 {
-            let prev_count = self.borrow_only_params.len();
-            for stmt in &fn_stmts {
-                if let Stmt::Defn(Defn::Fn { name, params, ret_ty, body, .. }) = stmt {
-                    let mut borrow_flags = analyze_borrow_only_params_named(
-                        params, body, ret_ty.as_ref(), &self.borrow_only_params,
-                        Some(name.as_str()),
-                    );
-                    // Disable ref-match for types with boxed (recursive) fields
-                    {
-                        let mut matched_vars: BTreeSet<String> = BTreeSet::new();
-                        collect_matched_vars(body, &mut matched_vars);
-                        for (idx, p) in params.iter().enumerate() {
-                            if borrow_flags[idx] && matched_vars.contains(&p.name) {
-                                if let Some(ty) = &p.ty {
-                                    let type_name = match ty {
-                                        Ty::App(base, _) => {
-                                            if let Ty::Name(n) = base.as_ref() { Some(n.as_str()) } else { None }
-                                        }
-                                        Ty::Name(n) => Some(n.as_str()),
-                                        _ => None,
-                                    };
-                                    if let Some(tn) = type_name {
-                                        let has_boxed = self.types.variant_boxed_args.iter().any(|(vname, indices)| {
-                                            !indices.is_empty()
-                                                && self.types.variant_parent.get(vname.as_str())
-                                                    .map(|p| {
-                                                        p == tn || self.types.type_rename.get(tn).map(|r| r == p).unwrap_or(false)
-                                                    })
-                                                    .unwrap_or(false)
-                                        });
-                                        if has_boxed {
-                                            borrow_flags[idx] = false;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if borrow_flags.iter().any(|f| *f) {
-                        self.borrow_only_params.insert(name.clone(), borrow_flags);
-                    }
-                    // Also pre-register inout params
-                    let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
-                    if inout_flags.iter().any(|f| *f) {
-                        self.types.inout_params.insert(name.clone(), inout_flags);
-                    }
-                }
-            }
-            if self.borrow_only_params.len() == prev_count { break; }
-        }
+        // Pass 2: Borrow analysis (extracted from emit_program)
+        self.compute_borrow_flags(&fn_stmts);
 
         // Emit function definitions and @ rust { } blocks
         for stmt in &fn_stmts {
