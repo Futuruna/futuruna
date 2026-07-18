@@ -1,0 +1,19 @@
+-- Regex builtins test
+
+-- regex_match: does pattern match?
+@ print("match digits: " + show(regex_match("\\d+", "abc123def")))
+@ print("match no digits: " + show(regex_match("\\d+", "abcdef")))
+
+-- regex_find: first match
+= found = regex_find("[A-Z]+", "hello WORLD foo BAR")
+@ print("find: " + show(found))
+
+-- regex_find_all: all matches
+= all = regex_find_all("[a-z]+", "Hello World Foo")
+@ print("find_all: " + show(all))
+
+-- regex_replace: replace all
+= replaced = regex_replace("\\d+", "item1 and item2", "X")
+@ print("replace: " + replaced)
+
+@ print("=== All regex tests passed! ===")

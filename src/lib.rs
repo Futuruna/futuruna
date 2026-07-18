@@ -4902,6 +4902,10 @@ impl Interpreter {
         env.set("sleep".into(), Value::Builtin("sleep".into()));
         env.set("now".into(), Value::Builtin("now".into()));
         env.set("time_diff".into(), Value::Builtin("time_diff".into()));
+        env.set("regex_match".into(), Value::Builtin("regex_match".into()));
+        env.set("regex_find".into(), Value::Builtin("regex_find".into()));
+        env.set("regex_find_all".into(), Value::Builtin("regex_find_all".into()));
+        env.set("regex_replace".into(), Value::Builtin("regex_replace".into()));
         env.set("not".into(), Value::Builtin("not".into()));
         env.set("concat".into(), Value::Builtin("concat".into()));
         env.set("reverse".into(), Value::Builtin("reverse".into()));
@@ -6368,6 +6372,62 @@ impl Interpreter {
                 match (args.first(), args.get(1)) {
                     (Some(Value::Int(a)), Some(Value::Int(b))) => Value::Int(a - b),
                     _ => Value::Int(0),
+                }
+            }
+            "regex_match" => {
+                // regex_match(pattern, text) → Bool
+                match (args.first(), args.get(1)) {
+                    (Some(Value::Str(pattern)), Some(Value::Str(text))) => {
+                        match regex::Regex::new(pattern) {
+                            Ok(re) => Value::Bool(re.is_match(text)),
+                            Err(_) => Value::Bool(false),
+                        }
+                    }
+                    _ => Value::Bool(false),
+                }
+            }
+            "regex_find" => {
+                // regex_find(pattern, text) → Option(String): first match
+                match (args.first(), args.get(1)) {
+                    (Some(Value::Str(pattern)), Some(Value::Str(text))) => {
+                        match regex::Regex::new(pattern) {
+                            Ok(re) => match re.find(text) {
+                                Some(m) => Value::Constructor("Some".into(), vec![Value::Str(m.as_str().to_string())]),
+                                None => Value::Constructor("None".into(), vec![]),
+                            },
+                            Err(_) => Value::Constructor("None".into(), vec![]),
+                        }
+                    }
+                    _ => Value::Constructor("None".into(), vec![]),
+                }
+            }
+            "regex_find_all" => {
+                // regex_find_all(pattern, text) → List(String): all matches
+                match (args.first(), args.get(1)) {
+                    (Some(Value::Str(pattern)), Some(Value::Str(text))) => {
+                        match regex::Regex::new(pattern) {
+                            Ok(re) => {
+                                let matches: Vec<Value> = re.find_iter(text)
+                                    .map(|m| Value::Str(m.as_str().to_string()))
+                                    .collect();
+                                Value::List(matches)
+                            }
+                            Err(_) => Value::List(vec![]),
+                        }
+                    }
+                    _ => Value::List(vec![]),
+                }
+            }
+            "regex_replace" => {
+                // regex_replace(pattern, text, replacement) → String
+                match (args.first(), args.get(1), args.get(2)) {
+                    (Some(Value::Str(pattern)), Some(Value::Str(text)), Some(Value::Str(replacement))) => {
+                        match regex::Regex::new(pattern) {
+                            Ok(re) => Value::Str(re.replace_all(text, replacement.as_str()).to_string()),
+                            Err(_) => Value::Str(text.clone()),
+                        }
+                    }
+                    _ => Value::Str(String::new()),
                 }
             }
             "not" => match args.first() {
@@ -9154,6 +9214,7 @@ impl TypeChecker {
             ("abs", 1),
  ("random_float", 0), ("random_choice", 1), ("shuffle", 1),
             ("sleep", 1), ("now", 0), ("time_diff", 2),
+            ("regex_match", 2), ("regex_find", 2), ("regex_find_all", 2), ("regex_replace", 3),
             ("pair", 2),
             ("triple", 3),
             ("to_float", 1),
