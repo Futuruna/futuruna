@@ -2999,10 +2999,18 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
     for stmt in stmts {
         match stmt {
             Stmt::Defn(Defn::Fn { name, params, ret_ty, body, .. }) => {
+                // Build type environment from function parameters
+                let mut type_env = BTreeMap::new();
+                for p in params {
+                    if let Some(ty) = &p.ty {
+                        type_env.insert(p.name.clone(), LoweringCtx::ty_to_fir(ty));
+                    }
+                }
                 // Compute per-function ownership
                 let param_names: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
                 let ownership = OwnershipAnalysis::analyze(body, borrow_params, Some(name.as_str()), &param_names);
                 let ctx = LoweringCtx {
+                    type_env,
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -3028,7 +3036,7 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
             }
             Stmt::Bind(Pat::Var(name), _, expr) => {
                 let ownership = OwnershipAnalysis::analyze_simple(expr);
-                let ctx = LoweringCtx {
+                let ctx = LoweringCtx { type_env: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -3039,7 +3047,7 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
             }
             Stmt::Expr(expr) => {
                 let ownership = OwnershipAnalysis::analyze_simple(expr);
-                let ctx = LoweringCtx {
+                let ctx = LoweringCtx { type_env: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -3050,7 +3058,7 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
             }
             Stmt::For(var, iter_expr, body) => {
                 let ownership = OwnershipAnalysis::analyze_simple(iter_expr);
-                let ctx = LoweringCtx {
+                let ctx = LoweringCtx { type_env: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -5234,9 +5242,81 @@ struct LoweringCtx<'a> {
     ownership: &'a OwnershipAnalysis,
     copy_vars: &'a BTreeSet<String>,
     ref_match_bindings: &'a BTreeSet<String>,
+    /// Type environment: variable name → resolved FirTy
+    type_env: BTreeMap<String, FirTy>,
 }
 
 impl<'a> LoweringCtx<'a> {
+    /// Convert a Futuruna Ty to a FirTy.
+    fn ty_to_fir(ty: &Ty) -> FirTy {
+        match ty {
+            Ty::Name(n) => match n.as_str() {
+                "Int" => FirTy::Int,
+                "Float" => FirTy::Float,
+                "Bool" => FirTy::Bool,
+                "Char" => FirTy::Char,
+                "String" => FirTy::String,
+                "Unit" | "()" => FirTy::Unit,
+                other => FirTy::Named(other.to_string()),
+            },
+            Ty::App(base, args) => {
+                if let Ty::Name(n) = base.as_ref() {
+                    match n.as_str() {
+                        "List" if args.len() == 1 => FirTy::List(Box::new(Self::ty_to_fir(&args[0]))),
+                        "Option" if args.len() == 1 => FirTy::Option(Box::new(Self::ty_to_fir(&args[0]))),
+                        "Result" if args.len() == 2 => FirTy::Result(Box::new(Self::ty_to_fir(&args[0])), Box::new(Self::ty_to_fir(&args[1]))),
+                        "Map" if args.len() == 2 => FirTy::Map(Box::new(Self::ty_to_fir(&args[0])), Box::new(Self::ty_to_fir(&args[1]))),
+                        "Set" if args.len() == 1 => FirTy::Set(Box::new(Self::ty_to_fir(&args[0]))),
+                        _ => FirTy::Named(n.clone()),
+                    }
+                } else {
+                    FirTy::Unknown
+                }
+            }
+            Ty::Arrow(a, b) => FirTy::Arrow(Box::new(Self::ty_to_fir(a)), Box::new(Self::ty_to_fir(b))),
+            Ty::Optional(inner) => FirTy::Option(Box::new(Self::ty_to_fir(inner))),
+            Ty::Unit => FirTy::Unit,
+            _ => FirTy::Unknown,
+        }
+    }
+
+    /// Infer the type of a literal.
+    fn literal_ty(lit: &Literal) -> FirTy {
+        match lit {
+            Literal::Int(_) => FirTy::Int,
+            Literal::Float(_) => FirTy::Float,
+            Literal::Str(_) => FirTy::String,
+            Literal::Char(_) => FirTy::Char,
+            Literal::Bool(_) => FirTy::Bool,
+        }
+    }
+
+    /// Infer type of a binary operation from its operands.
+    fn binop_ty(op: &str, lhs_ty: &FirTy, rhs_ty: &FirTy) -> FirTy {
+        match op {
+            // Comparison operators always return Bool
+            "==" | "!=" | "<" | ">" | "<=" | ">=" => FirTy::Bool,
+            // Logical operators return Bool
+            "&&" | "||" => FirTy::Bool,
+            // String concatenation
+            "+" if matches!(lhs_ty, FirTy::String) || matches!(rhs_ty, FirTy::String) => FirTy::String,
+            // Arithmetic: prefer Float if either operand is Float
+            "+" | "-" | "*" | "/" | "%" => {
+                if matches!(lhs_ty, FirTy::Float) || matches!(rhs_ty, FirTy::Float) {
+                    FirTy::Float
+                } else {
+                    FirTy::Int
+                }
+            }
+            _ => FirTy::Unknown,
+        }
+    }
+
+    /// Look up a variable's type from the environment.
+    fn var_ty(&self, name: &str) -> FirTy {
+        self.type_env.get(name).cloned().unwrap_or(FirTy::Unknown)
+    }
+
     /// Determine the VarMode for a variable reference.
     fn var_mode(&self, name: &str) -> VarMode {
         // Ref-match binding: dereference
@@ -5259,96 +5339,152 @@ impl<'a> LoweringCtx<'a> {
         VarMode::Move
     }
 
-    /// Lower an AST expression to FIR.
+    /// Lower an AST expression to FIR with type resolution.
     fn lower_expr(&self, expr: &Expr) -> FirExpr {
-        let kind = match &expr.kind {
+        match &expr.kind {
             ExprKind::Var(name) => {
-                // Check if it's a nullary constructor
+                let ty = self.var_ty(name);
                 if self.types.variant_parent.contains_key(name.as_str()) {
-                    // Keep as Var with Move — the emitter handles constructor formatting
-                    FirExprKind::Var(name.clone(), VarMode::Move)
+                    FirExpr { kind: FirExprKind::Var(name.clone(), VarMode::Move), span: expr.span, ty }
                 } else {
-                    FirExprKind::Var(name.clone(), self.var_mode(name))
+                    FirExpr { kind: FirExprKind::Var(name.clone(), self.var_mode(name)), span: expr.span, ty }
                 }
             }
-            ExprKind::Lit(lit) => FirExprKind::Lit(lit.clone()),
+            ExprKind::Lit(lit) => {
+                let ty = Self::literal_ty(lit);
+                FirExpr { kind: FirExprKind::Lit(lit.clone()), span: expr.span, ty }
+            }
             ExprKind::App(func, args) => {
-                FirExprKind::App(
-                    Box::new(self.lower_expr(func)),
-                    args.iter().map(|a| self.lower_expr(a)).collect(),
-                )
+                let fir_func = self.lower_expr(func);
+                let fir_args: Vec<FirExpr> = args.iter().map(|a| self.lower_expr(a)).collect();
+                // Infer return type from function's type (if Arrow)
+                let ty = match &fir_func.ty {
+                    FirTy::Arrow(_, ret) => *ret.clone(),
+                    _ => FirTy::Unknown,
+                };
+                FirExpr {
+                    kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                    span: expr.span, ty,
+                }
             }
             ExprKind::Lambda(params, body) => {
-                FirExprKind::Lambda(params.clone(), Box::new(self.lower_expr(body)))
+                let fir_body = self.lower_expr(body);
+                let body_ty = fir_body.ty.clone();
+                FirExpr {
+                    kind: FirExprKind::Lambda(params.clone(), Box::new(fir_body)),
+                    span: expr.span, ty: body_ty,
+                }
             }
             ExprKind::BinOp(op, lhs, rhs) => {
-                FirExprKind::BinOp(
-                    op.clone(),
-                    Box::new(self.lower_expr(lhs)),
-                    Box::new(self.lower_expr(rhs)),
-                )
+                let fir_lhs = self.lower_expr(lhs);
+                let fir_rhs = self.lower_expr(rhs);
+                let ty = Self::binop_ty(op, &fir_lhs.ty, &fir_rhs.ty);
+                FirExpr {
+                    kind: FirExprKind::BinOp(op.clone(), Box::new(fir_lhs), Box::new(fir_rhs)),
+                    span: expr.span, ty,
+                }
             }
             ExprKind::UnOp(op, inner) => {
-                FirExprKind::UnOp(op.clone(), Box::new(self.lower_expr(inner)))
+                let fir_inner = self.lower_expr(inner);
+                let ty = if op == "!" { FirTy::Bool } else { fir_inner.ty.clone() };
+                FirExpr { kind: FirExprKind::UnOp(op.clone(), Box::new(fir_inner)), span: expr.span, ty }
             }
             ExprKind::If(cond, then_, else_) => {
-                FirExprKind::If(
-                    Box::new(self.lower_expr(cond)),
-                    Box::new(self.lower_expr(then_)),
-                    Box::new(self.lower_expr(else_)),
-                )
+                let fir_cond = self.lower_expr(cond);
+                let fir_then = self.lower_expr(then_);
+                let fir_else = self.lower_expr(else_);
+                let ty = fir_then.ty.clone(); // if/else branches should have same type
+                FirExpr {
+                    kind: FirExprKind::If(Box::new(fir_cond), Box::new(fir_then), Box::new(fir_else)),
+                    span: expr.span, ty,
+                }
             }
             ExprKind::Match(scrutinee, arms) => {
-                FirExprKind::Match(
-                    Box::new(self.lower_expr(scrutinee)),
-                    arms.iter().map(|a| FirMatchArm {
-                        pat: a.pat.clone(),
-                        guard: a.guard.as_ref().map(|g| self.lower_expr(g)),
-                        body: self.lower_expr(&a.body),
-                    }).collect(),
-                )
+                let fir_scrutinee = self.lower_expr(scrutinee);
+                let fir_arms: Vec<FirMatchArm> = arms.iter().map(|a| FirMatchArm {
+                    pat: a.pat.clone(),
+                    guard: a.guard.as_ref().map(|g| self.lower_expr(g)),
+                    body: self.lower_expr(&a.body),
+                }).collect();
+                let ty = fir_arms.first().map(|a| a.body.ty.clone()).unwrap_or(FirTy::Unknown);
+                FirExpr {
+                    kind: FirExprKind::Match(Box::new(fir_scrutinee), fir_arms),
+                    span: expr.span, ty,
+                }
             }
             ExprKind::Block(stmts) => {
-                FirExprKind::Block(stmts.iter().map(|s| self.lower_stmt(s)).collect())
+                let fir_stmts: Vec<FirStmt> = stmts.iter().map(|s| self.lower_stmt(s)).collect();
+                // Block type = type of last expression statement
+                let ty = fir_stmts.last().and_then(|s| match s {
+                    FirStmt::Expr(e) => Some(e.ty.clone()),
+                    _ => None,
+                }).unwrap_or(FirTy::Unit);
+                FirExpr { kind: FirExprKind::Block(fir_stmts), span: expr.span, ty }
             }
             ExprKind::Field(obj, field) => {
-                FirExprKind::Field(Box::new(self.lower_expr(obj)), field.clone())
+                let fir_obj = self.lower_expr(obj);
+                FirExpr { kind: FirExprKind::Field(Box::new(fir_obj), field.clone()), span: expr.span, ty: FirTy::Unknown }
             }
             ExprKind::Index(base, idx) => {
-                FirExprKind::Index(Box::new(self.lower_expr(base)), Box::new(self.lower_expr(idx)))
+                let fir_base = self.lower_expr(base);
+                let ty = match &fir_base.ty {
+                    FirTy::List(elem) => *elem.clone(),
+                    _ => FirTy::Unknown,
+                };
+                FirExpr { kind: FirExprKind::Index(Box::new(fir_base), Box::new(self.lower_expr(idx))), span: expr.span, ty }
             }
             ExprKind::List(elems) => {
-                FirExprKind::List(elems.iter().map(|e| self.lower_expr(e)).collect())
+                let fir_elems: Vec<FirExpr> = elems.iter().map(|e| self.lower_expr(e)).collect();
+                let elem_ty = fir_elems.first().map(|e| e.ty.clone()).unwrap_or(FirTy::Unknown);
+                FirExpr { kind: FirExprKind::List(fir_elems), span: expr.span, ty: FirTy::List(Box::new(elem_ty)) }
             }
             ExprKind::Tuple(elems) => {
-                FirExprKind::Tuple(elems.iter().map(|e| self.lower_expr(e)).collect())
+                let fir_elems: Vec<FirExpr> = elems.iter().map(|e| self.lower_expr(e)).collect();
+                let tys: Vec<FirTy> = fir_elems.iter().map(|e| e.ty.clone()).collect();
+                FirExpr { kind: FirExprKind::Tuple(fir_elems), span: expr.span, ty: FirTy::Tuple(tys) }
             }
             ExprKind::Effect(name, args) => {
-                FirExprKind::Effect(name.clone(), args.iter().map(|a| self.lower_expr(a)).collect())
+                let fir_args: Vec<FirExpr> = args.iter().map(|a| self.lower_expr(a)).collect();
+                FirExpr { kind: FirExprKind::Effect(name.clone(), fir_args), span: expr.span, ty: FirTy::Unit }
             }
             ExprKind::Handle { effect, handlers, body } => {
-                FirExprKind::Handle {
-                    effect: effect.clone(),
-                    handlers: handlers.iter().map(|h| FirEffHandler {
-                        op_name: h.op_name.clone(),
-                        params: h.params.clone(),
-                        body: self.lower_expr(&h.body),
-                    }).collect(),
-                    body: Box::new(self.lower_expr(body)),
+                let fir_body = self.lower_expr(body);
+                let ty = fir_body.ty.clone();
+                FirExpr {
+                    kind: FirExprKind::Handle {
+                        effect: effect.clone(),
+                        handlers: handlers.iter().map(|h| FirEffHandler {
+                            op_name: h.op_name.clone(),
+                            params: h.params.clone(),
+                            body: self.lower_expr(&h.body),
+                        }).collect(),
+                        body: Box::new(fir_body),
+                    },
+                    span: expr.span, ty,
                 }
             }
             ExprKind::Try(inner) => {
-                FirExprKind::Try(Box::new(self.lower_expr(inner)))
+                let fir_inner = self.lower_expr(inner);
+                // Try unwraps Result/Option → inner type
+                let ty = match &fir_inner.ty {
+                    FirTy::Option(inner) => *inner.clone(),
+                    FirTy::Result(ok, _) => *ok.clone(),
+                    other => other.clone(),
+                };
+                FirExpr { kind: FirExprKind::Try(Box::new(fir_inner)), span: expr.span, ty }
             }
             ExprKind::Conjunction(goals) => {
-                FirExprKind::Conjunction(goals.iter().map(|g| self.lower_expr(g)).collect())
+                let fir_goals: Vec<FirExpr> = goals.iter().map(|g| self.lower_expr(g)).collect();
+                FirExpr { kind: FirExprKind::Conjunction(fir_goals), span: expr.span, ty: FirTy::Bool }
             }
             ExprKind::Pipe(lhs, rhs) => {
-                FirExprKind::Pipe(Box::new(self.lower_expr(lhs)), Box::new(self.lower_expr(rhs)))
+                let fir_lhs = self.lower_expr(lhs);
+                let fir_rhs = self.lower_expr(rhs);
+                let ty = fir_rhs.ty.clone(); // pipe result type = transform result type
+                FirExpr { kind: FirExprKind::Pipe(Box::new(fir_lhs), Box::new(fir_rhs)), span: expr.span, ty }
             }
-            ExprKind::Unit => FirExprKind::Unit,
-        };
-        FirExpr { kind, span: expr.span, ty: FirTy::Unknown }
+            ExprKind::Unit => FirExpr { kind: FirExprKind::Unit, span: expr.span, ty: FirTy::Unit },
+        }
     }
 
     /// Lower an AST statement to FIR.
@@ -14028,7 +14164,7 @@ mod tests {
             consuming_uses: BTreeMap::new(),
         };
 
-        let ctx = LoweringCtx {
+        let ctx = LoweringCtx { type_env: BTreeMap::new(),
             types: &types,
             ownership: &ownership,
             copy_vars: &copy_vars,
@@ -14092,7 +14228,7 @@ mod tests {
         if let Stmt::Bind(_, _, ref expr) = stmts[1] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
 
-            let ctx = LoweringCtx {
+            let ctx = LoweringCtx { type_env: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14133,7 +14269,7 @@ mod tests {
             assert_eq!(ownership.consuming_uses.get("a").copied().unwrap_or(0), 0,
                 "BinOp operands should not count as consuming uses");
 
-            let ctx = LoweringCtx {
+            let ctx = LoweringCtx { type_env: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14163,7 +14299,7 @@ mod tests {
 
         if let Stmt::Bind(_, _, ref expr) = stmts[0] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
-            let ctx = LoweringCtx {
+            let ctx = LoweringCtx { type_env: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14340,7 +14476,7 @@ mod tests {
 
         if let Stmt::Bind(_, _, ref expr) = stmts[0] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
-            let ctx = LoweringCtx {
+            let ctx = LoweringCtx { type_env: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14489,7 +14625,7 @@ mod tests {
         // The bind expression is stmts[1]: = result = use_both(name, name)
         if let Stmt::Bind(_, _, ref expr) = stmts[1] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
-            let ctx = LoweringCtx {
+            let ctx = LoweringCtx { type_env: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &BTreeSet::new(),
@@ -14499,5 +14635,120 @@ mod tests {
             let rust = emit_fir_expr(&fir, &types);
             assert!(rust.contains(".clone()"), "multi-use non-Copy should clone:\n{}", rust);
         }
+    }
+
+    // ── Type resolution tests ───────────────────────────────────────
+
+    /// Helper: lower an expression with a type environment and return FirExpr
+    fn lower_with_types(source: &str, type_env: BTreeMap<String, FirTy>) -> FirExpr {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+        let types = TypeRegistry::new();
+        if let Stmt::Bind(_, _, ref expr) = stmts[0] {
+            let ownership = OwnershipAnalysis::analyze_simple(expr);
+            let ctx = LoweringCtx {
+                type_env,
+                types: &types,
+                ownership: &ownership,
+                copy_vars: &BTreeSet::new(),
+                ref_match_bindings: &BTreeSet::new(),
+            };
+            ctx.lower_expr(expr)
+        } else {
+            panic!("expected Bind");
+        }
+    }
+
+    #[test]
+    fn type_resolution_int_literal() {
+        let fir = lower_with_types("= x = 42", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::Int);
+    }
+
+    #[test]
+    fn type_resolution_float_literal() {
+        let fir = lower_with_types("= x = 3.14", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::Float);
+    }
+
+    #[test]
+    fn type_resolution_string_literal() {
+        let fir = lower_with_types("= x = \"hello\"", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::String);
+    }
+
+    #[test]
+    fn type_resolution_bool_literal() {
+        let fir = lower_with_types("= x = True", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::Bool);
+    }
+
+    #[test]
+    fn type_resolution_int_binop() {
+        let fir = lower_with_types("= x = 1 + 2", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::Int, "Int + Int should be Int");
+    }
+
+    #[test]
+    fn type_resolution_comparison() {
+        let fir = lower_with_types("= x = 1 > 2", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::Bool, "comparison should be Bool");
+    }
+
+    #[test]
+    fn type_resolution_float_arithmetic() {
+        let mut env = BTreeMap::new();
+        env.insert("a".into(), FirTy::Float);
+        env.insert("b".into(), FirTy::Float);
+        let fir = lower_with_types("= x = a + b", env);
+        assert_eq!(fir.ty, FirTy::Float, "Float + Float should be Float");
+    }
+
+    #[test]
+    fn type_resolution_string_concat() {
+        let mut env = BTreeMap::new();
+        env.insert("a".into(), FirTy::String);
+        env.insert("b".into(), FirTy::String);
+        let fir = lower_with_types("= x = a + b", env);
+        assert_eq!(fir.ty, FirTy::String, "String + String should be String");
+    }
+
+    #[test]
+    fn type_resolution_var_from_env() {
+        let mut env = BTreeMap::new();
+        env.insert("myvar".into(), FirTy::Int);
+        let fir = lower_with_types("= x = myvar", env);
+        assert_eq!(fir.ty, FirTy::Int, "var should resolve from type env");
+    }
+
+    #[test]
+    fn type_resolution_list_literal() {
+        let fir = lower_with_types("= x = [1, 2, 3]", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::List(Box::new(FirTy::Int)));
+    }
+
+    #[test]
+    fn type_resolution_if_takes_branch_type() {
+        let fir = lower_with_types("= x = if True { 42 } else { 0 }", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::Int, "if/else type should be branch type");
+    }
+
+    #[test]
+    fn type_resolution_unit() {
+        let fir = lower_with_types("= x = ()", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::Unit);
+    }
+
+    #[test]
+    fn ty_to_fir_conversion() {
+        assert_eq!(LoweringCtx::ty_to_fir(&Ty::Name("Int".into())), FirTy::Int);
+        assert_eq!(LoweringCtx::ty_to_fir(&Ty::Name("String".into())), FirTy::String);
+        assert_eq!(LoweringCtx::ty_to_fir(&Ty::Unit), FirTy::Unit);
+        assert_eq!(
+            LoweringCtx::ty_to_fir(&Ty::App(Box::new(Ty::Name("List".into())), vec![Ty::Name("Int".into())])),
+            FirTy::List(Box::new(FirTy::Int))
+        );
     }
 }
