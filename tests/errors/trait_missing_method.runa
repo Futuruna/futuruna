@@ -1,0 +1,5 @@
+-- expect-error: missing method
+# trait Printable { > display(self) -> String > size(self) -> Int }
+# impl Printable for String {
+    > display(s) -> String { s }
+}

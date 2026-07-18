@@ -8076,6 +8076,10 @@ pub struct TypeChecker {
     pub builtins: BTreeMap<String, usize>,
     /// effect name -> set of operation names with arity
     pub effect_ops: BTreeMap<String, BTreeMap<String, usize>>,
+    /// trait name -> required method names
+    pub trait_methods: BTreeMap<String, Vec<String>>,
+    /// (trait_name, for_type) -> provided method names
+    pub impl_methods: BTreeMap<(String, String), Vec<String>>,
     /// structured diagnostics accumulated during checking
     pub diagnostics: Vec<Diagnostic>,
     /// current variable scope stack
@@ -8101,6 +8105,8 @@ impl TypeChecker {
             type_variants: BTreeMap::new(),
             builtins: BTreeMap::new(),
             effect_ops: BTreeMap::new(),
+            trait_methods: BTreeMap::new(),
+            impl_methods: BTreeMap::new(),
             diagnostics: Vec::new(),
             scopes: vec![BTreeSet::new()],
             user_functions: BTreeSet::new(),
@@ -8407,16 +8413,22 @@ impl TypeChecker {
                 }
                 Stmt::TypeDecl(TypeDecl::TraitDecl { name, methods, .. }) => {
                     self.types.insert(name.clone());
+                    let mut method_names = Vec::new();
                     for method in methods {
                         self.functions.insert(method.name.clone(), method.params.len());
+                        method_names.push(method.name.clone());
                     }
+                    self.trait_methods.insert(name.clone(), method_names);
                 }
-                Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                Stmt::TypeDecl(TypeDecl::ImplBlock { trait_name, for_type, methods }) => {
+                    let mut method_names = Vec::new();
                     for defn in methods {
                         if let Defn::Fn { name, params, .. } = defn {
                             self.functions.insert(name.clone(), params.len());
+                            method_names.push(name.clone());
                         }
                     }
+                    self.impl_methods.insert((trait_name.clone(), for_type.clone()), method_names);
                 }
                 Stmt::Bind(Pat::Var(name), _, _) => {
                     self.define_var(name);
@@ -8486,6 +8498,32 @@ impl TypeChecker {
     pub fn check_program(&mut self, stmts: &[Stmt]) {
         for stmt in stmts {
             self.check_stmt(stmt);
+        }
+        // Check trait impl completeness
+        self.check_trait_impls();
+    }
+
+    /// Verify each `# impl Trait for Type` provides all required methods.
+    fn check_trait_impls(&mut self) {
+        let mut errors = Vec::new();
+        for ((trait_name, for_type), provided) in &self.impl_methods {
+            if let Some(required) = self.trait_methods.get(trait_name) {
+                let missing: Vec<&String> = required.iter()
+                    .filter(|m| !provided.iter().any(|p| p == *m))
+                    .collect();
+                if !missing.is_empty() {
+                    let missing_names: Vec<&str> = missing.iter().map(|s| s.as_str()).collect();
+                    errors.push(format!(
+                        "`# impl {} for {}` is missing method{}: {}",
+                        trait_name, for_type,
+                        if missing.len() == 1 { "" } else { "s" },
+                        missing_names.join(", ")
+                    ));
+                }
+            }
+        }
+        for err in errors {
+            self.error(err);
         }
     }
 
@@ -9223,6 +9261,25 @@ mod tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse should succeed");
         TypeChecker::check_with_diagnostics(&stmts, None, source)
+    }
+
+    // ── Trait checking tests ─────────────────────────────────────────
+
+    #[test]
+    fn trait_complete_impl_no_error() {
+        let source = "# trait Greetable { > greet(self) -> String }\n# impl Greetable for String { > greet(s) -> String { s } }";
+        let diags = check_source_for_diagnostics(source);
+        let trait_errors: Vec<_> = diags.iter().filter(|d| d.message.contains("missing method")).collect();
+        assert!(trait_errors.is_empty(), "complete impl should have no errors, got: {:?}", trait_errors);
+    }
+
+    #[test]
+    fn trait_missing_method_produces_error() {
+        let source = "# trait Displayable { > display(self) -> String > size(self) -> Int }\n# impl Displayable for String { > display(s) -> String { s } }";
+        let diags = check_source_for_diagnostics(source);
+        let trait_errors: Vec<_> = diags.iter().filter(|d| d.message.contains("missing method")).collect();
+        assert!(!trait_errors.is_empty(), "incomplete impl should produce error");
+        assert!(trait_errors[0].message.contains("size"), "error should mention missing 'size'");
     }
 
     /// Helper: parse source and return the first expression from a binding

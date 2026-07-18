@@ -2,7 +2,7 @@
 
 **Tagline:** "Types flow through the program."
 
-**Status:** In progress.
+**Status:** Complete.
 
 ## Goal
 
@@ -37,9 +37,11 @@ unification. Walk FIR and substitute resolved type variables.
 
 ## Checklist
 
-- [ ] FirTy::Var(usize) type variables
-- [ ] TypeInference struct with fresh_var(), unify(), resolve()
-- [ ] Occurs check prevents infinite types
-- [ ] Constraint generation during lowering
-- [ ] Substitution pass after solving
-- [ ] Tests for inference on unannotated params
+- [x] FirTy::Var(usize) type variables
+- [x] TypeInference with fresh(), unify(), resolve(), substitute_expr()
+- [x] Occurs check prevents infinite types
+- [x] Constraint generation: BinOp operands, comparisons, logical ops
+- [x] Substitution pass resolves all vars in FIR tree
+- [x] Let-generalization: polymorphic functions via TypeScheme
+- [x] Call-site instantiation with fresh vars + unification
+- [x] 15 inference/unification tests
