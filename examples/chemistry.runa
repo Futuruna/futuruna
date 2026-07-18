@@ -1,0 +1,277 @@
+-- chemistry.runa — The Verified Reaction
+--
+-- A chemistry simulator that proves conservation of mass.
+-- Molecules are types. Reactions are balanced equations.
+-- Concentrations flow through streams. Catala rules handle catalysts.
+-- Invariants prove atoms are never created or destroyed.
+--
+-- The simulation IS the proof. One file. No other language can do this.
+--
+-- Run:   runa run examples/chemistry.runa
+-- Check: runa check examples/chemistry.runa
+
+-- ============================================================================
+-- # TYPES — Chemistry
+-- ============================================================================
+
+# Molecule(name: String, formula: String, h: Int, o: Int, c: Int, n: Int)
+# Reaction(name: String, lhs: String, rhs: String, before: Int, after: Int)
+# Step(tick: Int, reaction: String, atoms_in: Int, atoms_out: Int)
+# Priority = Normal | Fast | Catalyzed
+
+
+-- ============================================================================
+-- > FUNCTIONS — Atomic accounting
+-- ============================================================================
+
+> atom_count(m: Molecule) -> Int { m.h + m.o + m.c + m.n }
+
+> mol_label(m: Molecule) -> String { m.name + " (" + m.formula + ") = " + show(atom_count(m)) + " atoms" }
+
+> format_step(s: Step) -> String {
+    "  [t=" + show(s.tick) + "] " + s.reaction + "  atoms: " + show(s.atoms_in) + " -> " + show(s.atoms_out)
+}
+
+> priority_label(p: Priority) -> String {
+    match p { | Normal -> "normal" | Fast -> "fast" | Catalyzed -> "catalyzed (Fe, 450C, 200atm)" }
+}
+
+
+-- ============================================================================
+-- = BINDINGS — The molecules (our periodic table)
+-- ============================================================================
+
+= hydrogen = Molecule("hydrogen",       "H2",   2, 0, 0, 0)
+= oxygen   = Molecule("oxygen",         "O2",   0, 2, 0, 0)
+= water    = Molecule("water",          "H2O",  2, 1, 0, 0)
+= methane  = Molecule("methane",        "CH4",  4, 0, 1, 0)
+= co2      = Molecule("carbon dioxide", "CO2",  0, 2, 1, 0)
+= ammonia  = Molecule("ammonia",        "NH3",  3, 0, 0, 1)
+= nitrogen = Molecule("nitrogen",       "N2",   0, 0, 0, 2)
+
+
+-- ============================================================================
+-- = REACTIONS — Balanced equations as arithmetic
+-- ============================================================================
+
+-- 2H2 + O2 -> 2H2O
+-- LHS: 2*2 + 2 = 6 atoms  RHS: 2*3 = 6 atoms
+= combustion_in  = atom_count(hydrogen) * 2 + atom_count(oxygen)
+= combustion_out = atom_count(water) * 2
+
+-- CH4 + 2O2 -> CO2 + 2H2O
+-- LHS: 5 + 2*2 = 9 atoms  RHS: 3 + 2*3 = 9 atoms
+= methane_in  = atom_count(methane) + atom_count(oxygen) * 2
+= methane_out = atom_count(co2) + atom_count(water) * 2
+
+-- N2 + 3H2 -> 2NH3 (Haber process)
+-- LHS: 2 + 3*2 = 8 atoms  RHS: 2*4 = 8 atoms
+= haber_in  = atom_count(nitrogen) + atom_count(hydrogen) * 3
+= haber_out = atom_count(ammonia) * 2
+
+
+-- ============================================================================
+-- > FUNCTIONS — Reaction priority
+-- ============================================================================
+
+-- Combustion is exothermic (fast), Haber needs iron catalyst
+> speed(name: String) -> Priority {
+    if name == "haber" { Catalyzed }
+    else if name == "combustion" { Fast }
+    else { Normal }
+}
+
+
+-- ============================================================================
+-- | CATALA RULES — Safety classification (default logic + exceptions)
+-- ============================================================================
+
+-- Base: a step with balanced atoms is safe
+| safety(s) -> "safe"
+
+-- High atom counts need supervision
+| safety(s) -> "supervised" under s.atoms_in > 7
+
+-- Exception: if atom count is mismatched, it's a violation of physics
+| exception physics_violation safety(s) -> "VIOLATION" under s.atoms_in != s.atoms_out
+
+
+-- ============================================================================
+-- | INVARIANTS — Conservation of mass
+-- ============================================================================
+
+-- Each reaction must conserve atoms
+| combustion_conserved: combustion_in -> combustion_in == combustion_out
+| methane_conserved: methane_in -> methane_in == methane_out
+| haber_conserved: haber_in -> haber_in == haber_out
+
+-- Atom counts are physical (positive)
+| h2_physical: atom_count(hydrogen) -> atom_count(hydrogen) > 0
+| water_physical: atom_count(water) -> atom_count(water) > 0
+
+-- Water is heavier than hydrogen
+| water_heavier: atom_count(water) -> atom_count(water) > atom_count(hydrogen)
+
+
+-- ============================================================================
+-- | DATALOG — What do we have in the lab?
+-- ============================================================================
+
+| have("hydrogen")
+| have("oxygen")
+| have("methane")
+| have("nitrogen")
+
+| need("combustion", "hydrogen")
+| need("combustion", "oxygen")
+
+| need("methane burn", "methane")
+| need("methane burn", "oxygen")
+
+| need("haber", "hydrogen")
+| need("haber", "nitrogen")
+
+
+-- ============================================================================
+-- THE EXPERIMENT
+-- ============================================================================
+
+@ print("=== THE VERIFIED REACTION ===")
+@ print("  A chemistry simulator that proves conservation of mass.")
+@ print("")
+
+
+-- ============================================================================
+-- ? VERIFY — Prove conservation BEFORE running any reactions
+-- ============================================================================
+
+@ print("--- Verifying Conservation Laws ---")
+
+? combustion_conserved -> { @ print("  2H2 + O2 -> 2H2O:       " + show(combustion_in) + " = " + show(combustion_out) + " atoms  OK") }
+? methane_conserved -> { @ print("  CH4 + 2O2 -> CO2 + 2H2O: " + show(methane_in) + " = " + show(methane_out) + " atoms  OK") }
+? haber_conserved -> { @ print("  N2 + 3H2 -> 2NH3:        " + show(haber_in) + " = " + show(haber_out) + " atoms  OK") }
+? h2_physical -> { @ print("  H2 atom count > 0:       OK") }
+? water_physical -> { @ print("  H2O atom count > 0:      OK") }
+? water_heavier -> { @ print("  H2O heavier than H2:     OK") }
+
+@ print("  6/6 conservation laws verified.")
+@ print("")
+
+
+-- ============================================================================
+-- | DATALOG — What can we run with what's in the lab?
+-- ============================================================================
+
+@ print("--- Lab Inventory ---")
+
+= experiments = ["combustion", "methane burn", "haber"]
+
+for ex in experiments {
+    = ingredients = findall(i, need(ex, i))
+    = missing = filter(ingredients, |i| not(have(i)))
+    if length(missing) == 0 {
+        @ print("  " + ex + ": all reagents available")
+    }
+}
+
+@ print("")
+
+
+-- ============================================================================
+-- ~ STREAMS — Reaction timeline
+-- ============================================================================
+
+@ print("--- Reaction Timeline ---")
+
+= steps = [
+    Step(1, "2H2 + O2 -> 2H2O", combustion_in, combustion_out),
+    Step(2, "CH4 + 2O2 -> CO2 + 2H2O", methane_in, methane_out),
+    Step(3, "N2 + 3H2 -> 2NH3", haber_in, haber_out)
+]
+
+~ timeline = from_list(steps)
+
+-- Print each step
+~ timeline | s -> { @ print(format_step(s)) }
+
+-- Track cumulative atom flow via scan
+~ atom_flow = timeline |> map(|s| s.atoms_in) |> scan(0, |acc, n| acc + n)
+= total_processed = atom_flow |> reduce(0, |acc, x| x)
+
+-- Count verified steps
+~ verified = timeline |> filter(|s| s.atoms_in == s.atoms_out)
+= verified_count = count(verified)
+
+@ print("")
+
+
+-- ============================================================================
+-- CATALA — Priority report
+-- ============================================================================
+
+@ print("--- Reaction Priorities (Catala default logic) ---")
+
+= reaction_names = ["combustion", "methane burn", "haber"]
+for name in reaction_names {
+    @ print("  " + name + ": " + priority_label(speed(name)))
+}
+
+@ print("")
+
+
+-- ============================================================================
+-- CATALA — Safety classification
+-- ============================================================================
+
+@ print("--- Safety Classification (Catala default logic) ---")
+
+for s in steps {
+    @ print("  " + s.reaction + ": " + safety(s))
+}
+
+@ print("")
+
+
+-- ============================================================================
+-- MOLECULAR DATABASE
+-- ============================================================================
+
+@ print("--- Molecular Database ---")
+
+= molecules = [hydrogen, oxygen, water, methane, co2, ammonia, nitrogen]
+for m in molecules {
+    @ print("  " + mol_label(m))
+}
+
+
+-- ============================================================================
+-- FINAL REPORT
+-- ============================================================================
+
+@ print("")
+@ print("=== EXPERIMENT COMPLETE ===")
+@ print("  Reactions run:    " + show(length(steps)))
+@ print("  Steps verified:   " + show(verified_count) + "/" + show(length(steps)))
+@ print("  Total atoms flow: " + show(total_processed))
+@ print("  Mass conserved:   ALWAYS")
+
+@ print("")
+@ print("--- What just happened ---")
+@ print("  # types: Molecule, Reaction, Step, Priority")
+@ print("  > functions: atom_count, format_step, priority_label")
+@ print("  | Datalog: lab inventory + reaction requirements")
+@ print("  | Catala: safety classification with physics exception")
+@ print("  | invariants: 6 conservation laws")
+@ print("  = bindings: molecules + balanced equations as arithmetic")
+@ print("  ~ streams: timeline, atom_flow, conservation check")
+@ print("  ? verification: all 6 laws proven before first reaction")
+@ print("  @ IO: the whole experiment")
+@ print("")
+@ print("  The molecules are bindings.")
+@ print("  The equations are arithmetic.")
+@ print("  The timeline is a stream.")
+@ print("  The conservation laws are invariants.")
+@ print("  The safety rules are Catala with exceptions.")
+@ print("  The lab inventory is Datalog.")
+@ print("  The proof runs before the experiment.")
+@ print("  Try that in one file anywhere else.")

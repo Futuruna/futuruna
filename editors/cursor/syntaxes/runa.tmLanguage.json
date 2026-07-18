@@ -1,0 +1,341 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Futuruna",
+  "scopeName": "source.runa",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#rust-escape" },
+    { "include": "#annotations" },
+    { "include": "#type-definitions" },
+    { "include": "#function-definitions" },
+    { "include": "#stream-bindings" },
+    { "include": "#let-bindings" },
+    { "include": "#match-arms" },
+    { "include": "#keywords" },
+    { "include": "#pipe-operator" },
+    { "include": "#arrow-operators" },
+    { "include": "#query-operator" },
+    { "include": "#comparison-operators" },
+    { "include": "#logical-operators" },
+    { "include": "#arithmetic-operators" },
+    { "include": "#type-names" },
+    { "include": "#constructor-names" },
+    { "include": "#numbers" },
+    { "include": "#booleans" },
+    { "include": "#function-calls" },
+    { "include": "#variables" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-dash.runa",
+          "match": "--.*$"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.runa",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.runa",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "rust-escape": {
+      "patterns": [
+        {
+          "comment": "@ rust { ... } escape hatch — embedded Rust",
+          "begin": "(@)\\s+(rust)\\s*\\{",
+          "beginCaptures": {
+            "1": { "name": "keyword.operator.annotation.runa" },
+            "2": { "name": "keyword.other.rust-escape.runa" }
+          },
+          "end": "\\}",
+          "name": "meta.embedded.rust.runa",
+          "contentName": "source.rust",
+          "patterns": [
+            { "include": "source.rust" }
+          ]
+        }
+      ]
+    },
+    "annotations": {
+      "patterns": [
+        {
+          "comment": "@ import, @ depend, @ use, @ comptime",
+          "match": "(@)\\s+(import|depend|use|comptime)\\b",
+          "captures": {
+            "1": { "name": "keyword.operator.annotation.runa" },
+            "2": { "name": "keyword.control.annotation.runa" }
+          }
+        },
+        {
+          "comment": "@ print(...) — effect action",
+          "match": "(@)\\s+(print)\\s*\\(",
+          "captures": {
+            "1": { "name": "keyword.operator.annotation.runa" },
+            "2": { "name": "keyword.control.annotation.runa" }
+          }
+        },
+        {
+          "comment": "Bare @ followed by identifier",
+          "match": "(@)\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.operator.annotation.runa" },
+            "2": { "name": "keyword.control.annotation.runa" }
+          }
+        }
+      ]
+    },
+    "type-definitions": {
+      "patterns": [
+        {
+          "comment": "# effect Name, # trait Name, # sealed Name",
+          "match": "(#)\\s+(effect|trait|sealed)\\s+([A-Z]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.operator.type.runa" },
+            "2": { "name": "storage.modifier.runa" },
+            "3": { "name": "entity.name.type.runa" }
+          }
+        },
+        {
+          "comment": "# TypeName — ADT / struct definition",
+          "match": "(#)\\s+([A-Z]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.operator.type.runa" },
+            "2": { "name": "entity.name.type.runa" }
+          }
+        }
+      ]
+    },
+    "function-definitions": {
+      "patterns": [
+        {
+          "comment": "> actor name(...)",
+          "match": "(>)\\s+(actor)\\s+(\\w+)",
+          "captures": {
+            "1": { "name": "keyword.operator.definition.runa" },
+            "2": { "name": "storage.modifier.actor.runa" },
+            "3": { "name": "entity.name.function.runa" }
+          }
+        },
+        {
+          "comment": "> functionName(...) -> RetType { ... }",
+          "match": "(>)\\s+(\\w+)\\s*\\(",
+          "captures": {
+            "1": { "name": "keyword.operator.definition.runa" },
+            "2": { "name": "entity.name.function.runa" }
+          }
+        }
+      ]
+    },
+    "stream-bindings": {
+      "patterns": [
+        {
+          "comment": "~ name = expr (stream binding)",
+          "match": "(~)\\s+(\\w+)\\s*=",
+          "captures": {
+            "1": { "name": "keyword.operator.stream.runa" },
+            "2": { "name": "variable.other.stream.runa" }
+          }
+        }
+      ]
+    },
+    "let-bindings": {
+      "patterns": [
+        {
+          "comment": "= name <- expr (monadic bind)",
+          "match": "(=)\\s+(\\w+)\\s+(<-)",
+          "captures": {
+            "1": { "name": "keyword.operator.binding.runa" },
+            "2": { "name": "variable.other.binding.runa" },
+            "3": { "name": "keyword.operator.monadic-bind.runa" }
+          }
+        },
+        {
+          "comment": "= name = expr (let binding)",
+          "match": "(=)\\s+(\\w+)\\s*=",
+          "captures": {
+            "1": { "name": "keyword.operator.binding.runa" },
+            "2": { "name": "variable.other.binding.runa" }
+          }
+        }
+      ]
+    },
+    "match-arms": {
+      "patterns": [
+        {
+          "comment": "| handle Effect { ... } in",
+          "match": "(\\|)\\s+(handle)\\s+([A-Z]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.operator.match.runa" },
+            "2": { "name": "keyword.control.handle.runa" },
+            "3": { "name": "entity.name.type.runa" }
+          }
+        },
+        {
+          "comment": "| ConstructorName(...) -> ... (match arm with constructor)",
+          "match": "(\\|)\\s+([A-Z]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.operator.match.runa" },
+            "2": { "name": "entity.name.tag.runa" }
+          }
+        },
+        {
+          "comment": "| _ -> ... (wildcard match arm)",
+          "match": "(\\|)\\s+(_)\\s*(->)",
+          "captures": {
+            "1": { "name": "keyword.operator.match.runa" },
+            "2": { "name": "variable.language.wildcard.runa" },
+            "3": { "name": "keyword.operator.arrow.runa" }
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.runa",
+          "match": "\\b(if|else|match|for|in|with|resume|return|spawn|ask)\\b"
+        },
+        {
+          "name": "storage.modifier.runa",
+          "match": "\\b(inout|pub|impl)\\b"
+        }
+      ]
+    },
+    "pipe-operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.pipe.runa",
+          "match": "\\|>"
+        }
+      ]
+    },
+    "arrow-operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.runa",
+          "match": "->"
+        },
+        {
+          "name": "keyword.operator.send.runa",
+          "match": "<-"
+        }
+      ]
+    },
+    "query-operator": {
+      "patterns": [
+        {
+          "comment": "? query/unwrap operator",
+          "name": "keyword.operator.query.runa",
+          "match": "\\?"
+        }
+      ]
+    },
+    "comparison-operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.comparison.runa",
+          "match": "==|!=|<=|>="
+        }
+      ]
+    },
+    "logical-operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.logical.runa",
+          "match": "&&|\\|\\||!"
+        }
+      ]
+    },
+    "arithmetic-operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arithmetic.runa",
+          "match": "[+\\-*/%]"
+        }
+      ]
+    },
+    "type-names": {
+      "patterns": [
+        {
+          "comment": "Built-in types",
+          "name": "support.type.runa",
+          "match": "\\b(Int|Float|String|Bool|Char|Nat|List|Vec|Option|Result)\\b"
+        },
+        {
+          "comment": "Type annotation after colon: x: TypeName",
+          "match": ":\\s*([A-Z]\\w*)",
+          "captures": {
+            "1": { "name": "entity.name.type.runa" }
+          }
+        }
+      ]
+    },
+    "constructor-names": {
+      "patterns": [
+        {
+          "comment": "Known constructors",
+          "name": "entity.name.tag.runa",
+          "match": "\\b(None|Some|Ok|Err|Nil|Cons|True|False)\\b"
+        },
+        {
+          "comment": "PascalCase in expression position (user-defined constructors)",
+          "match": "\\b([A-Z]\\w*)\\s*\\(",
+          "captures": {
+            "1": { "name": "entity.name.tag.runa" }
+          }
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.runa",
+          "match": "\\b\\d+\\.\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.runa",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+    "booleans": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.runa",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "function-calls": {
+      "patterns": [
+        {
+          "comment": "Function calls: name(...)",
+          "match": "\\b([a-z_]\\w*)\\s*\\(",
+          "captures": {
+            "1": { "name": "entity.name.function.call.runa" }
+          }
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.other.runa",
+          "match": "\\b[a-z_]\\w*\\b"
+        }
+      ]
+    }
+  }
+}

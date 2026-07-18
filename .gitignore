@@ -1,6 +1,14 @@
 # Build artifacts
 /target/
 website/target/
+.runa-build/
+
+# Deploy output
+/deploy/
+
+# Wrangler / Cloudflare cache
+.wrangler/
+website/.wrangler/
 
 # OS
 .DS_Store

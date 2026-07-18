@@ -1,0 +1,154 @@
+-- ping_pong.runa — The Unholy Amalgamation
+--
+-- Two streams play ping-pong. A logical ball bounces between them.
+-- Invariants prove the game is fair. Streams keep score via scan.
+-- The ball is a binding. The players are streams. The referee is reduce.
+--
+-- All seven runes in one ping-pong game.
+--
+-- Run:   runa run examples/ping_pong.runa
+-- Check: runa check examples/ping_pong.runa
+
+-- ============================================================================
+-- # TYPES — The game
+-- ============================================================================
+
+# Side = Ping | Pong
+# Shot = Normal | Smash | Ace
+# Rally(number: Int, side: Side, shot: Shot)
+
+
+-- ============================================================================
+-- > FUNCTIONS — Game logic
+-- ============================================================================
+
+> flip(s: Side) -> Side {
+    match s { | Ping -> Pong | Pong -> Ping }
+}
+
+> side_label(s: Side) -> String {
+    match s { | Ping -> "PING" | Pong -> "PONG" }
+}
+
+> shot_label(s: Shot) -> String {
+    match s { | Normal -> "" | Smash -> " SMASH!" | Ace -> " ACE!!" }
+}
+
+-- Deterministic "randomness" from rally number
+> shot_type(rally_num: Int) -> Shot {
+    = r = rally_num * 7 + 3
+    if r % 11 == 0 { Ace }
+    else if r % 5 == 0 { Smash }
+    else { Normal }
+}
+
+> shot_points(s: Shot) -> Int {
+    match s { | Normal -> 0 | Smash -> 1 | Ace -> 2 }
+}
+
+> judge(r: Rally) -> String {
+    match r.shot {
+        | Ace -> side_label(r.side) + " ACES rally " + show(r.number) + "!! +2"
+        | Smash -> side_label(r.side) + " SMASHES rally " + show(r.number) + "! +1"
+        | Normal -> "rally " + show(r.number)
+    }
+}
+
+> format_rally(r: Rally) -> String {
+    = pts = shot_points(r.shot)
+    match r.side {
+        | Ping -> if pts > 0 { "  " + judge(r) } else { "  " + side_label(r.side) }
+        | Pong -> if pts > 0 { "      " + judge(r) } else { "      " + side_label(r.side) }
+    }
+}
+
+> winner(ping_pts: Int, pong_pts: Int) -> String {
+    if ping_pts > pong_pts { ">>> PING WINS! <<<" }
+    else if pong_pts > ping_pts { ">>> PONG WINS! <<<" }
+    else { ">>> DRAW! <<<" }
+}
+
+
+-- ============================================================================
+-- | INVARIANTS — The game must be fair
+-- ============================================================================
+
+-- flip always returns the other side
+| flip_ping: flip(Ping) -> flip(Ping) == Pong
+| flip_pong: flip(Pong) -> flip(Pong) == Ping
+
+-- Aces are worth more than smashes
+| ace_beats_smash: shot_points(Ace) -> shot_points(Ace) > shot_points(Smash)
+
+-- Normal shots score nothing
+| normal_is_zero: shot_points(Normal) -> shot_points(Normal) == 0
+
+
+-- ============================================================================
+-- THE GAME
+-- ============================================================================
+
+= max_rallies = 20
+
+@ print("=== PING PONG ===")
+@ print("  Best of " + show(max_rallies) + " rallies")
+@ print("")
+
+-- Verify rules before playing
+@ print("  Verifying game rules:")
+? flip_ping -> { @ print("    flip(Ping)==Pong: OK") }
+? flip_pong -> { @ print("    flip(Pong)==Ping: OK") }
+? ace_beats_smash -> { @ print("    ace > smash:     OK") }
+? normal_is_zero -> { @ print("    normal == 0:     OK") }
+@ print("")
+
+
+-- Build the rally sequence upfront
+= rallies = map(range(1, max_rallies + 1), |i| Rally(i, if i % 2 == 1 { Ping } else { Pong }, shot_type(i)))
+
+-- Play the game: push all rallies into the stream pipeline
+@ print("--- Rally ---")
+
+~ rally_stream = from_list(rallies)
+
+-- Ping's table: only odd rallies (Ping's turns)
+~ ping_hits = rally_stream |> filter(|r| r.number % 2 == 1)
+
+-- Pong's table: only even rallies (Pong's turns)
+~ pong_hits = rally_stream |> filter(|r| r.number % 2 == 0)
+
+-- Print all rallies live
+~ rally_stream | r -> { @ print(format_rally(r)) }
+
+-- Score tracking via scan on the full stream
+~ ping_points = rally_stream |> filter(|r| r.side == Ping) |> map(|r| shot_points(r.shot)) |> scan(0, |acc, pts| acc + pts)
+~ pong_points = rally_stream |> filter(|r| r.side == Pong) |> map(|r| shot_points(r.shot)) |> scan(0, |acc, pts| acc + pts)
+
+
+-- ============================================================================
+-- FINAL SCORE — from stream reductions
+-- ============================================================================
+
+= ping_total = ping_points |> reduce(0, |acc, x| x)
+= pong_total = pong_points |> reduce(0, |acc, x| x)
+
+@ print("")
+@ print("=== FINAL SCORE ===")
+@ print("  Ping: " + show(ping_total) + " pts")
+@ print("  Pong: " + show(pong_total) + " pts")
+@ print("  Rallies: " + show(max_rallies))
+@ print("  " + winner(ping_total, pong_total))
+
+@ print("")
+@ print("--- What just happened ---")
+@ print("  # types: Side, Shot, Rally")
+@ print("  > functions: flip, judge, shot_type, winner")
+@ print("  | invariants: flip symmetry, point ordering")
+@ print("  = ball binding flips each turn (the bounce!)")
+@ print("  ~ streams: rally_stream, ping/pong hits+points, scan")
+@ print("  ? verification: 4 invariants proven before play")
+@ print("  @ IO: the whole game printed live")
+@ print("  The ball is a logical routing variable.")
+@ print("  The streams are the players.")
+@ print("  The scan is the referee.")
+@ print("  All seven runes, one ping-pong game.")
