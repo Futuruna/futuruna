@@ -10909,6 +10909,12 @@ impl RustCodegen {
                 if self.rule_clone_params.contains(name.as_str()) {
                     return format!("{}.clone()", sname);
                 }
+                // Multi-use non-Copy variables: clone to avoid move errors
+                if !self.copy_vars.contains(name.as_str())
+                    && self.var_consuming_counts.get(name).copied().unwrap_or(0) > 1
+                {
+                    return format!("{}.clone()", sname);
+                }
                 sname
             }
             Expr::Lit(Literal::Str(s)) => format!("{:?}.to_string()", s),
@@ -11068,6 +11074,7 @@ impl RustCodegen {
                         return fused;
                     }
                     // Inline lambda into filter/map to avoid double-lambda type inference failure
+                    // Inline lambda into filter/map to avoid double-lambda type inference failure
                     if (name == "filter" || name == "map") && args.len() == 2
                         && !self.user_functions.contains(name.as_str())
                     {
@@ -11102,6 +11109,36 @@ impl RustCodegen {
                                     return format!("{}.clone().into_iter().map(|{}| {{ {} {} }}).collect::<Vec<_>>()", coll, param, clone_prefix, body_code);
                                 }
                             }
+                        }
+                        // map with function name (not lambda): wrap to handle borrow
+                        if name == "map" {
+                            if let Expr::Var(fn_name) = &args[1] {
+                                let coll = self.emit_expr(&args[0]);
+                                let f = sanitize_name(fn_name);
+                                let borrows = self.borrow_only_params.get(fn_name.as_str())
+                                    .map_or(false, |flags| flags.first().copied().unwrap_or(false));
+                                if borrows {
+                                    return format!("{}.clone().into_iter().map(|__x| {}(&__x)).collect::<Vec<_>>()", coll, f);
+                                } else {
+                                    return format!("{}.clone().into_iter().map(|__x| {}(__x)).collect::<Vec<_>>()", coll, f);
+                                }
+                            }
+                        }
+                    }
+                    // sort_by with lambda: inline key function to avoid type inference issues
+                    if name == "sort_by" && args.len() == 2
+                        && !self.user_functions.contains(name.as_str())
+                    {
+                        if let Expr::Lambda(sort_params, sort_body) = &args[1] {
+                            let coll = self.emit_expr(&args[0]);
+                            let sp = if sort_params.is_empty() { "__e".to_string() } else { sanitize_name(&sort_params[0].name) };
+                            let saved_copy = self.copy_vars.clone();
+                            self.copy_vars.insert(sort_params[0].name.clone());
+                            let body_a = self.emit_expr(sort_body);
+                            let body_b = self.emit_expr(sort_body);
+                            self.copy_vars = saved_copy;
+                            return format!("{{ let mut __v = {}.clone(); __v.sort_by(|__a, __b| {{ let {} = __a.clone(); format!(\"{{}}\", {}) }}.cmp(&{{ let {} = __b.clone(); format!(\"{{}}\", {}) }})); __v }}",
+                                coll, sp, body_a, sp, body_b);
                         }
                     }
                     // Inline lambda into foldl: propagate initial value type to closure params
