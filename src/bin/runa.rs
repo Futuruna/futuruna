@@ -11008,7 +11008,7 @@ impl RustCodegen {
                                 self.float_typed_vars.insert(params[0].name.clone());
                                 self.float_typed_vars.insert(params[1].name.clone());
                                 let body_code = self.emit_expr(body);
-                                return format!("{}.clone().into_iter().fold({}, move |{}: f64, {}: f64| {})",
+                                return format!("{}.clone().into_iter().fold({}, |{}: f64, {}: f64| {})",
                                     coll, init, acc, elem, body_code);
                             }
                         }
@@ -11238,7 +11238,7 @@ impl RustCodegen {
                     else { self.var_consuming_counts.remove(&name); }
                     if !was_copy { self.copy_vars.remove(&name); }
                 }
-                format!("move |{}| {}", ps.join(", "), body_str)
+                format!("|{}| {}", ps.join(", "), body_str)
             }
             Expr::BinOp(op, lhs, rhs) => {
                 // String concatenation → format!()
