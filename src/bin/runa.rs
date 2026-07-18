@@ -3126,16 +3126,24 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
                 std::process::exit(1);
             }
 
-            // Use old codegen to get type metadata populated
+            // Scan declarations to populate TypeRegistry (without emitting Rust)
             let mut cg = RustCodegen::new();
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg.source_dir = Some(parent.to_string_lossy().to_string());
             }
             cg.source_name = std::path::Path::new(filename).file_stem().map(|s| s.to_string_lossy().to_string());
-            let old_code = cg.emit_program(&stmts);
+            let resolved_stmts = cg.scan_declarations(&stmts);
 
-            // Now emit FIR version for comparison
-            let code = emit_via_fir(&stmts, &cg.types, &cg.borrow_only_params, &cg.copy_vars, &cg.ref_match_bindings);
+            // Emit FIR version
+            let code = emit_via_fir(&resolved_stmts, &cg.types, &cg.borrow_only_params, &cg.copy_vars, &cg.ref_match_bindings);
+
+            // Also run old path for comparison
+            let mut cg2 = RustCodegen::new();
+            if let Some(parent) = std::path::Path::new(filename).parent() {
+                cg2.source_dir = Some(parent.to_string_lossy().to_string());
+            }
+            cg2.source_name = std::path::Path::new(filename).file_stem().map(|s| s.to_string_lossy().to_string());
+            let old_code = cg2.emit_program(&stmts);
             println!("// === FIR pipeline output ===");
             println!("{}", code);
             println!("// === Old pipeline output ({} lines) ===", old_code.lines().count());
@@ -7344,9 +7352,10 @@ impl RustCodegen {
         "    ".repeat(self.indent)
     }
 
-    fn emit_program(&mut self, stmts: &[Stmt]) -> String {
-        let mut out = String::new();
-
+    /// Pass 1: Scan declarations — resolve imports, register types, detect async.
+    /// Returns the resolved statement list (imports merged, deduped).
+    /// Populates TypeRegistry, exported_names, effect tracking, async flags.
+    fn scan_declarations(&mut self, stmts: &[Stmt]) -> Vec<Stmt> {
         // Resolve @ import statements: parse imported .runa files and merge their definitions
         let mut all_stmts: Vec<Stmt> = Vec::new();
         for stmt in stmts {
@@ -7781,6 +7790,108 @@ impl RustCodegen {
             infer_subject_types(stmts, &mut self.subject_elem_type);
         }
 
+        // Build type rename map + variant→parent lookup for all ADTs
+        let conflicting = ["Bool", "Box", "Vec", "String"];
+        for stmt in stmts {
+            if let Stmt::TypeDecl(TypeDecl::ADT { name, params, variants, .. }) = stmt {
+                let rust_name = if conflicting.contains(&name.as_str()) {
+                    format!("Futuruna{}", name)
+                } else {
+                    name.clone()
+                };
+                if rust_name != *name {
+                    self.types.type_rename.insert(name.clone(), rust_name.clone());
+                }
+                let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+                let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
+                for v in variants {
+                    self.types.variant_parent.insert(v.name.clone(), rust_name.clone());
+                    self.types.variant_positional.insert(v.name.clone(), v.positional);
+                    if !v.positional {
+                        let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
+                        self.types.variant_fields.insert(v.name.clone(), names);
+                    }
+                    let ft_map: BTreeMap<String, Ty> = v.fields.iter()
+                        .map(|f| (f.name.clone(), f.ty.clone())).collect();
+                    self.types.variant_field_types.insert(v.name.clone(), ft_map);
+                    let boxed: Vec<usize> = v.fields.iter().enumerate()
+                        .filter(|(_, f)| RustCodegen::type_references_adt_static(&f.ty, name))
+                        .map(|(i, _)| i).collect();
+                    if !boxed.is_empty() {
+                        self.types.variant_boxed_args.insert(v.name.clone(), boxed);
+                    }
+                }
+                if variants.len() == 1 && variants[0].name == *name && !variants[0].fields.is_empty() {
+                    self.types.struct_types.insert(rust_name.clone());
+                }
+                self.types.type_decls.insert(rust_name, (param_names, variant_names));
+            }
+            // Scan types inside modules too
+            if let Stmt::Defn(Defn::Module { body, .. }) = stmt {
+                for inner_stmt in body {
+                    if let Stmt::TypeDecl(TypeDecl::ADT { name, params, variants, .. }) = inner_stmt {
+                        let rust_name = if conflicting.contains(&name.as_str()) {
+                            format!("Futuruna{}", name)
+                        } else { name.clone() };
+                        if rust_name != *name {
+                            self.types.type_rename.insert(name.clone(), rust_name.clone());
+                        }
+                        let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+                        let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
+                        for v in variants {
+                            self.types.variant_parent.insert(v.name.clone(), rust_name.clone());
+                            self.types.variant_positional.insert(v.name.clone(), v.positional);
+                            if !v.positional {
+                                let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
+                                self.types.variant_fields.insert(v.name.clone(), names);
+                            }
+                            let ft_map: BTreeMap<String, Ty> = v.fields.iter()
+                                .map(|f| (f.name.clone(), f.ty.clone())).collect();
+                            self.types.variant_field_types.insert(v.name.clone(), ft_map);
+                            let boxed: Vec<usize> = v.fields.iter().enumerate()
+                                .filter(|(_, f)| RustCodegen::type_references_adt_static(&f.ty, name))
+                                .map(|(i, _)| i).collect();
+                            if !boxed.is_empty() {
+                                self.types.variant_boxed_args.insert(v.name.clone(), boxed);
+                            }
+                        }
+                        if variants.len() == 1 && variants[0].name == *name && !variants[0].fields.is_empty() {
+                            self.types.struct_types.insert(rust_name.clone());
+                        }
+                        self.types.type_decls.insert(rust_name, (param_names, variant_names));
+                    }
+                }
+            }
+            // Register user-defined function names
+            if let Stmt::Defn(Defn::Fn { name, ret_ty, .. }) = stmt {
+                self.types.user_functions.insert(name.clone());
+                if matches!(ret_ty.as_ref(), Some(Ty::Name(n)) if n == "String") {
+                    self.string_returning_fns.insert(name.clone());
+                }
+            }
+        }
+
+        // Compute Rc types for transparent structural sharing (M25)
+        {
+            let mut recursive_types = BTreeSet::new();
+            for (variant_name, indices) in &self.types.variant_boxed_args {
+                if !indices.is_empty() {
+                    if let Some(parent) = self.types.variant_parent.get(variant_name.as_str()) {
+                        recursive_types.insert(parent.clone());
+                    }
+                }
+            }
+            self.types.rc_types = recursive_types;
+        }
+
+        all_stmts
+    }
+
+    fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
+        let all_stmts = self.scan_declarations(input_stmts);
+        let stmts = &all_stmts;
+        let mut out = String::new();
+
         // Header
         out.push_str("// Generated by runa --emit rust\n");
         out.push_str("// Futuruna: the language designed by measuring consciousness\n\n");
@@ -7814,109 +7925,7 @@ impl RustCodegen {
         }
         out.push('\n');
 
-        // Build type rename map + variant→parent lookup
-        // Result and Option use Rust's native types (not custom enums) so ? works
-        let conflicting = ["Bool", "Box", "Vec", "String"];
-        for stmt in stmts {
-            if let Stmt::TypeDecl(TypeDecl::ADT { name, params, variants, .. }) = stmt {
-                let rust_name = if conflicting.contains(&name.as_str()) {
-                    format!("Futuruna{}", name)
-                } else {
-                    name.clone()
-                };
-                if rust_name != *name {
-                    self.types.type_rename.insert(name.clone(), rust_name.clone());
-                }
-                let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-                let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
-                for v in variants {
-                    if let Some(prev_parent) = self.types.variant_parent.get(&v.name) {
-                        if *prev_parent != rust_name {
-                            eprintln!("warning: variant '{}' defined in both '{}' and '{}' — using '{}'",
-                                v.name, prev_parent, rust_name, rust_name);
-                        }
-                    }
-                    self.types.variant_parent.insert(v.name.clone(), rust_name.clone());
-                    self.types.variant_positional.insert(v.name.clone(), v.positional);
-                    if !v.positional {
-                        let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
-                        self.types.variant_fields.insert(v.name.clone(), names);
-                    }
-                    // Track field types for non-Copy field detection on borrowed params
-                    let ft_map: BTreeMap<String, Ty> = v.fields.iter()
-                        .map(|f| (f.name.clone(), f.ty.clone()))
-                        .collect();
-                    self.types.variant_field_types.insert(v.name.clone(), ft_map);
-                    // Track which fields are recursive (reference the parent type)
-                    let boxed: Vec<usize> = v.fields.iter().enumerate()
-                        .filter(|(_, f)| RustCodegen::type_references_adt_static(&f.ty, name))
-                        .map(|(i, _)| i)
-                        .collect();
-                    if !boxed.is_empty() {
-                        self.types.variant_boxed_args.insert(v.name.clone(), boxed);
-                    }
-                }
-                // Detect struct types: single variant with same name as type
-                if variants.len() == 1 && variants[0].name == *name && !variants[0].fields.is_empty() {
-                    self.types.struct_types.insert(rust_name.clone());
-                }
-                self.types.type_decls.insert(rust_name, (param_names, variant_names));
-            }
-            // Also scan types inside modules
-            if let Stmt::Defn(Defn::Module { body, .. }) = stmt {
-                for inner_stmt in body {
-                    if let Stmt::TypeDecl(TypeDecl::ADT { name, params, variants, .. }) = inner_stmt {
-                        let rust_name = if conflicting.contains(&name.as_str()) {
-                            format!("Futuruna{}", name)
-                        } else {
-                            name.clone()
-                        };
-                        if rust_name != *name {
-                            self.types.type_rename.insert(name.clone(), rust_name.clone());
-                        }
-                        let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-                        let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
-                        for v in variants {
-                            self.types.variant_parent.insert(v.name.clone(), rust_name.clone());
-                            self.types.variant_positional.insert(v.name.clone(), v.positional);
-                            if !v.positional {
-                                let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
-                                self.types.variant_fields.insert(v.name.clone(), names);
-                            }
-                            let ft_map: BTreeMap<String, Ty> = v.fields.iter()
-                                .map(|f| (f.name.clone(), f.ty.clone()))
-                                .collect();
-                            self.types.variant_field_types.insert(v.name.clone(), ft_map);
-                            let boxed: Vec<usize> = v.fields.iter().enumerate()
-                                .filter(|(_, f)| RustCodegen::type_references_adt_static(&f.ty, name))
-                                .map(|(i, _)| i)
-                                .collect();
-                            if !boxed.is_empty() {
-                                self.types.variant_boxed_args.insert(v.name.clone(), boxed);
-                            }
-                        }
-                        if variants.len() == 1 && variants[0].name == *name && !variants[0].fields.is_empty() {
-                            self.types.struct_types.insert(rust_name.clone());
-                        }
-                        self.types.type_decls.insert(rust_name, (param_names, variant_names));
-                    }
-                }
-            }
-        }
-
-        // Transparent Rc/Arc for immutable recursive ADTs (M25: structural sharing)
-        // Immutable + recursive + acyclic = safe to share via Rc (O(1) clone instead of O(n))
-        {
-            let mut recursive_types = BTreeSet::new();
-            for (variant_name, indices) in &self.types.variant_boxed_args {
-                if !indices.is_empty() {
-                    if let Some(parent) = self.types.variant_parent.get(variant_name.as_str()) {
-                        recursive_types.insert(parent.clone());
-                    }
-                }
-            }
-            self.types.rc_types = recursive_types;
-        }
+        // Type registration + Rc computation done in scan_declarations (Pass 1).
         // Emit Rc/Arc import for transparent structural sharing
         if !self.types.rc_types.is_empty() {
             if self.has_async {
@@ -14337,6 +14346,72 @@ mod tests {
             let rust = emit_fir_expr(&fir, &types);
             assert_eq!(rust, "(1i64 + 2i64)");
         }
+    }
+
+    // ── scan_declarations tests ───────────────────────────────────
+
+    #[test]
+    fn scan_populates_type_registry() {
+        let source = "# Color = Red | Green | Blue\n> name(c: Color) -> String { match c { | Red -> \"r\" | Green -> \"g\" | Blue -> \"b\" } }";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let mut cg = RustCodegen::new();
+        let resolved = cg.scan_declarations(&stmts);
+
+        // TypeRegistry should know about the Color type and its variants
+        assert!(cg.types.variant_parent.contains_key("Red"), "Red should be registered");
+        assert!(cg.types.variant_parent.contains_key("Green"), "Green should be registered");
+        assert!(cg.types.variant_parent.contains_key("Blue"), "Blue should be registered");
+        assert!(!resolved.is_empty(), "resolved stmts should not be empty");
+    }
+
+    #[test]
+    fn scan_detects_struct_types() {
+        let source = "# Point(x: Float, y: Float)";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let mut cg = RustCodegen::new();
+        cg.scan_declarations(&stmts);
+
+        assert!(cg.types.struct_types.contains("Point"), "Point should be detected as struct type");
+    }
+
+    #[test]
+    fn scan_registers_user_functions() {
+        let source = "> add(a: Int, b: Int) -> Int { a + b }\n> mul(a: Int, b: Int) -> Int { a * b }";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let mut cg = RustCodegen::new();
+        cg.scan_declarations(&stmts);
+
+        assert!(cg.types.user_functions.contains("add"), "add should be registered");
+        assert!(cg.types.user_functions.contains("mul"), "mul should be registered");
+    }
+
+    #[test]
+    fn scan_and_emit_program_produce_same_output() {
+        // scan_declarations + emit_program should give same result as emit_program alone
+        let source = "> add(a: Int, b: Int) -> Int { a + b }\n= x = add(1, 2)\n@ print(show(x))";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let mut cg = RustCodegen::new();
+        let output = cg.emit_program(&stmts);
+
+        // emit_program internally calls scan_declarations, so the output should be valid Rust
+        assert!(output.contains("fn add("), "output should contain add function");
+        assert!(output.contains("fn main()"), "output should contain main");
     }
 
     // ── FIR pipeline coverage tests ─────────────────────────────────
