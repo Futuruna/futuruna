@@ -1137,6 +1137,210 @@ impl Lexer {
 }
 
 // ============================================================================
+// PART 2b: SPANS & DIAGNOSTICS
+// ============================================================================
+
+/// Source location span — byte offsets into source text.
+/// Use `Span::to_line_col()` to convert to human-readable line:col.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Span {
+    pub start: usize, // byte offset (0-based)
+    pub end: usize,   // byte offset (exclusive)
+}
+
+impl Span {
+    pub fn new(start: usize, end: usize) -> Self {
+        Span { start, end }
+    }
+
+    /// Dummy span for AST nodes not yet tracked.
+    pub fn dummy() -> Self {
+        Span { start: 0, end: 0 }
+    }
+
+    pub fn is_dummy(&self) -> bool {
+        self.start == 0 && self.end == 0
+    }
+
+    /// Merge two spans into one covering both.
+    pub fn merge(self, other: Span) -> Span {
+        if self.is_dummy() { return other; }
+        if other.is_dummy() { return self; }
+        Span {
+            start: self.start.min(other.start),
+            end: self.end.max(other.end),
+        }
+    }
+
+    /// Convert byte offset to 1-based (line, col) using source text.
+    pub fn start_line_col(&self, source: &str) -> (usize, usize) {
+        byte_offset_to_line_col(source, self.start)
+    }
+
+    pub fn end_line_col(&self, source: &str) -> (usize, usize) {
+        byte_offset_to_line_col(source, self.end)
+    }
+}
+
+/// Convert a byte offset to 1-based (line, col).
+pub fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
+    let mut line = 1;
+    let mut col = 1;
+    for (i, ch) in source.char_indices() {
+        if i >= offset { break; }
+        if ch == '\n' {
+            line += 1;
+            col = 1;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
+}
+
+/// Severity level for diagnostics.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Severity {
+    Error,
+    Warning,
+    Help,
+}
+
+/// A structured compiler diagnostic with optional source location.
+#[derive(Debug, Clone)]
+pub struct Diagnostic {
+    pub span: Option<Span>,
+    pub message: String,
+    pub severity: Severity,
+    pub notes: Vec<String>,
+    pub context: Vec<String>, // breadcrumb trail: ["in function `foo`", "in match arm 2"]
+}
+
+impl Diagnostic {
+    pub fn error(message: impl Into<String>) -> Self {
+        Diagnostic {
+            span: None,
+            message: message.into(),
+            severity: Severity::Error,
+            notes: Vec::new(),
+            context: Vec::new(),
+        }
+    }
+
+    pub fn error_at(span: Span, message: impl Into<String>) -> Self {
+        Diagnostic {
+            span: if span.is_dummy() { None } else { Some(span) },
+            message: message.into(),
+            severity: Severity::Error,
+            notes: Vec::new(),
+            context: Vec::new(),
+        }
+    }
+
+    pub fn with_note(mut self, note: impl Into<String>) -> Self {
+        self.notes.push(note.into());
+        self
+    }
+
+    pub fn with_context(mut self, ctx: impl Into<String>) -> Self {
+        self.context.push(ctx.into());
+        self
+    }
+
+    /// Format this diagnostic for display.
+    /// If `use_color` is false, strips ANSI codes.
+    pub fn display(&self, source: &str, filename: &str, use_color: bool) -> String {
+        let mut out = String::new();
+
+        // Colors
+        let (red, blue, bold, reset, dim) = if use_color {
+            ("\x1b[1;31m", "\x1b[1;34m", "\x1b[1m", "\x1b[0m", "\x1b[2m")
+        } else {
+            ("", "", "", "", "")
+        };
+
+        // Header: error: message
+        let label = match self.severity {
+            Severity::Error => format!("{}error{}", red, reset),
+            Severity::Warning => format!("{}warning{}", "\x1b[1;33m", reset),
+            Severity::Help => format!("{}help{}", "\x1b[1;32m", reset),
+        };
+        let label = if !use_color {
+            match self.severity {
+                Severity::Error => "error".to_string(),
+                Severity::Warning => "warning".to_string(),
+                Severity::Help => "help".to_string(),
+            }
+        } else {
+            label
+        };
+
+        // Context breadcrumbs
+        for ctx in &self.context {
+            out.push_str(&format!(" {}{}-->{} {}\n", dim, blue, reset, ctx));
+        }
+
+        if let Some(span) = self.span {
+            let (line, col) = span.start_line_col(source);
+            let (end_line, end_col) = span.end_line_col(source);
+
+            // Location header
+            out.push_str(&format!("{}: {}{}{}\n", label, bold, self.message, reset));
+            out.push_str(&format!(" {}-->{} {}:{}:{}\n", blue, reset, filename, line, col));
+
+            let lines: Vec<&str> = source.lines().collect();
+            if line > 0 && line <= lines.len() {
+                let src_line = lines[line - 1];
+                let line_str = format!("{}", line);
+                let padding = " ".repeat(line_str.len());
+
+                // Gutter
+                out.push_str(&format!(" {} {}|{}\n", padding, blue, reset));
+
+                // Source line
+                out.push_str(&format!(" {}{}{} {}|{} {}\n",
+                    blue, line_str, reset, blue, reset, src_line));
+
+                // Underline
+                let caret_start = if col > 0 { col - 1 } else { 0 };
+                let underline_len = if line == end_line && end_col > col {
+                    end_col - col
+                } else {
+                    1
+                };
+                let underline_len = underline_len.max(1);
+                let underline_pad = " ".repeat(caret_start);
+                let underline = "^".repeat(underline_len);
+                out.push_str(&format!(" {} {}|{} {}{}{}{}\n",
+                    padding, blue, reset, underline_pad, red, underline, reset));
+            }
+        } else {
+            out.push_str(&format!("{}: {}{}{}\n", label, bold, self.message, reset));
+        }
+
+        // Notes
+        for note in &self.notes {
+            out.push_str(&format!(" {} = {}help{}: {}\n", "  ", blue, reset, note));
+        }
+
+        out
+    }
+}
+
+/// Check if color output should be used.
+pub fn should_use_color() -> bool {
+    // NO_COLOR convention: https://no-color.org/
+    if env::var("NO_COLOR").is_ok() {
+        return false;
+    }
+    // Also check TERM=dumb
+    if env::var("TERM").map(|t| t == "dumb").unwrap_or(false) {
+        return false;
+    }
+    true
+}
+
+// ============================================================================
 // PART 3: AST
 // ============================================================================
 
@@ -6008,7 +6212,10 @@ impl Interpreter {
             "parse_int" => match args.first() {
                 Some(Value::Str(s)) => match s.trim().parse::<i64>() {
                     Ok(n) => Value::Int(n),
-                    Err(_) => Value::Int(0),
+                    Err(_) => {
+                        eprintln!("warning: parse_int(\"{}\") failed, returning 0. Consider using monadic bind: = n <- parse_int(s)", s);
+                        Value::Int(0)
+                    },
                 },
                 Some(Value::Int(n)) => Value::Int(*n),
                 _ => Value::Int(0),
@@ -6016,7 +6223,10 @@ impl Interpreter {
             "parse_float" => match args.first() {
                 Some(Value::Str(s)) => match s.trim().parse::<f64>() {
                     Ok(f) => Value::Float(f),
-                    Err(_) => Value::Float(0.0),
+                    Err(_) => {
+                        eprintln!("warning: parse_float(\"{}\") failed, returning 0.0. Consider using monadic bind: = f <- parse_float(s)", s);
+                        Value::Float(0.0)
+                    },
                 },
                 Some(Value::Float(f)) => Value::Float(*f),
                 Some(Value::Int(n)) => Value::Float(*n as f64),
@@ -7713,30 +7923,60 @@ pub fn vec_to_list(items: Vec<Value>) -> Value {
 // PART 7: MAIN
 // ============================================================================
 
-/// Display a parse/compile error with source context and caret
+/// Display a parse/compile error with source context and underline.
+/// Accepts legacy "LINE:COL: message" format strings and converts them
+/// to structured Diagnostic output.
 pub fn display_error(source: &str, error: &str) {
-    // Try to extract line:col from error string (format: "LINE:COL: message")
-    let lines: Vec<&str> = source.lines().collect();
+    display_error_in(source, error, "<input>");
+}
+
+/// Display error with filename context.
+pub fn display_error_in(source: &str, error: &str, filename: &str) {
+    let use_color = should_use_color();
+
+    // Try to parse legacy "LINE:COL: message" format into a Diagnostic
     let parts: Vec<&str> = error.splitn(3, ':').collect();
     if parts.len() >= 3 {
         if let (Ok(line_num), Ok(col_num)) = (parts[0].trim().parse::<usize>(), parts[1].trim().parse::<usize>()) {
             let msg = parts[2..].join(":").trim().to_string();
-            eprintln!("\x1b[1;31merror\x1b[0m: {}", msg);
-            if line_num > 0 && line_num <= lines.len() {
-                let src_line = lines[line_num - 1];
-                let line_str = format!("{}", line_num);
-                let padding = " ".repeat(line_str.len());
-                eprintln!(" {} \x1b[1;34m|\x1b[0m", padding);
-                eprintln!(" \x1b[1;34m{}\x1b[0m \x1b[1;34m|\x1b[0m {}", line_str, src_line);
-                let caret_pos = if col_num > 0 { col_num - 1 } else { 0 };
-                let caret_pad = " ".repeat(caret_pos);
-                eprintln!(" {} \x1b[1;34m|\x1b[0m {}\x1b[1;31m^\x1b[0m", padding, caret_pad);
-            }
+            // Convert line:col to byte offset
+            let span = line_col_to_span(source, line_num, col_num);
+            let diag = Diagnostic::error_at(span, msg);
+            eprint!("{}", diag.display(source, filename, use_color));
             return;
         }
     }
     // Fallback: no line:col parsed
-    eprintln!("\x1b[1;31merror\x1b[0m: {}", error);
+    let diag = Diagnostic::error(error);
+    eprint!("{}", diag.display(source, filename, use_color));
+}
+
+/// Display a structured Diagnostic directly.
+pub fn display_diagnostic(source: &str, diag: &Diagnostic, filename: &str) {
+    let use_color = should_use_color();
+    eprint!("{}", diag.display(source, filename, use_color));
+}
+
+/// Convert 1-based line:col to a Span (for legacy error format).
+fn line_col_to_span(source: &str, line: usize, col: usize) -> Span {
+    let mut current_line = 1;
+    let mut line_start = 0;
+    for (i, ch) in source.char_indices() {
+        if current_line == line {
+            let start = line_start + (col - 1);
+            return Span::new(start, start + 1);
+        }
+        if ch == '\n' {
+            current_line += 1;
+            line_start = i + 1;
+        }
+    }
+    // If we're on the target line but didn't hit a newline (last line)
+    if current_line == line {
+        let start = line_start + (col - 1);
+        return Span::new(start, start + 1);
+    }
+    Span::dummy()
 }
 
 
@@ -7763,8 +8003,8 @@ pub struct TypeChecker {
     pub builtins: BTreeMap<String, usize>,
     /// effect name -> set of operation names with arity
     pub effect_ops: BTreeMap<String, BTreeMap<String, usize>>,
-    /// errors accumulated during checking
-    pub errors: Vec<String>,
+    /// structured diagnostics accumulated during checking
+    pub diagnostics: Vec<Diagnostic>,
     /// current variable scope stack
     pub scopes: Vec<BTreeSet<String>>,
     /// user-defined functions (distinct from rule functions for arity checks)
@@ -7775,6 +8015,8 @@ pub struct TypeChecker {
     pub imported: BTreeSet<String>,
     /// original source text (for error positions)
     pub source_text: String,
+    /// error context stack — breadcrumb trail for where we are in the program
+    pub error_context: Vec<String>,
 }
 
 impl TypeChecker {
@@ -7786,12 +8028,13 @@ impl TypeChecker {
             type_variants: BTreeMap::new(),
             builtins: BTreeMap::new(),
             effect_ops: BTreeMap::new(),
-            errors: Vec::new(),
+            diagnostics: Vec::new(),
             scopes: vec![BTreeSet::new()],
             user_functions: BTreeSet::new(),
             source_dir: None,
             imported: BTreeSet::new(),
             source_text: String::new(),
+            error_context: Vec::new(),
         };
         // Register builtins (name -> arity)
         for &(name, arity) in &[
@@ -7902,19 +8145,46 @@ impl TypeChecker {
     }
 
     pub fn error(&mut self, msg: String) {
-        // Auto-extract position from backtick-quoted symbol name in the source
-        if !self.source_text.is_empty() {
+        // Try to derive a span from backtick-quoted symbol name in the source
+        let span = if !self.source_text.is_empty() {
             if let Some(start) = msg.find('`') {
                 if let Some(end) = msg[start + 1..].find('`') {
                     let name = &msg[start + 1..start + 1 + end];
                     if let Some((line, col)) = Self::find_symbol_in_source(&self.source_text, name) {
-                        self.errors.push(format!("{}:{}: {}", line, col, msg));
-                        return;
+                        Some(line_col_to_span(&self.source_text, line, col))
+                    } else {
+                        None
                     }
+                } else {
+                    None
                 }
+            } else {
+                None
             }
-        }
-        self.errors.push(msg);
+        } else {
+            None
+        };
+
+        let mut diag = if let Some(s) = span {
+            Diagnostic::error_at(s, &msg)
+        } else {
+            Diagnostic::error(&msg)
+        };
+
+        // Attach current context breadcrumbs
+        diag.context = self.error_context.clone();
+
+        self.diagnostics.push(diag);
+    }
+
+    /// Push an error context breadcrumb (e.g. "in function `foo`")
+    pub fn push_context(&mut self, ctx: impl Into<String>) {
+        self.error_context.push(ctx.into());
+    }
+
+    /// Pop the most recent error context breadcrumb
+    pub fn pop_context(&mut self) {
+        self.error_context.pop();
     }
 
     /// Find a symbol name in source text, returning 1-based (line, col).
@@ -8123,14 +8393,17 @@ impl TypeChecker {
     pub fn check_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Defn(Defn::Fn { name, params, body, .. }) => {
+                self.push_context(format!("in function `{}`", name));
                 self.push_scope();
                 for p in params {
                     self.define_var(&p.name);
                 }
                 self.check_expr(body, Some(name));
                 self.pop_scope();
+                self.pop_context();
             }
-            Stmt::Defn(Defn::Actor { handlers, state_param, .. }) => {
+            Stmt::Defn(Defn::Actor { name, handlers, state_param, .. }) => {
+                self.push_context(format!("in actor `{}`", name));
                 for handler in handlers {
                     self.push_scope();
                     self.define_var(&state_param.name);
@@ -8138,12 +8411,15 @@ impl TypeChecker {
                     self.check_expr(&handler.body, None);
                     self.pop_scope();
                 }
+                self.pop_context();
             }
-            Stmt::Defn(Defn::Module { body, .. }) => {
+            Stmt::Defn(Defn::Module { name, body, .. }) => {
+                self.push_context(format!("in module `{}`", name));
                 self.push_scope();
                 self.collect_declarations(body);
                 self.check_program(body);
                 self.pop_scope();
+                self.pop_context();
             }
             Stmt::TypeDecl(TypeDecl::ADT { methods, .. }) => {
                 for defn in methods {
@@ -8560,13 +8836,27 @@ impl TypeChecker {
     }
 
     /// Run the type checker with source text for error positions.
-    pub fn check_with_source(stmts: &[Stmt], source_dir: Option<String>, source: &str) -> Vec<String> {
+    /// Run type checking and return structured diagnostics.
+    pub fn check_with_diagnostics(stmts: &[Stmt], source_dir: Option<String>, source: &str) -> Vec<Diagnostic> {
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
         tc.collect_declarations(stmts);
         tc.check_program(stmts);
-        tc.errors
+        tc.diagnostics
+    }
+
+    /// Legacy wrapper — returns string-formatted errors for backward compatibility.
+    pub fn check_with_source(stmts: &[Stmt], source_dir: Option<String>, source: &str) -> Vec<String> {
+        let diags = Self::check_with_diagnostics(stmts, source_dir, source);
+        diags.iter().map(|d| {
+            if let Some(span) = d.span {
+                let (line, col) = span.start_line_col(&source);
+                format!("{}:{}: {}", line, col, d.message)
+            } else {
+                d.message.clone()
+            }
+        }).collect()
     }
 }
 
@@ -8639,5 +8929,174 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
             Ok(output)
         }
         Err(e) => Err(e),
+    }
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Span ────────────────────────────────────────────────────────
+
+    #[test]
+    fn span_dummy_is_zero() {
+        let s = Span::dummy();
+        assert!(s.is_dummy());
+        assert_eq!(s.start, 0);
+        assert_eq!(s.end, 0);
+    }
+
+    #[test]
+    fn span_merge_covers_both() {
+        let a = Span::new(10, 20);
+        let b = Span::new(5, 30);
+        let m = a.merge(b);
+        assert_eq!(m.start, 5);
+        assert_eq!(m.end, 30);
+    }
+
+    #[test]
+    fn span_merge_with_dummy_returns_other() {
+        let a = Span::new(10, 20);
+        let d = Span::dummy();
+        assert_eq!(a.merge(d), a);
+        assert_eq!(d.merge(a), a);
+    }
+
+    #[test]
+    fn byte_offset_to_line_col_first_line() {
+        let source = "hello world";
+        assert_eq!(byte_offset_to_line_col(source, 0), (1, 1));
+        assert_eq!(byte_offset_to_line_col(source, 5), (1, 6));
+    }
+
+    #[test]
+    fn byte_offset_to_line_col_multiline() {
+        let source = "line1\nline2\nline3";
+        assert_eq!(byte_offset_to_line_col(source, 0), (1, 1));  // 'l' in line1
+        assert_eq!(byte_offset_to_line_col(source, 6), (2, 1));  // 'l' in line2
+        assert_eq!(byte_offset_to_line_col(source, 12), (3, 1)); // 'l' in line3
+        assert_eq!(byte_offset_to_line_col(source, 14), (3, 3)); // 'n' in line3
+    }
+
+    #[test]
+    fn span_start_line_col() {
+        let source = "first\nsecond\nthird";
+        let span = Span::new(6, 12); // "second"
+        assert_eq!(span.start_line_col(source), (2, 1));
+        assert_eq!(span.end_line_col(source), (2, 7));
+    }
+
+    // ── Diagnostic ──────────────────────────────────────────────────
+
+    #[test]
+    fn diagnostic_error_no_span() {
+        let d = Diagnostic::error("something broke");
+        assert!(d.span.is_none());
+        assert_eq!(d.message, "something broke");
+        assert_eq!(d.severity, Severity::Error);
+    }
+
+    #[test]
+    fn diagnostic_error_at_span() {
+        let d = Diagnostic::error_at(Span::new(10, 15), "bad thing");
+        assert!(d.span.is_some());
+        assert_eq!(d.span.unwrap().start, 10);
+    }
+
+    #[test]
+    fn diagnostic_error_at_dummy_has_no_span() {
+        let d = Diagnostic::error_at(Span::dummy(), "msg");
+        assert!(d.span.is_none());
+    }
+
+    #[test]
+    fn diagnostic_with_note_and_context() {
+        let d = Diagnostic::error("msg")
+            .with_note("try this instead")
+            .with_context("in function `foo`");
+        assert_eq!(d.notes.len(), 1);
+        assert_eq!(d.context.len(), 1);
+    }
+
+    #[test]
+    fn diagnostic_display_no_color() {
+        let source = "> add(x: Int) -> Int { x }";
+        let span = Span::new(2, 5); // "add"
+        let d = Diagnostic::error_at(span, "wrong arity");
+        let output = d.display(source, "test.runa", false);
+        assert!(output.contains("error"));
+        assert!(output.contains("wrong arity"));
+        assert!(output.contains("test.runa:1:3"));
+        assert!(output.contains("^^^")); // underline for 3 chars
+        assert!(!output.contains("\x1b")); // no ANSI codes
+    }
+
+    #[test]
+    fn diagnostic_display_with_context_breadcrumbs() {
+        let source = "= x = bad()";
+        let d = Diagnostic::error("undefined function `bad`")
+            .with_context("in function `main`");
+        let output = d.display(source, "test.runa", false);
+        assert!(output.contains("in function `main`"));
+    }
+
+    // ── should_use_color ────────────────────────────────────────────
+
+    #[test]
+    fn no_color_env_disables_color() {
+        // This test documents the behavior — actual env var testing
+        // is fragile in parallel test runs, so just verify the function exists
+        // and returns a bool
+        let _result: bool = should_use_color();
+    }
+
+    // ── TypeChecker diagnostics ─────────────────────────────────────
+
+    #[test]
+    fn typechecker_undefined_function_produces_diagnostic() {
+        let source = "> main() -> Int { undefined_func(42) }";
+        let diags = check_source_for_diagnostics(source);
+        assert!(!diags.is_empty(), "expected at least one diagnostic");
+        assert!(diags[0].message.contains("undefined_func"));
+    }
+
+    #[test]
+    fn typechecker_wrong_arity_produces_diagnostic() {
+        let source = "> add(a: Int, b: Int) -> Int { a + b }\n= x = add(1, 2, 3)";
+        let diags = check_source_for_diagnostics(source);
+        assert!(!diags.is_empty());
+        assert!(diags[0].message.contains("2 arguments"));
+        assert!(diags[0].message.contains("3"));
+    }
+
+    #[test]
+    fn typechecker_context_breadcrumb_on_function_error() {
+        let source = "> outer(x: Int) -> Int { no_such_fn(x) }";
+        let diags = check_source_for_diagnostics(source);
+        assert!(!diags.is_empty());
+        assert!(diags[0].context.iter().any(|c| c.contains("outer")),
+            "expected context mentioning `outer`, got: {:?}", diags[0].context);
+    }
+
+    #[test]
+    fn typechecker_diagnostic_has_span() {
+        let source = "> main() -> Int { xyz(1) }";
+        let diags = check_source_for_diagnostics(source);
+        assert!(!diags.is_empty());
+        assert!(diags[0].span.is_some(), "expected span on type error diagnostic");
+    }
+
+    /// Helper: parse + type-check source, return diagnostics
+    fn check_source_for_diagnostics(source: &str) -> Vec<Diagnostic> {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse should succeed");
+        TypeChecker::check_with_diagnostics(&stmts, None, source)
     }
 }

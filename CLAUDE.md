@@ -450,11 +450,6 @@ Three is the information-theoretic ceiling of what a 22×22 transition matrix ca
 - **DB scoping:** `@ store T` → DB named from source file stem (`.weather.store.db`); `@ store T in "scope"` → explicit shared DB (`.scope.store.db`)
 - Status: M26a (object store with assert/retract/scoped DB) implemented; M26b+ (findall, transactions, persist, watch) not yet
 
-### Elementa (UI Framework — Design Phase)
-- `docs/elementa/Futuruna-Elementa.md` — Hexagonal decomposition of UI: Structura (layout), Iconia (symbols), Logica (behavior), Style, Animation, Flow. Rune-enforced separation. Hybrid rendering (DOM + Canvas/WebGPU)
-- `docs/elementa/research-log.md` — Research threads: existing hybrid renderers, reactive animation systems, WASM UI precedent, design tool interop
-- Status: design sketch, nothing implemented yet
-
 ### Website
 - `website/` — Dioxus WASM app with research hub
 - Routes: `/` (home), `/playground`, `/docs`, `/why`, `/research` (index), `/research/optimization`, `/research/danish-constitution`, `/research/danish-constitution-audit`, `/research/us-constitution`, `/research/ownership`
@@ -478,13 +473,12 @@ Three is the information-theoretic ceiling of what a 22×22 transition matrix ca
 | `docs/research.md` | Full research: measurements, NSGA-II, eigenvalues, AI implications |
 | `docs/why.md` | Accessible intro: what d_eff feels like |
 | `docs/language-sketch.md` | Language design, three-axis analysis, rune rationale |
-| `docs/milestones.md` | Compiler milestones M1–M25 with detailed status |
+| `docs/milestones/` | Milestones M1–M40: main doc + per-milestone detail files |
 | `docs/ownership-design.md` | Memory model (Kotlin-to-Rust philosophy) |
 | `docs/research-ownership.md` | Invisible ownership: 76 adversarial patterns |
 | `docs/ownership-limits.md` | Tested limits and honest boundaries |
 | `docs/reactive-design.md` | Reactive streams as native graph topology |
 | `docs/persist/` | Database-from-language research (persist, transactions, migrations) |
-| `docs/elementa/` | UI framework design (hexagonal decomposition) |
 | `examples/weather_demo.runa` | Showcase: all 7 runes in one program |
 | `examples/cocktails.runa` | Cocktail Datalog: 24 recipes + queries |
 | `examples/danish-constitution/` | Danish Constitution (12 files, ~180 invariants) |

@@ -958,4 +958,397 @@ acyclic (always terminate at a base case), so Rc cycle leaks are impossible.
 ### Tests
 - [x] **`rc_sharing_test.runa`** — 9 patterns (shared tails, fan-out, trees, persistent ops, expression trees, deep lists, nested recursive types, equality, multi-use)
 - [x] **`rc_codegen_verify.runa`** — 7 verification patterns (construction, sharing, cloning, equality, append, deep recursion, multi-use)
-- [x] **67/67 tests pass** — interpreter and compiled output byte-identical
+- [x] **67/67 tests pass** ��� interpreter and compiled output byte-identical
+
+---
+
+## The Professional Path: M27–M40
+
+**Goal:** Take Futuruna from working prototype to professional-grade language.
+Five phases: Hardening → Architecture → Type System → Ecosystem → Launch.
+~22 weeks with parallel tracks.
+
+**Assessment (2026-07-18):** The compiler is ~21,600 lines across `lib.rs` (8.7k)
+and `runa.rs` (12.9k). M1–M25 complete. M26a (object store) done. Self-hosting
+lexer + parser done. Five critical gaps identified: fragile error reporting
+(134 unwraps, no spans on AST), no intermediate representation (RustCodegen is
+a 139-field god object doing type inference + ownership + emission in one pass),
+heuristic-only type system (no unification, `Ty::Var` defined but never used),
+zero negative tests (69 happy-path tests only), and ecosystem gaps (no lock file,
+no regex/datetime builtins).
+
+### Dependency Graph
+
+```
+Phase A:  M27 ──→ M28
+Phase B:  M27 ──→ M29 ──→ M30
+Phase C:  M30 ──→ M31 ──→ M32
+                   └──��� M33 (parallel with M32)
+Phase D:  M34, M35, M36 (all independent, parallel with B/C)
+Phase E:  M27 ─���→ M37
+          M28 ──→ M38
+          M27 + M38 ──→ M39
+          M36 + M37 + M38 ──→ M40
+```
+
+### Parallel Schedule
+
+| Weeks | Track 1 (Compiler) | Track 2 (Ecosystem) |
+|-------|-------------------|-------------------|
+| 1–3 | M27 Error Reporting | M34 Package Manager v2 |
+| 4–5 | M28 Negative Tests + CLI | M35 Stdlib Expansion |
+| 6–8 | M29 FIR | M36 WASM + M38 CI/CD |
+| 9–10 | M30 Split Passes | M37 Tutorial + Docs |
+| 11–12 | M31 Type Annotation | M39 VS Code Marketplace |
+| 13–15 | M32 Constraint Inference | — |
+| 16–17 | M33 Trait Resolution | — |
+| 18–20 | M40 Website + Playground | — |
+
+---
+
+## Phase A — Hardening
+
+## M27: Error Reporting Overhaul
+
+**"Errors that point, explain, and suggest."** — [detailed design](m27-error-reporting.md)
+
+Make compiler errors precise, contextual, and helpful. Span types, structured
+Diagnostic, NO_COLOR support, AST span refactor, fix silent failures, eliminate
+dangerous unwraps.
+
+**Status:** In progress. Foundation types (Span, Diagnostic, display_error_in,
+should_use_color) landed. TypeChecker migration and AST span refactor pending.
+
+## M28: Negative Tests + CLI Polish
+
+**"A test suite that proves what doesn't work."** All 69 existing tests are
+happy-path. Zero tests verify error messages, parse failures, or invalid inputs.
+The CLI has no `--version` flag, silently ignores unknown flags, and has no
+`NO_COLOR` support. This milestone adds the missing negative test infrastructure
+and polishes the CLI to professional standard.
+
+- [ ] **Negative test infrastructure**: Add `tests/errors/` directory. Each `.runa`
+  file paired with `.expected` file containing expected error text (substring match).
+  Test runner runs each, asserts exit code non-zero, asserts error output contains
+  expected text.
+- [ ] **Parse error tests (10+)**: Unclosed braces, missing function body, malformed
+  type declaration, unterminated string, invalid operator, bad pattern syntax,
+  duplicate function names, invalid `@ import` paths, missing comma in constructor,
+  invalid rune prefix.
+- [ ] **Type error tests (10+)**: Wrong arity, undefined function, undefined variable,
+  undefined type, non-exhaustive match, wrong constructor fields, duplicate type name,
+  duplicate variant name, recursive type without base case, effect used without handler.
+- [ ] **Runtime error tests (5+)**: Division by zero, index out of bounds,
+  stack overflow (deep recursion), file not found for `read_file`, invalid JSON
+  for `json_parse`.
+- [ ] **Stress tests**: 1000-line program compilation, deeply nested expressions
+  (100 levels), 50+ function definitions, large match with 30+ arms.
+- [ ] **CLI polish**: `--version` flag prints version from Cargo.toml. Unknown flags
+  print error + help hint (not silently treated as filename). `--quiet` flag
+  suppresses informational output.
+- [ ] **Negative test CI integration**: `runa test` discovers and runs tests in
+  `tests/errors/` alongside happy-path tests, reports separate pass/fail counts.
+
+**Test:** 25+ negative tests all pass (correct error output, non-zero exit).
+`runa --version` prints version. `runa frobnicate` prints "unknown command"
+instead of silence. Stress tests complete without crash.
+
+---
+
+## Phase B — Architecture
+
+## M29: Intermediate Representation (FIR)
+
+**"The compiler gets a brain between thinking and speaking."** `RustCodegen`
+currently does type resolution, ownership analysis, and code emission in a single
+interleaved pass via string concatenation. The struct has 139 fields because it
+accumulates every piece of metadata it discovers while walking the AST. This makes
+it impossible to add new backends, optimize across function boundaries, or implement
+real type inference. This milestone introduces FIR (Futuruna Intermediate
+Representation) — a typed, ownership-annotated tree between the AST and any backend.
+
+- [ ] **Define FIR types**: `FirExpr`, `FirStmt`, `FirProgram` in a new section of
+  runa.rs. FIR nodes carry: resolved types (`FirTy`), ownership decisions
+  (move/clone/borrow/ref), effect annotations, and spans from M27. FIR is a
+  *separate* tree from AST, not a mutation of it.
+- [ ] **AST-to-FIR lowering pass**: Walk AST, resolve types, annotate ownership.
+  This is where `type_decls`, `variant_parent`, `variant_boxed_args`,
+  `borrow_only_params`, `var_use_counts`, `var_consuming_counts`, etc. get
+  computed — once, cleanly, in order. Output: `FirProgram`.
+- [ ] **FIR-to-Rust emission**: A pure function `fir_to_rust(fir: &FirProgram) -> String`.
+  No mutable state needed beyond indentation. All decisions already made in FIR.
+- [ ] **Parity test**: Every existing test must produce byte-identical Rust output
+  through the new `AST → FIR → Rust` path as through the old `AST → Rust` path.
+  Run both paths, diff output. Zero differences.
+- [ ] **Ownership analysis consolidation**: The four `count_*_uses` functions
+  (`count_var_uses`, `count_consuming_uses`, `count_consuming_uses_borrow_aware`,
+  `count_consuming_uses_branch_aware`) become a single
+  `analyze_ownership(fir: &FirExpr) -> OwnershipInfo` that runs on FIR.
+
+**Test:** All 69+ existing tests produce identical Rust output through both old and
+new pipelines. `runa emit program.runa` uses FIR path. No regression in compilation time.
+
+## M30: Split RustCodegen into Passes
+
+**"One thing at a time."** Even with FIR, the lowering pass could become a new
+monolith. This milestone explicitly structures the compiler as a sequence of named
+passes, each doing one thing.
+
+- [ ] **Pass 1: Declaration collection** — Walk AST once, build `TypeDecls`,
+  `FnSigs`, `EffectDecls`. This is what the current `emit_program` does in its
+  first ~200 lines of scanning.
+- [ ] **Pass 2: Import resolution** — Resolve `@ import`, `@ use`, qualified imports.
+  Currently interleaved with declaration collection in `emit_program`.
+- [ ] **Pass 3: Type annotation** — Walk AST, annotate every expression with its type.
+  Use TypeChecker (M16) infrastructure, extended to produce types (not just errors).
+- [ ] **Pass 4: Ownership analysis** — Walk typed AST, determine move/clone/borrow
+  for every variable use. Consolidates the 4 counting functions + aliased_vars +
+  copy_vars + borrow_only_params + ref_match_bindings into one coherent pass.
+- [ ] **Pass 5: FIR construction** — Combine type + ownership annotations into FIR nodes.
+- [ ] **Pass 6: Rust emission** — Stateless walk of FIR tree, produce Rust source.
+- [ ] **Pipeline orchestration** — `compile(ast: &[Stmt]) -> String` runs passes 1–6
+  in order. Each pass has a clear input and output type. Passes are independently testable.
+- [ ] **Centralize type metadata** — The duplicate type information between `TypeChecker`
+  and `RustCodegen` is unified into a single `TypeRegistry` produced by Pass 1
+  and consumed by all subsequent passes.
+
+**Test:** Each pass can be run independently and produces a well-typed intermediate result.
+`TypeRegistry` is used by both TypeChecker and codegen (no more duplicate builtin lists).
+All 69+ tests still pass. Adding a new pass requires touching only the pipeline orchestration.
+
+---
+
+## Phase C — Type System
+
+## M31: Type Annotation Pass
+
+**"Every expression knows its type."** The current TypeChecker (M16) only checks
+name/arity — it does not compute or propagate types. Type information is
+reconstructed heuristically during codegen (e.g., `string_typed_vars`,
+`float_typed_vars`, `string_returning_fns`). This milestone makes the type
+annotation pass actually compute types for every expression.
+
+- [ ] **Bidirectional type inference**: For each expression, compute its type from
+  context (checking mode) or from subexpressions (synthesis mode). Literals are
+  obvious; function calls use declared signatures; lambdas use parameter
+  annotations + body type.
+- [ ] **Type environment**: `BTreeMap<String, Ty>` threaded through checking. Function
+  params with annotations create bindings. Pattern matching creates bindings from
+  scrutinee type decomposition.
+- [ ] **Type defaulting**: Unresolved integer literals default to `Int` (i64), float
+  literals to `Float` (f64). Unresolved string expressions default to `String`.
+- [ ] **Type error messages with spans**: "Expected Int, found String at line 42,
+  column 15 in argument 2 of `process()`".
+- [ ] **Replace heuristic sets**: `string_typed_vars`, `float_typed_vars`, `copy_vars`,
+  `string_returning_fns` are all eliminated. Their information comes from the
+  type annotation pass.
+- [ ] **Type annotation on FIR nodes**: Every `FirExpr` carries a `FirTy` that is
+  always populated (not `Option`). Type `Unknown` only for genuinely unresolvable cases.
+
+**Test:** `runa check program.runa` reports type mismatches (not just arity errors).
+All existing tests pass with zero false positives from new type checking. Type
+errors include expected vs. actual type and span.
+
+## M32: Constraint-Based Type Inference
+
+**"Types flow through the program."** With M31 handling explicit annotations, this
+milestone adds Hindley-Milner-style constraint solving for cases where types are
+not annotated. Currently, `Ty::Var(String)` is defined but never instantiated.
+This milestone makes it real.
+
+- [ ] **Type variables**: `Ty::Var` generates fresh variables (`_t0`, `_t1`, ...) for
+  unannotated positions. Lambda parameters without annotations get fresh type variables.
+- [ ] **Constraint generation**: Each expression generates constraints. `f(x)` where
+  `f: A -> B` generates `typeof(x) = A` and `typeof(f(x)) = B`. `if c then a else b`
+  generates `typeof(c) = Bool` and `typeof(a) = typeof(b)`.
+- [ ] **Unification**: Standard union-find unification. `unify(Ty::Var("_t0"), Ty::Name("Int"))`
+  resolves `_t0` to `Int`. Occurs check prevents infinite types. Error on unification
+  failure with clear message.
+- [ ] **Substitution**: After solving, walk all FIR nodes and substitute resolved type
+  variables. Any remaining `Ty::Var` is an error ("cannot infer type, add annotation").
+- [ ] **Polymorphism (let-generalization)**: Function definitions generalize over unresolved
+  type variables. `> id(x) { x }` gets type `forall a. a -> a`. Instantiation creates
+  fresh variables at each call site.
+- [ ] **Generic ADTs**: `# Option(a) = None | Some(a)` works with real type parameters.
+  `Some(42)` infers `Option(Int)`. `Some("hello")` infers `Option(String)`.
+
+**Test:** `> id(x) { x }` followed by `id(42)` and `id("hello")` both type-check.
+`> add(x, y) { x + y }` followed by `add(1, 2)` infers Int; `add(1.0, 2.0)` infers
+Float. `> map(xs, f) { ... }` works with different element types. Type errors say
+"cannot unify Int with String" with location.
+
+## M33: Trait Resolution and Method Dispatch
+
+**"Types that implement behaviors."** The compiler emits Rust traits and impls from
+`# trait` and `# impl` declarations, but there is no Futuruna-level checking that
+trait bounds are satisfied, that methods exist on types, or that impl blocks are
+complete. The TypeChecker ignores traits entirely. This milestone adds trait-aware
+type checking.
+
+- [ ] **Trait registry**: Collect all `# trait T { ... }` declarations. Record
+  required methods with signatures.
+- [ ] **Impl validation**: Check that `# impl T for U { ... }` provides all required
+  methods with correct signatures. Report missing methods.
+- [ ] **Method resolution**: `x.method()` looks up the type of `x`, finds available
+  methods from impl blocks (not just string matching during codegen).
+- [ ] **Trait bounds on type parameters**: `> sort(xs: List(T)) where T: Ord { ... }` —
+  verify that call sites satisfy bounds.
+- [ ] **Built-in trait auto-deriving**: Types with all-Copy fields auto-satisfy Copy.
+  Types auto-satisfy Clone. Struct types auto-satisfy Debug. These are currently
+  handled by heuristics in codegen.
+
+**Test:** Missing method in impl block produces error at Futuruna level (not Rust
+compiler). Calling a method on a type that doesn't have it produces Futuruna error.
+Trait bounds checked at call sites.
+
+---
+
+## Phase D — Ecosystem
+
+## M34: Package Manager v2
+
+**"Dependencies that lock, resolve, and reproduce."** The current package manager
+has no lock file, no semver resolution, and no transitive dependency handling.
+This milestone makes the package manager production-grade.
+
+- [ ] **`runa.lock` generation**: After resolution, write a lock file recording exact
+  versions/commits for all dependencies (direct + transitive). Format: TOML.
+- [ ] **`runa.lock` consumption**: If lock file exists, use locked versions instead of
+  resolving. `runa update` re-resolves and rewrites lock file.
+- [ ] **Semver resolution**: `runa.toml` supports `version = "^1.2"` for git
+  dependencies. Resolver fetches tags, picks highest compatible version.
+- [ ] **Transitive dependencies**: If dependency A depends on dependency B, resolve B
+  automatically. Detect and report circular dependencies.
+- [ ] **`runa deps`**: Show the resolved dependency tree.
+- [ ] **`runa build --offline`**: Use only cached/locked deps, fail if any are missing.
+
+**Test:** `runa init` + `runa add` + `runa build` produces a `runa.lock` file.
+Second `runa build` uses locked versions (no network fetch). Circular dependency
+detected and reported.
+
+## M35: Stdlib Expansion
+
+**"The missing 30%."** The existing 92 builtins cover ~70% of common needs.
+The critical gaps are regex, datetime, and random number generation. These are
+best implemented as auto-dep builtins (same pattern as M14c/M14d).
+
+- [ ] **Regex**: `regex_match(pattern, text)` → `Bool`, `regex_find(pattern, text)` →
+  `Option(String)`, `regex_find_all(pattern, text)` → `List(String)`,
+  `regex_replace(pattern, text, replacement)` → `String`. Auto-dep: `regex = "1"`.
+- [ ] **DateTime**: `now()` → `Int` (Unix timestamp ms),
+  `format_time(timestamp, format)` → `String`, `parse_time(text, format)` → `Int`,
+  `time_diff(t1, t2)` → `Int` (ms). Auto-dep: `chrono = "0.4"`.
+- [ ] **Random**: `random_float()` → `Float` (0.0..1.0), `random_choice(list)` → element,
+  `shuffle(list)` → `List`.
+- [ ] **`sleep(ms)`** → `()` — async-aware: uses `tokio::time::sleep` in async mode,
+  `std::thread::sleep` in sync.
+- [ ] **All new builtins in both interpreter and codegen** with matching output.
+
+**Test:** Each new builtin has a test file in `tests/`. Interpreter and compiled
+output match. Auto-dependency injection works.
+
+## M36: WASM Target Completion
+
+**"Ship to browsers for real."** M4 was declared but never fully completed.
+The `build_wasm` function exists and generates a Cargo project with `wasm-bindgen`,
+but the codegen does not fully emit `#[wasm_bindgen]` annotations, JS interop types,
+or WASI support. This milestone finishes the job.
+
+- [ ] **`#[wasm_bindgen]` on exported functions**: `@ export > greet(name: String) -> String`
+  emits `#[wasm_bindgen] pub fn greet(name: String) -> String`.
+- [ ] **Type mapping for WASM**: `Int` → `i64`, `Float` → `f64`, `String` → `String`
+  (through wasm-bindgen), `Bool` → `bool`, `List(T)` → `Vec<T>` (with JsValue conversion).
+- [ ] **`runa wasm` end-to-end**: Transpile, generate Cargo project, run `wasm-pack build`,
+  produce `.wasm` + JS bindings. Print path to output.
+- [ ] **WASI target**: `runa wasm --wasi` compiles to WASI target (`wasm32-wasi`).
+- [ ] **Suppress incompatible builtins**: File I/O, HTTP server, DB builtins emit compile
+  errors when targeting WASM (with clear message).
+- [ ] **Example**: A WASM program that exports a function, compiles, and runs in
+  Node.js or browser.
+
+**Test:** `runa wasm hello_wasm.runa` produces `.wasm` + JS bindings. Exported
+functions are callable from JavaScript. Programs using `http_serve` in WASM mode
+get clear error.
+
+---
+
+## Phase E — Launch
+
+## M37: Getting-Started Tutorial + Docs
+
+**"From zero to running program in 10 minutes."** The `docs/reference/` directory
+has 7 files covering basics, runes, style, stdlib, streams, and Rust compatibility.
+But there is no step-by-step tutorial for a new user and no architecture guide
+for contributors.
+
+- [ ] **7-part tutorial**: `docs/tutorial/01-hello.md` through `07-project.md`.
+  Hello → types → functions → rules → streams → effects → multi-file project.
+- [ ] **Architecture guide**: `docs/architecture.md` — how the compiler works
+  (lexer, parser, TypeChecker, FIR, codegen), how to add a builtin, how to add
+  a language feature. Aimed at contributors.
+- [ ] **README rewrite**: Professional project README: elevator pitch, install,
+  hello world, link to tutorial, link to reference.
+- [ ] **All code examples tested and running**.
+
+**Test:** Every code example in the tutorial compiles and runs. A new user can
+follow 01-hello.md and have a running program in under 5 minutes. Architecture
+guide is accurate for the current pipeline.
+
+## M38: CI/CD Pipeline
+
+**"Every commit is tested; every release is published."**
+
+- [ ] **GitHub Actions: test.yml**: On push/PR, run `cargo test`, `cargo build --release`,
+  `runa test`, `runa test --run`. Matrix: Linux, macOS.
+- [ ] **Negative tests in CI**: Run error tests from M28.
+- [ ] **Format check**: `runa fmt --check` on all `.runa` files. Fail on unformatted.
+- [ ] **Release pipeline**: On tag `v*`, build release binaries (Linux x86_64,
+  macOS arm64, macOS x86_64), create GitHub Release with binaries attached.
+- [ ] **Website auto-deploy**: On push to main, build website and deploy.
+- [ ] **Badge**: Add CI status badge to README.
+
+**Test:** Push to a branch triggers CI and all tests pass. Creating a tag produces
+a GitHub Release with binaries.
+
+## M39: VS Code Extension + Marketplace
+
+**"Install in one click."** The VS Code extension has TextMate grammar, LSP
+integration, and a custom theme. But it is not published to the VS Code Marketplace.
+
+- [ ] **Marketplace publisher**: Create verified "futuruna" publisher on VS Code Marketplace.
+- [ ] **Extension packaging**: `vsce package` produces `.vsix`. Icon, categories,
+  README with screenshots, changelog.
+- [ ] **Cursor extension**: Verify Cursor extension works identically. Publish if
+  Cursor has a marketplace.
+- [ ] **LSP performance**: Debounce `textDocument/didChange` (300ms). Currently
+  re-parses on every keystroke.
+- [ ] **LSP: workspace support**: `runa.toml` detection for multi-file projects.
+  Go-to-definition across files.
+- [ ] **Snippet library**: Common patterns as VS Code snippets: `# struct`,
+  `> function`, `| rule`, `~ stream`, `match` with arms.
+
+**Test:** Extension installable from VS Code Marketplace search. Syntax highlighting
+works for all 7 runes. Diagnostics appear within 500ms of typing.
+
+## M40: Website + Playground
+
+**"Try Futuruna without installing anything."** The website is a Dioxus WASM
+application. The playground needs to run Futuruna code in-browser, which requires
+compiling the interpreter to WASM.
+
+- [ ] **Interpreter-as-WASM**: Compile the Futuruna interpreter (`lib.rs` — lexer,
+  parser, evaluator) to WASM. Expose `evaluate(source: &str) -> String` via
+  wasm-bindgen. Feasible because the interpreter is pure Rust with no filesystem deps.
+- [ ] **Playground page**: Text editor with syntax highlighting, "Run" button,
+  output panel. Programs execute client-side via WASM interpreter. No server needed.
+- [ ] **Example programs**: Preloaded examples (one per rune + combined demo).
+  One-click load.
+- [ ] **Share links**: Encode program source in URL fragment (base64 + compression).
+  Shareable playground links.
+- [ ] **Landing page polish**: Elevator pitch, 7-rune overview, comparison table
+  (vs. Rust, Kotlin, Haskell), link to tutorial, link to GitHub.
+- [ ] **Auto-deploy**: Integrate with M38 CI pipeline for automatic deployment.
+
+**Test:** Playground runs all preloaded examples correctly in-browser. Share link
+preserves program and produces correct output when opened. Page loads in under
+3 seconds on 3G.

@@ -672,6 +672,24 @@ fn source_dir_for(filename: &str) -> Option<String> {
     std::path::Path::new(filename).parent().map(|p| p.to_string_lossy().to_string())
 }
 
+/// Run type checking and display any errors as structured diagnostics.
+/// Returns true if there were errors (and already printed them).
+fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> bool {
+    let diags = TypeChecker::check_with_diagnostics(stmts, source_dir_for(filename), source);
+    if diags.is_empty() {
+        return false;
+    }
+    let use_color = should_use_color();
+    let (red, reset) = if use_color { ("\x1b[1;31m", "\x1b[0m") } else { ("", "") };
+    let count = diags.len();
+    eprintln!("{}error{}: {} type error{} in {}:",
+        red, reset, count, if count == 1 { "" } else { "s" }, filename);
+    for diag in &diags {
+        eprint!("{}", diag.display(source, filename, use_color));
+    }
+    true
+}
+
 fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) {
     use std::process::Command;
 
@@ -686,15 +704,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 user_stmts
             };
             // Pre-codegen type checking (M16)
-            let tc_errors = TypeChecker::check_with_source(&stmts, source_dir_for(filename), source);
-            if !tc_errors.is_empty() {
-                eprintln!("\x1b[1;31merror\x1b[0m: {} type error{} in {}:",
-                    tc_errors.len(),
-                    if tc_errors.len() == 1 { "" } else { "s" },
-                    filename);
-                for err in &tc_errors {
-                    eprintln!("  \x1b[1;31m•\x1b[0m {}", err);
-                }
+            if run_type_check(&stmts, source, filename) {
                 std::process::exit(1);
             }
 
@@ -886,7 +896,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             }
         }
         Err(e) => {
-            display_error(source, &e);
+            display_error_in(source, &e, filename);
             std::process::exit(1);
         }
     }
@@ -1025,7 +1035,7 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
             }
         }
         Err(e) => {
-            display_error(source, &e);
+            display_error_in(source, &e, filename);
             std::process::exit(1);
         }
     }
@@ -1073,15 +1083,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
                 filename, stmt_count, fn_count, type_count, rule_count);
 
             // Pre-codegen type checking (M16)
-            let tc_errors = TypeChecker::check_with_source(&stmts, source_dir_for(filename), source);
-            if !tc_errors.is_empty() {
-                eprintln!("\x1b[1;31merror\x1b[0m: {} type error{} in {}:",
-                    tc_errors.len(),
-                    if tc_errors.len() == 1 { "" } else { "s" },
-                    filename);
-                for err in &tc_errors {
-                    eprintln!("  \x1b[1;31m•\x1b[0m {}", err);
-                }
+            if run_type_check(&stmts, source, filename) {
                 std::process::exit(1);
             }
 
@@ -1100,7 +1102,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             }
         }
         Err(e) => {
-            display_error(source, &e);
+            display_error_in(source, &e, filename);
             std::process::exit(1);
         }
     }
@@ -1741,7 +1743,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         Ok(user_stmts) => {
             if use_prelude { prepend_prelude(parse_prelude(), &user_stmts) } else { user_stmts }
         }
-        Err(e) => { display_error(source, &e); std::process::exit(1); }
+        Err(e) => { display_error_in(source, &e, filename); std::process::exit(1); }
     };
 
     let mut interp = Interpreter::new();
@@ -2337,7 +2339,7 @@ fn verify_with_z3(source: &str, filename: &str) {
     let stmts = match parser.parse_program() {
         Ok(s) => s,
         Err(e) => {
-            display_error(source, &e);
+            display_error_in(source, &e, filename);
             std::process::exit(1);
         }
     };
@@ -2639,7 +2641,7 @@ fn show_hashes(source: &str, filename: &str) {
             print_hashes(&stmts);
         }
         Err(e) => {
-            display_error(source, &e);
+            display_error_in(source, &e, filename);
             std::process::exit(1);
         }
     }
@@ -2707,7 +2709,7 @@ fn update_registry(source: &str, filename: &str) {
             }
         }
         Err(e) => {
-            display_error(source, &e);
+            display_error_in(source, &e, filename);
             std::process::exit(1);
         }
     }
@@ -2791,15 +2793,7 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
             let type_count = stmts.iter().filter(|s| matches!(s, Stmt::TypeDecl(_))).count();
 
             // Pre-codegen type checking (M16): catch errors before Rust codegen
-            let tc_errors = TypeChecker::check_with_source(&stmts, source_dir_for(filename), source);
-            if !tc_errors.is_empty() {
-                eprintln!("\x1b[1;31merror\x1b[0m: {} type error{} in {}:",
-                    tc_errors.len(),
-                    if tc_errors.len() == 1 { "" } else { "s" },
-                    filename);
-                for err in &tc_errors {
-                    eprintln!("  \x1b[1;31m•\x1b[0m {}", err);
-                }
+            if run_type_check(&stmts, source, filename) {
                 std::process::exit(1);
             }
 
@@ -2895,7 +2889,7 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
             }
         }
         Err(e) => {
-            display_error(source, &e);
+            display_error_in(source, &e, filename);
             std::process::exit(1);
         }
     }
@@ -2923,7 +2917,7 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
             eprintln!("// runa --emit rust: {} → {} lines of Rust", filename, code.lines().count());
         }
         Err(e) => {
-            display_error(source, &e);
+            display_error_in(source, &e, filename);
             std::process::exit(1);
         }
     }
@@ -2951,7 +2945,7 @@ fn emit_rust_lib(source: &str, filename: &str, use_prelude: bool) {
             eprintln!("// runa --lib: {} → {} lines of Rust library", filename, code.lines().count());
         }
         Err(e) => {
-            display_error(source, &e);
+            display_error_in(source, &e, filename);
             std::process::exit(1);
         }
     }
@@ -3807,9 +3801,9 @@ fn lsp_analyze(writer: &mut impl std::io::Write, uri: &str, source: &str, prelud
         Ok(user_stmts) => {
             let stmts = prepend_prelude(prelude.to_vec(), &user_stmts);
             let src_dir = lsp_source_dir(uri);
-            let tc_errors = TypeChecker::check_with_source(&stmts, src_dir, source);
-            for error in &tc_errors {
-                diagnostics.push(lsp_type_error_to_diag(error));
+            let tc_diags = TypeChecker::check_with_diagnostics(&stmts, src_dir, source);
+            for diag in &tc_diags {
+                diagnostics.push(diagnostic_to_lsp(diag, source));
             }
         }
     }
@@ -3852,6 +3846,39 @@ fn lsp_type_error_to_diag(error: &str) -> serde_json::Value {
             "end": {"line": line, "character": col + 1}
         },
         "severity": 1,
+        "source": "runa",
+        "message": message
+    })
+}
+
+/// Convert a structured Diagnostic to LSP JSON format.
+fn diagnostic_to_lsp(diag: &Diagnostic, source: &str) -> serde_json::Value {
+    let (line, col, end_line, end_col) = if let Some(span) = diag.span {
+        let (l, c) = span.start_line_col(source);
+        let (el, ec) = span.end_line_col(source);
+        (l.saturating_sub(1) as u32, c.saturating_sub(1) as u32,
+         el.saturating_sub(1) as u32, ec.saturating_sub(1) as u32)
+    } else {
+        (0, 0, 0, 1)
+    };
+
+    let severity = match diag.severity {
+        Severity::Error => 1,
+        Severity::Warning => 2,
+        Severity::Help => 3,
+    };
+
+    let mut message = diag.message.clone();
+    if !diag.context.is_empty() {
+        message.push_str(&format!(" ({})", diag.context.join(", ")));
+    }
+
+    serde_json::json!({
+        "range": {
+            "start": {"line": line, "character": col},
+            "end": {"line": end_line, "character": end_col}
+        },
+        "severity": severity,
         "source": "runa",
         "message": message
     })
