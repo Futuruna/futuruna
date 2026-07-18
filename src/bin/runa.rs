@@ -3011,7 +3011,7 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
                 let ownership = OwnershipAnalysis::analyze(body, borrow_params, Some(name.as_str()), &param_names);
                 let mut ctx = LoweringCtx {
                     type_env,
-                    inference: None,
+                    inference: None, fn_schemes: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -3037,7 +3037,7 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
             }
             Stmt::Bind(Pat::Var(name), _, expr) => {
                 let ownership = OwnershipAnalysis::analyze_simple(expr);
-                let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None,
+                let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -3048,7 +3048,7 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
             }
             Stmt::Expr(expr) => {
                 let ownership = OwnershipAnalysis::analyze_simple(expr);
-                let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None,
+                let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -3059,7 +3059,7 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
             }
             Stmt::For(var, iter_expr, body) => {
                 let ownership = OwnershipAnalysis::analyze_simple(iter_expr);
-                let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None,
+                let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -5271,6 +5271,60 @@ impl TypeInference {
             _ => {} // Var, Lit, Unit — no children
         }
     }
+
+    /// Collect all unresolved type variables in a type.
+    fn free_vars(&self, ty: &FirTy) -> BTreeSet<usize> {
+        let mut vars = BTreeSet::new();
+        self.collect_free_vars(ty, &mut vars);
+        vars
+    }
+
+    fn collect_free_vars(&self, ty: &FirTy, vars: &mut BTreeSet<usize>) {
+        match self.find(ty) {
+            FirTy::Var(id) => { vars.insert(id); }
+            FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => self.collect_free_vars(&inner, vars),
+            FirTy::Result(a, b) | FirTy::Map(a, b) | FirTy::Arrow(a, b) => {
+                self.collect_free_vars(&a, vars);
+                self.collect_free_vars(&b, vars);
+            }
+            FirTy::Tuple(elems) => { for e in &elems { self.collect_free_vars(e, vars); } }
+            _ => {}
+        }
+    }
+
+    /// Instantiate a type by replacing the given generic var IDs with fresh variables.
+    fn instantiate(&mut self, ty: &FirTy, generics: &BTreeSet<usize>) -> FirTy {
+        if generics.is_empty() { return ty.clone(); }
+        let mut mapping: BTreeMap<usize, FirTy> = BTreeMap::new();
+        for &id in generics {
+            mapping.insert(id, self.fresh());
+        }
+        self.apply_mapping(ty, &mapping)
+    }
+
+    fn apply_mapping(&self, ty: &FirTy, mapping: &BTreeMap<usize, FirTy>) -> FirTy {
+        match self.find(ty) {
+            FirTy::Var(id) => mapping.get(&id).cloned().unwrap_or(FirTy::Var(id)),
+            FirTy::List(inner) => FirTy::List(Box::new(self.apply_mapping(&inner, mapping))),
+            FirTy::Option(inner) => FirTy::Option(Box::new(self.apply_mapping(&inner, mapping))),
+            FirTy::Set(inner) => FirTy::Set(Box::new(self.apply_mapping(&inner, mapping))),
+            FirTy::Result(a, b) => FirTy::Result(Box::new(self.apply_mapping(&a, mapping)), Box::new(self.apply_mapping(&b, mapping))),
+            FirTy::Map(k, v) => FirTy::Map(Box::new(self.apply_mapping(&k, mapping)), Box::new(self.apply_mapping(&v, mapping))),
+            FirTy::Arrow(a, b) => FirTy::Arrow(Box::new(self.apply_mapping(&a, mapping)), Box::new(self.apply_mapping(&b, mapping))),
+            FirTy::Tuple(elems) => FirTy::Tuple(elems.iter().map(|e| self.apply_mapping(e, mapping)).collect()),
+            other => other,
+        }
+    }
+}
+
+/// A type scheme: a type with generic (universally quantified) variables.
+/// Used for let-generalization of polymorphic functions.
+#[derive(Debug, Clone)]
+struct TypeScheme {
+    /// The generic type variable IDs (universally quantified)
+    generics: BTreeSet<usize>,
+    /// The type (containing Var references to the generic IDs)
+    ty: FirTy,
 }
 
 /// FIR expression — AST expression with ownership and type annotations.
@@ -5421,6 +5475,8 @@ struct LoweringCtx<'a> {
     type_env: BTreeMap<String, FirTy>,
     /// Type inference engine (optional — used when constraint solving is active)
     inference: Option<TypeInference>,
+    /// Polymorphic function type schemes (from let-generalization)
+    fn_schemes: BTreeMap<String, TypeScheme>,
 }
 
 impl<'a> LoweringCtx<'a> {
@@ -5497,7 +5553,7 @@ impl<'a> LoweringCtx<'a> {
     /// Infer types for a function with possibly unannotated parameters.
     /// Creates type variables for missing annotations, lowers the body,
     /// generates constraints from usage, solves, and substitutes.
-    fn infer_function(&mut self, params: &[Param], body: &Expr, ret_ty: Option<&Ty>) -> FirExpr {
+    fn infer_function(&mut self, params: &[Param], body: &Expr, ret_ty: Option<&Ty>, fn_name: Option<&str>) -> FirExpr {
         let mut inf = TypeInference::new();
 
         // Create type vars for unannotated params, concrete types for annotated ones
@@ -5521,10 +5577,30 @@ impl<'a> LoweringCtx<'a> {
             }
         }
 
-        // Solve: substitute all type vars
+        // Before substitution: build the function type and check for generics
         if let Some(ref inf) = self.inference {
+            // Build Arrow type from current (possibly unresolved) param types
+            let param_tys: Vec<FirTy> = params.iter().map(|p| {
+                self.type_env.get(&p.name).cloned().unwrap_or(FirTy::Unknown)
+            }).collect();
+            let mut fn_ty = fir_body.ty.clone();
+            for pt in param_tys.into_iter().rev() {
+                fn_ty = FirTy::Arrow(Box::new(pt), Box::new(fn_ty));
+            }
+
+            // Collect free (unresolved) type vars — these become generics
+            let free = inf.free_vars(&fn_ty);
+            if !free.is_empty() {
+                self.fn_schemes.insert(fn_name.unwrap_or("_").to_string(), TypeScheme {
+                    generics: free,
+                    ty: fn_ty.clone(),
+                });
+            } else {
+                self.type_env.insert(fn_name.unwrap_or("_").to_string(), fn_ty);
+            }
+
+            // Now substitute resolved vars
             inf.substitute_expr(&mut fir_body);
-            // Also resolve param types in the environment
             let resolved_env: BTreeMap<String, FirTy> = self.type_env.iter()
                 .map(|(k, v)| (k.clone(), inf.resolve(v)))
                 .collect();
@@ -5575,9 +5651,39 @@ impl<'a> LoweringCtx<'a> {
             ExprKind::App(func, args) => {
                 let fir_func = self.lower_expr(func);
                 let fir_args: Vec<FirExpr> = args.iter().map(|a| self.lower_expr(a)).collect();
+
+                // Check if the function has a polymorphic type scheme → instantiate
+                let func_ty = if let ExprKind::Var(ref fn_name) = func.kind {
+                    if let Some(scheme) = self.fn_schemes.get(fn_name).cloned() {
+                        if let Some(ref mut inf) = self.inference {
+                            // Instantiate with fresh type vars
+                            let inst = inf.instantiate(&scheme.ty, &scheme.generics);
+                            // Unify arg types with param types
+                            let mut current = &inst;
+                            for arg in &fir_args {
+                                if let FirTy::Arrow(param_ty, ret) = current {
+                                    let _ = inf.unify(&arg.ty, param_ty);
+                                    current = ret;
+                                }
+                            }
+                            Some(inst)
+                        } else { None }
+                    } else { None }
+                } else { None };
+
                 // Infer return type from function's type (if Arrow)
-                let ty = match &fir_func.ty {
-                    FirTy::Arrow(_, ret) => *ret.clone(),
+                let effective_ty = func_ty.as_ref().unwrap_or(&fir_func.ty);
+                let ty = match effective_ty {
+                    FirTy::Arrow(_, ret) => {
+                        // Walk through arrows to get the return type after all args applied
+                        let mut current = effective_ty;
+                        for _ in &fir_args {
+                            if let FirTy::Arrow(_, ret) = current {
+                                current = ret;
+                            } else { break; }
+                        }
+                        current.clone()
+                    }
                     _ => FirTy::Unknown,
                 };
                 FirExpr {
@@ -14400,7 +14506,7 @@ mod tests {
             consuming_uses: BTreeMap::new(),
         };
 
-        let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None,
+        let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
             types: &types,
             ownership: &ownership,
             copy_vars: &copy_vars,
@@ -14464,7 +14570,7 @@ mod tests {
         if let Stmt::Bind(_, _, ref expr) = stmts[1] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
 
-            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None,
+            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14505,7 +14611,7 @@ mod tests {
             assert_eq!(ownership.consuming_uses.get("a").copied().unwrap_or(0), 0,
                 "BinOp operands should not count as consuming uses");
 
-            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None,
+            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14535,7 +14641,7 @@ mod tests {
 
         if let Stmt::Bind(_, _, ref expr) = stmts[0] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
-            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None,
+            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14712,7 +14818,7 @@ mod tests {
 
         if let Stmt::Bind(_, _, ref expr) = stmts[0] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
-            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None,
+            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14861,7 +14967,7 @@ mod tests {
         // The bind expression is stmts[1]: = result = use_both(name, name)
         if let Stmt::Bind(_, _, ref expr) = stmts[1] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
-            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None,
+            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &BTreeSet::new(),
@@ -14886,7 +14992,7 @@ mod tests {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
             let mut ctx = LoweringCtx {
                 type_env,
-                inference: None,
+                inference: None, fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &BTreeSet::new(),
@@ -15074,18 +15180,18 @@ mod tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse failed");
 
-        if let Stmt::Defn(Defn::Fn { params, body, ret_ty, .. }) = &stmts[0] {
+        if let Stmt::Defn(Defn::Fn { name, params, body, ret_ty, .. }) = &stmts[0] {
             let types = TypeRegistry::new();
             let ownership = OwnershipAnalysis::analyze_simple(body);
             let mut ctx = LoweringCtx {
                 type_env: BTreeMap::new(),
-                inference: None,
+                inference: None, fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &BTreeSet::new(),
                 ref_match_bindings: &BTreeSet::new(),
             };
-            let fir = ctx.infer_function(params, body, ret_ty.as_ref());
+            let fir = ctx.infer_function(params, body, ret_ty.as_ref(), Some(name.as_str()));
             let env = ctx.type_env.clone();
             (fir, env)
         } else {
@@ -15115,6 +15221,87 @@ mod tests {
     fn infer_body_type_from_return_annotation() {
         let (fir, _) = infer_fn("> greet(name: String) -> String { name }");
         assert_eq!(fir.ty, FirTy::String);
+    }
+
+    #[test]
+    fn generalize_polymorphic_function() {
+        // > id(x) { x } → should be generic (x is unresolved type var)
+        let source = "> id(x) { x }";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        if let Stmt::Defn(Defn::Fn { name, params, body, ret_ty, .. }) = &stmts[0] {
+            let types = TypeRegistry::new();
+            let ownership = OwnershipAnalysis::analyze_simple(body);
+            let mut ctx = LoweringCtx {
+                type_env: BTreeMap::new(),
+                inference: None, fn_schemes: BTreeMap::new(),
+                types: &types,
+                ownership: &ownership,
+                copy_vars: &BTreeSet::new(),
+                ref_match_bindings: &BTreeSet::new(),
+            };
+            let fir = ctx.infer_function(params, body, ret_ty.as_ref(), Some(name.as_str()));
+
+            // id should have a type scheme with generics
+            assert!(ctx.fn_schemes.contains_key("id"),
+                "id should be polymorphic, got env: {:?}, schemes: {:?}", ctx.type_env, ctx.fn_schemes);
+            let scheme = &ctx.fn_schemes["id"];
+            assert!(!scheme.generics.is_empty(), "id should have generic type vars");
+        }
+    }
+
+    #[test]
+    fn instantiate_polymorphic_at_call_site() {
+        // id(42) should instantiate id's scheme and infer return type Int
+        let mut inf = TypeInference::new();
+        let a = inf.fresh(); // a = _t0
+        let scheme = TypeScheme {
+            generics: inf.free_vars(&a),
+            ty: FirTy::Arrow(Box::new(a.clone()), Box::new(a.clone())),
+        };
+        // Instantiate: creates fresh _t1
+        let inst = inf.instantiate(&scheme.ty, &scheme.generics);
+        // Unify arg type (Int) with param type
+        if let FirTy::Arrow(param, _) = &inst {
+            inf.unify(param, &FirTy::Int).unwrap();
+        }
+        // Resolve return type
+        if let FirTy::Arrow(_, ret) = &inst {
+            assert_eq!(inf.resolve(ret), FirTy::Int, "id(42) should return Int");
+        }
+    }
+
+    #[test]
+    fn monomorphic_function_not_generalized() {
+        let source = "> add(a: Int, b: Int) -> Int { a + b }";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        if let Stmt::Defn(Defn::Fn { name, params, body, ret_ty, .. }) = &stmts[0] {
+            let types = TypeRegistry::new();
+            let ownership = OwnershipAnalysis::analyze_simple(body);
+            let mut ctx = LoweringCtx {
+                type_env: BTreeMap::new(),
+                inference: None, fn_schemes: BTreeMap::new(),
+                types: &types,
+                ownership: &ownership,
+                copy_vars: &BTreeSet::new(),
+                ref_match_bindings: &BTreeSet::new(),
+            };
+            let fir = ctx.infer_function(params, body, ret_ty.as_ref(), Some(name.as_str()));
+
+            // add is monomorphic — should NOT be in fn_schemes
+            assert!(!ctx.fn_schemes.contains_key("add"),
+                "add should be monomorphic, not in schemes");
+            // Should be in type_env instead
+            assert!(ctx.type_env.contains_key("add"),
+                "add should be in type_env as Arrow(Int, Arrow(Int, Int))");
+        }
     }
 
     #[test]
