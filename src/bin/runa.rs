@@ -4332,6 +4332,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("foldl",        BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().fold({1}, {2})" }),
         ("sort",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }" }),
         ("sort_by",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", ({1})(a.clone())).cmp(&format!(\"{}\", ({1})(b.clone())))); __v }" }),
+        ("reverse",      BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }" }),
         ("any",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().any(|x| ({1})( x.clone()))" }),
         ("all",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().all(|x| ({1})( x.clone()))" }),
         ("find",         BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.iter().find(|x| ({1})((*x).clone())).cloned()" }),
@@ -6235,14 +6236,22 @@ impl RustCodegen {
                 }
             }
             Value::NamedConstructor(name, fields) => {
+                // Look up the parent type for enum variants (e.g., ResultKind::Leaf)
+                let parent_ty = variant_parent.get(name.as_str()).cloned().unwrap_or_default();
+                let qualified = if parent_ty.is_empty() || parent_ty == *name {
+                    name.clone()  // Struct type (parent == name) or unknown
+                } else {
+                    format!("{}::{}", parent_ty, name)  // Enum variant
+                };
                 if fields.is_empty() {
-                    (name.clone(), name.clone())
+                    (qualified.clone(), if parent_ty.is_empty() { name.clone() } else { parent_ty })
                 } else {
                     let items: Vec<String> = fields.iter().map(|(fname, fval)| {
                         let (v, _) = Self::value_to_rust_literal(fval, variant_parent);
                         format!("{}: {}", fname, v)
                     }).collect();
-                    (format!("{} {{ {} }}", name, items.join(", ")), name.clone())
+                    (format!("{} {{ {} }}", qualified, items.join(", ")),
+                     if parent_ty.is_empty() { name.clone() } else { parent_ty })
                 }
             }
             _ => (format!("todo!(\"comptime: unsupported value\")",), "()".to_string()),
@@ -11165,19 +11174,26 @@ impl RustCodegen {
                     } {
                         let mut fields = BTreeSet::new();
                         self.collect_field_accesses(body, &p.name, &mut fields);
-                        // Find the struct/variant whose fields match
-                        let mut inferred = None;
-                        for (type_name, type_fields) in &self.variant_fields {
-                            let field_set: BTreeSet<String> = type_fields.iter().cloned().collect();
-                            if fields.is_subset(&field_set) {
-                                inferred = Some(type_name.clone());
-                                break;
-                            }
-                        }
-                        if let Some(ty) = inferred {
-                            format!("{}: {}", sanitize_name(&p.name), ty)
-                        } else {
+                        // If only fst/snd accessed, these are tuple accesses (codegen maps to .0/.1)
+                        // Don't infer Pair struct — leave untyped for Rust to infer
+                        let only_tuple_fields = fields.iter().all(|f| f == "fst" || f == "snd");
+                        if only_tuple_fields {
                             sanitize_name(&p.name)
+                        } else {
+                            // Find the struct/variant whose fields match
+                            let mut inferred = None;
+                            for (type_name, type_fields) in &self.variant_fields {
+                                let field_set: BTreeSet<String> = type_fields.iter().cloned().collect();
+                                if fields.is_subset(&field_set) {
+                                    inferred = Some(type_name.clone());
+                                    break;
+                                }
+                            }
+                            if let Some(ty) = inferred {
+                                format!("{}: {}", sanitize_name(&p.name), ty)
+                            } else {
+                                sanitize_name(&p.name)
+                            }
                         }
                     } else if Self::expr_uses_as_tuple(body, &p.name) {
                         // Infer tuple type for params used with fst/snd
