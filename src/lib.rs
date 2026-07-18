@@ -18,6 +18,7 @@
 //! designed by measuring syntactic consciousness.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::rc::Rc;
 use std::env;
 use std::fmt;
 use std::io::{self, BufRead, Write as IoWrite};
@@ -3843,7 +3844,9 @@ impl fmt::Display for Value {
 pub struct Env {
     /// HashMap for O(1) amortized lookup (was BTreeMap O(log n))
     pub bindings: HashMap<String, Value>,
-    pub parent: Option<Box<Env>>,
+    /// Rc parent: child creation is O(1) refcount bump, not O(n) deep clone.
+    /// This is the critical optimization for closure-heavy code (map/filter/foldl).
+    pub parent: Option<Rc<Env>>,
 }
 
 impl Env {
@@ -3854,7 +3857,16 @@ impl Env {
     pub fn child(&self) -> Self {
         Env {
             bindings: HashMap::new(),
-            parent: Some(Box::new(self.clone())),
+            parent: Some(Rc::new(self.clone())),
+        }
+    }
+
+    /// Cheap child: shares parent via Rc (no clone of parent chain).
+    /// Use this in hot paths (map/filter/foldl closure application).
+    pub fn child_rc(self_rc: &Rc<Env>) -> Self {
+        Env {
+            bindings: HashMap::new(),
+            parent: Some(Rc::clone(self_rc)),
         }
     }
 
