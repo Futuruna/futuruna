@@ -110,11 +110,12 @@ from token line/col converted to byte offsets via `char_offset()`.
 - [x] Fix `parse_int("")` — now warns to stderr, suggests monadic bind
 - [x] Fix `parse_float("")` — same
 - [x] Audit and fix dangerous `.unwrap()` calls (12 fixed in compiler code paths, generated code deferred)
-- [ ] `Expr` → `ExprKind` rename + new `Expr` struct with span
-- [ ] Same for `Stmt` → `StmtKind`
-- [ ] Same for `Pat` → `PatKind`
-- [ ] Parser captures spans on all AST nodes
-- [ ] TypeChecker errors use AST spans instead of `find_symbol_in_source`
+- [x] `Expr` → `ExprKind` rename + new `Expr { kind, span }` struct (736 renames + ~600 construction/match fixes)
+- [x] `From<ExprKind> for Expr` + `From<ExprKind> for Box<Expr>` for ergonomic migration
+- [x] Parser captures real spans: atoms (Var, Lit), operators (BinOp, Pipe, Try), field access, function calls
+- [x] TypeChecker `error_at_expr()` uses AST spans directly — multi-char underlines
+- [ ] Same for `Stmt` → `StmtKind` (deferred — Stmt has fewer match sites, lower priority)
+- [ ] Same for `Pat` → `PatKind` (deferred — same)
 
 ## Files Modified
 
