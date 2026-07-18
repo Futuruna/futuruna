@@ -8217,6 +8217,32 @@ impl TypeChecker {
         false
     }
 
+    /// Report an error with a span from an AST expression.
+    /// Uses the expression's span directly when available, falling back to
+    /// the old find_symbol_in_source heuristic for dummy spans.
+    pub fn error_at_expr(&mut self, expr: &Expr, msg: String) {
+        let span = if !expr.span.is_dummy() {
+            Some(expr.span)
+        } else if !self.source_text.is_empty() {
+            // Fallback: try to find symbol in source
+            if let Some(start) = msg.find('`') {
+                if let Some(end) = msg[start + 1..].find('`') {
+                    let name = &msg[start + 1..start + 1 + end];
+                    Self::find_symbol_in_source(&self.source_text, name)
+                        .map(|(line, col)| line_col_to_span(&self.source_text, line, col))
+                } else { None }
+            } else { None }
+        } else { None };
+
+        let mut diag = if let Some(s) = span {
+            Diagnostic::error_at(s, &msg)
+        } else {
+            Diagnostic::error(&msg)
+        };
+        diag.context = self.error_context.clone();
+        self.diagnostics.push(diag);
+    }
+
     pub fn error(&mut self, msg: String) {
         // Try to derive a span from backtick-quoted symbol name in the source
         let span = if !self.source_text.is_empty() {
@@ -8656,7 +8682,7 @@ impl TypeChecker {
                     && !name.starts_with(|c: char| c.is_uppercase())
                     && name != "_" // wildcard — always valid
                 {
-                    self.error(format!("undefined variable `{}`", name));
+                    self.error_at_expr(expr, format!("undefined variable `{}`", name));
                 }
             }
             ExprKind::App(func, args) => {
@@ -8666,14 +8692,14 @@ impl TypeChecker {
 
                     if let Some(&expected) = self.functions.get(name) {
                         if actual_arity != expected && !self.is_rule_function(name) {
-                            self.error(format!(
+                            self.error_at_expr(expr, format!(
                                 "`{}` expects {} argument{} but got {}",
                                 name, expected, if expected == 1 { "" } else { "s" }, actual_arity
                             ));
                         }
                     } else if let Some(&expected) = self.builtins.get(canonical) {
                         if actual_arity != expected {
-                            self.error(format!(
+                            self.error_at_expr(expr, format!(
                                 "builtin `{}` expects {} argument{} but got {}",
                                 name, expected, if expected == 1 { "" } else { "s" }, actual_arity
                             ));
@@ -8681,7 +8707,7 @@ impl TypeChecker {
                     } else if let Some((_, expected)) = self.constructors.get(name) {
                         let expected = *expected;
                         if actual_arity != expected {
-                            self.error(format!(
+                            self.error_at_expr(expr, format!(
                                 "constructor `{}` expects {} field{} but got {}",
                                 name, expected, if expected == 1 { "" } else { "s" }, actual_arity
                             ));
@@ -8691,7 +8717,7 @@ impl TypeChecker {
                         && !name.contains(".")
                         && !name.starts_with(|c: char| c.is_uppercase())
                     {
-                        self.error(format!("undefined function `{}`", name));
+                        self.error_at_expr(func, format!("undefined function `{}`", name));
                     }
                 } else {
                     self.check_expr(func, _in_fn);
@@ -8782,7 +8808,7 @@ impl TypeChecker {
                 let canonical = builtin_canonical(name);
                 if let Some(&expected) = self.builtins.get(canonical) {
                     if args.len() != expected {
-                        self.error(format!(
+                        self.error_at_expr(expr, format!(
                             "effect `{}` expects {} argument{} but got {}",
                             name, expected, if expected == 1 { "" } else { "s" }, args.len()
                         ));
