@@ -4653,6 +4653,30 @@ struct TypeRegistry {
     struct_types: BTreeSet<String>,
     /// Immutable recursive ADT names that use Rc/Arc instead of Box
     rc_types: BTreeSet<String>,
+    /// Effect declarations: effect_name -> set of operation names
+    effect_ops: BTreeMap<String, BTreeSet<String>>,
+    /// Effect declarations with full signatures: effect_name -> [(op_name, params, ret_ty)]
+    effect_ops_detail: BTreeMap<String, Vec<(String, Vec<Param>, Option<Ty>)>>,
+    /// Functions that use effects: fn_name -> list of effect names (from `with`)
+    fn_effects: BTreeMap<String, Vec<String>>,
+    /// Rule function parameters that need .clone() at each use site (non-Copy types)
+    rule_clone_params: BTreeSet<String>,
+    /// Prolog-style rule functions: fn_name -> param types (e.g., ["&str", "&str"])
+    prolog_rule_fns: BTreeMap<String, Vec<String>>,
+    /// Value-returning Prolog rule functions: fn_name -> return type (e.g., "String")
+    prolog_value_fns: BTreeMap<String, String>,
+    /// Simple literal = bindings at top level: name -> (rust_literal, rust_type)
+    literal_bindings: BTreeMap<String, (String, String)>,
+    /// M26: Types with `@ store` annotation
+    stored_types: BTreeSet<String>,
+    /// M26: For stored types, the name of the first field (primary key)
+    stored_type_key_field: BTreeMap<String, String>,
+    /// M26: Store scope — determines DB filename
+    store_scope: Option<String>,
+    /// M26: Types with `delete_on_change` strategy
+    store_delete_on_change: BTreeSet<String>,
+    /// M26: Schema hash per stored type
+    stored_type_schema_hash: BTreeMap<String, String>,
 }
 
 impl TypeRegistry {
@@ -4668,6 +4692,18 @@ impl TypeRegistry {
             explicit_display_impls: BTreeSet::new(),
             struct_types: BTreeSet::new(),
             rc_types: BTreeSet::new(),
+            effect_ops: BTreeMap::new(),
+            effect_ops_detail: BTreeMap::new(),
+            fn_effects: BTreeMap::new(),
+            rule_clone_params: BTreeSet::new(),
+            prolog_rule_fns: BTreeMap::new(),
+            prolog_value_fns: BTreeMap::new(),
+            literal_bindings: BTreeMap::new(),
+            stored_types: BTreeSet::new(),
+            stored_type_key_field: BTreeMap::new(),
+            store_scope: None,
+            store_delete_on_change: BTreeSet::new(),
+            stored_type_schema_hash: BTreeMap::new(),
         }
     }
 }
@@ -4730,12 +4766,6 @@ struct RustCodegen {
     fn_once_mode: bool,
     /// True when emitting a method body where self is &self — skip boxed unboxing
     in_self_method: bool,
-    /// Effect declarations: effect_name -> set of operation names
-    effect_ops: BTreeMap<String, BTreeSet<String>>,
-    /// Effect declarations with full signatures: effect_name -> [(op_name, params, ret_ty)]
-    effect_ops_detail: BTreeMap<String, Vec<(String, Vec<Param>, Option<Ty>)>>,
-    /// Functions that use effects: fn_name -> list of effect names (from `with`)
-    fn_effects: BTreeMap<String, Vec<String>>,
     /// Effects of the function currently being emitted (for routing op calls to handler params)
     current_effects: Vec<String>,
     /// Effects provided by `| handle` blocks (concrete struct types, need `&mut`)
@@ -4764,33 +4794,12 @@ struct RustCodegen {
     sync_subject_vars: BTreeSet<String>,
     /// Inferred element types for broadcast subjects: name -> Rust type string
     subject_elem_type: BTreeMap<String, String>,
-    /// Rule function parameters that need .clone() at each use site (non-Copy types)
-    rule_clone_params: BTreeSet<String>,
-    /// Prolog-style rule functions: fn_name -> param types (e.g., ["&str", "&str"])
-    /// Used so call sites emit `&str` args instead of `.to_string()`
-    prolog_rule_fns: BTreeMap<String, Vec<String>>,
-    /// Value-returning Prolog rule functions: fn_name -> return type (e.g., "String")
-    /// These return Option<T> instead of bool
-    prolog_value_fns: BTreeMap<String, String>,
-    /// Simple literal = bindings at top level: name -> (rust_literal, rust_type)
-    /// Used to inline literal values in rule bodies that reference outer bindings
-    literal_bindings: BTreeMap<String, (String, String)>,
     /// Builtin registry: name -> definition (template, arity, deps, purity)
     builtin_registry: BTreeMap<String, BuiltinDef>,
     /// Counter for generating unique async stream operator variable names
     async_stream_counter: usize,
-    /// M26: Types with `@ store` annotation — object store persistence (struct → JSON blob in SQLite)
-    stored_types: BTreeSet<String>,
-    /// M26: For stored types, the name of the first field (used as primary key)
-    stored_type_key_field: BTreeMap<String, String>,
-    /// M26: Store scope — determines DB filename. Derived from source file stem or explicit `@ store T in "scope"`.
-    store_scope: Option<String>,
     /// Source file stem (e.g. "weather" from "weather.runa") — used for store DB naming
     source_name: Option<String>,
-    /// M26: Types with `delete_on_change` strategy — wipe table on schema change instead of zero-fill
-    store_delete_on_change: BTreeSet<String>,
-    /// M26: Schema hash per stored type — derived from field names + types for auto-versioning
-    stored_type_schema_hash: BTreeMap<String, String>,
 }
 
 /// Count how many times each variable name appears as ExprKind::Var in an expression tree.
@@ -6145,9 +6154,6 @@ impl RustCodegen {
             string_returning_fns: BTreeSet::new(),
             fn_once_mode: false,
             in_self_method: false,
-            effect_ops: BTreeMap::new(),
-            effect_ops_detail: BTreeMap::new(),
-            fn_effects: BTreeMap::new(),
             current_effects: Vec::new(),
             handle_scope_effects: BTreeSet::new(),
             var_types: BTreeMap::new(),
@@ -6161,18 +6167,9 @@ impl RustCodegen {
             actor_handle_vars: BTreeMap::new(),
             sync_subject_vars: BTreeSet::new(),
             subject_elem_type: BTreeMap::new(),
-            rule_clone_params: BTreeSet::new(),
-            prolog_rule_fns: BTreeMap::new(),
-            prolog_value_fns: BTreeMap::new(),
-            literal_bindings: BTreeMap::new(),
             builtin_registry: rust_builtin_registry(),
             async_stream_counter: 0,
-            stored_types: BTreeSet::new(),
-            stored_type_key_field: BTreeMap::new(),
-            store_scope: None,
             source_name: None,
-            store_delete_on_change: BTreeSet::new(),
-            stored_type_schema_hash: BTreeMap::new(),
         }
     }
 
@@ -6768,15 +6765,15 @@ impl RustCodegen {
                 if let Stmt::Annot(name, args) = stmt {
                     if name == "store" {
                         if let Some(Expr { kind: ExprKind::Var(type_name), .. }) = args.first() {
-                            self.stored_types.insert(type_name.clone());
+                            self.types.stored_types.insert(type_name.clone());
                             // Scan remaining args for flags and scope
                             for arg in args.iter().skip(1) {
                                 match &arg.kind {
                                     ExprKind::Var(flag) if flag == "delete_on_change" => {
-                                        self.store_delete_on_change.insert(type_name.clone());
+                                        self.types.store_delete_on_change.insert(type_name.clone());
                                     }
                                     ExprKind::Lit(Literal::Str(scope)) => {
-                                        self.store_scope = Some(scope.clone());
+                                        self.types.store_scope = Some(scope.clone());
                                     }
                                     _ => {}
                                 }
@@ -6792,10 +6789,10 @@ impl RustCodegen {
             // Find key fields and compute schema hashes for stored types
             for stmt in stmts {
                 if let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = stmt {
-                    if self.stored_types.contains(name.as_str()) {
+                    if self.types.stored_types.contains(name.as_str()) {
                         if let Some(v) = variants.first() {
                             if let Some(f) = v.fields.first() {
-                                self.stored_type_key_field.insert(name.clone(), f.name.clone());
+                                self.types.stored_type_key_field.insert(name.clone(), f.name.clone());
                             }
                             // Compute schema hash from field names + types
                             let mut schema_str = String::new();
@@ -6809,7 +6806,7 @@ impl RustCodegen {
                             let mut hasher = std::collections::hash_map::DefaultHasher::new();
                             schema_str.hash(&mut hasher);
                             let hash = format!("{:016x}", hasher.finish());
-                            self.stored_type_schema_hash.insert(name.clone(), hash);
+                            self.types.stored_type_schema_hash.insert(name.clone(), hash);
                         }
                     }
                 }
@@ -7123,8 +7120,8 @@ impl RustCodegen {
         for stmt in stmts {
             if let Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) = stmt {
                 let op_names: BTreeSet<String> = ops.iter().map(|(n, _, _)| n.clone()).collect();
-                self.effect_ops.insert(name.clone(), op_names);
-                self.effect_ops_detail.insert(name.clone(), ops.clone());
+                self.types.effect_ops.insert(name.clone(), op_names);
+                self.types.effect_ops_detail.insert(name.clone(), ops.clone());
             }
         }
 
@@ -7132,7 +7129,7 @@ impl RustCodegen {
         for stmt in stmts {
             if let Stmt::Defn(Defn::Fn { name, effects, .. }) = stmt {
                 if !effects.is_empty() {
-                    self.fn_effects.insert(name.clone(), effects.clone());
+                    self.types.fn_effects.insert(name.clone(), effects.clone());
                 }
             }
         }
@@ -7142,7 +7139,7 @@ impl RustCodegen {
         {
             // Reverse map: op_name -> effect_name
             let mut op_to_effect: BTreeMap<String, String> = BTreeMap::new();
-            for (eff_name, ops) in &self.effect_ops {
+            for (eff_name, ops) in &self.types.effect_ops {
                 for op in ops {
                     op_to_effect.insert(op.clone(), eff_name.clone());
                 }
@@ -7162,9 +7159,9 @@ impl RustCodegen {
                     let mut changed = false;
                     for (fn_name, body) in &fn_bodies {
                         let handled = BTreeSet::new();
-                        let inferred = Self::collect_expr_effects(body, &handled, &op_to_effect, &self.fn_effects);
+                        let inferred = Self::collect_expr_effects(body, &handled, &op_to_effect, &self.types.fn_effects);
                         if !inferred.is_empty() {
-                            let existing = self.fn_effects.entry(fn_name.clone()).or_default();
+                            let existing = self.types.fn_effects.entry(fn_name.clone()).or_default();
                             for eff in inferred {
                                 if !existing.contains(&eff) {
                                     existing.push(eff);
@@ -7297,7 +7294,7 @@ impl RustCodegen {
             if let Stmt::Bind(Pat::Var(name), _, Expr { kind: ExprKind::Lit(lit), .. }) = stmt {
                 let val = Self::emit_literal_value(lit);
                 let ty = Self::literal_rust_type(lit).to_string();
-                self.literal_bindings.insert(name.clone(), (val, ty));
+                self.types.literal_bindings.insert(name.clone(), (val, ty));
             }
         }
 
@@ -7384,15 +7381,15 @@ impl RustCodegen {
                     let param_type_strs: Vec<String> = param_types.iter().map(|t| {
                         if *t == "String" { "&str".to_string() } else { t.to_string() }
                     }).collect();
-                    self.prolog_rule_fns.insert(fn_name.clone(), param_type_strs);
+                    self.types.prolog_rule_fns.insert(fn_name.clone(), param_type_strs);
                 }
             }
             // Second pass: propagate types from known Prolog functions to dependent ones
-            let known: BTreeMap<String, Vec<String>> = self.prolog_rule_fns.clone();
+            let known: BTreeMap<String, Vec<String>> = self.types.prolog_rule_fns.clone();
             for (fn_name, rules) in &rule_groups {
                 let arity = Self::rule_arity(rules);
                 if arity > 0 && Self::rules_have_prolog_features(rules) {
-                    if let Some(cur_types) = self.prolog_rule_fns.get(fn_name).cloned() {
+                    if let Some(cur_types) = self.types.prolog_rule_fns.get(fn_name).cloned() {
                         let mut updated = cur_types.clone();
                         for r in rules.iter() {
                             if let Rule::Clause { head, body: Some(body) } = r {
@@ -7422,7 +7419,7 @@ impl RustCodegen {
                                 }
                             }
                         }
-                        self.prolog_rule_fns.insert(fn_name.clone(), updated);
+                        self.types.prolog_rule_fns.insert(fn_name.clone(), updated);
                     }
                 }
             }
@@ -7457,7 +7454,7 @@ impl RustCodegen {
                     self.borrow_only_params.insert(fn_name.clone(), borrow_flags);
                 }
                 out.push_str(&self.emit_rule_function(fn_name, rules));
-                self.rule_clone_params.clear();
+                self.types.rule_clone_params.clear();
                 out.push('\n');
             }
         }
@@ -7601,7 +7598,7 @@ impl RustCodegen {
 
             // Auto-comptime: pure functions with all-literal/comptime args get evaluated
             // at compile time without requiring explicit @ comptime annotation.
-            let pure_fns = Self::find_pure_functions(stmts, &self.effect_ops, &self.fn_effects);
+            let pure_fns = Self::find_pure_functions(stmts, &self.types.effect_ops, &self.types.fn_effects);
             for stmt in &main_stmts {
                 if let Stmt::Bind(Pat::Var(name), _, expr) = stmt {
                     // Skip already-comptime bindings
@@ -7704,8 +7701,8 @@ impl RustCodegen {
 
             // M26: Object store — open DB, version check, create tables for stored types
             // DB named per scope: explicit `@ store T in "scope"` or derived from source file stem
-            if !self.stored_types.is_empty() {
-                let db_name = if let Some(ref scope) = self.store_scope {
+            if !self.types.stored_types.is_empty() {
+                let db_name = if let Some(ref scope) = self.types.store_scope {
                     format!(".{}.store.db", scope)
                 } else if let Some(ref stem) = self.source_name {
                     format!(".{}.store.db", stem)
@@ -7723,10 +7720,10 @@ impl RustCodegen {
                 out.push_str(&format!("{i}    \"CREATE TABLE IF NOT EXISTS __store_meta (type_name TEXT PRIMARY KEY, schema_hash TEXT NOT NULL)\",\n"));
                 out.push_str(&format!("{i}    rusqlite::params![]\n"));
                 out.push_str(&format!("{i}).ok();\n"));
-                for type_name in &self.stored_types.clone() {
+                for type_name in &self.types.stored_types.clone() {
                     let table_name = sanitize_name(type_name).to_lowercase();
-                    let hash = self.stored_type_schema_hash.get(type_name).cloned().unwrap_or_default();
-                    let is_dump = self.store_delete_on_change.contains(type_name);
+                    let hash = self.types.stored_type_schema_hash.get(type_name).cloned().unwrap_or_default();
+                    let is_dump = self.types.store_delete_on_change.contains(type_name);
                     // Check stored schema hash vs current
                     out.push_str(&format!("{i}{{\n"));
                     out.push_str(&format!("{i}    let __db_lock = __db.lock().unwrap();\n"));
@@ -7743,7 +7740,7 @@ impl RustCodegen {
                     if is_dump {
                         // delete_on_change: export data to dump file, then drop table
                         let dump_file = format!(".{}.dump.runa",
-                            self.store_scope.as_ref().or(self.source_name.as_ref()).map(|s| s.as_str()).unwrap_or("store"));
+                            self.types.store_scope.as_ref().or(self.source_name.as_ref()).map(|s| s.as_str()).unwrap_or("store"));
                         out.push_str(&format!("{i}            eprintln!(\"store: {type_name} schema changed — dumping old data to {dump_file}\");\n"));
                         out.push_str(&format!("{i}            let mut __dump = String::new();\n"));
                         out.push_str(&format!("{i}            let mut __stmt = __db_lock.prepare(\"SELECT data FROM {table_name}\").unwrap();\n"));
@@ -7873,7 +7870,7 @@ impl RustCodegen {
                                 })
                             })
                     });
-                    let serde_derives = if self.stored_types.contains(name) {
+                    let serde_derives = if self.types.stored_types.contains(name) {
                         ", serde::Serialize, serde::Deserialize"
                     } else { "" };
                     if all_fields_defaultable {
@@ -7882,7 +7879,7 @@ impl RustCodegen {
                         out.push_str(&format!("#[derive(Debug, Clone, PartialEq{})]\n", serde_derives));
                     }
                     // For stored types, allow missing fields during deserialization (schema flex)
-                    if self.stored_types.contains(name) {
+                    if self.types.stored_types.contains(name) {
                         out.push_str("#[serde(default)]\n");
                     }
                     if v.positional {
@@ -8519,11 +8516,11 @@ impl RustCodegen {
         let param_type_strs: Vec<String> = param_types.iter().map(|t| {
             if *t == "String" { "&str".to_string() } else { t.to_string() }
         }).collect();
-        self.prolog_rule_fns.insert(fn_name.to_string(), param_type_strs);
+        self.types.prolog_rule_fns.insert(fn_name.to_string(), param_type_strs);
 
         // Value-returning Prolog rules: emit Option<T> instead of bool
         if let Some(value_type_str) = Self::prolog_rules_value_type(rules) {
-            self.prolog_value_fns.insert(fn_name.to_string(), value_type_str.clone());
+            self.types.prolog_value_fns.insert(fn_name.to_string(), value_type_str.clone());
             return self.emit_prolog_value_function(&sanitized, fn_name, rules, arity, &param_types, &value_type_str);
         }
 
@@ -8728,14 +8725,14 @@ impl RustCodegen {
                 let is_unary = arity == 1;
 
                 // Determine if the value type needs .to_string()
-                let is_str = self.prolog_rule_fns.get(&fn_name)
+                let is_str = self.types.prolog_rule_fns.get(&fn_name)
                     .and_then(|types| types.get(t_pos))
                     .map(|t| t == "&str")
                     .unwrap_or(false);
 
                 // For rules that have no fact table (only variable-head rules),
                 // fall back to calling the function in a loop
-                if !self.prolog_rule_fns.contains_key(&fn_name) {
+                if !self.types.prolog_rule_fns.contains_key(&fn_name) {
                     return "vec![]".to_string(); // can't iterate non-fact rules
                 }
 
@@ -8910,7 +8907,7 @@ impl RustCodegen {
                         body_str = self.word_replace(&body_str, &sanitize_name(var_name), &param_names[*idx]);
                     }
                     // Inline literal bindings from outer scope
-                    let bindings: Vec<(String, String)> = self.literal_bindings.iter()
+                    let bindings: Vec<(String, String)> = self.types.literal_bindings.iter()
                         .map(|(k, (v, _))| (k.clone(), v.clone())).collect();
                     for (bind_name, bind_val) in &bindings {
                         body_str = self.word_replace(&body_str, &sanitize_name(bind_name), bind_val);
@@ -8973,7 +8970,7 @@ impl RustCodegen {
 
         // Register call-site type info if any param takes &str (so callers pass &str not String)
         if inferred_types.iter().any(|t| t == "&str") {
-            self.prolog_rule_fns.insert(fn_name.to_string(), inferred_types.clone());
+            self.types.prolog_rule_fns.insert(fn_name.to_string(), inferred_types.clone());
         }
 
         // Infer return type from constructor calls in rule values
@@ -8985,7 +8982,7 @@ impl RustCodegen {
         for p in &params {
             let ty = self.infer_param_type_from_fields(p, rules).unwrap_or_default();
             if !matches!(ty.as_str(), "bool" | "i64" | "f64" | "char" | "u64" | "") {
-                self.rule_clone_params.insert(p.clone());
+                self.types.rule_clone_params.insert(p.clone());
             }
         }
 
@@ -9014,7 +9011,7 @@ impl RustCodegen {
             let param_set: BTreeSet<String> = params.iter().cloned().collect();
             for name in &needed {
                 if param_set.contains(name) { continue; }
-                if let Some((val, ty)) = self.literal_bindings.get(name) {
+                if let Some((val, ty)) = self.types.literal_bindings.get(name) {
                     let rust_val = if ty == "i64" { format!("{}i64", val) }
                         else if ty == "f64" { format!("{}f64", val) }
                         else { val.clone() };
@@ -9284,7 +9281,7 @@ impl RustCodegen {
                 // Effect handler params: `with Console` adds `__eff_Console: &mut impl Console`
                 // Merge explicit effects (from AST `with` clause) with inferred effects
                 let mut merged_effects = effects.clone();
-                if let Some(inferred) = self.fn_effects.get(name) {
+                if let Some(inferred) = self.types.fn_effects.get(name) {
                     for eff in inferred {
                         if !merged_effects.contains(eff) {
                             merged_effects.push(eff.clone());
@@ -10109,7 +10106,7 @@ impl RustCodegen {
             Stmt::Assert(type_name, args) => {
                 let mut out = String::new();
                 let sname = sanitize_name(type_name);
-                if self.stored_types.contains(type_name.as_str()) {
+                if self.types.stored_types.contains(type_name.as_str()) {
                     // Object store: serialize struct to JSON, INSERT OR REPLACE
                     let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
                     // Build struct literal with named fields (named struct) or positional (tuple struct)
@@ -10131,7 +10128,7 @@ impl RustCodegen {
                     out.push_str(&format!("{}let __json = serde_json::to_string(&__val).expect(\"serialize failed\");\n", self.ind()));
                     // First field is the key — use Display for the key value
                     out.push_str(&format!("{}let __key = format!(\"{{}}\", __val.{});\n", self.ind(),
-                        self.stored_type_key_field.get(type_name.as_str()).cloned().unwrap_or_else(|| "0".to_string())));
+                        self.types.stored_type_key_field.get(type_name.as_str()).cloned().unwrap_or_else(|| "0".to_string())));
                     out.push_str(&format!("{}__db.lock().unwrap().execute(\"INSERT OR REPLACE INTO {} (id, data) VALUES (?1, ?2)\", rusqlite::params![__key, __json]).expect(\"assert failed\");\n",
                         self.ind(), sname.to_lowercase()));
                     self.indent -= 1;
@@ -10147,7 +10144,7 @@ impl RustCodegen {
             Stmt::Retract(type_name, args) => {
                 let mut out = String::new();
                 let sname = sanitize_name(type_name);
-                if self.stored_types.contains(type_name.as_str()) {
+                if self.types.stored_types.contains(type_name.as_str()) {
                     // Object store: DELETE by key (first arg)
                     // For now, use first arg as key
                     if let Some(first) = args.first() {
@@ -10529,7 +10526,7 @@ impl RustCodegen {
                         }
                         // Check if the other side is a known literal binding
                         if let ExprKind::Var(other_name) = &other.as_ref().kind {
-                            if let Some((_, ty)) = self.literal_bindings.get(other_name) {
+                            if let Some((_, ty)) = self.types.literal_bindings.get(other_name) {
                                 return Some(ty.clone());
                             }
                         }
@@ -10544,7 +10541,7 @@ impl RustCodegen {
             ExprKind::App(func, args) => {
                 // Check if param is passed to a known Prolog function → inherit that type
                 if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                    if let Some(fn_param_types) = self.prolog_rule_fns.get(fn_name.as_str()) {
+                    if let Some(fn_param_types) = self.types.prolog_rule_fns.get(fn_name.as_str()) {
                         for (i, a) in args.iter().enumerate() {
                             if let ExprKind::Var(n) = &a.kind {
                                 if n == param && i < fn_param_types.len() {
@@ -11041,7 +11038,7 @@ impl RustCodegen {
                     return format!("(*{})", sname);
                 }
                 // Rule function params: clone non-Copy types to avoid ownership errors
-                if self.rule_clone_params.contains(name.as_str()) {
+                if self.types.rule_clone_params.contains(name.as_str()) {
                     return format!("{}.clone()", sname);
                 }
                 // Multi-use non-Copy variables: clone to avoid move errors
@@ -11078,7 +11075,7 @@ impl RustCodegen {
 
                 // Prolog rule functions: take &str, not String
                 let is_prolog_call = resolved_fn_name
-                    .map(|n| self.prolog_rule_fns.contains_key(n))
+                    .map(|n| self.types.prolog_rule_fns.contains_key(n))
                     .unwrap_or(false);
 
                 // Check if the called function has inout params
@@ -11126,7 +11123,7 @@ impl RustCodegen {
                             // Prolog functions take &str; variables may be String — coerce with &*
                             let base = self.emit_expr(a);
                             let param_is_str = resolved_fn_name
-                                .and_then(|n| self.prolog_rule_fns.get(n))
+                                .and_then(|n| self.types.prolog_rule_fns.get(n))
                                 .and_then(|types| types.get(idx))
                                 .map(|t| t == "&str")
                                 .unwrap_or(false);
@@ -11184,7 +11181,7 @@ impl RustCodegen {
                         return self.emit_findall(&args[0], &args[1]);
                     }
                     // Prolog wildcard calls: fn(x, _) → inline fact table scan
-                    if self.prolog_rule_fns.contains_key(name.as_str()) {
+                    if self.types.prolog_rule_fns.contains_key(name.as_str()) {
                         let has_wildcard = args.iter().any(|a| matches!(a.kind, ExprKind::Var(ref n) if n == "_"));
                         if has_wildcard {
                             let table = format!("{}_FACTS", sanitize_name(name).to_uppercase());
@@ -11386,14 +11383,14 @@ impl RustCodegen {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     // Check if this is a direct effect operation (say, ask, etc.)
                     for eff in &self.current_effects {
-                        if let Some(ops) = self.effect_ops.get(eff.as_str()) {
+                        if let Some(ops) = self.types.effect_ops.get(eff.as_str()) {
                             if ops.contains(name.as_str()) {
                                 return format!("__eff_{}.{}({})", eff, name, args_str.join(", "));
                             }
                         }
                     }
                     // Effect forwarding: if calling a function that requires effects, pass handlers
-                    if let Some(callee_effects) = self.fn_effects.get(name.as_str()).cloned() {
+                    if let Some(callee_effects) = self.types.fn_effects.get(name.as_str()).cloned() {
                         let mut extra_args = Vec::new();
                         for ce in &callee_effects {
                             if self.current_effects.contains(ce) {
@@ -11441,7 +11438,7 @@ impl RustCodegen {
                 let call = format!("{}({})", f, args_str.join(", "));
                 // Value-returning Prolog functions return Option<T> — unwrap at call site
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    if self.prolog_value_fns.contains_key(name.as_str()) {
+                    if self.types.prolog_value_fns.contains_key(name.as_str()) {
                         return format!("{}.unwrap()", call);
                     }
                 }
@@ -11885,7 +11882,7 @@ impl RustCodegen {
                 let mut captures: BTreeSet<String> = BTreeSet::new();
                 for h in handlers {
                     let free = Self::collect_handler_free_vars(
-                        &h.body, &all_handler_params, &self.effect_ops,
+                        &h.body, &all_handler_params, &self.types.effect_ops,
                     );
                     captures.extend(free);
                 }
@@ -11910,7 +11907,7 @@ impl RustCodegen {
                 out.push_str(&format!("{}impl {} for {} {{\n", self.ind(), effect, handler_name));
                 for h in handlers {
                     // Look up param types and return type from effect declaration
-                    let op_sig = self.effect_ops_detail.get(effect).and_then(|ops| {
+                    let op_sig = self.types.effect_ops_detail.get(effect).and_then(|ops| {
                         ops.iter().find(|(n, _, _)| n == &h.op_name)
                     });
                     let params_str: Vec<String> = h.params.iter().enumerate().map(|(i, p)| {
@@ -12879,7 +12876,7 @@ impl RustCodegen {
         if let ExprKind::App(func, _) = &value.kind {
             if let ExprKind::Var(op_name) = &func.as_ref().kind {
                 return self.current_effects.iter().any(|eff| {
-                    self.effect_ops.get(eff.as_str())
+                    self.types.effect_ops.get(eff.as_str())
                         .map(|ops| ops.contains(op_name.as_str()))
                         .unwrap_or(false)
                 });
