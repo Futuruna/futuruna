@@ -5094,8 +5094,182 @@ enum FirTy {
     Named(String),
     /// Function type
     Arrow(Box<FirTy>, Box<FirTy>),
+    /// Type variable (for inference) — resolved by unification
+    Var(usize),
     /// Not yet resolved (fallback)
     Unknown,
+}
+
+/// Type inference engine — union-find unification with occurs check.
+struct TypeInference {
+    /// Next fresh type variable ID
+    next_var: usize,
+    /// Union-find: var_id → resolved type (or Var pointing to parent)
+    bindings: BTreeMap<usize, FirTy>,
+}
+
+impl TypeInference {
+    fn new() -> Self {
+        TypeInference { next_var: 0, bindings: BTreeMap::new() }
+    }
+
+    /// Create a fresh type variable.
+    fn fresh(&mut self) -> FirTy {
+        let id = self.next_var;
+        self.next_var += 1;
+        FirTy::Var(id)
+    }
+
+    /// Find the root type for a type variable (path compression).
+    fn find(&self, ty: &FirTy) -> FirTy {
+        match ty {
+            FirTy::Var(id) => {
+                if let Some(bound) = self.bindings.get(id) {
+                    self.find(bound)
+                } else {
+                    ty.clone()
+                }
+            }
+            _ => ty.clone(),
+        }
+    }
+
+    /// Resolve a type fully — substitute all type variables with their bindings.
+    fn resolve(&self, ty: &FirTy) -> FirTy {
+        match self.find(ty) {
+            FirTy::Var(_) => FirTy::Unknown, // unresolved var → Unknown
+            FirTy::List(inner) => FirTy::List(Box::new(self.resolve(&inner))),
+            FirTy::Option(inner) => FirTy::Option(Box::new(self.resolve(&inner))),
+            FirTy::Result(ok, err) => FirTy::Result(Box::new(self.resolve(&ok)), Box::new(self.resolve(&err))),
+            FirTy::Tuple(elems) => FirTy::Tuple(elems.iter().map(|e| self.resolve(e)).collect()),
+            FirTy::Map(k, v) => FirTy::Map(Box::new(self.resolve(&k)), Box::new(self.resolve(&v))),
+            FirTy::Set(inner) => FirTy::Set(Box::new(self.resolve(&inner))),
+            FirTy::Arrow(a, b) => FirTy::Arrow(Box::new(self.resolve(&a)), Box::new(self.resolve(&b))),
+            other => other,
+        }
+    }
+
+    /// Unify two types. Returns Ok(()) on success, Err(msg) on failure.
+    fn unify(&mut self, a: &FirTy, b: &FirTy) -> Result<(), String> {
+        let a = self.find(a);
+        let b = self.find(b);
+
+        if a == b { return Ok(()); }
+
+        match (&a, &b) {
+            // Var binds to anything
+            (FirTy::Var(id), other) | (other, FirTy::Var(id)) => {
+                // Occurs check: don't bind a var to a type containing itself
+                if self.occurs(*id, other) {
+                    return Err(format!("infinite type: _t{} occurs in {:?}", id, other));
+                }
+                self.bindings.insert(*id, other.clone());
+                Ok(())
+            }
+            // Unknown unifies with anything (acts like a wildcard)
+            (FirTy::Unknown, _) | (_, FirTy::Unknown) => Ok(()),
+            // Structural unification
+            (FirTy::List(a), FirTy::List(b)) => self.unify(a, b),
+            (FirTy::Option(a), FirTy::Option(b)) => self.unify(a, b),
+            (FirTy::Set(a), FirTy::Set(b)) => self.unify(a, b),
+            (FirTy::Result(a1, a2), FirTy::Result(b1, b2)) => {
+                self.unify(a1, b1)?;
+                self.unify(a2, b2)
+            }
+            (FirTy::Map(k1, v1), FirTy::Map(k2, v2)) => {
+                self.unify(k1, k2)?;
+                self.unify(v1, v2)
+            }
+            (FirTy::Arrow(a1, a2), FirTy::Arrow(b1, b2)) => {
+                self.unify(a1, b1)?;
+                self.unify(a2, b2)
+            }
+            (FirTy::Tuple(as_), FirTy::Tuple(bs)) if as_.len() == bs.len() => {
+                for (a, b) in as_.iter().zip(bs.iter()) {
+                    self.unify(a, b)?;
+                }
+                Ok(())
+            }
+            _ => Err(format!("cannot unify {:?} with {:?}", a, b)),
+        }
+    }
+
+    /// Occurs check: does var_id appear anywhere in ty?
+    fn occurs(&self, var_id: usize, ty: &FirTy) -> bool {
+        match self.find(ty) {
+            FirTy::Var(id) => id == var_id,
+            FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => self.occurs(var_id, &inner),
+            FirTy::Result(a, b) | FirTy::Map(a, b) | FirTy::Arrow(a, b) => {
+                self.occurs(var_id, &a) || self.occurs(var_id, &b)
+            }
+            FirTy::Tuple(elems) => elems.iter().any(|e| self.occurs(var_id, e)),
+            _ => false,
+        }
+    }
+
+    /// Resolve all type variables in a FIR expression tree.
+    fn substitute_expr(&self, expr: &mut FirExpr) {
+        expr.ty = self.resolve(&expr.ty);
+        match &mut expr.kind {
+            FirExprKind::App(func, args) => {
+                self.substitute_expr(func);
+                for a in args { self.substitute_expr(a); }
+            }
+            FirExprKind::BinOp(_, lhs, rhs) => {
+                self.substitute_expr(lhs);
+                self.substitute_expr(rhs);
+            }
+            FirExprKind::UnOp(_, inner) | FirExprKind::Try(inner) => {
+                self.substitute_expr(inner);
+            }
+            FirExprKind::If(c, t, e) => {
+                self.substitute_expr(c);
+                self.substitute_expr(t);
+                self.substitute_expr(e);
+            }
+            FirExprKind::Lambda(_, body) => self.substitute_expr(body),
+            FirExprKind::Field(obj, _) => self.substitute_expr(obj),
+            FirExprKind::Index(base, idx) => {
+                self.substitute_expr(base);
+                self.substitute_expr(idx);
+            }
+            FirExprKind::List(elems) | FirExprKind::Tuple(elems) | FirExprKind::Conjunction(elems) => {
+                for e in elems { self.substitute_expr(e); }
+            }
+            FirExprKind::Match(scrutinee, arms) => {
+                self.substitute_expr(scrutinee);
+                for arm in arms {
+                    self.substitute_expr(&mut arm.body);
+                    if let Some(g) = &mut arm.guard { self.substitute_expr(g); }
+                }
+            }
+            FirExprKind::Pipe(lhs, rhs) => {
+                self.substitute_expr(lhs);
+                self.substitute_expr(rhs);
+            }
+            FirExprKind::Block(stmts) => {
+                for s in stmts {
+                    match s {
+                        FirStmt::Expr(e) | FirStmt::Bind(_, _, e) | FirStmt::MonadicBind(_, _, e)
+                        | FirStmt::StreamBind(_, e) => self.substitute_expr(e),
+                        FirStmt::For(_, iter, body) => {
+                            self.substitute_expr(iter);
+                            // body stmts would need recursive handling
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            FirExprKind::Effect(_, args) => {
+                for a in args { self.substitute_expr(a); }
+            }
+            FirExprKind::Handle { body, handlers, .. } => {
+                self.substitute_expr(body);
+                for h in handlers { self.substitute_expr(&mut h.body); }
+            }
+            _ => {} // Var, Lit, Unit — no children
+        }
+    }
 }
 
 /// FIR expression — AST expression with ownership and type annotations.
@@ -14739,6 +14913,93 @@ mod tests {
     fn type_resolution_unit() {
         let fir = lower_with_types("= x = ()", BTreeMap::new());
         assert_eq!(fir.ty, FirTy::Unit);
+    }
+
+    // ── Unification engine tests ──────────────────────────────────
+
+    #[test]
+    fn unify_var_with_int() {
+        let mut inf = TypeInference::new();
+        let t0 = inf.fresh();
+        assert!(inf.unify(&t0, &FirTy::Int).is_ok());
+        assert_eq!(inf.resolve(&t0), FirTy::Int);
+    }
+
+    #[test]
+    fn unify_two_vars() {
+        let mut inf = TypeInference::new();
+        let t0 = inf.fresh();
+        let t1 = inf.fresh();
+        assert!(inf.unify(&t0, &t1).is_ok());
+        assert!(inf.unify(&t1, &FirTy::String).is_ok());
+        assert_eq!(inf.resolve(&t0), FirTy::String);
+        assert_eq!(inf.resolve(&t1), FirTy::String);
+    }
+
+    #[test]
+    fn unify_same_concrete() {
+        let mut inf = TypeInference::new();
+        assert!(inf.unify(&FirTy::Int, &FirTy::Int).is_ok());
+    }
+
+    #[test]
+    fn unify_different_concrete_fails() {
+        let mut inf = TypeInference::new();
+        assert!(inf.unify(&FirTy::Int, &FirTy::String).is_err());
+    }
+
+    #[test]
+    fn unify_list_types() {
+        let mut inf = TypeInference::new();
+        let t0 = inf.fresh();
+        let list_t0 = FirTy::List(Box::new(t0.clone()));
+        let list_int = FirTy::List(Box::new(FirTy::Int));
+        assert!(inf.unify(&list_t0, &list_int).is_ok());
+        assert_eq!(inf.resolve(&t0), FirTy::Int);
+    }
+
+    #[test]
+    fn unify_arrow_types() {
+        let mut inf = TypeInference::new();
+        let t0 = inf.fresh();
+        let t1 = inf.fresh();
+        let arrow1 = FirTy::Arrow(Box::new(t0.clone()), Box::new(t1.clone()));
+        let arrow2 = FirTy::Arrow(Box::new(FirTy::Int), Box::new(FirTy::Bool));
+        assert!(inf.unify(&arrow1, &arrow2).is_ok());
+        assert_eq!(inf.resolve(&t0), FirTy::Int);
+        assert_eq!(inf.resolve(&t1), FirTy::Bool);
+    }
+
+    #[test]
+    fn unify_occurs_check() {
+        let mut inf = TypeInference::new();
+        let t0 = inf.fresh();
+        let list_t0 = FirTy::List(Box::new(t0.clone()));
+        // t0 = List(t0) would be infinite — should fail
+        assert!(inf.unify(&t0, &list_t0).is_err());
+    }
+
+    #[test]
+    fn unify_unknown_wildcard() {
+        let mut inf = TypeInference::new();
+        // Unknown unifies with anything
+        assert!(inf.unify(&FirTy::Unknown, &FirTy::Int).is_ok());
+        assert!(inf.unify(&FirTy::String, &FirTy::Unknown).is_ok());
+    }
+
+    #[test]
+    fn substitute_resolves_vars_in_expr() {
+        let mut inf = TypeInference::new();
+        let t0 = inf.fresh();
+        inf.unify(&t0, &FirTy::Int).unwrap();
+
+        let mut expr = FirExpr {
+            kind: FirExprKind::Var("x".into(), VarMode::Move),
+            span: Span::dummy(),
+            ty: t0,
+        };
+        inf.substitute_expr(&mut expr);
+        assert_eq!(expr.ty, FirTy::Int);
     }
 
     #[test]
