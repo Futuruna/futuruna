@@ -4677,6 +4677,20 @@ struct TypeRegistry {
     store_delete_on_change: BTreeSet<String>,
     /// M26: Schema hash per stored type
     stored_type_schema_hash: BTreeMap<String, String>,
+    /// User-defined function names (avoid overriding with builtins)
+    user_functions: BTreeSet<String>,
+    /// Names marked with `@ export` — emitted as `pub` in Rust
+    exported_names: BTreeSet<String>,
+    /// Module names from imports and inline modules
+    known_modules: BTreeSet<String>,
+    /// Comptime-evaluated values: variable name -> Rust literal string
+    comptime_values: BTreeMap<String, String>,
+    /// Comptime Rust type strings: variable name -> Rust type
+    comptime_types: BTreeMap<String, String>,
+    /// Functions with inout parameters: fn_name -> vec of is_inout per param
+    inout_params: BTreeMap<String, Vec<bool>>,
+    /// Functions with inout+shared (copy-on-write) parameters
+    cow_params: BTreeMap<String, Vec<bool>>,
 }
 
 impl TypeRegistry {
@@ -4704,6 +4718,13 @@ impl TypeRegistry {
             store_scope: None,
             store_delete_on_change: BTreeSet::new(),
             stored_type_schema_hash: BTreeMap::new(),
+            user_functions: BTreeSet::new(),
+            exported_names: BTreeSet::new(),
+            known_modules: BTreeSet::new(),
+            comptime_values: BTreeMap::new(),
+            comptime_types: BTreeMap::new(),
+            inout_params: BTreeMap::new(),
+            cow_params: BTreeMap::new(),
         }
     }
 }
@@ -4721,25 +4742,10 @@ struct RustCodegen {
     copy_vars: BTreeSet<String>,
     /// Variables that need `let mut` (rebound inside for loops)
     mutable_vars: BTreeSet<String>,
-    /// User-defined function names (avoid overriding with builtins like map/filter)
-    user_functions: BTreeSet<String>,
-    /// Names marked with `@ export` — emitted as `pub` in Rust (M3b)
-    exported_names: BTreeSet<String>,
     /// Library mode: emit no fn main(), exported names get pub
     lib_mode: bool,
     /// WASM mode: emit wasm-bindgen annotations on exported functions
     wasm_mode: bool,
-    /// Module names from `@ import Name from ./path` and `> module Name { }` (M3b)
-    /// Used to emit `Name::func()` instead of `Name.func()` in Rust
-    known_modules: BTreeSet<String>,
-    /// Comptime-evaluated values: variable name -> Rust literal string
-    comptime_values: BTreeMap<String, String>,
-    /// Comptime Rust type strings: variable name -> Rust type
-    comptime_types: BTreeMap<String, String>,
-    /// Functions with inout parameters: fn_name -> vec of (param_index, is_inout)
-    inout_params: BTreeMap<String, Vec<bool>>,
-    /// Functions with inout+shared parameters (copy-on-write): fn_name -> vec of (param_index, is_cow)
-    cow_params: BTreeMap<String, Vec<bool>>,
     /// Cargo dependencies: crate_name -> version
     cargo_deps: BTreeMap<String, String>,
     /// Source file directory (for resolving @ import paths)
@@ -6133,15 +6139,8 @@ impl RustCodegen {
             var_consuming_counts: BTreeMap::new(),
             copy_vars: BTreeSet::new(),
             mutable_vars: BTreeSet::new(),
-            user_functions: BTreeSet::new(),
-            exported_names: BTreeSet::new(),
             lib_mode: false,
             wasm_mode: false,
-            known_modules: BTreeSet::new(),
-            comptime_values: BTreeMap::new(),
-            comptime_types: BTreeMap::new(),
-            inout_params: BTreeMap::new(),
-            cow_params: BTreeMap::new(),
             cargo_deps: BTreeMap::new(),
             source_dir: None,
             imported: BTreeSet::new(),
@@ -6543,7 +6542,7 @@ impl RustCodegen {
                         for s in &imported {
                             if let Stmt::Annot(n, args) = s {
                                 if n == "export" {
-                                    for a in args { if let ExprKind::Var(v) = &a.kind { self.exported_names.insert(v.clone()); } }
+                                    for a in args { if let ExprKind::Var(v) = &a.kind { self.types.exported_names.insert(v.clone()); } }
                                     if args.is_empty() { is_exp = true; }
                                     continue;
                                 }
@@ -6551,10 +6550,10 @@ impl RustCodegen {
                             if is_exp {
                                 match s {
                                     Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. }) => {
-                                        self.exported_names.insert(name.clone());
+                                        self.types.exported_names.insert(name.clone());
                                     }
                                     Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
-                                        self.exported_names.insert(name.clone());
+                                        self.types.exported_names.insert(name.clone());
                                     }
                                     _ => {}
                                 }
@@ -6589,7 +6588,7 @@ impl RustCodegen {
                         for s in &imported {
                             if let Stmt::Annot(n, args) = s {
                                 if n == "export" {
-                                    for a in args { if let ExprKind::Var(v) = &a.kind { self.exported_names.insert(v.clone()); } }
+                                    for a in args { if let ExprKind::Var(v) = &a.kind { self.types.exported_names.insert(v.clone()); } }
                                     if args.is_empty() { is_exp = true; }
                                     continue;
                                 }
@@ -6597,10 +6596,10 @@ impl RustCodegen {
                             if is_exp {
                                 match s {
                                     Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. }) => {
-                                        self.exported_names.insert(name.clone());
+                                        self.types.exported_names.insert(name.clone());
                                     }
                                     Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
-                                        self.exported_names.insert(name.clone());
+                                        self.types.exported_names.insert(name.clone());
                                     }
                                     _ => {}
                                 }
@@ -6662,7 +6661,7 @@ impl RustCodegen {
                     }
                     // Mark exported names so they get `pub` in the module
                     for n in &mod_exported {
-                        self.exported_names.insert(n.clone());
+                        self.types.exported_names.insert(n.clone());
                     }
                     // Collect definitions (functions, types, rust blocks), skip executable code
                     let mut mod_body: Vec<Stmt> = Vec::new();
@@ -6678,7 +6677,7 @@ impl RustCodegen {
                         }
                     }
                     // Wrap in a Defn::Module so it emits as `mod Name { ... }`
-                    self.known_modules.insert(mod_name.clone());
+                    self.types.known_modules.insert(mod_name.clone());
                     all_stmts.push(Stmt::Defn(Defn::Module {
                         name: mod_name.clone(),
                         body: mod_body,
@@ -6725,7 +6724,7 @@ impl RustCodegen {
                         if !args.is_empty() {
                             for arg in args {
                                 if let ExprKind::Var(n) = &arg.kind {
-                                    self.exported_names.insert(n.clone());
+                                    self.types.exported_names.insert(n.clone());
                                 }
                             }
                             continue;
@@ -6738,19 +6737,19 @@ impl RustCodegen {
                 if is_export {
                     match stmt {
                         Stmt::Defn(Defn::Fn { name, .. }) => {
-                            self.exported_names.insert(name.clone());
+                            self.types.exported_names.insert(name.clone());
                         }
                         Stmt::Defn(Defn::Actor { name, .. }) => {
-                            self.exported_names.insert(name.clone());
+                            self.types.exported_names.insert(name.clone());
                         }
                         Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
-                            self.exported_names.insert(name.clone());
+                            self.types.exported_names.insert(name.clone());
                         }
                         Stmt::Bind(Pat::Var(name), _, _) => {
-                            self.exported_names.insert(name.clone());
+                            self.types.exported_names.insert(name.clone());
                         }
                         Stmt::StreamBind(name, _) => {
-                            self.exported_names.insert(name.clone());
+                            self.types.exported_names.insert(name.clone());
                         }
                         _ => {}
                     }
@@ -7192,7 +7191,7 @@ impl RustCodegen {
                 Stmt::Defn(defn) => {
                     // Track user-defined function names and string-returning functions
                     if let Defn::Fn { name, ret_ty, .. } = defn {
-                        self.user_functions.insert(name.clone());
+                        self.types.user_functions.insert(name.clone());
                         if matches!(ret_ty.as_ref(), Some(Ty::Name(n)) if n == "String") {
                             self.string_returning_fns.insert(name.clone());
                         }
@@ -7267,7 +7266,7 @@ impl RustCodegen {
                     // Also pre-register inout params
                     let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
                     if inout_flags.iter().any(|f| *f) {
-                        self.inout_params.insert(name.clone(), inout_flags);
+                        self.types.inout_params.insert(name.clone(), inout_flags);
                     }
                 }
             }
@@ -7543,13 +7542,13 @@ impl RustCodegen {
                             comptime_interp.register_type(&type_decl);
                             comptime_interp.register_constructors(&type_decl, &mut comptime_env);
                             // Mark as comptime with empty value so it doesn't re-emit as a binding
-                            self.comptime_values.insert(name.clone(), String::new());
-                            self.comptime_types.insert(name.clone(), String::new());
+                            self.types.comptime_values.insert(name.clone(), String::new());
+                            self.types.comptime_types.insert(name.clone(), String::new());
                         } else {
                             let (rust_lit, rust_ty) = Self::value_to_rust_literal(&val, &self.types.variant_parent);
                             eprintln!("// comptime: {} = {} ({})", name, rust_lit, rust_ty);
-                            self.comptime_values.insert(name.clone(), rust_lit);
-                            self.comptime_types.insert(name.clone(), rust_ty);
+                            self.types.comptime_values.insert(name.clone(), rust_lit);
+                            self.types.comptime_types.insert(name.clone(), rust_ty);
                         }
                         // Also bind in comptime env so later comptime expressions can use it
                         comptime_interp.bind_pattern(&Pat::Var(name.clone()), &val, &mut comptime_env);
@@ -7602,11 +7601,11 @@ impl RustCodegen {
             for stmt in &main_stmts {
                 if let Stmt::Bind(Pat::Var(name), _, expr) = stmt {
                     // Skip already-comptime bindings
-                    if self.comptime_values.contains_key(name) { continue; }
+                    if self.types.comptime_values.contains_key(name) { continue; }
                     if let Some(val) = Self::try_auto_comptime(
                         expr,
                         &pure_fns,
-                        &self.comptime_values,
+                        &self.types.comptime_values,
                         &mut comptime_interp,
                         &comptime_env,
                     ) {
@@ -7621,8 +7620,8 @@ impl RustCodegen {
                                 eprintln!("// auto-comptime: {} = todo!(\"comptime: unsupported value\") ({})", name, rust_ty);
                             } else {
                                 eprintln!("// auto-comptime: {} = {} ({})", name, rust_lit, rust_ty);
-                                self.comptime_values.insert(name.clone(), rust_lit);
-                                self.comptime_types.insert(name.clone(), rust_ty);
+                                self.types.comptime_values.insert(name.clone(), rust_lit);
+                                self.types.comptime_types.insert(name.clone(), rust_ty);
                             }
                         }
                         comptime_interp.bind_pattern(&Pat::Var(name.clone()), &val, &mut comptime_env);
@@ -7846,7 +7845,7 @@ impl RustCodegen {
 
                 let mut out = String::new();
                 let is_struct = self.types.struct_types.contains(&rust_name);
-                let pub_prefix = if self.exported_names.contains(name) { "pub " } else { "" };
+                let pub_prefix = if self.types.exported_names.contains(name) { "pub " } else { "" };
                 // Rc/Arc for immutable recursive ADTs (O(1) structural sharing)
                 let wrap_name = if self.types.rc_types.contains(&rust_name) { self.rc_name() } else { "Box" };
 
@@ -9087,14 +9086,14 @@ impl RustCodegen {
                 // Register inout params for call-site emission
                 let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
                 if inout_flags.iter().any(|f| *f) {
-                    self.inout_params.insert(name.clone(), inout_flags.clone());
+                    self.types.inout_params.insert(name.clone(), inout_flags.clone());
                 }
                 // Copy-on-write: detect inout + shared T params
                 let cow_flags: Vec<bool> = params.iter().map(|p| {
                     p.inout && matches!(p.ty.as_ref(), Some(Ty::Shared(_)))
                 }).collect();
                 if cow_flags.iter().any(|f| *f) {
-                    self.cow_params.insert(name.clone(), cow_flags);
+                    self.types.cow_params.insert(name.clone(), cow_flags);
                 }
 
                 // Phase 3b/3d: Auto-borrow analysis with ref-match + self-recursive relaxation
@@ -9296,7 +9295,7 @@ impl RustCodegen {
                 let prev_effects = std::mem::take(&mut self.current_effects);
                 self.current_effects = merged_effects;
 
-                let is_exported = self.exported_names.contains(name);
+                let is_exported = self.types.exported_names.contains(name);
                 let pub_prefix = if is_exported { "pub " } else { "" };
                 // M4: wasm-bindgen annotation for exported functions with compatible types
                 let wasm_attr = if self.wasm_mode && is_exported {
@@ -9415,23 +9414,23 @@ impl RustCodegen {
                 out
             }
             Defn::Module { name, body } => {
-                self.known_modules.insert(name.clone());
-                let pub_prefix = if self.exported_names.contains(name) { "pub " } else { "" };
+                self.types.known_modules.insert(name.clone());
+                let pub_prefix = if self.types.exported_names.contains(name) { "pub " } else { "" };
                 let mut out = format!("{}mod {} {{\n", pub_prefix, sanitize_name(name));
                 out.push_str("    use super::*;\n");
                 // Mark all items inside inline modules as exported (pub)
                 // so they're accessible via Module::item()
-                let saved_exported = self.exported_names.clone();
+                let saved_exported = self.types.exported_names.clone();
                 for stmt in body {
                     match stmt {
                         Stmt::Defn(Defn::Fn { name: fn_name, .. }) => {
-                            self.exported_names.insert(fn_name.clone());
+                            self.types.exported_names.insert(fn_name.clone());
                         }
                         Stmt::Defn(Defn::Module { name: mod_name, .. }) => {
-                            self.exported_names.insert(mod_name.clone());
+                            self.types.exported_names.insert(mod_name.clone());
                         }
                         Stmt::TypeDecl(TypeDecl::ADT { name: ty_name, .. }) => {
-                            self.exported_names.insert(ty_name.clone());
+                            self.types.exported_names.insert(ty_name.clone());
                         }
                         _ => {}
                     }
@@ -9454,7 +9453,7 @@ impl RustCodegen {
                         }
                     }
                 }
-                self.exported_names = saved_exported;
+                self.types.exported_names = saved_exported;
                 out
             }
         }
@@ -9472,12 +9471,12 @@ impl RustCodegen {
                     _ => None,
                 };
                 if let Some(name) = comptime_name {
-                    if let Some(rust_lit) = self.comptime_values.get(name).cloned() {
+                    if let Some(rust_lit) = self.types.comptime_values.get(name).cloned() {
                         // Comptime types are emitted as type declarations, not bindings
                         if rust_lit.is_empty() {
                             return format!("{}// @ comptime type {} (emitted above)\n", self.ind(), name);
                         }
-                        let rust_ty = self.comptime_types.get(name).cloned().unwrap_or_default();
+                        let rust_ty = self.types.comptime_types.get(name).cloned().unwrap_or_default();
                         // Use const for Copy types, let for heap types
                         if matches!(rust_ty.as_str(), "i64" | "f64" | "bool" | "char" | "u64" | "()") {
                             return format!("{}const {}: {} = {}; // @ comptime\n",
@@ -10261,7 +10260,7 @@ impl RustCodegen {
     /// or for Field(module_path, "SubModule") chains.
     fn is_module_path(&self, expr: &Expr) -> bool {
         match &expr.kind {
-            ExprKind::Var(name) => self.known_modules.contains(name),
+            ExprKind::Var(name) => self.types.known_modules.contains(name),
             ExprKind::Field(obj, _field) => self.is_module_path(obj),
             _ => false,
         }
@@ -10318,7 +10317,7 @@ impl RustCodegen {
         match &expr.kind {
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                    if let Some(flags) = self.inout_params.get(fn_name.as_str()).cloned() {
+                    if let Some(flags) = self.types.inout_params.get(fn_name.as_str()).cloned() {
                         for (idx, arg) in args.iter().enumerate() {
                             if flags.get(idx).copied().unwrap_or(false) {
                                 if let ExprKind::Var(var_name) = &arg.kind {
@@ -10956,7 +10955,7 @@ impl RustCodegen {
         // Don't fuse async stream expressions
         if self.is_async_stream_expr(&args[0]) { return None; }
         // User-defined functions shadow builtins — don't fuse those
-        if self.user_functions.contains(name) { return None; }
+        if self.types.user_functions.contains(name) { return None; }
 
         // Collect the chain: walk nested fusible ops, building (op_name, extra_args) list
         let mut chain: Vec<(&str, &[Expr])> = Vec::new();
@@ -10966,7 +10965,7 @@ impl RustCodegen {
         while let ExprKind::App(func, inner_args) = &source.kind {
             if let ExprKind::Var(inner_name) = &func.as_ref().kind {
                 if fusible.contains(&inner_name.as_str()) && !inner_args.is_empty()
-                    && !self.user_functions.contains(inner_name.as_str()) {
+                    && !self.types.user_functions.contains(inner_name.as_str()) {
                     chain.push((inner_name.as_str(), &inner_args[1..]));
                     source = &inner_args[0];
                     continue;
@@ -11080,7 +11079,7 @@ impl RustCodegen {
 
                 // Check if the called function has inout params
                 let inout_flags = resolved_fn_name
-                    .and_then(|n| self.inout_params.get(n).cloned());
+                    .and_then(|n| self.types.inout_params.get(n).cloned());
 
                 // Phase 2: Check if the called function has auto-borrow params
                 let borrow_flags = resolved_fn_name
@@ -11093,7 +11092,7 @@ impl RustCodegen {
                         if let ExprKind::Var(n) = &a.kind {
                             // Copy-on-write: shared + inout → Arc::make_mut
                             let is_cow = resolved_fn_name
-                                .and_then(|fn_n| self.cow_params.get(fn_n))
+                                .and_then(|fn_n| self.types.cow_params.get(fn_n))
                                 .map(|f| f.get(idx).copied().unwrap_or(false))
                                 .unwrap_or(false);
                             if is_cow {
@@ -11208,7 +11207,7 @@ impl RustCodegen {
                     // Inline lambda into filter/map to avoid double-lambda type inference failure
                     // Inline lambda into filter/map to avoid double-lambda type inference failure
                     if (name == "filter" || name == "map") && args.len() == 2
-                        && !self.user_functions.contains(name.as_str())
+                        && !self.types.user_functions.contains(name.as_str())
                     {
                         if let ExprKind::Lambda(params, body) = &&args[1].kind {
                             let coll = self.emit_expr(&args[0]);
@@ -11221,7 +11220,7 @@ impl RustCodegen {
                             collect_true_free_vars(body, &mut free_in_body, &param_bound);
                             let lsp_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
                             let captured: Vec<String> = free_in_body.into_iter()
-                                .filter(|v| !self.user_functions.contains(v.as_str())
+                                .filter(|v| !self.types.user_functions.contains(v.as_str())
                                     && !self.builtin_registry.contains_key(v.as_str())
                                     && !self.types.variant_parent.contains_key(v.as_str())
                                     && !self.copy_vars.contains(v.as_str())
@@ -11259,7 +11258,7 @@ impl RustCodegen {
                     }
                     // sort_by with lambda: inline key function to avoid type inference issues
                     if name == "sort_by" && args.len() == 2
-                        && !self.user_functions.contains(name.as_str())
+                        && !self.types.user_functions.contains(name.as_str())
                     {
                         if let ExprKind::Lambda(sort_params, sort_body) = &&args[1].kind {
                             let coll = self.emit_expr(&args[0]);
@@ -11275,7 +11274,7 @@ impl RustCodegen {
                     }
                     // Inline lambda into foldl: propagate initial value type to closure params
                     if name == "foldl" && args.len() == 3
-                        && !self.user_functions.contains(name.as_str())
+                        && !self.types.user_functions.contains(name.as_str())
                     {
                         if let ExprKind::Lambda(params, body) = &&args[2].kind {
                             let init_is_float = self.expr_is_float(&args[1]);
@@ -11297,7 +11296,7 @@ impl RustCodegen {
                     }
                     // Builtin registry lookup — replaces 300+ lines of if-chain
                     if let Some(def) = self.builtin_registry.get(name.as_str()) {
-                        if args_str.len() == def.arity && (!def.shadowable || !self.user_functions.contains(name.as_str())) {
+                        if args_str.len() == def.arity && (!def.shadowable || !self.types.user_functions.contains(name.as_str())) {
                             for &(dep_name, dep_ver) in def.deps {
                                 self.cargo_deps.entry(dep_name.to_string()).or_insert(dep_ver.to_string());
                             }
@@ -11527,7 +11526,7 @@ impl RustCodegen {
                 // Check LSP_BUILTINS arity table for special functions (show, print, etc.)
                 let lsp_builtin_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
                 let captured: Vec<String> = free_in_body.into_iter()
-                    .filter(|v| !self.user_functions.contains(v.as_str())
+                    .filter(|v| !self.types.user_functions.contains(v.as_str())
                         && !self.builtin_registry.contains_key(v.as_str())
                         && !self.types.variant_parent.contains_key(v.as_str())
                         && !self.copy_vars.contains(v.as_str())
