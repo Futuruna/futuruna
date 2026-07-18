@@ -4632,6 +4632,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
 
 /// Shared type metadata: types, variants, constructors, field info.
 /// Populated once during declaration scanning, consumed by analysis passes and emission.
+#[derive(Debug, Clone)]
 struct TypeRegistry {
     /// Type declarations: name -> list of type params + list of variants
     type_decls: BTreeMap<String, (Vec<String>, Vec<String>)>,
@@ -4863,6 +4864,196 @@ impl OwnershipAnalysis {
         OwnershipAnalysis { var_uses, consuming_uses }
     }
 }
+
+// ============================================================================
+// FIR: Futuruna Intermediate Representation
+// ============================================================================
+//
+// FIR sits between the AST and Rust emission. Each node carries:
+// - Resolved type (FirTy) — what Rust type to emit
+// - Ownership mode (on Var nodes) — move, clone, borrow, or copy
+// - Span — source location from the AST
+//
+// FIR is produced by lowering the AST using TypeRegistry + OwnershipAnalysis.
+// Rust emission walks FIR without needing mutable state for type/ownership decisions.
+
+/// How a variable reference should be handled in Rust emission.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum VarMode {
+    /// Single use of a non-Copy value — transfer ownership (bare name)
+    Move,
+    /// Multiple uses of a non-Copy value — emit `.clone()`
+    Clone,
+    /// Read-only access — emit `&`
+    Borrow,
+    /// Copy type (i64, f64, bool, char) — free to duplicate
+    Copy,
+    /// Ref-match binding — emit `(*name)` for deref from &T pattern match
+    Deref,
+    /// Rule clone param — always `.clone()` regardless of use count
+    RuleClone,
+}
+
+/// Resolved type for FIR — what the Rust emitter needs to know.
+/// Not a full type system — just enough for emission decisions.
+#[derive(Debug, Clone, PartialEq)]
+enum FirTy {
+    Int,
+    Float,
+    Bool,
+    Char,
+    String,
+    Unit,
+    List(Box<FirTy>),
+    Option(Box<FirTy>),
+    Result(Box<FirTy>, Box<FirTy>),
+    Tuple(Vec<FirTy>),
+    Map(Box<FirTy>, Box<FirTy>),
+    Set(Box<FirTy>),
+    /// User-defined type (ADT name, Rust-safe)
+    Named(String),
+    /// Function type
+    Arrow(Box<FirTy>, Box<FirTy>),
+    /// Not yet resolved (fallback)
+    Unknown,
+}
+
+/// FIR expression — AST expression with ownership and type annotations.
+#[derive(Debug, Clone)]
+struct FirExpr {
+    kind: FirExprKind,
+    span: Span,
+    ty: FirTy,
+}
+
+/// FIR expression kinds — mirrors ExprKind with ownership on Var nodes.
+#[derive(Debug, Clone)]
+enum FirExprKind {
+    /// Variable reference with resolved ownership mode
+    Var(String, VarMode),
+    /// Literal value
+    Lit(Literal),
+    /// Function application
+    App(Box<FirExpr>, Vec<FirExpr>),
+    /// Lambda (params may have resolved types)
+    Lambda(Vec<Param>, Box<FirExpr>),
+    /// Binary operator
+    BinOp(String, Box<FirExpr>, Box<FirExpr>),
+    /// Unary operator
+    UnOp(String, Box<FirExpr>),
+    /// If-then-else
+    If(Box<FirExpr>, Box<FirExpr>, Box<FirExpr>),
+    /// Pattern match
+    Match(Box<FirExpr>, Vec<FirMatchArm>),
+    /// Statement block
+    Block(Vec<FirStmt>),
+    /// Field access
+    Field(Box<FirExpr>, String),
+    /// Index
+    Index(Box<FirExpr>, Box<FirExpr>),
+    /// List literal
+    List(Vec<FirExpr>),
+    /// Tuple literal
+    Tuple(Vec<FirExpr>),
+    /// Effect operation call
+    Effect(String, Vec<FirExpr>),
+    /// Effect handler
+    Handle {
+        effect: String,
+        handlers: Vec<FirEffHandler>,
+        body: Box<FirExpr>,
+    },
+    /// Try (? operator)
+    Try(Box<FirExpr>),
+    /// Conjunction (Prolog-style)
+    Conjunction(Vec<FirExpr>),
+    /// Pipe forward (preserved for stream identity)
+    Pipe(Box<FirExpr>, Box<FirExpr>),
+    /// Unit value
+    Unit,
+}
+
+/// FIR match arm
+#[derive(Debug, Clone)]
+struct FirMatchArm {
+    pat: Pat,
+    guard: Option<FirExpr>,
+    body: FirExpr,
+}
+
+/// FIR effect handler
+#[derive(Debug, Clone)]
+struct FirEffHandler {
+    op_name: String,
+    params: Vec<String>,
+    body: FirExpr,
+}
+
+/// FIR statement — mirrors Stmt with FIR expressions.
+#[derive(Debug, Clone)]
+enum FirStmt {
+    Defn(FirDefn),
+    TypeDecl(TypeDecl),
+    Rule(Rule),
+    Use(String),
+    Import(String),
+    QualifiedImport(String, String),
+    HashImport(String, String),
+    Depend(String, String),
+    RustBlock(String),
+    Annot(String, Vec<FirExpr>),
+    Bind(Pat, Option<Ty>, FirExpr),
+    MonadicBind(Pat, Option<Ty>, FirExpr),
+    For(String, FirExpr, Vec<FirStmt>),
+    Send(FirExpr, FirExpr),
+    StreamBind(String, FirExpr),
+    StreamSub(FirExpr, Vec<FirMatchArm>),
+    Invariant { name: String, subject: FirExpr, predicate: FirExpr },
+    Prove { name: String, capture: Option<String>, pass_block: Option<Vec<FirStmt>>, else_block: Option<Vec<FirStmt>> },
+    Assert(String, Vec<FirExpr>),
+    Retract(String, Vec<FirExpr>),
+    Abort,
+    Expr(FirExpr),
+}
+
+/// FIR function definition
+#[derive(Debug, Clone)]
+enum FirDefn {
+    Fn {
+        name: String,
+        params: Vec<Param>,
+        ret_ty: Option<Ty>,
+        effects: Vec<String>,
+        body: FirExpr,
+    },
+    Actor {
+        name: String,
+        state_param: Param,
+        handlers: Vec<FirHandler>,
+    },
+    Module {
+        name: String,
+        body: Vec<FirStmt>,
+    },
+}
+
+/// FIR actor handler
+#[derive(Debug, Clone)]
+struct FirHandler {
+    msg_pat: Pat,
+    body: FirExpr,
+}
+
+/// The complete FIR program — ready for Rust emission.
+#[derive(Debug, Clone)]
+struct FirProgram {
+    stmts: Vec<FirStmt>,
+    types: TypeRegistry,
+}
+
+// ============================================================================
+// OWNERSHIP COUNTING FUNCTIONS
+// ============================================================================
 
 /// Count how many times each variable name appears as ExprKind::Var in an expression tree.
 /// This is the core of escape analysis: single-use variables can be moved, not cloned.
@@ -13128,5 +13319,106 @@ fn sanitize_name(name: &str) -> String {
             format!("r#{}", name)
         }
         _ => name.to_string(),
+    }
+}
+
+// ============================================================================
+// TESTS
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fir_var_with_move() {
+        let expr = FirExpr {
+            kind: FirExprKind::Var("x".into(), VarMode::Move),
+            span: Span::dummy(),
+            ty: FirTy::Int,
+        };
+        assert!(matches!(expr.kind, FirExprKind::Var(_, VarMode::Move)));
+    }
+
+    #[test]
+    fn fir_var_with_clone() {
+        let expr = FirExpr {
+            kind: FirExprKind::Var("name".into(), VarMode::Clone),
+            span: Span::dummy(),
+            ty: FirTy::String,
+        };
+        assert!(matches!(expr.kind, FirExprKind::Var(_, VarMode::Clone)));
+        assert_eq!(expr.ty, FirTy::String);
+    }
+
+    #[test]
+    fn fir_binop_carries_type() {
+        let lhs = FirExpr { kind: FirExprKind::Lit(Literal::Int(1)), span: Span::dummy(), ty: FirTy::Int };
+        let rhs = FirExpr { kind: FirExprKind::Lit(Literal::Int(2)), span: Span::dummy(), ty: FirTy::Int };
+        let add = FirExpr {
+            kind: FirExprKind::BinOp("+".into(), Box::new(lhs), Box::new(rhs)),
+            span: Span::dummy(),
+            ty: FirTy::Int,
+        };
+        assert_eq!(add.ty, FirTy::Int);
+    }
+
+    #[test]
+    fn fir_program_holds_stmts_and_types() {
+        let prog = FirProgram {
+            stmts: vec![],
+            types: TypeRegistry::new(),
+        };
+        assert!(prog.stmts.is_empty());
+    }
+
+    #[test]
+    fn fir_match_arm_with_guard() {
+        let arm = FirMatchArm {
+            pat: Pat::Var("x".into()),
+            guard: Some(FirExpr {
+                kind: FirExprKind::BinOp(">".into(),
+                    Box::new(FirExpr { kind: FirExprKind::Var("x".into(), VarMode::Copy), span: Span::dummy(), ty: FirTy::Int }),
+                    Box::new(FirExpr { kind: FirExprKind::Lit(Literal::Int(0)), span: Span::dummy(), ty: FirTy::Int }),
+                ),
+                span: Span::dummy(),
+                ty: FirTy::Bool,
+            }),
+            body: FirExpr { kind: FirExprKind::Var("x".into(), VarMode::Copy), span: Span::dummy(), ty: FirTy::Int },
+        };
+        assert!(arm.guard.is_some());
+    }
+
+    #[test]
+    fn ownership_analysis_simple() {
+        // Parse "= x = a + a" — 'a' used twice → should have count 2
+        let source = "= x = a + a";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+        if let Stmt::Bind(_, _, ref expr) = stmts[0] {
+            let analysis = OwnershipAnalysis::analyze_simple(expr);
+            assert_eq!(analysis.var_uses.get("a").copied().unwrap_or(0), 2,
+                "expected 'a' used twice");
+        } else {
+            panic!("expected Bind statement");
+        }
+    }
+
+    #[test]
+    fn var_mode_clone_for_multi_use() {
+        // If a non-Copy var has consuming_uses > 1, it should be Clone
+        let analysis = OwnershipAnalysis {
+            var_uses: [("s".into(), 2)].into(),
+            consuming_uses: [("s".into(), 2)].into(),
+        };
+        // Simulate what emit_expr does: multi-use non-Copy → Clone
+        let mode = if analysis.consuming_uses.get("s").copied().unwrap_or(0) > 1 {
+            VarMode::Clone
+        } else {
+            VarMode::Move
+        };
+        assert_eq!(mode, VarMode::Clone);
     }
 }
