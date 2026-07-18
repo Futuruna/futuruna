@@ -4616,6 +4616,10 @@ fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
         Expr::Lit(_) | Expr::Unit => {}
         Expr::Try(inner) => count_var_uses(inner, counts),
         Expr::Conjunction(goals) => { for g in goals { count_var_uses(g, counts); } }
+        Expr::Pipe(input, transform) => {
+            count_var_uses(input, counts);
+            count_var_uses(transform, counts);
+        }
         Expr::Handle { handlers, body, .. } => {
             count_var_uses(body, counts);
             for h in handlers {
@@ -4730,6 +4734,14 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
         Expr::Var(_) | Expr::Lit(_) | Expr::Unit => {}
         Expr::Try(inner) => count_consuming_uses(inner, counts),
         Expr::Conjunction(goals) => { for g in goals { count_consuming_uses(g, counts); } }
+        Expr::Pipe(input, transform) => {
+            // Pipe input is consumed (passed as arg)
+            if let Expr::Var(name) = input.as_ref() {
+                *counts.entry(name.clone()).or_insert(0) += 1;
+            }
+            count_consuming_uses(input, counts);
+            count_consuming_uses(transform, counts);
+        }
         Expr::Handle { handlers, body, .. } => {
             count_consuming_uses(body, counts);
             for h in handlers {
@@ -4861,6 +4873,13 @@ fn count_consuming_uses_branch_aware(expr: &Expr, counts: &mut BTreeMap<String, 
         Expr::Var(_) | Expr::Lit(_) | Expr::Unit => {}
         Expr::Try(inner) => count_consuming_uses_branch_aware(inner, counts),
         Expr::Conjunction(goals) => { for g in goals { count_consuming_uses_branch_aware(g, counts); } }
+        Expr::Pipe(input, transform) => {
+            if let Expr::Var(name) = input.as_ref() {
+                *counts.entry(name.clone()).or_insert(0) += 1;
+            }
+            count_consuming_uses_branch_aware(input, counts);
+            count_consuming_uses_branch_aware(transform, counts);
+        }
         Expr::Handle { handlers, body, .. } => {
             count_consuming_uses_branch_aware(body, counts);
             for h in handlers {
@@ -5033,6 +5052,13 @@ fn count_consuming_uses_borrow_aware(
         Expr::Var(_) | Expr::Lit(_) | Expr::Unit => {}
         Expr::Try(inner) => count_consuming_uses_borrow_aware(inner, counts, known_borrow_fns, self_fn_name, self_param_names),
         Expr::Conjunction(goals) => { for g in goals { count_consuming_uses_borrow_aware(g, counts, known_borrow_fns, self_fn_name, self_param_names); } }
+        Expr::Pipe(input, transform) => {
+            if let Expr::Var(name) = input.as_ref() {
+                *counts.entry(name.clone()).or_insert(0) += 1;
+            }
+            count_consuming_uses_borrow_aware(input, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(transform, counts, known_borrow_fns, self_fn_name, self_param_names);
+        }
         Expr::Handle { handlers, body, .. } => {
             count_consuming_uses_borrow_aware(body, counts, known_borrow_fns, self_fn_name, self_param_names);
             for h in handlers {
@@ -5174,6 +5200,14 @@ fn has_consuming_non_field_use(
             args.iter().any(|a| has_consuming_non_field_use(a, param, known_borrow_fns, self_fn_name, self_param_names))
         }
         Expr::Try(inner) => has_consuming_non_field_use(inner, param, known_borrow_fns, self_fn_name, self_param_names),
+        Expr::Pipe(input, transform) => {
+            // Pipe input is consumed
+            if let Expr::Var(name) = input.as_ref() {
+                if name == param { return true; }
+            }
+            has_consuming_non_field_use(input, param, known_borrow_fns, self_fn_name, self_param_names)
+            || has_consuming_non_field_use(transform, param, known_borrow_fns, self_fn_name, self_param_names)
+        }
         Expr::Handle { handlers, body, .. } => {
             has_consuming_non_field_use(body, param, known_borrow_fns, self_fn_name, self_param_names)
             || handlers.iter().any(|h| has_consuming_non_field_use(&h.body, param, known_borrow_fns, self_fn_name, self_param_names))
@@ -5637,6 +5671,7 @@ fn expr_contains_try(expr: &Expr) -> bool {
         Expr::Lambda(_, body) => expr_contains_try(body),
         Expr::List(es) | Expr::Tuple(es) | Expr::Effect(_, es) => es.iter().any(expr_contains_try),
         Expr::Handle { body, handlers, .. } => expr_contains_try(body) || handlers.iter().any(|h| expr_contains_try(&h.body)),
+        Expr::Pipe(input, transform) => expr_contains_try(input) || expr_contains_try(transform),
         _ => false,
     }
 }
@@ -11371,10 +11406,17 @@ impl RustCodegen {
                 } else {
                     false
                 };
+                // Tuple field access: .fst → .0, .snd → .1
+                // (enumerate, zip, and other builtins produce Rust tuples, not named structs)
+                let rust_field = match field.as_str() {
+                    "fst" => "0",
+                    "snd" => "1",
+                    _ => field.as_str(),
+                };
                 if needs_clone {
-                    format!("{}.{}.clone()", self.emit_expr(obj), field)
+                    format!("{}.{}.clone()", self.emit_expr(obj), rust_field)
                 } else {
-                    format!("{}.{}", self.emit_expr(obj), field)
+                    format!("{}.{}", self.emit_expr(obj), rust_field)
                 }
             }
             Expr::Index(arr, idx) => {
@@ -11410,6 +11452,16 @@ impl RustCodegen {
                         let s = self.emit_print(args, "");
                         s.trim_end().to_string()
                     }
+                    "time" => {
+                        "std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64()".to_string()
+                    }
+                    "random" => {
+                        // Deterministic-seed xorshift (no external dependency)
+                        "{ let mut __x = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as u64; __x ^= __x << 13; __x ^= __x >> 7; __x ^= __x << 17; (__x as f64) / (u64::MAX as f64) }".to_string()
+                    }
+                    "input" => {
+                        "{ let mut __s = String::new(); std::io::stdin().read_line(&mut __s).unwrap(); __s.trim().to_string() }".to_string()
+                    }
                     _ if self.builtin_registry.contains_key(name.as_str()) => {
                         let app = Expr::App(Box::new(Expr::Var(name.clone())), args.clone());
                         self.emit_expr(&app)
@@ -11422,6 +11474,18 @@ impl RustCodegen {
             }
             Expr::Try(inner) => {
                 format!("{}?", self.emit_expr(inner))
+            }
+            Expr::Pipe(input, transform) => {
+                // Desugar Pipe to App in codegen: a |> f → f(a), a |> f(y) → f(a, y)
+                let desugared = match transform.as_ref() {
+                    Expr::App(func, existing_args) => {
+                        let mut new_args = vec![input.as_ref().clone()];
+                        new_args.extend(existing_args.iter().cloned());
+                        Expr::App(func.clone(), new_args)
+                    }
+                    other => Expr::App(Box::new(other.clone()), vec![input.as_ref().clone()]),
+                };
+                self.emit_expr(&desugared)
             }
             Expr::Unit => "()".to_string(),
             Expr::Conjunction(goals) => {
@@ -11777,6 +11841,10 @@ impl RustCodegen {
                 Self::walk_free_vars(a, bound, effect_ops, free);
                 Self::walk_free_vars(b, bound, effect_ops, free);
             }
+            Expr::Pipe(input, transform) => {
+                Self::walk_free_vars(input, bound, effect_ops, free);
+                Self::walk_free_vars(transform, bound, effect_ops, free);
+            }
             Expr::Handle { body, handlers, .. } => {
                 Self::walk_free_vars(body, bound, effect_ops, free);
                 for h in handlers {
@@ -11923,6 +11991,10 @@ impl RustCodegen {
             Expr::Index(a, b) => {
                 Self::check_purity(a, effect_ops, calls, impure);
                 Self::check_purity(b, effect_ops, calls, impure);
+            }
+            Expr::Pipe(input, transform) => {
+                Self::check_purity(input, effect_ops, calls, impure);
+                Self::check_purity(transform, effect_ops, calls, impure);
             }
             Expr::Handle { .. } => { *impure = true; }
             Expr::Effect(_, _) => { *impure = true; }
@@ -12115,6 +12187,10 @@ impl RustCodegen {
             Expr::Index(a, b) => {
                 effects.extend(Self::collect_expr_effects(a, handled, op_to_effect, fn_effects));
                 effects.extend(Self::collect_expr_effects(b, handled, op_to_effect, fn_effects));
+            }
+            Expr::Pipe(input, transform) => {
+                effects.extend(Self::collect_expr_effects(input, handled, op_to_effect, fn_effects));
+                effects.extend(Self::collect_expr_effects(transform, handled, op_to_effect, fn_effects));
             }
             Expr::List(items) | Expr::Tuple(items) => {
                 for item in items {
