@@ -1,0 +1,89 @@
+-- collection_test.runa — Kotlin-inspired collection builtins
+-- Tests sort, sort_by, any, all, find, flat_map, zip, enumerate,
+-- take_while, drop_while, sum_list, distinct, count_by, partition,
+-- chunked, subscribe.
+
+@ print("=== Collection Builtins ===")
+@ print("")
+
+= nums = [3, 1, 4, 1, 5, 9, 2, 6]
+
+-- sort
+= sorted = sort(nums)
+@ print("sort: " + show(sorted))
+
+-- sort_by (sort by string length)
+= words = ["banana", "fig", "apple", "kiwi"]
+> word_len(s: String) -> Int { string_length(s) }
+= by_len = sort_by(words, word_len)
+@ print("sort_by (len): " + show(by_len))
+
+-- any
+> is_nine(x: Int) -> Bool { x == 9 }
+= has_nine = any(nums, is_nine)
+@ print("any(nums, ==9): " + show(has_nine))
+
+> is_ten(x: Int) -> Bool { x == 10 }
+= has_ten = any(nums, is_ten)
+@ print("any(nums, ==10): " + show(has_ten))
+
+-- all
+> positive(x: Int) -> Bool { x > 0 }
+= all_pos = all(nums, positive)
+@ print("all(nums, >0): " + show(all_pos))
+
+-- find
+= found = find(nums, is_nine)
+@ print("find(nums, ==9): " + show(found))
+
+= not_found = find(nums, is_ten)
+@ print("find(nums, ==10): " + show(not_found))
+
+-- zip
+= letters = ["a", "b", "c"]
+= numbers = [1, 2, 3]
+= zipped = zip(letters, numbers)
+@ print("zip: " + show(zipped))
+
+-- enumerate
+= names = ["alpha", "beta", "gamma"]
+= indexed = enumerate(names)
+@ print("enumerate: " + show(indexed))
+
+-- take_while
+> less_than_5(x: Int) -> Bool { x < 5 }
+= taken = take_while(nums, less_than_5)
+@ print("take_while(<5): " + show(taken))
+
+-- drop_while
+= dropped = drop_while(nums, less_than_5)
+@ print("drop_while(<5): " + show(dropped))
+
+-- sum_list
+= total = sum_list([1, 2, 3, 4, 5])
+@ print("sum_list: " + show(total))
+
+-- distinct
+= unique = distinct([1, 2, 2, 3, 3, 3, 1])
+@ print("distinct: " + show(unique))
+
+-- count_by
+> is_even(x: Int) -> Bool { x == 2 * (x / 2) }
+= even_count = count_by(nums, is_even)
+@ print("count_by(even): " + show(even_count))
+
+-- partition
+= parts = partition(nums, is_even)
+@ print("partition(even): " + show(parts))
+
+-- chunked
+= chunks = chunked([1, 2, 3, 4, 5, 6, 7], 3)
+@ print("chunked(3): " + show(chunks))
+
+-- subscribe
+@ print("subscribe output:")
+= data = [10, 20, 30]
+@ subscribe(data, |x| { @ print("  item: " + show(x)) })
+
+@ print("")
+@ print("=== Collection tests passed! ===")

@@ -1,0 +1,711 @@
+-- ============================================================================
+-- ADVERSARIAL ANALYSIS II — Kapitel I-IV Cross-Cutting Review
+--
+-- PART A: Fidelity — where our Futuruna encoding diverges from the actual text
+-- PART B: Constitutional Insights — deep structural paradoxes worth expanding
+--
+-- This is the second pass. The first (analyse.runa) found 10 issues in
+-- Chapters I-II. Now we have 34 paragraphs encoded and can see patterns
+-- that only emerge at scale.
+-- ============================================================================
+
+@ use grundlov::*
+
+-- Types needed for cross-chapter analysis
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsraadet | Rigsretten | Ministerraadet
+# Statsmagt = Lovgivende | Udovende | Dommende
+# Ansvarstype = AnsvarsFri | Ansvarlig
+# Samtykke = Givet | IkkeGivet
+# Trossamfund = EvangeliskLuthersk | Andet(navn: String)
+# Magtholder = Hos(institution: Institution) | IForening(a: Institution, b: Institution)
+
+-- Fidelity scoring
+# Fidelitet = Trofast | Forenkling | Udeladelse | Fejl
+# Alvor = Kosmetisk | Strukturel | Meningsaendrende
+
+@ print("================================================================")
+@ print("  ADVERSARIAL ANALYSIS II — Chapters I-IV Cross-Cutting Review")
+@ print("================================================================")
+@ print("")
+
+
+-- ============================================================================
+-- PART A: FIDELITY — How faithful is our encoding?
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  PART A: FIDELITY — Implementation vs Constitutional Text")
+@ print("================================================================")
+@ print("")
+
+
+-- ============================================================================
+-- FIDELITY 1: kapitel-01.runa does not use @ use imports
+--
+-- Chapters II, III, IV all use `@ use grundlov::*`.
+-- Chapter I was written BEFORE imports worked. It duplicates all types.
+-- This means Chapter I has its OWN copy of Rigsdel, Institution, etc.
+-- If grundlov.runa types change, Chapter I diverges silently.
+-- ============================================================================
+
+@ print("--- F1: Chapter I does not use imports ---")
+@ print("Chapters II-IV: @ use grundlov::*")
+@ print("Chapter I: types duplicated locally")
+@ print("Risk: grundlov.runa changes → Chapter I diverges silently")
+@ print("Severity: STRUCTURAL — types are incompatible across chapters")
+@ print("Fix: add @ use grundlov::* to kapitel-01.runa, remove local type defs")
+@ print("")
+
+
+-- ============================================================================
+-- FIDELITY 2: Institution type is redefined in every chapter
+--
+-- grundlov.runa:  Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen
+-- kapitel-02.runa: + Statsraadet
+-- kapitel-03.runa: + Statsraadet + Rigsretten + Ministerraadet
+-- kapitel-04.runa: uses grundlov (no extension)
+--
+-- Each chapter creates a DIFFERENT Institution type.
+-- A function from Chapter II cannot accept a Chapter III Institution.
+-- This is a fundamental limitation of our current approach.
+-- ============================================================================
+
+@ print("--- F2: Institution type redefined per chapter ---")
+@ print("grundlov.runa:   Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen")
+@ print("kapitel-02.runa: + Statsraadet")
+@ print("kapitel-03.runa: + Statsraadet + Rigsretten + Ministerraadet")
+@ print("kapitel-04.runa: (uses grundlov, no extension)")
+@ print("Problem: types are INCOMPATIBLE across chapters")
+@ print("A cross-chapter function like 'kan_tiltale(institution)' would need")
+@ print("the UNION of all Institution variants — which doesn't exist.")
+@ print("Severity: STRUCTURAL — reveals need for open/extensible types in Futuruna")
+@ print("")
+
+
+-- ============================================================================
+-- FIDELITY 3: Chapter III claims 16 paragraphs but only encodes 13
+--
+-- §§ 12-27 = 16 paragraphs.
+-- Encoded: §§ 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 23, 24, 27.
+-- Missing: §§ 21, 25, 26.
+--
+-- § 21: King may introduce bills to Folketing (right of initiative)
+-- § 25: Royal privileges per pre-1849 customs
+-- § 26: King can only grant privileges through law
+-- ============================================================================
+
+@ print("--- F3: Chapter III is missing 3 paragraphs ---")
+@ print("Encoded: §§ 12-20, 22-24, 27 (13 paragraphs)")
+@ print("Missing: §§ 21, 25, 26")
+@ print("")
+@ print("§ 21: Kongen kan lade fremsaette forslag til love")
+@ print("  → King's right to INTRODUCE bills. Important: the King")
+@ print("    (= government) has legislative INITIATIVE.")
+@ print("    This completes the § 3 picture: IForening(Kongen, Folketinget)")
+@ print("    means the King proposes, Folketing disposes.")
+@ print("")
+@ print("§ 25: Kongelige bevillinger og undtagelser fra lovene")
+@ print("  → Royal privileges per pre-1849 customs. Archaic but alive.")
+@ print("    Creates a pre-constitutional exception channel.")
+@ print("")
+@ print("§ 26: Kongen kan kun meddele undtagelser ved lov")
+@ print("  → Privileges can ONLY be granted through law.")
+@ print("    Constrains § 25 — the King can't invent new privileges.")
+@ print("")
+@ print("Severity: MENINGSAENDRENDE — § 21 is important for power analysis")
+@ print("")
+
+
+-- ============================================================================
+-- FIDELITY 4: § 14 countersignature — too simple
+--
+-- Our type: Beslutning(kongelig: Bool, minister_underskrift: Bool, ansvarlig: String)
+-- The text: "een eller flere ministres medunderskrift" — ONE OR MORE.
+--
+-- Multiple ministers can co-sign. Our type uses a single String.
+-- This matters because responsibility follows the signature.
+-- If three ministers co-sign, all three are responsible.
+-- ============================================================================
+
+@ print("--- F4: § 14 countersignature allows MULTIPLE ministers ---")
+@ print("Text: 'een eller flere ministres medunderskrift'")
+@ print("Our type: ansvarlig: String (single minister)")
+@ print("Reality: multiple ministers can co-sign → multiple responsible")
+@ print("Fix: ansvarlige: List(String)")
+@ print("Severity: STRUCTURAL — changes responsibility analysis")
+@ print("")
+
+
+-- ============================================================================
+-- FIDELITY 5: § 19 military force — Forsvar/Angreb binary is too coarse
+--
+-- The text says: "mod riget rettet angreb" — armed attack DIRECTED AT
+-- THE REALM. Not just any military conflict. Self-defense is specifically
+-- about attacks ON Denmark.
+--
+-- Our binary ForsvarModAngreb | AndenMilitærMagt loses this directionality.
+-- A Danish military action abroad to protect citizens is neither
+-- Forsvar (not attacked at home) nor Angreb (not aggression).
+-- The constitution actually has a gap here.
+-- ============================================================================
+
+@ print("--- F5: § 19 military — directionality lost ---")
+@ print("Text: 'forsvar mod et vaebnet angreb mod riget'")
+@ print("  → defense against armed attack DIRECTED AT the Realm")
+@ print("Our encoding: MilitaerMagtbrug = ForsvarModAngreb | AndenMilitaerMagt")
+@ print("Missing: attacks AGAINST Denmark specifically")
+@ print("Lost scenario: military action abroad (rescue, peacekeeping)")
+@ print("  → not Forsvar (not attacked at home)")
+@ print("  → not Angreb (not aggression)")
+@ print("  → constitutional gap in the original text!")
+@ print("Severity: STRUCTURAL — binary encoding reveals real gap in constitution")
+@ print("")
+
+
+-- ============================================================================
+-- FIDELITY 6: § 29 — three requirements + exclusion, not four requirements
+--
+-- The text: "enhver, som har dansk indfodsret, fast bopael i riget og
+--            har naaet valgretsalderen, MEDMINDRE vedkommende er umyndiggjort"
+--
+-- Structure: 3 positive requirements + 1 negative exclusion (medmindre = unless)
+-- Our code: har_valgret(indfoedsret, fast_bopael, valgretsalder, myndig)
+--           → treats all 4 as positive requirements
+--
+-- The text uses DEFAULT LOGIC: you HAVE suffrage if 3 conditions met,
+-- UNLESS you are incapacitated. This should be a | rule with | exception.
+-- ============================================================================
+
+@ print("--- F6: § 29 structure is default + exception, not 4 conditions ---")
+@ print("Text: '...indfodsret, fast bopael...valgretsalderen, MEDMINDRE umyndiggjort'")
+@ print("Structure: 3 positive conditions + 'unless' exclusion")
+@ print("Our code: 4 boolean parameters treated equally")
+@ print("Better encoding in Futuruna's default logic:")
+@ print("  | har_valgret(p) -> True under p.indfodsret, p.bopael, p.alder")
+@ print("  | exception umyndiggoerelse har_valgret(p) -> False under p.umyndiggjort")
+@ print("This is exactly what default logic is FOR.")
+@ print("Severity: STRUCTURAL — misses opportunity to demonstrate default logic")
+@ print("")
+
+
+-- ============================================================================
+-- FIDELITY 7: § 29 stk. 2 — voting age history not captured
+--
+-- We set nuvaerende_valgretsalder = 18.
+-- But the 1953 text set it at 23. It was lowered by referendum:
+--   1953: 23 (original)
+--   1961: 21 (referendum)
+--   1971: 20 (referendum)
+--   1978: 18 (referendum)
+--
+-- Each change required a referendum per § 29 stk. 2.
+-- The constitution doesn't say "18" — it says "the age that won
+-- the referendum per the law of 25 March 1953."
+-- ============================================================================
+
+@ print("--- F7: § 29 voting age — we hardcode 18, text says 'referendum result' ---")
+@ print("Constitutional text: 'den, som har opnaaet flertal ved folkeafstemning'")
+@ print("History of referendum-locked changes:")
+@ print("  1953: 23 (original)")
+@ print("  1961: 21 (referendum)")
+@ print("  1971: 20 (referendum)")
+@ print("  1978: 18 (referendum)")
+@ print("Our code: = nuvaerende_valgretsalder = 18 (hardcoded)")
+@ print("The constitution doesn't say '18' — it says 'the referendum result'")
+@ print("Severity: KOSMETISK — correct value, wrong provenance")
+@ print("")
+
+
+-- ============================================================================
+-- FIDELITY 8: § 27 missing pension choice
+--
+-- Text says transferred civil servants without consent must also be
+-- "given choice of such transfer or pension" (valget imellem saadan
+-- forflytning og afsked med pension).
+--
+-- Our encoding only checks income loss. The actual rule is:
+--   no income loss AND offered pension alternative.
+-- Two conditions, not one.
+-- ============================================================================
+
+@ print("--- F8: § 27 transfer requires pension choice, not just no income loss ---")
+@ print("Text: 'valget imellem saadan forflytning og afsked med pension'")
+@ print("Our code: only checks tab_i_indtaegt (income loss)")
+@ print("Missing: must also offer pension as alternative")
+@ print("The civil servant gets a CHOICE: accept transfer OR take pension")
+@ print("Severity: STRUKTUREL — changes the rights analysis")
+@ print("")
+
+
+-- ============================================================================
+-- FIDELITY SCORE
+-- ============================================================================
+
+@ print("--- FIDELITY SCORECARD ---")
+@ print("")
+@ print("  Chapter I:   1 issue  (no imports)")
+@ print("  Chapter II:  1 issue  (type redefinition)")
+@ print("  Chapter III: 3 issues (missing §§, countersignature, military)")
+@ print("  Chapter IV:  2 issues (§ 29 structure, voting age)")
+@ print("  Cross-cutting: 1 issue (Institution type fragmentation)")
+@ print("")
+@ print("  Kosmetisk:         1 (voting age provenance)")
+@ print("  Strukturel:        6 (imports, types, countersignature, military,")
+@ print("                        § 29 default logic, § 27 pension choice)")
+@ print("  Meningsaendrende:  1 (missing §§ 21, 25, 26)")
+@ print("")
+@ print("  Overall: HIGH fidelity for what is encoded.")
+@ print("  The structural issues mostly reveal language LIMITATIONS,")
+@ print("  not encoding ERRORS. The one meaning-changing omission")
+@ print("  (missing paragraphs) should be fixed.")
+@ print("")
+
+
+-- ============================================================================
+-- PART B: CONSTITUTIONAL INSIGHTS — Deep Analysis Worth Expanding
+-- ============================================================================
+
+@ print("")
+@ print("================================================================")
+@ print("  PART B: CONSTITUTIONAL INSIGHTS — Paradoxes & Structures")
+@ print("================================================================")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 1: The Grand Paradox — All Power and No Power
+--
+-- § 3:  Executive power is with the King.
+-- § 12: The King has supreme authority.
+-- § 14: The King can do NOTHING without a minister's signature.
+-- § 15: Ministers serve at Folketing's pleasure.
+--
+-- Therefore: the person who constitutionally holds ALL the power
+-- can exercise NONE of it independently.
+--
+-- This is not a bug. It's the most elegant constitutional design
+-- possible: separate the HOLDER of power from the WIELDER of power,
+-- making the wielder accountable and the holder incapable of tyranny.
+-- ============================================================================
+
+@ print("--- INSIGHT 1: The Grand Paradox — All Power and No Power ---")
+@ print("")
+@ print("  § 3:  'Den udovende magt er hos Kongen'")
+@ print("  § 12: 'den hoejeste myndighed over alle rigets anliggender'")
+@ print("  § 14: Nothing valid without minister's countersignature")
+@ print("  § 15: Ministers serve at Folketing's pleasure")
+@ print("")
+@ print("  The King holds ALL power (§§ 3, 12)")
+@ print("  The King can exercise NONE of it (§ 14)")
+@ print("  This is constitutional DESIGN, not a flaw:")
+@ print("  Separate the holder from the wielder.")
+@ print("  The holder cannot be tyrant (no action without minister).")
+@ print("  The wielder can be removed (no confidence vote).")
+@ print("")
+@ print("  In Futuruna terms: the type says Hos(Kongen) for executive,")
+@ print("  but the TRANSITION RULES require countersignature.")
+@ print("  The TYPE is a lie. The RULES tell the truth.")
+@ print("  This is a constitutional STATE vs TRANSITION gap —")
+@ print("  the same structural pattern as the Muslim King paradox.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 2: The Accountability Inversion
+--
+-- The person WITH power has NO responsibility.
+-- The person WITH responsibility has NO independent power.
+--
+-- § 13: King is ansvarsfri (irresponsible) + fredhellig (sacrosanct)
+-- § 14: Minister signs → minister is responsible
+--
+-- The minister who signs a bad decision goes to Rigsretten (§ 16).
+-- The King who ordered it cannot be touched (§ 13).
+--
+-- This is not injustice — it's a forcing function:
+-- Ministers will refuse to sign decisions that would get them convicted.
+-- The King's irresponsibility makes ministers MORE careful, not less.
+-- ============================================================================
+
+> ansvars_placering(er_kongen: Bool) -> Ansvarstype {
+    if er_kongen { AnsvarsFri }
+    else { Ansvarlig }
+}
+
+> magt_placering(er_kongen: Bool) -> String {
+    if er_kongen { "Formel — hoejeste myndighed" }
+    else { "Reel — kontrasignatur giver retsvirkning" }
+}
+
+@ print("--- INSIGHT 2: The Accountability Inversion ---")
+@ print("")
+@ print("  Kongen: magt = " + magt_placering(True))
+@ print("  Kongen: ansvar = " + show(ansvars_placering(True)))
+@ print("  Minister: magt = " + magt_placering(False))
+@ print("  Minister: ansvar = " + show(ansvars_placering(False)))
+@ print("")
+@ print("  Power and responsibility are INVERSELY distributed.")
+@ print("  This is a forcing function: ministers refuse bad decisions")
+@ print("  because THEY go to Rigsretten (§ 16), not the King.")
+@ print("  The King's irresponsibility makes ministers MORE careful.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 3: The Fredhellig Paradox — Irresistible Force vs Immovable Object
+--
+-- § 13: The King is fredhellig (sacrosanct — cannot be prosecuted)
+-- § 34: Attacking Folketing is hoejforraederi (high treason)
+--
+-- What if the King attacks Folketing?
+-- § 34 says: the attacker commits high treason
+-- § 13 says: the King cannot be held accountable
+--
+-- Both apply simultaneously. The constitution has no resolution.
+--
+-- This is not hypothetical — it's the scenario that § 34 was
+-- specifically designed to prevent (protecting Parliament from
+-- the King who commands the military per § 12).
+-- ============================================================================
+
+> kongen_angriber_folketing_paragraf_13() -> String {
+    "Kongen er fredhellig — kan ikke retsforfølges"
+}
+
+> kongen_angriber_folketing_paragraf_34() -> String {
+    "Angreb på Folketinget er højforræderi"
+}
+
+@ print("--- INSIGHT 3: The Fredhellig Paradox ---")
+@ print("")
+@ print("  Scenario: The King attacks Folketing")
+@ print("  § 13 says: " + kongen_angriber_folketing_paragraf_13())
+@ print("  § 34 says: " + kongen_angriber_folketing_paragraf_34())
+@ print("")
+@ print("  Both apply. No resolution mechanism.")
+@ print("  The person § 34 was designed to constrain (the commander")
+@ print("  of military forces, § 12) is the same person § 13 makes")
+@ print("  unprosecutable.")
+@ print("")
+@ print("  Resolution paths:")
+@ print("  1. Ministers refuse to sign military orders (§ 14)")
+@ print("     → but the King might bypass this")
+@ print("  2. Soldiers refuse orders (§ 34 — obedience is no defense)")
+@ print("     → but the King is their supreme commander (§ 12)")
+@ print("  3. § 9 delegation: law determines regency for 'other reasons'")
+@ print("     → but who triggers this without a functioning Folketing?")
+@ print("")
+@ print("  This is the DEEPEST unresolvable paradox in §§ 1-34.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 4: The Emergency Decree Perverse Incentive
+--
+-- § 23: Emergency decrees when Folketing CANNOT assemble
+-- § 34: Preventing Folketing from assembling = high treason
+--
+-- The perverse incentive:
+--   If you commit high treason (§ 34) by preventing assembly,
+--   you CREATE the conditions for emergency decrees (§ 23).
+--   The government can then rule by decree — legally.
+--
+-- The decrees are legal (§ 23 conditions met).
+-- The situation that created them is illegal (§ 34).
+-- But the legality of the decrees doesn't depend on HOW
+-- the situation arose — only that Folketing can't assemble.
+-- ============================================================================
+
+> folketing_kan_samles(forhindret: Bool) -> Bool {
+    if forhindret { False } else { True }
+}
+
+> kan_udstede_provisorisk_lov(forhindret: Bool) -> Bool {
+    if forhindret { True } else { False }
+}
+
+> forhindring_er_hoejforraederi(forhindret_af_person: Bool) -> Bool {
+    if forhindret_af_person { True } else { False }
+}
+
+@ print("--- INSIGHT 4: The Emergency Decree Perverse Incentive ---")
+@ print("")
+@ print("  § 34: Preventing Folketing from assembling = hoejforraederi")
+@ print("  § 23: If Folketing cannot assemble → emergency decrees allowed")
+@ print("")
+= forhindret = True
+@ print("  Folketing forhindret: " + show(folketing_kan_samles(forhindret)))
+@ print("  Kan udstede noed-love: " + show(kan_udstede_provisorisk_lov(forhindret)))
+@ print("  Er forhindringen hoejforraederi: " + show(forhindring_er_hoejforraederi(forhindret)))
+@ print("")
+@ print("  The decrees are LEGAL (§ 23 conditions met).")
+@ print("  The situation is ILLEGAL (§ 34 violated).")
+@ print("  But § 23 doesn't check HOW the situation arose.")
+@ print("  Perverse incentive: treason CREATES legal emergency powers.")
+@ print("")
+@ print("  Fix: § 23 should require that the inability to assemble")
+@ print("  is not caused by unconstitutional action.")
+@ print("  Futuruna: > provisorisk_lov_gyldig() -> Bool")
+@ print("           under ikke_forhindret_ulovligt()")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 5: The Self-Sealing Exclusion
+--
+-- § 30: Eligibility requires "not convicted of a disqualifying act"
+--        judged by "almindeligt omdoemme" (general public judgment)
+-- § 33: Folketing judges its own members' eligibility
+--
+-- Who defines "almindeligt omdoemme"? The law, set by... Folketing.
+-- Who applies it? Folketing (§ 33).
+-- Who reviews the decision? Nobody. No court can overrule (§ 33).
+--
+-- Folketing defines the standard, applies the standard, and is
+-- the final judge of the outcome. This is a CLOSED LOOP.
+-- ============================================================================
+
+@ print("--- INSIGHT 5: The Self-Sealing Exclusion ---")
+@ print("")
+@ print("  § 30: Ineligible if convicted of 'uvaerdig' act")
+@ print("  § 30: 'uvaerdig' defined by 'almindeligt omdoemme'")
+@ print("  § 33: Folketing judges eligibility. No external review.")
+@ print("")
+@ print("  Who defines the standard? Folketing (through law)")
+@ print("  Who applies the standard? Folketing (§ 33)")
+@ print("  Who reviews the decision? Nobody (§ 33 — sole judge)")
+@ print("")
+@ print("  This is a CLOSED LOOP — Folketing can exclude anyone")
+@ print("  by defining 'uvaerdig' to include them, then judging")
+@ print("  them by its own standard, with no appeal.")
+@ print("")
+@ print("  Safeguard: new elections. Excluded member can run again")
+@ print("  if re-elected — but Folketing can exclude again (§ 33).")
+@ print("  The only real check is the voters themselves.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 6: The Non-Lutheran Parliament Scenario
+--
+-- § 6:  King must be Lutheran
+-- § 29: MPs need citizenship + residence + age + capacity (no religion!)
+-- § 14: Ministers countersign for the King
+-- § 15: Ministers serve at Folketing's pleasure
+--
+-- There is NO religious requirement for MPs or ministers.
+-- A fully non-Lutheran Folketing is constitutionally possible.
+-- Such a Folketing appoints non-Lutheran ministers.
+-- Those ministers countersign for the Lutheran King.
+--
+-- The state church constrains the HEAD OF STATE but not the
+-- ACTUAL GOVERNMENT. The religion requirement is purely ceremonial.
+-- ============================================================================
+
+> religion_krav_for_institution(inst: Institution) -> Bool {
+    match inst {
+        | Kongen -> True
+        | _ -> False
+    }
+}
+
+@ print("--- INSIGHT 6: The Non-Lutheran Parliament Scenario ---")
+@ print("")
+@ print("  Religious requirement by institution:")
+@ print("    Kongen: " + show(religion_krav_for_institution(Kongen)))
+@ print("    Folketinget: " + show(religion_krav_for_institution(Folketinget)))
+@ print("    Domstolene: " + show(religion_krav_for_institution(Domstolene)))
+@ print("    Ministerraadet: " + show(religion_krav_for_institution(Ministerraadet)))
+@ print("")
+@ print("  A fully non-Lutheran Folketing is constitutional.")
+@ print("  Non-Lutheran ministers governing through a Lutheran King.")
+@ print("  The religion requirement constrains the figurehead,")
+@ print("  not the actual government.")
+@ print("  § 6 is constitutionally ceremonial.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 7: The Dissolution Infinite Loop
+--
+-- § 15: No confidence → PM resigns or calls election
+-- § 32: King can dissolve at any time (through PM per § 12)
+--
+-- Scenario:
+--   1. Folketing votes no confidence
+--   2. PM calls election (§ 15)
+--   3. New Folketing immediately votes no confidence
+--   4. PM calls election again
+--   5. Repeat forever
+--
+-- No circuit breaker exists in §§ 1-34.
+-- The German Grundgesetz has a constructive vote of no confidence
+-- (must elect a replacement). The Danish constitution does not.
+-- ============================================================================
+
+@ print("--- INSIGHT 7: The Dissolution Infinite Loop ---")
+@ print("")
+@ print("  1. Folketing votes no confidence (§ 15)")
+@ print("  2. PM calls election (§ 15 stk. 2)")
+@ print("  3. New Folketing votes no confidence again")
+@ print("  4. PM calls election again (§ 32)")
+@ print("  5. No constitutional circuit breaker")
+@ print("")
+@ print("  German Grundgesetz: constructive vote (must elect replacement)")
+@ print("  Danish Grundlov: destructive vote (no replacement required)")
+@ print("  The Danish system assumes political culture will prevent loops.")
+@ print("  The constitution provides NO mechanism to break the cycle.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 8: The Oath Web — Who Swears to Whom?
+--
+-- § 8:  King swears to uphold the constitution (Statsraadet)
+-- § 27: Royal appointees swear an oath (forsikring)
+-- § 32: MPs swear to uphold the constitution
+--
+-- Three oath-takers, all swearing to the same document:
+--   The King swears to the constitution
+--   The civil servants swear to the constitution
+--   The MPs swear to the constitution
+--
+-- But nobody swears to EACH OTHER. Every oath goes to the
+-- document, not to a person or institution. The constitution
+-- is the ONLY point of mutual commitment.
+--
+-- Remove the constitution and there is no oath web. No loyalty.
+-- The document is not just the rules — it's the SOCIAL CONTRACT.
+-- ============================================================================
+
+# EdAflaegger = Kongen_ | Tjenestemand_ | Folketingsmedlem_
+
+> ed_aflaegges_til() -> String {
+    "Grundloven"
+}
+
+@ print("--- INSIGHT 8: The Oath Web ---")
+@ print("")
+@ print("  § 8:  Kongen svaerger til Grundloven")
+@ print("  § 27: Kongelige embedsmaend svaerger til Grundloven")
+@ print("  § 32: Folketingsmedlemmer svaerger til Grundloven")
+@ print("")
+@ print("  Nobody swears to each other. Every oath goes to the DOCUMENT.")
+@ print("  The constitution is not just rules — it's the sole point of")
+@ print("  mutual commitment. Without it: no oath web, no loyalty.")
+@ print("  The King doesn't swear to serve Parliament.")
+@ print("  Parliament doesn't swear to serve the King.")
+@ print("  Both swear to serve the constitution.")
+@ print("  The document IS the social contract. Literally.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 9: The Constitutional Hierarchy of Thresholds
+--
+-- Across §§ 1-34, different actions require different levels of support.
+-- This creates an implicit hierarchy of constitutional "hardness":
+-- ============================================================================
+
+# Taerskel = IngenStemmer | SimpltFlertal | FemSjettedele | Folkeafstemning | Grundlovsaendring | Umuligt
+
+@ print("--- INSIGHT 9: Hierarchy of Constitutional Thresholds ---")
+@ print("")
+@ print("  LEVEL 0 — No vote needed:")
+@ print("    Self-defense (§ 19.2)")
+@ print("    King pardons ordinary citizens (§ 24)")
+@ print("")
+@ print("  LEVEL 1 — Folketingets samtykke (simple majority):")
+@ print("    Regent abroad (§ 5)")
+@ print("    Allowance abroad (§ 11)")
+@ print("    Territory changes (§ 19.1)")
+@ print("    Military force (§ 19.2)")
+@ print("    Pardon Rigsret minister (§ 24)")
+@ print("")
+@ print("  LEVEL 2 — 5/6 supermajority:")
+@ print("    Sovereignty delegation (§ 20)")
+@ print("")
+@ print("  LEVEL 3 — Referendum required:")
+@ print("    Voting age change (§ 29.2)")
+@ print("    Sovereignty delegation if only simple majority (§ 20)")
+@ print("")
+@ print("  LEVEL 4 — Constitutional amendment (§ 88):")
+@ print("    Dissolution + new election + second passage + referendum")
+@ print("    (Not yet encoded — but structurally the hardest process)")
+@ print("")
+@ print("  LEVEL 5 — Impossible under §§ 1-34:")
+@ print("    Encumber state payment with debt (§ 10.2)")
+@ print("    Attack Folketing (§ 34)")
+@ print("    Prosecute the King (§ 13)")
+@ print("")
+@ print("  The constitution has a 6-level hardness scale.")
+@ print("  § 10.2, § 34, and § 13 are HARDER than constitutional amendment —")
+@ print("  they have no exception mechanism at all.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 10: The Missing Paragraph — §§ 35-89 Preview
+--
+-- What we HAVEN'T encoded yet, and what structural patterns we expect:
+-- ============================================================================
+
+@ print("--- INSIGHT 10: What's missing and what to expect ---")
+@ print("")
+@ print("  Encoded so far: §§ 1-34 (Chapters I-IV)")
+@ print("  Remaining: §§ 35-89 (Chapters V-XI)")
+@ print("")
+@ print("  Chapter V  (§§ 35-45):  Folketingets virksomhed")
+@ print("    → Expect: session rules, quorum, immunity, bills procedure")
+@ print("    → The samtykke pattern should continue")
+@ print("")
+@ print("  Chapter VI (§§ 46-58):  Courts")
+@ print("    → Expect: judicial independence, habeas corpus")
+@ print("    → May resolve the § 33 self-judgment question")
+@ print("")
+@ print("  Chapter VII (§§ 59-65): Religion")
+@ print("    → Expect: freedom of religion, Folkekirke regulation")
+@ print("    → Will interact with § 4 + § 6 analysis")
+@ print("")
+@ print("  Chapter VIII (§§ 66-85): Citizen rights")
+@ print("    → Expect: fundamental freedoms, property rights")
+@ print("    → The modal analysis will expand significantly")
+@ print("")
+@ print("  Chapter IX  (§ 86):     Voting age (repeat of § 29?)")
+@ print("  Chapter X   (§§ 87-89): Revision + final provisions")
+@ print("    → § 88 is the amendment procedure — the META-rule")
+@ print("    → § 89 is the election of Rigsretten members")
+@ print("")
+
+
+-- ============================================================================
+-- SUMMARY
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  SUMMARY")
+@ print("================================================================")
+@ print("")
+@ print("  FIDELITY: 8 issues found")
+@ print("    1 meningsaendrende (missing §§ 21, 25, 26)")
+@ print("    6 strukturel (imports, types, countersignature,")
+@ print("                   military, § 29, § 27)")
+@ print("    1 kosmetisk (voting age provenance)")
+@ print("")
+@ print("  INSIGHTS: 10 constitutional discoveries")
+@ print("    1. Grand Paradox: All power + no power (§§ 3,12,14)")
+@ print("    2. Accountability Inversion: power =/= responsibility")
+@ print("    3. Fredhellig Paradox: King attacks Folketing (§§ 13,34)")
+@ print("    4. Emergency Perverse Incentive: treason enables decrees")
+@ print("    5. Self-Sealing Exclusion: Folketing judges itself (§§ 30,33)")
+@ print("    6. Non-Lutheran Parliament: religion constrains figurehead only")
+@ print("    7. Dissolution Infinite Loop: no circuit breaker")
+@ print("    8. Oath Web: all swear to document, not each other")
+@ print("    9. Threshold Hierarchy: 6 levels of constitutional hardness")
+@ print("   10. Preview: what §§ 35-89 will reveal")
+@ print("")
+@ print("  WORTH EXPANDING INTO STANDALONE ANALYSES:")
+@ print("    - The Fredhellig Paradox (Insight 3) — comparable to Muslim King")
+@ print("    - Emergency Decree Incentive (Insight 4) — real-world relevant")
+@ print("    - Threshold Hierarchy (Insight 9) — cross-constitution comparative")
+@ print("")

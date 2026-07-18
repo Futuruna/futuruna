@@ -1,0 +1,491 @@
+@ sprog da
+
+-- ============================================================================
+-- Kapitel IV — Folketinget (§§ 28-34)
+--
+-- Det DEMOKRATISKE FUNDAMENT. Syv paragraffer der definerer hvem der
+-- regerer, hvem der stemmer, hvem der kan vælges, og hvordan
+-- Folketinget beskytter sig selv.
+--
+-- Arkitekturen er lagdelt:
+--   § 28: Institutionen (179 medlemmer, Færøerne + Grønland-mandater)
+--   § 29: Hvem kan STEMME (valgret — 3 krav + udelukkelser)
+--   § 30: Hvem kan VÆLGES (valgbarhed — valgret + ingen vanærende straf)
+--   § 31: HVORDAN valg foregår (almindeligt, direkte, hemmeligt, forholdstalsvalg)
+--   § 32: HVORNÅR valg afholdes (4 år, opløsning, mandatkontinuitet)
+--   § 33: HVEM dømmer (Folketinget dømmer sig selv)
+--   § 34: BESKYTTELSE (ukrænkelighed — at røre det er højforræderi)
+--
+-- Den dybeste strukturelle indsigt: valgbarhed INKLUDERER valgret (§ 30).
+-- Man kan ikke vælges uden at kunne stemme. Det virker oplagt —
+-- men det betyder at enhver begrænsning af valgretten (§ 29) automatisk
+-- begrænser valgbarheden med. En enkelt port kontrollerer begge.
+-- ============================================================================
+
+
+-- ============================================================================
+-- IMPORT — Typer og bindinger fra grundlov.runa
+-- ============================================================================
+
+@ brug grundlov::*
+
+-- Folketingets sammensætning
+# Mandatfordeling(total: Int, færøerne: Int, grønland: Int, danmark: Int)
+
+-- Valgretskrav
+# Valgret(har_indfødsret: Bool, har_fast_bopæl: Bool, har_valgretsalder: Bool, er_myndig: Bool)
+
+-- Valgbarhed
+# Valgbarhed = Valgbar | IkkeValgbar(grund: String)
+
+-- Valgegenskaber
+# Valg = Almindeligt | Hemmeligt | Direkte
+# Valgmåde = Forholdstalsvalg | Enkeltmandskredse | Kombineret
+# Mandatperiode(år: Int)
+
+-- Opløsning
+# Opløsning = NyValgUdskrevet | MandaterBortfalder | ValgperiodeUdløber
+# OpløsningsHindring = IngenHindring | NyStatsministerIkkeFremstilet
+
+-- Medlemsstatus
+# MedlemsStatus = Godkendt | MistetValgbarhed | Omvalg
+
+-- Ukrænkelighed
+# Krænkelse = Højforræderi | IkkeKrænkelse
+
+-- Folkeafstemningslås
+# ValgretsalderÆndring = KræverFolkeafstemning | Afvist
+
+
+-- ============================================================================
+-- § 28. Folketinget udgør een forsamling bestående af højst 179
+--       medlemmer, hvoraf 2 medlemmer vælges på Færøerne og 2 i Grønland.
+--
+-- Tre tal. Simpelt. Men bemærk:
+--   - "højst" — 179 er et MAKSIMUM, ikke et præcist antal
+--   - Færøerne og Grønland får hver præcis 2 — FASTLAGT, ikke proportionalt
+--   - Danmark proper får resten: 179 - 2 - 2 = 175
+--
+-- Færø- og Grønlandspladserne er GRUNDLOVSSIKREDE.
+-- De kan ikke reduceres ved almindelig lovgivning.
+-- ============================================================================
+
+----
+§ 28. Folketinget udgør een forsamling bestående af højst 179 medlemmer, hvoraf 2 medlemmer vælges på Færøerne og 2 i Grønland.
+----
+
+@ skriv("================================================================")
+@ skriv("  Kapitel IV: Folketinget (§§ 28-34)")
+@ skriv("================================================================")
+@ skriv("")
+
+= folketingets_mandater = Mandatfordeling(179, 2, 2, 175)
+
+-- "een forsamling" — én forsamling. Etkammersystem.
+-- Danmark havde et Landsting (overhus) indtil 1953.
+-- Denne paragraf afskaffede tokammersystemet.
+| er_een_forsamling() -> Sandt
+
+@ skriv("--- § 28: Folketingets sammensætning ---")
+@ skriv("Maksimalt antal mandater: " + vis(folketingets_mandater.total))
+@ skriv("Færøerne: " + vis(folketingets_mandater.færøerne))
+@ skriv("Grønland: " + vis(folketingets_mandater.grønland))
+@ skriv("Danmark: " + vis(folketingets_mandater.danmark))
+@ skriv("Een forsamling (etkammersystem): " + vis(er_een_forsamling()))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 29. Valgret — hvem kan stemme.
+--
+-- Stk. 1: Tre POSITIVE krav (alle skal være opfyldt):
+--   1. Dansk indfødsret
+--   2. Fast bopæl i riget
+--   3. Nået valgretsalderen (se stk. 2)
+--   MEDMINDRE: vedkommende er umyndiggjort
+--
+-- Og en delegation: det bestemmes ved lov om straf og understøttelse
+-- der betragtes som fattighjælp medfører tab af valgret.
+--
+-- Stk. 2: Valgretsalderen har en FOLKEAFSTEMNINGSLÅS.
+--   - Nuværende alder blev fastsat ved folkeafstemning 1953
+--   - For at ændre den: Folketinget vedtager lov → Kongen KAN IKKE
+--     stadfæste den før den har overlevet folkeafstemning per § 42 stk. 5
+--   - Det er unikt: en lov der kræver BÅDE Folketing OG folk, og hvor
+--     Kongens stadfæstelse er blokeret til folket har talt
+--
+-- Fattighjælpsklausulen er et 1953-levn — effektivt død lov,
+-- da Danmarks velfærdssystem ikke skelner "fattighjælp."
+-- Men den står stadig i grundloven.
+-- ============================================================================
+
+----
+§ 29. Stk. 1. Valgret til folketinget har enhver, som har dansk indfødsret, fast bopæl i riget og har nået den i stk. 2 omhandlede valgretsalder, medmindre vedkommende er umyndiggjort. Det bestemmes ved lov, i hvilket omfang straf og understøttelse, der i lovgivningen betragtes som fattighjælp, medfører tab af valgret.
+
+Stk. 2. Valgretsalderen er den, som har opnået flertal ved den i lov af 25. marts 1953 omhandlede folkeafstemning. Ændring af den til enhver tid gældende valgretsalder kan ske ved lov. Et af folketinget vedtaget forslag til en sådan lov kan først stadfæstes af kongen, når bestemmelsen om valgretsalder i overensstemmelse med § 42, stk. 5, har været undergivet en folkeafstemning, der ikke har medført bestemmelsens bortfald.
+----
+
+> har_valgret(indfødsret: Bool, fast_bopæl: Bool, valgretsalder: Bool, myndig: Bool) -> Bool {
+    -- ALLE fire betingelser skal være opfyldt
+    hvis indfødsret {
+        hvis fast_bopæl {
+            hvis valgretsalder {
+                hvis myndig { Sandt }
+                ellers { Falskt }
+            } ellers { Falskt }
+        } ellers { Falskt }
+    } ellers { Falskt }
+}
+
+-- § 29 stk. 2: ALDRIG. Folkeafstemning er forfatningsmæssigt påkrævet.
+| valgretsalder_kan_ændres_uden_folkeafstemning() -> Falskt
+
+= nuværende_valgretsalder = 18
+
+@ skriv("--- § 29: Valgret ---")
+@ skriv("Dansk, bopæl, alder, myndig: " + vis(har_valgret(Sandt, Sandt, Sandt, Sandt)))
+@ skriv("Udlænding: " + vis(har_valgret(Falskt, Sandt, Sandt, Sandt)))
+@ skriv("Ingen fast bopæl: " + vis(har_valgret(Sandt, Falskt, Sandt, Sandt)))
+@ skriv("Under valgretsalder: " + vis(har_valgret(Sandt, Sandt, Falskt, Sandt)))
+@ skriv("Umyndiggjort: " + vis(har_valgret(Sandt, Sandt, Sandt, Falskt)))
+@ skriv("Valgretsalder: " + vis(nuværende_valgretsalder))
+@ skriv("Kan ændres uden folkeafstemning: " + vis(valgretsalder_kan_ændres_uden_folkeafstemning()))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 30. Valgbarhed — hvem kan vælges.
+--
+-- Stk. 1: Valgbarhed = valgret + ingen vanærende straffedom.
+--   "enhver, som har valgret til dette" — valgbarhed KRÆVER valgret.
+--   Det skaber en afhængighedskæde:
+--     Valgbarhed ⊂ Valgret
+--     Enhver valgbar er vælger. Ikke enhver vælger er valgbar.
+--
+-- Stk. 2: Tjenestemænd valgt til Folketinget behøver ikke regeringens
+--   tilladelse. Det er en FRIHEDSGARANTI — regeringen kan ikke
+--   forhindre sine egne ansatte i at tilslutte sig lovgivningsmagten.
+--   (Ekko af § 27's tjenestemandsbeskyttelse.)
+-- ============================================================================
+
+----
+§ 30. Stk. 1. Valgbar til folketinget er enhver, som har valgret til dette, medmindre vedkommende er straffet for en handling, der i almindeligt omdømme gør ham uværdig til at være medlem af folketinget.
+
+Stk. 2. Tjenestemænd, som vælges til medlemmer af folketinget, behøver ikke regeringens tilladelse til at modtage valget.
+----
+
+> er_valgbar(har_valgret_: Bool, er_straffet_uværdig: Bool) -> Valgbarhed {
+    hvis har_valgret_ {
+        hvis er_straffet_uværdig {
+            IkkeValgbar("Straffet for uværdig handling")
+        } ellers {
+            Valgbar
+        }
+    } ellers {
+        IkkeValgbar("Har ikke valgret")
+    }
+}
+
+-- § 30 stk. 2: Eksplicit NEJ.
+| tjenestemand_behøver_tilladelse() -> Falskt
+
+@ skriv("--- § 30: Valgbarhed ---")
+@ skriv("Har valgret, ikke straffet: " + vis(er_valgbar(Sandt, Falskt)))
+@ skriv("Har valgret, straffet: " + vis(er_valgbar(Sandt, Sandt)))
+@ skriv("Har ikke valgret: " + vis(er_valgbar(Falskt, Falskt)))
+@ skriv("Tjenestemand behøver tilladelse: " + vis(tjenestemand_behøver_tilladelse()))
+@ skriv("Valgbarhed KRÆVER valgret — et enkelt led kontrollerer begge")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 31. Hvordan valg foregår — den demokratiske metode.
+--
+-- Stk. 1: Tre tillægsord der definerer valget:
+--   - Almindelige (universelle) — enhver med valgret stemmer
+--   - Direkte — vælgerne vælger medlemmer, ikke valgmænd
+--   - Hemmelige — ingen kan se din stemmeseddel
+--
+-- Stk. 2: Valgloven skal sikre "ligelig repræsentation"
+--   af de forskellige anskuelser blandt vælgerne.
+--   Forholdstalsvalg er GRUNDLOVSSIKRET.
+--   Det er derfor Danmark har PR — det er ikke bare et politisk valg.
+--
+-- Stk. 3: Ved mandatfordelingen tages hensyn til:
+--   - Indbyggertal
+--   - Vælgertal
+--   - Befolkningstæthed
+--
+-- Stk. 5: Grønlands repræsentation kan have særlige regler ved lov.
+--   (Det grønlandske særtilfælde-mønster, igen.)
+-- ============================================================================
+
+----
+§ 31. Stk. 1. Folketingets medlemmer vælges ved almindelige, direkte og hemmelige valg.
+
+Stk. 2. De nærmere regler for valgrettens udøvelse gives ved valgloven, der til sikring af en ligelig repræsentation af de forskellige anskuelser blandt vælgerne fastsætter valgmåden, herunder hvorvidt forholdstalsvalgmåden skal føres igennem i eller uden forbindelse med valg i enkeltmandskredse.
+
+Stk. 3. Ved den stedlige mandatfordeling skal der tages hensyn til indbyggertal, vælgertal og befolkningstæthed.
+
+Stk. 4. Ved valgloven gives nærmere regler vedrørende valg af stedfortrædere og disses indtræden i folketinget samt angående fremgangsmåden i tilfælde, hvor omvalg måtte blive nødvendigt.
+
+Stk. 5. Særlige regler om Grønlands repræsentation i folketinget kan gives ved lov.
+----
+
+> valg_er_demokratisk(almindeligt: Bool, direkte: Bool, hemmeligt: Bool) -> Bool {
+    -- ALLE TRE er forfatningsmæssigt påkrævet
+    hvis almindeligt {
+        hvis direkte {
+            hvis hemmeligt { Sandt }
+            ellers { Falskt }
+        } ellers { Falskt }
+    } ellers { Falskt }
+}
+
+-- § 31 stk. 2: "ligelig repræsentation af de forskellige anskuelser"
+-- Forholdstalsvalg er grundlovssikret.
+| forholdstalsvalg_påkrævet() -> Sandt
+
+@ skriv("--- § 31: Valgmetode ---")
+@ skriv("Almindeligt + direkte + hemmeligt: " + vis(valg_er_demokratisk(Sandt, Sandt, Sandt)))
+@ skriv("Indirekte valg: " + vis(valg_er_demokratisk(Sandt, Falskt, Sandt)))
+@ skriv("Åbent valg: " + vis(valg_er_demokratisk(Sandt, Sandt, Falskt)))
+@ skriv("Forholdstalsvalg påkrævet: " + vis(forholdstalsvalg_påkrævet()))
+@ skriv("Mandatfordeling: indbyggertal + vælgertal + befolkningstæthed")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 32. Valgperiode og opløsning — demokratiets rytme.
+--
+-- Stk. 1: 4-årig valgperiode.
+-- Stk. 2: Kongen kan udskrive nyvalg til enhver tid. MEN:
+--   Efter udnævnelse af ny statsminister: ingen opløsning før
+--   statsministeren har fremstillet sig for Folketinget.
+--   Det forhindrer en statsminister i at blive udnævnt og straks
+--   udskrive valg uden nogensinde at møde parlamentarisk kontrol.
+-- Stk. 3: Statsministeren SKAL foranledige nyvalg inden valgperiodens udløb.
+-- Stk. 4: Mandaterne bortfalder ALDRIG før nyvalg har fundet sted.
+--   Det er en kontinuitetsgaranti — Danmark har altid et Folketing.
+-- Stk. 6: Tab af valgbarhed = automatisk tab af mandat.
+-- Stk. 7: Nye medlemmer aflægger ed om at holde grundloven.
+--   (Samme mønster som § 8 for Kongen!)
+--
+-- Opløsningsparadokset (stk. 2):
+--   Kongen kan opløse Folketinget NÅR SOM HELST.
+--   Men Kongen handler gennem ministre (§ 12).
+--   Men statsministeren skal fremstille sig først (§ 32 stk. 2).
+--   Altså: statsminister udnævnes → skal møde Folketing → SÅ kan opløse.
+--   Det skaber et obligatorisk minimum af ét parlamentarisk møde.
+-- ============================================================================
+
+----
+§ 32. Stk. 1. Folketingets medlemmer vælges for 4 år.
+
+Stk. 2. Kongen kan til enhver tid udskrive nyvalg med den virkning, at de bestående folketingsmandater bortfalder, når nyvalg har fundet sted. Efter udnævnelse af et nyt ministerium kan valg dog ikke udskrives, forinden statsministeren har fremstillet sig for folketinget.
+
+Stk. 3. Det påhviler statsministeren at foranledige, at nyvalg afholdes inden valgperiodens udløb.
+
+Stk. 4. Mandaterne bortfalder i intet tilfælde, før nyvalg har fundet sted.
+
+Stk. 5. Der kan ved lov gives særlige regler om færøske og grønlandske folketingsmandaters ikrafttræden og ophør.
+
+Stk. 6. Mister et medlem af folketinget sin valgbarhed, bortfalder hans mandat.
+
+Stk. 7. Ethvert nyt medlem afgiver, når hans valg er godkendt, en højtidelig forsikring om at ville holde grundloven.
+----
+
+= valgperiode = Mandatperiode(4)
+
+> kan_udskrive_nyvalg(ny_statsminister: Bool, har_fremstillet_sig: Bool) -> Bool {
+    hvis ny_statsminister {
+        -- Efter ny statsminister: skal møde Folketinget først
+        hvis har_fremstillet_sig { Sandt }
+        ellers { Falskt }
+    } ellers {
+        -- Eksisterende statsminister: kan opløse når som helst
+        Sandt
+    }
+}
+
+-- § 32 stk. 4: ALDRIG. Kontinuitetsgaranti.
+| mandater_bortfalder_før_nyvalg() -> Falskt
+
+-- § 32 stk. 6: Ja, automatisk.
+| medlem_mister_mandat_ved_tab_af_valgbarhed() -> Sandt
+
+-- § 32 stk. 7: Samme ed-mønster som § 8 for Kongen.
+| nyt_medlem_afgiver_forsikring() -> Sandt
+
+@ skriv("--- § 32: Valgperiode og opløsning ---")
+@ skriv("Valgperiode: " + vis(valgperiode.år) + " år")
+@ skriv("Eksisterende PM kan opløse: " + vis(kan_udskrive_nyvalg(Falskt, Falskt)))
+@ skriv("Ny PM før fremstilling: " + vis(kan_udskrive_nyvalg(Sandt, Falskt)))
+@ skriv("Ny PM efter fremstilling: " + vis(kan_udskrive_nyvalg(Sandt, Sandt)))
+@ skriv("Mandater bortfalder før nyvalg: " + vis(mandater_bortfalder_før_nyvalg()))
+@ skriv("Tab af valgbarhed = tab af mandat: " + vis(medlem_mister_mandat_ved_tab_af_valgbarhed()))
+@ skriv("Nyt medlem aflægger ed: " + vis(nyt_medlem_afgiver_forsikring()))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 33. Folketinget dømmer sig selv — den selvhenvisende paragraf.
+--
+-- Folketinget afgør SELV:
+--   1. Om et medlems valg er gyldigt
+--   2. Om et medlem har mistet sin valgbarhed
+--
+-- Det er forfatningsmæssigt ekstraordinært. Ingen anden institution kan
+-- tilsidesætte Folketingets afgørelse om sine egne medlemmer.
+-- Ikke domstolene. Ikke Kongen.
+-- Folketinget er enedommer over hvem der tilhører det.
+--
+-- Kombineret med § 30 stk. 1 ("uværdig" er et skøn):
+-- Folketinget afgør hvad der tæller som diskvalificerende OG dømmer sagen.
+-- Anklager, dommer og jury — alt i ét.
+-- ============================================================================
+
+----
+§ 33. Folketinget afgør selv gyldigheden af sine medlemmers valg samt spørgsmålet om, hvorvidt et medlem har mistet sin valgbarhed.
+----
+
+> hvem_bedømmer_valg() -> Institution {
+    Folketinget
+}
+
+> hvem_bedømmer_valgbarhed() -> Institution {
+    Folketinget
+}
+
+-- § 33: Folketinget afgør SELV. Ingen ekstern prøvelse.
+| kan_domstolene_overprøve_folketingets_afgørelse() -> Falskt
+
+@ skriv("--- § 33: Selvdomsret ---")
+@ skriv("Hvem bedømmer valg: " + vis(hvem_bedømmer_valg()))
+@ skriv("Hvem bedømmer valgbarhed: " + vis(hvem_bedømmer_valgbarhed()))
+@ skriv("Domstolene kan overprøve: " + vis(kan_domstolene_overprøve_folketingets_afgørelse()))
+@ skriv("Folketinget er dommer i egen sag — unikum i magtdelingen")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 34. Folketinget er ukrænkeligt — den nukleare klausul.
+--
+-- "Folketinget er ukrænkeligt."
+--
+-- Enhver der:
+--   - Antaster dets sikkerhed eller frihed
+--   - Udsteder en befaling derom
+--   - Adlyder en sådan befaling
+-- gør sig skyldig i HØJFORRÆDERI.
+--
+-- Bemærk treleddets konstruktion:
+--   1. Angriberen — oplagt
+--   2. Den der BEORDRER angrebet — befalingsgiveren er skyldig
+--   3. Den der ADLYDER ordren — "jeg fulgte bare ordrer" er
+--      eksplicit IKKE et forsvar. Grundloven foregreb Nürnberg.
+--
+-- Paragraffen beskytter Folketinget mod KONGEN (§ 12 — højeste myndighed)
+-- og MILITÆRET (§ 19 — Kongen befaler styrkerne).
+-- Det er den demokratiske bagstop: den ene institution som selv
+-- den øverste befalingshaver ikke kan røre.
+-- ============================================================================
+
+----
+§ 34. Folketinget er ukrænkeligt. Enhver, der antaster dets sikkerhed eller frihed, enhver, der udsteder eller adlyder nogen dertil sigtende befaling, gør sig skyldig i højforræderi.
+----
+
+# FolketingsKrænkelse = Antaster | UdstederBefaling | AdlyderBefaling
+
+> er_højforræderi(handling: FolketingsKrænkelse) -> Bool {
+    -- ALLE TRE er højforræderi. Ingen undtagelser. Intet forsvar.
+    skel handling {
+        | Antaster -> Sandt
+        | UdstederBefaling -> Sandt
+        | AdlyderBefaling -> Sandt
+    }
+}
+
+-- "enhver, der adlyder nogen dertil sigtende befaling"
+-- Lydighed er IKKE et forsvar. Eksplicit.
+| lydighed_er_forsvar() -> Falskt
+
+@ skriv("--- § 34: Ukrænkelighed ---")
+@ skriv("Antaster Folketinget: " + vis(er_højforræderi(Antaster)))
+@ skriv("Udsteder befaling: " + vis(er_højforræderi(UdstederBefaling)))
+@ skriv("Adlyder befaling: " + vis(er_højforræderi(AdlyderBefaling)))
+@ skriv("Lydighed som forsvar: " + vis(lydighed_er_forsvar()))
+@ skriv("Grundloven foregreb Nürnberg-princippet")
+@ skriv("")
+
+
+-- ============================================================================
+-- KAPITEL IV — STRUKTUREL ANALYSE
+--
+-- Afhængighedskæden for demokratisk legitimitet:
+--
+--   § 29 (valgret) ← § 30 (valgbarhed) ← § 32 (mandat) ← § 33 (validering)
+--
+--   Man skal være VÆLGER for at være VALGBAR.
+--   Man skal være VALGBAR for at have et MANDAT.
+--   Mandatgyldighed bedømmes af FOLKETINGET SELV.
+--
+-- Portene i den demokratiske pipeline:
+--
+--   1. Indfødsret (§ 29)
+--   2. Fast bopæl (§ 29)
+--   3. Valgretsalder (§ 29) — folkeafstemningslåst
+--   4. Myndighed (§ 29) — ikke umyndiggjort
+--   5. Rent rulleblad (§ 30) — ikke "uværdig"
+--   6. Valg (§ 31) — almindeligt, direkte, hemmeligt, proportionalt
+--   7. Valgperiode (§ 32) — 4 år, opløsning mulig
+--   8. Ed (§ 32 stk. 7) — skal sværge at holde grundloven
+--   9. Validering (§ 33) — Folketinget dømmer selv
+--   10. Beskyttelse (§ 34) — ukrænkelighed, angreb er højforræderi
+--
+-- Forfatningsmæssige låse i Kapitel IV:
+--   - Valgretsalder: folkeafstemning påkrævet (§ 29 stk. 2)
+--   - Forholdstalsvalg: grundlovssikret (§ 31 stk. 2)
+--   - Mandatkontinuitet: aldrig bortfald før nyvalg (§ 32 stk. 4)
+--   - Folketing: ukrænkeligt — angreb er højforræderi (§ 34)
+--
+-- Det grønlandsk-færøske mønster:
+--   § 28: 2+2 mandater grundlovssikret
+--   § 31 stk. 5: Særlige regler for Grønland ved lov
+--   § 32 stk. 5: Særlige regler for Færøerne + Grønland mandattidspunkt
+--   Mønster: forankret i forfatningen, uddelegeret i detaljer
+--
+-- Ed-symmetrien:
+--   § 8:  Kongen sværger at holde grundloven
+--   § 32: Hvert medlem sværger at holde grundloven
+--   Både monarken og enhver parlamentariker aflægger SAMME løfte.
+--   Grundloven binder ALLE sine aktører til sig selv.
+-- ============================================================================
+
+@ skriv("================================================================")
+@ skriv("  Kapitel IV: Demokratiets fundament — 7 paragraffer")
+@ skriv("================================================================")
+@ skriv("")
+@ skriv("DEMOKRATISK PIPELINE:")
+@ skriv("  § 29: Valgret (indfødsret + bopæl + alder + myndighed)")
+@ skriv("  § 30: Valgbarhed (valgret + ikke uværdig)")
+@ skriv("  § 31: Valg (almindeligt + direkte + hemmeligt + proportionalt)")
+@ skriv("  § 32: Mandat (4 år, opløsning, kontinuitet)")
+@ skriv("  § 33: Validering (Folketinget bedømmer selv)")
+@ skriv("  § 34: Beskyttelse (ukrænkelighed, højforræderi)")
+@ skriv("")
+@ skriv("FORFATNINGSMÆSSIGE LÅSE:")
+@ skriv("  Valgretsalder: kan KUN ændres ved folkeafstemning")
+@ skriv("  Forholdstalsvalg: grundlovssikret")
+@ skriv("  Mandatkontinuitet: aldrig bortfald før nyvalg")
+@ skriv("  Folketing: ukrænkeligt — angreb er højforræderi")
+@ skriv("")
+@ skriv("ED-SYMMETRIEN:")
+@ skriv("  § 8:  Kongen sværger at holde grundloven")
+@ skriv("  § 32: Hvert medlem sværger at holde grundloven")
+@ skriv("  Monarken og parlamentarikeren aflægger SAMME løfte")
+@ skriv("")
+@ skriv("DEN GRØNLANDSK-FÆRØSKE SÆRSTILLING:")
+@ skriv("  § 28: 2+2 mandater grundlovssikret")
+@ skriv("  § 31/32: Særlige regler ved lov")
+@ skriv("  Forankret i forfatningen, uddelegeret i detaljer")

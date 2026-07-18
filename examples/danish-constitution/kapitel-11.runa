@@ -1,0 +1,38 @@
+@ sprog da
+
+-- Kapitel XI -- Ikrafttrædelsesbestemmelser
+
+
+----
+§ 89. Denne grundlov træder i kraft straks. Dog vedbliver den i henhold til
+Danmarks Riges Grundlov af 5. juni 1915 med ændringer af 10. september 1920
+senest valgte rigsdag at bestå, indtil nyvalg har fundet sted i
+overensstemmelse med reglerne i kapitel IV. Indtil nyvalg har fundet sted,
+forbliver de i Danmarks Riges Grundlov af 5. juni 1915 med ændringer af
+10. september 1920 for rigsdagen fastsatte bestemmelser i kraft.
+----
+
+-- Overgangsretten refererer til to tidligere grundlove
+# TidligereGrundlov(titel: Tekst, dato: Tekst)
+
+= tidligere_grundlov = TidligereGrundlov("Danmarks Riges Grundlov", "5. juni 1915")
+= ændring_af_tidligere = TidligereGrundlov("Ændring af grundloven", "10. september 1920")
+
+| grundloven_træder_i_kraft_straks()
+| eksisterende_rigsdag_vedbliver_til_nyvalg()
+| gamle_rigsdagsbestemmelser_i_kraft_til_nyvalg()
+
+
+----
+Så er da nu gældende ret, alle til ubrødelig efterlevelse,
+
+DANMARKS RIGES GRUNDLOV
+
+Givet på Christiansborg slot, den 5. juni 1953.
+
+Under Vor Kongelige Hånd og Segl.
+
+Frederik R.
+
+(L.S.)
+----

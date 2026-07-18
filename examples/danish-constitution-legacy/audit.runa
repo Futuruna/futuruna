@@ -1,0 +1,533 @@
+@ sprog da
+
+-- ============================================================================
+-- AUDIT AF DANMARKS RIGES GRUNDLOV
+--
+-- Importerer ALLE 11 kapitler for komplet type-graph analyse.
+-- Formelle invarianter (|) og beviser (?) for strukturelle egenskaber.
+-- ============================================================================
+
+@ import ./kapitel-01
+@ import ./kapitel-02
+@ import ./kapitel-03
+@ import ./kapitel-04
+@ import ./kapitel-05
+@ import ./kapitel-06
+@ import ./kapitel-07
+@ import ./kapitel-08
+@ import ./kapitel-09
+@ import ./kapitel-10
+@ import ./kapitel-11
+
+-- ============================================================================
+-- MAGTDELING (Kap. I, III, VI)
+-- ============================================================================
+
+= kongen_alene = kongen_kan_handle_alene()
+= kongen_formel = kongens_myndighed_er_formel()
+| magtdeling_kongen: kongen_alene -> kongen_alene == Falskt
+| kongen_er_formel: kongen_formel -> kongen_formel == Sandt
+? magtdeling_kongen
+? kongen_er_formel
+
+= domstole_prøver = domstolene_kan_prøve_myndighedsgrænser()
+= højesteret_sidst = højesteret_har_sidste_ord()
+| domstolskontrol: domstole_prøver -> domstole_prøver == Sandt
+| højesteret_final: højesteret_sidst -> højesteret_sidst == Sandt
+? domstolskontrol
+? højesteret_final
+
+= retspleje_adskilt = retspleje_adskilt_fra_forvaltning()
+| separation_of_powers: retspleje_adskilt -> retspleje_adskilt == Sandt
+? separation_of_powers
+
+-- ============================================================================
+-- RETTIGHEDER (Kap. VII, VIII)
+-- ============================================================================
+
+= frihed = personlig_frihed_ukrænkelig()
+= bolig = bolig_ukrænkelig()
+= ytring = ytringsfrihed()
+= religion = religionsfrihed()
+= erhverv = fri_erhvervsadgang()
+
+| frihed_ukrænkelig: frihed -> frihed == Sandt
+| bolig_ukrænkelig_check: bolig -> bolig == Sandt
+| ytring_fri: ytring -> ytring == Sandt
+| religion_fri: religion -> religion == Sandt
+| erhverv_fri: erhverv -> erhverv == Sandt
+? frihed_ukrænkelig
+? bolig_ukrænkelig_check
+? ytring_fri
+? religion_fri
+? erhverv_fri
+
+= censur = censur_tilladt()
+= særdomstol = særdomstol_tilladt()
+| ingen_censur: censur -> censur == Falskt
+| ingen_særdomstol: særdomstol -> særdomstol == Falskt
+? ingen_censur
+? ingen_særdomstol
+
+= diskr_tro = kan_diskrimineres_på_trosbekendelse()
+= diskr_afstamning = kan_diskrimineres_på_afstamning()
+| ingen_tro_diskrimination: diskr_tro -> diskr_tro == Falskt
+| ingen_afstamnings_diskrimination: diskr_afstamning -> diskr_afstamning == Falskt
+? ingen_tro_diskrimination
+? ingen_afstamnings_diskrimination
+
+-- ============================================================================
+-- ANTI-FEUDALISME (Kap. VIII)
+-- ============================================================================
+
+= adel = adelsforrettigheder_eksisterer()
+= len = len_kan_oprettes()
+= stamhus = stamhus_kan_oprettes()
+= fideikommis = fideikommis_kan_oprettes()
+
+| ingen_adel: adel -> adel == Falskt
+| ingen_len: len -> len == Falskt
+| ingen_stamhus: stamhus -> stamhus == Falskt
+| ingen_fideikommis: fideikommis -> fideikommis == Falskt
+? ingen_adel
+? ingen_len
+? ingen_stamhus
+? ingen_fideikommis
+
+-- ============================================================================
+-- LOVKRAV — ALT KRÆVER LOV (Kap. V)
+-- ============================================================================
+
+= skat = skat_uden_lov()
+= værnepligt = værnepligt_uden_lov()
+= statslån = statslån_uden_lov()
+= indfødsret = indfødsret_uden_lov()
+
+| skat_kræver_lov: skat -> skat == Falskt
+| værnepligt_kræver_lov: værnepligt -> værnepligt == Falskt
+| statslån_kræver_lov: statslån -> statslån == Falskt
+| indfødsret_kræver_lov: indfødsret -> indfødsret == Falskt
+? skat_kræver_lov
+? værnepligt_kræver_lov
+? statslån_kræver_lov
+? indfødsret_kræver_lov
+
+-- ============================================================================
+-- FOLKETING (Kap. IV)
+-- ============================================================================
+
+= offentlige = møder_er_offentlige()
+= forholdstalsvalg = forholdstalsvalg_påkrævet()
+= mandater_bortfalder = mandater_bortfalder_før_nyvalg()
+= lydighed_forsvar = lydighed_er_forsvar()
+= bundet_vælgere = bundet_af_vælgere()
+= bundet_parti = bundet_af_parti()
+= bundet_overbevisning = bundet_af_overbevisning()
+
+| offentlige_møder: offentlige -> offentlige == Sandt
+| forholdstalsvalg_check: forholdstalsvalg -> forholdstalsvalg == Sandt
+| mandater_kontinuitet: mandater_bortfalder -> mandater_bortfalder == Falskt
+| fri_mandat_1: bundet_vælgere -> bundet_vælgere == Falskt
+| fri_mandat_2: bundet_parti -> bundet_parti == Falskt
+| fri_mandat_3: bundet_overbevisning -> bundet_overbevisning == Sandt
+? offentlige_møder
+? forholdstalsvalg_check
+? mandater_kontinuitet
+? fri_mandat_1
+? fri_mandat_2
+? fri_mandat_3
+
+= ytring_folketing = ytring_i_folketing_kan_retsforfølges()
+| parlamentarisk_immunitet: ytring_folketing -> ytring_folketing == Falskt
+? parlamentarisk_immunitet
+
+-- ============================================================================
+-- KONGEN OG TRONFØLGE (Kap. II)
+-- ============================================================================
+
+= luthersk = paragraf_6_kræver_luthersk_konge()
+= p70_forbyder = paragraf_70_forbyder_diskrimination_på_tro()
+| kongen_luthersk: luthersk -> luthersk == Sandt
+| p70_anti_diskrimination: p70_forbyder -> p70_forbyder == Sandt
+? kongen_luthersk
+? p70_anti_diskrimination
+
+-- ============================================================================
+-- DOMSTOLE (Kap. VI)
+-- ============================================================================
+
+= dommer_afsættes = dommer_kan_afsættes_uden_dom()
+= retspleje_offentl = retspleje_offentlig()
+= retspleje_mundtl = retspleje_mundtlig()
+= lægmænd = lægmænd_i_straffesager()
+
+| dommer_uafsættelig: dommer_afsættes -> dommer_afsættes == Falskt
+| åben_retspleje: retspleje_offentl -> retspleje_offentl == Sandt
+| mundtlig_retspleje: retspleje_mundtl -> retspleje_mundtl == Sandt
+| folkelig_retspleje: lægmænd -> lægmænd == Sandt
+? dommer_uafsættelig
+? åben_retspleje
+? mundtlig_retspleje
+? folkelig_retspleje
+
+-- ============================================================================
+-- GRUNDLOVSÆNDRING (Kap. X)
+-- ============================================================================
+
+= evighedsklausul = har_evighedsklausul()
+= regering_blokerer = regering_kan_blokere()
+= tekst_ændres = tekst_må_ændres_mellem_vedtagelser()
+
+| ingen_evighedsklausul: evighedsklausul -> evighedsklausul == Falskt
+| regering_kan_blokere_check: regering_blokerer -> regering_blokerer == Sandt
+| tekst_fastlåst: tekst_ændres -> tekst_ændres == Falskt
+? ingen_evighedsklausul
+? regering_kan_blokere_check
+? tekst_fastlåst
+
+-- ============================================================================
+-- KOMMUNALT SELVSTYRE OG OFFENTLIGHED
+-- ============================================================================
+
+= kommunalt = kommunalt_selvstyre()
+= statstilsyn = kommunalt_statstilsyn()
+| selvstyre_eksisterer: kommunalt -> kommunalt == Sandt
+| tilsyn_eksisterer: statstilsyn -> statstilsyn == Sandt
+? selvstyre_eksisterer
+? tilsyn_eksisterer
+
+-- ============================================================================
+-- FORSAMLINGS- OG FORENINGSFRIHED (Kap. VIII)
+-- ============================================================================
+
+= forening_forhånd = foreningsfrihed_forudgående_tilladelse()
+= forening_opløs = forening_kan_opløses_af_regering()
+| ingen_forhåndstilladelse: forening_forhånd -> forening_forhånd == Falskt
+| forening_ikke_opløselig: forening_opløs -> forening_opløs == Falskt
+? ingen_forhåndstilladelse
+? forening_ikke_opløselig
+
+= forening_foreløbig = forening_kan_foreløbig_forbydes_af_regering()
+= politisk_højesteret = politisk_forening_direkte_til_højesteret()
+| foreløbigt_forbud_muligt: forening_foreløbig -> forening_foreløbig == Sandt
+| politisk_til_højesteret: politisk_højesteret -> politisk_højesteret == Sandt
+? foreløbigt_forbud_muligt
+? politisk_til_højesteret
+
+-- ============================================================================
+-- GAP-LUKNING: Kongens beføjelser (Kap. III)
+-- Audit fandt 4 utestede kongen-regler
+-- ============================================================================
+
+= kongen_lovforslag = kongen_kan_fremsætte_lovforslag()
+= kongen_mønt = kongen_kan_slå_mønt()
+= kongen_fremskynde = kongen_kan_fremskynde_samling()
+= kongen_forsinke = kongen_kan_forsinke_samling()
+
+| kongen_har_lovforslag: kongen_lovforslag -> kongen_lovforslag == Sandt
+| kongen_har_møntret: kongen_mønt -> kongen_mønt == Sandt
+| kongen_kan_kalde_tidligt: kongen_fremskynde -> kongen_fremskynde == Sandt
+| kongen_kan_ikke_forsinke: kongen_forsinke -> kongen_forsinke == Falskt
+? kongen_har_lovforslag
+? kongen_har_møntret
+? kongen_kan_kalde_tidligt
+? kongen_kan_ikke_forsinke
+
+-- Strukturel: Kongen kan fremskynde men IKKE forsinke — asymmetrisk magt
+| kongen_asymmetri: kongen_fremskynde -> kongen_fremskynde == Sandt && kongen_forsinke == Falskt
+? kongen_asymmetri
+
+-- ============================================================================
+-- GAP-LUKNING: Ministre (Kap. IV)
+-- ============================================================================
+
+= min_adgang = minister_har_adgang()
+= min_tale = minister_kan_tale()
+| minister_adgang: min_adgang -> min_adgang == Sandt
+| minister_taleret: min_tale -> min_tale == Sandt
+? minister_adgang
+? minister_taleret
+
+-- ============================================================================
+-- GAP-LUKNING: Folketingets selvdømmekraft (§ 33 vs § 63)
+-- Audit fandt: kan_domstolene_overprøve_folketingets_afgørelse = false
+-- ============================================================================
+
+= folketing_selvdommer = kan_domstolene_overprøve_folketingets_afgørelse()
+= kommission = kan_nedsætte_kommission()
+= unddrage_pga_tro = kan_unddrage_borgerpligt_pga_tro()
+
+| folketing_dommer_i_egen_sag: folketing_selvdommer -> folketing_selvdommer == Falskt
+| kommission_mulig: kommission -> kommission == Sandt
+| ingen_tro_unddragelse: unddrage_pga_tro -> unddrage_pga_tro == Falskt
+? folketing_dommer_i_egen_sag
+? kommission_mulig
+? ingen_tro_unddragelse
+
+-- Strukturel: § 63 siger domstolene kan prøve ALT — § 33 undtager Folketinget
+-- Begge er sande → en modsigelse grundloven ikke selv løser
+| paragraf_33_vs_63: domstole_prøver -> domstole_prøver == Sandt && folketing_selvdommer == Falskt
+? paragraf_33_vs_63
+
+-- ============================================================================
+-- GAP-LUKNING: Grønland og overgangsbestemmelser
+-- ============================================================================
+
+= grønland_24t = grønland_undtagelse_fra_24_timer()
+= grønland_valg = grønland_særlig_kommunal_valgretsalder()
+= færøerne_valg = færøerne_særlig_kommunal_valgretsalder()
+
+| grønland_24_timer: grønland_24t -> grønland_24t == Sandt
+| grønland_valgretsalder: grønland_valg -> grønland_valg == Sandt
+| færøerne_valgretsalder: færøerne_valg -> færøerne_valg == Sandt
+? grønland_24_timer
+? grønland_valgretsalder
+? færøerne_valgretsalder
+
+-- Strukturel: Færøerne og Grønland behandles symmetrisk
+| rigsdele_symmetri: grønland_valg -> grønland_valg == færøerne_valg
+? rigsdele_symmetri
+
+= gammel_fortsætter = gammel_rigsdag_fortsætter()
+= gammel_regler = gammel_rigsdag_under_gamle_regler()
+| overgangs_kontinuitet: gammel_fortsætter -> gammel_fortsætter == Sandt
+| overgangs_regler: gammel_regler -> gammel_regler == Sandt
+? overgangs_kontinuitet
+? overgangs_regler
+
+-- ============================================================================
+-- GAP-LUKNING: Paragraf-regler og religion
+-- ============================================================================
+
+= p70_gælder = paragraf_70_gælder()
+= p87_effekt = paragraf_87_har_praktisk_effekt_2026()
+| p70_aktiv: p70_gælder -> p70_gælder == Sandt
+| p87_død_paragraf: p87_effekt -> p87_effekt == Falskt
+? p70_aktiv
+? p87_død_paragraf
+
+-- § 6 kræver luthersk konge, § 70 forbyder diskrimination — men kongen er undtaget
+= kongen_undtaget = er_kongen_undtaget_fra_paragraf_70()
+| kongen_er_undtaget: kongen_undtaget -> kongen_undtaget == Sandt
+? kongen_er_undtaget
+
+= een_forsamling = er_een_forsamling()
+| eet_kammer: een_forsamling -> een_forsamling == Sandt
+? eet_kammer
+
+-- ============================================================================
+-- GAP-LUKNING: Gudsdyrkelse og sædelighed
+-- ============================================================================
+
+= pligtig_andres = pligtig_til_andres_gudsdyrkelse()
+= pligtig_egen = pligtig_til_egen_gudsdyrkelse()
+| ikke_pligtig_andre: pligtig_andres -> pligtig_andres == Falskt
+| pligtig_sig_selv: pligtig_egen -> pligtig_egen == Sandt
+? ikke_pligtig_andre
+? pligtig_sig_selv
+
+-- Strukturel: du er pligtig til din egen men IKKE andres — asymmetrisk
+| gudsdyrkelse_asymmetri: pligtig_egen -> pligtig_egen == Sandt && pligtig_andres == Falskt
+? gudsdyrkelse_asymmetri
+
+= sædelighed = strider_mod_sædelighed()
+= offentlig_orden = strider_mod_offentlig_orden()
+| ingen_sædeligheds_strid: sædelighed -> sædelighed == Falskt
+| ingen_ordens_strid: offentlig_orden -> offentlig_orden == Falskt
+? ingen_sædeligheds_strid
+? ingen_ordens_strid
+
+-- ============================================================================
+-- GAP-LUKNING: Årpenge og diverse
+-- ============================================================================
+
+= årpenge_obl = årpenge_er_obligatoriske()
+= årpenge_udland = årpenge_i_udlandet_tilladt()
+| årpenge_ikke_obligatoriske: årpenge_obl -> årpenge_obl == Falskt
+| årpenge_ikke_i_udlandet: årpenge_udland -> årpenge_udland == Falskt
+? årpenge_ikke_obligatoriske
+? årpenge_ikke_i_udlandet
+
+= alle_love_statsråd = alle_love_i_statsråd()
+| statsråd_påkrævet: alle_love_statsråd -> alle_love_statsråd == Sandt
+? statsråd_påkrævet
+
+= forslag_bortfalder = forslag_bortfalder_ved_nyvalg()
+| lovforslag_bortfald: forslag_bortfalder -> forslag_bortfalder == Sandt
+? lovforslag_bortfald
+
+= valgretsalder = valgretsalder_kan_ændres_uden_folkeafstemning()
+| valgretsalder_folketing: valgretsalder -> valgretsalder == Falskt
+? valgretsalder_folketing
+
+= nyt_medlem = nyt_medlem_afgiver_forsikring()
+| ny_forsikring: nyt_medlem -> nyt_medlem == Sandt
+? ny_forsikring
+
+= mp_rigsret = mp_kan_være_rigsretsmedlem()
+| ingen_mp_rigsret: mp_rigsret -> mp_rigsret == Falskt
+? ingen_mp_rigsret
+
+= sæde_under_sag = valgt_medlem_beholder_sæde_under_sag()
+| sæde_bevares: sæde_under_sag -> sæde_under_sag == Sandt
+? sæde_bevares
+
+= tab_valgbarhed = medlem_mister_mandat_ved_tab_af_valgbarhed()
+| tab_giver_tab: tab_valgbarhed -> tab_valgbarhed == Sandt
+? tab_giver_tab
+
+= tjenestemand = tjenestemand_behøver_tilladelse()
+| tjenestemand_frit: tjenestemand -> tjenestemand == Falskt
+? tjenestemand_frit
+
+= politi_offentlig = politi_kan_overvære_offentlig()
+| politi_tilstede: politi_offentlig -> politi_offentlig == Sandt
+? politi_tilstede
+
+= folketing_tilsyn = folketingets_tilsyn_med_administrativ_frihedsberøvelse()
+| folketing_overvåger: folketing_tilsyn -> folketing_tilsyn == Sandt
+? folketing_overvåger
+
+= varetægt_bøde = varetægtsfængsel_for_bødeforseelse()
+| ingen_varetægt_for_bøde: varetægt_bøde -> varetægt_bøde == Falskt
+? ingen_varetægt_for_bøde
+
+= komm_hemmelighed = kommunikationshemmelighed_beskyttet()
+| komm_beskyttet: komm_hemmelighed -> komm_hemmelighed == Sandt
+? komm_beskyttet
+
+= domstol_ekspropriation = domstolsprøvelse_ekspropriation()
+| ekspropriation_prøves: domstol_ekspropriation -> domstol_ekspropriation == Sandt
+? ekspropriation_prøves
+
+= hjælp_betinget = hjælp_er_betinget()
+| hjælp_er_betinget_check: hjælp_betinget -> hjælp_betinget == Sandt
+? hjælp_er_betinget_check
+
+= fri_undervisning = ret_til_fri_undervisning()
+| undervisning_fri: fri_undervisning -> fri_undervisning == Sandt
+? undervisning_fri
+
+= folkekirke = folkekirke_forfatning_vedtaget()
+| folkekirke_ufærdig: folkekirke -> folkekirke == Falskt
+? folkekirke_ufærdig
+
+= dommer_65 = dommer_65_afskediges_med_tab()
+| dommer_65_beskyttet: dommer_65 -> dommer_65 == Falskt
+? dommer_65_beskyttet
+
+= domstole_lov = domstole_kun_ved_lov()
+| domstole_lovkrav: domstole_lov -> domstole_lov == Sandt
+? domstole_lovkrav
+
+= auto_virkning = automatisk_opsættende_virkning()
+| ingen_auto_opsættelse: auto_virkning -> auto_virkning == Falskt
+? ingen_auto_opsættelse
+
+= ombudsmand = ombudsmand_er_mp()
+| ombudsmand_uafhængig: ombudsmand -> ombudsmand == Falskt
+? ombudsmand_uafhængig
+
+= særlov = særlov_eksisterer()
+| ingen_særlov: særlov -> særlov == Falskt
+? ingen_særlov
+
+= rettigheder_person = rettigheder_følger_person_ikke_territorium()
+| rettigheder_er_personlige: rettigheder_person -> rettigheder_person == Sandt
+? rettigheder_er_personlige
+
+= islandsk = islandsk_statsborger_har_grundlovsrettigheder()
+| islandsk_beskyttet: islandsk -> islandsk == Sandt
+? islandsk_beskyttet
+
+= grundlov_uden_minister = grundlov_gyldig_uden_ministerunderskrift()
+| grundlov_kræver_minister: grundlov_uden_minister -> grundlov_uden_minister == Falskt
+? grundlov_kræver_minister
+
+= regent_tilladt = regent_i_andre_lande_tilladt()
+| ingen_fremmed_regent: regent_tilladt -> regent_tilladt == Falskt
+? ingen_fremmed_regent
+
+= statsydelse_gæld = statsydelse_kan_behæftes_med_gæld()
+| ingen_gæld_på_statsydelse: statsydelse_gæld -> statsydelse_gæld == Falskt
+? ingen_gæld_på_statsydelse
+
+= landsting = landsting_efter_nyvalg()
+| intet_landsting: landsting -> landsting == Falskt
+? intet_landsting
+
+-- ============================================================================
+-- TYPE-DOMAIN: Magtens tredeling (§ 3)
+-- Verificerer at de rige typer fra Magtholder matcher § 3's tekst
+-- ============================================================================
+
+= lov_magt = lovgivende_magtholder()
+= udø_magt = udøvende_magtholder()
+= dom_magt = dømmende_magtholder()
+
+-- § 3: lovgivende er "i forening" — skal være IForening
+| lovgivende_er_delt: lov_magt -> lov_magt == IForening(Kongen, Folketinget)
+-- § 3: udøvende er "hos" Kongen alene
+| udøvende_er_hos_kongen: udø_magt -> udø_magt == Hos(Kongen)
+-- § 3: dømmende er "hos" domstolene alene
+| dømmende_er_hos_domstolene: dom_magt -> dom_magt == Hos(Domstolene)
+? lovgivende_er_delt
+? udøvende_er_hos_kongen
+? dømmende_er_hos_domstolene
+
+-- Strukturel: lovgivende KRÆVER samarbejde, de andre gør det ikke
+-- Denne asymmetri er kernen i § 3
+| magt_asymmetri: lov_magt -> lov_magt == IForening(Kongen, Folketinget) && udø_magt == Hos(Kongen)
+? magt_asymmetri
+
+-- ============================================================================
+-- TYPE-DOMAIN: Religion og forpligtelse (§ 4)
+-- ============================================================================
+
+= statens_religion = statsreligion()
+= statens_forpligtelse = statsforpligtelse_kirke()
+
+-- § 4: "den evangelisk-lutherske kirke er den danske folkekirke"
+| statsreligion_luthersk: statens_religion -> statens_religion == EvangeliskLuthersk
+-- § 4: "understøttes som sådan af staten"
+| understøttelse_er_krav: statens_forpligtelse -> statens_forpligtelse == Understøttelse
+? statsreligion_luthersk
+? understøttelse_er_krav
+
+-- ============================================================================
+-- TYPE-DOMAIN: Ansvar (§ 13)
+-- ============================================================================
+
+= kongens_ansvar = kongens_ansvarstype()
+= ministers_ansvar = ministerens_ansvarstype()
+
+-- § 13: Kongen = ansvarsfri, Minister = ansvarlig
+| kongen_nul_ansvar: kongens_ansvar -> kongens_ansvar == AnsvarsFri
+| minister_er_ansvarlig: ministers_ansvar -> ministers_ansvar == Ansvarlig
+? kongen_nul_ansvar
+? minister_er_ansvarlig
+
+-- Strukturel: Kongens ansvar og ministerens ansvar er diametralt modsatte
+| ansvars_asymmetri: kongens_ansvar -> kongens_ansvar == AnsvarsFri && ministers_ansvar == Ansvarlig
+? ansvars_asymmetri
+
+-- ============================================================================
+-- STRUKTURELLE KRYDSTJEK
+-- ============================================================================
+
+-- Alle "ukrænkelige" rettigheder er faktisk sande
+| alle_ukrænkelige: frihed -> frihed == Sandt && bolig == Sandt
+
+-- Ombudsmand er IKKE MP — uafhængighed fra Folketinget
+| ombudsmand_adskilt: ombudsmand -> ombudsmand == Falskt && mp_rigsret == Falskt
+
+-- Alt der kræver lov kræver faktisk lov (ingen undtagelser)
+| lovkrav_konsistent: skat -> skat == Falskt && værnepligt == Falskt && statslån == Falskt && indfødsret == Falskt
+
+-- Frit mandat: kun bundet af overbevisning
+| frit_mandat_komplet: bundet_overbevisning -> bundet_vælgere == Falskt && bundet_parti == Falskt && bundet_overbevisning == Sandt
+
+? alle_ukrænkelige
+? ombudsmand_adskilt
+? lovkrav_konsistent
+? frit_mandat_komplet

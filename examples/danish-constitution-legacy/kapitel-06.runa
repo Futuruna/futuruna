@@ -1,0 +1,454 @@
+@ sprog da
+
+-- ============================================================================
+-- Kapitel VI — Domstolene (§§ 59-65)
+--
+-- Syv paragraffer der fuldender trias politica fra § 3.
+-- Kapitel I sagde "den dømmende magt er hos domstolene."
+-- Kapitel VI siger HVORDAN.
+--
+-- Arkitekturen:
+--   § 59: Rigsretten — den forfatningsmæssige domstol (hybrid: dommere + MF'er)
+--   § 60: Rigsrettens jurisdiktion (ministre + særlige statsforbrydelser)
+--   § 61: Dømmende magt kun ved lov. Ingen særdomstole.
+--   § 62: Retspleje SKAL være adskilt fra forvaltning.
+--   § 63: Domstolene kan prøve AL myndighedsudøvelse (domstolskontrol!)
+--   § 64: Dommeruafhængighed — dommere retter sig alene efter loven.
+--   § 65: Offentlighed, mundtlighed, lægdommere i straffesager.
+--
+-- Den dybeste indsigt: § 63 giver Danmark DOMSTOLSKONTROL.
+-- Domstolene kan afgøre GRÆNSERNE for myndighedernes magt.
+-- Det fuldender den forfatningsmæssige cirkel:
+--   § 3 adskiller magterne
+--   § 14 tvinger Kongen til at handle gennem ministre
+--   § 15 gør ministre ansvarlige overfor Folketinget
+--   § 63 gør ALLE ansvarlige overfor domstolene
+-- ============================================================================
+
+
+-- ============================================================================
+-- IMPORT — Typer og bindinger fra grundlov.runa
+-- ============================================================================
+
+@ brug grundlov::*
+
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsrådet | Rigsretten
+# Samtykke = Givet | IkkeGivet
+
+-- Rigsrettens sammensætning
+# RigsretsMedlem = Dommer(anciennitet: Int) | FolketingsValgt(valgperiode: Int)
+# RigsretsFormand = ValgAfRetten
+
+-- Dommeruafhængighed
+# DommerBeskyttelse = KanIkkeAfsættes | KanIkkeForflyttesMedmindreDomstolsreform | KanAfskedigesVed65
+
+-- Domstolskontrol
+# Prøvelse = DomstoleneKanPrøve | ForvaltningsdomstolFørst
+
+-- Retspleje
+# Retsprincip = Offentlighed | Mundtlighed | Lægdommermedvirken
+
+-- Særdomstole
+# Særdomstol = Forbudt
+
+
+@ skriv("================================================================")
+@ skriv("  Kapitel VI: Domstolene (§§ 59-65)")
+@ skriv("  Den tredje statsmagt — 7 paragraffer")
+@ skriv("================================================================")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 59: Rigsretten — den hybride forfatningsdomstol.
+--
+-- Sammensætning: op til 15 af Højesterets ældste dommere + 15 medlemmer
+-- valgt af Folketinget (forholdstalsvalg, for 6 år).
+--
+-- AFGØRENDE REGLER:
+--   1. Folketingsmedlemmer KAN IKKE sidde i Rigsretten (adskillelse!)
+--   2. Folketingsvalgte medlemmer beholder sæde under igangværende sag
+--      selv om valgperioden udløber (sagskontinuitet)
+--   3. Hvis Højesteretsdommere ikke kan deltage, fratræder et tilsvarende
+--      antal folketingsvalgte (balancevedligeholdelse)
+--   4. Rigsretten vælger selv sin formand (selvstyrende)
+--
+-- Det er den ENESTE institution i grundloven der eksplicit er designet
+-- som HYBRID: professionelle dommere + politisk valgte medlemmer.
+-- Ingen side kan dominere.
+-- ============================================================================
+
+----
+§ 59. Stk. 1. Rigsretten består af indtil 15 af de ældste ordentlige medlemmer af landets øverste domstol samt et tilsvarende antal af folketinget efter forholdstal for 6 år valgte medlemmer. For hver af de valgte vælges en eller flere stedfortrædere. Intet folketingsmedlem kan vælges til eller virke som medlem af rigsretten. Kan i et enkelt tilfælde nogle af den øverste domstols medlemmer ikke deltage i sagens behandling og påkendelse, fratræder et tilsvarende antal af de af folketinget sidst valgte rigsretsmedlemmer.
+
+Stk. 2. Rigsretten vælger selv sin formand af sin midte.
+
+Stk. 3. Er sag rejst ved rigsretten, beholder de af folketinget valgte medlemmer deres sæde i retten for denne sags vedkommende, selv om det tidsrum, for hvilket de er valgt, udløber.
+----
+
+= rigsret_dommere_max = 15
+= rigsret_valgte_max = 15
+= rigsret_valgperiode = 6
+
+-- § 59 stk. 1: "Folketingets medlemmer kan ikke vælges til
+-- eller virke som medlemmer af rigsretten"
+| mp_kan_være_rigsretsmedlem() -> Falskt
+
+> rigsret_balance(dommere_deltager: Int) -> Int {
+    -- Hvis dommere ikke kan deltage, fratræder tilsvarende antal valgte
+    -- Returnerer: antal valgte medlemmer der deltager
+    dommere_deltager
+}
+
+-- § 59 stk. 3: Ja, selv efter valgperiodens udløb
+| valgt_medlem_beholder_sæde_under_sag() -> Sandt
+
+@ skriv("--- § 59: Rigsretten (den forfatningsmæssige domstol) ---")
+@ skriv("")
+@ skriv("Sammensætning:")
+@ skriv("  Højesteretsdommere: op til " + vis(rigsret_dommere_max))
+@ skriv("  Folketingsvalgte: op til " + vis(rigsret_valgte_max))
+@ skriv("  Valgperiode: " + vis(rigsret_valgperiode) + " år")
+@ skriv("")
+@ skriv("Adskillelsesprincip:")
+@ skriv("  MF'er kan være rigsretsmedlemmer: " + vis(mp_kan_være_rigsretsmedlem()))
+@ skriv("")
+@ skriv("Balanceprincip:")
+@ skriv("  Hvis 10 dommere deltager, deltager " + vis(rigsret_balance(10)) + " valgte")
+@ skriv("  Hvis 8 dommere deltager, deltager " + vis(rigsret_balance(8)) + " valgte")
+@ skriv("")
+@ skriv("Sagskontinuitet:")
+@ skriv("  Valgt medlem beholder sæde under igangværende sag: " + vis(valgt_medlem_beholder_sæde_under_sag()))
+@ skriv("")
+@ skriv("HYBRID DESIGN: hverken professionelle dommere eller politikere")
+@ skriv("kan dominere. Balance vedligeholdes aktivt.")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 60: Rigsrettens jurisdiktion.
+--
+-- Stk. 1: Påkender sager anlagt af Kongen ELLER Folketinget mod ministre.
+--   (Krydsref § 16: begge kan rejse tiltale)
+--
+-- Stk. 2: Kongen kan (MED Folketingets samtykke) lade også andre
+--   tiltale for forbrydelser der er "særdeles farlige for staten."
+--
+-- Bemærk: stk. 2 er endnu en samtykke-bundet beføjelse.
+-- Og den er vag: "særdeles farlige for staten" er udefineret.
+-- Kongen (= regeringen) afgør hvad der kvalificerer, men kræver samtykke.
+-- ============================================================================
+
+----
+§ 60. Stk. 1. Rigsretten påkender de af kongen eller folketinget mod ministrene anlagte sager.
+
+Stk. 2. For rigsretten kan kongen med folketingets samtykke lade også andre tiltale for forbrydelser, som han finder særdeles farlige for staten.
+----
+
+> rigsretten_domsområde_minister(sagsøger: Institution) -> Bool {
+    skel sagsøger {
+        | Kongen -> Sandt
+        | Folketinget -> Sandt
+        | _ -> Falskt
+    }
+}
+
+> rigsretten_andre_tiltalte(samtykke: Samtykke) -> Bool {
+    -- § 60 stk. 2: kun med Folketingets samtykke
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> Falskt
+    }
+}
+
+@ skriv("--- § 60: Rigsrettens jurisdiktion ---")
+@ skriv("Ministersager fra Kongen: " + vis(rigsretten_domsområde_minister(Kongen)))
+@ skriv("Ministersager fra Folketinget: " + vis(rigsretten_domsområde_minister(Folketinget)))
+@ skriv("Ministersager fra Domstolene: " + vis(rigsretten_domsområde_minister(Domstolene)))
+@ skriv("Andre tiltalte uden samtykke: " + vis(rigsretten_andre_tiltalte(IkkeGivet)))
+@ skriv("Andre tiltalte med samtykke: " + vis(rigsretten_andre_tiltalte(Givet)))
+@ skriv("Samtykke-mønstret gentages: § 60.2 følger § 5, § 11, § 19, § 24")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 61: Ingen særdomstole. Dømmende magt kun ved lov.
+--
+-- "Den dømmende magts udøvelse kan KUN ordnes ved lov."
+-- "Særdomstole med dømmende myndighed kan IKKE nedsættes."
+--
+-- To absolutte forbud:
+--   1. Domstole kan kun oprettes ved lov (ikke ved dekret eller regulativ)
+--   2. Særdomstole med dømmende myndighed er FORBUDTE
+--
+-- Det forhindrer: militærdomstole over civile, nøddomstole,
+-- ad hoc-tribunaler. Den eneste undtagelse-agtige institution er
+-- Rigsretten selv (§ 59), som er grundlovsdefineret.
+--
+-- Krydsref § 23: Selv nødlove kan ikke oprette domstole,
+-- fordi § 23 siger de ikke må stride mod grundloven,
+-- og § 61 forbyder særdomstole.
+-- ============================================================================
+
+----
+§ 61. Den dømmende magts udøvelse kan kun ordnes ved lov. Særdomstole med dømmende myndighed kan ikke nedsættes.
+----
+
+| særdomstol_tilladt() -> Falskt
+
+| domstole_kun_ved_lov() -> Sandt
+
+@ skriv("--- § 61: Ingen særdomstole ---")
+@ skriv("Særdomstole tilladt: " + vis(særdomstol_tilladt()))
+@ skriv("Domstole kun ved lov: " + vis(domstole_kun_ved_lov()))
+@ skriv("Forbyder: militærdomstole over civile, nødtribunaler, ad hoc-domstole")
+@ skriv("Eneste 'sær'-domstol: Rigsretten selv (grundlovsdefineret, § 59)")
+@ skriv("Krydsref § 23: nødlove kan IKKE oprette domstole (strider mod § 61)")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 62: Adskillelse af retspleje og forvaltning.
+--
+-- "Retsplejen skal STEDSE holdes adskilt fra forvaltningen."
+--
+-- Det er den operationelle version af § 3's adskillelse.
+-- § 3 siger at den dømmende magt er hos domstolene (hvem der HAR den).
+-- § 62 siger at domstolene skal være adskilt fra forvaltning (hvordan den VIRKER).
+--
+-- "Stedse" (altid) betyder ingen undtagelser — ikke i krigstid, ikke
+-- i nødsituationer, ikke for særlige kategorier. Altid.
+-- ============================================================================
+
+----
+§ 62. Retsplejen skal stedse holdes adskilt fra forvaltningen. Regler herom fastsættes ved lov.
+----
+
+-- § 62: "stedse" — altid. Ingen undtagelse.
+| retspleje_adskilt_fra_forvaltning() -> Sandt
+
+@ skriv("--- § 62: Adskillelse af retspleje og forvaltning ---")
+@ skriv("Adskilt: " + vis(retspleje_adskilt_fra_forvaltning()))
+@ skriv("'Stedse' = ALTID — ingen undtagelse, heller ikke i krisetid")
+@ skriv("§ 3 siger HVEM der har magten. § 62 siger HVORDAN den holdes adskilt.")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 63: DOMSTOLSKONTROL — forfatningens kronjuvel.
+--
+-- Stk. 1: Domstolene kan påkende ETHVERT spørgsmål om
+--   øvrighedsmyndighedens grænser.
+--   MEN: man kan ikke bruge retssag til at unddrage sig fra
+--   foreløbigt at efterkomme myndighedens befaling (ingen automatisk opsættende virkning).
+--
+-- Stk. 2: Forvaltningsdomstole kan oprettes ved lov til første prøvelse,
+--   men deres afgørelser kan ALTID indbringes for Højesteret.
+--
+-- Denne paragraf giver Danmark DOMSTOLSKONTROL:
+--   - Borgere kan anfægte ENHVER myndighedshandling ved domstol
+--   - Domstolene afgør GRÆNSERNE for myndighedernes magt
+--   - Højesteret har sidste ord
+--
+-- Kombineret med § 64 (dommeruafhængighed) betyder det:
+-- Myndighedernes magt har en grænse, og den grænse håndhæves
+-- af en institution myndighederne ikke kan kontrollere.
+-- ============================================================================
+
+----
+§ 63. Stk. 1. Domstolene er berettigede til at påkende ethvert spørgsmål om øvrighedsmyndighedens grænser. Den, der vil rejse sådant spørgsmål, kan dog ikke ved at bringe sagen for domstolene unddrage sig fra foreløbig at efterkomme øvrighedens befaling.
+
+Stk. 2. Påkendelse af spørgsmål om øvrighedsmyndighedens grænser kan ved lov henlægges til en eller flere forvaltningsdomstole, hvis afgørelser dog kan prøves ved rigets øverste domstol. De nærmere regler herom fastsættes ved lov.
+----
+
+-- § 63 stk. 1: "ethvert spørgsmål" — ETHVERT
+| domstolene_kan_prøve_myndighedsgrænser() -> Sandt
+
+-- § 63 stk. 1: Nej. Skal adlyde ordren mens man sagsøger.
+| automatisk_opsættende_virkning() -> Falskt
+
+-- § 63 stk. 2: Forvaltningsdomstoles afgørelser kan altid
+-- indbringes for Højesteret.
+| højesteret_har_sidste_ord() -> Sandt
+
+@ skriv("--- § 63: Domstolskontrol ---")
+@ skriv("")
+@ skriv("Domstolene kan prøve myndighedens grænser: " + vis(domstolene_kan_prøve_myndighedsgrænser()))
+@ skriv("Automatisk opsættende virkning: " + vis(automatisk_opsættende_virkning()))
+@ skriv("Højesteret har sidste ord: " + vis(højesteret_har_sidste_ord()))
+@ skriv("")
+@ skriv("FORFATNINGENS KRONE:")
+@ skriv("  § 3:  Magtens tredeling")
+@ skriv("  §§ 14-15: Folketing kontrollerer ministre kontrollerer Kongen")
+@ skriv("  § 63: Domstolene kontrollerer ALLE")
+@ skriv("  § 64: Ingen kontrollerer domstolene")
+@ skriv("  Domstolene lukker den forfatningsmæssige cirkel.")
+@ skriv("")
+@ skriv("SPÆNDING med § 33:")
+@ skriv("  § 33 siger Folketinget bedømmer egne valg (ingen ekstern kontrol)")
+@ skriv("  § 63 siger domstolene prøver ETHVERT spørgsmål")
+@ skriv("  Kan domstolene overprøve § 33-afgørelse? Uafklaret.")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 64: Dommeruafhængighed — det tredobbelte skjold.
+--
+-- Tre beskyttelser for dommere:
+--   1. Bundet ALENE af loven ("alene at rette sig efter loven")
+--      Ikke af regeringen, ikke af Folketinget, ikke af Kongen
+--   2. KAN IKKE afsættes uden ved dom
+--      Regeringen kan ikke fyre en dommer
+--   3. KAN IKKE forflyttes mod deres ønske
+--      UNDTAGELSE: omordning af domstolene
+--      UNDTAGELSE: 65+ kan afskediges (med fuld løn til normal pensionsalder)
+--
+-- Kombineret med § 62 (adskillelse) og § 63 (prøvelse) skaber det
+-- en institution der er:
+--   - Adskilt fra regeringen (§ 62)
+--   - Kan tilsidesætte regeringen (§ 63)
+--   - Kan ikke straffes af regeringen (§ 64)
+--
+-- Det er den forfatningsmæssige BRANDMUR.
+--
+-- Bemærk indkomstbeskyttelsen ved tvunget afskedigelse ved 65:
+-- "men uden tab af indtægter." Samme mønster som § 27 (tjenestemænd).
+-- Grundloven beskytter konsekvent indkomst når magt begrænses.
+-- ============================================================================
+
+----
+§ 64. Dommerne har i deres kald alene at rette sig efter loven. De kan ikke afsættes uden ved dom, ejheller forflyttes mod deres ønske, uden for de tilfælde, hvor en omordning af domstolene finder sted. Dog kan den dommer, der har fyldt sit 65. år, afskediges, men uden tab af indtægter indtil det tidspunkt, til hvilket han skulle være afskediget på grund af alder.
+----
+
+> dommer_bundet_af(institution: Institution) -> Bool {
+    -- § 64: "alene at rette sig efter loven"
+    -- Ikke bundet af nogen institution — kun af loven selv
+    Falskt
+}
+
+| dommer_kan_afsættes_uden_dom() -> Falskt
+
+> dommer_kan_forflyttes_mod_ønske(domstolsreform: Bool) -> Bool {
+    -- Kun ved omordning af domstolene
+    domstolsreform
+}
+
+-- § 64: "men uden tab af indtægter"
+| dommer_65_afskediges_med_tab() -> Falskt
+
+@ skriv("--- § 64: Dommeruafhængighed ---")
+@ skriv("")
+@ skriv("Dommere bundne af Kongen: " + vis(dommer_bundet_af(Kongen)))
+@ skriv("Dommere bundne af Folketinget: " + vis(dommer_bundet_af(Folketinget)))
+@ skriv("Dommere bundne af Domstolene: " + vis(dommer_bundet_af(Domstolene)))
+@ skriv("Bundne af: LOVEN ALENE")
+@ skriv("")
+@ skriv("Kan afsættes uden dom: " + vis(dommer_kan_afsættes_uden_dom()))
+@ skriv("Kan forflyttes (ingen reform): " + vis(dommer_kan_forflyttes_mod_ønske(Falskt)))
+@ skriv("Kan forflyttes (ved reform): " + vis(dommer_kan_forflyttes_mod_ønske(Sandt)))
+@ skriv("Afsked ved 65 med tab: " + vis(dommer_65_afskediges_med_tab()))
+@ skriv("")
+@ skriv("BRANDMUREN:")
+@ skriv("  § 62: Adskilt fra forvaltning")
+@ skriv("  § 63: Kan overprøve forvaltning")
+@ skriv("  § 64: Kan ikke straffes af forvaltning")
+@ skriv("  = En institution der er fri, mægtig og uberørlig")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 65: Offentlige retsmøder og lægdommere.
+--
+-- Stk. 1: Offentlighed og mundtlighed "i videst muligt omfang."
+--   (Bemærk: "videst muligt" — ikke absolut. Tillader lukkede døre.)
+-- Stk. 2: Lægmænd skal medvirke i straffesager.
+--   Herunder nævninge — bestemmes ved lov.
+--
+-- Lægdommerprincippet sikrer at folket er til stede
+-- i den dømmende magt. Borgere dømmer borgere.
+-- ============================================================================
+
+----
+§ 65. Stk. 1. I retsplejen gennemføres offentlighed og mundtlighed i videst muligt omfang.
+
+Stk. 2. I strafferetsplejen skal lægmænd medvirke. Det fastsættes ved lov, i hvilke sager og under hvilke former denne medvirken skal finde sted, herunder i hvilke sager nævninger skal medvirke.
+----
+
+| retspleje_offentlig() -> Sandt
+| retspleje_mundtlig() -> Sandt
+| lægmænd_i_straffesager() -> Sandt
+
+@ skriv("--- § 65: Offentlighed og lægdommere ---")
+@ skriv("Offentlig retspleje: " + vis(retspleje_offentlig()))
+@ skriv("Mundtlig retspleje: " + vis(retspleje_mundtlig()))
+@ skriv("Lægmænd i straffesager: " + vis(lægmænd_i_straffesager()))
+@ skriv("Borgere dømmer borgere — folket er også i den tredje magt")
+@ skriv("")
+
+
+-- ============================================================================
+-- KAPITEL VI — STRUKTUREL ANALYSE
+--
+-- Den forfatningsmæssige cirkel er nu KOMPLET:
+--
+--   § 3:  Magterne er adskilt (Kap. I)
+--   § 12: Kongen udøver magt gennem ministre (Kap. III)
+--   § 14: Ministre skal medunderskrive alt (Kap. III)
+--   § 15: Folketinget kontrollerer ministre (Kap. III)
+--   § 63: Domstolene kontrollerer ALLE (Kap. VI)
+--   § 64: Ingen kontrollerer domstolene (Kap. VI)
+--
+--   Folketing → Ministre → Kongen (§§ 14-15)
+--   Domstolene → Folketing + Ministre + Kongen (§ 63)
+--   Domstolene ← Ingen (§ 64)
+--
+-- Domstolene er APEX i det forfatningsmæssige hierarki.
+-- Ikke Kongen (som er ceremoniel). Ikke Folketinget (som er
+-- underlagt domstolskontrol). Domstolene.
+--
+-- Men domstolene kan ikke HANDLE — kun prøve. De er reaktive.
+-- De venter på sager. Det betyder:
+--   - Aktiv magt: Folketing (lovgivning) + Regering (forvaltning)
+--   - Passiv magt: Domstolene (prøvelse)
+--   - Ceremoniel magt: Kongen (underskrift)
+--
+-- Rigsretten som hybrid:
+--   Professionelle dommere + folketingsvalgte medlemmer
+--   MF'er udelukket (adskillelse)
+--   Balance vedligeholdt (lige antal)
+--   Sagskontinuitet (overlever valgperioder)
+--   = Den eneste institution der bygger bro mellem magt 1 og 3
+--
+-- Indkomstbeskyttelsesmønstret (opdaget):
+--   § 10.2: Statsydelse kan ikke behæftes med gæld
+--   § 27:   Tjenestemand forflyttet uden samtykke → intet indkomsttab
+--   § 64:   Dommer afskediget ved 65 → intet indkomsttab
+--   Grundloven beskytter konsekvent indkomst når magt begrænses.
+-- ============================================================================
+
+@ skriv("================================================================")
+@ skriv("  Kapitel VI: 7 paragraffer — den tredje magt")
+@ skriv("================================================================")
+@ skriv("")
+@ skriv("DEN FORFATNINGSMÆSSIGE CIRKEL:")
+@ skriv("  § 3:  Magtens tredeling")
+@ skriv("  §§ 14-15: Folketing kontrollerer ministre kontrollerer Kongen")
+@ skriv("  § 63: Domstolene kontrollerer ALLE")
+@ skriv("  § 64: Ingen kontrollerer domstolene")
+@ skriv("  = Domstolene er forfatningens apex")
+@ skriv("")
+@ skriv("MAGTENS MODI:")
+@ skriv("  Aktiv magt:      Folketing (lov) + Regering (forvaltning)")
+@ skriv("  Passiv magt:     Domstolene (prøvelse — venter på sager)")
+@ skriv("  Ceremoniel magt: Kongen (underskrift)")
+@ skriv("")
+@ skriv("RIGSRETTEN SOM HYBRID:")
+@ skriv("  Dommere + folkevalgte, aldrig MF'er")
+@ skriv("  Balance bevares, sagskontinuitet sikres")
+@ skriv("  Eneste institution der bygger bro mellem magt 1 og 3")
+@ skriv("")
+@ skriv("INDKOMSTBESKYTTELSE (mønster):")
+@ skriv("  § 10.2: Statsydelse kan ikke behæftes med gæld")
+@ skriv("  § 27:   Tjenestemand forflyttet → intet indkomsttab")
+@ skriv("  § 64:   Dommer afskediget ved 65 → intet indkomsttab")
+@ skriv("  Grundloven beskytter konsekvent indkomst når magt begrænses")

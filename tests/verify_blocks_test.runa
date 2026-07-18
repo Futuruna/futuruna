@@ -1,0 +1,124 @@
+-- verify_blocks_test.runa: Tests all ? verification block forms
+-- ? name                              (bare — halts on fail)
+-- ? name -> { pass }                  (custom pass, halts on fail)
+-- ? name: val -> { pass }             (capture + pass, halts on fail)
+-- ? name else { fail }                (custom fail, no halt)
+-- ? name -> { pass } else { fail }    (both, no halt)
+-- ? name: val -> { pass } else { fail }  (capture + both, no halt)
+
+-- ============================================================================
+-- Setup: define some values and invariants
+-- ============================================================================
+
+> add(a: Int, b: Int) -> Int { a + b }
+> clamp(x: Int, lo: Int, hi: Int) -> Int {
+    if x < lo { lo }
+    else if x > hi { hi }
+    else { x }
+}
+
+= sum = add(20, 22)
+| sum_is_42: sum -> sum == 42
+
+= clamped = clamp(999, 0, 100)
+| clamped_bounded: clamped -> clamped <= 100
+
+= wrong = add(1, 1)
+| wrong_check: wrong -> wrong == 99
+
+= x = 7
+| x_positive: x -> x > 0
+
+-- ============================================================================
+-- Test 1: Bare ? (default output, halts on fail — only test passing ones)
+-- ============================================================================
+
+@ print("=== Test 1: Bare ? ===")
+? sum_is_42
+@ print("  (bare ? passed, program continues)")
+
+-- ============================================================================
+-- Test 2: ? name -> { pass } (custom pass block)
+-- ============================================================================
+
+@ print("")
+@ print("=== Test 2: ? name -> { pass } ===")
+? clamped_bounded -> {
+    @ print("  [PASS] clamp(999,0,100) <= 100")
+}
+
+-- ============================================================================
+-- Test 3: ? name else { fail } (custom fail, no halt)
+-- ============================================================================
+
+@ print("")
+@ print("=== Test 3: ? name else { fail } ===")
+? wrong_check else {
+    @ print("  [FAIL] 1+1 != 99 — but we handle it, no halt")
+}
+@ print("  (program continues after else block)")
+
+-- ============================================================================
+-- Test 4: ? name -> { pass } else { fail } (both blocks, no halt)
+-- ============================================================================
+
+@ print("")
+@ print("=== Test 4: ? name -> { pass } else { fail } ===")
+
+-- This one passes:
+? sum_is_42 -> {
+    @ print("  [PASS] 20+22 == 42")
+} else {
+    @ print("  [FAIL] should not print")
+}
+
+-- This one fails:
+? wrong_check -> {
+    @ print("  [PASS] should not print")
+} else {
+    @ print("  [FAIL] 1+1 != 99 — handled gracefully")
+}
+
+-- ============================================================================
+-- Test 5: ? name: val -> { pass } else { fail } (capture + both)
+-- ============================================================================
+
+@ print("")
+@ print("=== Test 5: ? name: val (capture) ===")
+
+? sum_is_42: v -> {
+    @ print("  [PASS] value is " + show(v))
+} else {
+    @ print("  [FAIL] value is " + show(v))
+}
+
+? wrong_check: v -> {
+    @ print("  [PASS] value is " + show(v))
+} else {
+    @ print("  [FAIL] value is " + show(v) + " (not 99)")
+}
+
+-- ============================================================================
+-- Test 6: ? name: val -> { pass } (capture, halts on fail — test passing)
+-- ============================================================================
+
+@ print("")
+@ print("=== Test 6: ? name: val -> { pass } ===")
+? x_positive: val -> {
+    @ print("  [PASS] x = " + show(val) + " > 0")
+}
+
+-- ============================================================================
+-- Test 7: ? all (verify all — bare form)
+-- ============================================================================
+
+@ print("")
+@ print("=== Test 7: ? all (with else to catch failures) ===")
+? all -> {
+    @ print("  All invariants hold!")
+} else {
+    @ print("  Some invariants failed (expected — wrong_check is false)")
+}
+
+@ print("")
+@ print("=== All verify_blocks tests complete ===")

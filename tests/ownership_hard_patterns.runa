@@ -1,0 +1,129 @@
+-- Ownership Stress Test: Hard Real-World Patterns
+-- Patterns that commonly cause borrow checker fights in Rust.
+
+-- PATTERN 1: Builder pattern (functional, immutable rebinding)
+# Request(method: String, path: String, body: String)
+
+> req_method(r: Request) -> String { match r { | Request(m, _, _) -> m } }
+> req_path(r: Request) -> String { match r { | Request(_, u, _) -> u } }
+> req_body(r: Request) -> String { match r { | Request(_, _, b) -> b } }
+
+> with_method(r: Request, m: String) -> Request {
+    Request(m, req_path(r), req_body(r))
+}
+> with_path(r: Request, u: String) -> Request {
+    Request(req_method(r), u, req_body(r))
+}
+> with_body(r: Request, body: String) -> Request {
+    Request(req_method(r), req_path(r), body)
+}
+
+> request_show(r: Request) -> String {
+    req_method(r) + " " + req_path(r) + " body=" + req_body(r)
+}
+
+= req = Request("GET", "", "")
+= req = with_method(req, "POST")
+= req = with_path(req, "/api/data")
+= req = with_body(req, "{key: value}")
+@ print("Request: " + request_show(req))
+@ print("PASS: Pattern 1 — builder pattern (functional)")
+
+-- PATTERN 2: Key-value lookup via recursive search
+-- In Rust: HashMap borrows are tricky (entry API, etc.)
+
+> kv_lookup(keys: List(String), vals: List(String), target: String, idx: Int) -> String {
+    if idx >= length(keys) {
+        "NOT_FOUND"
+    } else {
+        if keys[idx] == target {
+            vals[idx]
+        } else {
+            kv_lookup(keys, vals, target, idx + 1)
+        }
+    }
+}
+
+= keys = ["HOME", "PATH", "SHELL"]
+= vals = ["/home/user", "/usr/bin", "/bin/zsh"]
+
+@ print("HOME = " + kv_lookup(keys, vals, "HOME", 0))
+@ print("PATH = " + kv_lookup(keys, vals, "PATH", 0))
+@ print("SHELL = " + kv_lookup(keys, vals, "SHELL", 0))
+@ print("MISS = " + kv_lookup(keys, vals, "MISSING", 0))
+@ print("PASS: Pattern 2 — key-value lookup")
+
+-- PATTERN 3: Observer pattern via actor
+> actor event_bus(count: Int) {
+    | Notify -> count + 1
+    | Reset -> 0
+}
+
+= bus = spawn(event_bus, 0)
+bus <- Notify
+bus <- Notify
+bus <- Notify
+= total = ask(bus, Notify)
+@ print("Events received: " + show(total))
+@ print("PASS: Pattern 3 — observer pattern via actor")
+
+-- PATTERN 4: Undo/redo via immutable snapshots
+> editor_insert(content: String, cursor: Int, ch: String) -> String {
+    substring(content, 0, cursor) + ch + substring(content, cursor, length(content))
+}
+
+= content0 = ""
+= content1 = editor_insert(content0, 0, "H")
+= content2 = editor_insert(content1, 1, "i")
+= content3 = editor_insert(content2, 2, "!")
+
+= history = [content0, content1, content2, content3]
+
+@ print("Current: " + history[3])
+@ print("Undo 1: " + history[2])
+@ print("Undo 2: " + history[1])
+@ print("Redo: " + history[2])
+@ print("PASS: Pattern 4 — undo/redo (immutable snapshots)")
+
+-- PATTERN 5: Recursive ADT with String fields
+# Expr = Lit(Int) | Add(Expr, Expr) | Mul(Expr, Expr) | Var(String)
+
+> eval_expr(e: Expr, x_val: Int) -> Int {
+    match e {
+        | Lit(n) -> n
+        | Add(a, b) -> eval_expr(a, x_val) + eval_expr(b, x_val)
+        | Mul(a, b) -> eval_expr(a, x_val) * eval_expr(b, x_val)
+        | Var(_) -> x_val
+    }
+}
+
+> expr_show(e: Expr) -> String {
+    match e {
+        | Lit(n) -> show(n)
+        | Add(a, b) -> "(" + expr_show(a) + " + " + expr_show(b) + ")"
+        | Mul(a, b) -> "(" + expr_show(a) + " * " + expr_show(b) + ")"
+        | Var(vname) -> vname
+    }
+}
+
+= expr = Mul(Add(Var("x"), Lit(2)), Add(Var("x"), Lit(3)))
+@ print("Expression: " + expr_show(expr))
+@ print("At x=5: " + show(eval_expr(expr, 5)))
+@ print("At x=10: " + show(eval_expr(expr, 10)))
+@ print("PASS: Pattern 5 — recursive ADT with String")
+
+-- PATTERN 6: Higher-order closures with capture
+> make_adder(n: Int) -> Int -> Int { |x| x + n }
+> make_multiplier(n: Int) -> Int -> Int { |x| x * n }
+> compose(f: Int -> Int, g: Int -> Int) -> Int -> Int { |x| f(g(x)) }
+
+= add5 = make_adder(5)
+= mul3 = make_multiplier(3)
+= add5_then_mul3 = compose(mul3, add5)
+
+-- BUG TEST: closures used after being passed to compose
+-- The escape analysis must clone add5/mul3 since they're consumed by compose AND used below
+@ print("add5(10) = " + show(add5(10)))
+@ print("mul3(10) = " + show(mul3(10)))
+@ print("compose(mul3, add5)(10) = " + show(add5_then_mul3(10)))
+@ print("PASS: Pattern 6 — higher-order closures")

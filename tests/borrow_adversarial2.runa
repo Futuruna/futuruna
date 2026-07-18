@@ -1,0 +1,223 @@
+-- ============================================================================
+-- ADVERSARIAL BORROW CHECKER TEST — ROUND 2
+-- ============================================================================
+-- Patterns that go beyond the basics: same-variable double-pass, closures
+-- capturing non-Copy, conditional return, loop + reuse, chained accessors,
+-- nested match, and more. Every test must produce valid Rust via `runa emit`.
+-- ============================================================================
+
+# Option(a) = None | Some(a)
+# List(a) = Nil | Cons(a, List(a))
+# Pair(a, b) = MkPair(a, b)
+# Person(name: String, age: Int)
+# Triple(a: Int, b: Int, c: Int)
+
+-- ============================================================================
+-- TEST 13: Same variable as two consuming arguments — f(x, x)
+-- In Rust: `fn f(a: String, b: String)` called as `f(x, x)` → use after move
+-- Futuruna must clone x exactly once
+-- ============================================================================
+
+> concat_both(a: String, b: String) -> String {
+    a + " + " + b
+}
+
+= word = "echo"
+@ print("T13: " + concat_both(word, word))
+
+-- ============================================================================
+-- TEST 14: Closure capturing non-Copy value, used twice
+-- The closure captures `prefix` (a String). Calling the closure twice means
+-- the captured value must survive both calls.
+-- ============================================================================
+
+= prefix = "hello"
+= greet = |name: String| prefix + " " + name
+@ print("T14a: " + greet("Alice"))
+@ print("T14b: " + greet("Bob"))
+
+-- ============================================================================
+-- TEST 15: Return param from one branch only
+-- `if flag { s } else { "default" }` — one path consumes s, the other doesn't
+-- The compiler must not borrow s (it's returned/consumed on one path)
+-- ============================================================================
+
+> maybe_use(s: String, flag: Bool) -> String {
+    if flag {
+        s
+    } else {
+        "default"
+    }
+}
+
+@ print("T15a: " + maybe_use("kept", true))
+@ print("T15b: " + maybe_use("dropped", false))
+
+-- ============================================================================
+-- TEST 16: Variable used inside for-loop body AND after the loop
+-- The loop body sees `label` on each iteration. After the loop, we use it again.
+-- This is a classic Rust stumbling block: the loop moves on first iteration.
+-- ============================================================================
+
+> tag_items(items: List(Int), label: String) -> String {
+    = result = ""
+    for item in [1, 2, 3] {
+        @ print("  " + label + ": " + show(item))
+    }
+    "tagged by " + label
+}
+
+@ print("T16: " + tag_items(Nil, "mytag"))
+
+-- ============================================================================
+-- TEST 17: Chained calls consuming same value — f(x) + g(x)
+-- `process(data)` and `count(data)` both want ownership.
+-- Futuruna must clone data for the second call.
+-- ============================================================================
+
+> list_sum(xs: List(Int)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(h, t) -> h + list_sum(t)
+    }
+}
+
+> list_len(xs: List(Int)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(_, t) -> 1 + list_len(t)
+    }
+}
+
+= nums = Cons(10, Cons(20, Cons(30, Nil)))
+@ print("T17: sum=" + show(list_sum(nums)) + " len=" + show(list_len(nums)))
+
+-- ============================================================================
+-- TEST 18: Nested match — match inside match arm body
+-- Matching a value twice (outer + inner) requires the value to survive
+-- the outer match to be matchable again in the inner body.
+-- ============================================================================
+
+> classify_list(xs: List(Int)) -> String {
+    match xs {
+        | Nil -> "empty"
+        | Cons(h, t) -> match t {
+            | Nil -> "singleton: " + show(h)
+            | Cons(h2, _) -> "multi, first two: " + show(h) + ", " + show(h2)
+        }
+    }
+}
+
+@ print("T18a: " + classify_list(Nil))
+@ print("T18b: " + classify_list(Cons(42, Nil)))
+@ print("T18c: " + classify_list(Cons(1, Cons(2, Cons(3, Nil)))))
+
+-- ============================================================================
+-- TEST 19: Struct with non-Copy fields through multiple accessors
+-- `person_name(p)` and `person_age(p)` both access the same struct.
+-- If both consume, p must be cloned. With auto-borrow/ref-match, ideally
+-- neither consumes.
+-- ============================================================================
+
+> person_name(p: Person) -> String {
+    p.name
+}
+
+> person_age(p: Person) -> Int {
+    p.age
+}
+
+> person_intro(p: Person) -> String {
+    person_name(p) + " is " + show(person_age(p))
+}
+
+= alice = Person("Alice", 30)
+@ print("T19: " + person_intro(alice))
+
+-- ============================================================================
+-- TEST 20: FnOnce vs FnMut — closure that moves captured value
+-- `run_once` calls f once → FnOnce. `run_twice` calls f twice → FnMut.
+-- The compiler must detect call count and emit the right Fn trait.
+-- ============================================================================
+
+> run_once(f: () -> String) -> String {
+    f()
+}
+
+> run_twice(f: Int -> Int, x: Int) -> Int {
+    f(f(x))
+}
+
+= secret = "moved out"
+= getter = || secret
+@ print("T20a: " + run_once(getter))
+= base = 10
+= adder = |x| x + base
+@ print("T20b: " + show(run_twice(adder, 5)))
+
+-- ============================================================================
+-- TEST 21: Triple field access — three reads of the same struct
+-- Accessing all three fields means three potential consuming uses.
+-- With auto-borrow this should be zero clones.
+-- ============================================================================
+
+> triple_sum(t: Triple) -> Int {
+    t.a + t.b + t.c
+}
+
+> triple_show(t: Triple) -> String {
+    show(t.a) + ", " + show(t.b) + ", " + show(t.c)
+}
+
+= tri = Triple(10, 20, 30)
+@ print("T21a: sum = " + show(triple_sum(tri)))
+@ print("T21b: show = " + triple_show(tri))
+
+-- ============================================================================
+-- TEST 22: String accumulation in a loop — building a result from a list
+-- Each iteration appends to an accumulator string using a helper.
+-- The accumulator must be rebound (shadowed), not mutated.
+-- ============================================================================
+
+> join_list(xs: List(String), sep: String) -> String {
+    match xs {
+        | Nil -> ""
+        | Cons(h, Nil) -> h
+        | Cons(h, t) -> h + sep + join_list(t, sep)
+    }
+}
+
+= words = Cons("one", Cons("two", Cons("three", Nil)))
+@ print("T22: " + join_list(words, ", "))
+
+-- ============================================================================
+-- TEST 23: Passing struct to function + using struct after
+-- `describe(w)` takes a Weather-like struct, then we access fields after.
+-- Tests that the compiler borrows or clones appropriately.
+-- ============================================================================
+
+> person_greeting(p: Person) -> String {
+    "Hello, " + p.name + "!"
+}
+
+= bob = Person("Bob", 25)
+@ print("T23a: " + person_greeting(bob))
+@ print("T23b: age = " + show(bob.age))
+
+-- ============================================================================
+-- TEST 24: Match on Option + use of the unwrapped value in multiple ways
+-- The Some(x) binding `x` is used in concat AND show. Must not double-move.
+-- ============================================================================
+
+> describe_opt(opt: Option(String)) -> String {
+    match opt {
+        | None -> "nothing"
+        | Some(s) -> "got: " + s + " (length hint: present)"
+    }
+}
+
+@ print("T24a: " + describe_opt(None))
+@ print("T24b: " + describe_opt(Some("treasure")))
+
+@ print("")
+@ print("=== All adversarial borrow tests (round 2) passed! ===")

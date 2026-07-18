@@ -1,0 +1,52 @@
+-- Prolog test 3: negation, findall, wildcards
+-- Complete Datalog+ logic programming in Futuruna
+
+-- === KNOWLEDGE BASE ===
+
+| parent("alice", "bob")
+| parent("alice", "carol")
+| parent("bob", "dave")
+| parent("bob", "eve")
+| parent("carol", "frank")
+
+| male("bob")
+| male("dave")
+| male("frank")
+
+| female("alice")
+| female("carol")
+| female("eve")
+
+-- === DERIVED RULES ===
+
+| ancestor(a, b) -> parent(a, b)
+| ancestor(a, b) -> parent(a, mid), ancestor(mid, b)
+
+-- === NEGATION AS FAILURE ===
+
+| childless(p) -> not(parent(p, _))
+
+= t1 = childless("dave")
+@ print("childless(dave) = " + show(t1))
+
+= t2 = childless("bob")
+@ print("childless(bob) = " + show(t2))
+
+-- === FINDALL: collect all solutions ===
+
+= children_of_bob = findall(c, parent("bob", c))
+@ print("children of bob = " + show(children_of_bob))
+
+= children_of_alice = findall(c, parent("alice", c))
+@ print("children of alice = " + show(children_of_alice))
+
+= all_males = findall(m, male(m))
+@ print("all males = " + show(all_males))
+
+-- === AGGREGATION over solutions ===
+
+= num_children_bob = length(findall(c, parent("bob", c)))
+@ print("bob has " + show(num_children_bob) + " children")
+
+= all_females = findall(f, female(f))
+@ print("all females = " + show(all_females))

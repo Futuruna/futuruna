@@ -1,0 +1,298 @@
+-- ============================================================================
+-- DEN MUSLIMSKE KONGE — The Muslim King Paradox
+--
+-- A constitutional state machine where a valid sequence of transitions
+-- leads to an invalid state. The deepest loophole in the Grundlov.
+--
+-- The scenario:
+--   1. The King marries a Muslim woman (no prohibition in §§ 1-11)
+--   2. Their child is raised Muslim
+--   3. The child is heir per the Troelfolgelov
+--   4. The child swears the oath as heir (§ 8 stk. 4)
+--   5. The King dies
+--   6. § 8 stk. 4 triggers: sworn heir → IMMEDIATE accession
+--   7. The child is now King
+--   8. § 6 says: the King must be Lutheran
+--   9. The child is not Lutheran
+--   10. Constitutional crisis
+--
+-- The KEY insight: § 6 applies to "Kongen" — NOT "Troelfoelgeren".
+-- Unlike § 7, which EXPLICITLY extends to the heir, § 6 does NOT.
+-- ============================================================================
+
+@ use grundlov::*
+
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsraadet
+# ForsikringsStatus = IkkeAfgivet | AfgivetSomTroelfoelger | AfgivetSomKonge
+# Monark(alder: Int, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
+# Troelfoelger(alder: Int, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
+# Regeringsforer = MonarkenSelv | Statsraadet | Regent(hjemmel: String)
+
+= myndighedsalder = 18
+
+@ print("================================================================")
+@ print("  DEN MUSLIMSKE KONGE — A Constitutional State Machine Bug")
+@ print("================================================================")
+@ print("")
+
+
+-- ============================================================================
+-- STEP 1: Which paragraphs extend to the heir?
+--
+-- § 6: "Kongen skal hoere til den evangelisk-lutherske kirke."
+--       Subject: KONGEN. No extension clause.
+--
+-- § 7: "Kongen er myndig, naar han har fyldt sit 18. aar.
+--        Det samme gaelder troelfoelgeren."
+--       Subject: KONGEN + TROELFOELGEREN (explicitly extended!)
+--
+-- § 8: "Har kongen allerede som troelfoelger afgivet denne forsikring,
+--        tiltraeder han umiddelbart ved tronskiftet regeringen."
+--       Subject: KONGEN as former TROELFOELGER.
+--
+-- The constitutional text draws a CLEAR distinction between the two.
+-- When a rule applies to both, it says so (§ 7).
+-- When it doesn't extend, it's silent (§ 6).
+-- ============================================================================
+
+@ print("--- Step 1: Scope analysis of §§ 6, 7, 8 ---")
+@ print("")
+
+-- Does each paragraph's requirement extend to the heir?
+> paragraf_6_gaelder_for_troelfoelger() -> Bool {
+    -- § 6 says "Kongen" — does NOT say "det samme gaelder troelfoelgeren"
+    False
+}
+
+> paragraf_7_gaelder_for_troelfoelger() -> Bool {
+    -- § 7 explicitly says "det samme gaelder troelfoelgeren"
+    True
+}
+
+> paragraf_8_krav_om_trossamfund() -> Bool {
+    -- § 8 says nothing about religion. Only about the oath.
+    False
+}
+
+@ print("§ 6 (troskrav) applies to Troelfoelger: " + show(paragraf_6_gaelder_for_troelfoelger()))
+@ print("§ 7 (myndighedsalder) applies to Troelfoelger: " + show(paragraf_7_gaelder_for_troelfoelger()))
+@ print("§ 8 (eden) checks religion: " + show(paragraf_8_krav_om_trossamfund()))
+@ print("")
+@ print("KEY: § 7 extends to the heir. § 6 does NOT.")
+@ print("This is not an accident — the drafters used 'det samme gaelder'")
+@ print("when they wanted extension. Its ABSENCE in § 6 is deliberate.")
+@ print("")
+
+
+-- ============================================================================
+-- STEP 2: Can a Muslim heir swear the oath?
+--
+-- § 8 says: The King must give a solemn declaration to uphold the
+-- constitution. Nothing more. No religious test. No age test.
+--
+-- The oath is: "ubroedeligt at ville holde grundloven"
+-- (to inviolably uphold the constitution)
+--
+-- Can a Muslim sincerely swear to uphold a constitution that says
+-- the state church is Evangelical Lutheran? Yes — § 4 is about the
+-- STATE'S obligation, not the swearer's personal faith.
+-- ============================================================================
+
+@ print("--- Step 2: Can a Muslim heir swear the oath? ---")
+@ print("")
+
+> kan_troelfoelger_svaerge(troelfoelger: Troelfoelger) -> Bool {
+    -- § 8 requirements for the oath:
+    -- 1. Must be the heir (structural — they ARE a Troelfoelger)
+    -- 2. Must give it in writing in the Statsraadet
+    -- 3. Must promise to uphold the constitution
+    --
+    -- NOT required: specific religion, specific age, specific gender
+    -- The oath is about the CONSTITUTION, not about personal faith
+    True
+}
+
+= muslim_arving = Troelfoelger(25, Andet("Muslim"), IkkeAfgivet)
+
+@ print("Can a Muslim heir swear the oath?")
+@ print("  § 8 checks: is heir, written, in Statsraadet, promises to uphold")
+@ print("  § 8 does NOT check: religion, age, gender")
+@ print("  Answer: " + show(kan_troelfoelger_svaerge(muslim_arving)))
+@ print("")
+@ print("The oath is to uphold the CONSTITUTION — including § 4")
+@ print("(state supports the Folkekirke). A Muslim can promise this")
+@ print("because § 4 is a state obligation, not a personal one.")
+@ print("")
+
+
+-- ============================================================================
+-- STEP 3: The state machine trace
+--
+-- Model the sequence of constitutional state transitions.
+-- At each step: what rules are satisfied, what rules are violated?
+-- ============================================================================
+
+@ print("--- Step 3: The constitutional state machine ---")
+@ print("")
+
+# Rolle = ErTroelfoelger | ErKonge
+# RegelStatus = Opfyldt | Overtraadt | IkkeRelevant
+
+-- Check a person against a paragraph, given their current role
+> check_paragraf_6(rolle: Rolle, trossamfund: Trossamfund) -> RegelStatus {
+    match rolle {
+        | ErTroelfoelger -> IkkeRelevant
+        | ErKonge -> {
+            match trossamfund {
+                | EvangeliskLuthersk -> Opfyldt
+                | Andet(_) -> Overtraadt
+            }
+        }
+    }
+}
+
+> check_paragraf_7(rolle: Rolle, alder: Int) -> RegelStatus {
+    -- § 7 applies to BOTH (explicit extension)
+    if alder >= 18 { Opfyldt } else { Overtraadt }
+}
+
+> check_paragraf_8_kan_tiltraede(forsikring: ForsikringsStatus) -> Bool {
+    match forsikring {
+        | AfgivetSomTroelfoelger -> True
+        | AfgivetSomKonge -> True
+        | IkkeAfgivet -> False
+    }
+}
+
+-- The scenario plays out in 5 states:
+
+@ print("STATE 1: Muslim child is born as heir")
+@ print("  Role: Troelfoelger")
+@ print("  § 6 (Lutheran): " + show(check_paragraf_6(ErTroelfoelger, Andet("Muslim"))))
+@ print("  § 7 (age >= 18): " + show(check_paragraf_7(ErTroelfoelger, 0)))
+@ print("  Status: LEGAL — § 6 does not apply to heirs")
+@ print("")
+
+@ print("STATE 2: Muslim heir reaches age 25")
+@ print("  Role: Troelfoelger")
+@ print("  § 6 (Lutheran): " + show(check_paragraf_6(ErTroelfoelger, Andet("Muslim"))))
+@ print("  § 7 (age >= 18): " + show(check_paragraf_7(ErTroelfoelger, 25)))
+@ print("  Status: LEGAL — still not King, § 6 still irrelevant")
+@ print("")
+
+@ print("STATE 3: Muslim heir swears oath in Statsraadet")
+@ print("  Role: Troelfoelger (not yet King)")
+@ print("  § 8 requires religion: " + show(paragraf_8_krav_om_trossamfund()))
+@ print("  Oath valid: " + show(kan_troelfoelger_svaerge(muslim_arving)))
+@ print("  Status: LEGAL — § 8 imposes no religious test on the oath")
+@ print("")
+
+= svoret_muslim_arving = Troelfoelger(25, Andet("Muslim"), AfgivetSomTroelfoelger)
+
+@ print("STATE 4: The King dies. § 8 stk. 4 triggers.")
+@ print("  Forsikring: AfgivetSomTroelfoelger")
+@ print("  § 8 stk. 4: 'tiltraeder han umiddelbart ved tronskiftet regeringen'")
+@ print("  Accession is AUTOMATIC. No review. No approval. Immediate.")
+= accession = check_paragraf_8_kan_tiltraede(svoret_muslim_arving.forsikring)
+@ print("  Can accede: " + show(accession))
+@ print("  Status: TRANSITION FIRES — heir becomes King")
+@ print("")
+
+@ print("STATE 5: The Muslim King")
+@ print("  Role: NOW Kongen")
+@ print("  § 6 (Lutheran): " + show(check_paragraf_6(ErKonge, Andet("Muslim"))))
+@ print("  § 7 (age >= 18): " + show(check_paragraf_7(ErKonge, 25)))
+@ print("  § 8 (oath given): Opfyldt")
+@ print("")
+@ print("  *** CONSTITUTIONAL PARADOX ***")
+@ print("  § 6 is NOW violated — but was never violated BEFORE.")
+@ print("  Every individual transition was legal.")
+@ print("  The resulting state is illegal.")
+@ print("  This is a STATE MACHINE BUG: valid transitions → invalid state.")
+@ print("")
+
+
+-- ============================================================================
+-- STEP 4: Why this is deep
+-- ============================================================================
+
+@ print("--- Step 4: Why this matters ---")
+@ print("")
+@ print("This is not a silly hypothetical. It reveals a structural flaw:")
+@ print("")
+@ print("  § 6 is a STATE INVARIANT: 'The King must be Lutheran'")
+@ print("  § 8 is a TRANSITION RULE: 'Sworn heir accedes immediately'")
+@ print("")
+@ print("  The transition rule does not check the state invariant.")
+@ print("  In software, this is a classic concurrency bug:")
+@ print("  the lock is not held during the state change.")
+@ print("")
+@ print("  In a well-typed system, the type of 'hvem_regerer_ved_tronskifte'")
+@ print("  would require proof that the heir satisfies § 6 BEFORE")
+@ print("  the transition fires. The constitution has no such guard.")
+@ print("")
+@ print("  COMPARISON:")
+@ print("  § 7 (age) IS checked at § 9 (regency for underage king)")
+@ print("  § 6 (religion) is checked NOWHERE at transition time")
+@ print("  The drafters protected against underage kings but not non-Lutheran ones")
+@ print("")
+
+
+-- ============================================================================
+-- STEP 5: Can the Muslim King be removed?
+-- ============================================================================
+
+@ print("--- Step 5: Can the Muslim King be removed? ---")
+@ print("")
+@ print("Looking at §§ 1-11 only (we don't have later chapters yet):")
+@ print("")
+@ print("  § 6 says the King MUST be Lutheran. Violated.")
+@ print("  But §§ 1-11 provide NO removal mechanism.")
+@ print("  § 9 handles minority/illness/absence — not religious violation.")
+@ print("  § 8 stk. 3 handles oath absence — oath was GIVEN.")
+@ print("")
+@ print("  The King IS King (by § 8).")
+@ print("  The King CANNOT BE King (by § 6).")
+@ print("  Both are simultaneously true.")
+@ print("  The constitution is in a contradictory state.")
+@ print("")
+@ print("  Resolution would require either:")
+@ print("    a) Constitutional amendment (§ 88 — not in our encoding yet)")
+@ print("    b) Interpreting § 6 as a PRE-CONDITION that should have")
+@ print("       been checked at transition time (judicial interpretation)")
+@ print("    c) The King voluntarily converts to Lutheranism")
+@ print("    d) The King abdicates")
+@ print("")
+@ print("  Options (a) and (b) are outside §§ 1-11.")
+@ print("  Options (c) and (d) are voluntary — the King could refuse.")
+@ print("  The constitution has no FORCED mechanism.")
+@ print("")
+
+
+-- ============================================================================
+-- STEP 6: The type-theoretic fix
+-- ============================================================================
+
+@ print("--- Step 6: How Futuruna would fix this ---")
+@ print("")
+@ print("In a type-safe constitution, § 8 would be:")
+@ print("")
+@ print("  > tiltraed(arving: Troelfoelger) -> Monark")
+@ print("      under arving.trossamfund == EvangeliskLuthersk,")
+@ print("            arving.alder >= 18,")
+@ print("            arving.forsikring == AfgivetSomTroelfoelger")
+@ print("")
+@ print("The 'under' clause would make § 6 and § 7 into PRECONDITIONS")
+@ print("on the transition, not just invariants on the result state.")
+@ print("")
+@ print("The 1953 drafters wrote § 6 as a state description ('Kongen SKAL').")
+@ print("They should have written it as a transition guard.")
+@ print("Futuruna's default logic makes this distinction explicit.")
+@ print("")
+
+@ print("================================================================")
+@ print("  VERDICT: The Danish Constitution has a type error.")
+@ print("  § 6 is an unchecked invariant on the § 8 transition.")
+@ print("  Every step is legal. The result is illegal.")
+@ print("  A type-safe constitution in Futuruna would catch this at compile time.")
+@ print("================================================================")

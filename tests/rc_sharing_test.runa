@@ -1,0 +1,250 @@
+-- Rc Structural Sharing Test (M25)
+-- Verifies that immutable recursive ADTs use O(1) sharing under the hood.
+-- The programmer writes pure values; the compiler emits Rc<T> for recursive fields.
+
+-- ════════════════════════════════════════════
+-- PATTERN 1: Basic structural sharing
+-- Two branches share a common tail — O(1) with Rc, was O(n) with Box
+-- ════════════════════════════════════════════
+
+# IntList = Nil | Cons(Int, IntList)
+
+> il_sum(xs: IntList) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(h, t) -> h + il_sum(t)
+    }
+}
+
+> il_len(xs: IntList) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(_, t) -> 1 + il_len(t)
+    }
+}
+
+> il_show(xs: IntList) -> String {
+    match xs {
+        | Nil -> "[]"
+        | Cons(h, t) -> show(h) + "::" + il_show(t)
+    }
+}
+
+= tail = Cons(3, Cons(4, Cons(5, Nil)))
+= branch_a = Cons(1, Cons(2, tail))
+= branch_b = Cons(10, Cons(20, tail))
+
+@ print("T1 branch_a: " + il_show(branch_a))
+@ print("T1 branch_b: " + il_show(branch_b))
+@ print("T1 sum_a=" + show(il_sum(branch_a)) + " sum_b=" + show(il_sum(branch_b)))
+@ print("T1 len_a=" + show(il_len(branch_a)) + " len_b=" + show(il_len(branch_b)))
+@ print("PASS: T1 — structural sharing (two branches, shared tail)")
+
+-- ════════════════════════════════════════════
+-- PATTERN 2: Triple fan-out sharing
+-- One tail shared by three branches
+-- ════════════════════════════════════════════
+
+= common = Cons(100, Cons(200, Nil))
+= x = Cons(1, common)
+= y = Cons(2, common)
+= z = Cons(3, common)
+
+@ print("T2 x=" + show(il_sum(x)) + " y=" + show(il_sum(y)) + " z=" + show(il_sum(z)))
+@ print("PASS: T2 — triple fan-out sharing")
+
+-- ════════════════════════════════════════════
+-- PATTERN 3: Recursive tree with structural sharing
+-- Binary tree where subtrees are shared
+-- ════════════════════════════════════════════
+
+# Tree = Leaf(Int) | Branch(Tree, Tree)
+
+> tree_sum(t: Tree) -> Int {
+    match t {
+        | Leaf(n) -> n
+        | Branch(l, r) -> tree_sum(l) + tree_sum(r)
+    }
+}
+
+> tree_depth(t: Tree) -> Int {
+    match t {
+        | Leaf(_) -> 1
+        | Branch(l, r) -> 1 + max_int(tree_depth(l), tree_depth(r))
+    }
+}
+
+> tree_size(t: Tree) -> Int {
+    match t {
+        | Leaf(_) -> 1
+        | Branch(l, r) -> 1 + tree_size(l) + tree_size(r)
+    }
+}
+
+-- Shared subtree: used in two places
+= shared_sub = Branch(Leaf(10), Leaf(20))
+= tree = Branch(shared_sub, Branch(shared_sub, Leaf(30)))
+
+@ print("T3 tree_sum=" + show(tree_sum(tree)))
+@ print("T3 tree_depth=" + show(tree_depth(tree)))
+@ print("T3 tree_size=" + show(tree_size(tree)))
+@ print("PASS: T3 — tree with shared subtrees")
+
+-- ════════════════════════════════════════════
+-- PATTERN 4: Persistent list operations
+-- "Updating" a list produces a new list that shares the unchanged tail
+-- ════════════════════════════════════════════
+
+> il_prepend(x: Int, xs: IntList) -> IntList {
+    Cons(x, xs)
+}
+
+> il_map(xs: IntList, f: Int -> Int) -> IntList {
+    match xs {
+        | Nil -> Nil
+        | Cons(h, t) -> Cons(f(h), il_map(t, f))
+    }
+}
+
+> il_filter(xs: IntList, f: Int -> Int) -> IntList {
+    match xs {
+        | Nil -> Nil
+        | Cons(h, t) -> if f(h) != 0 { Cons(h, il_filter(t, f)) } else { il_filter(t, f) }
+    }
+}
+
+= base = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))
+= extended = il_prepend(0, base)
+= doubled = il_map(base, |x| x * 2)
+= evens = il_filter(base, |x| if x % 2 == 0 { 1 } else { 0 })
+
+@ print("T4 base=" + il_show(base))
+@ print("T4 extended=" + il_show(extended))
+@ print("T4 doubled=" + il_show(doubled))
+@ print("T4 evens=" + il_show(evens))
+@ print("T4 sum(base)=" + show(il_sum(base)) + " sum(doubled)=" + show(il_sum(doubled)))
+@ print("PASS: T4 — persistent list operations")
+
+-- ════════════════════════════════════════════
+-- PATTERN 5: Expression tree (multiple recursive fields)
+-- AST with Add/Mul having two Expr children — both Rc'd
+-- ════════════════════════════════════════════
+
+# Expr = Lit(Int) | Neg(Expr) | Add(Expr, Expr) | Mul(Expr, Expr)
+
+> eval(e: Expr) -> Int {
+    match e {
+        | Lit(n) -> n
+        | Neg(inner) -> 0 - eval(inner)
+        | Add(a, b) -> eval(a) + eval(b)
+        | Mul(a, b) -> eval(a) * eval(b)
+    }
+}
+
+> expr_show(e: Expr) -> String {
+    match e {
+        | Lit(n) -> show(n)
+        | Neg(inner) -> "(-" + expr_show(inner) + ")"
+        | Add(a, b) -> "(" + expr_show(a) + "+" + expr_show(b) + ")"
+        | Mul(a, b) -> "(" + expr_show(a) + "*" + expr_show(b) + ")"
+    }
+}
+
+-- Shared sub-expression: (3 + 4) used twice
+= sub = Add(Lit(3), Lit(4))
+= expr1 = Mul(sub, sub)
+= expr2 = Add(sub, Neg(sub))
+
+@ print("T5 expr1=" + expr_show(expr1) + " = " + show(eval(expr1)))
+@ print("T5 expr2=" + expr_show(expr2) + " = " + show(eval(expr2)))
+@ print("PASS: T5 — expression tree with shared sub-expressions")
+
+-- ════════════════════════════════════════════
+-- PATTERN 6: Deep list — stress test recursive Rc
+-- Build a list of 100 elements, reverse it, verify
+-- ════════════════════════════════════════════
+
+> il_range(lo: Int, hi: Int) -> IntList {
+    if lo > hi { Nil } else { Cons(lo, il_range(lo + 1, hi)) }
+}
+
+> il_rev_acc(xs: IntList, acc: IntList) -> IntList {
+    match xs {
+        | Nil -> acc
+        | Cons(h, t) -> il_rev_acc(t, Cons(h, acc))
+    }
+}
+
+> il_reverse(xs: IntList) -> IntList {
+    il_rev_acc(xs, Nil)
+}
+
+> il_head(xs: IntList) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(h, _) -> h
+    }
+}
+
+= lo = 1
+= hi = 100
+= big = il_range(lo, hi)
+@ print("T6 sum(1..100)=" + show(il_sum(big)))
+@ print("T6 len=" + show(il_len(big)))
+@ print("T6 head=" + show(il_head(big)))
+
+= big_rev = il_reverse(big)
+@ print("T6 sum(reversed)=" + show(il_sum(big_rev)))
+@ print("T6 head(reversed)=" + show(il_head(big_rev)))
+@ print("PASS: T6 — deep list (100 elements, build + reverse)")
+
+-- ════════════════════════════════════════════
+-- PATTERN 7: Nested recursive types
+-- A list of trees — List is Rc, Tree is also Rc
+-- ════════════════════════════════════════════
+
+# TreeList = TLNil | TLCons(Tree, TreeList)
+
+> tl_sum_all(tl: TreeList) -> Int {
+    match tl {
+        | TLNil -> 0
+        | TLCons(t, rest) -> tree_sum(t) + tl_sum_all(rest)
+    }
+}
+
+= t1 = Branch(Leaf(1), Leaf(2))
+= t2 = Branch(Leaf(3), Leaf(4))
+= t3 = Leaf(10)
+= forest = TLCons(t1, TLCons(t2, TLCons(t3, TLNil)))
+
+@ print("T7 forest total=" + show(tl_sum_all(forest)))
+@ print("PASS: T7 — nested recursive types (list of trees)")
+
+-- ════════════════════════════════════════════
+-- PATTERN 8: Equality on shared structures
+-- Rc PartialEq compares values, not pointer identity
+-- ════════════════════════════════════════════
+
+= list_a = Cons(1, Cons(2, Cons(3, Nil)))
+= list_b = Cons(1, Cons(2, Cons(3, Nil)))
+
+@ print("T8 equal=" + show(list_a == list_b))
+@ print("PASS: T8 — equality through Rc (value comparison)")
+
+-- ════════════════════════════════════════════
+-- PATTERN 9: Multi-use of same recursive value
+-- Variable used 4 times in consuming positions — all O(1) clones
+-- ════════════════════════════════════════════
+
+= reused = Cons(7, Cons(8, Cons(9, Nil)))
+= r1 = il_sum(reused)
+= r2 = il_len(reused)
+= r3 = il_show(reused)
+= r4 = il_reverse(reused)
+
+@ print("T9 sum=" + show(r1) + " len=" + show(r2) + " show=" + r3 + " rev=" + il_show(r4))
+@ print("PASS: T9 — multi-use of same value (4 consuming uses, all O(1) clone)")
+
+-- ════════════════════════════════════════════
+@ print("")
+@ print("All Rc structural sharing tests passed.")

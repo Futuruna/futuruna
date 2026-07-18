@@ -1,0 +1,97 @@
+-- monadic_test.runa: Monadic Sugar Demo (= x <- expr)
+-- Demonstrates: Result/Option unwrapping, early return, chaining
+
+-- ============================================================================
+-- Helper functions that return Result/Option values
+-- ============================================================================
+
+> parse_int(s: String) -> Result(Int, String) {
+    if s == "42" { Ok(42) }
+    else if s == "10" { Ok(10) }
+    else if s == "7" { Ok(7) }
+    else { Err("not a number: " + s) }
+}
+
+> lookup(key: String) -> Option(String) {
+    if key == "name" { Some("Alice") }
+    else if key == "age" { Some("42") }
+    else { None }
+}
+
+> safe_div(a: Int, b: Int) -> Result(Int, String) {
+    if b == 0 { Err("division by zero") }
+    else { Ok(a / b) }
+}
+
+-- ============================================================================
+-- DEMO 1: Result chaining with <- (the happy path)
+-- ============================================================================
+
+@ print("=== Demo 1: Result Chaining (Happy Path) ===")
+@ print("")
+
+> add_parsed(a_str: String, b_str: String) -> Result(Int, String) {
+    = a <- parse_int(a_str)
+    = b <- parse_int(b_str)
+    Ok(a + b)
+}
+
+= result1 = add_parsed("42", "10")
+@ print("  add_parsed(42, 10) = " + show(result1))
+
+-- ============================================================================
+-- DEMO 2: Result chaining with <- (error path)
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 2: Result Chaining (Error Path) ===")
+@ print("")
+
+= result2 = add_parsed("42", "abc")
+@ print("  add_parsed(42, abc) = " + show(result2))
+
+-- ============================================================================
+-- DEMO 3: Option chaining
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 3: Option Chaining ===")
+@ print("")
+
+> get_age() -> Option(Int) {
+    = age_str <- lookup("age")
+    Some(42)
+}
+
+> get_missing() -> Option(Int) {
+    = val <- lookup("missing")
+    Some(99)
+}
+
+= opt1 = get_age()
+= opt2 = get_missing()
+@ print("  get_age() = " + show(opt1))
+@ print("  get_missing() = " + show(opt2))
+
+-- ============================================================================
+-- DEMO 4: Multiple <- in sequence (pipeline)
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 4: Pipeline of 3 Operations ===")
+@ print("")
+
+> pipeline(s: String) -> Result(Int, String) {
+    = x <- parse_int(s)
+    = y <- safe_div(x, 2)
+    = z <- safe_div(100, y)
+    Ok(z)
+}
+
+= p1 = pipeline("42")
+= p2 = pipeline("abc")
+@ print("  pipeline(42) = " + show(p1))
+@ print("  pipeline(abc) = " + show(p2))
+
+@ print("")
+@ print("=== Monadic Sugar: = x <- expr unwraps Ok/Some, early-returns Err/None ===")

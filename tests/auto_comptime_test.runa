@@ -1,0 +1,84 @@
+-- auto_comptime_test.runa: Auto-Comptime Evaluation
+-- Pure functions with literal args are automatically evaluated at compile time.
+-- No @ comptime annotation needed!
+
+> factorial(n: Int) -> Int {
+    if n <= 1 { 1 } else { n * factorial(n - 1) }
+}
+
+> fibonacci(n: Int) -> Int {
+    if n <= 0 { 0 }
+    else if n == 1 { 1 }
+    else { fibonacci(n - 1) + fibonacci(n - 2) }
+}
+
+> square(x: Int) -> Int { x * x }
+
+> add(a: Int, b: Int) -> Int { a + b }
+
+> make_greeting(name: String) -> String {
+    "Hello, " + name + "!"
+}
+
+-- ============================================================================
+-- DEMO 1: These should auto-evaluate at compile time (pure fn + literal args)
+-- ============================================================================
+
+@ print("=== Demo 1: Auto-Comptime (pure functions) ===")
+@ print("")
+
+= fact5 = factorial(5)
+= fib10 = fibonacci(10)
+= sq12 = square(12)
+= sum = add(100, 200)
+= greeting = make_greeting("World")
+
+@ print("  factorial(5) = " + show(fact5))
+@ print("  fibonacci(10) = " + show(fib10))
+@ print("  square(12) = " + show(sq12))
+@ print("  add(100, 200) = " + show(sum))
+@ print("  greeting = " + greeting)
+@ print("")
+
+-- ============================================================================
+-- DEMO 2: Arithmetic on literals — also auto-comptime
+-- ============================================================================
+
+@ print("=== Demo 2: Auto-Comptime (literal arithmetic) ===")
+@ print("")
+
+= x = 3 * 4 + 5
+= y = 100 - 37
+
+@ print("  3 * 4 + 5 = " + show(x))
+@ print("  100 - 37 = " + show(y))
+@ print("")
+
+-- ============================================================================
+-- DEMO 3: Chained — auto-comptime value used as arg to another pure function
+-- ============================================================================
+
+@ print("=== Demo 3: Chained Auto-Comptime ===")
+@ print("")
+
+= base = square(5)
+= doubled = add(base, base)
+
+@ print("  square(5) = " + show(base))
+@ print("  add(base, base) = " + show(doubled))
+@ print("")
+
+-- ============================================================================
+-- DEMO 4: Explicit @ comptime still works
+-- ============================================================================
+
+@ print("=== Demo 4: Explicit @ comptime (unchanged) ===")
+@ print("")
+
+@ comptime
+= fact10 = factorial(10)
+
+@ print("  factorial(10) = " + show(fact10))
+@ print("")
+
+@ print("=== Auto-comptime: zero annotations, full constant folding ===")

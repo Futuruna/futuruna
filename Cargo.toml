@@ -1,0 +1,25 @@
+[package]
+name = "futuruna"
+version = "0.1.0"
+edition = "2021"
+description = "Futuruna — a three-dimensional programming language with seven runes"
+
+[lib]
+name = "futuruna"
+path = "src/lib.rs"
+
+[dependencies]
+sha2 = "0.10"
+serde_json = "1"
+
+[[bin]]
+name = "runa"
+path = "src/bin/runa.rs"
+
+[[bin]]
+name = "runa-adversarial"
+path = "src/bin/runa_adversarial.rs"
+
+[[bin]]
+name = "runa-adversarial2"
+path = "src/bin/runa_adversarial2.rs"

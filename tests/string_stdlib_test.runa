@@ -1,0 +1,89 @@
+-- string_stdlib_test.runa — M14a: String Operations + M14b: File I/O
+-- Tests all new stdlib builtins for both interpreter and compiled output.
+
+@ print("=== M14a: String Builtins ===")
+@ print("")
+
+-- split
+= parts = split("hello,world,foo", ",")
+@ print("split: " + show(parts))
+
+-- join
+= joined = join(["a", "b", "c"], "-")
+@ print("join: " + joined)
+
+-- trim
+= trimmed = trim("  hello  ")
+@ print("trim: [" + trimmed + "]")
+
+-- contains
+@ print("contains: " + show(contains("hello world", "world")))
+@ print("contains false: " + show(contains("hello", "xyz")))
+
+-- starts_with / ends_with
+@ print("starts_with: " + show(starts_with("hello", "hel")))
+@ print("ends_with: " + show(ends_with("hello.runa", ".runa")))
+
+-- replace
+= replaced = replace("foo bar foo", "foo", "baz")
+@ print("replace: " + replaced)
+
+-- to_upper / to_lower
+@ print("to_upper: " + to_upper("hello"))
+@ print("to_lower: " + to_lower("HELLO"))
+
+-- substring
+= sub = substring("hello world", 0, 5)
+@ print("substring: " + sub)
+
+-- char_at
+@ print("char_at: " + char_at("abc", 1))
+
+-- index_of
+@ print("index_of: " + show(index_of("hello world", "world")))
+@ print("index_of missing: " + show(index_of("hello", "xyz")))
+
+-- format_float
+@ print("format_float: " + format_float(3.14159, 2))
+
+-- parse_int / parse_float
+@ print("parse_int: " + show(parse_int("42")))
+@ print("parse_float: " + show(parse_float("3.14")))
+
+-- string_chars
+= chars = string_chars("abc")
+@ print("string_chars: " + show(chars))
+
+-- string_length
+@ print("string_length: " + show(string_length("hello")))
+
+@ print("")
+@ print("=== M14b: File I/O Builtins ===")
+@ print("")
+
+-- write_file + read_file
+= test_path = "/tmp/futuruna_test_m14b.txt"
+@ write_file(test_path, "Hello from Futuruna!\nLine 2")
+= content = read_file(test_path)
+@ print("read_file: " + content)
+
+-- file_exists
+@ print("file_exists: " + show(file_exists(test_path)))
+@ print("file_exists false: " + show(file_exists("/tmp/nonexistent_futuruna_xyz.txt")))
+
+-- append_file
+@ append_file(test_path, "\nLine 3")
+= content2 = read_file(test_path)
+@ print("after append: " + content2)
+
+-- read_lines
+= lines = read_lines(test_path)
+@ print("read_lines: " + show(lines))
+
+-- env_var
+= home = env_var("HOME")
+@ print("env_var HOME: " + show(starts_with(home, "/")))
+
+-- Cleanup
+@ print("")
+@ print("=== All M14 tests passed! ===")

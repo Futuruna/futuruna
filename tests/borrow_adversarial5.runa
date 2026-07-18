@@ -1,0 +1,191 @@
+-- Adversarial borrow checker tests (round 5)
+-- Maximum stress: patterns specifically designed to break the borrow checker
+
+-- ═══════════════════════════════════════════
+-- SECTION 1: Triple aliasing of a string
+-- ═══════════════════════════════════════════
+
+@ print("=== 1. Triple alias ===")
+
+= a = "val"
+= b = a
+= c = a
+= d = a
+@ print("T1: " + b + " " + c + " " + d)
+
+-- ═══════════════════════════════════════════
+-- SECTION 2: Variable used in both branches of if
+-- ═══════════════════════════════════════════
+
+@ print("=== 2. Both-branch use ===")
+
+# Sign = Pos | Neg
+
+> branch_use(sign: Sign, s: String) -> String {
+    match sign {
+        | Pos -> "pos: " + s
+        | Neg -> "neg: " + s
+    }
+}
+
+@ print("T2a: " + branch_use(Pos, "test"))
+@ print("T2b: " + branch_use(Neg, "test"))
+
+-- ═══════════════════════════════════════════
+-- SECTION 3: Struct passed to function twice
+-- ═══════════════════════════════════════════
+
+@ print("=== 3. Struct double-pass ===")
+
+# Pair(fst_val: Int, snd_val: Int)
+
+> pair_sum(p: Pair) -> Int { p.fst_val + p.snd_val }
+> pair_diff(p: Pair) -> Int { p.fst_val - p.snd_val }
+
+= p = Pair(10, 3)
+= s = pair_sum(p)
+= d = pair_diff(p)
+@ print("T3: sum=" + show(s) + " diff=" + show(d))
+
+-- ═══════════════════════════════════════════
+-- SECTION 4: List used in multiple operations
+-- ═══════════════════════════════════════════
+
+@ print("=== 4. List multi-op ===")
+
+= nums = [1, 2, 3, 4, 5]
+= evens = filter(nums, |x| x % 2 == 0)
+= odds = filter(nums, |x| x % 2 != 0)
+= total = foldl(nums, 0, |a, x| a + x)
+@ print("T4: evens=" + show(evens) + " odds=" + show(odds) + " total=" + show(total))
+
+-- ═══════════════════════════════════════════
+-- SECTION 5: Nested match on ADT
+-- ═══════════════════════════════════════════
+
+@ print("=== 5. Nested match ===")
+
+# Shape = Circle(Int) | Rect(Int, Int)
+
+> area(s: Shape) -> Int {
+    match s {
+        | Circle(r) -> r * r * 3
+        | Rect(w, h) -> w * h
+    }
+}
+
+> describe(s: Shape) -> String {
+    match s {
+        | Circle(r) -> "circle r=" + show(r)
+        | Rect(w, h) -> "rect " + show(w) + "x" + show(h)
+    }
+}
+
+= shape = Circle(5)
+@ print("T5a: " + describe(shape))
+@ print("T5b: area=" + show(area(shape)))
+
+-- ═══════════════════════════════════════════
+-- SECTION 6: HOF chain
+-- ═══════════════════════════════════════════
+
+@ print("=== 6. HOF chain ===")
+
+> apply_fn(f: (Int) -> Int, x: Int) -> Int { f(x) }
+
+= inc = |x| x + 1
+= dbl = |x| x * 2
+
+= r1 = apply_fn(inc, 5)
+= r2 = apply_fn(dbl, r1)
+= r3 = apply_fn(inc, r2)
+@ print("T6: inc(5)=" + show(r1) + " dbl=" + show(r2) + " inc=" + show(r3))
+
+-- ═══════════════════════════════════════════
+-- SECTION 7: String builder pattern
+-- ═══════════════════════════════════════════
+
+@ print("=== 7. String builder ===")
+
+= parts = ["hello", "beautiful", "world"]
+-- foldl with string init: lambda type inference infers i64 for + operator
+-- This is a known limitation — use join() instead for string building
+= result = join(parts, " ")
+@ print("T7: " + result)
+
+-- ═══════════════════════════════════════════
+-- SECTION 8: Struct with String field, passed to 2 fns
+-- ═══════════════════════════════════════════
+
+@ print("=== 8. Struct String field multi-access ===")
+
+# Named(name: String, id: Int)
+
+> get_named_name(n: Named) -> String { n.name }
+> get_named_id(n: Named) -> Int { n.id }
+
+= item = Named("widget", 42)
+= n = get_named_name(item)
+= i = get_named_id(item)
+@ print("T8: name=" + n + " id=" + show(i))
+
+-- ═══════════════════════════════════════════
+-- SECTION 9: Complex pipeline with multiple captures
+-- ═══════════════════════════════════════════
+
+@ print("=== 9. Pipeline captures ===")
+
+= threshold = 3
+= data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+= big = filter(data, |x| x > threshold)
+= small = filter(data, |x| x <= threshold)
+@ print("T9: big=" + show(big) + " small=" + show(small))
+
+-- ═══════════════════════════════════════════
+-- SECTION 10: Option pattern matching
+-- ═══════════════════════════════════════════
+
+@ print("=== 10. Option matching ===")
+
+# Maybe = Just(Int) | Nothing
+
+> safe_val(m: Maybe) -> String {
+    match m {
+        | Just(v) -> "found: " + show(v)
+        | Nothing -> "empty"
+    }
+}
+
+= m1 = Just(42)
+= m2 = Nothing
+@ print("T10a: " + safe_val(m1))
+@ print("T10b: " + safe_val(m2))
+
+-- ═══════════════════════════════════════════
+-- SECTION 11: Boolean match (was codegen bug: Bool::True)
+-- ═══════════════════════════════════════════
+
+@ print("=== 11. Boolean match ===")
+
+> to_sign(n: Int) -> String {
+    match n > 0 {
+        | true -> "positive"
+        | false -> "non-positive"
+    }
+}
+
+@ print("T11a: " + to_sign(5))
+@ print("T11b: " + to_sign(-3))
+@ print("T11c: " + to_sign(0))
+
+-- ═══════════════════════════════════════════
+-- SECTION 12: foldl with string lambda (was type inference bug)
+-- ═══════════════════════════════════════════
+
+@ print("=== 12. String foldl ===")
+
+= words = ["hello", "beautiful", "world"]
+= sentence = foldl(words, "", |acc, x| acc + " " + x)
+@ print("T12: " + sentence)
+
+@ print("=== All adversarial borrow tests (round 5) passed! ===")

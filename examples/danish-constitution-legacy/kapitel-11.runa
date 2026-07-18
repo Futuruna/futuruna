@@ -1,0 +1,309 @@
+@ sprog da
+
+-- ============================================================================
+-- Kapitel XI — Overgangsbestemmelser (§ 89)
+--
+-- Det sidste kapitel. Én paragraf. Grundlovens BOOTSTRAP.
+--
+-- § 89 løser et problem som enhver ny forfatning står over for:
+-- Hvordan overtager det nye system fra det gamle
+-- UDEN et hul i lovligheden?
+--
+-- Svaret er tre træk i én paragraf:
+--   1. ØJEBLIKKELIG virkning — ingen ventetid
+--   2. GAMMEL lovgiver fortsætter til nyvalg
+--   3. GAMLE regler gælder for gammel lovgiver til nyvalg
+--
+-- Derefter afslutningsformlen: "Så er da nu gældende ret,
+-- alle til ubrødelig efterlevelse."
+--
+-- Underskrevet af Kong Frederik IX og 13 ministre på
+-- Christiansborg Slot, den 5. juni 1953.
+-- 5. juni = Grundlovsdag — en national helligdag.
+-- ============================================================================
+
+
+@ skriv("""
+================================================================
+  Kapitel XI: Overgangsbestemmelser (§ 89)
+  Én paragraf — grundlovens bootstrap
+================================================================
+""")
+
+
+-- ============================================================================
+-- § 89: IKRAFTTRÆDEN OG OVERGANG.
+--
+-- "Denne grundlov træder i kraft straks."
+--
+-- STRAKS. Øjeblikkeligt. Ingen ventetid. Ingen overgangsfase.
+-- Den nye grundlov ER loven fra underskriftsøjeblikket.
+--
+-- "Dog vedbliver den i henhold til Danmarks Riges Grundlov af
+--  5. juni 1915 med ændringer af 10. september 1920 senest
+--  valgte rigsdag at bestå, indtil nyvalg har fundet sted i
+--  overensstemmelse med reglerne i kapitel IV."
+--
+-- MEN: den RIGSDAG der var valgt under 1915/1920-grundloven
+-- fortsætter med at bestå indtil NYVALG afholdes under kapitel IV.
+-- Overgangsbuen:
+--   - Nye regler: i kraft NU
+--   - Gammel lovgiver: består til erstattet af valg
+--   - Intet hul i demokratisk repræsentation
+--
+-- "Indtil nyvalg har fundet sted, forbliver de i Danmarks Riges
+--  Grundlov af 5. juni 1915 med ændringer af 10. september 1920
+--  for rigsdagen fastsatte bestemmelser i kraft."
+--
+-- De GAMLE regler for Rigsdagen (to kamre: Landsting + Folketing)
+-- forbliver i kraft FOR RIGSDAGEN indtil nyvalg.
+-- Efter valget: etkammer-Folketing under den nye grundlov.
+--
+-- BOOTSTRAP-PROBLEMET:
+-- Enhver ny forfatning står over for dette: det GAMLE system skabte
+-- den GAMLE lovgiver. Det NYE system kræver en NY lovgiver. Men man
+-- behøver en lovgiver til at REGERE under overgangen.
+-- § 89s løsning: den gamle forsamling regerer under gamle regler,
+-- MENS den nye grundlov allerede er i kraft, INDTIL
+-- et nyt valg erstatter den gamle med en ny.
+--
+-- Dette skaber en kort DOBBELT-VIRKELIGHED:
+--   Den nye grundlov er landets lov.
+--   Den gamle lovgiver regerer under gamle regler.
+--   To systemer sameksisterer i præcis én valgperiode.
+--   Derefter er det gamle system fuldstændigt slukket.
+--
+-- 1953-REVOLUTIONEN i miniature:
+--   Før § 89: Rigsdag = Landsting (overhus) + Folketing (underhus)
+--   Efter § 89s valg: Folketing alene (etkammer)
+--   Landstinget blev ikke afskaffet ved lov.
+--   Det blev afskaffet af § 89 — af den nye grundlov selv.
+--   Det nye dokument dræbte den gamle struktur.
+--
+-- DE TRE TIDSREFERENCER:
+-- § 89 nævner tre specifikke datoer:
+--   1. "denne grundlov" — 5. juni 1953 (den nye)
+--   2. "5. juni 1915" — 1915-grundloven
+--   3. "10. september 1920" — 1920-ændringen
+-- Hver grundlov refererer sin forgænger. En kæde.
+-- 1953 → 1920 → 1915 → (1866 → 1849)
+-- Grundloven kender sin egen genealogi.
+-- ============================================================================
+
+----
+§ 89. Denne grundlov træder i kraft straks. Dog vedbliver den i henhold til Danmarks Riges Grundlov af 5. juni 1915 med ændringer af 10. september 1920 senest valgte rigsdag at bestå, indtil nyvalg har fundet sted i overensstemmelse med reglerne i kapitel IV. Indtil nyvalg har fundet sted, forbliver de i Danmarks Riges Grundlov af 5. juni 1915 med ændringer af 10. september 1920 for rigsdagen fastsatte bestemmelser i kraft.
+----
+
+> grundlov_i_kraft() -> String {
+    "Straks (5. juni 1953)"
+}
+
+-- § 89: gammel Rigsdag fortsætter til nyvalg
+| gammel_rigsdag_fortsætter() -> Sandt
+
+-- § 89: gamle regler gælder for gammel lovgiver
+| gammel_rigsdag_under_gamle_regler() -> Sandt
+
+-- § 89 + Kap. IV: efter nyvalg → etkammer-Folketing
+| landsting_efter_nyvalg() -> Falskt
+
+# GrundlovsVersion = G1849 | G1866 | G1915 | G1920 | G1953
+
+> forgænger(version: GrundlovsVersion) -> String {
+    skel version {
+        | G1849 -> "Ingen (den første)"
+        | G1866 -> "1849"
+        | G1915 -> "1866"
+        | G1920 -> "1915"
+        | G1953 -> "1915 med ændringer af 1920"
+    }
+}
+
+@ skriv("""
+--- § 89: Ikrafttræden og overgang ---
+
+Ikrafttræden: {{grundlov_i_kraft()}}
+  STRAKS. Ingen ventetid. Ingen overgangsperiode.
+  Den nye grundlov ER loven fra underskriftsøjeblikket.
+
+BOOTSTRAP-LØSNINGEN:
+  Gammel Rigsdag fortsætter: {{gammel_rigsdag_fortsætter()}}
+  Under gamle regler: {{gammel_rigsdag_under_gamle_regler()}}
+  Landsting efter nyvalg: {{landsting_efter_nyvalg()}}
+
+  NY grundlov i kraft + GAMMEL lovgiver fungerer
+  = To systemer sameksisterer i præcis én valgperiode
+  Derefter: gammel struktur fuldstændigt slukket
+
+1953-REVOLUTIONEN:
+  Før: Rigsdag = Landsting (overhus) + Folketing (underhus)
+  Efter nyvalg: Folketing alene (etkammer)
+  Landstinget afskaffet af grundloven SELV
+  Ikke ved særlov — af § 89.
+
+DEN FORFATNINGSMÆSSIGE KÆDE:
+  1849: {{forgænger(G1849)}}
+  1866 → forgænger: {{forgænger(G1866)}}
+  1915 → forgænger: {{forgænger(G1915)}}
+  1920 → forgænger: {{forgænger(G1920)}}
+  1953 → forgænger: {{forgænger(G1953)}}
+  Hver grundlov kender sin egen genealogi.
+""")
+
+
+-- ============================================================================
+-- AFSLUTNINGSFORMLEN
+--
+-- "Så er da nu gældende ret, alle til ubrødelig efterlevelse."
+--
+-- "Ubrødelig" — ukrænkelig, ubrydelig.
+-- Samme ord som i § 71 (personlig frihed er "ukrænkelig").
+-- HELE grundloven kræver ubrødelig efterlevelse.
+--
+-- "DANMARKS RIGES GRUNDLOV
+--  Givet på Christiansborg slot, den 5. juni 1953.
+--  Under Vor Kongelige Hånd og Segl.
+--  Frederik R."
+--
+-- Underskrevet af Kong Frederik IX.
+-- Medunderskrevet af 13 ministre (§ 14: Kongens underskrift kræver
+-- ministeriel medunderskrift for at have retskraft).
+-- Grundlovens ALLERSIDSTE handling demonstrerer § 14:
+-- Kongen underskriver, men kun med ministre.
+--
+-- De 13 ministre der underskrev:
+--   Erik Eriksen, Ole Bjørn Kraft, Thorkil Kristensen,
+--   Harald Petersen, Carl Hermansen, Jens Sønderup,
+--   Aksel Møller, Flemming Hvidbjerg, Poul Sørensen,
+--   Helga Pedersen, Knud Ree, Aage L. Rytter, Jørgen Jørgensen
+--
+-- Bemærk: HELGA PEDERSEN — den eneste kvinde blandt 14 underskrivere.
+-- Hun underskrev grundloven der (§ 2) åbner tronfølgen for kvinder.
+-- Dokumentet der åbnede døren havde præcis én kvinde med pennen.
+--
+-- DEN SIDSTE § 14-DEMONSTRATION:
+-- § 14 siger kongelige handlinger kræver ministeriel medunderskrift.
+-- Grundloven selv ER en kongelig handling ("Under Vor Kongelige Hånd").
+-- Derfor kræver grundloven ministerielle underskrifter for at være gyldig.
+-- Grundlovens egen gyldighed afhænger af den regel den indeholder.
+-- Selvreferentiel til allersidste linje.
+-- ============================================================================
+
+----
+Så er da nu gældende ret, alle til ubrødelig efterlevelse,
+
+DANMARKS RIGES GRUNDLOV
+
+Givet på Christiansborg slot, den 5. juni 1953.
+
+Under Vor Kongelige Hånd og Segl.
+
+Frederik R.
+
+(L.S.)
+----
+
+= underskriftsdato = "5. juni 1953"
+= underskriftssted = "Christiansborg slot"
+= kongelig_underskriver = "Frederik R. (Frederik IX)"
+= antal_ministre = 13
+= antal_kvindelige_ministre = 1
+
+-- § 14 gælder selv for grundloven: kræver medunderskrift
+| grundlov_gyldig_uden_ministerunderskrift() -> Falskt
+
+@ skriv("""
+================================================================
+  AFSLUTNINGSFORMLEN
+================================================================
+
+  'Så er da nu gældende ret,
+   alle til ubrødelig efterlevelse.'
+
+  DANMARKS RIGES GRUNDLOV
+  Givet på {{underskriftssted}}, den {{underskriftsdato}}
+  Under Vor Kongelige Hånd og Segl.
+  {{kongelig_underskriver}}
+
+  Medunderskrevet af {{antal_ministre}} ministre
+  Heraf kvinder: {{antal_kvindelige_ministre}} (Helga Pedersen)
+
+DEN SIDSTE § 14-DEMONSTRATION:
+  Grundlov gyldig uden ministerunderskrift: {{grundlov_gyldig_uden_ministerunderskrift()}}
+  § 14: Kongens underskrift kræver medunderskrift.
+  Grundloven ER en kongelig handling ('Vor Kongelige Hånd').
+  Grundlovens egen gyldighed afhænger af reglen den indeholder.
+  Selvreferentiel til allersidste linje.
+
+HELGA PEDERSEN:
+  Den eneste kvinde blandt 14 underskrivere.
+  Underskrev grundloven der (§ 2) åbner tronfølgen for kvinder.
+  Dokumentet der åbnede døren havde
+  præcis én kvinde med pennen.
+""")
+
+
+-- ============================================================================
+-- DEN DANSKE GRUNDLOV — FULDSTÆNDIG I TAU
+--
+-- 89 paragraffer. 11 kapitler. 1 afslutningsformel.
+--
+-- KAPITELARKITEKTUR (endeligt kort):
+--
+-- Kap. I    (§§ 1-4):    HVAD — statsform, territorium, religion, tronfølge
+-- Kap. II   (§§ 5-11):   HVEM — monarkiet, dets betingelser og grænser
+-- Kap. III  (§§ 12-27):  HVORDAN — regering, ministre, Kongens magtudøvelse
+-- Kap. IV   (§§ 28-34):  HVEM BESTEMMER — Folketing, valg, mandater
+-- Kap. V    (§§ 35-58):  HVORDAN LOVE VIRKER — lovgivningsproces, beføjelser
+-- Kap. VI   (§§ 59-65):  HVEM DØMMER — domstole, uafhængighed, prøvelse
+-- Kap. VII  (§§ 66-70):  HVAD ER HELLIGT — Folkekirken, religionsfrihed
+-- Kap. VIII (§§ 71-85):  HVAD ER BESKYTTET — rettighedscharteret
+-- Kap. IX   (§§ 86-87):  HUSGERNING — valgretsalderbinding, islandske rettigheder
+-- Kap. X    (§ 88):      HVORDAN DET ÆNDRES — ændringsprocedure
+-- Kap. XI   (§ 89):      HVORDAN DET BEGYNDER — ikrafttræden, overgang
+--
+-- SAMTYKKE-TÆLLINGEN — ENDELIG:
+-- 8 tilfælde på tværs af 89 paragraffer:
+--   § 5:  Regent i udlandet → Folketinget
+--   § 11: Årpenge i udlandet → Folketinget
+--   § 19: Territorium/forpligtelser → Folketinget
+--   § 19: Militær magt → Folketinget
+--   § 20: Suverænitetsafgivelse → 5/6 eller folkeafstemning
+--   § 24: Benådning af rigsretsminister → Folketinget
+--   § 27: Overflytning af tjenestemand → tjenestemanden
+--   § 60: Rigsretstiltale → Folketinget
+--
+-- Kapitel VII-XI tilføjer NUL samtykke-gating.
+-- Efter de magtdefinerende kapitler (I-VI) skifter grundloven
+-- fra samtykke-gatet til absolut (rettigheder, regler, meta-regler).
+-- ============================================================================
+
+@ skriv("""
+================================================================
+  DEN DANSKE GRUNDLOV — FULDSTÆNDIG I TAU
+================================================================
+
+  89 paragraffer. 11 kapitler. 1 afslutningsformel.
+
+  Kapitelarkitektur:
+    I     (§§ 1-4):   HVAD staten ER
+    II    (§§ 5-11):  HVEM der leder
+    III   (§§ 12-27): HVORDAN magten udøves
+    IV    (§§ 28-34): HVEM DER BESTEMMER
+    V     (§§ 35-58): HVORDAN LOVE VIRKER
+    VI    (§§ 59-65): HVEM DER DØMMER
+    VII   (§§ 66-70): HVAD DER ER HELLIGT
+    VIII  (§§ 71-85): HVAD DER ER BESKYTTET
+    IX    (§§ 86-87): HUSGERNING
+    X     (§ 88):     HVORDAN DET ÆNDRES
+    XI    (§ 89):     HVORDAN DET BEGYNDER
+
+  Samtykke-tælling (endelig): 8
+  Terskelniveauer: 8 (0 til INF)
+
+  Futurunas blandede system af typer og default-logik
+  er det første programmeringssprog hvor
+  forfatningsmæssig formalisering er naturligt udtrykt.
+
+  Sproget og loven deler den samme dybe struktur.
+""")

@@ -1,0 +1,29 @@
+# Branch = Legislative | Executive | Judicial
+# Chamber = Senate | House
+# Authority = WePeople | TheStates | TheCongress | ThePresident | TheJudiciary
+# Purpose = MorePerfectUnion | EstablishJustice | DomesticTranquility | CommonDefence | GeneralWelfare | BlessingsOfLiberty
+# State = NewHampshire | Massachusetts | RhodeIsland | Connecticut | NewYork | NewJersey | Pennsylvania | Delaware | Maryland | Virginia | NorthCarolina | SouthCarolina | Georgia
+# Consent = Given | Withheld
+# PowerHolder = ExclusiveTo(branch: Branch) | ExclusiveChamber(chamber: Chamber) | SharedPower
+# VacancyMethod = WritOfElection | Appointment | TemporaryAppointment
+# PersonStatus = FreePerson | IndianNotTaxed | AllOtherPersons
+# SelectionMethod = StateLegislature | DirectElection
+# PresidingOfficer = VicePresident | ChiefJustice
+# SenateClass = ClassI | ClassII | ClassIII
+# CongressionalPower = Taxation | Borrowing | CommerceRegulation | Naturalization | Coinage | Counterfeiting | PostOffices | CopyrightPatent | InferiorCourts | Piracy | DeclareWar | RaiseArmy | MaintainNavy | MilitaryRules | CallMilitia | OrganizeMilitia | DistrictSeat | NecessaryAndProper
+
+= constitution_title = "The Constitution of the United States of America"
+= constitution_ordained = "September 17, 1787"
+= constitution_ratified = "June 21, 1788"
+= constitution_effective = "March 4, 1789"
+= total_articles = 7
+= total_amendments = 27
+
+----
+We the People of the United States, in Order to form a more perfect Union, establish Justice, insure domestic Tranquility, provide for the common defence, promote the general Welfare, and secure the Blessings of Liberty to ourselves and our Posterity, do ordain and establish this Constitution for the United States of America.
+----
+
+| sovereign_authority() -> WePeople
+| preamble_grants_power() -> False
+| binds_future_generations() -> True
+= preamble_purpose_count = 6

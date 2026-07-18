@@ -1,0 +1,104 @@
+-- module_test.runa: M3b — Qualified imports + inline modules
+-- Tests: @ import Name from ./path, > module Name { }, scope opaqueness
+
+-- ============================================================================
+-- DEMO 1: Qualified import — @ import Lib from ./export_lib
+-- ============================================================================
+
+@ print("=== Demo 1: Qualified Import ===")
+
+@ import Lib from ./export_lib
+
+-- Access exported functions via Lib.function()
+= sum = Lib.add(10, 20)
+@ print("  Lib.add(10, 20) = " + show(sum))
+
+= greeting = Lib.greet("Futuruna")
+@ print("  Lib.greet(\"Futuruna\") = " + greeting)
+
+= da = Lib.double_add(3, 5)
+@ print("  Lib.double_add(3, 5) = " + show(da))
+
+-- Access exported type constructor via Lib.Constructor
+= c = Lib.Red
+@ print("  Lib.Red = " + show(c))
+
+-- ============================================================================
+-- DEMO 2: Inline module — > module Name { }
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 2: Inline Module ===")
+
+> module Math {
+    > square(x: Int) -> Int { x * x }
+    > cube(x: Int) -> Int { x * x * x }
+}
+
+-- Qualified access only
+@ print("  Math.square(5) = " + show(Math.square(5)))
+@ print("  Math.cube(3) = " + show(Math.cube(3)))
+
+-- ============================================================================
+-- DEMO 3: Nested inline modules
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 3: Nested Modules ===")
+
+> module App {
+    > version() -> Int { 2 }
+
+    > module Utils {
+        > clamp_val(x: Int, lo: Int, hi: Int) -> Int {
+            if x < lo { lo }
+            else { if x > hi { hi } else { x } }
+        }
+    }
+}
+
+@ print("  App.version() = " + show(App.version()))
+@ print("  App.Utils.clamp_val(15, 0, 10) = " + show(App.Utils.clamp_val(15, 0, 10)))
+
+-- ============================================================================
+-- DEMO 4: Module with types
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 4: Module with Types ===")
+
+> module Shapes {
+    # Shape = Circle(Float) | Rect(Float, Float)
+
+    > area(s: Shape) -> Float {
+        match s {
+            Circle(r) -> 3.14159 * r * r
+            Rect(w, h) -> w * h
+        }
+    }
+}
+
+= circle = Shapes.Circle(5.0)
+@ print("  Shapes.Circle(5.0) area = " + show(Shapes.area(circle)))
+
+= rect = Shapes.Rect(3.0, 4.0)
+@ print("  Shapes.Rect(3,4) area = " + show(Shapes.area(rect)))
+
+-- ============================================================================
+-- DEMO 5: Cross-module function composition
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 5: Cross-Module Composition ===")
+
+-- Exported names compose across modules
+@ print("  Lib.add(1, 1) = " + show(Lib.add(1, 1)))
+@ print("  Lib.double_add(Math.square(2), 3) = " + show(Lib.double_add(Math.square(2), 3)))
+@ print("  Lib.greet(\"World\") = " + Lib.greet("World"))
+
+-- Module types compose with functions
+= green = Lib.Green
+@ print("  Lib.Green = " + show(green))
+
+@ print("")
+@ print("=== M3b: Modules complete ===")

@@ -1,0 +1,124 @@
+-- ============================================================================
+-- FORMAL VERIFICATION OF THE DANISH CONSTITUTION
+--
+-- The seven symbols meet constitutional law:
+--   #  types          -> Z3 datatypes    (legal entities)
+--   >  functions      -> Z3 define-fun   (legal rules)
+--   |  invariants     -> Z3 assertions   (constitutional guarantees)
+--   =  bindings       -> Z3 constants    (ground truth)
+--   ?  prove it       -> Z3 check-sat    (find bugs or prove correctness)
+--
+-- This file encodes the core invariants of Danmarks Riges Grundlov
+-- and asks Z3 to verify or find counterexamples.
+-- ============================================================================
+
+
+-- ============================================================================
+-- PART 1: Constitutional types
+-- ============================================================================
+
+# Trossamfund = EvangeliskLuthersk | AndetTrossamfund
+
+# Rolle = ErTronfolger | ErKonge
+
+# RegelStatus = Opfyldt | Overtreadt | IkkeRelevant
+
+# ForsikringsStatus = IkkeAfgivet | AfgivetSomTronfolger | AfgivetSomKonge
+
+# Statsmagt = Lovgivende | Udovende | Dommende
+
+# Samtykke = Givet | IkkeGivet
+
+
+-- ============================================================================
+-- PART 2: Constitutional rules
+-- ============================================================================
+
+-- ss 6: "Kongen skal hoere til den evangelisk-lutherske kirke."
+-- Applies to KONGEN only. Does NOT extend to Tronfolger.
+> check_paragraf_6(rolle: Rolle, tro: Trossamfund) -> RegelStatus {
+    match rolle {
+        | ErTronfolger -> IkkeRelevant
+        | ErKonge -> {
+            match tro {
+                | EvangeliskLuthersk -> Opfyldt
+                | AndetTrossamfund -> Overtreadt
+            }
+        }
+    }
+}
+
+-- ss 7: Age requirement. Explicitly extends to BOTH King and heir.
+> check_paragraf_7(alder: Int) -> RegelStatus {
+    if alder >= 18 { Opfyldt } else { Overtreadt }
+}
+
+-- ss 8 stk. 4: Sworn heir accedes immediately. No religious test.
+> kan_tiltraede(forsikring: ForsikringsStatus) -> Bool {
+    match forsikring {
+        | AfgivetSomTronfolger -> True
+        | AfgivetSomKonge -> True
+        | IkkeAfgivet -> False
+    }
+}
+
+-- ss 5: No foreign regency without Folketing consent.
+> regent_tilladt(samtykke: Samtykke) -> Bool {
+    match samtykke {
+        | Givet -> True
+        | IkkeGivet -> False
+    }
+}
+
+
+-- ============================================================================
+-- PART 3: Ground truth
+-- ============================================================================
+
+= muslim_tro = AndetTrossamfund
+= luthersk_tro = EvangeliskLuthersk
+= alder_25 = 25
+= alder_10 = 10
+= edsvoren = AfgivetSomTronfolger
+
+
+-- ============================================================================
+-- PART 4: Invariants
+-- ============================================================================
+
+-- 1. Lutheran King satisfies ss 6.  Expected: PROVED
+| luthersk_konge_ok: check_paragraf_6(ErKonge, luthersk_tro) -> check_paragraf_6(ErKonge, luthersk_tro) == Opfyldt
+
+-- 2. Adult heir satisfies ss 7.  Expected: PROVED
+| myndig_tronfolger: check_paragraf_7(alder_25) -> check_paragraf_7(alder_25) == Opfyldt
+
+-- 3. Minor fails ss 7.  Expected: PROVED
+| umyndig_fejler: check_paragraf_7(alder_10) -> check_paragraf_7(alder_10) == Overtreadt
+
+-- 4. Sworn heir can accede (ss 8).  Expected: PROVED
+| edsvoren_kan_tiltraede: kan_tiltraede(edsvoren) -> kan_tiltraede(edsvoren) == True
+
+-- 5. ss 6 is irrelevant for heirs.  Expected: PROVED
+| paragraf_6_irrelevant_for_tronfolger: check_paragraf_6(ErTronfolger, muslim_tro) -> check_paragraf_6(ErTronfolger, muslim_tro) == IkkeRelevant
+
+-- 6. Default: no foreign regency (ss 5).  Expected: PROVED
+| ingen_fremmed_regent: regent_tilladt(IkkeGivet) -> regent_tilladt(IkkeGivet) == False
+
+-- 7. THE MUSLIM KING PARADOX: After accession, ss 6 should hold.
+--    A Muslim heir can legally swear the oath (invariant 4 proves this).
+--    ss 8 fires: heir becomes King.
+--    But now ss 6 applies — and FAILS.
+--    Expected: COUNTEREXAMPLE FOUND
+| muslim_konge_paragraf_6: check_paragraf_6(ErKonge, muslim_tro) -> check_paragraf_6(ErKonge, muslim_tro) == Opfyldt
+
+
+-- ============================================================================
+-- PART 5: Prove it!
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  FORMAL VERIFICATION: Danmarks Riges Grundlov")
+@ print("  7 invariants: 6 should PROVE, 1 should find COUNTEREXAMPLE")
+@ print("================================================================")
+
+? all

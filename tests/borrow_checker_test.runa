@@ -1,0 +1,219 @@
+-- ============================================================================
+-- ADVERSARIAL BORROW CHECKER TEST
+-- ============================================================================
+-- Every pattern that trips up Rust newcomers, expressed in Futuruna.
+-- The Futuruna compiler must generate valid Rust for all of these.
+-- ============================================================================
+
+# Option(a) = None | Some(a)
+# List(a) = Nil | Cons(a, List(a))
+# Pair(a, b) = MkPair(a, b)
+
+-- ============================================================================
+-- TEST 1: Use-after-move — variable used after being passed to a function
+-- In Rust: `let s = String::from("hi"); foo(s); bar(s);` → ERROR
+-- Futuruna handles this with escape analysis (clone when multi-consumed)
+-- ============================================================================
+
+> consume(s: String) -> String {
+    "consumed: " + s
+}
+
+= msg = "hello world"
+@ print("T1: " + consume(msg))
+@ print("T1: " + consume(msg))
+-- ^ msg is used twice in consuming position → Futuruna should clone
+
+-- ============================================================================
+-- TEST 2: Borrow in one branch, move in another
+-- In Rust: if cond { &x } else { drop(x) } → complex borrow checker interaction
+-- Futuruna: branch-aware counting → only counts max(1,1) = 1, not 2
+-- ============================================================================
+
+> branch_test(x: String, flag: Bool) -> String {
+    if flag {
+        "yes: " + x
+    } else {
+        "no: " + x
+    }
+}
+
+@ print("T2a: " + branch_test("branch", true))
+@ print("T2b: " + branch_test("branch", false))
+
+-- ============================================================================
+-- TEST 3: Aliasing — assign variable to another, use both
+-- In Rust: let a = vec![1]; let b = a; println!("{:?}", a); → ERROR (moved)
+-- Futuruna: both are consumed → clone original
+-- ============================================================================
+
+= original = "the original"
+= alias = original
+@ print("T3a: " + original)
+@ print("T3b: " + alias)
+
+-- ============================================================================
+-- TEST 4: Use in show() (borrow) + use in consuming function
+-- show() borrows, consume() moves. Total uses = 2 but consuming = 1.
+-- Should NOT clone.
+-- ============================================================================
+
+= val = "show then consume"
+@ print("T4a: " + show(val))
+@ print("T4b: " + consume(val))
+
+-- ============================================================================
+-- TEST 5: Match arm independence — variable consumed in different arms
+-- In Rust: match scrutinee consumes. If variable used in each arm, need clone.
+-- Futuruna: branch-aware → each arm counts independently, take max
+-- ============================================================================
+
+> match_arms(opt: Option(String), fallback: String) -> String {
+    match opt {
+        | None -> "fallback: " + fallback
+        | Some(s) -> "got: " + s + " (unused: " + fallback + ")"
+    }
+}
+
+@ print("T5a: " + match_arms(None, "default"))
+@ print("T5b: " + match_arms(Some("value"), "default"))
+
+-- ============================================================================
+-- TEST 6: Recursive function consuming same param multiple times
+-- reverse_acc(xs, acc) — xs consumed by match, acc consumed in Cons or returned
+-- This is the classic recursive ownership pattern
+-- ============================================================================
+
+> my_reverse(xs: List(Int)) -> List(Int) {
+    rev_acc(xs, Nil)
+}
+
+> rev_acc(xs: List(Int), acc: List(Int)) -> List(Int) {
+    match xs {
+        | Nil -> acc
+        | Cons(h, t) -> rev_acc(t, Cons(h, acc))
+    }
+}
+
+> list_show(xs: List(Int)) -> String {
+    match xs {
+        | Nil -> "[]"
+        | Cons(h, Nil) -> "[" + show(h) + "]"
+        | Cons(h, t) -> "[" + show(h) + items_show(t) + "]"
+    }
+}
+
+> items_show(xs: List(Int)) -> String {
+    match xs {
+        | Nil -> ""
+        | Cons(h, t) -> ", " + show(h) + items_show(t)
+    }
+}
+
+= nums = Cons(1, Cons(2, Cons(3, Nil)))
+@ print("T6a: " + list_show(nums))
+@ print("T6b: " + list_show(my_reverse(nums)))
+
+-- ============================================================================
+-- TEST 7: Higher-order function — closure captures outer variable
+-- In Rust: closures capture by ref or move. Multiple uses → need Clone.
+-- Futuruna: lambda bodies are analyzed for captures
+-- ============================================================================
+
+> apply_twice(f: Int -> Int, x: Int) -> Int {
+    f(f(x))
+}
+
+= base = 10
+= adder = |x| x + base
+@ print("T7: apply_twice(+10, 5) = " + show(apply_twice(adder, 5)))
+
+-- ============================================================================
+-- TEST 8: Struct field access — reading fields without consuming struct
+-- In Rust: accessing a field of a struct may move the field out.
+-- Futuruna: field access on ADTs via match. Multiple field reads = multiple matches.
+-- ============================================================================
+
+> pair_first(p: Pair(Int, Int)) -> Int {
+    match p { | MkPair(a, _) -> a }
+}
+
+> pair_second(p: Pair(Int, Int)) -> Int {
+    match p { | MkPair(_, b) -> b }
+}
+
+> pair_sum(p: Pair(Int, Int)) -> Int {
+    pair_first(p) + pair_second(p)
+}
+
+@ print("T8: pair_sum(3,7) = " + show(pair_sum(MkPair(3, 7))))
+
+-- ============================================================================
+-- TEST 9: String building via show() — concat that goes through format!
+-- Futuruna: show(x) returns String, + with show is recognized as string concat
+-- ============================================================================
+
+= n1 = 42
+= n2 = 99
+= greeting = "values: " + show(n1) + " and " + show(n2)
+@ print("T9: " + greeting)
+
+-- ============================================================================
+-- TEST 10: Mutual recursion with ownership transfer
+-- Two functions calling each other, passing owned values back and forth
+-- ============================================================================
+
+> is_even(n: Int) -> String {
+    if n == 0 {
+        "even"
+    } else {
+        is_odd(n - 1)
+    }
+}
+
+> is_odd(n: Int) -> String {
+    if n == 0 {
+        "odd"
+    } else {
+        is_even(n - 1)
+    }
+}
+
+@ print("T10a: 4 is " + is_even(4))
+@ print("T10b: 7 is " + is_even(7))
+
+-- ============================================================================
+-- TEST 11: Variable used in loop-like recursion + after
+-- The trickiest pattern: a value used inside a recursive call AND after it
+-- ============================================================================
+
+> count_list(xs: List(Int)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(_, t) -> 1 + count_list(t)
+    }
+}
+
+= data = Cons(10, Cons(20, Cons(30, Nil)))
+= len = count_list(data)
+@ print("T11a: length = " + show(len))
+@ print("T11b: list = " + list_show(data))
+
+-- ============================================================================
+-- TEST 12: Nested pattern match — deep destructuring
+-- ============================================================================
+
+> deep_match(xs: List(Int)) -> String {
+    match xs {
+        | Nil -> "empty"
+        | Cons(_, Nil) -> "singleton"
+        | Cons(a, _) -> "starts with " + show(a)
+    }
+}
+
+@ print("T12a: " + deep_match(Nil))
+@ print("T12b: " + deep_match(Cons(42, Nil)))
+@ print("T12c: " + deep_match(Cons(1, Cons(2, Cons(3, Nil)))))
+
+@ print("")
+@ print("=== All borrow checker tests passed! ===")

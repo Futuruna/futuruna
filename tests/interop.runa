@@ -1,0 +1,83 @@
+-- interop.runa: Futuruna ↔ Rust interoperability demo
+-- Demonstrates: @ rust { } escape hatch, # impl, @ use, # trait
+
+-- A Futuruna type
+# Color = Red | Green | Blue
+
+-- A custom trait defined in Futuruna
+# trait Describable {
+    > describe(self) -> String
+}
+
+-- Implement the trait for Color
+# impl Describable for Color {
+    > describe(self) -> String {
+        match self {
+            | Red -> "warm red"
+            | Green -> "cool green"
+            | Blue -> "deep blue"
+        }
+    }
+}
+
+-- Pure Futuruna functions
+> color_value(c: Color) -> Int {
+    match c {
+        | Red -> 255
+        | Green -> 128
+        | Blue -> 64
+    }
+}
+
+> max_of(a: Int, b: Int) -> Int {
+    if a > b { a } else { b }
+}
+
+> abs(x: Int) -> Int {
+    if x < 0 { 0 - x } else { x }
+}
+
+-- @ rust { } escape hatch: raw Rust when you need it
+@ rust {
+    fn fast_sort(data: &mut Vec<i64>) {
+        data.sort_unstable();
+    }
+
+    fn rust_fibonacci(n: i64) -> i64 {
+        let (mut a, mut b) = (0i64, 1i64);
+        for _ in 0..n {
+            let tmp = a + b;
+            a = b;
+            b = tmp;
+        }
+        a
+    }
+}
+
+-- Futuruna code that calls Rust escape hatch functions
+@ print("=== Futuruna <-> Rust Interop Demo ===")
+@ print("")
+
+-- Pure Futuruna
+@ print("--- Pure Futuruna ---")
+= r = Red
+= g = Green
+= b = Blue
+@ print("Red value: " + show(color_value(r)))
+@ print("Green value: " + show(color_value(g)))
+@ print("Blue value: " + show(color_value(b)))
+@ print("max(255, 128) = " + show(max_of(255, 128)))
+@ print("abs(-42) = " + show(abs(0 - 42)))
+
+@ print("")
+@ print("--- Rust Escape Hatch ---")
+@ print("fib(10) = " + show(rust_fibonacci(10)))
+@ print("fib(20) = " + show(rust_fibonacci(20)))
+@ print("fib(30) = " + show(rust_fibonacci(30)))
+
+@ print("")
+@ print("=== The Kotlin Analogy ===")
+@ print("  Futuruna is to Rust as Kotlin is to Java.")
+@ print("  Write Futuruna for clarity. Drop to Rust for speed.")
+@ print("  Use ALL Rust libraries. Call Futuruna FROM Rust.")
+@ print("  @ rust { } is the escape hatch — never stuck.")

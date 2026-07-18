@@ -1,0 +1,127 @@
+@ sprog da
+
+-- Kapitel II -- Kongen
+
+# Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
+# Samtykke = Givet | IkkeGivet
+# ForsikringsStatus = IkkeAfgivet | AfgivetSomTronfølger
+# Regeringsfører = MonarkenSelv | VedStatsrådet | Regent(hjemmel: Tekst)
+# ArkivEksemplar = FolketingetsArkiv | Rigsarkivet
+# Monark(alder: Heltal, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
+# Tronfølger(alder: Heltal, trossamfund: Trossamfund)
+
+
+----
+§ 5. Kongen kan ikke uden folketingets samtykke være regent i andre lande.
+----
+
+> regent_i_andre_lande(samtykke: Samtykke) -> Boolsk {
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> Falskt
+    }
+}
+
+
+----
+§ 6. Kongen skal høre til den evangelisk-lutherske kirke.
+----
+
+-- Gælder KUN kongen. Paragraf 6 udvider IKKE til tronfølgeren.
+-- Sammenlign paragraf 7 som eksplicit siger "det samme gælder tronfølgeren".
+| kongens_trossamfund() -> EvangeliskLuthersk
+| troskrav_gælder_ikke_tronfølger()
+
+> opfylder_troskrav(monark: Monark) -> Boolsk {
+    skel monark.trossamfund {
+        | EvangeliskLuthersk -> Sandt
+        | Andet(_) -> Falskt
+    }
+}
+
+
+----
+§ 7. Kongen er myndig, når han har fyldt sit 18. år.
+Det samme gælder tronfølgeren.
+----
+
+-- Eksplicit udvidet til tronfølgeren — modsat paragraf 6
+> er_myndig(monark: Monark) -> Boolsk {
+    hvis monark.alder >= 18 { Sandt } ellers { Falskt }
+}
+
+> tronfølger_er_myndig(tf: Tronfølger) -> Boolsk {
+    hvis tf.alder >= 18 { Sandt } ellers { Falskt }
+}
+
+
+----
+§ 8. Forinden kongen tiltræder regeringen, afgiver han skriftligt i statsrådet
+en højtidelig forsikring om ubrødeligt at ville holde grundloven. Af
+forsikringsakten udstedes tvende ligelydende originaler, af hvilke den ene
+overgives folketinget for at opbevares i sammes arkiv, den anden nedlægges i
+rigsarkivet. Kan kongen som følge af fraværelse eller af andre grunde ikke
+umiddelbart ved tronskiftet afgive denne forsikring, føres regeringen, indtil
+dette sker, af statsrådet, medmindre anderledes ved lov bestemmes. Har kongen
+allerede som tronfølger afgivet denne forsikring, tiltræder han umiddelbart
+ved tronskiftet regeringen.
+----
+
+> hvem_regerer_ved_tronskifte(monark: Monark, til_stede: Boolsk, særlov: Boolsk) -> Regeringsfører {
+    skel monark.forsikring {
+        | AfgivetSomTronfølger -> MonarkenSelv
+        | IkkeAfgivet -> {
+            hvis til_stede {
+                MonarkenSelv
+            } ellers {
+                hvis særlov {
+                    Regent("Fastsat ved særlov")
+                } ellers {
+                    VedStatsrådet
+                }
+            }
+        }
+    }
+}
+
+| forsikringsakt_eksemplar_1() -> FolketingetsArkiv
+| forsikringsakt_eksemplar_2() -> Rigsarkivet
+
+
+----
+§ 9. Bestemmelser angående regeringens førelse i tilfælde af kongens
+umyndighed, sygdom eller fraværelse fastsættes ved lov. Er der ved
+tronledighed ingen tronfølger, vælger folketinget en konge og fastsætter
+den fremtidige arvefølge.
+----
+
+| regentskab_fastsættes_ved_lov()
+| folketinget_vælger_konge_ved_tronledighed()
+
+
+----
+§ 10. Stk. 1. Statens ydelse til kongen bestemmes for hans regeringstid ved
+lov. Ved denne fastsættes tillige, hvilke slotte og andre statsejendele der
+skal overlades kongen til brug.
+
+Stk. 2. Statsydelsen kan ikke behæftes med gæld.
+----
+
+| statsydelse_fastsættes_ved_lov()
+| statsydelse_gæld_forbudt()
+
+
+----
+§ 11. For medlemmer af det kongelige hus kan der bestemmes årpenge ved lov.
+Årpengene kan ikke uden folketingets samtykke nydes uden for riget.
+----
+
+| årpenge_fastsættes_ved_lov()
+| årpenge_ikke_obligatoriske()
+
+> årpenge_i_udlandet(samtykke: Samtykke) -> Boolsk {
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> Falskt
+    }
+}

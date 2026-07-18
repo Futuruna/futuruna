@@ -1,0 +1,21 @@
+-- block_comment_test.runa: Test multiline block comments
+
+----
+This is a block comment.
+It can span multiple lines.
+Anything goes here: symbols, --dashes--, "strings", { braces }
+----
+
+> greet() -> String { "hello from Futuruna" }
+
+----
+This entire section is commented out.
+> dead_code() -> Int { 42 }
+Even invalid syntax: }{][>><< doesn't matter
+----
+
+-- regular line comment still works
+@ print(greet())
+
+---- inline block comment ----
+@ print("block comments work!")

@@ -1,0 +1,8 @@
+| personlig_frihed_ukraenkelig() -> True
+
+> frihedsberoevselse_lovlig(hjemmel: Bool) -> Bool {
+    if hjemmel { True } else { False }
+}
+
+@ print("Regel: " + show(personlig_frihed_ukraenkelig()))
+@ print("Func: " + show(frihedsberoevselse_lovlig(True)))

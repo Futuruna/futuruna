@@ -1,0 +1,68 @@
+-- hash_test.runa: Content-Addressed Modules Demo (Unison's Lesson)
+-- Demonstrates: AST hashing, @ import #hash from ./module, identity = structure
+
+-- ============================================================================
+-- DEMO 1: Import by content hash
+-- ============================================================================
+
+@ print("=== Demo 1: Import by Content Hash ===")
+@ print("")
+
+-- Import specific functions by their content hash
+-- square(x) = x * x from hash_math (hash: ea5c367fd2c0)
+@ import #ea5c367fd2c0 from ./hash_math
+
+-- triple(x) = x * 3 from hash_alt (hash: 4f9985663dfc)
+@ import #4f9985663dfc from ./hash_alt
+
+@ print("  square(7) = " + show(square(7)))
+@ print("  triple(7) = " + show(triple(7)))
+
+-- ============================================================================
+-- DEMO 2: Same hash, different source files
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 2: Same Hash = Same Code (Unison Property) ===")
+@ print("")
+
+-- factorial has hash 1aefc1ce66b3 in BOTH hash_math.runa and hash_alt.runa
+-- because the body is identical. Import from either file — same code.
+@ import #1aefc1ce66b3 from ./hash_math
+
+@ print("  factorial(10) = " + show(factorial(10)))
+@ print("  (imported by hash — works from either file)")
+
+-- ============================================================================
+-- DEMO 3: Different hash, same name
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 3: Different Hash = Different Code ===")
+@ print("")
+
+-- hash_math.runa: square = x * x → #ea5c367fd2c0
+-- hash_alt.runa:  square = x + x → #3ef770dc0bd7
+-- The hash captures STRUCTURE, not names.
+@ print("  hash_math square(5) = " + show(square(5)))
+@ print("  (x*x, hash ea5c367fd2c0)")
+@ print("  hash_alt square would be x+x, hash 3ef770dc0bd7")
+@ print("  Identity is structure, not names.")
+
+-- ============================================================================
+-- DEMO 4: Compose imported functions
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 4: Compose Hash-Imported Functions ===")
+@ print("")
+
+= result = square(triple(4))
+@ print("  square(triple(4)) = " + show(result))
+@ print("  (12^2 = 144)")
+
+@ print("")
+@ print("=== Content-Addressed Modules: identity is structure, not names ===")
+@ print("  Same body → same hash, regardless of name or file.")
+@ print("  No dependency conflicts. No versioning needed.")
+@ print("  The code IS the identity.")

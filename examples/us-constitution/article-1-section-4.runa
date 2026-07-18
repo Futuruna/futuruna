@@ -1,0 +1,15 @@
+@ import ./constitution
+
+----
+The Times, Places and Manner of holding Elections for Senators and Representatives, shall be prescribed in each State by the Legislature thereof; but the Congress may at any time by Law make or alter such Regulations, except as to the Places of chusing Senators.
+----
+
+| election_rules_set_by_default() -> TheStates
+| congress_can_override_election_rules() -> True
+| congress_can_set_senate_election_place() -> False
+
+----
+The Congress shall assemble at least once in every Year, and such Meeting shall be on the first Monday in December, unless they shall by Law appoint a different Day.
+----
+
+= minimum_sessions_per_year = 1

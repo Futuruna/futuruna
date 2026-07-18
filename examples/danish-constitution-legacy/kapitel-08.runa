@@ -1,0 +1,957 @@
+@ sprog da
+
+-- ============================================================================
+-- Kapitel VIII — Borgernes grundrettigheder (§§ 71-85)
+--
+-- Femten paragraffer. Rettighedscharteret. Det længste kapitel.
+--
+-- Arkitekturen:
+--   §§ 71-72: KROP — personlig frihed + boligens ukrænkelighed
+--   §§ 73-74: EJENDOM — ejendomsret + fri erhvervsadgang
+--   §§ 75-76: VELFÆRD — ret til arbejde, social sikkerhed, undervisning
+--   §§ 77-79: UDTRYK — ytringsfrihed, foreningsfrihed, forsamlingsfrihed
+--   §§ 80-81: MAGT — opløbskontrol + værnepligt
+--   §§ 82-84: STRUKTUR — kommunalt selvstyre, afskaffelse af feudalisme
+--   § 85:     UNDTAGELSEN — militæret kan begrænse §§ 71, 78, 79
+--
+-- Hver rettighed følger ét af tre mønstre:
+--   UKRÆNKELIG: "er ukrænkelig" (ingen undtagelsesklausul)
+--   DEFAULT + UNDTAGELSE: retten eksisterer, men "dog"/"medmindre" begrænser
+--   ASPIRATIONEL: "bør tilstræbes" (ikke en garanti)
+--
+-- Dette kapitel er hvor grundloven taler direkte til BORGEREN,
+-- ikke til institutioner. Kapitel I-VII definerer statens arkitektur.
+-- Kapitel VIII siger hvad staten IKKE KAN GØRE MOD DIG.
+-- ============================================================================
+
+-- Rettighedsklassifikation
+# RettighedsStyrke = Ukrænkelig | DefaultMedUndtagelse | Aspirationel | Delegeret
+# Diskriminationsgrund = PolitiskOverbevisning | ReligiøsOverbevisning | Afstamning
+
+-- Frihedsberøvelse
+# FrihedsberøvelsesHjemmel = MedHjemmelILov | UdenHjemmel
+# DommerPrøvelse = Inden24Timer | Inden3Dage | StraksTilHøjereRet
+
+-- Ejendom
+# EkspropriationsKrav = AlmenvelKræverDet | VedLov | FuldstændigErstatning
+
+-- Ytring
+# CensurStatus = ForbudtForEvigt
+
+-- Forsamling
+# ForsamlingsType = Indendørs | Udendørs
+# BevæbnelsesStatus = Ubevæbnede | Bevæbnede
+
+-- Modalitet
+# RettighedsModalitet = Ukrænkelig | RetTil | Skal | BørTilstræbes
+
+-- Militærundtagelse
+# Paragraf = P71 | P72 | P73 | P74 | P77 | P78 | P79
+
+-- Køn (fra kapitel-01)
+# Køn = Mand | Kvinde
+
+
+@ skriv("""
+================================================================
+  Kapitel VIII: Borgernes grundrettigheder (§§ 71-85)
+  Femten paragraffer — rettighedscharteret
+================================================================
+""")
+
+
+-- ============================================================================
+-- § 71: PERSONLIG FRIHED — den mest detaljerede paragraf i kapitel VIII.
+--
+-- 7 stykker. Et komplet habeas corpus-system.
+--
+-- Stk. 1: Personlig frihed er UKRÆNKELIG.
+--   + TRE diskriminationsgrunde: politisk overbevisning, religiøs
+--     overbevisning, afstamning. Krydsref § 70 (tro + afstamning) — § 71
+--     TILFØJER politisk overbevisning. Man kan ikke fængsles for sin politik.
+--
+-- Stk. 2: Frihedsberøvelse KUN med hjemmel i loven.
+--
+-- Stk. 3: 24-timers reglen + 3-dages reglen.
+--   Anholdt → for en dommer inden 24 TIMER.
+--   Dommeren skal afgøre inden 3 DAGE: fængsel, løsladelse eller kaution.
+--   GRØNLAND-UNDTAGELSE: kan fraviges ved lov
+--   Den ENESTE grundrettighed med geografisk undtagelse.
+--
+-- Stk. 4: Kendelse kan indbringes for højere ret STRAKS.
+--
+-- Stk. 5: Ingen varetægtsfængsel for bøde-forseelser. Proportionalitet.
+--
+-- Stk. 6: Ikke-strafferetlig frihedsberøvelse (psykiatri, forvaring)
+--   kan prøves af domstolene på begæring.
+--
+-- Stk. 7: Folketingets tilsyn med administrativ frihedsberøvelse.
+--   De indbragte kan henvende sig DIREKTE til tilsynet.
+-- ============================================================================
+
+----
+§ 71. Stk. 1. Den personlige frihed er ukrænkelig. Ingen dansk borger kan på grund af sin politiske eller religiøse overbevisning eller sin afstamning underkastes nogen form for frihedsberøvelse.
+
+Stk. 2. Frihedsberøvelse kan kun finde sted med hjemmel i loven.
+
+Stk. 3. Enhver, der anholdes, skal inden 24 timer stilles for en dommer. Hvis den anholdte ikke straks kan sættes på fri fod, skal dommeren ved en af grunde ledsaget kendelse, der afsiges snarest muligt og senest inden tre dage, afgøre, om han skal fængsles, og, hvis han kan løslades mod sikkerhed, bestemme dennes art og størrelse. Denne bestemmelse kan for Grønlands vedkommende fraviges ved lov, forsåvidt dette efter de stedlige forhold må anses for påkrævet.
+
+Stk. 4. Den kendelse, som dommeren afsiger, kan af vedkommende straks særskilt indbringes for højere ret.
+
+Stk. 5. Ingen kan underkastes varetægtsfængsel for en forseelse, som kun kan medføre straf af bøde eller hæfte.
+
+Stk. 6. Udenfor strafferetsplejen skal lovligheden af en frihedsberøvelse, der ikke er besluttet af en dømmende myndighed, og som ikke har hjemmel i lovgivningen om udlændinge, på begæring af den, der er berøvet sin frihed, eller den, der handler på hans vegne, forelægges de almindelige domstole eller anden dømmende myndighed til prøvelse. Nærmere regler herom fastsættes ved lov.
+
+Stk. 7. Behandlingen af de i stk. 6 nævnte personer undergives et af folketinget valgt tilsyn, hvortil de pågældende skal have adgang til at rette henvendelse.
+----
+
+= frist_for_dommer = 24
+= frist_for_kendelse = 3
+
+| personlig_frihed_ukrænkelig() -> Sandt
+
+> frihedsberøvelse_lovlig(hjemmel: FrihedsberøvelsesHjemmel) -> Bool {
+    -- § 71 stk. 2: KUN med hjemmel i loven
+    skel hjemmel {
+        | MedHjemmelILov -> Sandt
+        | UdenHjemmel -> Falskt
+    }
+}
+
+> kan_frihedsberøves_pga(grund: Diskriminationsgrund) -> Bool {
+    -- § 71 stk. 1: INGEN af disse grunde retfærdiggør frihedsberøvelse
+    skel grund {
+        | PolitiskOverbevisning -> Falskt
+        | ReligiøsOverbevisning -> Falskt
+        | Afstamning -> Falskt
+    }
+}
+
+-- § 71 stk. 3: Ja, hvis stedlige forhold kræver det
+| grønland_undtagelse_fra_24_timer() -> Sandt
+
+-- § 71 stk. 5: Ingen varetægtsfængsel for bøde-forseelser
+| varetægtsfængsel_for_bødeforseelse() -> Falskt
+
+-- § 71 stk. 7: Ja — folketingets tilsyn, med direkte henvendelsesadgang
+| folketingets_tilsyn_med_administrativ_frihedsberøvelse() -> Sandt
+
+@ skriv("""
+--- § 71: Personlig frihed (7 stykker — habeas corpus) ---
+
+Personlig frihed ukrænkelig: {{personlig_frihed_ukrænkelig()}}
+Frihedsberøvelse med hjemmel: {{frihedsberøvelse_lovlig(MedHjemmelILov)}}
+Frihedsberøvelse uden hjemmel: {{frihedsberøvelse_lovlig(UdenHjemmel)}}
+
+Kan frihedsberøves pga.:
+  Politisk overbevisning: {{kan_frihedsberøves_pga(PolitiskOverbevisning)}}
+  Religiøs overbevisning: {{kan_frihedsberøves_pga(ReligiøsOverbevisning)}}
+  Afstamning: {{kan_frihedsberøves_pga(Afstamning)}}
+
+TIDSFRISTERNE:
+  Anholdt → for en dommer: inden {{frist_for_dommer}} timer
+  Dommer → kendelse: inden {{frist_for_kendelse}} dage
+  Kendelse → appel: STRAKS (ingen ventetid)
+
+GRØNLAND-UNDTAGELSEN:
+  24-timers reglen kan fraviges for Grønland: {{grønland_undtagelse_fra_24_timer()}}
+  Den ENESTE grundrettighed med geografisk undtagelse.
+
+PROPORTIONALITET:
+  Varetægtsfængsel for bødeforseelse: {{varetægtsfængsel_for_bødeforseelse()}}
+
+ADMINISTRATIV FRIHEDSBERØVELSE (psykiatri, forvaring):
+  Kan prøves af domstolene: ja (stk. 6)
+  Folketingets tilsyn: {{folketingets_tilsyn_med_administrativ_frihedsberøvelse()}}
+  De indbragte kan henvende sig DIREKTE til tilsynet.
+
+DISKRIMINATIONS-UDVIDELSE (§ 70 → § 71):
+  § 70: trosbekendelse + afstamning
+  § 71: + POLITISK overbevisning
+  § 71 tilføjer en beskyttelsesgrund som § 70 mangler.
+""")
+
+
+-- ============================================================================
+-- § 72: BOLIGENS UKRÆNKELIGHED.
+--
+-- "Boligen er ukrænkelig."
+--
+-- Undtagelserne (default logic i teksten):
+--   Husundersøgelse, beslaglæggelse, undersøgelse af breve/papirer,
+--   brud på post-/telegraf-/telefonhemmeligheden
+--   → KUN ved retskendelse
+--   → MEDMINDRE en lov hjemler en særegen undtagelse
+--
+-- "Hvor ingen lov hjemler en særegen undtagelse" = default + undtagelse.
+--
+-- Bemærk: "telegraf- og telefonhemmeligheden" — skrevet i 1953.
+-- Dækker det email? Internet? Grundloven nævner sin tids teknologier.
+-- ============================================================================
+
+----
+§ 72. Boligen er ukrænkelig. Husundersøgelse, beslaglæggelse og undersøgelse af breve og andre papirer samt brud på post-, telegraf- og telefonhemmeligheden må, hvor ingen lov hjemler en særegen undtagelse, alene ske efter en retskendelse.
+----
+
+| bolig_ukrænkelig() -> Sandt
+
+| husundersøgelse_krav() -> "retskendelse"
+| undtagelse særlov husundersøgelse_krav() -> "særlov" under særlov_eksisterer()
+
+| særlov_eksisterer() -> Falskt
+
+-- § 72: post, telegraf, telefon. Tekst fra 1953.
+| kommunikationshemmelighed_beskyttet() -> Sandt
+
+@ skriv("""
+--- § 72: Boligens ukrænkelighed ---
+
+Bolig ukrænkelig: {{bolig_ukrænkelig()}}
+Husundersøgelse krav: retskendelse (default) | særlov (undtagelse)
+Kommunikationshemmelighed: {{kommunikationshemmelighed_beskyttet()}}
+
+DEFAULT LOGIC i teksten:
+  | husundersøgelse -> retskendelse
+  | undtagelse særlov -> tilladt under lov hjemler undtagelse
+  'Hvor ingen lov hjemler' = tavs default + undtagelse.
+
+TEKNOLOGISK FORÆLDRING:
+  Teksten nævner: post, telegraf, telefon (1953)
+  Ikke nævnt: email, internet, metadata, GPS-sporing
+  Fortolkning må udvide — men teksten er bundet til sin tid.
+""")
+
+
+-- ============================================================================
+-- § 73: EJENDOMSRET — den mest beskyttede rettighed.
+--
+-- Stk. 1: Tre samtidige krav til ekspropriation:
+--   1. Almenvellet kræver det
+--   2. "ifølge lov" — kun ved lov (ikke bekendtgørelse)
+--   3. "fuldstændig erstatning" — FULD erstatning
+--   Alle tre skal være opfyldt. Mangler ÉT = grundlovsstridigt.
+--
+-- Stk. 2: Ekspropriations-minoritetsvetoen — UNIK i grundloven.
+--   1/3 af Folketinget (60 MP'er) kan kræve at loven PAUSES.
+--   Nyvalg skal afholdes. Nyt Folketing skal vedtage igen.
+--   SVÆRERE end § 42-folkeafstemningen (også 1/3).
+--   Den eneste rettighed hvor minoriteten kan fremtvinge NYVALG.
+--
+-- Stk. 3: Ekspropriationens lovlighed + erstatningens størrelse
+--   kan prøves af domstolene.
+--
+-- FEM beskyttelseslag (unikt i grundloven):
+--   1. Krav om lov
+--   2. Krav om fuld erstatning
+--   3. Krav om almenvel
+--   4. 1/3 minoritet kan fremtvinge nyvalg
+--   5. Fuld domstolsprøvelse af lovlighed OG erstatning
+-- ============================================================================
+
+----
+§ 73. Stk. 1. Ejendomsretten er ukrænkelig. Ingen kan tilpligtes at afstå sin ejendom, uden hvor almenvellet kræver det. Det kan kun ske ifølge lov og mod fuldstændig erstatning.
+
+Stk. 2. Når et lovforslag vedrørende ekspropriation af ejendom er vedtaget, kan en trediedel af folketingets medlemmer indenfor en frist af tre søgnedage fra forslagets endelige vedtagelse kræve, at det først indstilles til kongelig stadfæstelse, når nyvalg til folketinget har fundet sted, og forslaget påny er vedtaget af det derefter sammentrædende folketing.
+
+Stk. 3. Ethvert spørgsmål om ekspropriationsaktens lovlighed og erstatningens størrelse kan indbringes for domstolene. Prøvelsen af erstatningens størrelse kan ved lov henlægges til domstole oprettet i dette øjemed.
+----
+
+= ekspropriation_minoritet = 60
+
+> ekspropriation_lovlig(almenvel: Bool, ved_lov: Bool, fuld_erstatning: Bool) -> Bool {
+    -- § 73 stk. 1: ALLE TRE kræves
+    hvis almenvel {
+        hvis ved_lov {
+            hvis fuld_erstatning { Sandt }
+            ellers { Falskt }
+        } ellers { Falskt }
+    } ellers { Falskt }
+}
+
+> minoritetsveto_ekspropriation(mp_imod: Int) -> Bool {
+    -- § 73 stk. 2: 1/3 kan fremtvinge nyvalg
+    hvis mp_imod >= ekspropriation_minoritet { Sandt } ellers { Falskt }
+}
+
+-- § 73 stk. 3: både lovlighed OG erstatningens størrelse
+| domstolsprøvelse_ekspropriation() -> Sandt
+
+@ skriv("""
+--- § 73: Ejendomsret (den mest beskyttede rettighed) ---
+
+Ejendomsretten er ukrænkelig.
+
+Ekspropriation krav (ALLE tre samtidige):
+  1. Almenvellet kræver det
+  2. Ifølge lov (ikke bekendtgørelse)
+  3. Fuldstændig erstatning
+
+Ekspropriation lovlig (alle opfyldt): {{ekspropriation_lovlig(Sandt, Sandt, Sandt)}}
+Ekspropriation lovlig (mangler lov): {{ekspropriation_lovlig(Sandt, Falskt, Sandt)}}
+Ekspropriation lovlig (mangler erstatning): {{ekspropriation_lovlig(Sandt, Sandt, Falskt)}}
+Ekspropriation lovlig (mangler almenvel): {{ekspropriation_lovlig(Falskt, Sandt, Sandt)}}
+
+MINORITETSVETOEN (stk. 2):
+  1/3 af Folketinget ({{ekspropriation_minoritet}} MP'er) kan kræve nyvalg
+  Nyt Folketing skal vedtage igen
+  59 MP'er imod: veto? {{minoritetsveto_ekspropriation(59)}}
+  60 MP'er imod: veto? {{minoritetsveto_ekspropriation(60)}}
+
+FEM BESKYTTELSESLAG (unikt i grundloven):
+  1. Krav om lov
+  2. Krav om fuld erstatning
+  3. Krav om almenvel
+  4. 1/3 minoritet kan fremtvinge nyvalg
+  5. Fuld domstolsprøvelse af lovlighed OG erstatning
+  Ingen anden rettighed har 5 lag.
+""")
+
+
+-- ============================================================================
+-- § 74: FRI OG LIGE ERHVERVSADGANG.
+--
+-- "Alle indskrænkninger i den fri og lige adgang til erhverv,
+--  som ikke er begrundede i det almene vel, skal hæves ved lov."
+--
+-- Default: fri og lige adgang til erhverv.
+-- Undtagelse: begrænsninger begrundet i almenvellet.
+-- De ubegrundede SKAL ophæves ved lov ("skal hæves").
+--
+-- Et MANDAT TIL AT DEREGULERE: grundloven pålægger Folketinget
+-- at fjerne ubegrundede erhvervsbegrænsninger. Ikke aspirationelt — "skal".
+-- ============================================================================
+
+----
+§ 74. Alle indskrænkninger i den fri og lige adgang til erhverv, som ikke er begrundede i det almene vel, skal hæves ved lov.
+----
+
+| fri_erhvervsadgang() -> Sandt
+| undtagelse almenvel_begrænsning fri_erhvervsadgang() -> Falskt under begrænset_af_almenvel()
+
+| begrænset_af_almenvel() -> Falskt
+
+@ skriv("""
+--- § 74: Fri og lige erhvervsadgang ---
+Fri erhvervsadgang (default): sandt | undtagelse: almenvel
+Undtagelse: begrænsninger begrundet i almenvellet
+'Skal hæves ved lov' = MANDAT til at deregulere
+Grundloven PÅLÆGGER Folketinget at fjerne ubegrundede restriktioner.
+""")
+
+
+-- ============================================================================
+-- § 75: RET TIL ARBEJDE + SOCIAL SIKKERHED.
+--
+-- Stk. 1: "bør det tilstræbes" — BØR TILSTRÆBES.
+--   ASPIRATIONELT, ikke en garanti.
+--   Grundlovens SVAGESTE modalitet: "bør".
+--
+-- Stk. 2: Socialt sikkerhedsnet — BETINGET.
+--   Hvis du ikke kan ernære dig selv eller dine,
+--   OG ingen anden er forsørgelsespligtig,
+--   SÅ er du berettiget til offentlig hjælp.
+--   MEN: du skal underkaste dig lovens forpligtelser.
+--
+-- Det modale hierarki i kapitel VIII:
+--   "ukrænkelig" (§§ 71, 72, 73) — urokkeligt (stærkest)
+--   "ret til" (§§ 76-79) — positiv rettighed
+--   "skal" (§ 74) — påbudt
+--   "bør tilstræbes" (§ 75.1) — aspiration (svagest)
+-- ============================================================================
+
+----
+§ 75. Stk. 1. Til fremme af almenvellet bør det tilstræbes, at enhver arbejdsduelig borger har mulighed for arbejde på vilkår, der betrygger hans tilværelse.
+
+Stk. 2. Den, der ikke selv kan ernære sig eller sine, og hvis forsørgelse ikke påhviler nogen anden, er berettiget til hjælp af det offentlige, dog mod at underkaste sig de forpligtelser, som loven herom påbyder.
+----
+
+> ret_til_arbejde() -> RettighedsModalitet {
+    -- § 75 stk. 1: "bør tilstræbes" — IKKE en rettighed!
+    BørTilstræbes
+}
+
+> ret_til_hjælp(kan_ernære_sig: Bool, anden_forsørger: Bool) -> Bool {
+    -- § 75 stk. 2: kun hvis du ikke kan forsørge dig selv OG ingen anden er ansvarlig
+    hvis kan_ernære_sig { Falskt }
+    ellers {
+        hvis anden_forsørger { Falskt }
+        ellers { Sandt }
+    }
+}
+
+-- § 75 stk. 2: "dog mod at underkaste sig de forpligtelser"
+| hjælp_er_betinget() -> Sandt
+
+@ skriv("""
+--- § 75: Arbejde og social sikkerhed ---
+
+Ret til arbejde: {{ret_til_arbejde()}}
+  NB: 'bør tilstræbes' er IKKE en garanti!
+  Det er en aspiration — grundlovens svageste modalitet.
+
+Ret til offentlig hjælp:
+  Kan ernære sig selv: {{ret_til_hjælp(Sandt, Falskt)}}
+  Kan ikke, men har forsørger: {{ret_til_hjælp(Falskt, Sandt)}}
+  Kan ikke, ingen forsørger: {{ret_til_hjælp(Falskt, Falskt)}}
+  Hjælpen er betinget: {{hjælp_er_betinget()}}
+  = Social kontrakt, ikke ubetinget velfærd.
+
+MODALT HIERARKI i kapitel VIII:
+  1. 'ukrænkelig' (§§ 71, 72, 73) — urokkelig
+  2. 'ret til' (§§ 76-79) — positiv rettighed
+  3. 'skal' (§ 74) — påbudt
+  4. 'bør tilstræbes' (§ 75.1) — aspiration
+  Grundloven GRADUERER sine løfter.
+""")
+
+
+-- ============================================================================
+-- § 76: RET TIL FRI UNDERVISNING + RET TIL HJEMMEUNDERVISNING.
+--
+-- TO rettigheder i én paragraf:
+--   1. ALLE børn har ret til FRI undervisning i folkeskolen
+--   2. Forældre der selv sørger for tilsvarende undervisning
+--      er IKKE forpligtet til at sende børn i folkeskolen
+--
+-- Staten garanterer fri undervisning (pligt PÅ staten).
+-- Forældre kan vælge alternativ HVIS de matcher standarden.
+-- Staten sætter standarden, men kan ikke tvinge leveringen.
+-- ============================================================================
+
+----
+§ 76. Alle børn i den undervisningspligtige alder har ret til fri undervisning i folkeskolen. Forældre eller værger, der selv sørger for, at børnene får en undervisning, der kan stå mål med, hvad der almindeligvis kræves i folkeskolen, er ikke pligtige at lade børnene undervise i folkeskolen.
+----
+
+| ret_til_fri_undervisning() -> Sandt
+
+> pligt_til_folkeskole(forældre_sørger_selv: Bool, står_mål: Bool) -> Bool {
+    -- § 76: ingen forpligtelse HVIS forældre yder tilsvarende undervisning
+    hvis forældre_sørger_selv {
+        hvis står_mål { Falskt }
+        ellers { Sandt }
+    } ellers { Sandt }
+}
+
+@ skriv("""
+--- § 76: Fri undervisning og hjemmeundervisning ---
+Ret til fri undervisning: {{ret_til_fri_undervisning()}}
+Pligt til folkeskole (ingen alternativ): {{pligt_til_folkeskole(Falskt, Falskt)}}
+Pligt til folkeskole (hjemme, utilstrækkelig): {{pligt_til_folkeskole(Sandt, Falskt)}}
+Pligt til folkeskole (hjemme, tilstrækkelig): {{pligt_til_folkeskole(Sandt, Sandt)}}
+
+TO rettigheder i én paragraf:
+  1. Staten SKAL tilbyde fri undervisning (pligt på staten)
+  2. Forældre KAN vælge alternativ (frihed FRA staten)
+  Staten sætter standarden, men kan ikke tvinge leveringen.
+""")
+
+
+-- ============================================================================
+-- § 77: YTRINGSFRIHED — med grundlovens stærkeste forbud.
+--
+-- Sætning 1: "Enhver er berettiget til på tryk, i skrift og tale
+--   at offentliggøre sine tanker, dog under ansvar for domstolene."
+--   → Ret til at udgive, men med ANSVAR over for domstolene.
+--
+-- Sætning 2: "Censur og andre forebyggende forholdsregler kan
+--   INGENSINDE PÅNY indføres."
+--   → Censur kan ALDRIG IGEN indføres.
+--
+-- "Ingensinde påny" — aldrig igen. Ikke "kan ikke". Det er
+-- TEMPORALT + ABSOLUT. "Påny" refererer til censurregimet før 1849.
+-- En forfatningsmæssig LOVNING OM FREMTIDEN.
+--
+-- Hårdhedsniveau 5 — hårdere end grundlovsændring?
+-- § 88 tillader ændring af enhver bestemmelse. § 77 siger "ingensinde".
+-- Ustoppelig kraft vs urokkelig genstand.
+--
+-- SKELLET:
+--   Censur (før offentliggørelse) = FORBUDT FOR EVIGT
+--   Ansvar (efter offentliggørelse) = tilladt (domstolene afgør)
+-- ============================================================================
+
+----
+§ 77. Enhver er berettiget til på tryk, i skrift og tale at offentliggøre sine tanker, dog under ansvar for domstolene. Censur og andre forebyggende forholdsregler kan ingensinde påny indføres.
+----
+
+= censur_status = ForbudtForEvigt
+
+| ytringsfrihed() -> Sandt
+
+-- § 77: "ingensinde påny" — aldrig igen
+| censur_tilladt() -> Falskt
+
+> ansvar_for_ytringer() -> String {
+    -- § 77: "under ansvar for domstolene"
+    "Domstolene (efter offentliggørelse, aldrig før)"
+}
+
+@ skriv("""
+--- § 77: Ytringsfrihed (det stærkeste forbud i grundloven) ---
+
+Ytringsfrihed: {{ytringsfrihed()}}
+Censur tilladt: {{censur_tilladt()}}
+Ansvar for ytringer: {{ansvar_for_ytringer()}}
+
+'INGENSINDE PÅNY' — aldrig igen.
+  Ikke 'kan ikke' (cannot) — 'ingensinde påny' (never again).
+  Temporalt + absolut. En forfatningsmæssig LOVNING om fremtiden.
+  Refererer til censurregimet før 1849.
+
+  Hårdhedsniveau 5 — hårdere end grundlovsændring?
+  Kan man ændre 'ingensinde' med § 88?
+  Grundloven siger det aldrig kan ske (§ 77).
+  Grundloven siger alt kan ændres (§ 88).
+  Ustoppelig kraft vs urokkelig genstand.
+
+SKELLET:
+  Censur (før offentliggørelse) = FORBUDT FOR EVIGT
+  Ansvar (efter offentliggørelse) = tilladt (domstolene)
+  Forhindre talen: nej. Straffe talen: ja.
+""")
+
+
+-- ============================================================================
+-- § 78: FORENINGSFRIHED — med ekstraordinære beskyttelser.
+--
+-- Stk. 1: Ret til at danne foreninger "uden forudgående tilladelse"
+--   "i ethvert lovligt øjemed" — ingen registrering, ingen godkendelse.
+--
+-- Stk. 2: Foreninger der bruger VOLD → opløses ved DOM.
+--   Ikke af regering — af domstol.
+--
+-- Stk. 3: NØGLEBESKYTTELSEN:
+--   "Ingen forening kan opløses ved en regeringsforanstaltning."
+--   Regering kan MIDLERTIDIGT forbyde, men SKAL straks anlægge sag.
+--
+-- Stk. 4: Politiske foreninger → direkte til Højesteret.
+--   Ingen underretsprøvelse nødvendig.
+--
+-- Forfatningsmæssig ASYMMETRI:
+--   At DANNE en forening: ingen tilladelse
+--   At OPLØSE en forening: kræver domstol
+--   Nemmere at eksistere end at blive destrueret.
+--   Forfatningens værn mod autoritarisme.
+-- ============================================================================
+
+----
+§ 78. Stk. 1. Borgerne har ret til uden forudgående tilladelse at danne foreninger i ethvert lovligt øjemed.
+
+Stk. 2. Foreninger, der virker ved eller søger at nå deres mål ved vold, anstiftelse af vold eller lignende strafbar påvirkning af anderledes tænkende, bliver at opløse ved dom.
+
+Stk. 3. Ingen forening kan opløses ved en regeringsforanstaltning. Dog kan en forening foreløbig forbydes, men der skal da straks anlægges sag imod den til dens opløsning.
+
+Stk. 4. Sager om opløsning af politiske foreninger skal uden særlig tilladelse kunne indbringes for rigets øverste domstol.
+
+Stk. 5. Opløsningens retsvirkninger fastsættes nærmere ved lov.
+----
+
+-- § 78 stk. 1: Ingen forudgående tilladelse
+| foreningsfrihed_forudgående_tilladelse() -> Falskt
+
+-- § 78 stk. 3: ALDRIG. Kun ved domstol.
+| forening_kan_opløses_af_regering() -> Falskt
+
+-- § 78 stk. 3: Ja, men der skal straks anlægges sag om opløsning
+| forening_kan_foreløbig_forbydes_af_regering() -> Sandt
+
+-- § 78 stk. 4: Ja, uden særlig tilladelse
+| politisk_forening_direkte_til_højesteret() -> Sandt
+
+@ skriv("""
+--- § 78: Foreningsfrihed ---
+
+Krav om forudgående tilladelse: {{foreningsfrihed_forudgående_tilladelse()}}
+Kan opløses af regering: {{forening_kan_opløses_af_regering()}}
+Kan foreløbig forbydes: {{forening_kan_foreløbig_forbydes_af_regering()}}
+  → men der SKAL straks anlægges sag om opløsning
+Politisk forening direkte til Højesteret: {{politisk_forening_direkte_til_højesteret()}}
+
+DEN FORFATNINGSMÆSSIGE ASYMMETRI:
+  At DANNE en forening: ingen tilladelse
+  At OPLØSE en forening: kræver domstol
+  Det er nemmere at eksistere end at blive destrueret.
+  Forfatningens værn mod autoritarisme.
+""")
+
+
+-- ============================================================================
+-- § 79: FORSAMLINGSFRIHED — med graduerede grænser.
+--
+-- Sætning 1: Ret til at samles "uden forudgående tilladelse" + "ubevæbnede"
+-- Sætning 2: Politiet har ret til at OVERVÆRE offentlige forsamlinger.
+--   "Overvære" — observere, ikke kontrollere. Tilstedeværelse, ikke myndighed.
+-- Sætning 3: Forsamlinger under åben himmel kan FORBYDES ved fare for fred.
+--
+-- Det graduerede system:
+--   Indendørs, ubevæbnede: UBETINGET
+--   Udendørs, ubevæbnede: KAN FORBYDES (offentlig fred)
+--   Bevæbnede: IKKE BESKYTTET
+-- ============================================================================
+
+----
+§ 79. Borgerne har ret til uden forudgående tilladelse at samle sig ubevæbnede. Offentlige forsamlinger har politiet ret til at overvære. Forsamlinger under åben himmel kan forbydes, når der af dem kan befrygtes fare for den offentlige fred.
+----
+
+> forsamlingsfrihed(sted: ForsamlingsType, våben: BevæbnelsesStatus) -> Bool {
+    skel våben {
+        | Bevæbnede -> Falskt
+        | Ubevæbnede -> Sandt
+    }
+}
+
+> kan_forbydes(sted: ForsamlingsType) -> Bool {
+    skel sted {
+        | Indendørs -> Falskt
+        | Udendørs -> Sandt
+    }
+}
+
+| politi_kan_overvære_offentlig() -> Sandt
+
+@ skriv("""
+--- § 79: Forsamlingsfrihed ---
+
+Forsamlingsfrihed (indendørs, ubevæbnede): {{forsamlingsfrihed(Indendørs, Ubevæbnede)}}
+Forsamlingsfrihed (udendørs, ubevæbnede): {{forsamlingsfrihed(Udendørs, Ubevæbnede)}}
+Forsamlingsfrihed (bevæbnede): {{forsamlingsfrihed(Indendørs, Bevæbnede)}}
+
+Kan forbydes (indendørs): {{kan_forbydes(Indendørs)}}
+Kan forbydes (udendørs): {{kan_forbydes(Udendørs)}}
+Politi kan overvære: {{politi_kan_overvære_offentlig()}}
+
+DET GRADUEREDE SYSTEM:
+  Indendørs + ubevæbnede: UBETINGET
+  Udendørs + ubevæbnede: kan forbydes (offentlig fred)
+  Bevæbnede: IKKE beskyttet
+""")
+
+
+-- ============================================================================
+-- § 80: TRE ADVARSLER — væbnet magt mod opløb.
+--
+-- "Ved opløb må den væbnede magt, når den ikke angribes,
+--  kun skride ind, efter at mængden tre gange i kongens og
+--  lovens navn forgæves er opfordret til at skilles."
+--
+-- Krav til militær indgriben mod folkemængde:
+--   1. Der ER et opløb
+--   2. Militæret angribes IKKE
+--   3. TRE advarsler givet
+--   4. Hver advarsel "i kongens og lovens navn"
+--   5. Hver advarsel var forgæves (mængden spredte sig ikke)
+--
+-- Hvis militæret ANGRIBES: ingen advarsler nødvendige (selvforsvar).
+--
+-- "I kongens og lovens navn" — BÅDE suverænen OG loven.
+-- Middelalderligt oprørskontrol-ritual — stadig gældende 2026.
+-- ============================================================================
+
+----
+§ 80. Ved opløb må den væbnede magt, når den ikke angribes, kun skride ind, efter at mængden tre gange i kongens og lovens navn forgæves er opfordret til at skilles.
+----
+
+= advarsler_påkrævet = 3
+
+> væbnet_magt_mod_opløb(angribes: Bool, advarsler_givet: Int) -> Bool {
+    -- § 80: hvis angrebet, selvforsvar (ingen advarsler nødvendige)
+    hvis angribes { Sandt }
+    ellers {
+        -- Ikke angrebet: kræver 3 advarsler, alle ignoreret
+        hvis advarsler_givet >= advarsler_påkrævet { Sandt }
+        ellers { Falskt }
+    }
+}
+
+@ skriv("""
+--- § 80: Tre advarsler i kongens og lovens navn ---
+
+Væbnet magt (angribes): {{væbnet_magt_mod_opløb(Sandt, 0)}}
+Væbnet magt (0 advarsler): {{væbnet_magt_mod_opløb(Falskt, 0)}}
+Væbnet magt (2 advarsler): {{væbnet_magt_mod_opløb(Falskt, 2)}}
+Væbnet magt (3 advarsler): {{væbnet_magt_mod_opløb(Falskt, 3)}}
+
+Formlen: 'i kongens og lovens navn'
+  BÅDE suverænen OG loven påberåbes.
+  Middelalderligt oprørskontrol-ritual — stadig gældende 2026.
+""")
+
+
+-- ============================================================================
+-- § 81: VÆRNEPLIGT — kønsbaseret.
+--
+-- "Enhver våbenfør mand er forpligtet til med sin person
+--  at bidrage til fædrelandets forsvar."
+--
+-- "Våbenfør MAND" — ikke "borger", ikke "person". MAND.
+-- Den ENESTE kønsbaserede pligt i grundloven.
+--
+-- Krydsref § 70: "ingen kan på grund af sin... afstamning..."
+-- § 81 diskriminerer på køn. Er køn "afstamning"? Uafklaret.
+--
+-- Krydsref § 2: tronfølge er kønsneutral.
+-- Tronen: kønsneutral. Værnepligt: kun mænd.
+--
+-- "Fædrelandets forsvar" — FORSVAR, ikke angreb.
+-- § 81 er den INDIVIDUELLE version af § 19 stk. 2.
+-- ============================================================================
+
+----
+§ 81. Enhver våbenfør mand er forpligtet til med sin person at bidrage til fædrelandets forsvar efter de nærmere bestemmelser, som loven foreskriver.
+----
+
+> værnepligt_gælder(køn: Køn) -> Bool {
+    skel køn {
+        | Mand -> Sandt
+        | Kvinde -> Falskt
+    }
+}
+
+@ skriv("""
+--- § 81: Værnepligt ---
+
+Værnepligt for mænd: {{værnepligt_gælder(Mand)}}
+Værnepligt for kvinder: {{værnepligt_gælder(Kvinde)}}
+
+Den ENESTE kønsbaserede pligt i grundloven.
+  § 2:  Tronfølge: mænd OG kvinder (kønsneutralt)
+  § 70: Ingen diskrimination pga. afstamning
+  § 81: Værnepligt: kun MÆND
+  Er køn 'afstamning' i § 70s forstand? Uafklaret.
+""")
+
+
+-- ============================================================================
+-- § 82: KOMMUNALT SELVSTYRE.
+--
+-- "Kommunernes ret til under statens tilsyn selvstændigt at styre
+--  deres anliggender ordnes ved lov."
+--
+-- Tre elementer:
+--   1. Kommunerne har RET til selvstyre
+--   2. Under STATENS TILSYN (ikke uafhængigt)
+--   3. Reguleres ved LOV (delegeringsmønster igen)
+--
+-- Spændingen: "selvstændigt" vs "under statens tilsyn"
+-- Selvstændigt men overvåget. Underordnet autonomi — fri inden for rammer.
+-- ============================================================================
+
+----
+§ 82. Kommunernes ret til under statens tilsyn selvstændigt at styre deres anliggender ordnes ved lov.
+----
+
+| kommunalt_selvstyre() -> Sandt
+| kommunalt_statstilsyn() -> Sandt
+
+@ skriv("""
+--- § 82: Kommunalt selvstyre ---
+Kommunalt selvstyre: {{kommunalt_selvstyre()}}
+Under statens tilsyn: {{kommunalt_statstilsyn()}}
+'Selvstændigt' + 'under statens tilsyn' = underordnet autonomi
+""")
+
+
+-- ============================================================================
+-- § 83: AFSKAFFELSE AF ADELSFORRETTIGHEDER.
+--
+-- "Enhver i lovgivningen til adel, titel og rang knyttet forret
+--  er afskaffet."
+--
+-- PERMANENT og TILBAGEVIRKENDE: forrettigheder knyttet til adel,
+-- titel og rang ER afskaffet. Ikke "skal" — "er" (nutid). Udført.
+-- Ingen undtagelse. Ingen delegering til lov.
+--
+-- Det demokratiske fundament: ingen fødes med juridiske privilegier.
+-- § 70: kan ikke MISTE rettigheder pga. fødsel
+-- § 83: kan ikke FÅ forrettigheder pga. fødsel
+-- Symmetrisk: hverken op eller ned ved fødsel.
+-- ============================================================================
+
+----
+§ 83. Enhver i lovgivningen til adel, titel og rang knyttet forret er afskaffet.
+----
+
+| adelsforrettigheder_eksisterer() -> Falskt
+
+@ skriv("""
+--- § 83: Afskaffelse af adelsforrettigheder ---
+Adelsforrettigheder: {{adelsforrettigheder_eksisterer()}}
+'Er afskaffet' — nutid, permanent, ingen undtagelse.
+  § 70: kan ikke MISTE rettigheder pga. fødsel
+  § 83: kan ikke FÅ forrettigheder pga. fødsel
+  Symmetrisk: hverken op eller ned ved fødsel.
+""")
+
+
+-- ============================================================================
+-- § 84: FORBUD MOD FEUDALE GODSER.
+--
+-- "Intet len, stamhus, fideikommisgods eller andet familiefideikommis
+--  kan for fremtiden oprettes."
+--
+-- Fire navngivne feudale instrumenter, alle forbudt:
+--   - Len (feudalgods givet til vasaller)
+--   - Stamhus (arveligt gods bundet i slægtens eje)
+--   - Fideikommisgods (arvebundet formue, uafhændeligt)
+--   - Andet familiefideikommis
+--
+-- "For fremtiden" — fremadrettet. Eksisterende afvikles.
+-- § 83 + § 84 = anti-feudalisme-parret:
+--   § 83: ingen juridiske privilegier ved fødsel
+--   § 84: ingen økonomisk fastlåsning ved fødsel
+-- ============================================================================
+
+----
+§ 84. Intet len, stamhus, fideikommisgods eller andet familiefideikommis kan for fremtiden oprettes.
+----
+
+| len_kan_oprettes() -> Falskt
+| stamhus_kan_oprettes() -> Falskt
+| fideikommis_kan_oprettes() -> Falskt
+
+@ skriv("""
+--- § 84: Forbud mod feudale godser ---
+Len kan oprettes: {{len_kan_oprettes()}}
+Stamhus kan oprettes: {{stamhus_kan_oprettes()}}
+Fideikommis kan oprettes: {{fideikommis_kan_oprettes()}}
+'For fremtiden' — eksisterende afvikles, nye forbudt.
+  § 83 + § 84 = anti-feudalisme-parret:
+  § 83: ingen juridiske privilegier ved fødsel
+  § 84: ingen økonomisk fastlåsning ved fødsel
+""")
+
+
+-- ============================================================================
+-- § 85: MILITÆRUNDTAGELSEN — den mest afslørende paragraf.
+--
+-- "For forsvarsmagten er de i §§ 71, 78 og 79 givne bestemmelser
+--  kun anvendelige med de indskrænkninger, der følger af de
+--  militære loves forskrifter."
+--
+-- Tre rettigheder KAN begrænses for forsvarsmagten:
+--   § 71: Personlig frihed (tilbageholdelsesregler)
+--   § 78: Foreningsfrihed
+--   § 79: Forsamlingsfrihed
+--
+-- Fire rettigheder KAN IKKE begrænses selv for militæret:
+--   § 72: Boligens ukrænkelighed (IKKE nævnt)
+--   § 73: Ejendomsret (IKKE nævnt)
+--   § 77: Ytringsfrihed (IKKE nævnt!)
+--   § 74: Erhvervsfrihed (IKKE nævnt)
+--
+-- DET AFSLØRENDE VALG:
+--   Militæret må låse dig inde (§ 71), begrænse dine foreninger (§ 78),
+--   og forbyde dine forsamlinger (§ 79) — operationelle nødvendigheder.
+--   Men det KAN IKKE ransage dit hjem (§ 72), tage din ejendom (§ 73),
+--   eller censurere dig (§ 77).
+--
+--   § 77 (ytringsfrihed) er ABSOLUT selv i militæret.
+--   En soldat kan beordres i kaserne (§ 79 begrænset),
+--   kan tilbageholdes (§ 71 begrænset), kan forbydes fagforening
+--   (§ 78 begrænset) — men KAN IKKE ties ihjel.
+--
+-- Operationel kontrol: JA. Politisk kontrol: NEJ.
+-- Militæret tjener staten, men dets medlemmer forbliver borgere.
+-- ============================================================================
+
+----
+§ 85. For forsvarsmagten er de i §§ 71, 78 og 79 givne bestemmelser kun anvendelige med de indskrænkninger, der følger af de militære loves forskrifter.
+----
+
+> militær_kan_begrænse(paragraf: Paragraf) -> Bool {
+    -- § 85: KUN §§ 71, 78, 79
+    skel paragraf {
+        | P71 -> Sandt
+        | P78 -> Sandt
+        | P79 -> Sandt
+        | P72 -> Falskt
+        | P73 -> Falskt
+        | P74 -> Falskt
+        | P77 -> Falskt
+    }
+}
+
+@ skriv("""
+--- § 85: Militærundtagelsen (den mest afslørende paragraf) ---
+
+Militæret KAN begrænse:
+  § 71 (personlig frihed): {{militær_kan_begrænse(P71)}}
+  § 78 (foreningsfrihed): {{militær_kan_begrænse(P78)}}
+  § 79 (forsamlingsfrihed): {{militær_kan_begrænse(P79)}}
+
+Militæret KAN IKKE begrænse:
+  § 72 (boligens ukrænkelighed): {{militær_kan_begrænse(P72)}}
+  § 73 (ejendomsret): {{militær_kan_begrænse(P73)}}
+  § 77 (ytringsfrihed): {{militær_kan_begrænse(P77)}}
+
+DET AFSLØRENDE VALG:
+  Militæret må låse dig inde (§ 71)
+  Militæret må forbyde dine foreninger (§ 78)
+  Militæret må forbyde dine forsamlinger (§ 79)
+  Militæret må IKKE censurere dig (§ 77)
+  Militæret må IKKE ransage dit hjem (§ 72)
+  Militæret må IKKE tage din ejendom (§ 73)
+
+  Operationel kontrol: JA
+  Politisk kontrol: NEJ
+  En soldat er stadig en borger.
+""")
+
+
+-- ============================================================================
+-- KAPITEL VIII STRUKTURANALYSE
+-- ============================================================================
+
+@ skriv("""
+================================================================
+  Kapitel VIII: 15 paragraffer — rettighedscharteret
+================================================================
+
+RETTIGHEDSHIERARKIET:
+
+  NIVEAU 1 — UKRÆNKELIG:
+    § 71: Personlig frihed
+    § 72: Boligen
+    § 73: Ejendomsretten
+
+  NIVEAU 2 — RET TIL:
+    § 76: Fri undervisning
+    § 77: Ytringsfrihed
+    § 78: Foreningsfrihed
+    § 79: Forsamlingsfrihed
+
+  NIVEAU 3 — PÅBUD:
+    § 74: Erhvervsfrihed (SKAL)
+    § 83: Adelsforrettigheder (ER afskaffet)
+    § 84: Feudale godser (KAN IKKE oprettes)
+
+  NIVEAU 4 — ASPIRATION:
+    § 75.1: Ret til arbejde (BØR tilstræbes)
+
+DEFAULT LOGIC SOM GRUNDMØNSTER:
+  Næsten HVER rettighed bruger: default + undtagelse
+  Grundlovens indfødte logik ER Futurunas | rule + | exception
+
+ANTI-FEUDALISME-PROGRAMMET (§§ 70, 83, 84):
+  § 70: Ingen diskrimination pga. afstamning
+  § 83: Ingen juridiske privilegier ved fødsel
+  § 84: Ingen økonomisk fastlåsning ved fødsel
+  Tre paragraffer demonterer feudalismen fuldstændigt.
+
+KØNSSPÆNDING (§ 81):
+  'Våbenfør mand' — den eneste kønsbaserede pligt
+  I en ellers kønsneutral grundlov (§ 2, § 70)
+  Sidste rest af 1849-normer i 1953-teksten
+
+§ 77 vs § 88 — PARADOKSET:
+  § 77: censur kan 'ingensinde påny' indføres
+  § 88: enhver bestemmelse kan ændres
+  Kan man ændre det uændrelige?
+
+§ 85 — HIERARKI INDEN FOR RETTIGHEDER:
+  Tre rettigheder kan begrænses for militæret: §§ 71, 78, 79
+  Fire rettigheder kan IKKE: §§ 72, 73, 77 (+ § 74)
+  § 77 (ytringsfrihed) er absolut selv i militæret
+
+SAMTYKKE-TÆLLING: stadig 8. Rettigheder er ikke samtykke-afhængige.
+""")

@@ -1,0 +1,42 @@
+-- wasm_edge_test.runa: Edge cases for WASM codegen
+-- Tests functions that should NOT get #[wasm_bindgen]
+
+-- Struct type: NOT wasm-compatible
+# Point(x: Float, y: Float)
+
+> make_point(x: Float, y: Float) -> Point { Point(x, y) }
+@ export make_point
+
+-- Generic function: NOT wasm-compatible (has type vars)
+> identity(x: a) -> a { x }
+
+-- Function with struct param: NOT wasm-compatible
+> point_distance(p: Point) -> Float { p.x * p.x + p.y * p.y }
+@ export point_distance
+
+-- Simple compatible functions mixed in
+> double(n: Int) -> Int { n * 2 }
+@ export double
+
+> to_greeting(name: String) -> String { "Hi " + name }
+@ export to_greeting
+
+-- ADT (enum) type: NOT wasm-compatible
+# Color = Red | Green | Blue
+
+> color_name(c: Color) -> String {
+    match c {
+        | Red -> "red"
+        | Green -> "green"
+        | Blue -> "blue"
+    }
+}
+@ export color_name
+
+-- Runtime tests
+@ print("make_point(1.0, 2.0) = " + show(make_point(1.0, 2.0)))
+@ print("identity(42) = " + show(identity(42)))
+@ print("double(21) = " + show(double(21)))
+@ print("to_greeting(\"Ada\") = " + to_greeting("Ada"))
+@ print("color_name(Red) = " + color_name(Red))
+@ print("WASM edge test passed!")

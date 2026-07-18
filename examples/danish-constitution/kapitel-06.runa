@@ -1,0 +1,154 @@
+@ sprog da
+
+-- Kapitel VI -- Domstolene
+
+
+----
+§ 59. Stk. 1. Rigsretten består af indtil 15 af de efter embedsalder ældste
+ordentlige medlemmer af rigets øverste domstol og et tilsvarende antal af
+folketinget efter forholdstal for 6 år valgte medlemmer. For hver af de valgte
+vælges en eller flere stedfortrædere. Folketingets medlemmer kan ikke vælges
+til eller virke som medlemmer af rigsretten. Kan i et enkelt tilfælde nogle af
+den øverste domstols medlemmer ikke deltage i sagens behandling og påkendelse,
+fratræder et tilsvarende antal af de af folketinget sidst valgte
+rigsretsmedlemmer.
+
+Stk. 2. Retten vælger selv sin formand af sin midte.
+
+Stk. 3. Er sag rejst ved rigsretten, beholder de af folketinget valgte
+medlemmer deres sæde i retten for denne sags vedkommende, selvom det tidsrum,
+for hvilket de er valgt, udløber.
+
+Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
+----
+
+-- Stk. 1: sammensætning
+= rigsret_max_dommermedlemmer = 15
+= rigsret_valgperiode_år = 6
+
+> rigsret_medlemmer_fra_folketinget(dommermedlemmer: Heltal) -> Heltal {
+    dommermedlemmer
+}
+
+| rigsret_valgt_efter_forholdstal()
+| rigsret_stedfortrædere_for_valgte()
+
+-- Uforenelighed: folketingsmedlem ≠ rigsretsmedlem
+| folketingsmedlem_uforenelig_med_rigsretsmedlem()
+
+-- Afbalancering: ved dommerinhabilitet fratræder sidst valgte
+> rigsret_afbalanceret(dommermedlemmer: Heltal, inhabilde: Heltal) -> Heltal {
+    hvis inhabilde > dommermedlemmer { 0 }
+    ellers { dommermedlemmer - inhabilde }
+}
+
+-- Stk. 2
+| rigsretten_vælger_egen_formand()
+
+-- Stk. 3: mandatbevarelse under verserende sag
+| valgte_beholder_sæde_under_verserende_sag()
+
+-- Stk. 4
+| rigsretten_fastsættes_ved_lov()
+
+
+----
+§ 60. Stk. 1. Rigsretten påkender de af kongen eller folketinget mod ministrene
+anlagte sager.
+
+Stk. 2. For rigsretten kan kongen med folketingets samtykke lade også andre
+tiltale for forbrydelser, som han finder særdeles farlige for staten.
+----
+
+-- Stk. 1 (uddyber par. 16 fra kapitel III)
+| rigsretten_påkender_ministersager_anlagt_af_kongen()
+| rigsretten_påkender_ministersager_anlagt_af_folketinget()
+
+-- Stk. 2: samtykke-mønster
+> tiltale_andre_ved_rigsretten(samtykke: Samtykke) -> Boolsk {
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> Falskt
+    }
+}
+
+
+----
+§ 61. Den dømmende magts udøvelse kan kun ordnes ved lov. Særdomstole med
+dømmende myndighed kan ikke nedsættes.
+----
+
+| dømmende_magt_ordnes_ved_lov()
+| særdomstole_forbudt()
+
+
+----
+§ 62. Retsplejen skal stedse holdes adskilt fra forvaltningen. Regler herom
+fastsættes ved lov.
+----
+
+| retspleje_adskilt_fra_forvaltning()
+| adskillelse_fastsættes_ved_lov()
+
+
+----
+§ 63. Stk. 1. Domstolene er berettigede til at påkende ethvert spørgsmål om
+øvrighedsmyndighedens grænser. Den, der vil rejse sådant spørgsmål, kan dog
+ikke ved at bringe sagen for domstolene unddrage sig fra foreløbig at
+efterkomme øvrighedens befaling.
+
+Stk. 2. Påkendelse af spørgsmål om øvrighedsmyndighedens grænser kan ved lov
+henlægges til en eller flere forvaltningsdomstole, hvis afgørelser dog skal
+kunne prøves ved rigets øverste domstol. De nærmere regler herom fastsættes
+ved lov.
+----
+
+-- Stk. 1: domstolsprøvelse af forvaltningen
+| domstolene_prøver_øvrighedens_grænser()
+| foreløbig_efterlevelse_påkrævet()
+
+-- Stk. 2: forvaltningsdomstole med ankeadgang
+| forvaltningsdomstole_kan_oprettes_ved_lov()
+| forvaltningsdomstoles_afgørelser_kan_prøves_ved_højesteret()
+| forvaltningsdomstole_fastsættes_ved_lov()
+
+
+----
+§ 64. Dommerne har i deres kald alene at rette sig efter loven. De kan ikke
+afsættes uden ved dom, ejheller forflyttes mod deres ønske, uden for de
+tilfælde, hvor en omordning af domstolene finder sted. Dog kan den dommer, der
+har fyldt sit 65. år, afskediges, men uden tab af indtægter indtil det
+tidspunkt, til hvilket han skulle være afskediget på grund af alder.
+----
+
+= dommer_pensionsalder = 65
+
+| dommere_retter_sig_alene_efter_loven()
+| dommere_kan_ikke_afsættes_uden_dom()
+| dommere_kan_ikke_forflyttes_mod_ønske()
+| forflyttelse_undtaget_ved_omordning()
+
+> dommer_kan_afskediges_ved_alder(alder: Heltal) -> Boolsk {
+    hvis alder >= 65 { Sandt } ellers { Falskt }
+}
+
+| afskedigelse_ved_alder_uden_tab_af_indtægter()
+
+
+----
+§ 65. Stk. 1. I retsplejen gennemføres offentlighed og mundtlighed i videst
+muligt omfang.
+
+Stk. 2. I strafferetsplejen skal lægmænd medvirke. Det fastsættes ved lov, i
+hvilke sager og under hvilke former denne medvirken skal finde sted, herunder i
+hvilke sager nævninger skal medvirke.
+----
+
+-- Stk. 1: to retsplejeprincipper
+| retspleje_er_offentlig()
+| retspleje_er_mundtlig()
+
+-- Stk. 2: lægmænd i straffesager
+| lægmænd_medvirker_i_strafferetspleje()
+| lægmandsmedvirken_fastsættes_ved_lov()
+| nævningesager_fastsættes_ved_lov()

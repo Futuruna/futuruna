@@ -1,0 +1,82 @@
+-- Ownership Stress Test: Async Patterns
+-- In Rust, borrows across .await points are the #1 source of lifetime pain.
+-- Futuruna approach: actors own state, messages transfer ownership.
+
+-- PATTERN 1: Actor accumulator
+> actor accumulator(total: Int) {
+    | Add(n) -> total + n
+    | Sub(n) -> total - n
+    | Reset -> 0
+}
+
+= acc = spawn(accumulator, 0)
+acc <- Add(10)
+acc <- Add(20)
+acc <- Add(30)
+acc <- Sub(5)
+= acc_result = ask(acc, Add(0))
+@ print("Accumulator: " + show(acc_result))
+@ print("PASS: Pattern 1 — actor accumulation")
+
+-- PATTERN 2: Multiple independent actors
+> actor counter(n: Int) {
+    | Inc -> n + 1
+    | Dec -> n - 1
+}
+
+= c1 = spawn(counter, 0)
+= c2 = spawn(counter, 100)
+
+c1 <- Inc
+c1 <- Inc
+c1 <- Inc
+c2 <- Dec
+c2 <- Dec
+
+= v1 = ask(c1, Inc)
+= v2 = ask(c2, Dec)
+@ print("Counter 1: " + show(v1))
+@ print("Counter 2: " + show(v2))
+@ print("PASS: Pattern 2 — independent actors")
+
+-- PATTERN 3: Pipeline of transformations
+> stage1(data: String) -> String { "STAGE1[" + data + "]" }
+> stage2(data: String) -> String { "STAGE2[" + data + "]" }
+> stage3(data: String) -> String { "STAGE3[" + data + "]" }
+
+= pipeline_out = "raw-data" |> stage1 |> stage2 |> stage3
+@ print("Pipeline: " + pipeline_out)
+@ print("PASS: Pattern 3 — pipeline with ownership transfer")
+
+-- PATTERN 4: Shared config across multiple uses
+# Config(url: String, retries: Int)
+
+> config_url(c: Config) -> String { match c { | Config(u, _) -> u } }
+> config_retries(c: Config) -> Int { match c { | Config(_, r) -> r } }
+
+> process_with_config(cfg: Config, id: Int) -> String {
+    "Processed " + show(id) + " with " + config_url(cfg) + " (max " + show(config_retries(cfg)) + " retries)"
+}
+
+= cfg = Config("postgres://localhost/db", 3)
+= r1 = process_with_config(cfg, 1)
+= r2 = process_with_config(cfg, 2)
+= r3 = process_with_config(cfg, 3)
+@ print(r1)
+@ print(r2)
+@ print(r3)
+@ print("PASS: Pattern 4 — shared config via value copy")
+
+-- PATTERN 5: Closures with capture
+> apply_twice(f: Int -> Int, x: Int) -> Int {
+    f(f(x))
+}
+
+> make_adder(n: Int) -> Int -> Int {
+    |x| x + n
+}
+
+= add5 = make_adder(5)
+= twice_result = apply_twice(add5, 10)
+@ print("Callback: " + show(twice_result))
+@ print("PASS: Pattern 5 — closures as values")

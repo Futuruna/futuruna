@@ -1,0 +1,67 @@
+@ sprog da
+
+----
+Danmarks Riges Grundlov (Grundloven)
+
+Vi Frederik den Niende, af Guds Nåde Konge til Danmark, de Venders og Goters,
+Hertug til Slesvig, Holsten, Stormarn, Ditmarsken, Lauenborg og Oldenborg,
+Gør vitterligt: I overensstemmelse med bestemmelserne i § 94 i Danmarks Riges
+Grundlov af 5. juni 1915 med ændringer af 10. september 1920 har rigsdagen
+2 gange vedtaget, og folketingsvælgerne ved en den 28. maj 1953 afholdt
+folkeafstemning godkendt, hvorefter Vi nu ved Vort allerhøjeste samtykke
+stadfæster DANMARKS RIGES GRUNDLOV
+----
+
+-- Kapitel I -- Statsformen
+
+# Rigsdel = Danmark | Færøerne | Grønland
+# Regeringsform = Indskrænket_Monarkisk
+# Køn = Mand | Kvinde
+# Statsmagt = Lovgivende | Udøvende | Dømmende
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken
+# Magtholder = Hos(institution: Institution) | IForening(a: Institution, b: Institution)
+# Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
+# Lov(titel: Tekst, dato: Tekst)
+
+
+----
+§ 1. Denne grundlov gælder for alle dele af Danmarks Rige.
+----
+
+> grundloven_gælder_for(del: Rigsdel) -> Boolsk {
+    skel del {
+        | Danmark -> Sandt
+        | Færøerne -> Sandt
+        | Grønland -> Sandt
+    }
+}
+
+
+----
+§ 2. Regeringsformen er indskrænket-monarkisk. Kongemagten nedarves til mænd
+og kvinder efter de i tronfølgeloven af 27. marts 1953 fastsatte regler.
+----
+
+| regeringsform() -> Indskrænket_Monarkisk
+| begge_køn_arver()
+
+= tronfølgeloven = Lov("Tronfølgeloven", "27. marts 1953")
+
+
+----
+§ 3. Den lovgivende magt er hos kongen og folketinget i forening.
+Den udøvende magt er hos kongen. Den dømmende magt er hos domstolene.
+----
+
+| lovgivende_magt() -> IForening(Kongen, Folketinget)
+| udøvende_magt() -> Hos(Kongen)
+| dømmende_magt() -> Hos(Domstolene)
+
+
+----
+§ 4. Den evangelisk-lutherske kirke er den danske folkekirke og understøttes
+som sådan af staten.
+----
+
+| folkekirke() -> EvangeliskLuthersk
+| staten_understøtter_folkekirken_som_sådan()

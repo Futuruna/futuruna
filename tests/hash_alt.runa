@@ -1,0 +1,11 @@
+-- hash_alt.runa: Alternative implementations for hash import testing
+-- "square" has a DIFFERENT body (adds instead of multiplies) — different hash
+-- "factorial" has the SAME body as hash_math.runa — same hash
+
+> square(x: Int) -> Int { x + x }
+
+> triple(x: Int) -> Int { x * 3 }
+
+> factorial(n: Int) -> Int {
+    if n <= 1 { 1 } else { n * factorial(n - 1) }
+}

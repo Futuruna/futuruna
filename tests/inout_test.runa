@@ -1,0 +1,100 @@
+-- inout_test.runa: Mutable Value Semantics Demo (Hylo's Lesson)
+-- Demonstrates: inout parameters, in-place mutation, zero-copy sort
+
+-- ============================================================================
+-- DEMO 1: In-place sort with inout
+-- ============================================================================
+
+@ print("=== Demo 1: In-Place Sort ===")
+@ print("")
+
+> sort_vec(xs: inout List(Int)) -> () {
+    @ rust { xs.sort(); }
+}
+
+= data = [5, 3, 1, 4, 2]
+@ print("  before sort: 5 elements")
+sort_vec(data)
+@ print("  after sort: data is mutated in place")
+
+-- ============================================================================
+-- DEMO 2: In-place reverse
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 2: In-Place Reverse ===")
+@ print("")
+
+> reverse_vec(xs: inout List(Int)) -> () {
+    @ rust { xs.reverse(); }
+}
+
+= nums = [10, 20, 30, 40, 50]
+reverse_vec(nums)
+@ print("  reversed in place (zero copies)")
+
+-- ============================================================================
+-- DEMO 3: Accumulator with inout (push without copying the whole vec)
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 3: Accumulator ===")
+@ print("")
+
+> add_item(xs: inout List(Int), x: Int) -> () {
+    @ rust { xs.push(x); }
+}
+
+= acc = []
+add_item(acc, 1)
+add_item(acc, 2)
+add_item(acc, 3)
+@ print("  accumulated 3 items in place")
+
+-- ============================================================================
+-- DEMO 4: Mixed inout and value params
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 4: Mixed inout + Value Params ===")
+@ print("")
+
+> scale_vec(xs: inout List(Int), factor: Int) -> () {
+    @ rust {
+        for x in xs.iter_mut() {
+            *x *= factor;
+        }
+    }
+}
+
+= values = [1, 2, 3, 4, 5]
+scale_vec(values, 10)
+@ print("  scaled [1,2,3,4,5] by 10 in place")
+
+-- ============================================================================
+-- DEMO 5: inout vs value — the Hylo insight
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 5: inout vs Value (Hylo's Insight) ===")
+@ print("")
+
+> double_value(x: Int) -> Int { x * 2 }
+> double_inplace(x: inout List(Int)) -> () {
+    @ rust {
+        for v in x.iter_mut() { *v *= 2; }
+    }
+}
+
+= a = 42
+= b = double_value(a)
+@ print("  value: double_value(42) = " + show(b) + " (a is unchanged)")
+
+= c = [1, 2, 3]
+double_inplace(c)
+@ print("  inout: double_inplace([1,2,3]) mutates c in place")
+
+@ print("")
+@ print("=== Mutable Value Semantics: mutation is safe when you're alone ===")
+@ print("  inout T compiles to &mut T — zero copies, zero allocations.")
+@ print("  The programmer writes value semantics. The compiler emits &mut.")

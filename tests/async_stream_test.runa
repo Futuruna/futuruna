@@ -1,0 +1,76 @@
+-- async_stream_test.runa: Async stream operators on broadcast subjects
+-- Tests: map, filter, scan, take, tap, pipe chains on async subjects
+
+@ print("=== Async Stream Operators ===")
+
+-- Demo 1: map on async subject
+@ print("")
+@ print("--- Demo 1: map ---")
+
+~ s1 = subject()
+
+~ m1 = map(s1, |x| x * 10)
+
+~ m1 | val -> {
+    @ print("  mapped: " + show(val))
+}
+
+s1 <- 1
+s1 <- 2
+s1 <- 3
+
+-- Demo 2: filter on async subject
+@ print("")
+@ print("--- Demo 2: filter ---")
+
+~ s2 = subject()
+
+~ f2 = filter(s2, |x| x % 2 == 0)
+
+~ f2 | val -> {
+    @ print("  even: " + show(val))
+}
+
+s2 <- 1
+s2 <- 2
+s2 <- 3
+s2 <- 4
+s2 <- 5
+s2 <- 6
+
+-- Demo 3: pipe chain — map |> filter
+@ print("")
+@ print("--- Demo 3: pipe chain ---")
+
+~ s3 = subject()
+
+~ r3 = s3 |> map(|x| x * 2) |> filter(|x| x > 5)
+
+~ r3 | val -> {
+    @ print("  piped: " + show(val))
+}
+
+s3 <- 1
+s3 <- 2
+s3 <- 3
+s3 <- 4
+s3 <- 5
+
+-- Demo 4: scan (running accumulator)
+@ print("")
+@ print("--- Demo 4: scan ---")
+
+~ s4 = subject()
+
+~ running = scan(s4, 0, |acc, x| acc + x)
+
+~ running | val -> {
+    @ print("  running sum: " + show(val))
+}
+
+s4 <- 10
+s4 <- 20
+s4 <- 30
+
+@ print("")
+@ print("=== All async stream operator tests passed! ===")

@@ -1,0 +1,471 @@
+@ sprog da
+
+-- ============================================================================
+-- Kapitel VII — Folkekirken og religionsfriheden (§§ 66-70)
+--
+-- Fem paragraffer. Det korteste kapitel. De dybeste spændinger.
+--
+-- Arkitekturen:
+--   § 66: Folkekirkens forfatning ordnes ved lov (total delegation)
+--   § 67: Religionsfrihed (begrænset af sædelighed og offentlig orden)
+--   § 68: Ingen pligtig at betale for andres gudsdyrkelse
+--   § 69: Afvigende trossamfunds forhold ordnes ved lov
+--   § 70: INGEN diskrimination på trosbekendelse eller afstamning
+--
+-- Kapitlet fuldender religionsbuen fra §§ 4 og 6:
+--   § 4:  Folkekirken ER evangelisk-luthersk, statsunderstøttet
+--   § 6:  Kongen SKAL være evangelisk-luthersk
+--   § 66: Folkekirkens forfatning delegeres til almindelig lov
+--   § 67: Alle andre har religionsfrihed
+--   § 70: Ingen kan nægtes politiske rettigheder på grund af tro
+--
+-- DEN STORE SPÆNDING: § 6 vs § 70.
+--   § 6:  Kongen skal være lutheraner (religiøst krav for embede)
+--   § 70: Ingen kan nægtes politiske rettigheder på grund af trosbekendelse
+--   Kongen er den ENESTE person i Danmark hvis politiske rettigheder
+--   er forfatningsmæssigt begrænset af religion.
+--   § 70 er hovedreglen. § 6 er den eneste undtagelse.
+--   Og § 6 kom FØRST (Kapitel II) — lex specialis.
+-- ============================================================================
+
+
+-- ============================================================================
+-- IMPORT — Typer og bindinger fra grundlov.runa
+-- ============================================================================
+
+@ brug grundlov::*
+
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsrådet | Rigsretten
+# Samtykke = Givet | IkkeGivet
+# Trossamfund = EvangeliskLuthersk | Andet(navn: String)
+
+-- Religionsfrihed og dens grænser
+# ReligionsfrihedGrænse = Sædelighed | OffentligOrden
+# ReligionsPligt = IngenPligt | Pligt(beskrivelse: String)
+
+-- Diskrimination
+# Diskriminationsgrund = Trosbekendelse | Afstamning
+# RettighedsType = Borgerlig | Politisk
+
+
+@ skriv("================================================================")
+@ skriv("  Kapitel VII: Folkekirken og religionsfriheden (§§ 66-70)")
+@ skriv("  Fem paragraffer — det korteste kapitel, de dybeste spændinger")
+@ skriv("================================================================")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 66: Folkekirkens forfatning ordnes ved lov.
+--
+-- Ni ord. En af de korteste paragraffer i grundloven.
+-- Men den siger noget ekstraordinært:
+--
+-- Statskirken — den institution som § 4 erklærer ER folkekirken —
+-- har INGEN forfatningsmæssig styringsstruktur. INGEN.
+-- Hele dens forfatning er delegeret til ALMINDELIG LOV.
+--
+-- Det betyder Folketinget kan omstrukturere Folkekirken når som helst
+-- med simpelt flertal. Ingen folkeafstemning. Intet overflertal. Intet samtykke.
+--
+-- Sammenlign:
+--   § 20 (suverænitetsafgivelse): 5/6 flertal
+--   § 29 (valgretsalder): folkeafstemning
+--   § 66 (omstrukturér statskirken): simpelt flertal
+--
+-- Folkekirken har MINDRE forfatningsmæssig beskyttelse end valgretsalderen.
+--
+-- Og den historiske ironi: § 66 var ment som et LØFTE om at Folketinget
+-- ville skabe en ordentlig kirkeforfatning. Det skete aldrig. Siden 1849.
+-- Folkekirken har opereret under § 66's delegation i 177 år
+-- uden at den lovede forfatning nogensinde blev skrevet.
+-- ============================================================================
+
+----
+§ 66. Folkekirkens forfatning ordnes ved lov.
+----
+
+-- Har Folketinget nogensinde vedtaget den kirkeforfatning § 66 lovede?
+-- 1849: § 66 vedtages. 2026: venter stadig.
+| folkekirke_forfatning_vedtaget() -> Falskt
+
+> folkekirke_forfatning_krav() -> String {
+    "ordnes ved lov"
+}
+
+> ændre_folkekirke_krav() -> String {
+    -- Simpelt flertal — ingen folkeafstemning, intet overflertal
+    "Simpelt flertal i Folketinget"
+}
+
+@ skriv("--- § 66: Folkekirkens forfatning ---")
+@ skriv("")
+@ skriv("Tekst: 'Folkekirkens forfatning ordnes ved lov.'")
+@ skriv("Ni ord. Ingen procedure. Ren delegation.")
+@ skriv("")
+@ skriv("Forfatning vedtaget: " + vis(folkekirke_forfatning_vedtaget()))
+@ skriv("Krav for ændring: " + ændre_folkekirke_krav())
+@ skriv("")
+@ skriv("HISTORISK IRONI:")
+@ skriv("  1849: § 66 lover en kirkeforfatning")
+@ skriv("  2026: aldrig vedtaget. 177 års ventetid.")
+@ skriv("  Folkekirken styres af almindelig lovgivning,")
+@ skriv("  ikke af den forfatning § 66 forudsætter.")
+@ skriv("")
+@ skriv("BESKYTTELSESHIERARKIET:")
+@ skriv("  § 20 (suverænitet): 5/6 flertal")
+@ skriv("  § 29 (valgretsalder): folkeafstemning")
+@ skriv("  § 66 (statskirken): simpelt flertal")
+@ skriv("  Statskirken har MINDRE beskyttelse end valgretsalderen.")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 67: Religionsfrihed.
+--
+-- "Borgerne har ret til at forene sig i samfund for at dyrke Gud
+--  på den måde, der stemmer med deres overbevisning, dog at intet
+--  læres eller foretages, som strider mod sædeligheden eller den
+--  offentlige orden."
+--
+-- Tre komponenter:
+--   1. RET: borgere kan danne religiøse samfund
+--   2. RET: dyrke Gud som de vil ("stemmer med deres overbevisning")
+--   3. GRÆNSE: intet må læres eller gøres der strider mod
+--      "sædeligheden" (moral) eller "den offentlige orden"
+--
+-- Det er DEFAULT-LOGIK i forfatningsteksten:
+--   Default: religionsfrihed
+--   Undtagelse: medmindre det strider mod sædelighed eller offentlig orden
+--
+-- "Sædeligheden" er grundlovens ENESTE moralklausul.
+-- Den forekommer INGEN andre steder i §§ 1-89. Grundloven undgår
+-- generelt moralsk sprog — den taler i strukturer og procedurer.
+-- § 67 er undtagelsen: staten kan begrænse religion på moralsk grundlag.
+--
+-- HVEM definerer moral? Ikke grundloven. Ikke Kongen.
+-- Domstolene (§ 63 — domstolskontrol af alt).
+-- ============================================================================
+
+----
+§ 67. Borgerne har ret til at forene sig i samfund for at dyrke Gud på den måde, der stemmer med deres overbevisning, dog at intet læres eller foretages, som strider mod sædeligheden eller den offentlige orden.
+----
+
+| religionsfrihed() -> Sandt
+| undtagelse sædelighed religionsfrihed() -> Falskt under strider_mod_sædelighed()
+| undtagelse offentlig_orden religionsfrihed() -> Falskt under strider_mod_offentlig_orden()
+
+-- Hvem afgør? Domstolene (§ 63).
+-- Grundloven giver ingen definition.
+| strider_mod_sædelighed() -> Falskt
+
+-- Hvem afgør? Domstolene (§ 63).
+-- Grundloven giver ingen definition.
+| strider_mod_offentlig_orden() -> Falskt
+
+> religionsfrihed_grænser() -> String {
+    "sædeligheden eller den offentlige orden"
+}
+
+> hvem_definerer_sædelighed() -> String {
+    -- § 67 giver ingen definition. § 63 giver domstolene prøvelsesmagt.
+    "Domstolene (via § 63)"
+}
+
+@ skriv("--- § 67: Religionsfrihed ---")
+@ skriv("")
+@ skriv("DEFAULT: borgerne har ret til at dyrke Gud efter overbevisning")
+@ skriv("UNDTAGELSE: intet der strider mod sædelighed eller offentlig orden")
+@ skriv("")
+@ skriv("Religionsfrihed (default): " + vis(religionsfrihed()))
+@ skriv("Grænser: " + religionsfrihed_grænser())
+@ skriv("Hvem definerer 'sædeligheden': " + hvem_definerer_sædelighed())
+@ skriv("")
+@ skriv("DEFAULT-LOGIK i forfatningsteksten:")
+@ skriv("  | religionsfrihed() -> Sandt")
+@ skriv("  | undtagelse sædelighed -> Falskt under strider_mod_sædelighed()")
+@ skriv("  | undtagelse offentlig_orden -> Falskt under strider_mod_offentlig_orden()")
+@ skriv("  Grundlovens tekst bruger 'dog at' = Futurunas 'undtagelse'.")
+@ skriv("")
+@ skriv("'SÆDELIGHEDEN' er grundlovens ENESTE moralklausul.")
+@ skriv("Forekommer INGEN andre steder i §§ 1-89.")
+@ skriv("Grundloven taler normalt i strukturer og procedurer,")
+@ skriv("ikke i moralske termer. § 67 er den eneste undtagelse.")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 68: Ingen bidragspligt til andres gudsdyrkelse.
+--
+-- "Ingen er pligtig at yde personlige bidrag til nogen anden
+--  gudsdyrkelse end den, som er hans egen."
+--
+-- Man betaler kun for SIN EGEN gudsdyrkelse. Ikke andres.
+--
+-- Det skaber en spænding med § 4:
+--   § 4:  Staten SKAL understøtte Folkekirken
+--   § 68: Ingen er pligtig at betale for andres gudsdyrkelse
+--
+-- Opløsningen: § 68 siger "personlige bidrag".
+-- Statsstøtte (§ 4) kommer fra den generelle skattebase — det er ikke
+-- et "personligt bidrag til gudsdyrkelse." Det er en statsforpligtelse.
+--
+-- Men hvad med kirkeskatten?
+-- Ikke-medlemmer betaler ikke kirkeskat. Medlemmer gør. § 68 overholdt.
+-- Dog: en del af Folkekirkens finansiering kommer fra det generelle
+-- skatteprovenu (bloktilskud), som ALLE skatteydere betaler.
+-- § 68 siger "personlige bidrag" — er bloktilskud "personligt"?
+--
+-- Kirkeafgiftssmuthullet: § 4 påbyder statsstøtte,
+-- § 68 forbyder personlige religiøse bidrag, og grænsen
+-- mellem "statsstøtte" og "personligt bidrag" er udefineret.
+-- ============================================================================
+
+----
+§ 68. Ingen er pligtig at yde personlige bidrag til nogen anden gudsdyrkelse end den, som er hans egen.
+----
+
+-- § 68: Nej. Kun sin egen.
+| pligtig_til_andres_gudsdyrkelse() -> Falskt
+
+-- § 68 siger man ikke er pligtig til at betale for ANDRES.
+-- Antyder man KAN opkræves til SIN EGEN.
+-- (Kirkeskat for folkekirkens medlemmer)
+| pligtig_til_egen_gudsdyrkelse() -> Sandt
+
+> bloktilskud_er_personligt_bidrag() -> String {
+    -- Den forfatningsmæssige gråzone
+    "Uafklaret — grænsen mellem § 4 statsforpligtelse og § 68 personligt bidrag"
+}
+
+@ skriv("--- § 68: Ingen bidragspligt til andres gudsdyrkelse ---")
+@ skriv("")
+@ skriv("Pligtig til andres gudsdyrkelse: " + vis(pligtig_til_andres_gudsdyrkelse()))
+@ skriv("Pligtig til egen gudsdyrkelse: " + vis(pligtig_til_egen_gudsdyrkelse()))
+@ skriv("")
+@ skriv("SPÆNDINGEN med § 4:")
+@ skriv("  § 4:  Staten SKAL understøtte Folkekirken")
+@ skriv("  § 68: Ingen skal betale for andres gudsdyrkelse")
+@ skriv("")
+@ skriv("Løsningen: § 68 siger 'personlige bidrag'.")
+@ skriv("  Kirkeskat: kun for medlemmer → § 68 overholdt")
+@ skriv("  Bloktilskud: alle skatteydere → " + bloktilskud_er_personligt_bidrag())
+@ skriv("")
+@ skriv("KIRKEAFGIFTSSMUTHULLET:")
+@ skriv("  § 4 pålægger staten at støtte Folkekirken")
+@ skriv("  § 68 forbyder personlige bidrag til andres tro")
+@ skriv("  Grænsen mellem 'statsstøtte' og 'personligt bidrag' er udefineret")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 69: Afvigende trossamfunds forhold ordnes ved lov.
+--
+-- Samme delegeringsmønster som § 66: reguleres ved almindelig lov.
+-- Men bemærk asymmetrien:
+--   § 66: Folkekirkens FORFATNING ordnes ved lov (dens grundlov)
+--   § 69: Afvigende trossamfunds FORHOLD ordnes ved lov (deres vilkår)
+--
+-- Folkekirken får en "forfatning" — en intern styringsramme.
+-- Andre trossamfund får "forhold" — deres eksterne relation til staten.
+--
+-- Folkekirken styres INDEFRA (sin egen forfatning, ved lov).
+-- Andre trossamfund styres UDEFRA (deres forhold til staten, ved lov).
+--
+-- Begge delegeres til Folketinget. Men OMFANGET er forskelligt.
+-- ============================================================================
+
+----
+§ 69. De fra folkekirken afvigende trossamfunds forhold ordnes nærmere ved lov.
+----
+
+> afvigende_trossamfund_regulering() -> String {
+    "ordnes nærmere ved lov"
+}
+
+> folkekirke_vs_andre_delegation() -> String {
+    -- § 66: Folkekirkens FORFATNING (intern styring)
+    -- § 69: Andre trossamfunds FORHOLD (ekstern relation)
+    "§ 66: intern forfatning / § 69: ekstern forhold"
+}
+
+@ skriv("--- § 69: Andre trossamfunds forhold ---")
+@ skriv("")
+@ skriv("Regulering: " + afvigende_trossamfund_regulering())
+@ skriv("")
+@ skriv("ASYMMETRIEN mellem § 66 og § 69:")
+@ skriv("  § 66: Folkekirkens FORFATNING ordnes ved lov")
+@ skriv("    → Intern styring. Statens kirke får sin egen grundlov.")
+@ skriv("  § 69: Afvigende trossamfunds FORHOLD ordnes ved lov")
+@ skriv("    → Ekstern relation. Andre får regler for deres stilling.")
+@ skriv("")
+@ skriv("  Folkekirken styres INDEFRA (forfatning)")
+@ skriv("  Andre trossamfund styres UDEFRA (forhold)")
+@ skriv("  Begge delegeret til Folketinget — men med forskelligt OMFANG.")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 70: Ligestillingsklausulen — den VIGTIGSTE paragraf i Kapitel VII.
+--
+-- "Ingen kan på grund af sin trosbekendelse eller afstamning
+--  berøves adgang til den fulde nydelse af borgerlige og politiske
+--  rettigheder eller unddrage sig opfyldelsen af nogen almindelig
+--  borgerpligt."
+--
+-- TO klausuler i én sætning:
+--   1. Ingen skal NÆGTES rettigheder på grund af tro eller afstamning
+--   2. Ingen skal UNDDRAGE sig pligter på grund af tro eller afstamning
+--
+-- Det er en DOBBELÆGGET lighed: du kan ikke straffes for
+-- din religion, men du kan heller ikke gemme dig bag den.
+--
+-- "Trosbekendelse" — religiøs overbevisning
+-- "Afstamning" — etnisk/familiemæssig oprindelse
+--
+-- "Borgerlige og politiske rettigheder" — civile OG politiske rettigheder.
+-- Den bredeste rettighedsklausul i grundloven.
+--
+-- DEN STORE MODSIGELSE:
+--   § 6:  Kongen SKAL være evangelisk-luthersk
+--   § 70: Ingen kan nægtes politiske rettigheder på grund af trosbekendelse
+--   At være Konge er en politisk rettighed (eller i det mindste en politisk position).
+--   § 6 nægter ikke-lutheranere adgang til tronen.
+--   § 6 overtræder § 70. Eksplicit.
+--
+-- Opløsning: lex specialis derogat legi generali.
+-- § 6 er den specifikke regel (Kongen). § 70 er den generelle (alle).
+-- Den specifikke vinder. Men det skaber en forfatningsmæssig ANOMALI:
+-- grundloven modsiger sig selv, opløst kun af en meta-regel
+-- som grundloven selv ikke udtaler.
+-- ============================================================================
+
+----
+§ 70. Ingen kan på grund af sin trosbekendelse eller afstamning berøves adgang til den fulde nydelse af borgerlige og politiske rettigheder eller unddrage sig opfyldelsen af nogen almindelig borgerpligt.
+----
+
+-- § 70: Nej.
+| kan_diskrimineres_på_trosbekendelse() -> Falskt
+
+-- § 70: Nej.
+| kan_diskrimineres_på_afstamning() -> Falskt
+
+-- § 70: Nej. Den dobbelte klinge.
+| kan_unddrage_borgerpligt_pga_tro() -> Falskt
+
+-- § 6 vs § 70 modsigelsen
+| paragraf_6_kræver_luthersk_konge() -> Sandt
+| paragraf_70_forbyder_diskrimination_på_tro() -> Sandt
+
+| er_kongen() -> Falskt
+
+-- Ikke EKSPLICIT. § 70 siger "ingen" (nobody).
+-- Men § 6 er lex specialis.
+-- Undtagelsen er en META-REGEL, ikke en forfatningsmæssig TEKST.
+| er_kongen_undtaget_fra_paragraf_70() -> Sandt
+
+| paragraf_70_gælder() -> Sandt
+| undtagelse paragraf_6 paragraf_70_gælder() -> Falskt under er_kongen()
+
+@ skriv("--- § 70: Ligestillingsklausulen ---")
+@ skriv("")
+@ skriv("Tekst: 'Ingen kan på grund af sin trosbekendelse eller afstamning")
+@ skriv("        berøves adgang til den fulde nydelse af borgerlige og")
+@ skriv("        politiske rettigheder...'")
+@ skriv("")
+@ skriv("Diskrimination på trosbekendelse: " + vis(kan_diskrimineres_på_trosbekendelse()))
+@ skriv("Diskrimination på afstamning: " + vis(kan_diskrimineres_på_afstamning()))
+@ skriv("Unddrage borgerpligt pga. tro: " + vis(kan_unddrage_borgerpligt_pga_tro()))
+@ skriv("")
+@ skriv("DEN DOBBELTE KLINGE:")
+@ skriv("  1. Du kan IKKE nægtes rettigheder pga. din tro")
+@ skriv("  2. Du kan IKKE unddrage dig pligter pga. din tro")
+@ skriv("  Tro er hverken skjold eller sværd.")
+@ skriv("")
+@ skriv("DEN STORE MODSIGELSE — § 6 vs § 70:")
+@ skriv("  § 6:  Kongen SKAL være evangelisk-luthersk")
+@ skriv("  § 70: INGEN kan berøves politiske rettigheder pga. trosbekendelse")
+@ skriv("  § 6 nægter eksplicit ikke-lutheranere adgang til tronen.")
+@ skriv("  § 70 siger 'ingen' — ingen undtagelse nævnt.")
+@ skriv("")
+@ skriv("  Løsning: lex specialis derogat legi generali")
+@ skriv("    § 6 er den specifikke regel (Kongen)")
+@ skriv("    § 70 er den generelle regel (alle)")
+@ skriv("    Den specifikke vinder.")
+@ skriv("")
+@ skriv("  Men dette er en META-REGEL som grundloven selv IKKE udtaler.")
+@ skriv("  Grundloven modsiger sig selv — og løsningen er udenfor teksten.")
+@ skriv("  Er Kongen undtaget fra § 70: " + vis(er_kongen_undtaget_fra_paragraf_70()))
+@ skriv("  (Implicit, ikke eksplicit)")
+@ skriv("")
+
+
+-- ============================================================================
+-- KAPITEL VII — STRUKTUREL ANALYSE
+--
+-- Religionens arkitektur på tværs af hele grundloven:
+--
+-- LAG 1 — Identitetspåstanden (Kapitel I):
+--   § 4: Folkekirken ER evangelisk-luthersk, statsunderstøttet
+--
+-- LAG 2 — Den kongelige begrænsning (Kapitel II):
+--   § 6: Kongen SKAL være evangelisk-luthersk
+--
+-- LAG 3 — Delegationen (Kapitel VII):
+--   § 66: Folkekirkens forfatning ved almindelig lov
+--   § 69: Andre trossamfunds forhold ved almindelig lov
+--
+-- LAG 4 — Frihederne (Kapitel VII):
+--   § 67: Religionsfrihed (med moral/orden-grænser)
+--   § 68: Ingen pligt til at finansiere andres gudsdyrkelse
+--
+-- LAG 5 — Ligestillingsgarantien (Kapitel VII):
+--   § 70: Ingen diskrimination på tro eller afstamning
+--
+-- Arkitekturen skaber en PYRAMIDE:
+--   Top: én person bundet AF religion (Kongen, § 6)
+--   Midte: én institution defineret AF religion (Folkekirken, § 4)
+--   Bund: alle borgere FRIE FRA religiøs begrænsning (§§ 67, 68, 70)
+--
+-- Pyramiden inverterer magt: den mest magtfulde position
+-- er MEST bundet. Den almindelige borger er MEST fri.
+-- Samme ansvarsinversion som i Kapitel III (Kongen vs ministre).
+-- ============================================================================
+
+@ skriv("================================================================")
+@ skriv("  Kapitel VII: 5 paragraffer — religion, frihed, modsigelse")
+@ skriv("================================================================")
+@ skriv("")
+@ skriv("RELIGIONENS ARKITEKTUR I GRUNDLOVEN:")
+@ skriv("")
+@ skriv("  LAG 1 (Kap. I):   § 4  — Folkekirken ER evangelisk-luthersk")
+@ skriv("  LAG 2 (Kap. II):  § 6  — Kongen SKAL være evangelisk-luthersk")
+@ skriv("  LAG 3 (Kap. VII): §§ 66,69 — Delegation til almindelig lov")
+@ skriv("  LAG 4 (Kap. VII): §§ 67,68 — Religionsfrihed for alle")
+@ skriv("  LAG 5 (Kap. VII): § 70 — Ligestilling uanset tro")
+@ skriv("")
+@ skriv("PYRAMIDEN:")
+@ skriv("  Top:    Én person bundet AF religion (Kongen, § 6)")
+@ skriv("  Midte:  Én institution defineret AF religion (Folkekirken, § 4)")
+@ skriv("  Bund:   Alle borgere FRIE FRA religion (§§ 67, 68, 70)")
+@ skriv("")
+@ skriv("  Den mest magtfulde position er MEST bundet.")
+@ skriv("  Den almindelige borger er MEST fri.")
+@ skriv("  Samme ansvarsinversion som i Kap. III (Kongen vs ministre).")
+@ skriv("")
+@ skriv("MODSIGELSEN (§ 6 vs § 70):")
+@ skriv("  Grundloven modsiger sig selv.")
+@ skriv("  Løsningen (lex specialis) er en META-REGEL")
+@ skriv("  der står UDENFOR grundlovsteksten.")
+@ skriv("  I en typesikker forfatning ville dette være en kompileringsfejl.")
+@ skriv("")
+@ skriv("DEN BRUDTE LOVNING:")
+@ skriv("  § 66 (1849): 'Folkekirkens forfatning ordnes ved lov'")
+@ skriv("  2026: aldrig sket. 177 år. Den længste uopfyldte")
+@ skriv("  grundlovsforpligtelse i dansk historie.")
+@ skriv("")
+@ skriv("MORALEN I GRUNDLOVEN:")
+@ skriv("  'Sædeligheden' (§ 67) er det ENESTE moralske ord")
+@ skriv("  i 89 paragraffer af strukturel, procedurel tekst.")
+@ skriv("  Moral kommer ind i grundloven gennem religion.")
+@ skriv("  Alle andre begrænsninger er institutionelle, ikke moralske.")

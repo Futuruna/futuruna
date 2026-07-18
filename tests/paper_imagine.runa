@@ -1,0 +1,36 @@
+-- paper_imagine.runa: The "Imagine" example from the paper
+-- Every line earns its place. All seven runes, all intermixing.
+
+# Condition = Sunny | Cloudy | Stormy
+# Weather(day: String, temp: Float, condition: Condition)
+
+> describe(w: Weather) -> String {
+    match w.condition {
+        | Sunny -> show(w.temp) + " C, sunny"
+        | Stormy -> show(w.temp) + " C, storm"
+        | Cloudy -> show(w.temp) + " C, cloudy"
+    }
+}
+
+| advisory(w) -> "all clear"
+| advisory(w) -> "heat warning" under w.temp > 35.0
+| exception storm advisory(w) -> "danger" under w.condition == Stormy
+
+= today = Weather("today", 22.0, Sunny)
+= alert = advisory(today)
+
+@ print(today.day + ": " + describe(today) + " -- " + alert)
+
+~ forecast = from_list([today, Weather("tomorrow", 40.0, Sunny), Weather("in 2 days", 10.0, Stormy), Weather("in 3 days", 18.0, Cloudy)]) |> filter(|w: Weather| advisory(w) != "all clear")
+
+= warning_count = count(forecast)
+| has_warnings: warning_count -> warning_count > 0
+
+? has_warnings: n -> {
+    @ print("Upcoming warnings (" + show(n) + "):")
+    for w in forecast {
+        @ print("  " + w.day + ": " + advisory(w) + " -> " + describe(w))
+    }
+} else {
+    @ print("No warnings -- all clear ahead")
+}

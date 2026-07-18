@@ -1,0 +1,28 @@
+-- Test: variables used in list literals are auto-cloned when used afterwards
+-- Previously, putting a struct in [t1, t2, ...] moved it, making later use fail.
+
+# Item(name: String, value: Int)
+
+= a = Item("alpha", 1)
+= b = Item("beta", 2)
+= c = Item("gamma", 3)
+
+-- Put them in a list (should auto-clone since used again below)
+= items = [a, b, c]
+
+-- Use the variables AFTER the list construction
+@ print("After list construction:")
+@ print("  a.name = " + a.name)
+@ print("  b.name = " + b.name)
+@ print("  c.name = " + c.name)
+
+-- Also use the list
+= n = count(items)
+@ print("  list length = " + show(n))
+
+? assert(a.name == "alpha")
+? assert(b.name == "beta")
+? assert(c.name == "gamma")
+? assert(n == 3)
+
+@ print("PASS: list auto-clone works")

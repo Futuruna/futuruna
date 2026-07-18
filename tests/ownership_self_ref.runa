@@ -1,0 +1,81 @@
+-- Ownership Stress Test: Self-Referential Structures
+-- In Rust, self-referential structs need Pin<Box<T>> + unsafe.
+-- Futuruna approach: offsets, indices, or split data.
+
+-- PATTERN 1: "Parsed document with references back to source"
+-- Rust would need: struct Parsed<'a> { source: String, tokens: Vec<&'a str> }
+-- Futuruna: store byte offsets instead of references
+
+# Span(start: Int, stop: Int)
+
+> span_start(s: Span) -> Int { match s { | Span(st, _) -> st } }
+> span_stop(s: Span) -> Int { match s { | Span(_, en) -> en } }
+
+> get_token(source: String, spans: List(Span), idx: Int) -> String {
+    = span = spans[idx]
+    substring(source, span_start(span), span_stop(span))
+}
+
+= source = "hello world"
+= spans = [Span(0, 5), Span(6, 11)]
+= tok0 = get_token(source, spans, 0)
+= tok1 = get_token(source, spans, 1)
+@ print("Token 0: " + tok0)
+@ print("Token 1: " + tok1)
+@ print("PASS: Pattern 1 — parsed doc with offsets (no self-reference)")
+
+-- PATTERN 2: "Iterator/cursor that borrows from collection"
+-- Rust: struct Iter<'a> { data: &'a Vec<T>, pos: usize }
+-- Futuruna: carry (items, position) through function calls
+
+> cursor_current(items: List(String), pos: Int) -> String {
+    items[pos]
+}
+
+= items = ["alpha", "beta", "gamma"]
+= pos = 0
+@ print("Current: " + cursor_current(items, pos))
+= pos = pos + 1
+@ print("Next: " + cursor_current(items, pos))
+= pos = pos + 1
+@ print("Next: " + cursor_current(items, pos))
+@ print("PASS: Pattern 2 — cursor without borrowing")
+
+-- PATTERN 3: "Graph node with parent pointer"
+-- Rust needs: Rc<RefCell<Node>> or Pin + unsafe for parent pointers
+-- Futuruna: index-based parent reference
+
+# GraphNode(name: String, parent_idx: Int)
+
+> gnode_name(n: GraphNode) -> String { match n { | GraphNode(nm, _) -> nm } }
+> gnode_parent(n: GraphNode) -> Int { match n { | GraphNode(_, p) -> p } }
+
+= nodes = [GraphNode("root", -1), GraphNode("child1", 0), GraphNode("child2", 0), GraphNode("grandchild", 2)]
+
+= grandchild = nodes[3]
+= parent_of_gc = nodes[gnode_parent(grandchild)]
+= root_node = nodes[gnode_parent(parent_of_gc)]
+@ print("Grandchild: " + gnode_name(grandchild))
+@ print("Its parent: " + gnode_name(parent_of_gc))
+@ print("Its grandparent: " + gnode_name(root_node))
+@ print("PASS: Pattern 3 — parent pointers via indices")
+
+-- PATTERN 4: "Struct that references its own data"
+-- The classic: string + slice into that string
+-- Rust: Pin<Box<SelfRef>> + unsafe, or ouroboros crate
+-- Futuruna: offsets and reconstruct
+
+> highlight(text: String, from: Int, to: Int) -> String {
+    = before = substring(text, 0, from)
+    = mid = substring(text, from, to)
+    = after = substring(text, to, length(text))
+    before + "[" + mid + "]" + after
+}
+
+= text = "The quick brown fox jumps over the lazy dog"
+= highlighted = highlight(text, 4, 9)
+@ print(highlighted)
+
+= h2 = highlight(highlighted, 20, 23)
+@ print(h2)
+@ print("PASS: Pattern 4 — self-referencing text via offsets")

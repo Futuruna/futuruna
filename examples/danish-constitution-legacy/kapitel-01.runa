@@ -1,0 +1,248 @@
+@ sprog da
+
+----
+Danmarks Riges Grundlov (Grundloven)
+
+Vi Frederik den Niende, af Guds Nåde Konge til Danmark, de Venders og Goters,
+Hertug til Slesvig, Holsten, Stormarn, Ditmarsken, Lauenborg og Oldenborg,
+Gør vitterligt: I overensstemmelse med bestemmelserne i § 94 i Danmarks Riges
+Grundlov af 5. juni 1915 med ændringer af 10. september 1920 har rigsdagen
+2 gange vedtaget, og folketingsvælgerne ved en den 28. maj 1953 afholdt
+folkeafstemning godkendt, hvorefter Vi nu ved Vort allerhøjeste samtykke
+stadfæster DANMARKS RIGES GRUNDLOV
+----
+
+-- ============================================================================
+-- Kapitel I — Statsformen (§§ 1-4)
+--
+-- Fire paragraffer. Fire kendsgerninger om Danmark.
+-- Ingen undtagelser. Ingen betingelser. Forfatningsmæssig grundfjeld.
+-- ============================================================================
+
+-- ============================================================================
+-- TYPER (fra grundlov.runa — ville være @ brug grundlov::*)
+-- ============================================================================
+
+# Rigsdel = Danmark | Færøerne | Grønland
+# Statsmagt = Lovgivende | Udøvende | Dømmende
+# Regeringsform = IndskrænketMonarkisk
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen
+# Trossamfund = EvangeliskLuthersk | Andet(navn: String)
+# Magtholder = Hos(institution: Institution) | IForening(a: Institution, b: Institution)
+# Forpligtelse = Understøttelse
+# Køn = Mand | Kvinde
+# Lov(titel: String, dato: String)
+
+= tronfølgeloven = Lov("Tronfølgeloven", "27. marts 1953")
+
+
+-- ============================================================================
+-- § 1. Denne grundlov gælder for alle dele af Danmarks Rige.
+--
+-- Den enklest tænkelige juridiske sætning: en universel kendsgerning.
+-- Ingen undtagelser. Ingen betingelser. Den bare ER.
+--
+-- "Alle dele" er åben-verden: listen er ikke udtømmende.
+-- § 1 dækker alt der er del af riget — også dele vi ikke kender endnu.
+-- Vores Rigsdel-type er lukket-verden. Det er et modelleringsgab.
+-- ============================================================================
+
+----
+§ 1. Denne grundlov gælder for alle dele af Danmarks Rige.
+----
+
+| er_rigsdel(Danmark)
+| er_rigsdel(Færøerne)
+| er_rigsdel(Grønland)
+
+> gælder_for(del: Rigsdel) -> Bool {
+    skel del {
+        | Danmark -> Sandt
+        | Færøerne -> Sandt
+        | Grønland -> Sandt
+    }
+}
+
+@ print("=== Kapitel I: Statsformen ===")
+@ print("")
+
+@ print("--- § 1: Grundlovens gyldighed ---")
+@ print("Danmark: " + show(gælder_for(Danmark)))
+@ print("Færøerne: " + show(gælder_for(Færøerne)))
+@ print("Grønland: " + show(gælder_for(Grønland)))
+
+
+-- ============================================================================
+-- § 2. Regeringsformen er indskrænket-monarkisk. Kongemagten nedarves
+--      til mænd og kvinder efter de i tronfølgeloven af 27. marts 1953
+--      fastsatte regler.
+--
+-- To regler:
+--   1. En ubetinget kendsgerning: regeringsformen ER indskrænket-monarkisk
+--   2. En delegation: arvefølgereglerne bor i en anden lov
+--
+-- Grundloven garanterer: BEGGE køn kan arve.
+-- Tronfølgeloven definerer RÆKKEFØLGEN; § 2 definerer BERETTIGELSEN.
+-- ============================================================================
+
+----
+§ 2. Regeringsformen er indskrænket-monarkisk. Kongemagten nedarves til mænd og kvinder efter de i tronfølgeloven af 27. marts 1953 fastsatte regler.
+----
+
+-- Regeringsformen (en kendsgerning — ingen 'under', ingen undtagelse)
+| regeringsform() -> IndskrænketMonarkisk
+
+-- Arvefølgens hjemmel ligger i ekstern lov
+| successions_hjemmel() -> tronfølgeloven
+
+-- Den forfatningsmæssige garanti: BEGGE køn kan arve
+> kan_arve_tronen(køn: Køn) -> Bool {
+    skel køn {
+        | Mand -> Sandt
+        | Kvinde -> Sandt
+    }
+}
+
+@ print("")
+@ print("--- § 2: Regeringsform og tronfølge ---")
+@ print("Regeringsform: IndskrænketMonarkisk")
+@ print("Mænd kan arve: " + show(kan_arve_tronen(Mand)))
+@ print("Kvinder kan arve: " + show(kan_arve_tronen(Kvinde)))
+@ print("Hjemmel: " + tronfølgeloven.titel)
+
+
+-- ============================================================================
+-- § 3. Den lovgivende magt er hos kongen og folketinget i forening.
+--      Den udøvende magt er hos kongen.
+--      Den dømmende magt er hos domstolene.
+--
+-- Montesquieus tredeling, kodet som default-logik.
+-- ASYMMETRIEN er afgørende: lovgivning kræver samarbejde (IForening),
+-- men udøvelse er ensidig (Hos).
+-- ============================================================================
+
+----
+§ 3. Den lovgivende magt er hos kongen og folketinget i forening. Den udøvende magt er hos kongen. Den dømmende magt er hos domstolene.
+----
+
+> magthaver(magt: Statsmagt) -> Magtholder {
+    skel magt {
+        | Lovgivende -> IForening(Kongen, Folketinget)
+        | Udøvende -> Hos(Kongen)
+        | Dømmende -> Hos(Domstolene)
+    }
+}
+
+-- Zero-arg projections: § 3 fastslår eksplicit hvem der har hver magt
+-- "Den lovgivende magt er hos kongen og folketinget i forening"
+| lovgivende_magtholder() -> IForening(Kongen, Folketinget)
+-- "Den udøvende magt er hos kongen"
+| udøvende_magtholder() -> Hos(Kongen)
+-- "Den dømmende magt er hos domstolene"
+| dømmende_magtholder() -> Hos(Domstolene)
+
+-- Kan en institution handle alene inden for en given magt?
+> har_enemagt(inst: Institution, magt: Statsmagt) -> Bool {
+    skel magthaver(magt) {
+        | Hos(holder) -> {
+            skel holder {
+                | Kongen -> {
+                    skel inst {
+                        | Kongen -> Sandt
+                        | _ -> Falskt
+                    }
+                }
+                | Domstolene -> {
+                    skel inst {
+                        | Domstolene -> Sandt
+                        | _ -> Falskt
+                    }
+                }
+                | _ -> Falskt
+            }
+        }
+        | IForening(_, _) -> Falskt
+    }
+}
+
+-- Er lovgivning delt magt?
+> er_delt_magt(magt: Statsmagt) -> Bool {
+    skel magthaver(magt) {
+        | IForening(_, _) -> Sandt
+        | Hos(_) -> Falskt
+    }
+}
+
+@ print("")
+@ print("--- § 3: Magtens tredeling ---")
+@ print("Lovgivende: Kongen + Folketinget i forening")
+@ print("Udøvende: Kongen alene")
+@ print("Dømmende: Domstolene alene")
+@ print("Kongen har enemagt (udøvende): " + show(har_enemagt(Kongen, Udøvende)))
+@ print("Kongen har enemagt (lovgivende): " + show(har_enemagt(Kongen, Lovgivende)))
+@ print("Lovgivning er delt magt: " + show(er_delt_magt(Lovgivende)))
+
+
+-- ============================================================================
+-- § 4. Den evangelisk-lutherske kirke er den danske folkekirke og
+--      understøttes som sådan af staten.
+--
+-- To påstande i én sætning:
+--   1. Identitet: Evangelisk-luthersk = Folkekirken (en definition)
+--   2. Forpligtelse: Staten SKAL understøtte Folkekirken
+--
+-- Dette er en forfatningsmæssig FORPLIGTELSE — ikke en beskrivelse
+-- af hvad der sker, men en forskrift om hvad der SKAL ske.
+-- Default uden undtagelse.
+--
+-- Hvad § 4 IKKE siger (lukket-verden-antagelsen):
+--   - Forbyder ikke andre religioner
+--   - Kræver ikke at borgere er lutherske
+--   - Definerer ikke "understøttelse" (det er almindelig lovgivning)
+--   - Giver ikke kirken politisk magt
+-- ============================================================================
+
+----
+§ 4. Den evangelisk-lutherske kirke er den danske folkekirke og understøttes som sådan af staten.
+----
+
+-- Folkekirkens identitet — § 4: "den evangelisk-lutherske kirke"
+| statsreligion() -> EvangeliskLuthersk
+
+> folkekirke() -> Trossamfund {
+    EvangeliskLuthersk
+}
+
+-- Statens forpligtelse — § 4: "understøttes som sådan af staten"
+| statsforpligtelse_kirke() -> Understøttelse
+
+> statsforpligtelse_overfor_folkekirken() -> Forpligtelse {
+    Understøttelse
+}
+
+-- Er dette trossamfund folkekirken?
+> er_folkekirke(kirke: Trossamfund) -> Bool {
+    skel kirke {
+        | EvangeliskLuthersk -> Sandt
+        | Andet(_) -> Falskt
+    }
+}
+
+@ print("")
+@ print("--- § 4: Folkekirken ---")
+@ print("Folkekirken: EvangeliskLuthersk")
+@ print("Statsforpligtelse: Understøttelse")
+@ print("Er EvangeliskLuthersk folkekirken: " + show(er_folkekirke(EvangeliskLuthersk)))
+@ print("Er Andet folkekirken: " + show(er_folkekirke(Andet("Katolsk"))))
+
+
+-- ============================================================================
+-- KAPITEL I — OPSUMMERING
+-- ============================================================================
+
+@ print("")
+@ print("=== Kapitel I: 4 paragraffer, 0 undtagelser ===")
+@ print("§ 1: Grundloven gælder for hele Riget")
+@ print("§ 2: Indskrænket monarki, begge køn arver")
+@ print("§ 3: Tredeling — lovgivende (delt), udøvende (Kongen), dømmende (domstolene)")
+@ print("§ 4: Evangelisk-luthersk folkekirke, statsunderstøttet")

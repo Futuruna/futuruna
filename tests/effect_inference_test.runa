@@ -1,0 +1,88 @@
+-- effect_inference_test.runa: Effect Type Inference
+-- Functions that use effects WITHOUT explicit `with` annotations.
+-- The compiler infers which effects each function needs.
+
+# effect Console {
+    > say(msg: String) -> ()
+    > ask(prompt: String) -> String
+}
+
+# effect Logger {
+    > log(level: String, msg: String) -> ()
+}
+
+-- This function explicitly declares its effect (existing behavior)
+> greet_explicit(name: String) -> String with Console {
+    say("Hello, " + name + "!")
+    = answer = ask("How are you? ")
+    "Greeted " + name + ", they said: " + answer
+}
+
+-- This function uses Console ops WITHOUT `with Console` — inferred!
+> greet_inferred(name: String) -> String {
+    say("Hi, " + name + "!")
+    = answer = ask("Tell me more: ")
+    "Inferred greet for " + name + ", reply: " + answer
+}
+
+-- This function uses Logger ops WITHOUT `with Logger` — inferred!
+> log_something(item: String) -> () {
+    log("info", "Processing: " + item)
+    log("debug", "Done: " + item)
+}
+
+-- Transitive: calls greet_inferred which needs Console — inferred!
+> welcome(name: String) -> String {
+    = result = greet_inferred(name)
+    log_something(name)
+    result
+}
+
+-- ============================================================================
+-- DEMO 1: Explicit effects (baseline)
+-- ============================================================================
+
+@ print("=== Demo 1: Explicit Effects (baseline) ===")
+@ print("")
+
+= r1 = | handle Console {
+    | say(msg) -> { @ print("  [explicit] " + msg); resume(()) }
+    | ask(prompt) -> { @ print("  [explicit] " + prompt); resume("explicit answer") }
+} in greet_explicit("World")
+
+@ print("  Result: " + r1)
+@ print("")
+
+-- ============================================================================
+-- DEMO 2: Inferred effects (no `with` on greet_inferred)
+-- ============================================================================
+
+@ print("=== Demo 2: Inferred Effects ===")
+@ print("")
+
+= r2 = | handle Console {
+    | say(msg) -> { @ print("  [inferred] " + msg); resume(()) }
+    | ask(prompt) -> { @ print("  [inferred] " + prompt); resume("inferred answer") }
+} in greet_inferred("Futuruna")
+
+@ print("  Result: " + r2)
+@ print("")
+
+-- ============================================================================
+-- DEMO 3: Transitive inference (welcome calls greet_inferred + log_something)
+-- ============================================================================
+
+@ print("=== Demo 3: Transitive Inference ===")
+@ print("")
+
+= r3 = | handle Console {
+    | say(msg) -> { @ print("  [console] " + msg); resume(()) }
+    | ask(prompt) -> { @ print("  [console] " + prompt); resume("transitive answer") }
+} in | handle Logger {
+    | log(level, msg) -> { @ print("  [" + level + "] " + msg); resume(()) }
+} in welcome("Agent")
+
+@ print("  Result: " + r3)
+@ print("")
+
+@ print("=== Effect type inference: no `with` needed! ===")

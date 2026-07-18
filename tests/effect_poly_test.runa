@@ -1,0 +1,127 @@
+-- effect_poly_test.runa: Effect Polymorphism
+-- Higher-order functions work with effectful closures.
+-- The handler stack persists through HOF calls — closures capture handlers.
+
+# effect Console {
+    > say(msg: String) -> ()
+}
+
+# effect Logger {
+    > log(level: String, msg: String) -> ()
+}
+
+-- Higher-order function: doesn't know about any effects
+> twice(f: () -> ()) -> () {
+    f()
+    f()
+}
+
+-- HOF with argument
+> apply_to(x: String, f: (String) -> ()) -> () {
+    f(x)
+}
+
+-- HOF returning a value
+> transform(x: String, f: (String) -> String) -> String {
+    f(x)
+}
+
+-- Effectful function
+> greet(name: String) -> () with Console {
+    say("Hello, " + name + "!")
+}
+
+-- ============================================================================
+-- DEMO 1: Lambda wrapper — effectful call inside closure passed to HOF
+-- ============================================================================
+
+@ print("=== Demo 1: Lambda Wrapper ===")
+@ print("")
+
+= r1 = | handle Console {
+    | say(msg) -> { @ print("  " + msg); resume(()) }
+} in {
+    twice(|| greet("World"))
+    "done"
+}
+
+@ print("  Result: " + r1)
+@ print("")
+
+-- ============================================================================
+-- DEMO 2: Inline lambda directly using effect ops
+-- ============================================================================
+
+@ print("=== Demo 2: Inline Lambda with Effect Ops ===")
+@ print("")
+
+= r2 = | handle Console {
+    | say(msg) -> { @ print("  " + msg); resume(()) }
+} in {
+    twice(|| say("ping"))
+    "done"
+}
+
+@ print("  Result: " + r2)
+@ print("")
+
+-- ============================================================================
+-- DEMO 3: HOF with argument + effectful lambda
+-- ============================================================================
+
+@ print("=== Demo 3: HOF with Argument ===")
+@ print("")
+
+= r3 = | handle Console {
+    | say(msg) -> { @ print("  " + msg); resume(()) }
+} in {
+    apply_to("Futuruna", |name: String| say("Welcome, " + name + "!"))
+    "done"
+}
+
+@ print("  Result: " + r3)
+@ print("")
+
+-- ============================================================================
+-- DEMO 4: Transform with effects — return value through effectful lambda
+-- ============================================================================
+
+@ print("=== Demo 4: Transform with Effects ===")
+@ print("")
+
+= r4 = | handle Console {
+    | say(msg) -> { @ print("  " + msg); resume(()) }
+} in {
+    = result = transform("Futuruna", |name: String| {
+        say("Processing: " + name)
+        "Processed " + name
+    })
+    result
+}
+
+@ print("  Result: " + r4)
+@ print("")
+
+-- ============================================================================
+-- DEMO 5: Multiple effects through lambda
+-- ============================================================================
+
+@ print("=== Demo 5: Multiple Effects ===")
+@ print("")
+
+= r5 = | handle Console {
+    | say(msg) -> { @ print("  [say] " + msg); resume(()) }
+} in | handle Logger {
+    | log(level, msg) -> { @ print("  [" + level + "] " + msg); resume(()) }
+} in {
+    twice(|| {
+        say("hello")
+        log("info", "greeted")
+    })
+    "done"
+}
+
+@ print("  Result: " + r5)
+@ print("")
+
+@ print("=== Effect polymorphism: closures capture handlers ===")

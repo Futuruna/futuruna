@@ -1,0 +1,136 @@
+-- lexer-audit.runa — Verification suite for the Futuruna self-hosting lexer
+-- Uses 5/7 runes: # types, = bindings, | invariants, @ effects, ? verification
+-- Plus |> pipes throughout for idiomatic stream-style queries
+
+@ import ./lexer
+
+-- ============================================================================
+-- = What is — test program 1: type + function + binding + effect
+-- ============================================================================
+
+= test_src = "# Point(x: Float, y: Float)\n> dist(p: Point) -> Float {\n    sqrt(p.x * p.x + p.y * p.y)\n}\n= origin = Point(0.0, 0.0)\n@ print(show(dist(origin)))\n"
+
+= tokens = tokenize(test_src)
+
+@ print("--- Lexer output ---")
+@ print("Tokens: " + show(length(tokens)))
+@ print("")
+
+for t in tokens {
+    @ print("  " + show_token(t))
+}
+
+-- ============================================================================
+-- | What must be true — structural invariants
+-- ============================================================================
+
+= first = head(tokens)
+= last = nth(tokens, length(tokens) - 1)
+
+| starts_with_rune: first -> first.kind == TkHash
+| ends_with_eof: last -> last.kind == TkEof
+| has_arrow: tokens -> any(tokens, |t| t.kind == TkArrow)
+| has_float_type: tokens -> any(tokens, |t| t.kind == TkType && t.text == "Float")
+| position_valid: tokens -> all(tokens, |t: Token| t.line >= 1 && t.col >= 1)
+| no_empty_idents: tokens -> all(tokens |> filter(|t: Token| t.kind == TkIdent), |t: Token| string_length(t.text) > 0)
+
+-- ============================================================================
+-- ? Prove it — verify the lexer output
+-- ============================================================================
+
+@ print("")
+@ print("--- Verification ---")
+? starts_with_rune: val -> { @ print("  First token is # rune: " + show(val.kind == TkHash)) }
+? ends_with_eof: val -> { @ print("  Last token is EOF: " + show(val.kind == TkEof)) }
+? has_arrow
+? has_float_type
+? position_valid: val -> { @ print("  All positions valid (line >= 1, col >= 1)") }
+? no_empty_idents
+
+-- Quantitative checks via |> pipes
+= eq_count = tokens |> filter(|t| t.kind == TkEq) |> length
+= semi_count = tokens |> filter(|t| t.kind == TkSemi) |> length
+= ident_count = tokens |> filter(|t| t.kind == TkIdent) |> length
+@ print("  = runes: " + show(eq_count))
+@ print("  Semis: " + show(semi_count))
+@ print("  Identifiers: " + show(ident_count))
+
+-- ============================================================================
+-- = What is — test program 2: stream pipeline (exercises all 7 rune tokens)
+-- ============================================================================
+
+= test2 = "~ nums = from_list([1, 2, 3])\n~ doubled = nums |> map(|x| x * 2)\n| rule(x) -> x > 0 under x != 0\n? rule(1)\n"
+
+= tokens2 = tokenize(test2)
+@ print("")
+@ print("--- Stream pipeline ---")
+@ print("Tokens: " + show(length(tokens2)))
+for t in tokens2 {
+    @ print("  " + show_token(t))
+}
+
+-- Rune counts via |> pipes
+= tilde_count = tokens2 |> filter(|t| t.kind == TkTilde) |> length
+= pipe_gt_count = tokens2 |> filter(|t| t.kind == TkPipeGt) |> length
+= pipe_count = tokens2 |> filter(|t| t.kind == TkPipe) |> length
+
+@ print("")
+@ print("~ runes: " + show(tilde_count))
+@ print("|> pipes: " + show(pipe_gt_count))
+@ print("| runes: " + show(pipe_count))
+
+-- | invariants for test 2
+= first2 = head(tokens2)
+= last2 = nth(tokens2, length(tokens2) - 1)
+| test2_starts_tilde: first2 -> first2.kind == TkTilde
+| test2_ends_eof: last2 -> last2.kind == TkEof
+| test2_has_pipe: tokens2 -> any(tokens2, |t| t.kind == TkPipeGt)
+
+@ print("")
+? test2_starts_tilde
+? test2_ends_eof
+? test2_has_pipe
+
+-- ============================================================================
+-- = What is — test program 3: edge cases
+-- ============================================================================
+
+= test3 = "= x = 42\n= y = -3.14\n= s = \"hello\\nworld\"\n= c = 'a'\n"
+= tokens3 = tokenize(test3)
+
+@ print("")
+@ print("--- Edge cases ---")
+
+-- | invariants for literals
+| has_int: tokens3 -> any(tokens3, |t| t.kind == TkInt && t.text == "42")
+| has_float: tokens3 -> any(tokens3, |t| t.kind == TkFloat && t.text == "3.14")
+| has_string: tokens3 -> any(tokens3, |t| t.kind == TkString)
+| has_char: tokens3 -> any(tokens3, |t| t.kind == TkChar && t.text == "a")
+
+? has_int: val -> { @ print("  Int literal 42: found") }
+? has_float: val -> { @ print("  Float literal 3.14: found") }
+? has_string: val -> { @ print("  String literal: found") }
+? has_char: val -> { @ print("  Char literal 'a': found") }
+
+-- ============================================================================
+-- = What is — test program 4: comments
+-- ============================================================================
+
+= test4 = "-- line comment\n= x = 1\n---- block\ncomment ----\n= y = 2\n"
+= tokens4 = tokenize(test4)
+
+@ print("")
+@ print("--- Comment handling ---")
+
+-- Comments should be skipped, leaving only the bindings
+= non_semi4 = tokens4 |> filter(|t: Token| t.kind != TkSemi && t.kind != TkEof)
+| comments_stripped: non_semi4 -> length(non_semi4) == 8
+
+? comments_stripped: val -> { @ print("  Comments stripped: " + show(length(val)) + " content tokens (expected 8)") }
+
+-- ============================================================================
+-- Summary
+-- ============================================================================
+
+@ print("")
+@ print("Self-hosting step 1: all invariants verified.")

@@ -1,0 +1,866 @@
+-- ============================================================================
+-- ADVERSARIAL ANALYSIS III — Kapitel VII-VIII Cross-Cutting Review
+--
+-- PART A: Fidelity — where our Futuruna encoding diverges from the actual text
+-- PART B: Constitutional Insights — paradoxes, funny consequences, edge cases
+--
+-- This is the third adversarial pass. We now have 85 of 89 paragraphs
+-- encoded. The Bill of Rights is where the real gems hide — because
+-- EVERY WORD matters when you're defining fundamental freedoms.
+-- ============================================================================
+
+@ use grundlov::*
+
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsraadet | Rigsretten
+# Trossamfund = EvangeliskLuthersk | Andet(navn: String)
+
+-- Subject scope
+# Subjekt = DanskBorger | Enhver | Borgerne | Ingen
+
+@ print("================================================================")
+@ print("  ADVERSARIAL ANALYSIS III — Chapters VII-VIII")
+@ print("  Fidelity + Constitutional Insights")
+@ print("================================================================")
+@ print("")
+
+
+-- ============================================================================
+-- PART A: FIDELITY
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  PART A: FIDELITY — Implementation vs Constitutional Text")
+@ print("================================================================")
+@ print("")
+
+
+-- ============================================================================
+-- F1: § 67 says "dyrke Gud" — worship GOD.
+--
+-- The text: "at forene sig i samfund for at dyrke GUD"
+-- Singular. Capitalized. This is a MONOTHEISTIC formulation.
+--
+-- Does § 67 protect:
+--   - Polytheism (multiple gods)? Text says "Gud", not "guder"
+--   - Buddhism (no personal god)? "Dyrke Gud" doesn't cover meditation
+--   - Atheist communities? They explicitly don't worship God
+--   - Satanism? Is Satan "Gud"?
+--
+-- Our encoding says "dyrke Gud efter overbevisning" without noting
+-- that the text frames religious freedom through a monotheistic lens.
+-- The 1849/1953 drafters assumed religion = worshipping God.
+--
+-- Modern interpretation extends this, but the TEXT is limited.
+-- ============================================================================
+
+@ print("--- F1: § 67 'dyrke Gud' — monotheistic formulation ---")
+@ print("Text: 'at forene sig i samfund for at dyrke GUD'")
+@ print("'Gud' — singular, capitalized. Monotheistic framing.")
+@ print("")
+@ print("Constitutionally protected (by text):")
+@ print("  Christianity, Judaism, Islam: JA (worship God)")
+@ print("  Hinduism (many gods): ? ('Gud' is singular)")
+@ print("  Buddhism (no god): ? ('dyrke Gud' doesn't cover meditation)")
+@ print("  Atheist communities: NEJ ('dyrke Gud' is the opposite)")
+@ print("  Satanism: ? (Is the Devil 'Gud'?)")
+@ print("")
+@ print("Our encoding: doesn't note the monotheistic limitation")
+@ print("Severity: STRUKTUREL — the text is narrower than we encoded")
+@ print("")
+
+
+-- ============================================================================
+-- F2: § 69 says "afvigende" — DEVIATING.
+--
+-- The text: "De fra folkekirken AFVIGENDE trossamfund"
+-- Not "andre" (other). Not "forskellige" (different). AFVIGENDE (deviating).
+--
+-- The Folkekirke is the NORM. Everything else is a DEVIATION.
+-- This is normative language in a chapter about non-discrimination.
+-- The very paragraph that regulates non-Folkekirke denominations
+-- describes them as "deviating" from the standard.
+--
+-- § 70 then says "ingen kan... berøves... rettigheder" based on creed.
+-- But § 69 linguistically frames non-Folkekirke religions as deviant.
+--
+-- Our encoding notes the § 66 vs § 69 asymmetry (forfatning vs forhold)
+-- but doesn't capture this loaded terminology.
+-- ============================================================================
+
+@ print("--- F2: § 69 'afvigende' — normative framing ---")
+@ print("Text: 'De fra folkekirken AFVIGENDE trossamfund'")
+@ print("Not 'andre' (other). Not 'forskellige' (different).")
+@ print("AFVIGENDE — deviating. The Folkekirke is the norm.")
+@ print("")
+@ print("In a chapter about religious non-discrimination,")
+@ print("the constitution linguistically frames all non-Folkekirke")
+@ print("religions as DEVIATIONS from the standard.")
+@ print("Our encoding notes the asymmetry but not this loaded language.")
+@ print("Severity: STRUKTUREL — captures the constitutional worldview")
+@ print("")
+
+
+-- ============================================================================
+-- F3: § 71 stk. 1 says "ingen DANSK BORGER" — only DANISH CITIZENS.
+--
+-- Text: "Ingen DANSK BORGER kan på grund af sin politiske eller
+--  religiøse overbevisning eller sin afstamning underkastes
+--  nogen form for frihedsberøvelse."
+--
+-- Compare:
+--   § 70: "Ingen" (nobody — universal)
+--   § 71: "Ingen DANSK BORGER" (no Danish citizen — restricted)
+--   § 77: "Enhver" (everyone — universal)
+--
+-- The Bill of Rights SWITCHES between universal and citizen-specific:
+--   Universal: §§ 70, 77 (equality, free speech)
+--   Citizen-specific: § 71 (personal liberty)
+--
+-- This means: a non-citizen in Denmark has free speech (§ 77)
+-- but NOT the same personal liberty protections (§ 71 stk. 1).
+--
+-- Our encoding says "personlig_frihed_ukraenkelig" without the
+-- citizen-specific scope. This is a significant fidelity gap.
+-- ============================================================================
+
+> paragraf_subjekt_70() -> Subjekt { Ingen }
+> paragraf_subjekt_71() -> Subjekt { DanskBorger }
+> paragraf_subjekt_77() -> Subjekt { Enhver }
+> paragraf_subjekt_78() -> Subjekt { Borgerne }
+
+@ print("--- F3: § 71 'ingen DANSK BORGER' — citizen-specific scope ---")
+@ print("Text: 'Ingen DANSK BORGER kan...'")
+@ print("")
+@ print("Subject scope across the Bill of Rights:")
+@ print("  § 70: 'Ingen' (nobody — " + show(paragraf_subjekt_70()) + ")")
+@ print("  § 71: 'Ingen DANSK BORGER' (" + show(paragraf_subjekt_71()) + ")")
+@ print("  § 77: 'Enhver' (everyone — " + show(paragraf_subjekt_77()) + ")")
+@ print("  § 78: 'Borgerne' (the citizens — " + show(paragraf_subjekt_78()) + ")")
+@ print("")
+@ print("The constitution SWITCHES between universal and citizen-specific!")
+@ print("Our encoding treats § 71 as universal. Text says DANISH CITIZENS.")
+@ print("Severity: MENINGSAENDRENDE — changes WHO is protected")
+@ print("")
+
+
+-- ============================================================================
+-- F4: § 71 stk. 6 EXPLICITLY exempts immigration detention.
+--
+-- Text: "en frihedsberøvelse, der ikke er besluttet af en
+--  dømmende myndighed, og som IKKE har hjemmel i lovgivningen
+--  om UDLÆNDINGE"
+--
+-- This says: non-criminal detention must be judicially reviewed...
+-- UNLESS it's under immigration law.
+--
+-- Immigration detention is CONSTITUTIONALLY EXEMPT from the
+-- habeas corpus requirement of stk. 6.
+--
+-- Combined with F3 (stk. 1 only covers "dansk borger"):
+-- The constitution creates a TWO-TIER LIBERTY SYSTEM:
+--   Tier 1: Danish citizens — full § 71 protection
+--   Tier 2: Non-citizens — § 71.1 doesn't apply, § 71.6 exempts
+--           immigration detention from judicial review
+--
+-- Our encoding mentions "non-criminal detention" but MISSES the
+-- immigration exception entirely. This is our most significant omission.
+-- ============================================================================
+
+> udlaendinge_frihedsberoevselse_proeves() -> Bool {
+    -- § 71 stk. 6: EXPLICITLY exempt
+    False
+}
+
+@ print("--- F4: § 71 stk. 6 — immigration detention carve-out ---")
+@ print("Text: 'som IKKE har hjemmel i lovgivningen om UDLÆNDINGE'")
+@ print("")
+@ print("Udlaendinge-frihedsberoevselse proeves: " + show(udlaendinge_frihedsberoevselse_proeves()))
+@ print("")
+@ print("§ 71 stk. 6 says non-criminal detention gets judicial review")
+@ print("EXCEPT immigration detention. The carve-out is in the TEXT.")
+@ print("")
+@ print("Combined with F3 (stk. 1 = 'dansk borger' only):")
+@ print("  TO-LAGS FRIHEDSSYSTEM:")
+@ print("    Lag 1: Danske borgere — fuld § 71 beskyttelse")
+@ print("    Lag 2: Udlaendinge — stk. 1 gaelder ikke,")
+@ print("           stk. 6 undtager udlaendingelov fra proevelse")
+@ print("")
+@ print("Our encoding: COMPLETELY MISSES this exception.")
+@ print("Severity: MENINGSAENDRENDE — the Bill of Rights has a hole")
+@ print("")
+
+
+-- ============================================================================
+-- F5: § 73 stk. 3 vs § 61 — special courts contradiction.
+--
+-- § 61: "Særdomstole med dømmende myndighed kan IKKE nedsættes."
+-- § 73 stk. 3: "Prøvelsen af erstatningens størrelse kan ved lov
+--              henlægges til domstole oprettet I DETTE ØJEMED."
+--
+-- § 61 bans special courts. § 73 allows courts created specifically
+-- for expropriation assessment. Is an expropriation court a
+-- "særdomstol med dømmende myndighed"?
+--
+-- If yes: § 73 contradicts § 61.
+-- If no: what distinguishes an assessment court from a special court?
+--
+-- Our encoding doesn't note this tension.
+-- ============================================================================
+
+@ print("--- F5: § 73 stk. 3 vs § 61 — special courts contradiction ---")
+@ print("§ 61: 'Saerdomstole med doemmende myndighed kan IKKE nedsaettes'")
+@ print("§ 73.3: 'domstole oprettet I DETTE OEJEMED' (for ekspropriation)")
+@ print("")
+@ print("§ 61 forbyder saerdomstole.")
+@ print("§ 73.3 tillader domstole oprettet specifikt til ekspropriation.")
+@ print("Er en ekspropriationsdomstol en 'saerdomstol'?")
+@ print("  Ja → § 73 modsiger § 61")
+@ print("  Nej → hvad er forskellen?")
+@ print("Severity: STRUKTUREL — self-contradiction in the constitution")
+@ print("")
+
+
+-- ============================================================================
+-- F6: § 77 enumerates three media: "på tryk, i skrift og tale."
+--
+-- Print, writing, and speech. THREE specific modes.
+-- NOT: images, film, video, performance, mime, sculpture, music.
+--
+-- Our encoding says "ytringsfrihed" (free expression) universally.
+-- The text is narrower — it names three modes of publication.
+--
+-- Is a YouTube video "tale" (speech)? Is a painting "tryk" (print)?
+-- Is a mime "skrift" (writing)? Is code "skrift"?
+--
+-- Modern interpretation extends this to all expression.
+-- But the TEXT has an enumeration problem.
+-- ============================================================================
+
+@ print("--- F6: § 77 — three modes, not all expression ---")
+@ print("Text: 'paa tryk, i skrift og tale'")
+@ print("  = in print, in writing, and in speech")
+@ print("")
+@ print("NOT named: images, film, video, music, art, performance, code")
+@ print("Is a YouTube video 'tale'? Is code 'skrift'?")
+@ print("Our encoding: 'ytringsfrihed' universally")
+@ print("The text: three specific modes from 1849")
+@ print("Severity: STRUKTUREL — text is narrower than our encoding")
+@ print("")
+
+
+-- ============================================================================
+-- F7: § 78 stk. 2 — "anderledes tænkende" (those who think differently)
+--
+-- Text: "strafbar påvirkning af ANDERLEDES TÆNKENDE"
+-- Criminal influence on THOSE WHO THINK DIFFERENTLY.
+--
+-- This is not just anti-violence. It specifically protects DISSENTERS.
+-- An association is dissolved not just for using violence generally,
+-- but for using violence to influence people who DISAGREE with them.
+--
+-- Our encoding mentions violence but misses this nuance:
+-- § 78.2 protects the freedom to disagree, not just physical safety.
+-- ============================================================================
+
+@ print("--- F7: § 78 stk. 2 — 'anderledes taenkende' protection ---")
+@ print("Text: 'strafbar paavirkning af ANDERLEDES TAENKENDE'")
+@ print("Not just anti-violence — specifically protects DISSENTERS")
+@ print("Our encoding: mentions violence, misses the dissenter protection")
+@ print("Severity: STRUKTUREL — § 78.2 is about thought-freedom, not just safety")
+@ print("")
+
+
+-- ============================================================================
+-- F8: § 79 "befrygtes fare" — FEARED danger, not actual danger.
+--
+-- Text: "når der af dem kan BEFRYGTES fare for den offentlige fred"
+-- When danger to public peace can be FEARED from them.
+--
+-- Not "when danger exists" — "when danger can be feared."
+-- The threshold is ANTICIPATORY, not factual.
+-- Police can ban an outdoor assembly based on what they THINK
+-- might happen, not what IS happening.
+--
+-- Our encoding says "kan forbydes (offentlig fred)" as if the
+-- threat must be real. The text allows preventive bans.
+-- ============================================================================
+
+@ print("--- F8: § 79 'befrygtes fare' — subjective threat threshold ---")
+@ print("Text: 'naar der af dem kan BEFRYGTES fare'")
+@ print("Not 'naar fare foreligger' (when danger exists)")
+@ print("'Befrygtes' = FEARED. Anticipatory, not factual.")
+@ print("Police can ban based on what they THINK might happen.")
+@ print("Our encoding: treats threat as objective. Text: subjective.")
+@ print("Severity: STRUKTUREL — the ban threshold is lower than we encoded")
+@ print("")
+
+
+-- ============================================================================
+-- F9: § 83 abolishes PRIVILEGES, not TITLES.
+--
+-- Text: "Enhver i lovgivningen til adel, titel og rang knyttet
+--  FORRET er afskaffet."
+--
+-- FORRET (privilege) is what's abolished. Not adel (nobility),
+-- not titel (title), not rang (rank) themselves.
+-- You can still be "greve" (count) or "baron."
+-- The TITLE persists — the legal PRIVILEGE is gone.
+--
+-- Our encoding says "adelsforrettigheder_eksisterer() -> False"
+-- which is correct for privileges but doesn't distinguish from titles.
+-- ============================================================================
+
+@ print("--- F9: § 83 — privileges abolished, not titles ---")
+@ print("Text: 'til adel, titel og rang knyttet FORRET er afskaffet'")
+@ print("FORRET (privilege) is abolished. Not adel/titel/rang themselves.")
+@ print("You CAN still be 'greve' or 'baron' — the title is just a word.")
+@ print("Denmark has constitutional nobles with no constitutional nobility.")
+@ print("Severity: KOSMETISK — our encoding is correct but imprecise")
+@ print("")
+
+
+-- ============================================================================
+-- F10: § 75 stk. 2 "sig eller sine" — yourself or YOUR DEPENDENTS.
+--
+-- Text: "Den, der ikke selv kan ernære SIG ELLER SINE"
+-- "sig" = yourself. "sine" = your dependents.
+--
+-- Our encoding: ret_til_hjaelp(kan_ernaere_sig, anden_forsoerger)
+-- Checks self-support. Doesn't check dependents.
+--
+-- If you can support yourself but NOT your children,
+-- our encoding says no help. The text says help.
+-- ============================================================================
+
+@ print("--- F10: § 75 stk. 2 — 'sig eller sine' includes dependents ---")
+@ print("Text: 'ikke selv kan ernaere SIG ELLER SINE'")
+@ print("'Sine' = your dependents (children, etc.)")
+@ print("Our encoding: only checks self-support, not dependents")
+@ print("Severity: STRUKTUREL — changes eligibility for public assistance")
+@ print("")
+
+
+-- ============================================================================
+-- FIDELITY SCORECARD
+-- ============================================================================
+
+@ print("--- FIDELITY SCORECARD ---")
+@ print("")
+@ print("  Chapter VII:  2 issues (§ 67 monotheism, § 69 'afvigende')")
+@ print("  Chapter VIII: 8 issues (§ 71 citizen scope, immigration exemption,")
+@ print("                          § 73/§ 61 conflict, § 77 enumeration,")
+@ print("                          § 78 dissenter protection, § 79 threshold,")
+@ print("                          § 83 titles, § 75 dependents)")
+@ print("")
+@ print("  Kosmetisk:         1 (§ 83 title/privilege distinction)")
+@ print("  Strukturel:        7 (§ 67, § 69, § 73/§ 61, § 77, § 78, § 79, § 75)")
+@ print("  Meningsaendrende:  2 (§ 71 citizen scope, immigration carve-out)")
+@ print("")
+@ print("  The two meaning-changing issues are serious:")
+@ print("  The Bill of Rights has a TWO-TIER system we completely missed.")
+@ print("")
+
+
+-- ============================================================================
+-- PART B: CONSTITUTIONAL INSIGHTS
+-- ============================================================================
+
+@ print("")
+@ print("================================================================")
+@ print("  PART B: CONSTITUTIONAL INSIGHTS")
+@ print("================================================================")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 1: The Atheist's § 68 Paradox
+--
+-- § 68: "Ingen er pligtig at yde personlige bidrag til nogen ANDEN
+--  gudsdyrkelse end den, som er HANS EGEN."
+--
+-- You don't have to pay for OTHERS' worship. Only your OWN.
+-- The word "anden" (other) presupposes you HAVE a worship.
+-- What if you don't?
+--
+-- An atheist has NO "own" worship. ALL worship is "other" to them.
+-- § 68 says you don't pay for other worship than your own.
+-- For an atheist, ALL worship is other.
+-- Therefore: an atheist cannot be constitutionally obligated
+-- to fund ANY religious activity.
+--
+-- But § 4 says the state must support the Folkekirke.
+-- State support comes from taxes. Atheists pay taxes.
+-- An atheist's taxes partially fund the Folkekirke.
+--
+-- § 68 says they shouldn't have to.
+-- § 4 says the state must.
+-- The atheist is a constitutional edge case that the 1953 drafters
+-- didn't consider — because they assumed everyone worships God (§ 67).
+-- ============================================================================
+
+@ print("--- INSIGHT 1: The Atheist's § 68 Paradox ---")
+@ print("")
+@ print("  § 68: 'nogen ANDEN gudsdyrkelse end den, som er hans egen'")
+@ print("  Presupposes you HAVE an 'own' worship.")
+@ print("")
+@ print("  An atheist:")
+@ print("    Has own worship? NEJ")
+@ print("    Then ALL worship is 'anden' (other)")
+@ print("    § 68 says: you don't pay for 'anden' worship")
+@ print("    Therefore: an atheist cannot be obligated to fund ANY religion")
+@ print("")
+@ print("  But:")
+@ print("    § 4: state MUST support Folkekirken")
+@ print("    State support = taxes")
+@ print("    Atheists pay taxes")
+@ print("    Atheist taxes fund the Folkekirke")
+@ print("    § 68 says they shouldn't have to")
+@ print("")
+@ print("  The constitution presumes theism (§ 67 'dyrke Gud').")
+@ print("  An atheist breaks the assumption. Edge case: the drafters")
+@ print("  didn't imagine someone with NO 'own' worship.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 2: The Two-Tier Liberty System
+--
+-- The constitution carefully modulates WHO has which rights:
+--
+--   UNIVERSAL ("enhver", "ingen"):
+--     § 70: Equality (creed/descent) — "Ingen"
+--     § 77: Free expression — "Enhver"
+--
+--   CITIZEN-SPECIFIC ("dansk borger", "borgerne"):
+--     § 71: Personal liberty — "Ingen DANSK BORGER"
+--     § 78: Association — "Borgerne"
+--     § 79: Assembly — "Borgerne"
+--
+-- The result: a foreigner in Denmark has:
+--   ✓ Equal treatment (§ 70)
+--   ✓ Free speech (§ 77)
+--   ✗ Full personal liberty protection (§ 71)
+--   ✗ Association freedom (§ 78)
+--   ✗ Assembly freedom (§ 79)
+--
+-- You can SAY anything but can't MEET freely.
+-- You can PUBLISH but can't ORGANIZE.
+--
+-- This is not accidental — the drafters chose different words
+-- for different rights. The constitution has a SUBJECT GRAMMAR.
+-- ============================================================================
+
+@ print("--- INSIGHT 2: The Two-Tier Liberty System ---")
+@ print("")
+@ print("  UNIVERSAL (all persons):")
+@ print("    § 70: 'Ingen' — equality")
+@ print("    § 77: 'Enhver' — free expression")
+@ print("")
+@ print("  CITIZEN-SPECIFIC:")
+@ print("    § 71: 'Ingen DANSK BORGER' — personal liberty")
+@ print("    § 78: 'Borgerne' — association")
+@ print("    § 79: 'Borgerne' — assembly")
+@ print("")
+@ print("  A foreigner in Denmark:")
+@ print("    Can speak freely (§ 77): JA")
+@ print("    Equal treatment (§ 70): JA")
+@ print("    Full habeas corpus (§ 71): NEJ")
+@ print("    Form associations (§ 78): NEJ")
+@ print("    Assemble freely (§ 79): NEJ")
+@ print("")
+@ print("  You can PUBLISH but can't ORGANIZE.")
+@ print("  You can SAY anything but can't MEET freely.")
+@ print("  The constitution has a SUBJECT GRAMMAR.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 3: The Morality Monopoly
+--
+-- § 67 limits religion by "sædeligheden" (morality).
+-- § 63 gives courts the power to review everything.
+-- § 4 makes the Folkekirke the state church.
+--
+-- Who DEFINES morality in practice?
+-- Courts do (§ 63). But courts exist in a culture shaped by...
+-- the Folkekirke (state church for 500+ years).
+--
+-- The state religion limits other religions by morality.
+-- The morality standard is culturally set by the state religion.
+-- The regulator is the competitor.
+--
+-- It's as if McDonald's wrote the health code for Burger King.
+-- ============================================================================
+
+@ print("--- INSIGHT 3: The Morality Monopoly ---")
+@ print("")
+@ print("  § 67: Religion limited by 'saedeligheden' (morality)")
+@ print("  § 63: Courts define the limits of authority")
+@ print("  § 4:  Folkekirken = state church for 500+ years")
+@ print("")
+@ print("  Who defines 'saedelighed'?")
+@ print("    Formally: domstolene (§ 63)")
+@ print("    Culturally: 500 years of Folkekirke influence")
+@ print("")
+@ print("  The state religion's culture shapes the morality standard.")
+@ print("  The morality standard limits other religions.")
+@ print("  The regulator is the competitor.")
+@ print("  McDonald's writes the health code for Burger King.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 4: § 80 — The King Protects You From Himself
+--
+-- § 80: Armed force against crowds can only proceed
+-- "i kongens og lovens navn" — in the King's and the law's name.
+--
+-- But:
+--   § 12: The King is supreme commander of the military
+--   § 80: Military force must be announced in the King's name
+--
+-- The military invokes the King's authority to LIMIT the King's
+-- military. The King's NAME is the restraint on the King's POWER.
+--
+-- You are being protected from the sovereign BY the sovereign's name.
+-- The formula requires the crowd to hear that the King himself
+-- authorizes the limitation of his own force.
+--
+-- It's as if a bouncer says "the boss says you can stay."
+-- The boss IS the one who sent the bouncer.
+-- ============================================================================
+
+@ print("--- INSIGHT 4: The King Protects You From Himself ---")
+@ print("")
+@ print("  § 12: Kongen is supreme military commander")
+@ print("  § 80: Force proceeds 'i kongens og lovens navn'")
+@ print("")
+@ print("  The military invokes the King's authority")
+@ print("  to LIMIT the King's military.")
+@ print("  The King's NAME is the restraint on the King's POWER.")
+@ print("")
+@ print("  The bouncer says 'the boss says you can stay.'")
+@ print("  The boss IS the one who sent the bouncer.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 5: § 81 — The Conscientious Objection Gap
+--
+-- "Enhver våbenfør mand er forpligtet til MED SIN PERSON
+--  at bidrage til fædrelandets forsvar."
+--
+-- "Med sin person" — with his PERSON. His body.
+-- Not "with his labor." Not "with his resources." His BODY.
+--
+-- The constitution mandates PHYSICAL military service.
+-- There is NO exception for conscience. No alternative service.
+-- The right to refuse military service on moral grounds is
+-- NOT in the constitution — it's a creation of ordinary law.
+--
+-- If Folketing repealed the conscientious objection law tomorrow,
+-- § 81 would stand alone: every able-bodied man MUST serve.
+-- Period. No alternative. The constitution provides no basis
+-- for refusal. It's a pure physical obligation.
+--
+-- Cross-ref § 70: no one shall evade duties based on creed.
+-- § 81 demands physical service. § 70 says you can't refuse
+-- a duty because of your religion. Together: you cannot
+-- religiously object to military service (constitutionally).
+--
+-- Denmark allows it anyway — but by ORDINARY LAW,
+-- which is weaker than the constitution that commands service.
+-- ============================================================================
+
+@ print("--- INSIGHT 5: The Conscientious Objection Gap ---")
+@ print("")
+@ print("  § 81: 'MED SIN PERSON at bidrage til forsvaret'")
+@ print("  = with his BODY. Not labor. Not money. His body.")
+@ print("")
+@ print("  The constitution says: you MUST serve. Physically.")
+@ print("  No exception for conscience. No alternative service.")
+@ print("")
+@ print("  § 70: 'unddrage sig opfyldelsen af nogen borgerpligt'")
+@ print("  = you CANNOT evade a duty because of your creed")
+@ print("")
+@ print("  § 81 + § 70 together:")
+@ print("    You must serve (§ 81)")
+@ print("    You cannot refuse due to religion (§ 70)")
+@ print("    = NO constitutional basis for conscientious objection")
+@ print("")
+@ print("  Denmark allows it — by ORDINARY LAW.")
+@ print("  If that law were repealed, § 81 stands alone.")
+@ print("  The constitution COMMANDS service and FORBIDS religious refusal.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 6: Denmark Has Nobles With No Nobility
+--
+-- § 83: "til adel, titel og rang knyttet FORRET er afskaffet"
+-- Privileges ARE abolished. But adel (nobility) is not.
+-- Titles persist. Privileges don't.
+--
+-- There are still Danish counts and barons.
+-- They have titles. They have no constitutional privileges.
+-- A "greve" (count) has exactly the same rights as any citizen.
+-- The title is an ornamental word with zero legal content.
+--
+-- This is the most Danish possible solution:
+-- Instead of dramatically ABOLISHING the aristocracy,
+-- the constitution simply EMPTIED it.
+-- The nobles still exist. They're just normal people with fancy names.
+-- ============================================================================
+
+@ print("--- INSIGHT 6: Nobles With No Nobility ---")
+@ print("")
+@ print("  § 83 abolishes FORRET (privilege), not ADEL (nobility)")
+@ print("  Danish counts and barons still exist")
+@ print("  They have titles. They have zero privileges.")
+@ print("  A 'greve' has exactly the same rights as everyone else.")
+@ print("")
+@ print("  The most Danish solution:")
+@ print("  Don't abolish the aristocracy — just EMPTY it.")
+@ print("  The nobles still exist. They're normal people with fancy names.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 7: § 77's Enumeration Paradox — Is Code Speech?
+--
+-- § 77: "på tryk, i skrift og tale" — print, writing, speech.
+-- Three modes. An EXHAUSTIVE or ILLUSTRATIVE list?
+--
+-- If exhaustive:
+--   Code is not print, writing, or speech → not protected
+--   A painting is not print, writing, or speech → not protected
+--   A YouTube video MIGHT be "tale" → maybe protected
+--   Mime is not speech → not protected
+--   Sign language is not "tale" (verbal speech) → not protected?
+--
+-- If illustrative: why enumerate at all?
+--
+-- The 1849 drafters named the media they knew.
+-- In 2026, the most important speech acts happen in media
+-- they never imagined.
+--
+-- BONUS: "Censur og andre forebyggende forholdsregler kan
+-- INGENSINDE PÅNY indføres."
+-- If § 77 only covers print/writing/speech, then CENSORSHIP
+-- of images, film, and code was never banned by "ingensinde."
+-- You could constitutionally censor a film but not a book.
+-- ============================================================================
+
+@ print("--- INSIGHT 7: Is Code Speech? ---")
+@ print("")
+@ print("  § 77: 'paa tryk, i skrift og tale' — 3 modes enumerated")
+@ print("")
+@ print("  If the list is EXHAUSTIVE:")
+@ print("    Code: not protected")
+@ print("    Paintings: not protected")
+@ print("    Sign language: not protected?")
+@ print("    Film: not protected")
+@ print("    YouTube: maybe ('tale'?)")
+@ print("    Mime: definitely not protected")
+@ print("")
+@ print("  The censorship ban ('ingensinde paany') applies to § 77.")
+@ print("  If § 77 only covers print/writing/speech, then:")
+@ print("    Censoring a BOOK = unconstitutional")
+@ print("    Censoring a FILM = constitutionally allowed?")
+@ print("    Censoring CODE = constitutionally allowed?")
+@ print("")
+@ print("  Modern interpretation says no. But the TEXT says what it says.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 8: The § 79 Pre-Crime Ban
+--
+-- § 79: Outdoor assemblies can be banned when danger is "befrygtes"
+-- (feared/anticipated).
+--
+-- This is a PRE-CRIME standard. Not "when danger exists" but
+-- "when danger can be feared." The constitutional threshold for
+-- banning an assembly is based on PREDICTION, not fact.
+--
+-- Who does the fearing? The police.
+-- What counts as "befrygtning"? Undefined.
+--
+-- This means: the RIGHT to assemble outdoors exists, but the
+-- EXCEPTION is based on subjective anticipation.
+-- A peaceful protest can be constitutionally banned if the police
+-- FEAR it might turn violent.
+--
+-- Compare § 71 stk. 5: no pretrial detention for fine-only offenses.
+-- The constitution won't lock you up before trial for small crimes,
+-- but WILL ban your gathering before it happens.
+-- Preventive detention: NO. Preventive assembly ban: YES.
+-- ============================================================================
+
+@ print("--- INSIGHT 8: The § 79 Pre-Crime Ban ---")
+@ print("")
+@ print("  § 79: 'naar der af dem kan BEFRYGTES fare'")
+@ print("  = when danger can be FEARED. Not exists — feared.")
+@ print("")
+@ print("  This is a PRE-CRIME standard for outdoor assemblies.")
+@ print("  A peaceful protest can be banned if police FEAR violence.")
+@ print("")
+@ print("  Compare § 71 stk. 5:")
+@ print("    Preventive detention for minor crimes: NEJ")
+@ print("    Preventive assembly ban: JA")
+@ print("  The constitution won't lock you up based on prediction")
+@ print("  but WILL ban your gathering based on prediction.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 9: The § 75 Disability Trap
+--
+-- § 75 stk. 1: "enhver ARBEJDSDUELIG borger" — every ABLE-TO-WORK citizen
+-- § 75 stk. 2: help for those who "ikke selv kan ernære sig eller sine"
+--   BUT ONLY IF "forsørgelse ikke påhviler nogen anden"
+--
+-- A disabled person:
+--   stk. 1 doesn't apply (not "arbejdsduelig" / able to work)
+--   stk. 2 applies — but only if NO ONE ELSE is responsible
+--
+-- If a disabled person has a wealthy family:
+--   stk. 1: irrelevant (can't work)
+--   stk. 2: no public help (family is "anden" / another who's responsible)
+--
+-- The constitution says: if your family is wealthy, you have
+-- NO constitutional right to public assistance, even if disabled.
+-- The safety net has a FAMILY-RESPONSIBILITY GATE.
+--
+-- The welfare state we know is built on ORDINARY LAW.
+-- The constitution only guarantees help as LAST RESORT.
+-- ============================================================================
+
+@ print("--- INSIGHT 9: The § 75 Disability Trap ---")
+@ print("")
+@ print("  § 75.1: 'enhver ARBEJDSDUELIG borger' — only able-bodied")
+@ print("  § 75.2: help IF you can't support 'sig eller sine'")
+@ print("          AND IF 'forsoergelse ikke paahviler nogen ANDEN'")
+@ print("")
+@ print("  Disabled person with wealthy family:")
+@ print("    § 75.1: doesn't apply (not arbejdsduelig)")
+@ print("    § 75.2: no help (family is 'nogen anden')")
+@ print("    Result: NO constitutional right to public assistance")
+@ print("")
+@ print("  The Danish welfare state is built on ORDINARY LAW.")
+@ print("  The constitution only guarantees help as LAST RESORT.")
+@ print("  A simple majority could constitutionally dismantle welfare")
+@ print("  for anyone who has a family member with resources.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 10: The Complete Subject Grammar
+--
+-- Collecting ALL the subject words across §§ 66-85:
+--
+-- "Borgerne" (the citizens): §§ 67, 78, 79
+-- "Ingen" (nobody): §§ 68, 70
+-- "Ingen dansk borger" (no Danish citizen): § 71
+-- "Enhver" (everyone): §§ 71.3, 77, 81, 83
+-- "Den, der..." (the one who...): § 75.2
+-- "Alle børn" (all children): § 76
+-- "Kommunerne" (municipalities): § 82
+-- "Enhver våbenfør mand" (every able-bodied man): § 81
+--
+-- The constitution distinguishes at least 6 CATEGORIES of subject:
+--   1. All persons (enhver)
+--   2. All citizens (borgerne)
+--   3. Danish citizens specifically (dansk borger)
+--   4. Specific populations (børn, mænd, kommuner)
+--   5. Nobody / no-one (ingen) — universal prohibition
+--   6. Conditional (den, der...)
+--
+-- Each right is PRECISELY SCOPED to its intended beneficiary.
+-- This is not sloppy drafting — it's a GRAMMAR OF RIGHTS.
+-- ============================================================================
+
+@ print("--- INSIGHT 10: The Complete Subject Grammar ---")
+@ print("")
+@ print("  'Borgerne' (citizens): §§ 67, 78, 79")
+@ print("  'Ingen' (nobody): §§ 68, 70")
+@ print("  'Ingen dansk borger': § 71")
+@ print("  'Enhver' (everyone): §§ 77, 81, 83")
+@ print("  'Alle boern': § 76")
+@ print("  'Enhver vaabenfoer mand': § 81")
+@ print("  'Den, der...': § 75.2")
+@ print("")
+@ print("  6 categories of constitutional subject.")
+@ print("  Each right precisely scoped to its beneficiary.")
+@ print("  This is a GRAMMAR OF RIGHTS.")
+@ print("")
+
+
+-- ============================================================================
+-- INSIGHT 11: The "Hæfte" Ghost
+--
+-- § 71 stk. 5: "straf af bøde eller HÆFTE"
+-- Hæfte was a form of short-term detention, ABOLISHED in 2001.
+-- The constitutional text still references it.
+--
+-- This is a DEAD WORD in a living constitution.
+-- The provision still applies (no pretrial detention for minor offenses)
+-- but one of its two referenced penalties no longer exists.
+--
+-- Combined with § 72's "telegraf" and § 77's "tryk":
+-- The constitution is full of 1953 technology and legal concepts.
+-- Three ghosts: hæfte (abolished), telegraf (obsolete), tryk (narrowing).
+-- The text ages. The principles don't. But the text IS the law.
+-- ============================================================================
+
+@ print("--- INSIGHT 11: The 'Haefte' Ghost ---")
+@ print("")
+@ print("  § 71.5: 'straf af boede eller HAEFTE'")
+@ print("  Haefte abolished in 2001. Still in the constitution.")
+@ print("")
+@ print("  Three ghosts in the constitutional text:")
+@ print("    § 71.5: 'haefte' — abolished 2001")
+@ print("    § 72:   'telegraf' — technology obsolete")
+@ print("    § 77:   'tryk' — narrowing medium")
+@ print("")
+@ print("  The text ages. The principles don't.")
+@ print("  But the text IS the law.")
+@ print("")
+
+
+-- ============================================================================
+-- SUMMARY
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  SUMMARY")
+@ print("================================================================")
+@ print("")
+@ print("  FIDELITY: 10 issues found")
+@ print("    2 meningsaendrende (§ 71 citizen scope, immigration carve-out)")
+@ print("    7 strukturel (§ 67, § 69, § 73/§ 61, § 77, § 78, § 79, § 75)")
+@ print("    1 kosmetisk (§ 83 title/privilege)")
+@ print("")
+@ print("  INSIGHTS: 11 constitutional discoveries")
+@ print("    1.  Atheist's § 68 Paradox: all worship is 'other' to atheists")
+@ print("    2.  Two-Tier Liberty: citizens vs non-citizens in the BoR")
+@ print("    3.  Morality Monopoly: state religion defines moral limits")
+@ print("    4.  King Protects You From Himself: § 80's self-referential formula")
+@ print("    5.  Conscientious Objection Gap: § 81 + § 70 = must serve, can't refuse")
+@ print("    6.  Nobles With No Nobility: § 83 emptied, not abolished")
+@ print("    7.  Is Code Speech?: § 77 enumerates 3 modes from 1849")
+@ print("    8.  Pre-Crime Ban: § 79 bans assemblies on FEARED danger")
+@ print("    9.  Disability Trap: § 75 has a family-responsibility gate")
+@ print("    10. Subject Grammar: 6 categories of constitutional subject")
+@ print("    11. Haefte Ghost: dead legal concepts in living text")
+@ print("")
+@ print("  WORTH EXPANDING INTO STANDALONE ANALYSES:")
+@ print("    - Two-Tier Liberty (Insight 2) — comparable to Muslim King Paradox")
+@ print("    - Conscientious Objection Gap (Insight 5) — § 81 + § 70 interaction")
+@ print("    - Subject Grammar (Insight 10) — systematic across all 89 paragraphs")
+@ print("")
+@ print("  CUMULATIVE across all 3 adversarial reviews:")
+@ print("    analyse.runa:   10 issues + 4 funny consequences (Kap. I-II)")
+@ print("    analyse-2.runa: 8 fidelity + 10 insights (Kap. I-IV)")
+@ print("    analyse-3.runa: 10 fidelity + 11 insights (Kap. VII-VIII)")
+@ print("    Total: 28 fidelity issues + 25 insights")

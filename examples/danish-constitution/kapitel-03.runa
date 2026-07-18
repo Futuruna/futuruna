@@ -1,0 +1,329 @@
+@ sprog da
+
+-- Kapitel III -- Kongen og ministrene
+
+# Samtykke = Givet | IkkeGivet
+# Mistillid = Udtalt | IkkeUdtalt
+# Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
+# ForsikringsStatus = IkkeAfgivet | AfgivetSomTronfølger
+# Tronfølger(alder: Heltal, trossamfund: Trossamfund)
+# MilitærGrund = Forsvar | Anden
+# Beslutning(kongen_underskrevet: Boolsk, minister_underskrevet: Boolsk)
+# Råd = ViaStatsråd | ViaMinisterråd
+
+
+----
+§ 12. Kongen har med de i denne grundlov fastsatte indskrænkninger den højeste
+myndighed over alle rigets anliggender og udøver den gennem ministrene.
+----
+
+| kongen_har_højeste_myndighed()
+| myndighed_indskrænket_af_grundloven()
+| myndighed_udøves_gennem_ministrene()
+
+
+----
+§ 13. Kongen er ansvarsfri; hans person er fredhellig. Ministrene er ansvarlige
+for regeringens førelse; deres ansvarlighed bestemmes nærmere ved lov.
+----
+
+| kongen_er_ansvarsfri()
+| kongen_er_fredhellig()
+| ministrene_er_ansvarlige_for_regeringsførelse()
+| ministeransvar_fastsættes_ved_lov()
+
+
+----
+§ 14. Kongen udnævner og afskediger statsministeren og de øvrige ministre. Han
+bestemmer deres antal og forretningernes fordeling imellem dem. Kongens
+underskrift under de lovgivningen og regeringen vedkommende beslutninger giver
+disse gyldighed, når den er ledsaget af en eller flere ministres underskrift.
+Enhver minister, som har underskrevet, er ansvarlig for beslutningen.
+----
+
+| kongen_udnævner_ministre()
+| kongen_afskediger_ministre()
+| kongen_bestemmer_antal_og_fordeling()
+
+> beslutning_gyldig(b: Beslutning) -> Boolsk {
+    hvis b.kongen_underskrevet {
+        hvis b.minister_underskrevet { Sandt } ellers { Falskt }
+    } ellers {
+        Falskt
+    }
+}
+
+| underskrivende_minister_er_ansvarlig()
+
+
+----
+§ 15. Stk. 1. Ingen minister kan forblive i sit embede, efter at folketinget
+har udtalt sin mistillid til ham.
+
+Stk. 2. Udtaler folketinget sin mistillid til statsministeren, skal denne
+begære ministeriets afsked, medmindre nyvalg udskrives. Et ministerium, som
+har fået et mistillidsvotum, eller som har begæret sin afsked, fungerer,
+indtil et nyt ministerium er udnævnt. Fungerende ministre kan i deres embede
+kun foretage sig, hvad der er fornødent til embedsforretningernes uforstyrrede
+førelse.
+----
+
+-- Stk. 1
+> minister_kan_forblive(mistillid: Mistillid) -> Boolsk {
+    skel mistillid {
+        | Udtalt -> Falskt
+        | IkkeUdtalt -> Sandt
+    }
+}
+
+-- Stk. 2: Mistillid til statsministeren -> ministeriet skal afgå
+-- Undtagelse: nyvalg udskrives i stedet
+> ministeriet_skal_afgå(nyvalg: Boolsk) -> Boolsk {
+    hvis nyvalg { Falskt } ellers { Sandt }
+}
+
+| afskediget_ministerium_fungerer_til_nyt_udnævnt()
+| fungerende_ministre_kun_nødvendigt()
+
+
+----
+§ 16. Ministrene kan af kongen eller folketinget tiltales for deres
+embedsførelse. Rigsretten påkender de mod ministrene for deres embedsførelse
+anlagte sager.
+----
+
+| kongen_kan_tiltale_ministre()
+| folketinget_kan_tiltale_ministre()
+| rigsretten_påkender_ministersager()
+
+
+----
+§ 17. Stk. 1. Ministrene i forening udgør statsrådet, hvori tronfølgeren, når
+han er myndig, tager sæde. Kongen fører forsædet undtagen i det i § 8 nævnte
+tilfælde og i de tilfælde, hvor lovgivningsmagten i henhold til bestemmelsen i
+§ 9 måtte have tillagt statsrådet myndighed til at føre regeringen.
+
+Stk. 2. I statsrådet forhandles alle love og vigtige regeringsforanstaltninger.
+----
+
+| ministrene_udgør_statsrådet()
+
+> tronfølger_i_statsrådet(tf: Tronfølger) -> Boolsk {
+    hvis tf.alder >= 18 { Sandt } ellers { Falskt }
+}
+
+-- Kongen fører forsædet med undtagelser (par. 8 og par. 9)
+| kongen_fører_forsædet_i_statsrådet()
+| forsæde_undtaget_ved_par8_tronskifte()
+| forsæde_undtaget_ved_par9_regentskab()
+
+| alle_love_og_vigtige_foranstaltninger_i_statsrådet()
+
+
+----
+§ 18. Er kongen forhindret i at holde statsråd, kan han lade sagen forhandle i
+et ministerråd. Dette består af samtlige ministre under forsæde af
+statsministeren. Enhver minister skal da afgive sit votum til protokollen, og
+beslutning tages efter stemmeflerhed. Statsministeren forelægger den over
+forhandlingerne førte, af de tilstedeværende ministre underskrevne protokol for
+kongen, der bestemmer, om han umiddelbart vil bifalde ministerrådets indstilling
+eller lade sig sagen foredrage i statsrådet.
+----
+
+> forhandlingsforum(kongen_forhindret: Boolsk) -> Råd {
+    hvis kongen_forhindret { ViaMinisterråd } ellers { ViaStatsråd }
+}
+
+| ministerråd_under_statsministeren()
+| ministerråd_votum_til_protokol()
+| ministerråd_beslutter_ved_flertal()
+| kongen_kan_bifalde_eller_overføre_til_statsrådet()
+
+
+----
+§ 19. Stk. 1. Kongen handler på rigets vegne i mellemfolkelige anliggender.
+Uden folketingets samtykke kan han dog ikke foretage nogen handling, der
+forøger eller indskrænker rigets område, eller indgå nogen forpligtelse, til
+hvis opfyldelse folketingets medvirken er nødvendig, eller som iøvrigt er af
+større betydning. Ejheller kan kongen uden folketingets samtykke opsige nogen
+mellemfolkelig overenskomst, som er indgået med folketingets samtykke.
+
+Stk. 2. Bortset fra forsvar mod væbnet angreb på riget eller danske styrker
+kan kongen ikke uden folketingets samtykke anvende militære magtmidler mod
+nogen fremmed stat. Foranstaltninger, som kongen måtte træffe i medfør af
+denne bestemmelse, skal straks forelægges folketinget. Er folketinget ikke
+samlet, skal det uopholdeligt sammenkaldes til møde.
+
+Stk. 3. Folketinget vælger af sin midte et udenrigspolitisk nævn, med hvilket
+regeringen rådfører sig forud for enhver beslutning af større udenrigspolitisk
+rækkevidde. Nærmere regler om det udenrigspolitiske nævn fastsættes ved lov.
+----
+
+-- Stk. 1: kongen handler, men tre samtykke-krav
+| kongen_handler_mellemfolkeligt()
+
+> ændre_rigets_område(samtykke: Samtykke) -> Boolsk {
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> Falskt
+    }
+}
+
+> indgå_forpligtelse_af_betydning(samtykke: Samtykke) -> Boolsk {
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> Falskt
+    }
+}
+
+> opsige_overenskomst_indgået_med_samtykke(samtykke: Samtykke) -> Boolsk {
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> Falskt
+    }
+}
+
+-- Stk. 2: militær magt
+> militær_magtanvendelse(grund: MilitærGrund, samtykke: Samtykke) -> Boolsk {
+    skel grund {
+        | Forsvar -> Sandt
+        | Anden -> {
+            skel samtykke {
+                | Givet -> Sandt
+                | IkkeGivet -> Falskt
+            }
+        }
+    }
+}
+
+| militær_handling_straks_forelægges_folketinget()
+| folketinget_sammenkaldes_hvis_ikke_samlet()
+
+-- Stk. 3: udenrigspolitisk nævn
+| folketinget_vælger_udenrigsnævn()
+| regeringen_rådfører_sig_med_udenrigsnævn()
+| udenrigsnævn_fastsættes_ved_lov()
+
+
+----
+§ 20. Stk. 1. Beføjelser, som efter denne grundlov tilkommer rigets
+myndigheder, kan ved lov i nærmere bestemt omfang overlades til
+mellemfolkelige myndigheder, der er oprettet ved gensidig overenskomst med
+andre stater til fremme af mellemfolkelig retsorden og samarbejde.
+
+Stk. 2. Til vedtagelse af lovforslag herom kræves et flertal på fem
+sjettedele af folketingets medlemmer. Opnås et sådant flertal ikke, men dog
+det til vedtagelse af almindelige lovforslag nødvendige flertal, og
+opretholder regeringen forslaget, forelægges det folketingsvælgerne til
+godkendelse eller forkastelse efter de for folkeafstemninger i § 42 fastsatte
+regler.
+----
+
+| beføjelser_kan_overlades_mellemfolkeligt()
+
+> suverænitet_vedtaget(stemmer: Heltal, medlemmer: Heltal, regeringen_opretholder: Boolsk) -> Tekst {
+    hvis stemmer * 6 >= medlemmer * 5 {
+        "Vedtaget med 5/6 flertal"
+    } ellers {
+        hvis stemmer * 2 > medlemmer {
+            hvis regeringen_opretholder {
+                "Folkeafstemning efter par. 42"
+            } ellers {
+                "Forkastet"
+            }
+        } ellers {
+            "Forkastet"
+        }
+    }
+}
+
+
+----
+§ 21. Kongen kan for folketinget lade fremsætte forslag til love og andre
+beslutninger.
+----
+
+| kongen_kan_fremsætte_lovforslag()
+
+
+----
+§ 22. Et af folketinget vedtaget lovforslag får lovskraft, når det senest 30
+dage efter den endelige vedtagelse stadfæstes af kongen. Kongen befaler lovens
+kundgørelse og drager omsorg for dens fuldbyrdelse.
+----
+
+| lovforslag_får_lovskraft_ved_stadfæstelse_inden_30_dage()
+| kongen_kundgør_og_fuldbyrder()
+
+
+----
+§ 23. I særdeles påtrængende tilfælde kan kongen, når folketinget ikke kan
+samles, udstede foreløbige love, der dog ikke må stride mod grundloven og
+altid straks efter folketingets sammentræden skal forelægges dette til
+godkendelse eller forkastelse.
+----
+
+| foreløbige_love_må_ikke_stride_mod_grundloven()
+| foreløbige_love_forelægges_folketinget()
+
+
+----
+§ 24. Kongen kan benåde og give amnesti. Ministrene kan han kun med
+folketingets samtykke benåde for de dem af rigsretten idømte straffe.
+----
+
+| kongen_kan_benåde()
+| kongen_kan_give_amnesti()
+
+> benåde_minister_fra_rigsret(samtykke: Samtykke) -> Boolsk {
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> Falskt
+    }
+}
+
+
+----
+§ 25. Kongen meddeler dels umiddelbart, dels gennem vedkommende
+regeringsmyndigheder sådanne bevillinger og undtagelser fra lovene, som enten
+ifølge de før 5. juni 1849 gældende regler er i brug, eller hvortil hjemmel
+indeholdes i en siden den tid udgiven lov.
+----
+
+| kongen_kan_give_dispensationer()
+
+
+----
+§ 26. Kongen har ret til at lade slå mønt i henhold til loven.
+----
+
+| kongen_har_møntret()
+
+
+----
+§ 27. Stk. 1. Regler om ansættelse af tjenestemænd fastsættes ved lov. Ingen
+kan ansættes som tjenestemand uden at have indfødsret. Tjenestemænd, som
+udnævnes af kongen, afgiver en højtidelig forsikring om at ville holde
+grundloven.
+
+Stk. 2. Om afskedigelse, forflyttelse og pensionering af tjenestemænd
+fastsættes regler ved lov, jfr. dog herved § 64.
+
+Stk. 3. Uden deres samtykke kan de af kongen udnævnte tjenestemænd kun
+forflyttes, når de ikke derved lider tab i de med tjenestemandsstillingen
+forbundne indtægter, og der gives dem valget mellem sådan forflyttelse og
+afsked med pension efter de almindelige regler.
+----
+
+-- Stk. 1
+| tjenestemandsansættelse_fastsættes_ved_lov()
+| tjenestemand_kræver_indfødsret()
+-- Samme edssprog som par. 8: "forsikring om at holde grundloven"
+| kongens_tjenestemand_aflægger_grundlovs_ed()
+
+-- Stk. 2 (jfr. par. 64)
+| tjenestemandsafskedigelse_fastsættes_ved_lov()
+
+-- Stk. 3
+| forflyttelse_uden_samtykke_kun_uden_indkomsttab()
+| forflyttelse_uden_samtykke_giver_valg_om_pension()

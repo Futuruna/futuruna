@@ -1,0 +1,672 @@
+@ sprog da
+
+-- ============================================================================
+-- Kapitel V — Folketingets virksomhed (§§ 35-58)
+--
+-- Demokratiets MASKINERI. 24 paragraffer der definerer hvordan
+-- Folketinget faktisk fungerer: hvornår det mødes, hvordan love
+-- skabes, hvornår folket kan tilsidesætte det, hvordan penge
+-- kontrolleres, og hvordan medlemmer beskyttes.
+--
+-- Kapitlet indeholder grundlovens mest komplekse paragraf:
+-- § 42 (folkeafstemning) med 8 stykker.
+--
+-- Nøglestrukturer:
+--   §§ 35-39: Kalender- og forsamlingsregler
+--   §§ 40-42: Lovgivningsprocedure + folkeafstemning
+--   §§ 43-47: Finansmagt (pengenes magt)
+--   §§ 48-54: Indre organisation
+--   §§ 55-58: Medlemmernes rettigheder og beskyttelse
+-- ============================================================================
+
+
+-- ============================================================================
+-- IMPORT — Typer og bindinger fra grundlov.runa
+-- ============================================================================
+
+@ brug grundlov::*
+
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsrådet | Rigsretten
+# Samtykke = Givet | IkkeGivet
+
+-- Forsamling
+# Samlingssted = RegeringensSæde | AndetStedIRiget(grund: String)
+
+-- Lovgivningsprocedure
+# Behandling = Første | Anden | Tredje
+# LovforslagStatus = Fremsat | VedtagetVedAnden | VedtagetVedTredje | Bortfaldet | Stadfæstet
+# Forslagsstiller = Medlem | Regering
+
+-- Folkeafstemning (§ 42 — den mest komplekse mekanisme)
+# FolkeafstemningsKrav = KanBegæres | KanIkkeBegæres(grund: String)
+# FolkeafstemningsResultat = Forkastet | IkkeForkastet
+# FolkeafstemningsTærskel(mod_stemmer_pct: Int, af_stemmeberettigede_pct: Int)
+
+-- Budget
+# Finanslov = Finanslov_ | Midlertidig | Tillægsbevillingslov
+# SkatteHjemmel = VedLov | UdenLov
+
+-- Immunitet
+# Immunitet = Parlamentarisk | IngenImmunitet
+# TiltaleStatus = KræverSamtykke | FerskGerning | YtringIFolketinget
+
+-- Beslutningsdygtighed
+# Beslutningsdygtighed = Beslutningsdygtig | IkkeBeslutningsdygtig
+
+-- Ombudsmand
+# Ombudsmand(er_folketingsmedlem: Bool)
+
+
+@ skriv("================================================================")
+@ skriv("  Kapitel V: Folketingets virksomhed (§§ 35-58)")
+@ skriv("  Demokratiets maskineri — 24 paragraffer")
+@ skriv("================================================================")
+@ skriv("")
+
+
+-- ============================================================================
+-- §§ 35-36: Hvornår Folketinget mødes — den demokratiske kalender
+--
+-- § 35: Nyvalgt folketing træder sammen kl. 12 den tolvte søgnedag
+--   efter valgdagen, medmindre Kongen har indkaldt det forinden.
+-- § 36: Folketingsåret: første tirsdag i oktober → samme tirsdag næste år.
+--
+-- Bemærk: Kongen kan indkalde TIDLIGERE (§ 35) — men ikke SENERE.
+-- Det beskytter mod at en regering forsinker det nye Folketing.
+-- ============================================================================
+
+----
+§ 35. Nyvalgt folketing træder sammen kl. 12 den tolvte søgnedag efter valgdagen, medmindre kongen har indkaldt det forinden.
+
+§ 36. Stk. 1. Folketingsåret begynder den første tirsdag i oktober og varer til den første tirsdag i oktober det følgende år.
+
+Stk. 2. På folketingsårets første dag kl. 12 samles medlemmerne til nyt folketingsår.
+----
+
+= dage_efter_valg_samles = 12
+= folketingsårets_start = "Første tirsdag i oktober"
+
+| kongen_kan_fremskynde_samling() -> Sandt
+| kongen_kan_forsinke_samling() -> Falskt
+
+@ skriv("--- §§ 35-36: Demokratisk kalender ---")
+@ skriv("Ny Folketing samles: dag " + vis(dage_efter_valg_samles) + " efter valg (kl. 12)")
+@ skriv("Kongen kan fremskynde: " + vis(kongen_kan_fremskynde_samling()))
+@ skriv("Kongen kan forsinke: " + vis(kongen_kan_forsinke_samling()))
+@ skriv("Folketingsår begynder: " + folketingsårets_start)
+@ skriv("")
+
+
+-- ============================================================================
+-- § 37: Mødested — Folketinget mødes hvor regeringen har sit sæde.
+--
+-- DEFAULT: Hvor regeringen har sit sæde (København).
+-- UNDTAGELSE: I overordentlige tilfælde, andetsteds i riget.
+--
+-- "Overordentlige tilfælde"-klausulen er designet til krig.
+-- Falder København, kan Folketinget flytte.
+-- Kombineret med § 34 (ukrænkelighed): institutionen overlever
+-- selv om bygningen ikke gør.
+-- ============================================================================
+
+----
+§ 37. Folketinget træder sammen på det sted, hvor regeringen har sit sæde. I overordentlige tilfælde kan folketinget dog samles andetsteds i riget.
+----
+
+> folketingets_mødested(overordentligt: Bool) -> Samlingssted {
+    hvis overordentligt { AndetStedIRiget("Overordentlige tilfælde") }
+    ellers { RegeringensSæde }
+}
+
+@ skriv("--- § 37: Mødested ---")
+@ skriv("Normalt: " + vis(folketingets_mødested(Falskt)))
+@ skriv("Overordentligt: " + vis(folketingets_mødested(Sandt)))
+@ skriv("Designet til krig: institutionen overlever bygningen")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 38: Åbningstalen.
+-- Statsministeren SKAL afgive redegørelse for rigets stilling
+-- på folketingsårets første møde. Derefter almindelig forhandling.
+-- Det er det årlige demokratiske regnskab.
+-- ============================================================================
+
+----
+§ 38. På folketingsårets første møde afgiver statsministeren en redegørelse for rigets almindelige stilling og de af regeringen påtænkte foranstaltninger. På grundlag af redegørelsen finder en almindelig forhandling sted.
+----
+
+@ skriv("--- § 38: Åbningsdebat ---")
+@ skriv("Statsministeren SKAL aflægge redegørelse (obligatorisk)")
+@ skriv("Derefter: almindelig forhandling (åbningstalen)")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 39: Indkaldelse — 2/5-nødreglen.
+--
+-- Formanden indkalder Folketinget med dagsorden.
+-- Men: 2/5 af medlemmerne (72 af 179) ELLER statsministeren
+-- kan KRÆVE en samling. Formanden SKAL efterkomme.
+-- Det forhindrer formanden i at blokere.
+-- ============================================================================
+
+----
+§ 39. Folketingets formand indkalder folketinget til møde med angivelse af dagsorden. Det påhviler formanden at indkalde til møde, når mindst 2/5 af folketingets medlemmer eller statsministeren skriftligt fremsætter begæring herom med angivelse af dagsorden.
+----
+
+= to_femtedele_af_179 = 72
+
+> formanden_skal_indkalde(antal_begærende: Int, statsminister_begærer: Bool) -> Bool {
+    hvis statsminister_begærer { Sandt }
+    ellers {
+        hvis antal_begærende >= to_femtedele_af_179 { Sandt }
+        ellers { Falskt }
+    }
+}
+
+@ skriv("--- § 39: Indkaldelse ---")
+@ skriv("2/5 af 179 = " + vis(to_femtedele_af_179) + " medlemmer")
+@ skriv("72 medlemmer begærer: " + vis(formanden_skal_indkalde(72, Falskt)))
+@ skriv("71 medlemmer begærer: " + vis(formanden_skal_indkalde(71, Falskt)))
+@ skriv("PM begærer: " + vis(formanden_skal_indkalde(0, Sandt)))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 40: Ministres adgang — stemme uden mandat.
+--
+-- Ministre har ADGANG til Folketinget i embeds medfør.
+-- De kan TALE så ofte de vil.
+-- De kan kun STEMME hvis de tillige er medlemmer.
+--
+-- En minister der IKKE er folketingsmedlem kan deltage
+-- i debat men ikke i beslutninger. Stemme uden stemmeret.
+-- Danmark tillader ministre uden mandat (modsat nogle systemer).
+-- ============================================================================
+
+----
+§ 40. Stk. 1. Enhver minister har i embeds medfør adgang til folketinget og er berettiget til under forhandlingerne at begære ordet, så ofte han vil, idet han i øvrigt iagttager forretningsordenens bestemmelser.
+
+Stk. 2. Stemmeret udøver han kun, når han tillige er folketingsmedlem.
+----
+
+| minister_har_adgang() -> Sandt
+| minister_kan_tale() -> Sandt
+
+> minister_kan_stemme(er_også_mp: Bool) -> Bool {
+    er_også_mp
+}
+
+@ skriv("--- § 40: Ministres adgang ---")
+@ skriv("Minister har adgang: " + vis(minister_har_adgang()))
+@ skriv("Minister kan tale: " + vis(minister_kan_tale()))
+@ skriv("Minister kan stemme (ikke MP): " + vis(minister_kan_stemme(Falskt)))
+@ skriv("Minister kan stemme (også MP): " + vis(minister_kan_stemme(Sandt)))
+@ skriv("Stemme KRÆVER mandat — minister uden mandat har tale, ikke stemme")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 41: Tre behandlinger — lovgivningens hjerteslag.
+--
+-- Stk. 1: ETHVERT medlem kan fremsætte lovforslag. (Ikke kun regeringen!)
+-- Stk. 2: Et lovforslag skal igennem TRE behandlinger.
+--   Det forhindrer forhastet lovgivning — minimum deliberation garanteret.
+-- Stk. 3: 2/5 af medlemmerne kan kræve 12 søgnedages udsættelse mellem
+--   2. og 3. behandling. UNDTAGET: finans, skat, indfødsret,
+--   ekspropriation og påtrængende tilfælde.
+-- Stk. 4: Alle forslag bortfalder ved nyvalg eller folketingsårets udgang.
+--   "Rent bord"-reglen — intet overføres.
+-- ============================================================================
+
+----
+§ 41. Stk. 1. Ethvert medlem af folketinget er berettiget til at fremsætte forslag til love og andre beslutninger.
+
+Stk. 2. Et lovforslag kan ikke endeligt vedtages, forinden det 3 gange har været behandlet i folketinget.
+
+Stk. 3. 2/5 af folketingets medlemmer kan begære af formanden, at 3. behandling tidligst finder sted 12 søgnedage efter 2. behandlings slutning. Begæringen, der skal være skriftlig og underskrevet af de deltagende medlemmer, kan ikke fremsættes for lovforslag om finansloven, tillægsbevillingslove, midlertidige bevillingslove, indfødsretslove, ekspropriationslove, love om indirekte skatter samt i påtrængende tilfælde lovforslag, hvis udsættelse vil medføre, at forslagets formål forspildes.
+
+Stk. 4. Ved nyvalg og ved folketingsårets udgang bortfalder alle forslag til love og andre beslutninger, der ikke forinden er endeligt vedtaget.
+----
+
+> lovforslag_vedtaget(behandlinger: Int) -> Bool {
+    hvis behandlinger >= 3 { Sandt } ellers { Falskt }
+}
+
+> kan_kræve_udsættelse(antal_begærende: Int, er_undtaget: Bool) -> Bool {
+    hvis er_undtaget { Falskt }
+    ellers {
+        hvis antal_begærende >= to_femtedele_af_179 { Sandt }
+        ellers { Falskt }
+    }
+}
+
+-- § 41 stk. 4: Ja, altid. Rent bord.
+| forslag_bortfalder_ved_nyvalg() -> Sandt
+
+= udsættelse_dage = 12
+
+@ skriv("--- § 41: Tre behandlinger ---")
+@ skriv("Ethvert medlem kan fremsætte forslag (også menige medlemmer)")
+@ skriv("Vedtaget efter 2 behandlinger: " + vis(lovforslag_vedtaget(2)))
+@ skriv("Vedtaget efter 3 behandlinger: " + vis(lovforslag_vedtaget(3)))
+@ skriv("2/5 kan kræve " + vis(udsættelse_dage) + " dages udsættelse")
+@ skriv("Undtaget fra udsættelse: finans, skat, indfødsret, ekspropriation")
+@ skriv("Forslag bortfalder ved nyvalg: " + vis(forslag_bortfalder_ved_nyvalg()))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 42: Folkeafstemningen — folkets veto.
+--
+-- Grundlovens MEST KOMPLEKSE paragraf.
+-- 8 stykker. En komplet tilstandsmaskine.
+--
+-- Flowet:
+--   1. Lovforslag vedtaget ved 3. behandling
+--   2. Indenfor 3 søgnedage: 1/3 af medlemmerne (60) kan kræve afstemning
+--   3. Folketinget har 5 søgnedage til at tilbagetage forslaget frivilligt
+--   4. Hvis ikke tilbagetrukket: PM annoncerer folkeafstemning
+--   5. Afholdes 12-18 søgnedage efter annoncering
+--   6. For at FORKASTE: flertal af stemmende OG mindst 30% af alle
+--      stemmeberettigede skal stemme imod
+--
+-- 30%-tærsklen er afgørende: det betyder at en lavt-fremmøde-forkastelse
+-- ikke tæller. Man behøver BÅDE flertal af faktiske vælgere OG 30% af
+-- ALLE stemmeberettigede. Det beskytter mod at små minoriteter blokerer
+-- lovgivning gennem taktisk fremmøde.
+--
+-- UNDTAGELSER (stk. 6) — love der IKKE kan folkeafstemmes:
+--   Finans, tillægsbevillinger, midlertidige bevillinger, statslån,
+--   normering, løn/pension, indfødsret, ekspropriation, direkte/indirekte
+--   skatter, traktatforpligtelser, §§ 8-11 love, § 19 beslutninger.
+--
+-- Undtagelseslisten er ENORM. De fleste vigtige love er undtaget.
+-- Folkeafstemningen er et veto på ALMINDELIG lovgivning alene.
+-- ============================================================================
+
+----
+§ 42. Stk. 1. Når et lovforslag er vedtaget af folketinget, kan en tredjedel af folketingets medlemmer inden for en frist af tre søgnedage fra forslagets endelige vedtagelse begære folkeafstemning om lovforslaget.
+
+Stk. 2. Bortset fra de i stk. 6 nævnte tilfælde kan lovforslaget ikke stadfæstes af kongen, forinden folkeafstemning har fundet sted i henhold til begæringen, eller forinden folketinget har genvedtaget forslaget.
+
+Stk. 3. Når der er begæret folkeafstemning om et lovforslag, kan folketinget inden for en frist af fem søgnedage fra forslagets endelige vedtagelse beslutte, at forslaget skal bortfalde.
+
+Stk. 4. Har folketinget ikke truffet beslutning i henhold til stk. 3, skal meddelelse om, at lovforslaget skal prøves ved folkeafstemning, snarest tilstilles statsministeren, der foranlediger lovforslaget bekendtgjort med meddelelse om, at folkeafstemning vil finde sted. Folkeafstemningen foranstaltes efter statsministerens nærmere bestemmelse tidligst 12 og senest 18 søgnedage efter bekendtgørelsen.
+
+Stk. 5. Ved folkeafstemningen stemmes for og imod lovforslaget. Til lovforslagets bortfald kræves, at et flertal af de i afstemningen deltagende folketingsvælgere, dog mindst 30 pct. af samtlige stemmeberettigede, har stemt imod lovforslaget.
+
+Stk. 6. Forslag til finanslove, tillægsbevillingslove, midlertidige bevillingslove, statslånslove, normeringslove, lønnings- og pensionslove, love om meddelelse af indfødsret, love om ekspropriation, love om direkte og indirekte skatter samt love til opfyldelse af bestående traktatmæssige forpligtelser kan ikke undergives folkeafstemning. Det samme gælder de i §§ 8, 9, 10 og 11 omhandlede lovforslag samt de i § 19 nævnte beslutninger, for så vidt der ved den derom gældende lov er tilvejebragt hjemmel for, at den pågældende beslutning kan træffes. For grundlovsforslag gælder reglerne i § 88.
+
+Stk. 7. I særdeles påtrængende tilfælde kan et lovforslag, som kan undergives folkeafstemning, stadfæstes af kongen straks efter dets vedtagelse, når forslaget indeholder bestemmelse herom. Såfremt en tredjedel af folketingets medlemmer efter de i stk. 1 nævnte regler begærer folkeafstemning om lovforslaget eller den stadfæstede lov, afholdes sådan folkeafstemning efter de foran givne regler. Forkastes loven ved folkeafstemningen, kundgøres dette af statsministeren uden unødigt ophold og senest 14 dage efter folkeafstemningens afholdelse. Fra kundgørelsens dato er loven bortfaldet.
+
+Stk. 8. Nærmere regler om folkeafstemning, herunder i hvilket omfang folkeafstemning skal finde sted på Færøerne og i Grønland, fastsættes ved lov.
+----
+
+= en_tredjedel_af_179 = 60
+= referendum_min_dage = 12
+= referendum_max_dage = 18
+= forkastelses_pct = 30
+
+> kan_begære_folkeafstemning(er_undtaget: Bool) -> FolkeafstemningsKrav {
+    hvis er_undtaget { KanIkkeBegæres("Undtaget per § 42 stk. 6") }
+    ellers { KanBegæres }
+}
+
+> forslag_forkastet_ved_afstemning(mod_pct_af_stemmende: Int, mod_pct_af_alle: Int) -> Bool {
+    -- BEGGE betingelser skal være opfyldt:
+    -- 1. Flertal af faktiske stemmende stemte imod (> 50%)
+    -- 2. Mindst 30% af ALLE stemmeberettigede stemte imod
+    hvis mod_pct_af_stemmende > 50 {
+        hvis mod_pct_af_alle >= forkastelses_pct { Sandt }
+        ellers { Falskt }
+    } ellers { Falskt }
+}
+
+@ skriv("--- § 42: Folkeafstemning (folkets veto) ---")
+@ skriv("")
+@ skriv("PROCEDUREN:")
+@ skriv("  1. Lovforslag vedtaget ved 3. behandling")
+@ skriv("  2. Indenfor 3 søgnedage: 1/3 (" + vis(en_tredjedel_af_179) + " MP'er) kan kræve afstemning")
+@ skriv("  3. Folketinget har 5 søgnedage til at tilbagetage forslaget")
+@ skriv("  4. Hvis ikke tilbagetrukket: PM annoncerer folkeafstemning")
+@ skriv("  5. Afholdes " + vis(referendum_min_dage) + "-" + vis(referendum_max_dage) + " søgnedage efter annoncering")
+@ skriv("")
+@ skriv("FORKASTELSESKRAV (dobbelt betingelse):")
+= scenarie_1 = forslag_forkastet_ved_afstemning(55, 35)
+= scenarie_2 = forslag_forkastet_ved_afstemning(55, 25)
+= scenarie_3 = forslag_forkastet_ved_afstemning(45, 40)
+@ skriv("  55% mod, 35% af alle: " + vis(scenarie_1) + " (forkastet)")
+@ skriv("  55% mod, 25% af alle: " + vis(scenarie_2) + " (IKKE forkastet — under 30%)")
+@ skriv("  45% mod, 40% af alle: " + vis(scenarie_3) + " (IKKE forkastet — under 50% af stemmende)")
+@ skriv("")
+@ skriv("UNDTAGET FRA FOLKEAFSTEMNING (§ 42 stk. 6):")
+@ skriv("  Finanslove, tillægsbevillinger, midlertidige bevillinger")
+@ skriv("  Statslån, normeringslove, lønnings- og pensionslove")
+@ skriv("  Indfødsret, ekspropriation, direkte+indirekte skatter")
+@ skriv("  Traktatforpligtelser, §§ 8-11 love, § 19 beslutninger")
+@ skriv("  Grundlovsændringer (egne regler i § 88)")
+@ skriv("")
+@ skriv("  Undtaget: " + vis(kan_begære_folkeafstemning(Sandt)))
+@ skriv("  Ikke undtaget: " + vis(kan_begære_folkeafstemning(Falskt)))
+@ skriv("")
+@ skriv("OBSERVATION: Undtagelseslisten er ENORM.")
+@ skriv("De fleste vigtige love er undtaget.")
+@ skriv("Folkeafstemningen er et veto på ALMINDELIG lovgivning.")
+@ skriv("")
+
+
+-- ============================================================================
+-- §§ 43-47: Finansmagten — Folketingets pengekontrol
+--
+-- § 43: Ingen skat uden lov. Ingen værnepligt uden lov. Ingen statslån
+--   uden lov. Tre absolutte forbud.
+-- § 44: Ingen udlænding får indfødsret uden lov.
+-- § 45: Finanslovforslag skal fremsættes 4 måneder før finansåret.
+-- § 46: Ingen skat opkræves før finanslov er vedtaget.
+--   Ingen udgift uden hjemmel i finansloven.
+-- § 47: Statsregnskab fremlægges indenfor 6 måneder.
+--   Folketinget vælger revisorer.
+--
+-- Denne sektion giver Folketinget ABSOLUT kontrol over penge.
+-- Regeringen kan bogstaveligt talt ikke bruge eller opkræve en
+-- eneste krone uden Folketingets tilladelse. Det er det ældste
+-- forfatningsmæssige princip — ældre end demokratiet selv.
+-- ============================================================================
+
+----
+§ 43. Ingen skat kan pålægges, forandres eller ophæves uden ved lov; ejheller kan noget mandskab udskrives eller noget statslån optages uden ifølge lov.
+
+§ 44. Stk. 1. Ingen udlænding kan få indfødsret uden ved lov.
+
+Stk. 2. Om udlændinges adgang til at blive ejere af fast ejendom fastsættes regler ved lov.
+
+§ 45. Stk. 1. Forslag til finanslov for det kommende finansår skal fremsættes for folketinget senest 4 måneder før finansårets begyndelse.
+
+Stk. 2. Kan behandlingen af finanslovforslaget for det kommende finansår ikke ventes tilendebragt inden finansårets begyndelse, skal forslag til en midlertidig bevillingslov fremsættes for folketinget.
+
+§ 46. Stk. 1. Forinden finansloven eller en midlertidig bevillingslov er vedtaget af folketinget, må skatterne ikke opkræves.
+
+Stk. 2. Ingen udgift må afholdes uden hjemmel i den af folketinget vedtagne finanslov eller i en af folketinget vedtagen tillægsbevillingslov eller midlertidig bevillingslov.
+
+§ 47. Stk. 1. Statsregnskabet skal fremlægges for folketinget senest 6 måneder efter finansårets udløb.
+
+Stk. 2. Folketinget vælger et antal revisorer. Disse gennemgår det årlige statsregnskab og påser, at samtlige statens indtægter er opført deri, og at ingen udgift er afholdt uden hjemmel i finansloven eller anden bevillingslov. De kan fordre sig alle fornødne oplysninger og aktstykker meddelt. De nærmere regler fastsættes ved lov.
+----
+
+| skat_uden_lov() -> Falskt
+| værnepligt_uden_lov() -> Falskt
+| statslån_uden_lov() -> Falskt
+| indfødsret_uden_lov() -> Falskt
+
+> skattehjemmel(finanslov_vedtaget: Bool) -> SkatteHjemmel {
+    hvis finanslov_vedtaget { VedLov }
+    ellers { UdenLov }
+}
+
+> udgift_lovlig(hjemmel_i_finanslov: Bool) -> Bool {
+    hjemmel_i_finanslov
+}
+
+= finanslov_frist_måneder = 4
+= regnskab_frist_måneder = 6
+
+@ skriv("--- §§ 43-47: Finansmagten ---")
+@ skriv("")
+@ skriv("§ 43 — Tre absolutte forbud:")
+@ skriv("  Skat uden lov: " + vis(skat_uden_lov()))
+@ skriv("  Værnepligt uden lov: " + vis(værnepligt_uden_lov()))
+@ skriv("  Statslån uden lov: " + vis(statslån_uden_lov()))
+@ skriv("")
+@ skriv("§ 44: Indfødsret uden lov: " + vis(indfødsret_uden_lov()))
+@ skriv("")
+@ skriv("§ 45: Finanslov fremsættes " + vis(finanslov_frist_måneder) + " måneder før finansår")
+@ skriv("")
+@ skriv("§ 46: Ingen skat før finanslov vedtaget")
+@ skriv("  Ingen udgift uden hjemmel i finansloven")
+@ skriv("")
+@ skriv("§ 47: Statsregnskab indenfor " + vis(regnskab_frist_måneder) + " måneder")
+@ skriv("  Folketinget vælger revisorer (uafhængig kontrol)")
+@ skriv("")
+@ skriv("Folketinget har ABSOLUT kontrol over penge.")
+@ skriv("Ikke een krone kan kræves eller bruges uden lov.")
+@ skriv("")
+
+
+-- ============================================================================
+-- §§ 48-54: Indre organisation — Folketinget styrer sig selv
+--
+-- § 48: Folketinget fastsætter sin egen forretningsorden.
+-- § 49: Møder er OFFENTLIGE. Kan lukkes af formand/minister/medlemmer.
+-- § 50: Beslutningsdygtighed: over halvdelen skal være tilstede og stemme.
+-- § 51: Folketinget kan nedsætte undersøgelseskommissioner.
+-- § 52: Kommissionsmedlemmer vælges efter forholdstalsvalg.
+-- § 53: Ethvert medlem kan (med Folketingets samtykke) bringe enhver
+--   offentlig sag op og æske ministerforklaring.
+-- § 54: Andragender kun gennem et medlem (ingen direkte adgang).
+-- ============================================================================
+
+----
+§ 48. Folketinget fastsætter selv sin forretningsorden, der indeholder de nærmere bestemmelser om forretningsgang og ordens opretholdelse.
+
+§ 49. Folketingets møder er offentlige. Formanden eller det i forretningsordenen bestemte antal medlemmer eller en minister kan dog forlange, at alle uvedkommende fjernes, hvorpå det afgøres, om sagen skal forhandles i et offentligt eller lukket møde.
+
+§ 50. Folketinget kan kun tage beslutning, når over halvdelen af medlemmerne er til stede og deltager i afstemningen.
+
+§ 51. Folketinget kan nedsætte kommissioner af sine medlemmer til at undersøge almenvigtige sager. Kommissionerne er berettigede til at fordre skriftlige eller mundtlige oplysninger såvel af private borgere som af offentlige myndigheder.
+
+§ 52. Folketingets valg af medlemmer til kommissioner og hverv sker efter forholdstal.
+
+§ 53. Ethvert folketingsmedlem kan med folketingets samtykke bringe ethvert offentligt anliggende under forhandling og derom æske ministrenes forklaring.
+
+§ 54. Andragender kan kun overgives til folketinget gennem et af dets medlemmer.
+----
+
+= kvorum = 90
+
+> er_beslutningsdygtig(antal_tilstede: Int) -> Bool {
+    hvis antal_tilstede > kvorum { Sandt } ellers { Falskt }
+}
+
+| møder_er_offentlige() -> Sandt
+
+| kan_nedsætte_kommission() -> Sandt
+
+@ skriv("--- §§ 48-54: Indre organisation ---")
+@ skriv("")
+@ skriv("§ 48: Folketinget fastsætter EGEN forretningsorden")
+@ skriv("§ 49: Møder er offentlige: " + vis(møder_er_offentlige()))
+@ skriv("  (kan lukkes af formand, minister eller medlemmer)")
+@ skriv("§ 50: Kvorum: over " + vis(kvorum) + " medlemmer (halvdelen af 179)")
+@ skriv("  89 tilstede: " + vis(er_beslutningsdygtig(89)))
+@ skriv("  90 tilstede: " + vis(er_beslutningsdygtig(90)))
+@ skriv("  91 tilstede: " + vis(er_beslutningsdygtig(91)))
+@ skriv("§ 51: Folketinget kan nedsætte undersøgelseskommissioner")
+@ skriv("§ 52: Kommissionsmedlemmer efter forholdstalsvalg")
+@ skriv("§ 53: Ethvert medlem kan bringe enhver offentlig sag op")
+@ skriv("§ 54: Andragender kun gennem et medlem (ingen direkte adgang)")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 55: Ombudsmanden — Folketingets vagthund.
+--
+-- Folketinget vælger en eller to personer der IKKE er medlemmer
+-- af Folketinget til at føre tilsyn med civil og militær forvaltning.
+--
+-- Bemærk: ombudsmanden må IKKE være folketingsmedlem. Det sikrer
+-- uafhængighed. Folketinget skaber stillingen men kan ikke besætte
+-- den med sig selv. Endnu et eksempel på selvbegrænsnings-mønstret.
+-- ============================================================================
+
+----
+§ 55. Ved lov bestemmes, at folketinget vælger en eller to personer, der ikke er medlemmer af folketinget, til at have indseende med statens civile og militære forvaltning.
+----
+
+-- § 55: "der ikke er medlemmer af folketinget"
+| ombudsmand_er_mp() -> Falskt
+
+@ skriv("--- § 55: Ombudsmanden ---")
+@ skriv("Valgt af Folketinget: Sandt")
+@ skriv("Er selv folketingsmedlem: " + vis(ombudsmand_er_mp()))
+@ skriv("Tilsyn med: civil og militær forvaltning")
+@ skriv("Uafhængighed: IKKE MP — Folketinget kontrollerer, men deltager ikke")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 56: Det frie mandat — det dybeste demokratiske princip.
+--
+-- "Folketingsmedlemmerne er ene bundet ved deres overbevisning
+--  og ikke ved nogen forskrift af deres vælgere."
+--
+-- Medlemmer er KUN bundet af deres overbevisning.
+-- IKKE af deres vælgeres instrukser.
+-- IKKE af deres parti.
+-- IKKE af valgløfter.
+--
+-- Det er det forfatningsmæssige fundament for repræsentativt demokrati
+-- (i modsætning til direkte demokrati). Vælgeren VÆLGER en person,
+-- derefter beslutter personen frit. Intet imperativt mandat.
+--
+-- Krydshenvisning: det MODSIGER intuitionen bag § 31's
+-- forholdstalsvalg. PR giver mandater til partier — men
+-- § 56 siger medlemmer er frie af partidisciplin. Spændingen
+-- mellem partilistevalg og det frie mandat er uforløst.
+-- ============================================================================
+
+----
+§ 56. Folketingsmedlemmerne er ene bundet ved deres overbevisning og ikke ved nogen forskrift af deres vælgere.
+----
+
+| bundet_af_vælgere() -> Falskt
+| bundet_af_parti() -> Falskt
+| bundet_af_overbevisning() -> Sandt
+
+@ skriv("--- § 56: Det frie mandat ---")
+@ skriv("Bundet af vælgere: " + vis(bundet_af_vælgere()))
+@ skriv("Bundet af parti: " + vis(bundet_af_parti()))
+@ skriv("Bundet af overbevisning: " + vis(bundet_af_overbevisning()))
+@ skriv("SPÆNDING: § 31 giver mandater til PARTIER")
+@ skriv("          § 56 siger medlemmer er frie af ALLE forskrifter")
+@ skriv("          Partilisten og det frie mandat er i spænding")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 57: Parlamentarisk immunitet — skjoldet.
+--
+-- TO beskyttelser:
+--   1. Ingen tiltale eller fængsling uden Folketingets samtykke
+--      UNDTAGELSE: grebet på fersk gerning
+--   2. Ingen ansvar for ytringer i Folketinget uden samtykke
+--
+-- Fersk-gerning-undtagelsen betyder immuniteten ikke er absolut.
+-- Et medlem grebet i at begå en forbrydelse kan arresteres på stedet.
+-- Men for alt andet: Folketinget skal først ophæve immuniteten.
+--
+-- Ytringsimmunitet (stk. 2) er endnu stærkere: et medlem kan sige
+-- HVAD SOM HELST i Folketinget og kan ikke drages til ansvar udenfor.
+-- Det beskytter den demokratiske debat mod juridisk pres.
+-- ============================================================================
+
+----
+§ 57. Stk. 1. Intet medlem af folketinget kan uden dettes samtykke tiltales eller underkastes fængsling af nogen art, medmindre han er grebet på fersk gerning.
+
+Stk. 2. Uden for folketinget kan intet af dets medlemmer drages til ansvar for sine i folketinget fremsatte ytringer uden folketingets samtykke.
+----
+
+> kan_tiltales_uden_samtykke(fersk_gerning: Bool) -> Bool {
+    fersk_gerning
+}
+
+-- Kun med Folketingets samtykke. Default: beskyttet.
+| ytring_i_folketing_kan_retsforfølges() -> Falskt
+
+@ skriv("--- § 57: Parlamentarisk immunitet ---")
+@ skriv("Tiltale uden samtykke: " + vis(kan_tiltales_uden_samtykke(Falskt)))
+@ skriv("Fersk gerning: " + vis(kan_tiltales_uden_samtykke(Sandt)))
+@ skriv("Ytring i Folketing kan retsforfølges: " + vis(ytring_i_folketing_kan_retsforfølges()))
+@ skriv("Immunitet beskytter debat — men fersk gerning bryder den")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 58: Medlemmernes vederlag.
+-- Størrelse fastsættes ved valgloven. Simpel delegation.
+-- ============================================================================
+
+----
+§ 58. Folketingets medlemmer oppebærer et vederlag, hvis størrelse fastsættes ved valgloven.
+----
+
+@ skriv("--- § 58: Vederlag ---")
+@ skriv("Størrelse fastsættes ved valgloven (delegation)")
+@ skriv("")
+
+
+-- ============================================================================
+-- KAPITEL V — STRUKTUREL ANALYSE
+--
+-- Lovgivningens pipeline (komplet):
+--
+--   1. FREMSÆTTELSE (§ 21/41): Regering ELLER ethvert medlem
+--   2. FØRSTE BEHANDLING (§ 41.2): Generel debat
+--   3. ANDEN BEHANDLING (§ 41.2): Detaildebat + ændringsforslag
+--   4. UDSÆTTELSESMULIGHED (§ 41.3): 2/5 kan tvinge 12 dages pause
+--   5. TREDJE BEHANDLING (§ 41.2): Endelig afstemning
+--   6. FOLKEAFSTEMNINGSVINDUE (§ 42.1): 1/3 kan kræve afstemning (3 dage)
+--   7a. Ingen afstemning: STADFÆSTELSE inden 30 dage (§ 22)
+--   7b. Folkeafstemning: 30% + flertal for at forkaste (§ 42.5)
+--   8. BLIVER LOV
+--
+-- Minoritetsbeskyttelsens arkitektur:
+--   - 1/3 (60 MP'er) kan kræve folkeafstemning (§ 42.1)
+--   - 2/5 (72 MP'er) kan kræve 12 dages udsættelse (§ 41.3)
+--   - 2/5 (72 MP'er) kan kræve hastesamling (§ 39)
+--   - Simpelt flertal (90+) kræves for enhver beslutning (§ 50)
+--
+-- Finansmagtens absoluthed:
+--   § 43: Ingen skat/værnepligt/lån uden lov
+--   § 45: Finanslov 4 måneder i forvejen
+--   § 46: Ingen opkrævning/forbrug før tilladelse
+--   § 47: Obligatorisk revision af Folketingets egne revisorer
+--
+-- Opdagede spændinger:
+--   - § 31 (partilistevalg) vs § 56 (frit mandat)
+--   - § 42 folkeafstemningsundtagelser udhuler mekanismen
+--   - § 42.5 dobbelttærskel (flertal + 30%) gør forkastelse svær
+--   - § 57 immunitet vs § 34 ukrænkelighed (hvem beskytter hvem?)
+-- ============================================================================
+
+@ skriv("================================================================")
+@ skriv("  Kapitel V: 24 paragraffer — demokratiets maskineri")
+@ skriv("================================================================")
+@ skriv("")
+@ skriv("LOVGIVNINGENS PIPELINE:")
+@ skriv("  § 21/41: Forslag (regering ELLER ethvert medlem)")
+@ skriv("  § 41.2:  1. behandling (generel debat)")
+@ skriv("  § 41.2:  2. behandling (detaljer + ændringsforslag)")
+@ skriv("  § 41.3:  2/5 kan kræve 12 dages udsættelse")
+@ skriv("  § 41.2:  3. behandling (endelig afstemning)")
+@ skriv("  § 42.1:  1/3 kan kræve folkeafstemning (3 dage)")
+@ skriv("  § 22:    Kongelig stadfæstelse (30 dage)")
+@ skriv("")
+@ skriv("MINORITETSBESKYTTELSE:")
+@ skriv("  1/3 (60):  Kan kræve folkeafstemning")
+@ skriv("  2/5 (72):  Kan kræve udsættelse")
+@ skriv("  2/5 (72):  Kan kræve hastesamling")
+@ skriv("  50%+ (90): Kræves for enhver beslutning")
+@ skriv("")
+@ skriv("FINANSMAGTENS ABSOLUTHED:")
+@ skriv("  Ingen skat, værnepligt eller lån uden lov (§ 43)")
+@ skriv("  Ingen opkrævning før finanslov (§ 46)")
+@ skriv("  Ingen udgift uden hjemmel (§ 46)")
+@ skriv("  Statsregnskab + revisorer (§ 47)")
+@ skriv("")
+@ skriv("SPÆNDINGER:")
+@ skriv("  § 31 partilister vs § 56 frit mandat")
+@ skriv("  § 42 folkeafstemning — undtager de fleste vigtige love")
+@ skriv("  § 42.5 dobbelttærskel gør forkastelse svær")
+@ skriv("  § 55 ombudsmand: Folketingets kontrol der IKKE er Folketinget")

@@ -1,0 +1,965 @@
+-- parser.runa — Futuruna self-hosting parser
+-- Transforms List(Token) from the lexer into an AST
+--
+-- S1: skeleton — state, navigation, literals, bindings
+-- S2: expressions — Pratt climbing, calls, fields, pipes, if/else
+-- S3: functions + types + patterns + lambda + match
+
+@ import ./lexer
+
+-- ============================================================================
+-- # What exists — AST node types
+-- ============================================================================
+
+# Literal = LInt(val: Int) | LFloat(val: Float) | LStr(val: String) | LChar(val: String) | LBool(val: Bool)
+
+# Ty = TyName(name: String) | TyApp(con: Ty, args: List(Ty)) | TyArrow(from_ty: Ty, to_ty: Ty) | TyOptional(inner: Ty) | TyUnit | TyHole
+
+# Pat = PWild | PVar(name: String) | PLit(lit: Literal) | PCon(name: String, args: List(Pat))
+
+# VField(name: String, ty: Ty)
+# Vnt(name: String, fields: List(VField), positional: Bool)
+# FParam(name: String, ty: Option(Ty), is_inout: Bool)
+# MArm(pat: Pat, guard: Option(Expr), body: Expr)
+
+# Expr = EVar(name: String) | ELit(lit: Literal) | EApp(func: Expr, args: List(Expr)) | ELambda(params: List(FParam), body: Expr) | EBinOp(op: String, lhs: Expr, rhs: Expr) | EUnOp(op: String, operand: Expr) | EIf(cond: Expr, then_br: Expr, else_br: Expr) | EMatch(scrutinee: Expr, arms: List(MArm)) | EBlock(stmts: List(Stmt)) | EField(obj: Expr, field: String) | EIndex(obj: Expr, idx: Expr) | EList(elems: List(Expr)) | ETuple(elems: List(Expr)) | EEffect(name: String, args: List(Expr)) | ETry(inner: Expr) | EUnit
+
+# Defn = DFn(name: String, params: List(FParam), ret_ty: Option(Ty), body: Expr) | DActor(name: String, state: FParam, handlers: List(MArm)) | DModule(name: String, body: List(Stmt))
+
+# Rule = RClause(head: Expr, body: Option(Expr)) | RDefault(head: Expr, value: Expr, cond: Option(Expr)) | RScope(name: String, body: List(Stmt))
+
+# TypeDecl = TdADT(name: String, variants: List(Vnt)) | TdTrait(name: String, methods: List(Defn)) | TdImpl(trait_name: String, for_type: String, methods: List(Defn))
+
+# Stmt = SDefn(defn: Defn) | SType(td: TypeDecl) | SRule(rule: Rule) | SAnnot(name: String, args: List(Expr)) | SImport(path: String) | SBind(pat: Pat, ty: Option(Ty), val: Expr) | SFor(var_name: String, iter: Expr, body: List(Stmt)) | SStreamBind(name: String, val: Expr) | SInvariant(name: String, subject: Expr, pred: Expr) | SProve(name: String) | SExpr(expr: Expr)
+
+-- ============================================================================
+-- # What exists — parser state and result carriers
+-- ============================================================================
+
+# PState(toks: List(Token), pos: Int)
+# Consumed(st: PState, tok: Token)
+# PExpr(st: PState, node: Expr)
+# PStmt(st: PState, node: Stmt)
+# PArgs(st: PState, items: List(Expr))
+# PBlock(st: PState, items: List(Stmt))
+# PTy(st: PState, node: Ty)
+# PPat(st: PState, node: Pat)
+# PParams(st: PState, items: List(FParam))
+# PPats(st: PState, items: List(Pat))
+# PTys(st: PState, items: List(Ty))
+# PArms(st: PState, items: List(MArm))
+# PVnts(st: PState, items: List(Vnt))
+
+-- ============================================================================
+-- > What happens — token navigation
+-- ============================================================================
+
+> peek(st: PState) -> Token {
+    if st.pos >= length(st.toks) { Token(TkEof, "", 0, 0) }
+    else { nth(st.toks, st.pos) }
+}
+
+> advance(st: PState) -> PState {
+    PState(st.toks, st.pos + 1)
+}
+
+> consume(st: PState) -> Consumed {
+    Consumed(PState(st.toks, st.pos + 1), nth(st.toks, st.pos))
+}
+
+> skip_semis(st: PState) -> PState {
+    if peek(st).kind == TkSemi { skip_semis(advance(st)) }
+    else { st }
+}
+
+> expect(st: PState, kind: TokenKind) -> Consumed {
+    = tok = peek(st)
+    if tok.kind == kind { consume(st) }
+    else {
+        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected " + show_kind(kind) + ", got " + show_kind(tok.kind))
+        consume(st)
+    }
+}
+
+> expect_op(st: PState, op: String) -> PState {
+    = tok = peek(st)
+    if tok.kind == TkOp && tok.text == op { advance(st) }
+    else {
+        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected '" + op + "'")
+        advance(st)
+    }
+}
+
+> make_state(toks: List(Token)) -> PState {
+    PState(toks, 0)
+}
+
+-- ============================================================================
+-- > What happens — type parsing (S3)
+-- ============================================================================
+
+> parse_type(st: PState) -> PTy {
+    = base = parse_type_atom(st)
+    = tok = peek(base.st)
+    -- Postfix ? -> Optional
+    if tok.kind == TkOp && tok.text == "?" {
+        = st2 = advance(base.st)
+        = tok2 = peek(st2)
+        if tok2.kind == TkArrow {
+            = ret = parse_type(advance(st2))
+            PTy(ret.st, TyArrow(TyOptional(base.node), ret.node))
+        }
+        else { PTy(st2, TyOptional(base.node)) }
+    }
+    -- Arrow -> (right-associative)
+    else if tok.kind == TkArrow {
+        = ret = parse_type(advance(base.st))
+        PTy(ret.st, TyArrow(base.node, ret.node))
+    }
+    else { base }
+}
+
+> parse_type_atom(st: PState) -> PTy {
+    = tok = peek(st)
+    -- () -> TyUnit, (Type) -> parenthesized type
+    if tok.kind == TkLParen {
+        = st2 = advance(st)
+        if peek(st2).kind == TkRParen { PTy(advance(st2), TyUnit) }
+        else {
+            = inner = parse_type(st2)
+            = st3 = expect(inner.st, TkRParen)
+            PTy(st3.st, inner.node)
+        }
+    }
+    -- Type constructor: Name or Name(args)
+    else if tok.kind == TkType {
+        = st2 = advance(st)
+        if peek(st2).kind == TkLParen {
+            = args = parse_type_args(advance(st2))
+            PTy(args.st, TyApp(TyName(tok.text), args.items))
+        }
+        else { PTy(st2, TyName(tok.text)) }
+    }
+    -- Type variable or _ hole (lowercase ident)
+    else if tok.kind == TkIdent {
+        if tok.text == "_" { PTy(advance(st), TyHole) }
+        else { PTy(advance(st), TyName(tok.text)) }
+    }
+    else {
+        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected type, got " + show_kind(tok.kind))
+        PTy(advance(st), TyHole)
+    }
+}
+
+> parse_type_args(st: PState) -> PTys {
+    = tok = peek(st)
+    if tok.kind == TkRParen { PTys(advance(st), []) }
+    else { parse_type_arg_elems(st, []) }
+}
+
+> parse_type_arg_elems(st: PState, acc: List(Ty)) -> PTys {
+    = ty = parse_type(st)
+    = acc2 = push(acc, ty.node)
+    = tok = peek(ty.st)
+    if tok.kind == TkComma { parse_type_arg_elems(advance(ty.st), acc2) }
+    else {
+        = st2 = expect(ty.st, TkRParen)
+        PTys(st2.st, acc2)
+    }
+}
+
+-- ============================================================================
+-- > What happens — pattern parsing (S3)
+-- ============================================================================
+
+> parse_pattern(st: PState) -> PPat {
+    = tok = peek(st)
+    if tok.kind == TkIdent && tok.text == "_" { PPat(advance(st), PWild) }
+    else if tok.kind == TkIdent { PPat(advance(st), PVar(tok.text)) }
+    else if tok.kind == TkType {
+        = st2 = advance(st)
+        if peek(st2).kind == TkLParen {
+            = args = parse_pat_args(advance(st2))
+            PPat(args.st, PCon(tok.text, args.items))
+        }
+        else { PPat(st2, PCon(tok.text, [])) }
+    }
+    else if tok.kind == TkInt { PPat(advance(st), PLit(LInt(parse_int(tok.text)))) }
+    else if tok.kind == TkFloat { PPat(advance(st), PLit(LFloat(parse_float(tok.text)))) }
+    else if tok.kind == TkString { PPat(advance(st), PLit(LStr(tok.text))) }
+    else if tok.kind == TkBool { PPat(advance(st), PLit(LBool(tok.text == "true" || tok.text == "True"))) }
+    else if tok.kind == TkOp && tok.text == "-" {
+        = inner = peek(advance(st))
+        if inner.kind == TkInt { PPat(advance(advance(st)), PLit(LInt(0 - parse_int(inner.text)))) }
+        else if inner.kind == TkFloat { PPat(advance(advance(st)), PLit(LFloat(0.0 - parse_float(inner.text)))) }
+        else {
+            @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected number after '-' in pattern")
+            PPat(advance(st), PWild)
+        }
+    }
+    else {
+        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected pattern, got " + show_kind(tok.kind))
+        PPat(advance(st), PWild)
+    }
+}
+
+> parse_pat_args(st: PState) -> PPats {
+    = tok = peek(st)
+    if tok.kind == TkRParen { PPats(advance(st), []) }
+    else { parse_pat_arg_elems(st, []) }
+}
+
+> parse_pat_arg_elems(st: PState, acc: List(Pat)) -> PPats {
+    = p = parse_pattern(st)
+    = acc2 = push(acc, p.node)
+    = tok = peek(p.st)
+    if tok.kind == TkComma { parse_pat_arg_elems(advance(p.st), acc2) }
+    else {
+        = st2 = expect(p.st, TkRParen)
+        PPats(st2.st, acc2)
+    }
+}
+
+-- ============================================================================
+-- > What happens — function params + definition parsing (S3)
+-- ============================================================================
+
+> parse_params(st: PState) -> PParams {
+    = st2 = expect(st, TkLParen)
+    = tok = peek(st2.st)
+    if tok.kind == TkRParen { PParams(advance(st2.st), []) }
+    else { parse_param_elems(st2.st, []) }
+}
+
+> parse_param_elems(st: PState, acc: List(FParam)) -> PParams {
+    = tok = peek(st)
+    if tok.kind == TkKW && tok.text == "inout" {
+        parse_one_param(advance(st), acc, true)
+    }
+    else { parse_one_param(st, acc, false) }
+}
+
+> parse_one_param(st: PState, acc: List(FParam), is_inout: Bool) -> PParams {
+    = c = consume(st)
+    = tok2 = peek(c.st)
+    if tok2.kind == TkColon {
+        = ty = parse_type(advance(c.st))
+        = param = FParam(c.tok.text, Some(ty.node), is_inout)
+        = tok3 = peek(ty.st)
+        if tok3.kind == TkComma { parse_param_elems(advance(ty.st), push(acc, param)) }
+        else {
+            = st3 = expect(ty.st, TkRParen)
+            PParams(st3.st, push(acc, param))
+        }
+    }
+    else {
+        = param = FParam(c.tok.text, None, is_inout)
+        = tok3 = peek(c.st)
+        if tok3.kind == TkComma { parse_param_elems(advance(c.st), push(acc, param)) }
+        else {
+            = st3 = expect(c.st, TkRParen)
+            PParams(st3.st, push(acc, param))
+        }
+    }
+}
+
+> parse_definition(st: PState) -> PStmt {
+    = c = consume(st)
+    = params = parse_params(c.st)
+    = tok = peek(params.st)
+    if tok.kind == TkArrow {
+        = ret = parse_type(advance(params.st))
+        = body = parse_block_expr(ret.st)
+        PStmt(body.st, SDefn(DFn(c.tok.text, params.items, Some(ret.node), body.node)))
+    }
+    else {
+        = body = parse_block_expr(params.st)
+        PStmt(body.st, SDefn(DFn(c.tok.text, params.items, None, body.node)))
+    }
+}
+
+-- ============================================================================
+-- > What happens — lambda + match parsing (S3)
+-- ============================================================================
+
+> parse_lambda(st: PState) -> PExpr {
+    = st2 = advance(st)
+    = tok = peek(st2)
+    if tok.kind == TkPipe {
+        = body = parse_expr(advance(st2))
+        PExpr(body.st, ELambda([], body.node))
+    }
+    else {
+        = params = parse_lambda_params(st2, [])
+        = body = parse_expr(params.st)
+        PExpr(body.st, ELambda(params.items, body.node))
+    }
+}
+
+> parse_lambda_params(st: PState, acc: List(FParam)) -> PParams {
+    = c = consume(st)
+    = tok2 = peek(c.st)
+    if tok2.kind == TkColon {
+        = ty = parse_type(advance(c.st))
+        = param = FParam(c.tok.text, Some(ty.node), false)
+        = tok3 = peek(ty.st)
+        if tok3.kind == TkComma { parse_lambda_params(advance(ty.st), push(acc, param)) }
+        else {
+            = st3 = expect(ty.st, TkPipe)
+            PParams(st3.st, push(acc, param))
+        }
+    }
+    else {
+        = param = FParam(c.tok.text, None, false)
+        = tok3 = peek(c.st)
+        if tok3.kind == TkComma { parse_lambda_params(advance(c.st), push(acc, param)) }
+        else {
+            = st3 = expect(c.st, TkPipe)
+            PParams(st3.st, push(acc, param))
+        }
+    }
+}
+
+> parse_match(st: PState) -> PExpr {
+    = scrut = parse_expr_prec(st, 0)
+    = st2 = expect(scrut.st, TkLBrace)
+    = st3 = skip_semis(st2.st)
+    = arms = parse_match_arms(st3, [])
+    PExpr(arms.st, EMatch(scrut.node, arms.items))
+}
+
+> parse_match_arms(st: PState, acc: List(MArm)) -> PArms {
+    = tok = peek(st)
+    if tok.kind == TkRBrace { PArms(advance(st), acc) }
+    else if tok.kind == TkEof { PArms(st, acc) }
+    else if tok.kind == TkPipe { parse_one_arm(advance(st), acc) }
+    else { parse_one_arm(st, acc) }
+}
+
+> parse_one_arm(st: PState, acc: List(MArm)) -> PArms {
+    = pat = parse_pattern(st)
+    = tok2 = peek(pat.st)
+    if tok2.kind == TkKW && tok2.text == "if" {
+        = guard = parse_expr(advance(pat.st))
+        = st3 = expect(guard.st, TkArrow)
+        = body = parse_expr(st3.st)
+        = st4 = skip_semis(body.st)
+        parse_match_arms(st4, push(acc, MArm(pat.node, Some(guard.node), body.node)))
+    }
+    else {
+        = st3 = expect(pat.st, TkArrow)
+        = body = parse_expr(st3.st)
+        = st4 = skip_semis(body.st)
+        parse_match_arms(st4, push(acc, MArm(pat.node, None, body.node)))
+    }
+}
+
+-- ============================================================================
+-- > What happens — type declaration parsing (S4)
+-- ============================================================================
+
+> first_param_typed(params: List(FParam)) -> Bool {
+    if length(params) == 0 { false }
+    else {
+        match nth(params, 0) {
+            FParam(_, Some(_), _) -> true
+            FParam(_, None, _) -> false
+        }
+    }
+}
+
+> params_to_fields(params: List(FParam)) -> List(VField) {
+    map(params, |p| match p { FParam(pn, pty, _) -> VField(pn, match pty { Some(t) -> t | None -> TyHole }) })
+}
+
+> parse_type_decl(st: PState) -> PStmt {
+    = c = consume(st)
+    = tname = c.tok.text
+    = tok = peek(c.st)
+    if tok.kind == TkLParen {
+        = params = parse_params(c.st)
+        = tok2 = peek(params.st)
+        if (tok2.kind == TkOp && tok2.text == "=") || tok2.kind == TkEq {
+            = vnts = parse_variants(advance(params.st), [])
+            PStmt(vnts.st, SType(TdADT(tname, vnts.items)))
+        }
+        else if first_param_typed(params.items) {
+            = fields = params_to_fields(params.items)
+            PStmt(params.st, SType(make_struct_td(tname, fields)))
+        }
+        else {
+            PStmt(params.st, SType(TdADT(tname, [])))
+        }
+    }
+    else if (tok.kind == TkOp && tok.text == "=") || tok.kind == TkEq {
+        = vnts = parse_variants(advance(c.st), [])
+        PStmt(vnts.st, SType(TdADT(tname, vnts.items)))
+    }
+    else {
+        PStmt(c.st, SType(TdADT(tname, [])))
+    }
+}
+
+> make_struct_td(tname: String, fields: List(VField)) -> TypeDecl {
+    TdADT(tname, [Vnt(tname, fields, false)])
+}
+
+> parse_variants(st: PState, acc: List(Vnt)) -> PVnts {
+    = c = consume(st)
+    = tok = peek(c.st)
+    if tok.kind == TkLParen {
+        = params = parse_params(c.st)
+        = fields = params_to_fields(params.items)
+        = vnt = Vnt(c.tok.text, fields, false)
+        = acc2 = push(acc, vnt)
+        = tok2 = peek(params.st)
+        if tok2.kind == TkPipe { parse_variants(advance(params.st), acc2) }
+        else { PVnts(params.st, acc2) }
+    }
+    else {
+        = vnt = Vnt(c.tok.text, [], false)
+        = acc2 = push(acc, vnt)
+        if tok.kind == TkPipe { parse_variants(advance(c.st), acc2) }
+        else { PVnts(c.st, acc2) }
+    }
+}
+
+-- ============================================================================
+-- > What happens — annotation parsing (S4)
+-- ============================================================================
+
+> parse_annotation(st: PState) -> PStmt {
+    = c = consume(st)
+    if c.tok.text == "import" { collect_import_path(c.st, "") }
+    else if c.tok.text == "sprog" || c.tok.text == "language" {
+        parse_annot_lang(c.st, c.tok.text)
+    }
+    else if c.tok.text == "export" { parse_annot_export(c.st) }
+    else if peek(c.st).kind == TkLParen {
+        = args = parse_arg_list(c.st)
+        PStmt(args.st, SExpr(EEffect(c.tok.text, args.items)))
+    }
+    else { PStmt(c.st, SAnnot(c.tok.text, [])) }
+}
+
+> parse_annot_lang(st: PState, name: String) -> PStmt {
+    = tok = peek(st)
+    if tok.kind == TkIdent || tok.kind == TkKW { PStmt(advance(st), SAnnot(name, [])) }
+    else { PStmt(st, SAnnot(name, [])) }
+}
+
+> parse_annot_export(st: PState) -> PStmt {
+    = tok = peek(st)
+    if tok.kind == TkIdent || tok.kind == TkType { PStmt(advance(st), SAnnot("export", [EVar(tok.text)])) }
+    else { PStmt(st, SAnnot("export", [])) }
+}
+
+> collect_import_path(st: PState, acc: String) -> PStmt {
+    = tok = peek(st)
+    if tok.kind == TkDot { collect_import_path(advance(st), acc + ".") }
+    else if tok.kind == TkOp && tok.text == "/" { collect_import_path(advance(st), acc + "/") }
+    else if tok.kind == TkOp && tok.text == "-" { collect_import_path(advance(st), acc + "-") }
+    else if tok.kind == TkIdent || tok.kind == TkType || tok.kind == TkInt { collect_import_path(advance(st), acc + tok.text) }
+    else { PStmt(st, SImport(acc)) }
+}
+
+-- ============================================================================
+-- > What happens — for loop parsing (S4)
+-- ============================================================================
+
+> parse_for(st: PState) -> PStmt {
+    = c = consume(st)
+    = tok = peek(c.st)
+    if tok.kind == TkKW && tok.text == "in" {
+        parse_for_body(advance(c.st), c.tok.text)
+    }
+    else {
+        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": expected 'in' after 'for " + c.tok.text + "'")
+        parse_for_body(c.st, c.tok.text)
+    }
+}
+
+> parse_for_body(st: PState, var_name: String) -> PStmt {
+    = iter = parse_expr_prec(st, 0)
+    = st2 = expect(iter.st, TkLBrace)
+    = st3 = skip_semis(st2.st)
+    = body = parse_block_stmts(st3, [])
+    PStmt(body.st, SFor(var_name, iter.node, body.items))
+}
+
+-- ============================================================================
+-- > What happens — expression parsing (S2: Pratt precedence climbing)
+-- ============================================================================
+
+> op_prec(op: String) -> Int {
+    if op == "||" { 1 }
+    else if op == "&&" { 2 }
+    else if op == "==" || op == "!=" { 3 }
+    else if op == "<" || op == ">" || op == "<=" || op == ">=" { 4 }
+    else if op == "+" || op == "-" { 5 }
+    else if op == "*" || op == "/" || op == "%" { 6 }
+    else { 0 }
+}
+
+> parse_expr(st: PState) -> PExpr {
+    parse_expr_prec(st, 0)
+}
+
+> parse_expr_prec(st: PState, min_prec: Int) -> PExpr {
+    = atom = parse_unary(st)
+    expr_loop(atom.st, atom.node, min_prec)
+}
+
+> expr_loop(st: PState, lhs: Expr, min_prec: Int) -> PExpr {
+    = tok = peek(st)
+    -- Pipe-forward: x |> f desugars to f(x), x |> f(a,b) to f(x,a,b)
+    if tok.kind == TkPipeGt && 1 >= min_prec {
+        = rhs = parse_expr_prec(advance(st), 2)
+        = app = match rhs.node {
+            EApp(func, args) -> EApp(func, concat([lhs], args))
+            other -> EApp(other, [lhs])
+        }
+        expr_loop(rhs.st, app, min_prec)
+    }
+    -- Binary operators
+    else if tok.kind == TkOp && op_prec(tok.text) >= min_prec {
+        = rhs = parse_expr_prec(advance(st), op_prec(tok.text) + 1)
+        expr_loop(rhs.st, EBinOp(tok.text, lhs, rhs.node), min_prec)
+    }
+    -- Field access: expr.field
+    else if tok.kind == TkDot {
+        = c = consume(advance(st))
+        expr_loop(c.st, EField(lhs, c.tok.text), min_prec)
+    }
+    -- Function application: expr(args)
+    else if tok.kind == TkLParen {
+        = args = parse_arg_list(st)
+        expr_loop(args.st, EApp(lhs, args.items), min_prec)
+    }
+    -- Index: expr[idx]
+    else if tok.kind == TkLBracket {
+        = idx = parse_expr(advance(st))
+        = st2 = expect(idx.st, TkRBracket)
+        expr_loop(st2.st, EIndex(lhs, idx.node), min_prec)
+    }
+    else { PExpr(st, lhs) }
+}
+
+-- Unary: - and ! prefix
+> parse_unary(st: PState) -> PExpr {
+    = tok = peek(st)
+    if tok.kind == TkOp && (tok.text == "-" || tok.text == "!") {
+        = inner = parse_unary(advance(st))
+        PExpr(inner.st, EUnOp(tok.text, inner.node))
+    }
+    else { parse_atom(st) }
+}
+
+> parse_atom(st: PState) -> PExpr {
+    = tok = peek(st)
+    if tok.kind == TkInt { PExpr(advance(st), ELit(LInt(parse_int(tok.text)))) }
+    else if tok.kind == TkFloat { PExpr(advance(st), ELit(LFloat(parse_float(tok.text)))) }
+    else if tok.kind == TkString { PExpr(advance(st), ELit(LStr(tok.text))) }
+    else if tok.kind == TkBool { PExpr(advance(st), ELit(LBool(tok.text == "true" || tok.text == "True"))) }
+    else if tok.kind == TkChar { PExpr(advance(st), ELit(LChar(tok.text))) }
+    else if tok.kind == TkIdent { PExpr(advance(st), EVar(tok.text)) }
+    else if tok.kind == TkType { PExpr(advance(st), EVar(tok.text)) }
+    -- Parenthesized expression, unit, or tuple
+    else if tok.kind == TkLParen { parse_paren(advance(st)) }
+    -- Block expression
+    else if tok.kind == TkLBrace { parse_block_expr(st) }
+    -- List literal
+    else if tok.kind == TkLBracket { parse_list_literal(advance(st)) }
+    -- if/else
+    else if tok.kind == TkKW && tok.text == "if" { parse_if(advance(st)) }
+    -- match expression (S3)
+    else if tok.kind == TkKW && tok.text == "match" { parse_match(advance(st)) }
+    -- Empty lambda: || expr (single token)
+    else if tok.kind == TkOp && tok.text == "||" {
+        = body = parse_expr(advance(st))
+        PExpr(body.st, ELambda([], body.node))
+    }
+    -- Lambda: |x| expr, |x, y| expr (S3)
+    else if tok.kind == TkPipe { parse_lambda(st) }
+    -- @ effect invocation: @ name(args)
+    else if tok.kind == TkAt {
+        = name_tok = consume(advance(st))
+        = tok2 = peek(name_tok.st)
+        if tok2.kind == TkLParen {
+            = args = parse_arg_list(name_tok.st)
+            PExpr(args.st, EEffect(name_tok.tok.text, args.items))
+        }
+        else { PExpr(name_tok.st, EEffect(name_tok.tok.text, [])) }
+    }
+    else {
+        @ print("Parse error " + show(tok.line) + ":" + show(tok.col) + ": unexpected " + show_kind(tok.kind) + "(" + tok.text + ")")
+        PExpr(advance(st), EUnit)
+    }
+}
+
+-- Parenthesized expression, unit (), or tuple (a, b)
+> parse_paren(st: PState) -> PExpr {
+    = tok = peek(st)
+    if tok.kind == TkRParen { PExpr(advance(st), EUnit) }
+    else {
+        = first = parse_expr(st)
+        = tok2 = peek(first.st)
+        if tok2.kind == TkComma {
+            = rest = parse_tuple_rest(advance(first.st), [first.node])
+            rest
+        }
+        else {
+            = st2 = expect(first.st, TkRParen)
+            PExpr(st2.st, first.node)
+        }
+    }
+}
+
+> parse_tuple_rest(st: PState, acc: List(Expr)) -> PExpr {
+    = elem = parse_expr(st)
+    = acc2 = push(acc, elem.node)
+    = tok = peek(elem.st)
+    if tok.kind == TkComma { parse_tuple_rest(advance(elem.st), acc2) }
+    else {
+        = st2 = expect(elem.st, TkRParen)
+        PExpr(st2.st, ETuple(acc2))
+    }
+}
+
+-- List literal: [elem, elem, ...]
+> parse_list_literal(st: PState) -> PExpr {
+    = st = skip_semis(st)
+    = tok = peek(st)
+    if tok.kind == TkRBracket { PExpr(advance(st), EList([])) }
+    else { parse_list_elems(st, []) }
+}
+
+> parse_list_elems(st: PState, acc: List(Expr)) -> PExpr {
+    = elem = parse_expr(st)
+    = acc2 = push(acc, elem.node)
+    = st2 = skip_semis(elem.st)
+    = tok = peek(st2)
+    if tok.kind == TkComma {
+        = st3 = skip_semis(advance(st2))
+        if peek(st3).kind == TkRBracket { PExpr(advance(st3), EList(acc2)) }
+        else { parse_list_elems(st3, acc2) }
+    }
+    else {
+        = st3 = expect(st2, TkRBracket)
+        PExpr(st3.st, EList(acc2))
+    }
+}
+
+-- Argument list: (expr, expr, ...)
+> parse_arg_list(st: PState) -> PArgs {
+    = st2 = expect(st, TkLParen)
+    = tok = peek(st2.st)
+    if tok.kind == TkRParen { PArgs(advance(st2.st), []) }
+    else { parse_arg_elems(st2.st, []) }
+}
+
+> parse_arg_elems(st: PState, acc: List(Expr)) -> PArgs {
+    = elem = parse_expr(st)
+    = acc2 = push(acc, elem.node)
+    = tok = peek(elem.st)
+    if tok.kind == TkComma { parse_arg_elems(advance(elem.st), acc2) }
+    else {
+        = st2 = expect(elem.st, TkRParen)
+        PArgs(st2.st, acc2)
+    }
+}
+
+-- Block expression: { stmts }
+> parse_block_expr(st: PState) -> PExpr {
+    = st2 = expect(st, TkLBrace)
+    = st3 = skip_semis(st2.st)
+    = result = parse_block_stmts(st3, [])
+    PExpr(result.st, EBlock(result.items))
+}
+
+> parse_block_stmts(st: PState, acc: List(Stmt)) -> PBlock {
+    = tok = peek(st)
+    if tok.kind == TkRBrace { PBlock(advance(st), acc) }
+    else if tok.kind == TkEof { PBlock(st, acc) }
+    else {
+        = parsed = parse_statement(st)
+        = st2 = skip_semis(parsed.st)
+        parse_block_stmts(st2, push(acc, parsed.node))
+    }
+}
+
+-- if/else expression
+> parse_if(st: PState) -> PExpr {
+    = cond = parse_expr_prec(st, 0)
+    = then_br = parse_block_expr(cond.st)
+    = st2 = skip_semis(then_br.st)
+    = tok = peek(st2)
+    if tok.kind == TkKW && tok.text == "else" {
+        = st3 = advance(st2)
+        = tok2 = peek(st3)
+        if tok2.kind == TkKW && tok2.text == "if" {
+            = else_br = parse_if(advance(st3))
+            PExpr(else_br.st, EIf(cond.node, then_br.node, else_br.node))
+        }
+        else {
+            = else_br = parse_block_expr(st3)
+            PExpr(else_br.st, EIf(cond.node, then_br.node, else_br.node))
+        }
+    }
+    else { PExpr(st2, EIf(cond.node, then_br.node, EUnit)) }
+}
+
+-- ============================================================================
+-- > What happens — statement parsing (S1+S3)
+-- ============================================================================
+
+> parse_binding(st: PState) -> PStmt {
+    = pat = parse_pattern(st)
+    = tok = peek(pat.st)
+    if tok.kind == TkColon {
+        = ty = parse_type(advance(pat.st))
+        = st2 = expect_op(ty.st, "=")
+        = e = parse_expr(st2)
+        PStmt(e.st, SBind(pat.node, Some(ty.node), e.node))
+    }
+    else {
+        = st2 = expect_op(pat.st, "=")
+        = e = parse_expr(st2)
+        PStmt(e.st, SBind(pat.node, None, e.node))
+    }
+}
+
+> parse_statement(st: PState) -> PStmt {
+    = st = skip_semis(st)
+    = tok = peek(st)
+    if tok.kind == TkEq { parse_binding(advance(st)) }
+    else if tok.kind == TkGt { parse_definition(advance(st)) }
+    else if tok.kind == TkHash { parse_type_decl(advance(st)) }
+    else if tok.kind == TkAt { parse_annotation(advance(st)) }
+    else if tok.kind == TkKW && tok.text == "for" { parse_for(advance(st)) }
+    else {
+        = e = parse_expr(st)
+        PStmt(e.st, SExpr(e.node))
+    }
+}
+
+-- ============================================================================
+-- > What happens — program parsing
+-- ============================================================================
+
+> parse_program_loop(st: PState, acc: List(Stmt)) -> List(Stmt) {
+    = st2 = skip_semis(st)
+    if peek(st2).kind == TkEof { acc }
+    else {
+        = parsed = parse_statement(st2)
+        parse_program_loop(parsed.st, push(acc, parsed.node))
+    }
+}
+
+> parse_program(st: PState) -> List(Stmt) {
+    parse_program_loop(st, [])
+}
+
+-- ============================================================================
+-- > What happens — pretty printing
+-- ============================================================================
+
+> show_lit(l: Literal) -> String {
+    match l {
+        LInt(v) -> show(v)
+        LFloat(v) -> format_float(v, 2)
+        LStr(v) -> "\"" + v + "\""
+        LChar(v) -> "'" + v + "'"
+        LBool(v) -> if v { "true" } else { "false" }
+    }
+}
+
+> show_ty(t: Ty) -> String {
+    match t {
+        TyName(name) -> name
+        TyApp(con, args) -> show_ty(con) + "(" + join(map(args, |a| show_ty(a)), ", ") + ")"
+        TyArrow(from_ty, to_ty) -> show_ty(from_ty) + " -> " + show_ty(to_ty)
+        TyOptional(inner) -> show_ty(inner) + "?"
+        TyUnit -> "()"
+        TyHole -> "_"
+    }
+}
+
+> show_param(p: FParam) -> String {
+    match p {
+        FParam(pname, pty, is_inout) -> if is_inout {
+            match pty {
+                Some(t) -> "inout " + pname + ": " + show_ty(t)
+                None -> "inout " + pname
+            }
+        } else {
+            match pty {
+                Some(t) -> pname + ": " + show_ty(t)
+                None -> pname
+            }
+        }
+    }
+}
+
+> show_pat(p: Pat) -> String {
+    match p {
+        PVar(name) -> name
+        PWild -> "_"
+        PLit(lit) -> show_lit(lit)
+        PCon(name, args) -> if length(args) == 0 { name } else { name + "(" + join(map(args, |a| show_pat(a)), ", ") + ")" }
+    }
+}
+
+> show_expr(e: Expr) -> String {
+    match e {
+        EVar(name) -> name
+        ELit(lit) -> show_lit(lit)
+        EBinOp(op, lhs, rhs) -> "(" + show_expr(lhs) + " " + op + " " + show_expr(rhs) + ")"
+        EUnOp(op, operand) -> "(" + op + show_expr(operand) + ")"
+        EApp(func, args) -> show_expr(func) + "(" + join(map(args, |a| show_expr(a)), ", ") + ")"
+        EField(obj, field) -> show_expr(obj) + "." + field
+        EIndex(obj, idx) -> show_expr(obj) + "[" + show_expr(idx) + "]"
+        EIf(cond, then_br, else_br) -> "if " + show_expr(cond) + " { ... } else { ... }"
+        EMatch(scrutinee, arms) -> "match " + show_expr(scrutinee) + " { " + show(length(arms)) + " arms }"
+        ELambda(params, body) -> "|" + join(map(params, |p| show_param(p)), ", ") + "| " + show_expr(body)
+        EList(elems) -> "[" + join(map(elems, |a| show_expr(a)), ", ") + "]"
+        ETuple(elems) -> "(" + join(map(elems, |a| show_expr(a)), ", ") + ")"
+        EBlock(stmts) -> "{ " + show(length(stmts)) + " stmts }"
+        EEffect(name, args) -> "@ " + name + "(" + join(map(args, |a| show_expr(a)), ", ") + ")"
+        ETry(inner) -> show_expr(inner) + "?"
+        EUnit -> "()"
+    }
+}
+
+> show_defn(d: Defn) -> String {
+    match d {
+        DFn(name, params, ret_ty, body) -> {
+            = sig = "> " + name + "(" + join(map(params, |p| show_param(p)), ", ") + ")"
+            match ret_ty {
+                Some(t) -> sig + " -> " + show_ty(t) + " " + show_expr(body)
+                None -> sig + " " + show_expr(body)
+            }
+        }
+        DActor(name, _, _) -> "> actor " + name
+        DModule(name, _) -> "> module " + name
+    }
+}
+
+> show_bind(pat: Pat, ty: Option(Ty), val: Expr) -> String {
+    = lhs = "= " + show_pat(pat)
+    match ty {
+        Some(t) -> lhs + ": " + show_ty(t) + " = " + show_expr(val)
+        None -> lhs + " = " + show_expr(val)
+    }
+}
+
+> show_vfield(f: VField) -> String {
+    match f { VField(fname, fty) -> fname + ": " + show_ty(fty) }
+}
+
+> show_vnt(v: Vnt) -> String {
+    match v {
+        Vnt(vname, fields, _) -> if length(fields) == 0 { vname }
+            else { vname + "(" + join(map(fields, |f| show_vfield(f)), ", ") + ")" }
+    }
+}
+
+> show_type_decl(td: TypeDecl) -> String {
+    match td {
+        TdADT(tname, variants) -> if length(variants) == 0 { "# " + tname }
+            else if length(variants) == 1 { show_single_type(tname, show_vnt(nth(variants, 0))) }
+            else { "# " + tname + " = " + join(map(variants, |v| show_vnt(v)), " | ") }
+        TdTrait(tname, _) -> "# trait " + tname
+        TdImpl(trait_name, for_type, _) -> "# impl " + trait_name + " for " + for_type
+    }
+}
+
+> show_single_type(tname: String, vstr: String) -> String {
+    if starts_with(vstr, tname) { "# " + vstr }
+    else { "# " + tname + " = " + vstr }
+}
+
+> show_stmt(s: Stmt) -> String {
+    match s {
+        SBind(pat, ty, val) -> show_bind(pat, ty, val)
+        SDefn(defn) -> show_defn(defn)
+        SType(td) -> show_type_decl(td)
+        SImport(path) -> "@ import " + path
+        SAnnot(aname, _) -> "@ " + aname
+        SFor(var_name, iter, body) -> "for " + var_name + " in " + show_expr(iter) + " { " + show(length(body)) + " stmts }"
+        SExpr(expr) -> show_expr(expr)
+        SStreamBind(name, val) -> "~ " + name + " = " + show_expr(val)
+        SInvariant(name, subj, pred) -> "| " + name + ": " + show_expr(subj) + " -> " + show_expr(pred)
+        SProve(name) -> "? " + name
+        SRule(_) -> "| <rule>"
+    }
+}
+
+-- ============================================================================
+-- Demo
+-- ============================================================================
+
+= test_s1 = "= x = 42\n= name = \"hello\"\n= pi = 3.14\n"
+= ast1 = test_s1 |> tokenize |> make_state |> parse_program
+
+@ print("--- S1: bindings ---")
+for s in ast1 {
+    @ print("  " + show_stmt(s))
+}
+
+= test_s2 = "= a = 1 + 2 * 3\n= b = f(x, y)\n= c = p.name\n= d = [1, 2, 3]\n= e = -42\n= f2 = (1, 2)\n= g = x |> f\n= h = if x { 1 } else { 2 }\n= i = !flag\n@ print(42)\n"
+= ast2 = test_s2 |> tokenize |> make_state |> parse_program
+
+@ print("--- S2: expressions ---")
+for s in ast2 {
+    @ print("  " + show_stmt(s))
+}
+
+= test_s3 = "> add(a: Int, b: Int) -> Int { a + b }\n> greet(name: String) { @ print(name) }\n> identity(x) { x }\n= result = match val { | Some(v) -> v | None -> 0 }\n= f = |x| x + 1\n= g = |x, y| x + y\n= h = || 42\n= typed: Int = 99\n"
+= ast3 = test_s3 |> tokenize |> make_state |> parse_program
+
+@ print("--- S3: functions + types + patterns ---")
+for s in ast3 {
+    @ print("  " + show_stmt(s))
+}
+
+= test_s4 = "# Color = Red | Green | Blue\n# Point(x: Float, y: Float)\n# Option(a) = None | Some(a)\n@ import ./lexer\nfor x in items { @ print(x) }\n@ export\n"
+= ast4 = test_s4 |> tokenize |> make_state |> parse_program
+
+@ print("--- S4: ADTs + annotations + for ---")
+for s in ast4 {
+    @ print("  " + show_stmt(s))
+}
+
+-- S4 end-to-end: parse lexer.runa
+= lexer_src = read_file("examples/lexer.runa")
+= lexer_toks = tokenize(lexer_src)
+= lexer_ast = parse_program(make_state(lexer_toks))
+
+@ print("--- S4: lexer.runa (" + show(length(lexer_ast)) + " statements) ---")
+for s in lexer_ast {
+    @ print("  " + show_stmt(s))
+}
+
+-- S5: self-parse — parser parses itself
+= parser_src = read_file("examples/parser.runa")
+= parser_toks = tokenize(parser_src)
+= parser_ast = parse_program(make_state(parser_toks))
+
+@ print("--- S5: parser.runa (" + show(length(parser_ast)) + " statements) ---")
+
+-- Structural check: count function definitions
+= fn_count = length(filter(parser_ast, |s| match s { SDefn(_) -> true | _ -> false }))
+= type_count = length(filter(parser_ast, |s| match s { SType(_) -> true | _ -> false }))
+= bind_count = length(filter(parser_ast, |s| match s { SBind(_, _, _) -> true | _ -> false }))
+= for_count = length(filter(parser_ast, |s| match s { SFor(_, _, _) -> true | _ -> false }))
+= import_count = length(filter(parser_ast, |s| match s { SImport(_) -> true | _ -> false }))
+
+@ print("  functions: " + show(fn_count))
+@ print("  types:     " + show(type_count))
+@ print("  bindings:  " + show(bind_count))
+@ print("  for loops: " + show(for_count))
+@ print("  imports:   " + show(import_count))
+
+@ print("")
+@ print("Self-hosting step 5: the parser parses itself.")

@@ -1,0 +1,38 @@
+-- show_safety_test.runa: Adversarial review fixes
+-- Tests: show() semantics, index safety, division by zero
+
+-- ============================================================================
+-- DEMO 1: show() consistency — Display format, not Debug
+-- ============================================================================
+
+@ print("=== Demo 1: show() semantics ===")
+
+-- Strings: show should NOT add quotes
+= s = "hello"
+@ print("  show(string) = " + show(s))
+
+-- Integers
+@ print("  show(42) = " + show(42))
+
+-- Floats
+@ print("  show(3.14) = " + show(3.14))
+
+-- Booleans
+@ print("  show(true) = " + show(true))
+
+-- ============================================================================
+-- DEMO 2: Division by zero — returns 0, no panic
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 2: Division Safety ===")
+
+= zero = 0
+= result = 10 / zero
+@ print("  10 / 0 = " + show(result))
+
+= mod_result = 10 % zero
+@ print("  10 % 0 = " + show(mod_result))
+
+@ print("")
+@ print("=== Safety fixes verified ===")

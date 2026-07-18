@@ -1,0 +1,13 @@
+@ import ./constitution
+
+----
+The President, Vice President and all civil Officers of the United States, shall be removed from Office on Impeachment for, and Conviction of, Treason, Bribery, or other high Crimes and Misdemeanors.
+----
+
+| impeachment_applies_to_president() -> True
+| impeachment_applies_to_vp() -> True
+| impeachment_applies_to_civil_officers() -> True
+| treason_is_impeachable() -> True
+| bribery_is_impeachable() -> True
+| high_crimes_are_impeachable() -> True
+| removal_requires_both_impeachment_and_conviction() -> True

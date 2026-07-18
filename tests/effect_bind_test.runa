@@ -1,0 +1,83 @@
+-- effect_bind_test.runa: Monadic bind (<-) with effects
+-- `= x <- ask("prompt")` suspends to effect handler and binds result.
+
+# effect Console {
+    > say(msg: String) -> ()
+    > ask(prompt: String) -> String
+}
+
+# effect Store {
+    > get(key: String) -> String
+    > set(key: String, value: String) -> ()
+}
+
+-- Function using <- with effect ops
+> interactive_greet() -> String with Console {
+    say("Welcome to the greeting machine!")
+    = name <- ask("What is your name? ")
+    = color <- ask("What is your favorite color? ")
+    say("Hello, " + name + "! You like " + color + ".")
+    name + " (" + color + ")"
+}
+
+-- Function using <- with Store effect
+> lookup_and_update() -> String with Store {
+    = old <- get("counter")
+    set("counter", "42")
+    = new <- get("counter")
+    "was " + old + ", now " + new
+}
+
+-- ============================================================================
+-- DEMO 1: <- with Console effect (ask returns a value)
+-- ============================================================================
+
+@ print("=== Demo 1: <- with Console Effect ===")
+@ print("")
+
+= r1 = | handle Console {
+    | say(msg) -> { @ print("  " + msg); resume(()) }
+    | ask(prompt) -> { @ print("  " + prompt); resume("Alice") }
+} in interactive_greet()
+
+@ print("  Result: " + r1)
+@ print("")
+
+-- ============================================================================
+-- DEMO 2: <- with Store effect (get/set)
+-- ============================================================================
+
+@ print("=== Demo 2: <- with Store Effect ===")
+@ print("")
+
+= r2 = | handle Store {
+    | get(key) -> { @ print("  [get " + key + "]"); resume("0") }
+    | set(key, value) -> { @ print("  [set " + key + " = " + value + "]"); resume(()) }
+} in lookup_and_update()
+
+@ print("  Result: " + r2)
+@ print("")
+
+-- ============================================================================
+-- DEMO 3: Mixed <- with Result and Effect
+-- ============================================================================
+
+@ print("=== Demo 3: Mixed Result and Effect <- ===")
+@ print("")
+
+> parse_and_greet() -> String with Console {
+    say("Parsing input...")
+    = name <- ask("Name? ")
+    say("Got: " + name)
+    "Greeted " + name
+}
+
+= r3 = | handle Console {
+    | say(msg) -> { @ print("  " + msg); resume(()) }
+    | ask(prompt) -> { @ print("  " + prompt); resume("Bob") }
+} in parse_and_greet()
+
+@ print("  Result: " + r3)
+@ print("")
+
+@ print("=== Monadic bind works with effects! ===")

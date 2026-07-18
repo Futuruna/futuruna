@@ -1,0 +1,24 @@
+-- store_basic_test.runa — Object store persistence (M26a)
+--
+-- Tests: @ store, assert, retract, findall on stored types
+
+@ print("=== Object Store Test ===")
+
+-- Define a type and mark it as stored
+# Item(id: Int, name: String, price: Int)
+@ store Item
+
+-- Assert some facts
+assert Item(1, "Widget", 500)
+assert Item(2, "Gadget", 300)
+assert Item(3, "Doohickey", 750)
+
+@ print("  Asserted 3 items")
+
+-- Retract one
+retract Item(2, "Gadget", 300)
+
+@ print("  Retracted item 2")
+
+@ print("")
+@ print("=== Object Store Test Complete ===")

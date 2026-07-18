@@ -1,0 +1,66 @@
+-- comptime_types_test.runa: M9 Comptime Types
+-- Generate types at compile time from data. No macros needed.
+-- struct_type(fields) and enum_type(variants) return TypeDef values
+-- that become real Rust types in the emitted code.
+
+-- ============================================================================
+-- DEMO 1: Comptime struct — generate a type from a list of fields
+-- ============================================================================
+
+@ print("=== Demo 1: Comptime Struct ===")
+@ print("")
+
+@ comptime
+= Config = struct_type([field("host", "String"), field("port", "Int"), field("debug", "Bool")])
+
+= cfg = Config("localhost", 8080, True)
+@ print("  config = " + show(cfg))
+@ print("")
+
+-- ============================================================================
+-- DEMO 2: Comptime enum — generate variants from a list
+-- ============================================================================
+
+@ print("=== Demo 2: Comptime Enum (unit variants) ===")
+@ print("")
+
+@ comptime
+= Color = enum_type(["Red", "Green", "Blue", "Yellow"])
+
+= c = Red
+@ print("  color = " + show(c))
+@ print("")
+
+-- ============================================================================
+-- DEMO 3: Comptime enum with fields
+-- ============================================================================
+
+@ print("=== Demo 3: Comptime Enum (with fields) ===")
+@ print("")
+
+@ comptime
+= Shape = enum_type([("Circle", [field("radius", "Float")]), ("Rect", [field("width", "Float"), field("height", "Float")]), ("Point", [])])
+
+= s = Circle(3.14)
+@ print("  shape = " + show(s))
+@ print("")
+
+-- ============================================================================
+-- DEMO 4: Function that generates a type spec
+-- ============================================================================
+
+@ print("=== Demo 4: Function-Generated Type ===")
+@ print("")
+
+> make_pair_type(a_type: String, b_type: String) -> TypeDef {
+    struct_type([field("first", a_type), field("second", b_type)])
+}
+
+@ comptime
+= IntPair = make_pair_type("Int", "Int")
+
+= p = IntPair(10, 20)
+@ print("  pair = " + show(p))
+@ print("")
+
+@ print("=== Comptime types: generate types from data, no macros ===")

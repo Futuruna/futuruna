@@ -1,0 +1,112 @@
+-- borrow_test.runa: Tests for Phase 2 ownership improvements
+-- Auto-borrow, branch-aware counting, independence analysis
+
+-- ============================================================================
+-- TEST 1: Auto-borrow — function that only reads a String param
+-- The compiler should detect that `greet` only reads `name` (via show/concat)
+-- and emit `fn greet(name: &String)` instead of `fn greet(name: String)`
+-- ============================================================================
+
+> greet(name: String) -> String {
+    "Hello, " + name + "!"
+}
+
+@ print("=== Phase 2: Borrow Elimination Tests ===")
+@ print("")
+
+@ print("--- Test 1: Auto-borrow (read-only params) ---")
+= name = "World"
+@ print(greet(name))
+-- name is still alive here because greet borrows it!
+@ print("Name is: " + name)
+
+-- ============================================================================
+-- TEST 2: Branch-aware counting
+-- A variable used once in each branch should NOT be cloned.
+-- Old behavior: counted sum across branches → 2 uses → clone
+-- New behavior: counted max across branches → 1 use → move
+-- ============================================================================
+
+@ print("")
+@ print("--- Test 2: Branch-aware counting ---")
+
+> classify(x: Int) -> String {
+    if x > 0 {
+        "positive"
+    } else {
+        "non-positive"
+    }
+}
+
+@ print("5 is " + classify(5))
+@ print("-3 is " + classify(-3))
+
+-- ============================================================================
+-- TEST 3: Multi-use read-only params (auto-borrow eliminates clones)
+-- `repeat_greet` reads `name` twice — both via concat (non-consuming)
+-- Old: would clone name. New: borrows it, zero clones.
+-- ============================================================================
+
+@ print("")
+@ print("--- Test 3: Multi-read auto-borrow ---")
+
+> repeat_greet(name: String) -> String {
+    "Hi " + name + "! Hi again, " + name + "!"
+}
+
+= user = "Alice"
+@ print(repeat_greet(user))
+@ print("User still alive: " + user)
+
+-- ============================================================================
+-- TEST 4: Auto-borrow with show() — show borrows via &self
+-- `describe_num` only uses `label` in show/concat — borrow-safe
+-- ============================================================================
+
+@ print("")
+@ print("--- Test 4: Auto-borrow with show ---")
+
+> describe_num(label: String, n: Int) -> String {
+    label + " = " + show(n)
+}
+
+= lbl = "answer"
+@ print(describe_num(lbl, 42))
+@ print("Label reuse: " + describe_num(lbl, 99))
+
+-- ============================================================================
+-- TEST 5: NOT auto-borrowing when param is consumed (returned)
+-- `identity_str` returns its param — this is a consuming use.
+-- The compiler must NOT auto-borrow here.
+-- ============================================================================
+
+@ print("")
+@ print("--- Test 5: Consuming params NOT borrowed ---")
+
+> identity_str(s: String) -> String {
+    s
+}
+
+@ print("Identity: " + identity_str("hello"))
+
+-- ============================================================================
+-- TEST 6: Copy types unaffected
+-- Int, Float, Bool — auto-borrow analysis correctly skips these
+-- ============================================================================
+
+@ print("")
+@ print("--- Test 6: Copy types unaffected ---")
+
+> double(x: Int) -> Int {
+    x + x
+}
+
+> negate(b: Int) -> Int {
+    0 - b
+}
+
+@ print("double(21) = " + show(double(21)))
+@ print("negate(5) = " + show(negate(5)))
+
+@ print("")
+@ print("=== All borrow elimination tests passed! ===")

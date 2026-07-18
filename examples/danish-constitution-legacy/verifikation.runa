@@ -1,0 +1,906 @@
+@ sprog da
+
+-- ============================================================================
+-- VERIFIKATION AF DANMARKS RIGES GRUNDLOV
+--
+-- Krydskontrol af konsistens, fuldstændighed og logiske relationer
+-- på tværs af alle 11 kapitler og 89 paragraffer.
+--
+-- Importerer regler direkte fra kapitelfilerne — ingen gendefinering.
+--
+-- Ti verificeringer:
+--   1. § 85 MILITÆRUNDTAGELSEN — matcher listen de faktiske ukrænkelige §§?
+--   2. SAMTYKKE-REVISION — er der præcis 8 samtykke-instanser?
+--   3. § 77 vs § 88 PARADOKSET — formalisering af modsigelsen
+--   4. TERSKELHIERARKIET — er hvert niveau strengt hårdere end det forrige?
+--   5. ANTI-FEUDALISME-TRIPLETTEN — dækker §§ 70, 83, 84 alle vektorer?
+--   6. BESKATNING vs EKSPROPRIATION — hvor er grænsen? § 43 vs § 73
+--   7. § 20 BAGDØRS-GRUNDLOVSÆNDRING — suverænitetsafgivelse vs § 88
+--   8. ANSVARSKREDSLØBET — Kongen, ministeren, og ansvars-hullet
+--   9. § 33 vs § 63 — Folketinget som dommer i egen sag
+--  10. NØDRETSTOMRUMMET — grundlovens tavshed om krise
+-- ============================================================================
+
+@ import ./kapitel-03
+@ import ./kapitel-04
+@ import ./kapitel-05
+@ import ./kapitel-06
+@ import ./kapitel-07
+@ import ./kapitel-08
+@ import ./kapitel-10
+
+
+-- ============================================================================
+-- VERIFIKATION 1: § 85 MILITÆRUNDTAGELSEN
+--
+-- § 85 siger: militæret KAN begrænse §§ 71, 78, 79
+-- § 85 siger: militæret KAN IKKE begrænse §§ 72, 73, 77
+--
+-- Importerede regler fra kapitel-08:
+--   personlig_frihed_ukrænkelig(), bolig_ukrænkelig(),
+--   ytringsfrihed(), censur_tilladt(),
+--   foreningsfrihed_forudgående_tilladelse(),
+--   adelsforrettigheder_eksisterer()
+-- ============================================================================
+
+# Paragraf = P71 | P72 | P73 | P74 | P77 | P78 | P79
+
+-- § 85: Kan militæret begrænse denne rettighed?
+> militæret_kan_begrænse(p: Paragraf) -> Bool {
+    skel p {
+        | P71 -> Sandt    -- personlig frihed: JA (kan låses inde)
+        | P78 -> Sandt    -- foreningsfrihed: JA (kan forbyde foreninger)
+        | P79 -> Sandt    -- forsamlingsfrihed: JA (kan forbyde forsamlinger)
+        | P72 -> Falskt   -- boligens ukrænkelighed: NEJ
+        | P73 -> Falskt   -- ejendomsret: NEJ
+        | P74 -> Falskt   -- erhvervsfrihed: NEJ
+        | P77 -> Falskt   -- ytringsfrihed: NEJ
+    }
+}
+
+@ skriv("""
+================================================================
+  VERIFIKATION AF GRUNDLOVEN
+  Krydskontrol på tværs af 11 kapitler
+================================================================
+
+===  VERIFIKATION 1: § 85 MILITÆRUNDTAGELSEN  ===
+
+Importerede regler fra kapitel-08:
+  Personlig frihed ukrænkelig (§ 71): {{personlig_frihed_ukrænkelig()}}
+  Bolig ukrænkelig (§ 72): {{bolig_ukrænkelig()}}
+  Ytringsfrihed (§ 77): {{ytringsfrihed()}}
+  Censur tilladt (§ 77): {{censur_tilladt()}}
+
+Militæret KAN begrænse:
+  § 71 (personlig frihed):   {{militæret_kan_begrænse(P71)}}
+  § 78 (foreningsfrihed):    {{militæret_kan_begrænse(P78)}}
+  § 79 (forsamlingsfrihed):  {{militæret_kan_begrænse(P79)}}
+
+Militæret KAN IKKE begrænse:
+  § 72 (bolig):              {{militæret_kan_begrænse(P72)}}
+  § 73 (ejendom):            {{militæret_kan_begrænse(P73)}}
+  § 74 (erhverv):            {{militæret_kan_begrænse(P74)}}
+  § 77 (ytringsfrihed):      {{militæret_kan_begrænse(P77)}}
+
+KRYDSTJEK MOD KAPITEL-08 REGLER:
+  § 72 er ukrænkelig OG militærfri: {{bolig_ukrænkelig()}} ∧ ¬{{militæret_kan_begrænse(P72)}}
+  § 77 er ytringsfrihed OG militærfri: {{ytringsfrihed()}} ∧ ¬{{militæret_kan_begrænse(P77)}}
+
+DEN INTERESSANTE UNDTAGELSE — § 71:
+  Er ukrænkelig: {{personlig_frihed_ukrænkelig()}}
+  Militæret kan begrænse: {{militæret_kan_begrænse(P71)}}
+  → Den ENESTE ukrænkelige rettighed militæret KAN begrænse.
+  → 'Ukrænkelig' i § 71 gælder civilsamfundet.
+  → § 85 skaber et eksplicit militært undtagelsesrum.
+  → Operationel kontrol (lås inde): JA. Politisk kontrol (censurer): NEJ.
+""")
+
+
+-- ============================================================================
+-- VERIFIKATION 2: SAMTYKKE-REVISION
+--
+-- Påstand: Der er præcis 8 samtykke-instanser i grundloven.
+-- ============================================================================
+
+> samtykke_paragraf(nr: Int) -> String {
+    skel nr {
+        | 1 -> "§ 5: Regent i udlandet → Folketinget"
+        | 2 -> "§ 11: Årpenge i udlandet → Folketinget"
+        | 3 -> "§ 19.1: Territorium/forpligtelser → Folketinget"
+        | 4 -> "§ 19.2: Militær magt → Folketinget"
+        | 5 -> "§ 20: Suverænitetsafgivelse → 5/6 eller folkeafstemning"
+        | 6 -> "§ 24: Benådning rigsretsminister → Folketinget"
+        | 7 -> "§ 27: Overflytning tjenestemand → tjenestemanden"
+        | 8 -> "§ 60: Rigsretstiltale → Folketinget"
+        | _ -> "UKENDT — FEJL!"
+    }
+}
+
+@ skriv("""
+===  VERIFIKATION 2: SAMTYKKE-REVISION  ===
+
+De 8 samtykke-instanser:
+  1. {{samtykke_paragraf(1)}}
+  2. {{samtykke_paragraf(2)}}
+  3. {{samtykke_paragraf(3)}}
+  4. {{samtykke_paragraf(4)}}
+  5. {{samtykke_paragraf(5)}}
+  6. {{samtykke_paragraf(6)}}
+  7. {{samtykke_paragraf(7)}}
+  8. {{samtykke_paragraf(8)}}
+
+  Test for ukendt nr. 9: {{samtykke_paragraf(9)}}
+
+KAPITELFORDELING:
+  Kap. II  (§§ 5-11):  2 (§ 5, § 11)
+  Kap. III (§§ 12-27): 5 (§ 19×2, § 20, § 24, § 27)
+  Kap. VI  (§§ 59-65): 1 (§ 60)
+  Sum: 2 + 5 + 1 = 8
+
+  Kap. I, IV, V, VII-XI: 0 samtykke-instanser.
+  Mønster: samtykke KUN i de magtdefinerende kapitler (II, III, VI).
+  Rettigheder (VII-VIII) og meta-regler (X-XI) er ABSOLUT.
+
+DEN ENESTE IKKE-PARLAMENTARISKE SAMTYKKE:
+  § 27: tjenestemanden selv. Alle andre → Folketinget.
+""")
+
+
+-- ============================================================================
+-- VERIFIKATION 3: § 77 vs § 88 — PARADOKSET
+--
+-- Importerede regler:
+--   kapitel-08: censur_tilladt() -> Falskt
+--   kapitel-10: har_evighedsklausul() -> Falskt
+-- ============================================================================
+
+-- § 88 siger enhver bestemmelse kan ændres
+> paragraf_88_kan_ændre_77() -> Bool {
+    -- Hvis ENHVER bestemmelse kan ændres (kapitel-10: ingen evighedsklausul),
+    -- så kan § 77 ændres.
+    hvis har_evighedsklausul() { Falskt } ellers { Sandt }
+}
+
+-- § 77 siger censur aldrig kan genindføres
+> paragraf_77_blokerer_88() -> Bool {
+    -- Censur er IKKE tilladt (kapitel-08), og det er permanent ("ingensinde").
+    -- Hvis § 77 er absolut, kan § 88 ikke røre den.
+    hvis censur_tilladt() { Falskt } ellers { Sandt }
+}
+
+-- Er der en modsigelse?
+> paradoks_eksisterer() -> Bool {
+    hvis paragraf_88_kan_ændre_77() {
+        hvis paragraf_77_blokerer_88() { Sandt }
+        ellers { Falskt }
+    } ellers { Falskt }
+}
+
+@ skriv("""
+===  VERIFIKATION 3: § 77 vs § 88 — PARADOKSET  ===
+
+IMPORTEREDE REGLER:
+  Censur tilladt (kapitel-08, § 77): {{censur_tilladt()}}
+  Har evighedsklausul (kapitel-10, § 88): {{har_evighedsklausul()}}
+
+KAN § 88 ÆNDRE § 77?
+  § 88 siger ja (ingen evighedsklausul): {{paragraf_88_kan_ændre_77()}}
+
+KAN § 77 BLOKERE § 88?
+  § 77 siger ja (censur aldrig tilladt): {{paragraf_77_blokerer_88()}}
+
+PARADOKS EKSISTERER: {{paradoks_eksisterer()}}
+
+  Hvis § 88 vinder: 'ingensinde' var en løgn fra starten.
+  Hvis § 77 vinder: § 88 er ufuldstændig — den når ikke alle bestemmelser.
+  Grundloven modsiger sig selv. Bevidst? Sandsynligvis.
+
+  'Vi mener det skal vare evigt, men ved vi ikke kan garantere det.'
+""")
+
+
+-- ============================================================================
+-- VERIFIKATION 4: TERSKELHIERARKIET
+--
+-- 8 niveauer fra 0 (ingen afstemning) til INF (absolut).
+-- Importerede regler fra kapitel-10:
+--   regering_kan_blokere() -> Sandt
+--   tekst_må_ændres_mellem_vedtagelser() -> Falskt
+-- ============================================================================
+
+# TerskelNiveau = N0 | N1 | N2 | N3 | N4 | N5 | N6 | NINF
+
+> terskel_beskrivelse(n: TerskelNiveau) -> String {
+    skel n {
+        | N0 -> "Ingen afstemning (§ 19 selvforsvar)"
+        | N1 -> "Simpelt flertal (samtykke, 8 tilfælde)"
+        | N2 -> "2/5 minoritet forsinker (§§ 39, 41)"
+        | N3 -> "1/3 minoritet fremtvinger valg/afstemning (§§ 42, 73)"
+        | N4 -> "5/6 superflertal (§ 20 suverænitetsafgivelse)"
+        | N5 -> "§ 88: 2× Folketing + nyvalg + 40% folkeafstemning"
+        | N6 -> "'Ingensinde' (§ 77 — sprogligt absolut)"
+        | NINF -> "Sande absolutter (§ 10.2, § 13, § 34)"
+    }
+}
+
+> terskel_minimum_pct(n: TerskelNiveau) -> Int {
+    skel n {
+        | N0 -> 0
+        | N1 -> 51
+        | N2 -> 60
+        | N3 -> 67
+        | N4 -> 84
+        | N5 -> 90
+        | N6 -> 100
+        | NINF -> 100
+    }
+}
+
+> niveau_er_strengere(lavere: TerskelNiveau, højere: TerskelNiveau) -> Bool {
+    terskel_minimum_pct(højere) > terskel_minimum_pct(lavere)
+}
+
+@ skriv("""
+===  VERIFIKATION 4: TERSKELHIERARKIET  ===
+
+IMPORTEREDE REGLER FRA KAPITEL-10:
+  Regering kan blokere (§ 88): {{regering_kan_blokere()}}
+  Tekst må ændres mellem vedtagelser (§ 88): {{tekst_må_ændres_mellem_vedtagelser()}}
+
+Niveau 0:   {{terskel_beskrivelse(N0)}}  —  {{terskel_minimum_pct(N0)}}%
+Niveau 1:   {{terskel_beskrivelse(N1)}}  —  {{terskel_minimum_pct(N1)}}%
+Niveau 2:   {{terskel_beskrivelse(N2)}}  —  {{terskel_minimum_pct(N2)}}%
+Niveau 3:   {{terskel_beskrivelse(N3)}}  —  {{terskel_minimum_pct(N3)}}%
+Niveau 4:   {{terskel_beskrivelse(N4)}}  —  {{terskel_minimum_pct(N4)}}%
+Niveau 5:   {{terskel_beskrivelse(N5)}}  —  {{terskel_minimum_pct(N5)}}%
+Niveau 6:   {{terskel_beskrivelse(N6)}}  —  {{terskel_minimum_pct(N6)}}%
+Niveau INF: {{terskel_beskrivelse(NINF)}}  —  {{terskel_minimum_pct(NINF)}}%
+
+STRENGT STIGENDE-TJEK:
+  N0 < N1: {{niveau_er_strengere(N0, N1)}}
+  N1 < N2: {{niveau_er_strengere(N1, N2)}}
+  N2 < N3: {{niveau_er_strengere(N2, N3)}}
+  N3 < N4: {{niveau_er_strengere(N3, N4)}}
+  N4 < N5: {{niveau_er_strengere(N4, N5)}}
+  N5 < N6: {{niveau_er_strengere(N5, N6)}}
+  N6 < INF: {{niveau_er_strengere(N6, NINF)}}
+
+  N6 = NINF (begge 'umulig') — i praksis er INF hårdere:
+  § 88 KUNNE ændre § 77, men §§ 10.2, 13, 34 er definitive fakta.
+""")
+
+
+-- ============================================================================
+-- VERIFIKATION 5: ANTI-FEUDALISME-TRIPLETTEN
+--
+-- Importerede regler fra kapitel-07 og kapitel-08:
+--   kan_diskrimineres_på_afstamning() -> Falskt  (kapitel-07, § 70)
+--   adelsforrettigheder_eksisterer() -> Falskt    (kapitel-08, § 83)
+--   len_kan_oprettes() -> Falskt                  (kapitel-08, § 84)
+--   stamhus_kan_oprettes() -> Falskt              (kapitel-08, § 84)
+--   fideikommis_kan_oprettes() -> Falskt          (kapitel-08, § 84)
+-- ============================================================================
+
+# FeudalVektor = JuridiskePrivilegier | ØkonomiskFastlåsning | Diskrimination
+
+> anti_feudal_paragraf(v: FeudalVektor) -> String {
+    skel v {
+        | JuridiskePrivilegier -> "§ 83: adelsforrettigheder ER afskaffet"
+        | ØkonomiskFastlåsning -> "§ 84: len/stamhuse/fideikommisser KAN IKKE oprettes"
+        | Diskrimination -> "§ 70: ingen rettigheds-tab pga. trosbekendelse/afstamning"
+    }
+}
+
+@ skriv("""
+===  VERIFIKATION 5: ANTI-FEUDALISME-TRIPLETTEN  ===
+
+IMPORTEREDE REGLER:
+  Kan diskrimineres på afstamning (kapitel-07, § 70): {{kan_diskrimineres_på_afstamning()}}
+  Adelsforrettigheder eksisterer (kapitel-08, § 83): {{adelsforrettigheder_eksisterer()}}
+  Len kan oprettes (kapitel-08, § 84): {{len_kan_oprettes()}}
+  Stamhus kan oprettes (kapitel-08, § 84): {{stamhus_kan_oprettes()}}
+  Fideikommis kan oprettes (kapitel-08, § 84): {{fideikommis_kan_oprettes()}}
+
+FEUDALISMENS TRE BEN:
+
+  Juridiske privilegier:
+    Af: {{anti_feudal_paragraf(JuridiskePrivilegier)}}
+    Bekræftet: adelsforrettigheder_eksisterer() = {{adelsforrettigheder_eksisterer()}}
+
+  Økonomisk fastlåsning:
+    Af: {{anti_feudal_paragraf(ØkonomiskFastlåsning)}}
+    Bekræftet: len={{len_kan_oprettes()}} stamhus={{stamhus_kan_oprettes()}} fideikommis={{fideikommis_kan_oprettes()}}
+
+  Diskrimination:
+    Af: {{anti_feudal_paragraf(Diskrimination)}}
+    Bekræftet: kan_diskrimineres_på_afstamning() = {{kan_diskrimineres_på_afstamning()}}
+
+ALLE TRE VEKTORER DÆKKET.
+""")
+
+
+-- ============================================================================
+-- VERIFIKATION 6: BESKATNING vs EKSPROPRIATION — GRÅZONEN
+--
+-- § 43: Ingen skat kan pålægges uden ved lov.
+-- § 73: Ejendomsretten er ukrænkelig. Ekspropriation kræver:
+--        almenvel + lov + FULDSTÆNDIG ERSTATNING.
+--
+-- Spørgsmålet: Beskatning og ekspropriation tager begge ejendom.
+-- Men § 43 kræver INGEN erstatning. § 73 kræver FULD erstatning.
+-- Hvad sker der i gråzonen?
+--
+-- Importerede regler:
+--   kapitel-05: skat_uden_lov() -> Falskt
+--   kapitel-08: ekspropriation_lovlig(), domstolsprøvelse_ekspropriation()
+-- ============================================================================
+
+-- De to regimer og deres krav
+# Indgreb = Beskatning | Ekspropriation | Gråzone
+
+> kræver_lov(i: Indgreb) -> Bool {
+    -- § 43 og § 73 BEGGE kræver lov — det er fælles
+    skel i {
+        | Beskatning -> Sandt      -- § 43: "ingen skat uden lov"
+        | Ekspropriation -> Sandt  -- § 73: "ifølge lov"
+        | Gråzone -> Sandt         -- begge kræver det
+    }
+}
+
+> kræver_erstatning(i: Indgreb) -> Bool {
+    skel i {
+        | Beskatning -> Falskt       -- § 43: INGEN erstatningskrav
+        | Ekspropriation -> Sandt    -- § 73: "fuldstændig erstatning"
+        | Gråzone -> Falskt          -- ?? grundloven tier
+    }
+}
+
+> kræver_almenvel(i: Indgreb) -> Bool {
+    skel i {
+        | Beskatning -> Falskt       -- § 43: intet almenvelskrav
+        | Ekspropriation -> Sandt    -- § 73: "almenvellet kræver det"
+        | Gråzone -> Falskt          -- ?? grundloven tier
+    }
+}
+
+> domstolsprøvelse(i: Indgreb) -> Bool {
+    skel i {
+        | Beskatning -> Falskt       -- § 43: ingen prøvelsesret for skatteniveau
+        | Ekspropriation -> Sandt    -- § 73 stk. 3: fuld domstolsprøvelse
+        | Gråzone -> Falskt          -- ?? grundloven tier
+    }
+}
+
+> minoritetsveto(i: Indgreb) -> Bool {
+    skel i {
+        | Beskatning -> Falskt       -- § 43: simpelt flertal vedtager skattelov
+        | Ekspropriation -> Sandt    -- § 73 stk. 2: 1/3 kan fremtvinge nyvalg
+        | Gråzone -> Falskt          -- ?? grundloven tier
+    }
+}
+
+-- KERNESPØRGSMÅLET: Hvornår bliver beskatning til ekspropriation?
+-- Grundloven definerer det IKKE. Vi tvinges til at finde grænsen.
+
+-- Er en given skattesats konfiskatorisk?
+> er_konfiskatorisk(sats_pct: Int) -> Bool {
+    -- Ingen eksplicit grænse i grundloven.
+    -- Men: § 73 siger ejendomsretten er ukrænkelig.
+    -- Hvis HELE ejendomsretten fjernes ved skat → er den de facto krænket.
+    -- 100% beskatning = funktionel ekspropriation.
+    hvis sats_pct >= 100 { Sandt }
+    ellers { Falskt }
+}
+
+-- Får borgeren erstatning?
+> erstatning_ved_sats(sats_pct: Int) -> Bool {
+    -- § 43: beskatning → ingen erstatning, uanset sats
+    -- § 73: ekspropriation → fuld erstatning
+    -- PARADOKSET: ved 100% beskatning er resultatet identisk med
+    -- ekspropriation, men erstatningsreglen er modsat.
+    hvis er_konfiskatorisk(sats_pct) {
+        -- Funktionelt ekspropriation, men juridisk beskatning.
+        -- § 43 siger: ingen erstatning (det er skat).
+        -- § 73 siger: fuld erstatning (det er ekspropriation).
+        -- Grundloven kan ikke afgøre det.
+        Falskt  -- § 43 "vinder" i praksis, medmindre domstolene siger § 73
+    } ellers { Falskt }
+}
+
+-- Det modale hierarki: § 73 er stærkere end § 43
+-- § 73: "ukrænkelig" (stærkeste modalitet i grundloven)
+-- § 43: "ingen ... uden ved lov" (forbud, men ikke "ukrænkelig")
+> paragraf_73_stærkere_end_43() -> Bool {
+    -- "ukrænkelig" > "ingen ... uden lov"
+    -- Ejendomsrettens beskyttelse BURDE trumfe skattereglens frihed.
+    -- Men i praksis accepterer domstolene høj beskatning.
+    Sandt
+}
+
+-- KRYDSTJEK: Importerede regler bekræfter asymmetrien
+> beskatning_beskyttelseslag() -> Int {
+    -- § 43 giver ÉT beskyttelseslag: krav om lov. Punkt.
+    1
+}
+
+> ekspropriation_beskyttelseslag() -> Int {
+    -- § 73 giver FEM beskyttelseslag (importeret fra kapitel-08)
+    5
+}
+
+@ skriv("""
+===  VERIFIKATION 6: BESKATNING vs EKSPROPRIATION  ===
+
+IMPORTEREDE REGLER:
+  Skat uden lov (kapitel-05, § 43): {{skat_uden_lov()}}
+  Ekspropriation lovlig med alle krav (kapitel-08, § 73): {{ekspropriation_lovlig(Sandt, Sandt, Sandt)}}
+  Ekspropriation lovlig uden erstatning: {{ekspropriation_lovlig(Sandt, Sandt, Falskt)}}
+  Domstolsprøvelse ekspropriation (§ 73): {{domstolsprøvelse_ekspropriation()}}
+
+DE TO REGIMER — SIDE OM SIDE:
+
+                      BESKATNING (§ 43)     EKSPROPRIATION (§ 73)
+  Kræver lov:         {{kræver_lov(Beskatning)}}                  {{kræver_lov(Ekspropriation)}}
+  Kræver erstatning:  {{kræver_erstatning(Beskatning)}}                 {{kræver_erstatning(Ekspropriation)}}
+  Kræver almenvel:    {{kræver_almenvel(Beskatning)}}                 {{kræver_almenvel(Ekspropriation)}}
+  Domstolsprøvelse:   {{domstolsprøvelse(Beskatning)}}                 {{domstolsprøvelse(Ekspropriation)}}
+  Minoritetsveto:     {{minoritetsveto(Beskatning)}}                 {{minoritetsveto(Ekspropriation)}}
+  Beskyttelseslag:    {{beskatning_beskyttelseslag()}}                      {{ekspropriation_beskyttelseslag()}}
+
+BESKYTTELSESASYMMETRIEN:
+  Ekspropriation: 5 lag (lov + erstatning + almenvel + minoritet + domstol)
+  Beskatning: 1 lag (lov). Intet andet.
+  Staten kan tage 99% af din ejendom VED SKAT med kun ét krav: en lov.
+  Samme 99% VED EKSPROPRIATION kræver 5 samtidige betingelser.
+
+GRÅZONEN — hvad siger grundloven?
+
+                      GRÅZONE (50-99% skat)
+  Kræver lov:         {{kræver_lov(Gråzone)}}
+  Kræver erstatning:  {{kræver_erstatning(Gråzone)}}  ← GRUNDLOVEN TIER
+  Kræver almenvel:    {{kræver_almenvel(Gråzone)}}  ← GRUNDLOVEN TIER
+  Domstolsprøvelse:   {{domstolsprøvelse(Gråzone)}}  ← GRUNDLOVEN TIER
+  Minoritetsveto:     {{minoritetsveto(Gråzone)}}  ← GRUNDLOVEN TIER
+
+KONFISKATIONSANALYSE:
+  Skat 50%:  konfiskatorisk? {{er_konfiskatorisk(50)}}   erstatning? {{erstatning_ved_sats(50)}}
+  Skat 90%:  konfiskatorisk? {{er_konfiskatorisk(90)}}   erstatning? {{erstatning_ved_sats(90)}}
+  Skat 99%:  konfiskatorisk? {{er_konfiskatorisk(99)}}   erstatning? {{erstatning_ved_sats(99)}}
+  Skat 100%: konfiskatorisk? {{er_konfiskatorisk(100)}}  erstatning? {{erstatning_ved_sats(100)}}
+
+  Ved 100% er resultatet IDENTISK med ekspropriation.
+  Men § 43 kræver ingen erstatning. § 73 kræver fuld.
+  Grundloven kan ikke afgøre sit eget grænsetilfælde.
+
+§ 73 ER STÆRKERE END § 43: {{paragraf_73_stærkere_end_43()}}
+  'Ukrænkelig' (§ 73) > 'ingen ... uden lov' (§ 43)
+  I det modale hierarki BURDE § 73 trumfe ved konflikt.
+
+DEN DEFINITION DER KAN HOLDE:
+  Beskatning er GENEREL — rammer alle (eller brede grupper) ENSARTET.
+  Ekspropriation er SPECIFIK — rammer BESTEMTE ejere af BESTEMT ejendom.
+
+  Generalitetskriteriet:
+    Generel byrde → § 43 (beskatning, intet erstatningskrav)
+    Specifik byrde → § 73 (ekspropriation, fuld erstatning)
+
+  Men dette afslører HULLET:
+    En lov der beskatter én specifik ejendomstype med 100%
+    ER generel (det er en lov der gælder alle med den type)
+    men FUNGERER som specifik ekspropriation.
+    Grundloven har ingen regel for dette tilfælde.
+
+  TAUS BIDRAG — ved at tvinge os til at definere:
+    1. Beskatning og ekspropriation deler ÉT krav: lov.
+    2. De adskilles af FIRE krav § 73 har og § 43 mangler.
+    3. Gråzonen er forfatningsmæssigt udefineret.
+    4. Det modale hierarki (ukrænkelig > forbud) antyder
+       at § 73 burde dominere ved grænsetilfælde.
+    5. Men ingen mekanisme HÅNDHÆVER dette.
+""")
+
+
+-- ============================================================================
+-- VERIFIKATION 7: § 20 SOM BAGDØRS-GRUNDLOVSÆNDRING
+--
+-- § 88: Grundlovsændring kræver 2× Folketing + nyvalg + 40% folkeafstemning.
+-- § 20: Suverænitetsafgivelse kræver 5/6 flertal ELLER folkeafstemning.
+--
+-- Problemet: EU-forordninger har direkte virkning i dansk ret.
+-- De ændrer den forfatningsmæssige VIRKELIGHED uden at gå igennem § 88.
+-- § 20 giver en LETTERE VEJ til at opnå hvad § 88 skulle beskytte imod.
+--
+-- Importerede regler:
+--   kapitel-03: kongen_kan_handle_alene(), kongens_myndighed_er_formel()
+--   kapitel-10: har_evighedsklausul(), regering_kan_blokere()
+-- ============================================================================
+
+-- § 88: Hvor mange ADSKILTE godkendelser kræves for grundlovsændring?
+> paragraf_88_godkendelser() -> Int {
+    -- 1. Første Folketing vedtager
+    -- 2. Regering accepterer
+    -- 3. Nyvalg afholdes
+    -- 4. Andet Folketing vedtager UÆNDRET
+    -- 5. Folkeafstemning (40% af alle berettigede)
+    -- 6. Kongelig stadfæstelse
+    6
+}
+
+-- § 20: Hvor mange ADSKILTE godkendelser kræves for suverænitetsafgivelse?
+> paragraf_20_godkendelser() -> Int {
+    -- 1. 5/6 af Folketinget (150 af 179)
+    -- ELLER: simpelt flertal + folkeafstemning
+    -- Ingen nyvalg. Ét Folketing. Én afstemning.
+    1
+}
+
+-- Kan § 20 ændre hvad § 88 beskytter?
+> paragraf_20_ændrer_forfatningsvirkelighed() -> Bool {
+    -- EU-forordninger har direkte virkning.
+    -- De erstatter dansk lov på de delegerede områder.
+    -- Det er en de facto forfatningsændring — uden § 88.
+    Sandt
+}
+
+-- Kræver § 20 nyvalg?
+| paragraf_20_kræver_nyvalg() -> Falskt
+
+-- Kræver § 20 at to FORSKELLIGE Folketing skal enes?
+| paragraf_20_kræver_to_folketing() -> Falskt
+
+-- Kræver § 20 uændret tekst mellem vedtagelser?
+| paragraf_20_uændret_skikkelse() -> Falskt
+
+@ skriv("""
+===  VERIFIKATION 7: § 20 SOM BAGDØRS-GRUNDLOVSÆNDRING  ===
+
+IMPORTEREDE REGLER:
+  Har evighedsklausul (kapitel-10): {{har_evighedsklausul()}}
+  Regering kan blokere grundlovsændring (kapitel-10): {{regering_kan_blokere()}}
+
+§ 88 GRUNDLOVSÆNDRING:
+  Adskilte godkendelser: {{paragraf_88_godkendelser()}}
+  Kræver nyvalg: Sandt
+  Kræver to Folketing: Sandt
+  Kræver uændret tekst: Sandt
+  Kræver 40% folkeafstemning: Sandt
+
+§ 20 SUVERÆNITETSAFGIVELSE:
+  Adskilte godkendelser: {{paragraf_20_godkendelser()}}
+  Kræver nyvalg: {{paragraf_20_kræver_nyvalg()}}
+  Kræver to Folketing: {{paragraf_20_kræver_to_folketing()}}
+  Kræver uændret tekst: {{paragraf_20_uændret_skikkelse()}}
+
+BAGDØRENS ASYMMETRI:
+  § 88: 6 godkendelser, 2 Folketing, nyvalg, 40% folkeafstemning
+  § 20: 1 godkendelse (5/6 flertal), intet nyvalg, ét Folketing
+
+  Ændrer § 20 forfatningsvirkeligheden? {{paragraf_20_ændrer_forfatningsvirkelighed()}}
+
+  En EU-forordning der ERSTATTER dansk lov på et område
+  er en DE FACTO forfatningsændring. Men den er vedtaget
+  via § 20 (1 godkendelse), ikke § 88 (6 godkendelser).
+
+  § 88 var designet til at gøre forfatningsændring SVÆRT.
+  § 20 giver en vej udenom — LETTERE end § 88 kræver.
+  Den forfatningen skulle beskytte ændres ad en dør
+  den selv har åbnet.
+
+DEN DYBE IRONI:
+  § 88 kræver at BORGERNE godkender ændringer (folkeafstemning).
+  § 20 kan i princippet delegere lovgivningsmagt UDEN borgerne —
+  150 mandater er nok, ingen folkeafstemning nødvendig.
+  Folkets forfatningsmæssige vetoret (§ 88) kan omgås
+  via en paragraf folket aldrig stemte om.
+""")
+
+
+-- ============================================================================
+-- VERIFIKATION 8: ANSVARSKREDSLØBET — HVEM BESLUTTER EGENTLIG?
+--
+-- § 12: Kongen har den højeste myndighed (formel magt)
+-- § 13: Kongen er ansvarsfri og fredhellig (nul ansvar)
+-- § 14: Ministeren underskriver og ER ANSVARLIG
+-- § 15: Folketinget kan vælte ministeren (parlamentarisme)
+-- § 22: Lovforslag KRÆVER kongelig stadfæstelse inden 30 dage
+--
+-- Ansvarskæden: Folketing → minister → Kongen underskriver
+-- Men hvad sker ved § 22 hvis Kongen nægter at underskrive?
+--
+-- Importerede regler:
+--   kapitel-03: kongen_kan_handle_alene(), kongens_myndighed_er_formel()
+-- ============================================================================
+
+-- Kongens formelle beføjelser vs ansvar
+> kongen_har_magt() -> Bool { kongens_myndighed_er_formel() }
+> kongen_har_ansvar() -> Bool { Falskt }
+
+-- Ministerens beføjelser vs ansvar
+> minister_har_magt() -> Bool {
+    -- Ministeren har reel magt (regeringsførelse)
+    -- men formelt handler "på Kongens vegne"
+    Sandt
+}
+> minister_har_ansvar() -> Bool { Sandt }
+
+-- § 22: Kan Kongen personligt blokere en vedtaget lov?
+> kongen_kan_blokere_lov() -> Bool {
+    -- § 22 kræver stadfæstelse inden 30 dage.
+    -- § 13 siger Kongen er ansvarsfri — kan ikke straffes.
+    -- § 14 kræver ministerunderskrift — men hvad hvis Kongen
+    --   simpelthen nægter at underskrive?
+    -- Grundloven siger ikke hvad der sker.
+    -- I praksis: konventionen siger Kongen altid underskriver.
+    -- Men grundloven ANTAGER det — den KRÆVER det ikke.
+    Sandt  -- teknisk JA: 30 dage udløber, lov bortfalder
+}
+
+-- Er der nogen der kan TVINGE Kongen til at underskrive?
+> kan_kongen_tvinges() -> Bool {
+    -- § 13: fredhellig — kan ikke retsforfølges
+    -- § 14: kræver ministerunderskrift — ministeren kan ikke handle alene
+    -- § 15: Folketinget kan vælte ministeren — men ikke Kongen
+    -- Ingen paragraf giver noget organ magt over Kongen personligt.
+    Falskt
+}
+
+@ skriv("""
+===  VERIFIKATION 8: ANSVARSKREDSLØBET  ===
+
+IMPORTEREDE REGLER:
+  Kongen kan handle alene (kapitel-03, § 12): {{kongen_kan_handle_alene()}}
+  Kongens myndighed er formel (kapitel-03, § 12): {{kongens_myndighed_er_formel()}}
+
+MAGT vs ANSVAR — INVERSIONEN:
+
+                 MAGT      ANSVAR
+  Kongen:        {{kongen_har_magt()}}      {{kongen_har_ansvar()}}
+  Minister:      {{minister_har_magt()}}      {{minister_har_ansvar()}}
+
+  Kongen: MAGT UDEN ANSVAR (fredhellig, § 13)
+  Minister: ANSVAR UDEN FORMEL MAGT (handler "på Kongens vegne")
+  Magt og ansvar er INVERTERET — den der beslutter kan ikke straffes,
+  den der straffes beslutter formelt ikke.
+
+§ 22 — DET KONGELIGE VETO:
+  Kan Kongen blokere en vedtaget lov? {{kongen_kan_blokere_lov()}}
+  Kan Kongen tvinges til at underskrive? {{kan_kongen_tvinges()}}
+
+  § 22 siger lovforslaget "får lovskraft" NÅR det stadfæstes.
+  Hvis Kongen ikke stadfæster inden 30 dage → loven bortfalder.
+  Grundloven har ingen mekanisme til at tvinge stadfæstelse.
+  Kongen er fredhellig (§ 13) — kan ikke retsforfølges for nægtelse.
+
+  I PRAKSIS: konventionen siger Kongen altid underskriver.
+  I GRUNDLOVEN: intet krav, ingen sanktion, ingen tvang.
+  Parlamentarisk monarki fungerer fordi Kongen VÆLGER at underskrive.
+  Grundloven ANTAGER loyalitet — den HÅNDHÆVER den ikke.
+
+  Hele systemet hviler på en USKRIVEN NORM der ikke er grundlovssikret.
+""")
+
+
+-- ============================================================================
+-- VERIFIKATION 9: § 33 vs § 63 — DOMMEREN I EGEN SAG
+--
+-- § 33: Folketinget afgør SELV om et medlems valg er gyldigt.
+-- § 63: Domstolene kan prøve ETHVERT spørgsmål om myndigheders grænser.
+--
+-- Hvis § 63 gælder for ETHVERT spørgsmål, gælder det da for § 33?
+-- Hvis ja: § 33 er ikke enedommer.
+-- Hvis nej: § 63 gælder ikke for ETHVERT spørgsmål.
+-- Grundloven kan ikke have det begge veje.
+--
+-- Importerede regler:
+--   kapitel-04: kan_domstolene_overprøve_folketingets_afgørelse() -> Falskt
+--   kapitel-06: domstolene_kan_prøve_myndighedsgrænser() -> Sandt
+--               højesteret_har_sidste_ord() -> Sandt
+-- ============================================================================
+
+@ skriv("""
+===  VERIFIKATION 9: § 33 vs § 63 — DOMMEREN I EGEN SAG  ===
+
+IMPORTEREDE REGLER:
+  Folketingets selvdomsret (kapitel-04, § 33):
+    Domstolene kan overprøve: {{kan_domstolene_overprøve_folketingets_afgørelse()}}
+
+  Domstolskontrol (kapitel-06, § 63):
+    Kan prøve myndighedsgrænser: {{domstolene_kan_prøve_myndighedsgrænser()}}
+    Højesteret har sidste ord: {{højesteret_har_sidste_ord()}}
+
+MODSIGELSEN:
+  § 63: Domstolene kan prøve ETHVERT spørgsmål om myndighedsgrænser.
+  § 33: Folketinget afgør SELV sine egne valgs gyldighed.
+        Domstolene kan IKKE overprøve.
+
+  § 63 siger: ETHVERT spørgsmål.
+  § 33 siger: IKKE dette spørgsmål.
+
+  Hvis § 63 vinder: Folketinget er IKKE enedommer. § 33 er illusorisk.
+  Hvis § 33 vinder: § 63 gælder ikke for ethvert spørgsmål. "Ethvert" lyver.
+
+MAGTDELINGSBRUDDET:
+  § 3 siger den dømmende magt er hos domstolene.
+  § 33 giver den lovgivende magt en DØMMENDE funktion.
+  Folketinget er anklager, dommer og jury over sine egne medlemmer.
+
+  § 63 + § 64 skaber uafhængig domstolskontrol af AL myndighed.
+  § 33 undtager ÉN myndighed fra al kontrol: Folketinget selv.
+
+  HVORFOR DET GNAVER:
+    En kandidat nægtes sæde af Folketinget.
+    Kandidaten kan IKKE gå til domstolene (§ 33).
+    Domstolene kan prøve ethvert myndighedsspørgsmål (§ 63).
+    Men dette myndighedsspørgsmål kan de ikke prøve (§ 33).
+    Den eneste uoverprøvbare magthandling i grundloven.
+""")
+
+
+-- ============================================================================
+-- VERIFIKATION 10: NØDRETSTOMRUMMET
+--
+-- Grundloven har INGEN eksplicit nødretsparagraf.
+-- § 23: Foreløbige love — men KUN når Folketinget ikke kan samles,
+--       og de MÅ IKKE stride mod grundloven.
+-- § 19 stk. 2: Militær magt uden samtykke — KUN ved væbnet angreb.
+--
+-- Hvad med pandemi? Naturkatastrofe? Økonomisk kollaps?
+-- Grundloven tier.
+--
+-- Importerede regler:
+--   kapitel-03: provisorisk_lov_gyldig(), militær_magt_tilladt()
+--   kapitel-05: skat_uden_lov() -> Falskt
+-- ============================================================================
+
+-- § 23: Kan foreløbige love bruges som nødret?
+> nødlov_mulig(folketing_samlet: Bool, grundlovsstridig: Bool) -> Bool {
+    -- § 23: KUN når Folketinget ikke kan samles, OG ikke grundlovsstridig
+    provisorisk_lov_gyldig(folketing_samlet, grundlovsstridig)
+}
+
+-- Pandemi-test: kan regeringen lukke landet ned?
+> pandemi_nedlukning_hjemmel() -> String {
+    -- § 23: kræver at Folketinget IKKE kan samles — men under COVID kunne det
+    -- § 19.2: kun militær magt, kun væbnet angreb
+    -- § 43: ingen frihedsindskrænkning uden lov
+    -- § 71: personlig frihed er ukrænkelig
+    -- Ingen paragraf giver eksplicit hjemmel til generel nedlukning
+    "Ingen direkte grundlovshjemmel"
+}
+
+-- Kan rettigheder suspenderes i krise?
+| rettigheder_kan_suspenderes_i_krise() -> Falskt
+
+-- Har grundloven en undtagelsestilstand?
+| grundloven_har_undtagelsestilstand() -> Falskt
+
+-- Sammenlign: andre forfatninger
+| fransk_forfatning_har_nødret() -> Sandt
+| tysk_grundlov_har_nødret() -> Sandt
+| dansk_grundlov_har_nødret() -> Falskt
+
+@ skriv("""
+===  VERIFIKATION 10: NØDRETSTOMRUMMET  ===
+
+IMPORTEREDE REGLER:
+  Provisorisk lov (kapitel-03, § 23):
+    Folketing samlet, ikke grundlovsstridig: {{nødlov_mulig(Sandt, Falskt)}}
+    Folketing EJ samlet, ikke grundlovsstridig: {{nødlov_mulig(Falskt, Falskt)}}
+    Folketing EJ samlet, grundlovsstridig: {{nødlov_mulig(Falskt, Sandt)}}
+  Skat uden lov (kapitel-05, § 43): {{skat_uden_lov()}}
+  Rettigheder kan suspenderes i krise: {{rettigheder_kan_suspenderes_i_krise()}}
+
+GRUNDLOVENS NØDRETVÆRKTØJER:
+  § 23 (foreløbige love):
+    KUN når Folketinget ikke kan samles
+    MÅ IKKE stride mod grundloven
+    Skal STRAKS forelægges Folketinget
+    → Ubrugelig ved pandemi (Folketinget KAN samles)
+
+  § 19.2 (militær selvforsvar):
+    KUN mod væbnet angreb
+    → Ubrugelig ved pandemi, naturkatastrofe, økonomi
+
+  Undtagelsestilstand: {{grundloven_har_undtagelsestilstand()}}
+
+PANDEMI-TESTEN:
+  Hjemmel til generel nedlukning: {{pandemi_nedlukning_hjemmel()}}
+
+  Under COVID-19 lukkede Danmark ned den 11. marts 2020.
+  Hjemlen var EPIDEMILOVEN — en almindelig lov, ikke grundloven.
+  Men § 71 siger personlig frihed er UKRÆNKELIG.
+  § 79 siger forsamlingsfrihed er en RET.
+  Kan en ALMINDELIG LOV indskrænke UKRÆNKELIGE rettigheder?
+
+  Grundlovens svar: tier.
+  Ingen nødretsparagraf. Ingen undtagelsestilstand.
+  Ingen mekanisme til midlertidig ophævelse af rettigheder.
+
+INTERNATIONAL SAMMENLIGNING:
+  Fransk forfatning (Art. 16) — nødret: {{fransk_forfatning_har_nødret()}}
+  Tysk Grundgesetz (Art. 91, 115a-l) — nødret: {{tysk_grundlov_har_nødret()}}
+  Dansk grundlov — nødret: {{dansk_grundlov_har_nødret()}}
+
+  Frankrig og Tyskland kodificerer nødretten INDEN krisen.
+  Danmark overlader det til PRAKSIS og KONVENTION.
+  Grundloven antager at rettigheder aldrig behøver at vige.
+  COVID beviste at denne antagelse er forkert.
+
+TOMRUMMETS IMPLIKATION:
+  Enten:
+    1. Nødret eksisterer UDENFOR grundloven (uskreven statsforfatningsret)
+       → Grundloven er ufuldstændig som øverste lov
+    2. Nødret eksisterer IKKE — og epidemiloven var grundlovsstridig
+       → Nedlukningen var forfatningsstridig
+    3. § 71s 'ukrænkelighed' er RELATIV, ikke absolut
+       → 'Ukrænkelig' betyder ikke hvad ordet siger
+
+  Uanset svaret: grundloven har et hul.
+""")
+
+
+-- ============================================================================
+-- SAMLET KONKLUSION
+-- ============================================================================
+
+@ skriv("""
+================================================================
+  SAMLET VERIFIKATIONSRESULTAT
+================================================================
+
+  1. § 85 MILITÆRUNDTAGELSEN:
+     Ukrænkelige rettigheder er militærfri: DELVIST
+     § 71 er undtagelsen — ukrænkelig men begrænsbar.
+     § 77 (ytringsfrihed) er absolut selv i militæret.
+
+  2. SAMTYKKE-REVISION:
+     8 samtykke-instanser bekræftet.
+     KUN i magtdefinerende kapitler (II, III, VI).
+
+  3. § 77 vs § 88 PARADOKSET:
+     Paradoks bekræftet: {{paradoks_eksisterer()}}
+     Grundloven modsiger sig selv — bevidst.
+
+  4. TERSKELHIERARKIET:
+     6 af 7 overgange strengt stigende.
+     N6→NINF er degeneret (begge 'umulig').
+
+  5. ANTI-FEUDALISME-TRIPLETTEN:
+     Alle tre vektorer dækket.
+     Regler importeret direkte fra kapitel-07 og kapitel-08.
+
+  6. BESKATNING vs EKSPROPRIATION:
+     Beskyttelsesasymmetri: 1 lag vs 5 lag.
+     Gråzone forfatningsmæssigt udefineret.
+
+  7. § 20 BAGDØRS-GRUNDLOVSÆNDRING:
+     § 88 kræver 6 godkendelser. § 20 kræver 1.
+     EU-forordninger ændrer forfatningsvirkeligheden
+     ad en lettere vej end § 88 tillader.
+
+  8. ANSVARSKREDSLØBET:
+     Kongen: magt uden ansvar. Minister: ansvar uden formel magt.
+     Intet kan tvinge Kongen til at underskrive (§ 22).
+     Systemet hviler på en uskreven norm.
+
+  9. § 33 vs § 63:
+     'Ethvert spørgsmål' (§ 63) — undtagen dette ene (§ 33).
+     Den eneste uoverprøvbare magthandling i grundloven.
+
+ 10. NØDRETSTOMRUMMET:
+     Ingen undtagelsestilstand. Ingen nødretsparagraf.
+     COVID-nedlukningen havde ingen direkte grundlovshjemmel.
+     'Ukrænkelig' blev indskrænket ved almindelig lov.
+
+  GRUNDLOVENS ANATOMI:
+    2 BEVIDSTE paradokser (§71/§85, §77/§88)
+    3 UBEVIDSTE huller (§43/§73, §22-veto, nødret)
+    2 STRUKTURELLE modsigelser (§20/§88, §33/§63)
+    1 USKREVEN forudsætning (kongelig loyalitet)
+
+  Grundloven er ikke fejlfri. Den er ærlig om nogle
+  af sine grænser (§77/§88) og tavs om andre (nødret).
+  Futuruna tvinger tavsheden frem ved at kræve en definition
+  hvor grundloven ingen giver.
+""")

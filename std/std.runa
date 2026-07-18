@@ -1,0 +1,166 @@
+-- std.runa: Futuruna Standard Library
+-- The prelude (auto-imported) is embedded in runa.rs. This file provides
+-- additional library functions that can be imported with @ import ./std
+
+-- ============================================================================
+-- Prelude Summary (auto-imported, no @ import needed)
+-- ============================================================================
+-- Types:  Option(a), Result(a, e), Pair(a, b)
+-- Option: unwrap_or, is_some, is_none
+-- Math:   max_int, min_int, clamp
+-- Core:   identity
+--
+-- Note: # List(a) is NOT in the prelude. Programs that want Cons/Nil
+-- define it themselves. Programs using List(Int) in type annotations
+-- get Vec<i64> (the default mapping).
+-- ============================================================================
+
+-- ============================================================================
+-- List Functions (require user-defined # List(a) = Nil | Cons(a, List(a)))
+-- ============================================================================
+
+# List(a) = Nil | Cons(a, List(a))
+
+> sum(xs: List(Int)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(h, t) -> h + sum(t)
+    }
+}
+
+> filter_list(xs: List(a), pred: a -> Bool) -> List(a) {
+    match xs {
+        | Nil -> Nil
+        | Cons(h, t) -> if pred(h) { Cons(h, filter_list(t, pred)) } else { filter_list(t, pred) }
+    }
+}
+
+> foldl_list(xs: List(a), acc: b, f: b -> a -> b) -> b {
+    match xs {
+        | Nil -> acc
+        | Cons(h, t) -> foldl_list(t, f(acc, h), f)
+    }
+}
+
+> foldr_list(xs: List(a), init: b, f: a -> b -> b) -> b {
+    match xs {
+        | Nil -> init
+        | Cons(h, t) -> f(h, foldr_list(t, init, f))
+    }
+}
+
+> reverse_list(xs: List(a)) -> List(a) {
+    reverse_acc(xs, Nil)
+}
+
+> reverse_acc(xs: List(a), acc: List(a)) -> List(a) {
+    match xs {
+        | Nil -> acc
+        | Cons(h, t) -> reverse_acc(t, Cons(h, acc))
+    }
+}
+
+> append(xs: List(a), ys: List(a)) -> List(a) {
+    match xs {
+        | Nil -> ys
+        | Cons(h, t) -> Cons(h, append(t, ys))
+    }
+}
+
+> take_list(n: Int, xs: List(a)) -> List(a) {
+    if n <= 0 { Nil } else {
+        match xs {
+            | Nil -> Nil
+            | Cons(h, t) -> Cons(h, take_list(n - 1, t))
+        }
+    }
+}
+
+> drop_list(n: Int, xs: List(a)) -> List(a) {
+    if n <= 0 { xs } else {
+        match xs {
+            | Nil -> Nil
+            | Cons(_, t) -> drop_list(n - 1, t)
+        }
+    }
+}
+
+> zip_with(xs: List(a), ys: List(b), f: a -> b -> c) -> List(c) {
+    match xs {
+        | Nil -> Nil
+        | Cons(x, xt) -> match ys {
+            | Nil -> Nil
+            | Cons(y, yt) -> Cons(f(x, y), zip_with(xt, yt, f))
+        }
+    }
+}
+
+-- ============================================================================
+-- Composition (beyond prelude)
+-- ============================================================================
+
+> compose(f: a -> b, g: b -> c) -> (a -> c) {
+    |x| g(f(x))
+}
+
+> flip(f: a -> b -> c) -> (b -> a -> c) {
+    |b, a| f(a, b)
+}
+
+-- ============================================================================
+-- String
+-- ============================================================================
+
+> repeat_string(s: String, n: Int) -> String {
+    if n <= 0 { "" } else { s + repeat_string(s, n - 1) }
+}
+
+> join(xs: List(String), sep: String) -> String {
+    match xs {
+        | Nil -> ""
+        | Cons(h, t) -> match t {
+            | Nil -> h
+            | _ -> h + sep + join(t, sep)
+        }
+    }
+}
+
+-- ============================================================================
+-- Tests (only run when this file is executed directly)
+-- ============================================================================
+
+@ print("=== Futuruna Standard Library Tests ===")
+@ print("")
+
+-- List operations
+= nums = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))
+@ print("sum: " + show(sum(nums)))
+
+= total = foldl_list(nums, 0, |acc, x| acc + x)
+@ print("foldl +: " + show(total))
+
+= rev = reverse_list(nums)
+@ print("reverse sum: " + show(sum(rev)))
+
+= combined = append(nums, nums)
+@ print("append sum: " + show(sum(combined)))
+
+= first3 = take_list(3, nums)
+@ print("take 3 sum: " + show(sum(first3)))
+
+= last2 = drop_list(3, nums)
+@ print("drop 3 sum: " + show(sum(last2)))
+
+-- Prelude functions (auto-imported)
+= x = Some(42)
+= empty = None
+@ print("unwrap_or: " + show(unwrap_or(x, 0)))
+@ print("is_some: " + show(is_some(x)))
+@ print("is_none: " + show(is_none(empty)))
+@ print("max(3,7): " + show(max_int(3, 7)))
+@ print("min(3,7): " + show(min_int(3, 7)))
+@ print("clamp(10,0,5): " + show(clamp(10, 0, 5)))
+@ print("identity(42): " + show(identity(42)))
+
+@ print("")
+@ print("=== All stdlib tests passed! ===")

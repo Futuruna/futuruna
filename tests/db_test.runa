@@ -1,0 +1,49 @@
+-- db_test.runa — M14e: Database Operations (SQLite)
+-- Tests database open, exec, insert, query, query_row, close.
+-- Uses an in-memory database (:memory:) for isolated testing.
+
+@ print("=== M14e: Database Builtins ===")
+@ print("")
+
+-- Open in-memory database
+= db = db_open(":memory:")
+@ print("db_open: OK")
+
+-- Create table
+@ db_exec(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)")
+@ print("CREATE TABLE: OK")
+
+-- Insert rows
+@ db_exec(db, "INSERT INTO users (name, age) VALUES ('Alice', 30)")
+@ db_exec(db, "INSERT INTO users (name, age) VALUES ('Bob', 25)")
+@ db_exec(db, "INSERT INTO users (name, age) VALUES ('Charlie', 35)")
+@ print("INSERT 3 rows: OK")
+
+-- Query all rows
+= rows = db_query(db, "SELECT name, age FROM users ORDER BY name")
+@ print("db_query rows: " + show(rows))
+
+-- Query single row
+= row = db_query_row(db, "SELECT name, age FROM users WHERE name = 'Bob'")
+@ print("db_query_row: " + show(row))
+
+-- Query with aggregate
+= count_row = db_query_row(db, "SELECT COUNT(*) FROM users")
+@ print("COUNT: " + show(count_row))
+
+-- Update
+@ db_exec(db, "UPDATE users SET age = 26 WHERE name = 'Bob'")
+= updated = db_query_row(db, "SELECT name, age FROM users WHERE name = 'Bob'")
+@ print("after UPDATE: " + show(updated))
+
+-- Delete
+@ db_exec(db, "DELETE FROM users WHERE name = 'Charlie'")
+= after_del = db_query(db, "SELECT name FROM users ORDER BY name")
+@ print("after DELETE: " + show(after_del))
+
+-- Close
+@ db_close(db)
+@ print("db_close: OK")
+
+@ print("")
+@ print("=== All DB tests passed! ===")

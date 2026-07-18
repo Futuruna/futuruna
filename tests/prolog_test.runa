@@ -1,0 +1,56 @@
+-- Prolog-style logic programming in Futuruna
+-- Facts, conjunctive goals, backtracking, and existential search
+
+-- === FACTS: ground terms in rule heads ===
+
+-- Family tree facts
+| parent("alice", "bob")
+| parent("bob", "charlie")
+| parent("bob", "diana")
+| parent("charlie", "eve")
+
+-- === SIMPLE RULES: conjunction (all goals must be true) ===
+
+-- A person is an ancestor if they are a parent
+| ancestor(a, b) -> parent(a, b)
+
+-- Transitive: ancestor if parent of an ancestor (existential search for mid)
+| ancestor(a, b) -> parent(a, mid), ancestor(mid, b)
+
+-- === QUERIES ===
+
+-- Direct parent facts
+= t1 = parent("alice", "bob")
+@ print("parent(alice, bob) = " + show(t1))
+
+= t2 = parent("alice", "charlie")
+@ print("parent(alice, charlie) = " + show(t2))
+
+-- Ancestor queries (uses backtracking + existential search)
+= t3 = ancestor("alice", "bob")
+@ print("ancestor(alice, bob) = " + show(t3))
+
+= t4 = ancestor("alice", "charlie")
+@ print("ancestor(alice, charlie) = " + show(t4))
+
+= t5 = ancestor("alice", "eve")
+@ print("ancestor(alice, eve) = " + show(t5))
+
+= t6 = ancestor("bob", "eve")
+@ print("ancestor(bob, eve) = " + show(t6))
+
+-- Should be false
+= t7 = ancestor("eve", "alice")
+@ print("ancestor(eve, alice) = " + show(t7))
+
+-- === CONJUNCTION: simple multi-goal rules ===
+
+| has_children(p) -> parent(p, "bob")
+| has_children(p) -> parent(p, "charlie")
+| has_children(p) -> parent(p, "diana")
+
+= t8 = has_children("alice")
+@ print("has_children(alice) = " + show(t8))
+
+= t9 = has_children("eve")
+@ print("has_children(eve) = " + show(t9))

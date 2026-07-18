@@ -1,0 +1,39 @@
+@ sprog da
+
+-- Test 1: Simpel flerlinjet tekst
+@ skriv("""
+Hej verden!
+Dette er en flerlinjet tekst.
+Den behøver ingen escape-tegn for "anførselstegn".
+""")
+
+-- Test 2: Interpolation med {{}}
+= navn = "Andreas"
+= alder = 42
+@ skriv("""
+Navn: {{navn}}
+Alder: {{alder}}
+""")
+
+-- Test 3: Udtryk i interpolation
+= x = 10
+= y = 20
+@ skriv("""
+{{x}} + {{y}} = {{x + y}}
+""")
+
+-- Test 4: Enkelt linje triple-quote
+@ skriv("""Enkelt linje uden newlines""")
+
+-- Test 5: Tom flerlinjet streng
+@ skriv("---")
+@ skriv("""
+""")
+@ skriv("---")
+
+-- Test 6: Triple-quote som variabel
+= besked = """
+Hej fra en variabel!
+Linje to.
+"""
+@ skriv(besked)

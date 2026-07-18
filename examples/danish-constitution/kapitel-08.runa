@@ -1,0 +1,291 @@
+@ sprog da
+
+-- Kapitel VIII -- Borgernes rettigheder
+
+
+----
+§ 71. Stk. 1. Den personlige frihed er ukrænkelig. Ingen dansk borger kan på
+grund af sin politiske eller religiøse overbevisning eller sin afstamning
+underkastes nogen form for frihedsberøvelse.
+
+Stk. 2. Frihedsberøvelse kan kun finde sted med hjemmel i loven.
+
+Stk. 3. Enhver, der anholdes, skal inden 24 timer stilles for en dommer. Hvis
+den anholdte ikke straks kan sættes på fri fod, skal dommeren ved en af grunde
+ledsaget kendelse, der afsiges snarest muligt og senest inden tre dage, afgøre,
+om han skal fængsles, og, hvis han kan løslades mod sikkerhed, bestemme dennes
+art og størrelse. Denne bestemmelse kan for Grønlands vedkommende fraviges ved
+lov, forsåvidt dette efter de stedlige forhold må anses for påkrævet.
+
+Stk. 4. Den kendelse, som dommeren afsiger, kan af vedkommende straks særskilt
+indbringes for højere ret.
+
+Stk. 5. Ingen kan underkastes varetægtsfængsel for en forseelse, som kun kan
+medføre straf af bøde eller hæfte.
+
+Stk. 6. Udenfor strafferetsplejen skal lovligheden af en frihedsberøvelse, der
+ikke er besluttet af en dømmende myndighed, og som ikke har hjemmel i
+lovgivningen om udlændinge, på begæring af den, der er berøvet sin frihed,
+eller den, der handler på hans vegne, forelægges de almindelige domstole eller
+anden dømmende myndighed til prøvelse. Nærmere regler herom fastsættes ved lov.
+
+Stk. 7. Behandlingen af de i stk. 6 nævnte personer undergives et af
+folketinget valgt tilsyn, hvortil de pågældende skal have adgang til at rette
+henvendelse.
+----
+
+-- Stk. 1
+| personlig_frihed_er_ukrænkelig()
+| ingen_frihedsberøvelse_pga_politisk_overbevisning()
+| ingen_frihedsberøvelse_pga_religiøs_overbevisning()
+| ingen_frihedsberøvelse_pga_afstamning()
+
+-- Stk. 2
+| frihedsberøvelse_kræver_lovhjemmel()
+
+-- Stk. 3: tidsfrister ved anholdelse
+= frist_fremstilling_timer = 24
+= frist_kendelse_dage = 3
+
+| anholdte_stilles_for_dommer_inden_24_timer()
+| kendelse_snarest_muligt_senest_3_dage()
+| løsladelse_mod_sikkerhed_mulig()
+| grønland_kan_fravige_fremstillingsfrist_ved_lov()
+
+-- Stk. 4
+| kendelse_kan_indbringes_for_højere_ret()
+
+-- Stk. 5
+| ingen_varetægtsfængsel_for_bøde_eller_hæfte()
+
+-- Stk. 6
+| administrativ_frihedsberøvelse_prøves_ved_domstol()
+| undtaget_udlændingelovgivning()
+| prøvelse_på_begæring_af_berøvet_eller_repræsentant()
+| prøvelse_af_frihedsberøvelse_fastsættes_ved_lov()
+
+-- Stk. 7: folketingstilsyn med frihedsberøvede
+| folketinget_vælger_tilsyn_med_frihedsberøvede()
+| frihedsberøvede_har_adgang_til_henvendelse()
+
+
+----
+§ 72. Boligen er ukrænkelig. Husundersøgelse, beslaglæggelse og undersøgelse
+af breve og andre papirer samt brud på post-, telegraf- og telefonhemmeligheden
+må, hvor ingen lov hjemler en særegen undtagelse, alene ske efter en
+retskendelse.
+----
+
+| boligen_er_ukrænkelig()
+| husundersøgelse_kræver_retskendelse()
+| beslaglæggelse_kræver_retskendelse()
+| brevundersøgelse_kræver_retskendelse()
+| brud_på_kommunikationshemmelighed_kræver_retskendelse()
+| undtagelse_fra_retskendelse_kan_hjemles_ved_lov()
+
+
+----
+§ 73. Stk. 1. Ejendomsretten er ukrænkelig. Ingen kan tilpligtes at afstå sin
+ejendom, uden hvor almenvellet kræver det. Det kan kun ske ifølge lov og mod
+fuldstændig erstatning.
+
+Stk. 2. Når et lovforslag vedrørende ekspropriation af ejendom er vedtaget,
+kan en trediedel af folketingets medlemmer indenfor en frist af tre søgnedage
+fra forslagets endelige vedtagelse kræve, at det først indstilles til kongelig
+stadfæstelse, når nyvalg til folketinget har fundet sted, og forslaget påny er
+vedtaget af det derefter sammentrædende folketing.
+
+Stk. 3. Ethvert spørgsmål om ekspropriationsaktens lovlighed og erstatningens
+størrelse kan indbringes for domstolene. Prøvelsen af erstatningens størrelse
+kan ved lov henlægges til domstole oprettet i dette øjemed.
+----
+
+-- Stk. 1: ejendomsret
+| ejendomsretten_er_ukrænkelig()
+| ekspropriation_kun_til_almenvellet()
+| ekspropriation_kun_ifølge_lov()
+| ekspropriation_mod_fuldstændig_erstatning()
+
+-- Stk. 2: 1/3 kan kræve udsættelse til efter nyvalg
+= ekspropriation_frist_søgnedage = 3
+
+> kan_kræve_ekspropriationsudsættelse(begærende: Heltal, medlemmer: Heltal) -> Boolsk {
+    hvis begærende * 3 >= medlemmer { Sandt } ellers { Falskt }
+}
+
+| ekspropriationsudsættelse_kræver_nyvalg_og_genvedtagelse()
+
+-- Stk. 3: domstolsprøvelse
+| ekspropriationslovlighed_kan_prøves_ved_domstol()
+| erstatningsstørrelse_kan_prøves_ved_domstol()
+| erstatningsprøvelse_kan_henlægges_til_særlige_domstole()
+
+
+----
+§ 74. Alle indskrænkninger i den fri og lige adgang til erhverv, som ikke er
+begrundede i det almene vel, skal hæves ved lov.
+----
+
+| erhvervsfrihed()
+| erhvervsindskrænkninger_kun_begrundet_i_almene_vel()
+| ubegrundede_erhvervsindskrænkninger_hæves_ved_lov()
+
+
+----
+§ 75. Stk. 1. Til fremme af almenvellet bør det tilstræbes, at enhver
+arbejdsduelig borger har mulighed for arbejde på vilkår, der betrygger hans
+tilværelse.
+
+Stk. 2. Den, der ikke selv kan ernære sig eller sine, og hvis forsørgelse ikke
+påhviler nogen anden, er berettiget til hjælp af det offentlige, dog mod at
+underkaste sig de forpligtelser, som loven herom påbyder.
+----
+
+-- Stk. 1: ret til arbejde
+| almenvellet_fremmes_ved_arbejdsmulighed()
+| arbejdsduelige_borgere_bør_have_mulighed_for_arbejde()
+| arbejdsvilkår_skal_betrygge_tilværelsen()
+
+-- Stk. 2: offentlig forsørgelse
+| ret_til_offentlig_hjælp_ved_manglende_forsørgelse()
+| offentlig_hjælp_betinget_af_lovpåbudte_forpligtelser()
+
+
+----
+§ 76. Alle børn i den undervisningspligtige alder har ret til fri undervisning i
+folkeskolen. Forældre eller værger, der selv sørger for, at børnene får en
+undervisning, der kan stå mål med, hvad der almindeligvis kræves i folkeskolen,
+er ikke pligtige at lade børnene undervise i folkeskolen.
+----
+
+| børn_har_ret_til_fri_undervisning_i_folkeskolen()
+-- Forældre eller værger
+| forældre_kan_selv_sørge_for_undervisning()
+| hjemmeundervisning_skal_stå_mål_med_folkeskolen()
+
+
+----
+§ 77. Enhver er berettiget til på tryk, i skrift og tale at offentliggøre sine
+tanker, dog under ansvar for domstolene. Censur og andre forebyggende
+forholdsregler kan ingensinde påny indføres.
+----
+
+| ytringsfrihed_på_tryk()
+| ytringsfrihed_i_skrift()
+| ytringsfrihed_i_tale()
+| ytringsfrihed_under_ansvar_for_domstolene()
+| censur_kan_aldrig_indføres()
+| forebyggende_forholdsregler_mod_ytring_forbudt()
+
+
+----
+§ 78. Stk. 1. Borgerne har ret til uden forudgående tilladelse at danne
+foreninger i ethvert lovligt øjemed.
+
+Stk. 2. Foreninger, der virker ved eller søger at nå deres mål ved vold,
+anstiftelse af vold eller lignende strafbar påvirkning af anderledes tænkende,
+bliver at opløse ved dom.
+
+Stk. 3. Ingen forening kan opløses ved en regeringsforanstaltning. Dog kan en
+forening foreløbig forbydes, men der skal da straks anlægges sag imod den til
+dens opløsning.
+
+Stk. 4. Sager om opløsning af politiske foreninger skal uden særlig tilladelse
+kunne indbringes for rigets øverste domstol.
+
+Stk. 5. Opløsningens retsvirkninger fastsættes nærmere ved lov.
+----
+
+-- Stk. 1
+| foreningsfrihed_uden_forudgående_tilladelse()
+| foreninger_kun_i_lovligt_øjemed()
+
+-- Stk. 2
+| voldsforeninger_opløses_ved_dom()
+
+-- Stk. 3
+| ingen_foreningsopløsning_ved_regeringsforanstaltning()
+| foreløbigt_forbud_kræver_straks_anlæggelse_af_sag()
+
+-- Stk. 4
+| politiske_foreningers_opløsning_kan_indbringes_for_højesteret()
+
+-- Stk. 5
+| opløsningens_retsvirkninger_fastsættes_ved_lov()
+
+
+----
+§ 79. Borgerne har ret til uden forudgående tilladelse at samle sig ubevæbnede.
+Offentlige forsamlinger har politiet ret til at overvære. Forsamlinger under
+åben himmel kan forbydes, når der af dem kan befrygtes fare for den offentlige
+fred.
+----
+
+| forsamlingsfrihed_uden_forudgående_tilladelse()
+| forsamlinger_skal_være_ubevæbnede()
+| politiet_må_overvære_offentlige_forsamlinger()
+| forsamlinger_under_åben_himmel_kan_forbydes_ved_fare()
+
+
+----
+§ 80. Ved opløb må den væbnede magt, når den ikke angribes, kun skride ind,
+efter at mængden tre gange i kongens og lovens navn forgæves er opfordret til at
+skilles.
+----
+
+= opfordringer_før_magtanvendelse = 3
+
+| magtanvendelse_ved_opløb_kun_efter_opfordring()
+| opfordring_i_kongens_og_lovens_navn()
+| undtagelse_hvis_den_væbnede_magt_angribes()
+
+
+----
+§ 81. Enhver våbenfør mand er forpligtet til med sin person at bidrage til
+fædrelandets forsvar efter de nærmere bestemmelser, som loven foreskriver.
+----
+
+| værnepligt_for_våbenføre_mænd()
+| værnepligtens_omfang_fastsættes_ved_lov()
+
+
+----
+§ 82. Kommunernes ret til under statens tilsyn selvstændigt at styre deres
+anliggender ordnes ved lov.
+----
+
+| kommunalt_selvstyre_under_statens_tilsyn()
+| kommunernes_styrelse_ordnes_ved_lov()
+
+
+----
+§ 83. Enhver i lovgivningen til adel, titel og rang knyttet forret er afskaffet.
+----
+
+| adelsprivilegier_afskaffet()
+| titelprivilegier_afskaffet()
+| rangprivilegier_afskaffet()
+
+
+----
+§ 84. Intet len, stamhus, fideikommisgods eller andet familiefideikommis kan for
+fremtiden oprettes.
+----
+
+| len_kan_ikke_oprettes()
+| stamhus_kan_ikke_oprettes()
+| fideikommisgods_kan_ikke_oprettes()
+| familiefideikommis_kan_ikke_oprettes()
+
+
+----
+§ 85. For forsvarsmagten er de i §§ 71, 78 og 79 givne bestemmelser kun
+anvendelige med de indskrænkninger, der følger af de militære loves forskrifter.
+----
+
+-- §§ 71, 78, 79 — personlig frihed, foreningsfrihed, forsamlingsfrihed
+-- § 77 (ytringsfrihed) er IKKE nævnt — soldater beholder ytringsfriheden
+| indskrænkning_af_personlig_frihed_for_forsvarsmagten()
+| indskrænkning_af_foreningsfrihed_for_forsvarsmagten()
+| indskrænkning_af_forsamlingsfrihed_for_forsvarsmagten()
+| indskrænkninger_kun_ifølge_militære_love()

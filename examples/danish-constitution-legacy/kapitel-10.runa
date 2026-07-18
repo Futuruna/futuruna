@@ -1,0 +1,206 @@
+@ sprog da
+
+-- ============================================================================
+-- Kapitel X — Grundlovsændring (§ 88)
+--
+-- Én paragraf. META-REGLEN. Grundloven der taler om
+-- hvordan grundloven ændrer sig selv.
+--
+-- § 88 er uden tvivl den vigtigste paragraf i hele grundloven.
+-- Alt andet fortæller dig hvad reglerne ER.
+-- § 88 fortæller dig HVORDAN REGLERNE ÆNDRES.
+--
+-- Den er samtidig:
+--   - Den HÅRDESTE procedure i grundloven
+--   - Mekanismen der gør grundloven DØDELIG
+--   - Paradoks-motoren for § 77s "ingensinde" (aldrig)
+--
+-- Den danske grundlov er ændret præcis 4 gange:
+--   1849 → 1866 → 1915 → 1920 → 1953 (nuværende)
+-- Hver var reelt en ny grundlov. § 88 virker.
+-- ============================================================================
+
+
+@ skriv("""
+================================================================
+  Kapitel X: Grundlovsændring (§ 88)
+  Én paragraf — meta-reglen
+================================================================
+""")
+
+
+-- ============================================================================
+-- § 88: ÆNDRINGSPROCEDUREN.
+--
+-- FEM TRIN — den hårdeste procedure i grundloven:
+--
+-- Trin 1: FØRSTE FOLKETING vedtager forslaget.
+--         (Simpelt flertal — intet kvalificeret flertal krævet)
+--
+-- Trin 2: REGERINGEN accepterer at fremme sagen.
+--         "Regeringen vil fremme sagen."
+--         Regeringen har reelt VETORET her.
+--         Et folketingsflertal er ikke nok.
+--         Vil regeringen ikke, dør det.
+--         Eksekutivmagten gater den konstituerende magt.
+--
+-- Trin 3: NYVALG udskrives.
+--         Borgerne vælger et nyt Folketing VIDENDE
+--         at ændringsforslaget verserer. Valget ER debatten.
+--         Sikrer demokratisk mandat.
+--
+-- Trin 4: ANDET FOLKETING vedtager SAMME forslag UÆNDRET.
+--         "I uændret skikkelse" — ikke ét ord må ændres.
+--         To FORSKELLIGE Folketing skal enes om PRÆCIS samme tekst.
+--         Forhindrer forhastede ændringer.
+--
+-- Trin 5: FOLKEAFSTEMNING inden 6 måneder.
+--         To samtidige krav:
+--         a) FLERTAL af de faktisk stemmeafgivende skal stemme FOR
+--         b) Mindst 40% af ALLE stemmeberettigede skal stemme FOR
+--         c) Kongen skal stadfæste
+--
+-- 40%-REGLEN:
+-- Ikke bare "flere ja end nej" — det er 40% af ALLE berettigede.
+-- Ved 70% stemmeprocent kræves 57% af faktiske stemmer.
+-- Ved 60% stemmeprocent kræves 67%.
+-- Ved 50% stemmeprocent kræves 80%.
+-- LAV STEMMEPROCENT DRÆBER ÆNDRINGER. Sofaen stemmer imod.
+-- Undladelse er reelt et "nej" — grundloven belønner
+-- engagement og straffer apati. Passivitet er konservativ.
+--
+-- Sammenlign: § 42 folkeafstemning kræver kun 30% af alle berettigede.
+-- § 88 er en FULD TREDJEDEL hårdere end en ordinær folkeafstemning.
+--
+-- REGERINGS-VETOET:
+-- "Regeringen vil fremme sagen" — regeringen skal VILLE fortsætte.
+-- Et folketingsflertal kan vedtage forslaget, men regeringen
+-- kan simpelthen nægte at udskrive valg. Eksekutivmagten
+-- har vetoret over forfatningsændring — den højeste demokratiske
+-- handling. Det organ grundloven begrænser, får medbestemmelse
+-- over om grundloven ændres. Fangen vogter nøglen.
+--
+-- § 77-PARADOKSET — KRYSTALLISERET:
+-- § 88 siger ENHVER bestemmelse kan ændres. Ingen evighedsklausuler.
+-- (Sammenlign: Tysk Grundgesetz Art. 79(3) HAR evighedsklausuler.)
+-- § 77 siger censur kan "ingensinde påny" indføres.
+-- § 88 er mekanismen der KUNNE ændre § 77.
+-- Hvis § 88 ændrer § 77: "ingensinde" var forkert fra starten.
+-- Hvis § 77 blokerer § 88: § 88 er ufuldstændig.
+-- Den danske grundlov valgte INGEN formelle evighedsklausuler —
+-- men § 77s sprog FUNGERER som én.
+-- Paradokset er ikke en fejl — grundloven er ærlig:
+-- "Vi MENER det skal vare evigt, men vi VED vi ikke kan garantere det."
+--
+-- "UÆNDRET SKIKKELSE"-KRAVET:
+-- Forslaget skal vedtages UÆNDRET efter valget.
+-- Ingen kompromisversion, ingen ændringsforslag til ændringsforslaget.
+-- Vil det andet Folketing ændre ét komma, starter processen forfra.
+-- Et KONSENSUS-krav — teksten skal være god nok til at overleve
+-- et valg og genvedtagelse uden modifikation.
+-- ============================================================================
+
+----
+§ 88. Vedtager folketinget et forslag til en ny grundlovsbestemmelse, og regeringen vil fremme sagen, udskrives nyvalg til folketinget. Vedtages forslaget i uændret skikkelse af det efter valget følgende folketing, bliver det inden et halvt år efter den endelige vedtagelse at forelægge folketingsvælgerne til godkendelse eller forkastelse ved direkte afstemning. De nærmere regler for denne afstemning fastsættes ved lov. Har et flertal af de i afstemningen deltagende og mindst 40 pct. af samtlige stemmeberettigede afgivet deres stemme for folketingets beslutning, og stadfæstes denne af kongen, er den grundlov.
+----
+
+= folkeafstemning_minimum_pct = 40
+= folkeafstemning_frist_måneder = 6
+
+# ÆndringsStadium = FørsteVedtagelse | RegeringensAccept | Nyvalg | AndenVedtagelse | Folkeafstemning | KongeligStadfæstelse | ErGrundlov
+
+> næste_stadium(stadium: ÆndringsStadium) -> ÆndringsStadium {
+    skel stadium {
+        | FørsteVedtagelse -> RegeringensAccept
+        | RegeringensAccept -> Nyvalg
+        | Nyvalg -> AndenVedtagelse
+        | AndenVedtagelse -> Folkeafstemning
+        | Folkeafstemning -> KongeligStadfæstelse
+        | KongeligStadfæstelse -> ErGrundlov
+        | ErGrundlov -> ErGrundlov
+    }
+}
+
+> folkeafstemning_vedtaget(stemmer_for_pct: Int, af_alle_berettigede_pct: Int) -> Bool {
+    -- § 88: flertal af stemmeafgivende OG 40% af ALLE stemmeberettigede
+    hvis stemmer_for_pct > 50 {
+        hvis af_alle_berettigede_pct >= folkeafstemning_minimum_pct { Sandt }
+        ellers { Falskt }
+    } ellers { Falskt }
+}
+
+-- § 88: "i uændret skikkelse" — IKKE ÉT ORD må ændres
+| tekst_må_ændres_mellem_vedtagelser() -> Falskt
+
+-- § 88: "regeringen vil fremme sagen" — regerings-veto
+| regering_kan_blokere() -> Sandt
+
+-- Til forskel fra tysk Grundgesetz Art. 79(3): INGEN formelle evighedsklausuler
+-- (Men § 77s "ingensinde påny" FUNGERER som én)
+| har_evighedsklausul() -> Falskt
+
+> antal_grundlovsændringer_siden_1849() -> Int {
+    -- 1849 → 1866 → 1915 → 1920 → 1953
+    4
+}
+
+@ skriv("""
+--- § 88: Grundlovsændringsproceduren ---
+
+FEM TRIN — den hårdeste procedure i grundloven:
+
+  Trin 1: Første Folketing vedtager forslaget
+          → {{næste_stadium(FørsteVedtagelse)}}
+  Trin 2: Regeringen accepterer at fremme sagen
+          → {{næste_stadium(RegeringensAccept)}}
+  Trin 3: NYVALG — borgerne vælger nyt Folketing
+          → {{næste_stadium(Nyvalg)}}
+  Trin 4: Andet Folketing vedtager UÆNDRET tekst
+          → {{næste_stadium(AndenVedtagelse)}}
+  Trin 5: Folkeafstemning inden {{folkeafstemning_frist_måneder}} måneder
+          + kongelig stadfæstelse
+          → {{næste_stadium(KongeligStadfæstelse)}}
+
+40%-REGLEN:
+  Flertal af afgivne stemmer + {{folkeafstemning_minimum_pct}}% af ALLE stemmeberettigede
+
+  Stemmeprocent 70%, 55% for: vedtaget? {{folkeafstemning_vedtaget(55, 38)}}
+  Stemmeprocent 70%, 58% for: vedtaget? {{folkeafstemning_vedtaget(58, 40)}}
+  Stemmeprocent 50%, 75% for: vedtaget? {{folkeafstemning_vedtaget(75, 37)}}
+  Stemmeprocent 50%, 80% for: vedtaget? {{folkeafstemning_vedtaget(80, 40)}}
+  → Lav stemmeprocent DRÆBER ændringer. Sofaen stemmer imod.
+
+UÆNDRET SKIKKELSE:
+  Tekst må ændres: {{tekst_må_ændres_mellem_vedtagelser()}}
+  Ikke ét ord. Ikke ét komma.
+  To forskellige Folketing, præcis samme tekst.
+  Vil det andet Folketing ændre ét komma → start forfra.
+
+REGERINGS-VETOET:
+  Regering kan blokere: {{regering_kan_blokere()}}
+  Eksekutivmagten gater den konstituerende magt.
+  Den forfatningen begrænser, får vetoret over ændringer.
+  Fangen vogter nøglen.
+
+§ 77 vs § 88 — PARADOKSET:
+  Evighedsklausul (jf. tysk GG Art. 79): {{har_evighedsklausul()}}
+  § 88: ENHVER bestemmelse kan ændres
+  § 77: Censur kan 'ingensinde påny' indføres
+  Grundloven MENER det skal vare evigt,
+  men VED at den ikke kan garantere det.
+
+HISTORIEN:
+  Grundlovsændringer: {{antal_grundlovsændringer_siden_1849()}}
+  1849 → 1866 → 1915 → 1920 → 1953 (nuværende)
+  § 88 virker. Ændring er ekstremt vanskeligt.
+
+TERSKELHIERARKIET (komplet):
+  Niveau 0: Ingen afstemning (§ 19 selvforsvar)
+  Niveau 1: Simpelt flertal (samtykke, 8 tilfælde)
+  Niveau 2: 2/5 minoritet (§§ 39, 41 forsinkelsesveto)
+  Niveau 3: 1/3 minoritet (§§ 42, 73 folkeafstemning/nyvalg)
+  Niveau 4: 5/6 superflertal (§ 20 suverænitetsafgivelse)
+  Niveau 5: § 88 — 2× Folketing + nyvalg + 40% folkeafstemning
+  Niveau 6: 'Ingensinde' (§ 77) — hårdere end § 88?
+  Niveau INF: Absolut (§ 10.2 gæld, § 13 fredhellig, § 34 højforræderi)
+""")

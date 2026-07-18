@@ -1,0 +1,125 @@
+-- tax-server.runa
+--
+-- A progressive tax engine with deductions, served over HTTP.
+-- Pure Futuruna. No Rust escape hatches.
+--
+-- Build and run:
+--   runa build examples/tax-server.runa
+--   .runa-build/tax-server/target/release/tax-server
+--
+-- Test with the client:
+--   runa run examples/tax-client.runa
+
+
+-- # TYPES
+
+# Status = Single | Married
+
+
+-- > RULES — Progressive brackets with deductions
+--
+-- 0-50k: 0% (personal allowance)
+-- 50k-200k: 25% (bundskat)
+-- 200k-600k: 35% (mellemskat)
+-- 600k+: 50% (topskat)
+
+> bracket_tax(income: Int) -> Int {
+    if income <= 50000 { 0 }
+    else if income <= 200000 { (income - 50000) * 25 / 100 }
+    else if income <= 600000 { 37500 + (income - 200000) * 35 / 100 }
+    else { 177500 + (income - 600000) * 50 / 100 }
+}
+
+> child_benefit(children: Int) -> Int { children * 18000 }
+
+> married_bonus(status: Status) -> Int {
+    match status { | Married -> 24000 | Single -> 0 }
+}
+
+> deductions(status: Status, children: Int) -> Int {
+    child_benefit(children) + married_bonus(status)
+}
+
+> taxable(income: Int, status: Status, children: Int) -> Int {
+    = t = income - deductions(status, children)
+    if t < 0 { 0 } else { t }
+}
+
+> tax(income: Int, status: Status, children: Int) -> Int {
+    bracket_tax(taxable(income, status, children))
+}
+
+> effective_rate(income: Int, status: Status, children: Int) -> Float {
+    if income == 0 { 0.0 }
+    else { to_float(tax(income, status, children)) * 100.0 / to_float(income) }
+}
+
+> net(income: Int, status: Status, children: Int) -> Int {
+    income - tax(income, status, children)
+}
+
+
+-- | INVARIANTS — The tax system must be fair
+
+| zero_income: tax(0, Single, 0) -> tax(0, Single, 0) == 0
+| allowance: tax(40000, Single, 0) -> tax(40000, Single, 0) == 0
+| children_help: tax(300000, Single, 2) -> tax(300000, Single, 2) < tax(300000, Single, 0)
+| marriage_helps: tax(300000, Married, 0) -> tax(300000, Married, 0) < tax(300000, Single, 0)
+| net_positive: net(100000, Single, 0) -> net(100000, Single, 0) > 0
+
+
+-- ~ STREAMS — Simulated filings, cumulative revenue
+
+~ filings = from_list([200000, 500000, 100000, 800000, 350000])
+~ revenue = filings |> map(|i| bracket_tax(i)) |> scan(0, |acc, t| acc + t)
+
+
+-- ? VERIFY — Prove fairness before serving
+
+? zero_income
+? allowance
+? children_help
+? marriage_helps
+? net_positive
+
+
+-- > HANDLER
+
+> parse_status(s: String) -> Status {
+    if s == "married" { Married } else { Single }
+}
+
+> handle_tax(body: String) -> String {
+    = q = json_parse(body)
+    = name = json_string(json_get(q, "name"))
+    = income = parse_int(json_get(q, "income"))
+    = status = parse_status(json_string(json_get(q, "status")))
+    = children = parse_int(json_get(q, "children"))
+    = d = deductions(status, children)
+    = ti = taxable(income, status, children)
+    = t = tax(income, status, children)
+    = r = format_float(effective_rate(income, status, children), 1)
+    = n = net(income, status, children)
+    json_object([["name", name], ["income", show(income)], ["deductions", show(d)], ["taxable_income", show(ti)], ["tax", show(t)], ["effective_rate", r + "%"], ["net_income", show(n)]])
+}
+
+
+-- @ SERVER
+
+@ print("=== Tax Server ===")
+@ print("  5 invariants verified.")
+@ print("")
+@ print("  Cumulative revenue from simulated filings:")
+for r in revenue {
+    @ print("    " + show(r) + " kr")
+}
+@ print("")
+@ print("  POST /tax {name, income, status, children}")
+
+@ http_serve(8080, |path, method, body| {
+    if path == "/tax" {
+        http_respond(200, "application/json", handle_tax(body))
+    } else {
+        http_respond(200, "text/plain", "POST /tax with {name, income, status, children}")
+    }
+})

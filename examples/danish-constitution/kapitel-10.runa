@@ -1,0 +1,32 @@
+@ sprog da
+
+-- Kapitel X -- Grundlovsændringer
+
+
+----
+§ 88. Vedtager folketinget et forslag til en ny grundlovsbestemmelse, og
+regeringen vil fremme sagen, udskrives nyvalg til folketinget. Vedtages
+forslaget i uændret skikkelse af det efter valget følgende folketing, bliver
+det inden et halvt år efter den endelige vedtagelse at forelægge
+folketingsvælgerne til godkendelse eller forkastelse ved direkte afstemning.
+De nærmere regler for denne afstemning fastsættes ved lov. Har et flertal af
+de i afstemningen deltagende og mindst 40 pct. af samtlige stemmeberettigede
+afgivet deres stemme for folketingets beslutning, og stadfæstes denne af
+kongen, er den grundlov.
+----
+
+= godkendelsestærskel_pct = 40
+= frist_folkeafstemning_måneder = 6
+
+| grundlovsændring_kræver_nyvalg()
+| grundlovsændring_kræver_uændret_genvedtagelse()
+| grundlovsændring_kræver_folkeafstemning()
+| grundlovsændring_kræver_kongelig_stadfæstelse()
+| afstemningsregler_fastsættes_ved_lov()
+
+-- Dobbelt godkendelseskrav: flertal af deltagende + 40% af stemmeberettigede
+> grundlovsændring_godkendt(for_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal) -> Boolsk {
+    = flertal = for_stemmer * 2 > deltagende
+    = tærskel = for_stemmer * 100 >= stemmeberettigede * 40
+    hvis flertal && tærskel { Sandt } ellers { Falskt }
+}

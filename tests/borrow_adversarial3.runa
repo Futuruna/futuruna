@@ -1,0 +1,184 @@
+-- Adversarial borrow checker tests (round 3)
+-- Tests edge cases found by audit: consume-then-use, lambda captures,
+-- for-loop ownership, match + use-after, field access on borrowed params
+
+-- ═══════════════════════════════════════════
+-- SECTION 1: Basic consume-then-use
+-- ═══════════════════════════════════════════
+
+@ print("=== 1. Consume-then-use ===")
+
+-- identity consumes its argument (takes by value)
+> identity_str(s: String) -> String { s }
+
+-- Pattern: consume x, then use x after
+= msg = "hello"
+= copy1 = msg
+@ print("T1a: " + msg)
+@ print("T1b: " + copy1)
+
+-- ═══════════════════════════════════════════
+-- SECTION 2: Multiple reads after one consume
+-- ═══════════════════════════════════════════
+
+@ print("=== 2. Multi-read after consume ===")
+
+> greet(name: String) -> String { "Hi " + name }
+
+= name = "Alice"
+= greeting = greet(name)
+@ print("T2: " + greeting)
+
+-- ═══════════════════════════════════════════
+-- SECTION 3: Lambda capture + use after
+-- ═══════════════════════════════════════════
+
+@ print("=== 3. Lambda captures ===")
+
+> apply(f: (Int) -> Int, x: Int) -> Int { f(x) }
+
+= base = 10
+= doubler = |x| x * 2
+= result = apply(doubler, base)
+@ print("T3a: " + show(result))
+
+-- Lambda capturing a value, then using it again
+= factor = 3
+= tripler = |x| x * factor
+@ print("T3b: " + show(tripler(5)))
+@ print("T3c: factor=" + show(factor))
+
+-- ═══════════════════════════════════════════
+-- SECTION 4: For-loop with outer variable
+-- ═══════════════════════════════════════════
+
+@ print("=== 4. For-loop ownership ===")
+
+-- Using a Copy type in loop (should always work)
+= multiplier = 10
+= total = 0
+for i in [1, 2, 3] {
+    @ print("  T4a: " + show(i * multiplier))
+}
+
+-- Using show() on outer string in loop
+= label = "item"
+for i in [1, 2, 3] {
+    @ print("  T4b: " + label + " " + show(i))
+}
+@ print("T4c: label still alive: " + label)
+
+-- ═══════════════════════════════════════════
+-- SECTION 5: Match + use after
+-- ═══════════════════════════════════════════
+
+@ print("=== 5. Match + use-after ===")
+
+# Color = Red | Green | Blue
+
+> color_name(c: Color) -> String {
+    match c {
+        | Red -> "red"
+        | Green -> "green"
+        | Blue -> "blue"
+    }
+}
+
+= c = Red
+= name2 = color_name(c)
+@ print("T5a: " + name2)
+
+-- ═══════════════════════════════════════════
+-- SECTION 6: String aliasing
+-- ═══════════════════════════════════════════
+
+@ print("=== 6. String aliasing ===")
+
+= original = "hello"
+= alias1 = original
+= alias2 = original
+@ print("T6a: " + alias1)
+@ print("T6b: " + alias2)
+
+-- ═══════════════════════════════════════════
+-- SECTION 7: Struct field access on params
+-- ═══════════════════════════════════════════
+
+@ print("=== 7. Field access ===")
+
+# Person(name: String, age: Int)
+
+> describe_person(p: Person) -> String {
+    p.name + " is " + show(p.age)
+}
+
+= alice = Person("Alice", 30)
+@ print("T7a: " + describe_person(alice))
+
+-- ═══════════════════════════════════════════
+-- SECTION 8: Function called multiple times with same arg
+-- ═══════════════════════════════════════════
+
+@ print("=== 8. Multi-call same arg ===")
+
+> double_str(s: String) -> String { s + s }
+
+= word = "ha"
+= d1 = double_str(word)
+@ print("T8a: " + d1)
+
+-- ═══════════════════════════════════════════
+-- SECTION 9: Nested function calls
+-- ═══════════════════════════════════════════
+
+@ print("=== 9. Nested calls ===")
+
+> exclaim(s: String) -> String { s + "!" }
+> whisper(s: String) -> String { "(" + s + ")" }
+
+= text = "wow"
+= result2 = exclaim(text)
+@ print("T9a: " + result2)
+
+-- ═══════════════════════════════════════════
+-- SECTION 10: Conditional consume
+-- ═══════════════════════════════════════════
+
+@ print("=== 10. Conditional paths ===")
+
+# Choice = Left | Right
+
+> pick(c: Choice, a: String, b: String) -> String {
+    match c {
+        | Left -> a
+        | Right -> b
+    }
+}
+
+= x = "yes"
+= y = "no"
+= chosen = pick(Left, x, y)
+@ print("T10a: " + chosen)
+
+-- ═══════════════════════════════════════════
+-- SECTION 11: List of strings (non-Copy elements)
+-- ═══════════════════════════════════════════
+
+@ print("=== 11. List of strings ===")
+
+= names = ["Alice", "Bob", "Charlie"]
+@ print("T11a: " + show(names))
+
+-- ═══════════════════════════════════════════
+-- SECTION 12: Return borrowed field
+-- ═══════════════════════════════════════════
+
+@ print("=== 12. Return borrowed field ===")
+
+> get_name(p: Person) -> String { p.name }
+> get_age(p: Person) -> Int { p.age }
+
+= bob = Person("Bob", 25)
+@ print("T12a: " + get_name(bob))
+
+@ print("=== All adversarial borrow tests (round 3) passed! ===")

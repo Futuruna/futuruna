@@ -1,0 +1,180 @@
+@ sprog da
+
+-- Kapitel IV -- Folketinget
+
+
+----
+§ 28. Folketinget udgør een forsamling bestående af højst 179 medlemmer, hvoraf
+2 medlemmer vælges på Færøerne og 2 i Grønland.
+----
+
+= folketingets_max_medlemmer = 179
+= færøske_mandater = 2
+= grønlandske_mandater = 2
+
+
+----
+§ 29. Stk. 1. Valgret til folketinget har enhver, som har dansk indfødsret,
+fast bopæl i riget og har nået den i stk. 2 omhandlede valgretsalder,
+medmindre vedkommende er umyndiggjort. Det bestemmes ved lov, i hvilket omfang
+straf og understøttelse, der i lovgivningen betragtes som fattighjælp, medfører
+tab af valgret.
+
+Stk. 2. Valgretsalderen er den, som har opnået flertal ved folkeafstemning i
+overensstemmelse med lov af 25. marts 1953. Ændring af den til enhver tid
+gældende valgretsalder kan ske ved lov. Et af folketinget vedtaget forslag til
+en sådan lov kan først stadfæstes af kongen, når bestemmelsen om ændring af
+valgretsalderen i overensstemmelse med § 42, stk. 5, har været undergivet en
+folkeafstemning, der ikke har medført bestemmelsens bortfald.
+----
+
+-- Stk. 1: fire kumulative krav, ét udelukkelsesgrundlag
+> har_valgret(indfødsret: Boolsk, fast_bopæl: Boolsk, valgretsalder_nået: Boolsk, umyndiggjort: Boolsk) -> Boolsk {
+    hvis umyndiggjort { Falskt }
+    ellers {
+        hvis indfødsret {
+            hvis fast_bopæl {
+                hvis valgretsalder_nået { Sandt } ellers { Falskt }
+            } ellers { Falskt }
+        } ellers { Falskt }
+    }
+}
+
+| tab_af_valgret_ved_straf_fastsættes_ved_lov()
+
+-- Stk. 2: valgretsalder kræver folkeafstemning at ændre
+| valgretsalder_fastsættes_ved_folkeafstemning()
+| ændring_af_valgretsalder_kræver_folkeafstemning()
+
+
+----
+§ 30. Stk. 1. Valgbar til folketinget er enhver, som har valgret til dette,
+medmindre vedkommende er straffet for en handling, der i almindeligt omdømme
+gør ham uværdig til at være medlem af folketinget.
+
+Stk. 2. Tjenestemænd, som vælges til medlemmer af folketinget, behøver ikke
+regeringens tilladelse til at modtage valget.
+----
+
+-- Stk. 1: valgbarhed kræver valgret + ingen uværdig straf
+> er_valgbar(har_valgret: Boolsk, straffet_uværdig: Boolsk) -> Boolsk {
+    hvis har_valgret {
+        hvis straffet_uværdig { Falskt } ellers { Sandt }
+    } ellers {
+        Falskt
+    }
+}
+
+-- Stk. 2
+| tjenestemænd_behøver_ikke_tilladelse_til_valg()
+
+
+----
+§ 31. Stk. 1. Folketingets medlemmer vælges ved almindelige, direkte og
+hemmelige valg.
+
+Stk. 2. De nærmere regler for valgrettens udøvelse gives ved valgloven, der
+til sikring af en ligelig repræsentation af de forskellige anskuelser blandt
+vælgerne fastsætter valgmåden, herunder hvorvidt forholdstalsvalgmåden skal
+føres igennem i eller uden forbindelse med valg i enkeltmandskredse.
+
+Stk. 3. Ved den stedlige mandatfordeling skal der tages hensyn til
+indbyggertal, vælgertal og befolkningstæthed.
+
+Stk. 4. Ved valgloven gives nærmere regler vedrørende valg af stedfortrædere
+og disses indtræden i folketinget samt angående fremgangsmåden i tilfælde,
+hvor omvalg måtte blive nødvendigt.
+
+Stk. 5. Særlige regler om Grønlands repræsentation i folketinget kan gives
+ved lov.
+----
+
+-- Stk. 1: tre valgprincipper
+| valg_er_almindelige()
+| valg_er_direkte()
+| valg_er_hemmelige()
+
+-- Stk. 2: valglov sikrer ligelig repræsentation
+| valgmåde_fastsættes_ved_valglov()
+| ligelig_repræsentation_af_anskuelser()
+
+-- Stk. 3: tre hensyn ved mandatfordeling
+| mandatfordeling_hensyn_til_indbyggertal()
+| mandatfordeling_hensyn_til_vælgertal()
+| mandatfordeling_hensyn_til_befolkningstæthed()
+
+-- Stk. 4
+| stedfortrædere_fastsættes_ved_valglov()
+
+-- Stk. 5
+| grønlands_repræsentation_kan_fastsættes_ved_lov()
+
+
+----
+§ 32. Stk. 1. Folketingets medlemmer vælges for fire år.
+
+Stk. 2. Kongen kan til enhver tid udskrive nyvalg med den virkning, at de
+bestående folketingsmandater bortfalder, når nyvalg har fundet sted. Efter
+udnævnelse af et nyt ministerium kan valg dog ikke udskrives, forinden
+statsministeren har fremstillet sig for folketinget.
+
+Stk. 3. Det påhviler statsministeren at foranledige, at nyvalg afholdes inden
+valgperiodens udløb.
+
+Stk. 4. Mandaterne bortfalder i intet tilfælde, før nyvalg har fundet sted.
+
+Stk. 5. Der kan ved lov gives særlige regler om færøske og grønlandske
+folketingsmandaters ikrafttræden og ophør.
+
+Stk. 6. Mister et medlem af folketinget sin valgbarhed, bortfalder hans
+mandat.
+
+Stk. 7. Ethvert nyt medlem afgiver, når hans valg er godkendt, en højtidelig
+forsikring om at ville holde grundloven.
+----
+
+-- Stk. 1
+= valgperiode_år = 4
+
+-- Stk. 2
+| kongen_kan_udskrive_nyvalg()
+| mandater_bortfalder_når_nyvalg_afholdt()
+
+> kan_udskrive_valg_efter_nyt_ministerium(statsminister_fremstillet: Boolsk) -> Boolsk {
+    hvis statsminister_fremstillet { Sandt } ellers { Falskt }
+}
+
+-- Stk. 3
+| statsministeren_skal_foranledige_nyvalg_inden_udløb()
+
+-- Stk. 4
+| mandater_bortfalder_aldrig_før_nyvalg()
+
+-- Stk. 5
+| færøske_grønlandske_mandater_kan_fastsættes_ved_lov()
+
+-- Stk. 6
+| tab_af_valgbarhed_medfører_mandatbortfald()
+
+-- Stk. 7: samme edssprog som par. 8 og par. 27
+| nyt_medlem_aflægger_grundlovs_ed()
+
+
+----
+§ 33. Folketinget afgør selv gyldigheden af sine medlemmers valg samt
+spørgsmål om, hvorvidt et medlem har mistet sin valgbarhed.
+----
+
+| folketinget_afgør_valgs_gyldighed()
+| folketinget_afgør_tab_af_valgbarhed()
+
+
+----
+§ 34. Folketinget er ukrænkeligt. Enhver, der antaster dets sikkerhed eller
+frihed, enhver, der udsteder eller adlyder nogen dertil sigtende befaling, gør
+sig skyldig i højforræderi.
+----
+
+| folketinget_er_ukrænkeligt()
+| angreb_på_folketingets_sikkerhed_er_højforræderi()
+| angreb_på_folketingets_frihed_er_højforræderi()

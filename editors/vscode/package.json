@@ -1,0 +1,50 @@
+{
+  "name": "futuruna-lang",
+  "displayName": "Futuruna Language",
+  "description": "Syntax highlighting, diagnostics, and code intelligence for the Futuruna programming language",
+  "version": "0.4.0",
+  "publisher": "futuruna",
+  "main": "./extension.js",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "activationEvents": [],
+  "categories": ["Programming Languages", "Themes"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "runa",
+        "aliases": ["Futuruna", "runa"],
+        "extensions": [".runa"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "runa",
+        "scopeName": "source.runa",
+        "path": "./syntaxes/runa.tmLanguage.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "Futuruna Axes",
+        "uiTheme": "vs-dark",
+        "path": "./themes/futuruna-axes-color-theme.json"
+      }
+    ],
+    "configuration": {
+      "title": "Futuruna",
+      "properties": {
+        "futuruna.serverPath": {
+          "type": "string",
+          "default": "runa",
+          "description": "Path to the runa compiler binary"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.0"
+  }
+}

@@ -1,0 +1,201 @@
+-- test.runa: First real Futuruna program
+-- Testing all runes and core features
+
+-- # Type declarations (Axis 2)
+# Bool = True | False
+# Option(a) = None | Some(a)
+# List(a) = Nil | Cons(a, List(a))
+
+-- > Function definitions (Axis 1)
+> add(a: Int, b: Int) -> Int {
+    a + b
+}
+
+> factorial(n: Int) -> Int {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+> length(xs: List(a)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(_, tail) -> 1 + length(tail)
+    }
+}
+
+> map(xs: List(a), f: a -> b) -> List(b) {
+    match xs {
+        | Nil -> Nil
+        | Cons(h, t) -> Cons(f(h), map(t, f))
+    }
+}
+
+> sum(xs: List(Int)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(h, t) -> h + sum(t)
+    }
+}
+
+-- | Logic rules
+| even(0)
+| even(n) -> n > 0
+
+-- = Bindings
+= x = 42
+= greeting = "Hello, Futuruna!"
+
+-- Test: basic arithmetic
+@ print("=== Futuruna Compiler Tests ===")
+@ print("")
+
+@ print("--- Arithmetic ---")
+@ print("2 + 3 = " + show(add(2, 3)))
+@ print("10! = " + show(factorial(10)))
+
+-- Test: pattern matching with ADTs
+@ print("")
+@ print("--- ADTs & Pattern Matching ---")
+= nums = Cons(1, Cons(2, Cons(3, Cons(4, Cons(5, Nil)))))
+@ print("length([1,2,3,4,5]) = " + show(length(nums)))
+@ print("sum([1,2,3,4,5]) = " + show(sum(nums)))
+
+-- Test: higher-order functions
+@ print("")
+@ print("--- Higher-Order Functions ---")
+= doubled = map(nums, |x| x * 2)
+@ print("sum(map([1..5], *2)) = " + show(sum(doubled)))
+@ print("map([1..5], +10):")
+= shifted = map(nums, |x| x + 10)
+@ print("  sum = " + show(sum(shifted)))
+
+-- Test: nested pattern matching
+> describe(opt: Option(Int)) -> String {
+    match opt {
+        | None -> "nothing"
+        | Some(n) -> {
+            if n > 0 {
+                "positive: " + show(n)
+            } else {
+                "non-positive: " + show(n)
+            }
+        }
+    }
+}
+
+@ print("")
+@ print("--- Option Matching ---")
+@ print("None = " + describe(None))
+@ print("Some(42) = " + describe(Some(42)))
+@ print("Some(-7) = " + describe(Some(-7)))
+
+-- Test: recursive data structures
+> reverse_acc(xs: List(a), acc: List(a)) -> List(a) {
+    match xs {
+        | Nil -> acc
+        | Cons(h, t) -> reverse_acc(t, Cons(h, acc))
+    }
+}
+
+> my_reverse(xs: List(a)) -> List(a) {
+    reverse_acc(xs, Nil)
+}
+
+> list_to_string(xs: List(Int)) -> String {
+    match xs {
+        | Nil -> "[]"
+        | _ -> {
+            = inner = list_items(xs)
+            "[" + inner + "]"
+        }
+    }
+}
+
+> list_items(xs: List(Int)) -> String {
+    match xs {
+        | Nil -> ""
+        | Cons(h, Nil) -> show(h)
+        | Cons(h, t) -> show(h) + ", " + list_items(t)
+    }
+}
+
+@ print("")
+@ print("--- List Operations ---")
+@ print("[1,2,3,4,5] = " + list_to_string(nums))
+= rev = my_reverse(nums)
+@ print("reverse = " + list_to_string(rev))
+
+-- Test: closures and composition
+> compose(f: a -> b, g: b -> c) -> (a -> c) {
+    |x| g(f(x))
+}
+
+= double_then_add10 = compose(|x| x * 2, |x| x + 10)
+@ print("")
+@ print("--- Closures ---")
+@ print("compose(*2, +10)(5) = " + show(double_then_add10(5)))
+@ print("compose(*2, +10)(0) = " + show(double_then_add10(0)))
+
+-- Test: fibonacci
+> fib(n: Int) -> Int {
+    if n <= 1 {
+        n
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
+}
+
+@ print("")
+@ print("--- Fibonacci ---")
+@ print("fib(0) = " + show(fib(0)))
+@ print("fib(1) = " + show(fib(1)))
+@ print("fib(10) = " + show(fib(10)))
+@ print("fib(20) = " + show(fib(20)))
+
+-- Test: list comprehension-style with filter
+> my_filter(xs: List(Int), pred: Int -> Bool) -> List(Int) {
+    match xs {
+        | Nil -> Nil
+        | Cons(h, t) -> {
+            if pred(h) {
+                Cons(h, my_filter(t, pred))
+            } else {
+                my_filter(t, pred)
+            }
+        }
+    }
+}
+
+@ print("")
+@ print("--- Filter ---")
+= evens = my_filter(nums, |x| x % 2 == 0)
+@ print("filter(even, [1..5]) = " + list_to_string(evens))
+= odds = my_filter(nums, |x| x % 2 != 0)
+@ print("filter(odd, [1..5]) = " + list_to_string(odds))
+
+-- Test: FizzBuzz (the ultimate test)
+> fizzbuzz(n: Int) -> String {
+    if n % 15 == 0 {
+        "FizzBuzz"
+    } else if n % 3 == 0 {
+        "Fizz"
+    } else if n % 5 == 0 {
+        "Buzz"
+    } else {
+        show(n)
+    }
+}
+
+@ print("")
+@ print("--- FizzBuzz ---")
+@ print("1: " + fizzbuzz(1))
+@ print("3: " + fizzbuzz(3))
+@ print("5: " + fizzbuzz(5))
+@ print("15: " + fizzbuzz(15))
+@ print("7: " + fizzbuzz(7))
+
+@ print("")
+@ print("=== All tests passed! ===")

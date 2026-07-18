@@ -1,0 +1,67 @@
+-- Ownership Stress Test: Arena Allocator Pattern
+-- In Rust, arenas need lifetimes ('a) for references into the arena.
+-- Futuruna approach: index-based arena — no lifetimes, no pointers, pure values.
+
+# Node(value: String, left: Int, right: Int)
+
+> node_value(n: Node) -> String { match n { | Node(v, _, _) -> v } }
+> node_left(n: Node) -> Int { match n { | Node(_, l, _) -> l } }
+> node_right(n: Node) -> Int { match n { | Node(_, _, r) -> r } }
+
+-- Build a tree as a flat list of nodes:
+--       "root"(0)
+--      /        \
+--   "left"(1)  "right"(2)
+--   /
+-- "leaf"(3)
+= arena = [Node("root", 1, 2), Node("left", 3, -1), Node("right", -1, -1), Node("leaf", -1, -1)]
+
+@ print("Arena size: " + show(length(arena)))
+
+= root = arena[0]
+@ print("Root: " + node_value(root))
+
+= left_child = arena[node_left(root)]
+@ print("Left child: " + node_value(left_child))
+
+= right_child = arena[node_right(root)]
+@ print("Right child: " + node_value(right_child))
+
+= leaf = arena[node_left(left_child)]
+@ print("Leaf: " + node_value(leaf))
+
+-- Depth-first traversal via recursion
+> tree_collect(arena: List(Node), idx: Int) -> String {
+    if idx < 0 {
+        ""
+    } else {
+        = n = arena[idx]
+        = left_str = tree_collect(arena, node_left(n))
+        = right_str = tree_collect(arena, node_right(n))
+        = txt = node_value(n)
+        = txt = if left_str == "" { txt } else { txt + " " + left_str }
+        if right_str == "" { txt } else { txt + " " + right_str }
+    }
+}
+
+= traversal = tree_collect(arena, 0)
+@ print("DFS traversal: " + traversal)
+
+-- Tree depth calculation
+> tree_depth(arena: List(Node), idx: Int) -> Int {
+    if idx < 0 {
+        0
+    } else {
+        = n = arena[idx]
+        = ld = tree_depth(arena, node_left(n))
+        = rd = tree_depth(arena, node_right(n))
+        1 + if ld > rd { ld } else { rd }
+    }
+}
+
+@ print("Tree depth: " + show(tree_depth(arena, 0)))
+
+-- Key insight: NO LIFETIMES
+-- In Rust: fn get<'a>(&'a self, idx: usize) -> &'a Node
+-- In Futuruna: just arena[idx]
+@ print("PASS: Arena allocator — zero lifetime annotations")

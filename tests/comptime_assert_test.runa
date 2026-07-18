@@ -1,0 +1,20 @@
+-- comptime_assert_test.runa: Test compile-time assertions
+
+> square(x: Int) -> Int { x * x }
+
+-- Comptime assertions (evaluated at compile time, not emitted as runtime code)
+@ comptime assert(1 + 1 == 2)
+@ comptime assert(3 * 4 == 12)
+@ comptime assert(square(5) == 25)
+@ comptime assert(true && true)
+@ comptime assert(false == false)
+
+-- Comptime binding + assertion
+@ comptime
+= size = square(8)
+
+@ comptime assert(size == 64)
+
+-- Runtime code
+@ print("size = " + show(size))
+@ print("All comptime assertions passed!")

@@ -1,0 +1,23 @@
+-- parser-e2e.runa — End-to-end test: self-hosting parser parses the lexer
+-- Compile and run: runa build examples/parser-e2e.runa && ./parser-e2e
+
+@ import ./lexer
+@ import ./parser
+
+-- Tokenize and parse lexer.runa end-to-end
+= lexer_src = read_file("examples/lexer.runa")
+@ print("Read lexer.runa: " + show(string_length(lexer_src)) + " chars")
+
+= lexer_toks = tokenize(lexer_src)
+@ print("Tokenized: " + show(length(lexer_toks)) + " tokens")
+
+= lexer_ast = parse_program(make_state(lexer_toks))
+@ print("Parsed: " + show(length(lexer_ast)) + " statements")
+@ print("")
+
+for s in lexer_ast {
+    @ print("  " + show_stmt(s))
+}
+
+@ print("")
+@ print("End-to-end: self-hosting parser parses the lexer.")

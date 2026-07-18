@@ -1,0 +1,73 @@
+-- Traits, Impl Blocks, and Use Declarations Test
+-- Tests Kotlin-style Rust interop features
+
+-- ============================================
+-- Part 1: Use declarations
+-- ============================================
+
+@ use std::collections::HashMap
+@ use std::io::{Read, Write}
+
+-- ============================================
+-- Part 2: Trait declarations
+-- ============================================
+
+-- Simple trait with one method
+# trait Printable {
+    > display(self) -> String
+}
+
+-- Trait with default body (commented out: requires Printable supertrait, not yet supported)
+-- # trait Greetable {
+--     > greet(self) -> String {
+--         "Hello, " + display(self)
+--     }
+-- }
+
+-- ============================================
+-- Part 3: Types + impl blocks
+-- ============================================
+
+# Color = Red | Green | Blue
+
+# impl Printable for Color {
+    > color_display(c) -> String {
+        match c {
+            | Red -> "Red"
+            | Green -> "Green"
+            | Blue -> "Blue"
+        }
+    }
+}
+
+# Shape = Circle(radius: Float) | Rectangle(width: Float, height: Float)
+
+# impl Printable for Shape {
+    > shape_display(s) -> String {
+        match s {
+            | Circle(radius: r) -> "Circle(" + show(r) + ")"
+            | Rectangle(width: w, height: h) -> "Rect(" + show(w) + "x" + show(h) + ")"
+        }
+    }
+}
+
+-- ============================================
+-- Part 4: Use the trait methods
+-- ============================================
+
+@ print("--- Color dispatch ---")
+@ print(color_display(Red))
+@ print(color_display(Green))
+@ print(color_display(Blue))
+
+@ print("--- Shape dispatch ---")
+= c = Circle(5.0)
+= r = Rectangle(3.0, 4.0)
+@ print(shape_display(c))
+@ print(shape_display(r))
+
+-- ============================================
+-- Part 5: Transpiler test
+-- ============================================
+
+@ print("--- Done ---")

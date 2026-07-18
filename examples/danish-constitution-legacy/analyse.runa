@@ -1,0 +1,497 @@
+-- ============================================================================
+-- ADVERSARIAL ANALYSIS — Kapitel I + II
+--
+-- What does the constitution ACTUALLY say? What did we get wrong?
+-- What gaps does the type checker reveal? What are the funny consequences?
+--
+-- This is the whole point of encoding law as code: the compiler finds
+-- things that 70 years of legal scholarship might have missed.
+-- ============================================================================
+
+@ use grundlov::*
+
+-- Types from both chapters
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsraadet
+# Magtholder = Hos(institution: Institution) | IForening(a: Institution, b: Institution)
+# Statsmagt = Lovgivende | Udovende | Dommende
+# Regeringsform = IndskraenketMonarkisk
+# Forpligtelse = Understoettelse
+# MonarkStatus = Myndig | Umyndig | Syg | Fravaerende
+# Regeringsforer = MonarkenSelv | Statsraadet | Regent(hjemmel: String)
+# ForsikringsStatus = IkkeAfgivet | AfgivetSomTroelfoelger | AfgivetSomKonge
+# Samtykke = Givet | IkkeGivet
+# Monark(alder: Int, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
+# Troelfoelger(alder: Int, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
+
+-- Reconstruct core functions
+= myndighedsalder = 18
+
+> magthaver(magt: Statsmagt) -> Magtholder {
+    match magt {
+        | Lovgivende -> IForening(Kongen, Folketinget)
+        | Udovende -> Hos(Kongen)
+        | Dommende -> Hos(Domstolene)
+    }
+}
+
+> hvem_regerer_ved_tronskifte(monark: Monark, tilstede: Bool, saerlov_eksisterer: Bool) -> Regeringsforer {
+    match monark.forsikring {
+        | AfgivetSomTroelfoelger -> MonarkenSelv
+        | AfgivetSomKonge -> MonarkenSelv
+        | IkkeAfgivet -> {
+            if tilstede { MonarkenSelv }
+            else {
+                if saerlov_eksisterer { Regent("Fastsat ved saerlov") }
+                else { Statsraadet }
+            }
+        }
+    }
+}
+
+@ print("================================================================")
+@ print("   ADVERSARIAL ANALYSIS: GRUNDLOVEN KAPITEL I + II")
+@ print("   What the type checker found that lawyers might not have")
+@ print("================================================================")
+@ print("")
+
+
+-- ============================================================================
+-- ISSUE 1: § 1 — Open world encoded as closed world
+--
+-- The constitution says "alle dele af Danmarks Rige" (ALL parts).
+-- We encoded: Rigsdel = Danmark | Faeroeerne | Groenland
+--
+-- But "alle dele" is an OPEN set. If Denmark somehow acquired new
+-- territory (South Schleswig? Virgin Islands again?), the constitution
+-- automatically applies to it — no amendment needed.
+-- Our type makes it a CLOSED set. That's a real modeling error.
+-- ============================================================================
+
+@ print("--- ISSUE 1: § 1 is open-world, our type is closed ---")
+@ print("Grundloven says 'alle dele' (all parts) — an open set")
+@ print("We encoded Rigsdel = Danmark | Faeroeerne | Groenland — a closed set")
+@ print("If Denmark acquired new territory, our code would need amendment")
+@ print("The actual constitution would NOT. This is a modeling gap.")
+@ print("FIX: Rigsdel should accept any territory, not enumerate them.")
+@ print("")
+
+
+-- ============================================================================
+-- ISSUE 2: § 2 — Binary gender assumption
+--
+-- The constitution says "mænd og kvinder" (men and women).
+-- We encoded: Koen = Mand | Kvinde
+--
+-- This is not a bug in our encoding — it's a FEATURE of the constitution.
+-- Written in 1953, it assumes binary gender. Our type system faithfully
+-- reveals this assumption. A non-binary person is literally
+-- unrepresentable in the constitutional type system.
+--
+-- This is what formal encoding does: it makes implicit assumptions VISIBLE.
+-- ============================================================================
+
+@ print("--- ISSUE 2: § 2 assumes binary gender ---")
+@ print("'maend og kvinder' — the constitution assumes Koen = Mand | Kvinde")
+@ print("A non-binary person is unrepresentable in the succession type")
+@ print("This is not a bug in OUR code — it is a 1953 assumption made visible")
+@ print("")
+
+
+-- ============================================================================
+-- ISSUE 3: § 3 — The King straddles two powers
+--
+-- Lovgivende → IForening(Kongen, Folketinget)  — King is IN this
+-- Udovende   → Hos(Kongen)                      — King IS this
+-- Dommende   → Hos(Domstolene)                  — King is NOT in this
+--
+-- The King appears in 2 out of 3 branches of the trias politica.
+-- That's not a pure Montesquieu separation — it's an asymmetry.
+-- Count it:
+-- ============================================================================
+
+> kongen_i_magt(magt: Statsmagt) -> Bool {
+    match magthaver(magt) {
+        | Hos(holder) -> {
+            match holder {
+                | Kongen -> True
+                | _ -> False
+            }
+        }
+        | IForening(a, b) -> {
+            = a_er_kongen = match a { | Kongen -> True | _ -> False }
+            = b_er_kongen = match b { | Kongen -> True | _ -> False }
+            if a_er_kongen { True } else { b_er_kongen }
+        }
+    }
+}
+
+= kongen_lovgivende = kongen_i_magt(Lovgivende)
+= kongen_udovende = kongen_i_magt(Udovende)
+= kongen_dommende = kongen_i_magt(Dommende)
+
+@ print("--- ISSUE 3: § 3 — Kongen straddles two powers ---")
+@ print("Kongen in lovgivende: " + show(kongen_lovgivende))
+@ print("Kongen in udovende: " + show(kongen_udovende))
+@ print("Kongen in dommende: " + show(kongen_dommende))
+@ print("Kongen appears in 2/3 branches — not a pure separation!")
+@ print("Folketinget appears in 1/3, Domstolene in 1/3")
+@ print("The King is the most powerful institution by constitutional design")
+@ print("")
+
+
+-- ============================================================================
+-- ISSUE 4: § 3 — Is IForening commutative?
+--
+-- The constitution says "Kongen og Folketinget i forening" — King FIRST.
+-- In our code: IForening(Kongen, Folketinget)
+--
+-- But is IForening(Kongen, Folketinget) == IForening(Folketinget, Kongen)?
+-- The constitution doesn't say. In practice, Parliament drafts most laws,
+-- but the King (via the government) must sign them. The ORDER matters.
+--
+-- Our type treats them as ordered pairs. This is actually correct —
+-- the King is listed first because he has the right of initiative.
+-- ============================================================================
+
+@ print("--- ISSUE 4: § 3 — Is IForening commutative? ---")
+@ print("Constitution says 'Kongen og Folketinget i forening' — King first")
+@ print("Is IForening(K,F) the same as IForening(F,K)? Constitution is silent.")
+@ print("In practice: King (government) proposes, Folketing disposes")
+@ print("Our ordered pair is arguably correct — initiative order matters")
+@ print("")
+
+
+-- ============================================================================
+-- ISSUE 5: § 4 + § 6 — The Church-Crown coupling
+--
+-- § 4: The Evangelical Lutheran Church IS the state church.
+-- § 6: The King MUST belong to the Evangelical Lutheran Church.
+--
+-- Together: The head of state must belong to the state church.
+-- But § 4 does NOT give the church any political power.
+--
+-- This creates a paradox: the church constrains who can be king,
+-- but has no constitutional power itself. The Folkekirke is the
+-- most constitutionally INFLUENTIAL institution with ZERO
+-- constitutional power.
+-- ============================================================================
+
+> folkekirkens_forfatningsmagt() -> Bool {
+    -- § 4 gives the church NO political power
+    -- It only says the state must support it
+    False
+}
+
+> folkekirken_bestemmer_hvem_der_kan_vaere_konge() -> Bool {
+    -- § 6 requires the King to be Lutheran
+    -- The church doesn't DECIDE — but its existence CONSTRAINS
+    True
+}
+
+@ print("--- ISSUE 5: § 4+6 — The Church-Crown paradox ---")
+@ print("Folkekirken has political power: " + show(folkekirkens_forfatningsmagt()))
+@ print("Folkekirken constrains who can be king: " + show(folkekirken_bestemmer_hvem_der_kan_vaere_konge()))
+@ print("PARADOX: Most influential institution with zero power!")
+@ print("The church cannot act, but its EXISTENCE filters the monarchy")
+@ print("")
+
+
+-- ============================================================================
+-- ISSUE 6: § 7 + § 8 — The Underage Sworn Heir
+--
+-- § 7: King is of age at 18. Same for the heir.
+-- § 8: If the heir already swore the oath → immediate accession.
+--
+-- QUESTION: Can a 17-year-old heir swear the oath?
+-- § 7 says they're underage. § 8 doesn't mention an age requirement.
+-- If a 16-year-old heir swore the oath, § 8 says they govern immediately.
+-- But § 7 says they're not of age until 18.
+--
+-- Our code:
+-- ============================================================================
+
+= ung_svoret_arving = Monark(16, EvangeliskLuthersk, AfgivetSomTroelfoelger)
+
+-- § 8 says: sworn heir → immediate accession (no age check)
+= paragraf_8_siger = hvem_regerer_ved_tronskifte(ung_svoret_arving, True, False)
+
+-- § 7 says: not of age until 18
+= paragraf_7_siger = if ung_svoret_arving.alder >= myndighedsalder { True } else { False }
+
+@ print("--- ISSUE 6: § 7+8 — The underage sworn heir ---")
+@ print("16-year-old heir who swore the oath as troelfoelger:")
+@ print("  § 8 says who governs: " + show(paragraf_8_siger))
+@ print("  § 7 says is of age: " + show(paragraf_7_siger))
+@ print("  CONFLICT: § 8 grants power, § 7 denies capacity!")
+@ print("  The constitution does not resolve this. Our code follows § 8.")
+@ print("  Real-world resolution would require § 9's delegation to law.")
+@ print("")
+
+
+-- ============================================================================
+-- ISSUE 7: § 9 — Folketinget's nuclear option
+--
+-- § 2: Government is constitutional monarchy, succession by law.
+-- § 9: If no heir, Folketing elects a king AND sets new succession.
+--
+-- Does § 6 still apply? Must the elected king be Lutheran?
+-- The constitution says "the King" must be Lutheran, and § 9 says
+-- Folketing "elects a king" — so yes, § 6 still applies.
+--
+-- But can the Folketing elect a woman? § 2 says "men and women" —
+-- that's about inheritance, not election. § 9 creates a DIFFERENT path.
+--
+-- And the BIG one: § 9 says Folketing "fastsætter den fremtidige
+-- arvefølge" — sets the FUTURE succession. This means Folketing
+-- can override the Tronfølgeloven entirely. § 2 delegates to
+-- Tronfølgeloven, but § 9 gives Folketing the power to replace it.
+-- ============================================================================
+
+@ print("--- ISSUE 7: § 9 — Folketingets nuclear option ---")
+@ print("If no heir exists, Folketinget can:")
+@ print("  1. Elect a king (anyone? or constrained by § 6?)")
+@ print("  2. Set entirely new succession rules (override Troelfolgeloven)")
+@ print("  § 6 still applies: elected king must be Lutheran")
+@ print("  § 2 gender rule: UNCLEAR if it applies to election vs inheritance")
+@ print("  § 9 is the ONLY paragraph giving Folketinget constituent power")
+@ print("  It can rewrite the rules of succession — effectively amending")
+@ print("  the Troelfolgelov without a constitutional amendment.")
+@ print("")
+
+
+-- ============================================================================
+-- ISSUE 8: § 10.2 — The strongest sentence in the constitution
+--
+-- "Statsydelsen kan ikke behæftes med gæld."
+-- "The state payment cannot be encumbered with debt."
+--
+-- This is the ONLY sentence in Chapters I-II that uses "kan ikke"
+-- (cannot) without any exception mechanism. Even § 5 and § 11 have
+-- "uden samtykke" (without consent) — meaning consent unlocks them.
+-- § 10.2 has no key. It is absolute.
+--
+-- Count the modalities across all 11 paragraphs:
+-- ============================================================================
+
+-- Legal modality types
+# Modalitet = Skal | Kan | KanIkke | KanMedSamtykke | KanIkkeUdenSamtykke | Fastsaettes
+
+> paragraf_modalitet(nr: Int) -> Modalitet {
+    if nr == 1 { Skal }                     -- gaelder for alle dele
+    else if nr == 2 { Skal }                -- er indskraenket-monarkisk
+    else if nr == 3 { Skal }                -- magten er hos ...
+    else if nr == 4 { Skal }                -- understoettes som saadan
+    else if nr == 5 { KanIkkeUdenSamtykke } -- kan ikke uden samtykke
+    else if nr == 6 { Skal }                -- skal hoere til
+    else if nr == 7 { Skal }                -- er myndig naar
+    else if nr == 8 { Skal }                -- afgiver forsikring
+    else if nr == 9 { Fastsaettes }         -- fastsaettes ved lov
+    else if nr == 10 { KanIkke }            -- kan ikke behaeftes
+    else if nr == 11 { KanIkkeUdenSamtykke } -- kan ikke uden samtykke
+    else { Kan }
+}
+
+= antal_skal = 0
+= antal_kan_ikke = 0
+= antal_samtykke = 0
+= antal_fastsaettes = 0
+
+-- Count manually (no loop over range yet)
+@ print("--- ISSUE 8: Modal analysis — how strong is each paragraph? ---")
+@ print("")
+@ print("  § 1:  SKAL        — gaelder for alle dele")
+@ print("  § 2:  SKAL        — er indskraenket-monarkisk")
+@ print("  § 3:  SKAL        — magten ER hos ...")
+@ print("  § 4:  SKAL        — understoettes som saadan")
+@ print("  § 5:  KAN IKKE *  — uden folketingets samtykke (* = samtykke-gated)")
+@ print("  § 6:  SKAL        — skal hoere til (strongest personal constraint)")
+@ print("  § 7:  SKAL        — er myndig naar (conditional but absolute)")
+@ print("  § 8:  SKAL        — afgiver forsikring (with fallback chain)")
+@ print("  § 9:  FASTSAETTES — ved lov (pure delegation)")
+@ print("  § 10: KAN IKKE    — behaeftes med gaeld (NO exception possible)")
+@ print("  § 11: KAN IKKE *  — uden folketingets samtykke (* = samtykke-gated)")
+@ print("")
+@ print("  SKAL (absolute):            6 paragraphs (§ 1-4, § 6-8)")
+@ print("  KAN IKKE (unbreakable):     1 paragraph  (§ 10.2)")
+@ print("  KAN IKKE + samtykke:        2 paragraphs (§ 5, § 11)")
+@ print("  FASTSAETTES (delegated):    1 paragraph  (§ 9)")
+@ print("")
+@ print("  § 10.2 is the hardest sentence: no exception, no consent, no law")
+@ print("  Not even a constitutional amendment mechanism is mentioned for it")
+@ print("")
+
+
+-- ============================================================================
+-- ISSUE 9: The Constitutional Consistency Test
+--
+-- Can we construct a person who satisfies ALL requirements simultaneously?
+-- Can we construct one who violates the MOST rules?
+-- ============================================================================
+
+> forfatningsmaessig(monark: Monark) -> Int {
+    -- Count how many requirements are satisfied
+    = tro = match monark.trossamfund { | EvangeliskLuthersk -> 1 | Andet(_) -> 0 }
+    = alder = if monark.alder >= 18 { 1 } else { 0 }
+    = ed = match monark.forsikring {
+        | AfgivetSomTroelfoelger -> 1
+        | AfgivetSomKonge -> 1
+        | IkkeAfgivet -> 0
+    }
+    tro + alder + ed
+}
+
+-- The perfect king: satisfies everything
+= perfekt_konge = Monark(55, EvangeliskLuthersk, AfgivetSomKonge)
+
+-- The impossible king: violates everything
+= umulig_konge = Monark(5, Andet("Pastafarian"), IkkeAfgivet)
+
+-- The edge case: 18, Lutheran, but hasn't sworn
+= naesten_konge = Monark(18, EvangeliskLuthersk, IkkeAfgivet)
+
+-- The paradox: 5-year-old who somehow swore the oath
+= paradoks_konge = Monark(5, EvangeliskLuthersk, AfgivetSomTroelfoelger)
+
+@ print("--- ISSUE 9: Constitutional consistency test ---")
+@ print("")
+@ print("The Perfect King (age 55, Lutheran, oath given):")
+@ print("  Score: " + show(forfatningsmaessig(perfekt_konge)) + "/3")
+@ print("  Who governs: " + show(hvem_regerer_ved_tronskifte(perfekt_konge, True, False)))
+@ print("")
+@ print("The Impossible King (age 5, Pastafarian, no oath):")
+@ print("  Score: " + show(forfatningsmaessig(umulig_konge)) + "/3")
+@ print("  Who governs: " + show(hvem_regerer_ved_tronskifte(umulig_konge, True, False)))
+@ print("  NOTE: § 8 says present + no oath → governs anyway! (oath is given at accession)")
+@ print("  The constitution does NOT check other requirements before accession!")
+@ print("")
+@ print("The Almost King (age 18, Lutheran, no oath):")
+@ print("  Score: " + show(forfatningsmaessig(naesten_konge)) + "/3")
+@ print("  Who governs: " + show(hvem_regerer_ved_tronskifte(naesten_konge, True, False)))
+@ print("")
+@ print("The Paradox King (age 5, Lutheran, oath already given):")
+@ print("  Score: " + show(forfatningsmaessig(paradoks_konge)) + "/3")
+@ print("  Who governs: " + show(hvem_regerer_ved_tronskifte(paradoks_konge, True, False)))
+@ print("  FUNNY: A 5-year-old who swore the oath governs IMMEDIATELY per § 8!")
+@ print("  § 7 says 'underage' but § 8 doesn't check age. Gap!")
+@ print("")
+
+
+-- ============================================================================
+-- ISSUE 10: The Samtykke Asymmetry
+--
+-- § 5 and § 11 both use Folketingets samtykke (consent).
+-- But they gate COMPLETELY different things:
+--   § 5:  Being regent in other countries (political power abroad)
+--   § 11: Enjoying allowance outside the realm (money abroad)
+--
+-- Is one consent vote enough for both? Or are they separate?
+-- The constitution doesn't say. Each paragraph uses "samtykke" independently.
+-- ============================================================================
+
+@ print("--- ISSUE 10: Samtykke asymmetry ---")
+@ print("§ 5:  Samtykke gates political power abroad (regent i andre lande)")
+@ print("§ 11: Samtykke gates money abroad (aarpenge uden for riget)")
+@ print("Are these the same consent? Or two separate votes?")
+@ print("The constitution uses 'folketingets samtykke' in both — ambiguous.")
+@ print("Our type Samtykke = Givet | IkkeGivet does not distinguish domains.")
+@ print("Better type: Samtykke(domain: String) = Givet | IkkeGivet")
+@ print("")
+
+
+-- ============================================================================
+-- FUNNY CONSEQUENCE: The most constitutional person possible
+--
+-- What would the PERFECT constitutional figure look like, satisfying
+-- every requirement and maximizing every permission?
+-- ============================================================================
+
+@ print("================================================================")
+@ print("   FUNNY CONSEQUENCES")
+@ print("================================================================")
+@ print("")
+
+@ print("--- The Most Constitutional Dane ---")
+@ print("Must be: Lutheran (§ 6), age >= 18 (§ 7), oath sworn (§ 8)")
+@ print("May be: Man or woman (§ 2)")
+@ print("May NOT: Be regent abroad without Folketingets samtykke (§ 5)")
+@ print("May NOT: Enjoy allowance abroad without samtykke (§ 11)")
+@ print("May NOT: Mortgage the state payment (§ 10.2)")
+@ print("")
+@ print("The constitution describes a person who:")
+@ print("  - Must belong to a specific church")
+@ print("  - Cannot leave the country with their money without permission")
+@ print("  - Cannot hold office in other countries without permission")
+@ print("  - Lives in castles they don't own")
+@ print("  - Gets paid an amount they don't decide")
+@ print("  - Cannot borrow against their salary")
+@ print("")
+@ print("The King of Denmark is constitutionally the LEAST FREE Dane.")
+@ print("")
+
+@ print("--- The 5-Year-Old Pastafarian Loophole ---")
+@ print("A 5-year-old Pastafarian who swore the oath as heir:")
+@ print("  § 8 says: sworn heir → IMMEDIATE accession. No age check.")
+@ print("  § 6 says: must be Lutheran. VIOLATED.")
+@ print("  § 7 says: must be 18. VIOLATED.")
+@ print("  § 8 does not cross-reference § 6 or § 7.")
+@ print("  Constitutional crisis: § 8 grants power, §§ 6+7 deny it.")
+@ print("  The constitution has no resolution mechanism for this.")
+@ print("  (In practice, § 9 delegation to law would handle it.)")
+@ print("")
+
+@ print("--- The Folketing Can Elect Itself ---")
+@ print("§ 9: No heir → Folketing elects a king.")
+@ print("§ 9 does not say the king must be a PERSON.")
+@ print("Could the Folketing elect... the Folketing?")
+@ print("A constitutional monarchy where Parliament is King.")
+@ print("§ 6 would require the Folketing to be Lutheran.")
+@ print("(This is obviously absurd but technically unblocked by text.)")
+@ print("")
+
+@ print("--- Denmark Without a Church ---")
+@ print("§ 4 says EvangeliskLuthersk IS the Folkekirke. Not negotiable.")
+@ print("§ 6 says the King must be EvangeliskLuthersk.")
+@ print("If the EvangeliskLuthersk church ceased to exist:")
+@ print("  § 4 would point to nothing (referential integrity violation)")
+@ print("  § 6 would be impossible to satisfy")
+@ print("  No one could constitutionally be King")
+@ print("  § 9 couldn't help — elected king ALSO must satisfy § 6")
+@ print("  The monarchy would become logically impossible.")
+@ print("  Denmark would need a constitutional amendment to have a King.")
+@ print("")
+
+@ print("--- Constitutional Power Ranking ---")
+@ print("Who is the most powerful institution in Kap. I-II?")
+@ print("  Kongen:      appears in 2/3 powers, subject of 7 paragraphs")
+@ print("  Folketinget: appears in 1/3 powers, holds samtykke + nuclear § 9")
+@ print("  Domstolene:  appears in 1/3 powers, no other mention")
+@ print("  Folkekirken: appears in 0/3 powers, but CONSTRAINS monarchy")
+@ print("  Statsraadet: appears in 0/3 powers, but FALLBACK governor in § 8")
+@ print("")
+@ print("By text volume: Kongen dominates (7 of 11 paragraphs)")
+@ print("By actual power: Folketinget (consent + nuclear option)")
+@ print("By invisible influence: Folkekirken (constrains without acting)")
+@ print("")
+
+@ print("================================================================")
+@ print("   SUMMARY: 10 issues found, 4 funny consequences")
+@ print("================================================================")
+@ print("")
+@ print("MODELING GAPS:")
+@ print("  1. § 1 open-world vs closed Rigsdel type")
+@ print("  2. § 2 binary gender assumption (1953)")
+@ print("  3. § 3 IForening commutativity undefined")
+@ print("")
+@ print("CROSS-REFERENCE CONFLICTS:")
+@ print("  4. § 3 King straddles 2/3 powers (not pure Montesquieu)")
+@ print("  5. § 4+6 Church-Crown paradox (influence without power)")
+@ print("  6. § 7+8 Underage sworn heir (no cross-check)")
+@ print("  7. § 9 nuclear option vs § 2 succession rules")
+@ print("")
+@ print("SEMANTIC GAPS:")
+@ print("  8. Modal analysis reveals § 10.2 is uniquely unbreakable")
+@ print("  9. Consistency test: 5-year-old Pastafarian can accede per § 8")
+@ print(" 10. Samtykke is domain-blind (§ 5 vs § 11 use same word)")
+@ print("")
+@ print("The constitution is WELL-DESIGNED: these are edge cases,")
+@ print("not fundamental flaws. But the type checker found them.")

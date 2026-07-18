@@ -1,0 +1,27 @@
+-- export_lib.runa: M3b — module with private and exported definitions
+-- This file IS the module. Private by default, @ export marks public names.
+
+-- Private helper (not exported)
+> double(x: Int) -> Int { x * 2 }
+
+-- Private internal state (not exported)
+= secret = 42
+
+-- Exported function: uses private helper
+@ export
+> add(a: Int, b: Int) -> Int { a + b }
+
+-- Exported function: uses private double
+@ export
+> greet(name: String) -> String { "Hello, " + name + "!" }
+
+-- Exported function: calls private helper
+@ export
+> double_add(a: Int, b: Int) -> Int { double(a) + double(b) }
+
+-- Exported type
+@ export
+# Color = Red | Green | Blue
+
+-- Private type (not exported)
+# InternalState = Active | Idle

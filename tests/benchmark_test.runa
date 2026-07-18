@@ -1,0 +1,122 @@
+-- benchmark_test.runa: M10 Benchmark Parity
+-- Accumulate patterns match hand-written Rust. Zero unnecessary clones.
+-- inout produces &mut Vec. Borrow inference produces &T for read-only params.
+
+-- ============================================================================
+-- DEMO 1: In-place mutation via inout (zero-copy)
+-- ============================================================================
+
+> push_squares(xs: inout Vec(Int), n: Int) -> () {
+    for i in range(0, n) {
+        push(xs, i * i)
+    }
+}
+
+@ print("=== Demo 1: In-Place Mutation (inout → &mut Vec) ===")
+@ print("")
+
+= data = [0]
+push_squares(data, 5)
+@ print("  data = " + show(data))
+@ print("")
+
+-- ============================================================================
+-- DEMO 2: For-loop accumulators in functions (let mut + assignment)
+-- ============================================================================
+
+@ print("=== Demo 2: Function-Level Accumulators ===")
+@ print("")
+
+> sum_list(xs: Vec(Int)) -> Int {
+    = total = 0
+    for x in xs {
+        = total = total + x
+    }
+    total
+}
+
+> product_list(xs: Vec(Int)) -> Int {
+    = product = 1
+    for x in xs {
+        = product = product * x
+    }
+    product
+}
+
+> count_positive(xs: Vec(Int)) -> Int {
+    = count = 0
+    for x in xs {
+        if x > 0 { = count = count + 1 }
+    }
+    count
+}
+
+= nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+@ print("  sum(1..10)     = " + show(sum_list(nums)))
+@ print("  product(1..10) = " + show(product_list(nums)))
+
+= mixed = [3, -1, 4, -1, 5, 9, -2, 6]
+@ print("  positives in [3,-1,4,-1,5,9,-2,6] = " + show(count_positive(mixed)))
+@ print("")
+
+-- ============================================================================
+-- DEMO 3: Single-use move (no clone at call site)
+-- ============================================================================
+
+@ print("=== Demo 3: Move Semantics (zero clones) ===")
+@ print("")
+
+> double_all(xs: Vec(Int)) -> Vec(Int) {
+    map(xs, |x: Int| x * 2)
+}
+
+= input = [10, 20, 30]
+= doubled = double_all(input)
+-- input is NOT used after double_all → moved, no clone
+@ print("  doubled = " + show(doubled))
+@ print("")
+
+-- ============================================================================
+-- DEMO 4: Borrow inference (read-only params auto-get &T)
+-- ============================================================================
+
+@ print("=== Demo 4: Borrow Inference (&T for read-only) ===")
+@ print("")
+
+> list_length(xs: Vec(Int)) -> Int {
+    = count = 0
+    for x in xs {
+        = count = count + 1
+    }
+    count
+}
+
+> first_element(xs: Vec(Int)) -> Int {
+    xs[0]
+}
+
+= values = [42, 17, 99, 3, 88]
+-- Both calls should auto-borrow: &values
+= len = list_length(values)
+= fst = first_element(values)
+@ print("  values = " + show(values))
+@ print("  length = " + show(len))
+@ print("  first  = " + show(fst))
+@ print("")
+
+-- ============================================================================
+-- DEMO 5: Main-level accumulators (baseline — already worked)
+-- ============================================================================
+
+@ print("=== Demo 5: Main-Level Accumulators ===")
+@ print("")
+
+= items = [1, 2, 3, 4, 5]
+= total = 0
+for x in items {
+    = total = total + x
+}
+@ print("  sum(1..5) = " + show(total))
+@ print("")
+
+@ print("=== Benchmark: Futuruna emits hand-written-quality Rust ===")

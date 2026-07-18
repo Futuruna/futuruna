@@ -1,0 +1,262 @@
+-- Adversarial stream operator tests
+-- Tests edge cases, empty inputs, boundary conditions, and operator composition
+
+-- ═══════════════════════════════════════════
+-- SECTION 1: Empty stream edge cases
+-- ═══════════════════════════════════════════
+
+@ print("=== 1. Empty stream edge cases ===")
+
+~ empty = from_list([1]) |> filter(|x| x > 100)
+
+@ print("map empty:      " + show(collect(map(empty, |x| x * 2))))
+@ print("filter empty:   " + show(collect(filter(empty, |x| x > 0))))
+@ print("scan empty:     " + show(collect(scan(empty, 0, |a, x| a + x))))
+@ print("take empty:     " + show(collect(take(empty, 5))))
+@ print("skip empty:     " + show(collect(skip(empty, 5))))
+@ print("distinct empty: " + show(collect(distinct(empty))))
+@ print("pairwise empty: " + show(collect(pairwise(empty))))
+@ print("first empty:    " + show(first(empty)))
+@ print("last empty:     " + show(last(empty)))
+@ print("count empty:    " + show(count(empty)))
+@ print("sum empty:      " + show(sum(empty)))
+@ print("reduce empty:   " + show(reduce(empty, 99, |a, x| a + x)))
+
+-- ═══════════════════════════════════════════
+-- SECTION 2: Single-element streams
+-- ═══════════════════════════════════════════
+
+@ print("=== 2. Single-element streams ===")
+
+~ one = from_list([42])
+
+@ print("map one:      " + show(collect(map(one, |x| x * 2))))
+@ print("filter keep:  " + show(collect(filter(one, |x| x > 0))))
+@ print("filter drop:  " + show(collect(filter(one, |x| x > 100))))
+@ print("scan one:     " + show(collect(scan(one, 0, |a, x| a + x))))
+@ print("pairwise one: " + show(collect(pairwise(one))))
+@ print("first one:    " + show(first(one)))
+@ print("last one:     " + show(last(one)))
+@ print("reduce one:   " + show(reduce(one, 0, |a, x| a + x)))
+@ print("take(1, 0):   " + show(collect(take(one, 0))))
+@ print("take(1, 1):   " + show(collect(take(one, 1))))
+@ print("take(1, 99):  " + show(collect(take(one, 99))))
+@ print("skip(1, 0):   " + show(collect(skip(one, 0))))
+@ print("skip(1, 1):   " + show(collect(skip(one, 1))))
+
+-- ═══════════════════════════════════════════
+-- SECTION 3: Window/chunked boundary conditions
+-- ═══════════════════════════════════════════
+
+@ print("=== 3. Window/chunked boundary ===")
+
+~ data = from_list([1, 2, 3, 4, 5])
+
+-- window(0) should not crash (clamped to 1)
+~ w0 = data |> window(0)
+@ print("window(0) count: " + show(count(w0)))
+
+-- window(1) = each element alone
+~ w1 = data |> window(1)
+@ print("window(1) count: " + show(count(w1)))
+
+-- window larger than stream
+~ w99 = data |> window(99)
+@ print("window(99) count: " + show(count(w99)))
+
+-- window(n) on n elements = 1 window
+~ w5 = data |> window(5)
+@ print("window(5) count: " + show(count(w5)))
+
+-- negative window (should clamp to 1, not crash)
+~ wn = data |> window(-1)
+@ print("window(-1) count: " + show(count(wn)))
+
+-- ═══════════════════════════════════════════
+-- SECTION 4: Take/skip negative and zero
+-- ═══════════════════════════════════════════
+
+@ print("=== 4. Take/skip boundaries ===")
+
+~ nums = from_list([10, 20, 30, 40, 50])
+
+@ print("take(0):  " + show(collect(take(nums, 0))))
+@ print("take(-1): " + show(collect(take(nums, -1))))
+-- Expected: [] (negative clamped to 0)
+@ print("take(3):  " + show(collect(take(nums, 3))))
+@ print("take(99): " + show(collect(take(nums, 99))))
+@ print("skip(0):  " + show(collect(skip(nums, 0))))
+@ print("skip(-1): " + show(collect(skip(nums, -1))))
+@ print("skip(3):  " + show(collect(skip(nums, 3))))
+@ print("skip(99): " + show(collect(skip(nums, 99))))
+
+-- ═══════════════════════════════════════════
+-- SECTION 5: Concat correctness (was critical bug)
+-- ═══════════════════════════════════════════
+
+@ print("=== 5. Concat on streams ===")
+
+~ s1 = from_list([1, 2, 3])
+~ s2 = from_list([4, 5, 6])
+~ joined = concat(s1, s2)
+@ print("concat streams:      " + show(collect(joined)))
+
+~ e1 = from_list([1]) |> filter(|x| x > 100)
+~ e2 = from_list([1, 2])
+@ print("concat empty+full:   " + show(collect(concat(e1, e2))))
+
+~ f1 = from_list([1, 2])
+~ f2 = from_list([1]) |> filter(|x| x > 100)
+@ print("concat full+empty:   " + show(collect(concat(f1, f2))))
+
+~ g1 = from_list([1]) |> filter(|x| x > 100)
+~ g2 = from_list([1]) |> filter(|x| x > 100)
+@ print("concat empty+empty:  " + show(collect(concat(g1, g2))))
+
+-- ═══════════════════════════════════════════
+-- SECTION 6: Combine_latest Rx semantics
+-- ═══════════════════════════════════════════
+
+@ print("=== 6. Combine_latest ===")
+
+~ ca = from_list([1, 2, 3])
+~ cb = from_list([10, 20])
+~ combined = combine_latest(ca, cb)
+@ print("combine(3, 2): " + show(collect(combined)))
+
+-- Empty stream should produce nothing (Rx semantics)
+~ ce = from_list([1]) |> filter(|x| x > 100)
+~ cf = from_list([1, 2, 3])
+@ print("combine(empty, full): " + show(collect(combine_latest(ce, cf))))
+@ print("combine(full, empty): " + show(collect(combine_latest(cf, ce))))
+
+-- ═══════════════════════════════════════════
+-- SECTION 7: Pairwise + fst/snd correctness
+-- ═══════════════════════════════════════════
+
+@ print("=== 7. Pairwise + fst/snd ===")
+
+~ pairs = from_list([10, 20, 30, 40]) |> pairwise
+@ print("pairwise count: " + show(count(pairs)))
+
+-- Verify fst/snd extract correctly
+= p = first(pairs)
+@ print("first pair: " + show(p))
+@ print("fst: " + show(fst(p)))
+@ print("snd: " + show(snd(p)))
+
+-- Reduce over pairs
+= delta_sum = reduce(pairs, 0, |acc, p| acc + snd(p) - fst(p))
+@ print("sum of deltas: " + show(delta_sum))
+
+-- fst/snd on non-tuple tested in interpreter only (codegen needs tuple type)
+
+-- ═══════════════════════════════════════════
+-- SECTION 8: Reduce edge cases
+-- ═══════════════════════════════════════════
+
+@ print("=== 8. Reduce edge cases ===")
+
+~ r1 = from_list([1, 2, 3, 4, 5])
+@ print("sum:     " + show(reduce(r1, 0, |a, x| a + x)))
+@ print("product: " + show(reduce(r1, 1, |a, x| a * x)))
+-- reduce with different init values
+@ print("reduce(init=100): " + show(reduce(r1, 100, |a, x| a + x)))
+
+-- ═══════════════════════════════════════════
+-- SECTION 9: Start_with + tap composition
+-- ═══════════════════════════════════════════
+
+@ print("=== 9. Start_with + tap ===")
+
+~ s = from_list([2, 3, 4])
+~ prefixed = s |> start_with(1)
+@ print("start_with: " + show(collect(prefixed)))
+
+-- tap should not modify stream
+~ vals = from_list([10, 20, 30])
+= tap_count = 0
+~ tapped = vals |> tap(|x| @ print("  tap: " + show(x)))
+@ print("after tap: " + show(collect(tapped)))
+
+-- ═══════════════════════════════════════════
+-- SECTION 10: Deep pipeline composition
+-- ═══════════════════════════════════════════
+
+@ print("=== 10. Deep pipeline ===")
+
+~ input = from_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+-- filter → map → take → reduce
+~ step1 = input |> filter(|x| x > 3)
+~ step2 = step1 |> map(|x| x * 10)
+~ step3 = step2 |> take(4)
+= result1 = reduce(step3, 0, |a, x| a + x)
+@ print("filter>map>take>reduce: " + show(result1))
+
+-- scan → pairwise → reduce (deltas of running sum)
+~ running = input |> scan(0, |a, x| a + x)
+~ diffs = running |> pairwise
+= result2 = reduce(diffs, 0, |a, p| a + snd(p) - fst(p))
+@ print("scan>pairwise>reduce: " + show(result2))
+
+-- merge → distinct → count
+~ ma = from_list([1, 2, 3])
+~ mb = from_list([2, 3, 4])
+~ merged = merge(ma, mb)
+~ uniq = merged |> distinct
+@ print("merge>distinct>count: " + show(count(uniq)))
+
+-- concat → skip → last
+~ ca2 = from_list([1, 2, 3])
+~ cb2 = from_list([7, 8, 9])
+~ full = concat(ca2, cb2)
+~ tail = full |> skip(4)
+@ print("concat>skip>last: " + show(last(tail)))
+
+-- ═══════════════════════════════════════════
+-- SECTION 11: Timing operators (sync mode)
+-- ═══════════════════════════════════════════
+
+@ print("=== 11. Timing (sync mode) ===")
+
+~ tdata = from_list([1, 2, 3, 4, 5])
+
+-- debounce: should keep only last
+@ print("debounce: " + show(collect(debounce(tdata, 100))))
+
+-- delay: pass-through in sync
+@ print("delay: " + show(collect(delay(tdata, 500))))
+
+-- timeout: pass-through in sync
+@ print("timeout: " + show(collect(timeout(tdata, 5000))))
+
+-- buffer: wraps all in one batch
+~ buffered = buffer(tdata, 1000)
+@ print("buffer count: " + show(count(buffered)))
+
+-- switch_map: applies to last element only
+~ switched = from_list([1, 2, 3]) |> switch_map(|x| from_list([x * 10, x * 10 + 1]))
+@ print("switch_map: " + show(collect(switched)))
+
+-- ═══════════════════════════════════════════
+-- SECTION 12: Subject operations
+-- ═══════════════════════════════════════════
+
+@ print("=== 12. Subjects ===")
+
+~ subj = subject(0)
+subj <- 1
+subj <- 2
+subj <- 3
+@ print("subject count: " + show(subj.count))
+@ print("subject last:  " + show(subj.latest))
+
+-- Subject as stream input to operators
+~ doubled = map(subj, |x| x * 2)
+@ print("subject>map: " + show(collect(doubled)))
+
+~ filtered = filter(subj, |x| x != 2)
+@ print("subject>filter: " + show(collect(filtered)))
+
+@ print("=== All adversarial stream tests passed ===")

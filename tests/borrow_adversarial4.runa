@@ -1,0 +1,179 @@
+-- Adversarial borrow checker tests (round 4)
+-- Harder edge cases: identity consuming, lambda move captures,
+-- for-loop string consuming, nested matches, ADT with string fields
+
+-- ═══════════════════════════════════════════
+-- SECTION 1: Identity function that MUST consume
+-- ═══════════════════════════════════════════
+
+@ print("=== 1. Identity consume + reuse ===")
+
+> id_str(s: String) -> String { s }
+
+= val = "test"
+= copied = id_str(val)
+@ print("T1: " + copied)
+
+-- ═══════════════════════════════════════════
+-- SECTION 2: String consumed by concat, then used again
+-- ═══════════════════════════════════════════
+
+@ print("=== 2. String in multiple concats ===")
+
+= prefix = "hello"
+= msg1 = prefix + " world"
+= msg2 = prefix + " there"
+@ print("T2a: " + msg1)
+@ print("T2b: " + msg2)
+
+-- ═══════════════════════════════════════════
+-- SECTION 3: ADT with String fields — construct + use after
+-- ═══════════════════════════════════════════
+
+@ print("=== 3. ADT string fields ===")
+
+# Wrapper(value: String)
+
+> unwrap(w: Wrapper) -> String { w.value }
+
+= inner = "payload"
+= w = Wrapper(inner)
+@ print("T3: " + unwrap(w))
+
+-- ═══════════════════════════════════════════
+-- SECTION 4: Match on unit enum (no data moved)
+-- ═══════════════════════════════════════════
+
+@ print("=== 4. Unit enum match ===")
+
+# Dir = North | South | East | West
+
+> dir_str(d: Dir) -> String {
+    match d {
+        | North -> "N"
+        | South -> "S"
+        | East -> "E"
+        | West -> "W"
+    }
+}
+
+= d = North
+= s = dir_str(d)
+@ print("T4: " + s)
+
+-- ═══════════════════════════════════════════
+-- SECTION 5: For-loop with string concat in body
+-- ═══════════════════════════════════════════
+
+@ print("=== 5. For-loop string use ===")
+
+= tag = "item"
+for i in [1, 2, 3] {
+    @ print("  T5: " + tag + "=" + show(i))
+}
+@ print("T5 done, tag=" + tag)
+
+-- ═══════════════════════════════════════════
+-- SECTION 6: Nested function calls consuming same var
+-- ═══════════════════════════════════════════
+
+@ print("=== 6. Nested consuming calls ===")
+
+> wrap(s: String) -> String { "[" + s + "]" }
+> loud(s: String) -> String { s + "!" }
+
+= word = "hi"
+= r1 = wrap(word)
+@ print("T6: " + r1)
+
+-- ═══════════════════════════════════════════
+-- SECTION 7: Two functions accessing same struct
+-- ═══════════════════════════════════════════
+
+@ print("=== 7. Struct multi-access ===")
+
+# Point(x: Int, y: Int)
+
+> point_str(p: Point) -> String {
+    "(" + show(p.x) + "," + show(p.y) + ")"
+}
+
+> point_sum(p: Point) -> Int {
+    p.x + p.y
+}
+
+= pt = Point(3, 4)
+@ print("T7a: " + point_str(pt))
+@ print("T7b: sum=" + show(point_sum(pt)))
+
+-- ═══════════════════════════════════════════
+-- SECTION 8: Deeply nested string operations
+-- ═══════════════════════════════════════════
+
+@ print("=== 8. Deep string ops ===")
+
+> bracket(s: String) -> String { "[" + s + "]" }
+> paren(s: String) -> String { "(" + s + ")" }
+> brace(s: String) -> String { "{" + s + "}" }
+
+= core = "x"
+= result = bracket(paren(brace(core)))
+@ print("T8: " + result)
+
+-- ═══════════════════════════════════════════
+-- SECTION 9: Struct created, passed to two functions
+-- ═══════════════════════════════════════════
+
+@ print("=== 9. Struct double-pass ===")
+
+# Record(id: Int, label: String)
+
+> record_id(r: Record) -> Int { r.id }
+> record_label(r: Record) -> String { r.label }
+
+= rec = Record(42, "test")
+= rid = record_id(rec)
+@ print("T9a: id=" + show(rid))
+
+-- ═══════════════════════════════════════════
+-- SECTION 10: List operations preserving ownership
+-- ═══════════════════════════════════════════
+
+@ print("=== 10. List ownership ===")
+
+= xs = [10, 20, 30]
+= doubled = map(xs, |x| x * 2)
+= total = foldl(xs, 0, |a, x| a + x)
+@ print("T10a: doubled=" + show(doubled))
+@ print("T10b: total=" + show(total))
+
+-- ═══════════════════════════════════════════
+-- SECTION 11: show() on various types (borrow, don't consume)
+-- ═══════════════════════════════════════════
+
+@ print("=== 11. show() borrows ===")
+
+= n = 42
+= f = 3.14
+= b = true
+= s = "text"
+@ print("T11a: " + show(n) + " " + show(f) + " " + show(b) + " " + s)
+@ print("T11b: still alive: " + show(n) + " " + s)
+
+-- ═══════════════════════════════════════════
+-- SECTION 12: Recursive function with string param
+-- ═══════════════════════════════════════════
+
+@ print("=== 12. Recursive string ===")
+
+> repeat_str(s: String, n: Int) -> String {
+    match n {
+        | 0 -> ""
+        | _ -> s + repeat_str(s, n - 1)
+    }
+}
+
+= r = repeat_str("ab", 3)
+@ print("T12: " + r)
+
+@ print("=== All adversarial borrow tests (round 4) passed! ===")

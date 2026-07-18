@@ -1,0 +1,706 @@
+@ sprog da
+
+-- ============================================================================
+-- Kapitel III — Kongen og ministrene (§§ 12-27)
+--
+-- MOTOREN i dansk parlamentarisk demokrati.
+-- 16 paragraffer der forvandler formel kongelig overhøjhed til
+-- de facto parlamentarisk styre gennem ÉN mekanisme:
+-- kontrasignaturen (§ 14).
+--
+-- Kongen regerer. Ministrene styrer. Folketinget kontrollerer ministrene.
+-- Magtens flow: Folketing → ministre → Kongen underskriver.
+-- Kongens underskrift er NØDVENDIG men ikke TILSTRÆKKELIG.
+-- Ministerens underskrift er dét der skaber ANSVAR.
+-- ============================================================================
+
+
+-- ============================================================================
+-- IMPORT — Typer og bindinger fra grundlov.runa
+-- ============================================================================
+
+@ brug grundlov::*
+
+-- Institutioner udvidet for Kapitel III
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsrådet | Rigsretten | Ministerrådet
+
+-- Ministertyper
+# Minister(navn: String, ressort: String)
+# Statsminister(navn: String)
+# Ministerium(statsminister: String, antal: Int, fungerende: Bool)
+
+-- Kontrasignaturen — den vigtigste type i dansk forfatningsret
+# Underskrift = KongeligUnderskrift | MinisterUnderskrift(minister: String)
+
+-- En regeringsbeslutning kræver BEGGE underskrifter
+# Beslutning(indhold: String, kongelig: Bool, minister_underskrift: Bool, ansvarlig: String)
+
+-- Mistillidsvotum
+# Mistillidsvotum = ModMinister(navn: String) | ModStatsministeren
+# MistillidsResultat = Forbliver | Fratræder | Nyvalg
+
+-- Ansvar (politisk vs. retligt)
+# Ansvarstype = AnsvarsFri | Ansvarlig
+
+-- Statsråd vs. ministerråd
+# Rådstype = Statsråd | MinisterrådsMøde
+# Rådsbeslutning = Godkendt | ForelæggesStatsråd
+
+-- Udenrigsanliggender
+# InternationalHandling = Områdeændring | Forpligtelse | StørreBetydning | Opsigelse | Anden
+# MilitærMagtbrug = ForsvarModAngreb | AndenMilitærMagt
+
+-- Suverænitetsafgivelse (§ 20 — EU-paragraffen)
+# Flertal = FemSjettedele | Simpelt | Folkeafstemning
+
+-- Foreløbige love (nødlove)
+# ProvisoriskLov(indhold: String, strider_mod_grundlov: Bool)
+
+-- Benådning
+# Benådning = Almindelig | AfRigsretsdom
+
+-- Tjenestemænd
+# Tjenestemand(udnævnt_af_kongen: Bool, har_indfødsret: Bool, har_afgivet_forsikring: Bool)
+# Forflytningsmulighed = MedSamtykke | UdenSamtykke(tab_i_indtægt: Bool)
+
+-- Samtykke (genbrugt fra Kap. II)
+# Samtykke = Givet | IkkeGivet
+
+
+-- ============================================================================
+-- § 12. Kongen har med de i denne grundlov fastsatte indskrænkninger
+--       den højeste myndighed over alle rigets anliggender og udøver
+--       den gennem ministrene.
+--
+-- TO påstande i én sætning:
+--   1. Kongen har den højeste myndighed (FORMEL magt)
+--   2. Han udøver den GENNEM ministrene (REEL begrænsning)
+--
+-- Ordet "gennem" er det vigtigste ord i grundloven.
+-- Det betyder at Kongen ikke kan handle alene.
+-- ============================================================================
+
+----
+§ 12. Kongen har med de i denne grundlov fastsatte indskrænkninger den højeste myndighed over alle rigets anliggender og udøver den gennem ministrene.
+----
+
+@ skriv("================================================================")
+@ skriv("  Kapitel III: Kongen og ministrene (§§ 12-27)")
+@ skriv("================================================================")
+@ skriv("")
+
+-- § 12: "udøver den GENNEM ministrene"
+-- Kongen kan ALDRIG handle uden ministre.
+| kongen_kan_handle_alene() -> Falskt
+
+-- § 12: "den højeste myndighed" — suveræn. Men kun formel.
+| kongens_myndighed_er_formel() -> Sandt
+
+@ skriv("--- § 12: Kongens myndighed ---")
+@ skriv("Kongen har formel højeste myndighed: " + vis(kongens_myndighed_er_formel()))
+@ skriv("Kongen kan handle alene: " + vis(kongen_kan_handle_alene()))
+@ skriv("Konklusion: Magt uden selvstændig handleevne")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 13. Kongen er ansvarsfri; hans person er fredhellig.
+--       Ministrene er ansvarlige for regeringens førelse;
+--       deres ansvarlighed bestemmes nærmere ved lov.
+--
+-- FUNDAMENTET for parlamentarisk monarki:
+--   Kongen = nul ansvar (ansvarsfri)
+--   Ministrene = fuldt ansvar (ansvarlige)
+--
+-- Kongen kan bogstaveligt talt ikke begå en forfatningsovertrædelse.
+-- Han er "fredhellig" (ukrænkelig). Det er ikke metaforisk —
+-- det betyder at han ikke kan retsforfølges, sagsøges eller drages til ansvar.
+--
+-- PRISEN: han kan intet gøre uden en minister der vil underskrive.
+-- ============================================================================
+
+----
+§ 13. Kongen er ansvarsfri; hans person er fredhellig. Ministrene er ansvarlige for regeringens førelse; deres ansvarlighed bestemmes nærmere ved lov.
+----
+
+-- § 13: "Kongen er ansvarsfri" — ZERO ansvar
+| kongens_ansvarstype() -> AnsvarsFri
+-- § 13: "Ministrene er ansvarlige"
+| ministerens_ansvarstype() -> Ansvarlig
+
+> kongens_ansvar() -> Ansvarstype { AnsvarsFri }
+> ministers_ansvar() -> Ansvarstype { Ansvarlig }
+
+> er_fredhellig(institution: Institution) -> Bool {
+    skel institution {
+        | Kongen -> Sandt
+        | _ -> Falskt
+    }
+}
+
+@ skriv("--- § 13: Ansvarsfrihed og fredhellighed ---")
+@ skriv("Kongens ansvar: " + vis(kongens_ansvar()))
+@ skriv("Ministers ansvar: " + vis(ministers_ansvar()))
+@ skriv("Kongen er fredhellig: " + vis(er_fredhellig(Kongen)))
+@ skriv("Folketinget er fredhelligt: " + vis(er_fredhellig(Folketinget)))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 14. Kontrasignaturen — den mest elegante juridiske mekanisme
+--       i grundloven.
+--
+-- Tre regler pakket ind i én paragraf:
+--   1. Kongen udnævner og afskediger statsministeren og de øvrige ministre
+--   2. Kongen bestemmer deres antal og forretningernes fordeling
+--   3. Kongens underskrift giver beslutninger gyldighed KUN NÅR
+--      den er ledsaget af en eller flere ministres underskrift.
+--      Enhver minister der underskriver ER ANSVARLIG.
+--
+-- Regel 3 er mesterværket. Den betyder:
+--   - Kongens underskrift alene = ugyldig (ingen retskraft)
+--   - Ministers underskrift alene = ugyldig (ingen kongelig autoritet)
+--   - BEGGE sammen = gyldig, ministeren bærer ansvaret
+--
+-- Det skaber en DEADLOCK-FRI gensidig afhængighed:
+--   Kongen har brug for ministre (for at gøre noget gyldigt)
+--   Ministre har brug for Kongen (for at have autoritet)
+--   Ingen kan handle alene
+--
+-- Og ANSVARLIGHEDEN følger underskriften:
+--   Den minister der underskriver ER den ansvarlige.
+--   Ikke Kongen (som er ansvarsfri per § 13).
+--   Ikke de andre ministre (kun underskriveren).
+-- ============================================================================
+
+----
+§ 14. Kongen udnævner og afskediger statsministeren og de øvrige ministre. Han bestemmer deres antal og forretningernes fordeling imellem dem. Kongens underskrift under de lovgivningen og regeringen vedkommende beslutninger giver disse gyldighed, når den er ledsaget af en eller flere ministres underskrift. Enhver minister, som har underskrevet, er ansvarlig for beslutningen.
+----
+
+> beslutning_gyldig(kongelig: Bool, minister_underskrift: Bool) -> Bool {
+    -- BEGGE kræves. Ingen alene er tilstrækkelig.
+    hvis kongelig {
+        hvis minister_underskrift { Sandt }
+        ellers { Falskt }
+    } ellers {
+        Falskt
+    }
+}
+
+> hvem_er_ansvarlig(beslutning: Beslutning) -> String {
+    hvis beslutning_gyldig(beslutning.kongelig, beslutning.minister_underskrift) {
+        beslutning.ansvarlig
+    } ellers {
+        "Ingen — beslutningen er ugyldig"
+    }
+}
+
+@ skriv("--- § 14: Kontrasignaturen ---")
+
+= gyldig_beslutning = Beslutning("Udnævn ambassadør", Sandt, Sandt, "Udenrigsministeren")
+= kun_kongen = Beslutning("Udnævn ambassadør", Sandt, Falskt, "")
+= kun_minister = Beslutning("Udnævn ambassadør", Falskt, Sandt, "Udenrigsministeren")
+= ingen_underskrift = Beslutning("Udnævn ambassadør", Falskt, Falskt, "")
+
+@ skriv("Begge underskrifter: " + vis(beslutning_gyldig(Sandt, Sandt)) + " — ansvarlig: " + hvem_er_ansvarlig(gyldig_beslutning))
+@ skriv("Kun Kongen: " + vis(beslutning_gyldig(Sandt, Falskt)) + " — " + hvem_er_ansvarlig(kun_kongen))
+@ skriv("Kun minister: " + vis(beslutning_gyldig(Falskt, Sandt)) + " — " + hvem_er_ansvarlig(kun_minister))
+@ skriv("Ingen: " + vis(beslutning_gyldig(Falskt, Falskt)) + " — " + hvem_er_ansvarlig(ingen_underskrift))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 15. Mistillidsvotummet — parlamentarismen.
+--
+-- Stk. 1: Ingen minister kan forblive efter mistillidsvotum.
+-- Stk. 2: Mistillid til statsministeren → begær afsked eller udskriv nyvalg.
+--          Fungerende ministerium indtil nyt er udnævnt.
+--          Fungerende ministre kan kun gøre det fornødne.
+--
+-- Asymmetrien: en enkelt minister SKAL gå (intet valg).
+-- Statsministeren har et VALG: afgå med hele ministeriet ELLER udskrive nyvalg.
+-- Det er sikkerhedsventilen der forhindrer forfatningskrise.
+-- ============================================================================
+
+----
+§ 15. Stk. 1. Ingen minister kan forblive i sit embede, efter at folketinget har udtalt sin mistillid til ham.
+
+Stk. 2. Udtaler folketinget sin mistillid til statsministeren, skal denne begære ministeriets afsked, medmindre nyvalg udskrives. Et ministerium, som har fået et mistillidsvotum, eller som har begæret sin afsked, fungerer, indtil et nyt ministerium er udnævnt. Fungerende ministre kan i deres embede kun foretage sig, hvad der er fornødent til embedsforretningernes uforstyrrede førelse.
+----
+
+> mistillidsvotum_resultat(votum: Mistillidsvotum, vælger_nyvalg: Bool) -> MistillidsResultat {
+    skel votum {
+        -- Enkelt minister: SKAL gå, intet valg
+        | ModMinister(_) -> Fratræder
+        -- Statsministeren: valg mellem afgang og nyvalg
+        | ModStatsministeren -> {
+            hvis vælger_nyvalg { Nyvalg }
+            ellers { Fratræder }
+        }
+    }
+}
+
+-- Fungerende ministeriums begrænsninger
+> fungerende_kan_gøre(handling: String) -> String {
+    "Kun hvad der er fornødent til embedsforretningernes uforstyrrede førelse"
+}
+
+@ skriv("--- § 15: Mistillidsvotum (parlamentarismen) ---")
+@ skriv("Mistillid til minister: " + vis(mistillidsvotum_resultat(ModMinister("Skatteministeren"), Falskt)))
+@ skriv("Mistillid til PM (vælger afgang): " + vis(mistillidsvotum_resultat(ModStatsministeren, Falskt)))
+@ skriv("Mistillid til PM (vælger nyvalg): " + vis(mistillidsvotum_resultat(ModStatsministeren, Sandt)))
+@ skriv("Fungerende ministerium: " + fungerende_kan_gøre("vedtage ny lov"))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 16. Ministrene kan af kongen eller folketinget tiltales for deres
+--       embedsførelse. Rigsretten påkender sagerne.
+--
+-- Bemærk: Kongen kan OGSÅ tiltale ministre. Det er et af de få
+-- tilfælde hvor Kongen har en selvstændig retlig beføjelse —
+-- han behøver ikke Folketingets samtykke for at rejse tiltale.
+-- ============================================================================
+
+----
+§ 16. Ministrene kan af kongen eller folketinget tiltales for deres embedsførelse. Rigsretten påkender de mod ministrene for deres embedsførelse anlagte sager.
+----
+
+> kan_tiltale_minister(institution: Institution) -> Bool {
+    skel institution {
+        | Kongen -> Sandt
+        | Folketinget -> Sandt
+        | _ -> Falskt
+    }
+}
+
+@ skriv("--- § 16: Rigsretstiltale ---")
+@ skriv("Kongen kan tiltale: " + vis(kan_tiltale_minister(Kongen)))
+@ skriv("Folketinget kan tiltale: " + vis(kan_tiltale_minister(Folketinget)))
+@ skriv("Domstolene kan tiltale: " + vis(kan_tiltale_minister(Domstolene)))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 17. Statsrådet — hvor ALLE love behandles.
+--
+-- Stk. 1: Alle ministre i forening udgør Statsrådet.
+--         Tronfølgeren tager sæde når myndig.
+--         Kongen fører forsædet (undtagen §§ 8, 9-tilfælde).
+-- Stk. 2: ALLE love og vigtige regeringsforanstaltninger forhandles her.
+--
+-- Forfatningsreglen: intet bliver lov uden at passere Statsrådet.
+-- Ikke kabinettet, ikke et udvalg — det fulde råd med Kongen.
+-- ============================================================================
+
+----
+§ 17. Stk. 1. Ministrene i forening udgør statsrådet, hvori tronfølgeren, når han er myndig, tager sæde. Kongen fører forsædet undtagen i det i § 8 nævnte tilfælde og i de tilfælde, hvor lovgivningsmagten i henhold til bestemmelsen i § 9 måtte have tillagt statsrådet myndighed til at føre regeringen.
+
+Stk. 2. I statsrådet forhandles alle love og vigtige regeringsforanstaltninger.
+----
+
+> tronfølger_sidder_i_statsråd(alder: Int) -> Bool {
+    hvis alder >= 18 { Sandt } ellers { Falskt }
+}
+
+-- § 17 stk. 2: "alle love og vigtige regeringsforanstaltninger"
+| alle_love_i_statsråd() -> Sandt
+
+@ skriv("--- § 17: Statsrådet ---")
+@ skriv("Alle love behandles i Statsrådet: " + vis(alle_love_i_statsråd()))
+@ skriv("Tronfølger (alder 16) sidder med: " + vis(tronfølger_sidder_i_statsråd(16)))
+@ skriv("Tronfølger (alder 20) sidder med: " + vis(tronfølger_sidder_i_statsråd(20)))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 18. Ministerrådet — backup når Kongen er forhindret.
+--
+-- Kongen forhindret → ministerråd i stedet for statsråd.
+-- Statsministeren fører forsædet. Hver minister afgiver sit votum
+-- til protokollen. Beslutning tages efter stemmeflerhed.
+-- Statsministeren forelægger protokollen for Kongen, der bestemmer
+-- om han vil bifalde eller lade sagen forelægge i statsrådet.
+--
+-- Det giver Kongen et VETO over ministerrådsbeslutninger:
+-- han kan altid nægte at godkende og kræve fuld statsrådsbehandling.
+-- ============================================================================
+
+----
+§ 18. Er kongen forhindret i at holde statsråd, kan han lade sagen forhandle i et ministerråd. Dette består af samtlige ministre under forsæde af statsministeren. Enhver minister skal da afgive sit votum til protokollen, og beslutning tages efter stemmeflerhed. Statsministeren forelægger den over forhandlingerne førte, af de tilstedeværende ministre underskrevne protokol for kongen, der bestemmer, om han umiddelbart vil bifalde ministerrådets indstilling eller lade sig sagen foredrage i statsrådet.
+----
+
+> ministerråd_beslutning(kongen_bifalder: Bool) -> Rådsbeslutning {
+    hvis kongen_bifalder { Godkendt }
+    ellers { ForelæggesStatsråd }
+}
+
+@ skriv("--- § 18: Ministerrådet (backup-råd) ---")
+@ skriv("Kongen bifalder: " + vis(ministerråd_beslutning(Sandt)))
+@ skriv("Kongen bifalder ikke: " + vis(ministerråd_beslutning(Falskt)))
+@ skriv("Kongen har reelt VETO over ministerrådsbeslutninger")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 19. Udenrigspolitik — den mest komplekse paragraf.
+--
+-- Stk. 1: Kongen handler på rigets vegne i mellemfolkelige anliggender.
+--   MEN kræver Folketingets samtykke for:
+--   a) Områdeændringer (forøge eller indskrænke rigets område)
+--   b) Forpligtelser der kræver Folketingets medvirken
+--   c) Anliggender af større betydning
+--   d) Opsigelse af overenskomster indgået med Folketingets samtykke
+--
+-- Stk. 2: Militær magt — KAN IKKE bruges uden samtykke UNDTAGEN
+--   forsvar mod væbnet angreb. Skal straks forelægge Folketinget.
+--   Er Folketinget ikke samlet, skal det uopholdelig sammenkaldes.
+--
+-- Stk. 3: Folketinget vælger et udenrigspolitisk nævn.
+--   Regeringen rådfører sig forud for beslutninger af større rækkevidde.
+--
+-- Militærundtagelsen er det ENESTE tilfælde i hele grundloven
+-- hvor Kongen (= regeringen) kan handle uden NOGEN forudgående samtykke.
+-- ============================================================================
+----
+§ 19. Stk. 1. Kongen handler på rigets vegne i mellemfolkelige anliggender. Uden folketingets samtykke kan han dog ikke foretage nogen handling, der forøger eller indskrænker rigets område, eller indgå nogen forpligtelse, til hvis opfyldelse folketingets medvirken er nødvendig, eller som iøvrigt er af større betydning. Ejheller kan kongen uden folketingets samtykke opsige nogen mellemfolkelig overenskomst, som er indgået med folketingets samtykke.
+
+Stk. 2. Bortset fra forsvar mod væbnet angreb på riget eller danske styrker kan kongen ikke uden folketingets samtykke anvende militære magtmidler mod nogen fremmed stat. Foranstaltninger, som kongen måtte træffe i medfør af denne bestemmelse, skal straks forelægges folketinget. Er folketinget ikke samlet, skal det uopholdeligt sammenkaldes til møde.
+
+Stk. 3. Folketinget vælger af sin midte et udenrigspolitisk nævn, med hvilket regeringen rådfører sig forud for enhver beslutning af større udenrigspolitisk rækkevidde. Nærmere regler om det udenrigspolitiske nævn fastsættes ved lov.
+----
+
+> krav_om_samtykke_international(handling: InternationalHandling) -> Bool {
+    skel handling {
+        | Områdeændring -> Sandt
+        | Forpligtelse -> Sandt
+        | StørreBetydning -> Sandt
+        | Opsigelse -> Sandt
+        | Anden -> Falskt
+    }
+}
+
+> militær_magt_tilladt(type: MilitærMagtbrug, samtykke: Samtykke) -> Bool {
+    skel type {
+        | ForsvarModAngreb -> Sandt
+        | AndenMilitærMagt -> {
+            skel samtykke {
+                | Givet -> Sandt
+                | IkkeGivet -> Falskt
+            }
+        }
+    }
+}
+
+@ skriv("--- § 19: Udenrigspolitik og militær magt ---")
+@ skriv("Områdeændring kræver samtykke: " + vis(krav_om_samtykke_international(Områdeændring)))
+@ skriv("Almindelig handling kræver samtykke: " + vis(krav_om_samtykke_international(Anden)))
+@ skriv("Forsvar mod angreb uden samtykke: " + vis(militær_magt_tilladt(ForsvarModAngreb, IkkeGivet)))
+@ skriv("Anden militær magt uden samtykke: " + vis(militær_magt_tilladt(AndenMilitærMagt, IkkeGivet)))
+@ skriv("Anden militær magt med samtykke: " + vis(militær_magt_tilladt(AndenMilitærMagt, Givet)))
+@ skriv("Forsvar mod angreb er den ENESTE handling der aldrig kræver samtykke")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 20. Suverænitetsafgivelse — EU-paragraffen (tilføjet 1953)
+--
+-- Stk. 1: Beføjelser kan ved lov overlades til mellemfolkelige myndigheder.
+-- Stk. 2: Kræver 5/6 flertal. Opnås kun simpelt flertal → folkeafstemning.
+--
+-- Det er paragraffen der tillod Danmark at tilslutte sig EU.
+-- Overmajoritetskravet (5/6) er den HØJESTE tærskel i hele grundloven.
+-- Selv grundlovsændringer (§ 88) kræver ikke 5/6.
+--
+-- Fallback til folkeafstemning betyder at Folketinget ALENE ikke kan
+-- afgive suverænitet med simpelt flertal — folket skal spørges.
+-- ============================================================================
+----
+§ 20. Stk. 1. Beføjelser, som efter denne grundlov tilkommer rigets myndigheder, kan ved lov i nærmere bestemt omfang overlades til mellemfolkelige myndigheder, der er oprettet ved gensidig overenskomst med andre stater til fremme af mellemfolkelig retsorden og samarbejde.
+
+Stk. 2. Til vedtagelse af lovforslag herom kræves et flertal på fem sjettedele af folketingets medlemmer. Opnås et sådant flertal ikke, men dog det til vedtagelse af almindelige lovforslag nødvendige flertal, og opretholder regeringen forslaget, forelægges det folketingsvælgerne til godkendelse eller forkastelse efter de for folkeafstemninger i § 42 fastsatte regler.
+----
+
+> suverænitetsafgivelse_krav(flertal: Flertal) -> String {
+    skel flertal {
+        | FemSjettedele -> "Vedtaget — 5/6 flertal opnået"
+        | Simpelt -> "Ikke nok — skal til folkeafstemning per § 42"
+        | Folkeafstemning -> "Afgøres af vælgerne"
+    }
+}
+
+= fem_sjettedele_af_179 = 150
+
+@ skriv("--- § 20: Suverænitetsafgivelse (EU-paragraffen) ---")
+@ skriv("5/6 af 179 mandater = " + vis(fem_sjettedele_af_179) + " stemmer")
+@ skriv("5/6 flertal: " + suverænitetsafgivelse_krav(FemSjettedele))
+@ skriv("Simpelt flertal: " + suverænitetsafgivelse_krav(Simpelt))
+@ skriv("Højeste tærskel i hele grundloven!")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 21. Kongen kan for folketinget lade fremsætte forslag til love
+--       og andre beslutninger.
+--
+-- Kongens lovinitiativ. I praksis: regeringens lovforslag.
+-- Kongen "lader fremsætte" — han gør det ikke selv, han lader andre gøre det.
+-- Endnu et "gennem"-mønster som § 12.
+-- ============================================================================
+----
+§ 21. Kongen kan for folketinget lade fremsætte forslag til love og andre beslutninger.
+----
+
+| kongen_kan_fremsætte_lovforslag() -> Sandt
+
+@ skriv("--- § 21: Kongens lovinitiativ ---")
+@ skriv("Kongen kan lade fremsætte lovforslag: " + vis(kongen_kan_fremsætte_lovforslag()))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 22. Stadfæstelse — 30 dages frist.
+--
+-- Et af folketinget vedtaget lovforslag får lovskraft når det senest
+-- 30 dage efter den endelige vedtagelse stadfæstes af kongen.
+-- Kongen befaler lovens kundgørelse og drager omsorg for dens fuldbyrdelse.
+--
+-- Hvad sker hvis Kongen ikke underskriver inden 30 dage?
+-- Grundloven siger det ikke. Det er et hul.
+-- I praksis: kontrasignaturen (§ 14) kræver ministerunderskrift.
+-- Hvis ingen minister vil underskrive, sker loven ikke.
+-- Men kan Kongen personligt NÆGTE? Han er ansvarsfri (§ 13).
+-- ============================================================================
+----
+§ 22. Et af folketinget vedtaget lovforslag får lovskraft, når det senest 30 dage efter den endelige vedtagelse stadfæstes af kongen. Kongen befaler lovens kundgørelse og drager omsorg for dens fuldbyrdelse.
+----
+
+> lovforslag_får_lovskraft(vedtaget: Bool, stadfæstet_inden_30_dage: Bool) -> Bool {
+    hvis vedtaget {
+        hvis stadfæstet_inden_30_dage { Sandt }
+        ellers { Falskt }
+    } ellers {
+        Falskt
+    }
+}
+
+= stadfæstelsesfrist_dage = 30
+
+@ skriv("--- § 22: Stadfæstelse (kongelig godkendelse) ---")
+@ skriv("Vedtaget + stadfæstet: " + vis(lovforslag_får_lovskraft(Sandt, Sandt)))
+@ skriv("Vedtaget, ikke stadfæstet: " + vis(lovforslag_får_lovskraft(Sandt, Falskt)))
+@ skriv("Frist: " + vis(stadfæstelsesfrist_dage) + " dage")
+@ skriv("HUL: Hvad sker hvis Kongen nægter at underskrive?")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 23. Foreløbige love — nødlove.
+--
+-- To hårde krav:
+--   1. Må IKKE stride mod grundloven
+--   2. Skal STRAKS forelægges Folketinget
+--
+-- Og én forudsætning:
+--   Folketinget kan ikke samles (særdeles påtrængende tilfælde)
+--
+-- Det er den ENESTE måde lov kan skabes uden Folketinget.
+-- ============================================================================
+----
+§ 23. I særdeles påtrængende tilfælde kan kongen, når folketinget ikke kan samles, udstede foreløbige love, der dog ikke må stride mod grundloven og altid straks efter folketingets sammentræden skal forelægges dette til godkendelse eller forkastelse.
+----
+
+> provisorisk_lov_gyldig(folketing_kan_samles: Bool, strider_mod_grundlov: Bool) -> Bool {
+    hvis folketing_kan_samles { Falskt }
+    ellers {
+        hvis strider_mod_grundlov { Falskt }
+        ellers { Sandt }
+    }
+}
+
+@ skriv("--- § 23: Foreløbige love (nødlove) ---")
+@ skriv("Folketing samlet: " + vis(provisorisk_lov_gyldig(Sandt, Falskt)) + " (kan ikke udstedes)")
+@ skriv("Folketing ej samlet, grundlovsstridig: " + vis(provisorisk_lov_gyldig(Falskt, Sandt)) + " (ugyldig)")
+@ skriv("Folketing ej samlet, lovlig: " + vis(provisorisk_lov_gyldig(Falskt, Falskt)) + " (gyldig)")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 24. Benådning og amnesti.
+--
+-- Hovedregel: Kongen kan benåde og give amnesti.
+-- UNDTAGELSE: Ministre dømt af Rigsretten — kun med Folketingets samtykke.
+--
+-- Samtykke-mønstret igen (som § 5, § 11, § 19).
+-- Med en drejning: Kongen kan benåde ALLE ANDRE ensidigt.
+-- Kun rigsretsdømte ministre kræver Folketingets samtykke.
+-- ============================================================================
+----
+§ 24. Kongen kan benåde og give amnesti. Ministrene kan han kun med folketingets samtykke benåde for de dem af rigsretten idømte straffe.
+----
+
+> kan_benåde(er_rigsretsdømt_minister: Bool, samtykke: Samtykke) -> Bool {
+    hvis er_rigsretsdømt_minister {
+        skel samtykke {
+            | Givet -> Sandt
+            | IkkeGivet -> Falskt
+        }
+    } ellers {
+        Sandt
+    }
+}
+
+@ skriv("--- § 24: Benådning ---")
+@ skriv("Almindelig borger: " + vis(kan_benåde(Falskt, IkkeGivet)) + " (ingen samtykke nødvendigt)")
+@ skriv("Rigsretsdømt minister uden samtykke: " + vis(kan_benåde(Sandt, IkkeGivet)))
+@ skriv("Rigsretsdømt minister med samtykke: " + vis(kan_benåde(Sandt, Givet)))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 25. Dispensationer fra lovene.
+--
+-- Kongen meddeler bevillinger og undtagelser fra lovene, som enten
+-- følger af regler fra før 5. juni 1849 eller har hjemmel i nyere lov.
+--
+-- En fossil fra enevælden. Dispensationsbeføjelsen er begrænset til
+-- historiske traditioner eller eksplicit lovhjemmel.
+-- ============================================================================
+----
+§ 25. Kongen meddeler dels umiddelbart, dels gennem vedkommende regeringsmyndigheder sådanne bevillinger og undtagelser fra lovene, som enten ifølge de før 5. juni 1849 gældende regler er i brug, eller hvortil hjemmel indeholdes i en siden den tid udgiven lov.
+----
+
+> dispensation_lovlig(hjemmel_før_1849: Bool, hjemmel_i_nyere_lov: Bool) -> Bool {
+    hvis hjemmel_før_1849 { Sandt }
+    ellers {
+        hvis hjemmel_i_nyere_lov { Sandt }
+        ellers { Falskt }
+    }
+}
+
+@ skriv("--- § 25: Dispensationer ---")
+@ skriv("Hjemmel før 1849: " + vis(dispensation_lovlig(Sandt, Falskt)))
+@ skriv("Hjemmel i nyere lov: " + vis(dispensation_lovlig(Falskt, Sandt)))
+@ skriv("Ingen hjemmel: " + vis(dispensation_lovlig(Falskt, Falskt)))
+@ skriv("")
+
+
+-- ============================================================================
+-- § 26. Kongen har ret til at lade slå mønt i henhold til loven.
+--
+-- Møntregalet. Den korteste paragraf i Kapitel III.
+-- "I henhold til loven" — Kongen kan ikke bare trykke penge;
+-- det kræver lovhjemmel. Delegation til Nationalbanken.
+-- ============================================================================
+----
+§ 26. Kongen har ret til at lade slå mønt i henhold til loven.
+----
+
+| kongen_kan_slå_mønt() -> Sandt
+
+@ skriv("--- § 26: Møntregalet ---")
+@ skriv("Kongen kan lade slå mønt: " + vis(kongen_kan_slå_mønt()))
+@ skriv("(I henhold til loven — dvs. Nationalbanken)")
+@ skriv("")
+
+
+-- ============================================================================
+-- § 27. Tjenestemænd — tjenestemandsparagraffen.
+--
+-- Stk. 1: Skal have indfødsret. Kongelig udnævnte aflægger ed.
+-- Stk. 2: Afskedigelse/forflyttelse/pensionering ved lov (jf. § 64).
+-- Stk. 3: Kongelig udnævnte kan kun forflyttes uden samtykke
+--          HVIS intet tab i indtægt OG gives valget mellem
+--          forflyttelse og afsked med pension.
+--
+-- Beskyttelseskæden: indfødsret → ed → indtægtsgaranti
+-- ============================================================================
+----
+§ 27. Stk. 1. Regler om ansættelse af tjenestemænd fastsættes ved lov. Ingen kan ansættes som tjenestemand uden at have indfødsret. Tjenestemænd, som udnævnes af kongen, afgiver en højtidelig forsikring om at ville holde grundloven.
+
+Stk. 2. Om afskedigelse, forflyttelse og pensionering af tjenestemænd fastsættes regler ved lov, jfr. dog herved § 64.
+
+Stk. 3. Uden deres samtykke kan de af kongen udnævnte tjenestemænd kun forflyttes, når de ikke derved lider tab i de med tjenestemandsstillingen forbundne indtægter, og der gives dem valget mellem sådan forflyttelse og afsked med pension efter de almindelige regler.
+----
+
+> tjenestemand_lovlig(har_indfødsret: Bool) -> Bool {
+    har_indfødsret
+}
+
+> forflytning_lovlig(samtykke: Samtykke, tab_i_indtægt: Bool) -> Bool {
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> {
+            -- Kan forflyttes uden samtykke KUN hvis intet tab i indtægt
+            hvis tab_i_indtægt { Falskt }
+            ellers { Sandt }
+        }
+    }
+}
+
+@ skriv("--- § 27: Tjenestemandsbeskyttelse ---")
+@ skriv("Udlænding kan ansættes: " + vis(tjenestemand_lovlig(Falskt)))
+@ skriv("Dansk statsborger kan ansættes: " + vis(tjenestemand_lovlig(Sandt)))
+@ skriv("Forflytning med samtykke: " + vis(forflytning_lovlig(Givet, Sandt)))
+@ skriv("Forflytning uden samtykke, med tab: " + vis(forflytning_lovlig(IkkeGivet, Sandt)))
+@ skriv("Forflytning uden samtykke, uden tab: " + vis(forflytning_lovlig(IkkeGivet, Falskt)))
+@ skriv("")
+
+
+-- ============================================================================
+-- KAPITEL III — STRUKTUREL ANALYSE
+--
+-- Magtens flow i 5 trin:
+--
+--   1. § 12: Kongen har formel højeste myndighed
+--   2. § 12: Men udøver den GENNEM ministre
+--   3. § 13: Kongen er ansvarsfri; ministre ER ansvarlige
+--   4. § 14: Kongens underskrift kun gyldig MED ministerunderskrift
+--   5. § 15: Folketinget kan fjerne ministre (mistillidsvotum)
+--
+-- Altså:
+--   Folketinget kontrollerer ministre (§ 15)
+--   Ministre kontrollerer Kongens handlinger (§§ 12, 14)
+--   Kongens formelle overhøjhed er ceremoniel
+--   Danmark er et PARLAMENTARISK demokrati i MONARKISK klædebon
+--
+-- Samtykke-mønstret på tværs af alle 27 paragraffer:
+--   § 5:  Regent i udlandet → Folketingets samtykke
+--   § 11: Årpenge i udlandet → Folketingets samtykke
+--   § 19: Territorium/forpligtelser → Folketingets samtykke
+--   § 19: Militær magt → Folketingets samtykke (UNDTAGEN forsvar)
+--   § 20: Suverænitetsafgivelse → 5/6 flertal eller folkeafstemning
+--   § 24: Benådning af rigsretsdømt minister → Folketingets samtykke
+--   § 27: Forflytning af tjenestemand → tjenestemandens samtykke
+--
+-- Samtykke er det tilbagevendende forfatningsmæssige mønster.
+-- Den eneste undtagelse: forsvar (§ 19 stk. 2).
+-- Danmark kan gå i KRIG uden at spørge nogen først.
+-- Det kan næsten intet andet.
+-- ============================================================================
+
+@ skriv("================================================================")
+@ skriv("  Kapitel III: 16 paragraffer — magtens mekanisme")
+@ skriv("================================================================")
+@ skriv("")
+@ skriv("MAGTENS FLOW:")
+@ skriv("  § 12: Kongen har formel magt")
+@ skriv("  § 12: Men udøver den GENNEM ministre")
+@ skriv("  § 13: Kongen er ansvarsfri, ministre er ansvarlige")
+@ skriv("  § 14: Kongens underskrift kun gyldig MED ministerunderskrift")
+@ skriv("  § 15: Folketinget kan afsætte ministre")
+@ skriv("  = Parlamentarisk demokrati i monarkisk klædebon")
+@ skriv("")
+@ skriv("SAMTYKKE-MØNSTRET (7 forekomster i §§ 1-27):")
+@ skriv("  § 5:  Regent i udlandet")
+@ skriv("  § 11: Årpenge i udlandet")
+@ skriv("  § 19: Territorium + forpligtelser + opsigelse")
+@ skriv("  § 19: Militær magt (UNDTAGEN forsvar)")
+@ skriv("  § 20: Suverænitetsafgivelse (5/6 eller folkeafstemning)")
+@ skriv("  § 24: Benådning af rigsretsdømte ministre")
+@ skriv("  § 27: Forflytning af tjenestemand")
+@ skriv("")
+@ skriv("ENESTE UNDTAGELSE TIL SAMTYKKE:")
+@ skriv("  § 19 stk. 2: Forsvar mod væbnet angreb — INGEN samtykke")
+@ skriv("  Danmark kan gå i KRIG uden at spørge nogen først")
+@ skriv("  Det kan næsten intet andet")

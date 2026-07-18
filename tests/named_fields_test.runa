@@ -1,0 +1,108 @@
+-- Named Fields + Sealed Interfaces — Full Test
+-- All constructor fields must be named. No guessing.
+
+-- ============================================
+-- Part 1: Named Fields (required)
+-- ============================================
+
+-- Single-variant product type
+# Point(x: Float, y: Float)
+
+-- ADT with named fields on every variant
+# Shape = Circle(radius: Float) | Rectangle(width: Float, height: Float)
+
+-- Recursive types — named fields required too
+# List = Nil | Cons(head: Int, tail: List)
+
+-- Construct with named fields
+= c = Circle(5.0)
+= r = Rectangle(3.0, 4.0)
+
+-- Dot access
+@ print("--- Dot access ---")
+@ print(c.radius)
+@ print(r.width)
+@ print(r.height)
+
+-- Point dot access
+= p = Point(1.0, 2.0)
+@ print(p.x)
+@ print(p.y)
+
+-- Named pattern matching
+> describe(s: Shape) -> String {
+    match s {
+        | Circle(radius: rad) -> "circle r=" + show(rad)
+        | Rectangle(width: w, height: h) -> "rect " + show(w) + "x" + show(h)
+    }
+}
+
+@ print("--- Named patterns ---")
+@ print(describe(c))
+@ print(describe(r))
+
+-- Positional still works (binds in declaration order)
+> area(s: Shape) -> Float {
+    match s {
+        | Circle(rad) -> 3.14159 * rad * rad
+        | Rectangle(w, h) -> w * h
+    }
+}
+
+@ print("--- Area ---")
+@ print(area(c))
+@ print(area(r))
+
+-- Recursive list with named fields
+= xs = Cons(1, Cons(2, Cons(3, Nil)))
+@ print("--- List ---")
+@ print(xs.head)
+@ print(xs.tail.head)
+
+-- ============================================
+-- Part 2: Sealed Interfaces (method blocks)
+-- ============================================
+
+# Color = Red | Green | Blue {
+    > name(c) -> String {
+        match c {
+            | Red -> "red"
+            | Green -> "green"
+            | Blue -> "blue"
+        }
+    }
+
+    > is_warm(c) -> Bool {
+        match c {
+            | Red -> True
+            | _ -> False
+        }
+    }
+}
+
+@ print("--- Color methods ---")
+@ print(name(Red))
+@ print(name(Green))
+@ print(name(Blue))
+@ print(is_warm(Red))
+@ print(is_warm(Blue))
+
+-- Methods on types with named fields
+# Animal = Dog(name: String, age: Int) | Cat(name: String, lives: Int) {
+    > speak(a) -> String {
+        match a {
+            | Dog(name: n, age: _) -> n + " says woof!"
+            | Cat(name: n, lives: _) -> n + " says meow!"
+        }
+    }
+}
+
+= dog = Dog("Rex", 5)
+= cat = Cat("Whiskers", 9)
+
+@ print("--- Animal methods + dot access ---")
+@ print(speak(dog))
+@ print(speak(cat))
+@ print(dog.name)
+@ print(dog.age)
+@ print(cat.lives)

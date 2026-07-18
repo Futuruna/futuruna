@@ -1,0 +1,18 @@
+-- http_test.runa — M14d: HTTP Builtins
+-- Tests http_get and http_respond tuple construction.
+-- (http_serve and http_post tested via examples/grundlov-server/)
+
+@ print("=== M14d: HTTP Builtins ===")
+@ print("")
+
+-- http_respond builds a (status, content_type, body) tuple
+= resp = http_respond(200, "text/plain", "hello")
+@ print("http_respond: " + show(resp))
+
+-- http_get with a public test endpoint
+= body = http_get("https://httpbin.org/get")
+= has_url = contains(body, "httpbin.org")
+@ print("http_get httpbin: " + show(has_url))
+
+@ print("")
+@ print("=== HTTP tests passed! ===")

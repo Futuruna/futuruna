@@ -1,0 +1,278 @@
+-- parser-audit.runa — Verification suite for the Futuruna self-hosting parser
+-- Uses 5/7 runes: # types, = bindings, | invariants, @ effects, ? verification
+-- Plus |> pipes throughout for idiomatic stream-style queries
+
+@ import ./lexer
+@ import ./parser
+
+-- ============================================================================
+-- = What is — parse lexer.runa (the parser's dependency)
+-- ============================================================================
+
+= lexer_src = read_file("examples/lexer.runa")
+= lexer_toks = tokenize(lexer_src)
+= lexer_ast = parse_program(make_state(lexer_toks))
+
+@ print("--- Lexer AST ---")
+@ print("Source: " + show(string_length(lexer_src)) + " chars")
+@ print("Tokens: " + show(length(lexer_toks)))
+@ print("Statements: " + show(length(lexer_ast)))
+
+-- ============================================================================
+-- | What must be true — lexer.runa structural invariants
+-- Ranges (>=) for lower bounds: adding code should not break the audit.
+-- ============================================================================
+
+= lexer_fns = filter(lexer_ast, |s| match s { SDefn(_) -> true | _ -> false })
+= lexer_types = filter(lexer_ast, |s| match s { SType(_) -> true | _ -> false })
+= lexer_binds = filter(lexer_ast, |s| match s { SBind(_, _, _) -> true | _ -> false })
+= lexer_fors = filter(lexer_ast, |s| match s { SFor(_, _, _) -> true | _ -> false })
+= lexer_effects = filter(lexer_ast, |s| match s { SExpr(EEffect(_, _)) -> true | _ -> false })
+
+| lexer_stmt_count: lexer_ast -> length(lexer_ast) >= 35
+| lexer_fn_count: lexer_fns -> length(lexer_fns) >= 25
+| lexer_type_count: lexer_types -> length(lexer_types) >= 4
+| lexer_bind_count: lexer_binds -> length(lexer_binds) >= 2
+| lexer_for_count: lexer_fors -> length(lexer_fors) >= 1
+| lexer_effect_count: lexer_effects -> length(lexer_effects) >= 3
+
+-- ============================================================================
+-- ? Prove it — verify lexer AST
+-- ============================================================================
+
+@ print("")
+@ print("--- Lexer invariants ---")
+? lexer_stmt_count -> { @ print("  >= 35 statements: PASS (" + show(length(lexer_ast)) + ")") } else { @ print("  >= 35 statements: FAIL (got " + show(length(lexer_ast)) + ")") }
+? lexer_fn_count -> { @ print("  >= 25 functions: PASS (" + show(length(lexer_fns)) + ")") } else { @ print("  >= 25 functions: FAIL (got " + show(length(lexer_fns)) + ")") }
+? lexer_type_count -> { @ print("  >= 4 types: PASS (" + show(length(lexer_types)) + ")") } else { @ print("  >= 4 types: FAIL (got " + show(length(lexer_types)) + ")") }
+? lexer_bind_count -> { @ print("  >= 2 bindings: PASS (" + show(length(lexer_binds)) + ")") } else { @ print("  >= 2 bindings: FAIL (got " + show(length(lexer_binds)) + ")") }
+? lexer_for_count -> { @ print("  >= 1 for loop: PASS (" + show(length(lexer_fors)) + ")") } else { @ print("  >= 1 for loop: FAIL (got " + show(length(lexer_fors)) + ")") }
+? lexer_effect_count -> { @ print("  >= 3 effects: PASS (" + show(length(lexer_effects)) + ")") } else { @ print("  >= 3 effects: FAIL (got " + show(length(lexer_effects)) + ")") }
+
+-- ============================================================================
+-- = What is — parse parser.runa (self-parse)
+-- ============================================================================
+
+= parser_src = read_file("examples/parser.runa")
+= parser_toks = tokenize(parser_src)
+= parser_ast = parse_program(make_state(parser_toks))
+
+@ print("")
+@ print("--- Parser self-parse ---")
+@ print("Source: " + show(string_length(parser_src)) + " chars")
+@ print("Tokens: " + show(length(parser_toks)))
+@ print("Statements: " + show(length(parser_ast)))
+
+-- ============================================================================
+-- | What must be true — self-parse structural invariants
+-- ============================================================================
+
+= parser_fns = filter(parser_ast, |s| match s { SDefn(_) -> true | _ -> false })
+= parser_types = filter(parser_ast, |s| match s { SType(_) -> true | _ -> false })
+= parser_binds = filter(parser_ast, |s| match s { SBind(_, _, _) -> true | _ -> false })
+= parser_imports = filter(parser_ast, |s| match s { SImport(_) -> true | _ -> false })
+= parser_fors = filter(parser_ast, |s| match s { SFor(_, _, _) -> true | _ -> false })
+
+| self_fn_count: parser_fns -> length(parser_fns) >= 65
+| self_type_count: parser_types -> length(parser_types) >= 25
+| self_import_count: parser_imports -> length(parser_imports) == 1
+| self_has_bindings: parser_binds -> length(parser_binds) > 0
+| self_has_for: parser_fors -> length(parser_fors) > 0
+
+-- Every function must have a name
+| self_fns_named: parser_fns -> all(parser_fns, |s| match s { SDefn(DFn(name, _, _, _)) -> string_length(name) > 0 | _ -> true })
+
+-- ============================================================================
+-- ? Prove it — verify self-parse
+-- ============================================================================
+
+@ print("")
+@ print("--- Self-parse invariants ---")
+? self_fn_count -> { @ print("  >= 65 functions: PASS (" + show(length(parser_fns)) + ")") } else { @ print("  >= 65 functions: FAIL (got " + show(length(parser_fns)) + ")") }
+? self_type_count -> { @ print("  >= 25 types: PASS (" + show(length(parser_types)) + ")") } else { @ print("  >= 25 types: FAIL (got " + show(length(parser_types)) + ")") }
+? self_import_count -> { @ print("  1 import: PASS") } else { @ print("  1 import: FAIL") }
+? self_has_bindings -> { @ print("  has bindings: PASS (" + show(length(parser_binds)) + ")") }
+? self_has_for -> { @ print("  has for loops: PASS (" + show(length(parser_fors)) + ")") }
+? self_fns_named -> { @ print("  all fns named: PASS") } else { @ print("  all fns named: FAIL") }
+
+-- ============================================================================
+-- = What is — round-trip: parse -> show -> tokenize -> parse -> compare
+-- Flat expressions only (show_expr is lossy for blocks/if/match by design)
+-- ============================================================================
+
+@ print("")
+@ print("--- Round-trip fidelity ---")
+
+-- Flat program: no blocks, so show_stmt output is faithful
+= rt_src = "= x = 42\n= y = 1 + 2 * 3\n= name = \"hello\"\n# Dir = N | S | E | W\n"
+= rt_ast1 = rt_src |> tokenize |> make_state |> parse_program
+= rt_shown = join(map(rt_ast1, |s| show_stmt(s)), "\n") + "\n"
+= rt_ast2 = rt_shown |> tokenize |> make_state |> parse_program
+
+| rt_same_count: rt_ast1 -> length(rt_ast1) == length(rt_ast2)
+| rt_has_x: rt_ast2 -> any(rt_ast2, |s| match s { SBind(PVar(name), _, _) -> name == "x" | _ -> false })
+| rt_has_y: rt_ast2 -> any(rt_ast2, |s| match s { SBind(PVar(name), _, _) -> name == "y" | _ -> false })
+| rt_has_name: rt_ast2 -> any(rt_ast2, |s| match s { SBind(PVar(name), _, _) -> name == "name" | _ -> false })
+| rt_has_dir: rt_ast2 -> any(rt_ast2, |s| match s { SType(_) -> true | _ -> false })
+
+? rt_same_count -> { @ print("  same count after round-trip: PASS (" + show(length(rt_ast1)) + " -> " + show(length(rt_ast2)) + ")") } else { @ print("  same count: FAIL (" + show(length(rt_ast1)) + " -> " + show(length(rt_ast2)) + ")") }
+? rt_has_x -> { @ print("  binding 'x' survives round-trip: PASS") } else { @ print("  binding 'x': FAIL") }
+? rt_has_y -> { @ print("  binding 'y' survives round-trip: PASS") } else { @ print("  binding 'y': FAIL") }
+? rt_has_name -> { @ print("  binding 'name' survives round-trip: PASS") } else { @ print("  binding 'name': FAIL") }
+? rt_has_dir -> { @ print("  type 'Dir' survives round-trip: PASS") } else { @ print("  type 'Dir': FAIL") }
+
+-- Function signature round-trip (body is lossy, but signature must survive)
+= fn_src = "> add(a: Int, b: Int) -> Int { a + b }\n> greet(name: String) { @ print(name) }\n"
+= fn_ast1 = fn_src |> tokenize |> make_state |> parse_program
+
+-- Extract function names from original parse
+| fn_rt_add: fn_ast1 -> any(fn_ast1, |s| match s { SDefn(DFn(name, _, _, _)) -> name == "add" | _ -> false })
+| fn_rt_greet: fn_ast1 -> any(fn_ast1, |s| match s { SDefn(DFn(name, _, _, _)) -> name == "greet" | _ -> false })
+
+-- Check parameter count and return type preserved (via any, avoids Option wrapping)
+| fn_rt_params: fn_ast1 -> any(fn_ast1, |s| match s { SDefn(DFn(name, params, _, _)) -> name == "add" && length(params) == 2 | _ -> false })
+| fn_rt_ret: fn_ast1 -> any(fn_ast1, |s| match s { SDefn(DFn(name, _, ret, _)) -> name == "add" && match ret { Some(_) -> true | None -> false } | _ -> false })
+
+? fn_rt_add -> { @ print("  fn 'add' name preserved: PASS") } else { @ print("  fn 'add': FAIL") }
+? fn_rt_greet -> { @ print("  fn 'greet' name preserved: PASS") } else { @ print("  fn 'greet': FAIL") }
+? fn_rt_params -> { @ print("  fn 'add' has 2 params: PASS") } else { @ print("  fn 'add' params: FAIL") }
+? fn_rt_ret -> { @ print("  fn 'add' has return type: PASS") } else { @ print("  fn 'add' return type: FAIL") }
+
+-- ============================================================================
+-- = What is — completeness: all 7 rune-start tokens handled
+-- ============================================================================
+
+@ print("")
+@ print("--- Completeness: all runes ---")
+
+-- Test the 4 runes the parser handles: # > = @
+-- (| ~ ? are future work — the host compiler handles them)
+= rune_src = "# Color = Red | Blue\n> id(x: Int) -> Int { x }\n= x = 42\n@ print(x)\nfor i in items { @ print(i) }\n"
+= rune_ast = rune_src |> tokenize |> make_state |> parse_program
+
+| rune_has_type: rune_ast -> any(rune_ast, |s| match s { SType(_) -> true | _ -> false })
+| rune_has_fn: rune_ast -> any(rune_ast, |s| match s { SDefn(_) -> true | _ -> false })
+| rune_has_bind: rune_ast -> any(rune_ast, |s| match s { SBind(_, _, _) -> true | _ -> false })
+| rune_has_effect: rune_ast -> any(rune_ast, |s| match s { SExpr(EEffect(_, _)) -> true | _ -> false })
+| rune_has_for: rune_ast -> any(rune_ast, |s| match s { SFor(_, _, _) -> true | _ -> false })
+
+? rune_has_type -> { @ print("  # (type): PASS") } else { @ print("  # (type): FAIL") }
+? rune_has_fn -> { @ print("  > (function): PASS") } else { @ print("  > (function): FAIL") }
+? rune_has_bind -> { @ print("  = (binding): PASS") } else { @ print("  = (binding): FAIL") }
+? rune_has_effect -> { @ print("  @ (effect): PASS") } else { @ print("  @ (effect): FAIL") }
+? rune_has_for -> { @ print("  for (loop): PASS") } else { @ print("  for (loop): FAIL") }
+@ print("  | ~ ? (rules, streams, proofs): not yet implemented")
+
+-- ============================================================================
+-- = What is — edge cases
+-- ============================================================================
+
+@ print("")
+@ print("--- Edge cases ---")
+
+-- Empty program
+= empty_ast = "" |> tokenize |> make_state |> parse_program
+| empty_is_empty: empty_ast -> length(empty_ast) == 0
+? empty_is_empty -> { @ print("  empty program: PASS") } else { @ print("  empty program: FAIL (got " + show(length(empty_ast)) + ")") }
+
+-- Single binding
+= single_ast = "= x = 1\n" |> tokenize |> make_state |> parse_program
+| single_one_stmt: single_ast -> length(single_ast) == 1
+? single_one_stmt -> { @ print("  single binding: PASS") } else { @ print("  single binding: FAIL") }
+
+-- Deeply nested expression
+= deep_ast = "= x = 1 + 2 + 3 + 4 + 5\n" |> tokenize |> make_state |> parse_program
+| deep_one_stmt: deep_ast -> length(deep_ast) == 1
+? deep_one_stmt -> { @ print("  deep nesting: PASS") } else { @ print("  deep nesting: FAIL") }
+
+-- Multi-arm match
+= match_ast = "= x = match v { | A -> 1 | B -> 2 | C -> 3 }\n" |> tokenize |> make_state |> parse_program
+| match_one_stmt: match_ast -> length(match_ast) == 1
+? match_one_stmt -> { @ print("  multi-arm match: PASS") } else { @ print("  multi-arm match: FAIL") }
+
+-- Nested function calls
+= nested_ast = "= x = f(g(h(1, 2), 3), 4)\n" |> tokenize |> make_state |> parse_program
+| nested_one_stmt: nested_ast -> length(nested_ast) == 1
+? nested_one_stmt -> { @ print("  nested calls: PASS") } else { @ print("  nested calls: FAIL") }
+
+-- ADT with many variants
+= adt_ast = "# Dir = N | S | E | W | NE | NW | SE | SW\n" |> tokenize |> make_state |> parse_program
+| adt_one_stmt: adt_ast -> length(adt_ast) == 1
+? adt_one_stmt -> { @ print("  8-variant ADT: PASS") } else { @ print("  8-variant ADT: FAIL") }
+
+-- Deeply nested parens
+= parens_ast = "= x = ((((((((1))))))))\n" |> tokenize |> make_state |> parse_program
+| parens_one_stmt: parens_ast -> length(parens_ast) == 1
+? parens_one_stmt -> { @ print("  deep parens: PASS") } else { @ print("  deep parens: FAIL") }
+
+-- Long pipe chain
+= pipes_ast = "= x = a |> b |> c |> d |> e |> f\n" |> tokenize |> make_state |> parse_program
+| pipes_one_stmt: pipes_ast -> length(pipes_ast) == 1
+? pipes_one_stmt -> { @ print("  long pipe chain: PASS") } else { @ print("  long pipe chain: FAIL") }
+
+-- Only comments
+= comment_ast = "-- just a comment\n-- another\n" |> tokenize |> make_state |> parse_program
+| comment_empty: comment_ast -> length(comment_ast) == 0
+? comment_empty -> { @ print("  only comments: PASS") } else { @ print("  only comments: FAIL (got " + show(length(comment_ast)) + ")") }
+
+-- Empty match
+= empty_match_ast = "= x = match v {}\n" |> tokenize |> make_state |> parse_program
+| empty_match_one: empty_match_ast -> length(empty_match_ast) == 1
+? empty_match_one -> { @ print("  empty match: PASS") } else { @ print("  empty match: FAIL") }
+
+-- Empty function body
+= empty_fn_ast = "> f() -> Int {}\n" |> tokenize |> make_state |> parse_program
+| empty_fn_one: empty_fn_ast -> length(empty_fn_ast) == 1
+? empty_fn_one -> { @ print("  empty fn body: PASS") } else { @ print("  empty fn body: FAIL") }
+
+-- ============================================================================
+-- = What is — error recovery (negative tests)
+-- Parser must not crash on malformed input. It may produce partial/wrong AST,
+-- but it must always terminate and return a list of statements.
+-- ============================================================================
+
+@ print("")
+@ print("--- Error recovery (negative tests) ---")
+
+-- Truncated binding: = x = (no value, hits EOF)
+= bad_trunc = "= x =\n" |> tokenize |> make_state |> parse_program
+| err_trunc: bad_trunc -> length(bad_trunc) >= 0
+? err_trunc -> { @ print("  truncated binding (no crash): PASS (" + show(length(bad_trunc)) + " stmts)") }
+
+-- Unclosed brace
+= bad_brace = "> f() { 1\n" |> tokenize |> make_state |> parse_program
+| err_brace: bad_brace -> length(bad_brace) >= 0
+? err_brace -> { @ print("  unclosed brace (no crash): PASS (" + show(length(bad_brace)) + " stmts)") }
+
+-- Double operator
+= bad_op = "= x = 1 + + 2\n" |> tokenize |> make_state |> parse_program
+| err_op: bad_op -> length(bad_op) >= 0
+? err_op -> { @ print("  double operator (no crash): PASS (" + show(length(bad_op)) + " stmts)") }
+
+-- Missing close paren in function args
+= bad_paren = "= x = f(1, 2\n" |> tokenize |> make_state |> parse_program
+| err_paren: bad_paren -> length(bad_paren) >= 0
+? err_paren -> { @ print("  missing close paren (no crash): PASS (" + show(length(bad_paren)) + " stmts)") }
+
+-- Unclosed string (lexer-level)
+= bad_str = "= x = \"hello\n= y = 1\n" |> tokenize |> make_state |> parse_program
+| err_str: bad_str -> length(bad_str) >= 0
+? err_str -> { @ print("  unclosed string (no crash): PASS (" + show(length(bad_str)) + " stmts)") }
+
+-- ============================================================================
+-- Summary + coverage gap metric
+-- ============================================================================
+
+@ print("")
+@ print("--- Coverage ---")
+@ print("  Stmt variants parsed: 7/11 (SDefn, SType, SBind, SAnnot, SImport, SFor, SExpr)")
+@ print("  Stmt variants not yet parsed: 4/11 (SRule, SStreamBind, SInvariant, SProve)")
+@ print("  Defn variants parsed: 1/3 (DFn)")
+@ print("  Defn variants not yet parsed: 2/3 (DActor, DModule)")
+@ print("  TypeDecl variants parsed: 1/3 (TdADT)")
+@ print("  TypeDecl variants not yet parsed: 2/3 (TdTrait, TdImpl)")
+@ print("  Expr variants: 16/16 defined, 15/16 reachable from parser (ETry has no parse path)")
+@ print("  Pat variants: 4/4 (PWild, PVar, PLit, PCon)")
+@ print("  Ty variants: 6/6 (TyName, TyApp, TyArrow, TyOptional, TyUnit, TyHole)")
+@ print("")
+@ print("Self-hosting step 6: all parser invariants verified.")

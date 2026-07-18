@@ -1,0 +1,108 @@
+-- Ownership Stress Test: Linked List Patterns
+-- Intrusive linked lists need unsafe in Rust.
+-- Futuruna tests: functional lists, index-based doubly-linked, multi-membership.
+
+-- PATTERN 1: Functional singly-linked list
+
+# IntList = Nil | Cons(Int, IntList)
+
+> int_list_sum(xs: IntList) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(h, t) -> h + int_list_sum(t)
+    }
+}
+
+> int_list_len(xs: IntList) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(_, t) -> 1 + int_list_len(t)
+    }
+}
+
+> int_list_show(xs: IntList) -> String {
+    match xs {
+        | Nil -> "[]"
+        | Cons(h, t) -> show(h) + " :: " + int_list_show(t)
+    }
+}
+
+= mylist = Cons(10, Cons(20, Cons(30, Nil)))
+@ print("List: " + int_list_show(mylist))
+@ print("Sum: " + show(int_list_sum(mylist)))
+@ print("Len: " + show(int_list_len(mylist)))
+@ print("PASS: Pattern 1 — functional singly-linked list")
+
+-- PATTERN 2: Index-based doubly-linked list
+-- In Rust: doubly-linked list needs Rc<RefCell<Node>> or unsafe raw pointers
+-- Futuruna: flat array + prev/next indices
+
+# DLNode(label: String, prev: Int, next: Int)
+
+> dl_value(n: DLNode) -> String { match n { | DLNode(v, _, _) -> v } }
+> dl_prev(n: DLNode) -> Int { match n { | DLNode(_, p, _) -> p } }
+> dl_next(n: DLNode) -> Int { match n { | DLNode(_, _, nx) -> nx } }
+
+= dl = [DLNode("alpha", -1, 1), DLNode("beta", 0, 2), DLNode("gamma", 1, -1)]
+
+= n0 = dl[0]
+@ print("Forward: " + dl_value(n0))
+= n1 = dl[dl_next(n0)]
+@ print("  -> " + dl_value(n1))
+= n2 = dl[dl_next(n1)]
+@ print("  -> " + dl_value(n2))
+
+@ print("Backward: " + dl_value(n2))
+= n1b = dl[dl_prev(n2)]
+@ print("  -> " + dl_value(n1b))
+= n0b = dl[dl_prev(n1b)]
+@ print("  -> " + dl_value(n0b))
+@ print("PASS: Pattern 2 — doubly-linked list via indices")
+
+-- PATTERN 3: Node in multiple collections (intrusive)
+# Task(label: String, priority: Int, created: Int)
+
+> task_name(t: Task) -> String { match t { | Task(n, _, _) -> n } }
+
+= tasks = [Task("compile", 1, 3), Task("test", 3, 1), Task("deploy", 2, 2), Task("review", 1, 4)]
+
+= by_priority = [0, 2, 1, 3]
+= by_creation = [1, 2, 0, 3]
+
+@ print("By priority:")
+@ print("  " + task_name(tasks[by_priority[0]]))
+@ print("  " + task_name(tasks[by_priority[1]]))
+@ print("  " + task_name(tasks[by_priority[2]]))
+@ print("  " + task_name(tasks[by_priority[3]]))
+
+@ print("By creation:")
+@ print("  " + task_name(tasks[by_creation[0]]))
+@ print("  " + task_name(tasks[by_creation[1]]))
+@ print("  " + task_name(tasks[by_creation[2]]))
+@ print("  " + task_name(tasks[by_creation[3]]))
+@ print("PASS: Pattern 3 — intrusive multi-list via index arrays")
+
+-- PATTERN 4: Shared tail (structural sharing)
+= shared_tail = Cons(30, Cons(40, Nil))
+= branch_a = Cons(10, shared_tail)
+= branch_b = Cons(20, shared_tail)
+
+@ print("Branch A sum: " + show(int_list_sum(branch_a)))
+@ print("Branch B sum: " + show(int_list_sum(branch_b)))
+@ print("PASS: Pattern 4 — shared tail (cloned, safe)")
+
+-- PATTERN 5: List reversal (ownership transfer through accumulator)
+> int_list_reverse(xs: IntList) -> IntList {
+    int_list_rev_acc(xs, Nil)
+}
+
+> int_list_rev_acc(xs: IntList, acc: IntList) -> IntList {
+    match xs {
+        | Nil -> acc
+        | Cons(h, t) -> int_list_rev_acc(t, Cons(h, acc))
+    }
+}
+
+= reversed = int_list_reverse(Cons(1, Cons(2, Cons(3, Nil))))
+@ print("Reversed: " + int_list_show(reversed))
+@ print("PASS: Pattern 5 — list reversal (ownership through accumulator)")

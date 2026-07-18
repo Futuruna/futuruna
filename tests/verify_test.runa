@@ -1,0 +1,56 @@
+-- ============================================================================
+-- verify_test.runa — Futuruna Verification System Demo
+--
+-- The seven symbols:
+--   #  what exists         → Z3 datatypes       (state space)
+--   >  what happens        → Z3 functions        (transitions)
+--   |  what should be true → Z3 assertions       (invariants)
+--   =  what is             → Z3 constants         (ground truth)
+--   ~  what flows          → TLA+ temporal logic  (behavior over time)
+--   @  where proofs stop   → proof boundary       (effects)
+--   ?  prove it            → solver invocation    (verification)
+-- ============================================================================
+
+-- === Ground truth: what is ===
+= x = 42
+= y = 10
+= balance = 1000
+= max_supply = 1000000
+
+-- === What happens: functions ===
+> add(a: Int, b: Int) -> Int { a + b }
+> clamp(val: Int, lo: Int, hi: Int) -> Int {
+    if val < lo { lo }
+    else { if val > hi { hi } else { val } }
+}
+> is_positive(n: Int) -> Bool { n > 0 }
+
+-- === What should be true: invariants ===
+
+-- Simple arithmetic invariant
+| sum_positive: add(x, y) -> add(x, y) > 0
+
+-- Balance bounds
+| balance_bounded: balance -> balance >= 0 && balance <= max_supply
+
+-- Clamped values stay in range
+= clamped = clamp(9999, 0, 100)
+| clamp_works: clamped -> clamped >= 0 && clamped <= 100
+
+-- TAU conservation: minting can't exceed supply
+= minted = 500
+= burned = 100
+= circulating = minted - burned
+| conservation: circulating -> circulating >= 0 && circulating <= max_supply
+
+-- Mathematical identity
+| add_commutative: add(x, y) -> add(x, y) == add(y, x)
+
+-- === Prove it! ===
+@ print("--- Verifying individual invariants ---")
+? sum_positive
+? balance_bounded
+? clamp_works
+
+@ print("--- Verifying all invariants at once ---")
+? all

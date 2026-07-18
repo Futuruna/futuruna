@@ -1,0 +1,49 @@
+-- json_test.runa — M14c: JSON Operations
+-- Tests JSON parse, navigate, extract, build, and round-trip.
+
+@ print("=== M14c: JSON Builtins ===")
+@ print("")
+
+-- Parse JSON
+= data = json_parse("{\"name\": \"Alice\", \"age\": 30, \"active\": true}")
+@ print("parsed: " + data)
+
+-- Get field
+= name_val = json_get(data, "name")
+@ print("json_get name: " + name_val)
+
+= age_val = json_get(data, "age")
+@ print("json_get age: " + age_val)
+
+-- Extract typed values
+= name = json_string(name_val)
+@ print("json_string: " + name)
+
+= age = json_number(age_val)
+@ print("json_number: " + show(age))
+
+= active = json_bool(json_get(data, "active"))
+@ print("json_bool: " + show(active))
+
+-- Missing key
+= missing = json_get(data, "email")
+@ print("missing key: " + missing)
+
+-- Array operations
+= arr = json_parse("[1, 2, 3, 4, 5]")
+= items = json_array(arr)
+@ print("json_array: " + show(items))
+
+-- Nested object
+= nested = json_parse("{\"user\": {\"name\": \"Bob\", \"score\": 95.5}}")
+= user = json_get(nested, "user")
+@ print("nested: " + user)
+= score = json_number(json_get(user, "score"))
+@ print("nested score: " + show(score))
+
+-- Emit (identity for JSON strings)
+= emitted = json_emit(data)
+@ print("json_emit: " + emitted)
+
+@ print("")
+@ print("=== All JSON tests passed! ===")

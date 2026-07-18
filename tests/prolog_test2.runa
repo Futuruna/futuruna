@@ -1,0 +1,65 @@
+-- Prolog test 2: value-returning facts, = binding references, lookup tables
+-- The |/= interplay: | asserts what should be true, = binds what is
+
+-- === VALUE-RETURNING FACTS (lookup tables) ===
+-- | with ground head + value body = Prolog-style functional lookup
+
+| capital("Denmark") -> "Copenhagen"
+| capital("Sweden") -> "Stockholm"
+| capital("France") -> "Paris"
+
+= c1 = capital("Denmark")
+@ print("capital(Denmark) = " + show(c1))
+
+= c2 = capital("France")
+@ print("capital(France) = " + show(c2))
+
+-- === RULES REFERENCING = BINDINGS ===
+-- = creates ground truth, | uses it in assertions
+
+= threshold = 18
+
+| adult(age) -> age >= threshold
+
+= t1 = adult(20)
+@ print("adult(20) = " + show(t1))
+
+= t2 = adult(15)
+@ print("adult(15) = " + show(t2))
+
+-- === MULTI-CLAUSE VALUE DISPATCH ===
+
+| greeting("en") -> "Hello"
+| greeting("da") -> "Hej"
+| greeting("fr") -> "Bonjour"
+
+= g1 = greeting("en")
+@ print("greeting(en) = " + show(g1))
+
+= g2 = greeting("da")
+@ print("greeting(da) = " + show(g2))
+
+-- === RELATIONAL FACTS + VALUE FACTS TOGETHER ===
+-- Boolean relations (parent) coexist with value lookups (capital)
+
+| parent("alice", "bob")
+| parent("bob", "charlie")
+
+| ancestor(a, b) -> parent(a, b)
+| ancestor(a, b) -> parent(a, mid), ancestor(mid, b)
+
+= t3 = ancestor("alice", "charlie")
+@ print("ancestor(alice, charlie) = " + show(t3))
+
+-- === INTEGER FACTS ===
+-- Prolog-style lookup with integer values
+
+| port("http") -> 80
+| port("https") -> 443
+| port("ssh") -> 22
+
+= p1 = port("http")
+@ print("port(http) = " + show(p1))
+
+= p2 = port("ssh")
+@ print("port(ssh) = " + show(p2))

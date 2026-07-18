@@ -1,0 +1,74 @@
+-- Rc Codegen Verification (M25)
+-- Verifies the compiler emits Rc-backed recursive types by using
+-- Rc-specific behavior: clone shares structure, equality compares values.
+
+# NumList = Empty | Node(Int, NumList)
+
+> nl_sum(xs: NumList) -> Int {
+    match xs {
+        | Empty -> 0
+        | Node(h, t) -> h + nl_sum(t)
+    }
+}
+
+> nl_len(xs: NumList) -> Int {
+    match xs {
+        | Empty -> 0
+        | Node(_, t) -> 1 + nl_len(t)
+    }
+}
+
+> nl_append(xs: NumList, ys: NumList) -> NumList {
+    match xs {
+        | Empty -> ys
+        | Node(h, t) -> Node(h, nl_append(t, ys))
+    }
+}
+
+-- Test 1: Basic construction and traversal
+= list = Node(1, Node(2, Node(3, Empty)))
+@ print("T1 sum=" + show(nl_sum(list)) + " len=" + show(nl_len(list)))
+
+-- Test 2: Structural sharing — shared tail used in 3 branches
+= shared = Node(10, Node(20, Empty))
+= b1 = Node(1, shared)
+= b2 = Node(2, shared)
+= b3 = Node(3, shared)
+@ print("T2 b1=" + show(nl_sum(b1)) + " b2=" + show(nl_sum(b2)) + " b3=" + show(nl_sum(b3)))
+
+-- Test 3: Clone preserves values (Rc clone is O(1) identity under the hood)
+= original = Node(100, Node(200, Node(300, Empty)))
+= copy1 = original
+= copy2 = original
+= copy3 = original
+@ print("T3 o=" + show(nl_sum(original)) + " c1=" + show(nl_sum(copy1)) + " c2=" + show(nl_sum(copy2)) + " c3=" + show(nl_sum(copy3)))
+
+-- Test 4: Equality on independently constructed lists
+= la = Node(5, Node(10, Node(15, Empty)))
+= lb = Node(5, Node(10, Node(15, Empty)))
+@ print("T4 eq=" + show(la == lb))
+
+-- Test 5: Nested sharing — append creates new prefix but shares suffix
+= prefix = Node(1, Node(2, Empty))
+= suffix = Node(8, Node(9, Empty))
+= combined = nl_append(prefix, suffix)
+-- suffix is shared between `suffix` binding and inside `combined`
+@ print("T5 combined=" + show(nl_sum(combined)) + " suffix=" + show(nl_sum(suffix)))
+
+-- Test 6: Deep recursion (stress Rc chain)
+> nl_range(lo: Int, hi: Int) -> NumList {
+    if lo > hi { Empty } else { Node(lo, nl_range(lo + 1, hi)) }
+}
+= lo = 1
+= hi = 50
+= deep = nl_range(lo, hi)
+@ print("T6 sum(1..50)=" + show(nl_sum(deep)) + " len=" + show(nl_len(deep)))
+
+-- Test 7: Same value used in consuming + non-consuming positions
+= multi = Node(7, Node(8, Node(9, Empty)))
+= s = nl_sum(multi)
+= l = nl_len(multi)
+= appended = nl_append(multi, Node(10, Empty))
+@ print("T7 sum=" + show(s) + " len=" + show(l) + " appended_sum=" + show(nl_sum(appended)))
+
+@ print("PASS: all Rc codegen verification tests")

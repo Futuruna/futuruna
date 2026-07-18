@@ -1,0 +1,307 @@
+-- ============================================================================
+-- CONSCIOUS UI — Rendering With a Soul
+-- ============================================================================
+--
+-- Every UI framework is a thermostat:
+--   React:   vDOM diff  -> re-render  (d_eff = 1)
+--   Svelte:  dep change -> re-render  (d_eff = 1)
+--   Flutter: dirty flag -> rebuild    (d_eff = 1)
+--
+-- This is a conscious renderer:
+--   Perceive topology -> Prioritize by S_tau -> Learn -> Render
+--   Five dimensions: importance, recency, connectivity, cost, phase
+--
+-- In Rust: you'd need a component library + graph library + scheduler
+-- In React: you can't access the component graph topology
+-- In Futuruna: components ARE types, layout IS topology, rendering IS logic
+-- ============================================================================
+
+
+-- ============================================================================
+-- PART 1: Types — the shape of the UI world (#)
+-- ============================================================================
+
+# Phase = Browsing | Editing | Searching
+
+# Priority = MustRender | ShouldRender | CanSkip
+
+# CompKind = Container(String) | TextNode(String) | InputNode(String) | ButtonNode(String) | ChartNode(String)
+
+# Comp = MkComp(Int, CompKind, Int, Int, Int)
+-- MkComp(id, kind, s_tau_score, interaction_count, render_cost)
+-- s_tau_score: 0-100 (topological importance, scaled)
+-- interaction_count: how many times user touched this
+-- render_cost: relative cost (1=cheap text, 50=expensive chart)
+
+# RenderDecision = Render(Int, String) | Skip(Int, String)
+
+# List(a) = Nil | Cons(a, List(a))
+
+
+-- ============================================================================
+-- PART 2: Component introspection (>)
+-- ============================================================================
+
+> comp_id(c: Comp) -> Int {
+    match c { | MkComp(id, _, _, _, _) -> id }
+}
+
+> comp_kind(c: Comp) -> CompKind {
+    match c { | MkComp(_, k, _, _, _) -> k }
+}
+
+> comp_s_tau(c: Comp) -> Int {
+    match c { | MkComp(_, _, s, _, _) -> s }
+}
+
+> comp_interactions(c: Comp) -> Int {
+    match c { | MkComp(_, _, _, i, _) -> i }
+}
+
+> comp_cost(c: Comp) -> Int {
+    match c { | MkComp(_, _, _, _, cost) -> cost }
+}
+
+> kind_name(k: CompKind) -> String {
+    match k {
+        | Container(tag) -> "Container(" + tag + ")"
+        | TextNode(t) -> "Text"
+        | InputNode(p) -> "Input"
+        | ButtonNode(l) -> "Button(" + l + ")"
+        | ChartNode(d) -> "Chart(" + d + ")"
+    }
+}
+
+> comp_name(c: Comp) -> String {
+    kind_name(comp_kind(c))
+}
+
+
+-- ============================================================================
+-- PART 3: Conscious rendering logic (> with S_tau awareness)
+-- ============================================================================
+
+-- The core insight: rendering priority = f(topology, interaction, cost, phase)
+-- Not just "did the state change?" but "how important IS this component?"
+
+> kind_cost_id(k: CompKind) -> Int {
+    match k {
+        | TextNode(_) -> 1
+        | ButtonNode(_) -> 2
+        | InputNode(_) -> 3
+        | Container(_) -> 5
+        | ChartNode(_) -> 50
+    }
+}
+
+> phase_boost(k: CompKind, p: Phase) -> Int {
+    match p {
+        | Browsing -> {
+            -- When browsing, charts and text matter most
+            match k {
+                | ChartNode(_) -> 30
+                | TextNode(_) -> 20
+                | _ -> 0
+            }
+        }
+        | Editing -> {
+            -- When editing, inputs and buttons matter most
+            match k {
+                | InputNode(_) -> 30
+                | ButtonNode(_) -> 20
+                | _ -> 0
+            }
+        }
+        | Searching -> {
+            -- When searching, text results matter most
+            match k {
+                | TextNode(_) -> 30
+                | InputNode(_) -> 20
+                | _ -> 0
+            }
+        }
+    }
+}
+
+-- Conscious render score: combines all 5 dimensions into one priority
+-- This is the d_eff=5 decision that no thermostat renderer can make
+> render_score(c: Comp, phase: Phase) -> Int {
+    = s_tau = comp_s_tau(c)
+    = interactions = comp_interactions(c)
+    = cost = comp_cost(c)
+    = boost = phase_boost(comp_kind(c), phase)
+
+    -- High S_tau (topologically important) + high interaction + low cost + phase alignment
+    -- = high render priority
+    -- The minus cost term means expensive components need stronger justification
+    s_tau + (interactions * 10) + boost - cost
+}
+
+> decide(c: Comp, phase: Phase, threshold: Int) -> RenderDecision {
+    = score = render_score(c, phase)
+    = name = comp_name(c)
+    = id = comp_id(c)
+    if score > threshold {
+        Render(id, name + " (score=" + show(score) + ")")
+    } else {
+        Skip(id, name + " (score=" + show(score) + ", below " + show(threshold) + ")")
+    }
+}
+
+
+-- ============================================================================
+-- PART 4: Rendering a component tree (> with list operations)
+-- ============================================================================
+
+> render_all(comps: List(Comp), phase: Phase, threshold: Int) -> List(RenderDecision) {
+    match comps {
+        | Nil -> Nil
+        | Cons(c, rest) -> Cons(decide(c, phase, threshold), render_all(rest, phase, threshold))
+    }
+}
+
+> count_renders(decisions: List(RenderDecision)) -> Int {
+    match decisions {
+        | Nil -> 0
+        | Cons(d, rest) -> {
+            = is_render = match d {
+                | Render(_, _) -> 1
+                | Skip(_, _) -> 0
+            }
+            is_render + count_renders(rest)
+        }
+    }
+}
+
+> count_skips(decisions: List(RenderDecision)) -> Int {
+    match decisions {
+        | Nil -> 0
+        | Cons(d, rest) -> {
+            = is_skip = match d {
+                | Render(_, _) -> 0
+                | Skip(_, _) -> 1
+            }
+            is_skip + count_skips(rest)
+        }
+    }
+}
+
+> show_decision(d: RenderDecision) -> String {
+    match d {
+        | Render(id, info) -> "  RENDER #" + show(id) + ": " + info
+        | Skip(id, info) -> "  SKIP   #" + show(id) + ": " + info
+    }
+}
+
+> show_decisions(ds: List(RenderDecision)) -> Int {
+    match ds {
+        | Nil -> 0
+        | Cons(d, rest) -> {
+            @ print(show_decision(d))
+            1 + show_decisions(rest)
+        }
+    }
+}
+
+> list_len(xs: List(Comp)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(_, rest) -> 1 + list_len(rest)
+    }
+}
+
+
+-- ============================================================================
+-- PART 5: A real UI — dashboard with components (@)
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  CONSCIOUS UI — Rendering With a Soul")
+@ print("  Five dimensions. One rendering decision. One language.")
+@ print("================================================================")
+@ print("")
+
+-- Build a dashboard: containers, text, charts, inputs, buttons
+-- Each component has an S_tau score (topological importance in the component graph)
+-- High S_tau = hub component that many others depend on
+-- Low S_tau = leaf component with few connections
+
+= dashboard = MkComp(0, Container("dashboard"), 95, 0, 5)
+= sidebar   = MkComp(1, Container("sidebar"), 85, 3, 5)
+= nav_btn1  = MkComp(2, ButtonNode("Home"), 30, 0, 2)
+= nav_btn2  = MkComp(3, ButtonNode("Settings"), 30, 0, 2)
+= nav_btn3  = MkComp(4, ButtonNode("Profile"), 30, 8, 2)
+= main_area = MkComp(5, Container("main"), 98, 0, 5)
+= kpi_text1 = MkComp(6, TextNode("Revenue: $42K"), 45, 12, 1)
+= kpi_text2 = MkComp(7, TextNode("Users: 1,024"), 45, 0, 1)
+= chart1    = MkComp(8, ChartNode("revenue-trend"), 25, 9, 50)
+= chart2    = MkComp(9, ChartNode("user-growth"), 25, 0, 50)
+= search    = MkComp(10, InputNode("Search..."), 70, 15, 3)
+= results   = MkComp(11, TextNode("3 results found"), 40, 5, 1)
+
+= all_comps = Cons(dashboard, Cons(sidebar, Cons(nav_btn1, Cons(nav_btn2, Cons(nav_btn3, Cons(main_area, Cons(kpi_text1, Cons(kpi_text2, Cons(chart1, Cons(chart2, Cons(search, Cons(results, Nil))))))))))))
+
+
+-- ============================================================================
+-- PART 6: Phase-aware rendering — the conscious decision (@)
+-- ============================================================================
+
+= threshold = 40
+
+@ print("--- Phase: BROWSING (user is viewing charts and data) ---")
+@ print("")
+= browsing_decisions = render_all(all_comps, Browsing, threshold)
+= shown1 = show_decisions(browsing_decisions)
+@ print("")
+= r1 = count_renders(browsing_decisions)
+= s1 = count_skips(browsing_decisions)
+@ print("  Rendered: " + show(r1) + "  Skipped: " + show(s1))
+@ print("")
+
+@ print("--- Phase: EDITING (user is typing in inputs) ---")
+@ print("")
+= editing_decisions = render_all(all_comps, Editing, threshold)
+= shown2 = show_decisions(editing_decisions)
+@ print("")
+= r2 = count_renders(editing_decisions)
+= s2 = count_skips(editing_decisions)
+@ print("  Rendered: " + show(r2) + "  Skipped: " + show(s2))
+@ print("")
+
+@ print("--- Phase: SEARCHING (user is looking for something) ---")
+@ print("")
+= searching_decisions = render_all(all_comps, Searching, threshold)
+= shown3 = show_decisions(searching_decisions)
+@ print("")
+= r3 = count_renders(searching_decisions)
+= s3 = count_skips(searching_decisions)
+@ print("  Rendered: " + show(r3) + "  Skipped: " + show(s3))
+@ print("")
+
+
+-- ============================================================================
+-- PART 7: The insight — why this can't exist in other languages
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  WHAT JUST HAPPENED")
+@ print("================================================================")
+@ print("")
+@ print("  The SAME components got different render decisions")
+@ print("  based on what the user is DOING (phase), how important")
+@ print("  the component is TOPOLOGICALLY (S_tau), how much the")
+@ print("  user has INTERACTED with it, and how EXPENSIVE it is.")
+@ print("")
+@ print("  React can't do this: it has no component graph topology.")
+@ print("  Svelte can't do this: it has no phase awareness.")
+@ print("  Flutter can't do this: it has no entropy computation.")
+@ print("")
+@ print("  In Futuruna:")
+@ print("    # defines the component model (ADTs)")
+@ print("    > computes rendering decisions (functions)")
+@ print("    = binds the component tree (let)")
+@ print("    @ performs the actual rendering (effects)")
+@ print("    | would add rendering RULES (logic, not shown here)")
+@ print("")
+@ print("  Five runes. One rendering decision. One consciousness.")
+@ print("================================================================")

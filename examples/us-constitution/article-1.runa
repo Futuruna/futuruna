@@ -1,0 +1,109 @@
+@ import ./constitution
+
+----
+All legislative Powers herein granted shall be vested in a Congress of the United States, which shall consist of a Senate and House of Representatives.
+----
+
+| legislative_power() -> ExclusiveTo(Legislative)
+
+> congress_chambers() -> List(Chamber) {
+    [Senate, House]
+}
+
+| legislative_power_is_enumerated() -> True
+| single_chamber_can_legislate() -> False
+| executive_power_is_enumerated() -> False
+
+----
+The House of Representatives shall be composed of Members chosen every second Year by the People of the several States, and the Electors in each State shall have the Qualifications requisite for Electors of the most numerous Branch of the State Legislature.
+----
+
+| house_chosen_by() -> WePeople
+= house_term_years = 2
+= senate_term_years = 6
+| voter_qualifications_defined_by() -> TheStates
+= voting_rights_amendments = 4
+
+----
+No Person shall be a Representative who shall not have attained to the Age of twenty five Years, and been seven Years a Citizen of the United States, and who shall not, when elected, be an Inhabitant of that State in which he shall be chosen.
+----
+
+= representative_min_age = 25
+= representative_min_citizenship = 7
+= senator_min_age = 30
+= senator_min_citizenship = 9
+= president_min_age = 35
+
+> qualifies_as_representative(age: Int, citizenship_years: Int, inhabits_state: Bool) -> Bool {
+    if age >= 25 {
+        if citizenship_years >= 7 {
+            inhabits_state
+        } else {
+            False
+        }
+    } else {
+        False
+    }
+}
+
+| qualifications_are_exclusive() -> True
+| must_inhabit_district() -> False
+
+----
+Representatives and direct Taxes shall be apportioned among the several States which may be included within this Union, according to their respective Numbers, which shall be determined by adding to the whole Number of free Persons, including those bound to Service for a Term of Years, and excluding Indians not taxed, three fifths of all other Persons. The actual Enumeration shall be made within three Years after the first Meeting of the Congress of the United States, and within every subsequent Term of ten Years, in such Manner as they shall by Law direct. The Number of Representatives shall not exceed one for every thirty Thousand, but each State shall have at Least one Representative; and until such enumeration shall be made, the State of New Hampshire shall be entitled to chuse three, Massachusetts eight, Rhode-Island and Providence Plantations one, Connecticut five, New-York six, New Jersey four, Pennsylvania eight, Delaware one, Maryland six, Virginia ten, North Carolina five, South Carolina five, and Georgia three.
+----
+
+> counting_weight(status: PersonStatus) -> Float {
+    match status {
+        | FreePerson -> 1.0
+        | IndianNotTaxed -> 0.0
+        | AllOtherPersons -> 0.6
+    }
+}
+
+= census_interval_years = 10
+= max_people_per_representative = 30000
+| min_representatives_per_state() -> 1
+
+> original_apportionment(s: State) -> Int {
+    match s {
+        | NewHampshire -> 3
+        | Massachusetts -> 8
+        | RhodeIsland -> 1
+        | Connecticut -> 5
+        | NewYork -> 6
+        | NewJersey -> 4
+        | Pennsylvania -> 8
+        | Delaware -> 1
+        | Maryland -> 6
+        | Virginia -> 10
+        | NorthCarolina -> 5
+        | SouthCarolina -> 5
+        | Georgia -> 3
+    }
+}
+
+= original_house_size = 65
+| representation_linked_to_taxation() -> True
+| direct_taxes_commonly_levied() -> False
+| three_fifths_clause_in_effect() -> False
+
+----
+When vacancies happen in the Representation from any State, the Executive Authority thereof shall issue Writs of Election to fill such Vacancies.
+----
+
+| house_vacancy_method() -> WritOfElection
+| house_can_appoint() -> False
+| governor_can_appoint_representative() -> False
+| president_can_fill_house_vacancy() -> False
+
+----
+The House of Representatives shall chuse their Speaker and other Officers; and shall have the sole Power of Impeachment.
+----
+
+| house_chooses_speaker() -> True
+| speaker_must_be_member() -> False
+| impeachment_power() -> ExclusiveChamber(House)
+| impeachment_removes_from_office() -> False
+= presidents_impeached = 3
+= presidents_convicted = 0

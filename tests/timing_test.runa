@@ -1,0 +1,52 @@
+-- M17: Timing operators test
+-- All timing operators work on streams in sync mode
+
+@ print("=== Test 1: debounce ===")
+~ rapid = from_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+~ debounced = rapid |> debounce(100)
+-- In sync mode: debounce keeps only the last value
+@ print("debounced: " + show(collect(debounced)))
+
+@ print("=== Test 2: throttle ===")
+~ events = from_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+~ throttled = events |> throttle(200)
+-- In sync mode: throttle samples at intervals
+@ print("throttled: " + show(collect(throttled)))
+
+@ print("=== Test 3: delay ===")
+~ source = from_list([10, 20, 30])
+~ delayed = source |> delay(500)
+-- In sync mode: delay is a pass-through (no real time)
+@ print("delayed: " + show(collect(delayed)))
+
+@ print("=== Test 4: buffer ===")
+~ clicks = from_list([1, 2, 3, 4, 5])
+~ batched = clicks |> buffer(1000)
+-- In sync mode: buffer collects all into one batch
+@ print("batched: " + show(collect(batched)))
+
+@ print("=== Test 5: timeout ===")
+~ data = from_list([42, 43, 44])
+~ safe = data |> timeout(5000)
+-- In sync mode: timeout is a pass-through
+@ print("timeout: " + show(collect(safe)))
+
+@ print("=== Test 6: switch_map ===")
+~ pages = from_list([1, 2, 3])
+~ results = pages |> switch_map(|page| from_list([page * 10, page * 10 + 1]))
+-- In sync mode: switch_map keeps only the last inner stream
+@ print("switch_map: " + show(collect(results)))
+
+@ print("=== Test 7: sample ===")
+~ values = from_list([10, 20, 30, 40, 50])
+~ ticks = from_list([1, 1, 1])
+~ sampled = sample(values, ticks)
+-- In sync mode: sample picks values at trigger points
+@ print("sampled: " + show(collect(sampled)))
+
+@ print("=== Test 8: pipeline composition ===")
+~ sensor = from_list([1, 1, 2, 2, 3, 3, 4, 4, 5, 5])
+~ result = sensor |> distinct |> throttle(100) |> map(|x| x * 100)
+@ print("pipeline: " + show(collect(result)))
+
+@ print("=== All timing tests passed ===")

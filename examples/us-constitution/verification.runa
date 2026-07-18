@@ -1,0 +1,360 @@
+@ import ./constitution
+@ import ./article-1
+@ import ./article-1-section-3
+@ import ./article-1-section-4
+@ import ./article-1-section-5
+@ import ./article-1-section-6
+@ import ./article-1-section-7
+@ import ./article-1-section-8
+@ import ./article-1-section-9
+@ import ./article-1-section-10
+@ import ./article-2-section-1
+@ import ./article-2-section-2
+@ import ./article-2-section-3
+@ import ./article-2-section-4
+@ import ./article-3
+@ import ./article-4
+@ import ./article-5
+@ import ./article-6
+@ import ./article-7
+@ import ./succession-act-1947
+
+= rep_min_age = 25
+= sen_min_age = 30
+= pres_min_age = 35
+= rep_min_cit = 7
+= sen_min_cit = 9
+
+| age_ladder_rep_sen: rep_min_age -> rep_min_age < sen_min_age
+| age_ladder_sen_pres: sen_min_age -> sen_min_age < pres_min_age
+| cit_ladder_rep_sen: rep_min_cit -> rep_min_cit < sen_min_cit
+
+= house_term = 2
+= senate_term = 6
+| term_ladder: house_term -> house_term < senate_term
+
+? age_ladder_rep_sen -> { @ print("? Rep age < Senator age:         VERIFIED") } else { @ print("? Rep age < Senator age:         FAILED") }
+? age_ladder_sen_pres -> { @ print("? Senator age < President age:   VERIFIED") } else { @ print("? Senator age < President age:   FAILED") }
+? cit_ladder_rep_sen -> { @ print("? Rep citizen < Senator citizen:  VERIFIED") } else { @ print("? Rep citizen < Senator citizen:  FAILED") }
+? term_ladder -> { @ print("? House term < Senate term:      VERIFIED") } else { @ print("? House term < Senate term:      FAILED") }
+
+| house_more_replaceable: house_term -> entire_house_replaceable_at_once() == True
+| senate_not_replaceable: senate_term -> entire_senate_replaceable_at_once() == False
+
+? house_more_replaceable -> { @ print("? House fully replaceable:       VERIFIED") } else { @ print("? House fully replaceable:       FAILED") }
+? senate_not_replaceable -> { @ print("? Senate NOT fully replaceable:  VERIFIED") } else { @ print("? Senate NOT fully replaceable:  FAILED") }
+
+> impeachment_bodies_separated() -> Bool {
+    match impeachment_power() {
+        | ExclusiveChamber(House) -> match impeachment_trial_power() {
+            | ExclusiveChamber(Senate) -> True
+            | _ -> False
+        }
+        | _ -> False
+    }
+}
+
+= separated = impeachment_bodies_separated()
+| bodies_separated: separated -> separated == True
+? bodies_separated -> { @ print("? Accuser != Trier:              VERIFIED") } else { @ print("? Accuser != Trier:              FAILED") }
+
+= leg_enum = legislative_power_is_enumerated()
+= exec_enum = executive_power_is_enumerated()
+| legislative_is_limited: leg_enum -> leg_enum == True
+| executive_is_unlimited: exec_enum -> exec_enum == False
+
+? legislative_is_limited -> { @ print("? Legislative IS enumerated:     VERIFIED") } else { @ print("? Legislative IS enumerated:     FAILED") }
+? executive_is_unlimited -> { @ print("? Executive NOT enumerated:      VERIFIED") } else { @ print("? Executive NOT enumerated:      FAILED") }
+
+= house_appoint = house_can_appoint()
+= gov_appoint = governor_can_appoint_representative()
+| no_house_appointment: house_appoint -> house_appoint == False
+| no_gov_appointment: gov_appoint -> gov_appoint == False
+
+? no_house_appointment -> { @ print("? House cannot appoint:          VERIFIED") } else { @ print("? House cannot appoint:          FAILED") }
+? no_gov_appointment -> { @ print("? Governor cannot appoint:       VERIFIED") } else { @ print("? Governor cannot appoint:       FAILED") }
+
+> vp_conflict_resolved() -> Bool {
+    match presiding_officer_presidential_trial() {
+        | ChiefJustice -> True
+        | VicePresident -> False
+    }
+}
+
+= conflict_resolved = vp_conflict_resolved()
+| no_vp_conflict: conflict_resolved -> conflict_resolved == True
+? no_vp_conflict -> { @ print("? VP excluded from pres. trial:  VERIFIED") } else { @ print("? VP excluded from pres. trial:  FAILED") }
+
+= three_fifths_active = three_fifths_clause_in_effect()
+| clause_superseded: three_fifths_active -> three_fifths_active == False
+
+= rep_tax_linked = representation_linked_to_taxation()
+= taxes_collected = direct_taxes_commonly_levied()
+| rep_tax_link: rep_tax_linked -> rep_tax_linked == True
+| tax_toothless: taxes_collected -> taxes_collected == False
+
+? clause_superseded -> { @ print("? Three-Fifths superseded:       VERIFIED") } else { @ print("? Three-Fifths superseded:       FAILED") }
+? rep_tax_link -> { @ print("? Representation linked to tax:  VERIFIED") } else { @ print("? Representation linked to tax:  FAILED") }
+? tax_toothless -> { @ print("? Direct taxes rarely levied:    VERIFIED") } else { @ print("? Direct taxes rarely levied:    FAILED") }
+
+= r_exact_age = qualifies_as_representative(25, 7, True)
+= r_under_age = qualifies_as_representative(24, 7, True)
+= r_exact_cit = qualifies_as_representative(25, 7, True)
+= r_under_cit = qualifies_as_representative(25, 6, True)
+= r_no_state = qualifies_as_representative(25, 7, False)
+
+| r_exact_passes: r_exact_age -> r_exact_age == True
+| r_under_fails: r_under_age -> r_under_age == False
+| r_cit_exact_passes: r_exact_cit -> r_exact_cit == True
+| r_cit_under_fails: r_under_cit -> r_under_cit == False
+| r_no_state_fails: r_no_state -> r_no_state == False
+
+? r_exact_passes -> { @ print("? Rep age 25 (exact):            PASS") } else { @ print("? Rep age 25 (exact):            FAIL") }
+? r_under_fails -> { @ print("? Rep age 24 (below):            REJECTED") } else { @ print("? Rep age 24 (below):            ERROR") }
+? r_cit_exact_passes -> { @ print("? Rep citizen 7yr (exact):       PASS") } else { @ print("? Rep citizen 7yr (exact):       FAIL") }
+? r_cit_under_fails -> { @ print("? Rep citizen 6yr (below):       REJECTED") } else { @ print("? Rep citizen 6yr (below):       ERROR") }
+? r_no_state_fails -> { @ print("? Rep non-inhabitant:            REJECTED") } else { @ print("? Rep non-inhabitant:            ERROR") }
+
+= s_exact_age = qualifies_as_senator(30, 9, True)
+= s_under_age = qualifies_as_senator(29, 9, True)
+= s_exact_cit = qualifies_as_senator(30, 9, True)
+= s_under_cit = qualifies_as_senator(30, 8, True)
+= s_no_state = qualifies_as_senator(30, 9, False)
+
+| s_exact_passes: s_exact_age -> s_exact_age == True
+| s_under_fails: s_under_age -> s_under_age == False
+| s_cit_exact_passes: s_exact_cit -> s_exact_cit == True
+| s_cit_under_fails: s_under_cit -> s_under_cit == False
+| s_no_state_fails: s_no_state -> s_no_state == False
+
+? s_exact_passes -> { @ print("? Sen age 30 (exact):            PASS") } else { @ print("? Sen age 30 (exact):            FAIL") }
+? s_under_fails -> { @ print("? Sen age 29 (below):            REJECTED") } else { @ print("? Sen age 29 (below):            ERROR") }
+? s_cit_exact_passes -> { @ print("? Sen citizen 9yr (exact):       PASS") } else { @ print("? Sen citizen 9yr (exact):       FAIL") }
+? s_cit_under_fails -> { @ print("? Sen citizen 8yr (below):       REJECTED") } else { @ print("? Sen citizen 8yr (below):       ERROR") }
+? s_no_state_fails -> { @ print("? Sen non-inhabitant:            REJECTED") } else { @ print("? Sen non-inhabitant:            ERROR") }
+
+= sen_as_rep = qualifies_as_representative(30, 9, True)
+| higher_qualifies_lower: sen_as_rep -> sen_as_rep == True
+? higher_qualifies_lower -> { @ print("? Senator qualifies as Rep:      VERIFIED") } else { @ print("? Senator qualifies as Rep:      FAILED") }
+
+= rep_as_sen = qualifies_as_senator(25, 7, True)
+| lower_rejects_higher: rep_as_sen -> rep_as_sen == False
+? lower_rejects_higher -> { @ print("? Rep does NOT qualify as Sen:   VERIFIED") } else { @ print("? Rep does NOT qualify as Sen:   FAILED") }
+
+= can_leg_alone = single_chamber_can_legislate()
+= can_partisan_remove = partisan_majority_can_remove()
+| no_solo_legislation: can_leg_alone -> can_leg_alone == False
+| no_partisan_removal: can_partisan_remove -> can_partisan_remove == False
+
+? no_solo_legislation -> { @ print("? No solo legislation:           VERIFIED") } else { @ print("? No solo legislation:           FAILED") }
+? no_partisan_removal -> { @ print("? No partisan removal:           VERIFIED") } else { @ print("? No partisan removal:           FAILED") }
+
+> vp_presides_own_trial() -> Bool {
+    match presiding_officer_other_trial() {
+        | VicePresident -> True
+        | ChiefJustice -> False
+    }
+}
+
+= vp_self_trial = vp_presides_own_trial()
+| vp_no_self_trial: vp_self_trial -> vp_self_trial == False
+? vp_no_self_trial -> { @ print("? VP cannot preside own trial:   VERIFIED") } else { @ print("? VP cannot preside own trial:   FAILED — nemo iudex in causa sua") }
+
+> revenue_origin_is_house() -> Bool {
+    match revenue_bills_originate_in() {
+        | ExclusiveChamber(House) -> True
+        | _ -> False
+    }
+}
+= rev_house = revenue_origin_is_house()
+| revenue_house_only: rev_house -> rev_house == True
+? revenue_house_only -> { @ print("? Revenue bills originate House:  VERIFIED") } else { @ print("? Revenue bills originate House:  FAILED") }
+
+= sen_amend = senate_can_amend_revenue_bills()
+| senate_amends_revenue: sen_amend -> sen_amend == True
+? senate_amends_revenue -> { @ print("? Senate can amend revenue:      VERIFIED") } else { @ print("? Senate can amend revenue:      FAILED") }
+
+= n_powers = total_enumerated_powers
+| powers_are_18: n_powers -> n_powers == 18
+? powers_are_18 -> { @ print("? Enumerated powers == 18:       VERIFIED") } else { @ print("? Enumerated powers == 18:       FAILED") }
+
+= army_max = army_appropriation_max_years
+= navy_limited = navy_appropriation_time_limited()
+| army_capped: army_max -> army_max == 2
+| navy_uncapped: navy_limited -> navy_limited == False
+? army_capped -> { @ print("? Army appropriation <= 2yr:     VERIFIED") } else { @ print("? Army appropriation <= 2yr:     FAILED") }
+? navy_uncapped -> { @ print("? Navy has no time limit:        VERIFIED") } else { @ print("? Navy has no time limit:        FAILED") }
+
+= attainder_congress = congress_can_pass_bill_of_attainder()
+= attainder_states = states_can_pass_bill_of_attainder()
+| no_attainder_congress: attainder_congress -> attainder_congress == False
+| no_attainder_states: attainder_states -> attainder_states == False
+? no_attainder_congress -> { @ print("? Congress no attainder:         VERIFIED") } else { @ print("? Congress no attainder:         FAILED") }
+? no_attainder_states -> { @ print("? States no attainder:           VERIFIED") } else { @ print("? States no attainder:           FAILED") }
+
+= epf_congress = congress_can_pass_ex_post_facto_law()
+= epf_states = states_can_pass_ex_post_facto_law()
+| no_epf_congress: epf_congress -> epf_congress == False
+| no_epf_states: epf_states -> epf_states == False
+? no_epf_congress -> { @ print("? Congress no ex post facto:     VERIFIED") } else { @ print("? Congress no ex post facto:     FAILED") }
+? no_epf_states -> { @ print("? States no ex post facto:       VERIFIED") } else { @ print("? States no ex post facto:       FAILED") }
+
+= nobility_congress = congress_can_grant_nobility()
+= nobility_states = states_can_grant_nobility()
+| no_nobility_congress: nobility_congress -> nobility_congress == False
+| no_nobility_states: nobility_states -> nobility_states == False
+? no_nobility_congress -> { @ print("? Congress no nobility:          VERIFIED") } else { @ print("? Congress no nobility:          FAILED") }
+? no_nobility_states -> { @ print("? States no nobility:            VERIFIED") } else { @ print("? States no nobility:            FAILED") }
+
+= states_war = states_can_engage_in_war()
+= states_defend = states_can_defend_if_invaded()
+| no_state_war: states_war -> states_war == False
+| state_self_defense: states_defend -> states_defend == True
+? no_state_war -> { @ print("? States cannot wage war:        VERIFIED") } else { @ print("? States cannot wage war:        FAILED") }
+? state_self_defense -> { @ print("? States CAN defend if invaded:  VERIFIED") } else { @ print("? States CAN defend if invaded:  FAILED") }
+
+= treasury_req = treasury_spending_requires_appropriation()
+| appropriations_clause: treasury_req -> treasury_req == True
+? appropriations_clause -> { @ print("? Treasury needs appropriation:  VERIFIED") } else { @ print("? Treasury needs appropriation:  FAILED") }
+
+= habeas = habeas_corpus_suspendable()
+= habeas_cond = habeas_corpus_requires_rebellion_or_invasion()
+| habeas_not_absolute: habeas -> habeas == True
+| habeas_conditional: habeas_cond -> habeas_cond == True
+? habeas_not_absolute -> { @ print("? Habeas corpus suspendable:     VERIFIED") } else { @ print("? Habeas corpus suspendable:     FAILED") }
+? habeas_conditional -> { @ print("? Only in rebellion/invasion:    VERIFIED") } else { @ print("? Only in rebellion/invasion:    FAILED") }
+
+= pardon = president_can_pardon()
+= pardon_impeach = pardon_covers_impeachment()
+| pardon_exists: pardon -> pardon == True
+| pardon_blocked_by_impeachment: pardon_impeach -> pardon_impeach == False
+? pardon_exists -> { @ print("? President has pardon power:     VERIFIED") } else { @ print("? President has pardon power:     FAILED") }
+? pardon_blocked_by_impeachment -> { @ print("? Pardon cannot reach impeach:   VERIFIED") } else { @ print("? Pardon cannot reach impeach:   FAILED") }
+
+= commands = president_is_commander_in_chief()
+= war_is_congressional = legislative_power_is_enumerated()
+| commander_exists: commands -> commands == True
+| war_not_presidential: war_is_congressional -> war_is_congressional == True
+? commander_exists -> { @ print("? President is Commander:         VERIFIED") } else { @ print("? President is Commander:         FAILED") }
+? war_not_presidential -> { @ print("? War power is congressional:    VERIFIED") } else { @ print("? War power is congressional:    FAILED") }
+
+= pardon_only_excludes_impeachment = True
+= self_pardon_is_impeachment = False
+| self_pardon_barred: self_pardon_is_impeachment -> self_pardon_is_impeachment == True
+? self_pardon_barred -> { @ print("? Self-pardon textually barred:  VERIFIED") } else { @ print("? Self-pardon textually barred:  FAILED — the only exception is impeachment") }
+
+= speaker_natural_born_required = speaker_must_be_member()
+= pres_natural_born = president_must_be_natural_born()
+| constitution_ensures_eligible: speaker_natural_born_required -> speaker_natural_born_required == True
+? constitution_ensures_eligible -> { @ print("? Constitution ensures eligible:  VERIFIED") } else { @ print("? Constitution ensures eligible:  FAILED — text has a gap") }
+
+= statutory_filter = succession_requires_constitutional_eligibility()
+| statute_ensures_eligible: statutory_filter -> statutory_filter == True
+? statute_ensures_eligible -> { @ print("? Succession Act patches gap:    VERIFIED — 3 USC §19(e)") } else { @ print("? Succession Act patches gap:    FAILED") }
+
+= treaty_num = treaty_threshold_numerator
+= treaty_den = treaty_threshold_denominator
+= house_role_in_treaties = False
+| house_treaty_role: house_role_in_treaties -> house_role_in_treaties == True
+? house_treaty_role -> { @ print("? House has treaty role:          VERIFIED") } else { @ print("? House has treaty role:          FAILED — People's chamber excluded") }
+
+= take_care = take_care_clause()
+= can_pardon_violations = president_can_pardon()
+| take_care_consistent: take_care -> can_pardon_violations == False
+? take_care_consistent -> { @ print("? Take Care consistent w/pardon: VERIFIED") } else { @ print("? Take Care consistent w/pardon: FAILED — can pardon the laws you must execute") }
+
+= all_three_vested = True
+| three_branches_vested: all_three_vested -> all_three_vested == True
+? three_branches_vested -> { @ print("? All three branches vested:     VERIFIED") } else { @ print("? All three branches vested:     FAILED") }
+
+= supreme = constitution_is_supreme_law()
+| supremacy: supreme -> supreme == True
+? supremacy -> { @ print("? Constitution is supreme law:    VERIFIED") } else { @ print("? Constitution is supreme law:    FAILED") }
+
+= no_religious_test = religious_test_prohibited()
+| no_test: no_religious_test -> no_religious_test == True
+? no_test -> { @ print("? No religious test for office:   VERIFIED") } else { @ print("? No religious test for office:   FAILED") }
+
+= amend_prop_num = amendment_proposal_threshold_numerator
+= amend_prop_den = amendment_proposal_threshold_denominator
+= amend_rat_num = amendment_ratification_threshold_numerator
+= amend_rat_den = amendment_ratification_threshold_denominator
+| proposal_is_two_thirds: amend_prop_num -> amend_prop_num == 2
+| ratification_is_three_fourths: amend_rat_num -> amend_rat_num == 3
+? proposal_is_two_thirds -> { @ print("? Amendment proposal is 2/3:     VERIFIED") } else { @ print("? Amendment proposal is 2/3:     FAILED") }
+? ratification_is_three_fourths -> { @ print("? Amendment ratification is 3/4: VERIFIED") } else { @ print("? Amendment ratification is 3/4: FAILED") }
+
+= senate_equality_protected = senate_equality_unamendable_without_consent()
+| equal_suffrage_entrenched: senate_equality_protected -> senate_equality_protected == True
+? equal_suffrage_entrenched -> { @ print("? Senate equality entrenched:    VERIFIED — unamendable") } else { @ print("? Senate equality entrenched:    FAILED") }
+
+= ratify_needed = ratification_states_required
+= total_states = total_original_states
+| ratify_is_supermajority: ratify_needed -> ratify_needed * 3 > total_states * 2
+? ratify_is_supermajority -> { @ print("? Ratification > 2/3 of states:  VERIFIED — 9/13") } else { @ print("? Ratification > 2/3 of states:  FAILED") }
+
+= fugitive_active = fugitive_slave_clause_in_effect()
+| fugitive_superseded: fugitive_active -> fugitive_active == False
+? fugitive_superseded -> { @ print("? Fugitive slave cl. superseded: VERIFIED — 13th Amendment") } else { @ print("? Fugitive slave cl. superseded: FAILED") }
+
+= corruption_banned = corruption_of_blood_prohibited()
+| no_corruption_of_blood: corruption_banned -> corruption_banned == True
+? no_corruption_of_blood -> { @ print("? No corruption of blood:        VERIFIED") } else { @ print("? No corruption of blood:        FAILED") }
+
+= treason_witnesses = treason_witness_requirement
+| treason_needs_two: treason_witnesses -> treason_witnesses == 2
+? treason_needs_two -> { @ print("? Treason needs 2 witnesses:     VERIFIED") } else { @ print("? Treason needs 2 witnesses:     FAILED") }
+
+= jury_criminal = criminal_trial_by_jury()
+= jury_impeach = impeachment_trial_by_jury()
+| jury_guaranteed: jury_criminal -> jury_criminal == True
+| impeach_no_jury: jury_impeach -> jury_impeach == False
+? jury_guaranteed -> { @ print("? Criminal trial by jury:        VERIFIED") } else { @ print("? Criminal trial by jury:        FAILED") }
+? impeach_no_jury -> { @ print("? Impeachment NOT by jury:       VERIFIED") } else { @ print("? Impeachment NOT by jury:       FAILED") }
+
+= unanimous_consent_achievable = False
+| can_remove_senate_equality: unanimous_consent_achievable -> unanimous_consent_achievable == True
+? can_remove_senate_equality -> { @ print("? Can amend Senate equality:     VERIFIED") } else { @ print("? Can amend Senate equality:     FAILED — requires consent it will never get") }
+
+= post_removal_is_impeachment_case = False
+| criminal_track_pardon_proof: post_removal_is_impeachment_case -> post_removal_is_impeachment_case == True
+? criminal_track_pardon_proof -> { @ print("? Criminal track pardon-proof:   VERIFIED") } else { @ print("? Criminal track pardon-proof:   FAILED — successor can pardon the crime") }
+
+= high_crimes_defined_in_text = False
+| all_impeachable_defined: high_crimes_defined_in_text -> high_crimes_defined_in_text == True
+? all_impeachable_defined -> { @ print("? All impeachable crimes defined: VERIFIED") } else { @ print("? All impeachable crimes defined: FAILED — only treason is defined") }
+
+= va_seats = original_apportionment(Virginia)
+= pa_seats = original_apportionment(Pennsylvania)
+= va_ghost_seats = 3
+| no_ghost_seats: va_ghost_seats -> va_ghost_seats == 0
+? no_ghost_seats -> { @ print("? No ghost representation:       VERIFIED") } else { @ print("? No ghost representation:       FAILED — 3 ghost seats for Virginia alone") }
+
+= va_more_than_pa = va_seats > pa_seats
+| va_pa_ordering: va_more_than_pa -> va_more_than_pa == True
+? va_pa_ordering -> { @ print("? Virginia > Pennsylvania seats:  VERIFIED — but only because of 3/5") } else { @ print("? Virginia > Pennsylvania seats:  FAILED") }
+
+= creation_states = ratification_states_required
+= creation_total = total_original_states
+| creation_harder_than_amendment: creation_states -> creation_states * 4 >= creation_total * 3
+? creation_harder_than_amendment -> { @ print("? Creation harder than amendment: VERIFIED") } else { @ print("? Creation harder than amendment: FAILED — 9/13 easier than 3/4") }
+
+= impeach_jury_right = impeachment_trial_by_jury()
+| same_crime_same_rights: impeach_jury_right -> impeach_jury_right == True
+? same_crime_same_rights -> { @ print("? Same crime gets same rights:   VERIFIED") } else { @ print("? Same crime gets same rights:   FAILED — jury depends on forum") }
+
+= simple_law_overrides_treaty = True
+| treaty_survives_simple_law: simple_law_overrides_treaty -> simple_law_overrides_treaty == False
+? treaty_survives_simple_law -> { @ print("? Treaty survives simple law:    VERIFIED") } else { @ print("? Treaty survives simple law:    FAILED — majority overrides supermajority") }
+
+= emoluments_enforcement_specified = False
+| emoluments_enforceable: emoluments_enforcement_specified -> emoluments_enforcement_specified == True
+? emoluments_enforceable -> { @ print("? Emoluments enforceable:        VERIFIED") } else { @ print("? Emoluments enforceable:        FAILED — no enforcement mechanism specified") }
+
+= vp_branch_defined = False
+| vp_has_clear_branch: vp_branch_defined -> vp_branch_defined == True
+? vp_has_clear_branch -> { @ print("? VP belongs to a clear branch:  VERIFIED") } else { @ print("? VP belongs to a clear branch:  FAILED — legislative duty, executive succession") }
+
+= republican_guarantee_justiciable = False
+| guarantee_court_enforceable: republican_guarantee_justiciable -> republican_guarantee_justiciable == True
+? guarantee_court_enforceable -> { @ print("? Republican guarantee enforceable: VERIFIED") } else { @ print("? Republican guarantee enforceable: FAILED — political question doctrine") }

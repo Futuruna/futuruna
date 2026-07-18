@@ -1,0 +1,68 @@
+-- M17b: New stream operators test
+
+@ print("=== Test 1: tap (side-effect observation) ===")
+~ nums = from_list([1, 2, 3, 4, 5])
+~ tapped = nums |> tap(|x| @ print("  tap saw: " + show(x)))
+@ print("tapped stream: " + show(collect(tapped)))
+
+@ print("=== Test 2: first ===")
+~ s = from_list([10, 20, 30, 40])
+= f = first(s)
+@ print("first of [10,20,30,40]: " + show(f))
+-- empty list edge case tested in interpreter only (codegen needs type info)
+
+@ print("=== Test 3: reduce (terminal fold) ===")
+~ vals = from_list([1, 2, 3, 4, 5])
+= total = reduce(vals, 0, |acc, x| acc + x)
+@ print("reduce(+, [1..5]) = " + show(total))
+= product = reduce(vals, 1, |acc, x| acc * x)
+@ print("reduce(*, [1..5]) = " + show(product))
+
+@ print("=== Test 4: start_with ===")
+~ stream = from_list([2, 3, 4])
+~ prefixed = stream |> start_with(1)
+@ print("start_with(1, [2,3,4]): " + show(collect(prefixed)))
+
+@ print("=== Test 5: concat ===")
+~ a = from_list([1, 2, 3])
+~ b = from_list([4, 5, 6])
+~ joined = concat(a, b)
+@ print("concat([1,2,3], [4,5,6]): " + show(collect(joined)))
+
+@ print("=== Test 6: pairwise ===")
+~ data = from_list([10, 20, 30, 40, 50])
+~ pairs = data |> pairwise
+@ print("pairwise([10..50]):")
+for p in pairs {
+    @ print("  " + show(p))
+}
+
+@ print("=== Test 7: catch (error recovery) ===")
+~ safe = from_list([1, 2, 3]) |> catch(|e| from_list([0]))
+@ print("catch (no error): " + show(collect(safe)))
+
+@ print("=== Test 8: pipeline with new ops ===")
+~ sensor = from_list([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+~ with_prefix = sensor |> start_with(-1)
+~ positive = with_prefix |> filter(|x| x >= 0)
+~ observed = positive |> tap(|x| @ print("  pipeline saw: " + show(x)))
+~ paired = observed |> pairwise
+= result = reduce(paired, 0, |acc, p| acc + snd(p) - fst(p))
+@ print("pipeline result (sum of deltas): " + show(result))
+
+@ print("=== Test 9: reduce vs scan ===")
+~ numbers = from_list([1, 2, 3, 4])
+= final_only = reduce(numbers, 0, |a, x| a + x)
+~ all_steps = numbers |> scan(0, |a, x| a + x)
+@ print("reduce gives final: " + show(final_only))
+@ print("scan gives all:     " + show(collect(all_steps)))
+
+@ print("=== Test 10: concat + first + last ===")
+~ front = from_list([1, 2])
+~ back = from_list([8, 9])
+~ full = concat(front, back)
+@ print("concat: " + show(collect(full)))
+@ print("first:  " + show(first(full)))
+@ print("last:   " + show(last(full)))
+
+@ print("=== All new stream operator tests passed ===")

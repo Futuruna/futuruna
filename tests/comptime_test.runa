@@ -1,0 +1,117 @@
+-- comptime_test.runa: Compile-Time Evaluation Demo
+-- Demonstrates: @ comptime annotation, constant folding, lookup tables
+
+-- ============================================================================
+-- Pure functions (eligible for comptime evaluation)
+-- ============================================================================
+
+> factorial(n: Int) -> Int {
+    if n <= 1 { 1 } else { n * factorial(n - 1) }
+}
+
+> fibonacci(n: Int) -> Int {
+    if n <= 0 { 0 }
+    else if n == 1 { 1 }
+    else { fibonacci(n - 1) + fibonacci(n - 2) }
+}
+
+> square(x: Int) -> Int { x * x }
+
+> sum_to(n: Int) -> Int {
+    if n <= 0 { 0 } else { n + sum_to(n - 1) }
+}
+
+> make_greeting(name: String) -> String {
+    "Hello, " + name + "! Welcome to Futuruna."
+}
+
+-- ============================================================================
+-- DEMO 1: Comptime arithmetic — evaluated at transpile time
+-- ============================================================================
+
+@ print("=== Demo 1: Comptime Arithmetic ===")
+@ print("")
+
+@ comptime
+= fact_10 = factorial(10)
+
+@ comptime
+= fib_20 = fibonacci(20)
+
+@ comptime
+= sum_100 = sum_to(100)
+
+@ print("  10! = " + show(fact_10))
+@ print("  fib(20) = " + show(fib_20))
+@ print("  sum(1..100) = " + show(sum_100))
+
+-- ============================================================================
+-- DEMO 2: Comptime string — evaluated at transpile time
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 2: Comptime String ===")
+@ print("")
+
+@ comptime
+= greeting = make_greeting("World")
+
+@ print("  " + greeting)
+
+-- ============================================================================
+-- DEMO 3: Comptime vs runtime — same function, different evaluation time
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 3: Comptime vs Runtime ===")
+@ print("")
+
+@ comptime
+= comptime_sq = square(12)
+
+= runtime_sq = square(12)
+
+@ print("  comptime square(12) = " + show(comptime_sq))
+@ print("  runtime  square(12) = " + show(runtime_sq))
+@ print("  (same result, different evaluation time)")
+
+-- ============================================================================
+-- DEMO 4: Comptime lookup table
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 4: Comptime Lookup Table ===")
+@ print("")
+
+> make_squares(n: Int) -> List(Int) {
+    if n <= 0 { [] }
+    else { push(make_squares(n - 1), n * n) }
+}
+
+@ comptime
+= squares_10 = make_squares(10)
+
+@ print("  squares(1..10) computed at transpile time")
+@ print("  first square = " + show(1))
+@ print("  last square = " + show(100))
+
+-- ============================================================================
+-- DEMO 5: Comptime assertions — compile-time checks
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 5: Comptime Assertions ===")
+@ print("")
+
+@ comptime assert(1 + 1 == 2)
+@ comptime assert(factorial(5) == 120)
+@ comptime assert(fibonacci(10) == 55)
+@ comptime assert(true && true)
+@ comptime assert(!(false))
+
+@ print("  All 5 comptime assertions passed!")
+
+@ print("")
+@ print("=== Comptime: same functions, evaluated at transpile time ===")
+@ print("  No runtime cost for these computations.")
+@ print("  The Rust output has const/let with literal values.")

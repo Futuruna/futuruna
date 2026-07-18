@@ -1,0 +1,14 @@
+# Build artifacts
+/target/
+website/target/
+
+# OS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Database files generated at runtime
+*.db

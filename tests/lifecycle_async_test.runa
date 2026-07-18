@@ -1,0 +1,63 @@
+-- M13c: Scoped Lifecycle Test
+-- Async subjects, subscriptions, scope guards, teardown
+
+-- Demo 1: Subject push + async subscription
+@ print("--- Demo 1: Subject push + subscribe ---")
+~ counter = subject(0)
+
+for x in counter {
+    @ print("received: " + show(x))
+}
+
+counter <- 1
+counter <- 2
+counter <- 3
+
+-- Demo 2: Scoped lifecycle — scope owns subscriptions
+@ print("--- Demo 2: Scoped lifecycle ---")
+~ events = subject(0)
+
+| scope Monitor {
+    for e in events {
+        @ print("monitor: " + show(e))
+    }
+}
+
+events <- 10
+events <- 20
+
+-- Teardown: abort monitor subscriptions
+@ teardown("Monitor")
+
+-- These sends should NOT be received by the monitor (it's torn down)
+events <- 30
+events <- 40
+
+-- Demo 3: Multiple subscribers on same subject
+@ print("--- Demo 3: Multiple subscribers ---")
+~ data = subject(0)
+
+| scope Logger {
+    for d in data {
+        @ print("logger: " + show(d))
+    }
+}
+
+| scope Doubler {
+    for d in data {
+        @ print("doubled: " + show(d * 2))
+    }
+}
+
+data <- 5
+data <- 10
+
+-- Tear down just the logger, doubler keeps receiving
+@ teardown("Logger")
+data <- 15
+
+-- Tear down doubler too
+@ teardown("Doubler")
+data <- 99
+
+@ print("--- Done ---")

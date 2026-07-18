@@ -1,0 +1,92 @@
+-- M24: Map and Set builtins test
+
+-- ===== Map tests =====
+
+= m = map_new()
+= m = map_insert(m, "name", "Alice")
+= m = map_insert(m, "age", "30")
+= m = map_insert(m, "city", "Copenhagen")
+
+@ print(map_len(m))
+@ print(map_contains(m, "name"))
+@ print(map_contains(m, "missing"))
+
+-- map_get_or: returns value directly with default
+@ print(map_get_or(m, "name", "NONE"))
+@ print(map_get_or(m, "missing", "NONE"))
+
+-- Keys and values
+= keys = map_keys(m)
+@ print(length(keys))
+
+= vals = map_values(m)
+@ print(length(vals))
+
+-- Remove
+= m2 = map_remove(m, "age")
+@ print(map_len(m2))
+@ print(map_contains(m2, "age"))
+
+-- Merge: m3 values overwrite m values
+= m3 = map_new()
+= m3 = map_insert(m3, "name", "Bob")
+= m3 = map_insert(m3, "role", "Admin")
+= merged = map_merge(m, m3)
+@ print(map_len(merged))
+@ print(map_get_or(merged, "name", "NONE"))
+@ print(map_get_or(merged, "role", "NONE"))
+
+-- Update (insert with existing key)
+= m4 = map_insert(m, "name", "Charlie")
+@ print(map_get_or(m4, "name", "NONE"))
+
+-- Map from list of tuples
+= entries = [("a", "1"), ("b", "2"), ("c", "3")]
+= m5 = map_from(entries)
+@ print(map_len(m5))
+@ print(map_get_or(m5, "b", "NONE"))
+
+-- Entries as tuple list
+= pairs = map_entries(m)
+@ print(length(pairs))
+
+-- ===== Set tests =====
+
+= s = set_new()
+= s = set_insert(s, "red")
+= s = set_insert(s, "green")
+= s = set_insert(s, "blue")
+= s = set_insert(s, "red")
+
+@ print(set_len(s))
+@ print(set_contains(s, "green"))
+@ print(set_contains(s, "yellow"))
+
+-- Remove
+= s2 = set_remove(s, "green")
+@ print(set_len(s2))
+@ print(set_contains(s2, "green"))
+
+-- Union
+= s3 = set_new()
+= s3 = set_insert(s3, "yellow")
+= s3 = set_insert(s3, "blue")
+= u = set_union(s, s3)
+@ print(set_len(u))
+
+-- Intersect
+= inter = set_intersect(s, s3)
+@ print(set_len(inter))
+
+-- Diff (s minus s3)
+= diff = set_diff(s, s3)
+@ print(set_len(diff))
+
+-- Set from list (deduplicates)
+= items = ["x", "y", "x", "z", "y"]
+= s4 = set_from_list(items)
+@ print(set_len(s4))
+
+-- Set to list
+= lst = set_to_list(s)
+@ print(length(lst))

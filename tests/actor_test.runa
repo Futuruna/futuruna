@@ -1,0 +1,82 @@
+-- actor_test.runa: Actor Concurrency Demo
+-- Demonstrates: actor definitions, spawn, send (<-), ask, message passing
+
+-- ============================================================================
+-- DEMO 1: Simple counter actor
+-- ============================================================================
+
+@ print("=== Demo 1: Counter Actor ===")
+@ print("")
+
+> actor counter(state: Int) {
+    | Increment -> state + 1
+    | Decrement -> state - 1
+    | Reset -> 0
+}
+
+= c = spawn(counter, 0)
+c <- Increment
+c <- Increment
+c <- Increment
+c <- Decrement
+= val = ask(c, Increment)
+@ print("  counter after 3 inc, 1 dec, 1 ask(inc) = " + show(val))
+
+-- ============================================================================
+-- DEMO 2: Accumulator actor
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 2: Accumulator Actor ===")
+@ print("")
+
+> actor accumulator(total: Int) {
+    | Add(n) -> total + n
+    | Sub(n) -> total - n
+    | Reset -> 0
+}
+
+= acc = spawn(accumulator, 0)
+acc <- Add(10)
+acc <- Add(20)
+acc <- Sub(5)
+= result = ask(acc, Add(0))
+@ print("  accumulator: 0 + 10 + 20 - 5 = " + show(result))
+
+-- ============================================================================
+-- DEMO 3: Actor state inspection
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 3: State Inspection ===")
+@ print("")
+
+= c2 = spawn(counter, 100)
+c2 <- Decrement
+c2 <- Decrement
+= state = ask(c2, Increment)
+@ print("  counter: 100 - 2 + 1 (ask) = " + show(state))
+
+-- ============================================================================
+-- DEMO 4: Multiple independent actors
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 4: Multiple Independent Actors ===")
+@ print("")
+
+= a1 = spawn(counter, 0)
+= a2 = spawn(counter, 0)
+a1 <- Increment
+a1 <- Increment
+a2 <- Increment
+= v1 = ask(a1, Increment)
+= v2 = ask(a2, Increment)
+@ print("  actor1: 0 + 2 + 1(ask) = " + show(v1))
+@ print("  actor2: 0 + 1 + 1(ask) = " + show(v2))
+
+@ print("")
+@ print("=== Actor Concurrency: no Arc, no Mutex, no data races ===")
+@ print("  Actors own their state exclusively.")
+@ print("  Messages are the only communication channel.")
+@ print("  Erlang's model, compiled to Rust's performance.")

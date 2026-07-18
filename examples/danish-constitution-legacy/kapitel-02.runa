@@ -1,0 +1,428 @@
+@ sprog da
+
+-- ============================================================================
+-- Kapitel II — Kongen (§§ 5-11)
+--
+-- Kapitel I var rent grundfjeld: 4 kendsgerninger, 0 undtagelser.
+-- Kapitel II er hvor jura bliver INTERESSANT: betingelser, undtagelser,
+-- fallback-kæder, delegation til almindelig lov og indlejrede overrides.
+--
+-- Dette er kapitlet der beviser at default-logik er den rette formalisme
+-- for forfatningsret.
+-- ============================================================================
+
+
+-- ============================================================================
+-- IMPORT — Typer og bindinger fra grundlov.runa
+-- ============================================================================
+
+@ brug grundlov::*
+
+-- Typer udvidet for Kapitel II (Statsrådet tilføjet til Institution)
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsrådet
+
+-- Nye typer for Kapitel II
+
+-- Monarkens status
+# MonarkStatus = Myndig | Umyndig | Syg | Fraværende
+
+-- Hvem fører regeringen: kongen selv, Statsrådet eller en regent
+# Regeringsfører = MonarkenSelv | Statsrådet | Regent(hjemmel: String)
+
+-- Den kongelige ed (forsikringsakten)
+# ForsikringsStatus = IkkeAfgivet | AfgivetSomTronfølger | AfgivetSomKonge
+
+-- Hvor edseksemplarerne opbevares
+# ArkivEksemplar = FolketingetsArkiv | Rigsarkivet
+
+-- Finansielle bestemmelser
+# Statsydelse(hjemmel: String, gæld_tilladt: Bool)
+
+-- Kongehusets årpenge
+# Årpenge(hjemmel: String)
+
+-- Monark og tronfølger med forfatningsmæssige egenskaber
+# Monark(alder: Int, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
+# Tronfølger(alder: Int, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
+
+-- Samtykke: det grundlæggende forfatningsmæssige begreb for tilladelse
+# Samtykke = Givet | IkkeGivet
+
+
+-- ============================================================================
+-- § 5. Kongen kan ikke uden folketingets samtykke være regent i andre lande.
+--
+-- DEFAULT: Kongen KAN IKKE være regent andetsteds.
+-- UNDTAGELSE: Han KAN, hvis Folketinget samtykker.
+--
+-- Det simplest tænkelige default+undtagelse-mønster.
+-- "Hello world" for forfatningsmæssig default-logik.
+-- ============================================================================
+
+----
+§ 5. Kongen kan ikke uden folketingets samtykke være regent i andre lande.
+----
+
+> kan_være_regent_i_andre_lande(samtykke: Samtykke) -> Bool {
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> Falskt
+    }
+}
+
+-- Reglen som default-logik:
+| regent_i_andre_lande_tilladt() -> Falskt
+| undtagelse folketingets_samtykke_regent regent_i_andre_lande_tilladt() -> Sandt under folketinget_samtykker()
+
+@ skriv("=== Kapitel II: Kongen ===")
+@ skriv("")
+
+@ skriv("--- § 5: Regent i andre lande ---")
+@ skriv("Uden samtykke: " + vis(kan_være_regent_i_andre_lande(IkkeGivet)))
+@ skriv("Med samtykke: " + vis(kan_være_regent_i_andre_lande(Givet)))
+
+
+-- ============================================================================
+-- § 6. Kongen skal høre til den evangelisk-lutherske kirke.
+--
+-- Et ubetinget krav. Ingen undtagelsesmekanisme.
+-- En af de få ABSOLUTTE regler i grundloven — der er ingen
+-- "medmindre"-klausul. Ikke engang Folketinget kan give dispensation.
+--
+-- Krydshenvisning: § 4 definerer Folkekirken som evangelisk-luthersk.
+-- § 6 kræver at Kongen er MEDLEM. Tilsammen betyder de:
+-- Statsoverhovedet skal tilhøre statskirken.
+-- ============================================================================
+
+----
+§ 6. Kongen skal høre til den evangelisk-lutherske kirke.
+----
+
+> kongen_opfylder_troskrav(monark: Monark) -> Bool {
+    skel monark.trossamfund {
+        | EvangeliskLuthersk -> Sandt
+        | Andet(_) -> Falskt
+    }
+}
+
+-- Som regel: dette er en HÅRD BEGRÆNSNING, ikke en default.
+-- Der er intet undtagelse-nøgleord. Grundloven giver ingen override.
+| kongens_trossamfund() -> EvangeliskLuthersk
+
+@ skriv("")
+@ skriv("--- § 6: Troskrav ---")
+= luthersk_konge = Monark(55, EvangeliskLuthersk, IkkeAfgivet)
+= katolsk_konge = Monark(55, Andet("Katolsk"), IkkeAfgivet)
+@ skriv("Luthersk konge opfylder krav: " + vis(kongen_opfylder_troskrav(luthersk_konge)))
+@ skriv("Katolsk konge opfylder krav: " + vis(kongen_opfylder_troskrav(katolsk_konge)))
+
+
+-- ============================================================================
+-- § 7. Kongen er myndig, når han har fyldt sit 18. år.
+--      Det samme gælder tronfølgeren.
+--
+-- En betinget regel. Betingelsen er alder >= 18.
+-- Omfang: gælder for BÅDE kongen og tronfølgeren (eksplicit udvidelse).
+--
+-- Bemærk "det samme gælder tronfølgeren" — § 7 udvider EKSPLICIT
+-- til tronfølgeren. § 6 har INGEN sådan udvidelse. Den forskel
+-- er kernen i den muslimske konge-paradoks.
+-- ============================================================================
+
+----
+§ 7. Kongen er myndig, når han har fyldt sit 18. år. Det samme gælder tronfølgeren.
+----
+
+= myndighedsalder = 18
+
+> er_myndig_monark(monark: Monark) -> Bool {
+    hvis monark.alder >= myndighedsalder { Sandt } ellers { Falskt }
+}
+
+> er_myndig_tronfølger(tronfølger: Tronfølger) -> Bool {
+    hvis tronfølger.alder >= myndighedsalder { Sandt } ellers { Falskt }
+}
+
+@ skriv("")
+@ skriv("--- § 7: Myndighedsalder ---")
+= ung_konge = Monark(16, EvangeliskLuthersk, IkkeAfgivet)
+= voksen_konge = Monark(22, EvangeliskLuthersk, IkkeAfgivet)
+= ung_tronfølger = Tronfølger(17, EvangeliskLuthersk, IkkeAfgivet)
+= voksen_tronfølger = Tronfølger(18, EvangeliskLuthersk, IkkeAfgivet)
+@ skriv("Konge alder 16: " + vis(er_myndig_monark(ung_konge)))
+@ skriv("Konge alder 22: " + vis(er_myndig_monark(voksen_konge)))
+@ skriv("Tronfølger alder 17: " + vis(er_myndig_tronfølger(ung_tronfølger)))
+@ skriv("Tronfølger alder 18: " + vis(er_myndig_tronfølger(voksen_tronfølger)))
+
+
+-- ============================================================================
+-- § 8. Forinden kongen tiltræder regeringen, afgiver han skriftligt i
+--      statsrådet en højtidelig forsikring om ubrødeligt at ville holde
+--      grundloven.
+--
+--      Af forsikringsakten udstedes tvende ligelydende originaler, af
+--      hvilke den ene overgives folketinget for at opbevares i sammes
+--      arkiv, den anden nedlægges i rigsarkivet.
+--
+--      Kan kongen som følge af fraværelse eller af andre grunde ikke
+--      umiddelbart ved tronskiftet afgive denne forsikring, føres
+--      regeringen, indtil dette sker, af statsrådet, medmindre
+--      anderledes ved lov bestemmes.
+--
+--      Har kongen allerede som tronfølger afgivet denne forsikring,
+--      tiltræder han umiddelbart ved tronskiftet regeringen.
+--
+-- MESTERVÆRK-paragraffen for default-logik.
+-- Fire sætninger, tre niveauer af regler:
+--
+--   DEFAULT: Kongen skal afgive ed før han regerer.
+--   REGEL: To eksemplarer — Folketingets arkiv + Rigsarkivet.
+--   UNDTAGELSE 1: Fraværende → Statsrådet regerer midlertidigt.
+--   UNDTAGELSE TIL UNDTAGELSE 1: Medmindre lov bestemmer andet.
+--   UNDTAGELSE 2: Ed allerede afgivet som tronfølger → umiddelbar tiltrædelse.
+--
+-- Fallback-kæden:
+--   1. Ed afgivet som tronfølger? → Regerer straks (§ 8 stk. 4)
+--   2. Kan afgive ed nu?          → Afgiver ed, så regerer (§ 8 stk. 1)
+--   3. Kan ikke afgive ed?        → Statsrådet regerer (§ 8 stk. 3)
+--   4. Særlov eksisterer?         → Særloven bestemmer (§ 8 stk. 3)
+-- ============================================================================
+
+----
+§ 8. Forinden kongen tiltræder regeringen, afgiver han skriftligt i statsrådet en højtidelig forsikring om ubrødeligt at ville holde grundloven. Af forsikringsakten udstedes tvende ligelydende originaler, af hvilke den ene overgives folketinget for at opbevares i sammes arkiv, den anden nedlægges i rigsarkivet. Kan kongen som følge af fraværelse eller af andre grunde ikke umiddelbart ved tronskiftet afgive denne forsikring, føres regeringen, indtil dette sker, af statsrådet, medmindre anderledes ved lov bestemmes. Har kongen allerede som tronfølger afgivet denne forsikring, tiltræder han umiddelbart ved tronskiftet regeringen.
+----
+
+-- Kernespørgsmålet: hvem regerer i tronskifteøjeblikket?
+> hvem_regerer_ved_tronskifte(monark: Monark, til_stede: Bool, særlov_eksisterer: Bool) -> Regeringsfører {
+    skel monark.forsikring {
+        -- Undtagelse 2: Ed allerede afgivet som tronfølger → straks
+        | AfgivetSomTronfølger -> MonarkenSelv
+        | AfgivetSomKonge -> MonarkenSelv
+        -- Default-stien: skal afgive ed
+        | IkkeAfgivet -> {
+            hvis til_stede {
+                -- Kan afgive ed nu → afgiver ed, så regerer
+                MonarkenSelv
+            } ellers {
+                -- Undtagelse 1: fraværende → Statsrådet
+                -- Undtagelse til undtagelse 1: medmindre særlov
+                hvis særlov_eksisterer {
+                    Regent("Fastsat ved særlov")
+                } ellers {
+                    Statsrådet
+                }
+            }
+        }
+    }
+}
+
+-- Dokumentreglen: to identiske eksemplarer
+> forsikringsakt_eksemplarer() -> Int {
+    2
+}
+
+> eksemplar_placering(nr: Int) -> ArkivEksemplar {
+    hvis nr == 1 { FolketingetsArkiv } ellers { Rigsarkivet }
+}
+
+@ skriv("")
+@ skriv("--- § 8: Forsikringsakten (den kongelige ed) ---")
+
+-- Scenarie 1: Tronfølgeren har allerede svoret eden
+= forberedt_konge = Monark(45, EvangeliskLuthersk, AfgivetSomTronfølger)
+@ skriv("Har afgivet som tronfølger: " + vis(hvem_regerer_ved_tronskifte(forberedt_konge, Sandt, Falskt)))
+
+-- Scenarie 2: Kongen er til stede, har ikke svoret
+= ny_konge = Monark(45, EvangeliskLuthersk, IkkeAfgivet)
+@ skriv("Til stede, ikke afgivet: " + vis(hvem_regerer_ved_tronskifte(ny_konge, Sandt, Falskt)))
+
+-- Scenarie 3: Kongen er fraværende, ingen særlov
+@ skriv("Fraværende, ingen særlov: " + vis(hvem_regerer_ved_tronskifte(ny_konge, Falskt, Falskt)))
+
+-- Scenarie 4: Kongen er fraværende, særlov eksisterer
+@ skriv("Fraværende, særlov: " + vis(hvem_regerer_ved_tronskifte(ny_konge, Falskt, Sandt)))
+
+@ skriv("Antal eksemplarer: " + vis(forsikringsakt_eksemplarer()))
+
+
+-- ============================================================================
+-- § 9. Bestemmelser angående regeringens førelse i tilfælde af kongens
+--      umyndighed, sygdom eller fraværelse fastsættes ved lov.
+--
+--      Er der ved tronledighed ingen tronfølger, vælger folketinget
+--      en konge og fastsætter den fremtidige arvefølge.
+--
+-- To delegationsregler:
+--   1. Regentskab under umyndighed/sygdom/fravær → almindelig lov
+--   2. Ingen arving ved tronledighed → Folketinget vælger + sætter ny arvefølge
+--
+-- Ren DELEGATION — grundloven siger "en anden bestemmer"
+-- for disse specifikke scenarier. Reglerne selv er ikke her.
+--
+-- § 9 stk. 2 er bemærkelsesværdig: Folketinget får KONSTITUERENDE magt.
+-- Det kan vælge en ny konge OG fastsætte arvefølgen.
+-- Den nukleare option — gemt i en bisætning.
+-- ============================================================================
+
+----
+§ 9. Bestemmelser angående regeringens førelse i tilfælde af kongens umyndighed, sygdom eller fraværelse fastsættes ved lov. Er der ved tronledighed ingen tronfølger, vælger folketinget en konge og fastsætter den fremtidige arvefølge.
+----
+
+> regeringsførelse_ved_inhabilitet(status: MonarkStatus) -> String {
+    skel status {
+        | Umyndig -> "Fastsættes ved lov (§ 9, stk. 1)"
+        | Syg -> "Fastsættes ved lov (§ 9, stk. 1)"
+        | Fraværende -> "Fastsættes ved lov (§ 9, stk. 1)"
+        | Myndig -> "Kongen regerer selv"
+    }
+}
+
+-- Hvad sker der når der ingen tronfølger er?
+-- Folketinget får konstituerende magt.
+> ved_tronledighed_uden_tronfølger() -> String {
+    "Folketinget vælger en konge og fastsætter den fremtidige arvefølge"
+}
+
+@ skriv("")
+@ skriv("--- § 9: Regentskab og tronledighed ---")
+@ skriv("Umyndig: " + regeringsførelse_ved_inhabilitet(Umyndig))
+@ skriv("Syg: " + regeringsførelse_ved_inhabilitet(Syg))
+@ skriv("Fraværende: " + regeringsførelse_ved_inhabilitet(Fraværende))
+@ skriv("Myndig: " + regeringsførelse_ved_inhabilitet(Myndig))
+@ skriv("Ingen tronfølger: " + ved_tronledighed_uden_tronfølger())
+
+
+-- ============================================================================
+-- § 10. Stk. 1. Statens ydelse til kongen bestemmes for hans regeringstid
+--       ved lov. Ved denne fastsættes tillige, hvilke slotte og andre
+--       statsejendele der skal overlades kongen til brug.
+--
+--       Stk. 2. Statsydelsen kan ikke behæftes med gæld.
+--
+-- Stk. 1: To ting bestemt ved lov:
+--   a) Kongens statsydelse (for hans regeringstid)
+--   b) Hvilke slotte/statsejendele kongen må bruge
+--
+-- Stk. 2: Et ABSOLUT FORBUD — ingen undtagelser, ingen betingelser.
+--   Statsydelsen kan ikke behæftes med gæld.
+--   Beskytter staten mod kongelige kreditorer.
+--
+-- Stk. 1 er delegation (lov bestemmer beløb).
+-- Stk. 2 er hård begrænsning (ingen override eksisterer).
+-- "Kan ikke" — det hårdeste udtryk i grundloven.
+-- ============================================================================
+
+----
+§ 10. Stk. 1. Statens ydelse til kongen bestemmes for hans regeringstid ved lov. Ved denne fastsættes tillige, hvilke slotte og andre statsejendele der skal overlades kongen til brug.
+
+Stk. 2. Statsydelsen kan ikke behæftes med gæld.
+----
+
+-- Stk. 1: Statsydelse — delegeret til lov
+> statsydelse_hjemmel() -> String {
+    "Fastsættes ved lov for kongens regeringstid (§ 10, stk. 1)"
+}
+
+> slotte_hjemmel() -> String {
+    "Fastsættes ved samme lov (§ 10, stk. 1)"
+}
+
+-- Stk. 2: Gældsforbud — HÅRD BEGRÆNSNING, ingen undtagelse
+| statsydelse_kan_behæftes_med_gæld() -> Falskt
+
+@ skriv("")
+@ skriv("--- § 10: Statsydelse ---")
+@ skriv("Stk. 1 - Ydelse: " + statsydelse_hjemmel())
+@ skriv("Stk. 1 - Slotte: " + slotte_hjemmel())
+@ skriv("Stk. 2 - Gæld tilladt: " + vis(statsydelse_kan_behæftes_med_gæld()))
+
+
+-- ============================================================================
+-- § 11. For medlemmer af det kongelige hus kan der bestemmes årpenge
+--       ved lov. Årpengene kan ikke uden folketingets samtykke nydes
+--       uden for riget.
+--
+-- To regler:
+--   1. Kongehusets årpenge: VALGFRIT, bestemt ved lov ("kan" = må)
+--   2. Nydelse af årpenge i udlandet: DEFAULT er nej, UNDTAGELSE med samtykke
+--
+-- Bemærk "kan" i regel 1: den siger at årpenge KAN fastsættes ved lov.
+-- Svagere end "skal" — Folketinget har skønsbeføjelse.
+-- Sammenlign § 4 "understøttes" (skal understøtte) — det er obligatorisk.
+--
+-- Regel 2 følger samme samtykke-mønster som § 5:
+--   DEFAULT: kan ikke nyde årpenge i udlandet
+--   UNDTAGELSE: med Folketingets samtykke
+-- ============================================================================
+
+----
+§ 11. For medlemmer af det kongelige hus kan der bestemmes årpenge ved lov. Årpengene kan ikke uden folketingets samtykke nydes uden for riget.
+----
+
+-- Stk. 1: Årpenge — valgfrit, ved lov
+| årpenge_er_obligatoriske() -> Falskt
+
+> årpenge_hjemmel() -> String {
+    "Kan bestemmes ved lov (§ 11) — ikke obligatorisk"
+}
+
+-- Stk. 2: Årpenge i udlandet — default + undtagelse
+> årpenge_i_udlandet(samtykke: Samtykke) -> Bool {
+    skel samtykke {
+        | Givet -> Sandt
+        | IkkeGivet -> Falskt
+    }
+}
+
+-- Som default-logik:
+| årpenge_i_udlandet_tilladt() -> Falskt
+| undtagelse folketingets_samtykke_årpenge årpenge_i_udlandet_tilladt() -> Sandt under folketinget_samtykker_årpenge()
+
+@ skriv("")
+@ skriv("--- § 11: Årpenge ---")
+@ skriv("Obligatorisk: " + vis(årpenge_er_obligatoriske()))
+@ skriv("Hjemmel: " + årpenge_hjemmel())
+@ skriv("I udlandet uden samtykke: " + vis(årpenge_i_udlandet(IkkeGivet)))
+@ skriv("I udlandet med samtykke: " + vis(årpenge_i_udlandet(Givet)))
+
+
+-- ============================================================================
+-- KAPITEL II — ANALYSE
+--
+-- Strukturelle observationer om Kapitel II:
+--
+-- HÅRDE BEGRÆNSNINGER (ingen undtagelse mulig):
+--   § 6   — Kongen skal være evangelisk-luthersk
+--   § 7   — Myndig ved 18 år
+--   § 10.2 — Statsydelse kan ikke bære gæld
+--
+-- SAMTYKKE-BETINGET (default nej, undtagelse med Folketingets samtykke):
+--   § 5   — Regent i andre lande
+--   § 11.2 — Årpenge nydt i udlandet
+--
+-- DELEGERET TIL ALMINDELIG LOV:
+--   § 9.1  — Regentskabsregler
+--   § 10.1 — Statsydelsens størrelse + slotte
+--   § 11.1 — Kongehusets årpenge
+--
+-- FALLBACK-KÆDER (indlejret default/undtagelse):
+--   § 8 — Ed → fravær → Statsrådet → særlov → allerede svoret
+--
+-- KONSTITUERENDE MAGT GIVET TIL FOLKETINGET:
+--   § 9.2 — Vælg en konge + fastsæt arvefølge (ingen-arving-scenariet)
+--
+-- Mønsteroversigt:
+--   Hårde begrænsninger:    3
+--   Samtykke-betinget:      2
+--   Delegeret:              3
+--   Fallback-kæder:         1
+--   Konstituerende magt:    1
+-- ============================================================================
+
+@ skriv("")
+@ skriv("=== Kapitel II: 7 paragraffer ===")
+@ skriv("Hårde krav (ingen undtagelse): § 6, § 7, § 10.2")
+@ skriv("Samtykke-betinget: § 5, § 11.2")
+@ skriv("Delegeret til lov: § 9.1, § 10.1, § 11.1")
+@ skriv("Fallback-kæder: § 8 (eden)")
+@ skriv("Konstituerende magt: § 9.2 (Folketinget vælger konge)")

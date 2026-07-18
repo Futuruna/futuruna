@@ -1,0 +1,78 @@
+@ sprog da
+
+-- ============================================================================
+-- Danmarks Riges Grundlov
+--
+-- Vedtaget ved folkeafstemning den 28. maj 1953,
+-- stadfæstet af Kong Frederik den Niende.
+-- Forgænger: Grundloven af 5. juni 1915 med ændringer af 10. september 1920.
+-- Hjemmel: § 94 i forgængergrundloven.
+--
+-- Denne encoding er en formel repræsentation i programmeringssproget Futuruna.
+-- Lov ER logik ER beregning — og nu har det en syntaks.
+-- ============================================================================
+
+
+-- ============================================================================
+-- PRÆAMBLEN
+--
+-- "Vi Frederik den Niende, af Guds Nåde Konge til Danmark,
+--  de Venders og Goters, Hertug til Slesvig, Holsten, Stormarn,
+--  Ditmarsken, Lauenborg og Oldenborg, Gør vitterligt:
+--  I overensstemmelse med bestemmelserne i § 94 i Danmarks Riges
+--  Grundlov af 5. juni 1915 med ændringer af 10. september 1920
+--  har rigsdagen 2 gange vedtaget, og folketingsvælgerne ved en
+--  den 28. maj 1953 afholdt folkeafstemning godkendt, hvorefter
+--  Vi nu ved Vort allerhøjeste samtykke stadfæster
+--  DANMARKS RIGES GRUNDLOV"
+--
+-- Præamblen demonstrerer § 88-proceduren (Kap. X) bagudrettet:
+--   1. Rigsdagen vedtog TO gange (to på hinanden følgende ting)
+--   2. Folketingsvælgerne godkendte ved folkeafstemning
+--   3. Kongen stadfæstede ("Vort allerhøjeste samtykke")
+-- Den nye grundlov blev født af den gamle grundlovs egen § 94.
+-- ============================================================================
+
+
+-- ============================================================================
+-- GRUNDLÆGGENDE TYPER — Den danske stats juridiske ontologi
+-- ============================================================================
+
+-- Rigets dele
+# Rigsdel = Danmark | Færøerne | Grønland
+
+-- De tre magter (Montesquieus tredeling)
+# Statsmagt = Lovgivende | Udøvende | Dømmende
+
+-- Regeringsform
+# Regeringsform = IndskrænketMonarkisk
+
+-- Statslige institutioner
+# Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen
+
+-- Trossamfund
+# Trossamfund = EvangeliskLuthersk | Andet(navn: String)
+
+-- Hvem har magten: én institution eller to i forening
+# Magtholder = Hos(institution: Institution) | IForening(a: Institution, b: Institution)
+
+-- En juridisk forpligtelse
+# Forpligtelse = Understøttelse
+
+-- En lov som grundloven henviser til
+# Lov(titel: String, dato: String)
+
+-- Køn (for arvefølgeregler)
+# Køn = Mand | Kvinde
+
+-- En person i juridisk forstand
+# Person(navn: String, køn: Køn)
+
+-- Grundloven selv (metadata)
+= grundloven_titel = "Danmarks Riges Grundlov"
+= grundloven_dato = "5. juni 1953"
+= grundloven_monark = "Frederik den Niende"
+= grundloven_forgænger = "Grundloven af 5. juni 1915"
+
+-- Eksterne love som grundloven refererer til
+= tronfølgeloven = Lov("Tronfølgeloven", "27. marts 1953")

@@ -1,0 +1,33 @@
+@ import ./constitution
+
+----
+No State shall enter into any Treaty, Alliance, or Confederation; grant Letters of Marque and Reprisal; coin Money; emit Bills of Credit; make any Thing but gold and silver Coin a Tender in Payment of Debts; pass any Bill of Attainder, ex post facto Law, or Law impairing the Obligation of Contracts, or grant any Title of Nobility.
+----
+
+| states_can_make_treaties() -> False
+| states_can_grant_letters_of_marque() -> False
+| states_can_coin_money() -> False
+| states_can_emit_bills_of_credit() -> False
+| states_can_make_non_gold_silver_tender() -> False
+| states_can_pass_bill_of_attainder() -> False
+| states_can_pass_ex_post_facto_law() -> False
+| states_can_impair_contracts() -> False
+| states_can_grant_nobility() -> False
+
+----
+No State shall, without the Consent of the Congress, lay any Imposts or Duties on Imports or Exports, except what may be absolutely necessary for executing it's inspection Laws: and the net Produce of all Duties and Imposts, laid by any State on Imports or Exports, shall be for the Use of the Treasury of the United States; and all such Laws shall be subject to the Revision and Controul of the Congress.
+----
+
+| states_can_tax_imports_without_congress() -> False
+| state_inspection_law_exception() -> True
+| state_import_duty_revenue_goes_to_treasury() -> True
+
+----
+No State shall, without the Consent of Congress, lay any Duty of Tonnage, keep Troops, or Ships of War in time of Peace, enter into any Agreement or Compact with another State, or with a foreign Power, or engage in War, unless actually invaded, or in such imminent Danger as will not admit of delay.
+----
+
+| states_can_keep_troops_in_peace() -> False
+| states_can_keep_warships_in_peace() -> False
+| states_can_make_interstate_compacts_without_congress() -> False
+| states_can_engage_in_war() -> False
+| states_can_defend_if_invaded() -> True

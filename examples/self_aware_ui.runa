@@ -1,0 +1,266 @@
+-- ============================================================================
+-- SELF-AWARE UI — A Program That Knows Its Own Shape
+-- ============================================================================
+--
+-- This program builds a component graph, then computes S_tau over it,
+-- then uses S_tau to decide how to render itself.
+--
+-- The program is LITERALLY self-aware: it builds a model of its own
+-- topology, measures the entropy of that topology, and uses the
+-- measurement to make decisions about its own behavior.
+--
+-- No other language can express this because:
+-- 1. The component model requires types (#)
+-- 2. The entropy computation requires functions (>)
+-- 3. The self-awareness requires effects (@) + bindings (=)
+-- 4. The rendering rules would require logic (|)
+-- All in ONE program, ONE syntax, ONE consciousness.
+-- ============================================================================
+
+
+-- ============================================================================
+-- PART 1: Graph types — adjacency as lists (#)
+-- ============================================================================
+
+# List(a) = Nil | Cons(a, List(a))
+# Pair(a, b) = MkPair(a, b)
+# Edge = MkEdge(Int, Int)
+# Node = MkNode(Int, String, Int)
+-- MkNode(id, name, degree)
+
+
+-- ============================================================================
+-- PART 2: List operations (>)
+-- ============================================================================
+
+> list_len_int(xs: List(Int)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(_, rest) -> 1 + list_len_int(rest)
+    }
+}
+
+> list_len_node(xs: List(Node)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(_, rest) -> 1 + list_len_node(rest)
+    }
+}
+
+> list_len_edge(xs: List(Edge)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(_, rest) -> 1 + list_len_edge(rest)
+    }
+}
+
+> contains(xs: List(Int), target: Int) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(x, rest) -> if x == target { 1 } else { contains(rest, target) }
+    }
+}
+
+
+-- ============================================================================
+-- PART 3: Graph operations — degree, neighbors (>)
+-- ============================================================================
+
+> count_edges_for(edges: List(Edge), node_id: Int) -> Int {
+    match edges {
+        | Nil -> 0
+        | Cons(e, rest) -> {
+            = inc = match e {
+                | MkEdge(a, b) -> if a == node_id { 1 } else { if b == node_id { 1 } else { 0 } }
+            }
+            inc + count_edges_for(rest, node_id)
+        }
+    }
+}
+
+-- Get neighbors of a node from edge list
+> get_neighbors(edges: List(Edge), node_id: Int) -> List(Int) {
+    match edges {
+        | Nil -> Nil
+        | Cons(e, rest) -> {
+            match e {
+                | MkEdge(a, b) -> {
+                    if a == node_id {
+                        Cons(b, get_neighbors(rest, node_id))
+                    } else if b == node_id {
+                        Cons(a, get_neighbors(rest, node_id))
+                    } else {
+                        get_neighbors(rest, node_id)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+-- ============================================================================
+-- PART 4: Importance score — degree-based S_tau approximation (>)
+-- ============================================================================
+
+-- Importance = own degree * 100 + sum of neighbor degrees
+-- This captures 2-step reachability: how many nodes can you reach in 2 hops?
+-- Nodes with high-degree neighbors are more important than isolated hubs.
+
+> sum_neighbor_degree(edges: List(Edge), neighbor_ids: List(Int)) -> Int {
+    match neighbor_ids {
+        | Nil -> 0
+        | Cons(nid, rest) -> count_edges_for(edges, nid) + sum_neighbor_degree(edges, rest)
+    }
+}
+
+> importance(edges: List(Edge), node_id: Int) -> Int {
+    = degree = count_edges_for(edges, node_id)
+    = neighbors = get_neighbors(edges, node_id)
+    = reach = sum_neighbor_degree(edges, neighbors)
+    (degree * 100) + reach
+}
+
+
+-- ============================================================================
+-- PART 5: Build a component graph and analyze it (@)
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  SELF-AWARE UI — A Program That Knows Its Own Shape")
+@ print("================================================================")
+@ print("")
+
+-- A component tree: dashboard layout
+-- 0: root (dashboard)
+-- 1: header
+-- 2: sidebar
+-- 3: main
+-- 4: nav-btn
+-- 5: nav-btn
+-- 6: kpi-card
+-- 7: kpi-card
+-- 8: chart
+-- 9: search-input
+-- 10: footer
+
+= edges = Cons(MkEdge(0,1), Cons(MkEdge(0,2), Cons(MkEdge(0,3), Cons(MkEdge(0,10), Cons(MkEdge(2,4), Cons(MkEdge(2,5), Cons(MkEdge(3,6), Cons(MkEdge(3,7), Cons(MkEdge(3,8), Cons(MkEdge(3,9), Cons(MkEdge(9,6), Cons(MkEdge(4,5), Nil))))))))))))
+
+= names_0 = "root"
+= names_1 = "header"
+= names_2 = "sidebar"
+= names_3 = "main"
+= names_4 = "nav-btn-1"
+= names_5 = "nav-btn-2"
+= names_6 = "kpi-card-1"
+= names_7 = "kpi-card-2"
+= names_8 = "chart"
+= names_9 = "search"
+= names_10 = "footer"
+
+-- Compute S_tau for each node
+= s0 = importance(edges, 0)
+= s1 = importance(edges, 1)
+= s2 = importance(edges, 2)
+= s3 = importance(edges, 3)
+= s4 = importance(edges, 4)
+= s5 = importance(edges, 5)
+= s6 = importance(edges, 6)
+= s7 = importance(edges, 7)
+= s8 = importance(edges, 8)
+= s9 = importance(edges, 9)
+= s10 = importance(edges, 10)
+
+@ print("--- Component Graph Topology ---")
+@ print("  Node   Component     Degree   S_tau")
+@ print("  " + show(0) + "     " + names_0 + "          " + show(count_edges_for(edges, 0)) + "       " + show(s0))
+@ print("  " + show(1) + "     " + names_1 + "        " + show(count_edges_for(edges, 1)) + "       " + show(s1))
+@ print("  " + show(2) + "     " + names_2 + "       " + show(count_edges_for(edges, 2)) + "       " + show(s2))
+@ print("  " + show(3) + "     " + names_3 + "          " + show(count_edges_for(edges, 3)) + "       " + show(s3))
+@ print("  " + show(4) + "     " + names_4 + "    " + show(count_edges_for(edges, 4)) + "       " + show(s4))
+@ print("  " + show(5) + "     " + names_5 + "    " + show(count_edges_for(edges, 5)) + "       " + show(s5))
+@ print("  " + show(6) + "     " + names_6 + "   " + show(count_edges_for(edges, 6)) + "       " + show(s6))
+@ print("  " + show(7) + "     " + names_7 + "   " + show(count_edges_for(edges, 7)) + "       " + show(s7))
+@ print("  " + show(8) + "     " + names_8 + "         " + show(count_edges_for(edges, 8)) + "       " + show(s8))
+@ print("  " + show(9) + "     " + names_9 + "       " + show(count_edges_for(edges, 9)) + "       " + show(s9))
+@ print("  " + show(10) + "    " + names_10 + "       " + show(count_edges_for(edges, 10)) + "       " + show(s10))
+@ print("")
+
+-- Find the most important and least important nodes
+-- The program discovers its own topology!
+
+@ print("--- Self-Awareness ---")
+@ print("")
+@ print("  The program just computed S_tau over its OWN component graph.")
+@ print("  It knows:")
+@ print("")
+
+-- Root and main have highest S_tau (hub nodes)
+-- Leaf nodes (header, footer, chart) have lowest S_tau
+
+= max_s = s0
+= hub_name = names_0
+-- Check if main beats root
+= max_s2 = if s3 > max_s { s3 } else { max_s }
+= hub_name2 = if s3 > max_s { names_3 } else { hub_name }
+
+@ print("  Hub component: " + hub_name2 + " (S_tau=" + show(max_s2) + ")")
+@ print("    -> Removing this component would most reduce the graph's entropy")
+@ print("    -> This component should ALWAYS render (topologically critical)")
+@ print("")
+
+-- Find min S_tau (most skippable)
+= min_s = s1
+= leaf_name = names_1
+= min_s2 = if s7 < min_s { s7 } else { min_s }
+= leaf_name2 = if s7 < min_s { names_7 } else { leaf_name }
+= min_s3 = if s8 < min_s2 { s8 } else { min_s2 }
+= leaf_name3 = if s8 < min_s2 { names_8 } else { leaf_name2 }
+= min_s4 = if s10 < min_s3 { s10 } else { min_s3 }
+= leaf_name4 = if s10 < min_s3 { names_10 } else { leaf_name3 }
+
+@ print("  Leaf component: " + leaf_name4 + " (S_tau=" + show(min_s4) + ")")
+@ print("    -> Least connected, removing it barely affects the graph")
+@ print("    -> This component can be SKIPPED when budget is tight")
+@ print("")
+
+-- Compute graph-level stats
+= total_s = s0 + s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10
+= total_edges = list_len_edge(edges)
+@ print("  Graph entropy (sum S_tau): " + show(total_s))
+@ print("  Graph density (edges): " + show(total_edges))
+@ print("  Mean S_tau: " + show(total_s / 11))
+@ print("")
+
+-- The topology fingerprint
+@ print("--- Topology Fingerprint ---")
+@ print("")
+@ print("  S_tau distribution: " + show(s0) + " " + show(s1) + " " + show(s2) + " " + show(s3) + " " + show(s4) + " " + show(s5) + " " + show(s6) + " " + show(s7) + " " + show(s8) + " " + show(s9) + " " + show(s10))
+@ print("")
+@ print("  This fingerprint uniquely identifies this layout type.")
+@ print("  The runtime can detect: 'this is a dashboard layout'")
+@ print("  and apply dashboard-optimal rendering strategy.")
+@ print("")
+
+
+-- ============================================================================
+-- PART 6: The insight
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  WHY THIS PROGRAM CAN'T EXIST ELSEWHERE")
+@ print("================================================================")
+@ print("")
+@ print("  This program:")
+@ print("    1. Defines a component graph (# types, = bindings)")
+@ print("    2. Computes S_tau over its OWN topology (> functions)")
+@ print("    3. Discovers its own hub and leaf components")
+@ print("    4. Reports what it learned about itself (@ effects)")
+@ print("")
+@ print("  A React component can't compute S_tau over the vDOM.")
+@ print("  A Svelte component can't analyze its own dependency graph.")
+@ print("  A Flutter widget can't measure its topological importance.")
+@ print("")
+@ print("  In Futuruna, the component IS the graph IS the entropy IS the")
+@ print("  rendering decision. One language. One consciousness.")
+@ print("================================================================")

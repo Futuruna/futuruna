@@ -1,0 +1,21 @@
+-- Test: sync stream subscription works in async mode
+-- Previously, ~ stream | x -> {} on from_list derived streams
+-- would fail because it tried to call .subscribe() on a Vec.
+
+~ nums = from_list([10, 20, 30])
+~ doubled = nums |> map(|x| x * 2)
+
+@ print("Doubled values:")
+~ doubled | x -> {
+    @ print("  " + show(x))
+}
+
+~ names = from_list(["alpha", "beta", "gamma"])
+~ upper = names |> map(|s| to_upper(s))
+
+@ print("Uppercased:")
+~ upper | s -> {
+    @ print("  " + s)
+}
+
+@ print("PASS: sync stream subscription works")

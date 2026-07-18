@@ -1,0 +1,173 @@
+-- festival.runa — Music Festival Lineup Planner
+-- Three paradigms, zero seams:
+--   | Prolog facts + rules (knowledge base, existential search)
+--   > Functions (scoring, formatting)
+--   ~ Streams (reactive pipelines filtered through logic)
+
+-- ============================================================
+-- # Types
+-- ============================================================
+
+# Mood = Chill | Hyped | Euphoric
+
+-- ============================================================
+-- | Facts: the festival knowledge base
+-- ============================================================
+
+-- Artists and their genres
+| plays("Daft Punk", "electronic")
+| plays("Daft Punk", "disco")
+| plays("Radiohead", "alternative")
+| plays("Radiohead", "electronic")
+| plays("Miles Davis", "jazz")
+| plays("Kendrick Lamar", "hiphop")
+| plays("Kendrick Lamar", "jazz")
+| plays("Bjork", "electronic")
+| plays("Bjork", "experimental")
+| plays("Norah Jones", "jazz")
+| plays("Norah Jones", "soul")
+
+-- Attendees and their taste
+| likes("alice", "electronic")
+| likes("alice", "disco")
+| likes("bob", "jazz")
+| likes("bob", "soul")
+| likes("charlie", "hiphop")
+| likes("charlie", "electronic")
+| likes("diana", "experimental")
+| likes("diana", "jazz")
+| likes("diana", "electronic")
+
+-- Schedule conflicts (same time slot)
+| conflict("Daft Punk", "Radiohead")
+| conflict("Radiohead", "Daft Punk")
+| conflict("Miles Davis", "Kendrick Lamar")
+| conflict("Kendrick Lamar", "Miles Davis")
+| conflict("Bjork", "Norah Jones")
+| conflict("Norah Jones", "Bjork")
+
+-- ============================================================
+-- | Rules: Prolog-style reasoning
+-- ============================================================
+
+-- would_enjoy: existential search over shared genre
+-- "find any genre g such that person likes g AND artist plays g"
+| would_enjoy(person, artist) -> likes(person, g), plays(artist, g)
+
+-- ============================================================
+-- > Functions: scoring and formatting
+-- ============================================================
+
+> mood(count: Int) -> Mood {
+    if count >= 4 { Euphoric }
+    else { if count >= 2 { Hyped } else { Chill } }
+}
+
+> show_mood(m: Mood) -> String {
+    if m == Euphoric { "EUPHORIC" }
+    else { if m == Hyped { "hyped" } else { "chill" } }
+}
+
+> bar(n: Int) -> String {
+    if n >= 5 { "|||||" }
+    else { if n >= 4 { "||||" }
+    else { if n >= 3 { "|||" }
+    else { if n >= 2 { "||" }
+    else { "|" } } } }
+}
+
+-- ============================================================
+-- = The lineup
+-- ============================================================
+
+= artists = ["Daft Punk", "Radiohead", "Miles Davis", "Kendrick Lamar", "Bjork", "Norah Jones"]
+
+-- ============================================================
+-- ~ Streams: filter artists through Prolog, then analyze
+-- ============================================================
+
+@ print("=== FUTURUNA FEST 2026 ===")
+@ print("")
+@ print("--- Personalized Lineups ---")
+@ print("  (streams filter 6 artists through Prolog genre matching)")
+@ print("")
+
+-- The magic: stream |> filter(|a| <prolog rule>(a)) — logic inside a pipeline
+~ alice_line = from_list(artists) |> filter(|a| would_enjoy("alice", a))
+= al = collect(alice_line)
+= ac = length(al)
+@ print("  Alice:   " + show(al))
+@ print("           " + bar(ac) + " " + show_mood(mood(ac)))
+
+~ bob_line = from_list(artists) |> filter(|a| would_enjoy("bob", a))
+= bl = collect(bob_line)
+= bc = length(bl)
+@ print("  Bob:     " + show(bl))
+@ print("           " + bar(bc) + " " + show_mood(mood(bc)))
+
+~ charlie_line = from_list(artists) |> filter(|a| would_enjoy("charlie", a))
+= cl = collect(charlie_line)
+= cc = length(cl)
+@ print("  Charlie: " + show(cl))
+@ print("           " + bar(cc) + " " + show_mood(mood(cc)))
+
+~ diana_line = from_list(artists) |> filter(|a| would_enjoy("diana", a))
+= dl = collect(diana_line)
+= dc = length(dl)
+@ print("  Diana:   " + show(dl))
+@ print("           " + bar(dc) + " " + show_mood(mood(dc)))
+
+-- ============================================================
+-- Schedule conflicts: Prolog + bindings
+-- ============================================================
+
+@ print("")
+@ print("--- Schedule Conflicts ---")
+@ print("  (Prolog facts detect time-slot clashes)")
+@ print("")
+
+-- Alice wants both Daft Punk and Radiohead — but they clash
+= alice_dp = would_enjoy("alice", "Daft Punk")
+= alice_rh = would_enjoy("alice", "Radiohead")
+= dp_rh = conflict("Daft Punk", "Radiohead")
+@ print("  Alice wants Daft Punk: " + show(alice_dp) + ", Radiohead: " + show(alice_rh))
+@ print("  Daft Punk vs Radiohead clash: " + show(dp_rh))
+@ print("  --> Alice has a tough choice!")
+
+@ print("")
+
+-- Diana wants Miles Davis and Kendrick — also a clash
+= diana_md = would_enjoy("diana", "Miles Davis")
+= diana_kl = would_enjoy("diana", "Kendrick Lamar")
+= md_kl = conflict("Miles Davis", "Kendrick Lamar")
+@ print("  Diana wants Miles Davis: " + show(diana_md) + ", Kendrick: " + show(diana_kl))
+@ print("  Miles Davis vs Kendrick clash: " + show(md_kl))
+@ print("  --> Diana has a tough choice!")
+
+-- ============================================================
+-- Analytics: streams reduce the data
+-- ============================================================
+
+@ print("")
+@ print("--- Festival Analytics ---")
+@ print("  (streams reduce lineup counts into insights)")
+@ print("")
+
+~ counts = from_list([ac, bc, cc, dc])
+= total = reduce(counts, 0, |a, x| a + x)
+= peak = reduce(from_list([ac, bc, cc, dc]), 0, |mx, x| if x > mx { x } else { mx })
+
+@ print("  Total artist-fan matches: " + show(total))
+@ print("  Most excited attendee:    " + show(peak) + " picks " + bar(peak))
+@ print("  Average per person:       " + show(total / 4))
+
+-- Running excitement: scan shows the max growing
+~ running = from_list([ac, bc, cc, dc]) |> scan(0, |mx, x| if x > mx { x } else { mx })
+@ print("  Excitement curve:         " + show(collect(running)))
+
+@ print("")
+@ print("--- What Just Happened ---")
+@ print("  | 25 Prolog facts + existential genre search (would_enjoy)")
+@ print("  > Functions: mood scoring, bar charts, descriptions")
+@ print("  ~ Streams: filter artists through logic, reduce for analytics")
+@ print("  Three paradigms. One program. Zero seams.")

@@ -1,0 +1,49 @@
+-- transpile_test.runa: Test the Futuruna -> Rust transpiler
+
+-- Types
+# Option(a) = None | Some(a)
+
+-- Functions
+> add(a: Int, b: Int) -> Int {
+    a + b
+}
+
+> factorial(n: Int) -> Int {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+> fizzbuzz(n: Int) -> String {
+    if n % 15 == 0 {
+        "FizzBuzz"
+    } else if n % 3 == 0 {
+        "Fizz"
+    } else if n % 5 == 0 {
+        "Buzz"
+    } else {
+        show(n)
+    }
+}
+
+> describe(opt: Option(Int)) -> String {
+    match opt {
+        | None -> "nothing"
+        | Some(n) -> {
+            if n > 0 {
+                "positive"
+            } else {
+                "non-positive"
+            }
+        }
+    }
+}
+
+-- Main
+@ print("2 + 3 = " + add(2, 3))
+@ print("10! = " + factorial(10))
+@ print("FizzBuzz(15) = " + fizzbuzz(15))
+@ print("None = " + describe(None))
+@ print("Some(42) = " + describe(Some(42)))

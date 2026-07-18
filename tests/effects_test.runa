@@ -1,0 +1,125 @@
+-- effects_test.runa: Algebraic Effects Demo
+-- Demonstrates: # effect declarations, | handle expressions, resume
+
+-- ============================================================================
+-- Define effects (these are abstract — no implementation yet)
+-- ============================================================================
+
+# effect Console {
+    > say(msg: String) -> ()
+    > ask(prompt: String) -> String
+}
+
+# effect Logger {
+    > log(level: String, msg: String) -> ()
+}
+
+-- ============================================================================
+-- Functions that USE effects (pure — they don't know how effects are handled)
+-- ============================================================================
+
+> greet(name: String) -> String with Console {
+    say("Hello, " + name + "!")
+    say("How are you?")
+    = answer = ask("Tell me about yourself: ")
+    "Greeted " + name + ", they said: " + answer
+}
+
+> process(item: String) -> String with Console, Logger {
+    log("info", "Processing: " + item)
+    say("Working on: " + item)
+    log("debug", "Done with: " + item)
+    "processed:" + item
+}
+
+-- ============================================================================
+-- DEMO 1: Handle Console with real printing
+-- ============================================================================
+
+@ print("=== Demo 1: Real Console Handler ===")
+@ print("")
+
+= result1 = | handle Console {
+    | say(msg) -> { @ print("  [console] " + msg); resume(()) }
+    | ask(prompt) -> { @ print("  [console] " + prompt); resume("I'm great!") }
+} in greet("World")
+
+@ print("  Result: " + result1)
+@ print("")
+
+-- ============================================================================
+-- DEMO 2: Handle Console with SILENT handler (testing/mocking)
+-- ============================================================================
+
+@ print("=== Demo 2: Silent Console Handler (Mock) ===")
+@ print("")
+
+= result2 = | handle Console {
+    | say(msg) -> resume(())
+    | ask(prompt) -> resume("mock answer")
+} in greet("Tester")
+
+@ print("  Result: " + result2)
+@ print("")
+
+-- ============================================================================
+-- DEMO 3: Handle Console with LOGGING handler (accumulate output)
+-- ============================================================================
+
+@ print("=== Demo 3: Counting Console Handler ===")
+@ print("")
+
+= call_count = 0
+
+= result3 = | handle Console {
+    | say(msg) -> { @ print("  [say #" + show(call_count) + "] " + msg); resume(()) }
+    | ask(prompt) -> { @ print("  [ask] " + prompt); resume("counted response") }
+} in greet("Counter")
+
+@ print("  Result: " + result3)
+@ print("")
+
+-- ============================================================================
+-- DEMO 4: Handle Logger effect
+-- ============================================================================
+
+@ print("=== Demo 4: Logger Effect ===")
+@ print("")
+
+= result4 = | handle Console {
+    | say(msg) -> { @ print("  > " + msg); resume(()) }
+    | ask(prompt) -> resume("n/a")
+} in | handle Logger {
+    | log(level, msg) -> { @ print("  [" + level + "] " + msg); resume(()) }
+} in process("item-42")
+
+@ print("  Result: " + result4)
+@ print("")
+
+-- ============================================================================
+-- DEMO 5: Same function, different Logger handler (discard debug)
+-- ============================================================================
+
+@ print("=== Demo 5: Filtered Logger (info only) ===")
+@ print("")
+
+= result5 = | handle Console {
+    | say(msg) -> { @ print("  > " + msg); resume(()) }
+    | ask(prompt) -> resume("n/a")
+} in | handle Logger {
+    | log(level, msg) -> {
+        if level == "info" {
+            @ print("  [INFO] " + msg)
+        } else {
+            ()
+        }
+        resume(())
+    }
+} in process("item-99")
+
+@ print("  Result: " + result5)
+@ print("")
+
+@ print("=== Algebraic Effects: Same code, different handlers ===")
+@ print("  The functions greet() and process() never changed.")
+@ print("  Only the handlers changed — that's the power of effects.")

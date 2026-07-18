@@ -1,0 +1,257 @@
+@ sprog da
+
+-- ============================================================================
+-- Kapitel IX — Forskellige bestemmelser (§§ 86-87)
+--
+-- To paragraffer der ikke passer andre steder. Husgerningsregler.
+-- Men begge afslører noget dybere om grundlovens forhold
+-- til sine egne grænser.
+--
+-- § 86: Kommunal/menighedsråds valgretsalder følger Folketingets
+-- § 87: Islandske statsborgeres bevarede rettigheder efter 1944-adskillelsen
+--
+-- Mønstret: begge handler om ARV.
+--   § 86: kommuner ARVER den nationale valgretsalder
+--   § 87: islandske statsborgere ARVER danske grundlovsrettigheder
+--
+-- Den ene arver en regel. Den anden arver rettigheder.
+-- Begge viser grundloven i færd med at styre overgange mellem systemer.
+-- ============================================================================
+
+
+@ skriv("""
+================================================================
+  Kapitel IX: Forskellige bestemmelser (§§ 86-87)
+  To paragraffer — arvede regler
+================================================================
+""")
+
+
+-- ============================================================================
+-- § 86: KOMMUNAL OG KIRKELIG VALGRETSALDER.
+--
+-- "Valgretsalderen til de kommunale råd og menighedsrådene er den
+--  for valg til folketinget til enhver tid gældende."
+--
+-- Valgretsalderen til kommunalvalg OG menighedsrådsvalg
+-- er ALTID den samme som Folketingets valgretsalder.
+-- "Til enhver tid gældende" — på ethvert givet tidspunkt. Dynamisk binding.
+-- Hvis Folketingets valgretsalder ændres (ved folkeafstemning, § 29),
+-- ændres kommunal/menighedsråds valgretsalderen AUTOMATISK.
+-- Ingen særlov nødvendig. Ingen særdebat.
+--
+-- "For Færøernes og Grønlands vedkommende fastsættes valgretsalderen
+--  til de kommunale råd og menighedsrådene ved lov eller i henhold
+--  til lov."
+--
+-- MEN: Færøerne og Grønland kan sætte deres EGEN kommunale
+-- valgretsalder ved lov. De er UNDTAGET fra den automatiske binding.
+--
+-- Dette er bemærkelsesværdigt:
+-- 1. Grundloven skaber en DYNAMISK REFERENCE — én regel
+--    opdaterer automatisk en anden. Det er en POINTER, ikke en værdi.
+--    I programmeringstermer: § 86 gemmer en reference til § 29s output,
+--    ikke en kopi af den aktuelle valgretsalder.
+--
+-- 2. Færøerne/Grønland-undtagelsen er det ENESTE sted hvor
+--    kommunal valgretsalder KAN afvige fra den nationale.
+--    Færøerne kunne (i princippet) sætte en lavere valgretsalder
+--    for kommunalvalg end Danmark.
+--
+-- Krydsreferencer:
+--   § 29: Folketingets valgretsalder (sat ved folkeafstemning)
+--   § 28: Færøerne/Grønland 2+2 mandater
+--   § 31 stk. 5: Særlige valgregler for Færøerne/Grønland
+--   § 71 stk. 3: Grønlands 24-timers undtagelse
+--
+-- MENIGHEDSRÅDS-KROGEN:
+-- § 66 lover en Folkekirkens forfatning der aldrig blev skrevet.
+-- § 86 antager at menighedsråd har valg.
+-- Menighedsråd er del af Folkekirkens styring.
+-- § 86 giver menighedsrådsvalg FORFATNINGSSTATUS —
+-- kirkens demokratiske lag er delvist grundlovsfæstet
+-- via § 86, selvom § 66s løfte aldrig blev indfriet.
+-- ============================================================================
+
+----
+§ 86. Valgretsalderen til de kommunale råd og menighedsrådene er den for valg til folketinget til enhver tid gældende. For Færøernes og Grønlands vedkommende fastsættes valgretsalderen til de kommunale råd og menighedsrådene ved lov eller i henhold til lov.
+----
+
+> kommunal_valgretsalder() -> String {
+    "Samme som Folketingets valgretsalder (dynamisk reference)"
+}
+
+> menighedsråds_valgretsalder() -> String {
+    "Samme som Folketingets valgretsalder (dynamisk reference)"
+}
+
+-- § 86: Færøerne kan sætte egen kommunal valgretsalder ved lov
+| færøerne_særlig_kommunal_valgretsalder() -> Sandt
+
+-- § 86: Grønland kan sætte egen kommunal valgretsalder ved lov
+| grønland_særlig_kommunal_valgretsalder() -> Sandt
+
+@ skriv("""
+--- § 86: Kommunal og kirkelig valgretsalder ---
+
+Kommunal valgretsalder: {{kommunal_valgretsalder()}}
+Menighedsråds valgretsalder: {{menighedsråds_valgretsalder()}}
+
+DYNAMISK REFERENCE (pointer, ikke værdi):
+  § 86 peger på § 29s output, kopierer det ikke.
+  Ændres Folketingets valgretsalder → ændres kommunal automatisk.
+  Ingen særlov. Ingen særdebat. En POINTER i grundloven.
+
+FÆRØERNE/GRØNLAND-UNDTAGELSEN:
+  Færøerne kan sætte egen kommunal valgretsalder: {{færøerne_særlig_kommunal_valgretsalder()}}
+  Grønland kan sætte egen kommunal valgretsalder: {{grønland_særlig_kommunal_valgretsalder()}}
+  Den ENESTE mulighed for afvigelse fra den nationale valgretsalder.
+  Færøerne/Grønland KUNNE i princippet have 16-års kommunalvalg.
+
+MENIGHEDSRÅDS-KROGEN:
+  § 66 lover en Folkekirkens forfatning (aldrig skrevet)
+  § 86 giver menighedsrådsvalg FORFATNINGSSTATUS
+  Kirkens demokratiske lag er delvist grundlovsfæstet
+  via § 86 — selvom § 66s løfte aldrig blev indfriet.
+""")
+
+
+-- ============================================================================
+-- § 87: ISLANDSKE STATSBORGERES BEVAREDE RETTIGHEDER.
+--
+-- "Islandske statsborgere, der i medfør af loven om ophævelse af
+--  dansk-islandskt forbundslov m.m. nyder lige ret med danske
+--  statsborgere, bevarer de i grundloven hjemlede rettigheder,
+--  der er knyttede til dansk indfødsret."
+--
+-- Kontekst: Island var del af det danske rige til 1944.
+-- "Forbundsloven" (Unionsloven) af 1918 gjorde Island til en suveræn
+-- stat i personalunion med Danmark (fælles konge).
+-- I 1944 blev Island en republik. Forbundsloven blev ophævet.
+--
+-- § 87 siger: Islandske statsborgere der, i medfør af ophævelsesloven,
+-- nyder lige ret med danske statsborgere, BEVARER alle grundlovsrettigheder
+-- knyttet til dansk indfødsret.
+--
+-- Dette er en BEDSTEFAR-KLAUSUL:
+-- En specifik gruppe udenlandske statsborgere beholder danske
+-- grundlovsrettigheder selv efter at deres land forlod Danmark.
+--
+-- Implikationerne:
+-- 1. § 71 stk. 1 siger "ingen DANSK BORGER" — men § 87 betyder
+--    at kvalificerende islandske statsborgere OGSÅ har denne beskyttelse
+-- 2. Det er den eneste paragraf der giver grundlovsrettigheder
+--    til ikke-danske statsborgere VED NAVN (ved nationalitet)
+-- 3. Den skaber en forfatningsmæssig HUKOMMELSE af det gamle rige:
+--    Island forlod, men rettighedsforholdet består
+--
+-- RIGETS SPØGELSE:
+-- § 1 siger grundloven gælder "alle dele af Danmarks rige."
+-- Island er IKKE en del af riget. Men § 87 siger at nogle
+-- islændinge beholder rettigheder SOM OM de var.
+-- Grundlovens territoriale rækkevidde (§ 1) gennembrydes
+-- af § 87s personlige rækkevidde — rettigheder følger PERSONEN,
+-- ikke TERRITORIET.
+--
+-- I 2026 er denne bestemmelse i alt væsentligt historisk.
+-- Den kvalificerende generation (voksne i 1944) er borte.
+-- Men § 87 forbliver gældende ret — et forfatningsmæssigt fossil.
+-- En paragraf uden praktisk virkning, stadig gyldig lov.
+-- ============================================================================
+
+----
+§ 87. Islandske statsborgere, der i medfør af loven om ophævelse af dansk-islandsk forbundslov m.m. nyder lige ret med danske statsborgere, bevarer de i grundloven hjemlede rettigheder, der er knyttede til dansk indfødsret.
+----
+
+-- § 87: kvalificerende islandske statsborgere bevarer grundlovsrettigheder
+| islandsk_statsborger_har_grundlovsrettigheder() -> Sandt
+
+-- § 87: rettigheder følger personen, ikke territoriet
+| rettigheder_følger_person_ikke_territorium() -> Sandt
+
+-- Den kvalificerende generation (voksne i 1944) er borte
+| paragraf_87_har_praktisk_effekt_2026() -> Falskt
+
+@ skriv("""
+--- § 87: Islandske statsborgeres bevarede rettigheder ---
+
+Kvalificerede islandske statsborgere har grundlovsrettigheder: {{islandsk_statsborger_har_grundlovsrettigheder()}}
+Rettigheder følger person, ikke territorium: {{rettigheder_følger_person_ikke_territorium()}}
+Har praktisk effekt i 2026: {{paragraf_87_har_praktisk_effekt_2026()}}
+
+KONTEKST:
+  Island var del af det danske rige til 1944.
+  Forbundsloven (1918): Island suverænt i personalunion med DK.
+  1944: Island bliver republik. Forbundsloven ophæves.
+  § 87: Islændinge der nød lige ret, beholder grundlovsrettigheder.
+
+BEDSTEFAR-KLAUSULEN:
+  Den ENESTE paragraf der giver grundlovsrettigheder
+  til ikke-danske statsborgere VED NAVN (ved nationalitet).
+  En specifik gruppe udlændinge får dansk forfatningsbeskyttelse.
+
+RIGETS SPØGELSE:
+  § 1: Grundloven gælder 'alle dele af Danmarks rige'
+  Island er IKKE en del af riget (siden 1944)
+  § 87: Nogle islændinge beholder rettigheder SOM OM de var
+  Grundlovens territoriale rækkevidde (§ 1) gennembrydes
+  af § 87s personlige rækkevidde.
+  Rettigheder følger PERSONEN, ikke TERRITORIET.
+
+DET FORFATNINGSMÆSSIGE FOSSIL:
+  Generationen der kvalificerede (voksne i 1944) er borte.
+  § 87 er stadig gældende ret — uden praktiske subjekter.
+  En paragraf uden effekt, men med fuld gyldighed.
+  Grundloven husker hvad der engang var.
+""")
+
+
+-- ============================================================================
+-- KAPITEL IX: STRUKTUREL ANALYSE
+--
+-- To tilsyneladende uvæsentlige paragraffer afslører dybe
+-- forfatningsmæssige mønstre:
+--
+-- § 86 — POINTER-MØNSTRET:
+-- Den første (og eneste) forfatningsmæssige DYNAMISKE REFERENCE.
+-- § 86 siger ikke "18 år" — den siger "hvad § 29 siger."
+-- Sen binding i forfatningsret. Grundloven ved at nogle værdier
+-- ændrer sig, og i stedet for at duplikere dem, skaber den en reference.
+-- Programmører gør det med variabler. 1953-forfatterne med en paragraf.
+--
+-- § 87 — SPØGELSE-MØNSTRET:
+-- En bestemmelse der var meningsfuld ved ikrafttræden (1953)
+-- men er naturligt henfaldet til nul praktisk virkning i 2026.
+-- Til forskel fra § 66s brudte løfte (aldrig opfyldt), blev § 87
+-- opfyldt og derefter døde dens subjekter. Den er ikke brudt —
+-- den er komplet. En bestemmelse med et TEMPORALT formål.
+--
+-- SAMMEN: § 86 peger FREMAD (dynamisk binding)
+--         § 87 peger BAGUD (bevarede rettigheder)
+--         Janus-hovedet: husgerningskapitlet ser begge veje i tid.
+-- ============================================================================
+
+@ skriv("""
+================================================================
+  Kapitel IX: To paragraffer — arvede regler
+================================================================
+
+TO MØNSTRE:
+
+  § 86 — POINTER-MØNSTRET:
+    Grundlovens eneste dynamiske reference.
+    Siger ikke '18 år' — siger 'hvad § 29 siger'.
+    Sen binding i forfatningsret.
+    Programmør: variabel. Grundlov: § 86.
+
+  § 87 — SPØGELSE-MØNSTRET:
+    Meningsfuld i 1953. Nul praktisk effekt i 2026.
+    Ikke brudt (som § 66). Opfyldt, og subjekterne er døde.
+    En bestemmelse med et TEMPORALT formål.
+
+  SAMMEN: § 86 peger FREMAD (dynamisk binding)
+          § 87 peger BAGUD (bevarede rettigheder)
+          Janus-hovedet: husgerningskapitlet ser begge veje i tid.
+
+SAMTYKKE-TÆLLING: stadig 8. Ingen nye i Kap. IX.
+""")

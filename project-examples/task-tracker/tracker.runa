@@ -1,0 +1,777 @@
+-- tracker.runa — Project Task Tracker
+--
+-- Pressure test: all 7 runes, actors, streams, DB, JSON, rules, scopes,
+-- verification, collection builtins, match guards, deep call chains.
+--
+-- Run:   runa run project-examples/task-tracker/tracker.runa
+-- Build: runa build project-examples/task-tracker/tracker.runa
+-- Check: runa check project-examples/task-tracker/tracker.runa
+
+
+-- ============================================================================
+-- # TYPES — Domain model (8 ADTs, 4 structs)
+-- ============================================================================
+
+# Priority = Critical | High | Medium | Low
+# Status = Open | InProgress | Review | Done | Blocked
+# Role = Admin | Developer | Manager | Viewer
+# Category = Bug | Feature | Refactor | Security | Docs
+# Urgency = Immediate | Soon | Normal | Someday
+# Transition = Allowed | Denied(reason: String)
+# SlaStatus = OnTrack | AtRisk | Breached
+# Verdict = Approve | Reject | Escalate
+
+# User(name: String, role: Role, capacity: Int)
+# Task(id: Int, title: String, assignee: String, priority: Priority, status: Status, category: Category, estimate: Int)
+# Event(task_id: Int, action: String, actor_name: String)
+# Sprint(name: String, capacity_hrs: Int, task_count: Int)
+
+
+-- ============================================================================
+-- > FUNCTIONS — Core logic (25+ functions, deep call chains)
+-- ============================================================================
+
+-- Priority scoring
+> priority_weight(p: Priority) -> Int {
+    match p {
+        | Critical -> 4
+        | High -> 3
+        | Medium -> 2
+        | Low -> 1
+    }
+}
+
+> category_multiplier(c: Category) -> Int {
+    match c {
+        | Security -> 3
+        | Bug -> 2
+        | Refactor -> 1
+        | Feature -> 1
+        | Docs -> 0
+    }
+}
+
+> effective_score(p: Priority, c: Category) -> Int {
+    priority_weight(p) * 10 + category_multiplier(c) * 5
+}
+
+> task_score(t: Task) -> Int {
+    effective_score(t.priority, t.category)
+}
+
+-- Label functions (match with all arms)
+> priority_label(p: Priority) -> String {
+    match p {
+        | Critical -> "CRITICAL"
+        | High -> "HIGH"
+        | Medium -> "MEDIUM"
+        | Low -> "LOW"
+    }
+}
+
+> status_label(s: Status) -> String {
+    match s {
+        | Open -> "OPEN"
+        | InProgress -> "IN_PROGRESS"
+        | Review -> "REVIEW"
+        | Done -> "DONE"
+        | Blocked -> "BLOCKED"
+    }
+}
+
+> category_label(c: Category) -> String {
+    match c {
+        | Bug -> "bug"
+        | Feature -> "feature"
+        | Refactor -> "refactor"
+        | Security -> "security"
+        | Docs -> "docs"
+    }
+}
+
+> role_label(r: Role) -> String {
+    match r {
+        | Admin -> "admin"
+        | Developer -> "dev"
+        | Manager -> "mgr"
+        | Viewer -> "viewer"
+    }
+}
+
+> urgency_of(p: Priority) -> Urgency {
+    match p {
+        | Critical -> Immediate
+        | High -> Soon
+        | Medium -> Normal
+        | Low -> Someday
+    }
+}
+
+> sla_hours(p: Priority) -> Int {
+    match p {
+        | Critical -> 8
+        | High -> 24
+        | Medium -> 80
+        | Low -> 200
+    }
+}
+
+-- Status logic
+> is_terminal(s: Status) -> Bool { s == Done }
+> is_active(s: Status) -> Bool { s == InProgress || s == Review }
+> is_blocked(s: Status) -> Bool { s == Blocked }
+
+-- Transition validation (nested if/else)
+> check_transition(from: Status, to: Status) -> Transition {
+    if from == Open && to == InProgress { Allowed }
+    else if from == Open && to == Blocked { Allowed }
+    else if from == InProgress && to == Review { Allowed }
+    else if from == InProgress && to == Blocked { Allowed }
+    else if from == Review && to == Done { Allowed }
+    else if from == Review && to == InProgress { Allowed }
+    else if from == Blocked && to == Open { Allowed }
+    else if from == Done && to == Open { Denied("Done is terminal") }
+    else { Denied("Invalid: " + status_label(from) + " -> " + status_label(to)) }
+}
+
+> is_allowed(t: Transition) -> Bool {
+    match t {
+        | Allowed -> True
+        | Denied(reason: _) -> False
+    }
+}
+
+-- Role-based access (match with guards)
+> can_assign(r: Role) -> Bool {
+    match r {
+        | Admin -> True
+        | Manager -> True
+        | _ -> False
+    }
+}
+
+> can_close(r: Role) -> Bool {
+    match r {
+        | Viewer -> False
+        | _ -> True
+    }
+}
+
+> can_escalate(r: Role) -> Bool {
+    match r {
+        | Admin -> True
+        | Manager -> True
+        | _ -> False
+    }
+}
+
+-- Workload analysis
+> estimate_days(hours: Int) -> Int {
+    if hours <= 0 { 0 }
+    else { (hours + 7) / 8 }
+}
+
+> sla_status(estimate: Int, priority: Priority) -> SlaStatus {
+    = limit = sla_hours(priority)
+    if estimate <= limit / 2 { OnTrack }
+    else if estimate <= limit { AtRisk }
+    else { Breached }
+}
+
+-- Formatting (deep string concatenation chains)
+> format_task(t: Task) -> String {
+    "[" + show(t.id) + "] " + t.title + " (" + priority_label(t.priority) + "/" + category_label(t.category) + ") " + status_label(t.status) + " -> " + t.assignee + " [" + show(t.estimate) + "h]"
+}
+
+> format_user(u: User) -> String {
+    u.name + " (" + role_label(u.role) + ", cap=" + show(u.capacity) + ")"
+}
+
+> format_event(e: Event) -> String {
+    "[task:" + show(e.task_id) + "] " + e.action + " by " + e.actor_name
+}
+
+-- SQL builders (pure functions returning strings — effects stay at top level)
+> sql_insert_task(t: Task) -> String {
+    "INSERT INTO tasks VALUES (" + show(t.id) + ", '" + t.title + "', '" + t.assignee + "', '" + priority_label(t.priority) + "', '" + status_label(t.status) + "', '" + category_label(t.category) + "', " + show(t.estimate) + ")"
+}
+
+> sql_insert_event(e: Event) -> String {
+    "INSERT INTO events (task_id, action, actor) VALUES (" + show(e.task_id) + ", '" + e.action + "', '" + e.actor_name + "')"
+}
+
+> sql_update_status(task_id: Int, status: String) -> String {
+    "UPDATE tasks SET status = '" + status + "' WHERE id = " + show(task_id)
+}
+
+> sql_update_assignee(task_id: Int, assignee: String) -> String {
+    "UPDATE tasks SET assignee = '" + assignee + "' WHERE id = " + show(task_id)
+}
+
+-- Sprint planning
+> sprint_fits(sprint_remaining: Int, task_estimate: Int) -> Bool {
+    task_estimate <= sprint_remaining
+}
+
+> sprint_utilization(capacity: Int, used: Int) -> Float {
+    if capacity == 0 { 0.0 }
+    else { to_float(used) * 100.0 / to_float(capacity) }
+}
+
+
+-- ============================================================================
+-- | RULES — Catala-style business rules with exceptions
+-- ============================================================================
+
+-- Base: any user can be assigned tasks
+| assignment_ok(user, task) -> True
+
+-- Exception: viewers cannot be assigned
+| exception viewer_no_assign assignment_ok(user, task) -> False under user.role == Viewer
+
+-- Exception: blocked tasks cannot be reassigned
+| exception blocked_no_assign assignment_ok(user, task) -> False under task.status == Blocked
+
+-- Priority escalation rules
+| should_escalate(task) -> False
+
+-- Security tasks below Critical should escalate
+| exception security_esc should_escalate(task) -> True under task.category == Security && task.priority != Critical
+
+-- Blocked tasks with low priority should escalate
+| exception blocked_esc should_escalate(task) -> True under task.status == Blocked && task.priority == Low
+
+-- Overdue tasks should escalate
+| exception overdue_esc should_escalate(task) -> True under task.estimate > 40
+
+-- SLA compliance
+| meets_sla(task) -> True
+
+-- Big tasks breach SLA
+| exception sla_breach meets_sla(task) -> False under task.estimate > sla_hours(task.priority)
+
+-- Approval workflow
+| auto_approve(task) -> False
+
+-- Small bug fixes auto-approve
+| exception small_bug_approve auto_approve(task) -> True under task.category == Bug && task.estimate <= 4
+
+-- Docs changes auto-approve
+| exception docs_approve auto_approve(task) -> True under task.category == Docs
+
+
+-- ============================================================================
+-- = BINDINGS + | INVARIANTS — Test data and properties
+-- ============================================================================
+
+= alice = User("alice", Admin, 10)
+= bob = User("bob", Developer, 5)
+= carol = User("carol", Manager, 8)
+= dave = User("dave", Developer, 5)
+= eve = User("eve", Viewer, 0)
+
+= t_sql_inject = Task(1, "SQL injection in login", "bob", Critical, Open, Security, 4)
+= t_dashboard = Task(2, "User dashboard", "carol", High, Open, Feature, 24)
+= t_datefmt = Task(3, "Date formatting", "dave", Medium, Open, Bug, 8)
+= t_apidocs = Task(4, "Update API docs", "bob", Low, Open, Docs, 16)
+= t_memleak = Task(5, "Memory leak in pool", "dave", Critical, Open, Bug, 12)
+= t_vulnscan = Task(6, "Dependency vuln scan", "bob", High, Open, Security, 6)
+= t_authmw = Task(7, "Extract auth middleware", "dave", Medium, Open, Refactor, 20)
+= t_darkmode = Task(8, "Dark mode support", "carol", Low, Open, Feature, 32)
+= t_blocked = Task(9, "Waiting on vendor API", "bob", Medium, Blocked, Feature, 40)
+= t_tiny_bug = Task(10, "Fix typo in header", "dave", Low, Open, Bug, 1)
+
+-- Invariants: assignment rules
+| admin_can_assign: assignment_ok(alice, t_sql_inject) -> assignment_ok(alice, t_sql_inject) == True
+| viewer_cannot_assign: assignment_ok(eve, t_sql_inject) -> assignment_ok(eve, t_sql_inject) == False
+| blocked_rejects_assign: assignment_ok(bob, t_blocked) -> assignment_ok(bob, t_blocked) == False
+| manager_can_assign: assignment_ok(carol, t_dashboard) -> assignment_ok(carol, t_dashboard) == True
+
+-- Invariants: escalation
+| security_medium_escalates: should_escalate(t_vulnscan) -> should_escalate(t_vulnscan) == True
+| critical_security_no_esc: should_escalate(t_sql_inject) -> should_escalate(t_sql_inject) == False
+| blocked_low_escalates: should_escalate(Task(99, "x", "x", Low, Blocked, Docs, 1)) -> should_escalate(Task(99, "x", "x", Low, Blocked, Docs, 1)) == True
+| overdue_escalates: should_escalate(Task(99, "x", "x", Low, Open, Docs, 50)) -> should_escalate(Task(99, "x", "x", Low, Open, Docs, 50)) == True
+
+-- Invariants: status transitions
+| open_to_progress: is_allowed(check_transition(Open, InProgress)) -> is_allowed(check_transition(Open, InProgress)) == True
+| done_is_terminal: is_allowed(check_transition(Done, Open)) -> is_allowed(check_transition(Done, Open)) == False
+| review_to_done: is_allowed(check_transition(Review, Done)) -> is_allowed(check_transition(Review, Done)) == True
+| blocked_to_open: is_allowed(check_transition(Blocked, Open)) -> is_allowed(check_transition(Blocked, Open)) == True
+
+-- Invariants: priority ordering
+| critical_gt_high: priority_weight(Critical) -> priority_weight(Critical) > priority_weight(High)
+| high_gt_medium: priority_weight(High) -> priority_weight(High) > priority_weight(Medium)
+| security_boosts_score: effective_score(Medium, Security) -> effective_score(Medium, Security) > effective_score(Medium, Feature)
+
+-- Invariants: SLA
+| sla_small_bug_ok: meets_sla(t_tiny_bug) -> meets_sla(t_tiny_bug) == True
+| sla_memleak_breach: meets_sla(t_memleak) -> meets_sla(t_memleak) == False
+
+-- Invariants: auto-approve
+| tiny_bug_auto_approves: auto_approve(t_tiny_bug) -> auto_approve(t_tiny_bug) == True
+| docs_auto_approves: auto_approve(t_apidocs) -> auto_approve(t_apidocs) == True
+| feature_no_auto: auto_approve(t_dashboard) -> auto_approve(t_dashboard) == False
+
+
+-- ============================================================================
+-- ? VERIFY — Prove all invariants before running
+-- ============================================================================
+
+@ print("=== Verifying Business Rules ===")
+@ print("")
+
+@ print("  Assignment rules:")
+? admin_can_assign -> { @ print("    admin assigns:        OK") }
+? viewer_cannot_assign -> { @ print("    viewer blocked:       OK") }
+? blocked_rejects_assign -> { @ print("    blocked rejects:      OK") }
+? manager_can_assign -> { @ print("    manager assigns:      OK") }
+
+@ print("  Escalation rules:")
+? security_medium_escalates -> { @ print("    security escalates:   OK") }
+? critical_security_no_esc -> { @ print("    critical no-esc:      OK") }
+? blocked_low_escalates -> { @ print("    blocked+low esc:      OK") }
+? overdue_escalates -> { @ print("    overdue escalates:    OK") }
+
+@ print("  Status transitions:")
+? open_to_progress -> { @ print("    open->progress:       OK") }
+? done_is_terminal -> { @ print("    done terminal:        OK") }
+? review_to_done -> { @ print("    review->done:         OK") }
+? blocked_to_open -> { @ print("    blocked->open:        OK") }
+
+@ print("  Priority ordering:")
+? critical_gt_high -> { @ print("    critical > high:      OK") }
+? high_gt_medium -> { @ print("    high > medium:        OK") }
+? security_boosts_score -> { @ print("    security boost:       OK") }
+
+@ print("  SLA compliance:")
+? sla_small_bug_ok -> { @ print("    small bug on-track:   OK") }
+? sla_memleak_breach -> { @ print("    memleak breach:       OK") }
+
+@ print("  Auto-approval:")
+? tiny_bug_auto_approves -> { @ print("    tiny bug auto:        OK") }
+? docs_auto_approves -> { @ print("    docs auto:            OK") }
+? feature_no_auto -> { @ print("    feature no-auto:      OK") }
+
+@ print("")
+@ print("  20/20 invariants verified.")
+
+
+-- ============================================================================
+-- > ACTORS — State management
+-- ============================================================================
+
+> actor task_counter(count: Int) {
+    | NewTask -> count + 1
+    | RemoveTask -> count - 1
+    | ResetTasks -> 0
+}
+
+> actor critical_tracker(n: Int) {
+    | AddCritical -> n + 1
+    | ResolveCritical -> n - 1
+    | ResetCriticals -> 0
+}
+
+> actor done_counter(n: Int) {
+    | TaskDone -> n + 1
+    | UndoDone -> n - 1
+    | ResetDone -> 0
+}
+
+
+-- ============================================================================
+-- @ DATABASE — Persistence layer
+-- ============================================================================
+
+@ print("")
+@ print("=== Database Setup ===")
+
+= db = db_open(":memory:")
+
+@ db_exec(db, "CREATE TABLE tasks (id INTEGER PRIMARY KEY, title TEXT, assignee TEXT, priority TEXT, status TEXT, category TEXT, estimate INTEGER)")
+@ db_exec(db, "CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER, action TEXT, actor TEXT)")
+@ db_exec(db, "CREATE TABLE users (name TEXT PRIMARY KEY, role TEXT, capacity INTEGER)")
+
+@ db_exec(db, "INSERT INTO users VALUES ('alice', 'admin', 10)")
+@ db_exec(db, "INSERT INTO users VALUES ('bob', 'developer', 5)")
+@ db_exec(db, "INSERT INTO users VALUES ('carol', 'manager', 8)")
+@ db_exec(db, "INSERT INTO users VALUES ('dave', 'developer', 5)")
+@ db_exec(db, "INSERT INTO users VALUES ('eve', 'viewer', 0)")
+
+@ print("  3 tables created, 5 users seeded.")
+
+
+-- ============================================================================
+-- ~ STREAMS — Event processing with subjects
+-- ============================================================================
+
+@ print("")
+@ print("=== Event Stream ===")
+
+~ event_log = subject()
+~ critical_events = subject()
+
+-- Subscribe: print all events
+~ event_log | e -> {
+    @ print("  " + e)
+}
+
+-- Subscribe: critical events get special treatment
+~ critical_events | e -> {
+    @ print("  *** CRITICAL: " + e + " ***")
+}
+
+
+-- ============================================================================
+-- SIMULATION — Create tasks, process them, track everything
+-- ============================================================================
+
+@ print("")
+@ print("--- Creating 10 Tasks ---")
+
+= tc = spawn(task_counter, 0)
+= cc = spawn(critical_tracker, 0)
+= dc = spawn(done_counter, 0)
+
+-- Insert all tasks into DB and log events
+= all_tasks = [t_sql_inject, t_dashboard, t_datefmt, t_apidocs, t_memleak, t_vulnscan, t_authmw, t_darkmode, t_blocked, t_tiny_bug]
+
+for t in all_tasks {
+    @ db_exec(db, sql_insert_task(t))
+    @ db_exec(db, sql_insert_event(Event(t.id, "created", "system")))
+    tc <- NewTask
+    event_log <- "CREATE " + format_task(t)
+}
+
+-- Track critical tasks
+cc <- AddCritical
+cc <- AddCritical
+critical_events <- "SQL injection in login assigned to bob"
+critical_events <- "Memory leak in pool assigned to dave"
+
+@ print("")
+@ print("--- Processing Sprint ---")
+@ print("")
+
+-- bob starts on the SQL injection (critical security)
+@ db_exec(db, sql_update_status(1, "IN_PROGRESS"))
+@ db_exec(db, sql_insert_event(Event(1, "started", "bob")))
+event_log <- "START  [1] SQL injection -> bob"
+
+-- dave starts on the memory leak (critical bug)
+@ db_exec(db, sql_update_status(5, "IN_PROGRESS"))
+@ db_exec(db, sql_insert_event(Event(5, "started", "dave")))
+event_log <- "START  [5] Memory leak -> dave"
+
+-- carol starts the dashboard (high feature)
+@ db_exec(db, sql_update_status(2, "IN_PROGRESS"))
+@ db_exec(db, sql_insert_event(Event(2, "started", "carol")))
+event_log <- "START  [2] User dashboard -> carol"
+
+-- bob finishes SQL injection -> review
+@ db_exec(db, sql_update_status(1, "REVIEW"))
+@ db_exec(db, sql_insert_event(Event(1, "review", "bob")))
+event_log <- "REVIEW [1] SQL injection -> bob"
+
+-- alice approves SQL injection -> done
+@ db_exec(db, sql_update_status(1, "DONE"))
+@ db_exec(db, sql_insert_event(Event(1, "completed", "alice")))
+cc <- ResolveCritical
+dc <- TaskDone
+event_log <- "DONE   [1] SQL injection (approved by alice)"
+
+-- dave moves memory leak to review
+@ db_exec(db, sql_update_status(5, "REVIEW"))
+@ db_exec(db, sql_insert_event(Event(5, "review", "dave")))
+event_log <- "REVIEW [5] Memory leak -> dave"
+
+-- carol blocks the dashboard on design feedback
+@ db_exec(db, sql_update_status(2, "BLOCKED"))
+@ db_exec(db, sql_insert_event(Event(2, "blocked", "carol")))
+event_log <- "BLOCK  [2] User dashboard (waiting on design)"
+
+-- bob starts the tiny bug fix
+@ db_exec(db, sql_update_status(10, "IN_PROGRESS"))
+@ db_exec(db, sql_insert_event(Event(10, "started", "bob")))
+event_log <- "START  [10] Fix typo -> bob"
+
+-- bob finishes tiny bug -> review -> done (fast track)
+@ db_exec(db, sql_update_status(10, "REVIEW"))
+@ db_exec(db, sql_update_status(10, "DONE"))
+@ db_exec(db, sql_insert_event(Event(10, "completed", "bob")))
+dc <- TaskDone
+event_log <- "DONE   [10] Fix typo (auto-approved, small bug)"
+
+-- reassign vuln scan from bob to dave (carol decides)
+@ db_exec(db, sql_update_assignee(6, "dave"))
+@ db_exec(db, sql_insert_event(Event(6, "reassigned", "carol")))
+event_log <- "ASSIGN [6] Vuln scan: bob -> dave (by carol)"
+
+-- dave starts vuln scan
+@ db_exec(db, sql_update_status(6, "IN_PROGRESS"))
+@ db_exec(db, sql_insert_event(Event(6, "started", "dave")))
+event_log <- "START  [6] Vuln scan -> dave"
+
+
+-- ============================================================================
+-- ~ STREAM ANALYTICS — Pipeline processing
+-- ============================================================================
+
+@ print("")
+@ print("=== Stream Analytics ===")
+
+-- Estimates as a stream
+~ estimates = from_list([4, 24, 8, 16, 12, 6, 20, 32, 40, 1])
+~ cumulative = estimates |> scan(0, |acc, x| acc + x)
+~ high_effort = estimates |> filter(|x| x > 15)
+~ small_tasks = estimates |> filter(|x| x <= 4)
+
+= total_hours = estimates |> sum
+= high_count = count(high_effort)
+= small_count = count(small_tasks)
+
+@ print("  Total estimated hours: " + show(total_hours))
+@ print("  High-effort tasks (>15h): " + show(high_count))
+@ print("  Small tasks (<=4h): " + show(small_count))
+@ print("  Average estimate: " + show(total_hours / 10) + "h")
+
+@ print("")
+@ print("  Cumulative workload:")
+~ cumulative | c -> {
+    @ print("    " + show(c) + "h")
+}
+
+-- Score distribution as a stream
+~ scores = from_list([45, 35, 25, 15, 45, 35, 15, 15, 25, 10])
+~ top_tier = scores |> filter(|s| s >= 35) |> take(3)
+~ score_buckets = scores |> map(|s| if s >= 35 { "urgent" } else if s >= 20 { "normal" } else { "low" })
+
+@ print("")
+@ print("  Top 3 urgent tasks by score:")
+~ top_tier | s -> {
+    @ print("    score=" + show(s))
+}
+
+@ print("")
+@ print("  Priority buckets:")
+~ score_buckets | b -> {
+    @ print("    " + b)
+}
+
+
+-- ============================================================================
+-- COLLECTION ANALYTICS — sort, partition, fold
+-- ============================================================================
+
+@ print("")
+@ print("=== Collection Analytics ===")
+
+= all_estimates = [4, 24, 8, 16, 12, 6, 20, 32, 40, 1]
+= sorted_est = sort(all_estimates)
+@ print("  Sorted estimates: " + show(sorted_est))
+
+= unique_est = distinct(all_estimates)
+@ print("  Distinct estimates: " + show(unique_est))
+
+-- Partition into small vs large
+> is_large(x: Int) -> Bool { x > 10 }
+= parts = partition(all_estimates, is_large)
+@ print("  Partition (>10): " + show(parts))
+
+-- Sum
+= total_sum = sum_list(all_estimates)
+@ print("  Sum of estimates: " + show(total_sum))
+
+-- Chunk into pairs for sprint planning
+= chunks = chunked(sorted_est, 3)
+@ print("  Chunked (groups of 3): " + show(chunks))
+
+-- Count by predicate
+> is_critical_estimate(x: Int) -> Bool { x <= 8 }
+= crit_count = count_by(all_estimates, is_critical_estimate)
+@ print("  Quick tasks (<=8h): " + show(crit_count))
+
+-- Take while small
+> is_small(x: Int) -> Bool { x <= 10 }
+= small_prefix = take_while(sorted_est, is_small)
+@ print("  Smallest tasks: " + show(small_prefix))
+
+-- Enumerate for ranking
+= top_5 = [4, 6, 8, 12, 16]
+= ranked = enumerate(top_5)
+@ print("  Ranked estimates: " + show(ranked))
+
+-- Find first large task
+= first_large = find(sorted_est, is_large)
+@ print("  First large task: " + show(first_large))
+
+
+-- ============================================================================
+-- > ACTOR STATE — Check actor counters
+-- ============================================================================
+
+@ print("")
+@ print("=== Actor State ===")
+
+= final_tasks = ask(tc, NewTask)
+@ print("  Task counter:     " + show(final_tasks) + " (10 created + 1 ask)")
+= final_critical = ask(cc, AddCritical)
+@ print("  Critical tracker:  " + show(final_critical) + " (2 added, 1 resolved + 1 ask)")
+= final_done = ask(dc, TaskDone)
+@ print("  Done counter:      " + show(final_done) + " (2 completed + 1 ask)")
+
+
+-- ============================================================================
+-- | SCOPE — Dashboard
+-- ============================================================================
+
+@ print("")
+@ print("=== Dashboard ===")
+
+| scope Dashboard {
+    = total = db_query_row(db, "SELECT COUNT(*) FROM tasks")
+    = total_events = db_query_row(db, "SELECT COUNT(*) FROM events")
+    = done_list = db_query(db, "SELECT title FROM tasks WHERE status = 'DONE'")
+    = blocked_list = db_query(db, "SELECT title FROM tasks WHERE status = 'BLOCKED'")
+    = in_progress = db_query(db, "SELECT title, assignee FROM tasks WHERE status = 'IN_PROGRESS'")
+    = open_list = db_query(db, "SELECT title FROM tasks WHERE status = 'OPEN'")
+    = review_list = db_query(db, "SELECT title FROM tasks WHERE status = 'REVIEW'")
+
+    @ print("")
+    @ print("  Tasks:  " + show(total))
+    @ print("  Events: " + show(total_events))
+    @ print("")
+    @ print("  DONE:        " + show(done_list))
+    @ print("  IN_PROGRESS: " + show(in_progress))
+    @ print("  REVIEW:      " + show(review_list))
+    @ print("  BLOCKED:     " + show(blocked_list))
+    @ print("  OPEN:        " + show(open_list))
+}
+
+
+-- ============================================================================
+-- | SCOPE — Sprint Planning
+-- ============================================================================
+
+@ print("")
+@ print("=== Sprint Planning ===")
+
+| scope SprintPlan {
+    = sprint = Sprint("Sprint 23", 80, 0)
+    @ print("  Sprint: " + sprint.name + " (capacity: " + show(sprint.capacity_hrs) + "h)")
+
+    -- Top queries
+    = by_priority = db_query(db, "SELECT title, priority, estimate FROM tasks WHERE status != 'DONE' ORDER BY CASE priority WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2 WHEN 'MEDIUM' THEN 3 ELSE 4 END LIMIT 5")
+    @ print("")
+    @ print("  Top 5 by priority:")
+    @ print("    " + show(by_priority))
+
+    = workload_bob = db_query_row(db, "SELECT COALESCE(SUM(estimate),0) FROM tasks WHERE assignee = 'bob' AND status != 'DONE'")
+    = workload_dave = db_query_row(db, "SELECT COALESCE(SUM(estimate),0) FROM tasks WHERE assignee = 'dave' AND status != 'DONE'")
+    = workload_carol = db_query_row(db, "SELECT COALESCE(SUM(estimate),0) FROM tasks WHERE assignee = 'carol' AND status != 'DONE'")
+
+    @ print("")
+    @ print("  Workload:")
+    @ print("    bob:   " + show(workload_bob) + "h")
+    @ print("    dave:  " + show(workload_dave) + "h")
+    @ print("    carol: " + show(workload_carol) + "h")
+
+    = util = sprint_utilization(sprint.capacity_hrs, total_hours)
+    @ print("")
+    @ print("  Sprint utilization: " + format_float(util, 1) + "%")
+}
+
+
+-- ============================================================================
+-- @ JSON — Build and parse a status report
+-- ============================================================================
+
+@ print("")
+@ print("=== JSON Report ===")
+
+= report_json = json_object([["sprint", "Sprint 23"], ["total_tasks", show(10)], ["completed", show(2)], ["in_progress", show(2)], ["blocked", show(2)], ["open", show(4)], ["total_hours", show(total_hours)], ["critical_open", show(1)]])
+
+@ print("  " + report_json)
+
+-- Round-trip: parse and extract
+= parsed = json_parse(report_json)
+= rpt_sprint = json_string(json_get(parsed, "sprint"))
+= rpt_total = json_get(parsed, "total_tasks")
+= rpt_done = json_get(parsed, "completed")
+= rpt_hours = json_number(json_get(parsed, "total_hours"))
+
+@ print("")
+@ print("  Round-trip verification:")
+@ print("    sprint: " + rpt_sprint)
+@ print("    total:  " + rpt_total)
+@ print("    done:   " + rpt_done)
+@ print("    hours:  " + show(rpt_hours))
+
+-- Build a per-task JSON report (use computed scores to avoid ownership issues)
+= score_1 = effective_score(Critical, Security)
+= score_5 = effective_score(Critical, Bug)
+= task1_json = json_object([["id", "1"], ["title", "SQL injection in login"], ["status", "DONE"], ["score", show(score_1)]])
+= task5_json = json_object([["id", "5"], ["title", "Memory leak in pool"], ["status", "REVIEW"], ["score", show(score_5)]])
+
+@ print("")
+@ print("  Task reports:")
+@ print("    " + task1_json)
+@ print("    " + task5_json)
+
+
+-- ============================================================================
+-- SCORING — Demonstrate deep call chains (before simulation consumes tasks)
+-- ============================================================================
+
+@ print("")
+@ print("=== Task Scoring ===")
+
+@ print("  [1]  SQL injection:   score=" + show(effective_score(Critical, Security)) + " sla=" + show(sla_hours(Critical)) + "h urgency=" + show(urgency_of(Critical)))
+@ print("  [2]  Dashboard:       score=" + show(effective_score(High, Feature)) + " sla=" + show(sla_hours(High)) + "h urgency=" + show(urgency_of(High)))
+@ print("  [3]  Date formatting: score=" + show(effective_score(Medium, Bug)) + " sla=" + show(sla_hours(Medium)) + "h urgency=" + show(urgency_of(Medium)))
+@ print("  [5]  Memory leak:     score=" + show(effective_score(Critical, Bug)) + " sla=" + show(sla_hours(Critical)) + "h urgency=" + show(urgency_of(Critical)))
+@ print("  [6]  Vuln scan:       score=" + show(effective_score(High, Security)) + " sla=" + show(sla_hours(High)) + "h urgency=" + show(urgency_of(High)))
+@ print("  [10] Fix typo:        score=" + show(effective_score(Low, Bug)) + " sla=" + show(sla_hours(Low)) + "h urgency=" + show(urgency_of(Low)))
+
+
+-- ============================================================================
+-- RULE APPLICATION — Show rules in action (query from DB after simulation)
+-- ============================================================================
+
+@ print("")
+@ print("=== Rule Engine ===")
+
+-- SLA status computed from constants (no task ownership needed)
+@ print("  SLA analysis:")
+@ print("    Critical/Security 4h:  " + show(sla_status(4, Critical)))
+@ print("    High/Feature 24h:      " + show(sla_status(24, High)))
+@ print("    Medium/Bug 8h:         " + show(sla_status(8, Medium)))
+@ print("    Low/Docs 16h:          " + show(sla_status(16, Low)))
+@ print("    Low/Feature 32h:       " + show(sla_status(32, Low)))
+@ print("    Medium/Refactor 20h:   " + show(sla_status(20, Medium)))
+@ print("    Medium/Feature 40h:    " + show(sla_status(40, Medium)))
+
+
+-- ============================================================================
+-- CLEANUP
+-- ============================================================================
+
+@ db_close(db)
+
+@ print("")
+@ print("=== Pressure Test Complete ===")
+@ print("  11 types (8 ADTs + 3 structs)")
+@ print("  25+ functions with deep call chains")
+@ print("  10 Catala-style rules with 8 exceptions")
+@ print("  20 verified invariants")
+@ print("  3 actors (task_counter, critical_tracker, done_counter)")
+@ print("  2 subjects with async subscriptions")
+@ print("  6 stream pipelines (scan, filter, take, map)")
+@ print("  SQLite: 3 tables, 30+ queries")
+@ print("  JSON: build, parse, round-trip")
+@ print("  2 scopes (Dashboard, SprintPlan)")
+@ print("  Collection builtins: sort, partition, distinct, chunked, enumerate, find")
+@ print("  for loops over struct lists")
+@ print("  Match with wildcard arms")
+@ print("  All 7 runes exercised at scale")

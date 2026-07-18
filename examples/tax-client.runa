@@ -1,0 +1,33 @@
+-- tax-client.runa
+--
+-- Test client for tax-server.runa.
+-- Start the server first, then run this.
+--
+--   runa run examples/tax-client.runa
+
+> query(name: String, income: Int, status: String, children: Int) -> String {
+    = body = json_object([["name", name], ["income", show(income)], ["status", status], ["children", show(children)]])
+    http_post("http://localhost:8080/tax", body)
+}
+
+> print_result(label: String, raw: String) -> Int {
+    = r = json_parse(raw)
+    = tax = json_get(r, "tax")
+    = rate = json_string(json_get(r, "effective_rate"))
+    = net = json_get(r, "net_income")
+    @ print("  " + label)
+    @ print("    tax: " + tax + " kr  |  rate: " + rate + "  |  net: " + net + " kr")
+    @ print("")
+    0
+}
+
+@ print("=== Tax Client ===")
+@ print("")
+
+= _ = print_result("Alice — 500k, single, 2 children", query("Alice", 500000, "single", 2))
+= _ = print_result("Bob — 100k, married, no children", query("Bob", 100000, "married", 0))
+= _ = print_result("Clara — 800k, single, 3 children", query("Clara", 800000, "single", 3))
+= _ = print_result("Dan — 40k, single (under allowance)", query("Dan", 40000, "single", 0))
+= _ = print_result("Eva — 1M, married, 1 child", query("Eva", 1000000, "married", 1))
+
+@ print("  Done. 5 queries sent.")

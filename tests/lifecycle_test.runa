@@ -1,0 +1,123 @@
+-- lifecycle_test.runa: M13a/M13b — Scope Lifecycle, Subjects, Actors, Teardown
+-- Tests: teardown(), push subjects, actor ask, nested scopes
+
+-- ============================================================================
+-- DEMO 1: teardown() removes a scope
+-- ============================================================================
+
+@ print("=== Demo 1: Teardown ===")
+
+| scope Timer {
+    = interval = 100
+    = label = "tick"
+    @ print("  Timer created: " + label + " @ " + show(interval) + "ms")
+}
+
+@ print("  Timer.label = " + show(Timer.label))
+
+-- Teardown the scope
+@ teardown("Timer")
+
+-- After teardown, Timer is unbound
+@ print("  Timer after teardown: unbound")
+
+-- ============================================================================
+-- DEMO 2: Subject push + async subscription
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 2: Subject Push + Subscribe ===")
+
+~ events = subject()
+
+~ events | e -> {
+    @ print("  received: " + e)
+}
+
+events <- "click"
+events <- "hover"
+events <- "scroll"
+
+-- ============================================================================
+-- DEMO 3: Actor with ask pattern (request-response)
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 3: Actor Ask ===")
+
+> actor counter(count: Int) {
+    | Increment -> count + 1
+    | Decrement -> count - 1
+    | Reset -> 0
+}
+
+= c = spawn(counter, 0)
+
+-- Ask returns the state after processing the message
+= state0 = ask(c, Increment)
+@ print("  after Increment: " + show(state0))
+
+c <- Increment
+c <- Increment
+= state1 = ask(c, Increment)
+@ print("  after 3 more Increments: " + show(state1))
+
+= state2 = ask(c, Reset)
+@ print("  after Reset: " + show(state2))
+
+-- ============================================================================
+-- DEMO 4: Multiple subscribers on same subject
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 4: Multiple Subscribers ===")
+
+~ data = subject()
+
+| scope Logger {
+    ~ data | d -> {
+        @ print("  logger: " + show(d))
+    }
+}
+
+| scope Doubler {
+    ~ data | d -> {
+        @ print("  doubled: " + show(d * 2))
+    }
+}
+
+data <- 5
+data <- 10
+
+-- Tear down just the logger, doubler keeps receiving
+@ teardown("Logger")
+data <- 15
+
+-- Tear down doubler too
+@ teardown("Doubler")
+data <- 99
+
+-- ============================================================================
+-- DEMO 5: Nested scope teardown
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 5: Nested Scope Teardown ===")
+
+| scope App {
+    = version = 2
+
+    | scope Panel {
+        = title = "Dashboard"
+        @ print("  Panel initialized: " + title)
+    }
+
+    @ print("  App.Panel.title = " + show(Panel.title))
+}
+
+@ print("  Before teardown: App.version = " + show(App.version))
+@ teardown("App")
+@ print("  After teardown: App unbound")
+
+@ print("")
+@ print("=== Lifecycle tests complete ===")

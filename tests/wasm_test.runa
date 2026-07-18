@@ -1,0 +1,64 @@
+-- wasm_test.runa: Adversarial tests for WASM target (M4)
+-- Tests: export forms, type compatibility, edge cases
+
+-- 1. Basic exported functions with primitive types
+> add(a: Int, b: Int) -> Int { a + b }
+@ export add
+
+> multiply(x: Int, y: Int) -> Int { x * y }
+@ export multiply
+
+-- 2. String params (triggers &String → &str in WASM mode)
+> greet(name: String) -> String { "Hello, " + name + "!" }
+@ export greet
+
+-- 3. Recursive function
+> fibonacci(n: Int) -> Int {
+    match n {
+        | 0 -> 0
+        | 1 -> 1
+        | _ -> fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+@ export fibonacci
+
+-- 4. Float params/returns
+> circle_area(radius: Float) -> Float { 3.14159 * radius * radius }
+@ export circle_area
+
+-- 5. Bool params/returns
+> is_even(n: Int) -> Bool { n % 2 == 0 }
+@ export is_even
+
+-- 6. Unit return (void in WASM)
+> noop() { }
+@ export noop
+
+-- 7. Multiple String params (both should get &str)
+> concat(a: String, b: String) -> String { a + " " + b }
+@ export concat
+
+-- 8. Private function (NOT exported — should NOT get #[wasm_bindgen])
+> secret_helper(x: Int) -> Int { x * x + 1 }
+
+-- 9. Mix of prefix and post-hoc export
+@ export
+> prefix_exported(x: Int) -> Int { x + 100 }
+
+-- 10. Function using private helper (exported fn calling non-exported fn)
+> public_square(x: Int) -> Int { secret_helper(x) }
+@ export public_square
+
+-- Runtime verification
+@ print("add(3, 4) = " + show(add(3, 4)))
+@ print("multiply(6, 7) = " + show(multiply(6, 7)))
+@ print("greet(\"World\") = " + greet("World"))
+@ print("fibonacci(10) = " + show(fibonacci(10)))
+@ print("circle_area(5.0) = " + show(circle_area(5.0)))
+@ print("is_even(42) = " + show(is_even(42)))
+@ print("is_even(7) = " + show(is_even(7)))
+@ print("concat(\"foo\", \"bar\") = " + concat("foo", "bar"))
+@ print("secret_helper(5) = " + show(secret_helper(5)))
+@ print("prefix_exported(1) = " + show(prefix_exported(1)))
+@ print("public_square(5) = " + show(public_square(5)))
+@ print("WASM test passed!")

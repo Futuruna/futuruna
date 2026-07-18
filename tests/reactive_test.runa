@@ -1,0 +1,189 @@
+-- reactive_test.runa: Reactive Streams Demo (M12)
+-- Demonstrates: ~ stream binding, |> pipe operator, stream builtins
+
+-- ============================================================================
+-- DEMO 1: Pipe operator basics
+-- ============================================================================
+
+@ print("=== Demo 1: Pipe Operator |> ===")
+@ print("")
+
+> double(x: Int) -> Int { x * 2 }
+> add1(x: Int) -> Int { x + 1 }
+> square(x: Int) -> Int { x * x }
+
+-- x |> f desugars to f(x)
+= result1 = 5 |> double
+@ print("  5 |> double = " + show(result1))
+
+-- Chained pipes: left to right
+= result2 = 5 |> double |> add1
+@ print("  5 |> double |> add1 = " + show(result2))
+
+-- Three-step chain
+= result3 = 3 |> add1 |> double |> square
+@ print("  3 |> add1 |> double |> square = " + show(result3))
+
+-- ============================================================================
+-- DEMO 2: Stream creation and basic operations
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 2: Stream Creation & Map ===")
+@ print("")
+
+-- ~ creates a stream binding
+~ nums = from_list(range(1, 6))
+
+-- map applies a function to each element
+~ doubled = map(nums, |x: Int| x * 2)
+
+-- Pipe + stream: natural data flow
+~ tripled = nums |> map(|x: Int| x * 3)
+
+@ print("  nums:    ~[1, 2, 3, 4, 5]")
+= d_count = count(doubled)
+@ print("  doubled: " + show(d_count) + " elements (each * 2)")
+= t_count = count(tripled)
+@ print("  tripled: " + show(t_count) + " elements (each * 3)")
+
+-- Iterate over a stream
+@ print("  doubled values:")
+~ doubled | x -> {
+    @ print("    " + show(x))
+}
+
+-- ============================================================================
+-- DEMO 3: Filter and scan
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 3: Filter & Scan ===")
+@ print("")
+
+-- Filter: keep only even numbers
+~ evens = nums |> filter(|x: Int| x % 2 == 0)
+@ print("  evens from 1..6:")
+~ evens | x -> {
+    @ print("    " + show(x))
+}
+
+-- Scan: running sum (like fold but emits each intermediate)
+~ running_sum = nums |> scan(0, |acc: Int, x: Int| acc + x)
+@ print("  running sum of 1..6:")
+~ running_sum | x -> {
+    @ print("    " + show(x))
+}
+
+-- ============================================================================
+-- DEMO 4: Merge and zip
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 4: Merge & Zip ===")
+@ print("")
+
+~ odds = from_list(range(1, 4))
+~ tens = from_list(range(10, 13))
+
+-- Merge interleaves two streams
+~ merged = merge(odds, tens)
+@ print("  merge([1,2,3], [10,11,12]):")
+~ merged | x -> {
+    @ print("    " + show(x))
+}
+
+-- Zip pairs elements
+~ zipped = zip(odds, tens)
+= zip_count = count(zipped)
+@ print("  zip([1,2,3], [10,11,12]): " + show(zip_count) + " pairs")
+
+-- ============================================================================
+-- DEMO 5: Pipeline composition (the reactive dream)
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 5: Pipeline Composition ===")
+@ print("")
+
+-- Full pipeline: generate, transform, filter, reduce
+~ squares = from_list(range(1, 11)) |> map(|x: Int| x * x)
+~ big = squares |> filter(|x: Int| x > 10)
+~ pipeline = big |> take(3)
+
+@ print("  range(1,11) |> square |> (>10) |> take(3):")
+~ pipeline | x -> {
+    @ print("    " + show(x))
+}
+
+= total = count(pipeline)
+@ print("  count: " + show(total))
+
+-- ============================================================================
+-- DEMO 6: Skip, distinct, flat_map
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 6: Skip, Distinct, FlatMap ===")
+@ print("")
+
+-- Skip first 2 elements
+~ skipped = from_list(range(1, 6)) |> skip(2)
+@ print("  skip(2) from [1..6]:")
+~ skipped | x -> {
+    @ print("    " + show(x))
+}
+
+-- Distinct: remove consecutive duplicates
+~ dups = from_list(range(1, 4)) |> flat_map(|x: Int| from_list(range(x, x + 1)))
+-- Actually let's make a stream with actual dups:
+~ with_dups = from_list(range(1, 6)) |> map(|x: Int| x / 2)
+~ unique = with_dups |> distinct
+@ print("  [1,2,3,4,5] |> (x/2) |> distinct:")
+~ unique | x -> {
+    @ print("    " + show(x))
+}
+
+-- ============================================================================
+-- DEMO 7: Sum, any, all, last
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 7: Aggregations ===")
+@ print("")
+
+~ data = from_list(range(1, 11))
+
+= total_sum = data |> sum
+@ print("  sum(1..11) = " + show(total_sum))
+
+= has_big = data |> any(|x: Int| x > 8)
+@ print("  any(>8) in 1..11 = " + show(has_big))
+
+= all_pos = data |> all(|x: Int| x > 0)
+@ print("  all(>0) in 1..11 = " + show(all_pos))
+
+= last_val = data |> last
+@ print("  last of 1..11 = " + show(last_val))
+
+-- ============================================================================
+-- DEMO 8: Window + enumerate
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 8: Window & Enumerate ===")
+@ print("")
+
+~ small = from_list(range(1, 6))
+~ windowed = small |> window(3)
+= win_count = count(windowed)
+@ print("  window(3) on [1..6]: " + show(win_count) + " windows")
+
+~ indexed = from_list(range(10, 13)) |> enumerate
+= idx_count = count(indexed)
+@ print("  enumerate([10,11,12]): " + show(idx_count) + " indexed pairs")
+
+@ print("")
+@ print("=== Reactive Streams: ~ is to time what = is to a moment ===")
+@ print("  Streams are first-class. Pipes compose linearly.")
+@ print("  20 stream operators. Same S_tau equation, now flowing through time.")

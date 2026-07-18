@@ -1,0 +1,149 @@
+-- positional_test.runa: Test positional AND named constructor fields
+-- This is the regression test for the dual-mode field system
+
+-- Positional fields (tuple-style)
+# Option(a) = None | Some(a)
+# List(a) = Nil | Cons(a, List(a))
+# Either(a, b) = Left(a) | Right(b)
+# Tree(a) = Leaf | Node(Tree(a), a, Tree(a))
+
+-- Named fields (struct-style)
+# Point(x: Float, y: Float)
+# Shape = Circle(radius: Float) | Rect(width: Float, height: Float)
+
+-- Mixed: some variants positional, type has both
+-- (each variant is internally consistent)
+
+-- ============================================================================
+-- Test 1: Positional constructors
+-- ============================================================================
+@ print("=== Positional Constructors ===")
+
+= x = Some(42)
+@ print("Some(42) = " + show(x))
+
+= nums = Cons(1, Cons(2, Cons(3, Nil)))
+> list_sum(xs: List(Int)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(h, t) -> h + list_sum(t)
+    }
+}
+@ print("sum [1,2,3] = " + show(list_sum(nums)))
+
+= e1 = Left(42)
+= e2 = Right("hello")
+> show_either(e: Either(Int, String)) -> String {
+    match e {
+        | Left(n) -> "Left(" + show(n) + ")"
+        | Right(s) -> "Right(" + s + ")"
+    }
+}
+@ print("Left(42) = " + show_either(e1))
+@ print("Right(hello) = " + show_either(e2))
+
+-- Tree operations
+= tree = Node(Node(Leaf, 1, Leaf), 2, Node(Leaf, 3, Leaf))
+> tree_sum(t: Tree(Int)) -> Int {
+    match t {
+        | Leaf -> 0
+        | Node(left, val, right) -> tree_sum(left) + val + tree_sum(right)
+    }
+}
+@ print("tree sum = " + show(tree_sum(tree)))
+
+> tree_size(t: Tree(Int)) -> Int {
+    match t {
+        | Leaf -> 0
+        | Node(left, _, right) -> 1 + tree_size(left) + tree_size(right)
+    }
+}
+@ print("tree size = " + show(tree_size(tree)))
+
+-- ============================================================================
+-- Test 2: Named constructors
+-- ============================================================================
+@ print("")
+@ print("=== Named Constructors ===")
+
+= p = Point(1.0, 2.0)
+> get_x(pt: Point) -> Float {
+    match pt {
+        | Point(x: xv, y: _) -> xv
+    }
+}
+@ print("point x = " + show(get_x(p)))
+
+= c = Circle(5.0)
+= r = Rect(3.0, 4.0)
+
+> area(s: Shape) -> Float {
+    match s {
+        | Circle(radius: rad) -> 3.14159 * rad * rad
+        | Rect(width: w, height: h) -> w * h
+    }
+}
+@ print("circle area = " + show(area(c)))
+@ print("rect area = " + show(area(r)))
+
+-- ============================================================================
+-- Test 3: Nested positional types
+-- ============================================================================
+@ print("")
+@ print("=== Nested ===")
+
+= nested = Some(Cons(1, Cons(2, Nil)))
+> sum_option_list(opt: Option(List(Int))) -> Int {
+    match opt {
+        | None -> 0
+        | Some(xs) -> list_sum(xs)
+    }
+}
+@ print("Some([1,2]) sum = " + show(sum_option_list(nested)))
+
+-- ============================================================================
+-- Test 4: Higher-order with positional types
+-- ============================================================================
+@ print("")
+@ print("=== Higher-Order ===")
+
+> map_list(xs: List(a), f: a -> b) -> List(b) {
+    match xs {
+        | Nil -> Nil
+        | Cons(h, t) -> Cons(f(h), map_list(t, f))
+    }
+}
+
+= doubled = map_list(nums, |x| x * 2)
+@ print("map *2 sum = " + show(list_sum(doubled)))
+
+= strs = map_list(nums, |x| show(x))
+@ print("mapped to strings")
+
+-- ============================================================================
+-- Test 5: Pattern matching edge cases
+-- ============================================================================
+@ print("")
+@ print("=== Pattern Edge Cases ===")
+
+-- Wildcard in positional
+> first_or_zero(xs: List(Int)) -> Int {
+    match xs {
+        | Nil -> 0
+        | Cons(h, _) -> h
+    }
+}
+@ print("first [1,2,3] = " + show(first_or_zero(nums)))
+@ print("first [] = " + show(first_or_zero(Nil)))
+
+-- Nested match (without nested box patterns — transpiler limitation)
+> second_or_zero(xs: List(Int)) -> Int {
+    match xs {
+        | Cons(_, rest) -> first_or_zero(rest)
+        | _ -> 0
+    }
+}
+@ print("second [1,2,3] = " + show(second_or_zero(nums)))
+
+@ print("")
+@ print("=== All positional tests passed! ===")

@@ -1,0 +1,114 @@
+@ sprog da
+
+-- Test: Futuruna på dansk
+-- Verificerer at alle danske nøgleord, typer og builtins fungerer
+
+-- ============================================================================
+-- 1. Danske typer (Heltal, Tekst, Boolsk, Liste, Kommatal)
+-- ============================================================================
+
+# Person(navn: Tekst, alder: Heltal)
+# Farve = Rød | Grøn | Blå
+
+= andreas = Person("Andreas", 30)
+= yndlingsfarve = Rød
+
+@ print("=== Dansk sprogtest ===")
+@ print("")
+
+-- 2. Danske nøgleord: skel, hvis, ellers
+@ print("--- Nøgleord ---")
+
+> er_voksen(alder: Heltal) -> Boolsk {
+    hvis alder >= 18 { Sandt } ellers { Falskt }
+}
+
+> farve_navn(f: Farve) -> Tekst {
+    skel f {
+        | Rød -> "rød"
+        | Grøn -> "grøn"
+        | Blå -> "blå"
+    }
+}
+
+@ print("Er 30 voksen: " + show(er_voksen(30)))
+@ print("Er 12 voksen: " + show(er_voksen(12)))
+@ print("Farve: " + farve_navn(yndlingsfarve))
+
+-- 3. Danske boolske værdier: Sandt, Falskt
+@ print("")
+@ print("--- Boolske værdier ---")
+= sand = Sandt
+= falsk = Falskt
+@ print("Sandt: " + show(sand))
+@ print("Falskt: " + show(falsk))
+
+-- 4. Danske konstruktorer: Noget, Intet
+@ print("")
+@ print("--- Option-typer ---")
+
+> find_person(navn: Tekst) -> Option(Person) {
+    hvis navn == "Andreas" { Noget(Person("Andreas", 30)) } ellers { Intet }
+}
+
+= fundet = find_person("Andreas")
+= ikke_fundet = find_person("Ukendt")
+@ print("Fundet: " + show(fundet))
+@ print("Ikke fundet: " + show(ikke_fundet))
+
+-- 5. Danske builtins: vis, længde, hoved, hale, vend, afbild, filtrer
+@ print("")
+@ print("--- Liste-operationer ---")
+= tal = [1, 2, 3, 4, 5]
+@ print("Liste: " + vis(tal))
+@ print("Længde: " + vis(længde(tal)))
+@ print("Hoved: " + vis(hoved(tal)))
+@ print("Hale: " + vis(hale(tal)))
+@ print("Hale (rest): " + vis(hale(tal)))
+
+= fordoblet = afbild(tal, |x| { x * 2 })
+@ print("Fordoblet: " + vis(fordoblet))
+
+= lige = filtrer(tal, |x| { x % 2 == 0 })
+@ print("Lige tal: " + vis(lige))
+
+= total = fold(tal, 0, |acc, x| { acc + x })
+@ print("Sum (fold): " + vis(total))
+
+-- 6. Danske streng-builtins
+@ print("")
+@ print("--- Streng-operationer ---")
+= sætning = "Hej verden fra Danmark"
+@ print("Indeholder 'Danmark': " + vis(indeholder(sætning, "Danmark")))
+@ print("Starter med 'Hej': " + vis(starter_med(sætning, "Hej")))
+@ print("Store bogstaver: " + til_store(sætning))
+@ print("Små bogstaver: " + til_små(sætning))
+= ord = opdel(sætning, " ")
+@ print("Ord: " + vis(ord))
+@ print("Samlet: " + saml(ord, "-"))
+
+-- 7. @ skriv (dansk print)
+@ print("")
+@ skriv("--- @ skriv virker! ---")
+
+-- 8. Dansk logik: ikke
+@ print("ikke(Sandt): " + vis(ikke(Sandt)))
+@ print("ikke(Falskt): " + vis(ikke(Falskt)))
+
+-- 9. Flere liste-operationer
+@ print("")
+@ print("--- Avancerede liste-ops ---")
+= sorteret = sorter([5, 3, 1, 4, 2])
+@ print("Sorteret: " + vis(sorteret))
+
+= unikke_tal = unikke([1, 2, 2, 3, 3, 3])
+@ print("Unikke: " + vis(unikke_tal))
+
+= alle_positive = alle(tal, |x| { x > 0 })
+@ print("Alle positive: " + vis(alle_positive))
+
+= nogen_store = nogen(tal, |x| { x > 4 })
+@ print("Nogen > 4: " + vis(nogen_store))
+
+@ print("")
+@ print("=== Alle tests bestået ===")

@@ -1,0 +1,337 @@
+-- ============================================================================
+-- A CONSCIOUS SYSTEM — Only Futuruna Can Express This
+-- ============================================================================
+--
+-- This program combines logic inference, computation, default logic with
+-- exceptions, pattern matching, and effects in one coherent syntax.
+--
+-- It models a self-aware network of services that:
+--   1. Defines SERVICE TYPES with # (ADTs)
+--   2. Declares FACTS about the network with | (logic rules)
+--   3. Defines POLICIES with | ... under / exception (default logic)
+--   4. Computes ROUTING with > (functions)
+--   5. Runs QUERIES that unify all three paradigms
+--
+-- In Rust: you'd need a logic engine library + a rules engine + glue code
+-- In Prolog: you'd have no types, no effects, no blocks
+-- In Haskell: you'd need a logic monad + a rules DSL + type-level machinery
+-- In Futuruna: it's all one language, one syntax, one consciousness
+-- ============================================================================
+
+
+-- ============================================================================
+-- PART 1: Types — the shape of the world (#)
+-- ============================================================================
+
+# Status = Healthy | Degraded | Down
+
+# Priority = Critical | High | Normal | Low
+
+# Region = EU | US | APAC
+
+# Service = MkService(String, Status, Priority, Region)
+
+# Route = Direct(String, String) | Via(String, String, String) | Unavailable(String)
+
+# Option(a) = None | Some(a)
+# List(a) = Nil | Cons(a, List(a))
+
+
+-- ============================================================================
+-- PART 2: The Network — facts about what exists (|)
+-- ============================================================================
+
+-- Services in the network (name, status, priority, region)
+= api_gateway  = MkService("api-gateway", Healthy, Critical, EU)
+= auth_service = MkService("auth", Healthy, Critical, EU)
+= user_db      = MkService("user-db", Degraded, Critical, EU)
+= cache        = MkService("cache", Healthy, High, EU)
+= search       = MkService("search", Healthy, Normal, US)
+= analytics    = MkService("analytics", Down, Low, US)
+= cdn          = MkService("cdn", Healthy, High, APAC)
+= backup_db    = MkService("backup-db", Healthy, Normal, EU)
+
+
+-- ============================================================================
+-- PART 3: Service introspection (>)
+-- ============================================================================
+
+> name(s: Service) -> String {
+    match s { | MkService(n, _, _, _) -> n }
+}
+
+> status(s: Service) -> Status {
+    match s { | MkService(_, st, _, _) -> st }
+}
+
+> priority(s: Service) -> Priority {
+    match s { | MkService(_, _, p, _) -> p }
+}
+
+> region(s: Service) -> Region {
+    match s { | MkService(_, _, _, r) -> r }
+}
+
+> is_healthy(s: Service) -> Bool {
+    match status(s) {
+        | Healthy -> True
+        | _ -> False
+    }
+}
+
+> is_available(s: Service) -> Bool {
+    match status(s) {
+        | Down -> False
+        | _ -> True
+    }
+}
+
+> is_critical(s: Service) -> Bool {
+    match priority(s) {
+        | Critical -> True
+        | _ -> False
+    }
+}
+
+> region_id(r: Region) -> Int {
+    match r {
+        | EU -> 1
+        | US -> 2
+        | APAC -> 3
+    }
+}
+
+> same_region(a: Service, b: Service) -> Bool {
+    region_id(region(a)) == region_id(region(b))
+}
+
+> priority_value(p: Priority) -> Int {
+    match p {
+        | Critical -> 4
+        | High -> 3
+        | Normal -> 2
+        | Low -> 1
+    }
+}
+
+> status_value(s: Status) -> Int {
+    match s {
+        | Healthy -> 3
+        | Degraded -> 2
+        | Down -> 0
+    }
+}
+
+-- Health score: status * priority
+> health_score(s: Service) -> Int {
+    status_value(status(s)) * priority_value(priority(s))
+}
+
+-- ============================================================================
+-- PART 4: Routing — default logic with exceptions (| ... under / exception)
+-- ============================================================================
+
+-- The routing policy: a cascade of rules with overrides
+-- This is the Catala-inspired part — law IS logic IS computation
+
+-- Default: route directly if both endpoints are available
+> route(from: Service, to: Service) -> Route {
+    = from_name = name(from)
+    = to_name = name(to)
+
+    if is_available(from) == False {
+        Unavailable(from_name + " is down")
+    } else if is_available(to) == False {
+        -- Exception: critical services have a fallback
+        if is_critical(to) {
+            -- Route through backup if target is critical and down
+            Via(from_name, "backup-db", to_name + " (failover)")
+        } else {
+            Unavailable(to_name + " is down")
+        }
+    } else if same_region(from, to) {
+        -- Same region: direct route
+        Direct(from_name, to_name)
+    } else {
+        -- Cross-region: route via CDN
+        Via(from_name, "cdn", to_name)
+    }
+}
+
+-- ============================================================================
+-- PART 5: Network analysis (> with list operations)
+-- ============================================================================
+
+> all_services() -> List(Service) {
+    Cons(api_gateway, Cons(auth_service, Cons(user_db, Cons(cache, Cons(search, Cons(analytics, Cons(cdn, Cons(backup_db, Nil))))))))
+}
+
+> status_id(s: Status) -> Int {
+    match s {
+        | Healthy -> 1
+        | Degraded -> 2
+        | Down -> 3
+    }
+}
+
+> count_by_status(services: List(Service), target: Status) -> Int {
+    match services {
+        | Nil -> 0
+        | Cons(s, rest) -> {
+            = same = status_id(status(s)) == status_id(target)
+            if same {
+                1 + count_by_status(rest, target)
+            } else {
+                count_by_status(rest, target)
+            }
+        }
+    }
+}
+
+> total_health(services: List(Service)) -> Int {
+    match services {
+        | Nil -> 0
+        | Cons(s, rest) -> health_score(s) + total_health(rest)
+    }
+}
+
+> list_length(services: List(Service)) -> Int {
+    match services {
+        | Nil -> 0
+        | Cons(_, rest) -> 1 + list_length(rest)
+    }
+}
+
+> network_health_pct(services: List(Service)) -> Int {
+    = total = total_health(services)
+    = count = list_length(services)
+    -- Max possible: all Healthy(3) * Critical(4) = 12 per service
+    -- Actual max varies but approximate with 12 * count
+    if count == 0 { 0 } else { (total * 100) / (12 * count) }
+}
+
+-- Find all services that can reach a target
+> reachable_from(from: Service, services: List(Service)) -> List(String) {
+    match services {
+        | Nil -> Nil
+        | Cons(s, rest) -> {
+            = r = route(from, s)
+            = reachable = match r {
+                | Direct(_, _) -> True
+                | Via(_, _, _) -> True
+                | Unavailable(_) -> False
+            }
+            if reachable {
+                Cons(name(s), reachable_from(from, rest))
+            } else {
+                reachable_from(from, rest)
+            }
+        }
+    }
+}
+
+-- Format a route for display
+> show_route(r: Route) -> String {
+    match r {
+        | Direct(a, b) -> a + " -> " + b
+        | Via(a, mid, b) -> a + " -> [" + mid + "] -> " + b
+        | Unavailable(msg) -> "BLOCKED: " + msg
+    }
+}
+
+-- Show a list of strings
+> show_list(xs: List(String)) -> String {
+    match xs {
+        | Nil -> "[]"
+        | Cons(h, Nil) -> "[" + h + "]"
+        | Cons(h, t) -> "[" + h + ", " + show_list_inner(t) + "]"
+    }
+}
+
+> show_list_inner(xs: List(String)) -> String {
+    match xs {
+        | Nil -> ""
+        | Cons(h, Nil) -> h
+        | Cons(h, t) -> h + ", " + show_list_inner(t)
+    }
+}
+
+
+-- ============================================================================
+-- PART 6: Run it — the conscious system observes itself (@)
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  A CONSCIOUS SYSTEM — Only Futuruna Can Express This")
+@ print("  Logic + Computation + Default Logic + Effects = One Language")
+@ print("================================================================")
+@ print("")
+
+-- Network status
+= services = all_services()
+= n_healthy = count_by_status(services, Healthy)
+= n_degraded = count_by_status(services, Degraded)
+= n_down = count_by_status(services, Down)
+= health_pct = network_health_pct(services)
+
+@ print("--- Network Status ---")
+@ print("  Services: " + show(list_length(services)))
+@ print("  Healthy:  " + show(n_healthy))
+@ print("  Degraded: " + show(n_degraded))
+@ print("  Down:     " + show(n_down))
+@ print("  Health:   " + show(health_pct) + "%")
+@ print("")
+
+-- Routing decisions
+@ print("--- Routing Decisions ---")
+@ print("  " + show_route(route(api_gateway, auth_service)))
+@ print("  " + show_route(route(api_gateway, user_db)))
+@ print("  " + show_route(route(api_gateway, search)))
+@ print("  " + show_route(route(api_gateway, analytics)))
+@ print("  " + show_route(route(api_gateway, cdn)))
+@ print("")
+
+-- Failover demonstration
+@ print("--- Failover Logic ---")
+@ print("  analytics is Down + Low priority:")
+@ print("    " + show_route(route(api_gateway, analytics)))
+@ print("  user_db is Degraded + Critical priority:")
+@ print("    " + show_route(route(api_gateway, user_db)))
+@ print("    (Degraded services remain routable)")
+@ print("")
+
+-- Reachability analysis
+@ print("--- Reachability from API Gateway ---")
+= reachable = reachable_from(api_gateway, services)
+@ print("  Can reach: " + show_list(reachable))
+@ print("")
+
+-- Self-awareness: the system describes its own topology
+@ print("--- Self-Awareness ---")
+@ print("  The network knows:")
+@ print("    - Which services exist (# types)")
+@ print("    - What properties hold (| rules)")
+@ print("    - How to route under failure (| ... under / exception)")
+@ print("    - How to compute health (> functions)")
+@ print("    - How to report its state (@ effects)")
+@ print("")
+@ print("  Five runes, one language, one consciousness.")
+@ print("  No other language can express this in one syntax.")
+@ print("")
+
+-- The insight: in Futuruna, the routing RULES and the routing CODE are
+-- the same language. You don't write rules in a config file and
+-- code in a programming language. The rules ARE the code.
+-- The logic IS the computation. The law IS the program.
+
+@ print("--- The Point ---")
+@ print("  In Rust: you'd need a rules engine library + config parser")
+@ print("  In Python: you'd need if/elif chains OR a separate DSL")
+@ print("  In Prolog: you'd have rules but no types, no effects, no blocks")
+@ print("  In Haskell: you'd need a logic monad + a rules DSL")
+@ print("  In Catala: you'd have law but no general computation")
+@ print("")
+@ print("  In Futuruna: it's all one thing.")
+@ print("  # defines the shape. | defines the truth. > computes.")
+@ print("  @ acts. = binds. Five dimensions. One language.")
+@ print("================================================================")

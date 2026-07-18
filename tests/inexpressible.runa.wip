@@ -1,0 +1,132 @@
+-- inexpressible.runa: The smallest program no other language can express
+--
+-- This program uses 7 dimensions of Futuruna in 12 lines.
+-- The equivalent Kotlin + RxJava is 30+ lines and STILL doesn't
+-- capture the semantics. See the walkthrough below.
+
+-- ============================================================================
+-- THE PROGRAM
+-- ============================================================================
+
+-- #  type dimension: ADT with payload
+# Light = On | Off | Dim(brightness: Int)
+
+-- ~  stream dimension: room.light flows from switch events
+-- |  rule dimension: pattern match + guard on stream values
+-- @  effect dimension: conditional side effect on rule match
+-- |  default: computed fallback when stream hasn't emitted
+-- | scope: reactive lifecycle — binding EXISTS only while condition holds
+
+| scope presence(room) {
+
+    ~ light = switch(room)
+        |> map(|event| match event {
+            | Dim(v) | v < 10 -> { @ power.save(); Off }
+            | other -> other
+        })
+
+    ~ display = subject(light.latest())
+
+    = initial = env("LAST_STATE") |> parse_light |> unwrap_or(Off)
+
+    for state in light {
+        display <- state
+    }
+}
+
+-- When presence(room) goes false:
+--   light is UNBOUND (not null, not error — the binding doesn't exist)
+--   switch subscription is cancelled
+--   display subject is dropped
+--   downstream reactive chains detach cleanly
+--
+-- When someone walks back in:
+--   scope re-enters
+--   light re-initializes from env("LAST_STATE")
+--   everything reconnects
+--
+-- This is inexpressible because:
+--   In every other language, a variable either exists or doesn't at COMPILE TIME.
+--   Futuruna has runtime-reactive scoping: a binding comes into and out of existence
+--   based on a reactive condition, with compile-time safety for downstream refs.
+
+-- ============================================================================
+-- WALKTHROUGH: 7 dimensions in 12 lines
+-- ============================================================================
+--
+-- Dimension    Where                      What it does
+-- ─────────    ─────                      ────────────
+-- # type       Light = On | Off | Dim     ADT with payload — shape of data
+-- ~ stream     ~ light = switch(room)     reactive, not polled — flows over time
+-- | rule       | Dim(v) | v < 10         pattern match + guard — declarative logic
+-- @ effect     @ power.save()            conditional side effect — on rule match only
+-- | default    env("LAST_STATE")         computed fallback — not static
+-- | scope      presence(room)             reactive lifecycle — binding existence
+-- = value      = initial = ...            point-in-time capture
+--
+-- The cross-couplings (why d_eff ≈ 3+):
+--
+--   # type  ←→  | rule       Type variants determine which rules can match
+--   ~ stream ←→  | scope     Scope controls stream lifecycle
+--   | rule  ←→  @ effect     Effects fire on specific pattern matches
+--   | default ←→  ~ stream   Default fills gaps in stream emission
+--   | scope ←→  = binding    Scope controls whether the binding exists at all
+
+-- ============================================================================
+-- THE KOTLIN VERSION (for comparison)
+-- ============================================================================
+--
+-- sealed class Light {
+--     data object On : Light()
+--     data object Off : Light()
+--     data class Dim(val brightness: Int) : Light()
+-- }
+--
+-- class RoomLightManager(
+--     private val switch: Observable<Light>,
+--     private val presence: Observable<Boolean>,
+--     private val env: Environment,
+--     private val powerService: PowerService
+-- ) {
+--     private var disposable: Disposable? = null
+--     private val display = BehaviorSubject.create<Light>()
+--
+--     fun bind() {
+--         presence.distinctUntilChanged().subscribe { present ->
+--             if (present) {
+--                 val initial = env.get("LAST_STATE")?.let { parseLight(it) } ?: Light.Off
+--                 display.onNext(initial)
+--
+--                 disposable = switch
+--                     .startWith(initial)
+--                     .map { light ->
+--                         when (light) {
+--                             is Light.Dim -> {
+--                                 if (light.brightness < 10) {
+--                                     powerService.save()  // effect tangled in logic
+--                                     Light.Off
+--                                 } else light
+--                             }
+--                             else -> light
+--                         }
+--                     }
+--                     .subscribe { state ->
+--                         display.onNext(state)
+--                     }
+--             } else {
+--                 disposable?.dispose()    // manual teardown
+--                 disposable = null        // light is now... null? gone?
+--                 // Kotlin can't express "unbound"
+--                 // display still exists — code can still read it, get stale data
+--             }
+--         }
+--     }
+-- }
+--
+-- Problems with the Kotlin version:
+--   1. startWith fires once — Futuruna's default activates EVERY re-entry
+--   2. dispose() kills subscription but `display` still exists — stale reads possible
+--   3. The effect (powerService.save()) is buried in business logic
+--   4. Scope management is imperative if/else — manual reimplementation
+--   5. No downstream code knows light "doesn't exist right now" — just sees null
+--   6. 35 lines, 4 libraries, and it STILL doesn't capture the semantics

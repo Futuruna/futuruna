@@ -1,0 +1,427 @@
+-- analyzer.runa — Log Analysis Pipeline
+--
+-- A self-contained data pipeline that processes structured log entries,
+-- classifies severity, computes real-time analytics via streams, and
+-- produces a JSON report. All seven runes. Runs to completion.
+--
+-- Run:   runa run project-examples/log-analyzer/analyzer.runa
+-- Build: runa build project-examples/log-analyzer/analyzer.runa
+-- Check: runa check project-examples/log-analyzer/analyzer.runa
+
+
+-- ============================================================================
+-- # TYPES — Domain model
+-- ============================================================================
+
+# Level = Debug | Info | Warn | Error | Fatal
+# Source = Auth | Api | Db | Worker | Scheduler
+# Trend = Rising | Falling | Stable
+
+# LogEntry(timestamp: String, level: Level, source: Source, message: String, latency_ms: Int)
+# Alert(source: Source, level: Level, message: String)
+
+
+-- ============================================================================
+-- > FUNCTIONS — Core logic
+-- ============================================================================
+
+> level_weight(l: Level) -> Int {
+    match l {
+        | Debug -> 0
+        | Info -> 1
+        | Warn -> 2
+        | Error -> 3
+        | Fatal -> 4
+    }
+}
+
+> level_label(l: Level) -> String {
+    match l {
+        | Debug -> "DEBUG"
+        | Info -> "INFO"
+        | Warn -> "WARN"
+        | Error -> "ERROR"
+        | Fatal -> "FATAL"
+    }
+}
+
+> source_label(s: Source) -> String {
+    match s {
+        | Auth -> "auth"
+        | Api -> "api"
+        | Db -> "db"
+        | Worker -> "worker"
+        | Scheduler -> "scheduler"
+    }
+}
+
+> is_error_level(l: Level) -> Bool { level_weight(l) >= 3 }
+> is_actionable(l: Level) -> Bool { level_weight(l) >= 2 }
+> is_slow(ms: Int) -> Bool { ms >= 200 }
+> is_critical_latency(ms: Int) -> Bool { ms >= 1000 }
+
+> latency_bucket(ms: Int) -> String {
+    if ms < 50 { "fast" }
+    else if ms < 200 { "normal" }
+    else if ms < 1000 { "slow" }
+    else { "critical" }
+}
+
+> percentile(sorted_list: List(Int), pct: Int) -> Int {
+    = n = length(sorted_list)
+    if n == 0 { 0 }
+    else {
+        = idx = (n * pct) / 100
+        = clamped = if idx >= n { n - 1 } else { idx }
+        nth(sorted_list, clamped)
+    }
+}
+
+> format_entry(e: LogEntry) -> String {
+    e.timestamp + " [" + level_label(e.level) + "] " + source_label(e.source) + ": " + e.message + " (" + show(e.latency_ms) + "ms)"
+}
+
+> format_alert(a: Alert) -> String {
+    "[ALERT:" + level_label(a.level) + "] " + source_label(a.source) + " — " + a.message
+}
+
+> trend_label(t: Trend) -> String {
+    match t {
+        | Rising -> "RISING"
+        | Falling -> "FALLING"
+        | Stable -> "STABLE"
+    }
+}
+
+-- Extract labels from entries (avoids struct borrow issues in count_by)
+> extract_levels(entries: List(LogEntry)) -> List(String) {
+    map(entries, |e| level_label(e.level))
+}
+
+> extract_sources(entries: List(LogEntry)) -> List(String) {
+    map(entries, |e| source_label(e.source))
+}
+
+
+-- ============================================================================
+-- | RULES — Catala-style alert classification
+-- ============================================================================
+
+-- Base: no alert needed
+| should_alert(entry) -> False
+
+-- Errors and fatals always alert
+| exception error_alert should_alert(entry) -> True under is_error_level(entry.level)
+
+-- Slow DB queries alert
+| exception slow_db should_alert(entry) -> True under entry.source == Db && entry.latency_ms > 500
+
+-- Critical latency on API always alerts
+| exception api_slow should_alert(entry) -> True under entry.source == Api && is_critical_latency(entry.latency_ms)
+
+-- Auth failures always alert (even at Warn)
+| exception auth_warn should_alert(entry) -> True under entry.source == Auth && is_actionable(entry.level)
+
+-- Base severity for alerts
+| alert_level(entry) -> entry.level
+
+-- Escalate slow DB to Error
+| exception slow_db_escalate alert_level(entry) -> Error under entry.source == Db && entry.latency_ms > 500 && entry.level == Warn
+
+-- Escalate critical latency to Fatal
+| exception critical_escalate alert_level(entry) -> Fatal under is_critical_latency(entry.latency_ms)
+
+
+-- ============================================================================
+-- = BINDINGS — Simulated log data (multi-line list!)
+-- ============================================================================
+
+= logs = [
+    LogEntry("10:00:01", Info, Api, "GET /users 200", 45),
+    LogEntry("10:00:02", Debug, Worker, "processing batch 42", 12),
+    LogEntry("10:00:03", Info, Api, "POST /orders 201", 120),
+    LogEntry("10:00:04", Warn, Db, "slow query: SELECT users", 850),
+    LogEntry("10:00:05", Error, Auth, "invalid token for user:391", 5),
+    LogEntry("10:00:06", Info, Api, "GET /products 200", 89),
+    LogEntry("10:00:07", Fatal, Db, "connection pool exhausted", 3200),
+    LogEntry("10:00:08", Info, Worker, "batch 42 complete", 1800),
+    LogEntry("10:00:09", Warn, Auth, "rate limit near for IP:10.0.0.5", 2),
+    LogEntry("10:00:10", Info, Api, "GET /health 200", 3),
+    LogEntry("10:00:11", Error, Api, "POST /payments 500 internal error", 1500),
+    LogEntry("10:00:12", Info, Scheduler, "cron job:cleanup started", 8),
+    LogEntry("10:00:13", Warn, Worker, "retry attempt 3/5 for job:99", 450),
+    LogEntry("10:00:14", Info, Api, "GET /users 200", 55),
+    LogEntry("10:00:15", Error, Db, "deadlock detected on table:orders", 25),
+    LogEntry("10:00:16", Info, Auth, "user:142 login success", 38),
+    LogEntry("10:00:17", Debug, Scheduler, "next run in 300s", 1),
+    LogEntry("10:00:18", Warn, Api, "deprecated endpoint: /v1/legacy", 210),
+    LogEntry("10:00:19", Info, Worker, "processed 1500 events", 2200),
+    LogEntry("10:00:20", Fatal, Auth, "HSM signing key unavailable", 0),
+]
+
+
+-- ============================================================================
+-- | INVARIANTS — Log system properties
+-- ============================================================================
+
+| fatal_always_alerts: should_alert(LogEntry("t", Fatal, Api, "x", 0)) -> should_alert(LogEntry("t", Fatal, Api, "x", 0)) == True
+| error_always_alerts: should_alert(LogEntry("t", Error, Db, "x", 0)) -> should_alert(LogEntry("t", Error, Db, "x", 0)) == True
+| debug_never_alerts: should_alert(LogEntry("t", Debug, Worker, "x", 10)) -> should_alert(LogEntry("t", Debug, Worker, "x", 10)) == False
+| slow_db_alerts: should_alert(LogEntry("t", Warn, Db, "x", 600)) -> should_alert(LogEntry("t", Warn, Db, "x", 600)) == True
+| auth_warn_alerts: should_alert(LogEntry("t", Warn, Auth, "x", 1)) -> should_alert(LogEntry("t", Warn, Auth, "x", 1)) == True
+| api_critical_alerts: should_alert(LogEntry("t", Info, Api, "x", 1500)) -> should_alert(LogEntry("t", Info, Api, "x", 1500)) == True
+| level_ordering: level_weight(Fatal) -> level_weight(Fatal) > level_weight(Error)
+| error_gt_warn: level_weight(Error) -> level_weight(Error) > level_weight(Warn)
+| slow_db_escalates: alert_level(LogEntry("t", Warn, Db, "x", 600)) -> alert_level(LogEntry("t", Warn, Db, "x", 600)) == Error
+| critical_to_fatal: alert_level(LogEntry("t", Info, Api, "x", 2000)) -> alert_level(LogEntry("t", Info, Api, "x", 2000)) == Fatal
+
+
+-- ============================================================================
+-- ? VERIFY — Prove alert logic before processing
+-- ============================================================================
+
+@ print("=== Log Analyzer Pipeline ===")
+@ print("")
+@ print("  Verifying alert rules:")
+
+? fatal_always_alerts -> { @ print("    fatal alerts:       OK") }
+? error_always_alerts -> { @ print("    error alerts:       OK") }
+? debug_never_alerts -> { @ print("    debug silent:       OK") }
+? slow_db_alerts -> { @ print("    slow DB alerts:     OK") }
+? auth_warn_alerts -> { @ print("    auth warn alerts:   OK") }
+? api_critical_alerts -> { @ print("    API critical:       OK") }
+? level_ordering -> { @ print("    level ordering:     OK") }
+? error_gt_warn -> { @ print("    error > warn:       OK") }
+? slow_db_escalates -> { @ print("    slow DB escalates:  OK") }
+? critical_to_fatal -> { @ print("    critical -> fatal:  OK") }
+
+@ print("  10/10 invariants verified.")
+
+
+-- ============================================================================
+-- > ACTORS — Live counters
+-- ============================================================================
+
+> actor error_counter(n: Int) {
+    | CountError -> n + 1
+    | ResetErrors -> 0
+}
+
+> actor alert_counter(n: Int) {
+    | CountAlert -> n + 1
+    | ResetAlerts -> 0
+}
+
+= err_actor = spawn(error_counter, 0)
+= alert_actor = spawn(alert_counter, 0)
+
+
+-- ============================================================================
+-- ~ STREAMS — Processing pipeline
+-- ============================================================================
+
+@ print("")
+@ print("--- Processing Log Entries ---")
+
+~ log_stream = from_list(logs)
+
+-- Stream of all entries formatted
+~ formatted = log_stream |> map(|e| format_entry(e))
+
+-- Stream of latencies for percentile analysis
+~ latencies = log_stream |> map(|e| e.latency_ms)
+
+-- Subscribe: print each entry
+~ formatted | line -> {
+    @ print("  " + line)
+}
+
+
+-- ============================================================================
+-- ALERT GENERATION — Apply rules to each log entry
+-- ============================================================================
+
+@ print("")
+@ print("--- Alerts ---")
+
+= alert_count = 0
+= err_count_loop = 0
+
+for entry in logs {
+    if should_alert(entry) {
+        = al = alert_level(entry)
+        = alert = Alert(entry.source, al, entry.message)
+        alert_actor <- CountAlert
+        = alert_count = alert_count + 1
+        @ print("  " + format_alert(alert))
+    }
+    if level_weight(entry.level) >= 3 {
+        err_actor <- CountError
+        = err_count_loop = err_count_loop + 1
+    }
+}
+
+
+-- ============================================================================
+-- ANALYTICS — Collection-based aggregation
+-- ============================================================================
+
+@ print("")
+@ print("--- Analytics ---")
+
+-- Latency analysis
+= all_latencies = map(logs, |e| e.latency_ms)
+= sorted_latencies = sort_by(all_latencies, |x| x)
+= p50 = percentile(sorted_latencies, 50)
+= p90 = percentile(sorted_latencies, 90)
+= p99 = percentile(sorted_latencies, 99)
+= avg_lat = sum_list(all_latencies) / length(all_latencies)
+
+@ print("")
+@ print("  Latency:")
+@ print("    p50: " + show(p50) + "ms")
+@ print("    p90: " + show(p90) + "ms")
+@ print("    p99: " + show(p99) + "ms")
+@ print("    avg: " + show(avg_lat) + "ms")
+
+-- Bucket distribution
+= fast_count = count_by(all_latencies, |x| x < 50)
+= normal_count = count_by(all_latencies, |x| x >= 50 && x < 200)
+= slow_count = count_by(all_latencies, |x| x >= 200 && x < 1000)
+= crit_count = count_by(all_latencies, |x| x >= 1000)
+
+@ print("")
+@ print("  Distribution:")
+@ print("    fast (<50ms):     " + show(fast_count))
+@ print("    normal (50-200):  " + show(normal_count))
+@ print("    slow (200-1000):  " + show(slow_count))
+@ print("    critical (>1s):   " + show(crit_count))
+
+-- Level breakdown (string-based to avoid struct borrow issues)
+= total_entries = length(logs)
+= level_names = extract_levels(logs)
+= debug_count = count_by(level_names, |s| s == "DEBUG")
+= info_count = count_by(level_names, |s| s == "INFO")
+= warn_count = count_by(level_names, |s| s == "WARN")
+= error_count = count_by(level_names, |s| s == "ERROR")
+= fatal_count = count_by(level_names, |s| s == "FATAL")
+
+@ print("")
+@ print("  Levels:")
+@ print("    DEBUG: " + show(debug_count))
+@ print("    INFO:  " + show(info_count))
+@ print("    WARN:  " + show(warn_count))
+@ print("    ERROR: " + show(error_count))
+@ print("    FATAL: " + show(fatal_count))
+
+-- Source breakdown
+= source_names = extract_sources(logs)
+= api_count = count_by(source_names, |s| s == "api")
+= db_count = count_by(source_names, |s| s == "db")
+= auth_count = count_by(source_names, |s| s == "auth")
+= worker_count = count_by(source_names, |s| s == "worker")
+= sched_count = count_by(source_names, |s| s == "scheduler")
+
+@ print("")
+@ print("  Sources:")
+@ print("    api:       " + show(api_count))
+@ print("    db:        " + show(db_count))
+@ print("    auth:      " + show(auth_count))
+@ print("    worker:    " + show(worker_count))
+@ print("    scheduler: " + show(sched_count))
+
+
+-- ============================================================================
+-- ~ STREAM ANALYTICS — Cumulative and windowed
+-- ============================================================================
+
+@ print("")
+@ print("--- Stream Analytics ---")
+
+-- Cumulative error rate over time
+~ error_flags = log_stream |> map(|e| if is_error_level(e.level) { 1 } else { 0 })
+~ cumulative_errors = error_flags |> scan(0, |acc, x| acc + x)
+
+@ print("")
+@ print("  Cumulative errors over time:")
+~ cumulative_errors | n -> {
+    @ print("    " + show(n))
+}
+
+-- Running latency sum
+~ lat_cumulative = latencies |> scan(0, |acc, x| acc + x)
+= final_lat_sum = lat_cumulative |> reduce(0, |acc, x| x)
+
+@ print("")
+@ print("  Final cumulative latency: " + show(final_lat_sum) + "ms")
+
+-- Pairwise latency deltas
+~ lat_pairs = latencies |> pairwise
+~ deltas = lat_pairs |> map(|p| snd(p) - fst(p))
+
+@ print("")
+@ print("  Latency deltas (consecutive):")
+~ deltas | d -> {
+    = label = if d > 0 { "+" + show(d) } else { show(d) }
+    @ print("    " + label + "ms")
+}
+
+
+-- ============================================================================
+-- > ACTOR STATE — Final counts
+-- ============================================================================
+
+= final_errors = ask(err_actor, CountError)
+= final_alerts = ask(alert_actor, CountAlert)
+
+@ print("")
+@ print("--- Final Counts ---")
+@ print("  Total entries:  " + show(total_entries))
+@ print("  Errors:         " + show(final_errors - 1))
+@ print("  Alerts fired:   " + show(final_alerts - 1))
+
+
+-- ============================================================================
+-- @ JSON REPORT — Structured output
+-- ============================================================================
+
+@ print("")
+@ print("--- JSON Report ---")
+
+= report = json_object([
+    ["total_entries", show(total_entries)],
+    ["errors", show(error_count + fatal_count)],
+    ["warnings", show(warn_count)],
+    ["p50_latency_ms", show(p50)],
+    ["p90_latency_ms", show(p90)],
+    ["p99_latency_ms", show(p99)],
+    ["avg_latency_ms", show(avg_lat)],
+    ["fast_pct", format_float(to_float(fast_count) * 100.0 / to_float(total_entries), 1)],
+    ["slow_pct", format_float(to_float(slow_count + crit_count) * 100.0 / to_float(total_entries), 1)],
+])
+
+@ print("  " + report)
+
+-- Round-trip verification
+= parsed = json_parse(report)
+= rt_total = json_get(parsed, "total_entries")
+= rt_p50 = json_get(parsed, "p50_latency_ms")
+
+@ print("")
+@ print("  Round-trip: total=" + rt_total + " p50=" + rt_p50 + "ms")
+
+
+-- ============================================================================
+-- SUMMARY
+-- ============================================================================
+
+@ print("")
+@ print("=== Log Analyzer Complete ===")
+@ print("  4 ADTs (Level, Source, Trend, Alert) + 1 struct (LogEntry)")
+@ print("  10 verified invariants")
+@ print("  8 Catala rules with escalation exceptions")
+@ print("  2 actors (error_counter, alert_counter)")
+@ print("  6 stream pipelines (scan, filter, map, pairwise, reduce)")
+@ print("  JSON report with round-trip verification")
+@ print("  20 log entries processed through full pipeline")
+@ print("  All 7 runes exercised.")

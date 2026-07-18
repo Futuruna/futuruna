@@ -1,0 +1,22 @@
+@ import ./constitution
+
+----
+If, by reason of death, resignation, removal from office, inability, or failure to qualify, there is neither a President nor Vice President to discharge the powers and duties of the office of President, then the Speaker of the House of Representatives shall, upon his resignation as Speaker and as Representative in Congress, act as President.
+----
+
+| speaker_is_first_after_vp() -> True
+| speaker_must_resign_from_congress() -> True
+
+----
+If, at the time when under subsection (a) a Speaker is to begin the discharge of the powers and duties of the office of President, there is no Speaker, or the Speaker fails to qualify as Acting President, then the President pro tempore of the Senate shall, upon his resignation as President pro tempore and as Senator, act as President.
+----
+
+| pro_tempore_is_second_after_vp() -> True
+| pro_tempore_must_resign_from_senate() -> True
+
+----
+Subsections (a), (b), and (d) of this section shall apply only to such officers as are eligible to the office of President under the Constitution.
+----
+
+| succession_requires_constitutional_eligibility() -> True
+| ineligible_officer_skipped() -> True

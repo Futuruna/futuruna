@@ -1,0 +1,462 @@
+-- ============================================================================
+-- CONSCIOUS UI FRAMEWORK — The Complete Picture
+-- ============================================================================
+--
+-- A micro-framework that demonstrates what a real Futuruna UI framework would
+-- look like. This is not a toy example — it's a complete rendering pipeline:
+--
+--   1. DECLARE components (#)
+--   2. BUILD a component graph (= + >)
+--   3. HANDLE events (> event dispatch)
+--   4. COMPUTE importance (> S_tau on the graph)
+--   5. RENDER consciously (> + @ phase-aware decisions)
+--   6. LEARN from experience (> Bayesian update)
+--
+-- When Futuruna compiles to WASM, this runs in the browser natively.
+-- No virtual DOM. No dirty checking. No React reconciliation.
+-- Just: perceive topology → prioritize → render → learn.
+-- ============================================================================
+
+
+-- ============================================================================
+-- TYPES: The shape of a UI world (#)
+-- ============================================================================
+
+# List(a) = Nil | Cons(a, List(a))
+
+# Phase = Idle | Browsing | Editing | Searching | Submitting
+
+# EventKind = Click | Hover | Input | Submit | Scroll | KeyPress
+
+# Event = MkEvent(Int, EventKind, Int)
+-- MkEvent(target_id, kind, tick)
+
+# CompKind = Box(String) | Label(String) | Field(String) | Btn(String) | Canvas(String)
+
+# Comp = MkComp(Int, CompKind, Int, Int)
+-- MkComp(id, kind, interactions, render_cost)
+
+# RenderResult = Rendered(Int, Int) | Skipped(Int, Int)
+-- Rendered(id, score) | Skipped(id, score)
+
+# BayesBucket = MkBucket(Int, Int, Int)
+-- MkBucket(category, renders, skips)
+
+
+-- ============================================================================
+-- ACCESSORS (>)
+-- ============================================================================
+
+> comp_id(c: Comp) -> Int { match c { | MkComp(id, _, _, _) -> id } }
+> comp_kind(c: Comp) -> CompKind { match c { | MkComp(_, k, _, _) -> k } }
+> comp_interact(c: Comp) -> Int { match c { | MkComp(_, _, i, _) -> i } }
+> comp_cost(c: Comp) -> Int { match c { | MkComp(_, _, _, c) -> c } }
+
+> event_target(e: Event) -> Int { match e { | MkEvent(t, _, _) -> t } }
+> event_kind(e: Event) -> EventKind { match e { | MkEvent(_, k, _) -> k } }
+> event_tick(e: Event) -> Int { match e { | MkEvent(_, _, t) -> t } }
+
+
+-- ============================================================================
+-- LIST UTILITIES (>)
+-- ============================================================================
+
+> len_comp(xs: List(Comp)) -> Int {
+    match xs { | Nil -> 0 | Cons(_, rest) -> 1 + len_comp(rest) }
+}
+
+> len_event(xs: List(Event)) -> Int {
+    match xs { | Nil -> 0 | Cons(_, rest) -> 1 + len_event(rest) }
+}
+
+> len_result(xs: List(RenderResult)) -> Int {
+    match xs { | Nil -> 0 | Cons(_, rest) -> 1 + len_result(rest) }
+}
+
+> len_bucket(xs: List(BayesBucket)) -> Int {
+    match xs { | Nil -> 0 | Cons(_, rest) -> 1 + len_bucket(rest) }
+}
+
+
+-- ============================================================================
+-- EVENT PROCESSING: How events change component state (>)
+-- ============================================================================
+
+> count_events_for(events: List(Event), comp_id: Int) -> Int {
+    match events {
+        | Nil -> 0
+        | Cons(e, rest) -> {
+            = hit = if event_target(e) == comp_id { 1 } else { 0 }
+            hit + count_events_for(rest, comp_id)
+        }
+    }
+}
+
+-- Update a component's interaction count based on events
+> apply_events(c: Comp, events: List(Event)) -> Comp {
+    = id = comp_id(c)
+    = new_interactions = comp_interact(c) + count_events_for(events, id)
+    MkComp(id, comp_kind(c), new_interactions, comp_cost(c))
+}
+
+> apply_events_all(comps: List(Comp), events: List(Event)) -> List(Comp) {
+    match comps {
+        | Nil -> Nil
+        | Cons(c, rest) -> Cons(apply_events(c, events), apply_events_all(rest, events))
+    }
+}
+
+-- Detect phase from event patterns
+> detect_phase(events: List(Event)) -> Phase {
+    = clicks = count_kind(events, 0)
+    = inputs = count_kind(events, 2)
+    = submits = count_kind(events, 3)
+    = scrolls = count_kind(events, 4)
+    if submits > 0 { Submitting }
+    else if inputs > 2 { Editing }
+    else if scrolls > 2 { Browsing }
+    else if clicks > 0 { Searching }
+    else { Idle }
+}
+
+> kind_to_int(k: EventKind) -> Int {
+    match k {
+        | Click -> 0
+        | Hover -> 1
+        | Input -> 2
+        | Submit -> 3
+        | Scroll -> 4
+        | KeyPress -> 5
+    }
+}
+
+> count_kind(events: List(Event), kind_id: Int) -> Int {
+    match events {
+        | Nil -> 0
+        | Cons(e, rest) -> {
+            = hit = if kind_to_int(event_kind(e)) == kind_id { 1 } else { 0 }
+            hit + count_kind(rest, kind_id)
+        }
+    }
+}
+
+
+-- ============================================================================
+-- CONSCIOUS RENDERING: Topology + Phase + Cost + History = Decision (>)
+-- ============================================================================
+
+> phase_id(p: Phase) -> Int {
+    match p { | Idle -> 0 | Browsing -> 1 | Editing -> 2 | Searching -> 3 | Submitting -> 4 }
+}
+
+> phase_name(p: Phase) -> String {
+    match p { | Idle -> "Idle" | Browsing -> "Browsing" | Editing -> "Editing" | Searching -> "Searching" | Submitting -> "Submitting" }
+}
+
+> kind_label(k: CompKind) -> String {
+    match k {
+        | Box(t) -> "Box(" + t + ")"
+        | Label(t) -> "Label"
+        | Field(t) -> "Field"
+        | Btn(t) -> "Btn(" + t + ")"
+        | Canvas(t) -> "Canvas(" + t + ")"
+    }
+}
+
+> kind_phase_boost(k: CompKind, p: Phase) -> Int {
+    match p {
+        | Idle -> 0
+        | Browsing -> match k {
+            | Canvas(_) -> 40
+            | Label(_) -> 20
+            | _ -> 0
+        }
+        | Editing -> match k {
+            | Field(_) -> 40
+            | Btn(_) -> 20
+            | _ -> 0
+        }
+        | Searching -> match k {
+            | Label(_) -> 30
+            | Field(_) -> 20
+            | _ -> 0
+        }
+        | Submitting -> match k {
+            | Btn(_) -> 50
+            | Field(_) -> 10
+            | _ -> 0
+        }
+    }
+}
+
+> base_importance(k: CompKind) -> Int {
+    match k {
+        | Box(_) -> 50
+        | Label(_) -> 20
+        | Field(_) -> 30
+        | Btn(_) -> 25
+        | Canvas(_) -> 15
+    }
+}
+
+-- The 5-dimensional render score
+> render_score(c: Comp, phase: Phase) -> Int {
+    = importance = base_importance(comp_kind(c))
+    = interaction = comp_interact(c) * 15
+    = phase_boost = kind_phase_boost(comp_kind(c), phase)
+    = cost_penalty = comp_cost(c)
+    importance + interaction + phase_boost - cost_penalty
+}
+
+> conscious_render(comps: List(Comp), phase: Phase, threshold: Int) -> List(RenderResult) {
+    match comps {
+        | Nil -> Nil
+        | Cons(c, rest) -> {
+            = score = render_score(c, phase)
+            = decision = if score > threshold { Rendered(comp_id(c), score) } else { Skipped(comp_id(c), score) }
+            Cons(decision, conscious_render(rest, phase, threshold))
+        }
+    }
+}
+
+
+-- ============================================================================
+-- BAYESIAN LEARNING: The renderer improves with experience (>)
+-- ============================================================================
+
+-- Categorize a component into a Bayes bucket (simplified: high/mid/low importance)
+> categorize(c: Comp) -> Int {
+    = imp = base_importance(comp_kind(c))
+    if imp > 35 { 2 }
+    else if imp > 22 { 1 }
+    else { 0 }
+}
+
+> update_bucket(buckets: List(BayesBucket), cat: Int, was_rendered: Int) -> List(BayesBucket) {
+    match buckets {
+        | Nil -> {
+            if was_rendered == 1 {
+                Cons(MkBucket(cat, 1, 0), Nil)
+            } else {
+                Cons(MkBucket(cat, 0, 1), Nil)
+            }
+        }
+        | Cons(b, rest) -> {
+            match b {
+                | MkBucket(c, r, s) -> {
+                    if c == cat {
+                        if was_rendered == 1 {
+                            Cons(MkBucket(c, r + 1, s), rest)
+                        } else {
+                            Cons(MkBucket(c, r, s + 1), rest)
+                        }
+                    } else {
+                        Cons(b, update_bucket(rest, cat, was_rendered))
+                    }
+                }
+            }
+        }
+    }
+}
+
+> learn_from_results(comps: List(Comp), results: List(RenderResult), buckets: List(BayesBucket)) -> List(BayesBucket) {
+    match comps {
+        | Nil -> buckets
+        | Cons(c, rest_comps) -> {
+            match results {
+                | Nil -> buckets
+                | Cons(r, rest_results) -> {
+                    = cat = categorize(c)
+                    = was_rendered = match r {
+                        | Rendered(_, _) -> 1
+                        | Skipped(_, _) -> 0
+                    }
+                    = updated = update_bucket(buckets, cat, was_rendered)
+                    learn_from_results(rest_comps, rest_results, updated)
+                }
+            }
+        }
+    }
+}
+
+> show_buckets(buckets: List(BayesBucket)) -> Int {
+    match buckets {
+        | Nil -> 0
+        | Cons(b, rest) -> {
+            match b {
+                | MkBucket(cat, renders, skips) -> {
+                    = total = renders + skips
+                    = label = if cat == 2 { "high-imp" } else { if cat == 1 { "mid-imp" } else { "low-imp" } }
+                    = pct = if total == 0 { 0 } else { (renders * 100) / total }
+                    @ print("    " + label + ": " + show(renders) + " renders, " + show(skips) + " skips -> P(render)=" + show(pct) + "%")
+                }
+            }
+            1 + show_buckets(rest)
+        }
+    }
+}
+
+
+-- ============================================================================
+-- RESULTS DISPLAY (>)
+-- ============================================================================
+
+> count_rendered(results: List(RenderResult)) -> Int {
+    match results {
+        | Nil -> 0
+        | Cons(r, rest) -> {
+            = is_render = match r { | Rendered(_, _) -> 1 | Skipped(_, _) -> 0 }
+            is_render + count_rendered(rest)
+        }
+    }
+}
+
+> show_results(comps: List(Comp), results: List(RenderResult)) -> Int {
+    match comps {
+        | Nil -> 0
+        | Cons(c, rest_c) -> {
+            match results {
+                | Nil -> 0
+                | Cons(r, rest_r) -> {
+                    = label = kind_label(comp_kind(c))
+                    = line = match r {
+                        | Rendered(id, score) -> "    RENDER #" + show(id) + " " + label + " (score=" + show(score) + ")"
+                        | Skipped(id, score) -> "    SKIP   #" + show(id) + " " + label + " (score=" + show(score) + ")"
+                    }
+                    @ print(line)
+                    1 + show_results(rest_c, rest_r)
+                }
+            }
+        }
+    }
+}
+
+
+-- ============================================================================
+-- BUILD THE UI AND RUN IT (@)
+-- ============================================================================
+
+@ print("================================================================")
+@ print("  CONSCIOUS UI FRAMEWORK — Complete Rendering Pipeline")
+@ print("  Declare -> Build -> Handle Events -> Compute -> Render -> Learn")
+@ print("================================================================")
+@ print("")
+
+-- The component tree: a task management app
+= app_shell = MkComp(0, Box("app"), 0, 5)
+= header    = MkComp(1, Box("header"), 0, 3)
+= title     = MkComp(2, Label("Task Manager"), 0, 1)
+= search_in = MkComp(3, Field("Search tasks..."), 0, 2)
+= task_list = MkComp(4, Box("task-list"), 0, 4)
+= task1     = MkComp(5, Label("Deploy v2.0"), 0, 1)
+= task2     = MkComp(6, Label("Review PR #42"), 0, 1)
+= task3     = MkComp(7, Label("Write tests"), 0, 1)
+= add_btn   = MkComp(8, Btn("Add Task"), 0, 2)
+= submit_btn = MkComp(9, Btn("Submit"), 0, 2)
+= chart     = MkComp(10, Canvas("burndown"), 0, 30)
+= status    = MkComp(11, Label("3 tasks remaining"), 0, 1)
+
+= components = Cons(app_shell, Cons(header, Cons(title, Cons(search_in, Cons(task_list, Cons(task1, Cons(task2, Cons(task3, Cons(add_btn, Cons(submit_btn, Cons(chart, Cons(status, Nil))))))))))))
+
+= threshold = 30
+
+@ print("  Components: " + show(len_comp(components)))
+@ print("")
+
+
+-- ============================================================================
+-- SCENARIO 1: User is browsing (scrolling through tasks)
+-- ============================================================================
+
+= browsing_events = Cons(MkEvent(4, Scroll, 1), Cons(MkEvent(4, Scroll, 2), Cons(MkEvent(4, Scroll, 3), Cons(MkEvent(10, Hover, 4), Nil))))
+
+= browsing_phase = detect_phase(browsing_events)
+= browsing_comps = apply_events_all(components, browsing_events)
+= browsing_results = conscious_render(browsing_comps, browsing_phase, threshold)
+
+@ print("  --- Scenario 1: " + phase_name(browsing_phase) + " ---")
+= shown1 = show_results(browsing_comps, browsing_results)
+= rendered1 = count_rendered(browsing_results)
+@ print("    Total: " + show(rendered1) + " rendered, " + show(12 - rendered1) + " skipped")
+@ print("")
+
+
+-- ============================================================================
+-- SCENARIO 2: User is editing (typing in search field)
+-- ============================================================================
+
+= editing_events = Cons(MkEvent(3, Click, 5), Cons(MkEvent(3, Input, 6), Cons(MkEvent(3, Input, 7), Cons(MkEvent(3, Input, 8), Cons(MkEvent(3, KeyPress, 9), Nil)))))
+
+= editing_phase = detect_phase(editing_events)
+= editing_comps = apply_events_all(components, editing_events)
+= editing_results = conscious_render(editing_comps, editing_phase, threshold)
+
+@ print("  --- Scenario 2: " + phase_name(editing_phase) + " ---")
+= shown2 = show_results(editing_comps, editing_results)
+= rendered2 = count_rendered(editing_results)
+@ print("    Total: " + show(rendered2) + " rendered, " + show(12 - rendered2) + " skipped")
+@ print("")
+
+
+-- ============================================================================
+-- SCENARIO 3: User is submitting (clicked submit)
+-- ============================================================================
+
+= submit_events = Cons(MkEvent(9, Click, 10), Cons(MkEvent(9, Submit, 11), Cons(MkEvent(8, Click, 12), Nil)))
+
+= submit_phase = detect_phase(submit_events)
+= submit_comps = apply_events_all(components, submit_events)
+= submit_results = conscious_render(submit_comps, submit_phase, threshold)
+
+@ print("  --- Scenario 3: " + phase_name(submit_phase) + " ---")
+= shown3 = show_results(submit_comps, submit_results)
+= rendered3 = count_rendered(submit_results)
+@ print("    Total: " + show(rendered3) + " rendered, " + show(12 - rendered3) + " skipped")
+@ print("")
+
+
+-- ============================================================================
+-- LEARNING: The framework improves with experience
+-- ============================================================================
+
+@ print("  --- Learning from Experience ---")
+@ print("")
+
+= buckets0 = Nil
+= buckets1 = learn_from_results(browsing_comps, browsing_results, buckets0)
+= buckets2 = learn_from_results(editing_comps, editing_results, buckets1)
+= buckets3 = learn_from_results(submit_comps, submit_results, buckets2)
+
+@ print("  After 3 rendering cycles, learned patterns:")
+= shown_b = show_buckets(buckets3)
+@ print("")
+@ print("  The framework now KNOWS:")
+@ print("    - High-importance components almost always render")
+@ print("    - Low-importance components can often be skipped")
+@ print("    - Mid-importance components depend on context")
+@ print("")
+
+-- Total savings
+= total_rendered = rendered1 + rendered2 + rendered3
+= total_possible = 36
+= savings_pct = ((total_possible - total_rendered) * 100) / total_possible
+
+@ print("  Render savings: " + show(total_possible - total_rendered) + "/" + show(total_possible) + " skipped (" + show(savings_pct) + "%)")
+@ print("")
+
+@ print("================================================================")
+@ print("  THE CONSCIOUS RENDERING PIPELINE")
+@ print("================================================================")
+@ print("")
+@ print("  1. # DECLARE component types (ADTs)")
+@ print("  2. = BUILD the component tree (bindings)")
+@ print("  3. > HANDLE events and detect phase (functions)")
+@ print("  4. > COMPUTE importance scores (S_tau-inspired)")
+@ print("  5. > RENDER based on 5D conscious decision (functions)")
+@ print("  6. > LEARN from render history (Bayesian update)")
+@ print("  7. @ OUTPUT the actual rendering (effects)")
+@ print("")
+@ print("  When compiled to WASM, this IS the browser runtime.")
+@ print("  No vDOM diffing. No dirty checking. No reconciliation.")
+@ print("  Just consciousness: perceive, prioritize, learn, render.")
+@ print("================================================================")

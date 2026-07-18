@@ -1,0 +1,145 @@
+-- scope_test.runa: M13 — Scopes, Subjects & Lifecycle
+-- Tests: | scope execution, subject(), <-, .latest, scope field access
+
+-- ============================================================================
+-- DEMO 1: Basic scope execution
+-- ============================================================================
+
+@ print("=== Demo 1: Scope Execution ===")
+
+| scope Counter {
+    = count = 42
+    = name = "counter"
+    @ print("  inside scope: count = " + show(count))
+}
+
+-- Access scope bindings from outside
+@ print("  Counter.count = " + show(Counter.count))
+@ print("  Counter.name = " + show(Counter.name))
+
+-- ============================================================================
+-- DEMO 2: Nested scopes
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 2: Nested Scopes ===")
+
+| scope App {
+    = version = 1
+
+    | scope Header {
+        = title = "My App"
+        @ print("  Header initialized: " + title)
+    }
+
+    | scope Footer {
+        = copyright = "Futuruna"
+        @ print("  Footer initialized: " + copyright)
+    }
+
+    @ print("  App version: " + show(version))
+}
+
+@ print("  App.version = " + show(App.version))
+@ print("  App.Header.title = " + show(App.Header.title))
+@ print("  App.Footer.copyright = " + show(App.Footer.copyright))
+
+-- ============================================================================
+-- DEMO 3: Subjects — push-based streams
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 3: Subjects ===")
+
+-- subject() creates a pushable stream
+~ clicks = subject()
+~ temp = subject(20.0)
+
+-- Push values with <-
+clicks <- "click1"
+clicks <- "click2"
+clicks <- "click3"
+
+@ print("  clicks after 3 pushes: " + show(clicks))
+@ print("  clicks.count = " + show(clicks.count))
+
+-- .latest on subject with initial value
+@ print("  temp.latest = " + show(temp.latest))
+temp <- 25.0
+@ print("  temp.latest after push: " + show(temp.latest))
+
+-- ============================================================================
+-- DEMO 4: Subjects as streams (pipe operators work on accumulated values)
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 4: Subjects as Streams ===")
+
+-- Push THEN derive — synchronous interpreter evaluates at binding time
+~ data = subject()
+data <- 1
+data <- 2
+data <- 3
+data <- 4
+data <- 5
+
+-- Now derive from the subject (has 5 values accumulated)
+~ doubled = data |> map(|x: Int| x * 2)
+@ print("  data |> map(*2):")
+~ doubled | x -> {
+    @ print("    " + show(x))
+}
+
+~ evens = data |> filter(|x: Int| x % 2 == 0)
+@ print("  data |> filter(even):")
+~ evens | x -> {
+    @ print("    " + show(x))
+}
+
+= total = data |> sum
+@ print("  data |> sum = " + show(total))
+
+-- ============================================================================
+-- DEMO 5: Streams inside scopes
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 5: Streams in Scopes ===")
+
+| scope Dashboard {
+    ~ readings = subject()
+    readings <- 10
+    readings <- 20
+    readings <- 30
+
+    -- Derive AFTER pushing values
+    ~ sums = readings |> scan(0, |acc: Int, x: Int| acc + x)
+
+    @ print("  Dashboard readings: " + show(readings))
+    @ print("  Running sums:")
+    ~ sums | s -> {
+        @ print("    " + show(s))
+    }
+
+    @ print("  Latest reading: " + show(readings.latest))
+}
+
+-- ============================================================================
+-- DEMO 6: Scope with functions and logic
+-- ============================================================================
+
+@ print("")
+@ print("=== Demo 6: Scope with Functions ===")
+
+| scope Calculator {
+    > add(a: Int, b: Int) -> Int { a + b }
+    > square(x: Int) -> Int { x * x }
+
+    = result = add(3, square(4))
+    @ print("  add(3, square(4)) = " + show(result))
+}
+
+@ print("  Calculator.result = " + show(Calculator.result))
+
+@ print("")
+@ print("=== M13: Scopes + Subjects complete ===")

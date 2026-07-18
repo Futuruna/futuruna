@@ -1,0 +1,121 @@
+-- weather_demo.runa — Reactive Weather Station
+-- The first Futuruna program combining ALL features:
+--   # types, > functions, | rules + exceptions, = bindings,
+--   ~ streams + subjects, | scope, ? verification, @ effects
+
+-- ============================================================================
+-- Types: the shape of weather
+-- ============================================================================
+
+# Condition = Sunny | Cloudy | Rainy | Stormy | Snowy
+# Severity = Mild | Moderate | Severe | Extreme
+# City = Copenhagen | NewYork | Tokyo
+# Weather(city: City, temp: Float, condition: Condition, wind_kph: Float)
+# Alert(message: String, severity: Severity)
+
+-- ============================================================================
+-- Default logic: what to advise (Catala-style layered rules)
+-- ============================================================================
+
+-- Base rule: default advice
+| advise(w) -> Alert("Nice day in " + show(w.city), Mild)
+
+-- Rain override
+| advise(w) -> Alert("Bring an umbrella in " + show(w.city), Moderate) under w.condition == Rainy
+
+-- Storm override
+| advise(w) -> Alert("Stay indoors in " + show(w.city) + "!", Severe) under w.condition == Stormy
+
+-- Temperature exceptions (override everything)
+| exception heatwave advise(w) -> Alert("HEAT WARNING in " + show(w.city) + ": " + show(w.temp) + " C", Extreme) under w.temp > 35.0
+
+| exception coldsnap advise(w) -> Alert("FREEZE WARNING in " + show(w.city) + ": " + show(w.temp) + " C", Extreme) under w.temp < -10.0
+
+-- Wind exception
+| exception gale advise(w) -> Alert("GALE in " + show(w.city) + ": " + show(w.wind_kph) + " km/h", Extreme) under w.wind_kph > 90.0
+
+-- ============================================================================
+-- Verification: prove the alert logic is sound
+-- ============================================================================
+
+-- A mild sunny day should get mild advice
+= sunny_cph = Weather(Copenhagen, 22.0, Sunny, 10.0)
+= sunny_alert = advise(sunny_cph)
+| sunny_is_mild: sunny_alert.severity -> sunny_alert.severity == Mild
+
+-- A stormy day should get at least Severe
+= storm_cph = Weather(Copenhagen, 15.0, Stormy, 50.0)
+= storm_alert = advise(storm_cph)
+| storm_is_severe: storm_alert.severity -> storm_alert.severity == Severe
+
+-- Extreme cold should trigger Extreme
+= cold_cph = Weather(Copenhagen, -15.0, Snowy, 20.0)
+= cold_alert = advise(cold_cph)
+| cold_is_extreme: cold_alert.severity -> cold_alert.severity == Extreme
+
+@ print("--- Verifying alert logic ---")
+? sunny_is_mild
+? storm_is_severe: val -> { @ print("  Storm severity confirmed: " + show(val)) }
+? cold_is_extreme else { @ print("  FAILED: cold snap should be Extreme!") }
+
+-- ============================================================================
+-- Mock weather feed (simulating API responses)
+-- ============================================================================
+
+> mock_feed() -> List(Weather) {
+    [Weather(Copenhagen, 22.0, Sunny, 12.0), Weather(Copenhagen, 14.0, Rainy, 25.0), Weather(Copenhagen, -12.0, Snowy, 45.0), Weather(NewYork, 38.0, Sunny, 8.0), Weather(Tokyo, 28.0, Cloudy, 15.0), Weather(Copenhagen, 10.0, Stormy, 95.0), Weather(NewYork, 20.0, Sunny, 10.0)]
+}
+
+-- ============================================================================
+-- Reactive pipeline inside a scope
+-- ============================================================================
+
+@ print("")
+@ print("--- Weather Station ---")
+
+| scope WeatherStation {
+
+    -- Subject: all incoming weather readings
+    ~ readings = subject()
+
+    -- Push mock data into the subject
+    for w in from_list(mock_feed()) {
+        readings <- w
+    }
+
+    -- Derive alerts from readings
+    ~ alerts = readings |> map(|w| advise(w))
+
+    -- Filter: only non-mild alerts
+    ~ important = alerts |> filter(|a| a.severity != Mild)
+
+    -- Count alerts by severity
+    = extreme_count = alerts |> filter(|a| a.severity == Extreme) |> count
+
+    -- Display all readings with advice
+    @ print("")
+    ~ alerts | a -> {
+        @ print("  " + a.message + " [" + show(a.severity) + "]")
+    }
+
+    -- Summary
+    @ print("")
+    @ print("  Total readings: " + show(readings.count))
+    @ print("  Important alerts: " + show(count(important)))
+    @ print("  Extreme alerts: " + show(extreme_count))
+    @ print("  Latest: " + show(readings.latest))
+}
+
+-- ============================================================================
+-- What this demonstrates
+-- ============================================================================
+
+@ print("")
+@ print("--- What just happened ---")
+@ print("  # ADTs: Weather, Condition, Severity, City, Alert")
+@ print("  | default logic with exceptions (Catala-style)")
+@ print("  ? verification blocks: simple, capture, else")
+@ print("  ~ subjects: pushable streams with <-")
+@ print("  | scope: WeatherStation lifecycle")
+@ print("  |> pipes: map, filter, count")
+@ print("  All seven runes in one program.")

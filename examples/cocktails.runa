@@ -1,0 +1,177 @@
+-- Drinking with Datalog
+-- What cocktails can I mix? What should I buy next?
+
+-- === MY BAR ===
+
+| have("brandy")
+| have("dry vermouth")
+| have("lemon")
+| have("light rum")
+| have("lime")
+| have("orange liqueur")
+| have("reposado tequila")
+| have("sugar")
+
+-- === RECIPES ===
+
+| needs("martini", "london dry gin")
+| needs("martini", "dry vermouth")
+
+| needs("daiquiri", "light rum")
+| needs("daiquiri", "lime")
+| needs("daiquiri", "sugar")
+
+| needs("margarita", "reposado tequila")
+| needs("margarita", "lime")
+| needs("margarita", "orange liqueur")
+
+| needs("sidecar", "brandy")
+| needs("sidecar", "orange liqueur")
+| needs("sidecar", "lemon")
+
+| needs("gimlet", "london dry gin")
+| needs("gimlet", "lime")
+
+| needs("airmail", "light rum")
+| needs("airmail", "lime")
+| needs("airmail", "sugar")
+| needs("airmail", "champagne")
+
+| needs("between-the-sheets", "brandy")
+| needs("between-the-sheets", "light rum")
+| needs("between-the-sheets", "orange liqueur")
+| needs("between-the-sheets", "lemon")
+| needs("between-the-sheets", "cognac")
+
+| needs("sherry-cobbler", "sherry")
+| needs("sherry-cobbler", "sugar")
+| needs("sherry-cobbler", "lemon")
+
+| needs("ti-punch", "rhum agricole")
+| needs("ti-punch", "lime")
+| needs("ti-punch", "sugar")
+
+| needs("mojito", "light rum")
+| needs("mojito", "lime")
+| needs("mojito", "sugar")
+| needs("mojito", "soda water")
+| needs("mojito", "mint")
+
+| needs("old-fashioned", "bourbon")
+| needs("old-fashioned", "sugar")
+| needs("old-fashioned", "angostura bitters")
+
+| needs("negroni", "london dry gin")
+| needs("negroni", "sweet vermouth")
+| needs("negroni", "campari")
+
+| needs("manhattan", "rye whiskey")
+| needs("manhattan", "sweet vermouth")
+| needs("manhattan", "angostura bitters")
+
+| needs("whiskey-sour", "bourbon")
+| needs("whiskey-sour", "lemon")
+| needs("whiskey-sour", "sugar")
+
+| needs("cosmopolitan", "vodka")
+| needs("cosmopolitan", "orange liqueur")
+| needs("cosmopolitan", "lime")
+| needs("cosmopolitan", "cranberry juice")
+
+| needs("paloma", "reposado tequila")
+| needs("paloma", "lime")
+| needs("paloma", "grapefruit soda")
+
+| needs("caipirinha", "cachaca")
+| needs("caipirinha", "lime")
+| needs("caipirinha", "sugar")
+
+| needs("pisco-sour", "pisco")
+| needs("pisco-sour", "lime")
+| needs("pisco-sour", "sugar")
+| needs("pisco-sour", "egg white")
+
+| needs("amaretto-sour", "amaretto")
+| needs("amaretto-sour", "lemon")
+| needs("amaretto-sour", "sugar")
+
+| needs("mai-tai", "light rum")
+| needs("mai-tai", "dark rum")
+| needs("mai-tai", "orange liqueur")
+| needs("mai-tai", "lime")
+| needs("mai-tai", "orgeat")
+
+| needs("espresso-martini", "vodka")
+| needs("espresso-martini", "coffee liqueur")
+| needs("espresso-martini", "espresso")
+
+| needs("dark-and-stormy", "dark rum")
+| needs("dark-and-stormy", "ginger beer")
+| needs("dark-and-stormy", "lime")
+
+| needs("cuba-libre", "light rum")
+| needs("cuba-libre", "lime")
+| needs("cuba-libre", "cola")
+
+| needs("brandy-alexander", "brandy")
+| needs("brandy-alexander", "creme de cacao")
+| needs("brandy-alexander", "cream")
+
+| needs("french-75", "london dry gin")
+| needs("french-75", "lemon")
+| needs("french-75", "sugar")
+| needs("french-75", "champagne")
+
+| needs("bee's-knees", "london dry gin")
+| needs("bee's-knees", "lemon")
+| needs("bee's-knees", "honey")
+
+-- === WHAT CAN I MIX? ===
+
+@ print("=== Mixable cocktails ===")
+
+= cocktails = distinct(findall(c, needs(c, _)))
+
+for c in cocktails {
+    = ingredients = findall(i, needs(c, i))
+    = missing = filter(ingredients, |i| not(have(i)))
+    if length(missing) == 0 {
+        @ print(c)
+    }
+}
+
+-- === SHOPPING LIST ===
+-- What single ingredient would unlock a new cocktail?
+
+@ print("")
+@ print("=== Shopping list (one buy = one new cocktail) ===")
+
+for c in cocktails {
+    = ingredients = findall(i, needs(c, i))
+    = missing = filter(ingredients, |i| not(have(i)))
+    if length(missing) == 1 {
+        @ print("  " + head(missing) + " -> " + c)
+    }
+}
+
+-- === BEST BUYS ===
+-- Rank every missing ingredient by how many recipes it appears in.
+-- The top items give you the most optionality.
+
+@ print("")
+@ print("=== Best buys (top 10 by versatility) ===")
+
+= all_missing = flat_map(cocktails, |c| filter(findall(i, needs(c, i)), |i| not(have(i))))
+= unique_missing = distinct(all_missing)
+
+-- Score each ingredient: 99-count for ascending sort → descending by count
+= scored = map(unique_missing, |ing| {
+    = count = length(filter(all_missing, |x| x == ing))
+    = key = show(99 - count)
+    key + "|" + show(count) + "x  " + ing
+})
+= top = take(sort(scored), 10)
+
+for entry in top {
+    @ print("  " + substring(entry, 3, string_length(entry)))
+}
