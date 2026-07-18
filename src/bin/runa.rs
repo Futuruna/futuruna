@@ -4630,8 +4630,9 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
     entries.into_iter().map(|(k, v)| (k.to_string(), v)).collect()
 }
 
-struct RustCodegen {
-    indent: usize,
+/// Shared type metadata: types, variants, constructors, field info.
+/// Populated once during declaration scanning, consumed by analysis passes and emission.
+struct TypeRegistry {
     /// Type declarations: name -> list of type params + list of variants
     type_decls: BTreeMap<String, (Vec<String>, Vec<String>)>,
     /// Maps variant name -> parent ADT name (e.g. "Some" -> "FuturunaOption")
@@ -4646,6 +4647,35 @@ struct RustCodegen {
     variant_fields: BTreeMap<String, Vec<String>>,
     /// Maps variant name -> (field name -> field type) for non-Copy field detection
     variant_field_types: BTreeMap<String, BTreeMap<String, Ty>>,
+    /// Types with explicit user-provided Display impl (skip auto-generation)
+    explicit_display_impls: BTreeSet<String>,
+    /// Types that are structs (single-variant ADTs where variant name == type name)
+    struct_types: BTreeSet<String>,
+    /// Immutable recursive ADT names that use Rc/Arc instead of Box
+    rc_types: BTreeSet<String>,
+}
+
+impl TypeRegistry {
+    fn new() -> Self {
+        TypeRegistry {
+            type_decls: BTreeMap::new(),
+            variant_parent: BTreeMap::new(),
+            type_rename: BTreeMap::new(),
+            variant_boxed_args: BTreeMap::new(),
+            variant_positional: BTreeMap::new(),
+            variant_fields: BTreeMap::new(),
+            variant_field_types: BTreeMap::new(),
+            explicit_display_impls: BTreeSet::new(),
+            struct_types: BTreeSet::new(),
+            rc_types: BTreeSet::new(),
+        }
+    }
+}
+
+struct RustCodegen {
+    indent: usize,
+    /// Shared type metadata
+    types: TypeRegistry,
     /// Escape analysis: for each variable in current function, total use count
     /// Key = variable name, Value = total use count in function body
     var_use_counts: BTreeMap<String, usize>,
@@ -4653,10 +4683,6 @@ struct RustCodegen {
     var_consuming_counts: BTreeMap<String, usize>,
     /// Variables known to be Copy types in current scope (i64, f64, bool, char, u64)
     copy_vars: BTreeSet<String>,
-    /// Types with explicit user-provided Display impl (skip auto-generation)
-    explicit_display_impls: BTreeSet<String>,
-    /// Types that are structs (single-variant ADTs where variant name == type name)
-    struct_types: BTreeSet<String>,
     /// Variables that need `let mut` (rebound inside for loops)
     mutable_vars: BTreeSet<String>,
     /// User-defined function names (avoid overriding with builtins like map/filter)
@@ -4753,9 +4779,6 @@ struct RustCodegen {
     builtin_registry: BTreeMap<String, BuiltinDef>,
     /// Counter for generating unique async stream operator variable names
     async_stream_counter: usize,
-    /// Immutable recursive ADT names (Rust-safe) that use Rc/Arc instead of Box
-    /// for O(1) structural sharing. Immutability guarantees no aliasing hazards.
-    rc_types: BTreeSet<String>,
     /// M26: Types with `@ store` annotation — object store persistence (struct → JSON blob in SQLite)
     stored_types: BTreeSet<String>,
     /// M26: For stored types, the name of the first field (used as primary key)
@@ -6096,18 +6119,10 @@ impl RustCodegen {
     fn new() -> Self {
         RustCodegen {
             indent: 0,
-            type_decls: BTreeMap::new(),
-            variant_parent: BTreeMap::new(),
-            type_rename: BTreeMap::new(),
-            variant_boxed_args: BTreeMap::new(),
-            variant_positional: BTreeMap::new(),
-            variant_fields: BTreeMap::new(),
-            variant_field_types: BTreeMap::new(),
+            types: TypeRegistry::new(),
             var_use_counts: BTreeMap::new(),
             var_consuming_counts: BTreeMap::new(),
             copy_vars: BTreeSet::new(),
-            explicit_display_impls: BTreeSet::new(),
-            struct_types: BTreeSet::new(),
             mutable_vars: BTreeSet::new(),
             user_functions: BTreeSet::new(),
             exported_names: BTreeSet::new(),
@@ -6152,7 +6167,6 @@ impl RustCodegen {
             literal_bindings: BTreeMap::new(),
             builtin_registry: rust_builtin_registry(),
             async_stream_counter: 0,
-            rc_types: BTreeSet::new(),
             stored_types: BTreeSet::new(),
             stored_type_key_field: BTreeMap::new(),
             store_scope: None,
@@ -6491,7 +6505,7 @@ impl RustCodegen {
 
     /// Rename types that conflict with Rust std (Option, Result, Bool)
     fn rust_type_name(&self, tau_name: &str) -> String {
-        self.type_rename.get(tau_name).cloned().unwrap_or_else(|| tau_name.to_string())
+        self.types.type_rename.get(tau_name).cloned().unwrap_or_else(|| tau_name.to_string())
     }
 
     /// Returns "Rc" or "Arc" depending on whether the program uses async
@@ -6503,8 +6517,8 @@ impl RustCodegen {
     fn pattern_is_rc_type(&self, pat: &Pat) -> bool {
         match pat {
             Pat::Con(name, _) | Pat::NamedCon(name, _) => {
-                self.variant_parent.get(name.as_str())
-                    .map_or(false, |parent| self.rc_types.contains(parent))
+                self.types.variant_parent.get(name.as_str())
+                    .map_or(false, |parent| self.types.rc_types.contains(parent))
             }
             _ => false,
         }
@@ -6995,42 +7009,42 @@ impl RustCodegen {
                     name.clone()
                 };
                 if rust_name != *name {
-                    self.type_rename.insert(name.clone(), rust_name.clone());
+                    self.types.type_rename.insert(name.clone(), rust_name.clone());
                 }
                 let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
                 let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
                 for v in variants {
-                    if let Some(prev_parent) = self.variant_parent.get(&v.name) {
+                    if let Some(prev_parent) = self.types.variant_parent.get(&v.name) {
                         if *prev_parent != rust_name {
                             eprintln!("warning: variant '{}' defined in both '{}' and '{}' — using '{}'",
                                 v.name, prev_parent, rust_name, rust_name);
                         }
                     }
-                    self.variant_parent.insert(v.name.clone(), rust_name.clone());
-                    self.variant_positional.insert(v.name.clone(), v.positional);
+                    self.types.variant_parent.insert(v.name.clone(), rust_name.clone());
+                    self.types.variant_positional.insert(v.name.clone(), v.positional);
                     if !v.positional {
                         let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
-                        self.variant_fields.insert(v.name.clone(), names);
+                        self.types.variant_fields.insert(v.name.clone(), names);
                     }
                     // Track field types for non-Copy field detection on borrowed params
                     let ft_map: BTreeMap<String, Ty> = v.fields.iter()
                         .map(|f| (f.name.clone(), f.ty.clone()))
                         .collect();
-                    self.variant_field_types.insert(v.name.clone(), ft_map);
+                    self.types.variant_field_types.insert(v.name.clone(), ft_map);
                     // Track which fields are recursive (reference the parent type)
                     let boxed: Vec<usize> = v.fields.iter().enumerate()
                         .filter(|(_, f)| RustCodegen::type_references_adt_static(&f.ty, name))
                         .map(|(i, _)| i)
                         .collect();
                     if !boxed.is_empty() {
-                        self.variant_boxed_args.insert(v.name.clone(), boxed);
+                        self.types.variant_boxed_args.insert(v.name.clone(), boxed);
                     }
                 }
                 // Detect struct types: single variant with same name as type
                 if variants.len() == 1 && variants[0].name == *name && !variants[0].fields.is_empty() {
-                    self.struct_types.insert(rust_name.clone());
+                    self.types.struct_types.insert(rust_name.clone());
                 }
-                self.type_decls.insert(rust_name, (param_names, variant_names));
+                self.types.type_decls.insert(rust_name, (param_names, variant_names));
             }
             // Also scan types inside modules
             if let Stmt::Defn(Defn::Module { body, .. }) = stmt {
@@ -7042,33 +7056,33 @@ impl RustCodegen {
                             name.clone()
                         };
                         if rust_name != *name {
-                            self.type_rename.insert(name.clone(), rust_name.clone());
+                            self.types.type_rename.insert(name.clone(), rust_name.clone());
                         }
                         let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
                         let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
                         for v in variants {
-                            self.variant_parent.insert(v.name.clone(), rust_name.clone());
-                            self.variant_positional.insert(v.name.clone(), v.positional);
+                            self.types.variant_parent.insert(v.name.clone(), rust_name.clone());
+                            self.types.variant_positional.insert(v.name.clone(), v.positional);
                             if !v.positional {
                                 let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
-                                self.variant_fields.insert(v.name.clone(), names);
+                                self.types.variant_fields.insert(v.name.clone(), names);
                             }
                             let ft_map: BTreeMap<String, Ty> = v.fields.iter()
                                 .map(|f| (f.name.clone(), f.ty.clone()))
                                 .collect();
-                            self.variant_field_types.insert(v.name.clone(), ft_map);
+                            self.types.variant_field_types.insert(v.name.clone(), ft_map);
                             let boxed: Vec<usize> = v.fields.iter().enumerate()
                                 .filter(|(_, f)| RustCodegen::type_references_adt_static(&f.ty, name))
                                 .map(|(i, _)| i)
                                 .collect();
                             if !boxed.is_empty() {
-                                self.variant_boxed_args.insert(v.name.clone(), boxed);
+                                self.types.variant_boxed_args.insert(v.name.clone(), boxed);
                             }
                         }
                         if variants.len() == 1 && variants[0].name == *name && !variants[0].fields.is_empty() {
-                            self.struct_types.insert(rust_name.clone());
+                            self.types.struct_types.insert(rust_name.clone());
                         }
-                        self.type_decls.insert(rust_name, (param_names, variant_names));
+                        self.types.type_decls.insert(rust_name, (param_names, variant_names));
                     }
                 }
             }
@@ -7078,17 +7092,17 @@ impl RustCodegen {
         // Immutable + recursive + acyclic = safe to share via Rc (O(1) clone instead of O(n))
         {
             let mut recursive_types = BTreeSet::new();
-            for (variant_name, indices) in &self.variant_boxed_args {
+            for (variant_name, indices) in &self.types.variant_boxed_args {
                 if !indices.is_empty() {
-                    if let Some(parent) = self.variant_parent.get(variant_name.as_str()) {
+                    if let Some(parent) = self.types.variant_parent.get(variant_name.as_str()) {
                         recursive_types.insert(parent.clone());
                     }
                 }
             }
-            self.rc_types = recursive_types;
+            self.types.rc_types = recursive_types;
         }
         // Emit Rc/Arc import for transparent structural sharing
-        if !self.rc_types.is_empty() {
+        if !self.types.rc_types.is_empty() {
             if self.has_async {
                 out.push_str("use std::sync::Arc;\n");
             } else {
@@ -7100,7 +7114,7 @@ impl RustCodegen {
         for stmt in stmts {
             if let Stmt::TypeDecl(TypeDecl::ImplBlock { trait_name, for_type, .. }) = stmt {
                 if trait_name == "Display" || trait_name == "fmt::Display" || trait_name == "std::fmt::Display" {
-                    self.explicit_display_impls.insert(for_type.clone());
+                    self.types.explicit_display_impls.insert(for_type.clone());
                 }
             }
         }
@@ -7234,11 +7248,11 @@ impl RustCodegen {
                                         _ => None,
                                     };
                                     if let Some(tn) = type_name {
-                                        let has_boxed = self.variant_boxed_args.iter().any(|(vname, indices)| {
+                                        let has_boxed = self.types.variant_boxed_args.iter().any(|(vname, indices)| {
                                             !indices.is_empty()
-                                                && self.variant_parent.get(vname.as_str())
+                                                && self.types.variant_parent.get(vname.as_str())
                                                     .map(|p| {
-                                                        p == tn || self.type_rename.get(tn).map(|r| r == p).unwrap_or(false)
+                                                        p == tn || self.types.type_rename.get(tn).map(|r| r == p).unwrap_or(false)
                                                     })
                                                     .unwrap_or(false)
                                         });
@@ -7507,23 +7521,23 @@ impl RustCodegen {
                             // before emit_type_decl so struct detection works
                             if let TypeDecl::ADT { name: tname, variants, .. } = &type_decl {
                                 for v in variants {
-                                    self.variant_parent.insert(v.name.clone(), tname.clone());
-                                    self.variant_positional.insert(v.name.clone(), v.positional);
+                                    self.types.variant_parent.insert(v.name.clone(), tname.clone());
+                                    self.types.variant_positional.insert(v.name.clone(), v.positional);
                                     if !v.positional {
                                         let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
-                                        self.variant_fields.insert(v.name.clone(), names);
+                                        self.types.variant_fields.insert(v.name.clone(), names);
                                     }
                                     let ft_map: BTreeMap<String, Ty> = v.fields.iter()
                                         .map(|f| (f.name.clone(), f.ty.clone()))
                                         .collect();
-                                    self.variant_field_types.insert(v.name.clone(), ft_map);
+                                    self.types.variant_field_types.insert(v.name.clone(), ft_map);
                                 }
                                 if variants.len() == 1 && variants[0].name == *tname && !variants[0].fields.is_empty() {
-                                    self.struct_types.insert(tname.clone());
+                                    self.types.struct_types.insert(tname.clone());
                                 }
                                 let param_names: Vec<String> = vec![];
                                 let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
-                                self.type_decls.insert(tname.clone(), (param_names, variant_names));
+                                self.types.type_decls.insert(tname.clone(), (param_names, variant_names));
                             }
                             let decl_str = self.emit_type_decl(&type_decl);
                             // Insert before main function
@@ -7535,7 +7549,7 @@ impl RustCodegen {
                             self.comptime_values.insert(name.clone(), String::new());
                             self.comptime_types.insert(name.clone(), String::new());
                         } else {
-                            let (rust_lit, rust_ty) = Self::value_to_rust_literal(&val, &self.variant_parent);
+                            let (rust_lit, rust_ty) = Self::value_to_rust_literal(&val, &self.types.variant_parent);
                             eprintln!("// comptime: {} = {} ({})", name, rust_lit, rust_ty);
                             self.comptime_values.insert(name.clone(), rust_lit);
                             self.comptime_types.insert(name.clone(), rust_ty);
@@ -7604,7 +7618,7 @@ impl RustCodegen {
                             Value::Constructor(n, args) if (n == "None" && args.is_empty()) || n == "Err"
                         );
                         if !skip_comptime {
-                            let (rust_lit, rust_ty) = Self::value_to_rust_literal(&val, &self.variant_parent);
+                            let (rust_lit, rust_ty) = Self::value_to_rust_literal(&val, &self.types.variant_parent);
                             // Skip values that can't be represented as Rust literals (closures, actors, etc.)
                             if rust_lit.contains("todo!(\"comptime: unsupported value\")") {
                                 eprintln!("// auto-comptime: {} = todo!(\"comptime: unsupported value\") ({})", name, rust_ty);
@@ -7834,10 +7848,10 @@ impl RustCodegen {
                 };
 
                 let mut out = String::new();
-                let is_struct = self.struct_types.contains(&rust_name);
+                let is_struct = self.types.struct_types.contains(&rust_name);
                 let pub_prefix = if self.exported_names.contains(name) { "pub " } else { "" };
                 // Rc/Arc for immutable recursive ADTs (O(1) structural sharing)
-                let wrap_name = if self.rc_types.contains(&rust_name) { self.rc_name() } else { "Box" };
+                let wrap_name = if self.types.rc_types.contains(&rust_name) { self.rc_name() } else { "Box" };
 
                 if is_struct {
                     // Single-variant with same name → emit Rust struct
@@ -7851,11 +7865,11 @@ impl RustCodegen {
                         let base_name = ty_str.split('<').next().unwrap_or(&ty_str).trim();
                         matches!(base_name, "i64" | "f64" | "String" | "bool" | "char" | "()"
                             | "Vec" | "Option" | "HashMap" | "HashSet" | "Rc" | "Arc")
-                            || self.struct_types.contains(base_name)
+                            || self.types.struct_types.contains(base_name)
                             // Enums with fieldless first variant have Default
-                            || self.type_decls.get(base_name).map_or(false, |(_, vnames)| {
+                            || self.types.type_decls.get(base_name).map_or(false, |(_, vnames)| {
                                 vnames.first().map_or(false, |vn| {
-                                    self.variant_field_types.get(vn).map_or(true, |ft| ft.is_empty())
+                                    self.types.variant_field_types.get(vn).map_or(true, |ft| ft.is_empty())
                                 })
                             })
                     });
@@ -7947,7 +7961,7 @@ impl RustCodegen {
                 };
 
                 // Impl Display (skip if user provided explicit # impl fmt::Display)
-                if self.explicit_display_impls.contains(name) {
+                if self.types.explicit_display_impls.contains(name) {
                     // User provides their own Display impl
                 } else if is_struct {
                     let v = &variants[0];
@@ -8286,11 +8300,11 @@ impl RustCodegen {
                 let con_str = self.emit_type(con);
                 let args_str: Vec<String> = args.iter().map(|a| self.emit_type(a)).collect();
                 // Only map List→Vec if List is NOT a user-defined ADT
-                if con_str == "List" && !self.type_decls.contains_key("List") {
+                if con_str == "List" && !self.types.type_decls.contains_key("List") {
                     format!("Vec<{}>", args_str.first().unwrap_or(&"()".to_string()))
-                } else if con_str == "Map" && !self.type_decls.contains_key("Map") {
+                } else if con_str == "Map" && !self.types.type_decls.contains_key("Map") {
                     format!("HashMap<{}>", args_str.join(", "))
-                } else if con_str == "Set" && !self.type_decls.contains_key("Set") {
+                } else if con_str == "Set" && !self.types.type_decls.contains_key("Set") {
                     format!("HashSet<{}>", args_str.first().unwrap_or(&"()".to_string()))
                 } else {
                     format!("{}<{}>", con_str, args_str.join(", "))
@@ -9112,11 +9126,11 @@ impl RustCodegen {
                                         _ => None,
                                     };
                                     if let Some(tn) = type_name {
-                                        let has_boxed = self.variant_boxed_args.iter().any(|(vname, indices)| {
+                                        let has_boxed = self.types.variant_boxed_args.iter().any(|(vname, indices)| {
                                             !indices.is_empty()
-                                                && self.variant_parent.get(vname.as_str())
+                                                && self.types.variant_parent.get(vname.as_str())
                                                     .map(|p| {
-                                                        p == tn || self.type_rename.get(tn).map(|r| r == p).unwrap_or(false)
+                                                        p == tn || self.types.type_rename.get(tn).map(|r| r == p).unwrap_or(false)
                                                     })
                                                     .unwrap_or(false)
                                         });
@@ -9489,7 +9503,7 @@ impl RustCodegen {
                 // (= alias = original where original is used elsewhere → clone)
                 if let ExprKind::Var(src_name) = &value.kind {
                     if !self.copy_vars.contains(src_name.as_str())
-                        && !self.variant_parent.contains_key(src_name.as_str())
+                        && !self.types.variant_parent.contains_key(src_name.as_str())
                     {
                         let consuming = self.var_consuming_counts.get(src_name.as_str()).copied().unwrap_or(0);
                         let total = self.var_use_counts.get(src_name.as_str()).copied().unwrap_or(0);
@@ -10099,12 +10113,12 @@ impl RustCodegen {
                     // Object store: serialize struct to JSON, INSERT OR REPLACE
                     let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
                     // Build struct literal with named fields (named struct) or positional (tuple struct)
-                    let is_positional = self.variant_positional.get(type_name.as_str()).copied().unwrap_or(false);
+                    let is_positional = self.types.variant_positional.get(type_name.as_str()).copied().unwrap_or(false);
                     let construct = if is_positional {
                         format!("{}({})", sname, arg_strs.join(", "))
                     } else {
                         // Named fields
-                        let fields = self.variant_fields.get(type_name.as_str())
+                        let fields = self.types.variant_fields.get(type_name.as_str())
                             .cloned().unwrap_or_default();
                         let pairs: Vec<String> = fields.iter().zip(arg_strs.iter())
                             .map(|(f, v)| format!("{}: {}", sanitize_name(f), v))
@@ -10159,11 +10173,11 @@ impl RustCodegen {
 
     /// Find which variant contains a named field, returns (variant_name, parent_enum_name, is_boxed)
     fn find_variant_field(&self, field: &str) -> Option<(String, String)> {
-        for (variant_name, fields) in &self.variant_fields {
+        for (variant_name, fields) in &self.types.variant_fields {
             if fields.contains(&field.to_string()) {
-                if let Some(parent) = self.variant_parent.get(variant_name) {
+                if let Some(parent) = self.types.variant_parent.get(variant_name) {
                     // Only for enum types (not struct types)
-                    if !self.struct_types.contains(parent) {
+                    if !self.types.struct_types.contains(parent) {
                         return Some((variant_name.clone(), parent.clone()));
                     }
                 }
@@ -10175,10 +10189,10 @@ impl RustCodegen {
     /// Find ALL variants that have a given field name (for multi-variant field access)
     fn find_all_variant_fields(&self, field: &str) -> Vec<(String, String)> {
         let mut results = Vec::new();
-        for (variant_name, fields) in &self.variant_fields {
+        for (variant_name, fields) in &self.types.variant_fields {
             if fields.contains(&field.to_string()) {
-                if let Some(parent) = self.variant_parent.get(variant_name) {
-                    if !self.struct_types.contains(parent) {
+                if let Some(parent) = self.types.variant_parent.get(variant_name) {
+                    if !self.types.struct_types.contains(parent) {
                         results.push((variant_name.clone(), parent.clone()));
                     }
                 }
@@ -10189,9 +10203,9 @@ impl RustCodegen {
 
     /// Check if a named field in a variant is boxed (recursive)
     fn is_field_boxed(&self, variant_name: &str, field: &str) -> bool {
-        if let Some(fields) = self.variant_fields.get(variant_name) {
+        if let Some(fields) = self.types.variant_fields.get(variant_name) {
             if let Some(idx) = fields.iter().position(|f| f == field) {
-                if let Some(boxed) = self.variant_boxed_args.get(variant_name) {
+                if let Some(boxed) = self.types.variant_boxed_args.get(variant_name) {
                     return boxed.contains(&idx);
                 }
             }
@@ -10434,7 +10448,7 @@ impl RustCodegen {
         }
         if !accessed_fields.is_empty() {
             // Find the struct/variant whose fields are a superset of accessed_fields
-            for (type_name, fields) in &self.variant_fields {
+            for (type_name, fields) in &self.types.variant_fields {
                 let field_set: BTreeSet<String> = fields.iter().cloned().collect();
                 if accessed_fields.is_subset(&field_set) {
                     return Some(type_name.clone());
@@ -10569,7 +10583,7 @@ impl RustCodegen {
                 if let ExprKind::Var(v) = &lhs.as_ref().kind {
                     if v == param {
                         if let ExprKind::Var(con) = &rhs.as_ref().kind {
-                            if let Some(parent) = self.variant_parent.get(con.as_str()) {
+                            if let Some(parent) = self.types.variant_parent.get(con.as_str()) {
                                 return Some(parent.clone());
                             }
                         }
@@ -10579,7 +10593,7 @@ impl RustCodegen {
                 if let ExprKind::Var(v) = &rhs.as_ref().kind {
                     if v == param {
                         if let ExprKind::Var(con) = &lhs.as_ref().kind {
-                            if let Some(parent) = self.variant_parent.get(con.as_str()) {
+                            if let Some(parent) = self.types.variant_parent.get(con.as_str()) {
                                 return Some(parent.clone());
                             }
                         }
@@ -10608,7 +10622,7 @@ impl RustCodegen {
                                 _ => None,
                             };
                             if let Some(name) = con_name {
-                                if let Some(parent) = self.variant_parent.get(name) {
+                                if let Some(parent) = self.types.variant_parent.get(name) {
                                     return Some(parent.clone());
                                 }
                             }
@@ -10667,7 +10681,7 @@ impl RustCodegen {
             },
             ExprKind::Var(name) => {
                 // Bare enum variant (no args), e.g. Safe, Danger
-                if let Some(parent) = self.variant_parent.get(name.as_str()) {
+                if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
                     return Some(parent.clone());
                 }
                 None
@@ -10675,11 +10689,11 @@ impl RustCodegen {
             ExprKind::App(func, _) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     // Check if it's a known struct
-                    if self.struct_types.contains(name.as_str()) {
+                    if self.types.struct_types.contains(name.as_str()) {
                         return Some(name.clone());
                     }
                     // Check if it's a variant — return the parent enum name
-                    if let Some(parent) = self.variant_parent.get(name.as_str()) {
+                    if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
                         return Some(parent.clone());
                     }
                 }
@@ -11015,8 +11029,8 @@ impl RustCodegen {
         match &expr.kind {
             ExprKind::Var(name) => {
                 // Nullary constructor
-                if let Some(parent) = self.variant_parent.get(name.as_str()) {
-                    if self.struct_types.contains(parent) {
+                if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
+                    if self.types.struct_types.contains(parent) {
                         return name.clone(); // struct type — no prefix
                     }
                     return format!("{}::{}", parent, name);
@@ -11134,7 +11148,7 @@ impl RustCodegen {
                     // 4. Single consuming use: move (no clone)
                     // 5. Multiple consuming uses: clone
                     if let ExprKind::Var(n) = &a.kind {
-                        if self.variant_parent.contains_key(n.as_str()) {
+                        if self.types.variant_parent.contains_key(n.as_str()) {
                             s // Constructor — never clone
                         } else if self.copy_vars.contains(n.as_str()) {
                             s // Copy type — no clone needed (free to duplicate)
@@ -11212,7 +11226,7 @@ impl RustCodegen {
                             let captured: Vec<String> = free_in_body.into_iter()
                                 .filter(|v| !self.user_functions.contains(v.as_str())
                                     && !self.builtin_registry.contains_key(v.as_str())
-                                    && !self.variant_parent.contains_key(v.as_str())
+                                    && !self.types.variant_parent.contains_key(v.as_str())
                                     && !self.copy_vars.contains(v.as_str())
                                     && !lsp_names.contains(v.as_str())
                                     && !matches!(v.as_str(), "true" | "false" | "True" | "False"
@@ -11333,10 +11347,10 @@ impl RustCodegen {
                         return format!("{}.clone()", args_str[0]);
                     }
                     // Constructor application — wrap recursive args in Rc::new/Arc::new/Box::new
-                    if let Some(parent) = self.variant_parent.get(name.as_str()) {
-                        let is_pos = self.variant_positional.get(name.as_str()).copied().unwrap_or(true);
-                        let boxed_indices = self.variant_boxed_args.get(name.as_str());
-                        let use_rc = self.rc_types.contains(parent);
+                    if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
+                        let is_pos = self.types.variant_positional.get(name.as_str()).copied().unwrap_or(true);
+                        let boxed_indices = self.types.variant_boxed_args.get(name.as_str());
+                        let use_rc = self.types.rc_types.contains(parent);
                         let wrap_fn = if use_rc { format!("{}::new", self.rc_name()) } else { "Box::new".to_string() };
                         let wrapped: Vec<String> = args_str.iter().enumerate().map(|(i, a)| {
                             if boxed_indices.map_or(false, |bi| bi.contains(&i)) {
@@ -11345,7 +11359,7 @@ impl RustCodegen {
                                 a.clone()
                             }
                         }).collect();
-                        let is_struct_type = self.struct_types.contains(parent);
+                        let is_struct_type = self.types.struct_types.contains(parent);
                         if is_pos {
                             if is_struct_type {
                                 return format!("{}({})", parent, wrapped.join(", "));
@@ -11354,7 +11368,7 @@ impl RustCodegen {
                             }
                         } else {
                             // Named/struct variant
-                            let fields = self.variant_fields.get(name.as_str());
+                            let fields = self.types.variant_fields.get(name.as_str());
                             let pairs: Vec<String> = wrapped.iter().enumerate().map(|(i, a)| {
                                 let fname = fields.and_then(|f| f.get(i)).map(|s| s.as_str()).unwrap_or("_");
                                 format!("{}: {}", fname, a)
@@ -11453,7 +11467,7 @@ impl RustCodegen {
                         } else {
                             // Find the struct/variant whose fields match
                             let mut inferred = None;
-                            for (type_name, type_fields) in &self.variant_fields {
+                            for (type_name, type_fields) in &self.types.variant_fields {
                                 let field_set: BTreeSet<String> = type_fields.iter().cloned().collect();
                                 if fields.is_subset(&field_set) {
                                     inferred = Some(type_name.clone());
@@ -11518,7 +11532,7 @@ impl RustCodegen {
                 let captured: Vec<String> = free_in_body.into_iter()
                     .filter(|v| !self.user_functions.contains(v.as_str())
                         && !self.builtin_registry.contains_key(v.as_str())
-                        && !self.variant_parent.contains_key(v.as_str())
+                        && !self.types.variant_parent.contains_key(v.as_str())
                         && !self.copy_vars.contains(v.as_str())
                         && !lsp_builtin_names.contains(v.as_str())
                         && !matches!(v.as_str(), "true" | "false" | "True" | "False"
@@ -11719,7 +11733,7 @@ impl RustCodegen {
                     let path = self.emit_module_path(obj);
                     // If field is a variant constructor, insert the parent type
                     // e.g. Lib.Red → Lib::Color::Red (not Lib::Red)
-                    if let Some(parent) = self.variant_parent.get(field) {
+                    if let Some(parent) = self.types.variant_parent.get(field) {
                         return format!("{}::{}::{}", path, self.rust_type_name(parent), sanitize_name(field));
                     }
                     return format!("{}::{}", path, sanitize_name(field));
@@ -11741,7 +11755,7 @@ impl RustCodegen {
                         // Build match arms for all variants that have this field
                         let mut arms = Vec::new();
                         for (variant_name, parent_name) in &matches {
-                            if self.variant_positional.get(variant_name.as_str()) == Some(&false) {
+                            if self.types.variant_positional.get(variant_name.as_str()) == Some(&false) {
                                 let is_boxed = self.is_field_boxed(variant_name, field);
                                 let clone_expr = if is_boxed { "(*__f).clone()" } else { "__f.clone()" };
                                 arms.push(format!("{}::{} {{ {}: ref __f, .. }} => {}", parent_name, variant_name, field, clone_expr));
@@ -11763,7 +11777,7 @@ impl RustCodegen {
                 let needs_clone = if let ExprKind::Var(var_name) = &obj.as_ref().kind {
                     if self.current_borrow_params.contains(var_name.as_str()) {
                         // Check if this field's type is non-Copy in any variant_field_types
-                        let field_is_copy = self.variant_field_types.iter().any(|(_, ft)| {
+                        let field_is_copy = self.types.variant_field_types.iter().any(|(_, ft)| {
                             ft.get(field).map(|ty| is_copy_type(ty)).unwrap_or(false)
                         });
                         !field_is_copy
@@ -11797,7 +11811,7 @@ impl RustCodegen {
                     let s = self.emit_expr(e);
                     // Auto-clone variables with multiple consuming uses (same logic as fn args)
                     if let ExprKind::Var(n) = &e.kind {
-                        if !self.variant_parent.contains_key(n.as_str())
+                        if !self.types.variant_parent.contains_key(n.as_str())
                             && !self.copy_vars.contains(n.as_str())
                             && self.var_consuming_counts.get(n.as_str()).copied().unwrap_or(0) > 1
                         {
@@ -11950,7 +11964,7 @@ impl RustCodegen {
         let mut result = Vec::new();
         match pat {
             Pat::Con(name, args) => {
-                if let Some(boxed_indices) = self.variant_boxed_args.get(name.as_str()) {
+                if let Some(boxed_indices) = self.types.variant_boxed_args.get(name.as_str()) {
                     for (i, sub_pat) in args.iter().enumerate() {
                         if boxed_indices.contains(&i) {
                             // Collect var names from this sub-pattern
@@ -12884,13 +12898,13 @@ impl RustCodegen {
             }
             Pat::Con(name, args) => {
                 let parent = self.find_parent_type(name);
-                let is_pos = self.variant_positional.get(name.as_str()).copied().unwrap_or(true);
+                let is_pos = self.types.variant_positional.get(name.as_str()).copied().unwrap_or(true);
                 let ps: Vec<String> = args.iter().map(|p| self.emit_pattern_binding(p)).collect();
                 if is_pos {
                     format!("{}::{}({})", parent, name, ps.join(", "))
                 } else {
                     // Named variant: destructure with field names
-                    let fields = self.variant_fields.get(name.as_str());
+                    let fields = self.types.variant_fields.get(name.as_str());
                     let named_ps: Vec<String> = ps.iter().enumerate().map(|(i, p)| {
                         let fname = fields.and_then(|f| f.get(i)).map(|s| s.as_str()).unwrap_or("_");
                         format!("{}: {}", fname, p)
@@ -12927,7 +12941,7 @@ impl RustCodegen {
                 if name == "True" { return "true".to_string(); }
                 if name == "False" { return "false".to_string(); }
                 let parent = self.find_parent_type(name);
-                if self.struct_types.contains(&parent) {
+                if self.types.struct_types.contains(&parent) {
                     name.clone()
                 } else {
                     format!("{}::{}", parent, name)
@@ -12935,9 +12949,9 @@ impl RustCodegen {
             }
             Pat::Con(name, args) => {
                 let parent = self.find_parent_type(name);
-                let is_struct_type = self.struct_types.contains(&parent);
-                let is_pos = self.variant_positional.get(name.as_str()).copied().unwrap_or(true);
-                let boxed_indices = self.variant_boxed_args.get(name.as_str());
+                let is_struct_type = self.types.struct_types.contains(&parent);
+                let is_pos = self.types.variant_positional.get(name.as_str()).copied().unwrap_or(true);
+                let boxed_indices = self.types.variant_boxed_args.get(name.as_str());
                 let ps: Vec<String> = args.iter().enumerate().map(|(i, p)| {
                     let is_boxed = boxed_indices.map_or(false, |bi| bi.contains(&i));
                     if is_boxed {
@@ -12956,7 +12970,7 @@ impl RustCodegen {
                         format!("{}::{}({})", parent, name, ps.join(", "))
                     }
                 } else {
-                    let fields = self.variant_fields.get(name.as_str());
+                    let fields = self.types.variant_fields.get(name.as_str());
                     let named_ps: Vec<String> = ps.iter().enumerate().map(|(i, p)| {
                         let fname = fields.and_then(|f| f.get(i)).map(|s| s.as_str()).unwrap_or("_");
                         format!("{}: {}", fname, p)
@@ -12970,7 +12984,7 @@ impl RustCodegen {
             }
             Pat::NamedCon(name, named_args) => {
                 let parent = self.find_parent_type(name);
-                let is_struct_type = self.struct_types.contains(&parent);
+                let is_struct_type = self.types.struct_types.contains(&parent);
                 let ps: Vec<String> = named_args.iter()
                     .map(|(fname, p)| format!("{}: {}", fname, self.emit_pattern_with_boxing(p, false)))
                     .collect();
@@ -12990,7 +13004,7 @@ impl RustCodegen {
     /// Check if a pattern has nested constructor patterns in boxed positions
     fn has_boxed_constructor_patterns(&self, pat: &Pat) -> bool {
         if let Pat::Con(name, args) = pat {
-            if let Some(boxed_indices) = self.variant_boxed_args.get(name.as_str()) {
+            if let Some(boxed_indices) = self.types.variant_boxed_args.get(name.as_str()) {
                 for (i, sub_pat) in args.iter().enumerate() {
                     if boxed_indices.contains(&i) {
                         if matches!(sub_pat, Pat::Con(_, _) | Pat::Lit(_)) {
@@ -13006,7 +13020,7 @@ impl RustCodegen {
     /// Generate a guard expression for boxed constructor patterns
     fn emit_boxed_pattern_guard(&self, pat: &Pat) -> Option<String> {
         if let Pat::Con(name, args) = pat {
-            if let Some(boxed_indices) = self.variant_boxed_args.get(name.as_str()) {
+            if let Some(boxed_indices) = self.types.variant_boxed_args.get(name.as_str()) {
                 let is_rc = self.pattern_is_rc_type(pat);
                 let mut guards = Vec::new();
                 for (i, sub_pat) in args.iter().enumerate() {
@@ -13039,7 +13053,7 @@ impl RustCodegen {
     }
 
     fn find_parent_type(&self, variant_name: &str) -> String {
-        self.variant_parent.get(variant_name).cloned().unwrap_or_else(|| {
+        self.types.variant_parent.get(variant_name).cloned().unwrap_or_else(|| {
             // Fallback heuristic for built-in types not declared in source
             match variant_name {
                 "None" | "Some" => "Option".to_string(),
