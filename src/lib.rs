@@ -3733,7 +3733,7 @@ pub enum Value {
     /// (values, initial_value). Subjects ARE streams you can write to.
     Subject(Vec<Value>),
     /// Map: key-value dictionary (HashMap in codegen, associative list in interpreter)
-    Map(Vec<(Value, Value)>),
+    Map(HashMap<String, Value>),
     /// Set: unique value collection (HashSet in codegen, distinct list in interpreter)
     Set(Vec<Value>),
     /// Scope: a named block with its own environment. Bindings accessible via Scope.name.
@@ -3816,7 +3816,7 @@ impl fmt::Display for Value {
                 write!(f, "{{")?;
                 for (i, (k, v)) in entries.iter().enumerate() {
                     if i > 0 { write!(f, ", ")?; }
-                    write!(f, "{}: {}", k, v)?;
+                    write!(f, "{}: {}", k, v)?;  // k is already String, v is Value
                 }
                 write!(f, "}}")
             }
@@ -4101,6 +4101,8 @@ impl Interpreter {
         env.set("all".into(), Value::Builtin("all".into()));
         env.set("find".into(), Value::Builtin("find".into()));
         env.set("flat_map".into(), Value::Builtin("flat_map".into()));
+        env.set("pair".into(), Value::Builtin("pair".into()));
+        env.set("triple".into(), Value::Builtin("triple".into()));
         env.set("zip".into(), Value::Builtin("zip".into()));
         env.set("enumerate".into(), Value::Builtin("enumerate".into()));
         env.set("take_while".into(), Value::Builtin("take_while".into()));
@@ -5665,26 +5667,23 @@ impl Interpreter {
                 }
             }
             // ---- Map builtins (M24) ----
-            "map_new" => Value::Map(vec![]),
+            "map_new" => Value::Map(HashMap::new()),
             "map_insert" => {
                 match (args.get(0), args.get(1), args.get(2)) {
                     (Some(Value::Map(entries)), Some(key), Some(val)) => {
-                        let key_str = format!("{}", key);
-                        let mut new_entries: Vec<(Value, Value)> = entries.iter()
-                            .filter(|(k, _)| format!("{}", k) != key_str)
-                            .cloned().collect();
-                        new_entries.push((key.clone(), val.clone()));
-                        Value::Map(new_entries)
+                        let mut new_map = entries.clone();
+                        new_map.insert(format!("{}", key), val.clone());
+                        Value::Map(new_map)
                     }
-                    _ => args.first().cloned().unwrap_or(Value::Map(vec![])),
+                    _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
                 }
             }
             "map_get" => {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Map(entries)), Some(key)) => {
                         let key_str = format!("{}", key);
-                        match entries.iter().find(|(k, _)| format!("{}", k) == key_str) {
-                            Some((_, v)) => Value::Constructor("Some".into(), vec![v.clone()]),
+                        match entries.get(&key_str) {
+                            Some(v) => Value::Constructor("Some".into(), vec![v.clone()]),
                             None => Value::Constructor("None".into(), vec![]),
                         }
                     }
@@ -5695,10 +5694,7 @@ impl Interpreter {
                 match (args.get(0), args.get(1), args.get(2)) {
                     (Some(Value::Map(entries)), Some(key), Some(default)) => {
                         let key_str = format!("{}", key);
-                        match entries.iter().find(|(k, _)| format!("{}", k) == key_str) {
-                            Some((_, v)) => v.clone(),
-                            None => default.clone(),
-                        }
+                        entries.get(&key_str).cloned().unwrap_or_else(|| default.clone())
                     }
                     _ => args.get(2).cloned().unwrap_or(Value::Unit),
                 }
@@ -5706,8 +5702,7 @@ impl Interpreter {
             "map_contains" => {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Map(entries)), Some(key)) => {
-                        let key_str = format!("{}", key);
-                        Value::Bool(entries.iter().any(|(k, _)| format!("{}", k) == key_str))
+                        Value::Bool(entries.contains_key(&format!("{}", key)))
                     }
                     _ => Value::Bool(false),
                 }
@@ -5715,19 +5710,17 @@ impl Interpreter {
             "map_remove" => {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Map(entries)), Some(key)) => {
-                        let key_str = format!("{}", key);
-                        let new_entries: Vec<(Value, Value)> = entries.iter()
-                            .filter(|(k, _)| format!("{}", k) != key_str)
-                            .cloned().collect();
-                        Value::Map(new_entries)
+                        let mut new_map = entries.clone();
+                        new_map.remove(&format!("{}", key));
+                        Value::Map(new_map)
                     }
-                    _ => args.first().cloned().unwrap_or(Value::Map(vec![])),
+                    _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
                 }
             }
             "map_keys" => {
                 match args.first() {
                     Some(Value::Map(entries)) => {
-                        Value::List(entries.iter().map(|(k, _)| k.clone()).collect())
+                        Value::List(entries.keys().map(|k| Value::Str(k.clone())).collect())
                     }
                     _ => Value::List(vec![]),
                 }
@@ -5735,7 +5728,7 @@ impl Interpreter {
             "map_values" => {
                 match args.first() {
                     Some(Value::Map(entries)) => {
-                        Value::List(entries.iter().map(|(_, v)| v.clone()).collect())
+                        Value::List(entries.values().cloned().collect())
                     }
                     _ => Value::List(vec![]),
                 }
@@ -5743,7 +5736,7 @@ impl Interpreter {
             "map_entries" => {
                 match args.first() {
                     Some(Value::Map(entries)) => {
-                        Value::List(entries.iter().map(|(k, v)| Value::Tuple(vec![k.clone(), v.clone()])).collect())
+                        Value::List(entries.iter().map(|(k, v)| Value::Tuple(vec![Value::Str(k.clone()), v.clone()])).collect())
                     }
                     _ => Value::List(vec![]),
                 }
@@ -5759,28 +5752,28 @@ impl Interpreter {
                     (Some(Value::Map(base)), Some(Value::Map(other))) => {
                         let mut merged = base.clone();
                         for (k, v) in other {
-                            let key_str = format!("{}", k);
-                            merged.retain(|(ek, _)| format!("{}", ek) != key_str);
-                            merged.push((k.clone(), v.clone()));
+                            merged.insert(k.clone(), v.clone());
                         }
                         Value::Map(merged)
                     }
-                    _ => args.first().cloned().unwrap_or(Value::Map(vec![])),
+                    _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
                 }
             }
             "map_from" => {
                 match args.first() {
                     Some(list) => {
                         let items = list_to_vec(list);
-                        let entries: Vec<(Value, Value)> = items.into_iter().filter_map(|v| {
+                        let mut map = HashMap::new();
+                        for v in items {
                             if let Value::Tuple(ref pair) = v {
-                                if pair.len() >= 2 { return Some((pair[0].clone(), pair[1].clone())); }
+                                if pair.len() >= 2 {
+                                    map.insert(format!("{}", pair[0]), pair[1].clone());
+                                }
                             }
-                            None
-                        }).collect();
-                        Value::Map(entries)
+                        }
+                        Value::Map(map)
                     }
-                    _ => Value::Map(vec![]),
+                    _ => Value::Map(HashMap::new()),
                 }
             }
             // ---- Set builtins (M24) ----
@@ -6571,6 +6564,19 @@ impl Interpreter {
                     Value::Tuple(elems) => elems.into_iter().nth(1).unwrap_or(Value::Unit),
                     _ => Value::Unit,
                 }
+            }
+            // pair(a, b) → Tuple(a, b). Access via .fst/.snd or .0/.1.
+            "pair" => {
+                let a = args.get(0).cloned().unwrap_or(Value::Unit);
+                let b = args.get(1).cloned().unwrap_or(Value::Unit);
+                Value::Tuple(vec![a, b])
+            }
+            // triple(a, b, c) → Tuple(a, b, c). Access via .0/.1/.2.
+            "triple" => {
+                let a = args.get(0).cloned().unwrap_or(Value::Unit);
+                let b = args.get(1).cloned().unwrap_or(Value::Unit);
+                let c = args.get(2).cloned().unwrap_or(Value::Unit);
+                Value::Tuple(vec![a, b, c])
             }
             // ── Timing operators (M17) ──
             "debounce" => {
@@ -7787,7 +7793,7 @@ impl TypeChecker {
         // Register builtins (name -> arity)
         for &(name, arity) in &[
             // Math
-            ("exp", 1), ("ln", 1), ("sqrt", 1), ("pow", 2), ("abs", 1),
+            ("exp", 1), ("ln", 1), ("sqrt", 1), ("pow", 2), ("abs", 1), ("pair", 2), ("triple", 3),
             ("to_float", 1), ("round", 1), ("floor", 1), ("max_f", 2), ("min_f", 2),
             // String
             ("split", 2), ("join", 2), ("trim", 1), ("contains", 2),
