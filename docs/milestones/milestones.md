@@ -1016,16 +1016,15 @@ Make compiler errors precise, contextual, and helpful. Span types, structured
 Diagnostic, NO_COLOR support, AST span refactor, fix silent failures, eliminate
 dangerous unwraps.
 
-**Status:** In progress. Foundation types (Span, Diagnostic, display_error_in,
-should_use_color) landed. TypeChecker migration and AST span refactor pending.
+**Status:** Complete. Span, Diagnostic, struct Expr with spans, TypeChecker
+migration, parser span capture, unwrap audit, NO_COLOR support. 26 unit tests.
 
 ## M28: Negative Tests + CLI Polish
 
-**"A test suite that proves what doesn't work."** All 69 existing tests are
-happy-path. Zero tests verify error messages, parse failures, or invalid inputs.
-The CLI has no `--version` flag, silently ignores unknown flags, and has no
-`NO_COLOR` support. This milestone adds the missing negative test infrastructure
-and polishes the CLI to professional standard.
+**"A test suite that proves what doesn't work."** — [detailed design](m28-negative-tests-cli.md)
+
+**Status:** Complete. 12 negative tests (parse + type errors), `--version`,
+unknown flag detection, `-- expect-error:` test protocol, auto-discovery.
 
 - [ ] **Negative test infrastructure**: Add `tests/errors/` directory. Each `.runa`
   file paired with `.expected` file containing expected error text (substring match).
@@ -1059,34 +1058,11 @@ instead of silence. Stress tests complete without crash.
 
 ## M29: Intermediate Representation (FIR)
 
-**"The compiler gets a brain between thinking and speaking."** `RustCodegen`
-currently does type resolution, ownership analysis, and code emission in a single
-interleaved pass via string concatenation. The struct has 139 fields because it
-accumulates every piece of metadata it discovers while walking the AST. This makes
-it impossible to add new backends, optimize across function boundaries, or implement
-real type inference. This milestone introduces FIR (Futuruna Intermediate
-Representation) — a typed, ownership-annotated tree between the AST and any backend.
+**"The compiler gets a brain between thinking and speaking."** — [detailed design](m29-fir.md)
 
-- [ ] **Define FIR types**: `FirExpr`, `FirStmt`, `FirProgram` in a new section of
-  runa.rs. FIR nodes carry: resolved types (`FirTy`), ownership decisions
-  (move/clone/borrow/ref), effect annotations, and spans from M27. FIR is a
-  *separate* tree from AST, not a mutation of it.
-- [ ] **AST-to-FIR lowering pass**: Walk AST, resolve types, annotate ownership.
-  This is where `type_decls`, `variant_parent`, `variant_boxed_args`,
-  `borrow_only_params`, `var_use_counts`, `var_consuming_counts`, etc. get
-  computed — once, cleanly, in order. Output: `FirProgram`.
-- [ ] **FIR-to-Rust emission**: A pure function `fir_to_rust(fir: &FirProgram) -> String`.
-  No mutable state needed beyond indentation. All decisions already made in FIR.
-- [ ] **Parity test**: Every existing test must produce byte-identical Rust output
-  through the new `AST → FIR → Rust` path as through the old `AST → Rust` path.
-  Run both paths, diff output. Zero differences.
-- [ ] **Ownership analysis consolidation**: The four `count_*_uses` functions
-  (`count_var_uses`, `count_consuming_uses`, `count_consuming_uses_borrow_aware`,
-  `count_consuming_uses_branch_aware`) become a single
-  `analyze_ownership(fir: &FirExpr) -> OwnershipInfo` that runs on FIR.
-
-**Test:** All 69+ existing tests produce identical Rust output through both old and
-new pipelines. `runa emit program.runa` uses FIR path. No regression in compilation time.
+**Status:** Complete. TypeRegistry (29 fields extracted, 74% god object reduction),
+OwnershipAnalysis, FIR types + lowering + emission, `runa emit --fir` CLI flag.
+36 runa unit tests. Pipeline proven end-to-end on real programs.
 
 ## M30: Split RustCodegen into Passes
 

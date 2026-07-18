@@ -3048,6 +3048,25 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
                 let fir_expr = ctx.lower_expr(expr);
                 out.push_str(&format!("{};\n", emit_fir_expr(&fir_expr, types)));
             }
+            Stmt::For(var, iter_expr, body) => {
+                let ownership = OwnershipAnalysis::analyze_simple(iter_expr);
+                let ctx = LoweringCtx {
+                    types,
+                    ownership: &ownership,
+                    copy_vars,
+                    ref_match_bindings: ref_match,
+                };
+                let fir_iter = ctx.lower_expr(iter_expr);
+                let fir_body: Vec<FirStmt> = body.iter().map(|s| ctx.lower_stmt(s)).collect();
+                let body_strs: Vec<String> = fir_body.iter().map(|s| emit_fir_stmt(s, types)).collect();
+                out.push_str(&format!("for {} in {} {{ {} }}\n",
+                    sanitize_name(var), emit_fir_expr(&fir_iter, types), body_strs.join(" ")));
+            }
+            Stmt::TypeDecl(_) | Stmt::Rule(_) | Stmt::Import(_) | Stmt::QualifiedImport(..)
+            | Stmt::HashImport(..) | Stmt::Depend(..) | Stmt::RustBlock(_) | Stmt::Annot(..)
+            | Stmt::Use(_) => {
+                // These are declarations/metadata — handled by TypeRegistry scan, not emitted here
+            }
             _ => {
                 out.push_str("// [FIR: unhandled stmt]\n");
             }
@@ -14317,6 +14336,89 @@ mod tests {
             let fir = ctx.lower_expr(expr);
             let rust = emit_fir_expr(&fir, &types);
             assert_eq!(rust, "(1i64 + 2i64)");
+        }
+    }
+
+    // ── FIR pipeline coverage tests ─────────────────────────────────
+
+    /// Helper: emit a program through the FIR pipeline
+    fn fir_emit(source: &str) -> String {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+        let types = TypeRegistry::new();
+        emit_via_fir(&stmts, &types, &BTreeMap::new(), &BTreeSet::new(), &BTreeSet::new())
+    }
+
+    #[test]
+    fn fir_emit_if_expression() {
+        let code = fir_emit("> max(a: Int, b: Int) -> Int { if a > b { a } else { b } }");
+        assert!(code.contains("fn max(a: i64, b: i64) -> i64"), "missing sig:\n{}", code);
+        assert!(code.contains("if (a > b)"), "missing if:\n{}", code);
+    }
+
+    #[test]
+    fn fir_emit_match_expression() {
+        let code = fir_emit("# Color = Red | Green | Blue\n> name(c: Color) -> String { match c { | Red -> \"red\" | Green -> \"green\" | Blue -> \"blue\" } }");
+        assert!(code.contains("fn name("), "missing fn:\n{}", code);
+        assert!(code.contains("match c"), "missing match:\n{}", code);
+        assert!(code.contains("Red =>"), "missing arm:\n{}", code);
+    }
+
+    #[test]
+    fn fir_emit_lambda() {
+        let code = fir_emit("= f = |x| x + 1");
+        assert!(code.contains("|x|"), "missing lambda:\n{}", code);
+        assert!(code.contains("(x + 1"), "missing body:\n{}", code);
+    }
+
+    #[test]
+    fn fir_emit_list_literal() {
+        let code = fir_emit("= xs = [1, 2, 3]");
+        assert!(code.contains("vec![1i64, 2i64, 3i64]"), "missing list:\n{}", code);
+    }
+
+    #[test]
+    fn fir_emit_pipe() {
+        let code = fir_emit("> double(x: Int) -> Int { x * 2 }\n= y = 21 |> double");
+        assert!(code.contains("double(21i64)"), "pipe should desugar to call:\n{}", code);
+    }
+
+    #[test]
+    fn fir_emit_field_access() {
+        let code = fir_emit("= x = obj.name");
+        assert!(code.contains("obj.name"), "missing field access:\n{}", code);
+    }
+
+    #[test]
+    fn fir_emit_for_loop() {
+        let code = fir_emit("= xs = [1, 2, 3]\nfor x in xs { @ print(show(x)) }");
+        assert!(code.contains("for x in"), "missing for loop:\n{}", code);
+    }
+
+    #[test]
+    fn fir_emit_clone_multi_use() {
+        // When a non-Copy var is used twice in function args, it should clone
+        let source = "> use_both(a: String, b: String) -> String { a + b }\n= result = use_both(name, name)";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let types = TypeRegistry::new();
+        // The bind expression is stmts[1]: = result = use_both(name, name)
+        if let Stmt::Bind(_, _, ref expr) = stmts[1] {
+            let ownership = OwnershipAnalysis::analyze_simple(expr);
+            let ctx = LoweringCtx {
+                types: &types,
+                ownership: &ownership,
+                copy_vars: &BTreeSet::new(),
+                ref_match_bindings: &BTreeSet::new(),
+            };
+            let fir = ctx.lower_expr(expr);
+            let rust = emit_fir_expr(&fir, &types);
+            assert!(rust.contains(".clone()"), "multi-use non-Copy should clone:\n{}", rust);
         }
     }
 }
