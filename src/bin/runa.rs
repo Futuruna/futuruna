@@ -4,12 +4,12 @@
 //! Core language implementation is in the library crate (src/lib.rs).
 
 use futuruna::*;
+use serde_json;
+use sha2::{Digest as ShaDigest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::env;
 use std::fmt;
 use std::io::{self, BufRead, Write as IoWrite};
-use sha2::{Sha256, Digest as ShaDigest};
-use serde_json;
 
 fn main() {
     // Use a large stack (64 MB) to handle deep recursion in comptime evaluation
@@ -33,8 +33,8 @@ fn main_inner() {
     let mut filename = None;
     let mut use_prelude = true;
     let mut test_compile = false; // --run flag for `runa test --run`
-    let mut fmt_check = false;   // --check flag for `runa fmt --check`
-    let mut use_fir = false;     // --fir flag for `runa emit --fir`
+    let mut fmt_check = false; // --check flag for `runa fmt --check`
+    let mut use_fir = false; // --fir flag for `runa emit --fir`
 
     let mut i = 1;
     while i < args.len() {
@@ -128,21 +128,66 @@ fn main_inner() {
                 eprintln!("  runa audit program.runa     Discover invariant gaps automatically");
                 std::process::exit(0);
             }
-            "init" => { mode = "init"; i += 1; }
-            "add" => { mode = "add"; i += 1; }
-            "emit" => { mode = "emit"; i += 1; }
-            "build" => { mode = "build"; i += 1; }
-            "run" => { mode = "run"; i += 1; }
-            "lib" => { mode = "lib"; i += 1; }
-            "hashes" => { mode = "hashes"; i += 1; }
-            "registry" => { mode = "registry"; i += 1; }
-            "wasm" => { mode = "wasm"; i += 1; }
-            "check" => { mode = "check"; i += 1; }
-            "verify" => { mode = "verify"; i += 1; }
-            "test" => { mode = "test"; i += 1; }
-            "fmt" => { mode = "fmt"; i += 1; }
-            "lsp" => { mode = "lsp"; i += 1; }
-            "audit" => { mode = "audit"; i += 1; }
+            "init" => {
+                mode = "init";
+                i += 1;
+            }
+            "add" => {
+                mode = "add";
+                i += 1;
+            }
+            "emit" => {
+                mode = "emit";
+                i += 1;
+            }
+            "build" => {
+                mode = "build";
+                i += 1;
+            }
+            "run" => {
+                mode = "run";
+                i += 1;
+            }
+            "lib" => {
+                mode = "lib";
+                i += 1;
+            }
+            "hashes" => {
+                mode = "hashes";
+                i += 1;
+            }
+            "registry" => {
+                mode = "registry";
+                i += 1;
+            }
+            "wasm" => {
+                mode = "wasm";
+                i += 1;
+            }
+            "check" => {
+                mode = "check";
+                i += 1;
+            }
+            "verify" => {
+                mode = "verify";
+                i += 1;
+            }
+            "test" => {
+                mode = "test";
+                i += 1;
+            }
+            "fmt" => {
+                mode = "fmt";
+                i += 1;
+            }
+            "lsp" => {
+                mode = "lsp";
+                i += 1;
+            }
+            "audit" => {
+                mode = "audit";
+                i += 1;
+            }
             other => {
                 if other.starts_with('-') {
                     eprintln!("error: unknown option '{}'", other);
@@ -209,22 +254,20 @@ fn main_inner() {
 
     if let Some(ref path) = filename {
         match std::fs::read_to_string(path) {
-            Ok(source) => {
-                match mode {
-                    "emit" if use_fir => emit_rust_source_fir(&source, path, use_prelude),
-                    "emit" => emit_rust_source(&source, path, use_prelude),
-                    "build" => build_native(&source, path, false, use_prelude),
-                    "run" => build_native(&source, path, true, use_prelude),
-                    "lib" => emit_rust_lib(&source, path, use_prelude),
-                    "hashes" => show_hashes(&source, path),
-                    "registry" => update_registry(&source, path),
-                    "wasm" => build_wasm(&source, path, use_prelude),
-                    "check" => check_source(&source, path, use_prelude),
-                    "audit" => audit_source(&source, path, use_prelude),
-                    "verify" => verify_with_z3(&source, path),
-                    _ => run_source(&source, path, use_prelude),
-                }
-            }
+            Ok(source) => match mode {
+                "emit" if use_fir => emit_rust_source_fir(&source, path, use_prelude),
+                "emit" => emit_rust_source(&source, path, use_prelude),
+                "build" => build_native(&source, path, false, use_prelude),
+                "run" => build_native(&source, path, true, use_prelude),
+                "lib" => emit_rust_lib(&source, path, use_prelude),
+                "hashes" => show_hashes(&source, path),
+                "registry" => update_registry(&source, path),
+                "wasm" => build_wasm(&source, path, use_prelude),
+                "check" => check_source(&source, path, use_prelude),
+                "audit" => audit_source(&source, path, use_prelude),
+                "verify" => verify_with_z3(&source, path),
+                _ => run_source(&source, path, use_prelude),
+            },
             Err(e) => {
                 eprintln!("Error reading {}: {}", path, e);
                 std::process::exit(1);
@@ -260,9 +303,12 @@ fn extract_toml_table_value(raw: &str, key: &str) -> Option<String> {
     if let Some(k_start) = raw.find(key) {
         let after = &raw[k_start + key.len()..];
         if let Some(eq) = after.find('=') {
-            let val_part = after[eq + 1..].trim()
-                .trim_end_matches('}').trim()
-                .trim_end_matches(',').trim()
+            let val_part = after[eq + 1..]
+                .trim()
+                .trim_end_matches('}')
+                .trim()
+                .trim_end_matches(',')
+                .trim()
                 .trim_matches('"');
             if !val_part.is_empty() {
                 return Some(val_part.to_string());
@@ -303,14 +349,12 @@ fn parse_runa_toml(toml_path: &str) -> Option<RunaManifest> {
             let val_raw = trimmed[eq_pos + 1..].trim();
             let val = val_raw.trim_matches('"');
             match section {
-                "package" => {
-                    match key {
-                        "name" => name = val.to_string(),
-                        "version" => version = val.to_string(),
-                        "entry" => entry = val.to_string(),
-                        _ => {}
-                    }
-                }
+                "package" => match key {
+                    "name" => name = val.to_string(),
+                    "version" => version = val.to_string(),
+                    "entry" => entry = val.to_string(),
+                    _ => {}
+                },
                 "deps" => {
                     if val_raw.contains("git") {
                         // Git dependency: { git = "https://...", rev = "abc" }
@@ -336,7 +380,12 @@ fn parse_runa_toml(toml_path: &str) -> Option<RunaManifest> {
         return None;
     }
 
-    Some(RunaManifest { name, version, entry, dependencies: deps })
+    Some(RunaManifest {
+        name,
+        version,
+        entry,
+        dependencies: deps,
+    })
 }
 
 /// Find runa.toml by walking up from a directory
@@ -357,7 +406,10 @@ fn find_runa_toml(start_dir: &str) -> Option<String> {
 fn runa_init(name: &str) {
     let project_dir = std::path::Path::new(name);
     if project_dir.exists() {
-        eprintln!("\x1b[1;31merror\x1b[0m: directory '{}' already exists", name);
+        eprintln!(
+            "\x1b[1;31merror\x1b[0m: directory '{}' already exists",
+            name
+        );
         std::process::exit(1);
     }
 
@@ -376,7 +428,9 @@ version = "0.1.0"
 entry = "src/main.runa"
 
 [dependencies]
-"#, name);
+"#,
+        name
+    );
 
     let toml_path = project_dir.join("runa.toml");
     if let Err(e) = std::fs::write(&toml_path, toml_content) {
@@ -389,7 +443,9 @@ entry = "src/main.runa"
         r#"-- {}: a Futuruna project
 
 @ print("Hello from {}!")
-"#, name, name);
+"#,
+        name, name
+    );
 
     let main_path = src_dir.join("main.runa");
     if let Err(e) = std::fs::write(&main_path, main_content) {
@@ -407,20 +463,24 @@ entry = "src/main.runa"
 /// Get the dependency cache directory (~/.cache/futuruna/deps/)
 fn dep_cache_dir() -> std::path::PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    std::path::PathBuf::from(home).join(".cache").join("futuruna").join("deps")
+    std::path::PathBuf::from(home)
+        .join(".cache")
+        .join("futuruna")
+        .join("deps")
 }
 
 /// Check if a string looks like a git URL
 fn is_git_url(s: &str) -> bool {
-    s.starts_with("https://") || s.starts_with("http://") || s.starts_with("git@") || s.ends_with(".git")
+    s.starts_with("https://")
+        || s.starts_with("http://")
+        || s.starts_with("git@")
+        || s.ends_with(".git")
 }
 
 /// Extract repo name from a git URL (e.g., "https://github.com/user/mylib" → "mylib")
 fn repo_name_from_url(url: &str) -> String {
     let clean = url.trim_end_matches(".git").trim_end_matches('/');
-    clean.rsplit('/').next()
-        .unwrap_or("dep")
-        .to_string()
+    clean.rsplit('/').next().unwrap_or("dep").to_string()
 }
 
 /// Hash a git URL to create a unique cache directory name
@@ -458,7 +518,14 @@ fn ensure_git_dep(url: &str, rev: Option<&str>) -> Result<String, String> {
         std::fs::create_dir_all(&cache).map_err(|e| format!("cannot create cache dir: {}", e))?;
         eprintln!("\x1b[1;36mCloning\x1b[0m {} ...", url);
         let status = std::process::Command::new("git")
-            .args(["clone", "--quiet", "--depth", "1", url, &repo_dir.to_string_lossy()])
+            .args([
+                "clone",
+                "--quiet",
+                "--depth",
+                "1",
+                url,
+                &repo_dir.to_string_lossy(),
+            ])
             .status()
             .map_err(|e| format!("git clone failed: {}", e))?;
         if !status.success() {
@@ -499,15 +566,13 @@ fn resolve_dep_to_path(spec: &DepSpec, toml_dir: &str) -> Option<String> {
                 Some(format!("{}/{}", toml_dir, p))
             }
         }
-        DepSpec::Git { url, rev } => {
-            match ensure_git_dep(url, rev.as_deref()) {
-                Ok(path) => Some(path),
-                Err(e) => {
-                    eprintln!("\x1b[1;31merror\x1b[0m: {}", e);
-                    None
-                }
+        DepSpec::Git { url, rev } => match ensure_git_dep(url, rev.as_deref()) {
+            Ok(path) => Some(path),
+            Err(e) => {
+                eprintln!("\x1b[1;31merror\x1b[0m: {}", e);
+                None
             }
-        }
+        },
     }
 }
 
@@ -517,7 +582,9 @@ fn runa_add(dep_arg: &str) {
     let toml_path = match find_runa_toml(&cwd.to_string_lossy()) {
         Some(p) => p,
         None => {
-            eprintln!("\x1b[1;31merror\x1b[0m: no runa.toml found in current or parent directories");
+            eprintln!(
+                "\x1b[1;31merror\x1b[0m: no runa.toml found in current or parent directories"
+            );
             eprintln!("  Run 'runa init <name>' to create a project first");
             std::process::exit(1);
         }
@@ -556,7 +623,9 @@ fn runa_add(dep_arg: &str) {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "dep".to_string());
 
-        let toml_dir = std::path::Path::new(&toml_path).parent().unwrap_or_else(|| std::path::Path::new("."));
+        let toml_dir = std::path::Path::new(&toml_path)
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."));
         let rel_path = pathdiff_relative(&abs_dep, toml_dir);
         let line = format!("{} = {{ path = \"{}\" }}\n", name, rel_path);
         (name, line)
@@ -575,7 +644,10 @@ fn runa_add(dep_arg: &str) {
     for line in content.lines() {
         let trimmed = line.trim();
         if trimmed.starts_with(&dep_name) && trimmed.contains('=') {
-            eprintln!("\x1b[1;33mwarning\x1b[0m: dependency '{}' already exists in runa.toml", dep_name);
+            eprintln!(
+                "\x1b[1;33mwarning\x1b[0m: dependency '{}' already exists in runa.toml",
+                dep_name
+            );
             return;
         }
     }
@@ -588,16 +660,23 @@ fn runa_add(dep_arg: &str) {
         std::process::exit(1);
     }
 
-    let display = if is_git_url(dep_arg) { dep_arg.to_string() } else {
+    let display = if is_git_url(dep_arg) {
+        dep_arg.to_string()
+    } else {
         let abs_dep = if std::path::Path::new(dep_arg).is_absolute() {
             std::path::PathBuf::from(dep_arg)
         } else {
             cwd.join(dep_arg)
         };
-        let toml_dir = std::path::Path::new(&toml_path).parent().unwrap_or_else(|| std::path::Path::new("."));
+        let toml_dir = std::path::Path::new(&toml_path)
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."));
         pathdiff_relative(&abs_dep, toml_dir)
     };
-    eprintln!("\x1b[1;32mAdded\x1b[0m dependency '{}' → {}", dep_name, display);
+    eprintln!(
+        "\x1b[1;32mAdded\x1b[0m dependency '{}' → {}",
+        dep_name, display
+    );
 }
 
 /// Append a dependency line to TOML content's [dependencies] section
@@ -645,30 +724,38 @@ fn append_dep_to_toml(content: &str, dep_line: &str) -> String {
 /// Compute a relative path from `base` to `target` (simple implementation)
 fn pathdiff_relative(target: &std::path::Path, base: &std::path::Path) -> String {
     // Canonicalize both if possible
-    let target_c = std::fs::canonicalize(target)
-        .unwrap_or_else(|_| target.to_path_buf());
-    let base_c = std::fs::canonicalize(base)
-        .unwrap_or_else(|_| base.to_path_buf());
+    let target_c = std::fs::canonicalize(target).unwrap_or_else(|_| target.to_path_buf());
+    let base_c = std::fs::canonicalize(base).unwrap_or_else(|_| base.to_path_buf());
 
     let target_parts: Vec<_> = target_c.components().collect();
     let base_parts: Vec<_> = base_c.components().collect();
 
     // Find common prefix length
-    let common = target_parts.iter().zip(base_parts.iter())
+    let common = target_parts
+        .iter()
+        .zip(base_parts.iter())
         .take_while(|(a, b)| a == b)
         .count();
 
     // Build relative path: go up from base, then down to target
     let mut rel = String::new();
     for _ in common..base_parts.len() {
-        if !rel.is_empty() { rel.push('/'); }
+        if !rel.is_empty() {
+            rel.push('/');
+        }
         rel.push_str("..");
     }
     for part in &target_parts[common..] {
-        if !rel.is_empty() { rel.push('/'); }
+        if !rel.is_empty() {
+            rel.push('/');
+        }
         rel.push_str(&part.as_os_str().to_string_lossy());
     }
-    if rel.is_empty() { ".".to_string() } else { rel }
+    if rel.is_empty() {
+        ".".to_string()
+    } else {
+        rel
+    }
 }
 
 /// Transpile Futuruna → Rust → native binary. If `execute` is true, run it after.
@@ -693,7 +780,8 @@ fn find_rust_tool(name: &str) -> String {
     if let Some(home) = std::env::var_os("HOME") {
         let rustup_path = format!(
             "{}/.rustup/toolchains/stable-aarch64-apple-darwin/bin/{}",
-            home.to_string_lossy(), name
+            home.to_string_lossy(),
+            name
         );
         if std::path::Path::new(&rustup_path).exists() {
             return rustup_path;
@@ -704,7 +792,9 @@ fn find_rust_tool(name: &str) -> String {
 }
 
 fn source_dir_for(filename: &str) -> Option<String> {
-    std::path::Path::new(filename).parent().map(|p| p.to_string_lossy().to_string())
+    std::path::Path::new(filename)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
 }
 
 /// Run type checking and display any errors as structured diagnostics.
@@ -715,10 +805,20 @@ fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> bool {
         return false;
     }
     let use_color = should_use_color();
-    let (red, reset) = if use_color { ("\x1b[1;31m", "\x1b[0m") } else { ("", "") };
+    let (red, reset) = if use_color {
+        ("\x1b[1;31m", "\x1b[0m")
+    } else {
+        ("", "")
+    };
     let count = diags.len();
-    eprintln!("{}error{}: {} type error{} in {}:",
-        red, reset, count, if count == 1 { "" } else { "s" }, filename);
+    eprintln!(
+        "{}error{}: {} type error{} in {}:",
+        red,
+        reset,
+        count,
+        if count == 1 { "" } else { "s" },
+        filename
+    );
     for diag in &diags {
         eprint!("{}", diag.display(source, filename, use_color));
     }
@@ -748,7 +848,9 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg.source_dir = Some(parent.to_string_lossy().to_string());
             }
-            cg.source_name = std::path::Path::new(filename).file_stem().map(|s| s.to_string_lossy().to_string());
+            cg.source_name = std::path::Path::new(filename)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string());
             let code = cg.emit_program(&stmts);
 
             let stem = std::path::Path::new(filename)
@@ -763,7 +865,10 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 // No dependencies — use raw rustc (fast path)
                 let cache_dir = std::env::temp_dir().join("runa-cache");
                 std::fs::create_dir_all(&cache_dir).ok();
-                let hash_path = cache_dir.join(format!("{}.hash", stem)).to_string_lossy().to_string();
+                let hash_path = cache_dir
+                    .join(format!("{}.hash", stem))
+                    .to_string_lossy()
+                    .to_string();
                 let cached_bin = cache_dir.join(stem).to_string_lossy().to_string();
 
                 // Check if binary exists and hash matches (incremental: skip recompilation)
@@ -775,14 +880,16 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 };
 
                 if cached_hash.trim() == code_hash && std::path::Path::new(&cached_bin).exists() {
-                    eprintln!("runa: {} unchanged (hash #{}), using cached binary", filename, &code_hash[..8]);
+                    eprintln!(
+                        "runa: {} unchanged (hash #{}), using cached binary",
+                        filename,
+                        &code_hash[..8]
+                    );
                     if execute {
-                        let status = Command::new(&cached_bin)
-                            .status()
-                            .unwrap_or_else(|e| {
-                                eprintln!("Error running {}: {}", cached_bin, e);
-                                std::process::exit(1);
-                            });
+                        let status = Command::new(&cached_bin).status().unwrap_or_else(|e| {
+                            eprintln!("Error running {}: {}", cached_bin, e);
+                            std::process::exit(1);
+                        });
                         std::process::exit(status.code().unwrap_or(1));
                     } else if !execute {
                         // Copy cached binary to output location
@@ -792,7 +899,10 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                     return;
                 }
 
-                let rs_path = cache_dir.join(format!("{}.rs", stem)).to_string_lossy().to_string();
+                let rs_path = cache_dir
+                    .join(format!("{}.rs", stem))
+                    .to_string_lossy()
+                    .to_string();
 
                 std::fs::write(&rs_path, &code).unwrap_or_else(|e| {
                     eprintln!("Error writing {}: {}", rs_path, e);
@@ -817,20 +927,22 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                         // Save hash for incremental compilation
                         std::fs::write(&hash_path, &code_hash).ok();
                         if execute {
-                            let status = Command::new(&cached_bin)
-                                .status()
-                                .unwrap_or_else(|e| {
-                                    eprintln!("Error running {}: {}", cached_bin, e);
-                                    std::process::exit(1);
-                                });
+                            let status = Command::new(&cached_bin).status().unwrap_or_else(|e| {
+                                eprintln!("Error running {}: {}", cached_bin, e);
+                                std::process::exit(1);
+                            });
                             std::process::exit(status.code().unwrap_or(1));
                         } else {
                             // Copy from cache to output location
                             if bin_path != cached_bin {
                                 std::fs::copy(&cached_bin, &bin_path).ok();
                             }
-                            eprintln!("runa: {} -> {} ({} lines of Rust)",
-                                filename, bin_path, code.lines().count());
+                            eprintln!(
+                                "runa: {} -> {} ({} lines of Rust)",
+                                filename,
+                                bin_path,
+                                code.lines().count()
+                            );
                         }
                     }
                     Err(e) => {
@@ -855,8 +967,15 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 });
 
                 // Generate Cargo.toml (sanitize inputs to prevent TOML injection)
-                let safe_stem: String = stem.chars()
-                    .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+                let safe_stem: String = stem
+                    .chars()
+                    .map(|c| {
+                        if c.is_alphanumeric() || c == '-' || c == '_' {
+                            c
+                        } else {
+                            '_'
+                        }
+                    })
                     .collect();
                 let mut cargo_toml = format!(
                     "[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n",
@@ -864,7 +983,8 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 );
                 for (crate_name, version) in &cg.cargo_deps {
                     // Validate crate name: only alphanumeric, hyphens, underscores
-                    let safe_name: String = crate_name.chars()
+                    let safe_name: String = crate_name
+                        .chars()
                         .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
                         .collect();
                     // M13c: inline table syntax for deps with features (e.g. tokio)
@@ -873,7 +993,8 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                         cargo_toml.push_str(&format!("{} = {}\n", safe_name, version));
                     } else {
                         // Validate version: only digits, dots, hyphens, plus
-                        let safe_version: String = version.chars()
+                        let safe_version: String = version
+                            .chars()
                             .filter(|c| c.is_alphanumeric() || *c == '.' || *c == '-' || *c == '+')
                             .collect();
                         cargo_toml.push_str(&format!("{} = \"{}\"\n", safe_name, safe_version));
@@ -904,12 +1025,10 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                         }
                         let cargo_bin = format!("{}/target/release/{}", build_dir, stem);
                         if execute {
-                            let status = Command::new(&cargo_bin)
-                                .status()
-                                .unwrap_or_else(|e| {
-                                    eprintln!("Error running {}: {}", cargo_bin, e);
-                                    std::process::exit(1);
-                                });
+                            let status = Command::new(&cargo_bin).status().unwrap_or_else(|e| {
+                                eprintln!("Error running {}: {}", cargo_bin, e);
+                                std::process::exit(1);
+                            });
                             std::process::exit(status.code().unwrap_or(1));
                         } else {
                             // Copy binary to current directory
@@ -918,9 +1037,14 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                                 std::process::exit(1);
                             });
                             let dep_count = cg.cargo_deps.len();
-                            eprintln!("runa: {} -> {} ({} lines of Rust, {} dep{})",
-                                filename, stem, code.lines().count(),
-                                dep_count, if dep_count == 1 { "" } else { "s" });
+                            eprintln!(
+                                "runa: {} -> {} ({} lines of Rust, {} dep{})",
+                                filename,
+                                stem,
+                                code.lines().count(),
+                                dep_count,
+                                if dep_count == 1 { "" } else { "s" }
+                            );
                         }
                     }
                     Err(e) => {
@@ -961,15 +1085,24 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg.source_dir = Some(parent.to_string_lossy().to_string());
             }
-            cg.source_name = std::path::Path::new(filename).file_stem().map(|s| s.to_string_lossy().to_string());
+            cg.source_name = std::path::Path::new(filename)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string());
             let code = cg.emit_program(&stmts);
 
             let stem = std::path::Path::new(filename)
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .unwrap_or("tau_wasm");
-            let safe_stem: String = stem.chars()
-                .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+            let safe_stem: String = stem
+                .chars()
+                .map(|c| {
+                    if c.is_alphanumeric() || c == '-' || c == '_' {
+                        c
+                    } else {
+                        '_'
+                    }
+                })
                 .collect();
 
             // Generate Cargo project in .runa-build/<name>-wasm/
@@ -997,13 +1130,15 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
                 safe_stem
             );
             for (crate_name, version) in &cg.cargo_deps {
-                let safe_name: String = crate_name.chars()
+                let safe_name: String = crate_name
+                    .chars()
                     .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
                     .collect();
                 if version.starts_with('{') {
                     cargo_toml.push_str(&format!("{} = {}\n", safe_name, version));
                 } else {
-                    let safe_version: String = version.chars()
+                    let safe_version: String = version
+                        .chars()
                         .filter(|c| c.is_alphanumeric() || *c == '.' || *c == '-' || *c == '+')
                         .collect();
                     cargo_toml.push_str(&format!("{} = \"{}\"\n", safe_name, safe_version));
@@ -1015,7 +1150,12 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
                 std::process::exit(1);
             });
 
-            eprintln!("runa wasm: {} → {}/src/lib.rs ({} lines of Rust)", filename, build_dir, code.lines().count());
+            eprintln!(
+                "runa wasm: {} → {}/src/lib.rs ({} lines of Rust)",
+                filename,
+                build_dir,
+                code.lines().count()
+            );
 
             // Build with wasm-pack (ensure cargo is in PATH)
             let wasm_pack = find_tool("wasm-pack");
@@ -1085,7 +1225,11 @@ fn find_tool(name: &str) -> String {
         }
     }
     // Check ~/.cargo/bin/
-    let cargo_path = format!("{}/.cargo/bin/{}", std::env::var("HOME").unwrap_or_default(), name);
+    let cargo_path = format!(
+        "{}/.cargo/bin/{}",
+        std::env::var("HOME").unwrap_or_default(),
+        name
+    );
     if std::path::Path::new(&cargo_path).exists() {
         return cargo_path;
     }
@@ -1110,12 +1254,20 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             };
 
             let stmt_count = stmts.len();
-            let fn_count = stmts.iter().filter(|s| matches!(s, Stmt::Defn(Defn::Fn { .. }))).count();
-            let type_count = stmts.iter().filter(|s| matches!(s, Stmt::TypeDecl(_))).count();
+            let fn_count = stmts
+                .iter()
+                .filter(|s| matches!(s, Stmt::Defn(Defn::Fn { .. })))
+                .count();
+            let type_count = stmts
+                .iter()
+                .filter(|s| matches!(s, Stmt::TypeDecl(_)))
+                .count();
             let rule_count = stmts.iter().filter(|s| matches!(s, Stmt::Rule(_))).count();
 
-            eprintln!("runa: parsed {} ({} statements: {} functions, {} types, {} rules)",
-                filename, stmt_count, fn_count, type_count, rule_count);
+            eprintln!(
+                "runa: parsed {} ({} statements: {} functions, {} types, {} rules)",
+                filename, stmt_count, fn_count, type_count, rule_count
+            );
 
             // Pre-codegen type checking (M16)
             if run_type_check(&stmts, source, filename) {
@@ -1155,7 +1307,10 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
     }
 
     let mut entries: Vec<_> = std::fs::read_dir(path)
-        .unwrap_or_else(|e| { eprintln!("Cannot read {}: {}", dir, e); std::process::exit(1); })
+        .unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", dir, e);
+            std::process::exit(1);
+        })
         .filter_map(|e| e.ok())
         .filter(|e| e.path().extension().map(|x| x == "runa").unwrap_or(false))
         .collect();
@@ -1171,8 +1326,15 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
     let mut failed = 0usize;
     let mut failures: Vec<String> = Vec::new();
 
-    let mode_label = if compile_mode { "runa test --run" } else { "runa test" };
-    eprintln!("\x1b[1m{}\x1b[0m: running {} tests from {}/\n", mode_label, total, dir);
+    let mode_label = if compile_mode {
+        "runa test --run"
+    } else {
+        "runa test"
+    };
+    eprintln!(
+        "\x1b[1m{}\x1b[0m: running {} tests from {}/\n",
+        mode_label, total, dir
+    );
 
     let suite_start = Instant::now();
 
@@ -1185,7 +1347,10 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 
     for entry in &entries {
         let file_path = entry.path();
-        let name = file_path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "unknown".to_string());
+        let name = file_path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
         let test_start = Instant::now();
 
         if compile_mode {
@@ -1203,16 +1368,33 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
                 Ok(output) => {
                     let elapsed = test_start.elapsed();
                     let ms = elapsed.as_millis();
-                    let time_str = if ms >= 1000 { format!("{:.1}s", elapsed.as_secs_f64()) } else { format!("{}ms", ms) };
+                    let time_str = if ms >= 1000 {
+                        format!("{:.1}s", elapsed.as_secs_f64())
+                    } else {
+                        format!("{}ms", ms)
+                    };
                     if output.status.success() {
-                        eprintln!("  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m", name, time_str);
+                        eprintln!(
+                            "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
+                            name, time_str
+                        );
                         passed += 1;
                     } else {
                         let stderr = String::from_utf8_lossy(&output.stderr);
-                        let err_line = stderr.lines()
-                            .find(|l| l.contains("error") || l.contains("failed") || l.contains("panicked"))
+                        let err_line = stderr
+                            .lines()
+                            .find(|l| {
+                                l.contains("error")
+                                    || l.contains("failed")
+                                    || l.contains("panicked")
+                            })
                             .unwrap_or("(compilation or runtime error)");
-                        eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — {} \x1b[2m({})\x1b[0m", name, err_line.trim(), time_str);
+                        eprintln!(
+                            "  \x1b[1;31mFAIL\x1b[0m  {} — {} \x1b[2m({})\x1b[0m",
+                            name,
+                            err_line.trim(),
+                            time_str
+                        );
                         failed += 1;
                         failures.push(name);
                     }
@@ -1228,7 +1410,8 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
             match std::fs::read_to_string(&file_path) {
                 Ok(source) => {
                     // Check for negative test markers: -- expect-error: <substring>
-                    let expected_errors: Vec<String> = source.lines()
+                    let expected_errors: Vec<String> = source
+                        .lines()
                         .filter_map(|line| {
                             let trimmed = line.trim();
                             if trimmed.starts_with("-- expect-error:") {
@@ -1242,7 +1425,8 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 
                     if is_negative_test {
                         // Negative test: run via subprocess so we can capture stderr
-                        let self_bin = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("runa"));
+                        let self_bin = std::env::current_exe()
+                            .unwrap_or_else(|_| std::path::PathBuf::from("runa"));
                         let file_str = file_path.to_string_lossy().to_string();
                         let output = std::process::Command::new(&self_bin)
                             .args(&["check", &file_str])
@@ -1252,15 +1436,19 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 
                         let elapsed = test_start.elapsed();
                         let ms = elapsed.as_millis();
-                        let time_str = if ms >= 1000 { format!("{:.1}s", elapsed.as_secs_f64()) } else { format!("{}ms", ms) };
+                        let time_str = if ms >= 1000 {
+                            format!("{:.1}s", elapsed.as_secs_f64())
+                        } else {
+                            format!("{}ms", ms)
+                        };
 
                         match output {
                             Ok(out) => {
                                 let stderr = String::from_utf8_lossy(&out.stderr);
                                 let did_error = !out.status.success();
-                                let all_found = expected_errors.iter().all(|expected| {
-                                    stderr.contains(expected.as_str())
-                                });
+                                let all_found = expected_errors
+                                    .iter()
+                                    .all(|expected| stderr.contains(expected.as_str()));
 
                                 if did_error && all_found {
                                     eprintln!("  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-error, {})\x1b[0m", name, time_str);
@@ -1270,7 +1458,8 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
                                     failed += 1;
                                     failures.push(name);
                                 } else {
-                                    let missing: Vec<&String> = expected_errors.iter()
+                                    let missing: Vec<&String> = expected_errors
+                                        .iter()
                                         .filter(|e| !stderr.contains(e.as_str()))
                                         .collect();
                                     eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — error occurred but missing expected text: {:?} \x1b[2m({})\x1b[0m",
@@ -1286,49 +1475,57 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
                             }
                         }
                     } else {
-                    // Positive test: run in-process
-                    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        let mut lexer = Lexer::new(&source);
-                        let tokens = lexer.tokenize();
-                        let mut parser = Parser::new(tokens, &source);
-                        match parser.parse_program() {
-                            Ok(user_stmts) => {
-                                let stmts = if use_prelude {
-                                    prepend_prelude(parse_prelude(), &user_stmts)
-                                } else {
-                                    user_stmts
-                                };
-                                let mut interp = Interpreter::new();
-                                if let Some(parent) = file_path.parent() {
-                                    interp.source_dir = Some(parent.to_string_lossy().to_string());
+                        // Positive test: run in-process
+                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            let mut lexer = Lexer::new(&source);
+                            let tokens = lexer.tokenize();
+                            let mut parser = Parser::new(tokens, &source);
+                            match parser.parse_program() {
+                                Ok(user_stmts) => {
+                                    let stmts = if use_prelude {
+                                        prepend_prelude(parse_prelude(), &user_stmts)
+                                    } else {
+                                        user_stmts
+                                    };
+                                    let mut interp = Interpreter::new();
+                                    if let Some(parent) = file_path.parent() {
+                                        interp.source_dir =
+                                            Some(parent.to_string_lossy().to_string());
+                                    }
+                                    let mut env = interp.default_env();
+                                    interp.run_program(&stmts, &mut env);
+                                    Ok(())
                                 }
-                                let mut env = interp.default_env();
-                                interp.run_program(&stmts, &mut env);
-                                Ok(())
+                                Err(e) => Err(e),
                             }
-                            Err(e) => Err(e)
-                        }
-                    }));
+                        }));
 
-                    let elapsed = test_start.elapsed();
-                    let ms = elapsed.as_millis();
-                    let time_str = if ms >= 1000 { format!("{:.1}s", elapsed.as_secs_f64()) } else { format!("{}ms", ms) };
-                    match result {
-                        Ok(Ok(())) => {
-                            eprintln!("  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m", name, time_str);
-                            passed += 1;
+                        let elapsed = test_start.elapsed();
+                        let ms = elapsed.as_millis();
+                        let time_str = if ms >= 1000 {
+                            format!("{:.1}s", elapsed.as_secs_f64())
+                        } else {
+                            format!("{}ms", ms)
+                        };
+                        match result {
+                            Ok(Ok(())) => {
+                                eprintln!(
+                                    "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
+                                    name, time_str
+                                );
+                                passed += 1;
+                            }
+                            Ok(Err(e)) => {
+                                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — parse error: {} \x1b[2m({})\x1b[0m", name, e, time_str);
+                                failed += 1;
+                                failures.push(name);
+                            }
+                            Err(_) => {
+                                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — runtime panic \x1b[2m({})\x1b[0m", name, time_str);
+                                failed += 1;
+                                failures.push(name);
+                            }
                         }
-                        Ok(Err(e)) => {
-                            eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — parse error: {} \x1b[2m({})\x1b[0m", name, e, time_str);
-                            failed += 1;
-                            failures.push(name);
-                        }
-                        Err(_) => {
-                            eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — runtime panic \x1b[2m({})\x1b[0m", name, time_str);
-                            failed += 1;
-                            failures.push(name);
-                        }
-                    }
                     } // end positive test
                 }
                 Err(e) => {
@@ -1342,13 +1539,23 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 
     let suite_elapsed = suite_start.elapsed();
     let suite_secs = suite_elapsed.as_secs_f64();
-    let suite_time = if suite_secs >= 1.0 { format!("{:.1}s", suite_secs) } else { format!("{}ms", suite_elapsed.as_millis()) };
+    let suite_time = if suite_secs >= 1.0 {
+        format!("{:.1}s", suite_secs)
+    } else {
+        format!("{}ms", suite_elapsed.as_millis())
+    };
 
     eprintln!();
     if failed == 0 {
-        eprintln!("\x1b[1;32mAll {} tests passed\x1b[0m in {}.", total, suite_time);
+        eprintln!(
+            "\x1b[1;32mAll {} tests passed\x1b[0m in {}.",
+            total, suite_time
+        );
     } else {
-        eprintln!("\x1b[1;31m{} of {} tests failed\x1b[0m in {}:", failed, total, suite_time);
+        eprintln!(
+            "\x1b[1;31m{} of {} tests failed\x1b[0m in {}:",
+            failed, total, suite_time
+        );
         for f in &failures {
             eprintln!("  - {}", f);
         }
@@ -1380,7 +1587,9 @@ fn run_repl() {
             Ok(0) => break, // EOF
             Ok(_) => {
                 let trimmed = line.trim();
-                if trimmed.is_empty() { continue; }
+                if trimmed.is_empty() {
+                    continue;
+                }
                 if trimmed == ":quit" || trimmed == ":q" {
                     println!("Goodbye.");
                     break;
@@ -1467,7 +1676,13 @@ fn expr_to_smt(expr: &Expr) -> String {
     match &expr.kind {
         ExprKind::Lit(Literal::Int(n)) => format!("{}", n),
         ExprKind::Lit(Literal::Float(f)) => format!("{}", f),
-        ExprKind::Lit(Literal::Bool(b)) => if *b { "true".to_string() } else { "false".to_string() },
+        ExprKind::Lit(Literal::Bool(b)) => {
+            if *b {
+                "true".to_string()
+            } else {
+                "false".to_string()
+            }
+        }
         ExprKind::Lit(Literal::Str(s)) => format!("\"{}\"", s),
         ExprKind::Var(name) => name.clone(),
         ExprKind::BinOp(op, lhs, rhs) => {
@@ -1508,7 +1723,12 @@ fn expr_to_smt(expr: &Expr) -> String {
             }
         }
         ExprKind::If(cond, then_, else_) => {
-            format!("(ite {} {} {})", expr_to_smt(cond), expr_to_smt(then_), expr_to_smt(else_))
+            format!(
+                "(ite {} {} {})",
+                expr_to_smt(cond),
+                expr_to_smt(then_),
+                expr_to_smt(else_)
+            )
         }
         // Field access: obj.field → (field obj) — Z3 selector function
         ExprKind::Field(obj, field) => {
@@ -1534,14 +1754,20 @@ fn expr_to_smt(expr: &Expr) -> String {
                         Stmt::Bind(Pat::Var(name), _, e) => {
                             local_lets.push((name.clone(), expr_to_smt(e)));
                         }
-                        Stmt::Expr(e) => { last_expr = Some(expr_to_smt(e)); }
+                        Stmt::Expr(e) => {
+                            last_expr = Some(expr_to_smt(e));
+                        }
                         _ => {}
                     }
                 }
                 if let Some(body) = last_expr {
-                    if local_lets.is_empty() { return body; }
-                    let binds: Vec<String> = local_lets.iter()
-                        .map(|(n, v)| format!("({} {})", n, v)).collect();
+                    if local_lets.is_empty() {
+                        return body;
+                    }
+                    let binds: Vec<String> = local_lets
+                        .iter()
+                        .map(|(n, v)| format!("({} {})", n, v))
+                        .collect();
                     return format!("(let ({}) {})", binds.join(" "), body);
                 }
             }
@@ -1553,15 +1779,26 @@ fn expr_to_smt(expr: &Expr) -> String {
 
 /// Convert match arms to nested Z3 ite expressions with (_ is Ctor) testers
 fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
-    if idx >= arms.len() { return format!("; match: no arm matched"); }
+    if idx >= arms.len() {
+        return format!("; match: no arm matched");
+    }
     let arm = &arms[idx];
     let body = expr_to_smt(&arm.body);
     let guarded_body = if let Some(ref guard) = arm.guard {
         let g = expr_to_smt(guard);
         if idx + 1 < arms.len() {
-            format!("(ite {} {} {})", g, body, smt_match_arms(scrut, arms, idx + 1))
-        } else { body.clone() }
-    } else { body.clone() };
+            format!(
+                "(ite {} {} {})",
+                g,
+                body,
+                smt_match_arms(scrut, arms, idx + 1)
+            )
+        } else {
+            body.clone()
+        }
+    } else {
+        body.clone()
+    };
 
     match &arm.pat {
         Pat::Wild => guarded_body,
@@ -1569,8 +1806,13 @@ fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
         Pat::Con(ctor, pats) if pats.is_empty() => {
             if idx + 1 < arms.len() {
                 let rest = smt_match_arms(scrut, arms, idx + 1);
-                format!("(ite ((_ is {}) {}) {} {})", ctor, scrut, guarded_body, rest)
-            } else { guarded_body }
+                format!(
+                    "(ite ((_ is {}) {}) {} {})",
+                    ctor, scrut, guarded_body, rest
+                )
+            } else {
+                guarded_body
+            }
         }
         Pat::Con(ctor, pats) => {
             let mut binds = Vec::new();
@@ -1579,11 +1821,22 @@ fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
                     binds.push(format!("({} ({}_f{} {}))", v, ctor, i, scrut));
                 }
             }
-            let inner = if binds.is_empty() { guarded_body.clone() }
-                else { format!("(let ({}) {})", binds.join(" "), guarded_body) };
+            let inner = if binds.is_empty() {
+                guarded_body.clone()
+            } else {
+                format!("(let ({}) {})", binds.join(" "), guarded_body)
+            };
             if idx + 1 < arms.len() {
-                format!("(ite ((_ is {}) {}) {} {})", ctor, scrut, inner, smt_match_arms(scrut, arms, idx + 1))
-            } else { inner }
+                format!(
+                    "(ite ((_ is {}) {}) {} {})",
+                    ctor,
+                    scrut,
+                    inner,
+                    smt_match_arms(scrut, arms, idx + 1)
+                )
+            } else {
+                inner
+            }
         }
         Pat::NamedCon(ctor, named_pats) => {
             let mut binds = Vec::new();
@@ -1592,21 +1845,46 @@ fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
                     binds.push(format!("({} ({} {}))", v, field, scrut));
                 }
             }
-            let inner = if binds.is_empty() { guarded_body.clone() }
-                else { format!("(let ({}) {})", binds.join(" "), guarded_body) };
+            let inner = if binds.is_empty() {
+                guarded_body.clone()
+            } else {
+                format!("(let ({}) {})", binds.join(" "), guarded_body)
+            };
             if idx + 1 < arms.len() {
-                format!("(ite ((_ is {}) {}) {} {})", ctor, scrut, inner, smt_match_arms(scrut, arms, idx + 1))
-            } else { inner }
+                format!(
+                    "(ite ((_ is {}) {}) {} {})",
+                    ctor,
+                    scrut,
+                    inner,
+                    smt_match_arms(scrut, arms, idx + 1)
+                )
+            } else {
+                inner
+            }
         }
         Pat::Lit(lit) => {
             let lit_smt = match lit {
                 Literal::Int(n) => format!("{}", n),
-                Literal::Bool(b) => if *b { "true".to_string() } else { "false".to_string() },
+                Literal::Bool(b) => {
+                    if *b {
+                        "true".to_string()
+                    } else {
+                        "false".to_string()
+                    }
+                }
                 _ => format!("; unsupported literal pattern"),
             };
             if idx + 1 < arms.len() {
-                format!("(ite (= {} {}) {} {})", scrut, lit_smt, guarded_body, smt_match_arms(scrut, arms, idx + 1))
-            } else { guarded_body }
+                format!(
+                    "(ite (= {} {}) {} {})",
+                    scrut,
+                    lit_smt,
+                    guarded_body,
+                    smt_match_arms(scrut, arms, idx + 1)
+                )
+            } else {
+                guarded_body
+            }
         }
         _ => format!("; unsupported match pattern"),
     }
@@ -1618,14 +1896,16 @@ fn infer_smt_sort(expr: &Expr) -> &'static str {
         ExprKind::Lit(Literal::Int(_)) => "Int",
         ExprKind::Lit(Literal::Float(_)) => "Real",
         ExprKind::Lit(Literal::Bool(_)) => "Bool",
-        ExprKind::BinOp(op, _, _) => {
-            match op.as_str() {
-                "<" | ">" | "<=" | ">=" | "==" | "!=" | "&&" | "||" => "Bool",
-                _ => "Int",
-            }
-        }
+        ExprKind::BinOp(op, _, _) => match op.as_str() {
+            "<" | ">" | "<=" | ">=" | "==" | "!=" | "&&" | "||" => "Bool",
+            _ => "Int",
+        },
         ExprKind::UnOp(op, _) => {
-            if op == "!" { "Bool" } else { "Int" }
+            if op == "!" {
+                "Bool"
+            } else {
+                "Int"
+            }
         }
         _ => "Int",
     }
@@ -1641,11 +1921,22 @@ fn infer_smt_sort_adts(expr: &Expr, ctor_to_type: &BTreeMap<String, String>) -> 
             "<" | ">" | "<=" | ">=" | "==" | "!=" | "&&" | "||" => "Bool".into(),
             _ => "Int".into(),
         },
-        ExprKind::UnOp(op, _) => if op == "!" { "Bool".into() } else { "Int".into() },
-        ExprKind::Var(name) => ctor_to_type.get(name).cloned().unwrap_or_else(|| "Int".into()),
+        ExprKind::UnOp(op, _) => {
+            if op == "!" {
+                "Bool".into()
+            } else {
+                "Int".into()
+            }
+        }
+        ExprKind::Var(name) => ctor_to_type
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| "Int".into()),
         ExprKind::App(func, _) => {
             if let ExprKind::Var(name) = &func.as_ref().kind {
-                if let Some(ty) = ctor_to_type.get(name) { return ty.clone(); }
+                if let Some(ty) = ctor_to_type.get(name) {
+                    return ty.clone();
+                }
             }
             "Int".into()
         }
@@ -1661,15 +1952,20 @@ fn emit_z3_datatype(name: &str, variants: &[Variant]) -> String {
         if v.fields.is_empty() {
             ctors.push(v.name.clone());
         } else {
-            let fields: Vec<String> = v.fields.iter().enumerate().map(|(i, f)| {
-                let fname = if v.positional {
-                    format!("{}_f{}", v.name, i)
-                } else {
-                    f.name.clone()
-                };
-                let sort = ty_to_smt_sort(&f.ty);
-                format!("({} {})", fname, sort)
-            }).collect();
+            let fields: Vec<String> = v
+                .fields
+                .iter()
+                .enumerate()
+                .map(|(i, f)| {
+                    let fname = if v.positional {
+                        format!("{}_f{}", v.name, i)
+                    } else {
+                        f.name.clone()
+                    };
+                    let sort = ty_to_smt_sort(&f.ty);
+                    format!("({} {})", fname, sort)
+                })
+                .collect();
             ctors.push(format!("({} {})", v.name, fields.join(" ")));
         }
     }
@@ -1696,7 +1992,9 @@ fn ty_to_smt_sort(ty: &Ty) -> String {
 fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTreeSet<String>) {
     match &expr.kind {
         ExprKind::Var(name) => {
-            if !bound.contains(name) { free.insert(name.clone()); }
+            if !bound.contains(name) {
+                free.insert(name.clone());
+            }
         }
         ExprKind::Lit(_) => {}
         ExprKind::BinOp(_, lhs, rhs) => {
@@ -1706,7 +2004,9 @@ fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTre
         ExprKind::UnOp(_, inner) => collect_true_free_vars(inner, free, bound),
         ExprKind::App(func, args) => {
             collect_true_free_vars(func, free, bound);
-            for a in args { collect_true_free_vars(a, free, bound); }
+            for a in args {
+                collect_true_free_vars(a, free, bound);
+            }
         }
         ExprKind::If(c, t, e) => {
             collect_true_free_vars(c, free, bound);
@@ -1724,12 +2024,16 @@ fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTre
                 let mut arm_bound = bound.clone();
                 collect_pattern_names(&arm.pat, &mut arm_bound);
                 collect_true_free_vars(&arm.body, free, &arm_bound);
-                if let Some(ref g) = arm.guard { collect_true_free_vars(g, free, &arm_bound); }
+                if let Some(ref g) = arm.guard {
+                    collect_true_free_vars(g, free, &arm_bound);
+                }
             }
         }
         ExprKind::Lambda(params, body) => {
             let mut inner_bound = bound.clone();
-            for p in params { inner_bound.insert(p.name.clone()); }
+            for p in params {
+                inner_bound.insert(p.name.clone());
+            }
             collect_true_free_vars(body, free, &inner_bound);
         }
         ExprKind::Block(stmts) => {
@@ -1761,7 +2065,9 @@ fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTre
             }
         }
         ExprKind::List(elems) => {
-            for e in elems { collect_true_free_vars(e, free, bound); }
+            for e in elems {
+                collect_true_free_vars(e, free, bound);
+            }
         }
         _ => {}
     }
@@ -1769,12 +2075,18 @@ fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTre
 
 fn collect_pattern_names(pat: &Pat, names: &mut BTreeSet<String>) {
     match pat {
-        Pat::Var(n) => { names.insert(n.clone()); }
+        Pat::Var(n) => {
+            names.insert(n.clone());
+        }
         Pat::Con(_, pats) => {
-            for p in pats { collect_pattern_names(p, names); }
+            for p in pats {
+                collect_pattern_names(p, names);
+            }
         }
         Pat::NamedCon(_, fields) => {
-            for (_, p) in fields { collect_pattern_names(p, names); }
+            for (_, p) in fields {
+                collect_pattern_names(p, names);
+            }
         }
         Pat::As(inner, alias) => {
             collect_pattern_names(inner, names);
@@ -1786,7 +2098,9 @@ fn collect_pattern_names(pat: &Pat, names: &mut BTreeSet<String>) {
 
 fn collect_free_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
     match &expr.kind {
-        ExprKind::Var(name) => { vars.insert(name.clone()); }
+        ExprKind::Var(name) => {
+            vars.insert(name.clone());
+        }
         ExprKind::BinOp(_, lhs, rhs) => {
             collect_free_vars(lhs, vars);
             collect_free_vars(rhs, vars);
@@ -1794,7 +2108,9 @@ fn collect_free_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
         ExprKind::UnOp(_, inner) => collect_free_vars(inner, vars),
         ExprKind::App(func, args) => {
             collect_free_vars(func, vars);
-            for a in args { collect_free_vars(a, vars); }
+            for a in args {
+                collect_free_vars(a, vars);
+            }
         }
         ExprKind::If(c, t, e) => {
             collect_free_vars(c, vars);
@@ -1806,7 +2122,9 @@ fn collect_free_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
             collect_free_vars(scrut, vars);
             for arm in arms {
                 collect_free_vars(&arm.body, vars);
-                if let Some(ref g) = arm.guard { collect_free_vars(g, vars); }
+                if let Some(ref g) = arm.guard {
+                    collect_free_vars(g, vars);
+                }
             }
         }
         ExprKind::Lambda(_, body) => collect_free_vars(body, vars),
@@ -1837,9 +2155,16 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     let mut parser = Parser::new(tokens, source);
     let stmts = match parser.parse_program() {
         Ok(user_stmts) => {
-            if use_prelude { prepend_prelude(parse_prelude(), &user_stmts) } else { user_stmts }
+            if use_prelude {
+                prepend_prelude(parse_prelude(), &user_stmts)
+            } else {
+                user_stmts
+            }
         }
-        Err(e) => { display_error_in(source, &e, filename); std::process::exit(1); }
+        Err(e) => {
+            display_error_in(source, &e, filename);
+            std::process::exit(1);
+        }
     };
 
     let mut interp = Interpreter::new();
@@ -1849,7 +2174,10 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     let mut env = interp.default_env();
 
     // Filter out Prove statements — we don't want verification output during audit
-    let audit_stmts: Vec<Stmt> = stmts.into_iter().filter(|s| !matches!(s, Stmt::Prove { .. })).collect();
+    let audit_stmts: Vec<Stmt> = stmts
+        .into_iter()
+        .filter(|s| !matches!(s, Stmt::Prove { .. }))
+        .collect();
     let _ = interp.run_program(&audit_stmts, &mut env);
 
     // Phase 2: Evaluate all zero-arg rules, classify by return VALUE TYPE
@@ -1885,7 +2213,10 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             Value::Float(_) => ("Float".into(), None),
             Value::Str(_) => ("String".into(), None),
             Value::Constructor(name, _) | Value::NamedConstructor(name, _) => {
-                let parent = ctor_to_parent.get(name).cloned().unwrap_or_else(|| "?".into());
+                let parent = ctor_to_parent
+                    .get(name)
+                    .cloned()
+                    .unwrap_or_else(|| "?".into());
                 (parent, Some(name.clone()))
             }
             Value::List(_) => ("List".into(), None),
@@ -1898,39 +2229,75 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 
     // Determine resolution path for a rule (which layer resolved it)
     let rule_resolution = |rule_name: &str, snapshot: &[(String, Rule)]| -> String {
-        let matching: Vec<&Rule> = snapshot.iter()
+        let matching: Vec<&Rule> = snapshot
+            .iter()
             .filter(|(n, _)| n == rule_name)
             .map(|(_, r)| r)
             .collect();
         let has_exception = matching.iter().any(|r| matches!(r, Rule::Exception { .. }));
-        let has_cond_default = matching.iter().any(|r| matches!(r, Rule::Default { condition: Some(_), .. }));
-        let has_default = matching.iter().any(|r| matches!(r, Rule::Default { condition: None, .. }));
+        let has_cond_default = matching.iter().any(|r| {
+            matches!(
+                r,
+                Rule::Default {
+                    condition: Some(_),
+                    ..
+                }
+            )
+        });
+        let has_default = matching.iter().any(|r| {
+            matches!(
+                r,
+                Rule::Default {
+                    condition: None,
+                    ..
+                }
+            )
+        });
         let has_clause = matching.iter().any(|r| matches!(r, Rule::Clause { .. }));
         let layers = matching.len();
-        if has_exception { format!("exception (overrides {} layer{})", layers, if layers > 1 { "s" } else { "" }) }
-        else if has_cond_default && has_default { format!("conditional default ({} layers)", layers) }
-        else if has_default { "default".into() }
-        else if has_clause { "clause".into() }
-        else { "unknown".into() }
+        if has_exception {
+            format!(
+                "exception (overrides {} layer{})",
+                layers,
+                if layers > 1 { "s" } else { "" }
+            )
+        } else if has_cond_default && has_default {
+            format!("conditional default ({} layers)", layers)
+        } else if has_default {
+            "default".into()
+        } else if has_clause {
+            "clause".into()
+        } else {
+            "unknown".into()
+        }
     };
 
     let mut results: Vec<RuleResult> = Vec::new();
     let mut seen_names: BTreeSet<String> = BTreeSet::new();
     let mut rule_names: Vec<String> = Vec::new();
     for (name, _) in &rules_snapshot {
-        if seen_names.insert(name.clone()) { rule_names.push(name.clone()); }
+        if seen_names.insert(name.clone()) {
+            rule_names.push(name.clone());
+        }
     }
 
     for rule_name in &rule_names {
-        let param_count = rules_snapshot.iter()
+        let param_count = rules_snapshot
+            .iter()
             .find(|(n, _)| n == rule_name)
             .and_then(|(_, rule)| {
                 let head = match rule {
-                    Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
                     Rule::Scope { .. } => return None,
                 };
                 match &head.kind {
-                    ExprKind::App(_, args) => Some(args.iter().filter(|a| matches!(a.kind, ExprKind::Var(_))).count()),
+                    ExprKind::App(_, args) => Some(
+                        args.iter()
+                            .filter(|a| matches!(a.kind, ExprKind::Var(_)))
+                            .count(),
+                    ),
                     ExprKind::Var(_) => Some(0),
                     _ => None,
                 }
@@ -1945,16 +2312,27 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                 let is_true = matches!(&val, Value::Bool(true));
                 let resolution = rule_resolution(rule_name, &rules_snapshot);
                 results.push(RuleResult {
-                    name: rule_name.clone(), value: val.clone(), value_str: val_str,
-                    type_domain, constructor, is_bool, is_true, param_count, resolution,
+                    name: rule_name.clone(),
+                    value: val.clone(),
+                    value_str: val_str,
+                    type_domain,
+                    constructor,
+                    is_bool,
+                    is_true,
+                    param_count,
+                    resolution,
                 });
             }
         } else {
             results.push(RuleResult {
-                name: rule_name.clone(), value: Value::Unit,
+                name: rule_name.clone(),
+                value: Value::Unit,
                 value_str: format!("({} params)", param_count),
-                type_domain: "Parameterized".into(), constructor: None,
-                is_bool: false, is_true: false, param_count,
+                type_domain: "Parameterized".into(),
+                constructor: None,
+                is_bool: false,
+                is_true: false,
+                param_count,
                 resolution: rule_resolution(rule_name, &rules_snapshot),
             });
         }
@@ -1966,11 +2344,11 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 
     #[derive(Debug)]
     enum FindingKind {
-        Paradox,      // Direct contradiction in rules
-        Tension,      // Same type domain, conflicting values, overlapping scope
-        Asymmetry,    // Same suffix across entities, different truth values
-        Gap,          // Uncovered rules, missing counterparts
-        Consistent,   // Symmetric agreement
+        Paradox,    // Direct contradiction in rules
+        Tension,    // Same type domain, conflicting values, overlapping scope
+        Asymmetry,  // Same suffix across entities, different truth values
+        Gap,        // Uncovered rules, missing counterparts
+        Consistent, // Symmetric agreement
     }
 
     struct Finding {
@@ -1989,16 +2367,26 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     let mut type_domains: BTreeMap<String, Vec<&RuleResult>> = BTreeMap::new();
     for r in &results {
         if r.param_count == 0 {
-            type_domains.entry(r.type_domain.clone()).or_default().push(r);
+            type_domains
+                .entry(r.type_domain.clone())
+                .or_default()
+                .push(r);
         }
     }
 
     // Within each non-Bool ADT domain, find value asymmetries
     // e.g., in PowerHolder domain: treaty_power -> SharedPower, executive_power -> ExclusiveTo(Executive)
     for (domain, rules) in &type_domains {
-        if domain == "Bool" || domain == "Int" || domain == "Float"
-            || domain == "String" || domain == "List" || domain == "Other"
-            || domain == "Parameterized" { continue; }
+        if domain == "Bool"
+            || domain == "Int"
+            || domain == "Float"
+            || domain == "String"
+            || domain == "List"
+            || domain == "Other"
+            || domain == "Parameterized"
+        {
+            continue;
+        }
 
         // Sub-group by constructor variant
         let mut by_variant: BTreeMap<String, Vec<&RuleResult>> = BTreeMap::new();
@@ -2009,18 +2397,25 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 
         // If there are multiple variants in use, report the domain structure
         if by_variant.len() >= 2 && rules.len() >= 3 {
-            let variant_summary: Vec<String> = by_variant.iter()
+            let variant_summary: Vec<String> = by_variant
+                .iter()
                 .map(|(v, rs)| format!("{} ({})", v, rs.len()))
                 .collect();
 
             // Find the minority variant — that's the interesting one
-            let mut variants_sorted: Vec<(&String, &Vec<&RuleResult>)> = by_variant.iter().collect();
+            let mut variants_sorted: Vec<(&String, &Vec<&RuleResult>)> =
+                by_variant.iter().collect();
             variants_sorted.sort_by_key(|(_, rs)| rs.len());
 
-            for (variant, variant_rules) in &variants_sorted[..std::cmp::min(2, variants_sorted.len())] {
-                if variant_rules.len() <= variants_sorted.last().map(|(_, rs)| rs.len()).unwrap_or(0) / 2 {
+            for (variant, variant_rules) in
+                &variants_sorted[..std::cmp::min(2, variants_sorted.len())]
+            {
+                if variant_rules.len()
+                    <= variants_sorted.last().map(|(_, rs)| rs.len()).unwrap_or(0) / 2
+                {
                     // This variant is a minority — it's the exception in this domain
-                    let rule_names: Vec<String> = variant_rules.iter().map(|r| r.name.clone()).collect();
+                    let rule_names: Vec<String> =
+                        variant_rules.iter().map(|r| r.name.clone()).collect();
                     let severity = std::cmp::min(85, 55 + (rules.len() as u8 * 3));
                     findings.push(Finding {
                         kind: FindingKind::Asymmetry,
@@ -2044,15 +2439,32 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     // ── 3b: BOOL DOMAIN — symmetric pairs (name-based, works well) ──
     // Extract entity prefix from a rule name
     let entity_prefixes = [
-        "congress", "house", "senate", "president", "vp", "states",
-        "judiciary", "federal", "executive", "legislative", "judicial",
-        "supreme_court", "treaty", "amendment", "impeach",
+        "congress",
+        "house",
+        "senate",
+        "president",
+        "vp",
+        "states",
+        "judiciary",
+        "federal",
+        "executive",
+        "legislative",
+        "judicial",
+        "supreme_court",
+        "treaty",
+        "amendment",
+        "impeach",
     ];
     let extract_prefix = |name: &str| -> Option<(String, String)> {
         for prefix in &entity_prefixes {
             if name.starts_with(prefix) {
-                let suffix = name.strip_prefix(prefix).unwrap_or("").trim_start_matches('_');
-                if !suffix.is_empty() { return Some((prefix.to_string(), suffix.to_string())); }
+                let suffix = name
+                    .strip_prefix(prefix)
+                    .unwrap_or("")
+                    .trim_start_matches('_');
+                if !suffix.is_empty() {
+                    return Some((prefix.to_string(), suffix.to_string()));
+                }
             }
         }
         if let Some(pos) = name.find('_') {
@@ -2070,37 +2482,59 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     for r in &results {
         if let Some((prefix, suffix)) = extract_prefix(&r.name) {
             entity_groups.entry(prefix.clone()).or_default().push(r);
-            suffix_groups.entry(suffix.clone()).or_default().push((prefix, r));
+            suffix_groups
+                .entry(suffix.clone())
+                .or_default()
+                .push((prefix, r));
         }
     }
 
     for (suffix, group) in &suffix_groups {
-        if group.len() < 2 { continue; }
+        if group.len() < 2 {
+            continue;
+        }
         for i in 0..group.len() {
-            for j in (i+1)..group.len() {
+            for j in (i + 1)..group.len() {
                 let (ref ent_a, rule_a) = group[i];
                 let (ref ent_b, rule_b) = group[j];
-                if !rule_a.is_bool || !rule_b.is_bool { continue; }
+                if !rule_a.is_bool || !rule_b.is_bool {
+                    continue;
+                }
                 if rule_a.is_true != rule_b.is_true {
-                    let severity = if suffix.contains("pardon") || suffix.contains("impeach")
-                        || suffix.contains("veto") || suffix.contains("war") { 85 } else { 60 };
+                    let severity = if suffix.contains("pardon")
+                        || suffix.contains("impeach")
+                        || suffix.contains("veto")
+                        || suffix.contains("war")
+                    {
+                        85
+                    } else {
+                        60
+                    };
                     findings.push(Finding {
-                        kind: FindingKind::Asymmetry, severity,
+                        kind: FindingKind::Asymmetry,
+                        severity,
                         title: format!("{} vs {} on '{}'", ent_a, ent_b, suffix),
                         rules_involved: vec![rule_a.name.clone(), rule_b.name.clone()],
                         explanation: format!(
                             "{}() = {} but {}() = {}.\n     {} has this while {} does not.",
-                            rule_a.name, rule_a.value_str, rule_b.name, rule_b.value_str,
+                            rule_a.name,
+                            rule_a.value_str,
+                            rule_b.name,
+                            rule_b.value_str,
                             if rule_a.is_true { ent_a } else { ent_b },
-                            if rule_a.is_true { ent_b } else { ent_a }),
+                            if rule_a.is_true { ent_b } else { ent_a }
+                        ),
                     });
                 } else {
                     findings.push(Finding {
-                        kind: FindingKind::Consistent, severity: 10,
+                        kind: FindingKind::Consistent,
+                        severity: 10,
                         title: format!("{} and {} agree on '{}'", ent_a, ent_b, suffix),
                         rules_involved: vec![rule_a.name.clone(), rule_b.name.clone()],
-                        explanation: format!("{}() = {} and {}() = {}",
-                            rule_a.name, rule_a.value_str, rule_b.name, rule_b.value_str),
+                        explanation: format!(
+                            "{}() = {} and {}() = {}",
+                            rule_a.name, rule_a.value_str, rule_b.name, rule_b.value_str
+                        ),
                     });
                 }
             }
@@ -2110,7 +2544,9 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     // ── 3c: PARADOX DETECTION — can/cannot contradictions ──
     let mut bool_rules: BTreeMap<String, bool> = BTreeMap::new();
     for r in &results {
-        if r.is_bool && r.param_count == 0 { bool_rules.insert(r.name.clone(), r.is_true); }
+        if r.is_bool && r.param_count == 0 {
+            bool_rules.insert(r.name.clone(), r.is_true);
+        }
     }
     for (name, val) in &bool_rules {
         if name.contains("_can_") {
@@ -2118,12 +2554,19 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             if let Some(neg_val) = bool_rules.get(&negated) {
                 if val == neg_val {
                     findings.push(Finding {
-                        kind: FindingKind::Paradox, severity: 95,
-                        title: format!("{} and {} both {}", name, negated, if *val { "True" } else { "False" }),
+                        kind: FindingKind::Paradox,
+                        severity: 95,
+                        title: format!(
+                            "{} and {} both {}",
+                            name,
+                            negated,
+                            if *val { "True" } else { "False" }
+                        ),
                         rules_involved: vec![name.clone(), negated.clone()],
                         explanation: format!(
                             "{}() = {} and {}() = {} -- a direct logical contradiction.",
-                            name, val, negated, neg_val),
+                            name, val, negated, neg_val
+                        ),
                     });
                 }
             }
@@ -2134,11 +2577,16 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     // If a rule has multiple layers (exception overrides default), the override
     // IS the tension — made explicit. Show what the default would have been.
     for r in &results {
-        if r.param_count > 0 { continue; }
-        if !r.resolution.starts_with("exception") { continue; }
+        if r.param_count > 0 {
+            continue;
+        }
+        if !r.resolution.starts_with("exception") {
+            continue;
+        }
 
         // Find what the default/clause layer says (evaluate without exceptions)
-        let matching: Vec<Rule> = rules_snapshot.iter()
+        let matching: Vec<Rule> = rules_snapshot
+            .iter()
             .filter(|(n, _)| n == &r.name)
             .map(|(_, rule)| rule.clone())
             .collect();
@@ -2148,11 +2596,17 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             let mut dv: Option<Value> = None;
             for rule in &matching {
                 match rule {
-                    Rule::Default { value, condition: None, .. } => {
+                    Rule::Default {
+                        value,
+                        condition: None,
+                        ..
+                    } => {
                         dv = Some(interp.eval(value, &env));
                         break;
                     }
-                    Rule::Clause { body: Some(body), .. } => {
+                    Rule::Clause {
+                        body: Some(body), ..
+                    } => {
                         dv = Some(interp.eval(body, &env));
                         break;
                     }
@@ -2171,15 +2625,16 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             if dval_str != r.value_str {
                 let severity = 78;
                 findings.push(Finding {
-                    kind: FindingKind::Tension, severity,
+                    kind: FindingKind::Tension,
+                    severity,
                     title: format!("Override: {} (exception changes outcome)", r.name),
                     rules_involved: vec![r.name.clone()],
                     explanation: format!(
                         "The default rule says {}() -> {} but an exception overrides it to {}.\n\
                          The exception exists because the general rule fails in a specific case.\n\
                          Resolution: {} ({})",
-                        r.name, dval_str, r.value_str,
-                        r.value_str, r.resolution),
+                        r.name, dval_str, r.value_str, r.value_str, r.resolution
+                    ),
                 });
             }
         }
@@ -2204,7 +2659,9 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         if let Stmt::Bind(Pat::Var(name), _, expr) = stmt {
             let mut refs = BTreeSet::new();
             collect_rule_refs(expr, &mut refs);
-            if !refs.is_empty() { binding_refs.insert(name.clone(), refs); }
+            if !refs.is_empty() {
+                binding_refs.insert(name.clone(), refs);
+            }
         }
     }
     // Transitive closure: if a covered name is a binding, also cover the rules it references
@@ -2215,45 +2672,70 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         for name in &snapshot {
             if let Some(refs) = binding_refs.get(name) {
                 for r in refs {
-                    if covered_rules.insert(r.clone()) { changed = true; }
+                    if covered_rules.insert(r.clone()) {
+                        changed = true;
+                    }
                 }
             }
         }
     }
 
     // Find uncovered zero-arg Bool rules that could be tested
-    let uncovered: Vec<&RuleResult> = results.iter()
+    let uncovered: Vec<&RuleResult> = results
+        .iter()
         .filter(|r| r.param_count == 0 && r.is_bool && !covered_rules.contains(&r.name))
         .collect();
 
     if !uncovered.is_empty() && invariant_count > 0 {
         // Only report uncovered rules if the file HAS invariants (otherwise everything is uncovered)
-        let total_bool = results.iter().filter(|r| r.param_count == 0 && r.is_bool).count();
+        let total_bool = results
+            .iter()
+            .filter(|r| r.param_count == 0 && r.is_bool)
+            .count();
         let global_coverage_pct = if total_bool > 0 {
             ((total_bool - uncovered.len()) * 100) / total_bool
-        } else { 100 };
+        } else {
+            100
+        };
 
         // Group uncovered rules by entity for cleaner output
         let mut uncovered_by_entity: BTreeMap<String, Vec<&RuleResult>> = BTreeMap::new();
         for r in &uncovered {
-            let entity = extract_prefix(&r.name).map(|(p, _)| p).unwrap_or_else(|| "other".into());
+            let entity = extract_prefix(&r.name)
+                .map(|(p, _)| p)
+                .unwrap_or_else(|| "other".into());
             uncovered_by_entity.entry(entity).or_default().push(r);
         }
 
         for (entity, rules) in &uncovered_by_entity {
-            if rules.len() < 2 { continue; } // single uncovered rules aren't interesting
-            let rule_list: Vec<String> = rules.iter()
+            if rules.len() < 2 {
+                continue;
+            } // single uncovered rules aren't interesting
+            let rule_list: Vec<String> = rules
+                .iter()
                 .map(|r| format!("{}() -> {}", r.name, r.value_str))
                 .collect();
             findings.push(Finding {
                 kind: FindingKind::Gap,
                 severity: 45,
-                title: format!("Uncovered: {} has {} untested rules ({}% global coverage)", entity, rules.len(), global_coverage_pct),
+                title: format!(
+                    "Uncovered: {} has {} untested rules ({}% global coverage)",
+                    entity,
+                    rules.len(),
+                    global_coverage_pct
+                ),
                 rules_involved: rules.iter().map(|r| r.name.clone()).collect(),
                 explanation: format!(
                     "{} invariants exist but {} '{}' rules have no ? proof:\n{}",
-                    invariant_count, rules.len(), entity,
-                    rule_list.iter().map(|s| format!("       | {}", s)).collect::<Vec<_>>().join("\n")),
+                    invariant_count,
+                    rules.len(),
+                    entity,
+                    rule_list
+                        .iter()
+                        .map(|s| format!("       | {}", s))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                ),
             });
         }
     }
@@ -2261,13 +2743,19 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     // ── 3f: BOOL POWER/ENFORCEMENT — structural ──
     // True `_can_` rules without any corresponding False restriction in same entity
     for r in &results {
-        if !r.is_bool || !r.is_true || r.param_count > 0 { continue; }
-        if !r.name.contains("_can_") { continue; }
+        if !r.is_bool || !r.is_true || r.param_count > 0 {
+            continue;
+        }
+        if !r.name.contains("_can_") {
+            continue;
+        }
 
         let r_prefix = extract_prefix(&r.name).map(|(p, _)| p);
         // Does the same entity have ANY False rule with _can_?
         let has_restriction = results.iter().any(|other| {
-            if other.name == r.name || !other.is_bool || other.is_true || other.param_count > 0 { return false; }
+            if other.name == r.name || !other.is_bool || other.is_true || other.param_count > 0 {
+                return false;
+            }
             let o_prefix = extract_prefix(&other.name).map(|(p, _)| p);
             r_prefix == o_prefix && other.name.contains("_can_")
         });
@@ -2276,23 +2764,31 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             // This entity has powers but no restrictions at all
             let entity = r_prefix.clone().unwrap_or_default();
             // Check how many True _can_ rules this entity has
-            let power_count = results.iter().filter(|o| {
-                o.is_bool && o.is_true && o.param_count == 0 && o.name.contains("_can_")
-                    && extract_prefix(&o.name).map(|(p, _)| p) == r_prefix
-            }).count();
+            let power_count = results
+                .iter()
+                .filter(|o| {
+                    o.is_bool
+                        && o.is_true
+                        && o.param_count == 0
+                        && o.name.contains("_can_")
+                        && extract_prefix(&o.name).map(|(p, _)| p) == r_prefix
+                })
+                .count();
 
             if power_count >= 3 {
                 // Only report if entity has several unrestricted powers (pattern, not noise)
                 let severity = std::cmp::min(80, 50 + power_count as u8 * 4);
                 findings.push(Finding {
-                    kind: FindingKind::Gap, severity,
+                    kind: FindingKind::Gap,
+                    severity,
                     title: format!("{}: {} powers granted, 0 restrictions", entity, power_count),
                     rules_involved: vec![r.name.clone()],
                     explanation: format!(
                         "The {} entity has {} rules granting powers (can_X = True) but no \
                          rules restricting powers (can_Y = False). Every grant without a \
                          corresponding limit is a potential gap.",
-                        entity, power_count),
+                        entity, power_count
+                    ),
                 });
                 // Only report once per entity — skip subsequent rules for same entity
                 continue;
@@ -2314,15 +2810,42 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         seen_pairs.insert(key)
     });
 
-    let paradox_count = findings.iter().filter(|f| matches!(f.kind, FindingKind::Paradox)).count();
-    let asymmetry_count = findings.iter().filter(|f| matches!(f.kind, FindingKind::Asymmetry)).count();
-    let gap_count = findings.iter().filter(|f| matches!(f.kind, FindingKind::Gap)).count();
-    let tension_count = findings.iter().filter(|f| matches!(f.kind, FindingKind::Tension)).count();
-    let consistent_count = findings.iter().filter(|f| matches!(f.kind, FindingKind::Consistent)).count();
+    let paradox_count = findings
+        .iter()
+        .filter(|f| matches!(f.kind, FindingKind::Paradox))
+        .count();
+    let asymmetry_count = findings
+        .iter()
+        .filter(|f| matches!(f.kind, FindingKind::Asymmetry))
+        .count();
+    let gap_count = findings
+        .iter()
+        .filter(|f| matches!(f.kind, FindingKind::Gap))
+        .count();
+    let tension_count = findings
+        .iter()
+        .filter(|f| matches!(f.kind, FindingKind::Tension))
+        .count();
+    let consistent_count = findings
+        .iter()
+        .filter(|f| matches!(f.kind, FindingKind::Consistent))
+        .count();
 
     // Type domain summary
-    let adt_domains: Vec<(&String, &Vec<&RuleResult>)> = type_domains.iter()
-        .filter(|(d, _)| !["Bool", "Int", "Float", "String", "List", "Other", "Parameterized"].contains(&d.as_str()))
+    let adt_domains: Vec<(&String, &Vec<&RuleResult>)> = type_domains
+        .iter()
+        .filter(|(d, _)| {
+            ![
+                "Bool",
+                "Int",
+                "Float",
+                "String",
+                "List",
+                "Other",
+                "Parameterized",
+            ]
+            .contains(&d.as_str())
+        })
         .collect();
 
     // Header
@@ -2332,38 +2855,80 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     println!("\x1b[1;36m======================================================\x1b[0m");
     println!();
     println!("  Source: {}", filename);
-    println!("  Rules: {} total ({} zero-arg, {} parameterized)",
+    println!(
+        "  Rules: {} total ({} zero-arg, {} parameterized)",
         results.len(),
         results.iter().filter(|r| r.param_count == 0).count(),
-        results.iter().filter(|r| r.param_count > 0).count());
+        results.iter().filter(|r| r.param_count > 0).count()
+    );
     if !adt_domains.is_empty() {
-        println!("  Type domains: Bool ({}), {}",
+        println!(
+            "  Type domains: Bool ({}), {}",
             type_domains.get("Bool").map(|v| v.len()).unwrap_or(0),
-            adt_domains.iter().map(|(d, rs)| format!("{} ({})", d, rs.len())).collect::<Vec<_>>().join(", "));
+            adt_domains
+                .iter()
+                .map(|(d, rs)| format!("{} ({})", d, rs.len()))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
     }
-    let covered_bool_count = results.iter()
+    let covered_bool_count = results
+        .iter()
         .filter(|r| r.param_count == 0 && r.is_bool && covered_rules.contains(&r.name))
         .count();
-    let total_bool_count = results.iter().filter(|r| r.param_count == 0 && r.is_bool).count();
-    let header_pct = if total_bool_count > 0 { (covered_bool_count * 100) / total_bool_count } else { 100 };
-    println!("  Invariants: {}, covering {} Bool rules ({}%)",
-        invariant_count, covered_bool_count, header_pct);
-    println!("  Findings: {} paradox, {} tension, {} asymmetry, {} gap, {} consistent",
-        paradox_count, tension_count, asymmetry_count, gap_count, consistent_count);
+    let total_bool_count = results
+        .iter()
+        .filter(|r| r.param_count == 0 && r.is_bool)
+        .count();
+    let header_pct = if total_bool_count > 0 {
+        (covered_bool_count * 100) / total_bool_count
+    } else {
+        100
+    };
+    println!(
+        "  Invariants: {}, covering {} Bool rules ({}%)",
+        invariant_count, covered_bool_count, header_pct
+    );
+    println!(
+        "  Findings: {} paradox, {} tension, {} asymmetry, {} gap, {} consistent",
+        paradox_count, tension_count, asymmetry_count, gap_count, consistent_count
+    );
     println!();
 
     // Output
     let kind_order: Vec<(&str, fn(&FindingKind) -> bool, &str)> = vec![
-        ("PARADOXES", (|k: &FindingKind| matches!(k, FindingKind::Paradox)) as fn(&FindingKind) -> bool, "\x1b[1;31m"),
-        ("TENSIONS", (|k: &FindingKind| matches!(k, FindingKind::Tension)) as fn(&FindingKind) -> bool, "\x1b[1;33m"),
-        ("ASYMMETRIES", (|k: &FindingKind| matches!(k, FindingKind::Asymmetry)) as fn(&FindingKind) -> bool, "\x1b[1;35m"),
-        ("GAPS", (|k: &FindingKind| matches!(k, FindingKind::Gap)) as fn(&FindingKind) -> bool, "\x1b[1;34m"),
-        ("CONSISTENT", (|k: &FindingKind| matches!(k, FindingKind::Consistent)) as fn(&FindingKind) -> bool, "\x1b[2m"),
+        (
+            "PARADOXES",
+            (|k: &FindingKind| matches!(k, FindingKind::Paradox)) as fn(&FindingKind) -> bool,
+            "\x1b[1;31m",
+        ),
+        (
+            "TENSIONS",
+            (|k: &FindingKind| matches!(k, FindingKind::Tension)) as fn(&FindingKind) -> bool,
+            "\x1b[1;33m",
+        ),
+        (
+            "ASYMMETRIES",
+            (|k: &FindingKind| matches!(k, FindingKind::Asymmetry)) as fn(&FindingKind) -> bool,
+            "\x1b[1;35m",
+        ),
+        (
+            "GAPS",
+            (|k: &FindingKind| matches!(k, FindingKind::Gap)) as fn(&FindingKind) -> bool,
+            "\x1b[1;34m",
+        ),
+        (
+            "CONSISTENT",
+            (|k: &FindingKind| matches!(k, FindingKind::Consistent)) as fn(&FindingKind) -> bool,
+            "\x1b[2m",
+        ),
     ];
 
     for (label, filter, color) in &kind_order {
         let group: Vec<&Finding> = findings.iter().filter(|f| filter(&f.kind)).collect();
-        if group.is_empty() { continue; }
+        if group.is_empty() {
+            continue;
+        }
         println!("{}-- {} ({}) --\x1b[0m", color, label, group.len());
         println!();
         for (i, f) in group.iter().enumerate() {
@@ -2379,23 +2944,37 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                 if let Some(r) = results.iter().find(|r| &r.name == rule_name) {
                     if r.param_count == 0 {
                         let val_color = if r.is_bool {
-                            if r.is_true { "\x1b[1;32m" } else { "\x1b[1;31m" }
-                        } else { "\x1b[1;33m" };
+                            if r.is_true {
+                                "\x1b[1;32m"
+                            } else {
+                                "\x1b[1;31m"
+                            }
+                        } else {
+                            "\x1b[1;33m"
+                        };
                         println!("     | {}() -> {}{}\x1b[0m", r.name, val_color, r.value_str);
                     }
                 }
             }
             println!("     {}", f.explanation);
-            if i < group.len() - 1 { println!(); }
+            if i < group.len() - 1 {
+                println!();
+            }
         }
         println!();
     }
 
     let interesting = paradox_count + asymmetry_count + gap_count + tension_count;
     if interesting > 0 {
-        println!("\x1b[1m{} findings\x1b[0m from {} rules across {} type domains.",
-            interesting, results.iter().filter(|r| r.param_count == 0).count(), type_domains.len());
-        println!("Analysis: type-graph (value domains + resolution chains), not string heuristics.");
+        println!(
+            "\x1b[1m{} findings\x1b[0m from {} rules across {} type domains.",
+            interesting,
+            results.iter().filter(|r| r.param_count == 0).count(),
+            type_domains.len()
+        );
+        println!(
+            "Analysis: type-graph (value domains + resolution chains), not string heuristics."
+        );
     } else {
         println!("No gaps or tensions discovered.");
     }
@@ -2405,22 +2984,35 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 /// Collect rule name references from an expression (for invariant coverage analysis)
 fn collect_rule_refs(expr: &Expr, refs: &mut BTreeSet<String>) {
     match &expr.kind {
-        ExprKind::Var(name) => { refs.insert(name.clone()); }
+        ExprKind::Var(name) => {
+            refs.insert(name.clone());
+        }
         ExprKind::App(f, args) => {
             collect_rule_refs(f, refs);
-            for a in args { collect_rule_refs(a, refs); }
+            for a in args {
+                collect_rule_refs(a, refs);
+            }
         }
-        ExprKind::BinOp(_, l, r) => { collect_rule_refs(l, refs); collect_rule_refs(r, refs); }
-        ExprKind::UnOp(_, e) => { collect_rule_refs(e, refs); }
+        ExprKind::BinOp(_, l, r) => {
+            collect_rule_refs(l, refs);
+            collect_rule_refs(r, refs);
+        }
+        ExprKind::UnOp(_, e) => {
+            collect_rule_refs(e, refs);
+        }
         ExprKind::If(c, t, e) => {
             collect_rule_refs(c, refs);
             collect_rule_refs(t, refs);
             collect_rule_refs(e, refs);
         }
-        ExprKind::Field(e, _) => { collect_rule_refs(e, refs); }
+        ExprKind::Field(e, _) => {
+            collect_rule_refs(e, refs);
+        }
         ExprKind::Block(stmts) => {
             for s in stmts {
-                if let Stmt::Expr(e) = s { collect_rule_refs(e, refs); }
+                if let Stmt::Expr(e) = s {
+                    collect_rule_refs(e, refs);
+                }
             }
         }
         _ => {}
@@ -2441,7 +3033,8 @@ fn verify_with_z3(source: &str, filename: &str) {
     };
 
     // Also resolve @ use imports for cross-file verification
-    let source_dir = std::path::Path::new(filename).parent()
+    let source_dir = std::path::Path::new(filename)
+        .parent()
         .map(|p| p.to_string_lossy().to_string());
     let mut all_stmts: Vec<Stmt> = Vec::new();
     let mut imported: BTreeSet<String> = BTreeSet::new();
@@ -2491,14 +3084,24 @@ fn verify_with_z3(source: &str, filename: &str) {
                     ctor_to_type.insert(v.name.clone(), name.clone());
                 }
             }
-            Stmt::Invariant { name, subject, predicate } => {
+            Stmt::Invariant {
+                name,
+                subject,
+                predicate,
+            } => {
                 invariants.push((name.clone(), subject.clone(), predicate.clone()));
             }
             Stmt::Bind(Pat::Var(name), ty, expr) => {
                 bindings.insert(name.clone(), expr.clone());
                 binding_types.insert(name.clone(), ty.clone());
             }
-            Stmt::Defn(Defn::Fn { name, params, ret_ty, body, .. }) => {
+            Stmt::Defn(Defn::Fn {
+                name,
+                params,
+                ret_ty,
+                body,
+                ..
+            }) => {
                 functions.push((name.clone(), params.clone(), ret_ty.clone(), body.clone()));
             }
             _ => {}
@@ -2510,7 +3113,12 @@ fn verify_with_z3(source: &str, filename: &str) {
         return;
     }
 
-    println!("runa --verify: {} invariant(s), {} ADT(s) from {}", invariants.len(), adts.len(), filename);
+    println!(
+        "runa --verify: {} invariant(s), {} ADT(s) from {}",
+        invariants.len(),
+        adts.len(),
+        filename
+    );
     println!();
 
     // For each invariant, generate SMT-LIB2 and run Z3
@@ -2527,7 +3135,9 @@ fn verify_with_z3(source: &str, filename: &str) {
             smt.push_str(&emit_z3_datatype(adt_name, variants));
             smt.push_str("\n");
         }
-        if !adts.is_empty() { smt.push('\n'); }
+        if !adts.is_empty() {
+            smt.push('\n');
+        }
 
         // Declare free variables from the predicate
         let mut free_vars = BTreeSet::new();
@@ -2544,13 +3154,20 @@ fn verify_with_z3(source: &str, filename: &str) {
         let mut resolved = BTreeSet::new();
         let mut worklist: Vec<String> = free_vars.iter().cloned().collect();
         while let Some(var) = worklist.pop() {
-            if resolved.contains(&var) { continue; }
+            if resolved.contains(&var) {
+                continue;
+            }
             resolved.insert(var.clone());
             if let Some(bound_expr) = bindings.get(&var) {
                 let mut sub_vars = BTreeSet::new();
                 collect_free_vars(bound_expr, &mut sub_vars);
-                let sub_vars: BTreeSet<String> = sub_vars.difference(&fn_names).cloned()
-                    .collect::<BTreeSet<_>>().difference(&ctor_names).cloned().collect();
+                let sub_vars: BTreeSet<String> = sub_vars
+                    .difference(&fn_names)
+                    .cloned()
+                    .collect::<BTreeSet<_>>()
+                    .difference(&ctor_names)
+                    .cloned()
+                    .collect();
                 for sv in sub_vars {
                     if !resolved.contains(&sv) {
                         worklist.push(sv);
@@ -2575,9 +3192,17 @@ fn verify_with_z3(source: &str, filename: &str) {
                     if let Some(bound_expr) = bindings.get(var) {
                         let mut deps = BTreeSet::new();
                         collect_free_vars(bound_expr, &mut deps);
-                        let deps: BTreeSet<String> = deps.difference(&fn_names).cloned()
-                            .collect::<BTreeSet<_>>().difference(&ctor_names).cloned().collect();
-                        if deps.iter().all(|d| emitted.contains(d) || !bindings.contains_key(d)) {
+                        let deps: BTreeSet<String> = deps
+                            .difference(&fn_names)
+                            .cloned()
+                            .collect::<BTreeSet<_>>()
+                            .difference(&ctor_names)
+                            .cloned()
+                            .collect();
+                        if deps
+                            .iter()
+                            .all(|d| emitted.contains(d) || !bindings.contains_key(d))
+                        {
                             ordered.push(var.clone());
                             emitted.insert(var.clone());
                         } else {
@@ -2590,7 +3215,9 @@ fn verify_with_z3(source: &str, filename: &str) {
                 }
                 remaining = next_remaining;
             }
-            for var in remaining { ordered.push(var); }
+            for var in remaining {
+                ordered.push(var);
+            }
             ordered
         };
 
@@ -2599,24 +3226,33 @@ fn verify_with_z3(source: &str, filename: &str) {
             let used = smt_expr_uses_fn(pred_expr, fname)
                 || smt_expr_uses_fn(subject_expr, fname)
                 || ordered_vars.iter().any(|v| {
-                    bindings.get(v).map_or(false, |e| smt_expr_uses_fn(e, fname))
+                    bindings
+                        .get(v)
+                        .map_or(false, |e| smt_expr_uses_fn(e, fname))
                 });
             if used {
-                let param_decls: Vec<String> = params.iter()
+                let param_decls: Vec<String> = params
+                    .iter()
                     .map(|p| {
                         let sort = match &p.ty {
                             Some(ty) => ty_to_smt_sort(ty),
                             None => "Int".into(),
                         };
                         format!("({} {})", p.name, sort)
-                    }).collect();
+                    })
+                    .collect();
                 let ret_sort = match ret_ty {
                     Some(ty) => ty_to_smt_sort(ty),
                     None => "Bool".into(), // default for predicates
                 };
                 let body_smt = expr_to_smt(body);
-                smt.push_str(&format!("(define-fun {} ({}) {} {})\n",
-                    fname, param_decls.join(" "), ret_sort, body_smt));
+                smt.push_str(&format!(
+                    "(define-fun {} ({}) {} {})\n",
+                    fname,
+                    param_decls.join(" "),
+                    ret_sort,
+                    body_smt
+                ));
             }
         }
 
@@ -2640,7 +3276,10 @@ fn verify_with_z3(source: &str, filename: &str) {
         // The proof strategy: try to find a counterexample.
         // Assert NOT(predicate) — if UNSAT, the invariant holds for all values.
         let pred_smt = expr_to_smt(pred_expr);
-        smt.push_str(&format!("\n; Try to find counterexample to: {}\n", inv_name));
+        smt.push_str(&format!(
+            "\n; Try to find counterexample to: {}\n",
+            inv_name
+        ));
         smt.push_str(&format!("(assert (not {}))\n", pred_smt));
         smt.push_str("(check-sat)\n");
         smt.push_str("(get-model)\n"); // only meaningful if sat
@@ -2709,15 +3348,22 @@ fn smt_expr_uses_fn(expr: &Expr, fname: &str) -> bool {
         ExprKind::App(func, args) => {
             smt_expr_uses_fn(func, fname) || args.iter().any(|a| smt_expr_uses_fn(a, fname))
         }
-        ExprKind::BinOp(_, lhs, rhs) => smt_expr_uses_fn(lhs, fname) || smt_expr_uses_fn(rhs, fname),
+        ExprKind::BinOp(_, lhs, rhs) => {
+            smt_expr_uses_fn(lhs, fname) || smt_expr_uses_fn(rhs, fname)
+        }
         ExprKind::UnOp(_, inner) => smt_expr_uses_fn(inner, fname),
-        ExprKind::If(c, t, e) => smt_expr_uses_fn(c, fname) || smt_expr_uses_fn(t, fname) || smt_expr_uses_fn(e, fname),
+        ExprKind::If(c, t, e) => {
+            smt_expr_uses_fn(c, fname) || smt_expr_uses_fn(t, fname) || smt_expr_uses_fn(e, fname)
+        }
         ExprKind::Field(obj, _) => smt_expr_uses_fn(obj, fname),
         ExprKind::Match(scrut, arms) => {
-            smt_expr_uses_fn(scrut, fname) || arms.iter().any(|a| {
-                smt_expr_uses_fn(&a.body, fname)
-                    || a.guard.as_ref().map_or(false, |g| smt_expr_uses_fn(g, fname))
-            })
+            smt_expr_uses_fn(scrut, fname)
+                || arms.iter().any(|a| {
+                    smt_expr_uses_fn(&a.body, fname)
+                        || a.guard
+                            .as_ref()
+                            .map_or(false, |g| smt_expr_uses_fn(g, fname))
+                })
         }
         ExprKind::Block(stmts) => stmts.iter().any(|s| match s {
             Stmt::Bind(_, _, e) | Stmt::Expr(e) => smt_expr_uses_fn(e, fname),
@@ -2770,9 +3416,13 @@ fn update_registry(source: &str, filename: &str) {
     match parser.parse_program() {
         Ok(stmts) => {
             let registry = collect_registry(&stmts);
-            let registry_path = format!("{}.registry.json",
-                std::path::Path::new(filename).file_stem()
-                    .and_then(|s| s.to_str()).unwrap_or("unknown"));
+            let registry_path = format!(
+                "{}.registry.json",
+                std::path::Path::new(filename)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown")
+            );
             // Read existing registry if present, merge
             let mut existing: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
             if let Ok(data) = std::fs::read_to_string(&registry_path) {
@@ -2788,18 +3438,26 @@ fn update_registry(source: &str, filename: &str) {
                 json.push_str(&format!("  \"{}\": {{\n", module));
                 for (eidx, (name, hash)) in entries.iter().enumerate() {
                     json.push_str(&format!("    \"{}\": \"#{}\"", name, hash));
-                    if eidx < entries.len() - 1 { json.push(','); }
+                    if eidx < entries.len() - 1 {
+                        json.push(',');
+                    }
                     json.push('\n');
                 }
                 json.push_str("  }");
-                if idx < existing.len() - 1 { json.push(','); }
+                if idx < existing.len() - 1 {
+                    json.push(',');
+                }
                 json.push('\n');
             }
             json.push_str("}\n");
             std::fs::write(&registry_path, &json).unwrap_or_else(|e| {
                 eprintln!("Error writing registry: {}", e);
             });
-            println!("runa --registry: {} ({} definitions)", registry_path, registry.len());
+            println!(
+                "runa --registry: {} ({} definitions)",
+                registry_path,
+                registry.len()
+            );
             for (name, hash) in &registry {
                 println!("  {} → #{}", name, hash);
             }
@@ -2815,9 +3473,11 @@ fn update_registry(source: &str, filename: &str) {
 fn parse_simple_json_registry(data: &str) -> Option<BTreeMap<String, BTreeMap<String, String>>> {
     // Minimal JSON parse: { "key": { "name": "hash", ... }, ... }
     let trimmed = data.trim();
-    if !trimmed.starts_with('{') || !trimmed.ends_with('}') { return None; }
+    if !trimmed.starts_with('{') || !trimmed.ends_with('}') {
+        return None;
+    }
     let mut result = BTreeMap::new();
-    let inner = &trimmed[1..trimmed.len()-1];
+    let inner = &trimmed[1..trimmed.len() - 1];
     // Split by top-level entries (simplistic, works for our controlled output)
     let mut depth = 0;
     let mut current_key = String::new();
@@ -2828,25 +3488,42 @@ fn parse_simple_json_registry(data: &str) -> Option<BTreeMap<String, BTreeMap<St
     let mut i = 0;
     while i < chars.len() {
         let c = chars[i];
-        if escape { escape = false; i += 1; continue; }
-        if c == '\\' { escape = true; i += 1; continue; }
-        if c == '"' { in_string = !in_string; i += 1; continue; }
-        if in_string { i += 1; continue; }
+        if escape {
+            escape = false;
+            i += 1;
+            continue;
+        }
+        if c == '\\' {
+            escape = true;
+            i += 1;
+            continue;
+        }
+        if c == '"' {
+            in_string = !in_string;
+            i += 1;
+            continue;
+        }
+        if in_string {
+            i += 1;
+            continue;
+        }
         if c == '{' {
             depth += 1;
-            if depth == 1 { current_val_start = i; }
+            if depth == 1 {
+                current_val_start = i;
+            }
         } else if c == '}' {
             depth -= 1;
             if depth == 0 {
                 // Parse inner object
-                let inner_str = &inner[current_val_start+1..i];
+                let inner_str = &inner[current_val_start + 1..i];
                 let mut entries = BTreeMap::new();
                 // Parse "key": "value" pairs
                 for part in inner_str.split(',') {
                     let part = part.trim();
                     if let Some(colon) = part.find(':') {
                         let k = part[..colon].trim().trim_matches('"').to_string();
-                        let v = part[colon+1..].trim().trim_matches('"').to_string();
+                        let v = part[colon + 1..].trim().trim_matches('"').to_string();
                         if !k.is_empty() {
                             entries.insert(k, v);
                         }
@@ -2859,7 +3536,7 @@ fn parse_simple_json_registry(data: &str) -> Option<BTreeMap<String, BTreeMap<St
             let before: String = inner[..i].chars().collect();
             if let Some(start) = before.rfind('"') {
                 if let Some(end) = before[..start].rfind('"') {
-                    current_key = before[end+1..start].to_string();
+                    current_key = before[end + 1..start].to_string();
                 }
             }
         }
@@ -2885,8 +3562,14 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                 user_stmts
             };
             let stmt_count = stmts.len();
-            let fn_count = stmts.iter().filter(|s| matches!(s, Stmt::Defn(Defn::Fn { .. }))).count();
-            let type_count = stmts.iter().filter(|s| matches!(s, Stmt::TypeDecl(_))).count();
+            let fn_count = stmts
+                .iter()
+                .filter(|s| matches!(s, Stmt::Defn(Defn::Fn { .. })))
+                .count();
+            let type_count = stmts
+                .iter()
+                .filter(|s| matches!(s, Stmt::TypeDecl(_)))
+                .count();
 
             // Pre-codegen type checking (M16): catch errors before Rust codegen
             if run_type_check(&stmts, source, filename) {
@@ -2897,7 +3580,9 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg.source_dir = Some(parent.to_string_lossy().to_string());
             }
-            cg.source_name = std::path::Path::new(filename).file_stem().map(|s| s.to_string_lossy().to_string());
+            cg.source_name = std::path::Path::new(filename)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string());
             let code = cg.emit_program(&stmts);
 
             if cg.cargo_deps.is_empty() {
@@ -2909,8 +3594,16 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                 let rustc_bin = find_rust_tool("rustc");
                 let meta_out = cache_dir.join("__check_out");
                 let output = Command::new(&rustc_bin)
-                    .args(&[&*rs_path.to_string_lossy(), "--edition", "2021", "--crate-type", "bin",
-                            "--emit=metadata", "-o", &*meta_out.to_string_lossy()])
+                    .args(&[
+                        &*rs_path.to_string_lossy(),
+                        "--edition",
+                        "2021",
+                        "--crate-type",
+                        "bin",
+                        "--emit=metadata",
+                        "-o",
+                        &*meta_out.to_string_lossy(),
+                    ])
                     .output();
                 let elapsed = start.elapsed();
                 match output {
@@ -2940,21 +3633,30 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                 let main_rs = format!("{}/main.rs", src_dir);
                 std::fs::write(&main_rs, &code).ok();
                 // Generate Cargo.toml
-                let safe_stem: String = stem.chars()
-                    .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+                let safe_stem: String = stem
+                    .chars()
+                    .map(|c| {
+                        if c.is_alphanumeric() || c == '-' || c == '_' {
+                            c
+                        } else {
+                            '_'
+                        }
+                    })
                     .collect();
                 let mut cargo_toml = format!(
                     "[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n",
                     safe_stem
                 );
                 for (crate_name, version) in &cg.cargo_deps {
-                    let safe_name: String = crate_name.chars()
+                    let safe_name: String = crate_name
+                        .chars()
                         .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
                         .collect();
                     if version.starts_with('{') {
                         cargo_toml.push_str(&format!("{} = {}\n", safe_name, version));
                     } else {
-                        let safe_version: String = version.chars()
+                        let safe_version: String = version
+                            .chars()
                             .filter(|c| c.is_alphanumeric() || *c == '.' || *c == '-' || *c == '+')
                             .collect();
                         cargo_toml.push_str(&format!("{} = \"{}\"\n", safe_name, safe_version));
@@ -2993,12 +3695,23 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
 
 /// Emit Rust via the FIR pipeline (M29).
 /// Currently handles core expressions; falls back to old path for complex features.
-fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<String, Vec<bool>>,
-                copy_vars: &BTreeSet<String>, ref_match: &BTreeSet<String>) -> String {
+fn emit_via_fir(
+    stmts: &[Stmt],
+    types: &TypeRegistry,
+    borrow_params: &BTreeMap<String, Vec<bool>>,
+    copy_vars: &BTreeSet<String>,
+    ref_match: &BTreeSet<String>,
+) -> String {
     let mut out = String::new();
     for stmt in stmts {
         match stmt {
-            Stmt::Defn(Defn::Fn { name, params, ret_ty, body, .. }) => {
+            Stmt::Defn(Defn::Fn {
+                name,
+                params,
+                ret_ty,
+                body,
+                ..
+            }) => {
                 // Build type environment from function parameters
                 let mut type_env = BTreeMap::new();
                 for p in params {
@@ -3008,10 +3721,16 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
                 }
                 // Compute per-function ownership
                 let param_names: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
-                let ownership = OwnershipAnalysis::analyze(body, borrow_params, Some(name.as_str()), &param_names);
+                let ownership = OwnershipAnalysis::analyze(
+                    body,
+                    borrow_params,
+                    Some(name.as_str()),
+                    &param_names,
+                );
                 let mut ctx = LoweringCtx {
                     type_env,
-                    inference: None, fn_schemes: BTreeMap::new(),
+                    inference: None,
+                    fn_schemes: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -3020,35 +3739,53 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
                 let fir_body = ctx.lower_expr(body);
 
                 // Emit function signature
-                let param_strs: Vec<String> = params.iter().map(|p| {
-                    let ty_str = match &p.ty {
-                        Some(ty) => format!(": {}", emit_fir_ty_as_rust(ty)),
-                        None => String::new(),
-                    };
-                    format!("{}{}", sanitize_name(&p.name), ty_str)
-                }).collect();
+                let param_strs: Vec<String> = params
+                    .iter()
+                    .map(|p| {
+                        let ty_str = match &p.ty {
+                            Some(ty) => format!(": {}", emit_fir_ty_as_rust(ty)),
+                            None => String::new(),
+                        };
+                        format!("{}{}", sanitize_name(&p.name), ty_str)
+                    })
+                    .collect();
                 let ret_str = match ret_ty {
                     Some(ty) => format!(" -> {}", emit_fir_ty_as_rust(ty)),
                     None => String::new(),
                 };
-                out.push_str(&format!("fn {}({}){} {{\n", sanitize_name(name), param_strs.join(", "), ret_str));
+                out.push_str(&format!(
+                    "fn {}({}){} {{\n",
+                    sanitize_name(name),
+                    param_strs.join(", "),
+                    ret_str
+                ));
                 out.push_str(&format!("    {}\n", emit_fir_expr(&fir_body, types)));
                 out.push_str("}\n\n");
             }
             Stmt::Bind(Pat::Var(name), _, expr) => {
                 let ownership = OwnershipAnalysis::analyze_simple(expr);
-                let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
+                let mut ctx = LoweringCtx {
+                    type_env: BTreeMap::new(),
+                    inference: None,
+                    fn_schemes: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
                     ref_match_bindings: ref_match,
                 };
                 let fir_expr = ctx.lower_expr(expr);
-                out.push_str(&format!("let {} = {};\n", sanitize_name(name), emit_fir_expr(&fir_expr, types)));
+                out.push_str(&format!(
+                    "let {} = {};\n",
+                    sanitize_name(name),
+                    emit_fir_expr(&fir_expr, types)
+                ));
             }
             Stmt::Expr(expr) => {
                 let ownership = OwnershipAnalysis::analyze_simple(expr);
-                let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
+                let mut ctx = LoweringCtx {
+                    type_env: BTreeMap::new(),
+                    inference: None,
+                    fn_schemes: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -3059,7 +3796,10 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
             }
             Stmt::For(var, iter_expr, body) => {
                 let ownership = OwnershipAnalysis::analyze_simple(iter_expr);
-                let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
+                let mut ctx = LoweringCtx {
+                    type_env: BTreeMap::new(),
+                    inference: None,
+                    fn_schemes: BTreeMap::new(),
                     types,
                     ownership: &ownership,
                     copy_vars,
@@ -3067,12 +3807,23 @@ fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<S
                 };
                 let fir_iter = ctx.lower_expr(iter_expr);
                 let fir_body: Vec<FirStmt> = body.iter().map(|s| ctx.lower_stmt(s)).collect();
-                let body_strs: Vec<String> = fir_body.iter().map(|s| emit_fir_stmt(s, types)).collect();
-                out.push_str(&format!("for {} in {} {{ {} }}\n",
-                    sanitize_name(var), emit_fir_expr(&fir_iter, types), body_strs.join(" ")));
+                let body_strs: Vec<String> =
+                    fir_body.iter().map(|s| emit_fir_stmt(s, types)).collect();
+                out.push_str(&format!(
+                    "for {} in {} {{ {} }}\n",
+                    sanitize_name(var),
+                    emit_fir_expr(&fir_iter, types),
+                    body_strs.join(" ")
+                ));
             }
-            Stmt::TypeDecl(_) | Stmt::Rule(_) | Stmt::Import(_) | Stmt::QualifiedImport(..)
-            | Stmt::HashImport(..) | Stmt::Depend(..) | Stmt::RustBlock(_) | Stmt::Annot(..)
+            Stmt::TypeDecl(_)
+            | Stmt::Rule(_)
+            | Stmt::Import(_)
+            | Stmt::QualifiedImport(..)
+            | Stmt::HashImport(..)
+            | Stmt::Depend(..)
+            | Stmt::RustBlock(_)
+            | Stmt::Annot(..)
             | Stmt::Use(_) => {
                 // These are declarations/metadata — handled by TypeRegistry scan, not emitted here
             }
@@ -3108,7 +3859,11 @@ fn emit_fir_ty_as_rust(ty: &Ty) -> String {
                 _ => format!("{}<{}>", base_str, arg_strs.join(", ")),
             }
         }
-        Ty::Arrow(a, b) => format!("impl Fn({}) -> {}", emit_fir_ty_as_rust(a), emit_fir_ty_as_rust(b)),
+        Ty::Arrow(a, b) => format!(
+            "impl Fn({}) -> {}",
+            emit_fir_ty_as_rust(a),
+            emit_fir_ty_as_rust(b)
+        ),
         Ty::Unit => "()".to_string(),
         Ty::Optional(inner) => format!("Option<{}>", emit_fir_ty_as_rust(inner)),
         _ => "/* unknown type */".to_string(),
@@ -3140,24 +3895,40 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg.source_dir = Some(parent.to_string_lossy().to_string());
             }
-            cg.source_name = std::path::Path::new(filename).file_stem().map(|s| s.to_string_lossy().to_string());
+            cg.source_name = std::path::Path::new(filename)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string());
             let resolved_stmts = cg.scan_declarations(&stmts);
 
             // Emit FIR version
-            let code = emit_via_fir(&resolved_stmts, &cg.types, &cg.borrow_only_params, &cg.copy_vars, &cg.ref_match_bindings);
+            let code = emit_via_fir(
+                &resolved_stmts,
+                &cg.types,
+                &cg.borrow_only_params,
+                &cg.copy_vars,
+                &cg.ref_match_bindings,
+            );
 
             // Also run old path for comparison
             let mut cg2 = RustCodegen::new();
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg2.source_dir = Some(parent.to_string_lossy().to_string());
             }
-            cg2.source_name = std::path::Path::new(filename).file_stem().map(|s| s.to_string_lossy().to_string());
+            cg2.source_name = std::path::Path::new(filename)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string());
             let old_code = cg2.emit_program(&stmts);
             println!("// === FIR pipeline output ===");
             println!("{}", code);
-            println!("// === Old pipeline output ({} lines) ===", old_code.lines().count());
+            println!(
+                "// === Old pipeline output ({} lines) ===",
+                old_code.lines().count()
+            );
             println!("{}", old_code);
-            eprintln!("// runa emit --fir: {} — FIR and old output shown side by side", filename);
+            eprintln!(
+                "// runa emit --fir: {} — FIR and old output shown side by side",
+                filename
+            );
         }
         Err(e) => {
             display_error_in(source, &e, filename);
@@ -3182,10 +3953,16 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg.source_dir = Some(parent.to_string_lossy().to_string());
             }
-            cg.source_name = std::path::Path::new(filename).file_stem().map(|s| s.to_string_lossy().to_string());
+            cg.source_name = std::path::Path::new(filename)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string());
             let code = cg.emit_program(&stmts);
             println!("{}", code);
-            eprintln!("// runa --emit rust: {} → {} lines of Rust", filename, code.lines().count());
+            eprintln!(
+                "// runa --emit rust: {} → {} lines of Rust",
+                filename,
+                code.lines().count()
+            );
         }
         Err(e) => {
             display_error_in(source, &e, filename);
@@ -3210,10 +3987,16 @@ fn emit_rust_lib(source: &str, filename: &str, use_prelude: bool) {
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg.source_dir = Some(parent.to_string_lossy().to_string());
             }
-            cg.source_name = std::path::Path::new(filename).file_stem().map(|s| s.to_string_lossy().to_string());
+            cg.source_name = std::path::Path::new(filename)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string());
             let code = cg.emit_program(&stmts);
             println!("{}", code);
-            eprintln!("// runa --lib: {} → {} lines of Rust library", filename, code.lines().count());
+            eprintln!(
+                "// runa --lib: {} → {} lines of Rust library",
+                filename,
+                code.lines().count()
+            );
         }
         Err(e) => {
             display_error_in(source, &e, filename);
@@ -3292,20 +4075,34 @@ fn format_directory(dir: &str, check: bool) {
 
     if check {
         if changed > 0 {
-            eprintln!("\n{} of {} file{} need formatting.", changed, total,
-                if total == 1 { "" } else { "s" });
+            eprintln!(
+                "\n{} of {} file{} need formatting.",
+                changed,
+                total,
+                if total == 1 { "" } else { "s" }
+            );
             std::process::exit(1);
         } else {
-            eprintln!("All {} file{} correctly formatted.", total,
-                if total == 1 { " is" } else { "s are" });
+            eprintln!(
+                "All {} file{} correctly formatted.",
+                total,
+                if total == 1 { " is" } else { "s are" }
+            );
         }
     } else {
         if changed > 0 {
-            eprintln!("\nFormatted {} of {} file{}.", changed, total,
-                if total == 1 { "" } else { "s" });
+            eprintln!(
+                "\nFormatted {} of {} file{}.",
+                changed,
+                total,
+                if total == 1 { "" } else { "s" }
+            );
         } else {
-            eprintln!("All {} file{} already formatted.", total,
-                if total == 1 { "" } else { "s" });
+            eprintln!(
+                "All {} file{} already formatted.",
+                total,
+                if total == 1 { "" } else { "s" }
+            );
         }
     }
 }
@@ -3317,7 +4114,11 @@ fn collect_runa_files(dir: &str, out: &mut Vec<String>) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
         // Skip hidden dirs, build artifacts, and caches
         if name.starts_with('.') || name == "target" || name == "runa-cache" {
             continue;
@@ -3527,7 +4328,9 @@ fn format_runa_source(source: &str) -> String {
 /// binary operators (+, -, *, /, %, ==, !=, <=, >=, <, >, &&, ||, ->).
 fn fmt_normalize_line(line: &str) -> String {
     // Don't touch comment-only lines
-    if line.starts_with("--") { return line.to_string(); }
+    if line.starts_with("--") {
+        return line.to_string();
+    }
 
     // Split into code part and trailing comment
     let (code, comment) = fmt_split_comment(line);
@@ -3556,13 +4359,22 @@ fn fmt_split_comment(line: &str) -> (String, String) {
     let mut escape = false;
     for i in 0..chars.len() {
         let c = chars[i];
-        if escape { escape = false; continue; }
-        if in_string {
-            if c == '\\' { escape = true; }
-            else if c == '"' { in_string = false; }
+        if escape {
+            escape = false;
             continue;
         }
-        if c == '"' { in_string = true; continue; }
+        if in_string {
+            if c == '\\' {
+                escape = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        if c == '"' {
+            in_string = true;
+            continue;
+        }
         if c == '-' && i + 1 < chars.len() && chars[i + 1] == '-' {
             return (chars[..i].iter().collect(), chars[i..].iter().collect());
         }
@@ -3574,11 +4386,15 @@ fn fmt_split_comment(line: &str) -> (String, String) {
 /// `#Point(...)` → `# Point(...)`, `>foo(...)` → `> foo(...)`
 /// But NOT: `>=`, `|>`, `||`, `= x =`, lines starting with `}`, etc.
 fn fmt_rune_spacing(line: &str) -> String {
-    if line.is_empty() { return line.to_string(); }
+    if line.is_empty() {
+        return line.to_string();
+    }
     let first = line.chars().next().unwrap();
     match first {
         '#' | '>' | '~' | '?' => {
-            if line.len() == 1 { return line.to_string(); }
+            if line.len() == 1 {
+                return line.to_string();
+            }
             let rest = &line[1..];
             // Already has a space
             if rest.starts_with(' ') {
@@ -3587,7 +4403,9 @@ fn fmt_rune_spacing(line: &str) -> String {
                 return format!("{} {}", first, trimmed);
             }
             // Don't touch >= or compound operators
-            if first == '>' && rest.starts_with('=') { return line.to_string(); }
+            if first == '>' && rest.starts_with('=') {
+                return line.to_string();
+            }
             // Rune followed by alphanumeric/( — insert space
             let next = rest.chars().next().unwrap();
             if next.is_alphanumeric() || next == '_' || next == '(' {
@@ -3596,10 +4414,14 @@ fn fmt_rune_spacing(line: &str) -> String {
             line.to_string()
         }
         '=' => {
-            if line.len() == 1 { return line.to_string(); }
+            if line.len() == 1 {
+                return line.to_string();
+            }
             let rest = &line[1..];
             // Don't touch == operator
-            if rest.starts_with('=') { return line.to_string(); }
+            if rest.starts_with('=') {
+                return line.to_string();
+            }
             if rest.starts_with(' ') {
                 let trimmed = rest.trim_start();
                 return format!("= {}", trimmed);
@@ -3611,7 +4433,9 @@ fn fmt_rune_spacing(line: &str) -> String {
             line.to_string()
         }
         '@' => {
-            if line.len() == 1 { return line.to_string(); }
+            if line.len() == 1 {
+                return line.to_string();
+            }
             let rest = &line[1..];
             if rest.starts_with(' ') {
                 let trimmed = rest.trim_start();
@@ -3624,17 +4448,25 @@ fn fmt_rune_spacing(line: &str) -> String {
             line.to_string()
         }
         '|' => {
-            if line.len() == 1 { return line.to_string(); }
+            if line.len() == 1 {
+                return line.to_string();
+            }
             let rest = &line[1..];
             // Don't touch |> pipe or || boolean-or
-            if rest.starts_with('>') || rest.starts_with('|') { return line.to_string(); }
+            if rest.starts_with('>') || rest.starts_with('|') {
+                return line.to_string();
+            }
             // Don't touch lambda syntax: |x| or |x, y|
             // Detect: | followed by identifier(s) then another |
             let rest_trimmed = rest.trim_start();
             if let Some(close_pipe) = rest_trimmed.find('|') {
                 // Everything between the two pipes should be params (letters, commas, spaces)
                 let between = &rest_trimmed[..close_pipe];
-                if !between.is_empty() && between.chars().all(|c| c.is_alphanumeric() || c == '_' || c == ',' || c == ' ' || c == ':') {
+                if !between.is_empty()
+                    && between.chars().all(|c| {
+                        c.is_alphanumeric() || c == '_' || c == ',' || c == ' ' || c == ':'
+                    })
+                {
                     return line.to_string(); // Lambda — don't touch
                 }
             }
@@ -3666,17 +4498,30 @@ fn fmt_operator_spacing(line: &str) -> String {
     while i < len {
         let c = chars[i];
 
-        if escape { result.push(c); escape = false; i += 1; continue; }
-
-        if in_string {
+        if escape {
             result.push(c);
-            if c == '\\' { escape = true; }
-            else if c == '"' { in_string = false; }
+            escape = false;
             i += 1;
             continue;
         }
 
-        if c == '"' { result.push(c); in_string = true; i += 1; continue; }
+        if in_string {
+            result.push(c);
+            if c == '\\' {
+                escape = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        if c == '"' {
+            result.push(c);
+            in_string = true;
+            i += 1;
+            continue;
+        }
 
         // Two-char operators: ==, !=, <=, >=, ->, &&, ||, |>
         if i + 1 < len {
@@ -3720,8 +4565,15 @@ fn fmt_operator_spacing(line: &str) -> String {
             }
             // For < and >, only treat as operators if between operands
             // (avoids touching type params like List(Int))
-            let prev_is_operand = result.ends_with(|ch: char| ch.is_alphanumeric() || ch == '_' || ch == ')' || ch == ']' || ch == '"');
-            let next_is_operand = i + 1 < len && (chars[i + 1].is_alphanumeric() || chars[i + 1] == '_' || chars[i + 1] == '(' || chars[i + 1] == '-' || chars[i + 1] == '"');
+            let prev_is_operand = result.ends_with(|ch: char| {
+                ch.is_alphanumeric() || ch == '_' || ch == ')' || ch == ']' || ch == '"'
+            });
+            let next_is_operand = i + 1 < len
+                && (chars[i + 1].is_alphanumeric()
+                    || chars[i + 1] == '_'
+                    || chars[i + 1] == '('
+                    || chars[i + 1] == '-'
+                    || chars[i + 1] == '"');
 
             if prev_is_operand && next_is_operand {
                 let after_op = chars.get(i + 1).copied();
@@ -3742,7 +4594,11 @@ fn fmt_operator_spacing(line: &str) -> String {
 /// Skips adding space after if the next char in the input is already a space.
 fn fmt_ensure_space_around(result: &mut String, op: &str, next_char: Option<char>) {
     // Ensure space before
-    if !result.is_empty() && !result.ends_with(' ') && !result.ends_with('(') && !result.ends_with(',') {
+    if !result.is_empty()
+        && !result.ends_with(' ')
+        && !result.ends_with('(')
+        && !result.ends_with(',')
+    {
         result.push(' ');
     }
     result.push_str(op);
@@ -3756,10 +4612,29 @@ fn fmt_ensure_space_around(result: &mut String, op: &str, next_char: Option<char
 /// Returns true if minus should be treated as unary (not binary).
 fn fmt_is_unary_context(before: &str) -> bool {
     let trimmed = before.trim_end();
-    if trimmed.is_empty() { return true; }
+    if trimmed.is_empty() {
+        return true;
+    }
     let last = trimmed.chars().last().unwrap();
     // After operator, open paren, comma, = → unary
-    matches!(last, '(' | '[' | ',' | '=' | '+' | '-' | '*' | '/' | '%' | '<' | '>' | '!' | '|' | '&' | '{' | ':')
+    matches!(
+        last,
+        '(' | '['
+            | ','
+            | '='
+            | '+'
+            | '-'
+            | '*'
+            | '/'
+            | '%'
+            | '<'
+            | '>'
+            | '!'
+            | '|'
+            | '&'
+            | '{'
+            | ':'
+    )
 }
 
 fn fmt_indent(depth: i32) -> String {
@@ -3783,8 +4658,11 @@ fn fmt_effective_last_char(line: &str) -> Option<char> {
         }
 
         if in_string {
-            if c == '\\' { escape = true; }
-            else if c == '"' { in_string = false; }
+            if c == '\\' {
+                escape = true;
+            } else if c == '"' {
+                in_string = false;
+            }
             continue;
         }
 
@@ -3826,15 +4704,21 @@ fn fmt_count_raw_braces(line: &str) -> i32 {
         }
 
         if in_char {
-            if c == '\\' { escape = true; }
-            else if c == '\'' { in_char = false; }
+            if c == '\\' {
+                escape = true;
+            } else if c == '\'' {
+                in_char = false;
+            }
             i += 1;
             continue;
         }
 
         if in_string {
-            if c == '\\' { escape = true; }
-            else if c == '"' { in_string = false; }
+            if c == '\\' {
+                escape = true;
+            } else if c == '"' {
+                in_string = false;
+            }
             i += 1;
             continue;
         }
@@ -3848,10 +4732,15 @@ fn fmt_count_raw_braces(line: &str) -> i32 {
             break;
         }
 
-        if c == '"' { in_string = true; }
-        else if c == '\'' { in_char = true; }
-        else if c == '{' { net += 1; }
-        else if c == '}' { net -= 1; }
+        if c == '"' {
+            in_string = true;
+        } else if c == '\'' {
+            in_char = true;
+        } else if c == '{' {
+            net += 1;
+        } else if c == '}' {
+            net -= 1;
+        }
 
         i += 1;
     }
@@ -3880,22 +4769,26 @@ fn count_triple_quotes(line: &str) -> usize {
 fn fmt_reindent_block(lines: &[String], target_depth: i32) -> Vec<String> {
     let base = fmt_indent(target_depth);
     // Find minimum indentation among non-empty lines
-    let min_indent = lines.iter()
+    let min_indent = lines
+        .iter()
         .filter(|l| !l.trim().is_empty())
         .map(|l| l.len() - l.trim_start().len())
         .min()
         .unwrap_or(0);
 
-    lines.iter().map(|line| {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            String::new()
-        } else {
-            let current_indent = line.len() - line.trim_start().len();
-            let relative = current_indent.saturating_sub(min_indent);
-            format!("{}{}{}", base, " ".repeat(relative), trimmed)
-        }
-    }).collect()
+    lines
+        .iter()
+        .map(|line| {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                String::new()
+            } else {
+                let current_indent = line.len() - line.trim_start().len();
+                let relative = current_indent.saturating_sub(min_indent);
+                format!("{}{}{}", base, " ".repeat(relative), trimmed)
+            }
+        })
+        .collect()
 }
 
 // ============================================================================
@@ -3912,8 +4805,8 @@ fn fmt_reindent_block(lines: &[String], target_depth: i32) -> Vec<String> {
 //   - Completion: rune-aware snippets + builtins + user-defined symbols
 
 fn run_lsp_server() {
-    use std::io::{BufRead, Read, Write};
     use std::collections::HashMap;
+    use std::io::{BufRead, Read, Write};
 
     let stdin = std::io::stdin();
     let stdout = std::io::stdout();
@@ -3933,26 +4826,42 @@ fn run_lsp_server() {
 
         let method = msg.get("method").and_then(|m| m.as_str()).unwrap_or("");
         let id = msg.get("id").cloned();
-        let params = msg.get("params").cloned().unwrap_or(serde_json::Value::Null);
+        let params = msg
+            .get("params")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
 
         match method {
             "initialize" => {
-                if let Some(id) = id.clone() { lsp_send_response(&mut writer, id, lsp_server_capabilities()); }
+                if let Some(id) = id.clone() {
+                    lsp_send_response(&mut writer, id, lsp_server_capabilities());
+                }
             }
             "initialized" => {} // client ready, nothing to do
             "shutdown" => {
-                if let Some(id) = id.clone() { lsp_send_response(&mut writer, id, serde_json::Value::Null); }
+                if let Some(id) = id.clone() {
+                    lsp_send_response(&mut writer, id, serde_json::Value::Null);
+                }
             }
             "exit" => break,
 
             "textDocument/didOpen" => {
-                let uri = params["textDocument"]["uri"].as_str().unwrap_or("").to_string();
-                let text = params["textDocument"]["text"].as_str().unwrap_or("").to_string();
+                let uri = params["textDocument"]["uri"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
+                let text = params["textDocument"]["text"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
                 documents.insert(uri.clone(), text.clone());
                 lsp_analyze(&mut writer, &uri, &text, &prelude);
             }
             "textDocument/didChange" => {
-                let uri = params["textDocument"]["uri"].as_str().unwrap_or("").to_string();
+                let uri = params["textDocument"]["uri"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
                 if let Some(changes) = params["contentChanges"].as_array() {
                     if let Some(change) = changes.first() {
                         let text = change["text"].as_str().unwrap_or("").to_string();
@@ -3962,13 +4871,22 @@ fn run_lsp_server() {
                 }
             }
             "textDocument/didClose" => {
-                let uri = params["textDocument"]["uri"].as_str().unwrap_or("").to_string();
+                let uri = params["textDocument"]["uri"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
                 documents.remove(&uri);
-                lsp_send_notification(&mut writer, "textDocument/publishDiagnostics",
-                    serde_json::json!({"uri": uri, "diagnostics": []}));
+                lsp_send_notification(
+                    &mut writer,
+                    "textDocument/publishDiagnostics",
+                    serde_json::json!({"uri": uri, "diagnostics": []}),
+                );
             }
             "textDocument/didSave" => {
-                let uri = params["textDocument"]["uri"].as_str().unwrap_or("").to_string();
+                let uri = params["textDocument"]["uri"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
                 if let Some(text) = documents.get(&uri).cloned() {
                     lsp_analyze(&mut writer, &uri, &text, &prelude);
                 }
@@ -3980,7 +4898,9 @@ fn run_lsp_server() {
                 let col = params["position"]["character"].as_u64().unwrap_or(0) as u32;
                 let text = documents.get(uri).cloned().unwrap_or_default();
                 let items = lsp_completions(&text, line, col);
-                if let Some(id) = id.clone() { lsp_send_response(&mut writer, id, serde_json::json!(items)); }
+                if let Some(id) = id.clone() {
+                    lsp_send_response(&mut writer, id, serde_json::json!(items));
+                }
             }
             "textDocument/hover" => {
                 let uri = params["textDocument"]["uri"].as_str().unwrap_or("");
@@ -3988,15 +4908,22 @@ fn run_lsp_server() {
                 let col = params["position"]["character"].as_u64().unwrap_or(0) as u32;
                 let text = documents.get(uri).cloned().unwrap_or_default();
                 let hover = lsp_hover(&text, line, col);
-                if let Some(id) = id.clone() { lsp_send_response(&mut writer, id, hover); }
+                if let Some(id) = id.clone() {
+                    lsp_send_response(&mut writer, id, hover);
+                }
             }
             "textDocument/definition" => {
-                let uri = params["textDocument"]["uri"].as_str().unwrap_or("").to_string();
+                let uri = params["textDocument"]["uri"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
                 let line = params["position"]["line"].as_u64().unwrap_or(0) as u32;
                 let col = params["position"]["character"].as_u64().unwrap_or(0) as u32;
                 let text = documents.get(&uri).cloned().unwrap_or_default();
                 let loc = lsp_definition(&uri, &text, line, col);
-                if let Some(id) = id.clone() { lsp_send_response(&mut writer, id, loc); }
+                if let Some(id) = id.clone() {
+                    lsp_send_response(&mut writer, id, loc);
+                }
             }
 
             _ => {
@@ -4015,27 +4942,41 @@ fn lsp_read_message(reader: &mut impl std::io::BufRead) -> Option<serde_json::Va
     let mut content_length: usize = 0;
     loop {
         let mut header = String::new();
-        if reader.read_line(&mut header).ok()? == 0 { return None; }
+        if reader.read_line(&mut header).ok()? == 0 {
+            return None;
+        }
         let header = header.trim();
-        if header.is_empty() { break; }
+        if header.is_empty() {
+            break;
+        }
         if let Some(len) = header.strip_prefix("Content-Length: ") {
             content_length = len.parse().ok()?;
         }
     }
-    if content_length == 0 { return None; }
+    if content_length == 0 {
+        return None;
+    }
     let mut body = vec![0u8; content_length];
     reader.read_exact(&mut body).ok()?;
     serde_json::from_slice(&body).ok()
 }
 
-fn lsp_send_response(writer: &mut impl std::io::Write, id: serde_json::Value, result: serde_json::Value) {
+fn lsp_send_response(
+    writer: &mut impl std::io::Write,
+    id: serde_json::Value,
+    result: serde_json::Value,
+) {
     let msg = serde_json::json!({"jsonrpc": "2.0", "id": id, "result": result});
     let body = serde_json::to_string(&msg).unwrap();
     let _ = write!(writer, "Content-Length: {}\r\n\r\n{}", body.len(), body);
     let _ = writer.flush();
 }
 
-fn lsp_send_notification(writer: &mut impl std::io::Write, method: &str, params: serde_json::Value) {
+fn lsp_send_notification(
+    writer: &mut impl std::io::Write,
+    method: &str,
+    params: serde_json::Value,
+) {
     let msg = serde_json::json!({"jsonrpc": "2.0", "method": method, "params": params});
     let body = serde_json::to_string(&msg).unwrap();
     let _ = write!(writer, "Content-Length: {}\r\n\r\n{}", body.len(), body);
@@ -4083,17 +5024,31 @@ fn lsp_analyze(writer: &mut impl std::io::Write, uri: &str, source: &str, prelud
         }
     }
 
-    lsp_send_notification(writer, "textDocument/publishDiagnostics",
-        serde_json::json!({"uri": uri, "diagnostics": diagnostics}));
+    lsp_send_notification(
+        writer,
+        "textDocument/publishDiagnostics",
+        serde_json::json!({"uri": uri, "diagnostics": diagnostics}),
+    );
 }
 
 fn lsp_parse_error_to_diag(error: &str) -> serde_json::Value {
     let parts: Vec<&str> = error.splitn(3, ':').collect();
     let (line, col, message) = if parts.len() >= 3 {
-        if let (Ok(l), Ok(c)) = (parts[0].trim().parse::<u32>(), parts[1].trim().parse::<u32>()) {
-            (l.saturating_sub(1), c.saturating_sub(1), parts[2..].join(":").trim().to_string())
-        } else { (0, 0, error.to_string()) }
-    } else { (0, 0, error.to_string()) };
+        if let (Ok(l), Ok(c)) = (
+            parts[0].trim().parse::<u32>(),
+            parts[1].trim().parse::<u32>(),
+        ) {
+            (
+                l.saturating_sub(1),
+                c.saturating_sub(1),
+                parts[2..].join(":").trim().to_string(),
+            )
+        } else {
+            (0, 0, error.to_string())
+        }
+    } else {
+        (0, 0, error.to_string())
+    };
 
     serde_json::json!({
         "range": {
@@ -4110,10 +5065,21 @@ fn lsp_type_error_to_diag(error: &str) -> serde_json::Value {
     // Type checker errors now carry LINE:COL: prefix (same format as parse errors)
     let parts: Vec<&str> = error.splitn(3, ':').collect();
     let (line, col, message) = if parts.len() >= 3 {
-        if let (Ok(l), Ok(c)) = (parts[0].trim().parse::<u32>(), parts[1].trim().parse::<u32>()) {
-            (l.saturating_sub(1), c.saturating_sub(1), parts[2..].join(":").trim().to_string())
-        } else { (0, 0, error.to_string()) }
-    } else { (0, 0, error.to_string()) };
+        if let (Ok(l), Ok(c)) = (
+            parts[0].trim().parse::<u32>(),
+            parts[1].trim().parse::<u32>(),
+        ) {
+            (
+                l.saturating_sub(1),
+                c.saturating_sub(1),
+                parts[2..].join(":").trim().to_string(),
+            )
+        } else {
+            (0, 0, error.to_string())
+        }
+    } else {
+        (0, 0, error.to_string())
+    };
 
     serde_json::json!({
         "range": {
@@ -4131,8 +5097,12 @@ fn diagnostic_to_lsp(diag: &Diagnostic, source: &str) -> serde_json::Value {
     let (line, col, end_line, end_col) = if let Some(span) = diag.span {
         let (l, c) = span.start_line_col(source);
         let (el, ec) = span.end_line_col(source);
-        (l.saturating_sub(1) as u32, c.saturating_sub(1) as u32,
-         el.saturating_sub(1) as u32, ec.saturating_sub(1) as u32)
+        (
+            l.saturating_sub(1) as u32,
+            c.saturating_sub(1) as u32,
+            el.saturating_sub(1) as u32,
+            ec.saturating_sub(1) as u32,
+        )
     } else {
         (0, 0, 0, 1)
     };
@@ -4162,10 +5132,21 @@ fn diagnostic_to_lsp(diag: &Diagnostic, source: &str) -> serde_json::Value {
 fn lsp_find_symbol_pos(source: &str, name: &str) -> Option<(u32, u32)> {
     for (idx, line) in source.lines().enumerate() {
         if let Some(col) = line.find(name) {
-            let before = if col > 0 { line.as_bytes().get(col - 1).copied().unwrap_or(b' ') } else { b' ' };
-            let after = line.as_bytes().get(col + name.len()).copied().unwrap_or(b' ');
-            if !before.is_ascii_alphanumeric() && before != b'_'
-                && !after.is_ascii_alphanumeric() && after != b'_' {
+            let before = if col > 0 {
+                line.as_bytes().get(col - 1).copied().unwrap_or(b' ')
+            } else {
+                b' '
+            };
+            let after = line
+                .as_bytes()
+                .get(col + name.len())
+                .copied()
+                .unwrap_or(b' ');
+            if !before.is_ascii_alphanumeric()
+                && before != b'_'
+                && !after.is_ascii_alphanumeric()
+                && after != b'_'
+            {
                 return Some((idx as u32, col as u32));
             }
         }
@@ -4177,7 +5158,8 @@ fn lsp_source_dir(uri: &str) -> Option<String> {
     let path = uri.strip_prefix("file://").unwrap_or(uri);
     // Handle percent-encoded spaces on macOS
     let decoded = path.replace("%20", " ");
-    std::path::Path::new(&decoded).parent()
+    std::path::Path::new(&decoded)
+        .parent()
         .map(|p| p.to_string_lossy().to_string())
 }
 
@@ -4220,8 +5202,11 @@ fn lsp_find_def_pos(source: &str, name: &str) -> Option<(u32, u32)> {
             let rest = t[1..].trim();
             if rest.starts_with(name) {
                 let after = &rest[name.len()..];
-                if after.is_empty() || after.starts_with(' ') || after.starts_with('(')
-                    || after.starts_with('=') {
+                if after.is_empty()
+                    || after.starts_with(' ')
+                    || after.starts_with('(')
+                    || after.starts_with('=')
+                {
                     let col = line.find(name).unwrap_or(0);
                     return Some((idx as u32, col as u32));
                 }
@@ -4287,30 +5272,61 @@ fn lsp_hover(source: &str, line: u32, col: u32) -> serde_json::Value {
 fn lsp_hover_from_ast(name: &str, stmts: &[Stmt]) -> Option<String> {
     for stmt in stmts {
         // Function
-        if let Stmt::Defn(Defn::Fn { name: fn_name, params, ret_ty, .. }) = stmt {
+        if let Stmt::Defn(Defn::Fn {
+            name: fn_name,
+            params,
+            ret_ty,
+            ..
+        }) = stmt
+        {
             if fn_name == name {
-                let ps = params.iter().map(|p| {
-                    if let Some(ty) = &p.ty {
-                        format!("{}{}: {}", if p.inout { "inout " } else { "" }, p.name, ty)
-                    } else { p.name.clone() }
-                }).collect::<Vec<_>>().join(", ");
-                let ret = ret_ty.as_ref().map(|t| format!(" -> {}", t)).unwrap_or_default();
+                let ps = params
+                    .iter()
+                    .map(|p| {
+                        if let Some(ty) = &p.ty {
+                            format!("{}{}: {}", if p.inout { "inout " } else { "" }, p.name, ty)
+                        } else {
+                            p.name.clone()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let ret = ret_ty
+                    .as_ref()
+                    .map(|t| format!(" -> {}", t))
+                    .unwrap_or_default();
                 return Some(format!("> {}({}){}", fn_name, ps, ret));
             }
         }
         // Type
-        if let Stmt::TypeDecl(TypeDecl::ADT { name: tn, variants, .. }) = stmt {
+        if let Stmt::TypeDecl(TypeDecl::ADT {
+            name: tn, variants, ..
+        }) = stmt
+        {
             if tn == name {
-                let vs = variants.iter().map(|v| {
-                    if v.fields.is_empty() { v.name.clone() }
-                    else {
-                        let fs = v.fields.iter().map(|f| {
-                            if v.positional { format!("{}", f.ty) }
-                            else { format!("{}: {}", f.name, f.ty) }
-                        }).collect::<Vec<_>>().join(", ");
-                        format!("{}({})", v.name, fs)
-                    }
-                }).collect::<Vec<_>>().join(" | ");
+                let vs = variants
+                    .iter()
+                    .map(|v| {
+                        if v.fields.is_empty() {
+                            v.name.clone()
+                        } else {
+                            let fs = v
+                                .fields
+                                .iter()
+                                .map(|f| {
+                                    if v.positional {
+                                        format!("{}", f.ty)
+                                    } else {
+                                        format!("{}: {}", f.name, f.ty)
+                                    }
+                                })
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            format!("{}({})", v.name, fs)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" | ");
                 return Some(format!("# {} = {}", tn, vs));
             }
             // Constructor/variant
@@ -4319,22 +5335,51 @@ fn lsp_hover_from_ast(name: &str, stmts: &[Stmt]) -> Option<String> {
                     if v.fields.is_empty() {
                         return Some(format!("{} (variant of {})", name, tn));
                     }
-                    let fs = v.fields.iter().map(|f| {
-                        if v.positional { format!("{}", f.ty) }
-                        else { format!("{}: {}", f.name, f.ty) }
-                    }).collect::<Vec<_>>().join(", ");
+                    let fs = v
+                        .fields
+                        .iter()
+                        .map(|f| {
+                            if v.positional {
+                                format!("{}", f.ty)
+                            } else {
+                                format!("{}: {}", f.name, f.ty)
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
                     return Some(format!("{}({}) — variant of {}", name, fs, tn));
                 }
             }
         }
         // Actor
-        if let Stmt::Defn(Defn::Actor { name: an, state_param, handlers }) = stmt {
+        if let Stmt::Defn(Defn::Actor {
+            name: an,
+            state_param,
+            handlers,
+        }) = stmt
+        {
             if an == name {
-                let msgs = handlers.iter().filter_map(|h| {
-                    if let Pat::Con(n, _) = &h.msg_pat { Some(n.clone()) } else { None }
-                }).collect::<Vec<_>>().join(", ");
-                return Some(format!("> actor {}(state: {}) handles [{}]",
-                    an, state_param.ty.as_ref().map(|t| format!("{}", t)).unwrap_or_default(), msgs));
+                let msgs = handlers
+                    .iter()
+                    .filter_map(|h| {
+                        if let Pat::Con(n, _) = &h.msg_pat {
+                            Some(n.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return Some(format!(
+                    "> actor {}(state: {}) handles [{}]",
+                    an,
+                    state_param
+                        .ty
+                        .as_ref()
+                        .map(|t| format!("{}", t))
+                        .unwrap_or_default(),
+                    msgs
+                ));
             }
         }
     }
@@ -4346,7 +5391,11 @@ fn lsp_hover_from_ast(name: &str, stmts: &[Stmt]) -> Option<String> {
 fn lsp_completions(source: &str, line: u32, col: u32) -> Vec<serde_json::Value> {
     let lines: Vec<&str> = source.lines().collect();
     let line_text = lines.get(line as usize).copied().unwrap_or("");
-    let prefix = if (col as usize) <= line_text.len() { &line_text[..col as usize] } else { "" };
+    let prefix = if (col as usize) <= line_text.len() {
+        &line_text[..col as usize]
+    } else {
+        ""
+    };
     let trimmed = prefix.trim();
 
     let mut items = Vec::new();
@@ -4367,13 +5416,28 @@ fn lsp_completions(source: &str, line: u32, col: u32) -> Vec<serde_json::Value> 
     if let Ok(stmts) = parser.parse_program() {
         for stmt in &stmts {
             match stmt {
-                Stmt::Defn(Defn::Fn { name, params, ret_ty, .. }) => {
+                Stmt::Defn(Defn::Fn {
+                    name,
+                    params,
+                    ret_ty,
+                    ..
+                }) => {
                     if word.is_empty() || name.starts_with(&word) {
-                        let ps = params.iter().map(|p| {
-                            if let Some(ty) = &p.ty { format!("{}: {}", p.name, ty) }
-                            else { p.name.clone() }
-                        }).collect::<Vec<_>>().join(", ");
-                        let ret = ret_ty.as_ref().map(|t| format!(" -> {}", t)).unwrap_or_default();
+                        let ps = params
+                            .iter()
+                            .map(|p| {
+                                if let Some(ty) = &p.ty {
+                                    format!("{}: {}", p.name, ty)
+                                } else {
+                                    p.name.clone()
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        let ret = ret_ty
+                            .as_ref()
+                            .map(|t| format!(" -> {}", t))
+                            .unwrap_or_default();
                         items.push(serde_json::json!({
                             "label": name,
                             "kind": 3,
@@ -4381,7 +5445,9 @@ fn lsp_completions(source: &str, line: u32, col: u32) -> Vec<serde_json::Value> 
                         }));
                     }
                 }
-                Stmt::TypeDecl(TypeDecl::ADT { name: tn, variants, .. }) => {
+                Stmt::TypeDecl(TypeDecl::ADT {
+                    name: tn, variants, ..
+                }) => {
                     if word.is_empty() || tn.starts_with(&word) {
                         items.push(serde_json::json!({
                             "label": tn, "kind": 22, "detail": "type"
@@ -4511,13 +5577,22 @@ fn lsp_word_at(source: &str, line: u32, col: u32) -> Option<String> {
 
     let mut start = c;
     if start < chars.len() && !is_wc(chars[start]) {
-        if start > 0 && is_wc(chars[start - 1]) { start -= 1; }
-        else { return None; }
+        if start > 0 && is_wc(chars[start - 1]) {
+            start -= 1;
+        } else {
+            return None;
+        }
     }
-    while start > 0 && is_wc(chars[start - 1]) { start -= 1; }
+    while start > 0 && is_wc(chars[start - 1]) {
+        start -= 1;
+    }
     let mut end = start;
-    while end < chars.len() && is_wc(chars[end]) { end += 1; }
-    if start == end { return None; }
+    while end < chars.len() && is_wc(chars[end]) {
+        end += 1;
+    }
+    if start == end {
+        return None;
+    }
     Some(chars[start..end].iter().collect())
 }
 
@@ -4525,65 +5600,162 @@ fn lsp_word_before(line: &str, col: usize) -> String {
     let chars: Vec<char> = line.chars().collect();
     let c = col.min(chars.len());
     let mut s = c;
-    while s > 0 && (chars[s - 1].is_alphanumeric() || chars[s - 1] == '_') { s -= 1; }
+    while s > 0 && (chars[s - 1].is_alphanumeric() || chars[s - 1] == '_') {
+        s -= 1;
+    }
     chars[s..c].iter().collect()
 }
 
 // ── Builtin documentation ───────────────────────────────────────────
 
 static LSP_BUILTINS: &[(&str, usize)] = &[
-    ("print", 1), ("show", 1), ("length", 1), ("append", 2),
-    ("head", 1), ("tail", 1), ("nth", 2), ("reverse", 1), ("range", 2),
-    ("map", 2), ("filter", 2), ("foldl", 3), ("scan", 3),
-    ("merge", 2), ("take", 2), ("skip", 2), ("collect", 1),
-    ("count", 1), ("sum", 1), ("distinct", 1), ("window", 2),
-    ("from_list", 1), ("sort", 1), ("sort_by", 2),
-    ("any", 2), ("all", 2), ("find", 2), ("flat_map", 2),
-    ("zip", 2), ("enumerate", 1), ("take_while", 2), ("drop_while", 2),
-    ("partition", 2), ("chunked", 2),
-    ("join", 2), ("split", 2), ("trim", 1), ("contains", 2),
-    ("starts_with", 2), ("ends_with", 2), ("replace", 3),
-    ("to_upper", 1), ("to_lower", 1), ("substring", 3),
-    ("char_at", 2), ("index_of", 2), ("parse_int", 1), ("parse_float", 1),
-    ("string_chars", 1), ("format_float", 2),
-    ("read_file", 1), ("write_file", 2), ("append_file", 2),
-    ("file_exists", 1), ("read_lines", 1), ("env_var", 1),
-    ("json_parse", 1), ("json_get", 2), ("json_emit", 1),
-    ("json_string", 1), ("json_number", 1), ("json_bool", 1),
-    ("json_array", 1), ("json_object", 1),
-    ("http_get", 1), ("http_post", 2),
-    ("db_open", 1), ("db_exec", 2), ("db_query", 2), ("db_close", 1),
-    ("tap", 2), ("first", 1), ("last", 1), ("reduce", 3),
-    ("start_with", 2), ("concat", 2), ("pairwise", 1),
-    ("fst", 1), ("snd", 1), ("combine_latest", 2), ("subject", 1),
-    ("debounce", 2), ("throttle", 2), ("delay", 2),
-    ("buffer", 2), ("timeout", 2), ("switch_map", 2), ("sample", 2),
+    ("print", 1),
+    ("show", 1),
+    ("length", 1),
+    ("append", 2),
+    ("head", 1),
+    ("tail", 1),
+    ("nth", 2),
+    ("reverse", 1),
+    ("range", 2),
+    ("map", 2),
+    ("filter", 2),
+    ("foldl", 3),
+    ("scan", 3),
+    ("merge", 2),
+    ("take", 2),
+    ("skip", 2),
+    ("collect", 1),
+    ("count", 1),
+    ("sum", 1),
+    ("distinct", 1),
+    ("window", 2),
+    ("from_list", 1),
+    ("sort", 1),
+    ("sort_by", 2),
+    ("any", 2),
+    ("all", 2),
+    ("find", 2),
+    ("flat_map", 2),
+    ("zip", 2),
+    ("enumerate", 1),
+    ("take_while", 2),
+    ("drop_while", 2),
+    ("partition", 2),
+    ("chunked", 2),
+    ("join", 2),
+    ("split", 2),
+    ("trim", 1),
+    ("contains", 2),
+    ("starts_with", 2),
+    ("ends_with", 2),
+    ("replace", 3),
+    ("to_upper", 1),
+    ("to_lower", 1),
+    ("substring", 3),
+    ("char_at", 2),
+    ("index_of", 2),
+    ("parse_int", 1),
+    ("parse_float", 1),
+    ("string_chars", 1),
+    ("format_float", 2),
+    ("read_file", 1),
+    ("write_file", 2),
+    ("append_file", 2),
+    ("file_exists", 1),
+    ("read_lines", 1),
+    ("env_var", 1),
+    ("json_parse", 1),
+    ("json_get", 2),
+    ("json_emit", 1),
+    ("json_string", 1),
+    ("json_number", 1),
+    ("json_bool", 1),
+    ("json_array", 1),
+    ("json_object", 1),
+    ("http_get", 1),
+    ("http_post", 2),
+    ("db_open", 1),
+    ("db_exec", 2),
+    ("db_query", 2),
+    ("db_close", 1),
+    ("tap", 2),
+    ("first", 1),
+    ("last", 1),
+    ("reduce", 3),
+    ("start_with", 2),
+    ("concat", 2),
+    ("pairwise", 1),
+    ("fst", 1),
+    ("snd", 1),
+    ("combine_latest", 2),
+    ("subject", 1),
+    ("debounce", 2),
+    ("throttle", 2),
+    ("delay", 2),
+    ("buffer", 2),
+    ("timeout", 2),
+    ("switch_map", 2),
+    ("sample", 2),
 ];
 
 fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
     match name {
         "print" => Some(("@ print(msg: String)", "Print a message to stdout")),
-        "show" => Some(("> show(value) -> String", "Convert any value to string representation")),
-        "map" => Some(("> map(list, f: (a) -> b) -> [b]", "Apply function to each element")),
-        "filter" => Some(("> filter(list, f: (a) -> Bool) -> [a]", "Keep elements where predicate is true")),
-        "foldl" => Some(("> foldl(list, init, f: (acc, x) -> acc) -> acc", "Left fold over a list")),
-        "scan" => Some(("~ scan(stream, init, f) -> Stream", "Running accumulator over stream values")),
+        "show" => Some((
+            "> show(value) -> String",
+            "Convert any value to string representation",
+        )),
+        "map" => Some((
+            "> map(list, f: (a) -> b) -> [b]",
+            "Apply function to each element",
+        )),
+        "filter" => Some((
+            "> filter(list, f: (a) -> Bool) -> [a]",
+            "Keep elements where predicate is true",
+        )),
+        "foldl" => Some((
+            "> foldl(list, init, f: (acc, x) -> acc) -> acc",
+            "Left fold over a list",
+        )),
+        "scan" => Some((
+            "~ scan(stream, init, f) -> Stream",
+            "Running accumulator over stream values",
+        )),
         "merge" => Some(("~ merge(s1, s2) -> Stream", "Merge two streams")),
         "take" => Some(("> take(list, n: Int) -> [a]", "Take first n elements")),
         "skip" => Some(("> skip(list, n: Int) -> [a]", "Skip first n elements")),
-        "collect" => Some(("~ collect(stream) -> [a]", "Collect stream values into a list")),
+        "collect" => Some((
+            "~ collect(stream) -> [a]",
+            "Collect stream values into a list",
+        )),
         "count" => Some(("~ count(stream) -> Int", "Count elements")),
         "sum" => Some(("~ sum(stream) -> Int", "Sum all elements")),
         "distinct" => Some(("~ distinct(stream) -> Stream", "Remove duplicates")),
         "from_list" => Some(("~ from_list(list) -> Stream", "Create stream from list")),
         "sort" => Some(("> sort(list) -> [a]", "Sort in ascending order")),
-        "join" => Some(("> join(list: [String], sep: String) -> String", "Join strings with separator")),
-        "split" => Some(("> split(s: String, sep: String) -> [String]", "Split by separator")),
-        "trim" => Some(("> trim(s: String) -> String", "Remove leading/trailing whitespace")),
-        "contains" => Some(("> contains(s: String, sub: String) -> Bool", "Check if string contains substring")),
+        "join" => Some((
+            "> join(list: [String], sep: String) -> String",
+            "Join strings with separator",
+        )),
+        "split" => Some((
+            "> split(s: String, sep: String) -> [String]",
+            "Split by separator",
+        )),
+        "trim" => Some((
+            "> trim(s: String) -> String",
+            "Remove leading/trailing whitespace",
+        )),
+        "contains" => Some((
+            "> contains(s: String, sub: String) -> Bool",
+            "Check if string contains substring",
+        )),
         "length" => Some(("> length(list) -> Int", "Number of elements")),
         "reverse" => Some(("> reverse(list) -> [a]", "Reverse a list")),
-        "range" => Some(("> range(start: Int, end: Int) -> [Int]", "Integer range [start, end)")),
+        "range" => Some((
+            "> range(start: Int, end: Int) -> [Int]",
+            "Integer range [start, end)",
+        )),
         "head" => Some(("> head(list) -> a", "First element")),
         "tail" => Some(("> tail(list) -> [a]", "All elements except first")),
         "nth" => Some(("> nth(list, index: Int) -> a", "Element at index (0-based)")),
@@ -4598,9 +5770,15 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
         "start_with" => Some(("~ start_with(stream, val) -> Stream", "Prepend value")),
         "concat" => Some(("~ concat(s1, s2) -> Stream", "Concatenate streams")),
         "read_file" => Some(("@ read_file(path: String) -> String", "Read file contents")),
-        "write_file" => Some(("@ write_file(path: String, content: String)", "Write to file")),
+        "write_file" => Some((
+            "@ write_file(path: String, content: String)",
+            "Write to file",
+        )),
         "json_parse" => Some(("> json_parse(s: String) -> Json", "Parse JSON string")),
-        "json_get" => Some(("> json_get(json: Json, key: String) -> Json", "Get field from JSON")),
+        "json_get" => Some((
+            "> json_get(json: Json, key: String) -> Json",
+            "Get field from JSON",
+        )),
         _ => None,
     }
 }
@@ -4609,7 +5787,6 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
 // PART 9: PRE-CODEGEN TYPE CHECKER (M16)
 // ============================================================================
 //
-
 
 // ============================================================================
 // BUILTIN REGISTRY — Data-driven builtin codegen
@@ -4642,8 +5819,14 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
     const SERDE: &[(&str, &str)] = &[("serde_json", "1")];
     const UREQ: &[(&str, &str)] = &[("ureq", "2")];
     const TINY: &[(&str, &str)] = &[("tiny_http", "0.12")];
-    const AXUM: &[(&str, &str)] = &[("axum", "0.8"), ("tokio", "{ version = \"1\", features = [\"full\"] }")];
-    const RSQL: &[(&str, &str)] = &[("rusqlite", "{ version = \"0.32\", features = [\"bundled\"] }")];
+    const AXUM: &[(&str, &str)] = &[
+        ("axum", "0.8"),
+        ("tokio", "{ version = \"1\", features = [\"full\"] }"),
+    ];
+    const RSQL: &[(&str, &str)] = &[(
+        "rusqlite",
+        "{ version = \"0.32\", features = [\"bundled\"] }",
+    )];
 
     let entries: Vec<(&str, BuiltinDef)> = vec![
         // ---- Math (not shadowable, pure) ----
@@ -4808,7 +5991,10 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("switch_map",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ ({1})(__last.clone()) }} else {{ vec![] }} }" }),
         ("sample",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __src: Vec<_> = {0}.clone(); let __trg: Vec<_> = {1}.clone(); let __tlen = __trg.len().max(1); __trg.iter().enumerate().filter_map(|(i, _)| { let __idx = ((i + 1) * __src.len()) / __tlen; __src.get(__idx.min(__src.len().saturating_sub(1))).cloned() }).collect::<Vec<_>>() }" }),
     ];
-    entries.into_iter().map(|(k, v)| (k.to_string(), v)).collect()
+    entries
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect()
 }
 
 /// Shared type metadata: types, variants, constructors, field info.
@@ -5014,10 +6200,16 @@ impl OwnershipAnalysis {
         let mut consuming_uses = BTreeMap::new();
         count_var_uses(body, &mut var_uses);
         count_consuming_uses_borrow_aware(
-            body, &mut consuming_uses, borrow_fns,
-            self_fn_name, self_param_names,
+            body,
+            &mut consuming_uses,
+            borrow_fns,
+            self_fn_name,
+            self_param_names,
         );
-        OwnershipAnalysis { var_uses, consuming_uses }
+        OwnershipAnalysis {
+            var_uses,
+            consuming_uses,
+        }
     }
 
     /// Simple analysis without borrow-awareness (for rule bodies, etc.)
@@ -5026,23 +6218,30 @@ impl OwnershipAnalysis {
         let mut consuming_uses = BTreeMap::new();
         count_var_uses(body, &mut var_uses);
         count_consuming_uses(body, &mut consuming_uses);
-        OwnershipAnalysis { var_uses, consuming_uses }
+        OwnershipAnalysis {
+            var_uses,
+            consuming_uses,
+        }
     }
 
     /// Analyze from statement references (for top-level code).
-    fn analyze_stmt_refs(
-        stmts: &[&Stmt],
-        borrow_fns: &BTreeMap<String, Vec<bool>>,
-    ) -> Self {
+    fn analyze_stmt_refs(stmts: &[&Stmt], borrow_fns: &BTreeMap<String, Vec<bool>>) -> Self {
         let mut var_uses = BTreeMap::new();
         let mut consuming_uses = BTreeMap::new();
         for stmt in stmts {
             count_var_uses_stmt(stmt, &mut var_uses);
             count_consuming_uses_borrow_aware_stmt(
-                stmt, &mut consuming_uses, borrow_fns, None, &[],
+                stmt,
+                &mut consuming_uses,
+                borrow_fns,
+                None,
+                &[],
             );
         }
-        OwnershipAnalysis { var_uses, consuming_uses }
+        OwnershipAnalysis {
+            var_uses,
+            consuming_uses,
+        }
     }
 }
 
@@ -5111,7 +6310,10 @@ struct TypeInference {
 
 impl TypeInference {
     fn new() -> Self {
-        TypeInference { next_var: 0, bindings: BTreeMap::new() }
+        TypeInference {
+            next_var: 0,
+            bindings: BTreeMap::new(),
+        }
     }
 
     /// Create a fresh type variable.
@@ -5141,11 +6343,15 @@ impl TypeInference {
             FirTy::Var(_) => FirTy::Unknown, // unresolved var → Unknown
             FirTy::List(inner) => FirTy::List(Box::new(self.resolve(&inner))),
             FirTy::Option(inner) => FirTy::Option(Box::new(self.resolve(&inner))),
-            FirTy::Result(ok, err) => FirTy::Result(Box::new(self.resolve(&ok)), Box::new(self.resolve(&err))),
+            FirTy::Result(ok, err) => {
+                FirTy::Result(Box::new(self.resolve(&ok)), Box::new(self.resolve(&err)))
+            }
             FirTy::Tuple(elems) => FirTy::Tuple(elems.iter().map(|e| self.resolve(e)).collect()),
             FirTy::Map(k, v) => FirTy::Map(Box::new(self.resolve(&k)), Box::new(self.resolve(&v))),
             FirTy::Set(inner) => FirTy::Set(Box::new(self.resolve(&inner))),
-            FirTy::Arrow(a, b) => FirTy::Arrow(Box::new(self.resolve(&a)), Box::new(self.resolve(&b))),
+            FirTy::Arrow(a, b) => {
+                FirTy::Arrow(Box::new(self.resolve(&a)), Box::new(self.resolve(&b)))
+            }
             other => other,
         }
     }
@@ -5155,7 +6361,9 @@ impl TypeInference {
         let a = self.find(a);
         let b = self.find(b);
 
-        if a == b { return Ok(()); }
+        if a == b {
+            return Ok(());
+        }
 
         match (&a, &b) {
             // Var binds to anything
@@ -5199,7 +6407,9 @@ impl TypeInference {
     fn occurs(&self, var_id: usize, ty: &FirTy) -> bool {
         match self.find(ty) {
             FirTy::Var(id) => id == var_id,
-            FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => self.occurs(var_id, &inner),
+            FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => {
+                self.occurs(var_id, &inner)
+            }
             FirTy::Result(a, b) | FirTy::Map(a, b) | FirTy::Arrow(a, b) => {
                 self.occurs(var_id, &a) || self.occurs(var_id, &b)
             }
@@ -5214,7 +6424,9 @@ impl TypeInference {
         match &mut expr.kind {
             FirExprKind::App(func, args) => {
                 self.substitute_expr(func);
-                for a in args { self.substitute_expr(a); }
+                for a in args {
+                    self.substitute_expr(a);
+                }
             }
             FirExprKind::BinOp(_, lhs, rhs) => {
                 self.substitute_expr(lhs);
@@ -5234,14 +6446,20 @@ impl TypeInference {
                 self.substitute_expr(base);
                 self.substitute_expr(idx);
             }
-            FirExprKind::List(elems) | FirExprKind::Tuple(elems) | FirExprKind::Conjunction(elems) => {
-                for e in elems { self.substitute_expr(e); }
+            FirExprKind::List(elems)
+            | FirExprKind::Tuple(elems)
+            | FirExprKind::Conjunction(elems) => {
+                for e in elems {
+                    self.substitute_expr(e);
+                }
             }
             FirExprKind::Match(scrutinee, arms) => {
                 self.substitute_expr(scrutinee);
                 for arm in arms {
                     self.substitute_expr(&mut arm.body);
-                    if let Some(g) = &mut arm.guard { self.substitute_expr(g); }
+                    if let Some(g) = &mut arm.guard {
+                        self.substitute_expr(g);
+                    }
                 }
             }
             FirExprKind::Pipe(lhs, rhs) => {
@@ -5251,7 +6469,9 @@ impl TypeInference {
             FirExprKind::Block(stmts) => {
                 for s in stmts {
                     match s {
-                        FirStmt::Expr(e) | FirStmt::Bind(_, _, e) | FirStmt::MonadicBind(_, _, e)
+                        FirStmt::Expr(e)
+                        | FirStmt::Bind(_, _, e)
+                        | FirStmt::MonadicBind(_, _, e)
                         | FirStmt::StreamBind(_, e) => self.substitute_expr(e),
                         FirStmt::For(_, iter, body) => {
                             self.substitute_expr(iter);
@@ -5262,11 +6482,15 @@ impl TypeInference {
                 }
             }
             FirExprKind::Effect(_, args) => {
-                for a in args { self.substitute_expr(a); }
+                for a in args {
+                    self.substitute_expr(a);
+                }
             }
             FirExprKind::Handle { body, handlers, .. } => {
                 self.substitute_expr(body);
-                for h in handlers { self.substitute_expr(&mut h.body); }
+                for h in handlers {
+                    self.substitute_expr(&mut h.body);
+                }
             }
             _ => {} // Var, Lit, Unit — no children
         }
@@ -5281,20 +6505,30 @@ impl TypeInference {
 
     fn collect_free_vars(&self, ty: &FirTy, vars: &mut BTreeSet<usize>) {
         match self.find(ty) {
-            FirTy::Var(id) => { vars.insert(id); }
-            FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => self.collect_free_vars(&inner, vars),
+            FirTy::Var(id) => {
+                vars.insert(id);
+            }
+            FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => {
+                self.collect_free_vars(&inner, vars)
+            }
             FirTy::Result(a, b) | FirTy::Map(a, b) | FirTy::Arrow(a, b) => {
                 self.collect_free_vars(&a, vars);
                 self.collect_free_vars(&b, vars);
             }
-            FirTy::Tuple(elems) => { for e in &elems { self.collect_free_vars(e, vars); } }
+            FirTy::Tuple(elems) => {
+                for e in &elems {
+                    self.collect_free_vars(e, vars);
+                }
+            }
             _ => {}
         }
     }
 
     /// Instantiate a type by replacing the given generic var IDs with fresh variables.
     fn instantiate(&mut self, ty: &FirTy, generics: &BTreeSet<usize>) -> FirTy {
-        if generics.is_empty() { return ty.clone(); }
+        if generics.is_empty() {
+            return ty.clone();
+        }
         let mut mapping: BTreeMap<usize, FirTy> = BTreeMap::new();
         for &id in generics {
             mapping.insert(id, self.fresh());
@@ -5308,10 +6542,24 @@ impl TypeInference {
             FirTy::List(inner) => FirTy::List(Box::new(self.apply_mapping(&inner, mapping))),
             FirTy::Option(inner) => FirTy::Option(Box::new(self.apply_mapping(&inner, mapping))),
             FirTy::Set(inner) => FirTy::Set(Box::new(self.apply_mapping(&inner, mapping))),
-            FirTy::Result(a, b) => FirTy::Result(Box::new(self.apply_mapping(&a, mapping)), Box::new(self.apply_mapping(&b, mapping))),
-            FirTy::Map(k, v) => FirTy::Map(Box::new(self.apply_mapping(&k, mapping)), Box::new(self.apply_mapping(&v, mapping))),
-            FirTy::Arrow(a, b) => FirTy::Arrow(Box::new(self.apply_mapping(&a, mapping)), Box::new(self.apply_mapping(&b, mapping))),
-            FirTy::Tuple(elems) => FirTy::Tuple(elems.iter().map(|e| self.apply_mapping(e, mapping)).collect()),
+            FirTy::Result(a, b) => FirTy::Result(
+                Box::new(self.apply_mapping(&a, mapping)),
+                Box::new(self.apply_mapping(&b, mapping)),
+            ),
+            FirTy::Map(k, v) => FirTy::Map(
+                Box::new(self.apply_mapping(&k, mapping)),
+                Box::new(self.apply_mapping(&v, mapping)),
+            ),
+            FirTy::Arrow(a, b) => FirTy::Arrow(
+                Box::new(self.apply_mapping(&a, mapping)),
+                Box::new(self.apply_mapping(&b, mapping)),
+            ),
+            FirTy::Tuple(elems) => FirTy::Tuple(
+                elems
+                    .iter()
+                    .map(|e| self.apply_mapping(e, mapping))
+                    .collect(),
+            ),
             other => other,
         }
     }
@@ -5417,8 +6665,17 @@ enum FirStmt {
     Send(FirExpr, FirExpr),
     StreamBind(String, FirExpr),
     StreamSub(FirExpr, Vec<FirMatchArm>),
-    Invariant { name: String, subject: FirExpr, predicate: FirExpr },
-    Prove { name: String, capture: Option<String>, pass_block: Option<Vec<FirStmt>>, else_block: Option<Vec<FirStmt>> },
+    Invariant {
+        name: String,
+        subject: FirExpr,
+        predicate: FirExpr,
+    },
+    Prove {
+        name: String,
+        capture: Option<String>,
+        pass_block: Option<Vec<FirStmt>>,
+        else_block: Option<Vec<FirStmt>>,
+    },
     Assert(String, Vec<FirExpr>),
     Retract(String, Vec<FirExpr>),
     Abort,
@@ -5495,10 +6752,20 @@ impl<'a> LoweringCtx<'a> {
             Ty::App(base, args) => {
                 if let Ty::Name(n) = base.as_ref() {
                     match n.as_str() {
-                        "List" if args.len() == 1 => FirTy::List(Box::new(Self::ty_to_fir(&args[0]))),
-                        "Option" if args.len() == 1 => FirTy::Option(Box::new(Self::ty_to_fir(&args[0]))),
-                        "Result" if args.len() == 2 => FirTy::Result(Box::new(Self::ty_to_fir(&args[0])), Box::new(Self::ty_to_fir(&args[1]))),
-                        "Map" if args.len() == 2 => FirTy::Map(Box::new(Self::ty_to_fir(&args[0])), Box::new(Self::ty_to_fir(&args[1]))),
+                        "List" if args.len() == 1 => {
+                            FirTy::List(Box::new(Self::ty_to_fir(&args[0])))
+                        }
+                        "Option" if args.len() == 1 => {
+                            FirTy::Option(Box::new(Self::ty_to_fir(&args[0])))
+                        }
+                        "Result" if args.len() == 2 => FirTy::Result(
+                            Box::new(Self::ty_to_fir(&args[0])),
+                            Box::new(Self::ty_to_fir(&args[1])),
+                        ),
+                        "Map" if args.len() == 2 => FirTy::Map(
+                            Box::new(Self::ty_to_fir(&args[0])),
+                            Box::new(Self::ty_to_fir(&args[1])),
+                        ),
                         "Set" if args.len() == 1 => FirTy::Set(Box::new(Self::ty_to_fir(&args[0]))),
                         _ => FirTy::Named(n.clone()),
                     }
@@ -5506,7 +6773,9 @@ impl<'a> LoweringCtx<'a> {
                     FirTy::Unknown
                 }
             }
-            Ty::Arrow(a, b) => FirTy::Arrow(Box::new(Self::ty_to_fir(a)), Box::new(Self::ty_to_fir(b))),
+            Ty::Arrow(a, b) => {
+                FirTy::Arrow(Box::new(Self::ty_to_fir(a)), Box::new(Self::ty_to_fir(b)))
+            }
             Ty::Optional(inner) => FirTy::Option(Box::new(Self::ty_to_fir(inner))),
             Ty::Unit => FirTy::Unit,
             _ => FirTy::Unknown,
@@ -5532,7 +6801,9 @@ impl<'a> LoweringCtx<'a> {
             // Logical operators return Bool
             "&&" | "||" => FirTy::Bool,
             // String concatenation
-            "+" if matches!(lhs_ty, FirTy::String) || matches!(rhs_ty, FirTy::String) => FirTy::String,
+            "+" if matches!(lhs_ty, FirTy::String) || matches!(rhs_ty, FirTy::String) => {
+                FirTy::String
+            }
             // Arithmetic: prefer Float if either operand is Float
             "+" | "-" | "*" | "/" | "%" => {
                 if matches!(lhs_ty, FirTy::Float) || matches!(rhs_ty, FirTy::Float) {
@@ -5553,7 +6824,13 @@ impl<'a> LoweringCtx<'a> {
     /// Infer types for a function with possibly unannotated parameters.
     /// Creates type variables for missing annotations, lowers the body,
     /// generates constraints from usage, solves, and substitutes.
-    fn infer_function(&mut self, params: &[Param], body: &Expr, ret_ty: Option<&Ty>, fn_name: Option<&str>) -> FirExpr {
+    fn infer_function(
+        &mut self,
+        params: &[Param],
+        body: &Expr,
+        ret_ty: Option<&Ty>,
+        fn_name: Option<&str>,
+    ) -> FirExpr {
         let mut inf = TypeInference::new();
 
         // Create type vars for unannotated params, concrete types for annotated ones
@@ -5580,9 +6857,15 @@ impl<'a> LoweringCtx<'a> {
         // Before substitution: build the function type and check for generics
         if let Some(ref inf) = self.inference {
             // Build Arrow type from current (possibly unresolved) param types
-            let param_tys: Vec<FirTy> = params.iter().map(|p| {
-                self.type_env.get(&p.name).cloned().unwrap_or(FirTy::Unknown)
-            }).collect();
+            let param_tys: Vec<FirTy> = params
+                .iter()
+                .map(|p| {
+                    self.type_env
+                        .get(&p.name)
+                        .cloned()
+                        .unwrap_or(FirTy::Unknown)
+                })
+                .collect();
             let mut fn_ty = fir_body.ty.clone();
             for pt in param_tys.into_iter().rev() {
                 fn_ty = FirTy::Arrow(Box::new(pt), Box::new(fn_ty));
@@ -5591,17 +6874,23 @@ impl<'a> LoweringCtx<'a> {
             // Collect free (unresolved) type vars — these become generics
             let free = inf.free_vars(&fn_ty);
             if !free.is_empty() {
-                self.fn_schemes.insert(fn_name.unwrap_or("_").to_string(), TypeScheme {
-                    generics: free,
-                    ty: fn_ty.clone(),
-                });
+                self.fn_schemes.insert(
+                    fn_name.unwrap_or("_").to_string(),
+                    TypeScheme {
+                        generics: free,
+                        ty: fn_ty.clone(),
+                    },
+                );
             } else {
-                self.type_env.insert(fn_name.unwrap_or("_").to_string(), fn_ty);
+                self.type_env
+                    .insert(fn_name.unwrap_or("_").to_string(), fn_ty);
             }
 
             // Now substitute resolved vars
             inf.substitute_expr(&mut fir_body);
-            let resolved_env: BTreeMap<String, FirTy> = self.type_env.iter()
+            let resolved_env: BTreeMap<String, FirTy> = self
+                .type_env
+                .iter()
                 .map(|(k, v)| (k.clone(), inf.resolve(v)))
                 .collect();
             self.type_env = resolved_env;
@@ -5626,7 +6915,14 @@ impl<'a> LoweringCtx<'a> {
             return VarMode::Copy;
         }
         // Multi-use non-Copy: clone
-        if self.ownership.consuming_uses.get(name).copied().unwrap_or(0) > 1 {
+        if self
+            .ownership
+            .consuming_uses
+            .get(name)
+            .copied()
+            .unwrap_or(0)
+            > 1
+        {
             return VarMode::Clone;
         }
         // Single use: move
@@ -5639,14 +6935,26 @@ impl<'a> LoweringCtx<'a> {
             ExprKind::Var(name) => {
                 let ty = self.var_ty(name);
                 if self.types.variant_parent.contains_key(name.as_str()) {
-                    FirExpr { kind: FirExprKind::Var(name.clone(), VarMode::Move), span: expr.span, ty }
+                    FirExpr {
+                        kind: FirExprKind::Var(name.clone(), VarMode::Move),
+                        span: expr.span,
+                        ty,
+                    }
                 } else {
-                    FirExpr { kind: FirExprKind::Var(name.clone(), self.var_mode(name)), span: expr.span, ty }
+                    FirExpr {
+                        kind: FirExprKind::Var(name.clone(), self.var_mode(name)),
+                        span: expr.span,
+                        ty,
+                    }
                 }
             }
             ExprKind::Lit(lit) => {
                 let ty = Self::literal_ty(lit);
-                FirExpr { kind: FirExprKind::Lit(lit.clone()), span: expr.span, ty }
+                FirExpr {
+                    kind: FirExprKind::Lit(lit.clone()),
+                    span: expr.span,
+                    ty,
+                }
             }
             ExprKind::App(func, args) => {
                 let fir_func = self.lower_expr(func);
@@ -5667,9 +6975,15 @@ impl<'a> LoweringCtx<'a> {
                                 }
                             }
                             Some(inst)
-                        } else { None }
-                    } else { None }
-                } else { None };
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
 
                 // Infer return type from function's type (if Arrow)
                 let effective_ty = func_ty.as_ref().unwrap_or(&fir_func.ty);
@@ -5680,7 +6994,9 @@ impl<'a> LoweringCtx<'a> {
                         for _ in &fir_args {
                             if let FirTy::Arrow(_, ret) = current {
                                 current = ret;
-                            } else { break; }
+                            } else {
+                                break;
+                            }
                         }
                         current.clone()
                     }
@@ -5688,7 +7004,8 @@ impl<'a> LoweringCtx<'a> {
                 };
                 FirExpr {
                     kind: FirExprKind::App(Box::new(fir_func), fir_args),
-                    span: expr.span, ty,
+                    span: expr.span,
+                    ty,
                 }
             }
             ExprKind::Lambda(params, body) => {
@@ -5696,7 +7013,8 @@ impl<'a> LoweringCtx<'a> {
                 let body_ty = fir_body.ty.clone();
                 FirExpr {
                     kind: FirExprKind::Lambda(params.clone(), Box::new(fir_body)),
-                    span: expr.span, ty: body_ty,
+                    span: expr.span,
+                    ty: body_ty,
                 }
             }
             ExprKind::BinOp(op, lhs, rhs) => {
@@ -5723,13 +7041,22 @@ impl<'a> LoweringCtx<'a> {
                 }
                 FirExpr {
                     kind: FirExprKind::BinOp(op.clone(), Box::new(fir_lhs), Box::new(fir_rhs)),
-                    span: expr.span, ty,
+                    span: expr.span,
+                    ty,
                 }
             }
             ExprKind::UnOp(op, inner) => {
                 let fir_inner = self.lower_expr(inner);
-                let ty = if op == "!" { FirTy::Bool } else { fir_inner.ty.clone() };
-                FirExpr { kind: FirExprKind::UnOp(op.clone(), Box::new(fir_inner)), span: expr.span, ty }
+                let ty = if op == "!" {
+                    FirTy::Bool
+                } else {
+                    fir_inner.ty.clone()
+                };
+                FirExpr {
+                    kind: FirExprKind::UnOp(op.clone(), Box::new(fir_inner)),
+                    span: expr.span,
+                    ty,
+                }
             }
             ExprKind::If(cond, then_, else_) => {
                 let fir_cond = self.lower_expr(cond);
@@ -5737,35 +7064,58 @@ impl<'a> LoweringCtx<'a> {
                 let fir_else = self.lower_expr(else_);
                 let ty = fir_then.ty.clone(); // if/else branches should have same type
                 FirExpr {
-                    kind: FirExprKind::If(Box::new(fir_cond), Box::new(fir_then), Box::new(fir_else)),
-                    span: expr.span, ty,
+                    kind: FirExprKind::If(
+                        Box::new(fir_cond),
+                        Box::new(fir_then),
+                        Box::new(fir_else),
+                    ),
+                    span: expr.span,
+                    ty,
                 }
             }
             ExprKind::Match(scrutinee, arms) => {
                 let fir_scrutinee = self.lower_expr(scrutinee);
-                let fir_arms: Vec<FirMatchArm> = arms.iter().map(|a| FirMatchArm {
-                    pat: a.pat.clone(),
-                    guard: a.guard.as_ref().map(|g| self.lower_expr(g)),
-                    body: self.lower_expr(&a.body),
-                }).collect();
-                let ty = fir_arms.first().map(|a| a.body.ty.clone()).unwrap_or(FirTy::Unknown);
+                let fir_arms: Vec<FirMatchArm> = arms
+                    .iter()
+                    .map(|a| FirMatchArm {
+                        pat: a.pat.clone(),
+                        guard: a.guard.as_ref().map(|g| self.lower_expr(g)),
+                        body: self.lower_expr(&a.body),
+                    })
+                    .collect();
+                let ty = fir_arms
+                    .first()
+                    .map(|a| a.body.ty.clone())
+                    .unwrap_or(FirTy::Unknown);
                 FirExpr {
                     kind: FirExprKind::Match(Box::new(fir_scrutinee), fir_arms),
-                    span: expr.span, ty,
+                    span: expr.span,
+                    ty,
                 }
             }
             ExprKind::Block(stmts) => {
                 let fir_stmts: Vec<FirStmt> = stmts.iter().map(|s| self.lower_stmt(s)).collect();
                 // Block type = type of last expression statement
-                let ty = fir_stmts.last().and_then(|s| match s {
-                    FirStmt::Expr(e) => Some(e.ty.clone()),
-                    _ => None,
-                }).unwrap_or(FirTy::Unit);
-                FirExpr { kind: FirExprKind::Block(fir_stmts), span: expr.span, ty }
+                let ty = fir_stmts
+                    .last()
+                    .and_then(|s| match s {
+                        FirStmt::Expr(e) => Some(e.ty.clone()),
+                        _ => None,
+                    })
+                    .unwrap_or(FirTy::Unit);
+                FirExpr {
+                    kind: FirExprKind::Block(fir_stmts),
+                    span: expr.span,
+                    ty,
+                }
             }
             ExprKind::Field(obj, field) => {
                 let fir_obj = self.lower_expr(obj);
-                FirExpr { kind: FirExprKind::Field(Box::new(fir_obj), field.clone()), span: expr.span, ty: FirTy::Unknown }
+                FirExpr {
+                    kind: FirExprKind::Field(Box::new(fir_obj), field.clone()),
+                    span: expr.span,
+                    ty: FirTy::Unknown,
+                }
             }
             ExprKind::Index(base, idx) => {
                 let fir_base = self.lower_expr(base);
@@ -5773,36 +7123,63 @@ impl<'a> LoweringCtx<'a> {
                     FirTy::List(elem) => *elem.clone(),
                     _ => FirTy::Unknown,
                 };
-                FirExpr { kind: FirExprKind::Index(Box::new(fir_base), Box::new(self.lower_expr(idx))), span: expr.span, ty }
+                FirExpr {
+                    kind: FirExprKind::Index(Box::new(fir_base), Box::new(self.lower_expr(idx))),
+                    span: expr.span,
+                    ty,
+                }
             }
             ExprKind::List(elems) => {
                 let fir_elems: Vec<FirExpr> = elems.iter().map(|e| self.lower_expr(e)).collect();
-                let elem_ty = fir_elems.first().map(|e| e.ty.clone()).unwrap_or(FirTy::Unknown);
-                FirExpr { kind: FirExprKind::List(fir_elems), span: expr.span, ty: FirTy::List(Box::new(elem_ty)) }
+                let elem_ty = fir_elems
+                    .first()
+                    .map(|e| e.ty.clone())
+                    .unwrap_or(FirTy::Unknown);
+                FirExpr {
+                    kind: FirExprKind::List(fir_elems),
+                    span: expr.span,
+                    ty: FirTy::List(Box::new(elem_ty)),
+                }
             }
             ExprKind::Tuple(elems) => {
                 let fir_elems: Vec<FirExpr> = elems.iter().map(|e| self.lower_expr(e)).collect();
                 let tys: Vec<FirTy> = fir_elems.iter().map(|e| e.ty.clone()).collect();
-                FirExpr { kind: FirExprKind::Tuple(fir_elems), span: expr.span, ty: FirTy::Tuple(tys) }
+                FirExpr {
+                    kind: FirExprKind::Tuple(fir_elems),
+                    span: expr.span,
+                    ty: FirTy::Tuple(tys),
+                }
             }
             ExprKind::Effect(name, args) => {
                 let fir_args: Vec<FirExpr> = args.iter().map(|a| self.lower_expr(a)).collect();
-                FirExpr { kind: FirExprKind::Effect(name.clone(), fir_args), span: expr.span, ty: FirTy::Unit }
+                FirExpr {
+                    kind: FirExprKind::Effect(name.clone(), fir_args),
+                    span: expr.span,
+                    ty: FirTy::Unit,
+                }
             }
-            ExprKind::Handle { effect, handlers, body } => {
+            ExprKind::Handle {
+                effect,
+                handlers,
+                body,
+            } => {
                 let fir_body = self.lower_expr(body);
                 let ty = fir_body.ty.clone();
                 FirExpr {
                     kind: FirExprKind::Handle {
                         effect: effect.clone(),
-                        handlers: handlers.iter().map(|h| FirEffHandler {
-                            op_name: h.op_name.clone(),
-                            params: h.params.clone(),
-                            body: self.lower_expr(&h.body),
-                        }).collect(),
+                        handlers: handlers
+                            .iter()
+                            .map(|h| FirEffHandler {
+                                op_name: h.op_name.clone(),
+                                params: h.params.clone(),
+                                body: self.lower_expr(&h.body),
+                            })
+                            .collect(),
                         body: Box::new(fir_body),
                     },
-                    span: expr.span, ty,
+                    span: expr.span,
+                    ty,
                 }
             }
             ExprKind::Try(inner) => {
@@ -5813,50 +7190,73 @@ impl<'a> LoweringCtx<'a> {
                     FirTy::Result(ok, _) => *ok.clone(),
                     other => other.clone(),
                 };
-                FirExpr { kind: FirExprKind::Try(Box::new(fir_inner)), span: expr.span, ty }
+                FirExpr {
+                    kind: FirExprKind::Try(Box::new(fir_inner)),
+                    span: expr.span,
+                    ty,
+                }
             }
             ExprKind::Conjunction(goals) => {
                 let fir_goals: Vec<FirExpr> = goals.iter().map(|g| self.lower_expr(g)).collect();
-                FirExpr { kind: FirExprKind::Conjunction(fir_goals), span: expr.span, ty: FirTy::Bool }
+                FirExpr {
+                    kind: FirExprKind::Conjunction(fir_goals),
+                    span: expr.span,
+                    ty: FirTy::Bool,
+                }
             }
             ExprKind::Pipe(lhs, rhs) => {
                 let fir_lhs = self.lower_expr(lhs);
                 let fir_rhs = self.lower_expr(rhs);
                 let ty = fir_rhs.ty.clone(); // pipe result type = transform result type
-                FirExpr { kind: FirExprKind::Pipe(Box::new(fir_lhs), Box::new(fir_rhs)), span: expr.span, ty }
+                FirExpr {
+                    kind: FirExprKind::Pipe(Box::new(fir_lhs), Box::new(fir_rhs)),
+                    span: expr.span,
+                    ty,
+                }
             }
-            ExprKind::Unit => FirExpr { kind: FirExprKind::Unit, span: expr.span, ty: FirTy::Unit },
+            ExprKind::Unit => FirExpr {
+                kind: FirExprKind::Unit,
+                span: expr.span,
+                ty: FirTy::Unit,
+            },
         }
     }
 
     /// Lower an AST statement to FIR.
     fn lower_stmt(&mut self, stmt: &Stmt) -> FirStmt {
         match stmt {
-            Stmt::Defn(Defn::Fn { name, params, ret_ty, effects, body }) => {
-                FirStmt::Defn(FirDefn::Fn {
-                    name: name.clone(),
-                    params: params.clone(),
-                    ret_ty: ret_ty.clone(),
-                    effects: effects.clone(),
-                    body: self.lower_expr(body),
-                })
-            }
-            Stmt::Defn(Defn::Actor { name, state_param, handlers }) => {
-                FirStmt::Defn(FirDefn::Actor {
-                    name: name.clone(),
-                    state_param: state_param.clone(),
-                    handlers: handlers.iter().map(|h| FirHandler {
+            Stmt::Defn(Defn::Fn {
+                name,
+                params,
+                ret_ty,
+                effects,
+                body,
+            }) => FirStmt::Defn(FirDefn::Fn {
+                name: name.clone(),
+                params: params.clone(),
+                ret_ty: ret_ty.clone(),
+                effects: effects.clone(),
+                body: self.lower_expr(body),
+            }),
+            Stmt::Defn(Defn::Actor {
+                name,
+                state_param,
+                handlers,
+            }) => FirStmt::Defn(FirDefn::Actor {
+                name: name.clone(),
+                state_param: state_param.clone(),
+                handlers: handlers
+                    .iter()
+                    .map(|h| FirHandler {
                         msg_pat: h.msg_pat.clone(),
                         body: self.lower_expr(&h.body),
-                    }).collect(),
-                })
-            }
-            Stmt::Defn(Defn::Module { name, body }) => {
-                FirStmt::Defn(FirDefn::Module {
-                    name: name.clone(),
-                    body: body.iter().map(|s| self.lower_stmt(s)).collect(),
-                })
-            }
+                    })
+                    .collect(),
+            }),
+            Stmt::Defn(Defn::Module { name, body }) => FirStmt::Defn(FirDefn::Module {
+                name: name.clone(),
+                body: body.iter().map(|s| self.lower_stmt(s)).collect(),
+            }),
             Stmt::TypeDecl(td) => FirStmt::TypeDecl(td.clone()),
             Stmt::Rule(r) => FirStmt::Rule(r.clone()),
             Stmt::Use(s) => FirStmt::Use(s.clone()),
@@ -5865,59 +7265,67 @@ impl<'a> LoweringCtx<'a> {
             Stmt::HashImport(a, b) => FirStmt::HashImport(a.clone(), b.clone()),
             Stmt::Depend(a, b) => FirStmt::Depend(a.clone(), b.clone()),
             Stmt::RustBlock(s) => FirStmt::RustBlock(s.clone()),
-            Stmt::Annot(name, args) => {
-                FirStmt::Annot(name.clone(), args.iter().map(|a| self.lower_expr(a)).collect())
-            }
+            Stmt::Annot(name, args) => FirStmt::Annot(
+                name.clone(),
+                args.iter().map(|a| self.lower_expr(a)).collect(),
+            ),
             Stmt::Bind(pat, ty, expr) => {
                 FirStmt::Bind(pat.clone(), ty.clone(), self.lower_expr(expr))
             }
             Stmt::MonadicBind(pat, ty, expr) => {
                 FirStmt::MonadicBind(pat.clone(), ty.clone(), self.lower_expr(expr))
             }
-            Stmt::For(var, iter_expr, body) => {
-                FirStmt::For(
-                    var.clone(),
-                    self.lower_expr(iter_expr),
-                    body.iter().map(|s| self.lower_stmt(s)).collect(),
-                )
-            }
-            Stmt::Send(target, msg) => {
-                FirStmt::Send(self.lower_expr(target), self.lower_expr(msg))
-            }
+            Stmt::For(var, iter_expr, body) => FirStmt::For(
+                var.clone(),
+                self.lower_expr(iter_expr),
+                body.iter().map(|s| self.lower_stmt(s)).collect(),
+            ),
+            Stmt::Send(target, msg) => FirStmt::Send(self.lower_expr(target), self.lower_expr(msg)),
             Stmt::StreamBind(name, expr) => {
                 FirStmt::StreamBind(name.clone(), self.lower_expr(expr))
             }
-            Stmt::StreamSub(expr, arms) => {
-                FirStmt::StreamSub(
-                    self.lower_expr(expr),
-                    arms.iter().map(|a| FirMatchArm {
+            Stmt::StreamSub(expr, arms) => FirStmt::StreamSub(
+                self.lower_expr(expr),
+                arms.iter()
+                    .map(|a| FirMatchArm {
                         pat: a.pat.clone(),
                         guard: a.guard.as_ref().map(|g| self.lower_expr(g)),
                         body: self.lower_expr(&a.body),
-                    }).collect(),
-                )
-            }
-            Stmt::Invariant { name, subject, predicate } => {
-                FirStmt::Invariant {
-                    name: name.clone(),
-                    subject: self.lower_expr(subject),
-                    predicate: self.lower_expr(predicate),
-                }
-            }
-            Stmt::Prove { name, capture, pass_block, else_block } => {
-                FirStmt::Prove {
-                    name: name.clone(),
-                    capture: capture.clone(),
-                    pass_block: pass_block.as_ref().map(|b| b.iter().map(|s| self.lower_stmt(s)).collect()),
-                    else_block: else_block.as_ref().map(|b| b.iter().map(|s| self.lower_stmt(s)).collect()),
-                }
-            }
-            Stmt::Assert(name, args) => {
-                FirStmt::Assert(name.clone(), args.iter().map(|a| self.lower_expr(a)).collect())
-            }
-            Stmt::Retract(name, args) => {
-                FirStmt::Retract(name.clone(), args.iter().map(|a| self.lower_expr(a)).collect())
-            }
+                    })
+                    .collect(),
+            ),
+            Stmt::Invariant {
+                name,
+                subject,
+                predicate,
+            } => FirStmt::Invariant {
+                name: name.clone(),
+                subject: self.lower_expr(subject),
+                predicate: self.lower_expr(predicate),
+            },
+            Stmt::Prove {
+                name,
+                capture,
+                pass_block,
+                else_block,
+            } => FirStmt::Prove {
+                name: name.clone(),
+                capture: capture.clone(),
+                pass_block: pass_block
+                    .as_ref()
+                    .map(|b| b.iter().map(|s| self.lower_stmt(s)).collect()),
+                else_block: else_block
+                    .as_ref()
+                    .map(|b| b.iter().map(|s| self.lower_stmt(s)).collect()),
+            },
+            Stmt::Assert(name, args) => FirStmt::Assert(
+                name.clone(),
+                args.iter().map(|a| self.lower_expr(a)).collect(),
+            ),
+            Stmt::Retract(name, args) => FirStmt::Retract(
+                name.clone(),
+                args.iter().map(|a| self.lower_expr(a)).collect(),
+            ),
             Stmt::Abort => FirStmt::Abort,
             Stmt::Expr(expr) => FirStmt::Expr(self.lower_expr(expr)),
         }
@@ -5957,7 +7365,11 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
         FirExprKind::Lit(Literal::Int(n)) => format!("{}i64", n),
         FirExprKind::Lit(Literal::Float(f)) => {
             let s = format!("{}", f);
-            if s.contains('.') { s } else { format!("{}.0", s) }
+            if s.contains('.') {
+                s
+            } else {
+                format!("{}.0", s)
+            }
         }
         FirExprKind::Lit(Literal::Char(c)) => format!("'{}'", c),
         FirExprKind::Lit(Literal::Bool(b)) => format!("{}", b),
@@ -5973,21 +7385,29 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
                     _ => {}
                 }
             }
-            let rust_op = if op == "==" { "==" }
-                else if op == "!=" { "!=" }
-                else if op == "&&" { "&&" }
-                else if op == "||" { "||" }
-                else { op.as_str() };
+            let rust_op = if op == "==" {
+                "=="
+            } else if op == "!=" {
+                "!="
+            } else if op == "&&" {
+                "&&"
+            } else if op == "||" {
+                "||"
+            } else {
+                op.as_str()
+            };
             format!("({} {} {})", l, rust_op, r)
         }
         FirExprKind::UnOp(op, inner) => {
             format!("({}{})", op, emit_fir_expr(inner, types))
         }
         FirExprKind::If(cond, then_, else_) => {
-            format!("if {} {{ {} }} else {{ {} }}",
+            format!(
+                "if {} {{ {} }} else {{ {} }}",
                 emit_fir_expr(cond, types),
                 emit_fir_expr(then_, types),
-                emit_fir_expr(else_, types))
+                emit_fir_expr(else_, types)
+            )
         }
         FirExprKind::App(func, args) => {
             let f = emit_fir_expr(func, types);
@@ -5998,7 +7418,11 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
             format!("{}.{}", emit_fir_expr(obj, types), field)
         }
         FirExprKind::Index(base, idx) => {
-            format!("{}[{} as usize]", emit_fir_expr(base, types), emit_fir_expr(idx, types))
+            format!(
+                "{}[{} as usize]",
+                emit_fir_expr(base, types),
+                emit_fir_expr(idx, types)
+            )
         }
         FirExprKind::List(elems) => {
             let items: Vec<String> = elems.iter().map(|e| emit_fir_expr(e, types)).collect();
@@ -6010,7 +7434,11 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
         }
         FirExprKind::Lambda(params, body) => {
             let param_strs: Vec<String> = params.iter().map(|p| sanitize_name(&p.name)).collect();
-            format!("|{}| {{ {} }}", param_strs.join(", "), emit_fir_expr(body, types))
+            format!(
+                "|{}| {{ {} }}",
+                param_strs.join(", "),
+                emit_fir_expr(body, types)
+            )
         }
         FirExprKind::Try(inner) => {
             format!("{}?", emit_fir_expr(inner, types))
@@ -6021,11 +7449,18 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
             for arm in arms {
                 let pat_str = format_pat(&arm.pat);
                 if let Some(ref guard) = arm.guard {
-                    out.push_str(&format!("    {} if {} => {},\n",
-                        pat_str, emit_fir_expr(guard, types), emit_fir_expr(&arm.body, types)));
+                    out.push_str(&format!(
+                        "    {} if {} => {},\n",
+                        pat_str,
+                        emit_fir_expr(guard, types),
+                        emit_fir_expr(&arm.body, types)
+                    ));
                 } else {
-                    out.push_str(&format!("    {} => {},\n",
-                        pat_str, emit_fir_expr(&arm.body, types)));
+                    out.push_str(&format!(
+                        "    {} => {},\n",
+                        pat_str,
+                        emit_fir_expr(&arm.body, types)
+                    ));
                 }
             }
             out.push_str("}");
@@ -6040,7 +7475,11 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
                     format!("{}({})", emit_fir_expr(func, types), new_args.join(", "))
                 }
                 _ => {
-                    format!("{}({})", emit_fir_expr(rhs, types), emit_fir_expr(lhs, types))
+                    format!(
+                        "{}({})",
+                        emit_fir_expr(rhs, types),
+                        emit_fir_expr(lhs, types)
+                    )
                 }
             }
         }
@@ -6067,7 +7506,11 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
 fn emit_fir_stmt(stmt: &FirStmt, types: &TypeRegistry) -> String {
     match stmt {
         FirStmt::Bind(Pat::Var(name), _, expr) => {
-            format!("let {} = {};", sanitize_name(name), emit_fir_expr(expr, types))
+            format!(
+                "let {} = {};",
+                sanitize_name(name),
+                emit_fir_expr(expr, types)
+            )
         }
         FirStmt::Bind(pat, _, expr) => {
             format!("let {} = {};", format_pat(pat), emit_fir_expr(expr, types))
@@ -6077,7 +7520,12 @@ fn emit_fir_stmt(stmt: &FirStmt, types: &TypeRegistry) -> String {
         }
         FirStmt::For(var, iter_expr, body) => {
             let body_strs: Vec<String> = body.iter().map(|s| emit_fir_stmt(s, types)).collect();
-            format!("for {} in {} {{ {} }}", sanitize_name(var), emit_fir_expr(iter_expr, types), body_strs.join(" "))
+            format!(
+                "for {} in {} {{ {} }}",
+                sanitize_name(var),
+                emit_fir_expr(iter_expr, types),
+                body_strs.join(" ")
+            )
         }
         _ => "/* unhandled FIR stmt */".to_string(),
     }
@@ -6101,9 +7549,10 @@ fn format_pat(pat: &Pat) -> String {
             format!("{}({})", name, arg_strs.join(", "))
         }
         Pat::NamedCon(name, fields) => {
-            let field_strs: Vec<String> = fields.iter().map(|(k, v)| {
-                format!("{}: {}", k, format_pat(v))
-            }).collect();
+            let field_strs: Vec<String> = fields
+                .iter()
+                .map(|(k, v)| format!("{}: {}", k, format_pat(v)))
+                .collect();
             format!("{} {{ {} }}", name, field_strs.join(", "))
         }
         Pat::As(pat, alias) => format!("{} @ {}", format_pat(pat), alias),
@@ -6176,7 +7625,11 @@ fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
         }
         ExprKind::Lit(_) | ExprKind::Unit => {}
         ExprKind::Try(inner) => count_var_uses(inner, counts),
-        ExprKind::Conjunction(goals) => { for g in goals { count_var_uses(g, counts); } }
+        ExprKind::Conjunction(goals) => {
+            for g in goals {
+                count_var_uses(g, counts);
+            }
+        }
         ExprKind::Pipe(input, transform) => {
             count_var_uses(input, counts);
             count_var_uses(transform, counts);
@@ -6192,13 +7645,13 @@ fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
 
 fn count_var_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
     match stmt {
-        Stmt::Bind(_, _, expr) | Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => count_var_uses(expr, counts),
-        Stmt::Defn(defn) => {
-            match defn {
-                Defn::Fn { body, .. } => count_var_uses(body, counts),
-                _ => {}
-            }
+        Stmt::Bind(_, _, expr) | Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => {
+            count_var_uses(expr, counts)
         }
+        Stmt::Defn(defn) => match defn {
+            Defn::Fn { body, .. } => count_var_uses(body, counts),
+            _ => {}
+        },
         Stmt::Annot(_, args) => {
             for a in args {
                 count_var_uses(a, counts);
@@ -6218,12 +7671,16 @@ fn count_var_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
         Stmt::StreamSub(expr, arms) => {
             count_var_uses(expr, counts);
             for arm in arms {
-                if let Some(g) = &arm.guard { count_var_uses(g, counts); }
+                if let Some(g) = &arm.guard {
+                    count_var_uses(g, counts);
+                }
                 count_var_uses(&arm.body, counts);
             }
         }
         Stmt::Rule(Rule::Scope { body, .. }) => {
-            for s in body { count_var_uses_stmt(s, counts); }
+            for s in body {
+                count_var_uses_stmt(s, counts);
+            }
         }
         _ => {}
     }
@@ -6290,11 +7747,17 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
             }
         }
         ExprKind::Effect(_, args) => {
-            for a in args { count_consuming_uses(a, counts); }
+            for a in args {
+                count_consuming_uses(a, counts);
+            }
         }
         ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
         ExprKind::Try(inner) => count_consuming_uses(inner, counts),
-        ExprKind::Conjunction(goals) => { for g in goals { count_consuming_uses(g, counts); } }
+        ExprKind::Conjunction(goals) => {
+            for g in goals {
+                count_consuming_uses(g, counts);
+            }
+        }
         ExprKind::Pipe(input, transform) => {
             // Pipe input is consumed (passed as arg)
             if let ExprKind::Var(name) = &input.as_ref().kind {
@@ -6323,10 +7786,14 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
         }
         Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => count_consuming_uses(expr, counts),
         Stmt::Defn(defn) => {
-            if let Defn::Fn { body, .. } = defn { count_consuming_uses(body, counts); }
+            if let Defn::Fn { body, .. } = defn {
+                count_consuming_uses(body, counts);
+            }
         }
         Stmt::Annot(_, args) => {
-            for a in args { count_consuming_uses(a, counts); }
+            for a in args {
+                count_consuming_uses(a, counts);
+            }
         }
         Stmt::For(_, iter_expr, body) => {
             count_consuming_uses(iter_expr, counts);
@@ -6342,7 +7809,9 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
         Stmt::StreamSub(expr, arms) => {
             count_consuming_uses(expr, counts);
             for arm in arms {
-                if let Some(g) = &arm.guard { count_consuming_uses(g, counts); }
+                if let Some(g) = &arm.guard {
+                    count_consuming_uses(g, counts);
+                }
                 count_consuming_uses(&arm.body, counts);
             }
         }
@@ -6380,7 +7849,11 @@ fn count_consuming_uses_branch_aware(expr: &Expr, counts: &mut BTreeMap<String, 
             count_consuming_uses_branch_aware(then_, &mut then_counts);
             count_consuming_uses_branch_aware(else_, &mut else_counts);
             // Merge: for each variable, add max(then, else) to counts
-            let all_vars: BTreeSet<String> = then_counts.keys().chain(else_counts.keys()).cloned().collect();
+            let all_vars: BTreeSet<String> = then_counts
+                .keys()
+                .chain(else_counts.keys())
+                .cloned()
+                .collect();
             for var in all_vars {
                 let t = then_counts.get(&var).copied().unwrap_or(0);
                 let e = else_counts.get(&var).copied().unwrap_or(0);
@@ -6400,12 +7873,16 @@ fn count_consuming_uses_branch_aware(expr: &Expr, counts: &mut BTreeMap<String, 
                 arm_counts.push(ac);
             }
             // Merge: for each variable, add max across all arms
-            let all_vars: BTreeSet<String> = arm_counts.iter()
-                .flat_map(|ac| ac.keys().cloned()).collect();
+            let all_vars: BTreeSet<String> = arm_counts
+                .iter()
+                .flat_map(|ac| ac.keys().cloned())
+                .collect();
             for var in all_vars {
-                let max_count = arm_counts.iter()
+                let max_count = arm_counts
+                    .iter()
                     .map(|ac| ac.get(&var).copied().unwrap_or(0))
-                    .max().unwrap_or(0);
+                    .max()
+                    .unwrap_or(0);
                 *counts.entry(var).or_insert(0) += max_count;
             }
         }
@@ -6429,11 +7906,17 @@ fn count_consuming_uses_branch_aware(expr: &Expr, counts: &mut BTreeMap<String, 
             }
         }
         ExprKind::Effect(_, args) => {
-            for a in args { count_consuming_uses_branch_aware(a, counts); }
+            for a in args {
+                count_consuming_uses_branch_aware(a, counts);
+            }
         }
         ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
         ExprKind::Try(inner) => count_consuming_uses_branch_aware(inner, counts),
-        ExprKind::Conjunction(goals) => { for g in goals { count_consuming_uses_branch_aware(g, counts); } }
+        ExprKind::Conjunction(goals) => {
+            for g in goals {
+                count_consuming_uses_branch_aware(g, counts);
+            }
+        }
         ExprKind::Pipe(input, transform) => {
             if let ExprKind::Var(name) = &input.as_ref().kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
@@ -6459,12 +7942,18 @@ fn count_consuming_uses_branch_aware_stmt(stmt: &Stmt, counts: &mut BTreeMap<Str
             }
             count_consuming_uses_branch_aware(expr, counts);
         }
-        Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => count_consuming_uses_branch_aware(expr, counts),
+        Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => {
+            count_consuming_uses_branch_aware(expr, counts)
+        }
         Stmt::Defn(defn) => {
-            if let Defn::Fn { body, .. } = defn { count_consuming_uses_branch_aware(body, counts); }
+            if let Defn::Fn { body, .. } = defn {
+                count_consuming_uses_branch_aware(body, counts);
+            }
         }
         Stmt::Annot(_, args) => {
-            for a in args { count_consuming_uses_branch_aware(a, counts); }
+            for a in args {
+                count_consuming_uses_branch_aware(a, counts);
+            }
         }
         Stmt::For(_, iter_expr, body) => {
             count_consuming_uses_branch_aware(iter_expr, counts);
@@ -6480,7 +7969,9 @@ fn count_consuming_uses_branch_aware_stmt(stmt: &Stmt, counts: &mut BTreeMap<Str
         Stmt::StreamSub(expr, arms) => {
             count_consuming_uses_branch_aware(expr, counts);
             for arm in arms {
-                if let Some(g) = &arm.guard { count_consuming_uses_branch_aware(g, counts); }
+                if let Some(g) = &arm.guard {
+                    count_consuming_uses_branch_aware(g, counts);
+                }
                 count_consuming_uses_branch_aware(&arm.body, counts);
             }
         }
@@ -6504,12 +7995,18 @@ fn count_consuming_uses_borrow_aware(
             // Only count if not a known top-level function (borrow_fns tracks all defined fns).
             if let ExprKind::Var(name) = &func.as_ref().kind {
                 if !known_borrow_fns.contains_key(name.as_str())
-                    && self_fn_name != Some(name.as_str()) {
+                    && self_fn_name != Some(name.as_str())
+                {
                     *counts.entry(name.clone()).or_insert(0) += 1;
                 }
             }
-            count_consuming_uses_borrow_aware(func, counts, known_borrow_fns,
-                self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                func,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
             let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             // Phase 3d: Check if this is a self-recursive call
             let is_self_recursive = if let ExprKind::Var(fn_name) = &func.as_ref().kind {
@@ -6529,32 +8026,81 @@ fn count_consuming_uses_borrow_aware(
                     .unwrap_or(false);
                 // Phase 3d: self-recursive pass-through — if the arg is a param
                 // passed at the same position to itself, it's not consuming
-                let is_self_passthrough = is_self_recursive && if let ExprKind::Var(name) = &a.kind {
-                    self_param_names.get(idx).map(|pn| *pn == name.as_str()).unwrap_or(false)
-                } else {
-                    false
-                };
+                let is_self_passthrough = is_self_recursive
+                    && if let ExprKind::Var(name) = &a.kind {
+                        self_param_names
+                            .get(idx)
+                            .map(|pn| *pn == name.as_str())
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    };
                 if !is_borrow_builtin && !is_borrow_param && !is_self_passthrough {
                     if let ExprKind::Var(name) = &a.kind {
                         *counts.entry(name.clone()).or_insert(0) += 1;
                     }
                 }
-                count_consuming_uses_borrow_aware(a, counts, known_borrow_fns,
-                    self_fn_name, self_param_names);
+                count_consuming_uses_borrow_aware(
+                    a,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
             }
         }
         ExprKind::BinOp(_, lhs, rhs) => {
-            count_consuming_uses_borrow_aware(lhs, counts, known_borrow_fns, self_fn_name, self_param_names);
-            count_consuming_uses_borrow_aware(rhs, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                lhs,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
+            count_consuming_uses_borrow_aware(
+                rhs,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
         }
-        ExprKind::UnOp(_, inner) => count_consuming_uses_borrow_aware(inner, counts, known_borrow_fns, self_fn_name, self_param_names),
+        ExprKind::UnOp(_, inner) => count_consuming_uses_borrow_aware(
+            inner,
+            counts,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+        ),
         ExprKind::If(cond, then_, else_) => {
-            count_consuming_uses_borrow_aware(cond, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                cond,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
             let mut then_counts: BTreeMap<String, usize> = BTreeMap::new();
             let mut else_counts: BTreeMap<String, usize> = BTreeMap::new();
-            count_consuming_uses_borrow_aware(then_, &mut then_counts, known_borrow_fns, self_fn_name, self_param_names);
-            count_consuming_uses_borrow_aware(else_, &mut else_counts, known_borrow_fns, self_fn_name, self_param_names);
-            let all_vars: BTreeSet<String> = then_counts.keys().chain(else_counts.keys()).cloned().collect();
+            count_consuming_uses_borrow_aware(
+                then_,
+                &mut then_counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
+            count_consuming_uses_borrow_aware(
+                else_,
+                &mut else_counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
+            let all_vars: BTreeSet<String> = then_counts
+                .keys()
+                .chain(else_counts.keys())
+                .cloned()
+                .collect();
             for var in all_vars {
                 let t = then_counts.get(&var).copied().unwrap_or(0);
                 let e = else_counts.get(&var).copied().unwrap_or(0);
@@ -6562,68 +8108,174 @@ fn count_consuming_uses_borrow_aware(
             }
         }
         ExprKind::Match(scrutinee, arms) => {
-            count_consuming_uses_borrow_aware(scrutinee, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                scrutinee,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
             let mut arm_counts: Vec<BTreeMap<String, usize>> = Vec::new();
             for arm in arms {
                 let mut ac: BTreeMap<String, usize> = BTreeMap::new();
-                count_consuming_uses_borrow_aware(&arm.body, &mut ac, known_borrow_fns, self_fn_name, self_param_names);
+                count_consuming_uses_borrow_aware(
+                    &arm.body,
+                    &mut ac,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
                 if let Some(guard) = &arm.guard {
-                    count_consuming_uses_borrow_aware(guard, &mut ac, known_borrow_fns, self_fn_name, self_param_names);
+                    count_consuming_uses_borrow_aware(
+                        guard,
+                        &mut ac,
+                        known_borrow_fns,
+                        self_fn_name,
+                        self_param_names,
+                    );
                 }
                 arm_counts.push(ac);
             }
-            let all_vars: BTreeSet<String> = arm_counts.iter()
-                .flat_map(|ac| ac.keys().cloned()).collect();
+            let all_vars: BTreeSet<String> = arm_counts
+                .iter()
+                .flat_map(|ac| ac.keys().cloned())
+                .collect();
             for var in all_vars {
-                let max_count = arm_counts.iter()
+                let max_count = arm_counts
+                    .iter()
                     .map(|ac| ac.get(&var).copied().unwrap_or(0))
-                    .max().unwrap_or(0);
+                    .max()
+                    .unwrap_or(0);
                 *counts.entry(var).or_insert(0) += max_count;
             }
         }
         ExprKind::Block(stmts) => {
             for stmt in stmts {
-                count_consuming_uses_borrow_aware_stmt(stmt, counts, known_borrow_fns, self_fn_name, self_param_names);
+                count_consuming_uses_borrow_aware_stmt(
+                    stmt,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
             }
         }
-        ExprKind::Lambda(_, body) => count_consuming_uses_borrow_aware(body, counts, known_borrow_fns, self_fn_name, self_param_names),
+        ExprKind::Lambda(_, body) => count_consuming_uses_borrow_aware(
+            body,
+            counts,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+        ),
         ExprKind::Field(base, _) => {
             // Field access borrows the base, but if the base was already moved, it fails.
             // Count field access as a consuming use so variables are cloned when needed.
             if let ExprKind::Var(name) = &base.as_ref().kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
-            count_consuming_uses_borrow_aware(base, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                base,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
         }
         ExprKind::Index(base, idx) => {
-            count_consuming_uses_borrow_aware(base, counts, known_borrow_fns, self_fn_name, self_param_names);
-            count_consuming_uses_borrow_aware(idx, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                base,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
+            count_consuming_uses_borrow_aware(
+                idx,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
         }
         ExprKind::List(elems) | ExprKind::Tuple(elems) => {
             for e in elems {
                 if let ExprKind::Var(name) = &e.kind {
                     *counts.entry(name.clone()).or_insert(0) += 1;
                 }
-                count_consuming_uses_borrow_aware(e, counts, known_borrow_fns, self_fn_name, self_param_names);
+                count_consuming_uses_borrow_aware(
+                    e,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
             }
         }
         ExprKind::Effect(_, args) => {
-            for a in args { count_consuming_uses_borrow_aware(a, counts, known_borrow_fns, self_fn_name, self_param_names); }
+            for a in args {
+                count_consuming_uses_borrow_aware(
+                    a,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
+            }
         }
         ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
-        ExprKind::Try(inner) => count_consuming_uses_borrow_aware(inner, counts, known_borrow_fns, self_fn_name, self_param_names),
-        ExprKind::Conjunction(goals) => { for g in goals { count_consuming_uses_borrow_aware(g, counts, known_borrow_fns, self_fn_name, self_param_names); } }
+        ExprKind::Try(inner) => count_consuming_uses_borrow_aware(
+            inner,
+            counts,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+        ),
+        ExprKind::Conjunction(goals) => {
+            for g in goals {
+                count_consuming_uses_borrow_aware(
+                    g,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
+            }
+        }
         ExprKind::Pipe(input, transform) => {
             if let ExprKind::Var(name) = &input.as_ref().kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
-            count_consuming_uses_borrow_aware(input, counts, known_borrow_fns, self_fn_name, self_param_names);
-            count_consuming_uses_borrow_aware(transform, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                input,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
+            count_consuming_uses_borrow_aware(
+                transform,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
         }
         ExprKind::Handle { handlers, body, .. } => {
-            count_consuming_uses_borrow_aware(body, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                body,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
             for h in handlers {
-                count_consuming_uses_borrow_aware(&h.body, counts, known_borrow_fns, self_fn_name, self_param_names);
+                count_consuming_uses_borrow_aware(
+                    &h.body,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
             }
         }
     }
@@ -6641,39 +8293,123 @@ fn count_consuming_uses_borrow_aware_stmt(
             if let ExprKind::Var(name) = &expr.kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
-            count_consuming_uses_borrow_aware(expr, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                expr,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
         }
         Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => {
-            count_consuming_uses_borrow_aware(expr, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                expr,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
         }
         Stmt::Defn(defn) => {
             if let Defn::Fn { body, .. } = defn {
-                count_consuming_uses_borrow_aware(body, counts, known_borrow_fns, self_fn_name, self_param_names);
+                count_consuming_uses_borrow_aware(
+                    body,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
             }
         }
         Stmt::Annot(_, args) => {
-            for a in args { count_consuming_uses_borrow_aware(a, counts, known_borrow_fns, self_fn_name, self_param_names); }
+            for a in args {
+                count_consuming_uses_borrow_aware(
+                    a,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
+            }
         }
         Stmt::For(_, iter_expr, body) => {
-            count_consuming_uses_borrow_aware(iter_expr, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                iter_expr,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
             for s in body {
-                count_consuming_uses_borrow_aware_stmt(s, counts, known_borrow_fns, self_fn_name, self_param_names);
+                count_consuming_uses_borrow_aware_stmt(
+                    s,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
             }
         }
         Stmt::Send(target, msg) => {
-            count_consuming_uses_borrow_aware(target, counts, known_borrow_fns, self_fn_name, self_param_names);
-            count_consuming_uses_borrow_aware(msg, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                target,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
+            count_consuming_uses_borrow_aware(
+                msg,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
         }
-        Stmt::StreamBind(_, expr) => count_consuming_uses_borrow_aware(expr, counts, known_borrow_fns, self_fn_name, self_param_names),
+        Stmt::StreamBind(_, expr) => count_consuming_uses_borrow_aware(
+            expr,
+            counts,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+        ),
         Stmt::StreamSub(expr, arms) => {
-            count_consuming_uses_borrow_aware(expr, counts, known_borrow_fns, self_fn_name, self_param_names);
+            count_consuming_uses_borrow_aware(
+                expr,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            );
             for arm in arms {
-                if let Some(g) = &arm.guard { count_consuming_uses_borrow_aware(g, counts, known_borrow_fns, self_fn_name, self_param_names); }
-                count_consuming_uses_borrow_aware(&arm.body, counts, known_borrow_fns, self_fn_name, self_param_names);
+                if let Some(g) = &arm.guard {
+                    count_consuming_uses_borrow_aware(
+                        g,
+                        counts,
+                        known_borrow_fns,
+                        self_fn_name,
+                        self_param_names,
+                    );
+                }
+                count_consuming_uses_borrow_aware(
+                    &arm.body,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
             }
         }
         Stmt::Rule(Rule::Scope { body, .. }) => {
-            for s in body { count_consuming_uses_borrow_aware_stmt(s, counts, known_borrow_fns, self_fn_name, self_param_names); }
+            for s in body {
+                count_consuming_uses_borrow_aware_stmt(
+                    s,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                );
+            }
         }
         _ => {}
     }
@@ -6691,7 +8427,15 @@ fn has_consuming_non_field_use(
 ) -> bool {
     match &expr.kind {
         ExprKind::App(func, args) => {
-            if has_consuming_non_field_use(func, param, known_borrow_fns, self_fn_name, self_param_names) { return true; }
+            if has_consuming_non_field_use(
+                func,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) {
+                return true;
+            }
             let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             // Phase 3d: self-recursive call detection
             let is_self_recursive = if let ExprKind::Var(fn_name) = &func.as_ref().kind {
@@ -6709,69 +8453,192 @@ fn has_consuming_non_field_use(
                     .and_then(|f| f.get(idx).copied())
                     .unwrap_or(false);
                 // Phase 3d: self-recursive pass-through is not consuming
-                let is_self_passthrough = is_self_recursive && if let ExprKind::Var(name) = &a.kind {
-                    self_param_names.get(idx).map(|pn| *pn == name.as_str()).unwrap_or(false)
-                } else {
-                    false
-                };
+                let is_self_passthrough = is_self_recursive
+                    && if let ExprKind::Var(name) = &a.kind {
+                        self_param_names
+                            .get(idx)
+                            .map(|pn| *pn == name.as_str())
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    };
                 if !is_borrow_builtin && !is_borrow_param && !is_self_passthrough {
                     if let ExprKind::Var(name) = &a.kind {
-                        if name == param { return true; }
+                        if name == param {
+                            return true;
+                        }
                     }
                 }
-                if has_consuming_non_field_use(a, param, known_borrow_fns, self_fn_name, self_param_names) { return true; }
+                if has_consuming_non_field_use(
+                    a,
+                    param,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                ) {
+                    return true;
+                }
             }
             false
         }
         ExprKind::BinOp(_, lhs, rhs) => {
-            has_consuming_non_field_use(lhs, param, known_borrow_fns, self_fn_name, self_param_names)
-            || has_consuming_non_field_use(rhs, param, known_borrow_fns, self_fn_name, self_param_names)
+            has_consuming_non_field_use(
+                lhs,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) || has_consuming_non_field_use(
+                rhs,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            )
         }
-        ExprKind::UnOp(_, inner) => has_consuming_non_field_use(inner, param, known_borrow_fns, self_fn_name, self_param_names),
+        ExprKind::UnOp(_, inner) => has_consuming_non_field_use(
+            inner,
+            param,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+        ),
         ExprKind::If(cond, then_, else_) => {
-            has_consuming_non_field_use(cond, param, known_borrow_fns, self_fn_name, self_param_names)
-            || has_consuming_non_field_use(then_, param, known_borrow_fns, self_fn_name, self_param_names)
-            || has_consuming_non_field_use(else_, param, known_borrow_fns, self_fn_name, self_param_names)
+            has_consuming_non_field_use(
+                cond,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) || has_consuming_non_field_use(
+                then_,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) || has_consuming_non_field_use(
+                else_,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            )
         }
         ExprKind::Match(scrutinee, arms) => {
-            if has_consuming_non_field_use(scrutinee, param, known_borrow_fns, self_fn_name, self_param_names) { return true; }
+            if has_consuming_non_field_use(
+                scrutinee,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) {
+                return true;
+            }
             arms.iter().any(|arm| {
-                has_consuming_non_field_use(&arm.body, param, known_borrow_fns, self_fn_name, self_param_names)
-                || arm.guard.as_ref().map_or(false, |g| has_consuming_non_field_use(g, param, known_borrow_fns, self_fn_name, self_param_names))
+                has_consuming_non_field_use(
+                    &arm.body,
+                    param,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                ) || arm.guard.as_ref().map_or(false, |g| {
+                    has_consuming_non_field_use(
+                        g,
+                        param,
+                        known_borrow_fns,
+                        self_fn_name,
+                        self_param_names,
+                    )
+                })
             })
         }
-        ExprKind::Block(stmts) => {
-            stmts.iter().any(|s| has_consuming_non_field_use_stmt(s, param, known_borrow_fns, self_fn_name, self_param_names))
-        }
-        ExprKind::Lambda(_, body) => has_consuming_non_field_use(body, param, known_borrow_fns, self_fn_name, self_param_names),
+        ExprKind::Block(stmts) => stmts.iter().any(|s| {
+            has_consuming_non_field_use_stmt(
+                s,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            )
+        }),
+        ExprKind::Lambda(_, body) => has_consuming_non_field_use(
+            body,
+            param,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+        ),
         ExprKind::Field(_, _) => false, // Field access is a borrow — never consuming
         ExprKind::Index(base, idx) => {
-            has_consuming_non_field_use(base, param, known_borrow_fns, self_fn_name, self_param_names)
-            || has_consuming_non_field_use(idx, param, known_borrow_fns, self_fn_name, self_param_names)
+            has_consuming_non_field_use(
+                base,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) || has_consuming_non_field_use(
+                idx,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            )
         }
-        ExprKind::List(elems) | ExprKind::Tuple(elems) => {
-            elems.iter().any(|e| {
-                if let ExprKind::Var(name) = &e.kind {
-                    if name == param { return true; }
+        ExprKind::List(elems) | ExprKind::Tuple(elems) => elems.iter().any(|e| {
+            if let ExprKind::Var(name) = &e.kind {
+                if name == param {
+                    return true;
                 }
-                has_consuming_non_field_use(e, param, known_borrow_fns, self_fn_name, self_param_names)
-            })
-        }
-        ExprKind::Effect(_, args) => {
-            args.iter().any(|a| has_consuming_non_field_use(a, param, known_borrow_fns, self_fn_name, self_param_names))
-        }
-        ExprKind::Try(inner) => has_consuming_non_field_use(inner, param, known_borrow_fns, self_fn_name, self_param_names),
+            }
+            has_consuming_non_field_use(e, param, known_borrow_fns, self_fn_name, self_param_names)
+        }),
+        ExprKind::Effect(_, args) => args.iter().any(|a| {
+            has_consuming_non_field_use(a, param, known_borrow_fns, self_fn_name, self_param_names)
+        }),
+        ExprKind::Try(inner) => has_consuming_non_field_use(
+            inner,
+            param,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+        ),
         ExprKind::Pipe(input, transform) => {
             // Pipe input is consumed
             if let ExprKind::Var(name) = &input.as_ref().kind {
-                if name == param { return true; }
+                if name == param {
+                    return true;
+                }
             }
-            has_consuming_non_field_use(input, param, known_borrow_fns, self_fn_name, self_param_names)
-            || has_consuming_non_field_use(transform, param, known_borrow_fns, self_fn_name, self_param_names)
+            has_consuming_non_field_use(
+                input,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) || has_consuming_non_field_use(
+                transform,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            )
         }
         ExprKind::Handle { handlers, body, .. } => {
-            has_consuming_non_field_use(body, param, known_borrow_fns, self_fn_name, self_param_names)
-            || handlers.iter().any(|h| has_consuming_non_field_use(&h.body, param, known_borrow_fns, self_fn_name, self_param_names))
+            has_consuming_non_field_use(
+                body,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) || handlers.iter().any(|h| {
+                has_consuming_non_field_use(
+                    &h.body,
+                    param,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                )
+            })
         }
         _ => false,
     }
@@ -6787,35 +8654,111 @@ fn has_consuming_non_field_use_stmt(
     match stmt {
         Stmt::Bind(_, _, expr) => {
             if let ExprKind::Var(name) = &expr.kind {
-                if name == param { return true; }
+                if name == param {
+                    return true;
+                }
             }
-            has_consuming_non_field_use(expr, param, known_borrow_fns, self_fn_name, self_param_names)
+            has_consuming_non_field_use(
+                expr,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            )
         }
-        Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => {
-            has_consuming_non_field_use(expr, param, known_borrow_fns, self_fn_name, self_param_names)
-        }
+        Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => has_consuming_non_field_use(
+            expr,
+            param,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+        ),
         Stmt::Defn(defn) => {
             if let Defn::Fn { body, .. } = defn {
-                has_consuming_non_field_use(body, param, known_borrow_fns, self_fn_name, self_param_names)
-            } else { false }
+                has_consuming_non_field_use(
+                    body,
+                    param,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                )
+            } else {
+                false
+            }
         }
-        Stmt::Annot(_, args) => {
-            args.iter().any(|a| has_consuming_non_field_use(a, param, known_borrow_fns, self_fn_name, self_param_names))
-        }
+        Stmt::Annot(_, args) => args.iter().any(|a| {
+            has_consuming_non_field_use(a, param, known_borrow_fns, self_fn_name, self_param_names)
+        }),
         Stmt::For(_, iter_expr, body) => {
-            has_consuming_non_field_use(iter_expr, param, known_borrow_fns, self_fn_name, self_param_names)
-            || body.iter().any(|s| has_consuming_non_field_use_stmt(s, param, known_borrow_fns, self_fn_name, self_param_names))
+            has_consuming_non_field_use(
+                iter_expr,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) || body.iter().any(|s| {
+                has_consuming_non_field_use_stmt(
+                    s,
+                    param,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                )
+            })
         }
         Stmt::Send(target, msg) => {
-            has_consuming_non_field_use(target, param, known_borrow_fns, self_fn_name, self_param_names)
-            || has_consuming_non_field_use(msg, param, known_borrow_fns, self_fn_name, self_param_names)
+            has_consuming_non_field_use(
+                target,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) || has_consuming_non_field_use(
+                msg,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            )
         }
-        Stmt::StreamBind(_, expr) => has_consuming_non_field_use(expr, param, known_borrow_fns, self_fn_name, self_param_names),
+        Stmt::StreamBind(_, expr) => has_consuming_non_field_use(
+            expr,
+            param,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+        ),
         Stmt::StreamSub(expr, arms) => {
-            if has_consuming_non_field_use(expr, param, known_borrow_fns, self_fn_name, self_param_names) { return true; }
+            if has_consuming_non_field_use(
+                expr,
+                param,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+            ) {
+                return true;
+            }
             for arm in arms {
-                if let Some(g) = &arm.guard { if has_consuming_non_field_use(g, param, known_borrow_fns, self_fn_name, self_param_names) { return true; } }
-                if has_consuming_non_field_use(&arm.body, param, known_borrow_fns, self_fn_name, self_param_names) { return true; }
+                if let Some(g) = &arm.guard {
+                    if has_consuming_non_field_use(
+                        g,
+                        param,
+                        known_borrow_fns,
+                        self_fn_name,
+                        self_param_names,
+                    ) {
+                        return true;
+                    }
+                }
+                if has_consuming_non_field_use(
+                    &arm.body,
+                    param,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                ) {
+                    return true;
+                }
             }
             false
         }
@@ -6825,13 +8768,24 @@ fn has_consuming_non_field_use_stmt(
 
 /// Check if TCE would need to update a borrowed parameter (which is impossible).
 /// Returns true if any tail call passes a different expression for a borrowed param.
-fn tce_has_borrowed_param_update(fn_name: &str, params: &[Param], borrow_flags: &[bool], body: &Expr) -> bool {
+fn tce_has_borrowed_param_update(
+    fn_name: &str,
+    params: &[Param],
+    borrow_flags: &[bool],
+    body: &Expr,
+) -> bool {
     let mut found = false;
     tce_check_borrowed_update(fn_name, params, borrow_flags, body, &mut found);
     found
 }
 
-fn tce_check_borrowed_update(fn_name: &str, params: &[Param], borrow_flags: &[bool], expr: &Expr, found: &mut bool) {
+fn tce_check_borrowed_update(
+    fn_name: &str,
+    params: &[Param],
+    borrow_flags: &[bool],
+    expr: &Expr,
+    found: &mut bool,
+) {
     match &expr.kind {
         ExprKind::App(func, args) => {
             if let ExprKind::Var(name) = &func.as_ref().kind {
@@ -6841,7 +8795,8 @@ fn tce_check_borrowed_update(fn_name: &str, params: &[Param], borrow_flags: &[bo
                         let is_borrowed = borrow_flags.get(idx).copied().unwrap_or(false);
                         if is_borrowed {
                             // If the arg is just the same variable, it's a pass-through (OK)
-                            let is_passthrough = matches!(a.kind, ExprKind::Var(ref n) if n == &p.name);
+                            let is_passthrough =
+                                matches!(a.kind, ExprKind::Var(ref n) if n == &p.name);
                             if !is_passthrough {
                                 *found = true;
                             }
@@ -6898,10 +8853,14 @@ fn is_tail_recursive_expr(fn_name: &str, expr: &Expr, found: &mut bool) -> bool 
                     }
                     Stmt::Bind(_, _, val) | Stmt::MonadicBind(_, _, val) => {
                         // Bindings must not contain self-calls
-                        if expr_contains_call(fn_name, val) { return false; }
+                        if expr_contains_call(fn_name, val) {
+                            return false;
+                        }
                     }
                     Stmt::Expr(e) => {
-                        if expr_contains_call(fn_name, e) { return false; }
+                        if expr_contains_call(fn_name, e) {
+                            return false;
+                        }
                     }
                     _ => {}
                 }
@@ -6909,8 +8868,11 @@ fn is_tail_recursive_expr(fn_name: &str, expr: &Expr, found: &mut bool) -> bool 
             true
         }
         ExprKind::Match(scrutinee, arms) => {
-            if expr_contains_call(fn_name, scrutinee) { return false; }
-            arms.iter().all(|arm| is_tail_recursive_expr(fn_name, &arm.body, found))
+            if expr_contains_call(fn_name, scrutinee) {
+                return false;
+            }
+            arms.iter()
+                .all(|arm| is_tail_recursive_expr(fn_name, &arm.body, found))
         }
         // Any other expression in tail position is a base case — fine
         _ => true,
@@ -6922,7 +8884,9 @@ fn expr_contains_call(fn_name: &str, expr: &Expr) -> bool {
     match &expr.kind {
         ExprKind::App(func, args) => {
             if let ExprKind::Var(name) = &func.as_ref().kind {
-                if name == fn_name { return true; }
+                if name == fn_name {
+                    return true;
+                }
             }
             args.iter().any(|a| expr_contains_call(fn_name, a))
         }
@@ -6931,11 +8895,14 @@ fn expr_contains_call(fn_name: &str, expr: &Expr) -> bool {
         }
         ExprKind::UnOp(_, inner) => expr_contains_call(fn_name, inner),
         ExprKind::If(c, t, e) => {
-            expr_contains_call(fn_name, c) || expr_contains_call(fn_name, t)
+            expr_contains_call(fn_name, c)
+                || expr_contains_call(fn_name, t)
                 || expr_contains_call(fn_name, e)
         }
         ExprKind::Block(stmts) => stmts.iter().any(|s| match s {
-            Stmt::Bind(_, _, e) | Stmt::MonadicBind(_, _, e) | Stmt::Expr(e) => expr_contains_call(fn_name, e),
+            Stmt::Bind(_, _, e) | Stmt::MonadicBind(_, _, e) | Stmt::Expr(e) => {
+                expr_contains_call(fn_name, e)
+            }
             _ => false,
         }),
         ExprKind::Match(scrutinee, arms) => {
@@ -6944,7 +8911,9 @@ fn expr_contains_call(fn_name: &str, expr: &Expr) -> bool {
         }
         ExprKind::Lambda(_, body) => expr_contains_call(fn_name, body),
         ExprKind::Field(base, _) => expr_contains_call(fn_name, base),
-        ExprKind::List(elems) | ExprKind::Tuple(elems) => elems.iter().any(|e| expr_contains_call(fn_name, e)),
+        ExprKind::List(elems) | ExprKind::Tuple(elems) => {
+            elems.iter().any(|e| expr_contains_call(fn_name, e))
+        }
         _ => false,
     }
 }
@@ -6981,8 +8950,13 @@ fn analyze_borrow_only_params_named(
     let param_names: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
 
     let mut consuming: BTreeMap<String, usize> = BTreeMap::new();
-    count_consuming_uses_borrow_aware(body, &mut consuming, known_borrow_fns,
-        self_fn_name, &param_names);
+    count_consuming_uses_borrow_aware(
+        body,
+        &mut consuming,
+        known_borrow_fns,
+        self_fn_name,
+        &param_names,
+    );
 
     // Check if the param is returned (tail position) — that's a consuming use
     let mut returned_vars: BTreeSet<String> = BTreeSet::new();
@@ -6995,45 +8969,59 @@ fn analyze_borrow_only_params_named(
     // Can the return type be produced from a Copy deref?
     let ret_is_copy = ret_ty.map(|t| is_copy_type(t)).unwrap_or(false);
 
-    params.iter().map(|p| {
-        if p.inout { return false; } // inout params already have &mut, skip
-        if let Some(ty) = &p.ty {
-            if is_copy_type(ty) { return false; } // Copy types don't benefit from borrowing
-            // Check for function types — can't borrow closures easily
-            if matches!(ty, Ty::Arrow(..)) { return false; }
-        }
-        let consumed = consuming.get(&p.name).copied().unwrap_or(0);
-        let returned = returned_vars.contains(&p.name);
-        let matched = matched_vars.contains(&p.name);
-
-        if consumed == 0 && !returned && !matched {
-            // Classic case: param is only read (show, field access, etc.) → borrow
-            return true;
-        }
-
-        // Phase 3c: field-only relaxation
-        // If a param's "consuming" uses are ALL from field access (w.temp, w.condition),
-        // it can still be borrowed — field access works fine on &T.
-        if consumed > 0 && !returned && !matched {
-            if !has_consuming_non_field_use(body, &p.name, known_borrow_fns,
-                    self_fn_name, &param_names) {
-                return true; // All consuming uses are field access → safe to borrow
-            }
-        }
-
-        // Phase 3b: ref-match relaxation
-        // If param is ONLY matched (not consumed in other ways) and all type args are Copy,
-        // and return type is Copy, we can match on &T — pattern bindings auto-deref for Copy
-        if matched && consumed == 0 && !returned {
+    params
+        .iter()
+        .map(|p| {
+            if p.inout {
+                return false;
+            } // inout params already have &mut, skip
             if let Some(ty) = &p.ty {
-                if type_has_all_copy_args(ty) && ret_is_copy {
-                    return true; // ref-match: borrow despite matching
+                if is_copy_type(ty) {
+                    return false;
+                } // Copy types don't benefit from borrowing
+                  // Check for function types — can't borrow closures easily
+                if matches!(ty, Ty::Arrow(..)) {
+                    return false;
                 }
             }
-        }
+            let consumed = consuming.get(&p.name).copied().unwrap_or(0);
+            let returned = returned_vars.contains(&p.name);
+            let matched = matched_vars.contains(&p.name);
 
-        false
-    }).collect()
+            if consumed == 0 && !returned && !matched {
+                // Classic case: param is only read (show, field access, etc.) → borrow
+                return true;
+            }
+
+            // Phase 3c: field-only relaxation
+            // If a param's "consuming" uses are ALL from field access (w.temp, w.condition),
+            // it can still be borrowed — field access works fine on &T.
+            if consumed > 0 && !returned && !matched {
+                if !has_consuming_non_field_use(
+                    body,
+                    &p.name,
+                    known_borrow_fns,
+                    self_fn_name,
+                    &param_names,
+                ) {
+                    return true; // All consuming uses are field access → safe to borrow
+                }
+            }
+
+            // Phase 3b: ref-match relaxation
+            // If param is ONLY matched (not consumed in other ways) and all type args are Copy,
+            // and return type is Copy, we can match on &T — pattern bindings auto-deref for Copy
+            if matched && consumed == 0 && !returned {
+                if let Some(ty) = &p.ty {
+                    if type_has_all_copy_args(ty) && ret_is_copy {
+                        return true; // ref-match: borrow despite matching
+                    }
+                }
+            }
+
+            false
+        })
+        .collect()
 }
 
 /// Collect variables used as match scrutinees (pattern matching destructures them)
@@ -7053,7 +9041,9 @@ fn collect_matched_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
         }
         ExprKind::App(func, args) => {
             collect_matched_vars(func, vars);
-            for a in args { collect_matched_vars(a, vars); }
+            for a in args {
+                collect_matched_vars(a, vars);
+            }
         }
         ExprKind::BinOp(_, lhs, rhs) => {
             collect_matched_vars(lhs, vars);
@@ -7068,7 +9058,9 @@ fn collect_matched_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
         ExprKind::Block(stmts) => {
             for stmt in stmts {
                 match stmt {
-                    Stmt::Bind(_, _, e) | Stmt::Expr(e) | Stmt::MonadicBind(_, _, e) => collect_matched_vars(e, vars),
+                    Stmt::Bind(_, _, e) | Stmt::Expr(e) | Stmt::MonadicBind(_, _, e) => {
+                        collect_matched_vars(e, vars)
+                    }
                     Stmt::For(_, iter_expr, body) => {
                         collect_matched_vars(iter_expr, vars);
                         for s in body {
@@ -7088,12 +9080,16 @@ fn collect_matched_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
             collect_matched_vars(idx, vars);
         }
         ExprKind::List(elems) | ExprKind::Tuple(elems) => {
-            for e in elems { collect_matched_vars(e, vars); }
+            for e in elems {
+                collect_matched_vars(e, vars);
+            }
         }
         ExprKind::Try(inner) => collect_matched_vars(inner, vars),
         ExprKind::Handle { handlers, body, .. } => {
             collect_matched_vars(body, vars);
-            for h in handlers { collect_matched_vars(&h.body, vars); }
+            for h in handlers {
+                collect_matched_vars(&h.body, vars);
+            }
         }
         _ => {}
     }
@@ -7101,7 +9097,11 @@ fn collect_matched_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
 
 /// Collect pattern bindings from match expressions whose scrutinee is `param_name`.
 /// These bindings are references (&T) because the param is borrowed — they need * deref.
-fn collect_ref_match_bindings_from_body(body: &Expr, param_name: &str, bindings: &mut BTreeSet<String>) {
+fn collect_ref_match_bindings_from_body(
+    body: &Expr,
+    param_name: &str,
+    bindings: &mut BTreeSet<String>,
+) {
     match &body.kind {
         ExprKind::Match(scrutinee, arms) => {
             if let ExprKind::Var(name) = &scrutinee.as_ref().kind {
@@ -7123,13 +9123,17 @@ fn collect_ref_match_bindings_from_body(body: &Expr, param_name: &str, bindings:
         }
         ExprKind::App(func, args) => {
             collect_ref_match_bindings_from_body(func, param_name, bindings);
-            for a in args { collect_ref_match_bindings_from_body(a, param_name, bindings); }
+            for a in args {
+                collect_ref_match_bindings_from_body(a, param_name, bindings);
+            }
         }
         ExprKind::BinOp(_, lhs, rhs) => {
             collect_ref_match_bindings_from_body(lhs, param_name, bindings);
             collect_ref_match_bindings_from_body(rhs, param_name, bindings);
         }
-        ExprKind::UnOp(_, inner) => collect_ref_match_bindings_from_body(inner, param_name, bindings),
+        ExprKind::UnOp(_, inner) => {
+            collect_ref_match_bindings_from_body(inner, param_name, bindings)
+        }
         ExprKind::If(cond, then_, else_) => {
             collect_ref_match_bindings_from_body(cond, param_name, bindings);
             collect_ref_match_bindings_from_body(then_, param_name, bindings);
@@ -7153,8 +9157,12 @@ fn collect_ref_match_bindings_from_body(body: &Expr, param_name: &str, bindings:
                 }
             }
         }
-        ExprKind::Lambda(_, inner) => collect_ref_match_bindings_from_body(inner, param_name, bindings),
-        ExprKind::Field(base, _) => collect_ref_match_bindings_from_body(base, param_name, bindings),
+        ExprKind::Lambda(_, inner) => {
+            collect_ref_match_bindings_from_body(inner, param_name, bindings)
+        }
+        ExprKind::Field(base, _) => {
+            collect_ref_match_bindings_from_body(base, param_name, bindings)
+        }
         ExprKind::Try(inner) => collect_ref_match_bindings_from_body(inner, param_name, bindings),
         _ => {}
     }
@@ -7163,12 +9171,18 @@ fn collect_ref_match_bindings_from_body(body: &Expr, param_name: &str, bindings:
 /// Collect all variable names bound in a pattern (excluding wildcards and literals)
 fn collect_pattern_binding_names(pat: &Pat, names: &mut BTreeSet<String>) {
     match pat {
-        Pat::Var(name) if name != "_" => { names.insert(name.clone()); }
+        Pat::Var(name) if name != "_" => {
+            names.insert(name.clone());
+        }
         Pat::Con(_, args) => {
-            for a in args { collect_pattern_binding_names(a, names); }
+            for a in args {
+                collect_pattern_binding_names(a, names);
+            }
         }
         Pat::NamedCon(_, named_args) => {
-            for (_, p) in named_args { collect_pattern_binding_names(p, names); }
+            for (_, p) in named_args {
+                collect_pattern_binding_names(p, names);
+            }
         }
         Pat::As(inner, name) => {
             collect_pattern_binding_names(inner, names);
@@ -7181,7 +9195,9 @@ fn collect_pattern_binding_names(pat: &Pat, names: &mut BTreeSet<String>) {
 /// Collect variables that appear in return/tail position of an expression
 fn collect_returned_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
     match &expr.kind {
-        ExprKind::Var(name) => { vars.insert(name.clone()); }
+        ExprKind::Var(name) => {
+            vars.insert(name.clone());
+        }
         ExprKind::If(_, then_, else_) => {
             collect_returned_vars(then_, vars);
             collect_returned_vars(else_, vars);
@@ -7209,7 +9225,15 @@ fn collect_returned_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
 fn collect_aliased_vars(stmts: &[&Stmt], copy_vars: &BTreeSet<String>) -> BTreeSet<String> {
     let mut aliased = BTreeSet::new();
     for stmt in stmts {
-        if let Stmt::Bind(Pat::Var(_name), _, Expr { kind: ExprKind::Var(source), .. }) = stmt {
+        if let Stmt::Bind(
+            Pat::Var(_name),
+            _,
+            Expr {
+                kind: ExprKind::Var(source),
+                ..
+            },
+        ) = stmt
+        {
             if !copy_vars.contains(source.as_str()) {
                 aliased.insert(source.clone());
             }
@@ -7225,14 +9249,24 @@ fn expr_contains_try(expr: &Expr) -> bool {
         ExprKind::App(f, args) => expr_contains_try(f) || args.iter().any(expr_contains_try),
         ExprKind::BinOp(_, l, r) => expr_contains_try(l) || expr_contains_try(r),
         ExprKind::UnOp(_, e) => expr_contains_try(e),
-        ExprKind::If(c, t, e) => expr_contains_try(c) || expr_contains_try(t) || expr_contains_try(e),
-        ExprKind::Match(s, arms) => expr_contains_try(s) || arms.iter().any(|a| expr_contains_try(&a.body)),
+        ExprKind::If(c, t, e) => {
+            expr_contains_try(c) || expr_contains_try(t) || expr_contains_try(e)
+        }
+        ExprKind::Match(s, arms) => {
+            expr_contains_try(s) || arms.iter().any(|a| expr_contains_try(&a.body))
+        }
         ExprKind::Block(stmts) => stmts.iter().any(stmt_contains_try),
         ExprKind::Field(e, _) | ExprKind::Index(e, _) => expr_contains_try(e),
         ExprKind::Lambda(_, body) => expr_contains_try(body),
-        ExprKind::List(es) | ExprKind::Tuple(es) | ExprKind::Effect(_, es) => es.iter().any(expr_contains_try),
-        ExprKind::Handle { body, handlers, .. } => expr_contains_try(body) || handlers.iter().any(|h| expr_contains_try(&h.body)),
-        ExprKind::Pipe(input, transform) => expr_contains_try(input) || expr_contains_try(transform),
+        ExprKind::List(es) | ExprKind::Tuple(es) | ExprKind::Effect(_, es) => {
+            es.iter().any(expr_contains_try)
+        }
+        ExprKind::Handle { body, handlers, .. } => {
+            expr_contains_try(body) || handlers.iter().any(|h| expr_contains_try(&h.body))
+        }
+        ExprKind::Pipe(input, transform) => {
+            expr_contains_try(input) || expr_contains_try(transform)
+        }
         _ => false,
     }
 }
@@ -7245,7 +9279,20 @@ fn stmt_contains_try(stmt: &Stmt) -> bool {
         Stmt::Send(target, msg) => expr_contains_try(target) || expr_contains_try(msg),
         Stmt::Assert(_, args) | Stmt::Retract(_, args) => args.iter().any(expr_contains_try),
         Stmt::Abort => false,
-        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Use(_) | Stmt::Import(_) | Stmt::QualifiedImport(_, _) | Stmt::HashImport(_, _) | Stmt::Depend(_, _) | Stmt::RustBlock(_) | Stmt::Annot(_, _) | Stmt::Rule(_) | Stmt::StreamBind(_, _) | Stmt::StreamSub(_, _) | Stmt::Invariant { .. } | Stmt::Prove { .. } => false,
+        Stmt::Defn(_)
+        | Stmt::TypeDecl(_)
+        | Stmt::Use(_)
+        | Stmt::Import(_)
+        | Stmt::QualifiedImport(_, _)
+        | Stmt::HashImport(_, _)
+        | Stmt::Depend(_, _)
+        | Stmt::RustBlock(_)
+        | Stmt::Annot(_, _)
+        | Stmt::Rule(_)
+        | Stmt::StreamBind(_, _)
+        | Stmt::StreamSub(_, _)
+        | Stmt::Invariant { .. }
+        | Stmt::Prove { .. } => false,
     }
 }
 
@@ -7279,7 +9326,9 @@ fn collect_called_vars(stmt: &Stmt, called: &mut BTreeSet<String>) {
         Stmt::Expr(expr) | Stmt::Bind(_, _, expr) => collect_called_vars_expr(expr, called),
         Stmt::For(_, iter, body) => {
             collect_called_vars_expr(iter, called);
-            for s in body { collect_called_vars(s, called); }
+            for s in body {
+                collect_called_vars(s, called);
+            }
         }
         _ => {}
     }
@@ -7292,7 +9341,9 @@ fn collect_called_vars_expr(expr: &Expr, called: &mut BTreeSet<String>) {
                 called.insert(name.clone());
             }
             collect_called_vars_expr(func, called);
-            for a in args { collect_called_vars_expr(a, called); }
+            for a in args {
+                collect_called_vars_expr(a, called);
+            }
         }
         ExprKind::BinOp(_, l, r) => {
             collect_called_vars_expr(l, called);
@@ -7304,15 +9355,21 @@ fn collect_called_vars_expr(expr: &Expr, called: &mut BTreeSet<String>) {
             collect_called_vars_expr(e, called);
         }
         ExprKind::Block(stmts) => {
-            for s in stmts { collect_called_vars(s, called); }
+            for s in stmts {
+                collect_called_vars(s, called);
+            }
         }
         ExprKind::Match(scrutinee, arms) => {
             collect_called_vars_expr(scrutinee, called);
-            for arm in arms { collect_called_vars_expr(&arm.body, called); }
+            for arm in arms {
+                collect_called_vars_expr(&arm.body, called);
+            }
         }
         ExprKind::Lambda(_, body) => collect_called_vars_expr(body, called),
         ExprKind::Effect(_, args) => {
-            for a in args { collect_called_vars_expr(a, called); }
+            for a in args {
+                collect_called_vars_expr(a, called);
+            }
         }
         ExprKind::Field(obj, _) => collect_called_vars_expr(obj, called),
         ExprKind::Index(arr, idx) => {
@@ -7332,7 +9389,9 @@ fn can_be_fn_once(body: &Expr, name: &str) -> bool {
     let mut total = BTreeMap::new();
     count_var_uses(body, &mut total);
     let total_uses = total.get(name).copied().unwrap_or(0);
-    if total_uses != 1 { return false; }
+    if total_uses != 1 {
+        return false;
+    }
 
     // The single use must be a direct call at top level (not inside a lambda)
     is_direct_call_at_top_level(body, name)
@@ -7363,24 +9422,25 @@ fn is_direct_call_at_top_level(expr: &Expr, name: &str) -> bool {
             is_direct_call_at_top_level(scrutinee, name)
                 || arms.iter().any(|arm| {
                     is_direct_call_at_top_level(&arm.body, name)
-                        || arm.guard.as_ref().map_or(false, |g| is_direct_call_at_top_level(g, name))
+                        || arm
+                            .guard
+                            .as_ref()
+                            .map_or(false, |g| is_direct_call_at_top_level(g, name))
                 })
         }
-        ExprKind::Block(stmts) => {
-            stmts.iter().any(|s| match s {
-                Stmt::Expr(e) | Stmt::Bind(_, _, e) | Stmt::MonadicBind(_, _, e) => {
-                    is_direct_call_at_top_level(e, name)
-                }
-                Stmt::For(_, iter, body) => {
-                    is_direct_call_at_top_level(iter, name)
-                        || body.iter().any(|s2| match s2 {
-                            Stmt::Expr(e) | Stmt::Bind(_, _, e) => is_direct_call_at_top_level(e, name),
-                            _ => false,
-                        })
-                }
-                _ => false,
-            })
-        }
+        ExprKind::Block(stmts) => stmts.iter().any(|s| match s {
+            Stmt::Expr(e) | Stmt::Bind(_, _, e) | Stmt::MonadicBind(_, _, e) => {
+                is_direct_call_at_top_level(e, name)
+            }
+            Stmt::For(_, iter, body) => {
+                is_direct_call_at_top_level(iter, name)
+                    || body.iter().any(|s2| match s2 {
+                        Stmt::Expr(e) | Stmt::Bind(_, _, e) => is_direct_call_at_top_level(e, name),
+                        _ => false,
+                    })
+            }
+            _ => false,
+        }),
         // STOP recursion at lambdas — a call inside a lambda is NOT top-level
         ExprKind::Lambda(_, _) => false,
         ExprKind::Field(obj, _) => is_direct_call_at_top_level(obj, name),
@@ -7390,7 +9450,11 @@ fn is_direct_call_at_top_level(expr: &Expr, name: &str) -> bool {
 
 /// Recursively search for variable rebindings inside for-loop bodies,
 /// including nested if/else blocks and match arms.
-fn collect_rebound_in_body(stmts: &[Stmt], bound: &BTreeSet<String>, mutable: &mut BTreeSet<String>) {
+fn collect_rebound_in_body(
+    stmts: &[Stmt],
+    bound: &BTreeSet<String>,
+    mutable: &mut BTreeSet<String>,
+) {
     for s in stmts {
         match s {
             Stmt::Bind(Pat::Var(name), _, _) => {
@@ -7431,7 +9495,9 @@ fn is_copy_type(ty: &Ty) -> bool {
 fn type_has_all_copy_args(ty: &Ty) -> bool {
     match ty {
         Ty::App(_, args) => args.iter().all(|a| is_copy_type(a)),
-        Ty::Name(n) => is_copy_type(ty) || matches!(n.as_str(), "Int" | "Float" | "Char" | "Nat" | "Bool"),
+        Ty::Name(n) => {
+            is_copy_type(ty) || matches!(n.as_str(), "Int" | "Float" | "Char" | "Nat" | "Bool")
+        }
         _ => false,
     }
 }
@@ -7491,7 +9557,10 @@ impl RustCodegen {
         let file_path = format!("{}/{}.runa", dir, rel);
 
         // If file exists OR path starts with ./ or ../, use it directly
-        if import_path.starts_with("./") || import_path.starts_with("../") || std::path::Path::new(&file_path).exists() {
+        if import_path.starts_with("./")
+            || import_path.starts_with("../")
+            || std::path::Path::new(&file_path).exists()
+        {
             let canon = std::fs::canonicalize(&file_path)
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or(file_path.clone());
@@ -7509,7 +9578,11 @@ impl RustCodegen {
                     .parent()
                     .map(|p| {
                         let s = p.to_string_lossy().to_string();
-                        if s.is_empty() { ".".to_string() } else { s }
+                        if s.is_empty() {
+                            ".".to_string()
+                        } else {
+                            s
+                        }
                     })
                     .unwrap_or_else(|| ".".to_string());
 
@@ -7572,7 +9645,10 @@ impl RustCodegen {
                 match parser.parse_program() {
                     Ok(stmts) => stmts,
                     Err(e) => {
-                        eprintln!("\x1b[1;31merror\x1b[0m: parse error in {}: {}", file_path, e);
+                        eprintln!(
+                            "\x1b[1;31merror\x1b[0m: parse error in {}: {}",
+                            file_path, e
+                        );
                         Vec::new()
                     }
                 }
@@ -7623,9 +9699,13 @@ impl RustCodegen {
         match kind {
             "struct" => {
                 // Single variant with named fields
-                let variant_fields: Vec<Field> = fields.iter().map(|(fname, fty)| {
-                    Field { name: fname.clone(), ty: parse_ty(fty) }
-                }).collect();
+                let variant_fields: Vec<Field> = fields
+                    .iter()
+                    .map(|(fname, fty)| Field {
+                        name: fname.clone(),
+                        ty: parse_ty(fty),
+                    })
+                    .collect();
                 let variant = Variant {
                     name: name.to_string(),
                     fields: variant_fields,
@@ -7640,28 +9720,34 @@ impl RustCodegen {
             }
             "enum" => {
                 // Multiple variants; field string encodes sub-fields
-                let variants: Vec<Variant> = fields.iter().map(|(vname, field_str)| {
-                    let variant_fields = if field_str.is_empty() {
-                        vec![]
-                    } else {
-                        field_str.split(',').filter_map(|part| {
-                            let parts: Vec<&str> = part.trim().splitn(2, ':').collect();
-                            if parts.len() == 2 {
-                                Some(Field {
-                                    name: parts[0].trim().to_string(),
-                                    ty: parse_ty(parts[1].trim()),
+                let variants: Vec<Variant> = fields
+                    .iter()
+                    .map(|(vname, field_str)| {
+                        let variant_fields = if field_str.is_empty() {
+                            vec![]
+                        } else {
+                            field_str
+                                .split(',')
+                                .filter_map(|part| {
+                                    let parts: Vec<&str> = part.trim().splitn(2, ':').collect();
+                                    if parts.len() == 2 {
+                                        Some(Field {
+                                            name: parts[0].trim().to_string(),
+                                            ty: parse_ty(parts[1].trim()),
+                                        })
+                                    } else {
+                                        None
+                                    }
                                 })
-                            } else {
-                                None
-                            }
-                        }).collect()
-                    };
-                    Variant {
-                        name: vname.clone(),
-                        fields: variant_fields,
-                        positional: false,
-                    }
-                }).collect();
+                                .collect()
+                        };
+                        Variant {
+                            name: vname.clone(),
+                            fields: variant_fields,
+                            positional: false,
+                        }
+                    })
+                    .collect();
                 TypeDecl::ADT {
                     name: name.to_string(),
                     params: vec![],
@@ -7674,7 +9760,11 @@ impl RustCodegen {
                 TypeDecl::ADT {
                     name: name.to_string(),
                     params: vec![],
-                    variants: vec![Variant { name: name.to_string(), fields: vec![], positional: false }],
+                    variants: vec![Variant {
+                        name: name.to_string(),
+                        fields: vec![],
+                        positional: false,
+                    }],
                     methods: vec![],
                 }
             }
@@ -7682,32 +9772,53 @@ impl RustCodegen {
     }
 
     /// Convert an interpreter Value to a Rust literal string for comptime embedding
-    fn value_to_rust_literal(val: &Value, variant_parent: &BTreeMap<String, String>) -> (String, String) {
+    fn value_to_rust_literal(
+        val: &Value,
+        variant_parent: &BTreeMap<String, String>,
+    ) -> (String, String) {
         match val {
             Value::Int(n) => (format!("{}", n), "i64".to_string()),
             Value::Float(v) => {
                 let s = format!("{}", v);
                 // Ensure it has a decimal point for Rust
-                if s.contains('.') { (format!("{}f64", s), "f64".to_string()) }
-                else { (format!("{}.0f64", s), "f64".to_string()) }
+                if s.contains('.') {
+                    (format!("{}f64", s), "f64".to_string())
+                } else {
+                    (format!("{}.0f64", s), "f64".to_string())
+                }
             }
             Value::Str(s) => (format!("{:?}.to_string()", s), "String".to_string()),
             Value::Char(c) => (format!("{:?}", c), "char".to_string()),
             Value::Bool(b) => (format!("{}", b), "bool".to_string()),
             Value::Unit => ("()".to_string(), "()".to_string()),
             Value::List(elems) => {
-                let items: Vec<String> = elems.iter().map(|e| Self::value_to_rust_literal(e, variant_parent).0).collect();
+                let items: Vec<String> = elems
+                    .iter()
+                    .map(|e| Self::value_to_rust_literal(e, variant_parent).0)
+                    .collect();
                 if elems.is_empty() {
                     ("vec![]".to_string(), "Vec<i64>".to_string())
                 } else {
                     let (_, elem_ty) = Self::value_to_rust_literal(&elems[0], variant_parent);
-                    (format!("vec![{}]", items.join(", ")), format!("Vec<{}>", elem_ty))
+                    (
+                        format!("vec![{}]", items.join(", ")),
+                        format!("Vec<{}>", elem_ty),
+                    )
                 }
             }
             Value::Tuple(elems) => {
-                let items: Vec<String> = elems.iter().map(|e| Self::value_to_rust_literal(e, variant_parent).0).collect();
-                let types: Vec<String> = elems.iter().map(|e| Self::value_to_rust_literal(e, variant_parent).1).collect();
-                (format!("({})", items.join(", ")), format!("({})", types.join(", ")))
+                let items: Vec<String> = elems
+                    .iter()
+                    .map(|e| Self::value_to_rust_literal(e, variant_parent).0)
+                    .collect();
+                let types: Vec<String> = elems
+                    .iter()
+                    .map(|e| Self::value_to_rust_literal(e, variant_parent).1)
+                    .collect();
+                (
+                    format!("({})", items.join(", ")),
+                    format!("({})", types.join(", ")),
+                )
             }
             Value::Constructor(name, args) => {
                 // Flatten Cons/Nil linked lists into vec![]
@@ -7722,21 +9833,36 @@ impl RustCodegen {
                             break;
                         } else {
                             // Not a list — fall through to generic constructor
-                            let items: Vec<String> = args.iter().map(|e| Self::value_to_rust_literal(e, variant_parent).0).collect();
-                            return (format!("/* {} */ ({})", name, items.join(", ")), "()".to_string());
+                            let items: Vec<String> = args
+                                .iter()
+                                .map(|e| Self::value_to_rust_literal(e, variant_parent).0)
+                                .collect();
+                            return (
+                                format!("/* {} */ ({})", name, items.join(", ")),
+                                "()".to_string(),
+                            );
                         }
                     }
                     if elems.is_empty() {
                         return ("vec![]".to_string(), "Vec<i64>".to_string());
                     }
-                    let items: Vec<String> = elems.iter().map(|e| Self::value_to_rust_literal(e, variant_parent).0).collect();
+                    let items: Vec<String> = elems
+                        .iter()
+                        .map(|e| Self::value_to_rust_literal(e, variant_parent).0)
+                        .collect();
                     let (_, elem_ty) = Self::value_to_rust_literal(elems[0], variant_parent);
-                    return (format!("vec![{}]", items.join(", ")), format!("Vec<{}>", elem_ty));
+                    return (
+                        format!("vec![{}]", items.join(", ")),
+                        format!("Vec<{}>", elem_ty),
+                    );
                 }
                 // Ok(val) / Err(val) / Some(val) / None
                 if name == "Ok" && args.len() == 1 {
                     let (inner, inner_ty) = Self::value_to_rust_literal(&args[0], variant_parent);
-                    return (format!("Ok({})", inner), format!("Result<{}, String>", inner_ty));
+                    return (
+                        format!("Ok({})", inner),
+                        format!("Result<{}, String>", inner_ty),
+                    );
                 }
                 if name == "Err" && args.len() == 1 {
                     let (inner, _) = Self::value_to_rust_literal(&args[0], variant_parent);
@@ -7750,8 +9876,14 @@ impl RustCodegen {
                     return ("None".to_string(), "Option<()>".to_string());
                 }
                 // Generic constructor — use variant_parent to find the parent ADT type
-                let parent_ty = variant_parent.get(name.as_str()).cloned().unwrap_or_default();
-                let items: Vec<String> = args.iter().map(|e| Self::value_to_rust_literal(e, variant_parent).0).collect();
+                let parent_ty = variant_parent
+                    .get(name.as_str())
+                    .cloned()
+                    .unwrap_or_default();
+                let items: Vec<String> = args
+                    .iter()
+                    .map(|e| Self::value_to_rust_literal(e, variant_parent).0)
+                    .collect();
                 if parent_ty.is_empty() {
                     // Unknown constructor — emit as-is (no parent type known)
                     if args.is_empty() {
@@ -7762,29 +9894,54 @@ impl RustCodegen {
                 } else if args.is_empty() {
                     (format!("{}::{}", parent_ty, name), parent_ty.clone())
                 } else {
-                    (format!("{}::{}({})", parent_ty, name, items.join(", ")), parent_ty.clone())
+                    (
+                        format!("{}::{}({})", parent_ty, name, items.join(", ")),
+                        parent_ty.clone(),
+                    )
                 }
             }
             Value::NamedConstructor(name, fields) => {
                 // Look up the parent type for enum variants (e.g., ResultKind::Leaf)
-                let parent_ty = variant_parent.get(name.as_str()).cloned().unwrap_or_default();
+                let parent_ty = variant_parent
+                    .get(name.as_str())
+                    .cloned()
+                    .unwrap_or_default();
                 let qualified = if parent_ty.is_empty() || parent_ty == *name {
-                    name.clone()  // Struct type (parent == name) or unknown
+                    name.clone() // Struct type (parent == name) or unknown
                 } else {
-                    format!("{}::{}", parent_ty, name)  // Enum variant
+                    format!("{}::{}", parent_ty, name) // Enum variant
                 };
                 if fields.is_empty() {
-                    (qualified.clone(), if parent_ty.is_empty() { name.clone() } else { parent_ty })
+                    (
+                        qualified.clone(),
+                        if parent_ty.is_empty() {
+                            name.clone()
+                        } else {
+                            parent_ty
+                        },
+                    )
                 } else {
-                    let items: Vec<String> = fields.iter().map(|(fname, fval)| {
-                        let (v, _) = Self::value_to_rust_literal(fval, variant_parent);
-                        format!("{}: {}", fname, v)
-                    }).collect();
-                    (format!("{} {{ {} }}", qualified, items.join(", ")),
-                     if parent_ty.is_empty() { name.clone() } else { parent_ty })
+                    let items: Vec<String> = fields
+                        .iter()
+                        .map(|(fname, fval)| {
+                            let (v, _) = Self::value_to_rust_literal(fval, variant_parent);
+                            format!("{}: {}", fname, v)
+                        })
+                        .collect();
+                    (
+                        format!("{} {{ {} }}", qualified, items.join(", ")),
+                        if parent_ty.is_empty() {
+                            name.clone()
+                        } else {
+                            parent_ty
+                        },
+                    )
                 }
             }
-            _ => (format!("todo!(\"comptime: unsupported value\")",), "()".to_string()),
+            _ => (
+                format!("todo!(\"comptime: unsupported value\")",),
+                "()".to_string(),
+            ),
         }
     }
 
@@ -7793,35 +9950,48 @@ impl RustCodegen {
         match ty {
             Ty::Name(n) => n == adt_name,
             Ty::App(con, args) => {
-                Self::type_references_adt_static(con, adt_name) ||
-                args.iter().any(|a| Self::type_references_adt_static(a, adt_name))
+                Self::type_references_adt_static(con, adt_name)
+                    || args
+                        .iter()
+                        .any(|a| Self::type_references_adt_static(a, adt_name))
             }
             Ty::Arrow(from, to) => {
-                Self::type_references_adt_static(from, adt_name) ||
-                Self::type_references_adt_static(to, adt_name)
+                Self::type_references_adt_static(from, adt_name)
+                    || Self::type_references_adt_static(to, adt_name)
             }
-            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => Self::type_references_adt_static(inner, adt_name),
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                Self::type_references_adt_static(inner, adt_name)
+            }
             _ => false,
         }
     }
 
     /// Rename types that conflict with Rust std (Option, Result, Bool)
     fn rust_type_name(&self, tau_name: &str) -> String {
-        self.types.type_rename.get(tau_name).cloned().unwrap_or_else(|| tau_name.to_string())
+        self.types
+            .type_rename
+            .get(tau_name)
+            .cloned()
+            .unwrap_or_else(|| tau_name.to_string())
     }
 
     /// Returns "Rc" or "Arc" depending on whether the program uses async
     fn rc_name(&self) -> &str {
-        if self.has_async { "Arc" } else { "Rc" }
+        if self.has_async {
+            "Arc"
+        } else {
+            "Rc"
+        }
     }
 
     /// Check if a pattern's constructor belongs to an Rc-backed type
     fn pattern_is_rc_type(&self, pat: &Pat) -> bool {
         match pat {
-            Pat::Con(name, _) | Pat::NamedCon(name, _) => {
-                self.types.variant_parent.get(name.as_str())
-                    .map_or(false, |parent| self.types.rc_types.contains(parent))
-            }
+            Pat::Con(name, _) | Pat::NamedCon(name, _) => self
+                .types
+                .variant_parent
+                .get(name.as_str())
+                .map_or(false, |parent| self.types.rc_types.contains(parent)),
             _ => false,
         }
     }
@@ -7849,14 +10019,21 @@ impl RustCodegen {
                         for s in &imported {
                             if let Stmt::Annot(n, args) = s {
                                 if n == "export" {
-                                    for a in args { if let ExprKind::Var(v) = &a.kind { self.types.exported_names.insert(v.clone()); } }
-                                    if args.is_empty() { is_exp = true; }
+                                    for a in args {
+                                        if let ExprKind::Var(v) = &a.kind {
+                                            self.types.exported_names.insert(v.clone());
+                                        }
+                                    }
+                                    if args.is_empty() {
+                                        is_exp = true;
+                                    }
                                     continue;
                                 }
                             }
                             if is_exp {
                                 match s {
-                                    Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. }) => {
+                                    Stmt::Defn(Defn::Fn { name, .. })
+                                    | Stmt::Defn(Defn::Actor { name, .. }) => {
                                         self.types.exported_names.insert(name.clone());
                                     }
                                     Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
@@ -7872,8 +10049,12 @@ impl RustCodegen {
                     // Skip only side-effects (@ print, for loops, etc.)
                     for s in imported {
                         match &s {
-                            Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::RustBlock(_)
-                            | Stmt::Rule(_) | Stmt::Bind(..) | Stmt::Use(_)
+                            Stmt::Defn(_)
+                            | Stmt::TypeDecl(_)
+                            | Stmt::RustBlock(_)
+                            | Stmt::Rule(_)
+                            | Stmt::Bind(..)
+                            | Stmt::Use(_)
                             | Stmt::Invariant { .. } => {
                                 all_stmts.push(s);
                             }
@@ -7895,14 +10076,21 @@ impl RustCodegen {
                         for s in &imported {
                             if let Stmt::Annot(n, args) = s {
                                 if n == "export" {
-                                    for a in args { if let ExprKind::Var(v) = &a.kind { self.types.exported_names.insert(v.clone()); } }
-                                    if args.is_empty() { is_exp = true; }
+                                    for a in args {
+                                        if let ExprKind::Var(v) = &a.kind {
+                                            self.types.exported_names.insert(v.clone());
+                                        }
+                                    }
+                                    if args.is_empty() {
+                                        is_exp = true;
+                                    }
                                     continue;
                                 }
                             }
                             if is_exp {
                                 match s {
-                                    Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. }) => {
+                                    Stmt::Defn(Defn::Fn { name, .. })
+                                    | Stmt::Defn(Defn::Actor { name, .. }) => {
                                         self.types.exported_names.insert(name.clone());
                                     }
                                     Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
@@ -7918,8 +10106,12 @@ impl RustCodegen {
                     // Skip side effects (@ print, @ skriv, for loops, etc.)
                     for s in imported {
                         match &s {
-                            Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::RustBlock(_)
-                            | Stmt::Rule(_) | Stmt::Bind(..) | Stmt::Use(_)
+                            Stmt::Defn(_)
+                            | Stmt::TypeDecl(_)
+                            | Stmt::RustBlock(_)
+                            | Stmt::Rule(_)
+                            | Stmt::Bind(..)
+                            | Stmt::Use(_)
                             | Stmt::Invariant { .. } => {
                                 all_stmts.push(s);
                             }
@@ -7941,14 +10133,21 @@ impl RustCodegen {
                         for s in &imported {
                             if let Stmt::Annot(n, args) = s {
                                 if n == "export" {
-                                    for a in args { if let ExprKind::Var(v) = &a.kind { mod_exported.insert(v.clone()); } }
-                                    if args.is_empty() { is_exp = true; }
+                                    for a in args {
+                                        if let ExprKind::Var(v) = &a.kind {
+                                            mod_exported.insert(v.clone());
+                                        }
+                                    }
+                                    if args.is_empty() {
+                                        is_exp = true;
+                                    }
                                     continue;
                                 }
                             }
                             if is_exp {
                                 match s {
-                                    Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. }) => {
+                                    Stmt::Defn(Defn::Fn { name, .. })
+                                    | Stmt::Defn(Defn::Actor { name, .. }) => {
                                         mod_exported.insert(name.clone());
                                     }
                                     Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
@@ -7974,7 +10173,11 @@ impl RustCodegen {
                     let mut mod_body: Vec<Stmt> = Vec::new();
                     for s in imported {
                         match &s {
-                            Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::RustBlock(_) | Stmt::Use(_) | Stmt::Annot(_, _) => {
+                            Stmt::Defn(_)
+                            | Stmt::TypeDecl(_)
+                            | Stmt::RustBlock(_)
+                            | Stmt::Use(_)
+                            | Stmt::Annot(_, _) => {
                                 mod_body.push(s);
                             }
                             Stmt::Depend(cn, cv) => {
@@ -8008,8 +10211,8 @@ impl RustCodegen {
             let mut seen_types: BTreeSet<String> = BTreeSet::new();
             all_stmts.retain(|s| {
                 if let Stmt::TypeDecl(TypeDecl::ADT { name, .. })
-                     | Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
-                     | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) = s
+                | Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
+                | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) = s
                 {
                     seen_types.insert(name.clone())
                 } else {
@@ -8070,7 +10273,11 @@ impl RustCodegen {
             for stmt in stmts {
                 if let Stmt::Annot(name, args) = stmt {
                     if name == "store" {
-                        if let Some(Expr { kind: ExprKind::Var(type_name), .. }) = args.first() {
+                        if let Some(Expr {
+                            kind: ExprKind::Var(type_name),
+                            ..
+                        }) = args.first()
+                        {
                             self.types.stored_types.insert(type_name.clone());
                             // Scan remaining args for flags and scope
                             for arg in args.iter().skip(1) {
@@ -8085,8 +10292,14 @@ impl RustCodegen {
                                 }
                             }
                             // Auto-add dependencies
-                            self.cargo_deps.insert("rusqlite".into(), "{ version = \"0.32\", features = [\"bundled\"] }".into());
-                            self.cargo_deps.insert("serde".into(), "{ version = \"1\", features = [\"derive\"] }".into());
+                            self.cargo_deps.insert(
+                                "rusqlite".into(),
+                                "{ version = \"0.32\", features = [\"bundled\"] }".into(),
+                            );
+                            self.cargo_deps.insert(
+                                "serde".into(),
+                                "{ version = \"1\", features = [\"derive\"] }".into(),
+                            );
                             self.cargo_deps.insert("serde_json".into(), "1".into());
                         }
                     }
@@ -8098,7 +10311,9 @@ impl RustCodegen {
                     if self.types.stored_types.contains(name.as_str()) {
                         if let Some(v) = variants.first() {
                             if let Some(f) = v.fields.first() {
-                                self.types.stored_type_key_field.insert(name.clone(), f.name.clone());
+                                self.types
+                                    .stored_type_key_field
+                                    .insert(name.clone(), f.name.clone());
                             }
                             // Compute schema hash from field names + types
                             let mut schema_str = String::new();
@@ -8112,7 +10327,9 @@ impl RustCodegen {
                             let mut hasher = std::collections::hash_map::DefaultHasher::new();
                             schema_str.hash(&mut hasher);
                             let hash = format!("{:016x}", hasher.finish());
-                            self.types.stored_type_schema_hash.insert(name.clone(), hash);
+                            self.types
+                                .stored_type_schema_hash
+                                .insert(name.clone(), hash);
                         }
                     }
                 }
@@ -8126,7 +10343,8 @@ impl RustCodegen {
                 for s in stmts {
                     match s {
                         Stmt::StreamBind(name, expr) => {
-                            if matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject")) {
+                            if matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"))
+                            {
                                 names.insert(name.clone());
                             }
                         }
@@ -8139,10 +10357,25 @@ impl RustCodegen {
             fn has_for_on_subject(stmts: &[Stmt], subjects: &BTreeSet<String>) -> bool {
                 for s in stmts {
                     match s {
-                        Stmt::For(_, Expr { kind: ExprKind::Var(name), .. }, _) if subjects.contains(name) => return true,
-                        Stmt::StreamSub(Expr { kind: ExprKind::Var(name), .. }, _) if subjects.contains(name) => return true,
+                        Stmt::For(
+                            _,
+                            Expr {
+                                kind: ExprKind::Var(name),
+                                ..
+                            },
+                            _,
+                        ) if subjects.contains(name) => return true,
+                        Stmt::StreamSub(
+                            Expr {
+                                kind: ExprKind::Var(name),
+                                ..
+                            },
+                            _,
+                        ) if subjects.contains(name) => return true,
                         Stmt::Rule(Rule::Scope { body, .. }) => {
-                            if has_for_on_subject(body, subjects) { return true; }
+                            if has_for_on_subject(body, subjects) {
+                                return true;
+                            }
                         }
                         _ => {}
                     }
@@ -8162,7 +10395,9 @@ impl RustCodegen {
                         match s {
                             Stmt::StreamSub(_, _) => return true,
                             Stmt::Rule(Rule::Scope { body, .. }) => {
-                                if has_any_stream_sub(body) { return true; }
+                                if has_any_stream_sub(body) {
+                                    return true;
+                                }
                             }
                             _ => {}
                         }
@@ -8178,13 +10413,25 @@ impl RustCodegen {
                     self.has_async = true;
                 }
                 // http_serve with axum needs async runtime
-                if let Stmt::Expr(Expr { kind: ExprKind::Effect(name, _), .. }) = stmt {
+                if let Stmt::Expr(Expr {
+                    kind: ExprKind::Effect(name, _),
+                    ..
+                }) = stmt
+                {
                     if name == "http_serve" {
                         self.has_async = true;
                     }
                 }
                 // Also detect http_serve in = bindings (e.g. = _ = http_serve(...))
-                if let Stmt::Bind(_, _, Expr { kind: ExprKind::App(f, _), .. }) = stmt {
+                if let Stmt::Bind(
+                    _,
+                    _,
+                    Expr {
+                        kind: ExprKind::App(f, _),
+                        ..
+                    },
+                ) = stmt
+                {
                     if let ExprKind::Var(name) = &f.as_ref().kind {
                         if name == "http_serve" {
                             self.has_async = true;
@@ -8207,7 +10454,8 @@ impl RustCodegen {
                 let mut subject_names: BTreeSet<String> = BTreeSet::new();
                 for s in stmts {
                     if let Stmt::StreamBind(name, expr) = s {
-                        if matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject")) {
+                        if matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"))
+                        {
                             subject_names.insert(name.clone());
                             // Check if initial value provided: subject(val)
                             if let ExprKind::App(_, args) = &expr.kind {
@@ -8225,14 +10473,28 @@ impl RustCodegen {
                 // Infer from first Send if not already known
                 for s in stmts {
                     match s {
-                        Stmt::Send(Expr { kind: ExprKind::Var(target), .. }, msg) if subject_names.contains(target) && !types.contains_key(target) => {
+                        Stmt::Send(
+                            Expr {
+                                kind: ExprKind::Var(target),
+                                ..
+                            },
+                            msg,
+                        ) if subject_names.contains(target) && !types.contains_key(target) => {
                             let ty = expr_to_rust_type(msg);
                             types.insert(target.clone(), ty);
                         }
                         Stmt::For(_, _, body) => {
                             for bs in body {
-                                if let Stmt::Send(Expr { kind: ExprKind::Var(target), .. }, msg) = bs {
-                                    if subject_names.contains(target) && !types.contains_key(target) {
+                                if let Stmt::Send(
+                                    Expr {
+                                        kind: ExprKind::Var(target),
+                                        ..
+                                    },
+                                    msg,
+                                ) = bs
+                                {
+                                    if subject_names.contains(target) && !types.contains_key(target)
+                                    {
                                         let ty = expr_to_rust_type(msg);
                                         types.insert(target.clone(), ty);
                                     }
@@ -8271,72 +10533,131 @@ impl RustCodegen {
         // Build type rename map + variant→parent lookup for all ADTs
         let conflicting = ["Bool", "Box", "Vec", "String"];
         for stmt in stmts {
-            if let Stmt::TypeDecl(TypeDecl::ADT { name, params, variants, .. }) = stmt {
+            if let Stmt::TypeDecl(TypeDecl::ADT {
+                name,
+                params,
+                variants,
+                ..
+            }) = stmt
+            {
                 let rust_name = if conflicting.contains(&name.as_str()) {
                     format!("Futuruna{}", name)
                 } else {
                     name.clone()
                 };
                 if rust_name != *name {
-                    self.types.type_rename.insert(name.clone(), rust_name.clone());
+                    self.types
+                        .type_rename
+                        .insert(name.clone(), rust_name.clone());
                 }
                 let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
                 let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
                 for v in variants {
-                    self.types.variant_parent.insert(v.name.clone(), rust_name.clone());
-                    self.types.variant_positional.insert(v.name.clone(), v.positional);
+                    self.types
+                        .variant_parent
+                        .insert(v.name.clone(), rust_name.clone());
+                    self.types
+                        .variant_positional
+                        .insert(v.name.clone(), v.positional);
                     if !v.positional {
                         let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
                         self.types.variant_fields.insert(v.name.clone(), names);
                     }
-                    let ft_map: BTreeMap<String, Ty> = v.fields.iter()
-                        .map(|f| (f.name.clone(), f.ty.clone())).collect();
-                    self.types.variant_field_types.insert(v.name.clone(), ft_map);
-                    let boxed: Vec<usize> = v.fields.iter().enumerate()
+                    let ft_map: BTreeMap<String, Ty> = v
+                        .fields
+                        .iter()
+                        .map(|f| (f.name.clone(), f.ty.clone()))
+                        .collect();
+                    self.types
+                        .variant_field_types
+                        .insert(v.name.clone(), ft_map);
+                    let boxed: Vec<usize> = v
+                        .fields
+                        .iter()
+                        .enumerate()
                         .filter(|(_, f)| RustCodegen::type_references_adt_static(&f.ty, name))
-                        .map(|(i, _)| i).collect();
+                        .map(|(i, _)| i)
+                        .collect();
                     if !boxed.is_empty() {
                         self.types.variant_boxed_args.insert(v.name.clone(), boxed);
                     }
                 }
-                if variants.len() == 1 && variants[0].name == *name && !variants[0].fields.is_empty() {
+                if variants.len() == 1
+                    && variants[0].name == *name
+                    && !variants[0].fields.is_empty()
+                {
                     self.types.struct_types.insert(rust_name.clone());
                 }
-                self.types.type_decls.insert(rust_name, (param_names, variant_names));
+                self.types
+                    .type_decls
+                    .insert(rust_name, (param_names, variant_names));
             }
             // Scan types inside modules too
             if let Stmt::Defn(Defn::Module { body, .. }) = stmt {
                 for inner_stmt in body {
-                    if let Stmt::TypeDecl(TypeDecl::ADT { name, params, variants, .. }) = inner_stmt {
+                    if let Stmt::TypeDecl(TypeDecl::ADT {
+                        name,
+                        params,
+                        variants,
+                        ..
+                    }) = inner_stmt
+                    {
                         let rust_name = if conflicting.contains(&name.as_str()) {
                             format!("Futuruna{}", name)
-                        } else { name.clone() };
+                        } else {
+                            name.clone()
+                        };
                         if rust_name != *name {
-                            self.types.type_rename.insert(name.clone(), rust_name.clone());
+                            self.types
+                                .type_rename
+                                .insert(name.clone(), rust_name.clone());
                         }
-                        let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-                        let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
+                        let param_names: Vec<String> =
+                            params.iter().map(|p| p.name.clone()).collect();
+                        let variant_names: Vec<String> =
+                            variants.iter().map(|v| v.name.clone()).collect();
                         for v in variants {
-                            self.types.variant_parent.insert(v.name.clone(), rust_name.clone());
-                            self.types.variant_positional.insert(v.name.clone(), v.positional);
+                            self.types
+                                .variant_parent
+                                .insert(v.name.clone(), rust_name.clone());
+                            self.types
+                                .variant_positional
+                                .insert(v.name.clone(), v.positional);
                             if !v.positional {
-                                let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
+                                let names: Vec<String> =
+                                    v.fields.iter().map(|f| f.name.clone()).collect();
                                 self.types.variant_fields.insert(v.name.clone(), names);
                             }
-                            let ft_map: BTreeMap<String, Ty> = v.fields.iter()
-                                .map(|f| (f.name.clone(), f.ty.clone())).collect();
-                            self.types.variant_field_types.insert(v.name.clone(), ft_map);
-                            let boxed: Vec<usize> = v.fields.iter().enumerate()
-                                .filter(|(_, f)| RustCodegen::type_references_adt_static(&f.ty, name))
-                                .map(|(i, _)| i).collect();
+                            let ft_map: BTreeMap<String, Ty> = v
+                                .fields
+                                .iter()
+                                .map(|f| (f.name.clone(), f.ty.clone()))
+                                .collect();
+                            self.types
+                                .variant_field_types
+                                .insert(v.name.clone(), ft_map);
+                            let boxed: Vec<usize> = v
+                                .fields
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, f)| {
+                                    RustCodegen::type_references_adt_static(&f.ty, name)
+                                })
+                                .map(|(i, _)| i)
+                                .collect();
                             if !boxed.is_empty() {
                                 self.types.variant_boxed_args.insert(v.name.clone(), boxed);
                             }
                         }
-                        if variants.len() == 1 && variants[0].name == *name && !variants[0].fields.is_empty() {
+                        if variants.len() == 1
+                            && variants[0].name == *name
+                            && !variants[0].fields.is_empty()
+                        {
                             self.types.struct_types.insert(rust_name.clone());
                         }
-                        self.types.type_decls.insert(rust_name, (param_names, variant_names));
+                        self.types
+                            .type_decls
+                            .insert(rust_name, (param_names, variant_names));
                     }
                 }
             }
@@ -8371,9 +10692,19 @@ impl RustCodegen {
         for _round in 0..8 {
             let prev_count = self.borrow_only_params.len();
             for stmt in fn_stmts {
-                if let Stmt::Defn(Defn::Fn { name, params, ret_ty, body, .. }) = stmt {
+                if let Stmt::Defn(Defn::Fn {
+                    name,
+                    params,
+                    ret_ty,
+                    body,
+                    ..
+                }) = stmt
+                {
                     let mut borrow_flags = analyze_borrow_only_params_named(
-                        params, body, ret_ty.as_ref(), &self.borrow_only_params,
+                        params,
+                        body,
+                        ret_ty.as_ref(),
+                        &self.borrow_only_params,
                         Some(name.as_str()),
                     );
                     // Disable ref-match for types with boxed (recursive) fields
@@ -8385,20 +10716,35 @@ impl RustCodegen {
                                 if let Some(ty) = &p.ty {
                                     let type_name = match ty {
                                         Ty::App(base, _) => {
-                                            if let Ty::Name(n) = base.as_ref() { Some(n.as_str()) } else { None }
+                                            if let Ty::Name(n) = base.as_ref() {
+                                                Some(n.as_str())
+                                            } else {
+                                                None
+                                            }
                                         }
                                         Ty::Name(n) => Some(n.as_str()),
                                         _ => None,
                                     };
                                     if let Some(tn) = type_name {
-                                        let has_boxed = self.types.variant_boxed_args.iter().any(|(vname, indices)| {
-                                            !indices.is_empty()
-                                                && self.types.variant_parent.get(vname.as_str())
-                                                    .map(|p| {
-                                                        p == tn || self.types.type_rename.get(tn).map(|r| r == p).unwrap_or(false)
-                                                    })
-                                                    .unwrap_or(false)
-                                        });
+                                        let has_boxed = self.types.variant_boxed_args.iter().any(
+                                            |(vname, indices)| {
+                                                !indices.is_empty()
+                                                    && self
+                                                        .types
+                                                        .variant_parent
+                                                        .get(vname.as_str())
+                                                        .map(|p| {
+                                                            p == tn
+                                                                || self
+                                                                    .types
+                                                                    .type_rename
+                                                                    .get(tn)
+                                                                    .map(|r| r == p)
+                                                                    .unwrap_or(false)
+                                                        })
+                                                        .unwrap_or(false)
+                                            },
+                                        );
                                         if has_boxed {
                                             borrow_flags[idx] = false;
                                         }
@@ -8417,7 +10763,9 @@ impl RustCodegen {
                     }
                 }
             }
-            if self.borrow_only_params.len() == prev_count { break; }
+            if self.borrow_only_params.len() == prev_count {
+                break;
+            }
         }
     }
 
@@ -8445,7 +10793,9 @@ impl RustCodegen {
         // M13c: emit ScopeGuard struct when async mode is active
         if self.has_async {
             out.push_str("use tokio::sync::broadcast;\n");
-            out.push_str("\n/// Scope lifecycle guard: Drop aborts all subscription tasks (M13c)\n");
+            out.push_str(
+                "\n/// Scope lifecycle guard: Drop aborts all subscription tasks (M13c)\n",
+            );
             out.push_str("struct _ScopeGuard {\n");
             out.push_str("    handles: Vec<tokio::task::JoinHandle<()>>,\n");
             out.push_str("}\n");
@@ -8471,8 +10821,16 @@ impl RustCodegen {
 
         // Pre-scan: find explicit Display impls to avoid auto-generating duplicates
         for stmt in stmts {
-            if let Stmt::TypeDecl(TypeDecl::ImplBlock { trait_name, for_type, .. }) = stmt {
-                if trait_name == "Display" || trait_name == "fmt::Display" || trait_name == "std::fmt::Display" {
+            if let Stmt::TypeDecl(TypeDecl::ImplBlock {
+                trait_name,
+                for_type,
+                ..
+            }) = stmt
+            {
+                if trait_name == "Display"
+                    || trait_name == "fmt::Display"
+                    || trait_name == "std::fmt::Display"
+                {
                     self.types.explicit_display_impls.insert(for_type.clone());
                 }
             }
@@ -8483,7 +10841,9 @@ impl RustCodegen {
             if let Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) = stmt {
                 let op_names: BTreeSet<String> = ops.iter().map(|(n, _, _)| n.clone()).collect();
                 self.types.effect_ops.insert(name.clone(), op_names);
-                self.types.effect_ops_detail.insert(name.clone(), ops.clone());
+                self.types
+                    .effect_ops_detail
+                    .insert(name.clone(), ops.clone());
             }
         }
 
@@ -8509,7 +10869,13 @@ impl RustCodegen {
             // Collect function bodies (only those without explicit `with`)
             let mut fn_bodies: Vec<(String, Expr)> = Vec::new();
             for stmt in stmts.iter() {
-                if let Stmt::Defn(Defn::Fn { name, effects, body, .. }) = stmt {
+                if let Stmt::Defn(Defn::Fn {
+                    name,
+                    effects,
+                    body,
+                    ..
+                }) = stmt
+                {
                     if effects.is_empty() {
                         fn_bodies.push((name.clone(), body.clone()));
                     }
@@ -8521,9 +10887,15 @@ impl RustCodegen {
                     let mut changed = false;
                     for (fn_name, body) in &fn_bodies {
                         let handled = BTreeSet::new();
-                        let inferred = Self::collect_expr_effects(body, &handled, &op_to_effect, &self.types.fn_effects);
+                        let inferred = Self::collect_expr_effects(
+                            body,
+                            &handled,
+                            &op_to_effect,
+                            &self.types.fn_effects,
+                        );
                         if !inferred.is_empty() {
-                            let existing = self.types.fn_effects.entry(fn_name.clone()).or_default();
+                            let existing =
+                                self.types.fn_effects.entry(fn_name.clone()).or_default();
                             for eff in inferred {
                                 if !existing.contains(&eff) {
                                     existing.push(eff);
@@ -8532,7 +10904,9 @@ impl RustCodegen {
                             }
                         }
                     }
-                    if !changed { break; }
+                    if !changed {
+                        break;
+                    }
                 }
             }
         }
@@ -8561,11 +10935,11 @@ impl RustCodegen {
                     }
                     fn_stmts.push(stmt);
                 }
-                Stmt::TypeDecl(_) => {} // already emitted
-                Stmt::Use(_) => {} // already emitted in header
+                Stmt::TypeDecl(_) => {}                    // already emitted
+                Stmt::Use(_) => {}                         // already emitted in header
                 Stmt::RustBlock(_) => fn_stmts.push(stmt), // emit at top level
                 Stmt::Annot(name, _) if name == "comptime" => main_stmts.push(stmt), // keep comptime annotations
-                Stmt::Annot(_, _) => {} // skip others
+                Stmt::Annot(_, _) => {}                                              // skip others
                 Stmt::Rule(rule) => {
                     // M13c: scopes with async content go to main (need async context)
                     if matches!(rule, Rule::Scope { .. }) {
@@ -8601,7 +10975,15 @@ impl RustCodegen {
 
         // Collect simple literal = bindings for inlining in rule bodies
         for stmt in stmts {
-            if let Stmt::Bind(Pat::Var(name), _, Expr { kind: ExprKind::Lit(lit), .. }) = stmt {
+            if let Stmt::Bind(
+                Pat::Var(name),
+                _,
+                Expr {
+                    kind: ExprKind::Lit(lit),
+                    ..
+                },
+            ) = stmt
+            {
                 let val = Self::emit_literal_value(lit);
                 let ty = Self::literal_rust_type(lit).to_string();
                 self.types.literal_bindings.insert(name.clone(), (val, ty));
@@ -8618,13 +11000,19 @@ impl RustCodegen {
                         Rule::Scope { .. } => {} // scopes handled separately
                         _ => {
                             let name = match rule {
-                                Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => {
-                                    match &head.kind {
-                                        ExprKind::App(f, _) => if let ExprKind::Var(n) = &f.as_ref().kind { n.clone() } else { continue },
-                                        ExprKind::Var(n) => n.clone(),
-                                        _ => continue,
+                                Rule::Clause { head, .. }
+                                | Rule::Default { head, .. }
+                                | Rule::Exception { head, .. } => match &head.kind {
+                                    ExprKind::App(f, _) => {
+                                        if let ExprKind::Var(n) = &f.as_ref().kind {
+                                            n.clone()
+                                        } else {
+                                            continue;
+                                        }
                                     }
-                                }
+                                    ExprKind::Var(n) => n.clone(),
+                                    _ => continue,
+                                },
                                 _ => continue,
                             };
                             rule_groups.entry(name).or_default().push(rule);
@@ -8651,11 +11039,23 @@ impl RustCodegen {
                     }
                     // Infer from literals in body calls
                     for r in rules.iter() {
-                        if let Rule::Clause { head, body: Some(body) } = r {
+                        if let Rule::Clause {
+                            head,
+                            body: Some(body),
+                        } = r
+                        {
                             if let ExprKind::App(_, head_args) = &head.kind {
-                                let head_vars: Vec<(String, usize)> = head_args.iter().enumerate().filter_map(|(i, a)| {
-                                    if let ExprKind::Var(name) = &a.kind { Some((name.clone(), i)) } else { None }
-                                }).collect();
+                                let head_vars: Vec<(String, usize)> = head_args
+                                    .iter()
+                                    .enumerate()
+                                    .filter_map(|(i, a)| {
+                                        if let ExprKind::Var(name) = &a.kind {
+                                            Some((name.clone(), i))
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect();
                                 // Check body for literal args that tell us param types
                                 let body_calls: Vec<&Expr> = match &body.kind {
                                     ExprKind::Conjunction(goals) => goals.iter().collect(),
@@ -8670,13 +11070,16 @@ impl RustCodegen {
                                                 let _ = lit; // type info used below
                                             }
                                             if let ExprKind::Var(vname) = &ca.kind {
-                                                if let Some((_, hi)) = head_vars.iter().find(|(n, _)| n == vname) {
+                                                if let Some((_, hi)) =
+                                                    head_vars.iter().find(|(n, _)| n == vname)
+                                                {
                                                     // Check if any other arg in this call is a literal
                                                     for (oi, oa) in call_args.iter().enumerate() {
                                                         if let ExprKind::Lit(lit) = &oa.kind {
                                                             if param_types[*hi] == "String" {
                                                                 // Same call, same function → likely same type domain
-                                                                param_types[*hi] = Self::literal_rust_type(lit);
+                                                                param_types[*hi] =
+                                                                    Self::literal_rust_type(lit);
                                                             }
                                                         }
                                                     }
@@ -8688,10 +11091,19 @@ impl RustCodegen {
                             }
                         }
                     }
-                    let param_type_strs: Vec<String> = param_types.iter().map(|t| {
-                        if *t == "String" { "&str".to_string() } else { t.to_string() }
-                    }).collect();
-                    self.types.prolog_rule_fns.insert(fn_name.clone(), param_type_strs);
+                    let param_type_strs: Vec<String> = param_types
+                        .iter()
+                        .map(|t| {
+                            if *t == "String" {
+                                "&str".to_string()
+                            } else {
+                                t.to_string()
+                            }
+                        })
+                        .collect();
+                    self.types
+                        .prolog_rule_fns
+                        .insert(fn_name.clone(), param_type_strs);
                 }
             }
             // Second pass: propagate types from known Prolog functions to dependent ones
@@ -8702,11 +11114,23 @@ impl RustCodegen {
                     if let Some(cur_types) = self.types.prolog_rule_fns.get(fn_name).cloned() {
                         let mut updated = cur_types.clone();
                         for r in rules.iter() {
-                            if let Rule::Clause { head, body: Some(body) } = r {
+                            if let Rule::Clause {
+                                head,
+                                body: Some(body),
+                            } = r
+                            {
                                 if let ExprKind::App(_, head_args) = &head.kind {
-                                    let head_vars: Vec<(String, usize)> = head_args.iter().enumerate().filter_map(|(i, a)| {
-                                        if let ExprKind::Var(name) = &a.kind { Some((name.clone(), i)) } else { None }
-                                    }).collect();
+                                    let head_vars: Vec<(String, usize)> = head_args
+                                        .iter()
+                                        .enumerate()
+                                        .filter_map(|(i, a)| {
+                                            if let ExprKind::Var(name) = &a.kind {
+                                                Some((name.clone(), i))
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .collect();
                                     let body_calls: Vec<&Expr> = match &body.kind {
                                         ExprKind::Conjunction(goals) => goals.iter().collect(),
                                         _ => vec![body],
@@ -8717,8 +11141,15 @@ impl RustCodegen {
                                             if let Some(called_types) = known.get(&called_fn) {
                                                 for (ci, ca) in call_args.iter().enumerate() {
                                                     if let ExprKind::Var(vname) = &ca.kind {
-                                                        if let Some((_, hi)) = head_vars.iter().find(|(n, _)| n == vname) {
-                                                            if updated[*hi] == "&str" || ci >= called_types.len() { continue; }
+                                                        if let Some((_, hi)) = head_vars
+                                                            .iter()
+                                                            .find(|(n, _)| n == vname)
+                                                        {
+                                                            if updated[*hi] == "&str"
+                                                                || ci >= called_types.len()
+                                                            {
+                                                                continue;
+                                                            }
                                                             updated[*hi] = called_types[ci].clone();
                                                         }
                                                     }
@@ -8736,32 +11167,62 @@ impl RustCodegen {
 
             for (fn_name, rules) in &rule_groups {
                 // Count params and track which are borrowed (struct/enum types)
-                let param_count = rules.iter().find_map(|r| {
-                    let head = match r {
-                        Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
-                        _ => return None,
-                    };
-                    if let ExprKind::App(_, args) = &head.kind {
-                        Some(args.iter().filter(|a| matches!(a.kind, ExprKind::Var(_))).count())
-                    } else {
-                        Some(0)
-                    }
-                }).unwrap_or(0);
-                // Register borrow flags: true for params whose type was inferred from fields
-                let borrow_flags: Vec<bool> = {
-                    let params: Vec<String> = rules.iter().find_map(|r| {
+                let param_count = rules
+                    .iter()
+                    .find_map(|r| {
                         let head = match r {
-                            Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
+                            Rule::Clause { head, .. }
+                            | Rule::Default { head, .. }
+                            | Rule::Exception { head, .. } => head,
                             _ => return None,
                         };
                         if let ExprKind::App(_, args) = &head.kind {
-                            Some(args.iter().filter_map(|a| if let ExprKind::Var(n) = &a.kind { Some(n.clone()) } else { None }).collect())
-                        } else { Some(vec![]) }
-                    }).unwrap_or_default();
-                    params.iter().map(|p| self.infer_param_type_from_fields(p, rules).is_some()).collect()
+                            Some(
+                                args.iter()
+                                    .filter(|a| matches!(a.kind, ExprKind::Var(_)))
+                                    .count(),
+                            )
+                        } else {
+                            Some(0)
+                        }
+                    })
+                    .unwrap_or(0);
+                // Register borrow flags: true for params whose type was inferred from fields
+                let borrow_flags: Vec<bool> = {
+                    let params: Vec<String> = rules
+                        .iter()
+                        .find_map(|r| {
+                            let head = match r {
+                                Rule::Clause { head, .. }
+                                | Rule::Default { head, .. }
+                                | Rule::Exception { head, .. } => head,
+                                _ => return None,
+                            };
+                            if let ExprKind::App(_, args) = &head.kind {
+                                Some(
+                                    args.iter()
+                                        .filter_map(|a| {
+                                            if let ExprKind::Var(n) = &a.kind {
+                                                Some(n.clone())
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .collect(),
+                                )
+                            } else {
+                                Some(vec![])
+                            }
+                        })
+                        .unwrap_or_default();
+                    params
+                        .iter()
+                        .map(|p| self.infer_param_type_from_fields(p, rules).is_some())
+                        .collect()
                 };
                 if borrow_flags.iter().any(|b| *b) {
-                    self.borrow_only_params.insert(fn_name.clone(), borrow_flags);
+                    self.borrow_only_params
+                        .insert(fn_name.clone(), borrow_flags);
                 }
                 out.push_str(&self.emit_rule_function(fn_name, rules));
                 self.types.rule_clone_params.clear();
@@ -8815,7 +11276,9 @@ impl RustCodegen {
                     // Match both Pat::Var (lowercase) and Pat::Con with no args (uppercase type names)
                     let bind_name_expr = match stmt {
                         Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr)),
-                        Stmt::Bind(Pat::Con(name, args), _, expr) if args.is_empty() => Some((name.clone(), expr)),
+                        Stmt::Bind(Pat::Con(name, args), _, expr) if args.is_empty() => {
+                            Some((name.clone(), expr))
+                        }
                         _ => None,
                     };
                     if let Some((name, expr)) = bind_name_expr {
@@ -8823,28 +11286,53 @@ impl RustCodegen {
                         // Comptime type: if the value is a TypeDef, generate a type declaration
                         if let Value::TypeDef { kind, fields } = &val {
                             let type_decl = Self::typedef_to_type_decl(&name, kind, fields);
-                            eprintln!("// comptime type: {} ({}, {} fields)", name, kind, fields.len());
+                            eprintln!(
+                                "// comptime type: {} ({}, {} fields)",
+                                name,
+                                kind,
+                                fields.len()
+                            );
                             // Register type metadata (variant_parent, struct_types, etc.)
                             // before emit_type_decl so struct detection works
-                            if let TypeDecl::ADT { name: tname, variants, .. } = &type_decl {
+                            if let TypeDecl::ADT {
+                                name: tname,
+                                variants,
+                                ..
+                            } = &type_decl
+                            {
                                 for v in variants {
-                                    self.types.variant_parent.insert(v.name.clone(), tname.clone());
-                                    self.types.variant_positional.insert(v.name.clone(), v.positional);
+                                    self.types
+                                        .variant_parent
+                                        .insert(v.name.clone(), tname.clone());
+                                    self.types
+                                        .variant_positional
+                                        .insert(v.name.clone(), v.positional);
                                     if !v.positional {
-                                        let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
+                                        let names: Vec<String> =
+                                            v.fields.iter().map(|f| f.name.clone()).collect();
                                         self.types.variant_fields.insert(v.name.clone(), names);
                                     }
-                                    let ft_map: BTreeMap<String, Ty> = v.fields.iter()
+                                    let ft_map: BTreeMap<String, Ty> = v
+                                        .fields
+                                        .iter()
                                         .map(|f| (f.name.clone(), f.ty.clone()))
                                         .collect();
-                                    self.types.variant_field_types.insert(v.name.clone(), ft_map);
+                                    self.types
+                                        .variant_field_types
+                                        .insert(v.name.clone(), ft_map);
                                 }
-                                if variants.len() == 1 && variants[0].name == *tname && !variants[0].fields.is_empty() {
+                                if variants.len() == 1
+                                    && variants[0].name == *tname
+                                    && !variants[0].fields.is_empty()
+                                {
                                     self.types.struct_types.insert(tname.clone());
                                 }
                                 let param_names: Vec<String> = vec![];
-                                let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
-                                self.types.type_decls.insert(tname.clone(), (param_names, variant_names));
+                                let variant_names: Vec<String> =
+                                    variants.iter().map(|v| v.name.clone()).collect();
+                                self.types
+                                    .type_decls
+                                    .insert(tname.clone(), (param_names, variant_names));
                             }
                             let decl_str = self.emit_type_decl(&type_decl);
                             // Insert before main function
@@ -8853,22 +11341,34 @@ impl RustCodegen {
                             comptime_interp.register_type(&type_decl);
                             comptime_interp.register_constructors(&type_decl, &mut comptime_env);
                             // Mark as comptime with empty value so it doesn't re-emit as a binding
-                            self.types.comptime_values.insert(name.clone(), String::new());
-                            self.types.comptime_types.insert(name.clone(), String::new());
+                            self.types
+                                .comptime_values
+                                .insert(name.clone(), String::new());
+                            self.types
+                                .comptime_types
+                                .insert(name.clone(), String::new());
                         } else {
-                            let (rust_lit, rust_ty) = Self::value_to_rust_literal(&val, &self.types.variant_parent);
+                            let (rust_lit, rust_ty) =
+                                Self::value_to_rust_literal(&val, &self.types.variant_parent);
                             eprintln!("// comptime: {} = {} ({})", name, rust_lit, rust_ty);
                             self.types.comptime_values.insert(name.clone(), rust_lit);
                             self.types.comptime_types.insert(name.clone(), rust_ty);
                         }
                         // Also bind in comptime env so later comptime expressions can use it
-                        comptime_interp.bind_pattern(&Pat::Var(name.clone()), &val, &mut comptime_env);
+                        comptime_interp.bind_pattern(
+                            &Pat::Var(name.clone()),
+                            &val,
+                            &mut comptime_env,
+                        );
                     }
                     // @ comptime assert(expr) — compile-time assertion
                     if let Stmt::Expr(expr) = stmt {
                         // Check if it's assert(expr) or just a bare expression
                         let inner_expr = match &expr.kind {
-                            ExprKind::App(f, args) if matches!(f.kind, ExprKind::Var(ref n) if n == "assert") && args.len() == 1 => {
+                            ExprKind::App(f, args)
+                                if matches!(f.kind, ExprKind::Var(ref n) if n == "assert")
+                                    && args.len() == 1 =>
+                            {
                                 Some(&args[0])
                             }
                             _ => None,
@@ -8877,11 +11377,13 @@ impl RustCodegen {
                             let val = comptime_interp.eval(assert_expr, &mut comptime_env);
                             let is_truthy = match &val {
                                 Value::Bool(b) => Some(*b),
-                                Value::Constructor(name, args) if args.is_empty() => match name.as_str() {
-                                    "true" | "True" => Some(true),
-                                    "false" | "False" => Some(false),
-                                    _ => None,
-                                },
+                                Value::Constructor(name, args) if args.is_empty() => {
+                                    match name.as_str() {
+                                        "true" | "True" => Some(true),
+                                        "false" | "False" => Some(false),
+                                        _ => None,
+                                    }
+                                }
                                 _ => None,
                             };
                             match is_truthy {
@@ -8908,11 +11410,14 @@ impl RustCodegen {
 
             // Auto-comptime: pure functions with all-literal/comptime args get evaluated
             // at compile time without requiring explicit @ comptime annotation.
-            let pure_fns = Self::find_pure_functions(stmts, &self.types.effect_ops, &self.types.fn_effects);
+            let pure_fns =
+                Self::find_pure_functions(stmts, &self.types.effect_ops, &self.types.fn_effects);
             for stmt in &main_stmts {
                 if let Stmt::Bind(Pat::Var(name), _, expr) = stmt {
                     // Skip already-comptime bindings
-                    if self.types.comptime_values.contains_key(name) { continue; }
+                    if self.types.comptime_values.contains_key(name) {
+                        continue;
+                    }
                     if let Some(val) = Self::try_auto_comptime(
                         expr,
                         &pure_fns,
@@ -8925,17 +11430,25 @@ impl RustCodegen {
                             Value::Constructor(n, args) if (n == "None" && args.is_empty()) || n == "Err"
                         );
                         if !skip_comptime {
-                            let (rust_lit, rust_ty) = Self::value_to_rust_literal(&val, &self.types.variant_parent);
+                            let (rust_lit, rust_ty) =
+                                Self::value_to_rust_literal(&val, &self.types.variant_parent);
                             // Skip values that can't be represented as Rust literals (closures, actors, etc.)
                             if rust_lit.contains("todo!(\"comptime: unsupported value\")") {
                                 eprintln!("// auto-comptime: {} = todo!(\"comptime: unsupported value\") ({})", name, rust_ty);
                             } else {
-                                eprintln!("// auto-comptime: {} = {} ({})", name, rust_lit, rust_ty);
+                                eprintln!(
+                                    "// auto-comptime: {} = {} ({})",
+                                    name, rust_lit, rust_ty
+                                );
                                 self.types.comptime_values.insert(name.clone(), rust_lit);
                                 self.types.comptime_types.insert(name.clone(), rust_ty);
                             }
                         }
-                        comptime_interp.bind_pattern(&Pat::Var(name.clone()), &val, &mut comptime_env);
+                        comptime_interp.bind_pattern(
+                            &Pat::Var(name.clone()),
+                            &val,
+                            &mut comptime_env,
+                        );
                     }
                 }
             }
@@ -8949,7 +11462,8 @@ impl RustCodegen {
         // Emit main function — with escape analysis
         // Count variable uses across all main statements
         self.copy_vars.clear();
-        let main_ownership = OwnershipAnalysis::analyze_stmt_refs(&main_stmts, &self.borrow_only_params);
+        let main_ownership =
+            OwnershipAnalysis::analyze_stmt_refs(&main_stmts, &self.borrow_only_params);
         self.var_use_counts = main_ownership.var_uses;
         self.var_consuming_counts = main_ownership.consuming_uses;
         // Detect Copy-type bindings in main (from literal type inference)
@@ -8961,7 +11475,13 @@ impl RustCodegen {
             }
             // Also infer Copy from integer/float/bool literals
             if let Stmt::Bind(Pat::Var(name), None, expr) = stmt {
-                if matches!(expr.kind, ExprKind::Lit(Literal::Int(_)) | ExprKind::Lit(Literal::Float(_)) | ExprKind::Lit(Literal::Bool(_)) | ExprKind::Lit(Literal::Char(_))) {
+                if matches!(
+                    expr.kind,
+                    ExprKind::Lit(Literal::Int(_))
+                        | ExprKind::Lit(Literal::Float(_))
+                        | ExprKind::Lit(Literal::Bool(_))
+                        | ExprKind::Lit(Literal::Char(_))
+                ) {
                     self.copy_vars.insert(name.clone());
                 }
             }
@@ -8971,7 +11491,9 @@ impl RustCodegen {
             if let Stmt::Defn(Defn::Actor { handlers, .. }) = stmt {
                 for h in handlers {
                     match &h.msg_pat {
-                        Pat::Con(n, _) | Pat::Var(n) => { self.copy_vars.insert(n.clone()); }
+                        Pat::Con(n, _) | Pat::Var(n) => {
+                            self.copy_vars.insert(n.clone());
+                        }
                         _ => {}
                     }
                 }
@@ -9017,10 +11539,14 @@ impl RustCodegen {
                 };
                 let i = self.ind();
                 out.push_str(&format!("{i}// M26: Object store initialization\n"));
-                out.push_str(&format!("{i}let __db = std::sync::Arc::new(std::sync::Mutex::new(\n"));
+                out.push_str(&format!(
+                    "{i}let __db = std::sync::Arc::new(std::sync::Mutex::new(\n"
+                ));
                 out.push_str(&format!("{i}    rusqlite::Connection::open(\"{db_name}\").expect(\"Failed to open store database\")\n"));
                 out.push_str(&format!("{i}));\n"));
-                out.push_str(&format!("{i}__db.lock().unwrap().execute_batch(\"PRAGMA journal_mode=WAL;\").ok();\n"));
+                out.push_str(&format!(
+                    "{i}__db.lock().unwrap().execute_batch(\"PRAGMA journal_mode=WAL;\").ok();\n"
+                ));
                 // Create meta table for schema versioning
                 out.push_str(&format!("{i}__db.lock().unwrap().execute(\n"));
                 out.push_str(&format!("{i}    \"CREATE TABLE IF NOT EXISTS __store_meta (type_name TEXT PRIMARY KEY, schema_hash TEXT NOT NULL)\",\n"));
@@ -9028,12 +11554,19 @@ impl RustCodegen {
                 out.push_str(&format!("{i}).ok();\n"));
                 for type_name in &self.types.stored_types.clone() {
                     let table_name = sanitize_name(type_name).to_lowercase();
-                    let hash = self.types.stored_type_schema_hash.get(type_name).cloned().unwrap_or_default();
+                    let hash = self
+                        .types
+                        .stored_type_schema_hash
+                        .get(type_name)
+                        .cloned()
+                        .unwrap_or_default();
                     let is_dump = self.types.store_delete_on_change.contains(type_name);
                     // Check stored schema hash vs current
                     out.push_str(&format!("{i}{{\n"));
                     out.push_str(&format!("{i}    let __db_lock = __db.lock().unwrap();\n"));
-                    out.push_str(&format!("{i}    let __old_hash: Option<String> = __db_lock.query_row(\n"));
+                    out.push_str(&format!(
+                        "{i}    let __old_hash: Option<String> = __db_lock.query_row(\n"
+                    ));
                     out.push_str(&format!("{i}        \"SELECT schema_hash FROM __store_meta WHERE type_name = ?1\",\n"));
                     out.push_str(&format!("{i}        rusqlite::params![\"{type_name}\"],\n"));
                     out.push_str(&format!("{i}        |row| row.get(0)\n"));
@@ -9045,8 +11578,15 @@ impl RustCodegen {
                     out.push_str(&format!("{i}            // Schema changed\n"));
                     if is_dump {
                         // delete_on_change: export data to dump file, then drop table
-                        let dump_file = format!(".{}.dump.runa",
-                            self.types.store_scope.as_ref().or(self.source_name.as_ref()).map(|s| s.as_str()).unwrap_or("store"));
+                        let dump_file = format!(
+                            ".{}.dump.runa",
+                            self.types
+                                .store_scope
+                                .as_ref()
+                                .or(self.source_name.as_ref())
+                                .map(|s| s.as_str())
+                                .unwrap_or("store")
+                        );
                         out.push_str(&format!("{i}            eprintln!(\"store: {type_name} schema changed — dumping old data to {dump_file}\");\n"));
                         out.push_str(&format!("{i}            let mut __dump = String::new();\n"));
                         out.push_str(&format!("{i}            let mut __stmt = __db_lock.prepare(\"SELECT data FROM {table_name}\").unwrap();\n"));
@@ -9060,14 +11600,20 @@ impl RustCodegen {
                     }
                     out.push_str(&format!("{i}            __db_lock.execute(\n"));
                     out.push_str(&format!("{i}                \"INSERT OR REPLACE INTO __store_meta (type_name, schema_hash) VALUES (?1, ?2)\",\n"));
-                    out.push_str(&format!("{i}                rusqlite::params![\"{type_name}\", __new_hash],\n"));
+                    out.push_str(&format!(
+                        "{i}                rusqlite::params![\"{type_name}\", __new_hash],\n"
+                    ));
                     out.push_str(&format!("{i}            ).ok();\n"));
                     out.push_str(&format!("{i}        }}\n"));
                     out.push_str(&format!("{i}        None => {{\n"));
-                    out.push_str(&format!("{i}            // First run — record schema hash\n"));
+                    out.push_str(&format!(
+                        "{i}            // First run — record schema hash\n"
+                    ));
                     out.push_str(&format!("{i}            __db_lock.execute(\n"));
                     out.push_str(&format!("{i}                \"INSERT INTO __store_meta (type_name, schema_hash) VALUES (?1, ?2)\",\n"));
-                    out.push_str(&format!("{i}                rusqlite::params![\"{type_name}\", __new_hash],\n"));
+                    out.push_str(&format!(
+                        "{i}                rusqlite::params![\"{type_name}\", __new_hash],\n"
+                    ));
                     out.push_str(&format!("{i}            ).ok();\n"));
                     out.push_str(&format!("{i}        }}\n"));
                     out.push_str(&format!("{i}    }}\n"));
@@ -9076,7 +11622,9 @@ impl RustCodegen {
                     out.push_str(&format!("{i}__db.lock().unwrap().execute(\n"));
                     out.push_str(&format!("{i}    \"CREATE TABLE IF NOT EXISTS {table_name} (id TEXT PRIMARY KEY, data TEXT NOT NULL)\",\n"));
                     out.push_str(&format!("{i}    rusqlite::params![]\n"));
-                    out.push_str(&format!("{i}).expect(\"Failed to create table {table_name}\");\n"));
+                    out.push_str(&format!(
+                        "{i}).expect(\"Failed to create table {table_name}\");\n"
+                    ));
                 }
                 out.push_str("\n");
             }
@@ -9116,7 +11664,12 @@ impl RustCodegen {
 
     fn emit_type_decl(&mut self, decl: &TypeDecl) -> String {
         match decl {
-            TypeDecl::ADT { name, params, variants, methods } => {
+            TypeDecl::ADT {
+                name,
+                params,
+                variants,
+                methods,
+            } => {
                 if variants.is_empty() {
                     return format!("// type {} (opaque)\n", name);
                 }
@@ -9128,11 +11681,14 @@ impl RustCodegen {
                 let rust_name = self.rust_type_name(name);
 
                 // Use actual param names from Futuruna source, uppercased
-                let param_rust_names: Vec<String> = params.iter().map(|p| {
-                    let mut s = p.name.clone();
-                    s.make_ascii_uppercase();
-                    s
-                }).collect();
+                let param_rust_names: Vec<String> = params
+                    .iter()
+                    .map(|p| {
+                        let mut s = p.name.clone();
+                        s.make_ascii_uppercase();
+                        s
+                    })
+                    .collect();
 
                 let type_params = if param_rust_names.is_empty() {
                     String::new()
@@ -9144,7 +11700,8 @@ impl RustCodegen {
                 let display_bounds = if param_rust_names.is_empty() {
                     String::new()
                 } else {
-                    let bounds: Vec<String> = param_rust_names.iter()
+                    let bounds: Vec<String> = param_rust_names
+                        .iter()
                         .map(|p| format!("{}: fmt::Display", p))
                         .collect();
                     format!("<{}>", bounds.join(", "))
@@ -9152,9 +11709,17 @@ impl RustCodegen {
 
                 let mut out = String::new();
                 let is_struct = self.types.struct_types.contains(&rust_name);
-                let pub_prefix = if self.types.exported_names.contains(name) { "pub " } else { "" };
+                let pub_prefix = if self.types.exported_names.contains(name) {
+                    "pub "
+                } else {
+                    ""
+                };
                 // Rc/Arc for immutable recursive ADTs (O(1) structural sharing)
-                let wrap_name = if self.types.rc_types.contains(&rust_name) { self.rc_name() } else { "Box" };
+                let wrap_name = if self.types.rc_types.contains(&rust_name) {
+                    self.rc_name()
+                } else {
+                    "Box"
+                };
 
                 if is_struct {
                     // Single-variant with same name → emit Rust struct
@@ -9178,11 +11743,19 @@ impl RustCodegen {
                     });
                     let serde_derives = if self.types.stored_types.contains(name) {
                         ", serde::Serialize, serde::Deserialize"
-                    } else { "" };
-                    if all_fields_defaultable {
-                        out.push_str(&format!("#[derive(Debug, Clone, PartialEq, Default{})]\n", serde_derives));
                     } else {
-                        out.push_str(&format!("#[derive(Debug, Clone, PartialEq{})]\n", serde_derives));
+                        ""
+                    };
+                    if all_fields_defaultable {
+                        out.push_str(&format!(
+                            "#[derive(Debug, Clone, PartialEq, Default{})]\n",
+                            serde_derives
+                        ));
+                    } else {
+                        out.push_str(&format!(
+                            "#[derive(Debug, Clone, PartialEq{})]\n",
+                            serde_derives
+                        ));
                     }
                     // For stored types, allow missing fields during deserialization (schema flex)
                     if self.types.stored_types.contains(name) {
@@ -9190,18 +11763,31 @@ impl RustCodegen {
                     }
                     if v.positional {
                         // Tuple struct: struct Point(f64, f64);
-                        let fields_str: Vec<String> = v.fields.iter().map(|f| {
-                            let base = self.emit_type_with_params(&f.ty, params);
-                            if self.type_references_adt(&f.ty, name) {
-                                format!("pub {}<{}>", wrap_name, base)
-                            } else {
-                                format!("pub {}", base)
-                            }
-                        }).collect();
-                        out.push_str(&format!("{}struct {}{}({});\n", pub_prefix, rust_name, type_params, fields_str.join(", ")));
+                        let fields_str: Vec<String> = v
+                            .fields
+                            .iter()
+                            .map(|f| {
+                                let base = self.emit_type_with_params(&f.ty, params);
+                                if self.type_references_adt(&f.ty, name) {
+                                    format!("pub {}<{}>", wrap_name, base)
+                                } else {
+                                    format!("pub {}", base)
+                                }
+                            })
+                            .collect();
+                        out.push_str(&format!(
+                            "{}struct {}{}({});\n",
+                            pub_prefix,
+                            rust_name,
+                            type_params,
+                            fields_str.join(", ")
+                        ));
                     } else {
                         // Named struct: struct Point { pub x: f64, pub y: f64 }
-                        out.push_str(&format!("{}struct {}{} {{\n", pub_prefix, rust_name, type_params));
+                        out.push_str(&format!(
+                            "{}struct {}{} {{\n",
+                            pub_prefix, rust_name, type_params
+                        ));
                         for f in &v.fields {
                             let base = self.emit_type_with_params(&f.ty, params);
                             let ty_str = if self.type_references_adt(&f.ty, name) {
@@ -9216,27 +11802,39 @@ impl RustCodegen {
                 } else {
                     // Multi-variant → emit Rust enum
                     // Derive Default only if first variant is fieldless (can use #[default])
-                    let first_variant_fieldless = variants.first().map_or(false, |v| v.fields.is_empty());
+                    let first_variant_fieldless =
+                        variants.first().map_or(false, |v| v.fields.is_empty());
                     if first_variant_fieldless {
                         out.push_str("#[derive(Debug, Clone, PartialEq, Default)]\n");
                     } else {
                         out.push_str("#[derive(Debug, Clone, PartialEq)]\n");
                     }
-                    out.push_str(&format!("{}enum {}{} {{\n", pub_prefix, rust_name, type_params));
+                    out.push_str(&format!(
+                        "{}enum {}{} {{\n",
+                        pub_prefix, rust_name, type_params
+                    ));
                     for (vi, v) in variants.iter().enumerate() {
-                        let default_attr = if vi == 0 && first_variant_fieldless { "    #[default]\n" } else { "" };
+                        let default_attr = if vi == 0 && first_variant_fieldless {
+                            "    #[default]\n"
+                        } else {
+                            ""
+                        };
                         if v.fields.is_empty() {
                             out.push_str(&format!("{}    {},\n", default_attr, v.name));
                         } else if v.positional {
                             // Positional → Rust tuple variant
-                            let fields_str: Vec<String> = v.fields.iter().map(|f| {
-                                let base = self.emit_type_with_params(&f.ty, params);
-                                if self.type_references_adt(&f.ty, name) {
-                                    format!("{}<{}>", wrap_name, base)
-                                } else {
-                                    base
-                                }
-                            }).collect();
+                            let fields_str: Vec<String> = v
+                                .fields
+                                .iter()
+                                .map(|f| {
+                                    let base = self.emit_type_with_params(&f.ty, params);
+                                    if self.type_references_adt(&f.ty, name) {
+                                        format!("{}<{}>", wrap_name, base)
+                                    } else {
+                                        base
+                                    }
+                                })
+                                .collect();
                             out.push_str(&format!("    {}({}),\n", v.name, fields_str.join(", ")));
                         } else {
                             // Named → Rust struct variant
@@ -9260,7 +11858,10 @@ impl RustCodegen {
                 let field_needs_debug_fmt = |f: &Field| -> bool {
                     let ty_str = self.emit_type_with_params(&f.ty, params);
                     let base = ty_str.split('<').next().unwrap_or(&ty_str).trim();
-                    matches!(base, "Vec" | "Option" | "HashMap" | "HashSet" | "Rc" | "Arc")
+                    matches!(
+                        base,
+                        "Vec" | "Option" | "HashMap" | "HashSet" | "Rc" | "Arc"
+                    )
                 };
 
                 // Impl Display (skip if user provided explicit # impl fmt::Display)
@@ -9268,72 +11869,122 @@ impl RustCodegen {
                     // User provides their own Display impl
                 } else if is_struct {
                     let v = &variants[0];
-                    out.push_str(&format!("\nimpl{} fmt::Display for {}{} {{\n",
-                        display_bounds, rust_name, type_params));
-                    out.push_str("    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n");
+                    out.push_str(&format!(
+                        "\nimpl{} fmt::Display for {}{} {{\n",
+                        display_bounds, rust_name, type_params
+                    ));
+                    out.push_str(
+                        "    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n",
+                    );
                     out.push_str(&format!("        write!(f, \"{}(\")?;\n", name));
                     for (i, field) in v.fields.iter().enumerate() {
-                        if i > 0 { out.push_str("        write!(f, \", \")?;\n"); }
-                        let fmt_spec = if field_needs_debug_fmt(field) { "{:?}" } else { "{}" };
-                        if v.positional {
-                            out.push_str(&format!("        write!(f, \"{}\", self.{})?;\n", fmt_spec, i));
+                        if i > 0 {
+                            out.push_str("        write!(f, \", \")?;\n");
+                        }
+                        let fmt_spec = if field_needs_debug_fmt(field) {
+                            "{:?}"
                         } else {
-                            out.push_str(&format!("        write!(f, \"{}: {}\", self.{})?;\n", field.name, fmt_spec, field.name));
+                            "{}"
+                        };
+                        if v.positional {
+                            out.push_str(&format!(
+                                "        write!(f, \"{}\", self.{})?;\n",
+                                fmt_spec, i
+                            ));
+                        } else {
+                            out.push_str(&format!(
+                                "        write!(f, \"{}: {}\", self.{})?;\n",
+                                field.name, fmt_spec, field.name
+                            ));
                         }
                     }
                     out.push_str("        write!(f, \")\")\n");
                     out.push_str("    }\n");
                     out.push_str("}\n");
                 } else {
-                out.push_str(&format!("\nimpl{} fmt::Display for {}{} {{\n",
-                    display_bounds, rust_name, type_params));
-                out.push_str("    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n");
-                out.push_str("        match self {\n");
-                for v in variants {
-                    if v.fields.is_empty() {
-                        out.push_str(&format!("            {}::{} => write!(f, \"{}\"),\n",
-                            rust_name, v.name, v.name));
-                    } else if v.positional {
-                        // Tuple variant Display
-                        let binds: Vec<String> = (0..v.fields.len())
-                            .map(|i| format!("f{}", i))
-                            .collect();
-                        out.push_str(&format!("            {}::{}({}) => {{\n",
-                            rust_name, v.name, binds.join(", ")));
-                        out.push_str(&format!("                write!(f, \"{}(\")?;\n", v.name));
-                        for (i, b) in binds.iter().enumerate() {
-                            if i > 0 { out.push_str("                write!(f, \", \")?;\n"); }
-                            if field_needs_debug_fmt(&v.fields[i]) {
-                                out.push_str(&format!("                write!(f, \"{{:?}}\", {})?;\n", b));
-                            } else {
-                                out.push_str(&format!("                write!(f, \"{{}}\", {})?;\n", b));
+                    out.push_str(&format!(
+                        "\nimpl{} fmt::Display for {}{} {{\n",
+                        display_bounds, rust_name, type_params
+                    ));
+                    out.push_str(
+                        "    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n",
+                    );
+                    out.push_str("        match self {\n");
+                    for v in variants {
+                        if v.fields.is_empty() {
+                            out.push_str(&format!(
+                                "            {}::{} => write!(f, \"{}\"),\n",
+                                rust_name, v.name, v.name
+                            ));
+                        } else if v.positional {
+                            // Tuple variant Display
+                            let binds: Vec<String> =
+                                (0..v.fields.len()).map(|i| format!("f{}", i)).collect();
+                            out.push_str(&format!(
+                                "            {}::{}({}) => {{\n",
+                                rust_name,
+                                v.name,
+                                binds.join(", ")
+                            ));
+                            out.push_str(&format!(
+                                "                write!(f, \"{}(\")?;\n",
+                                v.name
+                            ));
+                            for (i, b) in binds.iter().enumerate() {
+                                if i > 0 {
+                                    out.push_str("                write!(f, \", \")?;\n");
+                                }
+                                if field_needs_debug_fmt(&v.fields[i]) {
+                                    out.push_str(&format!(
+                                        "                write!(f, \"{{:?}}\", {})?;\n",
+                                        b
+                                    ));
+                                } else {
+                                    out.push_str(&format!(
+                                        "                write!(f, \"{{}}\", {})?;\n",
+                                        b
+                                    ));
+                                }
                             }
-                        }
-                        out.push_str("                write!(f, \")\")\n");
-                        out.push_str("            }\n");
-                    } else {
-                        // Struct variant Display
-                        let binds: Vec<String> = v.fields.iter()
-                            .map(|f| f.name.clone())
-                            .collect();
-                        out.push_str(&format!("            {}::{} {{ {} }} => {{\n",
-                            rust_name, v.name, binds.join(", ")));
-                        out.push_str(&format!("                write!(f, \"{}(\")?;\n", v.name));
-                        for (i, b) in binds.iter().enumerate() {
-                            if i > 0 { out.push_str("                write!(f, \", \")?;\n"); }
-                            if field_needs_debug_fmt(&v.fields[i]) {
-                                out.push_str(&format!("                write!(f, \"{}: {{:?}}\", {})?;\n", b, b));
-                            } else {
-                                out.push_str(&format!("                write!(f, \"{}: {{}}\", {})?;\n", b, b));
+                            out.push_str("                write!(f, \")\")\n");
+                            out.push_str("            }\n");
+                        } else {
+                            // Struct variant Display
+                            let binds: Vec<String> =
+                                v.fields.iter().map(|f| f.name.clone()).collect();
+                            out.push_str(&format!(
+                                "            {}::{} {{ {} }} => {{\n",
+                                rust_name,
+                                v.name,
+                                binds.join(", ")
+                            ));
+                            out.push_str(&format!(
+                                "                write!(f, \"{}(\")?;\n",
+                                v.name
+                            ));
+                            for (i, b) in binds.iter().enumerate() {
+                                if i > 0 {
+                                    out.push_str("                write!(f, \", \")?;\n");
+                                }
+                                if field_needs_debug_fmt(&v.fields[i]) {
+                                    out.push_str(&format!(
+                                        "                write!(f, \"{}: {{:?}}\", {})?;\n",
+                                        b, b
+                                    ));
+                                } else {
+                                    out.push_str(&format!(
+                                        "                write!(f, \"{}: {{}}\", {})?;\n",
+                                        b, b
+                                    ));
+                                }
                             }
+                            out.push_str("                write!(f, \")\")\n");
+                            out.push_str("            }\n");
                         }
-                        out.push_str("                write!(f, \")\")\n");
-                        out.push_str("            }\n");
                     }
-                }
-                out.push_str("        }\n");
-                out.push_str("    }\n");
-                out.push_str("}\n");
+                    out.push_str("        }\n");
+                    out.push_str("    }\n");
+                    out.push_str("}\n");
                 }
 
                 // Emit methods as standalone functions (not in impl block)
@@ -9341,46 +11992,80 @@ impl RustCodegen {
                 // First param without type annotation gets the parent ADT type
                 if !methods.is_empty() {
                     for method in methods {
-                        if let Defn::Fn { name: mname, params: mparams, ret_ty, body, .. } = method {
+                        if let Defn::Fn {
+                            name: mname,
+                            params: mparams,
+                            ret_ty,
+                            body,
+                            ..
+                        } = method
+                        {
                             let self_type = format!("{}{}", rust_name, type_params);
                             // Fill in missing type for first param (the ADT type) so borrow analysis works
-                            let augmented_params: Vec<Param> = mparams.iter().enumerate().map(|(i, p)| {
-                                if i == 0 && p.ty.is_none() {
-                                    Param { name: p.name.clone(), ty: Some(Ty::Name(name.clone())), inout: p.inout }
-                                } else {
-                                    p.clone()
-                                }
-                            }).collect();
+                            let augmented_params: Vec<Param> = mparams
+                                .iter()
+                                .enumerate()
+                                .map(|(i, p)| {
+                                    if i == 0 && p.ty.is_none() {
+                                        Param {
+                                            name: p.name.clone(),
+                                            ty: Some(Ty::Name(name.clone())),
+                                            inout: p.inout,
+                                        }
+                                    } else {
+                                        p.clone()
+                                    }
+                                })
+                                .collect();
                             // Borrow inference: analyze if params are read-only
                             let borrow_flags = analyze_borrow_only_params(
-                                &augmented_params, body, ret_ty.as_ref(), &self.borrow_only_params,
+                                &augmented_params,
+                                body,
+                                ret_ty.as_ref(),
+                                &self.borrow_only_params,
                             );
                             if borrow_flags.iter().any(|f| *f) {
-                                self.borrow_only_params.insert(mname.clone(), borrow_flags.clone());
+                                self.borrow_only_params
+                                    .insert(mname.clone(), borrow_flags.clone());
                             }
-                            let rust_params: Vec<String> = mparams.iter().enumerate().map(|(i, p)| {
-                                if p.name == "self" {
-                                    format!("self_: &{}", self_type)
-                                } else if i == 0 && p.ty.is_none() {
-                                    // First param without type = the ADT itself
-                                    let borrow = borrow_flags.get(i).copied().unwrap_or(false);
-                                    if borrow {
-                                        format!("{}: &{}", sanitize_name(&p.name), self_type)
+                            let rust_params: Vec<String> = mparams
+                                .iter()
+                                .enumerate()
+                                .map(|(i, p)| {
+                                    if p.name == "self" {
+                                        format!("self_: &{}", self_type)
+                                    } else if i == 0 && p.ty.is_none() {
+                                        // First param without type = the ADT itself
+                                        let borrow = borrow_flags.get(i).copied().unwrap_or(false);
+                                        if borrow {
+                                            format!("{}: &{}", sanitize_name(&p.name), self_type)
+                                        } else {
+                                            format!("{}: {}", sanitize_name(&p.name), self_type)
+                                        }
                                     } else {
-                                        format!("{}: {}", sanitize_name(&p.name), self_type)
+                                        let ty =
+                                            p.ty.as_ref()
+                                                .map(|t| self.emit_type(t))
+                                                .unwrap_or_else(|| "String".into());
+                                        let borrow = borrow_flags.get(i).copied().unwrap_or(false);
+                                        if borrow {
+                                            format!("{}: &{}", sanitize_name(&p.name), ty)
+                                        } else {
+                                            format!("{}: {}", sanitize_name(&p.name), ty)
+                                        }
                                     }
-                                } else {
-                                    let ty = p.ty.as_ref().map(|t| self.emit_type(t)).unwrap_or_else(|| "String".into());
-                                    let borrow = borrow_flags.get(i).copied().unwrap_or(false);
-                                    if borrow {
-                                        format!("{}: &{}", sanitize_name(&p.name), ty)
-                                    } else {
-                                        format!("{}: {}", sanitize_name(&p.name), ty)
-                                    }
-                                }
-                            }).collect();
-                            let ret = ret_ty.as_ref().map(|t| format!(" -> {}", self.emit_type(t))).unwrap_or_default();
-                            out.push_str(&format!("fn {}({}){} {{\n", sanitize_name(mname), rust_params.join(", "), ret));
+                                })
+                                .collect();
+                            let ret = ret_ty
+                                .as_ref()
+                                .map(|t| format!(" -> {}", self.emit_type(t)))
+                                .unwrap_or_default();
+                            out.push_str(&format!(
+                                "fn {}({}){} {{\n",
+                                sanitize_name(mname),
+                                rust_params.join(", "),
+                                ret
+                            ));
                             // Emit actual method body (escape analysis for methods)
                             let prev_counts = std::mem::take(&mut self.var_use_counts);
                             let prev_consuming = std::mem::take(&mut self.var_consuming_counts);
@@ -9406,45 +12091,78 @@ impl RustCodegen {
                 // Emit effect as a trait — each operation becomes a method
                 let mut out = format!("trait {} {{\n", name);
                 for (op_name, params, ret_ty) in ops {
-                    let rust_params: Vec<String> = params.iter().map(|p| {
-                        let ty = p.ty.as_ref()
-                            .map(|t| self.emit_type(t))
-                            .unwrap_or_else(|| "String".into());
-                        format!("{}: {}", sanitize_name(&p.name), ty)
-                    }).collect();
-                    let ret = ret_ty.as_ref()
+                    let rust_params: Vec<String> = params
+                        .iter()
+                        .map(|p| {
+                            let ty =
+                                p.ty.as_ref()
+                                    .map(|t| self.emit_type(t))
+                                    .unwrap_or_else(|| "String".into());
+                            format!("{}: {}", sanitize_name(&p.name), ty)
+                        })
+                        .collect();
+                    let ret = ret_ty
+                        .as_ref()
                         .map(|t| format!(" -> {}", self.emit_type(t)))
                         .unwrap_or_default();
-                    out.push_str(&format!("    fn {}(&mut self, {}){};", op_name, rust_params.join(", "), ret));
+                    out.push_str(&format!(
+                        "    fn {}(&mut self, {}){};",
+                        op_name,
+                        rust_params.join(", "),
+                        ret
+                    ));
                     out.push('\n');
                 }
                 out.push_str("}\n");
                 out
             }
-            TypeDecl::TraitDecl { name, params, methods } => {
+            TypeDecl::TraitDecl {
+                name,
+                params,
+                methods,
+            } => {
                 let type_params = if params.is_empty() {
                     String::new()
                 } else {
-                    let names: Vec<String> = params.iter().map(|p| {
-                        let mut s = p.name.clone();
-                        s.make_ascii_uppercase();
-                        s
-                    }).collect();
+                    let names: Vec<String> = params
+                        .iter()
+                        .map(|p| {
+                            let mut s = p.name.clone();
+                            s.make_ascii_uppercase();
+                            s
+                        })
+                        .collect();
                     format!("<{}>", names.join(", "))
                 };
                 let mut out = format!("trait {}{} {{\n", name, type_params);
                 for m in methods {
-                    let rust_params: Vec<String> = m.params.iter().map(|p| {
-                        if p.name == "self" {
-                            "&self".to_string()
-                        } else {
-                            let ty = p.ty.as_ref().map(|t| self.emit_type(t)).unwrap_or_else(|| "String".into());
-                            format!("{}: {}", p.name, ty)
-                        }
-                    }).collect();
-                    let ret = m.ret_ty.as_ref().map(|t| format!(" -> {}", self.emit_type(t))).unwrap_or_default();
+                    let rust_params: Vec<String> = m
+                        .params
+                        .iter()
+                        .map(|p| {
+                            if p.name == "self" {
+                                "&self".to_string()
+                            } else {
+                                let ty =
+                                    p.ty.as_ref()
+                                        .map(|t| self.emit_type(t))
+                                        .unwrap_or_else(|| "String".into());
+                                format!("{}: {}", p.name, ty)
+                            }
+                        })
+                        .collect();
+                    let ret = m
+                        .ret_ty
+                        .as_ref()
+                        .map(|t| format!(" -> {}", self.emit_type(t)))
+                        .unwrap_or_default();
                     if let Some(body) = &m.default_body {
-                        out.push_str(&format!("    fn {}({}){} {{\n", m.name, rust_params.join(", "), ret));
+                        out.push_str(&format!(
+                            "    fn {}({}){} {{\n",
+                            m.name,
+                            rust_params.join(", "),
+                            ret
+                        ));
                         let saved_indent = self.indent;
                         self.indent = 2;
                         // Rewrite fn_name(self) → self.fn_name() in trait default bodies
@@ -9456,13 +12174,22 @@ impl RustCodegen {
                         self.indent = saved_indent;
                         out.push_str("    }\n\n");
                     } else {
-                        out.push_str(&format!("    fn {}({}){};\n", m.name, rust_params.join(", "), ret));
+                        out.push_str(&format!(
+                            "    fn {}({}){};\n",
+                            m.name,
+                            rust_params.join(", "),
+                            ret
+                        ));
                     }
                 }
                 out.push_str("}\n");
                 out
             }
-            TypeDecl::ImplBlock { trait_name, for_type, methods } => {
+            TypeDecl::ImplBlock {
+                trait_name,
+                for_type,
+                methods,
+            } => {
                 let rust_type = self.rust_type_name(for_type);
                 let mut out = String::new();
                 // Separate methods: self-methods go into trait impl, others become standalone functions
@@ -9481,17 +12208,38 @@ impl RustCodegen {
                 if !trait_methods.is_empty() {
                     out.push_str(&format!("impl {} for {} {{\n", trait_name, rust_type));
                     for method in trait_methods {
-                        if let Defn::Fn { name: mname, params: mparams, ret_ty, body, .. } = method {
-                            let rust_params: Vec<String> = mparams.iter().map(|p| {
-                                if p.name == "self" {
-                                    "&self".to_string()
-                                } else {
-                                    let ty = p.ty.as_ref().map(|t| self.emit_type(t)).unwrap_or_else(|| "String".into());
-                                    format!("{}: {}", p.name, ty)
-                                }
-                            }).collect();
-                            let ret = ret_ty.as_ref().map(|t| format!(" -> {}", self.emit_type(t))).unwrap_or_default();
-                            out.push_str(&format!("    fn {}({}){} {{\n", mname, rust_params.join(", "), ret));
+                        if let Defn::Fn {
+                            name: mname,
+                            params: mparams,
+                            ret_ty,
+                            body,
+                            ..
+                        } = method
+                        {
+                            let rust_params: Vec<String> = mparams
+                                .iter()
+                                .map(|p| {
+                                    if p.name == "self" {
+                                        "&self".to_string()
+                                    } else {
+                                        let ty =
+                                            p.ty.as_ref()
+                                                .map(|t| self.emit_type(t))
+                                                .unwrap_or_else(|| "String".into());
+                                        format!("{}: {}", p.name, ty)
+                                    }
+                                })
+                                .collect();
+                            let ret = ret_ty
+                                .as_ref()
+                                .map(|t| format!(" -> {}", self.emit_type(t)))
+                                .unwrap_or_default();
+                            out.push_str(&format!(
+                                "    fn {}({}){} {{\n",
+                                mname,
+                                rust_params.join(", "),
+                                ret
+                            ));
                             let prev_counts = std::mem::take(&mut self.var_use_counts);
                             let prev_consuming = std::mem::take(&mut self.var_consuming_counts);
                             let prev_copy = std::mem::take(&mut self.copy_vars);
@@ -9515,41 +12263,75 @@ impl RustCodegen {
                 }
                 // Emit standalone functions for non-self methods
                 for method in standalone_methods {
-                    if let Defn::Fn { name: mname, params: mparams, ret_ty, body, .. } = method {
+                    if let Defn::Fn {
+                        name: mname,
+                        params: mparams,
+                        ret_ty,
+                        body,
+                        ..
+                    } = method
+                    {
                         // Fill in missing type for first param so borrow analysis works
-                        let augmented_params: Vec<Param> = mparams.iter().enumerate().map(|(i, p)| {
-                            if i == 0 && p.ty.is_none() {
-                                Param { name: p.name.clone(), ty: Some(Ty::Name(for_type.clone())), inout: p.inout }
-                            } else {
-                                p.clone()
-                            }
-                        }).collect();
+                        let augmented_params: Vec<Param> = mparams
+                            .iter()
+                            .enumerate()
+                            .map(|(i, p)| {
+                                if i == 0 && p.ty.is_none() {
+                                    Param {
+                                        name: p.name.clone(),
+                                        ty: Some(Ty::Name(for_type.clone())),
+                                        inout: p.inout,
+                                    }
+                                } else {
+                                    p.clone()
+                                }
+                            })
+                            .collect();
                         // Borrow inference
                         let borrow_flags = analyze_borrow_only_params(
-                            &augmented_params, body, ret_ty.as_ref(), &self.borrow_only_params,
+                            &augmented_params,
+                            body,
+                            ret_ty.as_ref(),
+                            &self.borrow_only_params,
                         );
                         if borrow_flags.iter().any(|f| *f) {
-                            self.borrow_only_params.insert(mname.clone(), borrow_flags.clone());
+                            self.borrow_only_params
+                                .insert(mname.clone(), borrow_flags.clone());
                         }
-                        let rust_params: Vec<String> = mparams.iter().enumerate().map(|(i, p)| {
-                            let borrow = borrow_flags.get(i).copied().unwrap_or(false);
-                            if i == 0 && p.ty.is_none() {
-                                if borrow {
-                                    format!("{}: &{}", sanitize_name(&p.name), rust_type)
+                        let rust_params: Vec<String> = mparams
+                            .iter()
+                            .enumerate()
+                            .map(|(i, p)| {
+                                let borrow = borrow_flags.get(i).copied().unwrap_or(false);
+                                if i == 0 && p.ty.is_none() {
+                                    if borrow {
+                                        format!("{}: &{}", sanitize_name(&p.name), rust_type)
+                                    } else {
+                                        format!("{}: {}", sanitize_name(&p.name), rust_type)
+                                    }
                                 } else {
-                                    format!("{}: {}", sanitize_name(&p.name), rust_type)
+                                    let ty =
+                                        p.ty.as_ref()
+                                            .map(|t| self.emit_type(t))
+                                            .unwrap_or_else(|| "String".into());
+                                    if borrow {
+                                        format!("{}: &{}", sanitize_name(&p.name), ty)
+                                    } else {
+                                        format!("{}: {}", sanitize_name(&p.name), ty)
+                                    }
                                 }
-                            } else {
-                                let ty = p.ty.as_ref().map(|t| self.emit_type(t)).unwrap_or_else(|| "String".into());
-                                if borrow {
-                                    format!("{}: &{}", sanitize_name(&p.name), ty)
-                                } else {
-                                    format!("{}: {}", sanitize_name(&p.name), ty)
-                                }
-                            }
-                        }).collect();
-                        let ret = ret_ty.as_ref().map(|t| format!(" -> {}", self.emit_type(t))).unwrap_or_default();
-                        out.push_str(&format!("fn {}({}){} {{\n", sanitize_name(mname), rust_params.join(", "), ret));
+                            })
+                            .collect();
+                        let ret = ret_ty
+                            .as_ref()
+                            .map(|t| format!(" -> {}", self.emit_type(t)))
+                            .unwrap_or_default();
+                        out.push_str(&format!(
+                            "fn {}({}){} {{\n",
+                            sanitize_name(mname),
+                            rust_params.join(", "),
+                            ret
+                        ));
                         let prev_counts = std::mem::take(&mut self.var_use_counts);
                         let prev_consuming = std::mem::take(&mut self.var_consuming_counts);
                         let prev_copy = std::mem::take(&mut self.copy_vars);
@@ -9634,12 +12416,21 @@ impl RustCodegen {
                 let ret = self.emit_type(current);
                 let trait_name = if self.fn_once_mode { "FnOnce" } else { "FnMut" };
                 // Add + Clone so closure values support .clone() (Futuruna: all values are cloneable)
-                format!("impl {}({}) -> {} + Clone", trait_name, params.join(", "), ret)
+                format!(
+                    "impl {}({}) -> {} + Clone",
+                    trait_name,
+                    params.join(", "),
+                    ret
+                )
             }
             Ty::Ref(inner) => format!("&{}", self.emit_type(inner)),
             Ty::MutRef(inner) => format!("&mut {}", self.emit_type(inner)),
             Ty::Shared(inner) => format!("std::sync::Arc<{}>", self.emit_type(inner)),
-            Ty::Optional(inner) => format!("{}<{}>", self.rust_type_name("Option"), self.emit_type(inner)),
+            Ty::Optional(inner) => format!(
+                "{}<{}>",
+                self.rust_type_name("Option"),
+                self.emit_type(inner)
+            ),
             Ty::Var(n) => n.to_uppercase(),
             Ty::Unit => "()".to_string(),
             Ty::Hole => "_".to_string(),
@@ -9650,14 +12441,19 @@ impl RustCodegen {
     /// Supported: Int, Float, String, Bool, (), Option(primitive), Vec(primitive)
     fn is_wasm_compatible_type(ty: &Ty) -> bool {
         match ty {
-            Ty::Name(n) => matches!(n.as_str(), "Int" | "Float" | "String" | "Bool" | "Char" | "Nat"),
+            Ty::Name(n) => matches!(
+                n.as_str(),
+                "Int" | "Float" | "String" | "Bool" | "Char" | "Nat"
+            ),
             Ty::Unit => true,
             Ty::App(con, args) if args.len() == 1 => {
                 if let Ty::Name(n) = con.as_ref() {
                     match n.as_str() {
                         // wasm-bindgen supports Option<primitive> and Vec<numeric>
                         "Option" => Self::is_wasm_compatible_type(&args[0]),
-                        "List" => matches!(&args[0], Ty::Name(inner) if matches!(inner.as_str(), "Int" | "Float" | "Nat")),
+                        "List" => {
+                            matches!(&args[0], Ty::Name(inner) if matches!(inner.as_str(), "Int" | "Float" | "Nat"))
+                        }
                         _ => false,
                     }
                 } else {
@@ -9688,13 +12484,17 @@ impl RustCodegen {
             }
             Ty::App(con, args) => {
                 self.collect_type_vars(con, vars);
-                for a in args { self.collect_type_vars(a, vars); }
+                for a in args {
+                    self.collect_type_vars(a, vars);
+                }
             }
             Ty::Arrow(from, to) => {
                 self.collect_type_vars(from, vars);
                 self.collect_type_vars(to, vars);
             }
-            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => self.collect_type_vars(inner, vars),
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                self.collect_type_vars(inner, vars)
+            }
             _ => {}
         }
     }
@@ -9706,18 +12506,34 @@ impl RustCodegen {
             if let Rule::Clause { head, body } = r {
                 let has_ground = if let ExprKind::App(_, args) = &head.kind {
                     args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_)))
-                } else { false };
-                let has_conjunction = body.as_ref().map_or(false, |b| matches!(b.kind, ExprKind::Conjunction(_)));
+                } else {
+                    false
+                };
+                let has_conjunction = body
+                    .as_ref()
+                    .map_or(false, |b| matches!(b.kind, ExprKind::Conjunction(_)));
                 // Body calls with literal args (e.g., has_children(p) -> parent(p, "bob"))
                 let has_body_literals = match body {
-                    Some(Expr { kind: ExprKind::App(_, args), .. }) => args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_))),
-                    Some(Expr { kind: ExprKind::Conjunction(goals), .. }) => goals.iter().any(|g| {
-                        if let ExprKind::App(_, args) = &g.kind { args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_))) } else { false }
+                    Some(Expr {
+                        kind: ExprKind::App(_, args),
+                        ..
+                    }) => args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_))),
+                    Some(Expr {
+                        kind: ExprKind::Conjunction(goals),
+                        ..
+                    }) => goals.iter().any(|g| {
+                        if let ExprKind::App(_, args) = &g.kind {
+                            args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_)))
+                        } else {
+                            false
+                        }
                     }),
                     _ => false,
                 };
                 has_ground || has_conjunction || has_body_literals
-            } else { false }
+            } else {
+                false
+            }
         })
     }
 
@@ -9726,7 +12542,10 @@ impl RustCodegen {
     /// None if the group is bool-returning (facts, conjunctions, comparisons).
     fn prolog_rules_value_type(rules: &[&Rule]) -> Option<String> {
         for r in rules {
-            if let Rule::Clause { body: Some(body), .. } = r {
+            if let Rule::Clause {
+                body: Some(body), ..
+            } = r
+            {
                 match &body.kind {
                     ExprKind::Lit(lit) => match lit {
                         Literal::Str(_) => return Some("String".to_string()),
@@ -9738,7 +12557,12 @@ impl RustCodegen {
                     ExprKind::App(func, _) => {
                         // Constructor call → return the type name
                         if let ExprKind::Var(name) = &func.as_ref().kind {
-                            if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                            if name
+                                .chars()
+                                .next()
+                                .map(|c| c.is_uppercase())
+                                .unwrap_or(false)
+                            {
                                 return Some(name.clone());
                             }
                         }
@@ -9753,13 +12577,23 @@ impl RustCodegen {
 
     /// Get the arity of a rule group (max arg count across all heads)
     fn rule_arity(rules: &[&Rule]) -> usize {
-        rules.iter().filter_map(|r| {
-            let head = match r {
-                Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
-                _ => return None,
-            };
-            if let ExprKind::App(_, args) = &head.kind { Some(args.len()) } else { Some(0) }
-        }).max().unwrap_or(0)
+        rules
+            .iter()
+            .filter_map(|r| {
+                let head = match r {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    _ => return None,
+                };
+                if let ExprKind::App(_, args) = &head.kind {
+                    Some(args.len())
+                } else {
+                    Some(0)
+                }
+            })
+            .max()
+            .unwrap_or(0)
     }
 
     /// Emit a Rust literal from a Futuruna Literal
@@ -9803,7 +12637,12 @@ impl RustCodegen {
     }
 
     /// Emit Prolog-style rule function with fact table + backtracking search
-    fn emit_prolog_rule_function(&mut self, fn_name: &str, rules: &[&Rule], arity: usize) -> String {
+    fn emit_prolog_rule_function(
+        &mut self,
+        fn_name: &str,
+        rules: &[&Rule],
+        arity: usize,
+    ) -> String {
         let mut out = String::new();
         let sanitized = sanitize_name(fn_name);
 
@@ -9822,44 +12661,83 @@ impl RustCodegen {
         }
 
         // Register this function as Prolog-style so call sites can emit correct types
-        let param_type_strs: Vec<String> = param_types.iter().map(|t| {
-            if *t == "String" { "&str".to_string() } else { t.to_string() }
-        }).collect();
-        self.types.prolog_rule_fns.insert(fn_name.to_string(), param_type_strs);
+        let param_type_strs: Vec<String> = param_types
+            .iter()
+            .map(|t| {
+                if *t == "String" {
+                    "&str".to_string()
+                } else {
+                    t.to_string()
+                }
+            })
+            .collect();
+        self.types
+            .prolog_rule_fns
+            .insert(fn_name.to_string(), param_type_strs);
 
         // Value-returning Prolog rules: emit Option<T> instead of bool
         if let Some(value_type_str) = Self::prolog_rules_value_type(rules) {
-            self.types.prolog_value_fns.insert(fn_name.to_string(), value_type_str.clone());
-            return self.emit_prolog_value_function(&sanitized, fn_name, rules, arity, &param_types, &value_type_str);
+            self.types
+                .prolog_value_fns
+                .insert(fn_name.to_string(), value_type_str.clone());
+            return self.emit_prolog_value_function(
+                &sanitized,
+                fn_name,
+                rules,
+                arity,
+                &param_types,
+                &value_type_str,
+            );
         }
 
         // Collect bare facts (clauses with no body, all-literal heads)
-        let facts: Vec<Vec<String>> = rules.iter().filter_map(|r| {
-            if let Rule::Clause { head, body: None } = r {
-                if let ExprKind::App(_, args) = &head.kind {
-                    if args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
-                        let vals: Vec<String> = args.iter().map(|a| {
-                            if let ExprKind::Lit(lit) = &a.kind { Self::emit_literal_value(lit) } else { "?".into() }
-                        }).collect();
-                        return Some(vals);
+        let facts: Vec<Vec<String>> = rules
+            .iter()
+            .filter_map(|r| {
+                if let Rule::Clause { head, body: None } = r {
+                    if let ExprKind::App(_, args) = &head.kind {
+                        if args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
+                            let vals: Vec<String> = args
+                                .iter()
+                                .map(|a| {
+                                    if let ExprKind::Lit(lit) = &a.kind {
+                                        Self::emit_literal_value(lit)
+                                    } else {
+                                        "?".into()
+                                    }
+                                })
+                                .collect();
+                            return Some(vals);
+                        }
                     }
                 }
-            }
-            None
-        }).collect();
+                None
+            })
+            .collect();
 
         // Emit fact table
         let table_name = format!("{}_FACTS", sanitized.to_uppercase());
         if !facts.is_empty() {
             if arity == 1 {
-                let ty = if param_types[0] == "String" { "&str" } else { param_types[0] };
+                let ty = if param_types[0] == "String" {
+                    "&str"
+                } else {
+                    param_types[0]
+                };
                 out.push_str(&format!("const {}: &[{}] = &[", table_name, ty));
                 let vals: Vec<String> = facts.iter().map(|f| f[0].clone()).collect();
                 out.push_str(&vals.join(", "));
                 out.push_str("];\n\n");
             } else {
-                let types: Vec<&str> = param_types.iter().map(|t| if *t == "String" { "&str" } else { t }).collect();
-                out.push_str(&format!("const {}: &[({},)] = &[\n", table_name, types.join(", ")));
+                let types: Vec<&str> = param_types
+                    .iter()
+                    .map(|t| if *t == "String" { "&str" } else { t })
+                    .collect();
+                out.push_str(&format!(
+                    "const {}: &[({},)] = &[\n",
+                    table_name,
+                    types.join(", ")
+                ));
                 for fact in &facts {
                     out.push_str(&format!("    ({}),\n", fact.join(", ")));
                 }
@@ -9869,31 +12747,58 @@ impl RustCodegen {
 
         // Function signature
         let param_names: Vec<String> = (0..arity).map(|i| format!("_p{}", i)).collect();
-        let param_str: String = param_names.iter().enumerate().map(|(i, name)| {
-            if param_types[i] == "String" { format!("{}: &str", name) }
-            else { format!("{}: {}", name, param_types[i]) }
-        }).collect::<Vec<_>>().join(", ");
+        let param_str: String = param_names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                if param_types[i] == "String" {
+                    format!("{}: &str", name)
+                } else {
+                    format!("{}: {}", name, param_types[i])
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
         out.push_str(&format!("fn {}({}) -> bool {{\n", sanitized, param_str));
 
         // Emit rules with bodies (conjunction / backtracking)
         for r in rules {
-            if let Rule::Clause { head, body: Some(body) } = r {
+            if let Rule::Clause {
+                head,
+                body: Some(body),
+            } = r
+            {
                 if let ExprKind::App(_, head_args) = &head.kind {
                     // Map head variable names to parameter positions
-                    let head_vars: Vec<(String, usize)> = head_args.iter().enumerate().filter_map(|(i, a)| {
-                        if let ExprKind::Var(name) = &a.kind { Some((name.clone(), i)) } else { None }
-                    }).collect();
+                    let head_vars: Vec<(String, usize)> = head_args
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, a)| {
+                            if let ExprKind::Var(name) = &a.kind {
+                                Some((name.clone(), i))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
 
                     if let ExprKind::Conjunction(goals) = &body.kind {
                         // Find existential variables (in goals but not in head)
-                        let head_var_names: std::collections::BTreeSet<String> = head_vars.iter().map(|(n, _)| n.clone()).collect();
+                        let head_var_names: std::collections::BTreeSet<String> =
+                            head_vars.iter().map(|(n, _)| n.clone()).collect();
 
                         let has_existential = goals.iter().any(|g| {
                             if let ExprKind::App(_, gargs) = &g.kind {
                                 gargs.iter().any(|a| {
-                                    if let ExprKind::Var(name) = &a.kind { !head_var_names.contains(name) } else { false }
+                                    if let ExprKind::Var(name) = &a.kind {
+                                        !head_var_names.contains(name)
+                                    } else {
+                                        false
+                                    }
                                 })
-                            } else { false }
+                            } else {
+                                false
+                            }
                         });
 
                         if has_existential {
@@ -9901,71 +12806,132 @@ impl RustCodegen {
                             let first_goal = &goals[0];
                             if let ExprKind::App(func, goal_args) = &first_goal.kind {
                                 let goal_fn = Self::expr_fn_name(func);
-                                let source_table = format!("{}_FACTS", sanitize_name(&goal_fn).to_uppercase());
+                                let source_table =
+                                    format!("{}_FACTS", sanitize_name(&goal_fn).to_uppercase());
 
-                                out.push_str(&format!("    for fact in {}.iter() {{\n", source_table));
+                                out.push_str(&format!(
+                                    "    for fact in {}.iter() {{\n",
+                                    source_table
+                                ));
                                 for (gi, ga) in goal_args.iter().enumerate() {
                                     if let ExprKind::Var(name) = &ga.kind {
-                                        if let Some((_, idx)) = head_vars.iter().find(|(n, _)| n == name) {
+                                        if let Some((_, idx)) =
+                                            head_vars.iter().find(|(n, _)| n == name)
+                                        {
                                             // Bound from head — check match
-                                            out.push_str(&format!("        if fact.{} != {} {{ continue; }}\n", gi, param_names[*idx]));
+                                            out.push_str(&format!(
+                                                "        if fact.{} != {} {{ continue; }}\n",
+                                                gi, param_names[*idx]
+                                            ));
                                         } else {
                                             // Existential — bind
-                                            out.push_str(&format!("        let {} = fact.{};\n", sanitize_name(name), gi));
+                                            out.push_str(&format!(
+                                                "        let {} = fact.{};\n",
+                                                sanitize_name(name),
+                                                gi
+                                            ));
                                         }
                                     }
                                 }
                                 // Check remaining goals
-                                let remaining: Vec<String> = goals[1..].iter().map(|goal| {
-                                    if let ExprKind::App(func, goal_args) = &goal.kind {
-                                        let gfn = Self::expr_fn_name(func);
-                                        let gargs: Vec<String> = goal_args.iter().map(|a| {
-                                            if let ExprKind::Var(name) = &a.kind {
-                                                if let Some((_, idx)) = head_vars.iter().find(|(n, _)| n == name) {
-                                                    param_names[*idx].clone()
-                                                } else { sanitize_name(name) }
-                                            } else { self.emit_prolog_arg(a) }
-                                        }).collect();
-                                        format!("{}({})", sanitize_name(&gfn), gargs.join(", "))
-                                    } else { self.emit_prolog_arg(goal) }
-                                }).collect();
+                                let remaining: Vec<String> = goals[1..]
+                                    .iter()
+                                    .map(|goal| {
+                                        if let ExprKind::App(func, goal_args) = &goal.kind {
+                                            let gfn = Self::expr_fn_name(func);
+                                            let gargs: Vec<String> = goal_args
+                                                .iter()
+                                                .map(|a| {
+                                                    if let ExprKind::Var(name) = &a.kind {
+                                                        if let Some((_, idx)) = head_vars
+                                                            .iter()
+                                                            .find(|(n, _)| n == name)
+                                                        {
+                                                            param_names[*idx].clone()
+                                                        } else {
+                                                            sanitize_name(name)
+                                                        }
+                                                    } else {
+                                                        self.emit_prolog_arg(a)
+                                                    }
+                                                })
+                                                .collect();
+                                            format!("{}({})", sanitize_name(&gfn), gargs.join(", "))
+                                        } else {
+                                            self.emit_prolog_arg(goal)
+                                        }
+                                    })
+                                    .collect();
 
                                 if remaining.is_empty() {
                                     out.push_str("        return true;\n");
                                 } else {
-                                    out.push_str(&format!("        if {} {{ return true; }}\n", remaining.join(" && ")));
+                                    out.push_str(&format!(
+                                        "        if {} {{ return true; }}\n",
+                                        remaining.join(" && ")
+                                    ));
                                 }
                                 out.push_str("    }\n");
                             }
                         } else {
                             // Simple conjunction: all vars bound
-                            let cond_parts: Vec<String> = goals.iter().map(|goal| {
-                                if let ExprKind::App(func, goal_args) = &goal.kind {
-                                    let gfn = Self::expr_fn_name(func);
-                                    let gargs: Vec<String> = goal_args.iter().map(|a| {
-                                        if let ExprKind::Var(name) = &a.kind {
-                                            if let Some((_, idx)) = head_vars.iter().find(|(n, _)| n == name) {
-                                                param_names[*idx].clone()
-                                            } else { sanitize_name(name) }
-                                        } else { self.emit_prolog_arg(a) }
-                                    }).collect();
-                                    format!("{}({})", sanitize_name(&gfn), gargs.join(", "))
-                                } else { self.emit_prolog_arg(goal) }
-                            }).collect();
-                            out.push_str(&format!("    if {} {{ return true; }}\n", cond_parts.join(" && ")));
+                            let cond_parts: Vec<String> = goals
+                                .iter()
+                                .map(|goal| {
+                                    if let ExprKind::App(func, goal_args) = &goal.kind {
+                                        let gfn = Self::expr_fn_name(func);
+                                        let gargs: Vec<String> = goal_args
+                                            .iter()
+                                            .map(|a| {
+                                                if let ExprKind::Var(name) = &a.kind {
+                                                    if let Some((_, idx)) =
+                                                        head_vars.iter().find(|(n, _)| n == name)
+                                                    {
+                                                        param_names[*idx].clone()
+                                                    } else {
+                                                        sanitize_name(name)
+                                                    }
+                                                } else {
+                                                    self.emit_prolog_arg(a)
+                                                }
+                                            })
+                                            .collect();
+                                        format!("{}({})", sanitize_name(&gfn), gargs.join(", "))
+                                    } else {
+                                        self.emit_prolog_arg(goal)
+                                    }
+                                })
+                                .collect();
+                            out.push_str(&format!(
+                                "    if {} {{ return true; }}\n",
+                                cond_parts.join(" && ")
+                            ));
                         }
                     } else {
                         // Simple non-conjunction body — emit as a call with proper arg substitution
                         if let ExprKind::App(func, call_args) = &body.kind {
                             let called_fn = Self::expr_fn_name(func);
-                            let gargs: Vec<String> = call_args.iter().map(|a| {
-                                if let ExprKind::Var(name) = &a.kind {
-                                    if let Some((_, idx)) = head_vars.iter().find(|(n, _)| n == name) {
-                                        param_names[*idx].clone()
-                                    } else { sanitize_name(name) }
-                                } else { self.emit_prolog_arg(a) }
-                            }).collect();
-                            out.push_str(&format!("    if {}({}) {{ return true; }}\n", sanitize_name(&called_fn), gargs.join(", ")));
+                            let gargs: Vec<String> = call_args
+                                .iter()
+                                .map(|a| {
+                                    if let ExprKind::Var(name) = &a.kind {
+                                        if let Some((_, idx)) =
+                                            head_vars.iter().find(|(n, _)| n == name)
+                                        {
+                                            param_names[*idx].clone()
+                                        } else {
+                                            sanitize_name(name)
+                                        }
+                                    } else {
+                                        self.emit_prolog_arg(a)
+                                    }
+                                })
+                                .collect();
+                            out.push_str(&format!(
+                                "    if {}({}) {{ return true; }}\n",
+                                sanitize_name(&called_fn),
+                                gargs.join(", ")
+                            ));
                         } else {
                             // Fallback: use word-boundary replacement
                             let mut body_str = self.emit_expr(body);
@@ -9977,9 +12943,15 @@ impl RustCodegen {
                                 let san_chars: Vec<char> = san.chars().collect();
                                 let mut i = 0;
                                 while i < chars.len() {
-                                    if i + san_chars.len() <= chars.len() && chars[i..i+san_chars.len()] == san_chars[..] {
-                                        let before_ok = i == 0 || !(chars[i-1].is_alphanumeric() || chars[i-1] == '_');
-                                        let after_ok = i + san_chars.len() >= chars.len() || !(chars[i+san_chars.len()].is_alphanumeric() || chars[i+san_chars.len()] == '_');
+                                    if i + san_chars.len() <= chars.len()
+                                        && chars[i..i + san_chars.len()] == san_chars[..]
+                                    {
+                                        let before_ok = i == 0
+                                            || !(chars[i - 1].is_alphanumeric()
+                                                || chars[i - 1] == '_');
+                                        let after_ok = i + san_chars.len() >= chars.len()
+                                            || !(chars[i + san_chars.len()].is_alphanumeric()
+                                                || chars[i + san_chars.len()] == '_');
                                         if before_ok && after_ok {
                                             result.push_str(replacement);
                                             i += san_chars.len();
@@ -10001,10 +12973,19 @@ impl RustCodegen {
         // Check fact table
         if !facts.is_empty() {
             if arity == 1 {
-                out.push_str(&format!("    if {}.contains(&{}) {{ return true; }}\n", table_name, param_names[0]));
+                out.push_str(&format!(
+                    "    if {}.contains(&{}) {{ return true; }}\n",
+                    table_name, param_names[0]
+                ));
             } else {
-                let checks: Vec<String> = (0..arity).map(|i| format!("f.{} == {}", i, param_names[i])).collect();
-                out.push_str(&format!("    if {}.iter().any(|f| {}) {{ return true; }}\n", table_name, checks.join(" && ")));
+                let checks: Vec<String> = (0..arity)
+                    .map(|i| format!("f.{} == {}", i, param_names[i]))
+                    .collect();
+                out.push_str(&format!(
+                    "    if {}.iter().any(|f| {}) {{ return true; }}\n",
+                    table_name,
+                    checks.join(" && ")
+                ));
             }
         }
 
@@ -10025,16 +13006,19 @@ impl RustCodegen {
             let table = format!("{}_FACTS", sanitize_name(&fn_name).to_uppercase());
 
             // Find which position is the template variable
-            let template_pos = goal_args.iter().position(|a| {
-                matches!(a.kind, ExprKind::Var(ref n) if n == &template_name)
-            });
+            let template_pos = goal_args
+                .iter()
+                .position(|a| matches!(a.kind, ExprKind::Var(ref n) if n == &template_name));
 
             if let Some(t_pos) = template_pos {
                 let arity = goal_args.len();
                 let is_unary = arity == 1;
 
                 // Determine if the value type needs .to_string()
-                let is_str = self.types.prolog_rule_fns.get(&fn_name)
+                let is_str = self
+                    .types
+                    .prolog_rule_fns
+                    .get(&fn_name)
                     .and_then(|types| types.get(t_pos))
                     .map(|t| t == "&str")
                     .unwrap_or(false);
@@ -10048,8 +13032,12 @@ impl RustCodegen {
                 // Build filter conditions for non-template positions
                 let mut filters = Vec::new();
                 for (i, a) in goal_args.iter().enumerate() {
-                    if i == t_pos { continue; }
-                    if matches!(a.kind, ExprKind::Var(ref n) if n == "_") { continue; }
+                    if i == t_pos {
+                        continue;
+                    }
+                    if matches!(a.kind, ExprKind::Var(ref n) if n == "_") {
+                        continue;
+                    }
                     let val = self.emit_prolog_arg(a);
                     if is_unary {
                         filters.push(format!("f == &{}", val));
@@ -10059,7 +13047,11 @@ impl RustCodegen {
                 }
 
                 let value_expr = if is_unary {
-                    if is_str { "f.to_string()".to_string() } else { "(*f)".to_string() }
+                    if is_str {
+                        "f.to_string()".to_string()
+                    } else {
+                        "(*f)".to_string()
+                    }
                 } else if is_str {
                     format!("f.{}.to_string()", t_pos)
                 } else {
@@ -10067,10 +13059,17 @@ impl RustCodegen {
                 };
 
                 if filters.is_empty() {
-                    format!("{}.iter().map(|f| {}).collect::<Vec<_>>()", table, value_expr)
+                    format!(
+                        "{}.iter().map(|f| {}).collect::<Vec<_>>()",
+                        table, value_expr
+                    )
                 } else {
-                    format!("{}.iter().filter(|f| {}).map(|f| {}).collect::<Vec<_>>()",
-                        table, filters.join(" && "), value_expr)
+                    format!(
+                        "{}.iter().filter(|f| {}).map(|f| {}).collect::<Vec<_>>()",
+                        table,
+                        filters.join(" && "),
+                        value_expr
+                    )
                 }
             } else {
                 // Template var not directly in goal args — can't optimize, return empty
@@ -10084,24 +13083,34 @@ impl RustCodegen {
     /// Collect all variable names referenced in an expression (for detecting free variable usage)
     fn collect_free_var_refs(expr: &Expr, refs: &mut BTreeSet<String>) {
         match &expr.kind {
-            ExprKind::Var(name) => { refs.insert(name.clone()); }
+            ExprKind::Var(name) => {
+                refs.insert(name.clone());
+            }
             ExprKind::App(f, args) => {
                 Self::collect_free_var_refs(f, refs);
-                for a in args { Self::collect_free_var_refs(a, refs); }
+                for a in args {
+                    Self::collect_free_var_refs(a, refs);
+                }
             }
             ExprKind::BinOp(_, l, r) => {
                 Self::collect_free_var_refs(l, refs);
                 Self::collect_free_var_refs(r, refs);
             }
-            ExprKind::UnOp(_, e) => { Self::collect_free_var_refs(e, refs); }
+            ExprKind::UnOp(_, e) => {
+                Self::collect_free_var_refs(e, refs);
+            }
             ExprKind::If(c, t, e) => {
                 Self::collect_free_var_refs(c, refs);
                 Self::collect_free_var_refs(t, refs);
                 Self::collect_free_var_refs(e, refs);
             }
-            ExprKind::Field(e, _) => { Self::collect_free_var_refs(e, refs); }
+            ExprKind::Field(e, _) => {
+                Self::collect_free_var_refs(e, refs);
+            }
             ExprKind::Conjunction(goals) => {
-                for g in goals { Self::collect_free_var_refs(g, refs); }
+                for g in goals {
+                    Self::collect_free_var_refs(g, refs);
+                }
             }
             _ => {}
         }
@@ -10114,9 +13123,12 @@ impl RustCodegen {
         let old_chars: Vec<char> = old.chars().collect();
         let mut i = 0;
         while i < chars.len() {
-            if i + old_chars.len() <= chars.len() && chars[i..i+old_chars.len()] == old_chars[..] {
-                let before_ok = i == 0 || !(chars[i-1].is_alphanumeric() || chars[i-1] == '_');
-                let after_ok = i + old_chars.len() >= chars.len() || !(chars[i+old_chars.len()].is_alphanumeric() || chars[i+old_chars.len()] == '_');
+            if i + old_chars.len() <= chars.len() && chars[i..i + old_chars.len()] == old_chars[..]
+            {
+                let before_ok = i == 0 || !(chars[i - 1].is_alphanumeric() || chars[i - 1] == '_');
+                let after_ok = i + old_chars.len() >= chars.len()
+                    || !(chars[i + old_chars.len()].is_alphanumeric()
+                        || chars[i + old_chars.len()] == '_');
                 if before_ok && after_ok {
                     result.push_str(new);
                     i += old_chars.len();
@@ -10132,36 +13144,65 @@ impl RustCodegen {
     /// Emit value-returning Prolog rule function: returns Option<T> instead of bool.
     /// Used for rules like `| capital("Denmark") -> "Copenhagen"` (lookup tables).
     fn emit_prolog_value_function(
-        &mut self, sanitized: &str, fn_name: &str, rules: &[&Rule],
-        arity: usize, param_types: &[&str], value_type_str: &str,
+        &mut self,
+        sanitized: &str,
+        fn_name: &str,
+        rules: &[&Rule],
+        arity: usize,
+        param_types: &[&str],
+        value_type_str: &str,
     ) -> String {
         let mut out = String::new();
-        let value_rust_type = if value_type_str == "String" { "&str" } else { value_type_str };
+        let value_rust_type = if value_type_str == "String" {
+            "&str"
+        } else {
+            value_type_str
+        };
 
         // Collect value facts: clauses with all-literal heads and a literal body
-        let value_facts: Vec<(Vec<String>, String)> = rules.iter().filter_map(|r| {
-            if let Rule::Clause { head, body: Some(body) } = r {
-                if let ExprKind::App(_, args) = &head.kind {
-                    if args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
-                        if let ExprKind::Lit(lit) = &body.kind {
-                            let keys: Vec<String> = args.iter().map(|a| {
-                                if let ExprKind::Lit(l) = &a.kind { Self::emit_literal_value(l) } else { "?".into() }
-                            }).collect();
-                            return Some((keys, Self::emit_literal_value(lit)));
+        let value_facts: Vec<(Vec<String>, String)> = rules
+            .iter()
+            .filter_map(|r| {
+                if let Rule::Clause {
+                    head,
+                    body: Some(body),
+                } = r
+                {
+                    if let ExprKind::App(_, args) = &head.kind {
+                        if args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
+                            if let ExprKind::Lit(lit) = &body.kind {
+                                let keys: Vec<String> = args
+                                    .iter()
+                                    .map(|a| {
+                                        if let ExprKind::Lit(l) = &a.kind {
+                                            Self::emit_literal_value(l)
+                                        } else {
+                                            "?".into()
+                                        }
+                                    })
+                                    .collect();
+                                return Some((keys, Self::emit_literal_value(lit)));
+                            }
                         }
                     }
                 }
-            }
-            None
-        }).collect();
+                None
+            })
+            .collect();
 
         // Emit fact table (key columns + value column)
         let table_name = format!("{}_FACTS", sanitized.to_uppercase());
         if !value_facts.is_empty() {
-            let key_types: Vec<&str> = param_types.iter()
-                .map(|t| if *t == "String" { "&str" } else { t }).collect();
-            out.push_str(&format!("const {}: &[({}, {},)] = &[\n",
-                table_name, key_types.join(", "), value_rust_type));
+            let key_types: Vec<&str> = param_types
+                .iter()
+                .map(|t| if *t == "String" { "&str" } else { t })
+                .collect();
+            out.push_str(&format!(
+                "const {}: &[({}, {},)] = &[\n",
+                table_name,
+                key_types.join(", "),
+                value_rust_type
+            ));
             for (keys, val) in &value_facts {
                 out.push_str(&format!("    ({}, {}),\n", keys.join(", "), val));
             }
@@ -10170,22 +13211,34 @@ impl RustCodegen {
 
         // Function signature: returns Option<T>
         let param_names: Vec<String> = (0..arity).map(|i| format!("_p{}", i)).collect();
-        let param_str: String = param_names.iter().enumerate().map(|(i, name)| {
-            if param_types[i] == "String" { format!("{}: &str", name) }
-            else { format!("{}: {}", name, param_types[i]) }
-        }).collect::<Vec<_>>().join(", ");
+        let param_str: String = param_names
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                if param_types[i] == "String" {
+                    format!("{}: &str", name)
+                } else {
+                    format!("{}: {}", name, param_types[i])
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
 
         let ret_type = if value_type_str == "String" {
             "Option<String>".to_string()
         } else {
             format!("Option<{}>", value_type_str)
         };
-        out.push_str(&format!("fn {}({}) -> {} {{\n", sanitized, param_str, ret_type));
+        out.push_str(&format!(
+            "fn {}({}) -> {} {{\n",
+            sanitized, param_str, ret_type
+        ));
 
         // Lookup in fact table
         if !value_facts.is_empty() {
             let key_checks: Vec<String> = (0..arity)
-                .map(|i| format!("f.{} == {}", i, param_names[i])).collect();
+                .map(|i| format!("f.{} == {}", i, param_names[i]))
+                .collect();
             let value_idx = arity;
             let value_expr = if value_type_str == "String" {
                 format!("f.{}.to_string()", value_idx)
@@ -10193,33 +13246,56 @@ impl RustCodegen {
                 format!("f.{}", value_idx)
             };
             out.push_str(&format!("    for f in {}.iter() {{\n", table_name));
-            out.push_str(&format!("        if {} {{ return Some({}); }}\n",
-                key_checks.join(" && "), value_expr));
+            out.push_str(&format!(
+                "        if {} {{ return Some({}); }}\n",
+                key_checks.join(" && "),
+                value_expr
+            ));
             out.push_str("    }\n");
         }
 
         // Emit rules with variable heads (non-fact clauses that return values)
         for r in rules {
-            if let Rule::Clause { head, body: Some(body) } = r {
+            if let Rule::Clause {
+                head,
+                body: Some(body),
+            } = r
+            {
                 if let ExprKind::App(_, head_args) = &head.kind {
                     // Skip all-literal heads (already in fact table)
                     if head_args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
                         continue;
                     }
-                    let head_vars: Vec<(String, usize)> = head_args.iter().enumerate()
+                    let head_vars: Vec<(String, usize)> = head_args
+                        .iter()
+                        .enumerate()
                         .filter_map(|(i, a)| {
-                            if let ExprKind::Var(name) = &a.kind { Some((name.clone(), i)) } else { None }
-                        }).collect();
+                            if let ExprKind::Var(name) = &a.kind {
+                                Some((name.clone(), i))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
 
                     let mut body_str = self.emit_expr(body);
                     for (var_name, idx) in &head_vars {
-                        body_str = self.word_replace(&body_str, &sanitize_name(var_name), &param_names[*idx]);
+                        body_str = self.word_replace(
+                            &body_str,
+                            &sanitize_name(var_name),
+                            &param_names[*idx],
+                        );
                     }
                     // Inline literal bindings from outer scope
-                    let bindings: Vec<(String, String)> = self.types.literal_bindings.iter()
-                        .map(|(k, (v, _))| (k.clone(), v.clone())).collect();
+                    let bindings: Vec<(String, String)> = self
+                        .types
+                        .literal_bindings
+                        .iter()
+                        .map(|(k, (v, _))| (k.clone(), v.clone()))
+                        .collect();
                     for (bind_name, bind_val) in &bindings {
-                        body_str = self.word_replace(&body_str, &sanitize_name(bind_name), bind_val);
+                        body_str =
+                            self.word_replace(&body_str, &sanitize_name(bind_name), bind_val);
                     }
 
                     let wrapped = if value_type_str == "String" {
@@ -10248,22 +13324,36 @@ impl RustCodegen {
         // --- Original Catala-style codegen ---
 
         // Extract params from the first rule's head
-        let params: Vec<String> = rules.iter().find_map(|r| {
-            let head = match r {
-                Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
-                _ => return None,
-            };
-            if let ExprKind::App(_, args) = &head.kind {
-                Some(args.iter().filter_map(|a| {
-                    if let ExprKind::Var(n) = &a.kind { Some(n.clone()) } else { None }
-                }).collect())
-            } else {
-                Some(vec![])
-            }
-        }).unwrap_or_default();
+        let params: Vec<String> = rules
+            .iter()
+            .find_map(|r| {
+                let head = match r {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    _ => return None,
+                };
+                if let ExprKind::App(_, args) = &head.kind {
+                    Some(
+                        args.iter()
+                            .filter_map(|a| {
+                                if let ExprKind::Var(n) = &a.kind {
+                                    Some(n.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect(),
+                    )
+                } else {
+                    Some(vec![])
+                }
+            })
+            .unwrap_or_default();
 
         // Infer parameter types from field access patterns and body expression analysis
-        let inferred_types: Vec<String> = params.iter()
+        let inferred_types: Vec<String> = params
+            .iter()
             .map(|p| {
                 if let Some(ty) = self.infer_param_type_from_fields(p, rules) {
                     format!("&{}", ty)
@@ -10272,24 +13362,39 @@ impl RustCodegen {
                 } else {
                     "bool".to_string()
                 }
-            }).collect();
-        let param_str = params.iter().zip(inferred_types.iter())
+            })
+            .collect();
+        let param_str = params
+            .iter()
+            .zip(inferred_types.iter())
             .map(|(p, ty)| format!("{}: {}", sanitize_name(p), ty))
-            .collect::<Vec<_>>().join(", ");
+            .collect::<Vec<_>>()
+            .join(", ");
 
         // Register call-site type info if any param takes &str (so callers pass &str not String)
         if inferred_types.iter().any(|t| t == "&str") {
-            self.types.prolog_rule_fns.insert(fn_name.to_string(), inferred_types.clone());
+            self.types
+                .prolog_rule_fns
+                .insert(fn_name.to_string(), inferred_types.clone());
         }
 
         // Infer return type from constructor calls in rule values
-        let ret_type = self.infer_rule_return_type(rules).unwrap_or_else(|| "bool".to_string());
+        let ret_type = self
+            .infer_rule_return_type(rules)
+            .unwrap_or_else(|| "bool".to_string());
 
-        let mut out = format!("fn {}({}) -> {} {{\n", sanitize_name(fn_name), param_str, ret_type);
+        let mut out = format!(
+            "fn {}({}) -> {} {{\n",
+            sanitize_name(fn_name),
+            param_str,
+            ret_type
+        );
 
         // Mark non-Copy rule params for .clone() at each use site
         for p in &params {
-            let ty = self.infer_param_type_from_fields(p, rules).unwrap_or_default();
+            let ty = self
+                .infer_param_type_from_fields(p, rules)
+                .unwrap_or_default();
             if !matches!(ty.as_str(), "bool" | "i64" | "f64" | "char" | "u64" | "") {
                 self.types.rule_clone_params.insert(p.clone());
             }
@@ -10301,14 +13406,22 @@ impl RustCodegen {
             for rule in rules {
                 let exprs: Vec<&Expr> = match rule {
                     Rule::Clause { body: Some(b), .. } => vec![b],
-                    Rule::Default { value, condition, .. } => {
+                    Rule::Default {
+                        value, condition, ..
+                    } => {
                         let mut v = vec![value];
-                        if let Some(c) = condition { v.push(c); }
+                        if let Some(c) = condition {
+                            v.push(c);
+                        }
                         v
                     }
-                    Rule::Exception { value, condition, .. } => {
+                    Rule::Exception {
+                        value, condition, ..
+                    } => {
                         let mut v = vec![value];
-                        if let Some(c) = condition { v.push(c); }
+                        if let Some(c) = condition {
+                            v.push(c);
+                        }
                         v
                     }
                     _ => vec![],
@@ -10319,21 +13432,38 @@ impl RustCodegen {
             }
             let param_set: BTreeSet<String> = params.iter().cloned().collect();
             for name in &needed {
-                if param_set.contains(name) { continue; }
+                if param_set.contains(name) {
+                    continue;
+                }
                 if let Some((val, ty)) = self.types.literal_bindings.get(name) {
-                    let rust_val = if ty == "i64" { format!("{}i64", val) }
-                        else if ty == "f64" { format!("{}f64", val) }
-                        else { val.clone() };
-                    out.push_str(&format!("    let {} = {};\n", sanitize_name(name), rust_val));
+                    let rust_val = if ty == "i64" {
+                        format!("{}i64", val)
+                    } else if ty == "f64" {
+                        format!("{}f64", val)
+                    } else {
+                        val.clone()
+                    };
+                    out.push_str(&format!(
+                        "    let {} = {};\n",
+                        sanitize_name(name),
+                        rust_val
+                    ));
                 }
             }
         }
 
         // Pass 1: exceptions (highest priority)
         for rule in rules {
-            if let Rule::Exception { value, condition, .. } = rule {
+            if let Rule::Exception {
+                value, condition, ..
+            } = rule
+            {
                 if let Some(cond) = condition {
-                    out.push_str(&format!("    if {} {{ return {}; }}\n", self.emit_expr(cond), self.emit_expr(value)));
+                    out.push_str(&format!(
+                        "    if {} {{ return {}; }}\n",
+                        self.emit_expr(cond),
+                        self.emit_expr(value)
+                    ));
                 } else {
                     out.push_str(&format!("    return {};\n", self.emit_expr(value)));
                     out.push_str("}\n");
@@ -10344,22 +13474,40 @@ impl RustCodegen {
 
         // Pass 2: conditional defaults
         for rule in rules {
-            if let Rule::Default { value, condition: Some(cond), .. } = rule {
-                out.push_str(&format!("    if {} {{ return {}; }}\n", self.emit_expr(cond), self.emit_expr(value)));
+            if let Rule::Default {
+                value,
+                condition: Some(cond),
+                ..
+            } = rule
+            {
+                out.push_str(&format!(
+                    "    if {} {{ return {}; }}\n",
+                    self.emit_expr(cond),
+                    self.emit_expr(value)
+                ));
             }
         }
 
         // Pass 3: unconditional defaults and clauses with backtracking
         for rule in rules {
             match rule {
-                Rule::Default { value, condition: None, .. } => {
+                Rule::Default {
+                    value,
+                    condition: None,
+                    ..
+                } => {
                     out.push_str(&format!("    {}\n", self.emit_expr(value)));
                     out.push_str("}\n");
                     return out;
                 }
-                Rule::Clause { body: Some(body), .. } => {
+                Rule::Clause {
+                    body: Some(body), ..
+                } => {
                     if ret_type == "bool" {
-                        out.push_str(&format!("    if {} {{ return true; }}\n", self.emit_expr(body)));
+                        out.push_str(&format!(
+                            "    if {} {{ return true; }}\n",
+                            self.emit_expr(body)
+                        ));
                     } else {
                         out.push_str(&format!("    {}\n", self.emit_expr(body)));
                         out.push_str("}\n");
@@ -10378,7 +13526,10 @@ impl RustCodegen {
         if ret_type == "bool" {
             out.push_str("    false\n");
         } else {
-            out.push_str(&format!("    panic!(\"no | rule matched for '{}'\")\n", fn_name));
+            out.push_str(&format!(
+                "    panic!(\"no | rule matched for '{}'\")\n",
+                fn_name
+            ));
         }
         out.push_str("}\n");
         out
@@ -10386,7 +13537,13 @@ impl RustCodegen {
 
     fn emit_defn(&mut self, defn: &Defn) -> String {
         match defn {
-            Defn::Fn { name, params, ret_ty, effects, body } => {
+            Defn::Fn {
+                name,
+                params,
+                ret_ty,
+                effects,
+                body,
+            } => {
                 // Skip comptime-only functions (return TypeDef — not a real Rust type)
                 if let Some(Ty::Name(ty_name)) = ret_ty.as_ref() {
                     if ty_name == "TypeDef" {
@@ -10396,12 +13553,15 @@ impl RustCodegen {
                 // Register inout params for call-site emission
                 let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
                 if inout_flags.iter().any(|f| *f) {
-                    self.types.inout_params.insert(name.clone(), inout_flags.clone());
+                    self.types
+                        .inout_params
+                        .insert(name.clone(), inout_flags.clone());
                 }
                 // Copy-on-write: detect inout + shared T params
-                let cow_flags: Vec<bool> = params.iter().map(|p| {
-                    p.inout && matches!(p.ty.as_ref(), Some(Ty::Shared(_)))
-                }).collect();
+                let cow_flags: Vec<bool> = params
+                    .iter()
+                    .map(|p| p.inout && matches!(p.ty.as_ref(), Some(Ty::Shared(_))))
+                    .collect();
                 if cow_flags.iter().any(|f| *f) {
                     self.types.cow_params.insert(name.clone(), cow_flags);
                 }
@@ -10413,7 +13573,10 @@ impl RustCodegen {
                     pre.clone()
                 } else {
                     let mut flags = analyze_borrow_only_params_named(
-                        params, body, ret_ty.as_ref(), &self.borrow_only_params,
+                        params,
+                        body,
+                        ret_ty.as_ref(),
+                        &self.borrow_only_params,
                         Some(name.as_str()),
                     );
                     // Phase 3b safety: disable ref-match for types with boxed (recursive) fields.
@@ -10426,20 +13589,35 @@ impl RustCodegen {
                                 if let Some(ty) = &p.ty {
                                     let type_name = match ty {
                                         Ty::App(base, _) => {
-                                            if let Ty::Name(n) = base.as_ref() { Some(n.as_str()) } else { None }
+                                            if let Ty::Name(n) = base.as_ref() {
+                                                Some(n.as_str())
+                                            } else {
+                                                None
+                                            }
                                         }
                                         Ty::Name(n) => Some(n.as_str()),
                                         _ => None,
                                     };
                                     if let Some(tn) = type_name {
-                                        let has_boxed = self.types.variant_boxed_args.iter().any(|(vname, indices)| {
-                                            !indices.is_empty()
-                                                && self.types.variant_parent.get(vname.as_str())
-                                                    .map(|p| {
-                                                        p == tn || self.types.type_rename.get(tn).map(|r| r == p).unwrap_or(false)
-                                                    })
-                                                    .unwrap_or(false)
-                                        });
+                                        let has_boxed = self.types.variant_boxed_args.iter().any(
+                                            |(vname, indices)| {
+                                                !indices.is_empty()
+                                                    && self
+                                                        .types
+                                                        .variant_parent
+                                                        .get(vname.as_str())
+                                                        .map(|p| {
+                                                            p == tn
+                                                                || self
+                                                                    .types
+                                                                    .type_rename
+                                                                    .get(tn)
+                                                                    .map(|r| r == p)
+                                                                    .unwrap_or(false)
+                                                        })
+                                                        .unwrap_or(false)
+                                            },
+                                        );
                                         if has_boxed {
                                             flags[idx] = false;
                                         }
@@ -10454,43 +13632,51 @@ impl RustCodegen {
                     flags
                 };
 
-                let params_str: Vec<String> = params.iter().enumerate().map(|(idx, p)| {
-                    // For arrow-typed params, determine FnOnce vs FnMut:
-                    // FnOnce only when: exactly 1 total use, that use is a direct call,
-                    // and the call is not inside a nested lambda.
-                    let is_fn_once = if matches!(p.ty.as_ref(), Some(Ty::Arrow(..))) {
-                        can_be_fn_once(body, &p.name)
-                    } else {
-                        false
-                    };
-                    self.fn_once_mode = is_fn_once;
-                    let ty = p.ty.as_ref().map(|t| self.emit_type(t))
-                        .unwrap_or_else(|| "i64".to_string());
-                    self.fn_once_mode = false;
-                    if p.inout {
-                        // Copy-on-write: inout on shared T → &mut T (Arc::make_mut at call site)
-                        let inner_ty = match p.ty.as_ref() {
-                            Some(Ty::Shared(inner)) => self.emit_type(inner),
-                            _ => ty.clone(),
-                        };
-                        format!("{}: &mut {}", sanitize_name(&p.name), inner_ty)
-                    } else if borrow_flags.get(idx).copied().unwrap_or(false) {
-                        // Auto-borrow: param is only read, emit &T
-                        format!("{}: &{}", sanitize_name(&p.name), ty)
-                    } else if matches!(p.ty.as_ref(), Some(Ty::Arrow(..))) {
-                        if !is_fn_once {
-                            // FnMut params called multiple times need `mut`
-                            format!("mut {}: {}", sanitize_name(&p.name), ty)
+                let params_str: Vec<String> = params
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, p)| {
+                        // For arrow-typed params, determine FnOnce vs FnMut:
+                        // FnOnce only when: exactly 1 total use, that use is a direct call,
+                        // and the call is not inside a nested lambda.
+                        let is_fn_once = if matches!(p.ty.as_ref(), Some(Ty::Arrow(..))) {
+                            can_be_fn_once(body, &p.name)
                         } else {
-                            // FnOnce params called at most once — no `mut` needed
+                            false
+                        };
+                        self.fn_once_mode = is_fn_once;
+                        let ty =
+                            p.ty.as_ref()
+                                .map(|t| self.emit_type(t))
+                                .unwrap_or_else(|| "i64".to_string());
+                        self.fn_once_mode = false;
+                        if p.inout {
+                            // Copy-on-write: inout on shared T → &mut T (Arc::make_mut at call site)
+                            let inner_ty = match p.ty.as_ref() {
+                                Some(Ty::Shared(inner)) => self.emit_type(inner),
+                                _ => ty.clone(),
+                            };
+                            format!("{}: &mut {}", sanitize_name(&p.name), inner_ty)
+                        } else if borrow_flags.get(idx).copied().unwrap_or(false) {
+                            // Auto-borrow: param is only read, emit &T
+                            format!("{}: &{}", sanitize_name(&p.name), ty)
+                        } else if matches!(p.ty.as_ref(), Some(Ty::Arrow(..))) {
+                            if !is_fn_once {
+                                // FnMut params called multiple times need `mut`
+                                format!("mut {}: {}", sanitize_name(&p.name), ty)
+                            } else {
+                                // FnOnce params called at most once — no `mut` needed
+                                format!("{}: {}", sanitize_name(&p.name), ty)
+                            }
+                        } else {
                             format!("{}: {}", sanitize_name(&p.name), ty)
                         }
-                    } else {
-                        format!("{}: {}", sanitize_name(&p.name), ty)
-                    }
-                }).collect();
+                    })
+                    .collect();
 
-                let ret = ret_ty.as_ref().map(|t| format!(" -> {}", self.emit_type(t)))
+                let ret = ret_ty
+                    .as_ref()
+                    .map(|t| format!(" -> {}", self.emit_type(t)))
                     .unwrap_or_default();
 
                 // Collect generic type variables from all param types + return type
@@ -10507,7 +13693,8 @@ impl RustCodegen {
                     String::new()
                 } else {
                     // Add Display bound so .to_string() works
-                    let bounds: Vec<String> = type_vars.iter()
+                    let bounds: Vec<String> = type_vars
+                        .iter()
                         .map(|v| format!("{}: fmt::Display + Clone", v))
                         .collect();
                     format!("<{}>", bounds.join(", "))
@@ -10525,7 +13712,12 @@ impl RustCodegen {
                 let prev_string_vars = std::mem::take(&mut self.string_typed_vars);
                 let prev_float_vars = std::mem::take(&mut self.float_typed_vars);
                 let param_names: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
-                let ownership = OwnershipAnalysis::analyze(body, &self.borrow_only_params, Some(name.as_str()), &param_names);
+                let ownership = OwnershipAnalysis::analyze(
+                    body,
+                    &self.borrow_only_params,
+                    Some(name.as_str()),
+                    &param_names,
+                );
                 self.var_use_counts = ownership.var_uses;
                 self.var_consuming_counts = ownership.consuming_uses;
                 // Detect accumulators (variables rebound inside for loops) in function body
@@ -10581,10 +13773,16 @@ impl RustCodegen {
                     let mut matched_vars: BTreeSet<String> = BTreeSet::new();
                     collect_matched_vars(body, &mut matched_vars);
                     for (idx, p) in params.iter().enumerate() {
-                        if borrow_flags.get(idx).copied().unwrap_or(false) && matched_vars.contains(&p.name) {
+                        if borrow_flags.get(idx).copied().unwrap_or(false)
+                            && matched_vars.contains(&p.name)
+                        {
                             // This param is borrowed AND matched → ref-match
                             // Collect pattern bindings from matches on this param
-                            collect_ref_match_bindings_from_body(body, &p.name, &mut self.ref_match_bindings);
+                            collect_ref_match_bindings_from_body(
+                                body,
+                                &p.name,
+                                &mut self.ref_match_bindings,
+                            );
                         }
                     }
                 }
@@ -10612,10 +13810,16 @@ impl RustCodegen {
                 // M4: wasm-bindgen annotation for exported functions with compatible types
                 let wasm_attr = if self.wasm_mode && is_exported {
                     let params_ok = params.iter().all(|p| {
-                        p.ty.as_ref().map(|t| Self::is_wasm_compatible_type(t)).unwrap_or(false)
+                        p.ty.as_ref()
+                            .map(|t| Self::is_wasm_compatible_type(t))
+                            .unwrap_or(false)
                     });
-                    let ret_ok = ret_ty.as_ref().map(|t| Self::is_wasm_compatible_type(t)).unwrap_or(true);
-                    if params_ok && ret_ok && generics.is_empty() && self.current_effects.is_empty() {
+                    let ret_ok = ret_ty
+                        .as_ref()
+                        .map(|t| Self::is_wasm_compatible_type(t))
+                        .unwrap_or(true);
+                    if params_ok && ret_ok && generics.is_empty() && self.current_effects.is_empty()
+                    {
                         // wasm-bindgen needs &str not &String for params
                         for p in all_params.iter_mut() {
                             if p.ends_with(": &String") {
@@ -10630,7 +13834,15 @@ impl RustCodegen {
                 } else {
                     ""
                 };
-                let mut out = format!("{}{}fn {}{}({}){} {{\n", wasm_attr, pub_prefix, sanitize_name(name), generics, all_params.join(", "), ret);
+                let mut out = format!(
+                    "{}{}fn {}{}({}){} {{\n",
+                    wasm_attr,
+                    pub_prefix,
+                    sanitize_name(name),
+                    generics,
+                    all_params.join(", "),
+                    ret
+                );
                 self.indent = 1;
                 // Tail-call elimination: if the function is tail-recursive,
                 // emit as a loop with parameter reassignment instead of recursive calls.
@@ -10658,9 +13870,15 @@ impl RustCodegen {
                 self.current_effects = prev_effects;
                 out
             }
-            Defn::Actor { name, state_param, handlers } => {
+            Defn::Actor {
+                name,
+                state_param,
+                handlers,
+            } => {
                 let sname = sanitize_name(name);
-                let state_type = state_param.ty.as_ref()
+                let state_type = state_param
+                    .ty
+                    .as_ref()
                     .map(|t| self.emit_type(t))
                     .unwrap_or_else(|| "i64".to_string());
                 // Mark actor message variant names as copy-like (they're enum constructors, not variables)
@@ -10683,7 +13901,10 @@ impl RustCodegen {
                     let variant = self.emit_pattern_as_enum_variant(&h.msg_pat);
                     out.push_str(&format!("    {},\n", variant));
                 }
-                out.push_str(&format!("    __Ask(Box<{}Msg>, tokio::sync::oneshot::Sender<{}>),\n", sname, state_type));
+                out.push_str(&format!(
+                    "    __Ask(Box<{}Msg>, tokio::sync::oneshot::Sender<{}>),\n",
+                    sname, state_type
+                ));
                 out.push_str("}\n\n");
 
                 // Actor loop
@@ -10696,28 +13917,45 @@ impl RustCodegen {
                 for h in handlers {
                     let pat = self.emit_pattern_as_match_arm(&h.msg_pat, &sname);
                     let body = self.emit_expr(&h.body);
-                    out.push_str(&format!("            {} => {{ {} = {}; }}\n",
-                        pat, sanitize_name(&state_param.name), body));
+                    out.push_str(&format!(
+                        "            {} => {{ {} = {}; }}\n",
+                        pat,
+                        sanitize_name(&state_param.name),
+                        body
+                    ));
                 }
                 // __Ask: process the inner message first, then reply with updated state
                 let state_name = sanitize_name(&state_param.name);
-                out.push_str(&format!("            {}Msg::__Ask(inner, reply) => {{\n", sname));
+                out.push_str(&format!(
+                    "            {}Msg::__Ask(inner, reply) => {{\n",
+                    sname
+                ));
                 out.push_str("                match *inner {\n");
                 for h in handlers {
                     let pat = self.emit_pattern_as_match_arm(&h.msg_pat, &sname);
                     let body = self.emit_expr(&h.body);
-                    out.push_str(&format!("                    {} => {{ {} = {}; }}\n", pat, state_name, body));
+                    out.push_str(&format!(
+                        "                    {} => {{ {} = {}; }}\n",
+                        pat, state_name, body
+                    ));
                 }
-                out.push_str(&format!("                    {}Msg::__Ask(_, _) => {{}}\n", sname));
+                out.push_str(&format!(
+                    "                    {}Msg::__Ask(_, _) => {{}}\n",
+                    sname
+                ));
                 out.push_str("                }\n");
-                out.push_str(&format!("                let _ = reply.send({});\n", state_name));
+                out.push_str(&format!(
+                    "                let _ = reply.send({});\n",
+                    state_name
+                ));
                 out.push_str("            }\n");
                 out.push_str("        }\n    }\n}\n\n");
 
                 // Spawn helper
                 out.push_str(&format!(
                     "fn {}_spawn(initial: {}) -> tokio::sync::mpsc::UnboundedSender<{}Msg> {{\n",
-                    sname, state_type, sname));
+                    sname, state_type, sname
+                ));
                 out.push_str("    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();\n");
                 out.push_str(&format!("    tokio::spawn({}_run(rx, initial));\n", sname));
                 out.push_str("    tx\n}\n");
@@ -10727,7 +13965,11 @@ impl RustCodegen {
             }
             Defn::Module { name, body } => {
                 self.types.known_modules.insert(name.clone());
-                let pub_prefix = if self.types.exported_names.contains(name) { "pub " } else { "" };
+                let pub_prefix = if self.types.exported_names.contains(name) {
+                    "pub "
+                } else {
+                    ""
+                };
                 let mut out = format!("{}mod {} {{\n", pub_prefix, sanitize_name(name));
                 out.push_str("    use super::*;\n");
                 // Mark all items inside inline modules as exported (pub)
@@ -10755,13 +13997,25 @@ impl RustCodegen {
                 out.push_str("}\n");
                 // Re-export enum variants so Module::Variant works
                 for stmt in body {
-                    if let Stmt::TypeDecl(TypeDecl::ADT { name: ty_name, variants, .. }) = stmt {
-                        if variants.len() > 1 || (variants.len() == 1 && variants[0].name != *ty_name) {
+                    if let Stmt::TypeDecl(TypeDecl::ADT {
+                        name: ty_name,
+                        variants,
+                        ..
+                    }) = stmt
+                    {
+                        if variants.len() > 1
+                            || (variants.len() == 1 && variants[0].name != *ty_name)
+                        {
                             let sname = sanitize_name(name);
                             let rty = self.rust_type_name(ty_name);
-                            let vnames: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
-                            out.push_str(&format!("#[allow(unused_imports)]\nuse {}::{}::{{{}}};\n",
-                                sname, rty, vnames.join(", ")));
+                            let vnames: Vec<String> =
+                                variants.iter().map(|v| v.name.clone()).collect();
+                            out.push_str(&format!(
+                                "#[allow(unused_imports)]\nuse {}::{}::{{{}}};\n",
+                                sname,
+                                rty,
+                                vnames.join(", ")
+                            ));
                         }
                     }
                 }
@@ -10786,22 +14040,46 @@ impl RustCodegen {
                     if let Some(rust_lit) = self.types.comptime_values.get(name).cloned() {
                         // Comptime types are emitted as type declarations, not bindings
                         if rust_lit.is_empty() {
-                            return format!("{}// @ comptime type {} (emitted above)\n", self.ind(), name);
+                            return format!(
+                                "{}// @ comptime type {} (emitted above)\n",
+                                self.ind(),
+                                name
+                            );
                         }
-                        let rust_ty = self.types.comptime_types.get(name).cloned().unwrap_or_default();
+                        let rust_ty = self
+                            .types
+                            .comptime_types
+                            .get(name)
+                            .cloned()
+                            .unwrap_or_default();
                         // Use const for Copy types, let for heap types
-                        if matches!(rust_ty.as_str(), "i64" | "f64" | "bool" | "char" | "u64" | "()") {
-                            return format!("{}const {}: {} = {}; // @ comptime\n",
-                                self.ind(), sanitize_name(name), rust_ty, rust_lit);
+                        if matches!(
+                            rust_ty.as_str(),
+                            "i64" | "f64" | "bool" | "char" | "u64" | "()"
+                        ) {
+                            return format!(
+                                "{}const {}: {} = {}; // @ comptime\n",
+                                self.ind(),
+                                sanitize_name(name),
+                                rust_ty,
+                                rust_lit
+                            );
                         } else {
                             // Include type annotation for Result/Option (Rust can't infer error type from Ok/Some)
-                            let ty_annot = if !rust_ty.is_empty() && (rust_ty.starts_with("Result") || rust_ty.starts_with("Option")) {
+                            let ty_annot = if !rust_ty.is_empty()
+                                && (rust_ty.starts_with("Result") || rust_ty.starts_with("Option"))
+                            {
                                 format!(": {}", rust_ty)
                             } else {
                                 String::new()
                             };
-                            return format!("{}let {}{} = {}; // @ comptime\n",
-                                self.ind(), sanitize_name(name), ty_annot, rust_lit);
+                            return format!(
+                                "{}let {}{} = {}; // @ comptime\n",
+                                self.ind(),
+                                sanitize_name(name),
+                                ty_annot,
+                                rust_lit
+                            );
                         }
                     }
                 }
@@ -10813,8 +14091,16 @@ impl RustCodegen {
                     if !self.copy_vars.contains(src_name.as_str())
                         && !self.types.variant_parent.contains_key(src_name.as_str())
                     {
-                        let consuming = self.var_consuming_counts.get(src_name.as_str()).copied().unwrap_or(0);
-                        let total = self.var_use_counts.get(src_name.as_str()).copied().unwrap_or(0);
+                        let consuming = self
+                            .var_consuming_counts
+                            .get(src_name.as_str())
+                            .copied()
+                            .unwrap_or(0);
+                        let total = self
+                            .var_use_counts
+                            .get(src_name.as_str())
+                            .copied()
+                            .unwrap_or(0);
                         if consuming >= 1 && total > 1 {
                             val_str = format!("{}.clone()", val_str);
                         }
@@ -10822,8 +14108,14 @@ impl RustCodegen {
                 }
                 // Use `let mut` for variables rebound inside for loops
                 let mutability = if let Pat::Var(name) = pat {
-                    if self.mutable_vars.contains(name.as_str()) { "mut " } else { "" }
-                } else { "" };
+                    if self.mutable_vars.contains(name.as_str()) {
+                        "mut "
+                    } else {
+                        ""
+                    }
+                } else {
+                    ""
+                };
                 // Record type for handler capture
                 if let Pat::Var(name) = pat {
                     if let Some(ty) = Self::infer_expr_type(value) {
@@ -10836,7 +14128,8 @@ impl RustCodegen {
                         if let ExprKind::Var(fn_name) = &f.as_ref().kind {
                             if fn_name == "spawn" && spawn_args.len() == 2 {
                                 if let ExprKind::Var(actor_name) = &&spawn_args[0].kind {
-                                    self.actor_handle_vars.insert(var_name.clone(), actor_name.clone());
+                                    self.actor_handle_vars
+                                        .insert(var_name.clone(), actor_name.clone());
                                 }
                             }
                         }
@@ -10851,14 +14144,28 @@ impl RustCodegen {
                         self.float_typed_vars.insert(var_name.clone());
                     }
                 }
-                format!("{}let {}{} = {};\n", self.ind(), mutability, pat_str, val_str)
+                format!(
+                    "{}let {}{} = {};\n",
+                    self.ind(),
+                    mutability,
+                    pat_str,
+                    val_str
+                )
             }
-            Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if builtin_canonical(name) == "print" => {
-                self.emit_print(args, &self.ind())
-            }
+            Stmt::Expr(Expr {
+                kind: ExprKind::Effect(name, args),
+                ..
+            }) if builtin_canonical(name) == "print" => self.emit_print(args, &self.ind()),
             // M13c: @ teardown("ScopeName") → drop scope guard + yield for cleanup
-            Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "teardown" && self.has_async => {
-                if let Some(Expr { kind: ExprKind::Lit(Literal::Str(scope_name)), .. }) = args.first() {
+            Stmt::Expr(Expr {
+                kind: ExprKind::Effect(name, args),
+                ..
+            }) if name == "teardown" && self.has_async => {
+                if let Some(Expr {
+                    kind: ExprKind::Lit(Literal::Str(scope_name)),
+                    ..
+                }) = args.first()
+                {
                     let mut out = String::new();
                     out.push_str(&format!("{}// teardown scope {}\n", self.ind(), scope_name));
                     out.push_str(&format!("{}drop(_scope_{});\n", self.ind(), scope_name));
@@ -10869,21 +14176,43 @@ impl RustCodegen {
                 }
             }
             // Sync teardown: no guard to drop, just emit a comment
-            Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "teardown" && !self.has_async => {
-                if let Some(Expr { kind: ExprKind::Lit(Literal::Str(scope_name)), .. }) = args.first() {
-                    format!("{}// teardown scope {} (sync — no guard)\n", self.ind(), scope_name)
+            Stmt::Expr(Expr {
+                kind: ExprKind::Effect(name, args),
+                ..
+            }) if name == "teardown" && !self.has_async => {
+                if let Some(Expr {
+                    kind: ExprKind::Lit(Literal::Str(scope_name)),
+                    ..
+                }) = args.first()
+                {
+                    format!(
+                        "{}// teardown scope {} (sync — no guard)\n",
+                        self.ind(),
+                        scope_name
+                    )
                 } else {
                     format!("{}// teardown (unknown scope)\n", self.ind())
                 }
             }
             // M13c: @ complete(subject) → drop sender to close channel
-            Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "complete" && self.has_async => {
-                if let Some(Expr { kind: ExprKind::Var(subj), .. }) = args.first() {
+            Stmt::Expr(Expr {
+                kind: ExprKind::Effect(name, args),
+                ..
+            }) if name == "complete" && self.has_async => {
+                if let Some(Expr {
+                    kind: ExprKind::Var(subj),
+                    ..
+                }) = args.first()
+                {
                     if self.subject_vars.contains(subj.as_str()) {
                         return format!("{}drop({});\n", self.ind(), subj);
                     }
                 }
-                format!("{}{};\n", self.ind(), self.emit_expr(&ExprKind::Effect(name.clone(), args.clone()).into()))
+                format!(
+                    "{}{};\n",
+                    self.ind(),
+                    self.emit_expr(&ExprKind::Effect(name.clone(), args.clone()).into())
+                )
             }
             Stmt::Expr(expr) => {
                 format!("{}{};\n", self.ind(), self.emit_expr(expr))
@@ -10926,8 +14255,12 @@ impl RustCodegen {
                         }
                         // Always emit scope guard so @ teardown("Name") can drop it
                         let handles = self.scope_handles.get(name).cloned().unwrap_or_default();
-                        out.push_str(&format!("{}let _scope_{} = _ScopeGuard {{ handles: vec![{}] }};\n",
-                            self.ind(), name, handles.join(", ")));
+                        out.push_str(&format!(
+                            "{}let _scope_{} = _ScopeGuard {{ handles: vec![{}] }};\n",
+                            self.ind(),
+                            name,
+                            handles.join(", ")
+                        ));
                         self.current_scope = prev_scope;
                     } else {
                         // Sync mode: emit scope body inline
@@ -10938,7 +14271,10 @@ impl RustCodegen {
 
                     // Track scope bindings for qualified access (ScopeName.field → field)
                     for (vname, _) in &scope_binds {
-                        self.scope_bindings.entry(name.clone()).or_insert_with(Vec::new).push(vname.clone());
+                        self.scope_bindings
+                            .entry(name.clone())
+                            .or_insert_with(Vec::new)
+                            .push(vname.clone());
                     }
 
                     return out;
@@ -10946,19 +14282,38 @@ impl RustCodegen {
                 String::new() // other rules emitted as top-level functions
             }
             Stmt::Use(path) => {
-                format!("{}// use {} (already emitted in header)\n", self.ind(), path)
+                format!(
+                    "{}// use {} (already emitted in header)\n",
+                    self.ind(),
+                    path
+                )
             }
             Stmt::Import(path) => {
                 format!("{}// import {} (module system)\n", self.ind(), path)
             }
             Stmt::QualifiedImport(mod_name, path) => {
-                format!("{}// import {} from {} (qualified, M3b)\n", self.ind(), mod_name, path)
+                format!(
+                    "{}// import {} from {} (qualified, M3b)\n",
+                    self.ind(),
+                    mod_name,
+                    path
+                )
             }
             Stmt::HashImport(hash, path) => {
-                format!("{}// import #{} from {} (content-addressed)\n", self.ind(), hash, path)
+                format!(
+                    "{}// import #{} from {} (content-addressed)\n",
+                    self.ind(),
+                    hash,
+                    path
+                )
             }
             Stmt::Depend(crate_name, version) => {
-                format!("{}// depend {} {} (external crate)\n", self.ind(), crate_name, version)
+                format!(
+                    "{}// depend {} {} (external crate)\n",
+                    self.ind(),
+                    crate_name,
+                    version
+                )
             }
             Stmt::RustBlock(code) => {
                 // Inline @ rust { } — emit raw Rust code
@@ -10967,11 +14322,14 @@ impl RustCodegen {
             Stmt::MonadicBind(pat, _ty, value) => {
                 let pat_str = self.emit_pattern_binding(pat);
                 let val_str = self.emit_expr(value);
-                let suffix = if self.is_effect_op_call(value) { "" } else { "?" };
+                let suffix = if self.is_effect_op_call(value) {
+                    ""
+                } else {
+                    "?"
+                };
                 format!("{}let {} = {}{};\n", self.ind(), pat_str, val_str, suffix)
             }
-            
-            
+
             Stmt::StreamSub(expr, arms) => {
                 let mut iter_name = self.emit_expr(expr);
                 if let ExprKind::Var(name) = &expr.kind {
@@ -10981,18 +14339,21 @@ impl RustCodegen {
                     }
                 }
 
-                
                 // Classify arms
                 let mut value_arms = Vec::new();
                 let mut error_arm = None;
                 let mut complete_arm = None;
                 for arm in arms {
-                    let is_complete = matches!(&arm.pat, Pat::Var(n) if n == "Complete") || 
-                                      matches!(&arm.pat, Pat::Con(n, _) if n == "Complete");
+                    let is_complete = matches!(&arm.pat, Pat::Var(n) if n == "Complete")
+                        || matches!(&arm.pat, Pat::Con(n, _) if n == "Complete");
                     let is_error = matches!(&arm.pat, Pat::Con(n, _) if n == "Err");
-                    if is_complete { complete_arm = Some(arm); }
-                    else if is_error { error_arm = Some(arm); }
-                    else { value_arms.push(arm); }
+                    if is_complete {
+                        complete_arm = Some(arm);
+                    } else if is_error {
+                        error_arm = Some(arm);
+                    } else {
+                        value_arms.push(arm);
+                    }
                 }
 
                 if self.has_async && self.is_async_stream_expr(expr) {
@@ -11002,155 +14363,281 @@ impl RustCodegen {
                     // We assume expr evaluates to an rx channel or a stream wrapper with `.subscribe()`
                     // For now, assume subject variable name directly like `name.subscribe()`
                     // If it's a stream object, it should have a `.subscribe()` method or we do it inline.
-                    out.push_str(&format!("{}let mut _rx_{} = {}.subscribe();
-", self.ind(), self.sub_counter, iter_name));
-                    out.push_str(&format!("{}let {} = tokio::spawn(async move {{
-", self.ind(), handle_name));
+                    out.push_str(&format!(
+                        "{}let mut _rx_{} = {}.subscribe();
+",
+                        self.ind(),
+                        self.sub_counter,
+                        iter_name
+                    ));
+                    out.push_str(&format!(
+                        "{}let {} = tokio::spawn(async move {{
+",
+                        self.ind(),
+                        handle_name
+                    ));
                     self.indent += 1;
-                    out.push_str(&format!("{}loop {{
-", self.ind()));
+                    out.push_str(&format!(
+                        "{}loop {{
+",
+                        self.ind()
+                    ));
                     self.indent += 1;
-                    out.push_str(&format!("{}match _rx_{}.recv().await {{
-", self.ind(), self.sub_counter));
+                    out.push_str(&format!(
+                        "{}match _rx_{}.recv().await {{
+",
+                        self.ind(),
+                        self.sub_counter
+                    ));
                     self.indent += 1;
 
                     // Values
                     for arm in &value_arms {
                         let pat_str = self.emit_pattern_match(&arm.pat);
-                        out.push_str(&format!("{}Ok({}) => {{
-", self.ind(), pat_str));
+                        out.push_str(&format!(
+                            "{}Ok({}) => {{
+",
+                            self.ind(),
+                            pat_str
+                        ));
                         self.indent += 1;
                         if let Some(guard) = &arm.guard {
-                            out.push_str(&format!("{}if {} {{
-", self.ind(), self.emit_expr(guard)));
+                            out.push_str(&format!(
+                                "{}if {} {{
+",
+                                self.ind(),
+                                self.emit_expr(guard)
+                            ));
                             self.indent += 1;
                         }
-                        out.push_str(&format!("{};
-", self.emit_expr(&arm.body)));
+                        out.push_str(&format!(
+                            "{};
+",
+                            self.emit_expr(&arm.body)
+                        ));
                         if arm.guard.is_some() {
                             self.indent -= 1;
-                            out.push_str(&format!("{}}}
-", self.ind()));
+                            out.push_str(&format!(
+                                "{}}}
+",
+                                self.ind()
+                            ));
                         }
                         self.indent -= 1;
-                        out.push_str(&format!("{}}}
-", self.ind()));
+                        out.push_str(&format!(
+                            "{}}}
+",
+                            self.ind()
+                        ));
                     }
                     if !value_arms.is_empty() {
                         // Fallback for Ok(_) if patterns don't cover everything
-                        out.push_str(&format!("{}Ok(_) => {{}}
-", self.ind()));
+                        out.push_str(&format!(
+                            "{}Ok(_) => {{}}
+",
+                            self.ind()
+                        ));
                     }
 
                     // Error
-                    out.push_str(&format!("{}Err(tokio::sync::broadcast::error::RecvError::Lagged(_n)) => {{
-", self.ind()));
+                    out.push_str(&format!(
+                        "{}Err(tokio::sync::broadcast::error::RecvError::Lagged(_n)) => {{
+",
+                        self.ind()
+                    ));
                     self.indent += 1;
                     if let Some(arm) = error_arm {
                         if let Pat::Con(_, args) = &arm.pat {
                             if let Some(inner) = args.first() {
-                                out.push_str(&format!("{}let {} = _n.to_string();
-", self.ind(), self.emit_pattern_match(inner)));
+                                out.push_str(&format!(
+                                    "{}let {} = _n.to_string();
+",
+                                    self.ind(),
+                                    self.emit_pattern_match(inner)
+                                ));
                             }
                         }
                         if let Some(guard) = &arm.guard {
-                            out.push_str(&format!("{}if {} {{
-", self.ind(), self.emit_expr(guard)));
+                            out.push_str(&format!(
+                                "{}if {} {{
+",
+                                self.ind(),
+                                self.emit_expr(guard)
+                            ));
                             self.indent += 1;
                         }
-                        out.push_str(&format!("{};
-", self.emit_expr(&arm.body)));
+                        out.push_str(&format!(
+                            "{};
+",
+                            self.emit_expr(&arm.body)
+                        ));
                         if arm.guard.is_some() {
                             self.indent -= 1;
-                            out.push_str(&format!("{}}}
-", self.ind()));
+                            out.push_str(&format!(
+                                "{}}}
+",
+                                self.ind()
+                            ));
                         }
                     }
                     self.indent -= 1;
-                    out.push_str(&format!("{}}}
-", self.ind()));
+                    out.push_str(&format!(
+                        "{}}}
+",
+                        self.ind()
+                    ));
 
                     // Complete
-                    out.push_str(&format!("{}Err(tokio::sync::broadcast::error::RecvError::Closed) => {{
-", self.ind()));
+                    out.push_str(&format!(
+                        "{}Err(tokio::sync::broadcast::error::RecvError::Closed) => {{
+",
+                        self.ind()
+                    ));
                     self.indent += 1;
                     if let Some(arm) = complete_arm {
                         if let Some(guard) = &arm.guard {
-                            out.push_str(&format!("{}if {} {{
-", self.ind(), self.emit_expr(guard)));
+                            out.push_str(&format!(
+                                "{}if {} {{
+",
+                                self.ind(),
+                                self.emit_expr(guard)
+                            ));
                             self.indent += 1;
                         }
-                        out.push_str(&format!("{};
-", self.emit_expr(&arm.body)));
+                        out.push_str(&format!(
+                            "{};
+",
+                            self.emit_expr(&arm.body)
+                        ));
                         if arm.guard.is_some() {
                             self.indent -= 1;
-                            out.push_str(&format!("{}}}
-", self.ind()));
+                            out.push_str(&format!(
+                                "{}}}
+",
+                                self.ind()
+                            ));
                         }
                     }
-                    out.push_str(&format!("{}break;
-", self.ind()));
+                    out.push_str(&format!(
+                        "{}break;
+",
+                        self.ind()
+                    ));
                     self.indent -= 1;
-                    out.push_str(&format!("{}}}
-", self.ind()));
+                    out.push_str(&format!(
+                        "{}}}
+",
+                        self.ind()
+                    ));
 
                     self.indent -= 1;
-                    out.push_str(&format!("{}}}
-", self.ind())); // end match
+                    out.push_str(&format!(
+                        "{}}}
+",
+                        self.ind()
+                    )); // end match
                     self.indent -= 1;
-                    out.push_str(&format!("{}}}
-", self.ind())); // end loop
+                    out.push_str(&format!(
+                        "{}}}
+",
+                        self.ind()
+                    )); // end loop
                     self.indent -= 1;
-                    out.push_str(&format!("{}}});
-", self.ind())); // end spawn
-                    
+                    out.push_str(&format!(
+                        "{}}});
+",
+                        self.ind()
+                    )); // end spawn
+
                     if let Some(scope) = &self.current_scope.clone() {
-                        self.scope_handles.entry(scope.clone()).or_default().push(handle_name);
+                        self.scope_handles
+                            .entry(scope.clone())
+                            .or_default()
+                            .push(handle_name);
                     }
                     return out;
                 } else {
                     // Sync mode execution for StreamSub
                     let mut out = String::new();
-                    out.push_str(&format!("{}for _item in {}.into_iter() {{
-", self.ind(), iter_name));
+                    out.push_str(&format!(
+                        "{}for _item in {}.into_iter() {{
+",
+                        self.ind(),
+                        iter_name
+                    ));
                     self.indent += 1;
-                    out.push_str(&format!("{}match _item {{
-", self.ind()));
+                    out.push_str(&format!(
+                        "{}match _item {{
+",
+                        self.ind()
+                    ));
                     self.indent += 1;
                     for arm in &value_arms {
                         let pat_str = self.emit_pattern_match(&arm.pat);
                         if let Some(guard) = &arm.guard {
-                            out.push_str(&format!("{}{} if {} => {{
-", self.ind(), pat_str, self.emit_expr(guard)));
+                            out.push_str(&format!(
+                                "{}{} if {} => {{
+",
+                                self.ind(),
+                                pat_str,
+                                self.emit_expr(guard)
+                            ));
                         } else {
-                            out.push_str(&format!("{}{} => {{
-", self.ind(), pat_str));
+                            out.push_str(&format!(
+                                "{}{} => {{
+",
+                                self.ind(),
+                                pat_str
+                            ));
                         }
                         self.indent += 1;
-                        out.push_str(&format!("{};
-", self.emit_expr(&arm.body)));
+                        out.push_str(&format!(
+                            "{};
+",
+                            self.emit_expr(&arm.body)
+                        ));
                         self.indent -= 1;
-                        out.push_str(&format!("{}}}
-", self.ind()));
+                        out.push_str(&format!(
+                            "{}}}
+",
+                            self.ind()
+                        ));
                     }
-                    out.push_str(&format!("{}_ => {{}}
-", self.ind()));
+                    out.push_str(&format!(
+                        "{}_ => {{}}
+",
+                        self.ind()
+                    ));
                     self.indent -= 1;
-                    out.push_str(&format!("{}}}
-", self.ind()));
+                    out.push_str(&format!(
+                        "{}}}
+",
+                        self.ind()
+                    ));
                     self.indent -= 1;
-                    out.push_str(&format!("{}}}
-", self.ind()));
-                    
+                    out.push_str(&format!(
+                        "{}}}
+",
+                        self.ind()
+                    ));
+
                     if let Some(arm) = complete_arm {
-                        out.push_str(&format!("{{
-"));
+                        out.push_str(&format!(
+                            "{{
+"
+                        ));
                         self.indent += 1;
-                        out.push_str(&format!("{};
-", self.emit_expr(&arm.body)));
+                        out.push_str(&format!(
+                            "{};
+",
+                            self.emit_expr(&arm.body)
+                        ));
                         self.indent -= 1;
-                        out.push_str(&format!("{}}}
-", self.ind()));
+                        out.push_str(&format!(
+                            "{}}}
+",
+                            self.ind()
+                        ));
                     }
                     return out;
                 }
@@ -11160,17 +14647,37 @@ impl RustCodegen {
                 // M13c: async subscription — for x in subject spawns a subscriber task
                 let is_subject_iter = if let ExprKind::Var(name) = &iter_expr.kind {
                     self.has_async && self.subject_vars.contains(name.as_str())
-                } else { false };
+                } else {
+                    false
+                };
 
                 if is_subject_iter {
-                    let iter_name = if let ExprKind::Var(n) = &iter_expr.kind { n.clone() } else { unreachable!() };
+                    let iter_name = if let ExprKind::Var(n) = &iter_expr.kind {
+                        n.clone()
+                    } else {
+                        unreachable!()
+                    };
                     self.sub_counter += 1;
                     let handle_name = format!("_sub_{}", self.sub_counter);
                     let mut out = String::new();
-                    out.push_str(&format!("{}let mut _rx_{} = {}.subscribe();\n", self.ind(), self.sub_counter, iter_name));
-                    out.push_str(&format!("{}let {} = tokio::spawn(async move {{\n", self.ind(), handle_name));
+                    out.push_str(&format!(
+                        "{}let mut _rx_{} = {}.subscribe();\n",
+                        self.ind(),
+                        self.sub_counter,
+                        iter_name
+                    ));
+                    out.push_str(&format!(
+                        "{}let {} = tokio::spawn(async move {{\n",
+                        self.ind(),
+                        handle_name
+                    ));
                     self.indent += 1;
-                    out.push_str(&format!("{}while let Ok({}) = _rx_{}.recv().await {{\n", self.ind(), var, self.sub_counter));
+                    out.push_str(&format!(
+                        "{}while let Ok({}) = _rx_{}.recv().await {{\n",
+                        self.ind(),
+                        var,
+                        self.sub_counter
+                    ));
                     self.indent += 1;
                     for s in body {
                         out.push_str(&self.emit_stmt(s));
@@ -11181,7 +14688,10 @@ impl RustCodegen {
                     out.push_str(&format!("{}}});\n", self.ind()));
                     // Register handle with current scope if inside one
                     if let Some(scope) = &self.current_scope.clone() {
-                        self.scope_handles.entry(scope.clone()).or_default().push(handle_name);
+                        self.scope_handles
+                            .entry(scope.clone())
+                            .or_default()
+                            .push(handle_name);
                     }
                     return out;
                 }
@@ -11197,26 +14707,36 @@ impl RustCodegen {
                 }
                 // Use mutable_vars (correctly computed by collect_mutable_vars)
                 // to identify accumulators that need assignment instead of let binding
-                let rebound_vars: Vec<String> = body.iter().filter_map(|s| {
-                    if let Stmt::Bind(Pat::Var(name), _, _) = s {
-                        if self.mutable_vars.contains(name.as_str()) {
-                            return Some(name.clone());
+                let rebound_vars: Vec<String> = body
+                    .iter()
+                    .filter_map(|s| {
+                        if let Stmt::Bind(Pat::Var(name), _, _) = s {
+                            if self.mutable_vars.contains(name.as_str()) {
+                                return Some(name.clone());
+                            }
                         }
-                    }
-                    None
-                }).collect();
+                        None
+                    })
+                    .collect();
                 let mut out = String::new();
                 // When iterating over a borrowed param (&Vec), items are &T.
                 // Use `for &var` to auto-deref so the loop variable is T, not &T.
                 let is_borrowed_iter = if let ExprKind::Var(name) = &iter_expr.kind {
                     self.current_borrow_params.contains(name.as_str())
-                } else { false };
+                } else {
+                    false
+                };
                 let loop_var = if is_borrowed_iter {
                     format!("&{}", var)
                 } else {
                     var.clone()
                 };
-                out.push_str(&format!("{}for {} in {} {{\n", self.ind(), loop_var, iter_str));
+                out.push_str(&format!(
+                    "{}for {} in {} {{\n",
+                    self.ind(),
+                    loop_var,
+                    iter_str
+                ));
                 self.indent += 1;
                 for s in body {
                     // If this binding rebinds an accumulator, emit as assignment
@@ -11238,7 +14758,11 @@ impl RustCodegen {
                 let m = self.emit_expr(msg);
                 // M13c: subject send emits broadcast send + yield for deterministic ordering
                 if self.has_async {
-                    let var_name = if let ExprKind::Var(n) = &target.kind { n.clone() } else { t.clone() };
+                    let var_name = if let ExprKind::Var(n) = &target.kind {
+                        n.clone()
+                    } else {
+                        t.clone()
+                    };
                     if self.subject_vars.contains(&var_name) {
                         let mut out = format!("{}let _ = {}.send({});\n", self.ind(), t, m);
                         out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
@@ -11252,7 +14776,11 @@ impl RustCodegen {
                     }
                 }
                 // Sync subject: push to Vec
-                let var_name = if let ExprKind::Var(n) = &target.kind { n.clone() } else { t.clone() };
+                let var_name = if let ExprKind::Var(n) = &target.kind {
+                    n.clone()
+                } else {
+                    t.clone()
+                };
                 if self.sync_subject_vars.contains(&var_name) {
                     return format!("{}{}.push({});\n", self.ind(), t, m);
                 }
@@ -11276,10 +14804,24 @@ impl RustCodegen {
                         } else {
                             None
                         };
-                        let elem_type = self.subject_elem_type.get(name).cloned().unwrap_or_else(|| "i64".to_string());
-                        out.push_str(&format!("{}let ({}, _) = broadcast::channel::<{}>(256);\n", self.ind(), name, elem_type));
+                        let elem_type = self
+                            .subject_elem_type
+                            .get(name)
+                            .cloned()
+                            .unwrap_or_else(|| "i64".to_string());
+                        out.push_str(&format!(
+                            "{}let ({}, _) = broadcast::channel::<{}>(256);\n",
+                            self.ind(),
+                            name,
+                            elem_type
+                        ));
                         if let Some(init) = initial_val {
-                            out.push_str(&format!("{}let _ = {}.send({});\n", self.ind(), name, init));
+                            out.push_str(&format!(
+                                "{}let _ = {}.send({});\n",
+                                self.ind(),
+                                name,
+                                init
+                            ));
                         }
                         return out;
                     }
@@ -11294,26 +14836,45 @@ impl RustCodegen {
                 let mutability = if is_subject { "mut " } else { "" };
                 format!("{}let {}{} = {};\n", self.ind(), mutability, name, val)
             }
-            Stmt::Invariant { name, subject, predicate } => {
+            Stmt::Invariant {
+                name,
+                subject,
+                predicate,
+            } => {
                 // Store invariant for later ? verification — no assertion here,
                 // the ? rune is where verification actually happens
-                self.codegen_invariants.insert(name.clone(), (subject.clone(), predicate.clone()));
-                format!("{}// | {}: invariant (checked by ? rune)\n", self.ind(), name)
+                self.codegen_invariants
+                    .insert(name.clone(), (subject.clone(), predicate.clone()));
+                format!(
+                    "{}// | {}: invariant (checked by ? rune)\n",
+                    self.ind(),
+                    name
+                )
             }
-            Stmt::Prove { name, capture, pass_block, else_block } => {
+            Stmt::Prove {
+                name,
+                capture,
+                pass_block,
+                else_block,
+            } => {
                 // ? name → runtime verification with inlined predicate
                 let mut out = String::new();
 
                 // Collect target invariants: single name or "all"
                 let targets: Vec<(String, Expr, Expr)> = if name == "all" {
-                    self.codegen_invariants.iter()
+                    self.codegen_invariants
+                        .iter()
                         .map(|(n, (s, p))| (n.clone(), s.clone(), p.clone()))
                         .collect()
                 } else if let Some((s, p)) = self.codegen_invariants.get(name) {
                     vec![(name.clone(), s.clone(), p.clone())]
                 } else {
                     // Fallback: emit a compile-time warning comment
-                    out.push_str(&format!("{}// ? {}: invariant not found\n", self.ind(), name));
+                    out.push_str(&format!(
+                        "{}// ? {}: invariant not found\n",
+                        self.ind(),
+                        name
+                    ));
                     return out;
                 };
 
@@ -11321,7 +14882,8 @@ impl RustCodegen {
                 let has_blocks = pass_block.is_some() || else_block.is_some();
                 if name == "all" && has_blocks && targets.len() > 1 {
                     // Combine all predicates into one boolean
-                    let combined: Vec<String> = targets.iter()
+                    let combined: Vec<String> = targets
+                        .iter()
                         .map(|(_, _, p)| format!("({})", self.emit_expr(p)))
                         .collect();
                     let all_pred = combined.join(" && ");
@@ -11331,7 +14893,9 @@ impl RustCodegen {
                         (Some(pass), None) => {
                             out.push_str(&format!("{}if {} {{\n", self.ind(), all_pred));
                             self.indent += 1;
-                            for s in pass { out.push_str(&self.emit_stmt(s)); }
+                            for s in pass {
+                                out.push_str(&self.emit_stmt(s));
+                            }
                             self.indent -= 1;
                             out.push_str(&format!("{}}} else {{\n", self.ind()));
                             self.indent += 1;
@@ -11342,18 +14906,24 @@ impl RustCodegen {
                         (None, Some(fail)) => {
                             out.push_str(&format!("{}if !({}) {{\n", self.ind(), all_pred));
                             self.indent += 1;
-                            for s in fail { out.push_str(&self.emit_stmt(s)); }
+                            for s in fail {
+                                out.push_str(&self.emit_stmt(s));
+                            }
                             self.indent -= 1;
                             out.push_str(&format!("{}}}\n", self.ind()));
                         }
                         (Some(pass), Some(fail)) => {
                             out.push_str(&format!("{}if {} {{\n", self.ind(), all_pred));
                             self.indent += 1;
-                            for s in pass { out.push_str(&self.emit_stmt(s)); }
+                            for s in pass {
+                                out.push_str(&self.emit_stmt(s));
+                            }
                             self.indent -= 1;
                             out.push_str(&format!("{}}} else {{\n", self.ind()));
                             self.indent += 1;
-                            for s in fail { out.push_str(&self.emit_stmt(s)); }
+                            for s in fail {
+                                out.push_str(&self.emit_stmt(s));
+                            }
                             self.indent -= 1;
                             out.push_str(&format!("{}}}\n", self.ind()));
                         }
@@ -11366,44 +14936,85 @@ impl RustCodegen {
 
                         // Bind capture variable if requested
                         if let Some(cap) = capture {
-                            out.push_str(&format!("{}let {} = {}.clone();\n", self.ind(), cap, subj_str));
+                            out.push_str(&format!(
+                                "{}let {} = {}.clone();\n",
+                                self.ind(),
+                                cap,
+                                subj_str
+                            ));
                         }
 
                         match (pass_block, else_block) {
                             (None, None) => {
                                 // Bare ? name — assert and panic on failure
-                                out.push_str(&format!("{}// ? {}\n{}assert!({}, \"? {} FAILED\");\n",
-                                    self.ind(), inv_name, self.ind(), pred_str, inv_name));
+                                out.push_str(&format!(
+                                    "{}// ? {}\n{}assert!({}, \"? {} FAILED\");\n",
+                                    self.ind(),
+                                    inv_name,
+                                    self.ind(),
+                                    pred_str,
+                                    inv_name
+                                ));
                             }
                             (Some(pass), None) => {
                                 // ? name -> { pass } — run pass block, panic on failure
-                                out.push_str(&format!("{}// ? {}\n{}if {} {{\n", self.ind(), inv_name, self.ind(), pred_str));
+                                out.push_str(&format!(
+                                    "{}// ? {}\n{}if {} {{\n",
+                                    self.ind(),
+                                    inv_name,
+                                    self.ind(),
+                                    pred_str
+                                ));
                                 self.indent += 1;
-                                for s in pass { out.push_str(&self.emit_stmt(s)); }
+                                for s in pass {
+                                    out.push_str(&self.emit_stmt(s));
+                                }
                                 self.indent -= 1;
                                 out.push_str(&format!("{}}} else {{\n", self.ind()));
                                 self.indent += 1;
-                                out.push_str(&format!("{}panic!(\"? {} FAILED\");\n", self.ind(), inv_name));
+                                out.push_str(&format!(
+                                    "{}panic!(\"? {} FAILED\");\n",
+                                    self.ind(),
+                                    inv_name
+                                ));
                                 self.indent -= 1;
                                 out.push_str(&format!("{}}}\n", self.ind()));
                             }
                             (None, Some(fail)) => {
                                 // ? name else { fail } — custom fail handler, no halt
-                                out.push_str(&format!("{}// ? {}\n{}if !({}) {{\n", self.ind(), inv_name, self.ind(), pred_str));
+                                out.push_str(&format!(
+                                    "{}// ? {}\n{}if !({}) {{\n",
+                                    self.ind(),
+                                    inv_name,
+                                    self.ind(),
+                                    pred_str
+                                ));
                                 self.indent += 1;
-                                for s in fail { out.push_str(&self.emit_stmt(s)); }
+                                for s in fail {
+                                    out.push_str(&self.emit_stmt(s));
+                                }
                                 self.indent -= 1;
                                 out.push_str(&format!("{}}}\n", self.ind()));
                             }
                             (Some(pass), Some(fail)) => {
                                 // ? name -> { pass } else { fail } — both branches, no halt
-                                out.push_str(&format!("{}// ? {}\n{}if {} {{\n", self.ind(), inv_name, self.ind(), pred_str));
+                                out.push_str(&format!(
+                                    "{}// ? {}\n{}if {} {{\n",
+                                    self.ind(),
+                                    inv_name,
+                                    self.ind(),
+                                    pred_str
+                                ));
                                 self.indent += 1;
-                                for s in pass { out.push_str(&self.emit_stmt(s)); }
+                                for s in pass {
+                                    out.push_str(&self.emit_stmt(s));
+                                }
                                 self.indent -= 1;
                                 out.push_str(&format!("{}}} else {{\n", self.ind()));
                                 self.indent += 1;
-                                for s in fail { out.push_str(&self.emit_stmt(s)); }
+                                for s in fail {
+                                    out.push_str(&self.emit_stmt(s));
+                                }
                                 self.indent -= 1;
                                 out.push_str(&format!("{}}}\n", self.ind()));
                             }
@@ -11421,25 +15032,47 @@ impl RustCodegen {
                     // Object store: serialize struct to JSON, INSERT OR REPLACE
                     let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
                     // Build struct literal with named fields (named struct) or positional (tuple struct)
-                    let is_positional = self.types.variant_positional.get(type_name.as_str()).copied().unwrap_or(false);
+                    let is_positional = self
+                        .types
+                        .variant_positional
+                        .get(type_name.as_str())
+                        .copied()
+                        .unwrap_or(false);
                     let construct = if is_positional {
                         format!("{}({})", sname, arg_strs.join(", "))
                     } else {
                         // Named fields
-                        let fields = self.types.variant_fields.get(type_name.as_str())
-                            .cloned().unwrap_or_default();
-                        let pairs: Vec<String> = fields.iter().zip(arg_strs.iter())
+                        let fields = self
+                            .types
+                            .variant_fields
+                            .get(type_name.as_str())
+                            .cloned()
+                            .unwrap_or_default();
+                        let pairs: Vec<String> = fields
+                            .iter()
+                            .zip(arg_strs.iter())
                             .map(|(f, v)| format!("{}: {}", sanitize_name(f), v))
                             .collect();
                         format!("{} {{ {} }}", sname, pairs.join(", "))
                     };
-                    out.push_str(&format!("{}{{ // assert {} (object store)\n", self.ind(), type_name));
+                    out.push_str(&format!(
+                        "{}{{ // assert {} (object store)\n",
+                        self.ind(),
+                        type_name
+                    ));
                     self.indent += 1;
                     out.push_str(&format!("{}let __val = {};\n", self.ind(), construct));
                     out.push_str(&format!("{}let __json = serde_json::to_string(&__val).expect(\"serialize failed\");\n", self.ind()));
                     // First field is the key — use Display for the key value
-                    out.push_str(&format!("{}let __key = format!(\"{{}}\", __val.{});\n", self.ind(),
-                        self.types.stored_type_key_field.get(type_name.as_str()).cloned().unwrap_or_else(|| "0".to_string())));
+                    out.push_str(&format!(
+                        "{}let __key = format!(\"{{}}\", __val.{});\n",
+                        self.ind(),
+                        self.types
+                            .stored_type_key_field
+                            .get(type_name.as_str())
+                            .cloned()
+                            .unwrap_or_else(|| "0".to_string())
+                    ));
                     out.push_str(&format!("{}__db.lock().unwrap().execute(\"INSERT OR REPLACE INTO {} (id, data) VALUES (?1, ?2)\", rusqlite::params![__key, __json]).expect(\"assert failed\");\n",
                         self.ind(), sname.to_lowercase()));
                     self.indent -= 1;
@@ -11447,8 +15080,12 @@ impl RustCodegen {
                 } else {
                     // Not a stored type — emit as constructor expression (future: in-memory facts)
                     let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
-                    out.push_str(&format!("{}// assert {}({}) — not a stored type, no-op\n",
-                        self.ind(), type_name, arg_strs.join(", ")));
+                    out.push_str(&format!(
+                        "{}// assert {}({}) — not a stored type, no-op\n",
+                        self.ind(),
+                        type_name,
+                        arg_strs.join(", ")
+                    ));
                 }
                 out
             }
@@ -11463,12 +15100,20 @@ impl RustCodegen {
                         out.push_str(&format!("{}__db.lock().unwrap().execute(\"DELETE FROM {} WHERE id = ?1\", rusqlite::params![format!(\"{{}}\", {})] ).expect(\"retract failed\");\n",
                             self.ind(), sname.to_lowercase(), key_str));
                     } else {
-                        out.push_str(&format!("{}// retract {} — no arguments\n", self.ind(), type_name));
+                        out.push_str(&format!(
+                            "{}// retract {} — no arguments\n",
+                            self.ind(),
+                            type_name
+                        ));
                     }
                 } else {
                     let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
-                    out.push_str(&format!("{}// retract {}({}) — not a stored type, no-op\n",
-                        self.ind(), type_name, arg_strs.join(", ")));
+                    out.push_str(&format!(
+                        "{}// retract {}({}) — not a stored type, no-op\n",
+                        self.ind(),
+                        type_name,
+                        arg_strs.join(", ")
+                    ));
                 }
                 out
             }
@@ -11536,11 +15181,21 @@ impl RustCodegen {
                         if let ExprKind::Var(arg_name) = &&args[0].kind {
                             if arg_name == "self" {
                                 // Rewrite: fn_name(self, ...) → self.fn_name(...)
-                                let remaining_args: Vec<Expr> = args[1..].iter().map(|a| Self::rewrite_self_calls(a)).collect();
+                                let remaining_args: Vec<Expr> = args[1..]
+                                    .iter()
+                                    .map(|a| Self::rewrite_self_calls(a))
+                                    .collect();
                                 return ExprKind::App(
-                                    Box::new(ExprKind::Field(Box::new(ExprKind::Var("self".into()).into()), fn_name.clone()).into()),
+                                    Box::new(
+                                        ExprKind::Field(
+                                            Box::new(ExprKind::Var("self".into()).into()),
+                                            fn_name.clone(),
+                                        )
+                                        .into(),
+                                    ),
                                     remaining_args,
-                                ).into();
+                                )
+                                .into();
                             }
                         }
                     }
@@ -11548,21 +15203,34 @@ impl RustCodegen {
                 ExprKind::App(
                     Box::new(Self::rewrite_self_calls(func)),
                     args.iter().map(|a| Self::rewrite_self_calls(a)).collect(),
-                ).into()
+                )
+                .into()
             }
-            ExprKind::BinOp(op, l, r) => {
-                ExprKind::BinOp(op.clone(), Box::new(Self::rewrite_self_calls(l)), Box::new(Self::rewrite_self_calls(r))).into()
-            }
-            ExprKind::If(c, t, e) => {
-                ExprKind::If(Box::new(Self::rewrite_self_calls(c)), Box::new(Self::rewrite_self_calls(t)), Box::new(Self::rewrite_self_calls(e))).into()
-            }
-            ExprKind::Block(stmts) => {
-                ExprKind::Block(stmts.iter().map(|s| match s {
-                    Stmt::Expr(e) => Stmt::Expr(Self::rewrite_self_calls(e)),
-                    Stmt::Bind(p, t, e) => Stmt::Bind(p.clone(), t.clone(), Self::rewrite_self_calls(e)),
-                    other => other.clone(),
-                }).collect()).into()
-            }
+            ExprKind::BinOp(op, l, r) => ExprKind::BinOp(
+                op.clone(),
+                Box::new(Self::rewrite_self_calls(l)),
+                Box::new(Self::rewrite_self_calls(r)),
+            )
+            .into(),
+            ExprKind::If(c, t, e) => ExprKind::If(
+                Box::new(Self::rewrite_self_calls(c)),
+                Box::new(Self::rewrite_self_calls(t)),
+                Box::new(Self::rewrite_self_calls(e)),
+            )
+            .into(),
+            ExprKind::Block(stmts) => ExprKind::Block(
+                stmts
+                    .iter()
+                    .map(|s| match s {
+                        Stmt::Expr(e) => Stmt::Expr(Self::rewrite_self_calls(e)),
+                        Stmt::Bind(p, t, e) => {
+                            Stmt::Bind(p.clone(), t.clone(), Self::rewrite_self_calls(e))
+                        }
+                        other => other.clone(),
+                    })
+                    .collect(),
+            )
+            .into(),
             _ => expr.clone(),
         }
     }
@@ -11592,11 +15260,12 @@ impl RustCodegen {
     /// Check if an expression is likely a Copy type (no clone needed)
     /// Conservative: only skip clone for literals
     fn is_copy_type_expr(&self, expr: &Expr) -> bool {
-        matches!(expr.kind,
-            ExprKind::Lit(Literal::Int(_)) |
-            ExprKind::Lit(Literal::Float(_)) |
-            ExprKind::Lit(Literal::Bool(_)) |
-            ExprKind::Lit(Literal::Char(_))
+        matches!(
+            expr.kind,
+            ExprKind::Lit(Literal::Int(_))
+                | ExprKind::Lit(Literal::Float(_))
+                | ExprKind::Lit(Literal::Bool(_))
+                | ExprKind::Lit(Literal::Char(_))
         )
     }
 
@@ -11604,14 +15273,18 @@ impl RustCodegen {
     fn collect_inout_mutables_stmts(&mut self, stmts: &[&Stmt]) {
         for stmt in stmts {
             match stmt {
-                Stmt::Expr(expr) | Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr)
-                    | Stmt::StreamBind(_, expr) => {
+                Stmt::Expr(expr)
+                | Stmt::Bind(_, _, expr)
+                | Stmt::MonadicBind(_, _, expr)
+                | Stmt::StreamBind(_, expr) => {
                     self.collect_inout_mutables_expr(expr);
                 }
                 Stmt::StreamSub(expr, arms) => {
                     self.collect_inout_mutables_expr(expr);
                     for arm in arms {
-                        if let Some(g) = &arm.guard { self.collect_inout_mutables_expr(g); }
+                        if let Some(g) = &arm.guard {
+                            self.collect_inout_mutables_expr(g);
+                        }
                         self.collect_inout_mutables_expr(&arm.body);
                     }
                 }
@@ -11640,7 +15313,9 @@ impl RustCodegen {
                     }
                 }
                 self.collect_inout_mutables_expr(func);
-                for a in args { self.collect_inout_mutables_expr(a); }
+                for a in args {
+                    self.collect_inout_mutables_expr(a);
+                }
             }
             ExprKind::BinOp(_, l, r) => {
                 self.collect_inout_mutables_expr(l);
@@ -11667,9 +15342,22 @@ impl RustCodegen {
             ExprKind::BinOp(_, lhs, rhs) => self.expr_is_float(lhs) || self.expr_is_float(rhs),
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    if matches!(name.as_str(), "to_float" | "sqrt" | "exp" | "ln" | "pow"
-                        | "abs" | "round" | "floor" | "min_f" | "max_f" | "parse_float"
-                        | "phi" | "mint" ) {
+                    if matches!(
+                        name.as_str(),
+                        "to_float"
+                            | "sqrt"
+                            | "exp"
+                            | "ln"
+                            | "pow"
+                            | "abs"
+                            | "round"
+                            | "floor"
+                            | "min_f"
+                            | "max_f"
+                            | "parse_float"
+                            | "phi"
+                            | "mint"
+                            ) {
                         return true;
                     }
                     // foldl with float initial value → result is float
@@ -11691,7 +15379,9 @@ impl RustCodegen {
                 if let ExprKind::Var(f) = &func.as_ref().kind {
                     if (f == "fst" || f == "snd") && args.len() == 1 {
                         if let ExprKind::Var(a) = &&args[0].kind {
-                            if a == var_name { return true; }
+                            if a == var_name {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -11728,14 +15418,18 @@ impl RustCodegen {
             }
             ExprKind::App(func, args) => {
                 self.collect_field_accesses(func, var_name, fields);
-                for a in args { self.collect_field_accesses(a, var_name, fields); }
+                for a in args {
+                    self.collect_field_accesses(a, var_name, fields);
+                }
             }
             ExprKind::If(c, t, e) => {
                 self.collect_field_accesses(c, var_name, fields);
                 self.collect_field_accesses(t, var_name, fields);
                 self.collect_field_accesses(e, var_name, fields);
             }
-            ExprKind::UnOp(_, inner) => { self.collect_field_accesses(inner, var_name, fields); }
+            ExprKind::UnOp(_, inner) => {
+                self.collect_field_accesses(inner, var_name, fields);
+            }
             _ => {}
         }
     }
@@ -11746,13 +15440,21 @@ impl RustCodegen {
         let mut accessed_fields = BTreeSet::new();
         for rule in rules {
             let (value, condition) = match rule {
-                Rule::Default { value, condition, .. } => (Some(value), condition.as_ref()),
-                Rule::Exception { value, condition, .. } => (Some(value), condition.as_ref()),
+                Rule::Default {
+                    value, condition, ..
+                } => (Some(value), condition.as_ref()),
+                Rule::Exception {
+                    value, condition, ..
+                } => (Some(value), condition.as_ref()),
                 Rule::Clause { body, .. } => (body.as_ref(), None),
                 _ => (None, None),
             };
-            if let Some(v) = value { self.collect_field_accesses(v, param, &mut accessed_fields); }
-            if let Some(c) = condition { self.collect_field_accesses(c, param, &mut accessed_fields); }
+            if let Some(v) = value {
+                self.collect_field_accesses(v, param, &mut accessed_fields);
+            }
+            if let Some(c) = condition {
+                self.collect_field_accesses(c, param, &mut accessed_fields);
+            }
         }
         if !accessed_fields.is_empty() {
             // Find the struct/variant whose fields are a superset of accessed_fields
@@ -11765,22 +15467,31 @@ impl RustCodegen {
         }
         // Fallback: infer type from match patterns on this parameter
         // e.g. match v { HeartRate(bpm: b) -> ... } → look up HeartRate in variant_parent
-        let rule_exprs: Vec<Vec<&Expr>> = rules.iter().map(|rule| {
-            match rule {
-                Rule::Default { value, condition, .. } => {
+        let rule_exprs: Vec<Vec<&Expr>> = rules
+            .iter()
+            .map(|rule| match rule {
+                Rule::Default {
+                    value, condition, ..
+                } => {
                     let mut v = vec![value];
-                    if let Some(c) = condition { v.push(c); }
+                    if let Some(c) = condition {
+                        v.push(c);
+                    }
                     v
                 }
-                Rule::Exception { value, condition, .. } => {
+                Rule::Exception {
+                    value, condition, ..
+                } => {
                     let mut v = vec![value];
-                    if let Some(c) = condition { v.push(c); }
+                    if let Some(c) = condition {
+                        v.push(c);
+                    }
                     v
                 }
                 Rule::Clause { body, .. } => body.iter().collect(),
                 _ => vec![],
-            }
-        }).collect();
+            })
+            .collect();
         for exprs in &rule_exprs {
             for expr in exprs {
                 if let Some(ty) = self.infer_param_type_from_match(param, expr) {
@@ -11791,7 +15502,12 @@ impl RustCodegen {
         // Fallback 3: infer type from `param == Constructor` comparisons in conditions
         for rule in rules {
             let condition = match rule {
-                Rule::Default { condition: Some(c), .. } | Rule::Exception { condition: Some(c), .. } => c,
+                Rule::Default {
+                    condition: Some(c), ..
+                }
+                | Rule::Exception {
+                    condition: Some(c), ..
+                } => c,
                 _ => continue,
             };
             if let Some(ty) = self.infer_param_type_from_comparison(param, condition) {
@@ -11821,11 +15537,15 @@ impl RustCodegen {
     fn infer_param_type_from_expr_usage(&self, param: &str, expr: &Expr) -> Option<String> {
         match &expr.kind {
             ExprKind::BinOp(op, lhs, rhs) => {
-                let is_numeric_op = matches!(op.as_str(),
-                    ">=" | "<=" | ">" | "<" | "+" | "-" | "*" | "/" | "%");
+                let is_numeric_op = matches!(
+                    op.as_str(),
+                    ">=" | "<=" | ">" | "<" | "+" | "-" | "*" | "/" | "%"
+                );
                 if is_numeric_op {
-                    let lhs_is_param = matches!(lhs.as_ref().kind, ExprKind::Var(ref n) if n == param);
-                    let rhs_is_param = matches!(rhs.as_ref().kind, ExprKind::Var(ref n) if n == param);
+                    let lhs_is_param =
+                        matches!(lhs.as_ref().kind, ExprKind::Var(ref n) if n == param);
+                    let rhs_is_param =
+                        matches!(rhs.as_ref().kind, ExprKind::Var(ref n) if n == param);
                     if lhs_is_param || rhs_is_param {
                         // Check the other operand for type hints
                         let other = if lhs_is_param { rhs } else { lhs };
@@ -11870,14 +15590,11 @@ impl RustCodegen {
                 }
                 None
             }
-            ExprKind::If(cond, then_br, else_br) => {
-                self.infer_param_type_from_expr_usage(param, cond)
-                    .or_else(|| self.infer_param_type_from_expr_usage(param, then_br))
-                    .or_else(|| self.infer_param_type_from_expr_usage(param, else_br))
-            }
-            ExprKind::UnOp(_, inner) => {
-                self.infer_param_type_from_expr_usage(param, inner)
-            }
+            ExprKind::If(cond, then_br, else_br) => self
+                .infer_param_type_from_expr_usage(param, cond)
+                .or_else(|| self.infer_param_type_from_expr_usage(param, then_br))
+                .or_else(|| self.infer_param_type_from_expr_usage(param, else_br)),
+            ExprKind::UnOp(_, inner) => self.infer_param_type_from_expr_usage(param, inner),
             _ => None,
         }
     }
@@ -11909,10 +15626,9 @@ impl RustCodegen {
                 }
                 None
             }
-            ExprKind::BinOp(_, lhs, rhs) => {
-                self.infer_param_type_from_comparison(param, lhs)
-                    .or_else(|| self.infer_param_type_from_comparison(param, rhs))
-            }
+            ExprKind::BinOp(_, lhs, rhs) => self
+                .infer_param_type_from_comparison(param, lhs)
+                .or_else(|| self.infer_param_type_from_comparison(param, rhs)),
             _ => None,
         }
     }
@@ -11945,29 +15661,35 @@ impl RustCodegen {
                 None
             }
             ExprKind::App(func, args) => {
-                if let Some(ty) = self.infer_param_type_from_match(param, func) { return Some(ty); }
-                for a in args { if let Some(ty) = self.infer_param_type_from_match(param, a) { return Some(ty); } }
+                if let Some(ty) = self.infer_param_type_from_match(param, func) {
+                    return Some(ty);
+                }
+                for a in args {
+                    if let Some(ty) = self.infer_param_type_from_match(param, a) {
+                        return Some(ty);
+                    }
+                }
                 None
             }
-            ExprKind::BinOp(_, lhs, rhs) => {
-                self.infer_param_type_from_match(param, lhs).or_else(|| self.infer_param_type_from_match(param, rhs))
-            }
-            ExprKind::If(c, t, e) => {
-                self.infer_param_type_from_match(param, c)
-                    .or_else(|| self.infer_param_type_from_match(param, t))
-                    .or_else(|| self.infer_param_type_from_match(param, e))
-            }
+            ExprKind::BinOp(_, lhs, rhs) => self
+                .infer_param_type_from_match(param, lhs)
+                .or_else(|| self.infer_param_type_from_match(param, rhs)),
+            ExprKind::If(c, t, e) => self
+                .infer_param_type_from_match(param, c)
+                .or_else(|| self.infer_param_type_from_match(param, t))
+                .or_else(|| self.infer_param_type_from_match(param, e)),
             _ => None,
         }
     }
-
 
     /// Infer the return type of a rule function from constructor calls in value expressions.
     fn infer_rule_return_type(&self, rules: &[&Rule]) -> Option<String> {
         for rule in rules {
             let value = match rule {
                 Rule::Default { value, .. } | Rule::Exception { value, .. } => value,
-                Rule::Clause { body: Some(body), .. } => body,
+                Rule::Clause {
+                    body: Some(body), ..
+                } => body,
                 _ => continue,
             };
             if let Some(ty) = self.infer_type_from_expr(value) {
@@ -12007,9 +15729,9 @@ impl RustCodegen {
                 }
                 None
             }
-            ExprKind::If(_, then_br, else_br) => {
-                self.infer_type_from_expr(then_br).or_else(|| self.infer_type_from_expr(else_br))
-            }
+            ExprKind::If(_, then_br, else_br) => self
+                .infer_type_from_expr(then_br)
+                .or_else(|| self.infer_type_from_expr(else_br)),
             _ => None,
         }
     }
@@ -12062,7 +15784,11 @@ impl RustCodegen {
             ExprKind::Var(name) => {
                 // If this variable has consuming uses elsewhere, clone for format!
                 // so the original stays available for consuming function calls in the chain
-                let consuming = self.var_consuming_counts.get(name.as_str()).copied().unwrap_or(0);
+                let consuming = self
+                    .var_consuming_counts
+                    .get(name.as_str())
+                    .copied()
+                    .unwrap_or(0);
                 let is_copy = self.copy_vars.contains(name.as_str());
                 if consuming > 0 && !is_copy {
                     vec![format!("expr:{}.clone()", sanitize_name(name))]
@@ -12098,13 +15824,24 @@ impl RustCodegen {
     /// Check if an expression evaluates to an async broadcast stream.
     /// Returns true for: subject variables, and stream ops applied to async streams.
     fn is_async_stream_expr(&self, expr: &Expr) -> bool {
-        if !self.has_async { return false; }
+        if !self.has_async {
+            return false;
+        }
         match &expr.kind {
             ExprKind::Var(name) => self.subject_vars.contains(name.as_str()),
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    let stream_ops = ["map", "filter", "scan", "take", "skip", "tap",
-                                      "merge", "start_with", "concat"];
+                    let stream_ops = [
+                        "map",
+                        "filter",
+                        "scan",
+                        "take",
+                        "skip",
+                        "tap",
+                        "merge",
+                        "start_with",
+                        "concat",
+                    ];
                     if stream_ops.contains(&name.as_str()) && !args.is_empty() {
                         return self.is_async_stream_expr(&args[0]);
                     }
@@ -12250,7 +15987,15 @@ impl RustCodegen {
     fn is_fusible_vec_op(expr: &Expr) -> bool {
         if let ExprKind::App(func, args) = &expr.kind {
             if let ExprKind::Var(name) = &func.as_ref().kind {
-                let fusible = ["map", "filter", "take", "skip", "flat_map", "take_while", "drop_while"];
+                let fusible = [
+                    "map",
+                    "filter",
+                    "take",
+                    "skip",
+                    "flat_map",
+                    "take_while",
+                    "drop_while",
+                ];
                 return fusible.contains(&name.as_str()) && !args.is_empty();
             }
         }
@@ -12260,14 +16005,30 @@ impl RustCodegen {
     /// Try to fuse a chain of Vec iterator ops into a single .into_iter()...collect().
     /// Returns None if this isn't a fusible chain (i.e., source arg isn't another fusible op).
     fn try_emit_fused_chain(&mut self, name: &str, args: &[Expr]) -> Option<String> {
-        let fusible = ["map", "filter", "take", "skip", "flat_map", "take_while", "drop_while"];
-        if !fusible.contains(&name) || args.is_empty() { return None; }
+        let fusible = [
+            "map",
+            "filter",
+            "take",
+            "skip",
+            "flat_map",
+            "take_while",
+            "drop_while",
+        ];
+        if !fusible.contains(&name) || args.is_empty() {
+            return None;
+        }
         // Only fuse if the first arg is ALSO a fusible op (chain of 2+)
-        if !Self::is_fusible_vec_op(&args[0]) { return None; }
+        if !Self::is_fusible_vec_op(&args[0]) {
+            return None;
+        }
         // Don't fuse async stream expressions
-        if self.is_async_stream_expr(&args[0]) { return None; }
+        if self.is_async_stream_expr(&args[0]) {
+            return None;
+        }
         // User-defined functions shadow builtins — don't fuse those
-        if self.types.user_functions.contains(name) { return None; }
+        if self.types.user_functions.contains(name) {
+            return None;
+        }
 
         // Collect the chain: walk nested fusible ops, building (op_name, extra_args) list
         let mut chain: Vec<(&str, &[Expr])> = Vec::new();
@@ -12276,8 +16037,10 @@ impl RustCodegen {
         let mut source = &args[0];
         while let ExprKind::App(func, inner_args) = &source.kind {
             if let ExprKind::Var(inner_name) = &func.as_ref().kind {
-                if fusible.contains(&inner_name.as_str()) && !inner_args.is_empty()
-                    && !self.types.user_functions.contains(inner_name.as_str()) {
+                if fusible.contains(&inner_name.as_str())
+                    && !inner_args.is_empty()
+                    && !self.types.user_functions.contains(inner_name.as_str())
+                {
                     chain.push((inner_name.as_str(), &inner_args[1..]));
                     source = &inner_args[0];
                     continue;
@@ -12390,87 +16153,108 @@ impl RustCodegen {
                     .unwrap_or(false);
 
                 // Check if the called function has inout params
-                let inout_flags = resolved_fn_name
-                    .and_then(|n| self.types.inout_params.get(n).cloned());
+                let inout_flags =
+                    resolved_fn_name.and_then(|n| self.types.inout_params.get(n).cloned());
 
                 // Phase 2: Check if the called function has auto-borrow params
-                let borrow_flags = resolved_fn_name
-                    .and_then(|n| self.borrow_only_params.get(n).cloned());
+                let borrow_flags =
+                    resolved_fn_name.and_then(|n| self.borrow_only_params.get(n).cloned());
 
-                let args_str: Vec<String> = args.iter().enumerate().map(|(idx, a)| {
-                    // inout parameter: emit &mut var (no clone — passed by mutable reference)
-                    let is_inout = inout_flags.as_ref().map(|f| f.get(idx).copied().unwrap_or(false)).unwrap_or(false);
-                    if is_inout {
-                        if let ExprKind::Var(n) = &a.kind {
-                            // Copy-on-write: shared + inout → Arc::make_mut
-                            let is_cow = resolved_fn_name
-                                .and_then(|fn_n| self.types.cow_params.get(fn_n))
-                                .map(|f| f.get(idx).copied().unwrap_or(false))
-                                .unwrap_or(false);
-                            if is_cow {
-                                return format!("std::sync::Arc::make_mut(&mut {})", sanitize_name(n));
+                let args_str: Vec<String> = args
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, a)| {
+                        // inout parameter: emit &mut var (no clone — passed by mutable reference)
+                        let is_inout = inout_flags
+                            .as_ref()
+                            .map(|f| f.get(idx).copied().unwrap_or(false))
+                            .unwrap_or(false);
+                        if is_inout {
+                            if let ExprKind::Var(n) = &a.kind {
+                                // Copy-on-write: shared + inout → Arc::make_mut
+                                let is_cow = resolved_fn_name
+                                    .and_then(|fn_n| self.types.cow_params.get(fn_n))
+                                    .map(|f| f.get(idx).copied().unwrap_or(false))
+                                    .unwrap_or(false);
+                                if is_cow {
+                                    return format!(
+                                        "std::sync::Arc::make_mut(&mut {})",
+                                        sanitize_name(n)
+                                    );
+                                }
+                                return format!("&mut {}", sanitize_name(n));
                             }
-                            return format!("&mut {}", sanitize_name(n));
                         }
-                    }
 
-                    // Phase 2/3b: Auto-borrow parameter — emit &var (no ownership transfer)
-                    // Phase 3b: If the arg variable is already a borrowed param (&T), don't double-borrow
-                    let is_borrow_param = borrow_flags.as_ref().map(|f| f.get(idx).copied().unwrap_or(false)).unwrap_or(false);
-                    if is_borrow_param {
-                        if let ExprKind::Var(n) = &a.kind {
-                            if self.current_borrow_params.contains(n.as_str()) {
-                                return self.emit_expr(a); // already &T, don't emit &&T
+                        // Phase 2/3b: Auto-borrow parameter — emit &var (no ownership transfer)
+                        // Phase 3b: If the arg variable is already a borrowed param (&T), don't double-borrow
+                        let is_borrow_param = borrow_flags
+                            .as_ref()
+                            .map(|f| f.get(idx).copied().unwrap_or(false))
+                            .unwrap_or(false);
+                        if is_borrow_param {
+                            if let ExprKind::Var(n) = &a.kind {
+                                if self.current_borrow_params.contains(n.as_str()) {
+                                    return self.emit_expr(a); // already &T, don't emit &&T
+                                }
                             }
+                            let s = self.emit_expr(a);
+                            return format!("&{}", s);
                         }
-                        let s = self.emit_expr(a);
-                        return format!("&{}", s);
-                    }
 
-                    let s = if is_method_call || is_prolog_call {
-                        if let ExprKind::Lit(Literal::Str(ref str_val)) = &a.kind {
-                            format!("{:?}", str_val) // &str, no .to_string()
-                        } else if is_prolog_call {
-                            // Prolog functions take &str; variables may be String — coerce with &*
-                            let base = self.emit_expr(a);
-                            let param_is_str = resolved_fn_name
-                                .and_then(|n| self.types.prolog_rule_fns.get(n))
-                                .and_then(|types| types.get(idx))
-                                .map(|t| t == "&str")
-                                .unwrap_or(false);
-                            if param_is_str && matches!(a.kind, ExprKind::Var(ref n) if n != "_") {
-                                format!("&*{}", base)
+                        let s = if is_method_call || is_prolog_call {
+                            if let ExprKind::Lit(Literal::Str(ref str_val)) = &a.kind {
+                                format!("{:?}", str_val) // &str, no .to_string()
+                            } else if is_prolog_call {
+                                // Prolog functions take &str; variables may be String — coerce with &*
+                                let base = self.emit_expr(a);
+                                let param_is_str = resolved_fn_name
+                                    .and_then(|n| self.types.prolog_rule_fns.get(n))
+                                    .and_then(|types| types.get(idx))
+                                    .map(|t| t == "&str")
+                                    .unwrap_or(false);
+                                if param_is_str
+                                    && matches!(a.kind, ExprKind::Var(ref n) if n != "_")
+                                {
+                                    format!("&*{}", base)
+                                } else {
+                                    base
+                                }
                             } else {
-                                base
+                                self.emit_expr(a)
                             }
                         } else {
                             self.emit_expr(a)
-                        }
-                    } else {
-                        self.emit_expr(a)
-                    };
-                    // Escape analysis with borrow awareness:
-                    // 1. Constructors: never clone (enum variants)
-                    // 2. Copy types: never clone (i64, f64, char — free to duplicate)
-                    // 3. Borrow builtins (show → .to_string()): never clone (borrows via &self)
-                    // 4. Single consuming use: move (no clone)
-                    // 5. Multiple consuming uses: clone
-                    if let ExprKind::Var(n) = &a.kind {
-                        if self.types.variant_parent.contains_key(n.as_str()) {
-                            s // Constructor — never clone
-                        } else if self.copy_vars.contains(n.as_str()) {
-                            s // Copy type — no clone needed (free to duplicate)
-                        } else if is_borrow_call {
-                            s // Borrow builtin (show) — borrows via &self, no clone
-                        } else if self.var_consuming_counts.get(n.as_str()).copied().unwrap_or(0) <= 1 {
-                            s // 0-1 consuming uses — this is the only ownership transfer
+                        };
+                        // Escape analysis with borrow awareness:
+                        // 1. Constructors: never clone (enum variants)
+                        // 2. Copy types: never clone (i64, f64, char — free to duplicate)
+                        // 3. Borrow builtins (show → .to_string()): never clone (borrows via &self)
+                        // 4. Single consuming use: move (no clone)
+                        // 5. Multiple consuming uses: clone
+                        if let ExprKind::Var(n) = &a.kind {
+                            if self.types.variant_parent.contains_key(n.as_str()) {
+                                s // Constructor — never clone
+                            } else if self.copy_vars.contains(n.as_str()) {
+                                s // Copy type — no clone needed (free to duplicate)
+                            } else if is_borrow_call {
+                                s // Borrow builtin (show) — borrows via &self, no clone
+                            } else if self
+                                .var_consuming_counts
+                                .get(n.as_str())
+                                .copied()
+                                .unwrap_or(0)
+                                <= 1
+                            {
+                                s // 0-1 consuming uses — this is the only ownership transfer
+                            } else {
+                                format!("{}.clone()", s)
+                            }
                         } else {
-                            format!("{}.clone()", s)
+                            s
                         }
-                    } else {
-                        s
-                    }
-                }).collect();
+                    })
+                    .collect();
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     // Builtin: show(x) — Display for strings, Debug for everything else
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
@@ -12493,18 +16277,30 @@ impl RustCodegen {
                     }
                     // Prolog wildcard calls: fn(x, _) → inline fact table scan
                     if self.types.prolog_rule_fns.contains_key(name.as_str()) {
-                        let has_wildcard = args.iter().any(|a| matches!(a.kind, ExprKind::Var(ref n) if n == "_"));
+                        let has_wildcard = args
+                            .iter()
+                            .any(|a| matches!(a.kind, ExprKind::Var(ref n) if n == "_"));
                         if has_wildcard {
                             let table = format!("{}_FACTS", sanitize_name(name).to_uppercase());
-                            let checks: Vec<String> = args.iter().enumerate()
+                            let checks: Vec<String> = args
+                                .iter()
+                                .enumerate()
                                 .filter_map(|(i, a)| {
-                                    if matches!(a.kind, ExprKind::Var(ref n) if n == "_") { None }
-                                    else { Some(format!("f.{} == {}", i, args_str[i])) }
-                                }).collect();
+                                    if matches!(a.kind, ExprKind::Var(ref n) if n == "_") {
+                                        None
+                                    } else {
+                                        Some(format!("f.{} == {}", i, args_str[i]))
+                                    }
+                                })
+                                .collect();
                             if checks.is_empty() {
                                 return format!("!{}.is_empty()", table);
                             } else {
-                                return format!("{}.iter().any(|f| {})", table, checks.join(" && "));
+                                return format!(
+                                    "{}.iter().any(|f| {})",
+                                    table,
+                                    checks.join(" && ")
+                                );
                             }
                         }
                     }
@@ -12518,36 +16314,75 @@ impl RustCodegen {
                     }
                     // Inline lambda into filter/map to avoid double-lambda type inference failure
                     // Inline lambda into filter/map to avoid double-lambda type inference failure
-                    if (name == "filter" || name == "map") && args.len() == 2
+                    if (name == "filter" || name == "map")
+                        && args.len() == 2
                         && !self.types.user_functions.contains(name.as_str())
                     {
                         if let ExprKind::Lambda(params, body) = &&args[1].kind {
                             let coll = self.emit_expr(&args[0]);
-                            let param = if params.is_empty() { "_x".to_string() } else { sanitize_name(&params[0].name) };
+                            let param = if params.is_empty() {
+                                "_x".to_string()
+                            } else {
+                                sanitize_name(&params[0].name)
+                            };
                             let body_code = self.emit_expr(body);
                             // Detect captured variables in the lambda body
                             let mut param_bound = BTreeSet::new();
-                            for p in params { param_bound.insert(p.name.clone()); }
+                            for p in params {
+                                param_bound.insert(p.name.clone());
+                            }
                             let mut free_in_body = BTreeSet::new();
                             collect_true_free_vars(body, &mut free_in_body, &param_bound);
-                            let lsp_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
-                            let captured: Vec<String> = free_in_body.into_iter()
-                                .filter(|v| !self.types.user_functions.contains(v.as_str())
-                                    && !self.builtin_registry.contains_key(v.as_str())
-                                    && !self.types.variant_parent.contains_key(v.as_str())
-                                    && !self.copy_vars.contains(v.as_str())
-                                    && !lsp_names.contains(v.as_str())
-                                    && !matches!(v.as_str(), "true" | "false" | "True" | "False"
-                                        | "None" | "Some" | "Ok" | "Err" | "Nil" | "Cons"))
+                            let lsp_names: BTreeSet<&str> =
+                                LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
+                            let captured: Vec<String> = free_in_body
+                                .into_iter()
+                                .filter(|v| {
+                                    !self.types.user_functions.contains(v.as_str())
+                                        && !self.builtin_registry.contains_key(v.as_str())
+                                        && !self.types.variant_parent.contains_key(v.as_str())
+                                        && !self.copy_vars.contains(v.as_str())
+                                        && !lsp_names.contains(v.as_str())
+                                        && !matches!(
+                                            v.as_str(),
+                                            "true"
+                                                | "false"
+                                                | "True"
+                                                | "False"
+                                                | "None"
+                                                | "Some"
+                                                | "Ok"
+                                                | "Err"
+                                                | "Nil"
+                                                | "Cons"
+                                        )
+                                })
                                 .collect();
-                            let clone_prefix = if captured.is_empty() { String::new() }
-                                else { captured.iter().map(|v| format!("let {} = {}.clone();", sanitize_name(v), sanitize_name(v))).collect::<Vec<_>>().join(" ") + " " };
+                            let clone_prefix = if captured.is_empty() {
+                                String::new()
+                            } else {
+                                captured
+                                    .iter()
+                                    .map(|v| {
+                                        format!(
+                                            "let {} = {}.clone();",
+                                            sanitize_name(v),
+                                            sanitize_name(v)
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
+                                    + " "
+                            };
                             if name == "filter" {
                                 return format!("{}.clone().into_iter().filter(|{}| {{ {} let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
                                     coll, param, clone_prefix, param, param, body_code);
                             } else {
                                 if clone_prefix.is_empty() {
-                                    return format!("{}.clone().into_iter().map(|{}| {}).collect::<Vec<_>>()", coll, param, body_code);
+                                    return format!(
+                                        "{}.clone().into_iter().map(|{}| {}).collect::<Vec<_>>()",
+                                        coll, param, body_code
+                                    );
                                 } else {
                                     return format!("{}.clone().into_iter().map(|{}| {{ {} {} }}).collect::<Vec<_>>()", coll, param, clone_prefix, body_code);
                                 }
@@ -12558,7 +16393,9 @@ impl RustCodegen {
                             if let ExprKind::Var(fn_name) = &&args[1].kind {
                                 let coll = self.emit_expr(&args[0]);
                                 let f = sanitize_name(fn_name);
-                                let borrows = self.borrow_only_params.get(fn_name.as_str())
+                                let borrows = self
+                                    .borrow_only_params
+                                    .get(fn_name.as_str())
                                     .map_or(false, |flags| flags.first().copied().unwrap_or(false));
                                 if borrows {
                                     return format!("{}.clone().into_iter().map(|__x| {}(&__x)).collect::<Vec<_>>()", coll, f);
@@ -12569,12 +16406,17 @@ impl RustCodegen {
                         }
                     }
                     // sort_by with lambda: inline key function to avoid type inference issues
-                    if name == "sort_by" && args.len() == 2
+                    if name == "sort_by"
+                        && args.len() == 2
                         && !self.types.user_functions.contains(name.as_str())
                     {
                         if let ExprKind::Lambda(sort_params, sort_body) = &&args[1].kind {
                             let coll = self.emit_expr(&args[0]);
-                            let sp = if sort_params.is_empty() { "__e".to_string() } else { sanitize_name(&sort_params[0].name) };
+                            let sp = if sort_params.is_empty() {
+                                "__e".to_string()
+                            } else {
+                                sanitize_name(&sort_params[0].name)
+                            };
                             let saved_copy = self.copy_vars.clone();
                             self.copy_vars.insert(sort_params[0].name.clone());
                             let body_a = self.emit_expr(sort_body);
@@ -12585,13 +16427,16 @@ impl RustCodegen {
                         }
                     }
                     // Inline lambda into foldl: propagate initial value type to closure params
-                    if name == "foldl" && args.len() == 3
+                    if name == "foldl"
+                        && args.len() == 3
                         && !self.types.user_functions.contains(name.as_str())
                     {
                         if let ExprKind::Lambda(params, body) = &&args[2].kind {
                             let init_is_float = self.expr_is_float(&args[1]);
-                            if init_is_float && params.len() == 2
-                                && params[0].ty.is_none() && params[1].ty.is_none()
+                            if init_is_float
+                                && params.len() == 2
+                                && params[0].ty.is_none()
+                                && params[1].ty.is_none()
                             {
                                 let coll = self.emit_expr(&args[0]);
                                 let init = self.emit_expr(&args[1]);
@@ -12601,16 +16446,23 @@ impl RustCodegen {
                                 self.float_typed_vars.insert(params[0].name.clone());
                                 self.float_typed_vars.insert(params[1].name.clone());
                                 let body_code = self.emit_expr(body);
-                                return format!("{}.clone().into_iter().fold({}, |{}: f64, {}: f64| {})",
-                                    coll, init, acc, elem, body_code);
+                                return format!(
+                                    "{}.clone().into_iter().fold({}, |{}: f64, {}: f64| {})",
+                                    coll, init, acc, elem, body_code
+                                );
                             }
                         }
                     }
                     // Builtin registry lookup — replaces 300+ lines of if-chain
                     if let Some(def) = self.builtin_registry.get(name.as_str()) {
-                        if args_str.len() == def.arity && (!def.shadowable || !self.types.user_functions.contains(name.as_str())) {
+                        if args_str.len() == def.arity
+                            && (!def.shadowable
+                                || !self.types.user_functions.contains(name.as_str()))
+                        {
                             for &(dep_name, dep_ver) in def.deps {
-                                self.cargo_deps.entry(dep_name.to_string()).or_insert(dep_ver.to_string());
+                                self.cargo_deps
+                                    .entry(dep_name.to_string())
+                                    .or_insert(dep_ver.to_string());
                             }
                             return apply_builtin_template(def.rust_tpl, &args_str);
                         }
@@ -12619,11 +16471,16 @@ impl RustCodegen {
                     if name == "push" && args_str.len() == 2 {
                         let is_mutable_target = if let ExprKind::Var(vn) = &args[0].kind {
                             self.mutable_vars.contains(vn.as_str())
-                        } else { false };
+                        } else {
+                            false
+                        };
                         if is_mutable_target {
                             return format!("{}.push({})", args_str[0], args_str[1]);
                         }
-                        return format!("{{ let mut v = {}; v.push({}); v }}", args_str[0], args_str[1]);
+                        return format!(
+                            "{{ let mut v = {}; v.push({}); v }}",
+                            args_str[0], args_str[1]
+                        );
                     }
                     if name == "subject" {
                         if args_str.is_empty() {
@@ -12633,13 +16490,23 @@ impl RustCodegen {
                         }
                     }
                     if name == "spawn" && args.len() == 2 {
-                        let actor_name = if let ExprKind::Var(n) = &args[0].kind { sanitize_name(n) } else { args_str[0].clone() };
+                        let actor_name = if let ExprKind::Var(n) = &args[0].kind {
+                            sanitize_name(n)
+                        } else {
+                            args_str[0].clone()
+                        };
                         let init_val = &args_str[1];
                         return format!("{}_spawn({})", actor_name, init_val);
                     }
                     if name == "ask" && args.len() == 2 {
-                        let handle_name = if let ExprKind::Var(n) = &args[0].kind { n.clone() } else { args_str[0].clone() };
-                        let actor_name = self.actor_handle_vars.get(&handle_name)
+                        let handle_name = if let ExprKind::Var(n) = &args[0].kind {
+                            n.clone()
+                        } else {
+                            args_str[0].clone()
+                        };
+                        let actor_name = self
+                            .actor_handle_vars
+                            .get(&handle_name)
                             .map(|n| sanitize_name(n))
                             .unwrap_or_else(|| handle_name.clone());
                         return format!("{{ let (__tx, __rx) = tokio::sync::oneshot::channel(); {}.send({}Msg::__Ask(Box::new({}), __tx)).unwrap(); __rx.await.unwrap() }}",
@@ -12647,7 +16514,11 @@ impl RustCodegen {
                     }
                     if name == "as_stream" && args_str.len() == 1 {
                         if self.has_async {
-                            let arg_name = if let ExprKind::Var(n) = &args[0].kind { n.as_str() } else { "" };
+                            let arg_name = if let ExprKind::Var(n) = &args[0].kind {
+                                n.as_str()
+                            } else {
+                                ""
+                            };
                             if self.subject_vars.contains(arg_name) {
                                 return format!("{}.subscribe()", args_str[0]);
                             }
@@ -12656,17 +16527,30 @@ impl RustCodegen {
                     }
                     // Constructor application — wrap recursive args in Rc::new/Arc::new/Box::new
                     if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
-                        let is_pos = self.types.variant_positional.get(name.as_str()).copied().unwrap_or(true);
+                        let is_pos = self
+                            .types
+                            .variant_positional
+                            .get(name.as_str())
+                            .copied()
+                            .unwrap_or(true);
                         let boxed_indices = self.types.variant_boxed_args.get(name.as_str());
                         let use_rc = self.types.rc_types.contains(parent);
-                        let wrap_fn = if use_rc { format!("{}::new", self.rc_name()) } else { "Box::new".to_string() };
-                        let wrapped: Vec<String> = args_str.iter().enumerate().map(|(i, a)| {
-                            if boxed_indices.map_or(false, |bi| bi.contains(&i)) {
-                                format!("{}({})", wrap_fn, a)
-                            } else {
-                                a.clone()
-                            }
-                        }).collect();
+                        let wrap_fn = if use_rc {
+                            format!("{}::new", self.rc_name())
+                        } else {
+                            "Box::new".to_string()
+                        };
+                        let wrapped: Vec<String> = args_str
+                            .iter()
+                            .enumerate()
+                            .map(|(i, a)| {
+                                if boxed_indices.map_or(false, |bi| bi.contains(&i)) {
+                                    format!("{}({})", wrap_fn, a)
+                                } else {
+                                    a.clone()
+                                }
+                            })
+                            .collect();
                         let is_struct_type = self.types.struct_types.contains(parent);
                         if is_pos {
                             if is_struct_type {
@@ -12677,10 +16561,17 @@ impl RustCodegen {
                         } else {
                             // Named/struct variant
                             let fields = self.types.variant_fields.get(name.as_str());
-                            let pairs: Vec<String> = wrapped.iter().enumerate().map(|(i, a)| {
-                                let fname = fields.and_then(|f| f.get(i)).map(|s| s.as_str()).unwrap_or("_");
-                                format!("{}: {}", fname, a)
-                            }).collect();
+                            let pairs: Vec<String> = wrapped
+                                .iter()
+                                .enumerate()
+                                .map(|(i, a)| {
+                                    let fname = fields
+                                        .and_then(|f| f.get(i))
+                                        .map(|s| s.as_str())
+                                        .unwrap_or("_");
+                                    format!("{}: {}", fname, a)
+                                })
+                                .collect();
                             if is_struct_type {
                                 return format!("{} {{ {} }}", parent, pairs.join(", "));
                             } else {
@@ -12701,7 +16592,8 @@ impl RustCodegen {
                         }
                     }
                     // Effect forwarding: if calling a function that requires effects, pass handlers
-                    if let Some(callee_effects) = self.types.fn_effects.get(name.as_str()).cloned() {
+                    if let Some(callee_effects) = self.types.fn_effects.get(name.as_str()).cloned()
+                    {
                         let mut extra_args = Vec::new();
                         for ce in &callee_effects {
                             if self.current_effects.contains(ce) {
@@ -12729,16 +16621,20 @@ impl RustCodegen {
                     if needs_temp {
                         let mut parts = Vec::new();
                         let mut temp_count = 0;
-                        let new_args: Vec<String> = args.iter().zip(args_str.iter()).map(|(a, s)| {
-                            if Self::expr_calls_var(a, name) {
-                                temp_count += 1;
-                                let tmp = format!("__fnmut_tmp{}", temp_count);
-                                parts.push(format!("let {} = {};", tmp, s));
-                                tmp
-                            } else {
-                                s.clone()
-                            }
-                        }).collect();
+                        let new_args: Vec<String> = args
+                            .iter()
+                            .zip(args_str.iter())
+                            .map(|(a, s)| {
+                                if Self::expr_calls_var(a, name) {
+                                    temp_count += 1;
+                                    let tmp = format!("__fnmut_tmp{}", temp_count);
+                                    parts.push(format!("let {} = {};", tmp, s));
+                                    tmp
+                                } else {
+                                    s.clone()
+                                }
+                            })
+                            .collect();
                         let call = format!("{}({})", sanitize_name(name), new_args.join(", "));
                         parts.push(call);
                         return format!("{{ {} }}", parts.join(" "));
@@ -12756,67 +16652,77 @@ impl RustCodegen {
                 call
             }
             ExprKind::Lambda(params, body) => {
-                let ps: Vec<String> = params.iter().map(|p| {
-                    if let Some(ty) = &p.ty {
-                        format!("{}: {}", sanitize_name(&p.name), self.emit_type(ty))
-                    } else if {
-                        // Check if body accesses fields on this param → infer struct type
-                        let mut fields = BTreeSet::new();
-                        self.collect_field_accesses(body, &p.name, &mut fields);
-                        !fields.is_empty()
-                    } {
-                        let mut fields = BTreeSet::new();
-                        self.collect_field_accesses(body, &p.name, &mut fields);
-                        // If only fst/snd accessed, these are tuple accesses (codegen maps to .0/.1)
-                        // Don't infer Pair struct — leave untyped for Rust to infer
-                        let only_tuple_fields = fields.iter().all(|f| f == "fst" || f == "snd");
-                        if only_tuple_fields {
-                            sanitize_name(&p.name)
-                        } else {
-                            // Find the struct/variant whose fields match
-                            let mut inferred = None;
-                            for (type_name, type_fields) in &self.types.variant_fields {
-                                let field_set: BTreeSet<String> = type_fields.iter().cloned().collect();
-                                if fields.is_subset(&field_set) {
-                                    inferred = Some(type_name.clone());
-                                    break;
+                let ps: Vec<String> = params
+                    .iter()
+                    .map(|p| {
+                        if let Some(ty) = &p.ty {
+                            format!("{}: {}", sanitize_name(&p.name), self.emit_type(ty))
+                        } else if {
+                            // Check if body accesses fields on this param → infer struct type
+                            let mut fields = BTreeSet::new();
+                            self.collect_field_accesses(body, &p.name, &mut fields);
+                            !fields.is_empty()
+                        } {
+                            let mut fields = BTreeSet::new();
+                            self.collect_field_accesses(body, &p.name, &mut fields);
+                            // If only fst/snd accessed, these are tuple accesses (codegen maps to .0/.1)
+                            // Don't infer Pair struct — leave untyped for Rust to infer
+                            let only_tuple_fields = fields.iter().all(|f| f == "fst" || f == "snd");
+                            if only_tuple_fields {
+                                sanitize_name(&p.name)
+                            } else {
+                                // Find the struct/variant whose fields match
+                                let mut inferred = None;
+                                for (type_name, type_fields) in &self.types.variant_fields {
+                                    let field_set: BTreeSet<String> =
+                                        type_fields.iter().cloned().collect();
+                                    if fields.is_subset(&field_set) {
+                                        inferred = Some(type_name.clone());
+                                        break;
+                                    }
+                                }
+                                if let Some(ty) = inferred {
+                                    format!("{}: {}", sanitize_name(&p.name), ty)
+                                } else {
+                                    sanitize_name(&p.name)
                                 }
                             }
-                            if let Some(ty) = inferred {
-                                format!("{}: {}", sanitize_name(&p.name), ty)
+                        } else if Self::expr_uses_as_tuple(body, &p.name) {
+                            // Infer tuple type for params used with fst/snd
+                            if self.expr_is_float(body) {
+                                format!("{}: (f64, f64)", sanitize_name(&p.name))
                             } else {
-                                sanitize_name(&p.name)
+                                format!("{}: (i64, i64)", sanitize_name(&p.name))
                             }
-                        }
-                    } else if Self::expr_uses_as_tuple(body, &p.name) {
-                        // Infer tuple type for params used with fst/snd
-                        if self.expr_is_float(body) {
-                            format!("{}: (f64, f64)", sanitize_name(&p.name))
+                        } else if self.expr_is_string(body) {
+                            // Infer String for untyped lambda params in string concat context
+                            format!("{}: String", sanitize_name(&p.name))
+                        } else if self.expr_is_float(body) {
+                            // Infer f64 for untyped lambda params when float literals are present
+                            format!("{}: f64", sanitize_name(&p.name))
+                        } else if self.expr_is_arithmetic(body) {
+                            // Infer i64 for untyped lambda params in arithmetic context
+                            format!("{}: i64", sanitize_name(&p.name))
                         } else {
-                            format!("{}: (i64, i64)", sanitize_name(&p.name))
+                            sanitize_name(&p.name)
                         }
-                    } else if self.expr_is_string(body) {
-                        // Infer String for untyped lambda params in string concat context
-                        format!("{}: String", sanitize_name(&p.name))
-                    } else if self.expr_is_float(body) {
-                        // Infer f64 for untyped lambda params when float literals are present
-                        format!("{}: f64", sanitize_name(&p.name))
-                    } else if self.expr_is_arithmetic(body) {
-                        // Infer i64 for untyped lambda params in arithmetic context
-                        format!("{}: i64", sanitize_name(&p.name))
-                    } else {
-                        sanitize_name(&p.name)
-                    }
-                }).collect();
+                    })
+                    .collect();
                 // Lambda params are locally scoped — prevent escape analysis from cloning them.
                 // Save outer counts, mark lambda params as single-use, emit body, restore.
-                let lambda_param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-                let saved: Vec<(String, Option<usize>, Option<usize>, bool)> = lambda_param_names.iter().map(|n| {
-                    (n.clone(),
-                     self.var_use_counts.get(n).copied(),
-                     self.var_consuming_counts.get(n).copied(),
-                     self.copy_vars.contains(n.as_str()))
-                }).collect();
+                let lambda_param_names: Vec<String> =
+                    params.iter().map(|p| p.name.clone()).collect();
+                let saved: Vec<(String, Option<usize>, Option<usize>, bool)> = lambda_param_names
+                    .iter()
+                    .map(|n| {
+                        (
+                            n.clone(),
+                            self.var_use_counts.get(n).copied(),
+                            self.var_consuming_counts.get(n).copied(),
+                            self.copy_vars.contains(n.as_str()),
+                        )
+                    })
+                    .collect();
                 for name in &lambda_param_names {
                     self.var_use_counts.insert(name.clone(), 1);
                     self.var_consuming_counts.insert(name.clone(), 0);
@@ -12825,35 +16731,66 @@ impl RustCodegen {
                 let body_str = self.emit_expr(body);
                 // Restore outer escape analysis state
                 for (name, uses, consuming, was_copy) in saved {
-                    if let Some(u) = uses { self.var_use_counts.insert(name.clone(), u); }
-                    else { self.var_use_counts.remove(&name); }
-                    if let Some(c) = consuming { self.var_consuming_counts.insert(name.clone(), c); }
-                    else { self.var_consuming_counts.remove(&name); }
-                    if !was_copy { self.copy_vars.remove(&name); }
+                    if let Some(u) = uses {
+                        self.var_use_counts.insert(name.clone(), u);
+                    } else {
+                        self.var_use_counts.remove(&name);
+                    }
+                    if let Some(c) = consuming {
+                        self.var_consuming_counts.insert(name.clone(), c);
+                    } else {
+                        self.var_consuming_counts.remove(&name);
+                    }
+                    if !was_copy {
+                        self.copy_vars.remove(&name);
+                    }
                 }
                 // Identify truly captured variables: free in body, not params, not functions/builtins
                 let param_bound: BTreeSet<String> = lambda_param_names.iter().cloned().collect();
                 let mut free_in_body = BTreeSet::new();
                 collect_true_free_vars(body, &mut free_in_body, &param_bound);
                 // Check LSP_BUILTINS arity table for special functions (show, print, etc.)
-                let lsp_builtin_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
-                let captured: Vec<String> = free_in_body.into_iter()
-                    .filter(|v| !self.types.user_functions.contains(v.as_str())
-                        && !self.builtin_registry.contains_key(v.as_str())
-                        && !self.types.variant_parent.contains_key(v.as_str())
-                        && !self.copy_vars.contains(v.as_str())
-                        && !lsp_builtin_names.contains(v.as_str())
-                        && !matches!(v.as_str(), "true" | "false" | "True" | "False"
-                            | "None" | "Some" | "Ok" | "Err" | "Nil" | "Cons"))
+                let lsp_builtin_names: BTreeSet<&str> =
+                    LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
+                let captured: Vec<String> = free_in_body
+                    .into_iter()
+                    .filter(|v| {
+                        !self.types.user_functions.contains(v.as_str())
+                            && !self.builtin_registry.contains_key(v.as_str())
+                            && !self.types.variant_parent.contains_key(v.as_str())
+                            && !self.copy_vars.contains(v.as_str())
+                            && !lsp_builtin_names.contains(v.as_str())
+                            && !matches!(
+                                v.as_str(),
+                                "true"
+                                    | "false"
+                                    | "True"
+                                    | "False"
+                                    | "None"
+                                    | "Some"
+                                    | "Ok"
+                                    | "Err"
+                                    | "Nil"
+                                    | "Cons"
+                            )
+                    })
                     .collect();
                 if captured.is_empty() {
                     format!("|{}| {}", ps.join(", "), body_str)
                 } else {
                     // Clone non-Copy captured vars, then use `move` to own the clones
-                    let clones: Vec<String> = captured.iter()
-                        .map(|v| format!("let {} = {}.clone();", sanitize_name(v), sanitize_name(v)))
+                    let clones: Vec<String> = captured
+                        .iter()
+                        .map(|v| {
+                            format!("let {} = {}.clone();", sanitize_name(v), sanitize_name(v))
+                        })
                         .collect();
-                    format!("{{ {} move |{}| {} }}", clones.join(" "), ps.join(", "), body_str)
+                    format!(
+                        "{{ {} move |{}| {} }}",
+                        clones.join(" "),
+                        ps.join(", "),
+                        body_str
+                    )
                 }
             }
             ExprKind::BinOp(op, lhs, rhs) => {
@@ -12864,16 +16801,28 @@ impl RustCodegen {
                 let is_comparison = op == "==" || op == "!=" || op == "=";
                 // For comparisons with string literals, emit &str (no .to_string())
                 // so that &String == &str works via Deref coercion
-                let mut l = if is_comparison && matches!(lhs.as_ref().kind, ExprKind::Lit(Literal::Str(_))) {
+                let mut l = if is_comparison
+                    && matches!(lhs.as_ref().kind, ExprKind::Lit(Literal::Str(_)))
+                {
                     if let ExprKind::Lit(Literal::Str(s)) = &lhs.as_ref().kind {
                         format!("{:?}", s) // &str, no .to_string()
-                    } else { self.emit_expr(lhs) }
-                } else { self.emit_expr(lhs) };
-                let mut r = if is_comparison && matches!(rhs.as_ref().kind, ExprKind::Lit(Literal::Str(_))) {
+                    } else {
+                        self.emit_expr(lhs)
+                    }
+                } else {
+                    self.emit_expr(lhs)
+                };
+                let mut r = if is_comparison
+                    && matches!(rhs.as_ref().kind, ExprKind::Lit(Literal::Str(_)))
+                {
                     if let ExprKind::Lit(Literal::Str(s)) = &rhs.as_ref().kind {
                         format!("{:?}", s) // &str, no .to_string()
-                    } else { self.emit_expr(rhs) }
-                } else { self.emit_expr(rhs) };
+                    } else {
+                        self.emit_expr(rhs)
+                    }
+                } else {
+                    self.emit_expr(rhs)
+                };
                 // Deref borrowed params in comparisons: &T == T → *param == T
                 if is_comparison {
                     if let ExprKind::Var(n) = &lhs.as_ref().kind {
@@ -12893,9 +16842,15 @@ impl RustCodegen {
                 if rust_op == "/" || rust_op == "%" {
                     let is_float = self.expr_is_float(lhs) || self.expr_is_float(rhs);
                     if is_float {
-                        return format!("{{ let __d = {}; if __d == 0.0 {{ 0.0 }} else {{ {} {} __d }} }}", r, l, rust_op);
+                        return format!(
+                            "{{ let __d = {}; if __d == 0.0 {{ 0.0 }} else {{ {} {} __d }} }}",
+                            r, l, rust_op
+                        );
                     } else {
-                        return format!("{{ let __d = {}; if __d == 0 {{ 0 }} else {{ {} {} __d }} }}", r, l, rust_op);
+                        return format!(
+                            "{{ let __d = {}; if __d == 0 {{ 0 }} else {{ {} {} __d }} }}",
+                            r, l, rust_op
+                        );
                     }
                 }
                 format!("({} {} {})", l, rust_op, r)
@@ -12933,7 +16888,13 @@ impl RustCodegen {
                     };
                     if boxed_binds.is_empty() && !self.has_boxed_constructor_patterns(&arm.pat) {
                         let body = self.emit_expr(&arm.body);
-                        out.push_str(&format!("{}    {}{} => {},\n", self.ind(), pat, full_guard, body));
+                        out.push_str(&format!(
+                            "{}    {}{} => {},\n",
+                            self.ind(),
+                            pat,
+                            full_guard,
+                            body
+                        ));
                     } else {
                         // Emit a block with deref lets
                         out.push_str(&format!("{}    {}{} => {{\n", self.ind(), pat, full_guard));
@@ -12941,9 +16902,19 @@ impl RustCodegen {
                         let is_rc = self.pattern_is_rc_type(&arm.pat);
                         for var in &boxed_binds {
                             if is_rc {
-                                out.push_str(&format!("{}        let {} = (*{}).clone();\n", self.ind(), var, var));
+                                out.push_str(&format!(
+                                    "{}        let {} = (*{}).clone();\n",
+                                    self.ind(),
+                                    var,
+                                    var
+                                ));
                             } else {
-                                out.push_str(&format!("{}        let {} = *{};\n", self.ind(), var, var));
+                                out.push_str(&format!(
+                                    "{}        let {} = *{};\n",
+                                    self.ind(),
+                                    var,
+                                    var
+                                ));
                             }
                         }
                         let body = self.emit_expr(&arm.body);
@@ -12969,35 +16940,69 @@ impl RustCodegen {
                             // Accumulator rebinding inside for-loop → assignment, not let
                             if let Pat::Var(name) = pat {
                                 if self.mutable_vars.contains(name.as_str()) {
-                                    out.push_str(&format!("{}{} = {};\n", prefix, sanitize_name(name), val_str));
+                                    out.push_str(&format!(
+                                        "{}{} = {};\n",
+                                        prefix,
+                                        sanitize_name(name),
+                                        val_str
+                                    ));
                                 } else {
-                                    out.push_str(&format!("{}let {} = {};\n", prefix, pat_str, val_str));
+                                    out.push_str(&format!(
+                                        "{}let {} = {};\n",
+                                        prefix, pat_str, val_str
+                                    ));
                                 }
                             } else {
-                                out.push_str(&format!("{}let {} = {};\n", prefix, pat_str, val_str));
+                                out.push_str(&format!(
+                                    "{}let {} = {};\n",
+                                    prefix, pat_str, val_str
+                                ));
                             }
                         }
                         Stmt::MonadicBind(pat, _, value) => {
                             let pat_str = self.emit_pattern_binding(pat);
                             let val_str = self.emit_expr(value);
-                            let suffix = if self.is_effect_op_call(value) { "" } else { "?" };
-                            out.push_str(&format!("{}let {} = {}{};\n", prefix, pat_str, val_str, suffix));
+                            let suffix = if self.is_effect_op_call(value) {
+                                ""
+                            } else {
+                                "?"
+                            };
+                            out.push_str(&format!(
+                                "{}let {} = {}{};\n",
+                                prefix, pat_str, val_str, suffix
+                            ));
                         }
                         Stmt::Expr(expr) if is_last => {
                             out.push_str(&format!("{}{}\n", prefix, self.emit_expr(expr)));
                         }
-                        Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "print" => {
+                        Stmt::Expr(Expr {
+                            kind: ExprKind::Effect(name, args),
+                            ..
+                        }) if name == "print" => {
                             out.push_str(&self.emit_print(args, &prefix));
                         }
                         Stmt::Expr(expr) => {
                             out.push_str(&format!("{}{};\n", prefix, self.emit_expr(expr)));
                         }
-                        Stmt::Defn(Defn::Fn { name, params, body, .. }) => {
-                            let ps: Vec<String> = params.iter().map(|p| {
-                                let ty = p.ty.as_ref().map(|t| self.emit_type(t)).unwrap_or("i64".into());
-                                format!("{}: {}", sanitize_name(&p.name), ty)
-                            }).collect();
-                            out.push_str(&format!("{}fn {}({}) {{\n", prefix, sanitize_name(name), ps.join(", ")));
+                        Stmt::Defn(Defn::Fn {
+                            name, params, body, ..
+                        }) => {
+                            let ps: Vec<String> = params
+                                .iter()
+                                .map(|p| {
+                                    let ty =
+                                        p.ty.as_ref()
+                                            .map(|t| self.emit_type(t))
+                                            .unwrap_or("i64".into());
+                                    format!("{}: {}", sanitize_name(&p.name), ty)
+                                })
+                                .collect();
+                            out.push_str(&format!(
+                                "{}fn {}({}) {{\n",
+                                prefix,
+                                sanitize_name(name),
+                                ps.join(", ")
+                            ));
                             out.push_str(&format!("{}    {}\n", prefix, self.emit_expr(body)));
                             out.push_str(&format!("{}}}\n", prefix));
                         }
@@ -13042,7 +17047,12 @@ impl RustCodegen {
                     // If field is a variant constructor, insert the parent type
                     // e.g. Lib.Red → Lib::Color::Red (not Lib::Red)
                     if let Some(parent) = self.types.variant_parent.get(field) {
-                        return format!("{}::{}::{}", path, self.rust_type_name(parent), sanitize_name(field));
+                        return format!(
+                            "{}::{}::{}",
+                            path,
+                            self.rust_type_name(parent),
+                            sanitize_name(field)
+                        );
                     }
                     return format!("{}::{}", path, sanitize_name(field));
                 }
@@ -13063,10 +17073,19 @@ impl RustCodegen {
                         // Build match arms for all variants that have this field
                         let mut arms = Vec::new();
                         for (variant_name, parent_name) in &matches {
-                            if self.types.variant_positional.get(variant_name.as_str()) == Some(&false) {
+                            if self.types.variant_positional.get(variant_name.as_str())
+                                == Some(&false)
+                            {
                                 let is_boxed = self.is_field_boxed(variant_name, field);
-                                let clone_expr = if is_boxed { "(*__f).clone()" } else { "__f.clone()" };
-                                arms.push(format!("{}::{} {{ {}: ref __f, .. }} => {}", parent_name, variant_name, field, clone_expr));
+                                let clone_expr = if is_boxed {
+                                    "(*__f).clone()"
+                                } else {
+                                    "__f.clone()"
+                                };
+                                arms.push(format!(
+                                    "{}::{} {{ {}: ref __f, .. }} => {}",
+                                    parent_name, variant_name, field, clone_expr
+                                ));
                             }
                         }
                         if !arms.is_empty() {
@@ -13115,19 +17134,27 @@ impl RustCodegen {
                 format!("{{ let __arr = &{}; let __i = {}; if __i < 0 || __i as usize >= __arr.len() {{ panic!(\"index out of bounds: {{}} (len {{}})\", __i, __arr.len()) }} else {{ __arr[__i as usize].clone() }} }}", arr_str, idx_str)
             }
             ExprKind::List(elems) => {
-                let items: Vec<String> = elems.iter().map(|e| {
-                    let s = self.emit_expr(e);
-                    // Auto-clone variables with multiple consuming uses (same logic as fn args)
-                    if let ExprKind::Var(n) = &e.kind {
-                        if !self.types.variant_parent.contains_key(n.as_str())
-                            && !self.copy_vars.contains(n.as_str())
-                            && self.var_consuming_counts.get(n.as_str()).copied().unwrap_or(0) > 1
-                        {
-                            return format!("{}.clone()", s);
+                let items: Vec<String> = elems
+                    .iter()
+                    .map(|e| {
+                        let s = self.emit_expr(e);
+                        // Auto-clone variables with multiple consuming uses (same logic as fn args)
+                        if let ExprKind::Var(n) = &e.kind {
+                            if !self.types.variant_parent.contains_key(n.as_str())
+                                && !self.copy_vars.contains(n.as_str())
+                                && self
+                                    .var_consuming_counts
+                                    .get(n.as_str())
+                                    .copied()
+                                    .unwrap_or(0)
+                                    > 1
+                            {
+                                return format!("{}.clone()", s);
+                            }
                         }
-                    }
-                    s
-                }).collect();
+                        s
+                    })
+                    .collect();
                 format!("vec![{}]", items.join(", "))
             }
             ExprKind::Tuple(elems) => {
@@ -13172,7 +17199,11 @@ impl RustCodegen {
                         new_args.extend(existing_args.iter().cloned());
                         ExprKind::App(func.clone(), new_args).into()
                     }
-                    _ => ExprKind::App(Box::new(transform.as_ref().clone()), vec![input.as_ref().clone()]).into(),
+                    _ => ExprKind::App(
+                        Box::new(transform.as_ref().clone()),
+                        vec![input.as_ref().clone()],
+                    )
+                    .into(),
                 };
                 self.emit_expr(&desugared)
             }
@@ -13182,7 +17213,11 @@ impl RustCodegen {
                 let parts: Vec<String> = goals.iter().map(|g| self.emit_expr(g)).collect();
                 parts.join(" && ")
             }
-            ExprKind::Handle { effect, handlers, body } => {
+            ExprKind::Handle {
+                effect,
+                handlers,
+                body,
+            } => {
                 // Collect free variables in handler bodies for capture
                 let mut all_handler_params: BTreeSet<String> = BTreeSet::new();
                 for h in handlers {
@@ -13193,14 +17228,19 @@ impl RustCodegen {
                 let mut captures: BTreeSet<String> = BTreeSet::new();
                 for h in handlers {
                     let free = Self::collect_handler_free_vars(
-                        &h.body, &all_handler_params, &self.types.effect_ops,
+                        &h.body,
+                        &all_handler_params,
+                        &self.types.effect_ops,
                     );
                     captures.extend(free);
                 }
                 // Only keep captures that we know the type of
-                let typed_captures: Vec<(String, String)> = captures.iter()
+                let typed_captures: Vec<(String, String)> = captures
+                    .iter()
                     .filter_map(|name| {
-                        self.var_types.get(name).map(|ty| (name.clone(), ty.clone()))
+                        self.var_types
+                            .get(name)
+                            .map(|ty| (name.clone(), ty.clone()))
                     })
                     .collect();
 
@@ -13211,38 +17251,74 @@ impl RustCodegen {
                 } else {
                     out.push_str(&format!("{}struct {} {{\n", self.ind(), handler_name));
                     for (name, ty) in &typed_captures {
-                        out.push_str(&format!("{}    {}: {},\n", self.ind(), sanitize_name(name), ty));
+                        out.push_str(&format!(
+                            "{}    {}: {},\n",
+                            self.ind(),
+                            sanitize_name(name),
+                            ty
+                        ));
                     }
                     out.push_str(&format!("{}}}\n", self.ind()));
                 }
-                out.push_str(&format!("{}impl {} for {} {{\n", self.ind(), effect, handler_name));
+                out.push_str(&format!(
+                    "{}impl {} for {} {{\n",
+                    self.ind(),
+                    effect,
+                    handler_name
+                ));
                 for h in handlers {
                     // Look up param types and return type from effect declaration
-                    let op_sig = self.types.effect_ops_detail.get(effect).and_then(|ops| {
-                        ops.iter().find(|(n, _, _)| n == &h.op_name)
-                    });
-                    let params_str: Vec<String> = h.params.iter().enumerate().map(|(i, p)| {
-                        let ty = op_sig.and_then(|(_, params, _)| params.get(i))
-                            .and_then(|p| p.ty.as_ref())
-                            .map(|t| self.emit_type(t))
-                            .unwrap_or_else(|| "String".into());
-                        format!("{}: {}", sanitize_name(p), ty)
-                    }).collect();
-                    let ret = op_sig.and_then(|(_, _, ret)| ret.as_ref())
+                    let op_sig = self
+                        .types
+                        .effect_ops_detail
+                        .get(effect)
+                        .and_then(|ops| ops.iter().find(|(n, _, _)| n == &h.op_name));
+                    let params_str: Vec<String> = h
+                        .params
+                        .iter()
+                        .enumerate()
+                        .map(|(i, p)| {
+                            let ty = op_sig
+                                .and_then(|(_, params, _)| params.get(i))
+                                .and_then(|p| p.ty.as_ref())
+                                .map(|t| self.emit_type(t))
+                                .unwrap_or_else(|| "String".into());
+                            format!("{}: {}", sanitize_name(p), ty)
+                        })
+                        .collect();
+                    let ret = op_sig
+                        .and_then(|(_, _, ret)| ret.as_ref())
                         .map(|t| format!(" -> {}", self.emit_type(t)))
                         .unwrap_or_default();
-                    out.push_str(&format!("{}    fn {}(&mut self, {}){} {{\n", self.ind(), h.op_name, params_str.join(", "), ret));
+                    out.push_str(&format!(
+                        "{}    fn {}(&mut self, {}){} {{\n",
+                        self.ind(),
+                        h.op_name,
+                        params_str.join(", "),
+                        ret
+                    ));
                     // Emit handler body, replacing captured vars with self.var_name
-                    let capture_names: BTreeSet<String> = typed_captures.iter().map(|(n, _)| n.clone()).collect();
-                    out.push_str(&format!("{}        {}\n", self.ind(), self.emit_handle_body_with_captures(&h.body, &capture_names)));
+                    let capture_names: BTreeSet<String> =
+                        typed_captures.iter().map(|(n, _)| n.clone()).collect();
+                    out.push_str(&format!(
+                        "{}        {}\n",
+                        self.ind(),
+                        self.emit_handle_body_with_captures(&h.body, &capture_names)
+                    ));
                     out.push_str(&format!("{}    }}\n", self.ind()));
                 }
                 out.push_str(&format!("{}}}\n", self.ind()));
                 let eff_var = format!("__eff_{}", effect);
                 if typed_captures.is_empty() {
-                    out.push_str(&format!("{}let mut {} = {};\n", self.ind(), eff_var, handler_name));
+                    out.push_str(&format!(
+                        "{}let mut {} = {};\n",
+                        self.ind(),
+                        eff_var,
+                        handler_name
+                    ));
                 } else {
-                    let init_fields: Vec<String> = typed_captures.iter()
+                    let init_fields: Vec<String> = typed_captures
+                        .iter()
                         .map(|(name, _)| {
                             let sname = sanitize_name(name);
                             if self.copy_vars.contains(name.as_str()) {
@@ -13252,8 +17328,13 @@ impl RustCodegen {
                             }
                         })
                         .collect();
-                    out.push_str(&format!("{}let mut {} = {} {{ {} }};\n",
-                        self.ind(), eff_var, handler_name, init_fields.join(", ")));
+                    out.push_str(&format!(
+                        "{}let mut {} = {} {{ {} }};\n",
+                        self.ind(),
+                        eff_var,
+                        handler_name,
+                        init_fields.join(", ")
+                    ));
                 }
                 // Emit body with the handler in scope (concrete struct, needs &mut)
                 self.current_effects.push(effect.clone());
@@ -13297,10 +17378,14 @@ impl RustCodegen {
         match pat {
             Pat::Var(name) if name != "_" => vars.push(sanitize_name(name)),
             Pat::Con(_, args) => {
-                for a in args { self.collect_pat_vars(a, vars); }
+                for a in args {
+                    self.collect_pat_vars(a, vars);
+                }
             }
             Pat::NamedCon(_, named_args) => {
-                for (_, p) in named_args { self.collect_pat_vars(p, vars); }
+                for (_, p) in named_args {
+                    self.collect_pat_vars(p, vars);
+                }
             }
             Pat::As(inner, name) => {
                 self.collect_pat_vars(inner, vars);
@@ -13334,7 +17419,12 @@ impl RustCodegen {
                     if fmt_args.is_empty() {
                         return format!("{}println!({:?});\n", prefix, fmt_str);
                     } else {
-                        return format!("{}println!({:?}, {});\n", prefix, fmt_str, fmt_args.join(", "));
+                        return format!(
+                            "{}println!({:?}, {});\n",
+                            prefix,
+                            fmt_str,
+                            fmt_args.join(", ")
+                        );
                     }
                 }
             }
@@ -13374,7 +17464,8 @@ impl RustCodegen {
 
     fn emit_handle_body(&mut self, expr: &Expr) -> String {
         match &expr.kind {
-            ExprKind::App(func, args) if matches!(func.kind, ExprKind::Var(ref n) if n == "resume") => {
+            ExprKind::App(func, args) if matches!(func.kind, ExprKind::Var(ref n) if n == "resume") =>
+            {
                 // resume(val) → just emit val (it's the return value)
                 if let Some(arg) = args.first() {
                     self.emit_expr(arg)
@@ -13387,7 +17478,11 @@ impl RustCodegen {
     }
 
     /// Emit handler body, replacing captured variables with self.field references.
-    fn emit_handle_body_with_captures(&mut self, expr: &Expr, captures: &BTreeSet<String>) -> String {
+    fn emit_handle_body_with_captures(
+        &mut self,
+        expr: &Expr,
+        captures: &BTreeSet<String>,
+    ) -> String {
         if captures.is_empty() {
             return self.emit_handle_body(expr);
         }
@@ -13415,10 +17510,12 @@ impl RustCodegen {
                 && &code_bytes[i..i + var_bytes.len()] == var_bytes
             {
                 // Check word boundaries
-                let before_ok = i == 0 || !code_bytes[i - 1].is_ascii_alphanumeric() && code_bytes[i - 1] != b'_';
+                let before_ok = i == 0
+                    || !code_bytes[i - 1].is_ascii_alphanumeric() && code_bytes[i - 1] != b'_';
                 let after_idx = i + var_bytes.len();
                 let after_ok = after_idx >= code_bytes.len()
-                    || !code_bytes[after_idx].is_ascii_alphanumeric() && code_bytes[after_idx] != b'_';
+                    || !code_bytes[after_idx].is_ascii_alphanumeric()
+                        && code_bytes[after_idx] != b'_';
                 // Don't replace if already `self.var`
                 let already_self = i >= 5 && &code_bytes[i - 5..i] == b"self.";
                 if before_ok && after_ok && !already_self {
@@ -13464,11 +17561,28 @@ impl RustCodegen {
         free: &mut BTreeSet<String>,
     ) {
         // Known builtins that should NOT be treated as free variables
-        let builtins: BTreeSet<&str> = ["show", "print", "length", "push", "map", "filter",
-            "foldl", "range", "resume", "assert", "parse_int", "to_float"].iter().copied().collect();
+        let builtins: BTreeSet<&str> = [
+            "show",
+            "print",
+            "length",
+            "push",
+            "map",
+            "filter",
+            "foldl",
+            "range",
+            "resume",
+            "assert",
+            "parse_int",
+            "to_float",
+        ]
+        .iter()
+        .copied()
+        .collect();
         // Flatten all effect op names
-        let all_ops: BTreeSet<&str> = effect_ops.values()
-            .flat_map(|ops| ops.iter().map(|s| s.as_str())).collect();
+        let all_ops: BTreeSet<&str> = effect_ops
+            .values()
+            .flat_map(|ops| ops.iter().map(|s| s.as_str()))
+            .collect();
 
         match &expr.kind {
             ExprKind::Var(name) => {
@@ -13541,7 +17655,9 @@ impl RustCodegen {
                 }
             }
             ExprKind::Conjunction(goals) => {
-                for g in goals { Self::walk_free_vars(g, bound, effect_ops, free); }
+                for g in goals {
+                    Self::walk_free_vars(g, bound, effect_ops, free);
+                }
             }
             ExprKind::Lit(_) | ExprKind::Unit => {}
         }
@@ -13562,15 +17678,25 @@ impl RustCodegen {
 
         // All effect op names (impure by definition) + impure builtins from registry
         let registry = rust_builtin_registry();
-        let mut all_effect_ops: BTreeSet<String> = effect_ops.values()
-            .flat_map(|ops| ops.iter().cloned()).collect();
+        let mut all_effect_ops: BTreeSet<String> = effect_ops
+            .values()
+            .flat_map(|ops| ops.iter().cloned())
+            .collect();
         all_effect_ops.insert("print".to_string());
         for (name, def) in &registry {
-            if def.impure { all_effect_ops.insert(name.clone()); }
+            if def.impure {
+                all_effect_ops.insert(name.clone());
+            }
         }
 
         for stmt in stmts {
-            if let Stmt::Defn(Defn::Fn { name, effects, body, .. }) = stmt {
+            if let Stmt::Defn(Defn::Fn {
+                name,
+                effects,
+                body,
+                ..
+            }) = stmt
+            {
                 // Functions with explicit or inferred effects are impure
                 if !effects.is_empty() || fn_effects.get(name).map_or(false, |e| !e.is_empty()) {
                     continue;
@@ -13595,7 +17721,9 @@ impl RustCodegen {
         loop {
             let mut changed = false;
             for (fn_name, calls) in &fn_calls {
-                if !pure.contains(fn_name) { continue; }
+                if !pure.contains(fn_name) {
+                    continue;
+                }
                 for callee in calls {
                     // Calling a non-pure function makes us impure
                     // (unless the callee is a builtin like +, -, etc. handled elsewhere)
@@ -13606,7 +17734,9 @@ impl RustCodegen {
                     }
                 }
             }
-            if !changed { break; }
+            if !changed {
+                break;
+            }
         }
 
         pure
@@ -13638,7 +17768,9 @@ impl RustCodegen {
                         Stmt::Expr(e) | Stmt::Bind(_, _, e) | Stmt::MonadicBind(_, _, e) => {
                             Self::check_purity(e, effect_ops, calls, impure);
                         }
-                        Stmt::Annot(name, _) if name == "print" => { *impure = true; }
+                        Stmt::Annot(name, _) if name == "print" => {
+                            *impure = true;
+                        }
                         Stmt::For(_, iter_e, body) => {
                             Self::check_purity(iter_e, effect_ops, calls, impure);
                             for s in body {
@@ -13685,10 +17817,16 @@ impl RustCodegen {
                 Self::check_purity(input, effect_ops, calls, impure);
                 Self::check_purity(transform, effect_ops, calls, impure);
             }
-            ExprKind::Handle { .. } => { *impure = true; }
-            ExprKind::Effect(_, _) => { *impure = true; }
+            ExprKind::Handle { .. } => {
+                *impure = true;
+            }
+            ExprKind::Effect(_, _) => {
+                *impure = true;
+            }
             ExprKind::Conjunction(goals) => {
-                for g in goals { Self::check_purity(g, effect_ops, calls, impure); }
+                for g in goals {
+                    Self::check_purity(g, effect_ops, calls, impure);
+                }
             }
             ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
         }
@@ -13707,7 +17845,9 @@ impl RustCodegen {
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     // Function must be pure
-                    if !pure_fns.contains(name) { return None; }
+                    if !pure_fns.contains(name) {
+                        return None;
+                    }
                     // All args must be literals or known comptime values
                     for arg in args {
                         if !Self::is_comptime_arg(arg, comptime_values) {
@@ -13723,7 +17863,9 @@ impl RustCodegen {
             }
             // Also handle simple arithmetic on literals
             ExprKind::BinOp(_, l, r) => {
-                if Self::is_comptime_arg(l, comptime_values) && Self::is_comptime_arg(r, comptime_values) {
+                if Self::is_comptime_arg(l, comptime_values)
+                    && Self::is_comptime_arg(r, comptime_values)
+                {
                     let val = Self::eval_with_budget(interp, expr, env)?;
                     Some(val)
                 } else {
@@ -13756,10 +17898,13 @@ impl RustCodegen {
             ExprKind::Lit(_) => true,
             ExprKind::Var(name) => comptime_values.contains_key(name),
             ExprKind::BinOp(_, l, r) => {
-                Self::is_comptime_arg(l, comptime_values) && Self::is_comptime_arg(r, comptime_values)
+                Self::is_comptime_arg(l, comptime_values)
+                    && Self::is_comptime_arg(r, comptime_values)
             }
             ExprKind::UnOp(_, e) => Self::is_comptime_arg(e, comptime_values),
-            ExprKind::List(items) => items.iter().all(|e| Self::is_comptime_arg(e, comptime_values)),
+            ExprKind::List(items) => items
+                .iter()
+                .all(|e| Self::is_comptime_arg(e, comptime_values)),
             _ => false,
         }
     }
@@ -13798,102 +17943,255 @@ impl RustCodegen {
                         }
                     }
                 } else {
-                    effects.extend(Self::collect_expr_effects(func, handled, op_to_effect, fn_effects));
+                    effects.extend(Self::collect_expr_effects(
+                        func,
+                        handled,
+                        op_to_effect,
+                        fn_effects,
+                    ));
                 }
                 for arg in args {
-                    effects.extend(Self::collect_expr_effects(arg, handled, op_to_effect, fn_effects));
+                    effects.extend(Self::collect_expr_effects(
+                        arg,
+                        handled,
+                        op_to_effect,
+                        fn_effects,
+                    ));
                 }
             }
-            ExprKind::Handle { effect, handlers, body } => {
+            ExprKind::Handle {
+                effect,
+                handlers,
+                body,
+            } => {
                 // Body has this effect handled — don't propagate it
                 let mut inner_handled = handled.clone();
                 inner_handled.insert(effect.clone());
-                effects.extend(Self::collect_expr_effects(body, &inner_handled, op_to_effect, fn_effects));
+                effects.extend(Self::collect_expr_effects(
+                    body,
+                    &inner_handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
                 // Handler bodies can introduce other effects
                 for h in handlers {
-                    effects.extend(Self::collect_expr_effects(&h.body, handled, op_to_effect, fn_effects));
+                    effects.extend(Self::collect_expr_effects(
+                        &h.body,
+                        handled,
+                        op_to_effect,
+                        fn_effects,
+                    ));
                 }
             }
             ExprKind::Block(stmts) => {
                 for stmt in stmts {
                     match stmt {
-                        Stmt::Expr(e) | Stmt::Bind(_, _, e)
-                        | Stmt::MonadicBind(_, _, e) => {
-                            effects.extend(Self::collect_expr_effects(e, handled, op_to_effect, fn_effects));
+                        Stmt::Expr(e) | Stmt::Bind(_, _, e) | Stmt::MonadicBind(_, _, e) => {
+                            effects.extend(Self::collect_expr_effects(
+                                e,
+                                handled,
+                                op_to_effect,
+                                fn_effects,
+                            ));
                         }
                         Stmt::StreamBind(_, e) => {
-                            effects.extend(Self::collect_expr_effects(e, handled, op_to_effect, fn_effects));
+                            effects.extend(Self::collect_expr_effects(
+                                e,
+                                handled,
+                                op_to_effect,
+                                fn_effects,
+                            ));
                         }
                         Stmt::StreamSub(e, arms) => {
-                            effects.extend(Self::collect_expr_effects(e, handled, op_to_effect, fn_effects));
+                            effects.extend(Self::collect_expr_effects(
+                                e,
+                                handled,
+                                op_to_effect,
+                                fn_effects,
+                            ));
                             for arm in arms {
                                 if let Some(g) = &arm.guard {
-                                    effects.extend(Self::collect_expr_effects(g, handled, op_to_effect, fn_effects));
+                                    effects.extend(Self::collect_expr_effects(
+                                        g,
+                                        handled,
+                                        op_to_effect,
+                                        fn_effects,
+                                    ));
                                 }
-                                effects.extend(Self::collect_expr_effects(&arm.body, handled, op_to_effect, fn_effects));
+                                effects.extend(Self::collect_expr_effects(
+                                    &arm.body,
+                                    handled,
+                                    op_to_effect,
+                                    fn_effects,
+                                ));
                             }
                         }
                         Stmt::For(_, iter_e, body_stmts) => {
-                            effects.extend(Self::collect_expr_effects(iter_e, handled, op_to_effect, fn_effects));
+                            effects.extend(Self::collect_expr_effects(
+                                iter_e,
+                                handled,
+                                op_to_effect,
+                                fn_effects,
+                            ));
                             for s in body_stmts {
                                 if let Stmt::Expr(e) | Stmt::Bind(_, _, e) = s {
-                                    effects.extend(Self::collect_expr_effects(e, handled, op_to_effect, fn_effects));
+                                    effects.extend(Self::collect_expr_effects(
+                                        e,
+                                        handled,
+                                        op_to_effect,
+                                        fn_effects,
+                                    ));
                                 }
                             }
                         }
                         Stmt::Send(target, msg) => {
-                            effects.extend(Self::collect_expr_effects(target, handled, op_to_effect, fn_effects));
-                            effects.extend(Self::collect_expr_effects(msg, handled, op_to_effect, fn_effects));
+                            effects.extend(Self::collect_expr_effects(
+                                target,
+                                handled,
+                                op_to_effect,
+                                fn_effects,
+                            ));
+                            effects.extend(Self::collect_expr_effects(
+                                msg,
+                                handled,
+                                op_to_effect,
+                                fn_effects,
+                            ));
                         }
                         _ => {}
                     }
                 }
             }
             ExprKind::If(cond, then_, else_) => {
-                effects.extend(Self::collect_expr_effects(cond, handled, op_to_effect, fn_effects));
-                effects.extend(Self::collect_expr_effects(then_, handled, op_to_effect, fn_effects));
-                effects.extend(Self::collect_expr_effects(else_, handled, op_to_effect, fn_effects));
+                effects.extend(Self::collect_expr_effects(
+                    cond,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
+                effects.extend(Self::collect_expr_effects(
+                    then_,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
+                effects.extend(Self::collect_expr_effects(
+                    else_,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
             }
             ExprKind::Match(scrutinee, arms) => {
-                effects.extend(Self::collect_expr_effects(scrutinee, handled, op_to_effect, fn_effects));
+                effects.extend(Self::collect_expr_effects(
+                    scrutinee,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
                 for arm in arms {
                     if let Some(g) = &arm.guard {
-                        effects.extend(Self::collect_expr_effects(g, handled, op_to_effect, fn_effects));
+                        effects.extend(Self::collect_expr_effects(
+                            g,
+                            handled,
+                            op_to_effect,
+                            fn_effects,
+                        ));
                     }
-                    effects.extend(Self::collect_expr_effects(&arm.body, handled, op_to_effect, fn_effects));
+                    effects.extend(Self::collect_expr_effects(
+                        &arm.body,
+                        handled,
+                        op_to_effect,
+                        fn_effects,
+                    ));
                 }
             }
             ExprKind::BinOp(_, l, r) => {
-                effects.extend(Self::collect_expr_effects(l, handled, op_to_effect, fn_effects));
-                effects.extend(Self::collect_expr_effects(r, handled, op_to_effect, fn_effects));
+                effects.extend(Self::collect_expr_effects(
+                    l,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
+                effects.extend(Self::collect_expr_effects(
+                    r,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
             }
             ExprKind::UnOp(_, e) | ExprKind::Try(e) | ExprKind::Field(e, _) => {
-                effects.extend(Self::collect_expr_effects(e, handled, op_to_effect, fn_effects));
+                effects.extend(Self::collect_expr_effects(
+                    e,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
             }
             ExprKind::Lambda(_, body) => {
-                effects.extend(Self::collect_expr_effects(body, handled, op_to_effect, fn_effects));
+                effects.extend(Self::collect_expr_effects(
+                    body,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
             }
             ExprKind::Index(a, b) => {
-                effects.extend(Self::collect_expr_effects(a, handled, op_to_effect, fn_effects));
-                effects.extend(Self::collect_expr_effects(b, handled, op_to_effect, fn_effects));
+                effects.extend(Self::collect_expr_effects(
+                    a,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
+                effects.extend(Self::collect_expr_effects(
+                    b,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
             }
             ExprKind::Pipe(input, transform) => {
-                effects.extend(Self::collect_expr_effects(input, handled, op_to_effect, fn_effects));
-                effects.extend(Self::collect_expr_effects(transform, handled, op_to_effect, fn_effects));
+                effects.extend(Self::collect_expr_effects(
+                    input,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
+                effects.extend(Self::collect_expr_effects(
+                    transform,
+                    handled,
+                    op_to_effect,
+                    fn_effects,
+                ));
             }
             ExprKind::List(items) | ExprKind::Tuple(items) => {
                 for item in items {
-                    effects.extend(Self::collect_expr_effects(item, handled, op_to_effect, fn_effects));
+                    effects.extend(Self::collect_expr_effects(
+                        item,
+                        handled,
+                        op_to_effect,
+                        fn_effects,
+                    ));
                 }
             }
             ExprKind::Effect(_, args) => {
                 for arg in args {
-                    effects.extend(Self::collect_expr_effects(arg, handled, op_to_effect, fn_effects));
+                    effects.extend(Self::collect_expr_effects(
+                        arg,
+                        handled,
+                        op_to_effect,
+                        fn_effects,
+                    ));
                 }
             }
             ExprKind::Conjunction(goals) => {
                 for g in goals {
-                    effects.extend(Self::collect_expr_effects(g, handled, op_to_effect, fn_effects));
+                    effects.extend(Self::collect_expr_effects(
+                        g,
+                        handled,
+                        op_to_effect,
+                        fn_effects,
+                    ));
                 }
             }
             ExprKind::Lit(_) | ExprKind::Unit => {}
@@ -13925,8 +18223,14 @@ impl RustCodegen {
                             let pat_str = self.emit_pattern_binding(pat);
                             let val_str = self.emit_expr(value);
                             let mutability = if let Pat::Var(name) = pat {
-                                if self.mutable_vars.contains(name.as_str()) { "mut " } else { "" }
-                            } else { "" };
+                                if self.mutable_vars.contains(name.as_str()) {
+                                    "mut "
+                                } else {
+                                    ""
+                                }
+                            } else {
+                                ""
+                            };
                             // Track typed bindings (for float division/string concat detection)
                             if let Pat::Var(var_name) = pat {
                                 if self.expr_is_string(value) {
@@ -13936,18 +18240,37 @@ impl RustCodegen {
                                     self.float_typed_vars.insert(var_name.clone());
                                 }
                             }
-                            out.push_str(&format!("{}let {}{} = {};\n", self.ind(), mutability, pat_str, val_str));
+                            out.push_str(&format!(
+                                "{}let {}{} = {};\n",
+                                self.ind(),
+                                mutability,
+                                pat_str,
+                                val_str
+                            ));
                         }
                         Stmt::MonadicBind(pat, _, value) => {
                             let pat_str = self.emit_pattern_binding(pat);
                             let val_str = self.emit_expr(value);
-                            let suffix = if self.is_effect_op_call(value) { "" } else { "?" };
-                            out.push_str(&format!("{}let {} = {}{};\n", self.ind(), pat_str, val_str, suffix));
+                            let suffix = if self.is_effect_op_call(value) {
+                                ""
+                            } else {
+                                "?"
+                            };
+                            out.push_str(&format!(
+                                "{}let {} = {}{};\n",
+                                self.ind(),
+                                pat_str,
+                                val_str,
+                                suffix
+                            ));
                         }
                         Stmt::Expr(expr) if is_last => {
                             out.push_str(&format!("{}{}\n", self.ind(), self.emit_expr(expr)));
                         }
-                        Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "print" => {
+                        Stmt::Expr(Expr {
+                            kind: ExprKind::Effect(name, args),
+                            ..
+                        }) if name == "print" => {
                             out.push_str(&self.emit_print(args, &self.ind()));
                         }
                         Stmt::Expr(expr) => {
@@ -13980,7 +18303,13 @@ impl RustCodegen {
     /// Emit a tail-recursive function body as a loop.
     /// Transforms: self-calls become parameter reassignment + continue;
     /// base cases become return.
-    fn emit_tce_body(&mut self, fn_name: &str, params: &[Param], borrow_flags: &[bool], body: &Expr) -> String {
+    fn emit_tce_body(
+        &mut self,
+        fn_name: &str,
+        params: &[Param],
+        borrow_flags: &[bool],
+        body: &Expr,
+    ) -> String {
         let ind = self.ind();
         // Make non-borrowed, non-Copy params mutable for reassignment
         let mut mutables: BTreeSet<String> = BTreeSet::new();
@@ -13995,7 +18324,12 @@ impl RustCodegen {
         let mut out = String::new();
         for p in params {
             if mutables.contains(&p.name) {
-                out.push_str(&format!("{}let mut {} = {};\n", ind, sanitize_name(&p.name), sanitize_name(&p.name)));
+                out.push_str(&format!(
+                    "{}let mut {} = {};\n",
+                    ind,
+                    sanitize_name(&p.name),
+                    sanitize_name(&p.name)
+                ));
             }
         }
         // Also make Copy params mutable (they'll be reassigned in the loop)
@@ -14003,7 +18337,12 @@ impl RustCodegen {
             let is_borrowed = borrow_flags.get(idx).copied().unwrap_or(false);
             let is_copy = p.ty.as_ref().map(|t| is_copy_type(t)).unwrap_or(false);
             if !is_borrowed && is_copy && !p.inout {
-                out.push_str(&format!("{}let mut {} = {};\n", ind, sanitize_name(&p.name), sanitize_name(&p.name)));
+                out.push_str(&format!(
+                    "{}let mut {} = {};\n",
+                    ind,
+                    sanitize_name(&p.name),
+                    sanitize_name(&p.name)
+                ));
             }
         }
         out.push_str(&format!("{}loop {{\n", ind));
@@ -14014,15 +18353,24 @@ impl RustCodegen {
         out
     }
 
-    fn emit_tce_expr(&mut self, fn_name: &str, params: &[Param], borrow_flags: &[bool], expr: &Expr) -> String {
+    fn emit_tce_expr(
+        &mut self,
+        fn_name: &str,
+        params: &[Param],
+        borrow_flags: &[bool],
+        expr: &Expr,
+    ) -> String {
         let ind = self.ind();
         // Collect param names that TCE reassigns (non-borrowed) — inner shadows need `let mut`
-        let tce_mut_params: std::collections::HashSet<&str> = params.iter().enumerate()
+        let tce_mut_params: std::collections::HashSet<&str> = params
+            .iter()
+            .enumerate()
             .filter(|(idx, p)| !borrow_flags.get(*idx).copied().unwrap_or(false) && !p.inout)
             .map(|(_, p)| p.name.as_str())
             .collect();
         match &expr.kind {
-            ExprKind::App(func, args) if matches!(func.as_ref().kind, ExprKind::Var(ref n) if n == fn_name) => {
+            ExprKind::App(func, args) if matches!(func.as_ref().kind, ExprKind::Var(ref n) if n == fn_name) =>
+            {
                 // Self-call: emit temp assignments then reassign params + continue
                 let mut out = String::new();
                 // Compute all new values into temps first (simultaneous assignment)
@@ -14080,8 +18428,15 @@ impl RustCodegen {
                                 if tce_mut_params.contains(name.as_str()) {
                                     out.push_str(&format!("{}{} = {};\n", ind, pat_str, val_str));
                                 } else {
-                                    let mutability = if self.mutable_vars.contains(name.as_str()) { "mut " } else { "" };
-                                    out.push_str(&format!("{}let {}{} = {};\n", ind, mutability, pat_str, val_str));
+                                    let mutability = if self.mutable_vars.contains(name.as_str()) {
+                                        "mut "
+                                    } else {
+                                        ""
+                                    };
+                                    out.push_str(&format!(
+                                        "{}let {}{} = {};\n",
+                                        ind, mutability, pat_str, val_str
+                                    ));
                                 }
                             } else {
                                 out.push_str(&format!("{}let {} = {};\n", ind, pat_str, val_str));
@@ -14090,14 +18445,24 @@ impl RustCodegen {
                         Stmt::MonadicBind(pat, _, value) => {
                             let pat_str = self.emit_pattern_binding(pat);
                             let val_str = self.emit_expr(value);
-                            let suffix = if self.is_effect_op_call(value) { "" } else { "?" };
-                            out.push_str(&format!("{}let {} = {}{};\n", ind, pat_str, val_str, suffix));
+                            let suffix = if self.is_effect_op_call(value) {
+                                ""
+                            } else {
+                                "?"
+                            };
+                            out.push_str(&format!(
+                                "{}let {} = {}{};\n",
+                                ind, pat_str, val_str, suffix
+                            ));
                         }
                         Stmt::Expr(expr) if is_last => {
                             // Last expression: recurse into TCE
                             out.push_str(&self.emit_tce_expr(fn_name, params, borrow_flags, expr));
                         }
-                        Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "print" => {
+                        Stmt::Expr(Expr {
+                            kind: ExprKind::Effect(name, args),
+                            ..
+                        }) if name == "print" => {
                             out.push_str(&self.emit_print(args, &ind));
                         }
                         Stmt::Expr(expr) => {
@@ -14120,7 +18485,9 @@ impl RustCodegen {
                 self.indent += 1;
                 for arm in arms {
                     let pat_str = self.emit_pattern_match(&arm.pat);
-                    let guard_str = arm.guard.as_ref()
+                    let guard_str = arm
+                        .guard
+                        .as_ref()
                         .map(|g| format!(" if {}", self.emit_expr(g)))
                         .unwrap_or_default();
                     out.push_str(&format!("{}{}{} => {{\n", self.ind(), pat_str, guard_str));
@@ -14145,7 +18512,11 @@ impl RustCodegen {
             Literal::Int(n) => format!("{}i64", n),
             Literal::Float(f) => {
                 let s = format!("{}", f);
-                if s.contains('.') { s } else { format!("{}.0", s) }
+                if s.contains('.') {
+                    s
+                } else {
+                    format!("{}.0", s)
+                }
             }
             Literal::Str(s) => format!("{:?}.to_string()", s),
             Literal::Char(c) => format!("'{}'", c),
@@ -14187,7 +18558,9 @@ impl RustCodegen {
         if let ExprKind::App(func, _) = &value.kind {
             if let ExprKind::Var(op_name) = &func.as_ref().kind {
                 return self.current_effects.iter().any(|eff| {
-                    self.types.effect_ops.get(eff.as_str())
+                    self.types
+                        .effect_ops
+                        .get(eff.as_str())
                         .map(|ops| ops.contains(op_name.as_str()))
                         .unwrap_or(false)
                 });
@@ -14206,30 +18579,47 @@ impl RustCodegen {
             }
             Pat::Con(name, args) => {
                 let parent = self.find_parent_type(name);
-                let is_pos = self.types.variant_positional.get(name.as_str()).copied().unwrap_or(true);
+                let is_pos = self
+                    .types
+                    .variant_positional
+                    .get(name.as_str())
+                    .copied()
+                    .unwrap_or(true);
                 let ps: Vec<String> = args.iter().map(|p| self.emit_pattern_binding(p)).collect();
                 if is_pos {
                     format!("{}::{}({})", parent, name, ps.join(", "))
                 } else {
                     // Named variant: destructure with field names
                     let fields = self.types.variant_fields.get(name.as_str());
-                    let named_ps: Vec<String> = ps.iter().enumerate().map(|(i, p)| {
-                        let fname = fields.and_then(|f| f.get(i)).map(|s| s.as_str()).unwrap_or("_");
-                        format!("{}: {}", fname, p)
-                    }).collect();
+                    let named_ps: Vec<String> = ps
+                        .iter()
+                        .enumerate()
+                        .map(|(i, p)| {
+                            let fname = fields
+                                .and_then(|f| f.get(i))
+                                .map(|s| s.as_str())
+                                .unwrap_or("_");
+                            format!("{}: {}", fname, p)
+                        })
+                        .collect();
                     format!("{}::{} {{ {} }}", parent, name, named_ps.join(", "))
                 }
             }
             Pat::NamedCon(name, named_args) => {
                 let parent = self.find_parent_type(name);
-                let ps: Vec<String> = named_args.iter()
+                let ps: Vec<String> = named_args
+                    .iter()
                     .map(|(fname, p)| format!("{}: {}", fname, self.emit_pattern_binding(p)))
                     .collect();
                 format!("{}::{} {{ {} }}", parent, name, ps.join(", "))
             }
             Pat::Lit(lit) => self.emit_literal(lit),
             Pat::As(inner, name) => {
-                format!("{} @ {}", self.emit_pattern_binding(inner), sanitize_name(name))
+                format!(
+                    "{} @ {}",
+                    self.emit_pattern_binding(inner),
+                    sanitize_name(name)
+                )
             }
         }
     }
@@ -14246,8 +18636,12 @@ impl RustCodegen {
             Pat::Wild => "_".to_string(),
             Pat::Con(name, args) if args.is_empty() => {
                 // Boolean literals: True/False → Rust's true/false
-                if name == "True" { return "true".to_string(); }
-                if name == "False" { return "false".to_string(); }
+                if name == "True" {
+                    return "true".to_string();
+                }
+                if name == "False" {
+                    return "false".to_string();
+                }
                 let parent = self.find_parent_type(name);
                 if self.types.struct_types.contains(&parent) {
                     name.clone()
@@ -14258,19 +18652,28 @@ impl RustCodegen {
             Pat::Con(name, args) => {
                 let parent = self.find_parent_type(name);
                 let is_struct_type = self.types.struct_types.contains(&parent);
-                let is_pos = self.types.variant_positional.get(name.as_str()).copied().unwrap_or(true);
+                let is_pos = self
+                    .types
+                    .variant_positional
+                    .get(name.as_str())
+                    .copied()
+                    .unwrap_or(true);
                 let boxed_indices = self.types.variant_boxed_args.get(name.as_str());
-                let ps: Vec<String> = args.iter().enumerate().map(|(i, p)| {
-                    let is_boxed = boxed_indices.map_or(false, |bi| bi.contains(&i));
-                    if is_boxed {
-                        match p {
-                            Pat::Var(_) | Pat::Wild => self.emit_pattern_with_boxing(p, true),
-                            _ => format!("__boxed_{}", i),
+                let ps: Vec<String> = args
+                    .iter()
+                    .enumerate()
+                    .map(|(i, p)| {
+                        let is_boxed = boxed_indices.map_or(false, |bi| bi.contains(&i));
+                        if is_boxed {
+                            match p {
+                                Pat::Var(_) | Pat::Wild => self.emit_pattern_with_boxing(p, true),
+                                _ => format!("__boxed_{}", i),
+                            }
+                        } else {
+                            self.emit_pattern_with_boxing(p, false)
                         }
-                    } else {
-                        self.emit_pattern_with_boxing(p, false)
-                    }
-                }).collect();
+                    })
+                    .collect();
                 if is_pos {
                     if is_struct_type {
                         format!("{}({})", parent, ps.join(", "))
@@ -14279,10 +18682,17 @@ impl RustCodegen {
                     }
                 } else {
                     let fields = self.types.variant_fields.get(name.as_str());
-                    let named_ps: Vec<String> = ps.iter().enumerate().map(|(i, p)| {
-                        let fname = fields.and_then(|f| f.get(i)).map(|s| s.as_str()).unwrap_or("_");
-                        format!("{}: {}", fname, p)
-                    }).collect();
+                    let named_ps: Vec<String> = ps
+                        .iter()
+                        .enumerate()
+                        .map(|(i, p)| {
+                            let fname = fields
+                                .and_then(|f| f.get(i))
+                                .map(|s| s.as_str())
+                                .unwrap_or("_");
+                            format!("{}: {}", fname, p)
+                        })
+                        .collect();
                     if is_struct_type {
                         format!("{} {{ {} }}", parent, named_ps.join(", "))
                     } else {
@@ -14293,8 +18703,11 @@ impl RustCodegen {
             Pat::NamedCon(name, named_args) => {
                 let parent = self.find_parent_type(name);
                 let is_struct_type = self.types.struct_types.contains(&parent);
-                let ps: Vec<String> = named_args.iter()
-                    .map(|(fname, p)| format!("{}: {}", fname, self.emit_pattern_with_boxing(p, false)))
+                let ps: Vec<String> = named_args
+                    .iter()
+                    .map(|(fname, p)| {
+                        format!("{}: {}", fname, self.emit_pattern_with_boxing(p, false))
+                    })
                     .collect();
                 if is_struct_type {
                     format!("{} {{ {} }}", parent, ps.join(", "))
@@ -14304,7 +18717,11 @@ impl RustCodegen {
             }
             Pat::Lit(lit) => self.emit_literal(lit),
             Pat::As(inner, name) => {
-                format!("{} @ {}", self.emit_pattern_with_boxing(inner, inside_box), sanitize_name(name))
+                format!(
+                    "{} @ {}",
+                    self.emit_pattern_with_boxing(inner, inside_box),
+                    sanitize_name(name)
+                )
             }
         }
     }
@@ -14342,11 +18759,17 @@ impl RustCodegen {
                         match sub_pat {
                             Pat::Con(sub_name, sub_args) if sub_args.is_empty() => {
                                 let parent = self.find_parent_type(sub_name);
-                                guards.push(format!("matches!({}, {}::{})", deref_expr, parent, sub_name));
+                                guards.push(format!(
+                                    "matches!({}, {}::{})",
+                                    deref_expr, parent, sub_name
+                                ));
                             }
                             Pat::Con(sub_name, _) => {
                                 let parent = self.find_parent_type(sub_name);
-                                guards.push(format!("matches!({}, {}::{}(..))", deref_expr, parent, sub_name));
+                                guards.push(format!(
+                                    "matches!({}, {}::{}(..))",
+                                    deref_expr, parent, sub_name
+                                ));
                             }
                             _ => {}
                         }
@@ -14361,25 +18784,28 @@ impl RustCodegen {
     }
 
     fn find_parent_type(&self, variant_name: &str) -> String {
-        self.types.variant_parent.get(variant_name).cloned().unwrap_or_else(|| {
-            // Fallback heuristic for built-in types not declared in source
-            match variant_name {
-                "None" | "Some" => "Option".to_string(),
-                "Nil" | "Cons" => "List".to_string(),
-                "True" | "False" => "Bool".to_string(),
-                "Ok" | "Err" => "Result".to_string(),
-                _ => variant_name.to_string(),
-            }
-        })
+        self.types
+            .variant_parent
+            .get(variant_name)
+            .cloned()
+            .unwrap_or_else(|| {
+                // Fallback heuristic for built-in types not declared in source
+                match variant_name {
+                    "None" | "Some" => "Option".to_string(),
+                    "Nil" | "Cons" => "List".to_string(),
+                    "True" | "False" => "Bool".to_string(),
+                    "Ok" | "Err" => "Result".to_string(),
+                    _ => variant_name.to_string(),
+                }
+            })
     }
 }
 
 fn sanitize_name(name: &str) -> String {
     match name {
-        "type" | "match" | "fn" | "let" | "mut" | "ref" | "super"
-        | "mod" | "use" | "pub" | "impl" | "trait" | "where" | "for"
-        | "loop" | "while" | "break" | "continue" | "return" | "async"
-        | "await" | "move" | "static" | "const" | "struct" | "enum" => {
+        "type" | "match" | "fn" | "let" | "mut" | "ref" | "super" | "mod" | "use" | "pub"
+        | "impl" | "trait" | "where" | "for" | "loop" | "while" | "break" | "continue"
+        | "return" | "async" | "await" | "move" | "static" | "const" | "struct" | "enum" => {
             format!("r#{}", name)
         }
         _ => name.to_string(),
@@ -14417,8 +18843,16 @@ mod tests {
 
     #[test]
     fn fir_binop_carries_type() {
-        let lhs = FirExpr { kind: FirExprKind::Lit(Literal::Int(1)), span: Span::dummy(), ty: FirTy::Int };
-        let rhs = FirExpr { kind: FirExprKind::Lit(Literal::Int(2)), span: Span::dummy(), ty: FirTy::Int };
+        let lhs = FirExpr {
+            kind: FirExprKind::Lit(Literal::Int(1)),
+            span: Span::dummy(),
+            ty: FirTy::Int,
+        };
+        let rhs = FirExpr {
+            kind: FirExprKind::Lit(Literal::Int(2)),
+            span: Span::dummy(),
+            ty: FirTy::Int,
+        };
         let add = FirExpr {
             kind: FirExprKind::BinOp("+".into(), Box::new(lhs), Box::new(rhs)),
             span: Span::dummy(),
@@ -14441,14 +18875,27 @@ mod tests {
         let arm = FirMatchArm {
             pat: Pat::Var("x".into()),
             guard: Some(FirExpr {
-                kind: FirExprKind::BinOp(">".into(),
-                    Box::new(FirExpr { kind: FirExprKind::Var("x".into(), VarMode::Copy), span: Span::dummy(), ty: FirTy::Int }),
-                    Box::new(FirExpr { kind: FirExprKind::Lit(Literal::Int(0)), span: Span::dummy(), ty: FirTy::Int }),
+                kind: FirExprKind::BinOp(
+                    ">".into(),
+                    Box::new(FirExpr {
+                        kind: FirExprKind::Var("x".into(), VarMode::Copy),
+                        span: Span::dummy(),
+                        ty: FirTy::Int,
+                    }),
+                    Box::new(FirExpr {
+                        kind: FirExprKind::Lit(Literal::Int(0)),
+                        span: Span::dummy(),
+                        ty: FirTy::Int,
+                    }),
                 ),
                 span: Span::dummy(),
                 ty: FirTy::Bool,
             }),
-            body: FirExpr { kind: FirExprKind::Var("x".into(), VarMode::Copy), span: Span::dummy(), ty: FirTy::Int },
+            body: FirExpr {
+                kind: FirExprKind::Var("x".into(), VarMode::Copy),
+                span: Span::dummy(),
+                ty: FirTy::Int,
+            },
         };
         assert!(arm.guard.is_some());
     }
@@ -14463,8 +18910,11 @@ mod tests {
         let stmts = parser.parse_program().expect("parse failed");
         if let Stmt::Bind(_, _, ref expr) = stmts[0] {
             let analysis = OwnershipAnalysis::analyze_simple(expr);
-            assert_eq!(analysis.var_uses.get("a").copied().unwrap_or(0), 2,
-                "expected 'a' used twice");
+            assert_eq!(
+                analysis.var_uses.get("a").copied().unwrap_or(0),
+                2,
+                "expected 'a' used twice"
+            );
         } else {
             panic!("expected Bind statement");
         }
@@ -14506,7 +18956,10 @@ mod tests {
             consuming_uses: BTreeMap::new(),
         };
 
-        let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
+        let mut ctx = LoweringCtx {
+            type_env: BTreeMap::new(),
+            inference: None,
+            fn_schemes: BTreeMap::new(),
             types: &types,
             ownership: &ownership,
             copy_vars: &copy_vars,
@@ -14570,7 +19023,10 @@ mod tests {
         if let Stmt::Bind(_, _, ref expr) = stmts[1] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
 
-            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
+            let mut ctx = LoweringCtx {
+                type_env: BTreeMap::new(),
+                inference: None,
+                fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14581,9 +19037,14 @@ mod tests {
             // use_twice(a, a) → App with two Var("a", Clone) args
             if let FirExprKind::App(_, ref args) = fir_expr.kind {
                 assert!(args.len() == 2);
-                assert!(matches!(args[0].kind, FirExprKind::Var(ref n, VarMode::Clone) if n == "a"),
-                    "expected Clone for multi-use 'a' in call, got: {:?}", args[0].kind);
-                assert!(matches!(args[1].kind, FirExprKind::Var(ref n, VarMode::Clone) if n == "a"));
+                assert!(
+                    matches!(args[0].kind, FirExprKind::Var(ref n, VarMode::Clone) if n == "a"),
+                    "expected Clone for multi-use 'a' in call, got: {:?}",
+                    args[0].kind
+                );
+                assert!(
+                    matches!(args[1].kind, FirExprKind::Var(ref n, VarMode::Clone) if n == "a")
+                );
             } else {
                 panic!("expected App, got: {:?}", fir_expr.kind);
             }
@@ -14608,10 +19069,16 @@ mod tests {
         if let Stmt::Bind(_, _, ref expr) = stmts[0] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
             // BinOp operands are NOT consuming — consuming_uses for 'a' should be 0
-            assert_eq!(ownership.consuming_uses.get("a").copied().unwrap_or(0), 0,
-                "BinOp operands should not count as consuming uses");
+            assert_eq!(
+                ownership.consuming_uses.get("a").copied().unwrap_or(0),
+                0,
+                "BinOp operands should not count as consuming uses"
+            );
 
-            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
+            let mut ctx = LoweringCtx {
+                type_env: BTreeMap::new(),
+                inference: None,
+                fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14620,8 +19087,11 @@ mod tests {
             let fir_expr = ctx.lower_expr(expr);
             if let FirExprKind::BinOp(_, ref lhs, _) = fir_expr.kind {
                 // 'a' has 0 consuming uses → Move (not Clone)
-                assert!(matches!(lhs.kind, FirExprKind::Var(_, VarMode::Move)),
-                    "expected Move for non-consuming BinOp use, got: {:?}", lhs.kind);
+                assert!(
+                    matches!(lhs.kind, FirExprKind::Var(_, VarMode::Move)),
+                    "expected Move for non-consuming BinOp use, got: {:?}",
+                    lhs.kind
+                );
             }
         }
     }
@@ -14636,12 +19106,15 @@ mod tests {
 
         let types = TypeRegistry::new();
         let mut copy_vars = BTreeSet::new();
-        copy_vars.insert("n".to_string());  // mark 'n' as Copy
+        copy_vars.insert("n".to_string()); // mark 'n' as Copy
         let ref_match = BTreeSet::new();
 
         if let Stmt::Bind(_, _, ref expr) = stmts[0] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
-            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
+            let mut ctx = LoweringCtx {
+                type_env: BTreeMap::new(),
+                inference: None,
+                fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14649,8 +19122,11 @@ mod tests {
             };
             let fir_expr = ctx.lower_expr(expr);
             if let FirExprKind::BinOp(_, ref lhs, _) = fir_expr.kind {
-                assert!(matches!(lhs.kind, FirExprKind::Var(ref n, VarMode::Copy) if n == "n"),
-                    "expected Copy for Copy-typed 'n', got: {:?}", lhs.kind);
+                assert!(
+                    matches!(lhs.kind, FirExprKind::Var(ref n, VarMode::Copy) if n == "n"),
+                    "expected Copy for Copy-typed 'n', got: {:?}",
+                    lhs.kind
+                );
             }
         }
     }
@@ -14672,8 +19148,16 @@ mod tests {
         let ref_match = BTreeSet::new();
 
         let code = emit_via_fir(&stmts, &types, &borrow_params, &copy_vars, &ref_match);
-        assert!(code.contains("fn add(a: i64, b: i64) -> i64"), "expected function signature, got:\n{}", code);
-        assert!(code.contains("(a + b)"), "expected body expression, got:\n{}", code);
+        assert!(
+            code.contains("fn add(a: i64, b: i64) -> i64"),
+            "expected function signature, got:\n{}",
+            code
+        );
+        assert!(
+            code.contains("(a + b)"),
+            "expected body expression, got:\n{}",
+            code
+        );
     }
 
     #[test]
@@ -14685,20 +19169,42 @@ mod tests {
         let stmts = parser.parse_program().expect("parse failed");
 
         let types = TypeRegistry::new();
-        let code = emit_via_fir(&stmts, &types, &BTreeMap::new(), &BTreeSet::new(), &BTreeSet::new());
-        assert!(code.contains("let x = 42i64;"), "expected let binding, got:\n{}", code);
+        let code = emit_via_fir(
+            &stmts,
+            &types,
+            &BTreeMap::new(),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+        );
+        assert!(
+            code.contains("let x = 42i64;"),
+            "expected let binding, got:\n{}",
+            code
+        );
     }
 
     // ── FIR emission tests ──────────────────────────────────────────
 
     fn fir_var(name: &str, mode: VarMode) -> FirExpr {
-        FirExpr { kind: FirExprKind::Var(name.into(), mode), span: Span::dummy(), ty: FirTy::Unknown }
+        FirExpr {
+            kind: FirExprKind::Var(name.into(), mode),
+            span: Span::dummy(),
+            ty: FirTy::Unknown,
+        }
     }
     fn fir_int(n: i64) -> FirExpr {
-        FirExpr { kind: FirExprKind::Lit(Literal::Int(n)), span: Span::dummy(), ty: FirTy::Int }
+        FirExpr {
+            kind: FirExprKind::Lit(Literal::Int(n)),
+            span: Span::dummy(),
+            ty: FirTy::Int,
+        }
     }
     fn fir_str(s: &str) -> FirExpr {
-        FirExpr { kind: FirExprKind::Lit(Literal::Str(s.into())), span: Span::dummy(), ty: FirTy::String }
+        FirExpr {
+            kind: FirExprKind::Lit(Literal::Str(s.into())),
+            span: Span::dummy(),
+            ty: FirTy::String,
+        }
     }
 
     #[test]
@@ -14710,19 +19216,28 @@ mod tests {
     #[test]
     fn emit_fir_var_clone() {
         let types = TypeRegistry::new();
-        assert_eq!(emit_fir_expr(&fir_var("name", VarMode::Clone), &types), "name.clone()");
+        assert_eq!(
+            emit_fir_expr(&fir_var("name", VarMode::Clone), &types),
+            "name.clone()"
+        );
     }
 
     #[test]
     fn emit_fir_var_deref() {
         let types = TypeRegistry::new();
-        assert_eq!(emit_fir_expr(&fir_var("val", VarMode::Deref), &types), "(*val)");
+        assert_eq!(
+            emit_fir_expr(&fir_var("val", VarMode::Deref), &types),
+            "(*val)"
+        );
     }
 
     #[test]
     fn emit_fir_var_borrow() {
         let types = TypeRegistry::new();
-        assert_eq!(emit_fir_expr(&fir_var("data", VarMode::Borrow), &types), "&data");
+        assert_eq!(
+            emit_fir_expr(&fir_var("data", VarMode::Borrow), &types),
+            "&data"
+        );
     }
 
     #[test]
@@ -14734,7 +19249,10 @@ mod tests {
     #[test]
     fn emit_fir_string_literal() {
         let types = TypeRegistry::new();
-        assert_eq!(emit_fir_expr(&fir_str("hello"), &types), "\"hello\".to_string()");
+        assert_eq!(
+            emit_fir_expr(&fir_str("hello"), &types),
+            "\"hello\".to_string()"
+        );
     }
 
     #[test]
@@ -14767,14 +19285,21 @@ mod tests {
         let types = TypeRegistry::new();
         let expr = FirExpr {
             kind: FirExprKind::If(
-                Box::new(FirExpr { kind: FirExprKind::Lit(Literal::Bool(true)), span: Span::dummy(), ty: FirTy::Bool }),
+                Box::new(FirExpr {
+                    kind: FirExprKind::Lit(Literal::Bool(true)),
+                    span: Span::dummy(),
+                    ty: FirTy::Bool,
+                }),
                 Box::new(fir_int(1)),
                 Box::new(fir_int(0)),
             ),
             span: Span::dummy(),
             ty: FirTy::Int,
         };
-        assert_eq!(emit_fir_expr(&expr, &types), "if true { 1i64 } else { 0i64 }");
+        assert_eq!(
+            emit_fir_expr(&expr, &types),
+            "if true { 1i64 } else { 0i64 }"
+        );
     }
 
     #[test]
@@ -14818,7 +19343,10 @@ mod tests {
 
         if let Stmt::Bind(_, _, ref expr) = stmts[0] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
-            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
+            let mut ctx = LoweringCtx {
+                type_env: BTreeMap::new(),
+                inference: None,
+                fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &copy_vars,
@@ -14844,9 +19372,18 @@ mod tests {
         let resolved = cg.scan_declarations(&stmts);
 
         // TypeRegistry should know about the Color type and its variants
-        assert!(cg.types.variant_parent.contains_key("Red"), "Red should be registered");
-        assert!(cg.types.variant_parent.contains_key("Green"), "Green should be registered");
-        assert!(cg.types.variant_parent.contains_key("Blue"), "Blue should be registered");
+        assert!(
+            cg.types.variant_parent.contains_key("Red"),
+            "Red should be registered"
+        );
+        assert!(
+            cg.types.variant_parent.contains_key("Green"),
+            "Green should be registered"
+        );
+        assert!(
+            cg.types.variant_parent.contains_key("Blue"),
+            "Blue should be registered"
+        );
         assert!(!resolved.is_empty(), "resolved stmts should not be empty");
     }
 
@@ -14861,12 +19398,16 @@ mod tests {
         let mut cg = RustCodegen::new();
         cg.scan_declarations(&stmts);
 
-        assert!(cg.types.struct_types.contains("Point"), "Point should be detected as struct type");
+        assert!(
+            cg.types.struct_types.contains("Point"),
+            "Point should be detected as struct type"
+        );
     }
 
     #[test]
     fn scan_registers_user_functions() {
-        let source = "> add(a: Int, b: Int) -> Int { a + b }\n> mul(a: Int, b: Int) -> Int { a * b }";
+        let source =
+            "> add(a: Int, b: Int) -> Int { a + b }\n> mul(a: Int, b: Int) -> Int { a * b }";
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
         let mut parser = Parser::new(tokens, source);
@@ -14875,8 +19416,14 @@ mod tests {
         let mut cg = RustCodegen::new();
         cg.scan_declarations(&stmts);
 
-        assert!(cg.types.user_functions.contains("add"), "add should be registered");
-        assert!(cg.types.user_functions.contains("mul"), "mul should be registered");
+        assert!(
+            cg.types.user_functions.contains("add"),
+            "add should be registered"
+        );
+        assert!(
+            cg.types.user_functions.contains("mul"),
+            "mul should be registered"
+        );
     }
 
     #[test]
@@ -14892,7 +19439,10 @@ mod tests {
         let output = cg.emit_program(&stmts);
 
         // emit_program internally calls scan_declarations, so the output should be valid Rust
-        assert!(output.contains("fn add("), "output should contain add function");
+        assert!(
+            output.contains("fn add("),
+            "output should contain add function"
+        );
         assert!(output.contains("fn main()"), "output should contain main");
     }
 
@@ -14905,13 +19455,23 @@ mod tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse failed");
         let types = TypeRegistry::new();
-        emit_via_fir(&stmts, &types, &BTreeMap::new(), &BTreeSet::new(), &BTreeSet::new())
+        emit_via_fir(
+            &stmts,
+            &types,
+            &BTreeMap::new(),
+            &BTreeSet::new(),
+            &BTreeSet::new(),
+        )
     }
 
     #[test]
     fn fir_emit_if_expression() {
         let code = fir_emit("> max(a: Int, b: Int) -> Int { if a > b { a } else { b } }");
-        assert!(code.contains("fn max(a: i64, b: i64) -> i64"), "missing sig:\n{}", code);
+        assert!(
+            code.contains("fn max(a: i64, b: i64) -> i64"),
+            "missing sig:\n{}",
+            code
+        );
         assert!(code.contains("if (a > b)"), "missing if:\n{}", code);
     }
 
@@ -14933,13 +19493,21 @@ mod tests {
     #[test]
     fn fir_emit_list_literal() {
         let code = fir_emit("= xs = [1, 2, 3]");
-        assert!(code.contains("vec![1i64, 2i64, 3i64]"), "missing list:\n{}", code);
+        assert!(
+            code.contains("vec![1i64, 2i64, 3i64]"),
+            "missing list:\n{}",
+            code
+        );
     }
 
     #[test]
     fn fir_emit_pipe() {
         let code = fir_emit("> double(x: Int) -> Int { x * 2 }\n= y = 21 |> double");
-        assert!(code.contains("double(21i64)"), "pipe should desugar to call:\n{}", code);
+        assert!(
+            code.contains("double(21i64)"),
+            "pipe should desugar to call:\n{}",
+            code
+        );
     }
 
     #[test]
@@ -14957,7 +19525,8 @@ mod tests {
     #[test]
     fn fir_emit_clone_multi_use() {
         // When a non-Copy var is used twice in function args, it should clone
-        let source = "> use_both(a: String, b: String) -> String { a + b }\n= result = use_both(name, name)";
+        let source =
+            "> use_both(a: String, b: String) -> String { a + b }\n= result = use_both(name, name)";
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
         let mut parser = Parser::new(tokens, source);
@@ -14967,7 +19536,10 @@ mod tests {
         // The bind expression is stmts[1]: = result = use_both(name, name)
         if let Stmt::Bind(_, _, ref expr) = stmts[1] {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
-            let mut ctx = LoweringCtx { type_env: BTreeMap::new(), inference: None, fn_schemes: BTreeMap::new(),
+            let mut ctx = LoweringCtx {
+                type_env: BTreeMap::new(),
+                inference: None,
+                fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &BTreeSet::new(),
@@ -14975,7 +19547,11 @@ mod tests {
             };
             let fir = ctx.lower_expr(expr);
             let rust = emit_fir_expr(&fir, &types);
-            assert!(rust.contains(".clone()"), "multi-use non-Copy should clone:\n{}", rust);
+            assert!(
+                rust.contains(".clone()"),
+                "multi-use non-Copy should clone:\n{}",
+                rust
+            );
         }
     }
 
@@ -14992,7 +19568,8 @@ mod tests {
             let ownership = OwnershipAnalysis::analyze_simple(expr);
             let mut ctx = LoweringCtx {
                 type_env,
-                inference: None, fn_schemes: BTreeMap::new(),
+                inference: None,
+                fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &BTreeSet::new(),
@@ -15180,12 +19757,20 @@ mod tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse failed");
 
-        if let Stmt::Defn(Defn::Fn { name, params, body, ret_ty, .. }) = &stmts[0] {
+        if let Stmt::Defn(Defn::Fn {
+            name,
+            params,
+            body,
+            ret_ty,
+            ..
+        }) = &stmts[0]
+        {
             let types = TypeRegistry::new();
             let ownership = OwnershipAnalysis::analyze_simple(body);
             let mut ctx = LoweringCtx {
                 type_env: BTreeMap::new(),
-                inference: None, fn_schemes: BTreeMap::new(),
+                inference: None,
+                fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &BTreeSet::new(),
@@ -15214,7 +19799,11 @@ mod tests {
         // x is used in x + x where + defaults to Int, and return type is Int
         assert_eq!(fir.ty, FirTy::Int, "body should be Int");
         // x should be inferred as Int from the arithmetic
-        assert_eq!(env.get("x"), Some(&FirTy::Int), "x should be inferred as Int");
+        assert_eq!(
+            env.get("x"),
+            Some(&FirTy::Int),
+            "x should be inferred as Int"
+        );
     }
 
     #[test]
@@ -15232,12 +19821,20 @@ mod tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse failed");
 
-        if let Stmt::Defn(Defn::Fn { name, params, body, ret_ty, .. }) = &stmts[0] {
+        if let Stmt::Defn(Defn::Fn {
+            name,
+            params,
+            body,
+            ret_ty,
+            ..
+        }) = &stmts[0]
+        {
             let types = TypeRegistry::new();
             let ownership = OwnershipAnalysis::analyze_simple(body);
             let mut ctx = LoweringCtx {
                 type_env: BTreeMap::new(),
-                inference: None, fn_schemes: BTreeMap::new(),
+                inference: None,
+                fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &BTreeSet::new(),
@@ -15246,10 +19843,17 @@ mod tests {
             let fir = ctx.infer_function(params, body, ret_ty.as_ref(), Some(name.as_str()));
 
             // id should have a type scheme with generics
-            assert!(ctx.fn_schemes.contains_key("id"),
-                "id should be polymorphic, got env: {:?}, schemes: {:?}", ctx.type_env, ctx.fn_schemes);
+            assert!(
+                ctx.fn_schemes.contains_key("id"),
+                "id should be polymorphic, got env: {:?}, schemes: {:?}",
+                ctx.type_env,
+                ctx.fn_schemes
+            );
             let scheme = &ctx.fn_schemes["id"];
-            assert!(!scheme.generics.is_empty(), "id should have generic type vars");
+            assert!(
+                !scheme.generics.is_empty(),
+                "id should have generic type vars"
+            );
         }
     }
 
@@ -15282,12 +19886,20 @@ mod tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse failed");
 
-        if let Stmt::Defn(Defn::Fn { name, params, body, ret_ty, .. }) = &stmts[0] {
+        if let Stmt::Defn(Defn::Fn {
+            name,
+            params,
+            body,
+            ret_ty,
+            ..
+        }) = &stmts[0]
+        {
             let types = TypeRegistry::new();
             let ownership = OwnershipAnalysis::analyze_simple(body);
             let mut ctx = LoweringCtx {
                 type_env: BTreeMap::new(),
-                inference: None, fn_schemes: BTreeMap::new(),
+                inference: None,
+                fn_schemes: BTreeMap::new(),
                 types: &types,
                 ownership: &ownership,
                 copy_vars: &BTreeSet::new(),
@@ -15296,21 +19908,31 @@ mod tests {
             let fir = ctx.infer_function(params, body, ret_ty.as_ref(), Some(name.as_str()));
 
             // add is monomorphic — should NOT be in fn_schemes
-            assert!(!ctx.fn_schemes.contains_key("add"),
-                "add should be monomorphic, not in schemes");
+            assert!(
+                !ctx.fn_schemes.contains_key("add"),
+                "add should be monomorphic, not in schemes"
+            );
             // Should be in type_env instead
-            assert!(ctx.type_env.contains_key("add"),
-                "add should be in type_env as Arrow(Int, Arrow(Int, Int))");
+            assert!(
+                ctx.type_env.contains_key("add"),
+                "add should be in type_env as Arrow(Int, Arrow(Int, Int))"
+            );
         }
     }
 
     #[test]
     fn ty_to_fir_conversion() {
         assert_eq!(LoweringCtx::ty_to_fir(&Ty::Name("Int".into())), FirTy::Int);
-        assert_eq!(LoweringCtx::ty_to_fir(&Ty::Name("String".into())), FirTy::String);
+        assert_eq!(
+            LoweringCtx::ty_to_fir(&Ty::Name("String".into())),
+            FirTy::String
+        );
         assert_eq!(LoweringCtx::ty_to_fir(&Ty::Unit), FirTy::Unit);
         assert_eq!(
-            LoweringCtx::ty_to_fir(&Ty::App(Box::new(Ty::Name("List".into())), vec![Ty::Name("Int".into())])),
+            LoweringCtx::ty_to_fir(&Ty::App(
+                Box::new(Ty::Name("List".into())),
+                vec![Ty::Name("Int".into())]
+            )),
             FirTy::List(Box::new(FirTy::Int))
         );
     }

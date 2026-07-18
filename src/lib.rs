@@ -3,7 +3,13 @@
 //! This module contains the core language implementation that can be used
 //! as a library, including for the WASM playground.
 
-#![allow(dead_code, unused_imports, unused_variables, unused_mut, unused_assignments)]
+#![allow(
+    dead_code,
+    unused_imports,
+    unused_variables,
+    unused_mut,
+    unused_assignments
+)]
 
 //! runa — The Futuruna Compiler / Interpreter
 //!
@@ -17,13 +23,13 @@
 //! This is the first real implementation of Futuruna — the programming language
 //! designed by measuring syntactic consciousness.
 
+use serde_json;
+use sha2::{Digest as ShaDigest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::rc::Rc;
 use std::env;
 use std::fmt;
 use std::io::{self, BufRead, Write as IoWrite};
-use sha2::{Sha256, Digest as ShaDigest};
-use serde_json;
+use std::rc::Rc;
 
 // ============================================================================
 // PART 1: TOKENS
@@ -33,35 +39,35 @@ use serde_json;
 pub enum TokenKind {
     // The 15 token categories from the S_τ model
     Start,
-    KW,      // keywords
-    Ident,   // identifiers (lowercase start)
-    Op,      // operators + runes
-    Delim,   // unused (absorbed by comma/semi)
-    Lit,     // literals
-    Type,    // type names (uppercase start)
+    KW,    // keywords
+    Ident, // identifiers (lowercase start)
+    Op,    // operators + runes
+    Delim, // unused (absorbed by comma/semi)
+    Lit,   // literals
+    Type,  // type names (uppercase start)
     LParen,
     RParen,
     LBrace,
     RBrace,
     LBracket,
     RBracket,
-    Semi,    // newline / statement separator
+    Semi, // newline / statement separator
     Dot,
-    Arrow,   // ->
+    Arrow,    // ->
     FatArrow, // =>
     Comma,
     Colon,
-    Pipe,    // | (both rune and separator)
-    Hash,    // #
-    At,      // @
-    Gt,      // >
-    Eq,      // =
-    Send,    // <-
-    Tilde,   // ~ (stream binding rune)
-    PipeGt,  // |> (pipe-forward operator)
+    Pipe,     // | (both rune and separator)
+    Hash,     // #
+    At,       // @
+    Gt,       // >
+    Eq,       // =
+    Send,     // <-
+    Tilde,    // ~ (stream binding rune)
+    PipeGt,   // |> (pipe-forward operator)
     SafeCall, // ?. (Kotlin-style safe call on optional)
     Elvis,    // ?: (Kotlin-style elvis / default on optional)
-    Amp,     // &
+    Amp,      // &
     String_,
     Char_,
     Int_,
@@ -80,7 +86,12 @@ pub struct Token {
 
 impl Token {
     pub fn new(kind: TokenKind, text: impl Into<String>, line: usize, col: usize) -> Self {
-        Token { kind, text: text.into(), line, col }
+        Token {
+            kind,
+            text: text.into(),
+            line,
+            col,
+        }
     }
 }
 
@@ -95,13 +106,38 @@ type KeywordTable = HashMap<String, (String, TokenKind)>;
 
 pub fn keyword_table_english() -> KeywordTable {
     let kws = [
-        "match", "if", "else", "with", "under", "exception",
-        "scope", "on", "actor", "spawn", "effect", "module",
-        "import", "where", "mut", "in", "let", "fn",
-        "type", "do", "then", "return",
-        "use", "trait", "impl", "for",
-        "handle", "resume", "perform",
-        "assert", "retract", "abort",
+        "match",
+        "if",
+        "else",
+        "with",
+        "under",
+        "exception",
+        "scope",
+        "on",
+        "actor",
+        "spawn",
+        "effect",
+        "module",
+        "import",
+        "where",
+        "mut",
+        "in",
+        "let",
+        "fn",
+        "type",
+        "do",
+        "then",
+        "return",
+        "use",
+        "trait",
+        "impl",
+        "for",
+        "handle",
+        "resume",
+        "perform",
+        "assert",
+        "retract",
+        "abort",
     ];
     let mut t = HashMap::new();
     for kw in kws {
@@ -333,12 +369,16 @@ pub fn detect_language(source: &str) -> KeywordTable {
     for line in source.lines() {
         let trimmed = line.trim();
         if in_block_comment {
-            if trimmed.contains("----") { in_block_comment = false; }
+            if trimmed.contains("----") {
+                in_block_comment = false;
+            }
             continue;
         }
         if trimmed.starts_with("----") {
             // Block comment might open and close on same line
-            if trimmed.matches("----").count() < 2 { in_block_comment = true; }
+            if trimmed.matches("----").count() < 2 {
+                in_block_comment = true;
+            }
             continue;
         }
         if trimmed.is_empty() || trimmed.starts_with("--") {
@@ -506,14 +546,19 @@ const BUILTIN_ALIASES: &[(&str, &str)] = &[
 /// If the name is not an alias, returns it unchanged.
 pub fn builtin_canonical(name: &str) -> &str {
     for &(alias, canonical) in BUILTIN_ALIASES {
-        if alias == name { return canonical; }
+        if alias == name {
+            return canonical;
+        }
     }
     name
 }
 
 /// Returns alias→canonical map for runtime env registration.
 pub fn builtin_aliases() -> Vec<(String, String)> {
-    BUILTIN_ALIASES.iter().map(|&(a, c)| (a.into(), c.into())).collect()
+    BUILTIN_ALIASES
+        .iter()
+        .map(|&(a, c)| (a.into(), c.into()))
+        .collect()
 }
 
 // ---- Standard Prelude ----
@@ -586,9 +631,10 @@ pub fn parse_prelude() -> Vec<Stmt> {
     let tokens = lexer.tokenize();
     let mut parser = Parser::new(tokens, TAU_PRELUDE);
     match parser.parse_program() {
-        Ok(stmts) => stmts.into_iter().filter(|s| {
-            matches!(s, Stmt::Defn(_) | Stmt::TypeDecl(_))
-        }).collect(),
+        Ok(stmts) => stmts
+            .into_iter()
+            .filter(|s| matches!(s, Stmt::Defn(_) | Stmt::TypeDecl(_)))
+            .collect(),
         Err(e) => {
             eprintln!("BUG: prelude parse error: {}", e);
             vec![]
@@ -603,24 +649,35 @@ pub fn prepend_prelude(prelude: Vec<Stmt>, user_stmts: &[Stmt]) -> Vec<Stmt> {
     let mut user_names: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     for s in user_stmts {
         match s {
-            Stmt::Defn(Defn::Fn { name, .. }) => { user_names.insert(name.clone()); }
-            Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => { user_names.insert(name.clone()); }
-            Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => { user_names.insert(name.clone()); }
-            Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. }) => { user_names.insert(name.clone()); }
+            Stmt::Defn(Defn::Fn { name, .. }) => {
+                user_names.insert(name.clone());
+            }
+            Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+                user_names.insert(name.clone());
+            }
+            Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => {
+                user_names.insert(name.clone());
+            }
+            Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. }) => {
+                user_names.insert(name.clone());
+            }
             _ => {}
         }
     }
     // Only include prelude stmts whose name isn't shadowed by the user
-    let mut result: Vec<Stmt> = prelude.into_iter().filter(|s| {
-        let name = match s {
-            Stmt::Defn(Defn::Fn { name, .. }) => Some(name.as_str()),
-            Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => Some(name.as_str()),
-            Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => Some(name.as_str()),
-            Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. }) => Some(name.as_str()),
-            _ => None,
-        };
-        name.map(|n| !user_names.contains(n)).unwrap_or(true)
-    }).collect();
+    let mut result: Vec<Stmt> = prelude
+        .into_iter()
+        .filter(|s| {
+            let name = match s {
+                Stmt::Defn(Defn::Fn { name, .. }) => Some(name.as_str()),
+                Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => Some(name.as_str()),
+                Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => Some(name.as_str()),
+                Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. }) => Some(name.as_str()),
+                _ => None,
+            };
+            name.map(|n| !user_names.contains(n)).unwrap_or(true)
+        })
+        .collect();
     result.extend_from_slice(user_stmts);
     result
 }
@@ -700,24 +757,34 @@ impl Lexer {
             };
 
             // Block comments: ---- ... ----
-            if c == '-' && self.peek2() == Some('-')
-                && self.peek_at(2) == Some('-') && self.peek_at(3) == Some('-')
+            if c == '-'
+                && self.peek2() == Some('-')
+                && self.peek_at(2) == Some('-')
+                && self.peek_at(3) == Some('-')
             {
                 // Consume the opening ----
-                self.advance(); self.advance(); self.advance(); self.advance();
+                self.advance();
+                self.advance();
+                self.advance();
+                self.advance();
                 // Scan until closing ----
                 loop {
                     match self.peek() {
                         None => break, // EOF — unclosed block comment
-                        Some('-') if self.peek2() == Some('-')
-                            && self.peek_at(2) == Some('-')
-                            && self.peek_at(3) == Some('-') =>
+                        Some('-')
+                            if self.peek2() == Some('-')
+                                && self.peek_at(2) == Some('-')
+                                && self.peek_at(3) == Some('-') =>
                         {
-                            self.advance(); self.advance();
-                            self.advance(); self.advance();
+                            self.advance();
+                            self.advance();
+                            self.advance();
+                            self.advance();
                             break;
                         }
-                        _ => { self.advance(); }
+                        _ => {
+                            self.advance();
+                        }
                     }
                 }
                 continue;
@@ -726,7 +793,9 @@ impl Lexer {
             // Line comments: -- to end of line
             if c == '-' && self.peek2() == Some('-') {
                 while let Some(c) = self.peek() {
-                    if c == '\n' { break; }
+                    if c == '\n' {
+                        break;
+                    }
                     self.advance();
                 }
                 continue;
@@ -754,66 +823,89 @@ impl Lexer {
             // Two-character operators
             // ?. (safe call) and ?: (elvis) — must come before single-char ? handling
             if c == '?' && self.peek2() == Some('.') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::SafeCall, "?.", line, col));
                 continue;
             }
             if c == '?' && self.peek2() == Some(':') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::Elvis, "?:", line, col));
                 continue;
             }
             if c == '-' && self.peek2() == Some('>') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::Arrow, "->", line, col));
                 continue;
             }
             if c == '<' && self.peek2() == Some('-') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::Send, "<-", line, col));
                 continue;
             }
             if c == '=' && self.peek2() == Some('>') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::FatArrow, "=>", line, col));
                 continue;
             }
             if c == '=' && self.peek2() == Some('=') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::Op, "==", line, col));
                 continue;
             }
             if c == '!' && self.peek2() == Some('=') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::Op, "!=", line, col));
                 continue;
             }
             if c == '>' && self.peek2() == Some('=') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::Op, ">=", line, col));
                 continue;
             }
             if c == '<' && self.peek2() == Some('=') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::Op, "<=", line, col));
                 continue;
             }
             if c == '&' && self.peek2() == Some('&') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::Op, "&&", line, col));
                 continue;
             }
             if c == '|' && self.peek2() == Some('|') {
-                self.advance(); self.advance();
+                self.advance();
+                self.advance();
                 tokens.push(Token::new(TokenKind::Op, "||", line, col));
                 continue;
             }
 
             // Single-character tokens
             match c {
-                '(' => { self.advance(); tokens.push(Token::new(TokenKind::LParen, "(", line, col)); continue; }
-                ')' => { self.advance(); tokens.push(Token::new(TokenKind::RParen, ")", line, col)); continue; }
-                '{' => { self.advance(); tokens.push(Token::new(TokenKind::LBrace, "{", line, col)); continue; }
+                '(' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::LParen, "(", line, col));
+                    continue;
+                }
+                ')' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::RParen, ")", line, col));
+                    continue;
+                }
+                '{' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::LBrace, "{", line, col));
+                    continue;
+                }
                 '}' => {
                     self.advance();
                     // Remove preceding semi before }
@@ -825,15 +917,51 @@ impl Lexer {
                     tokens.push(Token::new(TokenKind::RBrace, "}", line, col));
                     continue;
                 }
-                '[' => { self.advance(); tokens.push(Token::new(TokenKind::LBracket, "[", line, col)); continue; }
-                ']' => { self.advance(); tokens.push(Token::new(TokenKind::RBracket, "]", line, col)); continue; }
-                ',' => { self.advance(); tokens.push(Token::new(TokenKind::Comma, ",", line, col)); continue; }
-                ':' => { self.advance(); tokens.push(Token::new(TokenKind::Colon, ":", line, col)); continue; }
-                '.' => { self.advance(); tokens.push(Token::new(TokenKind::Dot, ".", line, col)); continue; }
-                '#' => { self.advance(); tokens.push(Token::new(TokenKind::Hash, "#", line, col)); continue; }
-                '@' => { self.advance(); tokens.push(Token::new(TokenKind::At, "@", line, col)); continue; }
-                '&' => { self.advance(); tokens.push(Token::new(TokenKind::Amp, "&", line, col)); continue; }
-                '~' => { self.advance(); tokens.push(Token::new(TokenKind::Tilde, "~", line, col)); continue; }
+                '[' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::LBracket, "[", line, col));
+                    continue;
+                }
+                ']' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::RBracket, "]", line, col));
+                    continue;
+                }
+                ',' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::Comma, ",", line, col));
+                    continue;
+                }
+                ':' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::Colon, ":", line, col));
+                    continue;
+                }
+                '.' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::Dot, ".", line, col));
+                    continue;
+                }
+                '#' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::Hash, "#", line, col));
+                    continue;
+                }
+                '@' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::At, "@", line, col));
+                    continue;
+                }
+                '&' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::Amp, "&", line, col));
+                    continue;
+                }
+                '~' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::Tilde, "~", line, col));
+                    continue;
+                }
                 '|' => {
                     self.advance();
                     if self.pos < self.chars.len() && self.chars[self.pos] == '>' {
@@ -860,7 +988,9 @@ impl Lexer {
                     self.advance();
                     // Distinguish = rune (start of statement) from = operator
                     let is_rune = tokens.is_empty()
-                        || tokens.last().map_or(false, |t| t.kind == TokenKind::Semi || t.kind == TokenKind::LBrace);
+                        || tokens.last().map_or(false, |t| {
+                            t.kind == TokenKind::Semi || t.kind == TokenKind::LBrace
+                        });
                     if is_rune {
                         tokens.push(Token::new(TokenKind::Eq, "=", line, col));
                     } else {
@@ -881,7 +1011,11 @@ impl Lexer {
             // Numbers
             if c.is_ascii_digit() {
                 let s = self.read_number();
-                let kind = if s.contains('.') { TokenKind::Float_ } else { TokenKind::Int_ };
+                let kind = if s.contains('.') {
+                    TokenKind::Float_
+                } else {
+                    TokenKind::Int_
+                };
                 tokens.push(Token::new(kind, s, line, col));
                 continue;
             }
@@ -918,7 +1052,12 @@ impl Lexer {
                                 let sub_tokens = sub.tokenize();
                                 for st in &sub_tokens {
                                     if st.kind != TokenKind::Eof {
-                                        tokens.push(Token::new(st.kind, st.text.clone(), line, col));
+                                        tokens.push(Token::new(
+                                            st.kind,
+                                            st.text.clone(),
+                                            line,
+                                            col,
+                                        ));
                                     }
                                 }
                                 tokens.push(Token::new(TokenKind::RParen, ")", line, col));
@@ -1011,13 +1150,16 @@ impl Lexer {
             match self.peek() {
                 // Check for closing """
                 Some('"') if self.peek_at(1) == Some('"') && self.peek_at(2) == Some('"') => {
-                    self.advance(); self.advance(); self.advance();
+                    self.advance();
+                    self.advance();
+                    self.advance();
                     break;
                 }
                 // Check for interpolation {{...}}
                 Some('{') if self.peek_at(1) == Some('{') => {
-                    self.advance(); self.advance(); // consume {{
-                    // Flush accumulated literal
+                    self.advance();
+                    self.advance(); // consume {{
+                                    // Flush accumulated literal
                     if !buf.is_empty() {
                         parts.push(TplPart::Lit(std::mem::take(&mut buf)));
                     }
@@ -1027,12 +1169,24 @@ impl Lexer {
                     loop {
                         match self.peek() {
                             Some('}') if depth == 0 && self.peek_at(1) == Some('}') => {
-                                self.advance(); self.advance();
+                                self.advance();
+                                self.advance();
                                 break;
                             }
-                            Some('{') => { depth += 1; expr.push('{'); self.advance(); }
-                            Some('}') => { depth -= 1; expr.push('}'); self.advance(); }
-                            Some(c) => { expr.push(c); self.advance(); }
+                            Some('{') => {
+                                depth += 1;
+                                expr.push('{');
+                                self.advance();
+                            }
+                            Some('}') => {
+                                depth -= 1;
+                                expr.push('}');
+                                self.advance();
+                            }
+                            Some(c) => {
+                                expr.push(c);
+                                self.advance();
+                            }
                             None => break,
                         }
                     }
@@ -1098,16 +1252,17 @@ impl Lexer {
         loop {
             match self.advance() {
                 Some('"') => break,
-                Some('\\') => {
-                    match self.advance() {
-                        Some('n') => s.push('\n'),
-                        Some('t') => s.push('\t'),
-                        Some('\\') => s.push('\\'),
-                        Some('"') => s.push('"'),
-                        Some(c) => { s.push('\\'); s.push(c); }
-                        None => break,
+                Some('\\') => match self.advance() {
+                    Some('n') => s.push('\n'),
+                    Some('t') => s.push('\t'),
+                    Some('\\') => s.push('\\'),
+                    Some('"') => s.push('"'),
+                    Some(c) => {
+                        s.push('\\');
+                        s.push(c);
                     }
-                }
+                    None => break,
+                },
                 Some(c) => s.push(c),
                 None => break,
             }
@@ -1118,20 +1273,20 @@ impl Lexer {
     pub fn read_char_lit(&mut self) -> String {
         self.advance(); // consume opening '
         let c = match self.advance() {
-            Some('\\') => {
-                match self.advance() {
-                    Some('n') => '\n',
-                    Some('t') => '\t',
-                    Some('\\') => '\\',
-                    Some('\'') => '\'',
-                    Some(c) => c,
-                    None => ' ',
-                }
-            }
+            Some('\\') => match self.advance() {
+                Some('n') => '\n',
+                Some('t') => '\t',
+                Some('\\') => '\\',
+                Some('\'') => '\'',
+                Some(c) => c,
+                None => ' ',
+            },
             Some(c) => c,
             None => ' ',
         };
-        if self.peek() == Some('\'') { self.advance(); }
+        if self.peek() == Some('\'') {
+            self.advance();
+        }
         c.to_string()
     }
 }
@@ -1164,8 +1319,12 @@ impl Span {
 
     /// Merge two spans into one covering both.
     pub fn merge(self, other: Span) -> Span {
-        if self.is_dummy() { return other; }
-        if other.is_dummy() { return self; }
+        if self.is_dummy() {
+            return other;
+        }
+        if other.is_dummy() {
+            return self;
+        }
         Span {
             start: self.start.min(other.start),
             end: self.end.max(other.end),
@@ -1187,7 +1346,9 @@ pub fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
     let mut line = 1;
     let mut col = 1;
     for (i, ch) in source.char_indices() {
-        if i >= offset { break; }
+        if i >= offset {
+            break;
+        }
         if ch == '\n' {
             line += 1;
             col = 1;
@@ -1286,7 +1447,10 @@ impl Diagnostic {
 
             // Location header
             out.push_str(&format!("{}: {}{}{}\n", label, bold, self.message, reset));
-            out.push_str(&format!(" {}-->{} {}:{}:{}\n", blue, reset, filename, line, col));
+            out.push_str(&format!(
+                " {}-->{} {}:{}:{}\n",
+                blue, reset, filename, line, col
+            ));
 
             let lines: Vec<&str> = source.lines().collect();
             if line > 0 && line <= lines.len() {
@@ -1298,8 +1462,10 @@ impl Diagnostic {
                 out.push_str(&format!(" {} {}|{}\n", padding, blue, reset));
 
                 // Source line
-                out.push_str(&format!(" {}{}{} {}|{} {}\n",
-                    blue, line_str, reset, blue, reset, src_line));
+                out.push_str(&format!(
+                    " {}{}{} {}|{} {}\n",
+                    blue, line_str, reset, blue, reset, src_line
+                ));
 
                 // Underline
                 let caret_start = if col > 0 { col - 1 } else { 0 };
@@ -1311,8 +1477,10 @@ impl Diagnostic {
                 let underline_len = underline_len.max(1);
                 let underline_pad = " ".repeat(caret_start);
                 let underline = "^".repeat(underline_len);
-                out.push_str(&format!(" {} {}|{} {}{}{}{}\n",
-                    padding, blue, reset, underline_pad, red, underline, reset));
+                out.push_str(&format!(
+                    " {} {}|{} {}{}{}{}\n",
+                    padding, blue, reset, underline_pad, red, underline, reset
+                ));
             }
         } else {
             out.push_str(&format!("{}: {}{}{}\n", label, bold, self.message, reset));
@@ -1351,7 +1519,7 @@ pub enum Ty {
     Arrow(Box<Ty>, Box<Ty>),
     Ref(Box<Ty>),
     MutRef(Box<Ty>),
-    Shared(Box<Ty>),  // shared T → Arc<T> in Rust
+    Shared(Box<Ty>),   // shared T → Arc<T> in Rust
     Optional(Box<Ty>), // T? → sugar for Option<T> (Kotlin-style nullability)
     Var(String),
     Unit,
@@ -1365,7 +1533,9 @@ impl fmt::Display for Ty {
             Ty::App(con, args) => {
                 write!(f, "{}(", con)?;
                 for (i, a) in args.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", a)?;
                 }
                 write!(f, ")")
@@ -1395,7 +1565,7 @@ pub enum Pat {
     Var(String),
     Lit(Literal),
     Con(String, Vec<Pat>),
-    NamedCon(String, Vec<(String, Pat)>),  // Circle(radius: r) — named field destructure
+    NamedCon(String, Vec<(String, Pat)>), // Circle(radius: r) — named field destructure
     As(Box<Pat>, String),
 }
 
@@ -1468,7 +1638,10 @@ impl Expr {
 
     /// Shorthand for unspanned expressions (during migration).
     pub fn unspanned(kind: ExprKind) -> Self {
-        Expr { kind, span: Span::dummy() }
+        Expr {
+            kind,
+            span: Span::dummy(),
+        }
     }
 }
 
@@ -1506,33 +1679,33 @@ pub enum Stmt {
     Defn(Defn),
     TypeDecl(TypeDecl),
     Rule(Rule),
-    Use(String),           // @ use path::to::thing
-    Import(String),        // @ import ./module (multi-file, flat merge)
+    Use(String),                     // @ use path::to::thing
+    Import(String),                  // @ import ./module (multi-file, flat merge)
     QualifiedImport(String, String), // @ import Name from ./module (qualified access)
-    HashImport(String, String), // @ import #hash from ./module (content-addressed)
-    Depend(String, String), // @ depend "crate" "version"
-    RustBlock(String),     // @ rust { raw Rust code }
+    HashImport(String, String),      // @ import #hash from ./module (content-addressed)
+    Depend(String, String),          // @ depend "crate" "version"
+    RustBlock(String),               // @ rust { raw Rust code }
     Annot(String, Vec<Expr>),
     Bind(Pat, Option<Ty>, Expr),
     /// Monadic bind: = pat <- expr (unwrap Ok/Some, early-return on Err/None)
     MonadicBind(Pat, Option<Ty>, Expr),
-    For(String, Expr, Vec<Stmt>),  // for var in expr { body }
-    Send(Expr, Expr),              // target <- message (actor send)
-    StreamBind(String, Expr),      // ~ name = expr (reactive stream binding)
+    For(String, Expr, Vec<Stmt>),   // for var in expr { body }
+    Send(Expr, Expr),               // target <- message (actor send)
+    StreamBind(String, Expr),       // ~ name = expr (reactive stream binding)
     StreamSub(Expr, Vec<MatchArm>), // ~ expr | pat -> { body } (reactive stream subscription)
     /// | name: subject -> predicate (named invariant / verification assertion)
     Invariant {
         name: String,
-        subject: Expr,       // the expression being constrained
-        predicate: Expr,     // must evaluate to true
+        subject: Expr,   // the expression being constrained
+        predicate: Expr, // must evaluate to true
     },
     /// ? name — invoke verification (runtime check / Z3 proof / debug_assert)
     /// Optional: `: val` captures subject, `-> { pass }` block, `else { fail }` block
     Prove {
         name: String,
         capture: Option<String>,       // `: val` — bind subject value
-        pass_block: Option<Vec<Stmt>>,  // `-> { ... }` — custom pass handler
-        else_block: Option<Vec<Stmt>>,  // `else { ... }` — custom fail handler (suppresses halt)
+        pass_block: Option<Vec<Stmt>>, // `-> { ... }` — custom pass handler
+        else_block: Option<Vec<Stmt>>, // `else { ... }` — custom fail handler (suppresses halt)
     },
     /// assert TypeName(args...) — insert fact (persist/store/in-memory)
     Assert(String, Vec<Expr>),
@@ -1583,7 +1756,7 @@ pub enum TypeDecl {
     },
     TraitDecl {
         name: String,
-        params: Vec<Param>,       // trait type params
+        params: Vec<Param>, // trait type params
         methods: Vec<TraitMethod>,
     },
     ImplBlock {
@@ -1598,14 +1771,14 @@ pub struct TraitMethod {
     pub name: String,
     pub params: Vec<Param>,
     pub ret_ty: Option<Ty>,
-    pub default_body: Option<Expr>,  // default implementation
+    pub default_body: Option<Expr>, // default implementation
 }
 
 #[derive(Debug, Clone)]
 pub struct Variant {
     pub name: String,
     pub fields: Vec<Field>,
-    pub positional: bool,  // true = tuple-style (Type, Type), false = named (name: Type)
+    pub positional: bool, // true = tuple-style (Type, Type), false = named (name: Type)
 }
 
 #[derive(Debug, Clone)]
@@ -1647,10 +1820,20 @@ pub enum Rule {
 /// Two functions with different names but identical params/body get the same hash.
 pub fn content_hash_defn(defn: &Defn) -> String {
     let canonical = match defn {
-        Defn::Fn { params, ret_ty, effects, body, .. } => {
+        Defn::Fn {
+            params,
+            ret_ty,
+            effects,
+            body,
+            ..
+        } => {
             format!("FN({:?},{:?},{:?},{:?})", params, ret_ty, effects, body)
         }
-        Defn::Actor { state_param, handlers, .. } => {
+        Defn::Actor {
+            state_param,
+            handlers,
+            ..
+        } => {
             format!("ACTOR({:?},{:?})", state_param, handlers)
         }
         Defn::Module { body, .. } => {
@@ -1663,16 +1846,28 @@ pub fn content_hash_defn(defn: &Defn) -> String {
 /// Compute a canonical structural representation of a TypeDecl (excluding the name).
 pub fn content_hash_type(td: &TypeDecl) -> String {
     let canonical = match td {
-        TypeDecl::ADT { params, variants, methods, .. } => {
+        TypeDecl::ADT {
+            params,
+            variants,
+            methods,
+            ..
+        } => {
             format!("ADT({:?},{:?},{:?})", params, variants, methods)
         }
         TypeDecl::EffectDecl { ops, .. } => {
             format!("EFFECT({:?})", ops)
         }
-        TypeDecl::TraitDecl { params, methods, .. } => {
+        TypeDecl::TraitDecl {
+            params, methods, ..
+        } => {
             format!("TRAIT({:?},{:?})", params, methods)
         }
-        TypeDecl::ImplBlock { trait_name, for_type, methods, .. } => {
+        TypeDecl::ImplBlock {
+            trait_name,
+            for_type,
+            methods,
+            ..
+        } => {
             format!("IMPL({:?},{:?},{:?})", trait_name, for_type, methods)
         }
     };
@@ -1685,8 +1880,10 @@ pub fn hash_string(s: &str) -> String {
     hasher.update(s.as_bytes());
     let result = hasher.finalize();
     // First 6 bytes = 12 hex chars
-    format!("{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-        result[0], result[1], result[2], result[3], result[4], result[5])
+    format!(
+        "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        result[0], result[1], result[2], result[3], result[4], result[5]
+    )
 }
 
 /// Get the name of a Defn.
@@ -1704,7 +1901,11 @@ pub fn type_decl_name(td: &TypeDecl) -> &str {
         TypeDecl::ADT { name, .. } => name,
         TypeDecl::EffectDecl { name, .. } => name,
         TypeDecl::TraitDecl { name, .. } => name,
-        TypeDecl::ImplBlock { trait_name, for_type, .. } => {
+        TypeDecl::ImplBlock {
+            trait_name,
+            for_type,
+            ..
+        } => {
             // impl blocks don't have a single name, use for_type
             for_type
         }
@@ -1765,7 +1966,12 @@ impl Parser {
                 line_starts.push(i + 1);
             }
         }
-        Parser { tokens, pos: 0, source_chars, line_starts }
+        Parser {
+            tokens,
+            pos: 0,
+            source_chars,
+            line_starts,
+        }
     }
 
     /// Convert token line/col (1-based) to char offset in source_chars.
@@ -1784,7 +1990,11 @@ impl Parser {
     /// Create a Span from start token to end of most recently consumed token.
     pub fn span_since(&self, start_tok: &Token) -> Span {
         let start = self.char_offset(start_tok.line, start_tok.col);
-        let prev = if self.pos > 0 { &self.tokens[self.pos - 1] } else { start_tok };
+        let prev = if self.pos > 0 {
+            &self.tokens[self.pos - 1]
+        } else {
+            start_tok
+        };
         let end = self.char_offset(prev.line, prev.col) + prev.text.len();
         Span::new(start, end)
     }
@@ -1796,7 +2006,7 @@ impl Parser {
 
     pub fn peek(&self) -> &Token {
         self.tokens.get(self.pos).unwrap_or(
-            self.tokens.last().unwrap() // EOF
+            self.tokens.last().unwrap(), // EOF
         )
     }
 
@@ -1805,9 +2015,11 @@ impl Parser {
     }
 
     pub fn advance(&mut self) -> Token {
-        let tok = self.tokens.get(self.pos).cloned().unwrap_or_else(|| {
-            Token::new(TokenKind::Eof, "", 0, 0)
-        });
+        let tok = self
+            .tokens
+            .get(self.pos)
+            .cloned()
+            .unwrap_or_else(|| Token::new(TokenKind::Eof, "", 0, 0));
         self.pos += 1;
         tok
     }
@@ -1860,21 +2072,25 @@ impl Parser {
             } else {
                 ""
             };
-            Err(format!("{}:{}: expected {}, got `{}`{}",
-                tok.line, tok.col, Self::token_display(kind), tok.text, hint))
+            Err(format!(
+                "{}:{}: expected {}, got `{}`{}",
+                tok.line,
+                tok.col,
+                Self::token_display(kind),
+                tok.text,
+                hint
+            ))
         }
     }
 
     pub fn expect_ident(&mut self) -> Result<String, String> {
         let tok = self.advance();
         match tok.kind {
-            TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW => {
-                Ok(tok.text)
-            }
-            _ => {
-                Err(format!("{}:{}: expected an identifier, got `{}`",
-                    tok.line, tok.col, tok.text))
-            }
+            TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW => Ok(tok.text),
+            _ => Err(format!(
+                "{}:{}: expected an identifier, got `{}`",
+                tok.line, tok.col, tok.text
+            )),
         }
     }
 
@@ -1934,24 +2150,39 @@ impl Parser {
                     return Err(format!(
                         "{}:{}: Futuruna uses `>` to define functions, not `{}`.\n  \
                         Try: > {}",
-                        line, col, tok.text,
-                        self.tokens.get(self.pos + 1).map(|t| t.text.as_str()).unwrap_or("name(args) -> Type { body }")
+                        line,
+                        col,
+                        tok.text,
+                        self.tokens
+                            .get(self.pos + 1)
+                            .map(|t| t.text.as_str())
+                            .unwrap_or("name(args) -> Type { body }")
                     ));
                 }
                 "let" | "val" | "var" | "const" => {
                     return Err(format!(
                         "{}:{}: Futuruna uses `=` to bind values, not `{}`.\n  \
                         Try: = {}",
-                        line, col, tok.text,
-                        self.tokens.get(self.pos + 1).map(|t| t.text.as_str()).unwrap_or("name = value")
+                        line,
+                        col,
+                        tok.text,
+                        self.tokens
+                            .get(self.pos + 1)
+                            .map(|t| t.text.as_str())
+                            .unwrap_or("name = value")
                     ));
                 }
                 "struct" | "class" | "enum" | "interface" => {
                     return Err(format!(
                         "{}:{}: Futuruna uses `#` to define types, not `{}`.\n  \
                         Try: # {}",
-                        line, col, tok.text,
-                        self.tokens.get(self.pos + 1).map(|t| t.text.as_str()).unwrap_or("TypeName(field: Type)")
+                        line,
+                        col,
+                        tok.text,
+                        self.tokens
+                            .get(self.pos + 1)
+                            .map(|t| t.text.as_str())
+                            .unwrap_or("TypeName(field: Type)")
                     ));
                 }
                 "import" | "require" | "include" => {
@@ -1981,8 +2212,12 @@ impl Parser {
                     return Err(format!(
                         "{}:{}: Futuruna uses `#` for traits.\n  \
                         Try: # trait {} {{ > method(self) -> Type }}",
-                        line, col,
-                        self.tokens.get(self.pos + 1).map(|t| t.text.as_str()).unwrap_or("Name")
+                        line,
+                        col,
+                        self.tokens
+                            .get(self.pos + 1)
+                            .map(|t| t.text.as_str())
+                            .unwrap_or("Name")
                     ));
                 }
                 "impl" => {
@@ -2048,7 +2283,6 @@ impl Parser {
                 self.parse_definition()
             }
 
-
             TokenKind::Op if self.peek().text == ">" => {
                 self.advance();
                 self.parse_definition()
@@ -2079,10 +2313,18 @@ impl Parser {
                 // ~[...] stream source literal: ~[1, 2, 3] → Stmt::Expr(from_list([1, 2, 3]))
                 {
                     let next_pos = self.pos + 1;
-                    if next_pos < self.tokens.len() && self.tokens[next_pos].kind == TokenKind::LBracket {
+                    if next_pos < self.tokens.len()
+                        && self.tokens[next_pos].kind == TokenKind::LBracket
+                    {
                         self.advance(); // consume ~
                         let list_expr = self.parse_atom()?; // parse the [...] list literal
-                        return Ok(Stmt::Expr(ExprKind::App(Box::new(ExprKind::Var("from_list".to_string()).into()), vec![list_expr]).into()));
+                        return Ok(Stmt::Expr(
+                            ExprKind::App(
+                                Box::new(ExprKind::Var("from_list".to_string()).into()),
+                                vec![list_expr],
+                            )
+                            .into(),
+                        ));
                     }
                 }
 
@@ -2091,8 +2333,9 @@ impl Parser {
 
                 // Disambiguate: ~ name = expr (StreamBind) vs ~ expr | pat -> body (StreamSub)
                 let name_tok = self.advance();
-                let is_binding = name_tok.kind == TokenKind::Ident &&
-                    (self.peek_kind() == TokenKind::Eq || (self.peek_kind() == TokenKind::Op && self.peek().text == "="));
+                let is_binding = name_tok.kind == TokenKind::Ident
+                    && (self.peek_kind() == TokenKind::Eq
+                        || (self.peek_kind() == TokenKind::Op && self.peek().text == "="));
 
                 if is_binding {
                     // Consume =
@@ -2113,7 +2356,8 @@ impl Parser {
                     while self.peek_kind() == TokenKind::Pipe {
                         self.advance(); // consume |
                         let pat = self.parse_pattern()?;
-                        let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if" {
+                        let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if"
+                        {
                             self.advance();
                             Some(self.parse_expr()?)
                         } else {
@@ -2175,7 +2419,8 @@ impl Parser {
                 };
                 // Optional `else { fail_block }`
                 self.skip_semis();
-                let else_block = if self.peek_kind() == TokenKind::KW && self.peek().text == "else" {
+                let else_block = if self.peek_kind() == TokenKind::KW && self.peek().text == "else"
+                {
                     self.advance(); // consume 'else'
                     self.expect(TokenKind::LBrace)?;
                     self.skip_semis();
@@ -2189,12 +2434,21 @@ impl Parser {
                 } else {
                     None
                 };
-                Ok(Stmt::Prove { name, capture, pass_block, else_block })
+                Ok(Stmt::Prove {
+                    name,
+                    capture,
+                    pass_block,
+                    else_block,
+                })
             }
             // assert TypeName(args...) — insert a fact
             // Only when followed by an identifier (type name), not by ( which is assert(expr) function call
-            TokenKind::KW if self.peek().text == "assert"
-                && self.tokens.get(self.pos + 1).map_or(false, |t| t.kind == TokenKind::Ident || t.kind == TokenKind::Type) => {
+            TokenKind::KW
+                if self.peek().text == "assert"
+                    && self.tokens.get(self.pos + 1).map_or(false, |t| {
+                        t.kind == TokenKind::Ident || t.kind == TokenKind::Type
+                    }) =>
+            {
                 self.advance(); // consume 'assert'
                 let type_name = self.expect_ident()?;
                 self.expect(TokenKind::LParen)?;
@@ -2203,10 +2457,16 @@ impl Parser {
                     if !args.is_empty() {
                         self.expect(TokenKind::Comma)?;
                     }
-                    while self.peek_kind() == TokenKind::Semi { self.advance(); }
-                    if self.peek_kind() == TokenKind::RParen { break; }
+                    while self.peek_kind() == TokenKind::Semi {
+                        self.advance();
+                    }
+                    if self.peek_kind() == TokenKind::RParen {
+                        break;
+                    }
                     args.push(self.parse_expr()?);
-                    while self.peek_kind() == TokenKind::Semi { self.advance(); }
+                    while self.peek_kind() == TokenKind::Semi {
+                        self.advance();
+                    }
                 }
                 self.expect(TokenKind::RParen)?;
                 Ok(Stmt::Assert(type_name, args))
@@ -2221,10 +2481,16 @@ impl Parser {
                     if !args.is_empty() {
                         self.expect(TokenKind::Comma)?;
                     }
-                    while self.peek_kind() == TokenKind::Semi { self.advance(); }
-                    if self.peek_kind() == TokenKind::RParen { break; }
+                    while self.peek_kind() == TokenKind::Semi {
+                        self.advance();
+                    }
+                    if self.peek_kind() == TokenKind::RParen {
+                        break;
+                    }
                     args.push(self.parse_expr()?);
-                    while self.peek_kind() == TokenKind::Semi { self.advance(); }
+                    while self.peek_kind() == TokenKind::Semi {
+                        self.advance();
+                    }
                 }
                 self.expect(TokenKind::RParen)?;
                 Ok(Stmt::Retract(type_name, args))
@@ -2304,8 +2570,14 @@ impl Parser {
             return Err(format!(
                 "{}:{}: Futuruna uses `->` for return types, not `=>`.\n  \
                 Try: > {}({}) -> ReturnType {{ body }}",
-                tok.line, tok.col, name,
-                params.iter().map(|p| p.name.as_str()).collect::<Vec<_>>().join(", ")
+                tok.line,
+                tok.col,
+                name,
+                params
+                    .iter()
+                    .map(|p| p.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ));
         } else {
             None
@@ -2320,7 +2592,13 @@ impl Parser {
 
         let body = self.parse_block_expr()?;
 
-        Ok(Stmt::Defn(Defn::Fn { name, params, ret_ty, effects, body }))
+        Ok(Stmt::Defn(Defn::Fn {
+            name,
+            params,
+            ret_ty,
+            effects,
+            body,
+        }))
     }
 
     pub fn parse_actor_defn(&mut self) -> Result<Stmt, String> {
@@ -2356,7 +2634,11 @@ impl Parser {
         self.expect(TokenKind::RBrace)?;
         Ok(Stmt::Defn(Defn::Actor {
             name,
-            state_param: Param { name: state_name, ty: state_ty, inout: false },
+            state_param: Param {
+                name: state_name,
+                ty: state_ty,
+                inout: false,
+            },
             handlers,
         }))
     }
@@ -2440,7 +2722,11 @@ impl Parser {
             }
             self.expect(TokenKind::Arrow)?;
             let body = self.parse_expr()?;
-            handlers.push(EffHandler { op_name, params, body });
+            handlers.push(EffHandler {
+                op_name,
+                params,
+                body,
+            });
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
@@ -2450,7 +2736,10 @@ impl Parser {
             self.advance();
         } else {
             let p = self.peek();
-            return Err(format!("{}:{}: expected 'in' after | handle {{ ... }}", p.line, p.col));
+            return Err(format!(
+                "{}:{}: expected 'in' after | handle {{ ... }}",
+                p.line, p.col
+            ));
         }
         let body = self.parse_expr()?;
 
@@ -2458,7 +2747,8 @@ impl Parser {
             effect,
             handlers,
             body: Box::new(body),
-        }.into())
+        }
+        .into())
     }
 
     // --- | Rule ---
@@ -2499,7 +2789,12 @@ impl Parser {
             } else {
                 None
             };
-            return Ok(Stmt::Rule(Rule::Exception { label, head, value, condition }));
+            return Ok(Stmt::Rule(Rule::Exception {
+                label,
+                head,
+                value,
+                condition,
+            }));
         }
 
         // | name: subject -> predicate (named invariant for verification)
@@ -2639,11 +2934,18 @@ impl Parser {
             let has_typed_params = params.iter().any(|p| p.ty.is_some());
             if has_typed_params {
                 // Single-variant type with named fields
-                let fields: Vec<Field> = params.iter().map(|p| Field {
-                    name: p.name.clone(),
-                    ty: p.ty.clone().unwrap_or(Ty::Name("Any".into())),
-                }).collect();
-                let variant = Variant { name: name.clone(), fields, positional: false };
+                let fields: Vec<Field> = params
+                    .iter()
+                    .map(|p| Field {
+                        name: p.name.clone(),
+                        ty: p.ty.clone().unwrap_or(Ty::Name("Any".into())),
+                    })
+                    .collect();
+                let variant = Variant {
+                    name: name.clone(),
+                    fields,
+                    positional: false,
+                };
                 return Ok(Stmt::TypeDecl(TypeDecl::ADT {
                     name,
                     params: Vec::new(),
@@ -2652,7 +2954,12 @@ impl Parser {
                 }));
             }
             // Truly opaque type declaration
-            return Ok(Stmt::TypeDecl(TypeDecl::ADT { name, params, variants: Vec::new(), methods: Vec::new() }));
+            return Ok(Stmt::TypeDecl(TypeDecl::ADT {
+                name,
+                params,
+                variants: Vec::new(),
+                methods: Vec::new(),
+            }));
         }
 
         let variants = self.parse_variants()?;
@@ -2669,7 +2976,7 @@ impl Parser {
                     self.advance(); // consume >
                     match self.parse_definition() {
                         Ok(Stmt::Defn(defn)) => methods.push(defn),
-                        Ok(_) => {},
+                        Ok(_) => {}
                         Err(e) => return Err(format!("in method block: {}", e)),
                     }
                 } else if self.peek_kind() == TokenKind::Hash {
@@ -2690,7 +2997,12 @@ impl Parser {
             Vec::new()
         };
 
-        Ok(Stmt::TypeDecl(TypeDecl::ADT { name, params, variants, methods }))
+        Ok(Stmt::TypeDecl(TypeDecl::ADT {
+            name,
+            params,
+            variants,
+            methods,
+        }))
     }
 
     /// Parse: # trait Display { > fmt(self) -> String }
@@ -2738,8 +3050,14 @@ impl Parser {
             }
             self.skip_semis();
         }
-        if self.peek_kind() == TokenKind::RBrace { self.advance(); }
-        Ok(Stmt::TypeDecl(TypeDecl::TraitDecl { name, params, methods }))
+        if self.peek_kind() == TokenKind::RBrace {
+            self.advance();
+        }
+        Ok(Stmt::TypeDecl(TypeDecl::TraitDecl {
+            name,
+            params,
+            methods,
+        }))
     }
 
     /// Parse: # impl Display for Shape { > fmt(self) -> String { ... } }
@@ -2770,8 +3088,14 @@ impl Parser {
             }
             self.skip_semis();
         }
-        if self.peek_kind() == TokenKind::RBrace { self.advance(); }
-        Ok(Stmt::TypeDecl(TypeDecl::ImplBlock { trait_name, for_type, methods }))
+        if self.peek_kind() == TokenKind::RBrace {
+            self.advance();
+        }
+        Ok(Stmt::TypeDecl(TypeDecl::ImplBlock {
+            trait_name,
+            for_type,
+            methods,
+        }))
     }
 
     pub fn parse_type_params(&mut self) -> Result<Vec<Param>, String> {
@@ -2788,7 +3112,11 @@ impl Parser {
             } else {
                 None
             };
-            params.push(Param { name, ty, inout: false });
+            params.push(Param {
+                name,
+                ty,
+                inout: false,
+            });
         }
         self.expect(TokenKind::RParen)?;
         Ok(params)
@@ -2803,7 +3131,11 @@ impl Parser {
             } else {
                 (Vec::new(), false)
             };
-            variants.push(Variant { name, fields, positional });
+            variants.push(Variant {
+                name,
+                fields,
+                positional,
+            });
             if self.peek_kind() == TokenKind::Pipe {
                 self.advance();
             } else {
@@ -2826,7 +3158,10 @@ impl Parser {
         // Detect positional vs named by peeking at first field
         let is_positional = {
             let saved = self.pos;
-            let is_ident = matches!(self.peek_kind(), TokenKind::Ident | TokenKind::Type | TokenKind::KW);
+            let is_ident = matches!(
+                self.peek_kind(),
+                TokenKind::Ident | TokenKind::Type | TokenKind::KW
+            );
             let result = if is_ident {
                 self.advance();
                 self.peek_kind() != TokenKind::Colon
@@ -2844,7 +3179,10 @@ impl Parser {
             }
             if is_positional {
                 let ty = self.parse_type()?;
-                fields.push(Field { name: format!("_{}", idx), ty });
+                fields.push(Field {
+                    name: format!("_{}", idx),
+                    ty,
+                });
                 idx += 1;
             } else {
                 let tok = self.peek().clone();
@@ -2857,7 +3195,10 @@ impl Parser {
                 }
                 self.advance(); // consume colon
                 let ty = self.parse_type()?;
-                fields.push(Field { name: field_name, ty });
+                fields.push(Field {
+                    name: field_name,
+                    ty,
+                });
             }
         }
         self.expect(TokenKind::RParen)?;
@@ -2921,7 +3262,10 @@ impl Parser {
                     args.push(ExprKind::Lit(Literal::Str(scope)).into());
                 } else {
                     let p = self.peek();
-                    return Err(format!("{}:{}: expected scope string after `in`\n  Try: @ store {} in \"myapp\"", p.line, p.col, type_name));
+                    return Err(format!(
+                        "{}:{}: expected scope string after `in`\n  Try: @ store {} in \"myapp\"",
+                        p.line, p.col, type_name
+                    ));
                 }
             }
             return Ok(Stmt::Annot("store".to_string(), args));
@@ -2962,7 +3306,7 @@ impl Parser {
     /// Extracts raw source text between { }, preserving original formatting.
     pub fn parse_rust_block(&mut self) -> Result<Stmt, String> {
         let open_brace = self.advance(); // consume {
-        // Find the char offset right after the opening brace
+                                         // Find the char offset right after the opening brace
         let start = self.char_offset(open_brace.line, open_brace.col) + 1;
 
         // Scan raw source chars to find matching closing brace
@@ -2983,37 +3327,65 @@ impl Parser {
                 continue;
             }
             if in_line_comment {
-                if c == '\n' { in_line_comment = false; }
+                if c == '\n' {
+                    in_line_comment = false;
+                }
                 end += 1;
                 continue;
             }
             if in_block_comment {
-                if c == '*' && next == Some('/') { in_block_comment = false; end += 2; continue; }
+                if c == '*' && next == Some('/') {
+                    in_block_comment = false;
+                    end += 2;
+                    continue;
+                }
                 end += 1;
                 continue;
             }
             if in_string {
-                if c == '\\' { escape = true; }
-                else if c == '"' { in_string = false; }
+                if c == '\\' {
+                    escape = true;
+                } else if c == '"' {
+                    in_string = false;
+                }
                 end += 1;
                 continue;
             }
             if in_char {
-                if c == '\\' { escape = true; }
-                else if c == '\'' { in_char = false; }
+                if c == '\\' {
+                    escape = true;
+                } else if c == '\'' {
+                    in_char = false;
+                }
                 end += 1;
                 continue;
             }
 
             match c {
-                '/' if next == Some('/') => { in_line_comment = true; end += 2; continue; }
-                '/' if next == Some('*') => { in_block_comment = true; end += 2; continue; }
-                '"' => { in_string = true; }
-                '\'' => { in_char = true; }
-                '{' => { depth += 1; }
+                '/' if next == Some('/') => {
+                    in_line_comment = true;
+                    end += 2;
+                    continue;
+                }
+                '/' if next == Some('*') => {
+                    in_block_comment = true;
+                    end += 2;
+                    continue;
+                }
+                '"' => {
+                    in_string = true;
+                }
+                '\'' => {
+                    in_char = true;
+                }
+                '{' => {
+                    depth += 1;
+                }
                 '}' => {
                     depth -= 1;
-                    if depth == 0 { break; }
+                    if depth == 0 {
+                        break;
+                    }
                 }
                 _ => {}
             }
@@ -3023,13 +3395,21 @@ impl Parser {
         let raw: String = self.source_chars[start..end].iter().collect();
         // Dedent: strip common leading whitespace
         let lines: Vec<&str> = raw.lines().collect();
-        let min_indent = lines.iter()
+        let min_indent = lines
+            .iter()
             .filter(|l| !l.trim().is_empty())
             .map(|l| l.len() - l.trim_start().len())
             .min()
             .unwrap_or(0);
-        let code: String = lines.iter()
-            .map(|l| if l.len() >= min_indent { &l[min_indent..] } else { l.trim() })
+        let code: String = lines
+            .iter()
+            .map(|l| {
+                if l.len() >= min_indent {
+                    &l[min_indent..]
+                } else {
+                    l.trim()
+                }
+            })
             .collect::<Vec<_>>()
             .join("\n");
 
@@ -3060,13 +3440,20 @@ impl Parser {
                     self.advance();
                     path.push('{');
                     let mut first = true;
-                    while self.peek_kind() != TokenKind::RBrace && self.peek_kind() != TokenKind::Eof {
-                        if !first { self.expect(TokenKind::Comma)?; path.push_str(", "); }
+                    while self.peek_kind() != TokenKind::RBrace
+                        && self.peek_kind() != TokenKind::Eof
+                    {
+                        if !first {
+                            self.expect(TokenKind::Comma)?;
+                            path.push_str(", ");
+                        }
                         let seg = self.expect_ident()?;
                         path.push_str(&seg);
                         first = false;
                     }
-                    if self.peek_kind() == TokenKind::RBrace { self.advance(); }
+                    if self.peek_kind() == TokenKind::RBrace {
+                        self.advance();
+                    }
                     path.push('}');
                 } else if self.peek_kind() == TokenKind::Op && self.peek().text == "*" {
                     // @ use std::collections::*
@@ -3101,15 +3488,17 @@ impl Parser {
         // @ import #hash from ./module — content-addressed import
         if self.peek_kind() == TokenKind::Hash {
             self.advance(); // consume '#'
-            // Collect hash chars: hex digits may lex as Ident/Int/Type tokens
+                            // Collect hash chars: hex digits may lex as Ident/Int/Type tokens
             let mut hash = String::new();
             while self.peek_kind() != TokenKind::Eof {
                 // Stop when we hit 'from' keyword
                 if self.peek_kind() == TokenKind::Ident && self.peek().text == "from" {
                     break;
                 }
-                if self.peek_kind() == TokenKind::Ident || self.peek_kind() == TokenKind::Int_
-                    || self.peek_kind() == TokenKind::Type {
+                if self.peek_kind() == TokenKind::Ident
+                    || self.peek_kind() == TokenKind::Int_
+                    || self.peek_kind() == TokenKind::Type
+                {
                     hash.push_str(&self.advance().text);
                 } else {
                     break;
@@ -3117,14 +3506,20 @@ impl Parser {
             }
             if hash.is_empty() {
                 let p = self.peek();
-                return Err(format!("{}:{}: expected hash after # in @ import #hash from ./module", p.line, p.col));
+                return Err(format!(
+                    "{}:{}: expected hash after # in @ import #hash from ./module",
+                    p.line, p.col
+                ));
             }
             // Expect 'from' keyword
             if self.peek_kind() == TokenKind::Ident && self.peek().text == "from" {
                 self.advance(); // consume 'from'
             } else {
                 let p = self.peek();
-                return Err(format!("{}:{}: expected 'from' after hash in @ import #hash from ./module", p.line, p.col));
+                return Err(format!(
+                    "{}:{}: expected 'from' after hash in @ import #hash from ./module",
+                    p.line, p.col
+                ));
             }
             // Parse module path
             let path = self.parse_module_path()?;
@@ -3161,8 +3556,10 @@ impl Parser {
                 // Allow dashes in module paths (e.g. kapitel-08)
                 self.advance();
                 path.push('-');
-            } else if self.peek_kind() == TokenKind::Ident || self.peek_kind() == TokenKind::Type
-                || self.peek_kind() == TokenKind::Int_ {
+            } else if self.peek_kind() == TokenKind::Ident
+                || self.peek_kind() == TokenKind::Type
+                || self.peek_kind() == TokenKind::Int_
+            {
                 let seg = self.advance().text.clone();
                 path.push_str(&seg);
             } else {
@@ -3171,7 +3568,10 @@ impl Parser {
         }
         if path.is_empty() {
             let p = self.peek();
-            return Err(format!("{}:{}: expected module path after @ import\n  Try: @ import ./module_name", p.line, p.col));
+            return Err(format!(
+                "{}:{}: expected module path after @ import\n  Try: @ import ./module_name",
+                p.line, p.col
+            ));
         }
         Ok(path)
     }
@@ -3314,11 +3714,15 @@ impl Parser {
                 };
                 let hint = match tok.kind {
                     TokenKind::Eq => "\n  Hint: did you forget the type? e.g. `name: Type`",
-                    TokenKind::LBrace => "\n  Hint: types use parentheses for fields: `# Name(field: Type)`",
+                    TokenKind::LBrace => {
+                        "\n  Hint: types use parentheses for fields: `# Name(field: Type)`"
+                    }
                     _ => "",
                 };
-                Err(format!("{}:{}: expected a type name, got {}{}",
-                    tok.line, tok.col, got_desc, hint))
+                Err(format!(
+                    "{}:{}: expected a type name, got {}{}",
+                    tok.line, tok.col, got_desc, hint
+                ))
             }
         }
     }
@@ -3340,7 +3744,9 @@ impl Parser {
                 if self.peek_kind() == TokenKind::LParen {
                     self.advance();
                     // Check if first arg is named (ident: pattern)
-                    let is_named = if self.peek_kind() == TokenKind::Ident && self.peek_kind() != TokenKind::RParen {
+                    let is_named = if self.peek_kind() == TokenKind::Ident
+                        && self.peek_kind() != TokenKind::RParen
+                    {
                         let saved = self.pos;
                         let _ = self.advance();
                         let has_colon = self.peek_kind() == TokenKind::Colon;
@@ -3401,9 +3807,13 @@ impl Parser {
                 self.advance();
                 let tok = self.advance();
                 if tok.kind == TokenKind::Float_ {
-                    Ok(Pat::Lit(Literal::Float(-tok.text.parse::<f64>().unwrap_or(0.0))))
+                    Ok(Pat::Lit(Literal::Float(
+                        -tok.text.parse::<f64>().unwrap_or(0.0),
+                    )))
                 } else {
-                    Ok(Pat::Lit(Literal::Int(-tok.text.parse::<i64>().unwrap_or(0))))
+                    Ok(Pat::Lit(Literal::Int(
+                        -tok.text.parse::<i64>().unwrap_or(0),
+                    )))
                 }
             }
             _ => {
@@ -3433,13 +3843,16 @@ impl Parser {
                 TokenKind::Op if self.peek().text == "?" => {
                     let start_span = lhs.span;
                     self.advance();
-                    let span = start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
+                    let span =
+                        start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
                     lhs = Expr::new(ExprKind::Try(Box::new(lhs)), span);
                 }
                 // Pipe-forward operator: x |> f — preserved as ExprKind::Pipe AST node
                 TokenKind::PipeGt => {
                     let pipe_prec: u8 = 1; // lowest precedence
-                    if pipe_prec < min_prec { break; }
+                    if pipe_prec < min_prec {
+                        break;
+                    }
                     let start_span = lhs.span;
                     self.advance();
                     let rhs = self.parse_expr_prec(pipe_prec + 1)?;
@@ -3450,7 +3863,9 @@ impl Parser {
                 TokenKind::Op => {
                     let op = &self.peek().text;
                     let prec = op_precedence(op);
-                    if prec < min_prec { break; }
+                    if prec < min_prec {
+                        break;
+                    }
                     let start_span = lhs.span;
                     let op = self.advance().text;
                     let rhs = self.parse_expr_prec(prec + 1)?;
@@ -3470,8 +3885,10 @@ impl Parser {
                                 guard: None,
                                 body: ExprKind::App(
                                     Box::new(ExprKind::Var("Some".into()).into()),
-                                    vec![ExprKind::Field(Box::new(ExprKind::Var(v).into()), field).into()],
-                                ).into(),
+                                    vec![ExprKind::Field(Box::new(ExprKind::Var(v).into()), field)
+                                        .into()],
+                                )
+                                .into(),
                             },
                             MatchArm {
                                 pat: Pat::Con("None".into(), vec![]),
@@ -3479,12 +3896,15 @@ impl Parser {
                                 body: ExprKind::Var("None".into()).into(),
                             },
                         ],
-                    ).into();
+                    )
+                    .into();
                 }
                 // Elvis: expr ?: default → match expr { Some(v) -> v, None -> default }
                 TokenKind::Elvis => {
                     let prec: u8 = 2; // just above pipe (1), below arithmetic
-                    if prec < min_prec { break; }
+                    if prec < min_prec {
+                        break;
+                    }
                     self.advance(); // consume '?:'
                     let default = self.parse_expr_prec(prec + 1)?;
                     let v = "__elvis_v".to_string();
@@ -3502,21 +3922,24 @@ impl Parser {
                                 body: default,
                             },
                         ],
-                    ).into();
+                    )
+                    .into();
                 }
                 // Field access: expr.field
                 TokenKind::Dot => {
                     let start_span = lhs.span;
                     self.advance();
                     let field = self.expect_ident()?;
-                    let span = start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
+                    let span =
+                        start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
                     lhs = Expr::new(ExprKind::Field(Box::new(lhs), field), span);
                 }
                 // Function application: expr(args)
                 TokenKind::LParen => {
                     let start_span = lhs.span;
                     let args = self.parse_arg_list()?;
-                    let span = start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
+                    let span =
+                        start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
                     lhs = Expr::new(ExprKind::App(Box::new(lhs), args), span);
                 }
                 // Index: expr[idx]
@@ -3551,12 +3974,18 @@ impl Parser {
             TokenKind::Int_ => {
                 let tok = self.advance();
                 let span = self.token_span(&tok);
-                Ok(Expr::new(ExprKind::Lit(Literal::Int(tok.text.parse().unwrap_or(0))), span))
+                Ok(Expr::new(
+                    ExprKind::Lit(Literal::Int(tok.text.parse().unwrap_or(0))),
+                    span,
+                ))
             }
             TokenKind::Float_ => {
                 let tok = self.advance();
                 let span = self.token_span(&tok);
-                Ok(Expr::new(ExprKind::Lit(Literal::Float(tok.text.parse().unwrap_or(0.0))), span))
+                Ok(Expr::new(
+                    ExprKind::Lit(Literal::Float(tok.text.parse().unwrap_or(0.0))),
+                    span,
+                ))
             }
             TokenKind::String_ => {
                 let tok = self.advance();
@@ -3572,7 +4001,10 @@ impl Parser {
             TokenKind::Bool_ => {
                 let tok = self.advance();
                 let span = self.token_span(&tok);
-                Ok(Expr::new(ExprKind::Lit(Literal::Bool(tok.text == "True")), span))
+                Ok(Expr::new(
+                    ExprKind::Lit(Literal::Bool(tok.text == "True")),
+                    span,
+                ))
             }
             // Parenthesized expression, unit, or tuple
             TokenKind::LParen => {
@@ -3596,26 +4028,32 @@ impl Parser {
                 Ok(expr)
             }
             // Block
-            TokenKind::LBrace => {
-                self.parse_block_expr()
-            }
+            TokenKind::LBrace => self.parse_block_expr(),
             // List literal (supports multi-line)
             TokenKind::LBracket => {
                 let _bracket_tok = self.advance();
                 // Skip newlines after [
-                while self.peek_kind() == TokenKind::Semi { self.advance(); }
+                while self.peek_kind() == TokenKind::Semi {
+                    self.advance();
+                }
                 let mut elems = Vec::new();
                 while self.peek_kind() != TokenKind::RBracket {
                     if !elems.is_empty() {
                         self.expect(TokenKind::Comma)?;
                     }
                     // Skip newlines after comma (or after [ for first element)
-                    while self.peek_kind() == TokenKind::Semi { self.advance(); }
+                    while self.peek_kind() == TokenKind::Semi {
+                        self.advance();
+                    }
                     // Trailing comma support: comma then ]
-                    if self.peek_kind() == TokenKind::RBracket { break; }
+                    if self.peek_kind() == TokenKind::RBracket {
+                        break;
+                    }
                     elems.push(self.parse_expr()?);
                     // Skip newlines after element
-                    while self.peek_kind() == TokenKind::Semi { self.advance(); }
+                    while self.peek_kind() == TokenKind::Semi {
+                        self.advance();
+                    }
                 }
                 self.expect(TokenKind::RBracket)?;
                 Ok(ExprKind::List(elems).into())
@@ -3651,21 +4089,32 @@ impl Parser {
                     } else {
                         None
                     };
-                    params.push(Param { name, ty, inout: false });
+                    params.push(Param {
+                        name,
+                        ty,
+                        inout: false,
+                    });
                 }
                 self.expect(TokenKind::Pipe)?;
                 let body = self.parse_expr()?;
                 Ok(ExprKind::Lambda(params, Box::new(body)).into())
             }
             // ~[...] stream source literal: ~[1, 2, 3] → from_list([1, 2, 3])
-            TokenKind::Tilde if {
-                // Look ahead: is the token after ~ a [ ?
-                let next_pos = self.pos + 1;
-                next_pos < self.tokens.len() && self.tokens[next_pos].kind == TokenKind::LBracket
-            } => {
+            TokenKind::Tilde
+                if {
+                    // Look ahead: is the token after ~ a [ ?
+                    let next_pos = self.pos + 1;
+                    next_pos < self.tokens.len()
+                        && self.tokens[next_pos].kind == TokenKind::LBracket
+                } =>
+            {
                 self.advance(); // consume ~
                 let list_expr = self.parse_atom()?; // parse the [...] list literal
-                Ok(ExprKind::App(Box::new(ExprKind::Var("from_list".to_string()).into()), vec![list_expr]).into())
+                Ok(ExprKind::App(
+                    Box::new(ExprKind::Var("from_list".to_string()).into()),
+                    vec![list_expr],
+                )
+                .into())
             }
             // Unary operators
             TokenKind::Op if self.peek().text == "-" || self.peek().text == "!" => {
@@ -3741,8 +4190,10 @@ impl Parser {
                     TokenKind::Eof => "\n  Hint: unexpected end of file. Check for unclosed `{`, `(`, or `[`.",
                     _ => "",
                 };
-                Err(format!("{}:{}: unexpected {}{}",
-                    tok.line, tok.col, display, hint))
+                Err(format!(
+                    "{}:{}: unexpected {}{}",
+                    tok.line, tok.col, display, hint
+                ))
             }
         }
     }
@@ -3784,14 +4235,22 @@ impl Parser {
                 self.advance();
                 self.parse_definition()
             }
-TokenKind::Tilde => {
+            TokenKind::Tilde => {
                 // ~[...] stream source literal: ~[1, 2, 3] → Stmt::Expr(from_list([1, 2, 3]))
                 {
                     let next_pos = self.pos + 1;
-                    if next_pos < self.tokens.len() && self.tokens[next_pos].kind == TokenKind::LBracket {
+                    if next_pos < self.tokens.len()
+                        && self.tokens[next_pos].kind == TokenKind::LBracket
+                    {
                         self.advance(); // consume ~
                         let list_expr = self.parse_atom()?; // parse the [...] list literal
-                        return Ok(Stmt::Expr(ExprKind::App(Box::new(ExprKind::Var("from_list".to_string()).into()), vec![list_expr]).into()));
+                        return Ok(Stmt::Expr(
+                            ExprKind::App(
+                                Box::new(ExprKind::Var("from_list".to_string()).into()),
+                                vec![list_expr],
+                            )
+                            .into(),
+                        ));
                     }
                 }
 
@@ -3800,8 +4259,9 @@ TokenKind::Tilde => {
 
                 // Disambiguate: ~ name = expr (StreamBind) vs ~ expr | pat -> body (StreamSub)
                 let name_tok = self.advance();
-                let is_binding = name_tok.kind == TokenKind::Ident &&
-                    (self.peek_kind() == TokenKind::Eq || (self.peek_kind() == TokenKind::Op && self.peek().text == "="));
+                let is_binding = name_tok.kind == TokenKind::Ident
+                    && (self.peek_kind() == TokenKind::Eq
+                        || (self.peek_kind() == TokenKind::Op && self.peek().text == "="));
 
                 if is_binding {
                     // Consume =
@@ -3822,7 +4282,8 @@ TokenKind::Tilde => {
                     while self.peek_kind() == TokenKind::Pipe {
                         self.advance(); // consume |
                         let pat = self.parse_pattern()?;
-                        let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if" {
+                        let guard = if self.peek_kind() == TokenKind::KW && self.peek().text == "if"
+                        {
                             self.advance();
                             Some(self.parse_expr()?)
                         } else {
@@ -3857,7 +4318,7 @@ TokenKind::Tilde => {
                 // Otherwise it's a rule/match arm
                 let saved = self.pos;
                 self.advance(); // consume |
-                // Check if this looks like a lambda: |x| or |x, y|
+                                // Check if this looks like a lambda: |x| or |x, y|
                 let mut looks_like_lambda = false;
                 if self.peek_kind() == TokenKind::Pipe {
                     // || — empty lambda
@@ -3998,9 +4459,9 @@ pub enum Value {
     List(Vec<Value>),
     Tuple(Vec<Value>),
     Constructor(String, Vec<Value>),
-    NamedConstructor(String, Vec<(String, Value)>),  // Named fields: Circle { radius: 5.0 }
+    NamedConstructor(String, Vec<(String, Value)>), // Named fields: Circle { radius: 5.0 }
     Closure {
-        name: Option<String>,  // for recursion
+        name: Option<String>, // for recursion
         params: Vec<String>,
         body: Expr,
         env: Env,
@@ -4024,10 +4485,16 @@ pub enum Value {
     /// Set: unique value collection (HashSet in codegen, HashMap<String,Value> in interpreter)
     Set(HashMap<String, Value>),
     /// Scope: a named block with its own environment. Bindings accessible via Scope.name.
-    Scope { name: String, bindings: HashMap<String, Value> },
+    Scope {
+        name: String,
+        bindings: HashMap<String, Value>,
+    },
     /// Comptime type definition: describes a type to be generated at compile time.
     /// fields: vec of (field_name, type_name) for structs, or variant descriptions for enums.
-    TypeDef { kind: String, fields: Vec<(String, String)> },
+    TypeDef {
+        kind: String,
+        fields: Vec<(String, String)>,
+    },
 }
 
 impl fmt::Display for Value {
@@ -4042,7 +4509,9 @@ impl fmt::Display for Value {
             Value::List(elems) => {
                 write!(f, "[")?;
                 for (i, e) in elems.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", e)?;
                 }
                 write!(f, "]")
@@ -4050,7 +4519,9 @@ impl fmt::Display for Value {
             Value::Tuple(elems) => {
                 write!(f, "(")?;
                 for (i, e) in elems.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", e)?;
                 }
                 write!(f, ")")
@@ -4061,7 +4532,9 @@ impl fmt::Display for Value {
             Value::Constructor(name, args) => {
                 write!(f, "{}(", name)?;
                 for (i, a) in args.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", a)?;
                 }
                 write!(f, ")")
@@ -4072,7 +4545,9 @@ impl fmt::Display for Value {
             Value::NamedConstructor(name, fields) => {
                 write!(f, "{}(", name)?;
                 for (i, (fname, val)) in fields.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}: {}", fname, val)?;
                 }
                 write!(f, ")")
@@ -4082,11 +4557,15 @@ impl fmt::Display for Value {
                 write!(f, "<fn {}({})>", n, params.join(", "))
             }
             Value::Builtin(name) => write!(f, "<builtin:{}>", name),
-            Value::Actor { actor_name, state, .. } => write!(f, "<actor:{}({})>", actor_name, state),
+            Value::Actor {
+                actor_name, state, ..
+            } => write!(f, "<actor:{}({})>", actor_name, state),
             Value::Stream(items) => {
                 write!(f, "~[")?;
                 for (i, v) in items.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", v)?;
                 }
                 write!(f, "]")
@@ -4094,7 +4573,9 @@ impl fmt::Display for Value {
             Value::Subject(items) => {
                 write!(f, "~subject[")?;
                 for (i, v) in items.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", v)?;
                 }
                 write!(f, "]")
@@ -4102,15 +4583,19 @@ impl fmt::Display for Value {
             Value::Map(entries) => {
                 write!(f, "{{")?;
                 for (i, (k, v)) in entries.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
-                    write!(f, "{}: {}", k, v)?;  // k is already String, v is Value
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", k, v)?; // k is already String, v is Value
                 }
                 write!(f, "}}")
             }
             Value::Set(items) => {
                 write!(f, "{{")?;
                 for (i, (_, v)) in items.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", v)?;
                 }
                 write!(f, "}}")
@@ -4119,10 +4604,13 @@ impl fmt::Display for Value {
             Value::TypeDef { kind, fields } => {
                 write!(f, "<typedef:{} {{", kind)?;
                 for (i, (n, t)) in fields.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}: {}", n, t)?;
                 }
-                write!(f, "}}>")}
+                write!(f, "}}>")
+            }
         }
     }
 }
@@ -4138,7 +4626,10 @@ pub struct Env {
 
 impl Env {
     pub fn new() -> Self {
-        Env { bindings: HashMap::new(), parent: None }
+        Env {
+            bindings: HashMap::new(),
+            parent: None,
+        }
     }
 
     pub fn child(&self) -> Self {
@@ -4158,9 +4649,9 @@ impl Env {
     }
 
     pub fn get(&self, name: &str) -> Option<&Value> {
-        self.bindings.get(name).or_else(|| {
-            self.parent.as_ref().and_then(|p| p.get(name))
-        })
+        self.bindings
+            .get(name)
+            .or_else(|| self.parent.as_ref().and_then(|p| p.get(name)))
     }
 
     pub fn set(&mut self, name: String, val: Value) {
@@ -4224,7 +4715,7 @@ impl Interpreter {
             rules: Vec::new(),
             constructors: {
                 let mut c = BTreeMap::new();
-                c.insert("Some".into(), (1, true));  // Option constructors for T? / ?. / ?:
+                c.insert("Some".into(), (1, true)); // Option constructors for T? / ?. / ?:
                 c.insert("None".into(), (0, true));
                 c
             },
@@ -4252,7 +4743,10 @@ impl Interpreter {
         let rel = import_path.trim_start_matches("./");
         let file_path = format!("{}/{}.runa", dir, rel);
 
-        if import_path.starts_with("./") || import_path.starts_with("../") || std::path::Path::new(&file_path).exists() {
+        if import_path.starts_with("./")
+            || import_path.starts_with("../")
+            || std::path::Path::new(&file_path).exists()
+        {
             return Some(file_path);
         }
 
@@ -4263,11 +4757,17 @@ impl Interpreter {
                     .parent()
                     .map(|p| {
                         let s = p.to_string_lossy().to_string();
-                        if s.is_empty() { ".".to_string() } else { s }
+                        if s.is_empty() {
+                            ".".to_string()
+                        } else {
+                            s
+                        }
                     })
                     .unwrap_or_else(|| ".".to_string());
 
-                if let Some(resolved) = TypeChecker::resolve_dep_module(import_path, &deps, &toml_dir) {
+                if let Some(resolved) =
+                    TypeChecker::resolve_dep_module(import_path, &deps, &toml_dir)
+                {
                     return Some(resolved);
                 }
             }
@@ -4296,11 +4796,16 @@ impl Interpreter {
         if let Some(k_start) = raw.find(key) {
             let after = &raw[k_start + key.len()..];
             if let Some(eq) = after.find('=') {
-                let val = after[eq + 1..].trim()
-                    .trim_end_matches('}').trim()
-                    .trim_end_matches(',').trim()
+                let val = after[eq + 1..]
+                    .trim()
+                    .trim_end_matches('}')
+                    .trim()
+                    .trim_end_matches(',')
+                    .trim()
                     .trim_matches('"');
-                if !val.is_empty() { return Some(val.to_string()); }
+                if !val.is_empty() {
+                    return Some(val.to_string());
+                }
             }
         }
         None
@@ -4323,10 +4828,21 @@ impl Interpreter {
 
         for line in content.lines() {
             let trimmed = line.trim();
-            if trimmed.is_empty() || trimmed.starts_with('#') { continue; }
-            if trimmed == "[package]" { section = "package"; continue; }
-            if trimmed == "[dependencies]" { section = "deps"; continue; }
-            if trimmed.starts_with('[') { section = ""; continue; }
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                continue;
+            }
+            if trimmed == "[package]" {
+                section = "package";
+                continue;
+            }
+            if trimmed == "[dependencies]" {
+                section = "deps";
+                continue;
+            }
+            if trimmed.starts_with('[') {
+                section = "";
+                continue;
+            }
 
             if let Some(eq_pos) = trimmed.find('=') {
                 let key = trimmed[..eq_pos].trim();
@@ -4334,14 +4850,20 @@ impl Interpreter {
                 let val = val_raw.trim_matches('"');
                 match section {
                     "package" => {
-                        if key == "name" { pkg_name = val.to_string(); }
+                        if key == "name" {
+                            pkg_name = val.to_string();
+                        }
                     }
                     "deps" => {
                         if val_raw.contains("git") {
                             // Git dependency → resolve to cache path
                             if let Some(url) = Self::extract_toml_value(val_raw, "git") {
                                 let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-                                let cache_path = format!("{}/.cache/futuruna/deps/{}", home, Self::git_cache_key(&url));
+                                let cache_path = format!(
+                                    "{}/.cache/futuruna/deps/{}",
+                                    home,
+                                    Self::git_cache_key(&url)
+                                );
                                 deps.push((key.to_string(), cache_path));
                             }
                         } else if val_raw.contains("path") {
@@ -4421,12 +4943,21 @@ impl Interpreter {
         env.set("set_len".into(), Value::Builtin("set_len".into()));
         env.set("set_to_list".into(), Value::Builtin("set_to_list".into()));
         env.set("set_union".into(), Value::Builtin("set_union".into()));
-        env.set("set_intersect".into(), Value::Builtin("set_intersect".into()));
+        env.set(
+            "set_intersect".into(),
+            Value::Builtin("set_intersect".into()),
+        );
         env.set("set_diff".into(), Value::Builtin("set_diff".into()));
-        env.set("set_from_list".into(), Value::Builtin("set_from_list".into()));
+        env.set(
+            "set_from_list".into(),
+            Value::Builtin("set_from_list".into()),
+        );
         env.set("show_int".into(), Value::Builtin("show_int".into()));
         env.set("show_float".into(), Value::Builtin("show_float".into()));
-        env.set("string_length".into(), Value::Builtin("string_length".into()));
+        env.set(
+            "string_length".into(),
+            Value::Builtin("string_length".into()),
+        );
         // String builtins (M14a)
         env.set("split".into(), Value::Builtin("split".into()));
         env.set("join".into(), Value::Builtin("join".into()));
@@ -4465,9 +4996,18 @@ impl Interpreter {
         env.set("http_post".into(), Value::Builtin("http_post".into()));
         env.set("http_serve".into(), Value::Builtin("http_serve".into()));
         env.set("http_respond".into(), Value::Builtin("http_respond".into()));
-        env.set("http_request_path".into(), Value::Builtin("http_request_path".into()));
-        env.set("http_request_method".into(), Value::Builtin("http_request_method".into()));
-        env.set("http_request_body".into(), Value::Builtin("http_request_body".into()));
+        env.set(
+            "http_request_path".into(),
+            Value::Builtin("http_request_path".into()),
+        );
+        env.set(
+            "http_request_method".into(),
+            Value::Builtin("http_request_method".into()),
+        );
+        env.set(
+            "http_request_body".into(),
+            Value::Builtin("http_request_body".into()),
+        );
         // Database builtins (M14e)
         env.set("db_open".into(), Value::Builtin("db_open".into()));
         env.set("db_exec".into(), Value::Builtin("db_exec".into()));
@@ -4504,7 +5044,10 @@ impl Interpreter {
         env.set("window".into(), Value::Builtin("window".into()));
         env.set("sum".into(), Value::Builtin("sum".into()));
         env.set("last".into(), Value::Builtin("last".into()));
-        env.set("combine_latest".into(), Value::Builtin("combine_latest".into()));
+        env.set(
+            "combine_latest".into(),
+            Value::Builtin("combine_latest".into()),
+        );
         // New stream operators (M17b)
         env.set("tap".into(), Value::Builtin("tap".into()));
         env.set("catch".into(), Value::Builtin("catch".into()));
@@ -4547,12 +5090,11 @@ impl Interpreter {
         match decl {
             TypeDecl::ADT { name, variants, .. } => {
                 for v in variants {
-                    self.constructors.insert(v.name.clone(), (v.fields.len(), v.positional));
+                    self.constructors
+                        .insert(v.name.clone(), (v.fields.len(), v.positional));
                     // Store field names only for named (non-positional) constructors
                     if !v.fields.is_empty() && !v.positional {
-                        let names: Vec<String> = v.fields.iter()
-                            .map(|f| f.name.clone())
-                            .collect();
+                        let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
                         self.field_names.insert(v.name.clone(), names);
                     }
                 }
@@ -4565,22 +5107,33 @@ impl Interpreter {
             }
             TypeDecl::EffectDecl { name, ops } => {
                 // Register effect operations: effect_name -> [(op_name, [param_names])]
-                let effect_ops: Vec<(String, Vec<String>)> = ops.iter().map(|(op_name, params, _)| {
-                    let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-                    (op_name.clone(), param_names)
-                }).collect();
+                let effect_ops: Vec<(String, Vec<String>)> = ops
+                    .iter()
+                    .map(|(op_name, params, _)| {
+                        let param_names: Vec<String> =
+                            params.iter().map(|p| p.name.clone()).collect();
+                        (op_name.clone(), param_names)
+                    })
+                    .collect();
                 self.effect_decls.insert(name.clone(), effect_ops);
             }
             TypeDecl::TraitDecl { .. } => {} // traits are type-level, no runtime registration
             TypeDecl::ImplBlock { methods, .. } => {
                 // Register impl methods as functions
                 for method in methods {
-                    if let Defn::Fn { name, params, body, .. } = method {
-                        let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-                        self.functions.insert(name.clone(), FnDef {
-                            params: param_names,
-                            body: body.clone(),
-                        });
+                    if let Defn::Fn {
+                        name, params, body, ..
+                    } = method
+                    {
+                        let param_names: Vec<String> =
+                            params.iter().map(|p| p.name.clone()).collect();
+                        self.functions.insert(
+                            name.clone(),
+                            FnDef {
+                                params: param_names,
+                                body: body.clone(),
+                            },
+                        );
                     }
                 }
             }
@@ -4611,12 +5164,19 @@ impl Interpreter {
                     // Register methods in function table for recursion
                     if let TypeDecl::ADT { methods, .. } = decl {
                         for method in methods {
-                            if let Defn::Fn { name, params, body, .. } = method {
-                                let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-                                self.functions.insert(name.clone(), FnDef {
-                                    params: param_names,
-                                    body: body.clone(),
-                                });
+                            if let Defn::Fn {
+                                name, params, body, ..
+                            } = method
+                            {
+                                let param_names: Vec<String> =
+                                    params.iter().map(|p| p.name.clone()).collect();
+                                self.functions.insert(
+                                    name.clone(),
+                                    FnDef {
+                                        params: param_names,
+                                        body: body.clone(),
+                                    },
+                                );
                             }
                         }
                     }
@@ -4630,10 +5190,13 @@ impl Interpreter {
                         let _scope_last = self.run_program(body, &mut scope_env);
                         // Store scope as a value so bindings are accessible via ScopeName.field
                         let scope_bindings = scope_env.bindings.clone();
-                        env.set(name.clone(), Value::Scope {
-                            name: name.clone(),
-                            bindings: scope_bindings,
-                        });
+                        env.set(
+                            name.clone(),
+                            Value::Scope {
+                                name: name.clone(),
+                                bindings: scope_bindings,
+                            },
+                        );
                         last = Value::Unit;
                     } else {
                         let name = self.rule_name(rule);
@@ -4686,7 +5249,10 @@ impl Interpreter {
                                     }
                                 }
                                 Err(e) => {
-                                    eprintln!("\x1b[1;33mwarning\x1b[0m: cannot import {}: {}", file_path, e);
+                                    eprintln!(
+                                        "\x1b[1;33mwarning\x1b[0m: cannot import {}: {}",
+                                        file_path, e
+                                    );
                                 }
                             }
                         }
@@ -4833,7 +5399,9 @@ impl Interpreter {
                                         for s in &import_stmts {
                                             let matches = match s {
                                                 Stmt::Defn(d) => content_hash_defn(d) == *hash,
-                                                Stmt::TypeDecl(td) => content_hash_type(td) == *hash,
+                                                Stmt::TypeDecl(td) => {
+                                                    content_hash_type(td) == *hash
+                                                }
                                                 _ => false,
                                             };
                                             if matches {
@@ -4846,22 +5414,36 @@ impl Interpreter {
                                             eprintln!("Hash #{} not found in {}", hash, file_path);
                                         }
                                     }
-                                    Err(e) => eprintln!("\x1b[1;31merror\x1b[0m: parse error in imported {}: {}", file_path, e),
+                                    Err(e) => eprintln!(
+                                        "\x1b[1;31merror\x1b[0m: parse error in imported {}: {}",
+                                        file_path, e
+                                    ),
                                 }
                             }
                             Err(e) => eprintln!("Cannot import {}: {}", file_path, e),
                         }
                     }
                 }
-                Stmt::Invariant { name, subject, predicate } => {
+                Stmt::Invariant {
+                    name,
+                    subject,
+                    predicate,
+                } => {
                     // Register the invariant for later ? verification
-                    self.invariants.insert(name.clone(), (subject.clone(), predicate.clone()));
+                    self.invariants
+                        .insert(name.clone(), (subject.clone(), predicate.clone()));
                     last = Value::Unit;
                 }
-                Stmt::Prove { name, capture, pass_block, else_block } => {
+                Stmt::Prove {
+                    name,
+                    capture,
+                    pass_block,
+                    else_block,
+                } => {
                     let has_blocks = pass_block.is_some() || else_block.is_some();
                     let targets: Vec<(String, Expr, Expr)> = if name == "all" {
-                        self.invariants.iter()
+                        self.invariants
+                            .iter()
                             .map(|(n, (s, p))| (n.clone(), s.clone(), p.clone()))
                             .collect()
                     } else if let Some((s, p)) = self.invariants.get(name) {
@@ -4880,7 +5462,10 @@ impl Interpreter {
                             Value::Bool(true) => {
                                 if !has_blocks {
                                     // Default pass output (bare ? only)
-                                    let msg = format!("  ✓ |{}| holds (value: {})", inv_name, subject_val);
+                                    let msg = format!(
+                                        "  ✓ |{}| holds (value: {})",
+                                        inv_name, subject_val
+                                    );
                                     println!("{}", msg);
                                     self.output.push(msg);
                                 }
@@ -4889,14 +5474,20 @@ impl Interpreter {
                                 all_passed = false;
                                 if !has_blocks {
                                     // Bare `? name` — default: halt on failure
-                                    let msg = format!("? {} FAILED: |{}| VIOLATED (value: {})", name, inv_name, subject_val);
+                                    let msg = format!(
+                                        "? {} FAILED: |{}| VIOLATED (value: {})",
+                                        name, inv_name, subject_val
+                                    );
                                     println!("{}", msg);
                                     self.output.push(msg);
                                     std::process::exit(1);
                                 }
                             }
                             other => {
-                                let msg = format!("  ? |{}| predicate returned non-bool: {}", inv_name, other);
+                                let msg = format!(
+                                    "  ? |{}| predicate returned non-bool: {}",
+                                    inv_name, other
+                                );
                                 println!("{}", msg);
                                 self.output.push(msg);
                             }
@@ -4944,17 +5535,17 @@ impl Interpreter {
                         Value::Stream(items) | Value::Subject(items) => items,
                         other => list_to_vec(&other),
                     };
-                    
+
                     // Categorize arms
                     let mut value_arms = Vec::new();
                     let mut _error_arm = None;
                     let mut complete_arm = None;
-                    
+
                     for arm in arms {
-                        let is_complete = matches!(&arm.pat, Pat::Var(n) if n == "Complete") || 
-                                          matches!(&arm.pat, Pat::Con(n, _) if n == "Complete");
+                        let is_complete = matches!(&arm.pat, Pat::Var(n) if n == "Complete")
+                            || matches!(&arm.pat, Pat::Con(n, _) if n == "Complete");
                         let is_error = matches!(&arm.pat, Pat::Con(n, _) if n == "Err");
-                        
+
                         if is_complete {
                             complete_arm = Some(arm);
                         } else if is_error {
@@ -4974,7 +5565,9 @@ impl Interpreter {
                             let mut local_env = env.child();
                             if self.match_pattern(&arm.pat, &item, &mut local_env) {
                                 let guard_ok = match &arm.guard {
-                                    Some(g) => matches!(self.eval(g, &mut local_env), Value::Bool(true)),
+                                    Some(g) => {
+                                        matches!(self.eval(g, &mut local_env), Value::Bool(true))
+                                    }
                                     None => true,
                                 };
                                 if guard_ok {
@@ -4985,16 +5578,25 @@ impl Interpreter {
                             }
                         }
                         if !matched && !value_arms.is_empty() {
-                            eprintln!("stream subscription value {:?} did not match any value arms", item);
+                            eprintln!(
+                                "stream subscription value {:?} did not match any value arms",
+                                item
+                            );
                         }
                     }
-                    
+
                     // Process Complete
                     if let Some(arm) = complete_arm {
                         let mut local_env = env.child();
-                        if self.match_pattern(&arm.pat, &Value::Constructor("Complete".into(), vec![]), &mut local_env) {
+                        if self.match_pattern(
+                            &arm.pat,
+                            &Value::Constructor("Complete".into(), vec![]),
+                            &mut local_env,
+                        ) {
                             let guard_ok = match &arm.guard {
-                                Some(g) => matches!(self.eval(g, &mut local_env), Value::Bool(true)),
+                                Some(g) => {
+                                    matches!(self.eval(g, &mut local_env), Value::Bool(true))
+                                }
                                 None => true,
                             };
                             if guard_ok {
@@ -5009,9 +5611,21 @@ impl Interpreter {
                     let target = self.eval(target_expr, env);
                     let msg = self.eval(msg_expr, env);
                     match target {
-                        Value::Actor { ref actor_name, ref state, ref state_param, ref handlers, env: ref actor_env } => {
+                        Value::Actor {
+                            ref actor_name,
+                            ref state,
+                            ref state_param,
+                            ref handlers,
+                            env: ref actor_env,
+                        } => {
                             let (new_state, _response) = self.dispatch_actor_message(
-                                actor_name, state, state_param, handlers, actor_env, &msg);
+                                actor_name,
+                                state,
+                                state_param,
+                                handlers,
+                                actor_env,
+                                &msg,
+                            );
                             // Update the actor in the env with new state
                             if let ExprKind::Var(var_name) = &target_expr.kind {
                                 let updated = Value::Actor {
@@ -5046,7 +5660,9 @@ impl Interpreter {
                             let mut cur = other;
                             loop {
                                 match &cur {
-                                    Value::Constructor(name, args) if name == "Cons" && args.len() == 2 => {
+                                    Value::Constructor(name, args)
+                                        if name == "Cons" && args.len() == 2 =>
+                                    {
                                         v.push(args[0].clone());
                                         cur = args[1].clone();
                                     }
@@ -5106,13 +5722,18 @@ impl Interpreter {
 
     pub fn eval_defn(&mut self, defn: &Defn, env: &mut Env) -> Value {
         match defn {
-            Defn::Fn { name, params, body, .. } => {
+            Defn::Fn {
+                name, params, body, ..
+            } => {
                 let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
                 // Register in function table for recursion
-                self.functions.insert(name.clone(), FnDef {
-                    params: param_names.clone(),
-                    body: body.clone(),
-                });
+                self.functions.insert(
+                    name.clone(),
+                    FnDef {
+                        params: param_names.clone(),
+                        body: body.clone(),
+                    },
+                );
                 // Named functions don't capture env — they get it at call time
                 // This avoids exponential env cloning
                 let closure = Value::Closure {
@@ -5124,23 +5745,33 @@ impl Interpreter {
                 env.set(name.clone(), closure.clone());
                 closure
             }
-            Defn::Actor { name, state_param, handlers } => {
+            Defn::Actor {
+                name,
+                state_param,
+                handlers,
+            } => {
                 // Store actor definition as a named constructor so spawn() can find it
                 let val = Value::Constructor(
                     format!("ActorDef<{}>", name),
                     vec![Value::Str(state_param.name.clone())],
                 );
                 // Also store the handlers in a separate env key for spawn to use
-                env.set(format!("__actor_handlers_{}", name), Value::Constructor(
-                    "Handlers".to_string(),
-                    vec![], // handlers stored structurally — we'll look up the Defn directly
-                ));
+                env.set(
+                    format!("__actor_handlers_{}", name),
+                    Value::Constructor(
+                        "Handlers".to_string(),
+                        vec![], // handlers stored structurally — we'll look up the Defn directly
+                    ),
+                );
                 // Store the raw defn for the interpreter to reference
-                self.actor_defs.insert(name.clone(), Defn::Actor {
-                    name: name.clone(),
-                    state_param: state_param.clone(),
-                    handlers: handlers.clone(),
-                });
+                self.actor_defs.insert(
+                    name.clone(),
+                    Defn::Actor {
+                        name: name.clone(),
+                        state_param: state_param.clone(),
+                        handlers: handlers.clone(),
+                    },
+                );
                 env.set(name.clone(), val.clone());
                 val
             }
@@ -5150,7 +5781,10 @@ impl Interpreter {
                 // M3b: Store module as Value::Scope for qualified access (Name.func())
                 // No unqualified leaking — use Name.binding to access
                 let bindings = mod_env.bindings.clone();
-                let val = Value::Scope { name: name.clone(), bindings };
+                let val = Value::Scope {
+                    name: name.clone(),
+                    bindings,
+                };
                 env.set(name.clone(), val.clone());
                 val
             }
@@ -5159,7 +5793,9 @@ impl Interpreter {
 
     pub fn register_constructors(&self, decl: &TypeDecl, env: &mut Env) {
         match decl {
-            TypeDecl::ADT { variants, methods, .. } => {
+            TypeDecl::ADT {
+                variants, methods, ..
+            } => {
                 for v in variants {
                     if v.fields.is_empty() {
                         // Nullary constructor: just a value
@@ -5168,18 +5804,28 @@ impl Interpreter {
                         // Positional constructor: tuple-style Value::Constructor
                         let arity = v.fields.len();
                         let name = v.name.clone();
-                        env.set(name.clone(), Value::Builtin(format!("ctor:{}/{}", name, arity)));
+                        env.set(
+                            name.clone(),
+                            Value::Builtin(format!("ctor:{}/{}", name, arity)),
+                        );
                     } else {
                         // Named constructor: struct-style Value::NamedConstructor
                         let arity = v.fields.len();
                         let name = v.name.clone();
-                        env.set(name.clone(), Value::Builtin(format!("nctor:{}/{}", name, arity)));
+                        env.set(
+                            name.clone(),
+                            Value::Builtin(format!("nctor:{}/{}", name, arity)),
+                        );
                     }
                 }
                 // Register methods as functions
                 for method in methods {
-                    if let Defn::Fn { name, params, body, .. } = method {
-                        let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+                    if let Defn::Fn {
+                        name, params, body, ..
+                    } = method
+                    {
+                        let param_names: Vec<String> =
+                            params.iter().map(|p| p.name.clone()).collect();
                         let closure = Value::Closure {
                             name: Some(name.clone()),
                             params: param_names,
@@ -5195,8 +5841,12 @@ impl Interpreter {
             TypeDecl::ImplBlock { methods, .. } => {
                 // Register impl methods as callable functions
                 for method in methods {
-                    if let Defn::Fn { name, params, body, .. } = method {
-                        let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+                    if let Defn::Fn {
+                        name, params, body, ..
+                    } = method
+                    {
+                        let param_names: Vec<String> =
+                            params.iter().map(|p| p.name.clone()).collect();
                         let closure = Value::Closure {
                             name: Some(name.clone()),
                             params: param_names,
@@ -5309,13 +5959,11 @@ impl Interpreter {
                     _ => Value::Unit,
                 }
             }
-            ExprKind::If(cond, then_, else_) => {
-                match self.eval(cond, env) {
-                    Value::Bool(true) => self.eval(then_, env),
-                    Value::Bool(false) => self.eval(else_, env),
-                    _ => self.eval(then_, env),
-                }
-            }
+            ExprKind::If(cond, then_, else_) => match self.eval(cond, env) {
+                Value::Bool(true) => self.eval(then_, env),
+                Value::Bool(false) => self.eval(else_, env),
+                _ => self.eval(then_, env),
+            },
             ExprKind::Match(scrut, arms) => {
                 let val = self.eval(scrut, env);
                 self.eval_match(val, arms, env)
@@ -5329,18 +5977,16 @@ impl Interpreter {
                 match &obj_val {
                     // Tuple field access: .fst → index 0, .snd → index 1
                     // Also supports .0, .1, .2, etc.
-                    Value::Tuple(elems) => {
-                        match field.as_str() {
-                            "fst" | "0" => return elems.first().cloned().unwrap_or(Value::Unit),
-                            "snd" | "1" => return elems.get(1).cloned().unwrap_or(Value::Unit),
-                            _ => {
-                                if let Ok(idx) = field.parse::<usize>() {
-                                    return elems.get(idx).cloned().unwrap_or(Value::Unit);
-                                }
-                                return Value::Unit;
+                    Value::Tuple(elems) => match field.as_str() {
+                        "fst" | "0" => return elems.first().cloned().unwrap_or(Value::Unit),
+                        "snd" | "1" => return elems.get(1).cloned().unwrap_or(Value::Unit),
+                        _ => {
+                            if let Ok(idx) = field.parse::<usize>() {
+                                return elems.get(idx).cloned().unwrap_or(Value::Unit);
                             }
+                            return Value::Unit;
                         }
-                    }
+                    },
                     Value::NamedConstructor(_name, named_fields) => {
                         // Named field access: obj.field_name
                         for (fname, val) in named_fields {
@@ -5350,7 +5996,10 @@ impl Interpreter {
                         }
                         // Fall through to index-based access
                         if let Ok(idx) = field.parse::<usize>() {
-                            named_fields.get(idx).map(|(_, v)| v.clone()).unwrap_or(Value::Unit)
+                            named_fields
+                                .get(idx)
+                                .map(|(_, v)| v.clone())
+                                .unwrap_or(Value::Unit)
                         } else {
                             Value::Unit
                         }
@@ -5370,18 +6019,20 @@ impl Interpreter {
                         } else {
                             // Method call: look up method by name
                             // Check env and self.functions — bind self to object if found
-                            let method_body_params = if let Some(Value::Closure { params, body, .. }) = env.get(field) {
-                                Some((body.clone(), params.clone()))
-                            } else if let Some(func_def) = self.functions.get(field.as_str()) {
-                                Some((func_def.body.clone(), func_def.params.clone()))
-                            } else {
-                                None
-                            };
+                            let method_body_params =
+                                if let Some(Value::Closure { params, body, .. }) = env.get(field) {
+                                    Some((body.clone(), params.clone()))
+                                } else if let Some(func_def) = self.functions.get(field.as_str()) {
+                                    Some((func_def.body.clone(), func_def.params.clone()))
+                                } else {
+                                    None
+                                };
                             if let Some((body, params)) = method_body_params {
                                 // Create closure with 'self' pre-bound to the object
                                 let mut method_env = env.child();
                                 method_env.set("self".to_string(), obj_val.clone());
-                                let remaining_params: Vec<String> = params.iter()
+                                let remaining_params: Vec<String> = params
+                                    .iter()
                                     .filter(|p| p.as_str() != "self")
                                     .cloned()
                                     .collect();
@@ -5396,20 +6047,16 @@ impl Interpreter {
                         }
                     }
                     // Subject: .latest returns the most recent value, .count returns length
-                    Value::Subject(items) => {
-                        match field.as_str() {
-                            "latest" => items.last().cloned().unwrap_or(Value::Unit),
-                            "count" => Value::Int(items.len() as i64),
-                            _ => Value::Unit,
-                        }
-                    }
+                    Value::Subject(items) => match field.as_str() {
+                        "latest" => items.last().cloned().unwrap_or(Value::Unit),
+                        "count" => Value::Int(items.len() as i64),
+                        _ => Value::Unit,
+                    },
                     // Actor-subject unification: actors expose .state for current state
-                    Value::Actor { state, .. } => {
-                        match field.as_str() {
-                            "state" => *state.clone(),
-                            _ => Value::Unit,
-                        }
-                    }
+                    Value::Actor { state, .. } => match field.as_str() {
+                        "state" => *state.clone(),
+                        _ => Value::Unit,
+                    },
                     // Scope field access: MyScope.field → look up field in scope bindings
                     Value::Scope { bindings, .. } => {
                         bindings.get(field).cloned().unwrap_or(Value::Unit)
@@ -5448,7 +6095,11 @@ impl Interpreter {
                 let arg_vals: Vec<Value> = args.iter().map(|a| self.eval(a, env)).collect();
                 self.eval_effect(name, arg_vals)
             }
-            ExprKind::Handle { effect, handlers, body } => {
+            ExprKind::Handle {
+                effect,
+                handlers,
+                body,
+            } => {
                 // Push handlers onto the stack
                 self.handler_stack.push((effect.clone(), handlers.clone()));
                 // Evaluate the body with handlers active
@@ -5461,8 +6112,12 @@ impl Interpreter {
                 // ? operator: unwrap Ok/Some, early-return Err/None (matches compiled ? behavior)
                 let val = self.eval(inner, env);
                 match &val {
-                    Value::Constructor(name, args) if name == "Ok" && args.len() == 1 => args[0].clone(),
-                    Value::Constructor(name, args) if name == "Some" && args.len() == 1 => args[0].clone(),
+                    Value::Constructor(name, args) if name == "Ok" && args.len() == 1 => {
+                        args[0].clone()
+                    }
+                    Value::Constructor(name, args) if name == "Some" && args.len() == 1 => {
+                        args[0].clone()
+                    }
                     Value::Constructor(name, _) if name == "Err" || name == "None" => {
                         // Early-return the error/none value (same as ? in Rust)
                         eprintln!("Error: ? operator on {}", val);
@@ -5504,7 +6159,12 @@ impl Interpreter {
 
     pub fn apply(&mut self, func: Value, args: Vec<Value>, call_env: &Env) -> Value {
         match func {
-            Value::Closure { ref name, ref params, ref body, ref env } => {
+            Value::Closure {
+                ref name,
+                ref params,
+                ref body,
+                ref env,
+            } => {
                 // Named functions: use call-site env (has builtins, other fns)
                 // Lambdas: use captured env (has enclosing scope vars)
                 let base_env = if name.is_some() { call_env } else { env };
@@ -5539,7 +6199,8 @@ impl Interpreter {
             let ctor_name = parts[0];
             // Build NamedConstructor with field names from registry
             if let Some(names) = self.field_names.get(ctor_name) {
-                let named_fields: Vec<(String, Value)> = names.iter()
+                let named_fields: Vec<(String, Value)> = names
+                    .iter()
                     .zip(args.into_iter())
                     .map(|(n, v)| (n.clone(), v))
                     .collect();
@@ -5564,65 +6225,54 @@ impl Interpreter {
                 self.output.push(text);
                 Value::Unit
             }
-            "show" => {
-                match args.first() {
-                    Some(v) => Value::Str(format!("{}", v)),
-                    None => Value::Str(String::new()),
+            "show" => match args.first() {
+                Some(v) => Value::Str(format!("{}", v)),
+                None => Value::Str(String::new()),
+            },
+            "show_int" | "show_float" => match args.first() {
+                Some(v) => Value::Str(format!("{}", v)),
+                None => Value::Str("0".into()),
+            },
+            "length" => match args.first() {
+                Some(v) => Value::Int(list_length(v)),
+                None => Value::Int(0),
+            },
+            "head" => match args.first() {
+                Some(Value::Constructor(n, fields)) if n == "Cons" => {
+                    fields.first().cloned().unwrap_or(Value::Unit)
                 }
-            }
-            "show_int" | "show_float" => {
-                match args.first() {
-                    Some(v) => Value::Str(format!("{}", v)),
-                    None => Value::Str("0".into()),
-                }
-            }
-            "length" => {
-                match args.first() {
-                    Some(v) => Value::Int(list_length(v)),
-                    None => Value::Int(0),
-                }
-            }
-            "head" => {
-                match args.first() {
-                    Some(Value::Constructor(n, fields)) if n == "Cons" => {
-                        fields.first().cloned().unwrap_or(Value::Unit)
+                Some(Value::List(elems)) => elems.first().cloned().unwrap_or(Value::Unit),
+                _ => Value::Constructor("None".into(), vec![]),
+            },
+            "tail" => match args.first() {
+                Some(Value::Constructor(n, fields)) if n == "Cons" => fields
+                    .get(1)
+                    .cloned()
+                    .unwrap_or(Value::Constructor("Nil".into(), vec![])),
+                Some(Value::List(elems)) => {
+                    if elems.len() <= 1 {
+                        Value::Constructor("Nil".into(), vec![])
+                    } else {
+                        Value::List(elems[1..].to_vec())
                     }
-                    Some(Value::List(elems)) => {
-                        elems.first().cloned().unwrap_or(Value::Unit)
-                    }
-                    _ => Value::Constructor("None".into(), vec![]),
                 }
-            }
-            "tail" => {
-                match args.first() {
-                    Some(Value::Constructor(n, fields)) if n == "Cons" => {
-                        fields.get(1).cloned().unwrap_or(Value::Constructor("Nil".into(), vec![]))
-                    }
-                    Some(Value::List(elems)) => {
-                        if elems.len() <= 1 {
-                            Value::Constructor("Nil".into(), vec![])
-                        } else {
-                            Value::List(elems[1..].to_vec())
-                        }
-                    }
-                    _ => Value::Constructor("Nil".into(), vec![]),
-                }
-            }
+                _ => Value::Constructor("Nil".into(), vec![]),
+            },
             "nth" => {
                 // nth(list, index) — 0-based indexed access
                 match (args.get(0), args.get(1)) {
                     (Some(list_val), Some(Value::Int(idx))) => {
                         let i = *idx as usize;
                         match list_val {
-                            Value::List(elems) => {
-                                elems.get(i).cloned().unwrap_or(Value::Unit)
-                            }
+                            Value::List(elems) => elems.get(i).cloned().unwrap_or(Value::Unit),
                             _ => {
                                 // Cons-list: walk i steps
                                 let mut cur = list_val.clone();
                                 for _ in 0..i {
                                     match cur {
-                                        Value::Constructor(ref n, ref fs) if n == "Cons" && fs.len() == 2 => {
+                                        Value::Constructor(ref n, ref fs)
+                                            if n == "Cons" && fs.len() == 2 =>
+                                        {
                                             cur = fs[1].clone();
                                         }
                                         _ => return Value::Unit,
@@ -5640,19 +6290,15 @@ impl Interpreter {
                     _ => Value::Unit,
                 }
             }
-            "abs" => {
-                match args.first() {
-                    Some(Value::Int(n)) => Value::Int(n.abs()),
-                    Some(Value::Float(f)) => Value::Float(f.abs()),
-                    _ => Value::Int(0),
-                }
-            }
-            "not" => {
-                match args.first() {
-                    Some(Value::Bool(b)) => Value::Bool(!b),
-                    _ => Value::Bool(false),
-                }
-            }
+            "abs" => match args.first() {
+                Some(Value::Int(n)) => Value::Int(n.abs()),
+                Some(Value::Float(f)) => Value::Float(f.abs()),
+                _ => Value::Int(0),
+            },
+            "not" => match args.first() {
+                Some(Value::Bool(b)) => Value::Bool(!b),
+                _ => Value::Bool(false),
+            },
             "concat" => {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Str(a)), Some(Value::Str(b))) => Value::Str(format!("{}{}", a, b)),
@@ -5665,16 +6311,14 @@ impl Interpreter {
                     _ => Value::Constructor("Nil".into(), vec![]),
                 }
             }
-            "reverse" => {
-                match args.first() {
-                    Some(v) => {
-                        let mut items = list_to_vec(v);
-                        items.reverse();
-                        vec_to_list(items)
-                    }
-                    _ => Value::Constructor("Nil".into(), vec![]),
+            "reverse" => match args.first() {
+                Some(v) => {
+                    let mut items = list_to_vec(v);
+                    items.reverse();
+                    vec_to_list(items)
                 }
-            }
+                _ => Value::Constructor("Nil".into(), vec![]),
+            },
             "map" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
                 // TODO(perf): func.clone() per iteration is expensive (clones captured Env).
@@ -5685,10 +6329,15 @@ impl Interpreter {
                     Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
-                let mapped: Vec<Value> = items.into_iter()
+                let mapped: Vec<Value> = items
+                    .into_iter()
                     .map(|item| self.apply(func.clone(), vec![item], env))
                     .collect();
-                if is_stream { Value::Stream(mapped) } else { Value::List(mapped) }
+                if is_stream {
+                    Value::Stream(mapped)
+                } else {
+                    Value::List(mapped)
+                }
             }
             "filter" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
@@ -5700,15 +6349,20 @@ impl Interpreter {
                     Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
-                let filtered: Vec<Value> = items.into_iter()
-                    .filter(|item| {
-                        match self.apply(func.clone(), vec![item.clone()], env) {
+                let filtered: Vec<Value> = items
+                    .into_iter()
+                    .filter(
+                        |item| match self.apply(func.clone(), vec![item.clone()], env) {
                             Value::Bool(true) => true,
                             _ => false,
-                        }
-                    })
+                        },
+                    )
                     .collect();
-                if is_stream { Value::Stream(filtered) } else { Value::List(filtered) }
+                if is_stream {
+                    Value::Stream(filtered)
+                } else {
+                    Value::List(filtered)
+                }
             }
             "foldl" => {
                 // TODO(perf): func.clone() and acc clone per iteration.
@@ -5726,30 +6380,26 @@ impl Interpreter {
                 }
             }
             // ---- Collection builtins (Kotlin-inspired) ----
-            "sort" => {
-                match args.first() {
-                    Some(list) => {
-                        let mut items = list_to_vec(list);
-                        items.sort_by(|a, b| format!("{}", a).cmp(&format!("{}", b)));
-                        Value::List(items)
-                    }
-                    _ => Value::List(vec![]),
+            "sort" => match args.first() {
+                Some(list) => {
+                    let mut items = list_to_vec(list);
+                    items.sort_by(|a, b| format!("{}", a).cmp(&format!("{}", b)));
+                    Value::List(items)
                 }
-            }
-            "sort_by" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(list), Some(func)) => {
-                        let mut items = list_to_vec(list);
-                        items.sort_by(|a, b| {
-                            let ka = self.apply(func.clone(), vec![a.clone()], env);
-                            let kb = self.apply(func.clone(), vec![b.clone()], env);
-                            format!("{}", ka).cmp(&format!("{}", kb))
-                        });
-                        Value::List(items)
-                    }
-                    _ => Value::List(vec![]),
+                _ => Value::List(vec![]),
+            },
+            "sort_by" => match (args.get(0), args.get(1)) {
+                (Some(list), Some(func)) => {
+                    let mut items = list_to_vec(list);
+                    items.sort_by(|a, b| {
+                        let ka = self.apply(func.clone(), vec![a.clone()], env);
+                        let kb = self.apply(func.clone(), vec![b.clone()], env);
+                        format!("{}", ka).cmp(&format!("{}", kb))
+                    });
+                    Value::List(items)
                 }
-            }
+                _ => Value::List(vec![]),
+            },
             "any" => {
                 // Polymorphic: works on Stream/Subject/List/Cons
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
@@ -5774,20 +6424,21 @@ impl Interpreter {
                     matches!(self.apply(func.clone(), vec![item], env), Value::Bool(true))
                 }))
             }
-            "find" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(list), Some(func)) => {
-                        let items = list_to_vec(list);
-                        for item in items {
-                            if matches!(self.apply(func.clone(), vec![item.clone()], env), Value::Bool(true)) {
-                                return Value::Constructor("Some".into(), vec![item]);
-                            }
+            "find" => match (args.get(0), args.get(1)) {
+                (Some(list), Some(func)) => {
+                    let items = list_to_vec(list);
+                    for item in items {
+                        if matches!(
+                            self.apply(func.clone(), vec![item.clone()], env),
+                            Value::Bool(true)
+                        ) {
+                            return Value::Constructor("Some".into(), vec![item]);
                         }
-                        Value::Constructor("None".into(), vec![])
                     }
-                    _ => Value::Constructor("None".into(), vec![]),
+                    Value::Constructor("None".into(), vec![])
                 }
-            }
+                _ => Value::Constructor("None".into(), vec![]),
+            },
             "flat_map" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
@@ -5804,7 +6455,11 @@ impl Interpreter {
                         other => result.extend(list_to_vec(&other)),
                     }
                 }
-                if is_stream { Value::Stream(result) } else { Value::List(result) }
+                if is_stream {
+                    Value::Stream(result)
+                } else {
+                    Value::List(result)
+                }
             }
             "zip" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
@@ -5818,10 +6473,16 @@ impl Interpreter {
                     Value::Stream(v) | Value::Subject(v) => v.clone(),
                     other => list_to_vec(other),
                 };
-                let pairs: Vec<Value> = va.into_iter().zip(vb.into_iter())
+                let pairs: Vec<Value> = va
+                    .into_iter()
+                    .zip(vb.into_iter())
                     .map(|(x, y)| Value::Tuple(vec![x, y]))
                     .collect();
-                if is_stream { Value::Stream(pairs) } else { Value::List(pairs) }
+                if is_stream {
+                    Value::Stream(pairs)
+                } else {
+                    Value::List(pairs)
+                }
             }
             "enumerate" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
@@ -5830,47 +6491,60 @@ impl Interpreter {
                     Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
                 };
-                let pairs: Vec<Value> = items.into_iter().enumerate()
+                let pairs: Vec<Value> = items
+                    .into_iter()
+                    .enumerate()
                     .map(|(i, v)| Value::Tuple(vec![Value::Int(i as i64), v]))
                     .collect();
-                if is_stream { Value::Stream(pairs) } else { Value::List(pairs) }
-            }
-            "take_while" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(list), Some(func)) => {
-                        let items = list_to_vec(list);
-                        let taken: Vec<Value> = items.into_iter().take_while(|item| {
-                            matches!(self.apply(func.clone(), vec![item.clone()], env), Value::Bool(true))
-                        }).collect();
-                        Value::List(taken)
-                    }
-                    _ => Value::List(vec![]),
+                if is_stream {
+                    Value::Stream(pairs)
+                } else {
+                    Value::List(pairs)
                 }
             }
-            "drop_while" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(list), Some(func)) => {
-                        let items = list_to_vec(list);
-                        let dropped: Vec<Value> = items.into_iter().skip_while(|item| {
-                            matches!(self.apply(func.clone(), vec![item.clone()], env), Value::Bool(true))
-                        }).collect();
-                        Value::List(dropped)
-                    }
-                    _ => Value::List(vec![]),
+            "take_while" => match (args.get(0), args.get(1)) {
+                (Some(list), Some(func)) => {
+                    let items = list_to_vec(list);
+                    let taken: Vec<Value> = items
+                        .into_iter()
+                        .take_while(|item| {
+                            matches!(
+                                self.apply(func.clone(), vec![item.clone()], env),
+                                Value::Bool(true)
+                            )
+                        })
+                        .collect();
+                    Value::List(taken)
                 }
-            }
-            "sum_list" => {
-                match args.first() {
-                    Some(list) => {
-                        let items = list_to_vec(list);
-                        let total: i64 = items.into_iter().filter_map(|v| {
-                            if let Value::Int(n) = v { Some(n) } else { None }
-                        }).sum();
-                        Value::Int(total)
-                    }
-                    _ => Value::Int(0),
+                _ => Value::List(vec![]),
+            },
+            "drop_while" => match (args.get(0), args.get(1)) {
+                (Some(list), Some(func)) => {
+                    let items = list_to_vec(list);
+                    let dropped: Vec<Value> = items
+                        .into_iter()
+                        .skip_while(|item| {
+                            matches!(
+                                self.apply(func.clone(), vec![item.clone()], env),
+                                Value::Bool(true)
+                            )
+                        })
+                        .collect();
+                    Value::List(dropped)
                 }
-            }
+                _ => Value::List(vec![]),
+            },
+            "sum_list" => match args.first() {
+                Some(list) => {
+                    let items = list_to_vec(list);
+                    let total: i64 = items
+                        .into_iter()
+                        .filter_map(|v| if let Value::Int(n) = v { Some(n) } else { None })
+                        .sum();
+                    Value::Int(total)
+                }
+                _ => Value::Int(0),
+            },
             "distinct" => {
                 // Polymorphic: List → global unique (HashSet), Stream → consecutive dedup
                 let input = args.first().cloned().unwrap_or(Value::Unit);
@@ -5892,309 +6566,279 @@ impl Interpreter {
                         // List: global unique (HashSet)
                         let items = list_to_vec(other);
                         let mut seen = std::collections::HashSet::new();
-                        let unique: Vec<Value> = items.into_iter().filter(|v| {
-                            seen.insert(format!("{}", v))
-                        }).collect();
+                        let unique: Vec<Value> = items
+                            .into_iter()
+                            .filter(|v| seen.insert(format!("{}", v)))
+                            .collect();
                         Value::List(unique)
                     }
                 }
             }
-            "count_by" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(list), Some(func)) => {
-                        let items = list_to_vec(list);
-                        let count = items.into_iter().filter(|item| {
-                            matches!(self.apply(func.clone(), vec![item.clone()], env), Value::Bool(true))
-                        }).count();
-                        Value::Int(count as i64)
-                    }
-                    _ => Value::Int(0),
+            "count_by" => match (args.get(0), args.get(1)) {
+                (Some(list), Some(func)) => {
+                    let items = list_to_vec(list);
+                    let count = items
+                        .into_iter()
+                        .filter(|item| {
+                            matches!(
+                                self.apply(func.clone(), vec![item.clone()], env),
+                                Value::Bool(true)
+                            )
+                        })
+                        .count();
+                    Value::Int(count as i64)
                 }
-            }
-            "partition" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(list), Some(func)) => {
-                        let items = list_to_vec(list);
-                        let mut yes = Vec::new();
-                        let mut no = Vec::new();
-                        for item in items {
-                            if matches!(self.apply(func.clone(), vec![item.clone()], env), Value::Bool(true)) {
-                                yes.push(item);
-                            } else {
-                                no.push(item);
-                            }
+                _ => Value::Int(0),
+            },
+            "partition" => match (args.get(0), args.get(1)) {
+                (Some(list), Some(func)) => {
+                    let items = list_to_vec(list);
+                    let mut yes = Vec::new();
+                    let mut no = Vec::new();
+                    for item in items {
+                        if matches!(
+                            self.apply(func.clone(), vec![item.clone()], env),
+                            Value::Bool(true)
+                        ) {
+                            yes.push(item);
+                        } else {
+                            no.push(item);
                         }
-                        Value::Tuple(vec![Value::List(yes), Value::List(no)])
                     }
-                    _ => Value::Tuple(vec![Value::List(vec![]), Value::List(vec![])]),
+                    Value::Tuple(vec![Value::List(yes), Value::List(no)])
                 }
-            }
-            "chunked" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(list), Some(Value::Int(n))) if *n > 0 => {
-                        let items = list_to_vec(list);
-                        let chunks: Vec<Value> = items.chunks(*n as usize)
-                            .map(|c| Value::List(c.to_vec()))
-                            .collect();
-                        Value::List(chunks)
+                _ => Value::Tuple(vec![Value::List(vec![]), Value::List(vec![])]),
+            },
+            "chunked" => match (args.get(0), args.get(1)) {
+                (Some(list), Some(Value::Int(n))) if *n > 0 => {
+                    let items = list_to_vec(list);
+                    let chunks: Vec<Value> = items
+                        .chunks(*n as usize)
+                        .map(|c| Value::List(c.to_vec()))
+                        .collect();
+                    Value::List(chunks)
+                }
+                _ => Value::List(vec![]),
+            },
+            "subscribe" => match (args.get(0), args.get(1)) {
+                (Some(stream), Some(func)) => {
+                    let items = list_to_vec(stream);
+                    for item in items {
+                        self.apply(func.clone(), vec![item], env);
                     }
-                    _ => Value::List(vec![]),
+                    Value::Unit
                 }
-            }
-            "subscribe" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(stream), Some(func)) => {
-                        let items = list_to_vec(stream);
-                        for item in items {
-                            self.apply(func.clone(), vec![item], env);
-                        }
-                        Value::Unit
-                    }
-                    _ => Value::Unit,
-                }
-            }
+                _ => Value::Unit,
+            },
             // ---- Map builtins (M24) ----
             "map_new" => Value::Map(HashMap::new()),
-            "map_insert" => {
-                match (args.get(0), args.get(1), args.get(2)) {
-                    (Some(Value::Map(entries)), Some(key), Some(val)) => {
-                        let mut new_map = entries.clone();
-                        new_map.insert(format!("{}", key), val.clone());
-                        Value::Map(new_map)
+            "map_insert" => match (args.get(0), args.get(1), args.get(2)) {
+                (Some(Value::Map(entries)), Some(key), Some(val)) => {
+                    let mut new_map = entries.clone();
+                    new_map.insert(format!("{}", key), val.clone());
+                    Value::Map(new_map)
+                }
+                _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
+            },
+            "map_get" => match (args.get(0), args.get(1)) {
+                (Some(Value::Map(entries)), Some(key)) => {
+                    let key_str = format!("{}", key);
+                    match entries.get(&key_str) {
+                        Some(v) => Value::Constructor("Some".into(), vec![v.clone()]),
+                        None => Value::Constructor("None".into(), vec![]),
                     }
-                    _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
                 }
-            }
-            "map_get" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(Value::Map(entries)), Some(key)) => {
-                        let key_str = format!("{}", key);
-                        match entries.get(&key_str) {
-                            Some(v) => Value::Constructor("Some".into(), vec![v.clone()]),
-                            None => Value::Constructor("None".into(), vec![]),
-                        }
+                _ => Value::Constructor("None".into(), vec![]),
+            },
+            "map_get_or" => match (args.get(0), args.get(1), args.get(2)) {
+                (Some(Value::Map(entries)), Some(key), Some(default)) => {
+                    let key_str = format!("{}", key);
+                    entries
+                        .get(&key_str)
+                        .cloned()
+                        .unwrap_or_else(|| default.clone())
+                }
+                _ => args.get(2).cloned().unwrap_or(Value::Unit),
+            },
+            "map_contains" => match (args.get(0), args.get(1)) {
+                (Some(Value::Map(entries)), Some(key)) => {
+                    Value::Bool(entries.contains_key(&format!("{}", key)))
+                }
+                _ => Value::Bool(false),
+            },
+            "map_remove" => match (args.get(0), args.get(1)) {
+                (Some(Value::Map(entries)), Some(key)) => {
+                    let mut new_map = entries.clone();
+                    new_map.remove(&format!("{}", key));
+                    Value::Map(new_map)
+                }
+                _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
+            },
+            "map_keys" => match args.first() {
+                Some(Value::Map(entries)) => {
+                    Value::List(entries.keys().map(|k| Value::Str(k.clone())).collect())
+                }
+                _ => Value::List(vec![]),
+            },
+            "map_values" => match args.first() {
+                Some(Value::Map(entries)) => Value::List(entries.values().cloned().collect()),
+                _ => Value::List(vec![]),
+            },
+            "map_entries" => match args.first() {
+                Some(Value::Map(entries)) => Value::List(
+                    entries
+                        .iter()
+                        .map(|(k, v)| Value::Tuple(vec![Value::Str(k.clone()), v.clone()]))
+                        .collect(),
+                ),
+                _ => Value::List(vec![]),
+            },
+            "map_len" => match args.first() {
+                Some(Value::Map(entries)) => Value::Int(entries.len() as i64),
+                _ => Value::Int(0),
+            },
+            "map_merge" => match (args.get(0), args.get(1)) {
+                (Some(Value::Map(base)), Some(Value::Map(other))) => {
+                    let mut merged = base.clone();
+                    for (k, v) in other {
+                        merged.insert(k.clone(), v.clone());
                     }
-                    _ => Value::Constructor("None".into(), vec![]),
+                    Value::Map(merged)
                 }
-            }
-            "map_get_or" => {
-                match (args.get(0), args.get(1), args.get(2)) {
-                    (Some(Value::Map(entries)), Some(key), Some(default)) => {
-                        let key_str = format!("{}", key);
-                        entries.get(&key_str).cloned().unwrap_or_else(|| default.clone())
-                    }
-                    _ => args.get(2).cloned().unwrap_or(Value::Unit),
-                }
-            }
-            "map_contains" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(Value::Map(entries)), Some(key)) => {
-                        Value::Bool(entries.contains_key(&format!("{}", key)))
-                    }
-                    _ => Value::Bool(false),
-                }
-            }
-            "map_remove" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(Value::Map(entries)), Some(key)) => {
-                        let mut new_map = entries.clone();
-                        new_map.remove(&format!("{}", key));
-                        Value::Map(new_map)
-                    }
-                    _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
-                }
-            }
-            "map_keys" => {
-                match args.first() {
-                    Some(Value::Map(entries)) => {
-                        Value::List(entries.keys().map(|k| Value::Str(k.clone())).collect())
-                    }
-                    _ => Value::List(vec![]),
-                }
-            }
-            "map_values" => {
-                match args.first() {
-                    Some(Value::Map(entries)) => {
-                        Value::List(entries.values().cloned().collect())
-                    }
-                    _ => Value::List(vec![]),
-                }
-            }
-            "map_entries" => {
-                match args.first() {
-                    Some(Value::Map(entries)) => {
-                        Value::List(entries.iter().map(|(k, v)| Value::Tuple(vec![Value::Str(k.clone()), v.clone()])).collect())
-                    }
-                    _ => Value::List(vec![]),
-                }
-            }
-            "map_len" => {
-                match args.first() {
-                    Some(Value::Map(entries)) => Value::Int(entries.len() as i64),
-                    _ => Value::Int(0),
-                }
-            }
-            "map_merge" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(Value::Map(base)), Some(Value::Map(other))) => {
-                        let mut merged = base.clone();
-                        for (k, v) in other {
-                            merged.insert(k.clone(), v.clone());
-                        }
-                        Value::Map(merged)
-                    }
-                    _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
-                }
-            }
-            "map_from" => {
-                match args.first() {
-                    Some(list) => {
-                        let items = list_to_vec(list);
-                        let mut map = HashMap::new();
-                        for v in items {
-                            if let Value::Tuple(ref pair) = v {
-                                if pair.len() >= 2 {
-                                    map.insert(format!("{}", pair[0]), pair[1].clone());
-                                }
+                _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
+            },
+            "map_from" => match args.first() {
+                Some(list) => {
+                    let items = list_to_vec(list);
+                    let mut map = HashMap::new();
+                    for v in items {
+                        if let Value::Tuple(ref pair) = v {
+                            if pair.len() >= 2 {
+                                map.insert(format!("{}", pair[0]), pair[1].clone());
                             }
                         }
-                        Value::Map(map)
                     }
-                    _ => Value::Map(HashMap::new()),
+                    Value::Map(map)
                 }
-            }
+                _ => Value::Map(HashMap::new()),
+            },
             // ---- Set builtins (M24) ----
             "set_new" => Value::Set(HashMap::new()),
-            "set_insert" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(Value::Set(items)), Some(val)) => {
-                        let key = format!("{}", val);
-                        if items.contains_key(&key) {
-                            Value::Set(items.clone())
-                        } else {
-                            let mut new_items = items.clone();
-                            new_items.insert(key, val.clone());
-                            Value::Set(new_items)
-                        }
-                    }
-                    _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
-                }
-            }
-            "set_contains" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(Value::Set(items)), Some(val)) => {
-                        let key = format!("{}", val);
-                        Value::Bool(items.contains_key(&key))
-                    }
-                    _ => Value::Bool(false),
-                }
-            }
-            "set_remove" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(Value::Set(items)), Some(val)) => {
-                        let key = format!("{}", val);
+            "set_insert" => match (args.get(0), args.get(1)) {
+                (Some(Value::Set(items)), Some(val)) => {
+                    let key = format!("{}", val);
+                    if items.contains_key(&key) {
+                        Value::Set(items.clone())
+                    } else {
                         let mut new_items = items.clone();
-                        new_items.remove(&key);
+                        new_items.insert(key, val.clone());
                         Value::Set(new_items)
                     }
-                    _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
                 }
-            }
-            "set_len" => {
-                match args.first() {
-                    Some(Value::Set(items)) => Value::Int(items.len() as i64),
-                    _ => Value::Int(0),
+                _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
+            },
+            "set_contains" => match (args.get(0), args.get(1)) {
+                (Some(Value::Set(items)), Some(val)) => {
+                    let key = format!("{}", val);
+                    Value::Bool(items.contains_key(&key))
                 }
-            }
-            "set_to_list" => {
-                match args.first() {
-                    Some(Value::Set(items)) => Value::List(items.values().cloned().collect()),
-                    _ => Value::List(vec![]),
+                _ => Value::Bool(false),
+            },
+            "set_remove" => match (args.get(0), args.get(1)) {
+                (Some(Value::Set(items)), Some(val)) => {
+                    let key = format!("{}", val);
+                    let mut new_items = items.clone();
+                    new_items.remove(&key);
+                    Value::Set(new_items)
                 }
-            }
-            "set_union" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(Value::Set(a)), Some(Value::Set(b))) => {
-                        let mut result = a.clone();
-                        for (k, v) in b {
-                            result.entry(k.clone()).or_insert_with(|| v.clone());
-                        }
-                        Value::Set(result)
+                _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
+            },
+            "set_len" => match args.first() {
+                Some(Value::Set(items)) => Value::Int(items.len() as i64),
+                _ => Value::Int(0),
+            },
+            "set_to_list" => match args.first() {
+                Some(Value::Set(items)) => Value::List(items.values().cloned().collect()),
+                _ => Value::List(vec![]),
+            },
+            "set_union" => match (args.get(0), args.get(1)) {
+                (Some(Value::Set(a)), Some(Value::Set(b))) => {
+                    let mut result = a.clone();
+                    for (k, v) in b {
+                        result.entry(k.clone()).or_insert_with(|| v.clone());
                     }
-                    _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
+                    Value::Set(result)
                 }
-            }
-            "set_intersect" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(Value::Set(a)), Some(Value::Set(b))) => {
-                        let result: HashMap<String, Value> = a.iter()
-                            .filter(|(k, _)| b.contains_key(k.as_str()))
-                            .map(|(k, v)| (k.clone(), v.clone()))
-                            .collect();
-                        Value::Set(result)
+                _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
+            },
+            "set_intersect" => match (args.get(0), args.get(1)) {
+                (Some(Value::Set(a)), Some(Value::Set(b))) => {
+                    let result: HashMap<String, Value> = a
+                        .iter()
+                        .filter(|(k, _)| b.contains_key(k.as_str()))
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect();
+                    Value::Set(result)
+                }
+                _ => Value::Set(HashMap::new()),
+            },
+            "set_diff" => match (args.get(0), args.get(1)) {
+                (Some(Value::Set(a)), Some(Value::Set(b))) => {
+                    let result: HashMap<String, Value> = a
+                        .iter()
+                        .filter(|(k, _)| !b.contains_key(k.as_str()))
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect();
+                    Value::Set(result)
+                }
+                _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
+            },
+            "set_from_list" => match args.first() {
+                Some(list) => {
+                    let items = list_to_vec(list);
+                    let mut result: HashMap<String, Value> = HashMap::new();
+                    for v in items {
+                        let key = format!("{}", v);
+                        result.entry(key).or_insert(v);
                     }
-                    _ => Value::Set(HashMap::new()),
+                    Value::Set(result)
                 }
-            }
-            "set_diff" => {
-                match (args.get(0), args.get(1)) {
-                    (Some(Value::Set(a)), Some(Value::Set(b))) => {
-                        let result: HashMap<String, Value> = a.iter()
-                            .filter(|(k, _)| !b.contains_key(k.as_str()))
-                            .map(|(k, v)| (k.clone(), v.clone()))
-                            .collect();
-                        Value::Set(result)
-                    }
-                    _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
+                _ => Value::Set(HashMap::new()),
+            },
+            "assert" => match args.first() {
+                Some(Value::Bool(true)) => Value::Unit,
+                Some(Value::Bool(false)) => {
+                    let msg = "Assertion failed!";
+                    println!("FAIL: {}", msg);
+                    self.output.push(format!("FAIL: {}", msg));
+                    Value::Unit
                 }
-            }
-            "set_from_list" => {
-                match args.first() {
-                    Some(list) => {
-                        let items = list_to_vec(list);
-                        let mut result: HashMap<String, Value> = HashMap::new();
-                        for v in items {
-                            let key = format!("{}", v);
-                            result.entry(key).or_insert(v);
-                        }
-                        Value::Set(result)
-                    }
-                    _ => Value::Set(HashMap::new()),
-                }
-            }
-            "assert" => {
-                match args.first() {
-                    Some(Value::Bool(true)) => Value::Unit,
-                    Some(Value::Bool(false)) => {
-                        let msg = "Assertion failed!";
-                        println!("FAIL: {}", msg);
-                        self.output.push(format!("FAIL: {}", msg));
-                        Value::Unit
-                    }
-                    _ => Value::Unit,
-                }
-            }
-            "string_length" => {
-                match args.first() {
-                    Some(Value::Str(s)) => Value::Int(s.len() as i64),
-                    _ => Value::Int(0),
-                }
-            }
+                _ => Value::Unit,
+            },
+            "string_length" => match args.first() {
+                Some(Value::Str(s)) => Value::Int(s.len() as i64),
+                _ => Value::Int(0),
+            },
             // ---- M14a: String builtins ----
             "split" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(s)), Some(Value::Str(sep))) => {
-                    Value::List(s.split(sep.as_str()).map(|p| Value::Str(p.to_string())).collect())
-                }
+                (Some(Value::Str(s)), Some(Value::Str(sep))) => Value::List(
+                    s.split(sep.as_str())
+                        .map(|p| Value::Str(p.to_string()))
+                        .collect(),
+                ),
                 _ => Value::List(vec![]),
             },
             "join" => match args.get(1) {
                 Some(Value::Str(sep)) => {
                     if let Some(list_val) = args.get(0) {
                         let items = list_to_vec(list_val);
-                        let strs: Vec<String> = items.iter().map(|v| match v {
-                            Value::Str(s) => s.clone(),
-                            other => format!("{}", other),
-                        }).collect();
+                        let strs: Vec<String> = items
+                            .iter()
+                            .map(|v| match v {
+                                Value::Str(s) => s.clone(),
+                                other => format!("{}", other),
+                            })
+                            .collect();
                         Value::Str(strs.join(sep.as_str()))
                     } else {
                         Value::Str(String::new())
@@ -6207,15 +6851,21 @@ impl Interpreter {
                 _ => Value::Str(String::new()),
             },
             "contains" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(s)), Some(Value::Str(sub))) => Value::Bool(s.contains(sub.as_str())),
+                (Some(Value::Str(s)), Some(Value::Str(sub))) => {
+                    Value::Bool(s.contains(sub.as_str()))
+                }
                 _ => Value::Bool(false),
             },
             "starts_with" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(s)), Some(Value::Str(pre))) => Value::Bool(s.starts_with(pre.as_str())),
+                (Some(Value::Str(s)), Some(Value::Str(pre))) => {
+                    Value::Bool(s.starts_with(pre.as_str()))
+                }
                 _ => Value::Bool(false),
             },
             "ends_with" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(s)), Some(Value::Str(suf))) => Value::Bool(s.ends_with(suf.as_str())),
+                (Some(Value::Str(s)), Some(Value::Str(suf))) => {
+                    Value::Bool(s.ends_with(suf.as_str()))
+                }
                 _ => Value::Bool(false),
             },
             "replace" => match (args.get(0), args.get(1), args.get(2)) {
@@ -6264,12 +6914,10 @@ impl Interpreter {
                 _ => Value::Str(String::new()),
             },
             "index_of" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(s)), Some(Value::Str(sub))) => {
-                    match s.find(sub.as_str()) {
-                        Some(pos) => Value::Int(pos as i64),
-                        None => Value::Int(-1),
-                    }
-                }
+                (Some(Value::Str(s)), Some(Value::Str(sub))) => match s.find(sub.as_str()) {
+                    Some(pos) => Value::Int(pos as i64),
+                    None => Value::Int(-1),
+                },
                 _ => Value::Int(-1),
             },
             "format_float" => match (args.get(0), args.get(1)) {
@@ -6287,7 +6935,7 @@ impl Interpreter {
                     Err(_) => {
                         eprintln!("warning: parse_int(\"{}\") failed, returning 0. Consider using monadic bind: = n <- parse_int(s)", s);
                         Value::Int(0)
-                    },
+                    }
                 },
                 Some(Value::Int(n)) => Value::Int(*n),
                 _ => Value::Int(0),
@@ -6298,7 +6946,7 @@ impl Interpreter {
                     Err(_) => {
                         eprintln!("warning: parse_float(\"{}\") failed, returning 0.0. Consider using monadic bind: = f <- parse_float(s)", s);
                         Value::Float(0.0)
-                    },
+                    }
                 },
                 Some(Value::Float(f)) => Value::Float(*f),
                 Some(Value::Int(n)) => Value::Float(*n as f64),
@@ -6328,7 +6976,11 @@ impl Interpreter {
             "append_file" => match (args.get(0), args.get(1)) {
                 (Some(Value::Str(path)), Some(Value::Str(content))) => {
                     use std::io::Write;
-                    if let Ok(mut f) = std::fs::OpenOptions::new().append(true).create(true).open(path) {
+                    if let Ok(mut f) = std::fs::OpenOptions::new()
+                        .append(true)
+                        .create(true)
+                        .open(path)
+                    {
                         let _ = f.write_all(content.as_bytes());
                     }
                     Value::Unit
@@ -6341,7 +6993,9 @@ impl Interpreter {
             },
             "read_lines" => match args.first() {
                 Some(Value::Str(path)) => match std::fs::read_to_string(path) {
-                    Ok(content) => Value::List(content.lines().map(|l| Value::Str(l.to_string())).collect()),
+                    Ok(content) => {
+                        Value::List(content.lines().map(|l| Value::Str(l.to_string())).collect())
+                    }
                     Err(_) => Value::List(vec![]),
                 },
                 _ => Value::List(vec![]),
@@ -6355,12 +7009,10 @@ impl Interpreter {
             },
             // ---- M14c: JSON builtins ----
             "json_parse" => match args.first() {
-                Some(Value::Str(s)) => {
-                    match serde_json::from_str::<serde_json::Value>(s) {
-                        Ok(_) => Value::Str(s.clone()),
-                        Err(_) => Value::Str("null".to_string()),
-                    }
-                }
+                Some(Value::Str(s)) => match serde_json::from_str::<serde_json::Value>(s) {
+                    Ok(_) => Value::Str(s.clone()),
+                    Err(_) => Value::Str("null".to_string()),
+                },
                 _ => Value::Str("null".to_string()),
             },
             "json_get" => match (args.get(0), args.get(1)) {
@@ -6376,44 +7028,36 @@ impl Interpreter {
                 _ => Value::Str("null".to_string()),
             },
             "json_string" => match args.first() {
-                Some(Value::Str(json)) => {
-                    match serde_json::from_str::<serde_json::Value>(json) {
-                        Ok(serde_json::Value::String(s)) => Value::Str(s),
-                        _ => Value::Str(json.trim_matches('"').to_string()),
-                    }
-                }
+                Some(Value::Str(json)) => match serde_json::from_str::<serde_json::Value>(json) {
+                    Ok(serde_json::Value::String(s)) => Value::Str(s),
+                    _ => Value::Str(json.trim_matches('"').to_string()),
+                },
                 _ => Value::Str(String::new()),
             },
             "json_number" => match args.first() {
-                Some(Value::Str(json)) => {
-                    match serde_json::from_str::<serde_json::Value>(json) {
-                        Ok(serde_json::Value::Number(n)) => Value::Float(n.as_f64().unwrap_or(0.0)),
-                        _ => Value::Float(0.0),
-                    }
-                }
+                Some(Value::Str(json)) => match serde_json::from_str::<serde_json::Value>(json) {
+                    Ok(serde_json::Value::Number(n)) => Value::Float(n.as_f64().unwrap_or(0.0)),
+                    _ => Value::Float(0.0),
+                },
                 Some(Value::Float(f)) => Value::Float(*f),
                 Some(Value::Int(n)) => Value::Float(*n as f64),
                 _ => Value::Float(0.0),
             },
             "json_bool" => match args.first() {
-                Some(Value::Str(json)) => {
-                    match serde_json::from_str::<serde_json::Value>(json) {
-                        Ok(serde_json::Value::Bool(b)) => Value::Bool(b),
-                        _ => Value::Bool(false),
-                    }
-                }
+                Some(Value::Str(json)) => match serde_json::from_str::<serde_json::Value>(json) {
+                    Ok(serde_json::Value::Bool(b)) => Value::Bool(b),
+                    _ => Value::Bool(false),
+                },
                 Some(Value::Bool(b)) => Value::Bool(*b),
                 _ => Value::Bool(false),
             },
             "json_array" => match args.first() {
-                Some(Value::Str(json)) => {
-                    match serde_json::from_str::<serde_json::Value>(json) {
-                        Ok(serde_json::Value::Array(arr)) => {
-                            Value::List(arr.iter().map(|v| Value::Str(v.to_string())).collect())
-                        }
-                        _ => Value::List(vec![]),
+                Some(Value::Str(json)) => match serde_json::from_str::<serde_json::Value>(json) {
+                    Ok(serde_json::Value::Array(arr)) => {
+                        Value::List(arr.iter().map(|v| Value::Str(v.to_string())).collect())
                     }
-                }
+                    _ => Value::List(vec![]),
+                },
                 _ => Value::List(vec![]),
             },
             "json_emit" => match args.first() {
@@ -6422,16 +7066,29 @@ impl Interpreter {
                 Some(Value::Float(f)) => Value::Str(f.to_string()),
                 Some(Value::Bool(b)) => Value::Str(b.to_string()),
                 Some(Value::List(items)) => {
-                    let parts: Vec<String> = items.iter().map(|v| match v {
-                        Value::Str(s) if s.starts_with('{') || s.starts_with('[') || s.starts_with('"')
-                            || s == "true" || s == "false" || s == "null"
-                            || s.parse::<f64>().is_ok() => s.clone(),
-                        Value::Str(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")),
-                        Value::Int(n) => n.to_string(),
-                        Value::Float(f) => f.to_string(),
-                        Value::Bool(b) => b.to_string(),
-                        other => format!("\"{}\"", format!("{}", other).replace('"', "\\\"")),
-                    }).collect();
+                    let parts: Vec<String> = items
+                        .iter()
+                        .map(|v| match v {
+                            Value::Str(s)
+                                if s.starts_with('{')
+                                    || s.starts_with('[')
+                                    || s.starts_with('"')
+                                    || s == "true"
+                                    || s == "false"
+                                    || s == "null"
+                                    || s.parse::<f64>().is_ok() =>
+                            {
+                                s.clone()
+                            }
+                            Value::Str(s) => {
+                                format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+                            }
+                            Value::Int(n) => n.to_string(),
+                            Value::Float(f) => f.to_string(),
+                            Value::Bool(b) => b.to_string(),
+                            other => format!("\"{}\"", format!("{}", other).replace('"', "\\\"")),
+                        })
+                        .collect();
                     Value::Str(format!("[{}]", parts.join(",")))
                 }
                 _ => Value::Str("null".to_string()),
@@ -6445,12 +7102,25 @@ impl Interpreter {
                 for pair in &pairs {
                     let elems = list_to_vec(pair);
                     if elems.len() >= 2 {
-                        let key = match &elems[0] { Value::Str(s) => s.clone(), v => format!("{}", v) };
+                        let key = match &elems[0] {
+                            Value::Str(s) => s.clone(),
+                            v => format!("{}", v),
+                        };
                         let val = match &elems[1] {
-                            Value::Str(s) if s.starts_with('{') || s.starts_with('[') || s.starts_with('"')
-                                || s == "true" || s == "false" || s == "null"
-                                || s.parse::<f64>().is_ok() => s.clone(),
-                            Value::Str(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")),
+                            Value::Str(s)
+                                if s.starts_with('{')
+                                    || s.starts_with('[')
+                                    || s.starts_with('"')
+                                    || s == "true"
+                                    || s == "false"
+                                    || s == "null"
+                                    || s.parse::<f64>().is_ok() =>
+                            {
+                                s.clone()
+                            }
+                            Value::Str(s) => {
+                                format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+                            }
                             Value::Int(n) => n.to_string(),
                             Value::Float(f) => f.to_string(),
                             Value::Bool(b) => b.to_string(),
@@ -6460,44 +7130,51 @@ impl Interpreter {
                     }
                 }
                 Value::Str(format!("{{{}}}", parts.join(",")))
-            },
+            }
             // ---- M14d: HTTP builtins (interpreter stubs — use `runa run` for real HTTP) ----
             "http_get" => {
                 println!("[runa interpreter] http_get: use `runa run` for real HTTP requests");
                 Value::Str(String::new())
-            },
+            }
             "http_post" => {
                 println!("[runa interpreter] http_post: use `runa run` for real HTTP requests");
                 Value::Str(String::new())
-            },
-            "http_serve" | "http_respond" | "http_request_path" | "http_request_method" | "http_request_body" => {
-                println!("[runa interpreter] {}: use `runa run` for real HTTP server", name);
+            }
+            "http_serve"
+            | "http_respond"
+            | "http_request_path"
+            | "http_request_method"
+            | "http_request_body" => {
+                println!(
+                    "[runa interpreter] {}: use `runa run` for real HTTP server",
+                    name
+                );
                 Value::Unit
-            },
+            }
             // ---- M14e: Database builtins (interpreter stubs — use `runa run` for real DB) ----
             "db_open" => {
                 println!("[runa interpreter] db_open: use `runa run` for real database access");
                 Value::Str("__db_handle__".to_string())
-            },
+            }
             "db_exec" => {
                 println!("[runa interpreter] db_exec: use `runa run` for real database access");
                 Value::Unit
-            },
+            }
             "db_query" => {
                 println!("[runa interpreter] db_query: use `runa run` for real database access");
                 Value::List(vec![])
-            },
+            }
             "db_query_row" => {
-                println!("[runa interpreter] db_query_row: use `runa run` for real database access");
+                println!(
+                    "[runa interpreter] db_query_row: use `runa run` for real database access"
+                );
                 Value::List(vec![])
-            },
+            }
             "db_insert" => {
                 println!("[runa interpreter] db_insert: use `runa run` for real database access");
                 Value::Int(0)
-            },
-            "db_close" => {
-                Value::Unit
-            },
+            }
+            "db_close" => Value::Unit,
             "exp" => match args.first() {
                 Some(Value::Float(f)) => Value::Float(f.exp()),
                 Some(Value::Int(n)) => Value::Float((*n as f64).exp()),
@@ -6517,7 +7194,9 @@ impl Interpreter {
                 (Some(Value::Float(a)), Some(Value::Float(b))) => Value::Float(a.powf(*b)),
                 (Some(Value::Float(a)), Some(Value::Int(b))) => Value::Float(a.powi(*b as i32)),
                 (Some(Value::Int(a)), Some(Value::Float(b))) => Value::Float((*a as f64).powf(*b)),
-                (Some(Value::Int(a)), Some(Value::Int(b))) => Value::Float((*a as f64).powf(*b as f64)),
+                (Some(Value::Int(a)), Some(Value::Int(b))) => {
+                    Value::Float((*a as f64).powf(*b as f64))
+                }
                 _ => Value::Float(0.0),
             },
             "to_float" => match args.first() {
@@ -6560,9 +7239,7 @@ impl Interpreter {
                 _ => Value::Str("0".into()),
             },
             // shared(x) — in interpreter, shared values are just regular values
-            "shared" => {
-                args.into_iter().next().unwrap_or(Value::Unit)
-            }
+            "shared" => args.into_iter().next().unwrap_or(Value::Unit),
             "range" => {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Int(a)), Some(Value::Int(b))) => {
@@ -6584,7 +7261,9 @@ impl Interpreter {
                         let mut cur = list.clone();
                         loop {
                             match cur {
-                                Value::Constructor(ref n, ref fs) if n == "Cons" && fs.len() == 2 => {
+                                Value::Constructor(ref n, ref fs)
+                                    if n == "Cons" && fs.len() == 2 =>
+                                {
                                     items.push(fs[0].clone());
                                     cur = fs[1].clone();
                                 }
@@ -6604,10 +7283,20 @@ impl Interpreter {
             "spawn" => {
                 // spawn(actor_def, initial_state) -> Actor value
                 match args.get(0) {
-                    Some(Value::Constructor(ref def_name, _)) if def_name.starts_with("ActorDef<") => {
-                        let actor_name = def_name.trim_start_matches("ActorDef<").trim_end_matches('>').to_string();
+                    Some(Value::Constructor(ref def_name, _))
+                        if def_name.starts_with("ActorDef<") =>
+                    {
+                        let actor_name = def_name
+                            .trim_start_matches("ActorDef<")
+                            .trim_end_matches('>')
+                            .to_string();
                         let initial_state = args.get(1).cloned().unwrap_or(Value::Int(0));
-                        if let Some(Defn::Actor { state_param, handlers, .. }) = self.actor_defs.get(&actor_name).cloned() {
+                        if let Some(Defn::Actor {
+                            state_param,
+                            handlers,
+                            ..
+                        }) = self.actor_defs.get(&actor_name).cloned()
+                        {
                             Value::Actor {
                                 actor_name,
                                 state: Box::new(initial_state),
@@ -6629,12 +7318,25 @@ impl Interpreter {
             "ask" => {
                 // ask(actor, message) -> sends message, returns new state
                 match args.get(0) {
-                    Some(Value::Actor { actor_name, state, state_param, handlers, env: actor_env }) => {
+                    Some(Value::Actor {
+                        actor_name,
+                        state,
+                        state_param,
+                        handlers,
+                        env: actor_env,
+                    }) => {
                         let msg = args.get(1).cloned().unwrap_or(Value::Unit);
                         let (new_state, _response) = self.dispatch_actor_message(
-                            actor_name, state, state_param, handlers, actor_env, &msg);
+                            actor_name,
+                            state,
+                            state_param,
+                            handlers,
+                            actor_env,
+                            &msg,
+                        );
                         // Update the actor in-place via actor_instances
-                        self.actor_instances.insert(actor_name.clone(), (new_state.clone(), actor_name.clone()));
+                        self.actor_instances
+                            .insert(actor_name.clone(), (new_state.clone(), actor_name.clone()));
                         new_state
                     }
                     _ => {
@@ -6674,16 +7376,33 @@ impl Interpreter {
                 // merge(stream1, stream2) → Stream — interleave two streams
                 let s1 = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let s2 = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
-                let items1 = match s1 { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
-                let items2 = match s2 { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let items1 = match s1 {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
+                let items2 = match s2 {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 let mut merged = Vec::new();
                 let mut i1 = items1.into_iter();
                 let mut i2 = items2.into_iter();
                 loop {
                     match (i1.next(), i2.next()) {
-                        (Some(a), Some(b)) => { merged.push(a); merged.push(b); }
-                        (Some(a), None) => { merged.push(a); merged.extend(i1); break; }
-                        (None, Some(b)) => { merged.push(b); merged.extend(i2); break; }
+                        (Some(a), Some(b)) => {
+                            merged.push(a);
+                            merged.push(b);
+                        }
+                        (Some(a), None) => {
+                            merged.push(a);
+                            merged.extend(i1);
+                            break;
+                        }
+                        (None, Some(b)) => {
+                            merged.push(b);
+                            merged.extend(i2);
+                            break;
+                        }
                         (None, None) => break,
                     }
                 }
@@ -6692,35 +7411,60 @@ impl Interpreter {
             "take" => {
                 // take(stream, n) → Stream — take first n elements
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let n = match args.get(1) { Some(Value::Int(n)) if *n > 0 => *n as usize, _ => 0 };
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let n = match args.get(1) {
+                    Some(Value::Int(n)) if *n > 0 => *n as usize,
+                    _ => 0,
+                };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 Value::Stream(items.into_iter().take(n).collect())
             }
             "collect" => {
                 // collect(stream) → List — convert stream to list
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 vec_to_list(items)
             }
             "count" => {
                 // count(stream) → Int — number of elements
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 Value::Int(items.len() as i64)
             }
             "skip" => {
                 // skip(stream, n) → Stream — skip first n elements
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let n = match args.get(1) { Some(Value::Int(n)) if *n > 0 => *n as usize, _ => 0 };
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let n = match args.get(1) {
+                    Some(Value::Int(n)) if *n > 0 => *n as usize,
+                    _ => 0,
+                };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 Value::Stream(items.into_iter().skip(n).collect())
             }
             "window" => {
                 // window(stream, n) → Stream of Stream — sliding window of size n
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let n = match args.get(1) { Some(Value::Int(n)) => (*n as usize).max(1), _ => 1 };
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
-                let windows: Vec<Value> = items.windows(n)
+                let n = match args.get(1) {
+                    Some(Value::Int(n)) => (*n as usize).max(1),
+                    _ => 1,
+                };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
+                let windows: Vec<Value> = items
+                    .windows(n)
                     .map(|w| Value::Stream(w.to_vec()))
                     .collect();
                 Value::Stream(windows)
@@ -6728,23 +7472,39 @@ impl Interpreter {
             "sum" => {
                 // sum(stream) → Int or Float — sum all elements
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 let mut int_sum: i64 = 0;
                 let mut has_float = false;
                 let mut float_sum: f64 = 0.0;
                 for item in &items {
                     match item {
-                        Value::Int(n) => { int_sum += n; float_sum += *n as f64; }
-                        Value::Float(f) => { has_float = true; float_sum += f; }
+                        Value::Int(n) => {
+                            int_sum += n;
+                            float_sum += *n as f64;
+                        }
+                        Value::Float(f) => {
+                            has_float = true;
+                            float_sum += f;
+                        }
                         _ => {}
                     }
                 }
-                if has_float { Value::Float(float_sum) } else { Value::Int(int_sum) }
+                if has_float {
+                    Value::Float(float_sum)
+                } else {
+                    Value::Int(int_sum)
+                }
             }
             "last" => {
                 // last(stream) → Value — last element (or Unit if empty)
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 items.into_iter().last().unwrap_or(Value::Unit)
             }
             "combine_latest" => {
@@ -6752,8 +7512,14 @@ impl Interpreter {
                 // Rx semantics: does not emit until BOTH streams have produced at least one value
                 let s1 = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let s2 = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
-                let items1 = match s1 { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
-                let items2 = match s2 { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let items1 = match s1 {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
+                let items2 = match s2 {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 if items1.is_empty() || items2.is_empty() {
                     return Value::Stream(vec![]);
                 }
@@ -6790,7 +7556,10 @@ impl Interpreter {
             "first" => {
                 // first(stream) → Value — first element (or Unit if empty)
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 items.into_iter().next().unwrap_or(Value::Unit)
             }
             "reduce" => {
@@ -6812,7 +7581,10 @@ impl Interpreter {
                 // start_with(stream, value) → Stream — prepend a value to the stream
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let value = args.get(1).cloned().unwrap_or(Value::Unit);
-                let mut items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let mut items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 items.insert(0, value);
                 Value::Stream(items)
             }
@@ -6820,16 +7592,26 @@ impl Interpreter {
                 // concat(stream1, stream2) → Stream — sequential append (all of a, then all of b)
                 let s1 = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let s2 = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
-                let mut items1 = match s1 { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
-                let items2 = match s2 { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let mut items1 = match s1 {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
+                let items2 = match s2 {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 items1.extend(items2);
                 Value::Stream(items1)
             }
             "pairwise" => {
                 // pairwise(stream) → Stream of Tuple — consecutive pairs
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
-                let pairs: Vec<Value> = items.windows(2)
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
+                let pairs: Vec<Value> = items
+                    .windows(2)
                     .map(|w| Value::Tuple(vec![w[0].clone(), w[1].clone()]))
                     .collect();
                 Value::Stream(pairs)
@@ -6868,8 +7650,14 @@ impl Interpreter {
                 // debounce(stream, ms) → Stream — in sync: emit only the last value
                 // (suppresses rapid events; in batch mode, only the final value survives)
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let _ms = match args.get(1) { Some(Value::Int(n)) => *n, _ => 0 };
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let _ms = match args.get(1) {
+                    Some(Value::Int(n)) => *n,
+                    _ => 0,
+                };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 match items.last() {
                     Some(last) => Value::Stream(vec![last.clone()]),
                     None => Value::Stream(vec![]),
@@ -6879,9 +7667,17 @@ impl Interpreter {
                 // throttle(stream, ms) → Stream — in sync: take every Nth element
                 // (rate-limit; in batch mode we sample at intervals proportional to ms)
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let ms = match args.get(1) { Some(Value::Int(n)) => *n, _ => 100 };
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
-                if items.is_empty() { return Value::Stream(vec![]); }
+                let ms = match args.get(1) {
+                    Some(Value::Int(n)) => *n,
+                    _ => 100,
+                };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
+                if items.is_empty() {
+                    return Value::Stream(vec![]);
+                }
                 // In sync: sample rate = max(1, len/10) for ms>0, pass through for ms=0
                 let step = if ms > 0 { (items.len() / 10).max(1) } else { 1 };
                 let throttled: Vec<Value> = items.iter().step_by(step).cloned().collect();
@@ -6891,7 +7687,10 @@ impl Interpreter {
                 // delay(stream, ms) → Stream — in sync: pass through (no real time)
                 // In async codegen: each element delayed by ms before forwarding
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let _ms = match args.get(1) { Some(Value::Int(n)) => *n, _ => 0 };
+                let _ms = match args.get(1) {
+                    Some(Value::Int(n)) => *n,
+                    _ => 0,
+                };
                 match stream {
                     Value::Stream(_) | Value::Subject(_) => stream,
                     other => Value::Stream(list_to_vec(&other)),
@@ -6901,8 +7700,14 @@ impl Interpreter {
                 // buffer(stream, ms) → Stream(List) — in sync: collect all into one batch
                 // In async codegen: time-windowed batches
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let _ms = match args.get(1) { Some(Value::Int(n)) => *n, _ => 100 };
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let _ms = match args.get(1) {
+                    Some(Value::Int(n)) => *n,
+                    _ => 100,
+                };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 // Sync mode: one batch of all elements
                 Value::Stream(vec![Value::List(items)])
             }
@@ -6910,7 +7715,10 @@ impl Interpreter {
                 // timeout(stream, ms) → Stream — in sync: pass through (no timing)
                 // In async codegen: errors if no event within ms
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let _ms = match args.get(1) { Some(Value::Int(n)) => *n, _ => 1000 };
+                let _ms = match args.get(1) {
+                    Some(Value::Int(n)) => *n,
+                    _ => 1000,
+                };
                 match stream {
                     Value::Stream(_) | Value::Subject(_) => stream,
                     other => Value::Stream(list_to_vec(&other)),
@@ -6921,7 +7729,10 @@ impl Interpreter {
                 // In async codegen: cancels previous inner subscription on new outer value
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 // Sync: map each to inner stream, keep only the last inner result set
                 // This models "cancel previous" — only the last mapping survives
                 if let Some(last) = items.last() {
@@ -6939,12 +7750,21 @@ impl Interpreter {
                 // Sync: for each trigger event, take the latest value from stream
                 let stream = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
                 let trigger = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
-                let items = match stream { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
-                let trigger_items = match trigger { Value::Stream(v) | Value::Subject(v) => v, other => list_to_vec(&other) };
+                let items = match stream {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
+                let trigger_items = match trigger {
+                    Value::Stream(v) | Value::Subject(v) => v,
+                    other => list_to_vec(&other),
+                };
                 let mut result = Vec::new();
                 for (i, _) in trigger_items.iter().enumerate() {
                     // At each trigger point, take the latest available value from stream
-                    let idx = ((i + 1) * items.len()).checked_div(trigger_items.len().max(1)).unwrap_or(0).min(items.len().saturating_sub(1));
+                    let idx = ((i + 1) * items.len())
+                        .checked_div(trigger_items.len().max(1))
+                        .unwrap_or(0)
+                        .min(items.len().saturating_sub(1));
                     if let Some(v) = items.get(idx) {
                         result.push(v.clone());
                     }
@@ -7012,7 +7832,12 @@ impl Interpreter {
             "poll" => {
                 // poll(fn, interval_ms) → calls fn once in sync mode
                 // In async codegen: spawns interval + fn with switchMap cancellation
-                if let Some(Value::Closure { body, env: closure_env, .. }) = args.first() {
+                if let Some(Value::Closure {
+                    body,
+                    env: closure_env,
+                    ..
+                }) = args.first()
+                {
                     self.eval(body, &closure_env.child())
                 } else if let Some(Value::Builtin(fn_name)) = args.first() {
                     self.eval_builtin(fn_name, vec![], &Env::new())
@@ -7039,47 +7864,67 @@ impl Interpreter {
             "struct_type" => {
                 // struct_type([field("x", "Int"), field("y", "Float")]) → TypeDef { kind: "struct", fields }
                 let items = Self::cons_to_vec(args.into_iter().next().unwrap_or(Value::Unit));
-                let fields = items.into_iter().filter_map(|item| {
-                    match item {
+                let fields = items
+                    .into_iter()
+                    .filter_map(|item| match item {
                         Value::Tuple(pair) if pair.len() == 2 => {
                             if let (Value::Str(name), Value::Str(ty)) = (&pair[0], &pair[1]) {
                                 Some((name.clone(), ty.clone()))
-                            } else { None }
+                            } else {
+                                None
+                            }
                         }
                         _ => None,
-                    }
-                }).collect();
-                Value::TypeDef { kind: "struct".into(), fields }
+                    })
+                    .collect();
+                Value::TypeDef {
+                    kind: "struct".into(),
+                    fields,
+                }
             }
             "enum_type" => {
                 // enum_type(["Red", "Green", "Blue"]) → unit variants
                 // enum_type([("Circle", [field(...)]), ...]) → variants with fields
                 let items = Self::cons_to_vec(args.into_iter().next().unwrap_or(Value::Unit));
-                let fields = items.into_iter().filter_map(|item| {
-                    match item {
-                        // Simple string → unit variant
-                        Value::Str(name) => Some((name, String::new())),
-                        // Tuple(name, fields_cons_list) → variant with fields
-                        Value::Tuple(pair) if pair.len() == 2 => {
-                            if let Value::Str(name) = &pair[0] {
-                                let sub_items = Self::cons_to_vec(pair[1].clone());
-                                let field_str: String = sub_items.iter().filter_map(|f| {
-                                    match f {
-                                        Value::Tuple(fp) if fp.len() == 2 => {
-                                            if let (Value::Str(fn_), Value::Str(ft)) = (&fp[0], &fp[1]) {
-                                                Some(format!("{}:{}", fn_, ft))
-                                            } else { None }
-                                        }
-                                        _ => None,
-                                    }
-                                }).collect::<Vec<_>>().join(",");
-                                Some((name.clone(), field_str))
-                            } else { None }
+                let fields = items
+                    .into_iter()
+                    .filter_map(|item| {
+                        match item {
+                            // Simple string → unit variant
+                            Value::Str(name) => Some((name, String::new())),
+                            // Tuple(name, fields_cons_list) → variant with fields
+                            Value::Tuple(pair) if pair.len() == 2 => {
+                                if let Value::Str(name) = &pair[0] {
+                                    let sub_items = Self::cons_to_vec(pair[1].clone());
+                                    let field_str: String = sub_items
+                                        .iter()
+                                        .filter_map(|f| match f {
+                                            Value::Tuple(fp) if fp.len() == 2 => {
+                                                if let (Value::Str(fn_), Value::Str(ft)) =
+                                                    (&fp[0], &fp[1])
+                                                {
+                                                    Some(format!("{}:{}", fn_, ft))
+                                                } else {
+                                                    None
+                                                }
+                                            }
+                                            _ => None,
+                                        })
+                                        .collect::<Vec<_>>()
+                                        .join(",");
+                                    Some((name.clone(), field_str))
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
                         }
-                        _ => None,
-                    }
-                }).collect();
-                Value::TypeDef { kind: "enum".into(), fields }
+                    })
+                    .collect();
+                Value::TypeDef {
+                    kind: "enum".into(),
+                    fields,
+                }
             }
             _ => {
                 self.output.push(format!("Unknown builtin: {}", name));
@@ -7110,19 +7955,29 @@ impl Interpreter {
 
     /// Check if a function call is an effect operation with an active handler.
     /// If so, evaluate the handler and return Some(result). Otherwise None.
-    pub fn try_effect_dispatch(&mut self, fn_name: &str, args: &[Expr], env: &Env) -> Option<Value> {
+    pub fn try_effect_dispatch(
+        &mut self,
+        fn_name: &str,
+        args: &[Expr],
+        env: &Env,
+    ) -> Option<Value> {
         // Search handler stack top-first for a handler matching this operation
-        let handler_idx = self.handler_stack.iter().rposition(|(_eff_name, handlers)| {
-            handlers.iter().any(|h| h.op_name == fn_name)
-        });
+        let handler_idx = self
+            .handler_stack
+            .iter()
+            .rposition(|(_eff_name, handlers)| handlers.iter().any(|h| h.op_name == fn_name));
         let handler_idx = handler_idx?;
 
         // Verify this operation belongs to a declared effect
         let (ref eff_name, _) = self.handler_stack[handler_idx];
-        let is_effect_op = self.effect_decls.get(eff_name)
+        let is_effect_op = self
+            .effect_decls
+            .get(eff_name)
             .map(|ops| ops.iter().any(|(op, _)| op == fn_name))
             .unwrap_or(false);
-        if !is_effect_op { return None; }
+        if !is_effect_op {
+            return None;
+        }
 
         // Find the specific handler clause
         let (_, ref handlers) = self.handler_stack[handler_idx];
@@ -7179,7 +8034,11 @@ impl Interpreter {
             "append_file" => match (args.get(0), args.get(1)) {
                 (Some(Value::Str(path)), Some(Value::Str(content))) => {
                     use std::io::Write;
-                    if let Ok(mut f) = std::fs::OpenOptions::new().append(true).create(true).open(path) {
+                    if let Ok(mut f) = std::fs::OpenOptions::new()
+                        .append(true)
+                        .create(true)
+                        .open(path)
+                    {
                         let _ = f.write_all(content.as_bytes());
                     }
                     Value::Unit
@@ -7199,7 +8058,9 @@ impl Interpreter {
             },
             "read_lines" => match args.first() {
                 Some(Value::Str(path)) => match std::fs::read_to_string(path) {
-                    Ok(content) => Value::List(content.lines().map(|l| Value::Str(l.to_string())).collect()),
+                    Ok(content) => {
+                        Value::List(content.lines().map(|l| Value::Str(l.to_string())).collect())
+                    }
                     Err(_) => Value::List(vec![]),
                 },
                 _ => Value::List(vec![]),
@@ -7214,35 +8075,51 @@ impl Interpreter {
             "time" => {
                 // Return current Unix timestamp as Float
                 use std::time::{SystemTime, UNIX_EPOCH};
-                let secs = SystemTime::now().duration_since(UNIX_EPOCH)
-                    .unwrap_or_default().as_secs_f64();
+                let secs = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs_f64();
                 Value::Float(secs)
-            },
+            }
             "random" => {
                 // Return a pseudo-random f64 between 0 and 1
                 // Use a simple hash-based approach (no external dependency)
                 use std::time::{SystemTime, UNIX_EPOCH};
-                let nanos = SystemTime::now().duration_since(UNIX_EPOCH)
-                    .unwrap_or_default().as_nanos();
+                let nanos = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos();
                 // xorshift-style mixing
                 let mut x = nanos as u64;
                 x ^= x << 13;
                 x ^= x >> 7;
                 x ^= x << 17;
                 Value::Float((x as f64) / (u64::MAX as f64))
-            },
+            }
             "input" => {
                 // Read a line from stdin and return as String
                 let mut line = String::new();
                 let _ = std::io::stdin().read_line(&mut line);
-                Value::Str(line.trim_end_matches('\n').trim_end_matches('\r').to_string())
-            },
+                Value::Str(
+                    line.trim_end_matches('\n')
+                        .trim_end_matches('\r')
+                        .to_string(),
+                )
+            }
             // HTTP + DB builtins: delegate to eval_builtin
-            "http_get" | "http_post" | "http_serve" | "http_respond"
-            | "http_request_path" | "http_request_method" | "http_request_body"
-            | "db_open" | "db_exec" | "db_query" | "db_query_row" | "db_insert" | "db_close" => {
-                self.eval_builtin(name, args, &Env::new())
-            },
+            "http_get"
+            | "http_post"
+            | "http_serve"
+            | "http_respond"
+            | "http_request_path"
+            | "http_request_method"
+            | "http_request_body"
+            | "db_open"
+            | "db_exec"
+            | "db_query"
+            | "db_query_row"
+            | "db_insert"
+            | "db_close" => self.eval_builtin(name, args, &Env::new()),
             _ => Value::Unit,
         }
     }
@@ -7291,10 +8168,18 @@ impl Interpreter {
             ("-", Value::Int(a), Value::Int(b)) => Value::Int(a - b),
             ("*", Value::Int(a), Value::Int(b)) => Value::Int(a * b),
             ("/", Value::Int(a), Value::Int(b)) => {
-                if *b == 0 { Value::Int(0) } else { Value::Int(a / b) }
+                if *b == 0 {
+                    Value::Int(0)
+                } else {
+                    Value::Int(a / b)
+                }
             }
             ("%", Value::Int(a), Value::Int(b)) => {
-                if *b == 0 { Value::Int(0) } else { Value::Int(a % b) }
+                if *b == 0 {
+                    Value::Int(0)
+                } else {
+                    Value::Int(a % b)
+                }
             }
             ("==", Value::Int(a), Value::Int(b)) => Value::Bool(a == b),
             ("!=", Value::Int(a), Value::Int(b)) => Value::Bool(a != b),
@@ -7345,18 +8230,20 @@ impl Interpreter {
             ("!=", Value::Bool(a), Value::Bool(b)) => Value::Bool(a != b),
 
             // Constructor equality
-            ("==", Value::Constructor(a, af), Value::Constructor(b, bf)) => {
-                Value::Bool(a == b && af.len() == bf.len() &&
-                    af.iter().zip(bf.iter()).all(|(x, y)| {
-                        matches!(self.eval_binop("==", x.clone(), y.clone()), Value::Bool(true))
-                    }))
-            }
-            ("!=", a, b) => {
-                match self.eval_binop("==", a.clone(), b.clone()) {
-                    Value::Bool(v) => Value::Bool(!v),
-                    _ => Value::Bool(true),
-                }
-            }
+            ("==", Value::Constructor(a, af), Value::Constructor(b, bf)) => Value::Bool(
+                a == b
+                    && af.len() == bf.len()
+                    && af.iter().zip(bf.iter()).all(|(x, y)| {
+                        matches!(
+                            self.eval_binop("==", x.clone(), y.clone()),
+                            Value::Bool(true)
+                        )
+                    }),
+            ),
+            ("!=", a, b) => match self.eval_binop("==", a.clone(), b.clone()) {
+                Value::Bool(v) => Value::Bool(!v),
+                _ => Value::Bool(true),
+            },
 
             _ => Value::Unit,
         }
@@ -7476,21 +8363,19 @@ impl Interpreter {
         match pat {
             Pat::Var(name) => env.set(name.clone(), val.clone()),
             Pat::Wild => {}
-            Pat::Con(_, pargs) => {
-                match val {
-                    Value::Constructor(_, vargs) => {
-                        for (pp, va) in pargs.iter().zip(vargs.iter()) {
-                            self.bind_pattern(pp, va, env);
-                        }
+            Pat::Con(_, pargs) => match val {
+                Value::Constructor(_, vargs) => {
+                    for (pp, va) in pargs.iter().zip(vargs.iter()) {
+                        self.bind_pattern(pp, va, env);
                     }
-                    Value::NamedConstructor(_, vfields) => {
-                        for (pp, (_, va)) in pargs.iter().zip(vfields.iter()) {
-                            self.bind_pattern(pp, va, env);
-                        }
-                    }
-                    _ => {}
                 }
-            }
+                Value::NamedConstructor(_, vfields) => {
+                    for (pp, (_, va)) in pargs.iter().zip(vfields.iter()) {
+                        self.bind_pattern(pp, va, env);
+                    }
+                }
+                _ => {}
+            },
             Pat::NamedCon(_, named_pats) => {
                 if let Value::NamedConstructor(_, vfields) = val {
                     for (field_name, pat) in named_pats {
@@ -7514,7 +8399,9 @@ impl Interpreter {
     /// 4. Unconditional defaults (Catala-style fallback)
     pub fn try_rule_call(&mut self, fn_name: &str, args: &[Expr], env: &Env) -> Option<Value> {
         // Collect matching rules (clone to avoid borrow conflict with self.eval)
-        let matching: Vec<Rule> = self.rules.iter()
+        let matching: Vec<Rule> = self
+            .rules
+            .iter()
             .filter(|(name, _)| name == fn_name)
             .map(|(_, rule)| rule.clone())
             .collect();
@@ -7528,7 +8415,13 @@ impl Interpreter {
 
         // Check exceptions first — they override the default
         for rule in &matching {
-            if let Rule::Exception { head, value, condition, .. } = rule {
+            if let Rule::Exception {
+                head,
+                value,
+                condition,
+                ..
+            } = rule
+            {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, env) {
                     let cond_met = match condition {
                         Some(cond) => matches!(self.eval(cond, &rule_env), Value::Bool(true)),
@@ -7543,7 +8436,12 @@ impl Interpreter {
 
         // Catala-style: conditional defaults first
         for rule in &matching {
-            if let Rule::Default { head, value, condition: Some(cond) } = rule {
+            if let Rule::Default {
+                head,
+                value,
+                condition: Some(cond),
+            } = rule
+            {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, env) {
                     if matches!(self.eval(cond, &rule_env), Value::Bool(true)) {
                         return Some(self.eval(value, &rule_env));
@@ -7581,7 +8479,12 @@ impl Interpreter {
 
         // Unconditional defaults (lowest priority)
         for rule in &matching {
-            if let Rule::Default { head, value, condition: None } = rule {
+            if let Rule::Default {
+                head,
+                value,
+                condition: None,
+            } = rule
+            {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, env) {
                     return Some(self.eval(value, &rule_env));
                 }
@@ -7664,16 +8567,20 @@ impl Interpreter {
         // (variables not yet in the environment that appear as arguments)
         if let ExprKind::App(func, args) = &goal.kind {
             let fn_name = self.expr_name(func);
-            let unbound: Vec<(usize, String)> = args.iter().enumerate().filter_map(|(i, arg)| {
-                if let ExprKind::Var(name) = &arg.kind {
-                    // _ is a wildcard: treated as unbound for existential search
-                    // but binding is discarded (never propagated to remaining goals)
-                    if name == "_" || env.get(name).is_none() {
-                        return Some((i, name.clone()));
+            let unbound: Vec<(usize, String)> = args
+                .iter()
+                .enumerate()
+                .filter_map(|(i, arg)| {
+                    if let ExprKind::Var(name) = &arg.kind {
+                        // _ is a wildcard: treated as unbound for existential search
+                        // but binding is discarded (never propagated to remaining goals)
+                        if name == "_" || env.get(name).is_none() {
+                            return Some((i, name.clone()));
+                        }
                     }
-                }
-                None
-            }).collect();
+                    None
+                })
+                .collect();
 
             if !unbound.is_empty() {
                 // Existential search: find all facts/clauses that can provide bindings
@@ -7705,19 +8612,24 @@ impl Interpreter {
         env: &Env,
     ) -> bool {
         // Collect all rules for this function name
-        let rules: Vec<Rule> = self.rules.iter()
+        let rules: Vec<Rule> = self
+            .rules
+            .iter()
             .filter(|(name, _)| name == fn_name)
             .map(|(_, rule)| rule.clone())
             .collect();
 
         // Evaluate bound arguments
-        let bound_vals: Vec<Option<Value>> = goal_args.iter().map(|arg| {
-            if let ExprKind::Var(name) = &arg.kind {
-                env.get(name).cloned()
-            } else {
-                Some(self.eval(arg, env))
-            }
-        }).collect();
+        let bound_vals: Vec<Option<Value>> = goal_args
+            .iter()
+            .map(|arg| {
+                if let ExprKind::Var(name) = &arg.kind {
+                    env.get(name).cloned()
+                } else {
+                    Some(self.eval(arg, env))
+                }
+            })
+            .collect();
 
         // Try each rule/fact as a potential source of bindings
         for rule in &rules {
@@ -7731,7 +8643,9 @@ impl Interpreter {
                     let mut matches = true;
                     let mut new_env = env.clone();
 
-                    for (i, (head_param, bound_val)) in head_params.iter().zip(bound_vals.iter()).enumerate() {
+                    for (i, (head_param, bound_val)) in
+                        head_params.iter().zip(bound_vals.iter()).enumerate()
+                    {
                         match (&head_param.kind, bound_val) {
                             // Head has a literal, we have a bound value — must match
                             (ExprKind::Lit(lit), Some(val)) => {
@@ -7744,7 +8658,9 @@ impl Interpreter {
                             // Head has a literal, we have an unbound var — bind it
                             (ExprKind::Lit(lit), None) => {
                                 let val = self.literal_to_value(lit);
-                                if let Some((_, ref name)) = unbound.iter().find(|(idx, _)| *idx == i) {
+                                if let Some((_, ref name)) =
+                                    unbound.iter().find(|(idx, _)| *idx == i)
+                                {
                                     new_env.set(name.clone(), val);
                                 }
                             }
@@ -7770,9 +8686,14 @@ impl Interpreter {
                     // Check clause body if present
                     let clause_ok = match body.as_ref().map(|e| &e.kind) {
                         None => true, // bare fact
-                        Some(ExprKind::Conjunction(goals)) => self.eval_conjunction(goals, &new_env),
+                        Some(ExprKind::Conjunction(goals)) => {
+                            self.eval_conjunction(goals, &new_env)
+                        }
                         Some(_) => {
-                            matches!(self.eval(body.as_ref().unwrap(), &new_env), Value::Bool(true))
+                            matches!(
+                                self.eval(body.as_ref().unwrap(), &new_env),
+                                Value::Bool(true)
+                            )
                         }
                     };
 
@@ -7803,7 +8724,9 @@ impl Interpreter {
             let fn_name = self.expr_name(func);
 
             // Collect all rules for this function
-            let rules: Vec<Rule> = self.rules.iter()
+            let rules: Vec<Rule> = self
+                .rules
+                .iter()
                 .filter(|(name, _)| name == &fn_name)
                 .map(|(_, rule)| rule.clone())
                 .collect();
@@ -7811,30 +8734,43 @@ impl Interpreter {
             let mut results = Vec::new();
 
             // Evaluate bound arguments (those that aren't the template var)
-            let bound_vals: Vec<Option<Value>> = goal_args.iter().map(|arg| {
-                if let ExprKind::Var(name) = &arg.kind {
-                    if name == &template_name || name == "_" { None }
-                    else { env.get(name).cloned().or_else(|| Some(self.eval(arg, env))) }
-                } else {
-                    Some(self.eval(arg, env))
-                }
-            }).collect();
+            let bound_vals: Vec<Option<Value>> = goal_args
+                .iter()
+                .map(|arg| {
+                    if let ExprKind::Var(name) = &arg.kind {
+                        if name == &template_name || name == "_" {
+                            None
+                        } else {
+                            env.get(name).cloned().or_else(|| Some(self.eval(arg, env)))
+                        }
+                    } else {
+                        Some(self.eval(arg, env))
+                    }
+                })
+                .collect();
 
             // Try each rule/fact
             for rule in &rules {
                 if let Rule::Clause { head, body } = rule {
                     if let ExprKind::App(_, head_params) = &head.kind {
-                        if head_params.len() != goal_args.len() { continue; }
+                        if head_params.len() != goal_args.len() {
+                            continue;
+                        }
 
                         // Match bound args against fact head, collect template bindings
                         let mut matches_ok = true;
                         let mut candidate_val: Option<Value> = None;
 
-                        for (i, (head_param, bound_val)) in head_params.iter().zip(bound_vals.iter()).enumerate() {
+                        for (i, (head_param, bound_val)) in
+                            head_params.iter().zip(bound_vals.iter()).enumerate()
+                        {
                             match (&head_param.kind, bound_val) {
                                 (ExprKind::Lit(lit), Some(val)) => {
                                     let expected = self.literal_to_value(lit);
-                                    if !values_equal(&expected, val) { matches_ok = false; break; }
+                                    if !values_equal(&expected, val) {
+                                        matches_ok = false;
+                                        break;
+                                    }
                                 }
                                 (ExprKind::Lit(lit), None) => {
                                     // This position is the template var or wildcard
@@ -7857,7 +8793,9 @@ impl Interpreter {
                             }
                         }
 
-                        if !matches_ok { continue; }
+                        if !matches_ok {
+                            continue;
+                        }
 
                         // Check body if present
                         let body_ok = match body {
@@ -7875,8 +8813,12 @@ impl Interpreter {
                                     }
                                 }
                                 match &body_expr.kind {
-                                    ExprKind::Conjunction(goals) => self.eval_conjunction(goals, &body_env),
-                                    _ => matches!(self.eval(body_expr, &body_env), Value::Bool(true)),
+                                    ExprKind::Conjunction(goals) => {
+                                        self.eval_conjunction(goals, &body_env)
+                                    }
+                                    _ => {
+                                        matches!(self.eval(body_expr, &body_env), Value::Bool(true))
+                                    }
                                 }
                             }
                         };
@@ -7936,10 +8878,17 @@ pub fn values_equal(a: &Value, b: &Value) -> bool {
         (Value::Bool(x), Value::Bool(y)) => x == y,
         (Value::Char(x), Value::Char(y)) => x == y,
         (Value::Constructor(n1, f1), Value::Constructor(n2, f2)) => {
-            n1 == n2 && f1.len() == f2.len() && f1.iter().zip(f2.iter()).all(|(a, b)| values_equal(a, b))
+            n1 == n2
+                && f1.len() == f2.len()
+                && f1.iter().zip(f2.iter()).all(|(a, b)| values_equal(a, b))
         }
         (Value::NamedConstructor(n1, f1), Value::NamedConstructor(n2, f2)) => {
-            n1 == n2 && f1.len() == f2.len() && f1.iter().zip(f2.iter()).all(|((k1, v1), (k2, v2))| k1 == k2 && values_equal(v1, v2))
+            n1 == n2
+                && f1.len() == f2.len()
+                && f1
+                    .iter()
+                    .zip(f2.iter())
+                    .all(|((k1, v1), (k2, v2))| k1 == k2 && values_equal(v1, v2))
         }
         (Value::List(a), Value::List(b)) => {
             a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| values_equal(x, y))
@@ -7972,7 +8921,10 @@ pub fn list_to_vec(val: &Value) -> Vec<Value> {
                 if let Some(head) = fields.first() {
                     result.push(head.clone());
                 }
-                current = fields.get(1).cloned().unwrap_or(Value::Constructor("Nil".into(), vec![]));
+                current = fields
+                    .get(1)
+                    .cloned()
+                    .unwrap_or(Value::Constructor("Nil".into(), vec![]));
             }
             Value::List(elems) => {
                 result.extend(elems);
@@ -8010,7 +8962,10 @@ pub fn display_error_in(source: &str, error: &str, filename: &str) {
     // Try to parse legacy "LINE:COL: message" format into a Diagnostic
     let parts: Vec<&str> = error.splitn(3, ':').collect();
     if parts.len() >= 3 {
-        if let (Ok(line_num), Ok(col_num)) = (parts[0].trim().parse::<usize>(), parts[1].trim().parse::<usize>()) {
+        if let (Ok(line_num), Ok(col_num)) = (
+            parts[0].trim().parse::<usize>(),
+            parts[1].trim().parse::<usize>(),
+        ) {
             let msg = parts[2..].join(":").trim().to_string();
             // Convert line:col to byte offset
             let span = line_col_to_span(source, line_num, col_num);
@@ -8051,7 +9006,6 @@ fn line_col_to_span(source: &str, line: usize, col: usize) -> Span {
     }
     Span::dummy()
 }
-
 
 // ============================================================================
 // TYPE CHECKER (M16)
@@ -8118,69 +9072,178 @@ impl TypeChecker {
         // Register builtins (name -> arity)
         for &(name, arity) in &[
             // Math
-            ("exp", 1), ("ln", 1), ("sqrt", 1), ("pow", 2), ("abs", 1), ("pair", 2), ("triple", 3),
-            ("to_float", 1), ("round", 1), ("floor", 1), ("max_f", 2), ("min_f", 2),
+            ("exp", 1),
+            ("ln", 1),
+            ("sqrt", 1),
+            ("pow", 2),
+            ("abs", 1),
+
+            ("pair", 2),
+            ("triple", 3),
+            ("to_float", 1),
+            ("round", 1),
+            ("floor", 1),
+            ("max_f", 2),
+            ("min_f", 2),
             // String
-            ("split", 2), ("join", 2), ("trim", 1), ("contains", 2),
-            ("starts_with", 2), ("ends_with", 2), ("replace", 3),
-            ("to_upper", 1), ("to_lower", 1), ("substring", 3), ("char_at", 2),
-            ("index_of", 2), ("format_float", 2), ("parse_int", 1), ("parse_float", 1),
-            ("string_chars", 1), ("string_length", 1),
+            ("split", 2),
+            ("join", 2),
+            ("trim", 1),
+            ("contains", 2),
+            ("starts_with", 2),
+            ("ends_with", 2),
+            ("replace", 3),
+            ("to_upper", 1),
+            ("to_lower", 1),
+            ("substring", 3),
+            ("char_at", 2),
+            ("index_of", 2),
+            ("format_float", 2),
+            ("parse_int", 1),
+            ("parse_float", 1),
+            ("string_chars", 1),
+            ("string_length", 1),
             // File I/O
-            ("read_file", 1), ("write_file", 2), ("append_file", 2),
-            ("file_exists", 1), ("read_lines", 1), ("env_var", 1),
+            ("read_file", 1),
+            ("write_file", 2),
+            ("append_file", 2),
+            ("file_exists", 1),
+            ("read_lines", 1),
+            ("env_var", 1),
             // JSON
-            ("json_parse", 1), ("json_get", 2), ("json_string", 1), ("json_number", 1),
-            ("json_bool", 1), ("json_array", 1), ("json_emit", 1), ("json_object", 1),
+            ("json_parse", 1),
+            ("json_get", 2),
+            ("json_string", 1),
+            ("json_number", 1),
+            ("json_bool", 1),
+            ("json_array", 1),
+            ("json_emit", 1),
+            ("json_object", 1),
             // HTTP
-            ("http_get", 1), ("http_post", 2), ("http_serve", 2), ("http_respond", 3),
-            ("http_request_path", 1), ("http_request_method", 1), ("http_request_body", 1),
+            ("http_get", 1),
+            ("http_post", 2),
+            ("http_serve", 2),
+            ("http_respond", 3),
+            ("http_request_path", 1),
+            ("http_request_method", 1),
+            ("http_request_body", 1),
             // Database
-            ("db_open", 1), ("db_exec", 2), ("db_query", 2), ("db_query_row", 2),
-            ("db_insert", 2), ("db_close", 1),
+            ("db_open", 1),
+            ("db_exec", 2),
+            ("db_query", 2),
+            ("db_query_row", 2),
+            ("db_insert", 2),
+            ("db_close", 1),
             // Misc
-            ("shared", 1), ("range", 2),
+            ("shared", 1),
+            ("range", 2),
             // Collection/Functional
-            ("map", 2), ("filter", 2), ("foldl", 3), ("sort", 1), ("sort_by", 2),
-            ("any", 2), ("all", 2), ("find", 2), ("flat_map", 2), ("zip", 2),
-            ("enumerate", 1), ("take_while", 2), ("drop_while", 2), ("sum_list", 1),
-            ("distinct", 1), ("count_by", 2), ("partition", 2), ("chunked", 2),
+            ("map", 2),
+            ("filter", 2),
+            ("foldl", 3),
+            ("sort", 1),
+            ("sort_by", 2),
+            ("any", 2),
+            ("all", 2),
+            ("find", 2),
+            ("flat_map", 2),
+            ("zip", 2),
+            ("enumerate", 1),
+            ("take_while", 2),
+            ("drop_while", 2),
+            ("sum_list", 1),
+            ("distinct", 1),
+            ("count_by", 2),
+            ("partition", 2),
+            ("chunked", 2),
             ("subscribe", 2),
             // Map (M24)
-            ("map_new", 0), ("map_insert", 3), ("map_get", 2), ("map_get_or", 3), ("map_contains", 2),
-            ("map_remove", 2), ("map_keys", 1), ("map_values", 1), ("map_entries", 1),
-            ("map_len", 1), ("map_merge", 2), ("map_from", 1),
+            ("map_new", 0),
+            ("map_insert", 3),
+            ("map_get", 2),
+            ("map_get_or", 3),
+            ("map_contains", 2),
+            ("map_remove", 2),
+            ("map_keys", 1),
+            ("map_values", 1),
+            ("map_entries", 1),
+            ("map_len", 1),
+            ("map_merge", 2),
+            ("map_from", 1),
             // Set (M24)
-            ("set_new", 0), ("set_insert", 2), ("set_contains", 2), ("set_remove", 2),
-            ("set_len", 1), ("set_to_list", 1), ("set_union", 2), ("set_intersect", 2),
-            ("set_diff", 2), ("set_from_list", 1),
+            ("set_new", 0),
+            ("set_insert", 2),
+            ("set_contains", 2),
+            ("set_remove", 2),
+            ("set_len", 1),
+            ("set_to_list", 1),
+            ("set_union", 2),
+            ("set_intersect", 2),
+            ("set_diff", 2),
+            ("set_from_list", 1),
             // Stream
-            ("from_list", 1), ("scan", 3), ("merge", 2), ("take", 2), ("collect", 1),
-            ("count", 1), ("skip", 2), ("window", 2), ("sum", 1), ("last", 1),
-            ("combine_latest", 2), ("complete", 1), ("error", 2), ("take_until", 2),
+            ("from_list", 1),
+            ("scan", 3),
+            ("merge", 2),
+            ("take", 2),
+            ("collect", 1),
+            ("count", 1),
+            ("skip", 2),
+            ("window", 2),
+            ("sum", 1),
+            ("last", 1),
+            ("combine_latest", 2),
+            ("complete", 1),
+            ("error", 2),
+            ("take_until", 2),
             ("poll", 2),
             // New stream operators (M17b)
-            ("tap", 2), ("catch", 2), ("first", 1), ("reduce", 3),
-            ("start_with", 2), ("pairwise", 1), ("fst", 1), ("snd", 1),
+            ("tap", 2),
+            ("catch", 2),
+            ("first", 1),
+            ("reduce", 3),
+            ("start_with", 2),
+            ("pairwise", 1),
+            ("fst", 1),
+            ("snd", 1),
             // Timing (M17)
-            ("debounce", 2), ("throttle", 2), ("delay", 2), ("buffer", 2),
-            ("timeout", 2), ("switch_map", 2), ("sample", 2),
+            ("debounce", 2),
+            ("throttle", 2),
+            ("delay", 2),
+            ("buffer", 2),
+            ("timeout", 2),
+            ("switch_map", 2),
+            ("sample", 2),
         ] {
             tc.builtins.insert(name.to_string(), arity);
         }
         // Extra interpreter-only builtins not in codegen registry
         for &(name, arity) in &[
-            ("show", 1), ("show_int", 1), ("show_float", 1),
-            ("print", 1), ("length", 1), ("head", 1), ("tail", 1),
-            ("not", 1), ("concat", 2), ("reverse", 1), ("push", 2), ("nth", 2),
-            ("spawn", 2), ("ask", 2), ("teardown", 1),
-            ("as_stream", 1), ("findall", 2),
+            ("show", 1),
+            ("show_int", 1),
+            ("show_float", 1),
+            ("print", 1),
+            ("length", 1),
+            ("head", 1),
+            ("tail", 1),
+            ("not", 1),
+            ("concat", 2),
+            ("reverse", 1),
+            ("push", 2),
+            ("nth", 2),
+            ("spawn", 2),
+            ("ask", 2),
+            ("teardown", 1),
+            ("as_stream", 1),
+            ("findall", 2),
         ] {
             tc.builtins.entry(name.to_string()).or_insert(arity);
         }
         // Built-in types
-        for name in &["Int", "Float", "String", "Bool", "Char", "List", "Unit",
-                       "Option", "Result", "Pair", "Stream", "Subject", "Db"] {
+        for name in &[
+            "Int", "Float", "String", "Bool", "Char", "List", "Unit", "Option", "Result", "Pair",
+            "Stream", "Subject", "Db",
+        ] {
             tc.types.insert(name.to_string());
         }
         // Prelude constructors
@@ -8192,9 +9255,12 @@ impl TypeChecker {
         tc.constructors.insert("True".into(), ("Bool".into(), 0));
         tc.constructors.insert("False".into(), ("Bool".into(), 0));
         // Prelude type variants (for exhaustiveness checking)
-        tc.type_variants.insert("Option".into(), vec!["Some".into(), "None".into()]);
-        tc.type_variants.insert("Result".into(), vec!["Ok".into(), "Err".into()]);
-        tc.type_variants.insert("Bool".into(), vec!["True".into(), "False".into()]);
+        tc.type_variants
+            .insert("Option".into(), vec!["Some".into(), "None".into()]);
+        tc.type_variants
+            .insert("Result".into(), vec!["Ok".into(), "Err".into()]);
+        tc.type_variants
+            .insert("Bool".into(), vec!["True".into(), "False".into()]);
         // Variable-arity builtins: registered in functions (not user_functions)
         // so is_rule_function() returns true → arity check skipped
         tc.functions.insert("subject".into(), 0);
@@ -8218,7 +9284,9 @@ impl TypeChecker {
 
     pub fn var_defined(&self, name: &str) -> bool {
         for scope in self.scopes.iter().rev() {
-            if scope.contains(name) { return true; }
+            if scope.contains(name) {
+                return true;
+            }
         }
         false
     }
@@ -8236,9 +9304,15 @@ impl TypeChecker {
                     let name = &msg[start + 1..start + 1 + end];
                     Self::find_symbol_in_source(&self.source_text, name)
                         .map(|(line, col)| line_col_to_span(&self.source_text, line, col))
-                } else { None }
-            } else { None }
-        } else { None };
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
         let mut diag = if let Some(s) = span {
             Diagnostic::error_at(s, &msg)
@@ -8255,7 +9329,8 @@ impl TypeChecker {
             if let Some(start) = msg.find('`') {
                 if let Some(end) = msg[start + 1..].find('`') {
                     let name = &msg[start + 1..start + 1 + end];
-                    if let Some((line, col)) = Self::find_symbol_in_source(&self.source_text, name) {
+                    if let Some((line, col)) = Self::find_symbol_in_source(&self.source_text, name)
+                    {
                         Some(line_col_to_span(&self.source_text, line, col))
                     } else {
                         None
@@ -8297,14 +9372,20 @@ impl TypeChecker {
         for (line_idx, line) in source.lines().enumerate() {
             // Skip comments
             let trimmed = line.trim();
-            if trimmed.starts_with("--") { continue; }
+            if trimmed.starts_with("--") {
+                continue;
+            }
             // Search for whole-word match
             let mut pos = 0;
             while let Some(found) = line[pos..].find(name) {
                 let abs = pos + found;
-                let before_ok = abs == 0 || !line.as_bytes()[abs - 1].is_ascii_alphanumeric() && line.as_bytes()[abs - 1] != b'_';
+                let before_ok = abs == 0
+                    || !line.as_bytes()[abs - 1].is_ascii_alphanumeric()
+                        && line.as_bytes()[abs - 1] != b'_';
                 let after_pos = abs + name.len();
-                let after_ok = after_pos >= line.len() || !line.as_bytes()[after_pos].is_ascii_alphanumeric() && line.as_bytes()[after_pos] != b'_';
+                let after_ok = after_pos >= line.len()
+                    || !line.as_bytes()[after_pos].is_ascii_alphanumeric()
+                        && line.as_bytes()[after_pos] != b'_';
                 if before_ok && after_ok {
                     return Some((line_idx + 1, abs + 1));
                 }
@@ -8330,7 +9411,11 @@ impl TypeChecker {
                     .parent()
                     .map(|p| {
                         let s = p.to_string_lossy().to_string();
-                        if s.is_empty() { ".".to_string() } else { s }
+                        if s.is_empty() {
+                            ".".to_string()
+                        } else {
+                            s
+                        }
                     })
                     .unwrap_or_else(|| ".".to_string());
 
@@ -8344,7 +9429,11 @@ impl TypeChecker {
     }
 
     /// Resolve a dependency module path from manifest deps
-    fn resolve_dep_module(import_path: &str, deps: &[(String, String)], toml_dir: &str) -> Option<String> {
+    fn resolve_dep_module(
+        import_path: &str,
+        deps: &[(String, String)],
+        toml_dir: &str,
+    ) -> Option<String> {
         let parts: Vec<&str> = import_path.splitn(2, '/').collect();
         let dep_name = parts[0];
         let module = if parts.len() > 1 { parts[1] } else { "lib" };
@@ -8391,7 +9480,8 @@ impl TypeChecker {
                     let mut variant_names = Vec::new();
                     for variant in variants {
                         let field_count = variant.fields.len();
-                        self.constructors.insert(variant.name.clone(), (name.clone(), field_count));
+                        self.constructors
+                            .insert(variant.name.clone(), (name.clone(), field_count));
                         variant_names.push(variant.name.clone());
                         if variants.len() == 1 && variant.name == *name && field_count > 0 {
                             self.functions.insert(name.clone(), field_count);
@@ -8415,12 +9505,17 @@ impl TypeChecker {
                     self.types.insert(name.clone());
                     let mut method_names = Vec::new();
                     for method in methods {
-                        self.functions.insert(method.name.clone(), method.params.len());
+                        self.functions
+                            .insert(method.name.clone(), method.params.len());
                         method_names.push(method.name.clone());
                     }
                     self.trait_methods.insert(name.clone(), method_names);
                 }
-                Stmt::TypeDecl(TypeDecl::ImplBlock { trait_name, for_type, methods }) => {
+                Stmt::TypeDecl(TypeDecl::ImplBlock {
+                    trait_name,
+                    for_type,
+                    methods,
+                }) => {
                     let mut method_names = Vec::new();
                     for defn in methods {
                         if let Defn::Fn { name, params, .. } = defn {
@@ -8428,7 +9523,8 @@ impl TypeChecker {
                             method_names.push(name.clone());
                         }
                     }
-                    self.impl_methods.insert((trait_name.clone(), for_type.clone()), method_names);
+                    self.impl_methods
+                        .insert((trait_name.clone(), for_type.clone()), method_names);
                 }
                 Stmt::Bind(Pat::Var(name), _, _) => {
                     self.define_var(name);
@@ -8508,14 +9604,16 @@ impl TypeChecker {
         let mut errors = Vec::new();
         for ((trait_name, for_type), provided) in &self.impl_methods {
             if let Some(required) = self.trait_methods.get(trait_name) {
-                let missing: Vec<&String> = required.iter()
+                let missing: Vec<&String> = required
+                    .iter()
                     .filter(|m| !provided.iter().any(|p| p == *m))
                     .collect();
                 if !missing.is_empty() {
                     let missing_names: Vec<&str> = missing.iter().map(|s| s.as_str()).collect();
                     errors.push(format!(
                         "`# impl {} for {}` is missing method{}: {}",
-                        trait_name, for_type,
+                        trait_name,
+                        for_type,
                         if missing.len() == 1 { "" } else { "s" },
                         missing_names.join(", ")
                     ));
@@ -8529,7 +9627,9 @@ impl TypeChecker {
 
     pub fn check_stmt(&mut self, stmt: &Stmt) {
         match stmt {
-            Stmt::Defn(Defn::Fn { name, params, body, .. }) => {
+            Stmt::Defn(Defn::Fn {
+                name, params, body, ..
+            }) => {
                 self.push_context(format!("in function `{}`", name));
                 self.push_scope();
                 for p in params {
@@ -8539,7 +9639,12 @@ impl TypeChecker {
                 self.pop_scope();
                 self.pop_context();
             }
-            Stmt::Defn(Defn::Actor { name, handlers, state_param, .. }) => {
+            Stmt::Defn(Defn::Actor {
+                name,
+                handlers,
+                state_param,
+                ..
+            }) => {
                 self.push_context(format!("in actor `{}`", name));
                 for handler in handlers {
                     self.push_scope();
@@ -8560,7 +9665,13 @@ impl TypeChecker {
             }
             Stmt::TypeDecl(TypeDecl::ADT { methods, .. }) => {
                 for defn in methods {
-                    if let Defn::Fn { name: mname, params, body, .. } = defn {
+                    if let Defn::Fn {
+                        name: mname,
+                        params,
+                        body,
+                        ..
+                    } = defn
+                    {
                         self.push_scope();
                         self.define_var("self");
                         for p in params {
@@ -8573,7 +9684,13 @@ impl TypeChecker {
             }
             Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
                 for defn in methods {
-                    if let Defn::Fn { name: mname, params, body, .. } = defn {
+                    if let Defn::Fn {
+                        name: mname,
+                        params,
+                        body,
+                        ..
+                    } = defn
+                    {
                         self.push_scope();
                         self.define_var("self");
                         for p in params {
@@ -8626,7 +9743,12 @@ impl TypeChecker {
                 self.check_program(body);
                 self.pop_scope();
             }
-            Stmt::Rule(Rule::Default { head, value, condition, .. }) => {
+            Stmt::Rule(Rule::Default {
+                head,
+                value,
+                condition,
+                ..
+            }) => {
                 self.push_scope();
                 // Rule head params are in scope for value/condition
                 if let ExprKind::App(_, args) = &head.kind {
@@ -8637,10 +9759,17 @@ impl TypeChecker {
                     }
                 }
                 self.check_expr(value, None);
-                if let Some(c) = condition { self.check_expr(c, None); }
+                if let Some(c) = condition {
+                    self.check_expr(c, None);
+                }
                 self.pop_scope();
             }
-            Stmt::Rule(Rule::Exception { head, value, condition, .. }) => {
+            Stmt::Rule(Rule::Exception {
+                head,
+                value,
+                condition,
+                ..
+            }) => {
                 self.push_scope();
                 if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
@@ -8650,7 +9779,9 @@ impl TypeChecker {
                     }
                 }
                 self.check_expr(value, None);
-                if let Some(c) = condition { self.check_expr(c, None); }
+                if let Some(c) = condition {
+                    self.check_expr(c, None);
+                }
                 self.pop_scope();
             }
             Stmt::Rule(Rule::Clause { head, body }) => {
@@ -8664,7 +9795,11 @@ impl TypeChecker {
                 }
                 // For conjunctive bodies, also define existential variables
                 // (variables that appear as arguments in goals but not in the head)
-                if let Some(Expr { kind: ExprKind::Conjunction(goals), .. }) = body {
+                if let Some(Expr {
+                    kind: ExprKind::Conjunction(goals),
+                    ..
+                }) = body
+                {
                     for goal in goals {
                         if let ExprKind::App(_, goal_args) = &goal.kind {
                             for arg in goal_args {
@@ -8676,31 +9811,46 @@ impl TypeChecker {
                     }
                 }
                 self.check_expr(head, None);
-                if let Some(b) = body { self.check_expr(b, None); }
+                if let Some(b) = body {
+                    self.check_expr(b, None);
+                }
                 self.pop_scope();
             }
-            Stmt::Invariant { subject, predicate, .. } => {
+            Stmt::Invariant {
+                subject, predicate, ..
+            } => {
                 self.check_expr(subject, None);
                 self.check_expr(predicate, None);
             }
-            Stmt::Prove { capture, pass_block, else_block, .. } => {
+            Stmt::Prove {
+                capture,
+                pass_block,
+                else_block,
+                ..
+            } => {
                 self.push_scope();
                 // ? name: val — the capture variable is in scope for blocks
                 if let Some(var_name) = capture {
                     self.define_var(var_name);
                 }
                 if let Some(stmts) = pass_block {
-                    for s in stmts { self.check_stmt(s); }
+                    for s in stmts {
+                        self.check_stmt(s);
+                    }
                 }
                 if let Some(stmts) = else_block {
-                    for s in stmts { self.check_stmt(s); }
+                    for s in stmts {
+                        self.check_stmt(s);
+                    }
                 }
                 self.pop_scope();
             }
             Stmt::Annot(name, args) => {
                 // Skip type-checking @ store args (delete_on_change flag, scope string are not expressions)
                 if name != "store" {
-                    for a in args { self.check_expr(a, None); }
+                    for a in args {
+                        self.check_expr(a, None);
+                    }
                 }
             }
             _ => {} // Use, Import, Depend, RustBlock
@@ -8718,7 +9868,8 @@ impl TypeChecker {
                     && !name.contains("::")
                     && !name.contains(".")
                     && !name.starts_with(|c: char| c.is_uppercase())
-                    && name != "_" // wildcard — always valid
+                    && name != "_"
+                // wildcard — always valid
                 {
                     self.error_at_expr(expr, format!("undefined variable `{}`", name));
                 }
@@ -8730,25 +9881,43 @@ impl TypeChecker {
 
                     if let Some(&expected) = self.functions.get(name) {
                         if actual_arity != expected && !self.is_rule_function(name) {
-                            self.error_at_expr(expr, format!(
-                                "`{}` expects {} argument{} but got {}",
-                                name, expected, if expected == 1 { "" } else { "s" }, actual_arity
-                            ));
+                            self.error_at_expr(
+                                expr,
+                                format!(
+                                    "`{}` expects {} argument{} but got {}",
+                                    name,
+                                    expected,
+                                    if expected == 1 { "" } else { "s" },
+                                    actual_arity
+                                ),
+                            );
                         }
                     } else if let Some(&expected) = self.builtins.get(canonical) {
                         if actual_arity != expected {
-                            self.error_at_expr(expr, format!(
-                                "builtin `{}` expects {} argument{} but got {}",
-                                name, expected, if expected == 1 { "" } else { "s" }, actual_arity
-                            ));
+                            self.error_at_expr(
+                                expr,
+                                format!(
+                                    "builtin `{}` expects {} argument{} but got {}",
+                                    name,
+                                    expected,
+                                    if expected == 1 { "" } else { "s" },
+                                    actual_arity
+                                ),
+                            );
                         }
                     } else if let Some((_, expected)) = self.constructors.get(name) {
                         let expected = *expected;
                         if actual_arity != expected {
-                            self.error_at_expr(expr, format!(
-                                "constructor `{}` expects {} field{} but got {}",
-                                name, expected, if expected == 1 { "" } else { "s" }, actual_arity
-                            ));
+                            self.error_at_expr(
+                                expr,
+                                format!(
+                                    "constructor `{}` expects {} field{} but got {}",
+                                    name,
+                                    expected,
+                                    if expected == 1 { "" } else { "s" },
+                                    actual_arity
+                                ),
+                            );
                         }
                     } else if !self.var_defined(name)
                         && !name.contains("::")
@@ -8776,7 +9945,9 @@ impl TypeChecker {
                                 }
                             }
                         }
-                        for arg in args { self.check_expr(arg, _in_fn); }
+                        for arg in args {
+                            self.check_expr(arg, _in_fn);
+                        }
                         self.pop_scope();
                         // Early return — already checked args in scope
                         return;
@@ -8836,20 +10007,32 @@ impl TypeChecker {
                 self.check_expr(idx, _in_fn);
             }
             ExprKind::List(elems) => {
-                for e in elems { self.check_expr(e, _in_fn); }
+                for e in elems {
+                    self.check_expr(e, _in_fn);
+                }
             }
             ExprKind::Tuple(elems) => {
-                for e in elems { self.check_expr(e, _in_fn); }
+                for e in elems {
+                    self.check_expr(e, _in_fn);
+                }
             }
             ExprKind::Effect(name, args) => {
-                for a in args { self.check_expr(a, _in_fn); }
+                for a in args {
+                    self.check_expr(a, _in_fn);
+                }
                 let canonical = builtin_canonical(name);
                 if let Some(&expected) = self.builtins.get(canonical) {
                     if args.len() != expected {
-                        self.error_at_expr(expr, format!(
-                            "effect `{}` expects {} argument{} but got {}",
-                            name, expected, if expected == 1 { "" } else { "s" }, args.len()
-                        ));
+                        self.error_at_expr(
+                            expr,
+                            format!(
+                                "effect `{}` expects {} argument{} but got {}",
+                                name,
+                                expected,
+                                if expected == 1 { "" } else { "s" },
+                                args.len()
+                            ),
+                        );
                     }
                 }
             }
@@ -8887,10 +10070,14 @@ impl TypeChecker {
         match pat {
             Pat::Var(name) => self.define_var(name),
             Pat::Con(_, pats) => {
-                for p in pats { self.define_pat_vars(p); }
+                for p in pats {
+                    self.define_pat_vars(p);
+                }
             }
             Pat::NamedCon(_, fields) => {
-                for (_, p) in fields { self.define_pat_vars(p); }
+                for (_, p) in fields {
+                    self.define_pat_vars(p);
+                }
             }
             Pat::As(inner, name) => {
                 self.define_pat_vars(inner);
@@ -8902,7 +10089,9 @@ impl TypeChecker {
 
     /// Check match exhaustiveness: are all variants of an ADT covered?
     fn check_match_exhaustiveness(&mut self, arms: &[MatchArm]) {
-        if arms.is_empty() { return; }
+        if arms.is_empty() {
+            return;
+        }
 
         // If any arm has a wildcard or variable pattern (without a guard), match is exhaustive
         for arm in arms {
@@ -8922,13 +10111,17 @@ impl TypeChecker {
                 Pat::Con(name, _) | Pat::NamedCon(name, _) => {
                     matched_ctors.insert(name.clone());
                 }
-                Pat::Lit(_) => { has_lit_pattern = true; }
+                Pat::Lit(_) => {
+                    has_lit_pattern = true;
+                }
                 _ => {}
             }
         }
 
         // If matching on literals (Int, String, etc.), we can't check exhaustiveness
-        if has_lit_pattern || matched_ctors.is_empty() { return; }
+        if has_lit_pattern || matched_ctors.is_empty() {
+            return;
+        }
 
         // Find the parent type from the first constructor
         let first_ctor = matched_ctors.iter().next().unwrap();
@@ -8944,7 +10137,8 @@ impl TypeChecker {
         };
 
         // Find missing variants
-        let missing: Vec<&String> = all_variants.iter()
+        let missing: Vec<&String> = all_variants
+            .iter()
             .filter(|v| !matched_ctors.contains(*v))
             .collect();
 
@@ -8974,7 +10168,11 @@ impl TypeChecker {
 
     /// Run the type checker with source text for error positions.
     /// Run type checking and return structured diagnostics.
-    pub fn check_with_diagnostics(stmts: &[Stmt], source_dir: Option<String>, source: &str) -> Vec<Diagnostic> {
+    pub fn check_with_diagnostics(
+        stmts: &[Stmt],
+        source_dir: Option<String>,
+        source: &str,
+    ) -> Vec<Diagnostic> {
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
@@ -8984,16 +10182,23 @@ impl TypeChecker {
     }
 
     /// Legacy wrapper — returns string-formatted errors for backward compatibility.
-    pub fn check_with_source(stmts: &[Stmt], source_dir: Option<String>, source: &str) -> Vec<String> {
+    pub fn check_with_source(
+        stmts: &[Stmt],
+        source_dir: Option<String>,
+        source: &str,
+    ) -> Vec<String> {
         let diags = Self::check_with_diagnostics(stmts, source_dir, source);
-        diags.iter().map(|d| {
-            if let Some(span) = d.span {
-                let (line, col) = span.start_line_col(&source);
-                format!("{}:{}: {}", line, col, d.message)
-            } else {
-                d.message.clone()
-            }
-        }).collect()
+        diags
+            .iter()
+            .map(|d| {
+                if let Some(span) = d.span {
+                    let (line, col) = span.start_line_col(&source);
+                    format!("{}:{}: {}", line, col, d.message)
+                } else {
+                    d.message.clone()
+                }
+            })
+            .collect()
     }
 }
 
@@ -9056,10 +10261,16 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
             let mut output = interp.output.join("\n");
             match &result {
                 Value::Unit => {}
-                Value::List(_) | Value::Stream(_) | Value::Subject(_)
-                | Value::Closure { .. } | Value::Builtin(_) | Value::Actor { .. } => {}
+                Value::List(_)
+                | Value::Stream(_)
+                | Value::Subject(_)
+                | Value::Closure { .. }
+                | Value::Builtin(_)
+                | Value::Actor { .. } => {}
                 _ => {
-                    if !output.is_empty() { output.push('\n'); }
+                    if !output.is_empty() {
+                        output.push('\n');
+                    }
                     output.push_str(&format!("=> {}", result));
                 }
             }
@@ -9114,8 +10325,8 @@ mod tests {
     #[test]
     fn byte_offset_to_line_col_multiline() {
         let source = "line1\nline2\nline3";
-        assert_eq!(byte_offset_to_line_col(source, 0), (1, 1));  // 'l' in line1
-        assert_eq!(byte_offset_to_line_col(source, 6), (2, 1));  // 'l' in line2
+        assert_eq!(byte_offset_to_line_col(source, 0), (1, 1)); // 'l' in line1
+        assert_eq!(byte_offset_to_line_col(source, 6), (2, 1)); // 'l' in line2
         assert_eq!(byte_offset_to_line_col(source, 12), (3, 1)); // 'l' in line3
         assert_eq!(byte_offset_to_line_col(source, 14), (3, 3)); // 'n' in line3
     }
@@ -9176,8 +10387,7 @@ mod tests {
     #[test]
     fn diagnostic_display_with_context_breadcrumbs() {
         let source = "= x = bad()";
-        let d = Diagnostic::error("undefined function `bad`")
-            .with_context("in function `main`");
+        let d = Diagnostic::error("undefined function `bad`").with_context("in function `main`");
         let output = d.display(source, "test.runa", false);
         assert!(output.contains("in function `main`"));
     }
@@ -9216,8 +10426,11 @@ mod tests {
         let source = "> outer(x: Int) -> Int { no_such_fn(x) }";
         let diags = check_source_for_diagnostics(source);
         assert!(!diags.is_empty());
-        assert!(diags[0].context.iter().any(|c| c.contains("outer")),
-            "expected context mentioning `outer`, got: {:?}", diags[0].context);
+        assert!(
+            diags[0].context.iter().any(|c| c.contains("outer")),
+            "expected context mentioning `outer`, got: {:?}",
+            diags[0].context
+        );
     }
 
     #[test]
@@ -9225,7 +10438,10 @@ mod tests {
         let source = "> main() -> Int { xyz(1) }";
         let diags = check_source_for_diagnostics(source);
         assert!(!diags.is_empty());
-        assert!(diags[0].span.is_some(), "expected span on type error diagnostic");
+        assert!(
+            diags[0].span.is_some(),
+            "expected span on type error diagnostic"
+        );
     }
 
     // ── Parse error display ──────────────────────────────────────────
@@ -9237,7 +10453,11 @@ mod tests {
         let span = line_col_to_span(source, 1, 5);
         let d = Diagnostic::error_at(span, "unexpected token");
         let output = d.display(source, "myfile.runa", false);
-        assert!(output.contains("myfile.runa:1:5"), "expected filename in output, got: {}", output);
+        assert!(
+            output.contains("myfile.runa:1:5"),
+            "expected filename in output, got: {}",
+            output
+        );
     }
 
     #[test]
@@ -9269,17 +10489,33 @@ mod tests {
     fn trait_complete_impl_no_error() {
         let source = "# trait Greetable { > greet(self) -> String }\n# impl Greetable for String { > greet(s) -> String { s } }";
         let diags = check_source_for_diagnostics(source);
-        let trait_errors: Vec<_> = diags.iter().filter(|d| d.message.contains("missing method")).collect();
-        assert!(trait_errors.is_empty(), "complete impl should have no errors, got: {:?}", trait_errors);
+        let trait_errors: Vec<_> = diags
+            .iter()
+            .filter(|d| d.message.contains("missing method"))
+            .collect();
+        assert!(
+            trait_errors.is_empty(),
+            "complete impl should have no errors, got: {:?}",
+            trait_errors
+        );
     }
 
     #[test]
     fn trait_missing_method_produces_error() {
         let source = "# trait Displayable { > display(self) -> String > size(self) -> Int }\n# impl Displayable for String { > display(s) -> String { s } }";
         let diags = check_source_for_diagnostics(source);
-        let trait_errors: Vec<_> = diags.iter().filter(|d| d.message.contains("missing method")).collect();
-        assert!(!trait_errors.is_empty(), "incomplete impl should produce error");
-        assert!(trait_errors[0].message.contains("size"), "error should mention missing 'size'");
+        let trait_errors: Vec<_> = diags
+            .iter()
+            .filter(|d| d.message.contains("missing method"))
+            .collect();
+        assert!(
+            !trait_errors.is_empty(),
+            "incomplete impl should produce error"
+        );
+        assert!(
+            trait_errors[0].message.contains("size"),
+            "error should mention missing 'size'"
+        );
     }
 
     /// Helper: parse source and return the first expression from a binding
@@ -9304,7 +10540,10 @@ mod tests {
     #[test]
     fn parsed_var_has_real_span() {
         let expr = parse_expr_from("= x = hello");
-        assert!(!expr.span.is_dummy(), "expected real span on Var, got dummy");
+        assert!(
+            !expr.span.is_dummy(),
+            "expected real span on Var, got dummy"
+        );
         assert_eq!(expr.span.start_line_col("= x = hello"), (1, 7)); // "hello" starts at col 7
     }
 
@@ -9329,7 +10568,11 @@ mod tests {
         let (_, start_col) = expr.span.start_line_col(source);
         let (_, end_col) = expr.span.end_line_col(source);
         assert_eq!(start_col, 7); // starts at "a"
-        assert!(end_col >= 12, "expected span to cover through 'b', got end col {}", end_col);
+        assert!(
+            end_col >= 12,
+            "expected span to cover through 'b', got end col {}",
+            end_col
+        );
     }
 
     #[test]
@@ -9349,6 +10592,10 @@ mod tests {
         let (_, start_col) = expr.span.start_line_col(source);
         let (_, end_col) = expr.span.end_line_col(source);
         assert_eq!(start_col, 7); // starts at "foo"
-        assert!(end_col >= 15, "expected span to cover through ')', got end col {}", end_col);
+        assert!(
+            end_col >= 15,
+            "expected span to cover through ')', got end col {}",
+            end_col
+        );
     }
 }
