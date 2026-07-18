@@ -1374,7 +1374,7 @@ fn run_repl() {
 
 /// Generate SMT-LIB2 from a Futuruna expression
 fn expr_to_smt(expr: &Expr) -> String {
-    match expr {
+    match &expr.kind {
         ExprKind::Lit(Literal::Int(n)) => format!("{}", n),
         ExprKind::Lit(Literal::Float(f)) => format!("{}", f),
         ExprKind::Lit(Literal::Bool(b)) => if *b { "true".to_string() } else { "false".to_string() },
@@ -1524,7 +1524,7 @@ fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
 
 /// Infer a Z3 sort for a Futuruna expression (basic, no ADT awareness)
 fn infer_smt_sort(expr: &Expr) -> &'static str {
-    match expr {
+    match &expr.kind {
         ExprKind::Lit(Literal::Int(_)) => "Int",
         ExprKind::Lit(Literal::Float(_)) => "Real",
         ExprKind::Lit(Literal::Bool(_)) => "Bool",
@@ -1543,7 +1543,7 @@ fn infer_smt_sort(expr: &Expr) -> &'static str {
 
 /// Infer Z3 sort with ADT awareness — returns owned String (ADT type name or "Int"/"Bool")
 fn infer_smt_sort_adts(expr: &Expr, ctor_to_type: &BTreeMap<String, String>) -> String {
-    match expr {
+    match &expr.kind {
         ExprKind::Lit(Literal::Int(_)) => "Int".into(),
         ExprKind::Lit(Literal::Float(_)) => "Real".into(),
         ExprKind::Lit(Literal::Bool(_)) => "Bool".into(),
@@ -1554,7 +1554,7 @@ fn infer_smt_sort_adts(expr: &Expr, ctor_to_type: &BTreeMap<String, String>) -> 
         ExprKind::UnOp(op, _) => if op == "!" { "Bool".into() } else { "Int".into() },
         ExprKind::Var(name) => ctor_to_type.get(name).cloned().unwrap_or_else(|| "Int".into()),
         ExprKind::App(func, _) => {
-            if let ExprKind::Var(name) = func.as_ref() {
+            if let ExprKind::Var(name) = &func.as_ref().kind {
                 if let Some(ty) = ctor_to_type.get(name) { return ty.clone(); }
             }
             "Int".into()
@@ -1604,7 +1604,7 @@ fn ty_to_smt_sort(ty: &Ty) -> String {
 /// Collect truly free variables: referenced vars minus locally bound ones.
 /// `bound` tracks names defined in enclosing scopes (lambda params, let bindings).
 fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTreeSet<String>) {
-    match expr {
+    match &expr.kind {
         ExprKind::Var(name) => {
             if !bound.contains(name) { free.insert(name.clone()); }
         }
@@ -1695,7 +1695,7 @@ fn collect_pattern_names(pat: &Pat, names: &mut BTreeSet<String>) {
 }
 
 fn collect_free_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
-    match expr {
+    match &expr.kind {
         ExprKind::Var(name) => { vars.insert(name.clone()); }
         ExprKind::BinOp(_, lhs, rhs) => {
             collect_free_vars(lhs, vars);
@@ -1839,8 +1839,8 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                     Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
                     Rule::Scope { .. } => return None,
                 };
-                match head {
-                    ExprKind::App(_, args) => Some(args.iter().filter(|a| matches!(a, ExprKind::Var(_))).count()),
+                match &head.kind {
+                    ExprKind::App(_, args) => Some(args.iter().filter(|a| matches!(a.kind, ExprKind::Var(_))).count()),
                     ExprKind::Var(_) => Some(0),
                     _ => None,
                 }
@@ -2314,7 +2314,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 
 /// Collect rule name references from an expression (for invariant coverage analysis)
 fn collect_rule_refs(expr: &Expr, refs: &mut BTreeSet<String>) {
-    match expr {
+    match &expr.kind {
         ExprKind::Var(name) => { refs.insert(name.clone()); }
         ExprKind::App(f, args) => {
             collect_rule_refs(f, refs);
@@ -2614,7 +2614,7 @@ fn verify_with_z3(source: &str, filename: &str) {
 
 /// Check if an expression references a function name (for SMT emission)
 fn smt_expr_uses_fn(expr: &Expr, fname: &str) -> bool {
-    match expr {
+    match &expr.kind {
         ExprKind::Var(name) => name == fname,
         ExprKind::App(func, args) => {
             smt_expr_uses_fn(func, fname) || args.iter().any(|a| smt_expr_uses_fn(a, fname))
@@ -4689,7 +4689,7 @@ struct RustCodegen {
 /// Count how many times each variable name appears as ExprKind::Var in an expression tree.
 /// This is the core of escape analysis: single-use variables can be moved, not cloned.
 fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
-    match expr {
+    match &expr.kind {
         ExprKind::Var(name) => {
             *counts.entry(name.clone()).or_insert(0) += 1;
         }
@@ -4806,14 +4806,14 @@ fn count_var_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
 /// Non-consuming: show() args (emitted as .to_string(), which borrows), BinOp operands,
 /// if conditions, field access, match scrutinees.
 fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
-    match expr {
+    match &expr.kind {
         ExprKind::App(func, args) => {
             count_consuming_uses(func, counts);
-            let is_borrow_builtin = matches!(func.as_ref(), ExprKind::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
+            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             for a in args {
                 if !is_borrow_builtin {
                     // Non-borrow function call: Var args are consuming
-                    if let ExprKind::Var(name) = a {
+                    if let ExprKind::Var(name) = &a.kind {
                         *counts.entry(name.clone()).or_insert(0) += 1;
                     }
                 }
@@ -4855,7 +4855,7 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
         ExprKind::List(elems) | ExprKind::Tuple(elems) => {
             for e in elems {
                 // Variables placed in a list/tuple are moved (consumed)
-                if let ExprKind::Var(name) = e {
+                if let ExprKind::Var(name) = &e.kind {
                     *counts.entry(name.clone()).or_insert(0) += 1;
                 }
                 count_consuming_uses(e, counts);
@@ -4869,7 +4869,7 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
         ExprKind::Conjunction(goals) => { for g in goals { count_consuming_uses(g, counts); } }
         ExprKind::Pipe(input, transform) => {
             // Pipe input is consumed (passed as arg)
-            if let ExprKind::Var(name) = input.as_ref() {
+            if let ExprKind::Var(name) = &input.as_ref().kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
             count_consuming_uses(input, counts);
@@ -4888,7 +4888,7 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
     match stmt {
         Stmt::Bind(_, _, expr) => {
             // Binding a variable to another variable is a consuming use (move)
-            if let ExprKind::Var(name) = expr {
+            if let ExprKind::Var(name) = &expr.kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
             count_consuming_uses(expr, counts);
@@ -4926,13 +4926,13 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
 /// rather than summing them. A variable used once in each branch of an if/else
 /// only needs one consuming use, not two — it can be moved on whichever branch executes.
 fn count_consuming_uses_branch_aware(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
-    match expr {
+    match &expr.kind {
         ExprKind::App(func, args) => {
             count_consuming_uses_branch_aware(func, counts);
-            let is_borrow_builtin = matches!(func.as_ref(), ExprKind::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
+            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             for a in args {
                 if !is_borrow_builtin {
-                    if let ExprKind::Var(name) = a {
+                    if let ExprKind::Var(name) = &a.kind {
                         *counts.entry(name.clone()).or_insert(0) += 1;
                     }
                 }
@@ -4994,7 +4994,7 @@ fn count_consuming_uses_branch_aware(expr: &Expr, counts: &mut BTreeMap<String, 
         }
         ExprKind::List(elems) | ExprKind::Tuple(elems) => {
             for e in elems {
-                if let ExprKind::Var(name) = e {
+                if let ExprKind::Var(name) = &e.kind {
                     *counts.entry(name.clone()).or_insert(0) += 1;
                 }
                 count_consuming_uses_branch_aware(e, counts);
@@ -5007,7 +5007,7 @@ fn count_consuming_uses_branch_aware(expr: &Expr, counts: &mut BTreeMap<String, 
         ExprKind::Try(inner) => count_consuming_uses_branch_aware(inner, counts),
         ExprKind::Conjunction(goals) => { for g in goals { count_consuming_uses_branch_aware(g, counts); } }
         ExprKind::Pipe(input, transform) => {
-            if let ExprKind::Var(name) = input.as_ref() {
+            if let ExprKind::Var(name) = &input.as_ref().kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
             count_consuming_uses_branch_aware(input, counts);
@@ -5026,7 +5026,7 @@ fn count_consuming_uses_branch_aware_stmt(stmt: &Stmt, counts: &mut BTreeMap<Str
     match stmt {
         Stmt::Bind(_, _, expr) => {
             // Binding a variable to another variable is a consuming use (move)
-            if let ExprKind::Var(name) = expr {
+            if let ExprKind::Var(name) = &expr.kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
             count_consuming_uses_branch_aware(expr, counts);
@@ -5069,12 +5069,12 @@ fn count_consuming_uses_borrow_aware(
     self_fn_name: Option<&str>,
     self_param_names: &[&str],
 ) {
-    match expr {
+    match &expr.kind {
         ExprKind::App(func, args) => {
             // Count closure variable in callee position as consuming use.
             // If a variable is used as a function (closure call), it must be alive.
             // Only count if not a known top-level function (borrow_fns tracks all defined fns).
-            if let ExprKind::Var(name) = func.as_ref() {
+            if let ExprKind::Var(name) = &func.as_ref().kind {
                 if !known_borrow_fns.contains_key(name.as_str())
                     && self_fn_name != Some(name.as_str()) {
                     *counts.entry(name.clone()).or_insert(0) += 1;
@@ -5082,15 +5082,15 @@ fn count_consuming_uses_borrow_aware(
             }
             count_consuming_uses_borrow_aware(func, counts, known_borrow_fns,
                 self_fn_name, self_param_names);
-            let is_borrow_builtin = matches!(func.as_ref(), ExprKind::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
+            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             // Phase 3d: Check if this is a self-recursive call
-            let is_self_recursive = if let ExprKind::Var(fn_name) = func.as_ref() {
+            let is_self_recursive = if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                 self_fn_name == Some(fn_name.as_str())
             } else {
                 false
             };
             // Look up borrow flags for the called function
-            let borrow_flags = if let ExprKind::Var(fn_name) = func.as_ref() {
+            let borrow_flags = if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                 known_borrow_fns.get(fn_name.as_str())
             } else {
                 None
@@ -5101,13 +5101,13 @@ fn count_consuming_uses_borrow_aware(
                     .unwrap_or(false);
                 // Phase 3d: self-recursive pass-through — if the arg is a param
                 // passed at the same position to itself, it's not consuming
-                let is_self_passthrough = is_self_recursive && if let ExprKind::Var(name) = a {
+                let is_self_passthrough = is_self_recursive && if let ExprKind::Var(name) = &a.kind {
                     self_param_names.get(idx).map(|pn| *pn == name.as_str()).unwrap_or(false)
                 } else {
                     false
                 };
                 if !is_borrow_builtin && !is_borrow_param && !is_self_passthrough {
-                    if let ExprKind::Var(name) = a {
+                    if let ExprKind::Var(name) = &a.kind {
                         *counts.entry(name.clone()).or_insert(0) += 1;
                     }
                 }
@@ -5162,7 +5162,7 @@ fn count_consuming_uses_borrow_aware(
         ExprKind::Field(base, _) => {
             // Field access borrows the base, but if the base was already moved, it fails.
             // Count field access as a consuming use so variables are cloned when needed.
-            if let ExprKind::Var(name) = base.as_ref() {
+            if let ExprKind::Var(name) = &base.as_ref().kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
             count_consuming_uses_borrow_aware(base, counts, known_borrow_fns, self_fn_name, self_param_names);
@@ -5173,7 +5173,7 @@ fn count_consuming_uses_borrow_aware(
         }
         ExprKind::List(elems) | ExprKind::Tuple(elems) => {
             for e in elems {
-                if let ExprKind::Var(name) = e {
+                if let ExprKind::Var(name) = &e.kind {
                     *counts.entry(name.clone()).or_insert(0) += 1;
                 }
                 count_consuming_uses_borrow_aware(e, counts, known_borrow_fns, self_fn_name, self_param_names);
@@ -5186,7 +5186,7 @@ fn count_consuming_uses_borrow_aware(
         ExprKind::Try(inner) => count_consuming_uses_borrow_aware(inner, counts, known_borrow_fns, self_fn_name, self_param_names),
         ExprKind::Conjunction(goals) => { for g in goals { count_consuming_uses_borrow_aware(g, counts, known_borrow_fns, self_fn_name, self_param_names); } }
         ExprKind::Pipe(input, transform) => {
-            if let ExprKind::Var(name) = input.as_ref() {
+            if let ExprKind::Var(name) = &input.as_ref().kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
             count_consuming_uses_borrow_aware(input, counts, known_borrow_fns, self_fn_name, self_param_names);
@@ -5210,7 +5210,7 @@ fn count_consuming_uses_borrow_aware_stmt(
 ) {
     match stmt {
         Stmt::Bind(_, _, expr) => {
-            if let ExprKind::Var(name) = expr {
+            if let ExprKind::Var(name) = &expr.kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
             count_consuming_uses_borrow_aware(expr, counts, known_borrow_fns, self_fn_name, self_param_names);
@@ -5261,17 +5261,17 @@ fn has_consuming_non_field_use(
     self_fn_name: Option<&str>,
     self_param_names: &[&str],
 ) -> bool {
-    match expr {
+    match &expr.kind {
         ExprKind::App(func, args) => {
             if has_consuming_non_field_use(func, param, known_borrow_fns, self_fn_name, self_param_names) { return true; }
-            let is_borrow_builtin = matches!(func.as_ref(), ExprKind::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
+            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             // Phase 3d: self-recursive call detection
-            let is_self_recursive = if let ExprKind::Var(fn_name) = func.as_ref() {
+            let is_self_recursive = if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                 self_fn_name == Some(fn_name.as_str())
             } else {
                 false
             };
-            let borrow_flags = if let ExprKind::Var(fn_name) = func.as_ref() {
+            let borrow_flags = if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                 known_borrow_fns.get(fn_name.as_str())
             } else {
                 None
@@ -5281,13 +5281,13 @@ fn has_consuming_non_field_use(
                     .and_then(|f| f.get(idx).copied())
                     .unwrap_or(false);
                 // Phase 3d: self-recursive pass-through is not consuming
-                let is_self_passthrough = is_self_recursive && if let ExprKind::Var(name) = a {
+                let is_self_passthrough = is_self_recursive && if let ExprKind::Var(name) = &a.kind {
                     self_param_names.get(idx).map(|pn| *pn == name.as_str()).unwrap_or(false)
                 } else {
                     false
                 };
                 if !is_borrow_builtin && !is_borrow_param && !is_self_passthrough {
-                    if let ExprKind::Var(name) = a {
+                    if let ExprKind::Var(name) = &a.kind {
                         if name == param { return true; }
                     }
                 }
@@ -5323,7 +5323,7 @@ fn has_consuming_non_field_use(
         }
         ExprKind::List(elems) | ExprKind::Tuple(elems) => {
             elems.iter().any(|e| {
-                if let ExprKind::Var(name) = e {
+                if let ExprKind::Var(name) = &e.kind {
                     if name == param { return true; }
                 }
                 has_consuming_non_field_use(e, param, known_borrow_fns, self_fn_name, self_param_names)
@@ -5335,7 +5335,7 @@ fn has_consuming_non_field_use(
         ExprKind::Try(inner) => has_consuming_non_field_use(inner, param, known_borrow_fns, self_fn_name, self_param_names),
         ExprKind::Pipe(input, transform) => {
             // Pipe input is consumed
-            if let ExprKind::Var(name) = input.as_ref() {
+            if let ExprKind::Var(name) = &input.as_ref().kind {
                 if name == param { return true; }
             }
             has_consuming_non_field_use(input, param, known_borrow_fns, self_fn_name, self_param_names)
@@ -5358,7 +5358,7 @@ fn has_consuming_non_field_use_stmt(
 ) -> bool {
     match stmt {
         Stmt::Bind(_, _, expr) => {
-            if let ExprKind::Var(name) = expr {
+            if let ExprKind::Var(name) = &expr.kind {
                 if name == param { return true; }
             }
             has_consuming_non_field_use(expr, param, known_borrow_fns, self_fn_name, self_param_names)
@@ -5404,16 +5404,16 @@ fn tce_has_borrowed_param_update(fn_name: &str, params: &[Param], borrow_flags: 
 }
 
 fn tce_check_borrowed_update(fn_name: &str, params: &[Param], borrow_flags: &[bool], expr: &Expr, found: &mut bool) {
-    match expr {
+    match &expr.kind {
         ExprKind::App(func, args) => {
-            if let ExprKind::Var(name) = func.as_ref() {
+            if let ExprKind::Var(name) = &func.as_ref().kind {
                 if name == fn_name {
                     // Check each arg: if param is borrowed and arg differs from param name, flag it
                     for (idx, (p, a)) in params.iter().zip(args.iter()).enumerate() {
                         let is_borrowed = borrow_flags.get(idx).copied().unwrap_or(false);
                         if is_borrowed {
                             // If the arg is just the same variable, it's a pass-through (OK)
-                            let is_passthrough = matches!(a, ExprKind::Var(n) if n == &p.name);
+                            let is_passthrough = matches!(a.kind, ExprKind::Var(ref n) if n == &p.name);
                             if !is_passthrough {
                                 *found = true;
                             }
@@ -5446,9 +5446,9 @@ fn is_tail_recursive(fn_name: &str, body: &Expr) -> bool {
 }
 
 fn is_tail_recursive_expr(fn_name: &str, expr: &Expr, found: &mut bool) -> bool {
-    match expr {
+    match &expr.kind {
         ExprKind::App(func, _args) => {
-            if let ExprKind::Var(name) = func.as_ref() {
+            if let ExprKind::Var(name) = &func.as_ref().kind {
                 if name == fn_name {
                     *found = true;
                     return true; // tail call
@@ -5491,9 +5491,9 @@ fn is_tail_recursive_expr(fn_name: &str, expr: &Expr, found: &mut bool) -> bool 
 
 /// Check if an expression contains a call to fn_name anywhere (non-tail position check)
 fn expr_contains_call(fn_name: &str, expr: &Expr) -> bool {
-    match expr {
+    match &expr.kind {
         ExprKind::App(func, args) => {
-            if let ExprKind::Var(name) = func.as_ref() {
+            if let ExprKind::Var(name) = &func.as_ref().kind {
                 if name == fn_name { return true; }
             }
             args.iter().any(|a| expr_contains_call(fn_name, a))
@@ -5610,9 +5610,9 @@ fn analyze_borrow_only_params_named(
 
 /// Collect variables used as match scrutinees (pattern matching destructures them)
 fn collect_matched_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
-    match expr {
+    match &expr.kind {
         ExprKind::Match(scrutinee, arms) => {
-            if let ExprKind::Var(name) = scrutinee.as_ref() {
+            if let ExprKind::Var(name) = &scrutinee.as_ref().kind {
                 vars.insert(name.clone());
             }
             collect_matched_vars(scrutinee, vars);
@@ -5674,9 +5674,9 @@ fn collect_matched_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
 /// Collect pattern bindings from match expressions whose scrutinee is `param_name`.
 /// These bindings are references (&T) because the param is borrowed — they need * deref.
 fn collect_ref_match_bindings_from_body(body: &Expr, param_name: &str, bindings: &mut BTreeSet<String>) {
-    match body {
+    match &body.kind {
         ExprKind::Match(scrutinee, arms) => {
-            if let ExprKind::Var(name) = scrutinee.as_ref() {
+            if let ExprKind::Var(name) = &scrutinee.as_ref().kind {
                 if name == param_name {
                     // This match is on the ref-matched param — collect all pattern bindings
                     for arm in arms {
@@ -5752,7 +5752,7 @@ fn collect_pattern_binding_names(pat: &Pat, names: &mut BTreeSet<String>) {
 
 /// Collect variables that appear in return/tail position of an expression
 fn collect_returned_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
-    match expr {
+    match &expr.kind {
         ExprKind::Var(name) => { vars.insert(name.clone()); }
         ExprKind::If(_, then_, else_) => {
             collect_returned_vars(then_, vars);
@@ -5781,7 +5781,7 @@ fn collect_returned_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
 fn collect_aliased_vars(stmts: &[&Stmt], copy_vars: &BTreeSet<String>) -> BTreeSet<String> {
     let mut aliased = BTreeSet::new();
     for stmt in stmts {
-        if let Stmt::Bind(Pat::Var(_name), _, ExprKind::Var(source)) = stmt {
+        if let Stmt::Bind(Pat::Var(_name), _, Expr { kind: ExprKind::Var(source), .. }) = stmt {
             if !copy_vars.contains(source.as_str()) {
                 aliased.insert(source.clone());
             }
@@ -5792,7 +5792,7 @@ fn collect_aliased_vars(stmts: &[&Stmt], copy_vars: &BTreeSet<String>) -> BTreeS
 
 /// Check if an expression contains the ? (Try) operator
 fn expr_contains_try(expr: &Expr) -> bool {
-    match expr {
+    match &expr.kind {
         ExprKind::Try(_) => true,
         ExprKind::App(f, args) => expr_contains_try(f) || args.iter().any(expr_contains_try),
         ExprKind::BinOp(_, l, r) => expr_contains_try(l) || expr_contains_try(r),
@@ -5858,9 +5858,9 @@ fn collect_called_vars(stmt: &Stmt, called: &mut BTreeSet<String>) {
 }
 
 fn collect_called_vars_expr(expr: &Expr, called: &mut BTreeSet<String>) {
-    match expr {
+    match &expr.kind {
         ExprKind::App(func, args) => {
-            if let ExprKind::Var(name) = func.as_ref() {
+            if let ExprKind::Var(name) = &func.as_ref().kind {
                 called.insert(name.clone());
             }
             collect_called_vars_expr(func, called);
@@ -5912,10 +5912,10 @@ fn can_be_fn_once(body: &Expr, name: &str) -> bool {
 
 /// Check if a variable's sole use is a direct function call NOT inside a lambda body
 fn is_direct_call_at_top_level(expr: &Expr, name: &str) -> bool {
-    match expr {
+    match &expr.kind {
         ExprKind::App(func, args) => {
             // Direct call: f(args) where f is our variable
-            if matches!(func.as_ref(), ExprKind::Var(n) if n == name) {
+            if matches!(func.as_ref().kind, ExprKind::Var(ref n) if n == name) {
                 return true;
             }
             // Check in args (but NOT in lambda bodies within args)
@@ -5978,7 +5978,7 @@ fn collect_rebound_in_body(stmts: &[Stmt], bound: &BTreeSet<String>, mutable: &m
 }
 
 fn collect_rebound_in_expr(expr: &Expr, bound: &BTreeSet<String>, mutable: &mut BTreeSet<String>) {
-    match expr {
+    match &expr.kind {
         ExprKind::If(_, then_, else_) => {
             collect_rebound_in_expr(then_, bound, mutable);
             collect_rebound_in_expr(else_, bound, mutable);
@@ -6448,7 +6448,7 @@ impl RustCodegen {
                         for s in &imported {
                             if let Stmt::Annot(n, args) = s {
                                 if n == "export" {
-                                    for a in args { if let ExprKind::Var(v) = a { self.exported_names.insert(v.clone()); } }
+                                    for a in args { if let ExprKind::Var(v) = &a.kind { self.exported_names.insert(v.clone()); } }
                                     if args.is_empty() { is_exp = true; }
                                     continue;
                                 }
@@ -6494,7 +6494,7 @@ impl RustCodegen {
                         for s in &imported {
                             if let Stmt::Annot(n, args) = s {
                                 if n == "export" {
-                                    for a in args { if let ExprKind::Var(v) = a { self.exported_names.insert(v.clone()); } }
+                                    for a in args { if let ExprKind::Var(v) = &a.kind { self.exported_names.insert(v.clone()); } }
                                     if args.is_empty() { is_exp = true; }
                                     continue;
                                 }
@@ -6540,7 +6540,7 @@ impl RustCodegen {
                         for s in &imported {
                             if let Stmt::Annot(n, args) = s {
                                 if n == "export" {
-                                    for a in args { if let ExprKind::Var(v) = a { mod_exported.insert(v.clone()); } }
+                                    for a in args { if let ExprKind::Var(v) = &a.kind { mod_exported.insert(v.clone()); } }
                                     if args.is_empty() { is_exp = true; }
                                     continue;
                                 }
@@ -6629,7 +6629,7 @@ impl RustCodegen {
                         // Post-hoc form: `@ export add` → args contains Var("add")
                         if !args.is_empty() {
                             for arg in args {
-                                if let ExprKind::Var(n) = arg {
+                                if let ExprKind::Var(n) = &arg.kind {
                                     self.exported_names.insert(n.clone());
                                 }
                             }
@@ -6669,11 +6669,11 @@ impl RustCodegen {
             for stmt in stmts {
                 if let Stmt::Annot(name, args) = stmt {
                     if name == "store" {
-                        if let Some(ExprKind::Var(type_name)) = args.first() {
+                        if let Some(Expr { kind: ExprKind::Var(type_name), .. }) = args.first() {
                             self.stored_types.insert(type_name.clone());
                             // Scan remaining args for flags and scope
                             for arg in args.iter().skip(1) {
-                                match arg {
+                                match &arg.kind {
                                     ExprKind::Var(flag) if flag == "delete_on_change" => {
                                         self.store_delete_on_change.insert(type_name.clone());
                                     }
@@ -6725,7 +6725,7 @@ impl RustCodegen {
                 for s in stmts {
                     match s {
                         Stmt::StreamBind(name, expr) => {
-                            if matches!(expr, ExprKind::App(f, _) if matches!(f.as_ref(), ExprKind::Var(n) if n == "subject")) {
+                            if matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject")) {
                                 names.insert(name.clone());
                             }
                         }
@@ -6738,8 +6738,8 @@ impl RustCodegen {
             fn has_for_on_subject(stmts: &[Stmt], subjects: &BTreeSet<String>) -> bool {
                 for s in stmts {
                     match s {
-                        Stmt::For(_, ExprKind::Var(name), _) if subjects.contains(name) => return true,
-                        Stmt::StreamSub(ExprKind::Var(name), _) if subjects.contains(name) => return true,
+                        Stmt::For(_, Expr { kind: ExprKind::Var(name), .. }, _) if subjects.contains(name) => return true,
+                        Stmt::StreamSub(Expr { kind: ExprKind::Var(name), .. }, _) if subjects.contains(name) => return true,
                         Stmt::Rule(Rule::Scope { body, .. }) => {
                             if has_for_on_subject(body, subjects) { return true; }
                         }
@@ -6777,14 +6777,14 @@ impl RustCodegen {
                     self.has_async = true;
                 }
                 // http_serve with axum needs async runtime
-                if let Stmt::Expr(ExprKind::Effect(name, _)) = stmt {
+                if let Stmt::Expr(Expr { kind: ExprKind::Effect(name, _), .. }) = stmt {
                     if name == "http_serve" {
                         self.has_async = true;
                     }
                 }
                 // Also detect http_serve in = bindings (e.g. = _ = http_serve(...))
-                if let Stmt::Bind(_, _, ExprKind::App(f, _)) = stmt {
-                    if let ExprKind::Var(name) = f.as_ref() {
+                if let Stmt::Bind(_, _, Expr { kind: ExprKind::App(f, _), .. }) = stmt {
+                    if let ExprKind::Var(name) = &f.as_ref().kind {
                         if name == "http_serve" {
                             self.has_async = true;
                         }
@@ -6806,10 +6806,10 @@ impl RustCodegen {
                 let mut subject_names: BTreeSet<String> = BTreeSet::new();
                 for s in stmts {
                     if let Stmt::StreamBind(name, expr) = s {
-                        if matches!(expr, ExprKind::App(f, _) if matches!(f.as_ref(), ExprKind::Var(n) if n == "subject")) {
+                        if matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject")) {
                             subject_names.insert(name.clone());
                             // Check if initial value provided: subject(val)
-                            if let ExprKind::App(_, args) = expr {
+                            if let ExprKind::App(_, args) = &expr.kind {
                                 if let Some(init) = args.first() {
                                     let ty = expr_to_rust_type(init);
                                     types.insert(name.clone(), ty);
@@ -6824,13 +6824,13 @@ impl RustCodegen {
                 // Infer from first Send if not already known
                 for s in stmts {
                     match s {
-                        Stmt::Send(ExprKind::Var(target), msg) if subject_names.contains(target) && !types.contains_key(target) => {
+                        Stmt::Send(Expr { kind: ExprKind::Var(target), .. }, msg) if subject_names.contains(target) && !types.contains_key(target) => {
                             let ty = expr_to_rust_type(msg);
                             types.insert(target.clone(), ty);
                         }
                         Stmt::For(_, _, body) => {
                             for bs in body {
-                                if let Stmt::Send(ExprKind::Var(target), msg) = bs {
+                                if let Stmt::Send(Expr { kind: ExprKind::Var(target), .. }, msg) = bs {
                                     if subject_names.contains(target) && !types.contains_key(target) {
                                         let ty = expr_to_rust_type(msg);
                                         types.insert(target.clone(), ty);
@@ -6845,7 +6845,7 @@ impl RustCodegen {
             }
 
             fn expr_to_rust_type(expr: &Expr) -> String {
-                match expr {
+                match &expr.kind {
                     ExprKind::Lit(Literal::Str(_)) => "String".to_string(),
                     ExprKind::Lit(Literal::Int(_)) => "i64".to_string(),
                     ExprKind::Lit(Literal::Float(_)) => "f64".to_string(),
@@ -6853,7 +6853,7 @@ impl RustCodegen {
                     ExprKind::Lit(Literal::Char(_)) => "char".to_string(),
                     // String concatenation: expr + expr where either is a string
                     ExprKind::BinOp(op, lhs, _) if op == "+" => {
-                        if matches!(lhs.as_ref(), ExprKind::Lit(Literal::Str(_))) {
+                        if matches!(lhs.as_ref().kind, ExprKind::Lit(Literal::Str(_))) {
                             "String".to_string()
                         } else {
                             expr_to_rust_type(lhs)
@@ -7196,7 +7196,7 @@ impl RustCodegen {
 
         // Collect simple literal = bindings for inlining in rule bodies
         for stmt in stmts {
-            if let Stmt::Bind(Pat::Var(name), _, ExprKind::Lit(lit)) = stmt {
+            if let Stmt::Bind(Pat::Var(name), _, Expr { kind: ExprKind::Lit(lit), .. }) = stmt {
                 let val = Self::emit_literal_value(lit);
                 let ty = Self::literal_rust_type(lit).to_string();
                 self.literal_bindings.insert(name.clone(), (val, ty));
@@ -7214,8 +7214,8 @@ impl RustCodegen {
                         _ => {
                             let name = match rule {
                                 Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => {
-                                    match head {
-                                        ExprKind::App(f, _) => if let ExprKind::Var(n) = f.as_ref() { n.clone() } else { continue },
+                                    match &head.kind {
+                                        ExprKind::App(f, _) => if let ExprKind::Var(n) = &f.as_ref().kind { n.clone() } else { continue },
                                         ExprKind::Var(n) => n.clone(),
                                         _ => continue,
                                     }
@@ -7235,9 +7235,9 @@ impl RustCodegen {
                     // Infer from ground terms in fact heads
                     for r in rules.iter() {
                         if let Rule::Clause { head, body: None } = r {
-                            if let ExprKind::App(_, args) = head {
+                            if let ExprKind::App(_, args) = &head.kind {
                                 for (i, arg) in args.iter().enumerate() {
-                                    if let ExprKind::Lit(lit) = arg {
+                                    if let ExprKind::Lit(lit) = &arg.kind {
                                         param_types[i] = Self::literal_rust_type(lit);
                                     }
                                 }
@@ -7247,28 +7247,28 @@ impl RustCodegen {
                     // Infer from literals in body calls
                     for r in rules.iter() {
                         if let Rule::Clause { head, body: Some(body) } = r {
-                            if let ExprKind::App(_, head_args) = head {
+                            if let ExprKind::App(_, head_args) = &head.kind {
                                 let head_vars: Vec<(String, usize)> = head_args.iter().enumerate().filter_map(|(i, a)| {
-                                    if let ExprKind::Var(name) = a { Some((name.clone(), i)) } else { None }
+                                    if let ExprKind::Var(name) = &a.kind { Some((name.clone(), i)) } else { None }
                                 }).collect();
                                 // Check body for literal args that tell us param types
-                                let body_calls: Vec<&Expr> = match body {
+                                let body_calls: Vec<&Expr> = match &body.kind {
                                     ExprKind::Conjunction(goals) => goals.iter().collect(),
-                                    other => vec![other],
+                                    _ => vec![body],
                                 };
                                 for call in body_calls {
-                                    if let ExprKind::App(_, call_args) = call {
+                                    if let ExprKind::App(_, call_args) = &call.kind {
                                         for (ci, ca) in call_args.iter().enumerate() {
-                                            if let ExprKind::Lit(lit) = ca {
+                                            if let ExprKind::Lit(lit) = &ca.kind {
                                                 // A literal in the body tells us the type for that call position
                                                 // If another arg in same call is a head var, propagate type
                                                 let _ = lit; // type info used below
                                             }
-                                            if let ExprKind::Var(vname) = ca {
+                                            if let ExprKind::Var(vname) = &ca.kind {
                                                 if let Some((_, hi)) = head_vars.iter().find(|(n, _)| n == vname) {
                                                     // Check if any other arg in this call is a literal
                                                     for (oi, oa) in call_args.iter().enumerate() {
-                                                        if let ExprKind::Lit(lit) = oa {
+                                                        if let ExprKind::Lit(lit) = &oa.kind {
                                                             if param_types[*hi] == "String" {
                                                                 // Same call, same function → likely same type domain
                                                                 param_types[*hi] = Self::literal_rust_type(lit);
@@ -7298,20 +7298,20 @@ impl RustCodegen {
                         let mut updated = cur_types.clone();
                         for r in rules.iter() {
                             if let Rule::Clause { head, body: Some(body) } = r {
-                                if let ExprKind::App(_, head_args) = head {
+                                if let ExprKind::App(_, head_args) = &head.kind {
                                     let head_vars: Vec<(String, usize)> = head_args.iter().enumerate().filter_map(|(i, a)| {
-                                        if let ExprKind::Var(name) = a { Some((name.clone(), i)) } else { None }
+                                        if let ExprKind::Var(name) = &a.kind { Some((name.clone(), i)) } else { None }
                                     }).collect();
-                                    let body_calls: Vec<&Expr> = match body {
+                                    let body_calls: Vec<&Expr> = match &body.kind {
                                         ExprKind::Conjunction(goals) => goals.iter().collect(),
-                                        other => vec![other],
+                                        _ => vec![body],
                                     };
                                     for call in body_calls {
-                                        if let ExprKind::App(func, call_args) = call {
+                                        if let ExprKind::App(func, call_args) = &call.kind {
                                             let called_fn = Self::expr_fn_name(func);
                                             if let Some(called_types) = known.get(&called_fn) {
                                                 for (ci, ca) in call_args.iter().enumerate() {
-                                                    if let ExprKind::Var(vname) = ca {
+                                                    if let ExprKind::Var(vname) = &ca.kind {
                                                         if let Some((_, hi)) = head_vars.iter().find(|(n, _)| n == vname) {
                                                             if updated[*hi] == "&str" || ci >= called_types.len() { continue; }
                                                             updated[*hi] = called_types[ci].clone();
@@ -7336,8 +7336,8 @@ impl RustCodegen {
                         Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
                         _ => return None,
                     };
-                    if let ExprKind::App(_, args) = head {
-                        Some(args.iter().filter(|a| matches!(a, ExprKind::Var(_))).count())
+                    if let ExprKind::App(_, args) = &head.kind {
+                        Some(args.iter().filter(|a| matches!(a.kind, ExprKind::Var(_))).count())
                     } else {
                         Some(0)
                     }
@@ -7349,8 +7349,8 @@ impl RustCodegen {
                             Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
                             _ => return None,
                         };
-                        if let ExprKind::App(_, args) = head {
-                            Some(args.iter().filter_map(|a| if let ExprKind::Var(n) = a { Some(n.clone()) } else { None }).collect())
+                        if let ExprKind::App(_, args) = &head.kind {
+                            Some(args.iter().filter_map(|a| if let ExprKind::Var(n) = &a.kind { Some(n.clone()) } else { None }).collect())
                         } else { Some(vec![]) }
                     }).unwrap_or_default();
                     params.iter().map(|p| self.infer_param_type_from_fields(p, rules).is_some()).collect()
@@ -7462,8 +7462,8 @@ impl RustCodegen {
                     // @ comptime assert(expr) — compile-time assertion
                     if let Stmt::Expr(expr) = stmt {
                         // Check if it's assert(expr) or just a bare expression
-                        let inner_expr = match expr {
-                            ExprKind::App(f, args) if matches!(**f, ExprKind::Var(ref n) if n == "assert") && args.len() == 1 => {
+                        let inner_expr = match &expr.kind {
+                            ExprKind::App(f, args) if matches!(f.kind, ExprKind::Var(ref n) if n == "assert") && args.len() == 1 => {
                                 Some(&args[0])
                             }
                             _ => None,
@@ -7560,7 +7560,7 @@ impl RustCodegen {
             }
             // Also infer Copy from integer/float/bool literals
             if let Stmt::Bind(Pat::Var(name), None, expr) = stmt {
-                if matches!(expr, ExprKind::Lit(Literal::Int(_)) | ExprKind::Lit(Literal::Float(_)) | ExprKind::Lit(Literal::Bool(_)) | ExprKind::Lit(Literal::Char(_))) {
+                if matches!(expr.kind, ExprKind::Lit(Literal::Int(_)) | ExprKind::Lit(Literal::Float(_)) | ExprKind::Lit(Literal::Bool(_)) | ExprKind::Lit(Literal::Char(_))) {
                     self.copy_vars.insert(name.clone());
                 }
             }
@@ -8300,15 +8300,15 @@ impl RustCodegen {
     fn rules_have_prolog_features(rules: &[&Rule]) -> bool {
         rules.iter().any(|r| {
             if let Rule::Clause { head, body } = r {
-                let has_ground = if let ExprKind::App(_, args) = head {
-                    args.iter().any(|a| matches!(a, ExprKind::Lit(_)))
+                let has_ground = if let ExprKind::App(_, args) = &head.kind {
+                    args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_)))
                 } else { false };
-                let has_conjunction = matches!(body, Some(ExprKind::Conjunction(_)));
+                let has_conjunction = body.as_ref().map_or(false, |b| matches!(b.kind, ExprKind::Conjunction(_)));
                 // Body calls with literal args (e.g., has_children(p) -> parent(p, "bob"))
                 let has_body_literals = match body {
-                    Some(ExprKind::App(_, args)) => args.iter().any(|a| matches!(a, ExprKind::Lit(_))),
-                    Some(ExprKind::Conjunction(goals)) => goals.iter().any(|g| {
-                        if let ExprKind::App(_, args) = g { args.iter().any(|a| matches!(a, ExprKind::Lit(_))) } else { false }
+                    Some(Expr { kind: ExprKind::App(_, args), .. }) => args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_))),
+                    Some(Expr { kind: ExprKind::Conjunction(goals), .. }) => goals.iter().any(|g| {
+                        if let ExprKind::App(_, args) = &g.kind { args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_))) } else { false }
                     }),
                     _ => false,
                 };
@@ -8323,7 +8323,7 @@ impl RustCodegen {
     fn prolog_rules_value_type(rules: &[&Rule]) -> Option<String> {
         for r in rules {
             if let Rule::Clause { body: Some(body), .. } = r {
-                match body {
+                match &body.kind {
                     ExprKind::Lit(lit) => match lit {
                         Literal::Str(_) => return Some("String".to_string()),
                         Literal::Int(_) => return Some("i64".to_string()),
@@ -8333,7 +8333,7 @@ impl RustCodegen {
                     },
                     ExprKind::App(func, _) => {
                         // Constructor call → return the type name
-                        if let ExprKind::Var(name) = func.as_ref() {
+                        if let ExprKind::Var(name) = &func.as_ref().kind {
                             if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
                                 return Some(name.clone());
                             }
@@ -8354,7 +8354,7 @@ impl RustCodegen {
                 Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
                 _ => return None,
             };
-            if let ExprKind::App(_, args) = head { Some(args.len()) } else { Some(0) }
+            if let ExprKind::App(_, args) = &head.kind { Some(args.len()) } else { Some(0) }
         }).max().unwrap_or(0)
     }
 
@@ -8382,7 +8382,7 @@ impl RustCodegen {
 
     /// Get function name from an Expr (non-recursive through App)
     fn expr_fn_name(expr: &Expr) -> String {
-        match expr {
+        match &expr.kind {
             ExprKind::App(f, _) => Self::expr_fn_name(f),
             ExprKind::Var(name) => name.clone(),
             _ => "?".into(),
@@ -8391,7 +8391,7 @@ impl RustCodegen {
 
     /// Emit an expression, but string literals stay as &str (no .to_string()) when target is a Prolog fn
     fn emit_prolog_arg(&mut self, a: &Expr) -> String {
-        if let ExprKind::Lit(Literal::Str(s)) = a {
+        if let ExprKind::Lit(Literal::Str(s)) = &a.kind {
             format!("{:?}", s) // &str literal, no .to_string()
         } else {
             self.emit_expr(a)
@@ -8407,9 +8407,9 @@ impl RustCodegen {
         let mut param_types: Vec<&str> = vec!["String"; arity];
         for r in rules {
             if let Rule::Clause { head, .. } = r {
-                if let ExprKind::App(_, args) = head {
+                if let ExprKind::App(_, args) = &head.kind {
                     for (i, arg) in args.iter().enumerate() {
-                        if let ExprKind::Lit(lit) = arg {
+                        if let ExprKind::Lit(lit) = &arg.kind {
                             param_types[i] = Self::literal_rust_type(lit);
                         }
                     }
@@ -8432,10 +8432,10 @@ impl RustCodegen {
         // Collect bare facts (clauses with no body, all-literal heads)
         let facts: Vec<Vec<String>> = rules.iter().filter_map(|r| {
             if let Rule::Clause { head, body: None } = r {
-                if let ExprKind::App(_, args) = head {
-                    if args.iter().all(|a| matches!(a, ExprKind::Lit(_))) {
+                if let ExprKind::App(_, args) = &head.kind {
+                    if args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
                         let vals: Vec<String> = args.iter().map(|a| {
-                            if let ExprKind::Lit(lit) = a { Self::emit_literal_value(lit) } else { "?".into() }
+                            if let ExprKind::Lit(lit) = &a.kind { Self::emit_literal_value(lit) } else { "?".into() }
                         }).collect();
                         return Some(vals);
                     }
@@ -8474,20 +8474,20 @@ impl RustCodegen {
         // Emit rules with bodies (conjunction / backtracking)
         for r in rules {
             if let Rule::Clause { head, body: Some(body) } = r {
-                if let ExprKind::App(_, head_args) = head {
+                if let ExprKind::App(_, head_args) = &head.kind {
                     // Map head variable names to parameter positions
                     let head_vars: Vec<(String, usize)> = head_args.iter().enumerate().filter_map(|(i, a)| {
-                        if let ExprKind::Var(name) = a { Some((name.clone(), i)) } else { None }
+                        if let ExprKind::Var(name) = &a.kind { Some((name.clone(), i)) } else { None }
                     }).collect();
 
-                    if let ExprKind::Conjunction(goals) = body {
+                    if let ExprKind::Conjunction(goals) = &body.kind {
                         // Find existential variables (in goals but not in head)
                         let head_var_names: std::collections::BTreeSet<String> = head_vars.iter().map(|(n, _)| n.clone()).collect();
 
                         let has_existential = goals.iter().any(|g| {
-                            if let ExprKind::App(_, gargs) = g {
+                            if let ExprKind::App(_, gargs) = &g.kind {
                                 gargs.iter().any(|a| {
-                                    if let ExprKind::Var(name) = a { !head_var_names.contains(name) } else { false }
+                                    if let ExprKind::Var(name) = &a.kind { !head_var_names.contains(name) } else { false }
                                 })
                             } else { false }
                         });
@@ -8495,13 +8495,13 @@ impl RustCodegen {
                         if has_existential {
                             // Existential search: iterate over fact table of the first goal
                             let first_goal = &goals[0];
-                            if let ExprKind::App(func, goal_args) = first_goal {
+                            if let ExprKind::App(func, goal_args) = &first_goal.kind {
                                 let goal_fn = Self::expr_fn_name(func);
                                 let source_table = format!("{}_FACTS", sanitize_name(&goal_fn).to_uppercase());
 
                                 out.push_str(&format!("    for fact in {}.iter() {{\n", source_table));
                                 for (gi, ga) in goal_args.iter().enumerate() {
-                                    if let ExprKind::Var(name) = ga {
+                                    if let ExprKind::Var(name) = &ga.kind {
                                         if let Some((_, idx)) = head_vars.iter().find(|(n, _)| n == name) {
                                             // Bound from head — check match
                                             out.push_str(&format!("        if fact.{} != {} {{ continue; }}\n", gi, param_names[*idx]));
@@ -8513,10 +8513,10 @@ impl RustCodegen {
                                 }
                                 // Check remaining goals
                                 let remaining: Vec<String> = goals[1..].iter().map(|goal| {
-                                    if let ExprKind::App(func, goal_args) = goal {
+                                    if let ExprKind::App(func, goal_args) = &goal.kind {
                                         let gfn = Self::expr_fn_name(func);
                                         let gargs: Vec<String> = goal_args.iter().map(|a| {
-                                            if let ExprKind::Var(name) = a {
+                                            if let ExprKind::Var(name) = &a.kind {
                                                 if let Some((_, idx)) = head_vars.iter().find(|(n, _)| n == name) {
                                                     param_names[*idx].clone()
                                                 } else { sanitize_name(name) }
@@ -8536,10 +8536,10 @@ impl RustCodegen {
                         } else {
                             // Simple conjunction: all vars bound
                             let cond_parts: Vec<String> = goals.iter().map(|goal| {
-                                if let ExprKind::App(func, goal_args) = goal {
+                                if let ExprKind::App(func, goal_args) = &goal.kind {
                                     let gfn = Self::expr_fn_name(func);
                                     let gargs: Vec<String> = goal_args.iter().map(|a| {
-                                        if let ExprKind::Var(name) = a {
+                                        if let ExprKind::Var(name) = &a.kind {
                                             if let Some((_, idx)) = head_vars.iter().find(|(n, _)| n == name) {
                                                 param_names[*idx].clone()
                                             } else { sanitize_name(name) }
@@ -8552,10 +8552,10 @@ impl RustCodegen {
                         }
                     } else {
                         // Simple non-conjunction body — emit as a call with proper arg substitution
-                        if let ExprKind::App(func, call_args) = body {
+                        if let ExprKind::App(func, call_args) = &body.kind {
                             let called_fn = Self::expr_fn_name(func);
                             let gargs: Vec<String> = call_args.iter().map(|a| {
-                                if let ExprKind::Var(name) = a {
+                                if let ExprKind::Var(name) = &a.kind {
                                     if let Some((_, idx)) = head_vars.iter().find(|(n, _)| n == name) {
                                         param_names[*idx].clone()
                                     } else { sanitize_name(name) }
@@ -8611,18 +8611,18 @@ impl RustCodegen {
     /// Emit findall(template_var, goal) as a Rust expression.
     /// findall(c, parent("bob", c)) → iterate PARENT_FACTS, collect matching values.
     fn emit_findall(&mut self, template: &Expr, goal: &Expr) -> String {
-        let template_name = match template {
+        let template_name = match &template.kind {
             ExprKind::Var(name) => name.clone(),
             _ => return "vec![]".to_string(),
         };
 
-        if let ExprKind::App(func, goal_args) = goal {
+        if let ExprKind::App(func, goal_args) = &goal.kind {
             let fn_name = Self::expr_fn_name(func);
             let table = format!("{}_FACTS", sanitize_name(&fn_name).to_uppercase());
 
             // Find which position is the template variable
             let template_pos = goal_args.iter().position(|a| {
-                matches!(a, ExprKind::Var(n) if n == &template_name)
+                matches!(a.kind, ExprKind::Var(ref n) if n == &template_name)
             });
 
             if let Some(t_pos) = template_pos {
@@ -8645,7 +8645,7 @@ impl RustCodegen {
                 let mut filters = Vec::new();
                 for (i, a) in goal_args.iter().enumerate() {
                     if i == t_pos { continue; }
-                    if matches!(a, ExprKind::Var(n) if n == "_") { continue; }
+                    if matches!(a.kind, ExprKind::Var(ref n) if n == "_") { continue; }
                     let val = self.emit_prolog_arg(a);
                     if is_unary {
                         filters.push(format!("f == &{}", val));
@@ -8679,7 +8679,7 @@ impl RustCodegen {
 
     /// Collect all variable names referenced in an expression (for detecting free variable usage)
     fn collect_free_var_refs(expr: &Expr, refs: &mut BTreeSet<String>) {
-        match expr {
+        match &expr.kind {
             ExprKind::Var(name) => { refs.insert(name.clone()); }
             ExprKind::App(f, args) => {
                 Self::collect_free_var_refs(f, refs);
@@ -8737,11 +8737,11 @@ impl RustCodegen {
         // Collect value facts: clauses with all-literal heads and a literal body
         let value_facts: Vec<(Vec<String>, String)> = rules.iter().filter_map(|r| {
             if let Rule::Clause { head, body: Some(body) } = r {
-                if let ExprKind::App(_, args) = head {
-                    if args.iter().all(|a| matches!(a, ExprKind::Lit(_))) {
-                        if let ExprKind::Lit(lit) = body {
+                if let ExprKind::App(_, args) = &head.kind {
+                    if args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
+                        if let ExprKind::Lit(lit) = &body.kind {
                             let keys: Vec<String> = args.iter().map(|a| {
-                                if let ExprKind::Lit(l) = a { Self::emit_literal_value(l) } else { "?".into() }
+                                if let ExprKind::Lit(l) = &a.kind { Self::emit_literal_value(l) } else { "?".into() }
                             }).collect();
                             return Some((keys, Self::emit_literal_value(lit)));
                         }
@@ -8797,14 +8797,14 @@ impl RustCodegen {
         // Emit rules with variable heads (non-fact clauses that return values)
         for r in rules {
             if let Rule::Clause { head, body: Some(body) } = r {
-                if let ExprKind::App(_, head_args) = head {
+                if let ExprKind::App(_, head_args) = &head.kind {
                     // Skip all-literal heads (already in fact table)
-                    if head_args.iter().all(|a| matches!(a, ExprKind::Lit(_))) {
+                    if head_args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
                         continue;
                     }
                     let head_vars: Vec<(String, usize)> = head_args.iter().enumerate()
                         .filter_map(|(i, a)| {
-                            if let ExprKind::Var(name) = a { Some((name.clone(), i)) } else { None }
+                            if let ExprKind::Var(name) = &a.kind { Some((name.clone(), i)) } else { None }
                         }).collect();
 
                     let mut body_str = self.emit_expr(body);
@@ -8849,9 +8849,9 @@ impl RustCodegen {
                 Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
                 _ => return None,
             };
-            if let ExprKind::App(_, args) = head {
+            if let ExprKind::App(_, args) = &head.kind {
                 Some(args.iter().filter_map(|a| {
-                    if let ExprKind::Var(n) = a { Some(n.clone()) } else { None }
+                    if let ExprKind::Var(n) = &a.kind { Some(n.clone()) } else { None }
                 }).collect())
             } else {
                 Some(vec![])
@@ -9123,7 +9123,7 @@ impl RustCodegen {
                 count_var_uses(body, &mut self.var_use_counts);
                 count_consuming_uses_borrow_aware(body, &mut self.var_consuming_counts, &self.borrow_only_params, Some(name.as_str()), &params.iter().map(|p| p.name.as_str()).collect::<Vec<_>>());
                 // Detect accumulators (variables rebound inside for loops) in function body
-                if let ExprKind::Block(body_stmts) = body {
+                if let ExprKind::Block(body_stmts) = &body.kind {
                     let refs: Vec<&Stmt> = body_stmts.iter().collect();
                     collect_mutable_vars(&refs, &mut self.mutable_vars);
                     self.collect_inout_mutables_stmts(&refs);
@@ -9403,7 +9403,7 @@ impl RustCodegen {
                 let mut val_str = self.emit_expr(value);
                 // Clone when binding from a variable that has other consuming uses
                 // (= alias = original where original is used elsewhere → clone)
-                if let ExprKind::Var(src_name) = value {
+                if let ExprKind::Var(src_name) = &value.kind {
                     if !self.copy_vars.contains(src_name.as_str())
                         && !self.variant_parent.contains_key(src_name.as_str())
                     {
@@ -9426,10 +9426,10 @@ impl RustCodegen {
                 }
                 // Track actor handle variables: = c = spawn(counter, 0) → c maps to "counter"
                 if let Pat::Var(var_name) = pat {
-                    if let ExprKind::App(f, spawn_args) = value {
-                        if let ExprKind::Var(fn_name) = f.as_ref() {
+                    if let ExprKind::App(f, spawn_args) = &value.kind {
+                        if let ExprKind::Var(fn_name) = &f.as_ref().kind {
                             if fn_name == "spawn" && spawn_args.len() == 2 {
-                                if let ExprKind::Var(actor_name) = &spawn_args[0] {
+                                if let ExprKind::Var(actor_name) = &&spawn_args[0].kind {
                                     self.actor_handle_vars.insert(var_name.clone(), actor_name.clone());
                                 }
                             }
@@ -9447,12 +9447,12 @@ impl RustCodegen {
                 }
                 format!("{}let {}{} = {};\n", self.ind(), mutability, pat_str, val_str)
             }
-            Stmt::Expr(ExprKind::Effect(name, args)) if builtin_canonical(name) == "print" => {
+            Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if builtin_canonical(name) == "print" => {
                 self.emit_print(args, &self.ind())
             }
             // M13c: @ teardown("ScopeName") → drop scope guard + yield for cleanup
-            Stmt::Expr(ExprKind::Effect(name, args)) if name == "teardown" && self.has_async => {
-                if let Some(ExprKind::Lit(Literal::Str(scope_name))) = args.first() {
+            Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "teardown" && self.has_async => {
+                if let Some(Expr { kind: ExprKind::Lit(Literal::Str(scope_name)), .. }) = args.first() {
                     let mut out = String::new();
                     out.push_str(&format!("{}// teardown scope {}\n", self.ind(), scope_name));
                     out.push_str(&format!("{}drop(_scope_{});\n", self.ind(), scope_name));
@@ -9463,21 +9463,21 @@ impl RustCodegen {
                 }
             }
             // Sync teardown: no guard to drop, just emit a comment
-            Stmt::Expr(ExprKind::Effect(name, args)) if name == "teardown" && !self.has_async => {
-                if let Some(ExprKind::Lit(Literal::Str(scope_name))) = args.first() {
+            Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "teardown" && !self.has_async => {
+                if let Some(Expr { kind: ExprKind::Lit(Literal::Str(scope_name)), .. }) = args.first() {
                     format!("{}// teardown scope {} (sync — no guard)\n", self.ind(), scope_name)
                 } else {
                     format!("{}// teardown (unknown scope)\n", self.ind())
                 }
             }
             // M13c: @ complete(subject) → drop sender to close channel
-            Stmt::Expr(ExprKind::Effect(name, args)) if name == "complete" && self.has_async => {
-                if let Some(ExprKind::Var(subj)) = args.first() {
+            Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "complete" && self.has_async => {
+                if let Some(Expr { kind: ExprKind::Var(subj), .. }) = args.first() {
                     if self.subject_vars.contains(subj.as_str()) {
                         return format!("{}drop({});\n", self.ind(), subj);
                     }
                 }
-                format!("{}{};\n", self.ind(), self.emit_expr(&ExprKind::Effect(name.clone(), args.clone())))
+                format!("{}{};\n", self.ind(), self.emit_expr(&ExprKind::Effect(name.clone(), args.clone()).into()))
             }
             Stmt::Expr(expr) => {
                 format!("{}{};\n", self.ind(), self.emit_expr(expr))
@@ -9568,7 +9568,7 @@ impl RustCodegen {
             
             Stmt::StreamSub(expr, arms) => {
                 let mut iter_name = self.emit_expr(expr);
-                if let ExprKind::Var(name) = expr {
+                if let ExprKind::Var(name) = &expr.kind {
                     let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
                     if uses > 1 && !self.copy_vars.contains(name.as_str()) {
                         iter_name = format!("{}.clone()", iter_name);
@@ -9752,12 +9752,12 @@ impl RustCodegen {
 
             Stmt::For(var, iter_expr, body) => {
                 // M13c: async subscription — for x in subject spawns a subscriber task
-                let is_subject_iter = if let ExprKind::Var(name) = iter_expr {
+                let is_subject_iter = if let ExprKind::Var(name) = &iter_expr.kind {
                     self.has_async && self.subject_vars.contains(name.as_str())
                 } else { false };
 
                 if is_subject_iter {
-                    let iter_name = if let ExprKind::Var(n) = iter_expr { n.clone() } else { unreachable!() };
+                    let iter_name = if let ExprKind::Var(n) = &iter_expr.kind { n.clone() } else { unreachable!() };
                     self.sub_counter += 1;
                     let handle_name = format!("_sub_{}", self.sub_counter);
                     let mut out = String::new();
@@ -9783,7 +9783,7 @@ impl RustCodegen {
                 let mut iter_str = self.emit_expr(iter_expr);
                 // For-loop consumes the iterable via into_iter(). If the variable is used
                 // elsewhere (multi-use), we need to clone to avoid move errors.
-                if let ExprKind::Var(name) = iter_expr {
+                if let ExprKind::Var(name) = &iter_expr.kind {
                     let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
                     if uses > 1 && !self.copy_vars.contains(name.as_str()) {
                         iter_str = format!("{}.clone()", iter_str);
@@ -9802,7 +9802,7 @@ impl RustCodegen {
                 let mut out = String::new();
                 // When iterating over a borrowed param (&Vec), items are &T.
                 // Use `for &var` to auto-deref so the loop variable is T, not &T.
-                let is_borrowed_iter = if let ExprKind::Var(name) = iter_expr {
+                let is_borrowed_iter = if let ExprKind::Var(name) = &iter_expr.kind {
                     self.current_borrow_params.contains(name.as_str())
                 } else { false };
                 let loop_var = if is_borrowed_iter {
@@ -9832,7 +9832,7 @@ impl RustCodegen {
                 let m = self.emit_expr(msg);
                 // M13c: subject send emits broadcast send + yield for deterministic ordering
                 if self.has_async {
-                    let var_name = if let ExprKind::Var(n) = target { n.clone() } else { t.clone() };
+                    let var_name = if let ExprKind::Var(n) = &target.kind { n.clone() } else { t.clone() };
                     if self.subject_vars.contains(&var_name) {
                         let mut out = format!("{}let _ = {}.send({});\n", self.ind(), t, m);
                         out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
@@ -9846,7 +9846,7 @@ impl RustCodegen {
                     }
                 }
                 // Sync subject: push to Vec
-                let var_name = if let ExprKind::Var(n) = target { n.clone() } else { t.clone() };
+                let var_name = if let ExprKind::Var(n) = &target.kind { n.clone() } else { t.clone() };
                 if self.sync_subject_vars.contains(&var_name) {
                     return format!("{}{}.push({});\n", self.ind(), t, m);
                 }
@@ -9855,13 +9855,13 @@ impl RustCodegen {
             Stmt::StreamBind(name, expr) => {
                 // M13c: detect subject() calls → emit broadcast channel
                 if self.has_async {
-                    let is_subject = matches!(expr, ExprKind::App(f, _) if matches!(f.as_ref(), ExprKind::Var(n) if n == "subject"));
+                    let is_subject = matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"));
                     if is_subject {
                         self.subject_vars.insert(name.clone());
                         let mut out = String::new();
                         // Extract initial value if provided: subject(val) or subject()
                         // subject() → no initial, subject(val) → initial, subject(val, n) → initial + replay
-                        let initial_val = if let ExprKind::App(_, args) = expr {
+                        let initial_val = if let ExprKind::App(_, args) = &expr.kind {
                             if !args.is_empty() {
                                 Some(self.emit_expr(&args[0]))
                             } else {
@@ -9880,7 +9880,7 @@ impl RustCodegen {
                 }
                 // Sync mode: Vec-based stream binding
                 // Track sync subjects for Send (push) and field access (.count, .latest)
-                let is_subject = matches!(expr, ExprKind::App(f, _) if matches!(f.as_ref(), ExprKind::Var(n) if n == "subject"));
+                let is_subject = matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"));
                 if is_subject {
                     self.sync_subject_vars.insert(name.clone());
                 }
@@ -10122,19 +10122,19 @@ impl RustCodegen {
 
     /// Rewrite fn_name(self) calls to self.fn_name() for trait default bodies
     fn rewrite_self_calls(expr: &Expr) -> Expr {
-        match expr {
+        match &expr.kind {
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(fn_name) = func.as_ref() {
+                if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                     // Check if first arg is Var("self")
                     if args.len() >= 1 {
-                        if let ExprKind::Var(arg_name) = &args[0] {
+                        if let ExprKind::Var(arg_name) = &&args[0].kind {
                             if arg_name == "self" {
                                 // Rewrite: fn_name(self, ...) → self.fn_name(...)
                                 let remaining_args: Vec<Expr> = args[1..].iter().map(|a| Self::rewrite_self_calls(a)).collect();
                                 return ExprKind::App(
-                                    Box::new(ExprKind::Field(Box::new(ExprKind::Var("self".into())), fn_name.clone())),
+                                    Box::new(ExprKind::Field(Box::new(ExprKind::Var("self".into()).into()), fn_name.clone()).into()),
                                     remaining_args,
-                                );
+                                ).into();
                             }
                         }
                     }
@@ -10142,22 +10142,22 @@ impl RustCodegen {
                 ExprKind::App(
                     Box::new(Self::rewrite_self_calls(func)),
                     args.iter().map(|a| Self::rewrite_self_calls(a)).collect(),
-                )
+                ).into()
             }
             ExprKind::BinOp(op, l, r) => {
-                ExprKind::BinOp(op.clone(), Box::new(Self::rewrite_self_calls(l)), Box::new(Self::rewrite_self_calls(r)))
+                ExprKind::BinOp(op.clone(), Box::new(Self::rewrite_self_calls(l)), Box::new(Self::rewrite_self_calls(r))).into()
             }
             ExprKind::If(c, t, e) => {
-                ExprKind::If(Box::new(Self::rewrite_self_calls(c)), Box::new(Self::rewrite_self_calls(t)), Box::new(Self::rewrite_self_calls(e)))
+                ExprKind::If(Box::new(Self::rewrite_self_calls(c)), Box::new(Self::rewrite_self_calls(t)), Box::new(Self::rewrite_self_calls(e))).into()
             }
             ExprKind::Block(stmts) => {
                 ExprKind::Block(stmts.iter().map(|s| match s {
                     Stmt::Expr(e) => Stmt::Expr(Self::rewrite_self_calls(e)),
                     Stmt::Bind(p, t, e) => Stmt::Bind(p.clone(), t.clone(), Self::rewrite_self_calls(e)),
                     other => other.clone(),
-                }).collect())
+                }).collect()).into()
             }
-            other => other.clone(),
+            _ => expr.clone(),
         }
     }
 
@@ -10165,7 +10165,7 @@ impl RustCodegen {
     /// Returns true for Var("ModuleName") where ModuleName is a known module,
     /// or for Field(module_path, "SubModule") chains.
     fn is_module_path(&self, expr: &Expr) -> bool {
-        match expr {
+        match &expr.kind {
             ExprKind::Var(name) => self.known_modules.contains(name),
             ExprKind::Field(obj, _field) => self.is_module_path(obj),
             _ => false,
@@ -10174,7 +10174,7 @@ impl RustCodegen {
 
     /// M3b: Emit a module path with :: separators (App::Utils)
     fn emit_module_path(&mut self, expr: &Expr) -> String {
-        match expr {
+        match &expr.kind {
             ExprKind::Var(name) => sanitize_name(name),
             ExprKind::Field(obj, field) => {
                 format!("{}::{}", self.emit_module_path(obj), sanitize_name(field))
@@ -10186,7 +10186,7 @@ impl RustCodegen {
     /// Check if an expression is likely a Copy type (no clone needed)
     /// Conservative: only skip clone for literals
     fn is_copy_type_expr(&self, expr: &Expr) -> bool {
-        matches!(expr,
+        matches!(expr.kind,
             ExprKind::Lit(Literal::Int(_)) |
             ExprKind::Lit(Literal::Float(_)) |
             ExprKind::Lit(Literal::Bool(_)) |
@@ -10220,13 +10220,13 @@ impl RustCodegen {
     }
 
     fn collect_inout_mutables_expr(&mut self, expr: &Expr) {
-        match expr {
+        match &expr.kind {
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(fn_name) = func.as_ref() {
+                if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                     if let Some(flags) = self.inout_params.get(fn_name.as_str()).cloned() {
                         for (idx, arg) in args.iter().enumerate() {
                             if flags.get(idx).copied().unwrap_or(false) {
-                                if let ExprKind::Var(var_name) = arg {
+                                if let ExprKind::Var(var_name) = &arg.kind {
                                     self.mutable_vars.insert(var_name.clone());
                                 }
                             }
@@ -10255,12 +10255,12 @@ impl RustCodegen {
 
     /// Check if an expression involves float values (for safe div/mod — floats don't panic on /0)
     fn expr_is_float(&self, expr: &Expr) -> bool {
-        match expr {
+        match &expr.kind {
             ExprKind::Lit(Literal::Float(_)) => true,
             ExprKind::Var(name) => self.float_typed_vars.contains(name.as_str()),
             ExprKind::BinOp(_, lhs, rhs) => self.expr_is_float(lhs) || self.expr_is_float(rhs),
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     if matches!(name.as_str(), "to_float" | "sqrt" | "exp" | "ln" | "pow"
                         | "abs" | "round" | "floor" | "min_f" | "max_f" | "parse_float"
                         | "phi" | "mint" ) {
@@ -10280,11 +10280,11 @@ impl RustCodegen {
 
     /// Check if a variable is used as a tuple argument to fst/snd in an expression.
     fn expr_uses_as_tuple(expr: &Expr, var_name: &str) -> bool {
-        match expr {
+        match &expr.kind {
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(f) = func.as_ref() {
+                if let ExprKind::Var(f) = &func.as_ref().kind {
                     if (f == "fst" || f == "snd") && args.len() == 1 {
-                        if let ExprKind::Var(a) = &args[0] {
+                        if let ExprKind::Var(a) = &&args[0].kind {
                             if a == var_name { return true; }
                         }
                     }
@@ -10307,9 +10307,9 @@ impl RustCodegen {
     /// Collect all field names accessed on a given variable in an expression tree.
     /// e.g. for `w.temp > 35.0 && w.city == "X"`, calling with var_name="w" returns {"temp","city"}
     fn collect_field_accesses(&self, expr: &Expr, var_name: &str, fields: &mut BTreeSet<String>) {
-        match expr {
+        match &expr.kind {
             ExprKind::Field(obj, field) => {
-                if let ExprKind::Var(v) = obj.as_ref() {
+                if let ExprKind::Var(v) = &obj.as_ref().kind {
                     if v == var_name {
                         fields.insert(field.clone());
                     }
@@ -10413,24 +10413,24 @@ impl RustCodegen {
 
     /// Recursively check if `param` is used in a context that reveals its type.
     fn infer_param_type_from_expr_usage(&self, param: &str, expr: &Expr) -> Option<String> {
-        match expr {
+        match &expr.kind {
             ExprKind::BinOp(op, lhs, rhs) => {
                 let is_numeric_op = matches!(op.as_str(),
                     ">=" | "<=" | ">" | "<" | "+" | "-" | "*" | "/" | "%");
                 if is_numeric_op {
-                    let lhs_is_param = matches!(lhs.as_ref(), ExprKind::Var(n) if n == param);
-                    let rhs_is_param = matches!(rhs.as_ref(), ExprKind::Var(n) if n == param);
+                    let lhs_is_param = matches!(lhs.as_ref().kind, ExprKind::Var(ref n) if n == param);
+                    let rhs_is_param = matches!(rhs.as_ref().kind, ExprKind::Var(ref n) if n == param);
                     if lhs_is_param || rhs_is_param {
                         // Check the other operand for type hints
                         let other = if lhs_is_param { rhs } else { lhs };
-                        if let ExprKind::Lit(Literal::Float(_)) = other.as_ref() {
+                        if let ExprKind::Lit(Literal::Float(_)) = &other.as_ref().kind {
                             return Some("f64".to_string());
                         }
-                        if let ExprKind::Lit(Literal::Int(_)) = other.as_ref() {
+                        if let ExprKind::Lit(Literal::Int(_)) = &other.as_ref().kind {
                             return Some("i64".to_string());
                         }
                         // Check if the other side is a known literal binding
-                        if let ExprKind::Var(other_name) = other.as_ref() {
+                        if let ExprKind::Var(other_name) = &other.as_ref().kind {
                             if let Some((_, ty)) = self.literal_bindings.get(other_name) {
                                 return Some(ty.clone());
                             }
@@ -10445,10 +10445,10 @@ impl RustCodegen {
             }
             ExprKind::App(func, args) => {
                 // Check if param is passed to a known Prolog function → inherit that type
-                if let ExprKind::Var(fn_name) = func.as_ref() {
+                if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                     if let Some(fn_param_types) = self.prolog_rule_fns.get(fn_name.as_str()) {
                         for (i, a) in args.iter().enumerate() {
-                            if let ExprKind::Var(n) = a {
+                            if let ExprKind::Var(n) = &a.kind {
                                 if n == param && i < fn_param_types.len() {
                                     return Some(fn_param_types[i].clone());
                                 }
@@ -10479,12 +10479,12 @@ impl RustCodegen {
     /// Walk an expression tree looking for `param == Constructor` or `Constructor == param`.
     /// If the constructor's parent type is known, return it.
     fn infer_param_type_from_comparison(&self, param: &str, expr: &Expr) -> Option<String> {
-        match expr {
+        match &expr.kind {
             ExprKind::BinOp(op, lhs, rhs) if op == "==" || op == "!=" => {
                 // param == Constructor
-                if let ExprKind::Var(v) = lhs.as_ref() {
+                if let ExprKind::Var(v) = &lhs.as_ref().kind {
                     if v == param {
-                        if let ExprKind::Var(con) = rhs.as_ref() {
+                        if let ExprKind::Var(con) = &rhs.as_ref().kind {
                             if let Some(parent) = self.variant_parent.get(con.as_str()) {
                                 return Some(parent.clone());
                             }
@@ -10492,9 +10492,9 @@ impl RustCodegen {
                     }
                 }
                 // Constructor == param
-                if let ExprKind::Var(v) = rhs.as_ref() {
+                if let ExprKind::Var(v) = &rhs.as_ref().kind {
                     if v == param {
-                        if let ExprKind::Var(con) = lhs.as_ref() {
+                        if let ExprKind::Var(con) = &lhs.as_ref().kind {
                             if let Some(parent) = self.variant_parent.get(con.as_str()) {
                                 return Some(parent.clone());
                             }
@@ -10513,9 +10513,9 @@ impl RustCodegen {
 
     /// Walk an expression tree looking for `match param { Constructor(...) -> ... }` patterns.
     fn infer_param_type_from_match(&self, param: &str, expr: &Expr) -> Option<String> {
-        match expr {
+        match &expr.kind {
             ExprKind::Match(scrutinee, arms) => {
-                if let ExprKind::Var(v) = scrutinee.as_ref() {
+                if let ExprKind::Var(v) = &scrutinee.as_ref().kind {
                     if v == param {
                         for arm in arms {
                             let con_name = match &arm.pat {
@@ -10573,7 +10573,7 @@ impl RustCodegen {
 
     /// Infer a type from an expression (constructors, literals, variants)
     fn infer_type_from_expr(&self, expr: &Expr) -> Option<String> {
-        match expr {
+        match &expr.kind {
             ExprKind::Lit(lit) => match lit {
                 Literal::Str(_) => Some("String".to_string()),
                 Literal::Int(_) => Some("i64".to_string()),
@@ -10589,7 +10589,7 @@ impl RustCodegen {
                 None
             }
             ExprKind::App(func, _) => {
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     // Check if it's a known struct
                     if self.struct_types.contains(name.as_str()) {
                         return Some(name.clone());
@@ -10610,7 +10610,7 @@ impl RustCodegen {
 
     /// Check if an expression is purely arithmetic (uses *, +, -, /, % operators)
     fn expr_is_arithmetic(&self, expr: &Expr) -> bool {
-        match expr {
+        match &expr.kind {
             ExprKind::BinOp(op, _, _) => matches!(op.as_str(), "+" | "-" | "*" | "/" | "%"),
             ExprKind::Lit(Literal::Int(_)) | ExprKind::Lit(Literal::Float(_)) => true,
             ExprKind::Var(_) => true,
@@ -10620,7 +10620,7 @@ impl RustCodegen {
 
     /// Check if an expression involves string values (string literal or concat chain)
     fn expr_is_string(&self, expr: &Expr) -> bool {
-        match expr {
+        match &expr.kind {
             ExprKind::Lit(Literal::Str(_)) => true,
             ExprKind::Var(name) => {
                 // Known String-typed variable in current scope
@@ -10630,7 +10630,7 @@ impl RustCodegen {
                 self.expr_is_string(lhs) || self.expr_is_string(rhs)
             }
             ExprKind::App(func, _) => {
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     // Built-in string-returning functions
                     matches!(builtin_canonical(name.as_str()), "show" | "show_int" | "show_float" | "describe"
                         | "fizzbuzz" | "list_to_string" | "list_items" | "db_query_row")
@@ -10646,7 +10646,7 @@ impl RustCodegen {
 
     /// Collect all parts of a string concatenation chain as format! arguments
     fn collect_concat_parts(&mut self, expr: &Expr) -> Vec<String> {
-        match expr {
+        match &expr.kind {
             ExprKind::BinOp(op, lhs, rhs) if op == "+" && self.expr_is_string(expr) => {
                 let mut parts = self.collect_concat_parts(lhs);
                 parts.extend(self.collect_concat_parts(rhs));
@@ -10693,10 +10693,10 @@ impl RustCodegen {
     /// Returns true for: subject variables, and stream ops applied to async streams.
     fn is_async_stream_expr(&self, expr: &Expr) -> bool {
         if !self.has_async { return false; }
-        match expr {
+        match &expr.kind {
             ExprKind::Var(name) => self.subject_vars.contains(name.as_str()),
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     let stream_ops = ["map", "filter", "scan", "take", "skip", "tap",
                                       "merge", "start_with", "concat"];
                     if stream_ops.contains(&name.as_str()) && !args.is_empty() {
@@ -10842,8 +10842,8 @@ impl RustCodegen {
 
     /// Check if an expression is a fusible Vec iterator operation (map, filter, take, skip, etc.)
     fn is_fusible_vec_op(expr: &Expr) -> bool {
-        if let ExprKind::App(func, args) = expr {
-            if let ExprKind::Var(name) = func.as_ref() {
+        if let ExprKind::App(func, args) = &expr.kind {
+            if let ExprKind::Var(name) = &func.as_ref().kind {
                 let fusible = ["map", "filter", "take", "skip", "flat_map", "take_while", "drop_while"];
                 return fusible.contains(&name.as_str()) && !args.is_empty();
             }
@@ -10868,8 +10868,8 @@ impl RustCodegen {
         chain.push((name, &args[1..]));
 
         let mut source = &args[0];
-        while let ExprKind::App(func, inner_args) = source {
-            if let ExprKind::Var(inner_name) = func.as_ref() {
+        while let ExprKind::App(func, inner_args) = &source.kind {
+            if let ExprKind::Var(inner_name) = &func.as_ref().kind {
                 if fusible.contains(&inner_name.as_str()) && !inner_args.is_empty()
                     && !self.user_functions.contains(inner_name.as_str()) {
                     chain.push((inner_name.as_str(), &inner_args[1..]));
@@ -10928,7 +10928,7 @@ impl RustCodegen {
     }
 
     fn emit_expr(&mut self, expr: &Expr) -> String {
-        match expr {
+        match &expr.kind {
             ExprKind::Var(name) => {
                 // Nullary constructor
                 if let Some(parent) = self.variant_parent.get(name.as_str()) {
@@ -10958,7 +10958,7 @@ impl RustCodegen {
             ExprKind::Lit(lit) => self.emit_literal(lit),
             ExprKind::App(func, args) => {
                 // resume(val) in effect handler body → just val (the return value)
-                if matches!(func.as_ref(), ExprKind::Var(n) if n == "resume") {
+                if matches!(func.as_ref().kind, ExprKind::Var(ref n) if n == "resume") {
                     return if let Some(arg) = args.first() {
                         self.emit_expr(arg)
                     } else {
@@ -10966,12 +10966,12 @@ impl RustCodegen {
                     };
                 }
                 // Phase 1b: Check if this is a borrow-builtin BEFORE processing args
-                let is_borrow_call = matches!(func.as_ref(), ExprKind::Var(n) if builtin_canonical(n) == "show");
+                let is_borrow_call = matches!(func.as_ref().kind, ExprKind::Var(ref n) if builtin_canonical(n) == "show");
                 // Method calls: string literal args stay as &str (no .to_string())
-                let is_method_call = matches!(func.as_ref(), ExprKind::Field(..));
+                let is_method_call = matches!(func.as_ref().kind, ExprKind::Field(..));
 
                 // Extract the function name (for Var or module-qualified Field access)
-                let resolved_fn_name: Option<&str> = match func.as_ref() {
+                let resolved_fn_name: Option<&str> = match &func.as_ref().kind {
                     ExprKind::Var(fn_name) => Some(fn_name.as_str()),
                     // M3b: Module.func() — look up func's borrow/inout params
                     ExprKind::Field(_obj, fn_name) => Some(fn_name.as_str()),
@@ -10995,7 +10995,7 @@ impl RustCodegen {
                     // inout parameter: emit &mut var (no clone — passed by mutable reference)
                     let is_inout = inout_flags.as_ref().map(|f| f.get(idx).copied().unwrap_or(false)).unwrap_or(false);
                     if is_inout {
-                        if let ExprKind::Var(n) = a {
+                        if let ExprKind::Var(n) = &a.kind {
                             // Copy-on-write: shared + inout → Arc::make_mut
                             let is_cow = resolved_fn_name
                                 .and_then(|fn_n| self.cow_params.get(fn_n))
@@ -11012,7 +11012,7 @@ impl RustCodegen {
                     // Phase 3b: If the arg variable is already a borrowed param (&T), don't double-borrow
                     let is_borrow_param = borrow_flags.as_ref().map(|f| f.get(idx).copied().unwrap_or(false)).unwrap_or(false);
                     if is_borrow_param {
-                        if let ExprKind::Var(n) = a {
+                        if let ExprKind::Var(n) = &a.kind {
                             if self.current_borrow_params.contains(n.as_str()) {
                                 return self.emit_expr(a); // already &T, don't emit &&T
                             }
@@ -11022,7 +11022,7 @@ impl RustCodegen {
                     }
 
                     let s = if is_method_call || is_prolog_call {
-                        if let ExprKind::Lit(Literal::Str(ref str_val)) = a {
+                        if let ExprKind::Lit(Literal::Str(ref str_val)) = &a.kind {
                             format!("{:?}", str_val) // &str, no .to_string()
                         } else if is_prolog_call {
                             // Prolog functions take &str; variables may be String — coerce with &*
@@ -11032,7 +11032,7 @@ impl RustCodegen {
                                 .and_then(|types| types.get(idx))
                                 .map(|t| t == "&str")
                                 .unwrap_or(false);
-                            if param_is_str && matches!(a, ExprKind::Var(n) if n != "_") {
+                            if param_is_str && matches!(a.kind, ExprKind::Var(ref n) if n != "_") {
                                 format!("&*{}", base)
                             } else {
                                 base
@@ -11049,7 +11049,7 @@ impl RustCodegen {
                     // 3. Borrow builtins (show → .to_string()): never clone (borrows via &self)
                     // 4. Single consuming use: move (no clone)
                     // 5. Multiple consuming uses: clone
-                    if let ExprKind::Var(n) = a {
+                    if let ExprKind::Var(n) = &a.kind {
                         if self.variant_parent.contains_key(n.as_str()) {
                             s // Constructor — never clone
                         } else if self.copy_vars.contains(n.as_str()) {
@@ -11065,7 +11065,7 @@ impl RustCodegen {
                         s
                     }
                 }).collect();
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     // Builtin: show(x) — Display for strings, Debug for everything else
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
                     if builtin_canonical(name) == "show" && args_str.len() == 1 {
@@ -11087,12 +11087,12 @@ impl RustCodegen {
                     }
                     // Prolog wildcard calls: fn(x, _) → inline fact table scan
                     if self.prolog_rule_fns.contains_key(name.as_str()) {
-                        let has_wildcard = args.iter().any(|a| matches!(a, ExprKind::Var(n) if n == "_"));
+                        let has_wildcard = args.iter().any(|a| matches!(a.kind, ExprKind::Var(ref n) if n == "_"));
                         if has_wildcard {
                             let table = format!("{}_FACTS", sanitize_name(name).to_uppercase());
                             let checks: Vec<String> = args.iter().enumerate()
                                 .filter_map(|(i, a)| {
-                                    if matches!(a, ExprKind::Var(n) if n == "_") { None }
+                                    if matches!(a.kind, ExprKind::Var(ref n) if n == "_") { None }
                                     else { Some(format!("f.{} == {}", i, args_str[i])) }
                                 }).collect();
                             if checks.is_empty() {
@@ -11115,7 +11115,7 @@ impl RustCodegen {
                     if (name == "filter" || name == "map") && args.len() == 2
                         && !self.user_functions.contains(name.as_str())
                     {
-                        if let ExprKind::Lambda(params, body) = &args[1] {
+                        if let ExprKind::Lambda(params, body) = &&args[1].kind {
                             let coll = self.emit_expr(&args[0]);
                             let param = if params.is_empty() { "_x".to_string() } else { sanitize_name(&params[0].name) };
                             let body_code = self.emit_expr(body);
@@ -11149,7 +11149,7 @@ impl RustCodegen {
                         }
                         // map with function name (not lambda): wrap to handle borrow
                         if name == "map" {
-                            if let ExprKind::Var(fn_name) = &args[1] {
+                            if let ExprKind::Var(fn_name) = &&args[1].kind {
                                 let coll = self.emit_expr(&args[0]);
                                 let f = sanitize_name(fn_name);
                                 let borrows = self.borrow_only_params.get(fn_name.as_str())
@@ -11166,7 +11166,7 @@ impl RustCodegen {
                     if name == "sort_by" && args.len() == 2
                         && !self.user_functions.contains(name.as_str())
                     {
-                        if let ExprKind::Lambda(sort_params, sort_body) = &args[1] {
+                        if let ExprKind::Lambda(sort_params, sort_body) = &&args[1].kind {
                             let coll = self.emit_expr(&args[0]);
                             let sp = if sort_params.is_empty() { "__e".to_string() } else { sanitize_name(&sort_params[0].name) };
                             let saved_copy = self.copy_vars.clone();
@@ -11182,7 +11182,7 @@ impl RustCodegen {
                     if name == "foldl" && args.len() == 3
                         && !self.user_functions.contains(name.as_str())
                     {
-                        if let ExprKind::Lambda(params, body) = &args[2] {
+                        if let ExprKind::Lambda(params, body) = &&args[2].kind {
                             let init_is_float = self.expr_is_float(&args[1]);
                             if init_is_float && params.len() == 2
                                 && params[0].ty.is_none() && params[1].ty.is_none()
@@ -11211,7 +11211,7 @@ impl RustCodegen {
                     }
                     // Custom builtins that need runtime state beyond templates
                     if name == "push" && args_str.len() == 2 {
-                        let is_mutable_target = if let ExprKind::Var(vn) = &args[0] {
+                        let is_mutable_target = if let ExprKind::Var(vn) = &args[0].kind {
                             self.mutable_vars.contains(vn.as_str())
                         } else { false };
                         if is_mutable_target {
@@ -11227,12 +11227,12 @@ impl RustCodegen {
                         }
                     }
                     if name == "spawn" && args.len() == 2 {
-                        let actor_name = if let ExprKind::Var(n) = &args[0] { sanitize_name(n) } else { args_str[0].clone() };
+                        let actor_name = if let ExprKind::Var(n) = &args[0].kind { sanitize_name(n) } else { args_str[0].clone() };
                         let init_val = &args_str[1];
                         return format!("{}_spawn({})", actor_name, init_val);
                     }
                     if name == "ask" && args.len() == 2 {
-                        let handle_name = if let ExprKind::Var(n) = &args[0] { n.clone() } else { args_str[0].clone() };
+                        let handle_name = if let ExprKind::Var(n) = &args[0].kind { n.clone() } else { args_str[0].clone() };
                         let actor_name = self.actor_handle_vars.get(&handle_name)
                             .map(|n| sanitize_name(n))
                             .unwrap_or_else(|| handle_name.clone());
@@ -11241,7 +11241,7 @@ impl RustCodegen {
                     }
                     if name == "as_stream" && args_str.len() == 1 {
                         if self.has_async {
-                            let arg_name = if let ExprKind::Var(n) = &args[0] { n.as_str() } else { "" };
+                            let arg_name = if let ExprKind::Var(n) = &args[0].kind { n.as_str() } else { "" };
                             if self.subject_vars.contains(arg_name) {
                                 return format!("{}.subscribe()", args_str[0]);
                             }
@@ -11285,7 +11285,7 @@ impl RustCodegen {
                 }
 
                 // Effect operation routing: if calling an effect op, dispatch through handler
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     // Check if this is a direct effect operation (say, ask, etc.)
                     for eff in &self.current_effects {
                         if let Some(ops) = self.effect_ops.get(eff.as_str()) {
@@ -11318,7 +11318,7 @@ impl RustCodegen {
 
                 // FnMut nested call fix: f(f(x)) needs temporaries to avoid
                 // double mutable borrow. Pre-bind inner calls to temps.
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     let needs_temp = args.iter().any(|a| Self::expr_calls_var(a, name));
                     if needs_temp {
                         let mut parts = Vec::new();
@@ -11342,7 +11342,7 @@ impl RustCodegen {
                 let f = self.emit_expr(func);
                 let call = format!("{}({})", f, args_str.join(", "));
                 // Value-returning Prolog functions return Option<T> — unwrap at call site
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     if self.prolog_value_fns.contains_key(name.as_str()) {
                         return format!("{}.unwrap()", call);
                     }
@@ -11458,24 +11458,24 @@ impl RustCodegen {
                 let is_comparison = op == "==" || op == "!=" || op == "=";
                 // For comparisons with string literals, emit &str (no .to_string())
                 // so that &String == &str works via Deref coercion
-                let mut l = if is_comparison && matches!(lhs.as_ref(), ExprKind::Lit(Literal::Str(_))) {
-                    if let ExprKind::Lit(Literal::Str(s)) = lhs.as_ref() {
+                let mut l = if is_comparison && matches!(lhs.as_ref().kind, ExprKind::Lit(Literal::Str(_))) {
+                    if let ExprKind::Lit(Literal::Str(s)) = &lhs.as_ref().kind {
                         format!("{:?}", s) // &str, no .to_string()
                     } else { self.emit_expr(lhs) }
                 } else { self.emit_expr(lhs) };
-                let mut r = if is_comparison && matches!(rhs.as_ref(), ExprKind::Lit(Literal::Str(_))) {
-                    if let ExprKind::Lit(Literal::Str(s)) = rhs.as_ref() {
+                let mut r = if is_comparison && matches!(rhs.as_ref().kind, ExprKind::Lit(Literal::Str(_))) {
+                    if let ExprKind::Lit(Literal::Str(s)) = &rhs.as_ref().kind {
                         format!("{:?}", s) // &str, no .to_string()
                     } else { self.emit_expr(rhs) }
                 } else { self.emit_expr(rhs) };
                 // Deref borrowed params in comparisons: &T == T → *param == T
                 if is_comparison {
-                    if let ExprKind::Var(n) = lhs.as_ref() {
+                    if let ExprKind::Var(n) = &lhs.as_ref().kind {
                         if self.current_borrow_params.contains(n.as_str()) {
                             l = format!("*{}", l);
                         }
                     }
-                    if let ExprKind::Var(n) = rhs.as_ref() {
+                    if let ExprKind::Var(n) = &rhs.as_ref().kind {
                         if self.current_borrow_params.contains(n.as_str()) {
                             r = format!("*{}", r);
                         }
@@ -11580,7 +11580,7 @@ impl RustCodegen {
                         Stmt::Expr(expr) if is_last => {
                             out.push_str(&format!("{}{}\n", prefix, self.emit_expr(expr)));
                         }
-                        Stmt::Expr(ExprKind::Effect(name, args)) if name == "print" => {
+                        Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "print" => {
                             out.push_str(&self.emit_print(args, &prefix));
                         }
                         Stmt::Expr(expr) => {
@@ -11605,7 +11605,7 @@ impl RustCodegen {
             }
             ExprKind::Field(obj, field) => {
                 // Sync subject field access: subject.count → subject.len(), subject.latest → subject.last().cloned().unwrap()
-                if let ExprKind::Var(var_name) = obj.as_ref() {
+                if let ExprKind::Var(var_name) = &obj.as_ref().kind {
                     if self.sync_subject_vars.contains(var_name.as_str()) {
                         let obj_str = self.emit_expr(obj);
                         match field.as_str() {
@@ -11616,14 +11616,14 @@ impl RustCodegen {
                     }
                 }
                 // Scope-qualified access: ScopeName.field → field (local variable)
-                if let ExprKind::Var(scope_name) = obj.as_ref() {
+                if let ExprKind::Var(scope_name) = &obj.as_ref().kind {
                     if self.scope_bindings.contains_key(scope_name.as_str()) {
                         return sanitize_name(field);
                     }
                 }
                 // Nested scope access: Outer.Inner.field → field
-                if let ExprKind::Field(outer, inner_scope) = obj.as_ref() {
-                    if let ExprKind::Var(scope_name) = outer.as_ref() {
+                if let ExprKind::Field(outer, inner_scope) = &obj.as_ref().kind {
+                    if let ExprKind::Var(scope_name) = &outer.as_ref().kind {
                         if self.scope_bindings.contains_key(scope_name.as_str()) {
                             return sanitize_name(field);
                         }
@@ -11647,7 +11647,7 @@ impl RustCodegen {
                     if !matches.is_empty() {
                         let mut obj_str = self.emit_expr(obj);
                         // If the object is itself a boxed field access, we need to deref it
-                        if let ExprKind::Field(_, inner_field) = obj.as_ref() {
+                        if let ExprKind::Field(_, inner_field) = &obj.as_ref().kind {
                             if let Some((iv, _ip)) = self.find_variant_field(inner_field) {
                                 if self.is_field_boxed(&iv, inner_field) {
                                     obj_str = format!("*{}", obj_str);
@@ -11676,7 +11676,7 @@ impl RustCodegen {
                 }
                 // Non-Copy field access on borrowed param: p.name on &Person needs .clone()
                 // because moving a String out of &T is not allowed
-                let needs_clone = if let ExprKind::Var(var_name) = obj.as_ref() {
+                let needs_clone = if let ExprKind::Var(var_name) = &obj.as_ref().kind {
                     if self.current_borrow_params.contains(var_name.as_str()) {
                         // Check if this field's type is non-Copy in any variant_field_types
                         let field_is_copy = self.variant_field_types.iter().any(|(_, ft)| {
@@ -11712,7 +11712,7 @@ impl RustCodegen {
                 let items: Vec<String> = elems.iter().map(|e| {
                     let s = self.emit_expr(e);
                     // Auto-clone variables with multiple consuming uses (same logic as fn args)
-                    if let ExprKind::Var(n) = e {
+                    if let ExprKind::Var(n) = &e.kind {
                         if !self.variant_parent.contains_key(n.as_str())
                             && !self.copy_vars.contains(n.as_str())
                             && self.var_consuming_counts.get(n.as_str()).copied().unwrap_or(0) > 1
@@ -11746,7 +11746,7 @@ impl RustCodegen {
                         "{ let mut __s = String::new(); std::io::stdin().read_line(&mut __s).unwrap(); __s.trim().to_string() }".to_string()
                     }
                     _ if self.builtin_registry.contains_key(name.as_str()) => {
-                        let app = ExprKind::App(Box::new(ExprKind::Var(name.clone())), args.clone());
+                        let app = ExprKind::App(Box::new(ExprKind::Var(name.clone()).into()), args.clone()).into();
                         self.emit_expr(&app)
                     }
                     _ => {
@@ -11760,13 +11760,13 @@ impl RustCodegen {
             }
             ExprKind::Pipe(input, transform) => {
                 // Desugar Pipe to App in codegen: a |> f → f(a), a |> f(y) → f(a, y)
-                let desugared = match transform.as_ref() {
+                let desugared: Expr = match &transform.as_ref().kind {
                     ExprKind::App(func, existing_args) => {
                         let mut new_args = vec![input.as_ref().clone()];
                         new_args.extend(existing_args.iter().cloned());
-                        ExprKind::App(func.clone(), new_args)
+                        ExprKind::App(func.clone(), new_args).into()
                     }
-                    other => ExprKind::App(Box::new(other.clone()), vec![input.as_ref().clone()]),
+                    _ => ExprKind::App(Box::new(transform.as_ref().clone()), vec![input.as_ref().clone()]).into(),
                 };
                 self.emit_expr(&desugared)
             }
@@ -11912,7 +11912,7 @@ impl RustCodegen {
         let arg = &args[0];
         // If the argument is a string concat, decompose into println! format args directly
         if self.expr_is_string(arg) {
-            if let ExprKind::BinOp(op, _, _) = arg {
+            if let ExprKind::BinOp(op, _, _) = &arg.kind {
                 if op == "+" {
                     let parts = self.collect_concat_parts(arg);
                     let mut fmt_str = String::new();
@@ -11940,9 +11940,9 @@ impl RustCodegen {
     /// Emit the body of an effect handler — replace resume(val) with just val
     /// Check if an expression contains a call to the named variable
     fn expr_calls_var(expr: &Expr, var_name: &str) -> bool {
-        match expr {
+        match &expr.kind {
             ExprKind::App(func, args) => {
-                if matches!(func.as_ref(), ExprKind::Var(n) if n == var_name) {
+                if matches!(func.as_ref().kind, ExprKind::Var(ref n) if n == var_name) {
                     return true;
                 }
                 Self::expr_calls_var(func, var_name)
@@ -11967,8 +11967,8 @@ impl RustCodegen {
     }
 
     fn emit_handle_body(&mut self, expr: &Expr) -> String {
-        match expr {
-            ExprKind::App(func, args) if matches!(**func, ExprKind::Var(ref n) if n == "resume") => {
+        match &expr.kind {
+            ExprKind::App(func, args) if matches!(func.kind, ExprKind::Var(ref n) if n == "resume") => {
                 // resume(val) → just emit val (it's the return value)
                 if let Some(arg) = args.first() {
                     self.emit_expr(arg)
@@ -12030,7 +12030,7 @@ impl RustCodegen {
 
     /// Infer the Rust type of an expression (best-effort, for handler capture).
     fn infer_expr_type(expr: &Expr) -> Option<String> {
-        match expr {
+        match &expr.kind {
             ExprKind::Lit(Literal::Int(_)) => Some("i64".to_string()),
             ExprKind::Lit(Literal::Float(_)) => Some("f64".to_string()),
             ExprKind::Lit(Literal::Str(_)) => Some("String".to_string()),
@@ -12064,7 +12064,7 @@ impl RustCodegen {
         let all_ops: BTreeSet<&str> = effect_ops.values()
             .flat_map(|ops| ops.iter().map(|s| s.as_str())).collect();
 
-        match expr {
+        match &expr.kind {
             ExprKind::Var(name) => {
                 if !bound.contains(name)
                     && !builtins.contains(name.as_str())
@@ -12214,9 +12214,9 @@ impl RustCodegen {
         calls: &mut Vec<String>,
         impure: &mut bool,
     ) {
-        match expr {
+        match &expr.kind {
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     if effect_ops.contains(name) {
                         *impure = true;
                     }
@@ -12297,9 +12297,9 @@ impl RustCodegen {
         interp: &mut Interpreter,
         env: &Env,
     ) -> Option<Value> {
-        match expr {
+        match &expr.kind {
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     // Function must be pure
                     if !pure_fns.contains(name) { return None; }
                     // All args must be literals or known comptime values
@@ -12346,7 +12346,7 @@ impl RustCodegen {
 
     /// Check if an expression is a compile-time known value (literal or comptime binding).
     fn is_comptime_arg(expr: &Expr, comptime_values: &BTreeMap<String, String>) -> bool {
-        match expr {
+        match &expr.kind {
             ExprKind::Lit(_) => true,
             ExprKind::Var(name) => comptime_values.contains_key(name),
             ExprKind::BinOp(_, l, r) => {
@@ -12367,7 +12367,7 @@ impl RustCodegen {
         fn_effects: &BTreeMap<String, Vec<String>>,
     ) -> BTreeSet<String> {
         let mut effects = BTreeSet::new();
-        match expr {
+        match &expr.kind {
             ExprKind::Var(name) => {
                 if let Some(eff) = op_to_effect.get(name.as_str()) {
                     if !handled.contains(eff) {
@@ -12376,7 +12376,7 @@ impl RustCodegen {
                 }
             }
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     // Direct effect op call
                     if let Some(eff) = op_to_effect.get(name.as_str()) {
                         if !handled.contains(eff) {
@@ -12497,7 +12497,7 @@ impl RustCodegen {
 
     /// Emit an if/else branch: unwrap single-expression blocks to avoid double braces
     fn emit_if_branch(&mut self, expr: &Expr) -> String {
-        match expr {
+        match &expr.kind {
             ExprKind::Block(stmts) if stmts.len() == 1 => {
                 if let Stmt::Expr(inner) = &stmts[0] {
                     return self.emit_expr(inner);
@@ -12509,7 +12509,7 @@ impl RustCodegen {
     }
 
     fn emit_expr_as_return(&mut self, expr: &Expr) -> String {
-        match expr {
+        match &expr.kind {
             ExprKind::Block(stmts) => {
                 let mut out = String::new();
                 for (i, stmt) in stmts.iter().enumerate() {
@@ -12541,7 +12541,7 @@ impl RustCodegen {
                         Stmt::Expr(expr) if is_last => {
                             out.push_str(&format!("{}{}\n", self.ind(), self.emit_expr(expr)));
                         }
-                        Stmt::Expr(ExprKind::Effect(name, args)) if name == "print" => {
+                        Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "print" => {
                             out.push_str(&self.emit_print(args, &self.ind()));
                         }
                         Stmt::Expr(expr) => {
@@ -12615,8 +12615,8 @@ impl RustCodegen {
             .filter(|(idx, p)| !borrow_flags.get(*idx).copied().unwrap_or(false) && !p.inout)
             .map(|(_, p)| p.name.as_str())
             .collect();
-        match expr {
-            ExprKind::App(func, args) if matches!(func.as_ref(), ExprKind::Var(n) if n == fn_name) => {
+        match &expr.kind {
+            ExprKind::App(func, args) if matches!(func.as_ref().kind, ExprKind::Var(ref n) if n == fn_name) => {
                 // Self-call: emit temp assignments then reassign params + continue
                 let mut out = String::new();
                 // Compute all new values into temps first (simultaneous assignment)
@@ -12691,7 +12691,7 @@ impl RustCodegen {
                             // Last expression: recurse into TCE
                             out.push_str(&self.emit_tce_expr(fn_name, params, borrow_flags, expr));
                         }
-                        Stmt::Expr(ExprKind::Effect(name, args)) if name == "print" => {
+                        Stmt::Expr(Expr { kind: ExprKind::Effect(name, args), .. }) if name == "print" => {
                             out.push_str(&self.emit_print(args, &ind));
                         }
                         Stmt::Expr(expr) => {
@@ -12778,8 +12778,8 @@ impl RustCodegen {
 
     /// Check if a monadic bind value is an effect operation call (no ? needed)
     fn is_effect_op_call(&self, value: &Expr) -> bool {
-        if let ExprKind::App(func, _) = value {
-            if let ExprKind::Var(op_name) = func.as_ref() {
+        if let ExprKind::App(func, _) = &value.kind {
+            if let ExprKind::Var(op_name) = &func.as_ref().kind {
                 return self.current_effects.iter().any(|eff| {
                     self.effect_ops.get(eff.as_str())
                         .map(|ops| ops.contains(op_name.as_str()))

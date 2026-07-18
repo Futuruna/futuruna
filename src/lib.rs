@@ -1453,10 +1453,38 @@ pub enum ExprKind {
     Unit,
 }
 
-/// Type alias: Expr = ExprKind during transition phase.
-/// Will become `struct Expr { kind: ExprKind, span: Span }` once all
-/// match sites are updated to use ExprKind:: variants.
-pub type Expr = ExprKind;
+/// Expression AST node: wraps ExprKind with source location.
+#[derive(Debug, Clone)]
+pub struct Expr {
+    pub kind: ExprKind,
+    pub span: Span,
+}
+
+impl Expr {
+    /// Create an Expr with a source span.
+    pub fn new(kind: ExprKind, span: Span) -> Self {
+        Expr { kind, span }
+    }
+
+    /// Shorthand for unspanned expressions (during migration).
+    pub fn unspanned(kind: ExprKind) -> Self {
+        Expr { kind, span: Span::dummy() }
+    }
+}
+
+/// Allow ExprKind to convert to Expr (with dummy span) during migration.
+impl From<ExprKind> for Expr {
+    fn from(kind: ExprKind) -> Self {
+        Expr::unspanned(kind)
+    }
+}
+
+/// Allow ExprKind to convert to Box<Expr> directly.
+impl From<ExprKind> for Box<Expr> {
+    fn from(kind: ExprKind) -> Self {
+        Box::new(Expr::unspanned(kind))
+    }
+}
 
 /// A single handler clause in a | handle expression
 #[derive(Debug, Clone)]
@@ -2034,7 +2062,7 @@ impl Parser {
                     if next_pos < self.tokens.len() && self.tokens[next_pos].kind == TokenKind::LBracket {
                         self.advance(); // consume ~
                         let list_expr = self.parse_atom()?; // parse the [...] list literal
-                        return Ok(Stmt::Expr(ExprKind::App(Box::new(ExprKind::Var("from_list".to_string())), vec![list_expr])));
+                        return Ok(Stmt::Expr(ExprKind::App(Box::new(ExprKind::Var("from_list".to_string()).into()), vec![list_expr]).into()));
                     }
                 }
 
@@ -2410,7 +2438,7 @@ impl Parser {
             effect,
             handlers,
             body: Box::new(body),
-        })
+        }.into())
     }
 
     // --- | Rule ---
@@ -2497,7 +2525,7 @@ impl Parser {
                     }
                     Ok(Stmt::Rule(Rule::Clause {
                         head,
-                        body: Some(ExprKind::Conjunction(goals)),
+                        body: Some(ExprKind::Conjunction(goals).into()),
                     }))
                 } else {
                     Ok(Stmt::Rule(Rule::Clause {
@@ -2859,18 +2887,18 @@ impl Parser {
         // Object store persistence (struct → JSON blob in SQLite)
         if name == "store" {
             let type_name = self.expect_ident()?;
-            let mut args: Vec<Expr> = vec![ExprKind::Var(type_name.clone())];
+            let mut args: Vec<Expr> = vec![ExprKind::Var(type_name.clone()).into()];
             // Check for optional `delete_on_change` flag
             if self.peek_kind() == TokenKind::Ident && self.peek().text == "delete_on_change" {
                 self.advance();
-                args.push(ExprKind::Var("delete_on_change".to_string()));
+                args.push(ExprKind::Var("delete_on_change".to_string()).into());
             }
             // Check for optional `in "scope"` clause
             if self.peek_kind() == TokenKind::KW && self.peek().text == "in" {
                 self.advance(); // consume `in`
                 if self.peek_kind() == TokenKind::String_ {
                     let scope = self.advance().text.clone();
-                    args.push(ExprKind::Lit(Literal::Str(scope)));
+                    args.push(ExprKind::Lit(Literal::Str(scope)).into());
                 } else {
                     let p = self.peek();
                     return Err(format!("{}:{}: expected scope string after `in`\n  Try: @ store {} in \"myapp\"", p.line, p.col, type_name));
@@ -2893,17 +2921,17 @@ impl Parser {
             if self.peek_kind() == TokenKind::LParen {
                 let _ = self.parse_arg_list()?; // consume empty parens
             }
-            return Ok(Stmt::Expr(ExprKind::Effect(name, vec![])));
+            return Ok(Stmt::Expr(ExprKind::Effect(name, vec![]).into()));
         }
 
         // If followed by ( it's an effect invocation: @ print("hello")
         if self.peek_kind() == TokenKind::LParen {
             let args = self.parse_arg_list()?;
-            Ok(Stmt::Expr(ExprKind::Effect(name, args)))
+            Ok(Stmt::Expr(ExprKind::Effect(name, args).into()))
         } else if name == "export" && self.peek_kind() == TokenKind::Ident {
             // Post-hoc export: `@ export add` — capture the name as arg
             let export_name = self.advance().text.clone();
-            Ok(Stmt::Annot(name, vec![ExprKind::Var(export_name)]))
+            Ok(Stmt::Annot(name, vec![ExprKind::Var(export_name).into()]))
         } else {
             // Pure annotation: @ test, @ pure, @ total
             Ok(Stmt::Annot(name, Vec::new()))
@@ -3384,7 +3412,7 @@ impl Parser {
                 // Postfix ? operator (try/error propagation) — must be before generic Op
                 TokenKind::Op if self.peek().text == "?" => {
                     self.advance();
-                    lhs = ExprKind::Try(Box::new(lhs));
+                    lhs = ExprKind::Try(Box::new(lhs)).into();
                 }
                 // Pipe-forward operator: x |> f — preserved as ExprKind::Pipe AST node
                 TokenKind::PipeGt => {
@@ -3392,7 +3420,7 @@ impl Parser {
                     if pipe_prec < min_prec { break; }
                     self.advance();
                     let rhs = self.parse_expr_prec(pipe_prec + 1)?;
-                    lhs = ExprKind::Pipe(Box::new(lhs), Box::new(rhs));
+                    lhs = ExprKind::Pipe(Box::new(lhs), Box::new(rhs)).into();
                 }
                 // Binary operators
                 TokenKind::Op => {
@@ -3401,7 +3429,7 @@ impl Parser {
                     if prec < min_prec { break; }
                     let op = self.advance().text;
                     let rhs = self.parse_expr_prec(prec + 1)?;
-                    lhs = ExprKind::BinOp(op, Box::new(lhs), Box::new(rhs));
+                    lhs = ExprKind::BinOp(op, Box::new(lhs), Box::new(rhs)).into();
                 }
                 // Safe call: expr?.field → match expr { Some(v) -> Some(v.field), None -> None }
                 TokenKind::SafeCall => {
@@ -3415,17 +3443,17 @@ impl Parser {
                                 pat: Pat::Con("Some".into(), vec![Pat::Var(v.clone())]),
                                 guard: None,
                                 body: ExprKind::App(
-                                    Box::new(ExprKind::Var("Some".into())),
-                                    vec![ExprKind::Field(Box::new(ExprKind::Var(v)), field)],
-                                ),
+                                    Box::new(ExprKind::Var("Some".into()).into()),
+                                    vec![ExprKind::Field(Box::new(ExprKind::Var(v).into()), field).into()],
+                                ).into(),
                             },
                             MatchArm {
                                 pat: Pat::Con("None".into(), vec![]),
                                 guard: None,
-                                body: ExprKind::Var("None".into()),
+                                body: ExprKind::Var("None".into()).into(),
                             },
                         ],
-                    );
+                    ).into();
                 }
                 // Elvis: expr ?: default → match expr { Some(v) -> v, None -> default }
                 TokenKind::Elvis => {
@@ -3440,7 +3468,7 @@ impl Parser {
                             MatchArm {
                                 pat: Pat::Con("Some".into(), vec![Pat::Var(v.clone())]),
                                 guard: None,
-                                body: ExprKind::Var(v),
+                                body: ExprKind::Var(v).into(),
                             },
                             MatchArm {
                                 pat: Pat::Con("None".into(), vec![]),
@@ -3448,25 +3476,25 @@ impl Parser {
                                 body: default,
                             },
                         ],
-                    );
+                    ).into();
                 }
                 // Field access: expr.field
                 TokenKind::Dot => {
                     self.advance();
                     let field = self.expect_ident()?;
-                    lhs = ExprKind::Field(Box::new(lhs), field);
+                    lhs = ExprKind::Field(Box::new(lhs), field).into();
                 }
                 // Function application: expr(args)
                 TokenKind::LParen => {
                     let args = self.parse_arg_list()?;
-                    lhs = ExprKind::App(Box::new(lhs), args);
+                    lhs = ExprKind::App(Box::new(lhs), args).into();
                 }
                 // Index: expr[idx]
                 TokenKind::LBracket => {
                     self.advance();
                     let idx = self.parse_expr()?;
                     self.expect(TokenKind::RBracket)?;
-                    lhs = ExprKind::Index(Box::new(lhs), Box::new(idx));
+                    lhs = ExprKind::Index(Box::new(lhs), Box::new(idx)).into();
                 }
                 _ => break,
             }
@@ -3480,41 +3508,41 @@ impl Parser {
             // Identifiers and type constructors
             TokenKind::Ident => {
                 let tok = self.advance();
-                Ok(ExprKind::Var(tok.text))
+                Ok(ExprKind::Var(tok.text).into())
             }
             TokenKind::Type => {
                 let tok = self.advance();
                 // Type constructor: might be called with args
-                Ok(ExprKind::Var(tok.text))
+                Ok(ExprKind::Var(tok.text).into())
             }
             // Literals
             TokenKind::Int_ => {
                 let tok = self.advance();
-                Ok(ExprKind::Lit(Literal::Int(tok.text.parse().unwrap_or(0))))
+                Ok(ExprKind::Lit(Literal::Int(tok.text.parse().unwrap_or(0))).into())
             }
             TokenKind::Float_ => {
                 let tok = self.advance();
-                Ok(ExprKind::Lit(Literal::Float(tok.text.parse().unwrap_or(0.0))))
+                Ok(ExprKind::Lit(Literal::Float(tok.text.parse().unwrap_or(0.0))).into())
             }
             TokenKind::String_ => {
                 let tok = self.advance();
-                Ok(ExprKind::Lit(Literal::Str(tok.text)))
+                Ok(ExprKind::Lit(Literal::Str(tok.text)).into())
             }
             TokenKind::Char_ => {
                 let tok = self.advance();
                 let c = tok.text.chars().next().unwrap_or(' ');
-                Ok(ExprKind::Lit(Literal::Char(c)))
+                Ok(ExprKind::Lit(Literal::Char(c)).into())
             }
             TokenKind::Bool_ => {
                 let tok = self.advance();
-                Ok(ExprKind::Lit(Literal::Bool(tok.text == "True")))
+                Ok(ExprKind::Lit(Literal::Bool(tok.text == "True")).into())
             }
             // Parenthesized expression, unit, or tuple
             TokenKind::LParen => {
                 self.advance();
                 if self.peek_kind() == TokenKind::RParen {
                     self.advance();
-                    return Ok(ExprKind::Unit);
+                    return Ok(ExprKind::Unit.into());
                 }
                 let expr = self.parse_expr()?;
                 if self.peek_kind() == TokenKind::Comma {
@@ -3525,7 +3553,7 @@ impl Parser {
                         elems.push(self.parse_expr()?);
                     }
                     self.expect(TokenKind::RParen)?;
-                    return Ok(ExprKind::Tuple(elems));
+                    return Ok(ExprKind::Tuple(elems).into());
                 }
                 self.expect(TokenKind::RParen)?;
                 Ok(expr)
@@ -3553,14 +3581,14 @@ impl Parser {
                     while self.peek_kind() == TokenKind::Semi { self.advance(); }
                 }
                 self.expect(TokenKind::RBracket)?;
-                Ok(ExprKind::List(elems))
+                Ok(ExprKind::List(elems).into())
             }
             // Lambda: |params| body   OR   | handle Effect { ... } in body
             // || as single Op token — empty lambda
             TokenKind::Op if self.peek().text == "||" => {
                 self.advance();
                 let body = self.parse_expr()?;
-                return Ok(ExprKind::Lambda(Vec::new(), Box::new(body)));
+                return Ok(ExprKind::Lambda(Vec::new(), Box::new(body)).into());
             }
             TokenKind::Pipe => {
                 self.advance();
@@ -3572,7 +3600,7 @@ impl Parser {
                     // || — empty lambda (two separate Pipe tokens)
                     self.advance();
                     let body = self.parse_expr()?;
-                    return Ok(ExprKind::Lambda(Vec::new(), Box::new(body)));
+                    return Ok(ExprKind::Lambda(Vec::new(), Box::new(body)).into());
                 }
                 let mut params = Vec::new();
                 while self.peek_kind() != TokenKind::Pipe {
@@ -3590,7 +3618,7 @@ impl Parser {
                 }
                 self.expect(TokenKind::Pipe)?;
                 let body = self.parse_expr()?;
-                Ok(ExprKind::Lambda(params, Box::new(body)))
+                Ok(ExprKind::Lambda(params, Box::new(body)).into())
             }
             // ~[...] stream source literal: ~[1, 2, 3] → from_list([1, 2, 3])
             TokenKind::Tilde if {
@@ -3600,13 +3628,13 @@ impl Parser {
             } => {
                 self.advance(); // consume ~
                 let list_expr = self.parse_atom()?; // parse the [...] list literal
-                Ok(ExprKind::App(Box::new(ExprKind::Var("from_list".to_string())), vec![list_expr]))
+                Ok(ExprKind::App(Box::new(ExprKind::Var("from_list".to_string()).into()), vec![list_expr]).into())
             }
             // Unary operators
             TokenKind::Op if self.peek().text == "-" || self.peek().text == "!" => {
                 let tok = self.advance();
                 let operand = self.parse_atom()?;
-                Ok(ExprKind::UnOp(tok.text, Box::new(operand)))
+                Ok(ExprKind::UnOp(tok.text, Box::new(operand)).into())
             }
             // & reference
             TokenKind::Amp => {
@@ -3614,10 +3642,10 @@ impl Parser {
                 if self.peek_kind() == TokenKind::KW && self.peek().text == "mut" {
                     self.advance();
                     let inner = self.parse_atom()?;
-                    Ok(ExprKind::UnOp("&mut".to_string(), Box::new(inner)))
+                    Ok(ExprKind::UnOp("&mut".to_string(), Box::new(inner)).into())
                 } else {
                     let inner = self.parse_atom()?;
-                    Ok(ExprKind::UnOp("&".to_string(), Box::new(inner)))
+                    Ok(ExprKind::UnOp("&".to_string(), Box::new(inner)).into())
                 }
             }
             // @ effect invocation
@@ -3629,7 +3657,7 @@ impl Parser {
                 } else {
                     Vec::new()
                 };
-                Ok(ExprKind::Effect(name_tok.text, args))
+                Ok(ExprKind::Effect(name_tok.text, args).into())
             }
             // Keywords that start expressions
             TokenKind::KW => {
@@ -3637,7 +3665,7 @@ impl Parser {
                 match tok.text.as_str() {
                     "match" => self.parse_match_expr(),
                     "if" => self.parse_if_expr(),
-                    _ => Ok(ExprKind::Var(tok.text)),
+                    _ => Ok(ExprKind::Var(tok.text).into()),
                 }
             }
             // = inside expressions (binding in block)
@@ -3705,7 +3733,7 @@ impl Parser {
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
-        Ok(ExprKind::Block(stmts))
+        Ok(ExprKind::Block(stmts).into())
     }
 
     pub fn parse_block_statement(&mut self) -> Result<Stmt, String> {
@@ -3726,7 +3754,7 @@ TokenKind::Tilde => {
                     if next_pos < self.tokens.len() && self.tokens[next_pos].kind == TokenKind::LBracket {
                         self.advance(); // consume ~
                         let list_expr = self.parse_atom()?; // parse the [...] list literal
-                        return Ok(Stmt::Expr(ExprKind::App(Box::new(ExprKind::Var("from_list".to_string())), vec![list_expr])));
+                        return Ok(Stmt::Expr(ExprKind::App(Box::new(ExprKind::Var("from_list".to_string()).into()), vec![list_expr]).into()));
                     }
                 }
 
@@ -3883,7 +3911,7 @@ TokenKind::Tilde => {
             self.skip_semis();
         }
         self.expect(TokenKind::RBrace)?;
-        Ok(ExprKind::Match(Box::new(scrut), arms))
+        Ok(ExprKind::Match(Box::new(scrut), arms).into())
     }
 
     pub fn parse_if_expr(&mut self) -> Result<Expr, String> {
@@ -3900,9 +3928,9 @@ TokenKind::Tilde => {
                 self.parse_block_expr()?
             }
         } else {
-            ExprKind::Unit
+            ExprKind::Unit.into()
         };
-        Ok(ExprKind::If(Box::new(cond), Box::new(then_), Box::new(else_)))
+        Ok(ExprKind::If(Box::new(cond), Box::new(then_), Box::new(else_)).into())
     }
 }
 
@@ -4685,7 +4713,7 @@ impl Interpreter {
                                                 if let Stmt::Annot(name, args) = s {
                                                     if name == "export" {
                                                         // Post-hoc form: `@ export add`
-                                                        for a in args { if let ExprKind::Var(n) = a { exported_names.insert(n.clone()); } }
+                                                        for a in args { if let ExprKind::Var(n) = &a.kind { exported_names.insert(n.clone()); } }
                                                         if args.is_empty() { is_export = true; }
                                                         continue;
                                                     }
@@ -4948,7 +4976,7 @@ impl Interpreter {
                             let (new_state, _response) = self.dispatch_actor_message(
                                 actor_name, state, state_param, handlers, actor_env, &msg);
                             // Update the actor in the env with new state
-                            if let ExprKind::Var(var_name) = target_expr {
+                            if let ExprKind::Var(var_name) = &target_expr.kind {
                                 let updated = Value::Actor {
                                     actor_name: actor_name.clone(),
                                     state: Box::new(new_state),
@@ -4961,7 +4989,7 @@ impl Interpreter {
                         }
                         Value::Subject(ref items) => {
                             // subject <- value: push value into the subject's buffer
-                            if let ExprKind::Var(var_name) = target_expr {
+                            if let ExprKind::Var(var_name) = &target_expr.kind {
                                 let mut new_items = items.clone();
                                 new_items.push(msg);
                                 env.set(var_name.clone(), Value::Subject(new_items));
@@ -5153,7 +5181,7 @@ impl Interpreter {
                 return Value::Unit;
             }
         }
-        match expr {
+        match &expr.kind {
             ExprKind::Var(name) => {
                 // Check local env first (params, local bindings, builtins)
                 if let Some(val) = env.get(name) {
@@ -5190,7 +5218,7 @@ impl Interpreter {
             },
             ExprKind::App(func, args) => {
                 // Check if this is an effect operation call dispatched to a handler
-                if let ExprKind::Var(ref fn_name) = **func {
+                if let ExprKind::Var(ref fn_name) = (*func).kind {
                     if let Some(result) = self.try_effect_dispatch(fn_name, args, env) {
                         return result;
                     }
@@ -5419,7 +5447,7 @@ impl Interpreter {
             ExprKind::Pipe(input, transform) => {
                 // Pipe: a |> f → f(a), a |> f(y) → f(a, y)
                 // Same semantics as the old App desugaring
-                match transform.as_ref() {
+                match &transform.as_ref().kind {
                     ExprKind::App(func, existing_args) => {
                         let f = self.eval(func, env);
                         let input_val = self.eval(input, env);
@@ -7494,19 +7522,20 @@ impl Interpreter {
                 if let Some(rule_env) = self.match_rule_head(head, &arg_vals, env) {
                     match body {
                         None => return Some(Value::Bool(true)), // bare fact — head matched
-                        Some(ExprKind::Conjunction(goals)) => {
-                            // Prolog-style conjunction: all goals must succeed
-                            if self.eval_conjunction(goals, &rule_env) {
-                                return Some(Value::Bool(true));
-                            }
-                            // Body failed — backtrack to next clause
-                        }
                         Some(body_expr) => {
-                            let result = self.eval(body_expr, &rule_env);
-                            if !matches!(result, Value::Bool(false)) {
-                                return Some(result);
+                            if let ExprKind::Conjunction(goals) = &body_expr.kind {
+                                // Prolog-style conjunction: all goals must succeed
+                                if self.eval_conjunction(goals, &rule_env) {
+                                    return Some(Value::Bool(true));
+                                }
+                                // Body failed — backtrack to next clause
+                            } else {
+                                let result = self.eval(body_expr, &rule_env);
+                                if !matches!(result, Value::Bool(false)) {
+                                    return Some(result);
+                                }
+                                // Body returned false — backtrack to next clause
                             }
-                            // Body returned false — backtrack to next clause
                         }
                     }
                 }
@@ -7531,9 +7560,9 @@ impl Interpreter {
     /// Variables in the head bind to the corresponding argument value.
     fn match_rule_head(&self, head: &Expr, args: &[Value], env: &Env) -> Option<Env> {
         let mut rule_env = env.clone();
-        if let ExprKind::App(_, params) = head {
+        if let ExprKind::App(_, params) = &head.kind {
             for (param, val) in params.iter().zip(args.iter()) {
-                match param {
+                match &param.kind {
                     ExprKind::Var(name) if name == "_" => {
                         // Wildcard — matches anything, don't bind
                     }
@@ -7578,7 +7607,7 @@ impl Interpreter {
 
     /// Extract variable name from an expression (for non-trivial head patterns)
     fn extract_var_name(&self, expr: &Expr) -> Option<String> {
-        match expr {
+        match &expr.kind {
             ExprKind::Var(name) => Some(name.clone()),
             _ => None,
         }
@@ -7596,10 +7625,10 @@ impl Interpreter {
 
         // Check if this goal introduces unbound variables
         // (variables not yet in the environment that appear as arguments)
-        if let ExprKind::App(func, args) = goal {
+        if let ExprKind::App(func, args) = &goal.kind {
             let fn_name = self.expr_name(func);
             let unbound: Vec<(usize, String)> = args.iter().enumerate().filter_map(|(i, arg)| {
-                if let ExprKind::Var(name) = arg {
+                if let ExprKind::Var(name) = &arg.kind {
                     // _ is a wildcard: treated as unbound for existential search
                     // but binding is discarded (never propagated to remaining goals)
                     if name == "_" || env.get(name).is_none() {
@@ -7646,7 +7675,7 @@ impl Interpreter {
 
         // Evaluate bound arguments
         let bound_vals: Vec<Option<Value>> = goal_args.iter().map(|arg| {
-            if let ExprKind::Var(name) = arg {
+            if let ExprKind::Var(name) = &arg.kind {
                 env.get(name).cloned()
             } else {
                 Some(self.eval(arg, env))
@@ -7656,7 +7685,7 @@ impl Interpreter {
         // Try each rule/fact as a potential source of bindings
         for rule in &rules {
             if let Rule::Clause { head, body } = rule {
-                if let ExprKind::App(_, head_params) = head {
+                if let ExprKind::App(_, head_params) = &head.kind {
                     if head_params.len() != goal_args.len() {
                         continue;
                     }
@@ -7666,7 +7695,7 @@ impl Interpreter {
                     let mut new_env = env.clone();
 
                     for (i, (head_param, bound_val)) in head_params.iter().zip(bound_vals.iter()).enumerate() {
-                        match (head_param, bound_val) {
+                        match (&head_param.kind, bound_val) {
                             // Head has a literal, we have a bound value — must match
                             (ExprKind::Lit(lit), Some(val)) => {
                                 let expected = self.literal_to_value(lit);
@@ -7702,11 +7731,11 @@ impl Interpreter {
                     }
 
                     // Check clause body if present
-                    let clause_ok = match body {
+                    let clause_ok = match body.as_ref().map(|e| &e.kind) {
                         None => true, // bare fact
                         Some(ExprKind::Conjunction(goals)) => self.eval_conjunction(goals, &new_env),
-                        Some(body_expr) => {
-                            matches!(self.eval(body_expr, &new_env), Value::Bool(true))
+                        Some(_) => {
+                            matches!(self.eval(body.as_ref().unwrap(), &new_env), Value::Bool(true))
                         }
                     };
 
@@ -7727,13 +7756,13 @@ impl Interpreter {
     /// template is a variable name (e.g., `c`), goal is a rule call (e.g., `parent("bob", c)`).
     /// Returns a Vec of all bindings of the template variable that make the goal true.
     fn eval_findall(&mut self, template: &Expr, goal: &Expr, env: &Env) -> Value {
-        let template_name = match template {
+        let template_name = match &template.kind {
             ExprKind::Var(name) => name.clone(),
             _ => return Value::List(vec![]),
         };
 
         // The goal should be a rule call: App(Var(fn_name), args)
-        if let ExprKind::App(func, goal_args) = goal {
+        if let ExprKind::App(func, goal_args) = &goal.kind {
             let fn_name = self.expr_name(func);
 
             // Collect all rules for this function
@@ -7746,7 +7775,7 @@ impl Interpreter {
 
             // Evaluate bound arguments (those that aren't the template var)
             let bound_vals: Vec<Option<Value>> = goal_args.iter().map(|arg| {
-                if let ExprKind::Var(name) = arg {
+                if let ExprKind::Var(name) = &arg.kind {
                     if name == &template_name || name == "_" { None }
                     else { env.get(name).cloned().or_else(|| Some(self.eval(arg, env))) }
                 } else {
@@ -7757,7 +7786,7 @@ impl Interpreter {
             // Try each rule/fact
             for rule in &rules {
                 if let Rule::Clause { head, body } = rule {
-                    if let ExprKind::App(_, head_params) = head {
+                    if let ExprKind::App(_, head_params) = &head.kind {
                         if head_params.len() != goal_args.len() { continue; }
 
                         // Match bound args against fact head, collect template bindings
@@ -7765,14 +7794,14 @@ impl Interpreter {
                         let mut candidate_val: Option<Value> = None;
 
                         for (i, (head_param, bound_val)) in head_params.iter().zip(bound_vals.iter()).enumerate() {
-                            match (head_param, bound_val) {
+                            match (&head_param.kind, bound_val) {
                                 (ExprKind::Lit(lit), Some(val)) => {
                                     let expected = self.literal_to_value(lit);
                                     if !values_equal(&expected, val) { matches_ok = false; break; }
                                 }
                                 (ExprKind::Lit(lit), None) => {
                                     // This position is the template var or wildcard
-                                    if let ExprKind::Var(name) = &goal_args[i] {
+                                    if let ExprKind::Var(name) = &goal_args[i].kind {
                                         if name == &template_name {
                                             candidate_val = Some(self.literal_to_value(lit));
                                         }
@@ -7800,7 +7829,7 @@ impl Interpreter {
                                 let mut body_env = env.clone();
                                 // Bind head vars from matched positions
                                 for (i, hp) in head_params.iter().enumerate() {
-                                    if let ExprKind::Var(hname) = hp {
+                                    if let ExprKind::Var(hname) = &hp.kind {
                                         if let Some(val) = &bound_vals[i] {
                                             body_env.set(hname.clone(), val.clone());
                                         } else if let Some(ref cv) = candidate_val {
@@ -7808,7 +7837,7 @@ impl Interpreter {
                                         }
                                     }
                                 }
-                                match body_expr {
+                                match &body_expr.kind {
                                     ExprKind::Conjunction(goals) => self.eval_conjunction(goals, &body_env),
                                     _ => matches!(self.eval(body_expr, &body_env), Value::Bool(true)),
                                 }
@@ -7834,9 +7863,9 @@ impl Interpreter {
     /// the provided argument values into the environment.
     /// Legacy helper — used by code paths that don't need ground-term matching.
     pub fn bind_rule_params(&self, head: &Expr, args: &[Value], env: &mut Env) {
-        if let ExprKind::App(_, params) = head {
+        if let ExprKind::App(_, params) = &head.kind {
             for (param, val) in params.iter().zip(args.iter()) {
-                if let ExprKind::Var(name) = param {
+                if let ExprKind::Var(name) = &param.kind {
                     env.set(name.clone(), val.clone());
                 }
             }
@@ -7853,7 +7882,7 @@ impl Interpreter {
     }
 
     pub fn expr_name(&self, expr: &Expr) -> String {
-        match expr {
+        match &expr.kind {
             ExprKind::App(f, _) => self.expr_name(f),
             ExprKind::Var(name) => name.clone(),
             _ => "?".into(),
@@ -8342,12 +8371,12 @@ impl TypeChecker {
                 Stmt::Rule(Rule::Default { head, .. })
                 | Stmt::Rule(Rule::Exception { head, .. })
                 | Stmt::Rule(Rule::Clause { head, .. }) => {
-                    if let ExprKind::App(func, args) = head {
-                        if let ExprKind::Var(fname) = func.as_ref() {
+                    if let ExprKind::App(func, args) = &head.kind {
+                        if let ExprKind::Var(fname) = &func.as_ref().kind {
                             self.functions.entry(fname.clone()).or_insert(args.len());
                             self.define_var(fname);
                         }
-                    } else if let ExprKind::Var(fname) = head {
+                    } else if let ExprKind::Var(fname) = &head.kind {
                         // Zero-arg rule without parens: | foo -> Bar
                         self.functions.entry(fname.clone()).or_insert(0);
                         self.define_var(fname);
@@ -8499,9 +8528,9 @@ impl TypeChecker {
             Stmt::Rule(Rule::Default { head, value, condition, .. }) => {
                 self.push_scope();
                 // Rule head params are in scope for value/condition
-                if let ExprKind::App(_, args) = head {
+                if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
-                        if let ExprKind::Var(name) = arg {
+                        if let ExprKind::Var(name) = &arg.kind {
                             self.define_var(name);
                         }
                     }
@@ -8512,9 +8541,9 @@ impl TypeChecker {
             }
             Stmt::Rule(Rule::Exception { head, value, condition, .. }) => {
                 self.push_scope();
-                if let ExprKind::App(_, args) = head {
+                if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
-                        if let ExprKind::Var(name) = arg {
+                        if let ExprKind::Var(name) = &arg.kind {
                             self.define_var(name);
                         }
                     }
@@ -8525,20 +8554,20 @@ impl TypeChecker {
             }
             Stmt::Rule(Rule::Clause { head, body }) => {
                 self.push_scope();
-                if let ExprKind::App(_, args) = head {
+                if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
-                        if let ExprKind::Var(name) = arg {
+                        if let ExprKind::Var(name) = &arg.kind {
                             self.define_var(name);
                         }
                     }
                 }
                 // For conjunctive bodies, also define existential variables
                 // (variables that appear as arguments in goals but not in the head)
-                if let Some(ExprKind::Conjunction(goals)) = body {
+                if let Some(Expr { kind: ExprKind::Conjunction(goals), .. }) = body {
                     for goal in goals {
-                        if let ExprKind::App(_, goal_args) = goal {
+                        if let ExprKind::App(_, goal_args) = &goal.kind {
                             for arg in goal_args {
-                                if let ExprKind::Var(name) = arg {
+                                if let ExprKind::Var(name) = &arg.kind {
                                     self.define_var(name);
                                 }
                             }
@@ -8578,7 +8607,7 @@ impl TypeChecker {
     }
 
     pub fn check_expr(&mut self, expr: &Expr, _in_fn: Option<&str>) {
-        match expr {
+        match &expr.kind {
             ExprKind::Var(name) => {
                 let canonical = builtin_canonical(name);
                 if !self.var_defined(name)
@@ -8594,7 +8623,7 @@ impl TypeChecker {
                 }
             }
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     let canonical = builtin_canonical(name);
                     let actual_arity = args.len();
 
@@ -8631,17 +8660,17 @@ impl TypeChecker {
                     self.check_expr(func, _in_fn);
                 }
                 // findall(template_var, goal) — template var and goal vars are scoped
-                if let ExprKind::Var(name) = func.as_ref() {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
                     if name == "findall" && args.len() == 2 {
                         self.push_scope();
                         // Define the template variable
-                        if let ExprKind::Var(tvar) = &args[0] {
+                        if let ExprKind::Var(tvar) = &args[0].kind {
                             self.define_var(tvar);
                         }
                         // Define unbound variables in the goal
-                        if let ExprKind::App(_, goal_args) = &args[1] {
+                        if let ExprKind::App(_, goal_args) = &args[1].kind {
                             for ga in goal_args {
-                                if let ExprKind::Var(gv) = ga {
+                                if let ExprKind::Var(gv) = &ga.kind {
                                     self.define_var(gv);
                                 }
                             }
