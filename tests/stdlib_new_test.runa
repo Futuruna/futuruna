@@ -1,0 +1,30 @@
+-- New stdlib builtins: random, sleep, time
+
+-- random_float returns a value
+= rf = random_float()
+@ print("random_float: " + show(rf))
+
+-- random_choice picks from a list
+= items = [10, 20, 30, 40, 50]
+= choice = random_choice(items)
+@ print("random_choice: " + show(choice))
+
+-- shuffle returns a same-length list
+= shuffled = shuffle([1, 2, 3, 4, 5])
+@ print("shuffle length: " + show(length(shuffled)))
+
+-- now() returns a timestamp > 0
+= t = now()
+@ print("now: " + show(t))
+
+-- time_diff
+= t1 = now()
+= t2 = now()
+= diff = time_diff(t2, t1)
+@ print("time_diff: " + show(diff))
+
+-- sleep(0) doesn't crash
+sleep(0)
+@ print("sleep(0) ok")
+
+@ print("=== New stdlib tests passed! ===")

@@ -4707,6 +4707,8 @@ pub struct Interpreter {
     pub step_count: usize,
     /// Set to true when step budget exceeded
     pub budget_exceeded: bool,
+    /// Shared xorshift64 state for random collection builtins
+    pub(crate) rng_state: u64,
 }
 
 impl Interpreter {
@@ -4734,6 +4736,7 @@ impl Interpreter {
             step_limit: 0,
             step_count: 0,
             budget_exceeded: false,
+            rng_state: 0x12345678_9abcdef0,
         }
     }
 
@@ -4893,6 +4896,12 @@ impl Interpreter {
         env.set("head".into(), Value::Builtin("head".into()));
         env.set("tail".into(), Value::Builtin("tail".into()));
         env.set("abs".into(), Value::Builtin("abs".into()));
+        env.set("random_float".into(), Value::Builtin("random_float".into()));
+        env.set("random_choice".into(), Value::Builtin("random_choice".into()));
+        env.set("shuffle".into(), Value::Builtin("shuffle".into()));
+        env.set("sleep".into(), Value::Builtin("sleep".into()));
+        env.set("now".into(), Value::Builtin("now".into()));
+        env.set("time_diff".into(), Value::Builtin("time_diff".into()));
         env.set("not".into(), Value::Builtin("not".into()));
         env.set("concat".into(), Value::Builtin("concat".into()));
         env.set("reverse".into(), Value::Builtin("reverse".into()));
@@ -6295,6 +6304,72 @@ impl Interpreter {
                 Some(Value::Float(f)) => Value::Float(f.abs()),
                 _ => Value::Int(0),
             },
+            "random_float" => {
+                // random_float() → Float in [0.0, 1.0). Xorshift64.
+                let mut s = self.rng_state;
+                s ^= s << 13;
+                s ^= s >> 7;
+                s ^= s << 17;
+                self.rng_state = s;
+                let val = (s as u64) as f64 / u64::MAX as f64;
+                Value::Float(val)
+            }
+            "random_choice" => {
+                // random_choice(list) → random element from list
+                let items = list_to_vec(args.first().unwrap_or(&Value::List(vec![])));
+                if items.is_empty() {
+                    Value::Unit
+                } else {
+                    let mut s = self.rng_state;
+                    s ^= s << 13;
+                    s ^= s >> 7;
+                    s ^= s << 17;
+                    self.rng_state = s;
+                    let idx = (s as usize) % items.len();
+                    items[idx].clone()
+                }
+            }
+            "shuffle" => {
+                // shuffle(list) → new list with elements in random order (Fisher-Yates)
+                let mut items = list_to_vec(args.first().unwrap_or(&Value::List(vec![])));
+                let n = items.len();
+                for i in (1..n).rev() {
+                    let mut s = self.rng_state;
+                    s ^= s << 13;
+                    s ^= s >> 7;
+                    s ^= s << 17;
+                    self.rng_state = s;
+                    let j = (s as usize) % (i + 1);
+                    items.swap(i, j);
+                }
+                Value::List(items)
+            }
+            "sleep" => {
+                // sleep(ms) → () — blocking sleep
+                let ms = match args.first() {
+                    Some(Value::Int(n)) => *n as u64,
+                    _ => 0,
+                };
+                if ms > 0 {
+                    std::thread::sleep(std::time::Duration::from_millis(ms));
+                }
+                Value::Unit
+            }
+            "now" => {
+                // now() → Int — Unix timestamp in milliseconds
+                let ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as i64;
+                Value::Int(ms)
+            }
+            "time_diff" => {
+                // time_diff(a, b) → Int — difference in ms (a - b)
+                match (args.first(), args.get(1)) {
+                    (Some(Value::Int(a)), Some(Value::Int(b))) => Value::Int(a - b),
+                    _ => Value::Int(0),
+                }
+            }
             "not" => match args.first() {
                 Some(Value::Bool(b)) => Value::Bool(!b),
                 _ => Value::Bool(false),
@@ -9077,7 +9152,8 @@ impl TypeChecker {
             ("sqrt", 1),
             ("pow", 2),
             ("abs", 1),
-
+ ("random_float", 0), ("random_choice", 1), ("shuffle", 1),
+            ("sleep", 1), ("now", 0), ("time_diff", 2),
             ("pair", 2),
             ("triple", 3),
             ("to_float", 1),
