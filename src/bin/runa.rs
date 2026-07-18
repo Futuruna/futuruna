@@ -5052,6 +5052,229 @@ struct FirProgram {
 }
 
 // ============================================================================
+// AST → FIR LOWERING
+// ============================================================================
+
+/// Context for lowering AST to FIR.
+/// Carries the analysis results needed to annotate FIR nodes.
+struct LoweringCtx<'a> {
+    types: &'a TypeRegistry,
+    ownership: &'a OwnershipAnalysis,
+    copy_vars: &'a BTreeSet<String>,
+    ref_match_bindings: &'a BTreeSet<String>,
+}
+
+impl<'a> LoweringCtx<'a> {
+    /// Determine the VarMode for a variable reference.
+    fn var_mode(&self, name: &str) -> VarMode {
+        // Ref-match binding: dereference
+        if self.ref_match_bindings.contains(name) {
+            return VarMode::Deref;
+        }
+        // Rule clone param: always clone
+        if self.types.rule_clone_params.contains(name) {
+            return VarMode::RuleClone;
+        }
+        // Copy type: free to duplicate
+        if self.copy_vars.contains(name) {
+            return VarMode::Copy;
+        }
+        // Multi-use non-Copy: clone
+        if self.ownership.consuming_uses.get(name).copied().unwrap_or(0) > 1 {
+            return VarMode::Clone;
+        }
+        // Single use: move
+        VarMode::Move
+    }
+
+    /// Lower an AST expression to FIR.
+    fn lower_expr(&self, expr: &Expr) -> FirExpr {
+        let kind = match &expr.kind {
+            ExprKind::Var(name) => {
+                // Check if it's a nullary constructor
+                if self.types.variant_parent.contains_key(name.as_str()) {
+                    // Keep as Var with Move — the emitter handles constructor formatting
+                    FirExprKind::Var(name.clone(), VarMode::Move)
+                } else {
+                    FirExprKind::Var(name.clone(), self.var_mode(name))
+                }
+            }
+            ExprKind::Lit(lit) => FirExprKind::Lit(lit.clone()),
+            ExprKind::App(func, args) => {
+                FirExprKind::App(
+                    Box::new(self.lower_expr(func)),
+                    args.iter().map(|a| self.lower_expr(a)).collect(),
+                )
+            }
+            ExprKind::Lambda(params, body) => {
+                FirExprKind::Lambda(params.clone(), Box::new(self.lower_expr(body)))
+            }
+            ExprKind::BinOp(op, lhs, rhs) => {
+                FirExprKind::BinOp(
+                    op.clone(),
+                    Box::new(self.lower_expr(lhs)),
+                    Box::new(self.lower_expr(rhs)),
+                )
+            }
+            ExprKind::UnOp(op, inner) => {
+                FirExprKind::UnOp(op.clone(), Box::new(self.lower_expr(inner)))
+            }
+            ExprKind::If(cond, then_, else_) => {
+                FirExprKind::If(
+                    Box::new(self.lower_expr(cond)),
+                    Box::new(self.lower_expr(then_)),
+                    Box::new(self.lower_expr(else_)),
+                )
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                FirExprKind::Match(
+                    Box::new(self.lower_expr(scrutinee)),
+                    arms.iter().map(|a| FirMatchArm {
+                        pat: a.pat.clone(),
+                        guard: a.guard.as_ref().map(|g| self.lower_expr(g)),
+                        body: self.lower_expr(&a.body),
+                    }).collect(),
+                )
+            }
+            ExprKind::Block(stmts) => {
+                FirExprKind::Block(stmts.iter().map(|s| self.lower_stmt(s)).collect())
+            }
+            ExprKind::Field(obj, field) => {
+                FirExprKind::Field(Box::new(self.lower_expr(obj)), field.clone())
+            }
+            ExprKind::Index(base, idx) => {
+                FirExprKind::Index(Box::new(self.lower_expr(base)), Box::new(self.lower_expr(idx)))
+            }
+            ExprKind::List(elems) => {
+                FirExprKind::List(elems.iter().map(|e| self.lower_expr(e)).collect())
+            }
+            ExprKind::Tuple(elems) => {
+                FirExprKind::Tuple(elems.iter().map(|e| self.lower_expr(e)).collect())
+            }
+            ExprKind::Effect(name, args) => {
+                FirExprKind::Effect(name.clone(), args.iter().map(|a| self.lower_expr(a)).collect())
+            }
+            ExprKind::Handle { effect, handlers, body } => {
+                FirExprKind::Handle {
+                    effect: effect.clone(),
+                    handlers: handlers.iter().map(|h| FirEffHandler {
+                        op_name: h.op_name.clone(),
+                        params: h.params.clone(),
+                        body: self.lower_expr(&h.body),
+                    }).collect(),
+                    body: Box::new(self.lower_expr(body)),
+                }
+            }
+            ExprKind::Try(inner) => {
+                FirExprKind::Try(Box::new(self.lower_expr(inner)))
+            }
+            ExprKind::Conjunction(goals) => {
+                FirExprKind::Conjunction(goals.iter().map(|g| self.lower_expr(g)).collect())
+            }
+            ExprKind::Pipe(lhs, rhs) => {
+                FirExprKind::Pipe(Box::new(self.lower_expr(lhs)), Box::new(self.lower_expr(rhs)))
+            }
+            ExprKind::Unit => FirExprKind::Unit,
+        };
+        FirExpr { kind, span: expr.span, ty: FirTy::Unknown }
+    }
+
+    /// Lower an AST statement to FIR.
+    fn lower_stmt(&self, stmt: &Stmt) -> FirStmt {
+        match stmt {
+            Stmt::Defn(Defn::Fn { name, params, ret_ty, effects, body }) => {
+                FirStmt::Defn(FirDefn::Fn {
+                    name: name.clone(),
+                    params: params.clone(),
+                    ret_ty: ret_ty.clone(),
+                    effects: effects.clone(),
+                    body: self.lower_expr(body),
+                })
+            }
+            Stmt::Defn(Defn::Actor { name, state_param, handlers }) => {
+                FirStmt::Defn(FirDefn::Actor {
+                    name: name.clone(),
+                    state_param: state_param.clone(),
+                    handlers: handlers.iter().map(|h| FirHandler {
+                        msg_pat: h.msg_pat.clone(),
+                        body: self.lower_expr(&h.body),
+                    }).collect(),
+                })
+            }
+            Stmt::Defn(Defn::Module { name, body }) => {
+                FirStmt::Defn(FirDefn::Module {
+                    name: name.clone(),
+                    body: body.iter().map(|s| self.lower_stmt(s)).collect(),
+                })
+            }
+            Stmt::TypeDecl(td) => FirStmt::TypeDecl(td.clone()),
+            Stmt::Rule(r) => FirStmt::Rule(r.clone()),
+            Stmt::Use(s) => FirStmt::Use(s.clone()),
+            Stmt::Import(s) => FirStmt::Import(s.clone()),
+            Stmt::QualifiedImport(a, b) => FirStmt::QualifiedImport(a.clone(), b.clone()),
+            Stmt::HashImport(a, b) => FirStmt::HashImport(a.clone(), b.clone()),
+            Stmt::Depend(a, b) => FirStmt::Depend(a.clone(), b.clone()),
+            Stmt::RustBlock(s) => FirStmt::RustBlock(s.clone()),
+            Stmt::Annot(name, args) => {
+                FirStmt::Annot(name.clone(), args.iter().map(|a| self.lower_expr(a)).collect())
+            }
+            Stmt::Bind(pat, ty, expr) => {
+                FirStmt::Bind(pat.clone(), ty.clone(), self.lower_expr(expr))
+            }
+            Stmt::MonadicBind(pat, ty, expr) => {
+                FirStmt::MonadicBind(pat.clone(), ty.clone(), self.lower_expr(expr))
+            }
+            Stmt::For(var, iter_expr, body) => {
+                FirStmt::For(
+                    var.clone(),
+                    self.lower_expr(iter_expr),
+                    body.iter().map(|s| self.lower_stmt(s)).collect(),
+                )
+            }
+            Stmt::Send(target, msg) => {
+                FirStmt::Send(self.lower_expr(target), self.lower_expr(msg))
+            }
+            Stmt::StreamBind(name, expr) => {
+                FirStmt::StreamBind(name.clone(), self.lower_expr(expr))
+            }
+            Stmt::StreamSub(expr, arms) => {
+                FirStmt::StreamSub(
+                    self.lower_expr(expr),
+                    arms.iter().map(|a| FirMatchArm {
+                        pat: a.pat.clone(),
+                        guard: a.guard.as_ref().map(|g| self.lower_expr(g)),
+                        body: self.lower_expr(&a.body),
+                    }).collect(),
+                )
+            }
+            Stmt::Invariant { name, subject, predicate } => {
+                FirStmt::Invariant {
+                    name: name.clone(),
+                    subject: self.lower_expr(subject),
+                    predicate: self.lower_expr(predicate),
+                }
+            }
+            Stmt::Prove { name, capture, pass_block, else_block } => {
+                FirStmt::Prove {
+                    name: name.clone(),
+                    capture: capture.clone(),
+                    pass_block: pass_block.as_ref().map(|b| b.iter().map(|s| self.lower_stmt(s)).collect()),
+                    else_block: else_block.as_ref().map(|b| b.iter().map(|s| self.lower_stmt(s)).collect()),
+                }
+            }
+            Stmt::Assert(name, args) => {
+                FirStmt::Assert(name.clone(), args.iter().map(|a| self.lower_expr(a)).collect())
+            }
+            Stmt::Retract(name, args) => {
+                FirStmt::Retract(name.clone(), args.iter().map(|a| self.lower_expr(a)).collect())
+            }
+            Stmt::Abort => FirStmt::Abort,
+            Stmt::Expr(expr) => FirStmt::Expr(self.lower_expr(expr)),
+        }
+    }
+}
+
+// ============================================================================
 // OWNERSHIP COUNTING FUNCTIONS
 // ============================================================================
 
@@ -13420,5 +13643,174 @@ mod tests {
             VarMode::Move
         };
         assert_eq!(mode, VarMode::Clone);
+    }
+
+    // ── Lowering tests ──────────────────────────────────────────────
+
+    /// Helper: parse source, compute ownership, lower to FIR
+    fn lower_source(source: &str) -> Vec<FirStmt> {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        // Find the expression from a Bind statement
+        let types = TypeRegistry::new();
+        let copy_vars = BTreeSet::new();
+        let ref_match = BTreeSet::new();
+
+        // Compute ownership for the whole program
+        let ownership = OwnershipAnalysis {
+            var_uses: BTreeMap::new(),
+            consuming_uses: BTreeMap::new(),
+        };
+
+        let ctx = LoweringCtx {
+            types: &types,
+            ownership: &ownership,
+            copy_vars: &copy_vars,
+            ref_match_bindings: &ref_match,
+        };
+
+        stmts.iter().map(|s| ctx.lower_stmt(s)).collect()
+    }
+
+    #[test]
+    fn lowering_var_produces_fir_var() {
+        let fir = lower_source("= x = hello");
+        if let FirStmt::Bind(_, _, ref expr) = fir[0] {
+            assert!(matches!(expr.kind, FirExprKind::Var(ref n, _) if n == "hello"));
+        } else {
+            panic!("expected FirStmt::Bind");
+        }
+    }
+
+    #[test]
+    fn lowering_binop_produces_fir_binop() {
+        let fir = lower_source("= x = 1 + 2");
+        if let FirStmt::Bind(_, _, ref expr) = fir[0] {
+            assert!(matches!(expr.kind, FirExprKind::BinOp(ref op, _, _) if op == "+"));
+        } else {
+            panic!("expected FirStmt::Bind");
+        }
+    }
+
+    #[test]
+    fn lowering_preserves_span() {
+        let source = "= x = hello";
+        let fir = lower_source(source);
+        if let FirStmt::Bind(_, _, ref expr) = fir[0] {
+            assert!(!expr.span.is_dummy(), "FIR expr should preserve AST span");
+        } else {
+            panic!("expected FirStmt::Bind");
+        }
+    }
+
+    #[test]
+    fn lowering_function_def() {
+        let fir = lower_source("> add(a: Int, b: Int) -> Int { a + b }");
+        assert!(matches!(fir[0], FirStmt::Defn(FirDefn::Fn { ref name, .. }) if name == "add"));
+    }
+
+    #[test]
+    fn lowering_multi_use_var_in_call_gets_clone() {
+        // 'a' passed twice to a function call — consuming positions → Clone
+        let source = "> use_twice(x: String, y: String) -> String { x + y }\n= x = use_twice(a, a)";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let types = TypeRegistry::new();
+        let copy_vars = BTreeSet::new();
+        let ref_match = BTreeSet::new();
+
+        // Find the bind statement (second stmt after the fn def)
+        if let Stmt::Bind(_, _, ref expr) = stmts[1] {
+            let ownership = OwnershipAnalysis::analyze_simple(expr);
+
+            let ctx = LoweringCtx {
+                types: &types,
+                ownership: &ownership,
+                copy_vars: &copy_vars,
+                ref_match_bindings: &ref_match,
+            };
+
+            let fir_expr = ctx.lower_expr(expr);
+            // use_twice(a, a) → App with two Var("a", Clone) args
+            if let FirExprKind::App(_, ref args) = fir_expr.kind {
+                assert!(args.len() == 2);
+                assert!(matches!(args[0].kind, FirExprKind::Var(ref n, VarMode::Clone) if n == "a"),
+                    "expected Clone for multi-use 'a' in call, got: {:?}", args[0].kind);
+                assert!(matches!(args[1].kind, FirExprKind::Var(ref n, VarMode::Clone) if n == "a"));
+            } else {
+                panic!("expected App, got: {:?}", fir_expr.kind);
+            }
+        } else {
+            panic!("expected Bind at stmts[1]");
+        }
+    }
+
+    #[test]
+    fn lowering_binop_operands_are_not_consuming() {
+        // 'a + a' — BinOp operands are not consuming uses, so 'a' should be Move
+        let source = "= x = a + a";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let types = TypeRegistry::new();
+        let copy_vars = BTreeSet::new();
+        let ref_match = BTreeSet::new();
+
+        if let Stmt::Bind(_, _, ref expr) = stmts[0] {
+            let ownership = OwnershipAnalysis::analyze_simple(expr);
+            // BinOp operands are NOT consuming — consuming_uses for 'a' should be 0
+            assert_eq!(ownership.consuming_uses.get("a").copied().unwrap_or(0), 0,
+                "BinOp operands should not count as consuming uses");
+
+            let ctx = LoweringCtx {
+                types: &types,
+                ownership: &ownership,
+                copy_vars: &copy_vars,
+                ref_match_bindings: &ref_match,
+            };
+            let fir_expr = ctx.lower_expr(expr);
+            if let FirExprKind::BinOp(_, ref lhs, _) = fir_expr.kind {
+                // 'a' has 0 consuming uses → Move (not Clone)
+                assert!(matches!(lhs.kind, FirExprKind::Var(_, VarMode::Move)),
+                    "expected Move for non-consuming BinOp use, got: {:?}", lhs.kind);
+            }
+        }
+    }
+
+    #[test]
+    fn lowering_copy_var_gets_copy_mode() {
+        let source = "= x = n + n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let types = TypeRegistry::new();
+        let mut copy_vars = BTreeSet::new();
+        copy_vars.insert("n".to_string());  // mark 'n' as Copy
+        let ref_match = BTreeSet::new();
+
+        if let Stmt::Bind(_, _, ref expr) = stmts[0] {
+            let ownership = OwnershipAnalysis::analyze_simple(expr);
+            let ctx = LoweringCtx {
+                types: &types,
+                ownership: &ownership,
+                copy_vars: &copy_vars,
+                ref_match_bindings: &ref_match,
+            };
+            let fir_expr = ctx.lower_expr(expr);
+            if let FirExprKind::BinOp(_, ref lhs, _) = fir_expr.kind {
+                assert!(matches!(lhs.kind, FirExprKind::Var(ref n, VarMode::Copy) if n == "n"),
+                    "expected Copy for Copy-typed 'n', got: {:?}", lhs.kind);
+            }
+        }
     }
 }
