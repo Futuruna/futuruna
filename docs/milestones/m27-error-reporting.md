@@ -109,7 +109,7 @@ from token line/col converted to byte offsets via `char_offset()`.
 - [x] LSP `diagnostic_to_lsp()` — converts Diagnostic to LSP JSON with proper ranges
 - [x] Fix `parse_int("")` — now warns to stderr, suggests monadic bind
 - [x] Fix `parse_float("")` — same
-- [ ] Audit and fix dangerous `.unwrap()` calls
+- [x] Audit and fix dangerous `.unwrap()` calls (12 fixed in compiler code paths, generated code deferred)
 - [ ] `Expr` → `ExprKind` rename + new `Expr` struct with span
 - [ ] Same for `Stmt` → `StmtKind`
 - [ ] Same for `Pat` → `PatKind`
