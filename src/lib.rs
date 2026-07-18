@@ -1241,6 +1241,8 @@ pub enum Expr {
     Try(Box<Expr>),
     /// Prolog-style conjunction: goal1, goal2, goal3 — all must succeed
     Conjunction(Vec<Expr>),
+    /// Pipe-forward operator: a |> f — preserves ~ rune identity (not desugared to App)
+    Pipe(Box<Expr>, Box<Expr>),
     Unit,
 }
 
@@ -1814,12 +1816,22 @@ impl Parser {
             // ~ rune: stream binding OR stream subscription
             // ~ rune: stream binding OR stream subscription
             TokenKind::Tilde => {
+                // ~[...] stream source literal: ~[1, 2, 3] → Stmt::Expr(from_list([1, 2, 3]))
+                {
+                    let next_pos = self.pos + 1;
+                    if next_pos < self.tokens.len() && self.tokens[next_pos].kind == TokenKind::LBracket {
+                        self.advance(); // consume ~
+                        let list_expr = self.parse_atom()?; // parse the [...] list literal
+                        return Ok(Stmt::Expr(Expr::App(Box::new(Expr::Var("from_list".to_string())), vec![list_expr])));
+                    }
+                }
+
                 let saved = self.pos;
                 self.advance();
-                
+
                 // Disambiguate: ~ name = expr (StreamBind) vs ~ expr | pat -> body (StreamSub)
                 let name_tok = self.advance();
-                let is_binding = name_tok.kind == TokenKind::Ident && 
+                let is_binding = name_tok.kind == TokenKind::Ident &&
                     (self.peek_kind() == TokenKind::Eq || (self.peek_kind() == TokenKind::Op && self.peek().text == "="));
 
                 if is_binding {
@@ -1837,7 +1849,7 @@ impl Parser {
                     self.advance(); // consume ~
                     let stream_expr = self.parse_expr()?;
                     let mut arms = Vec::new();
-                    
+
                     while self.peek_kind() == TokenKind::Pipe {
                         self.advance(); // consume |
                         let pat = self.parse_pattern()?;
@@ -1847,7 +1859,7 @@ impl Parser {
                         } else {
                             None
                         };
-                        
+
                         if self.peek_kind() == TokenKind::Arrow {
                             self.advance();
                         } else if self.peek_kind() == TokenKind::Op && self.peek().text == "->" {
@@ -1855,12 +1867,12 @@ impl Parser {
                         } else {
                             return Err(format!("{}:{}: expected `->` after pattern in subscription arm.\n  Each arm should look like: | pattern -> {{ body }}", self.peek().line, self.peek().col));
                         }
-                        
+
                         let body = self.parse_expr()?;
                         arms.push(MatchArm { pat, guard, body });
                         self.skip_semis();
                     }
-                    
+
                     if arms.is_empty() {
                         return Err(format!(
                             "{}:{}: stream subscription needs at least one `|` arm.\n  Example:\n    ~ my_stream\n    | x -> {{ @ print(x) }}\n    | Err(e) -> {{ @ print(\"error\") }}\n    | Complete -> {{ @ print(\"done\") }}",
@@ -2663,6 +2675,15 @@ impl Parser {
             return Ok(Stmt::Annot(name, Vec::new()));
         }
 
+        // Leaf effect operations (no arguments required): @ time, @ random, @ input
+        if name == "time" || name == "random" || name == "input" {
+            // Allow optional parens: @ time and @ time() are both valid
+            if self.peek_kind() == TokenKind::LParen {
+                let _ = self.parse_arg_list()?; // consume empty parens
+            }
+            return Ok(Stmt::Expr(Expr::Effect(name, vec![])));
+        }
+
         // If followed by ( it's an effect invocation: @ print("hello")
         if self.peek_kind() == TokenKind::LParen {
             let args = self.parse_arg_list()?;
@@ -3142,20 +3163,13 @@ impl Parser {
                     self.advance();
                     lhs = Expr::Try(Box::new(lhs));
                 }
-                // Pipe-forward operator: x |> f desugars to f(x), x |> f(y) to f(x, y)
+                // Pipe-forward operator: x |> f — preserved as Expr::Pipe AST node
                 TokenKind::PipeGt => {
                     let pipe_prec: u8 = 1; // lowest precedence
                     if pipe_prec < min_prec { break; }
                     self.advance();
                     let rhs = self.parse_expr_prec(pipe_prec + 1)?;
-                    // Desugar: x |> f → f(x), x |> f(a, b) → f(x, a, b)
-                    lhs = match rhs {
-                        Expr::App(func, mut existing_args) => {
-                            existing_args.insert(0, lhs);
-                            Expr::App(func, existing_args)
-                        }
-                        other => Expr::App(Box::new(other), vec![lhs]),
-                    };
+                    lhs = Expr::Pipe(Box::new(lhs), Box::new(rhs));
                 }
                 // Binary operators
                 TokenKind::Op => {
@@ -3355,6 +3369,16 @@ impl Parser {
                 let body = self.parse_expr()?;
                 Ok(Expr::Lambda(params, Box::new(body)))
             }
+            // ~[...] stream source literal: ~[1, 2, 3] → from_list([1, 2, 3])
+            TokenKind::Tilde if {
+                // Look ahead: is the token after ~ a [ ?
+                let next_pos = self.pos + 1;
+                next_pos < self.tokens.len() && self.tokens[next_pos].kind == TokenKind::LBracket
+            } => {
+                self.advance(); // consume ~
+                let list_expr = self.parse_atom()?; // parse the [...] list literal
+                Ok(Expr::App(Box::new(Expr::Var("from_list".to_string())), vec![list_expr]))
+            }
             // Unary operators
             TokenKind::Op if self.peek().text == "-" || self.peek().text == "!" => {
                 let tok = self.advance();
@@ -3473,12 +3497,22 @@ impl Parser {
                 self.parse_definition()
             }
 TokenKind::Tilde => {
+                // ~[...] stream source literal: ~[1, 2, 3] → Stmt::Expr(from_list([1, 2, 3]))
+                {
+                    let next_pos = self.pos + 1;
+                    if next_pos < self.tokens.len() && self.tokens[next_pos].kind == TokenKind::LBracket {
+                        self.advance(); // consume ~
+                        let list_expr = self.parse_atom()?; // parse the [...] list literal
+                        return Ok(Stmt::Expr(Expr::App(Box::new(Expr::Var("from_list".to_string())), vec![list_expr])));
+                    }
+                }
+
                 let saved = self.pos;
                 self.advance();
-                
+
                 // Disambiguate: ~ name = expr (StreamBind) vs ~ expr | pat -> body (StreamSub)
                 let name_tok = self.advance();
-                let is_binding = name_tok.kind == TokenKind::Ident && 
+                let is_binding = name_tok.kind == TokenKind::Ident &&
                     (self.peek_kind() == TokenKind::Eq || (self.peek_kind() == TokenKind::Op && self.peek().text == "="));
 
                 if is_binding {
@@ -3496,7 +3530,7 @@ TokenKind::Tilde => {
                     self.advance(); // consume ~
                     let stream_expr = self.parse_expr()?;
                     let mut arms = Vec::new();
-                    
+
                     while self.peek_kind() == TokenKind::Pipe {
                         self.advance(); // consume |
                         let pat = self.parse_pattern()?;
@@ -3506,7 +3540,7 @@ TokenKind::Tilde => {
                         } else {
                             None
                         };
-                        
+
                         if self.peek_kind() == TokenKind::Arrow {
                             self.advance();
                         } else if self.peek_kind() == TokenKind::Op && self.peek().text == "->" {
@@ -3514,12 +3548,12 @@ TokenKind::Tilde => {
                         } else {
                             return Err(format!("{}:{}: expected `->` after pattern in subscription arm.\n  Each arm should look like: | pattern -> {{ body }}", self.peek().line, self.peek().col));
                         }
-                        
+
                         let body = self.parse_expr()?;
                         arms.push(MatchArm { pat, guard, body });
                         self.skip_semis();
                     }
-                    
+
                     if arms.is_empty() {
                         return Err(format!(
                             "{}:{}: stream subscription needs at least one `|` arm.\n  Example:\n    ~ my_stream\n    | x -> {{ @ print(x) }}\n    | Err(e) -> {{ @ print(\"error\") }}\n    | Complete -> {{ @ print(\"done\") }}",
@@ -5132,6 +5166,24 @@ impl Interpreter {
                 }
                 Value::Bool(true)
             }
+            Expr::Pipe(input, transform) => {
+                // Pipe: a |> f → f(a), a |> f(y) → f(a, y)
+                // Same semantics as the old App desugaring
+                match transform.as_ref() {
+                    Expr::App(func, existing_args) => {
+                        let f = self.eval(func, env);
+                        let input_val = self.eval(input, env);
+                        let mut arg_vals = vec![input_val];
+                        arg_vals.extend(existing_args.iter().map(|a| self.eval(a, env)));
+                        self.apply(f, arg_vals, env)
+                    }
+                    _ => {
+                        let f = self.eval(transform, env);
+                        let input_val = self.eval(input, env);
+                        self.apply(f, vec![input_val], env)
+                    }
+                }
+            }
         }
     }
 
@@ -5230,6 +5282,13 @@ impl Interpreter {
                 match args.first() {
                     Some(Value::Constructor(n, fields)) if n == "Cons" => {
                         fields.get(1).cloned().unwrap_or(Value::Constructor("Nil".into(), vec![]))
+                    }
+                    Some(Value::List(elems)) => {
+                        if elems.len() <= 1 {
+                            Value::Constructor("Nil".into(), vec![])
+                        } else {
+                            Value::List(elems[1..].to_vec())
+                        }
                     }
                     _ => Value::Constructor("Nil".into(), vec![]),
                 }
@@ -6821,6 +6880,32 @@ impl Interpreter {
                 },
                 _ => Value::Str(String::new()),
             },
+            "time" => {
+                // Return current Unix timestamp as Float
+                use std::time::{SystemTime, UNIX_EPOCH};
+                let secs = SystemTime::now().duration_since(UNIX_EPOCH)
+                    .unwrap_or_default().as_secs_f64();
+                Value::Float(secs)
+            },
+            "random" => {
+                // Return a pseudo-random f64 between 0 and 1
+                // Use a simple hash-based approach (no external dependency)
+                use std::time::{SystemTime, UNIX_EPOCH};
+                let nanos = SystemTime::now().duration_since(UNIX_EPOCH)
+                    .unwrap_or_default().as_nanos();
+                // xorshift-style mixing
+                let mut x = nanos as u64;
+                x ^= x << 13;
+                x ^= x >> 7;
+                x ^= x << 17;
+                Value::Float((x as f64) / (u64::MAX as f64))
+            },
+            "input" => {
+                // Read a line from stdin and return as String
+                let mut line = String::new();
+                let _ = std::io::stdin().read_line(&mut line);
+                Value::Str(line.trim_end_matches('\n').trim_end_matches('\r').to_string())
+            },
             // HTTP + DB builtins: delegate to eval_builtin
             "http_get" | "http_post" | "http_serve" | "http_respond"
             | "http_request_path" | "http_request_method" | "http_request_body"
@@ -8328,6 +8413,10 @@ impl TypeChecker {
                 for e in exprs {
                     self.check_expr(e, _in_fn);
                 }
+            }
+            Expr::Pipe(input, transform) => {
+                self.check_expr(input, _in_fn);
+                self.check_expr(transform, _in_fn);
             }
         }
     }
