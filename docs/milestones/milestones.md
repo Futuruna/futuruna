@@ -1129,6 +1129,8 @@ errors include expected vs. actual type and span.
 
 ## M32: Constraint-Based Type Inference
 
+**Status:** Complete. Unification engine, constraint generation, let-generalization.
+
 **"Types flow through the program."** With M31 handling explicit annotations, this
 milestone adds Hindley-Milner-style constraint solving for cases where types are
 not annotated. Currently, `Ty::Var(String)` is defined but never instantiated.
@@ -1156,6 +1158,8 @@ Float. `> map(xs, f) { ... }` works with different element types. Type errors sa
 "cannot unify Int with String" with location.
 
 ## M33: Trait Resolution and Method Dispatch
+
+**Status:** Complete. Trait registry + impl completeness checking.
 
 **"Types that implement behaviors."** The compiler emits Rust traits and impls from
 `# trait` and `# impl` declarations, but there is no Futuruna-level checking that
@@ -1185,6 +1189,8 @@ Trait bounds checked at call sites.
 
 ## M34: Package Manager v2
 
+**Status:** Complete. runa.lock generation for reproducible builds.
+
 **"Dependencies that lock, resolve, and reproduce."** The current package manager
 has no lock file, no semver resolution, and no transitive dependency handling.
 This milestone makes the package manager production-grade.
@@ -1205,6 +1211,8 @@ Second `runa build` uses locked versions (no network fetch). Circular dependency
 detected and reported.
 
 ## M35: Stdlib Expansion
+
+**Status:** Complete. 10 new builtins: random, sleep, time, regex.
 
 **"The missing 30%."** The existing 92 builtins cover ~70% of common needs.
 The critical gaps are regex, datetime, and random number generation. These are
@@ -1273,6 +1281,8 @@ follow 01-hello.md and have a running program in under 5 minutes. Architecture
 guide is accurate for the current pipeline.
 
 ## M38: CI/CD Pipeline
+
+**Status:** Complete. GitHub Actions for tests + releases.
 
 **"Every commit is tested; every release is published."**
 

@@ -17,7 +17,9 @@ fn mat_mul(a: &[f64], b: &[f64], n: usize) -> Vec<f64> {
     for i in 0..n {
         for k in 0..n {
             let aik = a[i * n + k];
-            if aik == 0.0 { continue; }
+            if aik == 0.0 {
+                continue;
+            }
             for j in 0..n {
                 c[i * n + j] += aik * b[k * n + j];
             }
@@ -28,11 +30,15 @@ fn mat_mul(a: &[f64], b: &[f64], n: usize) -> Vec<f64> {
 
 fn mat_pow(p: &[f64], n: usize, tau: u32) -> Vec<f64> {
     let mut result = vec![0.0f64; n * n];
-    for i in 0..n { result[i * n + i] = 1.0; }
+    for i in 0..n {
+        result[i * n + i] = 1.0;
+    }
     let mut base = p.to_vec();
     let mut exp = tau;
     while exp > 0 {
-        if exp & 1 == 1 { result = mat_mul(&result, &base, n); }
+        if exp & 1 == 1 {
+            result = mat_mul(&result, &base, n);
+        }
         base = mat_mul(&base, &base, n);
         exp >>= 1;
     }
@@ -42,7 +48,9 @@ fn mat_pow(p: &[f64], n: usize, tau: u32) -> Vec<f64> {
 fn shannon_entropy(dist: &[f64]) -> f64 {
     let mut h = 0.0f64;
     for &p in dist {
-        if p > 1e-30 { h -= p * p.log2(); }
+        if p > 1e-30 {
+            h -= p * p.log2();
+        }
     }
     h
 }
@@ -70,7 +78,10 @@ struct Graph {
 
 impl Graph {
     fn new(n: usize) -> Self {
-        Graph { n, edges: Vec::new() }
+        Graph {
+            n,
+            edges: Vec::new(),
+        }
     }
 
     fn edge(&mut self, a: usize, b: usize) {
@@ -120,11 +131,18 @@ impl Graph {
 
 // ── LCG ──
 
-struct Lcg { state: u64 }
+struct Lcg {
+    state: u64,
+}
 impl Lcg {
-    fn new(seed: u64) -> Self { Lcg { state: seed } }
+    fn new(seed: u64) -> Self {
+        Lcg { state: seed }
+    }
     fn next_f64(&mut self) -> f64 {
-        self.state = self.state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.state = self
+            .state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         (self.state >> 33) as f64 / (1u64 << 31) as f64
     }
     fn next_usize(&mut self, max: usize) -> usize {
@@ -146,7 +164,9 @@ fn correlation(xs: &[f64], ys: &[f64]) -> f64 {
         vx += dx * dx;
         vy += dy * dy;
     }
-    if vx < 1e-30 || vy < 1e-30 { return 0.0; }
+    if vx < 1e-30 || vy < 1e-30 {
+        return 0.0;
+    }
     cov / (vx.sqrt() * vy.sqrt())
 }
 
@@ -185,7 +205,9 @@ fn test_inexpressible() {
     println!();
     println!("  Counter-examples:");
     println!("    Python:  sorted(items, key=lambda x: simulate_downstream(x, consumers))");
-    println!("    Rust:    items.sort_by(|a, b| simulate(a, &consumers).cmp(&simulate(b, &consumers)))");
+    println!(
+        "    Rust:    items.sort_by(|a, b| simulate(a, &consumers).cmp(&simulate(b, &consumers)))"
+    );
     println!("    Haskell: sortBy (comparing (simulateDownstream consumers))");
     println!();
     println!("  These ALL work. The comparison function can reference any state.");
@@ -207,7 +229,10 @@ fn test_inexpressible() {
 // TEST 2: TSP S_τ heuristic — expanded 20-seed benchmark
 // ══════════════════════════════════════════════════════════
 
-struct City { x: f64, y: f64 }
+struct City {
+    x: f64,
+    y: f64,
+}
 
 fn dist(a: &City, b: &City) -> f64 {
     ((a.x - b.x).powi(2) + (a.y - b.y).powi(2)).sqrt()
@@ -215,7 +240,9 @@ fn dist(a: &City, b: &City) -> f64 {
 
 fn tour_length(cities: &[City], tour: &[usize]) -> f64 {
     let n = tour.len();
-    (0..n).map(|i| dist(&cities[tour[i]], &cities[tour[(i + 1) % n]])).sum()
+    (0..n)
+        .map(|i| dist(&cities[tour[i]], &cities[tour[(i + 1) % n]]))
+        .sum()
 }
 
 fn nearest_neighbor(cities: &[City], start: usize) -> Vec<usize> {
@@ -227,8 +254,11 @@ fn nearest_neighbor(cities: &[City], start: usize) -> Vec<usize> {
         let current = *tour.last().unwrap();
         let best = (0..n)
             .filter(|j| !visited.contains(j))
-            .min_by(|&a, &b| dist(&cities[current], &cities[a])
-                .partial_cmp(&dist(&cities[current], &cities[b])).unwrap())
+            .min_by(|&a, &b| {
+                dist(&cities[current], &cities[a])
+                    .partial_cmp(&dist(&cities[current], &cities[b]))
+                    .unwrap()
+            })
             .unwrap();
         tour.push(best);
         visited.insert(best);
@@ -238,7 +268,9 @@ fn nearest_neighbor(cities: &[City], start: usize) -> Vec<usize> {
 
 fn stau_on_remaining(cities: &[City], remaining: &[usize], source: usize, tau: u32) -> f64 {
     let n = remaining.len();
-    if n <= 1 { return 0.0; }
+    if n <= 1 {
+        return 0.0;
+    }
     let mut id_to_idx = BTreeMap::new();
     for (idx, &node) in remaining.iter().enumerate() {
         id_to_idx.insert(node, idx);
@@ -257,7 +289,11 @@ fn stau_on_remaining(cities: &[City], remaining: &[usize], source: usize, tau: u
                 ws += w;
             }
         }
-        if ws > 0.0 { for j in 0..n { p[idx_i * n + j] /= ws; } }
+        if ws > 0.0 {
+            for j in 0..n {
+                p[idx_i * n + j] /= ws;
+            }
+        }
     }
     let ptau = mat_pow(&p, n, tau);
     shannon_entropy(&ptau[source_idx * n..(source_idx + 1) * n])
@@ -279,11 +315,16 @@ fn stau_greedy_tsp(cities: &[City], start: usize, tau: u32) -> Vec<usize> {
         let mut best_s = f64::NEG_INFINITY;
         for &c in &remaining {
             let future: Vec<usize> = remaining.iter().filter(|&&x| x != c).copied().collect();
-            if future.is_empty() { continue; }
+            if future.is_empty() {
+                continue;
+            }
             let mut fw = vec![c];
             fw.extend_from_slice(&future);
             let s = stau_on_remaining(cities, &fw, c, tau);
-            if s > best_s { best_s = s; best = c; }
+            if s > best_s {
+                best_s = s;
+                best = c;
+            }
         }
         tour.push(best);
         visited.insert(best);
@@ -298,7 +339,9 @@ fn two_opt(cities: &[City], tour: &mut Vec<usize>) {
         improved = false;
         for i in 0..n - 1 {
             for j in i + 2..n {
-                if j == n - 1 && i == 0 { continue; }
+                if j == n - 1 && i == 0 {
+                    continue;
+                }
                 let d_old = dist(&cities[tour[i]], &cities[tour[i + 1]])
                     + dist(&cities[tour[j]], &cities[tour[(j + 1) % n]]);
                 let d_new = dist(&cities[tour[i]], &cities[tour[j]])
@@ -314,18 +357,33 @@ fn two_opt(cities: &[City], tour: &mut Vec<usize>) {
 
 fn clustered_cities(n: usize, k: usize, seed: u64) -> Vec<City> {
     let mut rng = Lcg::new(seed);
-    let centers: Vec<City> = (0..k).map(|_| City { x: rng.next_f64() * 100.0, y: rng.next_f64() * 100.0 }).collect();
-    (0..n).map(|i| {
-        let c = &centers[i % k];
-        let dx = (rng.next_f64() + rng.next_f64() + rng.next_f64() - 1.5) * 8.0;
-        let dy = (rng.next_f64() + rng.next_f64() + rng.next_f64() - 1.5) * 8.0;
-        City { x: c.x + dx, y: c.y + dy }
-    }).collect()
+    let centers: Vec<City> = (0..k)
+        .map(|_| City {
+            x: rng.next_f64() * 100.0,
+            y: rng.next_f64() * 100.0,
+        })
+        .collect();
+    (0..n)
+        .map(|i| {
+            let c = &centers[i % k];
+            let dx = (rng.next_f64() + rng.next_f64() + rng.next_f64() - 1.5) * 8.0;
+            let dy = (rng.next_f64() + rng.next_f64() + rng.next_f64() - 1.5) * 8.0;
+            City {
+                x: c.x + dx,
+                y: c.y + dy,
+            }
+        })
+        .collect()
 }
 
 fn random_cities(n: usize, seed: u64) -> Vec<City> {
     let mut rng = Lcg::new(seed);
-    (0..n).map(|_| City { x: rng.next_f64() * 100.0, y: rng.next_f64() * 100.0 }).collect()
+    (0..n)
+        .map(|_| City {
+            x: rng.next_f64() * 100.0,
+            y: rng.next_f64() * 100.0,
+        })
+        .collect()
 }
 
 fn test_tsp_expanded() {
@@ -337,11 +395,13 @@ fn test_tsp_expanded() {
     let tau = 3;
 
     // Test: does S_τ-greedy + 2-opt beat NN + 2-opt across 20 seeds?
-    for (label, n, k) in [("Clustered N=15, k=4", 15usize, 4usize),
-                           ("Clustered N=20, k=4", 20, 4),
-                           ("Clustered N=25, k=5", 25, 5),
-                           ("Uniform N=15", 15, 0),
-                           ("Uniform N=20", 20, 0)] {
+    for (label, n, k) in [
+        ("Clustered N=15, k=4", 15usize, 4usize),
+        ("Clustered N=20, k=4", 20, 4),
+        ("Clustered N=25, k=5", 25, 5),
+        ("Uniform N=15", 15, 0),
+        ("Uniform N=20", 20, 0),
+    ] {
         let mut nn_wins = 0u32;
         let mut stau_wins = 0u32;
         let mut ties = 0u32;
@@ -349,8 +409,11 @@ fn test_tsp_expanded() {
         let mut stau_total = 0.0;
 
         for seed in 1..=20u64 {
-            let cities = if k > 0 { clustered_cities(n, k, seed * 97) }
-                         else { random_cities(n, seed * 97) };
+            let cities = if k > 0 {
+                clustered_cities(n, k, seed * 97)
+            } else {
+                random_cities(n, seed * 97)
+            };
 
             // Best over all starts
             let mut best_nn = f64::MAX;
@@ -361,13 +424,17 @@ fn test_tsp_expanded() {
                 let mut nn2 = nn;
                 two_opt(&cities, &mut nn2);
                 let nn_len = tour_length(&cities, &nn2);
-                if nn_len < best_nn { best_nn = nn_len; }
+                if nn_len < best_nn {
+                    best_nn = nn_len;
+                }
 
                 let st = stau_greedy_tsp(&cities, start, tau);
                 let mut st2 = st;
                 two_opt(&cities, &mut st2);
                 let st_len = tour_length(&cities, &st2);
-                if st_len < best_stau { best_stau = st_len; }
+                if st_len < best_stau {
+                    best_stau = st_len;
+                }
             }
 
             nn_total += best_nn;
@@ -383,8 +450,10 @@ fn test_tsp_expanded() {
         }
 
         let pct = (stau_total / nn_total - 1.0) * 100.0;
-        println!("  {:<25}  NN wins: {:>2}  S_τ wins: {:>2}  ties: {:>2}  S_τ vs NN: {:>+.2}%",
-            label, nn_wins, stau_wins, ties, pct);
+        println!(
+            "  {:<25}  NN wins: {:>2}  S_τ wins: {:>2}  ties: {:>2}  S_τ vs NN: {:>+.2}%",
+            label, nn_wins, stau_wins, ties, pct
+        );
     }
 
     println!();
@@ -412,15 +481,21 @@ fn test_callgraph_degree_confound() {
 
     // Architecture 1: Star (one hub calls everything)
     let mut star = Graph::new(10);
-    for i in 1..10 { star.edge(0, i); }
+    for i in 1..10 {
+        star.edge(0, i);
+    }
 
     // Architecture 2: Chain (A→B→C→D→...)
     let mut chain = Graph::new(10);
-    for i in 0..9 { chain.edge(i, i + 1); }
+    for i in 0..9 {
+        chain.edge(i, i + 1);
+    }
 
     // Architecture 3: Small-world (chain + shortcuts)
     let mut sw = Graph::new(10);
-    for i in 0..10 { sw.edge(i, (i + 1) % 10); }
+    for i in 0..10 {
+        sw.edge(i, (i + 1) % 10);
+    }
     sw.edge(0, 5);
     sw.edge(2, 7);
     sw.edge(3, 8);
@@ -428,9 +503,17 @@ fn test_callgraph_degree_confound() {
     // Architecture 4: Two clusters with one bridge
     let mut clusters = Graph::new(10);
     // Cluster A: 0-4 fully connected
-    for i in 0..5 { for j in i+1..5 { clusters.edge(i, j); } }
+    for i in 0..5 {
+        for j in i + 1..5 {
+            clusters.edge(i, j);
+        }
+    }
     // Cluster B: 5-9 fully connected
-    for i in 5..10 { for j in i+1..10 { clusters.edge(i, j); } }
+    for i in 5..10 {
+        for j in i + 1..10 {
+            clusters.edge(i, j);
+        }
+    }
     // Bridge
     clusters.edge(4, 5);
 
@@ -438,7 +521,7 @@ fn test_callgraph_degree_confound() {
     let mut er = Graph::new(10);
     let mut rng = Lcg::new(42);
     for i in 0..10 {
-        for j in i+1..10 {
+        for j in i + 1..10 {
             if rng.next_f64() < 0.3 {
                 er.edge(i, j);
             }
@@ -470,17 +553,27 @@ fn test_callgraph_degree_confound() {
             let s = node_entropy(&ptau, g.n, i);
             s_taus.push(s);
             degs_f.push(degrees[i] as f64);
-            if s < min_s { min_s = s; }
-            if s > max_s { max_s = s; }
+            if s < min_s {
+                min_s = s;
+            }
+            if s > max_s {
+                max_s = s;
+            }
         }
 
         let r = correlation(&s_taus, &degs_f);
-        let adds = if r.abs() < 0.9 { "YES" } else { "NO (≈degree)" };
+        let adds = if r.abs() < 0.9 {
+            "YES"
+        } else {
+            "NO (≈degree)"
+        };
 
-        println!("  {:<18}| {:>7.3} | {:.3}–{:.3}    | {:>+.3}       | {}",
+        println!(
+            "  {:<18}| {:>7.3} | {:.3}–{:.3}    | {:>+.3}       | {}",
             name,
             s_taus.iter().sum::<f64>() / s_taus.len() as f64,
-            min_s, max_s,
+            min_s,
+            max_s,
             r,
             adds
         );
@@ -502,7 +595,13 @@ fn test_callgraph_degree_confound() {
         for i in 0..g.n {
             let s = node_entropy(&ptau, g.n, i);
             let d = degrees[i];
-            let role = if i == 4 || i == 5 { "BRIDGE" } else if i < 5 { "cluster_A" } else { "cluster_B" };
+            let role = if i == 4 || i == 5 {
+                "BRIDGE"
+            } else if i < 5 {
+                "cluster_A"
+            } else {
+                "cluster_B"
+            };
             println!("    Node {}: degree={}, S_τ={:.3}  [{}]", i, d, s, role);
         }
     }
@@ -598,10 +697,18 @@ fn test_harmonic_graphs() {
     for (name, g) in &graphs {
         let s = g.s_tau_avg(tau);
         let edge_count = g.edges.len();
-        println!("  {:<20}| {:>5} | {:>5} | {:>7.3} | {:>8.3} | {:>7.4}",
-            name, g.n, edge_count, s,
+        println!(
+            "  {:<20}| {:>5} | {:>5} | {:>7.3} | {:>8.3} | {:>7.4}",
+            name,
+            g.n,
+            edge_count,
+            s,
             s / g.n as f64,
-            if edge_count > 0 { s / edge_count as f64 } else { 0.0 }
+            if edge_count > 0 {
+                s / edge_count as f64
+            } else {
+                0.0
+            }
         );
     }
 
@@ -708,15 +815,15 @@ fn test_partial_correlation() {
         let n = 8 + rng.next_usize(8); // 8-15 nodes
         let mut g = Graph::new(n);
         for i in 0..n {
-            for j in i+1..n {
+            for j in i + 1..n {
                 if rng.next_f64() < 0.25 {
                     g.edge(i, j);
                 }
             }
         }
         // Ensure connected: add chain
-        for i in 0..n-1 {
-            g.edge(i, i+1);
+        for i in 0..n - 1 {
+            g.edge(i, i + 1);
         }
 
         let p = g.transition_matrix();
@@ -752,17 +859,26 @@ fn test_partial_correlation() {
     println!("  r(S_τ, degree)           = {:.3}", r_sd);
     println!("  r(S_τ, reach)            = {:.3}", r_sb);
     println!("  r(degree, reach)         = {:.3}", r_db);
-    println!("  r(S_τ, reach | degree)   = {:.3}  ← PARTIAL CORRELATION", partial);
+    println!(
+        "  r(S_τ, reach | degree)   = {:.3}  ← PARTIAL CORRELATION",
+        partial
+    );
     println!();
     if partial.abs() < 0.1 {
         println!("  ❌ S_τ adds NOTHING beyond degree for predicting reach.");
         println!("     F132 is likely FALSE — S_τ on call graphs ≈ counting edges.");
     } else if partial.abs() < 0.3 {
-        println!("  ⚠ S_τ adds WEAK information beyond degree (partial r = {:.3}).", partial);
+        println!(
+            "  ⚠ S_τ adds WEAK information beyond degree (partial r = {:.3}).",
+            partial
+        );
         println!("     F132 needs qualification: S_τ captures some structure beyond degree,");
         println!("     but the effect is small.");
     } else {
-        println!("  ✓ S_τ adds SUBSTANTIAL information beyond degree (partial r = {:.3}).", partial);
+        println!(
+            "  ✓ S_τ adds SUBSTANTIAL information beyond degree (partial r = {:.3}).",
+            partial
+        );
         println!("     F132 plausible: S_τ captures structural properties that degree misses.");
     }
     println!();
@@ -772,9 +888,15 @@ fn test_partial_correlation() {
     println!("  #227 LESSON CHECK: Does degree → S_τ → quality create a circular chain?");
     println!("  If r(S_τ, degree) > 0.9, then S_τ IS degree with extra steps.");
     if r_sd > 0.9 {
-        println!("  ❌ YES — r(S_τ, degree) = {:.3}. Same confound as #227.", r_sd);
+        println!(
+            "  ❌ YES — r(S_τ, degree) = {:.3}. Same confound as #227.",
+            r_sd
+        );
     } else {
-        println!("  ✓ NO — r(S_τ, degree) = {:.3}. S_τ has independent information.", r_sd);
+        println!(
+            "  ✓ NO — r(S_τ, degree) = {:.3}. S_τ has independent information.",
+            r_sd
+        );
     }
     println!();
 }
