@@ -9091,6 +9091,32 @@ mod tests {
         assert!(diags[0].span.is_some(), "expected span on type error diagnostic");
     }
 
+    // ── Parse error display ──────────────────────────────────────────
+
+    #[test]
+    fn display_error_in_shows_filename() {
+        // Capture what display_error_in would produce via Diagnostic directly
+        let source = "bad syntax here";
+        let span = line_col_to_span(source, 1, 5);
+        let d = Diagnostic::error_at(span, "unexpected token");
+        let output = d.display(source, "myfile.runa", false);
+        assert!(output.contains("myfile.runa:1:5"), "expected filename in output, got: {}", output);
+    }
+
+    #[test]
+    fn line_col_to_span_first_line() {
+        let source = "hello world";
+        let span = line_col_to_span(source, 1, 6);
+        assert_eq!(span.start, 5); // 'w' is at byte offset 5
+    }
+
+    #[test]
+    fn line_col_to_span_second_line() {
+        let source = "first\nsecond";
+        let span = line_col_to_span(source, 2, 1);
+        assert_eq!(span.start, 6); // 's' of "second" is at byte offset 6
+    }
+
     /// Helper: parse + type-check source, return diagnostics
     fn check_source_for_diagnostics(source: &str) -> Vec<Diagnostic> {
         let mut lexer = Lexer::new(source);

@@ -14,7 +14,13 @@ use serde_json;
 fn main() {
     // Use a large stack (64 MB) to handle deep recursion in comptime evaluation
     let builder = std::thread::Builder::new().stack_size(64 * 1024 * 1024);
-    let handler = builder.spawn(main_inner).expect("failed to spawn main thread");
+    let handler = match builder.spawn(main_inner) {
+        Ok(h) => h,
+        Err(e) => {
+            eprintln!("Fatal: failed to spawn main thread: {}", e);
+            std::process::exit(1);
+        }
+    };
     if let Err(e) = handler.join() {
         std::panic::resume_unwind(e);
     }
@@ -521,7 +527,7 @@ fn runa_add(dep_arg: &str) {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "dep".to_string());
 
-        let toml_dir = std::path::Path::new(&toml_path).parent().unwrap();
+        let toml_dir = std::path::Path::new(&toml_path).parent().unwrap_or_else(|| std::path::Path::new("."));
         let rel_path = pathdiff_relative(&abs_dep, toml_dir);
         let line = format!("{} = {{ path = \"{}\" }}\n", name, rel_path);
         (name, line)
@@ -559,7 +565,7 @@ fn runa_add(dep_arg: &str) {
         } else {
             cwd.join(dep_arg)
         };
-        let toml_dir = std::path::Path::new(&toml_path).parent().unwrap();
+        let toml_dir = std::path::Path::new(&toml_path).parent().unwrap_or_else(|| std::path::Path::new("."));
         pathdiff_relative(&abs_dep, toml_dir)
     };
     eprintln!("\x1b[1;32mAdded\x1b[0m dependency '{}' → {}", dep_name, display);
@@ -1150,7 +1156,7 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 
     for entry in &entries {
         let file_path = entry.path();
-        let name = file_path.file_name().unwrap().to_string_lossy().to_string();
+        let name = file_path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "unknown".to_string());
         let test_start = Instant::now();
 
         if compile_mode {
@@ -1277,7 +1283,7 @@ fn run_repl() {
 
     loop {
         print!("tau> ");
-        stdout.flush().unwrap();
+        let _ = stdout.flush();
 
         let mut line = String::new();
         match stdin.lock().read_line(&mut line) {
@@ -1310,7 +1316,7 @@ fn run_repl() {
                     - full_input.chars().filter(|&c| c == '}').count() as i32;
                 while brace_depth > 0 {
                     print!("...  ");
-                    stdout.flush().unwrap();
+                    let _ = stdout.flush();
                     let mut cont = String::new();
                     match stdin.lock().read_line(&mut cont) {
                         Ok(0) => break,
@@ -2813,8 +2819,8 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                 let rustc_bin = find_rust_tool("rustc");
                 let meta_out = cache_dir.join("__check_out");
                 let output = Command::new(&rustc_bin)
-                    .args(&[rs_path.to_str().unwrap(), "--edition", "2021", "--crate-type", "bin",
-                            "--emit=metadata", "-o", meta_out.to_str().unwrap()])
+                    .args(&[&*rs_path.to_string_lossy(), "--edition", "2021", "--crate-type", "bin",
+                            "--emit=metadata", "-o", &*meta_out.to_string_lossy()])
                     .output();
                 let elapsed = start.elapsed();
                 match output {
@@ -3011,8 +3017,10 @@ fn format_directory(dir: &str, check: bool) {
             if check {
                 eprintln!("  \x1b[1;31mneeds fmt\x1b[0m  {}", path);
             } else {
-                std::fs::write(path, &formatted).unwrap();
-                eprintln!("  \x1b[1;32mformatted\x1b[0m  {}", path);
+                match std::fs::write(path, &formatted) {
+                    Ok(_) => eprintln!("  \x1b[1;32mformatted\x1b[0m  {}", path),
+                    Err(e) => eprintln!("  \x1b[1;31merror\x1b[0m  {}: {}", path, e),
+                }
             }
         }
     }
@@ -3068,8 +3076,10 @@ fn format_one_file(source: &str, filename: &str, check: bool) {
         }
     } else {
         if formatted != source {
-            std::fs::write(filename, &formatted).unwrap();
-            eprintln!("formatted {}", filename);
+            match std::fs::write(filename, &formatted) {
+                Ok(_) => eprintln!("formatted {}", filename),
+                Err(e) => eprintln!("error writing {}: {}", filename, e),
+            }
         } else {
             eprintln!("{} unchanged", filename);
         }
@@ -3662,11 +3672,11 @@ fn run_lsp_server() {
 
         match method {
             "initialize" => {
-                lsp_send_response(&mut writer, id.unwrap(), lsp_server_capabilities());
+                if let Some(id) = id.clone() { lsp_send_response(&mut writer, id, lsp_server_capabilities()); }
             }
             "initialized" => {} // client ready, nothing to do
             "shutdown" => {
-                lsp_send_response(&mut writer, id.unwrap(), serde_json::Value::Null);
+                if let Some(id) = id.clone() { lsp_send_response(&mut writer, id, serde_json::Value::Null); }
             }
             "exit" => break,
 
@@ -3705,7 +3715,7 @@ fn run_lsp_server() {
                 let col = params["position"]["character"].as_u64().unwrap_or(0) as u32;
                 let text = documents.get(uri).cloned().unwrap_or_default();
                 let items = lsp_completions(&text, line, col);
-                lsp_send_response(&mut writer, id.unwrap(), serde_json::json!(items));
+                if let Some(id) = id.clone() { lsp_send_response(&mut writer, id, serde_json::json!(items)); }
             }
             "textDocument/hover" => {
                 let uri = params["textDocument"]["uri"].as_str().unwrap_or("");
@@ -3713,7 +3723,7 @@ fn run_lsp_server() {
                 let col = params["position"]["character"].as_u64().unwrap_or(0) as u32;
                 let text = documents.get(uri).cloned().unwrap_or_default();
                 let hover = lsp_hover(&text, line, col);
-                lsp_send_response(&mut writer, id.unwrap(), hover);
+                if let Some(id) = id.clone() { lsp_send_response(&mut writer, id, hover); }
             }
             "textDocument/definition" => {
                 let uri = params["textDocument"]["uri"].as_str().unwrap_or("").to_string();
@@ -3721,7 +3731,7 @@ fn run_lsp_server() {
                 let col = params["position"]["character"].as_u64().unwrap_or(0) as u32;
                 let text = documents.get(&uri).cloned().unwrap_or_default();
                 let loc = lsp_definition(&uri, &text, line, col);
-                lsp_send_response(&mut writer, id.unwrap(), loc);
+                if let Some(id) = id.clone() { lsp_send_response(&mut writer, id, loc); }
             }
 
             _ => {
@@ -7452,14 +7462,14 @@ impl RustCodegen {
                     // @ comptime assert(expr) — compile-time assertion
                     if let Stmt::Expr(expr) = stmt {
                         // Check if it's assert(expr) or just a bare expression
-                        let (is_assert, inner_expr) = match expr {
+                        let inner_expr = match expr {
                             Expr::App(f, args) if matches!(**f, Expr::Var(ref n) if n == "assert") && args.len() == 1 => {
-                                (true, Some(&args[0]))
+                                Some(&args[0])
                             }
-                            _ => (false, None),
+                            _ => None,
                         };
-                        if is_assert {
-                            let val = comptime_interp.eval(inner_expr.unwrap(), &mut comptime_env);
+                        if let Some(assert_expr) = inner_expr {
+                            let val = comptime_interp.eval(assert_expr, &mut comptime_env);
                             let is_truthy = match &val {
                                 Value::Bool(b) => Some(*b),
                                 Value::Constructor(name, args) if args.is_empty() => match name.as_str() {
@@ -7474,7 +7484,7 @@ impl RustCodegen {
                                     eprintln!("// comptime assert: PASS");
                                 }
                                 Some(false) => {
-                                    eprintln!("comptime assert FAILED: {:?}", inner_expr.unwrap());
+                                    eprintln!("comptime assert FAILED: {:?}", assert_expr);
                                     std::process::exit(1);
                                 }
                                 None => {
