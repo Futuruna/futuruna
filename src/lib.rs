@@ -1774,6 +1774,26 @@ impl Parser {
         self.line_starts[line_idx] + (col - 1)
     }
 
+    /// Create a Span from a token's position to the end of its text.
+    pub fn token_span(&self, tok: &Token) -> Span {
+        let start = self.char_offset(tok.line, tok.col);
+        let end = start + tok.text.len();
+        Span::new(start, end)
+    }
+
+    /// Create a Span from start token to end of most recently consumed token.
+    pub fn span_since(&self, start_tok: &Token) -> Span {
+        let start = self.char_offset(start_tok.line, start_tok.col);
+        let prev = if self.pos > 0 { &self.tokens[self.pos - 1] } else { start_tok };
+        let end = self.char_offset(prev.line, prev.col) + prev.text.len();
+        Span::new(start, end)
+    }
+
+    /// Create a spanned Expr using token positions.
+    pub fn spanned(&self, kind: ExprKind, start_tok: &Token) -> Expr {
+        Expr::new(kind, self.span_since(start_tok))
+    }
+
     pub fn peek(&self) -> &Token {
         self.tokens.get(self.pos).unwrap_or(
             self.tokens.last().unwrap() // EOF
@@ -3411,25 +3431,31 @@ impl Parser {
             match self.peek_kind() {
                 // Postfix ? operator (try/error propagation) — must be before generic Op
                 TokenKind::Op if self.peek().text == "?" => {
+                    let start_span = lhs.span;
                     self.advance();
-                    lhs = ExprKind::Try(Box::new(lhs)).into();
+                    let span = start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
+                    lhs = Expr::new(ExprKind::Try(Box::new(lhs)), span);
                 }
                 // Pipe-forward operator: x |> f — preserved as ExprKind::Pipe AST node
                 TokenKind::PipeGt => {
                     let pipe_prec: u8 = 1; // lowest precedence
                     if pipe_prec < min_prec { break; }
+                    let start_span = lhs.span;
                     self.advance();
                     let rhs = self.parse_expr_prec(pipe_prec + 1)?;
-                    lhs = ExprKind::Pipe(Box::new(lhs), Box::new(rhs)).into();
+                    let span = start_span.merge(rhs.span);
+                    lhs = Expr::new(ExprKind::Pipe(Box::new(lhs), Box::new(rhs)), span);
                 }
                 // Binary operators
                 TokenKind::Op => {
                     let op = &self.peek().text;
                     let prec = op_precedence(op);
                     if prec < min_prec { break; }
+                    let start_span = lhs.span;
                     let op = self.advance().text;
                     let rhs = self.parse_expr_prec(prec + 1)?;
-                    lhs = ExprKind::BinOp(op, Box::new(lhs), Box::new(rhs)).into();
+                    let span = start_span.merge(rhs.span);
+                    lhs = Expr::new(ExprKind::BinOp(op, Box::new(lhs), Box::new(rhs)), span);
                 }
                 // Safe call: expr?.field → match expr { Some(v) -> Some(v.field), None -> None }
                 TokenKind::SafeCall => {
@@ -3480,14 +3506,18 @@ impl Parser {
                 }
                 // Field access: expr.field
                 TokenKind::Dot => {
+                    let start_span = lhs.span;
                     self.advance();
                     let field = self.expect_ident()?;
-                    lhs = ExprKind::Field(Box::new(lhs), field).into();
+                    let span = start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
+                    lhs = Expr::new(ExprKind::Field(Box::new(lhs), field), span);
                 }
                 // Function application: expr(args)
                 TokenKind::LParen => {
+                    let start_span = lhs.span;
                     let args = self.parse_arg_list()?;
-                    lhs = ExprKind::App(Box::new(lhs), args).into();
+                    let span = start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
+                    lhs = Expr::new(ExprKind::App(Box::new(lhs), args), span);
                 }
                 // Index: expr[idx]
                 TokenKind::LBracket => {
@@ -3508,34 +3538,41 @@ impl Parser {
             // Identifiers and type constructors
             TokenKind::Ident => {
                 let tok = self.advance();
-                Ok(ExprKind::Var(tok.text).into())
+                let span = self.token_span(&tok);
+                Ok(Expr::new(ExprKind::Var(tok.text), span))
             }
             TokenKind::Type => {
                 let tok = self.advance();
+                let span = self.token_span(&tok);
                 // Type constructor: might be called with args
-                Ok(ExprKind::Var(tok.text).into())
+                Ok(Expr::new(ExprKind::Var(tok.text), span))
             }
             // Literals
             TokenKind::Int_ => {
                 let tok = self.advance();
-                Ok(ExprKind::Lit(Literal::Int(tok.text.parse().unwrap_or(0))).into())
+                let span = self.token_span(&tok);
+                Ok(Expr::new(ExprKind::Lit(Literal::Int(tok.text.parse().unwrap_or(0))), span))
             }
             TokenKind::Float_ => {
                 let tok = self.advance();
-                Ok(ExprKind::Lit(Literal::Float(tok.text.parse().unwrap_or(0.0))).into())
+                let span = self.token_span(&tok);
+                Ok(Expr::new(ExprKind::Lit(Literal::Float(tok.text.parse().unwrap_or(0.0))), span))
             }
             TokenKind::String_ => {
                 let tok = self.advance();
-                Ok(ExprKind::Lit(Literal::Str(tok.text)).into())
+                let span = self.token_span(&tok);
+                Ok(Expr::new(ExprKind::Lit(Literal::Str(tok.text)), span))
             }
             TokenKind::Char_ => {
                 let tok = self.advance();
+                let span = self.token_span(&tok);
                 let c = tok.text.chars().next().unwrap_or(' ');
-                Ok(ExprKind::Lit(Literal::Char(c)).into())
+                Ok(Expr::new(ExprKind::Lit(Literal::Char(c)), span))
             }
             TokenKind::Bool_ => {
                 let tok = self.advance();
-                Ok(ExprKind::Lit(Literal::Bool(tok.text == "True")).into())
+                let span = self.token_span(&tok);
+                Ok(Expr::new(ExprKind::Lit(Literal::Bool(tok.text == "True")), span))
             }
             // Parenthesized expression, unit, or tuple
             TokenKind::LParen => {
@@ -9160,5 +9197,75 @@ mod tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse should succeed");
         TypeChecker::check_with_diagnostics(&stmts, None, source)
+    }
+
+    /// Helper: parse source and return the first expression from a binding
+    fn parse_expr_from(source: &str) -> Expr {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse should succeed");
+        // Find first Bind or Expr statement and extract the expression
+        for stmt in &stmts {
+            match stmt {
+                Stmt::Bind(_, _, expr) => return expr.clone(),
+                Stmt::Expr(expr) => return expr.clone(),
+                _ => {}
+            }
+        }
+        panic!("no expression found in source");
+    }
+
+    // ── Parser span tests ───────────────────────────────────────────
+
+    #[test]
+    fn parsed_var_has_real_span() {
+        let expr = parse_expr_from("= x = hello");
+        assert!(!expr.span.is_dummy(), "expected real span on Var, got dummy");
+        assert_eq!(expr.span.start_line_col("= x = hello"), (1, 7)); // "hello" starts at col 7
+    }
+
+    #[test]
+    fn parsed_int_literal_has_span() {
+        let expr = parse_expr_from("= x = 42");
+        assert!(!expr.span.is_dummy());
+        assert_eq!(expr.span.start_line_col("= x = 42"), (1, 7)); // "42" at col 7
+    }
+
+    #[test]
+    fn parsed_string_literal_has_span() {
+        let expr = parse_expr_from("= x = \"hello\"");
+        assert!(!expr.span.is_dummy());
+    }
+
+    #[test]
+    fn parsed_binop_span_covers_both_sides() {
+        let expr = parse_expr_from("= x = a + b");
+        assert!(!expr.span.is_dummy());
+        let source = "= x = a + b";
+        let (_, start_col) = expr.span.start_line_col(source);
+        let (_, end_col) = expr.span.end_line_col(source);
+        assert_eq!(start_col, 7); // starts at "a"
+        assert!(end_col >= 12, "expected span to cover through 'b', got end col {}", end_col);
+    }
+
+    #[test]
+    fn parsed_field_access_span() {
+        let expr = parse_expr_from("= x = obj.field");
+        assert!(!expr.span.is_dummy());
+        let source = "= x = obj.field";
+        let (_, start_col) = expr.span.start_line_col(source);
+        assert_eq!(start_col, 7); // starts at "obj"
+    }
+
+    #[test]
+    fn parsed_function_call_span() {
+        let expr = parse_expr_from("= x = foo(1, 2)");
+        assert!(!expr.span.is_dummy());
+        let source = "= x = foo(1, 2)";
+        let (_, start_col) = expr.span.start_line_col(source);
+        let (_, end_col) = expr.span.end_line_col(source);
+        assert_eq!(start_col, 7); // starts at "foo"
+        assert!(end_col >= 15, "expected span to cover through ')', got end col {}", end_col);
     }
 }
