@@ -5038,6 +5038,20 @@ impl Interpreter {
             Expr::Field(obj, field) => {
                 let obj_val = self.eval(obj, env);
                 match &obj_val {
+                    // Tuple field access: .fst → index 0, .snd → index 1
+                    // Also supports .0, .1, .2, etc.
+                    Value::Tuple(elems) => {
+                        match field.as_str() {
+                            "fst" | "0" => return elems.first().cloned().unwrap_or(Value::Unit),
+                            "snd" | "1" => return elems.get(1).cloned().unwrap_or(Value::Unit),
+                            _ => {
+                                if let Ok(idx) = field.parse::<usize>() {
+                                    return elems.get(idx).cloned().unwrap_or(Value::Unit);
+                                }
+                                return Value::Unit;
+                            }
+                        }
+                    }
                     Value::NamedConstructor(_name, named_fields) => {
                         // Named field access: obj.field_name
                         for (fname, val) in named_fields {
