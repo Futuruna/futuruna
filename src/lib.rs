@@ -2879,9 +2879,20 @@ impl Parser {
     /// Parse a module path like `./math`, `./utils/helpers`, or `./kapitel-08`
     pub fn parse_module_path(&mut self) -> Result<String, String> {
         let mut path = String::new();
-        if self.peek_kind() == TokenKind::Dot {
+        // Handle ./ and ../ prefixes (including chained ../../)
+        while self.peek_kind() == TokenKind::Dot {
             self.advance();
             path.push('.');
+            // Check for .. (parent directory)
+            if self.peek_kind() == TokenKind::Dot {
+                self.advance();
+                path.push('.');
+            }
+            // Consume the / after . or ..
+            if self.peek_kind() == TokenKind::Op && self.peek().text == "/" {
+                self.advance();
+                path.push('/');
+            }
         }
         loop {
             if self.peek_kind() == TokenKind::Op && self.peek().text == "/" {
@@ -3734,8 +3745,8 @@ pub enum Value {
     Subject(Vec<Value>),
     /// Map: key-value dictionary (HashMap in codegen, associative list in interpreter)
     Map(HashMap<String, Value>),
-    /// Set: unique value collection (HashSet in codegen, distinct list in interpreter)
-    Set(Vec<Value>),
+    /// Set: unique value collection (HashSet in codegen, HashMap<String,Value> in interpreter)
+    Set(HashMap<String, Value>),
     /// Scope: a named block with its own environment. Bindings accessible via Scope.name.
     Scope { name: String, bindings: HashMap<String, Value> },
     /// Comptime type definition: describes a type to be generated at compile time.
@@ -3822,7 +3833,7 @@ impl fmt::Display for Value {
             }
             Value::Set(items) => {
                 write!(f, "{{")?;
-                for (i, v) in items.iter().enumerate() {
+                for (i, (_, v)) in items.iter().enumerate() {
                     if i > 0 { write!(f, ", ")?; }
                     write!(f, "{}", v)?;
                 }
@@ -3965,7 +3976,7 @@ impl Interpreter {
         let rel = import_path.trim_start_matches("./");
         let file_path = format!("{}/{}.runa", dir, rel);
 
-        if import_path.starts_with("./") || std::path::Path::new(&file_path).exists() {
+        if import_path.starts_with("./") || import_path.starts_with("../") || std::path::Path::new(&file_path).exists() {
             return Some(file_path);
         }
 
@@ -5777,27 +5788,27 @@ impl Interpreter {
                 }
             }
             // ---- Set builtins (M24) ----
-            "set_new" => Value::Set(vec![]),
+            "set_new" => Value::Set(HashMap::new()),
             "set_insert" => {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Set(items)), Some(val)) => {
-                        let val_str = format!("{}", val);
-                        if items.iter().any(|v| format!("{}", v) == val_str) {
+                        let key = format!("{}", val);
+                        if items.contains_key(&key) {
                             Value::Set(items.clone())
                         } else {
                             let mut new_items = items.clone();
-                            new_items.push(val.clone());
+                            new_items.insert(key, val.clone());
                             Value::Set(new_items)
                         }
                     }
-                    _ => args.first().cloned().unwrap_or(Value::Set(vec![])),
+                    _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
                 }
             }
             "set_contains" => {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Set(items)), Some(val)) => {
-                        let val_str = format!("{}", val);
-                        Value::Bool(items.iter().any(|v| format!("{}", v) == val_str))
+                        let key = format!("{}", val);
+                        Value::Bool(items.contains_key(&key))
                     }
                     _ => Value::Bool(false),
                 }
@@ -5805,13 +5816,12 @@ impl Interpreter {
             "set_remove" => {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Set(items)), Some(val)) => {
-                        let val_str = format!("{}", val);
-                        let new_items: Vec<Value> = items.iter()
-                            .filter(|v| format!("{}", v) != val_str)
-                            .cloned().collect();
+                        let key = format!("{}", val);
+                        let mut new_items = items.clone();
+                        new_items.remove(&key);
                         Value::Set(new_items)
                     }
-                    _ => args.first().cloned().unwrap_or(Value::Set(vec![])),
+                    _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
                 }
             }
             "set_len" => {
@@ -5822,7 +5832,7 @@ impl Interpreter {
             }
             "set_to_list" => {
                 match args.first() {
-                    Some(Value::Set(items)) => Value::List(items.clone()),
+                    Some(Value::Set(items)) => Value::List(items.values().cloned().collect()),
                     _ => Value::List(vec![]),
                 }
             }
@@ -5830,57 +5840,50 @@ impl Interpreter {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Set(a)), Some(Value::Set(b))) => {
                         let mut result = a.clone();
-                        for v in b {
-                            let v_str = format!("{}", v);
-                            if !result.iter().any(|x| format!("{}", x) == v_str) {
-                                result.push(v.clone());
-                            }
+                        for (k, v) in b {
+                            result.entry(k.clone()).or_insert_with(|| v.clone());
                         }
                         Value::Set(result)
                     }
-                    _ => args.first().cloned().unwrap_or(Value::Set(vec![])),
+                    _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
                 }
             }
             "set_intersect" => {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Set(a)), Some(Value::Set(b))) => {
-                        let b_strs: Vec<String> = b.iter().map(|v| format!("{}", v)).collect();
-                        let result: Vec<Value> = a.iter()
-                            .filter(|v| b_strs.contains(&format!("{}", v)))
-                            .cloned().collect();
+                        let result: HashMap<String, Value> = a.iter()
+                            .filter(|(k, _)| b.contains_key(k.as_str()))
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect();
                         Value::Set(result)
                     }
-                    _ => Value::Set(vec![]),
+                    _ => Value::Set(HashMap::new()),
                 }
             }
             "set_diff" => {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Set(a)), Some(Value::Set(b))) => {
-                        let b_strs: Vec<String> = b.iter().map(|v| format!("{}", v)).collect();
-                        let result: Vec<Value> = a.iter()
-                            .filter(|v| !b_strs.contains(&format!("{}", v)))
-                            .cloned().collect();
+                        let result: HashMap<String, Value> = a.iter()
+                            .filter(|(k, _)| !b.contains_key(k.as_str()))
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect();
                         Value::Set(result)
                     }
-                    _ => args.first().cloned().unwrap_or(Value::Set(vec![])),
+                    _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
                 }
             }
             "set_from_list" => {
                 match args.first() {
                     Some(list) => {
                         let items = list_to_vec(list);
-                        let mut result: Vec<Value> = Vec::new();
-                        let mut seen: Vec<String> = Vec::new();
+                        let mut result: HashMap<String, Value> = HashMap::new();
                         for v in items {
-                            let v_str = format!("{}", v);
-                            if !seen.contains(&v_str) {
-                                seen.push(v_str);
-                                result.push(v);
-                            }
+                            let key = format!("{}", v);
+                            result.entry(key).or_insert(v);
                         }
                         Value::Set(result)
                     }
-                    _ => Value::Set(vec![]),
+                    _ => Value::Set(HashMap::new()),
                 }
             }
             "assert" => {

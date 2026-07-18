@@ -4481,6 +4481,8 @@ struct RustCodegen {
     current_borrow_params: BTreeSet<String>,
     /// Variables known to be String-typed in current scope (for string concat detection)
     string_typed_vars: BTreeSet<String>,
+    /// Variables known to be Float-typed in current scope (for float division/fold detection)
+    float_typed_vars: BTreeSet<String>,
     /// Functions known to return String (for string concat format! emission)
     string_returning_fns: BTreeSet<String>,
     /// Temporary flag: emit FnOnce instead of FnMut for arrow types
@@ -5909,6 +5911,7 @@ impl RustCodegen {
             ref_match_bindings: BTreeSet::new(),
             current_borrow_params: BTreeSet::new(),
             string_typed_vars: BTreeSet::new(),
+            float_typed_vars: BTreeSet::new(),
             string_returning_fns: BTreeSet::new(),
             fn_once_mode: false,
             in_self_method: false,
@@ -5956,8 +5959,8 @@ impl RustCodegen {
         let rel = import_path.trim_start_matches("./");
         let file_path = format!("{}/{}.runa", dir, rel);
 
-        // If file exists OR path starts with ./, use it directly
-        if import_path.starts_with("./") || std::path::Path::new(&file_path).exists() {
+        // If file exists OR path starts with ./ or ../, use it directly
+        if import_path.starts_with("./") || import_path.starts_with("../") || std::path::Path::new(&file_path).exists() {
             let canon = std::fs::canonicalize(&file_path)
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or(file_path.clone());
@@ -8977,6 +8980,7 @@ impl RustCodegen {
                 let prev_mutable = std::mem::take(&mut self.mutable_vars);
                 let prev_aliased = std::mem::take(&mut self.aliased_vars);
                 let prev_string_vars = std::mem::take(&mut self.string_typed_vars);
+                let prev_float_vars = std::mem::take(&mut self.float_typed_vars);
                 count_var_uses(body, &mut self.var_use_counts);
                 count_consuming_uses_borrow_aware(body, &mut self.var_consuming_counts, &self.borrow_only_params, Some(name.as_str()), &params.iter().map(|p| p.name.as_str()).collect::<Vec<_>>());
                 // Detect accumulators (variables rebound inside for loops) in function body
@@ -9004,6 +9008,12 @@ impl RustCodegen {
                 for p in params {
                     if matches!(p.ty.as_ref(), Some(Ty::Name(n)) if n == "String") {
                         self.string_typed_vars.insert(p.name.clone());
+                    }
+                }
+                // Track Float-typed parameters (for float division/fold detection)
+                for p in params {
+                    if matches!(p.ty.as_ref(), Some(Ty::Name(n)) if n == "Float") {
+                        self.float_typed_vars.insert(p.name.clone());
                     }
                 }
                 // Auto-borrow params are effectively Copy (accessed via &, no ownership transfer)
@@ -9099,6 +9109,7 @@ impl RustCodegen {
                 self.mutable_vars = prev_mutable;
                 self.aliased_vars = prev_aliased;
                 self.string_typed_vars = prev_string_vars;
+                self.float_typed_vars = prev_float_vars;
                 self.current_effects = prev_effects;
                 out
             }
@@ -9290,6 +9301,9 @@ impl RustCodegen {
                 if let Pat::Var(var_name) = pat {
                     if self.expr_is_string(value) {
                         self.string_typed_vars.insert(var_name.clone());
+                    }
+                    if self.expr_is_float(value) {
+                        self.float_typed_vars.insert(var_name.clone());
                     }
                 }
                 format!("{}let {}{} = {};\n", self.ind(), mutability, pat_str, val_str)
@@ -10104,7 +10118,23 @@ impl RustCodegen {
     fn expr_is_float(&self, expr: &Expr) -> bool {
         match expr {
             Expr::Lit(Literal::Float(_)) => true,
+            Expr::Var(name) => self.float_typed_vars.contains(name.as_str()),
             Expr::BinOp(_, lhs, rhs) => self.expr_is_float(lhs) || self.expr_is_float(rhs),
+            Expr::App(func, args) => {
+                if let Expr::Var(name) = func.as_ref() {
+                    if matches!(name.as_str(), "to_float" | "sqrt" | "exp" | "ln" | "pow"
+                        | "abs" | "round" | "floor" | "min_f" | "max_f" | "parse_float"
+                        | "phi" | "mint" ) {
+                        return true;
+                    }
+                    // foldl with float initial value → result is float
+                    if name == "foldl" && args.len() >= 2 && self.expr_is_float(&args[1]) {
+                        return true;
+                    }
+                }
+                false
+            }
+            Expr::If(_, then_, else_) => self.expr_is_float(then_) || self.expr_is_float(else_),
             _ => false,
         }
     }
@@ -10952,6 +10982,28 @@ impl RustCodegen {
                             }
                         }
                     }
+                    // Inline lambda into foldl: propagate initial value type to closure params
+                    if name == "foldl" && args.len() == 3
+                        && !self.user_functions.contains(name.as_str())
+                    {
+                        if let Expr::Lambda(params, body) = &args[2] {
+                            let init_is_float = self.expr_is_float(&args[1]);
+                            if init_is_float && params.len() == 2
+                                && params[0].ty.is_none() && params[1].ty.is_none()
+                            {
+                                let coll = self.emit_expr(&args[0]);
+                                let init = self.emit_expr(&args[1]);
+                                let acc = sanitize_name(&params[0].name);
+                                let elem = sanitize_name(&params[1].name);
+                                // Mark params as float for body emission
+                                self.float_typed_vars.insert(params[0].name.clone());
+                                self.float_typed_vars.insert(params[1].name.clone());
+                                let body_code = self.emit_expr(body);
+                                return format!("{}.clone().into_iter().fold({}, move |{}: f64, {}: f64| {})",
+                                    coll, init, acc, elem, body_code);
+                            }
+                        }
+                    }
                     // Builtin registry lookup — replaces 300+ lines of if-chain
                     if let Some(def) = self.builtin_registry.get(name.as_str()) {
                         if args_str.len() == def.arity && (!def.shadowable || !self.user_functions.contains(name.as_str())) {
@@ -11205,9 +11257,14 @@ impl RustCodegen {
                 }
                 // Futuruna uses = for equality; Rust uses ==
                 let rust_op = if op == "=" { "==" } else { op.as_str() };
-                // Safe integer division/modulo: return 0 on division by zero (matches interpreter)
-                if (rust_op == "/" || rust_op == "%") && !self.expr_is_float(lhs) {
-                    return format!("{{ let __d = {}; if __d == 0 {{ 0 }} else {{ {} {} __d }} }}", r, l, rust_op);
+                // Safe division/modulo: return 0 on division by zero (matches interpreter)
+                if rust_op == "/" || rust_op == "%" {
+                    let is_float = self.expr_is_float(lhs) || self.expr_is_float(rhs);
+                    if is_float {
+                        return format!("{{ let __d = {}; if __d == 0.0 {{ 0.0 }} else {{ {} {} __d }} }}", r, l, rust_op);
+                    } else {
+                        return format!("{{ let __d = {}; if __d == 0 {{ 0 }} else {{ {} {} __d }} }}", r, l, rust_op);
+                    }
                 }
                 format!("({} {} {})", l, rust_op, r)
             }
@@ -12238,6 +12295,15 @@ impl RustCodegen {
                             let mutability = if let Pat::Var(name) = pat {
                                 if self.mutable_vars.contains(name.as_str()) { "mut " } else { "" }
                             } else { "" };
+                            // Track typed bindings (for float division/string concat detection)
+                            if let Pat::Var(var_name) = pat {
+                                if self.expr_is_string(value) {
+                                    self.string_typed_vars.insert(var_name.clone());
+                                }
+                                if self.expr_is_float(value) {
+                                    self.float_typed_vars.insert(var_name.clone());
+                                }
+                            }
                             out.push_str(&format!("{}let {}{} = {};\n", self.ind(), mutability, pat_str, val_str));
                         }
                         Stmt::MonadicBind(pat, _, value) => {
@@ -12368,10 +12434,13 @@ impl RustCodegen {
                         Stmt::Bind(pat, _, value) => {
                             let pat_str = self.emit_pattern_binding(pat);
                             let val_str = self.emit_expr(value);
-                            // Track string-typed bindings (same as emit_stmt Bind path)
+                            // Track typed bindings (same as emit_stmt Bind path)
                             if let Pat::Var(var_name) = pat {
                                 if self.expr_is_string(value) {
                                     self.string_typed_vars.insert(var_name.clone());
+                                }
+                                if self.expr_is_float(value) {
+                                    self.float_typed_vars.insert(var_name.clone());
                                 }
                             }
                             // If binding shadows a TCE loop variable, reassign instead of new let
