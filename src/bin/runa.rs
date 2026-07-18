@@ -1593,6 +1593,99 @@ fn ty_to_smt_sort(ty: &Ty) -> String {
 }
 
 /// Collect free variables from an expression
+/// Collect truly free variables: referenced vars minus locally bound ones.
+/// `bound` tracks names defined in enclosing scopes (lambda params, let bindings).
+fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTreeSet<String>) {
+    match expr {
+        Expr::Var(name) => {
+            if !bound.contains(name) { free.insert(name.clone()); }
+        }
+        Expr::Lit(_) => {}
+        Expr::BinOp(_, lhs, rhs) => {
+            collect_true_free_vars(lhs, free, bound);
+            collect_true_free_vars(rhs, free, bound);
+        }
+        Expr::UnOp(_, inner) => collect_true_free_vars(inner, free, bound),
+        Expr::App(func, args) => {
+            collect_true_free_vars(func, free, bound);
+            for a in args { collect_true_free_vars(a, free, bound); }
+        }
+        Expr::If(c, t, e) => {
+            collect_true_free_vars(c, free, bound);
+            collect_true_free_vars(t, free, bound);
+            collect_true_free_vars(e, free, bound);
+        }
+        Expr::Field(obj, _) => collect_true_free_vars(obj, free, bound),
+        Expr::Index(arr, idx) => {
+            collect_true_free_vars(arr, free, bound);
+            collect_true_free_vars(idx, free, bound);
+        }
+        Expr::Match(scrut, arms) => {
+            collect_true_free_vars(scrut, free, bound);
+            for arm in arms {
+                let mut arm_bound = bound.clone();
+                collect_pattern_names(&arm.pat, &mut arm_bound);
+                collect_true_free_vars(&arm.body, free, &arm_bound);
+                if let Some(ref g) = arm.guard { collect_true_free_vars(g, free, &arm_bound); }
+            }
+        }
+        Expr::Lambda(params, body) => {
+            let mut inner_bound = bound.clone();
+            for p in params { inner_bound.insert(p.name.clone()); }
+            collect_true_free_vars(body, free, &inner_bound);
+        }
+        Expr::Block(stmts) => {
+            let mut block_bound = bound.clone();
+            for s in stmts {
+                match s {
+                    Stmt::Bind(pat, _, e) | Stmt::MonadicBind(pat, _, e) => {
+                        collect_true_free_vars(e, free, &block_bound);
+                        collect_pattern_names(pat, &mut block_bound);
+                    }
+                    Stmt::Expr(e) => collect_true_free_vars(e, free, &block_bound),
+                    Stmt::For(var, iter, body_stmts) => {
+                        collect_true_free_vars(iter, free, &block_bound);
+                        let mut for_bound = block_bound.clone();
+                        for_bound.insert(var.clone());
+                        for s in body_stmts {
+                            match s {
+                                Stmt::Bind(p, _, e) | Stmt::MonadicBind(p, _, e) => {
+                                    collect_true_free_vars(e, free, &for_bound);
+                                    collect_pattern_names(p, &mut for_bound);
+                                }
+                                Stmt::Expr(e) => collect_true_free_vars(e, free, &for_bound),
+                                _ => {}
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Expr::List(elems) => {
+            for e in elems { collect_true_free_vars(e, free, bound); }
+        }
+        _ => {}
+    }
+}
+
+fn collect_pattern_names(pat: &Pat, names: &mut BTreeSet<String>) {
+    match pat {
+        Pat::Var(n) => { names.insert(n.clone()); }
+        Pat::Con(_, pats) => {
+            for p in pats { collect_pattern_names(p, names); }
+        }
+        Pat::NamedCon(_, fields) => {
+            for (_, p) in fields { collect_pattern_names(p, names); }
+        }
+        Pat::As(inner, alias) => {
+            collect_pattern_names(inner, names);
+            names.insert(alias.clone());
+        }
+        _ => {}
+    }
+}
+
 fn collect_free_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
     match expr {
         Expr::Var(name) => { vars.insert(name.clone()); }
@@ -4679,7 +4772,7 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
     match expr {
         Expr::App(func, args) => {
             count_consuming_uses(func, counts);
-            let is_borrow_builtin = matches!(func.as_ref(), Expr::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by"));
+            let is_borrow_builtin = matches!(func.as_ref(), Expr::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             for a in args {
                 if !is_borrow_builtin {
                     // Non-borrow function call: Var args are consuming
@@ -4799,7 +4892,7 @@ fn count_consuming_uses_branch_aware(expr: &Expr, counts: &mut BTreeMap<String, 
     match expr {
         Expr::App(func, args) => {
             count_consuming_uses_branch_aware(func, counts);
-            let is_borrow_builtin = matches!(func.as_ref(), Expr::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by"));
+            let is_borrow_builtin = matches!(func.as_ref(), Expr::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             for a in args {
                 if !is_borrow_builtin {
                     if let Expr::Var(name) = a {
@@ -4952,7 +5045,7 @@ fn count_consuming_uses_borrow_aware(
             }
             count_consuming_uses_borrow_aware(func, counts, known_borrow_fns,
                 self_fn_name, self_param_names);
-            let is_borrow_builtin = matches!(func.as_ref(), Expr::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by"));
+            let is_borrow_builtin = matches!(func.as_ref(), Expr::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             // Phase 3d: Check if this is a self-recursive call
             let is_self_recursive = if let Expr::Var(fn_name) = func.as_ref() {
                 self_fn_name == Some(fn_name.as_str())
@@ -5134,7 +5227,7 @@ fn has_consuming_non_field_use(
     match expr {
         Expr::App(func, args) => {
             if has_consuming_non_field_use(func, param, known_borrow_fns, self_fn_name, self_param_names) { return true; }
-            let is_borrow_builtin = matches!(func.as_ref(), Expr::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by"));
+            let is_borrow_builtin = matches!(func.as_ref(), Expr::Var(n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             // Phase 3d: self-recursive call detection
             let is_self_recursive = if let Expr::Var(fn_name) = func.as_ref() {
                 self_fn_name == Some(fn_name.as_str())
@@ -10982,12 +11075,32 @@ impl RustCodegen {
                             let coll = self.emit_expr(&args[0]);
                             let param = if params.is_empty() { "_x".to_string() } else { sanitize_name(&params[0].name) };
                             let body_code = self.emit_expr(body);
+                            // Detect captured variables in the lambda body
+                            let mut param_bound = BTreeSet::new();
+                            for p in params { param_bound.insert(p.name.clone()); }
+                            let mut free_in_body = BTreeSet::new();
+                            collect_true_free_vars(body, &mut free_in_body, &param_bound);
+                            let lsp_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
+                            let captured: Vec<String> = free_in_body.into_iter()
+                                .filter(|v| !self.user_functions.contains(v.as_str())
+                                    && !self.builtin_registry.contains_key(v.as_str())
+                                    && !self.variant_parent.contains_key(v.as_str())
+                                    && !self.copy_vars.contains(v.as_str())
+                                    && !lsp_names.contains(v.as_str())
+                                    && !matches!(v.as_str(), "true" | "false" | "True" | "False"
+                                        | "None" | "Some" | "Ok" | "Err" | "Nil" | "Cons"))
+                                .collect();
+                            let clone_prefix = if captured.is_empty() { String::new() }
+                                else { captured.iter().map(|v| format!("let {} = {}.clone();", sanitize_name(v), sanitize_name(v))).collect::<Vec<_>>().join(" ") + " " };
                             if name == "filter" {
-                                // filter passes &Item — clone to owned so body sees same type as map/flat_map
-                                return format!("{}.clone().into_iter().filter(|{}| {{ let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
-                                    coll, param, param, param, body_code);
+                                return format!("{}.clone().into_iter().filter(|{}| {{ {} let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
+                                    coll, param, clone_prefix, param, param, body_code);
                             } else {
-                                return format!("{}.clone().into_iter().map(|{}| {}).collect::<Vec<_>>()", coll, param, body_code);
+                                if clone_prefix.is_empty() {
+                                    return format!("{}.clone().into_iter().map(|{}| {}).collect::<Vec<_>>()", coll, param, body_code);
+                                } else {
+                                    return format!("{}.clone().into_iter().map(|{}| {{ {} {} }}).collect::<Vec<_>>()", coll, param, clone_prefix, body_code);
+                                }
                             }
                         }
                     }
@@ -11238,7 +11351,30 @@ impl RustCodegen {
                     else { self.var_consuming_counts.remove(&name); }
                     if !was_copy { self.copy_vars.remove(&name); }
                 }
-                format!("|{}| {}", ps.join(", "), body_str)
+                // Identify truly captured variables: free in body, not params, not functions/builtins
+                let param_bound: BTreeSet<String> = lambda_param_names.iter().cloned().collect();
+                let mut free_in_body = BTreeSet::new();
+                collect_true_free_vars(body, &mut free_in_body, &param_bound);
+                // Check LSP_BUILTINS arity table for special functions (show, print, etc.)
+                let lsp_builtin_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
+                let captured: Vec<String> = free_in_body.into_iter()
+                    .filter(|v| !self.user_functions.contains(v.as_str())
+                        && !self.builtin_registry.contains_key(v.as_str())
+                        && !self.variant_parent.contains_key(v.as_str())
+                        && !self.copy_vars.contains(v.as_str())
+                        && !lsp_builtin_names.contains(v.as_str())
+                        && !matches!(v.as_str(), "true" | "false" | "True" | "False"
+                            | "None" | "Some" | "Ok" | "Err" | "Nil" | "Cons"))
+                    .collect();
+                if captured.is_empty() {
+                    format!("|{}| {}", ps.join(", "), body_str)
+                } else {
+                    // Clone non-Copy captured vars, then use `move` to own the clones
+                    let clones: Vec<String> = captured.iter()
+                        .map(|v| format!("let {} = {}.clone();", sanitize_name(v), sanitize_name(v)))
+                        .collect();
+                    format!("{{ {} move |{}| {} }}", clones.join(" "), ps.join(", "), body_str)
+                }
             }
             Expr::BinOp(op, lhs, rhs) => {
                 // String concatenation → format!()
