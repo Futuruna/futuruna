@@ -78,6 +78,10 @@ fn main_inner() {
                 use_prelude = false;
                 i += 1;
             }
+            "--version" | "-V" => {
+                println!("runa 0.1.0");
+                std::process::exit(0);
+            }
             "--help" | "-h" | "help" => {
                 eprintln!("runa — the Futuruna compiler");
                 eprintln!("Usage: runa [COMMAND] [OPTIONS] <file.runa>");
@@ -102,6 +106,7 @@ fn main_inner() {
                 eprintln!("  test --run    Run all tests/*.runa (compiled + executed)");
                 eprintln!();
                 eprintln!("Options:");
+                eprintln!("  --version     Show version");
                 eprintln!("  --no-prelude  Don't auto-import standard prelude");
                 eprintln!();
                 eprintln!("Examples:");
@@ -133,8 +138,18 @@ fn main_inner() {
             "fmt" => { mode = "fmt"; i += 1; }
             "lsp" => { mode = "lsp"; i += 1; }
             "audit" => { mode = "audit"; i += 1; }
-            _ => {
-                filename = Some(args[i].clone());
+            other => {
+                if other.starts_with('-') {
+                    eprintln!("error: unknown option '{}'", other);
+                    eprintln!("Run 'runa --help' for usage.");
+                    std::process::exit(1);
+                } else if filename.is_none() {
+                    filename = Some(args[i].clone());
+                } else {
+                    eprintln!("error: unexpected argument '{}'", other);
+                    eprintln!("Run 'runa --help' for usage.");
+                    std::process::exit(1);
+                }
                 i += 1;
             }
         }
@@ -163,6 +178,14 @@ fn main_inner() {
     if mode == "test" {
         let test_dir = filename.as_deref().unwrap_or("tests");
         run_tests(test_dir, use_prelude, test_compile);
+        // Also run error tests if they exist and no specific dir was given
+        if filename.is_none() {
+            let error_dir = std::path::Path::new(test_dir).join("errors");
+            if error_dir.is_dir() {
+                eprintln!();
+                run_tests(&error_dir.to_string_lossy(), use_prelude, false);
+            }
+        }
         return;
     }
 
@@ -1198,6 +1221,66 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
             // Interpret mode: run in-process
             match std::fs::read_to_string(&file_path) {
                 Ok(source) => {
+                    // Check for negative test markers: -- expect-error: <substring>
+                    let expected_errors: Vec<String> = source.lines()
+                        .filter_map(|line| {
+                            let trimmed = line.trim();
+                            if trimmed.starts_with("-- expect-error:") {
+                                Some(trimmed["-- expect-error:".len()..].trim().to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    let is_negative_test = !expected_errors.is_empty();
+
+                    if is_negative_test {
+                        // Negative test: run via subprocess so we can capture stderr
+                        let self_bin = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("runa"));
+                        let file_str = file_path.to_string_lossy().to_string();
+                        let output = std::process::Command::new(&self_bin)
+                            .args(&["check", &file_str])
+                            .stdout(std::process::Stdio::null())
+                            .stderr(std::process::Stdio::piped())
+                            .output();
+
+                        let elapsed = test_start.elapsed();
+                        let ms = elapsed.as_millis();
+                        let time_str = if ms >= 1000 { format!("{:.1}s", elapsed.as_secs_f64()) } else { format!("{}ms", ms) };
+
+                        match output {
+                            Ok(out) => {
+                                let stderr = String::from_utf8_lossy(&out.stderr);
+                                let did_error = !out.status.success();
+                                let all_found = expected_errors.iter().all(|expected| {
+                                    stderr.contains(expected.as_str())
+                                });
+
+                                if did_error && all_found {
+                                    eprintln!("  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-error, {})\x1b[0m", name, time_str);
+                                    passed += 1;
+                                } else if !did_error {
+                                    eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — expected error but program succeeded \x1b[2m({})\x1b[0m", name, time_str);
+                                    failed += 1;
+                                    failures.push(name);
+                                } else {
+                                    let missing: Vec<&String> = expected_errors.iter()
+                                        .filter(|e| !stderr.contains(e.as_str()))
+                                        .collect();
+                                    eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — error occurred but missing expected text: {:?} \x1b[2m({})\x1b[0m",
+                                        name, missing, time_str);
+                                    failed += 1;
+                                    failures.push(name);
+                                }
+                            }
+                            Err(e) => {
+                                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {} \x1b[2m({})\x1b[0m", name, e, time_str);
+                                failed += 1;
+                                failures.push(name);
+                            }
+                        }
+                    } else {
+                    // Positive test: run in-process
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         let mut lexer = Lexer::new(&source);
                         let tokens = lexer.tokenize();
@@ -1240,6 +1323,7 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
                             failures.push(name);
                         }
                     }
+                    } // end positive test
                 }
                 Err(e) => {
                     eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot read: {}", name, e);

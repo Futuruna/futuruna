@@ -1,0 +1,2 @@
+-- expect-error: undefined function `nonexistent`
+= x = nonexistent(42)

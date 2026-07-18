@@ -1,0 +1,3 @@
+-- expect-error: expects 0 arguments but got 2
+> greet() -> String { "hello" }
+= x = greet("a", "b")

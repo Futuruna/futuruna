@@ -1,0 +1,6 @@
+-- expect-error: non-exhaustive match
+> unwrap_option(x: Option(Int)) -> Int {
+    match x {
+        | Some(v) -> v
+    }
+}

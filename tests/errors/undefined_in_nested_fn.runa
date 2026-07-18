@@ -1,0 +1,5 @@
+-- expect-error: in function `outer`
+-- expect-error: undefined function `does_not_exist`
+> outer(x: Int) -> Int {
+    does_not_exist(x)
+}

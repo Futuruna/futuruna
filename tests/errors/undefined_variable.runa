@@ -1,0 +1,2 @@
+-- expect-error: undefined variable `xyz`
+> foo() -> Int { xyz + 1 }

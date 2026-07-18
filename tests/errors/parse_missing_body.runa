@@ -1,0 +1,2 @@
+-- expect-error: expected
+> add(a: Int, b: Int) -> Int
