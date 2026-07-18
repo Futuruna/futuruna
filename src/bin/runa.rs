@@ -34,6 +34,7 @@ fn main_inner() {
     let mut use_prelude = true;
     let mut test_compile = false; // --run flag for `runa test --run`
     let mut fmt_check = false;   // --check flag for `runa fmt --check`
+    let mut use_fir = false;     // --fir flag for `runa emit --fir`
 
     let mut i = 1;
     while i < args.len() {
@@ -56,6 +57,10 @@ fn main_inner() {
             }
             "--check" if mode == "fmt" => {
                 fmt_check = true;
+                i += 1;
+            }
+            "--fir" if mode == "emit" => {
+                use_fir = true;
                 i += 1;
             }
             "--run" => {
@@ -206,6 +211,7 @@ fn main_inner() {
         match std::fs::read_to_string(path) {
             Ok(source) => {
                 match mode {
+                    "emit" if use_fir => emit_rust_source_fir(&source, path, use_prelude),
                     "emit" => emit_rust_source(&source, path, use_prelude),
                     "build" => build_native(&source, path, false, use_prelude),
                     "run" => build_native(&source, path, true, use_prelude),
@@ -2977,6 +2983,145 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                     }
                 }
             }
+        }
+        Err(e) => {
+            display_error_in(source, &e, filename);
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Emit Rust via the FIR pipeline (M29).
+/// Currently handles core expressions; falls back to old path for complex features.
+fn emit_via_fir(stmts: &[Stmt], types: &TypeRegistry, borrow_params: &BTreeMap<String, Vec<bool>>,
+                copy_vars: &BTreeSet<String>, ref_match: &BTreeSet<String>) -> String {
+    let mut out = String::new();
+    for stmt in stmts {
+        match stmt {
+            Stmt::Defn(Defn::Fn { name, params, ret_ty, body, .. }) => {
+                // Compute per-function ownership
+                let param_names: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
+                let ownership = OwnershipAnalysis::analyze(body, borrow_params, Some(name.as_str()), &param_names);
+                let ctx = LoweringCtx {
+                    types,
+                    ownership: &ownership,
+                    copy_vars,
+                    ref_match_bindings: ref_match,
+                };
+                let fir_body = ctx.lower_expr(body);
+
+                // Emit function signature
+                let param_strs: Vec<String> = params.iter().map(|p| {
+                    let ty_str = match &p.ty {
+                        Some(ty) => format!(": {}", emit_fir_ty_as_rust(ty)),
+                        None => String::new(),
+                    };
+                    format!("{}{}", sanitize_name(&p.name), ty_str)
+                }).collect();
+                let ret_str = match ret_ty {
+                    Some(ty) => format!(" -> {}", emit_fir_ty_as_rust(ty)),
+                    None => String::new(),
+                };
+                out.push_str(&format!("fn {}({}){} {{\n", sanitize_name(name), param_strs.join(", "), ret_str));
+                out.push_str(&format!("    {}\n", emit_fir_expr(&fir_body, types)));
+                out.push_str("}\n\n");
+            }
+            Stmt::Bind(Pat::Var(name), _, expr) => {
+                let ownership = OwnershipAnalysis::analyze_simple(expr);
+                let ctx = LoweringCtx {
+                    types,
+                    ownership: &ownership,
+                    copy_vars,
+                    ref_match_bindings: ref_match,
+                };
+                let fir_expr = ctx.lower_expr(expr);
+                out.push_str(&format!("let {} = {};\n", sanitize_name(name), emit_fir_expr(&fir_expr, types)));
+            }
+            Stmt::Expr(expr) => {
+                let ownership = OwnershipAnalysis::analyze_simple(expr);
+                let ctx = LoweringCtx {
+                    types,
+                    ownership: &ownership,
+                    copy_vars,
+                    ref_match_bindings: ref_match,
+                };
+                let fir_expr = ctx.lower_expr(expr);
+                out.push_str(&format!("{};\n", emit_fir_expr(&fir_expr, types)));
+            }
+            _ => {
+                out.push_str("// [FIR: unhandled stmt]\n");
+            }
+        }
+    }
+    out
+}
+
+/// Convert a Futuruna Ty to a Rust type string (for FIR emission).
+fn emit_fir_ty_as_rust(ty: &Ty) -> String {
+    match ty {
+        Ty::Name(n) => match n.as_str() {
+            "Int" => "i64".to_string(),
+            "Float" => "f64".to_string(),
+            "Bool" => "bool".to_string(),
+            "Char" => "char".to_string(),
+            "String" => "String".to_string(),
+            "Unit" | "()" => "()".to_string(),
+            other => other.to_string(),
+        },
+        Ty::App(base, args) => {
+            let base_str = emit_fir_ty_as_rust(base);
+            let arg_strs: Vec<String> = args.iter().map(|a| emit_fir_ty_as_rust(a)).collect();
+            match base_str.as_str() {
+                "List" => format!("Vec<{}>", arg_strs.join(", ")),
+                "Option" => format!("Option<{}>", arg_strs.join(", ")),
+                "Result" => format!("Result<{}>", arg_strs.join(", ")),
+                "Map" => format!("HashMap<{}>", arg_strs.join(", ")),
+                "Set" => format!("HashSet<{}>", arg_strs.join(", ")),
+                _ => format!("{}<{}>", base_str, arg_strs.join(", ")),
+            }
+        }
+        Ty::Arrow(a, b) => format!("impl Fn({}) -> {}", emit_fir_ty_as_rust(a), emit_fir_ty_as_rust(b)),
+        Ty::Unit => "()".to_string(),
+        Ty::Optional(inner) => format!("Option<{}>", emit_fir_ty_as_rust(inner)),
+        _ => "/* unknown type */".to_string(),
+    }
+}
+
+/// Emit Rust source via the FIR pipeline (runa emit --fir).
+/// Runs old codegen to get the full Rust output, then also runs FIR on each
+/// function body and prints the FIR-emitted version for comparison.
+fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    match parser.parse_program() {
+        Ok(user_stmts) => {
+            let stmts = if use_prelude {
+                prepend_prelude(parse_prelude(), &user_stmts)
+            } else {
+                user_stmts
+            };
+
+            // Run type check
+            if run_type_check(&stmts, source, filename) {
+                std::process::exit(1);
+            }
+
+            // Use old codegen to get type metadata populated
+            let mut cg = RustCodegen::new();
+            if let Some(parent) = std::path::Path::new(filename).parent() {
+                cg.source_dir = Some(parent.to_string_lossy().to_string());
+            }
+            cg.source_name = std::path::Path::new(filename).file_stem().map(|s| s.to_string_lossy().to_string());
+            let old_code = cg.emit_program(&stmts);
+
+            // Now emit FIR version for comparison
+            let code = emit_via_fir(&stmts, &cg.types, &cg.borrow_only_params, &cg.copy_vars, &cg.ref_match_bindings);
+            println!("// === FIR pipeline output ===");
+            println!("{}", code);
+            println!("// === Old pipeline output ({} lines) ===", old_code.lines().count());
+            println!("{}", old_code);
+            eprintln!("// runa emit --fir: {} — FIR and old output shown side by side", filename);
         }
         Err(e) => {
             display_error_in(source, &e, filename);
@@ -13998,6 +14143,40 @@ mod tests {
                     "expected Copy for Copy-typed 'n', got: {:?}", lhs.kind);
             }
         }
+    }
+
+    // ── FIR end-to-end pipeline test ────────────────────────────────
+
+    #[test]
+    fn fir_pipeline_add_function() {
+        // Full pipeline: source → parse → ownership → lower → emit
+        let source = "> add(a: Int, b: Int) -> Int { a + b }";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let types = TypeRegistry::new();
+        let borrow_params = BTreeMap::new();
+        let copy_vars = BTreeSet::new();
+        let ref_match = BTreeSet::new();
+
+        let code = emit_via_fir(&stmts, &types, &borrow_params, &copy_vars, &ref_match);
+        assert!(code.contains("fn add(a: i64, b: i64) -> i64"), "expected function signature, got:\n{}", code);
+        assert!(code.contains("(a + b)"), "expected body expression, got:\n{}", code);
+    }
+
+    #[test]
+    fn fir_pipeline_binding() {
+        let source = "= x = 42";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let types = TypeRegistry::new();
+        let code = emit_via_fir(&stmts, &types, &BTreeMap::new(), &BTreeSet::new(), &BTreeSet::new());
+        assert!(code.contains("let x = 42i64;"), "expected let binding, got:\n{}", code);
     }
 
     // ── FIR emission tests ──────────────────────────────────────────
