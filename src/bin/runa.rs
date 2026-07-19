@@ -6187,6 +6187,8 @@ struct RustCodegen {
     mutable_vars: BTreeSet<String>,
     /// Library mode: emit no fn main(), exported names get pub
     lib_mode: bool,
+    /// Names emitted as LazyLock statics in lib mode (need deref at use sites)
+    lib_static_names: BTreeSet<String>,
     /// WASM mode: emit wasm-bindgen annotations on exported functions
     wasm_mode: bool,
     /// Cargo dependencies: crate_name -> version
@@ -9587,6 +9589,7 @@ impl RustCodegen {
             copy_vars: BTreeSet::new(),
             mutable_vars: BTreeSet::new(),
             lib_mode: false,
+            lib_static_names: BTreeSet::new(),
             wasm_mode: false,
             cargo_deps: BTreeMap::new(),
             source_dir: None,
@@ -10758,6 +10761,24 @@ impl RustCodegen {
             self.types.rc_types = recursive_types;
         }
 
+        // In lib mode, pre-scan bindings that will become LazyLock statics
+        // so emit_expr can dereference them at reference sites.
+        if self.lib_mode {
+            for stmt in stmts {
+                if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
+                    if name.starts_with("__") { continue; }
+                    // Any top-level binding that's not a function def becomes a static
+                    self.lib_static_names.insert(name.clone());
+                }
+            }
+            // Also comptime values
+            for name in self.types.comptime_values.keys() {
+                if !name.starts_with("__") {
+                    self.lib_static_names.insert(name.clone());
+                }
+            }
+        }
+
         all_stmts
     }
 
@@ -11745,6 +11766,7 @@ impl RustCodegen {
                 } else if !rust_ty.is_empty() && rust_ty != "impl Clone" {
                     // Complex types → LazyLock
                     has_lazy = true;
+                    self.lib_static_names.insert(name.clone());
                     out.push_str(&format!(
                         "pub static {}: std::sync::LazyLock<{}> = std::sync::LazyLock::new(|| {});\n",
                         sname, rust_ty, rust_lit
@@ -11795,6 +11817,7 @@ impl RustCodegen {
                     // Concrete types → LazyLock static; impl Clone → fn getter
                     if ret_ty != "impl Clone" {
                         has_lazy = true;
+                        self.lib_static_names.insert(name.clone());
                         out.push_str(&format!(
                             "pub static {}: std::sync::LazyLock<{}> = std::sync::LazyLock::new(|| {});\n",
                             sname, ret_ty, body
@@ -16264,6 +16287,10 @@ impl RustCodegen {
                     return format!("{}::{}", parent, name);
                 }
                 let sname = sanitize_name(name);
+                // lib mode: LazyLock statics need deref + clone at use sites
+                if self.lib_mode && self.lib_static_names.contains(name.as_str()) {
+                    return format!("(*{}).clone()", sname);
+                }
                 // Phase 3b: ref-match binding — dereference because it's &T from matching on a reference
                 if self.ref_match_bindings.contains(name.as_str()) {
                     return format!("(*{})", sname);
@@ -17212,6 +17239,28 @@ impl RustCodegen {
                         );
                     }
                     return format!("{}::{}", path, sanitize_name(field));
+                }
+                // Struct direct field access: if the field belongs to a struct type
+                // (single-variant ADT where variant name == type name), use obj.field
+                {
+                    let matches = self.find_all_variant_fields(field);
+                    if matches.len() == 1 {
+                        let (variant_name, parent_name) = &matches[0];
+                        if self.types.struct_types.contains(parent_name.as_str()) {
+                            let obj_str = self.emit_expr(obj);
+                            let is_boxed = self.is_field_boxed(variant_name, field);
+                            let needs_clone = if let ExprKind::Var(var_name) = &obj.as_ref().kind {
+                                self.current_borrow_params.contains(var_name.as_str())
+                                    || self.var_consuming_counts.get(var_name).copied().unwrap_or(0) > 1
+                            } else { true };
+                            let clone_suffix = if needs_clone && !self.copy_vars.contains(field) { ".clone()" } else { "" };
+                            if is_boxed {
+                                return format!("(*{}.{}){}", obj_str, field, clone_suffix);
+                            } else {
+                                return format!("{}.{}{}", obj_str, field, clone_suffix);
+                            }
+                        }
+                    }
                 }
                 // Enum variant field access: emit a match expression
                 // Find ALL variants that have this field (handles shared field names like Dog.name and Cat.name)
