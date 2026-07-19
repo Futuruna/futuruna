@@ -11716,11 +11716,20 @@ impl RustCodegen {
         } else {
             // lib_mode: emit top-level bindings as pub fn getters
             // so they're accessible from other modules.
-            // = exported_value = compute_value() → pub fn exported_value() -> T { compute_value() }
+
+            // Emit getters for comptime-evaluated values
+            for (name, rust_lit) in &self.types.comptime_values {
+                if name.starts_with("__") || rust_lit.is_empty() { continue; }
+                let rust_ty = self.types.comptime_types.get(name).cloned().unwrap_or_else(|| "impl Clone".to_string());
+                out.push_str(&format!("pub fn {}() -> {} {{ {} }}\n", sanitize_name(name), rust_ty, rust_lit));
+            }
+
+            // Emit getters for non-comptime top-level bindings
             for stmt in &main_stmts {
                 if let Stmt::Bind(Pat::Var(name), _ty, expr) = stmt {
-                    // Skip @ print and other side-effectful statements
                     if name.starts_with("__") { continue; }
+                    // Skip if already emitted as comptime
+                    if self.types.comptime_values.contains_key(name) { continue; }
                     let body = self.emit_expr(expr);
                     out.push_str(&format!("pub fn {name}() -> impl Clone {{ {body} }}\n"));
                 }
