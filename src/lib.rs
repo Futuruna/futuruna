@@ -7068,7 +7068,7 @@ impl Interpreter {
                 Some(Value::Str(s)) => match s.trim().parse::<i64>() {
                     Ok(n) => Value::Int(n),
                     Err(_) => {
-                        eprintln!("warning: parse_int(\"{}\") failed, returning 0. Consider using monadic bind: = n <- parse_int(s)", s);
+                        // Silent fallback — use monadic bind (= n <- parse_int(s)) for error handling
                         Value::Int(0)
                     }
                 },
@@ -7079,7 +7079,7 @@ impl Interpreter {
                 Some(Value::Str(s)) => match s.trim().parse::<f64>() {
                     Ok(f) => Value::Float(f),
                     Err(_) => {
-                        eprintln!("warning: parse_float(\"{}\") failed, returning 0.0. Consider using monadic bind: = f <- parse_float(s)", s);
+                        // Silent fallback — use monadic bind (= f <- parse_float(s)) for error handling
                         Value::Float(0.0)
                     }
                 },
@@ -10198,7 +10198,16 @@ impl TypeChecker {
             }
             ExprKind::Pipe(input, transform) => {
                 self.check_expr(input, _in_fn);
-                self.check_expr(transform, _in_fn);
+                // For pipe RHS, skip arity check on the outer App because
+                // the pipe desugars a |> f(y) → f(a, y), adding an implicit first arg.
+                // Check the inner expressions without the top-level arity check.
+                match &transform.kind {
+                    ExprKind::App(func, args) => {
+                        self.check_expr(func, _in_fn);
+                        for arg in args { self.check_expr(arg, _in_fn); }
+                    }
+                    _ => self.check_expr(transform, _in_fn),
+                }
             }
         }
     }
