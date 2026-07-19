@@ -13519,7 +13519,8 @@ impl RustCodegen {
             .iter()
             .map(|p| {
                 if let Some(ty) = self.infer_param_type_from_fields(p, rules) {
-                    format!("&{}", ty)
+                    // Take by value (not &) — consistent with Futuruna's invisible ownership
+                    ty
                 } else if let Some(ty) = self.infer_param_type_from_body(p, rules) {
                     ty
                 } else {
@@ -13534,12 +13535,11 @@ impl RustCodegen {
             .collect::<Vec<_>>()
             .join(", ");
 
-        // Register call-site type info if any param takes &str (so callers pass &str not String)
-        if inferred_types.iter().any(|t| t == "&str") {
-            self.types
-                .prolog_rule_fns
-                .insert(fn_name.to_string(), inferred_types.clone());
-        }
+        // Register call-site type info so callers know the parameter types
+        // (prevents borrow_only_params from adding unwanted & at call sites)
+        self.types
+            .prolog_rule_fns
+            .insert(fn_name.to_string(), inferred_types.clone());
 
         // Infer return type from constructor calls in rule values
         let ret_type = self
@@ -16331,8 +16331,12 @@ impl RustCodegen {
                     resolved_fn_name.and_then(|n| self.types.inout_params.get(n).cloned());
 
                 // Phase 2: Check if the called function has auto-borrow params
-                let borrow_flags =
-                    resolved_fn_name.and_then(|n| self.borrow_only_params.get(n).cloned());
+                // Skip borrow flags for Prolog/Datalog rules — they take by value
+                let borrow_flags = if is_prolog_call {
+                    None
+                } else {
+                    resolved_fn_name.and_then(|n| self.borrow_only_params.get(n).cloned())
+                };
 
                 let args_str: Vec<String> = args
                     .iter()
