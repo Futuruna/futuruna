@@ -9693,6 +9693,38 @@ impl TypeChecker {
                 Stmt::For(var, _, _) => {
                     self.define_var(var);
                 }
+                Stmt::RustBlock(code) => {
+                    // Register functions defined in @ rust { } blocks so the type
+                    // checker doesn't reject calls to them. Parse fn signatures.
+                    for line in code.lines() {
+                        let trimmed = line.trim();
+                        // Match: fn name(params) or pub fn name(params)
+                        let fn_start = if trimmed.starts_with("pub fn ") {
+                            Some(7)
+                        } else if trimmed.starts_with("fn ") {
+                            Some(3)
+                        } else {
+                            None
+                        };
+                        if let Some(start) = fn_start {
+                            let rest = &trimmed[start..];
+                            if let Some(paren) = rest.find('(') {
+                                let fn_name = rest[..paren].trim().to_string();
+                                // Count params by counting commas + 1 (rough)
+                                if let Some(close) = rest.find(')') {
+                                    let params_str = &rest[paren + 1..close];
+                                    let arity = if params_str.trim().is_empty() {
+                                        0
+                                    } else {
+                                        params_str.split(',').count()
+                                    };
+                                    self.functions.insert(fn_name.clone(), arity);
+                                    self.define_var(&fn_name);
+                                }
+                            }
+                        }
+                    }
+                }
                 Stmt::Import(path) | Stmt::Use(path) => {
                     // Resolve @ import / @ use: parse imported file and collect its declarations
                     let resolve_path = if matches!(stmt, Stmt::Use(_)) {

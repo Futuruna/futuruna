@@ -11726,12 +11726,35 @@ impl RustCodegen {
 
             // Emit getters for non-comptime top-level bindings
             for stmt in &main_stmts {
-                if let Stmt::Bind(Pat::Var(name), _ty, expr) = stmt {
+                if let Stmt::Bind(Pat::Var(name), ty_ann, expr) = stmt {
                     if name.starts_with("__") { continue; }
                     // Skip if already emitted as comptime
                     if self.types.comptime_values.contains_key(name) { continue; }
                     let body = self.emit_expr(expr);
-                    out.push_str(&format!("pub fn {name}() -> impl Clone {{ {body} }}\n"));
+                    // Use type annotation if available, otherwise try to infer from expression
+                    let ret_ty = if let Some(ty) = ty_ann {
+                        self.emit_type(ty)
+                    } else {
+                        // Try to infer from constructor calls
+                        match &expr.kind {
+                            ExprKind::Var(ctor) if self.types.variant_parent.contains_key(ctor.as_str()) => {
+                                self.types.variant_parent.get(ctor.as_str()).cloned().unwrap_or_else(|| "impl Clone".to_string())
+                            }
+                            ExprKind::App(func, _) => {
+                                if let ExprKind::Var(ctor) = &func.as_ref().kind {
+                                    if self.types.variant_parent.contains_key(ctor.as_str()) {
+                                        self.types.variant_parent.get(ctor.as_str()).cloned().unwrap_or_else(|| "impl Clone".to_string())
+                                    } else {
+                                        "impl Clone".to_string()
+                                    }
+                                } else {
+                                    "impl Clone".to_string()
+                                }
+                            }
+                            _ => "impl Clone".to_string(),
+                        }
+                    };
+                    out.push_str(&format!("pub fn {}() -> {} {{ {} }}\n", sanitize_name(name), ret_ty, body));
                 }
             }
         }
