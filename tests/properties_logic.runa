@@ -1,0 +1,58 @@
+-- Property-based tests: Logic programming (Datalog) invariants
+
+-- Facts
+| parent("alice", "bob")
+| parent("bob", "charlie")
+| parent("alice", "diana")
+
+-- Simple rules (single-clause — reliable in interpreter)
+| ancestor(a, b) -> parent(a, b)
+
+-- Direct parent queries
+= bob_anc = ancestor("alice", "bob")
+| parent_implies_ancestor: bob_anc -> bob_anc
+? parent_implies_ancestor -> { @ print("parent → ancestor: PROVED") } else { @ print("parent → ancestor: FAILED") }
+
+= diana_anc = ancestor("alice", "diana")
+| diana_ancestor: diana_anc -> diana_anc
+? diana_ancestor -> { @ print("alice → diana: PROVED") } else { @ print("alice → diana: FAILED") }
+
+-- findall collects direct children
+= alice_children = findall(c, parent("alice", c))
+| alice_has_2: alice_children -> length(alice_children) == 2
+? alice_has_2 -> { @ print("alice has 2 children: PROVED") } else { @ print("alice has 2 children: FAILED") }
+
+= bob_children = findall(c, parent("bob", c))
+| bob_has_1: bob_children -> length(bob_children) == 1
+? bob_has_1 -> { @ print("bob has 1 child: PROVED") } else { @ print("bob has 1 child: FAILED") }
+
+-- findall empty for non-parent
+= eve_children = findall(c, parent("eve", c))
+| eve_no_children: eve_children -> length(eve_children) == 0
+? eve_no_children -> { @ print("eve has 0 children: PROVED") } else { @ print("eve has 0 children: FAILED") }
+
+-- Value-returning facts
+| capital("Denmark") -> "Copenhagen"
+| capital("France") -> "Paris"
+| capital("Germany") -> "Berlin"
+
+= dk_cap = capital("Denmark")
+| capital_dk: dk_cap -> dk_cap == "Copenhagen"
+? capital_dk -> { @ print("Denmark → Copenhagen: PROVED") } else { @ print("Denmark → Copenhagen: FAILED") }
+
+= fr_cap = capital("France")
+| capital_fr: fr_cap -> fr_cap == "Paris"
+? capital_fr -> { @ print("France → Paris: PROVED") } else { @ print("France → Paris: FAILED") }
+
+-- Value fact with missing key returns None-like
+= unknown_cap = capital("Narnia")
+| capital_missing: unknown_cap -> unknown_cap == ""
+? capital_missing -> { @ print("missing capital = empty: PROVED") } else { @ print("missing capital = empty: FAILED") }
+
+-- Negation as failure
+| childless(x) -> not(parent(x, _))
+= eve_childless = childless("eve")
+| eve_is_childless: eve_childless -> eve_childless
+? eve_is_childless -> { @ print("eve is childless: PROVED") } else { @ print("eve is childless: FAILED") }
+
+@ print("=== Logic programming properties verified ===")

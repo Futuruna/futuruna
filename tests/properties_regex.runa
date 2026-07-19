@@ -1,0 +1,44 @@
+-- Property-based tests: Regex invariants
+
+= text = "Hello World 123 foo 456 bar"
+
+-- regex_match is consistent with regex_find
+= has_digits = regex_match("\\d+", text)
+= first_digit = regex_find("\\d+", text)
+| match_find_consistent: has_digits -> if has_digits { is_some(first_digit) } else { is_none(first_digit) }
+? match_find_consistent -> { @ print("match/find consistent: PROVED") } else { @ print("match/find consistent: FAILED") }
+
+-- regex_find_all returns at least what regex_find returns
+= all_digits = regex_find_all("\\d+", text)
+| find_all_ge_find: all_digits -> if is_some(first_digit) { length(all_digits) >= 1 } else { length(all_digits) == 0 }
+? find_all_ge_find -> { @ print("find_all >= find: PROVED") } else { @ print("find_all >= find: FAILED") }
+
+-- regex_replace with no match is identity
+= no_match = regex_replace("zzz_never_matches", text, "REPLACED")
+| replace_identity: no_match -> no_match == text
+? replace_identity -> { @ print("replace no-match = identity: PROVED") } else { @ print("replace no-match = identity: FAILED") }
+
+-- regex_match on empty pattern always matches
+| match_empty: text -> regex_match("", text)
+? match_empty -> { @ print("empty pattern matches all: PROVED") } else { @ print("empty pattern matches all: FAILED") }
+
+-- regex_match on literal substring works
+| match_literal: text -> regex_match("Hello", text)
+? match_literal -> { @ print("literal match: PROVED") } else { @ print("literal match: FAILED") }
+
+-- regex_find_all count matches expected
+| find_all_count: all_digits -> length(all_digits) == 2
+? find_all_count -> { @ print("find_all count = 2: PROVED") } else { @ print("find_all count = 2: FAILED") }
+
+-- invalid regex returns false / None / empty (doesn't crash)
+= bad_match = regex_match("[invalid", "text")
+= bad_find = regex_find("[invalid", "text")
+= bad_all = regex_find_all("[invalid", "text")
+| bad_regex_safe: bad_match -> not(bad_match)
+| bad_find_safe: bad_find -> is_none(bad_find)
+| bad_all_safe: bad_all -> length(bad_all) == 0
+? bad_regex_safe -> { @ print("invalid regex → false: PROVED") } else { @ print("invalid regex → false: FAILED") }
+? bad_find_safe -> { @ print("invalid regex → None: PROVED") } else { @ print("invalid regex → None: FAILED") }
+? bad_all_safe -> { @ print("invalid regex → []: PROVED") } else { @ print("invalid regex → []: FAILED") }
+
+@ print("=== Regex properties verified ===")

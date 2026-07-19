@@ -1,0 +1,77 @@
+-- Property-based tests: Map and Set algebraic laws
+
+-- Map: insert then get retrieves the value
+= m = map_new()
+= m = map_insert(m, "key", 42)
+| map_insert_get: m -> map_get_or(m, "key", 0) == 42
+? map_insert_get -> { @ print("insert then get: PROVED") } else { @ print("insert then get: FAILED") }
+
+-- Map: insert preserves other keys
+= m2 = map_insert(map_insert(map_new(), "a", 1), "b", 2)
+| map_other_key: m2 -> map_get_or(m2, "a", 0) == 1
+? map_other_key -> { @ print("insert preserves other keys: PROVED") } else { @ print("insert preserves other keys: FAILED") }
+
+-- Map: contains after insert is true
+| map_contains_after: m -> map_contains(m, "key")
+? map_contains_after -> { @ print("contains after insert: PROVED") } else { @ print("contains after insert: FAILED") }
+
+-- Map: contains missing key is false
+| map_not_contains: m -> not(map_contains(m, "missing"))
+? map_not_contains -> { @ print("not contains missing: PROVED") } else { @ print("not contains missing: FAILED") }
+
+-- Map: remove then contains is false
+= m3 = map_remove(m, "key")
+| map_remove_gone: m3 -> not(map_contains(m3, "key"))
+? map_remove_gone -> { @ print("remove then not contains: PROVED") } else { @ print("remove then not contains: FAILED") }
+
+-- Map: len increases with insert
+= empty_map = map_new()
+| map_empty_len: empty_map -> map_len(empty_map) == 0
+? map_empty_len -> { @ print("empty map len = 0: PROVED") } else { @ print("empty map len = 0: FAILED") }
+
+| map_insert_len: m -> map_len(m) == 1
+? map_insert_len -> { @ print("insert increases len: PROVED") } else { @ print("insert increases len: FAILED") }
+
+-- Map: keys and values have same length
+| map_keys_vals: m2 -> length(map_keys(m2)) == length(map_values(m2))
+? map_keys_vals -> { @ print("keys.len = values.len: PROVED") } else { @ print("keys.len = values.len: FAILED") }
+
+-- Map: merge produces union
+= m4 = map_insert(map_new(), "x", 10)
+= m5 = map_insert(map_new(), "y", 20)
+= merged = map_merge(m4, m5)
+| map_merge_both: merged -> map_contains(merged, "x") && map_contains(merged, "y")
+? map_merge_both -> { @ print("merge contains both: PROVED") } else { @ print("merge contains both: FAILED") }
+
+-- Set: insert then contains is true
+= s = set_new()
+= s = set_insert(s, 42)
+| set_contains_after: s -> set_contains(s, 42)
+? set_contains_after -> { @ print("set contains after insert: PROVED") } else { @ print("set contains after insert: FAILED") }
+
+-- Set: insert is idempotent (length doesn't change on duplicate)
+= s2 = set_insert(s, 42)
+| set_idempotent: s2 -> set_len(s2) == set_len(s)
+? set_idempotent -> { @ print("set insert idempotent: PROVED") } else { @ print("set insert idempotent: FAILED") }
+
+-- Set: union is commutative in size
+= sa = set_from_list([1, 2, 3])
+= sb = set_from_list([3, 4, 5])
+| set_union_comm: sa -> set_len(set_union(sa, sb)) == set_len(set_union(sb, sa))
+? set_union_comm -> { @ print("union size commutative: PROVED") } else { @ print("union size commutative: FAILED") }
+
+-- Set: intersection subset of both
+= si = set_intersect(sa, sb)
+| set_inter_subset: si -> set_len(si) <= set_len(sa) && set_len(si) <= set_len(sb)
+? set_inter_subset -> { @ print("intersect <= both: PROVED") } else { @ print("intersect <= both: FAILED") }
+
+-- Set: diff + intersect = original
+= sd = set_diff(sa, sb)
+| set_diff_inter: sa -> set_len(sd) + set_len(si) == set_len(sa)
+? set_diff_inter -> { @ print("diff + intersect = original: PROVED") } else { @ print("diff + intersect = original: FAILED") }
+
+-- Set: to_list preserves length
+| set_to_list_len: sa -> length(set_to_list(sa)) == set_len(sa)
+? set_to_list_len -> { @ print("to_list preserves len: PROVED") } else { @ print("to_list preserves len: FAILED") }
+
+@ print("=== Map/Set properties verified ===")

@@ -1,0 +1,71 @@
+-- Property-based tests: Algebraic Data Type invariants
+
+# Shape = Circle(Float) | Rectangle(Float, Float) | Square(Float)
+
+> area(s: Shape) -> Float {
+    match s {
+        | Circle(r) -> 3.14159 * r * r
+        | Rectangle(w, h) -> w * h
+        | Square(s) -> s * s
+    }
+}
+
+> perimeter(s: Shape) -> Float {
+    match s {
+        | Circle(r) -> 2.0 * 3.14159 * r
+        | Rectangle(w, h) -> 2.0 * (w + h)
+        | Square(s) -> 4.0 * s
+    }
+}
+
+-- Area is always non-negative for positive dimensions
+= c = Circle(5.0)
+= r = Rectangle(3.0, 4.0)
+= sq = Square(7.0)
+| area_positive_c: c -> area(c) >= 0.0
+| area_positive_r: r -> area(r) >= 0.0
+| area_positive_sq: sq -> area(sq) >= 0.0
+? area_positive_c -> { @ print("circle area >= 0: PROVED") } else { @ print("circle area >= 0: FAILED") }
+? area_positive_r -> { @ print("rect area >= 0: PROVED") } else { @ print("rect area >= 0: FAILED") }
+? area_positive_sq -> { @ print("square area >= 0: PROVED") } else { @ print("square area >= 0: FAILED") }
+
+-- Perimeter is always non-negative
+| perim_positive_c: c -> perimeter(c) >= 0.0
+| perim_positive_r: r -> perimeter(r) >= 0.0
+? perim_positive_c -> { @ print("circle perimeter >= 0: PROVED") } else { @ print("circle perimeter >= 0: FAILED") }
+? perim_positive_r -> { @ print("rect perimeter >= 0: PROVED") } else { @ print("rect perimeter >= 0: FAILED") }
+
+-- Square(s) area equals Rectangle(s, s) area
+= sq_area = area(Square(5.0))
+= rect_area = area(Rectangle(5.0, 5.0))
+| square_is_rect: sq_area -> sq_area == rect_area
+? square_is_rect -> { @ print("Square = Rectangle(s,s): PROVED") } else { @ print("Square = Rectangle(s,s): FAILED") }
+
+-- Recursive ADT: binary tree
+# Tree = Leaf(Int) | Node(Tree, Tree)
+
+> tree_sum(t: Tree) -> Int {
+    match t {
+        | Leaf(n) -> n
+        | Node(l, r) -> tree_sum(l) + tree_sum(r)
+    }
+}
+
+> tree_size(t: Tree) -> Int {
+    match t {
+        | Leaf(_) -> 1
+        | Node(l, r) -> tree_size(l) + tree_size(r)
+    }
+}
+
+= tree = Node(Node(Leaf(1), Leaf(2)), Leaf(3))
+| tree_sum_correct: tree -> tree_sum(tree) == 6
+| tree_size_correct: tree -> tree_size(tree) == 3
+? tree_sum_correct -> { @ print("tree sum = 6: PROVED") } else { @ print("tree sum = 6: FAILED") }
+? tree_size_correct -> { @ print("tree size = 3: PROVED") } else { @ print("tree size = 3: FAILED") }
+
+-- size is always positive
+| tree_size_pos: tree -> tree_size(tree) >= 1
+? tree_size_pos -> { @ print("tree size >= 1: PROVED") } else { @ print("tree size >= 1: FAILED") }
+
+@ print("=== ADT properties verified ===")

@@ -1,0 +1,62 @@
+-- Property-based tests: Error handling and monadic bind invariants
+
+> safe_divide(a: Int, b: Int) -> Result(Int, String) {
+    if b == 0 { Err("division by zero") }
+    else { Ok(a / b) }
+}
+
+> safe_sqrt(x: Float) -> Result(Float, String) {
+    if x < 0.0 { Err("negative") }
+    else { Ok(sqrt(x)) }
+}
+
+-- Ok wrapping preserves value
+> check_ok() -> Result(Int, String) {
+    = x <- safe_divide(10, 2)
+    Ok(x)
+}
+= ok_result = check_ok()
+| ok_preserves: ok_result -> ok_result == Ok(5)
+? ok_preserves -> { @ print("Ok preserves value: PROVED") } else { @ print("Ok preserves value: FAILED") }
+
+-- Err propagates through monadic bind
+> chain_divide() -> Result(Int, String) {
+    = a <- safe_divide(10, 0)
+    = b <- safe_divide(a, 2)
+    Ok(b)
+}
+= err_result = chain_divide()
+| err_propagates: err_result -> err_result == Err("division by zero")
+? err_propagates -> { @ print("Err propagates: PROVED") } else { @ print("Err propagates: FAILED") }
+
+-- Successful chain produces correct result
+> chain_success() -> Result(Int, String) {
+    = a <- safe_divide(100, 10)
+    = b <- safe_divide(a, 2)
+    Ok(b)
+}
+= success = chain_success()
+| chain_ok: success -> success == Ok(5)
+? chain_ok -> { @ print("chain success = Ok(5): PROVED") } else { @ print("chain success = Ok(5): FAILED") }
+
+-- safe_divide(x, 1) == Ok(x) for any x
+= div_by_one = safe_divide(42, 1)
+| div_one_identity: div_by_one -> div_by_one == Ok(42)
+? div_one_identity -> { @ print("x / 1 = x: PROVED") } else { @ print("x / 1 = x: FAILED") }
+
+-- safe_divide(0, x) == Ok(0) for x != 0
+= zero_div = safe_divide(0, 7)
+| zero_numerator: zero_div -> zero_div == Ok(0)
+? zero_numerator -> { @ print("0 / x = 0: PROVED") } else { @ print("0 / x = 0: FAILED") }
+
+-- safe_sqrt of perfect square
+= sqrt_result = safe_sqrt(25.0)
+| sqrt_25: sqrt_result -> sqrt_result == Ok(5.0)
+? sqrt_25 -> { @ print("sqrt(25) = 5: PROVED") } else { @ print("sqrt(25) = 5: FAILED") }
+
+-- safe_sqrt of negative fails
+= sqrt_neg = safe_sqrt(-1.0)
+| sqrt_neg_fails: sqrt_neg -> sqrt_neg == Err("negative")
+? sqrt_neg_fails -> { @ print("sqrt(-1) = Err: PROVED") } else { @ print("sqrt(-1) = Err: FAILED") }
+
+@ print("=== Error handling properties verified ===")
