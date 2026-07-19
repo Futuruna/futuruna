@@ -1,0 +1,82 @@
+-- Rust interop tests: verify codegen produces valid, idiomatic Rust
+
+-- 1. Struct field access
+# Point(x: Float, y: Float)
+= p = Point(3.0, 4.0)
+@ print("p.x = " + show(p.x))
+@ print("p.y = " + show(p.y))
+
+-- 2. Nested struct access
+# Rect(origin: Point, size: Point)
+= r = Rect(Point(0.0, 0.0), Point(10.0, 20.0))
+@ print("r.origin.x = " + show(r.origin.x))
+@ print("r.size.y = " + show(r.size.y))
+
+-- 3. Enum + pattern match
+# Shape = Circle(Float) | Box(Float, Float)
+> area(s: Shape) -> Float {
+    match s {
+        | Circle(r) -> 3.14 * r * r
+        | Box(w, h) -> w * h
+    }
+}
+@ print("circle area = " + show(area(Circle(5.0))))
+@ print("box area = " + show(area(Box(3.0, 4.0))))
+
+-- 4. @ rust {} escape hatch: define and call
+@ rust {
+    fn rust_multiply(a: i64, b: i64) -> i64 { a * b }
+}
+@ print("rust_multiply = " + show(rust_multiply(6, 7)))
+
+-- 5. List operations with correct types
+= nums = [10, 20, 30, 40, 50]
+@ print("length = " + show(length(nums)))
+@ print("head = " + show(head(nums)))
+@ print("sum = " + show(sum_list(nums)))
+
+-- 6. range produces a list
+= r = range(1, 6)
+@ print("range = " + show(r))
+@ print("range length = " + show(length(r)))
+
+-- 7. String builtins roundtrip
+= s = "Hello, World!"
+= parts = split(s, ", ")
+= rejoined = join(parts, ", ")
+@ print("split/join = " + rejoined)
+
+-- 8. Map operations
+= m = map_new()
+= m = map_insert(m, "name", "futuruna")
+= m = map_insert(m, "version", "0.1")
+@ print("map get = " + map_get_or(m, "name", "?"))
+@ print("map len = " + show(map_len(m)))
+
+-- 9. Result chaining with monadic bind
+> safe_div(a: Int, b: Int) -> Result(Int, String) {
+    if b == 0 { Err("zero") } else { Ok(a / b) }
+}
+> chain() -> Result(Int, String) {
+    = x <- safe_div(100, 10)
+    = y <- safe_div(x, 2)
+    Ok(y)
+}
+@ print("chain = " + show(chain()))
+
+-- 10. Higher-order functions with lambdas
+= doubled = map(nums, |x| x * 2)
+= big = filter(nums, |x| x > 25)
+@ print("doubled = " + show(doubled))
+@ print("big = " + show(big))
+
+-- 11. Pipe operator chains
+= result = take(map(filter([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], |x| x > 3), |x| x * 10), 4)
+@ print("pipe = " + show(result))
+
+-- 12. Regex
+@ print("regex match = " + show(regex_match("\\d+", "abc123")))
+= found = regex_find_all("[a-z]+", "Hello World")
+@ print("regex find = " + show(found))
+
+@ print("=== All interop tests passed! ===")

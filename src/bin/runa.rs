@@ -6051,6 +6051,20 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("timeout",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
         ("switch_map",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ ({1})(__last.clone()) }} else {{ vec![] }} }" }),
         ("sample",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __src: Vec<_> = {0}.clone(); let __trg: Vec<_> = {1}.clone(); let __tlen = __trg.len().max(1); __trg.iter().enumerate().filter_map(|(i, _)| { let __idx = ((i + 1) * __src.len()) / __tlen; __src.get(__idx.min(__src.len().saturating_sub(1))).cloned() }).collect::<Vec<_>>() }" }),
+
+        // ---- M35: Random, Time, Regex ----
+        ("random_float",   BuiltinDef { arity: 0, shadowable: false, impure: true, deps: D, rust_tpl: "{ use std::collections::hash_map::DefaultHasher; use std::hash::{Hash, Hasher}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); (h.finish() as f64) / (u64::MAX as f64) }" }),
+        ("random_choice",  BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "{ let __v = {0}.clone(); if __v.is_empty() {{ panic!(\"random_choice: empty list\") }} else {{ use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); __v[h.finish() as usize % __v.len()].clone() }} }" }),
+        ("shuffle",        BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut __seed = {{ let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); h.finish() }}; for __i in (1..__v.len()).rev() {{ __seed ^= __seed << 13; __seed ^= __seed >> 7; __seed ^= __seed << 17; let __j = __seed as usize % (__i + 1); __v.swap(__i, __j); }} __v }" }),
+        ("sleep",          BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::thread::sleep(std::time::Duration::from_millis({0} as u64))" }),
+        ("now",            BuiltinDef { arity: 0, shadowable: false, impure: true, deps: D, rust_tpl: "(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)" }),
+        ("time_diff",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0} - {1})" }),
+
+        // Regex (auto-adds regex dep)
+        ("regex_match",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.is_match(&*{1})).unwrap_or(false)" }),
+        ("regex_find",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).ok().and_then(|re| re.find(&*{1}).map(|m| m.as_str().to_string()))" }),
+        ("regex_find_all",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.find_iter(&*{1}).map(|m| m.as_str().to_string()).collect::<Vec<_>>()).unwrap_or_default()" }),
+        ("regex_replace",    BuiltinDef { arity: 3, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.replace_all(&*{1}, {2}.as_str()).to_string()).unwrap_or_else(|_| {1}.clone())" }),
     ];
     entries
         .into_iter()
