@@ -11713,6 +11713,18 @@ impl RustCodegen {
             }
             self.indent = 0;
             out.push_str("}\n");
+        } else {
+            // lib_mode: emit top-level bindings as pub fn getters
+            // so they're accessible from other modules.
+            // = exported_value = compute_value() → pub fn exported_value() -> T { compute_value() }
+            for stmt in &main_stmts {
+                if let Stmt::Bind(Pat::Var(name), _ty, expr) = stmt {
+                    // Skip @ print and other side-effectful statements
+                    if name.starts_with("__") { continue; }
+                    let body = self.emit_expr(expr);
+                    out.push_str(&format!("pub fn {name}() -> impl Clone {{ {body} }}\n"));
+                }
+            }
         }
 
         out
