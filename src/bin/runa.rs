@@ -5962,7 +5962,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
 
         // ---- Misc (not shadowable, pure) ----
         ("shared",       BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "std::sync::Arc::new({0})" }),
-        ("range",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0}..{1})" }),
+        ("range",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0}..{1}).collect::<Vec<i64>>()" }),
 
         // ---- Functional / Collection (shadowable, pure) ----
         // Unified: list and stream ops share names. Templates use .clone() for pipe safety.
