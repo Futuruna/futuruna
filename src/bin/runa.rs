@@ -10752,6 +10752,17 @@ impl RustCodegen {
                     self.string_returning_fns.insert(name.clone());
                 }
             }
+            // Also register rule functions (| rule_name(params) -> ...)
+            if let Stmt::Rule(Rule::Default { head, .. })
+                | Stmt::Rule(Rule::Exception { head, .. })
+                | Stmt::Rule(Rule::Clause { head, .. }) = stmt
+            {
+                if let ExprKind::App(func, _) = &head.kind {
+                    if let ExprKind::Var(fname) = &func.as_ref().kind {
+                        self.types.user_functions.insert(fname.clone());
+                    }
+                }
+            }
         }
 
         // Compute Rc types for transparent structural sharing (M25)
@@ -13885,12 +13896,15 @@ impl RustCodegen {
                         self.mutable_vars.insert(p.name.clone());
                     }
                 }
-                // Track Copy-type parameters
+                // Track Copy-type parameters and register all param types
                 for p in params {
                     if let Some(ty) = &p.ty {
                         if is_copy_type(ty) {
                             self.copy_vars.insert(p.name.clone());
                         }
+                        // Register param type for field access resolution
+                        let rust_ty = self.emit_type(ty);
+                        self.var_types.insert(p.name.clone(), rust_ty);
                     }
                 }
                 // Track String-typed parameters (for string concat detection)
@@ -17216,11 +17230,39 @@ impl RustCodegen {
                     }
                     return format!("{}::{}", path, sanitize_name(field));
                 }
-                // Struct direct field access: if the field belongs to a struct type
-                // (single-variant ADT where variant name == type name), use obj.field
+                // Struct direct field access: check if the OBJECT's type is a struct
+                // by looking up the variable's type from params or bindings.
                 {
+                    // Try to determine the object's type
+                    let obj_type_name = if let ExprKind::Var(var_name) = &obj.as_ref().kind {
+                        // Check param types, var_types, or inferred types
+                        self.var_types.get(var_name).cloned()
+                            .or_else(|| self.string_typed_vars.iter().find(|s| *s == var_name).map(|_| "String".to_string()))
+                    } else { None };
+
+                    // If we know the type and it's a struct, use direct field access
+                    if let Some(ref type_name) = obj_type_name {
+                        if self.types.struct_types.contains(type_name.as_str()) {
+                            let obj_str = self.emit_expr(obj);
+                            let is_boxed = self.types.variant_boxed_args.get(type_name)
+                                .map(|indices| !indices.is_empty()).unwrap_or(false);
+                            let needs_clone = if let ExprKind::Var(var_name) = &obj.as_ref().kind {
+                                self.current_borrow_params.contains(var_name.as_str())
+                                    || self.var_consuming_counts.get(var_name).copied().unwrap_or(0) > 1
+                            } else { true };
+                            let clone_suffix = if needs_clone && !self.copy_vars.contains(field) { ".clone()" } else { "" };
+                            if is_boxed {
+                                return format!("(*{}.{}){}", obj_str, field, clone_suffix);
+                            } else {
+                                return format!("{}.{}{}", obj_str, field, clone_suffix);
+                            }
+                        }
+                    }
+
+                    // Fallback: check all variants with this field name
                     let matches = self.find_all_variant_fields(field);
                     if matches.len() == 1 {
+                        // Single type has this field — safe to check struct
                         let (variant_name, parent_name) = &matches[0];
                         if self.types.struct_types.contains(parent_name.as_str()) {
                             let obj_str = self.emit_expr(obj);
@@ -17243,24 +17285,6 @@ impl RustCodegen {
                 {
                     let matches = self.find_all_variant_fields(field);
                     if !matches.is_empty() {
-                        // If ANY match is a struct type, use direct field access
-                        // (when multiple types share a field name, struct access is preferred)
-                        for (vn, pn) in &matches {
-                            if self.types.struct_types.contains(pn.as_str()) {
-                                let obj_str = self.emit_expr(obj);
-                                let is_boxed = self.is_field_boxed(vn, field);
-                                let needs_clone = if let ExprKind::Var(var_name) = &obj.as_ref().kind {
-                                    self.current_borrow_params.contains(var_name.as_str())
-                                        || self.var_consuming_counts.get(var_name).copied().unwrap_or(0) > 1
-                                } else { true };
-                                let clone_suffix = if needs_clone && !self.copy_vars.contains(field) { ".clone()" } else { "" };
-                                if is_boxed {
-                                    return format!("(*{}.{}){}", obj_str, field, clone_suffix);
-                                } else {
-                                    return format!("{}.{}{}", obj_str, field, clone_suffix);
-                                }
-                            }
-                        }
                         let mut obj_str = self.emit_expr(obj);
                         // If the object is itself a boxed field access, we need to deref it
                         if let ExprKind::Field(_, inner_field) = &obj.as_ref().kind {
