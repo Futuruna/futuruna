@@ -11749,36 +11749,19 @@ impl RustCodegen {
             self.indent = 0;
             out.push_str("}\n");
         } else {
-            // lib_mode: emit top-level bindings as pub statics (LazyLock)
-            // so they're accessible as values (not function calls) from other modules.
-            // field access: origin.x works because LazyLock<T> derefs to T.
+            // lib_mode: emit top-level bindings as pub fn getters.
+            // Other functions reference them via name() calls (tracked in lib_static_names).
 
-            let mut has_lazy = false;
-
-            // Emit comptime-evaluated values as const or static
+            // Emit comptime values as pub fn getters with concrete return types
             for (name, rust_lit) in &self.types.comptime_values {
                 if name.starts_with("__") || rust_lit.is_empty() { continue; }
-                let rust_ty = self.types.comptime_types.get(name).cloned().unwrap_or_default();
+                let rust_ty = self.types.comptime_types.get(name).cloned()
+                    .unwrap_or_else(|| "impl Clone".to_string());
                 let sname = sanitize_name(name);
-                // Simple Copy types → pub const
-                if matches!(rust_ty.as_str(), "i64" | "f64" | "bool" | "char" | "()") {
-                    out.push_str(&format!("pub const {}: {} = {};\n", sname, rust_ty, rust_lit));
-                } else if !rust_ty.is_empty() && rust_ty != "impl Clone" {
-                    // Complex types → LazyLock
-                    has_lazy = true;
-                    self.lib_static_names.insert(name.clone());
-                    out.push_str(&format!(
-                        "pub static {}: std::sync::LazyLock<{}> = std::sync::LazyLock::new(|| {});\n",
-                        sname, rust_ty, rust_lit
-                    ));
-                } else {
-                    // Fallback: pub fn getter
-                    let ty = if rust_ty.is_empty() { "impl Clone".to_string() } else { rust_ty };
-                    out.push_str(&format!("pub fn {}() -> {} {{ {} }}\n", sname, ty, rust_lit));
-                }
+                out.push_str(&format!("pub fn {}() -> {} {{ {} }}\n", sname, rust_ty, rust_lit));
             }
 
-            // Emit non-comptime top-level bindings
+            // Emit non-comptime top-level bindings as pub fn getters
             for stmt in &main_stmts {
                 if let Stmt::Bind(Pat::Var(name), ty_ann, expr) = stmt {
                     if name.starts_with("__") { continue; }
@@ -11786,7 +11769,6 @@ impl RustCodegen {
                     let body = self.emit_expr(expr);
                     let sname = sanitize_name(name);
 
-                    // Determine the Rust type
                     let ret_ty = if let Some(ty) = ty_ann {
                         self.emit_type(ty)
                     } else {
@@ -11798,14 +11780,10 @@ impl RustCodegen {
                                 if let ExprKind::Var(ctor) = &func.as_ref().kind {
                                     if self.types.variant_parent.contains_key(ctor.as_str()) {
                                         self.types.variant_parent.get(ctor.as_str()).cloned().unwrap_or_else(|| "impl Clone".to_string())
-                                    } else {
-                                        "impl Clone".to_string()
-                                    }
-                                } else {
-                                    "impl Clone".to_string()
-                                }
+                                    } else { "impl Clone".to_string() }
+                                } else { "impl Clone".to_string() }
                             }
-                            ExprKind::List(_) => "Vec<i64>".to_string(), // best guess for list literals
+                            ExprKind::List(_) => "Vec<i64>".to_string(),
                             ExprKind::Lit(Literal::Str(_)) => "String".to_string(),
                             ExprKind::Lit(Literal::Int(_)) => "i64".to_string(),
                             ExprKind::Lit(Literal::Float(_)) => "f64".to_string(),
@@ -11813,24 +11791,8 @@ impl RustCodegen {
                             _ => "impl Clone".to_string(),
                         }
                     };
-
-                    // Concrete types → LazyLock static; impl Clone → fn getter
-                    if ret_ty != "impl Clone" {
-                        has_lazy = true;
-                        self.lib_static_names.insert(name.clone());
-                        out.push_str(&format!(
-                            "pub static {}: std::sync::LazyLock<{}> = std::sync::LazyLock::new(|| {});\n",
-                            sname, ret_ty, body
-                        ));
-                    } else {
-                        out.push_str(&format!("pub fn {}() -> {} {{ {} }}\n", sname, ret_ty, body));
-                    }
+                    out.push_str(&format!("pub fn {}() -> {} {{ {} }}\n", sname, ret_ty, body));
                 }
-            }
-
-            // Suppress naming warnings for LazyLock statics (snake_case names)
-            if has_lazy {
-                // The #![allow] at the top already covers this
             }
         }
 
@@ -16287,9 +16249,9 @@ impl RustCodegen {
                     return format!("{}::{}", parent, name);
                 }
                 let sname = sanitize_name(name);
-                // lib mode: LazyLock statics need deref + clone at use sites
+                // lib mode: top-level bindings are pub fn getters — call them
                 if self.lib_mode && self.lib_static_names.contains(name.as_str()) {
-                    return format!("(*{}).clone()", sname);
+                    return format!("{}()", sname);
                 }
                 // Phase 3b: ref-match binding — dereference because it's &T from matching on a reference
                 if self.ref_match_bindings.contains(name.as_str()) {
