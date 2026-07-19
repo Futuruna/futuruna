@@ -6187,8 +6187,10 @@ struct RustCodegen {
     mutable_vars: BTreeSet<String>,
     /// Library mode: emit no fn main(), exported names get pub
     lib_mode: bool,
-    /// Names emitted as LazyLock statics in lib mode (need deref at use sites)
+    /// Names emitted as pub fn getters in lib mode (need () at use sites)
     lib_static_names: BTreeSet<String>,
+    /// Function return types: fn_name → Rust type string (for lib mode getter inference)
+    fn_return_types: BTreeMap<String, String>,
     /// WASM mode: emit wasm-bindgen annotations on exported functions
     wasm_mode: bool,
     /// Cargo dependencies: crate_name -> version
@@ -9590,6 +9592,7 @@ impl RustCodegen {
             mutable_vars: BTreeSet::new(),
             lib_mode: false,
             lib_static_names: BTreeSet::new(),
+            fn_return_types: BTreeMap::new(),
             wasm_mode: false,
             cargo_deps: BTreeMap::new(),
             source_dir: None,
@@ -10742,6 +10745,9 @@ impl RustCodegen {
             // Register user-defined function names
             if let Stmt::Defn(Defn::Fn { name, ret_ty, .. }) = stmt {
                 self.types.user_functions.insert(name.clone());
+                if let Some(ty) = ret_ty {
+                    self.fn_return_types.insert(name.clone(), self.emit_type(ty));
+                }
                 if matches!(ret_ty.as_ref(), Some(Ty::Name(n)) if n == "String") {
                     self.string_returning_fns.insert(name.clone());
                 }
@@ -11777,9 +11783,13 @@ impl RustCodegen {
                                 self.types.variant_parent.get(ctor.as_str()).cloned().unwrap_or_else(|| "impl Clone".to_string())
                             }
                             ExprKind::App(func, _) => {
-                                if let ExprKind::Var(ctor) = &func.as_ref().kind {
-                                    if self.types.variant_parent.contains_key(ctor.as_str()) {
-                                        self.types.variant_parent.get(ctor.as_str()).cloned().unwrap_or_else(|| "impl Clone".to_string())
+                                if let ExprKind::Var(fn_name) = &func.as_ref().kind {
+                                    if self.types.variant_parent.contains_key(fn_name.as_str()) {
+                                        // Constructor call → return parent type
+                                        self.types.variant_parent.get(fn_name.as_str()).cloned().unwrap_or_else(|| "impl Clone".to_string())
+                                    } else if let Some(ret_ty) = self.fn_return_types.get(fn_name.as_str()) {
+                                        // Known function with declared return type
+                                        ret_ty.clone()
                                     } else { "impl Clone".to_string() }
                                 } else { "impl Clone".to_string() }
                             }
@@ -16262,7 +16272,11 @@ impl RustCodegen {
                     return format!("{}.clone()", sname);
                 }
                 // Multi-use non-Copy variables: clone to avoid move errors
+                // Skip for functions/rules (fn items don't need cloning)
                 if !self.copy_vars.contains(name.as_str())
+                    && !self.types.user_functions.contains(name.as_str())
+                    && !self.types.prolog_rule_fns.contains_key(name.as_str())
+                    && !self.builtin_registry.contains_key(name.as_str())
                     && self.var_consuming_counts.get(name).copied().unwrap_or(0) > 1
                 {
                     return format!("{}.clone()", sname);
@@ -17225,10 +17239,28 @@ impl RustCodegen {
                     }
                 }
                 // Enum variant field access: emit a match expression
-                // Find ALL variants that have this field (handles shared field names like Dog.name and Cat.name)
+                // Find ALL variants that have this field
                 {
                     let matches = self.find_all_variant_fields(field);
                     if !matches.is_empty() {
+                        // If ANY match is a struct type, use direct field access
+                        // (when multiple types share a field name, struct access is preferred)
+                        for (vn, pn) in &matches {
+                            if self.types.struct_types.contains(pn.as_str()) {
+                                let obj_str = self.emit_expr(obj);
+                                let is_boxed = self.is_field_boxed(vn, field);
+                                let needs_clone = if let ExprKind::Var(var_name) = &obj.as_ref().kind {
+                                    self.current_borrow_params.contains(var_name.as_str())
+                                        || self.var_consuming_counts.get(var_name).copied().unwrap_or(0) > 1
+                                } else { true };
+                                let clone_suffix = if needs_clone && !self.copy_vars.contains(field) { ".clone()" } else { "" };
+                                if is_boxed {
+                                    return format!("(*{}.{}){}", obj_str, field, clone_suffix);
+                                } else {
+                                    return format!("{}.{}{}", obj_str, field, clone_suffix);
+                                }
+                            }
+                        }
                         let mut obj_str = self.emit_expr(obj);
                         // If the object is itself a boxed field access, we need to deref it
                         if let ExprKind::Field(_, inner_field) = &obj.as_ref().kind {
