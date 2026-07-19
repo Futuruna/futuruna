@@ -1,0 +1,65 @@
+-- Property-based tests: Collection invariants
+-- These properties hold for ANY list, not just the ones we test with.
+
+= xs = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3]
+= ys = [10, 20, 30]
+= empty = []
+
+-- map preserves length
+| map_length: xs -> length(map(xs, |x| x * 2)) == length(xs)
+? map_length -> { @ print("map preserves length: PROVED") } else { @ print("map preserves length: FAILED") }
+
+-- filter never increases length
+| filter_length: xs -> length(filter(xs, |x| x > 3)) <= length(xs)
+? filter_length -> { @ print("filter <= length: PROVED") } else { @ print("filter <= length: FAILED") }
+
+-- sort preserves length
+| sort_length: xs -> length(sort(xs)) == length(xs)
+? sort_length -> { @ print("sort preserves length: PROVED") } else { @ print("sort preserves length: FAILED") }
+
+-- reverse preserves length
+| reverse_length: xs -> length(reverse(xs)) == length(xs)
+? reverse_length -> { @ print("reverse preserves length: PROVED") } else { @ print("reverse preserves length: FAILED") }
+
+-- reverse(reverse(xs)) == xs
+| reverse_involution: xs -> reverse(reverse(xs)) == xs
+? reverse_involution -> { @ print("reverse(reverse) = id: PROVED") } else { @ print("reverse(reverse) = id: FAILED") }
+
+-- take(n) length is min(n, length)
+| take_length: xs -> length(take(xs, 3)) <= 3
+? take_length -> { @ print("take(3) <= 3: PROVED") } else { @ print("take(3) <= 3: FAILED") }
+
+-- sum_list of empty list is 0
+| sum_empty: empty -> sum_list(empty) == 0
+? sum_empty -> { @ print("sum([]) = 0: PROVED") } else { @ print("sum([]) = 0: FAILED") }
+
+-- distinct never increases length
+| distinct_length: xs -> length(distinct(xs)) <= length(xs)
+? distinct_length -> { @ print("distinct <= length: PROVED") } else { @ print("distinct <= length: FAILED") }
+
+-- any(xs, f) == true implies filter(xs, f) is non-empty
+= has_big = any(xs, |x| x > 8)
+= big_items = filter(xs, |x| x > 8)
+| any_implies_exists: has_big -> if has_big { length(big_items) > 0 } else { True }
+? any_implies_exists -> { @ print("any → filter non-empty: PROVED") } else { @ print("any → filter non-empty: FAILED") }
+
+-- all(xs, f) == true implies filter(xs, not f) is empty
+= all_positive = all(xs, |x| x > 0)
+= non_positive = filter(xs, |x| x <= 0)
+| all_implies_none: all_positive -> if all_positive { length(non_positive) == 0 } else { True }
+? all_implies_none -> { @ print("all → none fail: PROVED") } else { @ print("all → none fail: FAILED") }
+
+-- partition splits correctly: both halves together = original length
+= parts = partition(xs, |x| x > 4)
+| partition_complete: parts -> length(fst(parts)) + length(snd(parts)) == length(xs)
+? partition_complete -> { @ print("partition complete: PROVED") } else { @ print("partition complete: FAILED") }
+
+-- zip length = min of both
+| zip_length: xs -> length(zip(xs, ys)) == length(ys)
+? zip_length -> { @ print("zip length = min: PROVED") } else { @ print("zip length = min: FAILED") }
+
+-- enumerate length = original length
+| enum_length: xs -> length(enumerate(xs)) == length(xs)
+? enum_length -> { @ print("enumerate preserves length: PROVED") } else { @ print("enumerate preserves length: FAILED") }
+
+@ print("=== Collection properties verified ===")

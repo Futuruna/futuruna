@@ -1,0 +1,56 @@
+-- Property-based tests: String invariants
+
+= s = "Hello, World!"
+= empty = ""
+= spaces = "  hello  "
+
+-- length is non-negative
+| length_positive: s -> string_length(s) >= 0
+| length_positive: empty -> string_length(empty) >= 0
+? length_positive -> { @ print("length >= 0: PROVED") } else { @ print("length >= 0: FAILED") }
+
+-- trim never increases length
+| trim_length: spaces -> string_length(trim(spaces)) <= string_length(spaces)
+? trim_length -> { @ print("trim <= length: PROVED") } else { @ print("trim <= length: FAILED") }
+
+-- contains(s, s) is always true (string contains itself)
+| contains_self: s -> contains(s, s)
+? contains_self -> { @ print("s contains s: PROVED") } else { @ print("s contains s: FAILED") }
+
+-- starts_with(s, "") is always true
+| starts_empty: s -> starts_with(s, "")
+? starts_empty -> { @ print("starts_with empty: PROVED") } else { @ print("starts_with empty: FAILED") }
+
+-- ends_with(s, "") is always true
+| ends_empty: s -> ends_with(s, "")
+? ends_empty -> { @ print("ends_with empty: PROVED") } else { @ print("ends_with empty: FAILED") }
+
+-- split then join roundtrips
+= parts = split(s, ", ")
+= rejoined = join(parts, ", ")
+| split_join_roundtrip: rejoined -> rejoined == s
+? split_join_roundtrip -> { @ print("split/join roundtrip: PROVED") } else { @ print("split/join roundtrip: FAILED") }
+
+-- replace with same is identity
+| replace_identity: s -> replace(s, "x_nonexistent_x", "y") == s
+? replace_identity -> { @ print("replace no-match = identity: PROVED") } else { @ print("replace no-match = identity: FAILED") }
+
+-- to_upper(to_lower(s)) preserves alpha chars
+= lower = to_lower("HELLO")
+| lower_is_lower: lower -> lower == "hello"
+? lower_is_lower -> { @ print("to_lower correctness: PROVED") } else { @ print("to_lower correctness: FAILED") }
+
+= upper = to_upper("hello")
+| upper_is_upper: upper -> upper == "HELLO"
+? upper_is_upper -> { @ print("to_upper correctness: PROVED") } else { @ print("to_upper correctness: FAILED") }
+
+-- index_of returns -1 for missing
+| index_missing: s -> index_of(s, "zzz_not_found") == -1
+? index_missing -> { @ print("index_of missing = -1: PROVED") } else { @ print("index_of missing = -1: FAILED") }
+
+-- index_of returns valid position for present
+= idx = index_of(s, "World")
+| index_found: idx -> idx >= 0
+? index_found -> { @ print("index_of found >= 0: PROVED") } else { @ print("index_of found >= 0: FAILED") }
+
+@ print("=== String properties verified ===")

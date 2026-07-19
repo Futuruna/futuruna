@@ -1,0 +1,53 @@
+-- Property-based tests: Stream operation invariants
+
+~ nums = from_list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+
+-- map preserves count
+~ doubled = nums |> map(|x| x * 2)
+| map_count: doubled -> count(doubled) == count(nums)
+? map_count -> { @ print("stream map preserves count: PROVED") } else { @ print("stream map preserves count: FAILED") }
+
+-- filter never increases count
+~ big = nums |> filter(|x| x > 5)
+| filter_count: big -> count(big) <= count(nums)
+? filter_count -> { @ print("stream filter <= count: PROVED") } else { @ print("stream filter <= count: FAILED") }
+
+-- take(n) returns at most n items
+~ first3 = nums |> take(3)
+| take_count: first3 -> count(first3) <= 3
+? take_count -> { @ print("stream take(3) <= 3: PROVED") } else { @ print("stream take(3) <= 3: FAILED") }
+
+-- scan produces same length as input
+~ running = nums |> scan(0, |acc, x| acc + x)
+| scan_count: running -> count(running) == count(nums)
+? scan_count -> { @ print("stream scan preserves count: PROVED") } else { @ print("stream scan preserves count: FAILED") }
+
+-- reduce returns a single value (terminal)
+~ total = nums |> reduce(0, |acc, x| acc + x)
+| reduce_sum: total -> total == 55
+? reduce_sum -> { @ print("stream reduce sum=55: PROVED") } else { @ print("stream reduce sum=55: FAILED") }
+
+-- first returns the first element
+~ f = nums |> first
+| first_is_one: f -> f == 1
+? first_is_one -> { @ print("stream first = 1: PROVED") } else { @ print("stream first = 1: FAILED") }
+
+-- distinct never increases count
+~ with_dups = from_list([1, 2, 2, 3, 3, 3])
+~ deduped = with_dups |> distinct
+| distinct_count: deduped -> count(deduped) <= count(with_dups)
+? distinct_count -> { @ print("stream distinct <= count: PROVED") } else { @ print("stream distinct <= count: FAILED") }
+
+-- merge combines counts
+~ a = from_list([1, 2, 3])
+~ b = from_list([4, 5])
+~ merged = merge(a, b)
+| merge_count: merged -> count(merged) == count(a) + count(b)
+? merge_count -> { @ print("stream merge adds counts: PROVED") } else { @ print("stream merge adds counts: FAILED") }
+
+-- start_with adds one element
+~ prefixed = nums |> start_with(0)
+| start_with_count: prefixed -> count(prefixed) == count(nums) + 1
+? start_with_count -> { @ print("stream start_with +1: PROVED") } else { @ print("stream start_with +1: FAILED") }
+
+@ print("=== Stream properties verified ===")

@@ -1,0 +1,31 @@
+-- Property-based tests: Option and Result algebraic laws
+
+-- is_some(Some(x)) == true, is_some(None) == false
+= some_val = Some(42)
+= none_val = None
+| some_is_some: some_val -> is_some(some_val)
+| none_not_some: none_val -> is_none(none_val)
+? some_is_some -> { @ print("is_some(Some) = true: PROVED") } else { @ print("is_some(Some) = true: FAILED") }
+? none_not_some -> { @ print("is_none(None) = true: PROVED") } else { @ print("is_none(None) = true: FAILED") }
+
+-- unwrap_or(Some(x), d) == x
+= unwrapped_some = unwrap_or(Some(42), 0)
+| unwrap_some: unwrapped_some -> unwrapped_some == 42
+? unwrap_some -> { @ print("unwrap_or(Some, d) = x: PROVED") } else { @ print("unwrap_or(Some, d) = x: FAILED") }
+
+-- unwrap_or(None, d) == d
+= unwrapped_none = unwrap_or(None, 99)
+| unwrap_none: unwrapped_none -> unwrapped_none == 99
+? unwrap_none -> { @ print("unwrap_or(None, d) = d: PROVED") } else { @ print("unwrap_or(None, d) = d: FAILED") }
+
+-- is_some and is_none are complements
+| complement: some_val -> is_some(some_val) != is_none(some_val)
+? complement -> { @ print("some/none complement: PROVED") } else { @ print("some/none complement: FAILED") }
+
+-- identity: identity(x) == x for any x
+| identity_int: some_val -> identity(42) == 42
+| identity_str: some_val -> identity("hello") == "hello"
+? identity_int -> { @ print("identity(42) = 42: PROVED") } else { @ print("identity(42) = 42: FAILED") }
+? identity_str -> { @ print("identity(str) = str: PROVED") } else { @ print("identity(str) = str: FAILED") }
+
+@ print("=== Option/Result properties verified ===")

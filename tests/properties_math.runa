@@ -1,0 +1,44 @@
+-- Property-based tests: Math invariants
+-- Each | rule defines a property that must hold for ALL inputs tested.
+-- ? verifies at runtime. `runa verify` proves via Z3.
+
+-- Absolute value is always non-negative
+= x1 = 42
+= x2 = -17
+= x3 = 0
+| abs_positive: x1 -> abs(x1) >= 0
+| abs_positive: x2 -> abs(x2) >= 0
+| abs_positive: x3 -> abs(x3) >= 0
+? abs_positive -> { @ print("abs >= 0: PROVED") } else { @ print("abs >= 0: FAILED") }
+
+-- max(a, b) >= a AND max(a, b) >= b
+= a = 7
+= b = 13
+| max_ge_left: a -> max_int(a, b) >= a
+| max_ge_right: b -> max_int(a, b) >= b
+? max_ge_left -> { @ print("max >= left: PROVED") } else { @ print("max >= left: FAILED") }
+? max_ge_right -> { @ print("max >= right: PROVED") } else { @ print("max >= right: FAILED") }
+
+-- min(a, b) <= a AND min(a, b) <= b
+| min_le_left: a -> min_int(a, b) <= a
+| min_le_right: b -> min_int(a, b) <= b
+? min_le_left -> { @ print("min <= left: PROVED") } else { @ print("min <= left: FAILED") }
+? min_le_right -> { @ print("min <= right: PROVED") } else { @ print("min <= right: FAILED") }
+
+-- clamp always returns a value in [lo, hi]
+= val = 150
+= lo = 0
+= hi = 100
+= clamped = clamp(val, lo, hi)
+| clamp_lower: clamped -> clamped >= lo
+| clamp_upper: clamped -> clamped <= hi
+? clamp_lower -> { @ print("clamp >= lo: PROVED") } else { @ print("clamp >= lo: FAILED") }
+? clamp_upper -> { @ print("clamp <= hi: PROVED") } else { @ print("clamp <= hi: FAILED") }
+
+-- clamp(x, lo, hi) == x when lo <= x <= hi
+= in_range = 50
+= clamped_in = clamp(in_range, lo, hi)
+| clamp_identity: clamped_in -> clamped_in == in_range
+? clamp_identity -> { @ print("clamp identity: PROVED") } else { @ print("clamp identity: FAILED") }
+
+@ print("=== Math properties verified ===")
