@@ -17,7 +17,6 @@
 -- All in ONE program, ONE syntax, ONE consciousness.
 -- ============================================================================
 
-
 -- ============================================================================
 -- PART 1: Graph types — adjacency as lists (#)
 -- ============================================================================
@@ -27,7 +26,6 @@
 # Edge = MkEdge(Int, Int)
 # Node = MkNode(Int, String, Int)
 -- MkNode(id, name, degree)
-
 
 -- ============================================================================
 -- PART 2: List operations (>)
@@ -60,7 +58,6 @@
         | Cons(x, rest) -> if x == target { 1 } else { contains(rest, target) }
     }
 }
-
 
 -- ============================================================================
 -- PART 3: Graph operations — degree, neighbors (>)
@@ -98,7 +95,6 @@
     }
 }
 
-
 -- ============================================================================
 -- PART 4: Importance score — degree-based S_tau approximation (>)
 -- ============================================================================
@@ -120,7 +116,6 @@
     = reach = sum_neighbor_degree(edges, neighbors)
     (degree * 100) + reach
 }
-
 
 -- ============================================================================
 -- PART 5: Build a component graph and analyze it (@)
@@ -241,7 +236,6 @@
 @ print("  The runtime can detect: 'this is a dashboard layout'")
 @ print("  and apply dashboard-optimal rendering strategy.")
 @ print("")
-
 
 -- ============================================================================
 -- PART 6: The insight

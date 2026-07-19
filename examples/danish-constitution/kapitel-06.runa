@@ -2,7 +2,6 @@
 
 -- Kapitel VI -- Domstolene
 
-
 ----
 § 59. Stk. 1. Rigsretten består af indtil 15 af de efter embedsalder ældste
 ordentlige medlemmer af rigets øverste domstol og et tilsvarende antal af
@@ -51,7 +50,6 @@ Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 -- Stk. 4
 | rigsretten_fastsættes_ved_lov()
 
-
 ----
 § 60. Stk. 1. Rigsretten påkender de af kongen eller folketinget mod ministrene
 anlagte sager.
@@ -72,7 +70,6 @@ tiltale for forbrydelser, som han finder særdeles farlige for staten.
     }
 }
 
-
 ----
 § 61. Den dømmende magts udøvelse kan kun ordnes ved lov. Særdomstole med
 dømmende myndighed kan ikke nedsættes.
@@ -81,7 +78,6 @@ dømmende myndighed kan ikke nedsættes.
 | dømmende_magt_ordnes_ved_lov()
 | særdomstole_forbudt()
 
-
 ----
 § 62. Retsplejen skal stedse holdes adskilt fra forvaltningen. Regler herom
 fastsættes ved lov.
@@ -89,7 +85,6 @@ fastsættes ved lov.
 
 | retspleje_adskilt_fra_forvaltning()
 | adskillelse_fastsættes_ved_lov()
-
 
 ----
 § 63. Stk. 1. Domstolene er berettigede til at påkende ethvert spørgsmål om
@@ -112,7 +107,6 @@ ved lov.
 | forvaltningsdomstoles_afgørelser_kan_prøves_ved_højesteret()
 | forvaltningsdomstole_fastsættes_ved_lov()
 
-
 ----
 § 64. Dommerne har i deres kald alene at rette sig efter loven. De kan ikke
 afsættes uden ved dom, ejheller forflyttes mod deres ønske, uden for de
@@ -133,7 +127,6 @@ tidspunkt, til hvilket han skulle være afskediget på grund af alder.
 }
 
 | afskedigelse_ved_alder_uden_tab_af_indtægter()
-
 
 ----
 § 65. Stk. 1. I retsplejen gennemføres offentlighed og mundtlighed i videst

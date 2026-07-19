@@ -17,7 +17,6 @@
 -- Just: perceive topology → prioritize → render → learn.
 -- ============================================================================
 
-
 -- ============================================================================
 -- TYPES: The shape of a UI world (#)
 -- ============================================================================
@@ -42,7 +41,6 @@
 # BayesBucket = MkBucket(Int, Int, Int)
 -- MkBucket(category, renders, skips)
 
-
 -- ============================================================================
 -- ACCESSORS (>)
 -- ============================================================================
@@ -55,7 +53,6 @@
 > event_target(e: Event) -> Int { match e { | MkEvent(t, _, _) -> t } }
 > event_kind(e: Event) -> EventKind { match e { | MkEvent(_, k, _) -> k } }
 > event_tick(e: Event) -> Int { match e { | MkEvent(_, _, t) -> t } }
-
 
 -- ============================================================================
 -- LIST UTILITIES (>)
@@ -76,7 +73,6 @@
 > len_bucket(xs: List(BayesBucket)) -> Int {
     match xs { | Nil -> 0 | Cons(_, rest) -> 1 + len_bucket(rest) }
 }
-
 
 -- ============================================================================
 -- EVENT PROCESSING: How events change component state (>)
@@ -139,7 +135,6 @@
         }
     }
 }
-
 
 -- ============================================================================
 -- CONSCIOUS RENDERING: Topology + Phase + Cost + History = Decision (>)
@@ -219,7 +214,6 @@
     }
 }
 
-
 -- ============================================================================
 -- BAYESIAN LEARNING: The renderer improves with experience (>)
 -- ============================================================================
@@ -296,7 +290,6 @@
     }
 }
 
-
 -- ============================================================================
 -- RESULTS DISPLAY (>)
 -- ============================================================================
@@ -331,7 +324,6 @@
     }
 }
 
-
 -- ============================================================================
 -- BUILD THE UI AND RUN IT (@)
 -- ============================================================================
@@ -363,7 +355,6 @@
 @ print("  Components: " + show(len_comp(components)))
 @ print("")
 
-
 -- ============================================================================
 -- SCENARIO 1: User is browsing (scrolling through tasks)
 -- ============================================================================
@@ -379,7 +370,6 @@
 = rendered1 = count_rendered(browsing_results)
 @ print("    Total: " + show(rendered1) + " rendered, " + show(12 - rendered1) + " skipped")
 @ print("")
-
 
 -- ============================================================================
 -- SCENARIO 2: User is editing (typing in search field)
@@ -397,7 +387,6 @@
 @ print("    Total: " + show(rendered2) + " rendered, " + show(12 - rendered2) + " skipped")
 @ print("")
 
-
 -- ============================================================================
 -- SCENARIO 3: User is submitting (clicked submit)
 -- ============================================================================
@@ -413,7 +402,6 @@
 = rendered3 = count_rendered(submit_results)
 @ print("    Total: " + show(rendered3) + " rendered, " + show(12 - rendered3) + " skipped")
 @ print("")
-
 
 -- ============================================================================
 -- LEARNING: The framework improves with experience

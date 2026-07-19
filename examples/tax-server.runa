@@ -10,11 +10,9 @@
 -- Test with the client:
 --   runa run examples/tax-client.runa
 
-
 -- # TYPES
 
 # Status = Single | Married
-
 
 -- > RULES — Progressive brackets with deductions
 --
@@ -58,7 +56,6 @@
     income - tax(income, status, children)
 }
 
-
 -- | INVARIANTS — The tax system must be fair
 
 | zero_income: tax(0, Single, 0) -> tax(0, Single, 0) == 0
@@ -67,12 +64,10 @@
 | marriage_helps: tax(300000, Married, 0) -> tax(300000, Married, 0) < tax(300000, Single, 0)
 | net_positive: net(100000, Single, 0) -> net(100000, Single, 0) > 0
 
-
 -- ~ STREAMS — Simulated filings, cumulative revenue
 
 ~ filings = from_list([200000, 500000, 100000, 800000, 350000])
 ~ revenue = filings |> map(|i| bracket_tax(i)) |> scan(0, |acc, t| acc + t)
-
 
 -- ? VERIFY — Prove fairness before serving
 
@@ -81,7 +76,6 @@
 ? children_help
 ? marriage_helps
 ? net_positive
-
 
 -- > HANDLER
 
@@ -102,7 +96,6 @@
     = n = net(income, status, children)
     json_object([["name", name], ["income", show(income)], ["deductions", show(d)], ["taxable_income", show(ti)], ["tax", show(t)], ["effective_rate", r + "%"], ["net_income", show(n)]])
 }
-
 
 -- @ SERVER
 

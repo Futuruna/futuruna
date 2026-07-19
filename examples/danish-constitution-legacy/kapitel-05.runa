@@ -19,7 +19,6 @@
 --   §§ 55-58: Medlemmernes rettigheder og beskyttelse
 -- ============================================================================
 
-
 -- ============================================================================
 -- IMPORT — Typer og bindinger fra grundlov.runa
 -- ============================================================================
@@ -56,13 +55,11 @@
 -- Ombudsmand
 # Ombudsmand(er_folketingsmedlem: Bool)
 
-
 @ skriv("================================================================")
 @ skriv("  Kapitel V: Folketingets virksomhed (§§ 35-58)")
 @ skriv("  Demokratiets maskineri — 24 paragraffer")
 @ skriv("================================================================")
 @ skriv("")
-
 
 -- ============================================================================
 -- §§ 35-36: Hvornår Folketinget mødes — den demokratiske kalender
@@ -96,7 +93,6 @@ Stk. 2. På folketingsårets første dag kl. 12 samles medlemmerne til nyt folke
 @ skriv("Folketingsår begynder: " + folketingsårets_start)
 @ skriv("")
 
-
 -- ============================================================================
 -- § 37: Mødested — Folketinget mødes hvor regeringen har sit sæde.
 --
@@ -124,7 +120,6 @@ Stk. 2. På folketingsårets første dag kl. 12 samles medlemmerne til nyt folke
 @ skriv("Designet til krig: institutionen overlever bygningen")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 38: Åbningstalen.
 -- Statsministeren SKAL afgive redegørelse for rigets stilling
@@ -140,7 +135,6 @@ Stk. 2. På folketingsårets første dag kl. 12 samles medlemmerne til nyt folke
 @ skriv("Statsministeren SKAL aflægge redegørelse (obligatorisk)")
 @ skriv("Derefter: almindelig forhandling (åbningstalen)")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 39: Indkaldelse — 2/5-nødreglen.
@@ -171,7 +165,6 @@ Stk. 2. På folketingsårets første dag kl. 12 samles medlemmerne til nyt folke
 @ skriv("71 medlemmer begærer: " + vis(formanden_skal_indkalde(71, Falskt)))
 @ skriv("PM begærer: " + vis(formanden_skal_indkalde(0, Sandt)))
 @ skriv("")
-
 
 -- ============================================================================
 -- § 40: Ministres adgang — stemme uden mandat.
@@ -205,7 +198,6 @@ Stk. 2. Stemmeret udøver han kun, når han tillige er folketingsmedlem.
 @ skriv("Minister kan stemme (også MP): " + vis(minister_kan_stemme(Sandt)))
 @ skriv("Stemme KRÆVER mandat — minister uden mandat har tale, ikke stemme")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 41: Tre behandlinger — lovgivningens hjerteslag.
@@ -255,7 +247,6 @@ Stk. 4. Ved nyvalg og ved folketingsårets udgang bortfalder alle forslag til lo
 @ skriv("Undtaget fra udsættelse: finans, skat, indfødsret, ekspropriation")
 @ skriv("Forslag bortfalder ved nyvalg: " + vis(forslag_bortfalder_ved_nyvalg()))
 @ skriv("")
-
 
 -- ============================================================================
 -- § 42: Folkeafstemningen — folkets veto.
@@ -356,7 +347,6 @@ Stk. 8. Nærmere regler om folkeafstemning, herunder i hvilket omfang folkeafste
 @ skriv("Folkeafstemningen er et veto på ALMINDELIG lovgivning.")
 @ skriv("")
 
-
 -- ============================================================================
 -- §§ 43-47: Finansmagten — Folketingets pengekontrol
 --
@@ -433,7 +423,6 @@ Stk. 2. Folketinget vælger et antal revisorer. Disse gennemgår det årlige sta
 @ skriv("Ikke een krone kan kræves eller bruges uden lov.")
 @ skriv("")
 
-
 -- ============================================================================
 -- §§ 48-54: Indre organisation — Folketinget styrer sig selv
 --
@@ -488,7 +477,6 @@ Stk. 2. Folketinget vælger et antal revisorer. Disse gennemgår det årlige sta
 @ skriv("§ 54: Andragender kun gennem et medlem (ingen direkte adgang)")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 55: Ombudsmanden — Folketingets vagthund.
 --
@@ -513,7 +501,6 @@ Stk. 2. Folketinget vælger et antal revisorer. Disse gennemgår det årlige sta
 @ skriv("Tilsyn med: civil og militær forvaltning")
 @ skriv("Uafhængighed: IKKE MP — Folketinget kontrollerer, men deltager ikke")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 56: Det frie mandat — det dybeste demokratiske princip.
@@ -553,7 +540,6 @@ Stk. 2. Folketinget vælger et antal revisorer. Disse gennemgår det årlige sta
 @ skriv("          Partilisten og det frie mandat er i spænding")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 57: Parlamentarisk immunitet — skjoldet.
 --
@@ -591,7 +577,6 @@ Stk. 2. Uden for folketinget kan intet af dets medlemmer drages til ansvar for s
 @ skriv("Immunitet beskytter debat — men fersk gerning bryder den")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 58: Medlemmernes vederlag.
 -- Størrelse fastsættes ved valgloven. Simpel delegation.
@@ -604,7 +589,6 @@ Stk. 2. Uden for folketinget kan intet af dets medlemmer drages til ansvar for s
 @ skriv("--- § 58: Vederlag ---")
 @ skriv("Størrelse fastsættes ved valgloven (delegation)")
 @ skriv("")
-
 
 -- ============================================================================
 -- KAPITEL V — STRUKTUREL ANALYSE

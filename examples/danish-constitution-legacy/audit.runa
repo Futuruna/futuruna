@@ -7,17 +7,17 @@
 -- Formelle invarianter (|) og beviser (?) for strukturelle egenskaber.
 -- ============================================================================
 
-@ import ./kapitel-01
-@ import ./kapitel-02
-@ import ./kapitel-03
-@ import ./kapitel-04
-@ import ./kapitel-05
-@ import ./kapitel-06
-@ import ./kapitel-07
-@ import ./kapitel-08
-@ import ./kapitel-09
-@ import ./kapitel-10
-@ import ./kapitel-11
+@ import ./kapitel - 01
+@ import ./kapitel - 02
+@ import ./kapitel - 03
+@ import ./kapitel - 04
+@ import ./kapitel - 05
+@ import ./kapitel - 06
+@ import ./kapitel - 07
+@ import ./kapitel - 08
+@ import ./kapitel - 09
+@ import ./kapitel - 10
+@ import ./kapitel - 11
 
 -- ============================================================================
 -- MAGTDELING (Kap. I, III, VI)

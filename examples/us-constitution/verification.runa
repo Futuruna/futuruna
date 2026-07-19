@@ -1,23 +1,23 @@
 @ import ./constitution
-@ import ./article-1
-@ import ./article-1-section-3
-@ import ./article-1-section-4
-@ import ./article-1-section-5
-@ import ./article-1-section-6
-@ import ./article-1-section-7
-@ import ./article-1-section-8
-@ import ./article-1-section-9
-@ import ./article-1-section-10
-@ import ./article-2-section-1
-@ import ./article-2-section-2
-@ import ./article-2-section-3
-@ import ./article-2-section-4
-@ import ./article-3
-@ import ./article-4
-@ import ./article-5
-@ import ./article-6
-@ import ./article-7
-@ import ./succession-act-1947
+@ import ./article - 1
+@ import ./article - 1 - section - 3
+@ import ./article - 1 - section - 4
+@ import ./article - 1 - section - 5
+@ import ./article - 1 - section - 6
+@ import ./article - 1 - section - 7
+@ import ./article - 1 - section - 8
+@ import ./article - 1 - section - 9
+@ import ./article - 1 - section - 10
+@ import ./article - 2 - section - 1
+@ import ./article - 2 - section - 2
+@ import ./article - 2 - section - 3
+@ import ./article - 2 - section - 4
+@ import ./article - 3
+@ import ./article - 4
+@ import ./article - 5
+@ import ./article - 6
+@ import ./article - 7
+@ import ./succession - act - 1947
 
 = rep_min_age = 25
 = sen_min_age = 30

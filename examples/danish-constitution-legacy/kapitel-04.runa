@@ -22,7 +22,6 @@
 -- begrænser valgbarheden med. En enkelt port kontrollerer begge.
 -- ============================================================================
 
-
 -- ============================================================================
 -- IMPORT — Typer og bindinger fra grundlov.runa
 -- ============================================================================
@@ -55,7 +54,6 @@
 
 -- Folkeafstemningslås
 # ValgretsalderÆndring = KræverFolkeafstemning | Afvist
-
 
 -- ============================================================================
 -- § 28. Folketinget udgør een forsamling bestående af højst 179
@@ -93,7 +91,6 @@
 @ skriv("Danmark: " + vis(folketingets_mandater.danmark))
 @ skriv("Een forsamling (etkammersystem): " + vis(er_een_forsamling()))
 @ skriv("")
-
 
 -- ============================================================================
 -- § 29. Valgret — hvem kan stemme.
@@ -152,7 +149,6 @@ Stk. 2. Valgretsalderen er den, som har opnået flertal ved den i lov af 25. mar
 @ skriv("Kan ændres uden folkeafstemning: " + vis(valgretsalder_kan_ændres_uden_folkeafstemning()))
 @ skriv("")
 
-
 -- ============================================================================
 -- § 30. Valgbarhed — hvem kan vælges.
 --
@@ -196,7 +192,6 @@ Stk. 2. Tjenestemænd, som vælges til medlemmer af folketinget, behøver ikke r
 @ skriv("Tjenestemand behøver tilladelse: " + vis(tjenestemand_behøver_tilladelse()))
 @ skriv("Valgbarhed KRÆVER valgret — et enkelt led kontrollerer begge")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 31. Hvordan valg foregår — den demokratiske metode.
@@ -253,7 +248,6 @@ Stk. 5. Særlige regler om Grønlands repræsentation i folketinget kan gives ve
 @ skriv("Forholdstalsvalg påkrævet: " + vis(forholdstalsvalg_påkrævet()))
 @ skriv("Mandatfordeling: indbyggertal + vælgertal + befolkningstæthed")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 32. Valgperiode og opløsning — demokratiets rytme.
@@ -327,7 +321,6 @@ Stk. 7. Ethvert nyt medlem afgiver, når hans valg er godkendt, en højtidelig f
 @ skriv("Nyt medlem aflægger ed: " + vis(nyt_medlem_afgiver_forsikring()))
 @ skriv("")
 
-
 -- ============================================================================
 -- § 33. Folketinget dømmer sig selv — den selvhenvisende paragraf.
 --
@@ -366,7 +359,6 @@ Stk. 7. Ethvert nyt medlem afgiver, når hans valg er godkendt, en højtidelig f
 @ skriv("Domstolene kan overprøve: " + vis(kan_domstolene_overprøve_folketingets_afgørelse()))
 @ skriv("Folketinget er dommer i egen sag — unikum i magtdelingen")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 34. Folketinget er ukrænkeligt — den nukleare klausul.
@@ -417,7 +409,6 @@ Stk. 7. Ethvert nyt medlem afgiver, når hans valg er godkendt, en højtidelig f
 @ skriv("Lydighed som forsvar: " + vis(lydighed_er_forsvar()))
 @ skriv("Grundloven foregreb Nürnberg-princippet")
 @ skriv("")
-
 
 -- ============================================================================
 -- KAPITEL IV — STRUKTUREL ANALYSE

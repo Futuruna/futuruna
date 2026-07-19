@@ -51,14 +51,12 @@
 -- Køn (fra kapitel-01)
 # Køn = Mand | Kvinde
 
-
 @ skriv("""
 ================================================================
   Kapitel VIII: Borgernes grundrettigheder (§§ 71-85)
   Femten paragraffer — rettighedscharteret
 ================================================================
 """)
-
 
 -- ============================================================================
 -- § 71: PERSONLIG FRIHED — den mest detaljerede paragraf i kapitel VIII.
@@ -171,7 +169,6 @@ DISKRIMINATIONS-UDVIDELSE (§ 70 → § 71):
   § 71 tilføjer en beskyttelsesgrund som § 70 mangler.
 """)
 
-
 -- ============================================================================
 -- § 72: BOLIGENS UKRÆNKELIGHED.
 --
@@ -220,7 +217,6 @@ TEKNOLOGISK FORÆLDRING:
   Ikke nævnt: email, internet, metadata, GPS-sporing
   Fortolkning må udvide — men teksten er bundet til sin tid.
 """)
-
 
 -- ============================================================================
 -- § 73: EJENDOMSRET — den mest beskyttede rettighed.
@@ -306,7 +302,6 @@ FEM BESKYTTELSESLAG (unikt i grundloven):
   Ingen anden rettighed har 5 lag.
 """)
 
-
 -- ============================================================================
 -- § 74: FRI OG LIGE ERHVERVSADGANG.
 --
@@ -337,7 +332,6 @@ Undtagelse: begrænsninger begrundet i almenvellet
 'Skal hæves ved lov' = MANDAT til at deregulere
 Grundloven PÅLÆGGER Folketinget at fjerne ubegrundede restriktioner.
 """)
-
 
 -- ============================================================================
 -- § 75: RET TIL ARBEJDE + SOCIAL SIKKERHED.
@@ -404,7 +398,6 @@ MODALT HIERARKI i kapitel VIII:
   Grundloven GRADUERER sine løfter.
 """)
 
-
 -- ============================================================================
 -- § 76: RET TIL FRI UNDERVISNING + RET TIL HJEMMEUNDERVISNING.
 --
@@ -444,7 +437,6 @@ TO rettigheder i én paragraf:
   2. Forældre KAN vælge alternativ (frihed FRA staten)
   Staten sætter standarden, men kan ikke tvinge leveringen.
 """)
-
 
 -- ============================================================================
 -- § 77: YTRINGSFRIHED — med grundlovens stærkeste forbud.
@@ -510,7 +502,6 @@ SKELLET:
   Forhindre talen: nej. Straffe talen: ja.
 """)
 
-
 -- ============================================================================
 -- § 78: FORENINGSFRIHED — med ekstraordinære beskyttelser.
 --
@@ -574,7 +565,6 @@ DEN FORFATNINGSMÆSSIGE ASYMMETRI:
   Forfatningens værn mod autoritarisme.
 """)
 
-
 -- ============================================================================
 -- § 79: FORSAMLINGSFRIHED — med graduerede grænser.
 --
@@ -626,7 +616,6 @@ DET GRADUEREDE SYSTEM:
   Bevæbnede: IKKE beskyttet
 """)
 
-
 -- ============================================================================
 -- § 80: TRE ADVARSLER — væbnet magt mod opløb.
 --
@@ -676,7 +665,6 @@ Formlen: 'i kongens og lovens navn'
   Middelalderligt oprørskontrol-ritual — stadig gældende 2026.
 """)
 
-
 -- ============================================================================
 -- § 81: VÆRNEPLIGT — kønsbaseret.
 --
@@ -720,7 +708,6 @@ Den ENESTE kønsbaserede pligt i grundloven.
   Er køn 'afstamning' i § 70s forstand? Uafklaret.
 """)
 
-
 -- ============================================================================
 -- § 82: KOMMUNALT SELVSTYRE.
 --
@@ -749,7 +736,6 @@ Kommunalt selvstyre: {{kommunalt_selvstyre()}}
 Under statens tilsyn: {{kommunalt_statstilsyn()}}
 'Selvstændigt' + 'under statens tilsyn' = underordnet autonomi
 """)
-
 
 -- ============================================================================
 -- § 83: AFSKAFFELSE AF ADELSFORRETTIGHEDER.
@@ -781,7 +767,6 @@ Adelsforrettigheder: {{adelsforrettigheder_eksisterer()}}
   § 83: kan ikke FÅ forrettigheder pga. fødsel
   Symmetrisk: hverken op eller ned ved fødsel.
 """)
-
 
 -- ============================================================================
 -- § 84: FORBUD MOD FEUDALE GODSER.
@@ -819,7 +804,6 @@ Fideikommis kan oprettes: {{fideikommis_kan_oprettes()}}
   § 83: ingen juridiske privilegier ved fødsel
   § 84: ingen økonomisk fastlåsning ved fødsel
 """)
-
 
 -- ============================================================================
 -- § 85: MILITÆRUNDTAGELSEN — den mest afslørende paragraf.
@@ -896,7 +880,6 @@ DET AFSLØRENDE VALG:
   Politisk kontrol: NEJ
   En soldat er stadig en borger.
 """)
-
 
 -- ============================================================================
 -- KAPITEL VIII STRUKTURANALYSE

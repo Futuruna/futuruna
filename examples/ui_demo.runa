@@ -13,12 +13,12 @@
 # State(a) = State(a)
 
 # UI =
-    Div(List(UI))
-  | Text(String)
-  | Button(String, State(a) -> State(a))
-  | Input(String, String -> State(a) -> State(a))
-  | Chart(String)
-  | When(Bool, UI)
+Div(List(UI))
+| Text(String)
+| Button(String, State(a) -> State(a))
+| Input(String, String -> State(a) -> State(a))
+| Chart(String)
+| When(Bool, UI)
 
 # FormState = FormState(String, String, String, Bool)
 
@@ -27,24 +27,24 @@
 -- ============================================================================
 
 > field(label, value, on_change) =
-  Div([
-    Text(label + ":"),
-    Input(value, on_change),
-    When(value == "", Text("Required"))
-  ])
+Div([
+Text(label + ":"),
+Input(value, on_change),
+When(value == "", Text("Required"))
+])
 
 > form(state) =
-  | FormState(name, email, phone, valid) ->
-    Div([
-      Text("User Profile"),
-      field("Name", name, |v| |s|
-        | FormState(_, e, p, _) -> FormState(v, e, p, v != "" && e != "")),
-      field("Email", email, |v| |s|
-        | FormState(n, _, p, _) -> FormState(n, v, p, n != "" && v != "")),
-      field("Phone", phone, |v| |s|
-        | FormState(n, e, _, _) -> FormState(n, e, v, n != "" && e != "")),
-      When(valid, Button("Submit", |s| s))
-    ])
+| FormState(name, email, phone, valid) -> 
+Div([
+Text("User Profile"),
+field("Name", name, |v| |s|
+| FormState(_, e, p, _) -> FormState(v, e, p, v != "" && e != "")),
+field("Email", email, |v| |s|
+| FormState(n, _, p, _) -> FormState(n, v, p, n != "" && v != "")),
+field("Phone", phone, |v| |s|
+| FormState(n, e, _, _) -> FormState(n, e, v, n != "" && e != "")),
+When(valid, Button("Submit", |s| s))
+])
 
 -- ============================================================================
 -- Dashboard: browsing-heavy, expensive charts
@@ -53,24 +53,24 @@
 # DashState = DashState(String, Int, Int, Int, List(Int))
 
 > kpi_card(label, value) =
-  Div([Text(label), Text(show(value))])
+Div([Text(label), Text(show(value))])
 
 > dashboard(state) =
-  | DashState(tab, revenue, users, orders, history) ->
-    Div([
-      Div([
-        Button("Overview", |s| | DashState(_, r, u, o, h) -> DashState("overview", r, u, o, h)),
-        Button("Sales", |s| | DashState(_, r, u, o, h) -> DashState("sales", r, u, o, h)),
-        Button("Users", |s| | DashState(_, r, u, o, h) -> DashState("users", r, u, o, h))
-      ]),
-      Div([
-        kpi_card("Revenue", revenue),
-        kpi_card("Users", users),
-        kpi_card("Orders", orders)
-      ]),
-      Chart("revenue_trend"),
-      Chart("user_growth")
-    ])
+| DashState(tab, revenue, users, orders, history) -> 
+Div([
+Div([
+Button("Overview", |s| | DashState(_, r, u, o, h) -> DashState("overview", r, u, o, h)),
+Button("Sales", |s| | DashState(_, r, u, o, h) -> DashState("sales", r, u, o, h)),
+Button("Users", |s| | DashState(_, r, u, o, h) -> DashState("users", r, u, o, h))
+]),
+Div([
+kpi_card("Revenue", revenue),
+kpi_card("Users", users),
+kpi_card("Orders", orders)
+]),
+Chart("revenue_trend"),
+Chart("user_growth")
+])
 
 -- ============================================================================
 -- Effects: tracked, composable, first-class
@@ -82,7 +82,7 @@
 -- @ animate : requestAnimationFrame wrapper
 
 > app() =
-  @ mount(form, FormState("", "", "", False))
+@ mount(form, FormState("", "", "", False))
 
 -- ============================================================================
 -- What the conscious renderer does under the hood:

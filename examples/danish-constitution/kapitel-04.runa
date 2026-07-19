@@ -2,7 +2,6 @@
 
 -- Kapitel IV -- Folketinget
 
-
 ----
 § 28. Folketinget udgør een forsamling bestående af højst 179 medlemmer, hvoraf
 2 medlemmer vælges på Færøerne og 2 i Grønland.
@@ -11,7 +10,6 @@
 = folketingets_max_medlemmer = 179
 = færøske_mandater = 2
 = grønlandske_mandater = 2
-
 
 ----
 § 29. Stk. 1. Valgret til folketinget har enhver, som har dansk indfødsret,
@@ -46,7 +44,6 @@ folkeafstemning, der ikke har medført bestemmelsens bortfald.
 | valgretsalder_fastsættes_ved_folkeafstemning()
 | ændring_af_valgretsalder_kræver_folkeafstemning()
 
-
 ----
 § 30. Stk. 1. Valgbar til folketinget er enhver, som har valgret til dette,
 medmindre vedkommende er straffet for en handling, der i almindeligt omdømme
@@ -67,7 +64,6 @@ regeringens tilladelse til at modtage valget.
 
 -- Stk. 2
 | tjenestemænd_behøver_ikke_tilladelse_til_valg()
-
 
 ----
 § 31. Stk. 1. Folketingets medlemmer vælges ved almindelige, direkte og
@@ -108,7 +104,6 @@ ved lov.
 
 -- Stk. 5
 | grønlands_repræsentation_kan_fastsættes_ved_lov()
-
 
 ----
 § 32. Stk. 1. Folketingets medlemmer vælges for fire år.
@@ -159,7 +154,6 @@ forsikring om at ville holde grundloven.
 -- Stk. 7: samme edssprog som par. 8 og par. 27
 | nyt_medlem_aflægger_grundlovs_ed()
 
-
 ----
 § 33. Folketinget afgør selv gyldigheden af sine medlemmers valg samt
 spørgsmål om, hvorvidt et medlem har mistet sin valgbarhed.
@@ -167,7 +161,6 @@ spørgsmål om, hvorvidt et medlem har mistet sin valgbarhed.
 
 | folketinget_afgør_valgs_gyldighed()
 | folketinget_afgør_tab_af_valgbarhed()
-
 
 ----
 § 34. Folketinget er ukrænkeligt. Enhver, der antaster dets sikkerhed eller

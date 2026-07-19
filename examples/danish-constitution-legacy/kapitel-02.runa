@@ -11,7 +11,6 @@
 -- for forfatningsret.
 -- ============================================================================
 
-
 -- ============================================================================
 -- IMPORT — Typer og bindinger fra grundlov.runa
 -- ============================================================================
@@ -48,7 +47,6 @@
 -- Samtykke: det grundlæggende forfatningsmæssige begreb for tilladelse
 # Samtykke = Givet | IkkeGivet
 
-
 -- ============================================================================
 -- § 5. Kongen kan ikke uden folketingets samtykke være regent i andre lande.
 --
@@ -80,7 +78,6 @@
 @ skriv("--- § 5: Regent i andre lande ---")
 @ skriv("Uden samtykke: " + vis(kan_være_regent_i_andre_lande(IkkeGivet)))
 @ skriv("Med samtykke: " + vis(kan_være_regent_i_andre_lande(Givet)))
-
 
 -- ============================================================================
 -- § 6. Kongen skal høre til den evangelisk-lutherske kirke.
@@ -115,7 +112,6 @@
 = katolsk_konge = Monark(55, Andet("Katolsk"), IkkeAfgivet)
 @ skriv("Luthersk konge opfylder krav: " + vis(kongen_opfylder_troskrav(luthersk_konge)))
 @ skriv("Katolsk konge opfylder krav: " + vis(kongen_opfylder_troskrav(katolsk_konge)))
-
 
 -- ============================================================================
 -- § 7. Kongen er myndig, når han har fyldt sit 18. år.
@@ -153,7 +149,6 @@
 @ skriv("Konge alder 22: " + vis(er_myndig_monark(voksen_konge)))
 @ skriv("Tronfølger alder 17: " + vis(er_myndig_tronfølger(ung_tronfølger)))
 @ skriv("Tronfølger alder 18: " + vis(er_myndig_tronfølger(voksen_tronfølger)))
-
 
 -- ============================================================================
 -- § 8. Forinden kongen tiltræder regeringen, afgiver han skriftligt i
@@ -244,7 +239,6 @@
 
 @ skriv("Antal eksemplarer: " + vis(forsikringsakt_eksemplarer()))
 
-
 -- ============================================================================
 -- § 9. Bestemmelser angående regeringens førelse i tilfælde af kongens
 --      umyndighed, sygdom eller fraværelse fastsættes ved lov.
@@ -291,7 +285,6 @@
 @ skriv("Myndig: " + regeringsførelse_ved_inhabilitet(Myndig))
 @ skriv("Ingen tronfølger: " + ved_tronledighed_uden_tronfølger())
 
-
 -- ============================================================================
 -- § 10. Stk. 1. Statens ydelse til kongen bestemmes for hans regeringstid
 --       ved lov. Ved denne fastsættes tillige, hvilke slotte og andre
@@ -335,7 +328,6 @@ Stk. 2. Statsydelsen kan ikke behæftes med gæld.
 @ skriv("Stk. 1 - Ydelse: " + statsydelse_hjemmel())
 @ skriv("Stk. 1 - Slotte: " + slotte_hjemmel())
 @ skriv("Stk. 2 - Gæld tilladt: " + vis(statsydelse_kan_behæftes_med_gæld()))
-
 
 -- ============================================================================
 -- § 11. For medlemmer af det kongelige hus kan der bestemmes årpenge
@@ -384,7 +376,6 @@ Stk. 2. Statsydelsen kan ikke behæftes med gæld.
 @ skriv("Hjemmel: " + årpenge_hjemmel())
 @ skriv("I udlandet uden samtykke: " + vis(årpenge_i_udlandet(IkkeGivet)))
 @ skriv("I udlandet med samtykke: " + vis(årpenge_i_udlandet(Givet)))
-
 
 -- ============================================================================
 -- KAPITEL II — ANALYSE

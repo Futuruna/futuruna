@@ -23,7 +23,6 @@ stadfæster DANMARKS RIGES GRUNDLOV
 # Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
 # Lov(titel: Tekst, dato: Tekst)
 
-
 ----
 § 1. Denne grundlov gælder for alle dele af Danmarks Rige.
 ----
@@ -36,7 +35,6 @@ stadfæster DANMARKS RIGES GRUNDLOV
     }
 }
 
-
 ----
 § 2. Regeringsformen er indskrænket-monarkisk. Kongemagten nedarves til mænd
 og kvinder efter de i tronfølgeloven af 27. marts 1953 fastsatte regler.
@@ -47,7 +45,6 @@ og kvinder efter de i tronfølgeloven af 27. marts 1953 fastsatte regler.
 
 = tronfølgeloven = Lov("Tronfølgeloven", "27. marts 1953")
 
-
 ----
 § 3. Den lovgivende magt er hos kongen og folketinget i forening.
 Den udøvende magt er hos kongen. Den dømmende magt er hos domstolene.
@@ -56,7 +53,6 @@ Den udøvende magt er hos kongen. Den dømmende magt er hos domstolene.
 | lovgivende_magt() -> IForening(Kongen, Folketinget)
 | udøvende_magt() -> Hos(Kongen)
 | dømmende_magt() -> Hos(Domstolene)
-
 
 ----
 § 4. Den evangelisk-lutherske kirke er den danske folkekirke og understøttes

@@ -102,9 +102,9 @@
     = r = read_span(src, pos, pos, ln, col, |ch| is_alnum(ch))
     = word = r.text
     = kind = if word == "true" || word == "false" { TkBool }
-             else if is_kw(word) { TkKW }
-             else if is_upper(char_at(word, 0)) { TkType }
-             else { TkIdent }
+    else if is_kw(word) { TkKW }
+    else if is_upper(char_at(word, 0)) { TkType }
+    else { TkIdent }
     Lexed(r.pos, r.line, r.col, Token(kind, word, ln, col))
 }
 

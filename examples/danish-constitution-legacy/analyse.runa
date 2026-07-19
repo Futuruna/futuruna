@@ -54,7 +54,6 @@
 @ print("================================================================")
 @ print("")
 
-
 -- ============================================================================
 -- ISSUE 1: § 1 — Open world encoded as closed world
 --
@@ -75,7 +74,6 @@
 @ print("FIX: Rigsdel should accept any territory, not enumerate them.")
 @ print("")
 
-
 -- ============================================================================
 -- ISSUE 2: § 2 — Binary gender assumption
 --
@@ -95,7 +93,6 @@
 @ print("A non-binary person is unrepresentable in the succession type")
 @ print("This is not a bug in OUR code — it is a 1953 assumption made visible")
 @ print("")
-
 
 -- ============================================================================
 -- ISSUE 3: § 3 — The King straddles two powers
@@ -138,7 +135,6 @@
 @ print("The King is the most powerful institution by constitutional design")
 @ print("")
 
-
 -- ============================================================================
 -- ISSUE 4: § 3 — Is IForening commutative?
 --
@@ -159,7 +155,6 @@
 @ print("In practice: King (government) proposes, Folketing disposes")
 @ print("Our ordered pair is arguably correct — initiative order matters")
 @ print("")
-
 
 -- ============================================================================
 -- ISSUE 5: § 4 + § 6 — The Church-Crown coupling
@@ -195,7 +190,6 @@
 @ print("The church cannot act, but its EXISTENCE filters the monarchy")
 @ print("")
 
-
 -- ============================================================================
 -- ISSUE 6: § 7 + § 8 — The Underage Sworn Heir
 --
@@ -227,7 +221,6 @@
 @ print("  Real-world resolution would require § 9's delegation to law.")
 @ print("")
 
-
 -- ============================================================================
 -- ISSUE 7: § 9 — Folketinget's nuclear option
 --
@@ -258,7 +251,6 @@
 @ print("  the Troelfolgelov without a constitutional amendment.")
 @ print("")
 
-
 -- ============================================================================
 -- ISSUE 8: § 10.2 — The strongest sentence in the constitution
 --
@@ -277,16 +269,16 @@
 # Modalitet = Skal | Kan | KanIkke | KanMedSamtykke | KanIkkeUdenSamtykke | Fastsaettes
 
 > paragraf_modalitet(nr: Int) -> Modalitet {
-    if nr == 1 { Skal }                     -- gaelder for alle dele
-    else if nr == 2 { Skal }                -- er indskraenket-monarkisk
-    else if nr == 3 { Skal }                -- magten er hos ...
-    else if nr == 4 { Skal }                -- understoettes som saadan
+    if nr == 1 { Skal } -- gaelder for alle dele
+    else if nr == 2 { Skal } -- er indskraenket-monarkisk
+    else if nr == 3 { Skal } -- magten er hos ...
+    else if nr == 4 { Skal } -- understoettes som saadan
     else if nr == 5 { KanIkkeUdenSamtykke } -- kan ikke uden samtykke
-    else if nr == 6 { Skal }                -- skal hoere til
-    else if nr == 7 { Skal }                -- er myndig naar
-    else if nr == 8 { Skal }                -- afgiver forsikring
-    else if nr == 9 { Fastsaettes }         -- fastsaettes ved lov
-    else if nr == 10 { KanIkke }            -- kan ikke behaeftes
+    else if nr == 6 { Skal } -- skal hoere til
+    else if nr == 7 { Skal } -- er myndig naar
+    else if nr == 8 { Skal } -- afgiver forsikring
+    else if nr == 9 { Fastsaettes } -- fastsaettes ved lov
+    else if nr == 10 { KanIkke } -- kan ikke behaeftes
     else if nr == 11 { KanIkkeUdenSamtykke } -- kan ikke uden samtykke
     else { Kan }
 }
@@ -319,7 +311,6 @@
 @ print("  § 10.2 is the hardest sentence: no exception, no consent, no law")
 @ print("  Not even a constitutional amendment mechanism is mentioned for it")
 @ print("")
-
 
 -- ============================================================================
 -- ISSUE 9: The Constitutional Consistency Test
@@ -375,7 +366,6 @@
 @ print("  § 7 says 'underage' but § 8 doesn't check age. Gap!")
 @ print("")
 
-
 -- ============================================================================
 -- ISSUE 10: The Samtykke Asymmetry
 --
@@ -396,7 +386,6 @@
 @ print("Our type Samtykke = Givet | IkkeGivet does not distinguish domains.")
 @ print("Better type: Samtykke(domain: String) = Givet | IkkeGivet")
 @ print("")
-
 
 -- ============================================================================
 -- FUNNY CONSEQUENCE: The most constitutional person possible

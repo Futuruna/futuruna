@@ -11,7 +11,6 @@
 # Beslutning(kongen_underskrevet: Boolsk, minister_underskrevet: Boolsk)
 # Råd = ViaStatsråd | ViaMinisterråd
 
-
 ----
 § 12. Kongen har med de i denne grundlov fastsatte indskrænkninger den højeste
 myndighed over alle rigets anliggender og udøver den gennem ministrene.
@@ -20,7 +19,6 @@ myndighed over alle rigets anliggender og udøver den gennem ministrene.
 | kongen_har_højeste_myndighed()
 | myndighed_indskrænket_af_grundloven()
 | myndighed_udøves_gennem_ministrene()
-
 
 ----
 § 13. Kongen er ansvarsfri; hans person er fredhellig. Ministrene er ansvarlige
@@ -31,7 +29,6 @@ for regeringens førelse; deres ansvarlighed bestemmes nærmere ved lov.
 | kongen_er_fredhellig()
 | ministrene_er_ansvarlige_for_regeringsførelse()
 | ministeransvar_fastsættes_ved_lov()
-
 
 ----
 § 14. Kongen udnævner og afskediger statsministeren og de øvrige ministre. Han
@@ -54,7 +51,6 @@ Enhver minister, som har underskrevet, er ansvarlig for beslutningen.
 }
 
 | underskrivende_minister_er_ansvarlig()
-
 
 ----
 § 15. Stk. 1. Ingen minister kan forblive i sit embede, efter at folketinget
@@ -85,7 +81,6 @@ førelse.
 | afskediget_ministerium_fungerer_til_nyt_udnævnt()
 | fungerende_ministre_kun_nødvendigt()
 
-
 ----
 § 16. Ministrene kan af kongen eller folketinget tiltales for deres
 embedsførelse. Rigsretten påkender de mod ministrene for deres embedsførelse
@@ -95,7 +90,6 @@ anlagte sager.
 | kongen_kan_tiltale_ministre()
 | folketinget_kan_tiltale_ministre()
 | rigsretten_påkender_ministersager()
-
 
 ----
 § 17. Stk. 1. Ministrene i forening udgør statsrådet, hvori tronfølgeren, når
@@ -119,7 +113,6 @@ Stk. 2. I statsrådet forhandles alle love og vigtige regeringsforanstaltninger.
 
 | alle_love_og_vigtige_foranstaltninger_i_statsrådet()
 
-
 ----
 § 18. Er kongen forhindret i at holde statsråd, kan han lade sagen forhandle i
 et ministerråd. Dette består af samtlige ministre under forsæde af
@@ -138,7 +131,6 @@ eller lade sig sagen foredrage i statsrådet.
 | ministerråd_votum_til_protokol()
 | ministerråd_beslutter_ved_flertal()
 | kongen_kan_bifalde_eller_overføre_til_statsrådet()
-
 
 ----
 § 19. Stk. 1. Kongen handler på rigets vegne i mellemfolkelige anliggender.
@@ -204,7 +196,6 @@ rækkevidde. Nærmere regler om det udenrigspolitiske nævn fastsættes ved lov.
 | regeringen_rådfører_sig_med_udenrigsnævn()
 | udenrigsnævn_fastsættes_ved_lov()
 
-
 ----
 § 20. Stk. 1. Beføjelser, som efter denne grundlov tilkommer rigets
 myndigheder, kan ved lov i nærmere bestemt omfang overlades til
@@ -237,14 +228,12 @@ regler.
     }
 }
 
-
 ----
 § 21. Kongen kan for folketinget lade fremsætte forslag til love og andre
 beslutninger.
 ----
 
 | kongen_kan_fremsætte_lovforslag()
-
 
 ----
 § 22. Et af folketinget vedtaget lovforslag får lovskraft, når det senest 30
@@ -255,7 +244,6 @@ kundgørelse og drager omsorg for dens fuldbyrdelse.
 | lovforslag_får_lovskraft_ved_stadfæstelse_inden_30_dage()
 | kongen_kundgør_og_fuldbyrder()
 
-
 ----
 § 23. I særdeles påtrængende tilfælde kan kongen, når folketinget ikke kan
 samles, udstede foreløbige love, der dog ikke må stride mod grundloven og
@@ -265,7 +253,6 @@ godkendelse eller forkastelse.
 
 | foreløbige_love_må_ikke_stride_mod_grundloven()
 | foreløbige_love_forelægges_folketinget()
-
 
 ----
 § 24. Kongen kan benåde og give amnesti. Ministrene kan han kun med
@@ -282,7 +269,6 @@ folketingets samtykke benåde for de dem af rigsretten idømte straffe.
     }
 }
 
-
 ----
 § 25. Kongen meddeler dels umiddelbart, dels gennem vedkommende
 regeringsmyndigheder sådanne bevillinger og undtagelser fra lovene, som enten
@@ -292,13 +278,11 @@ indeholdes i en siden den tid udgiven lov.
 
 | kongen_kan_give_dispensationer()
 
-
 ----
 § 26. Kongen har ret til at lade slå mønt i henhold til loven.
 ----
 
 | kongen_har_møntret()
-
 
 ----
 § 27. Stk. 1. Regler om ansættelse af tjenestemænd fastsættes ved lov. Ingen

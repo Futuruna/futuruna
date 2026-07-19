@@ -18,7 +18,6 @@
 -- In Futuruna: it's all one language, one syntax, one consciousness
 -- ============================================================================
 
-
 -- ============================================================================
 -- PART 1: Types — the shape of the world (#)
 -- ============================================================================
@@ -36,7 +35,6 @@
 # Option(a) = None | Some(a)
 # List(a) = Nil | Cons(a, List(a))
 
-
 -- ============================================================================
 -- PART 2: The Network — facts about what exists (|)
 -- ============================================================================
@@ -50,7 +48,6 @@
 = analytics    = MkService("analytics", Down, Low, US)
 = cdn          = MkService("cdn", Healthy, High, APAC)
 = backup_db    = MkService("backup-db", Healthy, Normal, EU)
-
 
 -- ============================================================================
 -- PART 3: Service introspection (>)
@@ -255,7 +252,6 @@
         | Cons(h, t) -> h + ", " + show_list_inner(t)
     }
 }
-
 
 -- ============================================================================
 -- PART 6: Run it — the conscious system observes itself (@)

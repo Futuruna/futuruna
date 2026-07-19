@@ -25,7 +25,6 @@
 --   § 63 gør ALLE ansvarlige overfor domstolene
 -- ============================================================================
 
-
 -- ============================================================================
 -- IMPORT — Typer og bindinger fra grundlov.runa
 -- ============================================================================
@@ -51,13 +50,11 @@
 -- Særdomstole
 # Særdomstol = Forbudt
 
-
 @ skriv("================================================================")
 @ skriv("  Kapitel VI: Domstolene (§§ 59-65)")
 @ skriv("  Den tredje statsmagt — 7 paragraffer")
 @ skriv("================================================================")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 59: Rigsretten — den hybride forfatningsdomstol.
@@ -124,7 +121,6 @@ Stk. 3. Er sag rejst ved rigsretten, beholder de af folketinget valgte medlemmer
 @ skriv("kan dominere. Balance vedligeholdes aktivt.")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 60: Rigsrettens jurisdiktion.
 --
@@ -170,7 +166,6 @@ Stk. 2. For rigsretten kan kongen med folketingets samtykke lade også andre til
 @ skriv("Samtykke-mønstret gentages: § 60.2 følger § 5, § 11, § 19, § 24")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 61: Ingen særdomstole. Dømmende magt kun ved lov.
 --
@@ -206,7 +201,6 @@ Stk. 2. For rigsretten kan kongen med folketingets samtykke lade også andre til
 @ skriv("Krydsref § 23: nødlove kan IKKE oprette domstole (strider mod § 61)")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 62: Adskillelse af retspleje og forvaltning.
 --
@@ -232,7 +226,6 @@ Stk. 2. For rigsretten kan kongen med folketingets samtykke lade også andre til
 @ skriv("'Stedse' = ALTID — ingen undtagelse, heller ikke i krisetid")
 @ skriv("§ 3 siger HVEM der har magten. § 62 siger HVORDAN den holdes adskilt.")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 63: DOMSTOLSKONTROL — forfatningens kronjuvel.
@@ -289,7 +282,6 @@ Stk. 2. Påkendelse af spørgsmål om øvrighedsmyndighedens grænser kan ved lo
 @ skriv("  § 63 siger domstolene prøver ETHVERT spørgsmål")
 @ skriv("  Kan domstolene overprøve § 33-afgørelse? Uafklaret.")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 64: Dommeruafhængighed — det tredobbelte skjold.
@@ -355,7 +347,6 @@ Stk. 2. Påkendelse af spørgsmål om øvrighedsmyndighedens grænser kan ved lo
 @ skriv("  = En institution der er fri, mægtig og uberørlig")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 65: Offentlige retsmøder og lægdommere.
 --
@@ -384,7 +375,6 @@ Stk. 2. I strafferetsplejen skal lægmænd medvirke. Det fastsættes ved lov, i 
 @ skriv("Lægmænd i straffesager: " + vis(lægmænd_i_straffesager()))
 @ skriv("Borgere dømmer borgere — folket er også i den tredje magt")
 @ skriv("")
-
 
 -- ============================================================================
 -- KAPITEL VI — STRUKTUREL ANALYSE

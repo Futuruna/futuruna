@@ -2,18 +2,17 @@
 
 -- Grundlov audit -- Kapitel I-XI
 
-@ importer ./kapitel-01
-@ importer ./kapitel-02
-@ importer ./kapitel-03
-@ importer ./kapitel-04
-@ importer ./kapitel-05
-@ importer ./kapitel-06
-@ importer ./kapitel-07
-@ importer ./kapitel-08
-@ importer ./kapitel-09
-@ importer ./kapitel-10
-@ importer ./kapitel-11
-
+@ importer ./kapitel - 01
+@ importer ./kapitel - 02
+@ importer ./kapitel - 03
+@ importer ./kapitel - 04
+@ importer ./kapitel - 05
+@ importer ./kapitel - 06
+@ importer ./kapitel - 07
+@ importer ./kapitel - 08
+@ importer ./kapitel - 09
+@ importer ./kapitel - 10
+@ importer ./kapitel - 11
 
 -- ============================================================================
 -- Invarianter
@@ -525,7 +524,6 @@
 -- Kongen, embedsværket og den lovgivende magt er alle edsforpligtede.
 | ed_tjenestemand_gentagelse() -> kongens_tjenestemand_aflægger_grundlovs_ed()
 | ed_folketingsmedlem_gentagelse() -> nyt_medlem_aflægger_grundlovs_ed()
-
 
 -- ============================================================================
 -- Beviser

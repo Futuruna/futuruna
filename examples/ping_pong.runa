@@ -17,7 +17,6 @@
 # Shot = Normal | Smash | Ace
 # Rally(number: Int, side: Side, shot: Shot)
 
-
 -- ============================================================================
 -- > FUNCTIONS — Game logic
 -- ============================================================================
@@ -68,7 +67,6 @@
     else { ">>> DRAW! <<<" }
 }
 
-
 -- ============================================================================
 -- | INVARIANTS — The game must be fair
 -- ============================================================================
@@ -82,7 +80,6 @@
 
 -- Normal shots score nothing
 | normal_is_zero: shot_points(Normal) -> shot_points(Normal) == 0
-
 
 -- ============================================================================
 -- THE GAME
@@ -101,7 +98,6 @@
 ? ace_beats_smash -> { @ print("    ace > smash:     OK") }
 ? normal_is_zero -> { @ print("    normal == 0:     OK") }
 @ print("")
-
 
 -- Build the rally sequence upfront
 = rallies = map(range(1, max_rallies + 1), |i| Rally(i, if i % 2 == 1 { Ping } else { Pong }, shot_type(i)))
@@ -123,7 +119,6 @@
 -- Score tracking via scan on the full stream
 ~ ping_points = rally_stream |> filter(|r| r.side == Ping) |> map(|r| shot_points(r.shot)) |> scan(0, |acc, pts| acc + pts)
 ~ pong_points = rally_stream |> filter(|r| r.side == Pong) |> map(|r| shot_points(r.shot)) |> scan(0, |acc, pts| acc + pts)
-
 
 -- ============================================================================
 -- FINAL SCORE — from stream reductions

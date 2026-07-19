@@ -12,7 +12,6 @@
 -- and asks Z3 to verify or find counterexamples.
 -- ============================================================================
 
-
 -- ============================================================================
 -- PART 1: Constitutional types
 -- ============================================================================
@@ -28,7 +27,6 @@
 # Statsmagt = Lovgivende | Udovende | Dommende
 
 # Samtykke = Givet | IkkeGivet
-
 
 -- ============================================================================
 -- PART 2: Constitutional rules
@@ -70,7 +68,6 @@
     }
 }
 
-
 -- ============================================================================
 -- PART 3: Ground truth
 -- ============================================================================
@@ -80,7 +77,6 @@
 = alder_25 = 25
 = alder_10 = 10
 = edsvoren = AfgivetSomTronfolger
-
 
 -- ============================================================================
 -- PART 4: Invariants
@@ -110,7 +106,6 @@
 --    But now ss 6 applies — and FAILS.
 --    Expected: COUNTEREXAMPLE FOUND
 | muslim_konge_paragraf_6: check_paragraf_6(ErKonge, muslim_tro) -> check_paragraf_6(ErKonge, muslim_tro) == Opfyldt
-
 
 -- ============================================================================
 -- PART 5: Prove it!

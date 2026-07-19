@@ -18,14 +18,12 @@
 -- Begge viser grundloven i færd med at styre overgange mellem systemer.
 -- ============================================================================
 
-
 @ skriv("""
 ================================================================
   Kapitel IX: Forskellige bestemmelser (§§ 86-87)
   To paragraffer — arvede regler
 ================================================================
 """)
-
 
 -- ============================================================================
 -- § 86: KOMMUNAL OG KIRKELIG VALGRETSALDER.
@@ -115,7 +113,6 @@ MENIGHEDSRÅDS-KROGEN:
   via § 86 — selvom § 66s løfte aldrig blev indfriet.
 """)
 
-
 -- ============================================================================
 -- § 87: ISLANDSKE STATSBORGERES BEVAREDE RETTIGHEDER.
 --
@@ -204,7 +201,6 @@ DET FORFATNINGSMÆSSIGE FOSSIL:
   En paragraf uden effekt, men med fuld gyldighed.
   Grundloven husker hvad der engang var.
 """)
-
 
 -- ============================================================================
 -- KAPITEL IX: STRUKTUREL ANALYSE

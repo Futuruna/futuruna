@@ -10,7 +10,6 @@
 # Monark(alder: Heltal, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
 # Tronfølger(alder: Heltal, trossamfund: Trossamfund)
 
-
 ----
 § 5. Kongen kan ikke uden folketingets samtykke være regent i andre lande.
 ----
@@ -21,7 +20,6 @@
         | IkkeGivet -> Falskt
     }
 }
-
 
 ----
 § 6. Kongen skal høre til den evangelisk-lutherske kirke.
@@ -39,7 +37,6 @@
     }
 }
 
-
 ----
 § 7. Kongen er myndig, når han har fyldt sit 18. år.
 Det samme gælder tronfølgeren.
@@ -53,7 +50,6 @@ Det samme gælder tronfølgeren.
 > tronfølger_er_myndig(tf: Tronfølger) -> Boolsk {
     hvis tf.alder >= 18 { Sandt } ellers { Falskt }
 }
-
 
 ----
 § 8. Forinden kongen tiltræder regeringen, afgiver han skriftligt i statsrådet
@@ -87,7 +83,6 @@ ved tronskiftet regeringen.
 | forsikringsakt_eksemplar_1() -> FolketingetsArkiv
 | forsikringsakt_eksemplar_2() -> Rigsarkivet
 
-
 ----
 § 9. Bestemmelser angående regeringens førelse i tilfælde af kongens
 umyndighed, sygdom eller fraværelse fastsættes ved lov. Er der ved
@@ -97,7 +92,6 @@ den fremtidige arvefølge.
 
 | regentskab_fastsættes_ved_lov()
 | folketinget_vælger_konge_ved_tronledighed()
-
 
 ----
 § 10. Stk. 1. Statens ydelse til kongen bestemmes for hans regeringstid ved
@@ -109,7 +103,6 @@ Stk. 2. Statsydelsen kan ikke behæftes med gæld.
 
 | statsydelse_fastsættes_ved_lov()
 | statsydelse_gæld_forbudt()
-
 
 ----
 § 11. For medlemmer af det kongelige hus kan der bestemmes årpenge ved lov.

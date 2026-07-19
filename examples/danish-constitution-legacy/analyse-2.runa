@@ -28,7 +28,6 @@
 @ print("================================================================")
 @ print("")
 
-
 -- ============================================================================
 -- PART A: FIDELITY — How faithful is our encoding?
 -- ============================================================================
@@ -37,7 +36,6 @@
 @ print("  PART A: FIDELITY — Implementation vs Constitutional Text")
 @ print("================================================================")
 @ print("")
-
 
 -- ============================================================================
 -- FIDELITY 1: kapitel-01.runa does not use @ use imports
@@ -55,7 +53,6 @@
 @ print("Severity: STRUCTURAL — types are incompatible across chapters")
 @ print("Fix: add @ use grundlov::* to kapitel-01.runa, remove local type defs")
 @ print("")
-
 
 -- ============================================================================
 -- FIDELITY 2: Institution type is redefined in every chapter
@@ -80,7 +77,6 @@
 @ print("the UNION of all Institution variants — which doesn't exist.")
 @ print("Severity: STRUCTURAL — reveals need for open/extensible types in Futuruna")
 @ print("")
-
 
 -- ============================================================================
 -- FIDELITY 3: Chapter III claims 16 paragraphs but only encodes 13
@@ -115,7 +111,6 @@
 @ print("Severity: MENINGSAENDRENDE — § 21 is important for power analysis")
 @ print("")
 
-
 -- ============================================================================
 -- FIDELITY 4: § 14 countersignature — too simple
 --
@@ -134,7 +129,6 @@
 @ print("Fix: ansvarlige: List(String)")
 @ print("Severity: STRUCTURAL — changes responsibility analysis")
 @ print("")
-
 
 -- ============================================================================
 -- FIDELITY 5: § 19 military force — Forsvar/Angreb binary is too coarse
@@ -161,7 +155,6 @@
 @ print("Severity: STRUCTURAL — binary encoding reveals real gap in constitution")
 @ print("")
 
-
 -- ============================================================================
 -- FIDELITY 6: § 29 — three requirements + exclusion, not four requirements
 --
@@ -186,7 +179,6 @@
 @ print("This is exactly what default logic is FOR.")
 @ print("Severity: STRUCTURAL — misses opportunity to demonstrate default logic")
 @ print("")
-
 
 -- ============================================================================
 -- FIDELITY 7: § 29 stk. 2 — voting age history not captured
@@ -215,7 +207,6 @@
 @ print("Severity: KOSMETISK — correct value, wrong provenance")
 @ print("")
 
-
 -- ============================================================================
 -- FIDELITY 8: § 27 missing pension choice
 --
@@ -235,7 +226,6 @@
 @ print("The civil servant gets a CHOICE: accept transfer OR take pension")
 @ print("Severity: STRUKTUREL — changes the rights analysis")
 @ print("")
-
 
 -- ============================================================================
 -- FIDELITY SCORE
@@ -260,7 +250,6 @@
 @ print("  (missing paragraphs) should be fixed.")
 @ print("")
 
-
 -- ============================================================================
 -- PART B: CONSTITUTIONAL INSIGHTS — Deep Analysis Worth Expanding
 -- ============================================================================
@@ -270,7 +259,6 @@
 @ print("  PART B: CONSTITUTIONAL INSIGHTS — Paradoxes & Structures")
 @ print("================================================================")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 1: The Grand Paradox — All Power and No Power
@@ -308,7 +296,6 @@
 @ print("  This is a constitutional STATE vs TRANSITION gap —")
 @ print("  the same structural pattern as the Muslim King paradox.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 2: The Accountability Inversion
@@ -349,7 +336,6 @@
 @ print("  because THEY go to Rigsretten (§ 16), not the King.")
 @ print("  The King's irresponsibility makes ministers MORE careful.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 3: The Fredhellig Paradox — Irresistible Force vs Immovable Object
@@ -397,7 +383,6 @@
 @ print("")
 @ print("  This is the DEEPEST unresolvable paradox in §§ 1-34.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 4: The Emergency Decree Perverse Incentive
@@ -449,7 +434,6 @@
 @ print("           under ikke_forhindret_ulovligt()")
 @ print("")
 
-
 -- ============================================================================
 -- INSIGHT 5: The Self-Sealing Exclusion
 --
@@ -483,7 +467,6 @@
 @ print("  if re-elected — but Folketing can exclude again (§ 33).")
 @ print("  The only real check is the voters themselves.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 6: The Non-Lutheran Parliament Scenario
@@ -524,7 +507,6 @@
 @ print("  § 6 is constitutionally ceremonial.")
 @ print("")
 
-
 -- ============================================================================
 -- INSIGHT 7: The Dissolution Infinite Loop
 --
@@ -556,7 +538,6 @@
 @ print("  The Danish system assumes political culture will prevent loops.")
 @ print("  The constitution provides NO mechanism to break the cycle.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 8: The Oath Web — Who Swears to Whom?
@@ -598,7 +579,6 @@
 @ print("  Both swear to serve the constitution.")
 @ print("  The document IS the social contract. Literally.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 9: The Constitutional Hierarchy of Thresholds
@@ -643,7 +623,6 @@
 @ print("  they have no exception mechanism at all.")
 @ print("")
 
-
 -- ============================================================================
 -- INSIGHT 10: The Missing Paragraph — §§ 35-89 Preview
 --
@@ -676,7 +655,6 @@
 @ print("    → § 88 is the amendment procedure — the META-rule")
 @ print("    → § 89 is the election of Rigsretten members")
 @ print("")
-
 
 -- ============================================================================
 -- SUMMARY

@@ -14,7 +14,6 @@
 -- Ministerens underskrift er dét der skaber ANSVAR.
 -- ============================================================================
 
-
 -- ============================================================================
 -- IMPORT — Typer og bindinger fra grundlov.runa
 -- ============================================================================
@@ -66,7 +65,6 @@
 -- Samtykke (genbrugt fra Kap. II)
 # Samtykke = Givet | IkkeGivet
 
-
 -- ============================================================================
 -- § 12. Kongen har med de i denne grundlov fastsatte indskrænkninger
 --       den højeste myndighed over alle rigets anliggender og udøver
@@ -101,7 +99,6 @@
 @ skriv("Kongen kan handle alene: " + vis(kongen_kan_handle_alene()))
 @ skriv("Konklusion: Magt uden selvstændig handleevne")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 13. Kongen er ansvarsfri; hans person er fredhellig.
@@ -144,7 +141,6 @@
 @ skriv("Kongen er fredhellig: " + vis(er_fredhellig(Kongen)))
 @ skriv("Folketinget er fredhelligt: " + vis(er_fredhellig(Folketinget)))
 @ skriv("")
-
 
 -- ============================================================================
 -- § 14. Kontrasignaturen — den mest elegante juridiske mekanisme
@@ -208,7 +204,6 @@
 @ skriv("Ingen: " + vis(beslutning_gyldig(Falskt, Falskt)) + " — " + hvem_er_ansvarlig(ingen_underskrift))
 @ skriv("")
 
-
 -- ============================================================================
 -- § 15. Mistillidsvotummet — parlamentarismen.
 --
@@ -252,7 +247,6 @@ Stk. 2. Udtaler folketinget sin mistillid til statsministeren, skal denne begær
 @ skriv("Fungerende ministerium: " + fungerende_kan_gøre("vedtage ny lov"))
 @ skriv("")
 
-
 -- ============================================================================
 -- § 16. Ministrene kan af kongen eller folketinget tiltales for deres
 --       embedsførelse. Rigsretten påkender sagerne.
@@ -279,7 +273,6 @@ Stk. 2. Udtaler folketinget sin mistillid til statsministeren, skal denne begær
 @ skriv("Folketinget kan tiltale: " + vis(kan_tiltale_minister(Folketinget)))
 @ skriv("Domstolene kan tiltale: " + vis(kan_tiltale_minister(Domstolene)))
 @ skriv("")
-
 
 -- ============================================================================
 -- § 17. Statsrådet — hvor ALLE love behandles.
@@ -312,7 +305,6 @@ Stk. 2. I statsrådet forhandles alle love og vigtige regeringsforanstaltninger.
 @ skriv("Tronfølger (alder 20) sidder med: " + vis(tronfølger_sidder_i_statsråd(20)))
 @ skriv("")
 
-
 -- ============================================================================
 -- § 18. Ministerrådet — backup når Kongen er forhindret.
 --
@@ -340,7 +332,6 @@ Stk. 2. I statsrådet forhandles alle love og vigtige regeringsforanstaltninger.
 @ skriv("Kongen bifalder ikke: " + vis(ministerråd_beslutning(Falskt)))
 @ skriv("Kongen har reelt VETO over ministerrådsbeslutninger")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 19. Udenrigspolitik — den mest komplekse paragraf.
@@ -401,7 +392,6 @@ Stk. 3. Folketinget vælger af sin midte et udenrigspolitisk nævn, med hvilket 
 @ skriv("Forsvar mod angreb er den ENESTE handling der aldrig kræver samtykke")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 20. Suverænitetsafgivelse — EU-paragraffen (tilføjet 1953)
 --
@@ -438,7 +428,6 @@ Stk. 2. Til vedtagelse af lovforslag herom kræves et flertal på fem sjettedele
 @ skriv("Højeste tærskel i hele grundloven!")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 21. Kongen kan for folketinget lade fremsætte forslag til love
 --       og andre beslutninger.
@@ -456,7 +445,6 @@ Stk. 2. Til vedtagelse af lovforslag herom kræves et flertal på fem sjettedele
 @ skriv("--- § 21: Kongens lovinitiativ ---")
 @ skriv("Kongen kan lade fremsætte lovforslag: " + vis(kongen_kan_fremsætte_lovforslag()))
 @ skriv("")
-
 
 -- ============================================================================
 -- § 22. Stadfæstelse — 30 dages frist.
@@ -493,7 +481,6 @@ Stk. 2. Til vedtagelse af lovforslag herom kræves et flertal på fem sjettedele
 @ skriv("HUL: Hvad sker hvis Kongen nægter at underskrive?")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 23. Foreløbige love — nødlove.
 --
@@ -523,7 +510,6 @@ Stk. 2. Til vedtagelse af lovforslag herom kræves et flertal på fem sjettedele
 @ skriv("Folketing ej samlet, grundlovsstridig: " + vis(provisorisk_lov_gyldig(Falskt, Sandt)) + " (ugyldig)")
 @ skriv("Folketing ej samlet, lovlig: " + vis(provisorisk_lov_gyldig(Falskt, Falskt)) + " (gyldig)")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 24. Benådning og amnesti.
@@ -556,7 +542,6 @@ Stk. 2. Til vedtagelse af lovforslag herom kræves et flertal på fem sjettedele
 @ skriv("Rigsretsdømt minister med samtykke: " + vis(kan_benåde(Sandt, Givet)))
 @ skriv("")
 
-
 -- ============================================================================
 -- § 25. Dispensationer fra lovene.
 --
@@ -584,7 +569,6 @@ Stk. 2. Til vedtagelse af lovforslag herom kræves et flertal på fem sjettedele
 @ skriv("Ingen hjemmel: " + vis(dispensation_lovlig(Falskt, Falskt)))
 @ skriv("")
 
-
 -- ============================================================================
 -- § 26. Kongen har ret til at lade slå mønt i henhold til loven.
 --
@@ -602,7 +586,6 @@ Stk. 2. Til vedtagelse af lovforslag herom kræves et flertal på fem sjettedele
 @ skriv("Kongen kan lade slå mønt: " + vis(kongen_kan_slå_mønt()))
 @ skriv("(I henhold til loven — dvs. Nationalbanken)")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 27. Tjenestemænd — tjenestemandsparagraffen.
@@ -645,7 +628,6 @@ Stk. 3. Uden deres samtykke kan de af kongen udnævnte tjenestemænd kun forflyt
 @ skriv("Forflytning uden samtykke, med tab: " + vis(forflytning_lovlig(IkkeGivet, Sandt)))
 @ skriv("Forflytning uden samtykke, uden tab: " + vis(forflytning_lovlig(IkkeGivet, Falskt)))
 @ skriv("")
-
 
 -- ============================================================================
 -- KAPITEL III — STRUKTUREL ANALYSE

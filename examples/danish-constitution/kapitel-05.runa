@@ -2,7 +2,6 @@
 
 -- Kapitel V -- Folketingets virksomhed
 
-
 ----
 § 35. Stk. 1. Nyvalgt folketing træder sammen kl. 12 den tolvte søgnedag
 efter valgdagen, dersom kongen ikke har indkaldt det til møde forinden.
@@ -14,7 +13,6 @@ formand og næstformænd.
 | nyvalgt_folketing_mødes_tolvte_søgnedag()
 | kongen_kan_indkalde_folketinget_tidligere()
 | folketinget_vælger_formand_og_næstformænd()
-
 
 ----
 § 36. Stk. 1. Folketingsåret begynder den første tirsdag i oktober og varer
@@ -28,7 +26,6 @@ møde, hvor folketinget sættes påny.
 | folketingsåret_varer_til_samme_tirsdag_følgende_år()
 | folketinget_sættes_påny_ved_årets_start()
 
-
 ----
 § 37. Folketinget træder sammen på det sted, hvor regeringen har sit sæde. I
 overordentlige tilfælde kan folketinget dog samles andetsteds i riget.
@@ -36,7 +33,6 @@ overordentlige tilfælde kan folketinget dog samles andetsteds i riget.
 
 | folketinget_mødes_ved_regeringens_sæde()
 | folketinget_kan_mødes_andetsteds_i_overordentlige_tilfælde()
-
 
 ----
 § 38. Stk. 1. På det første møde i folketingsåret afgiver statsministeren en
@@ -48,7 +44,6 @@ Stk. 2. På grundlag af redegørelsen finder en almindelig forhandling sted.
 
 | statsministeren_afgiver_åbningsredegørelse()
 | almindelig_forhandling_efter_redegørelse()
-
 
 ----
 § 39. Folketingets formand indkalder folketinget til møde med angivelse af
@@ -67,7 +62,6 @@ fremsætter begæring herom med angivelse af dagsorden.
     }
 }
 
-
 ----
 § 40. Ministrene har i embeds medfør adgang til folketinget og er berettigede
 til under forhandlingerne at forlange ordet, så ofte de vil, idet de iøvrigt
@@ -78,7 +72,6 @@ medlemmer af folketinget.
 | ministre_har_adgang_til_folketinget()
 | ministre_har_taleret_i_folketinget()
 | ministre_kun_stemmeret_som_medlemmer()
-
 
 ----
 § 41. Stk. 1. Ethvert medlem af folketinget er berettiget til at fremsætte
@@ -127,7 +120,6 @@ love og andre beslutninger, der ikke forinden er endeligt vedtaget.
 -- Stk. 4
 | uafsluttede_forslag_bortfalder_ved_nyvalg()
 | uafsluttede_forslag_bortfalder_ved_folketingsårets_udgang()
-
 
 ----
 § 42. Stk. 1. Når et lovforslag er vedtaget af folketinget, kan en trediedel
@@ -236,7 +228,6 @@ folkeafstemning skal finde sted på Færøerne og i Grønland, fastsættes ved l
 -- Stk. 8
 | folkeafstemningsregler_fastsættes_ved_lov()
 
-
 ----
 § 43. Ingen skat kan pålægges, forandres eller ophæves uden ved lov; ejheller
 kan noget mandskab udskrives eller noget statslån optages uden ifølge lov.
@@ -245,7 +236,6 @@ kan noget mandskab udskrives eller noget statslån optages uden ifølge lov.
 | ingen_skat_uden_lov()
 | ingen_udskrivning_af_mandskab_uden_lov()
 | intet_statslån_uden_lov()
-
 
 ----
 § 44. Stk. 1. Ingen udlænding kan få indfødsret uden ved lov.
@@ -256,7 +246,6 @@ regler ved lov.
 
 | indfødsret_kun_ved_lov()
 | udlændinges_ejendomsret_fastsættes_ved_lov()
-
 
 ----
 § 45. Stk. 1. Forslag til finanslov for det kommende finansår skal fremsættes
@@ -270,7 +259,6 @@ midlertidig bevillingslov fremsættes for folketinget.
 = finanslov_frist_måneder = 4
 | midlertidig_bevillingslov_ved_forsinkelse()
 
-
 ----
 § 46. Stk. 1. Forinden finansloven eller en midlertidig bevillingslov er
 vedtaget af folketinget, må skatterne ikke opkræves.
@@ -282,7 +270,6 @@ midlertidig bevillingslov.
 
 | ingen_skatteopkrævning_før_finanslov()
 | ingen_udgift_uden_hjemmel_i_bevillingslov()
-
 
 ----
 § 47. Stk. 1. Statsregnskabet skal fremlægges for folketinget senest seks
@@ -305,14 +292,12 @@ til beslutning.
 | revisorers_virksomhed_fastsættes_ved_lov()
 | statsregnskabet_forelægges_folketinget()
 
-
 ----
 § 48. Folketinget fastsætter selv sin forretningsorden, der indeholder de
 nærmere bestemmelser vedrørende forretningsgang og ordens opretholdelse.
 ----
 
 | folketinget_fastsætter_forretningsorden()
-
 
 ----
 § 49. Folketingets møder er offentlige. Formanden eller det i
@@ -327,7 +312,6 @@ skal forhandles i et offentligt eller lukket møde.
 | ministre_kan_forlange_lukket_møde()
 | lukket_møde_afgøres_uden_forhandling()
 
-
 ----
 § 50. Folketinget kan kun tage beslutning, når over halvdelen af medlemmerne
 er tilstede og deltager i afstemningen.
@@ -336,7 +320,6 @@ er tilstede og deltager i afstemningen.
 > folketinget_er_beslutningsdygtigt(tilstede: Heltal, medlemmer: Heltal) -> Boolsk {
     hvis tilstede * 2 > medlemmer { Sandt } ellers { Falskt }
 }
-
 
 ----
 § 51. Folketinget kan nedsætte kommissioner af sine medlemmer til at undersøge
@@ -349,14 +332,12 @@ myndigheder.
 | kommissioner_kan_kræve_oplysninger_fra_borgere()
 | kommissioner_kan_kræve_oplysninger_fra_myndigheder()
 
-
 ----
 § 52. Folketingets valg af medlemmer til kommissioner og hverv sker efter
 forholdstal.
 ----
 
 | valg_til_kommissioner_og_hverv_efter_forholdstal()
-
 
 ----
 § 53. Ethvert medlem af folketinget kan med dettes samtykke bringe ethvert
@@ -366,14 +347,12 @@ offentligt anliggende under forhandling og derom æske ministrenes forklaring.
 | medlemmer_kan_med_folketingets_samtykke_rejse_anliggender()
 | medlemmer_kan_æske_ministrenes_forklaring()
 
-
 ----
 § 54. Andragender kan kun overgives til folketinget ved et af dettes
 medlemmer.
 ----
 
 | andragender_kun_via_medlemmer()
-
 
 ----
 § 55. Ved lov bestemmes, at folketinget vælger en eller to personer, der ikke
@@ -386,7 +365,6 @@ militære forvaltning.
 | tilsyn_med_civil_forvaltning()
 | tilsyn_med_militær_forvaltning()
 
-
 ----
 § 56. Folketingsmedlemmerne er ene bundet ved deres overbevisning og ikke ved
 nogen forskrift af deres vælgere.
@@ -394,7 +372,6 @@ nogen forskrift af deres vælgere.
 
 | frit_mandat()
 | ikke_bundet_af_vælgernes_forskrift()
-
 
 ----
 § 57. Intet medlem af folketinget kan uden dettes samtykke tiltales eller
@@ -409,7 +386,6 @@ samtykke drages til ansvar udenfor samme.
 | immunitet_undtaget_ved_fersk_gerning()
 | ytringsfrihed_i_folketinget()
 | ytringsfrihed_kan_ophæves_med_folketingets_samtykke()
-
 
 ----
 § 58. Folketingets medlemmer oppebærer et vederlag, hvis størrelse fastsættes

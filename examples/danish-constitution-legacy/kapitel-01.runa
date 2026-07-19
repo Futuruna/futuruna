@@ -35,7 +35,6 @@ stadfæster DANMARKS RIGES GRUNDLOV
 
 = tronfølgeloven = Lov("Tronfølgeloven", "27. marts 1953")
 
-
 -- ============================================================================
 -- § 1. Denne grundlov gælder for alle dele af Danmarks Rige.
 --
@@ -70,7 +69,6 @@ stadfæster DANMARKS RIGES GRUNDLOV
 @ print("Danmark: " + show(gælder_for(Danmark)))
 @ print("Færøerne: " + show(gælder_for(Færøerne)))
 @ print("Grønland: " + show(gælder_for(Grønland)))
-
 
 -- ============================================================================
 -- § 2. Regeringsformen er indskrænket-monarkisk. Kongemagten nedarves
@@ -109,7 +107,6 @@ stadfæster DANMARKS RIGES GRUNDLOV
 @ print("Mænd kan arve: " + show(kan_arve_tronen(Mand)))
 @ print("Kvinder kan arve: " + show(kan_arve_tronen(Kvinde)))
 @ print("Hjemmel: " + tronfølgeloven.titel)
-
 
 -- ============================================================================
 -- § 3. Den lovgivende magt er hos kongen og folketinget i forening.
@@ -182,7 +179,6 @@ stadfæster DANMARKS RIGES GRUNDLOV
 @ print("Kongen har enemagt (lovgivende): " + show(har_enemagt(Kongen, Lovgivende)))
 @ print("Lovgivning er delt magt: " + show(er_delt_magt(Lovgivende)))
 
-
 -- ============================================================================
 -- § 4. Den evangelisk-lutherske kirke er den danske folkekirke og
 --      understøttes som sådan af staten.
@@ -234,7 +230,6 @@ stadfæster DANMARKS RIGES GRUNDLOV
 @ print("Statsforpligtelse: Understøttelse")
 @ print("Er EvangeliskLuthersk folkekirken: " + show(er_folkekirke(EvangeliskLuthersk)))
 @ print("Er Andet folkekirken: " + show(er_folkekirke(Andet("Katolsk"))))
-
 
 -- ============================================================================
 -- KAPITEL I — OPSUMMERING

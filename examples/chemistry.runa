@@ -19,7 +19,6 @@
 # Step(tick: Int, reaction: String, atoms_in: Int, atoms_out: Int)
 # Priority = Normal | Fast | Catalyzed
 
-
 -- ============================================================================
 -- > FUNCTIONS — Atomic accounting
 -- ============================================================================
@@ -36,7 +35,6 @@
     match p { | Normal -> "normal" | Fast -> "fast" | Catalyzed -> "catalyzed (Fe, 450C, 200atm)" }
 }
 
-
 -- ============================================================================
 -- = BINDINGS — The molecules (our periodic table)
 -- ============================================================================
@@ -48,7 +46,6 @@
 = co2      = Molecule("carbon dioxide", "CO2",  0, 2, 1, 0)
 = ammonia  = Molecule("ammonia",        "NH3",  3, 0, 0, 1)
 = nitrogen = Molecule("nitrogen",       "N2",   0, 0, 0, 2)
-
 
 -- ============================================================================
 -- = REACTIONS — Balanced equations as arithmetic
@@ -69,7 +66,6 @@
 = haber_in  = atom_count(nitrogen) + atom_count(hydrogen) * 3
 = haber_out = atom_count(ammonia) * 2
 
-
 -- ============================================================================
 -- > FUNCTIONS — Reaction priority
 -- ============================================================================
@@ -80,7 +76,6 @@
     else if name == "combustion" { Fast }
     else { Normal }
 }
-
 
 -- ============================================================================
 -- | CATALA RULES — Safety classification (default logic + exceptions)
@@ -94,7 +89,6 @@
 
 -- Exception: if atom count is mismatched, it's a violation of physics
 | exception physics_violation safety(s) -> "VIOLATION" under s.atoms_in != s.atoms_out
-
 
 -- ============================================================================
 -- | INVARIANTS — Conservation of mass
@@ -111,7 +105,6 @@
 
 -- Water is heavier than hydrogen
 | water_heavier: atom_count(water) -> atom_count(water) > atom_count(hydrogen)
-
 
 -- ============================================================================
 -- | DATALOG — What do we have in the lab?
@@ -131,7 +124,6 @@
 | need("haber", "hydrogen")
 | need("haber", "nitrogen")
 
-
 -- ============================================================================
 -- THE EXPERIMENT
 -- ============================================================================
@@ -139,7 +131,6 @@
 @ print("=== THE VERIFIED REACTION ===")
 @ print("  A chemistry simulator that proves conservation of mass.")
 @ print("")
-
 
 -- ============================================================================
 -- ? VERIFY — Prove conservation BEFORE running any reactions
@@ -156,7 +147,6 @@
 
 @ print("  6/6 conservation laws verified.")
 @ print("")
-
 
 -- ============================================================================
 -- | DATALOG — What can we run with what's in the lab?
@@ -176,7 +166,6 @@ for ex in experiments {
 
 @ print("")
 
-
 -- ============================================================================
 -- ~ STREAMS — Reaction timeline
 -- ============================================================================
@@ -184,9 +173,9 @@ for ex in experiments {
 @ print("--- Reaction Timeline ---")
 
 = steps = [
-    Step(1, "2H2 + O2 -> 2H2O", combustion_in, combustion_out),
-    Step(2, "CH4 + 2O2 -> CO2 + 2H2O", methane_in, methane_out),
-    Step(3, "N2 + 3H2 -> 2NH3", haber_in, haber_out)
+Step(1, "2H2 + O2 -> 2H2O", combustion_in, combustion_out),
+Step(2, "CH4 + 2O2 -> CO2 + 2H2O", methane_in, methane_out),
+Step(3, "N2 + 3H2 -> 2NH3", haber_in, haber_out)
 ]
 
 ~ timeline = from_list(steps)
@@ -204,7 +193,6 @@ for ex in experiments {
 
 @ print("")
 
-
 -- ============================================================================
 -- CATALA — Priority report
 -- ============================================================================
@@ -218,7 +206,6 @@ for name in reaction_names {
 
 @ print("")
 
-
 -- ============================================================================
 -- CATALA — Safety classification
 -- ============================================================================
@@ -231,7 +218,6 @@ for s in steps {
 
 @ print("")
 
-
 -- ============================================================================
 -- MOLECULAR DATABASE
 -- ============================================================================
@@ -242,7 +228,6 @@ for s in steps {
 for m in molecules {
     @ print("  " + mol_label(m))
 }
-
 
 -- ============================================================================
 -- FINAL REPORT

@@ -16,7 +16,6 @@
 -- In Futuruna: components ARE types, layout IS topology, rendering IS logic
 -- ============================================================================
 
-
 -- ============================================================================
 -- PART 1: Types — the shape of the UI world (#)
 -- ============================================================================
@@ -36,7 +35,6 @@
 # RenderDecision = Render(Int, String) | Skip(Int, String)
 
 # List(a) = Nil | Cons(a, List(a))
-
 
 -- ============================================================================
 -- PART 2: Component introspection (>)
@@ -75,7 +73,6 @@
 > comp_name(c: Comp) -> String {
     kind_name(comp_kind(c))
 }
-
 
 -- ============================================================================
 -- PART 3: Conscious rendering logic (> with S_tau awareness)
@@ -148,7 +145,6 @@
     }
 }
 
-
 -- ============================================================================
 -- PART 4: Rendering a component tree (> with list operations)
 -- ============================================================================
@@ -210,7 +206,6 @@
     }
 }
 
-
 -- ============================================================================
 -- PART 5: A real UI — dashboard with components (@)
 -- ============================================================================
@@ -240,7 +235,6 @@
 = results   = MkComp(11, TextNode("3 results found"), 40, 5, 1)
 
 = all_comps = Cons(dashboard, Cons(sidebar, Cons(nav_btn1, Cons(nav_btn2, Cons(nav_btn3, Cons(main_area, Cons(kpi_text1, Cons(kpi_text2, Cons(chart1, Cons(chart2, Cons(search, Cons(results, Nil))))))))))))
-
 
 -- ============================================================================
 -- PART 6: Phase-aware rendering — the conscious decision (@)
@@ -277,7 +271,6 @@
 = s3 = count_skips(searching_decisions)
 @ print("  Rendered: " + show(r3) + "  Skipped: " + show(s3))
 @ print("")
-
 
 -- ============================================================================
 -- PART 7: The insight — why this can't exist in other languages

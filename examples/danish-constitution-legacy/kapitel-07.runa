@@ -28,7 +28,6 @@
 --   Og § 6 kom FØRST (Kapitel II) — lex specialis.
 -- ============================================================================
 
-
 -- ============================================================================
 -- IMPORT — Typer og bindinger fra grundlov.runa
 -- ============================================================================
@@ -47,13 +46,11 @@
 # Diskriminationsgrund = Trosbekendelse | Afstamning
 # RettighedsType = Borgerlig | Politisk
 
-
 @ skriv("================================================================")
 @ skriv("  Kapitel VII: Folkekirken og religionsfriheden (§§ 66-70)")
 @ skriv("  Fem paragraffer — det korteste kapitel, de dybeste spændinger")
 @ skriv("================================================================")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 66: Folkekirkens forfatning ordnes ved lov.
@@ -118,7 +115,6 @@
 @ skriv("  § 66 (statskirken): simpelt flertal")
 @ skriv("  Statskirken har MINDRE beskyttelse end valgretsalderen.")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 67: Religionsfrihed.
@@ -193,7 +189,6 @@
 @ skriv("ikke i moralske termer. § 67 er den eneste undtagelse.")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 68: Ingen bidragspligt til andres gudsdyrkelse.
 --
@@ -257,7 +252,6 @@
 @ skriv("  Grænsen mellem 'statsstøtte' og 'personligt bidrag' er udefineret")
 @ skriv("")
 
-
 -- ============================================================================
 -- § 69: Afvigende trossamfunds forhold ordnes ved lov.
 --
@@ -303,7 +297,6 @@
 @ skriv("  Andre trossamfund styres UDEFRA (forhold)")
 @ skriv("  Begge delegeret til Folketinget — men med forskelligt OMFANG.")
 @ skriv("")
-
 
 -- ============================================================================
 -- § 70: Ligestillingsklausulen — den VIGTIGSTE paragraf i Kapitel VII.
@@ -398,7 +391,6 @@
 @ skriv("  Er Kongen undtaget fra § 70: " + vis(er_kongen_undtaget_fra_paragraf_70()))
 @ skriv("  (Implicit, ikke eksplicit)")
 @ skriv("")
-
 
 -- ============================================================================
 -- KAPITEL VII — STRUKTUREL ANALYSE

@@ -21,14 +21,13 @@
 --  10. NØDRETSTOMRUMMET — grundlovens tavshed om krise
 -- ============================================================================
 
-@ import ./kapitel-03
-@ import ./kapitel-04
-@ import ./kapitel-05
-@ import ./kapitel-06
-@ import ./kapitel-07
-@ import ./kapitel-08
-@ import ./kapitel-10
-
+@ import ./kapitel - 03
+@ import ./kapitel - 04
+@ import ./kapitel - 05
+@ import ./kapitel - 06
+@ import ./kapitel - 07
+@ import ./kapitel - 08
+@ import ./kapitel - 10
 
 -- ============================================================================
 -- VERIFIKATION 1: § 85 MILITÆRUNDTAGELSEN
@@ -48,13 +47,13 @@
 -- § 85: Kan militæret begrænse denne rettighed?
 > militæret_kan_begrænse(p: Paragraf) -> Bool {
     skel p {
-        | P71 -> Sandt    -- personlig frihed: JA (kan låses inde)
-        | P78 -> Sandt    -- foreningsfrihed: JA (kan forbyde foreninger)
-        | P79 -> Sandt    -- forsamlingsfrihed: JA (kan forbyde forsamlinger)
-        | P72 -> Falskt   -- boligens ukrænkelighed: NEJ
-        | P73 -> Falskt   -- ejendomsret: NEJ
-        | P74 -> Falskt   -- erhvervsfrihed: NEJ
-        | P77 -> Falskt   -- ytringsfrihed: NEJ
+        | P71 -> Sandt -- personlig frihed: JA (kan låses inde)
+        | P78 -> Sandt -- foreningsfrihed: JA (kan forbyde foreninger)
+        | P79 -> Sandt -- forsamlingsfrihed: JA (kan forbyde forsamlinger)
+        | P72 -> Falskt -- boligens ukrænkelighed: NEJ
+        | P73 -> Falskt -- ejendomsret: NEJ
+        | P74 -> Falskt -- erhvervsfrihed: NEJ
+        | P77 -> Falskt -- ytringsfrihed: NEJ
     }
 }
 
@@ -95,7 +94,6 @@ DEN INTERESSANTE UNDTAGELSE — § 71:
   → § 85 skaber et eksplicit militært undtagelsesrum.
   → Operationel kontrol (lås inde): JA. Politisk kontrol (censurer): NEJ.
 """)
-
 
 -- ============================================================================
 -- VERIFIKATION 2: SAMTYKKE-REVISION
@@ -145,7 +143,6 @@ KAPITELFORDELING:
 DEN ENESTE IKKE-PARLAMENTARISKE SAMTYKKE:
   § 27: tjenestemanden selv. Alle andre → Folketinget.
 """)
-
 
 -- ============================================================================
 -- VERIFIKATION 3: § 77 vs § 88 — PARADOKSET
@@ -198,7 +195,6 @@ PARADOKS EKSISTERER: {{paradoks_eksisterer()}}
 
   'Vi mener det skal vare evigt, men ved vi ikke kan garantere det.'
 """)
-
 
 -- ============================================================================
 -- VERIFIKATION 4: TERSKELHIERARKIET
@@ -270,7 +266,6 @@ STRENGT STIGENDE-TJEK:
   § 88 KUNNE ændre § 77, men §§ 10.2, 13, 34 er definitive fakta.
 """)
 
-
 -- ============================================================================
 -- VERIFIKATION 5: ANTI-FEUDALISME-TRIPLETTEN
 --
@@ -319,7 +314,6 @@ FEUDALISMENS TRE BEN:
 ALLE TRE VEKTORER DÆKKET.
 """)
 
-
 -- ============================================================================
 -- VERIFIKATION 6: BESKATNING vs EKSPROPRIATION — GRÅZONEN
 --
@@ -342,41 +336,41 @@ ALLE TRE VEKTORER DÆKKET.
 > kræver_lov(i: Indgreb) -> Bool {
     -- § 43 og § 73 BEGGE kræver lov — det er fælles
     skel i {
-        | Beskatning -> Sandt      -- § 43: "ingen skat uden lov"
-        | Ekspropriation -> Sandt  -- § 73: "ifølge lov"
-        | Gråzone -> Sandt         -- begge kræver det
+        | Beskatning -> Sandt -- § 43: "ingen skat uden lov"
+        | Ekspropriation -> Sandt -- § 73: "ifølge lov"
+        | Gråzone -> Sandt -- begge kræver det
     }
 }
 
 > kræver_erstatning(i: Indgreb) -> Bool {
     skel i {
-        | Beskatning -> Falskt       -- § 43: INGEN erstatningskrav
-        | Ekspropriation -> Sandt    -- § 73: "fuldstændig erstatning"
-        | Gråzone -> Falskt          -- ?? grundloven tier
+        | Beskatning -> Falskt -- § 43: INGEN erstatningskrav
+        | Ekspropriation -> Sandt -- § 73: "fuldstændig erstatning"
+        | Gråzone -> Falskt -- ?? grundloven tier
     }
 }
 
 > kræver_almenvel(i: Indgreb) -> Bool {
     skel i {
-        | Beskatning -> Falskt       -- § 43: intet almenvelskrav
-        | Ekspropriation -> Sandt    -- § 73: "almenvellet kræver det"
-        | Gråzone -> Falskt          -- ?? grundloven tier
+        | Beskatning -> Falskt -- § 43: intet almenvelskrav
+        | Ekspropriation -> Sandt -- § 73: "almenvellet kræver det"
+        | Gråzone -> Falskt -- ?? grundloven tier
     }
 }
 
 > domstolsprøvelse(i: Indgreb) -> Bool {
     skel i {
-        | Beskatning -> Falskt       -- § 43: ingen prøvelsesret for skatteniveau
-        | Ekspropriation -> Sandt    -- § 73 stk. 3: fuld domstolsprøvelse
-        | Gråzone -> Falskt          -- ?? grundloven tier
+        | Beskatning -> Falskt -- § 43: ingen prøvelsesret for skatteniveau
+        | Ekspropriation -> Sandt -- § 73 stk. 3: fuld domstolsprøvelse
+        | Gråzone -> Falskt -- ?? grundloven tier
     }
 }
 
 > minoritetsveto(i: Indgreb) -> Bool {
     skel i {
-        | Beskatning -> Falskt       -- § 43: simpelt flertal vedtager skattelov
-        | Ekspropriation -> Sandt    -- § 73 stk. 2: 1/3 kan fremtvinge nyvalg
-        | Gråzone -> Falskt          -- ?? grundloven tier
+        | Beskatning -> Falskt -- § 43: simpelt flertal vedtager skattelov
+        | Ekspropriation -> Sandt -- § 73 stk. 2: 1/3 kan fremtvinge nyvalg
+        | Gråzone -> Falskt -- ?? grundloven tier
     }
 }
 
@@ -404,7 +398,7 @@ ALLE TRE VEKTORER DÆKKET.
         -- § 43 siger: ingen erstatning (det er skat).
         -- § 73 siger: fuld erstatning (det er ekspropriation).
         -- Grundloven kan ikke afgøre det.
-        Falskt  -- § 43 "vinder" i praksis, medmindre domstolene siger § 73
+        Falskt -- § 43 "vinder" i praksis, medmindre domstolene siger § 73
     } ellers { Falskt }
 }
 
@@ -500,7 +494,6 @@ DEN DEFINITION DER KAN HOLDE:
     5. Men ingen mekanisme HÅNDHÆVER dette.
 """)
 
-
 -- ============================================================================
 -- VERIFIKATION 7: § 20 SOM BAGDØRS-GRUNDLOVSÆNDRING
 --
@@ -595,7 +588,6 @@ DEN DYBE IRONI:
   via en paragraf folket aldrig stemte om.
 """)
 
-
 -- ============================================================================
 -- VERIFIKATION 8: ANSVARSKREDSLØBET — HVEM BESLUTTER EGENTLIG?
 --
@@ -633,7 +625,7 @@ DEN DYBE IRONI:
     -- Grundloven siger ikke hvad der sker.
     -- I praksis: konventionen siger Kongen altid underskriver.
     -- Men grundloven ANTAGER det — den KRÆVER det ikke.
-    Sandt  -- teknisk JA: 30 dage udløber, lov bortfalder
+    Sandt -- teknisk JA: 30 dage udløber, lov bortfalder
 }
 
 -- Er der nogen der kan TVINGE Kongen til at underskrive?
@@ -679,7 +671,6 @@ MAGT vs ANSVAR — INVERSIONEN:
 
   Hele systemet hviler på en USKRIVEN NORM der ikke er grundlovssikret.
 """)
-
 
 -- ============================================================================
 -- VERIFIKATION 9: § 33 vs § 63 — DOMMEREN I EGEN SAG
@@ -735,7 +726,6 @@ MAGTDELINGSBRUDDET:
     Men dette myndighedsspørgsmål kan de ikke prøve (§ 33).
     Den eneste uoverprøvbare magthandling i grundloven.
 """)
-
 
 -- ============================================================================
 -- VERIFIKATION 10: NØDRETSTOMRUMMET
@@ -838,7 +828,6 @@ TOMRUMMETS IMPLIKATION:
 
   Uanset svaret: grundloven har et hul.
 """)
-
 
 -- ============================================================================
 -- SAMLET KONKLUSION

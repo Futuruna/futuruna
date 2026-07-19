@@ -23,7 +23,6 @@
 @ print("================================================================")
 @ print("")
 
-
 -- ============================================================================
 -- PART A: FIDELITY
 -- ============================================================================
@@ -32,7 +31,6 @@
 @ print("  PART A: FIDELITY — Implementation vs Constitutional Text")
 @ print("================================================================")
 @ print("")
-
 
 -- ============================================================================
 -- F1: § 67 says "dyrke Gud" — worship GOD.
@@ -68,7 +66,6 @@
 @ print("Severity: STRUKTUREL — the text is narrower than we encoded")
 @ print("")
 
-
 -- ============================================================================
 -- F2: § 69 says "afvigende" — DEVIATING.
 --
@@ -98,7 +95,6 @@
 @ print("Our encoding notes the asymmetry but not this loaded language.")
 @ print("Severity: STRUKTUREL — captures the constitutional worldview")
 @ print("")
-
 
 -- ============================================================================
 -- F3: § 71 stk. 1 says "ingen DANSK BORGER" — only DANISH CITIZENS.
@@ -141,7 +137,6 @@
 @ print("Our encoding treats § 71 as universal. Text says DANISH CITIZENS.")
 @ print("Severity: MENINGSAENDRENDE — changes WHO is protected")
 @ print("")
-
 
 -- ============================================================================
 -- F4: § 71 stk. 6 EXPLICITLY exempts immigration detention.
@@ -189,7 +184,6 @@
 @ print("Severity: MENINGSAENDRENDE — the Bill of Rights has a hole")
 @ print("")
 
-
 -- ============================================================================
 -- F5: § 73 stk. 3 vs § 61 — special courts contradiction.
 --
@@ -219,7 +213,6 @@
 @ print("Severity: STRUKTUREL — self-contradiction in the constitution")
 @ print("")
 
-
 -- ============================================================================
 -- F6: § 77 enumerates three media: "på tryk, i skrift og tale."
 --
@@ -247,7 +240,6 @@
 @ print("Severity: STRUKTUREL — text is narrower than our encoding")
 @ print("")
 
-
 -- ============================================================================
 -- F7: § 78 stk. 2 — "anderledes tænkende" (those who think differently)
 --
@@ -268,7 +260,6 @@
 @ print("Our encoding: mentions violence, misses the dissenter protection")
 @ print("Severity: STRUKTUREL — § 78.2 is about thought-freedom, not just safety")
 @ print("")
-
 
 -- ============================================================================
 -- F8: § 79 "befrygtes fare" — FEARED danger, not actual danger.
@@ -294,7 +285,6 @@
 @ print("Severity: STRUKTUREL — the ban threshold is lower than we encoded")
 @ print("")
 
-
 -- ============================================================================
 -- F9: § 83 abolishes PRIVILEGES, not TITLES.
 --
@@ -318,7 +308,6 @@
 @ print("Severity: KOSMETISK — our encoding is correct but imprecise")
 @ print("")
 
-
 -- ============================================================================
 -- F10: § 75 stk. 2 "sig eller sine" — yourself or YOUR DEPENDENTS.
 --
@@ -338,7 +327,6 @@
 @ print("Our encoding: only checks self-support, not dependents")
 @ print("Severity: STRUKTUREL — changes eligibility for public assistance")
 @ print("")
-
 
 -- ============================================================================
 -- FIDELITY SCORECARD
@@ -360,7 +348,6 @@
 @ print("  The Bill of Rights has a TWO-TIER system we completely missed.")
 @ print("")
 
-
 -- ============================================================================
 -- PART B: CONSTITUTIONAL INSIGHTS
 -- ============================================================================
@@ -370,7 +357,6 @@
 @ print("  PART B: CONSTITUTIONAL INSIGHTS")
 @ print("================================================================")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 1: The Atheist's § 68 Paradox
@@ -420,7 +406,6 @@
 @ print("  An atheist breaks the assumption. Edge case: the drafters")
 @ print("  didn't imagine someone with NO 'own' worship.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 2: The Two-Tier Liberty System
@@ -473,7 +458,6 @@
 @ print("  The constitution has a SUBJECT GRAMMAR.")
 @ print("")
 
-
 -- ============================================================================
 -- INSIGHT 3: The Morality Monopoly
 --
@@ -508,7 +492,6 @@
 @ print("  McDonald's writes the health code for Burger King.")
 @ print("")
 
-
 -- ============================================================================
 -- INSIGHT 4: § 80 — The King Protects You From Himself
 --
@@ -542,7 +525,6 @@
 @ print("  The bouncer says 'the boss says you can stay.'")
 @ print("  The boss IS the one who sent the bouncer.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 5: § 81 — The Conscientious Objection Gap
@@ -593,7 +575,6 @@
 @ print("  The constitution COMMANDS service and FORBIDS religious refusal.")
 @ print("")
 
-
 -- ============================================================================
 -- INSIGHT 6: Denmark Has Nobles With No Nobility
 --
@@ -623,7 +604,6 @@
 @ print("  Don't abolish the aristocracy — just EMPTY it.")
 @ print("  The nobles still exist. They're normal people with fancy names.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 7: § 77's Enumeration Paradox — Is Code Speech?
@@ -672,7 +652,6 @@
 @ print("  Modern interpretation says no. But the TEXT says what it says.")
 @ print("")
 
-
 -- ============================================================================
 -- INSIGHT 8: The § 79 Pre-Crime Ban
 --
@@ -711,7 +690,6 @@
 @ print("  The constitution won't lock you up based on prediction")
 @ print("  but WILL ban your gathering based on prediction.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 9: The § 75 Disability Trap
@@ -752,7 +730,6 @@
 @ print("  A simple majority could constitutionally dismantle welfare")
 @ print("  for anyone who has a family member with resources.")
 @ print("")
-
 
 -- ============================================================================
 -- INSIGHT 10: The Complete Subject Grammar
@@ -795,7 +772,6 @@
 @ print("  This is a GRAMMAR OF RIGHTS.")
 @ print("")
 
-
 -- ============================================================================
 -- INSIGHT 11: The "Hæfte" Ghost
 --
@@ -826,7 +802,6 @@
 @ print("  The text ages. The principles don't.")
 @ print("  But the text IS the law.")
 @ print("")
-
 
 -- ============================================================================
 -- SUMMARY

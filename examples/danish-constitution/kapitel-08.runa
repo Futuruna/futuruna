@@ -2,7 +2,6 @@
 
 -- Kapitel VIII -- Borgernes rettigheder
 
-
 ----
 § 71. Stk. 1. Den personlige frihed er ukrænkelig. Ingen dansk borger kan på
 grund af sin politiske eller religiøse overbevisning eller sin afstamning
@@ -68,7 +67,6 @@ henvendelse.
 | folketinget_vælger_tilsyn_med_frihedsberøvede()
 | frihedsberøvede_har_adgang_til_henvendelse()
 
-
 ----
 § 72. Boligen er ukrænkelig. Husundersøgelse, beslaglæggelse og undersøgelse
 af breve og andre papirer samt brud på post-, telegraf- og telefonhemmeligheden
@@ -82,7 +80,6 @@ retskendelse.
 | brevundersøgelse_kræver_retskendelse()
 | brud_på_kommunikationshemmelighed_kræver_retskendelse()
 | undtagelse_fra_retskendelse_kan_hjemles_ved_lov()
-
 
 ----
 § 73. Stk. 1. Ejendomsretten er ukrænkelig. Ingen kan tilpligtes at afstå sin
@@ -120,7 +117,6 @@ kan ved lov henlægges til domstole oprettet i dette øjemed.
 | erstatningsstørrelse_kan_prøves_ved_domstol()
 | erstatningsprøvelse_kan_henlægges_til_særlige_domstole()
 
-
 ----
 § 74. Alle indskrænkninger i den fri og lige adgang til erhverv, som ikke er
 begrundede i det almene vel, skal hæves ved lov.
@@ -129,7 +125,6 @@ begrundede i det almene vel, skal hæves ved lov.
 | erhvervsfrihed()
 | erhvervsindskrænkninger_kun_begrundet_i_almene_vel()
 | ubegrundede_erhvervsindskrænkninger_hæves_ved_lov()
-
 
 ----
 § 75. Stk. 1. Til fremme af almenvellet bør det tilstræbes, at enhver
@@ -150,7 +145,6 @@ underkaste sig de forpligtelser, som loven herom påbyder.
 | ret_til_offentlig_hjælp_ved_manglende_forsørgelse()
 | offentlig_hjælp_betinget_af_lovpåbudte_forpligtelser()
 
-
 ----
 § 76. Alle børn i den undervisningspligtige alder har ret til fri undervisning i
 folkeskolen. Forældre eller værger, der selv sørger for, at børnene får en
@@ -162,7 +156,6 @@ er ikke pligtige at lade børnene undervise i folkeskolen.
 -- Forældre eller værger
 | forældre_kan_selv_sørge_for_undervisning()
 | hjemmeundervisning_skal_stå_mål_med_folkeskolen()
-
 
 ----
 § 77. Enhver er berettiget til på tryk, i skrift og tale at offentliggøre sine
@@ -176,7 +169,6 @@ forholdsregler kan ingensinde påny indføres.
 | ytringsfrihed_under_ansvar_for_domstolene()
 | censur_kan_aldrig_indføres()
 | forebyggende_forholdsregler_mod_ytring_forbudt()
-
 
 ----
 § 78. Stk. 1. Borgerne har ret til uden forudgående tilladelse at danne
@@ -213,7 +205,6 @@ Stk. 5. Opløsningens retsvirkninger fastsættes nærmere ved lov.
 -- Stk. 5
 | opløsningens_retsvirkninger_fastsættes_ved_lov()
 
-
 ----
 § 79. Borgerne har ret til uden forudgående tilladelse at samle sig ubevæbnede.
 Offentlige forsamlinger har politiet ret til at overvære. Forsamlinger under
@@ -225,7 +216,6 @@ fred.
 | forsamlinger_skal_være_ubevæbnede()
 | politiet_må_overvære_offentlige_forsamlinger()
 | forsamlinger_under_åben_himmel_kan_forbydes_ved_fare()
-
 
 ----
 § 80. Ved opløb må den væbnede magt, når den ikke angribes, kun skride ind,
@@ -239,7 +229,6 @@ skilles.
 | opfordring_i_kongens_og_lovens_navn()
 | undtagelse_hvis_den_væbnede_magt_angribes()
 
-
 ----
 § 81. Enhver våbenfør mand er forpligtet til med sin person at bidrage til
 fædrelandets forsvar efter de nærmere bestemmelser, som loven foreskriver.
@@ -247,7 +236,6 @@ fædrelandets forsvar efter de nærmere bestemmelser, som loven foreskriver.
 
 | værnepligt_for_våbenføre_mænd()
 | værnepligtens_omfang_fastsættes_ved_lov()
-
 
 ----
 § 82. Kommunernes ret til under statens tilsyn selvstændigt at styre deres
@@ -257,7 +245,6 @@ anliggender ordnes ved lov.
 | kommunalt_selvstyre_under_statens_tilsyn()
 | kommunernes_styrelse_ordnes_ved_lov()
 
-
 ----
 § 83. Enhver i lovgivningen til adel, titel og rang knyttet forret er afskaffet.
 ----
@@ -265,7 +252,6 @@ anliggender ordnes ved lov.
 | adelsprivilegier_afskaffet()
 | titelprivilegier_afskaffet()
 | rangprivilegier_afskaffet()
-
 
 ----
 § 84. Intet len, stamhus, fideikommisgods eller andet familiefideikommis kan for
@@ -276,7 +262,6 @@ fremtiden oprettes.
 | stamhus_kan_ikke_oprettes()
 | fideikommisgods_kan_ikke_oprettes()
 | familiefideikommis_kan_ikke_oprettes()
-
 
 ----
 § 85. For forsvarsmagten er de i §§ 71, 78 og 79 givne bestemmelser kun

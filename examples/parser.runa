@@ -860,15 +860,15 @@
 > show_vnt(v: Vnt) -> String {
     match v {
         Vnt(vname, fields, _) -> if length(fields) == 0 { vname }
-            else { vname + "(" + join(map(fields, |f| show_vfield(f)), ", ") + ")" }
+        else { vname + "(" + join(map(fields, |f| show_vfield(f)), ", ") + ")" }
     }
 }
 
 > show_type_decl(td: TypeDecl) -> String {
     match td {
         TdADT(tname, variants) -> if length(variants) == 0 { "# " + tname }
-            else if length(variants) == 1 { show_single_type(tname, show_vnt(nth(variants, 0))) }
-            else { "# " + tname + " = " + join(map(variants, |v| show_vnt(v)), " | ") }
+        else if length(variants) == 1 { show_single_type(tname, show_vnt(nth(variants, 0))) }
+        else { "# " + tname + " = " + join(map(variants, |v| show_vnt(v)), " | ") }
         TdTrait(tname, _) -> "# trait " + tname
         TdImpl(trait_name, for_type, _) -> "# impl " + trait_name + " for " + for_type
     }
