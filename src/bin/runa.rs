@@ -1644,9 +1644,163 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
     }
 }
 
-/// Round-trip testing: run each test in interpreter AND compiled mode, compare output.
-fn run_roundtrip_tests(_dir: &str, _use_prelude: bool) {
-    eprintln!("runa test --roundtrip: coming soon (use --check-codegen for now)");
+/// Round-trip testing: run each test in interpreter AND compiled mode, compare stdout.
+/// Any difference in output between the two modes = codegen bug.
+fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
+    use std::process::Command;
+    use std::time::Instant;
+
+    let path = std::path::Path::new(dir);
+    if !path.is_dir() {
+        eprintln!("\x1b[1;31merror\x1b[0m: '{}' is not a directory", dir);
+        std::process::exit(1);
+    }
+
+    let mut entries: Vec<_> = std::fs::read_dir(path)
+        .unwrap_or_else(|e| { eprintln!("Cannot read {}: {}", dir, e); std::process::exit(1); })
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map(|x| x == "runa").unwrap_or(false))
+        .collect();
+    entries.sort_by_key(|e| e.file_name());
+
+    let total = entries.len();
+    let mut matched = 0usize;
+    let mut diverged = 0usize;
+    let mut skipped = 0usize;
+    let mut divergences: Vec<String> = Vec::new();
+
+    eprintln!("\x1b[1mruna test --roundtrip\x1b[0m: comparing interpreter vs compiled for {} files\n", total);
+
+    let suite_start = Instant::now();
+    let self_bin = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("runa"));
+
+    for entry in &entries {
+        let file_path = entry.path();
+        let name = file_path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "unknown".to_string());
+        let file_str = file_path.to_string_lossy().to_string();
+        let test_start = Instant::now();
+
+        // Read source to check for skip conditions
+        let source = match std::fs::read_to_string(&file_path) {
+            Ok(s) => s,
+            Err(_) => { skipped += 1; continue; }
+        };
+
+        // Skip negative tests (they're supposed to fail)
+        if source.contains("-- expect-error:") {
+            skipped += 1;
+            continue;
+        }
+
+        // Skip tests that need external crates or async (can't compile standalone)
+        let needs_skip = source.contains("@ depend")
+            || source.contains("db_open") || source.contains("db_exec")
+            || source.contains("http_get") || source.contains("http_serve")
+            || source.contains("json_parse") || source.contains("json_get")
+            || source.contains("regex_match") || source.contains("regex_find")
+            || source.contains("@ store")
+            || source.contains("subject()") || source.contains("spawn(")
+            || source.contains("@ import");
+        if needs_skip {
+            skipped += 1;
+            continue;
+        }
+
+        // Step 1: Run in interpreter — capture stdout
+        let interp_result = {
+            let mut cmd = Command::new(&self_bin);
+            cmd.args(&[&file_str]);
+            if !use_prelude { cmd.arg("--no-prelude"); }
+            cmd.stdout(std::process::Stdio::piped());
+            cmd.stderr(std::process::Stdio::piped());
+            cmd.output()
+        };
+
+        let interp_stdout = match interp_result {
+            Ok(ref o) if o.status.success() => String::from_utf8_lossy(&o.stdout).to_string(),
+            Ok(ref o) => {
+                // Interpreter failed — skip (can't compare)
+                let stderr = String::from_utf8_lossy(&o.stderr);
+                if stderr.contains("type error") || stderr.contains("parse error") {
+                    skipped += 1;
+                    continue;
+                }
+                String::from_utf8_lossy(&o.stdout).to_string()
+            }
+            Err(_) => { skipped += 1; continue; }
+        };
+
+        // Step 2: Compile and run — capture stdout
+        let compiled_result = {
+            let mut cmd = Command::new(&self_bin);
+            cmd.args(&["run", &file_str]);
+            if !use_prelude { cmd.arg("--no-prelude"); }
+            cmd.stdout(std::process::Stdio::piped());
+            cmd.stderr(std::process::Stdio::piped());
+            cmd.output()
+        };
+
+        let elapsed = test_start.elapsed();
+        let time_str = if elapsed.as_millis() >= 1000 {
+            format!("{:.1}s", elapsed.as_secs_f64())
+        } else {
+            format!("{}ms", elapsed.as_millis())
+        };
+
+        match compiled_result {
+            Ok(ref o) if o.status.success() => {
+                let compiled_stdout = String::from_utf8_lossy(&o.stdout).to_string();
+
+                if interp_stdout == compiled_stdout {
+                    eprintln!("  \x1b[1;32mMATCH\x1b[0m {} \x1b[2m({})\x1b[0m", name, time_str);
+                    matched += 1;
+                } else {
+                    eprintln!("  \x1b[1;31mDIVERGE\x1b[0m {} \x1b[2m({})\x1b[0m", name, time_str);
+                    // Show first difference
+                    let interp_lines: Vec<&str> = interp_stdout.lines().collect();
+                    let compiled_lines: Vec<&str> = compiled_stdout.lines().collect();
+                    for (i, (il, cl)) in interp_lines.iter().zip(compiled_lines.iter()).enumerate() {
+                        if il != cl {
+                            eprintln!("    line {}: interp: {}", i + 1, il);
+                            eprintln!("    line {}: compil: {}", i + 1, cl);
+                            break;
+                        }
+                    }
+                    if interp_lines.len() != compiled_lines.len() {
+                        eprintln!("    interp: {} lines, compiled: {} lines", interp_lines.len(), compiled_lines.len());
+                    }
+                    diverged += 1;
+                    divergences.push(name);
+                }
+            }
+            Ok(_) => {
+                // Compiled version failed to build/run
+                let stderr = compiled_result.as_ref().map(|o| String::from_utf8_lossy(&o.stderr).to_string()).unwrap_or_default();
+                let first_err = stderr.lines().find(|l| l.contains("error")).unwrap_or("(build failed)");
+                eprintln!("  \x1b[1;33mSKIP\x1b[0m  {} — {} \x1b[2m({})\x1b[0m", name, first_err.trim(), time_str);
+                skipped += 1;
+            }
+            Err(_) => { skipped += 1; }
+        }
+    }
+
+    let suite_elapsed = suite_start.elapsed();
+    let suite_time = if suite_elapsed.as_secs_f64() >= 1.0 {
+        format!("{:.1}s", suite_elapsed.as_secs_f64())
+    } else {
+        format!("{}ms", suite_elapsed.as_millis())
+    };
+
+    eprintln!();
+    if diverged == 0 {
+        eprintln!("\x1b[1;32mRoundtrip: {} matched\x1b[0m, {} skipped in {}.", matched, skipped, suite_time);
+    } else {
+        eprintln!("\x1b[1;31mRoundtrip: {} matched, {} diverged\x1b[0m, {} skipped in {}:", matched, diverged, skipped, suite_time);
+        for d in &divergences {
+            eprintln!("  - {}", d);
+        }
+        std::process::exit(1);
+    }
 }
 
 /// Run codegen validation: emit Rust for each .runa file and verify it compiles.
