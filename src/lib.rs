@@ -2139,13 +2139,65 @@ impl Parser {
 
     pub fn parse_program(&mut self) -> Result<Vec<Stmt>, String> {
         let mut stmts = Vec::new();
+        let mut errors: Vec<String> = Vec::new();
         self.skip_semis();
         while self.peek_kind() != TokenKind::Eof {
-            let stmt = self.parse_statement()?;
-            stmts.push(stmt);
+            match self.parse_statement() {
+                Ok(stmt) => {
+                    stmts.push(stmt);
+                }
+                Err(e) => {
+                    errors.push(e);
+                    // Synchronize: skip to the next statement boundary
+                    self.synchronize();
+                    if errors.len() >= 10 {
+                        errors.push("... (too many errors, stopping)".to_string());
+                        break;
+                    }
+                }
+            }
             self.skip_semis();
         }
-        Ok(stmts)
+        if errors.is_empty() {
+            Ok(stmts)
+        } else {
+            // Return all errors, but also include any successfully parsed statements
+            // in a special format: errors first, then note about partial parse
+            let error_count = errors.len();
+            let mut msg = format!("{} parse error{}:\n", error_count,
+                if error_count == 1 { "" } else { "s" });
+            for (i, e) in errors.iter().enumerate() {
+                if i > 0 { msg.push('\n'); }
+                msg.push_str(e);
+            }
+            Err(msg)
+        }
+    }
+
+    /// Skip tokens until we reach a likely statement boundary.
+    /// Looks for rune characters at the start of a line, or `for`/`while`/`}` keywords.
+    fn synchronize(&mut self) {
+        // Skip the current token (the one that caused the error)
+        if self.peek_kind() != TokenKind::Eof {
+            self.advance();
+        }
+        while self.peek_kind() != TokenKind::Eof {
+            let tok = self.peek();
+            // Statement boundaries: rune characters at column 1, or keywords at column 1
+            if tok.col <= 1 {
+                match tok.kind {
+                    TokenKind::Hash | TokenKind::Arrow | TokenKind::Pipe
+                    | TokenKind::Eq | TokenKind::Tilde | TokenKind::At
+                    | TokenKind::Gt => return,
+                    // ? rune starts with Op("?")
+                    TokenKind::Op if tok.text == "?" => return,
+                    TokenKind::KW if matches!(tok.text.as_str(), "for" | "while" | "if" | "match") => return,
+                    TokenKind::Ident if matches!(tok.text.as_str(), "fn" | "let" | "struct" | "enum") => return,
+                    _ => {}
+                }
+            }
+            self.advance();
+        }
     }
 
     pub fn parse_statement(&mut self) -> Result<Stmt, String> {

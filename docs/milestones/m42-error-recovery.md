@@ -2,14 +2,30 @@
 
 **Tagline:** "Show five errors, not one."
 
-## Goal
+**Status:** DONE.
 
-Parser currently stops at the first error. Professional languages (Rust, Go,
-TypeScript) collect multiple errors and report them all. Critical for editor
-experience — the LSP should show all problems, not just the first.
+## Result
 
-## Approach
+Parser now continues after errors by synchronizing to the next statement
+boundary (rune character at column 1). Collects up to 10 errors before
+stopping. Both `runa check` and `runa run` report all errors at once.
 
-Add synchronization points: on error, skip to the next statement boundary
-(next rune character at column 0), then continue parsing. Collect up to 10
-errors before stopping.
+Example:
+```
+$ runa broken.runa
+3 parse errors:
+3:11: unexpected newline
+5:20: expected a type name, got `{`
+10:1: Futuruna uses `=` to bind values, not `let`.
+  Try: = w
+```
+
+## Implementation
+
+- `parse_program()` catches errors from `parse_statement()` instead of `?` propagation
+- `synchronize()` skips tokens until it finds a statement boundary:
+  rune characters (#, >, |, =, ~, @, ?) at column 1, or keywords (for, while, if)
+- Up to 10 errors collected, then stops
+- Successfully parsed statements before/between errors are preserved
+- Type checker already supported multiple errors via `Vec<Diagnostic>`
+- 14 negative tests pass (including multi-error recovery test)

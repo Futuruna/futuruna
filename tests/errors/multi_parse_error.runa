@@ -1,0 +1,5 @@
+-- expect-error: parse error
+-- Tests that the parser recovers from multiple errors
+= x = 42 +
+= y = 10 *
+= z = 100
