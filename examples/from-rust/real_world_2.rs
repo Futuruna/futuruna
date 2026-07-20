@@ -1,103 +1,81 @@
-// Real-world 2: A complete stack-based calculator
-// Exercises: enums, Vec as stack, match, error handling, loops
+// Real-world 2: Expression evaluator (recursive, no mutation)
+// Exercises: recursive enums, pattern matching, Result error handling
 
 #[derive(Debug, Clone)]
-enum Token {
+enum Expr {
     Num(f64),
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Dup,
-    Swap,
-    Pop,
+    Add(Box<Expr>, Box<Expr>),
+    Sub(Box<Expr>, Box<Expr>),
+    Mul(Box<Expr>, Box<Expr>),
+    Div(Box<Expr>, Box<Expr>),
+    Neg(Box<Expr>),
 }
 
-fn tokenize(input: &str) -> Vec<Token> {
-    input.split_whitespace()
-        .map(|word| match word {
-            "+" => Token::Add,
-            "-" => Token::Sub,
-            "*" => Token::Mul,
-            "/" => Token::Div,
-            "dup" => Token::Dup,
-            "swap" => Token::Swap,
-            "pop" => Token::Pop,
-            n => Token::Num(n.parse().unwrap_or(0.0)),
-        })
-        .collect()
-}
-
-fn eval(tokens: &[Token]) -> Result<Vec<f64>, String> {
-    let mut stack: Vec<f64> = Vec::new();
-
-    for token in tokens {
-        match token {
-            Token::Num(n) => stack.push(*n),
-            Token::Add => {
-                if stack.len() < 2 { return Err("stack underflow on +".to_string()); }
-                let b = stack.pop().unwrap();
-                let a = stack.pop().unwrap();
-                stack.push(a + b);
-            }
-            Token::Sub => {
-                if stack.len() < 2 { return Err("stack underflow on -".to_string()); }
-                let b = stack.pop().unwrap();
-                let a = stack.pop().unwrap();
-                stack.push(a - b);
-            }
-            Token::Mul => {
-                if stack.len() < 2 { return Err("stack underflow on *".to_string()); }
-                let b = stack.pop().unwrap();
-                let a = stack.pop().unwrap();
-                stack.push(a * b);
-            }
-            Token::Div => {
-                if stack.len() < 2 { return Err("stack underflow on /".to_string()); }
-                let b = stack.pop().unwrap();
-                if b == 0.0 { return Err("division by zero".to_string()); }
-                let a = stack.pop().unwrap();
-                stack.push(a / b);
-            }
-            Token::Dup => {
-                if stack.is_empty() { return Err("stack underflow on dup".to_string()); }
-                let top = *stack.last().unwrap();
-                stack.push(top);
-            }
-            Token::Swap => {
-                if stack.len() < 2 { return Err("stack underflow on swap".to_string()); }
-                let len = stack.len();
-                stack.swap(len - 1, len - 2);
-            }
-            Token::Pop => {
-                if stack.is_empty() { return Err("stack underflow on pop".to_string()); }
-                stack.pop();
+fn eval(e: &Expr) -> Result<f64, String> {
+    match e {
+        Expr::Num(n) => Ok(*n),
+        Expr::Neg(inner) => {
+            let v = eval(inner)?;
+            Ok(0.0 - v)
+        }
+        Expr::Add(a, b) => {
+            let va = eval(a)?;
+            let vb = eval(b)?;
+            Ok(va + vb)
+        }
+        Expr::Sub(a, b) => {
+            let va = eval(a)?;
+            let vb = eval(b)?;
+            Ok(va - vb)
+        }
+        Expr::Mul(a, b) => {
+            let va = eval(a)?;
+            let vb = eval(b)?;
+            Ok(va * vb)
+        }
+        Expr::Div(a, b) => {
+            let va = eval(a)?;
+            let vb = eval(b)?;
+            if vb == 0.0 {
+                Err("division by zero".to_string())
+            } else {
+                Ok(va / vb)
             }
         }
     }
-    Ok(stack)
 }
 
-fn run_calc(input: &str) -> String {
-    let tokens = tokenize(input);
-    match eval(&tokens) {
-        Ok(stack) => {
-            if stack.is_empty() {
-                "empty stack".to_string()
-            } else {
-                format!("{}", stack.last().unwrap())
-            }
-        }
+fn show_result(r: &Result<f64, String>) -> String {
+    match r {
+        Ok(v) => format!("{}", v),
         Err(e) => format!("error: {}", e),
     }
 }
 
 fn main() {
-    println!("{}", run_calc("3 4 +"));
-    println!("{}", run_calc("10 3 - 2 *"));
-    println!("{}", run_calc("5 dup *"));
-    println!("{}", run_calc("1 2 3 swap +"));
-    println!("{}", run_calc("42 pop"));
-    println!("{}", run_calc("10 0 /"));
-    println!("{}", run_calc("+"));
+    // 3 + 4
+    let e1 = Expr::Add(Box::new(Expr::Num(3.0)), Box::new(Expr::Num(4.0)));
+    println!("{}", show_result(&eval(&e1)));
+
+    // (10 - 3) * 2
+    let e2 = Expr::Mul(
+        Box::new(Expr::Sub(Box::new(Expr::Num(10.0)), Box::new(Expr::Num(3.0)))),
+        Box::new(Expr::Num(2.0)),
+    );
+    println!("{}", show_result(&eval(&e2)));
+
+    // 5 * 5
+    let e3 = Expr::Mul(Box::new(Expr::Num(5.0)), Box::new(Expr::Num(5.0)));
+    println!("{}", show_result(&eval(&e3)));
+
+    // 10 / 0
+    let e4 = Expr::Div(Box::new(Expr::Num(10.0)), Box::new(Expr::Num(0.0)));
+    println!("{}", show_result(&eval(&e4)));
+
+    // -(3 + 4)
+    let e5 = Expr::Neg(Box::new(Expr::Add(
+        Box::new(Expr::Num(3.0)),
+        Box::new(Expr::Num(4.0)),
+    )));
+    println!("{}", show_result(&eval(&e5)));
 }

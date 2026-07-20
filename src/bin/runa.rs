@@ -22152,7 +22152,7 @@ impl RustToRunaCtx {
         // Strip leading & (references — invisible ownership)
         let s = s.strip_prefix("& ").or_else(|| s.strip_prefix("&")).unwrap_or(s);
         // Normalize spaces around parens, commas, and dots
-        s.replace(" . ", ".")
+        let s = s.replace(" . ", ".")
             .replace(" (", "(")
             .replace("( ", "(")
             .replace(" )", ")")
