@@ -22102,7 +22102,7 @@ impl RustToRunaCtx {
         match method {
             // Iterator / collection methods
             "len" | "count" => format!("length({})", recv),
-            "is_empty" => format!("length({}) == 0", recv),
+            "is_empty" => format!("string_length({}) == 0", recv),
             "push" => format!("push({}, {})", recv, args.join(", ")),
             "pop" => format!("last({})", recv),
             "contains" => format!("contains({}, {})", recv, args.join(", ")),
@@ -22138,7 +22138,20 @@ impl RustToRunaCtx {
             "as_str" | "as_ref" => recv.to_string(),
             "trim" => format!("trim({})", recv),
             "join" if args.len() == 1 => format!("join({}, {})", recv, args[0]),
-            "split" => format!("split({}, {})", recv, args.join(", ")),
+            "split" | "split_whitespace" => {
+                if args.is_empty() || method == "split_whitespace" {
+                    format!("split({}, \" \")", recv) // split_whitespace → split on space
+                } else {
+                    // Convert char arg to string: ' ' → " "
+                    let arg = &args[0];
+                    let cleaned = if arg.starts_with('\'') && arg.ends_with('\'') {
+                        format!("\"{}\"", &arg[1..arg.len()-1])
+                    } else {
+                        arg.clone()
+                    };
+                    format!("split({}, {})", recv, cleaned)
+                }
+            }
             "starts_with" => format!("starts_with({}, {})", recv, args.join(", ")),
             "ends_with" => format!("ends_with({}, {})", recv, args.join(", ")),
             "replace" => format!("replace({}, {})", recv, args.join(", ")),
@@ -22146,6 +22159,7 @@ impl RustToRunaCtx {
             "to_lowercase" => format!("to_lower({})", recv),
             "parse" => format!("parse_int({})", recv),
             "chars" => format!("chars({})", recv),
+            "rev" => format!("reverse({})", recv),
 
             // Option / Result
             "unwrap" => recv.to_string(),
@@ -22178,10 +22192,11 @@ impl RustToRunaCtx {
             // Clone
             "clone" => recv.to_string(),
 
-            // Default
+            // Default: emit as function call — method(receiver, args)
+            // Futuruna uses function call syntax for methods: describe(d) not d.describe()
             _ => {
                 if args.is_empty() {
-                    format!("{}.{}", recv, method)
+                    format!("{}({})", method, recv)
                 } else {
                     format!("{}({}, {})", method, recv, args.join(", "))
                 }
@@ -22308,6 +22323,17 @@ impl RustToRunaCtx {
                     }
                 }
             }
+        }
+        // Generic: identifier.method() → method(identifier)
+        // Pattern: word.word() where neither matches a known builtin above
+        let re_pattern = regex::Regex::new(r"(\w+)\.(\w+)\(\)").unwrap();
+        while let Some(caps) = re_pattern.captures(&result) {
+            let full = caps.get(0).unwrap();
+            let ident = caps.get(1).unwrap().as_str();
+            let method = caps.get(2).unwrap().as_str();
+            // Skip known field accesses that shouldn't be converted
+            let replacement = format!("{}({})", method, ident);
+            result = format!("{}{}{}", &result[..full.start()], replacement, &result[full.end()..]);
         }
         result
     }
