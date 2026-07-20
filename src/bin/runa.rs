@@ -1778,18 +1778,9 @@ fn run_from_rust_tests(path: &str) {
         };
 
         let mut interp = Interpreter::new();
-        interp.suppress_output = false;
         let mut env = interp.default_env();
-        let std_source = include_str!("../../std/std.runa");
-        let mut std_lexer = Lexer::new(std_source);
-        let std_tokens = std_lexer.tokenize();
-        let mut std_parser = Parser::new(std_tokens, std_source);
-        if let Ok(std_stmts) = std_parser.parse_program() {
-            interp.suppress_output = true;
-            interp.run_program(&std_stmts, &mut env);
-            interp.suppress_output = false;
-            interp.output.clear(); // Clear stdlib test output
-        }
+        // Don't load stdlib — transpiled code uses builtins from default_env,
+        // and stdlib's Cons-list functions would shadow the builtin Vec-based ones.
         interp.run_program(&stmts, &mut env);
         let runa_output = interp.output.join("\n");
         let runa_output = if runa_output.is_empty() { runa_output } else { runa_output + "\n" };
@@ -21783,7 +21774,8 @@ impl RustToRunaCtx {
                                         _ => {}
                                     }
                                 }
-                                return format!("| {}{} -> {{ {} }}", pat, guard, body_parts.join("; "));
+                                return format!("| {}{} -> {{\n{}\n}}", pat, guard,
+                                    body_parts.iter().map(|p| format!("    {}", p)).collect::<Vec<_>>().join("\n"));
                             }
                         }
                         let body = self.expr_to_string(&arm.body);
@@ -21824,7 +21816,7 @@ impl RustToRunaCtx {
                             .collect();
                         let body = self.expr_to_string(&c.body);
                         if names.len() == 2 {
-                            return format!("|__p| {{ = {} = fst(__p); = {} = snd(__p); {} }}",
+                            return format!("|__p| {{\n    = {} = fst(__p)\n    = {} = snd(__p)\n    {}\n}}",
                                 names[0], names[1], body);
                         }
                     }
@@ -22071,9 +22063,11 @@ impl RustToRunaCtx {
             }
             "vec" => {
                 // Clean up token spacing: "1 , 2 , 3 ," → "1, 2, 3"
-                // Also fix "- 1" → "-1" (negative numbers)
+                // Also fix "- 1" → "-1", nested "vec ! [...]" → "[...]"
                 let clean = tokens.replace(" , ", ", ")
                     .replace("- ", "-")
+                    .replace("vec ! [", "[")
+                    .replace("vec! [", "[")
                     .trim_end_matches(", ")
                     .trim_end_matches(',')
                     .to_string();
