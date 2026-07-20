@@ -11804,7 +11804,30 @@ impl RustCodegen {
                                     } else { "impl Clone".to_string() }
                                 } else { "impl Clone".to_string() }
                             }
-                            ExprKind::List(_) => "Vec<i64>".to_string(),
+                            ExprKind::List(elems) => {
+                                // Infer element type from first element
+                                if let Some(first) = elems.first() {
+                                    if let ExprKind::Var(ctor) = &first.kind {
+                                        if let Some(parent) = self.types.variant_parent.get(ctor.as_str()) {
+                                            format!("Vec<{}>", parent)
+                                        } else { "Vec<i64>".to_string() }
+                                    } else if let ExprKind::App(func, _) = &first.kind {
+                                        if let ExprKind::Var(ctor) = &func.as_ref().kind {
+                                            if let Some(parent) = self.types.variant_parent.get(ctor.as_str()) {
+                                                format!("Vec<{}>", parent)
+                                            } else if let Some(ret) = self.fn_return_types.get(ctor.as_str()) {
+                                                format!("Vec<{}>", ret)
+                                            } else { "Vec<i64>".to_string() }
+                                        } else { "Vec<i64>".to_string() }
+                                    } else if let ExprKind::Lit(Literal::Str(_)) = &first.kind {
+                                        "Vec<String>".to_string()
+                                    } else if let ExprKind::Lit(Literal::Float(_)) = &first.kind {
+                                        "Vec<f64>".to_string()
+                                    } else if let ExprKind::Lit(Literal::Bool(_)) = &first.kind {
+                                        "Vec<bool>".to_string()
+                                    } else { "Vec<i64>".to_string() }
+                                } else { "Vec<i64>".to_string() }
+                            }
                             ExprKind::Lit(Literal::Str(_)) => "String".to_string(),
                             ExprKind::Lit(Literal::Int(_)) => "i64".to_string(),
                             ExprKind::Lit(Literal::Float(_)) => "f64".to_string(),
@@ -16274,7 +16297,12 @@ impl RustCodegen {
                 }
                 let sname = sanitize_name(name);
                 // lib mode: top-level bindings are pub fn getters — call them
-                if self.lib_mode && self.lib_static_names.contains(name.as_str()) {
+                // But NOT if the name is a local variable (param, let binding, loop var)
+                if self.lib_mode && self.lib_static_names.contains(name.as_str())
+                    && !self.var_use_counts.contains_key(name)
+                    && !self.copy_vars.contains(name.as_str())
+                    && !self.mutable_vars.contains(name.as_str())
+                {
                     return format!("{}()", sname);
                 }
                 // Phase 3b: ref-match binding — dereference because it's &T from matching on a reference
@@ -16384,7 +16412,6 @@ impl RustCodegen {
                             if let ExprKind::Lit(Literal::Str(ref str_val)) = &a.kind {
                                 format!("{:?}", str_val) // &str, no .to_string()
                             } else if is_prolog_call {
-                                // Prolog functions take &str; variables may be String — coerce with &*
                                 let base = self.emit_expr(a);
                                 let param_is_str = resolved_fn_name
                                     .and_then(|n| self.types.prolog_rule_fns.get(n))
@@ -16396,6 +16423,14 @@ impl RustCodegen {
                                 {
                                     format!("&*{}", base)
                                 } else {
+                                    // Rules take by value — clone if multi-use non-Copy
+                                    if let ExprKind::Var(ref vn) = &a.kind {
+                                        if !self.copy_vars.contains(vn.as_str())
+                                            && self.var_use_counts.get(vn).copied().unwrap_or(0) > 1
+                                        {
+                                            return format!("{}.clone()", base);
+                                        }
+                                    }
                                     base
                                 }
                             } else {
