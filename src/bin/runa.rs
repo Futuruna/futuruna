@@ -35,6 +35,7 @@ fn main_inner() {
     let mut test_compile = false; // --run flag for `runa test --run`
     let mut fmt_check = false; // --check flag for `runa fmt --check`
     let mut use_fir = false; // --fir flag for `runa emit --fir`
+    let mut check_codegen = false; // --check-codegen flag for `runa test --check-codegen`
 
     let mut i = 1;
     while i < args.len() {
@@ -61,6 +62,10 @@ fn main_inner() {
             }
             "--fir" if mode == "emit" => {
                 use_fir = true;
+                i += 1;
+            }
+            "--check-codegen" if mode == "test" => {
+                check_codegen = true;
                 i += 1;
             }
             "--run" => {
@@ -224,7 +229,12 @@ fn main_inner() {
         return;
     }
 
-    // ── runa test [--run] [dir] — test runner ──
+    // ── runa test [--run] [--check-codegen] [dir] — test runner ──
+    if mode == "test" && check_codegen {
+        let test_dir = filename.as_deref().unwrap_or("tests");
+        run_codegen_check(test_dir, use_prelude);
+        return;
+    }
     if mode == "test" {
         let test_dir = filename.as_deref().unwrap_or("tests");
         run_tests(test_dir, use_prelude, test_compile);
@@ -1616,6 +1626,210 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
         eprintln!(
             "\x1b[1;31m{} of {} tests failed\x1b[0m in {}:",
             failed, total, suite_time
+        );
+        for f in &failures {
+            eprintln!("  - {}", f);
+        }
+        std::process::exit(1);
+    }
+}
+
+/// Run codegen validation: emit Rust for each .runa file and verify it compiles.
+/// Uses rustc directly for no-dep files, skips files that need external crates.
+fn run_codegen_check(dir: &str, use_prelude: bool) {
+    use std::process::Command;
+    use std::time::Instant;
+
+    let path = std::path::Path::new(dir);
+    if !path.is_dir() {
+        eprintln!("\x1b[1;31merror\x1b[0m: '{}' is not a directory", dir);
+        std::process::exit(1);
+    }
+
+    let mut entries: Vec<_> = std::fs::read_dir(path)
+        .unwrap_or_else(|e| {
+            eprintln!("Cannot read {}: {}", dir, e);
+            std::process::exit(1);
+        })
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.path()
+                .extension()
+                .map(|x| x == "runa")
+                .unwrap_or(false)
+        })
+        .collect();
+    entries.sort_by_key(|e| e.file_name());
+
+    let total = entries.len();
+    let mut passed = 0usize;
+    let mut failed = 0usize;
+    let mut skipped = 0usize;
+    let mut failures: Vec<String> = Vec::new();
+
+    eprintln!(
+        "\x1b[1mruna test --check-codegen\x1b[0m: checking {} files from {}/\n",
+        total, dir
+    );
+
+    let suite_start = Instant::now();
+    let tmp_rs = std::env::temp_dir().join("__runa_codegen_check.rs");
+    let tmp_out = std::env::temp_dir().join("__runa_codegen_check_out");
+
+    for entry in &entries {
+        let file_path = entry.path();
+        let name = file_path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+        let test_start = Instant::now();
+
+        // Read source and check for expect-error (skip negative tests)
+        let source = match std::fs::read_to_string(&file_path) {
+            Ok(s) => s,
+            Err(_) => {
+                skipped += 1;
+                continue;
+            }
+        };
+        if source.contains("-- expect-error:") {
+            skipped += 1;
+            eprintln!(
+                "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(negative test)\x1b[0m",
+                name
+            );
+            continue;
+        }
+
+        // Check if file uses external crates (needs Cargo, skip for rustc check)
+        let needs_crate = source.contains("@ depend")
+            || source.contains("db_open") || source.contains("db_exec")
+            || source.contains("http_get") || source.contains("http_serve")
+            || source.contains("json_parse") || source.contains("json_get")
+            || source.contains("regex_match") || source.contains("regex_find")
+            || source.contains("@ store")
+            || source.contains("subject()") || source.contains("spawn(")
+            || source.contains("@ import");
+        if needs_crate {
+            skipped += 1;
+            eprintln!(
+                "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(needs external crate)\x1b[0m",
+                name
+            );
+            continue;
+        }
+
+        // Emit Rust
+        let mut lexer = Lexer::new(&source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &source);
+        let stmts = match parser.parse_program() {
+            Ok(user_stmts) => {
+                if use_prelude {
+                    prepend_prelude(parse_prelude(), &user_stmts)
+                } else {
+                    user_stmts
+                }
+            }
+            Err(_) => {
+                skipped += 1;
+                eprintln!(
+                    "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(parse error)\x1b[0m",
+                    name
+                );
+                continue;
+            }
+        };
+
+        let mut cg = RustCodegen::new();
+        if let Some(parent) = file_path.parent() {
+            cg.source_dir = Some(parent.to_string_lossy().to_string());
+        }
+        let code = cg.emit_program(&stmts);
+
+        // Write to temp file
+        if let Err(_) = std::fs::write(&tmp_rs, &code) {
+            skipped += 1;
+            continue;
+        }
+
+        // Try to compile with rustc
+        let output = Command::new("rustc")
+            .args(&[
+                &*tmp_rs.to_string_lossy(),
+                "--edition",
+                "2021",
+                "--crate-type",
+                "lib",
+                "--emit=metadata",
+                "-o",
+                &*tmp_out.to_string_lossy(),
+            ])
+            .output();
+
+        let elapsed = test_start.elapsed();
+        let ms = elapsed.as_millis();
+        let time_str = if ms >= 1000 {
+            format!("{:.1}s", elapsed.as_secs_f64())
+        } else {
+            format!("{}ms", ms)
+        };
+
+        match output {
+            Ok(o) if o.status.success() => {
+                eprintln!(
+                    "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
+                    name, time_str
+                );
+                passed += 1;
+            }
+            Ok(o) => {
+                let stderr = String::from_utf8_lossy(&o.stderr);
+                let first_err = stderr
+                    .lines()
+                    .find(|l| l.starts_with("error"))
+                    .unwrap_or("(unknown error)");
+                eprintln!(
+                    "  \x1b[1;31mFAIL\x1b[0m  {} — {} \x1b[2m({})\x1b[0m",
+                    name,
+                    first_err.trim(),
+                    time_str
+                );
+                failed += 1;
+                failures.push(name);
+            }
+            Err(e) => {
+                eprintln!(
+                    "  \x1b[1;31mFAIL\x1b[0m  {} — rustc error: {} \x1b[2m({})\x1b[0m",
+                    name, e, time_str
+                );
+                failed += 1;
+                failures.push(name);
+            }
+        }
+    }
+
+    // Cleanup
+    let _ = std::fs::remove_file(&tmp_rs);
+    let _ = std::fs::remove_file(&tmp_out);
+
+    let suite_elapsed = suite_start.elapsed();
+    let suite_time = if suite_elapsed.as_secs_f64() >= 1.0 {
+        format!("{:.1}s", suite_elapsed.as_secs_f64())
+    } else {
+        format!("{}ms", suite_elapsed.as_millis())
+    };
+
+    eprintln!();
+    if failed == 0 {
+        eprintln!(
+            "\x1b[1;32mCodegen: {} passed\x1b[0m, {} skipped in {}.",
+            passed, skipped, suite_time
+        );
+    } else {
+        eprintln!(
+            "\x1b[1;31mCodegen: {} passed, {} failed\x1b[0m, {} skipped in {}:",
+            passed, failed, skipped, suite_time
         );
         for f in &failures {
             eprintln!("  - {}", f);
