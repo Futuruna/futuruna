@@ -1622,6 +1622,8 @@ pub enum ExprKind {
     Try(Box<Expr>),
     /// Prolog-style conjunction: goal1, goal2, goal3 — all must succeed
     Conjunction(Vec<Expr>),
+    /// Prolog-style disjunction: goal1 or goal2 — first that succeeds wins
+    Disjunction(Vec<Expr>),
     /// Pipe-forward operator: a |> f — preserves ~ rune identity (not desugared to App)
     Pipe(Box<Expr>, Box<Expr>),
     Unit,
@@ -2839,25 +2841,46 @@ impl Parser {
                     condition: Some(condition),
                 }))
             } else {
-                // Check for conjunction: comma or `and` keyword
-                let is_conjunction = self.peek_kind() == TokenKind::Comma
-                    || (self.peek_kind() == TokenKind::Ident && self.peek().text == "and");
-                if is_conjunction {
-                    let mut goals = vec![body_or_value];
-                    while self.peek_kind() == TokenKind::Comma
-                        || (self.peek_kind() == TokenKind::Ident && self.peek().text == "and")
-                    {
-                        self.advance(); // consume ',' or 'and'
-                        goals.push(self.parse_expr()?);
+                // Parse rule body with and/or precedence:
+                // `and` (,) binds tighter than `or`
+                // a and b or c and d → Disjunction([Conjunction([a,b]), Conjunction([c,d])])
+                let parse_and_group = |parser: &mut Self, first: Expr| -> Result<Expr, String> {
+                    let is_and = parser.peek_kind() == TokenKind::Comma
+                        || (parser.peek_kind() == TokenKind::Ident && parser.peek().text == "and");
+                    if is_and {
+                        let mut goals = vec![first];
+                        while parser.peek_kind() == TokenKind::Comma
+                            || (parser.peek_kind() == TokenKind::Ident && parser.peek().text == "and")
+                        {
+                            parser.advance();
+                            goals.push(parser.parse_expr()?);
+                        }
+                        Ok(ExprKind::Conjunction(goals).into())
+                    } else {
+                        Ok(first)
+                    }
+                };
+
+                let first_group = parse_and_group(self, body_or_value)?;
+
+                // Check for `or` between groups
+                let is_or = self.peek_kind() == TokenKind::Op && self.peek().text == "||";
+                if is_or {
+                    let mut alternatives = vec![first_group];
+                    while self.peek_kind() == TokenKind::Op && self.peek().text == "||" {
+                        self.advance(); // consume 'or' (lexed as ||)
+                        let next_expr = self.parse_expr()?;
+                        let group = parse_and_group(self, next_expr)?;
+                        alternatives.push(group);
                     }
                     Ok(Stmt::Rule(Rule::Clause {
                         head,
-                        body: Some(ExprKind::Conjunction(goals).into()),
+                        body: Some(ExprKind::Disjunction(alternatives).into()),
                     }))
                 } else {
                     Ok(Stmt::Rule(Rule::Clause {
                         head,
-                        body: Some(body_or_value),
+                        body: Some(first_group),
                     }))
                 }
             }
@@ -6232,6 +6255,16 @@ impl Interpreter {
                 }
                 Value::Bool(true)
             }
+            ExprKind::Disjunction(alternatives) => {
+                // Evaluate alternatives; return true if ANY succeeds
+                for alt in alternatives {
+                    let result = self.eval(alt, env);
+                    if !matches!(result, Value::Bool(false)) {
+                        return result;
+                    }
+                }
+                Value::Bool(false)
+            }
             ExprKind::Pipe(input, transform) => {
                 // Pipe: a |> f → f(a), a |> f(y) → f(a, y)
                 // Same semantics as the old App desugaring
@@ -8648,15 +8681,23 @@ impl Interpreter {
                     }
                 }
             }
-            // Also clear body variables from conjunction bodies
+            // Also clear body variables from conjunction/disjunction bodies
             if let Rule::Clause { body: Some(body_expr), .. } = rule {
-                if let ExprKind::Conjunction(goals) = &body_expr.kind {
-                    for goal in goals {
-                        if let ExprKind::App(_, goal_args) = &goal.kind {
-                            for ga in goal_args {
-                                if let ExprKind::Var(name) = &ga.kind {
-                                    if name != "_" { base_env.remove(name); }
-                                }
+                let body_goals = match &body_expr.kind {
+                    ExprKind::Conjunction(goals) => goals.clone(),
+                    ExprKind::Disjunction(alts) => {
+                        alts.iter().flat_map(|a| match &a.kind {
+                            ExprKind::Conjunction(gs) => gs.clone(),
+                            _ => vec![a.clone()],
+                        }).collect()
+                    }
+                    _ => vec![body_expr.clone()],
+                };
+                for goal in &body_goals {
+                    if let ExprKind::App(_, goal_args) = &goal.kind {
+                        for ga in goal_args {
+                            if let ExprKind::Var(name) = &ga.kind {
+                                if name != "_" { base_env.remove(name); }
                             }
                         }
                     }
@@ -8710,11 +8751,18 @@ impl Interpreter {
                         None => return Some(Value::Bool(true)), // bare fact — head matched
                         Some(body_expr) => {
                             if let ExprKind::Conjunction(goals) = &body_expr.kind {
-                                // Prolog-style conjunction: all goals must succeed
                                 if self.eval_conjunction(goals, &rule_env) {
                                     return Some(Value::Bool(true));
                                 }
-                                // Body failed — backtrack to next clause
+                            } else if let ExprKind::Disjunction(alts) = &body_expr.kind {
+                                // Disjunction: succeed if ANY alternative succeeds
+                                let ok = alts.iter().any(|alt| {
+                                    match &alt.kind {
+                                        ExprKind::Conjunction(goals) => self.eval_conjunction(goals, &rule_env),
+                                        _ => !matches!(self.eval(alt, &rule_env), Value::Bool(false)),
+                                    }
+                                });
+                                if ok { return Some(Value::Bool(true)); }
                             } else {
                                 let result = self.eval(body_expr, &rule_env);
                                 if !matches!(result, Value::Bool(false)) {
@@ -10346,7 +10394,7 @@ impl TypeChecker {
                 self.check_expr(inner, _in_fn);
             }
             ExprKind::Lit(_) | ExprKind::Unit => {}
-            ExprKind::Conjunction(exprs) => {
+            ExprKind::Conjunction(exprs) | ExprKind::Disjunction(exprs) => {
                 for e in exprs {
                     self.check_expr(e, _in_fn);
                 }

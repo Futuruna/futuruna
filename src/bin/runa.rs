@@ -7092,6 +7092,7 @@ enum FirExprKind {
     Try(Box<FirExpr>),
     /// Conjunction (Prolog-style)
     Conjunction(Vec<FirExpr>),
+    Disjunction(Vec<FirExpr>),
     /// Pipe forward (preserved for stream identity)
     Pipe(Box<FirExpr>, Box<FirExpr>),
     /// Unit value
@@ -7666,11 +7667,11 @@ impl<'a> LoweringCtx<'a> {
             }
             ExprKind::Conjunction(goals) => {
                 let fir_goals: Vec<FirExpr> = goals.iter().map(|g| self.lower_expr(g)).collect();
-                FirExpr {
-                    kind: FirExprKind::Conjunction(fir_goals),
-                    span: expr.span,
-                    ty: FirTy::Bool,
-                }
+                FirExpr { kind: FirExprKind::Conjunction(fir_goals), span: expr.span, ty: FirTy::Bool }
+            }
+            ExprKind::Disjunction(alts) => {
+                let fir_alts: Vec<FirExpr> = alts.iter().map(|a| self.lower_expr(a)).collect();
+                FirExpr { kind: FirExprKind::Disjunction(fir_alts), span: expr.span, ty: FirTy::Bool }
             }
             ExprKind::Pipe(lhs, rhs) => {
                 let fir_lhs = self.lower_expr(lhs);
@@ -7967,6 +7968,10 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
             let parts: Vec<String> = goals.iter().map(|g| emit_fir_expr(g, types)).collect();
             parts.join(" && ")
         }
+        FirExprKind::Disjunction(alts) => {
+            let parts: Vec<String> = alts.iter().map(|a| emit_fir_expr(a, types)).collect();
+            parts.join(" || ")
+        }
     }
 }
 
@@ -8093,7 +8098,7 @@ fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
         }
         ExprKind::Lit(_) | ExprKind::Unit => {}
         ExprKind::Try(inner) => count_var_uses(inner, counts),
-        ExprKind::Conjunction(goals) => {
+        ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
             for g in goals {
                 count_var_uses(g, counts);
             }
@@ -8221,7 +8226,7 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
         }
         ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
         ExprKind::Try(inner) => count_consuming_uses(inner, counts),
-        ExprKind::Conjunction(goals) => {
+        ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
             for g in goals {
                 count_consuming_uses(g, counts);
             }
@@ -8380,7 +8385,7 @@ fn count_consuming_uses_branch_aware(expr: &Expr, counts: &mut BTreeMap<String, 
         }
         ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
         ExprKind::Try(inner) => count_consuming_uses_branch_aware(inner, counts),
-        ExprKind::Conjunction(goals) => {
+        ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
             for g in goals {
                 count_consuming_uses_branch_aware(g, counts);
             }
@@ -8698,7 +8703,7 @@ fn count_consuming_uses_borrow_aware(
             self_fn_name,
             self_param_names,
         ),
-        ExprKind::Conjunction(goals) => {
+        ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
             for g in goals {
                 count_consuming_uses_borrow_aware(
                     g,
@@ -13697,7 +13702,7 @@ impl RustCodegen {
             ExprKind::Field(e, _) => {
                 Self::collect_free_var_refs(e, refs);
             }
-            ExprKind::Conjunction(goals) => {
+            ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
                 for g in goals {
                     Self::collect_free_var_refs(g, refs);
                 }
@@ -17898,7 +17903,7 @@ impl RustCodegen {
                 self.emit_expr(&desugared)
             }
             ExprKind::Unit => "()".to_string(),
-            ExprKind::Conjunction(goals) => {
+            ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
                 // Emit as && chain for simple conjunction
                 let parts: Vec<String> = goals.iter().map(|g| self.emit_expr(g)).collect();
                 parts.join(" && ")
@@ -18344,7 +18349,7 @@ impl RustCodegen {
                     Self::walk_free_vars(&h.body, bound, effect_ops, free);
                 }
             }
-            ExprKind::Conjunction(goals) => {
+            ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
                 for g in goals {
                     Self::walk_free_vars(g, bound, effect_ops, free);
                 }
@@ -18513,7 +18518,7 @@ impl RustCodegen {
             ExprKind::Effect(_, _) => {
                 *impure = true;
             }
-            ExprKind::Conjunction(goals) => {
+            ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
                 for g in goals {
                     Self::check_purity(g, effect_ops, calls, impure);
                 }
@@ -18874,7 +18879,7 @@ impl RustCodegen {
                     ));
                 }
             }
-            ExprKind::Conjunction(goals) => {
+            ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
                 for g in goals {
                     effects.extend(Self::collect_expr_effects(
                         g,
