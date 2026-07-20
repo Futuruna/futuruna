@@ -116,6 +116,7 @@ fn main_inner() {
                 eprintln!("  fmt           Format source file(s)");
                 eprintln!("  fmt --check   Check formatting without modifying");
                 eprintln!("  lsp           Start language server (stdio)");
+                eprintln!("  from-rust     Transpile Rust source to Futuruna");
                 eprintln!("  test          Run all tests/*.runa (interpreted)");
                 eprintln!("  test --run    Run all tests/*.runa (compiled + executed)");
                 eprintln!();
@@ -197,6 +198,10 @@ fn main_inner() {
                 mode = "audit";
                 i += 1;
             }
+            "from-rust" => {
+                mode = "from-rust";
+                i += 1;
+            }
             other => {
                 if other.starts_with('-') {
                     eprintln!("error: unknown option '{}'", other);
@@ -269,6 +274,27 @@ fn main_inner() {
     // ── runa lsp — language server ──
     if mode == "lsp" {
         run_lsp_server();
+        return;
+    }
+
+    // ── runa from-rust <file.rs> — transpile Rust → Futuruna ──
+    if mode == "from-rust" {
+        if let Some(ref path) = filename {
+            match std::fs::read_to_string(path) {
+                Ok(source) => {
+                    let result = rust_to_runa(&source);
+                    print!("{}", result);
+                }
+                Err(e) => {
+                    eprintln!("Cannot read {}: {}", path, e);
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            eprintln!("Usage: runa from-rust <file.rs>");
+            eprintln!("  Transpiles Rust source code to Futuruna (.runa)");
+            std::process::exit(1);
+        }
         return;
     }
 
@@ -20901,5 +20927,1185 @@ mod tests {
             )),
             FirTy::List(Box::new(FirTy::Int))
         );
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PART 12: RUST → FUTURUNA TRANSPILER
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Transpile a Rust source string into Futuruna (.runa) source.
+fn rust_to_runa(source: &str) -> String {
+    let file = match syn::parse_file(source) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Rust parse error: {}", e);
+            std::process::exit(1);
+        }
+    };
+    let mut ctx = RustToRunaCtx::new();
+    ctx.transpile_file(&file);
+    ctx.output
+}
+
+struct RustToRunaCtx {
+    output: String,
+    indent: usize,
+}
+
+impl RustToRunaCtx {
+    fn new() -> Self {
+        Self {
+            output: String::new(),
+            indent: 0,
+        }
+    }
+
+    fn ind(&self) -> String {
+        "    ".repeat(self.indent)
+    }
+
+    fn emit(&mut self, s: &str) {
+        self.output.push_str(s);
+    }
+
+    fn emit_line(&mut self, s: &str) {
+        self.output.push_str(&self.ind());
+        self.output.push_str(s);
+        self.output.push('\n');
+    }
+
+    fn emit_blank(&mut self) {
+        self.output.push('\n');
+    }
+
+    fn transpile_file(&mut self, file: &syn::File) {
+        self.emit_line("-- Transpiled from Rust by `runa from-rust`");
+        self.emit_blank();
+
+        for item in &file.items {
+            self.transpile_item(item);
+        }
+    }
+
+    fn transpile_item(&mut self, item: &syn::Item) {
+        match item {
+            syn::Item::Fn(f) => self.transpile_fn(f),
+            syn::Item::Struct(s) => self.transpile_struct(s),
+            syn::Item::Enum(e) => self.transpile_enum(e),
+            syn::Item::Const(c) => self.transpile_const(c),
+            syn::Item::Static(s) => self.transpile_static(s),
+            syn::Item::Type(t) => self.transpile_type_alias(t),
+            syn::Item::Impl(imp) => self.transpile_impl(imp),
+            syn::Item::Trait(tr) => self.transpile_trait(tr),
+            syn::Item::Use(u) => self.transpile_use(u),
+            syn::Item::Mod(m) => self.transpile_mod(m),
+            _ => {
+                self.emit_line(&format!("-- [unsupported Rust item: {:?}]",
+                    std::mem::discriminant(item)));
+            }
+        }
+    }
+
+    // ── Types ──────────────────────────────────────────────────────────────
+
+    fn transpile_type(&self, ty: &syn::Type) -> String {
+        match ty {
+            syn::Type::Path(tp) => self.transpile_type_path(tp),
+            syn::Type::Reference(r) => {
+                // Strip references — invisible ownership
+                self.transpile_type(&r.elem)
+            }
+            syn::Type::Tuple(t) => {
+                if t.elems.is_empty() {
+                    "()".to_string()
+                } else {
+                    let parts: Vec<String> = t.elems.iter()
+                        .map(|e| self.transpile_type(e))
+                        .collect();
+                    format!("({})", parts.join(", "))
+                }
+            }
+            syn::Type::Slice(s) => {
+                format!("List({})", self.transpile_type(&s.elem))
+            }
+            syn::Type::Array(a) => {
+                format!("List({})", self.transpile_type(&a.elem))
+            }
+            syn::Type::Paren(p) => self.transpile_type(&p.elem),
+            syn::Type::BareFn(f) => {
+                let params: Vec<String> = f.inputs.iter()
+                    .map(|arg| self.transpile_type(&arg.ty))
+                    .collect();
+                let ret = match &f.output {
+                    syn::ReturnType::Default => "()".to_string(),
+                    syn::ReturnType::Type(_, ty) => self.transpile_type(ty),
+                };
+                if params.len() == 1 {
+                    format!("{} -> {}", params[0], ret)
+                } else {
+                    format!("({}) -> {}", params.join(", "), ret)
+                }
+            }
+            syn::Type::Never(_) => "()".to_string(),
+            syn::Type::Infer(_) => "_".to_string(),
+            _ => "Any".to_string(),
+        }
+    }
+
+    fn transpile_type_path(&self, tp: &syn::TypePath) -> String {
+        let segments: Vec<String> = tp.path.segments.iter()
+            .map(|seg| {
+                let name = seg.ident.to_string();
+                let mapped = match name.as_str() {
+                    "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+                    | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" => "Int",
+                    "f32" | "f64" => "Float",
+                    "bool" => "Bool",
+                    "char" => "Char",
+                    "String" | "str" => "String",
+                    "Vec" => "List",
+                    "Option" => "Option",
+                    "Result" => "Result",
+                    "Box" | "Rc" | "Arc" => return self.unwrap_generic_arg(&seg.arguments),
+                    "HashMap" => "Map",
+                    "HashSet" => "Set",
+                    "Self" => "self",
+                    _ => &name,
+                };
+                match &seg.arguments {
+                    syn::PathArguments::None => mapped.to_string(),
+                    syn::PathArguments::AngleBracketed(ab) => {
+                        let args: Vec<String> = ab.args.iter()
+                            .filter_map(|a| match a {
+                                syn::GenericArgument::Type(t) => Some(self.transpile_type(t)),
+                                _ => None,
+                            })
+                            .collect();
+                        if args.is_empty() {
+                            mapped.to_string()
+                        } else {
+                            format!("{}({})", mapped, args.join(", "))
+                        }
+                    }
+                    _ => mapped.to_string(),
+                }
+            })
+            .collect();
+        // For qualified paths like std::collections::HashMap, just use last segment
+        segments.last().cloned().unwrap_or_else(|| "Any".to_string())
+    }
+
+    /// Unwrap Box<T>/Rc<T>/Arc<T> → just T (invisible ownership)
+    fn unwrap_generic_arg(&self, args: &syn::PathArguments) -> String {
+        if let syn::PathArguments::AngleBracketed(ab) = args {
+            if let Some(syn::GenericArgument::Type(inner)) = ab.args.first() {
+                return self.transpile_type(inner);
+            }
+        }
+        "Any".to_string()
+    }
+
+    // ── Functions ──────────────────────────────────────────────────────────
+
+    fn transpile_fn(&mut self, f: &syn::ItemFn) {
+        let name = f.sig.ident.to_string();
+        let is_main = name == "main";
+
+        // Parameters
+        let params: Vec<String> = f.sig.inputs.iter()
+            .filter_map(|arg| match arg {
+                syn::FnArg::Typed(pat_type) => {
+                    let pat = self.pat_to_string(&pat_type.pat);
+                    let ty = self.transpile_type(&pat_type.ty);
+                    Some(format!("{}: {}", pat, ty))
+                }
+                syn::FnArg::Receiver(_) => None, // self — handled in impl blocks
+            })
+            .collect();
+
+        // Return type
+        let ret = match &f.sig.output {
+            syn::ReturnType::Default => String::new(),
+            syn::ReturnType::Type(_, ty) => {
+                let t = self.transpile_type(ty);
+                if t == "()" { String::new() } else { format!(" -> {}", t) }
+            }
+        };
+
+        // Async
+        let async_prefix = if f.sig.asyncness.is_some() { "-- async\n" } else { "" };
+
+        if is_main {
+            // Main function — emit body as top-level statements
+            self.emit_line("-- main");
+            self.transpile_block_stmts(&f.block);
+        } else {
+            self.emit(&format!("{}{}{}", async_prefix, self.ind(),
+                format!("> {}({}){} {{\n", name, params.join(", "), ret)));
+            self.indent += 1;
+            self.transpile_block_body(&f.block);
+            self.indent -= 1;
+            self.emit_line("}");
+        }
+        self.emit_blank();
+    }
+
+    // ── Structs ───────────────────────────────────────────────────────────
+
+    fn transpile_struct(&mut self, s: &syn::ItemStruct) {
+        let name = s.ident.to_string();
+        let generics = self.transpile_generics(&s.generics);
+
+        match &s.fields {
+            syn::Fields::Named(fields) => {
+                let field_strs: Vec<String> = fields.named.iter()
+                    .map(|f| {
+                        let fname = f.ident.as_ref().map(|i| i.to_string()).unwrap_or_default();
+                        let ty = self.transpile_type(&f.ty);
+                        format!("{}: {}", fname, ty)
+                    })
+                    .collect();
+                self.emit_line(&format!("# {}{}({})", name, generics, field_strs.join(", ")));
+            }
+            syn::Fields::Unnamed(fields) => {
+                let field_strs: Vec<String> = fields.unnamed.iter()
+                    .enumerate()
+                    .map(|(i, f)| format!("f{}: {}", i, self.transpile_type(&f.ty)))
+                    .collect();
+                self.emit_line(&format!("# {}{}({})", name, generics, field_strs.join(", ")));
+            }
+            syn::Fields::Unit => {
+                self.emit_line(&format!("# {}{}", name, generics));
+            }
+        }
+        self.emit_blank();
+    }
+
+    // ── Enums ─────────────────────────────────────────────────────────────
+
+    fn transpile_enum(&mut self, e: &syn::ItemEnum) {
+        let name = e.ident.to_string();
+        let generics = self.transpile_generics(&e.generics);
+
+        let variants: Vec<String> = e.variants.iter()
+            .map(|v| {
+                let vname = v.ident.to_string();
+                match &v.fields {
+                    syn::Fields::Named(fields) => {
+                        let fs: Vec<String> = fields.named.iter()
+                            .map(|f| {
+                                let fname = f.ident.as_ref().map(|i| i.to_string()).unwrap_or_default();
+                                format!("{}: {}", fname, self.transpile_type(&f.ty))
+                            })
+                            .collect();
+                        format!("{}({})", vname, fs.join(", "))
+                    }
+                    syn::Fields::Unnamed(fields) => {
+                        let fs: Vec<String> = fields.unnamed.iter()
+                            .map(|f| self.transpile_type(&f.ty))
+                            .collect();
+                        format!("{}({})", vname, fs.join(", "))
+                    }
+                    syn::Fields::Unit => vname,
+                }
+            })
+            .collect();
+
+        self.emit_line(&format!("# {}{} = {}", name, generics, variants.join(" | ")));
+        self.emit_blank();
+    }
+
+    // ── Impl blocks ───────────────────────────────────────────────────────
+
+    fn transpile_impl(&mut self, imp: &syn::ItemImpl) {
+        let self_ty = self.transpile_type(&imp.self_ty);
+
+        // Trait impl: # impl Trait for Type { ... }
+        if let Some((_, path, _)) = &imp.trait_ {
+            let trait_name = path.segments.last()
+                .map(|s| s.ident.to_string())
+                .unwrap_or_default();
+            self.emit_line(&format!("# impl {} for {} {{", trait_name, self_ty));
+        } else {
+            // Inherent impl: methods go inside ADT definition
+            self.emit_line(&format!("-- methods for {}", self_ty));
+        }
+
+        self.indent += 1;
+        for item in &imp.items {
+            if let syn::ImplItem::Fn(method) = item {
+                self.transpile_impl_method(method, &self_ty);
+            }
+        }
+        self.indent -= 1;
+
+        if imp.trait_.is_some() {
+            self.emit_line("}");
+        }
+        self.emit_blank();
+    }
+
+    fn transpile_impl_method(&mut self, method: &syn::ImplItemFn, self_ty: &str) {
+        let name = method.sig.ident.to_string();
+
+        let params: Vec<String> = method.sig.inputs.iter()
+            .map(|arg| match arg {
+                syn::FnArg::Receiver(_) => format!("self: {}", self_ty),
+                syn::FnArg::Typed(pat_type) => {
+                    let pat = self.pat_to_string(&pat_type.pat);
+                    let ty = self.transpile_type(&pat_type.ty);
+                    format!("{}: {}", pat, ty)
+                }
+            })
+            .collect();
+
+        let ret = match &method.sig.output {
+            syn::ReturnType::Default => String::new(),
+            syn::ReturnType::Type(_, ty) => {
+                let t = self.transpile_type(ty);
+                if t == "()" { String::new() } else { format!(" -> {}", t) }
+            }
+        };
+
+        self.emit_line(&format!("> {}({}){} {{", name, params.join(", "), ret));
+        self.indent += 1;
+        self.transpile_block_body(&method.block);
+        self.indent -= 1;
+        self.emit_line("}");
+    }
+
+    // ── Traits ────────────────────────────────────────────────────────────
+
+    fn transpile_trait(&mut self, tr: &syn::ItemTrait) {
+        let name = tr.ident.to_string();
+        self.emit_line(&format!("# trait {} {{", name));
+        self.indent += 1;
+        for item in &tr.items {
+            if let syn::TraitItem::Fn(method) = item {
+                let mname = method.sig.ident.to_string();
+                let params: Vec<String> = method.sig.inputs.iter()
+                    .map(|arg| match arg {
+                        syn::FnArg::Receiver(_) => "self".to_string(),
+                        syn::FnArg::Typed(pt) => {
+                            let pat = self.pat_to_string(&pt.pat);
+                            let ty = self.transpile_type(&pt.ty);
+                            format!("{}: {}", pat, ty)
+                        }
+                    })
+                    .collect();
+                let ret = match &method.sig.output {
+                    syn::ReturnType::Default => String::new(),
+                    syn::ReturnType::Type(_, ty) => {
+                        let t = self.transpile_type(ty);
+                        if t == "()" { String::new() } else { format!(" -> {}", t) }
+                    }
+                };
+                if method.default.is_some() {
+                    self.emit_line(&format!("> {}({}){} {{", mname, params.join(", "), ret));
+                    self.indent += 1;
+                    if let Some(block) = &method.default {
+                        self.transpile_block_body(block);
+                    }
+                    self.indent -= 1;
+                    self.emit_line("}");
+                } else {
+                    self.emit_line(&format!("> {}({}){}", mname, params.join(", "), ret));
+                }
+            }
+        }
+        self.indent -= 1;
+        self.emit_line("}");
+        self.emit_blank();
+    }
+
+    // ── Const / Static ────────────────────────────────────────────────────
+
+    fn transpile_const(&mut self, c: &syn::ItemConst) {
+        let name = c.ident.to_string();
+        let val = self.expr_to_string(&c.expr);
+        self.emit_line(&format!("= {} = {}", name, val));
+    }
+
+    fn transpile_static(&mut self, s: &syn::ItemStatic) {
+        let name = s.ident.to_string();
+        let val = self.expr_to_string(&s.expr);
+        self.emit_line(&format!("= {} = {}", name, val));
+    }
+
+    fn transpile_type_alias(&mut self, t: &syn::ItemType) {
+        let name = t.ident.to_string();
+        let ty = self.transpile_type(&t.ty);
+        self.emit_line(&format!("-- type {} = {}", name, ty));
+    }
+
+    // ── Use / Mod ─────────────────────────────────────────────────────────
+
+    fn transpile_use(&mut self, _u: &syn::ItemUse) {
+        // Most imports are handled by Futuruna's stdlib — skip silently
+    }
+
+    fn transpile_mod(&mut self, m: &syn::ItemMod) {
+        let name = m.ident.to_string();
+        if let Some((_, items)) = &m.content {
+            self.emit_line(&format!("> module {} {{", name));
+            self.indent += 1;
+            for item in items {
+                self.transpile_item(item);
+            }
+            self.indent -= 1;
+            self.emit_line("}");
+            self.emit_blank();
+        } else {
+            self.emit_line(&format!("@ import ./{}", name));
+        }
+    }
+
+    // ── Generics ──────────────────────────────────────────────────────────
+
+    fn transpile_generics(&self, generics: &syn::Generics) -> String {
+        let params: Vec<String> = generics.params.iter()
+            .filter_map(|p| match p {
+                syn::GenericParam::Type(t) => {
+                    let name = t.ident.to_string();
+                    Some(name.to_lowercase())
+                }
+                syn::GenericParam::Lifetime(_) => None, // strip lifetimes
+                syn::GenericParam::Const(c) => Some(c.ident.to_string()),
+            })
+            .collect();
+        if params.is_empty() {
+            String::new()
+        } else {
+            format!("({})", params.join(", "))
+        }
+    }
+
+    // ── Patterns ──────────────────────────────────────────────────────────
+
+    fn pat_to_string(&self, pat: &syn::Pat) -> String {
+        match pat {
+            syn::Pat::Ident(pi) => pi.ident.to_string(),
+            syn::Pat::Type(pt) => self.pat_to_string(&pt.pat), // strip type annotation
+            syn::Pat::Wild(_) => "_".to_string(),
+            syn::Pat::Tuple(t) => {
+                let parts: Vec<String> = t.elems.iter()
+                    .map(|p| self.pat_to_string(p))
+                    .collect();
+                format!("({})", parts.join(", "))
+            }
+            syn::Pat::TupleStruct(ts) => {
+                let name = ts.path.segments.last()
+                    .map(|s| s.ident.to_string())
+                    .unwrap_or_default();
+                let parts: Vec<String> = ts.elems.iter()
+                    .map(|p| self.pat_to_string(p))
+                    .collect();
+                format!("{}({})", name, parts.join(", "))
+            }
+            syn::Pat::Struct(ps) => {
+                let name = ps.path.segments.last()
+                    .map(|s| s.ident.to_string())
+                    .unwrap_or_default();
+                let fields: Vec<String> = ps.fields.iter()
+                    .map(|fp| {
+                        let fname = fp.member.clone();
+                        let pat = self.pat_to_string(&fp.pat);
+                        match fname {
+                            syn::Member::Named(n) => {
+                                if n.to_string() == pat {
+                                    pat
+                                } else {
+                                    format!("{}: {}", n, pat)
+                                }
+                            }
+                            syn::Member::Unnamed(idx) => format!("f{}: {}", idx.index, pat),
+                        }
+                    })
+                    .collect();
+                format!("{}({})", name, fields.join(", "))
+            }
+            syn::Pat::Lit(lit) => self.lit_to_string(&lit.lit),
+            syn::Pat::Reference(r) => self.pat_to_string(&r.pat), // strip &
+            syn::Pat::Or(or) => {
+                let parts: Vec<String> = or.cases.iter()
+                    .map(|p| self.pat_to_string(p))
+                    .collect();
+                parts.join(" | ")
+            }
+            syn::Pat::Path(pp) => {
+                pp.path.segments.last()
+                    .map(|s| s.ident.to_string())
+                    .unwrap_or_else(|| "_".to_string())
+            }
+            _ => "_".to_string(),
+        }
+    }
+
+    // ── Expressions ───────────────────────────────────────────────────────
+
+    fn expr_to_string(&self, expr: &syn::Expr) -> String {
+        match expr {
+            syn::Expr::Lit(lit) => self.lit_to_string(&lit.lit),
+            syn::Expr::Path(p) => {
+                let seg = p.path.segments.last()
+                    .map(|s| s.ident.to_string())
+                    .unwrap_or_default();
+                match seg.as_str() {
+                    "true" | "false" => seg,
+                    "None" => "None".to_string(),
+                    _ => seg,
+                }
+            }
+            syn::Expr::Binary(b) => {
+                let lhs = self.expr_to_string(&b.left);
+                let rhs = self.expr_to_string(&b.right);
+                let op = self.binop_to_string(&b.op);
+                format!("{} {} {}", lhs, op, rhs)
+            }
+            syn::Expr::Unary(u) => {
+                let inner = self.expr_to_string(&u.expr);
+                match u.op {
+                    syn::UnOp::Neg(_) => format!("-{}", inner),
+                    syn::UnOp::Not(_) => format!("not({})", inner),
+                    syn::UnOp::Deref(_) => inner, // strip dereference
+                    _ => inner,
+                }
+            }
+            syn::Expr::Call(c) => {
+                let func = self.expr_to_string(&c.func);
+                let args: Vec<String> = c.args.iter()
+                    .map(|a| self.expr_to_string(a))
+                    .collect();
+                // Map common Rust calls
+                match func.as_str() {
+                    "println" => format!("@ print({})", args.join(" + ")),
+                    "eprintln" => format!("@ print({})", args.join(" + ")),
+                    "format" => args.join(" + "),
+                    "String::from" | "String::new" if args.is_empty() => "\"\"".to_string(),
+                    "String::from" => args[0].clone(),
+                    "Vec::new" => "[]".to_string(),
+                    "Some" => format!("Some({})", args.join(", ")),
+                    "Ok" => format!("Ok({})", args.join(", ")),
+                    "Err" => format!("Err({})", args.join(", ")),
+                    _ => format!("{}({})", func, args.join(", "))
+                }
+            }
+            syn::Expr::MethodCall(mc) => {
+                let recv = self.expr_to_string(&mc.receiver);
+                let method = mc.method.to_string();
+                let args: Vec<String> = mc.args.iter()
+                    .map(|a| self.expr_to_string(a))
+                    .collect();
+                self.method_call_to_runa(&recv, &method, &args)
+            }
+            syn::Expr::If(i) => {
+                let cond = self.expr_to_string(&i.cond);
+                // Simple if/else → inline
+                let then_str = self.block_to_inline(&i.then_branch);
+                if let Some((_, else_branch)) = &i.else_branch {
+                    let else_str = self.expr_to_string(else_branch);
+                    format!("if {} {{ {} }} else {{ {} }}", cond, then_str, else_str)
+                } else {
+                    format!("if {} {{ {} }}", cond, then_str)
+                }
+            }
+            syn::Expr::Match(m) => {
+                let scrut = self.expr_to_string(&m.expr);
+                let arms: Vec<String> = m.arms.iter()
+                    .map(|arm| {
+                        let pat = self.pat_to_string(&arm.pat);
+                        let body = self.expr_to_string(&arm.body);
+                        format!("| {} -> {}", pat, body)
+                    })
+                    .collect();
+                format!("match {} {{ {} }}", scrut, arms.join(" "))
+            }
+            syn::Expr::Block(b) => {
+                // Just emit the last expression if simple
+                if let Some(last) = b.block.stmts.last() {
+                    match last {
+                        syn::Stmt::Expr(e, _) => return self.expr_to_string(e),
+                        _ => {}
+                    }
+                }
+                "{ ... }".to_string()
+            }
+            syn::Expr::Closure(c) => {
+                let params: Vec<String> = c.inputs.iter()
+                    .map(|p| self.pat_to_string(p))
+                    .collect();
+                let body = self.expr_to_string(&c.body);
+                format!("|{}| {}", params.join(", "), body)
+            }
+            syn::Expr::Tuple(t) => {
+                let parts: Vec<String> = t.elems.iter()
+                    .map(|e| self.expr_to_string(e))
+                    .collect();
+                format!("({})", parts.join(", "))
+            }
+            syn::Expr::Array(a) => {
+                let elems: Vec<String> = a.elems.iter()
+                    .map(|e| self.expr_to_string(e))
+                    .collect();
+                format!("[{}]", elems.join(", "))
+            }
+            syn::Expr::Index(idx) => {
+                let obj = self.expr_to_string(&idx.expr);
+                let index = self.expr_to_string(&idx.index);
+                format!("{}[{}]", obj, index)
+            }
+            syn::Expr::Field(f) => {
+                let obj = self.expr_to_string(&f.base);
+                let field = match &f.member {
+                    syn::Member::Named(n) => n.to_string(),
+                    syn::Member::Unnamed(idx) => format!("{}", idx.index),
+                };
+                format!("{}.{}", obj, field)
+            }
+            syn::Expr::Reference(r) => {
+                // Strip reference — invisible ownership
+                self.expr_to_string(&r.expr)
+            }
+            syn::Expr::Paren(p) => {
+                format!("({})", self.expr_to_string(&p.expr))
+            }
+            syn::Expr::Try(t) => {
+                // x? → = val <- x
+                self.expr_to_string(&t.expr)
+            }
+            syn::Expr::Return(r) => {
+                if let Some(val) = &r.expr {
+                    self.expr_to_string(val)
+                } else {
+                    "()".to_string()
+                }
+            }
+            syn::Expr::Assign(a) => {
+                let lhs = self.expr_to_string(&a.left);
+                let rhs = self.expr_to_string(&a.right);
+                format!("{} = {}", lhs, rhs)
+            }
+            syn::Expr::Range(r) => {
+                let start = r.start.as_ref()
+                    .map(|e| self.expr_to_string(e))
+                    .unwrap_or_else(|| "0".to_string());
+                let end = r.end.as_ref()
+                    .map(|e| self.expr_to_string(e))
+                    .unwrap_or_else(|| "...".to_string());
+                format!("range({}, {})", start, end)
+            }
+            syn::Expr::Struct(s) => {
+                let name = s.path.segments.last()
+                    .map(|seg| seg.ident.to_string())
+                    .unwrap_or_default();
+                let fields: Vec<String> = s.fields.iter()
+                    .map(|f| {
+                        let val = self.expr_to_string(&f.expr);
+                        // Shorthand: field: field → just field
+                        if let syn::Member::Named(n) = &f.member {
+                            let n = n.to_string();
+                            if n == val { return val; }
+                        }
+                        val
+                    })
+                    .collect();
+                format!("{}({})", name, fields.join(", "))
+            }
+            syn::Expr::Cast(c) => {
+                let inner = self.expr_to_string(&c.expr);
+                let ty = self.transpile_type(&c.ty);
+                match ty.as_str() {
+                    "Int" => format!("to_int({})", inner),
+                    "Float" => format!("to_float({})", inner),
+                    _ => inner,
+                }
+            }
+            syn::Expr::Macro(m) => {
+                self.transpile_macro(m)
+            }
+            syn::Expr::Unsafe(u) => {
+                // unsafe { ... } → @ rust { ... }
+                format!("@ rust {{ /* unsafe block */ }}")
+            }
+            _ => format!("(/* unsupported expr */)")
+        }
+    }
+
+    fn lit_to_string(&self, lit: &syn::Lit) -> String {
+        match lit {
+            syn::Lit::Int(i) => i.base10_digits().to_string(),
+            syn::Lit::Float(f) => f.base10_digits().to_string(),
+            syn::Lit::Str(s) => format!("{:?}", s.value()),
+            syn::Lit::Char(c) => format!("'{}'", c.value()),
+            syn::Lit::Bool(b) => if b.value { "true".to_string() } else { "false".to_string() },
+            syn::Lit::Byte(b) => format!("{}", b.value()),
+            _ => "0".to_string(),
+        }
+    }
+
+    fn binop_to_string(&self, op: &syn::BinOp) -> &str {
+        match op {
+            syn::BinOp::Add(_) => "+",
+            syn::BinOp::Sub(_) => "-",
+            syn::BinOp::Mul(_) => "*",
+            syn::BinOp::Div(_) => "/",
+            syn::BinOp::Rem(_) => "%",
+            syn::BinOp::And(_) => "&&",
+            syn::BinOp::Or(_) => "||",
+            syn::BinOp::Eq(_) => "==",
+            syn::BinOp::Ne(_) => "!=",
+            syn::BinOp::Lt(_) => "<",
+            syn::BinOp::Le(_) => "<=",
+            syn::BinOp::Gt(_) => ">",
+            syn::BinOp::Ge(_) => ">=",
+            syn::BinOp::BitAnd(_) => "&&",
+            syn::BinOp::BitOr(_) => "||",
+            syn::BinOp::BitXor(_) => "^",
+            syn::BinOp::Shl(_) => "<<",
+            syn::BinOp::Shr(_) => ">>",
+            syn::BinOp::AddAssign(_) => "+=",
+            syn::BinOp::SubAssign(_) => "+=",
+            _ => "?op?",
+        }
+    }
+
+    /// Map Rust method calls to Futuruna equivalents.
+    fn method_call_to_runa(&self, recv: &str, method: &str, args: &[String]) -> String {
+        match method {
+            // Iterator / collection methods
+            "len" => format!("length({})", recv),
+            "is_empty" => format!("length({}) == 0", recv),
+            "push" => format!("push({}, {})", recv, args.join(", ")),
+            "pop" => format!("last({})", recv),
+            "contains" => format!("contains({}, {})", recv, args.join(", ")),
+            "iter" | "into_iter" | "drain" => recv.to_string(),
+            "map" => format!("map({}, {})", recv, args.join(", ")),
+            "filter" => format!("filter({}, {})", recv, args.join(", ")),
+            "fold" => {
+                if args.len() == 2 {
+                    format!("foldl({}, {}, {})", recv, args[0], args[1])
+                } else {
+                    format!("foldl({}, {})", recv, args.join(", "))
+                }
+            }
+            "collect" => recv.to_string(),
+            "for_each" => format!("for x in {} {{ {}(x) }}", recv, args.join(", ")),
+            "any" => format!("any({}, {})", recv, args.join(", ")),
+            "all" => format!("all({}, {})", recv, args.join(", ")),
+            "find" => format!("find({}, {})", recv, args.join(", ")),
+            "flat_map" => format!("flat_map({}, {})", recv, args.join(", ")),
+            "take" => format!("take({}, {})", recv, args.join(", ")),
+            "skip" => format!("skip({}, {})", recv, args.join(", ")),
+            "zip" => format!("zip({}, {})", recv, args.join(", ")),
+            "enumerate" => format!("enumerate({})", recv),
+            "sum" => format!("sum({})", recv),
+            "min" | "max" | "sort" | "reverse" => format!("{}({})", method, recv),
+            "cloned" | "copied" => recv.to_string(),
+
+            // String methods
+            "to_string" | "to_owned" => {
+                // If receiver is already a string literal, just return it
+                if recv.starts_with('"') { recv.to_string() } else { format!("show({})", recv) }
+            }
+            "as_str" | "as_ref" => recv.to_string(),
+            "trim" => format!("trim({})", recv),
+            "split" => format!("split({}, {})", recv, args.join(", ")),
+            "starts_with" => format!("starts_with({}, {})", recv, args.join(", ")),
+            "ends_with" => format!("ends_with({}, {})", recv, args.join(", ")),
+            "replace" => format!("replace({}, {})", recv, args.join(", ")),
+            "to_uppercase" => format!("to_upper({})", recv),
+            "to_lowercase" => format!("to_lower({})", recv),
+            "parse" => format!("parse_int({})", recv),
+            "chars" => format!("chars({})", recv),
+
+            // Option / Result
+            "unwrap" => recv.to_string(),
+            "unwrap_or" => format!("unwrap_or({}, {})", recv, args.join(", ")),
+            "unwrap_or_else" => format!("unwrap_or({}, {}())", recv, args.join(", ")),
+            "unwrap_or_default" => recv.to_string(),
+            "is_some" => format!("{} != None", recv),
+            "is_none" => format!("{} == None", recv),
+            "is_ok" => format!("is_ok({})", recv),
+            "is_err" => format!("is_err({})", recv),
+            "ok" => recv.to_string(),
+            "map_err" => recv.to_string(),
+            "and_then" => format!("flat_map({}, {})", recv, args.join(", ")),
+
+            // Clone
+            "clone" => recv.to_string(),
+
+            // Default
+            _ => {
+                if args.is_empty() {
+                    format!("{}.{}", recv, method)
+                } else {
+                    format!("{}({}, {})", method, recv, args.join(", "))
+                }
+            }
+        }
+    }
+
+    // ── Macros ─────────────────────────────────────────────────────────────
+
+    fn transpile_macro(&self, m: &syn::ExprMacro) -> String {
+        let name = m.mac.path.segments.last()
+            .map(|s| s.ident.to_string())
+            .unwrap_or_default();
+        let tokens = m.mac.tokens.to_string();
+        match name.as_str() {
+            "println" | "eprintln" => {
+                self.transpile_println_tokens(&tokens)
+            }
+            "format" => {
+                self.transpile_format_tokens(&tokens)
+            }
+            "vec" => {
+                // Clean up token spacing: "1 , 2 , 3 ," → "1, 2, 3"
+                let clean = tokens.replace(" , ", ", ").trim_end_matches(", ").trim_end_matches(',').to_string();
+                format!("[{}]", clean.trim())
+            }
+            "panic" | "todo" | "unimplemented" => {
+                format!("@ print(\"panic: {}\")", tokens.replace('"', "\\\""))
+            }
+            "assert" => {
+                format!("? ({})", tokens)
+            }
+            "assert_eq" => {
+                let parts: Vec<&str> = tokens.splitn(2, ',').collect();
+                if parts.len() == 2 {
+                    format!("? ({} == {})", parts[0].trim(), parts[1].trim())
+                } else {
+                    format!("? ({})", tokens)
+                }
+            }
+            _ => format!("-- [macro: {}!({})]", name, tokens),
+        }
+    }
+
+    /// Clean up a macro argument token string: strip &, normalize spacing
+    fn clean_macro_arg(&self, s: &str) -> String {
+        let s = s.trim();
+        // Strip leading & (references — invisible ownership)
+        let s = s.strip_prefix("& ").or_else(|| s.strip_prefix("&")).unwrap_or(s);
+        // Normalize spaces around parens and commas
+        s.replace(" (", "(")
+            .replace("( ", "(")
+            .replace(" )", ")")
+            .replace(" ,", ",")
+            .replace(", ", ", ") // ensure consistent comma spacing
+            .replace("  ", " ")
+    }
+
+    /// Convert println!("...", args) → @ print("..." + show(args))
+    fn transpile_println_tokens(&self, tokens: &str) -> String {
+        let tokens = tokens.trim();
+        if tokens.is_empty() {
+            return "@ print(\"\")".to_string();
+        }
+        // Simple case: println!("literal")
+        if tokens.starts_with('"') && !tokens.contains("{}") {
+            // Strip the string
+            return format!("@ print({})", tokens);
+        }
+        // Format string: println!("{} is {}", a, b)
+        if let Some(comma_pos) = self.find_format_comma(tokens) {
+            let fmt_str = tokens[..comma_pos].trim().trim_matches('"');
+            let args_str = tokens[comma_pos + 1..].trim();
+            let args: Vec<&str> = self.split_args(args_str);
+
+            let mut result = String::new();
+            let mut arg_idx = 0;
+            let mut chars = fmt_str.chars().peekable();
+            let mut first = true;
+
+            while let Some(c) = chars.next() {
+                if c == '{' {
+                    if chars.peek() == Some(&'}') {
+                        chars.next();
+                        if !first { result.push_str(" + "); }
+                        first = false;
+                        if arg_idx < args.len() {
+                            let arg = self.clean_macro_arg(args[arg_idx]);
+                            result.push_str(&format!("show({})", arg));
+                            arg_idx += 1;
+                        }
+                    } else {
+                        // Named/formatted: {:?}, {:.2}, etc — just use show()
+                        while chars.next() != Some('}') {}
+                        if !first { result.push_str(" + "); }
+                        first = false;
+                        if arg_idx < args.len() {
+                            let arg = self.clean_macro_arg(args[arg_idx]);
+                            result.push_str(&format!("show({})", arg));
+                            arg_idx += 1;
+                        }
+                    }
+                } else {
+                    // Literal text
+                    let mut lit = String::new();
+                    lit.push(c);
+                    while chars.peek().is_some() && *chars.peek().unwrap() != '{' {
+                        lit.push(chars.next().unwrap());
+                    }
+                    if !first { result.push_str(" + "); }
+                    first = false;
+                    result.push_str(&format!("{:?}", lit));
+                }
+            }
+
+            if result.is_empty() {
+                return "@ print(\"\")".to_string();
+            }
+            return format!("@ print({})", result);
+        }
+
+        // Fallback: just emit as string
+        format!("@ print({})", tokens)
+    }
+
+    fn transpile_format_tokens(&self, tokens: &str) -> String {
+        // Reuse println logic but without the @ print wrapper
+        let result = self.transpile_println_tokens(tokens);
+        result.strip_prefix("@ print(")
+            .and_then(|s| s.strip_suffix(')'))
+            .unwrap_or(&result)
+            .to_string()
+    }
+
+    /// Find the comma that separates format string from args, respecting string quoting
+    fn find_format_comma(&self, s: &str) -> Option<usize> {
+        let mut in_string = false;
+        let mut escape = false;
+        for (i, c) in s.chars().enumerate() {
+            if escape { escape = false; continue; }
+            if c == '\\' { escape = true; continue; }
+            if c == '"' { in_string = !in_string; continue; }
+            if !in_string && c == ',' { return Some(i); }
+        }
+        None
+    }
+
+    /// Split comma-separated args respecting parens and brackets
+    fn split_args<'a>(&self, s: &'a str) -> Vec<&'a str> {
+        let mut result = Vec::new();
+        let mut depth = 0;
+        let mut start = 0;
+        for (i, c) in s.chars().enumerate() {
+            match c {
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => depth -= 1,
+                ',' if depth == 0 => {
+                    result.push(&s[start..i]);
+                    start = i + 1;
+                }
+                _ => {}
+            }
+        }
+        if start < s.len() {
+            result.push(&s[start..]);
+        }
+        result
+    }
+
+    // ── Statements / Blocks ───────────────────────────────────────────────
+
+    /// Convert a block to an inline string (for simple if/else expressions)
+    fn block_to_inline(&self, block: &syn::Block) -> String {
+        if block.stmts.len() == 1 {
+            match &block.stmts[0] {
+                syn::Stmt::Expr(e, _) => return self.expr_to_string(e),
+                _ => {}
+            }
+        }
+        // Multi-statement: just show the last expression
+        if let Some(last) = block.stmts.last() {
+            if let syn::Stmt::Expr(e, None) = last {
+                return self.expr_to_string(e);
+            }
+        }
+        "...".to_string()
+    }
+
+    fn transpile_block_stmts(&mut self, block: &syn::Block) {
+        for stmt in &block.stmts {
+            self.transpile_stmt(stmt);
+        }
+    }
+
+    fn transpile_block_body(&mut self, block: &syn::Block) {
+        let len = block.stmts.len();
+        for (i, stmt) in block.stmts.iter().enumerate() {
+            let is_last = i == len - 1;
+            match stmt {
+                syn::Stmt::Expr(expr, None) if is_last => {
+                    // Last expression without semicolon — the return value
+                    let s = self.expr_to_string(expr);
+                    self.emit_line(&s);
+                }
+                _ => self.transpile_stmt(stmt),
+            }
+        }
+    }
+
+    fn transpile_stmt(&mut self, stmt: &syn::Stmt) {
+        match stmt {
+            syn::Stmt::Local(local) => {
+                let pat = self.pat_to_string(&local.pat);
+                if let Some(init) = &local.init {
+                    let val = self.expr_to_string(&init.expr);
+                    // Check for try (x?) pattern
+                    if matches!(&*init.expr, syn::Expr::Try(_)) {
+                        if let syn::Expr::Try(t) = &*init.expr {
+                            let inner = self.expr_to_string(&t.expr);
+                            self.emit_line(&format!("= {} <- {}", pat, inner));
+                        }
+                    } else {
+                        self.emit_line(&format!("= {} = {}", pat, val));
+                    }
+                } else {
+                    self.emit_line(&format!("= {} = ()", pat));
+                }
+            }
+            syn::Stmt::Item(item) => self.transpile_item(item),
+            syn::Stmt::Expr(expr, _) => {
+                self.transpile_expr_stmt(expr);
+            }
+            syn::Stmt::Macro(m) => {
+                let s = self.transpile_macro_stmt(m);
+                self.emit_line(&s);
+            }
+        }
+    }
+
+    fn transpile_expr_stmt(&mut self, expr: &syn::Expr) {
+        match expr {
+            syn::Expr::If(i) => {
+                let cond = self.expr_to_string(&i.cond);
+                self.emit_line(&format!("if {} {{", cond));
+                self.indent += 1;
+                self.transpile_block_body(&i.then_branch);
+                self.indent -= 1;
+                if let Some((_, else_branch)) = &i.else_branch {
+                    match else_branch.as_ref() {
+                        syn::Expr::Block(b) => {
+                            self.emit_line("} else {");
+                            self.indent += 1;
+                            self.transpile_block_body(&b.block);
+                            self.indent -= 1;
+                        }
+                        syn::Expr::If(_) => {
+                            self.emit(&format!("{}}} else ", self.ind()));
+                            self.transpile_expr_stmt(else_branch);
+                            return;
+                        }
+                        _ => {
+                            self.emit_line("} else {");
+                            self.indent += 1;
+                            let s = self.expr_to_string(else_branch);
+                            self.emit_line(&s);
+                            self.indent -= 1;
+                        }
+                    }
+                }
+                self.emit_line("}");
+            }
+            syn::Expr::Match(m) => {
+                let scrut = self.expr_to_string(&m.expr);
+                self.emit_line(&format!("match {} {{", scrut));
+                self.indent += 1;
+                for arm in &m.arms {
+                    let pat = self.pat_to_string(&arm.pat);
+                    let guard = arm.guard.as_ref()
+                        .map(|(_, g)| format!(" if {}", self.expr_to_string(g)))
+                        .unwrap_or_default();
+
+                    // Check if body is a block
+                    match &*arm.body {
+                        syn::Expr::Block(b) => {
+                            self.emit_line(&format!("| {}{} -> {{", pat, guard));
+                            self.indent += 1;
+                            self.transpile_block_body(&b.block);
+                            self.indent -= 1;
+                            self.emit_line("}");
+                        }
+                        _ => {
+                            let body = self.expr_to_string(&arm.body);
+                            self.emit_line(&format!("| {}{} -> {}", pat, guard, body));
+                        }
+                    }
+                }
+                self.indent -= 1;
+                self.emit_line("}");
+            }
+            syn::Expr::ForLoop(f) => {
+                let pat = self.pat_to_string(&f.pat);
+                let iter = self.expr_to_string(&f.expr);
+                self.emit_line(&format!("for {} in {} {{", pat, iter));
+                self.indent += 1;
+                self.transpile_block_stmts(&f.body);
+                self.indent -= 1;
+                self.emit_line("}");
+            }
+            syn::Expr::While(w) => {
+                let cond = self.expr_to_string(&w.cond);
+                self.emit_line(&format!("-- while {} {{ ... }}", cond));
+                self.emit_line("-- (Futuruna uses recursion instead of while loops)");
+            }
+            syn::Expr::Loop(_) => {
+                self.emit_line("-- loop { ... }");
+                self.emit_line("-- (Futuruna uses recursion instead of loops)");
+            }
+            syn::Expr::Return(r) => {
+                if let Some(val) = &r.expr {
+                    let s = self.expr_to_string(val);
+                    self.emit_line(&s);
+                }
+            }
+            syn::Expr::Assign(a) => {
+                let lhs = self.expr_to_string(&a.left);
+                let rhs = self.expr_to_string(&a.right);
+                self.emit_line(&format!("= {} = {}", lhs, rhs));
+            }
+            syn::Expr::Macro(m) => {
+                let s = self.transpile_macro(m);
+                self.emit_line(&s);
+            }
+            syn::Expr::Unsafe(u) => {
+                self.emit_line("@ rust {");
+                self.emit_line("    -- unsafe block contents");
+                self.emit_line("}");
+            }
+            _ => {
+                let s = self.expr_to_string(expr);
+                if !s.is_empty() && s != "(/* unsupported expr */)" {
+                    self.emit_line(&s);
+                }
+            }
+        }
+    }
+
+    fn transpile_macro_stmt(&self, m: &syn::StmtMacro) -> String {
+        let name = m.mac.path.segments.last()
+            .map(|s| s.ident.to_string())
+            .unwrap_or_default();
+        let tokens = m.mac.tokens.to_string();
+        match name.as_str() {
+            "println" | "eprintln" => self.transpile_println_tokens(&tokens),
+            "vec" => format!("[{}]", tokens),
+            "panic" | "todo" | "unimplemented" => {
+                format!("@ print(\"panic: {}\")", tokens.replace('"', "\\\""))
+            }
+            "assert" => format!("? ({})", tokens),
+            "assert_eq" => {
+                let parts: Vec<&str> = tokens.splitn(2, ',').collect();
+                if parts.len() == 2 {
+                    format!("? ({} == {})", parts[0].trim(), parts[1].trim())
+                } else {
+                    format!("? ({})", tokens)
+                }
+            }
+            _ => format!("-- [macro: {}!({})]", name, tokens),
+        }
     }
 }
