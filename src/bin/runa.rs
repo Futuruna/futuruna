@@ -125,6 +125,7 @@ fn main_inner() {
                 eprintln!("  fmt           Format source file(s)");
                 eprintln!("  fmt --check   Check formatting without modifying");
                 eprintln!("  lsp           Start language server (stdio)");
+                eprintln!("  bench          Run performance benchmarks");
                 eprintln!("  from-rust     Transpile Rust source to Futuruna");
                 eprintln!("  from-rust --verify  Transpile + run both + compare outputs");
                 eprintln!("  test          Run all tests/*.runa (interpreted)");
@@ -198,6 +199,10 @@ fn main_inner() {
             }
             "fmt" => {
                 mode = "fmt";
+                i += 1;
+            }
+            "bench" => {
+                mode = "bench";
                 i += 1;
             }
             "lsp" => {
@@ -278,6 +283,12 @@ fn main_inner() {
     if mode == "fmt" {
         let target = filename.as_deref().unwrap_or(".");
         format_target(target, fmt_check);
+        return;
+    }
+
+    // ── runa bench — performance benchmarks ──
+    if mode == "bench" {
+        run_benchmarks();
         return;
     }
 
@@ -1693,6 +1704,177 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 /// Any difference in output between the two modes = codegen bug.
 /// Run from-rust transpiler tests: compile Rust, transpile to Futuruna, compare outputs.
 /// Interactive side-by-side: show transpiled code, run both, compare outputs.
+/// Run performance benchmarks and report metrics.
+fn run_benchmarks() {
+    use std::time::Instant;
+
+    eprintln!("\x1b[1mruna bench\x1b[0m — Performance Baselines\n");
+
+    // Benchmark programs
+    let programs = [
+        ("examples/weather_demo.runa", "Weather Demo (all 7 runes)"),
+        ("examples/cocktails.runa", "Cocktails (24 Datalog recipes)"),
+        ("examples/lexer.runa", "Self-hosting Lexer (~300 lines)"),
+    ];
+
+    // ── 1. Interpreter benchmarks ──
+    eprintln!("\x1b[1;36m── Interpreter ──\x1b[0m\n");
+    for (path, desc) in &programs {
+        if !std::path::Path::new(path).exists() { continue; }
+        let source = std::fs::read_to_string(path).unwrap();
+        let mut lexer = Lexer::new(&source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &source);
+        let stmts = match parser.parse_program() {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        // Warm up
+        let mut interp = Interpreter::new();
+        interp.suppress_output = true;
+        let mut env = interp.default_env();
+        interp.run_program(&stmts, &mut env);
+
+        // Bench (3 runs, take median)
+        let mut times = Vec::new();
+        for _ in 0..5 {
+            let mut interp = Interpreter::new();
+            interp.suppress_output = true;
+            let mut env = interp.default_env();
+            let start = Instant::now();
+            interp.run_program(&stmts, &mut env);
+            times.push(start.elapsed());
+        }
+        times.sort();
+        let median = times[times.len() / 2];
+        eprintln!("  {:40} {:>8.1}ms", desc, median.as_secs_f64() * 1000.0);
+    }
+
+    // ── 2. Parse + type-check benchmarks ──
+    eprintln!("\n\x1b[1;36m── Parse + Type-check ──\x1b[0m\n");
+    for (path, desc) in &programs {
+        if !std::path::Path::new(path).exists() { continue; }
+        let source = std::fs::read_to_string(path).unwrap();
+
+        let mut times = Vec::new();
+        for _ in 0..10 {
+            let start = Instant::now();
+            let mut lexer = Lexer::new(&source);
+            let tokens = lexer.tokenize();
+            let mut parser = Parser::new(tokens, &source);
+            let _ = parser.parse_program();
+            times.push(start.elapsed());
+        }
+        times.sort();
+        let median = times[times.len() / 2];
+        eprintln!("  {:40} {:>8.3}ms", desc, median.as_secs_f64() * 1000.0);
+    }
+
+    // ── 3. Codegen (emit) benchmarks ──
+    eprintln!("\n\x1b[1;36m── Codegen (emit Rust) ──\x1b[0m\n");
+    for (path, desc) in &programs {
+        if !std::path::Path::new(path).exists() { continue; }
+        let source = std::fs::read_to_string(path).unwrap();
+        let mut lexer = Lexer::new(&source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &source);
+        let stmts = match parser.parse_program() {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+
+        let mut times = Vec::new();
+        for _ in 0..5 {
+            let start = Instant::now();
+            let mut cg = RustCodegen::new();
+            let _ = cg.emit_program(&stmts);
+            times.push(start.elapsed());
+        }
+        times.sort();
+        let median = times[times.len() / 2];
+        let source_lines = source.lines().count();
+        // Also measure output size
+        let mut cg = RustCodegen::new();
+        let output = cg.emit_program(&stmts);
+        let rust_lines = output.lines().count();
+        eprintln!("  {:40} {:>8.1}ms  ({} → {} lines)",
+            desc, median.as_secs_f64() * 1000.0, source_lines, rust_lines);
+    }
+
+    // ── 4. Test suite benchmark ──
+    eprintln!("\n\x1b[1;36m── Test Suite ──\x1b[0m\n");
+    {
+        let start = Instant::now();
+        let test_dir = "tests";
+        let test_path = std::path::Path::new(test_dir);
+        let mut count = 0;
+        if test_path.is_dir() {
+            for entry in std::fs::read_dir(test_path).unwrap() {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if path.extension().map_or(false, |e| e == "runa") {
+                    let source = std::fs::read_to_string(&path).unwrap_or_default();
+                    if source.contains("-- expect-error:") { continue; }
+                    // Skip noisy tests (DB, HTTP, invariants, stores)
+                    if source.contains("db_open") || source.contains("http_")
+                        || source.contains("@ store") || source.contains("? ")
+                        || source.contains("assert Item") { continue; }
+                    let mut lexer = Lexer::new(&source);
+                    let tokens = lexer.tokenize();
+                    let mut parser = Parser::new(tokens, &source);
+                    if let Ok(stmts) = parser.parse_program() {
+                        let mut interp = Interpreter::new();
+                        interp.suppress_output = true;
+                        let mut env = interp.default_env();
+                        interp.run_program(&stmts, &mut env);
+                        count += 1;
+                    }
+                }
+            }
+        }
+        let elapsed = start.elapsed();
+        eprintln!("  {:40} {:>8.0}ms  ({} files)",
+            "runa test (interpreter, all)", elapsed.as_secs_f64() * 1000.0, count);
+    }
+
+    // ── 5. From-rust transpiler benchmark ──
+    eprintln!("\n\x1b[1;36m── From-rust Transpiler ──\x1b[0m\n");
+    {
+        let dir = "examples/from-rust";
+        let p = std::path::Path::new(dir);
+        if p.is_dir() {
+            let mut total_lines = 0;
+            let mut total_time = std::time::Duration::ZERO;
+            let mut count = 0;
+            for entry in std::fs::read_dir(p).unwrap() {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if path.extension().map_or(false, |e| e == "rs") {
+                    let source = std::fs::read_to_string(&path).unwrap_or_default();
+                    total_lines += source.lines().count();
+                    let start = Instant::now();
+                    let _ = rust_to_runa(&source);
+                    total_time += start.elapsed();
+                    count += 1;
+                }
+            }
+            eprintln!("  {:40} {:>8.1}ms  ({} files, {} lines)",
+                "Transpile all .rs files", total_time.as_secs_f64() * 1000.0, count, total_lines);
+        }
+    }
+
+    // ── 6. Compiler binary size ──
+    eprintln!("\n\x1b[1;36m── Binary Size ──\x1b[0m\n");
+    if let Ok(meta) = std::fs::metadata("target/release/runa") {
+        let size_mb = meta.len() as f64 / (1024.0 * 1024.0);
+        eprintln!("  {:40} {:>8.1} MB", "runa compiler binary", size_mb);
+    }
+
+    // ── Summary ──
+    eprintln!("\n\x1b[2m(Run `runa bench` after changes to detect regressions)\x1b[0m");
+}
+
 fn run_from_rust_verify(path: &str) {
     use std::process::Command;
 
