@@ -55,7 +55,9 @@ jobs:
 
       - name: Codegen validation
         run: ./target/release/runa test --check-codegen
-        continue-on-error: true  # 15 known failures, tracking progress
+
+      - name: Roundtrip validation
+        run: ./target/release/runa test --roundtrip
 
       - name: Format check
         run: ./target/release/runa fmt --check tests/

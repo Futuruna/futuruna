@@ -6022,9 +6022,29 @@ impl Interpreter {
                     if let Some(result) = self.try_rule_call(fn_name, args, env) {
                         return result;
                     }
-                    // If rules exist for this name but none matched → false
+                    // If rules exist for this name but none matched:
+                    // Value-returning rules → Str("") as default, boolean rules → false
                     if self.rules.iter().any(|(n, _)| n == fn_name) {
-                        return Value::Bool(false);
+                        let is_value_returning = self.rules.iter().any(|(n, r)| {
+                            if n != fn_name { return false; }
+                            match r {
+                                Rule::Default { .. } | Rule::Exception { .. } => true,
+                                Rule::Clause { body: Some(body_expr), .. } => {
+                                    // Body is a non-boolean literal → value-returning fact
+                                    matches!(&body_expr.kind,
+                                        ExprKind::Lit(Literal::Str(_))
+                                        | ExprKind::Lit(Literal::Int(_))
+                                        | ExprKind::Lit(Literal::Float(_))
+                                    )
+                                }
+                                _ => false,
+                            }
+                        });
+                        return if is_value_returning {
+                            Value::Str(String::new())
+                        } else {
+                            Value::Bool(false)
+                        };
                     }
                 }
                 let f = self.eval(func, env);

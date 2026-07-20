@@ -2447,6 +2447,21 @@ fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTre
         }
         ExprKind::UnOp(_, inner) => collect_true_free_vars(inner, free, bound),
         ExprKind::App(func, args) => {
+            // findall/search: first arg is a query variable, treat as bound
+            if let ExprKind::Var(fn_name) = &func.kind {
+                if (fn_name == "findall" || fn_name == "search") && args.len() >= 2 {
+                    // First arg is query variable — don't collect as free
+                    let mut inner_bound = bound.clone();
+                    if let ExprKind::Var(qvar) = &args[0].kind {
+                        inner_bound.insert(qvar.clone());
+                    }
+                    // Collect free vars from remaining args with query var bound
+                    for a in &args[1..] {
+                        collect_true_free_vars(a, free, &inner_bound);
+                    }
+                    return;
+                }
+            }
             collect_true_free_vars(func, free, bound);
             for a in args {
                 collect_true_free_vars(a, free, bound);
@@ -6405,7 +6420,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("count",        BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
         ("skip",         BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().skip(({1}).max(0) as usize).collect::<Vec<_>>()" }),
         ("window",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let src: Vec<_> = {0}.clone().into_iter().collect(); let __n = ({1} as usize).max(1); src.windows(__n).map(|w| w.to_vec()).collect::<Vec<Vec<_>>>() }" }),
-        ("sum",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().reduce(|a, b| a + b).unwrap_or_default()" }),
+        ("sum",          BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().reduce(|a, b| a + b).unwrap_or_default()" }),
         ("last",         BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().last().unwrap_or_default()" }),
         ("combine_latest", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let a: Vec<_> = {0}.clone().into_iter().collect(); let b: Vec<_> = {1}.clone().into_iter().collect(); if a.is_empty() || b.is_empty() {{ vec![] }} else {{ let n = a.len().max(b.len()); (0..n).map(|i| (a.get(i).or(a.last()).cloned().unwrap(), b.get(i).or(b.last()).cloned().unwrap())).collect::<Vec<_>>() }} }" }),
 
@@ -6642,6 +6657,9 @@ struct RustCodegen {
     async_stream_counter: usize,
     /// Source file stem (e.g. "weather" from "weather.runa") — used for store DB naming
     source_name: Option<String>,
+    /// Inferred map variable value types: var_name -> "String" or "i64" etc.
+    /// Populated by pre-scanning for map_insert calls.
+    map_var_value_types: BTreeMap<String, String>,
 }
 
 /// Per-function ownership analysis results.
@@ -10019,6 +10037,7 @@ impl RustCodegen {
             builtin_registry: rust_builtin_registry(),
             async_stream_counter: 0,
             source_name: None,
+            map_var_value_types: BTreeMap::new(),
         }
     }
 
@@ -11279,8 +11298,31 @@ impl RustCodegen {
         }
     }
 
+    /// Pre-scan statements to detect map variable value types from map_insert calls.
+    fn prescan_map_types(&mut self, stmts: &[Stmt]) {
+        for stmt in stmts {
+            // Look for: = var = map_insert(var, key, value)
+            if let Stmt::Bind(Pat::Var(var_name), _, value) = stmt {
+                if let ExprKind::App(func, args) = &value.kind {
+                    if let ExprKind::Var(fn_name) = &func.as_ref().kind {
+                        if fn_name == "map_insert" && args.len() == 3 {
+                            // Determine value type from the 3rd arg
+                            let val_type = if self.expr_is_string(&args[2]) {
+                                "String"
+                            } else {
+                                "i64"
+                            };
+                            self.map_var_value_types.insert(var_name.clone(), val_type.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
         let all_stmts = self.scan_declarations(input_stmts);
+        self.prescan_map_types(&all_stmts);
         let stmts = &all_stmts;
         let mut out = String::new();
 
@@ -12714,7 +12756,7 @@ impl RustCodegen {
                         .map(|t| format!(" -> {}", self.emit_type(t)))
                         .unwrap_or_default();
                     out.push_str(&format!(
-                        "    fn {}(&mut self, {}){};",
+                        "    fn {}(&self, {}){};",
                         op_name,
                         rust_params.join(", "),
                         ret
@@ -14399,7 +14441,7 @@ impl RustCodegen {
                     }
                 }
 
-                // Effect handler params: `with Console` adds `__eff_Console: &mut impl Console`
+                // Effect handler params: `with Console` adds `__eff_Console: &impl Console`
                 // Merge explicit effects (from AST `with` clause) with inferred effects
                 let mut merged_effects = effects.clone();
                 if let Some(inferred) = self.types.fn_effects.get(name) {
@@ -14411,7 +14453,7 @@ impl RustCodegen {
                 }
                 let mut all_params = params_str.clone();
                 for eff in &merged_effects {
-                    all_params.push(format!("__eff_{}: &mut impl {}", eff, eff));
+                    all_params.push(format!("__eff_{}: &impl {}", eff, eff));
                 }
 
                 let prev_effects = std::mem::take(&mut self.current_effects);
@@ -14771,9 +14813,13 @@ impl RustCodegen {
                         ExprKind::App(func, _) => {
                             if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                                 match fn_name.as_str() {
-                                    // Don't annotate map_new/set_new here — Rust infers
-                                    // from the first insert. Only fails for empty maps
-                                    // that are never inserted into (rare edge case).
+                                    "map_new" => {
+                                        // Use pre-scanned value type if available
+                                        let var_name = if let Pat::Var(n) = pat { n.as_str() } else { "" };
+                                        let val_type = self.map_var_value_types.get(var_name)
+                                            .cloned().unwrap_or_else(|| "i64".to_string());
+                                        format!(": HashMap<String, {}>", val_type)
+                                    }
                                     _ => String::new(),
                                 }
                             } else { String::new() }
@@ -16387,6 +16433,36 @@ impl RustCodegen {
         }
     }
 
+    /// Check if a lambda param is used as a string in the body (not just that body returns String).
+    /// Returns true when the param appears in a string concat ("+"), not when it's just passed to
+    /// show() or another function that converts arbitrary types to String.
+    fn param_used_as_string(&self, body: &Expr, param_name: &str) -> bool {
+        match &body.kind {
+            ExprKind::BinOp(op, lhs, rhs) if op == "+" => {
+                // If this is a string concat and the param appears directly as an operand
+                let lhs_is_param = matches!(&lhs.kind, ExprKind::Var(n) if n == param_name);
+                let rhs_is_param = matches!(&rhs.kind, ExprKind::Var(n) if n == param_name);
+                if (lhs_is_param || rhs_is_param) && self.expr_is_string(body) {
+                    return true;
+                }
+                self.param_used_as_string(lhs, param_name)
+                    || self.param_used_as_string(rhs, param_name)
+            }
+            ExprKind::Block(stmts) => stmts.iter().any(|s| match s {
+                Stmt::Expr(e) | Stmt::Bind(_, _, e) | Stmt::MonadicBind(_, _, e) => {
+                    self.param_used_as_string(e, param_name)
+                }
+                _ => false,
+            }),
+            ExprKind::If(c, t, e) => {
+                self.param_used_as_string(c, param_name)
+                    || self.param_used_as_string(t, param_name)
+                    || self.param_used_as_string(e, param_name)
+            }
+            _ => false,
+        }
+    }
+
     /// Check if an expression involves string values (string literal or concat chain)
     fn expr_is_string(&self, expr: &Expr) -> bool {
         match &expr.kind {
@@ -17033,6 +17109,9 @@ impl RustCodegen {
                                                 | "Err"
                                                 | "Nil"
                                                 | "Cons"
+                                                | "not"
+                                                | "findall"
+                                                | "search"
                                         )
                                 })
                                 .collect();
@@ -17276,8 +17355,8 @@ impl RustCodegen {
                         for ce in &callee_effects {
                             if self.current_effects.contains(ce) {
                                 if self.handle_scope_effects.contains(ce) {
-                                    // Concrete handler struct from | handle block — needs &mut
-                                    extra_args.push(format!("&mut __eff_{}", ce));
+                                    // Concrete handler struct from | handle block — pass by &ref
+                                    extra_args.push(format!("&__eff_{}", ce));
                                 } else {
                                     // Already a &mut impl E param — reborrow automatically
                                     extra_args.push(format!("__eff_{}", ce));
@@ -17321,15 +17400,30 @@ impl RustCodegen {
 
                 let f = self.emit_expr(func);
                 let call = format!("{}({})", f, args_str.join(", "));
-                // Value-returning Prolog functions return Option<T> — unwrap at call site
+                // Value-returning Prolog functions return Option<T> — default on missing fact
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     if self.types.prolog_value_fns.contains_key(name.as_str()) {
-                        return format!("{}.unwrap()", call);
+                        return format!("{}.unwrap_or_default()", call);
                     }
                 }
                 call
             }
             ExprKind::Lambda(params, body) => {
+                // Temporarily remove lambda param names from string/float type sets
+                // to prevent scope leakage (e.g., outer `= a = "str"` polluting
+                // lambda param `a` in `|a, x| a + x`)
+                let saved_string: Vec<String> = params.iter()
+                    .filter(|p| self.string_typed_vars.contains(&p.name))
+                    .map(|p| p.name.clone())
+                    .collect();
+                let saved_float: Vec<String> = params.iter()
+                    .filter(|p| self.float_typed_vars.contains(&p.name))
+                    .map(|p| p.name.clone())
+                    .collect();
+                for p in params {
+                    self.string_typed_vars.remove(&p.name);
+                    self.float_typed_vars.remove(&p.name);
+                }
                 let ps: Vec<String> = params
                     .iter()
                     .map(|p| {
@@ -17372,8 +17466,10 @@ impl RustCodegen {
                             } else {
                                 format!("{}: (i64, i64)", sanitize_name(&p.name))
                             }
-                        } else if self.expr_is_string(body) {
-                            // Infer String for untyped lambda params in string concat context
+                        } else if self.expr_is_string(body)
+                            && self.param_used_as_string(body, &p.name) {
+                            // Infer String only when the param itself is used in string context
+                            // (not just when the body returns String, e.g. show(x) converts i64→String)
                             format!("{}: String", sanitize_name(&p.name))
                         } else if self.expr_is_float(body) {
                             // Infer f64 for untyped lambda params when float literals are present
@@ -17386,6 +17482,8 @@ impl RustCodegen {
                         }
                     })
                     .collect();
+                // NOTE: Don't restore string/float type sets yet — keep lambda params
+                // out during body emission too, to prevent scope leakage.
                 // Lambda params are locally scoped — prevent escape analysis from cloning them.
                 // Save outer counts, mark lambda params as single-use, emit body, restore.
                 let lambda_param_names: Vec<String> =
@@ -17414,6 +17512,13 @@ impl RustCodegen {
                 let body_str = self.emit_expr(body);
                 self.in_iter_closure = prev_in_iter;
                 self.closure_params = prev_closure_params;
+                // Restore string/float type sets that were saved before lambda emission
+                for n in &saved_string {
+                    self.string_typed_vars.insert(n.clone());
+                }
+                for n in &saved_float {
+                    self.float_typed_vars.insert(n.clone());
+                }
                 // Restore outer escape analysis state
                 for (name, uses, consuming, was_copy) in saved {
                     if let Some(u) = uses {
@@ -17437,6 +17542,11 @@ impl RustCodegen {
                 // Check LSP_BUILTINS arity table for special functions (show, print, etc.)
                 let lsp_builtin_names: BTreeSet<&str> =
                     LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
+                // Collect all effect operation names (methods on handlers, not variables)
+                let all_effect_ops: BTreeSet<&str> = self.types.effect_ops
+                    .values()
+                    .flat_map(|ops| ops.iter().map(|s| s.as_str()))
+                    .collect();
                 let captured: Vec<String> = free_in_body
                     .into_iter()
                     .filter(|v| {
@@ -17445,6 +17555,7 @@ impl RustCodegen {
                             && !self.types.variant_parent.contains_key(v.as_str())
                             && !self.copy_vars.contains(v.as_str())
                             && !lsp_builtin_names.contains(v.as_str())
+                            && !all_effect_ops.contains(v.as_str())
                             && !matches!(
                                 v.as_str(),
                                 "true"
@@ -17457,6 +17568,9 @@ impl RustCodegen {
                                     | "Err"
                                     | "Nil"
                                     | "Cons"
+                                    | "not"
+                                    | "findall"
+                                    | "search"
                             )
                     })
                     .collect();
@@ -17982,9 +18096,9 @@ impl RustCodegen {
                 let mut out = String::from("{\n");
                 let handler_name = format!("__Eff{}Handler", effect);
                 if typed_captures.is_empty() {
-                    out.push_str(&format!("{}struct {};\n", self.ind(), handler_name));
+                    out.push_str(&format!("{}#[derive(Clone)]\n{}struct {};\n", self.ind(), self.ind(), handler_name));
                 } else {
-                    out.push_str(&format!("{}struct {} {{\n", self.ind(), handler_name));
+                    out.push_str(&format!("{}#[derive(Clone)]\n{}struct {} {{\n", self.ind(), self.ind(), handler_name));
                     for (name, ty) in &typed_captures {
                         out.push_str(&format!(
                             "{}    {}: {},\n",
@@ -18026,7 +18140,7 @@ impl RustCodegen {
                         .map(|t| format!(" -> {}", self.emit_type(t)))
                         .unwrap_or_default();
                     out.push_str(&format!(
-                        "{}    fn {}(&mut self, {}){} {{\n",
+                        "{}    fn {}(&self, {}){} {{\n",
                         self.ind(),
                         h.op_name,
                         params_str.join(", "),
@@ -18046,7 +18160,7 @@ impl RustCodegen {
                 let eff_var = format!("__eff_{}", effect);
                 if typed_captures.is_empty() {
                     out.push_str(&format!(
-                        "{}let mut {} = {};\n",
+                        "{}let {} = {};\n",
                         self.ind(),
                         eff_var,
                         handler_name
@@ -18064,14 +18178,14 @@ impl RustCodegen {
                         })
                         .collect();
                     out.push_str(&format!(
-                        "{}let mut {} = {} {{ {} }};\n",
+                        "{}let {} = {} {{ {} }};\n",
                         self.ind(),
                         eff_var,
                         handler_name,
                         init_fields.join(", ")
                     ));
                 }
-                // Emit body with the handler in scope (concrete struct, needs &mut)
+                // Emit body with the handler in scope (concrete struct, passed by &ref)
                 self.current_effects.push(effect.clone());
                 self.handle_scope_effects.insert(effect.clone());
                 out.push_str(&format!("{}{}\n", self.ind(), self.emit_expr(body)));
@@ -18153,19 +18267,111 @@ impl RustCodegen {
                     }
                     if fmt_args.is_empty() {
                         return format!("{}println!({:?});\n", prefix, fmt_str);
-                    } else {
-                        return format!(
-                            "{}println!({:?}, {});\n",
-                            prefix,
-                            fmt_str,
-                            fmt_args.join(", ")
-                        );
                     }
+                    // Check if any format arg is a consuming function call while others
+                    // borrow the same variable via field access. If so, hoist ALL function
+                    // calls to temp lets (borrow-only first, then consuming with .clone()),
+                    // to avoid move-after-borrow in println!.
+                    let has_field_access = fmt_args.iter().any(|a| a.contains('.') && !a.contains('('));
+                    let has_consuming_call = fmt_args.iter().any(|a| {
+                        a.contains('(') && !a.starts_with('&') && !a.ends_with(".clone()")
+                            && !a.starts_with("format!")
+                    });
+                    if has_field_access && has_consuming_call && fmt_args.len() > 1 {
+                        let mut hoisted = String::new();
+                        let mut new_args = Vec::new();
+                        let mut tmp_counter = 0;
+                        // Classify args: borrow calls first, then consuming calls
+                        let mut borrow_calls = Vec::new();
+                        let mut consuming_calls = Vec::new();
+                        let mut plain_args = Vec::new();
+                        for (i, a) in fmt_args.iter().enumerate() {
+                            if a.contains('(') && (a.starts_with('&') || a.starts_with("describe(") || a.starts_with("format!")) {
+                                borrow_calls.push((i, a.clone()));
+                            } else if a.contains('(') && !a.ends_with(".clone()") && !a.starts_with("format!") {
+                                consuming_calls.push((i, a.clone()));
+                            } else {
+                                plain_args.push((i, a.clone()));
+                            }
+                        }
+                        // Hoist borrow calls first (they only borrow, safe before moves)
+                        let mut tmp_names: Vec<(usize, String)> = Vec::new();
+                        for (i, a) in &borrow_calls {
+                            let tmp_name = format!("__print_tmp_{}", tmp_counter);
+                            tmp_counter += 1;
+                            hoisted.push_str(&format!("{}let {} = {};\n", prefix, tmp_name, a));
+                            tmp_names.push((*i, tmp_name));
+                        }
+                        // Then hoist consuming calls with .clone() on their non-Copy args
+                        for (i, a) in &consuming_calls {
+                            let tmp_name = format!("__print_tmp_{}", tmp_counter);
+                            tmp_counter += 1;
+                            // Clone the consumed var if it's also used in other args
+                            let cloned_a = self.clone_consumed_args_in_call(a);
+                            hoisted.push_str(&format!("{}let {} = {};\n", prefix, tmp_name, cloned_a));
+                            tmp_names.push((*i, tmp_name));
+                        }
+                        for (i, a) in &plain_args {
+                            tmp_names.push((*i, a.clone()));
+                        }
+                        // Sort by original position to maintain correct println! order
+                        tmp_names.sort_by_key(|(i, _)| *i);
+                        new_args = tmp_names.into_iter().map(|(_, n)| n).collect();
+                        if !hoisted.is_empty() {
+                            return format!(
+                                "{}{}println!({:?}, {});\n",
+                                hoisted,
+                                prefix,
+                                fmt_str,
+                                new_args.join(", ")
+                            );
+                        }
+                    }
+                    return format!(
+                        "{}println!({:?}, {});\n",
+                        prefix,
+                        fmt_str,
+                        fmt_args.join(", ")
+                    );
                 }
             }
         }
         let val = self.emit_expr(arg);
         format!("{}println!(\"{{}}\", {});\n", prefix, val)
+    }
+
+    /// For a consuming function call like "advisory(w)", add .clone() to args
+    /// that are simple variable references (not already cloned, not Copy).
+    fn clone_consumed_args_in_call(&self, call_str: &str) -> String {
+        // Simple heuristic: find `func(arg)` pattern and clone the arg
+        if let Some(paren_start) = call_str.find('(') {
+            if let Some(paren_end) = call_str.rfind(')') {
+                let func = &call_str[..paren_start];
+                let args_str = &call_str[paren_start + 1..paren_end];
+                // Split args by comma and clone non-Copy simple vars
+                let new_args: Vec<String> = args_str
+                    .split(", ")
+                    .map(|a| {
+                        let a = a.trim();
+                        // If it's a simple identifier (no dots, no parens, not &ref)
+                        if !a.is_empty()
+                            && !a.contains('.')
+                            && !a.contains('(')
+                            && !a.starts_with('&')
+                            && !a.starts_with('"')
+                            && !a.parse::<i64>().is_ok()
+                            && !self.copy_vars.contains(a)
+                        {
+                            format!("{}.clone()", a)
+                        } else {
+                            a.to_string()
+                        }
+                    })
+                    .collect();
+                return format!("{}({})", func, new_args.join(", "));
+            }
+        }
+        call_str.to_string()
     }
 
     /// Emit the body of an effect handler — replace resume(val) with just val
@@ -18309,6 +18515,9 @@ impl RustCodegen {
             "assert",
             "parse_int",
             "to_float",
+            "not",
+            "findall",
+            "search",
         ]
         .iter()
         .copied()
@@ -19231,6 +19440,24 @@ impl RustCodegen {
                         .unwrap_or_default();
                     out.push_str(&format!("{}{}{} => {{\n", self.ind(), pat_str, guard_str));
                     self.indent += 1;
+                    // Deref boxed bindings in match arms (Rc/Box recursive fields)
+                    if !self.in_self_method {
+                        let boxed_binds = self.collect_boxed_bindings(&arm.pat);
+                        let is_rc = self.pattern_is_rc_type(&arm.pat);
+                        for var in &boxed_binds {
+                            if is_rc {
+                                out.push_str(&format!(
+                                    "{}let {} = (*{}).clone();\n",
+                                    self.ind(), var, var
+                                ));
+                            } else {
+                                out.push_str(&format!(
+                                    "{}let {} = *{};\n",
+                                    self.ind(), var, var
+                                ));
+                            }
+                        }
+                    }
                     out.push_str(&self.emit_tce_expr(fn_name, params, borrow_flags, &arm.body));
                     self.indent -= 1;
                     out.push_str(&format!("{}}}\n", self.ind()));
