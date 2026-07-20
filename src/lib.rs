@@ -8996,14 +8996,21 @@ impl Interpreter {
 
     /// Convert a literal to a Value for comparison during fact matching
     fn literal_to_value(&self, lit: &Literal) -> Value {
-        match lit {
-            Literal::Int(n) => Value::Int(*n),
-            Literal::Float(f) => Value::Float(*f),
-            Literal::Str(s) => Value::Str(s.clone()),
-            Literal::Bool(b) => Value::Bool(*b),
-            Literal::Char(c) => Value::Char(*c),
-        }
+        literal_to_value_static(lit)
     }
+}
+
+fn literal_to_value_static(lit: &Literal) -> Value {
+    match lit {
+        Literal::Int(n) => Value::Int(*n),
+        Literal::Float(f) => Value::Float(*f),
+        Literal::Str(s) => Value::Str(s.clone()),
+        Literal::Bool(b) => Value::Bool(*b),
+        Literal::Char(c) => Value::Char(*c),
+    }
+}
+
+impl Interpreter {
 
     /// Extract variable name from an expression (for non-trivial head patterns)
     fn extract_var_name(&self, expr: &Expr) -> Option<String> {
@@ -9189,118 +9196,373 @@ impl Interpreter {
         if let ExprKind::App(func, goal_args) = &goal.kind {
             let fn_name = self.expr_name(func);
 
-            // Collect all rules for this function
-            let rules: Vec<Rule> = self
-                .rules
-                .iter()
-                .filter(|(name, _)| name == &fn_name)
-                .map(|(_, rule)| rule.clone())
+            // Strategy: collect all possible values from ground facts across
+            // all rules in the database. Then for each candidate, check if
+            // the goal succeeds with that binding.
+            let mut candidates = std::collections::BTreeSet::new();
+            self.collect_all_values(&mut candidates);
+
+            // Identify which goal arg positions are wildcards (_)
+            let wildcard_positions: Vec<usize> = goal_args.iter().enumerate()
+                .filter(|(_, a)| matches!(&a.kind, ExprKind::Var(n) if n == "_"))
+                .map(|(i, _)| i)
                 .collect();
 
             let mut results = Vec::new();
-
-            // Evaluate bound arguments (those that aren't the template var)
-            let bound_vals: Vec<Option<Value>> = goal_args
-                .iter()
-                .map(|arg| {
-                    if let ExprKind::Var(name) = &arg.kind {
-                        if name == &template_name || name == "_" {
-                            None
+            for candidate_str in &candidates {
+                // Build args with the candidate substituted for the template var
+                // and wildcards substituted with each possible value
+                let make_test_args = |wildcard_val: &str| -> Vec<Expr> {
+                    goal_args.iter().map(|a| {
+                        if let ExprKind::Var(name) = &a.kind {
+                            if name == &template_name {
+                                ExprKind::Lit(Literal::Str(candidate_str.clone())).into()
+                            } else if name == "_" {
+                                ExprKind::Lit(Literal::Str(wildcard_val.to_string())).into()
+                            } else {
+                                a.clone()
+                            }
                         } else {
-                            env.get(name).cloned().or_else(|| Some(self.eval(arg, env)))
+                            a.clone()
                         }
+                    }).collect()
+                };
+
+                // If there are wildcards, check ground facts directly (fast path)
+                let found = if !wildcard_positions.is_empty() {
+                    // For wildcard queries like needs(c, _), scan ground facts
+                    // Pre-evaluate bound args
+                    let bound_arg_vals: Vec<(usize, Value)> = goal_args.iter().enumerate()
+                        .filter(|(_, a)| {
+                            !matches!(&a.kind, ExprKind::Var(n) if n == &template_name || n == "_")
+                        })
+                        .map(|(i, a)| (i, self.eval(a, env)))
+                        .collect();
+                    let rules_snapshot: Vec<(String, Rule)> = self.rules.clone();
+                    rules_snapshot.iter().any(|(rn, rule)| {
+                        if rn != &fn_name { return false; }
+                        if let Rule::Clause { head, body: None } = rule {
+                            if let ExprKind::App(_, params) = &head.kind {
+                                if params.len() != goal_args.len() { return false; }
+                                // Template position must match candidate
+                                for (i, (hp, ga)) in params.iter().zip(goal_args.iter()).enumerate() {
+                                    if let ExprKind::Var(n) = &ga.kind {
+                                        if n == &template_name {
+                                            if let ExprKind::Lit(Literal::Str(s)) = &hp.kind {
+                                                if s != candidate_str { return false; }
+                                            } else if let ExprKind::Lit(Literal::Int(n)) = &hp.kind {
+                                                if n.to_string() != *candidate_str { return false; }
+                                            } else { return false; }
+                                        }
+                                        // Wildcard _ matches anything — skip
+                                    }
+                                }
+                                // Check bound positions
+                                for (idx, val) in &bound_arg_vals {
+                                    if let ExprKind::Lit(lit) = &params[*idx].kind {
+                                        let hv = literal_to_value_static(lit);
+                                        if !values_equal(&hv, val) { return false; }
+                                    }
+                                }
+                                return true;
+                            }
+                        }
+                        false
+                    })
+                } else {
+                    let test_args = make_test_args("");
+                    if let Some(result) = self.try_rule_call(&fn_name, &test_args, env) {
+                        !matches!(result, Value::Bool(false))
+                    } else { false }
+                };
+
+                if found {
+                    let val = if let Ok(n) = candidate_str.parse::<i64>() {
+                        Value::Int(n)
+                    } else if let Ok(f) = candidate_str.parse::<f64>() {
+                        Value::Float(f)
                     } else {
-                        Some(self.eval(arg, env))
+                        Value::Str(candidate_str.clone())
+                    };
+                    let vs = format!("{}", val);
+                    if !results.iter().any(|r: &Value| format!("{}", r) == vs) {
+                        results.push(val);
                     }
-                })
-                .collect();
+                }
+            }
+            Value::List(results)
+        } else {
+            Value::List(vec![])
+        }
+    }
 
-            // Try each rule/fact
-            for rule in &rules {
-                if let Rule::Clause { head, body } = rule {
-                    if let ExprKind::App(_, head_params) = &head.kind {
-                        if head_params.len() != goal_args.len() {
-                            continue;
-                        }
-
-                        // Match bound args against fact head, collect template bindings
-                        let mut matches_ok = true;
-                        let mut candidate_val: Option<Value> = None;
-
-                        for (i, (head_param, bound_val)) in
-                            head_params.iter().zip(bound_vals.iter()).enumerate()
-                        {
-                            match (&head_param.kind, bound_val) {
-                                (ExprKind::Lit(lit), Some(val)) => {
-                                    let expected = self.literal_to_value(lit);
-                                    if !values_equal(&expected, val) {
-                                        matches_ok = false;
-                                        break;
-                                    }
-                                }
-                                (ExprKind::Lit(lit), None) => {
-                                    // This position is the template var or wildcard
-                                    if let ExprKind::Var(name) = &goal_args[i].kind {
-                                        if name == &template_name {
-                                            candidate_val = Some(self.literal_to_value(lit));
-                                        }
-                                    }
-                                }
-                                (ExprKind::Var(hv), Some(val)) => {
-                                    // Head has a variable, goal has a bound value
-                                    let _ = hv; // bound check is implicit
-                                }
-                                (ExprKind::Var(_hv), None) => {
-                                    // Both unbound — for bare facts, this means the head var
-                                    // provides the template value
-                                    // (can't resolve further without more context)
-                                }
+    /// Collect all string values that appear as ground terms in any rule/fact.
+    fn collect_all_values(&self, values: &mut std::collections::BTreeSet<String>) {
+        for (_, rule) in &self.rules {
+            match rule {
+                Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => {
+                    if let ExprKind::App(_, params) = &head.kind {
+                        for p in params {
+                            match &p.kind {
+                                ExprKind::Lit(Literal::Str(s)) => { values.insert(s.clone()); }
+                                ExprKind::Lit(Literal::Int(n)) => { values.insert(n.to_string()); }
                                 _ => {}
-                            }
-                        }
-
-                        if !matches_ok {
-                            continue;
-                        }
-
-                        // Check body if present
-                        let body_ok = match body {
-                            None => true,
-                            Some(body_expr) => {
-                                let mut body_env = env.clone();
-                                // Bind head vars from matched positions
-                                for (i, hp) in head_params.iter().enumerate() {
-                                    if let ExprKind::Var(hname) = &hp.kind {
-                                        if let Some(val) = &bound_vals[i] {
-                                            body_env.set(hname.clone(), val.clone());
-                                        } else if let Some(ref cv) = candidate_val {
-                                            body_env.set(hname.clone(), cv.clone());
-                                        }
-                                    }
-                                }
-                                match &body_expr.kind {
-                                    ExprKind::Conjunction(goals) => {
-                                        self.eval_conjunction(goals, &body_env)
-                                    }
-                                    _ => {
-                                        matches!(self.eval(body_expr, &body_env), Value::Bool(true))
-                                    }
-                                }
-                            }
-                        };
-
-                        if body_ok {
-                            if let Some(val) = candidate_val {
-                                results.push(val);
                             }
                         }
                     }
                 }
+                _ => {}
+            }
+        }
+    }
+
+    /// Enumerate all solutions for a findall query by trying each rule.
+    /// For ground facts: direct match. For rules with bodies: recursively find values.
+    fn findall_enumerate(
+        &mut self,
+        fn_name: &str,
+        bound_vals: &[Option<Value>],
+        template_pos: Option<usize>,
+        env: &Env,
+        results: &mut Vec<Value>,
+        depth: usize,
+    ) {
+        if depth > 50 { return; } // prevent infinite recursion
+
+        let rules: Vec<Rule> = self.rules.iter()
+            .filter(|(name, _)| name == fn_name)
+            .map(|(_, rule)| rule.clone())
+            .collect();
+
+        for rule in &rules {
+            match rule {
+                Rule::Clause { head, body } => {
+                    if let ExprKind::App(_, head_params) = &head.kind {
+                        if head_params.len() != bound_vals.len() { continue; }
+
+                        // For ground facts (no body), directly extract the template value
+                        if body.is_none() {
+                            let mut ok = true;
+                            let mut candidate = None;
+                            for (i, (hp, bv)) in head_params.iter().zip(bound_vals.iter()).enumerate() {
+                                match (&hp.kind, bv) {
+                                    (ExprKind::Lit(lit), Some(val)) => {
+                                        if !values_equal(&self.literal_to_value(lit), val) {
+                                            ok = false; break;
+                                        }
+                                    }
+                                    (ExprKind::Lit(lit), None) => {
+                                        if Some(i) == template_pos {
+                                            candidate = Some(self.literal_to_value(lit));
+                                        }
+                                    }
+                                    (ExprKind::Var(_), Some(_)) => {} // variable matches bound
+                                    (ExprKind::Var(_), None) => {} // both free
+                                    _ => {}
+                                }
+                            }
+                            if ok {
+                                if let Some(val) = candidate {
+                                    { let vs = format!("{}", val); if !results.iter().any(|r| format!("{}", r) == vs) { results.push(val); } }
+                                }
+                            }
+                            continue;
+                        }
+
+                        // For rules with bodies: bind head variables, then evaluate the body
+                        // to find all values the template var can take.
+                        let body_expr = body.as_ref().unwrap();
+                        let mut rule_env = env.clone();
+
+                        // Bind known (bound) values to head params
+                        for (i, hp) in head_params.iter().enumerate() {
+                            if let ExprKind::Var(hname) = &hp.kind {
+                                if let Some(val) = &bound_vals[i] {
+                                    rule_env.set(hname.clone(), val.clone());
+                                }
+                            }
+                        }
+
+                        // The body is a conjunction/disjunction/single goal
+                        // We need to enumerate all bindings of the free variable
+                        // Strategy: if the body is a single rule call, recursively findall
+                        // then for each result, check the conjunction holds
+
+                        match &body_expr.kind {
+                            ExprKind::Conjunction(goals) if goals.len() >= 1 => {
+                                // First goal provides candidates, remaining goals filter
+                                self.findall_conjunction(goals, head_params, bound_vals,
+                                    template_pos, &rule_env, results, depth);
+                            }
+                            ExprKind::Disjunction(alts) => {
+                                // Try each alternative
+                                for alt in alts {
+                                    match &alt.kind {
+                                        ExprKind::Conjunction(goals) => {
+                                            self.findall_conjunction(goals, head_params, bound_vals,
+                                                template_pos, &rule_env, results, depth);
+                                        }
+                                        _ => {
+                                            // Single goal alternative
+                                            self.findall_conjunction(&[alt.clone()], head_params, bound_vals,
+                                                template_pos, &rule_env, results, depth);
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {
+                                // Single goal body
+                                self.findall_conjunction(&[body_expr.clone()], head_params, bound_vals,
+                                    template_pos, &rule_env, results, depth);
+                            }
+                        }
+                    }
+                }
+                Rule::Default { head, value, condition } => {
+                    // Value-returning rules: check if any bound vals match
+                    if let ExprKind::App(_, head_params) = &head.kind {
+                        if head_params.len() != bound_vals.len() { continue; }
+                        let mut ok = true;
+                        for (hp, bv) in head_params.iter().zip(bound_vals.iter()) {
+                            if let (ExprKind::Lit(lit), Some(val)) = (&hp.kind, bv) {
+                                if !values_equal(&self.literal_to_value(lit), val) {
+                                    ok = false; break;
+                                }
+                            }
+                        }
+                        if !ok { continue; }
+                        let cond_ok = match condition {
+                            Some(c) => {
+                                let mut ce = env.clone();
+                                for (hp, bv) in head_params.iter().zip(bound_vals.iter()) {
+                                    if let ExprKind::Var(n) = &hp.kind {
+                                        if let Some(v) = bv { ce.set(n.clone(), v.clone()); }
+                                    }
+                                }
+                                matches!(self.eval(c, &ce), Value::Bool(true))
+                            }
+                            None => true,
+                        };
+                        if cond_ok {
+                            let val = self.eval(value, env);
+                            { let vs = format!("{}", val); if !results.iter().any(|r| format!("{}", r) == vs) { results.push(val); } }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Enumerate solutions through a conjunction of goals.
+    /// The first goal generates candidate bindings, each subsequent goal filters.
+    fn findall_conjunction(
+        &mut self,
+        goals: &[Expr],
+        head_params: &[Expr],
+        bound_vals: &[Option<Value>],
+        template_pos: Option<usize>,
+        env: &Env,
+        results: &mut Vec<Value>,
+        depth: usize,
+    ) {
+        if goals.is_empty() { return; }
+
+        let first_goal = &goals[0];
+
+        // If the first goal is a rule call, enumerate its solutions
+        if let ExprKind::App(func, args) = &first_goal.kind {
+            let goal_fn = self.expr_name(func);
+            let goal_args_vals: Vec<Option<Value>> = args.iter().map(|a| {
+                match &a.kind {
+                    ExprKind::Var(name) => {
+                        env.get(name).cloned()
+                    }
+                    _ => Some(self.eval(a, env)),
+                }
+            }).collect();
+
+            // Find which positions are free (unbound variables)
+            let free_positions: Vec<(usize, String)> = args.iter().enumerate()
+                .filter_map(|(i, a)| {
+                    if let ExprKind::Var(name) = &a.kind {
+                        if goal_args_vals[i].is_none() { Some((i, name.clone())) }
+                        else { None }
+                    } else { None }
+                })
+                .collect();
+
+            if free_positions.is_empty() {
+                // All bound — just check if the goal holds
+                let result = self.try_rule_call(&goal_fn, args, env);
+                if result.is_some() && !matches!(result, Some(Value::Bool(false))) {
+                    // Check remaining goals
+                    if goals.len() <= 1 {
+                        // Extract template value from head params
+                        if let Some(tpos) = template_pos {
+                            if let ExprKind::Var(hname) = &head_params[tpos].kind {
+                                if let Some(val) = env.get(hname) {
+                                    { let vs = format!("{}", val); if !results.iter().any(|r| format!("{}", r) == vs) { results.push(val.clone()); } }
+                                }
+                            }
+                        }
+                    } else {
+                        self.findall_conjunction(&goals[1..], head_params, bound_vals,
+                            template_pos, env, results, depth);
+                    }
+                }
+                return;
             }
 
-            Value::List(results)
+            // Enumerate: for each free variable, find all values from the goal's facts
+            // Use the first free position to enumerate
+            let (free_idx, free_name) = &free_positions[0];
+            let mut candidates = Vec::new();
+            self.findall_enumerate(&goal_fn, &goal_args_vals,
+                Some(*free_idx), env, &mut candidates, depth + 1);
+
+            for candidate in candidates {
+                let mut new_env = env.clone();
+                new_env.set(free_name.clone(), candidate.clone());
+                // Also bind to head param if this variable appears there
+                for (i, hp) in head_params.iter().enumerate() {
+                    if let ExprKind::Var(hname) = &hp.kind {
+                        if hname == free_name {
+                            new_env.set(hname.clone(), candidate.clone());
+                        }
+                    }
+                }
+                // Check remaining goals with this binding
+                if goals.len() <= 1 {
+                    if let Some(tpos) = template_pos {
+                        if let ExprKind::Var(hname) = &head_params[tpos].kind {
+                            if let Some(val) = new_env.get(hname) {
+                                { let vs = format!("{}", val); if !results.iter().any(|r| format!("{}", r) == vs) { results.push(val.clone()); } }
+                            }
+                        }
+                    }
+                } else {
+                    self.findall_conjunction(&goals[1..], head_params, bound_vals,
+                        template_pos, &new_env, results, depth);
+                }
+            }
         } else {
-            Value::List(vec![])
+            // Non-rule goal (comparison, etc.) — just check it
+            let val = self.eval(first_goal, env);
+            if matches!(val, Value::Bool(true)) {
+                if goals.len() <= 1 {
+                    if let Some(tpos) = template_pos {
+                        if let ExprKind::Var(hname) = &head_params[tpos].kind {
+                            if let Some(val) = env.get(hname) {
+                                { let vs = format!("{}", val); if !results.iter().any(|r| format!("{}", r) == vs) { results.push(val.clone()); } }
+                            }
+                        }
+                    }
+                } else {
+                    self.findall_conjunction(&goals[1..], head_params, bound_vals,
+                        template_pos, env, results, depth);
+                }
+            }
         }
     }
 
