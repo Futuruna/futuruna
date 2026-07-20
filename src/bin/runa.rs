@@ -11755,6 +11755,7 @@ impl RustCodegen {
         // Comptime pass: evaluate @ comptime bindings using the interpreter
         {
             let mut comptime_interp = Interpreter::new();
+            comptime_interp.suppress_output = true; // Don't print during codegen
             let mut comptime_env = comptime_interp.default_env();
             // Register all types, functions, and rules so comptime expressions can call them
             for stmt in stmts {

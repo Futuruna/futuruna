@@ -4788,6 +4788,8 @@ pub struct Interpreter {
     pub budget_exceeded: bool,
     /// Shared xorshift64 state for random collection builtins
     pub(crate) rng_state: u64,
+    /// Suppress stdout output (for comptime evaluation during codegen)
+    pub suppress_output: bool,
 }
 
 impl Interpreter {
@@ -4816,6 +4818,7 @@ impl Interpreter {
             step_count: 0,
             budget_exceeded: false,
             rng_state: 0x12345678_9abcdef0,
+            suppress_output: false,
         }
     }
 
@@ -6350,7 +6353,7 @@ impl Interpreter {
                     Some(v) => format!("{}", v),
                     None => String::new(),
                 };
-                println!("{}", text);
+                if !self.suppress_output { println!("{}", text); }
                 self.output.push(text);
                 Value::Unit
             }
@@ -8258,7 +8261,7 @@ impl Interpreter {
                     Some(v) => format!("{}", v),
                     None => String::new(),
                 };
-                println!("{}", text);
+                if !self.suppress_output { println!("{}", text); }
                 self.output.push(text);
                 Value::Unit
             }
