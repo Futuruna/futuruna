@@ -22034,6 +22034,7 @@ impl RustToRunaCtx {
             }
             "as_str" | "as_ref" => recv.to_string(),
             "trim" => format!("trim({})", recv),
+            "join" if args.len() == 1 => format!("join({}, {})", recv, args[0]),
             "split" => format!("split({}, {})", recv, args.join(", ")),
             "starts_with" => format!("starts_with({}, {})", recv, args.join(", ")),
             "ends_with" => format!("ends_with({}, {})", recv, args.join(", ")),
@@ -22166,7 +22167,46 @@ impl RustToRunaCtx {
             .replace("vec ! [", "[")
             .replace("vec! [", "[")
             // Fix negative number spacing: "- 1" → "-1"
-            .replace("- ", "-")
+            .replace("- ", "-");
+        // Convert method calls: x.join(y) → join(x, y), x.len() → length(x)
+        Self::convert_method_calls_in_token(&s)
+    }
+
+    /// Convert simple method calls in raw token text to Futuruna builtins
+    fn convert_method_calls_in_token(s: &str) -> String {
+        let mut result = s.to_string();
+        // Pattern: identifier.method(args) → builtin(identifier, args)
+        let methods = [
+            (".join(", "join"),
+            (".len()", "length"),
+            (".is_empty()", "length"),
+        ];
+        for (pattern, builtin) in &methods {
+            while let Some(pos) = result.find(pattern) {
+                // Find the identifier before the dot
+                let before = &result[..pos];
+                let ident_start = before.rfind(|c: char| !c.is_alphanumeric() && c != '_')
+                    .map(|i| i + 1).unwrap_or(0);
+                let ident = &result[ident_start..pos];
+                if ident.is_empty() { break; }
+
+                if *pattern == ".len()" || *pattern == ".is_empty()" {
+                    let replacement = format!("{}({})", builtin, ident);
+                    result = format!("{}{}{}", &result[..ident_start], replacement, &result[pos + pattern.len()..]);
+                } else {
+                    // .join( → find matching )
+                    let after_paren = pos + pattern.len();
+                    if let Some(close) = result[after_paren..].find(')') {
+                        let args = &result[after_paren..after_paren + close];
+                        let replacement = format!("{}({}, {})", builtin, ident, args);
+                        result = format!("{}{}{}", &result[..ident_start], replacement, &result[after_paren + close + 1..]);
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        result
     }
 
     /// Convert println!("...", args) → @ print("..." + show(args))
@@ -22213,7 +22253,7 @@ impl RustToRunaCtx {
                         }
                     }
                 } else {
-                    // Literal text
+                    // Literal text — collect until next {
                     let mut lit = String::new();
                     lit.push(c);
                     while chars.peek().is_some() && *chars.peek().unwrap() != '{' {
@@ -22221,7 +22261,9 @@ impl RustToRunaCtx {
                     }
                     if !first { result.push_str(" + "); }
                     first = false;
-                    result.push_str(&format!("{:?}", lit));
+                    // The lit may contain Rust escape sequences like \" from the source.
+                    // Emit directly as a Futuruna string (already properly escaped from Rust source).
+                    result.push_str(&format!("\"{}\"", lit));
                 }
             }
 
