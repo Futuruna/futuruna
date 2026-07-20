@@ -4675,6 +4675,22 @@ impl Env {
         self.bindings.insert(name, val);
     }
 
+    /// Iterate over all bindings (current scope + parents)
+    pub fn iter_bindings(&self) -> Vec<(String, Value)> {
+        let mut result = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut current = Some(self);
+        while let Some(env) = current {
+            for (k, v) in &env.bindings {
+                if seen.insert(k.clone()) {
+                    result.push((k.clone(), v.clone()));
+                }
+            }
+            current = env.parent.as_ref().map(|p| p.as_ref());
+        }
+        result
+    }
+
     pub fn remove(&mut self, name: &str) {
         self.bindings.remove(name);
     }
@@ -8579,8 +8595,41 @@ impl Interpreter {
             return None;
         }
 
-        // Evaluate arguments once
+        // Evaluate arguments once (in caller's env so variables resolve correctly)
         let arg_vals: Vec<Value> = args.iter().map(|a| self.eval(a, env)).collect();
+
+        // Create a base env: caller's env minus all rule-local variables
+        // (variables that appear as params in ANY clause head for this function).
+        // This prevents variables like `mid` from leaking between recursive rule calls
+        // while preserving top-level bindings like `threshold`.
+        let mut base_env = env.clone();
+        for rule in &matching {
+            let head = match rule {
+                Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => head,
+                _ => continue,
+            };
+            if let ExprKind::App(_, params) = &head.kind {
+                for param in params {
+                    if let ExprKind::Var(name) = &param.kind {
+                        if name != "_" { base_env.remove(name); }
+                    }
+                }
+            }
+            // Also clear body variables from conjunction bodies
+            if let Rule::Clause { body: Some(body_expr), .. } = rule {
+                if let ExprKind::Conjunction(goals) = &body_expr.kind {
+                    for goal in goals {
+                        if let ExprKind::App(_, goal_args) = &goal.kind {
+                            for ga in goal_args {
+                                if let ExprKind::Var(name) = &ga.kind {
+                                    if name != "_" { base_env.remove(name); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Check exceptions first — they override the default
         for rule in &matching {
@@ -8591,7 +8640,7 @@ impl Interpreter {
                 ..
             } = rule
             {
-                if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, env) {
+                if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     let cond_met = match condition {
                         Some(cond) => matches!(self.eval(cond, &rule_env), Value::Bool(true)),
                         None => true,
@@ -8611,7 +8660,7 @@ impl Interpreter {
                 condition: Some(cond),
             } = rule
             {
-                if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, env) {
+                if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     if matches!(self.eval(cond, &rule_env), Value::Bool(true)) {
                         return Some(self.eval(value, &rule_env));
                     }
@@ -8623,7 +8672,7 @@ impl Interpreter {
         // Try each clause; if the body evaluates to false, try the next one.
         for rule in &matching {
             if let Rule::Clause { head, body } = rule {
-                if let Some(rule_env) = self.match_rule_head(head, &arg_vals, env) {
+                if let Some(rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     match body {
                         None => return Some(Value::Bool(true)), // bare fact — head matched
                         Some(body_expr) => {
@@ -8654,7 +8703,7 @@ impl Interpreter {
                 condition: None,
             } = rule
             {
-                if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, env) {
+                if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     return Some(self.eval(value, &rule_env));
                 }
             }
@@ -8668,6 +8717,7 @@ impl Interpreter {
     /// Ground terms in the head (literals, constructors) must match the corresponding argument.
     /// Variables in the head bind to the corresponding argument value.
     fn match_rule_head(&self, head: &Expr, args: &[Value], env: &Env) -> Option<Env> {
+        // Use the provided env (base_env from try_rule_call, clean of conjunction vars)
         let mut rule_env = env.clone();
         if let ExprKind::App(_, params) = &head.kind {
             for (param, val) in params.iter().zip(args.iter()) {
@@ -8788,6 +8838,12 @@ impl Interpreter {
             .map(|(_, rule)| rule.clone())
             .collect();
 
+        // Create clean env: caller's env minus unbound variables (prevents leakage)
+        let mut clean_env = env.clone();
+        for (_, uname) in unbound {
+            clean_env.remove(uname);
+        }
+
         // Evaluate bound arguments
         let bound_vals: Vec<Option<Value>> = goal_args
             .iter()
@@ -8810,7 +8866,7 @@ impl Interpreter {
 
                     // Check if bound args match this fact's ground terms
                     let mut matches = true;
-                    let mut new_env = env.clone();
+                    let mut new_env = clean_env.clone();
 
                     for (i, (head_param, bound_val)) in
                         head_params.iter().zip(bound_vals.iter()).enumerate()
