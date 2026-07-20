@@ -5982,6 +5982,16 @@ impl Interpreter {
                     if fn_name == "findall" && args.len() == 2 {
                         return self.eval_findall(&args[0], &args[1], env);
                     }
+                    // search(template, goal) → first match (like findall but returns Option)
+                    if fn_name == "search" && args.len() == 2 {
+                        let results = self.eval_findall(&args[0], &args[1], env);
+                        return match results {
+                            Value::List(items) if !items.is_empty() => {
+                                Value::Constructor("Some".into(), vec![items[0].clone()])
+                            }
+                            _ => Value::Constructor("None".into(), vec![]),
+                        };
+                    }
                     // Check if this is a rule call (| name(...) -> value)
                     if let Some(result) = self.try_rule_call(fn_name, args, env) {
                         return result;
@@ -9485,7 +9495,7 @@ impl TypeChecker {
             ("ask", 2),
             ("teardown", 1),
             ("as_stream", 1),
-            ("findall", 2),
+            ("findall", 2), ("search", 2),
         ] {
             tc.builtins.entry(name.to_string()).or_insert(arity);
         }
@@ -10213,7 +10223,7 @@ impl TypeChecker {
                 }
                 // findall(template_var, goal) — template var and goal vars are scoped
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    if name == "findall" && args.len() == 2 {
+                    if (name == "findall" || name == "search") && args.len() == 2 {
                         self.push_scope();
                         // Define the template variable
                         if let ExprKind::Var(tvar) = &args[0].kind {
