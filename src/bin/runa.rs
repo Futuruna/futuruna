@@ -21760,15 +21760,33 @@ impl RustToRunaCtx {
                                     match stmt {
                                         syn::Stmt::Local(local) => {
                                             let p = self.pat_to_string(&local.pat);
-                                            let v = local.init.as_ref()
-                                                .map(|init| self.expr_to_string(&init.expr))
-                                                .unwrap_or_else(|| "()".to_string());
-                                            body_parts.push(format!("= {} = {}", p, v));
+                                            if let Some(init) = &local.init {
+                                                if let syn::Expr::Try(t) = &*init.expr {
+                                                    let inner = self.expr_to_string(&t.expr);
+                                                    body_parts.push(format!("= {} <- {}", p, inner));
+                                                } else {
+                                                    let v = self.expr_to_string(&init.expr);
+                                                    body_parts.push(format!("= {} = {}", p, v));
+                                                }
+                                            } else {
+                                                body_parts.push(format!("= {} = ()", p));
+                                            }
                                         }
                                         syn::Stmt::Expr(e, _) if is_last => {
                                             body_parts.push(self.expr_to_string(e));
                                         }
                                         syn::Stmt::Expr(e, _) => {
+                                            // Detect mutation methods → rebinding
+                                            if let syn::Expr::MethodCall(mc) = e {
+                                                let recv = self.expr_to_string(&mc.receiver);
+                                                let method = mc.method.to_string();
+                                                let args: Vec<String> = mc.args.iter()
+                                                    .map(|a| self.expr_to_string(a)).collect();
+                                                if method == "insert" && args.len() == 2 {
+                                                    body_parts.push(format!("= {} = map_insert({}, {}, {})", recv, recv, args[0], args[1]));
+                                                    continue;
+                                                }
+                                            }
                                             body_parts.push(self.expr_to_string(e));
                                         }
                                         _ => {}
@@ -22024,6 +22042,17 @@ impl RustToRunaCtx {
             "unwrap" => recv.to_string(),
             "unwrap_or" => format!("unwrap_or({}, {})", recv, args.join(", ")),
             "unwrap_or_else" => format!("unwrap_or({}, {}())", recv, args.join(", ")),
+            "ok_or_else" if args.len() == 1 => {
+                // Option.ok_or_else(|| err) → match opt { Some(v) → Ok(v), None → Err(err) }
+                // Strip the || prefix from the lambda body to get the error expression
+                let err_expr = args[0].trim().strip_prefix("||").or_else(|| args[0].trim().strip_prefix("| |"))
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_else(|| format!("{}()", args[0]));
+                format!("match {} {{ | Some(__v) -> Ok(__v) | None -> Err({}) }}", recv, err_expr)
+            }
+            "ok_or" if args.len() == 1 => {
+                format!("match {} {{ | Some(__v) -> Ok(__v) | None -> Err({}) }}", recv, args[0])
+            }
             "unwrap_or_default" => recv.to_string(),
             "is_some" => format!("{} != None", recv),
             "is_none" => format!("{} == None", recv),
@@ -22032,6 +22061,10 @@ impl RustToRunaCtx {
             "ok" => recv.to_string(),
             "map_err" => recv.to_string(),
             "and_then" => format!("flat_map({}, {})", recv, args.join(", ")),
+
+            // HashMap/Map methods
+            "get" if args.len() == 1 => format!("map_get({}, {})", recv, args[0]),
+            "contains_key" if args.len() == 1 => format!("map_contains_key({}, {})", recv, args[0]),
 
             // Clone
             "clone" => recv.to_string(),
@@ -22483,8 +22516,24 @@ impl RustToRunaCtx {
                 self.emit_line("}");
             }
             syn::Expr::ForLoop(f) => {
-                let pat = self.pat_to_string(&f.pat);
                 let iter = self.expr_to_string(&f.expr);
+                // Tuple destructuring in for: for (k, v) in xs → for __item in xs { = k = fst(...) }
+                if let syn::Pat::Tuple(t) = &*f.pat {
+                    if t.elems.len() == 2 {
+                        let names: Vec<String> = t.elems.iter()
+                            .map(|p| self.pat_to_string(p))
+                            .collect();
+                        self.emit_line(&format!("for __item in {} {{", iter));
+                        self.indent += 1;
+                        self.emit_line(&format!("= {} = fst(__item)", names[0]));
+                        self.emit_line(&format!("= {} = snd(__item)", names[1]));
+                        self.transpile_block_stmts(&f.body);
+                        self.indent -= 1;
+                        self.emit_line("}");
+                        return;
+                    }
+                }
+                let pat = self.pat_to_string(&f.pat);
                 self.emit_line(&format!("for {} in {} {{", pat, iter));
                 self.indent += 1;
                 self.transpile_block_stmts(&f.body);
@@ -22519,6 +22568,29 @@ impl RustToRunaCtx {
                 self.emit_line("@ rust {");
                 self.emit_line("    -- unsafe block contents");
                 self.emit_line("}");
+            }
+            // Mutation method calls → rebinding (HashMap.insert, Vec.push, etc.)
+            syn::Expr::MethodCall(mc) => {
+                let recv = self.expr_to_string(&mc.receiver);
+                let method = mc.method.to_string();
+                let args: Vec<String> = mc.args.iter()
+                    .map(|a| self.expr_to_string(a))
+                    .collect();
+                match method.as_str() {
+                    "insert" if args.len() == 2 => {
+                        self.emit_line(&format!("= {} = map_insert({}, {}, {})", recv, recv, args[0], args[1]));
+                    }
+                    "push" if args.len() == 1 => {
+                        self.emit_line(&format!("= {} = push({}, {})", recv, recv, args[0]));
+                    }
+                    "pop" => {
+                        self.emit_line(&format!("= {} = pop({})", recv, recv));
+                    }
+                    _ => {
+                        let s = self.method_call_to_runa(&recv, &method, &args);
+                        self.emit_line(&s);
+                    }
+                }
             }
             _ => {
                 let s = self.expr_to_string(expr);
