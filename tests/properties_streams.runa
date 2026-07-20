@@ -23,12 +23,12 @@
 ? scan_count -> { @ print("stream scan preserves count: PROVED") } else { @ print("stream scan preserves count: FAILED") }
 
 -- reduce returns a single value (terminal)
-~ total = nums |> reduce(0, |acc, x| acc + x)
+= total = reduce(nums, 0, |acc, x| acc + x)
 | reduce_sum: total -> total == 55
 ? reduce_sum -> { @ print("stream reduce sum=55: PROVED") } else { @ print("stream reduce sum=55: FAILED") }
 
 -- first returns the first element
-~ f = nums |> first
+= f = first(nums)
 | first_is_one: f -> f == 1
 ? first_is_one -> { @ print("stream first = 1: PROVED") } else { @ print("stream first = 1: FAILED") }
 

@@ -1,3 +1,4 @@
+-- roundtrip-skip: library file, no expected output
 -- hash_alt.runa: Alternative implementations for hash import testing
 -- "square" has a DIFFERENT body (adds instead of multiplies) — different hash
 -- "factorial" has the SAME body as hash_math.runa — same hash

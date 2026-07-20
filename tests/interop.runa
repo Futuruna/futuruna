@@ -1,3 +1,4 @@
+-- roundtrip-skip: uses @ rust {} which only works in compiled mode
 -- interop.runa: Futuruna ↔ Rust interoperability demo
 -- Demonstrates: @ rust { } escape hatch, # impl, @ use, # trait
 

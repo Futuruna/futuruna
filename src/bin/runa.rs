@@ -15545,14 +15545,11 @@ impl RustCodegen {
 
                         match (pass_block, else_block) {
                             (None, None) => {
-                                // Bare ? name — assert and panic on failure
+                                // Bare ? name — verify and print result (matches interpreter output)
                                 out.push_str(&format!(
-                                    "{}// ? {}\n{}assert!({}, \"? {} FAILED\");\n",
-                                    self.ind(),
-                                    inv_name,
-                                    self.ind(),
-                                    pred_str,
-                                    inv_name
+                                    "{}// ? {}\n{}if {} {{ println!(\"  ✓ |{}| holds (value: {{}})\", {}); }} else {{ panic!(\"? {} FAILED\"); }}\n",
+                                    self.ind(), inv_name,
+                                    self.ind(), pred_str, inv_name, subj_str, inv_name
                                 ));
                             }
                             (Some(pass), None) => {

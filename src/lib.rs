@@ -7661,7 +7661,7 @@ impl Interpreter {
                     Value::Stream(v) | Value::Subject(v) => v,
                     other => list_to_vec(&other),
                 };
-                items.into_iter().last().unwrap_or(Value::Unit)
+                items.into_iter().last().unwrap_or(Value::Int(0))
             }
             "combine_latest" => {
                 // combine_latest(stream1, stream2) → Stream of Tuple pairs
@@ -7716,7 +7716,7 @@ impl Interpreter {
                     Value::Stream(v) | Value::Subject(v) => v,
                     other => list_to_vec(&other),
                 };
-                items.into_iter().next().unwrap_or(Value::Unit)
+                items.into_iter().next().unwrap_or(Value::Int(0))
             }
             "reduce" => {
                 // reduce(stream, init, f) → Value — fold, emitting only the final accumulator
