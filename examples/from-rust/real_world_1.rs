@@ -52,7 +52,7 @@ fn json_array_len(val: &Json) -> i64 {
 }
 
 fn json_is_null(val: &Json) -> bool {
-    matches!(val, Json::Null)
+    match val { Json::Null => true, _ => false }
 }
 
 fn json_map_numbers(val: &Json, f: fn(f64) -> f64) -> Json {

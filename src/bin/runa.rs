@@ -22232,6 +22232,26 @@ impl RustToRunaCtx {
 
             while let Some(c) = chars.next() {
                 if c == '{' {
+                    // {{ → literal { (escaped brace in format string)
+                    if chars.peek() == Some(&'{') {
+                        chars.next(); // consume second {
+                        // Collect literal text including this {
+                        let mut lit = String::from("{");
+                        while chars.peek().is_some() && *chars.peek().unwrap() != '{' {
+                            let nc = chars.next().unwrap();
+                            if nc == '}' && chars.peek() == Some(&'}') {
+                                chars.next(); // consume second }
+                                lit.push('}');
+                            } else {
+                                lit.push(nc);
+                            }
+                        }
+                        if !first { result.push_str(" + "); }
+                        first = false;
+                        let quoted = format!("\"{}\"", lit);
+                        result.push_str(&quoted);
+                        continue;
+                    }
                     if chars.peek() == Some(&'}') {
                         chars.next();
                         if !first { result.push_str(" + "); }
@@ -22255,15 +22275,26 @@ impl RustToRunaCtx {
                 } else {
                     // Literal text — collect until next {
                     let mut lit = String::new();
-                    lit.push(c);
+                    // Handle }} → single } (escaped brace in format string)
+                    if c == '}' && chars.peek() == Some(&'}') {
+                        chars.next();
+                        lit.push('}');
+                    } else {
+                        lit.push(c);
+                    }
                     while chars.peek().is_some() && *chars.peek().unwrap() != '{' {
-                        lit.push(chars.next().unwrap());
+                        let nc = chars.next().unwrap();
+                        if nc == '}' && chars.peek() == Some(&'}') {
+                            chars.next();
+                            lit.push('}');
+                        } else {
+                            lit.push(nc);
+                        }
                     }
                     if !first { result.push_str(" + "); }
                     first = false;
-                    // The lit may contain Rust escape sequences like \" from the source.
-                    // Emit directly as a Futuruna string (already properly escaped from Rust source).
-                    result.push_str(&format!("\"{}\"", lit));
+                    let quoted = format!("\"{}\"", lit);
+                    result.push_str(&quoted);
                 }
             }
 
@@ -22280,10 +22311,16 @@ impl RustToRunaCtx {
     fn transpile_format_tokens(&self, tokens: &str) -> String {
         // Reuse println logic but without the @ print wrapper
         let result = self.transpile_println_tokens(tokens);
-        result.strip_prefix("@ print(")
+        let inner = result.strip_prefix("@ print(")
             .and_then(|s| s.strip_suffix(')'))
-            .unwrap_or(&result)
-            .to_string()
+            .unwrap_or(&result);
+        // Fix: if the inner ends with \" (backslash-quote from escaped literal),
+        // the strip_suffix(')') may have consumed the closing quote. Add it back.
+        if inner.ends_with("\\\"") && !inner.ends_with("\\\"\"") {
+            format!("{}\"", inner)
+        } else {
+            inner.to_string()
+        }
     }
 
     /// Find the comma that separates format string from args, respecting string quoting
