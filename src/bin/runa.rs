@@ -6353,7 +6353,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("filter",       BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().filter(|x| ({1})( x.clone())).collect::<Vec<_>>()" }),
         ("foldl",        BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().fold({1}, {2})" }),
         ("sort",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }" }),
-        ("sort_by",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", ({1})(a.clone())).cmp(&format!(\"{}\", ({1})(b.clone())))); __v }" }),
+        ("sort_by",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", ({1})(a)).cmp(&format!(\"{}\", ({1})(b)))); __v }" }),
         ("reverse",      BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }" }),
         ("any",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().any(|x| ({1})( x.clone()))" }),
         ("all",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().all(|x| ({1})( x.clone()))" }),
@@ -14766,11 +14766,12 @@ impl RustCodegen {
                 } else {
                     match &value.kind {
                         ExprKind::Var(name) if name == "None" => ": Option<i64>".to_string(),
+                        ExprKind::List(elems) if elems.is_empty() => ": Vec<i64>".to_string(),
                         ExprKind::App(func, _) => {
                             if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                                 match fn_name.as_str() {
-                                    _ => String::new(),
-                                    _ => String::new(),
+                                    "map_new" => ": HashMap<String, String>".to_string(),
+                                    "set_new" => ": HashSet<String>".to_string(),
                                     _ => String::new(),
                                 }
                             } else { String::new() }
