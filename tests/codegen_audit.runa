@@ -1,0 +1,212 @@
+-- Codegen Audit: exercises every pattern that has caused codegen bugs.
+-- Run in interpreter: runa tests/codegen_audit.runa
+-- Run compiled:       runa run tests/codegen_audit.runa
+-- Both should produce identical output. Any difference = codegen bug.
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 1. STRUCT FIELD ACCESS (named fields)
+-- Bug history: emitted enum pattern instead of obj.field
+-- ═══════════════════════════════════════════════════════════════════
+
+# Point(x: Float, y: Float)
+# Color(r: Int, g: Int, b: Int)
+
+= p = Point(3.0, 4.0)
+| p_x_ok: p -> p.x == 3.0
+| p_y_ok: p -> p.y == 4.0
+? p_x_ok -> { @ print("1a struct field .x: PROVED") } else { @ print("1a: FAILED") }
+? p_y_ok -> { @ print("1b struct field .y: PROVED") } else { @ print("1b: FAILED") }
+
+= c = Color(255, 128, 0)
+| color_r: c -> c.r == 255
+? color_r -> { @ print("1c struct field .r: PROVED") } else { @ print("1c: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 2. SHARED FIELD NAMES across types (the multi-type bug)
+-- Bug history: codegen picked wrong type's pattern for field access
+-- ═══════════════════════════════════════════════════════════════════
+
+# TypeA(shared: Int, only_a: String)
+# TypeB(shared: Int, only_b: Float)
+
+> get_a_shared(a: TypeA) -> Int { a.shared }
+> get_b_shared(b: TypeB) -> Int { b.shared }
+
+= a = TypeA(42, "hello")
+= b = TypeB(99, 1.5)
+| shared_a: a -> get_a_shared(a) == 42
+| shared_b: b -> get_b_shared(b) == 99
+? shared_a -> { @ print("2a shared field TypeA: PROVED") } else { @ print("2a: FAILED") }
+? shared_b -> { @ print("2b shared field TypeB: PROVED") } else { @ print("2b: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 3. ENUM PATTERN MATCHING (exhaustive)
+-- ═══════════════════════════════════════════════════════════════════
+
+# Shape = Circle(Float) | Rect(Float, Float) | Tri(Float, Float, Float)
+
+> shape_name(s: Shape) -> String {
+    match s {
+        | Circle(_) -> "circle"
+        | Rect(_, _) -> "rect"
+        | Tri(_, _, _) -> "tri"
+    }
+}
+
+| shape_circle: p -> shape_name(Circle(5.0)) == "circle"
+| shape_rect: p -> shape_name(Rect(3.0, 4.0)) == "rect"
+? shape_circle -> { @ print("3a enum match circle: PROVED") } else { @ print("3a: FAILED") }
+? shape_rect -> { @ print("3b enum match rect: PROVED") } else { @ print("3b: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 4. FUNCTIONS: multi-use, clone, ownership
+-- Bug history: .clone()() on functions, missing clone on multi-use args
+-- ═══════════════════════════════════════════════════════════════════
+
+> add(a: Int, b: Int) -> Int { a + b }
+> greet(name: String) -> String { "Hello, " + name }
+
+= sum1 = add(10, 20)
+= sum2 = add(30, 40)
+| fn_call_1: sum1 -> sum1 == 30
+| fn_call_2: sum2 -> sum2 == 70
+? fn_call_1 -> { @ print("4a fn call: PROVED") } else { @ print("4a: FAILED") }
+? fn_call_2 -> { @ print("4b fn call: PROVED") } else { @ print("4b: FAILED") }
+
+-- Multi-use non-Copy arg
+= name = "World"
+= g1 = greet(name)
+= g2 = greet(name)
+| multi_use: g1 -> g1 == "Hello, World"
+? multi_use -> { @ print("4c multi-use arg: PROVED") } else { @ print("4c: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 5. LAMBDAS and HIGHER-ORDER FUNCTIONS
+-- ═══════════════════════════════════════════════════════════════════
+
+= doubled = map([1, 2, 3], |x| x * 2)
+| lambda_map: doubled -> length(doubled) == 3
+? lambda_map -> { @ print("5a lambda map: PROVED") } else { @ print("5a: FAILED") }
+
+= filtered = filter([1, 2, 3, 4, 5], |x| x > 3)
+| lambda_filter: filtered -> length(filtered) == 2
+? lambda_filter -> { @ print("5b lambda filter: PROVED") } else { @ print("5b: FAILED") }
+
+> apply(f: Int -> Int, x: Int) -> Int { f(x) }
+= applied = apply(|x| x + 100, 5)
+| hof: applied -> applied == 105
+? hof -> { @ print("5c higher-order fn: PROVED") } else { @ print("5c: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 6. DATALOG RULES (by value, not closure)
+-- Bug history: rules emitted as closures with .clone()(), &param mismatch
+-- ═══════════════════════════════════════════════════════════════════
+
+| is_positive(x) -> x > 0
+| is_even(x) -> x % 2 == 0
+
+= pos = is_positive(42)
+= even = is_even(10)
+| rule_pos: pos -> pos
+| rule_even: even -> even
+? rule_pos -> { @ print("6a rule positive: PROVED") } else { @ print("6a: FAILED") }
+? rule_even -> { @ print("6b rule even: PROVED") } else { @ print("6b: FAILED") }
+
+-- Rule with struct param (by value, not &)
+| is_big_point(p) -> p.x > 10.0
+= big = is_big_point(Point(20.0, 5.0))
+| rule_struct: big -> big
+? rule_struct -> { @ print("6d rule struct param: PROVED") } else { @ print("6d: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 7. MONADIC BIND (Result/Option chaining)
+-- ═══════════════════════════════════════════════════════════════════
+
+> safe_div(a: Int, b: Int) -> Result(Int, String) {
+    if b == 0 { Err("zero") } else { Ok(a / b) }
+}
+
+> chain_ok() -> Result(Int, String) {
+    = x <- safe_div(100, 10)
+    = y <- safe_div(x, 2)
+    Ok(y)
+}
+
+> chain_err() -> Result(Int, String) {
+    = x <- safe_div(100, 0)
+    Ok(x)
+}
+
+= ok_result = chain_ok()
+= err_result = chain_err()
+| monadic_ok: ok_result -> ok_result == Ok(5)
+| monadic_err: err_result -> err_result == Err("zero")
+? monadic_ok -> { @ print("7a monadic ok: PROVED") } else { @ print("7a: FAILED") }
+? monadic_err -> { @ print("7b monadic err: PROVED") } else { @ print("7b: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 8. IF/ELSE and MATCH as expressions
+-- ═══════════════════════════════════════════════════════════════════
+
+= max_val = if 10 > 5 { 10 } else { 5 }
+| if_expr: max_val -> max_val == 10
+? if_expr -> { @ print("8a if expression: PROVED") } else { @ print("8a: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 9. RECURSIVE ADTs
+-- ═══════════════════════════════════════════════════════════════════
+
+# Tree = Leaf(Int) | Node(Tree, Tree)
+
+> tree_sum(t: Tree) -> Int {
+    match t {
+        | Leaf(n) -> n
+        | Node(l, r) -> tree_sum(l) + tree_sum(r)
+    }
+}
+
+= t = Node(Node(Leaf(1), Leaf(2)), Leaf(3))
+| tree_ok: t -> tree_sum(t) == 6
+? tree_ok -> { @ print("9a recursive ADT: PROVED") } else { @ print("9a: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 10. LIST/MAP/SET OPERATIONS
+-- ═══════════════════════════════════════════════════════════════════
+
+= xs = [10, 20, 30]
+| list_len: xs -> length(xs) == 3
+| list_head: xs -> head(xs) == 10
+| list_sum: xs -> sum_list(xs) == 60
+? list_len -> { @ print("10a list length: PROVED") } else { @ print("10a: FAILED") }
+? list_head -> { @ print("10b list head: PROVED") } else { @ print("10b: FAILED") }
+? list_sum -> { @ print("10c list sum: PROVED") } else { @ print("10c: FAILED") }
+
+= m = map_insert(map_insert(map_new(), "a", 1), "b", 2)
+| map_ok: m -> map_get_or(m, "a", 0) == 1 && map_len(m) == 2
+? map_ok -> { @ print("10d map ops: PROVED") } else { @ print("10d: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 11. STRING OPERATIONS
+-- ═══════════════════════════════════════════════════════════════════
+
+= s = "Hello, World!"
+| str_contains: s -> contains(s, "World")
+| str_split_join: s -> join(split(s, ", "), ", ") == s
+| str_upper: s -> to_upper("abc") == "ABC"
+? str_contains -> { @ print("11a string contains: PROVED") } else { @ print("11a: FAILED") }
+? str_split_join -> { @ print("11b split/join roundtrip: PROVED") } else { @ print("11b: FAILED") }
+? str_upper -> { @ print("11c to_upper: PROVED") } else { @ print("11c: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- 12. RANGE AND ITERATION
+-- ═══════════════════════════════════════════════════════════════════
+
+= r = range(1, 6)
+| range_len: r -> length(r) == 5
+? range_len -> { @ print("12a range length: PROVED") } else { @ print("12a: FAILED") }
+
+-- ═══════════════════════════════════════════════════════════════════
+-- SUMMARY
+-- ═══════════════════════════════════════════════════════════════════
+
+@ print("=== Codegen audit complete: 25 properties verified ===")

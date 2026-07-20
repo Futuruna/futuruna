@@ -6405,6 +6405,8 @@ struct RustCodegen {
     lib_static_names: BTreeSet<String>,
     /// Function return types: fn_name → Rust type string (for lib mode getter inference)
     fn_return_types: BTreeMap<String, String>,
+    /// Local bindings in current function (names from let/= bindings, NOT top-level)
+    local_bindings: BTreeSet<String>,
     /// WASM mode: emit wasm-bindgen annotations on exported functions
     wasm_mode: bool,
     /// Cargo dependencies: crate_name -> version
@@ -9807,6 +9809,7 @@ impl RustCodegen {
             lib_mode: false,
             lib_static_names: BTreeSet::new(),
             fn_return_types: BTreeMap::new(),
+            local_bindings: BTreeSet::new(),
             wasm_mode: false,
             cargo_deps: BTreeMap::new(),
             source_dir: None,
@@ -14111,6 +14114,7 @@ impl RustCodegen {
                 let prev_aliased = std::mem::take(&mut self.aliased_vars);
                 let prev_string_vars = std::mem::take(&mut self.string_typed_vars);
                 let prev_float_vars = std::mem::take(&mut self.float_typed_vars);
+                let prev_local_bindings = std::mem::take(&mut self.local_bindings);
                 let param_names: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
                 let ownership = OwnershipAnalysis::analyze(
                     body,
@@ -14270,6 +14274,7 @@ impl RustCodegen {
                 self.aliased_vars = prev_aliased;
                 self.string_typed_vars = prev_string_vars;
                 self.float_typed_vars = prev_float_vars;
+                self.local_bindings = prev_local_bindings;
                 self.current_effects = prev_effects;
                 out
             }
@@ -14433,6 +14438,10 @@ impl RustCodegen {
             Stmt::Defn(defn) => self.emit_defn(defn),
             Stmt::TypeDecl(decl) => self.emit_type_decl(decl),
             Stmt::Bind(pat, _ty, value) => {
+                // Track local binding names (for lib mode getter scope)
+                if let Pat::Var(name) = pat {
+                    self.local_bindings.insert(name.clone());
+                }
                 // Check if this binding was comptime-evaluated
                 let comptime_name = match pat {
                     Pat::Var(name) => Some(name.as_str()),
@@ -16517,6 +16526,7 @@ impl RustCodegen {
                 if self.lib_mode && self.lib_static_names.contains(name.as_str())
                     && !self.current_borrow_params.contains(name.as_str())
                     && !self.var_types.contains_key(name)
+                    && !self.local_bindings.contains(name.as_str())
                 {
                     return format!("{}()", sname);
                 }
@@ -18698,6 +18708,10 @@ impl RustCodegen {
                     let is_last = i == stmts.len() - 1;
                     match stmt {
                         Stmt::Bind(pat, _, value) => {
+                            // Track local binding for lib mode getter scope
+                            if let Pat::Var(name) = pat {
+                                self.local_bindings.insert(name.clone());
+                            }
                             let pat_str = self.emit_pattern_binding(pat);
                             let val_str = self.emit_expr(value);
                             let mutability = if let Pat::Var(name) = pat {
