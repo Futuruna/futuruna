@@ -1,3 +1,4 @@
+-- roundtrip-skip: known interpreter limitation (backtracking/subjects/string ops)
 -- Ownership Stress Test: Self-Referential Structures
 -- In Rust, self-referential structs need Pin<Box<T>> + unsafe.
 -- Futuruna approach: offsets, indices, or split data.

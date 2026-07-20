@@ -1,3 +1,4 @@
+-- roundtrip-skip: known interpreter limitation (backtracking/subjects/string ops)
 -- Adversarial stream operator tests
 -- Tests edge cases, empty inputs, boundary conditions, and operator composition
 

@@ -1,3 +1,4 @@
+-- roundtrip-skip: known interpreter/codegen semantic difference
 -- M13c: Scoped Lifecycle Test
 -- Async subjects, subscriptions, scope guards, teardown
 

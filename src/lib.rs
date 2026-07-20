@@ -6101,9 +6101,22 @@ impl Interpreter {
             ExprKind::Index(arr, idx) => {
                 let arr_val = self.eval(arr, env);
                 let idx_val = self.eval(idx, env);
-                match (arr_val, idx_val) {
+                match (&arr_val, &idx_val) {
                     (Value::List(elems), Value::Int(i)) => {
+                        let i = *i;
                         if i < 0 || i as usize >= elems.len() {
+                            Value::Unit
+                        } else {
+                            elems[i as usize].clone()
+                        }
+                    }
+                    (_, Value::Int(i)) => {
+                        // Handle Cons/Nil linked lists and other list-like values
+                        let elems = list_to_vec(&arr_val);
+                        let i = *i;
+                        if elems.is_empty() {
+                            Value::Unit
+                        } else if i < 0 || i as usize >= elems.len() {
                             Value::Unit
                         } else {
                             elems[i as usize].clone()

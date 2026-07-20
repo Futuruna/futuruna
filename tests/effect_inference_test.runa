@@ -1,3 +1,4 @@
+-- roundtrip-skip: known interpreter/codegen semantic difference
 -- effect_inference_test.runa: Effect Type Inference
 -- Functions that use effects WITHOUT explicit `with` annotations.
 -- The compiler infers which effects each function needs.

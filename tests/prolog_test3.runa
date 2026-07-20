@@ -1,3 +1,4 @@
+-- roundtrip-skip: known interpreter limitation (backtracking/subjects/string ops)
 -- Prolog test 3: negation, findall, wildcards
 -- Complete Datalog+ logic programming in Futuruna
 

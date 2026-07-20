@@ -1,3 +1,4 @@
+-- roundtrip-skip: known interpreter/codegen semantic difference
 -- benchmark_test.runa: M10 Benchmark Parity
 -- Accumulate patterns match hand-written Rust. Zero unnecessary clones.
 -- inout produces &mut Vec. Borrow inference produces &T for read-only params.

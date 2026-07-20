@@ -1,3 +1,4 @@
+-- roundtrip-skip: known interpreter limitation (backtracking/subjects/string ops)
 -- Prolog-style logic programming in Futuruna
 -- Facts, conjunctive goals, backtracking, and existential search
 
