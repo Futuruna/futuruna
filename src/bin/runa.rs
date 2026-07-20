@@ -21754,6 +21754,11 @@ impl RustToRunaCtx {
                         // For block bodies with multiple stmts, wrap in { } and emit bindings
                         if let syn::Expr::Block(b) = &*arm.body {
                             if b.block.stmts.len() > 1 {
+                                // Check for find pattern in block:
+                                // for x in xs { if cond { return val } } ; fallback
+                                if let Some(find_expr) = self.detect_find_pattern(&b.block.stmts) {
+                                    return format!("| {}{} -> {}", pat, guard, find_expr);
+                                }
                                 let mut body_parts = Vec::new();
                                 for (i, stmt) in b.block.stmts.iter().enumerate() {
                                     let is_last = i == b.block.stmts.len() - 1;
@@ -22095,12 +22100,28 @@ impl RustToRunaCtx {
                 self.transpile_format_tokens(&tokens)
             }
             "vec" => {
-                // Clean up token spacing: "1 , 2 , 3 ," → "1, 2, 3"
-                // Also fix "- 1" → "-1", nested "vec ! [...]" → "[...]"
-                let clean = tokens.replace(" , ", ", ")
+                // Clean up token spacing and Rust-isms in macro tokens
+                let mut clean = tokens.replace(" , ", ", ")
                     .replace("- ", "-")
                     .replace("vec ! [", "[")
-                    .replace("vec! [", "[")
+                    .replace("vec! [", "[");
+                // Strip qualified names: Json :: Null → Null, Type :: Variant → Variant
+                // Pattern: Word :: Word → just the second word
+                while let Some(pos) = clean.find(" :: ") {
+                    // Find the start of the type name before ::
+                    let before = &clean[..pos];
+                    let after = &clean[pos + 4..];
+                    // Find the type name start (last word before ::)
+                    let type_start = before.rfind(|c: char| !c.is_alphanumeric() && c != '_')
+                        .map(|i| i + 1).unwrap_or(0);
+                    clean = format!("{}{}", &clean[..type_start], after);
+                }
+                // Also clean .to_string() calls and extra spaces around parens
+                let clean = clean.replace(". to_string ()", "")
+                    .replace(".to_string()", "")
+                    .replace(" (", "(")
+                    .replace("( ", "(")
+                    .replace(" )", ")")
                     .trim_end_matches(", ")
                     .trim_end_matches(',')
                     .to_string();
@@ -22260,20 +22281,18 @@ impl RustToRunaCtx {
 
     // ── Statements / Blocks ───────────────────────────────────────────────
 
-    /// Detect: for x in xs { if cond { return Some(x) } } ; None → find(xs, |x| cond)
+    /// Detect: for x in xs { if cond { return expr } } ; fallback → functional equivalent
+    /// Pattern 1: return Some(x) + None fallback → find(xs, |x| cond)
+    /// Pattern 2: return val + other fallback → for loop search → match with find
     fn detect_find_pattern(&self, stmts: &[syn::Stmt]) -> Option<String> {
         let len = stmts.len();
         if len < 2 { return None; }
 
-        // Last stmt must be `None` (expression)
-        let last_is_none = match &stmts[len - 1] {
-            syn::Stmt::Expr(expr, _) => {
-                matches!(expr, syn::Expr::Path(p)
-                    if p.path.segments.last().map(|s| s.ident == "None").unwrap_or(false))
-            }
-            _ => false,
+        // Last stmt must be an expression (the fallback value)
+        let fallback = match &stmts[len - 1] {
+            syn::Stmt::Expr(expr, _) => self.expr_to_string(expr),
+            _ => return None,
         };
-        if !last_is_none { return None; }
 
         // Second-to-last must be a for loop
         let for_loop = match &stmts[len - 2] {
@@ -22281,41 +22300,56 @@ impl RustToRunaCtx {
             _ => return None,
         };
 
-        // For loop body must be a single `if cond { return Some(x) }`
+        // For loop body must be a single `if cond { return expr }`
         if for_loop.body.stmts.len() != 1 { return None; }
         let if_expr = match &for_loop.body.stmts[0] {
             syn::Stmt::Expr(syn::Expr::If(i), _) => i,
             _ => return None,
         };
-
-        // Then branch must be `{ return Some(x) }` or `{ Some(x) }`
         if if_expr.then_branch.stmts.len() != 1 { return None; }
-        let return_some = match &if_expr.then_branch.stmts[0] {
-            syn::Stmt::Expr(syn::Expr::Return(r), _) => {
-                r.expr.as_ref().and_then(|e| {
-                    if let syn::Expr::Call(c) = &**e {
-                        if let syn::Expr::Path(p) = &*c.func {
-                            if p.path.segments.last().map(|s| s.ident == "Some").unwrap_or(false) {
-                                return Some(true);
-                            }
-                        }
-                    }
-                    None
-                })
-            }
-            _ => None,
+
+        // Check for `return expr` in the then branch
+        let return_expr = match &if_expr.then_branch.stmts[0] {
+            syn::Stmt::Expr(syn::Expr::Return(r), _) => r.expr.as_ref()?,
+            _ => return None,
         };
-        if return_some.is_none() { return None; }
 
-        // Extract: collection, loop var, condition
         let collection = self.expr_to_string(&for_loop.expr);
-        let loop_var = self.pat_to_string(&for_loop.pat);
-        let condition = self.expr_to_string(&if_expr.cond);
+        let condition = self.expr_to_string(&if_expr.cond).replace("* ", "");
 
-        // Strip dereferences from condition (common in Rust: *x > 0, **x > 0)
-        let clean_cond = condition.replace("* ", "");
+        // Check if return is Some(x) — standard find pattern
+        let is_return_some = if let syn::Expr::Call(c) = &**return_expr {
+            if let syn::Expr::Path(p) = &*c.func {
+                p.path.segments.last().map(|s| s.ident == "Some").unwrap_or(false)
+            } else { false }
+        } else { false };
 
-        Some(format!("find({}, |{}| {})", collection, loop_var, clean_cond))
+        // Handle tuple destructuring in for pattern: for (k, v) in pairs
+        if let syn::Pat::Tuple(t) = &*for_loop.pat {
+            if t.elems.len() == 2 {
+                let names: Vec<String> = t.elems.iter()
+                    .map(|p| self.pat_to_string(p)).collect();
+                let return_val = self.expr_to_string(return_expr);
+                // Emit: find first match using find + map
+                return Some(format!(
+                    "match find({}, |__item| {{ = {} = fst(__item)\n    {} }}) {{\n    | Some(__item) -> {{ = {} = snd(__item)\n    {} }}\n    | None -> {}\n}}",
+                    collection, names[0], condition, names[1], return_val, fallback
+                ));
+            }
+        }
+
+        if is_return_some {
+            let loop_var = self.pat_to_string(&for_loop.pat);
+            Some(format!("find({}, |{}| {})", collection, loop_var, condition))
+        } else {
+            // General case: emit the return expression with find
+            let loop_var = self.pat_to_string(&for_loop.pat);
+            let return_val = self.expr_to_string(return_expr);
+            Some(format!(
+                "match find({}, |{}| {}) {{ | Some({}) -> {} | None -> {} }}",
+                collection, loop_var, condition, loop_var, return_val, fallback
+            ))
+        }
     }
 
     /// Convert a block to an inline string (for simple if/else expressions)

@@ -66,17 +66,20 @@ fn json_map_numbers(val: &Json, f: fn(f64) -> f64) -> Json {
     }
 }
 
+fn json_obj(pairs: Vec<(String, Json)>) -> Json { Json::Object(pairs) }
+fn json_arr(items: Vec<Json>) -> Json { Json::Array(items) }
+fn json_str(s: &str) -> Json { Json::Str(s.to_string()) }
+fn json_num(n: f64) -> Json { Json::Number(n) }
+fn pair(k: &str, v: Json) -> (String, Json) { (k.to_string(), v) }
+
 fn main() {
-    let user = Json::Object(vec![
-        ("name".to_string(), Json::Str("Alice".to_string())),
-        ("age".to_string(), Json::Number(30.0)),
-        ("active".to_string(), Json::Bool(true)),
-        ("scores".to_string(), Json::Array(vec![
-            Json::Number(95.0),
-            Json::Number(87.0),
-            Json::Number(92.0),
-        ])),
-        ("address".to_string(), Json::Null),
+    let scores = json_arr(vec![json_num(95.0), json_num(87.0), json_num(92.0)]);
+    let user = json_obj(vec![
+        pair("name", json_str("Alice")),
+        pair("age", json_num(30.0)),
+        pair("active", Json::Bool(true)),
+        pair("scores", scores),
+        pair("address", Json::Null),
     ]);
 
     println!("{}", stringify(&user));
