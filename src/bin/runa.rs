@@ -14770,8 +14770,9 @@ impl RustCodegen {
                         ExprKind::App(func, _) => {
                             if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                                 match fn_name.as_str() {
-                                    "map_new" => ": HashMap<String, String>".to_string(),
-                                    "set_new" => ": HashSet<String>".to_string(),
+                                    // Don't annotate map_new/set_new here — Rust infers
+                                    // from the first insert. Only fails for empty maps
+                                    // that are never inserted into (rare edge case).
                                     _ => String::new(),
                                 }
                             } else { String::new() }
