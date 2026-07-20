@@ -132,6 +132,7 @@ pub fn keyword_table_english() -> KeywordTable {
         "trait",
         "impl",
         "for",
+        "while",
         "handle",
         "resume",
         "perform",
@@ -176,6 +177,7 @@ pub fn keyword_table_dansk() -> KeywordTable {
         ("træk", "trait", TokenKind::KW),
         ("impl", "impl", TokenKind::KW),
         ("for", "for", TokenKind::KW),
+        ("while", "while", TokenKind::KW),
         // ---- misc keywords ----
         ("hvor", "where", TokenKind::KW),
         ("mut", "mut", TokenKind::KW),
@@ -1696,6 +1698,7 @@ pub enum Stmt {
     /// Monadic bind: = pat <- expr (unwrap Ok/Some, early-return on Err/None)
     MonadicBind(Pat, Option<Ty>, Expr),
     For(String, Expr, Vec<Stmt>),   // for var in expr { body }
+    While(Expr, Vec<Stmt>),         // while cond { body }
     Send(Expr, Expr),               // target <- message (actor send)
     StreamBind(String, Expr),       // ~ name = expr (reactive stream binding)
     StreamSub(Expr, Vec<MatchArm>), // ~ expr | pat -> { body } (reactive stream subscription)
@@ -2532,6 +2535,20 @@ impl Parser {
                 }
                 self.expect(TokenKind::RBrace)?;
                 Ok(Stmt::For(var, iter_expr, body))
+            }
+            // while cond { body }
+            TokenKind::KW if self.peek().text == "while" => {
+                self.advance(); // consume 'while'
+                let cond = self.parse_expr_prec(0)?;
+                self.expect(TokenKind::LBrace)?;
+                self.skip_semis();
+                let mut body = Vec::new();
+                while self.peek_kind() != TokenKind::RBrace && self.peek_kind() != TokenKind::Eof {
+                    body.push(self.parse_block_statement()?);
+                    self.skip_semis();
+                }
+                self.expect(TokenKind::RBrace)?;
+                Ok(Stmt::While(cond, body))
             }
             // Bare expression (inside blocks) — or send: expr <- expr
             _ => {
@@ -4420,6 +4437,20 @@ impl Parser {
                 self.expect(TokenKind::RBrace)?;
                 Ok(Stmt::For(var, iter_expr, body))
             }
+            // while cond { body }
+            TokenKind::KW if self.peek().text == "while" => {
+                self.advance(); // consume 'while'
+                let cond = self.parse_expr_prec(0)?;
+                self.expect(TokenKind::LBrace)?;
+                self.skip_semis();
+                let mut body = Vec::new();
+                while self.peek_kind() != TokenKind::RBrace && self.peek_kind() != TokenKind::Eof {
+                    body.push(self.parse_block_statement()?);
+                    self.skip_semis();
+                }
+                self.expect(TokenKind::RBrace)?;
+                Ok(Stmt::While(cond, body))
+            }
             _ => {
                 let expr = self.parse_expr()?;
                 // Check for <- (actor send): target <- message
@@ -5768,6 +5799,63 @@ impl Interpreter {
                         env.set(var.clone(), item);
                         let inner_stmts: Vec<Stmt> = body_stmts.clone();
                         last = self.run_program(&inner_stmts, env);
+                    }
+                }
+                Stmt::While(cond, body_stmts) => {
+                    loop {
+                        let cond_val = self.eval(cond, env);
+                        if !matches!(cond_val, Value::Bool(true)) {
+                            break;
+                        }
+                        // Execute body stmts directly in the current env
+                        // (not via run_program which may scope bindings differently)
+                        for body_stmt in body_stmts {
+                            match body_stmt {
+                                Stmt::Bind(pat, _, val) => {
+                                    let v = self.eval(val, env);
+                                    if let Pat::Var(name) = pat {
+                                        env.set(name.clone(), v);
+                                    }
+                                }
+                                Stmt::Expr(expr) => {
+                                    // Handle if/else that rebinds variables
+                                    if let ExprKind::If(c, then_branch, else_branch) = &expr.kind {
+                                        let cv = self.eval(c, env);
+                                        let branch = if matches!(cv, Value::Bool(true)) {
+                                            then_branch
+                                        } else {
+                                            else_branch
+                                        };
+                                        // Execute branch block stmts in parent env
+                                        if let ExprKind::Block(stmts) = &branch.kind {
+                                            for s in stmts {
+                                                if let Stmt::Bind(Pat::Var(name), _, val) = s {
+                                                    let v = self.eval(val, env);
+                                                    env.set(name.clone(), v);
+                                                } else {
+                                                    self.run_program(&[s.clone()], env);
+                                                }
+                                            }
+                                        } else {
+                                            last = self.eval(branch, env);
+                                        }
+                                    } else {
+                                        last = self.eval(expr, env);
+                                    }
+                                }
+                                Stmt::Annot(name, args) if name == "print" => {
+                                    if let Some(arg) = args.first() {
+                                        let v = self.eval(arg, env);
+                                        let text = format!("{}", v);
+                                        if !self.suppress_output { println!("{}", text); }
+                                        self.output.push(text);
+                                    }
+                                }
+                                other => {
+                                    last = self.run_program(&[other.clone()], env);
+                                }
+                            }
+                        }
                     }
                 }
                 Stmt::MonadicBind(pat, _ty, expr) => {

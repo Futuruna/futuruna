@@ -8107,6 +8107,11 @@ impl<'a> LoweringCtx<'a> {
                 args.iter().map(|a| self.lower_expr(a)).collect(),
             ),
             Stmt::Abort => FirStmt::Abort,
+            Stmt::While(cond, body) => FirStmt::For(
+                "__while".to_string(),
+                self.lower_expr(cond),
+                body.iter().map(|s| self.lower_stmt(s)).collect(),
+            ),
             Stmt::Expr(expr) => FirStmt::Expr(self.lower_expr(expr)),
         }
     }
@@ -10058,7 +10063,7 @@ fn expr_contains_try(expr: &Expr) -> bool {
 fn stmt_contains_try(stmt: &Stmt) -> bool {
     match stmt {
         Stmt::Bind(_, _, e) | Stmt::Expr(e) => expr_contains_try(e),
-        Stmt::For(_, iter, body) => expr_contains_try(iter) || body.iter().any(stmt_contains_try),
+        Stmt::For(_, iter, body) | Stmt::While(iter, body) => expr_contains_try(iter) || body.iter().any(stmt_contains_try),
         Stmt::MonadicBind(_, _, _) => true, // MonadicBind IS a ? operation
         Stmt::Send(target, msg) => expr_contains_try(target) || expr_contains_try(msg),
         Stmt::Assert(_, args) | Stmt::Retract(_, args) => args.iter().any(expr_contains_try),
@@ -15750,6 +15755,17 @@ impl RustCodegen {
                             continue;
                         }
                     }
+                    out.push_str(&self.emit_stmt(s));
+                }
+                self.indent -= 1;
+                out.push_str(&format!("{}}}\n", self.ind()));
+                out
+            }
+            Stmt::While(cond, body_stmts) => {
+                let cond_str = self.emit_expr(cond);
+                let mut out = format!("{}while {} {{\n", self.ind(), cond_str);
+                self.indent += 1;
+                for s in body_stmts {
                     out.push_str(&self.emit_stmt(s));
                 }
                 self.indent -= 1;
@@ -22091,8 +22107,11 @@ impl RustToRunaCtx {
             syn::BinOp::BitXor(_) => "^",
             syn::BinOp::Shl(_) => "<<",
             syn::BinOp::Shr(_) => ">>",
-            syn::BinOp::AddAssign(_) => "+=",
-            syn::BinOp::SubAssign(_) => "+=",
+            syn::BinOp::AddAssign(_) => "+",
+            syn::BinOp::SubAssign(_) => "-",
+            syn::BinOp::MulAssign(_) => "*",
+            syn::BinOp::DivAssign(_) => "/",
+            syn::BinOp::RemAssign(_) => "%",
             _ => "?op?",
         }
     }
@@ -22784,12 +22803,18 @@ impl RustToRunaCtx {
             }
             syn::Expr::While(w) => {
                 let cond = self.expr_to_string(&w.cond);
-                self.emit_line(&format!("-- while {} {{ ... }}", cond));
-                self.emit_line("-- (Futuruna uses recursion instead of while loops)");
+                self.emit_line(&format!("while {} {{", cond));
+                self.indent += 1;
+                self.transpile_block_stmts(&w.body);
+                self.indent -= 1;
+                self.emit_line("}");
             }
-            syn::Expr::Loop(_) => {
-                self.emit_line("-- loop { ... }");
-                self.emit_line("-- (Futuruna uses recursion instead of loops)");
+            syn::Expr::Loop(l) => {
+                self.emit_line("while true {");
+                self.indent += 1;
+                self.transpile_block_stmts(&l.body);
+                self.indent -= 1;
+                self.emit_line("}");
             }
             syn::Expr::Return(r) => {
                 if let Some(val) = &r.expr {
@@ -22801,6 +22826,17 @@ impl RustToRunaCtx {
                 let lhs = self.expr_to_string(&a.left);
                 let rhs = self.expr_to_string(&a.right);
                 self.emit_line(&format!("= {} = {}", lhs, rhs));
+            }
+            // Compound assignment: x += 1 → = x = x + 1
+            syn::Expr::Binary(b) if matches!(b.op,
+                syn::BinOp::AddAssign(_) | syn::BinOp::SubAssign(_) |
+                syn::BinOp::MulAssign(_) | syn::BinOp::DivAssign(_) |
+                syn::BinOp::RemAssign(_)) =>
+            {
+                let lhs = self.expr_to_string(&b.left);
+                let rhs = self.expr_to_string(&b.right);
+                let op = self.binop_to_string(&b.op);
+                self.emit_line(&format!("= {} = {} {} {}", lhs, lhs, op, rhs));
             }
             syn::Expr::Macro(m) => {
                 let s = self.transpile_macro(m);
