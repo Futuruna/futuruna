@@ -33,6 +33,7 @@ fn main_inner() {
     let mut filename = None;
     let mut use_prelude = true;
     let mut test_compile = false; // --run flag for `runa test --run`
+    let mut verify_mode = false; // --verify flag for `runa from-rust --verify`
     let mut fmt_check = false; // --check flag for `runa fmt --check`
     let mut use_fir = false; // --fir flag for `runa emit --fir`
     let mut check_codegen = false; // --check-codegen flag for `runa test --check-codegen`
@@ -58,6 +59,10 @@ fn main_inner() {
             }
             "--test" if mode == "from-rust" => {
                 test_compile = true;
+                i += 1;
+            }
+            "--verify" if mode == "from-rust" => {
+                verify_mode = true;
                 i += 1;
             }
             "--check" if mode == "fmt" => {
@@ -121,6 +126,7 @@ fn main_inner() {
                 eprintln!("  fmt --check   Check formatting without modifying");
                 eprintln!("  lsp           Start language server (stdio)");
                 eprintln!("  from-rust     Transpile Rust source to Futuruna");
+                eprintln!("  from-rust --verify  Transpile + run both + compare outputs");
                 eprintln!("  test          Run all tests/*.runa (interpreted)");
                 eprintln!("  test --run    Run all tests/*.runa (compiled + executed)");
                 eprintln!();
@@ -281,12 +287,15 @@ fn main_inner() {
         return;
     }
 
-    // ── runa from-rust [--test] <file.rs|dir> — transpile Rust → Futuruna ──
+    // ── runa from-rust [--test|--verify] <file.rs|dir> — transpile Rust → Futuruna ──
     if mode == "from-rust" {
         if let Some(ref path) = filename {
             if test_compile {
-                // --test mode: transpile, run both, compare outputs
+                // --test mode: batch verify, exit 1 on failure (for CI)
                 run_from_rust_tests(path);
+            } else if verify_mode {
+                // --verify mode: interactive side-by-side comparison
+                run_from_rust_verify(path);
             } else {
                 match std::fs::read_to_string(path) {
                     Ok(source) => {
@@ -300,9 +309,9 @@ fn main_inner() {
                 }
             }
         } else {
-            eprintln!("Usage: runa from-rust <file.rs>         Transpile to stdout");
-            eprintln!("       runa from-rust --test <file.rs>  Verify: Rust output == Futuruna output");
-            eprintln!("       runa from-rust --test <dir>      Verify all .rs files in dir");
+            eprintln!("Usage: runa from-rust <file.rs>           Transpile to stdout");
+            eprintln!("       runa from-rust --verify <file.rs>  Side-by-side: Rust vs Futuruna");
+            eprintln!("       runa from-rust --test <dir>        CI: verify all .rs files in dir");
             std::process::exit(1);
         }
         return;
@@ -1683,6 +1692,100 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 /// Round-trip testing: run each test in interpreter AND compiled mode, compare stdout.
 /// Any difference in output between the two modes = codegen bug.
 /// Run from-rust transpiler tests: compile Rust, transpile to Futuruna, compare outputs.
+/// Interactive side-by-side: show transpiled code, run both, compare outputs.
+fn run_from_rust_verify(path: &str) {
+    use std::process::Command;
+
+    let source = match std::fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Cannot read {}: {}", path, e);
+            std::process::exit(1);
+        }
+    };
+
+    let name = std::path::Path::new(path)
+        .file_name().unwrap().to_string_lossy().to_string();
+
+    // Step 1: Transpile
+    let runa_source = rust_to_runa(&source);
+    eprintln!("\x1b[1;36m── Transpiled: {} → Futuruna ──\x1b[0m\n", name);
+    for (i, line) in runa_source.lines().enumerate() {
+        eprintln!("  \x1b[2m{:3}\x1b[0m  {}", i + 1, line);
+    }
+    eprintln!();
+
+    // Step 2: Compile and run Rust
+    let tmp_bin = format!("/tmp/__runa_verify_{}", name.replace('.', "_"));
+    let rust_output = match Command::new("rustc")
+        .args(&[path, "--edition", "2021", "-o", &tmp_bin])
+        .output()
+    {
+        Ok(out) if out.status.success() => {
+            match Command::new(&tmp_bin).output() {
+                Ok(run) => String::from_utf8_lossy(&run.stdout).to_string(),
+                Err(e) => { eprintln!("Failed to run Rust binary: {}", e); return; }
+            }
+        }
+        Ok(out) => {
+            eprintln!("Rust compilation failed:\n{}", String::from_utf8_lossy(&out.stderr));
+            return;
+        }
+        Err(e) => { eprintln!("rustc not found: {}", e); return; }
+    };
+    let _ = std::fs::remove_file(&tmp_bin);
+
+    // Step 3: Run Futuruna
+    let mut lexer = Lexer::new(&runa_source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, &runa_source);
+    let stmts = match parser.parse_program() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("\x1b[1;31mFuturuna parse error:\x1b[0m {}", e.lines().next().unwrap_or(&e));
+            eprintln!();
+            eprintln!("\x1b[1;36m── Rust output ──\x1b[0m");
+            for line in rust_output.lines() {
+                eprintln!("  {}", line);
+            }
+            std::process::exit(1);
+        }
+    };
+    let mut interp = Interpreter::new();
+    let mut env = interp.default_env();
+    interp.run_program(&stmts, &mut env);
+    let runa_output = interp.output.join("\n");
+    let runa_output = if runa_output.is_empty() { runa_output } else { runa_output + "\n" };
+
+    // Step 4: Compare
+    let rust_lines: Vec<&str> = rust_output.lines().collect();
+    let runa_lines: Vec<&str> = runa_output.lines().collect();
+    let max_lines = rust_lines.len().max(runa_lines.len());
+
+    if rust_output == runa_output {
+        eprintln!("\x1b[1;32m── Output: MATCH ({} lines) ──\x1b[0m\n", rust_lines.len());
+        for line in &rust_lines {
+            eprintln!("  {}", line);
+        }
+    } else {
+        // Find max width for alignment
+        let max_rust_width = rust_lines.iter().map(|l| l.len()).max().unwrap_or(0).min(40);
+        let col_width = max_rust_width + 4;
+
+        eprintln!("\x1b[1;31m── Output: DIVERGE ──\x1b[0m\n");
+        eprintln!("  \x1b[2m{:<width$}  {}\x1b[0m", "Rust", "Futuruna", width = col_width);
+        eprintln!("  \x1b[2m{}\x1b[0m", "─".repeat(col_width + col_width + 2));
+
+        for i in 0..max_lines {
+            let r = rust_lines.get(i).unwrap_or(&"");
+            let f = runa_lines.get(i).unwrap_or(&"");
+            let marker = if r == f { " " } else { "\x1b[1;31m!\x1b[0m" };
+            eprintln!(" {} {:<width$}  {}", marker, r, f, width = col_width);
+        }
+    }
+    eprintln!();
+}
+
 fn run_from_rust_tests(path: &str) {
     use std::process::Command;
     use std::time::Instant;

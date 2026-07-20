@@ -59,6 +59,9 @@ jobs:
       - name: Roundtrip validation
         run: ./target/release/runa test --roundtrip
 
+      - name: From-rust transpiler validation
+        run: ./target/release/runa from-rust --test examples/from-rust/
+
       - name: Format check
         run: ./target/release/runa fmt --check tests/
 
