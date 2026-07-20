@@ -21221,7 +21221,12 @@ impl RustToRunaCtx {
                     let parts: Vec<String> = t.elems.iter()
                         .map(|e| self.transpile_type(e))
                         .collect();
-                    format!("({})", parts.join(", "))
+                    // Futuruna uses Pair for 2-tuples, Tuple for larger
+                    if parts.len() == 2 {
+                        format!("Pair({}, {})", parts[0], parts[1])
+                    } else {
+                        format!("({})", parts.join(", "))
+                    }
                 }
             }
             syn::Type::Slice(s) => {
@@ -21707,6 +21712,8 @@ impl RustToRunaCtx {
                     "String::from" => args[0].clone(),
                     "Vec::new" => "[]".to_string(),
                     "HashMap::new" => "map_new()".to_string(),
+                    // Box::new, Rc::new, Arc::new → just the inner value (invisible ownership)
+                    "Box::new" | "Rc::new" | "Arc::new" if args.len() == 1 => args[0].clone(),
                     _ => match func.as_str() {
                         "println" => format!("@ print({})", args.join(" + ")),
                         "eprintln" => format!("@ print({})", args.join(" + ")),
@@ -21739,19 +21746,53 @@ impl RustToRunaCtx {
             }
             syn::Expr::Match(m) => {
                 let scrut = self.expr_to_string(&m.expr);
+                // Check if any arm has a multi-statement block body
+                let has_block_arm = m.arms.iter().any(|arm| {
+                    if let syn::Expr::Block(b) = &*arm.body {
+                        b.block.stmts.len() > 1
+                    } else {
+                        false
+                    }
+                });
                 let arms: Vec<String> = m.arms.iter()
                     .map(|arm| {
                         let pat = self.pat_to_string(&arm.pat);
                         let guard = arm.guard.as_ref()
                             .map(|(_, g)| format!(" if {}", self.expr_to_string(g)))
                             .unwrap_or_default();
+                        // For block bodies with multiple stmts, wrap in { } and emit bindings
+                        if let syn::Expr::Block(b) = &*arm.body {
+                            if b.block.stmts.len() > 1 {
+                                let mut body_parts = Vec::new();
+                                for (i, stmt) in b.block.stmts.iter().enumerate() {
+                                    let is_last = i == b.block.stmts.len() - 1;
+                                    match stmt {
+                                        syn::Stmt::Local(local) => {
+                                            let p = self.pat_to_string(&local.pat);
+                                            let v = local.init.as_ref()
+                                                .map(|init| self.expr_to_string(&init.expr))
+                                                .unwrap_or_else(|| "()".to_string());
+                                            body_parts.push(format!("= {} = {}", p, v));
+                                        }
+                                        syn::Stmt::Expr(e, _) if is_last => {
+                                            body_parts.push(self.expr_to_string(e));
+                                        }
+                                        syn::Stmt::Expr(e, _) => {
+                                            body_parts.push(self.expr_to_string(e));
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                return format!("| {}{} -> {{ {} }}", pat, guard, body_parts.join("; "));
+                            }
+                        }
                         let body = self.expr_to_string(&arm.body);
                         format!("| {}{} -> {}", pat, guard, body)
                     })
                     .collect();
-                // Multi-line if total is long
+                // Multi-line if total is long or has block arms
                 let inline = format!("match {} {{ {} }}", scrut, arms.join(" "));
-                if inline.len() > 80 {
+                if inline.len() > 80 || has_block_arm {
                     let ind = self.ind();
                     let mut out = format!("match {} {{\n", scrut);
                     for arm in &arms {
@@ -21774,6 +21815,20 @@ impl RustToRunaCtx {
                 "{ ... }".to_string()
             }
             syn::Expr::Closure(c) => {
+                // Check for tuple destructuring in params: |(x, y)| → |p| { = x = fst(p) ... }
+                let has_tuple_param = c.inputs.iter().any(|p| matches!(p, syn::Pat::Tuple(_)));
+                if has_tuple_param && c.inputs.len() == 1 {
+                    if let syn::Pat::Tuple(t) = &c.inputs[0] {
+                        let names: Vec<String> = t.elems.iter()
+                            .map(|p| self.pat_to_string(p))
+                            .collect();
+                        let body = self.expr_to_string(&c.body);
+                        if names.len() == 2 {
+                            return format!("|__p| {{ = {} = fst(__p); = {} = snd(__p); {} }}",
+                                names[0], names[1], body);
+                        }
+                    }
+                }
                 let params: Vec<String> = c.inputs.iter()
                     .map(|p| self.pat_to_string(p))
                     .collect();
@@ -22290,20 +22345,46 @@ impl RustToRunaCtx {
     fn transpile_stmt(&mut self, stmt: &syn::Stmt) {
         match stmt {
             syn::Stmt::Local(local) => {
-                let pat = self.pat_to_string(&local.pat);
+                let pat_str = self.pat_to_string(&local.pat);
                 if let Some(init) = &local.init {
                     let val = self.expr_to_string(&init.expr);
-                    // Check for try (x?) pattern
-                    if matches!(&*init.expr, syn::Expr::Try(_)) {
+                    let is_try = matches!(&*init.expr, syn::Expr::Try(_));
+                    let inner_val = if is_try {
                         if let syn::Expr::Try(t) = &*init.expr {
-                            let inner = self.expr_to_string(&t.expr);
-                            self.emit_line(&format!("= {} <- {}", pat, inner));
+                            self.expr_to_string(&t.expr)
+                        } else { val.clone() }
+                    } else { val.clone() };
+                    let bind_op = if is_try { "<-" } else { "=" };
+
+                    // Tuple destructuring: let (a, b) = expr → = __t = expr; = a = fst(__t); = b = snd(__t)
+                    if let syn::Pat::Tuple(t) = &local.pat {
+                        if t.elems.len() == 2 {
+                            let names: Vec<String> = t.elems.iter()
+                                .map(|p| self.pat_to_string(p))
+                                .collect();
+                            self.emit_line(&format!("= __t {} {}", bind_op, inner_val));
+                            self.emit_line(&format!("= {} = fst(__t)", names[0]));
+                            self.emit_line(&format!("= {} = snd(__t)", names[1]));
+                            return; // handled inside match, but we're in a for loop... use continue logic
                         }
-                    } else {
-                        self.emit_line(&format!("= {} = {}", pat, val));
                     }
+                    // Also handle Pat::Type wrapping a tuple
+                    if let syn::Pat::Type(pt) = &local.pat {
+                        if let syn::Pat::Tuple(t) = &*pt.pat {
+                            if t.elems.len() == 2 {
+                                let names: Vec<String> = t.elems.iter()
+                                    .map(|p| self.pat_to_string(p))
+                                    .collect();
+                                self.emit_line(&format!("= __t {} {}", bind_op, inner_val));
+                                self.emit_line(&format!("= {} = fst(__t)", names[0]));
+                                self.emit_line(&format!("= {} = snd(__t)", names[1]));
+                                return;
+                            }
+                        }
+                    }
+                    self.emit_line(&format!("= {} {} {}", pat_str, bind_op, inner_val));
                 } else {
-                    self.emit_line(&format!("= {} = ()", pat));
+                    self.emit_line(&format!("= {} = ()", pat_str));
                 }
             }
             syn::Stmt::Item(item) => self.transpile_item(item),
