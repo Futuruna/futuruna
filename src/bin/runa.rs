@@ -11988,6 +11988,18 @@ impl RustCodegen {
             OwnershipAnalysis::analyze_stmt_refs(&main_stmts, &self.borrow_only_params);
         self.var_use_counts = main_ownership.var_uses;
         self.var_consuming_counts = main_ownership.consuming_uses;
+        // Also count uses in invariant predicates (? rune verifications)
+        // Use total counts (not just consuming) because invariant predicates
+        // contain function calls inside BinOps that ARE consuming even though
+        // BinOp operands are normally treated as non-consuming.
+        for (_name, (subject, predicate)) in &self.codegen_invariants {
+            count_var_uses(subject, &mut self.var_use_counts);
+            count_var_uses(predicate, &mut self.var_use_counts);
+            // Count ALL uses as consuming for invariant predicates
+            // because they may contain function calls that move values
+            count_var_uses(subject, &mut self.var_consuming_counts);
+            count_var_uses(predicate, &mut self.var_consuming_counts);
+        }
         // Detect Copy-type bindings in main (from literal type inference)
         for stmt in &main_stmts {
             if let Stmt::Bind(Pat::Var(name), Some(ty), _) = stmt {
@@ -14757,7 +14769,7 @@ impl RustCodegen {
                         ExprKind::App(func, _) => {
                             if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                                 match fn_name.as_str() {
-                                    // Don't annotate map_new/set_new — let Rust infer from first insert
+                                    _ => String::new(),
                                     _ => String::new(),
                                     _ => String::new(),
                                 }
@@ -15554,6 +15566,12 @@ impl RustCodegen {
                     }
                 } else {
                     for (inv_name, subject, predicate) in &targets {
+                        // Clone subject vars in predicate to avoid use-after-move
+                        // when multiple invariants reference the same variable
+                        if let ExprKind::Var(subj_name) = &subject.kind {
+                            let prev = self.var_consuming_counts.get(subj_name).copied().unwrap_or(0);
+                            self.var_consuming_counts.insert(subj_name.clone(), prev.max(2));
+                        }
                         let pred_str = self.emit_expr(predicate);
                         let subj_str = self.emit_expr(subject);
 
