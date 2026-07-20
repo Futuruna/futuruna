@@ -56,6 +56,10 @@ fn main_inner() {
                 test_compile = true;
                 i += 1;
             }
+            "--test" if mode == "from-rust" => {
+                test_compile = true;
+                i += 1;
+            }
             "--check" if mode == "fmt" => {
                 fmt_check = true;
                 i += 1;
@@ -277,22 +281,28 @@ fn main_inner() {
         return;
     }
 
-    // ── runa from-rust <file.rs> — transpile Rust → Futuruna ──
+    // ── runa from-rust [--test] <file.rs|dir> — transpile Rust → Futuruna ──
     if mode == "from-rust" {
         if let Some(ref path) = filename {
-            match std::fs::read_to_string(path) {
-                Ok(source) => {
-                    let result = rust_to_runa(&source);
-                    print!("{}", result);
-                }
-                Err(e) => {
-                    eprintln!("Cannot read {}: {}", path, e);
-                    std::process::exit(1);
+            if test_compile {
+                // --test mode: transpile, run both, compare outputs
+                run_from_rust_tests(path);
+            } else {
+                match std::fs::read_to_string(path) {
+                    Ok(source) => {
+                        let result = rust_to_runa(&source);
+                        print!("{}", result);
+                    }
+                    Err(e) => {
+                        eprintln!("Cannot read {}: {}", path, e);
+                        std::process::exit(1);
+                    }
                 }
             }
         } else {
-            eprintln!("Usage: runa from-rust <file.rs>");
-            eprintln!("  Transpiles Rust source code to Futuruna (.runa)");
+            eprintln!("Usage: runa from-rust <file.rs>         Transpile to stdout");
+            eprintln!("       runa from-rust --test <file.rs>  Verify: Rust output == Futuruna output");
+            eprintln!("       runa from-rust --test <dir>      Verify all .rs files in dir");
             std::process::exit(1);
         }
         return;
@@ -1672,6 +1682,169 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 
 /// Round-trip testing: run each test in interpreter AND compiled mode, compare stdout.
 /// Any difference in output between the two modes = codegen bug.
+/// Run from-rust transpiler tests: compile Rust, transpile to Futuruna, compare outputs.
+fn run_from_rust_tests(path: &str) {
+    use std::process::Command;
+    use std::time::Instant;
+
+    let start = Instant::now();
+    let p = std::path::Path::new(path);
+
+    let files: Vec<std::path::PathBuf> = if p.is_dir() {
+        let mut fs: Vec<_> = std::fs::read_dir(p)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().map_or(false, |ext| ext == "rs"))
+            .collect();
+        fs.sort();
+        fs
+    } else {
+        vec![p.to_path_buf()]
+    };
+
+    eprintln!(
+        "\x1b[1mruna from-rust --test\x1b[0m: verifying {} files\n",
+        files.len()
+    );
+
+    let mut passed = 0;
+    let mut failed = 0;
+    let mut parse_fail = 0;
+    let mut failures: Vec<String> = Vec::new();
+
+    for file in &files {
+        let name = file.file_name().unwrap().to_string_lossy().to_string();
+        let source = match std::fs::read_to_string(file) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("  \x1b[1;31mERROR\x1b[0m  {} — {}", name, e);
+                failed += 1;
+                failures.push(format!("{} (read error)", name));
+                continue;
+            }
+        };
+
+        let file_start = Instant::now();
+
+        // Step 1: Compile and run the Rust source
+        let tmp_bin = format!("/tmp/__runa_from_rust_{}", name.replace('.', "_"));
+        let rust_compile = Command::new("rustc")
+            .args(&[file.to_str().unwrap(), "--edition", "2021", "-o", &tmp_bin])
+            .output();
+        let rust_output = match rust_compile {
+            Ok(out) if out.status.success() => {
+                match Command::new(&tmp_bin).output() {
+                    Ok(run) => String::from_utf8_lossy(&run.stdout).to_string(),
+                    Err(e) => {
+                        eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(run failed: {})\x1b[0m", name, e);
+                        continue;
+                    }
+                }
+            }
+            Ok(out) => {
+                let err = String::from_utf8_lossy(&out.stderr);
+                let first_err = err.lines().find(|l| l.contains("error")).unwrap_or("compile failed");
+                eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m({})\x1b[0m", name, first_err.trim());
+                continue;
+            }
+            Err(e) => {
+                eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(rustc: {})\x1b[0m", name, e);
+                continue;
+            }
+        };
+        let _ = std::fs::remove_file(&tmp_bin);
+
+        // Step 2: Transpile to Futuruna
+        let runa_source = rust_to_runa(&source);
+
+        // Step 3: Parse and interpret the Futuruna
+        let mut lexer = Lexer::new(&runa_source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &runa_source);
+        let stmts = match parser.parse_program() {
+            Ok(s) => s,
+            Err(e) => {
+                parse_fail += 1;
+                failures.push(format!("{} (parse: {})", name, e.split('\n').next().unwrap_or(&e)));
+                eprintln!(
+                    "  \x1b[1;33mPARSE\x1b[0m  {} — {} \x1b[2m({}ms)\x1b[0m",
+                    name,
+                    e.split('\n').next().unwrap_or(&e),
+                    file_start.elapsed().as_millis()
+                );
+                continue;
+            }
+        };
+
+        let mut interp = Interpreter::new();
+        interp.suppress_output = false;
+        let mut env = interp.default_env();
+        let std_source = include_str!("../../std/std.runa");
+        let mut std_lexer = Lexer::new(std_source);
+        let std_tokens = std_lexer.tokenize();
+        let mut std_parser = Parser::new(std_tokens, std_source);
+        if let Ok(std_stmts) = std_parser.parse_program() {
+            interp.suppress_output = true;
+            interp.run_program(&std_stmts, &mut env);
+            interp.suppress_output = false;
+            interp.output.clear(); // Clear stdlib test output
+        }
+        interp.run_program(&stmts, &mut env);
+        let runa_output = interp.output.join("\n");
+        let runa_output = if runa_output.is_empty() { runa_output } else { runa_output + "\n" };
+
+        // Step 4: Compare outputs
+        let elapsed = file_start.elapsed().as_millis();
+        if rust_output == runa_output {
+            passed += 1;
+            eprintln!(
+                "  \x1b[1;32mMATCH\x1b[0m  {} \x1b[2m({}ms)\x1b[0m",
+                name, elapsed
+            );
+        } else {
+            failed += 1;
+            // Find first divergent line
+            let rust_lines: Vec<&str> = rust_output.lines().collect();
+            let runa_lines: Vec<&str> = runa_output.lines().collect();
+            let first_diff = rust_lines.iter().zip(runa_lines.iter())
+                .enumerate()
+                .find(|(_, (a, b))| a != b)
+                .map(|(i, _)| i + 1);
+            let diff_info = if let Some(line) = first_diff {
+                let r = rust_lines.get(line - 1).unwrap_or(&"<missing>");
+                let f = runa_lines.get(line - 1).unwrap_or(&"<missing>");
+                format!("line {}: rust={:?} runa={:?}", line, r, f)
+            } else {
+                format!("rust: {} lines, runa: {} lines", rust_lines.len(), runa_lines.len())
+            };
+            eprintln!(
+                "  \x1b[1;31mDIVERGE\x1b[0m  {} — {} \x1b[2m({}ms)\x1b[0m",
+                name, diff_info, elapsed
+            );
+            failures.push(name.clone());
+        }
+    }
+
+    let suite_time = format!("{:.1}s", start.elapsed().as_secs_f64());
+    eprintln!();
+    if failed == 0 && parse_fail == 0 {
+        eprintln!(
+            "\x1b[1;32mFrom-rust: {} matched\x1b[0m in {}.",
+            passed, suite_time
+        );
+    } else {
+        eprintln!(
+            "\x1b[1;31mFrom-rust: {} matched, {} diverged, {} parse-failed\x1b[0m in {}:",
+            passed, failed, parse_fail, suite_time
+        );
+        for f in &failures {
+            eprintln!("  - {}", f);
+        }
+        std::process::exit(1);
+    }
+}
+
 fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
     use std::process::Command;
     use std::time::Instant;
@@ -21136,6 +21309,22 @@ impl RustToRunaCtx {
         // Async
         let async_prefix = if f.sig.asyncness.is_some() { "-- async\n" } else { "" };
 
+        // Skip trivial wrappers that shadow builtins
+        // Only skip if the function body is a single method chain call like xs.iter().sum()
+        if f.block.stmts.len() == 1 {
+            if let syn::Stmt::Expr(body, _) = &f.block.stmts[0] {
+                let body_str = self.expr_to_string(body);
+                // If the body is just calling a builtin with the same name on a param, skip
+                if body_str == format!("{}({})", name, params.first().map(|p| {
+                    p.split(':').next().unwrap_or("").trim()
+                }).unwrap_or("")) {
+                    self.emit_line(&format!("-- {} delegates to builtin {}()", name, name));
+                    self.emit_blank();
+                    return;
+                }
+            }
+        }
+
         if is_main {
             // Main function — emit body as top-level statements
             self.emit_line("-- main");
@@ -21466,29 +21655,42 @@ impl RustToRunaCtx {
             syn::Expr::Unary(u) => {
                 let inner = self.expr_to_string(&u.expr);
                 match u.op {
-                    syn::UnOp::Neg(_) => format!("-{}", inner),
+                    syn::UnOp::Neg(_) => format!("(0 - {})", inner),
                     syn::UnOp::Not(_) => format!("not({})", inner),
                     syn::UnOp::Deref(_) => inner, // strip dereference
                     _ => inner,
                 }
             }
             syn::Expr::Call(c) => {
+                // Get the full qualified path for matching (e.g. "String::new")
+                let full_path = if let syn::Expr::Path(p) = &*c.func {
+                    p.path.segments.iter()
+                        .map(|s| s.ident.to_string())
+                        .collect::<Vec<_>>()
+                        .join("::")
+                } else {
+                    String::new()
+                };
                 let func = self.expr_to_string(&c.func);
                 let args: Vec<String> = c.args.iter()
                     .map(|a| self.expr_to_string(a))
                     .collect();
-                // Map common Rust calls
-                match func.as_str() {
-                    "println" => format!("@ print({})", args.join(" + ")),
-                    "eprintln" => format!("@ print({})", args.join(" + ")),
-                    "format" => args.join(" + "),
-                    "String::from" | "String::new" if args.is_empty() => "\"\"".to_string(),
+                // Map common Rust calls (check full path first, then short name)
+                match full_path.as_str() {
+                    "String::new" => "\"\"".to_string(),
+                    "String::from" if args.is_empty() => "\"\"".to_string(),
                     "String::from" => args[0].clone(),
                     "Vec::new" => "[]".to_string(),
-                    "Some" => format!("Some({})", args.join(", ")),
-                    "Ok" => format!("Ok({})", args.join(", ")),
-                    "Err" => format!("Err({})", args.join(", ")),
-                    _ => format!("{}({})", func, args.join(", "))
+                    "HashMap::new" => "map_new()".to_string(),
+                    _ => match func.as_str() {
+                        "println" => format!("@ print({})", args.join(" + ")),
+                        "eprintln" => format!("@ print({})", args.join(" + ")),
+                        "format" => args.join(" + "),
+                        "Some" => format!("Some({})", args.join(", ")),
+                        "Ok" => format!("Ok({})", args.join(", ")),
+                        "Err" => format!("Err({})", args.join(", ")),
+                        _ => format!("{}({})", func, args.join(", "))
+                    }
                 }
             }
             syn::Expr::MethodCall(mc) => {
@@ -21611,9 +21813,14 @@ impl RustToRunaCtx {
                 let start = r.start.as_ref()
                     .map(|e| self.expr_to_string(e))
                     .unwrap_or_else(|| "0".to_string());
-                let end = r.end.as_ref()
+                let end_expr = r.end.as_ref()
                     .map(|e| self.expr_to_string(e))
                     .unwrap_or_else(|| "...".to_string());
+                // ..= (inclusive) → range(start, end + 1) since Futuruna range is exclusive
+                let end = match r.limits {
+                    syn::RangeLimits::Closed(_) => format!("{} + 1", end_expr),
+                    syn::RangeLimits::HalfOpen(_) => end_expr,
+                };
                 format!("range({}, {})", start, end)
             }
             syn::Expr::Struct(s) => {
@@ -21637,7 +21844,8 @@ impl RustToRunaCtx {
                 let inner = self.expr_to_string(&c.expr);
                 let ty = self.transpile_type(&c.ty);
                 match ty.as_str() {
-                    "Int" => format!("to_int({})", inner),
+                    // Numeric casts: Futuruna has Int and Float, strip identity casts
+                    "Int" => inner,
                     "Float" => format!("to_float({})", inner),
                     _ => inner,
                 }
@@ -21695,7 +21903,7 @@ impl RustToRunaCtx {
     fn method_call_to_runa(&self, recv: &str, method: &str, args: &[String]) -> String {
         match method {
             // Iterator / collection methods
-            "len" => format!("length({})", recv),
+            "len" | "count" => format!("length({})", recv),
             "is_empty" => format!("length({}) == 0", recv),
             "push" => format!("push({}, {})", recv, args.join(", ")),
             "pop" => format!("last({})", recv),
@@ -21783,7 +21991,12 @@ impl RustToRunaCtx {
             }
             "vec" => {
                 // Clean up token spacing: "1 , 2 , 3 ," → "1, 2, 3"
-                let clean = tokens.replace(" , ", ", ").trim_end_matches(", ").trim_end_matches(',').to_string();
+                // Also fix "- 1" → "-1" (negative numbers)
+                let clean = tokens.replace(" , ", ", ")
+                    .replace("- ", "-")
+                    .trim_end_matches(", ")
+                    .trim_end_matches(',')
+                    .to_string();
                 format!("[{}]", clean.trim())
             }
             "panic" | "todo" | "unimplemented" => {
@@ -21819,8 +22032,13 @@ impl RustToRunaCtx {
             .replace("  ", " ")
             // Strip remaining & in args (invisible ownership)
             .replace("& ", "")
-            // Clean up HashMap :: new() → map_new()
+            // Clean up common Rust patterns in macro args
             .replace("HashMap :: new()", "map_new()")
+            // vec ! [...] → [...] (macro formatting in token stream)
+            .replace("vec ! [", "[")
+            .replace("vec! [", "[")
+            // Fix negative number spacing: "- 1" → "-1"
+            .replace("- ", "-")
     }
 
     /// Convert println!("...", args) → @ print("..." + show(args))
@@ -22065,7 +22283,9 @@ impl RustToRunaCtx {
             }
             syn::Expr::Match(m) => {
                 let scrut = self.expr_to_string(&m.expr);
-                self.emit_line(&format!("match {} {{", scrut));
+                // At top level (indent 0), wrap match in binding for Futuruna parser
+                let prefix = if self.indent == 0 { "= _ = " } else { "" };
+                self.emit_line(&format!("{}match {} {{", prefix, scrut));
                 self.indent += 1;
                 for arm in &m.arms {
                     let pat = self.pat_to_string(&arm.pat);
