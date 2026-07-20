@@ -11288,11 +11288,17 @@ impl RustCodegen {
         }
         out.push_str("use std::fmt;\n");
         out.push_str("use std::collections::{HashMap, HashSet};\n\n");
-        // __show: format values like the Futuruna interpreter (no string quotes in containers)
-        out.push_str("fn __show<T: fmt::Debug + fmt::Display>(v: &T) -> String { format!(\"{}\", v) }\n");
-        out.push_str("fn __show_vec<T: fmt::Debug + fmt::Display>(v: &[T]) -> String {\n");
+        // __futuruna_show: format like the interpreter (Display, no string quotes)
+        out.push_str("fn __futuruna_show<T: fmt::Display>(v: &T) -> String { format!(\"{}\", v) }\n");
+        out.push_str("fn __futuruna_show_vec<T: fmt::Display>(v: &[T]) -> String {\n");
         out.push_str("    let items: Vec<String> = v.iter().map(|x| format!(\"{}\", x)).collect();\n");
         out.push_str("    format!(\"[{}]\", items.join(\", \"))\n");
+        out.push_str("}\n");
+        out.push_str("fn __futuruna_show_opt<T: fmt::Display>(v: &Option<T>) -> String {\n");
+        out.push_str("    match v { Some(x) => format!(\"Some({})\", x), None => \"None\".to_string() }\n");
+        out.push_str("}\n");
+        out.push_str("fn __futuruna_show_result<T: fmt::Display, E: fmt::Display>(v: &Result<T, E>) -> String {\n");
+        out.push_str("    match v { Ok(x) => format!(\"Ok({})\", x), Err(e) => format!(\"Err({})\", e) }\n");
         out.push_str("}\n");
 
         // Emit use declarations
@@ -16892,9 +16898,9 @@ impl RustCodegen {
                         if self.expr_is_string(&args[0]) {
                             return format!("format!(\"{{}}\", {})", args_str[0]);
                         } else {
-                            // Use Debug but strip outer quotes from strings inside containers
-                            // This matches interpreter output: [hello, world] not ["hello", "world"]
-                            return format!("format!(\"{{:?}}\", {}).replace(\"\\\"\", \"\")", args_str[0]);
+                            // Use Debug format, strip quotes to match interpreter output
+                            // Replace { with ( and } with ) for struct display parity
+                            return format!("format!(\"{{:?}}\", {}).replace('\\\"', \"\").replace(\" {{ \", \"(\").replace(\" }}\", \")\")", args_str[0]);
                         }
                     }
                     // Builtin: not(x) → !x (boolean negation / negation as failure)
