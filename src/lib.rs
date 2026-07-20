@@ -4529,6 +4529,16 @@ impl fmt::Display for Value {
             Value::Constructor(name, args) if args.is_empty() => {
                 write!(f, "{}", name)
             }
+            Value::Constructor(name, args) if name == "Cons" && args.len() == 2 => {
+                // Display linked lists as [1, 2, 3] instead of Cons(1, Cons(2, Nil))
+                let items = list_to_vec(self);
+                write!(f, "[")?;
+                for (i, item) in items.iter().enumerate() {
+                    if i > 0 { write!(f, ", ")?; }
+                    write!(f, "{}", item)?;
+                }
+                write!(f, "]")
+            }
             Value::Constructor(name, args) => {
                 write!(f, "{}(", name)?;
                 for (i, a) in args.iter().enumerate() {
