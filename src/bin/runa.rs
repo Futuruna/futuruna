@@ -16511,11 +16511,12 @@ impl RustCodegen {
                 }
                 let sname = sanitize_name(name);
                 // lib mode: top-level bindings are pub fn getters — call them
-                // But NOT if the name is a local variable (param, let binding, loop var)
+                // But NOT if the name is a parameter of the current function
+                // (current_borrow_params tracks current fn params that are &T,
+                //  var_types tracks all current fn params)
                 if self.lib_mode && self.lib_static_names.contains(name.as_str())
-                    && !self.var_use_counts.contains_key(name)
-                    && !self.copy_vars.contains(name.as_str())
-                    && !self.mutable_vars.contains(name.as_str())
+                    && !self.current_borrow_params.contains(name.as_str())
+                    && !self.var_types.contains_key(name)
                 {
                     return format!("{}()", sname);
                 }
