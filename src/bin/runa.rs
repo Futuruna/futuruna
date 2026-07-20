@@ -11536,6 +11536,32 @@ impl RustCodegen {
         out.push_str("use std::collections::{HashMap, HashSet};\n\n");
         // __futuruna_show: format like the interpreter (Display, no string quotes)
         out.push_str("fn __futuruna_show<T: fmt::Display>(v: &T) -> String { format!(\"{}\", v) }\n");
+        // __futuruna_show_any: works for Debug types, strips string quotes, fixes struct display
+        // Also strips trailing .0 on whole floats to match interpreter behavior
+        out.push_str("fn __futuruna_show_any<T: fmt::Debug>(v: &T) -> String {\n");
+        out.push_str("    let s = format!(\"{:?}\", v);\n");
+        out.push_str("    // Strip string quotes, fix struct brace→paren, strip trailing .0\n");
+        out.push_str("    let s = s.replace('\\\"', \"\").replace(\" { \", \"(\").replace(\" }\", \")\");\n");
+        out.push_str("    // Strip .0 from whole floats (e.g. \"22.0\" → \"22\") to match interpreter\n");
+        out.push_str("    let mut result = String::new();\n");
+        out.push_str("    let mut chars = s.chars().peekable();\n");
+        out.push_str("    while let Some(c) = chars.next() {\n");
+        out.push_str("        if c == '.' && chars.peek() == Some(&'0') {\n");
+        out.push_str("            let rest_start = chars.clone();\n");
+        out.push_str("            chars.next(); // consume '0'\n");
+        out.push_str("            let next = chars.peek().copied();\n");
+        out.push_str("            if next.map_or(true, |n| !n.is_ascii_digit()) {\n");
+        out.push_str("                continue; // skip .0\n");
+        out.push_str("            } else {\n");
+        out.push_str("                result.push(c);\n");
+        out.push_str("                result.push('0');\n");
+        out.push_str("            }\n");
+        out.push_str("        } else {\n");
+        out.push_str("            result.push(c);\n");
+        out.push_str("        }\n");
+        out.push_str("    }\n");
+        out.push_str("    result\n");
+        out.push_str("}\n");
         out.push_str("fn __futuruna_show_vec<T: fmt::Display>(v: &[T]) -> String {\n");
         out.push_str("    let items: Vec<String> = v.iter().map(|x| format!(\"{}\", x)).collect();\n");
         out.push_str("    format!(\"[{}]\", items.join(\", \"))\n");
@@ -17214,11 +17240,10 @@ impl RustCodegen {
                     if builtin_canonical(name) == "show" && args_str.len() == 1 {
                         if self.expr_is_string(&args[0]) {
                             return format!("format!(\"{{}}\", {})", args_str[0]);
-                        } else {
-                            // Use Debug format, strip quotes to match interpreter output
-                            // Replace { with ( and } with ) for struct display parity
-                            return format!("format!(\"{{:?}}\", {}).replace('\\\"', \"\").replace(\" {{ \", \"(\").replace(\" }}\", \")\")", args_str[0]);
                         }
+                        // Use __futuruna_show_any: Debug format with .0 stripping
+                        // Works for ALL types (Vec, Option, Result, primitives, structs)
+                        return format!("__futuruna_show_any(&{})", args_str[0]);
                     }
                     // Builtin: not(x) → !x (boolean negation / negation as failure)
                     if name == "not" && args_str.len() == 1 {
@@ -22153,6 +22178,64 @@ impl RustToRunaCtx {
 
     // ── Statements / Blocks ───────────────────────────────────────────────
 
+    /// Detect: for x in xs { if cond { return Some(x) } } ; None → find(xs, |x| cond)
+    fn detect_find_pattern(&self, stmts: &[syn::Stmt]) -> Option<String> {
+        let len = stmts.len();
+        if len < 2 { return None; }
+
+        // Last stmt must be `None` (expression)
+        let last_is_none = match &stmts[len - 1] {
+            syn::Stmt::Expr(expr, _) => {
+                matches!(expr, syn::Expr::Path(p)
+                    if p.path.segments.last().map(|s| s.ident == "None").unwrap_or(false))
+            }
+            _ => false,
+        };
+        if !last_is_none { return None; }
+
+        // Second-to-last must be a for loop
+        let for_loop = match &stmts[len - 2] {
+            syn::Stmt::Expr(syn::Expr::ForLoop(f), _) => f,
+            _ => return None,
+        };
+
+        // For loop body must be a single `if cond { return Some(x) }`
+        if for_loop.body.stmts.len() != 1 { return None; }
+        let if_expr = match &for_loop.body.stmts[0] {
+            syn::Stmt::Expr(syn::Expr::If(i), _) => i,
+            _ => return None,
+        };
+
+        // Then branch must be `{ return Some(x) }` or `{ Some(x) }`
+        if if_expr.then_branch.stmts.len() != 1 { return None; }
+        let return_some = match &if_expr.then_branch.stmts[0] {
+            syn::Stmt::Expr(syn::Expr::Return(r), _) => {
+                r.expr.as_ref().and_then(|e| {
+                    if let syn::Expr::Call(c) = &**e {
+                        if let syn::Expr::Path(p) = &*c.func {
+                            if p.path.segments.last().map(|s| s.ident == "Some").unwrap_or(false) {
+                                return Some(true);
+                            }
+                        }
+                    }
+                    None
+                })
+            }
+            _ => None,
+        };
+        if return_some.is_none() { return None; }
+
+        // Extract: collection, loop var, condition
+        let collection = self.expr_to_string(&for_loop.expr);
+        let loop_var = self.pat_to_string(&for_loop.pat);
+        let condition = self.expr_to_string(&if_expr.cond);
+
+        // Strip dereferences from condition (common in Rust: *x > 0, **x > 0)
+        let clean_cond = condition.replace("* ", "");
+
+        Some(format!("find({}, |{}| {})", collection, loop_var, clean_cond))
+    }
+
     /// Convert a block to an inline string (for simple if/else expressions)
     fn block_to_inline(&self, block: &syn::Block) -> String {
         if block.stmts.len() == 1 {
@@ -22178,6 +22261,19 @@ impl RustToRunaCtx {
 
     fn transpile_block_body(&mut self, block: &syn::Block) {
         let len = block.stmts.len();
+
+        // Pattern: for x in xs { if cond { return Some(x) } } ; None → find(xs, |x| cond)
+        if len >= 2 {
+            if let Some(find_expr) = self.detect_find_pattern(&block.stmts) {
+                // Emit all stmts before the for+None pair
+                for stmt in &block.stmts[..len - 2] {
+                    self.transpile_stmt(stmt);
+                }
+                self.emit_line(&find_expr);
+                return;
+            }
+        }
+
         for (i, stmt) in block.stmts.iter().enumerate() {
             let is_last = i == len - 1;
             match stmt {

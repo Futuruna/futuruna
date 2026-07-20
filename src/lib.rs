@@ -4547,10 +4547,7 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Int(n) => write!(f, "{}", n),
-            Value::Float(v) => {
-                let s = format!("{}", v);
-                if s.contains('.') { write!(f, "{}", s) } else { write!(f, "{}.0", s) }
-            }
+            Value::Float(v) => write!(f, "{}", v),
             Value::Str(s) => write!(f, "{}", s),
             Value::Char(c) => write!(f, "{}", c),
             Value::Bool(b) => write!(f, "{}", if *b { "true" } else { "false" }),
