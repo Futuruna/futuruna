@@ -6421,7 +6421,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("first",        BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().next().unwrap_or_default()" }),
         ("reduce",       BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __acc = {1}; for __x in {0}.clone().into_iter() {{ __acc = ({2})(__acc.clone(), __x); }} __acc }" }),
         ("start_with",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __v = vec![{1}]; __v.extend({0}.clone()); __v }" }),
-        ("concat",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.extend({1}.clone()); __v }" }),
+        ("concat",       BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.extend({1}.clone()); __v }" }),
         ("pairwise",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().windows(2).map(|w| (w[0].clone(), w[1].clone())).collect::<Vec<_>>()" }),
         ("fst",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.0" }),
         ("snd",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.1" }),
