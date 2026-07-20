@@ -68,6 +68,10 @@ fn main_inner() {
                 check_codegen = true;
                 i += 1;
             }
+            "--roundtrip" if mode == "test" => {
+                mode = "test-roundtrip";
+                i += 1;
+            }
             "--run" => {
                 mode = "run";
                 i += 1;
@@ -229,6 +233,12 @@ fn main_inner() {
         return;
     }
 
+    // ── runa test --roundtrip [dir] — round-trip comparison ──
+    if mode == "test-roundtrip" {
+        let test_dir = filename.as_deref().unwrap_or("tests");
+        run_roundtrip_tests(test_dir, use_prelude);
+        return;
+    }
     // ── runa test [--run] [--check-codegen] [dir] — test runner ──
     if mode == "test" && check_codegen {
         let test_dir = filename.as_deref().unwrap_or("tests");
@@ -1632,6 +1642,11 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
         }
         std::process::exit(1);
     }
+}
+
+/// Round-trip testing: run each test in interpreter AND compiled mode, compare output.
+fn run_roundtrip_tests(_dir: &str, _use_prelude: bool) {
+    eprintln!("runa test --roundtrip: coming soon (use --check-codegen for now)");
 }
 
 /// Run codegen validation: emit Rust for each .runa file and verify it compiles.
@@ -6407,6 +6422,10 @@ struct RustCodegen {
     fn_return_types: BTreeMap<String, String>,
     /// Local bindings in current function (names from let/= bindings, NOT top-level)
     local_bindings: BTreeSet<String>,
+    /// Inside an iterator closure (foldl/map/filter) — captured non-Copy vars need .clone()
+    in_iter_closure: bool,
+    /// Parameters of the current closure (not captured — don't clone these)
+    closure_params: BTreeSet<String>,
     /// WASM mode: emit wasm-bindgen annotations on exported functions
     wasm_mode: bool,
     /// Cargo dependencies: crate_name -> version
@@ -9810,6 +9829,8 @@ impl RustCodegen {
             lib_static_names: BTreeSet::new(),
             fn_return_types: BTreeMap::new(),
             local_bindings: BTreeSet::new(),
+            in_iter_closure: false,
+            closure_params: BTreeSet::new(),
             wasm_mode: false,
             cargo_deps: BTreeMap::new(),
             source_dir: None,
@@ -16530,6 +16551,17 @@ impl RustCodegen {
                 {
                     return format!("{}()", sname);
                 }
+                // Iterator closure: captured non-Copy, non-param vars need .clone()
+                // because the closure runs on every iteration
+                if self.in_iter_closure
+                    && !self.closure_params.contains(name.as_str())
+                    && !self.copy_vars.contains(name.as_str())
+                    && !self.types.user_functions.contains(name.as_str())
+                    && !self.types.prolog_rule_fns.contains_key(name.as_str())
+                    && !self.builtin_registry.contains_key(name.as_str())
+                {
+                    return format!("{}.clone()", sname);
+                }
                 // Phase 3b: ref-match binding — dereference because it's &T from matching on a reference
                 if self.ref_match_bindings.contains(name.as_str()) {
                     return format!("(*{})", sname);
@@ -17166,7 +17198,14 @@ impl RustCodegen {
                     self.var_consuming_counts.insert(name.clone(), 0);
                     self.copy_vars.insert(name.clone());
                 }
+                // Mark as iterator closure so captured vars get .clone()
+                let prev_in_iter = self.in_iter_closure;
+                let prev_closure_params = std::mem::take(&mut self.closure_params);
+                self.in_iter_closure = true;
+                self.closure_params = lambda_param_names.iter().cloned().collect();
                 let body_str = self.emit_expr(body);
+                self.in_iter_closure = prev_in_iter;
+                self.closure_params = prev_closure_params;
                 // Restore outer escape analysis state
                 for (name, uses, consuming, was_copy) in saved {
                     if let Some(u) = uses {
