@@ -1286,11 +1286,14 @@ guide is accurate for the current pipeline.
 
 **"Every commit is tested; every release is published."**
 
-- [ ] **GitHub Actions: test.yml**: On push/PR, run `cargo test`, `cargo build --release`,
+- [x] **GitHub Actions: ci.yml**: On push/PR, `cargo test`, `cargo build --release`,
   `runa test`, `runa test --run`. Matrix: Linux, macOS.
-- [ ] **Negative tests in CI**: Run error tests from M28.
-- [ ] **Format check**: `runa fmt --check` on all `.runa` files. Fail on unformatted.
-- [ ] **Release pipeline**: On tag `v*`, build release binaries (Linux x86_64,
+- [x] **Negative tests in CI**: Error tests in tests/errors/ run automatically.
+- [x] **Format check**: `runa fmt --check tests/` in CI. Fails on unformatted.
+- [x] **Codegen validation**: `runa test --check-codegen` — 65/65 pass, fails build on regression.
+- [x] **Roundtrip validation**: `runa test --roundtrip` — 49/49 match, fails build on regression.
+- [x] **From-rust validation**: `runa from-rust --test examples/from-rust/` — 22/22 match.
+- [x] **Release pipeline**: On tag `v*`, build release binaries (Linux x86_64,
   macOS arm64, macOS x86_64), create GitHub Release with binaries attached.
 - [ ] **Website auto-deploy**: On push to main, build website and deploy.
 - [ ] **Badge**: Add CI status badge to README.
@@ -1324,17 +1327,16 @@ works for all 7 runes. Diagnostics appear within 500ms of typing.
 application. The playground needs to run Futuruna code in-browser, which requires
 compiling the interpreter to WASM.
 
-- [ ] **Interpreter-as-WASM**: Compile the Futuruna interpreter (`lib.rs` — lexer,
-  parser, evaluator) to WASM. Expose `evaluate(source: &str) -> String` via
-  wasm-bindgen. Feasible because the interpreter is pure Rust with no filesystem deps.
-- [ ] **Playground page**: Text editor with syntax highlighting, "Run" button,
-  output panel. Programs execute client-side via WASM interpreter. No server needed.
-- [ ] **Example programs**: Preloaded examples (one per rune + combined demo).
-  One-click load.
-- [ ] **Share links**: Encode program source in URL fragment (base64 + compression).
-  Shareable playground links.
-- [ ] **Landing page polish**: Elevator pitch, 7-rune overview, comparison table
-  (vs. Rust, Kotlin, Haskell), link to tutorial, link to GitHub.
+- [x] **Interpreter-as-WASM**: Futuruna interpreter compiled to WASM via Dioxus.
+  `futuruna::eval_source()` runs client-side. No server needed.
+- [x] **Playground page**: Editor with syntax highlighting + hover tooltips,
+  "Run" button, output panel. Programs execute client-side via WASM interpreter.
+- [x] **Example programs**: 6 preloaded examples (Weather, Hello, Streams,
+  Rules, Fibonacci, Boot). One-click load.
+- [x] **Share links**: deflate+base64url encoding in URL fragment. "Share" button
+  copies link to clipboard.
+- [x] **Landing page polish**: Elevator pitch, 7-rune showcase, embedded
+  playground on homepage, full playground at /playground.
 - [ ] **Auto-deploy**: Integrate with M38 CI pipeline for automatic deployment.
 
 **Test:** Playground runs all preloaded examples correctly in-browser. Share link

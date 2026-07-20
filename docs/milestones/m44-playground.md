@@ -2,15 +2,15 @@
 
 **Tagline:** "Try Futuruna without installing anything."
 
-## Goal
+**Status:** DONE. Live at website /playground.
 
-Compile the interpreter (lib.rs) to WASM. Embed in the Dioxus website
-with a code editor and output panel. Programs run client-side.
+## Result
 
-## Approach
-
-1. lib.rs already has `eval_source()` — expose via wasm-bindgen
-2. CodeMirror editor with Futuruna syntax highlighting
-3. "Run" button → eval_source() → display output
-4. Preloaded examples (one per rune)
-5. Share links (source in URL fragment)
+Dioxus WASM application with:
+- `futuruna::eval_source()` compiled to WASM — runs entirely client-side
+- Code editor with syntax highlighting + hover tooltips for runes
+- "Run" button → eval_source() → display output
+- 6 preloaded examples (Weather, Hello, Streams, Rules, Fibonacci, Boot)
+- Share links (deflate + base64url in URL fragment)
+- Full playground page at /playground + embedded on homepage
+- Delay support for streaming demos (|> delay(N))

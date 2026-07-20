@@ -2,10 +2,21 @@
 
 **Tagline:** "Bring your Rust code."
 
-## Goal
+**Status:** DONE. 22/22 verified tests.
 
-Parse Rust source (via syn crate) and emit equivalent .runa source.
-"Paste your Rust, see it in Futuruna" — the killer onboarding story.
+## Result
+
+`runa from-rust file.rs` parses Rust via syn crate, emits equivalent .runa source.
+`runa from-rust --verify file.rs` shows transpiled code + side-by-side output comparison.
+`runa from-rust --test dir/` batch-verifies all .rs files (CI gate).
+
+22 test files, all producing identical output between Rust and Futuruna:
+- t01-t12: graduated core patterns (basics → iterator patterns)
+- t13-t15: traits, string processing, recursive linked lists
+- t16-t19: algorithms, state machines, expression simplifier, while loops
+- real_world_1: JSON value type (100 lines)
+- real_world_2: Expression evaluator (80 lines)
+- real_world_3: Mini type checker (120 lines)
 
 ## Mapping
 
@@ -18,5 +29,16 @@ Parse Rust source (via syn crate) and emit equivalent .runa source.
 | `match x { ... }` | `match x { \| ... }` |
 | `println!("{}", x)` | `@ print(show(x))` |
 | `x?` | `= val <- x` |
-| Lifetimes, `&`, `&mut` | Stripped (invisible ownership) |
-| `unsafe { }` | `@ rust { }` (preserve) |
+| `while cond { }` | `while cond { }` |
+| `x += 1` | `= x = x + 1` |
+| `for x in xs { if cond { return Some(x) } } None` | `find(xs, \|x\| cond)` |
+| `.iter().map().filter().collect()` | `map()`, `filter()` builtins |
+| `Box<T>`, `Rc<T>`, `Arc<T>`, `&T` | Stripped (invisible ownership) |
+| Lifetimes | Stripped |
+| `unsafe { }` | `@ rust { }` |
+
+## Verification
+
+```bash
+runa from-rust --test examples/from-rust/    # 22 matched, 0 diverged
+```
