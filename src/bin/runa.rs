@@ -1699,7 +1699,7 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
             || source.contains("json_parse") || source.contains("json_get")
             || source.contains("regex_match") || source.contains("regex_find")
             || source.contains("@ store")
-            || source.contains("subject()") || source.contains("spawn(")
+            || source.contains("subject(") || source.contains("spawn(")
             || source.contains("@ import");
         if needs_skip {
             skipped += 1;
@@ -1877,7 +1877,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
             || source.contains("json_parse") || source.contains("json_get")
             || source.contains("regex_match") || source.contains("regex_find")
             || source.contains("@ store")
-            || source.contains("subject()") || source.contains("spawn(")
+            || source.contains("subject(") || source.contains("spawn(")
             || source.contains("@ import");
         if needs_crate {
             skipped += 1;
@@ -14748,11 +14748,30 @@ impl RustCodegen {
                         self.float_typed_vars.insert(var_name.clone());
                     }
                 }
+                // Add type annotation when Rust can't infer (None, HashMap::new, etc.)
+                let type_hint = if let Some(ty) = _ty {
+                    format!(": {}", self.emit_type(ty))
+                } else {
+                    match &value.kind {
+                        ExprKind::Var(name) if name == "None" => ": Option<i64>".to_string(),
+                        ExprKind::App(func, _) => {
+                            if let ExprKind::Var(fn_name) = &func.as_ref().kind {
+                                match fn_name.as_str() {
+                                    // Don't annotate map_new/set_new — let Rust infer from first insert
+                                    _ => String::new(),
+                                    _ => String::new(),
+                                }
+                            } else { String::new() }
+                        }
+                        _ => String::new(),
+                    }
+                };
                 format!(
-                    "{}let {}{} = {};\n",
+                    "{}let {}{}{} = {};\n",
                     self.ind(),
                     mutability,
                     pat_str,
+                    type_hint,
                     val_str
                 )
             }
