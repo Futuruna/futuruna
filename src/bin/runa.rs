@@ -11287,7 +11287,13 @@ impl RustCodegen {
             out.push_str("use wasm_bindgen::prelude::*;\n");
         }
         out.push_str("use std::fmt;\n");
-        out.push_str("use std::collections::{HashMap, HashSet};\n");
+        out.push_str("use std::collections::{HashMap, HashSet};\n\n");
+        // __show: format values like the Futuruna interpreter (no string quotes in containers)
+        out.push_str("fn __show<T: fmt::Debug + fmt::Display>(v: &T) -> String { format!(\"{}\", v) }\n");
+        out.push_str("fn __show_vec<T: fmt::Debug + fmt::Display>(v: &[T]) -> String {\n");
+        out.push_str("    let items: Vec<String> = v.iter().map(|x| format!(\"{}\", x)).collect();\n");
+        out.push_str("    format!(\"[{}]\", items.join(\", \"))\n");
+        out.push_str("}\n");
 
         // Emit use declarations
         for stmt in stmts.iter() {
@@ -16884,11 +16890,11 @@ impl RustCodegen {
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
                     if builtin_canonical(name) == "show" && args_str.len() == 1 {
                         if self.expr_is_string(&args[0]) {
-                            // String expression: use Display (no quotes)
                             return format!("format!(\"{{}}\", {})", args_str[0]);
                         } else {
-                            // Non-string: use Debug (works for Vec, Option, Result, ADTs, etc.)
-                            return format!("format!(\"{{:?}}\", {})", args_str[0]);
+                            // Use Debug but strip outer quotes from strings inside containers
+                            // This matches interpreter output: [hello, world] not ["hello", "world"]
+                            return format!("format!(\"{{:?}}\", {}).replace(\"\\\"\", \"\")", args_str[0]);
                         }
                     }
                     // Builtin: not(x) → !x (boolean negation / negation as failure)
