@@ -147,6 +147,10 @@ pub fn keyword_table_english() -> KeywordTable {
     t.insert("False".to_string(), ("False".to_string(), TokenKind::Bool_));
     t.insert("true".to_string(), ("True".to_string(), TokenKind::Bool_));
     t.insert("false".to_string(), ("False".to_string(), TokenKind::Bool_));
+    // `or` as expression operator (alias for ||)
+    t.insert("or".to_string(), ("||".to_string(), TokenKind::Op));
+    // Note: `and` is handled specially in the rule conjunction parser
+    // (not lexed as && because it's also a goal separator in Datalog rules)
     t
 }
 
@@ -1955,6 +1959,7 @@ pub struct Parser {
     pub pos: usize,
     pub source_chars: Vec<char>,
     pub line_starts: Vec<usize>, // line_starts[i] = char index of start of line (i+1)
+    pub in_rule_body: bool,      // true when parsing | rule body (and = conjunction, not &&)
 }
 
 impl Parser {
@@ -1971,6 +1976,7 @@ impl Parser {
             pos: 0,
             source_chars,
             line_starts,
+            in_rule_body: false,
         }
     }
 
@@ -2821,7 +2827,9 @@ impl Parser {
         let head = self.parse_expr()?;
         if self.peek_kind() == TokenKind::Arrow {
             self.advance();
+            self.in_rule_body = true;
             let body_or_value = self.parse_expr()?;
+            self.in_rule_body = false;
             if self.peek_kind() == TokenKind::KW && self.peek().text == "under" {
                 self.advance();
                 let condition = self.parse_expr()?;
@@ -2831,11 +2839,15 @@ impl Parser {
                     condition: Some(condition),
                 }))
             } else {
-                // Check for comma-separated goals (Prolog-style conjunction)
-                if self.peek_kind() == TokenKind::Comma {
+                // Check for conjunction: comma or `and` keyword
+                let is_conjunction = self.peek_kind() == TokenKind::Comma
+                    || (self.peek_kind() == TokenKind::Ident && self.peek().text == "and");
+                if is_conjunction {
                     let mut goals = vec![body_or_value];
-                    while self.peek_kind() == TokenKind::Comma {
-                        self.advance(); // consume ','
+                    while self.peek_kind() == TokenKind::Comma
+                        || (self.peek_kind() == TokenKind::Ident && self.peek().text == "and")
+                    {
+                        self.advance(); // consume ',' or 'and'
                         goals.push(self.parse_expr()?);
                     }
                     Ok(Stmt::Rule(Rule::Clause {
@@ -3859,7 +3871,7 @@ impl Parser {
                     let span = start_span.merge(rhs.span);
                     lhs = Expr::new(ExprKind::Pipe(Box::new(lhs), Box::new(rhs)), span);
                 }
-                // Binary operators
+                // Binary operators (including `or` which lexes as Op "||")
                 TokenKind::Op => {
                     let op = &self.peek().text;
                     let prec = op_precedence(op);
@@ -3871,6 +3883,17 @@ impl Parser {
                     let rhs = self.parse_expr_prec(prec + 1)?;
                     let span = start_span.merge(rhs.span);
                     lhs = Expr::new(ExprKind::BinOp(op, Box::new(lhs), Box::new(rhs)), span);
+                }
+                // `and` as infix operator (alias for &&) in non-rule expressions
+                // In rule bodies, `and` is handled as conjunction separator instead
+                TokenKind::Ident if self.peek().text == "and" && !self.in_rule_body => {
+                    let prec = op_precedence("&&");
+                    if prec < min_prec { break; }
+                    let start_span = lhs.span;
+                    self.advance();
+                    let rhs = self.parse_expr_prec(prec + 1)?;
+                    let span = start_span.merge(rhs.span);
+                    lhs = Expr::new(ExprKind::BinOp("&&".to_string(), Box::new(lhs), Box::new(rhs)), span);
                 }
                 // Safe call: expr?.field → match expr { Some(v) -> Some(v.field), None -> None }
                 TokenKind::SafeCall => {
