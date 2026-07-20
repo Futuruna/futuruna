@@ -1,4 +1,5 @@
 -- New stdlib builtins: random, sleep, time
+-- roundtrip-skip: random values differ between interpreter and compiled modes
 
 -- random_float returns a value
 = rf = random_float()

@@ -1686,8 +1686,8 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
             Err(_) => { skipped += 1; continue; }
         };
 
-        // Skip negative tests (they're supposed to fail)
-        if source.contains("-- expect-error:") {
+        // Skip negative tests and roundtrip-skip tests
+        if source.contains("-- expect-error:") || source.contains("-- roundtrip-skip:") {
             skipped += 1;
             continue;
         }

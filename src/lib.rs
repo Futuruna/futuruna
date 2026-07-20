@@ -4501,7 +4501,10 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Int(n) => write!(f, "{}", n),
-            Value::Float(v) => write!(f, "{}", v),
+            Value::Float(v) => {
+                let s = format!("{}", v);
+                if s.contains('.') { write!(f, "{}", s) } else { write!(f, "{}.0", s) }
+            }
             Value::Str(s) => write!(f, "{}", s),
             Value::Char(c) => write!(f, "{}", c),
             Value::Bool(b) => write!(f, "{}", if *b { "true" } else { "false" }),
@@ -4527,7 +4530,11 @@ impl fmt::Display for Value {
                 write!(f, ")")
             }
             Value::Constructor(name, args) if args.is_empty() => {
-                write!(f, "{}", name)
+                if name == "Nil" {
+                    write!(f, "[]")  // Empty list
+                } else {
+                    write!(f, "{}", name)
+                }
             }
             Value::Constructor(name, args) if name == "Cons" && args.len() == 2 => {
                 // Display linked lists as [1, 2, 3] instead of Cons(1, Cons(2, Nil))
@@ -5939,6 +5946,10 @@ impl Interpreter {
                     // Check if this is a rule call (| name(...) -> value)
                     if let Some(result) = self.try_rule_call(fn_name, args, env) {
                         return result;
+                    }
+                    // If rules exist for this name but none matched → false
+                    if self.rules.iter().any(|(n, _)| n == fn_name) {
+                        return Value::Bool(false);
                     }
                 }
                 let f = self.eval(func, env);
