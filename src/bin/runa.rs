@@ -21515,11 +21515,26 @@ impl RustToRunaCtx {
                 let arms: Vec<String> = m.arms.iter()
                     .map(|arm| {
                         let pat = self.pat_to_string(&arm.pat);
+                        let guard = arm.guard.as_ref()
+                            .map(|(_, g)| format!(" if {}", self.expr_to_string(g)))
+                            .unwrap_or_default();
                         let body = self.expr_to_string(&arm.body);
-                        format!("| {} -> {}", pat, body)
+                        format!("| {}{} -> {}", pat, guard, body)
                     })
                     .collect();
-                format!("match {} {{ {} }}", scrut, arms.join(" "))
+                // Multi-line if total is long
+                let inline = format!("match {} {{ {} }}", scrut, arms.join(" "));
+                if inline.len() > 80 {
+                    let ind = self.ind();
+                    let mut out = format!("match {} {{\n", scrut);
+                    for arm in &arms {
+                        out.push_str(&format!("{}    {}\n", ind, arm));
+                    }
+                    out.push_str(&format!("{}}}", ind));
+                    out
+                } else {
+                    inline
+                }
             }
             syn::Expr::Block(b) => {
                 // Just emit the last expression if simple
@@ -21585,6 +21600,12 @@ impl RustToRunaCtx {
                 let lhs = self.expr_to_string(&a.left);
                 let rhs = self.expr_to_string(&a.right);
                 format!("{} = {}", lhs, rhs)
+            }
+            syn::Expr::Let(l) => {
+                // if let Some(x) = expr → pattern match
+                let pat = self.pat_to_string(&l.pat);
+                let val = self.expr_to_string(&l.expr);
+                format!("{} = {}", pat, val)
             }
             syn::Expr::Range(r) => {
                 let start = r.start.as_ref()
@@ -21788,13 +21809,18 @@ impl RustToRunaCtx {
         let s = s.trim();
         // Strip leading & (references — invisible ownership)
         let s = s.strip_prefix("& ").or_else(|| s.strip_prefix("&")).unwrap_or(s);
-        // Normalize spaces around parens and commas
-        s.replace(" (", "(")
+        // Normalize spaces around parens, commas, and dots
+        s.replace(" . ", ".")
+            .replace(" (", "(")
             .replace("( ", "(")
             .replace(" )", ")")
             .replace(" ,", ",")
-            .replace(", ", ", ") // ensure consistent comma spacing
+            .replace(", ", ", ")
             .replace("  ", " ")
+            // Strip remaining & in args (invisible ownership)
+            .replace("& ", "")
+            // Clean up HashMap :: new() → map_new()
+            .replace("HashMap :: new()", "map_new()")
     }
 
     /// Convert println!("...", args) → @ print("..." + show(args))
@@ -21803,9 +21829,8 @@ impl RustToRunaCtx {
         if tokens.is_empty() {
             return "@ print(\"\")".to_string();
         }
-        // Simple case: println!("literal")
-        if tokens.starts_with('"') && !tokens.contains("{}") {
-            // Strip the string
+        // Simple case: println!("literal") — no format specifiers at all
+        if tokens.starts_with('"') && !tokens.contains('{') {
             return format!("@ print({})", tokens);
         }
         // Format string: println!("{} is {}", a, b)
@@ -21981,6 +22006,34 @@ impl RustToRunaCtx {
     fn transpile_expr_stmt(&mut self, expr: &syn::Expr) {
         match expr {
             syn::Expr::If(i) => {
+                // if let → convert to match
+                if let syn::Expr::Let(l) = &*i.cond {
+                    let pat = self.pat_to_string(&l.pat);
+                    let val = self.expr_to_string(&l.expr);
+                    self.emit_line(&format!("match {} {{", val));
+                    self.indent += 1;
+                    self.emit_line(&format!("| {} -> {{", pat));
+                    self.indent += 1;
+                    self.transpile_block_body(&i.then_branch);
+                    self.indent -= 1;
+                    self.emit_line("}");
+                    if let Some((_, else_branch)) = &i.else_branch {
+                        self.emit_line("| _ -> {");
+                        self.indent += 1;
+                        match else_branch.as_ref() {
+                            syn::Expr::Block(b) => self.transpile_block_body(&b.block),
+                            _ => {
+                                let s = self.expr_to_string(else_branch);
+                                self.emit_line(&s);
+                            }
+                        }
+                        self.indent -= 1;
+                        self.emit_line("}");
+                    }
+                    self.indent -= 1;
+                    self.emit_line("}");
+                    return;
+                }
                 let cond = self.expr_to_string(&i.cond);
                 self.emit_line(&format!("if {} {{", cond));
                 self.indent += 1;
