@@ -20,3 +20,7 @@ website/.wrangler/
 
 # Database files generated at runtime
 *.db
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
