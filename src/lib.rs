@@ -2237,9 +2237,10 @@ impl Parser {
         Ok(binders)
     }
 
-    fn proof_case_arm_from_pattern(
+    fn proof_ctor_arm_from_pattern(
         &self,
         pat: Pat,
+        arm_kind: &str,
     ) -> Result<(String, Vec<String>), String> {
         match pat {
             Pat::Con(ctor, binders) => {
@@ -2247,17 +2248,20 @@ impl Parser {
                 for binder in binders {
                     match binder {
                         Pat::Var(name) if name != "_" => names.push(name),
-                        Pat::Wild => return Err("case arms cannot use `_` binders yet".into()),
+                        Pat::Wild => {
+                            return Err(format!("{} cannot use `_` binders yet", arm_kind));
+                        }
                         _ => {
-                            return Err(
-                                "case arms currently require simple constructor binders".into()
-                            );
+                            return Err(format!(
+                                "{} currently require simple constructor binders",
+                                arm_kind
+                            ));
                         }
                     }
                 }
                 Ok((ctor, names))
             }
-            _ => Err("case arms require constructor patterns".into()),
+            _ => Err(format!("{} require constructor patterns", arm_kind)),
         }
     }
 
@@ -2305,6 +2309,30 @@ impl Parser {
             ));
         }
 
+        if self.peek_word("induction_on") {
+            self.advance();
+            let scrutinee = self.expect_ident()?;
+            self.expect(TokenKind::LBrace)?;
+            self.skip_semis();
+            let mut arms = Vec::new();
+            while self.peek_kind() != TokenKind::RBrace {
+                self.expect(TokenKind::Pipe)?;
+                let pat = self.parse_pattern()?;
+                let (ctor, binders) =
+                    self.proof_ctor_arm_from_pattern(pat, "induction arms")?;
+                self.expect(TokenKind::Arrow)?;
+                let body = self.parse_proof_term()?;
+                arms.push(proof_kernel::IndArm {
+                    ctor,
+                    binders,
+                    body,
+                });
+                self.skip_semis();
+            }
+            self.expect(TokenKind::RBrace)?;
+            return Ok(proof_kernel::ProofTerm::InductionOn(scrutinee, arms));
+        }
+
         if self.peek_word("cases") {
             self.advance();
             let scrutinee_expr = self.parse_expr()?;
@@ -2315,7 +2343,7 @@ impl Parser {
             while self.peek_kind() != TokenKind::RBrace {
                 self.expect(TokenKind::Pipe)?;
                 let pat = self.parse_pattern()?;
-                let (ctor, binders) = self.proof_case_arm_from_pattern(pat)?;
+                let (ctor, binders) = self.proof_ctor_arm_from_pattern(pat, "case arms")?;
                 self.expect(TokenKind::Arrow)?;
                 let body = self.parse_proof_term()?;
                 arms.push(proof_kernel::CaseArm {

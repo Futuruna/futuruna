@@ -21,8 +21,8 @@
 //!
 //! ## Phase 1 scope (this file)
 //!
-//! Implemented rules: REFL, HYP, APPLY, LET, REWRITE, ASSUME, CONTRA, CASES.
-//! Stubbed (returns `NotImplemented`): IND.
+//! Implemented rules: REFL, HYP, APPLY, LET, REWRITE, ASSUME, CONTRA, CASES,
+//! IND.
 //! Built-in axioms: a conservative subset of the v1 design doc, with the
 //! remainder landing in phase 2.
 
@@ -189,6 +189,7 @@ pub struct Ctx {
     hyps: Vec<Hyp>,
     ctor_families: BTreeMap<String, Vec<String>>,
     ctor_arities: BTreeMap<String, usize>,
+    ctor_recursive_fields: BTreeMap<String, Vec<usize>>,
     var_ctor_families: BTreeMap<String, Vec<String>>,
 }
 
@@ -226,6 +227,17 @@ impl Ctx {
         new
     }
 
+    /// Register which constructor fields are structurally recursive.
+    pub fn with_constructor_recursive_fields(
+        &self,
+        name: String,
+        recursive_fields: Vec<usize>,
+    ) -> Self {
+        let mut new = self.clone();
+        new.ctor_recursive_fields.insert(name, recursive_fields);
+        new
+    }
+
     /// Look up a named proposition hypothesis. Returns the most recent
     /// binding (shadowing).
     pub fn lookup_prop(&self, name: &str) -> Option<&Prop> {
@@ -252,6 +264,10 @@ impl Ctx {
 
     fn constructor_arity(&self, name: &str) -> Option<usize> {
         self.ctor_arities.get(name).copied()
+    }
+
+    fn constructor_recursive_fields(&self, name: &str) -> Option<&Vec<usize>> {
+        self.ctor_recursive_fields.get(name)
     }
 }
 
@@ -476,6 +492,15 @@ pub enum ProofError {
     UnificationFailed(String),
     GoalMismatch { expected: String, got: String },
     PremiseCount { axiom: String, expected: usize, got: usize },
+    CannotInduct(String),
+    MissingInductionArms(Vec<String>),
+    UnexpectedInductionArm(String),
+    DuplicateInductionArm(String),
+    InductionBinderCount {
+        ctor: String,
+        expected: usize,
+        got: usize,
+    },
     CannotCaseSplit(String),
     MissingCaseArms(Vec<String>),
     UnexpectedCaseArm(String),
@@ -506,6 +531,25 @@ impl fmt::Display for ProofError {
                 f,
                 "{} expects {} premise proof(s), got {}",
                 axiom, expected, got
+            ),
+            ProofError::CannotInduct(s) => write!(f, "cannot induct: {}", s),
+            ProofError::MissingInductionArms(ctors) => {
+                write!(f, "missing induction arm(s) for: {}", ctors.join(", "))
+            }
+            ProofError::UnexpectedInductionArm(ctor) => {
+                write!(f, "unexpected induction arm for constructor {}", ctor)
+            }
+            ProofError::DuplicateInductionArm(ctor) => {
+                write!(f, "duplicate induction arm for constructor {}", ctor)
+            }
+            ProofError::InductionBinderCount {
+                ctor,
+                expected,
+                got,
+            } => write!(
+                f,
+                "induction arm {} expects {} binder(s), got {}",
+                ctor, expected, got
             ),
             ProofError::CannotCaseSplit(s) => write!(f, "cannot case-split: {}", s),
             ProofError::MissingCaseArms(ctors) => {
@@ -751,6 +795,47 @@ fn case_branch_term(ctor: &str, binders: &[String]) -> Term {
     }
 }
 
+fn induction_hyp_name(index: usize, total: usize) -> String {
+    if total == 1 {
+        "ih".into()
+    } else {
+        format!("ih_{}", index + 1)
+    }
+}
+
+fn collect_subterms(term: &Term, out: &mut Vec<Term>) {
+    out.push(term.clone());
+    match term {
+        Term::Int(_) | Term::Var(_) => {}
+        Term::Op(_, lhs, rhs) => {
+            collect_subterms(lhs, out);
+            collect_subterms(rhs, out);
+        }
+        Term::App(_, args) => {
+            for arg in args {
+                collect_subterms(arg, out);
+            }
+        }
+    }
+}
+
+fn collect_goal_subterms(goal: &Prop) -> Vec<Term> {
+    let mut out = Vec::new();
+    match goal {
+        Prop::Eq(lhs, rhs) | Prop::Le(lhs, rhs) => {
+            collect_subterms(lhs, &mut out);
+            collect_subterms(rhs, &mut out);
+        }
+        Prop::And(lhs, rhs) | Prop::Imply(lhs, rhs) => {
+            out.extend(collect_goal_subterms(lhs));
+            out.extend(collect_goal_subterms(rhs));
+        }
+        Prop::Not(inner) => out.extend(collect_goal_subterms(inner)),
+        Prop::False => {}
+    }
+    out
+}
+
 // ============================================================================
 // SYNTHESIS — figuring out what Prop a proof term proves, without a goal
 // ============================================================================
@@ -799,6 +884,86 @@ fn synthesize(
             "only hypotheses and closed applies can be synthesized in v1; use `let` to name other proofs first".into(),
         )),
     }
+}
+
+fn synthesize_rewrite_equality(
+    term: &ProofTerm,
+    goal: &Prop,
+    ctx: &Ctx,
+    reg: &Registry,
+) -> Result<Prop, ProofError> {
+    let ProofTerm::Apply(name, args) = term else {
+        return synthesize(term, ctx, reg);
+    };
+    let schema = reg
+        .lookup(name)
+        .ok_or_else(|| ProofError::UnknownAxiom(name.clone()))?;
+    if schema.vars.is_empty() {
+        return synthesize(term, ctx, reg);
+    }
+    if schema.premises.len() != args.len() {
+        return Err(ProofError::PremiseCount {
+            axiom: name.clone(),
+            expected: schema.premises.len(),
+            got: args.len(),
+        });
+    }
+    let Prop::Eq(lhs, _) = &schema.conclusion else {
+        return synthesize(term, ctx, reg);
+    };
+
+    let mut last_err = None;
+    for candidate in collect_goal_subterms(goal) {
+        let mut subst = BTreeMap::new();
+        if unify_term(lhs, &candidate, &schema.vars, &mut subst).is_err() {
+            continue;
+        }
+
+        let mut premise_failed = false;
+        for (index, arg) in args.iter().enumerate() {
+            let partially_expected = subst_prop(&schema.premises[index], &subst);
+            if schema.vars.iter().any(|var| !subst.contains_key(var)) {
+                let actual = match synthesize(arg, ctx, reg) {
+                    Ok(actual) => actual,
+                    Err(err) => {
+                        last_err = Some(err);
+                        premise_failed = true;
+                        break;
+                    }
+                };
+                if let Err(err) = unify_prop(&partially_expected, &actual, &schema.vars, &mut subst)
+                {
+                    last_err = Some(err);
+                    premise_failed = true;
+                    break;
+                }
+            }
+
+            let expected = subst_prop(&schema.premises[index], &subst);
+            if let Err(err) = check(arg, &expected, ctx, reg) {
+                last_err = Some(err);
+                premise_failed = true;
+                break;
+            }
+        }
+        if premise_failed {
+            continue;
+        }
+
+        if schema.vars.iter().any(|var| !subst.contains_key(var)) {
+            continue;
+        }
+
+        let conclusion = subst_prop(&schema.conclusion, &subst);
+        return Ok(conclusion);
+    }
+
+    Err(last_err.unwrap_or_else(|| {
+        ProofError::CannotSynthesize(format!(
+            "apply {} could not be instantiated from rewrite goal {}",
+            name, goal
+        ))
+    }))
 }
 
 // ============================================================================
@@ -850,7 +1015,7 @@ pub fn check(
 
         // [REWRITE]  substitute equals in the goal, then check the body
         ProofTerm::Rewrite(eq_term, body_term) => {
-            let eq_prop = synthesize(eq_term, ctx, reg)?;
+            let eq_prop = synthesize_rewrite_equality(eq_term, goal, ctx, reg)?;
             match eq_prop {
                 Prop::Eq(lhs, rhs) => {
                     let new_goal = rewrite_in_prop(goal, &lhs, &rhs);
@@ -886,13 +1051,87 @@ pub fn check(
         // [CONTRA]  Γ ⊢ t : False ⟹ Γ ⊢ contra{t} : P
         ProofTerm::Contra(body) => check(body, &Prop::False, ctx, reg),
 
-        // [IND]  phase 2
-        ProofTerm::InductionOn(_, _) => {
-            Err(ProofError::NotImplemented("induction_on (phase 2)"))
-        }
+        // [IND]  structural induction over a known constructor family
+        ProofTerm::InductionOn(name, arms) => check_induction(name, arms, goal, ctx, reg),
         // [CASES]  branch on a scrutinee with a known constructor family
         ProofTerm::Cases(scrut, arms) => check_cases(scrut, arms, goal, ctx, reg),
     }
+}
+
+fn check_induction(
+    name: &str,
+    arms: &[IndArm],
+    goal: &Prop,
+    ctx: &Ctx,
+    reg: &Registry,
+) -> Result<(), ProofError> {
+    let scrut = Term::Var(name.to_string());
+    let family = ctx.case_family_for(&scrut).ok_or_else(|| {
+        ProofError::CannotInduct(format!(
+            "{} has no known inductive constructor family in the proof context",
+            name
+        ))
+    })?;
+    let expected: BTreeSet<String> = family.iter().cloned().collect();
+    let mut seen = BTreeSet::new();
+
+    for arm in arms {
+        if !expected.contains(&arm.ctor) {
+            return Err(ProofError::UnexpectedInductionArm(arm.ctor.clone()));
+        }
+        if !seen.insert(arm.ctor.clone()) {
+            return Err(ProofError::DuplicateInductionArm(arm.ctor.clone()));
+        }
+        let expected_arity = ctx.constructor_arity(&arm.ctor).ok_or_else(|| {
+            ProofError::CannotInduct(format!(
+                "constructor metadata for {} is missing from the proof context",
+                arm.ctor
+            ))
+        })?;
+        if expected_arity != arm.binders.len() {
+            return Err(ProofError::InductionBinderCount {
+                ctor: arm.ctor.clone(),
+                expected: expected_arity,
+                got: arm.binders.len(),
+            });
+        }
+    }
+
+    let missing: Vec<String> = expected.difference(&seen).cloned().collect();
+    if !missing.is_empty() {
+        return Err(ProofError::MissingInductionArms(missing));
+    }
+
+    for arm in arms {
+        let branch_term = case_branch_term(&arm.ctor, &arm.binders);
+        let branch_goal = rewrite_in_prop(goal, &scrut, &branch_term);
+        let recursive_fields = ctx
+            .constructor_recursive_fields(&arm.ctor)
+            .ok_or_else(|| {
+                ProofError::CannotInduct(format!(
+                    "recursive-field metadata for {} is missing from the proof context",
+                    arm.ctor
+                ))
+            })?;
+        let mut branch_ctx = ctx.clone();
+        for binder in &arm.binders {
+            branch_ctx = branch_ctx.with_var(binder.clone());
+        }
+        for (index, binder_index) in recursive_fields.iter().enumerate() {
+            let binder = arm.binders.get(*binder_index).ok_or_else(|| {
+                ProofError::CannotInduct(format!(
+                    "recursive field {} for {} is out of bounds",
+                    binder_index, arm.ctor
+                ))
+            })?;
+            let ih_name = induction_hyp_name(index, recursive_fields.len());
+            let ih_prop = rewrite_in_prop(goal, &scrut, &Term::Var(binder.clone()));
+            branch_ctx = branch_ctx.with_prop(ih_name, ih_prop);
+        }
+        check(&arm.body, &branch_goal, &branch_ctx, reg)?;
+    }
+
+    Ok(())
 }
 
 fn check_cases(
@@ -1205,7 +1444,10 @@ mod tests {
         let ctx = Ctx::new();
         let reg = Registry::with_builtins();
         let proof = ProofTerm::Apply("int_ord.le_refl".into(), vec![]);
-        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+        match check(&proof, &goal, &ctx, &reg) {
+            Ok(()) => {}
+            Err(err) => panic!("{}", err),
+        }
     }
 
     #[test]
@@ -1215,7 +1457,10 @@ mod tests {
         let ctx = Ctx::new().with_var("x".into());
         let reg = Registry::with_builtins();
         let proof = ProofTerm::Apply("int_ring.zero_add".into(), vec![]);
-        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+        match check(&proof, &goal, &ctx, &reg) {
+            Ok(()) => {}
+            Err(err) => panic!("{}", err),
+        }
     }
 
     #[test]
@@ -1224,7 +1469,10 @@ mod tests {
         let ctx = Ctx::new().with_var("a".into()).with_var("b".into());
         let reg = Registry::with_builtins();
         let proof = ProofTerm::Apply("int_ring.comm_mul".into(), vec![]);
-        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+        match check(&proof, &goal, &ctx, &reg) {
+            Ok(()) => {}
+            Err(err) => panic!("{}", err),
+        }
     }
 
     // --- APPLY with premise proofs (eq.trans) ---
@@ -1488,6 +1736,107 @@ mod tests {
         assert!(matches!(err, ProofError::CannotCaseSplit(_)));
     }
 
+    // --- INDUCTION ---
+
+    #[test]
+    fn induction_rewrites_goal_and_binds_recursive_hypothesis() {
+        let family = vec!["Cons".into(), "Nil".into()];
+        let ctx = Ctx::new()
+            .with_var_family("xs".into(), family.clone())
+            .with_constructor("Cons".into(), family.clone(), 2)
+            .with_constructor("Nil".into(), family, 0)
+            .with_constructor_recursive_fields("Cons".into(), vec![1])
+            .with_constructor_recursive_fields("Nil".into(), vec![]);
+        let mut reg = Registry::with_builtins();
+        reg.register(
+            "keep.nil".into(),
+            Schema {
+                vars: vec![],
+                premises: vec![],
+                conclusion: Prop::Eq(Term::App("keep".into(), vec![v("Nil")]), v("Nil")),
+            },
+        )
+        .unwrap();
+        reg.register(
+            "keep.cons".into(),
+            Schema {
+                vars: vec!["h".into(), "t".into()],
+                premises: vec![],
+                conclusion: Prop::Eq(
+                    Term::App("keep".into(), vec![Term::App("Cons".into(), vec![v("h"), v("t")])]),
+                    Term::App(
+                        "Cons".into(),
+                        vec![v("h"), Term::App("keep".into(), vec![v("t")])],
+                    ),
+                ),
+            },
+        )
+        .unwrap();
+
+        let goal = Prop::Eq(Term::App("keep".into(), vec![v("xs")]), v("xs"));
+        let proof = ProofTerm::InductionOn(
+            "xs".into(),
+            vec![
+                IndArm {
+                    ctor: "Nil".into(),
+                    binders: vec![],
+                    body: ProofTerm::Rewrite(
+                        Box::new(ProofTerm::Apply("keep.nil".into(), vec![])),
+                        Box::new(ProofTerm::Refl),
+                    ),
+                },
+                IndArm {
+                    ctor: "Cons".into(),
+                    binders: vec!["h".into(), "t".into()],
+                    body: ProofTerm::Rewrite(
+                        Box::new(ProofTerm::Apply("keep.cons".into(), vec![])),
+                        Box::new(ProofTerm::Rewrite(
+                            Box::new(ProofTerm::Hyp("ih".into())),
+                            Box::new(ProofTerm::Refl),
+                        )),
+                    ),
+                },
+            ],
+        );
+        match check(&proof, &goal, &ctx, &reg) {
+            Ok(()) => {}
+            Err(err) => panic!("{}", err),
+        }
+    }
+
+    #[test]
+    fn induction_rejects_missing_constructor_branch() {
+        let family = vec!["Cons".into(), "Nil".into()];
+        let ctx = Ctx::new()
+            .with_var_family("xs".into(), family.clone())
+            .with_constructor("Cons".into(), family.clone(), 2)
+            .with_constructor("Nil".into(), family, 0)
+            .with_constructor_recursive_fields("Cons".into(), vec![1])
+            .with_constructor_recursive_fields("Nil".into(), vec![]);
+        let reg = Registry::with_builtins();
+        let goal = Prop::Eq(v("xs"), v("xs"));
+        let proof = ProofTerm::InductionOn(
+            "xs".into(),
+            vec![IndArm {
+                ctor: "Nil".into(),
+                binders: vec![],
+                body: ProofTerm::Refl,
+            }],
+        );
+        let err = check(&proof, &goal, &ctx, &reg).unwrap_err();
+        assert!(matches!(err, ProofError::MissingInductionArms(_)));
+    }
+
+    #[test]
+    fn induction_rejects_unknown_inductive_family() {
+        let ctx = Ctx::new().with_var("xs".into());
+        let reg = Registry::with_builtins();
+        let goal = Prop::Eq(v("xs"), v("xs"));
+        let proof = ProofTerm::InductionOn("xs".into(), vec![]);
+        let err = check(&proof, &goal, &ctx, &reg).unwrap_err();
+        assert!(matches!(err, ProofError::CannotInduct(_)));
+    }
+
     // --- NEGATIVE TESTS ---
 
     #[test]
@@ -1512,15 +1861,5 @@ mod tests {
         let proof = ProofTerm::Apply("imaginary.axiom".into(), vec![]);
         let err = check(&proof, &goal, &ctx, &reg).unwrap_err();
         assert!(matches!(err, ProofError::UnknownAxiom(_)));
-    }
-
-    #[test]
-    fn induction_is_stubbed_as_not_implemented() {
-        let ctx = Ctx::new();
-        let reg = Registry::with_builtins();
-        let goal = Prop::Le(Term::Int(0), v("x"));
-        let proof = ProofTerm::InductionOn("x".into(), vec![]);
-        let err = check(&proof, &goal, &ctx, &reg).unwrap_err();
-        assert!(matches!(err, ProofError::NotImplemented(_)));
     }
 }

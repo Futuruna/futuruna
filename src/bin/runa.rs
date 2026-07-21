@@ -4695,6 +4695,7 @@ struct ProofConstructorTable {
     family_by_type: BTreeMap<String, Vec<String>>,
     family_by_ctor: BTreeMap<String, Vec<String>>,
     arity_by_ctor: BTreeMap<String, usize>,
+    recursive_by_ctor: BTreeMap<String, Vec<usize>>,
 }
 
 impl ProofConstructorTable {
@@ -4712,6 +4713,10 @@ impl ProofConstructorTable {
                 table
                     .arity_by_ctor
                     .insert(variant.name.clone(), variant.fields.len());
+                table.recursive_by_ctor.insert(
+                    variant.name.clone(),
+                    proof_recursive_field_positions(ty_name, variant),
+                );
             }
         }
         table
@@ -4720,6 +4725,147 @@ impl ProofConstructorTable {
     fn family_for_type(&self, ty: &Ty) -> Option<&Vec<String>> {
         proof_type_name(ty).and_then(|name| self.family_by_type.get(name))
     }
+}
+
+fn proof_recursive_field_positions(ty_name: &str, variant: &Variant) -> Vec<usize> {
+    variant
+        .fields
+        .iter()
+        .enumerate()
+        .filter_map(|(index, field)| {
+            (proof_type_name(&field.ty) == Some(ty_name)).then_some(index)
+        })
+        .collect()
+}
+
+fn collect_function_param_types(stmts: &[Stmt]) -> BTreeMap<String, Vec<Option<Ty>>> {
+    stmts.iter()
+        .filter_map(|stmt| match stmt {
+            Stmt::Defn(Defn::Fn { name, params, .. }) => Some((
+                name.clone(),
+                params.iter().map(|param| param.ty.clone()).collect(),
+            )),
+            _ => None,
+        })
+        .collect()
+}
+
+fn collect_function_param_types_from_defs(
+    functions: &[(String, Vec<Param>, Option<Ty>, Expr)],
+) -> BTreeMap<String, Vec<Option<Ty>>> {
+    functions
+        .iter()
+        .map(|(name, params, _, _)| {
+            (
+                name.clone(),
+                params.iter().map(|param| param.ty.clone()).collect(),
+            )
+        })
+        .collect()
+}
+
+fn note_inferred_family(
+    name: &str,
+    family: Vec<String>,
+    inferred: &mut BTreeMap<String, Vec<String>>,
+    conflicted: &mut BTreeSet<String>,
+) {
+    if conflicted.contains(name) {
+        return;
+    }
+    match inferred.get(name) {
+        None => {
+            inferred.insert(name.into(), family);
+        }
+        Some(existing) if *existing == family => {}
+        Some(_) => {
+            inferred.remove(name);
+            conflicted.insert(name.into());
+        }
+    }
+}
+
+fn infer_expr_var_families(
+    expr: &Expr,
+    function_param_types: &BTreeMap<String, Vec<Option<Ty>>>,
+    constructors: &ProofConstructorTable,
+    inferred: &mut BTreeMap<String, Vec<String>>,
+    conflicted: &mut BTreeSet<String>,
+) {
+    match &expr.kind {
+        ExprKind::Var(_) | ExprKind::Lit(_) => {}
+        ExprKind::App(func, args) => {
+            if let ExprKind::Var(name) = &func.kind {
+                if let Some(param_types) = function_param_types.get(name) {
+                    for (arg, param_ty) in args.iter().zip(param_types.iter()) {
+                        if let Some(family) = param_ty
+                            .as_ref()
+                            .and_then(|ty| constructors.family_for_type(ty))
+                            .cloned()
+                        {
+                            if let ExprKind::Var(var_name) = &arg.kind {
+                                note_inferred_family(var_name, family, inferred, conflicted);
+                            }
+                        }
+                    }
+                }
+            }
+            infer_expr_var_families(func, function_param_types, constructors, inferred, conflicted);
+            for arg in args {
+                infer_expr_var_families(
+                    arg,
+                    function_param_types,
+                    constructors,
+                    inferred,
+                    conflicted,
+                );
+            }
+        }
+        ExprKind::BinOp(_, lhs, rhs) => {
+            infer_expr_var_families(lhs, function_param_types, constructors, inferred, conflicted);
+            infer_expr_var_families(rhs, function_param_types, constructors, inferred, conflicted);
+        }
+        ExprKind::UnOp(_, inner) => {
+            infer_expr_var_families(inner, function_param_types, constructors, inferred, conflicted);
+        }
+        ExprKind::Tuple(elems) => {
+            for elem in elems {
+                infer_expr_var_families(
+                    elem,
+                    function_param_types,
+                    constructors,
+                    inferred,
+                    conflicted,
+                );
+            }
+        }
+        _ => {}
+    }
+}
+
+fn infer_explicit_proof_var_families(
+    subject_expr: &Expr,
+    pred_expr: &Expr,
+    function_param_types: &BTreeMap<String, Vec<Option<Ty>>>,
+    constructors: &ProofConstructorTable,
+) -> BTreeMap<String, Vec<String>> {
+    let mut inferred = BTreeMap::new();
+    let mut conflicted = BTreeSet::new();
+    infer_expr_var_families(
+        subject_expr,
+        function_param_types,
+        constructors,
+        &mut inferred,
+        &mut conflicted,
+    );
+    infer_expr_var_families(
+        pred_expr,
+        function_param_types,
+        constructors,
+        &mut inferred,
+        &mut conflicted,
+    );
+    inferred
 }
 
 fn proof_type_name(ty: &Ty) -> Option<&str> {
@@ -5058,7 +5204,8 @@ fn collect_proof_term_term_vars(term: &proof_kernel::ProofTerm, vars: &mut BTree
             collect_proof_term_term_vars(lhs, vars);
             collect_proof_term_term_vars(rhs, vars);
         }
-        proof_kernel::ProofTerm::InductionOn(_, arms) => {
+        proof_kernel::ProofTerm::InductionOn(name, arms) => {
+            vars.insert(name.clone());
             for arm in arms {
                 collect_proof_term_term_vars(&arm.body, vars);
             }
@@ -5097,16 +5244,22 @@ fn substitute_proof_term_binders(
             Box::new(substitute_proof_term_binders(eq_term, substitutions)),
             Box::new(substitute_proof_term_binders(body_term, substitutions)),
         ),
-        proof_kernel::ProofTerm::InductionOn(name, arms) => proof_kernel::ProofTerm::InductionOn(
-            name.clone(),
-            arms.iter()
-                .map(|arm| proof_kernel::IndArm {
-                    ctor: arm.ctor.clone(),
-                    binders: arm.binders.clone(),
-                    body: substitute_proof_term_binders(&arm.body, substitutions),
-                })
-                .collect(),
-        ),
+        proof_kernel::ProofTerm::InductionOn(name, arms) => {
+            let induction_name = match substitutions.get(name) {
+                Some(proof_kernel::Term::Var(var)) => var.clone(),
+                _ => name.clone(),
+            };
+            proof_kernel::ProofTerm::InductionOn(
+                induction_name,
+                arms.iter()
+                    .map(|arm| proof_kernel::IndArm {
+                        ctor: arm.ctor.clone(),
+                        binders: arm.binders.clone(),
+                        body: substitute_proof_term_binders(&arm.body, substitutions),
+                    })
+                    .collect(),
+            )
+        }
         proof_kernel::ProofTerm::Cases(scrut, arms) => proof_kernel::ProofTerm::Cases(
             substitute_proof_term_vars(scrut, substitutions),
             arms.iter()
@@ -5161,6 +5314,7 @@ fn explicit_proof_ctx(
     goal: &proof_kernel::Prop,
     proof: &proof_kernel::ProofTerm,
     binding_types: &BTreeMap<String, Option<Ty>>,
+    inferred_var_families: &BTreeMap<String, Vec<String>>,
     constructors: &ProofConstructorTable,
 ) -> proof_kernel::Ctx {
     let mut ctx = proof_kernel::Ctx::new();
@@ -5170,7 +5324,14 @@ fn explicit_proof_ctx(
             .get(ctor)
             .copied()
             .unwrap_or_default();
-        ctx = ctx.with_constructor(ctor.clone(), family.clone(), arity);
+        let recursive_fields = constructors
+            .recursive_by_ctor
+            .get(ctor)
+            .cloned()
+            .unwrap_or_default();
+        ctx = ctx
+            .with_constructor(ctor.clone(), family.clone(), arity)
+            .with_constructor_recursive_fields(ctor.clone(), recursive_fields);
     }
 
     let mut vars = BTreeSet::new();
@@ -5181,7 +5342,8 @@ fn explicit_proof_ctx(
             .get(&var)
             .and_then(|ty| ty.as_ref())
             .and_then(|ty| constructors.family_for_type(ty))
-            .cloned();
+            .cloned()
+            .or_else(|| inferred_var_families.get(&var).cloned());
         ctx = match family {
             Some(family) => ctx.with_var_family(var, family),
             None => ctx.with_var(var),
@@ -5196,6 +5358,7 @@ fn evaluate_explicit_proof(
     pred_expr: &Expr,
     bindings: &BTreeMap<String, Expr>,
     binding_types: &BTreeMap<String, Option<Ty>>,
+    function_param_types: &BTreeMap<String, Vec<Option<Ty>>>,
     constructors: &ProofConstructorTable,
     proof_block: &ProofBlock,
     reg: &proof_kernel::Registry,
@@ -5219,7 +5382,19 @@ fn evaluate_explicit_proof(
         Err(err) => return ExplicitProofStatus::Unsupported(err),
     };
     let proof = substitute_proof_term_binders(&arm.term, &substitutions);
-    let ctx = explicit_proof_ctx(&goal, &proof, binding_types, constructors);
+    let inferred_var_families = infer_explicit_proof_var_families(
+        &expanded_subject,
+        &expanded_pred,
+        function_param_types,
+        constructors,
+    );
+    let ctx = explicit_proof_ctx(
+        &goal,
+        &proof,
+        binding_types,
+        &inferred_var_families,
+        constructors,
+    );
 
     match proof_kernel::check(&proof, &goal, &ctx, reg) {
         Ok(()) => ExplicitProofStatus::Proved,
@@ -5253,6 +5428,7 @@ fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Explici
         .collect();
 
     let constructors = ProofConstructorTable::from_adts(&adts);
+    let function_param_types = collect_function_param_types(stmts);
     let computation_lemmas = collect_computation_lemmas(stmts, &bindings);
     let invariants: Vec<(String, Expr, Expr)> = stmts
         .iter()
@@ -5298,6 +5474,7 @@ fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Explici
             &predicate,
             &bindings,
             &binding_types,
+            &function_param_types,
             &constructors,
             block,
             &reg,
@@ -5435,6 +5612,7 @@ fn verify_with_z3(source: &str, filename: &str) {
         return;
     }
 
+    let function_param_types = collect_function_param_types_from_defs(&functions);
     let computation_lemmas = collect_computation_lemmas(&all_stmts, &bindings);
     let constructors = ProofConstructorTable::from_adts(&adts);
     let mut proved_invariants: BTreeMap<String, proof_kernel::Schema> = BTreeMap::new();
@@ -5458,6 +5636,7 @@ fn verify_with_z3(source: &str, filename: &str) {
                     pred_expr,
                     &bindings,
                     &binding_types,
+                    &function_param_types,
                     &constructors,
                     proof_block,
                     &reg,
@@ -22577,6 +22756,7 @@ mod tests {
         let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
         let reg = proof_kernel::Registry::with_builtins();
         let binding_types = BTreeMap::<String, Option<Ty>>::new();
+        let function_param_types = BTreeMap::<String, Vec<Option<Ty>>>::new();
         let constructors = ProofConstructorTable::default();
         assert_eq!(
             evaluate_explicit_proof(
@@ -22584,6 +22764,7 @@ mod tests {
                 &predicate,
                 &bindings,
                 &binding_types,
+                &function_param_types,
                 &constructors,
                 &proof_block,
                 &reg,
@@ -22603,12 +22784,14 @@ mod tests {
         let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
         let reg = proof_kernel::Registry::with_builtins();
         let binding_types = BTreeMap::<String, Option<Ty>>::new();
+        let function_param_types = BTreeMap::<String, Vec<Option<Ty>>>::new();
         let constructors = ProofConstructorTable::default();
         match evaluate_explicit_proof(
             &subject,
             &predicate,
             &bindings,
             &binding_types,
+            &function_param_types,
             &constructors,
             &proof_block,
             &reg,
@@ -22699,6 +22882,30 @@ mod tests {
             }
             other => panic!("expected missing-case-arm failure, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn explicit_proof_can_induct_over_recursive_list() {
+        let source = r#"
+# List(a) = Nil | Cons(a, List(a))
+
+> keep(xs: List(a)) -> List(a) {
+    match xs {
+        | Nil -> Nil
+        | Cons(h, t) -> Cons(h, keep(t))
+    }
+}
+
+| keep_id: xs -> keep(xs) == xs
+? keep_id by {
+    | xs -> induction_on xs {
+        | Nil -> rewrite (apply keep.nil) in refl
+        | Cons(h, t) -> rewrite (apply keep.cons) in (rewrite ih in refl)
+    }
+}
+"#;
+        let statuses = explicit_proof_statuses(source);
+        assert_eq!(statuses.get("keep_id"), Some(&ExplicitProofStatus::Proved));
     }
 
     #[test]
