@@ -7560,6 +7560,9 @@ struct TypeRegistry {
     prolog_rule_fns: BTreeMap<String, Vec<String>>,
     /// Value-returning Prolog rule functions: fn_name -> return type (e.g., "String")
     prolog_value_fns: BTreeMap<String, String>,
+    /// Typed rule functions: fn_name -> type_name (for findall enumeration)
+    /// e.g., "is_pet" -> "Animal" for | is_pet(a: Animal) -> true
+    typed_rule_types: BTreeMap<String, String>,
     /// Simple literal = bindings at top level: name -> (rust_literal, rust_type)
     literal_bindings: BTreeMap<String, (String, String)>,
     /// M26: Types with `@ store` annotation
@@ -7607,6 +7610,7 @@ impl TypeRegistry {
             rule_clone_params: BTreeSet::new(),
             prolog_rule_fns: BTreeMap::new(),
             prolog_value_fns: BTreeMap::new(),
+            typed_rule_types: BTreeMap::new(),
             literal_bindings: BTreeMap::new(),
             stored_types: BTreeSet::new(),
             stored_type_key_field: BTreeMap::new(),
@@ -12686,6 +12690,26 @@ impl RustCodegen {
                             }
                         }
                     }
+                    // Detect __typed args: | rule(__typed(var, TypeName)) -> ...
+                    for r in rules.iter() {
+                        if let Rule::Clause { head, .. } = r {
+                            if let ExprKind::App(_, args) = &head.kind {
+                                for arg in args {
+                                    if let ExprKind::App(func, typed_args) = &arg.kind {
+                                        if let ExprKind::Var(n) = &func.kind {
+                                            if n == "__typed" && typed_args.len() == 2 {
+                                                if let ExprKind::Var(type_name) = &typed_args[1].kind {
+                                                    self.types.typed_rule_types.insert(
+                                                        fn_name.clone(), type_name.clone());
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Infer from literals in body calls
                     for r in rules.iter() {
                         if let Rule::Clause {
@@ -14270,7 +14294,15 @@ impl RustCodegen {
                     }),
                     _ => false,
                 };
-                has_ground || has_conjunction || has_body_literals
+                // Check for __typed args (type-constrained rules)
+                let has_typed = if let ExprKind::App(_, args) = &head.kind {
+                    args.iter().any(|a| {
+                        if let ExprKind::App(func, _) = &a.kind {
+                            matches!(&func.kind, ExprKind::Var(n) if n == "__typed")
+                        } else { false }
+                    })
+                } else { false };
+                has_ground || has_conjunction || has_body_literals || has_typed
             } else {
                 false
             }
@@ -14763,9 +14795,31 @@ impl RustCodegen {
                     .map(|t| t == "&str")
                     .unwrap_or(false);
 
-                // For rules that have no fact table (only variable-head rules),
-                // fall back to calling the function in a loop
+                // Typed rules: enumerate type variants instead of fact table
+                if let Some(type_name) = self.types.typed_rule_types.get(&fn_name).cloned() {
+                    let variant_names: Vec<&String> = self.types.variant_parent.iter()
+                        .filter(|(_, parent)| **parent == type_name)
+                        .map(|(name, _)| name)
+                        .collect();
+                    let items: Vec<String> = variant_names.iter()
+                        .map(|v| format!("{}::{}", type_name, v))
+                        .collect();
+                    return format!("vec![{}]", items.join(", "));
+                }
+
+                // For rules that have no fact table (only variable-head rules)
                 if !self.types.prolog_rule_fns.contains_key(&fn_name) {
+                    if let Some(type_name) = self.types.typed_rule_types.get(&fn_name).cloned() {
+                        // Typed rule: enumerate all variants of the type
+                        let variant_names: Vec<&String> = self.types.variant_parent.iter()
+                            .filter(|(_, parent)| **parent == type_name)
+                            .map(|(name, _)| name)
+                            .collect();
+                        let items: Vec<String> = variant_names.iter()
+                            .map(|v| format!("{}::{}", type_name, v))
+                            .collect();
+                        return format!("vec![{}]", items.join(", "));
+                    }
                     return "vec![]".to_string(); // can't iterate non-fact rules
                 }
 
