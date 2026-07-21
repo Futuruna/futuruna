@@ -21,12 +21,12 @@
 //!
 //! ## Phase 1 scope (this file)
 //!
-//! Implemented rules: REFL, HYP, APPLY, LET, REWRITE, ASSUME, CONTRA.
-//! Stubbed (returns `NotImplemented`): IND, CASES.
+//! Implemented rules: REFL, HYP, APPLY, LET, REWRITE, ASSUME, CONTRA, CASES.
+//! Stubbed (returns `NotImplemented`): IND.
 //! Built-in axioms: a conservative subset of the v1 design doc, with the
 //! remainder landing in phase 2.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 // ============================================================================
@@ -187,11 +187,14 @@ pub enum Hyp {
 #[derive(Debug, Clone, Default)]
 pub struct Ctx {
     hyps: Vec<Hyp>,
+    ctor_families: BTreeMap<String, Vec<String>>,
+    ctor_arities: BTreeMap<String, usize>,
+    var_ctor_families: BTreeMap<String, Vec<String>>,
 }
 
 impl Ctx {
     pub fn new() -> Self {
-        Ctx { hyps: Vec::new() }
+        Ctx::default()
     }
 
     /// Extend with a new named proposition hypothesis. Non-destructive.
@@ -208,6 +211,21 @@ impl Ctx {
         new
     }
 
+    /// Extend with a free term variable whose constructor family is known.
+    pub fn with_var_family(&self, name: String, ctors: Vec<String>) -> Self {
+        let mut new = self.with_var(name.clone());
+        new.var_ctor_families.insert(name, ctors);
+        new
+    }
+
+    /// Register a constructor and the constructor family it belongs to.
+    pub fn with_constructor(&self, name: String, family: Vec<String>, arity: usize) -> Self {
+        let mut new = self.clone();
+        new.ctor_families.insert(name.clone(), family);
+        new.ctor_arities.insert(name, arity);
+        new
+    }
+
     /// Look up a named proposition hypothesis. Returns the most recent
     /// binding (shadowing).
     pub fn lookup_prop(&self, name: &str) -> Option<&Prop> {
@@ -219,6 +237,21 @@ impl Ctx {
             }
         }
         None
+    }
+
+    fn case_family_for(&self, scrut: &Term) -> Option<&Vec<String>> {
+        match scrut {
+            Term::Var(name) => self
+                .var_ctor_families
+                .get(name)
+                .or_else(|| self.ctor_families.get(name)),
+            Term::App(name, _) => self.ctor_families.get(name),
+            Term::Int(_) | Term::Op(_, _, _) => None,
+        }
+    }
+
+    fn constructor_arity(&self, name: &str) -> Option<usize> {
+        self.ctor_arities.get(name).copied()
     }
 }
 
@@ -443,6 +476,15 @@ pub enum ProofError {
     UnificationFailed(String),
     GoalMismatch { expected: String, got: String },
     PremiseCount { axiom: String, expected: usize, got: usize },
+    CannotCaseSplit(String),
+    MissingCaseArms(Vec<String>),
+    UnexpectedCaseArm(String),
+    DuplicateCaseArm(String),
+    CaseBinderCount {
+        ctor: String,
+        expected: usize,
+        got: usize,
+    },
     NotEquality(String),
     NotImplication(String),
     DuplicateSchema(String),
@@ -464,6 +506,25 @@ impl fmt::Display for ProofError {
                 f,
                 "{} expects {} premise proof(s), got {}",
                 axiom, expected, got
+            ),
+            ProofError::CannotCaseSplit(s) => write!(f, "cannot case-split: {}", s),
+            ProofError::MissingCaseArms(ctors) => {
+                write!(f, "missing case arm(s) for: {}", ctors.join(", "))
+            }
+            ProofError::UnexpectedCaseArm(ctor) => {
+                write!(f, "unexpected case arm for constructor {}", ctor)
+            }
+            ProofError::DuplicateCaseArm(ctor) => {
+                write!(f, "duplicate case arm for constructor {}", ctor)
+            }
+            ProofError::CaseBinderCount {
+                ctor,
+                expected,
+                got,
+            } => write!(
+                f,
+                "case arm {} expects {} binder(s), got {}",
+                ctor, expected, got
             ),
             ProofError::NotEquality(s) => write!(f, "expected equality, got: {}", s),
             ProofError::NotImplication(s) => write!(f, "expected implication, got: {}", s),
@@ -679,6 +740,17 @@ fn rewrite_in_prop(p: &Prop, from: &Term, to: &Term) -> Prop {
     }
 }
 
+fn case_branch_term(ctor: &str, binders: &[String]) -> Term {
+    if binders.is_empty() {
+        Term::Var(ctor.to_string())
+    } else {
+        Term::App(
+            ctor.to_string(),
+            binders.iter().map(|binder| Term::Var(binder.clone())).collect(),
+        )
+    }
+}
+
 // ============================================================================
 // SYNTHESIS — figuring out what Prop a proof term proves, without a goal
 // ============================================================================
@@ -814,12 +886,72 @@ pub fn check(
         // [CONTRA]  Γ ⊢ t : False ⟹ Γ ⊢ contra{t} : P
         ProofTerm::Contra(body) => check(body, &Prop::False, ctx, reg),
 
-        // [IND] and [CASES]  phase 2
+        // [IND]  phase 2
         ProofTerm::InductionOn(_, _) => {
             Err(ProofError::NotImplemented("induction_on (phase 2)"))
         }
-        ProofTerm::Cases(_, _) => Err(ProofError::NotImplemented("cases (phase 2)")),
+        // [CASES]  branch on a scrutinee with a known constructor family
+        ProofTerm::Cases(scrut, arms) => check_cases(scrut, arms, goal, ctx, reg),
     }
+}
+
+fn check_cases(
+    scrut: &Term,
+    arms: &[CaseArm],
+    goal: &Prop,
+    ctx: &Ctx,
+    reg: &Registry,
+) -> Result<(), ProofError> {
+    let family = ctx.case_family_for(scrut).ok_or_else(|| {
+        ProofError::CannotCaseSplit(format!(
+            "{} has no known constructor family in the proof context",
+            scrut
+        ))
+    })?;
+    let expected: BTreeSet<String> = family.iter().cloned().collect();
+    let mut seen = BTreeSet::new();
+
+    for arm in arms {
+        if !expected.contains(&arm.ctor) {
+            return Err(ProofError::UnexpectedCaseArm(arm.ctor.clone()));
+        }
+        if !seen.insert(arm.ctor.clone()) {
+            return Err(ProofError::DuplicateCaseArm(arm.ctor.clone()));
+        }
+        let expected_arity = ctx.constructor_arity(&arm.ctor).ok_or_else(|| {
+            ProofError::CannotCaseSplit(format!(
+                "constructor metadata for {} is missing from the proof context",
+                arm.ctor
+            ))
+        })?;
+        if expected_arity != arm.binders.len() {
+            return Err(ProofError::CaseBinderCount {
+                ctor: arm.ctor.clone(),
+                expected: expected_arity,
+                got: arm.binders.len(),
+            });
+        }
+    }
+
+    let missing: Vec<String> = expected.difference(&seen).cloned().collect();
+    if !missing.is_empty() {
+        return Err(ProofError::MissingCaseArms(missing));
+    }
+
+    for arm in arms {
+        let branch_term = case_branch_term(&arm.ctor, &arm.binders);
+        let branch_goal = rewrite_in_prop(goal, scrut, &branch_term);
+        let mut branch_ctx = ctx.with_prop(
+            "__case".into(),
+            Prop::Eq(scrut.clone(), branch_term.clone()),
+        );
+        for binder in &arm.binders {
+            branch_ctx = branch_ctx.with_var(binder.clone());
+        }
+        check(&arm.body, &branch_goal, &branch_ctx, reg)?;
+    }
+
+    Ok(())
 }
 
 /// [APPLY] handler. Named axioms and proved lemmas live in the same registry,
@@ -1287,6 +1419,73 @@ mod tests {
         let proof = ProofTerm::Apply("int_ord.le_of_concrete".into(), vec![]);
         let err = check(&proof, &goal, &ctx, &reg).unwrap_err();
         assert!(matches!(err, ProofError::GoalMismatch { .. }));
+    }
+
+    // --- CASES ---
+
+    #[test]
+    fn cases_rewrites_goal_for_each_constructor_branch() {
+        let family = vec!["On".into(), "Off".into()];
+        let ctx = Ctx::new()
+            .with_var_family("s".into(), family.clone())
+            .with_constructor("On".into(), family.clone(), 0)
+            .with_constructor("Off".into(), family, 0);
+        let reg = Registry::with_builtins();
+        let goal = Prop::Eq(Term::App("flip".into(), vec![v("s")]), Term::App("flip".into(), vec![v("s")]));
+        let proof = ProofTerm::Cases(
+            v("s"),
+            vec![
+                CaseArm {
+                    ctor: "On".into(),
+                    binders: vec![],
+                    body: ProofTerm::Refl,
+                },
+                CaseArm {
+                    ctor: "Off".into(),
+                    binders: vec![],
+                    body: ProofTerm::Refl,
+                },
+            ],
+        );
+        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+    }
+
+    #[test]
+    fn cases_rejects_missing_constructor_branch() {
+        let family = vec!["On".into(), "Off".into()];
+        let ctx = Ctx::new()
+            .with_var_family("s".into(), family.clone())
+            .with_constructor("On".into(), family.clone(), 0)
+            .with_constructor("Off".into(), family, 0);
+        let reg = Registry::with_builtins();
+        let goal = Prop::Eq(v("s"), v("s"));
+        let proof = ProofTerm::Cases(
+            v("s"),
+            vec![CaseArm {
+                ctor: "On".into(),
+                binders: vec![],
+                body: ProofTerm::Refl,
+            }],
+        );
+        let err = check(&proof, &goal, &ctx, &reg).unwrap_err();
+        assert!(matches!(err, ProofError::MissingCaseArms(_)));
+    }
+
+    #[test]
+    fn cases_rejects_unknown_scrutinee_family() {
+        let ctx = Ctx::new().with_var("s".into());
+        let reg = Registry::with_builtins();
+        let goal = Prop::Eq(v("s"), v("s"));
+        let proof = ProofTerm::Cases(
+            v("s"),
+            vec![CaseArm {
+                ctor: "On".into(),
+                binders: vec![],
+                body: ProofTerm::Refl,
+            }],
+        );
+        let err = check(&proof, &goal, &ctx, &reg).unwrap_err();
+        assert!(matches!(err, ProofError::CannotCaseSplit(_)));
     }
 
     // --- NEGATIVE TESTS ---

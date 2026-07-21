@@ -2237,6 +2237,30 @@ impl Parser {
         Ok(binders)
     }
 
+    fn proof_case_arm_from_pattern(
+        &self,
+        pat: Pat,
+    ) -> Result<(String, Vec<String>), String> {
+        match pat {
+            Pat::Con(ctor, binders) => {
+                let mut names = Vec::new();
+                for binder in binders {
+                    match binder {
+                        Pat::Var(name) if name != "_" => names.push(name),
+                        Pat::Wild => return Err("case arms cannot use `_` binders yet".into()),
+                        _ => {
+                            return Err(
+                                "case arms currently require simple constructor binders".into()
+                            );
+                        }
+                    }
+                }
+                Ok((ctor, names))
+            }
+            _ => Err("case arms require constructor patterns".into()),
+        }
+    }
+
     fn parse_proof_term(&mut self) -> Result<proof_kernel::ProofTerm, String> {
         if self.peek_kind() == TokenKind::LParen {
             self.advance();
@@ -2279,6 +2303,30 @@ impl Parser {
                 Box::new(eq_term),
                 Box::new(body),
             ));
+        }
+
+        if self.peek_word("cases") {
+            self.advance();
+            let scrutinee_expr = self.parse_expr()?;
+            let scrutinee = lower_expr_to_proof_term(&scrutinee_expr)?;
+            self.expect(TokenKind::LBrace)?;
+            self.skip_semis();
+            let mut arms = Vec::new();
+            while self.peek_kind() != TokenKind::RBrace {
+                self.expect(TokenKind::Pipe)?;
+                let pat = self.parse_pattern()?;
+                let (ctor, binders) = self.proof_case_arm_from_pattern(pat)?;
+                self.expect(TokenKind::Arrow)?;
+                let body = self.parse_proof_term()?;
+                arms.push(proof_kernel::CaseArm {
+                    ctor,
+                    binders,
+                    body,
+                });
+                self.skip_semis();
+            }
+            self.expect(TokenKind::RBrace)?;
+            return Ok(proof_kernel::ProofTerm::Cases(scrutinee, arms));
         }
 
         if self.peek_word("let") {

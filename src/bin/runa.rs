@@ -4690,6 +4690,49 @@ enum ExplicitProofStatus {
     Failed(String),
 }
 
+#[derive(Debug, Clone, Default)]
+struct ProofConstructorTable {
+    family_by_type: BTreeMap<String, Vec<String>>,
+    family_by_ctor: BTreeMap<String, Vec<String>>,
+    arity_by_ctor: BTreeMap<String, usize>,
+}
+
+impl ProofConstructorTable {
+    fn from_adts(adts: &[(String, Vec<Variant>)]) -> Self {
+        let mut table = Self::default();
+        for (ty_name, variants) in adts {
+            let family: Vec<String> = variants.iter().map(|variant| variant.name.clone()).collect();
+            table
+                .family_by_type
+                .insert(ty_name.clone(), family.clone());
+            for variant in variants {
+                table
+                    .family_by_ctor
+                    .insert(variant.name.clone(), family.clone());
+                table
+                    .arity_by_ctor
+                    .insert(variant.name.clone(), variant.fields.len());
+            }
+        }
+        table
+    }
+
+    fn family_for_type(&self, ty: &Ty) -> Option<&Vec<String>> {
+        proof_type_name(ty).and_then(|name| self.family_by_type.get(name))
+    }
+}
+
+fn proof_type_name(ty: &Ty) -> Option<&str> {
+    match ty {
+        Ty::Name(name) => Some(name),
+        Ty::App(base, _) => proof_type_name(base),
+        Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+            proof_type_name(inner)
+        }
+        Ty::Arrow(_, _) | Ty::Var(_) | Ty::Unit | Ty::Hole => None,
+    }
+}
+
 fn proof_schema_vars(prop: &proof_kernel::Prop) -> Vec<String> {
     let mut vars = BTreeSet::new();
     collect_proof_prop_vars(prop, &mut vars);
@@ -5114,10 +5157,46 @@ fn proof_binder_substitutions(
     }
 }
 
+fn explicit_proof_ctx(
+    goal: &proof_kernel::Prop,
+    proof: &proof_kernel::ProofTerm,
+    binding_types: &BTreeMap<String, Option<Ty>>,
+    constructors: &ProofConstructorTable,
+) -> proof_kernel::Ctx {
+    let mut ctx = proof_kernel::Ctx::new();
+    for (ctor, family) in &constructors.family_by_ctor {
+        let arity = constructors
+            .arity_by_ctor
+            .get(ctor)
+            .copied()
+            .unwrap_or_default();
+        ctx = ctx.with_constructor(ctor.clone(), family.clone(), arity);
+    }
+
+    let mut vars = BTreeSet::new();
+    collect_proof_prop_vars(goal, &mut vars);
+    collect_proof_term_term_vars(proof, &mut vars);
+    for var in vars {
+        let family = binding_types
+            .get(&var)
+            .and_then(|ty| ty.as_ref())
+            .and_then(|ty| constructors.family_for_type(ty))
+            .cloned();
+        ctx = match family {
+            Some(family) => ctx.with_var_family(var, family),
+            None => ctx.with_var(var),
+        };
+    }
+
+    ctx
+}
+
 fn evaluate_explicit_proof(
     subject_expr: &Expr,
     pred_expr: &Expr,
     bindings: &BTreeMap<String, Expr>,
+    binding_types: &BTreeMap<String, Option<Ty>>,
+    constructors: &ProofConstructorTable,
     proof_block: &ProofBlock,
     reg: &proof_kernel::Registry,
 ) -> ExplicitProofStatus {
@@ -5140,14 +5219,7 @@ fn evaluate_explicit_proof(
         Err(err) => return ExplicitProofStatus::Unsupported(err),
     };
     let proof = substitute_proof_term_binders(&arm.term, &substitutions);
-
-    let mut ctx = proof_kernel::Ctx::new();
-    let mut vars = BTreeSet::new();
-    collect_proof_prop_vars(&goal, &mut vars);
-    collect_proof_term_term_vars(&proof, &mut vars);
-    for var in vars {
-        ctx = ctx.with_var(var);
-    }
+    let ctx = explicit_proof_ctx(&goal, &proof, binding_types, constructors);
 
     match proof_kernel::check(&proof, &goal, &ctx, reg) {
         Ok(()) => ExplicitProofStatus::Proved,
@@ -5156,6 +5228,15 @@ fn evaluate_explicit_proof(
 }
 
 fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, ExplicitProofStatus> {
+    let adts: Vec<(String, Vec<Variant>)> = stmts
+        .iter()
+        .filter_map(|stmt| match stmt {
+            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                Some((name.clone(), variants.clone()))
+            }
+            _ => None,
+        })
+        .collect();
     let bindings: BTreeMap<String, Expr> = stmts
         .iter()
         .filter_map(|stmt| match stmt {
@@ -5163,7 +5244,15 @@ fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Explici
             _ => None,
         })
         .collect();
+    let binding_types: BTreeMap<String, Option<Ty>> = stmts
+        .iter()
+        .filter_map(|stmt| match stmt {
+            Stmt::Bind(Pat::Var(name), ty, _) => Some((name.clone(), ty.clone())),
+            _ => None,
+        })
+        .collect();
 
+    let constructors = ProofConstructorTable::from_adts(&adts);
     let computation_lemmas = collect_computation_lemmas(stmts, &bindings);
     let invariants: Vec<(String, Expr, Expr)> = stmts
         .iter()
@@ -5204,7 +5293,15 @@ fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Explici
             }
         };
 
-        let status = evaluate_explicit_proof(&subject, &predicate, &bindings, block, &reg);
+        let status = evaluate_explicit_proof(
+            &subject,
+            &predicate,
+            &bindings,
+            &binding_types,
+            &constructors,
+            block,
+            &reg,
+        );
         if matches!(status, ExplicitProofStatus::Proved) {
             match invariant_proof_schema(&predicate, &bindings) {
                 Ok(schema) => {
@@ -5339,6 +5436,7 @@ fn verify_with_z3(source: &str, filename: &str) {
     }
 
     let computation_lemmas = collect_computation_lemmas(&all_stmts, &bindings);
+    let constructors = ProofConstructorTable::from_adts(&adts);
     let mut proved_invariants: BTreeMap<String, proof_kernel::Schema> = BTreeMap::new();
 
     println!(
@@ -5359,6 +5457,8 @@ fn verify_with_z3(source: &str, filename: &str) {
                     subject_expr,
                     pred_expr,
                     &bindings,
+                    &binding_types,
+                    &constructors,
                     proof_block,
                     &reg,
                 ) {
@@ -22476,8 +22576,18 @@ mod tests {
 "#;
         let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
         let reg = proof_kernel::Registry::with_builtins();
+        let binding_types = BTreeMap::<String, Option<Ty>>::new();
+        let constructors = ProofConstructorTable::default();
         assert_eq!(
-            evaluate_explicit_proof(&subject, &predicate, &bindings, &proof_block, &reg),
+            evaluate_explicit_proof(
+                &subject,
+                &predicate,
+                &bindings,
+                &binding_types,
+                &constructors,
+                &proof_block,
+                &reg,
+            ),
             ExplicitProofStatus::Proved
         );
     }
@@ -22492,7 +22602,17 @@ mod tests {
 "#;
         let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
         let reg = proof_kernel::Registry::with_builtins();
-        match evaluate_explicit_proof(&subject, &predicate, &bindings, &proof_block, &reg) {
+        let binding_types = BTreeMap::<String, Option<Ty>>::new();
+        let constructors = ProofConstructorTable::default();
+        match evaluate_explicit_proof(
+            &subject,
+            &predicate,
+            &bindings,
+            &binding_types,
+            &constructors,
+            &proof_block,
+            &reg,
+        ) {
             ExplicitProofStatus::Failed(err) => {
                 assert!(err.contains("expected e == e") || err.contains("goal mismatch"));
             }
@@ -22540,6 +22660,45 @@ mod tests {
 "#;
         let statuses = explicit_proof_statuses(source);
         assert_eq!(statuses.get("flip_on"), Some(&ExplicitProofStatus::Proved));
+    }
+
+    #[test]
+    fn explicit_proof_can_case_split_over_bound_constructor_subject() {
+        let source = r#"
+# Switch = On | Off
+
+= state: Switch = On
+| stable: state -> state == state
+? stable by {
+    | s -> cases s {
+        | On -> refl
+        | Off -> refl
+    }
+}
+"#;
+        let statuses = explicit_proof_statuses(source);
+        assert_eq!(statuses.get("stable"), Some(&ExplicitProofStatus::Proved));
+    }
+
+    #[test]
+    fn explicit_proof_reports_missing_case_arm() {
+        let source = r#"
+# Switch = On | Off
+
+= state: Switch = On
+| stable: 0 -> state == state
+? stable by {
+    | witness -> cases state {
+        | On -> refl
+    }
+}
+"#;
+        match explicit_proof_statuses(source).get("stable") {
+            Some(ExplicitProofStatus::Failed(err)) => {
+                assert!(err.contains("missing case arm"));
+            }
+            other => panic!("expected missing-case-arm failure, got {:?}", other),
+        }
     }
 
     #[test]
