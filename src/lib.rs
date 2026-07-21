@@ -1688,6 +1688,17 @@ pub struct MatchArm {
 }
 
 #[derive(Debug, Clone)]
+pub struct ProofBlock {
+    pub arms: Vec<ProofArm>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProofArm {
+    pub binders: Vec<String>,
+    pub term: proof_kernel::ProofTerm,
+}
+
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Defn(Defn),
     TypeDecl(TypeDecl),
@@ -1717,6 +1728,7 @@ pub enum Stmt {
     /// Optional: `: val` captures subject, `-> { pass }` block, `else { fail }` block
     Prove {
         name: String,
+        proof_block: Option<ProofBlock>, // `by { | ... -> proof }`
         capture: Option<String>,       // `: val` — bind subject value
         pass_block: Option<Vec<Stmt>>, // `-> { ... }` — custom pass handler
         else_block: Option<Vec<Stmt>>, // `else { ... }` — custom fail handler (suppresses halt)
@@ -2155,6 +2167,158 @@ impl Parser {
         matches!(self.peek_kind(), TokenKind::RBrace | TokenKind::Eof)
     }
 
+    fn peek_word(&self, word: &str) -> bool {
+        matches!(self.peek_kind(), TokenKind::Ident | TokenKind::KW | TokenKind::Type)
+            && self.peek().text == word
+    }
+
+    fn parse_dotted_name(&mut self) -> Result<String, String> {
+        let mut name = self.expect_ident()?;
+        while self.peek_kind() == TokenKind::Dot {
+            self.advance();
+            let seg = self.expect_ident()?;
+            name.push('.');
+            name.push_str(&seg);
+        }
+        Ok(name)
+    }
+
+    fn parse_proof_block(&mut self) -> Result<ProofBlock, String> {
+        self.expect(TokenKind::LBrace)?;
+        self.skip_semis();
+        let mut arms = Vec::new();
+
+        while self.peek_kind() != TokenKind::RBrace {
+            self.expect(TokenKind::Pipe)?;
+            let binders = self.parse_proof_binders()?;
+            self.expect(TokenKind::Arrow)?;
+            let term = self.parse_proof_term()?;
+            arms.push(ProofArm { binders, term });
+            self.skip_semis();
+        }
+
+        self.expect(TokenKind::RBrace)?;
+        if arms.is_empty() {
+            return Err("proof block needs at least one `| ... -> ...` arm".into());
+        }
+        Ok(ProofBlock { arms })
+    }
+
+    fn parse_proof_binders(&mut self) -> Result<Vec<String>, String> {
+        let mut binders = Vec::new();
+        if self.peek_kind() == TokenKind::LParen {
+            self.advance();
+            while self.peek_kind() != TokenKind::RParen {
+                if !binders.is_empty() {
+                    self.expect(TokenKind::Comma)?;
+                }
+                let binder = self.expect_ident()?;
+                if binder == "_" {
+                    return Err("proof binders cannot use `_` yet".into());
+                }
+                if self.peek_kind() == TokenKind::Colon {
+                    self.advance();
+                    let _ = self.parse_type()?;
+                }
+                binders.push(binder);
+            }
+            self.expect(TokenKind::RParen)?;
+        } else {
+            let binder = self.expect_ident()?;
+            if binder == "_" {
+                return Err("proof binders cannot use `_` yet".into());
+            }
+            if self.peek_kind() == TokenKind::Colon {
+                self.advance();
+                let _ = self.parse_type()?;
+            }
+            binders.push(binder);
+        }
+        Ok(binders)
+    }
+
+    fn parse_proof_term(&mut self) -> Result<proof_kernel::ProofTerm, String> {
+        if self.peek_kind() == TokenKind::LParen {
+            self.advance();
+            let term = self.parse_proof_term()?;
+            self.expect(TokenKind::RParen)?;
+            return Ok(term);
+        }
+
+        if self.peek_word("refl") {
+            self.advance();
+            return Ok(proof_kernel::ProofTerm::Refl);
+        }
+
+        if self.peek_word("apply") {
+            self.advance();
+            let name = self.parse_dotted_name()?;
+            let mut args = Vec::new();
+            if self.peek_kind() == TokenKind::LParen {
+                self.advance();
+                while self.peek_kind() != TokenKind::RParen {
+                    if !args.is_empty() {
+                        self.expect(TokenKind::Comma)?;
+                    }
+                    args.push(self.parse_proof_term()?);
+                }
+                self.expect(TokenKind::RParen)?;
+            }
+            return Ok(proof_kernel::ProofTerm::Apply(name, args));
+        }
+
+        if self.peek_word("rewrite") {
+            self.advance();
+            let eq_term = self.parse_proof_term()?;
+            if !self.peek_word("in") {
+                return Err("expected `in` after `rewrite <proof>`".into());
+            }
+            self.advance();
+            let body = self.parse_proof_term()?;
+            return Ok(proof_kernel::ProofTerm::Rewrite(
+                Box::new(eq_term),
+                Box::new(body),
+            ));
+        }
+
+        if self.peek_word("let") {
+            self.advance();
+            let name = self.expect_ident()?;
+            if self.peek_kind() == TokenKind::Eq {
+                self.advance();
+            } else if self.peek_kind() == TokenKind::Op && self.peek().text == "=" {
+                self.advance();
+            } else {
+                return Err("expected `=` in proof `let` binding".into());
+            }
+            let bound = self.parse_proof_term()?;
+            if !self.peek_word("in") {
+                return Err("expected `in` after proof `let` binding".into());
+            }
+            self.advance();
+            let body = self.parse_proof_term()?;
+            return Ok(proof_kernel::ProofTerm::Let(
+                name,
+                Box::new(bound),
+                Box::new(body),
+            ));
+        }
+
+        if self.peek_word("assume") {
+            self.advance();
+            let prop_expr = self.parse_expr()?;
+            let prop = lower_expr_to_proof_prop(&prop_expr)?;
+            if !self.peek_word("in") {
+                return Err("expected `in` after `assume <prop>`".into());
+            }
+            self.advance();
+            let body = self.parse_proof_term()?;
+            return Ok(proof_kernel::ProofTerm::Assume(prop, Box::new(body)));
+        }
+
+        Ok(proof_kernel::ProofTerm::Hyp(self.expect_ident()?))
+    }
+
     // --- Top-level parsing ---
 
     pub fn parse_program(&mut self) -> Result<Vec<Stmt>, String> {
@@ -2470,6 +2634,7 @@ impl Parser {
                 }
             }
             // ? rune: verify/prove an invariant (or "? all" for all)
+            //        ? name by { | binders -> proof }
             // Forms: ? name
             //        ? name -> { pass }
             //        ? name else { fail }
@@ -2478,6 +2643,32 @@ impl Parser {
             TokenKind::Op if self.peek().text == "?" => {
                 self.advance(); // consume '?'
                 let name = self.expect_ident()?;
+                let proof_block = if self.peek_word("by") {
+                    self.advance();
+                    Some(self.parse_proof_block()?)
+                } else {
+                    None
+                };
+
+                if proof_block.is_some() {
+                    self.skip_semis();
+                    if self.peek_kind() == TokenKind::Colon
+                        || self.peek_kind() == TokenKind::Arrow
+                        || (self.peek_kind() == TokenKind::KW && self.peek().text == "else")
+                    {
+                        return Err(
+                            "`? name by { ... }` cannot be combined with capture/pass/else blocks yet"
+                                .into(),
+                        );
+                    }
+                    return Ok(Stmt::Prove {
+                        name,
+                        proof_block,
+                        capture: None,
+                        pass_block: None,
+                        else_block: None,
+                    });
+                }
                 // Optional `: capture_var`
                 let capture = if self.peek_kind() == TokenKind::Colon {
                     self.advance(); // consume ':'
@@ -2519,6 +2710,7 @@ impl Parser {
                 };
                 Ok(Stmt::Prove {
                     name,
+                    proof_block: None,
                     capture,
                     pass_block,
                     else_block,
@@ -4686,6 +4878,95 @@ pub fn op_precedence(op: &str) -> u8 {
     }
 }
 
+pub fn lower_expr_to_proof_term(expr: &Expr) -> Result<proof_kernel::Term, String> {
+    match &expr.kind {
+        ExprKind::Var(name) => Ok(proof_kernel::Term::Var(name.clone())),
+        ExprKind::Lit(Literal::Int(n)) => Ok(proof_kernel::Term::Int(*n)),
+        ExprKind::Lit(Literal::Bool(b)) => Ok(proof_kernel::Term::App(
+            if *b { "True" } else { "False" }.into(),
+            vec![],
+        )),
+        ExprKind::UnOp(op, inner) if op == "-" => Ok(proof_kernel::Term::Op(
+            "-".into(),
+            Box::new(proof_kernel::Term::Int(0)),
+            Box::new(lower_expr_to_proof_term(inner)?),
+        )),
+        ExprKind::BinOp(op, lhs, rhs) if matches!(op.as_str(), "+" | "-" | "*" | "/") => {
+            Ok(proof_kernel::Term::Op(
+                op.clone(),
+                Box::new(lower_expr_to_proof_term(lhs)?),
+                Box::new(lower_expr_to_proof_term(rhs)?),
+            ))
+        }
+        ExprKind::App(func, args) => {
+            let name = match &func.kind {
+                ExprKind::Var(name) => name.clone(),
+                _ => {
+                    return Err("proof kernel only supports simple function/constructor calls".into());
+                }
+            };
+            let mut lowered_args = Vec::with_capacity(args.len());
+            for arg in args {
+                lowered_args.push(lower_expr_to_proof_term(arg)?);
+            }
+            Ok(proof_kernel::Term::App(name, lowered_args))
+        }
+        _ => Err(format!(
+            "proof kernel cannot lower term expression: {:?}",
+            expr.kind
+        )),
+    }
+}
+
+pub fn lower_expr_to_proof_prop(expr: &Expr) -> Result<proof_kernel::Prop, String> {
+    let succ = |term: proof_kernel::Term| {
+        proof_kernel::Term::Op(
+            "+".into(),
+            Box::new(term),
+            Box::new(proof_kernel::Term::Int(1)),
+        )
+    };
+
+    match &expr.kind {
+        ExprKind::BinOp(op, lhs, rhs) if op == "==" => Ok(proof_kernel::Prop::Eq(
+            lower_expr_to_proof_term(lhs)?,
+            lower_expr_to_proof_term(rhs)?,
+        )),
+        ExprKind::BinOp(op, lhs, rhs) if op == "<=" => Ok(proof_kernel::Prop::Le(
+            lower_expr_to_proof_term(lhs)?,
+            lower_expr_to_proof_term(rhs)?,
+        )),
+        ExprKind::BinOp(op, lhs, rhs) if op == ">=" => Ok(proof_kernel::Prop::Le(
+            lower_expr_to_proof_term(rhs)?,
+            lower_expr_to_proof_term(lhs)?,
+        )),
+        ExprKind::BinOp(op, lhs, rhs) if op == "<" => Ok(proof_kernel::Prop::Le(
+            succ(lower_expr_to_proof_term(lhs)?),
+            lower_expr_to_proof_term(rhs)?,
+        )),
+        ExprKind::BinOp(op, lhs, rhs) if op == ">" => Ok(proof_kernel::Prop::Le(
+            succ(lower_expr_to_proof_term(rhs)?),
+            lower_expr_to_proof_term(lhs)?,
+        )),
+        ExprKind::BinOp(op, lhs, rhs) if op == "&&" => Ok(proof_kernel::Prop::And(
+            Box::new(lower_expr_to_proof_prop(lhs)?),
+            Box::new(lower_expr_to_proof_prop(rhs)?),
+        )),
+        ExprKind::App(func, args)
+            if matches!(&func.kind, ExprKind::Var(name) if name == "not") && args.len() == 1 =>
+        {
+            Ok(proof_kernel::Prop::Not(Box::new(lower_expr_to_proof_prop(
+                &args[0],
+            )?)))
+        }
+        ExprKind::Lit(Literal::Bool(false)) => Ok(proof_kernel::Prop::False),
+        _ => Err(format!(
+            "proof kernel cannot lower proposition expression: {:?}",
+            expr.kind
+        )),
+    }
+}
+
 // ============================================================================
 // PART 5: VALUES & ENVIRONMENT
 // ============================================================================
@@ -5795,6 +6076,7 @@ impl Interpreter {
                 }
                 Stmt::Prove {
                     name,
+                    proof_block: _,
                     capture,
                     pass_block,
                     else_block,
@@ -10874,6 +11156,7 @@ impl TypeChecker {
                 self.check_expr(predicate, None);
             }
             Stmt::Prove {
+                proof_block: _,
                 capture,
                 pass_block,
                 else_block,
@@ -11443,6 +11726,113 @@ mod tests {
         assert!(output.contains("test.runa:1:3"));
         assert!(output.contains("^^^")); // underline for 3 chars
         assert!(!output.contains("\x1b")); // no ANSI codes
+    }
+
+    #[test]
+    fn parse_explicit_proof_block_on_prove_stmt() {
+        let source = r#"
+| add_comm: (a, b) -> a + b == b + a
+? add_comm by {
+    | (lhs, rhs) -> apply int_ring.comm_add
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        match &stmts[1] {
+            Stmt::Prove {
+                name,
+                proof_block: Some(block),
+                capture,
+                pass_block,
+                else_block,
+            } => {
+                assert_eq!(name, "add_comm");
+                assert!(capture.is_none());
+                assert!(pass_block.is_none());
+                assert!(else_block.is_none());
+                assert_eq!(block.arms.len(), 1);
+                assert_eq!(block.arms[0].binders, vec!["lhs", "rhs"]);
+                match &block.arms[0].term {
+                    proof_kernel::ProofTerm::Apply(name, args) => {
+                        assert_eq!(name, "int_ring.comm_add");
+                        assert!(args.is_empty());
+                    }
+                    other => panic!("unexpected proof term: {:?}", other),
+                }
+            }
+            other => panic!("expected explicit proof stmt, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn lower_expr_to_proof_prop_handles_ge_and_conjunction() {
+        let source = "x >= 0 and y == y";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let expr = parser.parse_expr().expect("expr parse failed");
+        let prop = lower_expr_to_proof_prop(&expr).expect("lowering failed");
+
+        match prop {
+            proof_kernel::Prop::And(lhs, rhs) => {
+                match *lhs {
+                    proof_kernel::Prop::Le(proof_kernel::Term::Int(0), proof_kernel::Term::Var(ref x))
+                        if x == "x" => {}
+                    other => panic!("unexpected lhs: {:?}", other),
+                }
+                match *rhs {
+                    proof_kernel::Prop::Eq(
+                        proof_kernel::Term::Var(ref a),
+                        proof_kernel::Term::Var(ref b),
+                    ) if a == "y" && b == "y" => {}
+                    other => panic!("unexpected rhs: {:?}", other),
+                }
+            }
+            other => panic!("unexpected prop: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn lower_expr_to_proof_prop_desugars_strict_order() {
+        let source = "x < x + 1 and x + 1 > x";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let expr = parser.parse_expr().expect("expr parse failed");
+        let prop = lower_expr_to_proof_prop(&expr).expect("lowering failed");
+
+        match prop {
+            proof_kernel::Prop::And(lhs, rhs) => {
+                match *lhs {
+                    proof_kernel::Prop::Le(
+                        proof_kernel::Term::Op(ref plus, ref l, ref r),
+                        proof_kernel::Term::Op(ref inner_plus, ref il, ref ir),
+                    ) if plus == "+" && inner_plus == "+" => {
+                        assert_eq!(**l, proof_kernel::Term::Var("x".into()));
+                        assert_eq!(**r, proof_kernel::Term::Int(1));
+                        assert_eq!(**il, proof_kernel::Term::Var("x".into()));
+                        assert_eq!(**ir, proof_kernel::Term::Int(1));
+                    }
+                    other => panic!("unexpected lhs strict-order lowering: {:?}", other),
+                }
+                match *rhs {
+                    proof_kernel::Prop::Le(
+                        proof_kernel::Term::Op(ref plus, ref l, ref r),
+                        proof_kernel::Term::Op(ref inner_plus, ref il, ref ir),
+                    ) if plus == "+" && inner_plus == "+" => {
+                        assert_eq!(**l, proof_kernel::Term::Var("x".into()));
+                        assert_eq!(**r, proof_kernel::Term::Int(1));
+                        assert_eq!(**il, proof_kernel::Term::Var("x".into()));
+                        assert_eq!(**ir, proof_kernel::Term::Int(1));
+                    }
+                    other => panic!("unexpected rhs strict-order lowering: {:?}", other),
+                }
+            }
+            other => panic!("unexpected prop: {:?}", other),
+        }
     }
 
     #[test]

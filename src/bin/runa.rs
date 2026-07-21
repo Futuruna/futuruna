@@ -4683,6 +4683,306 @@ fn collect_rule_refs(expr: &Expr, refs: &mut BTreeSet<String>) {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ExplicitProofStatus {
+    Proved,
+    Unsupported(String),
+    Failed(String),
+}
+
+fn substitute_expr_bindings(
+    expr: &Expr,
+    bindings: &BTreeMap<String, Expr>,
+    active: &mut BTreeSet<String>,
+) -> Expr {
+    match &expr.kind {
+        ExprKind::Var(name) => {
+            if let Some(bound_expr) = bindings.get(name) {
+                if active.insert(name.clone()) {
+                    let expanded = substitute_expr_bindings(bound_expr, bindings, active);
+                    active.remove(name);
+                    expanded
+                } else {
+                    expr.clone()
+                }
+            } else {
+                expr.clone()
+            }
+        }
+        ExprKind::App(func, args) => Expr::new(
+            ExprKind::App(
+                Box::new(substitute_expr_bindings(func, bindings, active)),
+                args.iter()
+                    .map(|arg| substitute_expr_bindings(arg, bindings, active))
+                    .collect(),
+            ),
+            expr.span,
+        ),
+        ExprKind::BinOp(op, lhs, rhs) => Expr::new(
+            ExprKind::BinOp(
+                op.clone(),
+                Box::new(substitute_expr_bindings(lhs, bindings, active)),
+                Box::new(substitute_expr_bindings(rhs, bindings, active)),
+            ),
+            expr.span,
+        ),
+        ExprKind::UnOp(op, inner) => Expr::new(
+            ExprKind::UnOp(
+                op.clone(),
+                Box::new(substitute_expr_bindings(inner, bindings, active)),
+            ),
+            expr.span,
+        ),
+        ExprKind::Tuple(elems) => Expr::new(
+            ExprKind::Tuple(
+                elems
+                    .iter()
+                    .map(|elem| substitute_expr_bindings(elem, bindings, active))
+                    .collect(),
+            ),
+            expr.span,
+        ),
+        _ => expr.clone(),
+    }
+}
+
+fn substitute_proof_term_vars(
+    term: &proof_kernel::Term,
+    substitutions: &BTreeMap<String, proof_kernel::Term>,
+) -> proof_kernel::Term {
+    match term {
+        proof_kernel::Term::Int(n) => proof_kernel::Term::Int(*n),
+        proof_kernel::Term::Var(name) => substitutions
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| proof_kernel::Term::Var(name.clone())),
+        proof_kernel::Term::Op(op, lhs, rhs) => proof_kernel::Term::Op(
+            op.clone(),
+            Box::new(substitute_proof_term_vars(lhs, substitutions)),
+            Box::new(substitute_proof_term_vars(rhs, substitutions)),
+        ),
+        proof_kernel::Term::App(name, args) => proof_kernel::Term::App(
+            name.clone(),
+            args.iter()
+                .map(|arg| substitute_proof_term_vars(arg, substitutions))
+                .collect(),
+        ),
+    }
+}
+
+fn substitute_proof_prop_vars(
+    prop: &proof_kernel::Prop,
+    substitutions: &BTreeMap<String, proof_kernel::Term>,
+) -> proof_kernel::Prop {
+    match prop {
+        proof_kernel::Prop::Eq(lhs, rhs) => proof_kernel::Prop::Eq(
+            substitute_proof_term_vars(lhs, substitutions),
+            substitute_proof_term_vars(rhs, substitutions),
+        ),
+        proof_kernel::Prop::Le(lhs, rhs) => proof_kernel::Prop::Le(
+            substitute_proof_term_vars(lhs, substitutions),
+            substitute_proof_term_vars(rhs, substitutions),
+        ),
+        proof_kernel::Prop::And(lhs, rhs) => proof_kernel::Prop::And(
+            Box::new(substitute_proof_prop_vars(lhs, substitutions)),
+            Box::new(substitute_proof_prop_vars(rhs, substitutions)),
+        ),
+        proof_kernel::Prop::Not(inner) => {
+            proof_kernel::Prop::Not(Box::new(substitute_proof_prop_vars(inner, substitutions)))
+        }
+        proof_kernel::Prop::Imply(lhs, rhs) => proof_kernel::Prop::Imply(
+            Box::new(substitute_proof_prop_vars(lhs, substitutions)),
+            Box::new(substitute_proof_prop_vars(rhs, substitutions)),
+        ),
+        proof_kernel::Prop::False => proof_kernel::Prop::False,
+    }
+}
+
+fn collect_proof_term_vars(term: &proof_kernel::Term, vars: &mut BTreeSet<String>) {
+    match term {
+        proof_kernel::Term::Int(_) => {}
+        proof_kernel::Term::Var(name) => {
+            vars.insert(name.clone());
+        }
+        proof_kernel::Term::Op(_, lhs, rhs) => {
+            collect_proof_term_vars(lhs, vars);
+            collect_proof_term_vars(rhs, vars);
+        }
+        proof_kernel::Term::App(_, args) => {
+            for arg in args {
+                collect_proof_term_vars(arg, vars);
+            }
+        }
+    }
+}
+
+fn collect_proof_prop_vars(prop: &proof_kernel::Prop, vars: &mut BTreeSet<String>) {
+    match prop {
+        proof_kernel::Prop::Eq(lhs, rhs) | proof_kernel::Prop::Le(lhs, rhs) => {
+            collect_proof_term_vars(lhs, vars);
+            collect_proof_term_vars(rhs, vars);
+        }
+        proof_kernel::Prop::And(lhs, rhs) | proof_kernel::Prop::Imply(lhs, rhs) => {
+            collect_proof_prop_vars(lhs, vars);
+            collect_proof_prop_vars(rhs, vars);
+        }
+        proof_kernel::Prop::Not(inner) => collect_proof_prop_vars(inner, vars),
+        proof_kernel::Prop::False => {}
+    }
+}
+
+fn collect_proof_term_term_vars(term: &proof_kernel::ProofTerm, vars: &mut BTreeSet<String>) {
+    match term {
+        proof_kernel::ProofTerm::Refl | proof_kernel::ProofTerm::Hyp(_) => {}
+        proof_kernel::ProofTerm::Apply(_, args) => {
+            for arg in args {
+                collect_proof_term_term_vars(arg, vars);
+            }
+        }
+        proof_kernel::ProofTerm::Rewrite(lhs, rhs) => {
+            collect_proof_term_term_vars(lhs, vars);
+            collect_proof_term_term_vars(rhs, vars);
+        }
+        proof_kernel::ProofTerm::InductionOn(_, arms) => {
+            for arm in arms {
+                collect_proof_term_term_vars(&arm.body, vars);
+            }
+        }
+        proof_kernel::ProofTerm::Cases(scrut, arms) => {
+            collect_proof_term_vars(scrut, vars);
+            for arm in arms {
+                collect_proof_term_term_vars(&arm.body, vars);
+            }
+        }
+        proof_kernel::ProofTerm::Contra(body) => collect_proof_term_term_vars(body, vars),
+        proof_kernel::ProofTerm::Let(_, bound, body) => {
+            collect_proof_term_term_vars(bound, vars);
+            collect_proof_term_term_vars(body, vars);
+        }
+        proof_kernel::ProofTerm::Assume(prop, body) => {
+            collect_proof_prop_vars(prop, vars);
+            collect_proof_term_term_vars(body, vars);
+        }
+    }
+}
+
+fn substitute_proof_term_binders(
+    term: &proof_kernel::ProofTerm,
+    substitutions: &BTreeMap<String, proof_kernel::Term>,
+) -> proof_kernel::ProofTerm {
+    match term {
+        proof_kernel::ProofTerm::Refl => proof_kernel::ProofTerm::Refl,
+        proof_kernel::ProofTerm::Apply(name, args) => proof_kernel::ProofTerm::Apply(
+            name.clone(),
+            args.iter()
+                .map(|arg| substitute_proof_term_binders(arg, substitutions))
+                .collect(),
+        ),
+        proof_kernel::ProofTerm::Rewrite(eq_term, body_term) => proof_kernel::ProofTerm::Rewrite(
+            Box::new(substitute_proof_term_binders(eq_term, substitutions)),
+            Box::new(substitute_proof_term_binders(body_term, substitutions)),
+        ),
+        proof_kernel::ProofTerm::InductionOn(name, arms) => proof_kernel::ProofTerm::InductionOn(
+            name.clone(),
+            arms.iter()
+                .map(|arm| proof_kernel::IndArm {
+                    ctor: arm.ctor.clone(),
+                    binders: arm.binders.clone(),
+                    body: substitute_proof_term_binders(&arm.body, substitutions),
+                })
+                .collect(),
+        ),
+        proof_kernel::ProofTerm::Cases(scrut, arms) => proof_kernel::ProofTerm::Cases(
+            substitute_proof_term_vars(scrut, substitutions),
+            arms.iter()
+                .map(|arm| proof_kernel::CaseArm {
+                    ctor: arm.ctor.clone(),
+                    binders: arm.binders.clone(),
+                    body: substitute_proof_term_binders(&arm.body, substitutions),
+                })
+                .collect(),
+        ),
+        proof_kernel::ProofTerm::Contra(body) => proof_kernel::ProofTerm::Contra(Box::new(
+            substitute_proof_term_binders(body, substitutions),
+        )),
+        proof_kernel::ProofTerm::Let(name, bound, body) => proof_kernel::ProofTerm::Let(
+            name.clone(),
+            Box::new(substitute_proof_term_binders(bound, substitutions)),
+            Box::new(substitute_proof_term_binders(body, substitutions)),
+        ),
+        proof_kernel::ProofTerm::Assume(prop, body) => proof_kernel::ProofTerm::Assume(
+            substitute_proof_prop_vars(prop, substitutions),
+            Box::new(substitute_proof_term_binders(body, substitutions)),
+        ),
+        proof_kernel::ProofTerm::Hyp(name) => proof_kernel::ProofTerm::Hyp(name.clone()),
+    }
+}
+
+fn proof_binder_substitutions(
+    subject_expr: &Expr,
+    binders: &[String],
+) -> Result<BTreeMap<String, proof_kernel::Term>, String> {
+    let mut substitutions = BTreeMap::new();
+    match &subject_expr.kind {
+        ExprKind::Var(name) if binders.len() == 1 => {
+            substitutions.insert(binders[0].clone(), proof_kernel::Term::Var(name.clone()));
+            Ok(substitutions)
+        }
+        ExprKind::Tuple(elems) if elems.len() == binders.len() => {
+            for (elem, binder) in elems.iter().zip(binders) {
+                substitutions.insert(binder.clone(), lower_expr_to_proof_term(elem)?);
+            }
+            Ok(substitutions)
+        }
+        _ if binders.len() == 1 => {
+            substitutions.insert(binders[0].clone(), lower_expr_to_proof_term(subject_expr)?);
+            Ok(substitutions)
+        }
+        _ => Err("proof binder count does not match invariant subject".into()),
+    }
+}
+
+fn evaluate_explicit_proof(
+    subject_expr: &Expr,
+    pred_expr: &Expr,
+    bindings: &BTreeMap<String, Expr>,
+    proof_block: &ProofBlock,
+) -> ExplicitProofStatus {
+    if proof_block.arms.len() != 1 {
+        return ExplicitProofStatus::Unsupported(
+            "proof blocks currently require exactly one arm".into(),
+        );
+    }
+
+    let arm = &proof_block.arms[0];
+    let expanded_subject = substitute_expr_bindings(subject_expr, bindings, &mut BTreeSet::new());
+    let expanded_pred = substitute_expr_bindings(pred_expr, bindings, &mut BTreeSet::new());
+    let substitutions = match proof_binder_substitutions(&expanded_subject, &arm.binders) {
+        Ok(substitutions) => substitutions,
+        Err(err) => return ExplicitProofStatus::Unsupported(err),
+    };
+
+    let goal = match lower_expr_to_proof_prop(&expanded_pred) {
+        Ok(prop) => prop,
+        Err(err) => return ExplicitProofStatus::Unsupported(err),
+    };
+    let proof = substitute_proof_term_binders(&arm.term, &substitutions);
+
+    let mut ctx = proof_kernel::Ctx::new();
+    let mut vars = BTreeSet::new();
+    collect_proof_prop_vars(&goal, &mut vars);
+    collect_proof_term_term_vars(&proof, &mut vars);
+    for var in vars {
+        ctx = ctx.with_var(var);
+    }
+
+    let reg = proof_kernel::Registry::with_builtins();
+    match proof_kernel::check(&proof, &goal, &ctx, &reg) {
+        Ok(()) => ExplicitProofStatus::Proved,
+        Err(err) => ExplicitProofStatus::Failed(err.to_string()),
+    }
+}
+
 /// Generate SMT-LIB2 for all invariants and verify with Z3
 fn verify_with_z3(source: &str, filename: &str) {
     let mut lexer = Lexer::new(source);
@@ -4736,6 +5036,7 @@ fn verify_with_z3(source: &str, filename: &str) {
     let mut adts: Vec<(String, Vec<Variant>)> = Vec::new();
     let mut ctor_to_type: BTreeMap<String, String> = BTreeMap::new();
     let mut invariants: Vec<(String, Expr, Expr)> = Vec::new();
+    let mut proof_blocks: BTreeMap<String, ProofBlock> = BTreeMap::new();
     let mut bindings: BTreeMap<String, Expr> = BTreeMap::new();
     let mut binding_types: BTreeMap<String, Option<Ty>> = BTreeMap::new();
     let mut functions: Vec<(String, Vec<Param>, Option<Ty>, Expr)> = Vec::new();
@@ -4754,6 +5055,13 @@ fn verify_with_z3(source: &str, filename: &str) {
                 predicate,
             } => {
                 invariants.push((name.clone(), subject.clone(), predicate.clone()));
+            }
+            Stmt::Prove {
+                name,
+                proof_block: Some(block),
+                ..
+            } => {
+                proof_blocks.insert(name.clone(), block.clone());
             }
             Stmt::Bind(Pat::Var(name), ty, expr) => {
                 bindings.insert(name.clone(), expr.clone());
@@ -4788,6 +5096,24 @@ fn verify_with_z3(source: &str, filename: &str) {
     // For each invariant, generate SMT-LIB2 and run Z3
     for (inv_name, subject_expr, pred_expr) in &invariants {
         println!("--- | {} ---", inv_name);
+
+        if let Some(proof_block) = proof_blocks.get(inv_name) {
+            match evaluate_explicit_proof(subject_expr, pred_expr, &bindings, proof_block) {
+                ExplicitProofStatus::Proved => {
+                    println!("  ✓ PROVED by kernel: |{}| closed explicit proof", inv_name);
+                    println!();
+                    continue;
+                }
+                ExplicitProofStatus::Failed(err) => {
+                    println!("  ✗ explicit proof failed in kernel: {}", err);
+                    println!("  falling back to Z3 for semantic verification\n");
+                }
+                ExplicitProofStatus::Unsupported(reason) => {
+                    println!("  ? explicit proof unsupported in kernel path: {}", reason);
+                    println!("  falling back to Z3\n");
+                }
+            }
+        }
 
         let mut smt = String::new();
         smt.push_str("; Auto-generated by runa --verify\n");
@@ -8319,6 +8645,7 @@ enum FirStmt {
     },
     Prove {
         name: String,
+        proof_block: Option<ProofBlock>,
         capture: Option<String>,
         pass_block: Option<Vec<FirStmt>>,
         else_block: Option<Vec<FirStmt>>,
@@ -9127,11 +9454,13 @@ impl<'a> LoweringCtx<'a> {
             },
             Stmt::Prove {
                 name,
+                proof_block,
                 capture,
                 pass_block,
                 else_block,
             } => FirStmt::Prove {
                 name: name.clone(),
+                proof_block: proof_block.clone(),
                 capture: capture.clone(),
                 pass_block: pass_block
                     .as_ref()
@@ -17172,6 +17501,7 @@ impl RustCodegen {
             }
             Stmt::Prove {
                 name,
+                proof_block: _,
                 capture,
                 pass_block,
                 else_block,
@@ -21765,6 +22095,83 @@ fn sanitize_name(name: &str) -> String {
 mod tests {
     use super::*;
 
+    fn parse_invariant_and_proof(source: &str) -> (Expr, Expr, ProofBlock, BTreeMap<String, Expr>) {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let (subject, predicate) = match &stmts[0] {
+            Stmt::Invariant {
+                subject, predicate, ..
+            } => (subject.clone(), predicate.clone()),
+            other => panic!("expected invariant, got {:?}", other),
+        };
+        let proof_block = match &stmts[1] {
+            Stmt::Prove {
+                proof_block: Some(block),
+                ..
+            } => block.clone(),
+            other => panic!("expected explicit proof, got {:?}", other),
+        };
+
+        let bindings = stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
+                _ => None,
+            })
+            .collect();
+
+        (subject, predicate, proof_block, bindings)
+    }
+
+    fn explicit_proof_statuses(source: &str) -> BTreeMap<String, ExplicitProofStatus> {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let bindings: BTreeMap<String, Expr> = stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
+                _ => None,
+            })
+            .collect();
+
+        let invariants: BTreeMap<String, (Expr, Expr)> = stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Invariant {
+                    name,
+                    subject,
+                    predicate,
+                } => Some((name.clone(), (subject.clone(), predicate.clone()))),
+                _ => None,
+            })
+            .collect();
+
+        stmts.iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Prove {
+                    name,
+                    proof_block: Some(block),
+                    ..
+                } => {
+                    let (subject, predicate) = invariants
+                        .get(name)
+                        .unwrap_or_else(|| panic!("missing invariant for {}", name));
+                    Some((
+                        name.clone(),
+                        evaluate_explicit_proof(subject, predicate, &bindings, block),
+                    ))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     #[test]
     fn fir_var_with_move() {
         let expr = FirExpr {
@@ -21813,6 +22220,81 @@ mod tests {
             types: TypeRegistry::new(),
         };
         assert!(prog.stmts.is_empty());
+    }
+
+    #[test]
+    fn explicit_proof_evaluates_successfully() {
+        let source = r#"
+| add_comm: (a, b) -> a + b == b + a
+? add_comm by {
+    | (lhs, rhs) -> apply int_ring.comm_add
+}
+"#;
+        let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
+        assert_eq!(
+            evaluate_explicit_proof(&subject, &predicate, &bindings, &proof_block),
+            ExplicitProofStatus::Proved
+        );
+    }
+
+    #[test]
+    fn explicit_proof_reports_failed_kernel_check() {
+        let source = r#"
+| add_comm: (a, b) -> a + b == b + a
+? add_comm by {
+    | (lhs, rhs) -> refl
+}
+"#;
+        let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
+        match evaluate_explicit_proof(&subject, &predicate, &bindings, &proof_block) {
+            ExplicitProofStatus::Failed(err) => {
+                assert!(err.contains("expected e == e") || err.contains("goal mismatch"));
+            }
+            other => panic!("expected failed proof, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn proof_adversarial_fixture_covers_all_kernel_statuses() {
+        let source = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/proof_adversarial_test.runa"
+        ))
+        .expect("fixture should read");
+
+        let statuses = explicit_proof_statuses(&source);
+        assert_eq!(
+            statuses.get("add_comm_ok"),
+            Some(&ExplicitProofStatus::Proved)
+        );
+        match statuses.get("add_comm_bad") {
+            Some(ExplicitProofStatus::Failed(err)) => {
+                assert!(err.contains("expected e == e") || err.contains("goal mismatch"));
+            }
+            other => panic!("expected failed proof status, got {:?}", other),
+        }
+        match statuses.get("lt_progress") {
+            Some(ExplicitProofStatus::Proved) => {}
+            other => panic!("expected proved `<` proof, got {:?}", other),
+        }
+        match statuses.get("gt_progress") {
+            Some(ExplicitProofStatus::Proved) => {}
+            other => panic!("expected proved `>` proof, got {:?}", other),
+        }
+        match statuses.get("both_zero") {
+            Some(ExplicitProofStatus::Unsupported(reason)) => {
+                assert!(reason.contains("exactly one arm"));
+            }
+            other => panic!("expected multi-arm unsupported proof, got {:?}", other),
+        }
+        match statuses.get("computed_subject") {
+            Some(ExplicitProofStatus::Proved) => {}
+            other => panic!("expected computed-subject proved status, got {:?}", other),
+        }
+        match statuses.get("bound_subject") {
+            Some(ExplicitProofStatus::Proved) => {}
+            other => panic!("expected bound-subject proved status, got {:?}", other),
+        }
     }
 
     #[test]

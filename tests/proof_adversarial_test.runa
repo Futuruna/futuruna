@@ -1,0 +1,39 @@
+-- Explicit proof adversarial suite.
+-- Exercises kernel success, kernel failure, and unsupported proof-path cases.
+
+| add_comm_ok: (a, b) -> a + b == b + a
+? add_comm_ok by {
+    | (lhs, rhs) -> apply int_ring.comm_add
+}
+
+| add_comm_bad: (a, b) -> a + b == b + a
+? add_comm_bad by {
+    | (lhs, rhs) -> refl
+}
+
+| lt_progress: x -> x < x + 1
+? lt_progress by {
+    | n -> apply int_ord.le_refl
+}
+
+| gt_progress: x -> x + 1 > x
+? gt_progress by {
+    | n -> apply int_ord.le_refl
+}
+
+| both_zero: (x, y) -> x == x and y == y
+? both_zero by {
+    | (a, b) -> apply and.intro(refl, refl)
+    | z -> refl
+}
+
+| computed_subject: add(1, 2) -> add(1, 2) == add(1, 2)
+? computed_subject by {
+    | n -> refl
+}
+
+= three = 3
+| bound_subject: three -> three == three
+? bound_subject by {
+    | n -> refl
+}

@@ -1,0 +1,11 @@
+-- Explicit proof fixture for `runa verify`
+
+| add_comm: (a, b) -> a + b == b + a
+? add_comm by {
+    | (lhs, rhs) -> apply int_ring.comm_add
+}
+
+| zero_self: x -> x >= x
+? zero_self by {
+    | n -> apply int_ord.le_refl
+}
