@@ -1,6 +1,6 @@
 # Algebraic Subset Types — Design Sketch
 
-**Core idea:** Types are sets of constructors. A subset type picks specific variants from a parent type. The same constructor value inhabits multiple types simultaneously.
+**Core idea:** Types are sets of constructors. Variants can be pulled from any existing type or defined fresh. The same constructor value inhabits multiple types simultaneously. This is not inheritance — it's set-theoretic composition.
 
 ## Syntax
 
@@ -15,6 +15,13 @@
 
 -- Multi-level: subset of a subset
 # EUSkandinavien = Skandinavien.Sverige | Skandinavien.Danmark
+
+-- Mixed provenance: pull from multiple parents + define new
+# SpecialEntity = TheVatican | Monaco | SanMarino
+# WeirdAlliance = GeoArea.Danmark | SpecialEntity.TheVatican | SpecialEntity.Monaco
+
+-- A type is just a set of constructors. Origin doesn't matter.
+# TreatyParties = GeoArea.Danmark | GeoArea.Norway | SpecialEntity.TheVatican | NewMember
 ```
 
 ## Type relationships

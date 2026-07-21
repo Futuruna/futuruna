@@ -1788,6 +1788,7 @@ pub struct Variant {
     pub name: String,
     pub fields: Vec<Field>,
     pub positional: bool, // true = tuple-style (Type, Type), false = named (name: Type)
+    pub from_type: Option<String>, // Some("GeoArea") for subset variants: GeoArea.Danmark
 }
 
 #[derive(Debug, Clone)]
@@ -3049,6 +3050,7 @@ impl Parser {
                     name: name.clone(),
                     fields,
                     positional: false,
+                    from_type: None,
                 };
                 return Ok(Stmt::TypeDecl(TypeDecl::ADT {
                     name,
@@ -3230,16 +3232,31 @@ impl Parser {
         let mut variants = Vec::new();
         loop {
             let name = self.expect_ident()?;
-            let (fields, positional) = if self.peek_kind() == TokenKind::LParen {
-                self.parse_field_list()?
+            // Check for qualified variant: Parent.Variant (subset type syntax)
+            if self.peek_kind() == TokenKind::Dot {
+                self.advance(); // consume '.'
+                let variant_name = self.expect_ident()?;
+                // Store as a variant with source annotation in the name
+                // The source type is `name`, the variant is `variant_name`
+                variants.push(Variant {
+                    name: variant_name,
+                    fields: Vec::new(),
+                    positional: false,
+                    from_type: Some(name), // "GeoArea" in GeoArea.Danmark
+                });
             } else {
-                (Vec::new(), false)
-            };
-            variants.push(Variant {
-                name,
-                fields,
-                positional,
-            });
+                let (fields, positional) = if self.peek_kind() == TokenKind::LParen {
+                    self.parse_field_list()?
+                } else {
+                    (Vec::new(), false)
+                };
+                variants.push(Variant {
+                    name,
+                    fields,
+                    positional,
+                    from_type: None,
+                });
+            }
             if self.peek_kind() == TokenKind::Pipe {
                 self.advance();
             } else {

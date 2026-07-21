@@ -10686,7 +10686,7 @@ impl RustCodegen {
                 let variant = Variant {
                     name: name.to_string(),
                     fields: variant_fields,
-                    positional: false,
+                    positional: false, from_type: None,
                 };
                 TypeDecl::ADT {
                     name: name.to_string(),
@@ -10721,7 +10721,7 @@ impl RustCodegen {
                         Variant {
                             name: vname.clone(),
                             fields: variant_fields,
-                            positional: false,
+                            positional: false, from_type: None,
                         }
                     })
                     .collect();
@@ -10740,7 +10740,7 @@ impl RustCodegen {
                     variants: vec![Variant {
                         name: name.to_string(),
                         fields: vec![],
-                        positional: false,
+                        positional: false, from_type: None,
                     }],
                     methods: vec![],
                 }
