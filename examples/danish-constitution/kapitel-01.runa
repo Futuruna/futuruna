@@ -69,32 +69,50 @@ og understøttes som sådan af staten.
 | staten_understøtter_folkekirken()
 
 -- ═══════════════════════════════════════════════════════════════
--- Verifikation — spørg lovens fakta
+-- Verifikation — bevisbare invarianter
 -- ═══════════════════════════════════════════════════════════════
 
 @ print("--- Kapitel I: Statsformen ---")
-@ print("")
 
--- § 1
+-- § 1: Grundloven dækker hele riget (alle tre dele)
 = rigsdele = findall(del, grundloven_gælder_for(del))
-@ print("§ 1  Grundloven gælder for: " + show(rigsdele))
+| alle_rigsdele_dækket: rigsdele -> length(rigsdele) == 3
+? alle_rigsdele_dækket -> { @ print("§ 1  ✓ Grundloven dækker alle " + show(length(rigsdele)) + " rigsdele") } else { @ print("§ 1  ✗ FEJL: ikke alle rigsdele dækket") }
 
--- § 2
+-- § 1: Specifikt: Danmark, Færøerne, Grønland
+| danmark_dækket: rigsdele -> grundloven_gælder_for(Danmark)
+| færøerne_dækket: rigsdele -> grundloven_gælder_for(Færøerne)
+| grønland_dækket: rigsdele -> grundloven_gælder_for(Grønland)
+? danmark_dækket -> { @ print("§ 1  ✓ Danmark") } else { @ print("§ 1  ✗ Danmark MANGLER") }
+? færøerne_dækket -> { @ print("§ 1  ✓ Færøerne") } else { @ print("§ 1  ✗ Færøerne MANGLER") }
+? grønland_dækket -> { @ print("§ 1  ✓ Grønland") } else { @ print("§ 1  ✗ Grønland MANGLER") }
+
+-- § 2: Begge køn arver tronen
 = arvekøn = findall(k, kongemagten_nedarves_til(k))
-@ print("§ 2  Kongemagten nedarves til: " + show(arvekøn))
-@ print("§ 2  Tronfølgelov: " + tronfølgeloven_dato)
+| begge_køn_arver: arvekøn -> length(arvekøn) == 2
+? begge_køn_arver -> { @ print("§ 2  ✓ Begge køn arver (" + show(arvekøn) + ")") } else { @ print("§ 2  ✗ FEJL: ikke begge køn") }
 
--- § 3
+-- § 3: Magtens tredeling — tre adskilte magter
 = lovgivere = findall(i, udøver(i, Lovgivende))
 = udøvere = findall(i, udøver(i, Udøvende))
 = dommere = findall(i, udøver(i, Dømmende))
-@ print("§ 3  Lovgivende magt: " + show(lovgivere))
-@ print("§ 3  Udøvende magt: " + show(udøvere))
-@ print("§ 3  Dømmende magt: " + show(dommere))
 
+| tredeling_lovgivende: lovgivere -> length(lovgivere) > 0
+| tredeling_udøvende: udøvere -> length(udøvere) > 0
+| tredeling_dømmende: dommere -> length(dommere) > 0
+? tredeling_lovgivende -> { @ print("§ 3  ✓ Lovgivende: " + show(lovgivere)) } else { @ print("§ 3  ✗ Lovgivende magt mangler") }
+? tredeling_udøvende -> { @ print("§ 3  ✓ Udøvende: " + show(udøvere)) } else { @ print("§ 3  ✗ Udøvende magt mangler") }
+? tredeling_dømmende -> { @ print("§ 3  ✓ Dømmende: " + show(dommere)) } else { @ print("§ 3  ✗ Dømmende magt mangler") }
+
+-- § 3: Lovgivning kræver BÅDE Kongen og Folketinget ("i forening")
 = krævet = findall(i, lovgivning_kræver(i))
-@ print("§ 3  Lovgivning kræver: " + show(krævet))
+| lovgivning_kræver_begge: krævet -> length(krævet) == 2
+? lovgivning_kræver_begge -> { @ print("§ 3  ✓ Lovgivning kræver: " + show(krævet)) } else { @ print("§ 3  ✗ FEJL: lovgivning kræver ikke to parter") }
 
--- § 4
-@ print("§ 4  Folkekirken: " + show(folkekirken_er(EvangeliskLuthersk)))
-@ print("§ 4  Staten understøtter: " + show(staten_understøtter_folkekirken()))
+-- § 3: Domstolene er UAFHÆNGIGE (har ikke lovgivende eller udøvende magt)
+| domstolene_kun_dømmende: dommere -> not(udøver(Domstolene, Lovgivende)) && not(udøver(Domstolene, Udøvende))
+? domstolene_kun_dømmende -> { @ print("§ 3  ✓ Domstolene kun dømmende (uafhængige)") } else { @ print("§ 3  ✗ FEJL: Domstolene har anden magt") }
+
+-- § 4: Folkekirken
+| folkekirke_er_evangelisk: rigsdele -> folkekirken_er(EvangeliskLuthersk)
+? folkekirke_er_evangelisk -> { @ print("§ 4  ✓ Folkekirken er evangelisk-luthersk") } else { @ print("§ 4  ✗ FEJL") }

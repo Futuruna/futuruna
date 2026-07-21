@@ -7074,9 +7074,9 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         // ---- Map builtins (M24) ----
         ("map_new",      BuiltinDef { arity: 0, shadowable: false, impure: false, deps: D, rust_tpl: "HashMap::new()" }),
         ("map_insert",   BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __m = {0}.clone(); __m.insert({1}.clone(), {2}.clone()); __m }" }),
-        ("map_get",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.get(&{1}).cloned()" }),
-        ("map_get_or",   BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.get(&{1}).cloned().unwrap_or_else(|| {2}.clone())" }),
-        ("map_contains", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.contains_key(&{1})" }),
+        ("map_get",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.get({1}.as_str()).cloned()" }),
+        ("map_get_or",   BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.get({1}.as_str()).cloned().unwrap_or_else(|| {2}.clone())" }),
+        ("map_contains", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.contains_key({1}.as_str())" }),
         ("map_remove",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __m = {0}.clone(); __m.remove(&{1}); __m }" }),
         ("map_keys",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.keys().cloned().collect::<Vec<_>>()" }),
         ("map_values",   BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()" }),

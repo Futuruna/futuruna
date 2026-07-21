@@ -268,37 +268,55 @@ ved lov. Forflyttelse uden samtykke kun uden indkomsttab.
 | forflyttelse_uden_samtykke_kun_uden_indkomsttab()
 
 -- ═══════════════════════════════════════════════════════════════
--- Verifikation
+-- Verifikation — bevisbare invarianter
 -- ═══════════════════════════════════════════════════════════════
 
 @ print("--- Kapitel III: Kongen og ministrene ---")
-@ print("")
 
--- § 14: Kontrasignatur
-@ print("§ 14  Kontrasignatur: " + show(beslutning_gyldig_når_kongen_og_minister_underskriver()))
+= kapitel = "III"
 
--- § 15: Mistillid
-@ print("§ 15  Minister forbliver uden mistillid: " + show(minister_kan_forblive(IkkeUdtalt)))
-@ print("§ 15  Minister forbliver med mistillid: " + show(minister_kan_forblive(Udtalt)))
+-- § 13: Kongen er ansvarsfri, ministrene er ansvarlige (asymmetri)
+| par13_kongen_fri: kapitel -> kongen_er_ansvarsfri()
+| par13_ministre_ansvarlige: kapitel -> ministrene_er_ansvarlige()
+? par13_kongen_fri -> { @ print("§ 13 ✓ Kongen er ansvarsfri") } else { @ print("§ 13 ✗ FEJL") }
+? par13_ministre_ansvarlige -> { @ print("§ 13 ✓ Ministrene er ansvarlige") } else { @ print("§ 13 ✗ FEJL") }
 
--- § 16: Hvem kan tiltale?
+-- § 15: Mistillid virker korrekt
+| par15_uden: kapitel -> minister_kan_forblive(IkkeUdtalt)
+| par15_med: kapitel -> not(minister_kan_forblive(Udtalt))
+? par15_uden -> { @ print("§ 15 ✓ Uden mistillid → minister forbliver") } else { @ print("§ 15 ✗ FEJL") }
+? par15_med -> { @ print("§ 15 ✓ Med mistillid → minister må gå") } else { @ print("§ 15 ✗ FEJL") }
+
+-- § 16: Begge kan tiltale (Kongen OG Folketinget)
 = tiltalere = findall(t, kan_tiltale_minister(t))
-@ print("§ 16  Kan tiltale ministre: " + show(tiltalere))
+| par16_begge: tiltalere -> length(tiltalere) == 2
+? par16_begge -> { @ print("§ 16 ✓ Tiltale af " + show(tiltalere)) } else { @ print("§ 16 ✗ FEJL") }
 
--- § 18: Forhandlingsforum
-@ print("§ 18  Normalt forum: " + show(forhandlingsforum()))
+-- § 18: Normalt statsrådet
+| par18_normalt: kapitel -> forhandlingsforum() == Statsrådet
+? par18_normalt -> { @ print("§ 18 ✓ Normalt i statsrådet") } else { @ print("§ 18 ✗ FEJL") }
 
--- § 19: Samtykke-krævende handlinger
+-- § 19: Tre typer samtykke-krævende handlinger
 = samtykke_handlinger = findall(h, kræver_folketingets_samtykke(h))
-@ print("§ 19  Kræver samtykke: " + show(samtykke_handlinger))
+| par19_tre: samtykke_handlinger -> length(samtykke_handlinger) == 3
+? par19_tre -> { @ print("§ 19 ✓ Samtykke kræves for " + show(samtykke_handlinger)) } else { @ print("§ 19 ✗ FEJL") }
 
--- § 19: Militær (forsvar vs anden)
-@ print("§ 19  Forsvar frit: " + show(militær_magt_tilladt(Forsvar)))
-@ print("§ 19  Anden kræver samtykke: " + show(militær_magtanvendelse_kræver_samtykke(Anden)))
+-- § 19: Forsvar er frit, andet kræver samtykke
+| par19_forsvar: kapitel -> militær_magt_tilladt(Forsvar)
+| par19_anden: kapitel -> militær_magtanvendelse_kræver_samtykke(Anden)
+? par19_forsvar -> { @ print("§ 19 ✓ Forsvar altid tilladt") } else { @ print("§ 19 ✗ FEJL") }
+? par19_anden -> { @ print("§ 19 ✓ Anden magtanvendelse kræver samtykke") } else { @ print("§ 19 ✗ FEJL") }
 
--- § 22: Frist
-@ print("§ 22  Stadfæstelsesfrist: " + show(stadfæstelsesfrist_dage) + " dage")
+-- § 22: Stadfæstelsesfrist
+| par22_frist: stadfæstelsesfrist_dage -> stadfæstelsesfrist_dage == 30
+? par22_frist -> { @ print("§ 22 ✓ Stadfæstelsesfrist: 30 dage") } else { @ print("§ 22 ✗ FEJL") }
 
--- § 24: Benådning
-@ print("§ 24  Benåde minister med samtykke: " + show(benåde_minister_fra_rigsret(Givet)))
-@ print("§ 24  Benåde minister uden samtykke: " + show(benåde_minister_fra_rigsret(IkkeGivet)))
+-- § 24: Benådning af minister kræver samtykke
+| par24_med: kapitel -> benåde_minister_fra_rigsret(Givet)
+| par24_uden: kapitel -> not(benåde_minister_fra_rigsret(IkkeGivet))
+? par24_med -> { @ print("§ 24 ✓ Benådning med samtykke") } else { @ print("§ 24 ✗ FEJL") }
+? par24_uden -> { @ print("§ 24 ✓ Benådning uden samtykke forbudt") } else { @ print("§ 24 ✗ FEJL") }
+
+-- § 27: Indfødsret krav
+| par27_indfødsret: kapitel -> tjenestemand_kræver_indfødsret()
+? par27_indfødsret -> { @ print("§ 27 ✓ Tjenestemand kræver indfødsret") } else { @ print("§ 27 ✗ FEJL") }
