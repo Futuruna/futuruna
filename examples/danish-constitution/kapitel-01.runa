@@ -12,38 +12,47 @@ folkeafstemning godkendt, hvorefter Vi nu ved Vort allerhøjeste samtykke
 stadfæster DANMARKS RIGES GRUNDLOV
 ----
 
--- Kapitel I -- Statsformen
+-- ═══════════════════════════════════════════════════════════════
+-- Kapitel I — Statsformen (§ 1–4)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Grundlæggende typer: riget, magten, og kirken
 
 # Rigsdel = Danmark | Færøerne | Grønland
-# Regeringsform = Indskrænket_Monarkisk
+
+# Regeringsform = IndskrænketMonarkisk
+
 # Køn = Mand | Kvinde
+# TronfølgeKøn = Køn.Mand | Køn.Kvinde
+
 # Statsmagt = Lovgivende | Udøvende | Dømmende
-# Institution = Kongen | Folketinget | Domstolene | Folkekirken
+
+# Institution = Kongen | Folketinget | Domstolene
+
 # Magtholder = Hos(institution: Institution) | IForening(a: Institution, b: Institution)
-# Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
-# Lov(titel: Tekst, dato: Tekst)
+
+# Trossamfund = EvangeliskLuthersk | Andet(navn: String)
 
 ----
 § 1. Denne grundlov gælder for alle dele af Danmarks Rige.
 ----
 
-> grundloven_gælder_for(del: Rigsdel) -> Boolsk {
-    skel del {
-        | Danmark -> Sandt
-        | Færøerne -> Sandt
-        | Grønland -> Sandt
-    }
-}
+-- Grundloven gælder for enhver rigsdel — typen ER sandheden.
+-- Tilføjer man en ny rigsdel, gælder grundloven automatisk for den.
+| grundloven_gælder_for(del: Rigsdel) -> true
 
 ----
-§ 2. Regeringsformen er indskrænket-monarkisk. Kongemagten nedarves til mænd
-og kvinder efter de i tronfølgeloven af 27. marts 1953 fastsatte regler.
+§ 2. Regeringsformen er indskrænket-monarkisk. Kongemagten nedarves til
+mænd og kvinder efter de i tronfølgeloven af 27. marts 1953 fastsatte regler.
 ----
 
-| regeringsform() -> Indskrænket_Monarkisk
-| begge_køn_arver()
+| regeringsform() -> IndskrænketMonarkisk
 
-= tronfølgeloven = Lov("Tronfølgeloven", "27. marts 1953")
+-- Tronfølgen er for begge køn — typen siger det direkte
+| tronfølge_gælder_for(k: TronfølgeKøn) -> true
+
+-- Tronfølgeloven er den eksterne lov der bestemmer rækkefølgen
+| tronfølgelov_dato() -> "27. marts 1953"
 
 ----
 § 3. Den lovgivende magt er hos kongen og folketinget i forening.
@@ -54,10 +63,54 @@ Den udøvende magt er hos kongen. Den dømmende magt er hos domstolene.
 | udøvende_magt() -> Hos(Kongen)
 | dømmende_magt() -> Hos(Domstolene)
 
+-- Magtfordeling: hvem har hvilken magt?
+| har_magt(Kongen, Lovgivende)
+| har_magt(Folketinget, Lovgivende)
+| har_magt(Kongen, Udøvende)
+| har_magt(Domstolene, Dømmende)
+
+-- Magtens tredeling: hver magt er adskilt
+| magt_er_adskilt(Lovgivende, Udøvende)
+| magt_er_adskilt(Lovgivende, Dømmende)
+| magt_er_adskilt(Udøvende, Dømmende)
+
 ----
 § 4. Den evangelisk-lutherske kirke er den danske folkekirke og understøttes
 som sådan af staten.
 ----
 
 | folkekirke() -> EvangeliskLuthersk
-| staten_understøtter_folkekirken_som_sådan()
+| staten_understøtter(Folkekirken)
+
+-- Folkekirken er en institution med særstatus
+# KirkeStatus = Folkekirken | AndreKirker
+| har_særstatus(Folkekirken)
+
+-- ═══════════════════════════════════════════════════════════════
+-- Verifikation
+-- ═══════════════════════════════════════════════════════════════
+
+-- § 1: Grundloven dækker hele riget
+= alle_rigsdele = findall(del, grundloven_gælder_for(del))
+@ print("§ 1 — Grundloven gælder for: " + show(alle_rigsdele))
+
+-- § 2: Begge køn har tronfølge
+= tronfølge_køn = findall(k, tronfølge_gælder_for(k))
+@ print("§ 2 — Tronfølge gælder for: " + show(tronfølge_køn))
+@ print("§ 2 — Regeringsform: " + show(regeringsform()))
+
+-- § 3: Magtens tredeling
+@ print("§ 3 — Lovgivende: " + show(lovgivende_magt()))
+@ print("§ 3 — Udøvende: " + show(udøvende_magt()))
+@ print("§ 3 — Dømmende: " + show(dømmende_magt()))
+
+= lovgivere = findall(i, har_magt(i, Lovgivende))
+= udøvere = findall(i, har_magt(i, Udøvende))
+= dommere = findall(i, har_magt(i, Dømmende))
+@ print("§ 3 — Lovgivere: " + show(lovgivere))
+@ print("§ 3 — Udøvere: " + show(udøvere))
+@ print("§ 3 — Dommere: " + show(dommere))
+
+-- § 4: Folkekirken
+@ print("§ 4 — Folkekirke: " + show(folkekirke()))
+@ print("§ 4 — Særstatus: " + show(har_særstatus(Folkekirken)))
