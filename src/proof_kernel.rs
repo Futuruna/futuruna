@@ -21,10 +21,10 @@
 //!
 //! ## Phase 1 scope (this file)
 //!
-//! Implemented rules: REFL, HYP, APPLY, LET, REWRITE, ASSUME.
-//! Stubbed (returns `InductionNotImplemented`): IND, CASES, CONTRA.
-//! Built-in axioms: 10 of the 23 listed in §7 of the design spec. Remainder
-//! land in phase 2.
+//! Implemented rules: REFL, HYP, APPLY, LET, REWRITE, ASSUME, CONTRA.
+//! Stubbed (returns `NotImplemented`): IND, CASES.
+//! Built-in axioms: a conservative subset of the v1 design doc, with the
+//! remainder landing in phase 2.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -273,7 +273,7 @@ impl Registry {
             },
         );
 
-        // -- Int ring (3 of 8; rest in phase 2) --
+        // -- Int ring --
 
         // int_ring.comm_add : ∀a b. a + b == b + a
         schemas.insert(
@@ -308,7 +308,66 @@ impl Registry {
             },
         );
 
-        // -- Int order (2 of 5; rest in phase 2) --
+        // int_ring.comm_mul : ∀a b. a * b == b * a
+        schemas.insert(
+            "int_ring.comm_mul".to_string(),
+            Schema {
+                vars: vec!["a".into(), "b".into()],
+                premises: vec![],
+                conclusion: Prop::Eq(op("*", v("a"), v("b")), op("*", v("b"), v("a"))),
+            },
+        );
+
+        // int_ring.assoc_mul : ∀a b c. (a * b) * c == a * (b * c)
+        schemas.insert(
+            "int_ring.assoc_mul".to_string(),
+            Schema {
+                vars: vec!["a".into(), "b".into(), "c".into()],
+                premises: vec![],
+                conclusion: Prop::Eq(
+                    op("*", op("*", v("a"), v("b")), v("c")),
+                    op("*", v("a"), op("*", v("b"), v("c"))),
+                ),
+            },
+        );
+
+        // int_ring.one_mul : ∀a. 1 * a == a
+        schemas.insert(
+            "int_ring.one_mul".to_string(),
+            Schema {
+                vars: vec!["a".into()],
+                premises: vec![],
+                conclusion: Prop::Eq(op("*", Term::Int(1), v("a")), v("a")),
+            },
+        );
+
+        // int_ring.distr : ∀a b c. a * (b + c) == a*b + a*c
+        schemas.insert(
+            "int_ring.distr".to_string(),
+            Schema {
+                vars: vec!["a".into(), "b".into(), "c".into()],
+                premises: vec![],
+                conclusion: Prop::Eq(
+                    op("*", v("a"), op("+", v("b"), v("c"))),
+                    op("+", op("*", v("a"), v("b")), op("*", v("a"), v("c"))),
+                ),
+            },
+        );
+
+        // int_ring.mul_neg_one : ∀a. (-1) * a == 0 - a
+        schemas.insert(
+            "int_ring.mul_neg_one".to_string(),
+            Schema {
+                vars: vec!["a".into()],
+                premises: vec![],
+                conclusion: Prop::Eq(
+                    op("*", Term::Int(-1), v("a")),
+                    op("-", Term::Int(0), v("a")),
+                ),
+            },
+        );
+
+        // -- Int order --
 
         // int_ord.le_refl : ∀a. a <= a
         schemas.insert(
@@ -330,10 +389,30 @@ impl Registry {
             },
         );
 
-        // -- Propositional: and.intro and and.elim handled via special-case
-        // dispatch in check_apply(), not schemas, because their universal
-        // metavariables are proposition-valued (not term-valued) and would
-        // require higher-order unification. See the comment on `check_apply`.
+        // int_ord.le_antisym : ∀a b. a <= b → b <= a → a == b
+        schemas.insert(
+            "int_ord.le_antisym".to_string(),
+            Schema {
+                vars: vec!["a".into(), "b".into()],
+                premises: vec![Prop::Le(v("a"), v("b")), Prop::Le(v("b"), v("a"))],
+                conclusion: Prop::Eq(v("a"), v("b")),
+            },
+        );
+
+        // int_ord.add_mono : ∀a b c. a <= b → a + c <= b + c
+        schemas.insert(
+            "int_ord.add_mono".to_string(),
+            Schema {
+                vars: vec!["a".into(), "b".into(), "c".into()],
+                premises: vec![Prop::Le(v("a"), v("b"))],
+                conclusion: Prop::Le(op("+", v("a"), v("c")), op("+", v("b"), v("c"))),
+            },
+        );
+
+        // -- Propositional axioms live in special-case dispatch in
+        // check_apply(), because their universal metavariables are
+        // proposition-valued (not term-valued) and would otherwise require
+        // higher-order unification.
 
         Registry { schemas }
     }
@@ -744,10 +823,10 @@ pub fn check(
 }
 
 /// [APPLY] handler. Named axioms and proved lemmas live in the same registry,
-/// so there is a single code path. Two propositional axioms (`and.intro`,
-/// `and.elim_l/r`) have propositional metavariables that would need
-/// higher-order unification; they are special-cased here instead of living in
-/// the schema table.
+/// so there is a single code path. Propositional axioms and concrete literal
+/// order checks are special-cased here instead of living in the schema table:
+/// they either require proposition metavariables or runtime inspection of the
+/// concrete goal.
 fn check_apply(
     name: &str,
     args: &[ProofTerm],
@@ -776,6 +855,109 @@ fn check_apply(
                 expected: "P and Q".into(),
                 got: goal.to_string(),
             });
+        }
+        // and.elim_l : ∀P Q. (P and Q) → P
+        "and.elim_l" => {
+            if args.len() != 1 {
+                return Err(ProofError::PremiseCount {
+                    axiom: "and.elim_l".into(),
+                    expected: 1,
+                    got: args.len(),
+                });
+            }
+            let actual = synthesize(&args[0], ctx, reg)?;
+            match actual {
+                Prop::And(lhs, _) if lhs.as_ref() == goal => return Ok(()),
+                Prop::And(lhs, _) => {
+                    return Err(ProofError::GoalMismatch {
+                        expected: goal.to_string(),
+                        got: lhs.to_string(),
+                    });
+                }
+                other => {
+                    return Err(ProofError::GoalMismatch {
+                        expected: "(P and Q)".into(),
+                        got: other.to_string(),
+                    });
+                }
+            }
+        }
+        // and.elim_r : ∀P Q. (P and Q) → Q
+        "and.elim_r" => {
+            if args.len() != 1 {
+                return Err(ProofError::PremiseCount {
+                    axiom: "and.elim_r".into(),
+                    expected: 1,
+                    got: args.len(),
+                });
+            }
+            let actual = synthesize(&args[0], ctx, reg)?;
+            match actual {
+                Prop::And(_, rhs) if rhs.as_ref() == goal => return Ok(()),
+                Prop::And(_, rhs) => {
+                    return Err(ProofError::GoalMismatch {
+                        expected: goal.to_string(),
+                        got: rhs.to_string(),
+                    });
+                }
+                other => {
+                    return Err(ProofError::GoalMismatch {
+                        expected: "(P and Q)".into(),
+                        got: other.to_string(),
+                    });
+                }
+            }
+        }
+        // false.elim : ∀P. False → P
+        "false.elim" => {
+            if args.len() != 1 {
+                return Err(ProofError::PremiseCount {
+                    axiom: "false.elim".into(),
+                    expected: 1,
+                    got: args.len(),
+                });
+            }
+            check(&args[0], &Prop::False, ctx, reg)?;
+            return Ok(());
+        }
+        // not.intro : ∀P. (P → False) → not(P)
+        "not.intro" => {
+            if args.len() != 1 {
+                return Err(ProofError::PremiseCount {
+                    axiom: "not.intro".into(),
+                    expected: 1,
+                    got: args.len(),
+                });
+            }
+            if let Prop::Not(inner) = goal {
+                let implication =
+                    Prop::Imply(Box::new(inner.as_ref().clone()), Box::new(Prop::False));
+                check(&args[0], &implication, ctx, reg)?;
+                return Ok(());
+            }
+            return Err(ProofError::GoalMismatch {
+                expected: "not(P)".into(),
+                got: goal.to_string(),
+            });
+        }
+        // int_ord.le_of_concrete : close m <= n by literal comparison
+        "int_ord.le_of_concrete" => {
+            if !args.is_empty() {
+                return Err(ProofError::PremiseCount {
+                    axiom: "int_ord.le_of_concrete".into(),
+                    expected: 0,
+                    got: args.len(),
+                });
+            }
+            match goal {
+                Prop::Le(Term::Int(lhs), Term::Int(rhs)) if lhs <= rhs => return Ok(()),
+                _ => {
+                    return Err(ProofError::GoalMismatch {
+                        expected: "m <= n for concrete literals with m <= n".into(),
+                        got: goal.to_string(),
+                    });
+                }
+            }
         }
         _ => {}
     }
@@ -904,6 +1086,15 @@ mod tests {
         assert!(check(&proof, &goal, &ctx, &reg).is_ok());
     }
 
+    #[test]
+    fn mul_comm_closes_via_comm_mul() {
+        let goal = Prop::Eq(op("*", v("a"), v("b")), op("*", v("b"), v("a")));
+        let ctx = Ctx::new().with_var("a".into()).with_var("b".into());
+        let reg = Registry::with_builtins();
+        let proof = ProofTerm::Apply("int_ring.comm_mul".into(), vec![]);
+        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+    }
+
     // --- APPLY with premise proofs (eq.trans) ---
 
     #[test]
@@ -1005,6 +1196,36 @@ mod tests {
         assert!(check(&proof, &goal, &ctx, &reg).is_ok());
     }
 
+    #[test]
+    fn and_elim_l_extracts_left_conjunct_from_hypothesis() {
+        let goal = Prop::Eq(v("x"), v("x"));
+        let ctx = Ctx::new().with_var("x".into()).with_prop(
+            "both".into(),
+            Prop::And(
+                Box::new(goal.clone()),
+                Box::new(Prop::Le(Term::Int(0), Term::Int(0))),
+            ),
+        );
+        let reg = Registry::with_builtins();
+        let proof = ProofTerm::Apply("and.elim_l".into(), vec![ProofTerm::Hyp("both".into())]);
+        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+    }
+
+    #[test]
+    fn and_elim_r_extracts_right_conjunct_from_hypothesis() {
+        let goal = Prop::Le(Term::Int(0), Term::Int(0));
+        let ctx = Ctx::new().with_prop(
+            "both".into(),
+            Prop::And(
+                Box::new(Prop::Eq(v("x"), v("x"))),
+                Box::new(goal.clone()),
+            ),
+        );
+        let reg = Registry::with_builtins();
+        let proof = ProofTerm::Apply("and.elim_r".into(), vec![ProofTerm::Hyp("both".into())]);
+        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+    }
+
     // --- ASSUME ---
 
     #[test]
@@ -1019,6 +1240,53 @@ mod tests {
             ProofTerm::Assume(p, Box::new(ProofTerm::Hyp("__assumed".into())));
         let result = check(&proof, &goal, &ctx, &reg);
         assert!(result.is_ok(), "assume failed: {:?}", result);
+    }
+
+    #[test]
+    fn not_intro_closes_negation_from_implication_to_false() {
+        let ctx = Ctx::new().with_var("x".into()).with_prop("boom".into(), Prop::False);
+        let reg = Registry::with_builtins();
+        let proposition = Prop::Eq(v("x"), v("x"));
+        let goal = Prop::Not(Box::new(proposition.clone()));
+        let proof = ProofTerm::Apply(
+            "not.intro".into(),
+            vec![ProofTerm::Assume(
+                proposition,
+                Box::new(ProofTerm::Hyp("boom".into())),
+            )],
+        );
+        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+    }
+
+    #[test]
+    fn false_elim_closes_any_goal_from_false_hypothesis() {
+        let goal = Prop::Eq(v("x"), v("y"));
+        let ctx = Ctx::new()
+            .with_var("x".into())
+            .with_var("y".into())
+            .with_prop("boom".into(), Prop::False);
+        let reg = Registry::with_builtins();
+        let proof = ProofTerm::Apply("false.elim".into(), vec![ProofTerm::Hyp("boom".into())]);
+        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+    }
+
+    #[test]
+    fn le_of_concrete_accepts_true_literal_inequality() {
+        let goal = Prop::Le(Term::Int(2), Term::Int(5));
+        let ctx = Ctx::new();
+        let reg = Registry::with_builtins();
+        let proof = ProofTerm::Apply("int_ord.le_of_concrete".into(), vec![]);
+        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+    }
+
+    #[test]
+    fn le_of_concrete_rejects_false_literal_inequality() {
+        let goal = Prop::Le(Term::Int(5), Term::Int(2));
+        let ctx = Ctx::new();
+        let reg = Registry::with_builtins();
+        let proof = ProofTerm::Apply("int_ord.le_of_concrete".into(), vec![]);
+        let err = check(&proof, &goal, &ctx, &reg).unwrap_err();
+        assert!(matches!(err, ProofError::GoalMismatch { .. }));
     }
 
     // --- NEGATIVE TESTS ---

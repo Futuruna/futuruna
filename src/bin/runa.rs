@@ -22281,6 +22281,20 @@ mod tests {
             Some(ExplicitProofStatus::Proved) => {}
             other => panic!("expected proved `>` proof, got {:?}", other),
         }
+        match statuses.get("mul_comm_ok") {
+            Some(ExplicitProofStatus::Proved) => {}
+            other => panic!("expected proved multiplication-commutativity proof, got {:?}", other),
+        }
+        match statuses.get("literal_order_ok") {
+            Some(ExplicitProofStatus::Proved) => {}
+            other => panic!("expected proved concrete-order proof, got {:?}", other),
+        }
+        match statuses.get("literal_order_bad") {
+            Some(ExplicitProofStatus::Failed(err)) => {
+                assert!(err.contains("concrete literals") || err.contains("goal mismatch"));
+            }
+            other => panic!("expected failed concrete-order proof, got {:?}", other),
+        }
         match statuses.get("both_zero") {
             Some(ExplicitProofStatus::Unsupported(reason)) => {
                 assert!(reason.contains("exactly one arm"));

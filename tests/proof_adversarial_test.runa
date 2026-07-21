@@ -21,6 +21,22 @@
     | n -> apply int_ord.le_refl
 }
 
+| mul_comm_ok: (a, b) -> a * b == b * a
+? mul_comm_ok by {
+    | (lhs, rhs) -> apply int_ring.comm_mul
+}
+
+= proof_anchor = 0
+| literal_order_ok: proof_anchor -> 2 <= 5
+? literal_order_ok by {
+    | n -> apply int_ord.le_of_concrete
+}
+
+| literal_order_bad: proof_anchor -> 5 <= 2
+? literal_order_bad by {
+    | n -> apply int_ord.le_of_concrete
+}
+
 | both_zero: (x, y) -> x == x and y == y
 ? both_zero by {
     | (a, b) -> apply and.intro(refl, refl)
