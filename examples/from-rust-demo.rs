@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 /// A point in 2D space
 struct Point {
     x: f64,
@@ -54,7 +52,10 @@ fn main() {
     let shapes = vec![
         Shape::Circle(5.0),
         Shape::Rectangle(3.0, 4.0),
-        Shape::Triangle { base: 6.0, height: 3.0 },
+        Shape::Triangle {
+            base: 6.0,
+            height: 3.0,
+        },
     ];
 
     for shape in &shapes {
@@ -66,7 +67,7 @@ fn main() {
 
     let nums: Vec<i64> = vec![1, 2, 3, 4, 5];
     let doubled: Vec<i64> = nums.iter().map(|x| x * 2).collect();
-    let evens: Vec<i64> = nums.iter().filter(|x| **x % 2 == 0).collect();
+    let evens: Vec<i64> = nums.iter().copied().filter(|x| x % 2 == 0).collect();
     let sum: i64 = nums.iter().sum();
 
     println!("doubled: {:?}", doubled);
