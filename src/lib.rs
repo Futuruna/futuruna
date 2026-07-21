@@ -1758,6 +1758,8 @@ pub enum TypeDecl {
         params: Vec<Param>,
         variants: Vec<Variant>,
         methods: Vec<Defn>,
+        /// EXCEPT clause: include all variants from this type minus the listed ones
+        except_from: Option<(String, Vec<String>)>,
     },
     EffectDecl {
         name: String,
@@ -3057,6 +3059,7 @@ impl Parser {
                     params: Vec::new(),
                     variants: vec![variant],
                     methods: Vec::new(),
+                    except_from: None,
                 }));
             }
             // Truly opaque type declaration
@@ -3065,10 +3068,11 @@ impl Parser {
                 params,
                 variants: Vec::new(),
                 methods: Vec::new(),
+                except_from: None,
             }));
         }
 
-        let variants = self.parse_variants()?;
+        let (variants, except_from) = self.parse_variants()?;
 
         // Check for method block: # Type = ... { > method(self) -> ... { } }
         let methods = if self.peek_kind() == TokenKind::LBrace {
@@ -3108,6 +3112,7 @@ impl Parser {
             params,
             variants,
             methods,
+            except_from,
         }))
     }
 
@@ -3228,33 +3233,67 @@ impl Parser {
         Ok(params)
     }
 
-    pub fn parse_variants(&mut self) -> Result<Vec<Variant>, String> {
+    pub fn parse_variants(&mut self) -> Result<(Vec<Variant>, Option<(String, Vec<String>)>), String> {
         let mut variants = Vec::new();
+        let mut except_from: Option<(String, Vec<String>)> = None;
         loop {
             let name = self.expect_ident()?;
             // Check for qualified variant: Parent.Variant (subset type syntax)
             if self.peek_kind() == TokenKind::Dot {
                 self.advance(); // consume '.'
                 let variant_name = self.expect_ident()?;
-                // Store as a variant with source annotation in the name
-                // The source type is `name`, the variant is `variant_name`
                 variants.push(Variant {
                     name: variant_name,
                     fields: Vec::new(),
                     positional: false,
-                    from_type: Some(name), // "GeoArea" in GeoArea.Danmark
+                    from_type: Some(name),
                 });
+            } else if (self.peek_kind() == TokenKind::Ident || self.peek_kind() == TokenKind::Type) && self.peek().text == "EXCEPT" {
+                // TypeName EXCEPT Variant1 | Variant2 | ...
+                // or: TypeName EXCEPT OtherType
+                self.advance(); // consume 'EXCEPT'
+                let mut excluded = Vec::new();
+                loop {
+                    let exc = self.expect_ident()?;
+                    excluded.push(exc);
+                    if self.peek_kind() == TokenKind::Pipe {
+                        // Check if next after | is EXCEPT-continuation or a new variant group
+                        let saved = self.pos;
+                        self.advance(); // consume |
+                        // If next token followed by EXCEPT or end, it's a new group
+                        // For simplicity: EXCEPT consumes remaining | separated names
+                        // until we hit a non-ident or end
+                        if self.peek_kind() == TokenKind::Ident || self.peek_kind() == TokenKind::Type {
+                            // Continue collecting excluded variants
+                            continue;
+                        } else {
+                            self.pos = saved;
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                except_from = Some((name, excluded));
+                break; // EXCEPT always ends the variant list
             } else {
                 let (fields, positional) = if self.peek_kind() == TokenKind::LParen {
                     self.parse_field_list()?
                 } else {
                     (Vec::new(), false)
                 };
+                // If this is an uppercase name with no fields and no dot,
+                // it MIGHT be a type inclusion (# A = Kristendom | Islam).
+                // We can't resolve at parse time — mark with from_type = Some("__include")
+                // and resolve during type registration.
+                let is_potential_type_include = fields.is_empty()
+                    && name.chars().next().map_or(false, |c| c.is_uppercase())
+                    && self.peek_kind() != TokenKind::LParen;
                 variants.push(Variant {
-                    name,
+                    name: name.clone(),
                     fields,
                     positional,
-                    from_type: None,
+                    from_type: if is_potential_type_include { Some("__maybe_include".into()) } else { None },
                 });
             }
             if self.peek_kind() == TokenKind::Pipe {
@@ -3263,7 +3302,7 @@ impl Parser {
                 break;
             }
         }
-        Ok(variants)
+        Ok((variants, except_from))
     }
 
     /// Parse field list: (name: Type, ...) named OR (Type, Type, ...) positional.
@@ -5297,22 +5336,69 @@ impl Interpreter {
 
     pub fn register_type(&mut self, decl: &TypeDecl) {
         match decl {
-            TypeDecl::ADT { name, variants, .. } => {
-                for v in variants {
-                    self.constructors
-                        .insert(v.name.clone(), (v.fields.len(), v.positional));
-                    // Store field names only for named (non-positional) constructors
-                    if !v.fields.is_empty() && !v.positional {
-                        let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
-                        self.field_names.insert(v.name.clone(), names);
+            TypeDecl::ADT { name, variants, except_from, .. } => {
+                // Resolve variant list: expand type includes and apply EXCEPT
+                let mut resolved_variants: Vec<String> = Vec::new();
+
+                // Process EXCEPT first: # A = B EXCEPT C | D
+                if let Some((source_type, excluded)) = except_from {
+                    if let Some(source_variants) = self.type_variants.get(source_type).cloned() {
+                        for sv in &source_variants {
+                            if !excluded.contains(sv) {
+                                resolved_variants.push(sv.clone());
+                            }
+                        }
                     }
                 }
-                // Store type→variant mapping for method dispatch
-                let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
-                for vn in &variant_names {
+
+                // Process explicit variants
+                for v in variants {
+                    match v.from_type.as_deref() {
+                        Some("__maybe_include") => {
+                            // Could be a type inclusion or a new constructor
+                            if let Some(source_variants) = self.type_variants.get(&v.name).cloned() {
+                                // It IS an existing type → include all its variants
+                                for sv in &source_variants {
+                                    if !resolved_variants.contains(sv) {
+                                        resolved_variants.push(sv.clone());
+                                    }
+                                }
+                            } else {
+                                // New constructor
+                                self.constructors.insert(v.name.clone(), (v.fields.len(), v.positional));
+                                if !v.fields.is_empty() && !v.positional {
+                                    let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
+                                    self.field_names.insert(v.name.clone(), names);
+                                }
+                                if !resolved_variants.contains(&v.name) {
+                                    resolved_variants.push(v.name.clone());
+                                }
+                            }
+                        }
+                        Some(_source) => {
+                            // Qualified variant: Parent.Variant — already has the right name
+                            if !resolved_variants.contains(&v.name) {
+                                resolved_variants.push(v.name.clone());
+                            }
+                        }
+                        None => {
+                            // Normal variant
+                            self.constructors.insert(v.name.clone(), (v.fields.len(), v.positional));
+                            if !v.fields.is_empty() && !v.positional {
+                                let names: Vec<String> = v.fields.iter().map(|f| f.name.clone()).collect();
+                                self.field_names.insert(v.name.clone(), names);
+                            }
+                            if !resolved_variants.contains(&v.name) {
+                                resolved_variants.push(v.name.clone());
+                            }
+                        }
+                    }
+                }
+
+                for vn in &resolved_variants {
                     self.ctor_to_type.insert(vn.clone(), name.clone());
                 }
-                self.type_variants.insert(name.clone(), variant_names);
+                self.type_variants.insert(name.clone(), resolved_variants);
             }
             TypeDecl::EffectDecl { name, ops } => {
                 // Register effect operations: effect_name -> [(op_name, [param_names])]

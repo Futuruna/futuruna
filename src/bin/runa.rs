@@ -10692,7 +10692,7 @@ impl RustCodegen {
                     name: name.to_string(),
                     params: vec![],
                     variants: vec![variant],
-                    methods: vec![],
+                    methods: vec![], except_from: None,
                 }
             }
             "enum" => {
@@ -10729,7 +10729,7 @@ impl RustCodegen {
                     name: name.to_string(),
                     params: vec![],
                     variants,
-                    methods: vec![],
+                    methods: vec![], except_from: None,
                 }
             }
             _ => {
@@ -10742,7 +10742,7 @@ impl RustCodegen {
                         fields: vec![],
                         positional: false, from_type: None,
                     }],
-                    methods: vec![],
+                    methods: vec![], except_from: None,
                 }
             }
         }
@@ -12825,6 +12825,7 @@ impl RustCodegen {
                 params,
                 variants,
                 methods,
+                except_from: _,
             } => {
                 if variants.is_empty() {
                     return format!("// type {} (opaque)\n", name);
