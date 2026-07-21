@@ -205,6 +205,10 @@ fn main_inner() {
                 mode = "bench";
                 i += 1;
             }
+            "stress-gen" => {
+                mode = "stress-gen";
+                i += 1;
+            }
             "lsp" => {
                 mode = "lsp";
                 i += 1;
@@ -289,6 +293,15 @@ fn main_inner() {
     // ── runa bench — performance benchmarks ──
     if mode == "bench" {
         run_benchmarks();
+        return;
+    }
+
+    // ── runa stress-gen [count] — generative stress testing ──
+    if mode == "stress-gen" {
+        let count = filename.as_deref()
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or(100);
+        run_stress_gen(count);
         return;
     }
 
@@ -1705,6 +1718,337 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 /// Run from-rust transpiler tests: compile Rust, transpile to Futuruna, compare outputs.
 /// Interactive side-by-side: show transpiled code, run both, compare outputs.
 /// Run performance benchmarks and report metrics.
+/// Generative stress testing: produce random valid Futuruna programs,
+/// run through interpreter + codegen, compare outputs.
+fn run_stress_gen(count: usize) {
+    use std::time::Instant;
+
+    eprintln!("\x1b[1mruna stress-gen\x1b[0m — generating {} random programs\n", count);
+
+    let start = Instant::now();
+    let mut pass = 0;
+    let mut parse_fail = 0;
+    let mut interp_crash = 0;
+    let mut codegen_fail = 0;
+    let mut roundtrip_diverge = 0;
+    let mut failures: Vec<(usize, String, String)> = Vec::new(); // (id, source, reason)
+
+    let seed: u64 = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap().as_nanos() as u64;
+
+    for i in 0..count {
+        let source = generate_random_program(seed.wrapping_add(i as u64));
+
+        // Phase 1: Parse
+        let mut lexer = Lexer::new(&source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &source);
+        let stmts = match parser.parse_program() {
+            Ok(s) => s,
+            Err(_) => { parse_fail += 1; continue; }
+        };
+
+        // Phase 2: Interpret
+        let mut interp = Interpreter::new();
+        interp.suppress_output = true;
+        let mut env = interp.default_env();
+        // Set a step limit to prevent infinite loops
+        interp.step_limit = 100_000;
+        interp.run_program(&stmts, &mut env);
+        if interp.budget_exceeded {
+            // Skip programs that loop too long
+            continue;
+        }
+        let interp_output = interp.output.join("\n");
+
+        // Phase 3: Codegen — emit Rust and check it compiles
+        let mut cg = RustCodegen::new();
+        let rust_code = cg.emit_program(&stmts);
+
+        // Write to temp file and compile with rustc
+        let tmp_rs = format!("/tmp/__runa_stressgen_{}.rs", i);
+        let tmp_bin = format!("/tmp/__runa_stressgen_{}", i);
+        if std::fs::write(&tmp_rs, &rust_code).is_err() { continue; }
+
+        let compile = std::process::Command::new("rustc")
+            .args(&[&tmp_rs, "--edition", "2021", "-o", &tmp_bin])
+            .output();
+
+        match compile {
+            Ok(out) if out.status.success() => {
+                // Phase 4: Run compiled and compare
+                match std::process::Command::new(&tmp_bin).output() {
+                    Ok(run) => {
+                        let compiled_output = String::from_utf8_lossy(&run.stdout).to_string();
+                        let interp_with_nl = if interp_output.is_empty() {
+                            interp_output.clone()
+                        } else {
+                            interp_output.clone() + "\n"
+                        };
+                        if compiled_output == interp_with_nl || compiled_output == interp_output {
+                            pass += 1;
+                        } else {
+                            roundtrip_diverge += 1;
+                            failures.push((i, source.clone(),
+                                format!("roundtrip: interp={:?} compiled={:?}",
+                                    interp_output.lines().next().unwrap_or(""),
+                                    compiled_output.lines().next().unwrap_or(""))));
+                        }
+                    }
+                    Err(_) => { interp_crash += 1; }
+                }
+            }
+            Ok(_) => {
+                codegen_fail += 1;
+                // Extract first error line
+                let _err = compile.as_ref().map(|o| String::from_utf8_lossy(&o.stderr).to_string())
+                    .unwrap_or_default();
+            }
+            Err(_) => { codegen_fail += 1; }
+        }
+
+        let _ = std::fs::remove_file(&tmp_rs);
+        let _ = std::fs::remove_file(&tmp_bin);
+    }
+
+    let elapsed = start.elapsed();
+    eprintln!("\x1b[1mResults:\x1b[0m ({:.1}s)\n", elapsed.as_secs_f64());
+    eprintln!("  \x1b[1;32m{:4}\x1b[0m  pass (interpreter == compiled)", pass);
+    if parse_fail > 0 {
+        eprintln!("  \x1b[2m{:4}\x1b[0m  parse fail (invalid generated program)", parse_fail);
+    }
+    if codegen_fail > 0 {
+        eprintln!("  \x1b[1;33m{:4}\x1b[0m  codegen fail (Rust didn't compile)", codegen_fail);
+    }
+    if roundtrip_diverge > 0 {
+        eprintln!("  \x1b[1;31m{:4}\x1b[0m  roundtrip diverge (interpreter ≠ compiled)", roundtrip_diverge);
+    }
+    if interp_crash > 0 {
+        eprintln!("  \x1b[2m{:4}\x1b[0m  interpreter crash/timeout", interp_crash);
+    }
+
+    if !failures.is_empty() {
+        eprintln!("\n\x1b[1;31m── Failures ──\x1b[0m\n");
+        for (id, source, reason) in failures.iter().take(5) {
+            eprintln!("  Program #{}: {}", id, reason);
+            for (j, line) in source.lines().enumerate().take(8) {
+                eprintln!("    {:2}  {}", j + 1, line);
+            }
+            eprintln!();
+        }
+    }
+
+    if roundtrip_diverge > 0 || codegen_fail > 0 {
+        std::process::exit(1);
+    }
+}
+
+/// Generate a random valid Futuruna program using a simple PRNG.
+fn generate_random_program(seed: u64) -> String {
+    let mut rng = SimpleRng::new(seed);
+    let mut lines = Vec::new();
+
+    // Choose a template: each exercises different language features
+    let template = rng.next_u32() % 20;
+
+    match template {
+        // ── Arithmetic ──
+        0 => {
+            let a = (rng.next_u32() % 100) as i64;
+            let b = (rng.next_u32() % 100) as i64 + 1;
+            let ops = ["+", "-", "*"];
+            let op = ops[(rng.next_u32() % 3) as usize];
+            lines.push(format!("= x = {} {} {}", a, op, b));
+            lines.push("@ print(show(x))".into());
+        }
+        // ── Function + call ──
+        1 => {
+            let ops = ["+", "-", "*"];
+            let op = ops[(rng.next_u32() % 3) as usize];
+            lines.push(format!("> f(a: Int, b: Int) -> Int {{ a {} b }}", op));
+            let a = (rng.next_u32() % 50) as i64;
+            let b = (rng.next_u32() % 50) as i64 + 1;
+            lines.push(format!("@ print(show(f({}, {})))", a, b));
+        }
+        // ── If/else ──
+        2 => {
+            let n = (rng.next_u32() % 100) as i64;
+            let thresh = (rng.next_u32() % 100) as i64;
+            lines.push(format!("> classify(n: Int) -> String {{"));
+            lines.push(format!("    if n > {} {{ \"big\" }} else {{ \"small\" }}", thresh));
+            lines.push("}".into());
+            lines.push(format!("@ print(classify({}))", n));
+        }
+        // ── Recursion ──
+        3 => {
+            let n = (rng.next_u32() % 12) as i64 + 1;
+            lines.push("> fact(n: Int) -> Int {".into());
+            lines.push("    if n <= 1 { 1 } else { n * fact(n - 1) }".into());
+            lines.push("}".into());
+            lines.push(format!("@ print(show(fact({})))", n));
+        }
+        // ── List operations ──
+        4 => {
+            let len = (rng.next_u32() % 8) as usize + 2;
+            let nums: Vec<String> = (0..len)
+                .map(|_| ((rng.next_u32() % 20) as i64).to_string())
+                .collect();
+            lines.push(format!("= xs = [{}]", nums.join(", ")));
+            lines.push("@ print(show(length(xs)))".into());
+            lines.push("@ print(show(sum(xs)))".into());
+        }
+        // ── Map/filter ──
+        5 => {
+            let len = (rng.next_u32() % 6) as usize + 2;
+            let nums: Vec<String> = (0..len)
+                .map(|_| ((rng.next_u32() % 30) as i64).to_string())
+                .collect();
+            lines.push(format!("= xs = [{}]", nums.join(", ")));
+            let thresh = (rng.next_u32() % 15) as i64;
+            lines.push(format!("= big = filter(xs, |x| x > {})", thresh));
+            lines.push("@ print(show(length(big)))".into());
+        }
+        // ── Enum + match ──
+        6 => {
+            lines.push("# Color = Red | Green | Blue".into());
+            let colors = ["Red", "Green", "Blue"];
+            let c = colors[(rng.next_u32() % 3) as usize];
+            lines.push(format!("= c = {}", c));
+            lines.push("= r = match c { | Red -> 1 | Green -> 2 | Blue -> 3 }".into());
+            lines.push("@ print(show(r))".into());
+        }
+        // ── String concat ──
+        7 => {
+            let words = ["hello", "world", "foo", "bar", "runa"];
+            let w1 = words[(rng.next_u32() % 5) as usize];
+            let w2 = words[(rng.next_u32() % 5) as usize];
+            lines.push(format!("@ print(\"{}\" + \" \" + \"{}\")", w1, w2));
+        }
+        // ── Foldl ──
+        8 => {
+            let len = (rng.next_u32() % 5) as usize + 2;
+            let nums: Vec<String> = (0..len)
+                .map(|_| ((rng.next_u32() % 10) as i64 + 1).to_string())
+                .collect();
+            lines.push(format!("= xs = [{}]", nums.join(", ")));
+            lines.push("= product = foldl(xs, 1, |acc, x| acc * x)".into());
+            lines.push("@ print(show(product))".into());
+        }
+        // ── Option/Result ──
+        9 => {
+            lines.push("> safe_div(a: Int, b: Int) -> Result(Int, String) {".into());
+            lines.push("    if b == 0 { Err(\"zero\") } else { Ok(a / b) }".into());
+            lines.push("}".into());
+            let a = (rng.next_u32() % 100) as i64;
+            let b = (rng.next_u32() % 5) as i64; // sometimes 0!
+            lines.push(format!("= r = safe_div({}, {})", a, b));
+            lines.push("@ print(show(r))".into());
+        }
+        // ── Nested function calls ──
+        10 => {
+            lines.push("> double(x: Int) -> Int { x * 2 }".into());
+            lines.push("> inc(x: Int) -> Int { x + 1 }".into());
+            let n = (rng.next_u32() % 20) as i64;
+            lines.push(format!("@ print(show(double(inc({}))))", n));
+        }
+        // ── While loop ──
+        11 => {
+            let target = (rng.next_u32() % 10) as i64 + 1;
+            lines.push(format!("= x = 0"));
+            lines.push(format!("while x < {} {{", target));
+            lines.push("    = x = x + 1".into());
+            lines.push("}".into());
+            lines.push("@ print(show(x))".into());
+        }
+        // ── For loop ──
+        12 => {
+            let len = (rng.next_u32() % 5) as usize + 1;
+            let nums: Vec<String> = (0..len)
+                .map(|_| ((rng.next_u32() % 20) as i64).to_string())
+                .collect();
+            lines.push(format!("= xs = [{}]", nums.join(", ")));
+            lines.push("= total = 0".into());
+            lines.push("for x in xs { = total = total + x }".into());
+            lines.push("@ print(show(total))".into());
+        }
+        // ── Struct + field access ──
+        13 => {
+            let x = (rng.next_u32() % 50) as i64;
+            let y = (rng.next_u32() % 50) as i64;
+            lines.push("# Point(x: Int, y: Int)".into());
+            lines.push(format!("= p = Point({}, {})", x, y));
+            lines.push("@ print(show(p.x + p.y))".into());
+        }
+        // ── Recursive ADT ──
+        14 => {
+            lines.push("# Tree = Leaf(Int) | Node(Tree, Tree)".into());
+            lines.push("> tsum(t: Tree) -> Int {".into());
+            lines.push("    match t { | Leaf(n) -> n | Node(l, r) -> tsum(l) + tsum(r) }".into());
+            lines.push("}".into());
+            let a = (rng.next_u32() % 10) as i64;
+            let b = (rng.next_u32() % 10) as i64;
+            let c = (rng.next_u32() % 10) as i64;
+            lines.push(format!("= t = Node(Leaf({}), Node(Leaf({}), Leaf({})))", a, b, c));
+            lines.push("@ print(show(tsum(t)))".into());
+        }
+        // ── Prolog facts + findall ──
+        15 => {
+            let facts = ["alice", "bob", "charlie", "diana"];
+            let n = (rng.next_u32() % 3) as usize + 2;
+            for j in 0..n {
+                lines.push(format!("| likes(\"{}\")", facts[j % facts.len()]));
+            }
+            lines.push("= all = findall(x, likes(x))".into());
+            lines.push("@ print(show(length(all)))".into());
+        }
+        // ── Type-constrained rule ──
+        16 => {
+            lines.push("# Animal = Cat | Dog | Fish".into());
+            lines.push("| is_pet(a: Animal) -> true".into());
+            lines.push("= pets = findall(a, is_pet(a))".into());
+            lines.push("@ print(show(length(pets)))".into());
+        }
+        // ── Fibonacci ──
+        17 => {
+            let n = (rng.next_u32() % 15) as i64 + 1;
+            lines.push("> fib(n: Int) -> Int {".into());
+            lines.push("    if n <= 1 { n } else { fib(n - 1) + fib(n - 2) }".into());
+            lines.push("}".into());
+            lines.push(format!("@ print(show(fib({})))", n));
+        }
+        // ── Lambda / closure ──
+        18 => {
+            let n = (rng.next_u32() % 20) as i64;
+            lines.push("> apply(f: Int -> Int, x: Int) -> Int { f(x) }".into());
+            lines.push(format!("@ print(show(apply(|x| x * 2, {})))", n));
+        }
+        // ── Multiple prints ──
+        _ => {
+            let n = (rng.next_u32() % 5) as usize + 1;
+            for j in 0..n {
+                let v = (rng.next_u32() % 100) as i64;
+                lines.push(format!("@ print(show({}))", v));
+            }
+        }
+    }
+
+    lines.join("\n") + "\n"
+}
+
+/// Minimal PRNG (xorshift64) for deterministic generation.
+struct SimpleRng { state: u64 }
+impl SimpleRng {
+    fn new(seed: u64) -> Self { Self { state: seed.max(1) } }
+    fn next_u64(&mut self) -> u64 {
+        self.state ^= self.state << 13;
+        self.state ^= self.state >> 7;
+        self.state ^= self.state << 17;
+        self.state
+    }
+    fn next_u32(&mut self) -> u32 { (self.next_u64() >> 16) as u32 }
+}
+
 fn run_benchmarks() {
     use std::time::Instant;
 
