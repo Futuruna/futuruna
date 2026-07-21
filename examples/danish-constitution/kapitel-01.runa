@@ -42,7 +42,7 @@ tronfølgeloven af 27. marts 1953 fastsatte regler.
 
 | regeringsformen_er_indskrænket_monarkisk()
 | kongemagten_nedarves_til(køn: Køn) -> true
-| tronfølgeloven_dato() -> "27. marts 1953"
+= tronfølgeloven_dato = "27. marts 1953"
 
 ----
 § 3. Den lovgivende magt er hos kongen og folketinget i forening.
@@ -82,7 +82,7 @@ og understøttes som sådan af staten.
 -- § 2
 = arvekøn = findall(k, kongemagten_nedarves_til(k))
 @ print("§ 2  Kongemagten nedarves til: " + show(arvekøn))
-@ print("§ 2  Tronfølgelov: " + tronfølgeloven_dato())
+@ print("§ 2  Tronfølgelov: " + tronfølgeloven_dato)
 
 -- § 3
 = lovgivere = findall(i, udøver(i, Lovgivende))

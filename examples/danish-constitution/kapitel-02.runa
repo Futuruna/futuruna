@@ -39,7 +39,7 @@
 Det samme gælder tronfølgeren.
 ----
 
-| myndighedsalder() -> 18
+= myndighedsalder = 18
 
 -- Myndighedsreglen gælder for begge
 # MyndighedsSubjekt = Kongen | Tronfølgeren
@@ -131,7 +131,7 @@ der skal overlades kongen til brug.
 @ print("§ 6   Kongen skal tilhøre: " + show(kongen_skal_tilhøre(EvangeliskLuthersk)))
 
 -- § 7
-@ print("§ 7   Myndighedsalder: " + show(myndighedsalder()))
+@ print("§ 7   Myndighedsalder: " + show(myndighedsalder))
 = myndig_subjekter = findall(s, myndighedsregel_gælder_for(s))
 @ print("§ 7   Gælder for: " + show(myndig_subjekter))
 
