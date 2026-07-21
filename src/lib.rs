@@ -8966,7 +8966,20 @@ impl Interpreter {
                     ExprKind::Var(name) if name == "_" => {
                         // Wildcard — matches anything, don't bind
                     }
+                    ExprKind::Var(name) if name.chars().next().map_or(false, |c| c.is_uppercase()) => {
+                        // Constructor (uppercase) — must match exactly as ground term
+                        let expected = Value::Constructor(name.clone(), vec![]);
+                        if !values_equal(&expected, val) {
+                            // Also try string comparison for findall candidates
+                            if let Value::Str(s) = val {
+                                if s != name { return None; }
+                            } else {
+                                return None;
+                            }
+                        }
+                    }
                     ExprKind::Var(name) => {
+                        // Variable (lowercase) — bind to the argument value
                         rule_env.set(name.clone(), val.clone());
                     }
                     ExprKind::Lit(lit) => {
@@ -9306,6 +9319,18 @@ impl Interpreter {
                             match &p.kind {
                                 ExprKind::Lit(Literal::Str(s)) => { values.insert(s.clone()); }
                                 ExprKind::Lit(Literal::Int(n)) => { values.insert(n.to_string()); }
+                                // Constructor values (enum variants): Danmark, Færøerne, etc.
+                                ExprKind::Var(name) if name.chars().next().map_or(false, |c| c.is_uppercase()) => {
+                                    values.insert(name.clone());
+                                }
+                                // Constructor with args: Some(x), Cons(h, t)
+                                ExprKind::App(func, _) => {
+                                    if let ExprKind::Var(name) = &func.kind {
+                                        if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                                            values.insert(name.clone());
+                                        }
+                                    }
+                                }
                                 _ => {}
                             }
                         }
