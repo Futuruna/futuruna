@@ -13683,6 +13683,10 @@ impl RustCodegen {
                 }
                 out
             }
+            TypeDecl::WhenType { .. } => {
+                // WHEN types are resolved at interpreter level; codegen sees the resolved type
+                String::new()
+            }
         }
     }
 

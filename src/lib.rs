@@ -1761,6 +1761,13 @@ pub enum TypeDecl {
         /// EXCEPT clause: include all variants from this type minus the listed ones
         except_from: Option<(String, Vec<String>)>,
     },
+    /// Conditional type evolution: # Type WHEN condition = new_variants
+    WhenType {
+        name: String,
+        condition: Expr,
+        variants: Vec<Variant>,
+        except_from: Option<(String, Vec<String>)>,
+    },
     EffectDecl {
         name: String,
         ops: Vec<(String, Vec<Param>, Option<Ty>)>,
@@ -1882,6 +1889,9 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
         } => {
             format!("IMPL({:?},{:?},{:?})", trait_name, for_type, methods)
         }
+        TypeDecl::WhenType { name, variants, .. } => {
+            format!("WHEN({},{})", name, variants.iter().map(|v| v.name.as_str()).collect::<Vec<_>>().join("|"))
+        }
     };
     hash_string(&canonical)
 }
@@ -1921,6 +1931,7 @@ pub fn type_decl_name(td: &TypeDecl) -> &str {
             // impl blocks don't have a single name, use for_type
             for_type
         }
+        TypeDecl::WhenType { name, .. } => name,
     }
 }
 
@@ -1946,6 +1957,7 @@ pub fn print_hashes(stmts: &[Stmt]) {
                     TypeDecl::EffectDecl { .. } => "# effect",
                     TypeDecl::TraitDecl { .. } => "# trait",
                     TypeDecl::ImplBlock { .. } => "# impl",
+                    TypeDecl::WhenType { .. } => "# WHEN",
                 };
                 println!("  {} {} #{}", kind, type_decl_name(td), hash);
                 found = true;
@@ -3014,6 +3026,29 @@ impl Parser {
 
         // # Name(params) = Variant1 | Variant2 | ...
         let name = self.expect_ident()?;
+
+        // # Type WHEN condition = new_variants (conditional type evolution)
+        if self.peek_kind() == TokenKind::KW && self.peek().text == "WHEN"
+            || (self.peek_kind() == TokenKind::Type && self.peek().text == "WHEN")
+        {
+            self.advance(); // consume WHEN
+            let condition = self.parse_expr_prec(0)?;
+            // Expect -> (arrow separates condition from new type definition)
+            if self.peek_kind() == TokenKind::Arrow {
+                self.advance();
+            } else {
+                let p = self.peek();
+                return Err(format!("{}:{}: expected `->` after WHEN condition, got `{}`\n  Syntax: # Type WHEN condition -> NewVariants",
+                    p.line, p.col, p.text));
+            }
+            let (variants, except_from) = self.parse_variants()?;
+            return Ok(Stmt::TypeDecl(TypeDecl::WhenType {
+                name,
+                condition,
+                variants,
+                except_from,
+            }));
+        }
 
         // Detect # Name { ... } (curly-brace struct syntax from other languages)
         if self.peek_kind() == TokenKind::LBrace {
@@ -5432,6 +5467,9 @@ impl Interpreter {
                     }
                 }
             }
+            TypeDecl::WhenType { .. } => {
+                // Handled in run_program (needs env to evaluate condition)
+            }
         }
     }
 
@@ -5453,7 +5491,25 @@ impl Interpreter {
                     last = self.eval_defn(defn, env);
                 }
                 Stmt::TypeDecl(decl) => {
-                    self.register_type(decl);
+                    // Handle WHEN type evolution: evaluate condition, then update type
+                    if let TypeDecl::WhenType { name, condition, variants, except_from } = decl {
+                        let cond_val = self.eval(condition, env);
+                        if matches!(cond_val, Value::Bool(true)) {
+                            // Condition is true — evolve the type
+                            // Build a temporary ADT decl to reuse register_type
+                            let adt = TypeDecl::ADT {
+                                name: name.clone(),
+                                params: vec![],
+                                variants: variants.clone(),
+                                methods: vec![],
+                                except_from: except_from.clone(),
+                            };
+                            self.register_type(&adt);
+                        }
+                        // If false, type stays unchanged
+                    } else {
+                        self.register_type(decl);
+                    }
                     // Register constructors and methods as functions in env
                     self.register_constructors(decl, env);
                     // Register methods in function table for recursion
@@ -6190,6 +6246,7 @@ impl Interpreter {
             }
             TypeDecl::EffectDecl { .. } => {}
             TypeDecl::TraitDecl { .. } => {} // no runtime values for traits
+            TypeDecl::WhenType { .. } => {} // handled in run_program
             TypeDecl::ImplBlock { methods, .. } => {
                 // Register impl methods as callable functions
                 for method in methods {
