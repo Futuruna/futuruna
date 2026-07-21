@@ -4690,6 +4690,178 @@ enum ExplicitProofStatus {
     Failed(String),
 }
 
+fn proof_schema_vars(prop: &proof_kernel::Prop) -> Vec<String> {
+    let mut vars = BTreeSet::new();
+    collect_proof_prop_vars(prop, &mut vars);
+    vars.into_iter().collect()
+}
+
+fn invariant_proof_schema(
+    pred_expr: &Expr,
+    bindings: &BTreeMap<String, Expr>,
+) -> Result<proof_kernel::Schema, String> {
+    let expanded_pred = substitute_expr_bindings(pred_expr, bindings, &mut BTreeSet::new());
+    let conclusion = lower_expr_to_proof_prop(&expanded_pred)?;
+    Ok(proof_kernel::Schema {
+        vars: proof_schema_vars(&conclusion),
+        premises: vec![],
+        conclusion,
+    })
+}
+
+fn pattern_to_proof_term(pat: &Pat) -> Result<proof_kernel::Term, String> {
+    match pat {
+        Pat::Wild => Err("computation lemmas do not support wildcard patterns yet".into()),
+        Pat::Var(name) => Ok(proof_kernel::Term::Var(name.clone())),
+        Pat::Lit(Literal::Int(n)) => Ok(proof_kernel::Term::Int(*n)),
+        Pat::Lit(Literal::Bool(b)) => Ok(proof_kernel::Term::App(
+            if *b { "True" } else { "False" }.into(),
+            vec![],
+        )),
+        Pat::Lit(Literal::Float(_)) => {
+            Err("computation lemmas do not support float literal patterns".into())
+        }
+        Pat::Lit(Literal::Str(_)) | Pat::Lit(Literal::Char(_)) => Err(
+            "computation lemmas only support integer, boolean, and constructor patterns".into(),
+        ),
+        Pat::Con(name, args) if args.is_empty() => Ok(proof_kernel::Term::Var(name.clone())),
+        Pat::Con(name, args) => Ok(proof_kernel::Term::App(
+            name.clone(),
+            args.iter()
+                .map(pattern_to_proof_term)
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        Pat::NamedCon(_, _) => {
+            Err("computation lemmas do not support named-constructor patterns yet".into())
+        }
+        Pat::As(_, _) => Err("computation lemmas do not support alias patterns yet".into()),
+    }
+}
+
+fn computation_lemma_case_suffix(pat: &Pat) -> Result<String, String> {
+    match pat {
+        Pat::Con(name, _) | Pat::NamedCon(name, _) => Ok(name.to_ascii_lowercase()),
+        Pat::Lit(Literal::Bool(true)) => Ok("true".into()),
+        Pat::Lit(Literal::Bool(false)) => Ok("false".into()),
+        Pat::Lit(Literal::Int(n)) if *n >= 0 => Ok(format!("int_{}", n)),
+        Pat::Lit(Literal::Int(n)) => Ok(format!("int_neg_{}", n.abs())),
+        Pat::Wild | Pat::Var(_) | Pat::As(_, _) => {
+            Err("computation lemmas require constructor or literal match arms".into())
+        }
+        Pat::Lit(Literal::Float(_)) | Pat::Lit(Literal::Str(_)) | Pat::Lit(Literal::Char(_)) => {
+            Err("computation lemmas only name integer, boolean, and constructor arms".into())
+        }
+    }
+}
+
+fn computation_lemmas_for_function(
+    name: &str,
+    params: &[Param],
+    body: &Expr,
+    bindings: &BTreeMap<String, Expr>,
+) -> Option<Vec<(String, proof_kernel::Schema)>> {
+    fn function_match_body(body: &Expr) -> Option<(&Expr, &Vec<MatchArm>)> {
+        match &body.kind {
+            ExprKind::Match(scrutinee, arms) => Some((scrutinee, arms)),
+            ExprKind::Block(stmts) if stmts.len() == 1 => match &stmts[0] {
+                Stmt::Expr(expr) => function_match_body(expr),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    if params.is_empty() {
+        return None;
+    }
+
+    let (scrutinee, arms) = function_match_body(body)?;
+    let ExprKind::Var(scrut_name) = &scrutinee.kind else {
+        return None;
+    };
+    if scrut_name != &params[0].name || arms.is_empty() {
+        return None;
+    }
+
+    let mut lemmas = Vec::new();
+    for arm in arms {
+        if arm.guard.is_some() {
+            return None;
+        }
+
+        let suffix = computation_lemma_case_suffix(&arm.pat).ok()?;
+        let first_arg = pattern_to_proof_term(&arm.pat).ok()?;
+
+        let mut active = BTreeSet::new();
+        for param in params {
+            active.insert(param.name.clone());
+        }
+        collect_pattern_binding_names(&arm.pat, &mut active);
+        let expanded_body = substitute_expr_bindings(&arm.body, bindings, &mut active);
+        let rhs = lower_expr_to_proof_term(&expanded_body).ok()?;
+
+        let mut lhs_args = vec![first_arg];
+        lhs_args.extend(
+            params
+                .iter()
+                .skip(1)
+                .map(|param| proof_kernel::Term::Var(param.name.clone())),
+        );
+        let conclusion = proof_kernel::Prop::Eq(proof_kernel::Term::App(name.into(), lhs_args), rhs);
+
+        lemmas.push((
+            format!("{}.{}", name, suffix),
+            proof_kernel::Schema {
+                vars: proof_schema_vars(&conclusion),
+                premises: vec![],
+                conclusion,
+            },
+        ));
+    }
+
+    Some(lemmas)
+}
+
+fn collect_computation_lemmas(
+    stmts: &[Stmt],
+    bindings: &BTreeMap<String, Expr>,
+) -> Vec<(String, proof_kernel::Schema)> {
+    let mut lemmas = Vec::new();
+    for stmt in stmts {
+        if let Stmt::Defn(Defn::Fn {
+            name,
+            params,
+            body,
+            ..
+        }) = stmt
+        {
+            if let Some(mut generated) = computation_lemmas_for_function(name, params, body, bindings)
+            {
+                lemmas.append(&mut generated);
+            }
+        }
+    }
+    lemmas
+}
+
+fn build_explicit_proof_registry(
+    computation_lemmas: &[(String, proof_kernel::Schema)],
+    proved_invariants: &BTreeMap<String, proof_kernel::Schema>,
+) -> Result<proof_kernel::Registry, String> {
+    let mut reg = proof_kernel::Registry::with_builtins();
+
+    for (name, schema) in computation_lemmas {
+        reg.register(name.clone(), schema.clone())
+            .map_err(|err| err.to_string())?;
+    }
+    for (name, schema) in proved_invariants {
+        reg.register(name.clone(), schema.clone())
+            .map_err(|err| err.to_string())?;
+    }
+
+    Ok(reg)
+}
+
 fn substitute_expr_bindings(
     expr: &Expr,
     bindings: &BTreeMap<String, Expr>,
@@ -4947,6 +5119,7 @@ fn evaluate_explicit_proof(
     pred_expr: &Expr,
     bindings: &BTreeMap<String, Expr>,
     proof_block: &ProofBlock,
+    reg: &proof_kernel::Registry,
 ) -> ExplicitProofStatus {
     if proof_block.arms.len() != 1 {
         return ExplicitProofStatus::Unsupported(
@@ -4976,11 +5149,91 @@ fn evaluate_explicit_proof(
         ctx = ctx.with_var(var);
     }
 
-    let reg = proof_kernel::Registry::with_builtins();
-    match proof_kernel::check(&proof, &goal, &ctx, &reg) {
+    match proof_kernel::check(&proof, &goal, &ctx, reg) {
         Ok(()) => ExplicitProofStatus::Proved,
         Err(err) => ExplicitProofStatus::Failed(err.to_string()),
     }
+}
+
+fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, ExplicitProofStatus> {
+    let bindings: BTreeMap<String, Expr> = stmts
+        .iter()
+        .filter_map(|stmt| match stmt {
+            Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
+            _ => None,
+        })
+        .collect();
+
+    let computation_lemmas = collect_computation_lemmas(stmts, &bindings);
+    let invariants: Vec<(String, Expr, Expr)> = stmts
+        .iter()
+        .filter_map(|stmt| match stmt {
+            Stmt::Invariant {
+                name,
+                subject,
+                predicate,
+            } => Some((name.clone(), subject.clone(), predicate.clone())),
+            _ => None,
+        })
+        .collect();
+    let proof_blocks: BTreeMap<String, ProofBlock> = stmts
+        .iter()
+        .filter_map(|stmt| match stmt {
+            Stmt::Prove {
+                name,
+                proof_block: Some(block),
+                ..
+            } => Some((name.clone(), block.clone())),
+            _ => None,
+        })
+        .collect();
+
+    let mut statuses = BTreeMap::new();
+    let mut proved_invariants = BTreeMap::new();
+
+    for (name, subject, predicate) in invariants {
+        let Some(block) = proof_blocks.get(&name) else {
+            continue;
+        };
+
+        let reg = match build_explicit_proof_registry(&computation_lemmas, &proved_invariants) {
+            Ok(reg) => reg,
+            Err(err) => {
+                statuses.insert(name.clone(), ExplicitProofStatus::Failed(err));
+                continue;
+            }
+        };
+
+        let status = evaluate_explicit_proof(&subject, &predicate, &bindings, block, &reg);
+        if matches!(status, ExplicitProofStatus::Proved) {
+            match invariant_proof_schema(&predicate, &bindings) {
+                Ok(schema) => {
+                    let mut next_reg =
+                        match build_explicit_proof_registry(&computation_lemmas, &proved_invariants)
+                        {
+                            Ok(reg) => reg,
+                            Err(err) => {
+                                statuses.insert(name.clone(), ExplicitProofStatus::Failed(err));
+                                continue;
+                            }
+                        };
+                    if let Err(err) = next_reg.register(name.clone(), schema.clone()) {
+                        statuses.insert(name.clone(), ExplicitProofStatus::Failed(err.to_string()));
+                        continue;
+                    }
+                    proved_invariants.insert(name.clone(), schema);
+                }
+                Err(err) => {
+                    statuses.insert(name.clone(), ExplicitProofStatus::Unsupported(err));
+                    continue;
+                }
+            }
+        }
+
+        statuses.insert(name, status);
+    }
+
+    statuses
 }
 
 /// Generate SMT-LIB2 for all invariants and verify with Z3
@@ -5085,6 +5338,9 @@ fn verify_with_z3(source: &str, filename: &str) {
         return;
     }
 
+    let computation_lemmas = collect_computation_lemmas(&all_stmts, &bindings);
+    let mut proved_invariants: BTreeMap<String, proof_kernel::Schema> = BTreeMap::new();
+
     println!(
         "runa --verify: {} invariant(s), {} ADT(s) from {}",
         invariants.len(),
@@ -5098,19 +5354,45 @@ fn verify_with_z3(source: &str, filename: &str) {
         println!("--- | {} ---", inv_name);
 
         if let Some(proof_block) = proof_blocks.get(inv_name) {
-            match evaluate_explicit_proof(subject_expr, pred_expr, &bindings, proof_block) {
-                ExplicitProofStatus::Proved => {
-                    println!("  ✓ PROVED by kernel: |{}| closed explicit proof", inv_name);
-                    println!();
-                    continue;
-                }
-                ExplicitProofStatus::Failed(err) => {
+            match build_explicit_proof_registry(&computation_lemmas, &proved_invariants) {
+                Ok(reg) => match evaluate_explicit_proof(
+                    subject_expr,
+                    pred_expr,
+                    &bindings,
+                    proof_block,
+                    &reg,
+                ) {
+                    ExplicitProofStatus::Proved => match invariant_proof_schema(pred_expr, &bindings)
+                    {
+                        Ok(schema) => {
+                            let mut next_reg = reg;
+                            if let Err(err) = next_reg.register(inv_name.clone(), schema.clone()) {
+                                println!("  ✗ explicit proof failed in kernel: {}", err);
+                                println!("  falling back to Z3 for semantic verification\n");
+                            } else {
+                                proved_invariants.insert(inv_name.clone(), schema);
+                                println!("  ✓ PROVED by kernel: |{}| closed explicit proof", inv_name);
+                                println!();
+                                continue;
+                            }
+                        }
+                        Err(err) => {
+                            println!("  ? explicit proof unsupported in kernel path: {}", err);
+                            println!("  falling back to Z3\n");
+                        }
+                    },
+                    ExplicitProofStatus::Failed(err) => {
+                        println!("  ✗ explicit proof failed in kernel: {}", err);
+                        println!("  falling back to Z3 for semantic verification\n");
+                    }
+                    ExplicitProofStatus::Unsupported(reason) => {
+                        println!("  ? explicit proof unsupported in kernel path: {}", reason);
+                        println!("  falling back to Z3\n");
+                    }
+                },
+                Err(err) => {
                     println!("  ✗ explicit proof failed in kernel: {}", err);
                     println!("  falling back to Z3 for semantic verification\n");
-                }
-                ExplicitProofStatus::Unsupported(reason) => {
-                    println!("  ? explicit proof unsupported in kernel path: {}", reason);
-                    println!("  falling back to Z3\n");
                 }
             }
         }
@@ -22131,45 +22413,7 @@ mod tests {
         let tokens = lexer.tokenize();
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse failed");
-
-        let bindings: BTreeMap<String, Expr> = stmts
-            .iter()
-            .filter_map(|stmt| match stmt {
-                Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
-                _ => None,
-            })
-            .collect();
-
-        let invariants: BTreeMap<String, (Expr, Expr)> = stmts
-            .iter()
-            .filter_map(|stmt| match stmt {
-                Stmt::Invariant {
-                    name,
-                    subject,
-                    predicate,
-                } => Some((name.clone(), (subject.clone(), predicate.clone()))),
-                _ => None,
-            })
-            .collect();
-
-        stmts.iter()
-            .filter_map(|stmt| match stmt {
-                Stmt::Prove {
-                    name,
-                    proof_block: Some(block),
-                    ..
-                } => {
-                    let (subject, predicate) = invariants
-                        .get(name)
-                        .unwrap_or_else(|| panic!("missing invariant for {}", name));
-                    Some((
-                        name.clone(),
-                        evaluate_explicit_proof(subject, predicate, &bindings, block),
-                    ))
-                }
-                _ => None,
-            })
-            .collect()
+        explicit_proof_statuses_for_stmts(&stmts)
     }
 
     #[test]
@@ -22231,8 +22475,9 @@ mod tests {
 }
 "#;
         let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
+        let reg = proof_kernel::Registry::with_builtins();
         assert_eq!(
-            evaluate_explicit_proof(&subject, &predicate, &bindings, &proof_block),
+            evaluate_explicit_proof(&subject, &predicate, &bindings, &proof_block, &reg),
             ExplicitProofStatus::Proved
         );
     }
@@ -22246,11 +22491,76 @@ mod tests {
 }
 "#;
         let (subject, predicate, proof_block, bindings) = parse_invariant_and_proof(source);
-        match evaluate_explicit_proof(&subject, &predicate, &bindings, &proof_block) {
+        let reg = proof_kernel::Registry::with_builtins();
+        match evaluate_explicit_proof(&subject, &predicate, &bindings, &proof_block, &reg) {
             ExplicitProofStatus::Failed(err) => {
                 assert!(err.contains("expected e == e") || err.contains("goal mismatch"));
             }
             other => panic!("expected failed proof, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn explicit_proof_can_apply_previously_proved_local_invariant() {
+        let source = r#"
+| add_comm: (a, b) -> a + b == b + a
+? add_comm by {
+    | (lhs, rhs) -> apply int_ring.comm_add
+}
+
+| add_comm_symm: (a, b) -> b + a == a + b
+? add_comm_symm by {
+    | (lhs, rhs) -> apply eq.sym(apply add_comm)
+}
+"#;
+        let statuses = explicit_proof_statuses(source);
+        assert_eq!(statuses.get("add_comm"), Some(&ExplicitProofStatus::Proved));
+        assert_eq!(
+            statuses.get("add_comm_symm"),
+            Some(&ExplicitProofStatus::Proved)
+        );
+    }
+
+    #[test]
+    fn explicit_proof_can_apply_generated_computation_lemma() {
+        let source = r#"
+# Switch = On | Off
+> flip(s: Switch) -> Switch {
+    match s {
+        | On -> Off
+        | Off -> On
+    }
+}
+
+= anchor = 0
+| flip_on: anchor -> flip(On) == Off
+? flip_on by {
+    | n -> apply flip.on
+}
+"#;
+        let statuses = explicit_proof_statuses(source);
+        assert_eq!(statuses.get("flip_on"), Some(&ExplicitProofStatus::Proved));
+    }
+
+    #[test]
+    fn explicit_proof_registry_rejects_duplicate_local_names_clearly() {
+        let conclusion = proof_kernel::Prop::Eq(
+            proof_kernel::Term::Var("x".into()),
+            proof_kernel::Term::Var("x".into()),
+        );
+        let mut proved_invariants = BTreeMap::new();
+        proved_invariants.insert(
+            "eq.refl".into(),
+            proof_kernel::Schema {
+                vars: vec!["x".into()],
+                premises: vec![],
+                conclusion,
+            },
+        );
+
+        match build_explicit_proof_registry(&[], &proved_invariants) {
+            Ok(_) => panic!("expected duplicate-schema failure"),
+            Err(err) => assert!(err.contains("schema already registered")),
         }
     }
 
