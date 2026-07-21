@@ -1215,6 +1215,27 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
                 user_stmts
             };
 
+            let mut validation_cg = RustCodegen::new();
+            validation_cg.lib_mode = true;
+            validation_cg.wasm_mode = true;
+            if let Some(parent) = std::path::Path::new(filename).parent() {
+                validation_cg.source_dir = Some(parent.to_string_lossy().to_string());
+            }
+            validation_cg.source_name = std::path::Path::new(filename)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string());
+            let wasm_issues = validation_cg.collect_wasm_export_issues(&stmts);
+            if !wasm_issues.is_empty() {
+                eprintln!("\x1b[1;31merror\x1b[0m: unsupported WASM exports in {}", filename);
+                for issue in wasm_issues {
+                    eprintln!("  - {}", issue);
+                }
+                eprintln!(
+                    "  Supported WASM exports are top-level functions with explicit primitive/string/list-numeric/option-compatible signatures, no generics, and no effects."
+                );
+                std::process::exit(1);
+            }
+
             let mut cg = RustCodegen::new();
             cg.lib_mode = true;
             cg.wasm_mode = true;
@@ -12628,80 +12649,7 @@ impl RustCodegen {
             }
         }
 
-        // Pre-scan: build effect_ops map (effect_name -> set of operation names)
-        for stmt in stmts {
-            if let Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) = stmt {
-                let op_names: BTreeSet<String> = ops.iter().map(|(n, _, _)| n.clone()).collect();
-                self.types.effect_ops.insert(name.clone(), op_names);
-                self.types
-                    .effect_ops_detail
-                    .insert(name.clone(), ops.clone());
-            }
-        }
-
-        // Pre-scan: build fn_effects map (fn_name -> effect names from `with`)
-        for stmt in stmts {
-            if let Stmt::Defn(Defn::Fn { name, effects, .. }) = stmt {
-                if !effects.is_empty() {
-                    self.types.fn_effects.insert(name.clone(), effects.clone());
-                }
-            }
-        }
-
-        // Effect type inference: walk function bodies to discover effects not
-        // explicitly declared with `with`. Iterates to fixed point for transitive effects.
-        {
-            // Reverse map: op_name -> effect_name
-            let mut op_to_effect: BTreeMap<String, String> = BTreeMap::new();
-            for (eff_name, ops) in &self.types.effect_ops {
-                for op in ops {
-                    op_to_effect.insert(op.clone(), eff_name.clone());
-                }
-            }
-            // Collect function bodies (only those without explicit `with`)
-            let mut fn_bodies: Vec<(String, Expr)> = Vec::new();
-            for stmt in stmts.iter() {
-                if let Stmt::Defn(Defn::Fn {
-                    name,
-                    effects,
-                    body,
-                    ..
-                }) = stmt
-                {
-                    if effects.is_empty() {
-                        fn_bodies.push((name.clone(), body.clone()));
-                    }
-                }
-            }
-            if !op_to_effect.is_empty() && !fn_bodies.is_empty() {
-                // Iterate until fixed point
-                loop {
-                    let mut changed = false;
-                    for (fn_name, body) in &fn_bodies {
-                        let handled = BTreeSet::new();
-                        let inferred = Self::collect_expr_effects(
-                            body,
-                            &handled,
-                            &op_to_effect,
-                            &self.types.fn_effects,
-                        );
-                        if !inferred.is_empty() {
-                            let existing =
-                                self.types.fn_effects.entry(fn_name.clone()).or_default();
-                            for eff in inferred {
-                                if !existing.contains(&eff) {
-                                    existing.push(eff);
-                                    changed = true;
-                                }
-                            }
-                        }
-                    }
-                    if !changed {
-                        break;
-                    }
-                }
-            }
-        }
+        self.prepare_effect_metadata(stmts);
 
         // First pass: emit type declarations
         for stmt in stmts {
@@ -14395,6 +14343,228 @@ impl RustCodegen {
         }
     }
 
+    fn wasm_export_signature_issues(
+        &self,
+        name: &str,
+        params: &[Param],
+        ret_ty: Option<&Ty>,
+        type_vars: &[String],
+        effects: &[String],
+    ) -> Vec<String> {
+        let mut issues = Vec::new();
+
+        for param in params {
+            match param.ty.as_ref() {
+                None => issues.push(format!(
+                    "export `{}` requires an explicit type annotation for parameter `{}`",
+                    name, param.name
+                )),
+                Some(ty) if !Self::is_wasm_compatible_type(ty) => issues.push(format!(
+                    "export `{}` has unsupported parameter `{}` of type `{}`",
+                    name, param.name, ty
+                )),
+                Some(_) => {}
+            }
+        }
+
+        if let Some(ret_ty) = ret_ty {
+            if !Self::is_wasm_compatible_type(ret_ty) {
+                issues.push(format!(
+                    "export `{}` has unsupported return type `{}`",
+                    name, ret_ty
+                ));
+            }
+        }
+
+        if !type_vars.is_empty() {
+            issues.push(format!(
+                "export `{}` is generic over {} and generic exports are not supported in WASM",
+                name,
+                type_vars.join(", ")
+            ));
+        }
+
+        if !effects.is_empty() {
+            issues.push(format!(
+                "export `{}` uses effect{} {} and effectful exports are not supported in WASM",
+                name,
+                if effects.len() == 1 { "" } else { "s" },
+                effects.join(", ")
+            ));
+        }
+
+        issues
+    }
+
+    fn prepare_effect_metadata(&mut self, stmts: &[Stmt]) {
+        self.types.effect_ops.clear();
+        self.types.effect_ops_detail.clear();
+        self.types.fn_effects.clear();
+
+        for stmt in stmts {
+            if let Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) = stmt {
+                let op_names: BTreeSet<String> = ops.iter().map(|(n, _, _)| n.clone()).collect();
+                self.types.effect_ops.insert(name.clone(), op_names);
+                self.types
+                    .effect_ops_detail
+                    .insert(name.clone(), ops.clone());
+            }
+        }
+
+        for stmt in stmts {
+            if let Stmt::Defn(Defn::Fn { name, effects, .. }) = stmt {
+                if !effects.is_empty() {
+                    self.types.fn_effects.insert(name.clone(), effects.clone());
+                }
+            }
+        }
+
+        let mut op_to_effect: BTreeMap<String, String> = BTreeMap::new();
+        for (eff_name, ops) in &self.types.effect_ops {
+            for op in ops {
+                op_to_effect.insert(op.clone(), eff_name.clone());
+            }
+        }
+
+        let mut fn_bodies: Vec<(String, Expr)> = Vec::new();
+        for stmt in stmts.iter() {
+            if let Stmt::Defn(Defn::Fn {
+                name,
+                effects,
+                body,
+                ..
+            }) = stmt
+            {
+                if effects.is_empty() {
+                    fn_bodies.push((name.clone(), body.clone()));
+                }
+            }
+        }
+
+        if !op_to_effect.is_empty() && !fn_bodies.is_empty() {
+            loop {
+                let mut changed = false;
+                for (fn_name, body) in &fn_bodies {
+                    let handled = BTreeSet::new();
+                    let inferred = Self::collect_expr_effects(
+                        body,
+                        &handled,
+                        &op_to_effect,
+                        &self.types.fn_effects,
+                    );
+                    if !inferred.is_empty() {
+                        let existing = self.types.fn_effects.entry(fn_name.clone()).or_default();
+                        for eff in inferred {
+                            if !existing.contains(&eff) {
+                                existing.push(eff);
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+                if !changed {
+                    break;
+                }
+            }
+        }
+    }
+
+    fn collect_wasm_export_issues(&mut self, input_stmts: &[Stmt]) -> Vec<String> {
+        let all_stmts = self.scan_declarations(input_stmts);
+        self.prepare_effect_metadata(&all_stmts);
+
+        let mut issues = Vec::new();
+        let mut seen_exports = BTreeSet::new();
+
+        for stmt in &all_stmts {
+            match stmt {
+                Stmt::Defn(Defn::Fn {
+                    name,
+                    params,
+                    ret_ty,
+                    effects,
+                    ..
+                }) if self.types.exported_names.contains(name) => {
+                    seen_exports.insert(name.clone());
+
+                    let mut type_vars = Vec::new();
+                    for param in params {
+                        if let Some(ty) = &param.ty {
+                            self.collect_type_vars(ty, &mut type_vars);
+                        }
+                    }
+                    if let Some(ret_ty) = ret_ty.as_ref() {
+                        self.collect_type_vars(ret_ty, &mut type_vars);
+                    }
+
+                    let mut merged_effects = effects.clone();
+                    if let Some(inferred) = self.types.fn_effects.get(name) {
+                        for eff in inferred {
+                            if !merged_effects.contains(eff) {
+                                merged_effects.push(eff.clone());
+                            }
+                        }
+                    }
+
+                    issues.extend(self.wasm_export_signature_issues(
+                        name,
+                        params,
+                        ret_ty.as_ref(),
+                        &type_vars,
+                        &merged_effects,
+                    ));
+                }
+                Stmt::Defn(Defn::Actor { name, .. }) if self.types.exported_names.contains(name) => {
+                    seen_exports.insert(name.clone());
+                    issues.push(format!(
+                        "export `{}` is unsupported in WASM: only top-level functions are shipped today",
+                        name
+                    ));
+                }
+                Stmt::Defn(Defn::Module { name, .. }) if self.types.exported_names.contains(name) => {
+                    seen_exports.insert(name.clone());
+                    issues.push(format!(
+                        "export `{}` is unsupported in WASM: modules are not JS-callable exports",
+                        name
+                    ));
+                }
+                Stmt::TypeDecl(TypeDecl::ADT { name, .. }) if self.types.exported_names.contains(name) => {
+                    seen_exports.insert(name.clone());
+                    issues.push(format!(
+                        "export `{}` is unsupported in WASM: type exports are not JS-callable yet",
+                        name
+                    ));
+                }
+                Stmt::Bind(Pat::Var(name), _, _) if self.types.exported_names.contains(name) => {
+                    seen_exports.insert(name.clone());
+                    issues.push(format!(
+                        "export `{}` is unsupported in WASM: value bindings are not JS-callable exports",
+                        name
+                    ));
+                }
+                Stmt::StreamBind(name, _) if self.types.exported_names.contains(name) => {
+                    seen_exports.insert(name.clone());
+                    issues.push(format!(
+                        "export `{}` is unsupported in WASM: stream bindings are not JS-callable exports",
+                        name
+                    ));
+                }
+                _ => {}
+            }
+        }
+
+        for export_name in &self.types.exported_names {
+            if !seen_exports.contains(export_name) {
+                issues.push(format!(
+                    "export `{}` could not be resolved to a supported top-level function for WASM",
+                    export_name
+                ));
+            }
+        }
+
+        issues
+    }
+
     /// Collect free type variables from a type expression
     fn collect_type_vars(&self, ty: &Ty, vars: &mut Vec<String>) {
         match ty {
@@ -15919,18 +16089,19 @@ impl RustCodegen {
                 let is_exported = self.types.exported_names.contains(name);
                 let pub_prefix = if is_exported { "pub " } else { "" };
                 // M4: wasm-bindgen annotation for exported functions with compatible types
+                let wasm_issues = if self.wasm_mode && is_exported {
+                    self.wasm_export_signature_issues(
+                        name,
+                        params,
+                        ret_ty.as_ref(),
+                        &type_vars,
+                        &self.current_effects,
+                    )
+                } else {
+                    Vec::new()
+                };
                 let wasm_attr = if self.wasm_mode && is_exported {
-                    let params_ok = params.iter().all(|p| {
-                        p.ty.as_ref()
-                            .map(|t| Self::is_wasm_compatible_type(t))
-                            .unwrap_or(false)
-                    });
-                    let ret_ok = ret_ty
-                        .as_ref()
-                        .map(|t| Self::is_wasm_compatible_type(t))
-                        .unwrap_or(true);
-                    if params_ok && ret_ok && generics.is_empty() && self.current_effects.is_empty()
-                    {
+                    if wasm_issues.is_empty() {
                         // wasm-bindgen needs &str not &String for params
                         for p in all_params.iter_mut() {
                             if p.ends_with(": &String") {
@@ -15940,7 +16111,7 @@ impl RustCodegen {
                         }
                         "#[wasm_bindgen]\n"
                     } else {
-                        "// wasm: skipped (complex types or effects)\n"
+                        "// wasm: rejected by wasm export validation\n"
                     }
                 } else {
                     ""
@@ -23157,6 +23328,97 @@ mod tests {
                 vec![Ty::Name("Int".into())]
             )),
             FirTy::List(Box::new(FirTy::Int))
+        );
+    }
+
+    fn parse_test_program(source: &str) -> Vec<Stmt> {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        parser.parse_program().expect("parse failed")
+    }
+
+    fn emit_wasm_program(source: &str) -> String {
+        let stmts = parse_test_program(source);
+        let mut cg = RustCodegen::new();
+        cg.lib_mode = true;
+        cg.wasm_mode = true;
+        cg.emit_program(&stmts)
+    }
+
+    fn wasm_export_issues(source: &str) -> Vec<String> {
+        let stmts = parse_test_program(source);
+        let mut cg = RustCodegen::new();
+        cg.lib_mode = true;
+        cg.wasm_mode = true;
+        cg.collect_wasm_export_issues(&stmts)
+    }
+
+    #[test]
+    fn wasm_exported_string_function_gets_bindgen_and_str_param() {
+        let rust = emit_wasm_program(
+            "> greet(name: String) -> String { \"Hello, \" + name }\n@ export greet\n",
+        );
+        assert!(
+            rust.contains("#[wasm_bindgen]\npub fn greet(name: &str) -> String"),
+            "expected wasm-bindgen export with &str param, got:\n{}",
+            rust
+        );
+    }
+
+    #[test]
+    fn wasm_export_validation_rejects_unsupported_exports() {
+        let issues = wasm_export_issues(
+            r#"
+# Point(x: Float, y: Float)
+
+> make_point(x: Float, y: Float) -> Point { Point(x, y) }
+@ export make_point
+
+# effect Console {
+    > print(msg: String) -> ()
+}
+
+> shout(msg: String) -> () with Console {
+    print(msg)
+}
+@ export shout
+
+> identity(x: a) -> a { x }
+@ export identity
+
+= answer = 42
+@ export answer
+"#,
+        );
+
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("make_point") && issue.contains("return type `Point`")),
+            "expected unsupported return type issue, got: {:?}",
+            issues
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("identity") && issue.contains("generic")),
+            "expected generic export issue, got: {:?}",
+            issues
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("shout") && issue.contains("effect Console")),
+            "expected effect export issue, got: {:?}",
+            issues
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("answer") && issue.contains("value bindings")),
+            "expected value export issue, got: {:?}",
+            issues
         );
     }
 }

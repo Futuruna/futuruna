@@ -1,0 +1,7 @@
+-- Minimal end-to-end WASM smoke fixture
+
+> add(a: Int, b: Int) -> Int { a + b }
+@ export add
+
+> greet(name: String) -> String { "Hello, " + name + "!" }
+@ export greet
