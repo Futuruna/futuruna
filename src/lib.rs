@@ -4320,7 +4320,24 @@ impl Parser {
             if !args.is_empty() {
                 self.expect(TokenKind::Comma)?;
             }
-            args.push(self.parse_expr()?);
+            let arg = self.parse_expr()?;
+            // Allow optional type annotation `: Type` on args (used in rule heads)
+            // Store as App(Var("__typed"), [arg, Var(TypeName)]) for runtime constraint
+            if self.peek_kind() == TokenKind::Colon {
+                self.advance(); // consume ':'
+                let ty = self.parse_type()?;
+                let type_name = match &ty {
+                    Ty::Name(n) => n.clone(),
+                    _ => format!("{:?}", ty),
+                };
+                // Wrap in a typed annotation that the interpreter can check
+                args.push(ExprKind::App(
+                    Box::new(ExprKind::Var("__typed".into()).into()),
+                    vec![arg, ExprKind::Var(type_name).into()],
+                ).into());
+            } else {
+                args.push(arg);
+            }
         }
         self.expect(TokenKind::RParen)?;
         Ok(args)
@@ -8963,6 +8980,33 @@ impl Interpreter {
         if let ExprKind::App(_, params) = &head.kind {
             for (param, val) in params.iter().zip(args.iter()) {
                 match &param.kind {
+                    // Typed parameter: __typed(var, TypeName) — check type constraint
+                    ExprKind::App(func, typed_args)
+                        if matches!(&func.kind, ExprKind::Var(n) if n == "__typed")
+                            && typed_args.len() == 2 =>
+                    {
+                        let param_name = match &typed_args[0].kind {
+                            ExprKind::Var(n) => n.clone(),
+                            _ => "_".to_string(),
+                        };
+                        let type_name = match &typed_args[1].kind {
+                            ExprKind::Var(n) => n.clone(),
+                            _ => String::new(),
+                        };
+                        // Check if the value is a valid variant of the type
+                        let is_valid = match val {
+                            Value::Constructor(cname, _) => {
+                                // Check if this constructor belongs to the type
+                                self.type_variants.get(&type_name)
+                                    .map_or(false, |variants| variants.contains(cname))
+                            }
+                            _ => false,
+                        };
+                        if !is_valid { return None; }
+                        if param_name != "_" {
+                            rule_env.set(param_name, val.clone());
+                        }
+                    }
                     ExprKind::Var(name) if name == "_" => {
                         // Wildcard — matches anything, don't bind
                     }
@@ -9225,13 +9269,21 @@ impl Interpreter {
             for candidate_str in &candidates {
                 // Build args with the candidate substituted for the template var
                 // and wildcards substituted with each possible value
+                // Build an expression for a candidate value (string or constructor)
+                let candidate_to_expr = |s: &str| -> Expr {
+                    if s.chars().next().map_or(false, |c| c.is_uppercase()) {
+                        ExprKind::Var(s.to_string()).into() // Constructor
+                    } else {
+                        ExprKind::Lit(Literal::Str(s.to_string())).into()
+                    }
+                };
                 let make_test_args = |wildcard_val: &str| -> Vec<Expr> {
                     goal_args.iter().map(|a| {
                         if let ExprKind::Var(name) = &a.kind {
                             if name == &template_name {
-                                ExprKind::Lit(Literal::Str(candidate_str.clone())).into()
+                                candidate_to_expr(candidate_str)
                             } else if name == "_" {
-                                ExprKind::Lit(Literal::Str(wildcard_val.to_string())).into()
+                                candidate_to_expr(wildcard_val)
                             } else {
                                 a.clone()
                             }
@@ -9290,7 +9342,9 @@ impl Interpreter {
                 };
 
                 if found {
-                    let val = if let Ok(n) = candidate_str.parse::<i64>() {
+                    let val = if candidate_str.chars().next().map_or(false, |c| c.is_uppercase()) {
+                        Value::Constructor(candidate_str.clone(), vec![])
+                    } else if let Ok(n) = candidate_str.parse::<i64>() {
                         Value::Int(n)
                     } else if let Ok(f) = candidate_str.parse::<f64>() {
                         Value::Float(f)
@@ -9316,28 +9370,46 @@ impl Interpreter {
                 Rule::Clause { head, .. } | Rule::Default { head, .. } | Rule::Exception { head, .. } => {
                     if let ExprKind::App(_, params) = &head.kind {
                         for p in params {
-                            match &p.kind {
-                                ExprKind::Lit(Literal::Str(s)) => { values.insert(s.clone()); }
-                                ExprKind::Lit(Literal::Int(n)) => { values.insert(n.to_string()); }
-                                // Constructor values (enum variants): Danmark, Færøerne, etc.
-                                ExprKind::Var(name) if name.chars().next().map_or(false, |c| c.is_uppercase()) => {
-                                    values.insert(name.clone());
-                                }
-                                // Constructor with args: Some(x), Cons(h, t)
-                                ExprKind::App(func, _) => {
-                                    if let ExprKind::Var(name) = &func.kind {
-                                        if name.chars().next().map_or(false, |c| c.is_uppercase()) {
-                                            values.insert(name.clone());
-                                        }
-                                    }
-                                }
-                                _ => {}
-                            }
+                            self.collect_expr_values(p, values);
                         }
                     }
                 }
                 _ => {}
             }
+        }
+        // Also collect all enum variant names from type declarations
+        for (_, variants) in &self.type_variants {
+            for variant in variants {
+                values.insert(variant.clone());
+            }
+        }
+    }
+
+    fn collect_expr_values(&self, expr: &Expr, values: &mut std::collections::BTreeSet<String>) {
+        match &expr.kind {
+            ExprKind::Lit(Literal::Str(s)) => { values.insert(s.clone()); }
+            ExprKind::Lit(Literal::Int(n)) => { values.insert(n.to_string()); }
+            ExprKind::Var(name) if name.chars().next().map_or(false, |c| c.is_uppercase()) => {
+                values.insert(name.clone());
+            }
+            ExprKind::App(func, args) => {
+                if let ExprKind::Var(name) = &func.kind {
+                    if name == "__typed" {
+                        // __typed(var, TypeName) — collect all variants of the type
+                        if let Some(type_arg) = args.get(1) {
+                            if let ExprKind::Var(type_name) = &type_arg.kind {
+                                if let Some(variants) = self.type_variants.get(type_name.as_str()) {
+                                    for v in variants { values.insert(v.clone()); }
+                                }
+                            }
+                        }
+                    } else if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                        values.insert(name.clone());
+                    }
+                }
+                for a in args { self.collect_expr_values(a, values); }
+            }
+            _ => {}
         }
     }
 
@@ -10037,6 +10109,29 @@ impl TypeChecker {
         }
     }
 
+    /// Extract and define variable names from a rule head argument,
+    /// including __typed(var, Type) wrappers.
+    fn define_rule_head_vars(arg: &Expr, scopes: &mut Vec<BTreeSet<String>>) {
+        match &arg.kind {
+            ExprKind::Var(name) if !name.starts_with(|c: char| c.is_uppercase()) && name != "_" => {
+                if let Some(scope) = scopes.last_mut() {
+                    scope.insert(name.clone());
+                }
+            }
+            ExprKind::App(func, args) if matches!(&func.kind, ExprKind::Var(n) if n == "__typed") => {
+                // __typed(var, Type) — define the variable
+                if let Some(first) = args.first() {
+                    Self::define_rule_head_vars(first, scopes);
+                }
+            }
+            ExprKind::App(_, args) => {
+                // Constructor with args: Cons(h, t)
+                for a in args { Self::define_rule_head_vars(a, scopes); }
+            }
+            _ => {}
+        }
+    }
+
     pub fn var_defined(&self, name: &str) -> bool {
         for scope in self.scopes.iter().rev() {
             if scope.contains(name) {
@@ -10540,9 +10635,7 @@ impl TypeChecker {
                 // Rule head params are in scope for value/condition
                 if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
-                        if let ExprKind::Var(name) = &arg.kind {
-                            self.define_var(name);
-                        }
+                        Self::define_rule_head_vars(arg, &mut self.scopes);
                     }
                 }
                 self.check_expr(value, None);
@@ -10560,9 +10653,7 @@ impl TypeChecker {
                 self.push_scope();
                 if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
-                        if let ExprKind::Var(name) = &arg.kind {
-                            self.define_var(name);
-                        }
+                        Self::define_rule_head_vars(arg, &mut self.scopes);
                     }
                 }
                 self.check_expr(value, None);
@@ -10575,9 +10666,7 @@ impl TypeChecker {
                 self.push_scope();
                 if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
-                        if let ExprKind::Var(name) = &arg.kind {
-                            self.define_var(name);
-                        }
+                        Self::define_rule_head_vars(arg, &mut self.scopes);
                     }
                 }
                 // For conjunctive bodies, also define existential variables
@@ -10710,6 +10799,7 @@ impl TypeChecker {
                         && !name.contains("::")
                         && !name.contains(".")
                         && !name.starts_with(|c: char| c.is_uppercase())
+                        && name != "__typed"
                     {
                         self.error_at_expr(func, format!("undefined function `{}`", name));
                     }
