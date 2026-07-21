@@ -8206,21 +8206,6 @@ impl Interpreter {
                 items.insert(0, value);
                 Value::Stream(items)
             }
-            "concat" => {
-                // concat(stream1, stream2) → Stream — sequential append (all of a, then all of b)
-                let s1 = args.get(0).cloned().unwrap_or(Value::Stream(vec![]));
-                let s2 = args.get(1).cloned().unwrap_or(Value::Stream(vec![]));
-                let mut items1 = match s1 {
-                    Value::Stream(v) | Value::Subject(v) => v,
-                    other => list_to_vec(&other),
-                };
-                let items2 = match s2 {
-                    Value::Stream(v) | Value::Subject(v) => v,
-                    other => list_to_vec(&other),
-                };
-                items1.extend(items2);
-                Value::Stream(items1)
-            }
             "pairwise" => {
                 // pairwise(stream) → Stream of Tuple — consecutive pairs
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));

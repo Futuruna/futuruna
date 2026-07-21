@@ -2032,7 +2032,7 @@ fn generate_random_program(seed: u64) -> String {
         // ── Multiple prints ──
         _ => {
             let n = (rng.next_u32() % 5) as usize + 1;
-            for j in 0..n {
+            for _j in 0..n {
                 let v = (rng.next_u32() % 100) as i64;
                 lines.push(format!("@ print(show({}))", v));
             }
@@ -7882,6 +7882,7 @@ enum VarMode {
     /// Multiple uses of a non-Copy value — emit `.clone()`
     Clone,
     /// Read-only access — emit `&`
+    #[cfg(test)]
     Borrow,
     /// Copy type (i64, f64, bool, char) — free to duplicate
     Copy,
@@ -8090,7 +8091,7 @@ impl TypeInference {
                         | FirStmt::Bind(_, _, e)
                         | FirStmt::MonadicBind(_, _, e)
                         | FirStmt::StreamBind(_, e) => self.substitute_expr(e),
-                        FirStmt::For(_, iter, body) => {
+                        FirStmt::For(_, iter, _body) => {
                             self.substitute_expr(iter);
                             // body stmts would need recursive handling
                         }
@@ -8113,6 +8114,7 @@ impl TypeInference {
         }
     }
 
+    #[cfg(test)]
     /// Collect all unresolved type variables in a type.
     fn free_vars(&self, ty: &FirTy) -> BTreeSet<usize> {
         let mut vars = BTreeSet::new();
@@ -8120,6 +8122,7 @@ impl TypeInference {
         vars
     }
 
+    #[cfg(test)]
     fn collect_free_vars(&self, ty: &FirTy, vars: &mut BTreeSet<usize>) {
         match self.find(ty) {
             FirTy::Var(id) => {
@@ -8192,6 +8195,9 @@ struct TypeScheme {
     ty: FirTy,
 }
 
+// The FIR bridge is only partially consumed in non-test builds today; keep the
+// richer internal shape without surfacing dead-code noise across the crate.
+#[allow(dead_code)]
 /// FIR expression — AST expression with ownership and type annotations.
 #[derive(Debug, Clone)]
 struct FirExpr {
@@ -8256,6 +8262,7 @@ struct FirMatchArm {
     body: FirExpr,
 }
 
+#[allow(dead_code)]
 /// FIR effect handler
 #[derive(Debug, Clone)]
 struct FirEffHandler {
@@ -8264,6 +8271,7 @@ struct FirEffHandler {
     body: FirExpr,
 }
 
+#[allow(dead_code)]
 /// FIR statement — mirrors Stmt with FIR expressions.
 #[derive(Debug, Clone)]
 enum FirStmt {
@@ -8300,6 +8308,7 @@ enum FirStmt {
     Expr(FirExpr),
 }
 
+#[allow(dead_code)]
 /// FIR function definition
 #[derive(Debug, Clone)]
 enum FirDefn {
@@ -8321,6 +8330,7 @@ enum FirDefn {
     },
 }
 
+#[allow(dead_code)]
 /// FIR actor handler
 #[derive(Debug, Clone)]
 struct FirHandler {
@@ -8328,6 +8338,7 @@ struct FirHandler {
     body: FirExpr,
 }
 
+#[allow(dead_code)]
 /// The complete FIR program — ready for Rust emission.
 #[derive(Debug, Clone)]
 struct FirProgram {
@@ -8534,6 +8545,7 @@ impl<'a> LoweringCtx<'a> {
         FirTy::Unknown
     }
 
+    #[cfg(test)]
     /// Infer types for a function with possibly unannotated parameters.
     /// Creates type variables for missing annotations, lowers the body,
     /// generates constraints from usage, solves, and substitutes.
@@ -9151,6 +9163,7 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
             match mode {
                 VarMode::Deref => format!("(*{})", sname),
                 VarMode::RuleClone | VarMode::Clone => format!("{}.clone()", sname),
+                #[cfg(test)]
                 VarMode::Borrow => format!("&{}", sname),
                 VarMode::Copy | VarMode::Move => sname,
             }
@@ -23115,7 +23128,7 @@ mod tests {
                 copy_vars: &BTreeSet::new(),
                 ref_match_bindings: &BTreeSet::new(),
             };
-            let fir = ctx.infer_function(params, body, ret_ty.as_ref(), Some(name.as_str()));
+            let _fir = ctx.infer_function(params, body, ret_ty.as_ref(), Some(name.as_str()));
 
             // add is monomorphic — should NOT be in fn_schemes
             assert!(

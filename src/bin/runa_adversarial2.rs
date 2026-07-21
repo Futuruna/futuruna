@@ -114,12 +114,6 @@ impl Graph {
         avg_entropy(&ptau, self.n)
     }
 
-    fn s_tau_node(&self, tau: u32, node: usize) -> f64 {
-        let p = self.transition_matrix();
-        let ptau = mat_pow(&p, self.n, tau);
-        node_entropy(&ptau, self.n, node)
-    }
-
     fn degrees(&self) -> Vec<usize> {
         let mut deg = vec![0usize; self.n];
         for &(u, _, _) in &self.edges {
