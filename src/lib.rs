@@ -31,6 +31,11 @@ use std::fmt;
 use std::io::{self, BufRead, Write as IoWrite};
 use std::rc::Rc;
 
+/// Proof kernel — Curry-Howard verification layer for the `?` rune.
+/// Lives in its own file so it can be audited in isolation.
+/// See `docs/proof-kernel.md` for the design spec.
+pub mod proof_kernel;
+
 // ============================================================================
 // PART 1: TOKENS
 // ============================================================================
