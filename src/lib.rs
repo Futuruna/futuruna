@@ -5208,6 +5208,9 @@ impl Interpreter {
         // Map builtins (M24)
         env.set("map_new".into(), Value::Builtin("map_new".into()));
         env.set("map_insert".into(), Value::Builtin("map_insert".into()));
+        env.set("unwrap_or".into(), Value::Builtin("unwrap_or".into()));
+        env.set("is_some".into(), Value::Builtin("is_some".into()));
+        env.set("is_none".into(), Value::Builtin("is_none".into()));
         env.set("map_get".into(), Value::Builtin("map_get".into()));
         env.set("map_get_or".into(), Value::Builtin("map_get_or".into()));
         env.set("map_contains".into(), Value::Builtin("map_contains".into()));
@@ -7227,6 +7230,28 @@ impl Interpreter {
                     Value::Map(new_map)
                 }
                 _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
+            },
+            "unwrap_or" => match (args.get(0), args.get(1)) {
+                (Some(Value::Constructor(name, inner)), Some(default)) => {
+                    if name == "Some" && inner.len() == 1 {
+                        inner[0].clone()
+                    } else if name == "None" {
+                        default.clone()
+                    } else {
+                        args[0].clone()
+                    }
+                }
+                _ => args.first().cloned().unwrap_or(Value::Unit),
+            },
+            "is_some" => match args.first() {
+                Some(Value::Constructor(name, _)) if name == "Some" => Value::Bool(true),
+                Some(Value::Constructor(name, _)) if name == "None" => Value::Bool(false),
+                _ => Value::Bool(false),
+            },
+            "is_none" => match args.first() {
+                Some(Value::Constructor(name, _)) if name == "None" => Value::Bool(true),
+                Some(Value::Constructor(name, _)) if name == "Some" => Value::Bool(false),
+                _ => Value::Bool(true),
             },
             "map_get" => match (args.get(0), args.get(1)) {
                 (Some(Value::Map(entries)), Some(key)) => {

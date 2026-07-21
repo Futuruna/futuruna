@@ -22604,7 +22604,7 @@ impl RustToRunaCtx {
 
             // HashMap/Map methods
             "get" if args.len() == 1 => format!("map_get({}, {})", recv, args[0]),
-            "contains_key" if args.len() == 1 => format!("map_contains_key({}, {})", recv, args[0]),
+            "contains_key" if args.len() == 1 => format!("map_contains({}, {})", recv, args[0]),
 
             // Clone
             "clone" => recv.to_string(),
