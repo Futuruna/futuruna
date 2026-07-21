@@ -3913,6 +3913,182 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         println!("No gaps or tensions discovered.");
     }
     println!();
+
+    // ── 4: TYPE COVERAGE ANALYSIS ──
+    // For each enum type with typed rules, analyze:
+    // - Universal rules (type-constrained: | fact(r: Type) -> ...)
+    // - Ground facts per member (| fact(SpecificVariant) -> ...)
+    // - Coverage gaps (variants without ground facts)
+    // - Extension safety (what would happen if a new member were added)
+
+    let mut type_analysis_output = Vec::new();
+
+    for (type_name, variants) in &interp.type_variants {
+        if variants.is_empty() { continue; }
+        // Skip built-in/internal types
+        if matches!(type_name.as_str(), "Option" | "Result" | "Bool" | "List") { continue; }
+
+        // Find typed rules: rules whose head has __typed(var, TypeName)
+        let mut universal_rules: Vec<String> = Vec::new();
+        let mut ground_facts: BTreeMap<String, Vec<String>> = BTreeMap::new(); // variant → [rule_names]
+
+        for (rule_name, rule) in &interp.rules {
+            match rule {
+                Rule::Clause { head, body } => {
+                    if let ExprKind::App(_, args) = &head.kind {
+                        // Check for typed args referencing this type
+                        let has_typed_ref = args.iter().any(|a| {
+                            if let ExprKind::App(func, typed_args) = &a.kind {
+                                if let ExprKind::Var(n) = &func.kind {
+                                    if n == "__typed" && typed_args.len() == 2 {
+                                        if let ExprKind::Var(tn) = &typed_args[1].kind {
+                                            return tn == type_name;
+                                        }
+                                    }
+                                }
+                            }
+                            false
+                        });
+                        if has_typed_ref {
+                            let label = if body.is_some() {
+                                format!("{}(...) -> (computed)", rule_name)
+                            } else {
+                                format!("{}(...) -> true", rule_name)
+                            };
+                            if !universal_rules.contains(&label) {
+                                universal_rules.push(label);
+                            }
+                        }
+
+                        // Check for ground constructor facts: | fact(Danmark)
+                        for arg in args {
+                            if let ExprKind::Var(cname) = &arg.kind {
+                                if variants.contains(cname) {
+                                    ground_facts
+                                        .entry(cname.clone())
+                                        .or_default()
+                                        .push(rule_name.clone());
+                                }
+                            }
+                            if let ExprKind::Lit(Literal::Str(s)) = &arg.kind {
+                                if variants.contains(s) {
+                                    ground_facts
+                                        .entry(s.clone())
+                                        .or_default()
+                                        .push(rule_name.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+                Rule::Default { head, .. } | Rule::Exception { head, .. } => {
+                    if let ExprKind::App(_, args) = &head.kind {
+                        for arg in args {
+                            if let ExprKind::Var(cname) = &arg.kind {
+                                if variants.contains(cname) {
+                                    ground_facts
+                                        .entry(cname.clone())
+                                        .or_default()
+                                        .push(rule_name.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Skip types with no rules at all
+        if universal_rules.is_empty() && ground_facts.is_empty() { continue; }
+
+        let mut section = Vec::new();
+        section.push(format!("  # {} = {}", type_name, variants.join(" | ")));
+        section.push(String::new());
+
+        if !universal_rules.is_empty() {
+            section.push("  Universal rules (auto-extend to ALL members):".to_string());
+            for r in &universal_rules {
+                section.push(format!("    | {}", r));
+            }
+            section.push(String::new());
+        }
+
+        if !ground_facts.is_empty() {
+            section.push("  Ground facts per member:".to_string());
+            // Collect all rule names across all variants
+            let all_rule_names: BTreeSet<String> = ground_facts.values()
+                .flat_map(|v| v.iter().cloned())
+                .collect();
+
+            for variant in variants {
+                let facts = ground_facts.get(variant);
+                let fact_names: Vec<&str> = facts
+                    .map(|fs| fs.iter().map(|s| s.as_str()).collect())
+                    .unwrap_or_default();
+                if fact_names.is_empty() {
+                    section.push(format!("    {}: (no ground facts)", variant));
+                } else {
+                    section.push(format!("    {}: {}", variant, fact_names.join(", ")));
+                }
+            }
+
+            // Per-rule coverage gaps: which members are missing which facts?
+            let mut gaps: Vec<String> = Vec::new();
+            for rule_name in &all_rule_names {
+                let has: Vec<&String> = variants.iter()
+                    .filter(|v| ground_facts.get(*v).map_or(false, |fs| fs.contains(rule_name)))
+                    .collect();
+                let missing: Vec<&String> = variants.iter()
+                    .filter(|v| !ground_facts.get(*v).map_or(false, |fs| fs.contains(rule_name)))
+                    .collect();
+                if !missing.is_empty() && !has.is_empty() {
+                    // Some have it, some don't — this is a genuine gap
+                    gaps.push(format!("    ⚠ {} — defined for [{}] but NOT for [{}]",
+                        rule_name,
+                        has.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "),
+                        missing.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")));
+                }
+            }
+            if !gaps.is_empty() {
+                section.push(String::new());
+                section.push("  Coverage gaps:".to_string());
+                for g in &gaps {
+                    section.push(g.clone());
+                }
+            }
+            section.push(String::new());
+        }
+
+        // Extension safety analysis
+        if !universal_rules.is_empty() {
+            section.push("  Extension safety (if a new member were added):".to_string());
+            for r in &universal_rules {
+                section.push(format!("    REVIEW: {} — would auto-apply to new member", r));
+            }
+            // Check which ground fact rule names exist
+            let ground_rule_names: BTreeSet<String> = ground_facts.values()
+                .flat_map(|v| v.iter().cloned())
+                .collect();
+            if !ground_rule_names.is_empty() {
+                for rn in &ground_rule_names {
+                    section.push(format!("    MISSING: {} — would need new ground fact for new member", rn));
+                }
+            }
+            section.push(String::new());
+        }
+
+        type_analysis_output.push(section);
+    }
+
+    if !type_analysis_output.is_empty() {
+        println!("── Type Coverage Analysis ──\n");
+        for section in &type_analysis_output {
+            for line in section {
+                println!("{}", line);
+            }
+        }
+    }
 }
 
 /// Collect rule name references from an expression (for invariant coverage analysis)
