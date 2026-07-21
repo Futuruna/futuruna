@@ -1,107 +1,111 @@
 @ sprog da
 
--- Kapitel II -- Kongen
+-- ═══════════════════════════════════════════════════════════════
+-- Kapitel II — Kongen (§ 5–11)
+-- ═══════════════════════════════════════════════════════════════
 
-# Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
+-- Typer fra Kapitel I (ville normalt importeres)
+# Rigsdel = Danmark | Færøerne | Grønland
+# Institution = Kongen | Folketinget | Domstolene
+# Trossamfund = EvangeliskLuthersk
+
+-- Samtykke: den grundlæggende juridiske mekanisme
 # Samtykke = Givet | IkkeGivet
-# ForsikringsStatus = IkkeAfgivet | AfgivetSomTronfølger
-# Regeringsfører = MonarkenSelv | VedStatsrådet | Regent(hjemmel: Tekst)
-# ArkivEksemplar = FolketingetsArkiv | Rigsarkivet
-# Monark(alder: Heltal, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
-# Tronfølger(alder: Heltal, trossamfund: Trossamfund)
+
+-- Hvem fører regeringen?
+# Regeringsfører = MonarkenSelv | Statsrådet | Regent
+
+-- Hvor opbevares forsikringsakten?
+# Arkiv = FolketingetsArkiv | Rigsarkivet
+
+-- Myndighedsalder
+# Myndighedsstatus = Myndig | Umyndig
 
 ----
 § 5. Kongen kan ikke uden folketingets samtykke være regent i andre lande.
 ----
 
-> regent_i_andre_lande(samtykke: Samtykke) -> Boolsk {
-    skel samtykke {
-        | Givet -> Sandt
-        | IkkeGivet -> Falskt
-    }
-}
+-- Samtykke er en binær mekanisme: givet → tilladt, ikke givet → forbudt
+| regent_i_udlandet(s: Samtykke) -> s == Givet
 
 ----
 § 6. Kongen skal høre til den evangelisk-lutherske kirke.
 ----
 
--- Gælder KUN kongen. Paragraf 6 udvider IKKE til tronfølgeren.
--- Sammenlign paragraf 7 som eksplicit siger "det samme gælder tronfølgeren".
-| kongens_trossamfund() -> EvangeliskLuthersk
-| troskrav_gælder_ikke_tronfølger()
-
-> opfylder_troskrav(monark: Monark) -> Boolsk {
-    skel monark.trossamfund {
-        | EvangeliskLuthersk -> Sandt
-        | Andet(_) -> Falskt
-    }
-}
+| kongen_skal_tilhøre(EvangeliskLuthersk)
 
 ----
 § 7. Kongen er myndig, når han har fyldt sit 18. år.
 Det samme gælder tronfølgeren.
 ----
 
--- Eksplicit udvidet til tronfølgeren — modsat paragraf 6
-> er_myndig(monark: Monark) -> Boolsk {
-    hvis monark.alder >= 18 { Sandt } ellers { Falskt }
-}
+| myndighedsalder() -> 18
 
-> tronfølger_er_myndig(tf: Tronfølger) -> Boolsk {
-    hvis tf.alder >= 18 { Sandt } ellers { Falskt }
-}
+-- Myndighedsreglen gælder for begge
+# MyndighedsSubjekt = Kongen | Tronfølgeren
+| myndighedsregel_gælder_for(s: MyndighedsSubjekt) -> true
 
 ----
 § 8. Forinden kongen tiltræder regeringen, afgiver han skriftligt i statsrådet
-en højtidelig forsikring om ubrødeligt at ville holde grundloven. Af
-forsikringsakten udstedes tvende ligelydende originaler, af hvilke den ene
-overgives folketinget for at opbevares i sammes arkiv, den anden nedlægges i
-rigsarkivet. Kan kongen som følge af fraværelse eller af andre grunde ikke
-umiddelbart ved tronskiftet afgive denne forsikring, føres regeringen, indtil
-dette sker, af statsrådet, medmindre anderledes ved lov bestemmes. Har kongen
-allerede som tronfølger afgivet denne forsikring, tiltræder han umiddelbart
-ved tronskiftet regeringen.
+en højtidelig forsikring om ubrødeligt at ville holde grundloven.
+Af forsikringsakten udstedes tvende ligelydende originaler, af hvilke den ene
+overgives folketinget for at opbevares i sammes arkiv, den anden nedlægges
+i rigsarkivet.
 ----
 
-> hvem_regerer_ved_tronskifte(monark: Monark, til_stede: Boolsk, særlov: Boolsk) -> Regeringsfører {
-    skel monark.forsikring {
-        | AfgivetSomTronfølger -> MonarkenSelv
-        | IkkeAfgivet -> {
-            hvis til_stede {
-                MonarkenSelv
-            } ellers {
-                hvis særlov {
-                    Regent("Fastsat ved særlov")
-                } ellers {
-                    VedStatsrådet
-                }
-            }
-        }
-    }
-}
+-- Forsikringsakten opbevares to steder
+| forsikringsakt_opbevares_i(FolketingetsArkiv)
+| forsikringsakt_opbevares_i(Rigsarkivet)
 
-| forsikringsakt_eksemplar_1() -> FolketingetsArkiv
-| forsikringsakt_eksemplar_2() -> Rigsarkivet
+----
+§ 8 (fortsat). Kan kongen som følge af fraværelse eller af andre grunde ikke
+umiddelbart ved tronskiftet afgive denne forsikring, føres regeringen, indtil
+dette sker, af statsrådet, medmindre anderledes ved lov bestemmes.
+Har kongen allerede som tronfølger afgivet denne forsikring, tiltræder han
+umiddelbart ved tronskiftet regeringen.
+----
+
+-- Situationsbestemte fakta (sættes udefra ved tronskifte)
+| ikke_forsikret_og_fraværende() -> false
+| særlov_fastsat() -> false
+
+-- Hvem fører regeringen ved tronskifte? (Catala-prioritet)
+| regering_ved_tronskifte() -> MonarkenSelv
+| regering_ved_tronskifte() -> Statsrådet under ikke_forsikret_og_fraværende()
+| exception særlov regering_ved_tronskifte() -> Regent under særlov_fastsat()
+
+-- Hvis forsikring allerede afgivet som tronfølger: direkte tiltræden
+| direkte_tiltræden_ved_forudgående_forsikring()
 
 ----
 § 9. Bestemmelser angående regeringens førelse i tilfælde af kongens
-umyndighed, sygdom eller fraværelse fastsættes ved lov. Er der ved
-tronledighed ingen tronfølger, vælger folketinget en konge og fastsætter
-den fremtidige arvefølge.
+umyndighed, sygdom eller fraværelse fastsættes ved lov.
 ----
 
-| regentskab_fastsættes_ved_lov()
+# Regentskabsgrund = Umyndighed | Sygdom | Fraværelse
+| regentskab_fastsættes_ved_lov(g: Regentskabsgrund) -> true
+
+----
+§ 9 (fortsat). Er der ved tronledighed ingen tronfølger, vælger
+folketinget en konge og fastsætter den fremtidige arvefølge.
+----
+
 | folketinget_vælger_konge_ved_tronledighed()
+| folketinget_fastsætter_arvefølge_ved_tronledighed()
 
 ----
-§ 10. Stk. 1. Statens ydelse til kongen bestemmes for hans regeringstid ved
-lov. Ved denne fastsættes tillige, hvilke slotte og andre statsejendele der
-skal overlades kongen til brug.
-
-Stk. 2. Statsydelsen kan ikke behæftes med gæld.
+§ 10. Stk. 1. Statens ydelse til kongen bestemmes for hans regeringstid
+ved lov. Ved denne fastsættes tillige, hvilke slotte og andre statsejendele
+der skal overlades kongen til brug.
 ----
 
 | statsydelse_fastsættes_ved_lov()
+| slotte_fastsættes_ved_lov()
+
+----
+§ 10. Stk. 2. Statsydelsen kan ikke behæftes med gæld.
+----
+
 | statsydelse_gæld_forbudt()
 
 ----
@@ -110,11 +114,41 @@ Stk. 2. Statsydelsen kan ikke behæftes med gæld.
 ----
 
 | årpenge_fastsættes_ved_lov()
-| årpenge_ikke_obligatoriske()
+| årpenge_i_udlandet(s: Samtykke) -> s == Givet
 
-> årpenge_i_udlandet(samtykke: Samtykke) -> Boolsk {
-    skel samtykke {
-        | Givet -> Sandt
-        | IkkeGivet -> Falskt
-    }
-}
+-- ═══════════════════════════════════════════════════════════════
+-- Verifikation
+-- ═══════════════════════════════════════════════════════════════
+
+@ print("--- Kapitel II: Kongen ---")
+@ print("")
+
+-- § 5
+@ print("§ 5   Regent i udlandet med samtykke: " + show(regent_i_udlandet(Givet)))
+@ print("§ 5   Regent i udlandet uden samtykke: " + show(regent_i_udlandet(IkkeGivet)))
+
+-- § 6
+@ print("§ 6   Kongen skal tilhøre: " + show(kongen_skal_tilhøre(EvangeliskLuthersk)))
+
+-- § 7
+@ print("§ 7   Myndighedsalder: " + show(myndighedsalder()))
+= myndig_subjekter = findall(s, myndighedsregel_gælder_for(s))
+@ print("§ 7   Gælder for: " + show(myndig_subjekter))
+
+-- § 8
+= arkiver = findall(a, forsikringsakt_opbevares_i(a))
+@ print("§ 8   Forsikringsakt opbevares i: " + show(arkiver))
+@ print("§ 8   Normalt regerer: " + show(regering_ved_tronskifte()))
+
+-- § 9
+= regentskabsgrunde = findall(g, regentskab_fastsættes_ved_lov(g))
+@ print("§ 9   Regentskab ved: " + show(regentskabsgrunde))
+
+-- § 10
+@ print("§ 10  Statsydelse ved lov: " + show(statsydelse_fastsættes_ved_lov()))
+@ print("§ 10  Gæld forbudt: " + show(statsydelse_gæld_forbudt()))
+
+-- § 11
+@ print("§ 11  Årpenge ved lov: " + show(årpenge_fastsættes_ved_lov()))
+@ print("§ 11  Årpenge i udlandet med samtykke: " + show(årpenge_i_udlandet(Givet)))
+@ print("§ 11  Årpenge i udlandet uden samtykke: " + show(årpenge_i_udlandet(IkkeGivet)))
