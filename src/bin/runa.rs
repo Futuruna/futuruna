@@ -3921,6 +3921,30 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     // - Coverage gaps (variants without ground facts)
     // - Extension safety (what would happen if a new member were added)
 
+    // Collect @ bound annotations: rule names that are NOT intentionally universal
+    // (typed rules are universal by default — @ bound marks the exception)
+    let mut bound_rules: BTreeSet<String> = BTreeSet::new();
+    {
+        let mut prev_was_bound = false;
+        for stmt in &audit_stmts {
+            if let Stmt::Annot(name, _) = stmt {
+                if name == "bound" { prev_was_bound = true; continue; }
+            }
+            if prev_was_bound {
+                if let Stmt::Rule(Rule::Clause { head, .. })
+                    | Stmt::Rule(Rule::Default { head, .. }) = stmt
+                {
+                    if let ExprKind::App(func, _) = &head.kind {
+                        if let ExprKind::Var(name) = &func.kind {
+                            bound_rules.insert(name.clone());
+                        }
+                    }
+                }
+            }
+            prev_was_bound = false;
+        }
+    }
+
     let mut type_analysis_output = Vec::new();
 
     for (type_name, variants) in &interp.type_variants {
@@ -4061,10 +4085,21 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         }
 
         // Extension safety analysis
-        if !universal_rules.is_empty() {
+        // Typed rules are universal by default (no annotation needed).
+        // @ bound marks the exception: "this should NOT auto-extend"
+        let has_bound = universal_rules.iter().any(|r| {
+            let rule_name = r.split('(').next().unwrap_or(r).trim();
+            bound_rules.contains(rule_name)
+        });
+        if has_bound || !universal_rules.is_empty() {
             section.push("  Extension safety (if a new member were added):".to_string());
             for r in &universal_rules {
-                section.push(format!("    REVIEW: {} — would auto-apply to new member", r));
+                let rule_name = r.split('(').next().unwrap_or(r).trim();
+                if bound_rules.contains(rule_name) {
+                    section.push(format!("    ⚠ {} — marked @ bound (would NOT auto-extend)", r));
+                } else {
+                    section.push(format!("    ✓ {} — universal (auto-extends to new members)", r));
+                }
             }
             // Check which ground fact rule names exist
             let ground_rule_names: BTreeSet<String> = ground_facts.values()

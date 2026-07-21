@@ -41,7 +41,7 @@ Det samme gælder tronfølgeren.
 
 = myndighedsalder = 18
 
--- Myndighedsreglen gælder for begge
+-- Myndighedsreglen gælder for begge — § 7 siger eksplicit "det samme gælder tronfølgeren"
 # MyndighedsSubjekt = Kongen | Tronfølgeren
 | myndighedsregel_gælder_for(s: MyndighedsSubjekt) -> true
 
