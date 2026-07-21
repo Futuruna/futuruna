@@ -16,8 +16,8 @@ cargo build --release
 ## Architecture
 
 **Single-file compiler**: `src/bin/runa.rs` (~12,200 lines of Rust)
-- Lexer, parser, interpreter, type checker, and Rust transpiler in one file
-- 67 tests in `tests/`, all passing
+- Lexer, parser, interpreter, type checker, Rust transpiler, and Rust→Futuruna transpiler
+- 83 tests in `tests/`, all passing. 65/65 codegen, 49/49 roundtrip, 22/22 from-rust
 - Bootstrapping: Rust hosts the compiler, Futuruna transpiles back to Rust
 
 ---
@@ -53,6 +53,22 @@ Every line starts with a rune. The rune classifies what the statement *is*.
     > say(msg: String) -> ()
     > ask(prompt: String) -> String
 }
+
+-- Subset types: pick variants from existing types
+# GeoArea = Sweden | Danmark | Norway | Færøerne | Grønland
+# Skandinavien = GeoArea.Sweden | GeoArea.Danmark | GeoArea.Norway
+# Rigsdel = GeoArea.Danmark | GeoArea.Færøerne | GeoArea.Grønland
+
+-- Type inclusion: bare type name = all variants
+# AlleReligioner = Kristendom | Islam | Jødedom
+
+-- EXCEPT: set subtraction
+# AnerkendteKristne = Kristendom EXCEPT Sekterianisme
+
+-- Type-constrained rules: type IS the law
+| grundloven_gælder_for(del: Rigsdel) -> true
+-- grundloven_gælder_for(Danmark) → true
+-- grundloven_gælder_for(Sweden) → false
 
 -- Trait + impl
 # trait Printable { > display(self) -> String }
@@ -107,12 +123,27 @@ The most versatile rune. Unifies logic programming, default logic, pattern match
 -- Value-returning fact
 | capital("Denmark") -> "Copenhagen"
 
--- Rule with conjunction + backtracking
+-- Rule with conjunction using 'and' keyword
 | ancestor(a, b) -> parent(a, b)
-| ancestor(a, b) -> parent(a, mid), ancestor(mid, b)
+| ancestor(a, b) -> parent(a, mid) and ancestor(mid, b)
+
+-- Disjunction using 'or' keyword
+| is_drink_base(x) -> is_citrus(x) or is_spirit(x)
 
 -- Negation + wildcard
-| childless(x) -> parent(x, _), not(parent(_, x))
+| childless(x) -> parent(x, _) and not(parent(_, x))
+
+-- Constructor matching in facts (enum variants as ground terms)
+# Color = Red | Green | Blue
+| is_warm(Red)
+-- is_warm(Red) → true, is_warm(Blue) → false
+
+-- Type-constrained rules
+| grundloven_gælder_for(del: Rigsdel) -> true
+-- findall(del, grundloven_gælder_for(del)) → [Danmark, Færøerne, Grønland]
+
+-- search: first-match query (returns Option)
+= first_child = search(c, parent("alice", c))
 
 -- Catala-style default logic with exceptions
 | advisory(w) -> "all clear"
@@ -172,6 +203,14 @@ Rebinding is idiomatic (shadow the name):
 = req = Request("GET", "", "")
 = req = with_method(req, "POST")
 = req = with_path(req, "/api")
+```
+
+While loops (compiles to real Rust `while`, no stack overhead):
+```runa
+= n = 10
+while n > 1 {
+    if n % 2 == 0 { = n = n / 2 } else { = n = 3 * n + 1 }
+}
 ```
 
 ### `~` — What flows (reactive streams, subjects, temporal behavior)
@@ -286,6 +325,10 @@ runa add ../shared/lib       # Add local path dependency
 runa add https://github.com/user/repo  # Add git dependency
 runa lsp                     # Start language server (JSON-RPC over stdio)
 runa lib file.runa           # Emit Rust library (no main)
+runa bench                   # Run performance benchmarks
+runa from-rust file.rs       # Transpile Rust → Futuruna
+runa from-rust --verify f.rs # Transpile + run both + compare outputs
+runa from-rust --test dir/   # Batch verify all .rs files (CI gate)
 ```
 
 ### `runa audit` — Automated Gap Discovery

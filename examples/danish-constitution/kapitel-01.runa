@@ -2,115 +2,99 @@
 
 ----
 Danmarks Riges Grundlov (Grundloven)
+af 5. juni 1953
 
 Vi Frederik den Niende, af Guds Nåde Konge til Danmark, de Venders og Goters,
 Hertug til Slesvig, Holsten, Stormarn, Ditmarsken, Lauenborg og Oldenborg,
-Gør vitterligt: I overensstemmelse med bestemmelserne i § 94 i Danmarks Riges
-Grundlov af 5. juni 1915 med ændringer af 10. september 1920 har rigsdagen
-2 gange vedtaget, og folketingsvælgerne ved en den 28. maj 1953 afholdt
-folkeafstemning godkendt, hvorefter Vi nu ved Vort allerhøjeste samtykke
-stadfæster DANMARKS RIGES GRUNDLOV
+gør vitterligt: Rigsdagen har to gange vedtaget og folketingsvælgerne ved
+folkeafstemning den 28. maj 1953 godkendt, hvorefter Vi stadfæster
+DANMARKS RIGES GRUNDLOV
 ----
 
 -- ═══════════════════════════════════════════════════════════════
 -- Kapitel I — Statsformen (§ 1–4)
 -- ═══════════════════════════════════════════════════════════════
 
--- Grundlæggende typer: riget, magten, og kirken
-
+-- Rigets dele (§ 1)
 # Rigsdel = Danmark | Færøerne | Grønland
 
-# Regeringsform = IndskrænketMonarkisk
-
-# Køn = Mand | Kvinde
-# TronfølgeKøn = Køn.Mand | Køn.Kvinde
-
+-- Statsmagterne (§ 3)
 # Statsmagt = Lovgivende | Udøvende | Dømmende
-
 # Institution = Kongen | Folketinget | Domstolene
 
-# Magtholder = Hos(institution: Institution) | IForening(a: Institution, b: Institution)
+-- Køn for tronfølge (§ 2)
+# Køn = Mand | Kvinde
 
-# Trossamfund = EvangeliskLuthersk | Andet(navn: String)
+-- Trossamfund (§ 4)
+# Trossamfund = EvangeliskLuthersk
 
 ----
 § 1. Denne grundlov gælder for alle dele af Danmarks Rige.
 ----
 
--- Grundloven gælder for enhver rigsdel — typen ER sandheden.
--- Tilføjer man en ny rigsdel, gælder grundloven automatisk for den.
 | grundloven_gælder_for(del: Rigsdel) -> true
 
 ----
-§ 2. Regeringsformen er indskrænket-monarkisk. Kongemagten nedarves til
-mænd og kvinder efter de i tronfølgeloven af 27. marts 1953 fastsatte regler.
+§ 2. Regeringsformen er indskrænket-monarkisk.
+Kongemagten nedarves til mænd og kvinder efter de i
+tronfølgeloven af 27. marts 1953 fastsatte regler.
 ----
 
-| regeringsform() -> IndskrænketMonarkisk
-
--- Tronfølgen er for begge køn — typen siger det direkte
-| tronfølge_gælder_for(k: TronfølgeKøn) -> true
-
--- Tronfølgeloven er den eksterne lov der bestemmer rækkefølgen
-| tronfølgelov_dato() -> "27. marts 1953"
+| regeringsformen_er_indskrænket_monarkisk()
+| kongemagten_nedarves_til(køn: Køn) -> true
+| tronfølgeloven_dato() -> "27. marts 1953"
 
 ----
 § 3. Den lovgivende magt er hos kongen og folketinget i forening.
-Den udøvende magt er hos kongen. Den dømmende magt er hos domstolene.
+Den udøvende magt er hos kongen.
+Den dømmende magt er hos domstolene.
 ----
 
-| lovgivende_magt() -> IForening(Kongen, Folketinget)
-| udøvende_magt() -> Hos(Kongen)
-| dømmende_magt() -> Hos(Domstolene)
+-- Hvem udøver hvilken magt
+| udøver(Kongen, Lovgivende)
+| udøver(Folketinget, Lovgivende)
+| udøver(Kongen, Udøvende)
+| udøver(Domstolene, Dømmende)
 
--- Magtfordeling: hvem har hvilken magt?
-| har_magt(Kongen, Lovgivende)
-| har_magt(Folketinget, Lovgivende)
-| har_magt(Kongen, Udøvende)
-| har_magt(Domstolene, Dømmende)
-
--- Magtens tredeling: hver magt er adskilt
-| magt_er_adskilt(Lovgivende, Udøvende)
-| magt_er_adskilt(Lovgivende, Dømmende)
-| magt_er_adskilt(Udøvende, Dømmende)
+-- "I forening" — lovgivning kræver begge
+| lovgivning_kræver(Kongen)
+| lovgivning_kræver(Folketinget)
 
 ----
-§ 4. Den evangelisk-lutherske kirke er den danske folkekirke og understøttes
-som sådan af staten.
+§ 4. Den evangelisk-lutherske kirke er den danske folkekirke
+og understøttes som sådan af staten.
 ----
 
-| folkekirke() -> EvangeliskLuthersk
-| staten_understøtter(Folkekirken)
-
--- Folkekirken er en institution med særstatus
-# KirkeStatus = Folkekirken | AndreKirker
-| har_særstatus(Folkekirken)
+| folkekirken_er(EvangeliskLuthersk)
+| staten_understøtter_folkekirken()
 
 -- ═══════════════════════════════════════════════════════════════
--- Verifikation
+-- Verifikation — spørg lovens fakta
 -- ═══════════════════════════════════════════════════════════════
 
--- § 1: Grundloven dækker hele riget
-= alle_rigsdele = findall(del, grundloven_gælder_for(del))
-@ print("§ 1 — Grundloven gælder for: " + show(alle_rigsdele))
+@ print("--- Kapitel I: Statsformen ---")
+@ print("")
 
--- § 2: Begge køn har tronfølge
-= tronfølge_køn = findall(k, tronfølge_gælder_for(k))
-@ print("§ 2 — Tronfølge gælder for: " + show(tronfølge_køn))
-@ print("§ 2 — Regeringsform: " + show(regeringsform()))
+-- § 1
+= rigsdele = findall(del, grundloven_gælder_for(del))
+@ print("§ 1  Grundloven gælder for: " + show(rigsdele))
 
--- § 3: Magtens tredeling
-@ print("§ 3 — Lovgivende: " + show(lovgivende_magt()))
-@ print("§ 3 — Udøvende: " + show(udøvende_magt()))
-@ print("§ 3 — Dømmende: " + show(dømmende_magt()))
+-- § 2
+= arvekøn = findall(k, kongemagten_nedarves_til(k))
+@ print("§ 2  Kongemagten nedarves til: " + show(arvekøn))
+@ print("§ 2  Tronfølgelov: " + tronfølgeloven_dato())
 
-= lovgivere = findall(i, har_magt(i, Lovgivende))
-= udøvere = findall(i, har_magt(i, Udøvende))
-= dommere = findall(i, har_magt(i, Dømmende))
-@ print("§ 3 — Lovgivere: " + show(lovgivere))
-@ print("§ 3 — Udøvere: " + show(udøvere))
-@ print("§ 3 — Dommere: " + show(dommere))
+-- § 3
+= lovgivere = findall(i, udøver(i, Lovgivende))
+= udøvere = findall(i, udøver(i, Udøvende))
+= dommere = findall(i, udøver(i, Dømmende))
+@ print("§ 3  Lovgivende magt: " + show(lovgivere))
+@ print("§ 3  Udøvende magt: " + show(udøvere))
+@ print("§ 3  Dømmende magt: " + show(dommere))
 
--- § 4: Folkekirken
-@ print("§ 4 — Folkekirke: " + show(folkekirke()))
-@ print("§ 4 — Særstatus: " + show(har_særstatus(Folkekirken)))
+= krævet = findall(i, lovgivning_kræver(i))
+@ print("§ 3  Lovgivning kræver: " + show(krævet))
+
+-- § 4
+@ print("§ 4  Folkekirken: " + show(folkekirken_er(EvangeliskLuthersk)))
+@ print("§ 4  Staten understøtter: " + show(staten_understøtter_folkekirken()))
