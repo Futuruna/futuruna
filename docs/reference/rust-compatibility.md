@@ -83,7 +83,7 @@ For Futuruna modules, use `@ import`; legacy module-style `@ use foo::*` is depr
 | `runa lib file.runa` | Emit as a Rust library (no `fn main`, exported names get `pub`) |
 | `runa verify file.runa` | Translate invariants to SMT-LIB2 and invoke Z3 |
 | `runa hashes file.runa` | Show content-addressed hashes for all definitions |
-| `runa registry file.runa` | Generate `.registry.json` mapping names to content hashes |
+| `runa registry file.runa` | Generate `<file>.registry.json` next to the source file |
 
 ### Build output
 

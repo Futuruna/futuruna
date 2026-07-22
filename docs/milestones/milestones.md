@@ -341,7 +341,7 @@ AST hash. No dependency conflicts. No build system. Identity is structure, not n
 - [x] **`@ import #hash from ./module`**: import by hash for exact dependency
   resolution. Works in both interpreter and transpiler. No import-cycle caching
   (each hash import re-parses the file to find the matching definition).
-- [x] **Name registry**: `runa registry file.runa` generates `.registry.json`
+- [x] **Name registry**: `runa registry file.runa` generates `<file>.registry.json`
   mapping human-readable names to content hashes (like DNS for code).
   Registry files accumulate across modules. Names resolve to exact
   structural identities.

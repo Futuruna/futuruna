@@ -5990,6 +5990,15 @@ fn collect_registry(stmts: &[Stmt]) -> BTreeMap<String, String> {
     registry
 }
 
+fn registry_path_for_source(filename: &str) -> std::path::PathBuf {
+    let source_path = std::path::Path::new(filename);
+    let stem = source_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown");
+    source_path.with_file_name(format!("{}.registry.json", stem))
+}
+
 /// Save/update the name registry (.runa-registry.json) for a file.
 fn update_registry(source: &str, filename: &str) {
     let mut lexer = Lexer::new(source);
@@ -5998,13 +6007,7 @@ fn update_registry(source: &str, filename: &str) {
     match parser.parse_program() {
         Ok(stmts) => {
             let registry = collect_registry(&stmts);
-            let registry_path = format!(
-                "{}.registry.json",
-                std::path::Path::new(filename)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("unknown")
-            );
+            let registry_path = registry_path_for_source(filename);
             // Read existing registry if present, merge
             let mut existing: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
             if let Ok(data) = std::fs::read_to_string(&registry_path) {
@@ -6037,7 +6040,7 @@ fn update_registry(source: &str, filename: &str) {
             });
             println!(
                 "runa --registry: {} ({} definitions)",
-                registry_path,
+                registry_path.display(),
                 registry.len()
             );
             for (name, hash) in &registry {
@@ -23234,6 +23237,36 @@ mod tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse failed");
         explicit_proof_statuses_for_stmts(&stmts)
+    }
+
+    #[test]
+    fn registry_path_stays_next_to_source_file() {
+        let temp_name = format!(
+            "futuruna_registry_path_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let source_path = temp_dir.join("registry_probe.runa");
+        std::fs::write(&source_path, "> square(x: Int) -> Int { x * x }\n").unwrap();
+
+        let source = std::fs::read_to_string(&source_path).unwrap();
+        update_registry(&source, source_path.to_str().unwrap());
+
+        let expected = temp_dir.join("registry_probe.registry.json");
+        assert!(expected.exists(), "expected registry next to source file");
+        assert!(
+            !std::path::Path::new("registry_probe.registry.json").exists(),
+            "registry should not be written into the caller working directory"
+        );
+
+        let _ = std::fs::remove_file(&expected);
+        let _ = std::fs::remove_file("registry_probe.registry.json");
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
