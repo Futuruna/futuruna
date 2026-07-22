@@ -303,8 +303,7 @@ impl Registry {
         let mut schemas = BTreeMap::new();
 
         let v = |s: &str| Term::Var(s.to_string());
-        let op =
-            |o: &str, a: Term, b: Term| Term::Op(o.to_string(), Box::new(a), Box::new(b));
+        let op = |o: &str, a: Term, b: Term| Term::Op(o.to_string(), Box::new(a), Box::new(b));
 
         // -- Equality (3) --
 
@@ -506,8 +505,15 @@ pub enum ProofError {
     UnknownAxiom(String),
     UnknownHypothesis(String),
     UnificationFailed(String),
-    GoalMismatch { expected: String, got: String },
-    PremiseCount { axiom: String, expected: usize, got: usize },
+    GoalMismatch {
+        expected: String,
+        got: String,
+    },
+    PremiseCount {
+        axiom: String,
+        expected: usize,
+        got: usize,
+    },
     CannotInduct(String),
     MissingInductionArms(Vec<String>),
     UnexpectedInductionArm(String),
@@ -543,7 +549,11 @@ impl fmt::Display for ProofError {
             ProofError::GoalMismatch { expected, got } => {
                 write!(f, "goal mismatch: expected {}, got {}", expected, got)
             }
-            ProofError::PremiseCount { axiom, expected, got } => write!(
+            ProofError::PremiseCount {
+                axiom,
+                expected,
+                got,
+            } => write!(
                 f,
                 "{} expects {} premise proof(s), got {}",
                 axiom, expected, got
@@ -605,12 +615,7 @@ fn is_meta(v: &str, metas: &[String]) -> bool {
     metas.iter().any(|m| m == v)
 }
 
-fn unify_term(
-    pat: &Term,
-    tgt: &Term,
-    metas: &[String],
-    s: &mut Subst,
-) -> Result<(), ProofError> {
+fn unify_term(pat: &Term, tgt: &Term, metas: &[String], s: &mut Subst) -> Result<(), ProofError> {
     // Dereference any existing binding on the pattern side.
     let pat_resolved = if let Term::Var(v) = pat {
         if is_meta(v, metas) {
@@ -670,12 +675,7 @@ fn unify_term(
     }
 }
 
-fn unify_prop(
-    pat: &Prop,
-    tgt: &Prop,
-    metas: &[String],
-    s: &mut Subst,
-) -> Result<(), ProofError> {
+fn unify_prop(pat: &Prop, tgt: &Prop, metas: &[String], s: &mut Subst) -> Result<(), ProofError> {
     match (pat, tgt) {
         (Prop::Eq(a1, b1), Prop::Eq(a2, b2)) => {
             unify_term(a1, a2, metas, s)?;
@@ -730,9 +730,7 @@ fn subst_prop(p: &Prop, s: &Subst) -> Prop {
         Prop::Le(a, b) => Prop::Le(subst_term(a, s), subst_term(b, s)),
         Prop::And(p, q) => Prop::And(Box::new(subst_prop(p, s)), Box::new(subst_prop(q, s))),
         Prop::Not(p) => Prop::Not(Box::new(subst_prop(p, s))),
-        Prop::Imply(p, q) => {
-            Prop::Imply(Box::new(subst_prop(p, s)), Box::new(subst_prop(q, s)))
-        }
+        Prop::Imply(p, q) => Prop::Imply(Box::new(subst_prop(p, s)), Box::new(subst_prop(q, s))),
         Prop::False => Prop::False,
     }
 }
@@ -890,7 +888,10 @@ fn case_branch_term(ctor: &str, binders: &[String]) -> Term {
     } else {
         Term::App(
             ctor.to_string(),
-            binders.iter().map(|binder| Term::Var(binder.clone())).collect(),
+            binders
+                .iter()
+                .map(|binder| Term::Var(binder.clone()))
+                .collect(),
         )
     }
 }
@@ -966,11 +967,7 @@ fn collect_goal_subterms(goal: &Prop) -> Vec<Term> {
 // Ctx) and zero-premise `apply` calls with no free metavars in the
 // conclusion. Everything else forces the user to write an intermediate `let`.
 
-fn synthesize(
-    term: &ProofTerm,
-    ctx: &Ctx,
-    reg: &Registry,
-) -> Result<Prop, ProofError> {
+fn synthesize(term: &ProofTerm, ctx: &Ctx, reg: &Registry) -> Result<Prop, ProofError> {
     match term {
         ProofTerm::Hyp(name) => ctx
             .lookup_prop(name)
@@ -1096,12 +1093,7 @@ fn synthesize_rewrite_equality(
 /// Returns `Ok(())` on success, `Err(ProofError)` on failure. The error is
 /// informative — designed for direct reporting back to the user without
 /// further interpretation.
-pub fn check(
-    term: &ProofTerm,
-    goal: &Prop,
-    ctx: &Ctx,
-    reg: &Registry,
-) -> Result<(), ProofError> {
+pub fn check(term: &ProofTerm, goal: &Prop, ctx: &Ctx, reg: &Registry) -> Result<(), ProofError> {
     match term {
         // [REFL]  Γ ⊢ refl : e == e
         ProofTerm::Refl => {
@@ -1226,21 +1218,18 @@ fn check_induction(
     for arm in arms {
         let branch_term = case_branch_term(&arm.ctor, &arm.binders);
         let branch_goal = rewrite_in_prop(goal, &scrut, &branch_term);
-        let recursive_fields = ctx
-            .constructor_recursive_fields(&arm.ctor)
-            .ok_or_else(|| {
-                ProofError::CannotInduct(format!(
-                    "recursive-field metadata for {} is missing from the proof context",
-                    arm.ctor
-                ))
-            })?;
-        let mut branch_ctx =
-            extend_branch_binders(ctx, &arm.ctor, &arm.binders, || {
-                ProofError::CannotInduct(format!(
-                    "field-family metadata for {} is missing from the proof context",
-                    arm.ctor
-                ))
-            })?;
+        let recursive_fields = ctx.constructor_recursive_fields(&arm.ctor).ok_or_else(|| {
+            ProofError::CannotInduct(format!(
+                "recursive-field metadata for {} is missing from the proof context",
+                arm.ctor
+            ))
+        })?;
+        let mut branch_ctx = extend_branch_binders(ctx, &arm.ctor, &arm.binders, || {
+            ProofError::CannotInduct(format!(
+                "field-family metadata for {} is missing from the proof context",
+                arm.ctor
+            ))
+        })?;
         for (index, binder_index) in recursive_fields.iter().enumerate() {
             let binder = arm.binders.get(*binder_index).ok_or_else(|| {
                 ProofError::CannotInduct(format!(
@@ -1620,10 +1609,7 @@ mod tests {
         let goal = Prop::Eq(v("a"), v("c"));
         let proof = ProofTerm::Apply(
             "eq.trans".into(),
-            vec![
-                ProofTerm::Hyp("h1".into()),
-                ProofTerm::Hyp("h2".into()),
-            ],
+            vec![ProofTerm::Hyp("h1".into()), ProofTerm::Hyp("h2".into())],
         );
         let result = check(&proof, &goal, &ctx, &reg);
         assert!(result.is_ok(), "eq.trans failed: {:?}", result);
@@ -1729,7 +1715,10 @@ mod tests {
         let ctx = Ctx::new().with_var("env".into());
         let nested_env = Term::App("Push".into(), vec![Term::Int(0), v("env")]);
         let goal = Prop::Eq(
-            Term::App("tag".into(), vec![Term::App("normalize".into(), vec![nested_env.clone()])]),
+            Term::App(
+                "tag".into(),
+                vec![Term::App("normalize".into(), vec![nested_env.clone()])],
+            ),
             Term::App(
                 "tag".into(),
                 vec![Term::App("normalized".into(), vec![nested_env])],
@@ -1784,10 +1773,7 @@ mod tests {
         let goal = Prop::Le(Term::Int(0), Term::Int(0));
         let ctx = Ctx::new().with_prop(
             "both".into(),
-            Prop::And(
-                Box::new(Prop::Eq(v("x"), v("x"))),
-                Box::new(goal.clone()),
-            ),
+            Prop::And(Box::new(Prop::Eq(v("x"), v("x"))), Box::new(goal.clone())),
         );
         let reg = Registry::with_builtins();
         let proof = ProofTerm::Apply("and.elim_r".into(), vec![ProofTerm::Hyp("both".into())]);
@@ -1804,15 +1790,16 @@ mod tests {
         let reg = Registry::with_builtins();
         let p = Prop::Eq(v("x"), v("x"));
         let goal = Prop::Imply(Box::new(p.clone()), Box::new(p.clone()));
-        let proof =
-            ProofTerm::Assume(p, Box::new(ProofTerm::Hyp("__assumed".into())));
+        let proof = ProofTerm::Assume(p, Box::new(ProofTerm::Hyp("__assumed".into())));
         let result = check(&proof, &goal, &ctx, &reg);
         assert!(result.is_ok(), "assume failed: {:?}", result);
     }
 
     #[test]
     fn not_intro_closes_negation_from_implication_to_false() {
-        let ctx = Ctx::new().with_var("x".into()).with_prop("boom".into(), Prop::False);
+        let ctx = Ctx::new()
+            .with_var("x".into())
+            .with_prop("boom".into(), Prop::False);
         let reg = Registry::with_builtins();
         let proposition = Prop::Eq(v("x"), v("x"));
         let goal = Prop::Not(Box::new(proposition.clone()));
@@ -1869,7 +1856,10 @@ mod tests {
             .with_constructor("Off".into(), family, 0)
             .with_constructor_field_families("Off".into(), vec![]);
         let reg = Registry::with_builtins();
-        let goal = Prop::Eq(Term::App("flip".into(), vec![v("s")]), Term::App("flip".into(), vec![v("s")]));
+        let goal = Prop::Eq(
+            Term::App("flip".into(), vec![v("s")]),
+            Term::App("flip".into(), vec![v("s")]),
+        );
         let proof = ProofTerm::Cases(
             v("s"),
             vec![
@@ -1937,10 +1927,7 @@ mod tests {
             .with_constructor("Drop".into(), packet_family.clone(), 0)
             .with_constructor_field_families("Drop".into(), vec![])
             .with_constructor("Wrap".into(), packet_family.clone(), 1)
-            .with_constructor_field_families(
-                "Wrap".into(),
-                vec![Some(switch_family.clone())],
-            )
+            .with_constructor_field_families("Wrap".into(), vec![Some(switch_family.clone())])
             .with_constructor("On".into(), switch_family.clone(), 0)
             .with_constructor_field_families("On".into(), vec![])
             .with_constructor("Off".into(), switch_family.clone(), 0)
@@ -2053,7 +2040,10 @@ mod tests {
                 vars: vec!["h".into(), "t".into()],
                 premises: vec![],
                 conclusion: Prop::Eq(
-                    Term::App("keep".into(), vec![Term::App("Cons".into(), vec![v("h"), v("t")])]),
+                    Term::App(
+                        "keep".into(),
+                        vec![Term::App("Cons".into(), vec![v("h"), v("t")])],
+                    ),
                     Term::App(
                         "Cons".into(),
                         vec![v("h"), Term::App("keep".into(), vec![v("t")])],
@@ -2137,10 +2127,7 @@ mod tests {
         let reg = Registry::with_builtins();
         let goal = Prop::Eq(v("x"), v("z"));
         // eq.trans needs two premise proofs; provide one.
-        let proof = ProofTerm::Apply(
-            "eq.trans".into(),
-            vec![ProofTerm::Refl],
-        );
+        let proof = ProofTerm::Apply("eq.trans".into(), vec![ProofTerm::Refl]);
         let err = check(&proof, &goal, &ctx, &reg).unwrap_err();
         assert!(matches!(err, ProofError::PremiseCount { .. }));
     }

@@ -296,7 +296,8 @@ fn main_inner() {
 
     // ── runa stress-gen [count] — generative stress testing ──
     if mode == "stress-gen" {
-        let count = filename.as_deref()
+        let count = filename
+            .as_deref()
             .and_then(|s| s.parse::<usize>().ok())
             .unwrap_or(100);
         run_stress_gen(count);
@@ -1226,7 +1227,10 @@ fn build_wasm(source: &str, filename: &str, use_prelude: bool) {
                 .map(|s| s.to_string_lossy().to_string());
             let wasm_issues = validation_cg.collect_wasm_export_issues(&stmts);
             if !wasm_issues.is_empty() {
-                eprintln!("\x1b[1;31merror\x1b[0m: unsupported WASM exports in {}", filename);
+                eprintln!(
+                    "\x1b[1;31merror\x1b[0m: unsupported WASM exports in {}",
+                    filename
+                );
                 for issue in wasm_issues {
                     eprintln!("  - {}", issue);
                 }
@@ -1726,7 +1730,10 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 fn run_stress_gen(count: usize) {
     use std::time::Instant;
 
-    eprintln!("\x1b[1mruna stress-gen\x1b[0m — generating {} random programs\n", count);
+    eprintln!(
+        "\x1b[1mruna stress-gen\x1b[0m — generating {} random programs\n",
+        count
+    );
 
     let start = Instant::now();
     let mut pass = 0;
@@ -1738,7 +1745,8 @@ fn run_stress_gen(count: usize) {
 
     let seed: u64 = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap().as_nanos() as u64;
+        .unwrap()
+        .as_nanos() as u64;
 
     for i in 0..count {
         let source = generate_random_program(seed.wrapping_add(i as u64));
@@ -1749,7 +1757,10 @@ fn run_stress_gen(count: usize) {
         let mut parser = Parser::new(tokens, &source);
         let stmts = match parser.parse_program() {
             Ok(s) => s,
-            Err(_) => { parse_fail += 1; continue; }
+            Err(_) => {
+                parse_fail += 1;
+                continue;
+            }
         };
 
         // Phase 2: Interpret
@@ -1774,7 +1785,11 @@ fn run_stress_gen(count: usize) {
         // Instead, verify the codegen doesn't crash and produces output.
         if rust_code.is_empty() || rust_code.len() < 50 {
             codegen_fail += 1;
-            failures.push((i, source.clone(), "codegen produced empty/tiny output".into()));
+            failures.push((
+                i,
+                source.clone(),
+                "codegen produced empty/tiny output".into(),
+            ));
             continue;
         }
 
@@ -1788,7 +1803,8 @@ fn run_stress_gen(count: usize) {
 
         if interp_output == interp_output2 {
             // Phase 5: Spot-check — compile every 10th program with rustc
-            if i % 10 == 0 && i < 100 { // Only spot-check first 100
+            if i % 10 == 0 && i < 100 {
+                // Only spot-check first 100
                 let tmp_rs = format!("/tmp/__runa_stressgen_{}.rs", i);
                 let tmp_bin = format!("/tmp/__runa_stressgen_{}", i);
                 if std::fs::write(&tmp_rs, &rust_code).is_ok() {
@@ -1806,10 +1822,15 @@ fn run_stress_gen(count: usize) {
                                 };
                                 if compiled != expected && compiled != interp_output {
                                     roundtrip_diverge += 1;
-                                    failures.push((i, source.clone(),
-                                        format!("roundtrip: interp={:?} compiled={:?}",
+                                    failures.push((
+                                        i,
+                                        source.clone(),
+                                        format!(
+                                            "roundtrip: interp={:?} compiled={:?}",
                                             interp_output.lines().next().unwrap_or(""),
-                                            compiled.lines().next().unwrap_or(""))));
+                                            compiled.lines().next().unwrap_or("")
+                                        ),
+                                    ));
                                     let _ = std::fs::remove_file(&tmp_rs);
                                     let _ = std::fs::remove_file(&tmp_bin);
                                     continue;
@@ -1832,27 +1853,47 @@ fn run_stress_gen(count: usize) {
             pass += 1;
         } else {
             interp_crash += 1;
-            failures.push((i, source.clone(),
-                format!("non-deterministic: run1={:?} run2={:?}",
+            failures.push((
+                i,
+                source.clone(),
+                format!(
+                    "non-deterministic: run1={:?} run2={:?}",
                     interp_output.lines().next().unwrap_or(""),
-                    interp_output2.lines().next().unwrap_or(""))));
+                    interp_output2.lines().next().unwrap_or("")
+                ),
+            ));
         }
     }
 
     let elapsed = start.elapsed();
     eprintln!("\x1b[1mResults:\x1b[0m ({:.1}s)\n", elapsed.as_secs_f64());
-    eprintln!("  \x1b[1;32m{:4}\x1b[0m  pass (interpreter == compiled)", pass);
+    eprintln!(
+        "  \x1b[1;32m{:4}\x1b[0m  pass (interpreter == compiled)",
+        pass
+    );
     if parse_fail > 0 {
-        eprintln!("  \x1b[2m{:4}\x1b[0m  parse fail (invalid generated program)", parse_fail);
+        eprintln!(
+            "  \x1b[2m{:4}\x1b[0m  parse fail (invalid generated program)",
+            parse_fail
+        );
     }
     if codegen_fail > 0 {
-        eprintln!("  \x1b[1;33m{:4}\x1b[0m  codegen fail (Rust didn't compile)", codegen_fail);
+        eprintln!(
+            "  \x1b[1;33m{:4}\x1b[0m  codegen fail (Rust didn't compile)",
+            codegen_fail
+        );
     }
     if roundtrip_diverge > 0 {
-        eprintln!("  \x1b[1;31m{:4}\x1b[0m  roundtrip diverge (interpreter ≠ compiled)", roundtrip_diverge);
+        eprintln!(
+            "  \x1b[1;31m{:4}\x1b[0m  roundtrip diverge (interpreter ≠ compiled)",
+            roundtrip_diverge
+        );
     }
     if interp_crash > 0 {
-        eprintln!("  \x1b[2m{:4}\x1b[0m  interpreter crash/timeout", interp_crash);
+        eprintln!(
+            "  \x1b[2m{:4}\x1b[0m  interpreter crash/timeout",
+            interp_crash
+        );
     }
 
     if !failures.is_empty() {
@@ -1903,7 +1944,10 @@ fn generate_random_program(seed: u64) -> String {
             let n = (rng.next_u32() % 100) as i64;
             let thresh = (rng.next_u32() % 100) as i64;
             lines.push(format!("> classify(n: Int) -> String {{"));
-            lines.push(format!("    if n > {} {{ \"big\" }} else {{ \"small\" }}", thresh));
+            lines.push(format!(
+                "    if n > {} {{ \"big\" }} else {{ \"small\" }}",
+                thresh
+            ));
             lines.push("}".into());
             lines.push(format!("@ print(classify({}))", n));
         }
@@ -2016,7 +2060,10 @@ fn generate_random_program(seed: u64) -> String {
             let a = (rng.next_u32() % 10) as i64;
             let b = (rng.next_u32() % 10) as i64;
             let c = (rng.next_u32() % 10) as i64;
-            lines.push(format!("= t = Node(Leaf({}), Node(Leaf({}), Leaf({})))", a, b, c));
+            lines.push(format!(
+                "= t = Node(Leaf({}), Node(Leaf({}), Leaf({})))",
+                a, b, c
+            ));
             lines.push("@ print(show(tsum(t)))".into());
         }
         // ── Prolog facts + findall ──
@@ -2064,16 +2111,22 @@ fn generate_random_program(seed: u64) -> String {
 }
 
 /// Minimal PRNG (xorshift64) for deterministic generation.
-struct SimpleRng { state: u64 }
+struct SimpleRng {
+    state: u64,
+}
 impl SimpleRng {
-    fn new(seed: u64) -> Self { Self { state: seed.max(1) } }
+    fn new(seed: u64) -> Self {
+        Self { state: seed.max(1) }
+    }
     fn next_u64(&mut self) -> u64 {
         self.state ^= self.state << 13;
         self.state ^= self.state >> 7;
         self.state ^= self.state << 17;
         self.state
     }
-    fn next_u32(&mut self) -> u32 { (self.next_u64() >> 16) as u32 }
+    fn next_u32(&mut self) -> u32 {
+        (self.next_u64() >> 16) as u32
+    }
 }
 
 fn run_benchmarks() {
@@ -4703,10 +4756,11 @@ impl ProofConstructorTable {
     fn from_adts(adts: &[(String, Vec<Variant>)]) -> Self {
         let mut table = Self::default();
         for (ty_name, variants) in adts {
-            let family: Vec<String> = variants.iter().map(|variant| variant.name.clone()).collect();
-            table
-                .family_by_type
-                .insert(ty_name.clone(), family.clone());
+            let family: Vec<String> = variants
+                .iter()
+                .map(|variant| variant.name.clone())
+                .collect();
+            table.family_by_type.insert(ty_name.clone(), family.clone());
         }
         for (ty_name, variants) in adts {
             let family = table
@@ -4755,15 +4809,14 @@ fn proof_recursive_field_positions(ty_name: &str, variant: &Variant) -> Vec<usiz
         .fields
         .iter()
         .enumerate()
-        .filter_map(|(index, field)| {
-            (proof_type_name(&field.ty) == Some(ty_name)).then_some(index)
-        })
+        .filter_map(|(index, field)| (proof_type_name(&field.ty) == Some(ty_name)).then_some(index))
         .collect()
 }
 
 #[cfg(test)]
 fn collect_function_param_types(stmts: &[Stmt]) -> BTreeMap<String, Vec<Option<Ty>>> {
-    stmts.iter()
+    stmts
+        .iter()
         .filter_map(|stmt| match stmt {
             Stmt::Defn(Defn::Fn { name, params, .. }) => Some((
                 name.clone(),
@@ -4834,7 +4887,13 @@ fn infer_expr_var_families(
                     }
                 }
             }
-            infer_expr_var_families(func, function_param_types, constructors, inferred, conflicted);
+            infer_expr_var_families(
+                func,
+                function_param_types,
+                constructors,
+                inferred,
+                conflicted,
+            );
             for arg in args {
                 infer_expr_var_families(
                     arg,
@@ -4846,11 +4905,29 @@ fn infer_expr_var_families(
             }
         }
         ExprKind::BinOp(_, lhs, rhs) => {
-            infer_expr_var_families(lhs, function_param_types, constructors, inferred, conflicted);
-            infer_expr_var_families(rhs, function_param_types, constructors, inferred, conflicted);
+            infer_expr_var_families(
+                lhs,
+                function_param_types,
+                constructors,
+                inferred,
+                conflicted,
+            );
+            infer_expr_var_families(
+                rhs,
+                function_param_types,
+                constructors,
+                inferred,
+                conflicted,
+            );
         }
         ExprKind::UnOp(_, inner) => {
-            infer_expr_var_families(inner, function_param_types, constructors, inferred, conflicted);
+            infer_expr_var_families(
+                inner,
+                function_param_types,
+                constructors,
+                inferred,
+                conflicted,
+            );
         }
         ExprKind::Tuple(elems) => {
             for elem in elems {
@@ -4934,9 +5011,9 @@ fn pattern_to_proof_term(pat: &Pat) -> Result<proof_kernel::Term, String> {
         Pat::Lit(Literal::Float(_)) => {
             Err("computation lemmas do not support float literal patterns".into())
         }
-        Pat::Lit(Literal::Str(_)) | Pat::Lit(Literal::Char(_)) => Err(
-            "computation lemmas only support integer, boolean, and constructor patterns".into(),
-        ),
+        Pat::Lit(Literal::Str(_)) | Pat::Lit(Literal::Char(_)) => {
+            Err("computation lemmas only support integer, boolean, and constructor patterns".into())
+        }
         Pat::Con(name, args) if args.is_empty() => Ok(proof_kernel::Term::Var(name.clone())),
         Pat::Con(name, args) => Ok(proof_kernel::Term::App(
             name.clone(),
@@ -5020,7 +5097,8 @@ fn computation_lemmas_for_function(
                 .skip(1)
                 .map(|param| proof_kernel::Term::Var(param.name.clone())),
         );
-        let conclusion = proof_kernel::Prop::Eq(proof_kernel::Term::App(name.into(), lhs_args), rhs);
+        let conclusion =
+            proof_kernel::Prop::Eq(proof_kernel::Term::App(name.into(), lhs_args), rhs);
 
         lemmas.push((
             format!("{}.{}", name, suffix),
@@ -5042,13 +5120,11 @@ fn collect_computation_lemmas(
     let mut lemmas = Vec::new();
     for stmt in stmts {
         if let Stmt::Defn(Defn::Fn {
-            name,
-            params,
-            body,
-            ..
+            name, params, body, ..
         }) = stmt
         {
-            if let Some(mut generated) = computation_lemmas_for_function(name, params, body, bindings)
+            if let Some(mut generated) =
+                computation_lemmas_for_function(name, params, body, bindings)
             {
                 lemmas.append(&mut generated);
             }
@@ -5513,15 +5589,16 @@ fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Explici
         if matches!(status, ExplicitProofStatus::Proved) {
             match invariant_proof_schema(&predicate, &bindings) {
                 Ok(schema) => {
-                    let mut next_reg =
-                        match build_explicit_proof_registry(&computation_lemmas, &proved_invariants)
-                        {
-                            Ok(reg) => reg,
-                            Err(err) => {
-                                statuses.insert(name.clone(), ExplicitProofStatus::Failed(err));
-                                continue;
-                            }
-                        };
+                    let mut next_reg = match build_explicit_proof_registry(
+                        &computation_lemmas,
+                        &proved_invariants,
+                    ) {
+                        Ok(reg) => reg,
+                        Err(err) => {
+                            statuses.insert(name.clone(), ExplicitProofStatus::Failed(err));
+                            continue;
+                        }
+                    };
                     if let Err(err) = next_reg.register(name.clone(), schema.clone()) {
                         statuses.insert(name.clone(), ExplicitProofStatus::Failed(err.to_string()));
                         continue;
@@ -5675,25 +5752,31 @@ fn verify_with_z3(source: &str, filename: &str) {
                     proof_block,
                     &reg,
                 ) {
-                    ExplicitProofStatus::Proved => match invariant_proof_schema(pred_expr, &bindings)
-                    {
-                        Ok(schema) => {
-                            let mut next_reg = reg;
-                            if let Err(err) = next_reg.register(inv_name.clone(), schema.clone()) {
-                                println!("  ✗ explicit proof failed in kernel: {}", err);
-                                println!("  falling back to Z3 for semantic verification\n");
-                            } else {
-                                proved_invariants.insert(inv_name.clone(), schema);
-                                println!("  ✓ PROVED by kernel: |{}| closed explicit proof", inv_name);
-                                println!();
-                                continue;
+                    ExplicitProofStatus::Proved => {
+                        match invariant_proof_schema(pred_expr, &bindings) {
+                            Ok(schema) => {
+                                let mut next_reg = reg;
+                                if let Err(err) =
+                                    next_reg.register(inv_name.clone(), schema.clone())
+                                {
+                                    println!("  ✗ explicit proof failed in kernel: {}", err);
+                                    println!("  falling back to Z3 for semantic verification\n");
+                                } else {
+                                    proved_invariants.insert(inv_name.clone(), schema);
+                                    println!(
+                                        "  ✓ PROVED by kernel: |{}| closed explicit proof",
+                                        inv_name
+                                    );
+                                    println!();
+                                    continue;
+                                }
+                            }
+                            Err(err) => {
+                                println!("  ? explicit proof unsupported in kernel path: {}", err);
+                                println!("  falling back to Z3\n");
                             }
                         }
-                        Err(err) => {
-                            println!("  ? explicit proof unsupported in kernel path: {}", err);
-                            println!("  falling back to Z3\n");
-                        }
-                    },
+                    }
                     ExplicitProofStatus::Failed(err) => {
                         println!("  ✗ explicit proof failed in kernel: {}", err);
                         println!("  falling back to Z3 for semantic verification\n");
@@ -9476,11 +9559,17 @@ impl<'a> LoweringCtx<'a> {
         // tuple element types this way regardless of arity.
         if let FirTy::Tuple(elems) = obj_ty {
             // Named accessors for the first two elements.
-            if field == "fst" && !elems.is_empty() { return elems[0].clone(); }
-            if field == "snd" && elems.len() >= 2 { return elems[1].clone(); }
+            if field == "fst" && !elems.is_empty() {
+                return elems[0].clone();
+            }
+            if field == "snd" && elems.len() >= 2 {
+                return elems[1].clone();
+            }
             // Numeric index: parse the field name as a usize and pick.
             if let Ok(idx) = field.parse::<usize>() {
-                if idx < elems.len() { return elems[idx].clone(); }
+                if idx < elems.len() {
+                    return elems[idx].clone();
+                }
             }
         }
         let FirTy::Named(type_name) = obj_ty else {
@@ -9683,7 +9772,9 @@ impl<'a> LoweringCtx<'a> {
                     if matches!(fn_name.as_str(), "head" | "nth") && !fir_args.is_empty() {
                         let elem_ty = if let FirTy::List(elem) = &fir_args[0].ty {
                             Some((**elem).clone())
-                        } else { None };
+                        } else {
+                            None
+                        };
                         if let Some(ty) = elem_ty {
                             return FirExpr {
                                 kind: FirExprKind::App(Box::new(fir_func), fir_args),
@@ -9695,7 +9786,9 @@ impl<'a> LoweringCtx<'a> {
                     if fn_name == "tail" && !fir_args.is_empty() {
                         let list_ty = if matches!(fir_args[0].ty, FirTy::List(_)) {
                             Some(fir_args[0].ty.clone())
-                        } else { None };
+                        } else {
+                            None
+                        };
                         if let Some(ty) = list_ty {
                             return FirExpr {
                                 kind: FirExprKind::App(Box::new(fir_func), fir_args),
@@ -9708,7 +9801,9 @@ impl<'a> LoweringCtx<'a> {
                     if fn_name == "map_entries" && !fir_args.is_empty() {
                         let kv = if let FirTy::Map(k, v) = &fir_args[0].ty {
                             Some(((**k).clone(), (**v).clone()))
-                        } else { None };
+                        } else {
+                            None
+                        };
                         if let Some((k, v)) = kv {
                             return FirExpr {
                                 kind: FirExprKind::App(Box::new(fir_func), fir_args),
@@ -9721,7 +9816,9 @@ impl<'a> LoweringCtx<'a> {
                     if fn_name == "map_keys" && !fir_args.is_empty() {
                         let k = if let FirTy::Map(k, _) = &fir_args[0].ty {
                             Some((**k).clone())
-                        } else { None };
+                        } else {
+                            None
+                        };
                         if let Some(k) = k {
                             return FirExpr {
                                 kind: FirExprKind::App(Box::new(fir_func), fir_args),
@@ -9733,7 +9830,9 @@ impl<'a> LoweringCtx<'a> {
                     if fn_name == "map_values" && !fir_args.is_empty() {
                         let v = if let FirTy::Map(_, v) = &fir_args[0].ty {
                             Some((**v).clone())
-                        } else { None };
+                        } else {
+                            None
+                        };
                         if let Some(v) = v {
                             return FirExpr {
                                 kind: FirExprKind::App(Box::new(fir_func), fir_args),
@@ -12325,7 +12424,6 @@ fn is_borrow_param_var(expr: &Expr, current_borrow_params: &BTreeSet<String>) ->
     false
 }
 
-
 /// Check if a type's ALL type arguments are Copy types.
 /// For Pair(Int, Int) → true. For Pair(Int, String) → false. For Name("Int") → true.
 fn type_has_all_copy_args(ty: &Ty) -> bool {
@@ -13719,16 +13817,10 @@ impl RustCodegen {
             out.push_str("        }\n");
             out.push_str("    }\n");
             out.push_str("}\n");
-            out.push_str(
-                "\n#[derive(Clone)]\nstruct __FutStream<T: Clone + Send + 'static> {\n",
-            );
+            out.push_str("\n#[derive(Clone)]\nstruct __FutStream<T: Clone + Send + 'static> {\n");
             out.push_str("    tx: tokio::sync::broadcast::Sender<(u64, T)>,\n");
-            out.push_str(
-                "    history: std::sync::Arc<std::sync::Mutex<Vec<(u64, T)>>>,\n",
-            );
-            out.push_str(
-                "    next_seq: std::sync::Arc<std::sync::atomic::AtomicU64>,\n",
-            );
+            out.push_str("    history: std::sync::Arc<std::sync::Mutex<Vec<(u64, T)>>>,\n");
+            out.push_str("    next_seq: std::sync::Arc<std::sync::atomic::AtomicU64>,\n");
             out.push_str("}\n");
             out.push_str("impl<T: Clone + Send + 'static> __FutStream<T> {\n");
             out.push_str("    fn new() -> Self {\n");
@@ -13754,9 +13846,7 @@ impl RustCodegen {
             out.push_str("        self.tx.subscribe()\n");
             out.push_str("    }\n");
             out.push_str("    fn watermark(&self) -> u64 {\n");
-            out.push_str(
-                "        self.next_seq.load(std::sync::atomic::Ordering::SeqCst)\n",
-            );
+            out.push_str("        self.next_seq.load(std::sync::atomic::Ordering::SeqCst)\n");
             out.push_str("    }\n");
             out.push_str("    fn snapshot(&self) -> Vec<T> {\n");
             out.push_str(
@@ -13851,8 +13941,7 @@ impl RustCodegen {
             }
         }
 
-        self.lib_static_names =
-            self.collect_top_level_binding_getter_names(&main_stmts, &fn_stmts);
+        self.lib_static_names = self.collect_top_level_binding_getter_names(&main_stmts, &fn_stmts);
 
         // Pass 2: Borrow analysis (extracted from emit_program)
         self.compute_borrow_flags(&fn_stmts);
@@ -13944,9 +14033,12 @@ impl RustCodegen {
                                     if let ExprKind::App(func, typed_args) = &arg.kind {
                                         if let ExprKind::Var(n) = &func.kind {
                                             if n == "__typed" && typed_args.len() == 2 {
-                                                if let ExprKind::Var(type_name) = &typed_args[1].kind {
-                                                    self.types.typed_rule_types.insert(
-                                                        fn_name.clone(), type_name.clone());
+                                                if let ExprKind::Var(type_name) =
+                                                    &typed_args[1].kind
+                                                {
+                                                    self.types
+                                                        .typed_rule_types
+                                                        .insert(fn_name.clone(), type_name.clone());
                                                 }
                                             }
                                         }
@@ -15677,21 +15769,27 @@ impl RustCodegen {
                         &merged_effects,
                     ));
                 }
-                Stmt::Defn(Defn::Actor { name, .. }) if self.types.exported_names.contains(name) => {
+                Stmt::Defn(Defn::Actor { name, .. })
+                    if self.types.exported_names.contains(name) =>
+                {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
                         "export `{}` is unsupported in WASM: only top-level functions are shipped today",
                         name
                     ));
                 }
-                Stmt::Defn(Defn::Module { name, .. }) if self.types.exported_names.contains(name) => {
+                Stmt::Defn(Defn::Module { name, .. })
+                    if self.types.exported_names.contains(name) =>
+                {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
                         "export `{}` is unsupported in WASM: modules are not JS-callable exports",
                         name
                     ));
                 }
-                Stmt::TypeDecl(TypeDecl::ADT { name, .. }) if self.types.exported_names.contains(name) => {
+                Stmt::TypeDecl(TypeDecl::ADT { name, .. })
+                    if self.types.exported_names.contains(name) =>
+                {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
                         "export `{}` is unsupported in WASM: type exports are not JS-callable yet",
@@ -15799,9 +15897,13 @@ impl RustCodegen {
                     args.iter().any(|a| {
                         if let ExprKind::App(func, _) = &a.kind {
                             matches!(&func.kind, ExprKind::Var(n) if n == "__typed")
-                        } else { false }
+                        } else {
+                            false
+                        }
                     })
-                } else { false };
+                } else {
+                    false
+                };
                 has_ground || has_conjunction || has_body_literals || has_typed
             } else {
                 false
@@ -16406,11 +16508,15 @@ impl RustCodegen {
 
                 // Typed rules: enumerate type variants instead of fact table
                 if let Some(type_name) = self.types.typed_rule_types.get(&fn_name).cloned() {
-                    let variant_names: Vec<&String> = self.types.variant_parent.iter()
+                    let variant_names: Vec<&String> = self
+                        .types
+                        .variant_parent
+                        .iter()
                         .filter(|(_, parent)| **parent == type_name)
                         .map(|(name, _)| name)
                         .collect();
-                    let items: Vec<String> = variant_names.iter()
+                    let items: Vec<String> = variant_names
+                        .iter()
                         .map(|v| format!("{}::{}", type_name, v))
                         .collect();
                     return format!("vec![{}]", items.join(", "));
@@ -16420,11 +16526,15 @@ impl RustCodegen {
                 if !self.types.prolog_rule_fns.contains_key(&fn_name) {
                     if let Some(type_name) = self.types.typed_rule_types.get(&fn_name).cloned() {
                         // Typed rule: enumerate all variants of the type
-                        let variant_names: Vec<&String> = self.types.variant_parent.iter()
+                        let variant_names: Vec<&String> = self
+                            .types
+                            .variant_parent
+                            .iter()
                             .filter(|(_, parent)| **parent == type_name)
                             .map(|(name, _)| name)
                             .collect();
-                        let items: Vec<String> = variant_names.iter()
+                        let items: Vec<String> = variant_names
+                            .iter()
                             .map(|v| format!("{}::{}", type_name, v))
                             .collect();
                         return format!("vec![{}]", items.join(", "));
@@ -17856,8 +17966,7 @@ impl RustCodegen {
                     self.indent += 1;
                     out.push_str(&format!(
                         "{}match __seed_{} {{\n",
-                        self.ind()
-                        ,
+                        self.ind(),
                         self.sub_counter
                     ));
                     self.indent += 1;
@@ -17866,7 +17975,11 @@ impl RustCodegen {
                         out.push_str(&format!("{}{} => {{\n", self.ind(), pat_str));
                         self.indent += 1;
                         if let Some(guard) = &arm.guard {
-                            out.push_str(&format!("{}if {} {{\n", self.ind(), self.emit_expr(guard)));
+                            out.push_str(&format!(
+                                "{}if {} {{\n",
+                                self.ind(),
+                                self.emit_expr(guard)
+                            ));
                             self.indent += 1;
                         }
                         out.push_str(&format!("{};\n", self.emit_expr(&arm.body)));
@@ -17906,11 +18019,7 @@ impl RustCodegen {
                     // Values
                     for arm in &value_arms {
                         let pat_str = self.emit_pattern_match(&arm.pat);
-                        out.push_str(&format!(
-                            "{}Ok((_, {})) => {{\n",
-                            self.ind(),
-                            pat_str
-                        ));
+                        out.push_str(&format!("{}Ok((_, {})) => {{\n", self.ind(), pat_str));
                         self.indent += 1;
                         if let Some(guard) = &arm.guard {
                             out.push_str(&format!(
@@ -18204,7 +18313,9 @@ impl RustCodegen {
                     self.indent += 1;
                     out.push_str(&format!(
                         "{}while let Ok((__seq, {})) = _rx_{}.recv().await {{\n",
-                        self.ind(), var, self.sub_counter
+                        self.ind(),
+                        var,
+                        self.sub_counter
                     ));
                     self.indent += 1;
                     out.push_str(&format!(
@@ -20290,7 +20401,11 @@ impl RustCodegen {
                             {
                                 // Captured by FnMut iter closure: clone per call so the
                                 // capture survives subsequent iterations.
-                                if s.ends_with(".clone()") { s } else { format!("{}.clone()", s) }
+                                if s.ends_with(".clone()") {
+                                    s
+                                } else {
+                                    format!("{}.clone()", s)
+                                }
                             } else if self
                                 .var_consuming_counts
                                 .get(n.as_str())
@@ -20312,10 +20427,7 @@ impl RustCodegen {
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
                     if builtin_canonical(name) == "show" && args_str.len() == 1 {
                         if self.has_async && self.is_async_stream_expr(&args[0]) {
-                            return format!(
-                                "__futuruna_show_any(&{}.snapshot())",
-                                args_str[0]
-                            );
+                            return format!("__futuruna_show_any(&{}.snapshot())", args_str[0]);
                         }
                         if self.expr_is_string(&args[0]) {
                             return format!("format!(\"{{}}\", {})", args_str[0]);
@@ -20930,7 +21042,12 @@ impl RustCodegen {
                     } else {
                         format!("{} ", clones.join(" "))
                     };
-                    format!("{{ {}move |{}| {} }}", clone_prefix, ps.join(", "), body_str)
+                    format!(
+                        "{{ {}move |{}| {} }}",
+                        clone_prefix,
+                        ps.join(", "),
+                        body_str
+                    )
                 }
             }
             ExprKind::BinOp(op, lhs, rhs) => {
@@ -21011,8 +21128,16 @@ impl RustCodegen {
                 // fix (see td-208efa).
                 let then_is_borrow = is_borrow_param_var(then_, &self.current_borrow_params);
                 let else_is_borrow = is_borrow_param_var(else_, &self.current_borrow_params);
-                let t = if then_is_borrow && !else_is_borrow { format!("{}.clone()", t) } else { t };
-                let e = if else_is_borrow && !then_is_borrow { format!("{}.clone()", e) } else { e };
+                let t = if then_is_borrow && !else_is_borrow {
+                    format!("{}.clone()", t)
+                } else {
+                    t
+                };
+                let e = if else_is_borrow && !then_is_borrow {
+                    format!("{}.clone()", e)
+                } else {
+                    e
+                };
                 format!("if {} {{ {} }} else {{ {} }}", c, t, e)
             }
             ExprKind::Match(scrut, arms) => {
@@ -21736,8 +21861,7 @@ impl RustCodegen {
                         }
                         // Sort by original position to maintain correct println! order
                         tmp_names.sort_by_key(|(i, _)| *i);
-                        let new_args: Vec<String> =
-                            tmp_names.into_iter().map(|(_, n)| n).collect();
+                        let new_args: Vec<String> = tmp_names.into_iter().map(|(_, n)| n).collect();
                         if !hoisted.is_empty() {
                             return format!(
                                 "{}{}println!({:?}, {});\n",
@@ -23558,7 +23682,10 @@ mod tests {
         }
         match statuses.get("mul_comm_ok") {
             Some(ExplicitProofStatus::Proved) => {}
-            other => panic!("expected proved multiplication-commutativity proof, got {:?}", other),
+            other => panic!(
+                "expected proved multiplication-commutativity proof, got {:?}",
+                other
+            ),
         }
         match statuses.get("literal_order_ok") {
             Some(ExplicitProofStatus::Proved) => {}
@@ -24788,7 +24915,9 @@ mod tests {
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(
-            rust.contains("// ? add_comm by { ... } checked by runa verify; no runtime proof emission"),
+            rust.contains(
+                "// ? add_comm by { ... } checked by runa verify; no runtime proof emission"
+            ),
             "explicit proof blocks should emit a comment, not runtime verification: {}",
             rust
         );
@@ -24836,7 +24965,8 @@ mod tests {
 
     #[test]
     fn ownership_analysis_counts_repeated_self_recursive_passthrough_args() {
-        let source = "> visit(expr: String, env: String) -> String { visit(expr, env) + visit(expr, env) }";
+        let source =
+            "> visit(expr: String, env: String) -> String { visit(expr, env) + visit(expr, env) }";
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
         let mut parser = Parser::new(tokens, source);
