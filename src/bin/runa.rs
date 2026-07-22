@@ -19894,8 +19894,12 @@ impl RustCodegen {
                         // 1. Constructors: never clone (enum variants)
                         // 2. Copy types: never clone (i64, f64, char — free to duplicate)
                         // 3. Borrow builtins (show → .to_string()): never clone (borrows via &self)
-                        // 4. Single consuming use: move (no clone)
-                        // 5. Multiple consuming uses: clone
+                        // 4. Captured non-Copy var inside an iter closure: ALWAYS clone
+                        //    (the closure runs many times, so even a "single use"
+                        //    actually executes once per iteration — moving on iter 1
+                        //    leaves nothing for iter 2+)
+                        // 5. Single consuming use: move (no clone)
+                        // 6. Multiple consuming uses: clone
                         if let ExprKind::Var(n) = &a.kind {
                             if self.types.variant_parent.contains_key(n.as_str()) {
                                 s // Constructor — never clone
@@ -19903,6 +19907,15 @@ impl RustCodegen {
                                 s // Copy type — no clone needed (free to duplicate)
                             } else if is_borrow_call {
                                 s // Borrow builtin (show) — borrows via &self, no clone
+                            } else if self.in_iter_closure
+                                && !self.closure_params.contains(n.as_str())
+                                && !self.types.user_functions.contains(n.as_str())
+                                && !self.types.prolog_rule_fns.contains_key(n.as_str())
+                                && !self.builtin_registry.contains_key(n.as_str())
+                            {
+                                // Captured by FnMut iter closure: clone per call so the
+                                // capture survives subsequent iterations.
+                                if s.ends_with(".clone()") { s } else { format!("{}.clone()", s) }
                             } else if self
                                 .var_consuming_counts
                                 .get(n.as_str())
@@ -20143,10 +20156,22 @@ impl RustCodegen {
                             }
                             let param_tys =
                                 self.resolve_lambda_param_tys(params, body, &seeded_param_tys);
+                            // Mark this as an iterator closure so the body's
+                            // captured-var lookups insert .clone() per iteration.
+                            // The standard Lambda case (line ~20442) does this for
+                            // explicit lambdas; the foldl fast path needs the same
+                            // bookkeeping or captured non-Copy vars get moved on
+                            // the first iteration and fail to compile.
+                            let prev_in_iter = self.in_iter_closure;
+                            let prev_closure_params = std::mem::take(&mut self.closure_params);
+                            self.in_iter_closure = true;
+                            self.closure_params = params.iter().map(|p| p.name.clone()).collect();
                             let body_code =
                                 self.with_temporary_param_types(params, &param_tys, |cg| {
                                     cg.emit_expr(body)
                                 });
+                            self.in_iter_closure = prev_in_iter;
+                            self.closure_params = prev_closure_params;
                             let coll = self.emit_expr(&args[0]);
                             let init = self.emit_expr(&args[1]);
                             let closure_params = params
