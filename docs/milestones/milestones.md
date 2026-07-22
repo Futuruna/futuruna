@@ -564,7 +564,7 @@ The most universal gap. Every real program needs string manipulation beyond
 - [x] **`ends_with(s, suffix)`** → `Bool` — suffix test
 - [x] **`replace(s, old, new)`** → `String` — replace all occurrences
 - [x] **`to_upper(s)` / `to_lower(s)`** → `String` — case conversion
-- [x] **`substring(s, start, end)`** → `String` — extract substring by index
+- [x] **`substring(s, start, len)`** → `String` — extract substring by start index and length
 - [x] **`char_at(s, idx)`** → `String` — single character by index
 - [x] **`index_of(s, sub)`** → `Int` — find substring position (-1 if absent)
 - [x] **`format_float(x, decimals)`** → `String` — format with precision

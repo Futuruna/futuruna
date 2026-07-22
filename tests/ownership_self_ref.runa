@@ -14,13 +14,19 @@
 
 > get_token(source: String, spans: List(Span), idx: Int) -> String {
     = span = spans[idx]
-    substring(source, span_start(span), span_stop(span))
+    = start = span_start(span)
+    = stop = span_stop(span)
+    substring(source, start, stop - start)
 }
 
 = source = "hello world"
 = spans = [Span(0, 5), Span(6, 11)]
 = tok0 = get_token(source, spans, 0)
 = tok1 = get_token(source, spans, 1)
+| tok0_ok: tok0 -> tok0 == "hello"
+| tok1_ok: tok1 -> tok1 == "world"
+? tok0_ok
+? tok1_ok
 @ print("Token 0: " + tok0)
 @ print("Token 1: " + tok1)
 @ print("PASS: Pattern 1 — parsed doc with offsets (no self-reference)")
@@ -68,13 +74,15 @@
 
 > highlight(text: String, from: Int, to: Int) -> String {
     = before = substring(text, 0, from)
-    = mid = substring(text, from, to)
-    = after = substring(text, to, length(text))
+    = mid = substring(text, from, to - from)
+    = after = substring(text, to, length(text) - to)
     before + "[" + mid + "]" + after
 }
 
 = text = "The quick brown fox jumps over the lazy dog"
 = highlighted = highlight(text, 4, 9)
+| highlighted_ok: highlighted -> highlighted == "The [quick] brown fox jumps over the lazy dog"
+? highlighted_ok
 @ print(highlighted)
 
 = h2 = highlight(highlighted, 20, 23)

@@ -43,6 +43,7 @@
 ? keep_ok
 ? replace_ok
 
-= sliced = substring("the cat sat", 4, 3)
-| substring_len_ok: sliced -> sliced == "cat"
-? substring_len_ok
+= world = "the cat sat"
+= sliced = substring(world, 4, 5)
+| substring_length_ok: sliced -> sliced == "cat s"
+? substring_length_ok

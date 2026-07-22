@@ -33,7 +33,9 @@
 @ print("to_lower: " + to_lower("HELLO"))
 
 -- substring
-= sub = substring("hello world", 0, 5)
+= sub = substring("the cat sat", 4, 5)
+| substring_ok: sub -> sub == "cat s"
+? substring_ok
 @ print("substring: " + sub)
 
 -- char_at

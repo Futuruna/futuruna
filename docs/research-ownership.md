@@ -145,7 +145,9 @@ The tree traversal, depth calculation, and DFS all work with zero annotations. T
 
 > get_token(source: String, spans: List(Span), idx: Int) -> String {
     = span = spans[idx]
-    substring(source, span_start(span), span_stop(span))
+    = start = span_start(span)
+    = stop = span_stop(span)
+    substring(source, start, stop - start)
 }
 
 = source = "hello world"

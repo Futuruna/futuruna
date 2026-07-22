@@ -62,7 +62,7 @@ Built into the compiler — no imports needed. Every function here is available 
 | `replace` | `(String, String, String) -> String` | Replace all occurrences |
 | `to_upper` | `String -> String` | Convert to uppercase |
 | `to_lower` | `String -> String` | Convert to lowercase |
-| `substring` | `(String, Int, Int) -> String` | Extract substring by index range |
+| `substring` | `(String, Int, Int) -> String` | Extract substring by start index and length |
 | `char_at` | `(String, Int) -> String` | Single character by index |
 | `index_of` | `(String, String) -> Int` | Find substring position (-1 if absent) |
 | `format_float` | `(Float, Int) -> String` | Format float with N decimal places |
@@ -76,7 +76,7 @@ Built into the compiler — no imports needed. Every function here is available 
 = clean = trim("  hello  ")            -- "hello"
 = has = contains("hello world", "world")  -- true
 = upper = to_upper("hello")            -- "HELLO"
-= sub = substring("abcdef", 1, 4)      -- "bcd"
+= sub = substring("the cat sat", 4, 5)  -- "cat s"
 = ch = char_at("hello", 0)             -- "h"
 = pos = index_of("hello", "ll")        -- 2
 = fmt = format_float(3.14159, 2)        -- "3.14"

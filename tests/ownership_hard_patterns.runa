@@ -69,7 +69,7 @@ bus <- Notify
 
 -- PATTERN 4: Undo/redo via immutable snapshots
 > editor_insert(content: String, cursor: Int, ch: String) -> String {
-    substring(content, 0, cursor) + ch + substring(content, cursor, length(content))
+    substring(content, 0, cursor) + ch + substring(content, cursor, length(content) - cursor)
 }
 
 = content0 = ""
