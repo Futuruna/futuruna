@@ -7,7 +7,8 @@ use futuruna::*;
 use serde_json;
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
-use std::io::{self, BufRead, Write as IoWrite};
+use std::io::{self, BufRead, Read, Write as IoWrite};
+use std::path::{Path, PathBuf};
 
 fn main() {
     // Use a large stack (64 MB) to handle deep recursion in comptime evaluation
@@ -35,6 +36,8 @@ fn main_inner() {
     let mut fmt_check = false; // --check flag for `runa fmt --check`
     let mut use_fir = false; // --fir flag for `runa emit --fir`
     let mut check_codegen = false; // --check-codegen flag for `runa test --check-codegen`
+    let mut stress_seed = None;
+    let mut stress_save_failures = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -77,6 +80,37 @@ fn main_inner() {
             }
             "--roundtrip" if mode == "test" => {
                 mode = "test-roundtrip";
+                i += 1;
+            }
+            "--seed" if mode == "stress-gen" => {
+                if i + 1 >= args.len() {
+                    eprintln!("error: --seed requires an integer value");
+                    std::process::exit(1);
+                }
+                stress_seed = Some(args[i + 1].parse::<u64>().unwrap_or_else(|_| {
+                    eprintln!("error: invalid --seed value '{}'", args[i + 1]);
+                    std::process::exit(1);
+                }));
+                i += 2;
+            }
+            arg if mode == "stress-gen" && arg.starts_with("--seed=") => {
+                let value = &arg["--seed=".len()..];
+                stress_seed = Some(value.parse::<u64>().unwrap_or_else(|_| {
+                    eprintln!("error: invalid --seed value '{}'", value);
+                    std::process::exit(1);
+                }));
+                i += 1;
+            }
+            "--save-failures" if mode == "stress-gen" => {
+                if i + 1 >= args.len() {
+                    eprintln!("error: --save-failures requires a directory");
+                    std::process::exit(1);
+                }
+                stress_save_failures = Some(args[i + 1].clone());
+                i += 2;
+            }
+            arg if mode == "stress-gen" && arg.starts_with("--save-failures=") => {
+                stress_save_failures = Some(arg["--save-failures=".len()..].to_string());
                 i += 1;
             }
             "--run" => {
@@ -128,10 +162,13 @@ fn main_inner() {
                 eprintln!("  from-rust --verify  Transpile + run both + compare outputs");
                 eprintln!("  test          Run all tests/*.runa (interpreted)");
                 eprintln!("  test --run    Run all tests/*.runa (compiled + executed)");
+                eprintln!("  stress-gen    Generate programs and compare interpreter vs compiled");
                 eprintln!();
                 eprintln!("Options:");
                 eprintln!("  --version     Show version");
                 eprintln!("  --no-prelude  Don't auto-import standard prelude");
+                eprintln!("  --seed N      Use a fixed RNG seed with `runa stress-gen`");
+                eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
                 eprintln!("Examples:");
                 eprintln!("  runa program.runa           Interpret");
@@ -143,6 +180,7 @@ fn main_inner() {
                 eprintln!("  runa fmt .                  Format all .runa files");
                 eprintln!("  runa test                   Run all tests");
                 eprintln!("  runa test --run             Run all tests (compiled)");
+                eprintln!("  runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff");
                 eprintln!();
                 eprintln!("  runa audit program.runa     Discover invariant gaps automatically");
                 std::process::exit(0);
@@ -296,11 +334,14 @@ fn main_inner() {
 
     // ── runa stress-gen [count] — generative stress testing ──
     if mode == "stress-gen" {
-        let count = filename
-            .as_deref()
-            .and_then(|s| s.parse::<usize>().ok())
-            .unwrap_or(100);
-        run_stress_gen(count);
+        let count = match filename.as_deref() {
+            Some(raw) => raw.parse::<usize>().unwrap_or_else(|_| {
+                eprintln!("error: stress-gen count must be an integer, got '{}'", raw);
+                std::process::exit(1);
+            }),
+            None => 100,
+        };
+        run_stress_gen(count, stress_seed, stress_save_failures.as_deref());
         return;
     }
 
@@ -1727,13 +1768,93 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
 /// Run performance benchmarks and report metrics.
 /// Generative stress testing: produce random valid Futuruna programs,
 /// run through interpreter + codegen, compare outputs.
-fn run_stress_gen(count: usize) {
+fn save_stress_failure(
+    save_dir: &Path,
+    base_seed: u64,
+    case_index: usize,
+    reason: &str,
+    source: &str,
+) -> io::Result<(PathBuf, PathBuf)> {
+    std::fs::create_dir_all(save_dir)?;
+    let stem = format!("seed-{}-case-{:04}", base_seed, case_index);
+    let source_path = save_dir.join(format!("{}.runa", stem));
+    let meta_path = save_dir.join(format!("{}.txt", stem));
+    let case_seed = base_seed.wrapping_add(case_index as u64);
+    let quoted_source = format!("{:?}", source_path);
+    let quoted_dir = format!("{:?}", save_dir);
+    let metadata = format!(
+        "base_seed: {base_seed}\ncase_index: {case_index}\ncase_seed: {case_seed}\nreason: {reason}\n\nReplay:\n  runa {quoted_source}\n  runa run {quoted_source}\n  runa emit {quoted_source}\n  runa stress-gen {} --seed {} --save-failures {quoted_dir}\n",
+        case_index + 1,
+        base_seed
+    );
+
+    std::fs::write(&source_path, source)?;
+    std::fs::write(&meta_path, metadata)?;
+    Ok((source_path, meta_path))
+}
+
+fn run_command_with_timeout(
+    program: &str,
+    args: &[&str],
+    timeout: std::time::Duration,
+) -> io::Result<std::process::Output> {
+    let mut child = std::process::Command::new(program)
+        .args(args)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()?;
+    let start = std::time::Instant::now();
+
+    loop {
+        if let Some(status) = child.try_wait()? {
+            let mut stdout = Vec::new();
+            let mut stderr = Vec::new();
+            if let Some(mut pipe) = child.stdout.take() {
+                pipe.read_to_end(&mut stdout)?;
+            }
+            if let Some(mut pipe) = child.stderr.take() {
+                pipe.read_to_end(&mut stderr)?;
+            }
+            return Ok(std::process::Output {
+                status,
+                stdout,
+                stderr,
+            });
+        }
+
+        if start.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!("timed out after {:.1}s", timeout.as_secs_f64()),
+            ));
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+fn run_stress_gen(count: usize, seed: Option<u64>, save_failures: Option<&str>) {
     use std::time::Instant;
 
+    let base_seed = seed.unwrap_or_else(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64
+    });
+    let save_dir = save_failures.map(PathBuf::from);
+
     eprintln!(
-        "\x1b[1mruna stress-gen\x1b[0m — generating {} random programs\n",
+        "\x1b[1mruna stress-gen\x1b[0m — generating {} random programs",
         count
     );
+    eprintln!("  base seed: {}", base_seed);
+    if let Some(dir) = &save_dir {
+        eprintln!("  saving failures to: {}", dir.display());
+    }
+    eprintln!();
 
     let start = Instant::now();
     let mut pass = 0;
@@ -1741,15 +1862,26 @@ fn run_stress_gen(count: usize) {
     let mut interp_crash = 0;
     let mut codegen_fail = 0;
     let mut roundtrip_diverge = 0;
-    let mut failures: Vec<(usize, String, String)> = Vec::new(); // (id, source, reason)
+    let mut failures: Vec<(usize, String, String, Option<PathBuf>)> = Vec::new();
 
-    let seed: u64 = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos() as u64;
+    let mut record_failure = |case_index: usize, source: &str, reason: String| {
+        let saved = save_dir.as_deref().and_then(|dir| {
+            match save_stress_failure(dir, base_seed, case_index, &reason, source) {
+                Ok((source_path, _meta_path)) => Some(source_path),
+                Err(err) => {
+                    eprintln!(
+                        "warning: failed to save stress failure {}: {}",
+                        case_index, err
+                    );
+                    None
+                }
+            }
+        });
+        failures.push((case_index, source.to_string(), reason, saved));
+    };
 
     for i in 0..count {
-        let source = generate_random_program(seed.wrapping_add(i as u64));
+        let source = generate_random_program(base_seed.wrapping_add(i as u64));
 
         // Phase 1: Parse
         let mut lexer = Lexer::new(&source);
@@ -1785,11 +1917,7 @@ fn run_stress_gen(count: usize) {
         // Instead, verify the codegen doesn't crash and produces output.
         if rust_code.is_empty() || rust_code.len() < 50 {
             codegen_fail += 1;
-            failures.push((
-                i,
-                source.clone(),
-                "codegen produced empty/tiny output".into(),
-            ));
+            record_failure(i, &source, "codegen produced empty/tiny output".into());
             continue;
         }
 
@@ -1805,15 +1933,29 @@ fn run_stress_gen(count: usize) {
             // Phase 5: Spot-check — compile every 10th program with rustc
             if i % 10 == 0 && i < 100 {
                 // Only spot-check first 100
-                let tmp_rs = format!("/tmp/__runa_stressgen_{}.rs", i);
-                let tmp_bin = format!("/tmp/__runa_stressgen_{}", i);
-                if std::fs::write(&tmp_rs, &rust_code).is_ok() {
-                    let compile = std::process::Command::new("rustc")
-                        .args(&[&tmp_rs, "--edition", "2021", "-o", &tmp_bin])
-                        .output();
-                    match compile {
-                        Ok(out) if out.status.success() => {
-                            if let Ok(run) = std::process::Command::new(&tmp_bin).output() {
+                let tmp_rs = format!("/tmp/__runa_stressgen_{}_{}.rs", base_seed, i);
+                let tmp_bin = format!("/tmp/__runa_stressgen_{}_{}", base_seed, i);
+                if let Err(err) = std::fs::write(&tmp_rs, &rust_code) {
+                    codegen_fail += 1;
+                    record_failure(
+                        i,
+                        &source,
+                        format!("failed to write generated Rust to disk: {}", err),
+                    );
+                    continue;
+                }
+
+                let compile = std::process::Command::new("rustc")
+                    .args([&tmp_rs, "--edition", "2021", "-o", &tmp_bin])
+                    .output();
+                match compile {
+                    Ok(out) if out.status.success() => {
+                        match run_command_with_timeout(
+                            &tmp_bin,
+                            &[],
+                            std::time::Duration::from_secs(3),
+                        ) {
+                            Ok(run) => {
                                 let compiled = String::from_utf8_lossy(&run.stdout).to_string();
                                 let expected = if interp_output.is_empty() {
                                     String::new()
@@ -1822,46 +1964,65 @@ fn run_stress_gen(count: usize) {
                                 };
                                 if compiled != expected && compiled != interp_output {
                                     roundtrip_diverge += 1;
-                                    failures.push((
+                                    record_failure(
                                         i,
-                                        source.clone(),
+                                        &source,
                                         format!(
                                             "roundtrip: interp={:?} compiled={:?}",
                                             interp_output.lines().next().unwrap_or(""),
                                             compiled.lines().next().unwrap_or("")
                                         ),
-                                    ));
+                                    );
                                     let _ = std::fs::remove_file(&tmp_rs);
                                     let _ = std::fs::remove_file(&tmp_bin);
                                     continue;
                                 }
                             }
+                            Err(err) => {
+                                codegen_fail += 1;
+                                record_failure(
+                                    i,
+                                    &source,
+                                    format!("compiled binary failed to finish: {}", err),
+                                );
+                                let _ = std::fs::remove_file(&tmp_rs);
+                                let _ = std::fs::remove_file(&tmp_bin);
+                                continue;
+                            }
                         }
-                        Ok(_) => {
-                            codegen_fail += 1;
-                            failures.push((i, source.clone(), "rustc compile failed".into()));
-                            let _ = std::fs::remove_file(&tmp_rs);
-                            let _ = std::fs::remove_file(&tmp_bin);
-                            continue;
-                        }
-                        _ => {}
                     }
-                    let _ = std::fs::remove_file(&tmp_rs);
-                    let _ = std::fs::remove_file(&tmp_bin);
+                    Ok(out) => {
+                        codegen_fail += 1;
+                        let stderr = String::from_utf8_lossy(&out.stderr);
+                        let reason = stderr.lines().next().unwrap_or("rustc compile failed");
+                        record_failure(i, &source, format!("rustc compile failed: {}", reason));
+                        let _ = std::fs::remove_file(&tmp_rs);
+                        let _ = std::fs::remove_file(&tmp_bin);
+                        continue;
+                    }
+                    Err(err) => {
+                        codegen_fail += 1;
+                        record_failure(i, &source, format!("failed to spawn rustc: {}", err));
+                        let _ = std::fs::remove_file(&tmp_rs);
+                        let _ = std::fs::remove_file(&tmp_bin);
+                        continue;
+                    }
                 }
+                let _ = std::fs::remove_file(&tmp_rs);
+                let _ = std::fs::remove_file(&tmp_bin);
             }
             pass += 1;
         } else {
             interp_crash += 1;
-            failures.push((
+            record_failure(
                 i,
-                source.clone(),
+                &source,
                 format!(
                     "non-deterministic: run1={:?} run2={:?}",
                     interp_output.lines().next().unwrap_or(""),
                     interp_output2.lines().next().unwrap_or("")
                 ),
-            ));
+            );
         }
     }
 
@@ -1898,8 +2059,11 @@ fn run_stress_gen(count: usize) {
 
     if !failures.is_empty() {
         eprintln!("\n\x1b[1;31m── Failures ──\x1b[0m\n");
-        for (id, source, reason) in failures.iter().take(5) {
+        for (id, source, reason, saved) in failures.iter().take(5) {
             eprintln!("  Program #{}: {}", id, reason);
+            if let Some(path) = saved {
+                eprintln!("    saved: {}", path.display());
+            }
             for (j, line) in source.lines().enumerate().take(8) {
                 eprintln!("    {:2}  {}", j + 1, line);
             }
@@ -12197,7 +12361,7 @@ fn collect_mutable_vars(stmts: &[&Stmt], mutable: &mut BTreeSet<String>) {
         if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
             bound.insert(name.clone());
         }
-        if let Stmt::For(_, _, body) = stmt {
+        if let Stmt::For(_, _, body) | Stmt::While(_, body) = stmt {
             collect_rebound_in_body(body, &bound, mutable);
         }
     }
@@ -12218,7 +12382,7 @@ fn collect_mutable_vars(stmts: &[&Stmt], mutable: &mut BTreeSet<String>) {
 fn collect_called_vars(stmt: &Stmt, called: &mut BTreeSet<String>) {
     match stmt {
         Stmt::Expr(expr) | Stmt::Bind(_, _, expr) => collect_called_vars_expr(expr, called),
-        Stmt::For(_, iter, body) => {
+        Stmt::For(_, iter, body) | Stmt::While(iter, body) => {
             collect_called_vars_expr(iter, called);
             for s in body {
                 collect_called_vars(s, called);
@@ -12357,7 +12521,9 @@ fn collect_rebound_in_body(
                 }
             }
             Stmt::Expr(expr) => collect_rebound_in_expr(expr, bound, mutable),
-            Stmt::For(_, _, body) => collect_rebound_in_body(body, bound, mutable),
+            Stmt::For(_, _, body) | Stmt::While(_, body) => {
+                collect_rebound_in_body(body, bound, mutable)
+            }
             _ => {}
         }
     }
@@ -18399,9 +18565,27 @@ impl RustCodegen {
             }
             Stmt::While(cond, body_stmts) => {
                 let cond_str = self.emit_expr(cond);
+                let rebound_vars: Vec<String> = body_stmts
+                    .iter()
+                    .filter_map(|s| {
+                        if let Stmt::Bind(Pat::Var(name), _, _) = s {
+                            if self.mutable_vars.contains(name.as_str()) {
+                                return Some(name.clone());
+                            }
+                        }
+                        None
+                    })
+                    .collect();
                 let mut out = format!("{}while {} {{\n", self.ind(), cond_str);
                 self.indent += 1;
                 for s in body_stmts {
+                    if let Stmt::Bind(Pat::Var(name), _, value) = s {
+                        if rebound_vars.contains(name) {
+                            let val_str = self.emit_expr(value);
+                            out.push_str(&format!("{}{} = {};\n", self.ind(), name, val_str));
+                            continue;
+                        }
+                    }
                     out.push_str(&self.emit_stmt(s));
                 }
                 self.indent -= 1;

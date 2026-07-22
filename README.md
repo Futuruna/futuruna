@@ -88,10 +88,12 @@ runa hashes program.runa    # Show content-addressed hashes
 runa test                   # Run all tests/*.runa (interpreted)
 runa test --run             # Run all tests/*.runa (compiled)
 runa test --roundtrip tests # Compare interpreter vs compiled output
+runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 ./scripts/mint.sh           # Canonical "is Futuruna mint?" gate
+./scripts/differential.sh   # Reproducible differential and generative lane
 ```
 
-See [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract and the remaining optional lanes.
+See [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
 
 ## What Futuruna Unifies
 
@@ -126,6 +128,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 ## Documentation
 
 - `docs/language-sketch.md` - Language design and three-axis analysis
+- `docs/differential-testing.md` - Reproducible differential and generative testing
 - `docs/mint-gate.md` - Canonical verification gate for keeping Futuruna mint
 - `docs/milestones.md` - Compiler milestones (M1-M15)
 - `docs/ownership-design.md` - Memory model (Kotlin-to-Rust philosophy)

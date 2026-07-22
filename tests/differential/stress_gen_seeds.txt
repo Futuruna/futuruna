@@ -1,0 +1,5 @@
+# Stable seeds for the differential lane. Add new seeds when stress-gen finds
+# bugs that are worth replaying routinely.
+42
+424242
+1311768467463790320
