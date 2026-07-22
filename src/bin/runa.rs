@@ -24466,6 +24466,69 @@ mod tests {
         (cg, stmts)
     }
 
+    fn compile_and_run_test_program(source: &str) -> String {
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+
+        let diags = TypeChecker::check_with_diagnostics(&stmts, None, source);
+        assert!(
+            diags.is_empty(),
+            "typecheck failed for compiled regression: {:?}",
+            diags
+        );
+
+        let mut cg = RustCodegen::new();
+        let code = cg.emit_program(&stmts);
+
+        let temp_name = format!(
+            "futuruna_compiled_wrapper_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let rs_path = temp_dir.join("wrapper_regression.rs");
+        let bin_path = temp_dir.join("wrapper_regression_bin");
+        std::fs::write(&rs_path, &code).unwrap();
+
+        let rustc_bin = find_rust_tool("rustc");
+        let compile = std::process::Command::new(&rustc_bin)
+            .args([
+                rs_path.to_str().unwrap(),
+                "-o",
+                bin_path.to_str().unwrap(),
+                "--edition",
+                "2021",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            compile.status.success(),
+            "generated Rust failed to compile:\nstdout:\n{}\nstderr:\n{}\ncode:\n{}",
+            String::from_utf8_lossy(&compile.stdout),
+            String::from_utf8_lossy(&compile.stderr),
+            code
+        );
+
+        let run = std::process::Command::new(&bin_path).output().unwrap();
+        assert!(
+            run.status.success(),
+            "compiled regression program failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&run.stdout),
+            String::from_utf8_lossy(&run.stderr)
+        );
+
+        let output = String::from_utf8_lossy(&run.stdout).replace("\r\n", "\n");
+        let _ = std::fs::remove_file(&rs_path);
+        let _ = std::fs::remove_file(&bin_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        output
+    }
+
     #[test]
     fn type_resolution_int_literal() {
         let fir = lower_with_types("= x = 42", BTreeMap::new());
@@ -24925,6 +24988,59 @@ mod tests {
             !rust.contains("panic!(\"? add_comm FAILED\")"),
             "explicit proof blocks must not lower to runtime ? checks: {}",
             rust
+        );
+    }
+
+    #[test]
+    fn compiled_rust_trait_wrappers_dispatch_futuruna_impl_methods() {
+        let source = r#"
+# trait Printable {
+    > display(self) -> String
+}
+
+# Color = Red | Green | Blue
+
+# impl Printable for Color {
+    > display(self) -> String {
+        match self {
+            | Red -> "Red"
+            | Green -> "Green"
+            | Blue -> "Blue"
+        }
+    }
+}
+
+# Shape = Circle(radius: Float) | Rectangle(width: Float, height: Float)
+
+# impl Printable for Shape {
+    > display(self) -> String {
+        match self {
+            | Circle(radius: r) -> "Circle(" + show(r) + ")"
+            | Rectangle(width: w, height: h) -> "Rect(" + show(w) + "x" + show(h) + ")"
+        }
+    }
+}
+
+@ rust {
+    fn render_color(x: Color) -> String {
+        x.display()
+    }
+
+    fn render_shape(x: Shape) -> String {
+        x.display()
+    }
+}
+
+@ print(render_color(Red))
+@ print(render_color(Blue))
+@ print(render_shape(Circle(5.0)))
+@ print(render_shape(Rectangle(3.0, 4.0)))
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(
+            output.lines().collect::<Vec<_>>(),
+            vec!["Red", "Blue", "Circle(5)", "Rect(3x4)"]
         );
     }
 
