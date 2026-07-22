@@ -8665,8 +8665,10 @@ struct RustCodegen {
     mutable_vars: BTreeSet<String>,
     /// Library mode: emit no fn main(), exported names get pub
     lib_mode: bool,
-    /// Names emitted as pub fn getters in lib mode (need () at use sites)
+    /// Top-level bindings that can be referenced through generated getter functions
     lib_static_names: BTreeSet<String>,
+    /// Emit getter calls for top-level bindings when direct local names are out of scope
+    allow_global_getter_refs: bool,
     /// Function return types: fn_name → Rust type string (for lib mode getter inference)
     fn_return_types: BTreeMap<String, String>,
     /// Local bindings in current function (names from let/= bindings, NOT top-level)
@@ -12342,6 +12344,7 @@ impl RustCodegen {
             mutable_vars: BTreeSet::new(),
             lib_mode: false,
             lib_static_names: BTreeSet::new(),
+            allow_global_getter_refs: false,
             fn_return_types: BTreeMap::new(),
             local_bindings: BTreeSet::new(),
             in_iter_closure: false,
@@ -13504,23 +13507,13 @@ impl RustCodegen {
             self.types.rc_types = recursive_types;
         }
 
-        // In lib mode, pre-scan bindings that will become LazyLock statics
-        // so emit_expr can dereference them at reference sites.
-        if self.lib_mode {
-            for stmt in stmts {
-                if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
-                    if name.starts_with("__") {
-                        continue;
-                    }
-                    // Any top-level binding that's not a function def becomes a static
-                    self.lib_static_names.insert(name.clone());
+        // Pre-scan top-level bindings that can be addressed via getter functions.
+        for stmt in stmts {
+            if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
+                if name.starts_with("__") {
+                    continue;
                 }
-            }
-            // Also comptime values
-            for name in self.types.comptime_values.keys() {
-                if !name.starts_with("__") {
-                    self.lib_static_names.insert(name.clone());
-                }
+                self.lib_static_names.insert(name.clone());
             }
         }
 
@@ -13852,6 +13845,9 @@ impl RustCodegen {
                 _ => main_stmts.push(stmt),
             }
         }
+
+        self.lib_static_names =
+            self.collect_top_level_binding_getter_names(&main_stmts, &fn_stmts);
 
         // Pass 2: Borrow analysis (extracted from emit_program)
         self.compute_borrow_flags(&fn_stmts);
@@ -14322,6 +14318,11 @@ impl RustCodegen {
             }
         }
 
+        if !self.lib_static_names.is_empty() || !self.types.comptime_values.is_empty() {
+            out.push_str(&self.emit_top_level_binding_getters(&main_stmts, self.lib_mode));
+            out.push('\n');
+        }
+
         // Emit main function — with escape analysis
         // Count variable uses across all main statements
         self.copy_vars.clear();
@@ -14527,130 +14528,165 @@ impl RustCodegen {
             }
             self.indent = 0;
             out.push_str("}\n");
-        } else {
-            // lib_mode: emit top-level bindings as pub fn getters.
-            // Other functions reference them via name() calls (tracked in lib_static_names).
+        }
 
-            // Emit comptime values as pub fn getters with concrete return types
-            for (name, rust_lit) in &self.types.comptime_values {
-                if name.starts_with("__") || rust_lit.is_empty() {
+        out
+    }
+
+    fn infer_top_level_binding_getter_type(&self, ty_ann: Option<&Ty>, expr: &Expr) -> String {
+        if let Some(ty) = ty_ann {
+            return self.emit_type(ty);
+        }
+
+        match &expr.kind {
+            ExprKind::Var(ctor) if self.types.variant_parent.contains_key(ctor.as_str()) => self
+                .types
+                .variant_parent
+                .get(ctor.as_str())
+                .cloned()
+                .unwrap_or_else(|| "impl Clone".to_string()),
+            ExprKind::App(func, _) => {
+                if let ExprKind::Var(fn_name) = &func.as_ref().kind {
+                    if self.types.variant_parent.contains_key(fn_name.as_str()) {
+                        self.types
+                            .variant_parent
+                            .get(fn_name.as_str())
+                            .cloned()
+                            .unwrap_or_else(|| "impl Clone".to_string())
+                    } else if let Some(ret_ty) = self.fn_return_types.get(fn_name.as_str()) {
+                        ret_ty.clone()
+                    } else {
+                        "impl Clone".to_string()
+                    }
+                } else {
+                    "impl Clone".to_string()
+                }
+            }
+            ExprKind::List(elems) => {
+                if let Some(first) = elems.first() {
+                    if let ExprKind::Var(ctor) = &first.kind {
+                        if let Some(parent) = self.types.variant_parent.get(ctor.as_str()) {
+                            format!("Vec<{}>", parent)
+                        } else {
+                            "Vec<i64>".to_string()
+                        }
+                    } else if let ExprKind::App(func, _) = &first.kind {
+                        if let ExprKind::Var(ctor) = &func.as_ref().kind {
+                            if let Some(parent) = self.types.variant_parent.get(ctor.as_str()) {
+                                format!("Vec<{}>", parent)
+                            } else if let Some(ret) = self.fn_return_types.get(ctor.as_str()) {
+                                format!("Vec<{}>", ret)
+                            } else {
+                                "Vec<i64>".to_string()
+                            }
+                        } else {
+                            "Vec<i64>".to_string()
+                        }
+                    } else if let ExprKind::Lit(Literal::Str(_)) = &first.kind {
+                        "Vec<String>".to_string()
+                    } else if let ExprKind::Lit(Literal::Float(_)) = &first.kind {
+                        "Vec<f64>".to_string()
+                    } else if let ExprKind::Lit(Literal::Bool(_)) = &first.kind {
+                        "Vec<bool>".to_string()
+                    } else {
+                        "Vec<i64>".to_string()
+                    }
+                } else {
+                    "Vec<i64>".to_string()
+                }
+            }
+            ExprKind::Lit(Literal::Str(_)) => "String".to_string(),
+            ExprKind::Lit(Literal::Int(_)) => "i64".to_string(),
+            ExprKind::Lit(Literal::Float(_)) => "f64".to_string(),
+            ExprKind::Lit(Literal::Bool(_)) => "bool".to_string(),
+            _ => "impl Clone".to_string(),
+        }
+    }
+
+    fn emit_top_level_binding_getters(&mut self, main_stmts: &[&Stmt], public: bool) -> String {
+        let mut out = String::new();
+        let pub_prefix = if public { "pub " } else { "" };
+        let emit_all = public;
+        let prev_allow_global_getter_refs =
+            std::mem::replace(&mut self.allow_global_getter_refs, true);
+
+        for (name, rust_lit) in &self.types.comptime_values {
+            if name.starts_with("__") || rust_lit.is_empty() {
+                continue;
+            }
+            if !emit_all && !self.lib_static_names.contains(name.as_str()) {
+                continue;
+            }
+            let rust_ty = self
+                .types
+                .comptime_types
+                .get(name)
+                .cloned()
+                .unwrap_or_else(|| "impl Clone".to_string());
+            let sname = sanitize_name(name);
+            out.push_str(&format!(
+                "{}fn {}() -> {} {{ {} }}\n",
+                pub_prefix, sname, rust_ty, rust_lit
+            ));
+        }
+
+        for stmt in main_stmts {
+            if let Stmt::Bind(Pat::Var(name), ty_ann, expr) = stmt {
+                if name.starts_with("__") || self.types.comptime_values.contains_key(name) {
                     continue;
                 }
-                let rust_ty = self
-                    .types
-                    .comptime_types
-                    .get(name)
-                    .cloned()
-                    .unwrap_or_else(|| "impl Clone".to_string());
+                if !emit_all && !self.lib_static_names.contains(name.as_str()) {
+                    continue;
+                }
+                let body = self.emit_expr(expr);
                 let sname = sanitize_name(name);
+                let ret_ty = self.infer_top_level_binding_getter_type(ty_ann.as_ref(), expr);
                 out.push_str(&format!(
-                    "pub fn {}() -> {} {{ {} }}\n",
-                    sname, rust_ty, rust_lit
+                    "{}fn {}() -> {} {{ {} }}\n",
+                    pub_prefix, sname, ret_ty, body
                 ));
             }
+        }
 
-            // Emit non-comptime top-level bindings as pub fn getters
-            for stmt in &main_stmts {
-                if let Stmt::Bind(Pat::Var(name), ty_ann, expr) = stmt {
-                    if name.starts_with("__") {
-                        continue;
-                    }
-                    if self.types.comptime_values.contains_key(name) {
-                        continue;
-                    }
-                    let body = self.emit_expr(expr);
-                    let sname = sanitize_name(name);
+        self.allow_global_getter_refs = prev_allow_global_getter_refs;
+        out
+    }
 
-                    let ret_ty = if let Some(ty) = ty_ann {
-                        self.emit_type(ty)
-                    } else {
-                        match &expr.kind {
-                            ExprKind::Var(ctor)
-                                if self.types.variant_parent.contains_key(ctor.as_str()) =>
-                            {
-                                self.types
-                                    .variant_parent
-                                    .get(ctor.as_str())
-                                    .cloned()
-                                    .unwrap_or_else(|| "impl Clone".to_string())
-                            }
-                            ExprKind::App(func, _) => {
-                                if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                                    if self.types.variant_parent.contains_key(fn_name.as_str()) {
-                                        // Constructor call → return parent type
-                                        self.types
-                                            .variant_parent
-                                            .get(fn_name.as_str())
-                                            .cloned()
-                                            .unwrap_or_else(|| "impl Clone".to_string())
-                                    } else if let Some(ret_ty) =
-                                        self.fn_return_types.get(fn_name.as_str())
-                                    {
-                                        // Known function with declared return type
-                                        ret_ty.clone()
-                                    } else {
-                                        "impl Clone".to_string()
-                                    }
-                                } else {
-                                    "impl Clone".to_string()
-                                }
-                            }
-                            ExprKind::List(elems) => {
-                                // Infer element type from first element
-                                if let Some(first) = elems.first() {
-                                    if let ExprKind::Var(ctor) = &first.kind {
-                                        if let Some(parent) =
-                                            self.types.variant_parent.get(ctor.as_str())
-                                        {
-                                            format!("Vec<{}>", parent)
-                                        } else {
-                                            "Vec<i64>".to_string()
-                                        }
-                                    } else if let ExprKind::App(func, _) = &first.kind {
-                                        if let ExprKind::Var(ctor) = &func.as_ref().kind {
-                                            if let Some(parent) =
-                                                self.types.variant_parent.get(ctor.as_str())
-                                            {
-                                                format!("Vec<{}>", parent)
-                                            } else if let Some(ret) =
-                                                self.fn_return_types.get(ctor.as_str())
-                                            {
-                                                format!("Vec<{}>", ret)
-                                            } else {
-                                                "Vec<i64>".to_string()
-                                            }
-                                        } else {
-                                            "Vec<i64>".to_string()
-                                        }
-                                    } else if let ExprKind::Lit(Literal::Str(_)) = &first.kind {
-                                        "Vec<String>".to_string()
-                                    } else if let ExprKind::Lit(Literal::Float(_)) = &first.kind {
-                                        "Vec<f64>".to_string()
-                                    } else if let ExprKind::Lit(Literal::Bool(_)) = &first.kind {
-                                        "Vec<bool>".to_string()
-                                    } else {
-                                        "Vec<i64>".to_string()
-                                    }
-                                } else {
-                                    "Vec<i64>".to_string()
-                                }
-                            }
-                            ExprKind::Lit(Literal::Str(_)) => "String".to_string(),
-                            ExprKind::Lit(Literal::Int(_)) => "i64".to_string(),
-                            ExprKind::Lit(Literal::Float(_)) => "f64".to_string(),
-                            ExprKind::Lit(Literal::Bool(_)) => "bool".to_string(),
-                            _ => "impl Clone".to_string(),
-                        }
-                    };
-                    out.push_str(&format!(
-                        "pub fn {}() -> {} {{ {} }}\n",
-                        sname, ret_ty, body
-                    ));
+    fn collect_top_level_binding_getter_names(
+        &self,
+        main_stmts: &[&Stmt],
+        fn_stmts: &[&Stmt],
+    ) -> BTreeSet<String> {
+        let mut bind_counts: BTreeMap<String, usize> = BTreeMap::new();
+        for stmt in main_stmts {
+            if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
+                if !name.starts_with("__") {
+                    *bind_counts.entry(name.clone()).or_insert(0) += 1;
                 }
             }
         }
 
-        out
+        if self.lib_mode {
+            return bind_counts.keys().cloned().collect();
+        }
+
+        let top_level_names: BTreeSet<String> = bind_counts.keys().cloned().collect();
+        let mut getter_names = BTreeSet::new();
+
+        for stmt in fn_stmts {
+            if let Stmt::Defn(Defn::Fn { params, body, .. }) = stmt {
+                let bound: BTreeSet<String> = params.iter().map(|p| p.name.clone()).collect();
+                let mut free = BTreeSet::new();
+                collect_true_free_vars(body, &mut free, &bound);
+                for name in free {
+                    if top_level_names.contains(&name) && bind_counts.get(&name) == Some(&1) {
+                        getter_names.insert(name);
+                    }
+                }
+            }
+        }
+
+        getter_names
     }
 
     /// Check if a type recursively references the given ADT name
@@ -17246,6 +17282,8 @@ impl RustCodegen {
                 // emit as a loop with parameter reassignment instead of recursive calls.
                 // Disable TCE when a borrowed param gets a new value in a tail call
                 // (can't reassign &T loop variables).
+                let prev_allow_global_getter_refs =
+                    std::mem::replace(&mut self.allow_global_getter_refs, true);
                 let tce_safe = is_tail_recursive(name, body)
                     && !tce_has_borrowed_param_update(name, params, &borrow_flags, body);
                 if tce_safe {
@@ -17253,6 +17291,7 @@ impl RustCodegen {
                 } else {
                     out.push_str(&self.emit_expr_as_return(body));
                 }
+                self.allow_global_getter_refs = prev_allow_global_getter_refs;
                 self.indent = 0;
                 out.push_str("}\n");
                 // Restore previous state (for nested functions)
@@ -20065,11 +20104,10 @@ impl RustCodegen {
                     return format!("{}::{}", parent, name);
                 }
                 let sname = sanitize_name(name);
-                // lib mode: top-level bindings are pub fn getters — call them
-                // But NOT if the name is a parameter of the current function
-                // (current_borrow_params tracks current fn params that are &T,
-                //  var_types tracks all current fn params)
-                if self.lib_mode
+                // Function/getter contexts can resolve top-level bindings through
+                // generated getter functions, but only when the name is not
+                // shadowed by a local binding or parameter.
+                if self.allow_global_getter_refs
                     && self.lib_static_names.contains(name.as_str())
                     && !self.current_borrow_params.contains(name.as_str())
                     && !self.var_types.contains_key(name)
@@ -20801,6 +20839,10 @@ impl RustCodegen {
                     self.var_consuming_counts.insert(name.clone(), 0);
                     self.copy_vars.insert(name.clone());
                 }
+                let prev_local_bindings = self.local_bindings.clone();
+                for name in &lambda_param_names {
+                    self.local_bindings.insert(name.clone());
+                }
                 // Mark as iterator closure so captured vars get .clone()
                 let prev_in_iter = self.in_iter_closure;
                 let prev_closure_params = std::mem::take(&mut self.closure_params);
@@ -20826,6 +20868,7 @@ impl RustCodegen {
                         self.copy_vars.remove(&name);
                     }
                 }
+                self.local_bindings = prev_local_bindings;
                 // Identify truly captured variables: free in body, not params, not functions/builtins
                 let param_bound: BTreeSet<String> = lambda_param_names.iter().cloned().collect();
                 let mut free_in_body = BTreeSet::new();
@@ -20971,6 +21014,8 @@ impl RustCodegen {
                 let s = self.emit_expr(scrut);
                 let mut out = format!("match {} {{\n", s);
                 for arm in arms {
+                    let prev_local_bindings = self.local_bindings.clone();
+                    collect_pattern_names(&arm.pat, &mut self.local_bindings);
                     let pat = self.emit_pattern_match(&arm.pat);
                     // Build guard: combine user guard + boxed pattern guards
                     let user_guard = arm.guard.as_ref().map(|g| self.emit_expr(g));
@@ -21024,6 +21069,7 @@ impl RustCodegen {
                         out.push_str(&format!("{}        {}\n", self.ind(), body));
                         out.push_str(&format!("{}    }},\n", self.ind()));
                     }
+                    self.local_bindings = prev_local_bindings;
                 }
                 out.push_str(&format!("{}}}", self.ind()));
                 out
@@ -21031,6 +21077,7 @@ impl RustCodegen {
             ExprKind::Block(stmts) => {
                 let prev_var_types = self.var_types.clone();
                 let prev_var_fir_types = self.var_fir_types.clone();
+                let prev_local_bindings = self.local_bindings.clone();
                 let mut out = "{\n".to_string();
                 let saved_indent = self.indent;
                 // Can't use &mut self here since emit_expr takes &self
@@ -21064,6 +21111,7 @@ impl RustCodegen {
                                     prefix, pat_str, val_str
                                 ));
                             }
+                            collect_pattern_names(pat, &mut self.local_bindings);
                         }
                         Stmt::MonadicBind(pat, ty, value) => {
                             let pat_str = self.emit_pattern_binding(pat);
@@ -21078,6 +21126,7 @@ impl RustCodegen {
                                 "{}let {} = {}{};\n",
                                 prefix, pat_str, val_str, suffix
                             ));
+                            collect_pattern_names(pat, &mut self.local_bindings);
                         }
                         Stmt::Expr(expr) if is_last => {
                             out.push_str(&format!("{}{}\n", prefix, self.emit_expr(expr)));
@@ -21120,6 +21169,7 @@ impl RustCodegen {
                 }
                 self.var_types = prev_var_types;
                 self.var_fir_types = prev_var_fir_types;
+                self.local_bindings = prev_local_bindings;
                 out.push_str(&format!("{}}}", "    ".repeat(saved_indent)));
                 out
             }
@@ -24692,6 +24742,32 @@ mod tests {
         assert!(
             rust.contains("let big = is_big_point(Point { x: 20.0, y: 5.0 });"),
             "plain rule calls should not auto-borrow owned struct params: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_hoists_top_level_bindings_for_free_function_reads() {
+        let source = r#"
+= answer = 42
+> read_answer() -> Int { answer }
+@ print(show(read_answer()))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn answer() -> i64 { 42i64 }"),
+            "top-level binding should get a companion getter: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn read_answer() -> i64 {\n    answer()\n}"),
+            "free function should resolve the top-level binding through its getter: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let answer = 42i64;"),
+            "main should still evaluate the top-level binding eagerly: {}",
             rust
         );
     }

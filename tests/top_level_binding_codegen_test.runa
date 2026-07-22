@@ -1,0 +1,7 @@
+= answer = 42
+
+> read_answer() -> Int { answer }
+
+= seen = read_answer()
+| answer_visible: seen -> seen == 42
+? answer_visible
