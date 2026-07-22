@@ -8373,7 +8373,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("replace",      BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.replace(&*{1}, &*{2})" }),
         ("to_upper",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.to_uppercase()" }),
         ("to_lower",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.to_lowercase()" }),
-        ("substring",    BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start = ({1} as usize).min(__s.len()); let __end = ({2} as usize).min(__s.len()); __s[__start..__end].iter().collect::<String>() }" }),
+        ("substring",    BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start = ({1} as usize).min(__s.len()); let __end = (__start + ({2} as usize)).min(__s.len()); __s[__start..__end].iter().collect::<String>() }" }),
         ("char_at",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __i = {1} as usize; if __i < __s.len() { __s[__i].to_string() } else { String::new() } }" }),
         ("index_of",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.find(&*{1}).map(|p| p as i64).unwrap_or(-1i64)" }),
         ("format_float", BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "format!(\"{:.prec$}\", {0} as f64, prec = {1} as usize)" }),
