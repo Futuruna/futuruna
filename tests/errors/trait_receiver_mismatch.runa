@@ -1,0 +1,5 @@
+-- expect-error: must declare `self` as its first parameter
+# trait Printable { > display(self) -> String }
+# impl Printable for String {
+    > display(s) -> String { s }
+}

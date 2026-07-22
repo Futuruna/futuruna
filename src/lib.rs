@@ -10754,6 +10754,10 @@ pub struct TypeChecker {
     pub trait_methods: BTreeMap<String, Vec<String>>,
     /// (trait_name, for_type) -> provided method names
     pub impl_methods: BTreeMap<(String, String), Vec<String>>,
+    /// (trait_name, method_name) -> receiver semantics required by the trait
+    trait_method_receivers: BTreeMap<(String, String), MethodReceiverShape>,
+    /// (trait_name, for_type, method_name) -> receiver semantics provided by the impl
+    impl_method_receivers: BTreeMap<(String, String, String), MethodReceiverShape>,
     /// structured diagnostics accumulated during checking
     pub diagnostics: Vec<Diagnostic>,
     /// current variable scope stack
@@ -10781,6 +10785,8 @@ impl TypeChecker {
             effect_ops: BTreeMap::new(),
             trait_methods: BTreeMap::new(),
             impl_methods: BTreeMap::new(),
+            trait_method_receivers: BTreeMap::new(),
+            impl_method_receivers: BTreeMap::new(),
             diagnostics: Vec::new(),
             scopes: vec![BTreeSet::new()],
             user_functions: BTreeSet::new(),
@@ -10994,6 +11000,23 @@ impl TypeChecker {
         tc.functions.insert("subject".into(), 0);
         tc.functions.insert("complete".into(), 1);
         tc
+    }
+
+    fn method_receiver_shape(params: &[Param]) -> MethodReceiverShape {
+        let mut saw_self = false;
+        for (index, param) in params.iter().enumerate() {
+            if param.name == "self" {
+                if saw_self || index != 0 {
+                    return MethodReceiverShape::Invalid;
+                }
+                saw_self = true;
+            }
+        }
+        if saw_self {
+            MethodReceiverShape::SelfFirst
+        } else {
+            MethodReceiverShape::None
+        }
     }
 
     pub fn push_scope(&mut self) {
@@ -11274,6 +11297,10 @@ impl TypeChecker {
                         self.functions
                             .insert(method.name.clone(), method.params.len());
                         method_names.push(method.name.clone());
+                        self.trait_method_receivers.insert(
+                            (name.clone(), method.name.clone()),
+                            Self::method_receiver_shape(&method.params),
+                        );
                     }
                     self.trait_methods.insert(name.clone(), method_names);
                 }
@@ -11287,6 +11314,10 @@ impl TypeChecker {
                         if let Defn::Fn { name, params, .. } = defn {
                             self.functions.insert(name.clone(), params.len());
                             method_names.push(name.clone());
+                            self.impl_method_receivers.insert(
+                                (trait_name.clone(), for_type.clone(), name.clone()),
+                                Self::method_receiver_shape(params),
+                            );
                         }
                     }
                     self.impl_methods
@@ -11453,6 +11484,14 @@ impl TypeChecker {
     /// Verify each `# impl Trait for Type` provides all required methods.
     fn check_trait_impls(&mut self) {
         let mut errors = Vec::new();
+        for ((trait_name, for_type, method_name), shape) in &self.impl_method_receivers {
+            if *shape == MethodReceiverShape::Invalid {
+                errors.push(format!(
+                    "`# impl {} for {}` method `{}` uses `self` in an invalid position; `self` must be the first parameter",
+                    trait_name, for_type, method_name
+                ));
+            }
+        }
         for ((trait_name, for_type), provided) in &self.impl_methods {
             if let Some(required) = self.trait_methods.get(trait_name) {
                 let missing: Vec<&String> = required
@@ -11468,6 +11507,39 @@ impl TypeChecker {
                         if missing.len() == 1 { "" } else { "s" },
                         missing_names.join(", ")
                     ));
+                }
+                for method_name in required {
+                    if !provided.iter().any(|p| p == method_name) {
+                        continue;
+                    }
+                    let trait_shape = self
+                        .trait_method_receivers
+                        .get(&(trait_name.clone(), method_name.clone()))
+                        .copied()
+                        .unwrap_or(MethodReceiverShape::None);
+                    let impl_shape = self
+                        .impl_method_receivers
+                        .get(&(trait_name.clone(), for_type.clone(), method_name.clone()))
+                        .copied()
+                        .unwrap_or(MethodReceiverShape::None);
+                    if impl_shape == MethodReceiverShape::Invalid || trait_shape == impl_shape {
+                        continue;
+                    }
+                    match (trait_shape, impl_shape) {
+                        (MethodReceiverShape::SelfFirst, MethodReceiverShape::None) => errors.push(
+                            format!(
+                                "`# impl {} for {}` method `{}` must declare `self` as its first parameter to match the trait receiver",
+                                trait_name, for_type, method_name
+                            ),
+                        ),
+                        (MethodReceiverShape::None, MethodReceiverShape::SelfFirst) => errors.push(
+                            format!(
+                                "`# impl {} for {}` method `{}` must not declare `self`; the trait method is not a receiver method",
+                                trait_name, for_type, method_name
+                            ),
+                        ),
+                        _ => {}
+                    }
                 }
             }
         }
@@ -11524,7 +11596,6 @@ impl TypeChecker {
                     } = defn
                     {
                         self.push_scope();
-                        self.define_var("self");
                         for p in params {
                             self.define_var(&p.name);
                         }
@@ -11543,7 +11614,6 @@ impl TypeChecker {
                     } = defn
                     {
                         self.push_scope();
-                        self.define_var("self");
                         for p in params {
                             self.define_var(&p.name);
                         }
@@ -12059,6 +12129,13 @@ impl TypeChecker {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MethodReceiverShape {
+    None,
+    SelfFirst,
+    Invalid,
+}
+
 // ============================================================================
 // PUBLIC EVAL API
 // ============================================================================
@@ -12482,7 +12559,7 @@ mod tests {
 
     #[test]
     fn trait_complete_impl_no_error() {
-        let source = "# trait Greetable { > greet(self) -> String }\n# impl Greetable for String { > greet(s) -> String { s } }";
+        let source = "# trait Greetable { > greet(self) -> String }\n# impl Greetable for String { > greet(self) -> String { self } }";
         let diags = check_source_for_diagnostics(source);
         let trait_errors: Vec<_> = diags
             .iter()
@@ -12492,6 +12569,20 @@ mod tests {
             trait_errors.is_empty(),
             "complete impl should have no errors, got: {:?}",
             trait_errors
+        );
+    }
+
+    #[test]
+    fn trait_receiver_mismatch_produces_error() {
+        let source = "# trait Displayable { > display(self) -> String }\n# impl Displayable for String { > display(s) -> String { s } }";
+        let diags = check_source_for_diagnostics(source);
+        let receiver_errors: Vec<_> = diags
+            .iter()
+            .filter(|d| d.message.contains("must declare `self` as its first parameter"))
+            .collect();
+        assert!(
+            !receiver_errors.is_empty(),
+            "receiver mismatch should produce an explicit error"
         );
     }
 
