@@ -189,6 +189,7 @@ pub struct Ctx {
     hyps: Vec<Hyp>,
     ctor_families: BTreeMap<String, Vec<String>>,
     ctor_arities: BTreeMap<String, usize>,
+    ctor_field_families: BTreeMap<String, Vec<Option<Vec<String>>>>,
     ctor_recursive_fields: BTreeMap<String, Vec<usize>>,
     var_ctor_families: BTreeMap<String, Vec<String>>,
 }
@@ -224,6 +225,17 @@ impl Ctx {
         let mut new = self.clone();
         new.ctor_families.insert(name.clone(), family);
         new.ctor_arities.insert(name, arity);
+        new
+    }
+
+    /// Register constructor field families for branch binder propagation.
+    pub fn with_constructor_field_families(
+        &self,
+        name: String,
+        field_families: Vec<Option<Vec<String>>>,
+    ) -> Self {
+        let mut new = self.clone();
+        new.ctor_field_families.insert(name, field_families);
         new
     }
 
@@ -264,6 +276,10 @@ impl Ctx {
 
     fn constructor_arity(&self, name: &str) -> Option<usize> {
         self.ctor_arities.get(name).copied()
+    }
+
+    fn constructor_field_families(&self, name: &str) -> Option<&Vec<Option<Vec<String>>>> {
+        self.ctor_field_families.get(name)
     }
 
     fn constructor_recursive_fields(&self, name: &str) -> Option<&Vec<usize>> {
@@ -803,6 +819,26 @@ fn induction_hyp_name(index: usize, total: usize) -> String {
     }
 }
 
+fn extend_branch_binders(
+    ctx: &Ctx,
+    ctor: &str,
+    binders: &[String],
+    missing_meta: impl FnOnce() -> ProofError,
+) -> Result<Ctx, ProofError> {
+    let Some(field_families) = ctx.constructor_field_families(ctor) else {
+        return Err(missing_meta());
+    };
+    let mut next = ctx.clone();
+    for (index, binder) in binders.iter().enumerate() {
+        let family = field_families.get(index).cloned().flatten();
+        next = match family {
+            Some(family) => next.with_var_family(binder.clone(), family),
+            None => next.with_var(binder.clone()),
+        };
+    }
+    Ok(next)
+}
+
 fn collect_subterms(term: &Term, out: &mut Vec<Term>) {
     out.push(term.clone());
     match term {
@@ -1113,10 +1149,13 @@ fn check_induction(
                     arm.ctor
                 ))
             })?;
-        let mut branch_ctx = ctx.clone();
-        for binder in &arm.binders {
-            branch_ctx = branch_ctx.with_var(binder.clone());
-        }
+        let mut branch_ctx =
+            extend_branch_binders(ctx, &arm.ctor, &arm.binders, || {
+                ProofError::CannotInduct(format!(
+                    "field-family metadata for {} is missing from the proof context",
+                    arm.ctor
+                ))
+            })?;
         for (index, binder_index) in recursive_fields.iter().enumerate() {
             let binder = arm.binders.get(*binder_index).ok_or_else(|| {
                 ProofError::CannotInduct(format!(
@@ -1180,13 +1219,16 @@ fn check_cases(
     for arm in arms {
         let branch_term = case_branch_term(&arm.ctor, &arm.binders);
         let branch_goal = rewrite_in_prop(goal, scrut, &branch_term);
-        let mut branch_ctx = ctx.with_prop(
+        let branch_ctx = extend_branch_binders(ctx, &arm.ctor, &arm.binders, || {
+            ProofError::CannotCaseSplit(format!(
+                "field-family metadata for {} is missing from the proof context",
+                arm.ctor
+            ))
+        })?;
+        let branch_ctx = branch_ctx.with_prop(
             "__case".into(),
             Prop::Eq(scrut.clone(), branch_term.clone()),
         );
-        for binder in &arm.binders {
-            branch_ctx = branch_ctx.with_var(binder.clone());
-        }
         check(&arm.body, &branch_goal, &branch_ctx, reg)?;
     }
 
@@ -1677,7 +1719,9 @@ mod tests {
         let ctx = Ctx::new()
             .with_var_family("s".into(), family.clone())
             .with_constructor("On".into(), family.clone(), 0)
-            .with_constructor("Off".into(), family, 0);
+            .with_constructor_field_families("On".into(), vec![])
+            .with_constructor("Off".into(), family, 0)
+            .with_constructor_field_families("Off".into(), vec![]);
         let reg = Registry::with_builtins();
         let goal = Prop::Eq(Term::App("flip".into(), vec![v("s")]), Term::App("flip".into(), vec![v("s")]));
         let proof = ProofTerm::Cases(
@@ -1704,7 +1748,9 @@ mod tests {
         let ctx = Ctx::new()
             .with_var_family("s".into(), family.clone())
             .with_constructor("On".into(), family.clone(), 0)
-            .with_constructor("Off".into(), family, 0);
+            .with_constructor_field_families("On".into(), vec![])
+            .with_constructor("Off".into(), family, 0)
+            .with_constructor_field_families("Off".into(), vec![]);
         let reg = Registry::with_builtins();
         let goal = Prop::Eq(v("s"), v("s"));
         let proof = ProofTerm::Cases(
@@ -1736,6 +1782,102 @@ mod tests {
         assert!(matches!(err, ProofError::CannotCaseSplit(_)));
     }
 
+    #[test]
+    fn cases_propagate_field_families_to_branch_binders() {
+        let switch_family = vec!["On".into(), "Off".into()];
+        let packet_family = vec!["Drop".into(), "Wrap".into()];
+        let ctx = Ctx::new()
+            .with_var_family("packet".into(), packet_family.clone())
+            .with_constructor("Drop".into(), packet_family.clone(), 0)
+            .with_constructor_field_families("Drop".into(), vec![])
+            .with_constructor("Wrap".into(), packet_family.clone(), 1)
+            .with_constructor_field_families(
+                "Wrap".into(),
+                vec![Some(switch_family.clone())],
+            )
+            .with_constructor("On".into(), switch_family.clone(), 0)
+            .with_constructor_field_families("On".into(), vec![])
+            .with_constructor("Off".into(), switch_family.clone(), 0)
+            .with_constructor_field_families("Off".into(), vec![]);
+        let reg = Registry::with_builtins();
+        let goal = Prop::Eq(v("packet"), v("packet"));
+        let proof = ProofTerm::Cases(
+            v("packet"),
+            vec![
+                CaseArm {
+                    ctor: "Drop".into(),
+                    binders: vec![],
+                    body: ProofTerm::Refl,
+                },
+                CaseArm {
+                    ctor: "Wrap".into(),
+                    binders: vec!["mode".into()],
+                    body: ProofTerm::Cases(
+                        v("mode"),
+                        vec![
+                            CaseArm {
+                                ctor: "On".into(),
+                                binders: vec![],
+                                body: ProofTerm::Refl,
+                            },
+                            CaseArm {
+                                ctor: "Off".into(),
+                                binders: vec![],
+                                body: ProofTerm::Refl,
+                            },
+                        ],
+                    ),
+                },
+            ],
+        );
+        assert!(check(&proof, &goal, &ctx, &reg).is_ok());
+    }
+
+    #[test]
+    fn cases_reject_nested_split_without_field_family_metadata() {
+        let switch_family = vec!["On".into(), "Off".into()];
+        let packet_family = vec!["Drop".into(), "Wrap".into()];
+        let ctx = Ctx::new()
+            .with_var_family("packet".into(), packet_family.clone())
+            .with_constructor("Drop".into(), packet_family.clone(), 0)
+            .with_constructor("Wrap".into(), packet_family.clone(), 1)
+            .with_constructor("On".into(), switch_family.clone(), 0)
+            .with_constructor("Off".into(), switch_family, 0);
+        let reg = Registry::with_builtins();
+        let goal = Prop::Eq(v("packet"), v("packet"));
+        let proof = ProofTerm::Cases(
+            v("packet"),
+            vec![
+                CaseArm {
+                    ctor: "Drop".into(),
+                    binders: vec![],
+                    body: ProofTerm::Refl,
+                },
+                CaseArm {
+                    ctor: "Wrap".into(),
+                    binders: vec!["mode".into()],
+                    body: ProofTerm::Cases(
+                        v("mode"),
+                        vec![
+                            CaseArm {
+                                ctor: "On".into(),
+                                binders: vec![],
+                                body: ProofTerm::Refl,
+                            },
+                            CaseArm {
+                                ctor: "Off".into(),
+                                binders: vec![],
+                                body: ProofTerm::Refl,
+                            },
+                        ],
+                    ),
+                },
+            ],
+        );
+        let err = check(&proof, &goal, &ctx, &reg).unwrap_err();
+        assert!(matches!(err, ProofError::CannotCaseSplit(_)));
+    }
+
     // --- INDUCTION ---
 
     #[test]
@@ -1744,7 +1886,9 @@ mod tests {
         let ctx = Ctx::new()
             .with_var_family("xs".into(), family.clone())
             .with_constructor("Cons".into(), family.clone(), 2)
+            .with_constructor_field_families("Cons".into(), vec![None, Some(family.clone())])
             .with_constructor("Nil".into(), family, 0)
+            .with_constructor_field_families("Nil".into(), vec![])
             .with_constructor_recursive_fields("Cons".into(), vec![1])
             .with_constructor_recursive_fields("Nil".into(), vec![]);
         let mut reg = Registry::with_builtins();
@@ -1810,7 +1954,9 @@ mod tests {
         let ctx = Ctx::new()
             .with_var_family("xs".into(), family.clone())
             .with_constructor("Cons".into(), family.clone(), 2)
+            .with_constructor_field_families("Cons".into(), vec![None, Some(family.clone())])
             .with_constructor("Nil".into(), family, 0)
+            .with_constructor_field_families("Nil".into(), vec![])
             .with_constructor_recursive_fields("Cons".into(), vec![1])
             .with_constructor_recursive_fields("Nil".into(), vec![]);
         let reg = Registry::with_builtins();

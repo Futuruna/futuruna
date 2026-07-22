@@ -4695,6 +4695,7 @@ struct ProofConstructorTable {
     family_by_type: BTreeMap<String, Vec<String>>,
     family_by_ctor: BTreeMap<String, Vec<String>>,
     arity_by_ctor: BTreeMap<String, usize>,
+    field_families_by_ctor: BTreeMap<String, Vec<Option<Vec<String>>>>,
     recursive_by_ctor: BTreeMap<String, Vec<usize>>,
 }
 
@@ -4706,6 +4707,13 @@ impl ProofConstructorTable {
             table
                 .family_by_type
                 .insert(ty_name.clone(), family.clone());
+        }
+        for (ty_name, variants) in adts {
+            let family = table
+                .family_by_type
+                .get(ty_name)
+                .cloned()
+                .unwrap_or_default();
             for variant in variants {
                 table
                     .family_by_ctor
@@ -4713,6 +4721,14 @@ impl ProofConstructorTable {
                 table
                     .arity_by_ctor
                     .insert(variant.name.clone(), variant.fields.len());
+                table.field_families_by_ctor.insert(
+                    variant.name.clone(),
+                    variant
+                        .fields
+                        .iter()
+                        .map(|field| constructors_family_for_ty(&table.family_by_type, &field.ty))
+                        .collect(),
+                );
                 table.recursive_by_ctor.insert(
                     variant.name.clone(),
                     proof_recursive_field_positions(ty_name, variant),
@@ -4725,6 +4741,13 @@ impl ProofConstructorTable {
     fn family_for_type(&self, ty: &Ty) -> Option<&Vec<String>> {
         proof_type_name(ty).and_then(|name| self.family_by_type.get(name))
     }
+}
+
+fn constructors_family_for_ty(
+    family_by_type: &BTreeMap<String, Vec<String>>,
+    ty: &Ty,
+) -> Option<Vec<String>> {
+    proof_type_name(ty).and_then(|name| family_by_type.get(name).cloned())
 }
 
 fn proof_recursive_field_positions(ty_name: &str, variant: &Variant) -> Vec<usize> {
@@ -5329,8 +5352,14 @@ fn explicit_proof_ctx(
             .get(ctor)
             .cloned()
             .unwrap_or_default();
+        let field_families = constructors
+            .field_families_by_ctor
+            .get(ctor)
+            .cloned()
+            .unwrap_or_default();
         ctx = ctx
             .with_constructor(ctor.clone(), family.clone(), arity)
+            .with_constructor_field_families(ctor.clone(), field_families)
             .with_constructor_recursive_fields(ctor.clone(), recursive_fields);
     }
 
@@ -22856,6 +22885,28 @@ mod tests {
     | s -> cases s {
         | On -> refl
         | Off -> refl
+    }
+}
+"#;
+        let statuses = explicit_proof_statuses(source);
+        assert_eq!(statuses.get("stable"), Some(&ExplicitProofStatus::Proved));
+    }
+
+    #[test]
+    fn explicit_proof_can_case_split_on_constructor_field() {
+        let source = r#"
+# Switch = On | Off
+# Packet = Drop | Wrap(Switch)
+
+= packet: Packet = Wrap(On)
+| stable: packet -> packet == packet
+? stable by {
+    | value -> cases value {
+        | Drop -> refl
+        | Wrap(mode) -> cases mode {
+            | On -> refl
+            | Off -> refl
+        }
     }
 }
 "#;
