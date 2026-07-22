@@ -1,0 +1,51 @@
+-- roundtrip-skip: subject() is intentionally skipped by the generic roundtrip lane
+-- Authored canary: subject-backed event funnel with list/map/set projection.
+
+~ visits = subject()
+visits <- "home"
+visits <- "search"
+visits <- "product"
+visits <- "search"
+visits <- "checkout"
+visits <- "home"
+
+> bump_page(counts: Map(String, Int), page: String) -> Map(String, Int) {
+    map_insert(counts, page, map_get_or(counts, page, 0) + 1)
+}
+
+= visit_total = visits.count
+= visit_list = collect(visits)
+= landing_page = head(visit_list)
+= exit_page = last(from_list(visit_list))
+= search_visits = count_by(visit_list, |page| page == "search")
+= empty_counts: Map(String, Int) = map_new()
+= page_counts = foldl(visit_list, empty_counts, bump_page)
+= unique_pages = set_from_list(visit_list)
+= transitions = map(zip(visit_list, tail(visit_list)), |p| fst(p) + "->" + snd(p))
+= transitions_ok = head(transitions) == "home->search" && length(transitions) == 5
+= unique_transitions = set_from_list(transitions)
+
+= visit_total_ok = visit_total == 6
+? visit_total_ok
+
+= landing_page_ok = landing_page == "home"
+? landing_page_ok
+
+= exit_page_ok = exit_page == "home"
+? exit_page_ok
+
+= search_visits_ok = search_visits == 2
+? search_visits_ok
+
+= page_counts_ok = map_get_or(page_counts, "search", 0) == 2 && map_get_or(page_counts, "checkout", 0) == 1
+? page_counts_ok
+
+= unique_pages_ok = set_len(unique_pages) == 4 && set_contains(unique_pages, "product")
+? unique_pages_ok
+
+? transitions_ok
+
+= unique_transitions_ok = set_len(unique_transitions) == 5
+? unique_transitions_ok
+
+@ print("canary subject funnel passed")

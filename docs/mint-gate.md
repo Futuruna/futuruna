@@ -36,10 +36,11 @@ These lanes are the core mint contract because they cover:
 
 Intentionally omitted from the core mint gate:
 
+- `./scripts/canary.sh`
 - `./scripts/differential.sh`
 - `./target/release/runa from-rust --test examples/from-rust/`
 - `./target/release/runa fmt --check tests/`
 - standalone solver-dependent flows such as `runa verify file.runa`
 - tests that the `runa test` runner already skips because they require optional external crates
 
-CI should call `./scripts/mint.sh` for the core language health gate, then run any omitted lanes as separate jobs or steps. Differential testing is the most important of those omitted lanes because it exercises seed-stable generative programs and replayable minimized repros without slowing every core mint run.
+CI should call `./scripts/mint.sh` for the core language health gate, then run any omitted lanes as separate jobs or steps. The canary suite is the curated middle lane for realistic authored programs, while differential testing is the deeper search lane that exercises seed-stable generative programs and replayable minimized repros without slowing every core mint run.

@@ -18625,6 +18625,11 @@ impl RustCodegen {
             Stmt::Send(target, msg) => {
                 let t = self.emit_expr(target);
                 let m = self.emit_expr(msg);
+                let target_place = if let ExprKind::Var(name) = &target.kind {
+                    sanitize_name(name)
+                } else {
+                    t.clone()
+                };
                 // M13c: subject send emits broadcast send + yield for deterministic ordering
                 if self.has_async {
                     let var_name = if let ExprKind::Var(n) = &target.kind {
@@ -18633,13 +18638,14 @@ impl RustCodegen {
                         t.clone()
                     };
                     if self.subject_vars.contains(&var_name) {
-                        let mut out = format!("{}{}.send({});\n", self.ind(), t, m);
+                        let mut out = format!("{}{}.send({});\n", self.ind(), target_place, m);
                         out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
                         return out;
                     }
                     // Actor send: yield after send for deterministic message processing
                     if self.actor_handle_vars.contains_key(&var_name) {
-                        let mut out = format!("{}{}.send({}).unwrap();\n", self.ind(), t, m);
+                        let mut out =
+                            format!("{}{}.send({}).unwrap();\n", self.ind(), target_place, m);
                         out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
                         return out;
                     }
@@ -18651,9 +18657,9 @@ impl RustCodegen {
                     t.clone()
                 };
                 if self.sync_subject_vars.contains(&var_name) {
-                    return format!("{}{}.push({});\n", self.ind(), t, m);
+                    return format!("{}{}.push({});\n", self.ind(), target_place, m);
                 }
-                format!("{}{}.send({}).unwrap();\n", self.ind(), t, m)
+                format!("{}{}.send({}).unwrap();\n", self.ind(), target_place, m)
             }
             Stmt::StreamBind(name, expr) => {
                 // M13c: detect subject() calls → emit broadcast channel

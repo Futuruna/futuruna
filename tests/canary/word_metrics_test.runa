@@ -1,0 +1,35 @@
+-- Authored canary: realistic word analytics over lists, maps, sets, and tuples.
+
+= words = ["mint", "proof", "mint", "stream", "map", "proof", "mint", "set", "stream"]
+
+> bump(counts: Map(String, Int), word: String) -> Map(String, Int) {
+    map_insert(counts, word, map_get_or(counts, word, 0) + 1)
+}
+
+= empty_counts: Map(String, Int) = map_new()
+= counts = foldl(words, empty_counts, bump)
+= uniques = set_from_list(words)
+= repeated_entries = filter(map_entries(counts), |p| snd(p) > 1)
+= repeated_words = map(repeated_entries, |p| fst(p))
+= repeated_csv = join(repeated_words, ",")
+= chunks = chunked(words, 3)
+
+= counts_size_ok = map_len(counts) == 5
+? counts_size_ok
+
+= mint_count_ok = map_get_or(counts, "mint", 0) == 3
+? mint_count_ok
+
+= proof_count_ok = map_get_or(counts, "proof", 0) == 2
+? proof_count_ok
+
+= set_membership_ok = set_len(uniques) == 5 && set_contains(uniques, "set") && not(set_contains(uniques, "actor"))
+? set_membership_ok
+
+= repeated_order_ok = repeated_csv == "mint,proof,stream"
+? repeated_order_ok
+
+= chunking_ok = length(chunks) == 3 && head(chunks) == ["mint", "proof", "mint"]
+? chunking_ok
+
+@ print("canary word metrics passed")

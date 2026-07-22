@@ -1,0 +1,34 @@
+-- Authored canary: sliding-window signal analysis over stream operators.
+
+~ samples = from_list([10, 13, 12, 18, 21, 19])
+~ deltas = samples |> pairwise |> map(|p| snd(p) - fst(p))
+~ anchored = deltas |> start_with(0)
+~ windows = samples |> window(3)
+~ swings = deltas |> filter(|d| abs(d) >= 3)
+
+= delta_list = collect(deltas)
+= anchored_list = collect(anchored)
+= rolling_sums = collect(windows |> map(|w| sum_list(w)))
+= delta_total = reduce(deltas, 0, |acc, d| acc + d)
+= swing_count = count(swings)
+= first_delta = first(deltas)
+
+= delta_list_ok = delta_list == [3, -1, 6, 3, -2]
+? delta_list_ok
+
+= anchored_list_ok = anchored_list == [0, 3, -1, 6, 3, -2]
+? anchored_list_ok
+
+= rolling_sums_ok = rolling_sums == [35, 43, 51, 58]
+? rolling_sums_ok
+
+= delta_total_ok = delta_total == 9
+? delta_total_ok
+
+= swing_count_ok = swing_count == 3
+? swing_count_ok
+
+= first_delta_ok = first_delta == 3
+? first_delta_ok
+
+@ print("canary stream windows passed")
