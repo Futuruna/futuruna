@@ -20807,12 +20807,10 @@ impl RustCodegen {
                     if let Some(ref type_name) = obj_type_name {
                         if self.types.struct_types.contains(type_name.as_str()) {
                             let obj_str = self.emit_expr(obj);
-                            let is_boxed = self
-                                .types
-                                .variant_boxed_args
-                                .get(type_name)
-                                .map(|indices| !indices.is_empty())
-                                .unwrap_or(false);
+                            // Per-field box check: only the SPECIFIC field needs
+                            // dereferencing if it's recursive. Whole-struct check
+                            // would deref every field (including primitives).
+                            let is_boxed = self.is_field_boxed(type_name, field);
                             let needs_clone = if let ExprKind::Var(var_name) = &obj.as_ref().kind {
                                 self.current_borrow_params.contains(var_name.as_str())
                                     || self
