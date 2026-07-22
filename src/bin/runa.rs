@@ -8753,7 +8753,7 @@ impl OwnershipAnalysis {
         let mut var_uses = BTreeMap::new();
         let mut consuming_uses = BTreeMap::new();
         count_var_uses(body, &mut var_uses);
-        count_consuming_uses_borrow_aware(
+        count_consuming_uses_borrow_aware_for_ownership(
             body,
             &mut consuming_uses,
             borrow_fns,
@@ -10572,12 +10572,13 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
 
 /// Count consuming uses with borrow-awareness: args to known-borrow-param functions
 /// are NOT counted as consuming (they're passed by reference, not moved).
-fn count_consuming_uses_borrow_aware(
+fn count_consuming_uses_borrow_aware_impl(
     expr: &Expr,
     counts: &mut BTreeMap<String, usize>,
     known_borrow_fns: &BTreeMap<String, Vec<bool>>,
     self_fn_name: Option<&str>,
     self_param_names: &[&str],
+    ignore_self_passthrough: bool,
 ) {
     match &expr.kind {
         ExprKind::App(func, args) => {
@@ -10591,12 +10592,13 @@ fn count_consuming_uses_borrow_aware(
                     *counts.entry(name.clone()).or_insert(0) += 1;
                 }
             }
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 func,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
             let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
             // Phase 3d: Check if this is a self-recursive call
@@ -10626,66 +10628,76 @@ fn count_consuming_uses_borrow_aware(
                     } else {
                         false
                     };
-                if !is_borrow_builtin && !is_borrow_param && !is_self_passthrough {
+                if !is_borrow_builtin
+                    && !is_borrow_param
+                    && !(ignore_self_passthrough && is_self_passthrough)
+                {
                     if let ExprKind::Var(name) = &a.kind {
                         *counts.entry(name.clone()).or_insert(0) += 1;
                     }
                 }
-                count_consuming_uses_borrow_aware(
+                count_consuming_uses_borrow_aware_impl(
                     a,
                     counts,
                     known_borrow_fns,
                     self_fn_name,
                     self_param_names,
+                    ignore_self_passthrough,
                 );
             }
         }
         ExprKind::BinOp(_, lhs, rhs) => {
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 lhs,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 rhs,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
         }
-        ExprKind::UnOp(_, inner) => count_consuming_uses_borrow_aware(
+        ExprKind::UnOp(_, inner) => count_consuming_uses_borrow_aware_impl(
             inner,
             counts,
             known_borrow_fns,
             self_fn_name,
             self_param_names,
+            ignore_self_passthrough,
         ),
         ExprKind::If(cond, then_, else_) => {
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 cond,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
             let mut then_counts: BTreeMap<String, usize> = BTreeMap::new();
             let mut else_counts: BTreeMap<String, usize> = BTreeMap::new();
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 then_,
                 &mut then_counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 else_,
                 &mut else_counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
             let all_vars: BTreeSet<String> = then_counts
                 .keys()
@@ -10699,30 +10711,33 @@ fn count_consuming_uses_borrow_aware(
             }
         }
         ExprKind::Match(scrutinee, arms) => {
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 scrutinee,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
             let mut arm_counts: Vec<BTreeMap<String, usize>> = Vec::new();
             for arm in arms {
                 let mut ac: BTreeMap<String, usize> = BTreeMap::new();
-                count_consuming_uses_borrow_aware(
+                count_consuming_uses_borrow_aware_impl(
                     &arm.body,
                     &mut ac,
                     known_borrow_fns,
                     self_fn_name,
                     self_param_names,
+                    ignore_self_passthrough,
                 );
                 if let Some(guard) = &arm.guard {
-                    count_consuming_uses_borrow_aware(
+                    count_consuming_uses_borrow_aware_impl(
                         guard,
                         &mut ac,
                         known_borrow_fns,
                         self_fn_name,
                         self_param_names,
+                        ignore_self_passthrough,
                     );
                 }
                 arm_counts.push(ac);
@@ -10742,21 +10757,23 @@ fn count_consuming_uses_borrow_aware(
         }
         ExprKind::Block(stmts) => {
             for stmt in stmts {
-                count_consuming_uses_borrow_aware_stmt(
+                count_consuming_uses_borrow_aware_stmt_impl(
                     stmt,
                     counts,
                     known_borrow_fns,
                     self_fn_name,
                     self_param_names,
+                    ignore_self_passthrough,
                 );
             }
         }
-        ExprKind::Lambda(_, body) => count_consuming_uses_borrow_aware(
+        ExprKind::Lambda(_, body) => count_consuming_uses_borrow_aware_impl(
             body,
             counts,
             known_borrow_fns,
             self_fn_name,
             self_param_names,
+            ignore_self_passthrough,
         ),
         ExprKind::Field(base, _) => {
             // Field access borrows the base, but if the base was already moved, it fails.
@@ -10764,28 +10781,31 @@ fn count_consuming_uses_borrow_aware(
             if let ExprKind::Var(name) = &base.as_ref().kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 base,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
         }
         ExprKind::Index(base, idx) => {
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 base,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 idx,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
         }
         ExprKind::List(elems) | ExprKind::Tuple(elems) => {
@@ -10793,42 +10813,46 @@ fn count_consuming_uses_borrow_aware(
                 if let ExprKind::Var(name) = &e.kind {
                     *counts.entry(name.clone()).or_insert(0) += 1;
                 }
-                count_consuming_uses_borrow_aware(
+                count_consuming_uses_borrow_aware_impl(
                     e,
                     counts,
                     known_borrow_fns,
                     self_fn_name,
                     self_param_names,
+                    ignore_self_passthrough,
                 );
             }
         }
         ExprKind::Effect(_, args) => {
             for a in args {
-                count_consuming_uses_borrow_aware(
+                count_consuming_uses_borrow_aware_impl(
                     a,
                     counts,
                     known_borrow_fns,
                     self_fn_name,
                     self_param_names,
+                    ignore_self_passthrough,
                 );
             }
         }
         ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
-        ExprKind::Try(inner) => count_consuming_uses_borrow_aware(
+        ExprKind::Try(inner) => count_consuming_uses_borrow_aware_impl(
             inner,
             counts,
             known_borrow_fns,
             self_fn_name,
             self_param_names,
+            ignore_self_passthrough,
         ),
         ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
             for g in goals {
-                count_consuming_uses_borrow_aware(
+                count_consuming_uses_borrow_aware_impl(
                     g,
                     counts,
                     known_borrow_fns,
                     self_fn_name,
                     self_param_names,
+                    ignore_self_passthrough,
                 );
             }
         }
@@ -10836,39 +10860,225 @@ fn count_consuming_uses_borrow_aware(
             if let ExprKind::Var(name) = &input.as_ref().kind {
                 *counts.entry(name.clone()).or_insert(0) += 1;
             }
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 input,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 transform,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
         }
         ExprKind::Handle { handlers, body, .. } => {
-            count_consuming_uses_borrow_aware(
+            count_consuming_uses_borrow_aware_impl(
                 body,
                 counts,
                 known_borrow_fns,
                 self_fn_name,
                 self_param_names,
+                ignore_self_passthrough,
             );
             for h in handlers {
-                count_consuming_uses_borrow_aware(
+                count_consuming_uses_borrow_aware_impl(
                     &h.body,
                     counts,
                     known_borrow_fns,
                     self_fn_name,
                     self_param_names,
+                    ignore_self_passthrough,
                 );
             }
         }
+    }
+}
+
+fn count_consuming_uses_borrow_aware(
+    expr: &Expr,
+    counts: &mut BTreeMap<String, usize>,
+    known_borrow_fns: &BTreeMap<String, Vec<bool>>,
+    self_fn_name: Option<&str>,
+    self_param_names: &[&str],
+) {
+    count_consuming_uses_borrow_aware_impl(
+        expr,
+        counts,
+        known_borrow_fns,
+        self_fn_name,
+        self_param_names,
+        true,
+    );
+}
+
+fn count_consuming_uses_borrow_aware_for_ownership(
+    expr: &Expr,
+    counts: &mut BTreeMap<String, usize>,
+    known_borrow_fns: &BTreeMap<String, Vec<bool>>,
+    self_fn_name: Option<&str>,
+    self_param_names: &[&str],
+) {
+    count_consuming_uses_borrow_aware_impl(
+        expr,
+        counts,
+        known_borrow_fns,
+        self_fn_name,
+        self_param_names,
+        false,
+    );
+}
+
+fn count_consuming_uses_borrow_aware_stmt_impl(
+    stmt: &Stmt,
+    counts: &mut BTreeMap<String, usize>,
+    known_borrow_fns: &BTreeMap<String, Vec<bool>>,
+    self_fn_name: Option<&str>,
+    self_param_names: &[&str],
+    ignore_self_passthrough: bool,
+) {
+    match stmt {
+        Stmt::Bind(_, _, expr) => {
+            if let ExprKind::Var(name) = &expr.kind {
+                *counts.entry(name.clone()).or_insert(0) += 1;
+            }
+            count_consuming_uses_borrow_aware_impl(
+                expr,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+                ignore_self_passthrough,
+            );
+        }
+        Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => {
+            count_consuming_uses_borrow_aware_impl(
+                expr,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+                ignore_self_passthrough,
+            );
+        }
+        Stmt::Defn(defn) => {
+            if let Defn::Fn { body, .. } = defn {
+                count_consuming_uses_borrow_aware_impl(
+                    body,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                    ignore_self_passthrough,
+                );
+            }
+        }
+        Stmt::Annot(_, args) => {
+            for a in args {
+                count_consuming_uses_borrow_aware_impl(
+                    a,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                    ignore_self_passthrough,
+                );
+            }
+        }
+        Stmt::For(_, iter_expr, body) => {
+            count_consuming_uses_borrow_aware_impl(
+                iter_expr,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+                ignore_self_passthrough,
+            );
+            for s in body {
+                count_consuming_uses_borrow_aware_stmt_impl(
+                    s,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                    ignore_self_passthrough,
+                );
+            }
+        }
+        Stmt::Send(target, msg) => {
+            count_consuming_uses_borrow_aware_impl(
+                target,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+                ignore_self_passthrough,
+            );
+            count_consuming_uses_borrow_aware_impl(
+                msg,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+                ignore_self_passthrough,
+            );
+        }
+        Stmt::StreamBind(_, expr) => count_consuming_uses_borrow_aware_impl(
+            expr,
+            counts,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+            ignore_self_passthrough,
+        ),
+        Stmt::StreamSub(expr, arms) => {
+            count_consuming_uses_borrow_aware_impl(
+                expr,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+                ignore_self_passthrough,
+            );
+            for arm in arms {
+                if let Some(g) = &arm.guard {
+                    count_consuming_uses_borrow_aware_impl(
+                        g,
+                        counts,
+                        known_borrow_fns,
+                        self_fn_name,
+                        self_param_names,
+                        ignore_self_passthrough,
+                    );
+                }
+                count_consuming_uses_borrow_aware_impl(
+                    &arm.body,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                    ignore_self_passthrough,
+                );
+            }
+        }
+        Stmt::Rule(Rule::Scope { body, .. }) => {
+            for s in body {
+                count_consuming_uses_borrow_aware_stmt_impl(
+                    s,
+                    counts,
+                    known_borrow_fns,
+                    self_fn_name,
+                    self_param_names,
+                    ignore_self_passthrough,
+                );
+            }
+        }
+        _ => {}
     }
 }
 
@@ -10879,131 +11089,14 @@ fn count_consuming_uses_borrow_aware_stmt(
     self_fn_name: Option<&str>,
     self_param_names: &[&str],
 ) {
-    match stmt {
-        Stmt::Bind(_, _, expr) => {
-            if let ExprKind::Var(name) = &expr.kind {
-                *counts.entry(name.clone()).or_insert(0) += 1;
-            }
-            count_consuming_uses_borrow_aware(
-                expr,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-            );
-        }
-        Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => {
-            count_consuming_uses_borrow_aware(
-                expr,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-            );
-        }
-        Stmt::Defn(defn) => {
-            if let Defn::Fn { body, .. } = defn {
-                count_consuming_uses_borrow_aware(
-                    body,
-                    counts,
-                    known_borrow_fns,
-                    self_fn_name,
-                    self_param_names,
-                );
-            }
-        }
-        Stmt::Annot(_, args) => {
-            for a in args {
-                count_consuming_uses_borrow_aware(
-                    a,
-                    counts,
-                    known_borrow_fns,
-                    self_fn_name,
-                    self_param_names,
-                );
-            }
-        }
-        Stmt::For(_, iter_expr, body) => {
-            count_consuming_uses_borrow_aware(
-                iter_expr,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-            );
-            for s in body {
-                count_consuming_uses_borrow_aware_stmt(
-                    s,
-                    counts,
-                    known_borrow_fns,
-                    self_fn_name,
-                    self_param_names,
-                );
-            }
-        }
-        Stmt::Send(target, msg) => {
-            count_consuming_uses_borrow_aware(
-                target,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-            );
-            count_consuming_uses_borrow_aware(
-                msg,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-            );
-        }
-        Stmt::StreamBind(_, expr) => count_consuming_uses_borrow_aware(
-            expr,
-            counts,
-            known_borrow_fns,
-            self_fn_name,
-            self_param_names,
-        ),
-        Stmt::StreamSub(expr, arms) => {
-            count_consuming_uses_borrow_aware(
-                expr,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-            );
-            for arm in arms {
-                if let Some(g) = &arm.guard {
-                    count_consuming_uses_borrow_aware(
-                        g,
-                        counts,
-                        known_borrow_fns,
-                        self_fn_name,
-                        self_param_names,
-                    );
-                }
-                count_consuming_uses_borrow_aware(
-                    &arm.body,
-                    counts,
-                    known_borrow_fns,
-                    self_fn_name,
-                    self_param_names,
-                );
-            }
-        }
-        Stmt::Rule(Rule::Scope { body, .. }) => {
-            for s in body {
-                count_consuming_uses_borrow_aware_stmt(
-                    s,
-                    counts,
-                    known_borrow_fns,
-                    self_fn_name,
-                    self_param_names,
-                );
-            }
-        }
-        _ => {}
-    }
+    count_consuming_uses_borrow_aware_stmt_impl(
+        stmt,
+        counts,
+        known_borrow_fns,
+        self_fn_name,
+        self_param_names,
+        true,
+    );
 }
 
 /// Check whether a parameter has any consuming use that is NOT a field access.
@@ -13847,42 +13940,6 @@ impl RustCodegen {
             for (fn_name, rules) in &rule_groups {
                 // Count params and track which are borrowed (struct/enum types)
                 // Register borrow flags: true for params whose type was inferred from fields
-                let borrow_flags: Vec<bool> = {
-                    let params: Vec<String> = rules
-                        .iter()
-                        .find_map(|r| {
-                            let head = match r {
-                                Rule::Clause { head, .. }
-                                | Rule::Default { head, .. }
-                                | Rule::Exception { head, .. } => head,
-                                _ => return None,
-                            };
-                            if let ExprKind::App(_, args) = &head.kind {
-                                Some(
-                                    args.iter()
-                                        .filter_map(|a| {
-                                            if let ExprKind::Var(n) = &a.kind {
-                                                Some(n.clone())
-                                            } else {
-                                                None
-                                            }
-                                        })
-                                        .collect(),
-                                )
-                            } else {
-                                Some(vec![])
-                            }
-                        })
-                        .unwrap_or_default();
-                    params
-                        .iter()
-                        .map(|p| self.infer_param_type_from_fields(p, rules).is_some())
-                        .collect()
-                };
-                if borrow_flags.iter().any(|b| *b) {
-                    self.borrow_only_params
-                        .insert(fn_name.clone(), borrow_flags);
-                }
                 out.push_str(&self.emit_rule_function(fn_name, rules));
                 self.types.rule_clone_params.clear();
                 out.push('\n');
@@ -16580,12 +16637,6 @@ impl RustCodegen {
             .collect::<Vec<_>>()
             .join(", ");
 
-        // Register call-site type info so callers know the parameter types
-        // (prevents borrow_only_params from adding unwanted & at call sites)
-        self.types
-            .prolog_rule_fns
-            .insert(fn_name.to_string(), inferred_types.clone());
-
         // Infer return type from FIR, seeded with inferred rule param types.
         let ret_type = self
             .infer_rule_return_type(rules, &params, &inferred_param_tys)
@@ -18091,11 +18142,19 @@ impl RustCodegen {
             }
             Stmt::Prove {
                 name,
-                proof_block: _,
+                proof_block,
                 capture,
                 pass_block,
                 else_block,
             } => {
+                if proof_block.is_some() {
+                    return format!(
+                        "{}// ? {} by {{ ... }} checked by runa verify; no runtime proof emission\n",
+                        self.ind(),
+                        name
+                    );
+                }
+
                 // ? name → runtime verification with inlined predicate
                 let mut out = String::new();
 
@@ -24185,6 +24244,86 @@ mod tests {
             rust.contains("format!(\"{}!\", name"),
             "rule body should emit string concat from inferred rule param type: {}",
             rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_calls_plain_rule_with_owned_string_argument() {
+        let source = "| banner(name) -> name + \"!\"\n= msg = banner(\"hi\")";
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn banner(name: String) -> String {"),
+            "plain rule signature should stay owned-String based: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let msg = banner(\"hi\".to_string());"),
+            "plain rule call should materialize an owned String argument: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_calls_plain_rule_with_owned_struct_argument() {
+        let source = r#"
+# Point(x: Float, y: Float)
+| is_big_point(p) -> p.x > 10.0
+= big = is_big_point(Point(20.0, 5.0))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn is_big_point(p: Point) -> bool {"),
+            "plain rule signature should keep owned struct params: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let big = is_big_point(Point { x: 20.0, y: 5.0 });"),
+            "plain rule calls should not auto-borrow owned struct params: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_skips_runtime_emission_for_explicit_proof_blocks() {
+        let source = r#"
+| add_comm: (a, b) -> a + b == b + a
+? add_comm by {
+    | (lhs, rhs) -> apply int_ring.comm_add
+}
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("// ? add_comm by { ... } checked by runa verify; no runtime proof emission"),
+            "explicit proof blocks should emit a comment, not runtime verification: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("panic!(\"? add_comm FAILED\")"),
+            "explicit proof blocks must not lower to runtime ? checks: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn ownership_analysis_counts_repeated_self_recursive_passthrough_args() {
+        let source = "> visit(expr: String, env: String) -> String { visit(expr, env) + visit(expr, env) }";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+        let Stmt::Defn(Defn::Fn { body, .. }) = &stmts[0] else {
+            panic!("expected function definition");
+        };
+
+        let ownership =
+            OwnershipAnalysis::analyze(body, &BTreeMap::new(), Some("visit"), &["expr", "env"]);
+        assert_eq!(
+            ownership.consuming_uses.get("env").copied().unwrap_or(0),
+            2,
+            "reused self-recursive passthrough args must still count as consuming for clone decisions"
         );
     }
 
