@@ -1,0 +1,38 @@
+-- Stage 1 of the verified bootstrap:
+-- prove a tiny Surface -> Core lowering pass inside Futuruna itself.
+
+# Surface = SInt(Int) | SAdd(Surface, Surface) | SAdd3(Surface, Surface, Surface)
+
+# Core = CInt(Int) | CAdd(Core, Core)
+
+> eval_surface(expr: Surface) -> Int {
+    match expr {
+        | SInt(n) -> n
+        | SAdd(lhs, rhs) -> eval_surface(lhs) + eval_surface(rhs)
+        | SAdd3(a, b, c) -> eval_surface(a) + (eval_surface(b) + eval_surface(c))
+    }
+}
+
+> eval_core(expr: Core) -> Int {
+    match expr {
+        | CInt(n) -> n
+        | CAdd(core_lhs, core_rhs) -> eval_core(core_lhs) + eval_core(core_rhs)
+    }
+}
+
+> lower(expr: Surface) -> Core {
+    match expr {
+        | SInt(n) -> CInt(n)
+        | SAdd(lhs, rhs) -> CAdd(lower(lhs), lower(rhs))
+        | SAdd3(a, b, c) -> CAdd(lower(a), CAdd(lower(b), lower(c)))
+    }
+}
+
+| lower_sound: expr -> eval_core(lower(expr)) == eval_surface(expr)
+? lower_sound by {
+    | expr -> induction_on expr {
+        | SInt(n) -> rewrite (apply lower.sint) in (rewrite (apply eval_core.cint) in (rewrite (apply eval_surface.sint) in refl))
+        | SAdd(lhs, rhs) -> rewrite (apply lower.sadd) in (rewrite (apply eval_core.cadd) in (rewrite (apply eval_surface.sadd) in (rewrite ih_1 in (rewrite ih_2 in refl))))
+        | SAdd3(a, b, c) -> rewrite (apply lower.sadd3) in (rewrite (apply eval_core.cadd) in (rewrite (apply eval_core.cadd) in (rewrite (apply eval_surface.sadd3) in (rewrite ih_1 in (rewrite ih_2 in (rewrite ih_3 in refl))))))
+    }
+}
