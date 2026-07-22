@@ -9451,14 +9451,17 @@ impl<'a> LoweringCtx<'a> {
     }
 
     fn field_ty(&self, obj_ty: &FirTy, field: &str) -> FirTy {
-        // Tuple field access: .fst → first element, .snd → second element.
-        // Required so that closures over List(Tuple(_)) can propagate the
-        // tuple element type when the body uses `e.fst`/`e.snd`.
+        // Tuple field access: works on any tuple of any arity. The named
+        // forms .fst/.snd map to indices 0/1; any all-digit field is taken
+        // as a numeric index. Closures over List(Tuple(_)) can propagate
+        // tuple element types this way regardless of arity.
         if let FirTy::Tuple(elems) = obj_ty {
-            match field {
-                "fst" if elems.len() >= 1 => return elems[0].clone(),
-                "snd" if elems.len() >= 2 => return elems[1].clone(),
-                _ => {}
+            // Named accessors for the first two elements.
+            if field == "fst" && !elems.is_empty() { return elems[0].clone(); }
+            if field == "snd" && elems.len() >= 2 { return elems[1].clone(); }
+            // Numeric index: parse the field name as a usize and pick.
+            if let Ok(idx) = field.parse::<usize>() {
+                if idx < elems.len() { return elems[idx].clone(); }
             }
         }
         let FirTy::Named(type_name) = obj_ty else {
@@ -9643,28 +9646,10 @@ impl<'a> LoweringCtx<'a> {
                             ty,
                         };
                     }
-                    // Builtin functions that always return Float. Mirror the list
-                    // in expr_is_float (line ~18937) so let-bindings of these
-                    // return values are typed correctly during lowering, not just
-                    // during the recursive expr_is_float check. Without this,
-                    // `let x = to_float(...)` would type x as Unknown and the
-                    // safe-division codegen would pick the integer template.
-                    if matches!(
-                        fn_name.as_str(),
-                        "to_float"
-                            | "sqrt"
-                            | "exp"
-                            | "ln"
-                            | "pow"
-                            | "abs"
-                            | "round"
-                            | "floor"
-                            | "min_f"
-                            | "max_f"
-                            | "parse_float"
-                            | "phi"
-                            | "mint"
-                            ) {
+                    // Builtin functions that always return Float. Single source
+                    // of truth: is_float_returning_builtin (free fn). expr_is_float
+                    // in RustCodegen uses the same helper.
+                    if is_float_returning_builtin(fn_name) {
                         return FirExpr {
                             kind: FirExprKind::App(Box::new(fir_func), fir_args),
                             span: expr.span,
@@ -12280,6 +12265,47 @@ fn collect_rebound_in_expr(expr: &Expr, bound: &BTreeSet<String>, mutable: &mut 
 fn is_copy_type(ty: &Ty) -> bool {
     matches!(ty, Ty::Name(n) if matches!(n.as_str(), "Int" | "Float" | "Char" | "Nat" | "Bool"))
 }
+
+/// Single source of truth for builtin functions that always return `Float`.
+/// Used by both LoweringCtx (for type inference during lowering) and
+/// RustCodegen (for the recursive expr_is_float query at codegen time).
+/// Adding a new float-returning builtin requires updating only this list.
+fn is_float_returning_builtin(name: &str) -> bool {
+    matches!(
+        name,
+        "to_float"
+            | "sqrt"
+            | "exp"
+            | "ln"
+            | "pow"
+            | "abs"
+            | "round"
+            | "floor"
+            | "min_f"
+            | "max_f"
+            | "parse_float"
+            | "phi"
+            | "mint"
+            )
+}
+
+/// Check whether `expr` is a Var that names one of the current function's
+/// borrow-only parameters (which emits as `&T` in generated Rust). Used by
+/// the if/else ownership reconciliation in the codegen.
+fn is_borrow_param_var(expr: &Expr, current_borrow_params: &BTreeSet<String>) -> bool {
+    if let ExprKind::Block(stmts) = &expr.kind {
+        if stmts.len() == 1 {
+            if let Stmt::Expr(inner) = &stmts[0] {
+                return is_borrow_param_var(inner, current_borrow_params);
+            }
+        }
+    }
+    if let ExprKind::Var(name) = &expr.kind {
+        return current_borrow_params.contains(name.as_str());
+    }
+    false
+}
+
 
 /// Check if a type's ALL type arguments are Copy types.
 /// For Pair(Int, Int) → true. For Pair(Int, String) → false. For Name("Int") → true.
@@ -19041,22 +19067,7 @@ impl RustCodegen {
             ExprKind::BinOp(_, lhs, rhs) => self.expr_is_float(lhs) || self.expr_is_float(rhs),
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    if matches!(
-                        name.as_str(),
-                        "to_float"
-                            | "sqrt"
-                            | "exp"
-                            | "ln"
-                            | "pow"
-                            | "abs"
-                            | "round"
-                            | "floor"
-                            | "min_f"
-                            | "max_f"
-                            | "parse_float"
-                            | "phi"
-                            | "mint"
-                            ) {
+                    if is_float_returning_builtin(name) {
                         return true;
                     }
                     // foldl with float initial value → result is float
@@ -20720,6 +20731,17 @@ impl RustCodegen {
                 let c = self.emit_expr(cond);
                 let t = self.emit_if_branch(then_);
                 let e = self.emit_if_branch(else_);
+                // Ownership reconciliation: a branch that is just a
+                // borrow-param Var emits as `&T`. If the OTHER branch is
+                // anything else (function call, literal, let-binding Var),
+                // it produces an owned value and the if/else type-mismatches.
+                // Clone the borrow side so both branches are owned.
+                // This is the if/else analog of the closure-capture clone
+                // fix (see td-208efa).
+                let then_is_borrow = is_borrow_param_var(then_, &self.current_borrow_params);
+                let else_is_borrow = is_borrow_param_var(else_, &self.current_borrow_params);
+                let t = if then_is_borrow && !else_is_borrow { format!("{}.clone()", t) } else { t };
+                let e = if else_is_borrow && !then_is_borrow { format!("{}.clone()", e) } else { e };
                 format!("if {} {{ {} }} else {{ {} }}", c, t, e)
             }
             ExprKind::Match(scrut, arms) => {
