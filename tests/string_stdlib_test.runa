@@ -38,6 +38,11 @@
 ? substring_ok
 @ print("substring: " + sub)
 
+= sub_tail = substring("the cat sat", 4, length("the cat sat") - 4)
+| substring_tail_ok: sub_tail -> sub_tail == "cat sat"
+? substring_tail_ok
+@ print("substring tail: " + sub_tail)
+
 -- char_at
 @ print("char_at: " + char_at("abc", 1))
 

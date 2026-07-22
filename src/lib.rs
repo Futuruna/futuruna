@@ -7355,6 +7355,7 @@ impl Interpreter {
                 None => Value::Str("0".into()),
             },
             "length" => match args.first() {
+                Some(Value::Str(s)) => Value::Int(s.len() as i64),
                 Some(v) => Value::Int(list_length(v)),
                 None => Value::Int(0),
             },
