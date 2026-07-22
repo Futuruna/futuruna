@@ -17,6 +17,7 @@ run_step cargo build --release
 run_step "$RELEASE_RUNA" test
 run_step "$RELEASE_RUNA" test --run
 run_step "$RELEASE_RUNA" test --check-codegen
+run_step "$RELEASE_RUNA" test --roundtrip tests
 run_step "$RELEASE_RUNA" run tests/codegen_integration_regression_test.runa
 run_step "$RELEASE_RUNA" check examples/danish-constitution-legacy/kapitel-02.runa
 run_step "$RELEASE_RUNA" check examples/danish-constitution-legacy/kapitel-03.runa

@@ -87,10 +87,11 @@ runa verify program.runa    # Verify invariants via Z3
 runa hashes program.runa    # Show content-addressed hashes
 runa test                   # Run all tests/*.runa (interpreted)
 runa test --run             # Run all tests/*.runa (compiled)
+runa test --roundtrip tests # Compare interpreter vs compiled output
 ./scripts/mint.sh           # Canonical "is Futuruna mint?" gate
 ```
 
-See [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract and the intentionally omitted lanes.
+See [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract and the remaining optional lanes.
 
 ## What Futuruna Unifies
 

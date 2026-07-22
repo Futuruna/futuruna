@@ -66,15 +66,15 @@
 -- ============================================
 
 @ print("--- Color dispatch ---")
-@ print(render_color(Red))
-@ print(render_color(Green))
-@ print(render_color(Blue))
+@ print(Red.display())
+@ print(Green.display())
+@ print(Blue.display())
 
 @ print("--- Shape dispatch ---")
 = c = Circle(5.0)
 = r = Rectangle(3.0, 4.0)
-@ print(render_shape(c))
-@ print(render_shape(r))
+@ print(c.display())
+@ print(r.display())
 
 -- ============================================
 -- Part 5: Transpiler test
