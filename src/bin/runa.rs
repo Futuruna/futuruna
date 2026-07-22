@@ -9416,7 +9416,12 @@ impl<'a> LoweringCtx<'a> {
     fn builtin_constructor_var_ty(&mut self, name: &str) -> Option<FirTy> {
         match name {
             "None" => Some(FirTy::Option(Box::new(self.fresh_or_unknown()))),
-            _ => None,
+            _ => self
+                .types
+                .variant_parent
+                .get(name)
+                .cloned()
+                .map(FirTy::Named),
         }
     }
 
@@ -24893,6 +24898,41 @@ mod tests {
         assert!(
             rust.contains("if __d == 0.0 { 0.0 }"),
             "rule body should keep float-safe division from inferred rule param type: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_rule_function_infers_named_return_type_for_nullary_constructor_body() {
+        let source = r#"
+# Ansvarstype = AnsvarsFri | Ansvarlig
+| kongens_ansvarstype() -> AnsvarsFri
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rules: Vec<&Rule> = stmts
+            .iter()
+            .filter_map(|stmt| {
+                if let Stmt::Rule(rule) = stmt {
+                    Some(rule)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let rust = cg.emit_rule_function("kongens_ansvarstype", &rules);
+        assert!(
+            rust.contains("fn kongens_ansvarstype() -> Ansvarstype {"),
+            "nullary constructor-valued rules should keep their enum return type: {}",
+            rust
+        );
+        assert!(
+            rust.contains("Ansvarstype::AnsvarsFri"),
+            "nullary constructor-valued rules should return the enum variant directly: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("if Ansvarstype::AnsvarsFri"),
+            "nullary constructor-valued rules must not be lowered as boolean guards: {}",
             rust
         );
     }

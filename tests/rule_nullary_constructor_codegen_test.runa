@@ -1,0 +1,7 @@
+# Mood = Happy | Sad
+
+| default_mood() -> Happy
+
+= current = default_mood()
+| current_is_happy: current -> current == Happy
+? current_is_happy
