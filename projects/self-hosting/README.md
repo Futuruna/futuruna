@@ -23,6 +23,15 @@ Goal: Make the Futuruna compiler compile itself.
 - **Escape analysis**: TBD — Prolog rules (M23) vs `@ rust {}` escape hatch
 - **Compiler split**: lexer.runa, parser.runa, interpreter.runa, codegen.runa, main.runa
 
+## Verified Bootstrap
+
+Self-hosting and verified bootstrap are related, but they are not the same milestone.
+
+- Self-hosting means Futuruna can compile Futuruna.
+- Verified bootstrap means the compiler stages we rely on are themselves justified by proofs or translation checks.
+
+The current proof-carrying bootstrap plan and trust boundary live in [docs/verified-bootstrap.md](../../docs/verified-bootstrap.md). The short version is that Futuruna can already prove tiny compiler passes inside Futuruna, but the production compiler is not yet verified.
+
 ## Analysis
 
 See `research/language-review/adversarial-review.md` for honest assessment.
