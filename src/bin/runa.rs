@@ -13293,8 +13293,9 @@ impl RustCodegen {
                             // Check if initial value provided: subject(val)
                             if let ExprKind::App(_, args) = &expr.kind {
                                 if let Some(init) = args.first() {
-                                    let ty = expr_to_rust_type(init);
-                                    types.insert(name.clone(), ty);
+                                    if let Some(ty) = expr_to_rust_type(init) {
+                                        types.insert(name.clone(), ty);
+                                    }
                                 }
                             }
                         }
@@ -13313,8 +13314,9 @@ impl RustCodegen {
                             },
                             msg,
                         ) if subject_names.contains(target) && !types.contains_key(target) => {
-                            let ty = expr_to_rust_type(msg);
-                            types.insert(target.clone(), ty);
+                            if let Some(ty) = expr_to_rust_type(msg) {
+                                types.insert(target.clone(), ty);
+                            }
                         }
                         Stmt::For(_, _, body) => {
                             for bs in body {
@@ -13328,8 +13330,9 @@ impl RustCodegen {
                                 {
                                     if subject_names.contains(target) && !types.contains_key(target)
                                     {
-                                        let ty = expr_to_rust_type(msg);
-                                        types.insert(target.clone(), ty);
+                                        if let Some(ty) = expr_to_rust_type(msg) {
+                                            types.insert(target.clone(), ty);
+                                        }
                                     }
                                 }
                             }
@@ -13340,23 +13343,22 @@ impl RustCodegen {
                 }
             }
 
-            fn expr_to_rust_type(expr: &Expr) -> String {
+            fn expr_to_rust_type(expr: &Expr) -> Option<String> {
                 match &expr.kind {
-                    ExprKind::Lit(Literal::Str(_)) => "String".to_string(),
-                    ExprKind::Lit(Literal::Int(_)) => "i64".to_string(),
-                    ExprKind::Lit(Literal::Float(_)) => "f64".to_string(),
-                    ExprKind::Lit(Literal::Bool(_)) => "bool".to_string(),
-                    ExprKind::Lit(Literal::Char(_)) => "char".to_string(),
+                    ExprKind::Lit(Literal::Str(_)) => Some("String".to_string()),
+                    ExprKind::Lit(Literal::Int(_)) => Some("i64".to_string()),
+                    ExprKind::Lit(Literal::Float(_)) => Some("f64".to_string()),
+                    ExprKind::Lit(Literal::Bool(_)) => Some("bool".to_string()),
+                    ExprKind::Lit(Literal::Char(_)) => Some("char".to_string()),
                     // String concatenation: expr + expr where either is a string
                     ExprKind::BinOp(op, lhs, _) if op == "+" => {
                         if matches!(lhs.as_ref().kind, ExprKind::Lit(Literal::Str(_))) {
-                            "String".to_string()
+                            Some("String".to_string())
                         } else {
                             expr_to_rust_type(lhs)
                         }
                     }
-                    // Constructor: infer from variant parent (fallback to String)
-                    _ => "String".to_string(),
+                    _ => None,
                 }
             }
 
@@ -13765,6 +13767,62 @@ impl RustCodegen {
             out.push_str("        for h in &self.handles {\n");
             out.push_str("            h.abort();\n");
             out.push_str("        }\n");
+            out.push_str("    }\n");
+            out.push_str("}\n");
+            out.push_str(
+                "\n#[derive(Clone)]\nstruct __FutStream<T: Clone + Send + 'static> {\n",
+            );
+            out.push_str("    tx: tokio::sync::broadcast::Sender<(u64, T)>,\n");
+            out.push_str(
+                "    history: std::sync::Arc<std::sync::Mutex<Vec<(u64, T)>>>,\n",
+            );
+            out.push_str(
+                "    next_seq: std::sync::Arc<std::sync::atomic::AtomicU64>,\n",
+            );
+            out.push_str("}\n");
+            out.push_str("impl<T: Clone + Send + 'static> __FutStream<T> {\n");
+            out.push_str("    fn new() -> Self {\n");
+            out.push_str("        let (tx, _) = broadcast::channel::<(u64, T)>(256);\n");
+            out.push_str("        Self {\n");
+            out.push_str("            tx,\n");
+            out.push_str(
+                "            history: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),\n",
+            );
+            out.push_str(
+                "            next_seq: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),\n",
+            );
+            out.push_str("        }\n");
+            out.push_str("    }\n");
+            out.push_str("    fn send(&self, value: T) {\n");
+            out.push_str("        let seq = self.next_seq.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;\n");
+            out.push_str("        self.history.lock().unwrap().push((seq, value.clone()));\n");
+            out.push_str("        let _ = self.tx.send((seq, value));\n");
+            out.push_str("    }\n");
+            out.push_str(
+                "    fn subscribe(&self) -> tokio::sync::broadcast::Receiver<(u64, T)> {\n",
+            );
+            out.push_str("        self.tx.subscribe()\n");
+            out.push_str("    }\n");
+            out.push_str("    fn watermark(&self) -> u64 {\n");
+            out.push_str(
+                "        self.next_seq.load(std::sync::atomic::Ordering::SeqCst)\n",
+            );
+            out.push_str("    }\n");
+            out.push_str("    fn snapshot(&self) -> Vec<T> {\n");
+            out.push_str(
+                "        self.history.lock().unwrap().iter().map(|(_, v)| v.clone()).collect()\n",
+            );
+            out.push_str("    }\n");
+            out.push_str("    fn snapshot_until(&self, watermark: u64) -> Vec<T> {\n");
+            out.push_str("        self.history.lock().unwrap().iter().filter(|(seq, _)| *seq <= watermark).map(|(_, v)| v.clone()).collect()\n");
+            out.push_str("    }\n");
+            out.push_str("    fn count(&self) -> i64 {\n");
+            out.push_str("        self.history.lock().unwrap().len() as i64\n");
+            out.push_str("    }\n");
+            out.push_str("    fn latest(&self) -> T {\n");
+            out.push_str(
+                "        self.history.lock().unwrap().last().map(|(_, v)| v.clone()).unwrap()\n",
+            );
             out.push_str("    }\n");
             out.push_str("}\n");
         }
@@ -17774,43 +17832,86 @@ impl RustCodegen {
                     self.sub_counter += 1;
                     let handle_name = format!("_sub_{}", self.sub_counter);
                     let mut out = String::new();
-                    // We assume expr evaluates to an rx channel or a stream wrapper with `.subscribe()`
-                    // For now, assume subject variable name directly like `name.subscribe()`
-                    // If it's a stream object, it should have a `.subscribe()` method or we do it inline.
                     out.push_str(&format!(
-                        "{}let mut _rx_{} = {}.subscribe();
-",
+                        "{}let __stream_{} = {};\n",
                         self.ind(),
                         self.sub_counter,
                         iter_name
                     ));
                     out.push_str(&format!(
-                        "{}let {} = tokio::spawn(async move {{
-",
+                        "{}let mut _rx_{} = __stream_{}.subscribe();\n",
+                        self.ind(),
+                        self.sub_counter,
+                        self.sub_counter
+                    ));
+                    out.push_str(&format!(
+                        "{}let __cutoff_{} = __stream_{}.watermark();\n",
+                        self.ind(),
+                        self.sub_counter,
+                        self.sub_counter
+                    ));
+                    out.push_str(&format!(
+                        "{}for __seed_{} in __stream_{}.snapshot_until(__cutoff_{}).into_iter() {{\n",
+                        self.ind(),
+                        self.sub_counter,
+                        self.sub_counter,
+                        self.sub_counter
+                    ));
+                    self.indent += 1;
+                    out.push_str(&format!(
+                        "{}match __seed_{} {{\n",
+                        self.ind()
+                        ,
+                        self.sub_counter
+                    ));
+                    self.indent += 1;
+                    for arm in &value_arms {
+                        let pat_str = self.emit_pattern_match(&arm.pat);
+                        out.push_str(&format!("{}{} => {{\n", self.ind(), pat_str));
+                        self.indent += 1;
+                        if let Some(guard) = &arm.guard {
+                            out.push_str(&format!("{}if {} {{\n", self.ind(), self.emit_expr(guard)));
+                            self.indent += 1;
+                        }
+                        out.push_str(&format!("{};\n", self.emit_expr(&arm.body)));
+                        if arm.guard.is_some() {
+                            self.indent -= 1;
+                            out.push_str(&format!("{}}}\n", self.ind()));
+                        }
+                        self.indent -= 1;
+                        out.push_str(&format!("{}}}\n", self.ind()));
+                    }
+                    out.push_str(&format!("{}_ => {{}}\n", self.ind()));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                    out.push_str(&format!(
+                        "{}let {} = tokio::spawn(async move {{\n",
                         self.ind(),
                         handle_name
                     ));
                     self.indent += 1;
-                    out.push_str(&format!(
-                        "{}loop {{
-",
-                        self.ind()
-                    ));
+                    out.push_str(&format!("{}loop {{\n", self.ind()));
                     self.indent += 1;
                     out.push_str(&format!(
-                        "{}match _rx_{}.recv().await {{
-",
+                        "{}match _rx_{}.recv().await {{\n",
                         self.ind(),
                         self.sub_counter
                     ));
                     self.indent += 1;
 
+                    out.push_str(&format!(
+                        "{}Ok((__seq, _)) if __seq <= __cutoff_{} => {{}}\n",
+                        self.ind(),
+                        self.sub_counter
+                    ));
+
                     // Values
                     for arm in &value_arms {
                         let pat_str = self.emit_pattern_match(&arm.pat);
                         out.push_str(&format!(
-                            "{}Ok({}) => {{
-",
+                            "{}Ok((_, {})) => {{\n",
                             self.ind(),
                             pat_str
                         ));
@@ -17855,8 +17956,7 @@ impl RustCodegen {
 
                     // Error
                     out.push_str(&format!(
-                        "{}Err(tokio::sync::broadcast::error::RecvError::Lagged(_n)) => {{
-",
+                        "{}Err(tokio::sync::broadcast::error::RecvError::Lagged(_n)) => {{\n",
                         self.ind()
                     ));
                     self.indent += 1;
@@ -17903,8 +18003,7 @@ impl RustCodegen {
 
                     // Complete
                     out.push_str(&format!(
-                        "{}Err(tokio::sync::broadcast::error::RecvError::Closed) => {{
-",
+                        "{}Err(tokio::sync::broadcast::error::RecvError::Closed) => {{\n",
                         self.ind()
                     ));
                     self.indent += 1;
@@ -18071,11 +18170,36 @@ impl RustCodegen {
                     let handle_name = format!("_sub_{}", self.sub_counter);
                     let mut out = String::new();
                     out.push_str(&format!(
-                        "{}let mut _rx_{} = {}.subscribe();\n",
+                        "{}let __stream_{} = {};\n",
                         self.ind(),
                         self.sub_counter,
                         iter_name
                     ));
+                    out.push_str(&format!(
+                        "{}let mut _rx_{} = __stream_{}.subscribe();\n",
+                        self.ind(),
+                        self.sub_counter,
+                        self.sub_counter
+                    ));
+                    out.push_str(&format!(
+                        "{}let __cutoff_{} = __stream_{}.watermark();\n",
+                        self.ind(),
+                        self.sub_counter,
+                        self.sub_counter
+                    ));
+                    out.push_str(&format!(
+                        "{}for {} in __stream_{}.snapshot_until(__cutoff_{}).into_iter() {{\n",
+                        self.ind(),
+                        var,
+                        self.sub_counter,
+                        self.sub_counter
+                    ));
+                    self.indent += 1;
+                    for s in body {
+                        out.push_str(&self.emit_stmt(s));
+                    }
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
                     out.push_str(&format!(
                         "{}let {} = tokio::spawn(async move {{\n",
                         self.ind(),
@@ -18083,12 +18207,15 @@ impl RustCodegen {
                     ));
                     self.indent += 1;
                     out.push_str(&format!(
-                        "{}while let Ok({}) = _rx_{}.recv().await {{\n",
-                        self.ind(),
-                        var,
-                        self.sub_counter
+                        "{}while let Ok((__seq, {})) = _rx_{}.recv().await {{\n",
+                        self.ind(), var, self.sub_counter
                     ));
                     self.indent += 1;
+                    out.push_str(&format!(
+                        "{}if __seq <= __cutoff_{} {{ continue; }}\n",
+                        self.ind(),
+                        self.sub_counter
+                    ));
                     for s in body {
                         out.push_str(&self.emit_stmt(s));
                     }
@@ -18185,7 +18312,7 @@ impl RustCodegen {
                         t.clone()
                     };
                     if self.subject_vars.contains(&var_name) {
-                        let mut out = format!("{}let _ = {}.send({});\n", self.ind(), t, m);
+                        let mut out = format!("{}{}.send({});\n", self.ind(), t, m);
                         out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
                         return out;
                     }
@@ -18226,24 +18353,22 @@ impl RustCodegen {
                         } else {
                             None
                         };
-                        let elem_type = self
-                            .subject_elem_type
-                            .get(name)
-                            .cloned()
-                            .unwrap_or_else(|| "i64".to_string());
-                        out.push_str(&format!(
-                            "{}let ({}, _) = broadcast::channel::<{}>(256);\n",
-                            self.ind(),
-                            name,
-                            elem_type
-                        ));
-                        if let Some(init) = initial_val {
+                        if let Some(elem_type) = self.subject_elem_type.get(name) {
                             out.push_str(&format!(
-                                "{}let _ = {}.send({});\n",
+                                "{}let {}: __FutStream<{}> = __FutStream::new();\n",
                                 self.ind(),
                                 name,
-                                init
+                                elem_type
                             ));
+                        } else {
+                            out.push_str(&format!(
+                                "{}let {} = __FutStream::new();\n",
+                                self.ind(),
+                                name
+                            ));
+                        }
+                        if let Some(init) = initial_val {
+                            out.push_str(&format!("{}{}.send({});\n", self.ind(), name, init));
                         }
                         return out;
                     }
@@ -19592,6 +19717,9 @@ impl RustCodegen {
                         "start_with",
                         "concat",
                     ];
+                    if name == "as_stream" && !args.is_empty() {
+                        return self.is_async_stream_expr(&args[0]);
+                    }
                     if stream_ops.contains(&name.as_str()) && !args.is_empty() {
                         return self.is_async_stream_expr(&args[0]);
                     }
@@ -19617,131 +19745,244 @@ impl RustCodegen {
         }
     }
 
+    fn emit_async_stream_snapshot(&mut self, expr: &Expr) -> String {
+        format!("{}.snapshot()", self.emit_expr(expr))
+    }
+
+    fn emit_async_stream_snapshot_builtin(&mut self, name: &str, args: &[Expr]) -> Option<String> {
+        if !self.has_async || args.is_empty() || !self.is_async_stream_expr(&args[0]) {
+            return None;
+        }
+        let snapshot = self.emit_async_stream_snapshot(&args[0]);
+        match name {
+            "count" if args.len() == 1 => Some(format!("({}.len() as i64)", snapshot)),
+            "sum" if args.len() == 1 => Some(format!(
+                "{}.into_iter().reduce(|a, b| a + b).unwrap_or_default()",
+                snapshot
+            )),
+            "collect" if args.len() == 1 => Some(snapshot),
+            "last" if args.len() == 1 => Some(format!(
+                "{}.into_iter().last().unwrap_or_default()",
+                snapshot
+            )),
+            "first" if args.len() == 1 => Some(format!(
+                "{}.into_iter().next().unwrap_or_default()",
+                snapshot
+            )),
+            "reduce" if args.len() == 3 => {
+                let init = self.emit_expr(&args[1]);
+                let f = self.emit_expr(&args[2]);
+                Some(format!(
+                    "{{ let mut __acc = {}; for __x in {}.into_iter() {{ __acc = ({}) (__acc.clone(), __x); }} __acc }}",
+                    init, snapshot, f
+                ))
+            }
+            _ => None,
+        }
+    }
+
     /// Emit an async stream operator as a Rust block expression.
-    /// Creates a new broadcast channel, spawns a forwarding task, returns the Sender.
+    /// Creates a history-preserving async stream wrapper and forwards live updates.
     fn emit_async_stream_op(&mut self, name: &str, args: &[Expr]) -> Option<String> {
         if !self.has_async || args.is_empty() || !self.is_async_stream_expr(&args[0]) {
             return None;
         }
         self.async_stream_counter += 1;
         let n = self.async_stream_counter;
-        let source = self.emit_expr(&args[0]);
+        let mut source = self.emit_expr(&args[0]);
+        if let ExprKind::Var(name) = &args[0].kind {
+            let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
+            if uses > 1 && !self.copy_vars.contains(name.as_str()) {
+                source = format!("{}.clone()", source);
+            }
+        }
 
         match name {
             "map" if args.len() == 2 => {
                 let f = self.emit_expr(&args[1]);
                 Some(format!(
-                    "{{ let (__stx_{n}, _) = broadcast::channel::<i64>(256); \
-                    let mut __srx_{n} = {source}.subscribe(); \
-                    let __sfwd_{n} = __stx_{n}.clone(); \
+                    "{{ let __src_{n} = {source}; \
+                    let __out_{n} = __FutStream::new(); \
+                    let mut __srx_{n} = __src_{n}.subscribe(); \
+                    let __cutoff_{n} = __src_{n}.watermark(); \
+                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
+                        __out_{n}.send(({f})(__v)); \
+                    }} \
+                    let __sfwd_{n} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
-                        while let Ok(__v) = __srx_{n}.recv().await {{ \
-                            let _ = __sfwd_{n}.send(({f})(__v)); \
+                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
+                            if __seq <= __cutoff_{n} {{ continue; }} \
+                            __sfwd_{n}.send(({f})(__v)); \
                         }} \
                     }}); \
-                    __stx_{n} }}"
+                    __out_{n} }}"
                 ))
             }
             "filter" if args.len() == 2 => {
                 let f = self.emit_expr(&args[1]);
                 Some(format!(
-                    "{{ let (__stx_{n}, _) = broadcast::channel::<i64>(256); \
-                    let mut __srx_{n} = {source}.subscribe(); \
-                    let __sfwd_{n} = __stx_{n}.clone(); \
+                    "{{ let __src_{n} = {source}; \
+                    let __out_{n} = __FutStream::new(); \
+                    let mut __srx_{n} = __src_{n}.subscribe(); \
+                    let __cutoff_{n} = __src_{n}.watermark(); \
+                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
+                        if ({f})(__v.clone()) {{ __out_{n}.send(__v); }} \
+                    }} \
+                    let __sfwd_{n} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
-                        while let Ok(__v) = __srx_{n}.recv().await {{ \
-                            if ({f})(__v.clone()) {{ let _ = __sfwd_{n}.send(__v); }} \
+                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
+                            if __seq <= __cutoff_{n} {{ continue; }} \
+                            if ({f})(__v.clone()) {{ __sfwd_{n}.send(__v); }} \
                         }} \
                     }}); \
-                    __stx_{n} }}"
+                    __out_{n} }}"
                 ))
             }
             "scan" if args.len() == 3 => {
                 let init = self.emit_expr(&args[1]);
                 let f = self.emit_expr(&args[2]);
                 Some(format!(
-                    "{{ let (__stx_{n}, _) = broadcast::channel::<i64>(256); \
-                    let mut __srx_{n} = {source}.subscribe(); \
-                    let __sfwd_{n} = __stx_{n}.clone(); \
+                    "{{ let __src_{n} = {source}; \
+                    let __out_{n} = __FutStream::new(); \
+                    let mut __srx_{n} = __src_{n}.subscribe(); \
+                    let __cutoff_{n} = __src_{n}.watermark(); \
+                    let mut __acc_seed_{n} = {init}; \
+                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
+                        __acc_seed_{n} = ({f})(__acc_seed_{n}.clone(), __v); \
+                        __out_{n}.send(__acc_seed_{n}.clone()); \
+                    }} \
+                    let __sfwd_{n} = __out_{n}.clone(); \
+                    let __seed_acc_{n} = __acc_seed_{n}.clone(); \
                     tokio::spawn(async move {{ \
-                        let mut __acc = {init}; \
-                        while let Ok(__v) = __srx_{n}.recv().await {{ \
+                        let mut __acc = __seed_acc_{n}; \
+                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
+                            if __seq <= __cutoff_{n} {{ continue; }} \
                             __acc = ({f})(__acc.clone(), __v); \
-                            let _ = __sfwd_{n}.send(__acc.clone()); \
+                            __sfwd_{n}.send(__acc.clone()); \
                         }} \
                     }}); \
-                    __stx_{n} }}"
+                    __out_{n} }}"
                 ))
             }
             "take" if args.len() == 2 => {
                 let count = self.emit_expr(&args[1]);
                 Some(format!(
-                    "{{ let (__stx_{n}, _) = broadcast::channel::<i64>(256); \
-                    let mut __srx_{n} = {source}.subscribe(); \
-                    let __sfwd_{n} = __stx_{n}.clone(); \
+                    "{{ let __src_{n} = {source}; \
+                    let __out_{n} = __FutStream::new(); \
+                    let mut __srx_{n} = __src_{n}.subscribe(); \
+                    let __cutoff_{n} = __src_{n}.watermark(); \
+                    let mut __seen_seed_{n} = 0i64; \
+                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
+                        if __seen_seed_{n} >= {count} {{ break; }} \
+                        __out_{n}.send(__v); \
+                        __seen_seed_{n} += 1; \
+                    }} \
+                    let __sfwd_{n} = __out_{n}.clone(); \
+                    let __seed_seen_{n} = __seen_seed_{n}; \
                     tokio::spawn(async move {{ \
-                        let mut __c = 0i64; \
-                        while let Ok(__v) = __srx_{n}.recv().await {{ \
+                        let mut __c = __seed_seen_{n}; \
+                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
+                            if __seq <= __cutoff_{n} {{ continue; }} \
                             if __c >= {count} {{ break; }} \
-                            let _ = __sfwd_{n}.send(__v); \
+                            __sfwd_{n}.send(__v); \
                             __c += 1; \
                         }} \
                     }}); \
-                    __stx_{n} }}"
+                    __out_{n} }}"
                 ))
             }
             "skip" if args.len() == 2 => {
                 let count = self.emit_expr(&args[1]);
                 Some(format!(
-                    "{{ let (__stx_{n}, _) = broadcast::channel::<i64>(256); \
-                    let mut __srx_{n} = {source}.subscribe(); \
-                    let __sfwd_{n} = __stx_{n}.clone(); \
+                    "{{ let __src_{n} = {source}; \
+                    let __out_{n} = __FutStream::new(); \
+                    let mut __srx_{n} = __src_{n}.subscribe(); \
+                    let __cutoff_{n} = __src_{n}.watermark(); \
+                    let mut __seen_seed_{n} = 0i64; \
+                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
+                        if __seen_seed_{n} >= {count} {{ __out_{n}.send(__v); }} \
+                        else {{ __seen_seed_{n} += 1; }} \
+                    }} \
+                    let __sfwd_{n} = __out_{n}.clone(); \
+                    let __seed_seen_{n} = __seen_seed_{n}; \
                     tokio::spawn(async move {{ \
-                        let mut __c = 0i64; \
-                        while let Ok(__v) = __srx_{n}.recv().await {{ \
-                            if __c >= {count} {{ let _ = __sfwd_{n}.send(__v); }} \
+                        let mut __c = __seed_seen_{n}; \
+                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
+                            if __seq <= __cutoff_{n} {{ continue; }} \
+                            if __c >= {count} {{ __sfwd_{n}.send(__v); }} \
                             else {{ __c += 1; }} \
                         }} \
                     }}); \
-                    __stx_{n} }}"
+                    __out_{n} }}"
                 ))
             }
             "tap" if args.len() == 2 => {
                 let f = self.emit_expr(&args[1]);
                 Some(format!(
-                    "{{ let (__stx_{n}, _) = broadcast::channel::<i64>(256); \
-                    let mut __srx_{n} = {source}.subscribe(); \
-                    let __sfwd_{n} = __stx_{n}.clone(); \
+                    "{{ let __src_{n} = {source}; \
+                    let __out_{n} = __FutStream::new(); \
+                    let mut __srx_{n} = __src_{n}.subscribe(); \
+                    let __cutoff_{n} = __src_{n}.watermark(); \
+                    for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
+                        ({f})(__v.clone()); \
+                        __out_{n}.send(__v); \
+                    }} \
+                    let __sfwd_{n} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
-                        while let Ok(__v) = __srx_{n}.recv().await {{ \
+                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
+                            if __seq <= __cutoff_{n} {{ continue; }} \
                             ({f})(__v.clone()); \
-                            let _ = __sfwd_{n}.send(__v); \
+                            __sfwd_{n}.send(__v); \
                         }} \
                     }}); \
-                    __stx_{n} }}"
+                    __out_{n} }}"
                 ))
             }
             "merge" if args.len() == 2 => {
                 self.async_stream_counter += 1; // need two rx counters
                 let n2 = self.async_stream_counter;
-                let source2 = self.emit_expr(&args[1]);
+                let mut source2 = self.emit_expr(&args[1]);
+                if let ExprKind::Var(name) = &args[1].kind {
+                    let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
+                    if uses > 1 && !self.copy_vars.contains(name.as_str()) {
+                        source2 = format!("{}.clone()", source2);
+                    }
+                }
                 Some(format!(
-                    "{{ let (__stx_{n}, _) = broadcast::channel::<i64>(256); \
-                    let mut __srx_{n} = {source}.subscribe(); \
-                    let mut __srx_{n2} = {source2}.subscribe(); \
-                    let __sfwd_{n} = __stx_{n}.clone(); \
-                    let __sfwd_{n2} = __stx_{n}.clone(); \
+                    "{{ let __src_{n} = {source}; \
+                    let __src_{n2} = {source2}; \
+                    let __out_{n} = __FutStream::new(); \
+                    let mut __srx_{n} = __src_{n}.subscribe(); \
+                    let mut __srx_{n2} = __src_{n2}.subscribe(); \
+                    let __cutoff_{n} = __src_{n}.watermark(); \
+                    let __cutoff_{n2} = __src_{n2}.watermark(); \
+                    let __seed_a_{n} = __src_{n}.snapshot_until(__cutoff_{n}); \
+                    let __seed_b_{n} = __src_{n2}.snapshot_until(__cutoff_{n2}); \
+                    let mut __ait_{n} = __seed_a_{n}.into_iter(); \
+                    let mut __bit_{n} = __seed_b_{n}.into_iter(); \
+                    loop {{ \
+                        match (__ait_{n}.next(), __bit_{n}.next()) {{ \
+                            (Some(x), Some(y)) => {{ __out_{n}.send(x); __out_{n}.send(y); }} \
+                            (Some(x), None) => {{ __out_{n}.send(x); for rest in __ait_{n}.by_ref() {{ __out_{n}.send(rest); }} break; }} \
+                            (None, Some(y)) => {{ __out_{n}.send(y); for rest in __bit_{n}.by_ref() {{ __out_{n}.send(rest); }} break; }} \
+                            _ => break, \
+                        }} \
+                    }} \
+                    let __sfwd_{n} = __out_{n}.clone(); \
+                    let __sfwd_{n2} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
-                        while let Ok(__v) = __srx_{n}.recv().await {{ \
-                            let _ = __sfwd_{n}.send(__v); \
+                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
+                            if __seq <= __cutoff_{n} {{ continue; }} \
+                            __sfwd_{n}.send(__v); \
                         }} \
                     }}); \
                     tokio::spawn(async move {{ \
-                        while let Ok(__v) = __srx_{n2}.recv().await {{ \
-                            let _ = __sfwd_{n2}.send(__v); \
+                        while let Ok((__seq, __v)) = __srx_{n2}.recv().await {{ \
+                            if __seq <= __cutoff_{n2} {{ continue; }} \
+                            __sfwd_{n2}.send(__v); \
                         }} \
                     }}); \
-                    __stx_{n} }}"
+                    __out_{n} }}"
                 ))
             }
             _ => None,
@@ -20075,6 +20316,12 @@ impl RustCodegen {
                     // Builtin: show(x) — Display for strings, Debug for everything else
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
                     if builtin_canonical(name) == "show" && args_str.len() == 1 {
+                        if self.has_async && self.is_async_stream_expr(&args[0]) {
+                            return format!(
+                                "__futuruna_show_any(&{}.snapshot())",
+                                args_str[0]
+                            );
+                        }
                         if self.expr_is_string(&args[0]) {
                             return format!("format!(\"{{}}\", {})", args_str[0]);
                         }
@@ -20122,6 +20369,12 @@ impl RustCodegen {
                     // Async stream operators: intercept before sync builtin registry
                     if let Some(async_code) = self.emit_async_stream_op(name, args) {
                         return async_code;
+                    }
+                    // Pure aggregations over async stream state operate on the current snapshot.
+                    if let Some(snapshot_builtin) =
+                        self.emit_async_stream_snapshot_builtin(name, args)
+                    {
+                        return snapshot_builtin;
                     }
                     // Stream fusion: fuse chains of map/filter/take/skip into single iterator
                     if let Some(fused) = self.try_emit_fused_chain(name, args) {
@@ -20387,7 +20640,7 @@ impl RustCodegen {
                     if name == "as_stream" && args_str.len() == 1 {
                         if self.has_async {
                             if self.is_async_stream_expr(&args[0]) {
-                                return format!("{}.subscribe()", args_str[0]);
+                                return format!("{}.clone()", args_str[0]);
                             }
                         }
                         return format!("{}.clone()", args_str[0]);
@@ -20919,6 +21172,14 @@ impl RustCodegen {
                 out
             }
             ExprKind::Field(obj, field) => {
+                if self.has_async && self.is_async_stream_expr(obj) {
+                    let obj_str = self.emit_expr(obj);
+                    match field.as_str() {
+                        "count" => return format!("{}.count()", obj_str),
+                        "latest" => return format!("{}.latest()", obj_str),
+                        _ => {}
+                    }
+                }
                 // Sync subject field access: subject.count → subject.len(), subject.latest → subject.last().cloned().unwrap()
                 if let ExprKind::Var(var_name) = &obj.as_ref().kind {
                     if self.sync_subject_vars.contains(var_name.as_str()) {
@@ -24487,8 +24748,8 @@ mod tests {
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(
-            rust.contains("let mut _rx_1 = mapped.subscribe();"),
-            "derived async stream bindings should subscribe instead of iterating: {}",
+            rust.contains("let mut _rx_1 = __stream_1.subscribe();"),
+            "derived async stream bindings should subscribe through the async stream wrapper instead of iterating: {}",
             rust
         );
         assert!(
