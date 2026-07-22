@@ -18,7 +18,7 @@
 -- IMPORT — Typer og bindinger fra grundlov.runa
 -- ============================================================================
 
-@ brug grundlov::*
+@ import ./grundlov
 
 -- Institutioner udvidet for Kapitel III
 # Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsrådet | Rigsretten | Ministerrådet

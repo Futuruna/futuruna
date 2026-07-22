@@ -20,7 +20,7 @@ stadfæster DANMARKS RIGES GRUNDLOV
 -- ============================================================================
 
 -- ============================================================================
--- TYPER (fra grundlov.runa — ville være @ brug grundlov::*)
+-- TYPER (fra grundlov.runa — ville være @ import ./grundlov)
 -- ============================================================================
 
 # Rigsdel = Danmark | Færøerne | Grønland

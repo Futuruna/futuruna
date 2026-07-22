@@ -15,7 +15,7 @@
 -- IMPORT — Typer og bindinger fra grundlov.runa
 -- ============================================================================
 
-@ brug grundlov::*
+@ import ./grundlov
 
 -- Typer udvidet for Kapitel II (Statsrådet tilføjet til Institution)
 # Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsrådet
@@ -70,6 +70,9 @@
 
 -- Reglen som default-logik:
 | regent_i_andre_lande_tilladt() -> Falskt
+-- Folketingets samtykke modelleres særskilt, så en mere konkret undtagelsesregel
+-- kan erstatte defaulten uden at ændre selve hovedreglen.
+| folketinget_samtykker() -> Falskt
 | undtagelse folketingets_samtykke_regent regent_i_andre_lande_tilladt() -> Sandt under folketinget_samtykker()
 
 @ skriv("=== Kapitel II: Kongen ===")
@@ -368,6 +371,8 @@ Stk. 2. Statsydelsen kan ikke behæftes med gæld.
 
 -- Som default-logik:
 | årpenge_i_udlandet_tilladt() -> Falskt
+-- Samme mønster som § 5: uden en eksplicit samtykkeregel bliver undtagelsen ikke aktiv.
+| folketinget_samtykker_årpenge() -> Falskt
 | undtagelse folketingets_samtykke_årpenge årpenge_i_udlandet_tilladt() -> Sandt under folketinget_samtykker_årpenge()
 
 @ skriv("")

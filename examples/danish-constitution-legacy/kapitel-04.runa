@@ -26,7 +26,7 @@
 -- IMPORT — Typer og bindinger fra grundlov.runa
 -- ============================================================================
 
-@ brug grundlov::*
+@ import ./grundlov
 
 -- Folketingets sammensætning
 # Mandatfordeling(total: Int, færøerne: Int, grønland: Int, danmark: Int)

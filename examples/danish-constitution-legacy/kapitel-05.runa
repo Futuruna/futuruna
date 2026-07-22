@@ -23,7 +23,7 @@
 -- IMPORT — Typer og bindinger fra grundlov.runa
 -- ============================================================================
 
-@ brug grundlov::*
+@ import ./grundlov
 
 # Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsrådet | Rigsretten
 # Samtykke = Givet | IkkeGivet
