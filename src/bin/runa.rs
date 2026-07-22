@@ -8433,6 +8433,8 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("sort",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }" }),
         ("sort_by",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", ({1})(a)).cmp(&format!(\"{}\", ({1})(b)))); __v }" }),
         ("reverse",      BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }" }),
+        ("is_some",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.is_some()" }),
+        ("is_none",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.is_none()" }),
         ("any",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().any(|x| ({1})( x.clone()))" }),
         ("all",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().all(|x| ({1})( x.clone()))" }),
         ("find",         BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.iter().find(|x| ({1})((*x).clone())).cloned()" }),
@@ -8703,6 +8705,8 @@ struct RustCodegen {
     has_async: bool,
     /// M13c: variables that are subjects (broadcast::Sender) — for codegen routing
     subject_vars: BTreeSet<String>,
+    /// M13c: variables that evaluate to async streams (subjects or derived stream ops)
+    async_stream_vars: BTreeSet<String>,
     /// M13c: scope name -> list of subscription JoinHandle variable names
     scope_handles: BTreeMap<String, Vec<String>>,
     /// M13c: current scope being emitted (for registering subscription handles)
@@ -12351,6 +12355,7 @@ impl RustCodegen {
             var_fir_types: BTreeMap::new(),
             has_async: false,
             subject_vars: BTreeSet::new(),
+            async_stream_vars: BTreeSet::new(),
             scope_handles: BTreeMap::new(),
             current_scope: None,
             sub_counter: 0,
@@ -18054,18 +18059,14 @@ impl RustCodegen {
 
             Stmt::For(var, iter_expr, body) => {
                 // M13c: async subscription — for x in subject spawns a subscriber task
-                let is_subject_iter = if let ExprKind::Var(name) = &iter_expr.kind {
-                    self.has_async && self.subject_vars.contains(name.as_str())
-                } else {
-                    false
-                };
-
-                if is_subject_iter {
-                    let iter_name = if let ExprKind::Var(n) = &iter_expr.kind {
-                        n.clone()
-                    } else {
-                        unreachable!()
-                    };
+                if self.has_async && self.is_async_stream_expr(iter_expr) {
+                    let mut iter_name = self.emit_expr(iter_expr);
+                    if let ExprKind::Var(name) = &iter_expr.kind {
+                        let uses = self.var_use_counts.get(name.as_str()).copied().unwrap_or(0);
+                        if uses > 1 && !self.copy_vars.contains(name.as_str()) {
+                            iter_name = format!("{}.clone()", iter_name);
+                        }
+                    }
                     self.sub_counter += 1;
                     let handle_name = format!("_sub_{}", self.sub_counter);
                     let mut out = String::new();
@@ -18212,6 +18213,7 @@ impl RustCodegen {
                     let is_subject = matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"));
                     if is_subject {
                         self.subject_vars.insert(name.clone());
+                        self.async_stream_vars.insert(name.clone());
                         let mut out = String::new();
                         // Extract initial value if provided: subject(val) or subject()
                         // subject() → no initial, subject(val) → initial, subject(val, n) → initial + replay
@@ -18244,6 +18246,9 @@ impl RustCodegen {
                             ));
                         }
                         return out;
+                    }
+                    if self.is_async_stream_expr(expr) {
+                        self.async_stream_vars.insert(name.clone());
                     }
                 }
                 // Sync mode: Vec-based stream binding
@@ -19570,7 +19575,10 @@ impl RustCodegen {
             return false;
         }
         match &expr.kind {
-            ExprKind::Var(name) => self.subject_vars.contains(name.as_str()),
+            ExprKind::Var(name) => {
+                self.subject_vars.contains(name.as_str())
+                    || self.async_stream_vars.contains(name.as_str())
+            }
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     let stream_ops = [
@@ -19589,6 +19597,21 @@ impl RustCodegen {
                     }
                 }
                 false
+            }
+            ExprKind::Pipe(input, transform) => {
+                let desugared: Expr = match &transform.as_ref().kind {
+                    ExprKind::App(func, existing_args) => {
+                        let mut new_args = vec![input.as_ref().clone()];
+                        new_args.extend(existing_args.iter().cloned());
+                        ExprKind::App(func.clone(), new_args).into()
+                    }
+                    _ => ExprKind::App(
+                        Box::new(transform.as_ref().clone()),
+                        vec![input.as_ref().clone()],
+                    )
+                    .into(),
+                };
+                self.is_async_stream_expr(&desugared)
             }
             _ => false,
         }
@@ -20363,12 +20386,7 @@ impl RustCodegen {
                     }
                     if name == "as_stream" && args_str.len() == 1 {
                         if self.has_async {
-                            let arg_name = if let ExprKind::Var(n) = &args[0].kind {
-                                n.as_str()
-                            } else {
-                                ""
-                            };
-                            if self.subject_vars.contains(arg_name) {
+                            if self.is_async_stream_expr(&args[0]) {
                                 return format!("{}.subscribe()", args_str[0]);
                             }
                         }
@@ -20623,7 +20641,6 @@ impl RustCodegen {
                         !self.types.user_functions.contains(v.as_str())
                             && !self.builtin_registry.contains_key(v.as_str())
                             && !self.types.variant_parent.contains_key(v.as_str())
-                            && !self.copy_vars.contains(v.as_str())
                             && !lsp_builtin_names.contains(v.as_str())
                             && !all_effect_ops.contains(v.as_str())
                             && !matches!(
@@ -20647,19 +20664,20 @@ impl RustCodegen {
                 if captured.is_empty() {
                     format!("|{}| {}", ps.join(", "), body_str)
                 } else {
-                    // Clone non-Copy captured vars, then use `move` to own the clones
+                    // Clone non-Copy captures, then use `move` so the closure owns all captures.
                     let clones: Vec<String> = captured
                         .iter()
+                        .filter(|v| !self.copy_vars.contains(v.as_str()))
                         .map(|v| {
                             format!("let {} = {}.clone();", sanitize_name(v), sanitize_name(v))
                         })
                         .collect();
-                    format!(
-                        "{{ {} move |{}| {} }}",
-                        clones.join(" "),
-                        ps.join(", "),
-                        body_str
-                    )
+                    let clone_prefix = if clones.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} ", clones.join(" "))
+                    };
+                    format!("{{ {}move |{}| {} }}", clone_prefix, ps.join(", "), body_str)
                 }
             }
             ExprKind::BinOp(op, lhs, rhs) => {
@@ -24453,6 +24471,41 @@ mod tests {
         assert!(
             !rust.contains("panic!(\"? add_comm FAILED\")"),
             "explicit proof blocks must not lower to runtime ? checks: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_subscribes_to_derived_async_stream_bindings() {
+        let source = r#"
+~ s = subject()
+~ mapped = map(s, |x| x * 10)
+~ mapped | val -> {
+    @ print(show(val))
+}
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("let mut _rx_1 = mapped.subscribe();"),
+            "derived async stream bindings should subscribe instead of iterating: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("for _item in mapped.into_iter()"),
+            "derived async stream bindings must not lower to sync iteration: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_expr_moves_copy_captures_for_returned_lambdas() {
+        let source = "> add_n(n: Int) -> (Int -> Int) { |x| x + n }";
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("move |x: i64| (x + n)"),
+            "returned lambdas should move even Copy captures so they do not borrow stack locals: {}",
             rust
         );
     }

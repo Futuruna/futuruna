@@ -43,7 +43,7 @@
     | z -> refl
 }
 
-| computed_subject: add(1, 2) -> add(1, 2) == add(1, 2)
+| computed_subject: 1 + 2 -> 1 + 2 == 1 + 2
 ? computed_subject by {
     | n -> refl
 }

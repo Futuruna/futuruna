@@ -10449,6 +10449,10 @@ impl TypeChecker {
             ("floor", 1),
             ("max_f", 2),
             ("min_f", 2),
+            // Comptime type construction
+            ("field", 2),
+            ("struct_type", 1),
+            ("enum_type", 1),
             // String
             ("split", 2),
             ("join", 2),
@@ -10507,6 +10511,8 @@ impl TypeChecker {
             ("foldl", 3),
             ("sort", 1),
             ("sort_by", 2),
+            ("is_some", 1),
+            ("is_none", 1),
             ("any", 2),
             ("all", 2),
             ("find", 2),
@@ -10606,7 +10612,7 @@ impl TypeChecker {
         // Built-in types
         for name in &[
             "Int", "Float", "String", "Bool", "Char", "List", "Unit", "Option", "Result", "Pair",
-            "Stream", "Subject", "Db",
+            "Stream", "Subject", "Db", "TypeDef",
         ] {
             tc.types.insert(name.to_string());
         }
@@ -10664,6 +10670,11 @@ impl TypeChecker {
             ExprKind::App(_, args) => {
                 // Constructor with args: Cons(h, t)
                 for a in args { Self::define_rule_head_vars(a, scopes); }
+            }
+            ExprKind::Tuple(items) => {
+                for item in items {
+                    Self::define_rule_head_vars(item, scopes);
+                }
             }
             _ => {}
         }
@@ -10862,7 +10873,12 @@ impl TypeChecker {
                     self.define_var(name);
                     self.collect_declarations(body);
                 }
-                Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                Stmt::TypeDecl(TypeDecl::ADT {
+                    name,
+                    variants,
+                    methods,
+                    ..
+                }) => {
                     self.types.insert(name.clone());
                     let mut variant_names = Vec::new();
                     for variant in variants {
@@ -10877,6 +10893,11 @@ impl TypeChecker {
                     }
                     if variants.len() > 1 {
                         self.type_variants.insert(name.clone(), variant_names);
+                    }
+                    for defn in methods {
+                        if let Defn::Fn { name, params, .. } = defn {
+                            self.functions.insert(name.clone(), params.len());
+                        }
                     }
                 }
                 Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
@@ -11004,6 +11025,35 @@ impl TypeChecker {
                         }
                     }
                 }
+                Stmt::HashImport(hash, path) => {
+                    if let Some(ref dir) = self.source_dir {
+                        if let Some(file_path) = Self::resolve_tc_import(path, dir) {
+                            let canon = std::fs::canonicalize(&file_path)
+                                .map(|p| p.to_string_lossy().to_string())
+                                .unwrap_or(file_path.clone());
+                            let import_key = format!("{}#{}", canon, hash);
+                            if !self.imported.contains(&import_key) {
+                                self.imported.insert(import_key);
+                                if let Ok(source) = std::fs::read_to_string(&file_path) {
+                                    let mut lexer = Lexer::new(&source);
+                                    let tokens = lexer.tokenize();
+                                    let mut parser = Parser::new(tokens, &source);
+                                    if let Ok(import_stmts) = parser.parse_program() {
+                                        let matched: Vec<Stmt> = import_stmts
+                                            .into_iter()
+                                            .filter(|s| match s {
+                                                Stmt::Defn(d) => content_hash_defn(d) == *hash,
+                                                Stmt::TypeDecl(td) => content_hash_type(td) == *hash,
+                                                _ => false,
+                                            })
+                                            .collect();
+                                        self.collect_declarations(&matched);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -11011,11 +11061,38 @@ impl TypeChecker {
 
     /// Pass 2: check the program for errors
     pub fn check_program(&mut self, stmts: &[Stmt]) {
-        for stmt in stmts {
-            self.check_stmt(stmt);
-        }
+        self.check_stmt_sequence(stmts);
         // Check trait impl completeness
         self.check_trait_impls();
+    }
+
+    fn check_stmt_sequence(&mut self, stmts: &[Stmt]) {
+        let mut pending_comptime = false;
+        for stmt in stmts {
+            match stmt {
+                Stmt::Annot(name, _) if name == "comptime" => {
+                    self.check_stmt(stmt);
+                    pending_comptime = true;
+                }
+                Stmt::Expr(expr) if pending_comptime => {
+                    if let ExprKind::App(func, args) = &expr.kind {
+                        if matches!(&func.kind, ExprKind::Var(name) if name == "assert")
+                            && args.len() == 1
+                        {
+                            self.check_expr(&args[0], None);
+                            pending_comptime = false;
+                            continue;
+                        }
+                    }
+                    self.check_stmt(stmt);
+                    pending_comptime = false;
+                }
+                _ => {
+                    self.check_stmt(stmt);
+                    pending_comptime = false;
+                }
+            }
+        }
     }
 
     /// Verify each `# impl Trait for Type` provides all required methods.
@@ -11078,7 +11155,7 @@ impl TypeChecker {
                 self.push_context(format!("in module `{}`", name));
                 self.push_scope();
                 self.collect_declarations(body);
-                self.check_program(body);
+                self.check_stmt_sequence(body);
                 self.pop_scope();
                 self.pop_context();
             }
@@ -11159,7 +11236,7 @@ impl TypeChecker {
             Stmt::Rule(Rule::Scope { body, .. }) => {
                 self.push_scope();
                 self.collect_declarations(body);
-                self.check_program(body);
+                self.check_stmt_sequence(body);
                 self.pop_scope();
             }
             Stmt::Rule(Rule::Default {
@@ -11232,8 +11309,11 @@ impl TypeChecker {
             Stmt::Invariant {
                 subject, predicate, ..
             } => {
+                self.push_scope();
+                Self::define_rule_head_vars(subject, &mut self.scopes);
                 self.check_expr(subject, None);
                 self.check_expr(predicate, None);
+                self.pop_scope();
             }
             Stmt::Prove {
                 proof_block: _,
@@ -11401,9 +11481,7 @@ impl TypeChecker {
             ExprKind::Block(stmts) => {
                 self.push_scope();
                 self.collect_declarations(stmts);
-                for s in stmts {
-                    self.check_stmt(s);
-                }
+                self.check_stmt_sequence(stmts);
                 self.pop_scope();
             }
             ExprKind::Lambda(params, body) => {
@@ -12046,6 +12124,50 @@ mod tests {
         assert!(
             trait_errors[0].message.contains("size"),
             "error should mention missing 'size'"
+        );
+    }
+
+    #[test]
+    fn adt_method_blocks_register_callable_functions() {
+        let source = "# Color = Red | Blue { > name(c) -> String { match c { | Red -> \"red\" | Blue -> \"blue\" } } }\n@ print(name(Red))";
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "ADT method blocks should type-check as callable functions, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn invariant_subject_tuple_binds_predicate_variables() {
+        let source = "| add_comm: (a, b) -> a + b == b + a";
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "invariant subjects should bind tuple variables, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn comptime_assert_uses_assert_argument_as_condition() {
+        let source = "@ comptime\nassert(1 + 1 == 2)";
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "@ comptime assert should type-check without a runtime assert builtin, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn comptime_type_builtins_are_known_to_typechecker() {
+        let source = "@ comptime\n= Config = struct_type([field(\"host\", \"String\")])";
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "comptime type builtins should type-check, got: {:?}",
+            diags
         );
     }
 
