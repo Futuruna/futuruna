@@ -9451,6 +9451,16 @@ impl<'a> LoweringCtx<'a> {
     }
 
     fn field_ty(&self, obj_ty: &FirTy, field: &str) -> FirTy {
+        // Tuple field access: .fst → first element, .snd → second element.
+        // Required so that closures over List(Tuple(_)) can propagate the
+        // tuple element type when the body uses `e.fst`/`e.snd`.
+        if let FirTy::Tuple(elems) = obj_ty {
+            match field {
+                "fst" if elems.len() >= 1 => return elems[0].clone(),
+                "snd" if elems.len() >= 2 => return elems[1].clone(),
+                _ => {}
+            }
+        }
         let FirTy::Named(type_name) = obj_ty else {
             return FirTy::Unknown;
         };
@@ -9632,6 +9642,101 @@ impl<'a> LoweringCtx<'a> {
                             span: expr.span,
                             ty,
                         };
+                    }
+                    // Builtin functions that always return Float. Mirror the list
+                    // in expr_is_float (line ~18937) so let-bindings of these
+                    // return values are typed correctly during lowering, not just
+                    // during the recursive expr_is_float check. Without this,
+                    // `let x = to_float(...)` would type x as Unknown and the
+                    // safe-division codegen would pick the integer template.
+                    if matches!(
+                        fn_name.as_str(),
+                        "to_float"
+                            | "sqrt"
+                            | "exp"
+                            | "ln"
+                            | "pow"
+                            | "abs"
+                            | "round"
+                            | "floor"
+                            | "min_f"
+                            | "max_f"
+                            | "parse_float"
+                            | "phi"
+                            | "mint"
+                            ) {
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                            span: expr.span,
+                            ty: FirTy::Float,
+                        };
+                    }
+                    // Polymorphic list builtins: head(List(T)) -> T,
+                    // nth(List(T), Int) -> T. tail(List(T)) -> List(T).
+                    // Without this, `head(list_of_floats) / x` would treat
+                    // the head as Unknown and the safe-division would pick
+                    // the integer template.
+                    if matches!(fn_name.as_str(), "head" | "nth") && !fir_args.is_empty() {
+                        let elem_ty = if let FirTy::List(elem) = &fir_args[0].ty {
+                            Some((**elem).clone())
+                        } else { None };
+                        if let Some(ty) = elem_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty,
+                            };
+                        }
+                    }
+                    if fn_name == "tail" && !fir_args.is_empty() {
+                        let list_ty = if matches!(fir_args[0].ty, FirTy::List(_)) {
+                            Some(fir_args[0].ty.clone())
+                        } else { None };
+                        if let Some(ty) = list_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty,
+                            };
+                        }
+                    }
+                    // map_entries(Map(K, V)) -> List(Tuple(K, V))
+                    if fn_name == "map_entries" && !fir_args.is_empty() {
+                        let kv = if let FirTy::Map(k, v) = &fir_args[0].ty {
+                            Some(((**k).clone(), (**v).clone()))
+                        } else { None };
+                        if let Some((k, v)) = kv {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty: FirTy::List(Box::new(FirTy::Tuple(vec![k, v]))),
+                            };
+                        }
+                    }
+                    // map_keys(Map(K, V)) -> List(K) ; map_values(Map(K, V)) -> List(V)
+                    if fn_name == "map_keys" && !fir_args.is_empty() {
+                        let k = if let FirTy::Map(k, _) = &fir_args[0].ty {
+                            Some((**k).clone())
+                        } else { None };
+                        if let Some(k) = k {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty: FirTy::List(Box::new(k)),
+                            };
+                        }
+                    }
+                    if fn_name == "map_values" && !fir_args.is_empty() {
+                        let v = if let FirTy::Map(_, v) = &fir_args[0].ty {
+                            Some((**v).clone())
+                        } else { None };
+                        if let Some(v) = v {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty: FirTy::List(Box::new(v)),
+                            };
+                        }
                     }
                 }
 
