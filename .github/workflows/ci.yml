@@ -34,32 +34,8 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build (debug)
-        run: cargo build
-
-      - name: Unit tests (lib)
-        run: cargo test --lib
-
-      - name: Unit tests (runa binary)
-        run: cargo test --bin runa
-
-      - name: Build (release)
-        run: cargo build --release
-
-      - name: Runa tests (interpreter)
-        run: ./target/release/runa test
-
-      - name: Runa tests (compiled)
-        run: ./target/release/runa test --run
-
-      - name: Codegen validation
-        run: ./target/release/runa test --check-codegen
-
-      - name: Core codegen regression program
-        run: ./target/release/runa run tests/codegen_integration_regression_test.runa
-
-      - name: Roundtrip validation
-        run: ./target/release/runa test --roundtrip
+      - name: Mint gate
+        run: ./scripts/mint.sh
 
       - name: From-rust transpiler validation
         run: ./target/release/runa from-rust --test examples/from-rust/

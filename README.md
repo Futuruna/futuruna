@@ -87,7 +87,10 @@ runa verify program.runa    # Verify invariants via Z3
 runa hashes program.runa    # Show content-addressed hashes
 runa test                   # Run all tests/*.runa (interpreted)
 runa test --run             # Run all tests/*.runa (compiled)
+./scripts/mint.sh           # Canonical "is Futuruna mint?" gate
 ```
+
+See [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract and the intentionally omitted lanes.
 
 ## What Futuruna Unifies
 
@@ -122,6 +125,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 ## Documentation
 
 - `docs/language-sketch.md` - Language design and three-axis analysis
+- `docs/mint-gate.md` - Canonical verification gate for keeping Futuruna mint
 - `docs/milestones.md` - Compiler milestones (M1-M15)
 - `docs/ownership-design.md` - Memory model (Kotlin-to-Rust philosophy)
 - `docs/reactive-design.md` - Reactive streams as native graph topology

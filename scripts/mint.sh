@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+run_step() {
+    echo
+    echo "[mint] $*"
+    "$@"
+}
+
+RELEASE_RUNA="./target/release/runa"
+
+run_step cargo test --quiet
+run_step cargo build --release
+run_step "$RELEASE_RUNA" test
+run_step "$RELEASE_RUNA" test --run
+run_step "$RELEASE_RUNA" test --check-codegen
+run_step "$RELEASE_RUNA" run tests/codegen_integration_regression_test.runa
+run_step "$RELEASE_RUNA" check examples/danish-constitution-legacy/kapitel-02.runa
+run_step "$RELEASE_RUNA" check examples/danish-constitution-legacy/kapitel-03.runa
+run_step "$RELEASE_RUNA" check examples/danish-constitution-legacy/kapitel-04.runa
+run_step "$RELEASE_RUNA" check examples/danish-constitution-legacy/kapitel-05.runa
+run_step "$RELEASE_RUNA" check examples/danish-constitution-legacy/kapitel-06.runa
+run_step "$RELEASE_RUNA" check examples/danish-constitution-legacy/kapitel-07.runa
+
+echo
+echo "[mint] Futuruna is mint."
