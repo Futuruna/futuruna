@@ -36,3 +36,103 @@
         | SAdd3(a, b, c) -> rewrite (apply lower.sadd3) in (rewrite (apply eval_core.cadd) in (rewrite (apply eval_core.cadd) in (rewrite (apply eval_surface.sadd3) in (rewrite ih_1 in (rewrite ih_2 in (rewrite ih_3 in refl))))))
     }
 }
+
+-- Stage 2 extends the model with stack variables and ANF-like let-binding.
+-- Let values stay recursive, but let bodies live in a leaf language without
+-- nested lets so the current kernel can combine an induction hypothesis for
+-- the bound value with a previously proved lemma for the body.
+
+# Slot = Here | There(Slot)
+
+# Env = Empty | Push(Int, Env)
+
+# SurfaceValue = SVInt(Int) | SVAdd(SurfaceValue, SurfaceValue) | SVVar(Slot)
+
+# CoreValue = CVInt(Int) | CVAdd(CoreValue, CoreValue) | CVVar(Slot)
+
+# SurfaceLet = SPure(SurfaceValue) | SLet(SurfaceLet, SurfaceValue)
+
+# CoreLet = CPure(CoreValue) | CLet(CoreLet, CoreValue)
+
+> peek(env: Env) -> Int {
+    match env {
+        | Empty -> 0
+        | Push(value, tail) -> value
+    }
+}
+
+> rest(env: Env) -> Env {
+    match env {
+        | Empty -> Empty
+        | Push(value, tail) -> tail
+    }
+}
+
+> lookup(slot: Slot, env: Env) -> Int {
+    match slot {
+        | Here -> peek(env)
+        | There(prev) -> lookup(prev, rest(env))
+    }
+}
+
+> eval_surface_value(expr: SurfaceValue, env: Env) -> Int {
+    match expr {
+        | SVInt(surface_n) -> surface_n
+        | SVAdd(surface_lhs, surface_rhs) -> eval_surface_value(surface_lhs, env) + eval_surface_value(surface_rhs, env)
+        | SVVar(surface_slot) -> lookup(surface_slot, env)
+    }
+}
+
+> eval_core_value(expr: CoreValue, env: Env) -> Int {
+    match expr {
+        | CVInt(core_n) -> core_n
+        | CVAdd(core_lhs, core_rhs) -> eval_core_value(core_lhs, env) + eval_core_value(core_rhs, env)
+        | CVVar(core_slot) -> lookup(core_slot, env)
+    }
+}
+
+> lower_value(expr: SurfaceValue) -> CoreValue {
+    match expr {
+        | SVInt(value_n) -> CVInt(value_n)
+        | SVAdd(value_lhs, value_rhs) -> CVAdd(lower_value(value_lhs), lower_value(value_rhs))
+        | SVVar(value_slot) -> CVVar(value_slot)
+    }
+}
+
+| lower_value_sound: (leaf_expr, leaf_env) -> eval_core_value(lower_value(leaf_expr), leaf_env) == eval_surface_value(leaf_expr, leaf_env)
+? lower_value_sound by {
+    | (leaf_expr, leaf_env) -> induction_on leaf_expr {
+        | SVInt(n) -> rewrite (apply lower_value.svint) in (rewrite (apply eval_core_value.cvint) in (rewrite (apply eval_surface_value.svint) in refl))
+        | SVAdd(lhs, rhs) -> rewrite (apply lower_value.svadd) in (rewrite (apply eval_core_value.cvadd) in (rewrite (apply eval_surface_value.svadd) in (rewrite ih_1 in (rewrite ih_2 in refl))))
+        | SVVar(slot) -> rewrite (apply lower_value.svvar) in (rewrite (apply eval_core_value.cvvar) in (rewrite (apply eval_surface_value.svvar) in refl))
+    }
+}
+
+> eval_surface_let(expr: SurfaceLet, env: Env) -> Int {
+    match expr {
+        | SPure(pure_payload) -> eval_surface_value(pure_payload, env)
+        | SLet(bound_value, let_body) -> eval_surface_value(let_body, Push(eval_surface_let(bound_value, env), env))
+    }
+}
+
+> eval_core_let(expr: CoreLet, env: Env) -> Int {
+    match expr {
+        | CPure(pure_payload) -> eval_core_value(pure_payload, env)
+        | CLet(bound_value, let_body) -> eval_core_value(let_body, Push(eval_core_let(bound_value, env), env))
+    }
+}
+
+> lower_let(expr: SurfaceLet) -> CoreLet {
+    match expr {
+        | SPure(pure_payload) -> CPure(lower_value(pure_payload))
+        | SLet(bound_value, let_body) -> CLet(lower_let(bound_value), lower_value(let_body))
+    }
+}
+
+| lower_let_sound: (let_expr, let_env) -> eval_core_let(lower_let(let_expr), let_env) == eval_surface_let(let_expr, let_env)
+? lower_let_sound by {
+    | (let_expr, let_env) -> induction_on let_expr {
+        | SPure(value_expr) -> rewrite (apply lower_let.spure) in (rewrite (apply eval_core_let.cpure) in (rewrite (apply eval_surface_let.spure) in (apply lower_value_sound)))
+        | SLet(value_expr, body_expr) -> rewrite (apply lower_let.slet) in (rewrite (apply eval_core_let.clet) in (rewrite (apply eval_surface_let.slet) in (rewrite ih in (apply lower_value_sound))))
+    }
+}

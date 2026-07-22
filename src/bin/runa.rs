@@ -22960,7 +22960,7 @@ mod tests {
     }
 
     #[test]
-    fn verified_bootstrap_fixture_proves_first_lowering_pass() {
+    fn verified_bootstrap_fixture_proves_verified_bootstrap_stages() {
         let source = std::fs::read_to_string(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/tests/verified_bootstrap_test.runa"
@@ -22970,6 +22970,14 @@ mod tests {
         let statuses = explicit_proof_statuses(&source);
         assert_eq!(
             statuses.get("lower_sound"),
+            Some(&ExplicitProofStatus::Proved)
+        );
+        assert_eq!(
+            statuses.get("lower_value_sound"),
+            Some(&ExplicitProofStatus::Proved)
+        );
+        assert_eq!(
+            statuses.get("lower_let_sound"),
             Some(&ExplicitProofStatus::Proved)
         );
     }
