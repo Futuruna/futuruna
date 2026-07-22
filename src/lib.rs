@@ -5730,6 +5730,47 @@ impl Interpreter {
         Some(file_path)
     }
 
+    /// Resolve an `@ use` path as a Futuruna module import, if one exists.
+    ///
+    /// `@ use` is overloaded in practice: most modern uses are Rust imports
+    /// like `std::collections::HashMap`, but some legacy programs still rely
+    /// on local Futuruna module loading via forms like `grundlov::*`.
+    /// Only return a module path when a real `.runa` target resolves.
+    pub fn resolve_use_module_path(use_path: &str, dir: &str) -> Option<String> {
+        let module = use_path.trim_end_matches("::*").replace("::", "/");
+        if module.is_empty() {
+            return None;
+        }
+
+        let file_path = format!("{}/{}.runa", dir, module);
+        if std::path::Path::new(&file_path).exists() {
+            return Some(file_path);
+        }
+
+        if let Some(toml_path) = Self::find_manifest(dir) {
+            if let Some((deps, _)) = Self::parse_manifest_deps(&toml_path) {
+                let toml_dir = std::path::Path::new(&toml_path)
+                    .parent()
+                    .map(|p| {
+                        let s = p.to_string_lossy().to_string();
+                        if s.is_empty() {
+                            ".".to_string()
+                        } else {
+                            s
+                        }
+                    })
+                    .unwrap_or_else(|| ".".to_string());
+
+                if let Some(resolved) = TypeChecker::resolve_dep_module(&module, &deps, &toml_dir)
+                {
+                    return Some(resolved);
+                }
+            }
+        }
+
+        None
+    }
+
     /// Find runa.toml by walking up from a directory
     fn find_manifest(start_dir: &str) -> Option<String> {
         let mut dir = std::path::PathBuf::from(start_dir);
@@ -6258,36 +6299,34 @@ impl Interpreter {
                 }
                 Stmt::Annot(_, _) => {}
                 Stmt::Use(path) => {
-                    // @ use grundlov::* → load grundlov.runa from same directory
-                    // Strip trailing ::* if present
-                    let module = path.trim_end_matches("::*").replace("::", "/");
                     if let Some(ref dir) = self.source_dir {
-                        let file_path = format!("{}/{}.runa", dir, module);
-                        // Canonicalize to prevent cycles
-                        let canon = std::fs::canonicalize(&file_path)
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or(file_path.clone());
-                        if !self.imported.contains(&canon) {
-                            self.imported.insert(canon);
-                            match std::fs::read_to_string(&file_path) {
-                                Ok(source) => {
-                                    let mut lexer = Lexer::new(&source);
-                                    let tokens = lexer.tokenize();
-                                    let mut parser = Parser::new(tokens, &source);
-                                    match parser.parse_program() {
-                                        Ok(import_stmts) => {
-                                            last = self.run_program(&import_stmts, env);
-                                        }
-                                        Err(e) => {
-                                            eprintln!("\x1b[1;31merror\x1b[0m: parse error in imported {}: {}", file_path, e);
+                        if let Some(file_path) = Self::resolve_use_module_path(path, dir) {
+                            // Canonicalize to prevent cycles
+                            let canon = std::fs::canonicalize(&file_path)
+                                .map(|p| p.to_string_lossy().to_string())
+                                .unwrap_or(file_path.clone());
+                            if !self.imported.contains(&canon) {
+                                self.imported.insert(canon);
+                                match std::fs::read_to_string(&file_path) {
+                                    Ok(source) => {
+                                        let mut lexer = Lexer::new(&source);
+                                        let tokens = lexer.tokenize();
+                                        let mut parser = Parser::new(tokens, &source);
+                                        match parser.parse_program() {
+                                            Ok(import_stmts) => {
+                                                last = self.run_program(&import_stmts, env);
+                                            }
+                                            Err(e) => {
+                                                eprintln!("\x1b[1;31merror\x1b[0m: parse error in imported {}: {}", file_path, e);
+                                            }
                                         }
                                     }
-                                }
-                                Err(e) => {
-                                    eprintln!(
-                                        "\x1b[1;33mwarning\x1b[0m: cannot import {}: {}",
-                                        file_path, e
-                                    );
+                                    Err(e) => {
+                                        eprintln!(
+                                            "\x1b[1;33mwarning\x1b[0m: cannot import {}: {}",
+                                            file_path, e
+                                        );
+                                    }
                                 }
                             }
                         }
@@ -11316,16 +11355,13 @@ impl TypeChecker {
                     }
                 }
                 Stmt::Import(path) | Stmt::Use(path) => {
-                    // Resolve @ import / @ use: parse imported file and collect its declarations
-                    let resolve_path = if matches!(stmt, Stmt::Use(_)) {
-                        let module = path.trim_end_matches("::*").replace("::", "/");
-                        format!("./{}", module)
-                    } else {
-                        path.clone()
-                    };
+                    // Resolve @ import / module-style @ use and collect declarations.
                     if let Some(ref dir) = self.source_dir {
-                        // Use manifest-aware resolution (same as interpreter)
-                        let file_path = Self::resolve_tc_import(&resolve_path, dir);
+                        let file_path = if matches!(stmt, Stmt::Use(_)) {
+                            Interpreter::resolve_use_module_path(path, dir)
+                        } else {
+                            Self::resolve_tc_import(path, dir)
+                        };
                         if let Some(file_path) = file_path {
                             let canon = std::fs::canonicalize(&file_path)
                                 .map(|p| p.to_string_lossy().to_string())
@@ -12134,6 +12170,37 @@ mod tests {
         let d = Span::dummy();
         assert_eq!(a.merge(d), a);
         assert_eq!(d.merge(a), a);
+    }
+
+    #[test]
+    fn use_module_resolution_distinguishes_rust_imports() {
+        let temp_name = format!(
+            "futuruna_use_resolve_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let local_module = temp_dir.join("grundlov.runa");
+        std::fs::write(&local_module, "@ print(\"ok\")\n").unwrap();
+
+        let dir = temp_dir.to_string_lossy().to_string();
+        let resolved = Interpreter::resolve_use_module_path("grundlov::*", &dir);
+        assert_eq!(resolved.as_deref(), local_module.to_str());
+        assert_eq!(
+            Interpreter::resolve_use_module_path("std::collections::HashMap", &dir),
+            None
+        );
+        assert_eq!(
+            Interpreter::resolve_use_module_path("std::io::{Read, Write}", &dir),
+            None
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]

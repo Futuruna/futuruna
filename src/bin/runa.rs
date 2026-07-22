@@ -12901,10 +12901,23 @@ impl RustCodegen {
                     }
                 }
                 Stmt::Use(path) => {
-                    // @ use grundlov::* → load grundlov.runa from same directory
-                    // Same resolution as interpreter: strip ::*, replace :: with /
-                    let module = path.trim_end_matches("::*").replace("::", "/");
-                    let imported = self.resolve_import(&format!("./{}", module));
+                    let imported = if let Some(ref dir) = self.source_dir {
+                        if let Some(file_path) = Interpreter::resolve_use_module_path(path, dir) {
+                            let canon = std::fs::canonicalize(&file_path)
+                                .map(|p| p.to_string_lossy().to_string())
+                                .unwrap_or(file_path.clone());
+                            if self.imported.contains(&canon) {
+                                Vec::new()
+                            } else {
+                                self.imported.insert(canon);
+                                Self::parse_tau_file(&file_path)
+                            }
+                        } else {
+                            Vec::new()
+                        }
+                    } else {
+                        Vec::new()
+                    };
                     // Propagate @ export annotations
                     {
                         let mut is_exp = false;
