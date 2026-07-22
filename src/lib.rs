@@ -1852,6 +1852,290 @@ pub enum Rule {
 // Identity is structure, not names. Two definitions with identical bodies
 // get the same hash regardless of what they're called.
 
+fn strip_spans_expr(expr: &Expr) -> Expr {
+    let kind = match &expr.kind {
+        ExprKind::Var(name) => ExprKind::Var(name.clone()),
+        ExprKind::Lit(lit) => ExprKind::Lit(lit.clone()),
+        ExprKind::App(func, args) => ExprKind::App(
+            Box::new(strip_spans_expr(func)),
+            args.iter().map(strip_spans_expr).collect(),
+        ),
+        ExprKind::Lambda(params, body) => {
+            ExprKind::Lambda(params.clone(), Box::new(strip_spans_expr(body)))
+        }
+        ExprKind::BinOp(op, lhs, rhs) => ExprKind::BinOp(
+            op.clone(),
+            Box::new(strip_spans_expr(lhs)),
+            Box::new(strip_spans_expr(rhs)),
+        ),
+        ExprKind::UnOp(op, inner) => ExprKind::UnOp(op.clone(), Box::new(strip_spans_expr(inner))),
+        ExprKind::If(cond, then_, else_) => ExprKind::If(
+            Box::new(strip_spans_expr(cond)),
+            Box::new(strip_spans_expr(then_)),
+            Box::new(strip_spans_expr(else_)),
+        ),
+        ExprKind::Match(scrutinee, arms) => ExprKind::Match(
+            Box::new(strip_spans_expr(scrutinee)),
+            arms.iter().map(strip_spans_match_arm).collect(),
+        ),
+        ExprKind::Block(stmts) => ExprKind::Block(stmts.iter().map(strip_spans_stmt).collect()),
+        ExprKind::Field(obj, field) => {
+            ExprKind::Field(Box::new(strip_spans_expr(obj)), field.clone())
+        }
+        ExprKind::Index(base, idx) => ExprKind::Index(
+            Box::new(strip_spans_expr(base)),
+            Box::new(strip_spans_expr(idx)),
+        ),
+        ExprKind::List(items) => ExprKind::List(items.iter().map(strip_spans_expr).collect()),
+        ExprKind::Tuple(items) => ExprKind::Tuple(items.iter().map(strip_spans_expr).collect()),
+        ExprKind::Effect(name, args) => {
+            ExprKind::Effect(name.clone(), args.iter().map(strip_spans_expr).collect())
+        }
+        ExprKind::Handle {
+            effect,
+            handlers,
+            body,
+        } => ExprKind::Handle {
+            effect: effect.clone(),
+            handlers: handlers.iter().map(strip_spans_eff_handler).collect(),
+            body: Box::new(strip_spans_expr(body)),
+        },
+        ExprKind::Try(inner) => ExprKind::Try(Box::new(strip_spans_expr(inner))),
+        ExprKind::Conjunction(items) => {
+            ExprKind::Conjunction(items.iter().map(strip_spans_expr).collect())
+        }
+        ExprKind::Disjunction(items) => {
+            ExprKind::Disjunction(items.iter().map(strip_spans_expr).collect())
+        }
+        ExprKind::Pipe(lhs, rhs) => ExprKind::Pipe(
+            Box::new(strip_spans_expr(lhs)),
+            Box::new(strip_spans_expr(rhs)),
+        ),
+        ExprKind::Unit => ExprKind::Unit,
+    };
+    Expr {
+        kind,
+        span: Span::dummy(),
+    }
+}
+
+fn strip_spans_eff_handler(handler: &EffHandler) -> EffHandler {
+    EffHandler {
+        op_name: handler.op_name.clone(),
+        params: handler.params.clone(),
+        body: strip_spans_expr(&handler.body),
+    }
+}
+
+fn strip_spans_match_arm(arm: &MatchArm) -> MatchArm {
+    MatchArm {
+        pat: arm.pat.clone(),
+        guard: arm.guard.as_ref().map(strip_spans_expr),
+        body: strip_spans_expr(&arm.body),
+    }
+}
+
+fn strip_spans_rule(rule: &Rule) -> Rule {
+    match rule {
+        Rule::Clause { head, body } => Rule::Clause {
+            head: strip_spans_expr(head),
+            body: body.as_ref().map(strip_spans_expr),
+        },
+        Rule::Default {
+            head,
+            value,
+            condition,
+        } => Rule::Default {
+            head: strip_spans_expr(head),
+            value: strip_spans_expr(value),
+            condition: condition.as_ref().map(strip_spans_expr),
+        },
+        Rule::Exception {
+            label,
+            head,
+            value,
+            condition,
+        } => Rule::Exception {
+            label: label.clone(),
+            head: strip_spans_expr(head),
+            value: strip_spans_expr(value),
+            condition: condition.as_ref().map(strip_spans_expr),
+        },
+        Rule::Scope { name, body } => Rule::Scope {
+            name: name.clone(),
+            body: body.iter().map(strip_spans_stmt).collect(),
+        },
+    }
+}
+
+fn strip_spans_defn(defn: &Defn) -> Defn {
+    match defn {
+        Defn::Fn {
+            name,
+            params,
+            ret_ty,
+            effects,
+            body,
+        } => Defn::Fn {
+            name: name.clone(),
+            params: params.clone(),
+            ret_ty: ret_ty.clone(),
+            effects: effects.clone(),
+            body: strip_spans_expr(body),
+        },
+        Defn::Actor {
+            name,
+            state_param,
+            handlers,
+        } => Defn::Actor {
+            name: name.clone(),
+            state_param: state_param.clone(),
+            handlers: handlers
+                .iter()
+                .map(|handler| Handler {
+                    msg_pat: handler.msg_pat.clone(),
+                    body: strip_spans_expr(&handler.body),
+                })
+                .collect(),
+        },
+        Defn::Module { name, body } => Defn::Module {
+            name: name.clone(),
+            body: body.iter().map(strip_spans_stmt).collect(),
+        },
+    }
+}
+
+fn strip_spans_type_decl(td: &TypeDecl) -> TypeDecl {
+    match td {
+        TypeDecl::ADT {
+            name,
+            params,
+            variants,
+            methods,
+            except_from,
+        } => TypeDecl::ADT {
+            name: name.clone(),
+            params: params.clone(),
+            variants: variants.clone(),
+            methods: methods.iter().map(strip_spans_defn).collect(),
+            except_from: except_from.clone(),
+        },
+        TypeDecl::WhenType {
+            name,
+            condition,
+            variants,
+            except_from,
+        } => TypeDecl::WhenType {
+            name: name.clone(),
+            condition: strip_spans_expr(condition),
+            variants: variants.clone(),
+            except_from: except_from.clone(),
+        },
+        TypeDecl::EffectDecl { name, ops } => TypeDecl::EffectDecl {
+            name: name.clone(),
+            ops: ops.clone(),
+        },
+        TypeDecl::TraitDecl {
+            name,
+            params,
+            methods,
+        } => TypeDecl::TraitDecl {
+            name: name.clone(),
+            params: params.clone(),
+            methods: methods
+                .iter()
+                .map(|method| TraitMethod {
+                    name: method.name.clone(),
+                    params: method.params.clone(),
+                    ret_ty: method.ret_ty.clone(),
+                    default_body: method.default_body.as_ref().map(strip_spans_expr),
+                })
+                .collect(),
+        },
+        TypeDecl::ImplBlock {
+            trait_name,
+            for_type,
+            methods,
+        } => TypeDecl::ImplBlock {
+            trait_name: trait_name.clone(),
+            for_type: for_type.clone(),
+            methods: methods.iter().map(strip_spans_defn).collect(),
+        },
+    }
+}
+
+fn strip_spans_stmt(stmt: &Stmt) -> Stmt {
+    match stmt {
+        Stmt::Defn(defn) => Stmt::Defn(strip_spans_defn(defn)),
+        Stmt::TypeDecl(td) => Stmt::TypeDecl(strip_spans_type_decl(td)),
+        Stmt::Rule(rule) => Stmt::Rule(strip_spans_rule(rule)),
+        Stmt::Use(path) => Stmt::Use(path.clone()),
+        Stmt::Import(path) => Stmt::Import(path.clone()),
+        Stmt::QualifiedImport(name, path) => Stmt::QualifiedImport(name.clone(), path.clone()),
+        Stmt::HashImport(hash, path) => Stmt::HashImport(hash.clone(), path.clone()),
+        Stmt::Depend(name, version) => Stmt::Depend(name.clone(), version.clone()),
+        Stmt::RustBlock(code) => Stmt::RustBlock(code.clone()),
+        Stmt::Annot(name, args) => {
+            Stmt::Annot(name.clone(), args.iter().map(strip_spans_expr).collect())
+        }
+        Stmt::Bind(pat, ty, expr) => Stmt::Bind(pat.clone(), ty.clone(), strip_spans_expr(expr)),
+        Stmt::MonadicBind(pat, ty, expr) => {
+            Stmt::MonadicBind(pat.clone(), ty.clone(), strip_spans_expr(expr))
+        }
+        Stmt::For(var, expr, body) => Stmt::For(
+            var.clone(),
+            strip_spans_expr(expr),
+            body.iter().map(strip_spans_stmt).collect(),
+        ),
+        Stmt::While(cond, body) => Stmt::While(
+            strip_spans_expr(cond),
+            body.iter().map(strip_spans_stmt).collect(),
+        ),
+        Stmt::Send(target, msg) => {
+            Stmt::Send(strip_spans_expr(target), strip_spans_expr(msg))
+        }
+        Stmt::StreamBind(name, expr) => Stmt::StreamBind(name.clone(), strip_spans_expr(expr)),
+        Stmt::StreamSub(expr, arms) => Stmt::StreamSub(
+            strip_spans_expr(expr),
+            arms.iter().map(strip_spans_match_arm).collect(),
+        ),
+        Stmt::Invariant {
+            name,
+            subject,
+            predicate,
+        } => Stmt::Invariant {
+            name: name.clone(),
+            subject: strip_spans_expr(subject),
+            predicate: strip_spans_expr(predicate),
+        },
+        Stmt::Prove {
+            name,
+            proof_block,
+            capture,
+            pass_block,
+            else_block,
+        } => Stmt::Prove {
+            name: name.clone(),
+            proof_block: proof_block.clone(),
+            capture: capture.clone(),
+            pass_block: pass_block
+                .as_ref()
+                .map(|stmts| stmts.iter().map(strip_spans_stmt).collect()),
+            else_block: else_block
+                .as_ref()
+                .map(|stmts| stmts.iter().map(strip_spans_stmt).collect()),
+        },
+        Stmt::Assert(name, args) => {
+            Stmt::Assert(name.clone(), args.iter().map(strip_spans_expr).collect())
+        }
+        Stmt::Retract(name, args) => {
+            Stmt::Retract(name.clone(), args.iter().map(strip_spans_expr).collect())
+        }
+        Stmt::Abort => Stmt::Abort,
+        Stmt::Expr(expr) => Stmt::Expr(strip_spans_expr(expr)),
+    }
+}
+
 /// Compute a canonical structural representation of a Defn (excluding the name).
 /// Two functions with different names but identical params/body get the same hash.
 pub fn content_hash_defn(defn: &Defn) -> String {
@@ -1863,17 +2147,33 @@ pub fn content_hash_defn(defn: &Defn) -> String {
             body,
             ..
         } => {
-            format!("FN({:?},{:?},{:?},{:?})", params, ret_ty, effects, body)
+            format!(
+                "FN({:?},{:?},{:?},{:?})",
+                params,
+                ret_ty,
+                effects,
+                strip_spans_expr(body)
+            )
         }
         Defn::Actor {
             state_param,
             handlers,
             ..
         } => {
-            format!("ACTOR({:?},{:?})", state_param, handlers)
+            let stripped_handlers: Vec<Handler> = handlers
+                .iter()
+                .map(|handler| Handler {
+                    msg_pat: handler.msg_pat.clone(),
+                    body: strip_spans_expr(&handler.body),
+                })
+                .collect();
+            format!("ACTOR({:?},{:?})", state_param, stripped_handlers)
         }
         Defn::Module { body, .. } => {
-            format!("MODULE({:?})", body)
+            format!(
+                "MODULE({:?})",
+                body.iter().map(strip_spans_stmt).collect::<Vec<_>>()
+            )
         }
     };
     hash_string(&canonical)
@@ -1888,7 +2188,12 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
             methods,
             ..
         } => {
-            format!("ADT({:?},{:?},{:?})", params, variants, methods)
+            format!(
+                "ADT({:?},{:?},{:?})",
+                params,
+                variants,
+                methods.iter().map(strip_spans_defn).collect::<Vec<_>>()
+            )
         }
         TypeDecl::EffectDecl { ops, .. } => {
             format!("EFFECT({:?})", ops)
@@ -1896,7 +2201,16 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
         TypeDecl::TraitDecl {
             params, methods, ..
         } => {
-            format!("TRAIT({:?},{:?})", params, methods)
+            let stripped_methods: Vec<TraitMethod> = methods
+                .iter()
+                .map(|method| TraitMethod {
+                    name: method.name.clone(),
+                    params: method.params.clone(),
+                    ret_ty: method.ret_ty.clone(),
+                    default_body: method.default_body.as_ref().map(strip_spans_expr),
+                })
+                .collect();
+            format!("TRAIT({:?},{:?})", params, stripped_methods)
         }
         TypeDecl::ImplBlock {
             trait_name,
@@ -1904,7 +2218,12 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
             methods,
             ..
         } => {
-            format!("IMPL({:?},{:?},{:?})", trait_name, for_type, methods)
+            format!(
+                "IMPL({:?},{:?},{:?})",
+                trait_name,
+                for_type,
+                methods.iter().map(strip_spans_defn).collect::<Vec<_>>()
+            )
         }
         TypeDecl::WhenType { name, variants, .. } => {
             format!("WHEN({},{})", name, variants.iter().map(|v| v.name.as_str()).collect::<Vec<_>>().join("|"))

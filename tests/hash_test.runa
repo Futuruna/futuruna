@@ -9,11 +9,11 @@
 @ print("")
 
 -- Import specific functions by their content hash
--- square(x) = x * x from hash_math (hash: ea5c367fd2c0)
-@ import #ea5c367fd2c0 from ./hash_math
+-- square(x) = x * x from hash_math (hash: 534ad3d792b1)
+@ import #534ad3d792b1 from ./hash_math
 
--- triple(x) = x * 3 from hash_alt (hash: 4f9985663dfc)
-@ import #4f9985663dfc from ./hash_alt
+-- triple(x) = x * 3 from hash_alt (hash: 18990df04f6e)
+@ import #18990df04f6e from ./hash_alt
 
 @ print("  square(7) = " + show(square(7)))
 @ print("  triple(7) = " + show(triple(7)))
@@ -26,9 +26,9 @@
 @ print("=== Demo 2: Same Hash = Same Code (Unison Property) ===")
 @ print("")
 
--- factorial has hash 1aefc1ce66b3 in BOTH hash_math.runa and hash_alt.runa
+-- factorial has hash cebfc7eff07f in BOTH hash_math.runa and hash_alt.runa
 -- because the body is identical. Import from either file — same code.
-@ import #1aefc1ce66b3 from ./hash_math
+@ import #cebfc7eff07f from ./hash_math
 
 @ print("  factorial(10) = " + show(factorial(10)))
 @ print("  (imported by hash — works from either file)")
@@ -41,12 +41,12 @@
 @ print("=== Demo 3: Different Hash = Different Code ===")
 @ print("")
 
--- hash_math.runa: square = x * x → #ea5c367fd2c0
--- hash_alt.runa:  square = x + x → #3ef770dc0bd7
+-- hash_math.runa: square = x * x → #534ad3d792b1
+-- hash_alt.runa:  square = x + x → #13acf5425c69
 -- The hash captures STRUCTURE, not names.
 @ print("  hash_math square(5) = " + show(square(5)))
-@ print("  (x*x, hash ea5c367fd2c0)")
-@ print("  hash_alt square would be x+x, hash 3ef770dc0bd7")
+@ print("  (x*x, hash 534ad3d792b1)")
+@ print("  hash_alt square would be x+x, hash 13acf5425c69")
 @ print("  Identity is structure, not names.")
 
 -- ============================================================================
