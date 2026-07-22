@@ -4761,6 +4761,7 @@ fn proof_recursive_field_positions(ty_name: &str, variant: &Variant) -> Vec<usiz
         .collect()
 }
 
+#[cfg(test)]
 fn collect_function_param_types(stmts: &[Stmt]) -> BTreeMap<String, Vec<Option<Ty>>> {
     stmts.iter()
         .filter_map(|stmt| match stmt {
@@ -5431,6 +5432,7 @@ fn evaluate_explicit_proof(
     }
 }
 
+#[cfg(test)]
 fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, ExplicitProofStatus> {
     let adts: Vec<(String, Vec<Variant>)> = stmts
         .iter()
