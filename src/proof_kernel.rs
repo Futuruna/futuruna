@@ -737,6 +737,90 @@ fn subst_prop(p: &Prop, s: &Subst) -> Prop {
     }
 }
 
+fn collect_term_vars(term: &Term, out: &mut BTreeSet<String>) {
+    match term {
+        Term::Int(_) => {}
+        Term::Var(name) => {
+            out.insert(name.clone());
+        }
+        Term::Op(_, lhs, rhs) => {
+            collect_term_vars(lhs, out);
+            collect_term_vars(rhs, out);
+        }
+        Term::App(_, args) => {
+            for arg in args {
+                collect_term_vars(arg, out);
+            }
+        }
+    }
+}
+
+fn collect_prop_vars(prop: &Prop, out: &mut BTreeSet<String>) {
+    match prop {
+        Prop::Eq(lhs, rhs) | Prop::Le(lhs, rhs) => {
+            collect_term_vars(lhs, out);
+            collect_term_vars(rhs, out);
+        }
+        Prop::And(lhs, rhs) | Prop::Imply(lhs, rhs) => {
+            collect_prop_vars(lhs, out);
+            collect_prop_vars(rhs, out);
+        }
+        Prop::Not(inner) => collect_prop_vars(inner, out),
+        Prop::False => {}
+    }
+}
+
+fn collect_ctx_rigid_vars(ctx: &Ctx, out: &mut BTreeSet<String>) {
+    for hyp in &ctx.hyps {
+        match hyp {
+            Hyp::Prop(_, prop) => collect_prop_vars(prop, out),
+            Hyp::TypedVar(name) => {
+                out.insert(name.clone());
+            }
+        }
+    }
+}
+
+fn fresh_schema_meta_name(base: &str, used: &mut BTreeSet<String>) -> String {
+    let stem = if base.is_empty() { "v" } else { base };
+    let mut index = 0usize;
+    loop {
+        let candidate = format!("__meta_{}_{}", stem, index);
+        if used.insert(candidate.clone()) {
+            return candidate;
+        }
+        index += 1;
+    }
+}
+
+fn freshen_schema(schema: &Schema, goal: &Prop, ctx: &Ctx) -> Schema {
+    if schema.vars.is_empty() {
+        return schema.clone();
+    }
+
+    let mut used = BTreeSet::new();
+    collect_prop_vars(goal, &mut used);
+    collect_ctx_rigid_vars(ctx, &mut used);
+
+    let mut rename = Subst::new();
+    let mut vars = Vec::with_capacity(schema.vars.len());
+    for var in &schema.vars {
+        let fresh = fresh_schema_meta_name(var, &mut used);
+        rename.insert(var.clone(), Term::Var(fresh.clone()));
+        vars.push(fresh);
+    }
+
+    Schema {
+        vars,
+        premises: schema
+            .premises
+            .iter()
+            .map(|premise| subst_prop(premise, &rename))
+            .collect(),
+        conclusion: subst_prop(&schema.conclusion, &rename),
+    }
+}
+
 fn prop_has_unsolved_meta(p: &Prop, metas: &[String]) -> bool {
     fn term_has_unsolved_meta(t: &Term, metas: &[String]) -> bool {
         match t {
@@ -937,6 +1021,7 @@ fn synthesize_rewrite_equality(
     if schema.vars.is_empty() {
         return synthesize(term, ctx, reg);
     }
+    let schema = freshen_schema(schema, goal, ctx);
     if schema.premises.len() != args.len() {
         return Err(ProofError::PremiseCount {
             axiom: name.clone(),
@@ -1380,6 +1465,7 @@ fn check_apply(
     let schema = reg
         .lookup(name)
         .ok_or_else(|| ProofError::UnknownAxiom(name.to_string()))?;
+    let schema = freshen_schema(schema, goal, ctx);
 
     if schema.premises.len() != args.len() {
         return Err(ProofError::PremiseCount {
@@ -1592,6 +1678,66 @@ mod tests {
         let proof = ProofTerm::Rewrite(
             Box::new(ProofTerm::Apply("length.nil".into(), vec![])),
             Box::new(ProofTerm::Apply("int_ord.le_refl".into(), vec![])),
+        );
+        let result = check(&proof, &goal, &ctx, &reg);
+        assert!(result.is_ok(), "rewrite failed: {:?}", result);
+    }
+
+    #[test]
+    fn apply_freshens_schema_metas_away_from_rigid_goal_vars() {
+        let mut reg = Registry::with_builtins();
+        reg.register(
+            "normalize.expand".into(),
+            Schema {
+                vars: vec!["env".into()],
+                premises: vec![],
+                conclusion: Prop::Eq(
+                    Term::App("normalize".into(), vec![v("env")]),
+                    Term::App("normalized".into(), vec![v("env")]),
+                ),
+            },
+        )
+        .unwrap();
+
+        let ctx = Ctx::new().with_var("env".into());
+        let nested_env = Term::App("Push".into(), vec![Term::Int(0), v("env")]);
+        let goal = Prop::Eq(
+            Term::App("normalize".into(), vec![nested_env.clone()]),
+            Term::App("normalized".into(), vec![nested_env]),
+        );
+        let proof = ProofTerm::Apply("normalize.expand".into(), vec![]);
+        let result = check(&proof, &goal, &ctx, &reg);
+        assert!(result.is_ok(), "apply failed: {:?}", result);
+    }
+
+    #[test]
+    fn rewrite_freshens_schema_metas_away_from_rigid_goal_vars() {
+        let mut reg = Registry::with_builtins();
+        reg.register(
+            "normalize.expand".into(),
+            Schema {
+                vars: vec!["env".into()],
+                premises: vec![],
+                conclusion: Prop::Eq(
+                    Term::App("normalize".into(), vec![v("env")]),
+                    Term::App("normalized".into(), vec![v("env")]),
+                ),
+            },
+        )
+        .unwrap();
+
+        let ctx = Ctx::new().with_var("env".into());
+        let nested_env = Term::App("Push".into(), vec![Term::Int(0), v("env")]);
+        let goal = Prop::Eq(
+            Term::App("tag".into(), vec![Term::App("normalize".into(), vec![nested_env.clone()])]),
+            Term::App(
+                "tag".into(),
+                vec![Term::App("normalized".into(), vec![nested_env])],
+            ),
+        );
+        let proof = ProofTerm::Rewrite(
+            Box::new(ProofTerm::Apply("normalize.expand".into(), vec![])),
+            Box::new(ProofTerm::Refl),
         );
         let result = check(&proof, &goal, &ctx, &reg);
         assert!(result.is_ok(), "rewrite failed: {:?}", result);

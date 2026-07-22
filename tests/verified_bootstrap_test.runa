@@ -16,7 +16,7 @@
 > eval_core(expr: Core) -> Int {
     match expr {
         | CInt(n) -> n
-        | CAdd(core_lhs, core_rhs) -> eval_core(core_lhs) + eval_core(core_rhs)
+        | CAdd(lhs, rhs) -> eval_core(lhs) + eval_core(rhs)
     }
 }
 
@@ -77,31 +77,31 @@
 
 > eval_surface_value(expr: SurfaceValue, env: Env) -> Int {
     match expr {
-        | SVInt(surface_n) -> surface_n
-        | SVAdd(surface_lhs, surface_rhs) -> eval_surface_value(surface_lhs, env) + eval_surface_value(surface_rhs, env)
-        | SVVar(surface_slot) -> lookup(surface_slot, env)
+        | SVInt(n) -> n
+        | SVAdd(lhs, rhs) -> eval_surface_value(lhs, env) + eval_surface_value(rhs, env)
+        | SVVar(slot) -> lookup(slot, env)
     }
 }
 
 > eval_core_value(expr: CoreValue, env: Env) -> Int {
     match expr {
-        | CVInt(core_n) -> core_n
-        | CVAdd(core_lhs, core_rhs) -> eval_core_value(core_lhs, env) + eval_core_value(core_rhs, env)
-        | CVVar(core_slot) -> lookup(core_slot, env)
+        | CVInt(n) -> n
+        | CVAdd(lhs, rhs) -> eval_core_value(lhs, env) + eval_core_value(rhs, env)
+        | CVVar(slot) -> lookup(slot, env)
     }
 }
 
 > lower_value(expr: SurfaceValue) -> CoreValue {
     match expr {
-        | SVInt(value_n) -> CVInt(value_n)
-        | SVAdd(value_lhs, value_rhs) -> CVAdd(lower_value(value_lhs), lower_value(value_rhs))
-        | SVVar(value_slot) -> CVVar(value_slot)
+        | SVInt(n) -> CVInt(n)
+        | SVAdd(lhs, rhs) -> CVAdd(lower_value(lhs), lower_value(rhs))
+        | SVVar(slot) -> CVVar(slot)
     }
 }
 
-| lower_value_sound: (leaf_expr, leaf_env) -> eval_core_value(lower_value(leaf_expr), leaf_env) == eval_surface_value(leaf_expr, leaf_env)
+| lower_value_sound: (expr, env) -> eval_core_value(lower_value(expr), env) == eval_surface_value(expr, env)
 ? lower_value_sound by {
-    | (leaf_expr, leaf_env) -> induction_on leaf_expr {
+    | (expr, env) -> induction_on expr {
         | SVInt(n) -> rewrite (apply lower_value.svint) in (rewrite (apply eval_core_value.cvint) in (rewrite (apply eval_surface_value.svint) in refl))
         | SVAdd(lhs, rhs) -> rewrite (apply lower_value.svadd) in (rewrite (apply eval_core_value.cvadd) in (rewrite (apply eval_surface_value.svadd) in (rewrite ih_1 in (rewrite ih_2 in refl))))
         | SVVar(slot) -> rewrite (apply lower_value.svvar) in (rewrite (apply eval_core_value.cvvar) in (rewrite (apply eval_surface_value.svvar) in refl))
@@ -110,28 +110,28 @@
 
 > eval_surface_let(expr: SurfaceLet, env: Env) -> Int {
     match expr {
-        | SPure(pure_payload) -> eval_surface_value(pure_payload, env)
-        | SLet(bound_value, let_body) -> eval_surface_value(let_body, Push(eval_surface_let(bound_value, env), env))
+        | SPure(value_expr) -> eval_surface_value(value_expr, env)
+        | SLet(value_expr, body_expr) -> eval_surface_value(body_expr, Push(eval_surface_let(value_expr, env), env))
     }
 }
 
 > eval_core_let(expr: CoreLet, env: Env) -> Int {
     match expr {
-        | CPure(pure_payload) -> eval_core_value(pure_payload, env)
-        | CLet(bound_value, let_body) -> eval_core_value(let_body, Push(eval_core_let(bound_value, env), env))
+        | CPure(value_expr) -> eval_core_value(value_expr, env)
+        | CLet(value_expr, body_expr) -> eval_core_value(body_expr, Push(eval_core_let(value_expr, env), env))
     }
 }
 
 > lower_let(expr: SurfaceLet) -> CoreLet {
     match expr {
-        | SPure(pure_payload) -> CPure(lower_value(pure_payload))
-        | SLet(bound_value, let_body) -> CLet(lower_let(bound_value), lower_value(let_body))
+        | SPure(value_expr) -> CPure(lower_value(value_expr))
+        | SLet(value_expr, body_expr) -> CLet(lower_let(value_expr), lower_value(body_expr))
     }
 }
 
-| lower_let_sound: (let_expr, let_env) -> eval_core_let(lower_let(let_expr), let_env) == eval_surface_let(let_expr, let_env)
+| lower_let_sound: (expr, env) -> eval_core_let(lower_let(expr), env) == eval_surface_let(expr, env)
 ? lower_let_sound by {
-    | (let_expr, let_env) -> induction_on let_expr {
+    | (expr, env) -> induction_on expr {
         | SPure(value_expr) -> rewrite (apply lower_let.spure) in (rewrite (apply eval_core_let.cpure) in (rewrite (apply eval_surface_let.spure) in (apply lower_value_sound)))
         | SLet(value_expr, body_expr) -> rewrite (apply lower_let.slet) in (rewrite (apply eval_core_let.clet) in (rewrite (apply eval_surface_let.slet) in (rewrite ih in (apply lower_value_sound))))
     }

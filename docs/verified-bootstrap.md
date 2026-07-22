@@ -75,5 +75,5 @@ Only after those stages can we honestly claim a proof-carrying or verified Futur
 ## Immediate Follow-Ups
 
 - Extend the tiny verified core with variables and `let` semantics so proofs model environments instead of pure trees.
-- Separate proof metavariables from rigid goal variables so proof search and rewrite steps cannot collide on printed names.
+- Generalize the current ANF-like `let` model so verified lowering no longer depends on leaf-only let bodies.
 - Document, stage by stage, which compiler responsibilities have moved out of the trusted boundary and which still remain there.
