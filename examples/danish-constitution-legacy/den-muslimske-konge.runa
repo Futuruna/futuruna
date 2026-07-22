@@ -20,7 +20,7 @@
 -- Unlike § 7, which EXPLICITLY extends to the heir, § 6 does NOT.
 -- ============================================================================
 
-@ use grundlov::*
+@ import ./grundlov
 
 # Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsraadet
 # ForsikringsStatus = IkkeAfgivet | AfgivetSomTroelfoelger | AfgivetSomKonge

@@ -9,7 +9,7 @@
 -- that only emerge at scale.
 -- ============================================================================
 
-@ use grundlov::*
+@ import ./grundlov
 
 -- Types needed for cross-chapter analysis
 # Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsraadet | Rigsretten | Ministerraadet
@@ -38,20 +38,20 @@
 @ print("")
 
 -- ============================================================================
--- FIDELITY 1: kapitel-01.runa does not use @ use imports
+-- FIDELITY 1: kapitel-01.runa does not use shared imports
 --
--- Chapters II, III, IV all use `@ use grundlov::*`.
+-- Chapters II, III, IV all use `@ import ./grundlov`.
 -- Chapter I was written BEFORE imports worked. It duplicates all types.
 -- This means Chapter I has its OWN copy of Rigsdel, Institution, etc.
 -- If grundlov.runa types change, Chapter I diverges silently.
 -- ============================================================================
 
 @ print("--- F1: Chapter I does not use imports ---")
-@ print("Chapters II-IV: @ use grundlov::*")
+@ print("Chapters II-IV: @ import ./grundlov")
 @ print("Chapter I: types duplicated locally")
 @ print("Risk: grundlov.runa changes → Chapter I diverges silently")
 @ print("Severity: STRUCTURAL — types are incompatible across chapters")
-@ print("Fix: add @ use grundlov::* to kapitel-01.runa, remove local type defs")
+@ print("Fix: add @ import ./grundlov to kapitel-01.runa, remove local type defs")
 @ print("")
 
 -- ============================================================================

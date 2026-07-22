@@ -8677,6 +8677,8 @@ struct RustCodegen {
     source_dir: Option<String>,
     /// Already-imported files (prevent cycles)
     imported: BTreeSet<String>,
+    /// Legacy module-style `@ use` paths already warned about
+    warned_legacy_use_paths: BTreeSet<String>,
     /// Auto-borrow: functions whose params are borrow-only (never consumed in body)
     /// fn_name -> vec of bools (true = param is borrow-only, emit &T)
     borrow_only_params: BTreeMap<String, Vec<bool>>,
@@ -12344,6 +12346,7 @@ impl RustCodegen {
             cargo_deps: BTreeMap::new(),
             source_dir: None,
             imported: BTreeSet::new(),
+            warned_legacy_use_paths: BTreeSet::new(),
             borrow_only_params: BTreeMap::new(),
             aliased_vars: BTreeSet::new(),
             ref_match_bindings: BTreeSet::new(),
@@ -12903,6 +12906,12 @@ impl RustCodegen {
                 Stmt::Use(path) => {
                     let imported = if let Some(ref dir) = self.source_dir {
                         if let Some(file_path) = Interpreter::resolve_use_module_path(path, dir) {
+                            if self.warned_legacy_use_paths.insert(path.clone()) {
+                                eprintln!(
+                                    "\x1b[1;33mwarning\x1b[0m: {}",
+                                    Interpreter::legacy_use_deprecation_message(path)
+                                );
+                            }
                             let canon = std::fs::canonicalize(&file_path)
                                 .map(|p| p.to_string_lossy().to_string())
                                 .unwrap_or(file_path.clone());

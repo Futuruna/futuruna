@@ -9,7 +9,7 @@
 -- EVERY WORD matters when you're defining fundamental freedoms.
 -- ============================================================================
 
-@ use grundlov::*
+@ import ./grundlov
 
 # Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsraadet | Rigsretten
 # Trossamfund = EvangeliskLuthersk | Andet(navn: String)

@@ -76,7 +76,7 @@ kapitel-11.runa            -- Kap. XI: Ikrafttræden (§89) [planned]
 ### May Want to Add
 - [ ] **Date literals** — `1953-03-27` instead of `Date(1953, 3, 27)`
 - [ ] **String enums / symbols** — `:denmark` instead of `"Danmark"`
-- [ ] **Cross-file scoping** — `@ use kapitel_02::Konge`
+- [ ] **Cross-file scoping** — `@ import Kapitel_02 from ./kapitel_02`
 - [ ] **Legal assertion syntax** — `| assert complete(succession_rules)` for gap checking
 - [ ] **Paragraph numbering as metadata** — `@ § 2` on rule groups
 

@@ -8,7 +8,7 @@
 -- things that 70 years of legal scholarship might have missed.
 -- ============================================================================
 
-@ use grundlov::*
+@ import ./grundlov
 
 -- Types from both chapters
 # Institution = Kongen | Folketinget | Domstolene | Folkekirken | Rigsdagen | Statsraadet

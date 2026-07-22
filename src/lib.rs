@@ -5639,6 +5639,8 @@ pub struct Interpreter {
     pub source_dir: Option<String>,
     /// Already-imported files (prevent cycles)
     pub imported: BTreeSet<String>,
+    /// Legacy module-style `@ use` paths already warned about
+    warned_legacy_use_paths: BTreeSet<String>,
     /// Named invariants: name -> (subject_expr, predicate_expr)
     pub invariants: BTreeMap<String, (Expr, Expr)>,
     /// Effect declarations: effect_name -> [(op_name, param_names)]
@@ -5678,6 +5680,7 @@ impl Interpreter {
             output: Vec::new(),
             source_dir: None,
             imported: BTreeSet::new(),
+            warned_legacy_use_paths: BTreeSet::new(),
             invariants: BTreeMap::new(),
             effect_decls: BTreeMap::new(),
             handler_stack: Vec::new(),
@@ -5769,6 +5772,18 @@ impl Interpreter {
         }
 
         None
+    }
+
+    pub fn legacy_use_import_target(use_path: &str) -> String {
+        use_path.trim_end_matches("::*").replace("::", "/")
+    }
+
+    pub fn legacy_use_deprecation_message(use_path: &str) -> String {
+        format!(
+            "legacy module import syntax `@ use {}` is deprecated; use `@ import {}` instead",
+            use_path,
+            Self::legacy_use_import_target(use_path)
+        )
     }
 
     /// Find runa.toml by walking up from a directory
@@ -6301,6 +6316,12 @@ impl Interpreter {
                 Stmt::Use(path) => {
                     if let Some(ref dir) = self.source_dir {
                         if let Some(file_path) = Self::resolve_use_module_path(path, dir) {
+                            if self.warned_legacy_use_paths.insert(path.clone()) {
+                                eprintln!(
+                                    "\x1b[1;33mwarning\x1b[0m: {}",
+                                    Self::legacy_use_deprecation_message(path)
+                                );
+                            }
                             // Canonicalize to prevent cycles
                             let canon = std::fs::canonicalize(&file_path)
                                 .map(|p| p.to_string_lossy().to_string())
