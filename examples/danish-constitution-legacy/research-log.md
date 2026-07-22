@@ -10,7 +10,7 @@
 - `den-muslimske-konge.runa` — The Muslim King Paradox: a constitutional state machine bug
 
 ### Compiler improvements made along the way
-- **Cross-file module imports now work** — originally via `@ use grundlov::*`; prefer `@ import ./grundlov` now that `@ use` is reserved for Rust imports
+- **Cross-file module imports now work** — use `@ import ./grundlov` for Futuruna modules, while `@ use` is reserved for Rust imports
 - **`Stmt::For` loop support** — added interpreter eval + codegen for `for` loops
 - **`Expr::Handle` match arms** — added exhaustiveness for effect handler expressions
 

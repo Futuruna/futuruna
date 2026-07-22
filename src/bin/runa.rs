@@ -1433,7 +1433,7 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
 
             // Evaluate
             let mut interp = Interpreter::new();
-            // Set source directory for @ use resolution
+            // Set source directory for @ import resolution
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 interp.source_dir = Some(parent.to_string_lossy().to_string());
             }
@@ -5554,31 +5554,34 @@ fn verify_with_z3(source: &str, filename: &str) {
         }
     };
 
-    // Also resolve @ use imports for cross-file verification
+    // Also resolve @ import directives for cross-file verification
     let source_dir = std::path::Path::new(filename)
         .parent()
         .map(|p| p.to_string_lossy().to_string());
     let mut all_stmts: Vec<Stmt> = Vec::new();
     let mut imported: BTreeSet<String> = BTreeSet::new();
     for stmt in &stmts {
-        if let Stmt::Use(path) = stmt {
-            let module = path.trim_end_matches("::*").replace("::", "/");
+        if let Stmt::Import(path) = stmt {
             if let Some(ref dir) = source_dir {
-                let file_path = format!("{}/{}.runa", dir, module);
-                let canon = std::fs::canonicalize(&file_path)
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or(file_path.clone());
-                if !imported.contains(&canon) {
-                    imported.insert(canon);
-                    if let Ok(src) = std::fs::read_to_string(&file_path) {
-                        let mut lx = Lexer::new(&src);
-                        let toks = lx.tokenize();
-                        let mut px = Parser::new(toks, &src);
-                        if let Ok(import_stmts) = px.parse_program() {
-                            // Only pull in types, functions, and bindings
-                            for s in import_stmts {
-                                if matches!(s, Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Bind(..)) {
-                                    all_stmts.push(s);
+                if let Some(file_path) = Interpreter::resolve_import_path_for_source(path, dir) {
+                    let canon = std::fs::canonicalize(&file_path)
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or(file_path.clone());
+                    if !imported.contains(&canon) {
+                        imported.insert(canon);
+                        if let Ok(src) = std::fs::read_to_string(&file_path) {
+                            let mut lx = Lexer::new(&src);
+                            let toks = lx.tokenize();
+                            let mut px = Parser::new(toks, &src);
+                            if let Ok(import_stmts) = px.parse_program() {
+                                // Only pull in types, functions, and bindings
+                                for s in import_stmts {
+                                    if matches!(
+                                        s,
+                                        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Bind(..)
+                                    ) {
+                                        all_stmts.push(s);
+                                    }
                                 }
                             }
                         }
@@ -8680,8 +8683,6 @@ struct RustCodegen {
     source_dir: Option<String>,
     /// Already-imported files (prevent cycles)
     imported: BTreeSet<String>,
-    /// Legacy module-style `@ use` paths already warned about
-    warned_legacy_use_paths: BTreeSet<String>,
     /// Auto-borrow: functions whose params are borrow-only (never consumed in body)
     /// fn_name -> vec of bools (true = param is borrow-only, emit &T)
     borrow_only_params: BTreeMap<String, Vec<bool>>,
@@ -12349,7 +12350,6 @@ impl RustCodegen {
             cargo_deps: BTreeMap::new(),
             source_dir: None,
             imported: BTreeSet::new(),
-            warned_legacy_use_paths: BTreeSet::new(),
             borrow_only_params: BTreeMap::new(),
             aliased_vars: BTreeSet::new(),
             ref_match_bindings: BTreeSet::new(),
@@ -12906,82 +12906,7 @@ impl RustCodegen {
                         }
                     }
                 }
-                Stmt::Use(path) => {
-                    let imported = if let Some(ref dir) = self.source_dir {
-                        if let Some(file_path) = Interpreter::resolve_use_module_path(path, dir) {
-                            if self.warned_legacy_use_paths.insert(path.clone()) {
-                                eprintln!(
-                                    "\x1b[1;33mwarning\x1b[0m: {}",
-                                    Interpreter::legacy_use_deprecation_message(path)
-                                );
-                            }
-                            let canon = std::fs::canonicalize(&file_path)
-                                .map(|p| p.to_string_lossy().to_string())
-                                .unwrap_or(file_path.clone());
-                            if self.imported.contains(&canon) {
-                                Vec::new()
-                            } else {
-                                self.imported.insert(canon);
-                                Self::parse_tau_file(&file_path)
-                            }
-                        } else {
-                            Vec::new()
-                        }
-                    } else {
-                        Vec::new()
-                    };
-                    // Propagate @ export annotations
-                    {
-                        let mut is_exp = false;
-                        for s in &imported {
-                            if let Stmt::Annot(n, args) = s {
-                                if n == "export" {
-                                    for a in args {
-                                        if let ExprKind::Var(v) = &a.kind {
-                                            self.types.exported_names.insert(v.clone());
-                                        }
-                                    }
-                                    if args.is_empty() {
-                                        is_exp = true;
-                                    }
-                                    continue;
-                                }
-                            }
-                            if is_exp {
-                                match s {
-                                    Stmt::Defn(Defn::Fn { name, .. })
-                                    | Stmt::Defn(Defn::Actor { name, .. }) => {
-                                        self.types.exported_names.insert(name.clone());
-                                    }
-                                    Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
-                                        self.types.exported_names.insert(name.clone());
-                                    }
-                                    _ => {}
-                                }
-                                is_exp = false;
-                            }
-                        }
-                    }
-                    // Merge definitions (functions, types, bindings, rules, rust blocks, deps)
-                    // Skip side effects (@ print, @ skriv, for loops, etc.)
-                    for s in imported {
-                        match &s {
-                            Stmt::Defn(_)
-                            | Stmt::TypeDecl(_)
-                            | Stmt::RustBlock(_)
-                            | Stmt::Rule(_)
-                            | Stmt::Bind(..)
-                            | Stmt::Use(_)
-                            | Stmt::Invariant { .. } => {
-                                all_stmts.push(s);
-                            }
-                            Stmt::Depend(cn, cv) => {
-                                self.cargo_deps.insert(cn.clone(), cv.clone());
-                            }
-                            _ => {} // skip side effects from imported files
-                        }
-                    }
-                }
+                Stmt::Use(_) => {}
                 Stmt::QualifiedImport(mod_name, path) => {
                     // @ import Name from ./module — qualified import (M3b)
                     // Parse imported file, scan for exports, wrap in Rust `mod Name { }`

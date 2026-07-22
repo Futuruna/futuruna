@@ -589,7 +589,7 @@ to concrete type.
 
 `@ use path` — meta-level imports via the `@` rune. Supports `::` paths and `{group}`
 imports. Transpiles directly to Rust `use` statements.
-Futuruna module loading belongs under `@ import`; legacy `@ use grundlov::*`-style module imports remain as deprecated compatibility.
+Futuruna module loading belongs under `@ import`.
 
 ### Why This Enables Rust Interop
 

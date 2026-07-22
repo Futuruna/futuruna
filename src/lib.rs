@@ -2829,8 +2829,8 @@ impl Parser {
                 }
                 "import" | "require" | "include" => {
                     return Err(format!(
-                        "{}:{}: Futuruna uses `@ use` or `@ import` for imports, not `{}`.\n  \
-                        Try: @ use module_name",
+                        "{}:{}: Futuruna uses `@ import` for Futuruna modules and `@ use` for Rust imports, not `{}`.\n  \
+                        Try: @ import ./module",
                         line, col, tok.text
                     ));
                 }
@@ -5635,12 +5635,10 @@ pub struct Interpreter {
     pub functions: BTreeMap<String, FnDef>,
     /// Output buffer for tests
     pub output: Vec<String>,
-    /// Current source file directory (for resolving @ use imports)
+    /// Current source file directory (for resolving @ import paths)
     pub source_dir: Option<String>,
     /// Already-imported files (prevent cycles)
     pub imported: BTreeSet<String>,
-    /// Legacy module-style `@ use` paths already warned about
-    warned_legacy_use_paths: BTreeSet<String>,
     /// Named invariants: name -> (subject_expr, predicate_expr)
     pub invariants: BTreeMap<String, (Expr, Expr)>,
     /// Effect declarations: effect_name -> [(op_name, param_names)]
@@ -5680,7 +5678,6 @@ impl Interpreter {
             output: Vec::new(),
             source_dir: None,
             imported: BTreeSet::new(),
-            warned_legacy_use_paths: BTreeSet::new(),
             invariants: BTreeMap::new(),
             effect_decls: BTreeMap::new(),
             handler_stack: Vec::new(),
@@ -5696,7 +5693,7 @@ impl Interpreter {
 
     /// Resolve an import path to a file path.
     /// Supports relative (`./module`) and manifest-based (`dep/module`) imports.
-    fn resolve_import_path(&self, import_path: &str, dir: &str) -> Option<String> {
+    pub fn resolve_import_path_for_source(import_path: &str, dir: &str) -> Option<String> {
         let rel = import_path.trim_start_matches("./");
         let file_path = format!("{}/{}.runa", dir, rel);
 
@@ -5731,59 +5728,6 @@ impl Interpreter {
         }
 
         Some(file_path)
-    }
-
-    /// Resolve an `@ use` path as a Futuruna module import, if one exists.
-    ///
-    /// `@ use` is overloaded in practice: most modern uses are Rust imports
-    /// like `std::collections::HashMap`, but some legacy programs still rely
-    /// on local Futuruna module loading via forms like `grundlov::*`.
-    /// Only return a module path when a real `.runa` target resolves.
-    pub fn resolve_use_module_path(use_path: &str, dir: &str) -> Option<String> {
-        let module = use_path.trim_end_matches("::*").replace("::", "/");
-        if module.is_empty() {
-            return None;
-        }
-
-        let file_path = format!("{}/{}.runa", dir, module);
-        if std::path::Path::new(&file_path).exists() {
-            return Some(file_path);
-        }
-
-        if let Some(toml_path) = Self::find_manifest(dir) {
-            if let Some((deps, _)) = Self::parse_manifest_deps(&toml_path) {
-                let toml_dir = std::path::Path::new(&toml_path)
-                    .parent()
-                    .map(|p| {
-                        let s = p.to_string_lossy().to_string();
-                        if s.is_empty() {
-                            ".".to_string()
-                        } else {
-                            s
-                        }
-                    })
-                    .unwrap_or_else(|| ".".to_string());
-
-                if let Some(resolved) = TypeChecker::resolve_dep_module(&module, &deps, &toml_dir)
-                {
-                    return Some(resolved);
-                }
-            }
-        }
-
-        None
-    }
-
-    pub fn legacy_use_import_target(use_path: &str) -> String {
-        use_path.trim_end_matches("::*").replace("::", "/")
-    }
-
-    pub fn legacy_use_deprecation_message(use_path: &str) -> String {
-        format!(
-            "legacy module import syntax `@ use {}` is deprecated; use `@ import {}` instead",
-            use_path,
-            Self::legacy_use_import_target(use_path)
-        )
     }
 
     /// Find runa.toml by walking up from a directory
@@ -6313,52 +6257,13 @@ impl Interpreter {
                     }
                 }
                 Stmt::Annot(_, _) => {}
-                Stmt::Use(path) => {
-                    if let Some(ref dir) = self.source_dir {
-                        if let Some(file_path) = Self::resolve_use_module_path(path, dir) {
-                            if self.warned_legacy_use_paths.insert(path.clone()) {
-                                eprintln!(
-                                    "\x1b[1;33mwarning\x1b[0m: {}",
-                                    Self::legacy_use_deprecation_message(path)
-                                );
-                            }
-                            // Canonicalize to prevent cycles
-                            let canon = std::fs::canonicalize(&file_path)
-                                .map(|p| p.to_string_lossy().to_string())
-                                .unwrap_or(file_path.clone());
-                            if !self.imported.contains(&canon) {
-                                self.imported.insert(canon);
-                                match std::fs::read_to_string(&file_path) {
-                                    Ok(source) => {
-                                        let mut lexer = Lexer::new(&source);
-                                        let tokens = lexer.tokenize();
-                                        let mut parser = Parser::new(tokens, &source);
-                                        match parser.parse_program() {
-                                            Ok(import_stmts) => {
-                                                last = self.run_program(&import_stmts, env);
-                                            }
-                                            Err(e) => {
-                                                eprintln!("\x1b[1;31merror\x1b[0m: parse error in imported {}: {}", file_path, e);
-                                            }
-                                        }
-                                    }
-                                    Err(e) => {
-                                        eprintln!(
-                                            "\x1b[1;33mwarning\x1b[0m: cannot import {}: {}",
-                                            file_path, e
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                Stmt::Use(_) => {}
                 Stmt::RustBlock(_) => {} // @ rust { } blocks are transpile-time only
                 Stmt::Import(path) => {
                     // @ import ./math → load math.runa from same directory
                     // @ import dep/module → resolve via runa.toml dependencies
                     if let Some(ref dir) = self.source_dir {
-                        let file_path = self.resolve_import_path(path, dir);
+                        let file_path = Self::resolve_import_path_for_source(path, dir);
                         if let Some(file_path) = file_path {
                             let canon = std::fs::canonicalize(&file_path)
                                 .map(|p| p.to_string_lossy().to_string())
@@ -11406,14 +11311,10 @@ impl TypeChecker {
                         }
                     }
                 }
-                Stmt::Import(path) | Stmt::Use(path) => {
-                    // Resolve @ import / module-style @ use and collect declarations.
+                Stmt::Import(path) => {
+                    // Resolve @ import and collect declarations.
                     if let Some(ref dir) = self.source_dir {
-                        let file_path = if matches!(stmt, Stmt::Use(_)) {
-                            Interpreter::resolve_use_module_path(path, dir)
-                        } else {
-                            Self::resolve_tc_import(path, dir)
-                        };
+                        let file_path = Self::resolve_tc_import(path, dir);
                         if let Some(file_path) = file_path {
                             let canon = std::fs::canonicalize(&file_path)
                                 .map(|p| p.to_string_lossy().to_string())
@@ -11432,6 +11333,7 @@ impl TypeChecker {
                         }
                     }
                 }
+                Stmt::Use(_) => {}
                 Stmt::HashImport(hash, path) => {
                     if let Some(ref dir) = self.source_dir {
                         if let Some(file_path) = Self::resolve_tc_import(path, dir) {
@@ -12271,9 +12173,9 @@ mod tests {
     }
 
     #[test]
-    fn use_module_resolution_distinguishes_rust_imports() {
+    fn import_requires_at_import_rather_than_use() {
         let temp_name = format!(
-            "futuruna_use_resolve_{}_{}",
+            "futuruna_import_semantics_{}_{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -12283,19 +12185,35 @@ mod tests {
         let temp_dir = std::env::temp_dir().join(temp_name);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
-        let local_module = temp_dir.join("grundlov.runa");
-        std::fs::write(&local_module, "@ print(\"ok\")\n").unwrap();
+        let helper = temp_dir.join("helper.runa");
+        std::fs::write(&helper, "> ping() -> String { \"ok\" }\n").unwrap();
 
         let dir = temp_dir.to_string_lossy().to_string();
-        let resolved = Interpreter::resolve_use_module_path("grundlov::*", &dir);
-        assert_eq!(resolved.as_deref(), local_module.to_str());
-        assert_eq!(
-            Interpreter::resolve_use_module_path("std::collections::HashMap", &dir),
-            None
+
+        let import_source = "@ import ./helper\n@ print(ping())\n";
+        let mut import_lexer = Lexer::new(import_source);
+        let import_tokens = import_lexer.tokenize();
+        let mut import_parser = Parser::new(import_tokens, import_source);
+        let import_stmts = import_parser.parse_program().unwrap();
+        let import_diags =
+            TypeChecker::check_with_diagnostics(&import_stmts, Some(dir.clone()), import_source);
+        assert!(
+            import_diags.is_empty(),
+            "expected @ import to resolve helper module, got {:?}",
+            import_diags
         );
-        assert_eq!(
-            Interpreter::resolve_use_module_path("std::io::{Read, Write}", &dir),
-            None
+
+        let use_source = "@ use helper::*\n@ print(ping())\n";
+        let mut use_lexer = Lexer::new(use_source);
+        let use_tokens = use_lexer.tokenize();
+        let mut use_parser = Parser::new(use_tokens, use_source);
+        let use_stmts = use_parser.parse_program().unwrap();
+        let use_diags = TypeChecker::check_with_diagnostics(&use_stmts, Some(dir), use_source);
+        assert_eq!(use_diags.len(), 1);
+        assert!(
+            use_diags[0].message.contains("undefined function `ping`"),
+            "expected @ use to stay Rust-only, got {:?}",
+            use_diags
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);

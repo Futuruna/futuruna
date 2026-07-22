@@ -71,7 +71,7 @@ Adds the crate to the generated `Cargo.toml`.
 ```
 
 Emits a Rust `use` statement in the generated code.
-For Futuruna modules, use `@ import`; legacy module-style `@ use foo::*` is deprecated compatibility syntax.
+For Futuruna modules, use `@ import`.
 
 ## Build Modes
 

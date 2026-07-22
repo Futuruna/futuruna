@@ -342,7 +342,7 @@ The boundary between the verified world and effects. Every `@` says: formal reas
 @ use std::io::*
 ```
 
-Use `@ import` for Futuruna modules. Legacy module-style `@ use foo::*` still works as a compatibility path, but it is deprecated.
+Use `@ import` for Futuruna modules.
 
 ### Depend (Cargo dependencies)
 ```runa
