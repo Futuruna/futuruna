@@ -24478,6 +24478,27 @@ mod tests {
     }
 
     #[test]
+    fn field_ty_supports_numeric_tuple_indices() {
+        let ctx = LoweringCtx {
+            type_env: BTreeMap::new(),
+            inference: None,
+            fn_schemes: BTreeMap::new(),
+            types: &TypeRegistry::new(),
+            ownership: &OwnershipAnalysis {
+                var_uses: BTreeMap::new(),
+                consuming_uses: BTreeMap::new(),
+            },
+            copy_vars: &BTreeSet::new(),
+            ref_match_bindings: &BTreeSet::new(),
+        };
+
+        let tuple_ty = FirTy::Tuple(vec![FirTy::String, FirTy::Int, FirTy::Float]);
+        assert_eq!(ctx.field_ty(&tuple_ty, "0"), FirTy::String);
+        assert_eq!(ctx.field_ty(&tuple_ty, "1"), FirTy::Int);
+        assert_eq!(ctx.field_ty(&tuple_ty, "2"), FirTy::Float);
+    }
+
+    #[test]
     fn legacy_emit_rule_function_infers_float_param_for_safe_division() {
         let source = "| halve(x) -> x / 2.0";
         let (mut cg, stmts) = scan_with_codegen(source);

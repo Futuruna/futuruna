@@ -1,0 +1,48 @@
+-- codegen_integration_regression_test.runa
+-- Reduced regressions from external integration corpora that used to
+-- compile/type-check in-repo but fail in real codegen paths.
+
+# Tree(acted: Int, total_phi: Float, kids: Map(String, Tree))
+
+> alpha(x: Tree) -> Float {
+    = total_entries = to_float(map_len(x.kids))
+    if x.acted > 0 {
+        if total_entries > 0.0 { x.total_phi / total_entries }
+        else { x.total_phi / to_float(x.acted) }
+    } else { 0.0 }
+}
+
+= kid_map = map_insert(map_new(), "child", Tree(0, 0.0, map_new()))
+= tree = Tree(2, 6.0, kid_map)
+= alpha_result = alpha(tree)
+| alpha_ok: alpha_result -> alpha_result == 6.0
+? alpha_ok
+
+> feed(base: String, extra: String, suffix: String) -> String { base + extra + suffix }
+
+> drive(start: String, fr: List(String), pairs: List(String)) -> String {
+    foldl(pairs, start, |s, p| {
+        = deep = "x:" + p
+        foldl(fr, s, |s2, fw| feed(s2, deep, fw))
+    })
+}
+
+= driven = drive("", ["a", "b"], ["1", "2"])
+| drive_ok: driven -> driven == "x:1ax:1bx:2ax:2b"
+? drive_ok
+
+> keep_or_replace(world: String, accepted: Bool) -> String {
+    = proposal = world + "!"
+    if accepted { proposal } else { world }
+}
+
+= kept = keep_or_replace("mint", False)
+= replaced = keep_or_replace("mint", True)
+| keep_ok: kept -> kept == "mint"
+| replace_ok: replaced -> replaced == "mint!"
+? keep_ok
+? replace_ok
+
+= sliced = substring("the cat sat", 4, 3)
+| substring_len_ok: sliced -> sliced == "cat"
+? substring_len_ok

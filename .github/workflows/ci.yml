@@ -56,6 +56,9 @@ jobs:
       - name: Codegen validation
         run: ./target/release/runa test --check-codegen
 
+      - name: Core codegen regression program
+        run: ./target/release/runa run tests/codegen_integration_regression_test.runa
+
       - name: Roundtrip validation
         run: ./target/release/runa test --roundtrip
 

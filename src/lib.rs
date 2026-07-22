@@ -6152,11 +6152,16 @@ impl Interpreter {
                 }
                 Stmt::Prove {
                     name,
-                    proof_block: _,
+                    proof_block,
                     capture,
                     pass_block,
                     else_block,
                 } => {
+                    // Explicit proof blocks are checked by `runa verify`, not executed at runtime.
+                    if proof_block.is_some() {
+                        last = Value::Unit;
+                        continue;
+                    }
                     let has_blocks = pass_block.is_some() || else_block.is_some();
                     let targets: Vec<(String, Expr, Expr)> = if name == "all" {
                         self.invariants
@@ -7859,11 +7864,10 @@ impl Interpreter {
                 _ => Value::Str(String::new()),
             },
             "substring" => match (args.get(0), args.get(1), args.get(2)) {
-                (Some(Value::Str(s)), Some(Value::Int(start)), Some(Value::Int(end))) => {
+                (Some(Value::Str(s)), Some(Value::Int(start)), Some(Value::Int(len))) => {
                     let start = (*start).max(0) as usize;
-                    let end = (*end).max(0) as usize;
                     let chars: Vec<char> = s.chars().collect();
-                    let end = end.min(chars.len());
+                    let end = (start + (*len).max(0) as usize).min(chars.len());
                     let start = start.min(end);
                     Value::Str(chars[start..end].iter().collect())
                 }
