@@ -81,8 +81,8 @@ Defines abstract operations that callers can intercept via `| handle`.
 ### Impl block
 ```runa
 # impl Printable for Color {
-    > color_display(c) -> String {
-        match c {
+    > display(self) -> String {
+        match self {
             | Red -> "Red"
             | Green -> "Green"
             | Blue -> "Blue"

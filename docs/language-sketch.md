@@ -567,8 +567,8 @@ Traits use `# trait Name { }` — stays within Axis 1 (`#` rune), same pathway a
 
 ```tau
 # impl Printable for Color {
-    > display(c) -> String {
-        match c {
+    > display(self) -> String {
+        match self {
             | Red -> "Red"
             | Green -> "Green"
             | Blue -> "Blue"

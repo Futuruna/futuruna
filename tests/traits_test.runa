@@ -31,8 +31,8 @@
 # Color = Red | Green | Blue
 
 # impl Printable for Color {
-    > color_display(c) -> String {
-        match c {
+    > display(self) -> String {
+        match self {
             | Red -> "Red"
             | Green -> "Green"
             | Blue -> "Blue"
@@ -43,11 +43,21 @@
 # Shape = Circle(radius: Float) | Rectangle(width: Float, height: Float)
 
 # impl Printable for Shape {
-    > shape_display(s) -> String {
-        match s {
+    > display(self) -> String {
+        match self {
             | Circle(radius: r) -> "Circle(" + show(r) + ")"
             | Rectangle(width: w, height: h) -> "Rect(" + show(w) + "x" + show(h) + ")"
         }
+    }
+}
+
+@ rust {
+    fn render_color(x: Color) -> String {
+        x.display()
+    }
+
+    fn render_shape(x: Shape) -> String {
+        x.display()
     }
 }
 
@@ -56,15 +66,15 @@
 -- ============================================
 
 @ print("--- Color dispatch ---")
-@ print(color_display(Red))
-@ print(color_display(Green))
-@ print(color_display(Blue))
+@ print(render_color(Red))
+@ print(render_color(Green))
+@ print(render_color(Blue))
 
 @ print("--- Shape dispatch ---")
 = c = Circle(5.0)
 = r = Rectangle(3.0, 4.0)
-@ print(shape_display(c))
-@ print(shape_display(r))
+@ print(render_shape(c))
+@ print(render_shape(r))
 
 -- ============================================
 -- Part 5: Transpiler test
