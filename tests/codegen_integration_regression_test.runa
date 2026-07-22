@@ -47,3 +47,7 @@
 = sliced = substring(world, 4, 5)
 | substring_length_ok: sliced -> sliced == "cat s"
 ? substring_length_ok
+
+= past_end = substring(world, 99, length(world) - 99)
+| substring_past_end_ok: past_end -> past_end == ""
+? substring_past_end_ok

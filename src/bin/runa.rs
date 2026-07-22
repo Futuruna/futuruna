@@ -6689,7 +6689,7 @@ fn emit_fir_ty_as_rust(ty: &Ty) -> String {
                 "List" => format!("Vec<{}>", arg_strs.join(", ")),
                 "Option" => format!("Option<{}>", arg_strs.join(", ")),
                 "Result" => format!("Result<{}>", arg_strs.join(", ")),
-                "Map" => format!("HashMap<{}>", arg_strs.join(", ")),
+                "Map" => format!("BTreeMap<{}>", arg_strs.join(", ")),
                 "Set" => format!("HashSet<{}>", arg_strs.join(", ")),
                 _ => format!("{}<{}>", base_str, arg_strs.join(", ")),
             }
@@ -8628,7 +8628,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("replace",      BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.replace(&*{1}, &*{2})" }),
         ("to_upper",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.to_uppercase()" }),
         ("to_lower",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.to_lowercase()" }),
-        ("substring",    BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start = ({1} as usize).min(__s.len()); let __end = (__start + ({2} as usize)).min(__s.len()); __s[__start..__end].iter().collect::<String>() }" }),
+        ("substring",    BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start_i = ({1}).max(0); let __len_i = ({2}).max(0); let __start = (__start_i as usize).min(__s.len()); let __end = __start.saturating_add(__len_i as usize).min(__s.len()); __s[__start..__end].iter().collect::<String>() }" }),
         ("char_at",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __i = {1} as usize; if __i < __s.len() { __s[__i].to_string() } else { String::new() } }" }),
         ("index_of",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.find(&*{1}).map(|p| p as i64).unwrap_or(-1i64)" }),
         ("format_float", BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "format!(\"{:.prec$}\", {0} as f64, prec = {1} as usize)" }),
@@ -8706,7 +8706,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("subscribe",    BuiltinDef { arity: 2, shadowable: true, impure: true, deps: D, rust_tpl: "{ for __item in {0}.iter() { ({1})(__item.clone()); } }" }),
 
         // ---- Map builtins (M24) ----
-        ("map_new",      BuiltinDef { arity: 0, shadowable: false, impure: false, deps: D, rust_tpl: "HashMap::new()" }),
+        ("map_new",      BuiltinDef { arity: 0, shadowable: false, impure: false, deps: D, rust_tpl: "BTreeMap::new()" }),
         ("map_insert",   BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __m = {0}.clone(); __m.insert({1}.clone(), {2}.clone()); __m }" }),
         ("map_get",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.get({1}.as_str()).cloned()" }),
         ("map_get_or",   BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.get({1}.as_str()).cloned().unwrap_or_else(|| {2}.clone())" }),
@@ -8717,7 +8717,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("map_entries",  BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>()" }),
         ("map_len",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
         ("map_merge",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __m = {0}.clone(); __m.extend({1}.clone()); __m }" }),
-        ("map_from",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.into_iter().collect::<HashMap<_, _>>()" }),
+        ("map_from",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.into_iter().collect::<BTreeMap<_, _>>()" }),
 
         // ---- Set builtins (M24) ----
         ("set_new",       BuiltinDef { arity: 0, shadowable: false, impure: false, deps: D, rust_tpl: "HashSet::new()" }),
@@ -13278,6 +13278,36 @@ impl RustCodegen {
             });
         }
 
+        // Deduplicate top-level functions/actors from imports: later definitions win,
+        // matching interpreter registration order where a later insert overwrites an
+        // earlier imported definition.
+        {
+            let mut last_defs: BTreeMap<String, usize> = BTreeMap::new();
+            for (idx, stmt) in all_stmts.iter().enumerate() {
+                match stmt {
+                    Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. }) => {
+                        last_defs.insert(name.clone(), idx);
+                    }
+                    _ => {}
+                }
+            }
+
+            all_stmts = all_stmts
+                .into_iter()
+                .enumerate()
+                .filter_map(|(idx, stmt)| match &stmt {
+                    Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. }) => {
+                        if last_defs.get(name) == Some(&idx) {
+                            Some(stmt)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => Some(stmt),
+                })
+                .collect();
+        }
+
         let stmts = &all_stmts;
 
         // Pre-scan: collect @ export annotations (M3b)
@@ -13909,7 +13939,7 @@ impl RustCodegen {
             out.push_str("use wasm_bindgen::prelude::*;\n");
         }
         out.push_str("use std::fmt;\n");
-        out.push_str("use std::collections::{HashMap, HashSet};\n\n");
+        out.push_str("use std::collections::{BTreeMap, HashMap, HashSet};\n\n");
         // __futuruna_show: format like the interpreter (Display, no string quotes)
         out.push_str(
             "fn __futuruna_show<T: fmt::Display>(v: &T) -> String { format!(\"{}\", v) }\n",
@@ -15024,11 +15054,11 @@ impl RustCodegen {
                     // Enums whose first variant has fields don't get Default — check field types.
                     let all_fields_defaultable = v.fields.iter().all(|f| {
                         let ty_str = self.emit_type_with_params(&f.ty, params);
-                        // Primitive types, Vec, Option, HashMap, HashSet all have Default
+                        // Primitive types, Vec, Option, BTreeMap, HashMap, HashSet all have Default
                         // Enum types without Default don't — check if it's a non-struct user type
                         let base_name = ty_str.split('<').next().unwrap_or(&ty_str).trim();
                         matches!(base_name, "i64" | "f64" | "String" | "bool" | "char" | "()"
-                            | "Vec" | "Option" | "HashMap" | "HashSet" | "Rc" | "Arc")
+                            | "Vec" | "Option" | "BTreeMap" | "HashMap" | "HashSet" | "Rc" | "Arc")
                             || self.types.struct_types.contains(base_name)
                             // Enums with fieldless first variant have Default
                             || self.types.type_decls.get(base_name).map_or(false, |(_, vnames)| {
@@ -15150,13 +15180,13 @@ impl RustCodegen {
                     out.push_str("}\n");
                 }
 
-                // Helper: check if a field type needs {:?} format (Vec, Option, HashMap, HashSet)
+                // Helper: check if a field type needs {:?} format (Vec, Option, BTreeMap, HashMap, HashSet)
                 let field_needs_debug_fmt = |f: &Field| -> bool {
                     let ty_str = self.emit_type_with_params(&f.ty, params);
                     let base = ty_str.split('<').next().unwrap_or(&ty_str).trim();
                     matches!(
                         base,
-                        "Vec" | "Option" | "HashMap" | "HashSet" | "Rc" | "Arc"
+                        "Vec" | "Option" | "BTreeMap" | "HashMap" | "HashSet" | "Rc" | "Arc"
                     )
                 };
 
@@ -15691,7 +15721,7 @@ impl RustCodegen {
                 if con_str == "List" && !self.types.type_decls.contains_key("List") {
                     format!("Vec<{}>", args_str.first().unwrap_or(&"()".to_string()))
                 } else if con_str == "Map" && !self.types.type_decls.contains_key("Map") {
-                    format!("HashMap<{}>", args_str.join(", "))
+                    format!("BTreeMap<{}>", args_str.join(", "))
                 } else if con_str == "Set" && !self.types.type_decls.contains_key("Set") {
                     format!("HashSet<{}>", args_str.first().unwrap_or(&"()".to_string()))
                 } else {
@@ -17875,7 +17905,7 @@ impl RustCodegen {
                                             .get(var_name)
                                             .cloned()
                                             .unwrap_or_else(|| "i64".to_string());
-                                        format!(": HashMap<String, {}>", val_type)
+                                        format!(": BTreeMap<String, {}>", val_type)
                                     }
                                     _ => String::new(),
                                 }
@@ -24650,11 +24680,12 @@ mod tests {
         (cg, stmts)
     }
 
-    fn compile_and_run_test_program(source: &str) -> String {
+    fn compile_and_run_test_source(source: &str, filename: Option<&str>) -> String {
         let user_stmts = parse_test_program(source);
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
-        let diags = TypeChecker::check_with_diagnostics(&stmts, None, source);
+        let diags =
+            TypeChecker::check_with_diagnostics(&stmts, filename.and_then(source_dir_for), source);
         assert!(
             diags.is_empty(),
             "typecheck failed for compiled regression: {:?}",
@@ -24662,6 +24693,10 @@ mod tests {
         );
 
         let mut cg = RustCodegen::new();
+        if let Some(filename) = filename {
+            cg.source_dir = source_dir_for(filename);
+            cg.source_name = Some(filename.to_string());
+        }
         let code = cg.emit_program(&stmts);
 
         let temp_name = format!(
@@ -24711,6 +24746,15 @@ mod tests {
         let _ = std::fs::remove_file(&bin_path);
         let _ = std::fs::remove_dir_all(&temp_dir);
         output
+    }
+
+    fn compile_and_run_test_program(source: &str) -> String {
+        compile_and_run_test_source(source, None)
+    }
+
+    fn compile_and_run_test_file(path: &std::path::Path) -> String {
+        let source = std::fs::read_to_string(path).expect("read test file");
+        compile_and_run_test_source(&source, Some(path.to_str().expect("utf-8 test path")))
     }
 
     #[test]
@@ -25226,6 +25270,71 @@ mod tests {
             output.lines().collect::<Vec<_>>(),
             vec!["Red", "Blue", "Circle(5)", "Rect(3x4)"]
         );
+    }
+
+    #[test]
+    fn compiled_map_entries_tie_break_is_deterministic_across_processes() {
+        let source = r#"
+= m = map_insert(map_insert(map_new(), "b", 1), "a", 1)
+= entries = map_entries(m)
+= best = foldl(entries, head(entries), |best, e| {
+    if e.snd > best.snd { e } else { best }
+})
+@ print(best.fst)
+"#;
+
+        let outputs: BTreeSet<String> = (0..8)
+            .map(|_| compile_and_run_test_program(source).trim().to_string())
+            .collect();
+
+        assert_eq!(
+            outputs,
+            BTreeSet::from([String::from("a")]),
+            "compiled map tie-breaking drifted across runs: {:?}",
+            outputs
+        );
+    }
+
+    #[test]
+    fn compiled_substring_clamps_negative_lengths() {
+        let source = r#"
+= text = "abc"
+@ print("[" + substring(text, 5, length(text) - 5) + "]")
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "[]");
+    }
+
+    #[test]
+    fn compiled_imported_function_conflict_keeps_later_local_definition() {
+        let temp_name = format!(
+            "futuruna_import_shadow_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(&dep_path, "> next_rand(state: Int) -> Int { state + 1 }\n").unwrap();
+        std::fs::write(
+            &main_path,
+            "@ import ./dep\n> next_rand(state: Int) -> Int { state + 10 }\n@ print(show(next_rand(5)))\n",
+        )
+        .unwrap();
+
+        let output = compile_and_run_test_file(&main_path);
+        assert_eq!(output.trim(), "15");
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
@@ -25970,7 +26079,7 @@ impl RustToRunaCtx {
                     "Option" => "Option",
                     "Result" => "Result",
                     "Box" | "Rc" | "Arc" => return self.unwrap_generic_arg(&seg.arguments),
-                    "HashMap" => "Map",
+                    "HashMap" | "BTreeMap" => "Map",
                     "HashSet" => "Set",
                     "Self" => "self",
                     _ => &name,
@@ -26487,7 +26596,7 @@ impl RustToRunaCtx {
                     "String::from" if args.is_empty() => "\"\"".to_string(),
                     "String::from" => args[0].clone(),
                     "Vec::new" => "[]".to_string(),
-                    "HashMap::new" => "map_new()".to_string(),
+                    "HashMap::new" | "BTreeMap::new" => "map_new()".to_string(),
                     // Box::new, Rc::new, Arc::new → just the inner value (invisible ownership)
                     "Box::new" | "Rc::new" | "Arc::new" if args.len() == 1 => args[0].clone(),
                     _ => match func.as_str() {
@@ -26910,7 +27019,7 @@ impl RustToRunaCtx {
             "map_err" => recv.to_string(),
             "and_then" => format!("flat_map({}, {})", recv, args.join(", ")),
 
-            // HashMap/Map methods
+            // HashMap/BTreeMap/Map methods
             "get" if args.len() == 1 => format!("map_get({}, {})", recv, args[0]),
             "contains_key" if args.len() == 1 => format!("map_contains({}, {})", recv, args[0]),
 
@@ -27014,6 +27123,7 @@ impl RustToRunaCtx {
             .replace("& ", "")
             // Clean up common Rust patterns in macro args
             .replace("HashMap :: new()", "map_new()")
+            .replace("BTreeMap :: new()", "map_new()")
             // vec ! [...] → [...] (macro formatting in token stream)
             .replace("vec ! [", "[")
             .replace("vec! [", "[")

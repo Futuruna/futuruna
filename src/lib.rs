@@ -5443,8 +5443,8 @@ pub enum Value {
     /// Subject: a mutable stream you can push into with <-
     /// (values, initial_value). Subjects ARE streams you can write to.
     Subject(Vec<Value>),
-    /// Map: key-value dictionary (HashMap in codegen, associative list in interpreter)
-    Map(HashMap<String, Value>),
+    /// Map: key-value dictionary with deterministic key iteration.
+    Map(BTreeMap<String, Value>),
     /// Set: unique value collection (HashSet in codegen, HashMap<String,Value> in interpreter)
     Set(HashMap<String, Value>),
     /// Scope: a named block with its own environment. Bindings accessible via Scope.name.
@@ -8120,14 +8120,14 @@ impl Interpreter {
                 _ => Value::Unit,
             },
             // ---- Map builtins (M24) ----
-            "map_new" => Value::Map(HashMap::new()),
+            "map_new" => Value::Map(BTreeMap::new()),
             "map_insert" => match (args.get(0), args.get(1), args.get(2)) {
                 (Some(Value::Map(entries)), Some(key), Some(val)) => {
                     let mut new_map = entries.clone();
                     new_map.insert(format!("{}", key), val.clone());
                     Value::Map(new_map)
                 }
-                _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
+                _ => args.first().cloned().unwrap_or(Value::Map(BTreeMap::new())),
             },
             "unwrap_or" => match (args.get(0), args.get(1)) {
                 (Some(Value::Constructor(name, inner)), Some(default)) => {
@@ -8183,7 +8183,7 @@ impl Interpreter {
                     new_map.remove(&format!("{}", key));
                     Value::Map(new_map)
                 }
-                _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
+                _ => args.first().cloned().unwrap_or(Value::Map(BTreeMap::new())),
             },
             "map_keys" => match args.first() {
                 Some(Value::Map(entries)) => {
@@ -8216,12 +8216,12 @@ impl Interpreter {
                     }
                     Value::Map(merged)
                 }
-                _ => args.first().cloned().unwrap_or(Value::Map(HashMap::new())),
+                _ => args.first().cloned().unwrap_or(Value::Map(BTreeMap::new())),
             },
             "map_from" => match args.first() {
                 Some(list) => {
                     let items = list_to_vec(list);
-                    let mut map = HashMap::new();
+                    let mut map = BTreeMap::new();
                     for v in items {
                         if let Value::Tuple(ref pair) = v {
                             if pair.len() >= 2 {
@@ -8231,7 +8231,7 @@ impl Interpreter {
                     }
                     Value::Map(map)
                 }
-                _ => Value::Map(HashMap::new()),
+                _ => Value::Map(BTreeMap::new()),
             },
             // ---- Set builtins (M24) ----
             "set_new" => Value::Set(HashMap::new()),
