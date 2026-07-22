@@ -51,7 +51,6 @@ jobs:
 
       - name: Runa tests (compiled)
         run: ./target/release/runa test --run
-        continue-on-error: true  # Some tests need external deps; tracked separately
 
       - name: Codegen validation
         run: ./target/release/runa test --check-codegen
