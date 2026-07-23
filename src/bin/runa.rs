@@ -19984,6 +19984,95 @@ impl RustCodegen {
         }
     }
 
+    fn fir_ty_is_copy(ty: &FirTy) -> bool {
+        match ty {
+            FirTy::Int | FirTy::Float | FirTy::Bool | FirTy::Char | FirTy::Unit => true,
+            FirTy::Tuple(elems) => elems.iter().all(Self::fir_ty_is_copy),
+            FirTy::Unknown
+            | FirTy::Var(_)
+            | FirTy::String
+            | FirTy::Named(_)
+            | FirTy::List(_)
+            | FirTy::Option(_)
+            | FirTy::Result(_, _)
+            | FirTy::Map(_, _)
+            | FirTy::Set(_)
+            | FirTy::Arrow(_, _) => false,
+        }
+    }
+
+    fn with_lambda_param_scope<R>(
+        &mut self,
+        params: &[Param],
+        param_tys: &[FirTy],
+        body: &Expr,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let lambda_param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+        let lambda_param_name_refs: Vec<&str> =
+            lambda_param_names.iter().map(String::as_str).collect();
+        let ownership = OwnershipAnalysis::analyze(
+            body,
+            &self.borrow_only_params,
+            None,
+            &lambda_param_name_refs,
+        );
+        let saved: Vec<(String, Option<usize>, Option<usize>, bool)> = lambda_param_names
+            .iter()
+            .map(|name| {
+                (
+                    name.clone(),
+                    self.var_use_counts.get(name).copied(),
+                    self.var_consuming_counts.get(name).copied(),
+                    self.copy_vars.contains(name.as_str()),
+                )
+            })
+            .collect();
+        let prev_local_bindings = self.local_bindings.clone();
+        for (name, ty) in lambda_param_names.iter().zip(param_tys.iter()) {
+            if let Some(use_count) = ownership.var_uses.get(name).copied() {
+                self.var_use_counts.insert(name.clone(), use_count);
+            } else {
+                self.var_use_counts.remove(name);
+            }
+            if let Some(consuming_count) = ownership.consuming_uses.get(name).copied() {
+                self.var_consuming_counts
+                    .insert(name.clone(), consuming_count);
+            } else {
+                self.var_consuming_counts.remove(name);
+            }
+            if Self::fir_ty_is_copy(ty) {
+                self.copy_vars.insert(name.clone());
+            } else {
+                self.copy_vars.remove(name);
+            }
+            self.local_bindings.insert(name.clone());
+        }
+
+        let out = self.with_temporary_param_types(params, param_tys, f);
+
+        for (name, uses, consuming, was_copy) in saved {
+            if let Some(use_count) = uses {
+                self.var_use_counts.insert(name.clone(), use_count);
+            } else {
+                self.var_use_counts.remove(&name);
+            }
+            if let Some(consuming_count) = consuming {
+                self.var_consuming_counts
+                    .insert(name.clone(), consuming_count);
+            } else {
+                self.var_consuming_counts.remove(&name);
+            }
+            if was_copy {
+                self.copy_vars.insert(name.clone());
+            } else {
+                self.copy_vars.remove(&name);
+            }
+        }
+        self.local_bindings = prev_local_bindings;
+        out
+    }
+
     fn remember_var_type(&mut self, name: &str, ty: &FirTy) {
         self.var_fir_types.insert(name.to_string(), ty.clone());
         if let Some(rust_ty) = Self::fir_type_to_rust(ty) {
@@ -21324,7 +21413,7 @@ impl RustCodegen {
                                 sanitize_name(&params[0].name)
                             };
                             let body_code =
-                                self.with_temporary_param_types(params, &param_tys, |cg| {
+                                self.with_lambda_param_scope(params, &param_tys, body, |cg| {
                                     cg.emit_expr(body)
                                 });
                             // Detect captured variables in the lambda body
@@ -21434,17 +21523,18 @@ impl RustCodegen {
                             } else {
                                 sanitize_name(&sort_params[0].name)
                             };
-                            let saved_copy = self.copy_vars.clone();
-                            self.copy_vars.insert(sort_params[0].name.clone());
-                            let body_a =
-                                self.with_temporary_param_types(sort_params, &param_tys, |cg| {
-                                    cg.emit_expr(sort_body)
-                                });
-                            let body_b =
-                                self.with_temporary_param_types(sort_params, &param_tys, |cg| {
-                                    cg.emit_expr(sort_body)
-                                });
-                            self.copy_vars = saved_copy;
+                            let body_a = self.with_lambda_param_scope(
+                                sort_params,
+                                &param_tys,
+                                sort_body,
+                                |cg| cg.emit_expr(sort_body),
+                            );
+                            let body_b = self.with_lambda_param_scope(
+                                sort_params,
+                                &param_tys,
+                                sort_body,
+                                |cg| cg.emit_expr(sort_body),
+                            );
                             return format!("{{ let mut __v = {}.clone(); __v.sort_by(|__a, __b| {{ let {} = __a.clone(); format!(\"{{}}\", {}) }}.cmp(&{{ let {} = __b.clone(); format!(\"{{}}\", {}) }})); __v }}",
                                 coll, sp, body_a, sp, body_b);
                         }
@@ -21480,7 +21570,7 @@ impl RustCodegen {
                             self.in_iter_closure = true;
                             self.closure_params = params.iter().map(|p| p.name.clone()).collect();
                             let body_code =
-                                self.with_temporary_param_types(params, &param_tys, |cg| {
+                                self.with_lambda_param_scope(params, &param_tys, body, |cg| {
                                     cg.emit_expr(body)
                                 });
                             self.in_iter_closure = prev_in_iter;
@@ -21751,56 +21841,17 @@ impl RustCodegen {
                         })
                         .collect()
                 });
-                // Lambda params are locally scoped — prevent escape analysis from cloning them.
-                // Save outer counts, mark lambda params as single-use, emit body, restore.
                 let lambda_param_names: Vec<String> =
                     params.iter().map(|p| p.name.clone()).collect();
-                let saved: Vec<(String, Option<usize>, Option<usize>, bool)> = lambda_param_names
-                    .iter()
-                    .map(|n| {
-                        (
-                            n.clone(),
-                            self.var_use_counts.get(n).copied(),
-                            self.var_consuming_counts.get(n).copied(),
-                            self.copy_vars.contains(n.as_str()),
-                        )
-                    })
-                    .collect();
-                for name in &lambda_param_names {
-                    self.var_use_counts.insert(name.clone(), 1);
-                    self.var_consuming_counts.insert(name.clone(), 0);
-                    self.copy_vars.insert(name.clone());
-                }
-                let prev_local_bindings = self.local_bindings.clone();
-                for name in &lambda_param_names {
-                    self.local_bindings.insert(name.clone());
-                }
                 // Mark as iterator closure so captured vars get .clone()
                 let prev_in_iter = self.in_iter_closure;
                 let prev_closure_params = std::mem::take(&mut self.closure_params);
                 self.in_iter_closure = true;
                 self.closure_params = lambda_param_names.iter().cloned().collect();
                 let body_str =
-                    self.with_temporary_param_types(params, &param_tys, |cg| cg.emit_expr(body));
+                    self.with_lambda_param_scope(params, &param_tys, body, |cg| cg.emit_expr(body));
                 self.in_iter_closure = prev_in_iter;
                 self.closure_params = prev_closure_params;
-                // Restore outer escape analysis state
-                for (name, uses, consuming, was_copy) in saved {
-                    if let Some(u) = uses {
-                        self.var_use_counts.insert(name.clone(), u);
-                    } else {
-                        self.var_use_counts.remove(&name);
-                    }
-                    if let Some(c) = consuming {
-                        self.var_consuming_counts.insert(name.clone(), c);
-                    } else {
-                        self.var_consuming_counts.remove(&name);
-                    }
-                    if !was_copy {
-                        self.copy_vars.remove(&name);
-                    }
-                }
-                self.local_bindings = prev_local_bindings;
                 // Identify truly captured variables: free in body, not params, not functions/builtins
                 let param_bound: BTreeSet<String> = lambda_param_names.iter().cloned().collect();
                 let mut free_in_body = BTreeSet::new();
@@ -26220,6 +26271,40 @@ mod tests {
             "compiled set ordering drifted across runs: {:?}",
             outputs
         );
+    }
+
+    #[test]
+    fn compiled_inline_collection_lambdas_can_reuse_adt_values_across_helper_calls() {
+        let source = r#"
+# Shipment(id: Int, qty: Int, lane: String)
+
+> shipment_id(s: Shipment) -> Int {
+    match s {
+        | Shipment(id: id, qty: _, lane: _) -> id
+    }
+}
+
+> shipment_qty(s: Shipment) -> Int {
+    match s {
+        | Shipment(id: _, qty: qty, lane: _) -> qty
+    }
+}
+
+> shipment_lane(s: Shipment) -> String {
+    match s {
+        | Shipment(id: _, qty: _, lane: lane) -> lane
+    }
+}
+
+= shipments = [Shipment(1, 5, "auto"), Shipment(2, 2, "manual"), Shipment(3, 7, "auto")]
+= review = filter(shipments, |shipment| shipment_qty(shipment) < 5 || shipment_lane(shipment) == "manual")
+= review_parts = partition(shipments, |shipment| shipment_qty(shipment) < 5 || shipment_lane(shipment) == "manual")
+@ print(show(map(review, shipment_id)))
+@ print(show(map(fst(review_parts), shipment_id)))
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output, "[2]\n[2]\n");
     }
 
     #[test]

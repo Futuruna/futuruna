@@ -37,12 +37,6 @@
     shipment_key(s) + "/" + shipment_lane(s) + "=" + show(shipment_qty(s))
 }
 
-> needs_review(s: Shipment) -> Bool {
-    match s {
-        | Shipment(id: _, sku: _, qty: qty, region: _, lane: lane) -> qty < 5 || lane == "manual"
-    }
-}
-
 > add_region_total(totals: Map(String, Int), shipment: Shipment) -> Map(String, Int) {
     = region = shipment_region(shipment)
     map_insert(totals, region, map_get_or(totals, region, 0) + shipment_qty(shipment))
@@ -59,7 +53,7 @@
 })
 
 = shipment_lines = map(shipments, shipment_line)
-= parts = partition(shipments, needs_review)
+= parts = partition(shipments, |shipment| shipment_qty(shipment) < 5 || shipment_lane(shipment) == "manual")
 = review = fst(parts)
 = cleared = snd(parts)
 = review_slots = map(enumerate(review), |slot| "review-" + show(fst(slot) + 1) + ":" + shipment_key(snd(slot)))
