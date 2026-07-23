@@ -15017,6 +15017,8 @@ impl RustCodegen {
             let mut comptime_interp = Interpreter::new();
             comptime_interp.suppress_output = true; // Don't print during codegen
             let mut comptime_env = comptime_interp.default_env();
+            let pure_fns =
+                Self::find_pure_functions(stmts, &self.types.effect_ops, &self.types.fn_effects);
             // Register all types, functions, and rules so comptime expressions can call them
             for stmt in stmts {
                 match stmt {
@@ -15032,11 +15034,22 @@ impl RustCodegen {
                         comptime_interp.rules.push((name, rule.clone()));
                     }
                     Stmt::Bind(pat, _ty, expr) => {
+                        if !self.can_seed_comptime_binding(expr, &pure_fns, &comptime_env) {
+                            continue;
+                        }
                         // Use step budget to avoid hanging on expensive bindings
                         comptime_interp.step_count = 0;
                         comptime_interp.step_limit = 50_000;
                         comptime_interp.budget_exceeded = false;
-                        let val = comptime_interp.eval(expr, &comptime_env);
+                        let val = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+                            || comptime_interp.eval(expr, &comptime_env),
+                        )) {
+                            Ok(val) => val,
+                            Err(_) => {
+                                comptime_interp.step_limit = 0;
+                                continue;
+                            }
+                        };
                         comptime_interp.step_limit = 0;
                         if !comptime_interp.budget_exceeded {
                             comptime_interp.bind_pattern(pat, &val, &mut comptime_env);
@@ -15193,8 +15206,6 @@ impl RustCodegen {
 
             // Auto-comptime: pure functions with all-literal/comptime args get evaluated
             // at compile time without requiring explicit @ comptime annotation.
-            let pure_fns =
-                Self::find_pure_functions(stmts, &self.types.effect_ops, &self.types.fn_effects);
             for stmt in &main_stmts {
                 if let Stmt::Bind(Pat::Var(name), _, expr) = stmt {
                     // Skip already-comptime bindings
@@ -23542,6 +23553,44 @@ impl RustCodegen {
                 .all(|e| Self::is_comptime_arg(e, comptime_values)),
             _ => false,
         }
+    }
+
+    fn can_seed_comptime_binding(
+        &self,
+        expr: &Expr,
+        pure_fns: &BTreeSet<String>,
+        env: &Env,
+    ) -> bool {
+        let mut free = BTreeSet::new();
+        collect_true_free_vars(expr, &mut free, &BTreeSet::new());
+
+        let registry = rust_builtin_registry();
+        let mut calls = Vec::new();
+        let mut impure = false;
+        let mut effect_and_impure_ops: BTreeSet<String> = self
+            .types
+            .effect_ops
+            .values()
+            .flat_map(|ops| ops.iter().cloned())
+            .collect();
+        effect_and_impure_ops.insert("print".to_string());
+        for (name, def) in &registry {
+            if def.impure {
+                effect_and_impure_ops.insert(name.clone());
+            }
+        }
+        Self::check_purity(expr, &effect_and_impure_ops, &mut calls, &mut impure);
+        if impure {
+            return false;
+        }
+
+        free.into_iter().all(|name| {
+            env.get(name.as_str()).is_some()
+                || pure_fns.contains(&name)
+                || registry.contains_key(builtin_canonical(&name))
+                || self.types.variant_parent.contains_key(name.as_str())
+                || self.types.prolog_rule_fns.contains_key(name.as_str())
+        })
     }
 
     /// Walk an expression tree collecting unhandled effect references.

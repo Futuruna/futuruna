@@ -1,0 +1,57 @@
+-- roundtrip-skip: subject() is intentionally skipped by the generic roundtrip lane
+-- Authored stateful canary: subject-backed rolling windows with deterministic
+-- alert summaries and threshold checks.
+
+~ readings = subject()
+readings <- 18
+readings <- 22
+readings <- 30
+readings <- 27
+readings <- 35
+readings <- 31
+
+> window_csv(xs: List(Int)) -> String {
+    join(map(xs, |x| show(x)), "+")
+}
+
+> is_alert_window(xs: List(Int)) -> Bool {
+    sum_list(xs) >= 90 || count_by(xs, |x| x >= 30) >= 2
+}
+
+> format_alert(xs: List(Int)) -> String {
+    window_csv(xs) + " => alert(" + show(sum_list(xs)) + ")"
+}
+
+~ windows = readings |> window(3)
+~ alert_windows = windows |> filter(is_alert_window)
+~ alert_summaries = alert_windows |> map(format_alert)
+~ jumps = readings |> pairwise |> map(|pair| snd(pair) - fst(pair))
+
+= reading_list = collect(readings)
+= window_sums = collect(windows |> map(|xs| sum_list(xs)))
+= alerts = collect(alert_summaries)
+= jump_list = collect(jumps)
+= unique_readings = set_from_list(reading_list)
+
+= reading_count_ok = readings.count == 6
+? reading_count_ok
+
+= latest_reading_ok = readings.latest == 31
+? latest_reading_ok
+
+= window_sums_ok = window_sums == [70, 79, 92, 93]
+? window_sums_ok
+
+= alerts_ok = alerts == ["30+27+35 => alert(92)", "27+35+31 => alert(93)"]
+? alerts_ok
+
+= jump_profile_ok = jump_list == [4, 8, -3, 8, -4]
+? jump_profile_ok
+
+= above_threshold_ok = count_by(reading_list, |x| x >= 30) == 3
+? above_threshold_ok
+
+= unique_readings_ok = set_len(unique_readings) == 6 && set_contains(unique_readings, 35)
+? unique_readings_ok
+
+@ print("canary subject window alerts passed")

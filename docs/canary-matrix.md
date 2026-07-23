@@ -25,13 +25,17 @@ Target shape:
 | `tests/canary/core/proof_guarded_pipeline_test.runa` | `core` | ordinary data pipeline with explicit proof-backed invariants |
 | `tests/canary/core/top_level_mesh_test.runa` | `core` | top-level values, free functions, recursive helper composition |
 | `tests/canary/stateful/subject_funnel_test.runa` | `stateful` | subjects, projection, aggregation, transitions |
+| `tests/canary/stateful/subject_window_alerts_test.runa` | `stateful` | subjects, rolling windows, threshold alerts, deterministic summaries |
 
 ## Planned Next
 
 ### Core
 
 ### Stateful
-- `td-90448d`: `subject_window_alerts_test.runa`, `actor_job_queue_test.runa`, `lifecycle_projection_test.runa`, `effect_retry_flow_test.runa`, and `stream_subject_bridge_test.runa`
+- `td-c1540b`: `actor_job_queue_test.runa`
+- `td-dc5ce5`: `lifecycle_projection_test.runa`
+- `td-ff3e1e`: `effect_retry_flow_test.runa`
+- `td-e77c7f`: `stream_subject_bridge_test.runa`
 
 ### Extended
 - `td-9fdd94`: `json_report_pipeline_test.runa`, `regex_classifier_test.runa`, `db_reconciliation_test.runa`, `http_handler_contract_test.runa`, `wasm_export_surface_test.runa`, and `import_mesh_test.runa`
