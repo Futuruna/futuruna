@@ -1,0 +1,25 @@
+-- library-hygiene: importable
+-- roundtrip-skip: library file, no expected output
+
+@ import ./import_effect_contract
+
+@ export
+> resolve_release(job: String) -> String with Remote, Audit {
+    note("start:" + job)
+    = result = fetch(job)
+    match result {
+        | Ok(value) -> {
+            note("ok:" + job + ":" + value)
+            "ship:" + value
+        }
+        | Err(err) -> {
+            note("review:" + job + ":" + err)
+            "review:" + err
+        }
+    }
+}
+
+@ export
+> review_batch(primary: String, secondary: String) -> List(String) with Remote, Audit {
+    [resolve_release(primary), resolve_release(secondary)]
+}

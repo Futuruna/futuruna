@@ -1,0 +1,12 @@
+-- library-hygiene: importable
+-- roundtrip-skip: library file, no expected output
+
+@ export
+> needs_archive(snapshot: String) -> Bool {
+    contains(snapshot, "archive")
+}
+
+@ export
+> is_idle(snapshot: String) -> Bool {
+    contains(snapshot, "|active=idle|")
+}

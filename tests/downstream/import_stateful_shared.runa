@@ -1,0 +1,44 @@
+-- library-hygiene: importable
+-- roundtrip-skip: library file, no expected output
+
+# QueueState(pending: List(String), active: String, done: List(String))
+
+> idle_job() -> String {
+    "idle"
+}
+
+@ export
+> empty_queue() -> QueueState {
+    QueueState([], idle_job(), [])
+}
+
+@ export
+> queue_snapshot(state: QueueState) -> String {
+    "pending=" + join(state.pending, ">") + "|active=" + state.active + "|done=" + join(state.done, ">")
+}
+
+> enqueue_job(state: QueueState, job: String) -> QueueState {
+    QueueState(concat(state.pending, [job]), state.active, state.done)
+}
+
+> start_next_job(state: QueueState) -> QueueState {
+    if state.active != idle_job() || length(state.pending) == 0 {
+        state
+    } else {
+        QueueState(tail(state.pending), head(state.pending), state.done)
+    }
+}
+
+> finish_active_job(state: QueueState) -> QueueState {
+    if state.active == idle_job() {
+        state
+    } else {
+        QueueState(state.pending, idle_job(), concat(state.done, [state.active]))
+    }
+}
+
+> actor job_queue(state: QueueState) {
+    | Enqueue(job) -> enqueue_job(state, job)
+    | StartNext -> start_next_job(state)
+    | FinishActive -> finish_active_job(state)
+}

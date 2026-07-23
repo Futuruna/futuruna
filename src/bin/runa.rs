@@ -2985,6 +2985,7 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
             || source.contains("regex_find")
             || source.contains("@ store")
             || source.contains("subject(")
+            || source.contains("> actor")
             || source.contains("spawn(")
             || source.contains("@ import");
         if needs_skip {
@@ -3200,6 +3201,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
             || source.contains("regex_find")
             || source.contains("@ store")
             || source.contains("subject(")
+            || source.contains("> actor")
             || source.contains("spawn(")
             || source.contains("@ import");
         if needs_crate {

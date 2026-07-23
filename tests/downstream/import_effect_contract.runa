@@ -1,0 +1,10 @@
+-- library-hygiene: importable
+-- roundtrip-skip: library file, no expected output
+
+# effect Remote {
+    > fetch(job: String) -> Result(String, String)
+}
+
+# effect Audit {
+    > note(entry: String) -> ()
+}

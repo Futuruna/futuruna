@@ -73,10 +73,9 @@ What it covers well:
 
 What it still misses:
 
-- a broader corpus than the current initial fixture family
+- more breadth beyond the current pure, stateful, and effect-heavy starter families
 - direct participation of most consumer fixtures in the generic
   `test --check-codegen` runner
-- stateful/effect-heavy downstream consumer families
 - import-hygiene policy enforcement beyond authored convention
 
 ### Differential Lane
@@ -186,9 +185,7 @@ We now have one real downstream consumer family, but not enough breadth yet.
 
 Still missing:
 
-- stateful downstream consumers
-- effect-heavy downstream consumers
-- module consumers with richer exported ADT/trait surfaces
+- more module consumers with richer exported ADT/trait surfaces
 - consumer fixtures that stress diagnostics and failure modes, not just success
 
 ### 5. Differential Testing Still Has No Import Graph Story

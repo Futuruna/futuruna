@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+export CARGO_NET_OFFLINE="${CARGO_NET_OFFLINE:-true}"
+
 run_step() {
     echo
     echo "[downstream] $*"
@@ -14,6 +16,8 @@ RELEASE_RUNA="${RUNA_BIN:-./target/release/runa}"
 TARGET_DIR="tests/downstream"
 ENTRYPOINTS=(
     "tests/downstream/import_library_consumer_test.runa"
+    "tests/downstream/import_stateful_consumer_test.runa"
+    "tests/downstream/import_effect_consumer_test.runa"
 )
 
 run_step cargo build --release

@@ -11,6 +11,7 @@ These fixtures should:
 
 - import local Futuruna libraries through flat and qualified imports
 - rely on exported types, values, and functions across file boundaries
+- include pure, stateful, and effect-heavy consumer families
 - stress nested import flattening and imported free-function usage
 - remain owned by this repository rather than pulling in external codebases
 

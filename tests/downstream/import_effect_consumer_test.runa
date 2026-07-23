@@ -1,0 +1,29 @@
+-- roundtrip-skip: imported downstream effect consumers rely on handled effect surfaces
+
+@ import ./import_effect_shared
+@ import EffectPolicy from ./import_effect_policy
+
+= results = | handle Remote {
+    | fetch(job) -> {
+        if job == "alpha" {
+            resume(Ok("green"))
+        } else if job == "beta" {
+            resume(Err("slow"))
+        } else {
+            resume(Err("unknown"))
+        }
+    }
+} in | handle Audit {
+    | note(entry) -> {
+        @ print("audit:" + entry)
+        resume(())
+    }
+} in review_batch("alpha", "beta")
+
+= results_ok = join(results, "|") == "ship:green|review:slow"
+? results_ok
+
+= labels_ok = EffectPolicy.label_summary(results) == "ship,review"
+? labels_ok
+
+@ print("downstream effect consumer passed")

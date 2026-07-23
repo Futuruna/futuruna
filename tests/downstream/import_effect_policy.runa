@@ -1,0 +1,7 @@
+-- library-hygiene: importable
+-- roundtrip-skip: library file, no expected output
+
+@ export
+> label_summary(results: List(String)) -> String {
+    join(map(results, |result| if starts_with(result, "ship:") { "ship" } else { "review" }), ",")
+}
