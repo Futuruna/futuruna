@@ -14848,9 +14848,19 @@ impl RustCodegen {
         out
     }
 
-    fn infer_top_level_binding_getter_type(&self, ty_ann: Option<&Ty>, expr: &Expr) -> String {
+    fn infer_top_level_binding_getter_type_with_env(
+        &self,
+        type_env: &BTreeMap<String, FirTy>,
+        ty_ann: Option<&Ty>,
+        expr: &Expr,
+    ) -> String {
         if let Some(ty) = ty_ann {
             return self.emit_type(ty);
+        }
+
+        let fir_ty = self.infer_expr_fir_ty_with_env(expr, type_env.clone());
+        if let Some(rust_ty) = Self::fir_type_to_rust(&fir_ty) {
+            return rust_ty;
         }
 
         match &expr.kind {
@@ -14862,7 +14872,12 @@ impl RustCodegen {
                 .unwrap_or_else(|| "impl Clone".to_string()),
             ExprKind::App(func, _) => {
                 if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                    if self.types.variant_parent.contains_key(fn_name.as_str()) {
+                    if matches!(
+                        builtin_canonical(fn_name),
+                        "length" | "string_length" | "map_len" | "set_len" | "count_by"
+                    ) {
+                        "i64".to_string()
+                    } else if self.types.variant_parent.contains_key(fn_name.as_str()) {
                         self.types
                             .variant_parent
                             .get(fn_name.as_str())
@@ -14924,6 +14939,13 @@ impl RustCodegen {
         let emit_all = public;
         let prev_allow_global_getter_refs =
             std::mem::replace(&mut self.allow_global_getter_refs, true);
+        let mut top_level_type_env = self.current_type_env();
+
+        for (name, rust_ty) in &self.types.comptime_types {
+            if !rust_ty.is_empty() {
+                top_level_type_env.insert(name.clone(), Self::rust_type_to_fir(rust_ty));
+            }
+        }
 
         for (name, rust_lit) in &self.types.comptime_values {
             if name.starts_with("__") || rust_lit.is_empty() {
@@ -14938,6 +14960,9 @@ impl RustCodegen {
                 .get(name)
                 .cloned()
                 .unwrap_or_else(|| "impl Clone".to_string());
+            top_level_type_env
+                .entry(name.clone())
+                .or_insert_with(|| Self::rust_type_to_fir(&rust_ty));
             let sname = sanitize_name(name);
             out.push_str(&format!(
                 "{}fn {}() -> {} {{ {} }}\n",
@@ -14955,7 +14980,12 @@ impl RustCodegen {
                 }
                 let body = self.emit_expr(expr);
                 let sname = sanitize_name(name);
-                let ret_ty = self.infer_top_level_binding_getter_type(ty_ann.as_ref(), expr);
+                let ret_ty = self.infer_top_level_binding_getter_type_with_env(
+                    &top_level_type_env,
+                    ty_ann.as_ref(),
+                    expr,
+                );
+                top_level_type_env.insert(name.clone(), Self::rust_type_to_fir(&ret_ty));
                 out.push_str(&format!(
                     "{}fn {}() -> {} {{ {} }}\n",
                     pub_prefix, sname, ret_ty, body
@@ -14973,10 +15003,12 @@ impl RustCodegen {
         fn_stmts: &[&Stmt],
     ) -> BTreeSet<String> {
         let mut bind_counts: BTreeMap<String, usize> = BTreeMap::new();
+        let mut bind_exprs: BTreeMap<String, &Expr> = BTreeMap::new();
         for stmt in main_stmts {
-            if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
+            if let Stmt::Bind(Pat::Var(name), _, expr) = stmt {
                 if !name.starts_with("__") {
                     *bind_counts.entry(name.clone()).or_insert(0) += 1;
+                    bind_exprs.insert(name.clone(), expr);
                 }
             }
         }
@@ -14996,6 +15028,27 @@ impl RustCodegen {
                 for name in free {
                     if top_level_names.contains(&name) && bind_counts.get(&name) == Some(&1) {
                         getter_names.insert(name);
+                    }
+                }
+            }
+        }
+
+        let mut changed = true;
+        while changed {
+            changed = false;
+            let current: Vec<String> = getter_names.iter().cloned().collect();
+            for getter_name in current {
+                let Some(expr) = bind_exprs.get(&getter_name) else {
+                    continue;
+                };
+                let mut free = BTreeSet::new();
+                collect_true_free_vars(expr, &mut free, &BTreeSet::new());
+                for name in free {
+                    if top_level_names.contains(&name)
+                        && bind_counts.get(&name) == Some(&1)
+                        && getter_names.insert(name)
+                    {
+                        changed = true;
                     }
                 }
             }
@@ -25232,6 +25285,38 @@ mod tests {
         assert!(
             rust.contains("let answer = 42i64;"),
             "main should still evaluate the top-level binding eagerly: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_hoists_transitive_computed_top_level_bindings_for_free_function_reads() {
+        let source = r#"
+= stage_names = ["north", "east"]
+= stage_count = length(stage_names)
+= answer = stage_count * 21
+> read_answer() -> Int { answer }
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn stage_names() -> Vec<String>"),
+            "transitive top-level list dependency should get a getter: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn stage_count() -> i64 { (stage_names().len() as i64) }"),
+            "computed scalar getter should infer i64 and call earlier getter: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn answer() -> i64 { (stage_count() * 21i64) }"),
+            "transitive scalar getter should infer i64 and call earlier getter: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn read_answer() -> i64 {\n    answer()\n}"),
+            "free function should still resolve the computed binding through its getter: {}",
             rust
         );
     }

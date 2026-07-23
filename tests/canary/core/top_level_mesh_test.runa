@@ -5,9 +5,9 @@
 = stage_names = ["north", "east", "west", "vip"]
 = base_targets = [4, 6, 3, 5]
 = lane_bonus = [1, 0, 3, 2]
-= stage_count = 4
+= stage_count = length(stage_names)
 = constant_boost = 2
-= decision_cutoff = 32
+= decision_cutoff = stage_count * 8
 
 > stage_name(i: Int) -> String { stage_names[i] }
 

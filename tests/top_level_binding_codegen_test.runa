@@ -1,4 +1,6 @@
-= answer = 42
+= stage_names = ["north", "east"]
+= stage_count = length(stage_names)
+= answer = stage_count * 21
 
 > read_answer() -> Int { answer }
 
