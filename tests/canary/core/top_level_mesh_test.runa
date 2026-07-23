@@ -1,0 +1,75 @@
+-- Authored core canary: top-level values feeding free functions, recursive helper
+-- composition, and compiled visibility semantics.
+
+= lane_prefix = "plan"
+= stage_names = ["north", "east", "west", "vip"]
+= base_targets = [4, 6, 3, 5]
+= lane_bonus = [1, 0, 3, 2]
+= stage_count = 4
+= constant_boost = 2
+= decision_cutoff = 32
+
+> stage_name(i: Int) -> String { stage_names[i] }
+
+> target_at(i: Int) -> Int { base_targets[i] }
+
+> bonus_at(i: Int) -> Int { lane_bonus[i] }
+
+> lane_score(i: Int) -> Int {
+    target_at(i) + bonus_at(i) + constant_boost
+}
+
+> lane_label(i: Int) -> String {
+    lane_prefix + "-" + stage_name(i) + ":" + show(lane_score(i))
+}
+
+> build_labels(i: Int) -> List(String) {
+    if i >= stage_count {
+        []
+    } else {
+        concat([lane_label(i)], build_labels(i + 1))
+    }
+}
+
+> total_score(i: Int) -> Int {
+    if i >= stage_count {
+        0
+    } else {
+        lane_score(i) + total_score(i + 1)
+    }
+}
+
+> rollout_decision(total: Int) -> String {
+    if total >= decision_cutoff { "expand" } else { "hold" }
+}
+
+> top_level_report() -> String {
+    join(build_labels(0), "|") + " => " + rollout_decision(total_score(0))
+}
+
+= labels = build_labels(0)
+= labels_csv = join(labels, "|")
+= total = total_score(0)
+= decision = rollout_decision(total)
+= report = top_level_report()
+= vip_score = lane_score(3)
+
+= stage_count_ok = stage_count == 4 && decision_cutoff == 32
+? stage_count_ok
+
+= labels_ok = labels_csv == "plan-north:7|plan-east:8|plan-west:8|plan-vip:9"
+? labels_ok
+
+= total_ok = total == 32
+? total_ok
+
+= decision_ok = decision == "expand"
+? decision_ok
+
+= vip_ok = vip_score == 9
+? vip_ok
+
+= report_ok = report == "plan-north:7|plan-east:8|plan-west:8|plan-vip:9 => expand"
+? report_ok
+
+@ print("canary top level mesh passed")

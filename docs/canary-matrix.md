@@ -23,12 +23,12 @@ Target shape:
 | `tests/canary/core/persistent_tree_diff_test.runa` | `core` | recursive ADTs, shared-subtree workflows, flattening, deterministic diffs |
 | `tests/canary/core/collection_join_mesh_test.runa` | `core` | nested `zip`, `enumerate`, partitioning, stable ordering |
 | `tests/canary/core/proof_guarded_pipeline_test.runa` | `core` | ordinary data pipeline with explicit proof-backed invariants |
+| `tests/canary/core/top_level_mesh_test.runa` | `core` | top-level values, free functions, recursive helper composition |
 | `tests/canary/stateful/subject_funnel_test.runa` | `stateful` | subjects, projection, aggregation, transitions |
 
 ## Planned Next
 
 ### Core
-- `td-dd0d75` `top_level_mesh_test.runa`: top-level values, free functions, recursive helper composition
 
 ### Stateful
 - `td-90448d`: `subject_window_alerts_test.runa`, `actor_job_queue_test.runa`, `lifecycle_projection_test.runa`, `effect_retry_flow_test.runa`, and `stream_subject_bridge_test.runa`
