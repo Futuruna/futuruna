@@ -27661,6 +27661,23 @@ let summary = render(verdict(7i64), 7i64);
     }
 
     #[test]
+    fn compiled_recursive_adt_list_fields_can_flow_into_helper_calls() {
+        let output = compile_and_run_test_program(
+            "# Tree = File(String) | Dir(String, List(Tree))\n\
+             > count_children(kids: List(Tree)) -> Int { count(kids) }\n\
+             > count_dirs(tree: Tree) -> Int {\n\
+                 match tree {\n\
+                     | File(name) -> 0\n\
+                     | Dir(name, kids) -> count_children(kids)\n\
+                 }\n\
+             }\n\
+             = sample = Dir(\"root\", [File(\"a\"), Dir(\"sub\", [File(\"b\")])])\n\
+             @ print(show(count_dirs(sample)))\n",
+        );
+        assert_eq!(output, "2\n");
+    }
+
+    #[test]
     fn compiled_direct_show_of_empty_head_reports_runtime_error() {
         compile_test_source_expect_runtime_failure(
             "@ print(show(head([])))\n",

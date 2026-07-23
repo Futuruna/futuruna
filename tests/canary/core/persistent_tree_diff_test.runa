@@ -1,20 +1,24 @@
--- Authored core canary: persistent tree diff over recursive ADTs, shared subtrees,
--- flattening, and deterministic change summaries.
+-- Authored core canary: persistent tree diff over recursive ADTs with list
+-- children, shared subtrees, flattening, and deterministic change summaries.
 
 # PathEntry(path: String, size: Int)
-# Tree = Empty | File(String, Int) | Group(String, Tree, Tree)
+# Tree = File(String, Int) | Dir(String, List(Tree))
 
 > path_join(prefix: String, name: String) -> String {
     if name == "" { prefix } else if prefix == "" { name } else { prefix + "/" + name }
 }
 
+> flatten_children(kids: List(Tree), prefix: String) -> List(PathEntry) {
+    = empty: List(PathEntry) = []
+    foldl(kids, empty, |acc, kid| concat(acc, flatten_tree(kid, prefix)))
+}
+
 > flatten_tree(tree: Tree, prefix: String) -> List(PathEntry) {
     match tree {
-        | Empty -> []
         | File(name, size) -> [PathEntry(path_join(prefix, name), size)]
-        | Group(name, left, right) -> {
+        | Dir(name, kids) -> {
             = nested_prefix = path_join(prefix, name)
-            concat(flatten_tree(left, nested_prefix), flatten_tree(right, nested_prefix))
+            flatten_children(kids, nested_prefix)
         }
     }
 }
@@ -26,14 +30,14 @@
     })
 }
 
-= shared_docs = Group("docs", File("guide.md", 3), File("spec.md", 5))
-= source_v1 = Group("src", File("main.fn", 10), File("tree.fn", 7))
-= source_v2 = Group("src", File("main.fn", 11), Group("", File("tree.fn", 7), File("diff.fn", 4)))
-= assets_v1 = Group("assets", File("logo.svg", 2), Empty)
-= config_v2 = Group("config", File("fmt.toml", 1), Empty)
+= shared_docs = Dir("docs", [File("guide.md", 3), File("spec.md", 5)])
+= source_v1 = Dir("src", [File("main.fn", 10), File("tree.fn", 7)])
+= source_v2 = Dir("src", [File("main.fn", 11), File("tree.fn", 7), File("diff.fn", 4)])
+= assets_v1 = Dir("assets", [File("logo.svg", 2)])
+= config_v2 = Dir("config", [File("fmt.toml", 1)])
 
-= version1 = Group("root", shared_docs, Group("", source_v1, assets_v1))
-= version2 = Group("root", shared_docs, Group("", source_v2, config_v2))
+= version1 = Dir("root", [shared_docs, source_v1, assets_v1])
+= version2 = Dir("root", [shared_docs, source_v2, config_v2])
 
 = before_entries = flatten_tree(version1, "")
 = after_entries = flatten_tree(version2, "")
