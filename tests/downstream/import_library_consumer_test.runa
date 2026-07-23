@@ -1,0 +1,56 @@
+-- Authored downstream library-consumer canary: nested flat imports, qualified
+-- imports, exported values/types/functions, and imported free-function usage.
+
+@ import ./import_library_shared
+@ import Policy from ./import_library_policy
+
+> deployment_label(release: Release) -> String {
+    Policy.region_tag(release_region(release)) + ":" + release_name(release)
+}
+
+> count_key(release: Release) -> String {
+    if Policy.needs_review(release) { "review" } else { "ship" }
+}
+
+> bump(counts: Map(String, Int), key: String) -> Map(String, Int) {
+    map_insert(counts, key, map_get_or(counts, key, 0) + 1)
+}
+
+> counts_csv(counts: Map(String, Int)) -> String {
+    = keys = sort(map_keys(counts))
+    join(map(keys, |key| key + ":" + show(map_get_or(counts, key, 0))), ",")
+}
+
+= billing: Release = compile_release("billing api", "euwest", ["dry-run", "db", "audit"])
+= edge: Release = compile_release("edge cache", "useast", ["sync"])
+= auth: Release = compile_release("auth worker", "eucentral", ["shadow", "tokens"])
+
+= releases = [billing, edge, auth]
+= labels = map(releases, deployment_label)
+= summaries = map(releases, release_summary)
+
+= empty_counts: Map(String, Int) = map_new()
+= decision_counts = foldl(releases, empty_counts, |acc, release| bump(acc, count_key(release)))
+
+= cutoff_ok = Policy.review_cutoff == 4
+? cutoff_ok
+
+= labels_ok = join(labels, "|") == "eu:billing api|gl:edge cache|eu:auth worker"
+? labels_ok
+
+= summaries_ok = join(summaries, "|") == "billing api:euwest:3|edge cache:useast:1|auth worker:eucentral:2"
+? summaries_ok
+
+= decisions_ok = counts_csv(decision_counts) == "review:2,ship:1"
+? decisions_ok
+
+= review_ok = match release_stage(auth) {
+    | Review -> true
+    | _ -> false
+}
+? review_ok
+
+= imported_probe_ok = library_probe == "billing api:euwest:1"
+? imported_probe_ok
+
+@ print("downstream import consumer passed")

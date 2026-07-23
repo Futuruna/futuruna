@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+run_step() {
+    echo
+    echo "[downstream] $*"
+    "$@"
+}
+
+RELEASE_RUNA="${RUNA_BIN:-./target/release/runa}"
+TARGET_DIR="tests/downstream"
+ENTRYPOINTS=(
+    "tests/downstream/import_library_consumer_test.runa"
+)
+
+if [[ ! -x "$RELEASE_RUNA" ]]; then
+    run_step cargo build --release
+fi
+
+run_step "$RELEASE_RUNA" fmt --check "$TARGET_DIR"
+
+for entry in "${ENTRYPOINTS[@]}"; do
+    run_step "$RELEASE_RUNA" check "$entry"
+done
+
+run_step "$RELEASE_RUNA" test --run "$TARGET_DIR"
+run_step "$RELEASE_RUNA" test --check-codegen "$TARGET_DIR"
+run_step "$RELEASE_RUNA" test --roundtrip "$TARGET_DIR"
+
+echo
+echo "[downstream] Authored downstream consumer fixtures passed for: ${ENTRYPOINTS[*]}"

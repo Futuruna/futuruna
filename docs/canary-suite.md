@@ -9,6 +9,12 @@ The canonical command is:
 ./scripts/canary.sh
 ```
 
+For the separate authored library-consumer lane, use:
+
+```bash
+./scripts/downstream-canary.sh
+```
+
 It intentionally uses programs written in this repository rather than pulling in
 downstream codebases as fixtures. The goal is to keep the suite:
 
@@ -75,3 +81,18 @@ For each selected tier it runs:
 The roundtrip lane will naturally skip canaries that use constructs the generic
 roundtrip runner already excludes, such as `subject()`. Those canaries still
 participate in interpreted and compiled execution plus codegen validation.
+
+## Downstream Consumer Lane
+
+`./scripts/downstream-canary.sh` is the companion blocking lane for authored
+fixtures that model Futuruna code being consumed as local libraries.
+
+It is not part of the tiered canary corpus because the emphasis is different:
+
+- library-consumer entrypoints rather than standalone workflows
+- nested and qualified import paths
+- exported type/value/function usage across files
+- direct `runa check` coverage on consumer programs
+
+The fixtures live in `tests/downstream/` and should stay authored and owned by
+this repository.

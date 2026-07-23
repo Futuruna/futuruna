@@ -109,3 +109,29 @@ jobs:
 
       - name: Canary lane
         run: ./scripts/canary.sh
+
+  downstream:
+    name: Downstream Consumers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Downstream consumer lane
+        run: ./scripts/downstream-canary.sh

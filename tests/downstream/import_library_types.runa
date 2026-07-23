@@ -1,0 +1,35 @@
+-- roundtrip-skip: library file, no expected output
+
+@ export
+# Stage = Draft | Review | Live
+
+@ export
+# Release = Bundle(String, String, Stage, List(String))
+
+@ export
+> release_name(release: Release) -> String {
+    match release {
+        | Bundle(name, _, _, _) -> name
+    }
+}
+
+@ export
+> release_region(release: Release) -> String {
+    match release {
+        | Bundle(_, region, _, _) -> region
+    }
+}
+
+@ export
+> release_stage(release: Release) -> Stage {
+    match release {
+        | Bundle(_, _, stage, _) -> stage
+    }
+}
+
+@ export
+> release_lane_count(release: Release) -> Int {
+    match release {
+        | Bundle(_, _, _, lanes) -> length(lanes)
+    }
+}

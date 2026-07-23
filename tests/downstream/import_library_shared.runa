@@ -1,0 +1,16 @@
+-- roundtrip-skip: library file, no expected output
+
+@ import ./import_library_types
+
+@ export
+> compile_release(name: String, region: String, lanes: List(String)) -> Release {
+    = stage = if substring(region, 0, 2) == "eu" { Review } else { Draft }
+    Bundle(name, region, stage, lanes)
+}
+
+@ export
+> release_summary(release: Release) -> String {
+    release_name(release) + ":" + release_region(release) + ":" + show(release_lane_count(release))
+}
+
+= library_probe = release_summary(compile_release("billing api", "euwest", ["dry-run"]))

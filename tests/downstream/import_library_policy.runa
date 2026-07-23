@@ -1,0 +1,20 @@
+-- roundtrip-skip: library file, no expected output
+
+@ import ./import_library_types
+
+= hidden_bias = 1
+
+@ export
+= review_cutoff = 4
+
+@ export
+> needs_review(release: Release) -> Bool {
+    = lanes = release_lane_count(release)
+    = stage = release_stage(release)
+    stage == Review || lanes + hidden_bias >= review_cutoff
+}
+
+@ export
+> region_tag(region: String) -> String {
+    if substring(region, 0, 2) == "eu" { "eu" } else { "gl" }
+}

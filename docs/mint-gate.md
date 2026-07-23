@@ -37,6 +37,7 @@ These lanes are the core mint contract because they cover:
 Intentionally omitted from the core mint gate:
 
 - `./scripts/canary.sh`
+- `./scripts/downstream-canary.sh`
 - `./scripts/differential.sh`
 - `./target/release/runa from-rust --test examples/from-rust/`
 - `./target/release/runa fmt --check tests/`
