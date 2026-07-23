@@ -1,0 +1,81 @@
+-- Authored core canary: persistent tree diff over recursive ADTs, shared subtrees,
+-- flattening, and deterministic change summaries.
+
+# PathEntry(path: String, size: Int)
+# Tree = Empty | File(String, Int) | Group(String, Tree, Tree)
+
+> path_join(prefix: String, name: String) -> String {
+    if name == "" { prefix } else if prefix == "" { name } else { prefix + "/" + name }
+}
+
+> flatten_tree(tree: Tree, prefix: String) -> List(PathEntry) {
+    match tree {
+        | Empty -> []
+        | File(name, size) -> [PathEntry(path_join(prefix, name), size)]
+        | Group(name, left, right) -> {
+            = nested_prefix = path_join(prefix, name)
+            concat(flatten_tree(left, nested_prefix), flatten_tree(right, nested_prefix))
+        }
+    }
+}
+
+> entry_map(entries: List(PathEntry)) -> Map(String, Int) {
+    = empty: Map(String, Int) = map_new()
+    foldl(entries, empty, |acc, entry| match entry {
+        | PathEntry(path: path, size: size) -> map_insert(acc, path, size)
+    })
+}
+
+= shared_docs = Group("docs", File("guide.md", 3), File("spec.md", 5))
+= source_v1 = Group("src", File("main.fn", 10), File("tree.fn", 7))
+= source_v2 = Group("src", File("main.fn", 11), Group("", File("tree.fn", 7), File("diff.fn", 4)))
+= assets_v1 = Group("assets", File("logo.svg", 2), Empty)
+= config_v2 = Group("config", File("fmt.toml", 1), Empty)
+
+= version1 = Group("root", shared_docs, Group("", source_v1, assets_v1))
+= version2 = Group("root", shared_docs, Group("", source_v2, config_v2))
+
+= before_entries = flatten_tree(version1, "")
+= after_entries = flatten_tree(version2, "")
+= before_map = entry_map(before_entries)
+= after_map = entry_map(after_entries)
+= before_paths = sort(map(before_entries, |entry| match entry {
+    | PathEntry(path: path, size: _) -> path
+}))
+= after_paths = sort(map(after_entries, |entry| match entry {
+    | PathEntry(path: path, size: _) -> path
+}))
+= path_union = sort(set_to_list(set_from_list(concat(before_paths, after_paths))))
+= after_total = sum(map(after_entries, |entry| match entry {
+    | PathEntry(path: _, size: size) -> size
+}))
+
+= before_shape_ok = length(before_entries) == 5 && before_paths == ["root/assets/logo.svg", "root/docs/guide.md", "root/docs/spec.md", "root/src/main.fn", "root/src/tree.fn"]
+? before_shape_ok
+
+= after_shape_ok = length(after_entries) == 6 && after_paths == ["root/config/fmt.toml", "root/docs/guide.md", "root/docs/spec.md", "root/src/diff.fn", "root/src/main.fn", "root/src/tree.fn"]
+? after_shape_ok
+
+= shared_docs_ok = map_get_or(before_map, "root/docs/spec.md", 0) == 5 && map_get_or(after_map, "root/docs/spec.md", 0) == 5
+? shared_docs_ok
+
+= changed_total_ok = after_total == 31 && map_get_or(after_map, "root/src/main.fn", 0) == 11
+? changed_total_ok
+
+= changes = filter(map(path_union, |path| {
+    if map_contains(before_map, path) && map_contains(after_map, path) {
+        = old_size = map_get_or(before_map, path, -1)
+        = new_size = map_get_or(after_map, path, -1)
+        if old_size == new_size { "" } else { path + ":" + show(old_size) + "->" + show(new_size) }
+    } else if map_contains(before_map, path) {
+        path + ":removed"
+    } else {
+        path + ":added:" + show(map_get_or(after_map, path, 0))
+    }
+}), |line| line != "")
+= summary = join(changes, ";")
+
+= diff_ok = summary == "root/assets/logo.svg:removed;root/config/fmt.toml:added:1;root/src/diff.fn:added:4;root/src/main.fn:10->11"
+? diff_ok
+
+@ print("canary persistent tree diff passed")
