@@ -18,6 +18,7 @@ This vault is layered on top of the Futuruna repository root.
 ## Important Constraint
 
 The repo already has a root `CLAUDE.md` for agent instructions. This vault does not replace or overwrite that file.
+Use [[WIKI]] as the vault-facing reference instead.
 
 ## Working Model
 
@@ -38,4 +39,4 @@ The repo already has a root `CLAUDE.md` for agent instructions. This vault does 
 - document stable architecture and design threads in `wiki/modules/`, `wiki/decisions/`, and `wiki/thesis/`
 - file synthesized answers under `wiki/questions/`
 - use `wiki/sources/` to summarize important docs, papers, or bug reports
-
+- use `/wiki`, `/save`, `/autoresearch`, and related skills directly against this repo root so chat work turns into durable notes

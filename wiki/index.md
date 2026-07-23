@@ -14,9 +14,11 @@ This vault uses the Futuruna repository root as an Obsidian vault. It is a hybri
 
 ## Core Pages
 
+- [[getting-started]]
 - [[overview]]
 - [[hot]]
 - [[log]]
+- [[dashboard]]
 - [[vault-conventions]]
 - [[repo-map]]
 
@@ -31,6 +33,7 @@ This vault uses the Futuruna repository root as an Obsidian vault. It is a hybri
 
 - [[concepts/_index]]
 - [[entities/_index]]
+- [[comparisons/_index]]
 - [[thesis/_index]]
 - [[gaps/_index]]
 
@@ -47,4 +50,3 @@ This vault uses the Futuruna repository root as an Obsidian vault. It is a hybri
 - [[mint-ratchet]]
 - [[repo-docs]]
 - [[current-state]]
-

@@ -10,6 +10,6 @@ tags:
 
 # Meta Index
 
+- [[dashboard]]
 - [[vault-conventions]]
 - [[repo-map]]
-

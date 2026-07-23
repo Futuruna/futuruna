@@ -11,7 +11,7 @@ tags:
 
 ## Last Updated
 
-2026-07-18. The repo was turned into an Obsidian vault and seeded with a wiki layer over the compiler, proof, and test-surface work.
+2026-07-18. The repo-root vault was upgraded to follow the claude-obsidian overlay pattern more closely, with a top-level `WIKI.md`, onboarding page, dashboard, comparisons folder, attachments, canvases scaffolding, and shared plugin config.
 
 ## Key Recent Facts
 
@@ -22,7 +22,9 @@ tags:
 ## Recent Changes
 
 - Created: [[overview]], [[repo-map]], [[current-state]], [[compiler-pipeline]], [[proof-kernel]], [[test-surface]], [[verification-lanes]], [[mint-ratchet]], [[repo-docs]], [[vault-conventions]]
+- Created: [[getting-started]], [[dashboard]], [[comparisons/_index]], [[WIKI]]
 - Created indexes for modules, decisions, dependencies, flows, concepts, entities, thesis, gaps, questions, sources, and meta
+- Added shared Obsidian config for `bases`, `canvas`, and optional community plugins
 - Added Obsidian CSS snippet `vault-colors`
 
 ## Active Threads
@@ -30,4 +32,3 @@ tags:
 - Burn down downstream consumer compiler bugs before they become issue churn
 - Keep expanding authored canaries and downstream-style validation
 - Shrink the proof trust boundary over time
-

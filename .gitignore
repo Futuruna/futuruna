@@ -31,5 +31,7 @@ website/.wrangler/
 # Obsidian vault: keep shared scaffold, ignore personal UI state
 .obsidian/*
 !.obsidian/appearance.json
+!.obsidian/core-plugins.json
+!.obsidian/community-plugins.json
 !.obsidian/snippets/
 !.obsidian/snippets/vault-colors.css

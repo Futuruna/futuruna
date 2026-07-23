@@ -1,0 +1,80 @@
+filters:
+  and:
+    - file.inFolder("wiki")
+    - 'file.ext == "md"'
+
+formulas:
+  age_days: '(now() - file.mtime).days'
+
+properties:
+  type:
+    displayName: "Type"
+  status:
+    displayName: "Status"
+  updated:
+    displayName: "Updated"
+  formula.age_days:
+    displayName: "Days Since Edit"
+
+views:
+  - type: table
+    name: "Recent Activity"
+    limit: 20
+    order:
+      - file.name
+      - type
+      - status
+      - updated
+      - formula.age_days
+    groupBy:
+      property: type
+      direction: ASC
+
+  - type: list
+    name: "Seed Pages"
+    filters:
+      and:
+        - 'status == "seed"'
+    order:
+      - file.name
+      - updated
+
+  - type: table
+    name: "Modules"
+    filters:
+      and:
+        - file.inFolder("wiki/modules")
+    order:
+      - file.name
+      - status
+      - updated
+
+  - type: table
+    name: "Sources"
+    limit: 15
+    filters:
+      and:
+        - file.inFolder("wiki/sources")
+        - 'type == "source"'
+    order:
+      - file.name
+      - updated
+
+  - type: list
+    name: "Gaps"
+    filters:
+      and:
+        - file.inFolder("wiki/gaps")
+    order:
+      - file.name
+      - updated
+
+  - type: table
+    name: "Comparisons"
+    filters:
+      and:
+        - file.inFolder("wiki/comparisons")
+    order:
+      - file.name
+      - verdict
+      - updated

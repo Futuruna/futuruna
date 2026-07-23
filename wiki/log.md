@@ -16,4 +16,4 @@ tags:
 - Added hybrid repository/research wiki structure under `wiki/`
 - Seeded core navigation, current-state, compiler, proof, and verification notes
 - Added `_templates/` and `.obsidian/snippets/vault-colors.css`
-
+- Added `WIKI.md`, onboarding/dashboard notes, comparisons/canvases/attachments scaffolding, and shared plugin config so the vault behaves like the claude-obsidian overlay pattern
