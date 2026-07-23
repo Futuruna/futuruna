@@ -10,6 +10,12 @@ tags:
 
 # Futuruna Wiki Log
 
+## 2026-07-18 policy | Futuruna compatibility policy
+
+- Added `docs/compatibility-policy.md`
+- Defined compatibility categories, feature stages, deprecation expectations, and bug-fix exceptions
+- Synced contributor-facing entry points and added source note [[compatibility-policy]]
+
 ## 2026-07-18 autoresearch | Hardening Futuruna into a Professional Language
 
 - Rounds: 2

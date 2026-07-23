@@ -129,6 +129,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 ## Documentation
 
 - `CONTRIBUTING.md` - Contributor ratchet for semantic/compiler changes
+- `docs/compatibility-policy.md` - Compatibility categories, feature stages, and bug-fix exception policy
 - `docs/state-and-roadmap.md` - Where Futuruna stands now and the next three milestones
 - `docs/language-sketch.md` - Language design and three-axis analysis
 - `docs/differential-testing.md` - Reproducible differential and generative testing

@@ -4,6 +4,11 @@ Futuruna is only useful if contributors can change it without silently changing
 the language under users' feet. The rule here is simple: semantic changes must
 raise the safety floor, not just pass today.
 
+The classification model for those changes lives in
+`docs/compatibility-policy.md`. Use it when deciding whether a change is a
+source, behavioral, verification, or artifact-facing compatibility change, and
+whether the affected surface is experimental, preview, or stable.
+
 ## Semantic Change Ratchet
 
 A semantic change is any change that can alter what a Futuruna program means,
@@ -30,7 +35,8 @@ Before a semantic change is submitted for review:
      proof/verify changes, in addition to `./scripts/mint.sh`.
 4. Explain the contract.
    The review request must say what semantic contract changed, what permanent
-   coverage was added, and which commands were run.
+   coverage was added, which compatibility category it touched, and which
+   commands were run.
 5. Park follow-up debt explicitly.
    If you leave a shortcut, workaround, or known gap behind, file a `td-*` task
    before merge. Do not leave semantic debt implicit.

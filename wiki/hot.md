@@ -21,6 +21,7 @@ tags:
 - The wiki now has dedicated source notes for `state-and-roadmap`, `proof-kernel`, `verified-bootstrap`, `mint-gate`, and `canary-matrix`.
 - New research synthesis: [[research-hardening-futuruna-into-a-professional-language]]
 - Core external lessons: compatibility discipline, ecosystem canaries, compiler differential testing, and narrow translation validation.
+- Futuruna now has a first-class repo compatibility policy covering stability stages and bug-fix exceptions.
 
 ## Recent Changes
 
@@ -34,6 +35,7 @@ tags:
 - Added source notes [[kotlin-evolution-and-compatibility]], [[rust-testing-and-stability]], [[swift-source-compatibility-and-governance]], [[alive2-translation-validation]], and [[compiler-fuzzing-csmith-and-csmithedge]]
 - Added concepts [[compatibility-discipline]], [[ecosystem-canaries]], [[compiler-differential-testing]], and [[translation-validation]]
 - Added entities [[Kotlin]], [[Rust]], and [[Swift]]
+- Added repo policy doc `docs/compatibility-policy.md` and source note [[compatibility-policy]]
 
 ## Active Threads
 

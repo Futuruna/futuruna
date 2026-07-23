@@ -22,6 +22,8 @@ The current repo docs are the canonical written contracts for Futuruna. The wiki
 
 - [[state-and-roadmap]]
   High-level project map: assurance stack, trust boundary, and next milestones.
+- [[compatibility-policy]]
+  The compatibility contract for source, behavior, verification, artifact surfaces, and feature stages.
 - [[mint-gate]]
   The blocking "Futuruna is mint" contract.
 - [[canary-matrix]]
@@ -37,6 +39,7 @@ The current repo docs are the canonical written contracts for Futuruna. The wiki
 - [[verification-lanes]] and [[test-surface]] explain how quality is enforced operationally.
 - [[proof-kernel]] and [[verified-bootstrap]] track the formal-methods thread without overclaiming.
 - [[mint-ratchet]] records the contributor discipline layer that keeps these docs live.
+- [[compatibility-discipline]] and [[compatibility-policy]] make the user-facing change contract explicit.
 
 ## Best Next Ingests
 

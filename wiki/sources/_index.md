@@ -12,6 +12,7 @@ tags:
 
 - [[repo-docs]]
 - [[state-and-roadmap]]
+- [[compatibility-policy]]
 - [[proof-kernel-spec]]
 - [[verified-bootstrap-doc]]
 - [[mint-gate]]
