@@ -1,8 +1,8 @@
--- Authored core canary: persistent tree diff over recursive ADTs with list
--- children, shared subtrees, flattening, and deterministic change summaries.
+-- Authored core canary: persistent tree diff over recursive ADTs with named
+-- list children, shared subtrees, flattening, and deterministic change summaries.
 
 # PathEntry(path: String, size: Int)
-# Tree = File(String, Int) | Dir(String, List(Tree))
+# Tree = File(name: String, size: Int) | Dir(name: String, kids: List(Tree))
 
 > path_join(prefix: String, name: String) -> String {
     if name == "" { prefix } else if prefix == "" { name } else { prefix + "/" + name }
@@ -15,8 +15,8 @@
 
 > flatten_tree(tree: Tree, prefix: String) -> List(PathEntry) {
     match tree {
-        | File(name, size) -> [PathEntry(path_join(prefix, name), size)]
-        | Dir(name, kids) -> {
+        | File(name: name, size: size) -> [PathEntry(path_join(prefix, name), size)]
+        | Dir(name: name, kids: kids) -> {
             = nested_prefix = path_join(prefix, name)
             flatten_children(kids, nested_prefix)
         }

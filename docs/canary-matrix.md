@@ -20,7 +20,7 @@ Target shape:
 | `tests/canary/core/loop_rebind_pipeline_test.runa` | `core` | `while`, `for`, rebinding, streams, list accumulation |
 | `tests/canary/core/closure_scoreboard_test.runa` | `core` | tuples, closures, map folding, partitioning |
 | `tests/canary/core/ownership_text_pipeline_test.runa` | `core` | strings, chunking, closure captures, ownership-sensitive transforms |
-| `tests/canary/core/persistent_tree_diff_test.runa` | `core` | recursive ADTs with list children, shared-subtree workflows, flattening, deterministic diffs |
+| `tests/canary/core/persistent_tree_diff_test.runa` | `core` | recursive ADTs with named list children, shared-subtree workflows, flattening, deterministic diffs |
 | `tests/canary/core/collection_join_mesh_test.runa` | `core` | nested `zip`, `enumerate`, partitioning, stable ordering |
 | `tests/canary/core/proof_guarded_pipeline_test.runa` | `core` | ordinary data pipeline with explicit proof-backed invariants |
 | `tests/canary/core/top_level_mesh_test.runa` | `core` | top-level values, free functions, recursive helper composition |

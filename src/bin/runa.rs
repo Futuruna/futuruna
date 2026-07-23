@@ -19735,6 +19735,13 @@ impl RustCodegen {
         false
     }
 
+    fn boxed_named_field_index(&self, variant_name: &str, field: &str) -> Option<usize> {
+        let fields = self.types.variant_fields.get(variant_name)?;
+        let idx = fields.iter().position(|f| f == field)?;
+        let boxed = self.types.variant_boxed_args.get(variant_name)?;
+        boxed.contains(&idx).then_some(idx)
+    }
+
     /// Rewrite fn_name(self) calls to self.fn_name() for trait default bodies
     fn rewrite_self_calls(expr: &Expr) -> Expr {
         match &expr.kind {
@@ -22726,6 +22733,14 @@ impl RustCodegen {
                     }
                 }
             }
+            Pat::NamedCon(name, named_args) => {
+                for (field, sub_pat) in named_args {
+                    if self.boxed_named_field_index(name, field).is_some() {
+                        self.collect_pat_vars(sub_pat, &mut result);
+                    }
+                    result.extend(self.collect_boxed_bindings(sub_pat));
+                }
+            }
             _ => {}
         }
         result
@@ -24229,7 +24244,18 @@ impl RustCodegen {
                 let ps: Vec<String> = named_args
                     .iter()
                     .map(|(fname, p)| {
-                        format!("{}: {}", fname, self.emit_pattern_with_boxing(p, false))
+                        if let Some(idx) = self.boxed_named_field_index(name, fname) {
+                            match p {
+                                Pat::Var(_) | Pat::Wild => format!(
+                                    "{}: {}",
+                                    fname,
+                                    self.emit_pattern_with_boxing(p, true)
+                                ),
+                                _ => format!("{}: __boxed_{}", fname, idx),
+                            }
+                        } else {
+                            format!("{}: {}", fname, self.emit_pattern_with_boxing(p, false))
+                        }
                     })
                     .collect();
                 if is_struct_type {
@@ -24251,57 +24277,96 @@ impl RustCodegen {
 
     /// Check if a pattern has nested constructor patterns in boxed positions
     fn has_boxed_constructor_patterns(&self, pat: &Pat) -> bool {
-        if let Pat::Con(name, args) = pat {
-            if let Some(boxed_indices) = self.types.variant_boxed_args.get(name.as_str()) {
-                for (i, sub_pat) in args.iter().enumerate() {
-                    if boxed_indices.contains(&i) {
-                        if matches!(sub_pat, Pat::Con(_, _) | Pat::Lit(_)) {
+        match pat {
+            Pat::Con(name, args) => {
+                if let Some(boxed_indices) = self.types.variant_boxed_args.get(name.as_str()) {
+                    for (i, sub_pat) in args.iter().enumerate() {
+                        if boxed_indices.contains(&i) && matches!(sub_pat, Pat::Con(_, _) | Pat::NamedCon(_, _) | Pat::Lit(_)) {
                             return true;
                         }
                     }
                 }
             }
+            Pat::NamedCon(name, named_args) => {
+                for (field, sub_pat) in named_args {
+                    if self.boxed_named_field_index(name, field).is_some()
+                        && matches!(sub_pat, Pat::Con(_, _) | Pat::NamedCon(_, _) | Pat::Lit(_))
+                    {
+                        return true;
+                    }
+                }
+            }
+            _ => {}
         }
         false
     }
 
     /// Generate a guard expression for boxed constructor patterns
     fn emit_boxed_pattern_guard(&self, pat: &Pat) -> Option<String> {
-        if let Pat::Con(name, args) = pat {
-            if let Some(boxed_indices) = self.types.variant_boxed_args.get(name.as_str()) {
-                let is_rc = self.pattern_is_rc_type(pat);
-                let mut guards = Vec::new();
-                for (i, sub_pat) in args.iter().enumerate() {
-                    if boxed_indices.contains(&i) {
-                        // Rc: use .as_ref() (can't deref-move); Box: use *
-                        let deref_expr = if is_rc {
-                            format!("__boxed_{}.as_ref()", i)
-                        } else {
-                            format!("*__boxed_{}", i)
-                        };
-                        match sub_pat {
-                            Pat::Con(sub_name, sub_args) if sub_args.is_empty() => {
-                                let parent = self.find_parent_type(sub_name);
-                                guards.push(format!(
-                                    "matches!({}, {}::{})",
-                                    deref_expr, parent, sub_name
-                                ));
-                            }
-                            Pat::Con(sub_name, _) => {
-                                let parent = self.find_parent_type(sub_name);
-                                guards.push(format!(
-                                    "matches!({}, {}::{}(..))",
-                                    deref_expr, parent, sub_name
-                                ));
-                            }
-                            _ => {}
+        let is_rc = self.pattern_is_rc_type(pat);
+        let mut guards = Vec::new();
+        let mut push_boxed_guard = |boxed_index: usize, sub_pat: &Pat| {
+            let deref_expr = if is_rc {
+                format!("__boxed_{}.as_ref()", boxed_index)
+            } else {
+                format!("*__boxed_{}", boxed_index)
+            };
+            match sub_pat {
+                Pat::Con(sub_name, sub_args) if sub_args.is_empty() => {
+                    let parent = self.find_parent_type(sub_name);
+                    guards.push(format!("matches!({}, {}::{})", deref_expr, parent, sub_name));
+                }
+                Pat::Con(sub_name, _) => {
+                    let parent = self.find_parent_type(sub_name);
+                    let is_positional = self
+                        .types
+                        .variant_positional
+                        .get(sub_name.as_str())
+                        .copied()
+                        .unwrap_or(true);
+                    if is_positional {
+                        guards.push(format!(
+                            "matches!({}, {}::{}(..))",
+                            deref_expr, parent, sub_name
+                        ));
+                    } else {
+                        guards.push(format!(
+                            "matches!({}, {}::{} {{ .. }})",
+                            deref_expr, parent, sub_name
+                        ));
+                    }
+                }
+                Pat::NamedCon(sub_name, _) => {
+                    let parent = self.find_parent_type(sub_name);
+                    guards.push(format!(
+                        "matches!({}, {}::{} {{ .. }})",
+                        deref_expr, parent, sub_name
+                    ));
+                }
+                _ => {}
+            }
+        };
+        match pat {
+            Pat::Con(name, args) => {
+                if let Some(boxed_indices) = self.types.variant_boxed_args.get(name.as_str()) {
+                    for (i, sub_pat) in args.iter().enumerate() {
+                        if boxed_indices.contains(&i) {
+                            push_boxed_guard(i, sub_pat);
                         }
                     }
                 }
-                if !guards.is_empty() {
-                    return Some(guards.join(" && "));
+            }
+            Pat::NamedCon(name, named_args) => {
+                for (field, sub_pat) in named_args {
+                    if let Some(idx) = self.boxed_named_field_index(name, field) {
+                        push_boxed_guard(idx, sub_pat);
+                    }
                 }
             }
+            _ => {}
+        }
+        if !guards.is_empty() {
+            return Some(guards.join(" && "));
         }
         None
     }
@@ -27675,6 +27740,22 @@ let summary = render(verdict(7i64), 7i64);
              @ print(show(count_dirs(sample)))\n",
         );
         assert_eq!(output, "2\n");
+    }
+
+    #[test]
+    fn compiled_named_recursive_adt_fields_can_flow_into_helper_calls() {
+        let output = compile_and_run_test_program(
+            "# Tree = Leaf(name: String) | Node(left: Tree, right: Tree)\n\
+             > count_nodes(tree: Tree) -> Int {\n\
+                 match tree {\n\
+                     | Leaf(name: _) -> 1\n\
+                     | Node(left: left, right: right) -> count_nodes(left) + count_nodes(right)\n\
+                 }\n\
+             }\n\
+             = sample = Node(Leaf(\"a\"), Node(Leaf(\"b\"), Leaf(\"c\")))\n\
+             @ print(show(count_nodes(sample)))\n",
+        );
+        assert_eq!(output, "3\n");
     }
 
     #[test]
