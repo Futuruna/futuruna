@@ -9480,6 +9480,16 @@ struct RustCodegen {
     lib_static_names: BTreeSet<String>,
     /// Emit getter calls for top-level bindings when direct local names are out of scope
     allow_global_getter_refs: bool,
+    /// Binary-mode free functions that read top-level bindings through the hidden globals env
+    binary_global_env_fns: BTreeSet<String>,
+    /// Arity for binary-mode free functions that require the hidden globals env
+    binary_global_env_fn_arities: BTreeMap<String, usize>,
+    /// Rust types for binary-mode top-level globals captured once in main
+    binary_global_binding_types: BTreeMap<String, String>,
+    /// A hidden globals argument is currently available for function calls/wrappers
+    binary_global_env_arg_in_scope: bool,
+    /// Top-level binding reads should resolve through the hidden globals env
+    binary_global_value_refs_in_scope: bool,
     /// Function return types: fn_name → Rust type string (for lib mode getter inference)
     fn_return_types: BTreeMap<String, String>,
     /// Local bindings in current function (names from let/= bindings, NOT top-level)
@@ -13290,6 +13300,11 @@ impl RustCodegen {
             lib_mode: false,
             lib_static_names: BTreeSet::new(),
             allow_global_getter_refs: false,
+            binary_global_env_fns: BTreeSet::new(),
+            binary_global_env_fn_arities: BTreeMap::new(),
+            binary_global_binding_types: BTreeMap::new(),
+            binary_global_env_arg_in_scope: false,
+            binary_global_value_refs_in_scope: false,
             fn_return_types: BTreeMap::new(),
             local_bindings: BTreeSet::new(),
             in_iter_closure: false,
@@ -15404,6 +15419,12 @@ impl RustCodegen {
         }
 
         self.lib_static_names = self.collect_top_level_binding_getter_names(&main_stmts, &fn_stmts);
+        (
+            self.binary_global_env_fns,
+            self.binary_global_env_fn_arities,
+        ) = self.collect_binary_global_env_fn_names(&fn_stmts);
+        self.binary_global_binding_types =
+            self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
 
         // Pass 2: Borrow analysis (extracted from emit_program)
         self.compute_borrow_flags(&fn_stmts);
@@ -15889,7 +15910,16 @@ impl RustCodegen {
             }
         }
 
-        if !self.lib_static_names.is_empty() || !self.types.comptime_values.is_empty() {
+        self.binary_global_binding_types =
+            self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
+
+        if self.uses_binary_global_env() {
+            let globals_struct = self.emit_binary_global_env_struct();
+            if !globals_struct.is_empty() {
+                out.push_str(&globals_struct);
+                out.push('\n');
+            }
+        } else if !self.lib_static_names.is_empty() || !self.types.comptime_values.is_empty() {
             out.push_str(&self.emit_top_level_binding_getters(&main_stmts, self.lib_mode, None));
             out.push('\n');
         }
@@ -15973,6 +16003,10 @@ impl RustCodegen {
                 out.push_str("fn main() {\n");
             }
             self.indent = 1;
+            let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
+            let prev_binary_global_value_refs_in_scope = self.binary_global_value_refs_in_scope;
+            self.binary_global_env_arg_in_scope = self.uses_binary_global_env();
+            self.binary_global_value_refs_in_scope = false;
 
             // M26: Object store — open DB, version check, create tables for stored types
             // DB named per scope: explicit `@ store T in "scope"` or derived from source file stem
@@ -16077,6 +16111,12 @@ impl RustCodegen {
             }
 
             let mut emit_main_stmts = |cg: &mut Self| {
+                if cg.uses_binary_global_env() {
+                    out.push_str(&format!(
+                        "{}let mut __fut_globals = __FutGlobals::default();\n",
+                        cg.ind()
+                    ));
+                }
                 let mut skip_next_comptime = false;
                 for stmt in &main_stmts {
                     if let Stmt::Annot(name, _) = stmt {
@@ -16094,6 +16134,25 @@ impl RustCodegen {
                         }
                     }
                     out.push_str(&cg.emit_stmt(stmt));
+                    if cg.uses_binary_global_env() {
+                        if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
+                            if cg.binary_global_binding_types.contains_key(name)
+                                && cg.lib_static_names.contains(name.as_str())
+                                && !cg
+                                    .types
+                                    .comptime_values
+                                    .get(name)
+                                    .map_or(false, |value| value.is_empty())
+                            {
+                                out.push_str(&format!(
+                                    "{}__fut_globals.{} = Some({}.clone());\n",
+                                    cg.ind(),
+                                    sanitize_name(name),
+                                    sanitize_name(name)
+                                ));
+                            }
+                        }
+                    }
                 }
             };
             if self.has_async {
@@ -16105,6 +16164,8 @@ impl RustCodegen {
                 out.push_str("    Ok(())\n");
             }
             self.indent = 0;
+            self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
+            self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
             out.push_str("}\n");
         }
 
@@ -16192,6 +16253,169 @@ impl RustCodegen {
             ExprKind::Lit(Literal::Float(_)) => "f64".to_string(),
             ExprKind::Lit(Literal::Bool(_)) => "bool".to_string(),
             _ => "impl Clone".to_string(),
+        }
+    }
+
+    fn uses_binary_global_env(&self) -> bool {
+        !self.lib_mode && !self.binary_global_env_fns.is_empty()
+    }
+
+    fn collect_binary_global_env_fn_names(
+        &self,
+        fn_stmts: &[&Stmt],
+    ) -> (BTreeSet<String>, BTreeMap<String, usize>) {
+        if self.lib_mode || self.lib_static_names.is_empty() {
+            return (BTreeSet::new(), BTreeMap::new());
+        }
+
+        let mut fn_arities = BTreeMap::new();
+        let mut fn_calls: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        let mut env_fns = BTreeSet::new();
+
+        for stmt in fn_stmts {
+            let Stmt::Defn(Defn::Fn {
+                name, params, body, ..
+            }) = stmt
+            else {
+                continue;
+            };
+
+            fn_arities.insert(name.clone(), params.len());
+
+            let bound: BTreeSet<String> = params.iter().map(|p| p.name.clone()).collect();
+            let mut free = BTreeSet::new();
+            collect_true_free_vars(body, &mut free, &bound);
+            if free
+                .iter()
+                .any(|free_name| self.lib_static_names.contains(free_name.as_str()))
+            {
+                env_fns.insert(name.clone());
+            }
+
+            let mut called = BTreeSet::new();
+            collect_called_vars_expr(body, &mut called);
+            fn_calls.insert(name.clone(), called);
+        }
+
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for (name, called) in &fn_calls {
+                if env_fns.contains(name) {
+                    continue;
+                }
+                if called
+                    .iter()
+                    .any(|callee| env_fns.contains(callee.as_str()))
+                {
+                    env_fns.insert(name.clone());
+                    changed = true;
+                }
+            }
+        }
+
+        (env_fns, fn_arities)
+    }
+
+    fn collect_top_level_binding_rust_types(
+        &self,
+        main_stmts: &[&Stmt],
+        names: &BTreeSet<String>,
+    ) -> BTreeMap<String, String> {
+        let mut binding_types = BTreeMap::new();
+        if names.is_empty() {
+            return binding_types;
+        }
+
+        let mut top_level_type_env = self.current_type_env();
+
+        for (name, rust_ty) in &self.types.comptime_types {
+            if !rust_ty.is_empty() {
+                top_level_type_env.insert(name.clone(), Self::rust_type_to_fir(rust_ty));
+            }
+        }
+
+        for (name, rust_lit) in &self.types.comptime_values {
+            if name.starts_with("__") || rust_lit.is_empty() || !names.contains(name) {
+                continue;
+            }
+            let rust_ty = self
+                .types
+                .comptime_types
+                .get(name)
+                .cloned()
+                .unwrap_or_else(|| "impl Clone".to_string());
+            top_level_type_env
+                .entry(name.clone())
+                .or_insert_with(|| Self::rust_type_to_fir(&rust_ty));
+            if rust_ty != "impl Clone" {
+                binding_types.insert(name.clone(), rust_ty);
+            }
+        }
+
+        for stmt in main_stmts {
+            let Stmt::Bind(Pat::Var(name), ty_ann, expr) = stmt else {
+                continue;
+            };
+            if name.starts_with("__")
+                || self.types.comptime_values.contains_key(name)
+                || !names.contains(name)
+            {
+                continue;
+            }
+            let rust_ty = self.infer_top_level_binding_getter_type_with_env(
+                &top_level_type_env,
+                ty_ann.as_ref(),
+                expr,
+            );
+            top_level_type_env.insert(name.clone(), Self::rust_type_to_fir(&rust_ty));
+            if rust_ty != "impl Clone" {
+                binding_types.insert(name.clone(), rust_ty);
+            }
+        }
+
+        binding_types
+    }
+
+    fn emit_binary_global_env_struct(&self) -> String {
+        if !self.uses_binary_global_env() {
+            return String::new();
+        }
+
+        let mut out = String::from("#[derive(Clone, Default)]\nstruct __FutGlobals {\n");
+        for (name, rust_ty) in &self.binary_global_binding_types {
+            out.push_str(&format!(
+                "    {}: Option<{}>,\n",
+                sanitize_name(name),
+                rust_ty
+            ));
+        }
+        out.push_str("}\n");
+        out
+    }
+
+    fn emit_binary_global_env_fn_wrapper(&self, name: &str) -> String {
+        let rust_name = sanitize_name(name);
+        let arity = self
+            .binary_global_env_fn_arities
+            .get(name)
+            .copied()
+            .unwrap_or(0);
+        let params: Vec<String> = (0..arity).map(|i| format!("__fut_arg{}", i)).collect();
+        let env_arg = if self.binary_global_value_refs_in_scope {
+            "__fut_globals"
+        } else {
+            "&__fut_globals"
+        };
+        let call_args = if params.is_empty() {
+            env_arg.to_string()
+        } else {
+            format!("{}, {}", env_arg, params.join(", "))
+        };
+        if params.is_empty() {
+            format!("move || {}({})", rust_name, call_args)
+        } else {
+            format!("move |{}| {}({})", params.join(", "), rust_name, call_args)
         }
     }
 
@@ -18898,6 +19122,11 @@ impl RustCodegen {
                     }
                 }
                 let mut all_params = params_str.clone();
+                let uses_binary_global_env =
+                    !self.lib_mode && self.binary_global_env_fns.contains(name.as_str());
+                if uses_binary_global_env {
+                    all_params.insert(0, "__fut_globals: &__FutGlobals".to_string());
+                }
                 for eff in &merged_effects {
                     all_params.push(format!("__eff_{}: &impl {}", eff, eff));
                 }
@@ -18951,6 +19180,10 @@ impl RustCodegen {
                 // (can't reassign &T loop variables).
                 let prev_allow_global_getter_refs =
                     std::mem::replace(&mut self.allow_global_getter_refs, true);
+                let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
+                let prev_binary_global_value_refs_in_scope = self.binary_global_value_refs_in_scope;
+                self.binary_global_env_arg_in_scope = uses_binary_global_env;
+                self.binary_global_value_refs_in_scope = uses_binary_global_env;
                 let tce_safe = is_tail_recursive(name, body)
                     && !tce_has_borrowed_param_update(name, params, &borrow_flags, body);
                 if tce_safe {
@@ -18959,6 +19192,8 @@ impl RustCodegen {
                     out.push_str(&self.emit_expr_as_return(body));
                 }
                 self.allow_global_getter_refs = prev_allow_global_getter_refs;
+                self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
+                self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
                 self.indent = 0;
                 out.push_str("}\n");
                 // Restore previous state (for nested functions)
@@ -22367,7 +22602,27 @@ impl RustCodegen {
                     }
                     return format!("{}::{}", parent, name);
                 }
+                if self.binary_global_env_arg_in_scope
+                    && self.binary_global_env_fns.contains(name.as_str())
+                    && !self.current_borrow_params.contains(name.as_str())
+                    && !self.var_types.contains_key(name)
+                    && !self.local_bindings.contains(name.as_str())
+                {
+                    return self.emit_binary_global_env_fn_wrapper(name);
+                }
                 let sname = sanitize_name(name);
+                if self.binary_global_value_refs_in_scope
+                    && self.binary_global_binding_types.contains_key(name)
+                    && self.lib_static_names.contains(name.as_str())
+                    && !self.current_borrow_params.contains(name.as_str())
+                    && !self.var_types.contains_key(name)
+                    && !self.local_bindings.contains(name.as_str())
+                {
+                    return format!(
+                        "__fut_globals.{}.clone().expect(\"top-level binding `{}` not initialized\")",
+                        sname, name
+                    );
+                }
                 // Function/getter contexts can resolve top-level bindings through
                 // generated getter functions, but only when the name is not
                 // shadowed by a local binding or parameter.
@@ -23003,26 +23258,40 @@ impl RustCodegen {
                             }
                         }
                     }
+                    let mut leading_args = Vec::new();
+                    if self.binary_global_env_arg_in_scope
+                        && self.binary_global_env_fns.contains(name.as_str())
+                        && !self.current_borrow_params.contains(name.as_str())
+                        && !self.var_types.contains_key(name)
+                        && !self.local_bindings.contains(name.as_str())
+                    {
+                        leading_args.push(if self.binary_global_value_refs_in_scope {
+                            "__fut_globals".to_string()
+                        } else {
+                            "&__fut_globals".to_string()
+                        });
+                    }
                     // Effect forwarding: if calling a function that requires effects, pass handlers
+                    let mut effect_args = Vec::new();
                     if let Some(callee_effects) = self.types.fn_effects.get(name.as_str()).cloned()
                     {
-                        let mut extra_args = Vec::new();
                         for ce in &callee_effects {
                             if self.current_effects.contains(ce) {
                                 if self.handle_scope_effects.contains(ce) {
                                     // Concrete handler struct from | handle block — pass by &ref
-                                    extra_args.push(format!("&__eff_{}", ce));
+                                    effect_args.push(format!("&__eff_{}", ce));
                                 } else {
                                     // Already a &mut impl E param — reborrow automatically
-                                    extra_args.push(format!("__eff_{}", ce));
+                                    effect_args.push(format!("__eff_{}", ce));
                                 }
                             }
                         }
-                        if !extra_args.is_empty() {
-                            let mut all_args = args_str;
-                            all_args.extend(extra_args);
-                            return format!("{}({})", sanitize_name(name), all_args.join(", "));
-                        }
+                    }
+                    if !leading_args.is_empty() || !effect_args.is_empty() {
+                        let mut all_args = leading_args;
+                        all_args.extend(args_str.clone());
+                        all_args.extend(effect_args);
+                        return format!("{}({})", sanitize_name(name), all_args.join(", "));
                     }
                 }
 
@@ -28356,18 +28625,35 @@ let summary = render(verdict(7i64), 7i64);
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(
-            rust.contains("fn answer() -> i64 { 42i64 }"),
-            "top-level binding should get a companion getter: {}",
+            rust.contains("fn read_answer(__fut_globals: &__FutGlobals) -> i64 {"),
+            "free function should accept the hidden globals env: {}",
             rust
         );
         assert!(
-            rust.contains("fn read_answer() -> i64 {\n    answer()\n}"),
-            "free function should resolve the top-level binding through its getter: {}",
+            rust.contains(
+                "__fut_globals.answer.clone().expect(\"top-level binding `answer` not initialized\")"
+            ),
+            "free function should resolve the top-level binding through the hidden globals env: {}",
             rust
         );
         assert!(
             rust.contains("let answer = 42i64;"),
             "main should still evaluate the top-level binding eagerly: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let mut __fut_globals = __FutGlobals::default();"),
+            "main should initialize the hidden globals env once: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_globals.answer = Some(answer.clone());"),
+            "main should seed the eager binding into the hidden globals env: {}",
+            rust
+        );
+        assert!(
+            rust.contains("read_answer(&__fut_globals)"),
+            "main should pass a shared globals reference into the free function: {}",
             rust
         );
     }
@@ -28383,23 +28669,38 @@ let summary = render(verdict(7i64), 7i64);
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(
-            rust.contains("fn stage_names() -> Vec<String>"),
-            "transitive top-level list dependency should get a getter: {}",
+            rust.contains("stage_names: Option<Vec<String>>"),
+            "globals env should carry the transitive list binding: {}",
             rust
         );
         assert!(
-            rust.contains("fn stage_count() -> i64 { (stage_names().len() as i64) }"),
-            "computed scalar getter should infer i64 and call earlier getter: {}",
+            rust.contains("stage_count: Option<i64>"),
+            "globals env should carry the computed scalar binding: {}",
             rust
         );
         assert!(
-            rust.contains("fn answer() -> i64 { (stage_count() * 21i64) }"),
-            "transitive scalar getter should infer i64 and call earlier getter: {}",
+            rust.contains("answer: Option<i64>"),
+            "globals env should carry the final computed scalar binding: {}",
             rust
         );
         assert!(
-            rust.contains("fn read_answer() -> i64 {\n    answer()\n}"),
-            "free function should still resolve the computed binding through its getter: {}",
+            rust.contains("fn read_answer(__fut_globals: &__FutGlobals) -> i64 {"),
+            "free function should still accept the hidden globals env: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_globals.stage_names = Some(stage_names.clone());"),
+            "main should seed the transitive list binding exactly once: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_globals.stage_count = Some(stage_count.clone());"),
+            "main should seed the computed scalar binding exactly once: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_globals.answer = Some(answer.clone());"),
+            "main should seed the final computed binding exactly once: {}",
             rust
         );
     }
@@ -28414,14 +28715,52 @@ let summary = render(verdict(7i64), 7i64);
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(
-            rust.contains("fn rendered() -> String {"),
-            "show-based top-level getter should infer String: {}",
+            rust.contains("rendered: Option<String>"),
+            "show-based top-level binding should infer String in the hidden globals env: {}",
             rust
         );
         assert!(
-            rust.contains("fn read_rendered() -> String {\n    rendered()\n}"),
-            "free function should resolve the string binding through its getter: {}",
+            rust.contains("fn read_rendered(__fut_globals: &__FutGlobals) -> String {"),
+            "free function should accept the hidden globals env for string bindings: {}",
             rust
+        );
+        assert!(
+            rust.contains("__fut_globals.rendered.clone().expect(\"top-level binding `rendered` not initialized\")"),
+            "free function should resolve the string binding through the hidden globals env: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn compiled_top_level_bindings_are_evaluated_once_even_when_free_functions_read_them() {
+        let output = compile_and_run_test_program(
+            r#"
+@ rust {
+    use std::sync::atomic::{AtomicI64, Ordering};
+
+    static CALLS: AtomicI64 = AtomicI64::new(0);
+
+    fn bump() -> i64 {
+        CALLS.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    fn calls() -> i64 {
+        CALLS.load(Ordering::SeqCst)
+    }
+}
+
+= answer: Int = bump()
+> read_answer() -> Int { answer }
+@ print(show(answer))
+@ print(show(read_answer()))
+@ print(show(calls()))
+"#,
+        );
+
+        assert_eq!(
+            output.lines().collect::<Vec<_>>(),
+            vec!["1", "1", "1"],
+            "top-level binding should be evaluated exactly once even when main and a free function both observe it"
         );
     }
 
