@@ -9340,7 +9340,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("regex_match",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.is_match(&*{1})).unwrap_or(false)" }),
         ("regex_find",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).ok().and_then(|re| re.find(&*{1}).map(|m| m.as_str().to_string()))" }),
         ("regex_find_all",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.find_iter(&*{1}).map(|m| m.as_str().to_string()).collect::<Vec<_>>()).unwrap_or_default()" }),
-        ("regex_replace",    BuiltinDef { arity: 3, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.replace_all(&*{1}, {2}.as_str()).to_string()).unwrap_or_else(|_| {1}.clone())" }),
+        ("regex_replace",    BuiltinDef { arity: 3, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "{ let __pattern = {0}; let __text = {1}; let __replacement = {2}; regex::Regex::new(&*__pattern).map(|re| re.replace_all(&*__text, __replacement.as_str()).to_string()).unwrap_or_else(|_| __text.clone()) }" }),
     ];
     entries
         .into_iter()

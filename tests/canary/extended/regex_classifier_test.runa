@@ -1,0 +1,115 @@
+-- Authored extended canary: regex-based incident triage over extraction,
+-- replacement, tag collection, and deterministic routing summaries.
+
+> incident_id_of(signal: String) -> String {
+    unwrap_or(regex_find("INC-\\d+", signal), "INC-000")
+}
+
+> severity_of(signal: String) -> String {
+    unwrap_or(regex_find("sev[123]", signal), "sev0")
+}
+
+> service_of(signal: String) -> String {
+    unwrap_or(regex_find("auth|billing|edge", signal), "unknown")
+}
+
+> owner_email_of(signal: String) -> String {
+    unwrap_or(regex_find("[a-z]+@example\\.com", signal), "unknown@example.com")
+}
+
+> owner_name_of(signal: String) -> String {
+    regex_replace("@example\\.com", owner_email_of(signal), "")
+}
+
+> tags_of(signal: String) -> List(String) {
+    sort(map(regex_find_all("#[a-z]+", signal), |tag| regex_replace("#", tag, "")))
+}
+
+> sanitize_signal(signal: String) -> String {
+    regex_replace("\\b\\d+[sm]\\b", regex_replace("[a-z]+@example\\.com", signal, "<email>"), "<dur>")
+}
+
+> route_of(signal: String) -> String {
+    if regex_match(".*(#pager|panic).*", signal) {
+        "page"
+    } else if regex_match(".*(queue|retry).*", signal) {
+        "ops"
+    } else {
+        "review"
+    }
+}
+
+> route_key_of(signal: String) -> String {
+    service_of(signal) + ":" + route_of(signal)
+}
+
+> bump(counts: Map(String, Int), key: String) -> Map(String, Int) {
+    map_insert(counts, key, map_get_or(counts, key, 0) + 1)
+}
+
+> count_severity(counts: Map(String, Int), signal: String) -> Map(String, Int) {
+    bump(counts, severity_of(signal))
+}
+
+> count_owner(counts: Map(String, Int), signal: String) -> Map(String, Int) {
+    bump(counts, owner_name_of(signal))
+}
+
+> count_route(counts: Map(String, Int), signal: String) -> Map(String, Int) {
+    bump(counts, route_key_of(signal))
+}
+
+> collect_tags(acc: List(String), signal: String) -> List(String) {
+    concat(acc, tags_of(signal))
+}
+
+> counts_csv(counts: Map(String, Int)) -> String {
+    = keys = sort(map_keys(counts))
+    join(map(keys, |key| key + ":" + show(map_get_or(counts, key, 0))), ",")
+}
+
+> label_of(signal: String) -> String {
+    incident_id_of(signal) + ":" + route_key_of(signal) + ":" + owner_name_of(signal) + ":" + join(tags_of(signal), ",")
+}
+
+= raw_signals = [
+"INC-100 sev1 auth alice@example.com timeout after 30s #pager #login",
+"INC-101 sev2 billing bob@example.com queue lag 15m #queue #payments",
+"INC-102 sev1 auth alice@example.com panic in worker after 45s #pager #login",
+"INC-103 sev3 edge cora@example.com cache warmup after 5m #cache",
+"INC-104 sev2 billing dana@example.com card retry storm after 20m #payments #retry"
+]
+
+= sanitized = map(raw_signals, sanitize_signal)
+= labels = map(raw_signals, label_of)
+= escalated_ids = map(filter(raw_signals, |signal| route_of(signal) == "page"), incident_id_of)
+
+= empty_counts: Map(String, Int) = map_new()
+= severity_counts = foldl(raw_signals, empty_counts, count_severity)
+= owner_counts = foldl(raw_signals, empty_counts, count_owner)
+= route_counts = foldl(raw_signals, empty_counts, count_route)
+
+= unique_tags = sort(set_to_list(set_from_list(foldl(raw_signals, [], collect_tags))))
+
+= sanitized_ok = head(sanitized) == "INC-100 sev1 auth <email> timeout after <dur> #pager #login" && last(sanitized) == "INC-104 sev2 billing <email> card retry storm after <dur> #payments #retry"
+? sanitized_ok
+
+= severity_ok = counts_csv(severity_counts) == "sev1:2,sev2:2,sev3:1"
+? severity_ok
+
+= owners_ok = counts_csv(owner_counts) == "alice:2,bob:1,cora:1,dana:1"
+? owners_ok
+
+= routes_ok = counts_csv(route_counts) == "auth:page:2,billing:ops:2,edge:review:1"
+? routes_ok
+
+= tags_ok = join(unique_tags, ",") == "cache,login,pager,payments,queue,retry"
+? tags_ok
+
+= escalations_ok = join(escalated_ids, ",") == "INC-100,INC-102"
+? escalations_ok
+
+= labels_ok = head(labels) == "INC-100:auth:page:alice:login,pager" && nth(labels, 3) == "INC-103:edge:review:cora:cache" && last(labels) == "INC-104:billing:ops:dana:payments,retry"
+? labels_ok
+
+@ print("canary regex classifier passed")
