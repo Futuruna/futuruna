@@ -25,4 +25,26 @@
 ? assert(c.name == "gamma")
 ? assert(n == 3)
 
+-- Reused string bindings should survive list construction too.
+= first = "delta"
+= second = "omega"
+= labels = [first, second]
+@ print("String reuse after list construction:")
+@ print("  labels = " + show(labels))
+@ print("  first = " + first)
+@ print("  second = " + second)
+
+-- Reused list bindings should survive nested list construction.
+= base = ["north", "south"]
+= bags = [base]
+@ print("Nested list reuse after list construction:")
+@ print("  bags = " + show(bags))
+@ print("  base = " + show(base))
+
+? assert(first == "delta")
+? assert(second == "omega")
+? assert(count(labels) == 2)
+? assert(count(base) == 2)
+? assert(count(bags) == 1)
+
 @ print("PASS: list auto-clone works")

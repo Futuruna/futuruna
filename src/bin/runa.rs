@@ -22500,31 +22500,13 @@ impl RustCodegen {
                 format!("{{ let __arr = &{}; let __i = {}; if __i < 0 || __i as usize >= __arr.len() {{ panic!(\"index out of bounds: {{}} (len {{}})\", __i, __arr.len()) }} else {{ __arr[__i as usize].clone() }} }}", arr_str, idx_str)
             }
             ExprKind::List(elems) => {
-                let items: Vec<String> = elems
-                    .iter()
-                    .map(|e| {
-                        let s = self.emit_expr(e);
-                        // Auto-clone variables with multiple consuming uses (same logic as fn args)
-                        if let ExprKind::Var(n) = &e.kind {
-                            if !self.types.variant_parent.contains_key(n.as_str())
-                                && !self.copy_vars.contains(n.as_str())
-                                && self
-                                    .var_consuming_counts
-                                    .get(n.as_str())
-                                    .copied()
-                                    .unwrap_or(0)
-                                    > 1
-                            {
-                                return format!("{}.clone()", s);
-                            }
-                        }
-                        s
-                    })
-                    .collect();
+                let items: Vec<String> =
+                    elems.iter().map(|e| self.emit_literal_element(e)).collect();
                 format!("vec![{}]", items.join(", "))
             }
             ExprKind::Tuple(elems) => {
-                let items: Vec<String> = elems.iter().map(|e| self.emit_expr(e)).collect();
+                let items: Vec<String> =
+                    elems.iter().map(|e| self.emit_literal_element(e)).collect();
                 format!("({})", items.join(", "))
             }
             ExprKind::Effect(name, args) => {
@@ -22969,6 +22951,33 @@ impl RustCodegen {
             return format!("__futuruna_show_set(&{})", emitted);
         }
         format!("__futuruna_show_any(&{})", emitted)
+    }
+
+    fn should_clone_literal_element_var(&self, expr: &Expr) -> bool {
+        let ExprKind::Var(name) = &expr.kind else {
+            return false;
+        };
+        let runtime_binding = self.var_types.contains_key(name)
+            || self.var_fir_types.contains_key(name)
+            || self.local_bindings.contains(name.as_str())
+            || self.current_borrow_params.contains(name.as_str())
+            || self.ref_match_bindings.contains(name.as_str());
+        !self.types.variant_parent.contains_key(name.as_str())
+            && !self.copy_vars.contains(name.as_str())
+            && (!self.types.known_modules.contains(name.as_str()) || runtime_binding)
+            && (!self.types.user_functions.contains(name.as_str()) || runtime_binding)
+            && (!self.types.prolog_rule_fns.contains_key(name.as_str()) || runtime_binding)
+            && (!self.builtin_registry.contains_key(name.as_str()) || runtime_binding)
+            && self.var_use_counts.get(name).copied().unwrap_or(0) > 1
+    }
+
+    fn emit_literal_element(&mut self, expr: &Expr) -> String {
+        let emitted = self.emit_expr(expr);
+        if self.should_clone_literal_element_var(expr) && !emitted.ends_with(".clone()") {
+            format!("{}.clone()", emitted)
+        } else {
+            emitted
+        }
     }
 
     fn expr_is_known_empty_list_value(&self, expr: &Expr) -> bool {
@@ -27625,6 +27634,30 @@ let summary = render(verdict(7i64), 7i64);
         let output =
             compile_and_run_test_program("= xs = concat(tail([]), [\"x\"])\n@ print(show(xs))\n");
         assert_eq!(output, "[x]\n");
+    }
+
+    #[test]
+    fn compiled_list_literal_preserves_reused_string_bindings() {
+        let output = compile_and_run_test_program(
+            "= a = \"alpha\"\n= b = \"beta\"\n= xs = [a, b]\n@ print(show(xs))\n@ print(a)\n@ print(b)\n",
+        );
+        assert_eq!(output, "[alpha, beta]\nalpha\nbeta\n");
+    }
+
+    #[test]
+    fn compiled_list_literal_preserves_reused_list_bindings() {
+        let output = compile_and_run_test_program(
+            "= base = [\"north\", \"south\"]\n= bags = [base]\n@ print(show(bags))\n@ print(show(base))\n",
+        );
+        assert_eq!(output, "[[north, south]]\n[north, south]\n");
+    }
+
+    #[test]
+    fn compiled_tuple_literal_preserves_reused_string_bindings() {
+        let output = compile_and_run_test_program(
+            "= a = \"alpha\"\n= pair = (a, 1)\n@ print(show(pair))\n@ print(a)\n",
+        );
+        assert_eq!(output, "(alpha, 1)\nalpha\n");
     }
 
     #[test]
