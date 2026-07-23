@@ -1498,6 +1498,28 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
 }
 
 /// Run all .runa files in a directory, report pass/fail summary.
+fn collect_expectation_markers(source: &str, prefix: &str) -> Vec<String> {
+    source
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            trimmed
+                .starts_with(prefix)
+                .then(|| trimmed[prefix.len()..].trim().to_string())
+        })
+        .collect()
+}
+
+fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
+    if let Some(msg) = payload.downcast_ref::<String>() {
+        msg.clone()
+    } else if let Some(msg) = payload.downcast_ref::<&str>() {
+        msg.to_string()
+    } else {
+        "<non-string panic payload>".to_string()
+    }
+}
+
 fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
     use std::process::Command;
     use std::time::Instant;
@@ -1553,8 +1575,34 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "unknown".to_string());
         let test_start = Instant::now();
+        let source = match std::fs::read_to_string(&file_path) {
+            Ok(source) => source,
+            Err(e) => {
+                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot read: {}", name, e);
+                failed += 1;
+                failures.push(name);
+                continue;
+            }
+        };
+        let expected_errors = collect_expectation_markers(&source, "-- expect-error:");
+        let expected_runtime_errors =
+            collect_expectation_markers(&source, "-- expect-runtime-error:");
 
         if compile_mode {
+            if !expected_errors.is_empty() {
+                let elapsed = test_start.elapsed();
+                let ms = elapsed.as_millis();
+                let time_str = if ms >= 1000 {
+                    format!("{:.1}s", elapsed.as_secs_f64())
+                } else {
+                    format!("{}ms", ms)
+                };
+                eprintln!(
+                    "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(negative test, {})\x1b[0m",
+                    name, time_str
+                );
+                continue;
+            }
             // Compile+execute mode: run as subprocess `runa run <file>`
             let file_str = file_path.to_string_lossy().to_string();
             let mut cmd = Command::new(&self_bin);
@@ -1575,10 +1623,38 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
                         format!("{}ms", ms)
                     };
                     if output.status.success() {
-                        eprintln!(
-                            "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
-                            name, time_str
-                        );
+                        if expected_runtime_errors.is_empty() {
+                            eprintln!(
+                                "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
+                                name, time_str
+                            );
+                        } else {
+                            eprintln!(
+                                "  \x1b[1;31mFAIL\x1b[0m  {} — expected runtime error but program succeeded \x1b[2m({})\x1b[0m",
+                                name, time_str
+                            );
+                            failed += 1;
+                            failures.push(name);
+                        }
+                    } else if !expected_runtime_errors.is_empty() {
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let missing: Vec<&String> = expected_runtime_errors
+                            .iter()
+                            .filter(|expected| !stderr.contains(expected.as_str()))
+                            .collect();
+                        if missing.is_empty() {
+                            eprintln!(
+                                "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-runtime-error, {})\x1b[0m",
+                                name, time_str
+                            );
+                        } else {
+                            eprintln!(
+                                "  \x1b[1;31mFAIL\x1b[0m  {} — runtime error occurred but missing expected text: {:?} \x1b[2m({})\x1b[0m",
+                                name, missing, time_str
+                            );
+                            failed += 1;
+                            failures.push(name);
+                        }
                     } else {
                         let stderr = String::from_utf8_lossy(&output.stderr);
                         let err_line = stderr
@@ -1607,129 +1683,152 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
             }
         } else {
             // Interpret mode: run in-process
-            match std::fs::read_to_string(&file_path) {
-                Ok(source) => {
-                    // Check for negative test markers: -- expect-error: <substring>
-                    let expected_errors: Vec<String> = source
-                        .lines()
-                        .filter_map(|line| {
-                            let trimmed = line.trim();
-                            if trimmed.starts_with("-- expect-error:") {
-                                Some(trimmed["-- expect-error:".len()..].trim().to_string())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    let is_negative_test = !expected_errors.is_empty();
+            if !expected_errors.is_empty() {
+                // Negative test: run via subprocess so we can capture stderr
+                let self_bin =
+                    std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("runa"));
+                let file_str = file_path.to_string_lossy().to_string();
+                let output = std::process::Command::new(&self_bin)
+                    .args(&["check", &file_str])
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::piped())
+                    .output();
 
-                    if is_negative_test {
-                        // Negative test: run via subprocess so we can capture stderr
-                        let self_bin = std::env::current_exe()
-                            .unwrap_or_else(|_| std::path::PathBuf::from("runa"));
-                        let file_str = file_path.to_string_lossy().to_string();
-                        let output = std::process::Command::new(&self_bin)
-                            .args(&["check", &file_str])
-                            .stdout(std::process::Stdio::null())
-                            .stderr(std::process::Stdio::piped())
-                            .output();
+                let elapsed = test_start.elapsed();
+                let ms = elapsed.as_millis();
+                let time_str = if ms >= 1000 {
+                    format!("{:.1}s", elapsed.as_secs_f64())
+                } else {
+                    format!("{}ms", ms)
+                };
 
-                        let elapsed = test_start.elapsed();
-                        let ms = elapsed.as_millis();
-                        let time_str = if ms >= 1000 {
-                            format!("{:.1}s", elapsed.as_secs_f64())
+                match output {
+                    Ok(out) => {
+                        let stderr = String::from_utf8_lossy(&out.stderr);
+                        let did_error = !out.status.success();
+                        let all_found = expected_errors
+                            .iter()
+                            .all(|expected| stderr.contains(expected.as_str()));
+
+                        if did_error && all_found {
+                            eprintln!(
+                                "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-error, {})\x1b[0m",
+                                name, time_str
+                            );
+                        } else if !did_error {
+                            eprintln!(
+                                "  \x1b[1;31mFAIL\x1b[0m  {} — expected error but program succeeded \x1b[2m({})\x1b[0m",
+                                name, time_str
+                            );
+                            failed += 1;
+                            failures.push(name);
                         } else {
-                            format!("{}ms", ms)
-                        };
-
-                        match output {
-                            Ok(out) => {
-                                let stderr = String::from_utf8_lossy(&out.stderr);
-                                let did_error = !out.status.success();
-                                let all_found = expected_errors
-                                    .iter()
-                                    .all(|expected| stderr.contains(expected.as_str()));
-
-                                if did_error && all_found {
-                                    eprintln!("  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-error, {})\x1b[0m", name, time_str);
-                                } else if !did_error {
-                                    eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — expected error but program succeeded \x1b[2m({})\x1b[0m", name, time_str);
-                                    failed += 1;
-                                    failures.push(name);
-                                } else {
-                                    let missing: Vec<&String> = expected_errors
-                                        .iter()
-                                        .filter(|e| !stderr.contains(e.as_str()))
-                                        .collect();
-                                    eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — error occurred but missing expected text: {:?} \x1b[2m({})\x1b[0m",
-                                        name, missing, time_str);
-                                    failed += 1;
-                                    failures.push(name);
-                                }
-                            }
-                            Err(e) => {
-                                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {} \x1b[2m({})\x1b[0m", name, e, time_str);
-                                failed += 1;
-                                failures.push(name);
-                            }
+                            let missing: Vec<&String> = expected_errors
+                                .iter()
+                                .filter(|e| !stderr.contains(e.as_str()))
+                                .collect();
+                            eprintln!(
+                                "  \x1b[1;31mFAIL\x1b[0m  {} — error occurred but missing expected text: {:?} \x1b[2m({})\x1b[0m",
+                                name, missing, time_str
+                            );
+                            failed += 1;
+                            failures.push(name);
                         }
-                    } else {
-                        // Positive test: run in-process
-                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                            let mut lexer = Lexer::new(&source);
-                            let tokens = lexer.tokenize();
-                            let mut parser = Parser::new(tokens, &source);
-                            match parser.parse_program() {
-                                Ok(user_stmts) => {
-                                    let stmts = if use_prelude {
-                                        prepend_prelude(parse_prelude(), &user_stmts)
-                                    } else {
-                                        user_stmts
-                                    };
-                                    let mut interp = Interpreter::new();
-                                    if let Some(parent) = file_path.parent() {
-                                        interp.source_dir =
-                                            Some(parent.to_string_lossy().to_string());
-                                    }
-                                    let mut env = interp.default_env();
-                                    interp.run_program(&stmts, &mut env);
-                                    Ok(())
-                                }
-                                Err(e) => Err(e),
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {} \x1b[2m({})\x1b[0m",
+                            name, e, time_str
+                        );
+                        failed += 1;
+                        failures.push(name);
+                    }
+                }
+            } else {
+                // Positive and runtime-error fixtures: run in-process
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let mut lexer = Lexer::new(&source);
+                    let tokens = lexer.tokenize();
+                    let mut parser = Parser::new(tokens, &source);
+                    match parser.parse_program() {
+                        Ok(user_stmts) => {
+                            let stmts = if use_prelude {
+                                prepend_prelude(parse_prelude(), &user_stmts)
+                            } else {
+                                user_stmts
+                            };
+                            let mut interp = Interpreter::new();
+                            if let Some(parent) = file_path.parent() {
+                                interp.source_dir = Some(parent.to_string_lossy().to_string());
                             }
-                        }));
+                            let mut env = interp.default_env();
+                            interp.run_program(&stmts, &mut env);
+                            Ok(())
+                        }
+                        Err(e) => Err(e),
+                    }
+                }));
 
-                        let elapsed = test_start.elapsed();
-                        let ms = elapsed.as_millis();
-                        let time_str = if ms >= 1000 {
-                            format!("{:.1}s", elapsed.as_secs_f64())
+                let elapsed = test_start.elapsed();
+                let ms = elapsed.as_millis();
+                let time_str = if ms >= 1000 {
+                    format!("{:.1}s", elapsed.as_secs_f64())
+                } else {
+                    format!("{}ms", ms)
+                };
+                match result {
+                    Ok(Ok(())) => {
+                        if expected_runtime_errors.is_empty() {
+                            eprintln!(
+                                "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
+                                name, time_str
+                            );
                         } else {
-                            format!("{}ms", ms)
-                        };
-                        match result {
-                            Ok(Ok(())) => {
+                            eprintln!(
+                                "  \x1b[1;31mFAIL\x1b[0m  {} — expected runtime error but program succeeded \x1b[2m({})\x1b[0m",
+                                name, time_str
+                            );
+                            failed += 1;
+                            failures.push(name);
+                        }
+                    }
+                    Ok(Err(e)) => {
+                        eprintln!(
+                            "  \x1b[1;31mFAIL\x1b[0m  {} — parse error: {} \x1b[2m({})\x1b[0m",
+                            name, e, time_str
+                        );
+                        failed += 1;
+                        failures.push(name);
+                    }
+                    Err(payload) => {
+                        if expected_runtime_errors.is_empty() {
+                            eprintln!(
+                                "  \x1b[1;31mFAIL\x1b[0m  {} — runtime panic \x1b[2m({})\x1b[0m",
+                                name, time_str
+                            );
+                            failed += 1;
+                            failures.push(name);
+                        } else {
+                            let panic_text = panic_payload_to_string(payload);
+                            let missing: Vec<&String> = expected_runtime_errors
+                                .iter()
+                                .filter(|e| !panic_text.contains(e.as_str()))
+                                .collect();
+                            if missing.is_empty() {
                                 eprintln!(
-                                    "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({})\x1b[0m",
+                                    "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m(expect-runtime-error, {})\x1b[0m",
                                     name, time_str
                                 );
-                            }
-                            Ok(Err(e)) => {
-                                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — parse error: {} \x1b[2m({})\x1b[0m", name, e, time_str);
-                                failed += 1;
-                                failures.push(name);
-                            }
-                            Err(_) => {
-                                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — runtime panic \x1b[2m({})\x1b[0m", name, time_str);
+                            } else {
+                                eprintln!(
+                                    "  \x1b[1;31mFAIL\x1b[0m  {} — runtime panic missing expected text: {:?} \x1b[2m({})\x1b[0m",
+                                    name, missing, time_str
+                                );
                                 failed += 1;
                                 failures.push(name);
                             }
                         }
-                    } // end positive test
-                }
-                Err(e) => {
-                    eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot read: {}", name, e);
-                    failed += 1;
-                    failures.push(name);
+                    }
                 }
             }
         }
@@ -2414,7 +2513,9 @@ fn run_benchmarks() {
                 let path = entry.path();
                 if path.extension().map_or(false, |e| e == "runa") {
                     let source = std::fs::read_to_string(&path).unwrap_or_default();
-                    if source.contains("-- expect-error:") {
+                    if source.contains("-- expect-error:")
+                        || source.contains("-- expect-runtime-error:")
+                    {
                         continue;
                     }
                     // Skip noisy tests (DB, HTTP, invariants, stores)
@@ -2843,8 +2944,11 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
             }
         };
 
-        // Skip negative tests and roundtrip-skip tests
-        if source.contains("-- expect-error:") || source.contains("-- roundtrip-skip:") {
+        // Skip negative tests, runtime-error fixtures, and roundtrip-skip tests
+        if source.contains("-- expect-error:")
+            || source.contains("-- expect-runtime-error:")
+            || source.contains("-- roundtrip-skip:")
+        {
             skipped += 1;
             continue;
         }
@@ -3047,7 +3151,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
             .unwrap_or_else(|| "unknown".to_string());
         let test_start = Instant::now();
 
-        // Read source and check for expect-error (skip negative tests)
+        // Read source and check for negative/runtime fixtures (skip in compile-only lane)
         let source = match std::fs::read_to_string(&file_path) {
             Ok(s) => s,
             Err(_) => {
@@ -3055,10 +3159,10 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
                 continue;
             }
         };
-        if source.contains("-- expect-error:") {
+        if source.contains("-- expect-error:") || source.contains("-- expect-runtime-error:") {
             skipped += 1;
             eprintln!(
-                "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(negative test)\x1b[0m",
+                "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(negative/runtime-error test)\x1b[0m",
                 name
             );
             continue;

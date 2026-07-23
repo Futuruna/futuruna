@@ -1,0 +1,4 @@
+-- expect-runtime-error: index out of bounds: 0
+-- expect-runtime-error: len 0
+
+@ print(show(nth([], 0)))
