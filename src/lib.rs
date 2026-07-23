@@ -5445,8 +5445,8 @@ pub enum Value {
     Subject(Vec<Value>),
     /// Map: key-value dictionary with deterministic key iteration.
     Map(BTreeMap<String, Value>),
-    /// Set: unique value collection (HashSet in codegen, HashMap<String,Value> in interpreter)
-    Set(HashMap<String, Value>),
+    /// Set: unique value collection keyed by Futuruna display semantics.
+    Set(BTreeMap<String, Value>),
     /// Scope: a named block with its own environment. Bindings accessible via Scope.name.
     Scope {
         name: String,
@@ -8262,7 +8262,7 @@ impl Interpreter {
                 _ => Value::Map(BTreeMap::new()),
             },
             // ---- Set builtins (M24) ----
-            "set_new" => Value::Set(HashMap::new()),
+            "set_new" => Value::Set(BTreeMap::new()),
             "set_insert" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(items)), Some(val)) => {
                     let key = format!("{}", val);
@@ -8274,7 +8274,7 @@ impl Interpreter {
                         Value::Set(new_items)
                     }
                 }
-                _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
+                _ => args.first().cloned().unwrap_or(Value::Set(BTreeMap::new())),
             },
             "set_contains" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(items)), Some(val)) => {
@@ -8290,7 +8290,7 @@ impl Interpreter {
                     new_items.remove(&key);
                     Value::Set(new_items)
                 }
-                _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
+                _ => args.first().cloned().unwrap_or(Value::Set(BTreeMap::new())),
             },
             "set_len" => match args.first() {
                 Some(Value::Set(items)) => Value::Int(items.len() as i64),
@@ -8308,41 +8308,41 @@ impl Interpreter {
                     }
                     Value::Set(result)
                 }
-                _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
+                _ => args.first().cloned().unwrap_or(Value::Set(BTreeMap::new())),
             },
             "set_intersect" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(a)), Some(Value::Set(b))) => {
-                    let result: HashMap<String, Value> = a
+                    let result: BTreeMap<String, Value> = a
                         .iter()
                         .filter(|(k, _)| b.contains_key(k.as_str()))
                         .map(|(k, v)| (k.clone(), v.clone()))
                         .collect();
                     Value::Set(result)
                 }
-                _ => Value::Set(HashMap::new()),
+                _ => Value::Set(BTreeMap::new()),
             },
             "set_diff" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(a)), Some(Value::Set(b))) => {
-                    let result: HashMap<String, Value> = a
+                    let result: BTreeMap<String, Value> = a
                         .iter()
                         .filter(|(k, _)| !b.contains_key(k.as_str()))
                         .map(|(k, v)| (k.clone(), v.clone()))
                         .collect();
                     Value::Set(result)
                 }
-                _ => args.first().cloned().unwrap_or(Value::Set(HashMap::new())),
+                _ => args.first().cloned().unwrap_or(Value::Set(BTreeMap::new())),
             },
             "set_from_list" => match args.first() {
                 Some(list) => {
                     let items = list_to_vec(list);
-                    let mut result: HashMap<String, Value> = HashMap::new();
+                    let mut result: BTreeMap<String, Value> = BTreeMap::new();
                     for v in items {
                         let key = format!("{}", v);
                         result.entry(key).or_insert(v);
                     }
                     Value::Set(result)
                 }
-                _ => Value::Set(HashMap::new()),
+                _ => Value::Set(BTreeMap::new()),
             },
             "assert" => match args.first() {
                 Some(Value::Bool(true)) => Value::Unit,

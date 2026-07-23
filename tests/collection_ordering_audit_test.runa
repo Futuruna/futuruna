@@ -1,0 +1,40 @@
+-- Targeted audit: collection ordering and set determinism must match between
+-- interpreter and compiled execution.
+
+# Mark = Cold | Hot(Int)
+
+> needs_beta_or_omicron(w: String) -> Bool {
+    starts_with(w, "b") || starts_with(w, "o")
+}
+
+= words = ["beta", "alpha", "beta", "gamma", "alpha"]
+= ordered_words = set_to_list(set_from_list(words))
+| set_words_order_ok: ordered_words -> show(ordered_words) == "[alpha, beta, gamma]"
+? set_words_order_ok
+
+= marks = set_from_list([Hot(2), Cold, Hot(2), Hot(1)])
+= ordered_marks = set_to_list(marks)
+| set_adt_order_ok: ordered_marks -> show(ordered_marks) == "[Cold, Hot(1), Hot(2)]"
+? set_adt_order_ok
+
+= merged = set_union(set_from_list(["c", "a"]), set_from_list(["b", "a"]))
+| union_order_ok: merged -> show(set_to_list(merged)) == "[a, b, c]"
+? union_order_ok
+
+= only_left = set_diff(set_from_list(["delta", "beta", "alpha"]), set_from_list(["beta"]))
+| diff_order_ok: only_left -> show(set_to_list(only_left)) == "[alpha, delta]"
+? diff_order_ok
+
+= items = ["zeta", "beta", "alpha", "beta", "omicron"]
+= parts = partition(items, needs_beta_or_omicron)
+| partition_keeps_yes_order: parts -> show(fst(parts)) == "[beta, beta, omicron]"
+? partition_keeps_yes_order
+
+| partition_keeps_no_order: parts -> show(snd(parts)) == "[zeta, alpha]"
+? partition_keeps_no_order
+
+= unique_partitioned = set_to_list(set_from_list(concat(fst(parts), snd(parts))))
+| set_partition_mesh_ok: unique_partitioned -> show(unique_partitioned) == "[alpha, beta, omicron, zeta]"
+? set_partition_mesh_ok
+
+@ print("collection ordering audit passed")

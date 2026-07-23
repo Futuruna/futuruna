@@ -6690,7 +6690,13 @@ fn emit_fir_ty_as_rust(ty: &Ty) -> String {
                 "Option" => format!("Option<{}>", arg_strs.join(", ")),
                 "Result" => format!("Result<{}>", arg_strs.join(", ")),
                 "Map" => format!("BTreeMap<{}>", arg_strs.join(", ")),
-                "Set" => format!("HashSet<{}>", arg_strs.join(", ")),
+                "Set" => format!(
+                    "BTreeMap<String, {}>",
+                    arg_strs
+                        .first()
+                        .cloned()
+                        .unwrap_or_else(|| "()".to_string())
+                ),
                 _ => format!("{}<{}>", base_str, arg_strs.join(", ")),
             }
         }
@@ -8728,16 +8734,16 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("map_from",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.into_iter().collect::<BTreeMap<_, _>>()" }),
 
         // ---- Set builtins (M24) ----
-        ("set_new",       BuiltinDef { arity: 0, shadowable: false, impure: false, deps: D, rust_tpl: "HashSet::new()" }),
-        ("set_insert",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); __s.insert({1}.clone()); __s }" }),
-        ("set_contains",  BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.contains(&{1})" }),
-        ("set_remove",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); __s.remove(&{1}); __s }" }),
+        ("set_new",       BuiltinDef { arity: 0, shadowable: false, impure: false, deps: D, rust_tpl: "BTreeMap::new()" }),
+        ("set_insert",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); let __v = {1}.clone(); __s.entry(__futuruna_set_key(&__v)).or_insert(__v); __s }" }),
+        ("set_contains",  BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.contains_key(&__futuruna_set_key(&{1}))" }),
+        ("set_remove",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); let __k = __futuruna_set_key(&{1}); __s.remove(__k.as_str()); __s }" }),
         ("set_len",       BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
-        ("set_to_list",   BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.iter().cloned().collect::<Vec<_>>()" }),
-        ("set_union",     BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.union(&{1}).cloned().collect::<HashSet<_>>()" }),
-        ("set_intersect", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.intersection(&{1}).cloned().collect::<HashSet<_>>()" }),
-        ("set_diff",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.difference(&{1}).cloned().collect::<HashSet<_>>()" }),
-        ("set_from_list", BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.into_iter().collect::<HashSet<_>>()" }),
+        ("set_to_list",   BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()" }),
+        ("set_union",     BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); for (__k, __v) in {1}.iter() { __s.entry(__k.clone()).or_insert_with(|| __v.clone()); } __s }" }),
+        ("set_intersect", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if {1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }" }),
+        ("set_diff",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if !{1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }" }),
+        ("set_from_list", BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = BTreeMap::new(); for __v in {0}.clone().into_iter() { let __k = __futuruna_set_key(&__v); __s.entry(__k).or_insert(__v); } __s }" }),
 
         // ---- Stream builtins (M12, sync Vec-based — clean names, no s_ prefix) ----
         ("from_list",    BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
@@ -10032,6 +10038,89 @@ impl<'a> LoweringCtx<'a> {
                                 kind: FirExprKind::App(Box::new(fir_func), fir_args),
                                 span: expr.span,
                                 ty: FirTy::List(Box::new(v)),
+                            };
+                        }
+                    }
+                    if fn_name == "set_new" {
+                        let elem_ty = if let Some(ref mut inf) = self.inference {
+                            inf.fresh()
+                        } else {
+                            FirTy::Unknown
+                        };
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                            span: expr.span,
+                            ty: FirTy::Set(Box::new(elem_ty)),
+                        };
+                    }
+                    if fn_name == "set_insert" && fir_args.len() >= 2 {
+                        let elem_ty = match &fir_args[0].ty {
+                            FirTy::Set(inner) => (**inner).clone(),
+                            _ => fir_args[1].ty.clone(),
+                        };
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                            span: expr.span,
+                            ty: FirTy::Set(Box::new(elem_ty)),
+                        };
+                    }
+                    if fn_name == "set_remove" && !fir_args.is_empty() {
+                        let set_ty = if let FirTy::Set(inner) = &fir_args[0].ty {
+                            Some(FirTy::Set(Box::new((**inner).clone())))
+                        } else {
+                            None
+                        };
+                        if let Some(ty) = set_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty,
+                            };
+                        }
+                    }
+                    if matches!(fn_name.as_str(), "set_union" | "set_intersect" | "set_diff")
+                        && !fir_args.is_empty()
+                    {
+                        let set_ty = fir_args.iter().find_map(|arg| {
+                            if let FirTy::Set(inner) = &arg.ty {
+                                Some(FirTy::Set(Box::new((**inner).clone())))
+                            } else {
+                                None
+                            }
+                        });
+                        if let Some(ty) = set_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty,
+                            };
+                        }
+                    }
+                    if fn_name == "set_from_list" && !fir_args.is_empty() {
+                        let elem_ty = if let FirTy::List(inner) = &fir_args[0].ty {
+                            Some((**inner).clone())
+                        } else {
+                            None
+                        };
+                        if let Some(elem_ty) = elem_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty: FirTy::Set(Box::new(elem_ty)),
+                            };
+                        }
+                    }
+                    if fn_name == "set_to_list" && !fir_args.is_empty() {
+                        let elem_ty = if let FirTy::Set(inner) = &fir_args[0].ty {
+                            Some((**inner).clone())
+                        } else {
+                            None
+                        };
+                        if let Some(elem_ty) = elem_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty: FirTy::List(Box::new(elem_ty)),
                             };
                         }
                     }
@@ -14040,6 +14129,17 @@ impl RustCodegen {
         out.push_str("    }\n");
         out.push_str("    result\n");
         out.push_str("}\n");
+        out.push_str("fn __futuruna_set_key<T: fmt::Debug>(v: &T) -> String {\n");
+        out.push_str("    __futuruna_show_any(v)\n");
+        out.push_str("}\n");
+        out.push_str(
+            "fn __futuruna_show_set<T: fmt::Debug>(items: &BTreeMap<String, T>) -> String {\n",
+        );
+        out.push_str(
+            "    let parts = items.values().map(|v| __futuruna_show_any(v)).collect::<Vec<_>>();\n",
+        );
+        out.push_str("    format!(\"{{{}}}\", parts.join(\", \"))\n");
+        out.push_str("}\n");
         out.push_str("fn __futuruna_show_vec<T: fmt::Display>(v: &[T]) -> String {\n");
         out.push_str(
             "    let items: Vec<String> = v.iter().map(|x| format!(\"{}\", x)).collect();\n",
@@ -15841,7 +15941,10 @@ impl RustCodegen {
                 } else if con_str == "Map" && !self.types.type_decls.contains_key("Map") {
                     format!("BTreeMap<{}>", args_str.join(", "))
                 } else if con_str == "Set" && !self.types.type_decls.contains_key("Set") {
-                    format!("HashSet<{}>", args_str.first().unwrap_or(&"()".to_string()))
+                    format!(
+                        "BTreeMap<String, {}>",
+                        args_str.first().unwrap_or(&"()".to_string())
+                    )
                 } else {
                     format!("{}<{}>", con_str, args_str.join(", "))
                 }
@@ -19349,11 +19452,16 @@ impl RustCodegen {
                 Some(format!("({})", items?.join(", ")))
             }
             FirTy::Named(name) => Some(name.clone()),
-            FirTy::Map(_, _)
-            | FirTy::Set(_)
-            | FirTy::Arrow(_, _)
-            | FirTy::Var(_)
-            | FirTy::Unknown => None,
+            FirTy::Map(key, val) => Some(format!(
+                "BTreeMap<{}, {}>",
+                Self::fir_type_to_rust(key)?,
+                Self::fir_type_to_rust(val)?
+            )),
+            FirTy::Set(inner) => Some(format!(
+                "BTreeMap<String, {}>",
+                Self::fir_type_to_rust(inner)?
+            )),
+            FirTy::Arrow(_, _) | FirTy::Var(_) | FirTy::Unknown => None,
         }
     }
 
@@ -22330,6 +22438,9 @@ impl RustCodegen {
         }
         if self.expr_is_string(expr) {
             return format!("format!(\"{{}}\", {})", emitted);
+        }
+        if matches!(self.infer_expr_fir_ty(expr), FirTy::Set(_)) {
+            return format!("__futuruna_show_set(&{})", emitted);
         }
         format!("__futuruna_show_any(&{})", emitted)
     }
@@ -25580,6 +25691,26 @@ mod tests {
             outputs,
             BTreeSet::from([String::from("a")]),
             "compiled map tie-breaking drifted across runs: {:?}",
+            outputs
+        );
+    }
+
+    #[test]
+    fn compiled_set_to_list_is_deterministic_across_processes() {
+        let source = r#"
+# Mark = Cold | Hot(Int)
+= marks = set_from_list([Hot(2), Cold, Hot(2), Hot(1)])
+@ print(show(set_to_list(marks)))
+"#;
+
+        let outputs: BTreeSet<String> = (0..8)
+            .map(|_| compile_and_run_test_program(source).trim().to_string())
+            .collect();
+
+        assert_eq!(
+            outputs,
+            BTreeSet::from([String::from("[Cold, Hot(1), Hot(2)]")]),
+            "compiled set ordering drifted across runs: {:?}",
             outputs
         );
     }
