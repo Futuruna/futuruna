@@ -116,6 +116,8 @@ Built into the compiler — no imports needed. Every function here is available 
 = nums = range(1, 5)                   -- [1, 2, 3, 4]
 ```
 
+`head([])` is a runtime error. `tail([])` returns `[]`.
+
 Out-of-range direct indexing (`xs[i]`) and `nth(xs, i)` are runtime errors.
 
 ---

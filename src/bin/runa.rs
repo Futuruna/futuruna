@@ -8892,8 +8892,14 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
             "> range(start: Int, end: Int) -> [Int]",
             "Integer range [start, end)",
         )),
-        "head" => Some(("> head(list) -> a", "First element")),
-        "tail" => Some(("> tail(list) -> [a]", "All elements except first")),
+        "head" => Some((
+            "> head(list) -> a",
+            "First element; runtime error on empty list",
+        )),
+        "tail" => Some((
+            "> tail(list) -> [a]",
+            "All elements except first; empty list stays empty",
+        )),
         "nth" => Some(("> nth(list, index: Int) -> a", "Element at index (0-based)")),
         "first" => Some(("~ first(stream) -> a", "First stream element")),
         "last" => Some(("~ last(stream) -> a", "Last stream element")),
@@ -9000,8 +9006,8 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("string_chars", BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.chars().map(|c| c.to_string()).collect::<Vec<String>>()" }),
         ("string_length",BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
         ("length",       BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
-        ("head",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}[0].clone()" }),
-        ("tail",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}[1..].to_vec()" }),
+        ("head",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; if __arr.is_empty() { panic!(\"head: empty list\") } else { __arr[0].clone() } }" }),
+        ("tail",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; if __arr.len() <= 1 { __arr[0..0].to_vec() } else { __arr[1..].to_vec() } }" }),
         ("nth",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; let __i = {1}; if __i < 0 || __i as usize >= __arr.len() { panic!(\"index out of bounds: {} (len {})\", __i, __arr.len()) } else { __arr[__i as usize].clone() } }" }),
 
         // ---- File I/O (not shadowable, impure) ----
@@ -18533,7 +18539,7 @@ impl RustCodegen {
                         ExprKind::List(elems) if elems.is_empty() => ": Vec<i64>".to_string(),
                         ExprKind::App(func, _) => {
                             if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                                match fn_name.as_str() {
+                                match builtin_canonical(fn_name) {
                                     "map_new" => {
                                         // Use pre-scanned value type if available
                                         let var_name = if let Pat::Var(n) = pat {
@@ -18547,6 +18553,33 @@ impl RustCodegen {
                                             .cloned()
                                             .unwrap_or_else(|| "i64".to_string());
                                         format!(": BTreeMap<String, {}>", val_type)
+                                    }
+                                    "head" | "nth" | "tail" => {
+                                        let empty_list_input = matches!(
+                                            value,
+                                            Expr {
+                                                kind: ExprKind::App(_, app_args),
+                                                ..
+                                            } if matches!(
+                                                app_args.first(),
+                                                Some(Expr {
+                                                    kind: ExprKind::List(elems),
+                                                    ..
+                                                }) if elems.is_empty()
+                                            )
+                                        );
+                                        if empty_list_input {
+                                            let inferred = self.infer_expr_fir_ty(value);
+                                            match Self::fir_type_to_rust(&inferred) {
+                                                Some(rust_ty) => format!(": {}", rust_ty),
+                                                None if builtin_canonical(fn_name) == "tail" => {
+                                                    ": Vec<i64>".to_string()
+                                                }
+                                                None => ": i64".to_string(),
+                                            }
+                                        } else {
+                                            String::new()
+                                        }
                                     }
                                     _ => String::new(),
                                 }
@@ -27488,6 +27521,29 @@ let summary = render(verdict(7i64), 7i64);
             None,
             &["index out of bounds: 9 (len 2)"],
         );
+    }
+
+    #[test]
+    fn interpreter_empty_head_reports_runtime_error() {
+        interpret_test_source_expect_runtime_failure(
+            "= xs = []\n@ print(show(head(xs)))\n",
+            &["head: empty list"],
+        );
+    }
+
+    #[test]
+    fn compiled_empty_head_reports_runtime_error() {
+        compile_test_source_expect_runtime_failure(
+            "= xs = []\n@ print(show(head(xs)))\n",
+            None,
+            &["head: empty list"],
+        );
+    }
+
+    #[test]
+    fn compiled_tail_of_empty_literal_stays_empty() {
+        let output = compile_and_run_test_program("= t = tail([])\n@ print(show(t))\n");
+        assert_eq!(output, "[]\n");
     }
 
     #[test]

@@ -7627,8 +7627,17 @@ impl Interpreter {
                 Some(Value::Constructor(n, fields)) if n == "Cons" => {
                     fields.first().cloned().unwrap_or(Value::Unit)
                 }
-                Some(Value::List(elems)) => elems.first().cloned().unwrap_or(Value::Unit),
-                _ => Value::Constructor("None".into(), vec![]),
+                Some(Value::Constructor(n, _)) if n == "Nil" => {
+                    panic!("head: empty list")
+                }
+                Some(Value::List(elems)) => {
+                    if elems.is_empty() {
+                        panic!("head: empty list")
+                    } else {
+                        elems.first().cloned().unwrap_or(Value::Unit)
+                    }
+                }
+                _ => Value::Unit,
             },
             "tail" => match args.first() {
                 Some(Value::Constructor(n, fields)) if n == "Cons" => fields
