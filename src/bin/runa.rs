@@ -9736,16 +9736,19 @@ impl<'a> LoweringCtx<'a> {
 
     fn field_ty(&self, obj_ty: &FirTy, field: &str) -> FirTy {
         // Tuple field access: works on any tuple of any arity. The named
-        // forms .fst/.snd map to indices 0/1; any all-digit field is taken
+        // forms .fst/.snd/.trd map to indices 0/1/2; any all-digit field is taken
         // as a numeric index. Closures over List(Tuple(_)) can propagate
         // tuple element types this way regardless of arity.
         if let FirTy::Tuple(elems) = obj_ty {
-            // Named accessors for the first two elements.
+            // Named accessors for the first three elements.
             if field == "fst" && !elems.is_empty() {
                 return elems[0].clone();
             }
             if field == "snd" && elems.len() >= 2 {
                 return elems[1].clone();
+            }
+            if field == "trd" && elems.len() >= 3 {
+                return elems[2].clone();
             }
             // Numeric index: parse the field name as a usize and pick.
             if let Ok(idx) = field.parse::<usize>() {
@@ -19791,12 +19794,12 @@ impl RustCodegen {
         }
     }
 
-    /// Check if a variable is used as a tuple argument to fst/snd in an expression.
+    /// Check if a variable is used as a tuple argument to fst/snd/trd in an expression.
     fn expr_uses_as_tuple(expr: &Expr, var_name: &str) -> bool {
         match &expr.kind {
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(f) = &func.as_ref().kind {
-                    if (f == "fst" || f == "snd") && args.len() == 1 {
+                    if (f == "fst" || f == "snd" || f == "trd") && args.len() == 1 {
                         if let ExprKind::Var(a) = &&args[0].kind {
                             if a == var_name {
                                 return true;
@@ -21357,8 +21360,9 @@ impl RustCodegen {
                             } {
                                 let mut fields = BTreeSet::new();
                                 cg.collect_field_accesses(body, &p.name, &mut fields);
-                                let only_tuple_fields =
-                                    fields.iter().all(|f| f == "fst" || f == "snd");
+                                let only_tuple_fields = fields
+                                    .iter()
+                                    .all(|f| f == "fst" || f == "snd" || f == "trd");
                                 if only_tuple_fields {
                                     sanitize_name(&p.name)
                                 } else {
@@ -21957,11 +21961,12 @@ impl RustCodegen {
                 } else {
                     false
                 };
-                // Tuple field access: .fst → .0, .snd → .1
+                // Tuple field access: .fst/.snd/.trd → .0/.1/.2
                 // (enumerate, zip, and other builtins produce Rust tuples, not named structs)
                 let rust_field = match field.as_str() {
                     "fst" => "0",
                     "snd" => "1",
+                    "trd" => "2",
                     _ => field.as_str(),
                 };
                 if needs_clone {
@@ -25890,6 +25895,7 @@ mod tests {
         };
 
         let tuple_ty = FirTy::Tuple(vec![FirTy::String, FirTy::Int, FirTy::Float]);
+        assert_eq!(ctx.field_ty(&tuple_ty, "trd"), FirTy::Float);
         assert_eq!(ctx.field_ty(&tuple_ty, "0"), FirTy::String);
         assert_eq!(ctx.field_ty(&tuple_ty, "1"), FirTy::Int);
         assert_eq!(ctx.field_ty(&tuple_ty, "2"), FirTy::Float);

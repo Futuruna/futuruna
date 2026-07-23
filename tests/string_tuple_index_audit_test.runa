@@ -1,0 +1,48 @@
+-- Targeted audit: string builtins, tuple accessors, and valid indexing semantics
+-- must agree between interpreter and compiled execution.
+
+= phrase = "the cat sat"
+= words = split(phrase, " ")
+= chars = string_chars("mint")
+= triple = ("left", "middle", "right")
+= nums = [11, 22, 33]
+= pair = head(enumerate(["north", "south"]))
+
+= sub_head = substring(phrase, 0 - 5, 3)
+| substring_clamps_start: sub_head -> sub_head == "the"
+? substring_clamps_start
+
+= sub_tail = substring(phrase, 4, 99)
+| substring_clamps_end: sub_tail -> sub_tail == "cat sat"
+? substring_clamps_end
+
+= mid_char = char_at("abc", 1)
+= missing_char = char_at("abc", 9)
+| char_at_ok: mid_char -> mid_char == "b"
+| char_at_missing_ok: missing_char -> missing_char == ""
+? char_at_ok
+? char_at_missing_ok
+
+| string_chars_ok: chars -> show(chars) == "[m, i, n, t]"
+? string_chars_ok
+
+| string_split_ok: words -> show(words) == "[the, cat, sat]"
+? string_split_ok
+
+| tuple_builtin_ok: trd(triple) -> trd(triple) == "right"
+? tuple_builtin_ok
+
+| tuple_field_ok: triple.trd -> triple.trd == "right"
+? tuple_field_ok
+
+| tuple_first_pair_ok: pair -> pair.fst == 0 && pair.snd == "north"
+? tuple_first_pair_ok
+
+= second = nums[1]
+= third = nth(nums, 2)
+| index_expr_ok: second -> second == 22
+| nth_builtin_ok: third -> third == 33
+? index_expr_ok
+? nth_builtin_ok
+
+@ print("string/tuple/index audit passed")

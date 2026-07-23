@@ -7332,11 +7332,12 @@ impl Interpreter {
             ExprKind::Field(obj, field) => {
                 let obj_val = self.eval(obj, env);
                 match &obj_val {
-                    // Tuple field access: .fst → index 0, .snd → index 1
+                    // Tuple field access: .fst/.snd/.trd → indices 0/1/2
                     // Also supports .0, .1, .2, etc.
                     Value::Tuple(elems) => match field.as_str() {
                         "fst" | "0" => return elems.first().cloned().unwrap_or(Value::Unit),
                         "snd" | "1" => return elems.get(1).cloned().unwrap_or(Value::Unit),
+                        "trd" | "2" => return elems.get(2).cloned().unwrap_or(Value::Unit),
                         _ => {
                             if let Ok(idx) = field.parse::<usize>() {
                                 return elems.get(idx).cloned().unwrap_or(Value::Unit);
