@@ -132,7 +132,7 @@ What it misses:
 
 These are the important remaining downstream gaps after the new consumer lane.
 
-### 1. Script-vs-Library Boundary Is Still Conventional, Not Enforced
+### 1. Script-vs-Library Boundary Needs Explicit Tooling, Not Convention
 
 Imported top-level smoke leakage was one of the real user failures. We now test
 that class better, but the project still relies on convention rather than a
@@ -143,10 +143,10 @@ Consequence:
 - a `lib`-shaped file can still accumulate top-level smoke/demo code
 - the break may only surface when another file imports it
 
-Needed:
-
-- a hygiene rule, lint, or explicit surface distinction for importable library
-  files vs runnable scripts
+This is now addressed by `runa lint-library` plus the
+`-- library-hygiene: importable` marker, but the underlying reason remains
+important: importable library files need an explicit contract instead of
+convention alone.
 
 ### 2. Generic Codegen Validation Is Still Weaker Than The Explicit Consumer Lane
 

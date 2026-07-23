@@ -45,3 +45,7 @@ Intentionally omitted from the core mint gate:
 - tests that the `runa test` runner already skips because they require optional external crates
 
 CI should call `./scripts/mint.sh` for the core language health gate, then run any omitted lanes as separate jobs or steps. The canary suite is the curated middle lane for realistic authored programs, while differential testing is the deeper search lane that exercises seed-stable generative programs and replayable minimized repros without slowing every core mint run.
+
+The downstream lane now includes `runa lint-library tests`, so importable
+library hygiene is enforced there even though it remains outside the fast core
+mint gate.

@@ -1,3 +1,4 @@
+-- library-hygiene: importable
 -- roundtrip-skip: library file, no expected output
 
 @ import ./import_library_types

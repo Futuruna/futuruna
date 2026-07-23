@@ -15,4 +15,12 @@ These fixtures should:
 - remain owned by this repository rather than pulling in external codebases
 
 Library helper files should stay side-effect free except for deliberate
-top-level bindings that exercise imported smoke leakage paths without printing.
+import-safe declarations and pure derived values. Mark importable helpers with:
+
+```runa
+-- library-hygiene: importable
+```
+
+The downstream runner enforces that marked files do not execute script-like
+top-level flows such as `@ print`, loops, sends, stream subscriptions, or other
+obvious import-time side effects.

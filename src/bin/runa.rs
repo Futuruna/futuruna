@@ -29,7 +29,7 @@ fn main() {
 fn main_inner() {
     let args: Vec<String> = env::args().collect();
 
-    let mut mode = "interpret"; // "interpret", "emit", "build", "run"
+    let mut mode = "interpret"; // "interpret", "emit", "build", "run", ...
     let mut filename = None;
     let mut use_prelude = true;
     let mut test_compile = false; // --run flag for `runa test --run`
@@ -158,6 +158,7 @@ fn main_inner() {
                 eprintln!("  fmt           Format source file(s)");
                 eprintln!("  fmt --check   Check formatting without modifying");
                 eprintln!("  lsp           Start language server (stdio)");
+                eprintln!("  lint-library  Check importable library files for script leakage");
                 eprintln!("  bench          Run performance benchmarks");
                 eprintln!("  from-rust     Transpile Rust source to Futuruna");
                 eprintln!("  from-rust --verify  Transpile + run both + compare outputs");
@@ -185,6 +186,7 @@ fn main_inner() {
                 eprintln!("  runa build program.runa     Compile to ./program");
                 eprintln!("  runa fmt program.runa       Format source file");
                 eprintln!("  runa fmt .                  Format all .runa files");
+                eprintln!("  runa lint-library tests     Check marked importable library files");
                 eprintln!("  runa test                   Run all tests");
                 eprintln!("  runa test --run             Run all tests (compiled)");
                 eprintln!("  runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff");
@@ -242,6 +244,10 @@ fn main_inner() {
             }
             "fmt" => {
                 mode = "fmt";
+                i += 1;
+            }
+            "lint-library" => {
+                mode = "lint-library";
                 i += 1;
             }
             "bench" => {
@@ -330,6 +336,13 @@ fn main_inner() {
     if mode == "fmt" {
         let target = filename.as_deref().unwrap_or(".");
         format_target(target, fmt_check);
+        return;
+    }
+
+    // ── runa lint-library [file|dir] — importable library hygiene ──
+    if mode == "lint-library" {
+        let target = filename.as_deref().unwrap_or("tests");
+        lint_library_target(target);
         return;
     }
 
@@ -7542,6 +7555,426 @@ fn collect_runa_files(dir: &str, out: &mut Vec<String>) {
         } else if path.extension().map_or(false, |e| e == "runa") {
             out.push(path.to_string_lossy().to_string());
         }
+    }
+}
+
+const LIBRARY_HYGIENE_MARKER: &str = "-- library-hygiene: importable";
+const LEGACY_LIBRARY_HYGIENE_MARKER: &str = "-- roundtrip-skip: library file";
+
+fn source_marks_importable_library(source: &str) -> bool {
+    source.lines().any(|line| {
+        let trimmed = line.trim();
+        trimmed == LIBRARY_HYGIENE_MARKER || trimmed.starts_with(LEGACY_LIBRARY_HYGIENE_MARKER)
+    })
+}
+
+fn lint_library_target(path: &str) {
+    let meta = match std::fs::metadata(path) {
+        Ok(meta) => meta,
+        Err(e) => {
+            eprintln!("Error reading {}: {}", path, e);
+            std::process::exit(1);
+        }
+    };
+
+    if meta.is_dir() {
+        lint_library_directory(path);
+    } else {
+        lint_library_file(path, false);
+    }
+}
+
+fn lint_library_directory(dir: &str) {
+    let mut files = Vec::new();
+    collect_runa_files(dir, &mut files);
+    files.sort();
+
+    let mut checked = 0usize;
+    let mut failed = 0usize;
+
+    for path in files {
+        let source = match std::fs::read_to_string(&path) {
+            Ok(source) => source,
+            Err(e) => {
+                eprintln!("  \x1b[1;33mskip\x1b[0m {}: {}", path, e);
+                continue;
+            }
+        };
+        if !source_marks_importable_library(&source) {
+            continue;
+        }
+        checked += 1;
+        if !lint_library_file_with_source(&path, &source) {
+            failed += 1;
+        }
+    }
+
+    if checked == 0 {
+        eprintln!(
+            "No importable library files marked with `{}` found in {}",
+            LIBRARY_HYGIENE_MARKER, dir
+        );
+        std::process::exit(1);
+    }
+
+    if failed > 0 {
+        eprintln!(
+            "\n{} of {} importable library file{} failed hygiene.",
+            failed,
+            checked,
+            if checked == 1 { "" } else { "s" }
+        );
+        std::process::exit(1);
+    }
+
+    eprintln!(
+        "All {} importable library file{} passed hygiene.",
+        checked,
+        if checked == 1 { "" } else { "s" }
+    );
+}
+
+fn lint_library_file(path: &str, require_marker: bool) {
+    let source = match std::fs::read_to_string(path) {
+        Ok(source) => source,
+        Err(e) => {
+            eprintln!("Error reading {}: {}", path, e);
+            std::process::exit(1);
+        }
+    };
+    if require_marker && !source_marks_importable_library(&source) {
+        eprintln!(
+            "{} is not marked as importable. Add `{}` or use an explicitly marked helper file.",
+            path, LIBRARY_HYGIENE_MARKER
+        );
+        std::process::exit(1);
+    }
+    if !lint_library_file_with_source(path, &source) {
+        std::process::exit(1);
+    }
+}
+
+fn lint_library_file_with_source(path: &str, source: &str) -> bool {
+    let stmts = match parse_program_for_library_hygiene(source, path) {
+        Ok(stmts) => stmts,
+        Err(e) => {
+            display_error_in(source, &e, path);
+            return false;
+        }
+    };
+    let issues = library_hygiene_issues_for_stmts(&stmts);
+    if issues.is_empty() {
+        eprintln!("  \x1b[1;32mlibrary ok\x1b[0m {}", path);
+        true
+    } else {
+        eprintln!("  \x1b[1;31mlibrary fail\x1b[0m {}", path);
+        for issue in issues {
+            eprintln!("    - {}", issue);
+        }
+        false
+    }
+}
+
+fn parse_program_for_library_hygiene(source: &str, _filename: &str) -> Result<Vec<Stmt>, String> {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    parser.parse_program()
+}
+
+fn library_hygiene_issues_for_stmts(stmts: &[Stmt]) -> Vec<String> {
+    let impure_builtins = import_time_impure_builtin_names();
+    let mut issues = Vec::new();
+    collect_library_scope_issues(stmts, None, &impure_builtins, &mut issues);
+    issues
+}
+
+fn import_time_impure_builtin_names() -> BTreeSet<String> {
+    let mut names = BTreeSet::from(["print".to_string(), "spawn".to_string(), "ask".to_string()]);
+    for (name, def) in rust_builtin_registry() {
+        if def.impure {
+            names.insert(name);
+        }
+    }
+    names
+}
+
+fn collect_library_scope_issues(
+    stmts: &[Stmt],
+    scope: Option<&str>,
+    impure_builtins: &BTreeSet<String>,
+    issues: &mut Vec<String>,
+) {
+    for stmt in stmts {
+        match stmt {
+            Stmt::Defn(Defn::Module { name, body }) => {
+                let next_scope = match scope {
+                    Some(scope) => format!("{} -> module `{}`", scope, name),
+                    None => format!("module `{}`", name),
+                };
+                collect_library_scope_issues(
+                    body,
+                    Some(next_scope.as_str()),
+                    impure_builtins,
+                    issues,
+                );
+            }
+            Stmt::Bind(pat, _, expr) => {
+                if expr_is_obviously_impure_for_library(expr, impure_builtins) {
+                    issues.push(format_scope_issue(
+                        scope,
+                        &format!(
+                            "binding `{}` executes obvious side effects at import time",
+                            summarize_pat_for_library(pat)
+                        ),
+                    ));
+                }
+            }
+            Stmt::StreamBind(name, expr) => {
+                if expr_is_obviously_impure_for_library(expr, impure_builtins) {
+                    issues.push(format_scope_issue(
+                        scope,
+                        &format!(
+                            "stream binding `{}` executes obvious side effects at import time",
+                            name
+                        ),
+                    ));
+                }
+            }
+            Stmt::Invariant {
+                name,
+                subject,
+                predicate,
+            } => {
+                if expr_is_obviously_impure_for_library(subject, impure_builtins)
+                    || expr_is_obviously_impure_for_library(predicate, impure_builtins)
+                {
+                    issues.push(format_scope_issue(
+                        scope,
+                        &format!(
+                            "invariant `{}` must stay pure in importable library files",
+                            name
+                        ),
+                    ));
+                }
+            }
+            Stmt::Annot(name, _) if name == "print" => {
+                issues.push(format_scope_issue(
+                    scope,
+                    "top-level `@ print` is script-only; move it into an entrypoint function",
+                ));
+            }
+            Stmt::Expr(expr) => {
+                issues.push(format_scope_issue(
+                    scope,
+                    top_level_expr_issue(expr, impure_builtins),
+                ));
+            }
+            Stmt::MonadicBind(_, _, _) => {
+                issues.push(format_scope_issue(
+                    scope,
+                    "top-level monadic binds are script-only in importable library files",
+                ));
+            }
+            Stmt::For(_, _, _) => {
+                issues.push(format_scope_issue(
+                    scope,
+                    "top-level `for` loops are script-only in importable library files",
+                ));
+            }
+            Stmt::While(_, _) => {
+                issues.push(format_scope_issue(
+                    scope,
+                    "top-level `while` loops are script-only in importable library files",
+                ));
+            }
+            Stmt::Send(_, _) => {
+                issues.push(format_scope_issue(
+                    scope,
+                    "top-level sends are script-only in importable library files",
+                ));
+            }
+            Stmt::StreamSub(_, _) => {
+                issues.push(format_scope_issue(
+                    scope,
+                    "top-level stream subscriptions are script-only in importable library files",
+                ));
+            }
+            Stmt::Prove { .. } => {
+                issues.push(format_scope_issue(
+                    scope,
+                    "top-level `?` proof execution is script-only in importable library files",
+                ));
+            }
+            Stmt::Assert(name, _) => {
+                issues.push(format_scope_issue(
+                    scope,
+                    &format!(
+                        "top-level `assert {}` is script-only in importable library files",
+                        name
+                    ),
+                ));
+            }
+            Stmt::Retract(name, _) => {
+                issues.push(format_scope_issue(
+                    scope,
+                    &format!(
+                        "top-level `retract {}` is script-only in importable library files",
+                        name
+                    ),
+                ));
+            }
+            Stmt::Abort => {
+                issues.push(format_scope_issue(
+                    scope,
+                    "top-level `abort` is script-only in importable library files",
+                ));
+            }
+            Stmt::Defn(_)
+            | Stmt::TypeDecl(_)
+            | Stmt::Rule(_)
+            | Stmt::Use(_)
+            | Stmt::Import(_)
+            | Stmt::QualifiedImport(_, _)
+            | Stmt::HashImport(_, _)
+            | Stmt::Depend(_, _)
+            | Stmt::RustBlock(_)
+            | Stmt::Annot(_, _) => {}
+        }
+    }
+}
+
+fn format_scope_issue(scope: Option<&str>, issue: &str) -> String {
+    match scope {
+        Some(scope) => format!("{}: {}", scope, issue),
+        None => issue.to_string(),
+    }
+}
+
+fn top_level_expr_issue(expr: &Expr, impure_builtins: &BTreeSet<String>) -> &'static str {
+    if matches!(
+        expr.kind,
+        ExprKind::App(ref func, _)
+            if matches!(func.as_ref().kind, ExprKind::Var(ref name) if builtin_canonical(name) == "print")
+    ) {
+        "top-level `@ print` is script-only; move it into an entrypoint function"
+    } else if expr_is_obviously_impure_for_library(expr, impure_builtins) {
+        "top-level effectful expression statements are script-only in importable library files"
+    } else {
+        "top-level expression statements are script-only in importable library files"
+    }
+}
+
+fn summarize_pat_for_library(pat: &Pat) -> String {
+    match pat {
+        Pat::Wild => "_".to_string(),
+        Pat::Var(name) => name.clone(),
+        Pat::Lit(lit) => lit.to_string(),
+        Pat::Con(name, _) | Pat::NamedCon(name, _) => name.clone(),
+        Pat::As(_, alias) => alias.clone(),
+    }
+}
+
+fn expr_is_obviously_impure_for_library(expr: &Expr, impure_builtins: &BTreeSet<String>) -> bool {
+    match &expr.kind {
+        ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => false,
+        ExprKind::App(func, args) => {
+            if let ExprKind::Var(name) = &func.as_ref().kind {
+                if impure_builtins.contains(builtin_canonical(name))
+                    || impure_builtins.contains(name)
+                {
+                    return true;
+                }
+            }
+            expr_is_obviously_impure_for_library(func, impure_builtins)
+                || args
+                    .iter()
+                    .any(|arg| expr_is_obviously_impure_for_library(arg, impure_builtins))
+        }
+        ExprKind::Lambda(_, _) => false,
+        ExprKind::BinOp(_, lhs, rhs) => {
+            expr_is_obviously_impure_for_library(lhs, impure_builtins)
+                || expr_is_obviously_impure_for_library(rhs, impure_builtins)
+        }
+        ExprKind::UnOp(_, inner) | ExprKind::Try(inner) | ExprKind::Field(inner, _) => {
+            expr_is_obviously_impure_for_library(inner, impure_builtins)
+        }
+        ExprKind::If(cond, then_expr, else_expr) => {
+            expr_is_obviously_impure_for_library(cond, impure_builtins)
+                || expr_is_obviously_impure_for_library(then_expr, impure_builtins)
+                || expr_is_obviously_impure_for_library(else_expr, impure_builtins)
+        }
+        ExprKind::Match(scrutinee, arms) => {
+            expr_is_obviously_impure_for_library(scrutinee, impure_builtins)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .map(|guard| expr_is_obviously_impure_for_library(guard, impure_builtins))
+                        .unwrap_or(false)
+                        || expr_is_obviously_impure_for_library(&arm.body, impure_builtins)
+                })
+        }
+        ExprKind::Block(stmts) => stmts
+            .iter()
+            .any(|stmt| stmt_is_obviously_impure_in_expr(stmt, impure_builtins)),
+        ExprKind::Index(base, idx) => {
+            expr_is_obviously_impure_for_library(base, impure_builtins)
+                || expr_is_obviously_impure_for_library(idx, impure_builtins)
+        }
+        ExprKind::List(items) | ExprKind::Tuple(items) | ExprKind::Effect(_, items) => items
+            .iter()
+            .any(|item| expr_is_obviously_impure_for_library(item, impure_builtins)),
+        ExprKind::Handle { .. } => true,
+        ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => goals
+            .iter()
+            .any(|goal| expr_is_obviously_impure_for_library(goal, impure_builtins)),
+        ExprKind::Pipe(input, transform) => {
+            expr_is_obviously_impure_for_library(input, impure_builtins)
+                || expr_is_obviously_impure_for_library(transform, impure_builtins)
+        }
+    }
+}
+
+fn stmt_is_obviously_impure_in_expr(stmt: &Stmt, impure_builtins: &BTreeSet<String>) -> bool {
+    match stmt {
+        Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr) | Stmt::Expr(expr) => {
+            expr_is_obviously_impure_for_library(expr, impure_builtins)
+        }
+        Stmt::StreamBind(_, expr) => expr_is_obviously_impure_for_library(expr, impure_builtins),
+        Stmt::Invariant {
+            subject, predicate, ..
+        } => {
+            expr_is_obviously_impure_for_library(subject, impure_builtins)
+                || expr_is_obviously_impure_for_library(predicate, impure_builtins)
+        }
+        Stmt::Annot(name, _) => name == "print",
+        Stmt::For(_, iter_expr, body) => {
+            expr_is_obviously_impure_for_library(iter_expr, impure_builtins)
+                || body
+                    .iter()
+                    .any(|stmt| stmt_is_obviously_impure_in_expr(stmt, impure_builtins))
+        }
+        Stmt::While(cond, body) => {
+            expr_is_obviously_impure_for_library(cond, impure_builtins)
+                || body
+                    .iter()
+                    .any(|stmt| stmt_is_obviously_impure_in_expr(stmt, impure_builtins))
+        }
+        Stmt::Send(_, _)
+        | Stmt::StreamSub(_, _)
+        | Stmt::Prove { .. }
+        | Stmt::Assert(_, _)
+        | Stmt::Retract(_, _)
+        | Stmt::Abort => true,
+        Stmt::Defn(_)
+        | Stmt::TypeDecl(_)
+        | Stmt::Rule(_)
+        | Stmt::Use(_)
+        | Stmt::Import(_)
+        | Stmt::QualifiedImport(_, _)
+        | Stmt::HashImport(_, _)
+        | Stmt::Depend(_, _)
+        | Stmt::RustBlock(_) => false,
     }
 }
 
@@ -28539,6 +28972,75 @@ fn consumer/0
     }
 
     #[test]
+    fn library_hygiene_allows_pure_importable_declarations() {
+        let issues = library_hygiene_issues_for_source(
+            r#"
+-- library-hygiene: importable
+@ export
+= threshold = 7
+@ export
+~ readings = subject(41)
+> label(name: String) -> String { "L" + name }
+> module Config {
+    @ export
+    = prefix = "cfg"
+    @ export
+    > lane(name: String) -> String { prefix + name }
+}
+"#,
+        );
+        assert!(
+            issues.is_empty(),
+            "expected no issues for pure importable declarations, got: {:?}",
+            issues
+        );
+    }
+
+    #[test]
+    fn library_hygiene_rejects_script_only_top_level_statements() {
+        let issues = library_hygiene_issues_for_source(
+            r#"
+-- library-hygiene: importable
+@ print("hello")
+for x in [1, 2] {
+    @ print(show(x))
+}
+"#,
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("top-level expression statements are script-only")),
+            "expected top-level expression issue, got: {:?}",
+            issues
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("top-level `for` loops")),
+            "expected top-level for-loop issue, got: {:?}",
+            issues
+        );
+    }
+
+    #[test]
+    fn library_hygiene_rejects_impure_top_level_bindings() {
+        let issues = library_hygiene_issues_for_source(
+            r#"
+-- library-hygiene: importable
+= cache = read_file("settings.json")
+"#,
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("binding `cache` executes obvious side effects")),
+            "expected impure binding issue, got: {:?}",
+            issues
+        );
+    }
+
+    #[test]
     fn lowering_var_produces_fir_var() {
         let fir = lower_source("= x = hello");
         if let FirStmt::Bind(_, _, ref expr) = fir[0] {
@@ -31755,6 +32257,11 @@ routes <- "b"
         let tokens = lexer.tokenize();
         let mut parser = Parser::new(tokens, source);
         parser.parse_program().expect("parse failed")
+    }
+
+    fn library_hygiene_issues_for_source(source: &str) -> Vec<String> {
+        let stmts = parse_test_program(source);
+        library_hygiene_issues_for_stmts(&stmts)
     }
 
     fn emit_wasm_program(source: &str) -> String {

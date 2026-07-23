@@ -1,3 +1,4 @@
+-- library-hygiene: importable
 -- roundtrip-skip: library file, no expected output
 -- hash_math.runa: Module for content-addressed import testing
 -- These functions can be imported by hash from other files.

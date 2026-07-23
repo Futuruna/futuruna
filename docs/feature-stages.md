@@ -25,6 +25,7 @@ It should be read alongside [docs/compatibility-policy.md](compatibility-policy.
 | Command family | Stage | Notes |
 |---------------|-------|-------|
 | `runa run`, `check`, `emit`, `build`, `test`, `fmt`, `hashes` | Stable | These are core workflow commands. Their documented behavior is part of the normal public surface. |
+| `runa lint-library` | Preview | Supported import-hygiene tooling for authored library surfaces. The policy is deliberate, but the exact lint coverage can still expand. |
 | `runa lib`, `wasm`, `lsp`, `stress-gen` | Preview | Useful and supported, but still subject to format, interface, or behavior refinement. |
 | `runa verify` | Preview | The command is supported, but the elaboration and automation path is not yet a frozen contract. |
 | `runa audit` | Experimental | Treat output shape and behavior as early and subject to redesign. |

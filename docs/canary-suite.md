@@ -96,3 +96,12 @@ It is not part of the tiered canary corpus because the emphasis is different:
 
 The fixtures live in `tests/downstream/` and should stay authored and owned by
 this repository.
+
+The lane also runs:
+
+```bash
+./target/release/runa lint-library tests
+```
+
+That keeps marked importable helper files honest and stops script/demo leakage
+from creeping into library-shaped fixtures.

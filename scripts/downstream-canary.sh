@@ -16,11 +16,10 @@ ENTRYPOINTS=(
     "tests/downstream/import_library_consumer_test.runa"
 )
 
-if [[ ! -x "$RELEASE_RUNA" ]]; then
-    run_step cargo build --release
-fi
+run_step cargo build --release
 
 run_step "$RELEASE_RUNA" fmt --check "$TARGET_DIR"
+run_step "$RELEASE_RUNA" lint-library tests
 
 for entry in "${ENTRYPOINTS[@]}"; do
     run_step "$RELEASE_RUNA" check "$entry"
