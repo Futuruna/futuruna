@@ -35,9 +35,6 @@
 = batch_labels = map(enumerate(review_batches), |entry| {
     "slot-" + show(fst(entry) + 1) + ":" + join(map(snd(entry), |n| show(n)), "+")
 })
-= blended_csv = join(map(blended, |n| show(n)), ",")
-= high_risk_csv = join(map(high_risk, |n| show(n)), ",")
-= batch_summary = join(batch_labels, "|")
 = escalation_score = foldl(high_risk, 0, |acc, score| acc + score)
 = audit_bonus = 12
 = raw_priority = escalation_score + audit_bonus
@@ -46,14 +43,17 @@
 = runtime_slots = review_slots(verdict)
 = status = verdict_label(verdict)
 
-| blended_ok: blended_csv -> blended_csv == "23,39,47,48"
+| blended_ok: blended -> show(blended) == "[23, 39, 47, 48]"
 ? blended_ok
 
-| high_risk_ok: high_risk_csv -> high_risk_csv == "47,48"
+| high_risk_ok: high_risk -> show(high_risk) == "[47, 48]"
 ? high_risk_ok
 
-| batches_ok: batch_summary -> batch_summary == "slot-1:47+48"
+| batches_ok: review_batches -> show(review_batches) == "[[47, 48]]"
 ? batches_ok
+
+| batch_labels_ok: batch_labels -> show(batch_labels) == "[slot-1:47+48]"
+? batch_labels_ok
 
 | status_ok: status -> status == "freeze"
 ? status_ok

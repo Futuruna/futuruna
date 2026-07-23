@@ -9927,6 +9927,27 @@ impl<'a> LoweringCtx<'a> {
                             ty,
                         };
                     }
+                    // Tuple projection builtins preserve element types.
+                    if matches!(fn_name.as_str(), "fst" | "snd" | "trd") && !fir_args.is_empty() {
+                        let tuple_elem_ty = if let FirTy::Tuple(elems) = &fir_args[0].ty {
+                            let idx = match fn_name.as_str() {
+                                "fst" => Some(0usize),
+                                "snd" => Some(1usize),
+                                "trd" => Some(2usize),
+                                _ => None,
+                            };
+                            idx.and_then(|i| elems.get(i)).cloned()
+                        } else {
+                            None
+                        };
+                        if let Some(ty) = tuple_elem_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty,
+                            };
+                        }
+                    }
                     if let Some(ty) = builtin_fixed_return_fir_ty(fn_name) {
                         return FirExpr {
                             kind: FirExprKind::App(Box::new(fir_func), fir_args),
@@ -18893,6 +18914,7 @@ impl RustCodegen {
                         }
                         let pred_str = self.emit_expr(predicate);
                         let subj_str = self.emit_expr(subject);
+                        let subj_display = self.emit_display_value_expr(subject, &subj_str);
 
                         // Bind capture variable if requested
                         if let Some(cap) = capture {
@@ -18910,7 +18932,7 @@ impl RustCodegen {
                                 out.push_str(&format!(
                                     "{}// ? {}\n{}if {} {{ println!(\"  ✓ |{}| holds (value: {{}})\", {}); }} else {{ panic!(\"? {} FAILED\"); }}\n",
                                     self.ind(), inv_name,
-                                    self.ind(), pred_str, inv_name, subj_str, inv_name
+                                    self.ind(), pred_str, inv_name, subj_display, inv_name
                                 ));
                             }
                             (Some(pass), None) => {
@@ -20706,15 +20728,7 @@ impl RustCodegen {
                     // Builtin: show(x) — Display for strings, Debug for everything else
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
                     if builtin_canonical(name) == "show" && args_str.len() == 1 {
-                        if self.has_async && self.is_async_stream_expr(&args[0]) {
-                            return format!("__futuruna_show_any(&{}.snapshot())", args_str[0]);
-                        }
-                        if self.expr_is_string(&args[0]) {
-                            return format!("format!(\"{{}}\", {})", args_str[0]);
-                        }
-                        // Use __futuruna_show_any: Debug format with .0 stripping
-                        // Works for ALL types (Vec, Option, Result, primitives, structs)
-                        return format!("__futuruna_show_any(&{})", args_str[0]);
+                        return self.emit_display_value_expr(&args[0], &args_str[0]);
                     }
                     // Builtin: not(x) → !x (boolean negation / negation as failure)
                     if name == "not" && args_str.len() == 1 {
@@ -22241,6 +22255,16 @@ impl RustCodegen {
             }
             _ => self.emit_expr(expr),
         }
+    }
+
+    fn emit_display_value_expr(&self, expr: &Expr, emitted: &str) -> String {
+        if self.has_async && self.is_async_stream_expr(expr) {
+            return format!("__futuruna_show_any(&{}.snapshot())", emitted);
+        }
+        if self.expr_is_string(expr) {
+            return format!("format!(\"{{}}\", {})", emitted);
+        }
+        format!("__futuruna_show_any(&{})", emitted)
     }
 
     /// Emit handler body, replacing captured variables with self.field references.
@@ -24876,6 +24900,38 @@ mod tests {
     }
 
     #[test]
+    fn type_resolution_tuple_projection_builtins_preserve_element_types() {
+        let source = "\
+= triple = process_run([\"git\", \"rev-parse\", \"--is-inside-work-tree\"])\n\
+= code = fst(triple)\n\
+= stdout = snd(triple)\n\
+= stderr = trd(triple)\n";
+        let fir = lower_source(source);
+
+        match &fir[0] {
+            FirStmt::Bind(_, _, expr) => {
+                assert_eq!(
+                    expr.ty,
+                    FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])
+                );
+            }
+            _ => panic!("expected FirStmt::Bind for triple"),
+        }
+        match &fir[1] {
+            FirStmt::Bind(_, _, expr) => assert_eq!(expr.ty, FirTy::Int),
+            _ => panic!("expected FirStmt::Bind for code"),
+        }
+        match &fir[2] {
+            FirStmt::Bind(_, _, expr) => assert_eq!(expr.ty, FirTy::String),
+            _ => panic!("expected FirStmt::Bind for stdout"),
+        }
+        match &fir[3] {
+            FirStmt::Bind(_, _, expr) => assert_eq!(expr.ty, FirTy::String),
+            _ => panic!("expected FirStmt::Bind for stderr"),
+        }
+    }
+
+    #[test]
     fn type_resolution_length_returns_int() {
         let fir = lower_with_types("= x = length([1, 2, 3])", BTreeMap::new());
         assert_eq!(fir.ty, FirTy::Int);
@@ -25413,6 +25469,28 @@ mod tests {
         assert_eq!(
             output.lines().collect::<Vec<_>>(),
             vec!["Red", "Blue", "Circle(5)", "Rect(3x4)"]
+        );
+    }
+
+    #[test]
+    fn compiled_bare_verify_prints_list_subjects_with_futuruna_show_formatting() {
+        let output = compile_and_run_test_program(
+            r#"
+= numbers = [1, 2, 3]
+= labels = ["alpha", "beta"]
+| numbers_ok: numbers -> show(numbers) == "[1, 2, 3]"
+| labels_ok: labels -> show(labels) == "[alpha, beta]"
+? numbers_ok
+? labels_ok
+"#,
+        );
+        assert!(
+            output.contains("✓ |numbers_ok| holds (value: [1, 2, 3])"),
+            "missing list-of-int verify output: {output}"
+        );
+        assert!(
+            output.contains("✓ |labels_ok| holds (value: [alpha, beta])"),
+            "missing list-of-string verify output: {output}"
         );
     }
 
