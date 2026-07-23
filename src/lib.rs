@@ -7431,7 +7431,7 @@ impl Interpreter {
                     (Value::List(elems), Value::Int(i)) => {
                         let i = *i;
                         if i < 0 || i as usize >= elems.len() {
-                            Value::Unit
+                            panic!("index out of bounds: {} (len {})", i, elems.len())
                         } else {
                             elems[i as usize].clone()
                         }
@@ -7440,10 +7440,8 @@ impl Interpreter {
                         // Handle Cons/Nil linked lists and other list-like values
                         let elems = list_to_vec(&arr_val);
                         let i = *i;
-                        if elems.is_empty() {
-                            Value::Unit
-                        } else if i < 0 || i as usize >= elems.len() {
-                            Value::Unit
+                        if i < 0 || i as usize >= elems.len() {
+                            panic!("index out of bounds: {} (len {})", i, elems.len())
                         } else {
                             elems[i as usize].clone()
                         }
@@ -7650,29 +7648,12 @@ impl Interpreter {
                 // nth(list, index) — 0-based indexed access
                 match (args.get(0), args.get(1)) {
                     (Some(list_val), Some(Value::Int(idx))) => {
-                        let i = *idx as usize;
-                        match list_val {
-                            Value::List(elems) => elems.get(i).cloned().unwrap_or(Value::Unit),
-                            _ => {
-                                // Cons-list: walk i steps
-                                let mut cur = list_val.clone();
-                                for _ in 0..i {
-                                    match cur {
-                                        Value::Constructor(ref n, ref fs)
-                                            if n == "Cons" && fs.len() == 2 =>
-                                        {
-                                            cur = fs[1].clone();
-                                        }
-                                        _ => return Value::Unit,
-                                    }
-                                }
-                                match cur {
-                                    Value::Constructor(ref n, ref fs) if n == "Cons" => {
-                                        fs.first().cloned().unwrap_or(Value::Unit)
-                                    }
-                                    _ => Value::Unit,
-                                }
-                            }
+                        let elems = list_to_vec(list_val);
+                        let i = *idx;
+                        if i < 0 || i as usize >= elems.len() {
+                            panic!("index out of bounds: {} (len {})", i, elems.len())
+                        } else {
+                            elems[i as usize].clone()
                         }
                     }
                     _ => Value::Unit,

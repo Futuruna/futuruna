@@ -9002,7 +9002,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("length",       BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
         ("head",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}[0].clone()" }),
         ("tail",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}[1..].to_vec()" }),
-        ("nth",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}[{1} as usize].clone()" }),
+        ("nth",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; let __i = {1}; if __i < 0 || __i as usize >= __arr.len() { panic!(\"index out of bounds: {} (len {})\", __i, __arr.len()) } else { __arr[__i as usize].clone() } }" }),
 
         // ---- File I/O (not shadowable, impure) ----
         ("read_file",    BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default()" }),
@@ -11013,10 +11013,11 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
             format!("{}.{}", emit_fir_expr(obj, types), field)
         }
         FirExprKind::Index(base, idx) => {
+            let base_expr = emit_fir_expr(base, types);
+            let idx_expr = emit_fir_expr(idx, types);
             format!(
-                "{}[{} as usize]",
-                emit_fir_expr(base, types),
-                emit_fir_expr(idx, types)
+                "{{ let __arr = &{}; let __i = {}; if __i < 0 || __i as usize >= __arr.len() {{ panic!(\"index out of bounds: {{}} (len {{}})\", __i, __arr.len()) }} else {{ __arr[__i as usize].clone() }} }}",
+                base_expr, idx_expr
             )
         }
         FirExprKind::List(elems) => {
@@ -26304,6 +26305,122 @@ let summary = render(verdict(7i64), 7i64);
         compile_and_run_test_source(&source, Some(path.to_str().expect("utf-8 test path")))
     }
 
+    fn interpret_test_source_expect_runtime_failure(source: &str, expected_substrings: &[&str]) {
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+
+        let diags = TypeChecker::check_with_diagnostics(&stmts, None, source);
+        assert!(
+            diags.is_empty(),
+            "typecheck failed for interpreter runtime regression: {:?}",
+            diags
+        );
+
+        let panic_payload = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut interp = Interpreter::new();
+            interp.suppress_output = true;
+            let mut env = interp.default_env();
+            interp.run_program(&stmts, &mut env);
+        }))
+        .expect_err("interpreter regression unexpectedly succeeded");
+
+        let panic_text = if let Some(msg) = panic_payload.downcast_ref::<String>() {
+            msg.clone()
+        } else if let Some(msg) = panic_payload.downcast_ref::<&str>() {
+            msg.to_string()
+        } else {
+            "<non-string panic payload>".to_string()
+        };
+
+        for expected in expected_substrings {
+            assert!(
+                panic_text.contains(expected),
+                "expected interpreter panic to mention {:?}, panic text:\n{}",
+                expected,
+                panic_text
+            );
+        }
+    }
+
+    fn compile_test_source_expect_runtime_failure(
+        source: &str,
+        filename: Option<&str>,
+        expected_substrings: &[&str],
+    ) {
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+
+        let diags =
+            TypeChecker::check_with_diagnostics(&stmts, filename.and_then(source_dir_for), source);
+        assert!(
+            diags.is_empty(),
+            "typecheck failed for compiled runtime regression: {:?}",
+            diags
+        );
+
+        let mut cg = RustCodegen::new();
+        if let Some(filename) = filename {
+            cg.source_dir = source_dir_for(filename);
+            cg.source_name = Some(filename.to_string());
+        }
+        let code = cg.emit_program(&stmts);
+
+        let temp_name = format!(
+            "futuruna_compiled_runtime_failure_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let rs_path = temp_dir.join("wrapper_runtime_failure.rs");
+        let bin_path = temp_dir.join("wrapper_runtime_failure_bin");
+        std::fs::write(&rs_path, &code).unwrap();
+
+        let rustc_bin = find_rust_tool("rustc");
+        let compile = std::process::Command::new(&rustc_bin)
+            .args([
+                rs_path.to_str().unwrap(),
+                "-o",
+                bin_path.to_str().unwrap(),
+                "--edition",
+                "2021",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            compile.status.success(),
+            "generated Rust failed to compile:\nstdout:\n{}\nstderr:\n{}\ncode:\n{}",
+            String::from_utf8_lossy(&compile.stdout),
+            String::from_utf8_lossy(&compile.stderr),
+            code
+        );
+
+        let run = std::process::Command::new(&bin_path).output().unwrap();
+        let stderr = String::from_utf8_lossy(&run.stderr).to_string();
+        assert!(
+            !run.status.success(),
+            "compiled regression program unexpectedly succeeded:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&run.stdout),
+            stderr
+        );
+        for expected in expected_substrings {
+            assert!(
+                stderr.contains(expected),
+                "expected compiled runtime failure to mention {:?}, stderr:\n{}",
+                expected,
+                stderr
+            );
+        }
+
+        let _ = std::fs::remove_file(&rs_path);
+        let _ = std::fs::remove_file(&bin_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
     fn compile_test_source_expect_rust_failure(
         source: &str,
         filename: Option<&str>,
@@ -27337,6 +27454,40 @@ let summary = render(verdict(7i64), 7i64);
             "> module Config {\n    = threshold = 7\n    > read_threshold() -> Int { threshold }\n}\n@ print(show(Config.threshold))\n@ print(show(Config.read_threshold()))\n",
         );
         assert_eq!(output, "7\n7\n");
+    }
+
+    #[test]
+    fn interpreter_out_of_range_index_reports_runtime_error() {
+        interpret_test_source_expect_runtime_failure(
+            "= xs = [1, 2]\n@ print(show(xs[9]))\n",
+            &["index out of bounds: 9 (len 2)"],
+        );
+    }
+
+    #[test]
+    fn interpreter_out_of_range_nth_reports_runtime_error() {
+        interpret_test_source_expect_runtime_failure(
+            "= xs = [1, 2]\n@ print(show(nth(xs, 9)))\n",
+            &["index out of bounds: 9 (len 2)"],
+        );
+    }
+
+    #[test]
+    fn compiled_out_of_range_index_reports_runtime_error() {
+        compile_test_source_expect_runtime_failure(
+            "= xs = [1, 2]\n@ print(show(xs[9]))\n",
+            None,
+            &["index out of bounds: 9 (len 2)"],
+        );
+    }
+
+    #[test]
+    fn compiled_out_of_range_nth_reports_runtime_error() {
+        compile_test_source_expect_runtime_failure(
+            "= xs = [1, 2]\n@ print(show(nth(xs, 9)))\n",
+            None,
+            &["index out of bounds: 9 (len 2)"],
+        );
     }
 
     #[test]
