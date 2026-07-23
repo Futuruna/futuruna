@@ -9411,6 +9411,8 @@ struct TypeRegistry {
     module_exports: BTreeMap<String, BTreeSet<String>>,
     /// Module path -> top-level value bindings lowered as getter functions
     module_value_bindings: BTreeMap<String, BTreeSet<String>>,
+    /// Module path -> top-level stream bindings lowered as getter functions
+    module_stream_bindings: BTreeMap<String, BTreeSet<String>>,
     /// Comptime-evaluated values: variable name -> Rust literal string
     comptime_values: BTreeMap<String, String>,
     /// Comptime Rust type strings: variable name -> Rust type
@@ -9453,6 +9455,7 @@ impl TypeRegistry {
             known_modules: BTreeSet::new(),
             module_exports: BTreeMap::new(),
             module_value_bindings: BTreeMap::new(),
+            module_stream_bindings: BTreeMap::new(),
             comptime_values: BTreeMap::new(),
             comptime_types: BTreeMap::new(),
             inout_params: BTreeMap::new(),
@@ -9480,6 +9483,8 @@ struct RustCodegen {
     lib_static_names: BTreeSet<String>,
     /// Emit getter calls for top-level bindings when direct local names are out of scope
     allow_global_getter_refs: bool,
+    /// Stream bindings currently being exposed through generated getter functions
+    getter_stream_bindings: BTreeSet<String>,
     /// Binary-mode free functions that read top-level bindings through the hidden globals env
     binary_global_env_fns: BTreeSet<String>,
     /// Arity for binary-mode free functions that require the hidden globals env
@@ -10293,6 +10298,13 @@ impl<'a> LoweringCtx<'a> {
     }
 
     fn field_ty(&self, obj_ty: &FirTy, field: &str) -> FirTy {
+        if let FirTy::List(elem) = obj_ty {
+            return match field {
+                "count" => FirTy::Int,
+                "latest" => (**elem).clone(),
+                _ => FirTy::Unknown,
+            };
+        }
         // Tuple field access: works on any tuple of any arity. The named
         // forms .fst/.snd/.trd map to indices 0/1/2; any all-digit field is taken
         // as a numeric index. Closures over List(Tuple(_)) can propagate
@@ -13300,6 +13312,7 @@ impl RustCodegen {
             lib_mode: false,
             lib_static_names: BTreeSet::new(),
             allow_global_getter_refs: false,
+            getter_stream_bindings: BTreeSet::new(),
             binary_global_env_fns: BTreeSet::new(),
             binary_global_env_fn_arities: BTreeMap::new(),
             binary_global_binding_types: BTreeMap::new(),
@@ -13930,6 +13943,7 @@ impl RustCodegen {
                             | Stmt::TypeDecl(_)
                             | Stmt::RustBlock(_)
                             | Stmt::Bind(Pat::Var(_), _, _)
+                            | Stmt::StreamBind(_, _)
                             | Stmt::Use(_)
                             | Stmt::Annot(_, _) => mod_body.push(s),
                             Stmt::Depend(cn, cv) => {
@@ -14004,6 +14018,7 @@ impl RustCodegen {
         }
 
         self.types.module_value_bindings.clear();
+        self.types.module_stream_bindings.clear();
         let mut module_path = Vec::new();
         self.collect_module_value_bindings(&all_stmts, &mut module_path);
 
@@ -15063,8 +15078,20 @@ impl RustCodegen {
                         _ => None,
                     })
                     .collect();
+                let stream_names: BTreeSet<String> = body
+                    .iter()
+                    .filter_map(|stmt| match stmt {
+                        Stmt::StreamBind(name, _) => Some(name.clone()),
+                        _ => None,
+                    })
+                    .collect();
                 if !binding_names.is_empty() {
                     self.types.module_value_bindings.insert(path, binding_names);
+                }
+                if !stream_names.is_empty() {
+                    self.types
+                        .module_stream_bindings
+                        .insert(module_path.join("::"), stream_names);
                 }
                 self.collect_module_value_bindings(body, module_path);
                 module_path.pop();
@@ -16258,6 +16285,13 @@ impl RustCodegen {
         }
     }
 
+    fn infer_stream_binding_getter_type(&self, name: &str) -> String {
+        self.subject_elem_type
+            .get(name)
+            .map(|elem_ty| format!("Vec<{}>", elem_ty))
+            .unwrap_or_else(|| "Vec<i64>".to_string())
+    }
+
     fn uses_binary_global_env(&self) -> bool {
         !self.lib_mode && !self.binary_global_env_fns.is_empty()
     }
@@ -16431,7 +16465,14 @@ impl RustCodegen {
         let emit_all = public;
         let prev_allow_global_getter_refs =
             std::mem::replace(&mut self.allow_global_getter_refs, true);
+        let prev_getter_stream_bindings = self.getter_stream_bindings.clone();
         let mut top_level_type_env = self.current_type_env();
+
+        for stmt in main_stmts {
+            if let Stmt::StreamBind(name, _) = stmt {
+                self.getter_stream_bindings.insert(name.clone());
+            }
+        }
 
         for (name, rust_ty) in &self.types.comptime_types {
             if !rust_ty.is_empty() {
@@ -16487,10 +16528,29 @@ impl RustCodegen {
                     "{}fn {}() -> {} {{ {} }}\n",
                     pub_prefix, sname, ret_ty, body
                 ));
+            } else if let Stmt::StreamBind(name, expr) = stmt {
+                if name.starts_with("__") {
+                    continue;
+                }
+                if !emit_all && !self.lib_static_names.contains(name.as_str()) {
+                    continue;
+                }
+                let is_public_name =
+                    public_names.map_or(true, |names| names.contains(name.as_str()));
+                let pub_prefix = if public && is_public_name { "pub " } else { "" };
+                let body = self.emit_expr(expr);
+                let sname = sanitize_name(name);
+                let ret_ty = self.infer_stream_binding_getter_type(name);
+                top_level_type_env.insert(name.clone(), Self::rust_type_to_fir(&ret_ty));
+                out.push_str(&format!(
+                    "{}fn {}() -> {} {{ {} }}\n",
+                    pub_prefix, sname, ret_ty, body
+                ));
             }
         }
 
         self.allow_global_getter_refs = prev_allow_global_getter_refs;
+        self.getter_stream_bindings = prev_getter_stream_bindings;
         out
     }
 
@@ -19327,6 +19387,7 @@ impl RustCodegen {
                 let saved_exported = self.types.exported_names.clone();
                 let saved_lib_static_names = self.lib_static_names.clone();
                 let saved_allow_global_getter_refs = self.allow_global_getter_refs;
+                let saved_sync_subject_vars = self.sync_subject_vars.clone();
                 for stmt in body {
                     match stmt {
                         Stmt::Defn(Defn::Fn { name: fn_name, .. }) => {
@@ -19361,21 +19422,37 @@ impl RustCodegen {
                                 self.types.exported_names.insert(bind_name.clone());
                             }
                         }
+                        Stmt::StreamBind(stream_name, _) => {
+                            if module_exports
+                                .as_ref()
+                                .map_or(true, |exports| exports.contains(stream_name.as_str()))
+                            {
+                                self.types.exported_names.insert(stream_name.clone());
+                            }
+                        }
                         _ => {}
                     }
                 }
                 self.indent = 1;
                 let module_bind_stmts: Vec<&Stmt> = body
                     .iter()
-                    .filter(|stmt| matches!(stmt, Stmt::Bind(Pat::Var(_), _, _)))
+                    .filter(|stmt| {
+                        matches!(stmt, Stmt::Bind(Pat::Var(_), _, _) | Stmt::StreamBind(_, _))
+                    })
                     .collect();
                 self.lib_static_names = module_bind_stmts
                     .iter()
                     .filter_map(|stmt| match stmt {
                         Stmt::Bind(Pat::Var(name), _, _) => Some(name.clone()),
+                        Stmt::StreamBind(name, _) => Some(name.clone()),
                         _ => None,
                     })
                     .collect();
+                for stmt in body {
+                    if let Stmt::StreamBind(name, _) = stmt {
+                        self.sync_subject_vars.insert(name.clone());
+                    }
+                }
                 self.allow_global_getter_refs = true;
                 if !module_bind_stmts.is_empty() {
                     out.push_str(&self.emit_top_level_binding_getters(
@@ -19385,7 +19462,7 @@ impl RustCodegen {
                     ));
                 }
                 for stmt in body {
-                    if matches!(stmt, Stmt::Bind(Pat::Var(_), _, _)) {
+                    if matches!(stmt, Stmt::Bind(Pat::Var(_), _, _) | Stmt::StreamBind(_, _)) {
                         continue;
                     }
                     out.push_str(&self.emit_stmt(stmt));
@@ -19424,6 +19501,7 @@ impl RustCodegen {
                 }
                 self.lib_static_names = saved_lib_static_names;
                 self.allow_global_getter_refs = saved_allow_global_getter_refs;
+                self.sync_subject_vars = saved_sync_subject_vars;
                 self.types.exported_names = saved_exported;
                 out
             }
@@ -23641,6 +23719,38 @@ impl RustCodegen {
                         _ => {}
                     }
                 }
+                if let ExprKind::Var(var_name) = &obj.as_ref().kind {
+                    if self.getter_stream_bindings.contains(var_name.as_str())
+                        && self.allow_global_getter_refs
+                        && self.lib_static_names.contains(var_name.as_str())
+                        && !self.current_borrow_params.contains(var_name.as_str())
+                        && !self.var_types.contains_key(var_name)
+                        && !self.local_bindings.contains(var_name.as_str())
+                    {
+                        let obj_str = format!("{}()", sanitize_name(var_name));
+                        match field.as_str() {
+                            "count" => return format!("({}.len() as i64)", obj_str),
+                            "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
+                            _ => {}
+                        }
+                    }
+                }
+                if let Some(obj_str) = self.module_stream_binding_getter_call(obj) {
+                    match field.as_str() {
+                        "count" => return format!("({}.len() as i64)", obj_str),
+                        "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
+                        _ => {}
+                    }
+                }
+                if let Some(obj_str) = self.module_binding_getter_call(obj) {
+                    let rust_field = match field.as_str() {
+                        "fst" => "0",
+                        "snd" => "1",
+                        "trd" => "2",
+                        _ => field.as_str(),
+                    };
+                    return format!("{}.{}", obj_str, rust_field);
+                }
                 // Sync subject field access: subject.count → subject.len(), subject.latest → subject.last().cloned().unwrap()
                 if let ExprKind::Var(var_name) = &obj.as_ref().kind {
                     if self.sync_subject_vars.contains(var_name.as_str()) {
@@ -23683,6 +23793,14 @@ impl RustCodegen {
                     if self
                         .types
                         .module_value_bindings
+                        .get(&path)
+                        .is_some_and(|bindings| bindings.contains(field))
+                    {
+                        return format!("{}::{}()", path, sanitize_name(field));
+                    }
+                    if self
+                        .types
+                        .module_stream_bindings
                         .get(&path)
                         .is_some_and(|bindings| bindings.contains(field))
                     {
@@ -24341,6 +24459,46 @@ impl RustCodegen {
                 self.infer_expr_fir_ty(expr),
                 FirTy::List(elem) if Self::fir_list_elem_needs_fallback(&elem)
             )
+    }
+
+    fn module_binding_getter_call(&mut self, expr: &Expr) -> Option<String> {
+        let ExprKind::Field(obj, field) = &expr.kind else {
+            return None;
+        };
+        if !self.is_module_path(obj) {
+            return None;
+        }
+        let path = self.emit_module_path(obj);
+        let is_value_binding = self
+            .types
+            .module_value_bindings
+            .get(&path)
+            .is_some_and(|bindings| bindings.contains(field));
+        let is_stream_binding = self
+            .types
+            .module_stream_bindings
+            .get(&path)
+            .is_some_and(|bindings| bindings.contains(field));
+        if is_value_binding || is_stream_binding {
+            Some(format!("{}::{}()", path, sanitize_name(field)))
+        } else {
+            None
+        }
+    }
+
+    fn module_stream_binding_getter_call(&mut self, expr: &Expr) -> Option<String> {
+        let ExprKind::Field(obj, field) = &expr.kind else {
+            return None;
+        };
+        if !self.is_module_path(obj) {
+            return None;
+        }
+        let path = self.emit_module_path(obj);
+        self.types
+            .module_stream_bindings
+            .get(&path)
+            .is_some_and(|bindings| bindings.contains(field))
+            .then(|| format!("{}::{}()", path, sanitize_name(field)))
     }
 
     fn emit_expr_with_rust_type_hint(&mut self, expr: &Expr, rust_ty: &str) -> String {
@@ -29294,6 +29452,41 @@ let summary = render(verdict(7i64), 7i64);
     }
 
     #[test]
+    fn compiled_qualified_import_can_access_exported_module_stream_bindings() {
+        let temp_name = format!(
+            "futuruna_import_stream_binding_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(
+            &dep_path,
+            "@ export\n~ readings = subject(41)\n@ export\n> latest_reading() -> Int { readings.latest }\n@ export\n= reading_count = readings.count\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &main_path,
+            "@ import Sensor from ./dep\n@ print(show(Sensor.latest_reading()))\n@ print(show(Sensor.reading_count))\n@ print(show(Sensor.readings.latest))\n@ print(show(Sensor.readings.count))\n",
+        )
+        .unwrap();
+
+        let output = compile_and_run_test_file(&main_path);
+        assert_eq!(output, "41\n1\n41\n1\n");
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
     fn compiled_inline_lambda_can_reference_module_qualified_items() {
         let temp_name = format!(
             "futuruna_import_lambda_{}_{}",
@@ -29337,6 +29530,14 @@ let summary = render(verdict(7i64), 7i64);
             "> module Config {\n    = threshold = 7\n    > read_threshold() -> Int { threshold }\n}\n@ print(show(Config.threshold))\n@ print(show(Config.read_threshold()))\n",
         );
         assert_eq!(output, "7\n7\n");
+    }
+
+    #[test]
+    fn compiled_inline_module_can_access_stream_bindings() {
+        let output = compile_and_run_test_program(
+            "> module Sensor {\n    @ export\n    ~ readings = subject(41)\n    @ export\n    > latest_reading() -> Int { readings.latest }\n    @ export\n    = reading_count = readings.count\n}\n@ print(show(Sensor.latest_reading()))\n@ print(show(Sensor.reading_count))\n@ print(show(Sensor.readings.latest))\n@ print(show(Sensor.readings.count))\n",
+        );
+        assert_eq!(output, "41\n1\n41\n1\n");
     }
 
     #[test]
