@@ -34,10 +34,6 @@
     "priority-count:" + show(n)
 }
 
-> count_priority(acc: Int, route: String) -> Int {
-    acc + 1
-}
-
 ~ staged = readings |> map(classify_reading)
 
 ~ staged | route -> {
@@ -52,7 +48,7 @@
     priority_routes <- route
 }
 
-~ priority_routes |> scan(0, count_priority) |> map(render_priority_count) | entry -> {
+~ priority_routes |> scan(0, |acc, _| acc + 1) |> map(render_priority_count) | entry -> {
     audit <- entry
 }
 

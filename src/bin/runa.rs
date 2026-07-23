@@ -14225,8 +14225,28 @@ impl RustCodegen {
                 fn_types: &BTreeMap<String, FirTy>,
                 types: &mut BTreeMap<String, String>,
             ) {
-                // Collect subject names and their initial values
+                // Collect subject names and stream bindings up front.
                 let mut subject_names: BTreeSet<String> = BTreeSet::new();
+                let mut stream_bind_exprs: BTreeMap<String, Expr> = BTreeMap::new();
+
+                fn collect_stream_bind_exprs(
+                    stmts: &[Stmt],
+                    stream_bind_exprs: &mut BTreeMap<String, Expr>,
+                ) {
+                    for stmt in stmts {
+                        match stmt {
+                            Stmt::StreamBind(name, expr) => {
+                                stream_bind_exprs.insert(name.clone(), expr.clone());
+                            }
+                            Stmt::Rule(Rule::Scope { body, .. }) => {
+                                collect_stream_bind_exprs(body, stream_bind_exprs);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                collect_stream_bind_exprs(stmts, &mut stream_bind_exprs);
                 for s in stmts {
                     if let Stmt::StreamBind(name, expr) = s {
                         if matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"))
@@ -14235,7 +14255,9 @@ impl RustCodegen {
                             // Check if initial value provided: subject(val)
                             if let ExprKind::App(_, args) = &expr.kind {
                                 if let Some(init) = args.first() {
-                                    if let Some(ty) = expr_to_rust_type(init, fn_types) {
+                                    if let Some(ty) =
+                                        expr_to_rust_type(init, fn_types, &BTreeMap::new(), types)
+                                    {
                                         types.insert(name.clone(), ty);
                                     }
                                 }
@@ -14253,10 +14275,11 @@ impl RustCodegen {
                     subject_names: &BTreeSet<String>,
                     fn_types: &BTreeMap<String, FirTy>,
                     types: &mut BTreeMap<String, String>,
+                    local_tys: &BTreeMap<String, String>,
                 ) {
                     if let ExprKind::Var(target_name) = &target.kind {
                         if subject_names.contains(target_name) && !types.contains_key(target_name) {
-                            if let Some(ty) = expr_to_rust_type(msg, fn_types) {
+                            if let Some(ty) = expr_to_rust_type(msg, fn_types, local_tys, types) {
                                 types.insert(target_name.clone(), ty);
                             }
                         }
@@ -14268,34 +14291,99 @@ impl RustCodegen {
                     subject_names: &BTreeSet<String>,
                     fn_types: &BTreeMap<String, FirTy>,
                     types: &mut BTreeMap<String, String>,
+                    local_tys: &BTreeMap<String, String>,
+                    stream_bind_exprs: &BTreeMap<String, Expr>,
                 ) {
                     match &expr.kind {
                         ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
                         ExprKind::App(func, args) => {
-                            scan_expr_for_subject_sends(func, subject_names, fn_types, types);
+                            scan_expr_for_subject_sends(
+                                func,
+                                subject_names,
+                                fn_types,
+                                types,
+                                local_tys,
+                                stream_bind_exprs,
+                            );
                             for arg in args {
-                                scan_expr_for_subject_sends(arg, subject_names, fn_types, types);
+                                scan_expr_for_subject_sends(
+                                    arg,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                    stream_bind_exprs,
+                                );
                             }
                         }
                         ExprKind::Lambda(_, body)
                         | ExprKind::UnOp(_, body)
                         | ExprKind::Field(body, _)
                         | ExprKind::Try(body) => {
-                            scan_expr_for_subject_sends(body, subject_names, fn_types, types);
+                            scan_expr_for_subject_sends(
+                                body,
+                                subject_names,
+                                fn_types,
+                                types,
+                                local_tys,
+                                stream_bind_exprs,
+                            );
                         }
                         ExprKind::BinOp(_, lhs, rhs)
                         | ExprKind::Index(lhs, rhs)
                         | ExprKind::Pipe(lhs, rhs) => {
-                            scan_expr_for_subject_sends(lhs, subject_names, fn_types, types);
-                            scan_expr_for_subject_sends(rhs, subject_names, fn_types, types);
+                            scan_expr_for_subject_sends(
+                                lhs,
+                                subject_names,
+                                fn_types,
+                                types,
+                                local_tys,
+                                stream_bind_exprs,
+                            );
+                            scan_expr_for_subject_sends(
+                                rhs,
+                                subject_names,
+                                fn_types,
+                                types,
+                                local_tys,
+                                stream_bind_exprs,
+                            );
                         }
                         ExprKind::If(cond, then_, else_) => {
-                            scan_expr_for_subject_sends(cond, subject_names, fn_types, types);
-                            scan_expr_for_subject_sends(then_, subject_names, fn_types, types);
-                            scan_expr_for_subject_sends(else_, subject_names, fn_types, types);
+                            scan_expr_for_subject_sends(
+                                cond,
+                                subject_names,
+                                fn_types,
+                                types,
+                                local_tys,
+                                stream_bind_exprs,
+                            );
+                            scan_expr_for_subject_sends(
+                                then_,
+                                subject_names,
+                                fn_types,
+                                types,
+                                local_tys,
+                                stream_bind_exprs,
+                            );
+                            scan_expr_for_subject_sends(
+                                else_,
+                                subject_names,
+                                fn_types,
+                                types,
+                                local_tys,
+                                stream_bind_exprs,
+                            );
                         }
                         ExprKind::Match(scrutinee, arms) => {
-                            scan_expr_for_subject_sends(scrutinee, subject_names, fn_types, types);
+                            scan_expr_for_subject_sends(
+                                scrutinee,
+                                subject_names,
+                                fn_types,
+                                types,
+                                local_tys,
+                                stream_bind_exprs,
+                            );
                             for arm in arms {
                                 if let Some(guard) = &arm.guard {
                                     scan_expr_for_subject_sends(
@@ -14303,6 +14391,8 @@ impl RustCodegen {
                                         subject_names,
                                         fn_types,
                                         types,
+                                        local_tys,
+                                        stream_bind_exprs,
                                     );
                                 }
                                 scan_expr_for_subject_sends(
@@ -14310,11 +14400,20 @@ impl RustCodegen {
                                     subject_names,
                                     fn_types,
                                     types,
+                                    local_tys,
+                                    stream_bind_exprs,
                                 );
                             }
                         }
                         ExprKind::Block(body) => {
-                            scan_stmts_for_subject_sends(body, subject_names, fn_types, types);
+                            scan_stmts_for_subject_sends(
+                                body,
+                                subject_names,
+                                fn_types,
+                                types,
+                                local_tys,
+                                stream_bind_exprs,
+                            );
                         }
                         ExprKind::List(items)
                         | ExprKind::Tuple(items)
@@ -14322,17 +14421,33 @@ impl RustCodegen {
                         | ExprKind::Conjunction(items)
                         | ExprKind::Disjunction(items) => {
                             for item in items {
-                                scan_expr_for_subject_sends(item, subject_names, fn_types, types);
+                                scan_expr_for_subject_sends(
+                                    item,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                    stream_bind_exprs,
+                                );
                             }
                         }
                         ExprKind::Handle { body, handlers, .. } => {
-                            scan_expr_for_subject_sends(body, subject_names, fn_types, types);
+                            scan_expr_for_subject_sends(
+                                body,
+                                subject_names,
+                                fn_types,
+                                types,
+                                local_tys,
+                                stream_bind_exprs,
+                            );
                             for handler in handlers {
                                 scan_expr_for_subject_sends(
                                     &handler.body,
                                     subject_names,
                                     fn_types,
                                     types,
+                                    local_tys,
+                                    stream_bind_exprs,
                                 );
                             }
                         }
@@ -14344,18 +14459,41 @@ impl RustCodegen {
                     subject_names: &BTreeSet<String>,
                     fn_types: &BTreeMap<String, FirTy>,
                     types: &mut BTreeMap<String, String>,
+                    local_tys: &BTreeMap<String, String>,
+                    stream_bind_exprs: &BTreeMap<String, Expr>,
                 ) {
                     for stmt in stmts {
                         match stmt {
                             Stmt::Send(target, msg) => {
-                                infer_send_type(target, msg, subject_names, fn_types, types);
-                                scan_expr_for_subject_sends(msg, subject_names, fn_types, types);
+                                infer_send_type(
+                                    target,
+                                    msg,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                );
+                                scan_expr_for_subject_sends(
+                                    msg,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                    stream_bind_exprs,
+                                );
                             }
                             Stmt::Bind(_, _, expr)
                             | Stmt::MonadicBind(_, _, expr)
                             | Stmt::Expr(expr)
                             | Stmt::StreamBind(_, expr) => {
-                                scan_expr_for_subject_sends(expr, subject_names, fn_types, types);
+                                scan_expr_for_subject_sends(
+                                    expr,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                    stream_bind_exprs,
+                                );
                             }
                             Stmt::Annot(_, args)
                             | Stmt::Assert(_, args)
@@ -14366,26 +14504,80 @@ impl RustCodegen {
                                         subject_names,
                                         fn_types,
                                         types,
+                                        local_tys,
+                                        stream_bind_exprs,
                                     );
                                 }
                             }
                             Stmt::For(_, iter, body) => {
-                                scan_expr_for_subject_sends(iter, subject_names, fn_types, types);
-                                scan_stmts_for_subject_sends(body, subject_names, fn_types, types);
+                                scan_expr_for_subject_sends(
+                                    iter,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                    stream_bind_exprs,
+                                );
+                                scan_stmts_for_subject_sends(
+                                    body,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                    stream_bind_exprs,
+                                );
                             }
                             Stmt::While(cond, body) => {
-                                scan_expr_for_subject_sends(cond, subject_names, fn_types, types);
-                                scan_stmts_for_subject_sends(body, subject_names, fn_types, types);
+                                scan_expr_for_subject_sends(
+                                    cond,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                    stream_bind_exprs,
+                                );
+                                scan_stmts_for_subject_sends(
+                                    body,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                    stream_bind_exprs,
+                                );
                             }
                             Stmt::StreamSub(expr, arms) => {
-                                scan_expr_for_subject_sends(expr, subject_names, fn_types, types);
+                                scan_expr_for_subject_sends(
+                                    expr,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                    stream_bind_exprs,
+                                );
+                                let item_ty = stream_expr_item_rust_type(
+                                    expr,
+                                    fn_types,
+                                    local_tys,
+                                    types,
+                                    &stream_bind_exprs,
+                                );
                                 for arm in arms {
+                                    let mut arm_tys = local_tys.clone();
+                                    if let Some(item_ty) = &item_ty {
+                                        let mut bound = BTreeSet::new();
+                                        collect_pattern_names(&arm.pat, &mut bound);
+                                        for name in bound {
+                                            arm_tys.insert(name, item_ty.clone());
+                                        }
+                                    }
                                     if let Some(guard) = &arm.guard {
                                         scan_expr_for_subject_sends(
                                             guard,
                                             subject_names,
                                             fn_types,
                                             types,
+                                            &arm_tys,
+                                            stream_bind_exprs,
                                         );
                                     }
                                     scan_expr_for_subject_sends(
@@ -14393,11 +14585,20 @@ impl RustCodegen {
                                         subject_names,
                                         fn_types,
                                         types,
+                                        &arm_tys,
+                                        stream_bind_exprs,
                                     );
                                 }
                             }
                             Stmt::Rule(Rule::Scope { body, .. }) => {
-                                scan_stmts_for_subject_sends(body, subject_names, fn_types, types);
+                                scan_stmts_for_subject_sends(
+                                    body,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                    local_tys,
+                                    stream_bind_exprs,
+                                );
                             }
                             Stmt::Invariant {
                                 subject, predicate, ..
@@ -14407,12 +14608,16 @@ impl RustCodegen {
                                     subject_names,
                                     fn_types,
                                     types,
+                                    local_tys,
+                                    stream_bind_exprs,
                                 );
                                 scan_expr_for_subject_sends(
                                     predicate,
                                     subject_names,
                                     fn_types,
                                     types,
+                                    local_tys,
+                                    stream_bind_exprs,
                                 );
                             }
                             Stmt::Prove {
@@ -14426,6 +14631,8 @@ impl RustCodegen {
                                         subject_names,
                                         fn_types,
                                         types,
+                                        local_tys,
+                                        stream_bind_exprs,
                                     );
                                 }
                                 if let Some(else_block) = else_block {
@@ -14434,6 +14641,8 @@ impl RustCodegen {
                                         subject_names,
                                         fn_types,
                                         types,
+                                        local_tys,
+                                        stream_bind_exprs,
                                     );
                                 }
                             }
@@ -14443,14 +14652,27 @@ impl RustCodegen {
                 }
 
                 // Infer from first send anywhere in the reachable statement tree if not already known.
-                scan_stmts_for_subject_sends(stmts, &subject_names, fn_types, types);
+                scan_stmts_for_subject_sends(
+                    stmts,
+                    &subject_names,
+                    fn_types,
+                    types,
+                    &BTreeMap::new(),
+                    &stream_bind_exprs,
+                );
             }
 
             fn expr_to_rust_type(
                 expr: &Expr,
                 fn_types: &BTreeMap<String, FirTy>,
+                local_tys: &BTreeMap<String, String>,
+                subject_tys: &BTreeMap<String, String>,
             ) -> Option<String> {
                 match &expr.kind {
+                    ExprKind::Var(name) => local_tys
+                        .get(name)
+                        .cloned()
+                        .or_else(|| subject_tys.get(name).cloned()),
                     ExprKind::Lit(Literal::Str(_)) => Some("String".to_string()),
                     ExprKind::Lit(Literal::Int(_)) => Some("i64".to_string()),
                     ExprKind::Lit(Literal::Float(_)) => Some("f64".to_string()),
@@ -14461,7 +14683,7 @@ impl RustCodegen {
                         if matches!(lhs.as_ref().kind, ExprKind::Lit(Literal::Str(_))) {
                             Some("String".to_string())
                         } else {
-                            expr_to_rust_type(lhs, fn_types)
+                            expr_to_rust_type(lhs, fn_types, local_tys, subject_tys)
                         }
                     }
                     ExprKind::App(func, args) => {
@@ -14477,7 +14699,138 @@ impl RustCodegen {
                 }
             }
 
-            infer_subject_types(stmts, &self.types.fn_types, &mut self.subject_elem_type);
+            fn stream_expr_item_rust_type(
+                expr: &Expr,
+                fn_types: &BTreeMap<String, FirTy>,
+                local_tys: &BTreeMap<String, String>,
+                subject_tys: &BTreeMap<String, String>,
+                stream_bind_exprs: &BTreeMap<String, Expr>,
+            ) -> Option<String> {
+                match &expr.kind {
+                    ExprKind::Var(name) => subject_tys
+                        .get(name)
+                        .cloned()
+                        .or_else(|| local_tys.get(name).cloned())
+                        .or_else(|| {
+                            stream_bind_exprs.get(name).and_then(|bound| {
+                                stream_expr_item_rust_type(
+                                    bound,
+                                    fn_types,
+                                    local_tys,
+                                    subject_tys,
+                                    stream_bind_exprs,
+                                )
+                            })
+                        }),
+                    ExprKind::Pipe(input, transform) => {
+                        let desugared: Expr = match &transform.as_ref().kind {
+                            ExprKind::App(func, existing_args) => {
+                                let mut new_args = vec![input.as_ref().clone()];
+                                new_args.extend(existing_args.iter().cloned());
+                                ExprKind::App(func.clone(), new_args).into()
+                            }
+                            _ => ExprKind::App(
+                                Box::new(transform.as_ref().clone()),
+                                vec![input.as_ref().clone()],
+                            )
+                            .into(),
+                        };
+                        stream_expr_item_rust_type(
+                            &desugared,
+                            fn_types,
+                            local_tys,
+                            subject_tys,
+                            stream_bind_exprs,
+                        )
+                    }
+                    ExprKind::App(func, args) => {
+                        let ExprKind::Var(name) = &func.as_ref().kind else {
+                            return None;
+                        };
+                        match name.as_str() {
+                            "subject" => args.first().and_then(|init| {
+                                expr_to_rust_type(init, fn_types, local_tys, subject_tys)
+                            }),
+                            "as_stream" | "filter" | "take" | "skip" | "tap" | "distinct"
+                            | "delay" | "debounce" | "throttle" | "timeout" | "sample" => {
+                                args.first().and_then(|src| {
+                                    stream_expr_item_rust_type(
+                                        src,
+                                        fn_types,
+                                        local_tys,
+                                        subject_tys,
+                                        stream_bind_exprs,
+                                    )
+                                })
+                            }
+                            "scan" => args.get(1).and_then(|init| {
+                                expr_to_rust_type(init, fn_types, local_tys, subject_tys)
+                            }),
+                            "map" => {
+                                if let Some(callable) = args.get(1) {
+                                    match &callable.kind {
+                                        ExprKind::Var(fn_name) => {
+                                            fn_types.get(fn_name).and_then(|fn_ty| {
+                                                RustCodegen::fir_type_to_rust(
+                                                    &LoweringCtx::apply_fn_ty(fn_ty, 1),
+                                                )
+                                            })
+                                        }
+                                        _ => None,
+                                    }
+                                } else {
+                                    None
+                                }
+                            }
+                            "merge" | "concat" => args.first().and_then(|src| {
+                                stream_expr_item_rust_type(
+                                    src,
+                                    fn_types,
+                                    local_tys,
+                                    subject_tys,
+                                    stream_bind_exprs,
+                                )
+                            }),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                }
+            }
+
+            fn collect_fn_types(stmts: &[Stmt], out: &mut BTreeMap<String, FirTy>) {
+                for stmt in stmts {
+                    match stmt {
+                        Stmt::Defn(Defn::Fn {
+                            name,
+                            params,
+                            ret_ty,
+                            ..
+                        }) => {
+                            let mut fn_ty = ret_ty
+                                .as_ref()
+                                .map(LoweringCtx::ty_to_fir)
+                                .unwrap_or(FirTy::Unknown);
+                            for param in params.iter().rev() {
+                                let param_ty = param
+                                    .ty
+                                    .as_ref()
+                                    .map(LoweringCtx::ty_to_fir)
+                                    .unwrap_or(FirTy::Unknown);
+                                fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
+                            }
+                            out.insert(name.clone(), fn_ty);
+                        }
+                        Stmt::Defn(Defn::Module { body, .. })
+                        | Stmt::Rule(Rule::Scope { body, .. }) => collect_fn_types(body, out),
+                        _ => {}
+                    }
+                }
+            }
+
+            let mut pre_fn_types = BTreeMap::new();
+            collect_fn_types(stmts, &mut pre_fn_types);
+            infer_subject_types(stmts, &pre_fn_types, &mut self.subject_elem_type);
         }
 
         // Build type rename map + variant→parent lookup for all ADTs
@@ -20402,6 +20755,11 @@ impl RustCodegen {
     }
 
     fn iter_item_ty(&self, expr: &Expr) -> FirTy {
+        if let ExprKind::Var(name) = &expr.kind {
+            if let Some(rust_ty) = self.subject_elem_type.get(name) {
+                return Self::rust_type_to_fir(rust_ty);
+            }
+        }
         match self.infer_expr_fir_ty(expr) {
             FirTy::List(inner) | FirTy::Set(inner) => (*inner).clone(),
             _ => FirTy::Unknown,
@@ -20524,6 +20882,138 @@ impl RustCodegen {
                 Some(rust_ty) => format!("{}: {}", name, rust_ty),
                 None => name,
             },
+        }
+    }
+
+    fn emit_lambda_with_seeded_param_tys(
+        &mut self,
+        params: &[Param],
+        body: &Expr,
+        seeded_param_tys: &BTreeMap<String, FirTy>,
+    ) -> String {
+        let param_tys = self.resolve_lambda_param_tys(params, body, seeded_param_tys);
+        let ps: Vec<String> = self.with_temporary_param_types(params, &param_tys, |cg| {
+            params
+                .iter()
+                .enumerate()
+                .map(|(i, p)| {
+                    if let Some(ty) = &p.ty {
+                        format!("{}: {}", sanitize_name(&p.name), cg.emit_type(ty))
+                    } else if !matches!(param_tys[i], FirTy::Unknown | FirTy::Var(_)) {
+                        cg.emit_lambda_param_decl(&p.name, &param_tys[i])
+                    } else if {
+                        let mut fields = BTreeSet::new();
+                        cg.collect_field_accesses(body, &p.name, &mut fields);
+                        !fields.is_empty()
+                    } {
+                        let mut fields = BTreeSet::new();
+                        cg.collect_field_accesses(body, &p.name, &mut fields);
+                        let only_tuple_fields = fields
+                            .iter()
+                            .all(|f| f == "fst" || f == "snd" || f == "trd");
+                        if only_tuple_fields {
+                            sanitize_name(&p.name)
+                        } else {
+                            let mut inferred = None;
+                            for (type_name, type_fields) in &cg.types.variant_fields {
+                                let field_set: BTreeSet<String> =
+                                    type_fields.iter().cloned().collect();
+                                if fields.is_subset(&field_set) {
+                                    inferred = Some(type_name.clone());
+                                    break;
+                                }
+                            }
+                            if let Some(ty) = inferred {
+                                format!("{}: {}", sanitize_name(&p.name), ty)
+                            } else {
+                                sanitize_name(&p.name)
+                            }
+                        }
+                    } else if Self::expr_uses_as_tuple(body, &p.name) {
+                        if cg.expr_is_float(body) {
+                            format!("{}: (f64, f64)", sanitize_name(&p.name))
+                        } else {
+                            format!("{}: (i64, i64)", sanitize_name(&p.name))
+                        }
+                    } else if cg.expr_is_string(body) && cg.param_used_as_string(body, &p.name) {
+                        format!("{}: String", sanitize_name(&p.name))
+                    } else if cg.expr_is_float(body) {
+                        format!("{}: f64", sanitize_name(&p.name))
+                    } else if cg.expr_is_arithmetic(body) {
+                        format!("{}: i64", sanitize_name(&p.name))
+                    } else {
+                        sanitize_name(&p.name)
+                    }
+                })
+                .collect()
+        });
+        let lambda_param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+        // Mark as iterator closure so captured vars get .clone()
+        let prev_in_iter = self.in_iter_closure;
+        let prev_closure_params = std::mem::take(&mut self.closure_params);
+        self.in_iter_closure = true;
+        self.closure_params = lambda_param_names.iter().cloned().collect();
+        let body_str =
+            self.with_lambda_param_scope(params, &param_tys, body, |cg| cg.emit_expr(body));
+        self.in_iter_closure = prev_in_iter;
+        self.closure_params = prev_closure_params;
+        // Identify truly captured variables: free in body, not params, not functions/builtins
+        let param_bound: BTreeSet<String> = lambda_param_names.iter().cloned().collect();
+        let mut free_in_body = BTreeSet::new();
+        collect_true_free_vars(body, &mut free_in_body, &param_bound);
+        // Check LSP_BUILTINS arity table for special functions (show, print, etc.)
+        let lsp_builtin_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
+        // Collect all effect operation names (methods on handlers, not variables)
+        let all_effect_ops: BTreeSet<&str> = self
+            .types
+            .effect_ops
+            .values()
+            .flat_map(|ops| ops.iter().map(|s| s.as_str()))
+            .collect();
+        let captured: Vec<String> = free_in_body
+            .into_iter()
+            .filter(|v| {
+                self.lambda_free_var_is_runtime_capture(v.as_str())
+                    && !lsp_builtin_names.contains(v.as_str())
+                    && !all_effect_ops.contains(v.as_str())
+                    && !matches!(
+                        v.as_str(),
+                        "true"
+                            | "false"
+                            | "True"
+                            | "False"
+                            | "None"
+                            | "Some"
+                            | "Ok"
+                            | "Err"
+                            | "Nil"
+                            | "Cons"
+                            | "not"
+                            | "findall"
+                            | "search"
+                    )
+            })
+            .collect();
+        if captured.is_empty() {
+            format!("|{}| {}", ps.join(", "), body_str)
+        } else {
+            // Clone non-Copy captures, then use `move` so the closure owns all captures.
+            let clones: Vec<String> = captured
+                .iter()
+                .filter(|v| !self.copy_vars.contains(v.as_str()))
+                .map(|v| format!("let {} = {}.clone();", sanitize_name(v), sanitize_name(v)))
+                .collect();
+            let clone_prefix = if clones.is_empty() {
+                String::new()
+            } else {
+                format!("{} ", clones.join(" "))
+            };
+            format!(
+                "{{ {}move |{}| {} }}",
+                clone_prefix,
+                ps.join(", "),
+                body_str
+            )
         }
     }
 
@@ -21417,8 +21907,26 @@ impl RustCodegen {
         false
     }
 
-    fn emit_async_callable_invocation(&mut self, callable: &Expr, arg_exprs: &[String]) -> String {
-        let callable_str = self.emit_expr(callable);
+    fn emit_async_callable_expr(
+        &mut self,
+        callable: &Expr,
+        seeded_param_tys: &BTreeMap<String, FirTy>,
+    ) -> String {
+        match &callable.kind {
+            ExprKind::Lambda(params, body) => {
+                self.emit_lambda_with_seeded_param_tys(params, body, seeded_param_tys)
+            }
+            _ => self.emit_expr(callable),
+        }
+    }
+
+    fn emit_async_callable_invocation_seeded(
+        &mut self,
+        callable: &Expr,
+        arg_exprs: &[String],
+        seeded_param_tys: &BTreeMap<String, FirTy>,
+    ) -> String {
+        let callable_str = self.emit_async_callable_expr(callable, seeded_param_tys);
         let rendered_args: Vec<String> = arg_exprs
             .iter()
             .enumerate()
@@ -21451,10 +21959,24 @@ impl RustCodegen {
 
         match name {
             "map" if args.len() == 2 => {
-                let seed_call =
-                    self.emit_async_callable_invocation(&args[1], &[String::from("__v")]);
-                let live_call =
-                    self.emit_async_callable_invocation(&args[1], &[String::from("__v")]);
+                let mut seeded_param_tys = BTreeMap::new();
+                if let ExprKind::Lambda(params, _) = &args[1].kind {
+                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
+                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+                            seeded_param_tys.insert(param.name.clone(), ty);
+                        }
+                    }
+                }
+                let seed_call = self.emit_async_callable_invocation_seeded(
+                    &args[1],
+                    &[String::from("__v")],
+                    &seeded_param_tys,
+                );
+                let live_call = self.emit_async_callable_invocation_seeded(
+                    &args[1],
+                    &[String::from("__v")],
+                    &seeded_param_tys,
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let __out_{n} = __FutStream::new(); \
@@ -21474,14 +21996,29 @@ impl RustCodegen {
                 ))
             }
             "filter" if args.len() == 2 => {
+                let mut seeded_param_tys = BTreeMap::new();
+                if let ExprKind::Lambda(params, _) = &args[1].kind {
+                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
+                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+                            seeded_param_tys.insert(param.name.clone(), ty);
+                        }
+                    }
+                }
                 let filter_arg = if self.async_callable_borrows_arg(&args[1], 0) {
                     String::from("__v")
                 } else {
                     String::from("__v.clone()")
                 };
-                let seed_pred = self
-                    .emit_async_callable_invocation(&args[1], std::slice::from_ref(&filter_arg));
-                let live_pred = self.emit_async_callable_invocation(&args[1], &[filter_arg]);
+                let seed_pred = self.emit_async_callable_invocation_seeded(
+                    &args[1],
+                    std::slice::from_ref(&filter_arg),
+                    &seeded_param_tys,
+                );
+                let live_pred = self.emit_async_callable_invocation_seeded(
+                    &args[1],
+                    &[filter_arg],
+                    &seeded_param_tys,
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let __out_{n} = __FutStream::new(); \
@@ -21502,6 +22039,21 @@ impl RustCodegen {
             }
             "scan" if args.len() == 3 => {
                 let init = self.emit_expr(&args[1]);
+                let mut seeded_param_tys = BTreeMap::new();
+                if let ExprKind::Lambda(params, _) = &args[2].kind {
+                    if let Some(acc) = params.first() {
+                        let init_ty = self.infer_expr_fir_ty(&args[1]);
+                        if !matches!(init_ty, FirTy::Unknown | FirTy::Var(_)) {
+                            seeded_param_tys.insert(acc.name.clone(), init_ty);
+                        }
+                    }
+                    if let Some(item) = params.get(1) {
+                        let item_ty = self.iter_item_ty(&args[0]);
+                        if !matches!(item_ty, FirTy::Unknown | FirTy::Var(_)) {
+                            seeded_param_tys.insert(item.name.clone(), item_ty);
+                        }
+                    }
+                }
                 let scan_acc_arg = if self.async_callable_borrows_arg(&args[2], 0) {
                     format!("__acc_seed_{n}")
                 } else {
@@ -21512,11 +22064,15 @@ impl RustCodegen {
                 } else {
                     String::from("__acc.clone()")
                 };
-                let scan_seed_call = self
-                    .emit_async_callable_invocation(&args[2], &[scan_acc_arg, String::from("__v")]);
-                let scan_live_call = self.emit_async_callable_invocation(
+                let scan_seed_call = self.emit_async_callable_invocation_seeded(
+                    &args[2],
+                    &[scan_acc_arg, String::from("__v")],
+                    &seeded_param_tys,
+                );
+                let scan_live_call = self.emit_async_callable_invocation_seeded(
                     &args[2],
                     &[scan_live_acc_arg, String::from("__v")],
+                    &seeded_param_tys,
                 );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
@@ -21594,14 +22150,29 @@ impl RustCodegen {
                 ))
             }
             "tap" if args.len() == 2 => {
+                let mut seeded_param_tys = BTreeMap::new();
+                if let ExprKind::Lambda(params, _) = &args[1].kind {
+                    if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0])) {
+                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+                            seeded_param_tys.insert(param.name.clone(), ty);
+                        }
+                    }
+                }
                 let tap_arg = if self.async_callable_borrows_arg(&args[1], 0) {
                     String::from("__v")
                 } else {
                     String::from("__v.clone()")
                 };
-                let seed_tap =
-                    self.emit_async_callable_invocation(&args[1], std::slice::from_ref(&tap_arg));
-                let live_tap = self.emit_async_callable_invocation(&args[1], &[tap_arg]);
+                let seed_tap = self.emit_async_callable_invocation_seeded(
+                    &args[1],
+                    std::slice::from_ref(&tap_arg),
+                    &seeded_param_tys,
+                );
+                let live_tap = self.emit_async_callable_invocation_seeded(
+                    &args[1],
+                    &[tap_arg],
+                    &seeded_param_tys,
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let __out_{n} = __FutStream::new(); \
@@ -22493,136 +23064,7 @@ impl RustCodegen {
                 call
             }
             ExprKind::Lambda(params, body) => {
-                let param_tys = self.resolve_lambda_param_tys(params, body, &BTreeMap::new());
-                let ps: Vec<String> = self.with_temporary_param_types(params, &param_tys, |cg| {
-                    params
-                        .iter()
-                        .enumerate()
-                        .map(|(i, p)| {
-                            if let Some(ty) = &p.ty {
-                                format!("{}: {}", sanitize_name(&p.name), cg.emit_type(ty))
-                            } else if !matches!(param_tys[i], FirTy::Unknown | FirTy::Var(_)) {
-                                cg.emit_lambda_param_decl(&p.name, &param_tys[i])
-                            } else if {
-                                let mut fields = BTreeSet::new();
-                                cg.collect_field_accesses(body, &p.name, &mut fields);
-                                !fields.is_empty()
-                            } {
-                                let mut fields = BTreeSet::new();
-                                cg.collect_field_accesses(body, &p.name, &mut fields);
-                                let only_tuple_fields = fields
-                                    .iter()
-                                    .all(|f| f == "fst" || f == "snd" || f == "trd");
-                                if only_tuple_fields {
-                                    sanitize_name(&p.name)
-                                } else {
-                                    let mut inferred = None;
-                                    for (type_name, type_fields) in &cg.types.variant_fields {
-                                        let field_set: BTreeSet<String> =
-                                            type_fields.iter().cloned().collect();
-                                        if fields.is_subset(&field_set) {
-                                            inferred = Some(type_name.clone());
-                                            break;
-                                        }
-                                    }
-                                    if let Some(ty) = inferred {
-                                        format!("{}: {}", sanitize_name(&p.name), ty)
-                                    } else {
-                                        sanitize_name(&p.name)
-                                    }
-                                }
-                            } else if Self::expr_uses_as_tuple(body, &p.name) {
-                                if cg.expr_is_float(body) {
-                                    format!("{}: (f64, f64)", sanitize_name(&p.name))
-                                } else {
-                                    format!("{}: (i64, i64)", sanitize_name(&p.name))
-                                }
-                            } else if cg.expr_is_string(body)
-                                && cg.param_used_as_string(body, &p.name)
-                            {
-                                format!("{}: String", sanitize_name(&p.name))
-                            } else if cg.expr_is_float(body) {
-                                format!("{}: f64", sanitize_name(&p.name))
-                            } else if cg.expr_is_arithmetic(body) {
-                                format!("{}: i64", sanitize_name(&p.name))
-                            } else {
-                                sanitize_name(&p.name)
-                            }
-                        })
-                        .collect()
-                });
-                let lambda_param_names: Vec<String> =
-                    params.iter().map(|p| p.name.clone()).collect();
-                // Mark as iterator closure so captured vars get .clone()
-                let prev_in_iter = self.in_iter_closure;
-                let prev_closure_params = std::mem::take(&mut self.closure_params);
-                self.in_iter_closure = true;
-                self.closure_params = lambda_param_names.iter().cloned().collect();
-                let body_str =
-                    self.with_lambda_param_scope(params, &param_tys, body, |cg| cg.emit_expr(body));
-                self.in_iter_closure = prev_in_iter;
-                self.closure_params = prev_closure_params;
-                // Identify truly captured variables: free in body, not params, not functions/builtins
-                let param_bound: BTreeSet<String> = lambda_param_names.iter().cloned().collect();
-                let mut free_in_body = BTreeSet::new();
-                collect_true_free_vars(body, &mut free_in_body, &param_bound);
-                // Check LSP_BUILTINS arity table for special functions (show, print, etc.)
-                let lsp_builtin_names: BTreeSet<&str> =
-                    LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
-                // Collect all effect operation names (methods on handlers, not variables)
-                let all_effect_ops: BTreeSet<&str> = self
-                    .types
-                    .effect_ops
-                    .values()
-                    .flat_map(|ops| ops.iter().map(|s| s.as_str()))
-                    .collect();
-                let captured: Vec<String> = free_in_body
-                    .into_iter()
-                    .filter(|v| {
-                        self.lambda_free_var_is_runtime_capture(v.as_str())
-                            && !lsp_builtin_names.contains(v.as_str())
-                            && !all_effect_ops.contains(v.as_str())
-                            && !matches!(
-                                v.as_str(),
-                                "true"
-                                    | "false"
-                                    | "True"
-                                    | "False"
-                                    | "None"
-                                    | "Some"
-                                    | "Ok"
-                                    | "Err"
-                                    | "Nil"
-                                    | "Cons"
-                                    | "not"
-                                    | "findall"
-                                    | "search"
-                            )
-                    })
-                    .collect();
-                if captured.is_empty() {
-                    format!("|{}| {}", ps.join(", "), body_str)
-                } else {
-                    // Clone non-Copy captures, then use `move` so the closure owns all captures.
-                    let clones: Vec<String> = captured
-                        .iter()
-                        .filter(|v| !self.copy_vars.contains(v.as_str()))
-                        .map(|v| {
-                            format!("let {} = {}.clone();", sanitize_name(v), sanitize_name(v))
-                        })
-                        .collect();
-                    let clone_prefix = if clones.is_empty() {
-                        String::new()
-                    } else {
-                        format!("{} ", clones.join(" "))
-                    };
-                    format!(
-                        "{{ {}move |{}| {} }}",
-                        clone_prefix,
-                        ps.join(", "),
-                        body_str
-                    )
-                }
+                self.emit_lambda_with_seeded_param_tys(params, body, &BTreeMap::new())
             }
             ExprKind::BinOp(op, lhs, rhs) => {
                 // String concatenation → format!()
@@ -28551,6 +28993,33 @@ let summary = render(verdict(7i64), 7i64);
         assert!(
             rust.contains("__acc_seed_2 = (count_step)(__acc_seed_2.clone(), &__v);"),
             "async scan over helper functions should borrow borrow-only item params: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_async_scan_lambda_seeds_ignored_item_type() {
+        let source = r#"
+~ routes = subject()
+~ counted = routes |> scan(0, |acc, _| acc + 1)
+~ sink = subject()
+~ counted | n -> {
+    sink <- show(n)
+}
+routes <- "a"
+routes <- "b"
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        assert_eq!(
+            cg.subject_elem_type.get("routes").map(String::as_str),
+            Some("String"),
+            "subject pre-scan should infer String item type from later sends",
+        );
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("|acc: i64, _: String|")
+                || rust.contains("|acc: i64, _: std::string::String|"),
+            "async scan over ignored non-Int items should seed the lambda item type from the source stream: {}",
             rust
         );
     }
