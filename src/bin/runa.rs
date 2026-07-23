@@ -15292,6 +15292,7 @@ impl RustCodegen {
         // M13c: emit ScopeGuard struct when async mode is active
         if self.has_async {
             out.push_str("use tokio::sync::broadcast;\n");
+            out.push_str("static __FUT_BARRIER_IDS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);\n");
             out.push_str(
                 "\n/// Scope lifecycle guard: Drop aborts all subscription tasks (M13c)\n",
             );
@@ -15305,14 +15306,23 @@ impl RustCodegen {
             out.push_str("        }\n");
             out.push_str("    }\n");
             out.push_str("}\n");
+            out.push_str("\n#[derive(Clone)]\nenum __FutEvent<T: Clone + Send + 'static> {\n");
+            out.push_str("    Data(u64, T),\n");
+            out.push_str("    Barrier(u64),\n");
+            out.push_str("}\n");
             out.push_str("\n#[derive(Clone)]\nstruct __FutStream<T: Clone + Send + 'static> {\n");
-            out.push_str("    tx: tokio::sync::broadcast::Sender<(u64, T)>,\n");
+            out.push_str("    tx: tokio::sync::broadcast::Sender<__FutEvent<T>>,\n");
             out.push_str("    history: std::sync::Arc<std::sync::Mutex<Vec<(u64, T)>>>,\n");
             out.push_str("    next_seq: std::sync::Arc<std::sync::atomic::AtomicU64>,\n");
+            out.push_str("    barrier_expected: std::sync::Arc<std::sync::atomic::AtomicUsize>,\n");
+            out.push_str(
+                "    inject_barrier: std::sync::Arc<std::sync::Mutex<std::sync::Arc<dyn Fn(u64) + Send + Sync>>>,\n",
+            );
             out.push_str("}\n");
             out.push_str("impl<T: Clone + Send + 'static> __FutStream<T> {\n");
             out.push_str("    fn new() -> Self {\n");
-            out.push_str("        let (tx, _) = broadcast::channel::<(u64, T)>(256);\n");
+            out.push_str("        let (tx, _) = broadcast::channel::<__FutEvent<T>>(256);\n");
+            out.push_str("        let barrier_tx = tx.clone();\n");
             out.push_str("        Self {\n");
             out.push_str("            tx,\n");
             out.push_str(
@@ -15321,17 +15331,54 @@ impl RustCodegen {
             out.push_str(
                 "            next_seq: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),\n",
             );
+            out.push_str(
+                "            barrier_expected: std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(1)),\n",
+            );
+            out.push_str(
+                "            inject_barrier: std::sync::Arc::new(std::sync::Mutex::new(std::sync::Arc::new(move |id| {\n",
+            );
+            out.push_str("                let _ = barrier_tx.send(__FutEvent::Barrier(id));\n");
+            out.push_str("            }))),\n");
             out.push_str("        }\n");
             out.push_str("    }\n");
             out.push_str("    fn send(&self, value: T) {\n");
             out.push_str("        let seq = self.next_seq.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;\n");
             out.push_str("        self.history.lock().unwrap().push((seq, value.clone()));\n");
-            out.push_str("        let _ = self.tx.send((seq, value));\n");
+            out.push_str("        let _ = self.tx.send(__FutEvent::Data(seq, value));\n");
+            out.push_str("    }\n");
+            out.push_str("    fn emit_barrier(&self, id: u64) {\n");
+            out.push_str("        let _ = self.tx.send(__FutEvent::Barrier(id));\n");
             out.push_str("    }\n");
             out.push_str(
-                "    fn subscribe(&self) -> tokio::sync::broadcast::Receiver<(u64, T)> {\n",
+                "    fn subscribe(&self) -> tokio::sync::broadcast::Receiver<__FutEvent<T>> {\n",
             );
             out.push_str("        self.tx.subscribe()\n");
+            out.push_str("    }\n");
+            out.push_str("    fn inject_barrier(&self, id: u64) {\n");
+            out.push_str("        let inject = self.inject_barrier.lock().unwrap().clone();\n");
+            out.push_str("        inject(id);\n");
+            out.push_str("    }\n");
+            out.push_str("    fn barrier_expected(&self) -> usize {\n");
+            out.push_str(
+                "        self.barrier_expected.load(std::sync::atomic::Ordering::SeqCst)\n",
+            );
+            out.push_str("    }\n");
+            out.push_str("    fn set_barrier_passthrough<U: Clone + Send + 'static>(&self, upstream: &__FutStream<U>) {\n");
+            out.push_str("        let upstream = upstream.clone();\n");
+            out.push_str("        self.barrier_expected.store(upstream.barrier_expected(), std::sync::atomic::Ordering::SeqCst);\n");
+            out.push_str("        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(move |id| upstream.inject_barrier(id));\n");
+            out.push_str("    }\n");
+            out.push_str("    fn set_barrier_merge<U: Clone + Send + 'static, V: Clone + Send + 'static>(&self, left: &__FutStream<U>, right: &__FutStream<V>) {\n");
+            out.push_str("        let left = left.clone();\n");
+            out.push_str("        let right = right.clone();\n");
+            out.push_str("        self.barrier_expected.store(left.barrier_expected() + right.barrier_expected(), std::sync::atomic::Ordering::SeqCst);\n");
+            out.push_str("        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(move |id| { left.inject_barrier(id); right.inject_barrier(id); });\n");
+            out.push_str("    }\n");
+            out.push_str("    fn chain_barrier_from<U: Clone + Send + 'static>(&self, upstream: &__FutStream<U>) {\n");
+            out.push_str("        let prev = self.inject_barrier.lock().unwrap().clone();\n");
+            out.push_str("        let upstream = upstream.clone();\n");
+            out.push_str("        self.barrier_expected.fetch_add(upstream.barrier_expected(), std::sync::atomic::Ordering::SeqCst);\n");
+            out.push_str("        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(move |id| { prev(id); upstream.inject_barrier(id); });\n");
             out.push_str("    }\n");
             out.push_str("    fn watermark(&self) -> u64 {\n");
             out.push_str("        self.next_seq.load(std::sync::atomic::Ordering::SeqCst)\n");
@@ -15356,21 +15403,24 @@ impl RustCodegen {
             out.push_str(
                 "async fn __fut_settle<T: Clone + Send + 'static>(stream: &__FutStream<T>) {\n",
             );
-            out.push_str("    let mut stable_rounds = 0usize;\n");
-            out.push_str("    let mut last_seen = stream.watermark();\n");
-            out.push_str("    let mut spins = 0usize;\n");
-            out.push_str("    while stable_rounds < 2 && spins < 256 {\n");
+            out.push_str("    let barrier_id = __FUT_BARRIER_IDS.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;\n");
+            out.push_str("    let mut rx = stream.subscribe();\n");
+            out.push_str("    let mut seen = 0usize;\n");
+            out.push_str("    let expected = stream.barrier_expected();\n");
+            out.push_str("    stream.inject_barrier(barrier_id);\n");
+            out.push_str("    while seen < expected {\n");
+            out.push_str("        match rx.recv().await {\n");
             out.push_str(
-                "        tokio::time::sleep(std::time::Duration::from_millis(0)).await;\n",
+                "            Ok(__FutEvent::Barrier(id)) if id == barrier_id => seen += 1,\n",
             );
-            out.push_str("        let now = stream.watermark();\n");
-            out.push_str("        if now == last_seen {\n");
-            out.push_str("            stable_rounds += 1;\n");
-            out.push_str("        } else {\n");
-            out.push_str("            stable_rounds = 0;\n");
-            out.push_str("            last_seen = now;\n");
+            out.push_str("            Ok(_) => {}\n");
+            out.push_str(
+                "            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}\n",
+            );
+            out.push_str(
+                "            Err(tokio::sync::broadcast::error::RecvError::Closed) => break,\n",
+            );
             out.push_str("        }\n");
-            out.push_str("        spins += 1;\n");
             out.push_str("    }\n");
             out.push_str("}\n");
         }
@@ -19904,6 +19954,7 @@ impl RustCodegen {
                     self.sub_counter += 1;
                     let handle_name = format!("_sub_{}", self.sub_counter);
                     let async_captures = self.stream_sub_runtime_captures(arms);
+                    let barrier_targets = self.stream_sub_barrier_targets(arms);
                     let mut out = String::new();
                     out.push_str(&format!(
                         "{}let __stream_{} = {};\n",
@@ -19911,6 +19962,14 @@ impl RustCodegen {
                         self.sub_counter,
                         iter_name
                     ));
+                    for target in &barrier_targets {
+                        out.push_str(&format!(
+                            "{}{}.chain_barrier_from(&__stream_{});\n",
+                            self.ind(),
+                            sanitize_name(target),
+                            self.sub_counter
+                        ));
+                    }
                     out.push_str(&format!(
                         "{}let mut _rx_{} = __stream_{}.subscribe();\n",
                         self.ind(),
@@ -19988,7 +20047,7 @@ impl RustCodegen {
                     self.indent += 1;
 
                     out.push_str(&format!(
-                        "{}Ok((__seq, _)) if __seq <= __cutoff_{} => {{}}\n",
+                        "{}Ok(__FutEvent::Data(__seq, _)) if __seq <= __cutoff_{} => {{}}\n",
                         self.ind(),
                         self.sub_counter
                     ));
@@ -19996,7 +20055,11 @@ impl RustCodegen {
                     // Values
                     for arm in &value_arms {
                         let pat_str = self.emit_pattern_match(&arm.pat);
-                        out.push_str(&format!("{}Ok((_, {})) => {{\n", self.ind(), pat_str));
+                        out.push_str(&format!(
+                            "{}Ok(__FutEvent::Data(_, {})) => {{\n",
+                            self.ind(),
+                            pat_str
+                        ));
                         self.indent += 1;
                         if let Some(guard) = &arm.guard {
                             out.push_str(&format!(
@@ -20030,11 +20093,25 @@ impl RustCodegen {
                     if !value_arms.is_empty() {
                         // Fallback for Ok(_) if patterns don't cover everything
                         out.push_str(&format!(
-                            "{}Ok(_) => {{}}
+                            "{}Ok(__FutEvent::Data(_, _)) => {{}}
 ",
                             self.ind()
                         ));
                     }
+                    out.push_str(&format!(
+                        "{}Ok(__FutEvent::Barrier(__barrier)) => {{\n",
+                        self.ind()
+                    ));
+                    self.indent += 1;
+                    for target in &barrier_targets {
+                        out.push_str(&format!(
+                            "{}{}.emit_barrier(__barrier);\n",
+                            self.ind(),
+                            sanitize_name(target)
+                        ));
+                    }
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
 
                     // Error
                     out.push_str(&format!(
@@ -20252,6 +20329,7 @@ impl RustCodegen {
                     }
                     self.sub_counter += 1;
                     let handle_name = format!("_sub_{}", self.sub_counter);
+                    let barrier_targets = self.stmt_barrier_targets(body);
                     let mut out = String::new();
                     out.push_str(&format!(
                         "{}let __stream_{} = {};\n",
@@ -20259,6 +20337,14 @@ impl RustCodegen {
                         self.sub_counter,
                         iter_name
                     ));
+                    for target in &barrier_targets {
+                        out.push_str(&format!(
+                            "{}{}.chain_barrier_from(&__stream_{});\n",
+                            self.ind(),
+                            sanitize_name(target),
+                            self.sub_counter
+                        ));
+                    }
                     out.push_str(&format!(
                         "{}let mut _rx_{} = __stream_{}.subscribe();\n",
                         self.ind(),
@@ -20291,10 +20377,17 @@ impl RustCodegen {
                     ));
                     self.indent += 1;
                     out.push_str(&format!(
-                        "{}while let Ok((__seq, {})) = _rx_{}.recv().await {{\n",
+                        "{}while let Ok(__evt) = _rx_{}.recv().await {{\n",
                         self.ind(),
-                        var,
                         self.sub_counter
+                    ));
+                    self.indent += 1;
+                    out.push_str(&format!("{}match __evt {{\n", self.ind()));
+                    self.indent += 1;
+                    out.push_str(&format!(
+                        "{}__FutEvent::Data(__seq, {}) => {{\n",
+                        self.ind(),
+                        var
                     ));
                     self.indent += 1;
                     out.push_str(&format!(
@@ -20305,6 +20398,24 @@ impl RustCodegen {
                     for s in body {
                         out.push_str(&self.emit_stmt(s));
                     }
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                    out.push_str(&format!(
+                        "{}__FutEvent::Barrier(__barrier) => {{\n",
+                        self.ind()
+                    ));
+                    self.indent += 1;
+                    for target in &barrier_targets {
+                        out.push_str(&format!(
+                            "{}{}.emit_barrier(__barrier);\n",
+                            self.ind(),
+                            sanitize_name(target)
+                        ));
+                    }
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}}\n", self.ind()));
                     self.indent -= 1;
                     out.push_str(&format!("{}}}\n", self.ind()));
                     self.indent -= 1;
@@ -21529,6 +21640,136 @@ impl RustCodegen {
             && !self.types.known_modules.contains(name)
     }
 
+    fn collect_subject_send_targets_from_expr(&self, expr: &Expr, targets: &mut BTreeSet<String>) {
+        match &expr.kind {
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+            ExprKind::App(func, args) => {
+                self.collect_subject_send_targets_from_expr(func, targets);
+                for arg in args {
+                    self.collect_subject_send_targets_from_expr(arg, targets);
+                }
+            }
+            ExprKind::UnOp(_, body) | ExprKind::Field(body, _) | ExprKind::Try(body) => {
+                self.collect_subject_send_targets_from_expr(body, targets);
+            }
+            ExprKind::Lambda(_, _) => {}
+            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Index(lhs, rhs) | ExprKind::Pipe(lhs, rhs) => {
+                self.collect_subject_send_targets_from_expr(lhs, targets);
+                self.collect_subject_send_targets_from_expr(rhs, targets);
+            }
+            ExprKind::If(cond, then_, else_) => {
+                self.collect_subject_send_targets_from_expr(cond, targets);
+                self.collect_subject_send_targets_from_expr(then_, targets);
+                self.collect_subject_send_targets_from_expr(else_, targets);
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                self.collect_subject_send_targets_from_expr(scrutinee, targets);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.collect_subject_send_targets_from_expr(guard, targets);
+                    }
+                    self.collect_subject_send_targets_from_expr(&arm.body, targets);
+                }
+            }
+            ExprKind::Block(body) => self.collect_subject_send_targets_from_stmts(body, targets),
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Effect(_, items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => {
+                for item in items {
+                    self.collect_subject_send_targets_from_expr(item, targets);
+                }
+            }
+            ExprKind::Handle { body, handlers, .. } => {
+                self.collect_subject_send_targets_from_expr(body, targets);
+                for handler in handlers {
+                    self.collect_subject_send_targets_from_expr(&handler.body, targets);
+                }
+            }
+        }
+    }
+
+    fn collect_subject_send_targets_from_stmts(
+        &self,
+        stmts: &[Stmt],
+        targets: &mut BTreeSet<String>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Send(target, msg) => {
+                    if let ExprKind::Var(name) = &target.kind {
+                        if self.subject_vars.contains(name) {
+                            targets.insert(name.clone());
+                        }
+                    }
+                    self.collect_subject_send_targets_from_expr(msg, targets);
+                }
+                Stmt::Bind(_, _, expr)
+                | Stmt::MonadicBind(_, _, expr)
+                | Stmt::Expr(expr)
+                | Stmt::StreamBind(_, expr) => {
+                    self.collect_subject_send_targets_from_expr(expr, targets);
+                }
+                Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+                    for arg in args {
+                        self.collect_subject_send_targets_from_expr(arg, targets);
+                    }
+                }
+                Stmt::For(_, iter, body) => {
+                    self.collect_subject_send_targets_from_expr(iter, targets);
+                    self.collect_subject_send_targets_from_stmts(body, targets);
+                }
+                Stmt::While(cond, body) => {
+                    self.collect_subject_send_targets_from_expr(cond, targets);
+                    self.collect_subject_send_targets_from_stmts(body, targets);
+                }
+                Stmt::StreamSub(expr, _) => {
+                    self.collect_subject_send_targets_from_expr(expr, targets);
+                }
+                Stmt::Rule(Rule::Scope { body, .. }) => {
+                    self.collect_subject_send_targets_from_stmts(body, targets);
+                }
+                Stmt::Invariant {
+                    subject, predicate, ..
+                } => {
+                    self.collect_subject_send_targets_from_expr(subject, targets);
+                    self.collect_subject_send_targets_from_expr(predicate, targets);
+                }
+                Stmt::Prove {
+                    pass_block,
+                    else_block,
+                    ..
+                } => {
+                    if let Some(pass_block) = pass_block {
+                        self.collect_subject_send_targets_from_stmts(pass_block, targets);
+                    }
+                    if let Some(else_block) = else_block {
+                        self.collect_subject_send_targets_from_stmts(else_block, targets);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn stream_sub_barrier_targets(&self, arms: &[MatchArm]) -> Vec<String> {
+        let mut targets = BTreeSet::new();
+        for arm in arms {
+            if let Some(guard) = &arm.guard {
+                self.collect_subject_send_targets_from_expr(guard, &mut targets);
+            }
+            self.collect_subject_send_targets_from_expr(&arm.body, &mut targets);
+        }
+        targets.into_iter().collect()
+    }
+
+    fn stmt_barrier_targets(&self, stmts: &[Stmt]) -> Vec<String> {
+        let mut targets = BTreeSet::new();
+        self.collect_subject_send_targets_from_stmts(stmts, &mut targets);
+        targets.into_iter().collect()
+    }
+
     fn stream_sub_runtime_captures(&self, arms: &[MatchArm]) -> Vec<String> {
         let lsp_builtin_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
         let all_effect_ops: BTreeSet<&str> = self
@@ -22467,7 +22708,8 @@ impl RustCodegen {
                 );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
-                    let __out_{n} = __FutStream::new(); \
+                    let mut __out_{n} = __FutStream::new(); \
+                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
                     let mut __srx_{n} = __src_{n}.subscribe(); \
                     let __cutoff_{n} = __src_{n}.watermark(); \
                     for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
@@ -22475,9 +22717,14 @@ impl RustCodegen {
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
-                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
-                            if __seq <= __cutoff_{n} {{ continue; }} \
-                            __sfwd_{n}.send({live_call}); \
+                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
+                            match __evt {{ \
+                                __FutEvent::Data(__seq, __v) => {{ \
+                                    if __seq <= __cutoff_{n} {{ continue; }} \
+                                    __sfwd_{n}.send({live_call}); \
+                                }} \
+                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
+                            }} \
                         }} \
                     }}); \
                     __out_{n} }}"
@@ -22509,7 +22756,8 @@ impl RustCodegen {
                 );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
-                    let __out_{n} = __FutStream::new(); \
+                    let mut __out_{n} = __FutStream::new(); \
+                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
                     let mut __srx_{n} = __src_{n}.subscribe(); \
                     let __cutoff_{n} = __src_{n}.watermark(); \
                     for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
@@ -22517,9 +22765,14 @@ impl RustCodegen {
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
-                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
-                            if __seq <= __cutoff_{n} {{ continue; }} \
-                            if {live_pred} {{ __sfwd_{n}.send(__v); }} \
+                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
+                            match __evt {{ \
+                                __FutEvent::Data(__seq, __v) => {{ \
+                                    if __seq <= __cutoff_{n} {{ continue; }} \
+                                    if {live_pred} {{ __sfwd_{n}.send(__v); }} \
+                                }} \
+                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
+                            }} \
                         }} \
                     }}); \
                     __out_{n} }}"
@@ -22564,7 +22817,8 @@ impl RustCodegen {
                 );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
-                    let __out_{n} = __FutStream::new(); \
+                    let mut __out_{n} = __FutStream::new(); \
+                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
                     let mut __srx_{n} = __src_{n}.subscribe(); \
                     let __cutoff_{n} = __src_{n}.watermark(); \
                     let mut __acc_seed_{n} = {init}; \
@@ -22576,10 +22830,15 @@ impl RustCodegen {
                     let __seed_acc_{n} = __acc_seed_{n}.clone(); \
                     tokio::spawn(async move {{ \
                         let mut __acc = __seed_acc_{n}; \
-                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
-                            if __seq <= __cutoff_{n} {{ continue; }} \
-                            __acc = {scan_live_call}; \
-                            __sfwd_{n}.send(__acc.clone()); \
+                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
+                            match __evt {{ \
+                                __FutEvent::Data(__seq, __v) => {{ \
+                                    if __seq <= __cutoff_{n} {{ continue; }} \
+                                    __acc = {scan_live_call}; \
+                                    __sfwd_{n}.send(__acc.clone()); \
+                                }} \
+                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
+                            }} \
                         }} \
                     }}); \
                     __out_{n} }}"
@@ -22589,7 +22848,8 @@ impl RustCodegen {
                 let count = self.emit_expr(&args[1]);
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
-                    let __out_{n} = __FutStream::new(); \
+                    let mut __out_{n} = __FutStream::new(); \
+                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
                     let mut __srx_{n} = __src_{n}.subscribe(); \
                     let __cutoff_{n} = __src_{n}.watermark(); \
                     let mut __seen_seed_{n} = 0i64; \
@@ -22602,11 +22862,16 @@ impl RustCodegen {
                     let __seed_seen_{n} = __seen_seed_{n}; \
                     tokio::spawn(async move {{ \
                         let mut __c = __seed_seen_{n}; \
-                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
-                            if __seq <= __cutoff_{n} {{ continue; }} \
-                            if __c >= {count} {{ break; }} \
-                            __sfwd_{n}.send(__v); \
-                            __c += 1; \
+                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
+                            match __evt {{ \
+                                __FutEvent::Data(__seq, __v) => {{ \
+                                    if __seq <= __cutoff_{n} {{ continue; }} \
+                                    if __c >= {count} {{ continue; }} \
+                                    __sfwd_{n}.send(__v); \
+                                    __c += 1; \
+                                }} \
+                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
+                            }} \
                         }} \
                     }}); \
                     __out_{n} }}"
@@ -22616,7 +22881,8 @@ impl RustCodegen {
                 let count = self.emit_expr(&args[1]);
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
-                    let __out_{n} = __FutStream::new(); \
+                    let mut __out_{n} = __FutStream::new(); \
+                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
                     let mut __srx_{n} = __src_{n}.subscribe(); \
                     let __cutoff_{n} = __src_{n}.watermark(); \
                     let mut __seen_seed_{n} = 0i64; \
@@ -22628,10 +22894,15 @@ impl RustCodegen {
                     let __seed_seen_{n} = __seen_seed_{n}; \
                     tokio::spawn(async move {{ \
                         let mut __c = __seed_seen_{n}; \
-                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
-                            if __seq <= __cutoff_{n} {{ continue; }} \
-                            if __c >= {count} {{ __sfwd_{n}.send(__v); }} \
-                            else {{ __c += 1; }} \
+                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
+                            match __evt {{ \
+                                __FutEvent::Data(__seq, __v) => {{ \
+                                    if __seq <= __cutoff_{n} {{ continue; }} \
+                                    if __c >= {count} {{ __sfwd_{n}.send(__v); }} \
+                                    else {{ __c += 1; }} \
+                                }} \
+                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
+                            }} \
                         }} \
                     }}); \
                     __out_{n} }}"
@@ -22663,7 +22934,8 @@ impl RustCodegen {
                 );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
-                    let __out_{n} = __FutStream::new(); \
+                    let mut __out_{n} = __FutStream::new(); \
+                    __out_{n}.set_barrier_passthrough(&__src_{n}); \
                     let mut __srx_{n} = __src_{n}.subscribe(); \
                     let __cutoff_{n} = __src_{n}.watermark(); \
                     for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
@@ -22672,10 +22944,15 @@ impl RustCodegen {
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
-                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
-                            if __seq <= __cutoff_{n} {{ continue; }} \
-                            {live_tap}; \
-                            __sfwd_{n}.send(__v); \
+                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
+                            match __evt {{ \
+                                __FutEvent::Data(__seq, __v) => {{ \
+                                    if __seq <= __cutoff_{n} {{ continue; }} \
+                                    {live_tap}; \
+                                    __sfwd_{n}.send(__v); \
+                                }} \
+                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
+                            }} \
                         }} \
                     }}); \
                     __out_{n} }}"
@@ -22694,7 +22971,8 @@ impl RustCodegen {
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let __src_{n2} = {source2}; \
-                    let __out_{n} = __FutStream::new(); \
+                    let mut __out_{n} = __FutStream::new(); \
+                    __out_{n}.set_barrier_merge(&__src_{n}, &__src_{n2}); \
                     let mut __srx_{n} = __src_{n}.subscribe(); \
                     let mut __srx_{n2} = __src_{n2}.subscribe(); \
                     let __cutoff_{n} = __src_{n}.watermark(); \
@@ -22714,15 +22992,25 @@ impl RustCodegen {
                     let __sfwd_{n} = __out_{n}.clone(); \
                     let __sfwd_{n2} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
-                        while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
-                            if __seq <= __cutoff_{n} {{ continue; }} \
-                            __sfwd_{n}.send(__v); \
+                        while let Ok(__evt) = __srx_{n}.recv().await {{ \
+                            match __evt {{ \
+                                __FutEvent::Data(__seq, __v) => {{ \
+                                    if __seq <= __cutoff_{n} {{ continue; }} \
+                                    __sfwd_{n}.send(__v); \
+                                }} \
+                                __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
+                            }} \
                         }} \
                     }}); \
                     tokio::spawn(async move {{ \
-                        while let Ok((__seq, __v)) = __srx_{n2}.recv().await {{ \
-                            if __seq <= __cutoff_{n2} {{ continue; }} \
-                            __sfwd_{n2}.send(__v); \
+                        while let Ok(__evt) = __srx_{n2}.recv().await {{ \
+                            match __evt {{ \
+                                __FutEvent::Data(__seq, __v) => {{ \
+                                    if __seq <= __cutoff_{n2} {{ continue; }} \
+                                    __sfwd_{n2}.send(__v); \
+                                }} \
+                                __FutEvent::Barrier(__barrier) => __sfwd_{n2}.emit_barrier(__barrier), \
+                            }} \
                         }} \
                     }}); \
                     __out_{n} }}"
@@ -29929,6 +30217,21 @@ routes <- "b"
         assert!(
             rust.contains("__fut_settle(&__stream).await; __stream.snapshot()"),
             "async collect/show paths should settle derived stream state before snapshot reads: {}",
+            rust
+        );
+        assert!(
+            rust.contains("stream.inject_barrier(barrier_id);"),
+            "settle helper should inject a propagation barrier instead of polling watermarks: {}",
+            rust
+        );
+        assert!(
+            rust.contains("Ok(__FutEvent::Barrier(id)) if id == barrier_id => seen += 1"),
+            "settle helper should wait for barrier arrival at the target stream: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("tokio::time::sleep(std::time::Duration::from_millis(0)).await;"),
+            "settle helper should no longer spin on zero-duration sleeps: {}",
             rust
         );
         assert!(
