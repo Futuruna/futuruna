@@ -1,0 +1,9 @@
+-- roundtrip-skip: library file, no expected output
+
+> risk_marker(score: Int) -> String {
+    if score >= 15 { "hot" } else if score >= 12 { "warm" } else { "steady" }
+}
+
+> checkpoint_suffix(region: String) -> String {
+    if substring(region, 0, 2) == "eu" { "gate-eu" } else { "gate-gl" }
+}

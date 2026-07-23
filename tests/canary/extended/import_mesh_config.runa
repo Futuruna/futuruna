@@ -1,0 +1,16 @@
+-- roundtrip-skip: library file, no expected output
+
+= hidden_bias = 1
+
+@ export
+= review_threshold = 14
+
+@ export
+> classify(score: Int) -> String {
+    if score + hidden_bias >= review_threshold { "review" } else { "ship" }
+}
+
+@ export
+> status_prefix(region: String) -> String {
+    if substring(region, 0, 2) == "eu" { "eu" } else { "gl" }
+}

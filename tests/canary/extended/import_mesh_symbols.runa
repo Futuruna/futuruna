@@ -1,0 +1,11 @@
+-- roundtrip-skip: library file, no expected output
+
+@ export
+> mesh_key(service: String, region: String) -> String {
+    replace(service, " ", "-") + "@" + substring(region, 0, 2)
+}
+
+@ export
+> lane_seed(region: String) -> Int {
+    if substring(region, 0, 2) == "eu" { 2 } else { 1 }
+}

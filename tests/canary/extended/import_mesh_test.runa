@@ -1,0 +1,55 @@
+-- Authored extended canary: import-heavy rollout planning over transitive flat,
+-- qualified, and content-addressed module workflows.
+
+@ import ./import_mesh_shared
+@ import Catalog from ./import_mesh_config
+@ import #eadb5022ecc2 from ./import_mesh_hashes
+@ import #92ddac7f9d02 from ./import_mesh_hashes
+
+> counts_csv(counts: Map(String, Int)) -> String {
+    = keys = sort(map_keys(counts))
+    join(map(keys, |key| key + ":" + show(map_get_or(counts, key, 0))), ",")
+}
+
+> bump(counts: Map(String, Int), key: String) -> Map(String, Int) {
+    map_insert(counts, key, map_get_or(counts, key, 0) + 1)
+}
+
+> summarize(service: String, region: String, notes: List(String)) -> String {
+    = score = service_score(service, region, notes)
+    Catalog.status_prefix(region) + ":" + mesh_key(service, region) + ":" + Catalog.classify(score) + ":" + risk_marker(score) + ":" + checkpoint_suffix(region)
+}
+
+= plans = [
+("billing api", "euwest", ["dry-run", "db"]),
+("edge cache", "useast", ["sync"]),
+("auth worker", "eucentral", ["shadow", "audit", "tokens"])
+]
+
+= summaries = map(plans, |plan| summarize(fst(plan), snd(plan), trd(plan)))
+= scores = map(plans, |plan| service_score(fst(plan), snd(plan), trd(plan)))
+
+= empty_counts: Map(String, Int) = map_new()
+= lane_counts = foldl(scores, empty_counts, |acc, score| bump(acc, Catalog.classify(score)))
+= risk_counts = foldl(scores, empty_counts, |acc, score| bump(acc, risk_marker(score)))
+= checkpoints = sort(set_to_list(set_from_list(map(plans, |plan| checkpoint_suffix(snd(plan))))))
+
+= imported_probe_ok = imported_probe == "billing-api@eu:dry-run"
+? imported_probe_ok
+
+= threshold_ok = Catalog.review_threshold == 14
+? threshold_ok
+
+= summaries_ok = join(summaries, "|") == "eu:billing-api@eu:review:hot:gate-eu|gl:edge-cache@us:ship:warm:gate-gl|eu:auth-worker@eu:review:hot:gate-eu"
+? summaries_ok
+
+= lanes_ok = counts_csv(lane_counts) == "review:2,ship:1"
+? lanes_ok
+
+= risks_ok = counts_csv(risk_counts) == "hot:2,warm:1"
+? risks_ok
+
+= checkpoints_ok = join(checkpoints, ",") == "gate-eu,gate-gl"
+? checkpoints_ok
+
+@ print("canary import mesh passed")

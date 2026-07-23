@@ -1,0 +1,13 @@
+-- roundtrip-skip: library file, no expected output
+
+@ import ./import_mesh_symbols
+
+> service_score(service: String, region: String, notes: List(String)) -> Int {
+    length(service) + lane_seed(region) + length(notes)
+}
+
+> rollout_summary(service: String, region: String, notes: List(String)) -> String {
+    mesh_key(service, region) + ":" + join(notes, "+")
+}
+
+= imported_probe = rollout_summary("billing api", "euwest", ["dry-run"])
