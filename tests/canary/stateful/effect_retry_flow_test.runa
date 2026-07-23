@@ -1,0 +1,135 @@
+-- roundtrip-skip: effect handlers and actors use the external async runtime path
+-- Authored stateful canary: effect handlers over actor-backed retry state with
+-- deterministic retries, branching outcomes, and summary output.
+
+# effect Remote {
+    > fetch(job: String) -> Result(String, String)
+}
+
+# effect Audit {
+    > note(entry: String) -> ()
+}
+
+# RetryState(alpha_attempts: Int, beta_attempts: Int, gamma_attempts: Int, last_result: Result(String, String), events: List(String))
+
+> empty_retry_state() -> RetryState {
+    RetryState(0, 0, 0, Ok("idle"), [])
+}
+
+> keep_last(state: RetryState, result: Result(String, String), event: String) -> RetryState {
+    RetryState(state.alpha_attempts, state.beta_attempts, state.gamma_attempts, result, concat(state.events, [event]))
+}
+
+> fetch_alpha(state: RetryState) -> RetryState {
+    = next = state.alpha_attempts + 1
+    = event = "fetch:alpha:" + show(next)
+    if next == 1 {
+        RetryState(next, state.beta_attempts, state.gamma_attempts, Err("timeout"), concat(state.events, [event]))
+    } else {
+        RetryState(next, state.beta_attempts, state.gamma_attempts, Ok("alpha:ready"), concat(state.events, [event]))
+    }
+}
+
+> fetch_beta(state: RetryState) -> RetryState {
+    = next = state.beta_attempts + 1
+    = event = "fetch:beta:" + show(next)
+    if next < 3 {
+        RetryState(state.alpha_attempts, next, state.gamma_attempts, Err("timeout"), concat(state.events, [event]))
+    } else {
+        RetryState(state.alpha_attempts, next, state.gamma_attempts, Ok("beta:ready"), concat(state.events, [event]))
+    }
+}
+
+> fetch_gamma(state: RetryState) -> RetryState {
+    = next = state.gamma_attempts + 1
+    = event = "fetch:gamma:" + show(next)
+    RetryState(state.alpha_attempts, state.beta_attempts, next, Err("denied"), concat(state.events, [event]))
+}
+
+> advance_fetch(state: RetryState, job: String) -> RetryState {
+    if job == "alpha" {
+        fetch_alpha(state)
+    } else if job == "beta" {
+        fetch_beta(state)
+    } else if job == "gamma" {
+        fetch_gamma(state)
+    } else {
+        keep_last(state, Err("unknown"), "fetch:" + job + ":unknown")
+    }
+}
+
+> record_event(state: RetryState, event: String) -> RetryState {
+    RetryState(state.alpha_attempts, state.beta_attempts, state.gamma_attempts, state.last_result, concat(state.events, [event]))
+}
+
+> attempt_summary(state: RetryState) -> String {
+    "alpha=" + show(state.alpha_attempts) + "|beta=" + show(state.beta_attempts) + "|gamma=" + show(state.gamma_attempts)
+}
+
+> events_summary(events: List(String)) -> String {
+    join(events, "|")
+}
+
+> actor retry_backend(state: RetryState) {
+    | Fetch(job) -> advance_fetch(state, job)
+    | Record(event) -> record_event(state, event)
+    | Snapshot -> state
+}
+
+> fetch_with_retry(job: String, retries_left: Int) -> String with Remote, Audit {
+    note("start:" + job + ":" + show(retries_left))
+    = result = fetch(job)
+    match result {
+        Ok(value) -> {
+            note("ok:" + job + ":" + value)
+            "ok:" + value
+        }
+        Err(err) -> {
+            if retries_left > 0 {
+                note("retry:" + job + ":" + err + ":" + show(retries_left))
+                fetch_with_retry(job, retries_left - 1)
+            } else {
+                note("failed:" + job + ":" + err)
+                "failed:" + err
+            }
+        }
+    }
+}
+
+> run_retry_flow() -> String with Remote, Audit {
+    = alpha = fetch_with_retry("alpha", 2)
+    = beta = fetch_with_retry("beta", 2)
+    = gamma = fetch_with_retry("gamma", 2)
+
+    = ok_count = length(filter([alpha, beta, gamma], |result| starts_with(result, "ok:")))
+    = failed_count = length(filter([alpha, beta, gamma], |result| starts_with(result, "failed:")))
+
+    "alpha=" + alpha + "|beta=" + beta + "|gamma=" + gamma + "|ok=" + show(ok_count) + "|failed=" + show(failed_count)
+}
+
+= backend = spawn(retry_backend, empty_retry_state())
+
+= summary = | handle Remote {
+    | fetch(job) -> {
+        = snapshot = ask(backend, Fetch(job))
+        resume(snapshot.last_result)
+    }
+} in | handle Audit {
+    | note(entry) -> {
+        = _ = ask(backend, Record(entry))
+        resume(())
+    }
+} in run_retry_flow()
+
+= summary_ok = summary == "alpha=ok:alpha:ready|beta=ok:beta:ready|gamma=failed:denied|ok=2|failed=1"
+? summary_ok
+
+= final_state = ask(backend, Snapshot)
+
+= attempts_ok = attempt_summary(final_state) == "alpha=2|beta=3|gamma=3"
+? attempts_ok
+
+= log_ok = events_summary(final_state.events) == "start:alpha:2|fetch:alpha:1|retry:alpha:timeout:2|start:alpha:1|fetch:alpha:2|ok:alpha:alpha:ready|start:beta:2|fetch:beta:1|retry:beta:timeout:2|start:beta:1|fetch:beta:2|retry:beta:timeout:1|start:beta:0|fetch:beta:3|ok:beta:beta:ready|start:gamma:2|fetch:gamma:1|retry:gamma:denied:2|start:gamma:1|fetch:gamma:2|retry:gamma:denied:1|start:gamma:0|fetch:gamma:3|failed:gamma:denied"
+? log_ok
+
+@ print("canary effect retry flow passed")

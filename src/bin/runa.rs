@@ -9524,6 +9524,8 @@ struct RustCodegen {
     var_fir_types: BTreeMap<String, FirTy>,
     /// M13c: program needs async tokio runtime (subjects or actors detected)
     has_async: bool,
+    /// Current Rust emission is inside an async fn/block where `.await` is legal.
+    async_context_depth: usize,
     /// M13c: variables that are subjects (broadcast::Sender) — for codegen routing
     subject_vars: BTreeSet<String>,
     /// M13c: variables that evaluate to async streams (subjects or derived stream ops)
@@ -13308,6 +13310,7 @@ impl RustCodegen {
             var_types: BTreeMap::new(),
             var_fir_types: BTreeMap::new(),
             has_async: false,
+            async_context_depth: 0,
             subject_vars: BTreeSet::new(),
             async_stream_vars: BTreeSet::new(),
             scope_handles: BTreeMap::new(),
@@ -15700,23 +15703,30 @@ impl RustCodegen {
                 out.push_str("\n");
             }
 
-            let mut skip_next_comptime = false;
-            for stmt in &main_stmts {
-                if let Stmt::Annot(name, _) = stmt {
-                    if name == "comptime" {
-                        skip_next_comptime = true;
-                        continue; // @ comptime itself emits nothing
+            let mut emit_main_stmts = |cg: &mut Self| {
+                let mut skip_next_comptime = false;
+                for stmt in &main_stmts {
+                    if let Stmt::Annot(name, _) = stmt {
+                        if name == "comptime" {
+                            skip_next_comptime = true;
+                            continue; // @ comptime itself emits nothing
+                        }
                     }
-                }
-                if skip_next_comptime {
-                    skip_next_comptime = false;
-                    // Comptime binds are handled via comptime_values in emit_stmt.
-                    // Comptime asserts were already evaluated — skip the assert expression.
-                    if matches!(stmt, Stmt::Expr(_)) {
-                        continue;
+                    if skip_next_comptime {
+                        skip_next_comptime = false;
+                        // Comptime binds are handled via comptime_values in emit_stmt.
+                        // Comptime asserts were already evaluated — skip the assert expression.
+                        if matches!(stmt, Stmt::Expr(_)) {
+                            continue;
+                        }
                     }
+                    out.push_str(&cg.emit_stmt(stmt));
                 }
-                out.push_str(&self.emit_stmt(stmt));
+            };
+            if self.has_async {
+                self.with_async_context(&mut emit_main_stmts);
+            } else {
+                emit_main_stmts(self);
             }
             if uses_try {
                 out.push_str("    Ok(())\n");
@@ -16149,7 +16159,14 @@ impl RustCodegen {
                     let base = ty_str.split('<').next().unwrap_or(&ty_str).trim();
                     matches!(
                         base,
-                        "Vec" | "Option" | "BTreeMap" | "HashMap" | "HashSet" | "Rc" | "Arc"
+                        "Vec"
+                            | "Option"
+                            | "Result"
+                            | "BTreeMap"
+                            | "HashMap"
+                            | "HashSet"
+                            | "Rc"
+                            | "Arc"
                     )
                 };
 
@@ -18628,44 +18645,50 @@ impl RustCodegen {
                     "async fn {}_run(mut rx: tokio::sync::mpsc::UnboundedReceiver<{}Msg>, mut {}: {}) {{\n",
                     sname, sname, sanitize_name(&state_param.name), state_type
                 ));
-                out.push_str("    while let Some(msg) = rx.recv().await {\n");
-                out.push_str("        match msg {\n");
-                for h in handlers {
-                    let pat = self.emit_pattern_as_match_arm(&h.msg_pat, &sname);
-                    let body = self.emit_expr(&h.body);
-                    out.push_str(&format!(
-                        "            {} => {{ {} = {}; }}\n",
-                        pat,
-                        sanitize_name(&state_param.name),
-                        body
-                    ));
-                }
-                // __Ask: process the inner message first, then reply with updated state
                 let state_name = sanitize_name(&state_param.name);
-                out.push_str(&format!(
-                    "            {}Msg::__Ask(inner, reply) => {{\n",
-                    sname
-                ));
-                out.push_str("                match *inner {\n");
-                for h in handlers {
-                    let pat = self.emit_pattern_as_match_arm(&h.msg_pat, &sname);
-                    let body = self.emit_expr(&h.body);
-                    out.push_str(&format!(
-                        "                    {} => {{ {} = {}; }}\n",
-                        pat, state_name, body
+                let actor_loop = self.with_async_context(|cg| {
+                    let mut loop_out = String::new();
+                    loop_out.push_str("    while let Some(msg) = rx.recv().await {\n");
+                    loop_out.push_str("        match msg {\n");
+                    for h in handlers {
+                        let pat = cg.emit_pattern_as_match_arm(&h.msg_pat, &sname);
+                        let body = cg.emit_expr(&h.body);
+                        loop_out.push_str(&format!(
+                            "            {} => {{ {} = {}; }}\n",
+                            pat,
+                            sanitize_name(&state_param.name),
+                            body
+                        ));
+                    }
+                    // __Ask: process the inner message first, then reply with updated state
+                    loop_out.push_str(&format!(
+                        "            {}Msg::__Ask(inner, reply) => {{\n",
+                        sname
                     ));
-                }
-                out.push_str(&format!(
-                    "                    {}Msg::__Ask(_, _) => {{}}\n",
-                    sname
-                ));
-                out.push_str("                }\n");
-                out.push_str(&format!(
-                    "                let _ = reply.send({}.clone());\n",
-                    state_name
-                ));
-                out.push_str("            }\n");
-                out.push_str("        }\n    }\n}\n\n");
+                    loop_out.push_str("                match *inner {\n");
+                    for h in handlers {
+                        let pat = cg.emit_pattern_as_match_arm(&h.msg_pat, &sname);
+                        let body = cg.emit_expr(&h.body);
+                        loop_out.push_str(&format!(
+                            "                    {} => {{ {} = {}; }}\n",
+                            pat, state_name, body
+                        ));
+                    }
+                    loop_out.push_str(&format!(
+                        "                    {}Msg::__Ask(_, _) => {{}}\n",
+                        sname
+                    ));
+                    loop_out.push_str("                }\n");
+                    loop_out.push_str(&format!(
+                        "                let _ = reply.send({}.clone());\n",
+                        state_name
+                    ));
+                    loop_out.push_str("            }\n");
+                    loop_out.push_str("        }\n    }\n");
+                    loop_out
+                });
+                out.push_str(&actor_loop);
+                out.push_str("}\n\n");
 
                 // Spawn helper
                 out.push_str(&format!(
@@ -20306,9 +20329,38 @@ impl RustCodegen {
         })
     }
 
+    fn actor_handle_rust_type(&self, name: &str) -> Option<String> {
+        self.actor_handle_vars.get(name).map(|actor_name| {
+            format!(
+                "tokio::sync::mpsc::UnboundedSender<{}Msg>",
+                sanitize_name(actor_name)
+            )
+        })
+    }
+
     fn lookup_var_rust_type(&self, name: &str) -> Option<String> {
         self.lookup_var_fir_ty(name)
             .and_then(|ty| Self::fir_type_to_rust(&ty))
+            .or_else(|| self.actor_handle_rust_type(name))
+    }
+
+    fn in_async_context(&self) -> bool {
+        self.async_context_depth > 0
+    }
+
+    fn with_async_context<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+        self.async_context_depth += 1;
+        let result = f(self);
+        self.async_context_depth -= 1;
+        result
+    }
+
+    fn with_sync_context<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+        let saved = self.async_context_depth;
+        self.async_context_depth = 0;
+        let result = f(self);
+        self.async_context_depth = saved;
+        result
     }
 
     fn infer_expr_fir_ty_with_env(&self, expr: &Expr, type_env: BTreeMap<String, FirTy>) -> FirTy {
@@ -22202,8 +22254,15 @@ impl RustCodegen {
                             .get(&handle_name)
                             .map(|n| sanitize_name(n))
                             .unwrap_or_else(|| handle_name.clone());
-                        return format!("{{ let (__tx, __rx) = tokio::sync::oneshot::channel(); {}.send({}Msg::__Ask(Box::new({}), __tx)).unwrap(); __rx.await.unwrap() }}",
-                            args_str[0], actor_name, args_str[1]);
+                        let await_expr = if self.in_async_context() {
+                            "__rx.await.unwrap()".to_string()
+                        } else {
+                            "tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(async move { __rx.await.unwrap() }))".to_string()
+                        };
+                        return format!(
+                            "{{ let (__tx, __rx) = tokio::sync::oneshot::channel(); {}.send({}Msg::__Ask(Box::new({}), __tx)).unwrap(); {} }}",
+                            args_str[0], actor_name, args_str[1], await_expr
+                        );
                     }
                     if name == "as_stream" && args_str.len() == 1 {
                         if self.has_async {
@@ -22939,11 +22998,7 @@ impl RustCodegen {
                 // Only keep captures that we know the type of
                 let typed_captures: Vec<(String, String)> = captures
                     .iter()
-                    .filter_map(|name| {
-                        self.var_types
-                            .get(name)
-                            .map(|ty| (name.clone(), ty.clone()))
-                    })
+                    .filter_map(|name| self.lookup_var_rust_type(name).map(|ty| (name.clone(), ty)))
                     .collect();
 
                 let mut out = String::from("{\n");
@@ -23002,6 +23057,11 @@ impl RustCodegen {
                         .and_then(|(_, _, ret)| ret.as_ref())
                         .map(|t| format!(" -> {}", self.emit_type(t)))
                         .unwrap_or_default();
+                    let capture_names: BTreeSet<String> =
+                        typed_captures.iter().map(|(n, _)| n.clone()).collect();
+                    let handler_body = self.with_sync_context(|cg| {
+                        cg.emit_handle_body_with_captures(&h.body, &capture_names)
+                    });
                     out.push_str(&format!(
                         "{}    fn {}(&self, {}){} {{\n",
                         self.ind(),
@@ -23009,14 +23069,7 @@ impl RustCodegen {
                         params_str.join(", "),
                         ret
                     ));
-                    // Emit handler body, replacing captured vars with self.var_name
-                    let capture_names: BTreeSet<String> =
-                        typed_captures.iter().map(|(n, _)| n.clone()).collect();
-                    out.push_str(&format!(
-                        "{}        {}\n",
-                        self.ind(),
-                        self.emit_handle_body_with_captures(&h.body, &capture_names)
-                    ));
+                    out.push_str(&format!("{}        {}\n", self.ind(), handler_body));
                     out.push_str(&format!("{}    }}\n", self.ind()));
                 }
                 out.push_str(&format!("{}}}\n", self.ind()));

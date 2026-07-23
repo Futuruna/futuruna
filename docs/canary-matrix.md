@@ -28,13 +28,13 @@ Target shape:
 | `tests/canary/stateful/subject_window_alerts_test.runa` | `stateful` | subjects, rolling windows, threshold alerts, deterministic summaries |
 | `tests/canary/stateful/actor_job_queue_test.runa` | `stateful` | actors, ordered queue transitions, deterministic completion summaries |
 | `tests/canary/stateful/lifecycle_projection_test.runa` | `stateful` | scoped projections, teardown, post-teardown stability, deterministic snapshots |
+| `tests/canary/stateful/effect_retry_flow_test.runa` | `stateful` | effect handlers, actor-backed retry state, branching outcomes, deterministic audit summaries |
 
 ## Planned Next
 
 ### Core
 
 ### Stateful
-- `td-ff3e1e`: `effect_retry_flow_test.runa`
 - `td-e77c7f`: `stream_subject_bridge_test.runa`
 
 ### Extended
