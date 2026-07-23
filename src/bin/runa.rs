@@ -11669,6 +11669,48 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
     }
 }
 
+fn builtin_has_borrow_only_args(name: &str) -> bool {
+    matches!(
+        builtin_canonical(name),
+        "show"
+            | "length"
+            | "head"
+            | "tail"
+            | "nth"
+            | "contains"
+            | "starts_with"
+            | "ends_with"
+            | "string_length"
+            | "char_at"
+            | "substring"
+            | "split"
+            | "join"
+            | "trim"
+            | "replace"
+            | "to_upper"
+            | "to_lower"
+            | "index_of"
+            | "string_chars"
+            | "parse_int"
+            | "parse_float"
+            | "any"
+            | "all"
+            | "find"
+            | "count_by"
+            | "map_get"
+            | "map_get_or"
+            | "map_len"
+            | "map_keys"
+            | "map_values"
+            | "map_contains_key"
+            | "set_contains"
+            | "set_len"
+            | "set_to_list"
+            | "is_some"
+            | "is_none"
+    )
+}
+
 /// Count consuming uses with borrow-awareness: args to known-borrow-param functions
 /// are NOT counted as consuming (they're passed by reference, not moved).
 fn count_consuming_uses_borrow_aware_impl(
@@ -11699,7 +11741,10 @@ fn count_consuming_uses_borrow_aware_impl(
                 self_param_names,
                 ignore_self_passthrough,
             );
-            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
+            let is_borrow_builtin = matches!(
+                func.as_ref().kind,
+                ExprKind::Var(ref n) if builtin_has_borrow_only_args(n)
+            );
             // Phase 3d: Check if this is a self-recursive call
             let is_self_recursive = if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                 self_fn_name == Some(fn_name.as_str())
@@ -12219,7 +12264,10 @@ fn has_consuming_non_field_use(
             ) {
                 return true;
             }
-            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
+            let is_borrow_builtin = matches!(
+                func.as_ref().kind,
+                ExprKind::Var(ref n) if builtin_has_borrow_only_args(n)
+            );
             // Phase 3d: self-recursive call detection
             let is_self_recursive = if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                 self_fn_name == Some(fn_name.as_str())
@@ -30473,6 +30521,58 @@ let summary = render(verdict(7i64), 7i64);
         assert!(
             rust.contains("__acc_seed_2 = (count_step)(__acc_seed_2.clone(), &__v);"),
             "async scan over helper functions should borrow borrow-only item params: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_propagates_borrow_only_through_read_only_helper_chain() {
+        let source = r#"
+> normalize_spaces(raw: String) -> String { to_lower(raw) }
+> reader_tokens(raw: String) -> List(String) { split(normalize_spaces(raw), " ") }
+> reader_text(raw: String) -> String { join(reader_tokens(raw), " ") }
+> reverse_tokens(text: String) -> String { join(reverse(reader_tokens(text)), " ") }
+> integrator_v2_run_text(raw: String) -> String { reader_text(raw) }
+= emitted_text = "HELLO THERE"
+= reversed_text = reverse_tokens(emitted_text)
+= reversed_read = integrator_v2_run_text(reversed_text)
+@ print("Reversed: " + reversed_text)
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn normalize_spaces(raw: &String) -> String {"),
+            "normalize_spaces should borrow its String input: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn reader_tokens(raw: &String) -> Vec<String> {"),
+            "reader_tokens should borrow through normalize_spaces: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn reader_text(raw: &String) -> String {"),
+            "reader_text should borrow through reader_tokens: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn reverse_tokens(text: &String) -> String {"),
+            "reverse_tokens should borrow through reader_tokens: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn integrator_v2_run_text(raw: &String) -> String {"),
+            "integrator_v2_run_text should borrow through reader_text: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let reversed_text = reverse_tokens(&emitted_text);"),
+            "call sites should pass borrowed Strings through the helper chain: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let reversed_read = integrator_v2_run_text(&reversed_text);"),
+            "reused String values should stay alive after helper-chain calls: {}",
             rust
         );
     }
