@@ -8443,6 +8443,7 @@ static LSP_BUILTINS: &[(&str, usize)] = &[
     ("file_exists", 1),
     ("read_lines", 1),
     ("env_var", 1),
+    ("process_run", 1),
     ("json_parse", 1),
     ("json_get", 2),
     ("json_emit", 1),
@@ -8466,6 +8467,7 @@ static LSP_BUILTINS: &[(&str, usize)] = &[
     ("pairwise", 1),
     ("fst", 1),
     ("snd", 1),
+    ("trd", 1),
     ("combine_latest", 2),
     ("subject", 1),
     ("debounce", 2),
@@ -8544,6 +8546,7 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
         "pairwise" => Some(("~ pairwise(stream) -> Stream((a, a))", "Consecutive pairs")),
         "fst" => Some(("> fst(tuple) -> a", "First element of tuple")),
         "snd" => Some(("> snd(tuple) -> b", "Second element of tuple")),
+        "trd" => Some(("> trd(tuple) -> c", "Third element of tuple")),
         "subject" => Some(("~ subject(init) -> Subject", "Create pushable subject")),
         "start_with" => Some(("~ start_with(stream, val) -> Stream", "Prepend value")),
         "concat" => Some(("~ concat(s1, s2) -> Stream", "Concatenate streams")),
@@ -8551,6 +8554,10 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
         "write_file" => Some((
             "@ write_file(path: String, content: String)",
             "Write to file",
+        )),
+        "process_run" => Some((
+            "> process_run(argv: [String]) -> (Int, String, String)",
+            "Run a subprocess without a shell and return (exit_code, stdout, stderr)",
         )),
         "json_parse" => Some(("> json_parse(s: String) -> Json", "Parse JSON string")),
         "json_get" => Some((
@@ -8648,6 +8655,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("file_exists",  BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::path::Path::new(&*{0}).exists()" }),
         ("read_lines",   BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default().lines().map(|l| l.to_string()).collect::<Vec<String>>()" }),
         ("env_var",      BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::env::var(&*{0}).unwrap_or_default()" }),
+        ("process_run",  BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "{ let __argv: Vec<String> = {0}.clone(); if __argv.is_empty() { (-1i64, String::new(), \"process_run requires at least one argv element\".to_string()) } else { let mut __cmd = std::process::Command::new(&__argv[0]); if __argv.len() > 1 { __cmd.args(&__argv[1..]); } match __cmd.output() { Ok(__out) => (__out.status.code().map(|c| c as i64).unwrap_or(-1i64), String::from_utf8_lossy(&__out.stdout).to_string(), String::from_utf8_lossy(&__out.stderr).to_string()), Err(__err) => (-1i64, String::new(), __err.to_string()) } } }" }),
 
         // ---- JSON (shadowable, pure, deps: serde_json) ----
         ("json_parse",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __s = {0}; match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => __s, Err(_) => \"null\".to_string() } }" }),
@@ -8760,6 +8768,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("pairwise",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().windows(2).map(|w| (w[0].clone(), w[1].clone())).collect::<Vec<_>>()" }),
         ("fst",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.0" }),
         ("snd",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.1" }),
+        ("trd",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.2" }),
 
         // ---- Timing operators (M17, sync mode) ----
         ("debounce",     BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ vec![__last.clone()] }} else {{ vec![] }} }" }),
@@ -10004,6 +10013,13 @@ impl<'a> LoweringCtx<'a> {
                                 ty: FirTy::List(Box::new(v)),
                             };
                         }
+                    }
+                    if fn_name == "process_run" {
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                            span: expr.span,
+                            ty: FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String]),
+                        };
                     }
                 }
 
@@ -22269,6 +22285,7 @@ impl RustCodegen {
             "parse_int",
             "to_float",
             "not",
+            "process_run",
             "findall",
             "search",
         ]
@@ -24799,6 +24816,18 @@ mod tests {
         assert_eq!(
             fir.ty,
             FirTy::Result(Box::new(FirTy::Float), Box::new(FirTy::Unknown))
+        );
+    }
+
+    #[test]
+    fn type_resolution_process_run_returns_status_stdout_stderr_tuple() {
+        let fir = lower_with_types(
+            "= x = process_run([\"git\", \"rev-parse\", \"--is-inside-work-tree\"])",
+            BTreeMap::new(),
+        );
+        assert_eq!(
+            fir.ty,
+            FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])
         );
     }
 

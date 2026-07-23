@@ -1,0 +1,38 @@
+-- process_builtin_test.runa — subprocess builtin smoke test
+
+@ print("=== process_run ===")
+
+= ok = process_run(["git", "rev-parse", "--is-inside-work-tree"])
+= ok_code = fst(ok)
+| ok_code_holds: ok_code -> ok_code == 0
+? ok_code_holds
+= ok_stdout = snd(ok)
+| ok_stdout_holds: ok_stdout -> trim(ok_stdout) == "true"
+? ok_stdout_holds
+= ok_stderr = trd(ok)
+| ok_stderr_holds: ok_stderr -> trim(ok_stderr) == ""
+? ok_stderr_holds
+@ print("process_run ok code: " + show(ok_code))
+@ print("process_run ok stdout: " + trim(ok_stdout))
+
+= empty = process_run([])
+= empty_code = fst(empty)
+| empty_code_holds: empty_code -> empty_code == -1
+? empty_code_holds
+= empty_stderr = trd(empty)
+| empty_stderr_holds: empty_stderr -> contains(empty_stderr, "at least one argv element")
+? empty_stderr_holds
+@ print("process_run empty code: " + show(empty_code))
+@ print("process_run empty stderr: " + empty_stderr)
+
+= bad = process_run(["git", "definitely-not-a-subcommand"])
+= bad_code = fst(bad)
+| bad_code_holds: bad_code -> bad_code != 0
+? bad_code_holds
+= bad_stderr = trd(bad)
+| bad_stderr_holds: bad_stderr -> length(trim(bad_stderr)) > 0
+? bad_stderr_holds
+@ print("process_run bad code: " + show(bad_code))
+@ print("process_run bad stderr: " + trim(bad_stderr))
+
+@ print("=== process_run passed ===")

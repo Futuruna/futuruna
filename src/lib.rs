@@ -6157,6 +6157,7 @@ impl Interpreter {
         env.set("file_exists".into(), Value::Builtin("file_exists".into()));
         env.set("read_lines".into(), Value::Builtin("read_lines".into()));
         env.set("env_var".into(), Value::Builtin("env_var".into()));
+        env.set("process_run".into(), Value::Builtin("process_run".into()));
         // JSON builtins (M14c)
         env.set("json_parse".into(), Value::Builtin("json_parse".into()));
         env.set("json_get".into(), Value::Builtin("json_get".into()));
@@ -6233,6 +6234,7 @@ impl Interpreter {
         env.set("pairwise".into(), Value::Builtin("pairwise".into()));
         env.set("fst".into(), Value::Builtin("fst".into()));
         env.set("snd".into(), Value::Builtin("snd".into()));
+        env.set("trd".into(), Value::Builtin("trd".into()));
         // Timing operators (M17) — clean names, no s_ prefix
         env.set("debounce".into(), Value::Builtin("debounce".into()));
         env.set("throttle".into(), Value::Builtin("throttle".into()));
@@ -8517,6 +8519,49 @@ impl Interpreter {
                 },
                 _ => Value::Str(String::new()),
             },
+            "process_run" => match args.first() {
+                Some(argv) => {
+                    let argv = list_to_vec(argv);
+                    let mut parts = Vec::with_capacity(argv.len());
+                    for value in argv {
+                        match value {
+                            Value::Str(s) => parts.push(s),
+                            other => parts.push(format!("{}", other)),
+                        }
+                    }
+                    if parts.is_empty() {
+                        Value::Tuple(vec![
+                            Value::Int(-1),
+                            Value::Str(String::new()),
+                            Value::Str(
+                                "process_run requires at least one argv element".to_string(),
+                            ),
+                        ])
+                    } else {
+                        let mut cmd = std::process::Command::new(&parts[0]);
+                        if parts.len() > 1 {
+                            cmd.args(&parts[1..]);
+                        }
+                        match cmd.output() {
+                            Ok(output) => Value::Tuple(vec![
+                                Value::Int(output.status.code().map(|c| c as i64).unwrap_or(-1)),
+                                Value::Str(String::from_utf8_lossy(&output.stdout).to_string()),
+                                Value::Str(String::from_utf8_lossy(&output.stderr).to_string()),
+                            ]),
+                            Err(err) => Value::Tuple(vec![
+                                Value::Int(-1),
+                                Value::Str(String::new()),
+                                Value::Str(err.to_string()),
+                            ]),
+                        }
+                    }
+                }
+                None => Value::Tuple(vec![
+                    Value::Int(-1),
+                    Value::Str(String::new()),
+                    Value::Str("process_run requires argv".to_string()),
+                ]),
+            },
             // ---- M14c: JSON builtins ----
             "json_parse" => match args.first() {
                 Some(Value::Str(s)) => match serde_json::from_str::<serde_json::Value>(s) {
@@ -9127,6 +9172,14 @@ impl Interpreter {
                     _ => Value::Unit,
                 }
             }
+            "trd" => {
+                // trd(tuple) → third element of a tuple
+                let val = args.into_iter().next().unwrap_or(Value::Unit);
+                match val {
+                    Value::Tuple(elems) => elems.into_iter().nth(2).unwrap_or(Value::Unit),
+                    _ => Value::Unit,
+                }
+            }
             // pair(a, b) → Tuple(a, b). Access via .fst/.snd or .0/.1.
             "pair" => {
                 let a = args.get(0).cloned().unwrap_or(Value::Unit);
@@ -9603,7 +9656,7 @@ impl Interpreter {
                         .to_string(),
                 )
             }
-            // HTTP + DB builtins: delegate to eval_builtin
+            // HTTP + DB + process builtins: delegate to eval_builtin
             "http_get"
             | "http_post"
             | "http_serve"
@@ -9616,7 +9669,8 @@ impl Interpreter {
             | "db_query"
             | "db_query_row"
             | "db_insert"
-            | "db_close" => self.eval_builtin(name, args, &Env::new()),
+            | "db_close"
+            | "process_run" => self.eval_builtin(name, args, &Env::new()),
             _ => Value::Unit,
         }
     }
@@ -11185,6 +11239,7 @@ impl TypeChecker {
             ("file_exists", 1),
             ("read_lines", 1),
             ("env_var", 1),
+            ("process_run", 1),
             // JSON
             ("json_parse", 1),
             ("json_get", 2),
@@ -11283,6 +11338,7 @@ impl TypeChecker {
             ("pairwise", 1),
             ("fst", 1),
             ("snd", 1),
+            ("trd", 1),
             // Timing (M17)
             ("debounce", 2),
             ("throttle", 2),

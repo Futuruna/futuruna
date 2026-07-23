@@ -169,11 +169,14 @@ Higher-order operations on lists. All work in both interpreter and compiled mode
 |----------|-----------|-------------|
 | `fst` | `(a, b) -> a` | First element of a tuple/pair |
 | `snd` | `(a, b) -> b` | Second element of a tuple/pair |
+| `trd` | `(a, b, c) -> c` | Third element of a tuple |
 
 ```runa
 = p = (10, "hello")
 = x = fst(p)          -- 10
 = y = snd(p)          -- "hello"
+= r = (10, "hello", true)
+= z = trd(r)          -- true
 ```
 
 ---
@@ -328,6 +331,25 @@ File operations are invoked with the `@` rune (effect boundary).
 @ append_file("output.txt", "\nline 2")
 = home = env_var("HOME")                   -- "/Users/..."
 ```
+
+---
+
+## Process Execution
+
+Process execution is argv-based, not shell-based.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `process_run` | `List(String) -> (Int, String, String)` | Run argv without a shell, returning exit code, stdout, stderr |
+
+```runa
+= result = process_run(["git", "status", "--short"])
+= code = result.0
+= out = result.1
+= err = result.2
+```
+
+`process_run` does not invoke a shell. Pass the executable and each argument as separate list elements.
 
 ---
 
