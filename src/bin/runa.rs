@@ -13854,6 +13854,18 @@ impl RustCodegen {
         }
     }
 
+    fn value_to_supported_auto_comptime_literal(
+        val: &Value,
+        variant_parent: &BTreeMap<String, String>,
+    ) -> Option<(String, String)> {
+        let (rust_lit, rust_ty) = Self::value_to_rust_literal(val, variant_parent);
+        if rust_lit.contains("todo!(\"comptime: unsupported value\")") {
+            None
+        } else {
+            Some((rust_lit, rust_ty))
+        }
+    }
+
     /// Static check: does a type reference a given ADT name? (no &self needed logic)
     fn type_references_adt_static(ty: &Ty, adt_name: &str) -> bool {
         match ty {
@@ -16045,12 +16057,14 @@ impl RustCodegen {
                             Value::Constructor(n, args) if (n == "None" && args.is_empty()) || n == "Err"
                         );
                         if !skip_comptime {
-                            let (rust_lit, rust_ty) =
-                                Self::value_to_rust_literal(&val, &self.types.variant_parent);
-                            // Skip values that can't be represented as Rust literals (closures, actors, etc.)
-                            if rust_lit.contains("todo!(\"comptime: unsupported value\")") {
-                                eprintln!("// auto-comptime: {} = todo!(\"comptime: unsupported value\") ({})", name, rust_ty);
-                            } else {
+                            // Skip values that can't be represented as Rust literals
+                            // (closures, actors, subjects, comptime typedef descriptors, etc.)
+                            if let Some((rust_lit, rust_ty)) =
+                                Self::value_to_supported_auto_comptime_literal(
+                                    &val,
+                                    &self.types.variant_parent,
+                                )
+                            {
                                 eprintln!(
                                     "// auto-comptime: {} = {} ({})",
                                     name, rust_lit, rust_ty
@@ -29298,6 +29312,28 @@ let summary = render(verdict(7i64), 7i64);
             !rust.contains("if __d == 0.0 { 0.0 }"),
             "Int-returning modulo helpers should not emit float zero guards: {}",
             rust
+        );
+    }
+
+    #[test]
+    fn auto_comptime_literal_helper_skips_unsupported_values_quietly() {
+        let unsupported = Value::TypeDef {
+            kind: "struct".to_string(),
+            fields: vec![("x".to_string(), "Int".to_string())],
+        };
+        assert!(
+            RustCodegen::value_to_supported_auto_comptime_literal(
+                &unsupported,
+                &BTreeMap::new()
+            )
+            .is_none(),
+            "unsupported comptime values should be skipped instead of producing todo-literal diagnostics"
+        );
+
+        let supported = Value::List(vec![Value::Int(1), Value::Int(2)]);
+        assert_eq!(
+            RustCodegen::value_to_supported_auto_comptime_literal(&supported, &BTreeMap::new()),
+            Some(("vec![1, 2]".to_string(), "Vec<i64>".to_string()))
         );
     }
 
