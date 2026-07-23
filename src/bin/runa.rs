@@ -15009,6 +15009,9 @@ impl RustCodegen {
                     self.string_returning_fns.insert(name.clone());
                 }
             }
+            if let Stmt::RustBlock(code) = stmt {
+                self.collect_rust_block_fn_signatures(code);
+            }
             // Also register rule functions (| rule_name(params) -> ...)
             if let Stmt::Rule(Rule::Default { head, .. })
             | Stmt::Rule(Rule::Exception { head, .. })
@@ -15423,26 +15426,9 @@ impl RustCodegen {
             self.binary_global_env_fns,
             self.binary_global_env_fn_arities,
         ) = self.collect_binary_global_env_fn_names(&fn_stmts);
-        self.binary_global_binding_types =
-            self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
 
         // Pass 2: Borrow analysis (extracted from emit_program)
         self.compute_borrow_flags(&fn_stmts);
-
-        // Emit function definitions and @ rust { } blocks
-        for stmt in &fn_stmts {
-            match stmt {
-                Stmt::Defn(defn) => {
-                    out.push_str(&self.emit_defn(defn));
-                    out.push('\n');
-                }
-                Stmt::RustBlock(code) => {
-                    out.push_str(code);
-                    out.push_str("\n\n");
-                }
-                _ => {}
-            }
-        }
 
         // Collect simple literal = bindings for inlining in rule bodies
         for stmt in stmts {
@@ -15922,6 +15908,22 @@ impl RustCodegen {
         } else if !self.lib_static_names.is_empty() || !self.types.comptime_values.is_empty() {
             out.push_str(&self.emit_top_level_binding_getters(&main_stmts, self.lib_mode, None));
             out.push('\n');
+        }
+
+        // Emit function definitions and @ rust { } blocks after comptime/type recovery
+        // so hidden-global typing sees final comptime and Rust-block signatures.
+        for stmt in &fn_stmts {
+            match stmt {
+                Stmt::Defn(defn) => {
+                    out.push_str(&self.emit_defn(defn));
+                    out.push('\n');
+                }
+                Stmt::RustBlock(code) => {
+                    out.push_str(code);
+                    out.push_str("\n\n");
+                }
+                _ => {}
+            }
         }
 
         // Emit main function — with escape analysis
@@ -20927,6 +20929,111 @@ impl RustCodegen {
                 .or_insert_with(|| Self::rust_type_to_fir(rust_ty));
         }
         env
+    }
+
+    fn rust_syn_type_to_rust_string(ty: &syn::Type) -> Option<String> {
+        match ty {
+            syn::Type::Path(tp) => {
+                let mut parts = Vec::new();
+                for segment in &tp.path.segments {
+                    let ident = segment.ident.to_string();
+                    let piece = match &segment.arguments {
+                        syn::PathArguments::None => ident,
+                        syn::PathArguments::AngleBracketed(args) => {
+                            let mut inner = Vec::new();
+                            for arg in &args.args {
+                                match arg {
+                                    syn::GenericArgument::Type(ty) => {
+                                        inner.push(Self::rust_syn_type_to_rust_string(ty)?);
+                                    }
+                                    syn::GenericArgument::Lifetime(_) => {}
+                                    syn::GenericArgument::Const(expr) => match expr {
+                                        syn::Expr::Lit(syn::ExprLit {
+                                            lit: syn::Lit::Int(int_lit),
+                                            ..
+                                        }) => inner.push(int_lit.to_string()),
+                                        _ => return None,
+                                    },
+                                    _ => return None,
+                                }
+                            }
+                            format!("{}<{}>", ident, inner.join(", "))
+                        }
+                        _ => return None,
+                    };
+                    parts.push(piece);
+                }
+                Some(parts.join("::"))
+            }
+            syn::Type::Reference(r) => {
+                let inner = Self::rust_syn_type_to_rust_string(&r.elem)?;
+                let mut out = String::from("&");
+                if r.mutability.is_some() {
+                    out.push_str("mut ");
+                }
+                out.push_str(&inner);
+                Some(out)
+            }
+            syn::Type::Tuple(tuple) => {
+                let elems: Option<Vec<String>> = tuple
+                    .elems
+                    .iter()
+                    .map(Self::rust_syn_type_to_rust_string)
+                    .collect();
+                Some(format!("({})", elems?.join(", ")))
+            }
+            syn::Type::Paren(inner) => Self::rust_syn_type_to_rust_string(&inner.elem),
+            syn::Type::Group(inner) => Self::rust_syn_type_to_rust_string(&inner.elem),
+            syn::Type::Slice(inner) => Some(format!(
+                "[{}]",
+                Self::rust_syn_type_to_rust_string(&inner.elem)?
+            )),
+            syn::Type::Array(inner) => Some(format!(
+                "[{}; _]",
+                Self::rust_syn_type_to_rust_string(&inner.elem)?
+            )),
+            _ => None,
+        }
+    }
+
+    fn collect_rust_block_fn_signatures(&mut self, code: &str) {
+        let Ok(file) = syn::parse_file(code) else {
+            return;
+        };
+
+        for item in file.items {
+            let syn::Item::Fn(func) = item else {
+                continue;
+            };
+            let name = func.sig.ident.to_string();
+            self.types.user_functions.insert(name.clone());
+
+            let ret_rust_ty = match &func.sig.output {
+                syn::ReturnType::Default => "()".to_string(),
+                syn::ReturnType::Type(_, ty) => match Self::rust_syn_type_to_rust_string(ty) {
+                    Some(ty) => ty,
+                    None => continue,
+                },
+            };
+
+            self.fn_return_types
+                .insert(name.clone(), ret_rust_ty.clone());
+            if ret_rust_ty == "String" {
+                self.string_returning_fns.insert(name.clone());
+            }
+
+            let mut fn_ty = Self::rust_type_to_fir(&ret_rust_ty);
+            for input in func.sig.inputs.iter().rev() {
+                let param_ty = match input {
+                    syn::FnArg::Receiver(_) => FirTy::Unknown,
+                    syn::FnArg::Typed(pat_ty) => Self::rust_syn_type_to_rust_string(&pat_ty.ty)
+                        .map(|ty| Self::rust_type_to_fir(&ty))
+                        .unwrap_or(FirTy::Unknown),
+                };
+                fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
+            }
+            self.types.fn_types.insert(name, fn_ty);
+        }
     }
 
     fn lookup_var_fir_ty(&self, name: &str) -> Option<FirTy> {
@@ -28732,6 +28839,32 @@ let summary = render(verdict(7i64), 7i64);
     }
 
     #[test]
+    fn legacy_emit_program_hoists_auto_comptime_top_level_bindings_for_free_function_reads() {
+        let source = r#"
+> const_answer() -> Int { 21 * 2 }
+= answer = const_answer()
+> read_answer() -> Int { answer }
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("answer: Option<i64>"),
+            "auto-comptime top-level binding should infer a concrete hidden-env field type: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn read_answer(__fut_globals: &__FutGlobals) -> i64 {"),
+            "free function should accept the hidden globals env for auto-comptime bindings: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_globals.answer.clone().expect(\"top-level binding `answer` not initialized\")"),
+            "free function should read the auto-comptime binding through the hidden globals env: {}",
+            rust
+        );
+    }
+
+    #[test]
     fn compiled_top_level_bindings_are_evaluated_once_even_when_free_functions_read_them() {
         let output = compile_and_run_test_program(
             r#"
@@ -28749,7 +28882,7 @@ let summary = render(verdict(7i64), 7i64);
     }
 }
 
-= answer: Int = bump()
+= answer = bump()
 > read_answer() -> Int { answer }
 @ print(show(answer))
 @ print(show(read_answer()))
