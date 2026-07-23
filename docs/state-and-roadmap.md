@@ -12,6 +12,7 @@ For the detailed contracts behind each lane, see:
 
 - [docs/mint-gate.md](mint-gate.md)
 - [docs/compatibility-policy.md](compatibility-policy.md)
+- [docs/feature-stages.md](feature-stages.md)
 - [docs/canary-suite.md](canary-suite.md)
 - [docs/canary-matrix.md](canary-matrix.md)
 - [docs/differential-testing.md](differential-testing.md)
@@ -31,6 +32,7 @@ The project now has a real assurance stack:
 - FIR phase validation snapshots that make compiler-structure drift visible instead of silent.
 - A contributor ratchet in [CONTRIBUTING.md](../CONTRIBUTING.md) that requires semantic changes to land with permanent coverage and documented follow-up tasks.
 - A published compatibility policy in [docs/compatibility-policy.md](compatibility-policy.md) that names source, behavioral, verification, and artifact-facing change categories and defines feature stages.
+- A surfaced stage matrix in [docs/feature-stages.md](feature-stages.md) so users and contributors can see which major surfaces are stable, preview, or experimental.
 
 On the language side, the recent focus has been semantic parity and determinism:
 

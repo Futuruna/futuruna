@@ -24,6 +24,8 @@ The current repo docs are the canonical written contracts for Futuruna. The wiki
   High-level project map: assurance stack, trust boundary, and next milestones.
 - [[compatibility-policy]]
   The compatibility contract for source, behavior, verification, artifact surfaces, and feature stages.
+- [[feature-stages]]
+  The current stage matrix for major language/runtime surfaces and `runa` command families.
 - [[mint-gate]]
   The blocking "Futuruna is mint" contract.
 - [[canary-matrix]]
@@ -40,6 +42,7 @@ The current repo docs are the canonical written contracts for Futuruna. The wiki
 - [[proof-kernel]] and [[verified-bootstrap]] track the formal-methods thread without overclaiming.
 - [[mint-ratchet]] records the contributor discipline layer that keeps these docs live.
 - [[compatibility-discipline]] and [[compatibility-policy]] make the user-facing change contract explicit.
+- [[feature-stages]] makes those stages visible in day-to-day docs and tooling entry points.
 
 ## Best Next Ingests
 

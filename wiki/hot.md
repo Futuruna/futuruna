@@ -22,6 +22,7 @@ tags:
 - New research synthesis: [[research-hardening-futuruna-into-a-professional-language]]
 - Core external lessons: compatibility discipline, ecosystem canaries, compiler differential testing, and narrow translation validation.
 - Futuruna now has a first-class repo compatibility policy covering stability stages and bug-fix exceptions.
+- Futuruna now also surfaces the current stage matrix in docs and `runa --help` instead of leaving stages implicit.
 
 ## Recent Changes
 
@@ -36,6 +37,7 @@ tags:
 - Added concepts [[compatibility-discipline]], [[ecosystem-canaries]], [[compiler-differential-testing]], and [[translation-validation]]
 - Added entities [[Kotlin]], [[Rust]], and [[Swift]]
 - Added repo policy doc `docs/compatibility-policy.md` and source note [[compatibility-policy]]
+- Added `docs/feature-stages.md`, source note [[feature-stages]], and a feature-stage block in CLI help
 
 ## Active Threads
 

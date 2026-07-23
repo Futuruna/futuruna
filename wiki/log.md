@@ -16,6 +16,12 @@ tags:
 - Defined compatibility categories, feature stages, deprecation expectations, and bug-fix exceptions
 - Synced contributor-facing entry points and added source note [[compatibility-policy]]
 
+## 2026-07-18 policy | Surface feature stages
+
+- Added `docs/feature-stages.md`
+- Surfaced stage information in `docs/reference/README.md`, `README.md`, `docs/state-and-roadmap.md`, and `runa --help`
+- Added source note [[feature-stages]]
+
 ## 2026-07-18 autoresearch | Hardening Futuruna into a Professional Language
 
 - Rounds: 2

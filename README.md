@@ -96,6 +96,8 @@ runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 
 See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
 
+Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md): core syntax and documented stdlib behavior are treated as stable, while `runa verify`, stateful/reactive surfaces, Rust interop, and several advanced tooling paths are still preview or experimental.
+
 ## What Futuruna Unifies
 
 | Capability | Prolog | Rust | Haskell | Catala | Futuruna |
@@ -130,6 +132,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 
 - `CONTRIBUTING.md` - Contributor ratchet for semantic/compiler changes
 - `docs/compatibility-policy.md` - Compatibility categories, feature stages, and bug-fix exception policy
+- `docs/feature-stages.md` - Current stable/preview/experimental stage matrix for major surfaces and commands
 - `docs/state-and-roadmap.md` - Where Futuruna stands now and the next three milestones
 - `docs/language-sketch.md` - Language design and three-axis analysis
 - `docs/differential-testing.md` - Reproducible differential and generative testing

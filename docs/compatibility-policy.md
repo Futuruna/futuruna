@@ -4,6 +4,9 @@ This document defines what Futuruna treats as compatibility, how language
 surfaces move from experimental to stable, and when a bug fix may break old
 behavior without a staged deprecation.
 
+For the current stage assignments of major language and tooling surfaces, see
+[docs/feature-stages.md](feature-stages.md).
+
 The goal is simple: users should not have to guess which changes are ordinary
 progress, which are intentional compatibility breaks, and which surfaces are
 still explicitly unstable.

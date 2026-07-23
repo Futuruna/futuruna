@@ -171,6 +171,12 @@ fn main_inner() {
                 eprintln!("  --seed N      Use a fixed RNG seed with `runa stress-gen`");
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
+                eprintln!("Feature stages:");
+                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes; core syntax + documented stdlib");
+                eprintln!("  Preview: lib, wasm, lsp, stress-gen, verify; streams/stateful surfaces; Rust interop");
+                eprintln!("  Experimental: audit, from-rust");
+                eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
+                eprintln!();
                 eprintln!("Examples:");
                 eprintln!("  runa program.runa           Interpret");
                 eprintln!("  runa run program.runa       Compile + execute");
