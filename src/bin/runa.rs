@@ -4251,6 +4251,36 @@ fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTre
                 collect_true_free_vars(e, free, bound);
             }
         }
+        ExprKind::Tuple(elems) => {
+            for e in elems {
+                collect_true_free_vars(e, free, bound);
+            }
+        }
+        ExprKind::Effect(_, args) => {
+            for arg in args {
+                collect_true_free_vars(arg, free, bound);
+            }
+        }
+        ExprKind::Handle { handlers, body, .. } => {
+            for handler in handlers {
+                let mut handler_bound = bound.clone();
+                for param in &handler.params {
+                    handler_bound.insert(param.clone());
+                }
+                collect_true_free_vars(&handler.body, free, &handler_bound);
+            }
+            collect_true_free_vars(body, free, bound);
+        }
+        ExprKind::Try(inner) => collect_true_free_vars(inner, free, bound),
+        ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
+            for goal in goals {
+                collect_true_free_vars(goal, free, bound);
+            }
+        }
+        ExprKind::Pipe(input, transform) => {
+            collect_true_free_vars(input, free, bound);
+            collect_true_free_vars(transform, free, bound);
+        }
         _ => {}
     }
 }
@@ -10176,6 +10206,9 @@ impl<'a> LoweringCtx<'a> {
                             Box::new(Self::ty_to_fir(&args[0])),
                             Box::new(Self::ty_to_fir(&args[1])),
                         ),
+                        "Pair" if args.len() == 2 => {
+                            FirTy::Tuple(vec![Self::ty_to_fir(&args[0]), Self::ty_to_fir(&args[1])])
+                        }
                         "Set" if args.len() == 1 => FirTy::Set(Box::new(Self::ty_to_fir(&args[0]))),
                         _ => FirTy::Named(n.clone()),
                     }
@@ -13358,14 +13391,10 @@ impl RustCodegen {
         }
     }
 
-    /// Resolve and parse an imported .runa file, returning its statements.
-    /// Supports relative paths (`./module`) and manifest dependencies (`dep_name/module`).
-    fn resolve_import(&mut self, import_path: &str) -> Vec<Stmt> {
-        let dir = match &self.source_dir {
-            Some(d) => d.clone(),
-            None => return Vec::new(),
-        };
-
+    /// Resolve and parse an imported .runa file from a specific base directory.
+    /// Returns the parsed statements plus the imported file's directory so nested
+    /// imports resolve relative to the file they appear in.
+    fn resolve_import_from_dir(&mut self, import_path: &str, dir: &str) -> (Vec<Stmt>, String) {
         // Try relative path first (existing behavior)
         let rel = import_path.trim_start_matches("./");
         let file_path = format!("{}/{}.runa", dir, rel);
@@ -13379,10 +13408,14 @@ impl RustCodegen {
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or(file_path.clone());
             if self.imported.contains(&canon) {
-                return Vec::new();
+                return (Vec::new(), dir.to_string());
             }
             self.imported.insert(canon);
-            return Self::parse_tau_file(&file_path);
+            let resolved_dir = std::path::Path::new(&file_path)
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| dir.to_string());
+            return (Self::parse_tau_file(&file_path), resolved_dir);
         }
 
         // Try manifest-based resolution: `dep_name/module` → dependency path
@@ -13409,7 +13442,7 @@ impl RustCodegen {
                     if name == dep_name {
                         let abs_dep = match resolve_dep_to_path(dep_spec, &toml_dir) {
                             Some(p) => p,
-                            None => return Vec::new(),
+                            None => return (Vec::new(), dir.to_string()),
                         };
                         let dep_file = format!("{}/{}.runa", abs_dep, module);
                         let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
@@ -13422,17 +13455,21 @@ impl RustCodegen {
                             eprintln!("\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'", module, dep_name);
                             eprintln!("  Searched: {}", dep_file);
                             eprintln!("  Searched: {}", dep_file_src);
-                            return Vec::new();
+                            return (Vec::new(), dir.to_string());
                         };
 
                         let canon = std::fs::canonicalize(&resolved)
                             .map(|p| p.to_string_lossy().to_string())
                             .unwrap_or(resolved.clone());
                         if self.imported.contains(&canon) {
-                            return Vec::new();
+                            return (Vec::new(), dir.to_string());
                         }
                         self.imported.insert(canon);
-                        return Self::parse_tau_file(&resolved);
+                        let resolved_dir = std::path::Path::new(&resolved)
+                            .parent()
+                            .map(|p| p.to_string_lossy().to_string())
+                            .unwrap_or_else(|| dir.to_string());
+                        return (Self::parse_tau_file(&resolved), resolved_dir);
                     }
                 }
             }
@@ -13443,10 +13480,14 @@ impl RustCodegen {
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or(file_path.clone());
         if self.imported.contains(&canon) {
-            return Vec::new();
+            return (Vec::new(), dir.to_string());
         }
         self.imported.insert(canon);
-        Self::parse_tau_file(&file_path)
+        let resolved_dir = std::path::Path::new(&file_path)
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| dir.to_string());
+        (Self::parse_tau_file(&file_path), resolved_dir)
     }
 
     /// Parse a .runa file without import-cycle tracking (for hash imports).
@@ -13820,6 +13861,138 @@ impl RustCodegen {
         "    ".repeat(self.indent)
     }
 
+    fn collect_exported_names_from_stmts(&self, stmts: &[Stmt]) -> BTreeSet<String> {
+        let mut exported = BTreeSet::new();
+        let mut is_export = false;
+        for stmt in stmts {
+            if let Stmt::Annot(name, args) = stmt {
+                if name == "export" {
+                    for arg in args {
+                        if let ExprKind::Var(n) = &arg.kind {
+                            exported.insert(n.clone());
+                        }
+                    }
+                    if args.is_empty() {
+                        is_export = true;
+                    }
+                    continue;
+                }
+            }
+            if is_export {
+                match stmt {
+                    Stmt::Defn(Defn::Fn { name, .. })
+                    | Stmt::Defn(Defn::Actor { name, .. })
+                    | Stmt::Defn(Defn::Module { name, .. }) => {
+                        exported.insert(name.clone());
+                    }
+                    Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+                        exported.insert(name.clone());
+                    }
+                    Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
+                        exported.insert(name.clone());
+                    }
+                    _ => {}
+                }
+                is_export = false;
+            }
+        }
+        exported
+    }
+
+    fn expand_plain_import_stmts(
+        &mut self,
+        imported: Vec<Stmt>,
+        import_dir: &str,
+        out: &mut Vec<Stmt>,
+    ) {
+        self.types
+            .exported_names
+            .extend(self.collect_exported_names_from_stmts(&imported));
+        for stmt in imported {
+            match stmt {
+                Stmt::Import(path) => {
+                    let (nested, nested_dir) = self.resolve_import_from_dir(&path, import_dir);
+                    self.expand_plain_import_stmts(nested, &nested_dir, out);
+                }
+                Stmt::QualifiedImport(mod_name, path) => {
+                    out.push(self.build_qualified_import_module_stmt(&mod_name, &path, import_dir));
+                }
+                Stmt::HashImport(hash, path) => {
+                    out.extend(self.resolve_hash_import(&hash, &path));
+                }
+                Stmt::Defn(_)
+                | Stmt::TypeDecl(_)
+                | Stmt::RustBlock(_)
+                | Stmt::Rule(_)
+                | Stmt::Bind(..)
+                | Stmt::Use(_)
+                | Stmt::Invariant { .. } => out.push(stmt),
+                Stmt::Depend(crate_name, version) => {
+                    self.cargo_deps.insert(crate_name, version);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn expand_module_import_body(
+        &mut self,
+        imported: Vec<Stmt>,
+        import_dir: &str,
+        body: &mut Vec<Stmt>,
+    ) {
+        for stmt in imported {
+            match stmt {
+                Stmt::Import(path) => {
+                    let (nested, nested_dir) = self.resolve_import_from_dir(&path, import_dir);
+                    self.expand_module_import_body(nested, &nested_dir, body);
+                }
+                Stmt::QualifiedImport(mod_name, path) => {
+                    body.push(
+                        self.build_qualified_import_module_stmt(&mod_name, &path, import_dir),
+                    );
+                }
+                Stmt::HashImport(hash, path) => {
+                    body.extend(self.resolve_hash_import(&hash, &path));
+                }
+                Stmt::Defn(_)
+                | Stmt::TypeDecl(_)
+                | Stmt::RustBlock(_)
+                | Stmt::Bind(Pat::Var(_), _, _)
+                | Stmt::StreamBind(_, _)
+                | Stmt::Use(_)
+                | Stmt::Annot(_, _) => body.push(stmt),
+                Stmt::Depend(crate_name, version) => {
+                    self.cargo_deps.insert(crate_name, version);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn build_qualified_import_module_stmt(
+        &mut self,
+        mod_name: &str,
+        path: &str,
+        import_dir: &str,
+    ) -> Stmt {
+        let (imported, resolved_dir) = self.resolve_import_from_dir(path, import_dir);
+        let mod_exported = self.collect_exported_names_from_stmts(&imported);
+        for name in &mod_exported {
+            self.types.exported_names.insert(name.clone());
+        }
+        self.types
+            .module_exports
+            .insert(mod_name.to_string(), mod_exported);
+        let mut mod_body = Vec::new();
+        self.expand_module_import_body(imported, &resolved_dir, &mut mod_body);
+        self.types.known_modules.insert(mod_name.to_string());
+        Stmt::Defn(Defn::Module {
+            name: mod_name.to_string(),
+            body: mod_body,
+        })
+    }
+
     /// Pass 1: Scan declarations — resolve imports, register types, detect async.
     /// Returns the resolved statement list (imports merged, deduped).
     /// Populates TypeRegistry, exported_names, effect tracking, async flags.
@@ -13827,139 +14000,17 @@ impl RustCodegen {
         // Resolve @ import statements: parse imported .runa files and merge their definitions
         self.types.module_exports.clear();
         let mut all_stmts: Vec<Stmt> = Vec::new();
+        let root_dir = self.source_dir.clone().unwrap_or_default();
         for stmt in stmts {
             match stmt {
                 Stmt::Import(path) => {
-                    let imported = self.resolve_import(path);
-                    // M3b: import all definitions (transitive deps needed).
-                    // @ export controls `pub` in Rust output via exported_names pre-scan.
-                    // Also propagate @ export annotations from imported files so their
-                    // exported names get `pub` in the Rust output.
-                    {
-                        let mut is_exp = false;
-                        for s in &imported {
-                            if let Stmt::Annot(n, args) = s {
-                                if n == "export" {
-                                    for a in args {
-                                        if let ExprKind::Var(v) = &a.kind {
-                                            self.types.exported_names.insert(v.clone());
-                                        }
-                                    }
-                                    if args.is_empty() {
-                                        is_exp = true;
-                                    }
-                                    continue;
-                                }
-                            }
-                            if is_exp {
-                                match s {
-                                    Stmt::Defn(Defn::Fn { name, .. })
-                                    | Stmt::Defn(Defn::Actor { name, .. }) => {
-                                        self.types.exported_names.insert(name.clone());
-                                    }
-                                    Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
-                                        self.types.exported_names.insert(name.clone());
-                                    }
-                                    _ => {}
-                                }
-                                is_exp = false;
-                            }
-                        }
-                    }
-                    // Merge definitions (functions, types, rules, bindings, rust blocks, deps)
-                    // Skip only side-effects (@ print, for loops, etc.)
-                    for s in imported {
-                        match &s {
-                            Stmt::Defn(_)
-                            | Stmt::TypeDecl(_)
-                            | Stmt::RustBlock(_)
-                            | Stmt::Rule(_)
-                            | Stmt::Bind(..)
-                            | Stmt::Use(_)
-                            | Stmt::Invariant { .. } => {
-                                all_stmts.push(s);
-                            }
-                            Stmt::Depend(cn, cv) => {
-                                self.cargo_deps.insert(cn.clone(), cv.clone());
-                            }
-                            _ => {} // skip side-effects from imported files
-                        }
-                    }
+                    let (imported, import_dir) = self.resolve_import_from_dir(path, &root_dir);
+                    self.expand_plain_import_stmts(imported, &import_dir, &mut all_stmts);
                 }
                 Stmt::Use(_) => {}
                 Stmt::QualifiedImport(mod_name, path) => {
-                    // @ import Name from ./module — qualified import (M3b)
-                    // Parse imported file, scan for exports, wrap in Rust `mod Name { }`
-                    let imported = self.resolve_import(path);
-                    // Collect exported names from the imported file
-                    let mut mod_exported: BTreeSet<String> = BTreeSet::new();
-                    {
-                        let mut is_exp = false;
-                        for s in &imported {
-                            if let Stmt::Annot(n, args) = s {
-                                if n == "export" {
-                                    for a in args {
-                                        if let ExprKind::Var(v) = &a.kind {
-                                            mod_exported.insert(v.clone());
-                                        }
-                                    }
-                                    if args.is_empty() {
-                                        is_exp = true;
-                                    }
-                                    continue;
-                                }
-                            }
-                            if is_exp {
-                                match s {
-                                    Stmt::Defn(Defn::Fn { name, .. })
-                                    | Stmt::Defn(Defn::Actor { name, .. }) => {
-                                        mod_exported.insert(name.clone());
-                                    }
-                                    Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
-                                        mod_exported.insert(name.clone());
-                                    }
-                                    Stmt::Bind(Pat::Var(name), _, _) => {
-                                        mod_exported.insert(name.clone());
-                                    }
-                                    Stmt::StreamBind(name, _) => {
-                                        mod_exported.insert(name.clone());
-                                    }
-                                    _ => {}
-                                }
-                                is_exp = false;
-                            }
-                        }
-                    }
-                    // Mark exported names so they get `pub` in the module
-                    for n in &mod_exported {
-                        self.types.exported_names.insert(n.clone());
-                    }
-                    self.types
-                        .module_exports
-                        .insert(mod_name.clone(), mod_exported.clone());
-                    // Collect definitions (functions, types, rust blocks), skip executable code
-                    let mut mod_body: Vec<Stmt> = Vec::new();
-                    for s in imported {
-                        match &s {
-                            Stmt::Defn(_)
-                            | Stmt::TypeDecl(_)
-                            | Stmt::RustBlock(_)
-                            | Stmt::Bind(Pat::Var(_), _, _)
-                            | Stmt::StreamBind(_, _)
-                            | Stmt::Use(_)
-                            | Stmt::Annot(_, _) => mod_body.push(s),
-                            Stmt::Depend(cn, cv) => {
-                                self.cargo_deps.insert(cn.clone(), cv.clone());
-                            }
-                            _ => {} // skip top-level expressions/binds from imported files
-                        }
-                    }
-                    // Wrap in a Defn::Module so it emits as `mod Name { ... }`
-                    self.types.known_modules.insert(mod_name.clone());
-                    all_stmts.push(Stmt::Defn(Defn::Module {
-                        name: mod_name.clone(),
-                        body: mod_body,
-                    }));
+                    all_stmts
+                        .push(self.build_qualified_import_module_stmt(mod_name, path, &root_dir));
                 }
                 Stmt::HashImport(hash, path) => {
                     let matched = self.resolve_hash_import(hash, path);
@@ -17408,6 +17459,17 @@ impl RustCodegen {
             Ty::App(con, args) => {
                 let con_str = self.emit_type(con);
                 let args_str: Vec<String> = args.iter().map(|a| self.emit_type(a)).collect();
+                if con_str == "Pair"
+                    && args_str.len() == 2
+                    && self.types.struct_types.contains("Pair")
+                    && self
+                        .types
+                        .variant_fields
+                        .get("Pair")
+                        .is_some_and(|fields| fields == &vec!["fst".to_string(), "snd".to_string()])
+                {
+                    return format!("({}, {})", args_str[0], args_str[1]);
+                }
                 // Only map List→Vec if List is NOT a user-defined ADT
                 if con_str == "List" && !self.types.type_decls.contains_key("List") {
                     format!("Vec<{}>", args_str.first().unwrap_or(&"()".to_string()))
@@ -23794,6 +23856,16 @@ impl RustCodegen {
                                 }
                             })
                             .collect();
+                        if name == "Pair"
+                            && parent == "Pair"
+                            && wrapped.len() == 2
+                            && self.types.struct_types.contains("Pair")
+                            && self.types.variant_fields.get("Pair").is_some_and(|fields| {
+                                fields == &vec!["fst".to_string(), "snd".to_string()]
+                            })
+                        {
+                            return format!("({}, {})", wrapped[0], wrapped[1]);
+                        }
                         let is_struct_type = self.types.struct_types.contains(parent);
                         if is_pos {
                             if is_struct_type {
@@ -23895,6 +23967,20 @@ impl RustCodegen {
                         let call = format!("{}({})", sanitize_name(name), new_args.join(", "));
                         parts.push(call);
                         return format!("{{ {} }}", parts.join(" "));
+                    }
+                }
+
+                if let ExprKind::Field(obj, method) = &func.as_ref().kind {
+                    if !self.is_module_path(obj)
+                        && self.module_binding_getter_call(obj).is_none()
+                        && self.module_stream_binding_getter_call(obj).is_none()
+                    {
+                        return format!(
+                            "{}.{}({})",
+                            self.emit_expr(obj),
+                            sanitize_name(method),
+                            args_str.join(", ")
+                        );
                     }
                 }
 
@@ -26335,6 +26421,22 @@ impl RustCodegen {
             }
             Pat::Con(name, args) => {
                 let parent = self.find_parent_type(name);
+                if name == "Pair"
+                    && parent == "Pair"
+                    && args.len() == 2
+                    && self.types.struct_types.contains("Pair")
+                    && self
+                        .types
+                        .variant_fields
+                        .get("Pair")
+                        .is_some_and(|fields| fields == &vec!["fst".to_string(), "snd".to_string()])
+                {
+                    return format!(
+                        "({}, {})",
+                        self.emit_pattern_with_boxing(&args[0], false),
+                        self.emit_pattern_with_boxing(&args[1], false)
+                    );
+                }
                 let is_struct_type = self.types.struct_types.contains(&parent);
                 let is_pos = self
                     .types
@@ -26386,6 +26488,27 @@ impl RustCodegen {
             }
             Pat::NamedCon(name, named_args) => {
                 let parent = self.find_parent_type(name);
+                if name == "Pair"
+                    && parent == "Pair"
+                    && self.types.struct_types.contains("Pair")
+                    && self
+                        .types
+                        .variant_fields
+                        .get("Pair")
+                        .is_some_and(|fields| fields == &vec!["fst".to_string(), "snd".to_string()])
+                {
+                    let fst_pat = named_args
+                        .iter()
+                        .find_map(|(field, pat)| (field == "fst").then_some(pat))
+                        .map(|pat| self.emit_pattern_with_boxing(pat, false))
+                        .unwrap_or_else(|| "_".to_string());
+                    let snd_pat = named_args
+                        .iter()
+                        .find_map(|(field, pat)| (field == "snd").then_some(pat))
+                        .map(|pat| self.emit_pattern_with_boxing(pat, false))
+                        .unwrap_or_else(|| "_".to_string());
+                    return format!("({}, {})", fst_pat, snd_pat);
+                }
                 let is_struct_type = self.types.struct_types.contains(&parent);
                 let ps: Vec<String> = named_args
                     .iter()
@@ -29810,6 +29933,60 @@ let summary = render(verdict(7i64), 7i64);
         let _ = std::fs::remove_file(&dep_path);
         let _ = std::fs::remove_file(&main_path);
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_plain_import_flattens_transitive_nested_imports() {
+        let temp_name = format!(
+            "futuruna_import_transitive_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep2_path = temp_dir.join("dep2.runa");
+        let dep1_path = temp_dir.join("dep1.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(
+            &dep2_path,
+            "> signature_symbol(text: String, p: Int, w: Int) -> String { text + \":\" + show(p + w) }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &dep1_path,
+            "@ import ./dep2\n> reader() -> String { signature_symbol(\"sig\", 1, 2) }\n",
+        )
+        .unwrap();
+        std::fs::write(&main_path, "@ import ./dep1\n@ print(reader())\n").unwrap();
+
+        let output = compile_and_run_test_file(&main_path);
+        assert_eq!(output.trim(), "sig:3");
+
+        let _ = std::fs::remove_file(&dep2_path);
+        let _ = std::fs::remove_file(&dep1_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_effect_body_free_vars_use_hidden_globals() {
+        let output = compile_and_run_test_program(
+            "> render() -> Int { @ print(show(answer)); 0 }\n= answer = 42\n= _ = render()\n",
+        );
+        assert_eq!(output.trim(), "42");
+    }
+
+    #[test]
+    fn compiled_map_entries_match_pair_annotations() {
+        let output = compile_and_run_test_program(
+            "> first_entry(entries: List(Pair(String, Int))) -> String {\n    if length(entries) == 0 { \"\" } else { head(entries).fst + \":\" + show(head(entries).snd) }\n}\n= m0 = map_insert(map_new(), \"north\", 2)\n= m1 = map_insert(m0, \"west\", 3)\n@ print(first_entry(map_entries(m1)))\n",
+        );
+        assert_eq!(output.trim(), "north:2");
     }
 
     #[test]
