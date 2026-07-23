@@ -9927,14 +9927,11 @@ impl<'a> LoweringCtx<'a> {
                             ty,
                         };
                     }
-                    // Builtin functions that always return Float. Single source
-                    // of truth: is_float_returning_builtin (free fn). expr_is_float
-                    // in RustCodegen uses the same helper.
-                    if is_float_returning_builtin(fn_name) {
+                    if let Some(ty) = builtin_fixed_return_fir_ty(fn_name) {
                         return FirExpr {
                             kind: FirExprKind::App(Box::new(fir_func), fir_args),
                             span: expr.span,
-                            ty: FirTy::Float,
+                            ty,
                         };
                     }
                     // Polymorphic list builtins: head(List(T)) -> T,
@@ -10013,13 +10010,6 @@ impl<'a> LoweringCtx<'a> {
                                 ty: FirTy::List(Box::new(v)),
                             };
                         }
-                    }
-                    if fn_name == "process_run" {
-                        return FirExpr {
-                            kind: FirExprKind::App(Box::new(fir_func), fir_args),
-                            span: expr.span,
-                            ty: FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String]),
-                        };
                     }
                 }
 
@@ -12572,27 +12562,26 @@ fn is_copy_type(ty: &Ty) -> bool {
     matches!(ty, Ty::Name(n) if matches!(n.as_str(), "Int" | "Float" | "Char" | "Nat" | "Bool"))
 }
 
-/// Single source of truth for builtin functions that always return `Float`.
-/// Used by both LoweringCtx (for type inference during lowering) and
-/// RustCodegen (for the recursive expr_is_float query at codegen time).
-/// Adding a new float-returning builtin requires updating only this list.
+/// Single source of truth for builtins whose return type is fixed regardless of
+/// argument types. Used by lowering, top-level getter inference, and codegen
+/// heuristics like expr_is_float/expr_is_string.
+fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
+    match builtin_canonical(name) {
+        "to_float" | "sqrt" | "exp" | "ln" | "pow" | "abs" | "round" | "floor" | "min_f"
+        | "max_f" | "parse_float" | "phi" | "mint" => Some(FirTy::Float),
+        "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of"
+        | "parse_int" => Some(FirTy::Int),
+        "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains_key"
+        | "set_contains" | "file_exists" => Some(FirTy::Bool),
+        "substring" | "char_at" | "show" | "show_int" | "show_float" | "describe" | "fizzbuzz"
+        | "list_to_string" | "list_items" | "db_query_row" => Some(FirTy::String),
+        "process_run" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
+        _ => None,
+    }
+}
+
 fn is_float_returning_builtin(name: &str) -> bool {
-    matches!(
-        name,
-        "to_float"
-            | "sqrt"
-            | "exp"
-            | "ln"
-            | "pow"
-            | "abs"
-            | "round"
-            | "floor"
-            | "min_f"
-            | "max_f"
-            | "parse_float"
-            | "phi"
-            | "mint"
-            )
+    matches!(builtin_fixed_return_fir_ty(name), Some(FirTy::Float))
 }
 
 /// Check whether `expr` is a Var that names one of the current function's
@@ -14872,11 +14861,10 @@ impl RustCodegen {
                 .unwrap_or_else(|| "impl Clone".to_string()),
             ExprKind::App(func, _) => {
                 if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                    if matches!(
-                        builtin_canonical(fn_name),
-                        "length" | "string_length" | "map_len" | "set_len" | "count_by"
-                    ) {
-                        "i64".to_string()
+                    if let Some(ret_ty) = builtin_fixed_return_fir_ty(fn_name)
+                        .and_then(|ty| Self::fir_type_to_rust(&ty))
+                    {
+                        ret_ty
                     } else if self.types.variant_parent.contains_key(fn_name.as_str()) {
                         self.types
                             .variant_parent
@@ -20033,11 +20021,8 @@ impl RustCodegen {
             }
             ExprKind::App(func, _) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    // Built-in string-returning functions
-                    matches!(builtin_canonical(name.as_str()), "show" | "show_int" | "show_float" | "describe"
-                        | "fizzbuzz" | "list_to_string" | "list_items" | "db_query_row")
-                    // User-defined functions that return String
-                    || self.string_returning_fns.contains(name.as_str())
+                    matches!(builtin_fixed_return_fir_ty(name), Some(FirTy::String))
+                        || self.string_returning_fns.contains(name.as_str())
                 } else {
                     false
                 }
@@ -24891,6 +24876,18 @@ mod tests {
     }
 
     #[test]
+    fn type_resolution_length_returns_int() {
+        let fir = lower_with_types("= x = length([1, 2, 3])", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::Int);
+    }
+
+    #[test]
+    fn type_resolution_show_returns_string() {
+        let fir = lower_with_types("= x = show(42)", BTreeMap::new());
+        assert_eq!(fir.ty, FirTy::String);
+    }
+
+    #[test]
     fn type_resolution_int_binop() {
         let fir = lower_with_types("= x = 1 + 2", BTreeMap::new());
         assert_eq!(fir.ty, FirTy::Int, "Int + Int should be Int");
@@ -25317,6 +25314,27 @@ mod tests {
         assert!(
             rust.contains("fn read_answer() -> i64 {\n    answer()\n}"),
             "free function should still resolve the computed binding through its getter: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_hoists_fixed_builtin_string_top_level_bindings_for_free_function_reads()
+    {
+        let source = r#"
+= rendered = show(42)
+> read_rendered() -> String { rendered }
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn rendered() -> String {"),
+            "show-based top-level getter should infer String: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn read_rendered() -> String {\n    rendered()\n}"),
+            "free function should resolve the string binding through its getter: {}",
             rust
         );
     }
