@@ -1,0 +1,58 @@
+-- Targeted audit: higher-order closure capture semantics across returned lambdas and reuse.
+
+> make_frame(prefix: String, suffix: String) -> String -> String {
+    |s| prefix + s + suffix
+}
+
+> make_pair_reader(words: List(String), sep: String) -> Int -> String {
+    |i| words[i] + sep + words[i + 1]
+}
+
+> compose_str(f: String -> String, g: String -> String) -> String -> String {
+    |x| f(g(x))
+}
+
+> make_stage_label(prefix: String) -> Int -> String {
+    = frame = make_frame(prefix, "!")
+    |n| frame("step-" + show(n))
+}
+
+= bracket = make_frame("[", "]")
+= angle = make_frame("<", ">")
+= reader = make_pair_reader(["alpha", "beta", "gamma"], "->")
+= wrapped = compose_str(bracket, angle)
+= stage = make_stage_label("phase-")
+
+= direct = bracket("mint")
+= angled = angle("mint")
+| direct_ok: direct -> direct == "[mint]"
+| angled_ok: angled -> angled == "<mint>"
+? direct_ok
+? angled_ok
+
+= pair0 = reader(0)
+= pair1 = reader(1)
+| reader0_ok: pair0 -> pair0 == "alpha->beta"
+| reader1_ok: pair1 -> pair1 == "beta->gamma"
+? reader0_ok
+? reader1_ok
+
+= wrapped_proof = wrapped("proof")
+| composed_ok: wrapped_proof -> wrapped_proof == "[<proof>]"
+? composed_ok
+
+= bracket_audit = bracket("audit")
+= angle_audit = angle("audit")
+| bracket_reuse_ok: bracket_audit -> bracket_audit == "[audit]"
+| angle_reuse_ok: angle_audit -> angle_audit == "<audit>"
+? bracket_reuse_ok
+? angle_reuse_ok
+
+= stage2 = stage(2)
+= stage7 = stage(7)
+| nested_stage2_ok: stage2 -> stage2 == "phase-step-2!"
+| nested_stage7_ok: stage7 -> stage7 == "phase-step-7!"
+? nested_stage2_ok
+? nested_stage7_ok
+
+@ print("higher-order capture audit passed")
