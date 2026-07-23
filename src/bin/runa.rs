@@ -9229,7 +9229,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("db_open",      BuiltinDef { arity: 1, shadowable: true, impure: true, deps: RSQL, rust_tpl: "std::sync::Arc::new(std::sync::Mutex::new(rusqlite::Connection::open(&*{0}).expect(\"Failed to open database\")))" }),
         ("db_exec",      BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{0}.lock().unwrap().execute_batch(&*{1}).expect(\"db_exec failed\")" }),
         ("db_query",     BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<Vec<String>> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).collect(); __result }" }),
-        ("db_query_row", BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: String = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).next().map(|cols| if cols.len() == 1 { cols.into_iter().next().unwrap() } else { cols.join(\", \") }).unwrap_or_default(); __result }" }),
+        ("db_query_row", BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<String> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).next().unwrap_or_default(); __result }" }),
         ("db_insert",    BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); __db.execute_batch(&*{1}).expect(\"insert failed\"); __db.last_insert_rowid() }" }),
         ("db_close",     BuiltinDef { arity: 1, shadowable: true, impure: true, deps: D, rust_tpl: "drop({0})" }),
 
@@ -13262,7 +13262,8 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains_key"
         | "set_contains" | "file_exists" => Some(FirTy::Bool),
         "substring" | "char_at" | "show" | "show_int" | "show_float" | "describe" | "fizzbuzz"
-        | "list_to_string" | "list_items" | "db_query_row" => Some(FirTy::String),
+        | "list_to_string" | "list_items" => Some(FirTy::String),
+        "db_query_row" => Some(FirTy::List(Box::new(FirTy::String))),
         "process_run" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
         _ => None,
     }
@@ -30162,6 +30163,37 @@ let summary = render(verdict(7i64), 7i64);
             "= items = [\"alpha\", \"beta\"]\n= labels = map(items, to_upper)\n@ print(show(labels))\n",
         );
         assert_eq!(output, "[ALPHA, BETA]\n");
+    }
+
+    #[test]
+    fn compiled_db_query_row_returns_a_row_vector() {
+        let source = r#"
+= db = db_open(":memory:")
+@ db_exec(db, "CREATE TABLE users (name TEXT, age INTEGER)")
+@ db_exec(db, "INSERT INTO users (name, age) VALUES ('Bob', 25)")
+= row = db_query_row(db, "SELECT name, age FROM users")
+@ print(show(length(row)))
+@ print(head(row))
+@ print(nth(row, 1))
+@ db_close(db)
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("let __result: Vec<String> ="),
+            "db_query_row should emit a row vector, not a flattened string: {}",
+            rust
+        );
+        assert!(
+            rust.contains(".next().unwrap_or_default();"),
+            "db_query_row should return the first row vector directly: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("cols.join(\", \")"),
+            "db_query_row should not flatten multiple columns into a joined string: {}",
+            rust
+        );
     }
 
     #[test]
