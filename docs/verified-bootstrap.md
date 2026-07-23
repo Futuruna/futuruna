@@ -4,7 +4,7 @@ Goal: prove Futuruna compiler logic in Futuruna without pretending we have alrea
 
 ## Current Claim
 
-Today Futuruna can check explicit proof terms with a small proof kernel and can host tiny semantics-preservation proofs inside `.runa` source files. The first bootstrap slice lives in [tests/verified_bootstrap_test.runa](../tests/verified_bootstrap_test.runa) and proves that a toy `Surface -> Core` lowering pass preserves evaluation.
+Today Futuruna can check explicit proof terms with a small proof kernel and can host tiny semantics-preservation proofs inside `.runa` source files. The first bootstrap slice lives in [tests/verified_bootstrap_test.runa](../tests/verified_bootstrap_test.runa) and proves that toy `Surface -> Core` lowerings preserve evaluation, including a stage-2 `let` model with recursive let bodies over an explicit environment.
 
 That is a real proof-carrying compiler fragment. It is not yet a verified Futuruna compiler.
 
@@ -39,13 +39,19 @@ If any layer in this pipeline misstates the theorem, the kernel can still succes
 - The rest of the compiler
   Parsing, typing, optimization, and code generation are still conventional compiler code unless they are modeled and proved separately.
 
-## What Stage 1 Proves
+## What The Current Bootstrap Fixture Proves
 
-The current bootstrap test proves one concrete statement:
+The current bootstrap test proves two concrete semantics-preservation slices:
 
 `eval_core(lower(expr)) == eval_surface(expr)`
 
-for a tiny recursive expression language. The important part is not the toy syntax. The important part is the shape:
+for a tiny recursive expression language, and
+
+`eval_core_let(lower_let(expr), env) == eval_surface_let(expr, env)`
+
+for a tiny environment-aware `let` language where bound expressions stay in a separate value fragment but let bodies can nest recursively.
+
+The important part is not the toy syntax. The important part is the shape:
 
 1. Define source semantics.
 2. Define target semantics.
@@ -75,5 +81,5 @@ Only after those stages can we honestly claim a proof-carrying or verified Futur
 ## Immediate Follow-Ups
 
 - Extend the tiny verified core with variables and `let` semantics so proofs model environments instead of pure trees.
-- Generalize the current ANF-like `let` model so verified lowering no longer depends on leaf-only let bodies.
+- Generalize the recursive `let` model beyond value-bound lets so larger statement and control-flow shapes fit the same proof story.
 - Document, stage by stage, which compiler responsibilities have moved out of the trusted boundary and which still remain there.

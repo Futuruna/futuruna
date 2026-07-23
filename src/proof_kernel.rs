@@ -179,6 +179,9 @@ pub enum Hyp {
     /// A named proof of a specific proposition — e.g., `ih : 0 <= length(t)`
     /// or an `assume`d hypothesis.
     Prop(String, Prop),
+    /// A named local schema — used for induction hypotheses that stay
+    /// parametric over surrounding theorem variables.
+    Schema(String, Schema),
     /// A free term variable — e.g., `| add_comm: (a,b) -> a+b == b+a` adds
     /// `a` and `b` as `TypedVar` entries. The proof must work for any value.
     TypedVar(String),
@@ -203,6 +206,13 @@ impl Ctx {
     pub fn with_prop(&self, name: String, p: Prop) -> Self {
         let mut new = self.clone();
         new.hyps.push(Hyp::Prop(name, p));
+        new
+    }
+
+    /// Extend with a new named local schema. Non-destructive.
+    pub fn with_schema(&self, name: String, schema: Schema) -> Self {
+        let mut new = self.clone();
+        new.hyps.push(Hyp::Schema(name, schema));
         new
     }
 
@@ -257,6 +267,18 @@ impl Ctx {
             if let Hyp::Prop(n, p) = h {
                 if n == name {
                     return Some(p);
+                }
+            }
+        }
+        None
+    }
+
+    /// Look up a named local schema. Returns the most recent binding.
+    pub fn lookup_schema(&self, name: &str) -> Option<&Schema> {
+        for h in self.hyps.iter().rev() {
+            if let Hyp::Schema(n, schema) = h {
+                if n == name {
+                    return Some(schema);
                 }
             }
         }
@@ -772,11 +794,29 @@ fn collect_ctx_rigid_vars(ctx: &Ctx, out: &mut BTreeSet<String>) {
     for hyp in &ctx.hyps {
         match hyp {
             Hyp::Prop(_, prop) => collect_prop_vars(prop, out),
+            Hyp::Schema(_, schema) => {
+                for premise in &schema.premises {
+                    collect_prop_vars(premise, out);
+                }
+                collect_prop_vars(&schema.conclusion, out);
+                for var in &schema.vars {
+                    out.remove(var);
+                }
+            }
             Hyp::TypedVar(name) => {
                 out.insert(name.clone());
             }
         }
     }
+}
+
+fn resolve_named_schema(name: &str, ctx: &Ctx, reg: &Registry) -> Result<Schema, ProofError> {
+    if let Some(schema) = ctx.lookup_schema(name) {
+        return Ok(schema.clone());
+    }
+    reg.lookup(name)
+        .cloned()
+        .ok_or_else(|| ProofError::UnknownAxiom(name.to_string()))
 }
 
 fn fresh_schema_meta_name(base: &str, used: &mut BTreeSet<String>) -> String {
@@ -974,9 +1014,7 @@ fn synthesize(term: &ProofTerm, ctx: &Ctx, reg: &Registry) -> Result<Prop, Proof
             .cloned()
             .ok_or_else(|| ProofError::UnknownHypothesis(name.clone())),
         ProofTerm::Apply(name, args) => {
-            let schema = reg
-                .lookup(name)
-                .ok_or_else(|| ProofError::UnknownAxiom(name.clone()))?;
+            let schema = resolve_named_schema(name, ctx, reg)?;
             if !schema.vars.is_empty() {
                 return Err(ProofError::CannotSynthesize(format!(
                     "apply {} has universal variables; cannot synthesize without a goal to unify against",
@@ -1012,13 +1050,11 @@ fn synthesize_rewrite_equality(
     let ProofTerm::Apply(name, args) = term else {
         return synthesize(term, ctx, reg);
     };
-    let schema = reg
-        .lookup(name)
-        .ok_or_else(|| ProofError::UnknownAxiom(name.clone()))?;
+    let schema = resolve_named_schema(name, ctx, reg)?;
     if schema.vars.is_empty() {
         return synthesize(term, ctx, reg);
     }
-    let schema = freshen_schema(schema, goal, ctx);
+    let schema = freshen_schema(&schema, goal, ctx);
     if schema.premises.len() != args.len() {
         return Err(ProofError::PremiseCount {
             axiom: name.clone(),
@@ -1239,7 +1275,23 @@ fn check_induction(
             })?;
             let ih_name = induction_hyp_name(index, recursive_fields.len());
             let ih_prop = rewrite_in_prop(goal, &scrut, &Term::Var(binder.clone()));
-            branch_ctx = branch_ctx.with_prop(ih_name, ih_prop);
+            let mut ih_vars = BTreeSet::new();
+            collect_prop_vars(&ih_prop, &mut ih_vars);
+            for branch_binder in &arm.binders {
+                ih_vars.remove(branch_binder);
+            }
+            if ih_vars.is_empty() {
+                branch_ctx = branch_ctx.with_prop(ih_name, ih_prop);
+            } else {
+                branch_ctx = branch_ctx.with_schema(
+                    ih_name,
+                    Schema {
+                        vars: ih_vars.into_iter().collect(),
+                        premises: vec![],
+                        conclusion: ih_prop,
+                    },
+                );
+            }
         }
         check(&arm.body, &branch_goal, &branch_ctx, reg)?;
     }
@@ -1451,10 +1503,8 @@ fn check_apply(
 
     // --- Generic schema-based dispatch ---
 
-    let schema = reg
-        .lookup(name)
-        .ok_or_else(|| ProofError::UnknownAxiom(name.to_string()))?;
-    let schema = freshen_schema(schema, goal, ctx);
+    let schema = resolve_named_schema(name, ctx, reg)?;
+    let schema = freshen_schema(&schema, goal, ctx);
 
     if schema.premises.len() != args.len() {
         return Err(ProofError::PremiseCount {
@@ -1730,6 +1780,30 @@ mod tests {
         );
         let result = check(&proof, &goal, &ctx, &reg);
         assert!(result.is_ok(), "rewrite failed: {:?}", result);
+    }
+
+    #[test]
+    fn apply_can_use_local_schema_hypotheses() {
+        let reg = Registry::with_builtins();
+        let ctx = Ctx::new().with_var("env".into()).with_schema(
+            "ih".into(),
+            Schema {
+                vars: vec!["env".into()],
+                premises: vec![],
+                conclusion: Prop::Eq(
+                    Term::App("normalize".into(), vec![v("env")]),
+                    Term::App("normalized".into(), vec![v("env")]),
+                ),
+            },
+        );
+        let nested_env = Term::App("Push".into(), vec![Term::Int(0), v("env")]);
+        let goal = Prop::Eq(
+            Term::App("normalize".into(), vec![nested_env.clone()]),
+            Term::App("normalized".into(), vec![nested_env]),
+        );
+        let proof = ProofTerm::Apply("ih".into(), vec![]);
+        let result = check(&proof, &goal, &ctx, &reg);
+        assert!(result.is_ok(), "local schema apply failed: {:?}", result);
     }
 
     // --- AND (special-cased axiom) ---

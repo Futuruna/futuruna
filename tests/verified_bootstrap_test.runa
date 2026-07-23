@@ -37,10 +37,9 @@
     }
 }
 
--- Stage 2 extends the model with stack variables and ANF-like let-binding.
--- Let values stay recursive, but let bodies live in a leaf language without
--- nested lets so the current kernel can combine an induction hypothesis for
--- the bound value with a previously proved lemma for the body.
+-- Stage 2 extends the model with stack variables and recursive let bodies.
+-- Bound expressions still live in a value language, but let bodies can now
+-- nest arbitrarily, which is closer to a real lowering pipeline.
 
 # Slot = Here | There(Slot)
 
@@ -50,9 +49,9 @@
 
 # CoreValue = CVInt(Int) | CVAdd(CoreValue, CoreValue) | CVVar(Slot)
 
-# SurfaceLet = SPure(SurfaceValue) | SLet(SurfaceLet, SurfaceValue)
+# SurfaceLet = SPure(SurfaceValue) | SLet(SurfaceValue, SurfaceLet)
 
-# CoreLet = CPure(CoreValue) | CLet(CoreLet, CoreValue)
+# CoreLet = CPure(CoreValue) | CLet(CoreValue, CoreLet)
 
 > peek(env: Env) -> Int {
     match env {
@@ -103,7 +102,7 @@
 ? lower_value_sound by {
     | (expr, env) -> induction_on expr {
         | SVInt(n) -> rewrite (apply lower_value.svint) in (rewrite (apply eval_core_value.cvint) in (rewrite (apply eval_surface_value.svint) in refl))
-        | SVAdd(lhs, rhs) -> rewrite (apply lower_value.svadd) in (rewrite (apply eval_core_value.cvadd) in (rewrite (apply eval_surface_value.svadd) in (rewrite ih_1 in (rewrite ih_2 in refl))))
+        | SVAdd(lhs, rhs) -> rewrite (apply lower_value.svadd) in (rewrite (apply eval_core_value.cvadd) in (rewrite (apply eval_surface_value.svadd) in (rewrite (apply ih_1) in (rewrite (apply ih_2) in refl))))
         | SVVar(slot) -> rewrite (apply lower_value.svvar) in (rewrite (apply eval_core_value.cvvar) in (rewrite (apply eval_surface_value.svvar) in refl))
     }
 }
@@ -111,21 +110,21 @@
 > eval_surface_let(expr: SurfaceLet, env: Env) -> Int {
     match expr {
         | SPure(value_expr) -> eval_surface_value(value_expr, env)
-        | SLet(value_expr, body_expr) -> eval_surface_value(body_expr, Push(eval_surface_let(value_expr, env), env))
+        | SLet(value_expr, body_expr) -> eval_surface_let(body_expr, Push(eval_surface_value(value_expr, env), env))
     }
 }
 
 > eval_core_let(expr: CoreLet, env: Env) -> Int {
     match expr {
         | CPure(value_expr) -> eval_core_value(value_expr, env)
-        | CLet(value_expr, body_expr) -> eval_core_value(body_expr, Push(eval_core_let(value_expr, env), env))
+        | CLet(value_expr, body_expr) -> eval_core_let(body_expr, Push(eval_core_value(value_expr, env), env))
     }
 }
 
 > lower_let(expr: SurfaceLet) -> CoreLet {
     match expr {
         | SPure(value_expr) -> CPure(lower_value(value_expr))
-        | SLet(value_expr, body_expr) -> CLet(lower_let(value_expr), lower_value(body_expr))
+        | SLet(value_expr, body_expr) -> CLet(lower_value(value_expr), lower_let(body_expr))
     }
 }
 
@@ -133,6 +132,6 @@
 ? lower_let_sound by {
     | (expr, env) -> induction_on expr {
         | SPure(value_expr) -> rewrite (apply lower_let.spure) in (rewrite (apply eval_core_let.cpure) in (rewrite (apply eval_surface_let.spure) in (apply lower_value_sound)))
-        | SLet(value_expr, body_expr) -> rewrite (apply lower_let.slet) in (rewrite (apply eval_core_let.clet) in (rewrite (apply eval_surface_let.slet) in (rewrite ih in (apply lower_value_sound))))
+        | SLet(value_expr, body_expr) -> rewrite (apply lower_let.slet) in (rewrite (apply eval_core_let.clet) in (rewrite (apply eval_surface_let.slet) in (rewrite (apply lower_value_sound) in (apply ih))))
     }
 }
