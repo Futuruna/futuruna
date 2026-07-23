@@ -1,0 +1,131 @@
+-- Authored extended canary: JSON incident report pipeline over list, map, set,
+-- and nested JSON aggregation.
+
+> json_quote(s: String) -> String {
+    "\"" + s + "\""
+}
+
+> parse_event(raw: String) -> String {
+    json_parse(raw)
+}
+
+> service_of(event: String) -> String {
+    json_string(json_get(event, "service"))
+}
+
+> owner_of(event: String) -> String {
+    json_string(json_get(event, "owner"))
+}
+
+> severity_of(event: String) -> String {
+    json_string(json_get(event, "severity"))
+}
+
+> is_open(event: String) -> Bool {
+    json_bool(json_get(event, "open"))
+}
+
+> is_reopened(event: String) -> Bool {
+    json_bool(json_get(event, "reopened"))
+}
+
+> tags_of(event: String) -> List(String) {
+    map(json_array(json_get(event, "tags")), json_string)
+}
+
+> bump(counts: Map(String, Int), key: String) -> Map(String, Int) {
+    map_insert(counts, key, map_get_or(counts, key, 0) + 1)
+}
+
+> count_severity(counts: Map(String, Int), event: String) -> Map(String, Int) {
+    bump(counts, severity_of(event))
+}
+
+> count_owner(counts: Map(String, Int), event: String) -> Map(String, Int) {
+    bump(counts, owner_of(event))
+}
+
+> count_critical_owner(counts: Map(String, Int), event: String) -> Map(String, Int) {
+    if severity_of(event) == "critical" {
+        bump(counts, owner_of(event))
+    } else {
+        counts
+    }
+}
+
+> collect_tags(acc: List(String), event: String) -> List(String) {
+    concat(acc, tags_of(event))
+}
+
+> owner_report(owner: String, open_counts: Map(String, Int), critical_counts: Map(String, Int)) -> String {
+    json_object([
+    ["owner", json_quote(owner)],
+    ["open", show(map_get_or(open_counts, owner, 0))],
+    ["critical", show(map_get_or(critical_counts, owner, 0))]
+    ])
+}
+
+= raw_events = [
+"{\"id\":\"evt-1\",\"service\":\"auth\",\"owner\":\"alice\",\"severity\":\"critical\",\"open\":true,\"reopened\":false,\"tags\":[\"login\",\"latency\"]}",
+"{\"id\":\"evt-2\",\"service\":\"billing\",\"owner\":\"bob\",\"severity\":\"critical\",\"open\":true,\"reopened\":true,\"tags\":[\"payments\",\"queue\"]}",
+"{\"id\":\"evt-3\",\"service\":\"auth\",\"owner\":\"alice\",\"severity\":\"info\",\"open\":false,\"reopened\":false,\"tags\":[\"login\"]}",
+"{\"id\":\"evt-4\",\"service\":\"edge\",\"owner\":\"cora\",\"severity\":\"warning\",\"open\":true,\"reopened\":false,\"tags\":[\"cache\",\"latency\"]}",
+"{\"id\":\"evt-5\",\"service\":\"billing\",\"owner\":\"alice\",\"severity\":\"critical\",\"open\":true,\"reopened\":true,\"tags\":[\"payments\",\"fraud\"]}"
+]
+
+= events = map(raw_events, parse_event)
+= open_events = filter(events, is_open)
+= critical_events = filter(open_events, |event| severity_of(event) == "critical")
+= reopened_events = filter(open_events, is_reopened)
+
+= empty_counts: Map(String, Int) = map_new()
+= severity_counts = foldl(open_events, empty_counts, count_severity)
+= owner_counts = foldl(open_events, empty_counts, count_owner)
+= owner_critical_counts = foldl(open_events, empty_counts, count_critical_owner)
+
+= open_services = sort(set_to_list(set_from_list(map(open_events, service_of))))
+= open_tags = sort(set_to_list(set_from_list(foldl(open_events, [], collect_tags))))
+= sorted_owners = sort(map_keys(owner_counts))
+
+= severity_report = json_object(map(map_entries(severity_counts), |entry| [fst(entry), show(snd(entry))]))
+= owner_reports = map(sorted_owners, |owner| owner_report(owner, owner_counts, owner_critical_counts))
+
+= report_json = json_object([
+["openCount", show(length(open_events))],
+["criticalCount", show(length(critical_events))],
+["reopenedCount", show(length(reopened_events))],
+["services", "[" + join(map(open_services, json_quote), ",") + "]"],
+["tags", "[" + join(map(open_tags, json_quote), ",") + "]"],
+["owners", "[" + join(owner_reports, ",") + "]"],
+["severity", severity_report]
+])
+
+= report = json_parse(report_json)
+= severity_json = json_get(report, "severity")
+= service_items = map(json_array(json_get(report, "services")), json_string)
+= tag_items = map(json_array(json_get(report, "tags")), json_string)
+= owner_items = json_array(json_get(report, "owners"))
+
+= counts_ok = json_number(json_get(report, "openCount")) == 4.0 && json_number(json_get(report, "criticalCount")) == 3.0 && json_number(json_get(report, "reopenedCount")) == 2.0
+? counts_ok
+
+= severity_ok = json_number(json_get(severity_json, "critical")) == 3.0 && json_number(json_get(severity_json, "warning")) == 1.0 && json_get(severity_json, "info") == "null"
+? severity_ok
+
+= services_ok = join(service_items, ",") == "auth,billing,edge"
+? services_ok
+
+= tags_ok = join(tag_items, ",") == "cache,fraud,latency,login,payments,queue"
+? tags_ok
+
+= alice = head(owner_items)
+= bob = head(tail(owner_items))
+= cora = head(tail(tail(owner_items)))
+
+= owners_ok = length(owner_items) == 3 && json_string(json_get(alice, "owner")) == "alice" && json_number(json_get(alice, "open")) == 2.0 && json_number(json_get(alice, "critical")) == 2.0 && json_string(json_get(bob, "owner")) == "bob" && json_number(json_get(bob, "open")) == 1.0 && json_number(json_get(bob, "critical")) == 1.0 && json_string(json_get(cora, "owner")) == "cora" && json_number(json_get(cora, "open")) == 1.0 && json_number(json_get(cora, "critical")) == 0.0
+? owners_ok
+
+= report_roundtrip_ok = json_emit(report) == report_json
+? report_roundtrip_ok
+
+@ print("canary json report pipeline passed")

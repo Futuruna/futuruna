@@ -23352,6 +23352,14 @@ impl RustCodegen {
                                 } else {
                                     format!("{}.clone()", s)
                                 }
+                            } else if self.var_use_counts.get(n).copied().unwrap_or(0)
+                                > self
+                                    .var_consuming_counts
+                                    .get(n.as_str())
+                                    .copied()
+                                    .unwrap_or(0)
+                            {
+                                format!("{}.clone()", s)
                             } else if self
                                 .var_consuming_counts
                                 .get(n.as_str())
@@ -23555,6 +23563,32 @@ impl RustCodegen {
                         if name == "map" {
                             if let ExprKind::Var(fn_name) = &&args[1].kind {
                                 let coll = self.emit_expr(&args[0]);
+                                let builtin_name = builtin_canonical(fn_name);
+                                if let Some((arity, shadowable, deps, rust_tpl)) = self
+                                    .builtin_registry
+                                    .get(builtin_name)
+                                    .map(|def| (def.arity, def.shadowable, def.deps, def.rust_tpl))
+                                {
+                                    if arity == 1
+                                        && (!shadowable
+                                            || !self
+                                                .types
+                                                .user_functions
+                                                .contains(fn_name.as_str()))
+                                    {
+                                        for &(dep_name, dep_ver) in deps {
+                                            self.cargo_deps
+                                                .entry(dep_name.to_string())
+                                                .or_insert(dep_ver.to_string());
+                                        }
+                                        let body =
+                                            apply_builtin_template(rust_tpl, &["__x".to_string()]);
+                                        return format!(
+                                            "{}.clone().into_iter().map(|__x| {}).collect::<Vec<_>>()",
+                                            coll, body
+                                        );
+                                    }
+                                }
                                 let f = sanitize_name(fn_name);
                                 let borrows = self
                                     .borrow_only_params
@@ -30112,6 +30146,22 @@ let summary = render(verdict(7i64), 7i64);
             "= a = \"alpha\"\n= pair = (a, 1)\n@ print(show(pair))\n@ print(a)\n",
         );
         assert_eq!(output, "(alpha, 1)\nalpha\n");
+    }
+
+    #[test]
+    fn compiled_consuming_builtin_preserves_reused_string_binding() {
+        let output = compile_and_run_test_program(
+            "= raw = \"  alpha  \"\n= trimmed = trim(raw)\n@ print(trimmed)\n@ print(raw)\n",
+        );
+        assert_eq!(output, "alpha\n  alpha  \n");
+    }
+
+    #[test]
+    fn compiled_map_can_apply_builtin_function_values() {
+        let output = compile_and_run_test_program(
+            "= items = [\"alpha\", \"beta\"]\n= labels = map(items, to_upper)\n@ print(show(labels))\n",
+        );
+        assert_eq!(output, "[ALPHA, BETA]\n");
     }
 
     #[test]

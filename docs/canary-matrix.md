@@ -30,6 +30,7 @@ Target shape:
 | `tests/canary/stateful/lifecycle_projection_test.runa` | `stateful` | scoped projections, teardown, post-teardown stability, deterministic snapshots |
 | `tests/canary/stateful/effect_retry_flow_test.runa` | `stateful` | effect handlers, actor-backed retry state, branching outcomes, deterministic audit summaries |
 | `tests/canary/stateful/stream_subject_bridge_test.runa` | `stateful` | live stream-to-subject bridging, derived subscriptions, deterministic downstream aggregation |
+| `tests/canary/extended/json_report_pipeline_test.runa` | `extended` | JSON parse/build, nested arrays, list/map/set aggregation, deterministic report emission |
 
 ## Planned Next
 
@@ -38,7 +39,7 @@ Target shape:
 ### Stateful
 
 ### Extended
-- `td-9fdd94`: `json_report_pipeline_test.runa`, `regex_classifier_test.runa`, `db_reconciliation_test.runa`, `http_handler_contract_test.runa`, `wasm_export_surface_test.runa`, and `import_mesh_test.runa`
+- `td-9fdd94`: `regex_classifier_test.runa`, `db_reconciliation_test.runa`, `http_handler_contract_test.runa`, `wasm_export_surface_test.runa`, and `import_mesh_test.runa`
 
 ### Regressions
 - `td-4e7e91`: distill every user-found semantic bug into an authored workflow canary when it reflects real usage
