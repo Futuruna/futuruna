@@ -1,0 +1,87 @@
+-- Authored core canary: ordinary data pipeline guarded by explicit proof-backed
+-- invariants over its derived verdict semantics.
+
+# Verdict = Queue(Int) | Review(Int) | Freeze(Int)
+
+> verdict_label(v: Verdict) -> String {
+    match v {
+        | Queue(score) -> "queue"
+        | Review(score) -> "review"
+        | Freeze(score) -> "freeze"
+    }
+}
+
+> verdict_points(v: Verdict) -> Int {
+    match v {
+        | Queue(score) -> score
+        | Review(score) -> score
+        | Freeze(score) -> 100
+    }
+}
+
+> review_slots(v: Verdict) -> Int {
+    match v {
+        | Queue(score) -> 0
+        | Review(score) -> 1
+        | Freeze(score) -> 2
+    }
+}
+
+= base_scores = [18, 42, 37, 41]
+= adjustments = [5, -3, 10, 7]
+= blended = map(zip(base_scores, adjustments), |p| fst(p) + snd(p))
+= high_risk = filter(blended, |score| score >= 40)
+= review_batches = chunked(high_risk, 2)
+= batch_labels = map(enumerate(review_batches), |entry| {
+    "slot-" + show(fst(entry) + 1) + ":" + join(map(snd(entry), |n| show(n)), "+")
+})
+= blended_csv = join(map(blended, |n| show(n)), ",")
+= high_risk_csv = join(map(high_risk, |n| show(n)), ",")
+= batch_summary = join(batch_labels, "|")
+= escalation_score = foldl(high_risk, 0, |acc, score| acc + score)
+= audit_bonus = 12
+= raw_priority = escalation_score + audit_bonus
+= verdict = Freeze(raw_priority)
+= runtime_points = verdict_points(verdict)
+= runtime_slots = review_slots(verdict)
+= status = verdict_label(verdict)
+
+| blended_ok: blended_csv -> blended_csv == "23,39,47,48"
+? blended_ok
+
+| high_risk_ok: high_risk_csv -> high_risk_csv == "47,48"
+? high_risk_ok
+
+| batches_ok: batch_summary -> batch_summary == "slot-1:47+48"
+? batches_ok
+
+| status_ok: status -> status == "freeze"
+? status_ok
+
+| runtime_points_ok: runtime_points -> runtime_points == 100
+? runtime_points_ok
+
+| runtime_slots_ok: runtime_slots -> runtime_slots == 2
+? runtime_slots_ok
+
+| freeze_points_exact: raw_priority -> verdict_points(Freeze(raw_priority)) == 100
+? freeze_points_exact by {
+    | n -> rewrite (apply verdict_points.freeze) in refl
+}
+
+| freeze_slots_exact: raw_priority -> review_slots(Freeze(raw_priority)) == 2
+? freeze_slots_exact by {
+    | n -> rewrite (apply review_slots.freeze) in refl
+}
+
+| freeze_points_capped: raw_priority -> verdict_points(Freeze(raw_priority)) <= 100
+? freeze_points_capped by {
+    | n -> rewrite (apply freeze_points_exact) in (apply int_ord.le_of_concrete)
+}
+
+| freeze_slots_bounded: raw_priority -> review_slots(Freeze(raw_priority)) >= 0 and review_slots(Freeze(raw_priority)) <= 2
+? freeze_slots_bounded by {
+    | n -> apply and.intro(rewrite (apply freeze_slots_exact) in (apply int_ord.le_of_concrete), rewrite (apply freeze_slots_exact) in (apply int_ord.le_of_concrete))
+}
+
+@ print("canary proof guarded pipeline passed")
