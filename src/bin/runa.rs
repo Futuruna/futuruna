@@ -3311,6 +3311,367 @@ fn run_repl() {
 //   = bindings           → Z3 constants (define-const)
 //   ? prove              → Z3 (check-sat) invocation
 
+fn smt_expr_kind_name(expr: &Expr) -> &'static str {
+    match &expr.kind {
+        ExprKind::Var(_) => "variable",
+        ExprKind::Lit(_) => "literal",
+        ExprKind::App(_, _) => "function call",
+        ExprKind::Lambda(_, _) => "lambda",
+        ExprKind::BinOp(_, _, _) => "binary operator",
+        ExprKind::UnOp(_, _) => "unary operator",
+        ExprKind::If(_, _, _) => "if expression",
+        ExprKind::Match(_, _) => "match expression",
+        ExprKind::Block(_) => "block expression",
+        ExprKind::Field(_, _) => "field access",
+        ExprKind::Index(_, _) => "index expression",
+        ExprKind::List(_) => "list expression",
+        ExprKind::Tuple(_) => "tuple expression",
+        ExprKind::Effect(_, _) => "effect expression",
+        ExprKind::Handle { .. } => "effect handler",
+        ExprKind::Try(_) => "try expression",
+        ExprKind::Conjunction(_) => "logic conjunction",
+        ExprKind::Disjunction(_) => "logic disjunction",
+        ExprKind::Pipe(_, _) => "pipe expression",
+        ExprKind::Unit => "unit value",
+    }
+}
+
+fn smt_pattern_support_reason(pat: &Pat) -> Option<String> {
+    match pat {
+        Pat::Wild | Pat::Var(_) => None,
+        Pat::Con(_, pats) => pats.iter().find_map(smt_pattern_support_reason),
+        Pat::NamedCon(_, named_pats) => named_pats
+            .iter()
+            .find_map(|(_, pat)| smt_pattern_support_reason(pat)),
+        Pat::Lit(Literal::Int(_)) | Pat::Lit(Literal::Bool(_)) => None,
+        Pat::Lit(Literal::Float(_)) => {
+            Some("float literal patterns are not translatable to SMT".into())
+        }
+        Pat::Lit(Literal::Str(_)) | Pat::Lit(Literal::Char(_)) => {
+            Some("string and char literal patterns are not translatable to SMT".into())
+        }
+        Pat::As(_, _) => Some("alias patterns are not translatable to SMT".into()),
+    }
+}
+
+fn smt_expr_support_reason(
+    expr: &Expr,
+    fn_names: &BTreeSet<String>,
+    ctor_names: &BTreeSet<String>,
+) -> Option<String> {
+    match &expr.kind {
+        ExprKind::Var(_) | ExprKind::Lit(_) => None,
+        ExprKind::BinOp(op, lhs, rhs) => {
+            if !matches!(
+                op.as_str(),
+                "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" | "==" | "!=" | "&&" | "||"
+            ) {
+                return Some(format!("operator `{}` is not translatable to SMT", op));
+            }
+            smt_expr_support_reason(lhs, fn_names, ctor_names)
+                .or_else(|| smt_expr_support_reason(rhs, fn_names, ctor_names))
+        }
+        ExprKind::UnOp(op, inner) => {
+            if !matches!(op.as_str(), "!" | "-") {
+                return Some(format!(
+                    "unary operator `{}` is not translatable to SMT",
+                    op
+                ));
+            }
+            smt_expr_support_reason(inner, fn_names, ctor_names)
+        }
+        ExprKind::App(func, args) => {
+            let ExprKind::Var(name) = &func.kind else {
+                return Some("higher-order function calls are not translatable to SMT".into());
+            };
+            if name != "not" && !fn_names.contains(name) && !ctor_names.contains(name) {
+                return Some(format!("calls unsupported function `{}`", name));
+            }
+            args.iter()
+                .find_map(|arg| smt_expr_support_reason(arg, fn_names, ctor_names))
+        }
+        ExprKind::If(cond, then_, else_) => smt_expr_support_reason(cond, fn_names, ctor_names)
+            .or_else(|| smt_expr_support_reason(then_, fn_names, ctor_names))
+            .or_else(|| smt_expr_support_reason(else_, fn_names, ctor_names)),
+        ExprKind::Field(obj, _) => smt_expr_support_reason(obj, fn_names, ctor_names),
+        ExprKind::Match(scrutinee, arms) => {
+            smt_expr_support_reason(scrutinee, fn_names, ctor_names).or_else(|| {
+                arms.iter().find_map(|arm| {
+                    smt_pattern_support_reason(&arm.pat)
+                        .or_else(|| {
+                            arm.guard.as_ref().and_then(|guard| {
+                                smt_expr_support_reason(guard, fn_names, ctor_names)
+                            })
+                        })
+                        .or_else(|| smt_expr_support_reason(&arm.body, fn_names, ctor_names))
+                })
+            })
+        }
+        ExprKind::Block(stmts) => {
+            let mut saw_expr = false;
+            for stmt in stmts {
+                match stmt {
+                    Stmt::Bind(Pat::Var(_), _, bound_expr) => {
+                        if let Some(reason) =
+                            smt_expr_support_reason(bound_expr, fn_names, ctor_names)
+                        {
+                            return Some(reason);
+                        }
+                    }
+                    Stmt::Expr(inner) => {
+                        saw_expr = true;
+                        if let Some(reason) = smt_expr_support_reason(inner, fn_names, ctor_names) {
+                            return Some(reason);
+                        }
+                    }
+                    _ => return Some(
+                        "block statements beyond simple let-bindings are not translatable to SMT"
+                            .into(),
+                    ),
+                }
+            }
+            if saw_expr {
+                None
+            } else {
+                Some("block expressions without a final value are not translatable to SMT".into())
+            }
+        }
+        ExprKind::List(_)
+        | ExprKind::Tuple(_)
+        | ExprKind::Index(_, _)
+        | ExprKind::Lambda(_, _)
+        | ExprKind::Effect(_, _)
+        | ExprKind::Handle { .. }
+        | ExprKind::Try(_)
+        | ExprKind::Conjunction(_)
+        | ExprKind::Disjunction(_)
+        | ExprKind::Pipe(_, _)
+        | ExprKind::Unit => Some(format!(
+            "{} is not translatable to SMT",
+            smt_expr_kind_name(expr)
+        )),
+    }
+}
+
+fn collect_smt_called_functions(
+    expr: &Expr,
+    fn_names: &BTreeSet<String>,
+    used: &mut BTreeSet<String>,
+) {
+    match &expr.kind {
+        ExprKind::App(func, args) => {
+            if let ExprKind::Var(name) = &func.kind {
+                if fn_names.contains(name) {
+                    used.insert(name.clone());
+                }
+            } else {
+                collect_smt_called_functions(func, fn_names, used);
+            }
+            for arg in args {
+                collect_smt_called_functions(arg, fn_names, used);
+            }
+        }
+        ExprKind::BinOp(_, lhs, rhs) => {
+            collect_smt_called_functions(lhs, fn_names, used);
+            collect_smt_called_functions(rhs, fn_names, used);
+        }
+        ExprKind::UnOp(_, inner) => collect_smt_called_functions(inner, fn_names, used),
+        ExprKind::If(cond, then_, else_) => {
+            collect_smt_called_functions(cond, fn_names, used);
+            collect_smt_called_functions(then_, fn_names, used);
+            collect_smt_called_functions(else_, fn_names, used);
+        }
+        ExprKind::Field(obj, _) => collect_smt_called_functions(obj, fn_names, used),
+        ExprKind::Match(scrutinee, arms) => {
+            collect_smt_called_functions(scrutinee, fn_names, used);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_smt_called_functions(guard, fn_names, used);
+                }
+                collect_smt_called_functions(&arm.body, fn_names, used);
+            }
+        }
+        ExprKind::Block(stmts) => {
+            for stmt in stmts {
+                match stmt {
+                    Stmt::Bind(_, _, expr) | Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => {
+                        collect_smt_called_functions(expr, fn_names, used);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        ExprKind::Var(_)
+        | ExprKind::Lit(_)
+        | ExprKind::Lambda(_, _)
+        | ExprKind::Index(_, _)
+        | ExprKind::List(_)
+        | ExprKind::Tuple(_)
+        | ExprKind::Effect(_, _)
+        | ExprKind::Handle { .. }
+        | ExprKind::Try(_)
+        | ExprKind::Conjunction(_)
+        | ExprKind::Disjunction(_)
+        | ExprKind::Pipe(_, _)
+        | ExprKind::Unit => {}
+    }
+}
+
+fn ordered_smt_free_vars_for_invariant(
+    pred_expr: &Expr,
+    subject_expr: &Expr,
+    bindings: &BTreeMap<String, Expr>,
+    fn_names: &BTreeSet<String>,
+    ctor_names: &BTreeSet<String>,
+) -> Vec<String> {
+    let mut free_vars = BTreeSet::new();
+    collect_free_vars(pred_expr, &mut free_vars);
+    collect_free_vars(subject_expr, &mut free_vars);
+
+    free_vars = free_vars.difference(fn_names).cloned().collect();
+    free_vars = free_vars.difference(ctor_names).cloned().collect();
+
+    let mut resolved = BTreeSet::new();
+    let mut worklist: Vec<String> = free_vars.iter().cloned().collect();
+    while let Some(var) = worklist.pop() {
+        if resolved.contains(&var) {
+            continue;
+        }
+        resolved.insert(var.clone());
+        if let Some(bound_expr) = bindings.get(&var) {
+            let mut sub_vars = BTreeSet::new();
+            collect_free_vars(bound_expr, &mut sub_vars);
+            let sub_vars: BTreeSet<String> = sub_vars
+                .difference(fn_names)
+                .cloned()
+                .collect::<BTreeSet<_>>()
+                .difference(ctor_names)
+                .cloned()
+                .collect();
+            for sv in sub_vars {
+                if !resolved.contains(&sv) {
+                    worklist.push(sv);
+                }
+            }
+        }
+    }
+    free_vars = resolved;
+
+    let mut ordered = Vec::new();
+    let mut emitted = BTreeSet::new();
+    let mut remaining: Vec<String> = free_vars.iter().cloned().collect();
+    let max_iters = remaining.len() * remaining.len() + 1;
+    let mut iter_count = 0;
+    while !remaining.is_empty() && iter_count < max_iters {
+        iter_count += 1;
+        let mut next_remaining = Vec::new();
+        for var in &remaining {
+            if let Some(bound_expr) = bindings.get(var) {
+                let mut deps = BTreeSet::new();
+                collect_free_vars(bound_expr, &mut deps);
+                let deps: BTreeSet<String> = deps
+                    .difference(fn_names)
+                    .cloned()
+                    .collect::<BTreeSet<_>>()
+                    .difference(ctor_names)
+                    .cloned()
+                    .collect();
+                if deps
+                    .iter()
+                    .all(|dep| emitted.contains(dep) || !bindings.contains_key(dep))
+                {
+                    ordered.push(var.clone());
+                    emitted.insert(var.clone());
+                } else {
+                    next_remaining.push(var.clone());
+                }
+            } else {
+                ordered.push(var.clone());
+                emitted.insert(var.clone());
+            }
+        }
+        remaining = next_remaining;
+    }
+    ordered.extend(remaining);
+    ordered
+}
+
+fn transitive_smt_function_deps(
+    pred_expr: &Expr,
+    subject_expr: &Expr,
+    ordered_vars: &[String],
+    bindings: &BTreeMap<String, Expr>,
+    function_map: &BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)>,
+) -> BTreeSet<String> {
+    let fn_names: BTreeSet<String> = function_map.keys().cloned().collect();
+    let mut used = BTreeSet::new();
+    collect_smt_called_functions(pred_expr, &fn_names, &mut used);
+    collect_smt_called_functions(subject_expr, &fn_names, &mut used);
+    for var in ordered_vars {
+        if let Some(bound_expr) = bindings.get(var) {
+            collect_smt_called_functions(bound_expr, &fn_names, &mut used);
+        }
+    }
+
+    let mut worklist: Vec<String> = used.iter().cloned().collect();
+    while let Some(fname) = worklist.pop() {
+        if let Some((_, _, body)) = function_map.get(&fname) {
+            let mut deps = BTreeSet::new();
+            collect_smt_called_functions(body, &fn_names, &mut deps);
+            for dep in deps {
+                if used.insert(dep.clone()) {
+                    worklist.push(dep);
+                }
+            }
+        }
+    }
+
+    used
+}
+
+fn smt_skip_reason_for_invariant(
+    pred_expr: &Expr,
+    subject_expr: &Expr,
+    ordered_vars: &[String],
+    bindings: &BTreeMap<String, Expr>,
+    function_map: &BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)>,
+    ctor_names: &BTreeSet<String>,
+) -> Option<String> {
+    let fn_names: BTreeSet<String> = function_map.keys().cloned().collect();
+
+    if let Some(reason) = smt_expr_support_reason(subject_expr, &fn_names, ctor_names) {
+        return Some(format!("subject {}", reason));
+    }
+    if let Some(reason) = smt_expr_support_reason(pred_expr, &fn_names, ctor_names) {
+        return Some(format!("predicate {}", reason));
+    }
+
+    for var in ordered_vars {
+        if let Some(bound_expr) = bindings.get(var) {
+            if let Some(reason) = smt_expr_support_reason(bound_expr, &fn_names, ctor_names) {
+                return Some(format!("binding `{}` {}", var, reason));
+            }
+        }
+    }
+
+    let used_fns = transitive_smt_function_deps(
+        pred_expr,
+        subject_expr,
+        ordered_vars,
+        bindings,
+        function_map,
+    );
+    for fname in used_fns {
+        if let Some((_, _, body)) = function_map.get(&fname) {
+            if let Some(reason) = smt_expr_support_reason(body, &fn_names, ctor_names) {
+                return Some(format!("function `{}` {}", fname, reason));
+            }
+        }
+    }
+
+    None
+}
+
 /// Generate SMT-LIB2 from a Futuruna expression
 fn expr_to_smt(expr: &Expr) -> String {
     match &expr.kind {
@@ -5966,6 +6327,14 @@ fn verify_with_z3(source: &str, filename: &str) {
     let computation_lemmas = collect_computation_lemmas(&all_stmts, &bindings);
     let constructors = ProofConstructorTable::from_adts(&adts);
     let mut proved_invariants: BTreeMap<String, proof_kernel::Schema> = BTreeMap::new();
+    let fn_names: BTreeSet<String> = functions.iter().map(|(n, _, _, _)| n.clone()).collect();
+    let ctor_names: BTreeSet<String> = ctor_to_type.keys().cloned().collect();
+    let function_map: BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)> = functions
+        .iter()
+        .map(|(name, params, ret_ty, body)| {
+            (name.clone(), (params.clone(), ret_ty.clone(), body.clone()))
+        })
+        .collect();
 
     println!(
         "runa --verify: {} invariant(s), {} ADT(s) from {}",
@@ -6046,98 +6415,36 @@ fn verify_with_z3(source: &str, filename: &str) {
             smt.push('\n');
         }
 
-        // Declare free variables from the predicate
-        let mut free_vars = BTreeSet::new();
-        collect_free_vars(pred_expr, &mut free_vars);
-        collect_free_vars(subject_expr, &mut free_vars);
-
-        // Remove function names and constructor names from free vars
-        let fn_names: BTreeSet<String> = functions.iter().map(|(n, _, _, _)| n.clone()).collect();
-        let ctor_names: BTreeSet<String> = ctor_to_type.keys().cloned().collect();
-        free_vars = free_vars.difference(&fn_names).cloned().collect();
-        free_vars = free_vars.difference(&ctor_names).cloned().collect();
-
-        // Transitively resolve: if a binding references other bindings, include those too
-        let mut resolved = BTreeSet::new();
-        let mut worklist: Vec<String> = free_vars.iter().cloned().collect();
-        while let Some(var) = worklist.pop() {
-            if resolved.contains(&var) {
-                continue;
-            }
-            resolved.insert(var.clone());
-            if let Some(bound_expr) = bindings.get(&var) {
-                let mut sub_vars = BTreeSet::new();
-                collect_free_vars(bound_expr, &mut sub_vars);
-                let sub_vars: BTreeSet<String> = sub_vars
-                    .difference(&fn_names)
-                    .cloned()
-                    .collect::<BTreeSet<_>>()
-                    .difference(&ctor_names)
-                    .cloned()
-                    .collect();
-                for sv in sub_vars {
-                    if !resolved.contains(&sv) {
-                        worklist.push(sv);
-                    }
-                }
-            }
+        let ordered_vars = ordered_smt_free_vars_for_invariant(
+            pred_expr,
+            subject_expr,
+            &bindings,
+            &fn_names,
+            &ctor_names,
+        );
+        if let Some(reason) = smt_skip_reason_for_invariant(
+            pred_expr,
+            subject_expr,
+            &ordered_vars,
+            &bindings,
+            &function_map,
+            &ctor_names,
+        ) {
+            println!("  ? SMT fallback skipped: {}", reason);
+            println!();
+            continue;
         }
-        free_vars = resolved;
-
-        // Emit known bindings as define-const, declare rest as free variables
-        // Emit in dependency order: bindings that reference other bindings come later
-        let ordered_vars = {
-            let mut ordered = Vec::new();
-            let mut emitted = BTreeSet::new();
-            let mut remaining: Vec<String> = free_vars.iter().cloned().collect();
-            let max_iters = remaining.len() * remaining.len() + 1;
-            let mut iter_count = 0;
-            while !remaining.is_empty() && iter_count < max_iters {
-                iter_count += 1;
-                let mut next_remaining = Vec::new();
-                for var in &remaining {
-                    if let Some(bound_expr) = bindings.get(var) {
-                        let mut deps = BTreeSet::new();
-                        collect_free_vars(bound_expr, &mut deps);
-                        let deps: BTreeSet<String> = deps
-                            .difference(&fn_names)
-                            .cloned()
-                            .collect::<BTreeSet<_>>()
-                            .difference(&ctor_names)
-                            .cloned()
-                            .collect();
-                        if deps
-                            .iter()
-                            .all(|d| emitted.contains(d) || !bindings.contains_key(d))
-                        {
-                            ordered.push(var.clone());
-                            emitted.insert(var.clone());
-                        } else {
-                            next_remaining.push(var.clone());
-                        }
-                    } else {
-                        ordered.push(var.clone());
-                        emitted.insert(var.clone());
-                    }
-                }
-                remaining = next_remaining;
-            }
-            for var in remaining {
-                ordered.push(var);
-            }
-            ordered
-        };
+        let used_functions = transitive_smt_function_deps(
+            pred_expr,
+            subject_expr,
+            &ordered_vars,
+            &bindings,
+            &function_map,
+        );
 
         // Emit functions with type-aware param/return sorts
         for (fname, params, ret_ty, body) in &functions {
-            let used = smt_expr_uses_fn(pred_expr, fname)
-                || smt_expr_uses_fn(subject_expr, fname)
-                || ordered_vars.iter().any(|v| {
-                    bindings
-                        .get(v)
-                        .map_or(false, |e| smt_expr_uses_fn(e, fname))
-                });
-            if used {
+            if used_functions.contains(fname) {
                 let param_decls: Vec<String> = params
                     .iter()
                     .map(|p| {
@@ -6245,38 +6552,6 @@ fn verify_with_z3(source: &str, filename: &str) {
             }
         }
         println!();
-    }
-}
-
-/// Check if an expression references a function name (for SMT emission)
-fn smt_expr_uses_fn(expr: &Expr, fname: &str) -> bool {
-    match &expr.kind {
-        ExprKind::Var(name) => name == fname,
-        ExprKind::App(func, args) => {
-            smt_expr_uses_fn(func, fname) || args.iter().any(|a| smt_expr_uses_fn(a, fname))
-        }
-        ExprKind::BinOp(_, lhs, rhs) => {
-            smt_expr_uses_fn(lhs, fname) || smt_expr_uses_fn(rhs, fname)
-        }
-        ExprKind::UnOp(_, inner) => smt_expr_uses_fn(inner, fname),
-        ExprKind::If(c, t, e) => {
-            smt_expr_uses_fn(c, fname) || smt_expr_uses_fn(t, fname) || smt_expr_uses_fn(e, fname)
-        }
-        ExprKind::Field(obj, _) => smt_expr_uses_fn(obj, fname),
-        ExprKind::Match(scrut, arms) => {
-            smt_expr_uses_fn(scrut, fname)
-                || arms.iter().any(|a| {
-                    smt_expr_uses_fn(&a.body, fname)
-                        || a.guard
-                            .as_ref()
-                            .map_or(false, |g| smt_expr_uses_fn(g, fname))
-                })
-        }
-        ExprKind::Block(stmts) => stmts.iter().any(|s| match s {
-            Stmt::Bind(_, _, e) | Stmt::Expr(e) => smt_expr_uses_fn(e, fname),
-            _ => false,
-        }),
-        _ => false,
     }
 }
 
@@ -23906,6 +24181,77 @@ mod tests {
         explicit_proof_statuses_for_stmts(&stmts)
     }
 
+    fn smt_skip_reason_for_named_invariant(source: &str, inv_name: &str) -> Option<String> {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+
+        let mut ctor_to_type = BTreeMap::new();
+        let mut invariants = BTreeMap::new();
+        let mut bindings = BTreeMap::new();
+        let mut functions = Vec::new();
+
+        for stmt in &stmts {
+            match stmt {
+                Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                    for variant in variants {
+                        ctor_to_type.insert(variant.name.clone(), name.clone());
+                    }
+                }
+                Stmt::Invariant {
+                    name,
+                    subject,
+                    predicate,
+                } => {
+                    invariants.insert(name.clone(), (subject.clone(), predicate.clone()));
+                }
+                Stmt::Bind(Pat::Var(name), _, expr) => {
+                    bindings.insert(name.clone(), expr.clone());
+                }
+                Stmt::Defn(Defn::Fn {
+                    name,
+                    params,
+                    ret_ty,
+                    body,
+                    ..
+                }) => {
+                    functions.push((name.clone(), params.clone(), ret_ty.clone(), body.clone()));
+                }
+                _ => {}
+            }
+        }
+
+        let (subject_expr, pred_expr) = invariants
+            .get(inv_name)
+            .cloned()
+            .unwrap_or_else(|| panic!("missing invariant {}", inv_name));
+        let fn_names: BTreeSet<String> = functions.iter().map(|(n, _, _, _)| n.clone()).collect();
+        let ctor_names: BTreeSet<String> = ctor_to_type.keys().cloned().collect();
+        let function_map: BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)> = functions
+            .iter()
+            .map(|(name, params, ret_ty, body)| {
+                (name.clone(), (params.clone(), ret_ty.clone(), body.clone()))
+            })
+            .collect();
+        let ordered_vars = ordered_smt_free_vars_for_invariant(
+            &pred_expr,
+            &subject_expr,
+            &bindings,
+            &fn_names,
+            &ctor_names,
+        );
+
+        smt_skip_reason_for_invariant(
+            &pred_expr,
+            &subject_expr,
+            &ordered_vars,
+            &bindings,
+            &function_map,
+            &ctor_names,
+        )
+    }
+
     #[test]
     fn registry_path_stays_next_to_source_file() {
         let temp_name = format!(
@@ -24239,6 +24585,39 @@ mod tests {
         assert_eq!(
             statuses.get("freeze_slots_bounded"),
             Some(&ExplicitProofStatus::Proved)
+        );
+    }
+
+    #[test]
+    fn smt_skip_reason_reports_unsupported_ordinary_pipeline_invariant_cleanly() {
+        let source = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/canary/core/proof_guarded_pipeline_test.runa"
+        ))
+        .expect("fixture should read");
+
+        let reason = smt_skip_reason_for_named_invariant(&source, "blended_ok")
+            .expect("ordinary pipeline invariant should be skipped cleanly");
+        assert!(
+            reason.contains("predicate calls unsupported function `show`")
+                || reason
+                    .contains("binding `base_scores` list expression is not translatable to SMT")
+        );
+    }
+
+    #[test]
+    fn smt_skip_reason_keeps_simple_arithmetic_invariant_supported() {
+        let source = r#"
+= max_supply = 1000
+= circulating = 400
+= balance = max_supply
+
+| balance_bounded: balance -> balance >= 0 && balance <= max_supply
+"#;
+
+        assert_eq!(
+            smt_skip_reason_for_named_invariant(source, "balance_bounded"),
+            None
         );
     }
 
