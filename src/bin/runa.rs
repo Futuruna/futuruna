@@ -24858,6 +24858,654 @@ mod tests {
         stmts.iter().map(|s| ctx.lower_stmt(s)).collect()
     }
 
+    fn lower_stmt_via_fir_pipeline(
+        stmt: &Stmt,
+        types: &TypeRegistry,
+        borrow_params: &BTreeMap<String, Vec<bool>>,
+        copy_vars: &BTreeSet<String>,
+        ref_match: &BTreeSet<String>,
+    ) -> FirStmt {
+        match stmt {
+            Stmt::Defn(Defn::Fn {
+                name, params, body, ..
+            }) => {
+                let mut type_env = BTreeMap::new();
+                for p in params {
+                    if let Some(ty) = &p.ty {
+                        type_env.insert(p.name.clone(), LoweringCtx::ty_to_fir(ty));
+                    }
+                }
+                let param_names: Vec<&str> = params.iter().map(|p| p.name.as_str()).collect();
+                let ownership = OwnershipAnalysis::analyze(
+                    body,
+                    borrow_params,
+                    Some(name.as_str()),
+                    &param_names,
+                );
+                let mut ctx = LoweringCtx {
+                    type_env,
+                    inference: None,
+                    fn_schemes: BTreeMap::new(),
+                    types,
+                    ownership: &ownership,
+                    copy_vars,
+                    ref_match_bindings: ref_match,
+                };
+                ctx.lower_stmt(stmt)
+            }
+            Stmt::Bind(_, _, expr) | Stmt::Expr(expr) => {
+                let ownership = OwnershipAnalysis::analyze_simple(expr);
+                let mut ctx = LoweringCtx {
+                    type_env: BTreeMap::new(),
+                    inference: None,
+                    fn_schemes: BTreeMap::new(),
+                    types,
+                    ownership: &ownership,
+                    copy_vars,
+                    ref_match_bindings: ref_match,
+                };
+                ctx.lower_stmt(stmt)
+            }
+            Stmt::For(_, iter_expr, _) => {
+                let ownership = OwnershipAnalysis::analyze_simple(iter_expr);
+                let mut ctx = LoweringCtx {
+                    type_env: BTreeMap::new(),
+                    inference: None,
+                    fn_schemes: BTreeMap::new(),
+                    types,
+                    ownership: &ownership,
+                    copy_vars,
+                    ref_match_bindings: ref_match,
+                };
+                ctx.lower_stmt(stmt)
+            }
+            _ => {
+                let ownership = OwnershipAnalysis {
+                    var_uses: BTreeMap::new(),
+                    consuming_uses: BTreeMap::new(),
+                };
+                let mut ctx = LoweringCtx {
+                    type_env: BTreeMap::new(),
+                    inference: None,
+                    fn_schemes: BTreeMap::new(),
+                    types,
+                    ownership: &ownership,
+                    copy_vars,
+                    ref_match_bindings: ref_match,
+                };
+                ctx.lower_stmt(stmt)
+            }
+        }
+    }
+
+    fn lower_source_via_fir_pipeline(source: &str) -> Vec<FirStmt> {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+        let mut cg = RustCodegen::new();
+        let resolved = cg.scan_declarations(&stmts);
+        resolved
+            .iter()
+            .map(|stmt| {
+                lower_stmt_via_fir_pipeline(
+                    stmt,
+                    &cg.types,
+                    &cg.borrow_only_params,
+                    &cg.copy_vars,
+                    &cg.ref_match_bindings,
+                )
+            })
+            .collect()
+    }
+
+    fn fir_ty_snapshot(ty: &FirTy) -> String {
+        match ty {
+            FirTy::Int => "Int".to_string(),
+            FirTy::Float => "Float".to_string(),
+            FirTy::Bool => "Bool".to_string(),
+            FirTy::Char => "Char".to_string(),
+            FirTy::String => "String".to_string(),
+            FirTy::Unit => "()".to_string(),
+            FirTy::List(inner) => format!("List({})", fir_ty_snapshot(inner)),
+            FirTy::Option(inner) => format!("Option({})", fir_ty_snapshot(inner)),
+            FirTy::Result(ok, err) => {
+                format!("Result({}, {})", fir_ty_snapshot(ok), fir_ty_snapshot(err))
+            }
+            FirTy::Tuple(elems) => format!(
+                "Tuple({})",
+                elems
+                    .iter()
+                    .map(fir_ty_snapshot)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            FirTy::Map(k, v) => format!("Map({}, {})", fir_ty_snapshot(k), fir_ty_snapshot(v)),
+            FirTy::Set(inner) => format!("Set({})", fir_ty_snapshot(inner)),
+            FirTy::Named(name) => name.clone(),
+            FirTy::Arrow(a, b) => format!("({} -> {})", fir_ty_snapshot(a), fir_ty_snapshot(b)),
+            FirTy::Var(id) => format!("Var({id})"),
+            FirTy::Unknown => "Unknown".to_string(),
+        }
+    }
+
+    fn fir_expr_snapshot(expr: &FirExpr, indent: usize, out: &mut String) {
+        let pad = "  ".repeat(indent);
+        match &expr.kind {
+            FirExprKind::Var(name, mode) => {
+                out.push_str(&format!(
+                    "{}var {} {:?}: {}\n",
+                    pad,
+                    name,
+                    mode,
+                    fir_ty_snapshot(&expr.ty)
+                ));
+            }
+            FirExprKind::Lit(lit) => {
+                out.push_str(&format!(
+                    "{}lit {:?}: {}\n",
+                    pad,
+                    lit,
+                    fir_ty_snapshot(&expr.ty)
+                ));
+            }
+            FirExprKind::App(func, args) => {
+                out.push_str(&format!("{}app: {}\n", pad, fir_ty_snapshot(&expr.ty)));
+                fir_expr_snapshot(func, indent + 1, out);
+                for arg in args {
+                    fir_expr_snapshot(arg, indent + 1, out);
+                }
+            }
+            FirExprKind::Lambda(params, body) => {
+                let params = params
+                    .iter()
+                    .map(|p| {
+                        let ty =
+                            p.ty.as_ref()
+                                .map(|ty| emit_fir_ty_as_rust(ty))
+                                .unwrap_or_else(|| "_".to_string());
+                        format!("{}: {}", p.name, ty)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                out.push_str(&format!(
+                    "{}lambda [{}]: {}\n",
+                    pad,
+                    params,
+                    fir_ty_snapshot(&expr.ty)
+                ));
+                fir_expr_snapshot(body, indent + 1, out);
+            }
+            FirExprKind::BinOp(op, lhs, rhs) => {
+                out.push_str(&format!(
+                    "{}binop {}: {}\n",
+                    pad,
+                    op,
+                    fir_ty_snapshot(&expr.ty)
+                ));
+                fir_expr_snapshot(lhs, indent + 1, out);
+                fir_expr_snapshot(rhs, indent + 1, out);
+            }
+            FirExprKind::UnOp(op, inner) => {
+                out.push_str(&format!(
+                    "{}unop {}: {}\n",
+                    pad,
+                    op,
+                    fir_ty_snapshot(&expr.ty)
+                ));
+                fir_expr_snapshot(inner, indent + 1, out);
+            }
+            FirExprKind::If(cond, then_, else_) => {
+                out.push_str(&format!("{}if: {}\n", pad, fir_ty_snapshot(&expr.ty)));
+                fir_expr_snapshot(cond, indent + 1, out);
+                fir_expr_snapshot(then_, indent + 1, out);
+                fir_expr_snapshot(else_, indent + 1, out);
+            }
+            FirExprKind::Match(scrutinee, arms) => {
+                out.push_str(&format!("{}match: {}\n", pad, fir_ty_snapshot(&expr.ty)));
+                fir_expr_snapshot(scrutinee, indent + 1, out);
+                for arm in arms {
+                    out.push_str(&format!("{}  arm {}\n", pad, format_pat(&arm.pat)));
+                    if let Some(guard) = &arm.guard {
+                        out.push_str(&format!("{}    guard\n", pad));
+                        fir_expr_snapshot(guard, indent + 3, out);
+                    }
+                    fir_expr_snapshot(&arm.body, indent + 2, out);
+                }
+            }
+            FirExprKind::Block(stmts) => {
+                out.push_str(&format!("{}block: {}\n", pad, fir_ty_snapshot(&expr.ty)));
+                for stmt in stmts {
+                    fir_stmt_snapshot(stmt, indent + 1, out);
+                }
+            }
+            FirExprKind::Field(base, field) => {
+                out.push_str(&format!(
+                    "{}field .{}: {}\n",
+                    pad,
+                    field,
+                    fir_ty_snapshot(&expr.ty)
+                ));
+                fir_expr_snapshot(base, indent + 1, out);
+            }
+            FirExprKind::Index(base, idx) => {
+                out.push_str(&format!("{}index: {}\n", pad, fir_ty_snapshot(&expr.ty)));
+                fir_expr_snapshot(base, indent + 1, out);
+                fir_expr_snapshot(idx, indent + 1, out);
+            }
+            FirExprKind::List(elems) => {
+                out.push_str(&format!("{}list: {}\n", pad, fir_ty_snapshot(&expr.ty)));
+                for elem in elems {
+                    fir_expr_snapshot(elem, indent + 1, out);
+                }
+            }
+            FirExprKind::Tuple(elems) => {
+                out.push_str(&format!("{}tuple: {}\n", pad, fir_ty_snapshot(&expr.ty)));
+                for elem in elems {
+                    fir_expr_snapshot(elem, indent + 1, out);
+                }
+            }
+            FirExprKind::Effect(name, args) => {
+                out.push_str(&format!(
+                    "{}effect {}: {}\n",
+                    pad,
+                    name,
+                    fir_ty_snapshot(&expr.ty)
+                ));
+                for arg in args {
+                    fir_expr_snapshot(arg, indent + 1, out);
+                }
+            }
+            FirExprKind::Handle {
+                effect,
+                handlers,
+                body,
+            } => {
+                out.push_str(&format!(
+                    "{}handle {}: {}\n",
+                    pad,
+                    effect,
+                    fir_ty_snapshot(&expr.ty)
+                ));
+                for handler in handlers {
+                    out.push_str(&format!(
+                        "{}  handler {}({})\n",
+                        pad,
+                        handler.op_name,
+                        handler.params.join(", ")
+                    ));
+                    fir_expr_snapshot(&handler.body, indent + 2, out);
+                }
+                fir_expr_snapshot(body, indent + 1, out);
+            }
+            FirExprKind::Try(inner) => {
+                out.push_str(&format!("{}try: {}\n", pad, fir_ty_snapshot(&expr.ty)));
+                fir_expr_snapshot(inner, indent + 1, out);
+            }
+            FirExprKind::Conjunction(goals) => {
+                out.push_str(&format!(
+                    "{}conjunction: {}\n",
+                    pad,
+                    fir_ty_snapshot(&expr.ty)
+                ));
+                for goal in goals {
+                    fir_expr_snapshot(goal, indent + 1, out);
+                }
+            }
+            FirExprKind::Disjunction(goals) => {
+                out.push_str(&format!(
+                    "{}disjunction: {}\n",
+                    pad,
+                    fir_ty_snapshot(&expr.ty)
+                ));
+                for goal in goals {
+                    fir_expr_snapshot(goal, indent + 1, out);
+                }
+            }
+            FirExprKind::Pipe(lhs, rhs) => {
+                out.push_str(&format!("{}pipe: {}\n", pad, fir_ty_snapshot(&expr.ty)));
+                fir_expr_snapshot(lhs, indent + 1, out);
+                fir_expr_snapshot(rhs, indent + 1, out);
+            }
+            FirExprKind::Unit => {
+                out.push_str(&format!("{}unit: {}\n", pad, fir_ty_snapshot(&expr.ty)));
+            }
+        }
+    }
+
+    fn fir_stmt_snapshot(stmt: &FirStmt, indent: usize, out: &mut String) {
+        let pad = "  ".repeat(indent);
+        match stmt {
+            FirStmt::TypeDecl(TypeDecl::ADT {
+                name,
+                params,
+                variants,
+                ..
+            }) => {
+                let params = if params.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        "<{}>",
+                        params
+                            .iter()
+                            .map(|p| p.name.clone())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                };
+                let variants = variants
+                    .iter()
+                    .map(|variant| {
+                        if variant.fields.is_empty() {
+                            variant.name.clone()
+                        } else if variant.positional {
+                            format!(
+                                "{}({})",
+                                variant.name,
+                                variant
+                                    .fields
+                                    .iter()
+                                    .map(|field| emit_fir_ty_as_rust(&field.ty))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            )
+                        } else {
+                            format!(
+                                "{}({})",
+                                variant.name,
+                                variant
+                                    .fields
+                                    .iter()
+                                    .map(|field| format!(
+                                        "{}: {}",
+                                        field.name,
+                                        emit_fir_ty_as_rust(&field.ty)
+                                    ))
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            )
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+                out.push_str(&format!("{}type {}{} = {}\n", pad, name, params, variants));
+            }
+            FirStmt::Defn(FirDefn::Fn {
+                name,
+                params,
+                ret_ty,
+                body,
+                ..
+            }) => {
+                let params = params
+                    .iter()
+                    .map(|p| {
+                        let ty =
+                            p.ty.as_ref()
+                                .map(emit_fir_ty_as_rust)
+                                .unwrap_or_else(|| "_".to_string());
+                        format!("{}: {}", p.name, ty)
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let ret = ret_ty
+                    .as_ref()
+                    .map(emit_fir_ty_as_rust)
+                    .unwrap_or_else(|| "_".to_string());
+                out.push_str(&format!("{}fn {}({}) -> {}\n", pad, name, params, ret));
+                fir_expr_snapshot(body, indent + 1, out);
+            }
+            FirStmt::Bind(pat, _, expr) => {
+                out.push_str(&format!("{}bind {}\n", pad, format_pat(pat)));
+                fir_expr_snapshot(expr, indent + 1, out);
+            }
+            FirStmt::Expr(expr) => {
+                out.push_str(&format!("{}expr\n", pad));
+                fir_expr_snapshot(expr, indent + 1, out);
+            }
+            other => {
+                out.push_str(&format!("{}{:?}\n", pad, other));
+            }
+        }
+    }
+
+    fn render_fir_snapshot(stmts: &[FirStmt]) -> String {
+        let mut out = String::new();
+        for stmt in stmts {
+            fir_stmt_snapshot(stmt, 0, &mut out);
+        }
+        out
+    }
+
+    fn fir_ty_has_unresolved_holes(ty: &FirTy) -> bool {
+        match ty {
+            FirTy::Unknown | FirTy::Var(_) => true,
+            FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => {
+                fir_ty_has_unresolved_holes(inner)
+            }
+            FirTy::Result(ok, err) | FirTy::Map(ok, err) | FirTy::Arrow(ok, err) => {
+                fir_ty_has_unresolved_holes(ok) || fir_ty_has_unresolved_holes(err)
+            }
+            FirTy::Tuple(elems) => elems.iter().any(fir_ty_has_unresolved_holes),
+            FirTy::Int
+            | FirTy::Float
+            | FirTy::Bool
+            | FirTy::Char
+            | FirTy::String
+            | FirTy::Unit
+            | FirTy::Named(_) => false,
+        }
+    }
+
+    fn assert_fir_expr_phase_validated(expr: &FirExpr, allow_callable_unknown: bool) {
+        if !allow_callable_unknown {
+            assert!(
+                !fir_ty_has_unresolved_holes(&expr.ty),
+                "unexpected unresolved FIR type in expression: {:?}",
+                expr
+            );
+        }
+        match &expr.kind {
+            FirExprKind::App(func, args) => {
+                assert_fir_expr_phase_validated(func, true);
+                for arg in args {
+                    assert_fir_expr_phase_validated(arg, false);
+                }
+            }
+            FirExprKind::Lambda(_, body) | FirExprKind::UnOp(_, body) | FirExprKind::Try(body) => {
+                assert_fir_expr_phase_validated(body, false)
+            }
+            FirExprKind::BinOp(_, lhs, rhs)
+            | FirExprKind::Index(lhs, rhs)
+            | FirExprKind::Pipe(lhs, rhs) => {
+                assert_fir_expr_phase_validated(lhs, false);
+                assert_fir_expr_phase_validated(rhs, false);
+            }
+            FirExprKind::If(cond, then_, else_) => {
+                assert_fir_expr_phase_validated(cond, false);
+                assert_fir_expr_phase_validated(then_, false);
+                assert_fir_expr_phase_validated(else_, false);
+            }
+            FirExprKind::Match(scrutinee, arms) => {
+                assert_fir_expr_phase_validated(scrutinee, false);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        assert_fir_expr_phase_validated(guard, false);
+                    }
+                    assert_fir_expr_phase_validated(&arm.body, false);
+                }
+            }
+            FirExprKind::Block(stmts) => {
+                for stmt in stmts {
+                    assert_fir_stmt_phase_validated(stmt);
+                }
+            }
+            FirExprKind::Field(base, _) => assert_fir_expr_phase_validated(base, false),
+            FirExprKind::List(elems)
+            | FirExprKind::Tuple(elems)
+            | FirExprKind::Conjunction(elems)
+            | FirExprKind::Disjunction(elems) => {
+                for elem in elems {
+                    assert_fir_expr_phase_validated(elem, false);
+                }
+            }
+            FirExprKind::Effect(_, args) => {
+                for arg in args {
+                    assert_fir_expr_phase_validated(arg, false);
+                }
+            }
+            FirExprKind::Handle { handlers, body, .. } => {
+                assert_fir_expr_phase_validated(body, false);
+                for handler in handlers {
+                    assert_fir_expr_phase_validated(&handler.body, false);
+                }
+            }
+            FirExprKind::Var(_, _) | FirExprKind::Lit(_) | FirExprKind::Unit => {}
+        }
+    }
+
+    fn assert_fir_stmt_phase_validated(stmt: &FirStmt) {
+        match stmt {
+            FirStmt::Defn(FirDefn::Fn { body, .. }) => assert_fir_expr_phase_validated(body, false),
+            FirStmt::Bind(_, _, expr)
+            | FirStmt::MonadicBind(_, _, expr)
+            | FirStmt::StreamBind(_, expr)
+            | FirStmt::Expr(expr) => assert_fir_expr_phase_validated(expr, false),
+            FirStmt::Annot(_, args) | FirStmt::Assert(_, args) | FirStmt::Retract(_, args) => {
+                for arg in args {
+                    assert_fir_expr_phase_validated(arg, false);
+                }
+            }
+            FirStmt::For(_, iter, body) => {
+                assert_fir_expr_phase_validated(iter, false);
+                for stmt in body {
+                    assert_fir_stmt_phase_validated(stmt);
+                }
+            }
+            FirStmt::Send(target, msg) => {
+                assert_fir_expr_phase_validated(target, false);
+                assert_fir_expr_phase_validated(msg, false);
+            }
+            FirStmt::StreamSub(expr, arms) => {
+                assert_fir_expr_phase_validated(expr, false);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        assert_fir_expr_phase_validated(guard, false);
+                    }
+                    assert_fir_expr_phase_validated(&arm.body, false);
+                }
+            }
+            FirStmt::Invariant {
+                subject, predicate, ..
+            } => {
+                assert_fir_expr_phase_validated(subject, false);
+                assert_fir_expr_phase_validated(predicate, false);
+            }
+            FirStmt::Prove {
+                pass_block,
+                else_block,
+                ..
+            } => {
+                if let Some(stmts) = pass_block {
+                    for stmt in stmts {
+                        assert_fir_stmt_phase_validated(stmt);
+                    }
+                }
+                if let Some(stmts) = else_block {
+                    for stmt in stmts {
+                        assert_fir_stmt_phase_validated(stmt);
+                    }
+                }
+            }
+            FirStmt::Defn(FirDefn::Actor { .. })
+            | FirStmt::Defn(FirDefn::Module { .. })
+            | FirStmt::TypeDecl(_)
+            | FirStmt::Rule(_)
+            | FirStmt::Use(_)
+            | FirStmt::Import(_)
+            | FirStmt::QualifiedImport(_, _)
+            | FirStmt::HashImport(_, _)
+            | FirStmt::Depend(_, _)
+            | FirStmt::RustBlock(_)
+            | FirStmt::Abort => {}
+        }
+    }
+
+    const FIR_PHASE_SAMPLE_SOURCE: &str = r#"
+# Verdict = High | Low
+> verdict(score: Int) -> Verdict {
+    if score > 5 { High } else { Low }
+}
+> render(v: Verdict, score: Int) -> String {
+    match v {
+        | High -> show(score) + " high"
+        | Low -> show(score) + " low"
+    }
+}
+= current = verdict(7)
+= summary = render(verdict(7), 7)
+"#;
+
+    const FIR_PHASE_SAMPLE_SNAPSHOT: &str = r#"type Verdict = High | Low
+fn verdict(score: i64) -> Verdict
+  block: Verdict
+    expr
+      if: Verdict
+        binop >: Bool
+          var score Move: Int
+          lit Int(5): Int
+        block: Verdict
+          expr
+            var High Move: Verdict
+        block: Verdict
+          expr
+            var Low Move: Verdict
+fn render(v: Verdict, score: i64) -> String
+  block: String
+    expr
+      match: String
+        var v Move: Verdict
+        arm High
+          binop +: String
+            app: String
+              var show Move: Unknown
+              var score Move: Int
+            lit Str(" high"): String
+        arm Low
+          binop +: String
+            app: String
+              var show Move: Unknown
+              var score Move: Int
+            lit Str(" low"): String
+bind current
+  app: Verdict
+    var verdict Move: (Int -> Verdict)
+    lit Int(7): Int
+bind summary
+  app: String
+    var render Move: (Verdict -> (Int -> String))
+    app: Verdict
+      var verdict Move: (Int -> Verdict)
+      lit Int(7): Int
+    lit Int(7): Int
+"#;
+
+    const FIR_PHASE_SAMPLE_EMIT_SNAPSHOT: &str = r#"fn verdict(score: i64) -> Verdict {
+    { if (score > 5i64) { { High; } } else { { Low; } }; }
+}
+
+fn render(v: Verdict, score: i64) -> String {
+    { match v {
+    High => format!("{}{}", show(score), " high".to_string()),
+    Low => format!("{}{}", show(score), " low".to_string()),
+}; }
+}
+
+let current = verdict(7i64);
+let summary = render(verdict(7i64), 7i64);
+"#;
+
     #[test]
     fn lowering_var_produces_fir_var() {
         let fir = lower_source("= x = hello");
@@ -25070,6 +25718,27 @@ mod tests {
             "expected let binding, got:\n{}",
             code
         );
+    }
+
+    #[test]
+    fn fir_phase_validator_resolves_representative_program_types() {
+        let fir = lower_source_via_fir_pipeline(FIR_PHASE_SAMPLE_SOURCE);
+        for stmt in &fir {
+            assert_fir_stmt_phase_validated(stmt);
+        }
+    }
+
+    #[test]
+    fn fir_phase_snapshot_matches_golden() {
+        let fir = lower_source_via_fir_pipeline(FIR_PHASE_SAMPLE_SOURCE);
+        let snapshot = render_fir_snapshot(&fir);
+        assert_eq!(snapshot, FIR_PHASE_SAMPLE_SNAPSHOT);
+    }
+
+    #[test]
+    fn fir_emit_snapshot_matches_golden() {
+        let emitted = fir_emit(FIR_PHASE_SAMPLE_SOURCE);
+        assert_eq!(emitted, FIR_PHASE_SAMPLE_EMIT_SNAPSHOT);
     }
 
     // ── FIR emission tests ──────────────────────────────────────────
