@@ -21423,9 +21423,41 @@ impl RustCodegen {
                     if builtin_canonical(name) == "show" && args_str.len() == 1 {
                         return self.emit_display_value_expr(&args[0], &args_str[0]);
                     }
+                    if builtin_canonical(name) == "length"
+                        && args.len() == 1
+                        && self.expr_is_known_empty_list_value(&args[0])
+                    {
+                        return "0".to_string();
+                    }
                     // Builtin: not(x) → !x (boolean negation / negation as failure)
                     if name == "not" && args_str.len() == 1 {
                         return format!("!({})", args_str[0]);
+                    }
+                    if builtin_canonical(name) == "head"
+                        && matches!(
+                            args.first(),
+                            Some(Expr {
+                                kind: ExprKind::List(elems),
+                                ..
+                            }) if elems.is_empty()
+                        )
+                    {
+                        return "panic!(\"head: empty list\")".to_string();
+                    }
+                    if builtin_canonical(name) == "nth"
+                        && matches!(
+                            args.first(),
+                            Some(Expr {
+                                kind: ExprKind::List(elems),
+                                ..
+                            }) if elems.is_empty()
+                        )
+                        && args_str.len() == 2
+                    {
+                        return format!(
+                            "{{ let __i = {}; panic!(\"index out of bounds: {{}} (len 0)\", __i) }}",
+                            args_str[1]
+                        );
                     }
                     // findall(template_var, goal) → iterate fact table, collect matches
                     if name == "findall" && args.len() == 2 {
@@ -22927,6 +22959,9 @@ impl RustCodegen {
         if self.has_async && self.is_async_stream_expr(expr) {
             return format!("__futuruna_show_any(&{}.snapshot())", emitted);
         }
+        if self.expr_is_known_empty_list_value(expr) {
+            return "\"[]\".to_string()".to_string();
+        }
         if self.expr_is_string(expr) {
             return format!("format!(\"{{}}\", {})", emitted);
         }
@@ -22934,6 +22969,27 @@ impl RustCodegen {
             return format!("__futuruna_show_set(&{})", emitted);
         }
         format!("__futuruna_show_any(&{})", emitted)
+    }
+
+    fn expr_is_known_empty_list_value(&self, expr: &Expr) -> bool {
+        match &expr.kind {
+            ExprKind::List(elems) => elems.is_empty(),
+            ExprKind::App(func, args) => {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
+                    matches!(builtin_canonical(name), "tail")
+                        && matches!(
+                            args.first(),
+                            Some(Expr {
+                                kind: ExprKind::List(elems),
+                                ..
+                            }) if elems.is_empty()
+                        )
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
     }
 
     /// Emit handler body, replacing captured variables with self.field references.
@@ -27544,6 +27600,49 @@ let summary = render(verdict(7i64), 7i64);
     fn compiled_tail_of_empty_literal_stays_empty() {
         let output = compile_and_run_test_program("= t = tail([])\n@ print(show(t))\n");
         assert_eq!(output, "[]\n");
+    }
+
+    #[test]
+    fn compiled_direct_show_of_empty_tail_literal_stays_empty() {
+        let output = compile_and_run_test_program("@ print(show(tail([])))\n");
+        assert_eq!(output, "[]\n");
+    }
+
+    #[test]
+    fn compiled_direct_show_of_empty_list_literal_stays_empty() {
+        let output = compile_and_run_test_program("@ print(show([]))\n");
+        assert_eq!(output, "[]\n");
+    }
+
+    #[test]
+    fn compiled_direct_length_of_empty_tail_literal_is_zero() {
+        let output = compile_and_run_test_program("@ print(show(length(tail([]))))\n");
+        assert_eq!(output, "0\n");
+    }
+
+    #[test]
+    fn compiled_empty_tail_literal_preserves_contextual_element_type() {
+        let output =
+            compile_and_run_test_program("= xs = concat(tail([]), [\"x\"])\n@ print(show(xs))\n");
+        assert_eq!(output, "[x]\n");
+    }
+
+    #[test]
+    fn compiled_direct_show_of_empty_head_reports_runtime_error() {
+        compile_test_source_expect_runtime_failure(
+            "@ print(show(head([])))\n",
+            None,
+            &["head: empty list"],
+        );
+    }
+
+    #[test]
+    fn compiled_direct_show_of_empty_nth_reports_runtime_error() {
+        compile_test_source_expect_runtime_failure(
+            "@ print(show(nth([], 0)))\n",
+            None,
+            &["index out of bounds: 0 (len 0)"],
+        );
     }
 
     #[test]
