@@ -38,4 +38,12 @@ Target shape:
 
 ### Regressions
 - `td-4e7e91`: distill every user-found semantic bug into an authored workflow canary when it reflects real usage
+- Intake rule: user bug classes belong here only when the distilled fixture is
+  still a realistic multi-subsystem workflow; narrow compiler probes stay in
+  ordinary regression tests
+- `tests/canary/regressions/module_shadowing_regression_test.runa`: imported
+  top-level bindings, computed getters, module-qualified access, and local
+  shadowing
+- `tests/canary/regressions/verify_process_audit_test.runa`: `process_run`
+  tuples, tuple accessors, substring, and list-valued invariant display
 - Keep minimized one-off compiler probes in ordinary regression tests, not here

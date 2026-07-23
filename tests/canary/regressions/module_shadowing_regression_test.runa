@@ -1,0 +1,74 @@
+-- Authored regression canary: imported top-level bindings, computed getters,
+-- module-qualified access, and local shadowing must stay aligned.
+
+@ import Remote from ./module_shadowing_regression_dep
+
+> module Local {
+    = prefix = "local"
+    = extra_boost = 5
+
+    > lane_label(name: String, score: Int) -> String {
+        prefix + "-" + name + ":" + show(score + extra_boost)
+    }
+}
+
+= prefix = "global"
+= local_extra = 1
+= remote_labels = compute_remote_labels(0)
+= local_labels = map(Remote.base_targets, local_lane)
+= first_remote = remote_labels[0]
+= combined = join(remote_labels, "|") + " => " + show(Remote.plan_threshold)
+
+> remote_label_at(i: Int) -> String {
+    prefix + "-" + Remote.region_names[i] + ":" + show(Remote.base_targets[i] + Remote.extra_boost + local_extra)
+}
+
+> compute_remote_labels(i: Int) -> List(String) {
+    if i >= length(Remote.region_names) {
+        []
+    } else {
+        concat([remote_label_at(i)], compute_remote_labels(i + 1))
+    }
+}
+
+> local_lane(score: Int) -> String {
+    Local.lane_label("lane", score)
+}
+
+> remote_report() -> String {
+    join(compute_remote_labels(0), "|") + " => " + show(Remote.plan_threshold)
+}
+
+> local_shadow_report() -> String {
+    = prefix = "shadow"
+    prefix + "-" + show(Remote.plan_threshold)
+}
+
+= remote_report_value = remote_report()
+= local_shadow_value = local_shadow_report()
+
+= first_remote_ok = first_remote == "north:8"
+? first_remote_ok
+
+= remote_labels_ok = show(remote_labels) == "[global-north:9, global-west:6, global-vip:11]"
+? remote_labels_ok
+
+= local_labels_ok = show(local_labels) == "[local-lane:11, local-lane:8, local-lane:13]"
+? local_labels_ok
+
+= threshold_ok = Remote.plan_threshold == 20
+? threshold_ok
+
+= combined_ok = combined == "global-north:9|global-west:6|global-vip:11 => 20"
+? combined_ok
+
+= remote_report_ok = remote_report_value == combined
+? remote_report_ok
+
+= local_shadow_ok = local_shadow_value == "shadow-20"
+? local_shadow_ok
+
+= local_module_ok = Local.extra_boost == 5
+? local_module_ok
+
+@ print("canary module shadowing regression passed")

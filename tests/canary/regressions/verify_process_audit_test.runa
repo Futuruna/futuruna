@@ -1,0 +1,37 @@
+-- Authored regression canary: process_run tuples, tuple accessors, substring,
+-- and list-valued invariant display must stay aligned across runtimes.
+
+= probe = process_run(["git", "rev-parse", "--is-inside-work-tree"])
+= exit_code = fst(probe)
+= repo_flag = trim(snd(probe))
+= stderr_text = trim(trd(probe))
+= stderr_status = if stderr_text == "" { "clean" } else { "warn" }
+= headline = substring("workspace-check", 0, 9)
+= detail_pairs = [
+headline + ":" + repo_flag,
+"status:" + show(exit_code),
+"stderr:" + stderr_status
+]
+= detail_summary = join(detail_pairs, "|")
+
+| exit_code_ok: exit_code -> exit_code == 0
+? exit_code_ok
+
+| repo_flag_ok: repo_flag -> repo_flag == "true"
+? repo_flag_ok
+
+| headline_ok: headline -> headline == "workspace"
+? headline_ok
+
+| detail_pairs_ok: detail_pairs -> show(detail_pairs) == "[workspace:true, status:0, stderr:clean]"
+? detail_pairs_ok
+
+| detail_summary_ok: detail_summary -> detail_summary == "workspace:true|status:0|stderr:clean"
+? detail_summary_ok
+
+= audit_lines = [repo_flag, stderr_status]
+
+| audit_lines_ok: audit_lines -> show(audit_lines) == "[true, clean]"
+? audit_lines_ok
+
+@ print("canary verify process audit passed")
