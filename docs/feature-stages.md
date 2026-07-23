@@ -44,7 +44,6 @@ When documenting or reviewing a change:
 This stage matrix is intentionally lightweight. Futuruna does not yet:
 
 - surface stage metadata mechanically in every doc page
-- publish a versioned compatibility guide per release
 - expose machine-readable stage metadata in tooling
 
 Those are tracked follow-up tasks, not hidden assumptions.

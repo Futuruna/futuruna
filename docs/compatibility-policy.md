@@ -7,6 +7,9 @@ behavior without a staged deprecation.
 For the current stage assignments of major language and tooling surfaces, see
 [docs/feature-stages.md](feature-stages.md).
 
+For release-by-release compatibility history, see
+[docs/compatibility-guides/](compatibility-guides/README.md).
+
 The goal is simple: users should not have to guess which changes are ordinary
 progress, which are intentional compatibility breaks, and which surfaces are
 still explicitly unstable.
@@ -221,7 +224,7 @@ classification model reviewers should apply when reading those changes.
 This policy is a contract first. Some enforcement still needs follow-up work:
 
 - feature stability metadata is not yet surfaced consistently in tooling/docs
-- Futuruna does not yet publish a versioned compatibility guide per release
+- compatibility guide updates are still enforced by review discipline, not by automated tooling
 - artifact compatibility is only partially formalized beyond emitted behavior
 
 Those gaps should be tracked explicitly in `td`, not left as implicit policy

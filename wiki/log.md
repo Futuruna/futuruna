@@ -22,6 +22,12 @@ tags:
 - Surfaced stage information in `docs/reference/README.md`, `README.md`, `docs/state-and-roadmap.md`, and `runa --help`
 - Added source note [[feature-stages]]
 
+## 2026-07-18 policy | Compatibility guides
+
+- Added `docs/compatibility-guides/README.md` and rolling guide `docs/compatibility-guides/0.1.x.md`
+- Updated contributor/review entry points so stable-surface changes should update the current guide
+- Added source note [[compatibility-guides]]
+
 ## 2026-07-18 autoresearch | Hardening Futuruna into a Professional Language
 
 - Rounds: 2

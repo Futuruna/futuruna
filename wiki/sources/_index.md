@@ -13,6 +13,7 @@ tags:
 - [[repo-docs]]
 - [[state-and-roadmap]]
 - [[compatibility-policy]]
+- [[compatibility-guides]]
 - [[feature-stages]]
 - [[proof-kernel-spec]]
 - [[verified-bootstrap-doc]]

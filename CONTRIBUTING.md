@@ -37,7 +37,10 @@ Before a semantic change is submitted for review:
    The review request must say what semantic contract changed, what permanent
    coverage was added, which compatibility category it touched, and which
    commands were run.
-5. Park follow-up debt explicitly.
+5. Update the compatibility guide when needed.
+   If the change touches a stable surface, update the current guide in
+   `docs/compatibility-guides/` or explain why no guide entry is needed.
+6. Park follow-up debt explicitly.
    If you leave a shortcut, workaround, or known gap behind, file a `td-*` task
    before merge. Do not leave semantic debt implicit.
 
@@ -48,6 +51,7 @@ The PR description should include:
 
 - the user-visible or compiler-internal semantic contract that changed
 - the exact regression, canary, differential corpus case, or snapshot added
+- the compatibility guide entry added, or a clear statement that none was needed
 - the exact verification commands that were run
 - any skipped lane, with a concrete reason
 - any parked follow-up work as linked `td-*` tasks

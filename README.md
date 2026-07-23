@@ -98,6 +98,11 @@ See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-
 
 Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md): core syntax and documented stdlib behavior are treated as stable, while `runa verify`, stateful/reactive surfaces, Rust interop, and several advanced tooling paths are still preview or experimental.
 
+Release-facing compatibility history lives in
+[docs/compatibility-guides/](docs/compatibility-guides/). Stable breaks,
+deprecations, and bug-fix exceptions should show up there rather than only in
+PR descriptions.
+
 ## What Futuruna Unifies
 
 | Capability | Prolog | Rust | Haskell | Catala | Futuruna |
@@ -133,6 +138,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 - `CONTRIBUTING.md` - Contributor ratchet for semantic/compiler changes
 - `docs/compatibility-policy.md` - Compatibility categories, feature stages, and bug-fix exception policy
 - `docs/feature-stages.md` - Current stable/preview/experimental stage matrix for major surfaces and commands
+- `docs/compatibility-guides/` - Release-facing compatibility ledger for stable changes, deprecations, and bug-fix exceptions
 - `docs/state-and-roadmap.md` - Where Futuruna stands now and the next three milestones
 - `docs/language-sketch.md` - Language design and three-axis analysis
 - `docs/differential-testing.md` - Reproducible differential and generative testing
