@@ -94,7 +94,7 @@ runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 ./scripts/differential.sh   # Reproducible differential and generative lane
 ```
 
-See [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
+See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
 
 ## What Futuruna Unifies
 
@@ -129,11 +129,13 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 ## Documentation
 
 - `CONTRIBUTING.md` - Contributor ratchet for semantic/compiler changes
+- `docs/state-and-roadmap.md` - Where Futuruna stands now and the next three milestones
 - `docs/language-sketch.md` - Language design and three-axis analysis
 - `docs/differential-testing.md` - Reproducible differential and generative testing
 - `docs/canary-suite.md` - Authored canaries for realistic user-shaped workflows
 - `docs/canary-matrix.md` - Tiered authored coverage map and planned build-out
 - `docs/mint-gate.md` - Canonical verification gate for keeping Futuruna mint
+- `docs/verified-bootstrap.md` - Current proof bootstrap claim and trust boundary
 - `docs/milestones.md` - Compiler milestones (M1-M15)
 - `docs/ownership-design.md` - Memory model (Kotlin-to-Rust philosophy)
 - `docs/reactive-design.md` - Reactive streams as native graph topology
