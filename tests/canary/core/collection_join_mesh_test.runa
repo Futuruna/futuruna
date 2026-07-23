@@ -1,0 +1,92 @@
+-- Authored core canary: nested collection joins over zip, enumerate, partition,
+-- and stable ordering.
+
+# Shipment(id: Int, sku: String, qty: Int, region: String, lane: String)
+
+> shipment_id(s: Shipment) -> Int {
+    match s {
+        | Shipment(id: id, sku: _, qty: _, region: _, lane: _) -> id
+    }
+}
+
+> shipment_key(s: Shipment) -> String {
+    match s {
+        | Shipment(id: id, sku: sku, qty: _, region: region, lane: _) -> show(id) + ":" + sku + "@" + region
+    }
+}
+
+> shipment_qty(s: Shipment) -> Int {
+    match s {
+        | Shipment(id: _, sku: _, qty: qty, region: _, lane: _) -> qty
+    }
+}
+
+> shipment_region(s: Shipment) -> String {
+    match s {
+        | Shipment(id: _, sku: _, qty: _, region: region, lane: _) -> region
+    }
+}
+
+> shipment_lane(s: Shipment) -> String {
+    match s {
+        | Shipment(id: _, sku: _, qty: _, region: _, lane: lane) -> lane
+    }
+}
+
+> shipment_line(s: Shipment) -> String {
+    shipment_key(s) + "/" + shipment_lane(s) + "=" + show(shipment_qty(s))
+}
+
+> needs_review(s: Shipment) -> Bool {
+    match s {
+        | Shipment(id: _, sku: _, qty: qty, region: _, lane: lane) -> qty < 5 || lane == "manual"
+    }
+}
+
+> add_region_total(totals: Map(String, Int), shipment: Shipment) -> Map(String, Int) {
+    = region = shipment_region(shipment)
+    map_insert(totals, region, map_get_or(totals, region, 0) + shipment_qty(shipment))
+}
+
+= sku_qty = zip(["alfa", "beta", "gamma", "delta"], [5, 2, 7, 4])
+= routes = zip(["north", "south", "north", "east"], ["auto", "manual", "auto", "manual"])
+= shipments = map(zip(enumerate(sku_qty), routes), |mesh| {
+    = numbered = fst(mesh)
+    = route = snd(mesh)
+    = idx = fst(numbered)
+    = pair = snd(numbered)
+    Shipment(idx + 1, fst(pair), snd(pair), fst(route), snd(route))
+})
+
+= shipment_lines = map(shipments, shipment_line)
+= parts = partition(shipments, needs_review)
+= review = fst(parts)
+= cleared = snd(parts)
+= review_slots = map(enumerate(review), |slot| "review-" + show(fst(slot) + 1) + ":" + shipment_key(snd(slot)))
+= cleared_slots = map(enumerate(cleared), |slot| "clear-" + show(fst(slot) + 1) + ":" + shipment_key(snd(slot)))
+= review_actions = map(zip(review_slots, ["inspect", "hold"]), |p| fst(p) + ":" + snd(p))
+
+= empty_totals: Map(String, Int) = map_new()
+= region_totals = foldl(shipments, empty_totals, add_region_total)
+= sorted_regions = sort(map_keys(region_totals))
+= region_summary = join(map(sorted_regions, |region| region + ":" + show(map_get_or(region_totals, region, 0))), ",")
+
+= ids_ok = map(shipments, shipment_id) == [1, 2, 3, 4]
+? ids_ok
+
+= mesh_ok = shipment_lines == ["1:alfa@north/auto=5", "2:beta@south/manual=2", "3:gamma@north/auto=7", "4:delta@east/manual=4"]
+? mesh_ok
+
+= review_ok = review_slots == ["review-1:2:beta@south", "review-2:4:delta@east"]
+? review_ok
+
+= cleared_ok = cleared_slots == ["clear-1:1:alfa@north", "clear-2:3:gamma@north"]
+? cleared_ok
+
+= review_actions_ok = join(review_actions, "|") == "review-1:2:beta@south:inspect|review-2:4:delta@east:hold"
+? review_actions_ok
+
+= region_totals_ok = region_summary == "east:4,north:12,south:2"
+? region_totals_ok
+
+@ print("canary collection join mesh passed")
