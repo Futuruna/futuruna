@@ -64,8 +64,6 @@ readings <- 35
 readings <- 29
 readings <- 40
 
-sleep(10)
-
 = staged_snapshot = collect(staged)
 = routed_snapshot = collect(routed)
 = review_snapshot = collect(review_log)

@@ -14954,6 +14954,26 @@ impl RustCodegen {
             );
             out.push_str("    }\n");
             out.push_str("}\n");
+            out.push_str(
+                "async fn __fut_settle<T: Clone + Send + 'static>(stream: &__FutStream<T>) {\n",
+            );
+            out.push_str("    let mut stable_rounds = 0usize;\n");
+            out.push_str("    let mut last_seen = stream.watermark();\n");
+            out.push_str("    let mut spins = 0usize;\n");
+            out.push_str("    while stable_rounds < 2 && spins < 256 {\n");
+            out.push_str(
+                "        tokio::time::sleep(std::time::Duration::from_millis(0)).await;\n",
+            );
+            out.push_str("        let now = stream.watermark();\n");
+            out.push_str("        if now == last_seen {\n");
+            out.push_str("            stable_rounds += 1;\n");
+            out.push_str("        } else {\n");
+            out.push_str("            stable_rounds = 0;\n");
+            out.push_str("            last_seen = now;\n");
+            out.push_str("        }\n");
+            out.push_str("        spins += 1;\n");
+            out.push_str("    }\n");
+            out.push_str("}\n");
         }
         out.push('\n');
 
@@ -21335,8 +21355,23 @@ impl RustCodegen {
         }
     }
 
+    fn emit_async_stream_settled_read(&self, emitted: &str, settled_read: &str) -> String {
+        if self.in_async_context() {
+            format!(
+                "{{ let __stream = ({}).clone(); __fut_settle(&__stream).await; {} }}",
+                emitted, settled_read
+            )
+        } else {
+            format!(
+                "tokio::task::block_in_place(|| tokio::runtime::Handle::current().block_on(async move {{ let __stream = ({}).clone(); __fut_settle(&__stream).await; {} }}))",
+                emitted, settled_read
+            )
+        }
+    }
+
     fn emit_async_stream_snapshot(&mut self, expr: &Expr) -> String {
-        format!("{}.snapshot()", self.emit_expr(expr))
+        let emitted = self.emit_expr(expr);
+        self.emit_async_stream_settled_read(&emitted, "__stream.snapshot()")
     }
 
     fn emit_async_stream_snapshot_builtin(&mut self, name: &str, args: &[Expr]) -> Option<String> {
@@ -22762,8 +22797,14 @@ impl RustCodegen {
                 if self.has_async && self.is_async_stream_expr(obj) {
                     let obj_str = self.emit_expr(obj);
                     match field.as_str() {
-                        "count" => return format!("{}.count()", obj_str),
-                        "latest" => return format!("{}.latest()", obj_str),
+                        "count" => {
+                            return self
+                                .emit_async_stream_settled_read(&obj_str, "__stream.count()");
+                        }
+                        "latest" => {
+                            return self
+                                .emit_async_stream_settled_read(&obj_str, "__stream.latest()");
+                        }
                         _ => {}
                     }
                 }
@@ -23413,7 +23454,10 @@ impl RustCodegen {
 
     fn emit_display_value_expr(&self, expr: &Expr, emitted: &str) -> String {
         if self.has_async && self.is_async_stream_expr(expr) {
-            return format!("__futuruna_show_any(&{}.snapshot())", emitted);
+            return format!(
+                "__futuruna_show_any(&{})",
+                self.emit_async_stream_settled_read(emitted, "__stream.snapshot()")
+            );
         }
         if self.expr_is_known_empty_list_value(expr) {
             return "\"[]\".to_string()".to_string();
@@ -28507,6 +28551,43 @@ let summary = render(verdict(7i64), 7i64);
         assert!(
             rust.contains("__acc_seed_2 = (count_step)(__acc_seed_2.clone(), &__v);"),
             "async scan over helper functions should borrow borrow-only item params: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_async_stream_reads_wait_for_quiescence() {
+        let source = r#"
+~ readings = subject()
+~ routed = subject()
+~ readings | x -> {
+    routed <- x
+}
+= routed_snapshot = collect(routed)
+= routed_count = routed.count
+= routed_latest = routed.latest
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("__fut_settle(&__stream).await; __stream.snapshot()"),
+            "async collect/show paths should settle derived stream state before snapshot reads: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let __stream = (routed.clone()).clone();")
+                || rust.contains("let __stream = (routed).clone();"),
+            "settled stream reads should clone named stream handles instead of moving them: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_settle(&__stream).await; __stream.count()"),
+            "async .count reads should settle derived stream state before reading: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_settle(&__stream).await; __stream.latest()"),
+            "async .latest reads should settle derived stream state before reading: {}",
             rust
         );
     }
