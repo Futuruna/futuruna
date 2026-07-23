@@ -11,7 +11,7 @@ tags:
 
 ## Last Updated
 
-2026-07-18. The repo-root vault now has a real doc-ingest spine on top of the overlay setup: core repo docs are summarized into linked source notes, and the seed pages now reflect the assurance stack, proof boundary, and verified-bootstrap story instead of placeholder blurbs.
+2026-07-18. The vault now includes an autoresearch package on how professional language/compiler projects harden themselves over time, grounded in Kotlin, Rust, Swift, Alive2, Csmith, and CsmithEdge.
 
 ## Key Recent Facts
 
@@ -19,6 +19,8 @@ tags:
 - The proof kernel is real and already proving bootstrap slices, but the production compiler is not yet fully verified.
 - Recent work has focused on downstream-user compiler bugs, semantic parity, and more realistic test coverage.
 - The wiki now has dedicated source notes for `state-and-roadmap`, `proof-kernel`, `verified-bootstrap`, `mint-gate`, and `canary-matrix`.
+- New research synthesis: [[research-hardening-futuruna-into-a-professional-language]]
+- Core external lessons: compatibility discipline, ecosystem canaries, compiler differential testing, and narrow translation validation.
 
 ## Recent Changes
 
@@ -29,6 +31,9 @@ tags:
 - Added Obsidian CSS snippet `vault-colors`
 - Ingested core repo docs into [[state-and-roadmap]], [[proof-kernel-spec]], [[verified-bootstrap-doc]], [[mint-gate]], and [[canary-matrix]]
 - Added thesis note [[verified-bootstrap]] and expanded the main seed notes around it
+- Added source notes [[kotlin-evolution-and-compatibility]], [[rust-testing-and-stability]], [[swift-source-compatibility-and-governance]], [[alive2-translation-validation]], and [[compiler-fuzzing-csmith-and-csmithedge]]
+- Added concepts [[compatibility-discipline]], [[ecosystem-canaries]], [[compiler-differential-testing]], and [[translation-validation]]
+- Added entities [[Kotlin]], [[Rust]], and [[Swift]]
 
 ## Active Threads
 
@@ -36,3 +41,4 @@ tags:
 - Keep expanding authored canaries and downstream-style validation
 - Shrink the proof trust boundary over time
 - Turn more canonical repo docs into linked wiki notes instead of leaving them as unconnected files
+- Convert the new hardening research into concrete Futuruna roadmap tasks and policy docs

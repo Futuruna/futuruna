@@ -16,3 +16,8 @@ tags:
 - [[verified-bootstrap-doc]]
 - [[mint-gate]]
 - [[canary-matrix]]
+- [[kotlin-evolution-and-compatibility]]
+- [[rust-testing-and-stability]]
+- [[swift-source-compatibility-and-governance]]
+- [[alive2-translation-validation]]
+- [[compiler-fuzzing-csmith-and-csmithedge]]

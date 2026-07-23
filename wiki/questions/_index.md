@@ -10,5 +10,4 @@ tags:
 
 # Question Index
 
-This folder is ready for filed answers from future wiki-backed Q&A.
-
+- [[research-hardening-futuruna-into-a-professional-language]]

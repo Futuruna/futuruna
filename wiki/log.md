@@ -10,6 +10,14 @@ tags:
 
 # Futuruna Wiki Log
 
+## 2026-07-18 autoresearch | Hardening Futuruna into a Professional Language
+
+- Rounds: 2
+- Sources found: 5
+- Pages created: [[research-hardening-futuruna-into-a-professional-language]], [[kotlin-evolution-and-compatibility]], [[rust-testing-and-stability]], [[swift-source-compatibility-and-governance]], [[alive2-translation-validation]], [[compiler-fuzzing-csmith-and-csmithedge]], [[compatibility-discipline]], [[ecosystem-canaries]], [[compiler-differential-testing]], [[translation-validation]], [[Kotlin]], [[Rust]], [[Swift]]
+- Synthesis: [[research-hardening-futuruna-into-a-professional-language]]
+- Key finding: professional language projects combine explicit compatibility policy, real-project ecosystem testing, and selective formal validation instead of relying on any one mechanism.
+
 ## 2026-07-18
 
 - Initialized the Futuruna Obsidian vault at repo root

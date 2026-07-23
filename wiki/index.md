@@ -36,6 +36,8 @@ This vault uses the Futuruna repository root as an Obsidian vault. It is a hybri
 - [[comparisons/_index]]
 - [[thesis/_index]]
 - [[gaps/_index]]
+- [[questions/_index]]
+- [[research-hardening-futuruna-into-a-professional-language]]
 
 ## Source Summaries
 

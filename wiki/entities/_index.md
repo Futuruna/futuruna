@@ -11,4 +11,6 @@ tags:
 # Entity Index
 
 - [[Futuruna]]
-
+- [[Kotlin]]
+- [[Rust]]
+- [[Swift]]
