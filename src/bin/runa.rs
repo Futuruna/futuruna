@@ -12270,6 +12270,12 @@ fn collect_returned_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
         ExprKind::Var(name) => {
             vars.insert(name.clone());
         }
+        ExprKind::Lambda(params, body) => {
+            let bound: BTreeSet<String> = params.iter().map(|p| p.name.clone()).collect();
+            let mut free = BTreeSet::new();
+            collect_true_free_vars(body, &mut free, &bound);
+            vars.extend(free);
+        }
         ExprKind::If(_, then_, else_) => {
             collect_returned_vars(then_, vars);
             collect_returned_vars(else_, vars);
@@ -25403,6 +25409,24 @@ mod tests {
         assert!(
             rust.contains("move |x: i64| (x + n)"),
             "returned lambdas should move even Copy captures so they do not borrow stack locals: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_expr_keeps_owned_string_captures_for_returned_lambdas() {
+        let source =
+            "> make_frame(prefix: String, suffix: String) -> (String -> String) { |s| prefix + s + suffix }";
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn make_frame(prefix: String, suffix: String) -> impl FnMut(String) -> String + Clone"),
+            "returned lambdas with owned String captures must keep owned params instead of borrowing: {}",
+            rust
+        );
+        assert!(
+            rust.contains("move |s: String|"),
+            "returned lambdas should still move captured values into the closure body: {}",
             rust
         );
     }

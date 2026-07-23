@@ -2,6 +2,8 @@
 
 This is the authored coverage map for Futuruna's canary suite.
 
+Tracked in `td-39b478` under the broader mint epic `td-f7f0d2`.
+
 Target shape:
 - `core`: 15 blocking canaries with interpreter, compiled, codegen, and roundtrip parity
 - `stateful`: 10 canaries for subjects, actors, lifecycle, and effectful workflows
@@ -17,32 +19,23 @@ Target shape:
 | `tests/canary/core/recursive_inventory_test.runa` | `core` | recursive ADTs, top-level bindings, maps, sets |
 | `tests/canary/core/loop_rebind_pipeline_test.runa` | `core` | `while`, `for`, rebinding, streams, list accumulation |
 | `tests/canary/core/closure_scoreboard_test.runa` | `core` | tuples, closures, map folding, partitioning |
+| `tests/canary/core/ownership_text_pipeline_test.runa` | `core` | strings, chunking, closure captures, ownership-sensitive transforms |
 | `tests/canary/stateful/subject_funnel_test.runa` | `stateful` | subjects, projection, aggregation, transitions |
 
 ## Planned Next
 
 ### Core
-- `ownership_text_pipeline_test.runa`: strings, captures, list transforms, chunking
-- `proof_guarded_pipeline_test.runa`: ordinary data pipeline with explicit proof-backed invariants
-- `persistent_tree_diff_test.runa`: recursive ADTs, structural sharing style workflows, flattening
-- `collection_join_mesh_test.runa`: tuples, `zip`, `enumerate`, `partition`, stable ordering
-- `top_level_mesh_test.runa`: top-level values, free functions, recursive helper composition
+- `td-d869b9` `proof_guarded_pipeline_test.runa`: ordinary data pipeline with explicit proof-backed invariants
+- `td-034578` `persistent_tree_diff_test.runa`: recursive ADTs, structural sharing style workflows, flattening
+- `td-bbbc75` `collection_join_mesh_test.runa`: tuples, `zip`, `enumerate`, `partition`, stable ordering
+- `td-dd0d75` `top_level_mesh_test.runa`: top-level values, free functions, recursive helper composition
 
 ### Stateful
-- `subject_window_alerts_test.runa`: subject streams, windows, threshold alerts, aggregation
-- `actor_job_queue_test.runa`: actor state transitions, ordering, retries
-- `lifecycle_projection_test.runa`: scopes, teardown, subject-derived projections
-- `effect_retry_flow_test.runa`: handler variation, early return, result propagation
-- `stream_subject_bridge_test.runa`: subject ingestion, stream transforms, stable snapshots
+- `td-90448d`: `subject_window_alerts_test.runa`, `actor_job_queue_test.runa`, `lifecycle_projection_test.runa`, `effect_retry_flow_test.runa`, and `stream_subject_bridge_test.runa`
 
 ### Extended
-- `json_report_pipeline_test.runa`: JSON parsing, object extraction, list aggregation
-- `regex_classifier_test.runa`: regex extraction, replacement, result bucketing
-- `db_reconciliation_test.runa`: DB writes, reads, and deterministic summaries
-- `http_handler_contract_test.runa`: request routing and response tuples
-- `wasm_export_surface_test.runa`: wasm-visible functions and deterministic output
-- `import_mesh_test.runa`: local module graph, top-level bindings, helper composition
+- `td-9fdd94`: `json_report_pipeline_test.runa`, `regex_classifier_test.runa`, `db_reconciliation_test.runa`, `http_handler_contract_test.runa`, `wasm_export_surface_test.runa`, and `import_mesh_test.runa`
 
 ### Regressions
-- Distill every user-found semantic bug into an authored workflow canary when it reflects real usage
+- `td-4e7e91`: distill every user-found semantic bug into an authored workflow canary when it reflects real usage
 - Keep minimized one-off compiler probes in ordinary regression tests, not here

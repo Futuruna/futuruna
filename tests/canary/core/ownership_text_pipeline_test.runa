@@ -1,0 +1,57 @@
+-- Authored canary: ownership-sensitive text normalization, chunking, and closure captures.
+
+= raw_lines = [
+" Alpha beta beta ",
+"Proof-driven maps",
+"Streams, proofs, and mint",
+"Beta actors and mint"
+]
+
+> normalize_line(s: String) -> String {
+    trim(to_lower(replace(replace(replace(s, ",", " "), "-", " "), ".", " ")))
+}
+
+> tokenize(s: String) -> List(String) {
+    filter(split(normalize_line(s), " "), |tok| tok != "" && tok != "and")
+}
+
+> initials(tokens: List(String)) -> String {
+    join(map(tokens, |tok| to_upper(char_at(tok, 0))), "")
+}
+
+> make_frame(prefix: String, suffix: String) -> String -> String {
+    |s| prefix + s + suffix
+}
+
+= doc0_tokens = tokenize(raw_lines[0])
+= doc1_tokens = tokenize(raw_lines[1])
+= doc2_tokens = tokenize(raw_lines[2])
+= doc3_tokens = tokenize(raw_lines[3])
+
+= frame = make_frame("[", "]")
+= doc2_chunks = map(chunked(doc2_tokens, 2), |chunk| frame(join(chunk, "+")))
+= doc3_chunks = map(chunked(doc3_tokens, 2), |chunk| frame(join(chunk, "+")))
+= emphasis = map(doc0_tokens, |tok| frame(to_upper(tok)))
+
+= doc2_summary = join(doc2_chunks, "|")
+= doc3_summary = join(doc3_chunks, "|")
+= doc1_initials = initials(doc1_tokens)
+= doc2_compact = join(doc2_tokens, " ")
+= replay = frame("mint")
+
+= tokenization_ok = doc0_tokens == ["alpha", "beta", "beta"] && doc2_tokens == ["streams", "proofs", "mint"]
+? tokenization_ok
+
+= chunking_ok = doc2_summary == "[streams+proofs]|[mint]" && doc3_summary == "[beta+actors]|[mint]"
+? chunking_ok
+
+= initials_ok = doc1_initials == "PDM"
+? initials_ok
+
+= compact_ok = doc2_compact == "streams proofs mint"
+? compact_ok
+
+= replay_ok = replay == "[mint]" && emphasis == ["[ALPHA]", "[BETA]", "[BETA]"]
+? replay_ok
+
+@ print("canary ownership text pipeline passed")
