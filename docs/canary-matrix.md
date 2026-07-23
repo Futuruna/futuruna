@@ -26,13 +26,13 @@ Target shape:
 | `tests/canary/core/top_level_mesh_test.runa` | `core` | top-level values, free functions, recursive helper composition |
 | `tests/canary/stateful/subject_funnel_test.runa` | `stateful` | subjects, projection, aggregation, transitions |
 | `tests/canary/stateful/subject_window_alerts_test.runa` | `stateful` | subjects, rolling windows, threshold alerts, deterministic summaries |
+| `tests/canary/stateful/actor_job_queue_test.runa` | `stateful` | actors, ordered queue transitions, deterministic completion summaries |
 
 ## Planned Next
 
 ### Core
 
 ### Stateful
-- `td-c1540b`: `actor_job_queue_test.runa`
 - `td-dc5ce5`: `lifecycle_projection_test.runa`
 - `td-ff3e1e`: `effect_retry_flow_test.runa`
 - `td-e77c7f`: `stream_subject_bridge_test.runa`

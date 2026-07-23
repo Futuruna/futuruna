@@ -1,0 +1,94 @@
+-- Authored stateful canary: actor-backed job queue with deterministic
+-- ordering, queue transitions, and completion summaries.
+
+# QueueState(pending: List(String), active: String, done: List(String))
+
+> idle_job() -> String {
+    "idle"
+}
+
+> empty_queue() -> QueueState {
+    QueueState([], idle_job(), [])
+}
+
+> list_summary(items: List(String)) -> String {
+    if length(items) == 0 {
+        "-"
+    } else {
+        join(items, ">")
+    }
+}
+
+> queue_snapshot(state: QueueState) -> String {
+    "pending=" + list_summary(state.pending) + "|active=" + state.active + "|done=" + list_summary(state.done)
+}
+
+> enqueue_job(state: QueueState, job: String) -> QueueState {
+    QueueState(concat(state.pending, [job]), state.active, state.done)
+}
+
+> start_next_job(state: QueueState) -> QueueState {
+    if state.active != idle_job() || length(state.pending) == 0 {
+        state
+    } else {
+        QueueState(tail(state.pending), head(state.pending), state.done)
+    }
+}
+
+> finish_active_job(state: QueueState) -> QueueState {
+    if state.active == idle_job() {
+        state
+    } else {
+        QueueState(state.pending, idle_job(), concat(state.done, [state.active]))
+    }
+}
+
+> actor job_queue(state: QueueState) {
+    | Enqueue(job) -> enqueue_job(state, job)
+    | StartNext -> start_next_job(state)
+    | FinishActive -> finish_active_job(state)
+    | Reset -> empty_queue()
+}
+
+= queue = spawn(job_queue, empty_queue())
+
+queue <- Enqueue("ingest")
+queue <- Enqueue("score")
+queue <- Enqueue("notify")
+
+= first_pick = ask(queue, StartNext)
+= first_pick_ok = queue_snapshot(first_pick) == "pending=score>notify|active=ingest|done=-"
+? first_pick_ok
+
+queue <- FinishActive
+= second_pick = ask(queue, StartNext)
+= second_pick_ok = queue_snapshot(second_pick) == "pending=notify|active=score|done=ingest"
+? second_pick_ok
+
+= queued_mid = ask(queue, Enqueue("archive"))
+= queued_mid_ok = queue_snapshot(queued_mid) == "pending=notify>archive|active=score|done=ingest"
+? queued_mid_ok
+
+queue <- FinishActive
+= third_pick = ask(queue, StartNext)
+= third_pick_ok = queue_snapshot(third_pick) == "pending=archive|active=notify|done=ingest>score"
+? third_pick_ok
+
+queue <- FinishActive
+= fourth_pick = ask(queue, StartNext)
+= fourth_pick_ok = queue_snapshot(fourth_pick) == "pending=-|active=archive|done=ingest>score>notify"
+? fourth_pick_ok
+
+queue <- FinishActive
+= drained = ask(queue, StartNext)
+= drained_ok = queue_snapshot(drained) == "pending=-|active=idle|done=ingest>score>notify>archive"
+? drained_ok
+
+= unique_done_ok = set_len(set_from_list(drained.done)) == 4
+? unique_done_ok
+
+= reset_state = ask(queue, Reset)
+= reset_ok = queue_snapshot(reset_state) == "pending=-|active=idle|done=-"
+? reset_ok
+
+@ print("canary actor job queue passed")

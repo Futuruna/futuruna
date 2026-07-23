@@ -18348,12 +18348,13 @@ impl RustCodegen {
                     }
                 }
                 let mut out = String::new();
+                let actor_msg_tys = self.infer_actor_message_variant_types(state_param, handlers);
 
                 // Message enum
                 out.push_str(&format!("#[derive(Debug)]\n"));
                 out.push_str(&format!("enum {}Msg {{\n", sname));
                 for h in handlers {
-                    let variant = self.emit_pattern_as_enum_variant(&h.msg_pat);
+                    let variant = self.emit_pattern_as_enum_variant(&h.msg_pat, &actor_msg_tys);
                     out.push_str(&format!("    {},\n", variant));
                 }
                 out.push_str(&format!(
@@ -18400,7 +18401,7 @@ impl RustCodegen {
                 ));
                 out.push_str("                }\n");
                 out.push_str(&format!(
-                    "                let _ = reply.send({});\n",
+                    "                let _ = reply.send({}.clone());\n",
                     state_name
                 ));
                 out.push_str("            }\n");
@@ -24215,14 +24216,285 @@ impl RustCodegen {
         }
     }
 
-    /// Convert a handler pattern to an enum variant declaration: Increment or Add(i64)
-    fn emit_pattern_as_enum_variant(&self, pat: &Pat) -> String {
+    fn actor_message_pat_payload_ty(
+        &self,
+        pat: &Pat,
+        resolved_vars: &BTreeMap<String, FirTy>,
+    ) -> FirTy {
+        match pat {
+            Pat::Var(name) => resolved_vars.get(name).cloned().unwrap_or(FirTy::Unknown),
+            Pat::As(inner, name) => resolved_vars
+                .get(name)
+                .cloned()
+                .filter(|ty| *ty != FirTy::Unknown)
+                .unwrap_or_else(|| self.actor_message_pat_payload_ty(inner, resolved_vars)),
+            Pat::Wild => FirTy::Unknown,
+            Pat::Lit(lit) => LoweringCtx::literal_ty(lit),
+            Pat::Con(name, args) => match (name.as_str(), args.as_slice()) {
+                ("Some", [inner]) => FirTy::Option(Box::new(
+                    self.actor_message_pat_payload_ty(inner, resolved_vars),
+                )),
+                ("Ok", [inner]) => FirTy::Result(
+                    Box::new(self.actor_message_pat_payload_ty(inner, resolved_vars)),
+                    Box::new(FirTy::Unknown),
+                ),
+                ("Err", [inner]) => FirTy::Result(
+                    Box::new(FirTy::Unknown),
+                    Box::new(self.actor_message_pat_payload_ty(inner, resolved_vars)),
+                ),
+                _ => self
+                    .types
+                    .variant_parent
+                    .get(name)
+                    .cloned()
+                    .map(FirTy::Named)
+                    .unwrap_or(FirTy::Unknown),
+            },
+            Pat::NamedCon(name, _) => self
+                .types
+                .variant_parent
+                .get(name)
+                .cloned()
+                .map(FirTy::Named)
+                .unwrap_or(FirTy::Unknown),
+        }
+    }
+
+    fn record_actor_payload_hint(
+        hints: &mut BTreeMap<String, FirTy>,
+        name: &str,
+        ty: &FirTy,
+    ) {
+        if matches!(ty, FirTy::Unknown | FirTy::Var(_) | FirTy::Arrow(_, _)) {
+            return;
+        }
+        match hints.get(name) {
+            Some(existing) if !matches!(existing, FirTy::Unknown | FirTy::Var(_)) => {}
+            _ => {
+                hints.insert(name.to_string(), ty.clone());
+            }
+        }
+    }
+
+    fn collect_actor_payload_hints(&self, expr: &Expr, hints: &mut BTreeMap<String, FirTy>) {
+        match &expr.kind {
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+            ExprKind::App(func, args) => {
+                if let ExprKind::Var(fn_name) = &func.as_ref().kind {
+                    let mut current = self.types.fn_types.get(fn_name).cloned();
+                    for arg in args {
+                        let Some(FirTy::Arrow(param_ty, ret_ty)) = current else {
+                            break;
+                        };
+                        if let ExprKind::Var(name) = &arg.kind {
+                            Self::record_actor_payload_hint(hints, name, &param_ty);
+                        }
+                        current = Some(*ret_ty);
+                    }
+                }
+                self.collect_actor_payload_hints(func, hints);
+                for arg in args {
+                    self.collect_actor_payload_hints(arg, hints);
+                }
+            }
+            ExprKind::BinOp(_, lhs, rhs) => {
+                if let ExprKind::Var(name) = &lhs.kind {
+                    if let ExprKind::Lit(lit) = &rhs.kind {
+                        Self::record_actor_payload_hint(hints, name, &LoweringCtx::literal_ty(lit));
+                    }
+                }
+                if let ExprKind::Var(name) = &rhs.kind {
+                    if let ExprKind::Lit(lit) = &lhs.kind {
+                        Self::record_actor_payload_hint(hints, name, &LoweringCtx::literal_ty(lit));
+                    }
+                }
+                self.collect_actor_payload_hints(lhs, hints);
+                self.collect_actor_payload_hints(rhs, hints);
+            }
+            ExprKind::UnOp(_, inner) => self.collect_actor_payload_hints(inner, hints),
+            ExprKind::If(cond, then_, else_) => {
+                self.collect_actor_payload_hints(cond, hints);
+                self.collect_actor_payload_hints(then_, hints);
+                self.collect_actor_payload_hints(else_, hints);
+            }
+            ExprKind::Block(stmts) => {
+                for stmt in stmts {
+                    self.collect_actor_payload_hints_stmt(stmt, hints);
+                }
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                self.collect_actor_payload_hints(scrutinee, hints);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.collect_actor_payload_hints(guard, hints);
+                    }
+                    self.collect_actor_payload_hints(&arm.body, hints);
+                }
+            }
+            ExprKind::Lambda(_, body) => self.collect_actor_payload_hints(body, hints),
+            ExprKind::Field(obj, _) => self.collect_actor_payload_hints(obj, hints),
+            ExprKind::Index(base, idx) => {
+                self.collect_actor_payload_hints(base, hints);
+                self.collect_actor_payload_hints(idx, hints);
+            }
+            ExprKind::List(items) | ExprKind::Tuple(items) => {
+                for item in items {
+                    self.collect_actor_payload_hints(item, hints);
+                }
+            }
+            ExprKind::Pipe(lhs, rhs) => {
+                self.collect_actor_payload_hints(lhs, hints);
+                self.collect_actor_payload_hints(rhs, hints);
+            }
+            ExprKind::Effect(_, args) | ExprKind::Conjunction(args) | ExprKind::Disjunction(args) => {
+                for arg in args {
+                    self.collect_actor_payload_hints(arg, hints);
+                }
+            }
+            ExprKind::Handle { body, handlers, .. } => {
+                self.collect_actor_payload_hints(body, hints);
+                for handler in handlers {
+                    self.collect_actor_payload_hints(&handler.body, hints);
+                }
+            }
+            ExprKind::Try(inner) => self.collect_actor_payload_hints(inner, hints),
+        }
+    }
+
+    fn collect_actor_payload_hints_stmt(&self, stmt: &Stmt, hints: &mut BTreeMap<String, FirTy>) {
+        match stmt {
+            Stmt::Bind(_, _, expr)
+            | Stmt::MonadicBind(_, _, expr)
+            | Stmt::Expr(expr) => self.collect_actor_payload_hints(expr, hints),
+            Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+                for arg in args {
+                    self.collect_actor_payload_hints(arg, hints);
+                }
+            }
+            Stmt::For(_, iter, body) => {
+                self.collect_actor_payload_hints(iter, hints);
+                for stmt in body {
+                    self.collect_actor_payload_hints_stmt(stmt, hints);
+                }
+            }
+            Stmt::While(cond, body) => {
+                self.collect_actor_payload_hints(cond, hints);
+                for stmt in body {
+                    self.collect_actor_payload_hints_stmt(stmt, hints);
+                }
+            }
+            Stmt::Send(target, msg) => {
+                self.collect_actor_payload_hints(target, hints);
+                self.collect_actor_payload_hints(msg, hints);
+            }
+            Stmt::Invariant {
+                subject, predicate, ..
+            } => {
+                self.collect_actor_payload_hints(subject, hints);
+                self.collect_actor_payload_hints(predicate, hints);
+            }
+            Stmt::Prove {
+                pass_block,
+                else_block,
+                ..
+            } => {
+                if let Some(pass_block) = pass_block {
+                    for stmt in pass_block {
+                        self.collect_actor_payload_hints_stmt(stmt, hints);
+                    }
+                }
+                if let Some(else_block) = else_block {
+                    for stmt in else_block {
+                        self.collect_actor_payload_hints_stmt(stmt, hints);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn infer_actor_message_variant_types(
+        &self,
+        state_param: &Param,
+        handlers: &[Handler],
+    ) -> BTreeMap<String, Vec<FirTy>> {
+        let state_ty = state_param
+            .ty
+            .as_ref()
+            .map(LoweringCtx::ty_to_fir)
+            .unwrap_or(FirTy::Unknown);
+        let mut inferred = BTreeMap::new();
+
+        for handler in handlers {
+            let Pat::Con(name, args) = &handler.msg_pat else {
+                continue;
+            };
+            if args.is_empty() {
+                inferred.insert(name.clone(), Vec::new());
+                continue;
+            }
+
+            let ownership = OwnershipAnalysis::analyze_simple(&handler.body);
+            let mut ctx = LoweringCtx {
+                types: &self.types,
+                ownership: &ownership,
+                copy_vars: &self.copy_vars,
+                ref_match_bindings: &self.ref_match_bindings,
+                type_env: BTreeMap::new(),
+                inference: Some(TypeInference::new()),
+                fn_schemes: BTreeMap::new(),
+            };
+            ctx.type_env
+                .insert(state_param.name.clone(), state_ty.clone());
+            for arg in args {
+                let fresh = ctx.fresh_or_unknown();
+                ctx.bind_pat_ty(arg, &fresh);
+            }
+
+            let fir_body = ctx.lower_expr(&handler.body);
+            if let Some(ref mut inf) = ctx.inference {
+                let _ = inf.unify(&fir_body.ty, &state_ty);
+            }
+
+            let mut resolved_vars: BTreeMap<String, FirTy> = if let Some(ref inf) = ctx.inference {
+                ctx.type_env
+                    .iter()
+                    .map(|(var, ty)| (var.clone(), inf.resolve(ty)))
+                    .collect()
+            } else {
+                ctx.type_env.clone()
+            };
+            self.collect_actor_payload_hints(&handler.body, &mut resolved_vars);
+
+            let payload_tys = args
+                .iter()
+                .map(|arg| self.actor_message_pat_payload_ty(arg, &resolved_vars))
+                .collect();
+            inferred.insert(name.clone(), payload_tys);
+        }
+
+        inferred
+    }
+
+    /// Convert a handler pattern to an enum variant declaration: Increment or Add(String)
+    fn emit_pattern_as_enum_variant(
+        &self,
+        pat: &Pat,
+        actor_msg_tys: &BTreeMap<String, Vec<FirTy>>,
+    ) -> String {
         match pat {
             Pat::Var(name) => name.clone(),
             Pat::Wild => "_".to_string(),
             Pat::Con(name, args) if args.is_empty() => name.clone(),
             Pat::Con(name, args) => {
-                let types: Vec<&str> = args.iter().map(|_| "i64").collect();
+                let inferred = actor_msg_tys
+                    .get(name)
+                    .cloned()
+                    .unwrap_or_else(|| vec![FirTy::Unknown; args.len()]);
+                let types: Vec<String> = inferred
+                    .iter()
+                    .map(|ty| Self::fir_type_to_rust(ty).unwrap_or_else(|| "i64".to_string()))
+                    .collect();
                 format!("{}({})", name, types.join(", "))
             }
             _ => "Unknown".to_string(),
@@ -26816,6 +27088,22 @@ let summary = render(verdict(7i64), 7i64);
             Some(path.to_str().expect("utf-8 test path")),
             expected_substrings,
         )
+    }
+
+    #[test]
+    fn actor_message_payloads_infer_string_from_handler_use_sites() {
+        let source = "> keep_label(state: Int, label: String) -> Int { state }\n> actor queue(state: Int) { | Enqueue(label) -> keep_label(state, label) }\n= q = spawn(queue, 0)\nq <- Enqueue(\"ingest\")";
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+
+        let mut cg = RustCodegen::new();
+        let code = cg.emit_program(&stmts);
+
+        assert!(
+            code.contains("Enqueue(String)"),
+            "expected actor message payload to infer as String, generated Rust:\n{}",
+            code
+        );
     }
 
     #[test]
