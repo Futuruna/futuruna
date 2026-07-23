@@ -9214,6 +9214,9 @@ struct TypeRegistry {
     exported_names: BTreeSet<String>,
     /// Module names from imports and inline modules
     known_modules: BTreeSet<String>,
+    /// Qualified-import module name -> exported member names.
+    /// Inline modules are public-by-default and are not listed here.
+    module_exports: BTreeMap<String, BTreeSet<String>>,
     /// Module path -> top-level value bindings lowered as getter functions
     module_value_bindings: BTreeMap<String, BTreeSet<String>>,
     /// Comptime-evaluated values: variable name -> Rust literal string
@@ -9256,6 +9259,7 @@ impl TypeRegistry {
             fn_types: BTreeMap::new(),
             exported_names: BTreeSet::new(),
             known_modules: BTreeSet::new(),
+            module_exports: BTreeMap::new(),
             module_value_bindings: BTreeMap::new(),
             comptime_values: BTreeMap::new(),
             comptime_types: BTreeMap::new(),
@@ -13703,6 +13707,9 @@ impl RustCodegen {
                     for n in &mod_exported {
                         self.types.exported_names.insert(n.clone());
                     }
+                    self.types
+                        .module_exports
+                        .insert(mod_name.clone(), mod_exported.clone());
                     // Collect definitions (functions, types, rust blocks), skip executable code
                     let mut mod_body: Vec<Stmt> = Vec::new();
                     for s in imported {
@@ -13712,14 +13719,7 @@ impl RustCodegen {
                             | Stmt::RustBlock(_)
                             | Stmt::Bind(Pat::Var(_), _, _)
                             | Stmt::Use(_)
-                            | Stmt::Annot(_, _) => {
-                                if let Stmt::Bind(Pat::Var(name), _, _) = &s {
-                                    if !mod_exported.contains(name) {
-                                        continue;
-                                    }
-                                }
-                                mod_body.push(s);
-                            }
+                            | Stmt::Annot(_, _) => mod_body.push(s),
                             Stmt::Depend(cn, cv) => {
                                 self.cargo_deps.insert(cn.clone(), cv.clone());
                             }
@@ -15131,7 +15131,7 @@ impl RustCodegen {
         }
 
         if !self.lib_static_names.is_empty() || !self.types.comptime_values.is_empty() {
-            out.push_str(&self.emit_top_level_binding_getters(&main_stmts, self.lib_mode));
+            out.push_str(&self.emit_top_level_binding_getters(&main_stmts, self.lib_mode, None));
             out.push('\n');
         }
 
@@ -15429,9 +15429,13 @@ impl RustCodegen {
         }
     }
 
-    fn emit_top_level_binding_getters(&mut self, main_stmts: &[&Stmt], public: bool) -> String {
+    fn emit_top_level_binding_getters(
+        &mut self,
+        main_stmts: &[&Stmt],
+        public: bool,
+        public_names: Option<&BTreeSet<String>>,
+    ) -> String {
         let mut out = String::new();
-        let pub_prefix = if public { "pub " } else { "" };
         let emit_all = public;
         let prev_allow_global_getter_refs =
             std::mem::replace(&mut self.allow_global_getter_refs, true);
@@ -15450,6 +15454,13 @@ impl RustCodegen {
             if !emit_all && !self.lib_static_names.contains(name.as_str()) {
                 continue;
             }
+            let is_public_name =
+                public_names.map_or(true, |names| names.contains(name.as_str()));
+            let pub_prefix = if public && is_public_name {
+                "pub "
+            } else {
+                ""
+            };
             let rust_ty = self
                 .types
                 .comptime_types
@@ -15474,6 +15485,13 @@ impl RustCodegen {
                 if !emit_all && !self.lib_static_names.contains(name.as_str()) {
                     continue;
                 }
+                let is_public_name =
+                    public_names.map_or(true, |names| names.contains(name.as_str()));
+                let pub_prefix = if public && is_public_name {
+                    "pub "
+                } else {
+                    ""
+                };
                 let body = self.emit_expr(expr);
                 let sname = sanitize_name(name);
                 let ret_ty = self.infer_top_level_binding_getter_type_with_env(
@@ -18295,24 +18313,45 @@ impl RustCodegen {
                 };
                 let mut out = format!("{}mod {} {{\n", pub_prefix, sanitize_name(name));
                 out.push_str("    use super::*;\n");
-                // Mark all items inside inline modules as exported (pub)
-                // so they're accessible via Module::item()
+                let module_exports = self.types.module_exports.get(name).cloned();
+                // Inline modules are public-by-default. Qualified-import modules
+                // only expose names that were marked with `@ export`.
                 let saved_exported = self.types.exported_names.clone();
                 let saved_lib_static_names = self.lib_static_names.clone();
                 let saved_allow_global_getter_refs = self.allow_global_getter_refs;
                 for stmt in body {
                     match stmt {
                         Stmt::Defn(Defn::Fn { name: fn_name, .. }) => {
-                            self.types.exported_names.insert(fn_name.clone());
+                            if module_exports
+                                .as_ref()
+                                .map_or(true, |exports| exports.contains(fn_name.as_str()))
+                            {
+                                self.types.exported_names.insert(fn_name.clone());
+                            }
                         }
                         Stmt::Defn(Defn::Module { name: mod_name, .. }) => {
-                            self.types.exported_names.insert(mod_name.clone());
+                            if module_exports
+                                .as_ref()
+                                .map_or(true, |exports| exports.contains(mod_name.as_str()))
+                            {
+                                self.types.exported_names.insert(mod_name.clone());
+                            }
                         }
                         Stmt::TypeDecl(TypeDecl::ADT { name: ty_name, .. }) => {
-                            self.types.exported_names.insert(ty_name.clone());
+                            if module_exports
+                                .as_ref()
+                                .map_or(true, |exports| exports.contains(ty_name.as_str()))
+                            {
+                                self.types.exported_names.insert(ty_name.clone());
+                            }
                         }
                         Stmt::Bind(Pat::Var(bind_name), _, _) => {
-                            self.types.exported_names.insert(bind_name.clone());
+                            if module_exports
+                                .as_ref()
+                                .map_or(true, |exports| exports.contains(bind_name.as_str()))
+                            {
+                                self.types.exported_names.insert(bind_name.clone());
+                            }
                         }
                         _ => {}
                     }
@@ -18331,7 +18370,11 @@ impl RustCodegen {
                     .collect();
                 self.allow_global_getter_refs = true;
                 if !module_bind_stmts.is_empty() {
-                    out.push_str(&self.emit_top_level_binding_getters(&module_bind_stmts, true));
+                    out.push_str(&self.emit_top_level_binding_getters(
+                        &module_bind_stmts,
+                        true,
+                        module_exports.as_ref(),
+                    ));
                 }
                 for stmt in body {
                     if matches!(stmt, Stmt::Bind(Pat::Var(_), _, _)) {
@@ -20001,6 +20044,13 @@ impl RustCodegen {
         }
     }
 
+    fn lambda_free_var_is_runtime_capture(&self, name: &str) -> bool {
+        !self.types.user_functions.contains(name)
+            && !self.builtin_registry.contains_key(name)
+            && !self.types.variant_parent.contains_key(name)
+            && !self.types.known_modules.contains(name)
+    }
+
     fn with_lambda_param_scope<R>(
         &mut self,
         params: &[Param],
@@ -21147,6 +21197,7 @@ impl RustCodegen {
                 if self.in_iter_closure
                     && !self.closure_params.contains(name.as_str())
                     && !self.copy_vars.contains(name.as_str())
+                    && !self.types.known_modules.contains(name.as_str())
                     && !self.types.user_functions.contains(name.as_str())
                     && !self.types.prolog_rule_fns.contains_key(name.as_str())
                     && !self.builtin_registry.contains_key(name.as_str())
@@ -21164,6 +21215,7 @@ impl RustCodegen {
                 // Multi-use non-Copy variables: clone to avoid move errors
                 // Skip for functions/rules (fn items don't need cloning)
                 if !self.copy_vars.contains(name.as_str())
+                    && !self.types.known_modules.contains(name.as_str())
                     && !self.types.user_functions.contains(name.as_str())
                     && !self.types.prolog_rule_fns.contains_key(name.as_str())
                     && !self.builtin_registry.contains_key(name.as_str())
@@ -21428,9 +21480,7 @@ impl RustCodegen {
                             let captured: Vec<String> = free_in_body
                                 .into_iter()
                                 .filter(|v| {
-                                    !self.types.user_functions.contains(v.as_str())
-                                        && !self.builtin_registry.contains_key(v.as_str())
-                                        && !self.types.variant_parent.contains_key(v.as_str())
+                                    self.lambda_free_var_is_runtime_capture(v.as_str())
                                         && !self.copy_vars.contains(v.as_str())
                                         && !lsp_names.contains(v.as_str())
                                         && !matches!(
@@ -21874,9 +21924,7 @@ impl RustCodegen {
                 let captured: Vec<String> = free_in_body
                     .into_iter()
                     .filter(|v| {
-                        !self.types.user_functions.contains(v.as_str())
-                            && !self.builtin_registry.contains_key(v.as_str())
-                            && !self.types.variant_parent.contains_key(v.as_str())
+                        self.lambda_free_var_is_runtime_capture(v.as_str())
                             && !lsp_builtin_names.contains(v.as_str())
                             && !all_effect_ops.contains(v.as_str())
                             && !matches!(
@@ -27065,6 +27113,44 @@ let summary = render(verdict(7i64), 7i64);
 
         let output = compile_and_run_test_file(&main_path);
         assert_eq!(output, "7\n7\n");
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_inline_lambda_can_reference_module_qualified_items() {
+        let temp_name = format!(
+            "futuruna_import_lambda_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(
+            &dep_path,
+            "@ export\n= region_names = [\"north\", \"west\", \"vip\"]\n@ export\n= base_targets = [6, 3, 8]\n@ export\n= extra_boost = 2\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &main_path,
+            "@ import Remote from ./dep\n> module Local {\n    = prefix = \"local\"\n    = extra_boost = 5\n    > lane_label(name: String, score: Int) -> String { prefix + \"-\" + name + \":\" + show(score + extra_boost) }\n}\n= prefix = \"global\"\n= local_extra = 1\n= remote_labels = map(enumerate(Remote.region_names), |entry| prefix + \"-\" + snd(entry) + \":\" + show(Remote.base_targets[fst(entry)] + Remote.extra_boost + local_extra))\n= local_labels = map(Remote.base_targets, |score| Local.lane_label(\"lane\", score))\n@ print(show(remote_labels))\n@ print(show(local_labels))\n",
+        )
+        .unwrap();
+
+        let output = compile_and_run_test_file(&main_path);
+        assert_eq!(
+            output,
+            "[global-north:9, global-west:6, global-vip:11]\n[local-lane:11, local-lane:8, local-lane:13]\n"
+        );
 
         let _ = std::fs::remove_file(&dep_path);
         let _ = std::fs::remove_file(&main_path);
