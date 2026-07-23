@@ -1,0 +1,8 @@
+-- Dependency fixture for top-level/module parity audit
+-- roundtrip-skip: dependency-only module fixture
+
+@ export
+= threshold = 7
+
+@ export
+> read_threshold() -> Int { threshold }

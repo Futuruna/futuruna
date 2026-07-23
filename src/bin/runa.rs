@@ -8858,6 +8858,8 @@ struct TypeRegistry {
     exported_names: BTreeSet<String>,
     /// Module names from imports and inline modules
     known_modules: BTreeSet<String>,
+    /// Module path -> top-level value bindings lowered as getter functions
+    module_value_bindings: BTreeMap<String, BTreeSet<String>>,
     /// Comptime-evaluated values: variable name -> Rust literal string
     comptime_values: BTreeMap<String, String>,
     /// Comptime Rust type strings: variable name -> Rust type
@@ -8898,6 +8900,7 @@ impl TypeRegistry {
             fn_types: BTreeMap::new(),
             exported_names: BTreeSet::new(),
             known_modules: BTreeSet::new(),
+            module_value_bindings: BTreeMap::new(),
             comptime_values: BTreeMap::new(),
             comptime_types: BTreeMap::new(),
             inout_params: BTreeMap::new(),
@@ -13265,8 +13268,14 @@ impl RustCodegen {
                             Stmt::Defn(_)
                             | Stmt::TypeDecl(_)
                             | Stmt::RustBlock(_)
+                            | Stmt::Bind(Pat::Var(_), _, _)
                             | Stmt::Use(_)
                             | Stmt::Annot(_, _) => {
+                                if let Stmt::Bind(Pat::Var(name), _, _) = &s {
+                                    if !mod_exported.contains(name) {
+                                        continue;
+                                    }
+                                }
                                 mod_body.push(s);
                             }
                             Stmt::Depend(cn, cv) => {
@@ -13339,6 +13348,10 @@ impl RustCodegen {
                 })
                 .collect();
         }
+
+        self.types.module_value_bindings.clear();
+        let mut module_path = Vec::new();
+        self.collect_module_value_bindings(&all_stmts, &mut module_path);
 
         let stmts = &all_stmts;
 
@@ -13849,6 +13862,27 @@ impl RustCodegen {
         }
 
         all_stmts
+    }
+
+    fn collect_module_value_bindings(&mut self, stmts: &[Stmt], module_path: &mut Vec<String>) {
+        for stmt in stmts {
+            if let Stmt::Defn(Defn::Module { name, body }) = stmt {
+                module_path.push(name.clone());
+                let path = module_path.join("::");
+                let binding_names: BTreeSet<String> = body
+                    .iter()
+                    .filter_map(|stmt| match stmt {
+                        Stmt::Bind(Pat::Var(name), _, _) => Some(name.clone()),
+                        _ => None,
+                    })
+                    .collect();
+                if !binding_names.is_empty() {
+                    self.types.module_value_bindings.insert(path, binding_names);
+                }
+                self.collect_module_value_bindings(body, module_path);
+                module_path.pop();
+            }
+        }
     }
 
     /// Pass 2: Compute borrow-only parameter flags for all functions.
@@ -17808,6 +17842,8 @@ impl RustCodegen {
                 // Mark all items inside inline modules as exported (pub)
                 // so they're accessible via Module::item()
                 let saved_exported = self.types.exported_names.clone();
+                let saved_lib_static_names = self.lib_static_names.clone();
+                let saved_allow_global_getter_refs = self.allow_global_getter_refs;
                 for stmt in body {
                     match stmt {
                         Stmt::Defn(Defn::Fn { name: fn_name, .. }) => {
@@ -17819,11 +17855,32 @@ impl RustCodegen {
                         Stmt::TypeDecl(TypeDecl::ADT { name: ty_name, .. }) => {
                             self.types.exported_names.insert(ty_name.clone());
                         }
+                        Stmt::Bind(Pat::Var(bind_name), _, _) => {
+                            self.types.exported_names.insert(bind_name.clone());
+                        }
                         _ => {}
                     }
                 }
                 self.indent = 1;
+                let module_bind_stmts: Vec<&Stmt> = body
+                    .iter()
+                    .filter(|stmt| matches!(stmt, Stmt::Bind(Pat::Var(_), _, _)))
+                    .collect();
+                self.lib_static_names = module_bind_stmts
+                    .iter()
+                    .filter_map(|stmt| match stmt {
+                        Stmt::Bind(Pat::Var(name), _, _) => Some(name.clone()),
+                        _ => None,
+                    })
+                    .collect();
+                self.allow_global_getter_refs = true;
+                if !module_bind_stmts.is_empty() {
+                    out.push_str(&self.emit_top_level_binding_getters(&module_bind_stmts, true));
+                }
                 for stmt in body {
+                    if matches!(stmt, Stmt::Bind(Pat::Var(_), _, _)) {
+                        continue;
+                    }
                     out.push_str(&self.emit_stmt(stmt));
                 }
                 self.indent = 0;
@@ -17852,6 +17909,8 @@ impl RustCodegen {
                         }
                     }
                 }
+                self.lib_static_names = saved_lib_static_names;
+                self.allow_global_getter_refs = saved_allow_global_getter_refs;
                 self.types.exported_names = saved_exported;
                 out
             }
@@ -21644,6 +21703,14 @@ impl RustCodegen {
                             self.rust_type_name(parent),
                             sanitize_name(field)
                         );
+                    }
+                    if self
+                        .types
+                        .module_value_bindings
+                        .get(&path)
+                        .is_some_and(|bindings| bindings.contains(field))
+                    {
+                        return format!("{}::{}()", path, sanitize_name(field));
                     }
                     return format!("{}::{}", path, sanitize_name(field));
                 }
@@ -25557,6 +25624,49 @@ mod tests {
         let _ = std::fs::remove_file(&dep_path);
         let _ = std::fs::remove_file(&main_path);
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_import_can_access_exported_top_level_bindings() {
+        let temp_name = format!(
+            "futuruna_import_binding_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(
+            &dep_path,
+            "@ export\n= threshold = 7\n@ export\n> read_threshold() -> Int { threshold }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &main_path,
+            "@ import Config from ./dep\n@ print(show(Config.threshold))\n@ print(show(Config.read_threshold()))\n",
+        )
+        .unwrap();
+
+        let output = compile_and_run_test_file(&main_path);
+        assert_eq!(output, "7\n7\n");
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_inline_module_can_access_top_level_bindings() {
+        let output = compile_and_run_test_program(
+            "> module Config {\n    = threshold = 7\n    > read_threshold() -> Int { threshold }\n}\n@ print(show(Config.threshold))\n@ print(show(Config.read_threshold()))\n",
+        );
+        assert_eq!(output, "7\n7\n");
     }
 
     #[test]

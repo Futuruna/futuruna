@@ -1,0 +1,31 @@
+-- top_level_module_audit_test.runa
+-- Audit regression: top-level values inside qualified imports and inline modules
+-- must behave the same in interpreter and compiled execution.
+
+@ print("=== top-level/module audit ===")
+
+@ import Config from ./top_level_module_audit_dep
+
+> module Local {
+    = base = 9
+
+    > read_base() -> Int { base }
+}
+
+= global_bias = 5
+
+> read_global_bias() -> Int { global_bias }
+
+> local_shadow_bias() -> Int {
+    = global_bias = 100
+    global_bias + 1
+}
+
+@ print("Config.threshold = " + show(Config.threshold))
+@ print("Config.read_threshold() = " + show(Config.read_threshold()))
+@ print("Local.base = " + show(Local.base))
+@ print("Local.read_base() = " + show(Local.read_base()))
+@ print("read_global_bias() = " + show(read_global_bias()))
+@ print("local_shadow_bias() = " + show(local_shadow_bias()))
+
+@ print("=== top-level/module audit passed ===")

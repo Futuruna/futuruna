@@ -7392,7 +7392,31 @@ impl Interpreter {
                     },
                     // Scope field access: MyScope.field → look up field in scope bindings
                     Value::Scope { bindings, .. } => {
-                        bindings.get(field).cloned().unwrap_or(Value::Unit)
+                        if let Some(value) = bindings.get(field) {
+                            if let Value::Closure {
+                                name,
+                                params,
+                                body,
+                                env: closure_env,
+                            } = value
+                            {
+                                if name.is_some() {
+                                    let mut scope_env = env.child();
+                                    for (binding_name, binding_value) in bindings {
+                                        scope_env.set(binding_name.clone(), binding_value.clone());
+                                    }
+                                    return Value::Closure {
+                                        name: name.clone(),
+                                        params: params.clone(),
+                                        body: body.clone(),
+                                        env: scope_env,
+                                    };
+                                }
+                            }
+                            value.clone()
+                        } else {
+                            Value::Unit
+                        }
                     }
                     _ => self
                         .bind_method_value(&obj_val, field, env)
@@ -7525,7 +7549,9 @@ impl Interpreter {
             } => {
                 // Named functions: use call-site env (has builtins, other fns)
                 // Lambdas: use captured env (has enclosing scope vars)
-                let base_env = if name.is_some() { call_env } else { env };
+                let uses_call_env =
+                    name.is_some() && env.bindings.is_empty() && env.parent.is_none();
+                let base_env = if uses_call_env { call_env } else { env };
                 let mut call = base_env.child();
                 for (p, a) in params.iter().zip(args.iter()) {
                     call.set(p.clone(), a.clone());
