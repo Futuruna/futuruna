@@ -1,5 +1,7 @@
 {
   "enabledCssSnippets": [
-    "vault-colors"
+    "vault-colors",
+    "ITS-Dataview-Cards",
+    "ITS-Image-Adjustments"
   ]
 }

@@ -23,6 +23,13 @@ This vault is a superimposed knowledge layer on top of the Futuruna project. It 
 
 Open `/Users/andreasrudolph/futuruna` directly in Obsidian.
 
+The repo already ships with shared vault config for:
+
+- graph view focused on `wiki/`
+- the wiki color snippet
+- the ITS Dataview/Image snippets used by the reference vault
+- Bases enabled for the dashboard
+
 ### 2. Put material in the right place
 
 - project docs already live in `docs/`, `research/`, `paper/`, and `tests/`
@@ -36,6 +43,11 @@ Open `/Users/andreasrudolph/futuruna` directly in Obsidian.
 - `/save`
 - `/autoresearch [topic]`
 - `lint the wiki`
+
+## Manual Obsidian Steps Still Worth Doing
+
+- install or enable the community plugins you actually want, especially Dataview, Templater, and Obsidian Git
+- if you want REST-backed vault automation, install Local REST API and wire MCP as described in [[WIKI]]
 
 ## Good Navigation Pages
 
