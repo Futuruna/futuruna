@@ -13288,10 +13288,10 @@ fn is_copy_type(ty: &Ty) -> bool {
 /// heuristics like expr_is_float/expr_is_string.
 fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
     match builtin_canonical(name) {
-        "to_float" | "sqrt" | "exp" | "ln" | "pow" | "abs" | "round" | "floor" | "min_f"
-        | "max_f" | "parse_float" | "phi" | "mint" => Some(FirTy::Float),
+        "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "parse_float" | "phi"
+        | "mint" => Some(FirTy::Float),
         "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of"
-        | "parse_int" => Some(FirTy::Int),
+        | "parse_int" | "abs" | "round" | "floor" => Some(FirTy::Int),
         "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains_key"
         | "set_contains" | "file_exists" => Some(FirTy::Bool),
         "substring" | "char_at" | "show" | "show_int" | "show_float" | "describe" | "fizzbuzz"
@@ -24049,9 +24049,16 @@ impl RustCodegen {
                 }
                 // Futuruna uses = for equality; Rust uses ==
                 let rust_op = if op == "=" { "==" } else { op.as_str() };
-                // Safe division/modulo: return 0 on division by zero (matches interpreter)
+                // Safe division/modulo: return 0 on division by zero (matches interpreter).
+                // Prefer the inferred type of the full expression so Int-valued helpers like
+                // round(...) % 64 do not get pulled onto the float path just because a child
+                // subtree mentions floats somewhere upstream.
                 if rust_op == "/" || rust_op == "%" {
-                    let is_float = self.expr_is_float(lhs) || self.expr_is_float(rhs);
+                    let is_float = match self.infer_expr_fir_ty(expr) {
+                        FirTy::Float => true,
+                        FirTy::Int => false,
+                        _ => self.expr_is_float(lhs) || self.expr_is_float(rhs),
+                    };
                     if is_float {
                         return format!(
                             "{{ let __d = {}; if __d == 0.0 {{ 0.0 }} else {{ {} {} __d }} }}",
@@ -29227,6 +29234,23 @@ let summary = render(verdict(7i64), 7i64);
         } else {
             panic!("expected Bind");
         }
+    }
+
+    #[test]
+    fn legacy_emit_program_keeps_integer_modulo_guard_for_int_returning_helpers() {
+        let source = "> signature_value(x: Float) -> Int { round(pow(x, 2.0)) % 64 }\n= y = signature_value(0.7)";
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("if __d == 0 { 0 } else {"),
+            "Int-returning modulo helpers should keep integer zero guards: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("if __d == 0.0 { 0.0 }"),
+            "Int-returning modulo helpers should not emit float zero guards: {}",
+            rust
+        );
     }
 
     #[test]
