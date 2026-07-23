@@ -128,6 +128,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 
 ## Documentation
 
+- `CONTRIBUTING.md` - Contributor ratchet for semantic/compiler changes
 - `docs/language-sketch.md` - Language design and three-axis analysis
 - `docs/differential-testing.md` - Reproducible differential and generative testing
 - `docs/canary-suite.md` - Authored canaries for realistic user-shaped workflows
