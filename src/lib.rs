@@ -8703,7 +8703,7 @@ impl Interpreter {
                 }
                 Value::Str(format!("{{{}}}", parts.join(",")))
             }
-            // ---- M14d: HTTP builtins (interpreter stubs — use `runa run` for real HTTP) ----
+            // ---- M14d: HTTP builtins ----
             "http_get" => {
                 println!("[runa interpreter] http_get: use `runa run` for real HTTP requests");
                 Value::Str(String::new())
@@ -8712,17 +8712,40 @@ impl Interpreter {
                 println!("[runa interpreter] http_post: use `runa run` for real HTTP requests");
                 Value::Str(String::new())
             }
-            "http_serve"
-            | "http_respond"
-            | "http_request_path"
-            | "http_request_method"
-            | "http_request_body" => {
+            "http_serve" => {
                 println!(
                     "[runa interpreter] {}: use `runa run` for real HTTP server",
                     name
                 );
                 Value::Unit
             }
+            "http_respond" => {
+                let status = args.get(0).cloned().unwrap_or(Value::Unit);
+                let content_type = args.get(1).cloned().unwrap_or(Value::Unit);
+                let body = args.get(2).cloned().unwrap_or(Value::Unit);
+                Value::Tuple(vec![status, content_type, body])
+            }
+            "http_request_path" => match args.first() {
+                Some(Value::Tuple(parts)) => parts.first().cloned().unwrap_or(Value::Unit),
+                Some(Value::Constructor(_, fields)) => {
+                    fields.first().cloned().unwrap_or(Value::Unit)
+                }
+                _ => Value::Unit,
+            },
+            "http_request_method" => match args.first() {
+                Some(Value::Tuple(parts)) => parts.get(1).cloned().unwrap_or(Value::Unit),
+                Some(Value::Constructor(_, fields)) => {
+                    fields.get(1).cloned().unwrap_or(Value::Unit)
+                }
+                _ => Value::Unit,
+            },
+            "http_request_body" => match args.first() {
+                Some(Value::Tuple(parts)) => parts.get(2).cloned().unwrap_or(Value::Unit),
+                Some(Value::Constructor(_, fields)) => {
+                    fields.get(2).cloned().unwrap_or(Value::Unit)
+                }
+                _ => Value::Unit,
+            },
             // ---- M14e: Database builtins (interpreter stubs — use `runa run` for real DB) ----
             "db_open" => {
                 println!("[runa interpreter] db_open: use `runa run` for real database access");

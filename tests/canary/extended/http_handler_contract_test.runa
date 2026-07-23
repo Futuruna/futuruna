@@ -1,0 +1,106 @@
+-- Authored extended canary: deterministic HTTP handler contracts over
+-- request routing, response shaping, and exact response summaries.
+
+# Request = Request(String, String, String)
+# Response = Response(Int, String, String)
+
+> body_map(body: String) -> Map(String, String) {
+    = empty: Map(String, String) = map_new()
+    if body == "" {
+        empty
+    } else {
+        foldl(split(body, ";"), empty, |acc, entry| {
+            = parts = split(entry, "=")
+            map_insert(acc, head(parts), nth(parts, 1))
+        })
+    }
+}
+
+> shape_response(status: Int, content_type: String, body: String) -> Response {
+    = raw = http_respond(status, content_type, body)
+    Response(fst(raw), snd(raw), trd(raw))
+}
+
+> request_line(req: Request) -> String {
+    http_request_method(req) + " " + http_request_path(req)
+}
+
+> response_contract(resp: Response) -> String {
+    show(fst(resp)) + ":" + snd(resp) + ":" + trd(resp)
+}
+
+> handle(req: Request) -> Response {
+    = path = http_request_path(req)
+    = method = http_request_method(req)
+    = fields = body_map(http_request_body(req))
+    if path == "/intake" && method == "POST" {
+        = service = map_get_or(fields, "service", "unknown")
+        = severity = map_get_or(fields, "severity", "sev0")
+        = attempt = parse_int(map_get_or(fields, "attempt", "0"))
+        = owner = if severity == "sev1" { "pager" } else { "review" }
+        = payload = "ticket=" + service + "-" + severity + ";owner=" + owner + ";attempt=" + show(attempt + 1)
+        shape_response(202, "application/vnd.futuruna.contract+json", payload)
+    } else if path == "/status" && method == "GET" {
+        shape_response(200, "text/plain", "ok:" + map_get_or(fields, "service", "unknown"))
+    } else if path == "/intake" {
+        shape_response(405, "text/plain", "method-not-allowed:" + method)
+    } else {
+        shape_response(404, "text/plain", "not-found:" + path)
+    }
+}
+
+> counts_csv(counts: Map(String, Int)) -> String {
+    = keys = sort(map_keys(counts))
+    join(map(keys, |key| key + ":" + show(map_get_or(counts, key, 0))), ",")
+}
+
+> bump(counts: Map(String, Int), key: String) -> Map(String, Int) {
+    map_insert(counts, key, map_get_or(counts, key, 0) + 1)
+}
+
+> status_key(resp: Response) -> String {
+    show(fst(resp))
+}
+
+> content_type_key(resp: Response) -> String {
+    snd(resp)
+}
+
+> contract_owner(resp: Response) -> String {
+    = body = trd(resp)
+    if contains(body, "owner=") {
+        map_get_or(body_map(body), "owner", "none")
+    } else {
+        "none"
+    }
+}
+
+= requests = [
+Request("/intake", "POST", "service=auth;severity=sev1;attempt=1"),
+Request("/intake", "POST", "service=billing;severity=sev2;attempt=0"),
+Request("/status", "GET", "service=auth"),
+Request("/intake", "GET", "service=auth"),
+Request("/unknown", "DELETE", "service=edge"),
+]
+
+= responses = map(requests, handle)
+= summaries = map(zip(requests, responses), |pair| request_line(fst(pair)) + "->" + response_contract(snd(pair)))
+
+= empty_counts: Map(String, Int) = map_new()
+= status_counts = foldl(responses, empty_counts, |acc, resp| bump(acc, status_key(resp)))
+= content_types = foldl(responses, empty_counts, |acc, resp| bump(acc, content_type_key(resp)))
+= owner_labels = sort(filter(map(responses, contract_owner), |owner| owner != "none"))
+
+= summaries_ok = join(summaries, "|") == "POST /intake->202:application/vnd.futuruna.contract+json:ticket=auth-sev1;owner=pager;attempt=2|POST /intake->202:application/vnd.futuruna.contract+json:ticket=billing-sev2;owner=review;attempt=1|GET /status->200:text/plain:ok:auth|GET /intake->405:text/plain:method-not-allowed:GET|DELETE /unknown->404:text/plain:not-found:/unknown"
+? summaries_ok
+
+= statuses_ok = counts_csv(status_counts) == "200:1,202:2,404:1,405:1"
+? statuses_ok
+
+= content_types_ok = counts_csv(content_types) == "application/vnd.futuruna.contract+json:2,text/plain:3"
+? content_types_ok
+
+= owners_ok = join(owner_labels, ",") == "pager,review"
+? owners_ok
+
+@ print("canary http handler contract passed")

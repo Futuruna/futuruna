@@ -30197,6 +30197,27 @@ let summary = render(verdict(7i64), 7i64);
     }
 
     #[test]
+    fn compiled_http_handler_helpers_preserve_contract_shape() {
+        let output = compile_and_run_test_program(
+            r#"
+# Request = Request(String, String, String)
+
+> request_line(req: Request) -> String {
+    http_request_method(req) + " " + http_request_path(req) + " " + http_request_body(req)
+}
+
+= req = Request("/intake", "POST", "service=auth")
+= resp = http_respond(202, "text/plain", "ok")
+@ print(request_line(req))
+@ print(show(fst(resp)))
+@ print(snd(resp))
+@ print(trd(resp))
+"#,
+        );
+        assert_eq!(output, "POST /intake service=auth\n202\ntext/plain\nok\n");
+    }
+
+    #[test]
     fn compiled_recursive_adt_list_fields_can_flow_into_helper_calls() {
         let output = compile_and_run_test_program(
             "# Tree = File(String) | Dir(String, List(Tree))\n\
