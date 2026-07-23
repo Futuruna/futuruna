@@ -4073,6 +4073,107 @@ fn ty_to_smt_sort(ty: &Ty) -> String {
 /// Collect free variables from an expression
 /// Collect truly free variables: referenced vars minus locally bound ones.
 /// `bound` tracks names defined in enclosing scopes (lambda params, let bindings).
+fn collect_true_free_vars_stmt(stmt: &Stmt, free: &mut BTreeSet<String>, bound: &BTreeSet<String>) {
+    match stmt {
+        Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr) => {
+            collect_true_free_vars(expr, free, bound);
+        }
+        Stmt::Expr(expr) | Stmt::StreamBind(_, expr) => {
+            collect_true_free_vars(expr, free, bound);
+        }
+        Stmt::Send(target, msg) => {
+            collect_true_free_vars(target, free, bound);
+            collect_true_free_vars(msg, free, bound);
+        }
+        Stmt::For(var, iter, body_stmts) => {
+            collect_true_free_vars(iter, free, bound);
+            let mut for_bound = bound.clone();
+            for_bound.insert(var.clone());
+            for body_stmt in body_stmts {
+                collect_true_free_vars_stmt(body_stmt, free, &for_bound);
+                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = body_stmt {
+                    collect_pattern_names(pat, &mut for_bound);
+                }
+            }
+        }
+        Stmt::While(cond, body_stmts) => {
+            collect_true_free_vars(cond, free, bound);
+            let mut while_bound = bound.clone();
+            for body_stmt in body_stmts {
+                collect_true_free_vars_stmt(body_stmt, free, &while_bound);
+                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = body_stmt {
+                    collect_pattern_names(pat, &mut while_bound);
+                }
+            }
+        }
+        Stmt::StreamSub(expr, arms) => {
+            collect_true_free_vars(expr, free, bound);
+            for arm in arms {
+                let mut arm_bound = bound.clone();
+                collect_pattern_names(&arm.pat, &mut arm_bound);
+                if let Some(guard) = &arm.guard {
+                    collect_true_free_vars(guard, free, &arm_bound);
+                }
+                collect_true_free_vars(&arm.body, free, &arm_bound);
+            }
+        }
+        Stmt::Invariant {
+            subject, predicate, ..
+        } => {
+            collect_true_free_vars(subject, free, bound);
+            collect_true_free_vars(predicate, free, bound);
+        }
+        Stmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            if let Some(pass_block) = pass_block {
+                let mut pass_bound = bound.clone();
+                for pass_stmt in pass_block {
+                    collect_true_free_vars_stmt(pass_stmt, free, &pass_bound);
+                    if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = pass_stmt {
+                        collect_pattern_names(pat, &mut pass_bound);
+                    }
+                }
+            }
+            if let Some(else_block) = else_block {
+                let mut else_bound = bound.clone();
+                for else_stmt in else_block {
+                    collect_true_free_vars_stmt(else_stmt, free, &else_bound);
+                    if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = else_stmt {
+                        collect_pattern_names(pat, &mut else_bound);
+                    }
+                }
+            }
+        }
+        Stmt::Rule(Rule::Scope { body, .. }) => {
+            let mut scope_bound = bound.clone();
+            for body_stmt in body {
+                collect_true_free_vars_stmt(body_stmt, free, &scope_bound);
+                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = body_stmt {
+                    collect_pattern_names(pat, &mut scope_bound);
+                }
+            }
+        }
+        Stmt::Rule(_) => {}
+        Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+            for arg in args {
+                collect_true_free_vars(arg, free, bound);
+            }
+        }
+        Stmt::Use(_)
+        | Stmt::Import(_)
+        | Stmt::QualifiedImport(_, _)
+        | Stmt::HashImport(_, _)
+        | Stmt::Depend(_, _)
+        | Stmt::Abort
+        | Stmt::Defn(_)
+        | Stmt::TypeDecl(_)
+        | Stmt::RustBlock(_) => {}
+    }
+}
+
 fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTreeSet<String>) {
     match &expr.kind {
         ExprKind::Var(name) => {
@@ -4138,28 +4239,9 @@ fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTre
         ExprKind::Block(stmts) => {
             let mut block_bound = bound.clone();
             for s in stmts {
-                match s {
-                    Stmt::Bind(pat, _, e) | Stmt::MonadicBind(pat, _, e) => {
-                        collect_true_free_vars(e, free, &block_bound);
-                        collect_pattern_names(pat, &mut block_bound);
-                    }
-                    Stmt::Expr(e) => collect_true_free_vars(e, free, &block_bound),
-                    Stmt::For(var, iter, body_stmts) => {
-                        collect_true_free_vars(iter, free, &block_bound);
-                        let mut for_bound = block_bound.clone();
-                        for_bound.insert(var.clone());
-                        for s in body_stmts {
-                            match s {
-                                Stmt::Bind(p, _, e) | Stmt::MonadicBind(p, _, e) => {
-                                    collect_true_free_vars(e, free, &for_bound);
-                                    collect_pattern_names(p, &mut for_bound);
-                                }
-                                Stmt::Expr(e) => collect_true_free_vars(e, free, &for_bound),
-                                _ => {}
-                            }
-                        }
-                    }
-                    _ => {}
+                collect_true_free_vars_stmt(s, free, &block_bound);
+                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = s {
+                    collect_pattern_names(pat, &mut block_bound);
                 }
             }
         }
@@ -14135,7 +14217,11 @@ impl RustCodegen {
 
         // Pre-scan: infer subject element types from first Send or initial value
         {
-            fn infer_subject_types(stmts: &[Stmt], types: &mut BTreeMap<String, String>) {
+            fn infer_subject_types(
+                stmts: &[Stmt],
+                fn_types: &BTreeMap<String, FirTy>,
+                types: &mut BTreeMap<String, String>,
+            ) {
                 // Collect subject names and their initial values
                 let mut subject_names: BTreeSet<String> = BTreeSet::new();
                 for s in stmts {
@@ -14146,7 +14232,7 @@ impl RustCodegen {
                             // Check if initial value provided: subject(val)
                             if let ExprKind::App(_, args) = &expr.kind {
                                 if let Some(init) = args.first() {
-                                    if let Some(ty) = expr_to_rust_type(init) {
+                                    if let Some(ty) = expr_to_rust_type(init, fn_types) {
                                         types.insert(name.clone(), ty);
                                     }
                                 }
@@ -14154,49 +14240,213 @@ impl RustCodegen {
                         }
                     }
                     if let Stmt::Rule(Rule::Scope { body, .. }) = s {
-                        infer_subject_types(body, types);
+                        infer_subject_types(body, fn_types, types);
                     }
                 }
-                // Infer from first Send if not already known
-                for s in stmts {
-                    match s {
-                        Stmt::Send(
-                            Expr {
-                                kind: ExprKind::Var(target),
-                                ..
-                            },
-                            msg,
-                        ) if subject_names.contains(target) && !types.contains_key(target) => {
-                            if let Some(ty) = expr_to_rust_type(msg) {
-                                types.insert(target.clone(), ty);
+
+                fn infer_send_type(
+                    target: &Expr,
+                    msg: &Expr,
+                    subject_names: &BTreeSet<String>,
+                    fn_types: &BTreeMap<String, FirTy>,
+                    types: &mut BTreeMap<String, String>,
+                ) {
+                    if let ExprKind::Var(target_name) = &target.kind {
+                        if subject_names.contains(target_name) && !types.contains_key(target_name) {
+                            if let Some(ty) = expr_to_rust_type(msg, fn_types) {
+                                types.insert(target_name.clone(), ty);
                             }
                         }
-                        Stmt::For(_, _, body) => {
-                            for bs in body {
-                                if let Stmt::Send(
-                                    Expr {
-                                        kind: ExprKind::Var(target),
-                                        ..
-                                    },
-                                    msg,
-                                ) = bs
-                                {
-                                    if subject_names.contains(target) && !types.contains_key(target)
-                                    {
-                                        if let Some(ty) = expr_to_rust_type(msg) {
-                                            types.insert(target.clone(), ty);
-                                        }
-                                    }
+                    }
+                }
+
+                fn scan_expr_for_subject_sends(
+                    expr: &Expr,
+                    subject_names: &BTreeSet<String>,
+                    fn_types: &BTreeMap<String, FirTy>,
+                    types: &mut BTreeMap<String, String>,
+                ) {
+                    match &expr.kind {
+                        ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+                        ExprKind::App(func, args) => {
+                            scan_expr_for_subject_sends(func, subject_names, fn_types, types);
+                            for arg in args {
+                                scan_expr_for_subject_sends(arg, subject_names, fn_types, types);
+                            }
+                        }
+                        ExprKind::Lambda(_, body)
+                        | ExprKind::UnOp(_, body)
+                        | ExprKind::Field(body, _)
+                        | ExprKind::Try(body) => {
+                            scan_expr_for_subject_sends(body, subject_names, fn_types, types);
+                        }
+                        ExprKind::BinOp(_, lhs, rhs)
+                        | ExprKind::Index(lhs, rhs)
+                        | ExprKind::Pipe(lhs, rhs) => {
+                            scan_expr_for_subject_sends(lhs, subject_names, fn_types, types);
+                            scan_expr_for_subject_sends(rhs, subject_names, fn_types, types);
+                        }
+                        ExprKind::If(cond, then_, else_) => {
+                            scan_expr_for_subject_sends(cond, subject_names, fn_types, types);
+                            scan_expr_for_subject_sends(then_, subject_names, fn_types, types);
+                            scan_expr_for_subject_sends(else_, subject_names, fn_types, types);
+                        }
+                        ExprKind::Match(scrutinee, arms) => {
+                            scan_expr_for_subject_sends(scrutinee, subject_names, fn_types, types);
+                            for arm in arms {
+                                if let Some(guard) = &arm.guard {
+                                    scan_expr_for_subject_sends(
+                                        guard,
+                                        subject_names,
+                                        fn_types,
+                                        types,
+                                    );
+                                }
+                                scan_expr_for_subject_sends(
+                                    &arm.body,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                );
+                            }
+                        }
+                        ExprKind::Block(body) => {
+                            scan_stmts_for_subject_sends(body, subject_names, fn_types, types);
+                        }
+                        ExprKind::List(items)
+                        | ExprKind::Tuple(items)
+                        | ExprKind::Effect(_, items)
+                        | ExprKind::Conjunction(items)
+                        | ExprKind::Disjunction(items) => {
+                            for item in items {
+                                scan_expr_for_subject_sends(item, subject_names, fn_types, types);
+                            }
+                        }
+                        ExprKind::Handle { body, handlers, .. } => {
+                            scan_expr_for_subject_sends(body, subject_names, fn_types, types);
+                            for handler in handlers {
+                                scan_expr_for_subject_sends(
+                                    &handler.body,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                );
+                            }
+                        }
+                    }
+                }
+
+                fn scan_stmts_for_subject_sends(
+                    stmts: &[Stmt],
+                    subject_names: &BTreeSet<String>,
+                    fn_types: &BTreeMap<String, FirTy>,
+                    types: &mut BTreeMap<String, String>,
+                ) {
+                    for stmt in stmts {
+                        match stmt {
+                            Stmt::Send(target, msg) => {
+                                infer_send_type(target, msg, subject_names, fn_types, types);
+                                scan_expr_for_subject_sends(msg, subject_names, fn_types, types);
+                            }
+                            Stmt::Bind(_, _, expr)
+                            | Stmt::MonadicBind(_, _, expr)
+                            | Stmt::Expr(expr)
+                            | Stmt::StreamBind(_, expr) => {
+                                scan_expr_for_subject_sends(expr, subject_names, fn_types, types);
+                            }
+                            Stmt::Annot(_, args)
+                            | Stmt::Assert(_, args)
+                            | Stmt::Retract(_, args) => {
+                                for arg in args {
+                                    scan_expr_for_subject_sends(
+                                        arg,
+                                        subject_names,
+                                        fn_types,
+                                        types,
+                                    );
                                 }
                             }
+                            Stmt::For(_, iter, body) => {
+                                scan_expr_for_subject_sends(iter, subject_names, fn_types, types);
+                                scan_stmts_for_subject_sends(body, subject_names, fn_types, types);
+                            }
+                            Stmt::While(cond, body) => {
+                                scan_expr_for_subject_sends(cond, subject_names, fn_types, types);
+                                scan_stmts_for_subject_sends(body, subject_names, fn_types, types);
+                            }
+                            Stmt::StreamSub(expr, arms) => {
+                                scan_expr_for_subject_sends(expr, subject_names, fn_types, types);
+                                for arm in arms {
+                                    if let Some(guard) = &arm.guard {
+                                        scan_expr_for_subject_sends(
+                                            guard,
+                                            subject_names,
+                                            fn_types,
+                                            types,
+                                        );
+                                    }
+                                    scan_expr_for_subject_sends(
+                                        &arm.body,
+                                        subject_names,
+                                        fn_types,
+                                        types,
+                                    );
+                                }
+                            }
+                            Stmt::Rule(Rule::Scope { body, .. }) => {
+                                scan_stmts_for_subject_sends(body, subject_names, fn_types, types);
+                            }
+                            Stmt::Invariant {
+                                subject, predicate, ..
+                            } => {
+                                scan_expr_for_subject_sends(
+                                    subject,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                );
+                                scan_expr_for_subject_sends(
+                                    predicate,
+                                    subject_names,
+                                    fn_types,
+                                    types,
+                                );
+                            }
+                            Stmt::Prove {
+                                pass_block,
+                                else_block,
+                                ..
+                            } => {
+                                if let Some(pass_block) = pass_block {
+                                    scan_stmts_for_subject_sends(
+                                        pass_block,
+                                        subject_names,
+                                        fn_types,
+                                        types,
+                                    );
+                                }
+                                if let Some(else_block) = else_block {
+                                    scan_stmts_for_subject_sends(
+                                        else_block,
+                                        subject_names,
+                                        fn_types,
+                                        types,
+                                    );
+                                }
+                            }
+                            _ => {}
                         }
-                        Stmt::Rule(Rule::Scope { body, .. }) => infer_subject_types(body, types),
-                        _ => {}
                     }
                 }
+
+                // Infer from first send anywhere in the reachable statement tree if not already known.
+                scan_stmts_for_subject_sends(stmts, &subject_names, fn_types, types);
             }
 
-            fn expr_to_rust_type(expr: &Expr) -> Option<String> {
+            fn expr_to_rust_type(
+                expr: &Expr,
+                fn_types: &BTreeMap<String, FirTy>,
+            ) -> Option<String> {
                 match &expr.kind {
                     ExprKind::Lit(Literal::Str(_)) => Some("String".to_string()),
                     ExprKind::Lit(Literal::Int(_)) => Some("i64".to_string()),
@@ -14208,14 +14458,23 @@ impl RustCodegen {
                         if matches!(lhs.as_ref().kind, ExprKind::Lit(Literal::Str(_))) {
                             Some("String".to_string())
                         } else {
-                            expr_to_rust_type(lhs)
+                            expr_to_rust_type(lhs, fn_types)
                         }
+                    }
+                    ExprKind::App(func, args) => {
+                        if let ExprKind::Var(fn_name) = &func.as_ref().kind {
+                            if let Some(fn_ty) = fn_types.get(fn_name) {
+                                let ret_ty = LoweringCtx::apply_fn_ty(fn_ty, args.len());
+                                return RustCodegen::fir_type_to_rust(&ret_ty);
+                            }
+                        }
+                        None
                     }
                     _ => None,
                 }
             }
 
-            infer_subject_types(stmts, &mut self.subject_elem_type);
+            infer_subject_types(stmts, &self.types.fn_types, &mut self.subject_elem_type);
         }
 
         // Build type rename map + variant→parent lookup for all ADTs
@@ -15041,15 +15300,16 @@ impl RustCodegen {
                         comptime_interp.step_count = 0;
                         comptime_interp.step_limit = 50_000;
                         comptime_interp.budget_exceeded = false;
-                        let val = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(
-                            || comptime_interp.eval(expr, &comptime_env),
-                        )) {
-                            Ok(val) => val,
-                            Err(_) => {
-                                comptime_interp.step_limit = 0;
-                                continue;
-                            }
-                        };
+                        let val =
+                            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                comptime_interp.eval(expr, &comptime_env)
+                            })) {
+                                Ok(val) => val,
+                                Err(_) => {
+                                    comptime_interp.step_limit = 0;
+                                    continue;
+                                }
+                            };
                         comptime_interp.step_limit = 0;
                         if !comptime_interp.budget_exceeded {
                             comptime_interp.bind_pattern(pat, &val, &mut comptime_env);
@@ -18923,6 +19183,7 @@ impl RustCodegen {
                 if self.has_async && self.is_async_stream_expr(expr) {
                     self.sub_counter += 1;
                     let handle_name = format!("_sub_{}", self.sub_counter);
+                    let async_captures = self.stream_sub_runtime_captures(arms);
                     let mut out = String::new();
                     out.push_str(&format!(
                         "{}let __stream_{} = {};\n",
@@ -18981,11 +19242,21 @@ impl RustCodegen {
                     out.push_str(&format!("{}}}\n", self.ind()));
                     self.indent -= 1;
                     out.push_str(&format!("{}}}\n", self.ind()));
-                    out.push_str(&format!(
-                        "{}let {} = tokio::spawn(async move {{\n",
-                        self.ind(),
-                        handle_name
-                    ));
+                    out.push_str(&format!("{}let {} = {{\n", self.ind(), handle_name));
+                    self.indent += 1;
+                    for name in async_captures
+                        .iter()
+                        .filter(|name| !self.copy_vars.contains(name.as_str()))
+                    {
+                        let rust_name = sanitize_name(name);
+                        out.push_str(&format!(
+                            "{}let {} = {}.clone();\n",
+                            self.ind(),
+                            rust_name,
+                            rust_name
+                        ));
+                    }
+                    out.push_str(&format!("{}tokio::spawn(async move {{\n", self.ind(),));
                     self.indent += 1;
                     out.push_str(&format!("{}loop {{\n", self.ind()));
                     self.indent += 1;
@@ -19148,10 +19419,12 @@ impl RustCodegen {
                     )); // end loop
                     self.indent -= 1;
                     out.push_str(&format!(
-                        "{}}});
+                        "{}}})
 ",
                         self.ind()
                     )); // end spawn
+                    self.indent -= 1;
+                    out.push_str(&format!("{}}};\n", self.ind())); // end capture block
 
                     if let Some(scope) = &self.current_scope.clone() {
                         self.scope_handles
@@ -20204,6 +20477,48 @@ impl RustCodegen {
             && !self.builtin_registry.contains_key(name)
             && !self.types.variant_parent.contains_key(name)
             && !self.types.known_modules.contains(name)
+    }
+
+    fn stream_sub_runtime_captures(&self, arms: &[MatchArm]) -> Vec<String> {
+        let lsp_builtin_names: BTreeSet<&str> = LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
+        let all_effect_ops: BTreeSet<&str> = self
+            .types
+            .effect_ops
+            .values()
+            .flat_map(|ops| ops.iter().map(|s| s.as_str()))
+            .collect();
+        let mut captures = BTreeSet::new();
+        for arm in arms {
+            let mut bound = BTreeSet::new();
+            collect_pattern_names(&arm.pat, &mut bound);
+            let mut free_in_arm = BTreeSet::new();
+            if let Some(guard) = &arm.guard {
+                collect_true_free_vars(guard, &mut free_in_arm, &bound);
+            }
+            collect_true_free_vars(&arm.body, &mut free_in_arm, &bound);
+            captures.extend(free_in_arm.into_iter().filter(|v| {
+                self.lambda_free_var_is_runtime_capture(v.as_str())
+                    && !lsp_builtin_names.contains(v.as_str())
+                    && !all_effect_ops.contains(v.as_str())
+                    && !matches!(
+                        v.as_str(),
+                        "true"
+                            | "false"
+                            | "True"
+                            | "False"
+                            | "None"
+                            | "Some"
+                            | "Ok"
+                            | "Err"
+                            | "Nil"
+                            | "Cons"
+                            | "not"
+                            | "findall"
+                            | "search"
+                    )
+            }));
+        }
+        captures.into_iter().collect()
     }
 
     fn with_lambda_param_scope<R>(
@@ -22316,93 +22631,9 @@ impl RustCodegen {
                 let prev_local_bindings = self.local_bindings.clone();
                 let mut out = "{\n".to_string();
                 let saved_indent = self.indent;
-                // Can't use &mut self here since emit_expr takes &self
-                // So we build the block manually
-                for (i, stmt) in stmts.iter().enumerate() {
-                    let is_last = i == stmts.len() - 1;
-                    let prefix = "    ".repeat(saved_indent + 1);
-                    match stmt {
-                        Stmt::Bind(pat, _, value) => {
-                            let pat_str = self.emit_pattern_binding(pat);
-                            let val_str = self.emit_expr(value);
-                            self.remember_binding_type(pat, value);
-                            // Accumulator rebinding inside for-loop → assignment, not let
-                            if let Pat::Var(name) = pat {
-                                if self.mutable_vars.contains(name.as_str()) {
-                                    out.push_str(&format!(
-                                        "{}{} = {};\n",
-                                        prefix,
-                                        sanitize_name(name),
-                                        val_str
-                                    ));
-                                } else {
-                                    out.push_str(&format!(
-                                        "{}let {} = {};\n",
-                                        prefix, pat_str, val_str
-                                    ));
-                                }
-                            } else {
-                                out.push_str(&format!(
-                                    "{}let {} = {};\n",
-                                    prefix, pat_str, val_str
-                                ));
-                            }
-                            collect_pattern_names(pat, &mut self.local_bindings);
-                        }
-                        Stmt::MonadicBind(pat, ty, value) => {
-                            let pat_str = self.emit_pattern_binding(pat);
-                            let val_str = self.emit_expr(value);
-                            self.remember_monadic_binding_type(pat, ty.as_ref(), value);
-                            let suffix = if self.is_effect_op_call(value) {
-                                ""
-                            } else {
-                                "?"
-                            };
-                            out.push_str(&format!(
-                                "{}let {} = {}{};\n",
-                                prefix, pat_str, val_str, suffix
-                            ));
-                            collect_pattern_names(pat, &mut self.local_bindings);
-                        }
-                        Stmt::Expr(expr) if is_last => {
-                            out.push_str(&format!("{}{}\n", prefix, self.emit_expr(expr)));
-                        }
-                        Stmt::Expr(Expr {
-                            kind: ExprKind::Effect(name, args),
-                            ..
-                        }) if name == "print" => {
-                            out.push_str(&self.emit_print(args, &prefix));
-                        }
-                        Stmt::Expr(expr) => {
-                            out.push_str(&format!("{}{};\n", prefix, self.emit_expr(expr)));
-                        }
-                        Stmt::Defn(Defn::Fn {
-                            name, params, body, ..
-                        }) => {
-                            let ps: Vec<String> = params
-                                .iter()
-                                .map(|p| {
-                                    let ty =
-                                        p.ty.as_ref()
-                                            .map(|t| self.emit_type(t))
-                                            .unwrap_or("i64".into());
-                                    format!("{}: {}", sanitize_name(&p.name), ty)
-                                })
-                                .collect();
-                            out.push_str(&format!(
-                                "{}fn {}({}) {{\n",
-                                prefix,
-                                sanitize_name(name),
-                                ps.join(", ")
-                            ));
-                            out.push_str(&format!("{}    {}\n", prefix, self.emit_expr(body)));
-                            out.push_str(&format!("{}}}\n", prefix));
-                        }
-                        _ => {
-                            out.push_str(&format!("{}// stmt\n", prefix));
-                        }
-                    }
-                }
+                self.indent = saved_indent + 1;
+                out.push_str(&self.emit_block_body_lines(stmts));
+                self.indent = saved_indent;
                 self.var_types = prev_var_types;
                 self.var_fir_types = prev_var_fir_types;
                 self.local_bindings = prev_local_bindings;
@@ -23897,85 +24128,27 @@ impl RustCodegen {
         }
     }
 
+    fn emit_block_body_lines(&mut self, stmts: &[Stmt]) -> String {
+        let mut out = String::new();
+        for (i, stmt) in stmts.iter().enumerate() {
+            let is_last = i == stmts.len() - 1;
+            match stmt {
+                Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) => {
+                    out.push_str(&self.emit_stmt(stmt));
+                    collect_pattern_names(pat, &mut self.local_bindings);
+                }
+                Stmt::Expr(expr) if is_last => {
+                    out.push_str(&format!("{}{}\n", self.ind(), self.emit_expr(expr)));
+                }
+                _ => out.push_str(&self.emit_stmt(stmt)),
+            }
+        }
+        out
+    }
+
     fn emit_expr_as_return(&mut self, expr: &Expr) -> String {
         match &expr.kind {
-            ExprKind::Block(stmts) => {
-                let mut out = String::new();
-                for (i, stmt) in stmts.iter().enumerate() {
-                    let is_last = i == stmts.len() - 1;
-                    match stmt {
-                        Stmt::Bind(pat, _, value) => {
-                            // Track local binding for lib mode getter scope
-                            if let Pat::Var(name) = pat {
-                                self.local_bindings.insert(name.clone());
-                            }
-                            let pat_str = self.emit_pattern_binding(pat);
-                            let val_str = self.emit_expr(value);
-                            let mutability = if let Pat::Var(name) = pat {
-                                if self.mutable_vars.contains(name.as_str()) {
-                                    "mut "
-                                } else {
-                                    ""
-                                }
-                            } else {
-                                ""
-                            };
-                            self.remember_binding_type(pat, value);
-                            out.push_str(&format!(
-                                "{}let {}{} = {};\n",
-                                self.ind(),
-                                mutability,
-                                pat_str,
-                                val_str
-                            ));
-                        }
-                        Stmt::MonadicBind(pat, ty, value) => {
-                            let pat_str = self.emit_pattern_binding(pat);
-                            let val_str = self.emit_expr(value);
-                            self.remember_monadic_binding_type(pat, ty.as_ref(), value);
-                            let suffix = if self.is_effect_op_call(value) {
-                                ""
-                            } else {
-                                "?"
-                            };
-                            out.push_str(&format!(
-                                "{}let {} = {}{};\n",
-                                self.ind(),
-                                pat_str,
-                                val_str,
-                                suffix
-                            ));
-                        }
-                        Stmt::Expr(expr) if is_last => {
-                            out.push_str(&format!("{}{}\n", self.ind(), self.emit_expr(expr)));
-                        }
-                        Stmt::Expr(Expr {
-                            kind: ExprKind::Effect(name, args),
-                            ..
-                        }) if name == "print" => {
-                            out.push_str(&self.emit_print(args, &self.ind()));
-                        }
-                        Stmt::Expr(expr) => {
-                            out.push_str(&format!("{}{};\n", self.ind(), self.emit_expr(expr)));
-                        }
-                        Stmt::Defn(defn) => {
-                            // Nested function
-                            let _saved = self.indent;
-                            out.push_str(&self.emit_defn(defn));
-                        }
-                        Stmt::RustBlock(code) => {
-                            for line in code.lines() {
-                                out.push_str(&format!("{}{}\n", self.ind(), line));
-                            }
-                        }
-                        Stmt::For(..) => {
-                            out.push_str(&self.emit_stmt(stmt));
-                        }
-                        _ => {}
-                    }
-                }
-                out
-            }
+            ExprKind::Block(stmts) => self.emit_block_body_lines(stmts),
             _ => {
                 format!("{}{}\n", self.ind(), self.emit_expr(expr))
             }
@@ -24260,11 +24433,7 @@ impl RustCodegen {
         }
     }
 
-    fn record_actor_payload_hint(
-        hints: &mut BTreeMap<String, FirTy>,
-        name: &str,
-        ty: &FirTy,
-    ) {
+    fn record_actor_payload_hint(hints: &mut BTreeMap<String, FirTy>, name: &str, ty: &FirTy) {
         if matches!(ty, FirTy::Unknown | FirTy::Var(_) | FirTy::Arrow(_, _)) {
             return;
         }
@@ -24346,7 +24515,9 @@ impl RustCodegen {
                 self.collect_actor_payload_hints(lhs, hints);
                 self.collect_actor_payload_hints(rhs, hints);
             }
-            ExprKind::Effect(_, args) | ExprKind::Conjunction(args) | ExprKind::Disjunction(args) => {
+            ExprKind::Effect(_, args)
+            | ExprKind::Conjunction(args)
+            | ExprKind::Disjunction(args) => {
                 for arg in args {
                     self.collect_actor_payload_hints(arg, hints);
                 }
@@ -24363,9 +24534,9 @@ impl RustCodegen {
 
     fn collect_actor_payload_hints_stmt(&self, stmt: &Stmt, hints: &mut BTreeMap<String, FirTy>) {
         match stmt {
-            Stmt::Bind(_, _, expr)
-            | Stmt::MonadicBind(_, _, expr)
-            | Stmt::Expr(expr) => self.collect_actor_payload_hints(expr, hints),
+            Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr) | Stmt::Expr(expr) => {
+                self.collect_actor_payload_hints(expr, hints)
+            }
             Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
                 for arg in args {
                     self.collect_actor_payload_hints(arg, hints);
@@ -24671,11 +24842,9 @@ impl RustCodegen {
                     .map(|(fname, p)| {
                         if let Some(idx) = self.boxed_named_field_index(name, fname) {
                             match p {
-                                Pat::Var(_) | Pat::Wild => format!(
-                                    "{}: {}",
-                                    fname,
-                                    self.emit_pattern_with_boxing(p, true)
-                                ),
+                                Pat::Var(_) | Pat::Wild => {
+                                    format!("{}: {}", fname, self.emit_pattern_with_boxing(p, true))
+                                }
                                 _ => format!("{}: __boxed_{}", fname, idx),
                             }
                         } else {
@@ -24706,7 +24875,9 @@ impl RustCodegen {
             Pat::Con(name, args) => {
                 if let Some(boxed_indices) = self.types.variant_boxed_args.get(name.as_str()) {
                     for (i, sub_pat) in args.iter().enumerate() {
-                        if boxed_indices.contains(&i) && matches!(sub_pat, Pat::Con(_, _) | Pat::NamedCon(_, _) | Pat::Lit(_)) {
+                        if boxed_indices.contains(&i)
+                            && matches!(sub_pat, Pat::Con(_, _) | Pat::NamedCon(_, _) | Pat::Lit(_))
+                        {
                             return true;
                         }
                     }
@@ -24739,7 +24910,10 @@ impl RustCodegen {
             match sub_pat {
                 Pat::Con(sub_name, sub_args) if sub_args.is_empty() => {
                     let parent = self.find_parent_type(sub_name);
-                    guards.push(format!("matches!({}, {}::{})", deref_expr, parent, sub_name));
+                    guards.push(format!(
+                        "matches!({}, {}::{})",
+                        deref_expr, parent, sub_name
+                    ));
                 }
                 Pat::Con(sub_name, _) => {
                     let parent = self.find_parent_type(sub_name);

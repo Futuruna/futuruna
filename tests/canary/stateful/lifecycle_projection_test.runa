@@ -1,0 +1,76 @@
+-- roundtrip-skip: subject() lifecycle canaries are intentionally skipped by the generic roundtrip lane
+-- Authored stateful canary: scoped lifecycle with derived projections, teardown,
+-- and deterministic final state.
+
+~ readings = subject()
+~ projected_log = subject()
+~ running_log = subject()
+
+> render_projected(x: Int) -> String {
+    "hot:" + show(x)
+}
+
+> render_running(x: Int) -> String {
+    "sum:" + show(x)
+}
+
+| scope Dashboard {
+    = label = "north"
+    = threshold = 30
+    = offset = 2
+
+    ~ projected = readings |> filter(|x| x >= threshold) |> map(|x| x + offset)
+    ~ running = projected |> scan(0, |acc, x| acc + x)
+
+    ~ projected | x -> {
+        projected_log <- render_projected(x)
+    }
+
+    ~ running | total -> {
+        running_log <- render_running(total)
+    }
+
+    readings <- 28
+    readings <- 31
+    readings <- 33
+    readings <- 29
+    readings <- 35
+
+    = projected_snapshot = collect(projected)
+    = running_snapshot = collect(running)
+    = summary = join(map(projected_snapshot, |x| show(x)), ",")
+}
+
+= scope_fields_ok = Dashboard.label == "north" && Dashboard.threshold == 30 && Dashboard.offset == 2
+? scope_fields_ok
+
+= projection_ok = Dashboard.projected_snapshot == [33, 35, 37]
+? projection_ok
+
+= running_ok = Dashboard.running_snapshot == [33, 68, 105]
+? running_ok
+
+= summary_ok = Dashboard.summary == "33,35,37"
+? summary_ok
+
+= log_before_teardown_ok = collect(projected_log) == ["hot:33", "hot:35", "hot:37"]
+? log_before_teardown_ok
+
+= running_log_before_ok = collect(running_log) == ["sum:33", "sum:68", "sum:105"]
+? running_log_before_ok
+
+@ teardown("Dashboard")
+
+readings <- 40
+readings <- 41
+
+= projected_after_teardown_ok = collect(projected_log) == ["hot:33", "hot:35", "hot:37"]
+? projected_after_teardown_ok
+
+= running_after_teardown_ok = collect(running_log) == ["sum:33", "sum:68", "sum:105"]
+? running_after_teardown_ok
+
+= reading_count_ok = readings.count == 7
+? reading_count_ok
+
+@ print("canary lifecycle projection passed")

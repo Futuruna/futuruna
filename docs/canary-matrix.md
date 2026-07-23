@@ -27,13 +27,13 @@ Target shape:
 | `tests/canary/stateful/subject_funnel_test.runa` | `stateful` | subjects, projection, aggregation, transitions |
 | `tests/canary/stateful/subject_window_alerts_test.runa` | `stateful` | subjects, rolling windows, threshold alerts, deterministic summaries |
 | `tests/canary/stateful/actor_job_queue_test.runa` | `stateful` | actors, ordered queue transitions, deterministic completion summaries |
+| `tests/canary/stateful/lifecycle_projection_test.runa` | `stateful` | scoped projections, teardown, post-teardown stability, deterministic snapshots |
 
 ## Planned Next
 
 ### Core
 
 ### Stateful
-- `td-dc5ce5`: `lifecycle_projection_test.runa`
 - `td-ff3e1e`: `effect_retry_flow_test.runa`
 - `td-e77c7f`: `stream_subject_bridge_test.runa`
 
