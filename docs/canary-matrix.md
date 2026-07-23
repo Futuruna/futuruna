@@ -29,13 +29,13 @@ Target shape:
 | `tests/canary/stateful/actor_job_queue_test.runa` | `stateful` | actors, ordered queue transitions, deterministic completion summaries |
 | `tests/canary/stateful/lifecycle_projection_test.runa` | `stateful` | scoped projections, teardown, post-teardown stability, deterministic snapshots |
 | `tests/canary/stateful/effect_retry_flow_test.runa` | `stateful` | effect handlers, actor-backed retry state, branching outcomes, deterministic audit summaries |
+| `tests/canary/stateful/stream_subject_bridge_test.runa` | `stateful` | live stream-to-subject bridging, derived subscriptions, deterministic downstream aggregation |
 
 ## Planned Next
 
 ### Core
 
 ### Stateful
-- `td-e77c7f`: `stream_subject_bridge_test.runa`
 
 ### Extended
 - `td-9fdd94`: `json_report_pipeline_test.runa`, `regex_classifier_test.runa`, `db_reconciliation_test.runa`, `http_handler_contract_test.runa`, `wasm_export_surface_test.runa`, and `import_mesh_test.runa`

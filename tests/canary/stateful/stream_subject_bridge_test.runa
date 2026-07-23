@@ -1,0 +1,99 @@
+-- roundtrip-skip: subject() bridge canaries are intentionally skipped by the generic roundtrip lane
+-- Authored stateful canary: bridge a source subject through derived subscriptions
+-- into downstream subjects, then assert deterministic review and priority output.
+
+~ readings = subject()
+~ routed = subject()
+~ review_log = subject()
+~ priority_routes = subject()
+~ audit = subject()
+
+> classify_reading(x: Int) -> String {
+    if x >= 30 {
+        "priority:" + show(x)
+    } else if x >= 20 {
+        "review:" + show(x)
+    } else {
+        "normal:" + show(x)
+    }
+}
+
+> is_review_route(route: String) -> Bool {
+    starts_with(route, "review:")
+}
+
+> is_priority_route(route: String) -> Bool {
+    starts_with(route, "priority:")
+}
+
+> tag_review(route: String) -> String {
+    "watch:" + route
+}
+
+> render_priority_count(n: Int) -> String {
+    "priority-count:" + show(n)
+}
+
+> count_priority(acc: Int, route: String) -> Int {
+    acc + 1
+}
+
+~ staged = readings |> map(classify_reading)
+
+~ staged | route -> {
+    routed <- route
+}
+
+~ routed |> filter(is_review_route) |> map(tag_review) | route -> {
+    review_log <- route
+}
+
+~ routed |> filter(is_priority_route) | route -> {
+    priority_routes <- route
+}
+
+~ priority_routes |> scan(0, count_priority) |> map(render_priority_count) | entry -> {
+    audit <- entry
+}
+
+readings <- 12
+readings <- 24
+readings <- 31
+readings <- 18
+readings <- 35
+readings <- 29
+readings <- 40
+
+sleep(10)
+
+= staged_snapshot = collect(staged)
+= routed_snapshot = collect(routed)
+= review_snapshot = collect(review_log)
+= priority_snapshot = collect(priority_routes)
+= audit_snapshot = collect(audit)
+
+= staged_matches_bridge_ok = staged_snapshot == routed_snapshot
+? staged_matches_bridge_ok
+
+= routed_ok = routed_snapshot == ["normal:12", "review:24", "priority:31", "normal:18", "priority:35", "review:29", "priority:40"]
+? routed_ok
+
+= review_ok = review_snapshot == ["watch:review:24", "watch:review:29"]
+? review_ok
+
+= priority_ok = priority_snapshot == ["priority:31", "priority:35", "priority:40"]
+? priority_ok
+
+= audit_ok = audit_snapshot == ["priority-count:1", "priority-count:2", "priority-count:3"]
+? audit_ok
+
+= reading_count_ok = readings.count == 7
+? reading_count_ok
+
+= routed_latest_ok = routed.latest == "priority:40"
+? routed_latest_ok
+
+= audit_latest_ok = audit.latest == "priority-count:3"
+? audit_latest_ok
+
+@ print("canary stream subject bridge passed")

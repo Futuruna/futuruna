@@ -21371,6 +21371,33 @@ impl RustCodegen {
         }
     }
 
+    fn async_callable_borrows_arg(&self, callable: &Expr, arg_index: usize) -> bool {
+        if let ExprKind::Var(name) = &callable.kind {
+            return self
+                .borrow_only_params
+                .get(name.as_str())
+                .and_then(|flags| flags.get(arg_index).copied())
+                .unwrap_or(false);
+        }
+        false
+    }
+
+    fn emit_async_callable_invocation(&mut self, callable: &Expr, arg_exprs: &[String]) -> String {
+        let callable_str = self.emit_expr(callable);
+        let rendered_args: Vec<String> = arg_exprs
+            .iter()
+            .enumerate()
+            .map(|(idx, arg)| {
+                if self.async_callable_borrows_arg(callable, idx) {
+                    format!("&{}", arg)
+                } else {
+                    arg.clone()
+                }
+            })
+            .collect();
+        format!("({})({})", callable_str, rendered_args.join(", "))
+    }
+
     /// Emit an async stream operator as a Rust block expression.
     /// Creates a history-preserving async stream wrapper and forwards live updates.
     fn emit_async_stream_op(&mut self, name: &str, args: &[Expr]) -> Option<String> {
@@ -21389,40 +21416,50 @@ impl RustCodegen {
 
         match name {
             "map" if args.len() == 2 => {
-                let f = self.emit_expr(&args[1]);
+                let seed_call =
+                    self.emit_async_callable_invocation(&args[1], &[String::from("__v")]);
+                let live_call =
+                    self.emit_async_callable_invocation(&args[1], &[String::from("__v")]);
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let __out_{n} = __FutStream::new(); \
                     let mut __srx_{n} = __src_{n}.subscribe(); \
                     let __cutoff_{n} = __src_{n}.watermark(); \
                     for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        __out_{n}.send(({f})(__v)); \
+                        __out_{n}.send({seed_call}); \
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
                         while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
                             if __seq <= __cutoff_{n} {{ continue; }} \
-                            __sfwd_{n}.send(({f})(__v)); \
+                            __sfwd_{n}.send({live_call}); \
                         }} \
                     }}); \
                     __out_{n} }}"
                 ))
             }
             "filter" if args.len() == 2 => {
-                let f = self.emit_expr(&args[1]);
+                let filter_arg = if self.async_callable_borrows_arg(&args[1], 0) {
+                    String::from("__v")
+                } else {
+                    String::from("__v.clone()")
+                };
+                let seed_pred = self
+                    .emit_async_callable_invocation(&args[1], std::slice::from_ref(&filter_arg));
+                let live_pred = self.emit_async_callable_invocation(&args[1], &[filter_arg]);
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let __out_{n} = __FutStream::new(); \
                     let mut __srx_{n} = __src_{n}.subscribe(); \
                     let __cutoff_{n} = __src_{n}.watermark(); \
                     for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        if ({f})(__v.clone()) {{ __out_{n}.send(__v); }} \
+                        if {seed_pred} {{ __out_{n}.send(__v); }} \
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
                         while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
                             if __seq <= __cutoff_{n} {{ continue; }} \
-                            if ({f})(__v.clone()) {{ __sfwd_{n}.send(__v); }} \
+                            if {live_pred} {{ __sfwd_{n}.send(__v); }} \
                         }} \
                     }}); \
                     __out_{n} }}"
@@ -21430,7 +21467,22 @@ impl RustCodegen {
             }
             "scan" if args.len() == 3 => {
                 let init = self.emit_expr(&args[1]);
-                let f = self.emit_expr(&args[2]);
+                let scan_acc_arg = if self.async_callable_borrows_arg(&args[2], 0) {
+                    format!("__acc_seed_{n}")
+                } else {
+                    format!("__acc_seed_{n}.clone()")
+                };
+                let scan_live_acc_arg = if self.async_callable_borrows_arg(&args[2], 0) {
+                    String::from("__acc")
+                } else {
+                    String::from("__acc.clone()")
+                };
+                let scan_seed_call = self
+                    .emit_async_callable_invocation(&args[2], &[scan_acc_arg, String::from("__v")]);
+                let scan_live_call = self.emit_async_callable_invocation(
+                    &args[2],
+                    &[scan_live_acc_arg, String::from("__v")],
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let __out_{n} = __FutStream::new(); \
@@ -21438,7 +21490,7 @@ impl RustCodegen {
                     let __cutoff_{n} = __src_{n}.watermark(); \
                     let mut __acc_seed_{n} = {init}; \
                     for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        __acc_seed_{n} = ({f})(__acc_seed_{n}.clone(), __v); \
+                        __acc_seed_{n} = {scan_seed_call}; \
                         __out_{n}.send(__acc_seed_{n}.clone()); \
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
@@ -21447,7 +21499,7 @@ impl RustCodegen {
                         let mut __acc = __seed_acc_{n}; \
                         while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
                             if __seq <= __cutoff_{n} {{ continue; }} \
-                            __acc = ({f})(__acc.clone(), __v); \
+                            __acc = {scan_live_call}; \
                             __sfwd_{n}.send(__acc.clone()); \
                         }} \
                     }}); \
@@ -21507,21 +21559,28 @@ impl RustCodegen {
                 ))
             }
             "tap" if args.len() == 2 => {
-                let f = self.emit_expr(&args[1]);
+                let tap_arg = if self.async_callable_borrows_arg(&args[1], 0) {
+                    String::from("__v")
+                } else {
+                    String::from("__v.clone()")
+                };
+                let seed_tap =
+                    self.emit_async_callable_invocation(&args[1], std::slice::from_ref(&tap_arg));
+                let live_tap = self.emit_async_callable_invocation(&args[1], &[tap_arg]);
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let __out_{n} = __FutStream::new(); \
                     let mut __srx_{n} = __src_{n}.subscribe(); \
                     let __cutoff_{n} = __src_{n}.watermark(); \
                     for __v in __src_{n}.snapshot_until(__cutoff_{n}).into_iter() {{ \
-                        ({f})(__v.clone()); \
+                        {seed_tap}; \
                         __out_{n}.send(__v); \
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
                     tokio::spawn(async move {{ \
                         while let Ok((__seq, __v)) = __srx_{n}.recv().await {{ \
                             if __seq <= __cutoff_{n} {{ continue; }} \
-                            ({f})(__v.clone()); \
+                            {live_tap}; \
                             __sfwd_{n}.send(__v); \
                         }} \
                     }}); \
@@ -28424,6 +28483,32 @@ let summary = render(verdict(7i64), 7i64);
              @ print(show(count_nodes(sample)))\n",
         );
         assert_eq!(output, "3\n");
+    }
+
+    #[test]
+    fn legacy_emit_async_stream_helpers_honor_borrow_only_signatures() {
+        let source = r#"
+~ readings = subject()
+> render(route: String) -> String { "watch:" + route }
+> count_step(acc: Int, route: String) -> Int { acc + 1 }
+~ mapped = readings |> map(render)
+~ counted = mapped |> scan(0, count_step)
+~ counted | total -> {
+    @ print(show(total))
+}
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("__out_1.send((render)(&__v));"),
+            "async map over helper functions should borrow when the helper param is borrow-only: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__acc_seed_2 = (count_step)(__acc_seed_2.clone(), &__v);"),
+            "async scan over helper functions should borrow borrow-only item params: {}",
+            rust
+        );
     }
 
     #[test]
