@@ -19671,7 +19671,15 @@ impl RustCodegen {
                 )
             }
             Stmt::Expr(expr) => {
-                format!("{}{};\n", self.ind(), self.emit_expr(expr))
+                if self.expr_needs_empty_list_fallback(expr) {
+                    format!(
+                        "{}let _: Vec<i64> = {};\n",
+                        self.ind(),
+                        self.emit_expr(expr)
+                    )
+                } else {
+                    format!("{}{};\n", self.ind(), self.emit_expr(expr))
+                }
             }
             Stmt::Annot(name, _) if name == "comptime" => {
                 String::new() // suppress — already processed in comptime pass
@@ -23448,9 +23456,14 @@ impl RustCodegen {
                     return self.emit_string_concat(expr);
                 }
                 let is_comparison = op == "==" || op == "!=" || op == "=";
+                let empty_list_fallback_both_sides = is_comparison
+                    && self.expr_needs_empty_list_fallback(lhs)
+                    && self.expr_needs_empty_list_fallback(rhs);
                 // For comparisons with string literals, emit &str (no .to_string())
                 // so that &String == &str works via Deref coercion
-                let mut l = if is_comparison
+                let mut l = if empty_list_fallback_both_sides {
+                    self.emit_expr_with_rust_type_hint(lhs, "Vec<i64>")
+                } else if is_comparison
                     && matches!(lhs.as_ref().kind, ExprKind::Lit(Literal::Str(_)))
                 {
                     if let ExprKind::Lit(Literal::Str(s)) = &lhs.as_ref().kind {
@@ -23461,7 +23474,9 @@ impl RustCodegen {
                 } else {
                     self.emit_expr(lhs)
                 };
-                let mut r = if is_comparison
+                let mut r = if empty_list_fallback_both_sides {
+                    self.emit_expr_with_rust_type_hint(rhs, "Vec<i64>")
+                } else if is_comparison
                     && matches!(rhs.as_ref().kind, ExprKind::Lit(Literal::Str(_)))
                 {
                     if let ExprKind::Lit(Literal::Str(s)) = &rhs.as_ref().kind {
@@ -24314,6 +24329,26 @@ impl RustCodegen {
         } else {
             emitted
         }
+    }
+
+    fn fir_list_elem_needs_fallback(elem: &FirTy) -> bool {
+        matches!(elem, FirTy::Unknown | FirTy::Var(_))
+    }
+
+    fn expr_needs_empty_list_fallback(&self, expr: &Expr) -> bool {
+        self.expr_is_known_empty_list_value(expr)
+            && matches!(
+                self.infer_expr_fir_ty(expr),
+                FirTy::List(elem) if Self::fir_list_elem_needs_fallback(&elem)
+            )
+    }
+
+    fn emit_expr_with_rust_type_hint(&mut self, expr: &Expr, rust_ty: &str) -> String {
+        format!(
+            "{{ let __fut_typed: {} = {}; __fut_typed }}",
+            rust_ty,
+            self.emit_expr(expr)
+        )
     }
 
     fn expr_is_known_empty_list_value(&self, expr: &Expr) -> bool {
@@ -29384,6 +29419,18 @@ let summary = render(verdict(7i64), 7i64);
         let output =
             compile_and_run_test_program("= xs = concat(tail([]), [\"x\"])\n@ print(show(xs))\n");
         assert_eq!(output, "[x]\n");
+    }
+
+    #[test]
+    fn compiled_bare_empty_tail_literal_statement_compiles() {
+        let output = compile_and_run_test_program("tail([])\n@ print(\"ok\")\n");
+        assert_eq!(output, "ok\n");
+    }
+
+    #[test]
+    fn compiled_empty_tail_literal_equals_empty_list() {
+        let output = compile_and_run_test_program("= ok = tail([]) == []\n@ print(show(ok))\n");
+        assert_eq!(output, "true\n");
     }
 
     #[test]
