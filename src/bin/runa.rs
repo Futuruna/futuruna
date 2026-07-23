@@ -9400,6 +9400,8 @@ struct TypeRegistry {
     explicit_display_impls: BTreeSet<String>,
     /// Types that are structs (single-variant ADTs where variant name == type name)
     struct_types: BTreeSet<String>,
+    /// User-defined ADTs whose emitted Rust type actually derives Default
+    default_derive_types: BTreeSet<String>,
     /// Immutable recursive ADT names that use Rc/Arc instead of Box
     rc_types: BTreeSet<String>,
     /// Effect declarations: effect_name -> set of operation names
@@ -9466,6 +9468,7 @@ impl TypeRegistry {
             variant_field_types: BTreeMap::new(),
             explicit_display_impls: BTreeSet::new(),
             struct_types: BTreeSet::new(),
+            default_derive_types: BTreeSet::new(),
             rc_types: BTreeSet::new(),
             effect_ops: BTreeMap::new(),
             effect_ops_detail: BTreeMap::new(),
@@ -15166,6 +15169,8 @@ impl RustCodegen {
             self.types.rc_types = recursive_types;
         }
 
+        self.refresh_default_derive_types(stmts);
+
         // Pre-scan top-level bindings that can be addressed via getter functions.
         for stmt in stmts {
             if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
@@ -15177,6 +15182,133 @@ impl RustCodegen {
         }
 
         all_stmts
+    }
+
+    fn refresh_default_derive_types(&mut self, stmts: &[Stmt]) {
+        let mut adts = Vec::new();
+        self.collect_adt_default_infos(stmts, &mut adts);
+        let mut default_types = BTreeSet::new();
+
+        loop {
+            let mut changed = false;
+            for (decl_name, rust_name, params, variants) in &adts {
+                if default_types.contains(rust_name) {
+                    continue;
+                }
+                if self.adt_can_derive_default(decl_name, params, variants, &default_types) {
+                    default_types.insert(rust_name.clone());
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+
+        self.types.default_derive_types = default_types;
+    }
+
+    fn collect_adt_default_infos(
+        &self,
+        stmts: &[Stmt],
+        out: &mut Vec<(String, String, Vec<String>, Vec<Variant>)>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::TypeDecl(TypeDecl::ADT {
+                    name,
+                    params,
+                    variants,
+                    ..
+                }) => out.push((
+                    name.clone(),
+                    self.rust_type_name(name),
+                    params.iter().map(|p| p.name.clone()).collect(),
+                    variants.clone(),
+                )),
+                Stmt::Defn(Defn::Module { body, .. }) => self.collect_adt_default_infos(body, out),
+                _ => {}
+            }
+        }
+    }
+
+    fn adt_can_derive_default(
+        &self,
+        decl_name: &str,
+        params: &[String],
+        variants: &[Variant],
+        default_types: &BTreeSet<String>,
+    ) -> bool {
+        if variants.is_empty() {
+            return false;
+        }
+
+        let generic_params: BTreeSet<String> = params.iter().cloned().collect();
+        if variants.len() == 1 && variants[0].name == decl_name && !variants[0].fields.is_empty() {
+            variants[0]
+                .fields
+                .iter()
+                .all(|f| self.ty_supports_derive_default(&f.ty, &generic_params, default_types))
+        } else {
+            variants.first().is_some_and(|v| v.fields.is_empty())
+        }
+    }
+
+    fn ty_supports_derive_default(
+        &self,
+        ty: &Ty,
+        generic_params: &BTreeSet<String>,
+        default_types: &BTreeSet<String>,
+    ) -> bool {
+        match ty {
+            Ty::Name(n) => {
+                generic_params.contains(n)
+                    || matches!(
+                        n.as_str(),
+                        "Int"
+                            | "Float"
+                            | "String"
+                            | "Bool"
+                            | "Char"
+                            | "Nat"
+                            | "List"
+                            | "Map"
+                            | "Set"
+                            | "Option"
+                    )
+                    || default_types.contains(&self.rust_type_name(n))
+            }
+            Ty::App(con, args) => {
+                let Some(con_name) = Self::ty_constructor_name(con) else {
+                    return false;
+                };
+                match con_name {
+                    "List" | "Map" | "Set" | "Option" => true,
+                    "Pair" => args.iter().all(|arg| {
+                        self.ty_supports_derive_default(arg, generic_params, default_types)
+                    }),
+                    _ => {
+                        default_types.contains(&self.rust_type_name(con_name))
+                            && args.iter().all(|arg| {
+                                self.ty_supports_derive_default(arg, generic_params, default_types)
+                            })
+                    }
+                }
+            }
+            Ty::Shared(inner) => {
+                self.ty_supports_derive_default(inner, generic_params, default_types)
+            }
+            Ty::Optional(_) | Ty::Unit => true,
+            Ty::Var(n) => generic_params.contains(n),
+            Ty::Ref(_) | Ty::MutRef(_) | Ty::Arrow(_, _) | Ty::Hole => false,
+        }
+    }
+
+    fn ty_constructor_name(ty: &Ty) -> Option<&str> {
+        match ty {
+            Ty::Name(n) | Ty::Var(n) => Some(n.as_str()),
+            _ => None,
+        }
     }
 
     fn collect_module_value_bindings(&mut self, stmts: &[Stmt], module_path: &mut Vec<String>) {
@@ -15962,6 +16094,14 @@ impl RustCodegen {
                                 self.types
                                     .type_decls
                                     .insert(tname.clone(), (param_names, variant_names));
+                                if self.adt_can_derive_default(
+                                    tname,
+                                    &[],
+                                    variants,
+                                    &self.types.default_derive_types,
+                                ) {
+                                    self.types.default_derive_types.insert(tname.clone());
+                                }
                             }
                             let decl_str = self.emit_type_decl(&type_decl);
                             // Insert before main function
@@ -16832,6 +16972,7 @@ impl RustCodegen {
 
                 let mut out = String::new();
                 let is_struct = self.types.struct_types.contains(&rust_name);
+                let derives_default = self.types.default_derive_types.contains(&rust_name);
                 let pub_prefix = if self.types.exported_names.contains(name) {
                     "pub "
                 } else {
@@ -16847,29 +16988,12 @@ impl RustCodegen {
                 if is_struct {
                     // Single-variant with same name → emit Rust struct
                     let v = &variants[0];
-                    // Derive Default only if all fields have types that implement Default.
-                    // Enums whose first variant has fields don't get Default — check field types.
-                    let all_fields_defaultable = v.fields.iter().all(|f| {
-                        let ty_str = self.emit_type_with_params(&f.ty, params);
-                        // Primitive types, Vec, Option, BTreeMap, HashMap, HashSet all have Default
-                        // Enum types without Default don't — check if it's a non-struct user type
-                        let base_name = ty_str.split('<').next().unwrap_or(&ty_str).trim();
-                        matches!(base_name, "i64" | "f64" | "String" | "bool" | "char" | "()"
-                            | "Vec" | "Option" | "BTreeMap" | "HashMap" | "HashSet" | "Rc" | "Arc")
-                            || self.types.struct_types.contains(base_name)
-                            // Enums with fieldless first variant have Default
-                            || self.types.type_decls.get(base_name).map_or(false, |(_, vnames)| {
-                                vnames.first().map_or(false, |vn| {
-                                    self.types.variant_field_types.get(vn).map_or(true, |ft| ft.is_empty())
-                                })
-                            })
-                    });
                     let serde_derives = if self.types.stored_types.contains(name) {
                         ", serde::Serialize, serde::Deserialize"
                     } else {
                         ""
                     };
-                    if all_fields_defaultable {
+                    if derives_default {
                         out.push_str(&format!(
                             "#[derive(Debug, Clone, PartialEq, Default{})]\n",
                             serde_derives
@@ -16881,7 +17005,7 @@ impl RustCodegen {
                         ));
                     }
                     // For stored types, allow missing fields during deserialization (schema flex)
-                    if self.types.stored_types.contains(name) {
+                    if self.types.stored_types.contains(name) && derives_default {
                         out.push_str("#[serde(default)]\n");
                     }
                     if v.positional {
@@ -16924,10 +17048,7 @@ impl RustCodegen {
                     }
                 } else {
                     // Multi-variant → emit Rust enum
-                    // Derive Default only if first variant is fieldless (can use #[default])
-                    let first_variant_fieldless =
-                        variants.first().map_or(false, |v| v.fields.is_empty());
-                    if first_variant_fieldless {
+                    if derives_default {
                         out.push_str("#[derive(Debug, Clone, PartialEq, Default)]\n");
                     } else {
                         out.push_str("#[derive(Debug, Clone, PartialEq)]\n");
@@ -16937,7 +17058,7 @@ impl RustCodegen {
                         pub_prefix, rust_name, type_params
                     ));
                     for (vi, v) in variants.iter().enumerate() {
-                        let default_attr = if vi == 0 && first_variant_fieldless {
+                        let default_attr = if vi == 0 && derives_default {
                             "    #[default]\n"
                         } else {
                             ""
@@ -29334,6 +29455,45 @@ let summary = render(verdict(7i64), 7i64);
         assert_eq!(
             RustCodegen::value_to_supported_auto_comptime_literal(&supported, &BTreeMap::new()),
             Some(("vec![1, 2]".to_string(), "Vec<i64>".to_string()))
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_only_derives_default_for_actual_defaultable_user_types() {
+        let source = r#"
+# BadMode = Busy(Int) | Idle
+# GoodMode = Idle | Busy(Int)
+# Inner(count: Int)
+# NeedsBad(mode: BadMode, label: String)
+# NeedsGood(mode: GoodMode, label: String)
+# NeedsInner(inner: Inner)
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("#[derive(Debug, Clone, PartialEq)]\nstruct NeedsBad {\n"),
+            "structs wrapping non-defaultable user types should not derive Default: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("#[derive(Debug, Clone, PartialEq, Default)]\nstruct NeedsBad {\n"),
+            "non-defaultable nested user types should not sneak Default onto the parent struct: {}",
+            rust
+        );
+        assert!(
+            rust.contains("#[derive(Debug, Clone, PartialEq, Default)]\nenum GoodMode {\n"),
+            "fieldless-first enums should stay explicitly tracked as Default-derivable: {}",
+            rust
+        );
+        assert!(
+            rust.contains("#[derive(Debug, Clone, PartialEq, Default)]\nstruct NeedsGood {\n"),
+            "structs wrapping tracked defaultable enums should still derive Default: {}",
+            rust
+        );
+        assert!(
+            rust.contains("#[derive(Debug, Clone, PartialEq, Default)]\nstruct NeedsInner {\n"),
+            "structs wrapping tracked defaultable user structs should still derive Default: {}",
+            rust
         );
     }
 
