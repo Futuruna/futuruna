@@ -69,14 +69,16 @@
 @ print("")
 
 -- write_file + read_file
-= test_path = "/tmp/futuruna_test_m14b.txt"
+= tmp_file = process_run(["mktemp", "/tmp/futuruna_test_m14b.XXXXXX"])
+= test_path = trim(snd(tmp_file))
+= missing_path = test_path + ".missing"
 @ write_file(test_path, "Hello from Futuruna!\nLine 2")
 = content = read_file(test_path)
 @ print("read_file: " + content)
 
 -- file_exists
 @ print("file_exists: " + show(file_exists(test_path)))
-@ print("file_exists false: " + show(file_exists("/tmp/nonexistent_futuruna_xyz.txt")))
+@ print("file_exists false: " + show(file_exists(missing_path)))
 
 -- append_file
 @ append_file(test_path, "\nLine 3")
@@ -92,5 +94,6 @@
 @ print("env_var HOME: " + show(starts_with(home, "/")))
 
 -- Cleanup
+@ process_run(["rm", "-f", test_path])
 @ print("")
 @ print("=== All M14 tests passed! ===")
