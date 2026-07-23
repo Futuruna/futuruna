@@ -5150,11 +5150,127 @@ fn proof_schema_vars(prop: &proof_kernel::Prop) -> Vec<String> {
     vars.into_iter().collect()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProofExprContext {
+    Term,
+    Prop,
+}
+
+fn proof_expr_is_lowerable(expr: &Expr, context: ProofExprContext) -> bool {
+    match context {
+        ProofExprContext::Term => lower_expr_to_proof_term(expr).is_ok(),
+        ProofExprContext::Prop => lower_expr_to_proof_prop(expr).is_ok(),
+    }
+}
+
+fn substitute_expr_bindings_for_proof(
+    expr: &Expr,
+    bindings: &BTreeMap<String, Expr>,
+    active: &mut BTreeSet<String>,
+    context: ProofExprContext,
+) -> Expr {
+    match &expr.kind {
+        ExprKind::Var(name) => {
+            if let Some(bound_expr) = bindings.get(name) {
+                if active.insert(name.clone()) {
+                    let expanded =
+                        substitute_expr_bindings_for_proof(bound_expr, bindings, active, context);
+                    active.remove(name);
+                    if proof_expr_is_lowerable(&expanded, context) {
+                        expanded
+                    } else {
+                        expr.clone()
+                    }
+                } else {
+                    expr.clone()
+                }
+            } else {
+                expr.clone()
+            }
+        }
+        ExprKind::App(func, args) => Expr::new(
+            ExprKind::App(
+                func.clone(),
+                args.iter()
+                    .map(|arg| {
+                        substitute_expr_bindings_for_proof(
+                            arg,
+                            bindings,
+                            active,
+                            ProofExprContext::Term,
+                        )
+                    })
+                    .collect(),
+            ),
+            expr.span,
+        ),
+        ExprKind::BinOp(op, lhs, rhs) => {
+            let child_context = if op == "&&" {
+                ProofExprContext::Prop
+            } else {
+                ProofExprContext::Term
+            };
+            Expr::new(
+                ExprKind::BinOp(
+                    op.clone(),
+                    Box::new(substitute_expr_bindings_for_proof(
+                        lhs,
+                        bindings,
+                        active,
+                        child_context,
+                    )),
+                    Box::new(substitute_expr_bindings_for_proof(
+                        rhs,
+                        bindings,
+                        active,
+                        child_context,
+                    )),
+                ),
+                expr.span,
+            )
+        }
+        ExprKind::UnOp(op, inner) => Expr::new(
+            ExprKind::UnOp(
+                op.clone(),
+                Box::new(substitute_expr_bindings_for_proof(
+                    inner,
+                    bindings,
+                    active,
+                    ProofExprContext::Term,
+                )),
+            ),
+            expr.span,
+        ),
+        ExprKind::Tuple(elems) => Expr::new(
+            ExprKind::Tuple(
+                elems
+                    .iter()
+                    .map(|elem| {
+                        substitute_expr_bindings_for_proof(
+                            elem,
+                            bindings,
+                            active,
+                            ProofExprContext::Term,
+                        )
+                    })
+                    .collect(),
+            ),
+            expr.span,
+        ),
+        _ => expr.clone(),
+    }
+}
+
 fn invariant_proof_schema(
     pred_expr: &Expr,
     bindings: &BTreeMap<String, Expr>,
 ) -> Result<proof_kernel::Schema, String> {
-    let expanded_pred = substitute_expr_bindings(pred_expr, bindings, &mut BTreeSet::new());
+    let expanded_pred = substitute_expr_bindings_for_proof(
+        pred_expr,
+        bindings,
+        &mut BTreeSet::new(),
+        ProofExprContext::Prop,
+    );
     let conclusion = lower_expr_to_proof_prop(&expanded_pred)?;
     Ok(proof_kernel::Schema {
         vars: proof_schema_vars(&conclusion),
@@ -5251,7 +5367,12 @@ fn computation_lemmas_for_function(
             active.insert(param.name.clone());
         }
         collect_pattern_binding_names(&arm.pat, &mut active);
-        let expanded_body = substitute_expr_bindings(&arm.body, bindings, &mut active);
+        let expanded_body = substitute_expr_bindings_for_proof(
+            &arm.body,
+            bindings,
+            &mut active,
+            ProofExprContext::Term,
+        );
         let rhs = lower_expr_to_proof_term(&expanded_body).ok()?;
 
         let mut lhs_args = vec![first_arg];
@@ -5313,62 +5434,6 @@ fn build_explicit_proof_registry(
     }
 
     Ok(reg)
-}
-
-fn substitute_expr_bindings(
-    expr: &Expr,
-    bindings: &BTreeMap<String, Expr>,
-    active: &mut BTreeSet<String>,
-) -> Expr {
-    match &expr.kind {
-        ExprKind::Var(name) => {
-            if let Some(bound_expr) = bindings.get(name) {
-                if active.insert(name.clone()) {
-                    let expanded = substitute_expr_bindings(bound_expr, bindings, active);
-                    active.remove(name);
-                    expanded
-                } else {
-                    expr.clone()
-                }
-            } else {
-                expr.clone()
-            }
-        }
-        ExprKind::App(func, args) => Expr::new(
-            ExprKind::App(
-                Box::new(substitute_expr_bindings(func, bindings, active)),
-                args.iter()
-                    .map(|arg| substitute_expr_bindings(arg, bindings, active))
-                    .collect(),
-            ),
-            expr.span,
-        ),
-        ExprKind::BinOp(op, lhs, rhs) => Expr::new(
-            ExprKind::BinOp(
-                op.clone(),
-                Box::new(substitute_expr_bindings(lhs, bindings, active)),
-                Box::new(substitute_expr_bindings(rhs, bindings, active)),
-            ),
-            expr.span,
-        ),
-        ExprKind::UnOp(op, inner) => Expr::new(
-            ExprKind::UnOp(
-                op.clone(),
-                Box::new(substitute_expr_bindings(inner, bindings, active)),
-            ),
-            expr.span,
-        ),
-        ExprKind::Tuple(elems) => Expr::new(
-            ExprKind::Tuple(
-                elems
-                    .iter()
-                    .map(|elem| substitute_expr_bindings(elem, bindings, active))
-                    .collect(),
-            ),
-            expr.span,
-        ),
-        _ => expr.clone(),
-    }
 }
 
 fn substitute_proof_term_vars(
@@ -5640,8 +5705,18 @@ fn evaluate_explicit_proof(
     }
 
     let arm = &proof_block.arms[0];
-    let expanded_subject = substitute_expr_bindings(subject_expr, bindings, &mut BTreeSet::new());
-    let expanded_pred = substitute_expr_bindings(pred_expr, bindings, &mut BTreeSet::new());
+    let expanded_subject = substitute_expr_bindings_for_proof(
+        subject_expr,
+        bindings,
+        &mut BTreeSet::new(),
+        ProofExprContext::Term,
+    );
+    let expanded_pred = substitute_expr_bindings_for_proof(
+        pred_expr,
+        bindings,
+        &mut BTreeSet::new(),
+        ProofExprContext::Prop,
+    );
     let substitutions = match proof_binder_substitutions(&expanded_subject, &arm.binders) {
         Ok(substitutions) => substitutions,
         Err(err) => return ExplicitProofStatus::Unsupported(err),
@@ -24115,6 +24190,54 @@ mod tests {
         );
         assert_eq!(
             statuses.get("lower_let_sound"),
+            Some(&ExplicitProofStatus::Proved)
+        );
+    }
+
+    #[test]
+    fn explicit_proof_handles_non_kernel_top_level_bindings_without_expanding_through_them() {
+        let source = r#"
+= base_scores = [18, 42, 37, 41]
+= escalation_score = foldl(base_scores, 0, |acc, score| acc + score)
+= audit_bonus = 12
+= raw_priority = escalation_score + audit_bonus
+
+| raw_identity: raw_priority -> raw_priority == raw_priority
+? raw_identity by {
+    | n -> refl
+}
+"#;
+
+        let statuses = explicit_proof_statuses(source);
+        assert_eq!(
+            statuses.get("raw_identity"),
+            Some(&ExplicitProofStatus::Proved)
+        );
+    }
+
+    #[test]
+    fn proof_guarded_canary_fixture_proves_its_explicit_invariants() {
+        let source = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/canary/core/proof_guarded_pipeline_test.runa"
+        ))
+        .expect("fixture should read");
+
+        let statuses = explicit_proof_statuses(&source);
+        assert_eq!(
+            statuses.get("freeze_points_exact"),
+            Some(&ExplicitProofStatus::Proved)
+        );
+        assert_eq!(
+            statuses.get("freeze_slots_exact"),
+            Some(&ExplicitProofStatus::Proved)
+        );
+        assert_eq!(
+            statuses.get("freeze_points_capped"),
+            Some(&ExplicitProofStatus::Proved)
+        );
+        assert_eq!(
+            statuses.get("freeze_slots_bounded"),
             Some(&ExplicitProofStatus::Proved)
         );
     }
