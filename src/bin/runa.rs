@@ -27637,6 +27637,259 @@ mod tests {
             .collect()
     }
 
+    fn import_expr_snapshot(expr: &Expr) -> String {
+        match &expr.kind {
+            ExprKind::Var(name) => format!("var {}", name),
+            ExprKind::Lit(Literal::Int(_)) => "lit Int".to_string(),
+            ExprKind::Lit(Literal::Float(_)) => "lit Float".to_string(),
+            ExprKind::Lit(Literal::Str(_)) => "lit String".to_string(),
+            ExprKind::Lit(Literal::Char(_)) => "lit Char".to_string(),
+            ExprKind::Lit(Literal::Bool(_)) => "lit Bool".to_string(),
+            ExprKind::App(func, args) => {
+                let head = match &func.kind {
+                    ExprKind::Var(name) => name.clone(),
+                    ExprKind::Field(_, field) => format!(".{}", field),
+                    _ => "callable".to_string(),
+                };
+                format!("app {} /{}", head, args.len())
+            }
+            ExprKind::Lambda(params, _) => format!("lambda/{}", params.len()),
+            ExprKind::BinOp(op, _, _) => format!("binop {}", op),
+            ExprKind::UnOp(op, _) => format!("unop {}", op),
+            ExprKind::If(_, _, _) => "if".to_string(),
+            ExprKind::Match(_, _) => "match".to_string(),
+            ExprKind::Block(_) => "block".to_string(),
+            ExprKind::Field(_, field) => format!("field .{}", field),
+            ExprKind::Index(_, _) => "index".to_string(),
+            ExprKind::List(items) => format!("list/{}", items.len()),
+            ExprKind::Tuple(items) => format!("tuple/{}", items.len()),
+            ExprKind::Effect(name, args) => format!("effect {} /{}", name, args.len()),
+            ExprKind::Handle { effect, .. } => format!("handle {}", effect),
+            ExprKind::Try(_) => "try".to_string(),
+            ExprKind::Conjunction(items) => format!("and/{}", items.len()),
+            ExprKind::Disjunction(items) => format!("or/{}", items.len()),
+            ExprKind::Pipe(_, _) => "pipe".to_string(),
+            ExprKind::Unit => "unit".to_string(),
+        }
+    }
+
+    fn import_annot_arg_snapshot(expr: &Expr) -> String {
+        match &expr.kind {
+            ExprKind::Var(name) => name.clone(),
+            ExprKind::Lit(lit) => lit.to_string(),
+            _ => import_expr_snapshot(expr),
+        }
+    }
+
+    fn render_import_stmt_snapshot(stmt: &Stmt, indent: usize, out: &mut String) {
+        let pad = "  ".repeat(indent);
+        match stmt {
+            Stmt::Defn(Defn::Fn { name, params, .. }) => {
+                out.push_str(&format!("{}fn {}/{}\n", pad, name, params.len()));
+            }
+            Stmt::Defn(Defn::Actor { name, handlers, .. }) => {
+                out.push_str(&format!("{}actor {}/{}\n", pad, name, handlers.len()));
+            }
+            Stmt::Defn(Defn::Module { name, body }) => {
+                out.push_str(&format!("{}module {}\n", pad, name));
+                for stmt in body {
+                    render_import_stmt_snapshot(stmt, indent + 1, out);
+                }
+            }
+            Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                let variants = variants
+                    .iter()
+                    .map(|v| v.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+                out.push_str(&format!("{}type {} = {}\n", pad, name, variants));
+            }
+            Stmt::TypeDecl(TypeDecl::WhenType { name, variants, .. }) => {
+                let variants = variants
+                    .iter()
+                    .map(|v| v.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+                out.push_str(&format!("{}when-type {} = {}\n", pad, name, variants));
+            }
+            Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
+                out.push_str(&format!("{}effect {}/{}\n", pad, name, ops.len()));
+            }
+            Stmt::TypeDecl(TypeDecl::TraitDecl { name, methods, .. }) => {
+                out.push_str(&format!("{}trait {}/{}\n", pad, name, methods.len()));
+            }
+            Stmt::TypeDecl(TypeDecl::ImplBlock {
+                trait_name,
+                for_type,
+                methods,
+            }) => {
+                out.push_str(&format!(
+                    "{}impl {}/{} for {}\n",
+                    pad,
+                    trait_name,
+                    methods.len(),
+                    for_type
+                ));
+            }
+            Stmt::Annot(name, args) => {
+                if args.is_empty() {
+                    out.push_str(&format!("{}@ {}\n", pad, name));
+                } else {
+                    let rendered = args
+                        .iter()
+                        .map(import_annot_arg_snapshot)
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    out.push_str(&format!("{}@ {} {}\n", pad, name, rendered));
+                }
+            }
+            Stmt::Bind(pat, ty, expr) => {
+                let ty_suffix = ty
+                    .as_ref()
+                    .map(|ty| format!(": {}", ty))
+                    .unwrap_or_default();
+                out.push_str(&format!(
+                    "{}bind {}{} = {}\n",
+                    pad,
+                    format_pat(pat),
+                    ty_suffix,
+                    import_expr_snapshot(expr)
+                ));
+            }
+            Stmt::MonadicBind(pat, ty, expr) => {
+                let ty_suffix = ty
+                    .as_ref()
+                    .map(|ty| format!(": {}", ty))
+                    .unwrap_or_default();
+                out.push_str(&format!(
+                    "{}monadic-bind {}{} = {}\n",
+                    pad,
+                    format_pat(pat),
+                    ty_suffix,
+                    import_expr_snapshot(expr)
+                ));
+            }
+            Stmt::StreamBind(name, expr) => {
+                out.push_str(&format!(
+                    "{}stream {} = {}\n",
+                    pad,
+                    name,
+                    import_expr_snapshot(expr)
+                ));
+            }
+            Stmt::Use(path) => out.push_str(&format!("{}use {}\n", pad, path)),
+            Stmt::Import(path) => out.push_str(&format!("{}import {}\n", pad, path)),
+            Stmt::QualifiedImport(name, path) => {
+                out.push_str(&format!("{}qualified-import {} from {}\n", pad, name, path))
+            }
+            Stmt::HashImport(hash, path) => {
+                out.push_str(&format!("{}hash-import #{} from {}\n", pad, hash, path))
+            }
+            Stmt::Depend(name, version) => {
+                out.push_str(&format!("{}depend {} {}\n", pad, name, version))
+            }
+            Stmt::RustBlock(_) => out.push_str(&format!("{}rust-block\n", pad)),
+            Stmt::Rule(Rule::Clause { .. }) => out.push_str(&format!("{}rule clause\n", pad)),
+            Stmt::Rule(Rule::Default { .. }) => out.push_str(&format!("{}rule default\n", pad)),
+            Stmt::Rule(Rule::Exception { label, .. }) => {
+                out.push_str(&format!("{}rule exception {}\n", pad, label))
+            }
+            Stmt::Rule(Rule::Scope { name, body }) => {
+                out.push_str(&format!("{}scope {}\n", pad, name));
+                for stmt in body {
+                    render_import_stmt_snapshot(stmt, indent + 1, out);
+                }
+            }
+            Stmt::For(name, expr, body) => {
+                out.push_str(&format!(
+                    "{}for {} in {}\n",
+                    pad,
+                    name,
+                    import_expr_snapshot(expr)
+                ));
+                for stmt in body {
+                    render_import_stmt_snapshot(stmt, indent + 1, out);
+                }
+            }
+            Stmt::While(expr, body) => {
+                out.push_str(&format!("{}while {}\n", pad, import_expr_snapshot(expr)));
+                for stmt in body {
+                    render_import_stmt_snapshot(stmt, indent + 1, out);
+                }
+            }
+            Stmt::Send(target, msg) => out.push_str(&format!(
+                "{}send {} <- {}\n",
+                pad,
+                import_expr_snapshot(target),
+                import_expr_snapshot(msg)
+            )),
+            Stmt::StreamSub(expr, arms) => out.push_str(&format!(
+                "{}stream-sub {} arms={}\n",
+                pad,
+                import_expr_snapshot(expr),
+                arms.len()
+            )),
+            Stmt::Invariant { name, subject, .. } => out.push_str(&format!(
+                "{}invariant {} on {}\n",
+                pad,
+                name,
+                import_expr_snapshot(subject)
+            )),
+            Stmt::Prove { name, .. } => out.push_str(&format!("{}prove {}\n", pad, name)),
+            Stmt::Assert(name, args) => {
+                out.push_str(&format!("{}assert {} /{}\n", pad, name, args.len()))
+            }
+            Stmt::Retract(name, args) => {
+                out.push_str(&format!("{}retract {} /{}\n", pad, name, args.len()))
+            }
+            Stmt::Abort => out.push_str(&format!("{}abort\n", pad)),
+            Stmt::Expr(expr) => {
+                out.push_str(&format!("{}expr {}\n", pad, import_expr_snapshot(expr)));
+            }
+        }
+    }
+
+    fn render_import_normalization_snapshot(cg: &RustCodegen, stmts: &[Stmt]) -> String {
+        let mut out = String::new();
+        let exports = if cg.types.exported_names.is_empty() {
+            "-".to_string()
+        } else {
+            cg.types
+                .exported_names
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        out.push_str(&format!("exports: {}\n", exports));
+        for (module, exports) in &cg.types.module_exports {
+            let rendered = if exports.is_empty() {
+                "-".to_string()
+            } else {
+                exports.iter().cloned().collect::<Vec<_>>().join(", ")
+            };
+            out.push_str(&format!("module-exports {}: {}\n", module, rendered));
+        }
+        for stmt in stmts {
+            render_import_stmt_snapshot(stmt, 0, &mut out);
+        }
+        out
+    }
+
+    fn import_normalization_snapshot_for_source(source: &str, filename: Option<&str>) -> String {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+        let mut cg = RustCodegen::new();
+        if let Some(filename) = filename {
+            cg.source_dir = source_dir_for(filename);
+            cg.source_name = Some(filename.to_string());
+        }
+        let resolved = cg.scan_declarations(&stmts);
+        render_import_normalization_snapshot(&cg, &resolved)
+    }
+
     fn fir_ty_snapshot(ty: &FirTy) -> String {
         match ty {
             FirTy::Int => "Int".to_string(),
@@ -28183,6 +28436,107 @@ fn render(v: Verdict, score: i64) -> String {
 let current = verdict(7i64);
 let summary = render(verdict(7i64), 7i64);
 "#;
+
+    const IMPORT_NORMALIZATION_DIRECT_SAMPLE_SOURCE: &str = r#"
+@ export
+> add(a: Int, b: Int) -> Int { a + b }
+# Verdict = High | Low
+= threshold = 5
+> module Local {
+    @ export lane_label
+    = prefix = "local"
+    > lane_label(name: String) -> String { prefix }
+}
+"#;
+
+    const IMPORT_NORMALIZATION_DIRECT_SAMPLE_SNAPSHOT: &str = r#"exports: add
+@ export
+fn add/2
+type Verdict = High | Low
+bind threshold = lit Int
+module Local
+  @ export lane_label
+  bind prefix = lit String
+  fn lane_label/1
+"#;
+
+    #[test]
+    fn import_normalization_direct_snapshot_matches_golden() {
+        let snapshot = import_normalization_snapshot_for_source(
+            IMPORT_NORMALIZATION_DIRECT_SAMPLE_SOURCE,
+            None,
+        );
+        assert_eq!(snapshot, IMPORT_NORMALIZATION_DIRECT_SAMPLE_SNAPSHOT);
+    }
+
+    #[test]
+    fn import_normalization_library_consumer_snapshot_matches_golden() {
+        let temp_name = format!(
+            "futuruna_import_snapshot_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep2_path = temp_dir.join("dep2.runa");
+        let dep1_path = temp_dir.join("dep1.runa");
+        let settings_path = temp_dir.join("settings.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(
+            &dep2_path,
+            "@ export\n> signature_symbol(text: String, p: Int, w: Int) -> String { text }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &dep1_path,
+            "@ import ./dep2\n@ export\n> reader() -> String { signature_symbol(\"sig\", 1, 2) }\n= smoke_probe = reader()\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &settings_path,
+            "@ export\n= threshold = 7\n@ export\n> read_threshold() -> Int { threshold }\n= hidden = 9\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &main_path,
+            "@ import ./dep1\n@ import Config from ./settings\n@ export consumer\n> consumer() -> String { reader() }\n",
+        )
+        .unwrap();
+
+        let source = std::fs::read_to_string(&main_path).unwrap();
+        let snapshot = import_normalization_snapshot_for_source(
+            &source,
+            Some(main_path.to_str().expect("utf-8 test path")),
+        );
+
+        let expected = r#"exports: consumer, read_threshold, reader, signature_symbol, threshold
+module-exports Config: read_threshold, threshold
+fn signature_symbol/3
+fn reader/0
+bind smoke_probe = app reader /0
+module Config
+  @ export
+  bind threshold = lit Int
+  @ export
+  fn read_threshold/0
+  bind hidden = lit Int
+@ export consumer
+fn consumer/0
+"#;
+
+        assert_eq!(snapshot, expected);
+
+        let _ = std::fs::remove_file(&dep2_path);
+        let _ = std::fs::remove_file(&dep1_path);
+        let _ = std::fs::remove_file(&settings_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
 
     #[test]
     fn lowering_var_produces_fir_var() {
