@@ -1,6 +1,6 @@
 ---
 type: source
-status: summarized
+status: active
 source_kind: repo-docs
 tags:
   - source
@@ -11,24 +11,37 @@ related:
   - "[[current-state]]"
   - "[[verification-lanes]]"
   - "[[proof-kernel]]"
+  - "[[verified-bootstrap]]"
 ---
 
 # Repo Docs
 
-The current documentation already covers much of the language and compiler roadmap. The wiki should summarize and cross-link it rather than fork it.
+The current repo docs are the canonical written contracts for Futuruna. The wiki should summarize, connect, and operationalize them rather than fork them.
 
-## High-Value Existing Docs
+## Core Assurance And Proof Sources
 
-- `docs/state-and-roadmap.md`
-- `docs/mint-gate.md`
-- `docs/canary-matrix.md`
-- `docs/verified-bootstrap.md`
-- `docs/proof-kernel.md`
+- [[state-and-roadmap]]
+  High-level project map: assurance stack, trust boundary, and next milestones.
+- [[mint-gate]]
+  The blocking "Futuruna is mint" contract.
+- [[canary-matrix]]
+  The authored workflow coverage map.
+- [[verified-bootstrap-doc]]
+  The honest statement of what native proof-backed compiler work means today.
+- [[proof-kernel-spec]]
+  The kernel design boundary and its v1 logic fragment.
+
+## How These Feed The Vault
+
+- [[current-state]] and [[overview]] explain where Futuruna stands now.
+- [[verification-lanes]] and [[test-surface]] explain how quality is enforced operationally.
+- [[proof-kernel]] and [[verified-bootstrap]] track the formal-methods thread without overclaiming.
+- [[mint-ratchet]] records the contributor discipline layer that keeps these docs live.
+
+## Best Next Ingests
+
 - `docs/differential-testing.md`
-
-## Suggested Next Ingests
-
+- `docs/canary-suite.md`
+- `docs/reference/` as structured language-surface notes
 - milestone notes in `docs/milestones/`
-- `docs/reference/` as a structured language-surface map
-- `research/README.md` and the major design experiments
-
+- high-value research notes under `research/`

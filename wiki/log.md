@@ -17,3 +17,5 @@ tags:
 - Seeded core navigation, current-state, compiler, proof, and verification notes
 - Added `_templates/` and `.obsidian/snippets/vault-colors.css`
 - Added `WIKI.md`, onboarding/dashboard notes, comparisons/canvases/attachments scaffolding, and shared plugin config so the vault behaves like the claude-obsidian overlay pattern
+- Ingested the core repo docs into linked source notes for roadmap, proof kernel, verified bootstrap, mint gate, and canary coverage
+- Expanded the seed notes so the wiki now reflects the actual assurance stack and proof trust boundary

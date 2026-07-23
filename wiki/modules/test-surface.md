@@ -14,6 +14,7 @@ updated: 2026-07-18
 related:
   - "[[verification-lanes]]"
   - "[[mint-ratchet]]"
+  - "[[canary-matrix]]"
 ---
 
 # Test Surface
@@ -28,7 +29,17 @@ Futuruna’s quality strategy is increasingly centered on realistic test surface
 - roundtrip and codegen parity checks
 - differential and downstream-style hardening work
 
+## Authored Canary Shape
+
+- `core`: stable blocking workflows that combine subsystems users actually mix
+- `stateful`: subjects, streams, actors, lifecycle, and effectful flows
+- `extended`: runtime-heavy surfaces like JSON, regex, DB, HTTP, and WASM
+- `regressions`: authored workflows distilled from real user bug classes
+
 ## Current Pressure
 
-The next important expansion is better downstream library-consumer coverage, because that is where several recent external failures surfaced.
+The biggest remaining pressure is downstream library-consumer behavior: nested imports, imported smoke leakage, ownership-heavy helper chains, and other shapes that are less visible in self-contained in-repo programs.
 
+## Key Reference
+
+- [[canary-matrix]]

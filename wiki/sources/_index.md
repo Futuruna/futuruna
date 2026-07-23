@@ -11,4 +11,8 @@ tags:
 # Source Index
 
 - [[repo-docs]]
-
+- [[state-and-roadmap]]
+- [[proof-kernel-spec]]
+- [[verified-bootstrap-doc]]
+- [[mint-gate]]
+- [[canary-matrix]]

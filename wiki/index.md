@@ -50,3 +50,4 @@ This vault uses the Futuruna repository root as an Obsidian vault. It is a hybri
 - [[mint-ratchet]]
 - [[repo-docs]]
 - [[current-state]]
+- [[verified-bootstrap]]
