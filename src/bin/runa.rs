@@ -4,6 +4,7 @@
 //! Core language implementation is in the library crate (src/lib.rs).
 
 use futuruna::*;
+use quote::ToTokens;
 use serde_json;
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -21017,43 +21018,95 @@ impl RustCodegen {
         env
     }
 
+    fn rust_syn_generic_arg_to_rust_string(arg: &syn::GenericArgument) -> Option<String> {
+        match arg {
+            syn::GenericArgument::Type(ty) => Self::rust_syn_type_to_rust_string(ty),
+            syn::GenericArgument::Lifetime(lt) => Some(lt.to_token_stream().to_string()),
+            syn::GenericArgument::Const(expr) => Some(expr.to_token_stream().to_string()),
+            syn::GenericArgument::AssocType(assoc) => Some(format!(
+                "{} = {}",
+                assoc.ident,
+                Self::rust_syn_type_to_rust_string(&assoc.ty)?
+            )),
+            syn::GenericArgument::AssocConst(assoc) => Some(format!(
+                "{} = {}",
+                assoc.ident,
+                assoc.value.to_token_stream()
+            )),
+            syn::GenericArgument::Constraint(constraint) => Some(format!(
+                "{}: {}",
+                constraint.ident,
+                Self::rust_syn_type_param_bounds_to_string(&constraint.bounds)?
+            )),
+            _ => None,
+        }
+    }
+
+    fn rust_syn_type_param_bounds_to_string(
+        bounds: &syn::punctuated::Punctuated<syn::TypeParamBound, syn::token::Plus>,
+    ) -> Option<String> {
+        let mut rendered = Vec::new();
+        for bound in bounds {
+            match bound {
+                syn::TypeParamBound::Trait(trait_bound) => {
+                    rendered.push(trait_bound.to_token_stream().to_string());
+                }
+                syn::TypeParamBound::Lifetime(lt) => {
+                    rendered.push(lt.to_token_stream().to_string());
+                }
+                _ => return None,
+            }
+        }
+        Some(rendered.join(" + "))
+    }
+
+    fn rust_syn_type_path_to_rust_string(tp: &syn::TypePath) -> Option<String> {
+        if tp.qself.is_some() {
+            return Some(tp.to_token_stream().to_string());
+        }
+
+        let mut parts = Vec::new();
+        for segment in &tp.path.segments {
+            let ident = segment.ident.to_string();
+            let piece = match &segment.arguments {
+                syn::PathArguments::None => ident,
+                syn::PathArguments::AngleBracketed(args) => {
+                    let mut inner = Vec::new();
+                    for arg in &args.args {
+                        inner.push(Self::rust_syn_generic_arg_to_rust_string(arg)?);
+                    }
+                    format!("{}<{}>", ident, inner.join(", "))
+                }
+                syn::PathArguments::Parenthesized(args) => {
+                    let inputs: Option<Vec<String>> = args
+                        .inputs
+                        .iter()
+                        .map(Self::rust_syn_type_to_rust_string)
+                        .collect();
+                    let output = match &args.output {
+                        syn::ReturnType::Default => String::new(),
+                        syn::ReturnType::Type(_, ty) => {
+                            format!(" -> {}", Self::rust_syn_type_to_rust_string(ty)?)
+                        }
+                    };
+                    format!("{}({}){}", ident, inputs?.join(", "), output)
+                }
+            };
+            parts.push(piece);
+        }
+        Some(parts.join("::"))
+    }
+
     fn rust_syn_type_to_rust_string(ty: &syn::Type) -> Option<String> {
         match ty {
-            syn::Type::Path(tp) => {
-                let mut parts = Vec::new();
-                for segment in &tp.path.segments {
-                    let ident = segment.ident.to_string();
-                    let piece = match &segment.arguments {
-                        syn::PathArguments::None => ident,
-                        syn::PathArguments::AngleBracketed(args) => {
-                            let mut inner = Vec::new();
-                            for arg in &args.args {
-                                match arg {
-                                    syn::GenericArgument::Type(ty) => {
-                                        inner.push(Self::rust_syn_type_to_rust_string(ty)?);
-                                    }
-                                    syn::GenericArgument::Lifetime(_) => {}
-                                    syn::GenericArgument::Const(expr) => match expr {
-                                        syn::Expr::Lit(syn::ExprLit {
-                                            lit: syn::Lit::Int(int_lit),
-                                            ..
-                                        }) => inner.push(int_lit.to_string()),
-                                        _ => return None,
-                                    },
-                                    _ => return None,
-                                }
-                            }
-                            format!("{}<{}>", ident, inner.join(", "))
-                        }
-                        _ => return None,
-                    };
-                    parts.push(piece);
-                }
-                Some(parts.join("::"))
-            }
+            syn::Type::Path(tp) => Self::rust_syn_type_path_to_rust_string(tp),
             syn::Type::Reference(r) => {
                 let inner = Self::rust_syn_type_to_rust_string(&r.elem)?;
                 let mut out = String::from("&");
+                if let Some(lt) = &r.lifetime {
+                    out.push_str(&lt.to_token_stream().to_string());
+                    out.push(' ');
+                }
                 if r.mutability.is_some() {
                     out.push_str("mut ");
                 }
@@ -21075,9 +21128,16 @@ impl RustCodegen {
                 Self::rust_syn_type_to_rust_string(&inner.elem)?
             )),
             syn::Type::Array(inner) => Some(format!(
-                "[{}; _]",
-                Self::rust_syn_type_to_rust_string(&inner.elem)?
+                "[{}; {}]",
+                Self::rust_syn_type_to_rust_string(&inner.elem)?,
+                inner.len.to_token_stream()
             )),
+            syn::Type::BareFn(func) => Some(func.to_token_stream().to_string()),
+            syn::Type::Ptr(ptr) => Some(ptr.to_token_stream().to_string()),
+            syn::Type::TraitObject(obj) => Some(obj.to_token_stream().to_string()),
+            syn::Type::Never(never) => Some(never.to_token_stream().to_string()),
+            syn::Type::Infer(infer) => Some(infer.to_token_stream().to_string()),
+            syn::Type::Macro(_) | syn::Type::ImplTrait(_) => None,
             _ => None,
         }
     }
@@ -29058,6 +29118,72 @@ let summary = render(verdict(7i64), 7i64);
     }
 
     #[test]
+    fn legacy_emit_program_hoists_array_returning_rust_top_level_bindings_for_free_function_reads()
+    {
+        let source = r#"
+@ rust {
+    fn make_table() -> [i64; 3] { [7, 8, 9] }
+    fn first(xs: [i64; 3]) -> i64 { xs[0] }
+}
+
+= table = make_table()
+> read_first() -> Int { first(table) }
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("table: Option<[i64; 3]>"),
+            "array-returning Rust helper should seed a concrete hidden-env field type: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn read_first(__fut_globals: &__FutGlobals) -> i64 {"),
+            "free function should accept the hidden globals env for array bindings: {}",
+            rust
+        );
+        assert!(
+            rust.contains(
+                "__fut_globals.table.clone().expect(\"top-level binding `table` not initialized\")"
+            ),
+            "free function should read the array binding through the hidden globals env: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_hoists_lifetime_generic_rust_top_level_bindings_for_free_function_reads()
+    {
+        let source = r#"
+@ rust {
+    use std::borrow::Cow;
+
+    fn label() -> Cow<'static, str> {
+        Cow::Borrowed("mint")
+    }
+
+    fn label_len(value: Cow<'static, str>) -> i64 {
+        value.len() as i64
+    }
+}
+
+= label_text = label()
+> read_len() -> Int { label_len(label_text) }
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("label_text: Option<Cow<'static, str>>"),
+            "lifetime-generic Rust return types should preserve their full hidden-env field type: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn read_len(__fut_globals: &__FutGlobals) -> i64 {"),
+            "free function should accept the hidden globals env for lifetime-generic bindings: {}",
+            rust
+        );
+    }
+
+    #[test]
     fn compiled_top_level_bindings_are_evaluated_once_even_when_free_functions_read_them() {
         let output = compile_and_run_test_program(
             r#"
@@ -29087,6 +29213,48 @@ let summary = render(verdict(7i64), 7i64);
             output.lines().collect::<Vec<_>>(),
             vec!["1", "1", "1"],
             "top-level binding should be evaluated exactly once even when main and a free function both observe it"
+        );
+    }
+
+    #[test]
+    fn compiled_function_pointer_top_level_bindings_are_evaluated_once() {
+        let output = compile_and_run_test_program(
+            r#"
+@ rust {
+    use std::sync::atomic::{AtomicI64, Ordering};
+
+    static CALLS: AtomicI64 = AtomicI64::new(0);
+
+    fn plus1(x: i64) -> i64 {
+        x + 1
+    }
+
+    fn pick_cb() -> fn(i64) -> i64 {
+        CALLS.fetch_add(1, Ordering::SeqCst);
+        plus1
+    }
+
+    fn apply_cb(cb: fn(i64) -> i64, x: i64) -> i64 {
+        cb(x)
+    }
+
+    fn calls() -> i64 {
+        CALLS.load(Ordering::SeqCst)
+    }
+}
+
+= cb = pick_cb()
+> read_answer() -> Int { apply_cb(cb, 1) }
+@ print(show(apply_cb(cb, 1)))
+@ print(show(read_answer()))
+@ print(show(calls()))
+"#,
+        );
+
+        assert_eq!(
+            output.lines().collect::<Vec<_>>(),
+            vec!["2", "2", "1"],
+            "function-pointer top-level binding should stay on the single-eval hidden-env path"
         );
     }
 
