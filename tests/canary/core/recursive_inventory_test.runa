@@ -1,0 +1,58 @@
+-- Authored core canary: recursive stock planning over ADTs, top-level bindings,
+-- maps, and sets.
+
+= reorder_point = 3
+
+# Bin = Item(name: String, qty: Int, tag: String) | Section(label: String, left: Bin, right: Bin)
+
+> total_qty(bin: Bin) -> Int {
+    match bin {
+        | Item(_, qty, _) -> qty
+        | Section(_, left, right) -> total_qty(left) + total_qty(right)
+    }
+}
+
+> stock_map(bin: Bin) -> Map(String, Int) {
+    match bin {
+        | Item(name, qty, _) -> map_insert(map_new(), name, qty)
+        | Section(_, left, right) -> map_merge(stock_map(left), stock_map(right))
+    }
+}
+
+> low_names(bin: Bin) -> List(String) {
+    match bin {
+        | Item(name, qty, _) -> if qty <= reorder_point { [name] } else { [] }
+        | Section(_, left, right) -> concat(low_names(left), low_names(right))
+    }
+}
+
+> all_tags(bin: Bin) -> List(String) {
+    match bin {
+        | Item(_, _, tag) -> [tag]
+        | Section(_, left, right) -> concat(all_tags(left), all_tags(right))
+    }
+}
+
+= warehouse = Section("root", Section("packing", Item("labels", 5, "paper"), Item("cables", 2, "hardware")), Section("printing", Item("ink", 4, "liquid"), Item("labeler", 1, "hardware")))
+
+= stock = stock_map(warehouse)
+= low = sort(low_names(warehouse))
+= tags = set_from_list(all_tags(warehouse))
+= names = sort(map_keys(stock))
+
+= total_ok = total_qty(warehouse) == 12
+? total_ok
+
+= stock_map_ok = map_len(stock) == 4 && map_get_or(stock, "cables", 0) == 2 && map_get_or(stock, "ink", 0) == 4
+? stock_map_ok
+
+= low_ok = low == ["cables", "labeler"]
+? low_ok
+
+= tags_ok = set_len(tags) == 3 && set_contains(tags, "hardware") && not(set_contains(tags, "fragile"))
+? tags_ok
+
+= names_ok = names == ["cables", "ink", "labeler", "labels"]
+? names_ok
+
+@ print("canary recursive inventory passed")

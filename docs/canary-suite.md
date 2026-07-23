@@ -31,24 +31,45 @@ downstream codebases as fixtures. The goal is to keep the suite:
 - giant downstream applications owned by another repository
 - random external ports with unclear maintenance value
 
-## Recommended shape
+## Tier Layout
 
-Each canary should stress more than one area at once, for example:
+- `tests/canary/core/`
+The blocking authored lane. These canaries should stay green in interpreter,
+compiled, codegen, and roundtrip execution.
 
-- lists + maps + sets
-- streams + windows + reductions
-- subjects + stream operators + collection projection
-- ownership-sensitive list or string transforms in realistic pipelines
+- `tests/canary/stateful/`
+Subjects, actors, lifecycle, and richer effectful workflows. Some of these may
+roundtrip-skip selectively, but they are still required to pass interpreted and
+compiled execution.
+
+- `tests/canary/extended/`
+Heavier authored programs for JSON, DB, HTTP, WASM, regex, or import-heavy
+flows.
+
+- `tests/canary/regressions/`
+Broader authored workflows distilled from user bug classes.
+
+See [docs/canary-matrix.md](canary-matrix.md) for the current coverage map and
+the planned build-out.
 
 ## Current contract
 
-`./scripts/canary.sh` runs:
+`./scripts/canary.sh` runs every non-empty tier by default. It also accepts
+explicit targets, for example:
 
 ```bash
-./target/release/runa fmt --check tests/canary
-./target/release/runa test --run tests/canary
-./target/release/runa test --check-codegen tests/canary
-./target/release/runa test --roundtrip tests/canary
+./scripts/canary.sh core
+./scripts/canary.sh core stateful
+./scripts/canary.sh tests/canary/regressions
+```
+
+For each selected tier it runs:
+
+```bash
+./target/release/runa fmt --check <tier>
+./target/release/runa test --run <tier>
+./target/release/runa test --check-codegen <tier>
+./target/release/runa test --roundtrip <tier>
 ```
 
 The roundtrip lane will naturally skip canaries that use constructs the generic

@@ -1,0 +1,40 @@
+-- Authored core canary: rebinding-heavy loops over lists and stream projections.
+
+= i = 0
+= current = 2
+= step = 3
+= seq = [current]
+
+while i < 4 {
+    = current = current + step
+    = seq = concat(seq, [current])
+    = step = step + 1
+    = i = i + 1
+}
+
+= weighted = 0
+= index = 1
+for value in seq {
+    = weighted = weighted + value * index
+    = index = index + 1
+}
+
+= deltas = collect(from_list(seq) |> pairwise |> map(|p| snd(p) - fst(p)))
+= even_terms = filter(seq, |n| n % 2 == 0)
+
+= seq_ok = seq == [2, 5, 9, 14, 20]
+? seq_ok
+
+= weighted_ok = weighted == 195
+? weighted_ok
+
+= deltas_ok = deltas == [3, 4, 5, 6]
+? deltas_ok
+
+= even_terms_ok = even_terms == [2, 14, 20]
+? even_terms_ok
+
+= sum_ok = sum_list(seq) == 50
+? sum_ok
+
+@ print("canary loop rebind pipeline passed")

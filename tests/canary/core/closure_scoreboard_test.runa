@@ -1,0 +1,31 @@
+-- Authored core canary: tuple-rich leaderboard with closures, map folding, and partitioning.
+
+= round_bonus = 2
+= promotion_cutoff = 8
+= rounds = [("alfa", 3), ("beta", 1), ("alfa", 4), ("gamma", 2), ("beta", 5), ("gamma", 1)]
+
+= boosted_rounds = map(rounds, |entry| (fst(entry), snd(entry) + round_bonus))
+= empty_scores: Map(String, Int) = map_new()
+= scores = foldl(boosted_rounds, empty_scores, |scores, event| map_insert(scores, fst(event), map_get_or(scores, fst(event), 0) + snd(event)))
+= ranking = sort_by(map_entries(scores), |p| 0 - snd(p))
+= promoted_entries = filter(map_entries(scores), |p| snd(p) >= promotion_cutoff)
+= promoted_names = sort(map(promoted_entries, |p| fst(p)))
+= remainder_entries = filter(map_entries(scores), |p| snd(p) < promotion_cutoff)
+= top = head(ranking)
+
+= scores_ok = map_get_or(scores, "alfa", 0) == 11 && map_get_or(scores, "beta", 0) == 10 && map_get_or(scores, "gamma", 0) == 7
+? scores_ok
+
+= ranking_ok = fst(top) == "alfa" && snd(top) == 11
+? ranking_ok
+
+= promoted_ok = promoted_names == ["alfa", "beta"]
+? promoted_ok
+
+= split_ok = length(promoted_entries) == 2 && length(remainder_entries) == 1
+? split_ok
+
+= order_ok = map(ranking, |p| fst(p)) == ["alfa", "beta", "gamma"]
+? order_ok
+
+@ print("canary closure scoreboard passed")
