@@ -3,10 +3,6 @@
 
 # Mark = Cold | Hot(Int)
 
-> needs_beta_or_omicron(w: String) -> Bool {
-    starts_with(w, "b") || starts_with(w, "o")
-}
-
 = words = ["beta", "alpha", "beta", "gamma", "alpha"]
 = ordered_words = set_to_list(set_from_list(words))
 | set_words_order_ok: ordered_words -> show(ordered_words) == "[alpha, beta, gamma]"
@@ -26,7 +22,7 @@
 ? diff_order_ok
 
 = items = ["zeta", "beta", "alpha", "beta", "omicron"]
-= parts = partition(items, needs_beta_or_omicron)
+= parts = partition(items, |w| starts_with(w, "b") || starts_with(w, "o"))
 | partition_keeps_yes_order: parts -> show(fst(parts)) == "[beta, beta, omicron]"
 ? partition_keeps_yes_order
 

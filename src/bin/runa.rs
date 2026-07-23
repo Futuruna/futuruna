@@ -21390,9 +21390,9 @@ impl RustCodegen {
                     if let Some(fused) = self.try_emit_fused_chain(name, args) {
                         return fused;
                     }
-                    // Inline lambda into filter/map to avoid double-lambda type inference failure
-                    // Inline lambda into filter/map to avoid double-lambda type inference failure
-                    if (name == "filter" || name == "map")
+                    // Inline lambda into filter/map/partition to avoid nested-lambda
+                    // type inference failures in Rust codegen.
+                    if (name == "filter" || name == "map" || name == "partition")
                         && args.len() == 2
                         && !self.types.user_functions.contains(name.as_str())
                     {
@@ -21470,6 +21470,11 @@ impl RustCodegen {
                             if name == "filter" {
                                 return format!("{}.clone().into_iter().filter(|{}| {{ {} let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
                                     coll, param, clone_prefix, param, param, body_code);
+                            } else if name == "partition" {
+                                return format!(
+                                    "{{ let (__yes, __no): (Vec<_>, Vec<_>) = {}.clone().into_iter().partition(|{}| {{ {} let {} = {}.clone(); {} }}); (__yes, __no) }}",
+                                    coll, param, clone_prefix, param, param, body_code
+                                );
                             } else {
                                 if clone_prefix.is_empty() {
                                     return format!(
@@ -26305,6 +26310,19 @@ mod tests {
 
         let output = compile_and_run_test_program(source);
         assert_eq!(output, "[2]\n[2]\n");
+    }
+
+    #[test]
+    fn compiled_inline_partition_lambda_infers_string_param_type() {
+        let source = r#"
+= items = ["zeta", "beta", "alpha", "beta", "omicron"]
+= parts = partition(items, |w| starts_with(w, "b") || starts_with(w, "o"))
+@ print(show(fst(parts)))
+@ print(show(snd(parts)))
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output, "[beta, beta, omicron]\n[zeta, alpha]\n");
     }
 
     #[test]
