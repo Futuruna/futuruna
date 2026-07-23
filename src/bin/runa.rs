@@ -13599,6 +13599,7 @@ impl RustCodegen {
     /// Populates TypeRegistry, exported_names, effect tracking, async flags.
     fn scan_declarations(&mut self, stmts: &[Stmt]) -> Vec<Stmt> {
         // Resolve @ import statements: parse imported .runa files and merge their definitions
+        self.types.module_exports.clear();
         let mut all_stmts: Vec<Stmt> = Vec::new();
         for stmt in stmts {
             match stmt {
@@ -15454,13 +15455,8 @@ impl RustCodegen {
             if !emit_all && !self.lib_static_names.contains(name.as_str()) {
                 continue;
             }
-            let is_public_name =
-                public_names.map_or(true, |names| names.contains(name.as_str()));
-            let pub_prefix = if public && is_public_name {
-                "pub "
-            } else {
-                ""
-            };
+            let is_public_name = public_names.map_or(true, |names| names.contains(name.as_str()));
+            let pub_prefix = if public && is_public_name { "pub " } else { "" };
             let rust_ty = self
                 .types
                 .comptime_types
@@ -15487,11 +15483,7 @@ impl RustCodegen {
                 }
                 let is_public_name =
                     public_names.map_or(true, |names| names.contains(name.as_str()));
-                let pub_prefix = if public && is_public_name {
-                    "pub "
-                } else {
-                    ""
-                };
+                let pub_prefix = if public && is_public_name { "pub " } else { "" };
                 let body = self.emit_expr(expr);
                 let sname = sanitize_name(name);
                 let ret_ty = self.infer_top_level_binding_getter_type_with_env(
@@ -18392,6 +18384,12 @@ impl RustCodegen {
                         ..
                     }) = stmt
                     {
+                        if module_exports
+                            .as_ref()
+                            .map_or(false, |exports| !exports.contains(ty_name.as_str()))
+                        {
+                            continue;
+                        }
                         if variants.len() > 1
                             || (variants.len() == 1 && variants[0].name != *ty_name)
                         {
@@ -26306,6 +26304,87 @@ let summary = render(verdict(7i64), 7i64);
         compile_and_run_test_source(&source, Some(path.to_str().expect("utf-8 test path")))
     }
 
+    fn compile_test_source_expect_rust_failure(
+        source: &str,
+        filename: Option<&str>,
+        expected_substrings: &[&str],
+    ) {
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+
+        let diags =
+            TypeChecker::check_with_diagnostics(&stmts, filename.and_then(source_dir_for), source);
+        assert!(
+            diags.is_empty(),
+            "typecheck failed for compiled privacy regression: {:?}",
+            diags
+        );
+
+        let mut cg = RustCodegen::new();
+        if let Some(filename) = filename {
+            cg.source_dir = source_dir_for(filename);
+            cg.source_name = Some(filename.to_string());
+        }
+        let code = cg.emit_program(&stmts);
+
+        let temp_name = format!(
+            "futuruna_compiled_failure_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let rs_path = temp_dir.join("wrapper_failure.rs");
+        let bin_path = temp_dir.join("wrapper_failure_bin");
+        std::fs::write(&rs_path, &code).unwrap();
+
+        let rustc_bin = find_rust_tool("rustc");
+        let compile = std::process::Command::new(&rustc_bin)
+            .args([
+                rs_path.to_str().unwrap(),
+                "-o",
+                bin_path.to_str().unwrap(),
+                "--edition",
+                "2021",
+            ])
+            .output()
+            .unwrap();
+
+        let stderr = String::from_utf8_lossy(&compile.stderr).to_string();
+        assert!(
+            !compile.status.success(),
+            "generated Rust unexpectedly compiled:\nstderr:\n{}\ncode:\n{}",
+            stderr,
+            code
+        );
+        for expected in expected_substrings {
+            assert!(
+                stderr.contains(expected),
+                "expected rustc failure to mention {:?}, stderr:\n{}\ncode:\n{}",
+                expected,
+                stderr,
+                code
+            );
+        }
+
+        let _ = std::fs::remove_file(&rs_path);
+        let _ = std::fs::remove_file(&bin_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    fn compile_test_file_expect_rust_failure(path: &std::path::Path, expected_substrings: &[&str]) {
+        let source = std::fs::read_to_string(path).expect("read test file");
+        compile_test_source_expect_rust_failure(
+            &source,
+            Some(path.to_str().expect("utf-8 test path")),
+            expected_substrings,
+        )
+    }
+
     #[test]
     fn type_resolution_int_literal() {
         let fir = lower_with_types("= x = 42", BTreeMap::new());
@@ -27113,6 +27192,101 @@ let summary = render(verdict(7i64), 7i64);
 
         let output = compile_and_run_test_file(&main_path);
         assert_eq!(output, "7\n7\n");
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_import_exported_functions_can_use_private_bindings() {
+        let temp_name = format!(
+            "futuruna_import_private_binding_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(
+            &dep_path,
+            "= secret = 9\n@ export\n> read_secret() -> Int { secret }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &main_path,
+            "@ import Config from ./dep\n@ print(show(Config.read_secret()))\n",
+        )
+        .unwrap();
+
+        let output = compile_and_run_test_file(&main_path);
+        assert_eq!(output.trim(), "9");
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_import_rejects_private_function_access() {
+        let temp_name = format!(
+            "futuruna_import_private_function_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(&dep_path, "> hidden() -> Int { 9 }\n").unwrap();
+        std::fs::write(
+            &main_path,
+            "@ import Config from ./dep\n@ print(show(Config.hidden()))\n",
+        )
+        .unwrap();
+
+        compile_test_file_expect_rust_failure(&main_path, &["private", "hidden"]);
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_import_rejects_private_top_level_binding_access() {
+        let temp_name = format!(
+            "futuruna_import_private_value_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(&dep_path, "= secret = 9\n").unwrap();
+        std::fs::write(
+            &main_path,
+            "@ import Config from ./dep\n@ print(show(Config.secret))\n",
+        )
+        .unwrap();
+
+        compile_test_file_expect_rust_failure(&main_path, &["private", "secret"]);
 
         let _ = std::fs::remove_file(&dep_path);
         let _ = std::fs::remove_file(&main_path);
