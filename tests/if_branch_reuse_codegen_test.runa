@@ -1,0 +1,16 @@
+> suffix_or_self(text: String) -> String {
+    = suffix = if string_length(text) > 3 {
+        substring(text, 1, 3)
+    } else {
+        text
+    }
+    suffix + ":" + text
+}
+
+= short_ok = suffix_or_self("cat") == "cat:cat"
+? short_ok
+
+= long_ok = suffix_or_self("futuruna") == "utu:futuruna"
+? long_ok
+
+@ print("if branch reuse codegen passed")

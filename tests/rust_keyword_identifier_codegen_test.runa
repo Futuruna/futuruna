@@ -1,0 +1,11 @@
+= final = 41
+= try = final + 1
+
+> read_final() -> Int {
+    final
+}
+
+= keyword_identifier_ok = read_final() == 41 && try == 42
+? keyword_identifier_ok
+
+@ print("rust keyword identifier codegen passed")

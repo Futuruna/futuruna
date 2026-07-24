@@ -1,0 +1,22 @@
+= scores = map_new()
+= scores = map_insert(scores, "fire", 0)
+= before = map_get_or(scores, "fire", 0)
+= scores = map_insert(scores, "fire", before + 1)
+= scores = map_insert(scores, "fire", map_get_or(scores, "fire", 0) + 1)
+= scores = map_insert(scores, "water", 5)
+
+# Word(form: String, meaning: String)
+
+> usage_score(w: Word) -> Int {
+    map_get_or(scores, w.form, 0)
+}
+
+= words = [Word("fire", "fire"), Word("water", "water"), Word("wind", "wind")]
+= sorted = sort_by(words, usage_score)
+= ordered = join(map(sorted, |w| w.form), ",")
+= water_score = usage_score(Word("water", "water"))
+
+= rebind_visible_to_free_function = water_score == 5 && ordered == "wind,fire,water"
+? rebind_visible_to_free_function
+
+@ print("top-level rebind codegen passed")

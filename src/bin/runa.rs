@@ -10638,6 +10638,11 @@ struct RustCodegen {
     /// Inferred map variable value types: var_name -> "String" or "i64" etc.
     /// Populated by pre-scanning for map_insert calls.
     map_var_value_types: BTreeMap<String, String>,
+    /// Bindings whose RHS is a bare empty list (`= xs = []`).
+    /// Used to recover contextual element types from later typed function calls.
+    empty_list_bindings: BTreeSet<String>,
+    /// Contextual Rust types for bare empty-list bindings, e.g. xs -> Vec<CouplingPair>.
+    empty_list_var_types: BTreeMap<String, String>,
 }
 
 /// Per-function ownership analysis results.
@@ -14473,6 +14478,8 @@ impl RustCodegen {
             async_stream_counter: 0,
             source_name: None,
             map_var_value_types: BTreeMap::new(),
+            empty_list_bindings: BTreeSet::new(),
+            empty_list_var_types: BTreeMap::new(),
         }
     }
 
@@ -16465,23 +16472,291 @@ impl RustCodegen {
     /// Pre-scan statements to detect map variable value types from map_insert calls.
     fn prescan_map_types(&mut self, stmts: &[Stmt]) {
         for stmt in stmts {
-            // Look for: = var = map_insert(var, key, value)
-            if let Stmt::Bind(Pat::Var(var_name), _, value) = stmt {
-                if let ExprKind::App(func, args) = &value.kind {
-                    if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                        if fn_name == "map_insert" && args.len() == 3 {
-                            // Determine value type from the 3rd arg
-                            let val_type = if self.expr_is_string(&args[2]) {
-                                "String"
-                            } else {
-                                "i64"
-                            };
-                            self.map_var_value_types
-                                .insert(var_name.clone(), val_type.to_string());
-                        }
+            self.prescan_map_types_stmt(stmt);
+        }
+    }
+
+    fn prescan_map_types_stmt(&mut self, stmt: &Stmt) {
+        match stmt {
+            Stmt::Bind(Pat::Var(var_name), _, value) => {
+                if matches!(value.kind, ExprKind::List(ref elems) if elems.is_empty()) {
+                    self.empty_list_bindings.insert(var_name.clone());
+                }
+                self.prescan_map_binding(var_name, value);
+                self.prescan_map_types_expr(value);
+            }
+            Stmt::Bind(_, _, value) | Stmt::MonadicBind(_, _, value) | Stmt::Expr(value) => {
+                self.prescan_map_types_expr(value);
+            }
+            Stmt::Defn(defn) => self.prescan_map_types_defn(defn),
+            Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
+                self.prescan_map_types_expr(condition);
+            }
+            Stmt::TypeDecl(TypeDecl::ADT { methods, .. }) => {
+                for method in methods {
+                    self.prescan_map_types_defn(method);
+                }
+            }
+            Stmt::TypeDecl(TypeDecl::TraitDecl { methods, .. }) => {
+                for method in methods {
+                    if let Some(default_body) = &method.default_body {
+                        self.prescan_map_types_expr(default_body);
                     }
                 }
             }
+            Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                for method in methods {
+                    self.prescan_map_types_defn(method);
+                }
+            }
+            Stmt::Rule(rule) => self.prescan_map_types_rule(rule),
+            Stmt::For(_, iter, body) => {
+                self.prescan_map_types_expr(iter);
+                self.prescan_map_types(body);
+            }
+            Stmt::While(cond, body) => {
+                self.prescan_map_types_expr(cond);
+                self.prescan_map_types(body);
+            }
+            Stmt::Send(target, msg) => {
+                self.prescan_map_types_expr(target);
+                self.prescan_map_types_expr(msg);
+            }
+            Stmt::StreamBind(_, value) => self.prescan_map_types_expr(value),
+            Stmt::StreamSub(stream, arms) => {
+                self.prescan_map_types_expr(stream);
+                self.prescan_map_types_arms(arms);
+            }
+            Stmt::Invariant {
+                subject, predicate, ..
+            } => {
+                self.prescan_map_types_expr(subject);
+                self.prescan_map_types_expr(predicate);
+            }
+            Stmt::Prove {
+                pass_block,
+                else_block,
+                ..
+            } => {
+                if let Some(block) = pass_block {
+                    self.prescan_map_types(block);
+                }
+                if let Some(block) = else_block {
+                    self.prescan_map_types(block);
+                }
+            }
+            Stmt::Assert(_, args) | Stmt::Retract(_, args) | Stmt::Annot(_, args) => {
+                for arg in args {
+                    self.prescan_map_types_expr(arg);
+                }
+            }
+            Stmt::Use(_)
+            | Stmt::Import(_)
+            | Stmt::QualifiedImport(_, _)
+            | Stmt::HashImport(_, _)
+            | Stmt::Depend(_, _)
+            | Stmt::RustBlock(_)
+            | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+            | Stmt::Abort => {}
+        }
+    }
+
+    fn prescan_map_binding(&mut self, var_name: &str, value: &Expr) {
+        // Look for: = var = map_insert(var, key, value)
+        if let ExprKind::App(func, args) = &value.kind {
+            if let ExprKind::Var(fn_name) = &func.as_ref().kind {
+                if fn_name == "map_insert" && args.len() == 3 {
+                    // Determine value type from the 3rd arg
+                    let val_type = self.infer_map_insert_value_rust_type(&args[2]);
+                    self.map_var_value_types
+                        .insert(var_name.to_string(), val_type);
+                }
+            }
+        }
+    }
+
+    fn prescan_map_types_defn(&mut self, defn: &Defn) {
+        match defn {
+            Defn::Fn { body, .. } => self.prescan_map_types_expr(body),
+            Defn::Actor { handlers, .. } => {
+                for handler in handlers {
+                    self.prescan_map_types_expr(&handler.body);
+                }
+            }
+            Defn::Module { body, .. } => self.prescan_map_types(body),
+        }
+    }
+
+    fn prescan_map_types_rule(&mut self, rule: &Rule) {
+        match rule {
+            Rule::Clause { head, body } => {
+                self.prescan_map_types_expr(head);
+                if let Some(body) = body {
+                    self.prescan_map_types_expr(body);
+                }
+            }
+            Rule::Default {
+                head,
+                value,
+                condition,
+            }
+            | Rule::Exception {
+                head,
+                value,
+                condition,
+                ..
+            } => {
+                self.prescan_map_types_expr(head);
+                self.prescan_map_types_expr(value);
+                if let Some(condition) = condition {
+                    self.prescan_map_types_expr(condition);
+                }
+            }
+            Rule::Scope { body, .. } => self.prescan_map_types(body),
+        }
+    }
+
+    fn prescan_map_types_arms(&mut self, arms: &[MatchArm]) {
+        for arm in arms {
+            if let Some(guard) = &arm.guard {
+                self.prescan_map_types_expr(guard);
+            }
+            self.prescan_map_types_expr(&arm.body);
+        }
+    }
+
+    fn prescan_map_types_expr(&mut self, expr: &Expr) {
+        match &expr.kind {
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+            ExprKind::App(func, args) => {
+                self.prescan_empty_list_arg_types(func, args);
+                self.prescan_map_types_expr(func);
+                for arg in args {
+                    self.prescan_map_types_expr(arg);
+                }
+            }
+            ExprKind::Lambda(_, body) | ExprKind::UnOp(_, body) | ExprKind::Try(body) => {
+                self.prescan_map_types_expr(body);
+            }
+            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Index(lhs, rhs) | ExprKind::Pipe(lhs, rhs) => {
+                self.prescan_map_types_expr(lhs);
+                self.prescan_map_types_expr(rhs);
+            }
+            ExprKind::If(cond, then_expr, else_expr) => {
+                self.prescan_map_types_expr(cond);
+                self.prescan_map_types_expr(then_expr);
+                self.prescan_map_types_expr(else_expr);
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                self.prescan_map_types_expr(scrutinee);
+                self.prescan_map_types_arms(arms);
+            }
+            ExprKind::Block(stmts) => self.prescan_map_types(stmts),
+            ExprKind::Field(base, _) => self.prescan_map_types_expr(base),
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Effect(_, items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => {
+                for item in items {
+                    self.prescan_map_types_expr(item);
+                }
+            }
+            ExprKind::Handle { handlers, body, .. } => {
+                self.prescan_map_types_expr(body);
+                for handler in handlers {
+                    self.prescan_map_types_expr(&handler.body);
+                }
+            }
+        }
+    }
+
+    fn prescan_empty_list_arg_types(&mut self, func: &Expr, args: &[Expr]) {
+        let Some(fn_name) = Self::callable_name(func) else {
+            return;
+        };
+        for (idx, arg) in args.iter().enumerate() {
+            let ExprKind::Var(var_name) = &arg.kind else {
+                continue;
+            };
+            if !self.empty_list_bindings.contains(var_name.as_str()) {
+                continue;
+            }
+            let Some(param_ty) = self.function_param_fir_ty(&fn_name, idx) else {
+                continue;
+            };
+            if !matches!(param_ty, FirTy::List(_)) {
+                continue;
+            }
+            if let Some(rust_ty) = Self::fir_type_to_rust(&param_ty) {
+                self.empty_list_var_types.insert(var_name.clone(), rust_ty);
+            }
+        }
+    }
+
+    fn callable_name(func: &Expr) -> Option<String> {
+        match &func.kind {
+            ExprKind::Var(name) => Some(name.clone()),
+            ExprKind::Field(_, name) => Some(name.clone()),
+            _ => None,
+        }
+    }
+
+    fn function_param_fir_ty(&self, fn_name: &str, idx: usize) -> Option<FirTy> {
+        let mut ty = self.types.fn_types.get(fn_name)?;
+        for current_idx in 0..=idx {
+            let FirTy::Arrow(param, ret) = ty else {
+                return None;
+            };
+            if current_idx == idx {
+                return Some((**param).clone());
+            }
+            ty = ret.as_ref();
+        }
+        None
+    }
+
+    fn infer_map_insert_value_rust_type(&self, expr: &Expr) -> String {
+        match &expr.kind {
+            ExprKind::Lit(Literal::Str(_)) => "String".to_string(),
+            ExprKind::Lit(Literal::Float(_)) => "f64".to_string(),
+            ExprKind::Lit(Literal::Bool(_)) => "bool".to_string(),
+            ExprKind::List(elems) => {
+                if let Some(first) = elems.first() {
+                    match &first.kind {
+                        ExprKind::Lit(Literal::Str(_)) => "Vec<String>".to_string(),
+                        ExprKind::Lit(Literal::Float(_)) => "Vec<f64>".to_string(),
+                        ExprKind::Lit(Literal::Bool(_)) => "Vec<bool>".to_string(),
+                        ExprKind::Var(ctor) => self
+                            .types
+                            .variant_parent
+                            .get(ctor.as_str())
+                            .map(|parent| format!("Vec<{}>", parent))
+                            .unwrap_or_else(|| "Vec<i64>".to_string()),
+                        ExprKind::App(func, _) => {
+                            if let ExprKind::Var(ctor) = &func.as_ref().kind {
+                                self.types
+                                    .variant_parent
+                                    .get(ctor.as_str())
+                                    .map(|parent| format!("Vec<{}>", parent))
+                                    .or_else(|| {
+                                        self.fn_return_types
+                                            .get(ctor.as_str())
+                                            .map(|ret| format!("Vec<{}>", ret))
+                                    })
+                                    .unwrap_or_else(|| "Vec<i64>".to_string())
+                            } else {
+                                "Vec<i64>".to_string()
+                            }
+                        }
+                        _ => "Vec<i64>".to_string(),
+                    }
+                } else {
+                    "Vec<i64>".to_string()
+                }
+            }
+            _ if self.expr_is_string(expr) => "String".to_string(),
+            _ => "i64".to_string(),
         }
     }
 
@@ -17811,11 +18086,15 @@ impl RustCodegen {
             {
                 continue;
             }
-            let rust_ty = self.infer_top_level_binding_getter_type_with_env(
-                &top_level_type_env,
-                ty_ann.as_ref(),
-                expr,
-            );
+            let rust_ty = self
+                .infer_rebound_map_binding_rust_type(name, expr)
+                .unwrap_or_else(|| {
+                    self.infer_top_level_binding_getter_type_with_env(
+                        &top_level_type_env,
+                        ty_ann.as_ref(),
+                        expr,
+                    )
+                });
             top_level_type_env.insert(name.clone(), Self::rust_type_to_fir(&rust_ty));
             if rust_ty != "impl Clone" {
                 binding_types.insert(name.clone(), rust_ty);
@@ -17823,6 +18102,24 @@ impl RustCodegen {
         }
 
         binding_types
+    }
+
+    fn infer_rebound_map_binding_rust_type(&self, name: &str, expr: &Expr) -> Option<String> {
+        let ExprKind::App(func, _) = &expr.kind else {
+            return None;
+        };
+        let ExprKind::Var(fn_name) = &func.as_ref().kind else {
+            return None;
+        };
+        if !matches!(builtin_canonical(fn_name), "map_new" | "map_insert") {
+            return None;
+        }
+        let val_type = self
+            .map_var_value_types
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| "i64".to_string());
+        Some(format!("BTreeMap<String, {}>", val_type))
     }
 
     fn emit_binary_global_env_struct(&self) -> String {
@@ -17860,10 +18157,21 @@ impl RustCodegen {
         } else {
             format!("{}, {}", env_arg, params.join(", "))
         };
-        if params.is_empty() {
-            format!("move || {}({})", rust_name, call_args)
+        let move_prefix = if self.binary_global_value_refs_in_scope {
+            "move "
         } else {
-            format!("move |{}| {}({})", params.join(", "), rust_name, call_args)
+            ""
+        };
+        if params.is_empty() {
+            format!("{}|| {}({})", move_prefix, rust_name, call_args)
+        } else {
+            format!(
+                "{}|{}| {}({})",
+                move_prefix,
+                params.join(", "),
+                rust_name,
+                call_args
+            )
         }
     }
 
@@ -17998,7 +18306,7 @@ impl RustCodegen {
                 let mut free = BTreeSet::new();
                 collect_true_free_vars(body, &mut free, &bound);
                 for name in free {
-                    if top_level_names.contains(&name) && bind_counts.get(&name) == Some(&1) {
+                    if top_level_names.contains(&name) {
                         getter_names.insert(name);
                     }
                 }
@@ -18016,10 +18324,7 @@ impl RustCodegen {
                 let mut free = BTreeSet::new();
                 collect_true_free_vars(expr, &mut free, &BTreeSet::new());
                 for name in free {
-                    if top_level_names.contains(&name)
-                        && bind_counts.get(&name) == Some(&1)
-                        && getter_names.insert(name)
-                    {
+                    if top_level_names.contains(&name) && getter_names.insert(name) {
                         changed = true;
                     }
                 }
@@ -21515,7 +21820,10 @@ impl RustCodegen {
                 } else {
                     match &value.kind {
                         ExprKind::Var(name) if name == "None" => ": Option<i64>".to_string(),
-                        ExprKind::List(elems) if elems.is_empty() => ": Vec<i64>".to_string(),
+                        ExprKind::List(elems) if elems.is_empty() => self
+                            .empty_list_binding_rust_type(pat, value)
+                            .map(|rust_ty| format!(": {}", rust_ty))
+                            .unwrap_or_else(|| ": Vec<i64>".to_string()),
                         ExprKind::App(func, _) => {
                             if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                                 match builtin_canonical(fn_name) {
@@ -23763,8 +24071,24 @@ impl RustCodegen {
     }
 
     fn remember_binding_type(&mut self, pat: &Pat, value: &Expr) {
+        if let Some(rust_ty) = self.empty_list_binding_rust_type(pat, value) {
+            if let Pat::Var(name) = pat {
+                self.remember_var_type(name, &Self::rust_type_to_fir(&rust_ty));
+                return;
+            }
+        }
         let ty = self.infer_expr_fir_ty(value);
         self.remember_pat_type(pat, &ty);
+    }
+
+    fn empty_list_binding_rust_type(&self, pat: &Pat, value: &Expr) -> Option<String> {
+        if !matches!(value.kind, ExprKind::List(ref elems) if elems.is_empty()) {
+            return None;
+        }
+        let Pat::Var(name) = pat else {
+            return None;
+        };
+        self.empty_list_var_types.get(name).cloned()
     }
 
     fn remember_monadic_binding_type(&mut self, pat: &Pat, ty: Option<&Ty>, value: &Expr) {
@@ -25908,15 +26232,20 @@ impl RustCodegen {
                         FirTy::Int => false,
                         _ => self.expr_is_float(lhs) || self.expr_is_float(rhs),
                     };
+                    let l_for_op = if l.trim_start().starts_with('{') {
+                        format!("({})", l)
+                    } else {
+                        l.clone()
+                    };
                     if is_float {
                         return format!(
                             "{{ let __d = {}; if __d == 0.0 {{ 0.0 }} else {{ {} {} __d }} }}",
-                            r, l, rust_op
+                            r, l_for_op, rust_op
                         );
                     } else {
                         return format!(
                             "{{ let __d = {}; if __d == 0 {{ 0 }} else {{ {} {} __d }} }}",
-                            r, l, rust_op
+                            r, l_for_op, rust_op
                         );
                     }
                 }
@@ -27627,15 +27956,35 @@ impl RustCodegen {
 
     /// Emit an if/else branch: unwrap single-expression blocks to avoid double braces
     fn emit_if_branch(&mut self, expr: &Expr) -> String {
+        if let ExprKind::Var(name) = &expr.kind {
+            if self.if_branch_var_needs_clone(name) {
+                return format!("{}.clone()", sanitize_name(name));
+            }
+        }
         match &expr.kind {
             ExprKind::Block(stmts) if stmts.len() == 1 => {
                 if let Stmt::Expr(inner) = &stmts[0] {
+                    if let ExprKind::Var(name) = &inner.kind {
+                        if self.if_branch_var_needs_clone(name) {
+                            return format!("{}.clone()", sanitize_name(name));
+                        }
+                    }
                     return self.emit_expr(inner);
                 }
                 self.emit_expr(expr)
             }
             _ => self.emit_expr(expr),
         }
+    }
+
+    fn if_branch_var_needs_clone(&self, name: &str) -> bool {
+        !self.copy_vars.contains(name)
+            && !self.types.known_modules.contains(name)
+            && !self.types.user_functions.contains(name)
+            && !self.types.prolog_rule_fns.contains_key(name)
+            && !self.types.variant_parent.contains_key(name)
+            && !self.builtin_registry.contains_key(name)
+            && self.var_use_counts.get(name).copied().unwrap_or(0) > 1
     }
 
     fn emit_block_body_lines(&mut self, stmts: &[Stmt]) -> String {
@@ -28537,9 +28886,14 @@ impl RustCodegen {
 
 fn sanitize_name(name: &str) -> String {
     match name {
-        "type" | "match" | "fn" | "let" | "mut" | "ref" | "super" | "mod" | "use" | "pub"
-        | "impl" | "trait" | "where" | "for" | "loop" | "while" | "break" | "continue"
-        | "return" | "async" | "await" | "move" | "static" | "const" | "struct" | "enum" => {
+        "self" | "Self" => name.to_string(),
+        "crate" | "super" => format!("{}_", name),
+        "abstract" | "as" | "async" | "await" | "become" | "box" | "break" | "const"
+        | "continue" | "do" | "dyn" | "else" | "enum" | "extern" | "false" | "final" | "fn"
+        | "for" | "if" | "impl" | "in" | "let" | "loop" | "macro" | "match" | "mod" | "move"
+        | "mut" | "override" | "priv" | "pub" | "ref" | "return" | "static" | "struct"
+        | "trait" | "true" | "try" | "type" | "typeof" | "union" | "unsafe" | "unsized" | "use"
+        | "virtual" | "where" | "while" | "yield" => {
             format!("r#{}", name)
         }
         _ => name.to_string(),
@@ -32166,6 +32520,35 @@ for x in [1, 2] {
             output.lines().collect::<Vec<_>>(),
             vec!["1", "1", "1"],
             "top-level binding should be evaluated exactly once even when main and a free function both observe it"
+        );
+    }
+
+    #[test]
+    fn compiled_rebound_top_level_bindings_are_visible_to_free_functions() {
+        let output = compile_and_run_test_program(
+            r#"
+= scores = map_new()
+= scores = map_insert(scores, "fire", 0)
+= scores = map_insert(scores, "fire", map_get_or(scores, "fire", 0) + 1)
+= scores = map_insert(scores, "water", 5)
+
+# Word(form: String, meaning: String)
+
+> usage_score(w: Word) -> Int {
+    map_get_or(scores, w.form, 0)
+}
+
+= words = [Word("fire", "fire"), Word("water", "water"), Word("wind", "wind")]
+= sorted = sort_by(words, usage_score)
+@ print(show(usage_score(Word("water", "water"))))
+@ print(join(map(sorted, |w| w.form), ","))
+"#,
+        );
+
+        assert_eq!(
+            output.lines().collect::<Vec<_>>(),
+            vec!["5", "wind,fire,water"],
+            "free function used as a callback should observe the latest top-level rebound binding"
         );
     }
 

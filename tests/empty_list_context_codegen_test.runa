@@ -1,0 +1,13 @@
+# CouplingPair(src: Int, dst: Int)
+
+> coupling_count(couplings: List(CouplingPair)) -> Int {
+    length(couplings)
+}
+
+= no_couplings = []
+= count = coupling_count(no_couplings)
+
+= empty_list_context_ok = count == 0
+? empty_list_context_ok
+
+@ print("empty list context codegen passed")
