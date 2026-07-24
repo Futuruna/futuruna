@@ -1,7 +1,0 @@
-{
-  "database": "dolt",
-  "backend": "dolt",
-  "dolt_mode": "embedded",
-  "dolt_database": "futuruna",
-  "project_id": "f40a5fd4-3643-4dd8-83e9-b0400bea2495"
-}
