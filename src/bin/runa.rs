@@ -10922,6 +10922,9 @@ struct RustCodegen {
     codegen_invariants: BTreeMap<String, (Expr, Expr)>,
     /// Actor handle variables: var_name -> actor_name (for qualifying __Ask in ask())
     actor_handle_vars: BTreeMap<String, String>,
+    /// Actor message payload hints from call sites:
+    /// actor_name -> variant_name -> payload field types.
+    actor_message_site_tys: BTreeMap<String, BTreeMap<String, Vec<FirTy>>>,
     /// Sync subject variables: subject vars in non-async mode (Vec-based)
     sync_subject_vars: BTreeSet<String>,
     /// Inferred element types for broadcast subjects: name -> Rust type string
@@ -14949,6 +14952,7 @@ impl RustCodegen {
             scope_bindings: BTreeMap::new(),
             codegen_invariants: BTreeMap::new(),
             actor_handle_vars: BTreeMap::new(),
+            actor_message_site_tys: BTreeMap::new(),
             sync_subject_vars: BTreeSet::new(),
             subject_elem_type: BTreeMap::new(),
             builtin_registry: rust_builtin_registry(),
@@ -17256,6 +17260,7 @@ impl RustCodegen {
 
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
         let all_stmts = self.scan_declarations(input_stmts);
+        self.prescan_actor_message_site_types(&all_stmts);
         self.prescan_map_types(&all_stmts);
         let stmts = &all_stmts;
         let mut out = String::new();
@@ -22500,7 +22505,8 @@ impl RustCodegen {
                     }
                 }
                 let mut out = String::new();
-                let actor_msg_tys = self.infer_actor_message_variant_types(state_param, handlers);
+                let actor_msg_tys =
+                    self.infer_actor_message_variant_types(name, state_param, handlers);
 
                 // Message enum
                 out.push_str(&format!("#[derive(Debug)]\n"));
@@ -29387,6 +29393,404 @@ impl RustCodegen {
         }
     }
 
+    fn actor_payload_ty_is_concrete(ty: &FirTy) -> bool {
+        !matches!(ty, FirTy::Unknown | FirTy::Var(_) | FirTy::Arrow(_, _))
+    }
+
+    fn merge_actor_payload_ty(slot: &mut FirTy, incoming: &FirTy) {
+        if !Self::actor_payload_ty_is_concrete(incoming) {
+            return;
+        }
+        if !Self::actor_payload_ty_is_concrete(slot) {
+            *slot = incoming.clone();
+        }
+    }
+
+    fn merge_actor_payload_vec(existing: &mut Vec<FirTy>, incoming: &[FirTy]) {
+        if existing.len() != incoming.len() {
+            return;
+        }
+        for (slot, incoming_ty) in existing.iter_mut().zip(incoming.iter()) {
+            Self::merge_actor_payload_ty(slot, incoming_ty);
+        }
+    }
+
+    fn record_actor_message_site_tys(
+        &mut self,
+        actor_name: &str,
+        variant_name: &str,
+        payload_tys: Vec<FirTy>,
+    ) {
+        let variants = self
+            .actor_message_site_tys
+            .entry(actor_name.to_string())
+            .or_default();
+        match variants.get_mut(variant_name) {
+            Some(existing) => Self::merge_actor_payload_vec(existing, &payload_tys),
+            None => {
+                variants.insert(variant_name.to_string(), payload_tys);
+            }
+        }
+    }
+
+    fn spawn_actor_name(expr: &Expr) -> Option<String> {
+        let ExprKind::App(func, args) = &expr.kind else {
+            return None;
+        };
+        let ExprKind::Var(fn_name) = &func.as_ref().kind else {
+            return None;
+        };
+        if fn_name != "spawn" || args.len() != 2 {
+            return None;
+        }
+        if let ExprKind::Var(actor_name) = &args[0].kind {
+            Some(actor_name.clone())
+        } else {
+            None
+        }
+    }
+
+    fn actor_target_name_from_expr(
+        expr: &Expr,
+        actor_handles: &BTreeMap<String, String>,
+    ) -> Option<String> {
+        match &expr.kind {
+            ExprKind::Var(name) => actor_handles.get(name).cloned(),
+            _ => Self::spawn_actor_name(expr),
+        }
+    }
+
+    fn actor_message_site_payload_tys(
+        &self,
+        msg: &Expr,
+        local_tys: &BTreeMap<String, FirTy>,
+    ) -> Option<(String, Vec<FirTy>)> {
+        match &msg.kind {
+            ExprKind::Var(name) => Some((name.clone(), Vec::new())),
+            ExprKind::App(func, args) => {
+                let ExprKind::Var(variant_name) = &func.as_ref().kind else {
+                    return None;
+                };
+                let payload_tys = args
+                    .iter()
+                    .map(|arg| self.infer_expr_fir_ty_with_env(arg, local_tys.clone()))
+                    .collect();
+                Some((variant_name.clone(), payload_tys))
+            }
+            _ => None,
+        }
+    }
+
+    fn record_actor_message_site_expr(
+        &mut self,
+        actor_name: &str,
+        msg: &Expr,
+        local_tys: &BTreeMap<String, FirTy>,
+    ) {
+        if let Some((variant_name, payload_tys)) =
+            self.actor_message_site_payload_tys(msg, local_tys)
+        {
+            self.record_actor_message_site_tys(actor_name, &variant_name, payload_tys);
+        }
+    }
+
+    fn prescan_actor_message_site_types(&mut self, stmts: &[Stmt]) {
+        self.actor_message_site_tys.clear();
+        let mut actor_handles = BTreeMap::new();
+        let mut local_tys = BTreeMap::new();
+        self.scan_actor_message_site_stmts(stmts, &mut actor_handles, &mut local_tys);
+    }
+
+    fn scan_actor_message_site_stmts(
+        &mut self,
+        stmts: &[Stmt],
+        actor_handles: &mut BTreeMap<String, String>,
+        local_tys: &mut BTreeMap<String, FirTy>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Bind(pat, ty, expr) => {
+                    self.scan_actor_message_site_expr(expr, actor_handles, local_tys);
+                    if let Pat::Var(name) = pat {
+                        if let Some(actor_name) = Self::spawn_actor_name(expr) {
+                            actor_handles.insert(name.clone(), actor_name);
+                        }
+                        let inferred =
+                            ty.as_ref().map(LoweringCtx::ty_to_fir).unwrap_or_else(|| {
+                                self.infer_expr_fir_ty_with_env(expr, local_tys.clone())
+                            });
+                        local_tys.insert(name.clone(), inferred);
+                    }
+                }
+                Stmt::MonadicBind(_, _, expr) | Stmt::Expr(expr) | Stmt::StreamBind(_, expr) => {
+                    self.scan_actor_message_site_expr(expr, actor_handles, local_tys);
+                }
+                Stmt::Defn(Defn::Fn { params, body, .. }) => {
+                    let mut fn_handles = BTreeMap::new();
+                    let mut fn_tys = BTreeMap::new();
+                    for param in params {
+                        if let Some(ty) = &param.ty {
+                            fn_tys.insert(param.name.clone(), LoweringCtx::ty_to_fir(ty));
+                        }
+                    }
+                    self.scan_actor_message_site_expr(body, &mut fn_handles, &mut fn_tys);
+                }
+                Stmt::Defn(Defn::Actor {
+                    state_param,
+                    handlers,
+                    ..
+                }) => {
+                    let mut handler_handles = BTreeMap::new();
+                    for handler in handlers {
+                        let mut handler_tys = BTreeMap::new();
+                        if let Some(ty) = &state_param.ty {
+                            handler_tys
+                                .insert(state_param.name.clone(), LoweringCtx::ty_to_fir(ty));
+                        }
+                        self.scan_actor_message_site_expr(
+                            &handler.body,
+                            &mut handler_handles,
+                            &mut handler_tys,
+                        );
+                    }
+                }
+                Stmt::Defn(Defn::Module { body, .. }) => {
+                    let mut module_handles = BTreeMap::new();
+                    let mut module_tys = BTreeMap::new();
+                    self.scan_actor_message_site_stmts(body, &mut module_handles, &mut module_tys);
+                }
+                Stmt::TypeDecl(TypeDecl::ADT { methods, .. }) => {
+                    for method in methods {
+                        self.scan_actor_message_site_stmts(
+                            &[Stmt::Defn(method.clone())],
+                            &mut BTreeMap::new(),
+                            &mut BTreeMap::new(),
+                        );
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::TraitDecl { methods, .. }) => {
+                    for method in methods {
+                        if let Some(default_body) = &method.default_body {
+                            self.scan_actor_message_site_expr(
+                                default_body,
+                                &mut BTreeMap::new(),
+                                &mut BTreeMap::new(),
+                            );
+                        }
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                    for method in methods {
+                        self.scan_actor_message_site_stmts(
+                            &[Stmt::Defn(method.clone())],
+                            &mut BTreeMap::new(),
+                            &mut BTreeMap::new(),
+                        );
+                    }
+                }
+                Stmt::Rule(Rule::Scope { body, .. }) => {
+                    let mut scope_handles = actor_handles.clone();
+                    let mut scope_tys = local_tys.clone();
+                    self.scan_actor_message_site_stmts(body, &mut scope_handles, &mut scope_tys);
+                }
+                Stmt::Rule(Rule::Clause {
+                    head,
+                    body: Some(body),
+                }) => {
+                    self.scan_actor_message_site_expr(head, actor_handles, local_tys);
+                    self.scan_actor_message_site_expr(body, actor_handles, local_tys);
+                }
+                Stmt::Rule(Rule::Clause {
+                    head, body: None, ..
+                }) => {
+                    self.scan_actor_message_site_expr(head, actor_handles, local_tys);
+                }
+                Stmt::Rule(Rule::Default {
+                    head,
+                    value,
+                    condition,
+                })
+                | Stmt::Rule(Rule::Exception {
+                    head,
+                    value,
+                    condition,
+                    ..
+                }) => {
+                    self.scan_actor_message_site_expr(head, actor_handles, local_tys);
+                    self.scan_actor_message_site_expr(value, actor_handles, local_tys);
+                    if let Some(condition) = condition {
+                        self.scan_actor_message_site_expr(condition, actor_handles, local_tys);
+                    }
+                }
+                Stmt::For(_, iter, body) => {
+                    self.scan_actor_message_site_expr(iter, actor_handles, local_tys);
+                    let mut body_handles = actor_handles.clone();
+                    let mut body_tys = local_tys.clone();
+                    self.scan_actor_message_site_stmts(body, &mut body_handles, &mut body_tys);
+                }
+                Stmt::While(cond, body) => {
+                    self.scan_actor_message_site_expr(cond, actor_handles, local_tys);
+                    let mut body_handles = actor_handles.clone();
+                    let mut body_tys = local_tys.clone();
+                    self.scan_actor_message_site_stmts(body, &mut body_handles, &mut body_tys);
+                }
+                Stmt::Send(target, msg) => {
+                    if let Some(actor_name) =
+                        Self::actor_target_name_from_expr(target, actor_handles)
+                    {
+                        self.record_actor_message_site_expr(&actor_name, msg, local_tys);
+                    }
+                    self.scan_actor_message_site_expr(target, actor_handles, local_tys);
+                    self.scan_actor_message_site_expr(msg, actor_handles, local_tys);
+                }
+                Stmt::StreamSub(stream, arms) => {
+                    self.scan_actor_message_site_expr(stream, actor_handles, local_tys);
+                    for arm in arms {
+                        if let Some(guard) = &arm.guard {
+                            self.scan_actor_message_site_expr(guard, actor_handles, local_tys);
+                        }
+                        self.scan_actor_message_site_expr(&arm.body, actor_handles, local_tys);
+                    }
+                }
+                Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+                    for arg in args {
+                        self.scan_actor_message_site_expr(arg, actor_handles, local_tys);
+                    }
+                }
+                Stmt::Invariant {
+                    subject, predicate, ..
+                } => {
+                    self.scan_actor_message_site_expr(subject, actor_handles, local_tys);
+                    self.scan_actor_message_site_expr(predicate, actor_handles, local_tys);
+                }
+                Stmt::Prove {
+                    pass_block,
+                    else_block,
+                    ..
+                } => {
+                    if let Some(pass_block) = pass_block {
+                        let mut pass_handles = actor_handles.clone();
+                        let mut pass_tys = local_tys.clone();
+                        self.scan_actor_message_site_stmts(
+                            pass_block,
+                            &mut pass_handles,
+                            &mut pass_tys,
+                        );
+                    }
+                    if let Some(else_block) = else_block {
+                        let mut else_handles = actor_handles.clone();
+                        let mut else_tys = local_tys.clone();
+                        self.scan_actor_message_site_stmts(
+                            else_block,
+                            &mut else_handles,
+                            &mut else_tys,
+                        );
+                    }
+                }
+                Stmt::RustBlock(_)
+                | Stmt::Use(_)
+                | Stmt::Import(_)
+                | Stmt::QualifiedImport(_, _)
+                | Stmt::HashImport(_, _)
+                | Stmt::Depend(_, _)
+                | Stmt::Abort
+                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+                Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
+                    self.scan_actor_message_site_expr(condition, actor_handles, local_tys);
+                }
+            }
+        }
+    }
+
+    fn scan_actor_message_site_expr(
+        &mut self,
+        expr: &Expr,
+        actor_handles: &mut BTreeMap<String, String>,
+        local_tys: &mut BTreeMap<String, FirTy>,
+    ) {
+        match &expr.kind {
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+            ExprKind::App(func, args) => {
+                if let ExprKind::Var(fn_name) = &func.as_ref().kind {
+                    if fn_name == "ask" && args.len() == 2 {
+                        if let Some(actor_name) =
+                            Self::actor_target_name_from_expr(&args[0], actor_handles)
+                        {
+                            self.record_actor_message_site_expr(&actor_name, &args[1], local_tys);
+                        }
+                    }
+                }
+                self.scan_actor_message_site_expr(func, actor_handles, local_tys);
+                for arg in args {
+                    self.scan_actor_message_site_expr(arg, actor_handles, local_tys);
+                }
+            }
+            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Index(lhs, rhs) | ExprKind::Pipe(lhs, rhs) => {
+                self.scan_actor_message_site_expr(lhs, actor_handles, local_tys);
+                self.scan_actor_message_site_expr(rhs, actor_handles, local_tys);
+            }
+            ExprKind::UnOp(_, inner) | ExprKind::Field(inner, _) | ExprKind::Try(inner) => {
+                self.scan_actor_message_site_expr(inner, actor_handles, local_tys);
+            }
+            ExprKind::If(cond, then_, else_) => {
+                self.scan_actor_message_site_expr(cond, actor_handles, local_tys);
+                let mut then_handles = actor_handles.clone();
+                let mut then_tys = local_tys.clone();
+                self.scan_actor_message_site_expr(then_, &mut then_handles, &mut then_tys);
+                let mut else_handles = actor_handles.clone();
+                let mut else_tys = local_tys.clone();
+                self.scan_actor_message_site_expr(else_, &mut else_handles, &mut else_tys);
+            }
+            ExprKind::Block(stmts) => {
+                let mut block_handles = actor_handles.clone();
+                let mut block_tys = local_tys.clone();
+                self.scan_actor_message_site_stmts(stmts, &mut block_handles, &mut block_tys);
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                self.scan_actor_message_site_expr(scrutinee, actor_handles, local_tys);
+                for arm in arms {
+                    let mut arm_handles = actor_handles.clone();
+                    let mut arm_tys = local_tys.clone();
+                    if let Some(guard) = &arm.guard {
+                        self.scan_actor_message_site_expr(guard, &mut arm_handles, &mut arm_tys);
+                    }
+                    self.scan_actor_message_site_expr(&arm.body, &mut arm_handles, &mut arm_tys);
+                }
+            }
+            ExprKind::Lambda(params, body) => {
+                let mut lambda_handles = actor_handles.clone();
+                let mut lambda_tys = local_tys.clone();
+                for param in params {
+                    if let Some(ty) = &param.ty {
+                        lambda_tys.insert(param.name.clone(), LoweringCtx::ty_to_fir(ty));
+                    }
+                }
+                self.scan_actor_message_site_expr(body, &mut lambda_handles, &mut lambda_tys);
+            }
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Effect(_, items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => {
+                for item in items {
+                    self.scan_actor_message_site_expr(item, actor_handles, local_tys);
+                }
+            }
+            ExprKind::Handle { body, handlers, .. } => {
+                self.scan_actor_message_site_expr(body, actor_handles, local_tys);
+                for handler in handlers {
+                    let mut handler_handles = actor_handles.clone();
+                    let mut handler_tys = local_tys.clone();
+                    self.scan_actor_message_site_expr(
+                        &handler.body,
+                        &mut handler_handles,
+                        &mut handler_tys,
+                    );
+                }
+            }
+        }
+    }
+
     fn actor_message_pat_payload_ty(
         &self,
         pat: &Pat,
@@ -29584,6 +29988,7 @@ impl RustCodegen {
 
     fn infer_actor_message_variant_types(
         &self,
+        actor_name: &str,
         state_param: &Param,
         handlers: &[Handler],
     ) -> BTreeMap<String, Vec<FirTy>> {
@@ -29635,9 +30040,20 @@ impl RustCodegen {
             };
             self.collect_actor_payload_hints(&handler.body, &mut resolved_vars);
 
+            let site_tys = self
+                .actor_message_site_tys
+                .get(actor_name)
+                .and_then(|variants| variants.get(name));
             let payload_tys = args
                 .iter()
-                .map(|arg| self.actor_message_pat_payload_ty(arg, &resolved_vars))
+                .enumerate()
+                .map(|(idx, arg)| {
+                    let mut ty = self.actor_message_pat_payload_ty(arg, &resolved_vars);
+                    if let Some(site_ty) = site_tys.and_then(|tys| tys.get(idx)) {
+                        Self::merge_actor_payload_ty(&mut ty, site_ty);
+                    }
+                    ty
+                })
                 .collect();
             inferred.insert(name.clone(), payload_tys);
         }
@@ -33123,6 +33539,38 @@ for x in [1, 2] {
         assert!(
             code.contains("Enqueue(String)"),
             "expected actor message payload to infer as String, generated Rust:\n{}",
+            code
+        );
+    }
+
+    #[test]
+    fn actor_message_payloads_infer_string_from_send_site() {
+        let source = "> actor queue(state: Int) { | Enqueue(label) -> state + 1 }\n= q = spawn(queue, 0)\nq <- Enqueue(\"ingest\")";
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+
+        let mut cg = RustCodegen::new();
+        let code = cg.emit_program(&stmts);
+
+        assert!(
+            code.contains("Enqueue(String)"),
+            "expected actor message payload to infer from send site, generated Rust:\n{}",
+            code
+        );
+    }
+
+    #[test]
+    fn actor_message_payloads_infer_string_from_ask_site() {
+        let source = "> actor queue(state: Int) { | Query(token) -> state }\n= q = spawn(queue, 0)\n= state = ask(q, Query(\"status\"))";
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+
+        let mut cg = RustCodegen::new();
+        let code = cg.emit_program(&stmts);
+
+        assert!(
+            code.contains("Query(String)"),
+            "expected actor message payload to infer from ask site, generated Rust:\n{}",
             code
         );
     }

@@ -1,0 +1,12 @@
+-- Actor payload variables that are unused in handlers should infer from send/ask sites.
+
+> actor sink(count: Int) {
+    | Seen(label) -> count + 1
+    | Query(token) -> count
+}
+
+= s = spawn(sink, 0)
+s <- Seen("from-send")
+= n = ask(s, Query("from-ask"))
+
+@ print("actor payload site inference passed: " + show(n))
