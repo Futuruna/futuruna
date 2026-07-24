@@ -17,7 +17,7 @@ It should be read alongside [docs/compatibility-policy.md](compatibility-policy.
 | Exact emitted Rust text, helper names, and internal compiler layouts | Unstable internal | Not a public compatibility surface unless a doc explicitly promises it. |
 | Explicit kernel proof terms and documented proof-kernel rule forms | Stable | The small kernel-backed proof term surface is part of the published contract. |
 | `runa verify` theorem elaboration, solver fallback, and broader verification automation | Preview | Useful and supported, but still evolving as the proof trust boundary and automation pipeline change. |
-| Reactive/stateful surfaces such as streams, subjects, actors, and effect-heavy workflows | Preview | User-facing and documented, but still under active semantic hardening and canary expansion. |
+| Reactive/stateful surfaces such as streams, subjects, actors, and effect-heavy workflows | Preview | User-facing and documented, with explicit named-scope ownership for live subscriptions, but still under active semantic hardening and canary expansion. |
 | Rust interop and Rust-facing integration behavior | Preview | Supported, but still evolving around ownership, codegen, and artifact boundaries. |
 
 ## Tooling And Command Surfaces

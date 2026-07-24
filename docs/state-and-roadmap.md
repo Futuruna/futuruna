@@ -45,6 +45,8 @@ On the language side, the recent focus has been semantic parity and determinism:
 - collection ordering and deterministic semantics
 - proof workflows inside ordinary programs
 - runtime error behavior for partial builtins such as indexing and empty-list access
+- explicit scope-owned lifetime rules for live stream subscriptions, instead of
+  detached function-local async work
 
 On the proof side, Futuruna has a real kernel-backed verification story, but only in stage 1 form:
 

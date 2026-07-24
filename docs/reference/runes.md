@@ -215,7 +215,11 @@ Intercepts effect operations from the `in` body. `resume(value)` continues execu
 }
 ```
 
-Scopes group statements with lifecycle management. Subjects and streams within a scope are cleaned up when the scope ends.
+Scopes group statements with lifecycle management. Subjects, streams, and
+live subscriptions within a scope are cleaned up when the scope ends.
+Named scopes are also the explicit owner required for live subscriptions
+started inside ordinary functions. See
+[docs/stream-lifetimes.md](../stream-lifetimes.md).
 
 ### Match arms
 Inside a `match` expression, `|` introduces each arm (see basics.md for match syntax).
@@ -296,6 +300,8 @@ The `~` rune has two forms:
 The `|` arms handle three stream events: values, errors, and completion. This replaces `for` loops on streams. Use `for` for lists/ranges; use `~ + |` for streams.
 
 See [streams.md](streams.md) for the full stream API and subscription reference.
+For lifetime ownership rules around function-local subscriptions, see
+[docs/stream-lifetimes.md](../stream-lifetimes.md).
 
 ### Subject creation (push-based streams)
 ```runa

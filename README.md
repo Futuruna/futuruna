@@ -145,6 +145,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 - `docs/canary-suite.md` - Authored canaries for realistic user-shaped workflows
 - `docs/canary-matrix.md` - Tiered authored coverage map and planned build-out
 - `docs/mint-gate.md` - Canonical verification gate for keeping Futuruna mint
+- `docs/stream-lifetimes.md` - Explicit lifetime contract for live stream subscriptions
 - `docs/verified-bootstrap.md` - Current proof bootstrap claim and trust boundary
 - `docs/milestones.md` - Compiler milestones (M1-M15)
 - `docs/ownership-design.md` - Memory model (Kotlin-to-Rust philosophy)

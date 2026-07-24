@@ -38,6 +38,11 @@ Futuruna’s verification stack is layered on purpose. The lanes are meant to co
 - `extended` for JSON, regex, DB, HTTP, WASM, and import-heavy behavior
 - `regressions` for user-found bug classes promoted into realistic workflows
 
+The stateful lane is also where Futuruna defends its explicit lifetime story:
+named scopes own live subscriptions, teardown cancels them deterministically,
+and detached function-local subscription shapes are not treated as acceptable
+runtime behavior.
+
 ## Deep Search And Internal Visibility
 
 - differential testing hunts unknown semantic bugs and preserves replayable seeds

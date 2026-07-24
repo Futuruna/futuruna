@@ -32,6 +32,8 @@ This source note summarizes `docs/feature-stages.md`.
 - explicit kernel proof terms are surfaced as stable
 - `runa verify` automation is surfaced as preview
 - streams/stateful surfaces and Rust interop are surfaced as preview
+- the current preview contract for streams includes explicit named-scope
+  ownership for live subscriptions
 - `runa audit` and `runa from-rust` are surfaced as experimental
 
 ## Best Companion Notes
@@ -39,4 +41,3 @@ This source note summarizes `docs/feature-stages.md`.
 - [[compatibility-policy]]
 - [[compatibility-discipline]]
 - [[state-and-roadmap]]
-

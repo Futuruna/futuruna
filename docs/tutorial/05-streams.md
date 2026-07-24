@@ -40,6 +40,22 @@ Subjects are push-based streams. `<-` sends values. `.count` and `.latest` inspe
 ```
 
 Scopes control when streams live and die. No manual unsubscribe. No memory leaks.
+Named scopes are also the required owner for live subscriptions created inside
+ordinary functions. If a function wants to start `~ stream | ...` or `for x in
+stream { ... }` over a live subject/derived async stream, that work must live
+inside a named `| scope`.
+
+```runa
+> install_monitor(readings) -> () {
+    | scope Monitor {
+        ~ readings | x -> { @ print(show(x)) }
+    }
+}
+```
+
+Detached function-local live subscriptions are rejected instead of silently
+outliving the function that created them. See
+[docs/stream-lifetimes.md](../stream-lifetimes.md) for the current contract.
 
 ## Stream operators
 

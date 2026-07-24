@@ -246,6 +246,9 @@ Scopes group stream operations with lifecycle management:
 ```
 
 When a scope ends, its subjects, streams, and subscriptions are cleaned up.
+Named scopes are also the explicit lifetime owner for live subscriptions started
+inside ordinary functions. See [docs/stream-lifetimes.md](../stream-lifetimes.md)
+for the full contract.
 
 ---
 
@@ -370,6 +373,27 @@ Inside a `| scope` block, subscriptions are torn down when the scope exits:
 }
 -- Scope exits -> all subscriptions cancelled, channels closed
 ```
+
+### Function boundaries
+
+Ordinary functions may not start live subscriptions unless a named scope owns
+them:
+
+```runa
+> install_bad(readings) -> () {
+    ~ readings | x -> { @ print(show(x)) }   -- compile error
+}
+
+> install_ok(readings) -> () {
+    | scope Monitor {
+        ~ readings | x -> { @ print(show(x)) }
+    }
+}
+```
+
+The same rule applies to `for x in stream { ... }` when `stream` is a live
+subject or derived async stream. This keeps compiled async subscriptions from
+quietly outliving the function that created them.
 
 ### Migrating from `for`
 
