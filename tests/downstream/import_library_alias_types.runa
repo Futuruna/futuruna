@@ -1,0 +1,28 @@
+-- library-hygiene: importable
+-- roundtrip-skip: library file, no expected output
+--
+-- Regression fixture for td-8ec837: same-name single-constructor exported
+-- ADTs must lower to plain struct constructors that downstream consumers can
+-- call directly. A previous codegen path emitted Tag::Tag(...) instead of
+-- Tag(...), which broke any consumer that imported the type and tried to
+-- construct it.
+
+@ export
+# Tag = Tag(label: String)
+
+@ export
+# Stamp = Stamp(serial: Int, note: String)
+
+@ export
+> tag_label(t: Tag) -> String {
+    match t {
+        | Tag(l) -> l
+    }
+}
+
+@ export
+> stamp_describe(s: Stamp) -> String {
+    match s {
+        | Stamp(serial, note) -> "stamp#" + show(serial) + ":" + note
+    }
+}

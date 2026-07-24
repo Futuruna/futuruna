@@ -1,0 +1,25 @@
+-- Regression consumer for td-8ec837: a downstream user imports a library that
+-- exports same-name single-constructor ADTs and constructs them directly,
+-- exercising the lowering path that previously emitted Tag::Tag(...) instead
+-- of the correct Tag(...).
+
+@ import ./import_library_alias_types
+
+= billing: Tag = Tag("billing")
+= edge: Tag = Tag("edge")
+= stamp: Stamp = Stamp(7, "ready")
+
+= billing_label = tag_label(billing)
+= edge_label = tag_label(edge)
+= stamp_text = stamp_describe(stamp)
+
+= billing_label_ok = billing_label == "billing"
+? billing_label_ok
+
+= edge_label_ok = edge_label == "edge"
+? edge_label_ok
+
+= stamp_text_ok = stamp_text == "stamp#7:ready"
+? stamp_text_ok
+
+@ print(billing_label + "|" + edge_label + "|" + stamp_text)

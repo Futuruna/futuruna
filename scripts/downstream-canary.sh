@@ -16,6 +16,7 @@ RELEASE_RUNA="${RUNA_BIN:-./target/release/runa}"
 TARGET_DIR="tests/downstream"
 ENTRYPOINTS=(
     "tests/downstream/import_library_consumer_test.runa"
+    "tests/downstream/import_library_alias_consumer_test.runa"
     "tests/downstream/import_stateful_consumer_test.runa"
     "tests/downstream/import_effect_consumer_test.runa"
 )
