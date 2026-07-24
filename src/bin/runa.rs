@@ -14404,6 +14404,9 @@ fn collect_called_vars_expr(expr: &Expr, called: &mut BTreeSet<String>) {
             collect_called_vars_expr(l, called);
             collect_called_vars_expr(r, called);
         }
+        ExprKind::UnOp(_, inner) | ExprKind::Try(inner) => {
+            collect_called_vars_expr(inner, called);
+        }
         ExprKind::If(c, t, e) => {
             collect_called_vars_expr(c, called);
             collect_called_vars_expr(t, called);
@@ -14421,10 +14424,30 @@ fn collect_called_vars_expr(expr: &Expr, called: &mut BTreeSet<String>) {
             }
         }
         ExprKind::Lambda(_, body) => collect_called_vars_expr(body, called),
+        ExprKind::List(elems) | ExprKind::Tuple(elems) => {
+            for elem in elems {
+                collect_called_vars_expr(elem, called);
+            }
+        }
         ExprKind::Effect(_, args) => {
             for a in args {
                 collect_called_vars_expr(a, called);
             }
+        }
+        ExprKind::Handle { handlers, body, .. } => {
+            for handler in handlers {
+                collect_called_vars_expr(&handler.body, called);
+            }
+            collect_called_vars_expr(body, called);
+        }
+        ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
+            for goal in goals {
+                collect_called_vars_expr(goal, called);
+            }
+        }
+        ExprKind::Pipe(lhs, rhs) => {
+            collect_called_vars_expr(lhs, called);
+            collect_called_vars_expr(rhs, called);
         }
         ExprKind::Field(obj, _) => collect_called_vars_expr(obj, called),
         ExprKind::Index(arr, idx) => {
@@ -33233,6 +33256,31 @@ for x in [1, 2] {
     }
 
     #[test]
+    fn compiled_nested_calls_inside_list_literals_propagate_hidden_globals() {
+        let output = compile_and_run_test_program(
+            r#"
+= prefix = "label:"
+= extra = 2
+
+> label(i: Int) -> String {
+    prefix + show(i + extra)
+}
+
+> labels(i: Int) -> List(String) {
+    if i >= 2 {
+        []
+    } else {
+        concat([label(i)], labels(i + 1))
+    }
+}
+
+@ print(join(labels(0), ","))
+"#,
+        );
+        assert_eq!(output.trim(), "label:2,label:3");
+    }
+
+    #[test]
     fn compiled_map_entries_match_pair_annotations() {
         let output = compile_and_run_test_program(
             "> first_entry(entries: List(Pair(String, Int))) -> String {\n    if length(entries) == 0 { \"\" } else { head(entries).fst + \":\" + show(head(entries).snd) }\n}\n= m0 = map_insert(map_new(), \"north\", 2)\n= m1 = map_insert(m0, \"west\", 3)\n@ print(first_entry(map_entries(m1)))\n",
@@ -33986,6 +34034,26 @@ routes <- "b"
                     && d.message != "live async stream for-loops require a named scope"
             ),
             "named scopes inside functions should own live subscriptions explicitly, got: {:?}",
+            diags
+                .iter()
+                .map(|d| (&d.message, &d.context, &d.notes))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn compiler_validation_allows_function_local_snapshot_reads_of_live_streams() {
+        let diags = compiler_validation_diags_for_source(
+            "~ readings = subject()\n\
+             readings <- 3\n\
+             > snapshot_score() -> Int {\n\
+                 = snapshot = collect(readings)\n\
+                 count(snapshot) + readings.count + readings.latest + sum(readings)\n\
+             }\n",
+        );
+        assert!(
+            diags.is_empty(),
+            "ordinary functions may read bounded stream snapshots without owning live subscriptions, got: {:?}",
             diags
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))

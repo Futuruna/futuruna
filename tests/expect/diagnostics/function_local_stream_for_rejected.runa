@@ -1,0 +1,12 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: live async stream for-loops require a named scope
+-- expect-stderr: in function `install`
+-- expect-stderr: wrap this subscription in `| scope Name { ... }`
+~ clicks = subject()
+
+> install() -> () {
+    for x in clicks {
+        @ print(show(x))
+    }
+}

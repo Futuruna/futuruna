@@ -1,0 +1,11 @@
+-- expect-command: check
+-- expect-status: pass
+~ clicks = subject()
+
+> install() -> () {
+    | scope Monitor {
+        ~ clicks | x -> {
+            @ print(show(x))
+        }
+    }
+}

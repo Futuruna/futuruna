@@ -1,0 +1,12 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: live stream subscriptions require a named scope
+-- expect-stderr: in function `install`
+-- expect-stderr: ordinary functions must not spawn detached subscription tasks
+~ clicks = subject()
+
+> install() -> () {
+    ~ clicks | x -> {
+        @ print(show(x))
+    }
+}

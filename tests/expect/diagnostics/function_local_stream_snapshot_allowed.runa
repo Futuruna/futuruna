@@ -1,0 +1,9 @@
+-- expect-command: check
+-- expect-status: pass
+~ readings = subject()
+readings <- 3
+
+> snapshot_score() -> Int {
+    = snapshot = collect(readings)
+    count(snapshot) + readings.count + readings.latest + sum(readings)
+}
