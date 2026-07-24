@@ -4,6 +4,21 @@
 
 File extension: `.runa` | Compiler: `runa` | Website: [futuruna.com](https://futuruna.com)
 
+## Current State
+
+Futuruna has a strong and tested core, but the whole language is not yet a
+single production-ready surface. Core syntax, documented stdlib behavior, core
+CLI commands, and pure interpreter-vs-compiled parity are the strongest
+surfaces today. Stateful/reactive workflows, storage, proof-backed compiler
+checking, WASM artifacts, Rust interop, and
+experimental tooling are still preview or research-grade.
+
+The current production-readiness table lives in
+[docs/production-readiness-scorecard.md](docs/production-readiness-scorecard.md).
+It tracks each area, state, next milestones, effort, and impact. The short
+version is: keep the core mint, then promote preview surfaces one gate at a
+time with explicit skip accounting and canary/downstream evidence.
+
 ## Why Futuruna Exists
 
 Every programming language before Futuruna was designed by tradition and taste. Futuruna was designed by **measurement**.
@@ -96,7 +111,7 @@ runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 ./scripts/differential.sh   # Reproducible differential and generative lane
 ```
 
-See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, [docs/expectation-suites.md](docs/expectation-suites.md) for compiletest-style expectations, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
+See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/production-readiness-scorecard.md](docs/production-readiness-scorecard.md) for the readiness table, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, [docs/expectation-suites.md](docs/expectation-suites.md) for compiletest-style expectations, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
 
 Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md): core syntax and documented stdlib behavior are treated as stable, while `runa verify`, stateful/reactive surfaces, Rust interop, and several advanced tooling paths are still preview or experimental.
 
@@ -140,6 +155,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 - `CONTRIBUTING.md` - Contributor ratchet for semantic/compiler changes
 - `docs/compatibility-policy.md` - Compatibility categories, feature stages, and bug-fix exception policy
 - `docs/feature-stages.md` - Current stable/preview/experimental stage matrix for major surfaces and commands
+- `docs/production-readiness-scorecard.md` - Evidence-backed readiness ratings and promotion plan
 - `docs/expectation-suites.md` - Compiletest-style diagnostics, run/fail, and phase expectation lane
 - `docs/compatibility-guides/` - Release-facing compatibility ledger for stable changes, deprecations, and bug-fix exceptions
 - `docs/state-and-roadmap.md` - Where Futuruna stands now and the next three milestones

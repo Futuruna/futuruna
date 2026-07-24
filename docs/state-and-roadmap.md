@@ -11,6 +11,7 @@ It answers three questions:
 For the detailed contracts behind each lane, see:
 
 - [docs/mint-gate.md](mint-gate.md)
+- [docs/production-readiness-scorecard.md](production-readiness-scorecard.md)
 - [docs/compatibility-policy.md](compatibility-policy.md)
 - [docs/feature-stages.md](feature-stages.md)
 - [docs/compatibility-guides/](compatibility-guides/README.md)
