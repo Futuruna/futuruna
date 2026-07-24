@@ -1,5 +1,6 @@
 -- Authored extended canary: WASM-facing export surface over primitive,
 -- string, list-numeric, option, zero-arg, and private-helper contracts.
+-- wasm-build-canary
 
 = wasm_offset = 7
 

@@ -49,7 +49,7 @@ current CI wiring, and the current open `td` queue.
 | Interpreter-vs-compiled parity for pure/core programs | Production-ready | Mint roundtrip and core canary roundtrip are strong, with 0 core canary skips. | Seed minimized differential corpus so historical bugs replay permanently (`td-2061ce`). |
 | Importable local libraries and downstream consumer shape | Preview | Dedicated downstream lane, library hygiene lint, and consumer checks pass. Generic roundtrip skips all downstream fixtures and check-codegen skips 8 of 13. | Teach generic check-codegen to cover local import consumers (`td-35b4e3`) and add import-aware deep-search cases (`td-a70b05`, `td-b4729e`). |
 | Streams, subjects, actors, and effect-heavy workflows | Preview | Stateful canaries pass execution and docs mark the surface preview. Generic check-codegen and roundtrip skip the whole stateful tier. | Continue stream lifetime hardening (`td-17811d`) and reduce external-crate skip reliance with explicit compiled-codegen lanes. |
-| WASM-facing behavior | Preview | WASM tests and an extended WASM export canary exist. Automated WASM build canary is still open. | Close `td-4ceb72`. |
+| WASM-facing behavior | Preview | WASM tests, an extended export-surface canary, and an automated `runa wasm` build lane exist. Missing `wasm-pack` is reported as an explicit skip unless CI requires it. | Define artifact stability boundaries and run the WASM lane as required in CI where the toolchain is installed. |
 | Rust interop and Rust-facing integration | Preview | Feature stage is preview; CI runs `from-rust --test examples/from-rust/`. | Keep artifact/codegen boundaries explicit (`td-e579c9`) and add canaries for stable integration shapes before promotion. |
 | `runa lint-library` import-hygiene tooling | Preview | Downstream lane enforces hygiene over importable files and imports. | Deepen purity analysis through local helper calls (`td-fd7715`). |
 | `runa stress-gen` and differential testing | Preview | CI has a differential job and seed-stable generator. No minimized checked-in replay corpus exists yet. | Close `td-2061ce`; require every differential-found compiler bug to land in corpus. |
@@ -84,7 +84,7 @@ changes Futuruna's production-readiness claim.
 | Rust codegen for pure/core programs | Preview | Broaden FIR/phase snapshots (`td-48e5d9`); add golden-file support to expectations (`td-15746e`); audit emitted helper/evaluation boundaries. | L | 5 |
 | Importable local libraries and downstream consumer shape | Preview | Cover local import consumers in generic check-codegen (`td-35b4e3`); add import-aware deep-search cases (`td-a70b05`); add import-consumer expectation cases (`td-b4729e`). | L | 5 |
 | Streams, subjects, actors, and effect-heavy workflows | Preview | Continue stream lifetime epic (`td-17811d`); reduce stateful canary skip reliance with explicit compiled-codegen coverage; infer actor payloads from send sites (`td-ca379f`). | XL | 5 |
-| WASM-facing behavior | Preview | Add automated WASM build canary (`td-4ceb72`); define artifact stability boundary; keep export-surface canary in CI. | M | 4 |
+| WASM-facing behavior | Preview | Keep automated WASM build canary green; define artifact stability boundary; require the WASM lane in CI where `wasm-pack` is installed. | M | 4 |
 | Rust interop and integration | Preview | Formalize artifact/codegen stability (`td-e579c9`); add stable-shape interop canaries; document supported crate/import patterns. | L | 4 |
 | Library hygiene tooling | Preview | Deepen purity analysis through local helper calls (`td-fd7715`); add negative expectation cases; surface library markers in docs/tooling. | M | 3 |
 | Differential and generative testing | Preview | Seed minimized replay corpus (`td-2061ce`); add import-aware generation pressure; scale CI stress count once runtime is predictable. | L | 5 |
@@ -135,7 +135,8 @@ research-grade until the next gates above are closed.
 ## Next Evaluation Tasks
 
 2. Close `td-4d7e81` to grow exact diagnostic and phase expectations.
-3. Close `td-4ceb72` for an automated WASM build canary.
+3. Define a WASM artifact stability boundary and decide where `wasm-pack` should
+   be required rather than skipped.
 4. Close `td-2061ce` so differential testing has a checked-in replay corpus.
 5. Close `td-0bd873` so stage metadata can be queried mechanically instead of
    read from prose tables.

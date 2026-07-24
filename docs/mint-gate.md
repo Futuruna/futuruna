@@ -17,6 +17,7 @@ cargo build --release
 ./target/release/runa test --check-codegen
 ./target/release/runa test --roundtrip tests
 ./target/release/runa run tests/codegen_integration_regression_test.runa
+./scripts/wasm-canary.sh
 ./target/release/runa check examples/danish-constitution-legacy/kapitel-02.runa
 ./target/release/runa check examples/danish-constitution-legacy/kapitel-03.runa
 ./target/release/runa check examples/danish-constitution-legacy/kapitel-04.runa
@@ -34,6 +35,7 @@ These lanes are the core mint contract because they cover:
 - Rust codegen validation across the test corpus
 - interpreter-vs-compiled roundtrip parity across the test corpus
 - the blocking codegen regression program
+- WASM export build canaries, with an explicit skip when `wasm-pack` is unavailable
 - real example programs outside `tests/` that have previously exposed compiler bugs
 
 Intentionally omitted from the core mint gate:
@@ -51,3 +53,9 @@ CI should call `./scripts/mint.sh` for the core language health gate, then run a
 The downstream lane now includes `runa lint-library tests`, so importable
 library hygiene is enforced there even though it remains outside the fast core
 mint gate.
+
+The WASM canary lane discovers fixtures marked with `-- wasm-build-canary` and
+runs `runa wasm` for each one. By default, a missing `wasm-pack` is reported as
+a skip so local mint remains usable on machines without the optional toolchain.
+Set `FUTURUNA_WASM_CANARY_REQUIRED=1` in CI when missing `wasm-pack` should fail
+the job.

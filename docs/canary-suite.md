@@ -114,3 +114,14 @@ The lane also runs:
 
 That keeps marked importable helper files honest and stops script/demo leakage
 from creeping into library-shaped fixtures.
+
+## WASM Build Canary Lane
+
+`./scripts/wasm-canary.sh` discovers `.runa` fixtures marked with
+`-- wasm-build-canary` and runs `runa wasm` for each one. The default target is
+`tests/canary`, so the WASM export-surface fixture participates without a
+hand-maintained file list.
+
+If `wasm-pack` is unavailable, the lane reports an explicit skip and exits
+successfully by default. Set `FUTURUNA_WASM_CANARY_REQUIRED=1` in CI when the
+optional WASM toolchain should be mandatory.
