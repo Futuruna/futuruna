@@ -47,9 +47,11 @@ This vault uses the Futuruna repository root as an Obsidian vault. It is a hybri
 ## Seed Notes
 
 - [[compiler-pipeline]]
+- [[language-surface]]
 - [[proof-kernel]]
 - [[test-surface]]
 - [[verification-lanes]]
+- [[differential-testing-flow]]
 - [[mint-ratchet]]
 - [[repo-docs]]
 - [[current-state]]

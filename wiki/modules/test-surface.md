@@ -15,7 +15,9 @@ related:
   - "[[verification-lanes]]"
   - "[[mint-ratchet]]"
   - "[[canary-matrix]]"
+  - "[[canary-suite]]"
   - "[[expectation-suites]]"
+  - "[[differential-testing]]"
 ---
 
 # Test Surface
@@ -28,6 +30,7 @@ Futuruna’s quality strategy is increasingly centered on realistic test surface
 - ordinary Futuruna test programs under `tests/`
 - compiletest-style expectations under `tests/expect/`
 - authored canary tiers under `tests/canary/`
+- authored downstream library-consumer fixtures under `tests/downstream/`
 - roundtrip and codegen parity checks
 - differential and downstream-style hardening work
 
@@ -49,6 +52,17 @@ this diagnostic" or "this compiler phase should contain this structural
 marker." Keep realistic subsystem workflows in `tests/canary/` and
 import-consumer contracts in `tests/downstream/`.
 
+## Differential Shape
+
+[[differential-testing]] is the search lane. It replays minimized corpus cases
+and runs seeded stress generation. A real mismatch should become a minimized
+fixture plus a compiler fix, not just a one-off saved artifact.
+
+## Downstream Shape
+
+[[canary-suite]] defines authored downstream consumer coverage. The local lane is
+blocking and repo-owned.
+
 ## Current Pressure
 
 The biggest remaining pressure is downstream library-consumer behavior: nested imports, imported smoke leakage, ownership-heavy helper chains, and other shapes that are less visible in self-contained in-repo programs.
@@ -56,4 +70,6 @@ The biggest remaining pressure is downstream library-consumer behavior: nested i
 ## Key Reference
 
 - [[canary-matrix]]
+- [[canary-suite]]
 - [[expectation-suites]]
+- [[differential-testing]]

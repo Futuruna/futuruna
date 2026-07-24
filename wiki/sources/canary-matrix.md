@@ -14,6 +14,7 @@ related:
   - "[[test-surface]]"
   - "[[verification-lanes]]"
   - "[[repo-docs]]"
+  - "[[canary-suite]]"
 ---
 
 # Canary Matrix
@@ -47,7 +48,7 @@ Current tiers:
 
 ## Immediate Reading Path
 
+- [[canary-suite]]
 - [[test-surface]]
 - [[verification-lanes]]
 - [[mint-ratchet]]
-

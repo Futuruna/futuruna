@@ -11,6 +11,8 @@ related:
   - "[[test-surface]]"
   - "[[mint-gate]]"
   - "[[canary-matrix]]"
+  - "[[canary-suite]]"
+  - "[[differential-testing]]"
 ---
 
 # Verification Lanes
@@ -31,6 +33,7 @@ Futuruna’s verification stack is layered on purpose. The lanes are meant to co
 
 ## Authored Realistic Workflows
 
+[[canary-suite]] defines the operational canary commands, while
 [[canary-matrix]] tracks the curated authored suite:
 
 - `core` for blocking language workflows
@@ -45,9 +48,14 @@ runtime behavior.
 
 ## Deep Search And Internal Visibility
 
-- differential testing hunts unknown semantic bugs and preserves replayable seeds
+- [[differential-testing]] hunts unknown semantic bugs and preserves replayable
+  seeds
 - FIR snapshots make internal compiler drift visible instead of silent
 - focused Rust regressions keep every discovered compiler bug permanent
+
+## Downstream Lane
+
+The authored downstream lane models local library consumers.
 
 ## Reading External Failures
 

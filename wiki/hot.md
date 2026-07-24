@@ -11,6 +11,8 @@ tags:
 
 ## Last Updated
 
+2026-07-18. Second-wave repo docs are now linked into the vault: [[differential-testing]], [[canary-suite]], [[language-reference]], [[milestone-docs]], [[language-surface]], and [[differential-testing-flow]].
+
 2026-07-18. Strategic milestone tracking now lives in [[board]] as an Obsidian Kanban board with Now / Next / Later / Done lanes. Operationally, milestones sit above td epics; the Kanban surfaces what's shipping right now versus queued versus shelved.
 
 2026-07-18. Futuruna now has a first-class compiletest-style expectation lane for narrow compiler diagnostics, run/fail behavior, and phase-specific markers.
@@ -27,6 +29,9 @@ tags:
 - Futuruna now also surfaces the current stage matrix in docs and `runa --help` instead of leaving stages implicit.
 - Futuruna now has a versioned compatibility-guide discipline and a rolling 0.1.x guide.
 - Futuruna now has `runa expect` plus `tests/expect/` for exact compiler expectations.
+- The reference docs split core basics/runes/stdlib as stable and streams/Rust compatibility as preview.
+- The differential lane is explicitly a replay/minimize/promote loop, not just random stress.
+- The canary suite now has documented authored, downstream, external, expectation, and WASM lanes.
 
 ## Recent Changes
 
@@ -43,6 +48,8 @@ tags:
 - Added repo policy doc `docs/compatibility-policy.md` and source note [[compatibility-policy]]
 - Added `docs/feature-stages.md`, source note [[feature-stages]], and a feature-stage block in CLI help
 - Added `docs/compatibility-guides/` and source note [[compatibility-guides]]
+- Ingested second-wave repo docs into [[differential-testing]], [[canary-suite]], [[language-reference]], and [[milestone-docs]]
+- Added seed notes [[language-surface]] and [[differential-testing-flow]]
 
 ## Active Threads
 
@@ -52,3 +59,4 @@ tags:
 - Turn more canonical repo docs into linked wiki notes instead of leaving them as unconnected files
 - Convert the new hardening research into concrete Futuruna roadmap tasks and policy docs
 - Grow expectation suites for diagnostics, phase snapshots, and minimized compiler regressions
+- Keep preview language surfaces moving toward production readiness with explicit contracts and canary-backed coverage

@@ -10,6 +10,14 @@ tags:
 
 # Futuruna Wiki Log
 
+## 2026-07-18 ingest | Second-wave Futuruna repo docs
+
+- Source: `docs/differential-testing.md`, `docs/canary-suite.md`, selected `docs/reference/`, and selected `docs/milestones/`
+- Summary: [[differential-testing]], [[canary-suite]], [[language-reference]], [[milestone-docs]]
+- Pages created: [[language-surface]], [[differential-testing-flow]]
+- Pages updated: [[repo-docs]], [[test-surface]], [[verification-lanes]], [[compiler-pipeline]], [[hot]], [[index]]
+- Key insight: the docs now distinguish stable language core, preview language surfaces, authored canaries, differential search, and milestone history instead of flattening all assurance material into one bucket.
+
 ## 2026-07-18 board | Milestone Kanban
 
 - Added [[board]] as the strategic milestone tracker, above td-epic level

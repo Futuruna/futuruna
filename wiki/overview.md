@@ -37,6 +37,7 @@ This vault is meant to make those threads easier to navigate without replacing t
 - authored canary coverage
 - proof-kernel and verified-bootstrap expansion
 - downstream-user bug burn-down
+- production-readiness mapping for stable core versus preview language surfaces
 
 ## Start Here
 
@@ -44,5 +45,6 @@ This vault is meant to make those threads easier to navigate without replacing t
 - [[current-state]]
 - [[dashboard]]
 - [[verification-lanes]]
+- [[language-surface]]
 - [[proof-kernel]]
 - [[test-surface]]

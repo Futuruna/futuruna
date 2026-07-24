@@ -11,6 +11,6 @@ tags:
 # Module Index
 
 - [[compiler-pipeline]]
+- [[language-surface]]
 - [[proof-kernel]]
 - [[test-surface]]
-

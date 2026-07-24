@@ -32,10 +32,19 @@ The current repo docs are the canonical written contracts for Futuruna. The wiki
   The blocking "Futuruna is mint" contract.
 - [[canary-matrix]]
   The authored workflow coverage map.
+- [[canary-suite]]
+  The operational contract for authored, downstream, external, expectation,
+  and WASM canary lanes.
+- [[differential-testing]]
+  The reproducible stress-generation and minimized-corpus lane.
 - [[verified-bootstrap-doc]]
   The honest statement of what native proof-backed compiler work means today.
 - [[proof-kernel-spec]]
   The kernel design boundary and its v1 logic fragment.
+- [[language-reference]]
+  The stable/preview split across core language reference pages.
+- [[milestone-docs]]
+  Historical milestone docs and their current staleness boundary.
 
 ## How These Feed The Vault
 
@@ -46,11 +55,12 @@ The current repo docs are the canonical written contracts for Futuruna. The wiki
 - [[compatibility-discipline]] and [[compatibility-policy]] make the user-facing change contract explicit.
 - [[compatibility-guides]] make that contract cumulative over time instead of PR-local.
 - [[feature-stages]] makes those stages visible in day-to-day docs and tooling entry points.
+- [[language-surface]] turns the reference docs into a stable-vs-preview map.
+- [[differential-testing-flow]] operationalizes replay/minimize/promote behavior.
 
 ## Best Next Ingests
 
-- `docs/differential-testing.md`
-- `docs/canary-suite.md`
-- `docs/reference/` as structured language-surface notes
-- milestone notes in `docs/milestones/`
+- `docs/artifact-codegen-contracts.md`
+- `docs/downstream-test-surface-audit.md`
+- `docs/library-hygiene.md`
 - high-value research notes under `research/`
