@@ -78,8 +78,19 @@ The path to "prove Futuruna in Futuruna" is staged:
 
 Only after those stages can we honestly claim a proof-carrying or verified Futuruna bootstrap.
 
+The next checked-compiler slice is planned in
+[proof-backed-checking.md](proof-backed-checking.md). The first target is
+translation-checking generated computation lemmas against the source functions
+they claim to describe, because those lemmas currently sit inside the trusted
+proof-elaboration boundary.
+
 ## Immediate Follow-Ups
 
-- Extend the tiny verified core with variables and `let` semantics so proofs model environments instead of pure trees.
-- Generalize the recursive `let` model beyond value-bound lets so larger statement and control-flow shapes fit the same proof story.
-- Document, stage by stage, which compiler responsibilities have moved out of the trusted boundary and which still remain there.
+- Translation-check generated computation lemmas against the source functions
+  they claim to describe.
+- Audit the proof-kernel trusted-core surface so the implementation remains
+  reviewable and the documented trust boundary stays honest.
+- Keep extending the verified core only when the next compiler slice requires a
+  concrete semantic feature.
+- Document, stage by stage, which compiler responsibilities have moved out of
+  the trusted boundary and which still remain there.

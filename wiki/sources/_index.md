@@ -17,6 +17,7 @@ tags:
 - [[feature-stages]]
 - [[proof-kernel-spec]]
 - [[verified-bootstrap-doc]]
+- [[proof-backed-checking]]
 - [[mint-gate]]
 - [[canary-matrix]]
 - [[kotlin-evolution-and-compatibility]]

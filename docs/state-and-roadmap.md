@@ -20,6 +20,7 @@ For the detailed contracts behind each lane, see:
 - [docs/differential-testing.md](differential-testing.md)
 - [docs/verified-bootstrap.md](verified-bootstrap.md)
 - [docs/proof-kernel.md](proof-kernel.md)
+- [docs/proof-backed-checking.md](proof-backed-checking.md)
 - [CONTRIBUTING.md](../CONTRIBUTING.md)
 
 ## Current State
@@ -183,6 +184,13 @@ The practical direction is:
 1. keep proving small semantics-preserving compiler models in Futuruna
 2. replace trusted compiler-side transformations with proof-producing or translation-checking variants where the payoff is highest
 3. narrow the compiler's ability to silently invent the theorem that the kernel checks
+
+The next proof-backed compiler slice is not whole-codegen proof. It is
+translation-checking generated computation lemmas against the source functions
+they claim to describe, as detailed in
+[docs/proof-backed-checking.md](proof-backed-checking.md). That directly shrinks
+the proof-elaboration trust boundary without broadening Futuruna into a general
+theorem prover.
 
 Success looks like:
 

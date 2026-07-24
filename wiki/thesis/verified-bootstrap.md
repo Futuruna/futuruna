@@ -11,6 +11,7 @@ related:
   - "[[current-state]]"
   - "[[proof-kernel]]"
   - "[[verified-bootstrap-doc]]"
+  - "[[proof-backed-checking]]"
 ---
 
 # Verified Bootstrap
@@ -42,9 +43,14 @@ The bootstrap track is how Futuruna avoids leaving the proof kernel as an isolat
 2. grow the modeled core so more realistic passes fit
 3. narrow the elaboration trust boundary over time
 
+The next concrete compiler slice is translation-checking generated computation
+lemmas against their source function arms. That targets the current trusted
+proof-elaboration boundary directly without broadening Futuruna into a general
+theorem prover.
+
 ## Primary Sources
 
 - [[verified-bootstrap-doc]]
+- [[proof-backed-checking]]
 - [[proof-kernel-spec]]
 - [[state-and-roadmap]]
-
