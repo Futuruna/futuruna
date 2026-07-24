@@ -1,0 +1,89 @@
+-- Typed lowering corpus: canonical codegen contracts for Pair/map entries,
+-- numeric modulo/division, and ownership reuse across string/list helpers.
+
+> entry_label(entry: Pair(String, Int)) -> String {
+    entry.fst + ":" + show(entry.snd)
+}
+
+> entry_label_builtin(entry: Pair(String, Int)) -> String {
+    fst(entry) + "=" + show(snd(entry))
+}
+
+> sum_entries(entries: List(Pair(String, Int))) -> Int {
+    foldl(entries, 0, |acc, entry| acc + entry.snd)
+}
+
+> first_entry_label(entries: List(Pair(String, Int))) -> String {
+    if length(entries) == 0 { "" } else { entry_label(head(entries)) }
+}
+
+= counts0 = map_new()
+= counts1 = map_insert(counts0, "beta", 2)
+= counts2 = map_insert(counts1, "alpha", 1)
+= counts = map_insert(counts2, "gamma", 3)
+
+= entries = map_entries(counts)
+= labels = sort(map(entries, |entry| entry_label(entry)))
+= builtin_labels = sort(map(entries, |entry| entry_label_builtin(entry)))
+= keys = sort(map_keys(counts))
+= values = map_values(counts)
+= first_label = first_entry_label(entries)
+= entry_total = sum_entries(entries)
+= value_total = sum_list(values)
+= still_has_beta = map_get_or(counts, "beta", 0)
+
+| pair_entry_labels_ok: labels -> show(labels) == "[alpha:1, beta:2, gamma:3]"
+| pair_builtin_labels_ok: builtin_labels -> show(builtin_labels) == "[alpha=1, beta=2, gamma=3]"
+| map_key_value_ok: keys -> keys == ["alpha", "beta", "gamma"] && value_total == 6 && entry_total == 6
+| map_reuse_ok: counts -> still_has_beta == 2 && map_len(counts) == 3
+| first_entry_ok: first_label -> first_label == "alpha:1"
+
+? pair_entry_labels_ok
+? pair_builtin_labels_ok
+? map_key_value_ok
+? map_reuse_ok
+? first_entry_ok
+
+> signature_bucket(seed: Int) -> Int {
+    = shifted = round(to_float(seed * 11) / 3.0)
+    shifted % 64
+}
+
+> safe_int_div(n: Int, d: Int) -> Int { n / d }
+> safe_int_mod(n: Int, d: Int) -> Int { n % d }
+
+= bucket = signature_bucket(11)
+= div_ok = safe_int_div(9, 2)
+= div_zero = safe_int_div(9, 0)
+= mod_ok = safe_int_mod(23, 5)
+= mod_zero = safe_int_mod(23, 0)
+
+| numeric_bucket_ok: bucket -> bucket == 40
+| numeric_division_ok: div_ok -> div_ok == 4 && div_zero == 0
+| numeric_modulo_ok: mod_ok -> mod_ok == 3 && mod_zero == 0
+
+? numeric_bucket_ok
+? numeric_division_ok
+? numeric_modulo_ok
+
+> normalize(raw: String) -> String { to_lower(trim(raw)) }
+> token_list(raw: String) -> List(String) { split(normalize(raw), " ") }
+> reverse_token_text(raw: String) -> String { join(reverse(token_list(raw)), "|") }
+
+= source_text = "  Alpha Beta Gamma  "
+= normalized = normalize(source_text)
+= tokens = token_list(source_text)
+= reversed = reverse_token_text(source_text)
+= doubled_tokens = concat(tokens, tokens)
+= upper_tokens = map(tokens, |word| to_upper(word))
+= source_after_helpers = source_text
+
+| string_helper_reuse_ok: reversed -> reversed == "gamma|beta|alpha" && normalized == "alpha beta gamma"
+| list_helper_reuse_ok: tokens -> length(tokens) == 3 && length(doubled_tokens) == 6 && head(upper_tokens) == "ALPHA"
+| source_reuse_ok: source_after_helpers -> contains(source_after_helpers, "Alpha Beta Gamma")
+
+? string_helper_reuse_ok
+? list_helper_reuse_ok
+? source_reuse_ok
+
+@ print("typed lowering corpus passed")
