@@ -1,0 +1,27 @@
+-- expect-command: emit-lib
+-- expect-status: pass
+-- expect-stdout: pub enum Choice
+-- expect-stdout: pub fn add(a: i64, b: i64) -> i64
+-- expect-stdout: pub fn label(choice: Choice) -> String
+-- expect-stdout: fn hidden(x: i64) -> i64
+-- expect-stdout-not: fn main()
+-- expect-stdout-not: pub fn hidden
+@ export
+# Choice = Left | Right
+
+> hidden(x: Int) -> Int {
+    x + 1
+}
+
+@ export
+> add(a: Int, b: Int) -> Int {
+    a + b
+}
+
+@ export
+> label(choice: Choice) -> String {
+    match choice {
+        | Left -> "left"
+        | Right -> "right"
+    }
+}

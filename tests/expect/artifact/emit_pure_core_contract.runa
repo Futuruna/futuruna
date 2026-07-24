@@ -1,0 +1,14 @@
+-- expect-command: emit-rust
+-- expect-status: pass
+-- expect-stdout: struct __FutGlobals
+-- expect-stdout: fn add_bias(__fut_globals: &__FutGlobals, x: i64) -> i64
+-- expect-stdout: fn main()
+-- expect-stdout-file: ../golden/artifact/emit_pure_core_contract.stdout
+= base = 7
+= doubled = base * 2
+
+> add_bias(x: Int) -> Int {
+    x + doubled
+}
+
+@ print(show(add_bias(base)))

@@ -10,6 +10,9 @@ For the current stage assignments of major language and tooling surfaces, see
 For release-by-release compatibility history, see
 [docs/compatibility-guides/](compatibility-guides/README.md).
 
+For emitted Rust and generated artifact boundaries, see
+[docs/artifact-codegen-contracts.md](artifact-codegen-contracts.md).
+
 The goal is simple: users should not have to guess which changes are ordinary
 progress, which are intentional compatibility breaks, and which surfaces are
 still explicitly unstable.
@@ -77,6 +80,8 @@ Default rule:
 In practice:
 
 - exact emitted Rust shape is unstable unless a doc explicitly promises it
+- exact emitted Rust shape is a reviewed contract for files covered by
+  `tests/expect/artifact/` golden fixtures
 - emitted program behavior is part of behavioral compatibility
 - build outputs, ABI, and integration surfaces only become stable if they are
   documented as such
@@ -225,7 +230,9 @@ This policy is a contract first. Some enforcement still needs follow-up work:
 
 - feature stability metadata is not yet surfaced consistently in tooling/docs
 - compatibility guide updates are still enforced by review discipline, not by automated tooling
-- artifact compatibility is only partially formalized beyond emitted behavior
+- artifact compatibility is documented in
+  [docs/artifact-codegen-contracts.md](artifact-codegen-contracts.md), but
+  only a small initial artifact fixture set exists
 
 Those gaps should be tracked explicitly in `td`, not left as implicit policy
 debt.

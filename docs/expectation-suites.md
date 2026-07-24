@@ -40,10 +40,12 @@ Each `.runa` case uses source comments as directives:
 
 Supported directives:
 
-- `-- expect-command: check|run|interp|emit-rust|emit-fir|verify`
+- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|verify`
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`
+- `-- expect-stdout-not: text that must not appear on stdout`
+- `-- expect-stderr-not: text that must not appear on stderr`
 - `-- expect-stdout-file: path/to/stdout.golden`
 - `-- expect-stderr-file: path/to/stderr.golden`
 - `-- expect-skip: reason`
@@ -68,6 +70,10 @@ The starter layout is:
 
 - `tests/expect/phase/`
   Phase-specific structural expectations such as FIR or emitted Rust markers.
+
+- `tests/expect/artifact/`
+  Reviewed emitted-artifact contracts. Golden changes here are
+  compatibility-facing and should be intentional.
 
 Future subdirectories should be named by behavior, not by bug number. A bug
 number can appear in the file name when that helps traceability.

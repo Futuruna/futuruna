@@ -89,6 +89,13 @@ For Futuruna modules, use `@ import`.
 
 Compiled output goes to `.runa-build/` (a Cargo project). Incremental compilation caches binaries in `runa-cache/` and skips unchanged files.
 
+For the precise compatibility boundary around emitted Rust, native build
+artifacts, `runa lib`, and WASM package output, see
+[../artifact-codegen-contracts.md](../artifact-codegen-contracts.md). The short
+rule is: generated Rust behavior for stable pure/core programs is a contract;
+exact emitted text, helper names, and private layout are internal unless an
+artifact expectation fixture or doc explicitly promises them.
+
 ## Type Mapping
 
 | Futuruna | Rust | Copy? |

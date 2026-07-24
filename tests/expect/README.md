@@ -14,10 +14,12 @@ is expected:
 
 Supported directives:
 
-- `-- expect-command: check|run|interp|emit-rust|emit-fir|verify`
+- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|verify`
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`
+- `-- expect-stdout-not: text that must not appear on stdout`
+- `-- expect-stderr-not: text that must not appear on stderr`
 - `-- expect-stdout-file: path/to/stdout.golden`
 - `-- expect-stderr-file: path/to/stderr.golden`
 - `-- expect-skip: reason`
@@ -28,6 +30,7 @@ same. They can be combined with substring assertions when a case needs both a
 stable full snapshot and a few high-signal markers.
 
 Use this suite for minimized compiler-facing contracts: diagnostics,
-pass-specific output, and run/fail behavior. Use `tests/canary/` for realistic
-multi-subsystem workflows and `tests/downstream/` for library-consumer
-contracts.
+pass-specific output, artifact snapshots, and run/fail behavior. Artifact
+contracts live under `artifact/` with golden files under `golden/artifact/`.
+Use `tests/canary/` for realistic multi-subsystem workflows and
+`tests/downstream/` for library-consumer contracts.

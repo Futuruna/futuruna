@@ -14,7 +14,8 @@ It should be read alongside [docs/compatibility-policy.md](compatibility-policy.
 |---------|-------|-------|
 | Core language syntax documented in `docs/reference/basics.md` and `docs/reference/runes.md` | Stable | Changes here are source-compatibility changes unless docs explicitly mark a subsection otherwise. |
 | Documented stdlib builtin semantics in `docs/reference/stdlib.md` | Stable | Behavioral changes require compatibility handling or an explicit bug-fix exception. |
-| Exact emitted Rust text, helper names, and internal compiler layouts | Unstable internal | Not a public compatibility surface unless a doc explicitly promises it. |
+| Pure/core generated Rust artifact shape | Preview | Generated Rust for stable pure/core source must compile and preserve behavior; exact emitted text is stable only for named artifact fixtures. See `docs/artifact-codegen-contracts.md`. |
+| Exact helper names, private generated layout, and internal compiler layouts | Unstable internal | Not a public compatibility surface unless a doc or artifact expectation explicitly promises it. |
 | Explicit kernel proof terms and documented proof-kernel rule forms | Stable | The small kernel-backed proof term surface is part of the published contract. |
 | `runa verify` theorem elaboration, solver fallback, and broader verification automation | Preview | Useful and supported, but still evolving as the proof trust boundary and automation pipeline change. |
 | Reactive/stateful surfaces such as streams, subjects, actors, and effect-heavy workflows | Preview | User-facing and documented, with explicit named-scope ownership for live subscriptions, but still under active semantic hardening and canary expansion. |

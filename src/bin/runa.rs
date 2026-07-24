@@ -1576,6 +1576,7 @@ enum ExpectCommand {
     Run,
     Interpret,
     EmitRust,
+    EmitLib,
     EmitFir,
     Verify,
 }
@@ -1587,10 +1588,11 @@ impl ExpectCommand {
             "run" => Ok(Self::Run),
             "interp" | "interpret" => Ok(Self::Interpret),
             "emit" | "emit-rust" => Ok(Self::EmitRust),
+            "emit-lib" | "lib" => Ok(Self::EmitLib),
             "emit-fir" | "fir" => Ok(Self::EmitFir),
             "verify" => Ok(Self::Verify),
             other => Err(format!(
-                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-fir, or verify",
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, or verify",
                 other
             )),
         }
@@ -1602,6 +1604,7 @@ impl ExpectCommand {
             Self::Run => "run",
             Self::Interpret => "interp",
             Self::EmitRust => "emit-rust",
+            Self::EmitLib => "emit-lib",
             Self::EmitFir => "emit-fir",
             Self::Verify => "verify",
         }
@@ -1620,6 +1623,9 @@ impl ExpectCommand {
             }
             Self::EmitRust => {
                 cmd.arg("emit").arg(file);
+            }
+            Self::EmitLib => {
+                cmd.arg("lib").arg(file);
             }
             Self::EmitFir => {
                 cmd.arg("emit").arg("--fir").arg(file);
@@ -1663,6 +1669,8 @@ struct ExpectCase {
     status: ExpectStatus,
     stdout: Vec<String>,
     stderr: Vec<String>,
+    stdout_not: Vec<String>,
+    stderr_not: Vec<String>,
     stdout_file: Option<String>,
     stderr_file: Option<String>,
     skip: Option<String>,
@@ -1712,6 +1720,8 @@ fn parse_expect_case(source: &str, path: &std::path::Path) -> Result<ExpectCase,
         status,
         stdout: collect_expectation_markers(source, "-- expect-stdout:"),
         stderr: collect_expectation_markers(source, "-- expect-stderr:"),
+        stdout_not: collect_expectation_markers(source, "-- expect-stdout-not:"),
+        stderr_not: collect_expectation_markers(source, "-- expect-stderr-not:"),
         stdout_file,
         stderr_file,
         skip,
@@ -1922,6 +1932,16 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
         for expected in &case.stderr {
             if !stderr.contains(expected) {
                 missing.push(format!("stderr missing {:?}", expected));
+            }
+        }
+        for unexpected in &case.stdout_not {
+            if stdout.contains(unexpected) {
+                missing.push(format!("stdout unexpectedly contained {:?}", unexpected));
+            }
+        }
+        for unexpected in &case.stderr_not {
+            if stderr.contains(unexpected) {
+                missing.push(format!("stderr unexpectedly contained {:?}", unexpected));
             }
         }
         if let Some(path) = &case.stdout_file {
