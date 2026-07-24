@@ -995,10 +995,30 @@ fn source_dir_for(filename: &str) -> Option<String> {
         .map(|p| p.to_string_lossy().to_string())
 }
 
+fn compiler_validation_diagnostics(
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+    source_name: Option<String>,
+) -> Vec<Diagnostic> {
+    let mut cg = RustCodegen::new();
+    cg.source_dir = source_dir;
+    cg.source_name = source_name;
+    cg.collect_scope_lifetime_issues(stmts)
+}
+
 /// Run type checking and display any errors as structured diagnostics.
 /// Returns true if there were errors (and already printed them).
 fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> bool {
-    let diags = TypeChecker::check_with_diagnostics(stmts, source_dir_for(filename), source);
+    let source_dir = source_dir_for(filename);
+    let source_name = std::path::Path::new(filename)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string());
+    let mut diags = TypeChecker::check_with_diagnostics(stmts, source_dir.clone(), source);
+    diags.extend(compiler_validation_diagnostics(
+        stmts,
+        source_dir,
+        source_name,
+    ));
     if diags.is_empty() {
         return false;
     }
@@ -8865,7 +8885,8 @@ fn lsp_analyze(writer: &mut impl std::io::Write, uri: &str, source: &str, prelud
         Ok(user_stmts) => {
             let stmts = prepend_prelude(prelude.to_vec(), &user_stmts);
             let src_dir = lsp_source_dir(uri);
-            let tc_diags = TypeChecker::check_with_diagnostics(&stmts, src_dir, source);
+            let mut tc_diags = TypeChecker::check_with_diagnostics(&stmts, src_dir.clone(), source);
+            tc_diags.extend(compiler_validation_diagnostics(&stmts, src_dir, None));
             for diag in &tc_diags {
                 diagnostics.push(diagnostic_to_lsp(diag, source));
             }
@@ -18435,6 +18456,364 @@ impl RustCodegen {
         issues
     }
 
+    fn collect_scope_lifetime_issues(&mut self, input_stmts: &[Stmt]) -> Vec<Diagnostic> {
+        let all_stmts = self.scan_declarations(input_stmts);
+        self.seed_async_stream_bindings_from_stmt_list(&all_stmts);
+        let mut diags = Vec::new();
+        self.collect_scope_lifetime_stmt_list(&all_stmts, None, false, &mut diags);
+        diags
+    }
+
+    fn seed_async_stream_bindings_from_stmt_list(&mut self, stmts: &[Stmt]) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Defn(Defn::Fn { body, .. }) => {
+                    self.seed_async_stream_bindings_from_expr(body);
+                }
+                Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                    for defn in methods {
+                        if let Defn::Fn { body, .. } = defn {
+                            self.seed_async_stream_bindings_from_expr(body);
+                        }
+                    }
+                }
+                Stmt::Rule(Rule::Scope { body, .. }) => {
+                    self.seed_async_stream_bindings_from_stmt_list(body);
+                }
+                Stmt::StreamBind(name, expr) => {
+                    let is_subject = matches!(expr.kind, ExprKind::App(ref f, _) if matches!(f.as_ref().kind, ExprKind::Var(ref n) if n == "subject"));
+                    if is_subject {
+                        self.subject_vars.insert(name.clone());
+                        self.async_stream_vars.insert(name.clone());
+                    } else {
+                        self.seed_async_stream_bindings_from_expr(expr);
+                        if self.is_live_stream_expr_for_validation(expr) {
+                            self.async_stream_vars.insert(name.clone());
+                        }
+                    }
+                }
+                Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr) | Stmt::Expr(expr) => {
+                    self.seed_async_stream_bindings_from_expr(expr);
+                }
+                Stmt::For(_, iter_expr, body) => {
+                    self.seed_async_stream_bindings_from_expr(iter_expr);
+                    self.seed_async_stream_bindings_from_stmt_list(body);
+                }
+                Stmt::StreamSub(expr, arms) => {
+                    self.seed_async_stream_bindings_from_expr(expr);
+                    for arm in arms {
+                        if let Some(guard) = &arm.guard {
+                            self.seed_async_stream_bindings_from_expr(guard);
+                        }
+                        self.seed_async_stream_bindings_from_expr(&arm.body);
+                    }
+                }
+                Stmt::Send(target, msg) => {
+                    self.seed_async_stream_bindings_from_expr(target);
+                    self.seed_async_stream_bindings_from_expr(msg);
+                }
+                Stmt::While(cond, body) => {
+                    self.seed_async_stream_bindings_from_expr(cond);
+                    self.seed_async_stream_bindings_from_stmt_list(body);
+                }
+                Stmt::Invariant {
+                    subject, predicate, ..
+                } => {
+                    self.seed_async_stream_bindings_from_expr(subject);
+                    self.seed_async_stream_bindings_from_expr(predicate);
+                }
+                Stmt::Prove {
+                    pass_block,
+                    else_block,
+                    ..
+                } => {
+                    if let Some(pass) = pass_block {
+                        self.seed_async_stream_bindings_from_stmt_list(pass);
+                    }
+                    if let Some(fail) = else_block {
+                        self.seed_async_stream_bindings_from_stmt_list(fail);
+                    }
+                }
+                Stmt::Rule(Rule::Default {
+                    head,
+                    value,
+                    condition,
+                    ..
+                })
+                | Stmt::Rule(Rule::Exception {
+                    head,
+                    value,
+                    condition,
+                    ..
+                }) => {
+                    self.seed_async_stream_bindings_from_expr(head);
+                    self.seed_async_stream_bindings_from_expr(value);
+                    if let Some(cond) = condition {
+                        self.seed_async_stream_bindings_from_expr(cond);
+                    }
+                }
+                Stmt::Annot(_, args) => {
+                    for arg in args {
+                        self.seed_async_stream_bindings_from_expr(arg);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn seed_async_stream_bindings_from_expr(&mut self, expr: &Expr) {
+        match &expr.kind {
+            ExprKind::App(func, args) => {
+                self.seed_async_stream_bindings_from_expr(func);
+                for arg in args {
+                    self.seed_async_stream_bindings_from_expr(arg);
+                }
+            }
+            ExprKind::BinOp(_, lhs, rhs) => {
+                self.seed_async_stream_bindings_from_expr(lhs);
+                self.seed_async_stream_bindings_from_expr(rhs);
+            }
+            ExprKind::UnOp(_, inner) | ExprKind::Field(inner, _) | ExprKind::Try(inner) => {
+                self.seed_async_stream_bindings_from_expr(inner);
+            }
+            ExprKind::If(cond, then_expr, else_expr) => {
+                self.seed_async_stream_bindings_from_expr(cond);
+                self.seed_async_stream_bindings_from_expr(then_expr);
+                self.seed_async_stream_bindings_from_expr(else_expr);
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                self.seed_async_stream_bindings_from_expr(scrutinee);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.seed_async_stream_bindings_from_expr(guard);
+                    }
+                    self.seed_async_stream_bindings_from_expr(&arm.body);
+                }
+            }
+            ExprKind::Block(stmts) => self.seed_async_stream_bindings_from_stmt_list(stmts),
+            ExprKind::Lambda(_, body) => self.seed_async_stream_bindings_from_expr(body),
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Effect(_, items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => {
+                for item in items {
+                    self.seed_async_stream_bindings_from_expr(item);
+                }
+            }
+            ExprKind::Handle { body, handlers, .. } => {
+                self.seed_async_stream_bindings_from_expr(body);
+                for handler in handlers {
+                    self.seed_async_stream_bindings_from_expr(&handler.body);
+                }
+            }
+            ExprKind::Pipe(input, transform) | ExprKind::Index(input, transform) => {
+                self.seed_async_stream_bindings_from_expr(input);
+                self.seed_async_stream_bindings_from_expr(transform);
+            }
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+        }
+    }
+
+    fn collect_scope_lifetime_stmt_list(
+        &mut self,
+        stmts: &[Stmt],
+        fn_name: Option<&str>,
+        in_scope: bool,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        for stmt in stmts {
+            self.collect_scope_lifetime_stmt(stmt, fn_name, in_scope, diags);
+        }
+    }
+
+    fn collect_scope_lifetime_stmt(
+        &mut self,
+        stmt: &Stmt,
+        fn_name: Option<&str>,
+        in_scope: bool,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        match stmt {
+            Stmt::Defn(Defn::Fn { name, body, .. }) => {
+                self.collect_scope_lifetime_expr(body, Some(name.as_str()), false, diags);
+            }
+            Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                for defn in methods {
+                    if let Defn::Fn { name, body, .. } = defn {
+                        self.collect_scope_lifetime_expr(body, Some(name.as_str()), false, diags);
+                    }
+                }
+            }
+            Stmt::Rule(Rule::Scope { body, .. }) => {
+                self.collect_scope_lifetime_stmt_list(body, fn_name, true, diags);
+            }
+            Stmt::For(_, iter_expr, body) => {
+                if fn_name.is_some()
+                    && !in_scope
+                    && self.is_live_stream_expr_for_validation(iter_expr)
+                {
+                    let mut diag = Diagnostic::error_at(
+                        iter_expr.span,
+                        "live async stream for-loops require a named scope",
+                    )
+                    .with_note("wrap this subscription in `| scope Name { ... }` so its lifetime is owned explicitly");
+                    if let Some(name) = fn_name {
+                        diag = diag.with_context(format!("in function `{}`", name));
+                    }
+                    diags.push(diag);
+                }
+                self.collect_scope_lifetime_expr(iter_expr, fn_name, in_scope, diags);
+                self.collect_scope_lifetime_stmt_list(body, fn_name, in_scope, diags);
+            }
+            Stmt::StreamSub(expr, arms) => {
+                if fn_name.is_some() && !in_scope && self.is_live_stream_expr_for_validation(expr) {
+                    let mut diag = Diagnostic::error_at(
+                        expr.span,
+                        "live stream subscriptions require a named scope",
+                    )
+                    .with_note("ordinary functions must not spawn detached subscription tasks; use `| scope Name { ... }` instead");
+                    if let Some(name) = fn_name {
+                        diag = diag.with_context(format!("in function `{}`", name));
+                    }
+                    diags.push(diag);
+                }
+                self.collect_scope_lifetime_expr(expr, fn_name, in_scope, diags);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.collect_scope_lifetime_expr(guard, fn_name, in_scope, diags);
+                    }
+                    self.collect_scope_lifetime_expr(&arm.body, fn_name, in_scope, diags);
+                }
+            }
+            Stmt::Bind(_, _, expr)
+            | Stmt::MonadicBind(_, _, expr)
+            | Stmt::Expr(expr)
+            | Stmt::StreamBind(_, expr) => {
+                self.collect_scope_lifetime_expr(expr, fn_name, in_scope, diags);
+            }
+            Stmt::Send(target, msg) => {
+                self.collect_scope_lifetime_expr(target, fn_name, in_scope, diags);
+                self.collect_scope_lifetime_expr(msg, fn_name, in_scope, diags);
+            }
+            Stmt::While(cond, body) => {
+                self.collect_scope_lifetime_expr(cond, fn_name, in_scope, diags);
+                self.collect_scope_lifetime_stmt_list(body, fn_name, in_scope, diags);
+            }
+            Stmt::Invariant {
+                subject, predicate, ..
+            } => {
+                self.collect_scope_lifetime_expr(subject, fn_name, in_scope, diags);
+                self.collect_scope_lifetime_expr(predicate, fn_name, in_scope, diags);
+            }
+            Stmt::Prove {
+                pass_block,
+                else_block,
+                ..
+            } => {
+                if let Some(pass) = pass_block {
+                    self.collect_scope_lifetime_stmt_list(pass, fn_name, in_scope, diags);
+                }
+                if let Some(fail) = else_block {
+                    self.collect_scope_lifetime_stmt_list(fail, fn_name, in_scope, diags);
+                }
+            }
+            Stmt::Rule(Rule::Default {
+                head,
+                value,
+                condition,
+                ..
+            })
+            | Stmt::Rule(Rule::Exception {
+                head,
+                value,
+                condition,
+                ..
+            }) => {
+                self.collect_scope_lifetime_expr(head, fn_name, in_scope, diags);
+                self.collect_scope_lifetime_expr(value, fn_name, in_scope, diags);
+                if let Some(cond) = condition {
+                    self.collect_scope_lifetime_expr(cond, fn_name, in_scope, diags);
+                }
+            }
+            Stmt::Annot(_, args) => {
+                for arg in args {
+                    self.collect_scope_lifetime_expr(arg, fn_name, in_scope, diags);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn collect_scope_lifetime_expr(
+        &mut self,
+        expr: &Expr,
+        fn_name: Option<&str>,
+        in_scope: bool,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        match &expr.kind {
+            ExprKind::App(func, args) => {
+                self.collect_scope_lifetime_expr(func, fn_name, in_scope, diags);
+                for arg in args {
+                    self.collect_scope_lifetime_expr(arg, fn_name, in_scope, diags);
+                }
+            }
+            ExprKind::BinOp(_, lhs, rhs) => {
+                self.collect_scope_lifetime_expr(lhs, fn_name, in_scope, diags);
+                self.collect_scope_lifetime_expr(rhs, fn_name, in_scope, diags);
+            }
+            ExprKind::UnOp(_, inner) | ExprKind::Field(inner, _) | ExprKind::Try(inner) => {
+                self.collect_scope_lifetime_expr(inner, fn_name, in_scope, diags);
+            }
+            ExprKind::If(cond, then_expr, else_expr) => {
+                self.collect_scope_lifetime_expr(cond, fn_name, in_scope, diags);
+                self.collect_scope_lifetime_expr(then_expr, fn_name, in_scope, diags);
+                self.collect_scope_lifetime_expr(else_expr, fn_name, in_scope, diags);
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                self.collect_scope_lifetime_expr(scrutinee, fn_name, in_scope, diags);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        self.collect_scope_lifetime_expr(guard, fn_name, in_scope, diags);
+                    }
+                    self.collect_scope_lifetime_expr(&arm.body, fn_name, in_scope, diags);
+                }
+            }
+            ExprKind::Block(stmts) => {
+                self.collect_scope_lifetime_stmt_list(stmts, fn_name, in_scope, diags);
+            }
+            ExprKind::Lambda(_, body) => {
+                self.collect_scope_lifetime_expr(body, fn_name, in_scope, diags);
+            }
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Effect(_, items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => {
+                for item in items {
+                    self.collect_scope_lifetime_expr(item, fn_name, in_scope, diags);
+                }
+            }
+            ExprKind::Handle { body, handlers, .. } => {
+                self.collect_scope_lifetime_expr(body, fn_name, in_scope, diags);
+                for handler in handlers {
+                    self.collect_scope_lifetime_expr(&handler.body, fn_name, in_scope, diags);
+                }
+            }
+            ExprKind::Pipe(input, transform) => {
+                self.collect_scope_lifetime_expr(input, fn_name, in_scope, diags);
+                self.collect_scope_lifetime_expr(transform, fn_name, in_scope, diags);
+            }
+            ExprKind::Index(base, index) => {
+                self.collect_scope_lifetime_expr(base, fn_name, in_scope, diags);
+                self.collect_scope_lifetime_expr(index, fn_name, in_scope, diags);
+            }
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+        }
+    }
+
     /// Collect free type variables from a type expression
     fn collect_type_vars(&self, ty: &Ty, vars: &mut Vec<String>) {
         match ty {
@@ -23248,6 +23627,10 @@ impl RustCodegen {
         if !self.has_async {
             return false;
         }
+        self.is_live_stream_expr_for_validation(expr)
+    }
+
+    fn is_live_stream_expr_for_validation(&self, expr: &Expr) -> bool {
         match &expr.kind {
             ExprKind::Var(name) => {
                 self.subject_vars.contains(name.as_str())
@@ -23267,10 +23650,10 @@ impl RustCodegen {
                         "concat",
                     ];
                     if name == "as_stream" && !args.is_empty() {
-                        return self.is_async_stream_expr(&args[0]);
+                        return self.is_live_stream_expr_for_validation(&args[0]);
                     }
                     if stream_ops.contains(&name.as_str()) && !args.is_empty() {
-                        return self.is_async_stream_expr(&args[0]);
+                        return self.is_live_stream_expr_for_validation(&args[0]);
                     }
                 }
                 false
@@ -23288,7 +23671,7 @@ impl RustCodegen {
                     )
                     .into(),
                 };
-                self.is_async_stream_expr(&desugared)
+                self.is_live_stream_expr_for_validation(&desugared)
             }
             _ => false,
         }
@@ -29772,8 +30155,9 @@ for x in [1, 2] {
         let user_stmts = parse_test_program(source);
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
-        let diags =
-            TypeChecker::check_with_diagnostics(&stmts, filename.and_then(source_dir_for), source);
+        let source_dir = filename.and_then(source_dir_for);
+        let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), source);
+        diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
         assert!(
             diags.is_empty(),
             "typecheck failed for compiled regression: {:?}",
@@ -29849,7 +30233,8 @@ for x in [1, 2] {
         let user_stmts = parse_test_program(source);
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
-        let diags = TypeChecker::check_with_diagnostics(&stmts, None, source);
+        let mut diags = TypeChecker::check_with_diagnostics(&stmts, None, source);
+        diags.extend(compiler_validation_diagnostics(&stmts, None, None));
         assert!(
             diags.is_empty(),
             "typecheck failed for interpreter runtime regression: {:?}",
@@ -29890,8 +30275,9 @@ for x in [1, 2] {
         let user_stmts = parse_test_program(source);
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
-        let diags =
-            TypeChecker::check_with_diagnostics(&stmts, filename.and_then(source_dir_for), source);
+        let source_dir = filename.and_then(source_dir_for);
+        let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), source);
+        diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
         assert!(
             diags.is_empty(),
             "typecheck failed for compiled runtime regression: {:?}",
@@ -29969,8 +30355,9 @@ for x in [1, 2] {
         let user_stmts = parse_test_program(source);
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
-        let diags =
-            TypeChecker::check_with_diagnostics(&stmts, filename.and_then(source_dir_for), source);
+        let source_dir = filename.and_then(source_dir_for);
+        let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), source);
+        diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
         assert!(
             diags.is_empty(),
             "typecheck failed for compiled privacy regression: {:?}",
@@ -31852,6 +32239,79 @@ routes <- "b"
     }
 
     #[test]
+    fn compiler_validation_rejects_function_local_live_stream_subscription() {
+        let diags = compiler_validation_diags_for_source(
+            "~ clicks = subject()\n\
+             > install() -> () {\n\
+                 ~ clicks | x -> {\n\
+                     @ print(show(x))\n\
+                 }\n\
+             }\n",
+        );
+        assert!(
+            diags.iter().any(
+                |d| d.message == "live stream subscriptions require a named scope"
+                    && d.context.iter().any(|ctx| ctx == "in function `install`")
+                    && d.notes.iter().any(|note| note.contains("| scope Name"))
+            ),
+            "expected function-local live subscription diagnostic, got: {:?}",
+            diags
+                .iter()
+                .map(|d| (&d.message, &d.context, &d.notes))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn compiler_validation_rejects_function_local_async_stream_for_loop() {
+        let diags = compiler_validation_diags_for_source(
+            "~ clicks = subject()\n\
+             > install() -> () {\n\
+                 for x in clicks {\n\
+                     @ print(show(x))\n\
+                 }\n\
+             }\n",
+        );
+        assert!(
+            diags.iter().any(
+                |d| d.message == "live async stream for-loops require a named scope"
+                    && d.context.iter().any(|ctx| ctx == "in function `install`")
+                    && d.notes.iter().any(|note| note.contains("| scope Name"))
+            ),
+            "expected function-local async stream for-loop diagnostic, got: {:?}",
+            diags
+                .iter()
+                .map(|d| (&d.message, &d.context, &d.notes))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn compiler_validation_allows_function_local_subscription_inside_named_scope() {
+        let diags = compiler_validation_diags_for_source(
+            "~ clicks = subject()\n\
+             > install() -> () {\n\
+                 | scope Monitor {\n\
+                     ~ clicks | x -> {\n\
+                         @ print(show(x))\n\
+                     }\n\
+                 }\n\
+             }\n",
+        );
+        assert!(
+            diags.iter().all(
+                |d| d.message != "live stream subscriptions require a named scope"
+                    && d.message != "live async stream for-loops require a named scope"
+            ),
+            "named scopes inside functions should own live subscriptions explicitly, got: {:?}",
+            diags
+                .iter()
+                .map(|d| (&d.message, &d.context, &d.notes))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
     fn legacy_emit_expr_moves_copy_captures_for_returned_lambdas() {
         let source = "> add_n(n: Int) -> (Int -> Int) { |x| x + n }";
         let (mut cg, stmts) = scan_with_codegen(source);
@@ -32358,6 +32818,12 @@ routes <- "b"
     fn library_hygiene_issues_for_source(source: &str) -> Vec<String> {
         let stmts = parse_test_program(source);
         library_hygiene_issues_for_stmts(&stmts)
+    }
+
+    fn compiler_validation_diags_for_source(source: &str) -> Vec<Diagnostic> {
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        compiler_validation_diagnostics(&stmts, None, None)
     }
 
     fn emit_wasm_program(source: &str) -> String {
