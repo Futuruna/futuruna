@@ -15041,6 +15041,14 @@ impl RustCodegen {
                     } else {
                         (format!("{}({})", name, items.join(", ")), "()".to_string())
                     }
+                } else if parent_ty == *name {
+                    // Single-variant positional ctor — lowers as a tuple struct,
+                    // not an enum variant; emit `Name(...)` instead of `Name::Name(...)`.
+                    if args.is_empty() {
+                        (name.clone(), parent_ty.clone())
+                    } else {
+                        (format!("{}({})", name, items.join(", ")), parent_ty.clone())
+                    }
                 } else if args.is_empty() {
                     (format!("{}::{}", parent_ty, name), parent_ty.clone())
                 } else {

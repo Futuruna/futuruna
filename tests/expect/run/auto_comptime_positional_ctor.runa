@@ -1,0 +1,18 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: Pair(7, hello)
+--
+-- Regression for td-760400: auto-comptime over a top-level binding whose
+-- value is a single-variant positional constructor must emit `Pair(...)`
+-- not `Pair::Pair(...)`. Single-variant positional ADTs lower as Rust tuple
+-- structs, where `Type::Type(...)` is invalid syntax.
+
+# Pair = Pair(Int, String)
+
+> make_pair() -> Pair {
+    Pair(7, "hello")
+}
+
+= cached: Pair = make_pair()
+
+@ print(show(cached))
