@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: pass
+-- expect-stderr: check ok
+
+@ import ./import_visibility_lib
+
+= flat_label = visible_label("flat")

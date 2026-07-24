@@ -1,0 +1,7 @@
+-- expect-command: lint-library-imports
+-- expect-status: pass
+-- expect-stderr: All imports from 1 root file passed hygiene.
+
+@ import ./import_visibility_lib
+
+= label = visible_label("mint")

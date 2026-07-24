@@ -1,0 +1,8 @@
+-- expect-command: lint-library-imports
+-- expect-status: fail
+-- expect-stderr: import hygiene fail
+-- expect-stderr: top-level expression statements are script-only
+
+@ import ./lint_script_helper
+
+= value = 1

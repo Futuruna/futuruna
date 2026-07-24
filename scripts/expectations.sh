@@ -17,6 +17,8 @@ if [[ ! -x "$RELEASE_RUNA" ]]; then
     needs_build=true
 elif ! "$RELEASE_RUNA" help 2>&1 | grep -q "runa expect"; then
     needs_build=true
+elif find src Cargo.toml Cargo.lock -newer "$RELEASE_RUNA" -print -quit | grep -q .; then
+    needs_build=true
 fi
 
 if [[ "$needs_build" == true ]]; then

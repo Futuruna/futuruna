@@ -1,0 +1,11 @@
+-- expect-skip: dependency-only fixture for import_consumer_visibility.runa
+-- library-hygiene: importable
+
+@ export
+> visible_label(name: String) -> String {
+    "ok:" + name
+}
+
+> hidden_label(name: String) -> String {
+    "hidden:" + name
+}

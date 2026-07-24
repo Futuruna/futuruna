@@ -14,7 +14,7 @@ is expected:
 
 Supported directives:
 
-- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|verify`
+- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|verify|lint-library|lint-library-imports`
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`

@@ -1,0 +1,4 @@
+-- expect-skip: intentionally script-like helper for lint_import_graph_rejects_script_leak.runa
+-- library-hygiene: importable
+
+@ print("import leak")

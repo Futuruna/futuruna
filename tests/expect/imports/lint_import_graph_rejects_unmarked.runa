@@ -1,0 +1,8 @@
+-- expect-command: lint-library-imports
+-- expect-status: fail
+-- expect-stderr: import hygiene fail
+-- expect-stderr: is not marked as importable
+
+@ import ./lint_unmarked_helper
+
+= value = helper_value

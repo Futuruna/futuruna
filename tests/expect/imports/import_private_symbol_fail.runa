@@ -1,0 +1,8 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: private
+-- expect-stderr: hidden_label
+
+@ import Lib from ./import_visibility_lib
+
+= hidden = Lib.hidden_label("qualified")

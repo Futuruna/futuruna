@@ -1,0 +1,3 @@
+-- expect-skip: intentionally unmarked helper for lint_import_graph_rejects_unmarked.runa
+
+= helper_value = 42

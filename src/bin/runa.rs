@@ -1579,6 +1579,8 @@ enum ExpectCommand {
     EmitLib,
     EmitFir,
     Verify,
+    LintLibrary,
+    LintLibraryImports,
 }
 
 impl ExpectCommand {
@@ -1591,8 +1593,10 @@ impl ExpectCommand {
             "emit-lib" | "lib" => Ok(Self::EmitLib),
             "emit-fir" | "fir" => Ok(Self::EmitFir),
             "verify" => Ok(Self::Verify),
+            "lint-library" => Ok(Self::LintLibrary),
+            "lint-library-imports" => Ok(Self::LintLibraryImports),
             other => Err(format!(
-                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, or verify",
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, verify, lint-library, or lint-library-imports",
                 other
             )),
         }
@@ -1607,6 +1611,8 @@ impl ExpectCommand {
             Self::EmitLib => "emit-lib",
             Self::EmitFir => "emit-fir",
             Self::Verify => "verify",
+            Self::LintLibrary => "lint-library",
+            Self::LintLibraryImports => "lint-library-imports",
         }
     }
 
@@ -1632,6 +1638,12 @@ impl ExpectCommand {
             }
             Self::Verify => {
                 cmd.arg("verify").arg(file);
+            }
+            Self::LintLibrary => {
+                cmd.arg("lint-library").arg(file);
+            }
+            Self::LintLibraryImports => {
+                cmd.arg("lint-library").arg("--imports").arg(file);
             }
         }
     }

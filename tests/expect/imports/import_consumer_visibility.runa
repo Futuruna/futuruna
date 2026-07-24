@@ -1,0 +1,7 @@
+-- expect-command: check
+-- expect-status: pass
+-- expect-stderr: check ok
+
+@ import Lib from ./import_visibility_lib
+
+= qualified_label = Lib.visible_label("qualified")
