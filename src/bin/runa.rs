@@ -17097,6 +17097,7 @@ impl RustCodegen {
         }
 
         self.lib_static_names = self.collect_top_level_binding_getter_names(&main_stmts, &fn_stmts);
+        let duplicate_top_level_binds = Self::duplicate_top_level_binding_names(&main_stmts);
         (
             self.binary_global_env_fns,
             self.binary_global_env_fn_arities,
@@ -17351,6 +17352,11 @@ impl RustCodegen {
                         comptime_interp.rules.push((name, rule.clone()));
                     }
                     Stmt::Bind(pat, _ty, expr) => {
+                        if let Pat::Var(name) = pat {
+                            if duplicate_top_level_binds.contains(name.as_str()) {
+                                continue;
+                            }
+                        }
                         if !self.can_seed_comptime_binding(expr, &pure_fns, &comptime_env) {
                             continue;
                         }
@@ -17534,6 +17540,9 @@ impl RustCodegen {
             // at compile time without requiring explicit @ comptime annotation.
             for stmt in &main_stmts {
                 if let Stmt::Bind(Pat::Var(name), _, expr) = stmt {
+                    if duplicate_top_level_binds.contains(name.as_str()) {
+                        continue;
+                    }
                     // Skip already-comptime bindings
                     if self.types.comptime_values.contains_key(name) {
                         continue;
@@ -18332,6 +18341,25 @@ impl RustCodegen {
         }
 
         getter_names
+    }
+
+    fn duplicate_top_level_binding_names(main_stmts: &[&Stmt]) -> BTreeSet<String> {
+        let mut bind_counts: BTreeMap<String, usize> = BTreeMap::new();
+        for stmt in main_stmts {
+            match stmt {
+                Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
+                    if !name.starts_with("__") {
+                        *bind_counts.entry(name.clone()).or_insert(0) += 1;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        bind_counts
+            .into_iter()
+            .filter_map(|(name, count)| if count > 1 { Some(name) } else { None })
+            .collect()
     }
 
     /// Check if a type recursively references the given ADT name
@@ -32819,6 +32847,41 @@ for x in [1, 2] {
 
         let output = compile_and_run_test_file(&main_path);
         assert_eq!(output.trim(), "15");
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_plain_import_duplicate_top_level_name_uses_current_binding() {
+        let temp_name = format!(
+            "futuruna_import_duplicate_comptime_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(
+            &dep_path,
+            "# Boxed(width: Int)\n> make_box(width: Int) -> Boxed { Boxed(width) }\n= shared = make_box(4)\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &main_path,
+            "@ import ./dep\n= shared = make_box(8)\n@ print(show(shared.width))\n",
+        )
+        .unwrap();
+
+        let output = compile_and_run_test_file(&main_path);
+        assert_eq!(output.trim(), "8");
 
         let _ = std::fs::remove_file(&dep_path);
         let _ = std::fs::remove_file(&main_path);
