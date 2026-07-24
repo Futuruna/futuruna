@@ -25,3 +25,12 @@ import-safe declarations and pure derived values. Mark importable helpers with:
 The downstream runner enforces that marked files do not execute script-like
 top-level flows such as `@ print`, loops, sends, stream subscriptions, or other
 obvious import-time side effects.
+
+It also runs:
+
+```bash
+runa lint-library --imports tests/downstream
+```
+
+That import-graph check requires every plain or qualified imported helper to be
+marked importable and rejects imported script/demo bodies before codegen.

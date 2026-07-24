@@ -8,6 +8,12 @@ The canonical checker is:
 runa lint-library tests
 ```
 
+For a consumer surface, also check the actual import graph:
+
+```bash
+runa lint-library --imports tests/downstream
+```
+
 ## Marker
 
 Mark importable library files with:
@@ -29,6 +35,10 @@ Importable library files may define or export:
 - pure top-level stream bindings
 - imports, dependencies, and declarative annotations such as `@ export`
 
+Plain and qualified imports flatten importable library declarations into the
+consumer. Pure top-level values are allowed because exported helpers may depend
+on private constants or derived tables.
+
 ## What Is Rejected
 
 Importable library files should not execute top-level script flows such as:
@@ -43,6 +53,15 @@ Importable library files should not execute top-level script flows such as:
 - top-level bindings whose expressions obviously perform import-time side effects
   such as `read_file`, `write_file`, `http_get`, `db_exec`, `process_run`, or
   similar impure builtins
+
+When `runa lint-library --imports <file|dir>` checks a consumer, every file
+reached through plain or qualified imports must be marked importable and must
+pass these same rules. Content-hash imports are different: they select one
+declaration by hash, not the imported file's top-level script body.
+
+Normal `runa run`, `runa check`, and `runa emit` remain backward-compatible
+today. The import-graph hygiene check is the blocking gate for authored
+downstream/canary consumers.
 
 ## Why This Exists
 

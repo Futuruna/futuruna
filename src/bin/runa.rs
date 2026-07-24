@@ -37,6 +37,7 @@ fn main_inner() {
     let mut fmt_check = false; // --check flag for `runa fmt --check`
     let mut use_fir = false; // --fir flag for `runa emit --fir`
     let mut check_codegen = false; // --check-codegen flag for `runa test --check-codegen`
+    let mut lint_import_graph = false; // --imports flag for `runa lint-library`
     let mut stress_seed = None;
     let mut stress_save_failures = None;
 
@@ -77,6 +78,10 @@ fn main_inner() {
             }
             "--check-codegen" if mode == "test" => {
                 check_codegen = true;
+                i += 1;
+            }
+            "--imports" if mode == "lint-library" => {
+                lint_import_graph = true;
                 i += 1;
             }
             "--roundtrip" if mode == "test" => {
@@ -159,6 +164,7 @@ fn main_inner() {
                 eprintln!("  fmt --check   Check formatting without modifying");
                 eprintln!("  lsp           Start language server (stdio)");
                 eprintln!("  lint-library  Check importable library files for script leakage");
+                eprintln!("  lint-library --imports  Check imported helper files");
                 eprintln!("  expect        Run compiletest-style expectation cases");
                 eprintln!("  bench          Run performance benchmarks");
                 eprintln!("  from-rust     Transpile Rust source to Futuruna");
@@ -188,6 +194,7 @@ fn main_inner() {
                 eprintln!("  runa fmt program.runa       Format source file");
                 eprintln!("  runa fmt .                  Format all .runa files");
                 eprintln!("  runa lint-library tests     Check marked importable library files");
+                eprintln!("  runa lint-library --imports tests/downstream  Check imported files");
                 eprintln!("  runa expect tests/expect    Run compiler expectation cases");
                 eprintln!("  runa test                   Run all tests");
                 eprintln!("  runa test --run             Run all tests (compiled)");
@@ -348,7 +355,7 @@ fn main_inner() {
     // ── runa lint-library [file|dir] — importable library hygiene ──
     if mode == "lint-library" {
         let target = filename.as_deref().unwrap_or("tests");
-        lint_library_target(target);
+        lint_library_target(target, lint_import_graph);
         return;
     }
 
@@ -8162,7 +8169,12 @@ fn source_marks_importable_library(source: &str) -> bool {
     })
 }
 
-fn lint_library_target(path: &str) {
+fn lint_library_target(path: &str, check_imports: bool) {
+    if check_imports {
+        lint_library_import_graph_target(path);
+        return;
+    }
+
     let meta = match std::fs::metadata(path) {
         Ok(meta) => meta,
         Err(e) => {
@@ -8176,6 +8188,43 @@ fn lint_library_target(path: &str) {
     } else {
         lint_library_file(path, false);
     }
+}
+
+fn lint_library_import_graph_target(path: &str) {
+    let meta = match std::fs::metadata(path) {
+        Ok(meta) => meta,
+        Err(e) => {
+            eprintln!("Error reading {}: {}", path, e);
+            std::process::exit(1);
+        }
+    };
+
+    let mut roots = Vec::new();
+    if meta.is_dir() {
+        collect_runa_files(path, &mut roots);
+        roots.sort();
+    } else {
+        roots.push(path.to_string());
+    }
+
+    let mut issues = Vec::new();
+    for root in &roots {
+        issues.extend(library_import_graph_issues_for_root(root));
+    }
+
+    if !issues.is_empty() {
+        eprintln!("  \x1b[1;31mimport hygiene fail\x1b[0m {}", path);
+        for issue in issues {
+            eprintln!("    - {}", issue);
+        }
+        std::process::exit(1);
+    }
+
+    eprintln!(
+        "All imports from {} root file{} passed hygiene.",
+        roots.len(),
+        if roots.len() == 1 { "" } else { "s" }
+    );
 }
 
 fn lint_library_directory(dir: &str) {
@@ -8281,6 +8330,131 @@ fn library_hygiene_issues_for_stmts(stmts: &[Stmt]) -> Vec<String> {
     let mut issues = Vec::new();
     collect_library_scope_issues(stmts, None, &impure_builtins, &mut issues);
     issues
+}
+
+fn library_import_graph_issues_for_root(root: &str) -> Vec<String> {
+    let mut issues = Vec::new();
+    let mut checked_imports = BTreeSet::new();
+    collect_library_import_graph_issues(root, None, false, &mut checked_imports, &mut issues);
+    issues
+}
+
+fn collect_library_import_graph_issues(
+    path: &str,
+    importer: Option<&str>,
+    check_current_file: bool,
+    checked_imports: &mut BTreeSet<String>,
+    issues: &mut Vec<String>,
+) {
+    let canonical = std::fs::canonicalize(path)
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| path.to_string());
+
+    if check_current_file && !checked_imports.insert(canonical.clone()) {
+        return;
+    }
+
+    let source = match std::fs::read_to_string(path) {
+        Ok(source) => source,
+        Err(e) => {
+            issues.push(format!("cannot read {}: {}", path, e));
+            return;
+        }
+    };
+
+    let stmts = match parse_program_for_library_hygiene(&source, path) {
+        Ok(stmts) => stmts,
+        Err(e) => {
+            issues.push(format!("parse error in {}: {}", path, e));
+            return;
+        }
+    };
+
+    if check_current_file {
+        let by = importer.unwrap_or("<root>");
+        if !source_marks_importable_library(&source) {
+            issues.push(format!(
+                "{} imported by {} is not marked as importable; add `{}` or move script/demo code to a non-imported entrypoint",
+                path, by, LIBRARY_HYGIENE_MARKER
+            ));
+        }
+        for issue in library_hygiene_issues_for_stmts(&stmts) {
+            issues.push(format!("{} imported by {}: {}", path, by, issue));
+        }
+    }
+
+    let import_dir = std::path::Path::new(path)
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| ".".to_string());
+
+    for stmt in stmts {
+        match stmt {
+            Stmt::Import(import_path) | Stmt::QualifiedImport(_, import_path) => {
+                let imported_path = resolve_library_hygiene_import_path(&import_path, &import_dir);
+                collect_library_import_graph_issues(
+                    &imported_path,
+                    Some(path),
+                    true,
+                    checked_imports,
+                    issues,
+                );
+            }
+            Stmt::HashImport(_, _) => {
+                // Content-hash imports select a single declaration by hash, not a
+                // file's top-level script body, so script-flow leakage does not apply.
+            }
+            _ => {}
+        }
+    }
+}
+
+fn resolve_library_hygiene_import_path(import_path: &str, dir: &str) -> String {
+    let rel = import_path.trim_start_matches("./");
+    let file_path = format!("{}/{}.runa", dir, rel);
+
+    if import_path.starts_with("./")
+        || import_path.starts_with("../")
+        || std::path::Path::new(&file_path).exists()
+    {
+        return file_path;
+    }
+
+    if let Some(toml_path) = find_runa_toml(dir) {
+        if let Some(manifest) = parse_runa_toml(&toml_path) {
+            let toml_dir = std::path::Path::new(&toml_path)
+                .parent()
+                .map(|p| {
+                    let s = p.to_string_lossy().to_string();
+                    if s.is_empty() {
+                        ".".to_string()
+                    } else {
+                        s
+                    }
+                })
+                .unwrap_or_else(|| ".".to_string());
+            let parts: Vec<&str> = import_path.splitn(2, '/').collect();
+            let dep_name = parts[0];
+            let module = if parts.len() > 1 { parts[1] } else { "lib" };
+
+            for (name, dep_spec) in &manifest.dependencies {
+                if name == dep_name {
+                    if let Some(abs_dep) = resolve_dep_to_path(dep_spec, &toml_dir) {
+                        let dep_file = format!("{}/{}.runa", abs_dep, module);
+                        if std::path::Path::new(&dep_file).exists() {
+                            return dep_file;
+                        }
+                        let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
+                        if std::path::Path::new(&dep_file_src).exists() {
+                            return dep_file_src;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    file_path
 }
 
 fn import_time_impure_builtin_names() -> BTreeSet<String> {
@@ -30793,6 +30967,87 @@ for x in [1, 2] {
             "expected impure binding issue, got: {:?}",
             issues
         );
+    }
+
+    #[test]
+    fn library_import_graph_rejects_unmarked_imported_scripts() {
+        let temp_name = format!(
+            "futuruna_import_hygiene_script_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(
+            &dep_path,
+            "> helper() -> Int { 1 }\n@ print(\"import-time smoke\")\n",
+        )
+        .unwrap();
+        std::fs::write(&main_path, "@ import ./dep\n@ print(show(helper()))\n").unwrap();
+
+        let issues =
+            library_import_graph_issues_for_root(main_path.to_str().expect("utf-8 test path"));
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("is not marked as importable")),
+            "expected missing importable marker issue, got: {:?}",
+            issues
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("top-level expression statements are script-only")),
+            "expected imported script-flow issue, got: {:?}",
+            issues
+        );
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn library_import_graph_allows_marked_importable_helpers() {
+        let temp_name = format!(
+            "futuruna_import_hygiene_library_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(
+            &dep_path,
+            "-- library-hygiene: importable\n@ export\n> helper() -> Int { 1 }\n= probe = helper()\n",
+        )
+        .unwrap();
+        std::fs::write(&main_path, "@ import ./dep\n@ print(show(helper()))\n").unwrap();
+
+        let issues =
+            library_import_graph_issues_for_root(main_path.to_str().expect("utf-8 test path"));
+        assert!(
+            issues.is_empty(),
+            "expected marked importable helper to pass, got: {:?}",
+            issues
+        );
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]

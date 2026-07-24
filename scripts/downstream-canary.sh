@@ -24,6 +24,7 @@ run_step cargo build --release
 
 run_step "$RELEASE_RUNA" fmt --check "$TARGET_DIR"
 run_step "$RELEASE_RUNA" lint-library tests
+run_step "$RELEASE_RUNA" lint-library --imports "$TARGET_DIR"
 
 for entry in "${ENTRYPOINTS[@]}"; do
     run_step "$RELEASE_RUNA" check "$entry"
