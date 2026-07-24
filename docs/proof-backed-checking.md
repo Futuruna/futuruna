@@ -134,7 +134,7 @@ Target for now:
 
 ## First Concrete Slice
 
-The next implementation slice should be:
+The first implementation slice is:
 
 > translation-check generated computation lemmas against the source functions
 > they claim to describe.
@@ -151,6 +151,17 @@ Minimum useful version:
 This does not prove all of Futuruna. It removes one dangerous assumption from
 the proof pipeline: that compiler-generated lemmas accurately mirror source
 code.
+
+Implementation status:
+
+- explicit proof registry construction now uses a checked computation-lemma
+  collection path
+- the checker rejects generated lemmas with no eligible source arm
+- the checker rejects missing generated lemmas for eligible source arms
+- the checker rejects generated schemas that differ from the source-derived arm
+  schema
+- focused regressions cover the verified bootstrap fixture and tampered
+  generated lemma sets
 
 ## Non-Goals
 
@@ -172,4 +183,3 @@ This lane is succeeding when:
 - user-facing proof claims stay honest about what is trusted
 - unproved surfaces remain covered by mint, canaries, differential testing, and
   focused regressions
-

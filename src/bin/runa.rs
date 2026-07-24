@@ -6037,6 +6037,87 @@ fn collect_computation_lemmas(
     lemmas
 }
 
+fn computation_lemma_schema_matches(
+    actual: &proof_kernel::Schema,
+    expected: &proof_kernel::Schema,
+) -> bool {
+    actual.vars == expected.vars
+        && actual.premises == expected.premises
+        && actual.conclusion == expected.conclusion
+}
+
+fn expected_computation_lemma_map(
+    stmts: &[Stmt],
+    bindings: &BTreeMap<String, Expr>,
+) -> Result<BTreeMap<String, proof_kernel::Schema>, String> {
+    let mut expected = BTreeMap::new();
+    for stmt in stmts {
+        if let Stmt::Defn(Defn::Fn {
+            name, params, body, ..
+        }) = stmt
+        {
+            if let Some(generated) = computation_lemmas_for_function(name, params, body, bindings) {
+                for (lemma_name, schema) in generated {
+                    if expected.insert(lemma_name.clone(), schema).is_some() {
+                        return Err(format!(
+                            "duplicate eligible source computation lemma `{}`",
+                            lemma_name
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    Ok(expected)
+}
+
+fn validate_computation_lemmas_against_sources(
+    stmts: &[Stmt],
+    bindings: &BTreeMap<String, Expr>,
+    generated: &[(String, proof_kernel::Schema)],
+) -> Result<(), String> {
+    let expected = expected_computation_lemma_map(stmts, bindings)?;
+    let mut seen = BTreeSet::new();
+
+    for (name, schema) in generated {
+        if !seen.insert(name.clone()) {
+            return Err(format!("duplicate generated computation lemma `{}`", name));
+        }
+        let Some(expected_schema) = expected.get(name) else {
+            return Err(format!(
+                "generated computation lemma `{}` has no eligible source arm",
+                name
+            ));
+        };
+        if !computation_lemma_schema_matches(schema, expected_schema) {
+            return Err(format!(
+                "generated computation lemma `{}` does not match its source arm: expected `{}`, got `{}`",
+                name, expected_schema.conclusion, schema.conclusion
+            ));
+        }
+    }
+
+    for expected_name in expected.keys() {
+        if !seen.contains(expected_name) {
+            return Err(format!(
+                "missing generated computation lemma `{}` for eligible source arm",
+                expected_name
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn collect_computation_lemmas_checked(
+    stmts: &[Stmt],
+    bindings: &BTreeMap<String, Expr>,
+) -> Result<Vec<(String, proof_kernel::Schema)>, String> {
+    let generated = collect_computation_lemmas(stmts, bindings);
+    validate_computation_lemmas_against_sources(stmts, bindings, &generated)?;
+    Ok(generated)
+}
+
 fn build_explicit_proof_registry(
     computation_lemmas: &[(String, proof_kernel::Schema)],
     proved_invariants: &BTreeMap<String, proof_kernel::Schema>,
@@ -6392,9 +6473,6 @@ fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Explici
         })
         .collect();
 
-    let constructors = ProofConstructorTable::from_adts(&adts);
-    let function_param_types = collect_function_param_types(stmts);
-    let computation_lemmas = collect_computation_lemmas(stmts, &bindings);
     let invariants: Vec<(String, Expr, Expr)> = stmts
         .iter()
         .filter_map(|stmt| match stmt {
@@ -6406,6 +6484,25 @@ fn explicit_proof_statuses_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Explici
             _ => None,
         })
         .collect();
+    let constructors = ProofConstructorTable::from_adts(&adts);
+    let function_param_types = collect_function_param_types(stmts);
+    let computation_lemmas = match collect_computation_lemmas_checked(stmts, &bindings) {
+        Ok(lemmas) => lemmas,
+        Err(err) => {
+            return invariants
+                .into_iter()
+                .map(|(name, _, _)| {
+                    (
+                        name,
+                        ExplicitProofStatus::Failed(format!(
+                            "computation lemma validation failed: {}",
+                            err
+                        )),
+                    )
+                })
+                .collect();
+        }
+    };
     let proof_blocks: BTreeMap<String, ProofBlock> = stmts
         .iter()
         .filter_map(|stmt| match stmt {
@@ -6582,7 +6679,11 @@ fn verify_with_z3(source: &str, filename: &str) {
     }
 
     let function_param_types = collect_function_param_types_from_defs(&functions);
-    let computation_lemmas = collect_computation_lemmas(&all_stmts, &bindings);
+    let (computation_lemmas, computation_lemma_error) =
+        match collect_computation_lemmas_checked(&all_stmts, &bindings) {
+            Ok(lemmas) => (lemmas, None),
+            Err(err) => (Vec::new(), Some(err)),
+        };
     let constructors = ProofConstructorTable::from_adts(&adts);
     let mut proved_invariants: BTreeMap<String, proof_kernel::Schema> = BTreeMap::new();
     let fn_names: BTreeSet<String> = functions.iter().map(|(n, _, _, _)| n.clone()).collect();
@@ -6607,54 +6708,67 @@ fn verify_with_z3(source: &str, filename: &str) {
         println!("--- | {} ---", inv_name);
 
         if let Some(proof_block) = proof_blocks.get(inv_name) {
-            match build_explicit_proof_registry(&computation_lemmas, &proved_invariants) {
-                Ok(reg) => match evaluate_explicit_proof(
-                    subject_expr,
-                    pred_expr,
-                    &bindings,
-                    &binding_types,
-                    &function_param_types,
-                    &constructors,
-                    proof_block,
-                    &reg,
-                ) {
-                    ExplicitProofStatus::Proved => {
-                        match invariant_proof_schema(pred_expr, &bindings) {
-                            Ok(schema) => {
-                                let mut next_reg = reg;
-                                if let Err(err) =
-                                    next_reg.register(inv_name.clone(), schema.clone())
-                                {
-                                    println!("  ✗ explicit proof failed in kernel: {}", err);
-                                    println!("  falling back to Z3 for semantic verification\n");
-                                } else {
-                                    proved_invariants.insert(inv_name.clone(), schema);
+            if let Some(err) = &computation_lemma_error {
+                println!(
+                    "  ✗ explicit proof failed in kernel: computation lemma validation failed: {}",
+                    err
+                );
+                println!("  falling back to Z3 for semantic verification\n");
+            } else {
+                match build_explicit_proof_registry(&computation_lemmas, &proved_invariants) {
+                    Ok(reg) => match evaluate_explicit_proof(
+                        subject_expr,
+                        pred_expr,
+                        &bindings,
+                        &binding_types,
+                        &function_param_types,
+                        &constructors,
+                        proof_block,
+                        &reg,
+                    ) {
+                        ExplicitProofStatus::Proved => {
+                            match invariant_proof_schema(pred_expr, &bindings) {
+                                Ok(schema) => {
+                                    let mut next_reg = reg;
+                                    if let Err(err) =
+                                        next_reg.register(inv_name.clone(), schema.clone())
+                                    {
+                                        println!("  ✗ explicit proof failed in kernel: {}", err);
+                                        println!(
+                                            "  falling back to Z3 for semantic verification\n"
+                                        );
+                                    } else {
+                                        proved_invariants.insert(inv_name.clone(), schema);
+                                        println!(
+                                            "  ✓ PROVED by kernel: |{}| closed explicit proof",
+                                            inv_name
+                                        );
+                                        println!();
+                                        continue;
+                                    }
+                                }
+                                Err(err) => {
                                     println!(
-                                        "  ✓ PROVED by kernel: |{}| closed explicit proof",
-                                        inv_name
+                                        "  ? explicit proof unsupported in kernel path: {}",
+                                        err
                                     );
-                                    println!();
-                                    continue;
+                                    println!("  falling back to Z3\n");
                                 }
                             }
-                            Err(err) => {
-                                println!("  ? explicit proof unsupported in kernel path: {}", err);
-                                println!("  falling back to Z3\n");
-                            }
                         }
-                    }
-                    ExplicitProofStatus::Failed(err) => {
+                        ExplicitProofStatus::Failed(err) => {
+                            println!("  ✗ explicit proof failed in kernel: {}", err);
+                            println!("  falling back to Z3 for semantic verification\n");
+                        }
+                        ExplicitProofStatus::Unsupported(reason) => {
+                            println!("  ? explicit proof unsupported in kernel path: {}", reason);
+                            println!("  falling back to Z3\n");
+                        }
+                    },
+                    Err(err) => {
                         println!("  ✗ explicit proof failed in kernel: {}", err);
                         println!("  falling back to Z3 for semantic verification\n");
                     }
-                    ExplicitProofStatus::Unsupported(reason) => {
-                        println!("  ? explicit proof unsupported in kernel path: {}", reason);
-                        println!("  falling back to Z3\n");
-                    }
-                },
-                Err(err) => {
-                    println!("  ✗ explicit proof failed in kernel: {}", err);
-                    println!("  falling back to Z3 for semantic verification\n");
                 }
             }
         }
@@ -28014,6 +28128,16 @@ mod tests {
         explicit_proof_statuses_for_stmts(&stmts)
     }
 
+    fn proof_bindings_for_stmts(stmts: &[Stmt]) -> BTreeMap<String, Expr> {
+        stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
+                _ => None,
+            })
+            .collect()
+    }
+
     fn smt_skip_reason_for_named_invariant(source: &str, inv_name: &str) -> Option<String> {
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
@@ -28263,6 +28387,68 @@ mod tests {
 "#;
         let statuses = explicit_proof_statuses(source);
         assert_eq!(statuses.get("flip_on"), Some(&ExplicitProofStatus::Proved));
+    }
+
+    #[test]
+    fn computation_lemma_validation_accepts_verified_bootstrap_fixture() {
+        let source = std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/verified_bootstrap_test.runa"
+        ))
+        .expect("fixture should read");
+        let stmts = parse_test_program(&source);
+        let bindings = proof_bindings_for_stmts(&stmts);
+        let lemmas = collect_computation_lemmas_checked(&stmts, &bindings)
+            .expect("verified bootstrap computation lemmas should validate");
+        let names: BTreeSet<String> = lemmas.into_iter().map(|(name, _)| name).collect();
+
+        assert!(names.contains("lower.sadd3"));
+        assert!(names.contains("lower_value.svadd"));
+        assert!(names.contains("eval_surface_let.slet"));
+        assert!(names.contains("lower_let.slet"));
+    }
+
+    #[test]
+    fn computation_lemma_validation_rejects_tampered_generated_lemmas() {
+        let source = r#"
+# Switch = On | Off
+> flip(s: Switch) -> Switch {
+    match s {
+        | On -> Off
+        | Off -> On
+    }
+}
+"#;
+        let stmts = parse_test_program(source);
+        let bindings = proof_bindings_for_stmts(&stmts);
+        let generated = collect_computation_lemmas(&stmts, &bindings);
+        validate_computation_lemmas_against_sources(&stmts, &bindings, &generated)
+            .expect("untampered generated lemmas should validate");
+
+        let mut missing = generated.clone();
+        missing.retain(|(name, _)| name != "flip.off");
+        let err = validate_computation_lemmas_against_sources(&stmts, &bindings, &missing)
+            .expect_err("missing source-backed lemma should fail validation");
+        assert!(err.contains("missing generated computation lemma `flip.off`"));
+
+        let mut ghost = generated.clone();
+        ghost.push(("flip.ghost".into(), generated[0].1.clone()));
+        let err = validate_computation_lemmas_against_sources(&stmts, &bindings, &ghost)
+            .expect_err("ghost lemma should fail validation");
+        assert!(err.contains("has no eligible source arm"));
+
+        let mut mismatched = generated.clone();
+        let (_, schema) = mismatched
+            .iter_mut()
+            .find(|(name, _)| name == "flip.on")
+            .expect("flip.on should be generated");
+        schema.conclusion = proof_kernel::Prop::Eq(
+            proof_kernel::Term::App("flip".into(), vec![proof_kernel::Term::Var("On".into())]),
+            proof_kernel::Term::Var("On".into()),
+        );
+        let err = validate_computation_lemmas_against_sources(&stmts, &bindings, &mismatched)
+            .expect_err("mismatched lemma schema should fail validation");
+        assert!(err.contains("does not match its source arm"));
     }
 
     #[test]

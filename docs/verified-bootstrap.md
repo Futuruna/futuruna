@@ -86,8 +86,8 @@ proof-elaboration boundary.
 
 ## Immediate Follow-Ups
 
-- Translation-check generated computation lemmas against the source functions
-  they claim to describe.
+- Keep strengthening computation-lemma validation so generated proof facts stay
+  tied to the source functions they claim to describe.
 - Audit the proof-kernel trusted-core surface so the implementation remains
   reviewable and the documented trust boundary stays honest.
 - Keep extending the verified core only when the next compiler slice requires a

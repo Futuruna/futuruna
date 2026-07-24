@@ -40,8 +40,10 @@ Reason: computation lemmas are currently trusted compiler-generated equations
 handed to the proof kernel. If they misrepresent source functions, the kernel
 can prove the wrong theorem correctly.
 
-The plan is to independently translation-check generated computation lemmas
-against their source function arms.
+Generated computation lemmas now pass through a checked collection path before
+they enter the explicit-proof registry. The checker rejects ghost lemmas,
+missing source-backed lemmas, and schemas that differ from the source-derived
+arm schema.
 
 ## Ranked Surfaces
 
@@ -60,4 +62,3 @@ under control.
 - [[proof-kernel]]
 - [[state-and-roadmap]]
 - [[alive2-translation-validation]]
-
