@@ -1663,6 +1663,8 @@ struct ExpectCase {
     status: ExpectStatus,
     stdout: Vec<String>,
     stderr: Vec<String>,
+    stdout_file: Option<String>,
+    stderr_file: Option<String>,
     skip: Option<String>,
 }
 
@@ -1702,14 +1704,61 @@ fn parse_expect_case(source: &str, path: &std::path::Path) -> Result<ExpectCase,
         None => ExpectStatus::Pass,
     };
     let skip = single_expectation_marker(source, "-- expect-skip:", path)?;
+    let stdout_file = single_expectation_marker(source, "-- expect-stdout-file:", path)?;
+    let stderr_file = single_expectation_marker(source, "-- expect-stderr-file:", path)?;
 
     Ok(ExpectCase {
         command,
         status,
         stdout: collect_expectation_markers(source, "-- expect-stdout:"),
         stderr: collect_expectation_markers(source, "-- expect-stderr:"),
+        stdout_file,
+        stderr_file,
         skip,
     })
+}
+
+fn expectation_golden_path(case_path: &std::path::Path, raw_path: &str) -> PathBuf {
+    let path = std::path::Path::new(raw_path);
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        case_path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new(""))
+            .join(path)
+    }
+}
+
+fn normalize_expectation_output(output: &str) -> String {
+    output.replace("\r\n", "\n")
+}
+
+fn compare_expectation_golden(
+    channel: &str,
+    actual: &str,
+    raw_path: &str,
+    case_path: &std::path::Path,
+    missing: &mut Vec<String>,
+) {
+    let golden_path = expectation_golden_path(case_path, raw_path);
+    match std::fs::read_to_string(&golden_path) {
+        Ok(expected) => {
+            if normalize_expectation_output(actual) != normalize_expectation_output(&expected) {
+                missing.push(format!(
+                    "{} differed from golden {}",
+                    channel,
+                    golden_path.display()
+                ));
+            }
+        }
+        Err(err) => missing.push(format!(
+            "{} golden {} unreadable: {}",
+            channel,
+            golden_path.display(),
+            err
+        )),
+    }
 }
 
 fn collect_expectation_files(path: &std::path::Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
@@ -1874,6 +1923,12 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
             if !stderr.contains(expected) {
                 missing.push(format!("stderr missing {:?}", expected));
             }
+        }
+        if let Some(path) = &case.stdout_file {
+            compare_expectation_golden("stdout", &stdout, path, &file_path, &mut missing);
+        }
+        if let Some(path) = &case.stderr_file {
+            compare_expectation_golden("stderr", &stderr, path, &file_path, &mut missing);
         }
 
         if missing.is_empty() {

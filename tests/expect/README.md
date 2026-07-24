@@ -18,10 +18,16 @@ Supported directives:
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`
+- `-- expect-stdout-file: path/to/stdout.golden`
+- `-- expect-stderr-file: path/to/stderr.golden`
 - `-- expect-skip: reason`
+
+Golden file paths are resolved relative to the `.runa` case. Golden files check
+the whole output channel exactly, except CRLF and LF newlines are treated the
+same. They can be combined with substring assertions when a case needs both a
+stable full snapshot and a few high-signal markers.
 
 Use this suite for minimized compiler-facing contracts: diagnostics,
 pass-specific output, and run/fail behavior. Use `tests/canary/` for realistic
 multi-subsystem workflows and `tests/downstream/` for library-consumer
 contracts.
-

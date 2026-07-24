@@ -44,10 +44,17 @@ Supported directives:
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`
+- `-- expect-stdout-file: path/to/stdout.golden`
+- `-- expect-stderr-file: path/to/stderr.golden`
 - `-- expect-skip: reason`
 
 If `expect-command` is omitted, the command defaults to `check`. If
 `expect-status` is omitted, the status defaults to `pass`.
+
+Golden file paths are resolved relative to the `.runa` case. They check the
+entire selected output channel exactly, except CRLF and LF newlines are treated
+the same. Use substring directives for small markers and golden files when the
+reviewable artifact is the full diagnostic, FIR, emitted Rust, or run output.
 
 ## Layout
 
@@ -83,4 +90,3 @@ matches the failure:
 - library-consumer/import regression: add `tests/downstream/`
 - unknown semantic drift: add or minimize into `tests/differential/`
 - proof-elaboration trust issue: add proof-backed validation or a proof snapshot
-
