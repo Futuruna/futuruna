@@ -1,0 +1,27 @@
+-- expect-command: emit-rust
+-- expect-status: pass
+-- expect-stdout: let __s = json_passthrough
+-- expect-stdout: let mut __key = word_key.clone();
+-- expect-stdout: __v.sort_by_cached_key(|__item| format!("{}", __key(__item)));
+-- expect-stdout: .clone().into_iter().map(|__x| word_key(&__x)).collect::<Vec<_>>()
+-- expect-stdout: .clone().into_iter().partition(|w|
+-- expect-stdout-not: serde_json::from_str(&json_passthrough
+-- expect-stdout-not: __v.sort_by(|a, b|
+-- expect-stdout-file: ../golden/artifact/collection_helper_eval_contract.stdout
+# Word(form: String, score: Int)
+
+> word_key(w: Word) -> String {
+    w.form
+}
+
+> json_passthrough(s: String) -> String {
+    s
+}
+
+= words = [Word("beta", 2), Word("alpha", 1), Word("gamma", 3)]
+= sorted = sort_by(words, word_key)
+= labels = map(sorted, word_key)
+= keepers = partition(words, |w| w.score > 1)
+= decoded = json_string(json_passthrough("\"mint\""))
+
+@ print(join(labels, ",") + ":" + decoded + ":" + show(length(fst(keepers))))

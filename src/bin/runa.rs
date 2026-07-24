@@ -10524,7 +10524,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         // ---- JSON (shadowable, pure, deps: serde_json) ----
         ("json_parse",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __s = {0}; match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => __s, Err(_) => \"null\".to_string() } }" }),
         ("json_get",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j.get(&*{1}) { Some(v) => v.to_string(), None => \"null\".to_string() } }" }),
-        ("json_string",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => {0}.trim_matches('\"').to_string() } }" }),
+        ("json_string",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __s = {0}; let __j: serde_json::Value = serde_json::from_str(&__s).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => __s.trim_matches('\"').to_string() } }" }),
         ("json_number",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_f64().unwrap_or(0.0) }" }),
         ("json_bool",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_bool().unwrap_or(false) }" }),
         ("json_array",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::Array(a) => a.iter().map(|v| v.to_string()).collect::<Vec<String>>(), _ => vec![] } }" }),
@@ -10558,7 +10558,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("filter",       BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().filter(|x| ({1})( x.clone())).collect::<Vec<_>>()" }),
         ("foldl",        BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().fold({1}, {2})" }),
         ("sort",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }" }),
-        ("sort_by",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", ({1})(a)).cmp(&format!(\"{}\", ({1})(b)))); __v }" }),
+        ("sort_by",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| format!(\"{}\", __key(__item))); __v }" }),
         ("reverse",      BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }" }),
         ("is_some",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.is_some()" }),
         ("is_none",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.is_none()" }),
@@ -18515,6 +18515,29 @@ impl RustCodegen {
             .copied()
             .unwrap_or(0);
         let params: Vec<String> = (0..arity).map(|i| format!("__fut_arg{}", i)).collect();
+        let param_decls: Vec<String> = params
+            .iter()
+            .enumerate()
+            .map(|(idx, param)| {
+                let Some(param_ty) = self.function_param_fir_ty(name, idx) else {
+                    return param.clone();
+                };
+                let Some(rust_ty) = Self::fir_type_to_rust(&param_ty) else {
+                    return param.clone();
+                };
+                let borrows = self
+                    .borrow_only_params
+                    .get(name)
+                    .and_then(|flags| flags.get(idx))
+                    .copied()
+                    .unwrap_or(false);
+                if borrows {
+                    format!("{}: &{}", param, rust_ty)
+                } else {
+                    format!("{}: {}", param, rust_ty)
+                }
+            })
+            .collect();
         let env_arg = if self.binary_global_value_refs_in_scope {
             "__fut_globals"
         } else {
@@ -18536,7 +18559,7 @@ impl RustCodegen {
             format!(
                 "{}|{}| {}({})",
                 move_prefix,
-                params.join(", "),
+                param_decls.join(", "),
                 rust_name,
                 call_args
             )
@@ -32169,6 +32192,28 @@ for x in [1, 2] {
             "output should contain add function"
         );
         assert!(output.contains("fn main()"), "output should contain main");
+    }
+
+    #[test]
+    fn builtin_rust_templates_bind_each_argument_once() {
+        let registry = rust_builtin_registry();
+        let mut repeated = Vec::new();
+
+        for (name, def) in registry {
+            for idx in 0..def.arity {
+                let placeholder = format!("{{{}}}", idx);
+                let count = def.rust_tpl.matches(&placeholder).count();
+                if count > 1 {
+                    repeated.push(format!("{} repeats {} {} times", name, placeholder, count));
+                }
+            }
+        }
+
+        assert!(
+            repeated.is_empty(),
+            "builtin templates should bind arguments to temporaries instead of expanding them more than once: {}",
+            repeated.join(", ")
+        );
     }
 
     // ── FIR pipeline coverage tests ─────────────────────────────────

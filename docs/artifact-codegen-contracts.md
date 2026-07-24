@@ -55,4 +55,5 @@ When changing codegen:
 | Fixture | Contract |
 |---------|----------|
 | `tests/expect/artifact/emit_pure_core_contract.runa` | A small pure/core program has a reviewed full emitted-Rust snapshot, including top-level global lowering and the binary `main` shape. |
+| `tests/expect/artifact/collection_helper_eval_contract.runa` | Collection helpers and expression-valued builtin arguments bind callback/input expressions once before repeated runtime use. |
 | `tests/expect/artifact/lib_export_contract.runa` | `runa lib` emits exported functions/types as public Rust items, keeps private helpers private, and does not emit a binary `main`. |
