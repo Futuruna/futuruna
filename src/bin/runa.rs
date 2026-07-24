@@ -23873,22 +23873,44 @@ impl RustCodegen {
                 let sname = sanitize_name(type_name);
                 let table_name = sname.to_lowercase();
                 if self.types.persisted_types.contains(type_name.as_str()) {
-                    // M26b: DELETE WHERE pk = ? — primary key is the first column.
-                    let pk_col = self
+                    // M26b: typed-column DELETE. Each non-wildcard argument
+                    // becomes an equality predicate; `_` is a pattern wildcard.
+                    let fields = self
                         .types
-                        .stored_type_key_field
+                        .variant_fields
                         .get(type_name.as_str())
                         .cloned()
-                        .map(|f| sanitize_name(&f).to_string())
-                        .unwrap_or_else(|| "id".to_string());
-                    if let Some(first) = args.first() {
-                        let key_str = self.emit_expr(first);
+                        .unwrap_or_default();
+                    let cols: Vec<String> = fields
+                        .iter()
+                        .map(|f| sanitize_name(f).to_string())
+                        .collect();
+                    let mut where_parts = Vec::new();
+                    let mut params = Vec::new();
+                    for (idx, arg) in args.iter().enumerate().take(cols.len()) {
+                        if matches!(arg.kind, ExprKind::Var(ref name) if name == "_") {
+                            continue;
+                        }
+                        params.push(self.emit_expr(arg));
+                        where_parts.push(format!("{} = ?{}", cols[idx], params.len()));
+                    }
+                    let where_sql = if where_parts.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" WHERE {}", where_parts.join(" AND "))
+                    };
+                    if !args.is_empty() {
+                        let params_expr = if params.is_empty() {
+                            "rusqlite::params![]".to_string()
+                        } else {
+                            format!("rusqlite::params![{}]", params.join(", "))
+                        };
                         out.push_str(&format!(
-                            "{}__db.lock().unwrap().execute(\"DELETE FROM {} WHERE {} = ?1\", rusqlite::params![{}]).expect(\"retract failed\");\n",
+                            "{}__db.lock().unwrap().execute(\"DELETE FROM {}{}\", {}).expect(\"retract failed\");\n",
                             self.ind(),
                             table_name,
-                            pk_col,
-                            key_str
+                            where_sql,
+                            params_expr
                         ));
                     } else {
                         out.push_str(&format!(
@@ -34352,6 +34374,46 @@ assert Item(2, "Gadget", 50)
         assert!(
             !rust.contains("ITEM_FACTS"),
             "persisted findall must not fall back to an in-memory fact table: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_retract_over_persisted_type_uses_typed_where_clause() {
+        let source = r#"
+# Item(id: Int, name: String, qty: Int)
+@ persist Item
+= target_name = "Widget"
+= target_qty = 50
+retract Item(2, "Gadget", target_qty)
+retract Item(_, target_name, _)
+retract Item(_, _, _)
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("DELETE FROM item WHERE id = ?1 AND name = ?2 AND qty = ?3"),
+            "full persisted retract should lower every provided field to SQL predicates: {}",
+            rust
+        );
+        assert!(
+            rust.contains("rusqlite::params![2i64, \"Gadget\".to_string(), target_qty]"),
+            "full persisted retract should bind typed parameters in field order: {}",
+            rust
+        );
+        assert!(
+            rust.contains("DELETE FROM item WHERE name = ?1"),
+            "wildcard persisted retract should omit wildcard fields and keep bound fields: {}",
+            rust
+        );
+        assert!(
+            rust.contains("rusqlite::params![target_name]"),
+            "wildcard persisted retract should bind runtime variables: {}",
+            rust
+        );
+        assert!(
+            rust.contains("DELETE FROM item\", rusqlite::params![]"),
+            "all-wildcard persisted retract should delete all rows explicitly: {}",
             rust
         );
     }

@@ -1,0 +1,18 @@
+-- expect-command: emit-rust
+-- expect-status: pass
+-- expect-stdout: DELETE FROM item WHERE id = ?1 AND name = ?2 AND qty = ?3
+-- expect-stdout: rusqlite::params![2i64, "Gadget".to_string(), target_qty]
+-- expect-stdout: DELETE FROM item WHERE name = ?1
+-- expect-stdout: rusqlite::params![target_name
+-- expect-stdout: DELETE FROM item", rusqlite::params![]
+-- expect-stdout-not: DELETE FROM item WHERE id = ?1", rusqlite::params![2i64]
+
+# Item(id: Int, name: String, qty: Int)
+@ persist Item
+
+= target_name = "Widget"
+= target_qty = 50
+
+retract Item(2, "Gadget", target_qty)
+retract Item(_, target_name, _)
+retract Item(_, _, _)
