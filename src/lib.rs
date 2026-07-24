@@ -9835,6 +9835,9 @@ impl Interpreter {
                         )
                     }),
             ),
+            ("==", a, b) if values_are_list_like(a) && values_are_list_like(b) => {
+                Value::Bool(values_equal(a, b))
+            }
             ("!=", a, b) => match self.eval_binop("==", a.clone(), b.clone()) {
                 Value::Bool(v) => Value::Bool(!v),
                 _ => Value::Bool(true),
@@ -11025,6 +11028,10 @@ impl Interpreter {
 
 /// Compare two Values for structural equality (used in Prolog-style fact matching)
 pub fn values_equal(a: &Value, b: &Value) -> bool {
+    if let Some(equal) = list_values_equal(a, b) {
+        return equal;
+    }
+
     match (a, b) {
         (Value::Int(x), Value::Int(y)) => x == y,
         (Value::Float(x), Value::Float(y)) => (x - y).abs() < f64::EPSILON,
@@ -11048,6 +11055,35 @@ pub fn values_equal(a: &Value, b: &Value) -> bool {
             a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| values_equal(x, y))
         }
         _ => false,
+    }
+}
+
+fn values_are_list_like(value: &Value) -> bool {
+    list_items(value).is_some()
+}
+
+fn list_values_equal(a: &Value, b: &Value) -> Option<bool> {
+    let a_items = list_items(a)?;
+    let b_items = list_items(b)?;
+    Some(
+        a_items.len() == b_items.len()
+            && a_items
+                .iter()
+                .zip(b_items.iter())
+                .all(|(x, y)| values_equal(x, y)),
+    )
+}
+
+fn list_items(value: &Value) -> Option<Vec<Value>> {
+    match value {
+        Value::List(items) => Some(items.clone()),
+        Value::Constructor(name, fields) if name == "Nil" && fields.is_empty() => Some(vec![]),
+        Value::Constructor(name, fields) if name == "Cons" && fields.len() == 2 => {
+            let mut items = vec![fields[0].clone()];
+            items.extend(list_items(&fields[1])?);
+            Some(items)
+        }
+        _ => None,
     }
 }
 

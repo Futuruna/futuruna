@@ -1,0 +1,15 @@
+-- Regression for td-54439c: list equality inside ? predicates must return Bool.
+
+= ordered = sort(["beta", "alpha", "gamma"])
+= doubled = map([1, 2, 3], |x| x * 2)
+= nested = chunked([1, 2, 3, 4], 2)
+
+| sorted_list_equality_ok: ordered -> ordered == ["alpha", "beta", "gamma"]
+| mapped_list_equality_ok: doubled -> doubled == [2, 4, 6]
+| nested_list_equality_ok: nested -> nested == [[1, 2], [3, 4]]
+
+? sorted_list_equality_ok
+? mapped_list_equality_ok
+? nested_list_equality_ok
+
+@ print("list equality verify passed")
