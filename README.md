@@ -104,6 +104,7 @@ runa test                   # Run all tests/*.runa (interpreted)
 runa test --run             # Run all tests/*.runa (compiled)
 runa test --roundtrip tests # Compare interpreter vs compiled output
 runa expect tests/expect    # Run compiletest-style compiler expectations
+runa feature-stages --json  # Print machine-readable stability metadata
 runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 ./scripts/mint.sh           # Canonical "is Futuruna mint?" gate
 ./scripts/canary.sh         # Authored multi-feature canary programs
@@ -113,7 +114,7 @@ runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 
 See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/production-readiness-scorecard.md](docs/production-readiness-scorecard.md) for the readiness table, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, [docs/expectation-suites.md](docs/expectation-suites.md) for compiletest-style expectations, [docs/artifact-codegen-contracts.md](docs/artifact-codegen-contracts.md) for emitted Rust and artifact boundaries, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
 
-Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md): core syntax and documented stdlib behavior are treated as stable, while `runa verify`, stateful/reactive surfaces, Rust interop, and several advanced tooling paths are still preview or experimental.
+Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md) and [docs/feature-stages.json](docs/feature-stages.json): core syntax and documented stdlib behavior are treated as stable, while `runa verify`, stateful/reactive surfaces, Rust interop, and several advanced tooling paths are still preview or experimental.
 
 Release-facing compatibility history lives in
 [docs/compatibility-guides/](docs/compatibility-guides/). Stable breaks,
@@ -155,7 +156,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 - `CONTRIBUTING.md` - Contributor ratchet for semantic/compiler changes
 - `docs/compatibility-policy.md` - Compatibility categories, feature stages, and bug-fix exception policy
 - `docs/artifact-codegen-contracts.md` - Emitted Rust, native artifact, `runa lib`, and WASM stability boundaries
-- `docs/feature-stages.md` - Current stable/preview/experimental stage matrix for major surfaces and commands
+- `docs/feature-stages.md` / `docs/feature-stages.json` - Human and machine-readable stable/preview/experimental stage matrix for major surfaces and commands
 - `docs/production-readiness-scorecard.md` - Evidence-backed readiness ratings and promotion plan
 - `docs/expectation-suites.md` - Compiletest-style diagnostics, run/fail, and phase expectation lane
 - `docs/compatibility-guides/` - Release-facing compatibility ledger for stable changes, deprecations, and bug-fix exceptions

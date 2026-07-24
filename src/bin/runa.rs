@@ -11,6 +11,12 @@ use std::env;
 use std::io::{self, BufRead, Read, Write as IoWrite};
 use std::path::{Path, PathBuf};
 
+const FEATURE_STAGE_METADATA_JSON: &str = include_str!("../../docs/feature-stages.json");
+
+fn feature_stage_metadata_json() -> &'static str {
+    FEATURE_STAGE_METADATA_JSON
+}
+
 fn main() {
     // Use a large stack (64 MB) to handle deep recursion in comptime evaluation
     let builder = std::thread::Builder::new().stack_size(64 * 1024 * 1024);
@@ -82,6 +88,9 @@ fn main_inner() {
             }
             "--imports" if mode == "lint-library" => {
                 lint_import_graph = true;
+                i += 1;
+            }
+            "--json" if mode == "feature-stages" => {
                 i += 1;
             }
             "--roundtrip" if mode == "test" => {
@@ -167,6 +176,9 @@ fn main_inner() {
                 eprintln!("  lint-library --imports  Check imported helper files");
                 eprintln!("  expect        Run compiletest-style expectation cases");
                 eprintln!("  bench          Run performance benchmarks");
+                eprintln!(
+                    "  feature-stages [--json]  Print machine-readable feature stage metadata"
+                );
                 eprintln!("  from-rust     Transpile Rust source to Futuruna");
                 eprintln!("  from-rust --verify  Transpile + run both + compare outputs");
                 eprintln!("  test          Run all tests/*.runa (interpreted)");
@@ -183,6 +195,7 @@ fn main_inner() {
                 eprintln!("  Stable: run, check, emit, build, test, fmt, hashes; core syntax + documented stdlib");
                 eprintln!("  Preview: lib, wasm, lsp, stress-gen, verify; streams/stateful surfaces; Rust interop");
                 eprintln!("  Experimental: audit, from-rust");
+                eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
                 eprintln!();
                 eprintln!("Examples:");
@@ -263,6 +276,10 @@ fn main_inner() {
                 mode = "expect";
                 i += 1;
             }
+            "feature-stages" => {
+                mode = "feature-stages";
+                i += 1;
+            }
             "bench" => {
                 mode = "bench";
                 i += 1;
@@ -316,6 +333,16 @@ fn main_inner() {
             eprintln!("  Adds a local path dependency to runa.toml");
             std::process::exit(1);
         }
+        return;
+    }
+
+    // ── runa feature-stages [--json] — machine-readable stability metadata ──
+    if mode == "feature-stages" {
+        if filename.is_some() {
+            eprintln!("Usage: runa feature-stages [--json]");
+            std::process::exit(1);
+        }
+        print!("{}", feature_stage_metadata_json());
         return;
     }
 
@@ -30138,6 +30165,155 @@ mod tests {
             &function_map,
             &ctor_names,
         )
+    }
+
+    fn json_string_array(value: &serde_json::Value) -> Vec<String> {
+        value
+            .as_array()
+            .expect("expected JSON array")
+            .iter()
+            .map(|item| item.as_str().expect("expected JSON string").to_string())
+            .collect()
+    }
+
+    fn parse_feature_stage_frontmatter(source: &str) -> Option<(String, Vec<String>)> {
+        let source = source.strip_prefix("---\n")?;
+        let end = source.find("\n---\n")?;
+        let frontmatter = &source[..end];
+        let mut stage = None;
+        let mut surfaces = Vec::new();
+        let mut in_surfaces = false;
+
+        for line in frontmatter.lines() {
+            let trimmed = line.trim();
+            if let Some(raw_stage) = trimmed.strip_prefix("feature_stage:") {
+                stage = Some(raw_stage.trim().to_string());
+                in_surfaces = false;
+            } else if trimmed == "feature_stage_surfaces:" {
+                in_surfaces = true;
+            } else if in_surfaces {
+                if let Some(surface) = trimmed.strip_prefix("- ") {
+                    surfaces.push(surface.trim().to_string());
+                } else if !trimmed.is_empty() {
+                    in_surfaces = false;
+                }
+            }
+        }
+
+        stage.map(|stage| (stage, surfaces))
+    }
+
+    fn feature_stage_document_expectations() -> BTreeMap<String, (String, Vec<String>)> {
+        let metadata: serde_json::Value =
+            serde_json::from_str(feature_stage_metadata_json()).expect("stage metadata is JSON");
+        metadata["documents"]
+            .as_array()
+            .expect("metadata documents must be an array")
+            .iter()
+            .map(|doc| {
+                let path = doc["path"].as_str().expect("document path").to_string();
+                let stage = doc["stage"].as_str().expect("document stage").to_string();
+                let surfaces = json_string_array(&doc["surfaces"]);
+                (path, (stage, surfaces))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn feature_stage_metadata_json_is_valid() {
+        let metadata: serde_json::Value =
+            serde_json::from_str(feature_stage_metadata_json()).expect("valid stage metadata JSON");
+        assert_eq!(metadata["schema"], "futuruna.feature-stages.v1");
+        assert_eq!(metadata["schema_version"], 1);
+
+        let stage_values = metadata["stage_values"]
+            .as_object()
+            .expect("stage_values object");
+        for stage in [
+            "stable",
+            "preview",
+            "experimental",
+            "unstable-internal",
+            "mixed",
+        ] {
+            assert!(stage_values.contains_key(stage), "missing stage {}", stage);
+        }
+
+        let surfaces: BTreeSet<String> = metadata["surfaces"]
+            .as_array()
+            .expect("surfaces array")
+            .iter()
+            .map(|surface| surface["id"].as_str().expect("surface id").to_string())
+            .collect();
+        assert!(surfaces.contains("core-language-syntax"));
+        assert!(surfaces.contains("solver-assisted-verification"));
+
+        let commands = metadata["commands"].as_array().expect("commands array");
+        assert!(commands.iter().any(|command| {
+            command["name"] == "feature-stages" && command["stage"] == "stable"
+        }));
+        assert!(commands.iter().any(|command| {
+            command["name"] == "from-rust" && command["stage"] == "experimental"
+        }));
+
+        for command in commands {
+            let surface = command["surface"].as_str().expect("command surface");
+            assert!(
+                surfaces.contains(surface),
+                "command references unknown surface {}",
+                surface
+            );
+        }
+    }
+
+    #[test]
+    fn reference_and_tutorial_docs_match_feature_stage_metadata() {
+        let expected = feature_stage_document_expectations();
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let mut seen = BTreeSet::new();
+
+        for dir in ["docs/reference", "docs/tutorial"] {
+            let dir_path = manifest_dir.join(dir);
+            for entry in std::fs::read_dir(&dir_path).expect("read docs directory") {
+                let path = entry.expect("read docs entry").path();
+                if path.extension().and_then(|ext| ext.to_str()) != Some("md") {
+                    continue;
+                }
+                let relative = path
+                    .strip_prefix(manifest_dir)
+                    .expect("doc path under manifest")
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                let source = std::fs::read_to_string(&path).expect("read doc source");
+                let actual = parse_feature_stage_frontmatter(&source)
+                    .unwrap_or_else(|| panic!("{} is missing feature stage frontmatter", relative));
+                let expected_for_doc = expected
+                    .get(&relative)
+                    .unwrap_or_else(|| panic!("{} missing from feature stage metadata", relative));
+
+                assert_eq!(
+                    &actual.0, &expected_for_doc.0,
+                    "{} has mismatched feature stage",
+                    relative
+                );
+                assert_eq!(
+                    &actual.1, &expected_for_doc.1,
+                    "{} has mismatched feature surfaces",
+                    relative
+                );
+                seen.insert(relative);
+            }
+        }
+
+        for path in expected.keys().filter(|path| {
+            path.starts_with("docs/reference/") || path.starts_with("docs/tutorial/")
+        }) {
+            assert!(
+                seen.contains(path),
+                "{} metadata has no matching doc file",
+                path
+            );
+        }
     }
 
     #[test]

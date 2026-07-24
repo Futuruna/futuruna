@@ -1,0 +1,431 @@
+{
+  "schema": "futuruna.feature-stages.v1",
+  "schema_version": 1,
+  "source": "docs/feature-stages.md",
+  "policy": "docs/compatibility-policy.md",
+  "stage_values": {
+    "stable": "Documented behavior is part of the public compatibility surface.",
+    "preview": "Intended for real use, but the contract is still being hardened.",
+    "experimental": "Early surface; output shape and behavior may change without staged compatibility handling.",
+    "unstable-internal": "Compiler implementation detail unless another document explicitly promotes it.",
+    "mixed": "Document roll-up that covers more than one feature stage; not itself a feature-stage promise."
+  },
+  "surfaces": [
+    {
+      "id": "core-language-syntax",
+      "kind": "language",
+      "name": "Core language syntax",
+      "stage": "stable",
+      "docs": [
+        "docs/reference/basics.md",
+        "docs/reference/runes.md",
+        "docs/tutorial/01-hello.md",
+        "docs/tutorial/02-types.md",
+        "docs/tutorial/03-functions.md"
+      ]
+    },
+    {
+      "id": "documented-stdlib",
+      "kind": "runtime",
+      "name": "Documented standard library semantics",
+      "stage": "stable",
+      "docs": [
+        "docs/reference/stdlib.md"
+      ]
+    },
+    {
+      "id": "core-cli-workflow",
+      "kind": "tooling",
+      "name": "Core CLI workflow commands",
+      "stage": "stable",
+      "commands": [
+        "interpret",
+        "run",
+        "check",
+        "emit",
+        "build",
+        "test",
+        "fmt",
+        "hashes",
+        "feature-stages"
+      ],
+      "docs": [
+        "README.md",
+        "docs/tutorial/01-hello.md",
+        "docs/tutorial/07-project.md"
+      ]
+    },
+    {
+      "id": "proof-kernel-terms",
+      "kind": "verification",
+      "name": "Explicit kernel proof terms and documented proof-kernel rule forms",
+      "stage": "stable",
+      "docs": [
+        "docs/proof-kernel.md",
+        "docs/verified-bootstrap.md"
+      ]
+    },
+    {
+      "id": "pure-core-rust-artifacts",
+      "kind": "artifact",
+      "name": "Pure/core generated Rust artifact shape",
+      "stage": "preview",
+      "docs": [
+        "docs/artifact-codegen-contracts.md",
+        "docs/reference/rust-compatibility.md"
+      ]
+    },
+    {
+      "id": "importable-local-libraries",
+      "kind": "language",
+      "name": "Importable local libraries and downstream consumer shape",
+      "stage": "preview",
+      "docs": [
+        "docs/library-hygiene.md",
+        "docs/tutorial/07-project.md"
+      ]
+    },
+    {
+      "id": "reactive-stateful-surfaces",
+      "kind": "language",
+      "name": "Streams, subjects, actors, and effect-heavy workflows",
+      "stage": "preview",
+      "docs": [
+        "docs/reference/streams.md",
+        "docs/tutorial/05-streams.md",
+        "docs/tutorial/06-effects.md"
+      ]
+    },
+    {
+      "id": "rust-interop",
+      "kind": "integration",
+      "name": "Rust interop and Rust-facing integration behavior",
+      "stage": "preview",
+      "docs": [
+        "docs/reference/rust-compatibility.md",
+        "docs/tutorial/06-effects.md"
+      ]
+    },
+    {
+      "id": "solver-assisted-verification",
+      "kind": "verification",
+      "name": "runa verify theorem elaboration, solver fallback, and broader verification automation",
+      "stage": "preview",
+      "commands": [
+        "verify"
+      ],
+      "docs": [
+        "docs/tutorial/04-rules.md"
+      ]
+    },
+    {
+      "id": "library-hygiene-tooling",
+      "kind": "tooling",
+      "name": "Import-hygiene tooling for authored libraries",
+      "stage": "preview",
+      "commands": [
+        "lint-library"
+      ],
+      "docs": [
+        "docs/library-hygiene.md"
+      ]
+    },
+    {
+      "id": "differential-and-expectation-tooling",
+      "kind": "tooling",
+      "name": "Stress generation, roundtrip, compiletest, and benchmark lanes",
+      "stage": "preview",
+      "commands": [
+        "stress-gen",
+        "expect",
+        "bench"
+      ],
+      "docs": [
+        "docs/differential-testing.md",
+        "docs/expectation-suites.md"
+      ]
+    },
+    {
+      "id": "package-and-project-tooling",
+      "kind": "tooling",
+      "name": "Project scaffolding, dependencies, and package metadata",
+      "stage": "preview",
+      "commands": [
+        "init",
+        "add",
+        "lib",
+        "wasm",
+        "lsp"
+      ],
+      "docs": [
+        "docs/tutorial/07-project.md"
+      ]
+    },
+    {
+      "id": "style-and-modeling-guidance",
+      "kind": "documentation",
+      "name": "Style, legal modeling, and audit workflow guidance",
+      "stage": "preview",
+      "docs": [
+        "docs/reference/style.md"
+      ]
+    },
+    {
+      "id": "exploratory-audit-tooling",
+      "kind": "tooling",
+      "name": "Invariant-gap and rule-asymmetry audit tooling",
+      "stage": "experimental",
+      "commands": [
+        "audit"
+      ],
+      "docs": [
+        "docs/reference/style.md",
+        "docs/tutorial/07-project.md"
+      ]
+    },
+    {
+      "id": "from-rust-transpiler",
+      "kind": "tooling",
+      "name": "Rust-to-Futuruna translational tooling",
+      "stage": "experimental",
+      "commands": [
+        "from-rust"
+      ],
+      "docs": []
+    },
+    {
+      "id": "internal-codegen-layout",
+      "kind": "internal",
+      "name": "Helper names, private generated layout, and internal compiler layouts",
+      "stage": "unstable-internal",
+      "docs": [
+        "docs/artifact-codegen-contracts.md"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "name": "interpret",
+      "stage": "stable",
+      "surface": "core-cli-workflow"
+    },
+    {
+      "name": "run",
+      "stage": "stable",
+      "surface": "core-cli-workflow"
+    },
+    {
+      "name": "check",
+      "stage": "stable",
+      "surface": "core-cli-workflow"
+    },
+    {
+      "name": "emit",
+      "stage": "stable",
+      "surface": "core-cli-workflow"
+    },
+    {
+      "name": "build",
+      "stage": "stable",
+      "surface": "core-cli-workflow"
+    },
+    {
+      "name": "test",
+      "stage": "stable",
+      "surface": "core-cli-workflow"
+    },
+    {
+      "name": "fmt",
+      "stage": "stable",
+      "surface": "core-cli-workflow"
+    },
+    {
+      "name": "hashes",
+      "stage": "stable",
+      "surface": "core-cli-workflow"
+    },
+    {
+      "name": "feature-stages",
+      "stage": "stable",
+      "surface": "core-cli-workflow"
+    },
+    {
+      "name": "lint-library",
+      "stage": "preview",
+      "surface": "library-hygiene-tooling"
+    },
+    {
+      "name": "verify",
+      "stage": "preview",
+      "surface": "solver-assisted-verification"
+    },
+    {
+      "name": "lib",
+      "stage": "preview",
+      "surface": "package-and-project-tooling"
+    },
+    {
+      "name": "wasm",
+      "stage": "preview",
+      "surface": "package-and-project-tooling"
+    },
+    {
+      "name": "lsp",
+      "stage": "preview",
+      "surface": "package-and-project-tooling"
+    },
+    {
+      "name": "init",
+      "stage": "preview",
+      "surface": "package-and-project-tooling"
+    },
+    {
+      "name": "add",
+      "stage": "preview",
+      "surface": "package-and-project-tooling"
+    },
+    {
+      "name": "stress-gen",
+      "stage": "preview",
+      "surface": "differential-and-expectation-tooling"
+    },
+    {
+      "name": "expect",
+      "stage": "preview",
+      "surface": "differential-and-expectation-tooling"
+    },
+    {
+      "name": "bench",
+      "stage": "preview",
+      "surface": "differential-and-expectation-tooling"
+    },
+    {
+      "name": "audit",
+      "stage": "experimental",
+      "surface": "exploratory-audit-tooling"
+    },
+    {
+      "name": "from-rust",
+      "stage": "experimental",
+      "surface": "from-rust-transpiler"
+    },
+    {
+      "name": "registry",
+      "stage": "experimental",
+      "surface": "internal-codegen-layout",
+      "hidden": true
+    }
+  ],
+  "documents": [
+    {
+      "path": "docs/reference/README.md",
+      "stage": "mixed",
+      "surfaces": [
+        "core-language-syntax",
+        "documented-stdlib",
+        "reactive-stateful-surfaces",
+        "rust-interop",
+        "style-and-modeling-guidance"
+      ]
+    },
+    {
+      "path": "docs/reference/basics.md",
+      "stage": "stable",
+      "surfaces": [
+        "core-language-syntax"
+      ]
+    },
+    {
+      "path": "docs/reference/runes.md",
+      "stage": "stable",
+      "surfaces": [
+        "core-language-syntax"
+      ]
+    },
+    {
+      "path": "docs/reference/stdlib.md",
+      "stage": "stable",
+      "surfaces": [
+        "documented-stdlib"
+      ]
+    },
+    {
+      "path": "docs/reference/streams.md",
+      "stage": "preview",
+      "surfaces": [
+        "reactive-stateful-surfaces"
+      ]
+    },
+    {
+      "path": "docs/reference/rust-compatibility.md",
+      "stage": "preview",
+      "surfaces": [
+        "pure-core-rust-artifacts",
+        "rust-interop"
+      ]
+    },
+    {
+      "path": "docs/reference/style.md",
+      "stage": "preview",
+      "surfaces": [
+        "style-and-modeling-guidance",
+        "exploratory-audit-tooling"
+      ]
+    },
+    {
+      "path": "docs/tutorial/01-hello.md",
+      "stage": "stable",
+      "surfaces": [
+        "core-language-syntax",
+        "core-cli-workflow"
+      ]
+    },
+    {
+      "path": "docs/tutorial/02-types.md",
+      "stage": "stable",
+      "surfaces": [
+        "core-language-syntax"
+      ]
+    },
+    {
+      "path": "docs/tutorial/03-functions.md",
+      "stage": "stable",
+      "surfaces": [
+        "core-language-syntax"
+      ]
+    },
+    {
+      "path": "docs/tutorial/04-rules.md",
+      "stage": "preview",
+      "surfaces": [
+        "solver-assisted-verification"
+      ]
+    },
+    {
+      "path": "docs/tutorial/05-streams.md",
+      "stage": "preview",
+      "surfaces": [
+        "reactive-stateful-surfaces"
+      ]
+    },
+    {
+      "path": "docs/tutorial/06-effects.md",
+      "stage": "preview",
+      "surfaces": [
+        "reactive-stateful-surfaces",
+        "rust-interop"
+      ]
+    },
+    {
+      "path": "docs/tutorial/07-project.md",
+      "stage": "preview",
+      "surfaces": [
+        "core-cli-workflow",
+        "importable-local-libraries",
+        "package-and-project-tooling",
+        "solver-assisted-verification",
+        "exploratory-audit-tooling"
+      ]
+    }
+  ]
+}

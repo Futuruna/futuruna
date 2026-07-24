@@ -1,3 +1,13 @@
+---
+feature_stage: preview
+feature_stage_surfaces:
+  - core-cli-workflow
+  - importable-local-libraries
+  - package-and-project-tooling
+  - solver-assisted-verification
+  - exploratory-audit-tooling
+---
+
 # 7. Building a Project
 
 ## Create a project

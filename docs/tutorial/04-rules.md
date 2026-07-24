@@ -1,3 +1,9 @@
+---
+feature_stage: preview
+feature_stage_surfaces:
+  - solver-assisted-verification
+---
+
 # 4. Rules and Verification
 
 ## Facts (Datalog)

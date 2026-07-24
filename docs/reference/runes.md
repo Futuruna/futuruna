@@ -1,3 +1,9 @@
+---
+feature_stage: stable
+feature_stage_surfaces:
+  - core-language-syntax
+---
+
 # The Seven Runes
 
 Every statement in Futuruna begins with a rune — a single character that declares what the statement *is*.

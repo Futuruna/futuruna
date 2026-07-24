@@ -1,3 +1,10 @@
+---
+feature_stage: preview
+feature_stage_surfaces:
+  - reactive-stateful-surfaces
+  - rust-interop
+---
+
 # 6. Effects and Actors
 
 ## Algebraic effects

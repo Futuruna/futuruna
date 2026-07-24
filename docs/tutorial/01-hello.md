@@ -1,3 +1,10 @@
+---
+feature_stage: stable
+feature_stage_surfaces:
+  - core-language-syntax
+  - core-cli-workflow
+---
+
 # 1. Hello, Futuruna
 
 ## Install

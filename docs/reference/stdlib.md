@@ -1,3 +1,9 @@
+---
+feature_stage: stable
+feature_stage_surfaces:
+  - documented-stdlib
+---
+
 # Standard Library
 
 Built into the compiler — no imports needed. Every function here is available in every `.runa` file. User-defined functions with the same name shadow builtins.

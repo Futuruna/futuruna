@@ -79,7 +79,7 @@ changes Futuruna's production-readiness claim.
 |------|-------|----------------------|-----------------------|--------------|
 | Core syntax and ordinary expression semantics | Production-ready | Keep mint green; expand diagnostics/phase expectations (`td-4d7e81`); keep compatibility guide updates enforced (`td-6769d2`). | M | 4 |
 | Documented stdlib builtins | Production-ready | Audit signature tables against stdlib docs (`td-4f849b`); add expectation cases for remaining contract edges; keep duplicate-evaluation fixtures in the artifact lane. | M | 4 |
-| Core CLI workflow | Production-ready | Keep `mint` authoritative; make feature-stage metadata machine-readable (`td-0bd873`); enforce compatibility guide updates (`td-6769d2`). | M | 4 |
+| Core CLI workflow | Production-ready | Keep `mint` authoritative; keep feature-stage metadata and doc frontmatter synchronized; enforce compatibility guide updates (`td-6769d2`). | M | 4 |
 | Pure/core interpreter-vs-compiled parity | Production-ready | Seed minimized differential corpus (`td-2061ce`); keep core canaries 0-skip; promote every new semantic bug into the narrowest permanent lane. | M | 5 |
 | Rust codegen for pure/core programs | Preview | Expand reviewed golden snapshots for ownership-sensitive shapes; finish borrow-only/signature-table audits; keep artifact fixture diffs compatibility-reviewed. | L | 5 |
 | Importable local libraries and downstream consumer shape | Preview | Cover local import consumers in generic check-codegen (`td-35b4e3`); add import-aware deep-search cases (`td-a70b05`); add import-consumer expectation cases (`td-b4729e`). | L | 5 |
@@ -138,5 +138,3 @@ research-grade until the next gates above are closed.
 3. Decide where `wasm-pack` should be required rather than skipped and add
    package-shape expectations for the chosen WASM boundary.
 4. Close `td-2061ce` so differential testing has a checked-in replay corpus.
-5. Close `td-0bd873` so stage metadata can be queried mechanically instead of
-   read from prose tables.

@@ -1,3 +1,10 @@
+---
+feature_stage: preview
+feature_stage_surfaces:
+  - pure-core-rust-artifacts
+  - rust-interop
+---
+
 # Rust Compatibility
 
 Futuruna compiles to Rust. You write value semantics; the compiler handles ownership.

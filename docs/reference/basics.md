@@ -1,3 +1,9 @@
+---
+feature_stage: stable
+feature_stage_surfaces:
+  - core-language-syntax
+---
+
 # Futuruna Basics
 
 Core language syntax: literals, types, operators, control flow, and closures.

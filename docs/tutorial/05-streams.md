@@ -1,3 +1,9 @@
+---
+feature_stage: preview
+feature_stage_surfaces:
+  - reactive-stateful-surfaces
+---
+
 # 5. Streams and Reactivity
 
 ## Cold streams (pipelines)

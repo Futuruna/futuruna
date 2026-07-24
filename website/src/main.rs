@@ -1564,6 +1564,7 @@ fn md_to_html(md: &str) -> String {
     let mut opts = Options::empty();
     opts.insert(Options::ENABLE_TABLES);
     opts.insert(Options::ENABLE_STRIKETHROUGH);
+    let md = strip_markdown_frontmatter(md);
     let parser = Parser::new_ext(md, opts);
     let mut html_out = String::new();
     html::push_html(&mut html_out, parser);
@@ -1646,6 +1647,7 @@ const US_VERIFICATION: &str = include_str!("../../examples/us-constitution/verif
 fn extract_h2_headings(md: &str) -> Vec<(String, String)> {
     let mut opts = Options::empty();
     opts.insert(Options::ENABLE_TABLES);
+    let md = strip_markdown_frontmatter(md);
     let parser = Parser::new_ext(md, opts);
     let mut headings = Vec::new();
     let mut in_h2 = false;
@@ -1676,6 +1678,7 @@ fn md_to_html_with_ids(md: &str) -> String {
     let mut opts = Options::empty();
     opts.insert(Options::ENABLE_TABLES);
     opts.insert(Options::ENABLE_STRIKETHROUGH);
+    let md = strip_markdown_frontmatter(md);
     let parser = Parser::new_ext(md, opts);
 
     // Collect events and inject ids on h2 tags
@@ -1718,6 +1721,16 @@ fn md_to_html_with_ids(md: &str) -> String {
     let mut html_out = String::new();
     html::push_html(&mut html_out, events.into_iter());
     html_out
+}
+
+fn strip_markdown_frontmatter(md: &str) -> &str {
+    let Some(rest) = md.strip_prefix("---\n") else {
+        return md;
+    };
+    let Some(end) = rest.find("\n---\n") else {
+        return md;
+    };
+    &rest[end + "\n---\n".len()..]
 }
 
 #[component]

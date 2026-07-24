@@ -1,3 +1,9 @@
+---
+feature_stage: preview
+feature_stage_surfaces:
+  - reactive-stateful-surfaces
+---
+
 # Reactive Streams
 
 Reactive streams are syntax, not a library. `~` declares them, `|>` composes them, `~ + |` consumes them.

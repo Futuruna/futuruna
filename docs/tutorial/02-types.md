@@ -1,3 +1,9 @@
+---
+feature_stage: stable
+feature_stage_surfaces:
+  - core-language-syntax
+---
+
 # 2. Types and Pattern Matching
 
 ## Structs

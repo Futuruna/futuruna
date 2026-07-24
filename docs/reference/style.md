@@ -1,3 +1,10 @@
+---
+feature_stage: preview
+feature_stage_surfaces:
+  - style-and-modeling-guidance
+  - exploratory-audit-tooling
+---
+
 # Futuruna Style Guide
 
 ## The rune decides

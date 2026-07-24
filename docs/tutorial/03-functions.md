@@ -1,3 +1,9 @@
+---
+feature_stage: stable
+feature_stage_surfaces:
+  - core-language-syntax
+---
+
 # 3. Functions and Lambdas
 
 ## Functions
