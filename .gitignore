@@ -20,6 +20,8 @@ website/.wrangler/
 
 # Database files generated at runtime
 *.db
+*.db-shm
+*.db-wal
 
 # Local td task database
 .todos/

@@ -10901,6 +10901,10 @@ struct RustCodegen {
     empty_list_bindings: BTreeSet<String>,
     /// Contextual Rust types for bare empty-list bindings, e.g. xs -> Vec<CouplingPair>.
     empty_list_var_types: BTreeMap<String, String>,
+    /// Nested persisted transaction scope depth while emitting `| scope` bodies.
+    persist_tx_depth: usize,
+    /// Unique counter for generated persisted transaction guard names.
+    persist_tx_counter: usize,
 }
 
 /// Per-function ownership analysis results.
@@ -14435,6 +14439,144 @@ fn stmt_contains_try(stmt: &Stmt) -> bool {
     }
 }
 
+/// Check whether an expression contains a persisted assert/retract mutation.
+fn expr_contains_persisted_mutation(expr: &Expr, persisted_types: &BTreeSet<String>) -> bool {
+    match &expr.kind {
+        ExprKind::App(f, args) => {
+            expr_contains_persisted_mutation(f, persisted_types)
+                || args
+                    .iter()
+                    .any(|arg| expr_contains_persisted_mutation(arg, persisted_types))
+        }
+        ExprKind::BinOp(_, l, r) => {
+            expr_contains_persisted_mutation(l, persisted_types)
+                || expr_contains_persisted_mutation(r, persisted_types)
+        }
+        ExprKind::UnOp(_, e) | ExprKind::Try(e) => {
+            expr_contains_persisted_mutation(e, persisted_types)
+        }
+        ExprKind::If(c, t, e) => {
+            expr_contains_persisted_mutation(c, persisted_types)
+                || expr_contains_persisted_mutation(t, persisted_types)
+                || expr_contains_persisted_mutation(e, persisted_types)
+        }
+        ExprKind::Match(s, arms) => {
+            expr_contains_persisted_mutation(s, persisted_types)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .map(|guard| expr_contains_persisted_mutation(guard, persisted_types))
+                        .unwrap_or(false)
+                        || expr_contains_persisted_mutation(&arm.body, persisted_types)
+                })
+        }
+        ExprKind::Block(stmts) => stmts
+            .iter()
+            .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types)),
+        ExprKind::Field(e, _) => expr_contains_persisted_mutation(e, persisted_types),
+        ExprKind::Index(base, index) => {
+            expr_contains_persisted_mutation(base, persisted_types)
+                || expr_contains_persisted_mutation(index, persisted_types)
+        }
+        ExprKind::Lambda(_, body) => expr_contains_persisted_mutation(body, persisted_types),
+        ExprKind::List(es)
+        | ExprKind::Tuple(es)
+        | ExprKind::Effect(_, es)
+        | ExprKind::Conjunction(es)
+        | ExprKind::Disjunction(es) => es
+            .iter()
+            .any(|expr| expr_contains_persisted_mutation(expr, persisted_types)),
+        ExprKind::Handle { body, handlers, .. } => {
+            expr_contains_persisted_mutation(body, persisted_types)
+                || handlers
+                    .iter()
+                    .any(|handler| expr_contains_persisted_mutation(&handler.body, persisted_types))
+        }
+        ExprKind::Pipe(input, transform) => {
+            expr_contains_persisted_mutation(input, persisted_types)
+                || expr_contains_persisted_mutation(transform, persisted_types)
+        }
+        ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => false,
+    }
+}
+
+fn stmt_contains_persisted_mutation(stmt: &Stmt, persisted_types: &BTreeSet<String>) -> bool {
+    match stmt {
+        Stmt::Assert(name, args) | Stmt::Retract(name, args) => {
+            persisted_types.contains(name.as_str())
+                || args
+                    .iter()
+                    .any(|arg| expr_contains_persisted_mutation(arg, persisted_types))
+        }
+        Stmt::Bind(_, _, e)
+        | Stmt::MonadicBind(_, _, e)
+        | Stmt::StreamBind(_, e)
+        | Stmt::Expr(e) => expr_contains_persisted_mutation(e, persisted_types),
+        Stmt::For(_, iter, body) | Stmt::While(iter, body) => {
+            expr_contains_persisted_mutation(iter, persisted_types)
+                || body
+                    .iter()
+                    .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types))
+        }
+        Stmt::Send(target, msg) => {
+            expr_contains_persisted_mutation(target, persisted_types)
+                || expr_contains_persisted_mutation(msg, persisted_types)
+        }
+        Stmt::StreamSub(expr, arms) => {
+            expr_contains_persisted_mutation(expr, persisted_types)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .map(|guard| expr_contains_persisted_mutation(guard, persisted_types))
+                        .unwrap_or(false)
+                        || expr_contains_persisted_mutation(&arm.body, persisted_types)
+                })
+        }
+        Stmt::Invariant {
+            subject, predicate, ..
+        } => {
+            expr_contains_persisted_mutation(subject, persisted_types)
+                || expr_contains_persisted_mutation(predicate, persisted_types)
+        }
+        Stmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            pass_block
+                .as_ref()
+                .map(|block| {
+                    block
+                        .iter()
+                        .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types))
+                })
+                .unwrap_or(false)
+                || else_block
+                    .as_ref()
+                    .map(|block| {
+                        block
+                            .iter()
+                            .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types))
+                    })
+                    .unwrap_or(false)
+        }
+        Stmt::Rule(Rule::Scope { body, .. }) => body
+            .iter()
+            .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types)),
+        Stmt::Defn(_)
+        | Stmt::TypeDecl(_)
+        | Stmt::Use(_)
+        | Stmt::Import(_)
+        | Stmt::QualifiedImport(_, _)
+        | Stmt::HashImport(_, _)
+        | Stmt::Depend(_, _)
+        | Stmt::RustBlock(_)
+        | Stmt::Annot(_, _)
+        | Stmt::Rule(_)
+        | Stmt::Abort => false,
+    }
+}
+
 /// Find variables that are bound outside a for loop and rebound inside it (need `let mut`)
 fn collect_mutable_vars(stmts: &[&Stmt], mutable: &mut BTreeSet<String>) {
     let mut bound = BTreeSet::new();
@@ -14776,6 +14918,8 @@ impl RustCodegen {
             map_var_value_types: BTreeMap::new(),
             empty_list_bindings: BTreeSet::new(),
             empty_list_var_types: BTreeMap::new(),
+            persist_tx_depth: 0,
+            persist_tx_counter: 0,
         }
     }
 
@@ -17158,6 +17302,33 @@ impl RustCodegen {
             out.push_str("static __FUT_STORE_DB: std::sync::OnceLock<std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>> = std::sync::OnceLock::new();\n");
             out.push_str("fn __fut_persist_db() -> std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> {\n");
             out.push_str("    __FUT_STORE_DB.get().expect(\"persist store database not initialized\").clone()\n");
+            out.push_str("}\n");
+            out.push_str("struct __FutPersistTxGuard {\n");
+            out.push_str("    db: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,\n");
+            out.push_str("    rollback_sql: &'static str,\n");
+            out.push_str("    committed: bool,\n");
+            out.push_str("}\n");
+            out.push_str("impl __FutPersistTxGuard {\n");
+            out.push_str("    fn begin(db: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, begin_sql: &'static str, rollback_sql: &'static str) -> Self {\n");
+            out.push_str("        {\n");
+            out.push_str("            let __db_lock = db.lock().unwrap();\n");
+            out.push_str("            __db_lock.execute_batch(begin_sql).expect(\"persist transaction begin failed\");\n");
+            out.push_str("        }\n");
+            out.push_str("        Self { db, rollback_sql, committed: false }\n");
+            out.push_str("    }\n");
+            out.push_str("    fn commit(&mut self, commit_sql: &'static str) {\n");
+            out.push_str("        self.db.lock().unwrap().execute_batch(commit_sql).expect(\"persist transaction commit failed\");\n");
+            out.push_str("        self.committed = true;\n");
+            out.push_str("    }\n");
+            out.push_str("}\n");
+            out.push_str("impl Drop for __FutPersistTxGuard {\n");
+            out.push_str("    fn drop(&mut self) {\n");
+            out.push_str("        if !self.committed {\n");
+            out.push_str(
+                "            let _ = self.db.lock().unwrap().execute_batch(self.rollback_sql);\n",
+            );
+            out.push_str("        }\n");
+            out.push_str("    }\n");
             out.push_str("}\n");
         }
         // M13c: emit ScopeGuard struct when async mode is active
@@ -22768,6 +22939,38 @@ impl RustCodegen {
                 if let Rule::Scope { name, body } = rule {
                     let mut out = String::new();
                     out.push_str(&format!("{}// | scope {}\n", self.ind(), name));
+                    let transactional_scope = body.iter().any(|stmt| {
+                        stmt_contains_persisted_mutation(stmt, &self.types.persisted_types)
+                    });
+                    let tx_guard = if transactional_scope {
+                        let tx_idx = self.persist_tx_counter;
+                        self.persist_tx_counter += 1;
+                        let guard_name = format!("__fut_persist_tx_{}", tx_idx);
+                        let db_var = format!("__fut_tx_db_{}", tx_idx);
+                        if self.persist_tx_depth == 0 {
+                            Some((
+                                guard_name,
+                                db_var,
+                                "BEGIN IMMEDIATE".to_string(),
+                                "COMMIT".to_string(),
+                                "ROLLBACK".to_string(),
+                            ))
+                        } else {
+                            let savepoint = format!("__fut_scope_tx_{}", tx_idx);
+                            Some((
+                                guard_name,
+                                db_var,
+                                format!("SAVEPOINT {}", savepoint),
+                                format!("RELEASE SAVEPOINT {}", savepoint),
+                                format!(
+                                    "ROLLBACK TO SAVEPOINT {}; RELEASE SAVEPOINT {}",
+                                    savepoint, savepoint
+                                ),
+                            ))
+                        }
+                    } else {
+                        None
+                    };
 
                     // Collect scope bindings for struct generation
                     let mut scope_binds: Vec<(String, String)> = Vec::new(); // (name, value_expr)
@@ -22782,6 +22985,23 @@ impl RustCodegen {
                             }
                             _ => other_stmts.push(s),
                         }
+                    }
+
+                    if let Some((guard_name, db_var, begin_sql, _, rollback_sql)) = &tx_guard {
+                        out.push_str(&format!(
+                            "{}let {} = __fut_persist_db();\n",
+                            self.ind(),
+                            db_var
+                        ));
+                        out.push_str(&format!(
+                            "{}let mut {} = __FutPersistTxGuard::begin({}.clone(), {:?}, {:?});\n",
+                            self.ind(),
+                            guard_name,
+                            db_var,
+                            begin_sql,
+                            rollback_sql
+                        ));
+                        self.persist_tx_depth += 1;
                     }
 
                     if self.has_async {
@@ -22808,6 +23028,16 @@ impl RustCodegen {
                         for s in body {
                             out.push_str(&self.emit_stmt(s));
                         }
+                    }
+
+                    if let Some((guard_name, _, _, commit_sql, _)) = &tx_guard {
+                        out.push_str(&format!(
+                            "{}{}.commit({:?});\n",
+                            self.ind(),
+                            guard_name,
+                            commit_sql
+                        ));
+                        self.persist_tx_depth = self.persist_tx_depth.saturating_sub(1);
                     }
 
                     // Track scope bindings for qualified access (ScopeName.field → field)
@@ -34414,6 +34644,87 @@ retract Item(_, _, _)
         assert!(
             rust.contains("DELETE FROM item\", rusqlite::params![]"),
             "all-wildcard persisted retract should delete all rows explicitly: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_persist_scope_uses_transaction_guard_and_savepoints() {
+        let source = r#"
+# Item(id: Int, name: String, qty: Int)
+@ persist Item
+= qty = -1
+| qty_positive: qty -> qty > 0
+| scope Outer {
+    assert Item(1, "Outer", 10)
+    | scope Inner {
+        assert Item(2, "Inner", qty)
+        ? qty_positive
+    }
+}
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("struct __FutPersistTxGuard"),
+            "persisted transaction scopes should emit rollback-on-drop guard support: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__FutPersistTxGuard::begin(__fut_tx_db_0.clone(), \"BEGIN IMMEDIATE\", \"ROLLBACK\")"),
+            "outer persisted scope should begin an immediate SQLite transaction: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_persist_tx_0.commit(\"COMMIT\")"),
+            "outer persisted scope should commit on clean exit: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__FutPersistTxGuard::begin(__fut_tx_db_1.clone(), \"SAVEPOINT __fut_scope_tx_1\", \"ROLLBACK TO SAVEPOINT __fut_scope_tx_1; RELEASE SAVEPOINT __fut_scope_tx_1\")"),
+            "nested persisted scope should use a savepoint with rollback SQL: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_persist_tx_1.commit(\"RELEASE SAVEPOINT __fut_scope_tx_1\")"),
+            "nested persisted scope should release its savepoint on clean exit: {}",
+            rust
+        );
+        assert!(
+            rust.contains("panic!(\"? qty_positive FAILED\")"),
+            "failed bare ? inside a persisted scope should panic before commit so the guard rolls back: {}",
+            rust
+        );
+        let begin = rust.find("BEGIN IMMEDIATE").unwrap();
+        let insert = rust.find("INSERT OR REPLACE INTO item").unwrap();
+        let commit = rust.find("__fut_persist_tx_0.commit").unwrap();
+        assert!(
+            begin < insert && insert < commit,
+            "transaction boundary should wrap persisted mutations: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_plain_scope_with_persisted_type_has_no_transaction_overhead() {
+        let source = r#"
+# Item(id: Int, name: String, qty: Int)
+@ persist Item
+| scope Plain {
+    = x = 1
+    @ print(show(x))
+}
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            !rust.contains("BEGIN IMMEDIATE"),
+            "scope without persisted mutations should not begin a transaction: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("__fut_persist_tx_"),
+            "scope without persisted mutations should not allocate a transaction guard: {}",
             rust
         );
     }

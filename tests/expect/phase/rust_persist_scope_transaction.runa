@@ -1,0 +1,22 @@
+-- expect-command: emit-rust
+-- expect-status: pass
+-- expect-stdout: __FutPersistTxGuard::begin(__fut_tx_db_0.clone(), "BEGIN IMMEDIATE", "ROLLBACK")
+-- expect-stdout: __fut_persist_tx_0.commit("COMMIT")
+-- expect-stdout: __FutPersistTxGuard::begin(__fut_tx_db_1.clone(), "SAVEPOINT __fut_scope_tx_1", "ROLLBACK TO SAVEPOINT __fut_scope_tx_1; RELEASE SAVEPOINT __fut_scope_tx_1")
+-- expect-stdout: __fut_persist_tx_1.commit("RELEASE SAVEPOINT __fut_scope_tx_1")
+-- expect-stdout: panic!("? qty_positive FAILED")
+-- expect-stdout-not: __FutPersistTxGuard::begin(__fut_tx_db_2
+
+# Item(id: Int, name: String, qty: Int)
+@ persist Item
+
+= qty = -1
+| qty_positive: qty -> qty > 0
+
+| scope Outer {
+    assert Item(1, "Outer", 10)
+    | scope Inner {
+        assert Item(2, "Inner", qty)
+        ? qty_positive
+    }
+}
