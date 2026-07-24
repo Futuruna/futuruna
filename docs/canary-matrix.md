@@ -35,6 +35,7 @@ Target shape:
 | `tests/canary/extended/db_reconciliation_test.runa` | `extended` | SQLite-backed ingest, reconciliation, deterministic query/report summaries |
 | `tests/canary/extended/http_handler_contract_test.runa` | `extended` | request routing, response shaping, deterministic handler contract summaries |
 | `tests/canary/extended/import_mesh_test.runa` | `extended` | transitive flat imports, qualified imports, content-addressed imports, deterministic cross-module summaries |
+| `tests/canary/extended/wasm_export_surface_test.runa` | `extended` | WASM-facing exported primitive/string/list-numeric/option functions, private helpers, zero-arg exports |
 
 ## Planned Next
 
@@ -43,7 +44,6 @@ Target shape:
 ### Stateful
 
 ### Extended
-- `td-9fdd94`: `wasm_export_surface_test.runa`
 
 ### Regressions
 - `td-4e7e91`: distill every user-found semantic bug into an authored workflow canary when it reflects real usage

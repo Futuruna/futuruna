@@ -20940,7 +20940,14 @@ impl RustCodegen {
                             format!("{}: &mut {}", sanitize_name(&p.name), inner_ty)
                         } else if borrow_flags.get(idx).copied().unwrap_or(false) {
                             // Auto-borrow: param is only read, emit &T
-                            format!("{}: &{}", sanitize_name(&p.name), ty)
+                            let borrowed_ty = if self.wasm_mode
+                                && matches!(p.ty.as_ref(), Some(Ty::Name(n)) if n == "String")
+                            {
+                                "str".to_string()
+                            } else {
+                                ty
+                            };
+                            format!("{}: &{}", sanitize_name(&p.name), borrowed_ty)
                         } else if matches!(p.ty.as_ref(), Some(Ty::Arrow(..))) {
                             if !is_fn_once {
                                 // FnMut params called multiple times need `mut`
@@ -33854,6 +33861,32 @@ routes <- "b"
         assert!(
             rust.contains("#[wasm_bindgen]\npub fn greet(name: &str) -> String"),
             "expected wasm-bindgen export with &str param, got:\n{}",
+            rust
+        );
+    }
+
+    #[test]
+    fn wasm_exported_string_can_flow_through_private_helper_chain() {
+        let rust = emit_wasm_program(
+            r#"
+> normalize_name(name: String) -> String { trim(name) }
+> greet(name: String) -> String { normalize_name(name) }
+@ export greet
+"#,
+        );
+        assert!(
+            rust.contains("fn normalize_name(name: &str) -> String"),
+            "expected borrowed private string helper to accept &str in wasm mode, got:\n{}",
+            rust
+        );
+        assert!(
+            rust.contains("#[wasm_bindgen]\npub fn greet(name: &str) -> String"),
+            "expected exported string function to accept &str, got:\n{}",
+            rust
+        );
+        assert!(
+            rust.contains("normalize_name(name)"),
+            "expected exported &str param to pass through helper chain without clone workaround, got:\n{}",
             rust
         );
     }

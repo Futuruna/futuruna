@@ -1,0 +1,88 @@
+-- Authored extended canary: WASM-facing export surface over primitive,
+-- string, list-numeric, option, zero-arg, and private-helper contracts.
+
+= wasm_offset = 7
+
+> score_total(scores: List(Int)) -> Int {
+    foldl(scores, 0, |acc, score| acc + score)
+}
+
+> normalized_label(label: String) -> String {
+    trim(label)
+}
+
+> bucket_label(label: String, bucket: Int) -> String {
+    normalized_label(label) + ":" + show(bucket)
+}
+
+@ export
+> wasm_bucket(seed: Int, boost: Int) -> Int {
+    (seed * 3 + boost + wasm_offset) % 64
+}
+
+> wasm_ratio(total: Float, count: Float) -> Float {
+    if count == 0.0 {
+        0.0
+    } else {
+        total / count
+    }
+}
+@ export wasm_ratio
+
+> wasm_greeting(name: String, score: Int) -> String {
+    "Hello " + bucket_label(name, score + wasm_offset)
+}
+@ export wasm_greeting
+
+@ export
+> wasm_is_passing(scores: List(Int), threshold: Int) -> Bool {
+    score_total(scores) >= threshold
+}
+
+> wasm_shift_scores(scores: List(Int), delta: Int) -> List(Int) {
+    map(scores, |score| score + delta)
+}
+@ export wasm_shift_scores
+
+> wasm_maybe_bucket(seed: Int) -> Option(Int) {
+    if seed < 0 {
+        None
+    } else {
+        Some(wasm_bucket(seed, 0))
+    }
+}
+@ export wasm_maybe_bucket
+
+@ export
+> wasm_surface_version() -> String {
+    "futuruna-wasm-surface-v1"
+}
+
+> bucket_text(opt: Option(Int)) -> String {
+    match opt {
+        | None -> "none"
+        | Some(value) -> show(value)
+    }
+}
+
+= canary_scores = [13, 21, 34]
+
+= bucket_ok = wasm_bucket(12, 5) == 48 && wasm_bucket(0, 0) == 7
+? bucket_ok
+
+= ratio_ok = wasm_ratio(21.0, 3.0) == 7.0 && wasm_ratio(8.0, 0.0) == 0.0
+? ratio_ok
+
+= greeting_ok = wasm_greeting("  Ada  ", 35) == "Hello Ada:42"
+? greeting_ok
+
+= list_surface_ok = wasm_is_passing(canary_scores, 68) && !wasm_is_passing(canary_scores, 69) && show(wasm_shift_scores(canary_scores, 2)) == "[15, 23, 36]"
+? list_surface_ok
+
+= option_surface_ok = bucket_text(wasm_maybe_bucket(4)) == "19" && bucket_text(wasm_maybe_bucket(-1)) == "none"
+? option_surface_ok
+
+= zero_arg_ok = wasm_surface_version() == "futuruna-wasm-surface-v1"
+? zero_arg_ok
+
+@ print("canary wasm export surface passed")
