@@ -16,7 +16,7 @@ related:
 
 # Futuruna Wiki Dashboard
 
-Navigation: [[index]] | [[overview]] | [[log]] | [[hot]] | [[getting-started]]
+Navigation: [[index]] | [[overview]] | [[log]] | [[hot]] | [[board]] | [[getting-started]]
 
 This dashboard is the operational surface for the Futuruna wiki overlay.
 

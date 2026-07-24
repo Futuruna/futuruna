@@ -19,6 +19,7 @@ This vault uses the Futuruna repository root as an Obsidian vault. It is a hybri
 - [[hot]]
 - [[log]]
 - [[dashboard]]
+- [[board]]
 - [[vault-conventions]]
 - [[repo-map]]
 

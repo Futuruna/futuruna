@@ -10,6 +10,12 @@ tags:
 
 # Futuruna Wiki Log
 
+## 2026-07-18 board | Milestone Kanban
+
+- Added [[board]] as the strategic milestone tracker, above td-epic level
+- Lanes: Now (shipping), Next (queued), Later (planned), Done (shipped)
+- Linked from [[index]] and [[meta/dashboard]]; called out in [[hot]]
+
 ## 2026-07-18 policy | Futuruna compatibility policy
 
 - Added `docs/compatibility-policy.md`

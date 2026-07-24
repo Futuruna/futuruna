@@ -11,6 +11,8 @@ tags:
 
 ## Last Updated
 
+2026-07-18. Strategic milestone tracking now lives in [[board]] as an Obsidian Kanban board with Now / Next / Later / Done lanes. Operationally, milestones sit above td epics; the Kanban surfaces what's shipping right now versus queued versus shelved.
+
 2026-07-18. Futuruna now has a first-class compiletest-style expectation lane for narrow compiler diagnostics, run/fail behavior, and phase-specific markers.
 
 ## Key Recent Facts
