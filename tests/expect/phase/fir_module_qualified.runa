@@ -1,0 +1,14 @@
+-- expect-command: emit-fir
+-- expect-status: pass
+-- expect-stdout: show(Config.threshold)
+-- expect-stdout: show(Config.read_threshold())
+-- expect-stdout: mod Config {
+-- expect-stdout: pub fn threshold() -> i64 { 11i64 }
+-- expect-stdout: pub fn read_threshold() -> i64
+@ import Config from ./fir_module_qualified_dep
+
+= direct = Config.threshold
+= via_fn = Config.read_threshold()
+
+@ print("threshold=" + show(Config.threshold))
+@ print("via_fn=" + show(Config.read_threshold()))

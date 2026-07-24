@@ -1,0 +1,15 @@
+-- expect-command: emit-fir
+-- expect-status: pass
+-- expect-stdout: let base = 7i64;
+-- expect-stdout: let doubled = (base * 2i64);
+-- expect-stdout: fn add_bias(x: i64) -> i64
+-- expect-stdout: { (x + doubled); }
+-- expect-stdout: let answer = add_bias(base);
+= base = 7
+= doubled = base * 2
+
+> add_bias(x: Int) -> Int {
+    x + doubled
+}
+
+= answer = add_bias(base)

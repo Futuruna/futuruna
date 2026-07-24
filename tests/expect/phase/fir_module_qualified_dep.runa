@@ -1,0 +1,8 @@
+-- expect-skip: dependency-only fixture for fir_module_qualified.runa
+@ export
+= threshold = 11
+
+@ export
+> read_threshold() -> Int {
+    threshold
+}
