@@ -44,6 +44,38 @@ for x in readings {
 In compiled async mode, those forms become background receive loops or stream
 forwarder tasks. They are not just local list iteration.
 
+The validation predicate is `is_live_stream_expr_for_validation` in
+`src/bin/runa.rs`. An expression counts as live when it is:
+
+- a variable bound to a `subject()` or to an async-stream binding, or
+- an `as_stream(...)` of a live source, or
+- a derived operator chain over a live source — currently `map`, `filter`,
+  `scan`, `take`, `skip`, `tap`, `merge`, `start_with`, `concat` — including
+  the desugared `|>` form.
+
+Adding a new stream operator that spawns a forwarder task means adding it to
+this list; otherwise the contract leaks.
+
+## Snapshot Reads (Allowed Without Scope)
+
+A "snapshot" read is any stream observation that does **not** spawn a
+background task. These are allowed in ordinary functions because their cost is
+bounded and they do not outlive the call.
+
+Snapshot reads include:
+
+```runa
+> latest_label(s) -> String { "latest: " + s.latest }
+> count_so_far(s) -> Int { s.count }
+> first_seen(s) -> Option(Int) { s.first }
+> total(xs: List(Int)) -> Int { xs |> sum }
+```
+
+The boundary is intentional and narrow: anything that goes through one of the
+derived-operator names listed above is *not* a snapshot, even when its result
+"looks" terminal. If you want a terminal value from a derived pipeline, route
+it through a scope first.
+
 ## Allowed Ownership Shapes
 
 ### 1. Top-level script ownership
@@ -155,17 +187,41 @@ The caller chooses the lifetime boundary explicitly.
 
 Named scopes are the lifetime owner for the live subscriptions they create.
 
-That means:
+### Ordering
 
-- scope exit cancels scope-owned live subscriptions
-- scope exit cancels scope-owned derived stream forwarders
-- `@ teardown("ScopeName")` cancels them early
-- post-teardown sends should not keep invoking the torn-down subscribers
-- post-teardown settled reads of scope-owned derived streams should not hang on
-  stale barrier links
+Scope-end teardown runs in this order:
 
-This contract is part of why stateful canaries and lifecycle tests exist in the
-verification stack.
+1. **Cancel scope-owned subscriptions.** Active `~ stream | x -> { ... }` arms
+   stop receiving values. In-flight handler bodies finish their current value
+   and then drop.
+2. **Cancel scope-owned derived operator handles.** Every forwarder task
+   spawned by `map` / `filter` / `scan` / etc. inside the scope is cancelled.
+   The derived stream is now frozen at its last forwarded value.
+3. **Unregister barrier expectations.** Any `__fut_settle` barriers that were
+   pinned to scope-owned streams release without waiting on dead pipelines.
+4. **Drop the scope guard.** The runtime structure that tracked (1)–(3) is
+   dropped; a re-entry of the same scope name starts fresh.
+
+This ordering is what keeps post-teardown sends safe (they reach (1) which is
+already cancelled) and what keeps post-teardown settled reads bounded (they
+hit (3) which has released).
+
+### Triggers
+
+- normal scope exit at end-of-block
+- `@ teardown("ScopeName")` from anywhere — cancels the named scope early
+- a diagnostic that aborts the scope body
+
+### What it does not do
+
+- it does not retroactively "un-send" values that subscribers have already
+  observed
+- it does not cancel actor tasks spawned with `spawn(...)`; actors have their
+  own lifetime owned by their handle, not by the scope
+- it does not cancel top-level subscriptions made before the scope opened
+
+This contract is part of why stateful canaries and lifecycle tests exist in
+the verification stack.
 
 ## Relationship To Library Hygiene
 
@@ -175,6 +231,52 @@ Top-level subscriptions are script-lifetime behavior, not import-safe library
 surface. Use [docs/library-hygiene.md](library-hygiene.md) and
 `runa lint-library` to keep that boundary explicit.
 
+## Crossing Function and Scope Boundaries
+
+The contract gives a single rule for each direction:
+
+| Direction | Rule |
+|---|---|
+| Live stream **into** an ordinary function (parameter) | allowed; the function may snapshot it but may not subscribe or derive from it |
+| Live stream **out** of an ordinary function (return) | allowed; the function returns the stream expression and the caller decides where to subscribe |
+| Live stream **into** a named scope (closed-over) | allowed; the scope may subscribe and derive freely |
+| Live stream **out** of a named scope (return) | **not currently supported** — see "Returned-stream ownership" below |
+| Subscription **across** a scope boundary | a subscription is owned by the scope it is *created in*, regardless of where the source stream came from |
+
+The asymmetry is intentional: parameters can carry live streams in, but
+ordinary functions cannot start a subscription on them, so no detached task is
+created at the call site.
+
+## Open Design Decisions
+
+### Returned-stream ownership
+
+**Status: deferred.** Tracked as `td-b48d46`.
+
+A function returning a live stream today either (a) returns a derived
+expression that the caller subscribes to, or (b) is rejected if it tries to
+return a *subscription handle* (a live `~ x | ...` arm) instead of a stream.
+There is no first-class way to hand out an owned subscription — the caller
+must open its own scope.
+
+The open question is whether to add an explicit ownership type — something
+like `Subscription(T)` with a `cancel()` method or a `Drop` guarantee — that
+lets advanced code factor out subscriptions without a containing scope. The
+default answer for now is: keep the rejection, recommend "return the stream,
+let the caller scope," and revisit if real users hit the wall.
+
+### Function-as-scope
+
+**Status: open question.**
+
+The current contract requires an explicit `| scope Name { ... }` even when
+the function body is the obvious lifetime container for the subscription.
+Whether that explicit form is *right* — versus letting the function frame
+itself act as an implicit scope, or introducing an anonymous `| scope { ... }`
+form, or something else — is a design question still being thought through.
+
+This doc does not record an answer. When one is reached it lands here.
+
 ## Current Status
 
 This surface is still [Preview](feature-stages.md), but the ownership rule
@@ -183,6 +285,9 @@ itself is deliberate:
 - named scopes own live subscription lifetimes
 - named scopes own derived async stream operator tasks created inside them
 - detached function-local live subscriptions are rejected
+- snapshot reads (`.latest`, `.count`, terminal reductions, etc.) are allowed
+  in ordinary functions because they do not spawn background work
 
-Future work may add more advanced explicit ownership forms, but implicit
-detached background subscriptions are not the direction.
+Future work may add more advanced explicit ownership forms (see "Open Design
+Decisions" above), but implicit detached background subscriptions are not the
+direction.

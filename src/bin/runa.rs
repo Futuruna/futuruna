@@ -19803,7 +19803,8 @@ impl RustCodegen {
                         iter_expr.span,
                         "live async stream for-loops require a named scope",
                     )
-                    .with_note("wrap this subscription in `| scope Name { ... }` so its lifetime is owned explicitly");
+                    .with_note("wrap this subscription in `| scope Name { ... }` so its lifetime is owned explicitly")
+                    .with_note("see docs/stream-lifetimes.md");
                     if let Some(name) = fn_name {
                         diag = diag.with_context(format!("in function `{}`", name));
                     }
@@ -19818,7 +19819,8 @@ impl RustCodegen {
                         expr.span,
                         "live stream subscriptions require a named scope",
                     )
-                    .with_note("ordinary functions must not spawn detached subscription tasks; use `| scope Name { ... }` instead");
+                    .with_note("ordinary functions must not spawn detached subscription tasks; use `| scope Name { ... }` instead")
+                    .with_note("see docs/stream-lifetimes.md");
                     if let Some(name) = fn_name {
                         diag = diag.with_context(format!("in function `{}`", name));
                     }
@@ -19844,7 +19846,8 @@ impl RustCodegen {
                         expr.span,
                         "derived async stream operators require a named scope",
                     )
-                    .with_note("bindings like `= x = readings |> map(...)` or `~ x = ...` start background forwarder tasks; wrap them in `| scope Name { ... }` or return the stream expression directly");
+                    .with_note("bindings like `= x = readings |> map(...)` or `~ x = ...` start background forwarder tasks; wrap them in `| scope Name { ... }` or return the stream expression directly")
+                    .with_note("see docs/stream-lifetimes.md");
                     if let Some(name) = fn_name {
                         diag = diag.with_context(format!("in function `{}`", name));
                     }
