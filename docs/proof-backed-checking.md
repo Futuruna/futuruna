@@ -156,12 +156,24 @@ Implementation status:
 
 - explicit proof registry construction now uses a checked computation-lemma
   collection path
+- validation is split into source-arm extraction, generated lemma emission, and
+  source-derived expected schema derivation
 - the checker rejects generated lemmas with no eligible source arm
 - the checker rejects missing generated lemmas for eligible source arms
 - the checker rejects generated schemas that differ from the source-derived arm
   schema
 - focused regressions cover the verified bootstrap fixture and tampered
   generated lemma sets
+
+Structural independence boundary:
+
+- the generated lemma set is not trusted directly by the proof registry
+- expected schemas are derived from extracted source arms rather than by calling
+  the generated-lemma collector again
+- both generated and expected paths still intentionally share the proof-term
+  lowering primitives for patterns, substituted bodies, and proof schemas
+- those shared lowering primitives remain part of the trusted proof-elaboration
+  surface until a later slice reduces or audits them further
 
 ## Non-Goals
 

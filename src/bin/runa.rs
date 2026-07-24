@@ -5943,28 +5943,36 @@ fn computation_lemma_case_suffix(pat: &Pat) -> Result<String, String> {
     }
 }
 
-fn computation_lemmas_for_function(
+#[derive(Debug, Clone)]
+struct ComputationLemmaSourceArm {
+    lemma_name: String,
+    function_name: String,
+    param_names: Vec<String>,
+    pattern: Pat,
+    body: Expr,
+}
+
+fn computation_lemma_match_body(body: &Expr) -> Option<(&Expr, &Vec<MatchArm>)> {
+    match &body.kind {
+        ExprKind::Match(scrutinee, arms) => Some((scrutinee, arms)),
+        ExprKind::Block(stmts) if stmts.len() == 1 => match &stmts[0] {
+            Stmt::Expr(expr) => computation_lemma_match_body(expr),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn computation_lemma_source_arms_for_function(
     name: &str,
     params: &[Param],
     body: &Expr,
-    bindings: &BTreeMap<String, Expr>,
-) -> Option<Vec<(String, proof_kernel::Schema)>> {
-    fn function_match_body(body: &Expr) -> Option<(&Expr, &Vec<MatchArm>)> {
-        match &body.kind {
-            ExprKind::Match(scrutinee, arms) => Some((scrutinee, arms)),
-            ExprKind::Block(stmts) if stmts.len() == 1 => match &stmts[0] {
-                Stmt::Expr(expr) => function_match_body(expr),
-                _ => None,
-            },
-            _ => None,
-        }
-    }
-
+) -> Option<Vec<ComputationLemmaSourceArm>> {
     if params.is_empty() {
         return None;
     }
 
-    let (scrutinee, arms) = function_match_body(body)?;
+    let (scrutinee, arms) = computation_lemma_match_body(body)?;
     let ExprKind::Var(scrut_name) = &scrutinee.kind else {
         return None;
     };
@@ -5972,46 +5980,116 @@ fn computation_lemmas_for_function(
         return None;
     }
 
-    let mut lemmas = Vec::new();
+    let param_names: Vec<String> = params.iter().map(|param| param.name.clone()).collect();
+    let mut source_arms = Vec::new();
     for arm in arms {
         if arm.guard.is_some() {
             return None;
         }
-
         let suffix = computation_lemma_case_suffix(&arm.pat).ok()?;
-        let first_arg = pattern_to_proof_term(&arm.pat).ok()?;
+        source_arms.push(ComputationLemmaSourceArm {
+            lemma_name: format!("{}.{}", name, suffix),
+            function_name: name.to_string(),
+            param_names: param_names.clone(),
+            pattern: arm.pat.clone(),
+            body: arm.body.clone(),
+        });
+    }
 
-        let mut active = BTreeSet::new();
-        for param in params {
-            active.insert(param.name.clone());
+    Some(source_arms)
+}
+
+fn collect_computation_lemma_source_arms(stmts: &[Stmt]) -> Vec<ComputationLemmaSourceArm> {
+    let mut source_arms = Vec::new();
+    for stmt in stmts {
+        if let Stmt::Defn(Defn::Fn {
+            name, params, body, ..
+        }) = stmt
+        {
+            if let Some(mut arms) = computation_lemma_source_arms_for_function(name, params, body) {
+                source_arms.append(&mut arms);
+            }
         }
-        collect_pattern_binding_names(&arm.pat, &mut active);
-        let expanded_body = substitute_expr_bindings_for_proof(
-            &arm.body,
-            bindings,
-            &mut active,
-            ProofExprContext::Term,
-        );
-        let rhs = lower_expr_to_proof_term(&expanded_body).ok()?;
+    }
+    source_arms
+}
 
-        let mut lhs_args = vec![first_arg];
-        lhs_args.extend(
-            params
-                .iter()
-                .skip(1)
-                .map(|param| proof_kernel::Term::Var(param.name.clone())),
-        );
-        let conclusion =
-            proof_kernel::Prop::Eq(proof_kernel::Term::App(name.into(), lhs_args), rhs);
+fn lower_computation_lemma_source_body(
+    source_arm: &ComputationLemmaSourceArm,
+    bindings: &BTreeMap<String, Expr>,
+) -> Result<proof_kernel::Term, String> {
+    let mut active: BTreeSet<String> = source_arm.param_names.iter().cloned().collect();
+    collect_pattern_binding_names(&source_arm.pattern, &mut active);
+    let expanded_body = substitute_expr_bindings_for_proof(
+        &source_arm.body,
+        bindings,
+        &mut active,
+        ProofExprContext::Term,
+    );
+    lower_expr_to_proof_term(&expanded_body)
+}
 
-        lemmas.push((
-            format!("{}.{}", name, suffix),
-            proof_kernel::Schema {
-                vars: proof_schema_vars(&conclusion),
-                premises: vec![],
-                conclusion,
-            },
-        ));
+fn lower_computation_lemma_source_lhs_args(
+    source_arm: &ComputationLemmaSourceArm,
+) -> Result<Vec<proof_kernel::Term>, String> {
+    let first_arg = pattern_to_proof_term(&source_arm.pattern)?;
+    let mut lhs_args = vec![first_arg];
+    lhs_args.extend(
+        source_arm
+            .param_names
+            .iter()
+            .skip(1)
+            .map(|name| proof_kernel::Term::Var(name.clone())),
+    );
+    Ok(lhs_args)
+}
+
+fn generated_computation_lemma_schema_from_source_arm(
+    source_arm: &ComputationLemmaSourceArm,
+    bindings: &BTreeMap<String, Expr>,
+) -> Result<proof_kernel::Schema, String> {
+    let lhs_args = lower_computation_lemma_source_lhs_args(source_arm)?;
+    let rhs = lower_computation_lemma_source_body(source_arm, bindings)?;
+    let conclusion = proof_kernel::Prop::Eq(
+        proof_kernel::Term::App(source_arm.function_name.clone(), lhs_args),
+        rhs,
+    );
+    Ok(proof_kernel::Schema {
+        vars: proof_schema_vars(&conclusion),
+        premises: vec![],
+        conclusion,
+    })
+}
+
+fn expected_computation_lemma_schema_from_source_arm(
+    source_arm: &ComputationLemmaSourceArm,
+    bindings: &BTreeMap<String, Expr>,
+) -> Result<proof_kernel::Schema, String> {
+    let lhs_args = lower_computation_lemma_source_lhs_args(source_arm)?;
+    let rhs = lower_computation_lemma_source_body(source_arm, bindings)?;
+    let conclusion = proof_kernel::Prop::Eq(
+        proof_kernel::Term::App(source_arm.function_name.clone(), lhs_args),
+        rhs,
+    );
+    Ok(proof_kernel::Schema {
+        vars: proof_schema_vars(&conclusion),
+        premises: vec![],
+        conclusion,
+    })
+}
+
+fn computation_lemmas_for_function(
+    name: &str,
+    params: &[Param],
+    body: &Expr,
+    bindings: &BTreeMap<String, Expr>,
+) -> Option<Vec<(String, proof_kernel::Schema)>> {
+    let source_arms = computation_lemma_source_arms_for_function(name, params, body)?;
+    let mut lemmas = Vec::new();
+    for source_arm in source_arms {
+        let schema =
+            generated_computation_lemma_schema_from_source_arm(&source_arm, bindings).ok()?;
+        lemmas.push((source_arm.lemma_name, schema));
     }
 
     Some(lemmas)
@@ -6051,20 +6129,37 @@ fn expected_computation_lemma_map(
     bindings: &BTreeMap<String, Expr>,
 ) -> Result<BTreeMap<String, proof_kernel::Schema>, String> {
     let mut expected = BTreeMap::new();
-    for stmt in stmts {
-        if let Stmt::Defn(Defn::Fn {
-            name, params, body, ..
-        }) = stmt
-        {
-            if let Some(generated) = computation_lemmas_for_function(name, params, body, bindings) {
-                for (lemma_name, schema) in generated {
-                    if expected.insert(lemma_name.clone(), schema).is_some() {
-                        return Err(format!(
-                            "duplicate eligible source computation lemma `{}`",
-                            lemma_name
-                        ));
-                    }
+    let mut by_function: BTreeMap<String, Vec<ComputationLemmaSourceArm>> = BTreeMap::new();
+    for source_arm in collect_computation_lemma_source_arms(stmts) {
+        by_function
+            .entry(source_arm.function_name.clone())
+            .or_default()
+            .push(source_arm);
+    }
+
+    for (_, source_arms) in by_function {
+        let mut derived = Vec::new();
+        let mut all_arms_lowerable = true;
+        for source_arm in &source_arms {
+            match expected_computation_lemma_schema_from_source_arm(source_arm, bindings) {
+                Ok(schema) => derived.push((source_arm.lemma_name.clone(), schema)),
+                Err(_) => {
+                    all_arms_lowerable = false;
+                    break;
                 }
+            }
+        }
+
+        if !all_arms_lowerable {
+            continue;
+        }
+
+        for (lemma_name, schema) in derived {
+            if expected.insert(lemma_name.clone(), schema).is_some() {
+                return Err(format!(
+                    "duplicate eligible source computation lemma `{}`",
+                    lemma_name
+                ));
             }
         }
     }
@@ -28406,6 +28501,62 @@ mod tests {
         assert!(names.contains("lower_value.svadd"));
         assert!(names.contains("eval_surface_let.slet"));
         assert!(names.contains("lower_let.slet"));
+    }
+
+    #[test]
+    fn computation_lemma_expected_map_is_source_arm_derived() {
+        let source = r#"
+# Switch = On | Off
+> flip(s: Switch) -> Switch {
+    match s {
+        | On -> Off
+        | Off -> On
+    }
+}
+"#;
+        let stmts = parse_test_program(source);
+        let bindings = proof_bindings_for_stmts(&stmts);
+        let source_arms = collect_computation_lemma_source_arms(&stmts);
+        let source_names: Vec<String> = source_arms
+            .iter()
+            .map(|arm| arm.lemma_name.clone())
+            .collect();
+
+        assert_eq!(source_names, vec!["flip.on", "flip.off"]);
+
+        let expected = expected_computation_lemma_map(&stmts, &bindings)
+            .expect("source-derived expected map should build");
+        assert_eq!(expected.len(), 2);
+        assert!(expected.contains_key("flip.on"));
+        assert!(expected.contains_key("flip.off"));
+    }
+
+    #[test]
+    fn computation_lemma_expected_map_skips_unlowerable_function_arms() {
+        let source = r#"
+# Verdict = Accept | Queue
+> verdict_label(v: Verdict) -> String {
+    match v {
+        | Accept -> "accept"
+        | Queue -> "queue"
+    }
+}
+"#;
+        let stmts = parse_test_program(source);
+        let bindings = proof_bindings_for_stmts(&stmts);
+        let source_arms = collect_computation_lemma_source_arms(&stmts);
+
+        assert_eq!(source_arms.len(), 2);
+        assert!(
+            collect_computation_lemmas(&stmts, &bindings).is_empty(),
+            "unlowerable source arms must not generate computation lemmas"
+        );
+        assert!(
+            expected_computation_lemma_map(&stmts, &bindings)
+                .expect("unlowerable functions should be treated as ineligible")
+                .is_empty(),
+            "unlowerable source arms should not become expected proof lemmas"
+        );
     }
 
     #[test]

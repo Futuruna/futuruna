@@ -45,6 +45,10 @@ they enter the explicit-proof registry. The checker rejects ghost lemmas,
 missing source-backed lemmas, and schemas that differ from the source-derived
 arm schema.
 
+The implementation separates source-arm extraction, generated lemma emission,
+and source-derived expected schema derivation. The remaining shared proof-term
+lowering primitives are intentionally still trusted proof-elaboration helpers.
+
 ## Ranked Surfaces
 
 1. proof elaboration and computation-lemma generation
