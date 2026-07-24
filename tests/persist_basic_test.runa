@@ -1,0 +1,24 @@
+-- persist_basic_test.runa — Typed-column persistence (M26b)
+--
+-- Tests: @ persist, assert, retract on persisted types with primitive columns
+-- Regression for td-8b2887.
+
+@ print("=== Persist Basic Test ===")
+
+-- Define a struct and mark it as persisted (typed columns, not JSON blob)
+# Item(id: Int, name: String, qty: Int)
+@ persist Item
+
+-- Assert typed rows — each becomes a SQLite row with INTEGER / TEXT columns
+assert Item(1, "Widget", 100)
+assert Item(2, "Gadget", 50)
+assert Item(3, "Doohickey", 75)
+
+@ print("  Asserted 3 persisted items")
+
+-- Retract by primary key (first field)
+retract Item(2)
+
+@ print("  Retracted item 2")
+
+@ print("=== Persist Basic Test Complete ===")

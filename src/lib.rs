@@ -4068,15 +4068,19 @@ impl Parser {
 
         // @ store TypeName [delete_on_change] [in "scope"]
         // Object store persistence (struct → JSON blob in SQLite)
-        if name == "store" {
+        // @ persist TypeName [in "scope"]
+        // Typed-column persistence (struct → SQLite table with one column per field)
+        if name == "store" || name == "persist" {
+            let kind = name.clone();
             let type_name = self.expect_ident()?;
             let mut args: Vec<Expr> = vec![ExprKind::Var(type_name.clone()).into()];
-            // Check for optional `delete_on_change` flag
+            // Optional `delete_on_change` flag (only meaningful for @ store today,
+            // accepted in both for symmetry).
             if self.peek_kind() == TokenKind::Ident && self.peek().text == "delete_on_change" {
                 self.advance();
                 args.push(ExprKind::Var("delete_on_change".to_string()).into());
             }
-            // Check for optional `in "scope"` clause
+            // Optional `in "scope"` clause
             if self.peek_kind() == TokenKind::KW && self.peek().text == "in" {
                 self.advance(); // consume `in`
                 if self.peek_kind() == TokenKind::String_ {
@@ -4085,12 +4089,12 @@ impl Parser {
                 } else {
                     let p = self.peek();
                     return Err(format!(
-                        "{}:{}: expected scope string after `in`\n  Try: @ store {} in \"myapp\"",
-                        p.line, p.col, type_name
+                        "{}:{}: expected scope string after `in`\n  Try: @ {} {} in \"myapp\"",
+                        p.line, p.col, kind, type_name
                     ));
                 }
             }
-            return Ok(Stmt::Annot("store".to_string(), args));
+            return Ok(Stmt::Annot(kind, args));
         }
 
         // @ sprog / @ language — already consumed by lexer, skip the code token

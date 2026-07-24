@@ -10639,6 +10639,8 @@ struct TypeRegistry {
     store_delete_on_change: BTreeSet<String>,
     /// M26: Schema hash per stored type
     stored_type_schema_hash: BTreeMap<String, String>,
+    /// M26b: Types with `@ persist` annotation — typed-column lowering
+    persisted_types: BTreeSet<String>,
     /// User-defined function names (avoid overriding with builtins)
     user_functions: BTreeSet<String>,
     /// Declared function types: fn_name -> Arrow(param1, ... -> ret), using Unknown for gaps
@@ -10691,6 +10693,7 @@ impl TypeRegistry {
             store_scope: None,
             store_delete_on_change: BTreeSet::new(),
             stored_type_schema_hash: BTreeMap::new(),
+            persisted_types: BTreeSet::new(),
             user_functions: BTreeSet::new(),
             fn_types: BTreeMap::new(),
             exported_names: BTreeSet::new(),
@@ -14570,6 +14573,21 @@ fn is_copy_type(ty: &Ty) -> bool {
     matches!(ty, Ty::Name(n) if matches!(n.as_str(), "Int" | "Float" | "Char" | "Nat" | "Bool"))
 }
 
+/// M26b: Map a Futuruna type to a SQLite column type for `@ persist` typed-column lowering.
+/// Only primitive types are supported in this slice; richer types (Option, List, nested structs)
+/// will land as follow-up subtasks under td-c0a7a1.
+fn futuruna_ty_to_sql_column(ty: &Ty) -> &'static str {
+    match ty {
+        Ty::Name(n) => match n.as_str() {
+            "Int" | "Nat" | "Bool" => "INTEGER NOT NULL",
+            "Float" => "REAL NOT NULL",
+            "String" | "Char" => "TEXT NOT NULL",
+            _ => "TEXT NOT NULL", // fallback: serialize unknown types as JSON text
+        },
+        _ => "TEXT NOT NULL",
+    }
+}
+
 /// Single source of truth for builtins whose return type is fixed regardless of
 /// argument types. Used by lowering, top-level getter inference, and codegen
 /// heuristics like expr_is_float/expr_is_string.
@@ -15432,17 +15450,24 @@ impl RustCodegen {
             }
         }
 
-        // M26: Pre-scan for @ store annotations — collect stored types and their key fields
+        // M26: Pre-scan for @ store / @ persist annotations — collect persistence-typed
+        // ADTs and their key fields. @ store keeps JSON-blob lowering (Phase A);
+        // @ persist (M26b) lowers to typed columns instead.
         {
             for stmt in stmts {
                 if let Stmt::Annot(name, args) = stmt {
-                    if name == "store" {
+                    let is_store = name == "store";
+                    let is_persist = name == "persist";
+                    if is_store || is_persist {
                         if let Some(Expr {
                             kind: ExprKind::Var(type_name),
                             ..
                         }) = args.first()
                         {
                             self.types.stored_types.insert(type_name.clone());
+                            if is_persist {
+                                self.types.persisted_types.insert(type_name.clone());
+                            }
                             // Scan remaining args for flags and scope
                             for arg in args.iter().skip(1) {
                                 match &arg.kind {
@@ -18001,8 +18026,45 @@ impl RustCodegen {
                     out.push_str(&format!("{i}    }}\n"));
                     out.push_str(&format!("{i}}}\n"));
                     // Create the data table (after potential DROP)
+                    let create_sql = if self.types.persisted_types.contains(type_name) {
+                        // M26b: typed columns. Each struct field becomes one SQLite column.
+                        let fields = self
+                            .types
+                            .variant_fields
+                            .get(type_name.as_str())
+                            .cloned()
+                            .unwrap_or_default();
+                        let field_types = self
+                            .types
+                            .variant_field_types
+                            .get(type_name.as_str())
+                            .cloned()
+                            .unwrap_or_default();
+                        let mut col_defs: Vec<String> = Vec::new();
+                        for (idx, fname) in fields.iter().enumerate() {
+                            let ty = field_types.get(fname).cloned().unwrap_or(Ty::Hole);
+                            let sql_ty = futuruna_ty_to_sql_column(&ty);
+                            let pk_suffix = if idx == 0 { " PRIMARY KEY" } else { "" };
+                            col_defs.push(format!(
+                                "{} {}{}",
+                                sanitize_name(fname),
+                                sql_ty,
+                                pk_suffix
+                            ));
+                        }
+                        format!(
+                            "CREATE TABLE IF NOT EXISTS {} ({})",
+                            table_name,
+                            col_defs.join(", ")
+                        )
+                    } else {
+                        format!(
+                            "CREATE TABLE IF NOT EXISTS {} (id TEXT PRIMARY KEY, data TEXT NOT NULL)",
+                            table_name
+                        )
+                    };
                     out.push_str(&format!("{i}__db.lock().unwrap().execute(\n"));
-                    out.push_str(&format!("{i}    \"CREATE TABLE IF NOT EXISTS {table_name} (id TEXT PRIMARY KEY, data TEXT NOT NULL)\",\n"));
+                    out.push_str(&format!("{i}    \"{create_sql}\",\n"));
                     out.push_str(&format!("{i}    rusqlite::params![]\n"));
                     out.push_str(&format!(
                         "{i}).expect(\"Failed to create table {table_name}\");\n"
@@ -23221,7 +23283,31 @@ impl RustCodegen {
             Stmt::Assert(type_name, args) => {
                 let mut out = String::new();
                 let sname = sanitize_name(type_name);
-                if self.types.stored_types.contains(type_name.as_str()) {
+                let table_name = sname.to_lowercase();
+                if self.types.persisted_types.contains(type_name.as_str()) {
+                    // M26b: typed-column INSERT OR REPLACE.
+                    let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
+                    let fields = self
+                        .types
+                        .variant_fields
+                        .get(type_name.as_str())
+                        .cloned()
+                        .unwrap_or_default();
+                    let cols: Vec<String> = fields
+                        .iter()
+                        .map(|f| sanitize_name(f).to_string())
+                        .collect();
+                    let placeholders: Vec<String> =
+                        (1..=cols.len()).map(|i| format!("?{}", i)).collect();
+                    out.push_str(&format!(
+                        "{}__db.lock().unwrap().execute(\"INSERT OR REPLACE INTO {} ({}) VALUES ({})\", rusqlite::params![{}]).expect(\"assert failed\");\n",
+                        self.ind(),
+                        table_name,
+                        cols.join(", "),
+                        placeholders.join(", "),
+                        arg_strs.join(", ")
+                    ));
+                } else if self.types.stored_types.contains(type_name.as_str()) {
                     // Object store: serialize struct to JSON, INSERT OR REPLACE
                     let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
                     // Build struct literal with named fields (named struct) or positional (tuple struct)
@@ -23267,7 +23353,7 @@ impl RustCodegen {
                             .unwrap_or_else(|| "0".to_string())
                     ));
                     out.push_str(&format!("{}__db.lock().unwrap().execute(\"INSERT OR REPLACE INTO {} (id, data) VALUES (?1, ?2)\", rusqlite::params![__key, __json]).expect(\"assert failed\");\n",
-                        self.ind(), sname.to_lowercase()));
+                        self.ind(), table_name));
                     self.indent -= 1;
                     out.push_str(&format!("{}}}\n", self.ind()));
                 } else {
@@ -23285,13 +23371,39 @@ impl RustCodegen {
             Stmt::Retract(type_name, args) => {
                 let mut out = String::new();
                 let sname = sanitize_name(type_name);
-                if self.types.stored_types.contains(type_name.as_str()) {
+                let table_name = sname.to_lowercase();
+                if self.types.persisted_types.contains(type_name.as_str()) {
+                    // M26b: DELETE WHERE pk = ? — primary key is the first column.
+                    let pk_col = self
+                        .types
+                        .stored_type_key_field
+                        .get(type_name.as_str())
+                        .cloned()
+                        .map(|f| sanitize_name(&f).to_string())
+                        .unwrap_or_else(|| "id".to_string());
+                    if let Some(first) = args.first() {
+                        let key_str = self.emit_expr(first);
+                        out.push_str(&format!(
+                            "{}__db.lock().unwrap().execute(\"DELETE FROM {} WHERE {} = ?1\", rusqlite::params![{}]).expect(\"retract failed\");\n",
+                            self.ind(),
+                            table_name,
+                            pk_col,
+                            key_str
+                        ));
+                    } else {
+                        out.push_str(&format!(
+                            "{}// retract {} — no arguments\n",
+                            self.ind(),
+                            type_name
+                        ));
+                    }
+                } else if self.types.stored_types.contains(type_name.as_str()) {
                     // Object store: DELETE by key (first arg)
                     // For now, use first arg as key
                     if let Some(first) = args.first() {
                         let key_str = self.emit_expr(first);
                         out.push_str(&format!("{}__db.lock().unwrap().execute(\"DELETE FROM {} WHERE id = ?1\", rusqlite::params![format!(\"{{}}\", {})] ).expect(\"retract failed\");\n",
-                            self.ind(), sname.to_lowercase(), key_str));
+                            self.ind(), table_name, key_str));
                     } else {
                         out.push_str(&format!(
                             "{}// retract {} — no arguments\n",
