@@ -3374,6 +3374,7 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
             || source.contains("regex_match")
             || source.contains("regex_find")
             || source.contains("@ store")
+            || source.contains("@ persist")
             || source.contains("subject(")
             || source.contains("> actor")
             || source.contains("spawn(")
@@ -3590,6 +3591,7 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
             || source.contains("regex_match")
             || source.contains("regex_find")
             || source.contains("@ store")
+            || source.contains("@ persist")
             || source.contains("subject(")
             || source.contains("> actor")
             || source.contains("spawn(")
@@ -10622,6 +10624,9 @@ struct TypeRegistry {
     rule_clone_params: BTreeSet<String>,
     /// Prolog-style rule functions: fn_name -> param types (e.g., ["&str", "&str"])
     prolog_rule_fns: BTreeMap<String, Vec<String>>,
+    /// Prolog-style rule groups retained for specialized query lowering such as
+    /// findall over rules backed by persisted fact predicates.
+    prolog_rule_groups: BTreeMap<String, Vec<Rule>>,
     /// Value-returning Prolog rule functions: fn_name -> return type (e.g., "String")
     prolog_value_fns: BTreeMap<String, String>,
     /// Typed rule functions: fn_name -> type_name (for findall enumeration)
@@ -10685,6 +10690,7 @@ impl TypeRegistry {
             fn_effects: BTreeMap::new(),
             rule_clone_params: BTreeSet::new(),
             prolog_rule_fns: BTreeMap::new(),
+            prolog_rule_groups: BTreeMap::new(),
             prolog_value_fns: BTreeMap::new(),
             typed_rule_types: BTreeMap::new(),
             literal_bindings: BTreeMap::new(),
@@ -17073,6 +17079,12 @@ impl RustCodegen {
                 out.push_str(&format!("use {};\n", path));
             }
         }
+        if !self.types.stored_types.is_empty() {
+            out.push_str("static __FUT_STORE_DB: std::sync::OnceLock<std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>> = std::sync::OnceLock::new();\n");
+            out.push_str("fn __fut_persist_db() -> std::sync::Arc<std::sync::Mutex<rusqlite::Connection>> {\n");
+            out.push_str("    __FUT_STORE_DB.get().expect(\"persist store database not initialized\").clone()\n");
+            out.push_str("}\n");
+        }
         // M13c: emit ScopeGuard struct when async mode is active
         if self.has_async {
             out.push_str("use tokio::sync::broadcast;\n");
@@ -17385,6 +17397,10 @@ impl RustCodegen {
             }
             // Pre-register Prolog-style rule functions so type propagation works across groups
             for (fn_name, rules) in &rule_groups {
+                self.types.prolog_rule_groups.insert(
+                    fn_name.clone(),
+                    rules.iter().map(|rule| (*rule).clone()).collect(),
+                );
                 let arity = Self::rule_arity(rules);
                 if arity > 0 && Self::rules_have_prolog_features(rules) {
                     let mut param_types: Vec<&str> = vec!["String"; arity];
@@ -17951,6 +17967,7 @@ impl RustCodegen {
                 ));
                 out.push_str(&format!("{i}    rusqlite::Connection::open(\"{db_name}\").expect(\"Failed to open store database\")\n"));
                 out.push_str(&format!("{i}));\n"));
+                out.push_str(&format!("{i}let _ = __FUT_STORE_DB.set(__db.clone());\n"));
                 out.push_str(&format!(
                     "{i}__db.lock().unwrap().execute_batch(\"PRAGMA journal_mode=WAL;\").ok();\n"
                 ));
@@ -20591,15 +20608,45 @@ impl RustCodegen {
                             let first_goal = &goals[0];
                             if let ExprKind::App(func, goal_args) = &first_goal.kind {
                                 let goal_fn = Self::expr_fn_name(func);
-                                let source_table =
-                                    format!("{}_FACTS", sanitize_name(&goal_fn).to_uppercase());
+                                let source_iter =
+                                    if self.types.persisted_types.contains(goal_fn.as_str()) {
+                                        let mut bound_vars = BTreeMap::new();
+                                        for ga in goal_args {
+                                            if let ExprKind::Var(name) = &ga.kind {
+                                                if name == "_" {
+                                                    continue;
+                                                }
+                                                if let Some((_, idx)) =
+                                                    head_vars.iter().find(|(n, _)| n == name)
+                                                {
+                                                    bound_vars.insert(
+                                                        name.clone(),
+                                                        param_names[*idx].clone(),
+                                                    );
+                                                }
+                                            }
+                                        }
+                                        self.emit_persisted_query_expr(
+                                            &goal_fn,
+                                            goal_args,
+                                            None,
+                                            &bound_vars,
+                                        )
+                                        .unwrap_or_else(|| "Vec::new()".to_string())
+                                    } else {
+                                        let source_table = format!(
+                                            "{}_FACTS",
+                                            sanitize_name(&goal_fn).to_uppercase()
+                                        );
+                                        format!("{}.iter()", source_table)
+                                    };
 
-                                out.push_str(&format!(
-                                    "    for fact in {}.iter() {{\n",
-                                    source_table
-                                ));
+                                out.push_str(&format!("    for fact in {} {{\n", source_iter));
                                 for (gi, ga) in goal_args.iter().enumerate() {
                                     if let ExprKind::Var(name) = &ga.kind {
+                                        if name == "_" {
+                                            continue;
+                                        }
                                         if let Some((_, idx)) =
                                             head_vars.iter().find(|(n, _)| n == name)
                                         {
@@ -20673,6 +20720,36 @@ impl RustCodegen {
                                 .map(|goal| {
                                     if let ExprKind::App(func, goal_args) = &goal.kind {
                                         let gfn = Self::expr_fn_name(func);
+                                        if self.types.persisted_types.contains(gfn.as_str()) {
+                                            let mut bound_vars = BTreeMap::new();
+                                            for a in goal_args {
+                                                if let ExprKind::Var(name) = &a.kind {
+                                                    if name == "_" {
+                                                        continue;
+                                                    }
+                                                    if let Some((_, idx)) =
+                                                        head_vars.iter().find(|(n, _)| n == name)
+                                                    {
+                                                        bound_vars.insert(
+                                                            name.clone(),
+                                                            param_names[*idx].clone(),
+                                                        );
+                                                    } else {
+                                                        bound_vars.insert(
+                                                            name.clone(),
+                                                            sanitize_name(name),
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                            return self
+                                                .emit_persisted_exists_expr(
+                                                    &gfn,
+                                                    goal_args,
+                                                    &bound_vars,
+                                                )
+                                                .unwrap_or_else(|| "false".to_string());
+                                        }
                                         let gargs: Vec<String> = goal_args
                                             .iter()
                                             .map(|a| {
@@ -20712,6 +20789,29 @@ impl RustCodegen {
                         // Simple non-conjunction body — emit as a call with proper arg substitution
                         if let ExprKind::App(func, call_args) = &body.kind {
                             let called_fn = Self::expr_fn_name(func);
+                            if self.types.persisted_types.contains(called_fn.as_str()) {
+                                let mut bound_vars = BTreeMap::new();
+                                for a in call_args {
+                                    if let ExprKind::Var(name) = &a.kind {
+                                        if name == "_" {
+                                            continue;
+                                        }
+                                        if let Some((_, idx)) =
+                                            head_vars.iter().find(|(n, _)| n == name)
+                                        {
+                                            bound_vars
+                                                .insert(name.clone(), param_names[*idx].clone());
+                                        } else {
+                                            bound_vars.insert(name.clone(), sanitize_name(name));
+                                        }
+                                    }
+                                }
+                                let exists = self
+                                    .emit_persisted_exists_expr(&called_fn, call_args, &bound_vars)
+                                    .unwrap_or_else(|| "false".to_string());
+                                out.push_str(&format!("    if {} {{ return true; }}\n", exists));
+                                continue;
+                            }
                             let gargs: Vec<String> = call_args
                                 .iter()
                                 .map(|a| {
@@ -20802,6 +20902,284 @@ impl RustCodegen {
         out
     }
 
+    fn persisted_fields(&self, type_name: &str) -> Option<Vec<String>> {
+        if !self.types.persisted_types.contains(type_name) {
+            return None;
+        }
+        let fields = self.types.variant_fields.get(type_name)?.clone();
+        (!fields.is_empty()).then_some(fields)
+    }
+
+    fn persisted_field_rust_type(&mut self, type_name: &str, field: &str) -> String {
+        let ty = self
+            .types
+            .variant_field_types
+            .get(type_name)
+            .and_then(|fields| fields.get(field))
+            .cloned()
+            .unwrap_or(Ty::Hole);
+        self.emit_type(&ty)
+    }
+
+    fn emit_persisted_query_expr(
+        &mut self,
+        type_name: &str,
+        goal_args: &[Expr],
+        projection: Option<usize>,
+        bound_vars: &BTreeMap<String, String>,
+    ) -> Option<String> {
+        let fields = self.persisted_fields(type_name)?;
+        if goal_args.len() > fields.len() {
+            return None;
+        }
+        let table_name = sanitize_name(type_name).to_lowercase();
+        let columns: Vec<String> = fields.iter().map(|field| sanitize_name(field)).collect();
+
+        let mut where_parts = Vec::new();
+        let mut params = Vec::new();
+        let mut first_bound_col: Option<String> = None;
+        for (idx, arg) in goal_args.iter().enumerate() {
+            let col = columns[idx].clone();
+            let value = match &arg.kind {
+                ExprKind::Var(name) if name == "_" => None,
+                ExprKind::Var(name) => bound_vars.get(name).cloned(),
+                _ => Some(self.emit_expr(arg)),
+            };
+            if let Some(value) = value {
+                if first_bound_col.is_none() {
+                    first_bound_col = Some(col.clone());
+                }
+                params.push(value);
+                where_parts.push(format!("{} = ?{}", col, params.len()));
+            }
+        }
+
+        let select_columns = match projection {
+            Some(idx) => vec![columns.get(idx)?.clone()],
+            None => columns.clone(),
+        };
+        let select_sql = select_columns.join(", ");
+        let where_sql = if where_parts.is_empty() {
+            String::new()
+        } else {
+            format!(" WHERE {}", where_parts.join(" AND "))
+        };
+        let order_sql = if columns.is_empty() {
+            String::new()
+        } else {
+            format!(" ORDER BY {}", columns.join(", "))
+        };
+        let sql = format!(
+            "SELECT {} FROM {}{}{}",
+            select_sql, table_name, where_sql, order_sql
+        );
+        let params_expr = if params.is_empty() {
+            "rusqlite::params![]".to_string()
+        } else {
+            format!("rusqlite::params![{}]", params.join(", "))
+        };
+        let index_stmt = first_bound_col
+            .as_ref()
+            .filter(|col| columns.first().map(|pk| pk != *col).unwrap_or(false))
+            .map(|col| {
+                let index_name = format!("__idx_{}_{}", table_name, col);
+                format!(
+                    "__db_lock.execute(\"CREATE INDEX IF NOT EXISTS {} ON {} ({})\", rusqlite::params![]).ok(); ",
+                    index_name, table_name, col
+                )
+            })
+            .unwrap_or_default();
+
+        let row_get = match projection {
+            Some(idx) => {
+                let ty = self.persisted_field_rust_type(type_name, fields.get(idx)?);
+                format!("row.get::<_, {}>(0)", ty)
+            }
+            None => {
+                let getters: Vec<String> = fields
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, field)| {
+                        let ty = self.persisted_field_rust_type(type_name, field);
+                        format!("row.get::<_, {}>({})?", ty, idx)
+                    })
+                    .collect();
+                if getters.len() == 1 {
+                    format!("Ok(({},))", getters[0])
+                } else {
+                    format!("Ok(({},))", getters.join(", "))
+                }
+            }
+        };
+
+        Some(format!(
+            "{{ let __db = __fut_persist_db(); let __db_lock = __db.lock().unwrap(); {}let mut __stmt = __db_lock.prepare({:?}).expect(\"persist findall prepare failed\"); let __rows = __stmt.query_map({}, |row| {}).expect(\"persist findall query failed\"); __rows.filter_map(|row| row.ok()).collect::<Vec<_>>() }}",
+            index_stmt, sql, params_expr, row_get
+        ))
+    }
+
+    fn emit_persisted_exists_expr(
+        &mut self,
+        type_name: &str,
+        goal_args: &[Expr],
+        bound_vars: &BTreeMap<String, String>,
+    ) -> Option<String> {
+        self.emit_persisted_query_expr(type_name, goal_args, Some(0), bound_vars)
+            .map(|query| format!("!({}).is_empty()", query))
+    }
+
+    fn emit_persisted_rule_goal_condition(&mut self, goal: &Expr) -> String {
+        if let ExprKind::App(func, args) = &goal.kind {
+            let fn_name = Self::expr_fn_name(func);
+            if self.types.persisted_types.contains(fn_name.as_str()) {
+                let mut bound_vars = BTreeMap::new();
+                for arg in args {
+                    if let ExprKind::Var(name) = &arg.kind {
+                        if name != "_" {
+                            bound_vars.insert(name.clone(), sanitize_name(name));
+                        }
+                    }
+                }
+                if let Some(expr) = self.emit_persisted_exists_expr(&fn_name, args, &bound_vars) {
+                    return expr;
+                }
+            }
+
+            let gargs: Vec<String> = args
+                .iter()
+                .enumerate()
+                .map(|(idx, arg)| match &arg.kind {
+                    ExprKind::Var(name) if name != "_" => {
+                        let base = sanitize_name(name);
+                        let wants_str = self
+                            .types
+                            .prolog_rule_fns
+                            .get(&fn_name)
+                            .and_then(|types| types.get(idx))
+                            .map(|ty| ty == "&str")
+                            .unwrap_or(false);
+                        if wants_str {
+                            format!("&*{}", base)
+                        } else {
+                            base
+                        }
+                    }
+                    ExprKind::Lit(Literal::Str(s)) => format!("{:?}", s),
+                    _ => self.emit_expr(arg),
+                })
+                .collect();
+            return format!("{}({})", sanitize_name(&fn_name), gargs.join(", "));
+        }
+        self.emit_expr(goal)
+    }
+
+    fn emit_persisted_rule_findall(
+        &mut self,
+        template_name: &str,
+        fn_name: &str,
+        goal_args: &[Expr],
+    ) -> Option<String> {
+        let rules = self.types.prolog_rule_groups.get(fn_name)?.clone();
+        for rule in rules {
+            let Rule::Clause {
+                head,
+                body: Some(body),
+            } = rule
+            else {
+                continue;
+            };
+            let ExprKind::App(_, head_args) = &head.kind else {
+                continue;
+            };
+            if head_args.len() != goal_args.len() {
+                continue;
+            }
+
+            let mut head_bindings: BTreeMap<String, Expr> = BTreeMap::new();
+            for (head_arg, goal_arg) in head_args.iter().zip(goal_args.iter()) {
+                if let ExprKind::Var(name) = &head_arg.kind {
+                    head_bindings.insert(name.clone(), goal_arg.clone());
+                }
+            }
+            let output_var = head_bindings.iter().find_map(|(head_var, goal_arg)| {
+                if matches!(&goal_arg.kind, ExprKind::Var(name) if name == template_name) {
+                    Some(head_var.clone())
+                } else {
+                    None
+                }
+            })?;
+
+            let body_goals: Vec<Expr> = match body.kind {
+                ExprKind::Conjunction(goals) => goals,
+                _ => vec![body],
+            };
+            let Some(first_goal) = body_goals.first() else {
+                continue;
+            };
+            let ExprKind::App(first_func, first_args) = &first_goal.kind else {
+                continue;
+            };
+            let first_fn = Self::expr_fn_name(first_func);
+            if !self.types.persisted_types.contains(first_fn.as_str()) {
+                continue;
+            }
+
+            let mut query_bound_vars = BTreeMap::new();
+            for arg in first_args {
+                if let ExprKind::Var(name) = &arg.kind {
+                    if name == "_" {
+                        continue;
+                    }
+                    if let Some(bound_expr) = head_bindings.get(name) {
+                        if !matches!(&bound_expr.kind, ExprKind::Var(v) if v == template_name || v == "_")
+                        {
+                            query_bound_vars.insert(name.clone(), self.emit_expr(bound_expr));
+                        }
+                    }
+                }
+            }
+
+            let rows_expr =
+                self.emit_persisted_query_expr(&first_fn, first_args, None, &query_bound_vars)?;
+            let mut out = format!(
+                "{{ let mut __out = Vec::new(); for fact in {} {{ ",
+                rows_expr
+            );
+            let mut bound_names = BTreeSet::new();
+            for (idx, arg) in first_args.iter().enumerate() {
+                if let ExprKind::Var(name) = &arg.kind {
+                    if name == "_" || !bound_names.insert(name.clone()) {
+                        continue;
+                    }
+                    let value = query_bound_vars
+                        .get(name)
+                        .cloned()
+                        .unwrap_or_else(|| format!("fact.{}", idx));
+                    out.push_str(&format!("let {} = {}; ", sanitize_name(name), value));
+                }
+            }
+
+            let remaining: Vec<String> = body_goals
+                .iter()
+                .skip(1)
+                .map(|goal| self.emit_persisted_rule_goal_condition(goal))
+                .collect();
+            let output_expr = sanitize_name(&output_var);
+            if remaining.is_empty() {
+                out.push_str(&format!("__out.push({}.clone()); ", output_expr));
+            } else {
+                out.push_str(&format!(
+                    "if {} {{ __out.push({}.clone()); }} ",
+                    remaining.join(" && "),
+                    output_expr
+                ));
+            }
+            out.push_str("} __out }");
+            return Some(out);
+        }
+        None
+    }
+
     /// Emit findall(template_var, goal) as a Rust expression.
     /// findall(c, parent("bob", c)) → iterate PARENT_FACTS, collect matching values.
     fn emit_findall(&mut self, template: &Expr, goal: &Expr) -> String {
@@ -20820,6 +21198,30 @@ impl RustCodegen {
                 .position(|a| matches!(a.kind, ExprKind::Var(ref n) if n == &template_name));
 
             if let Some(t_pos) = template_pos {
+                if self.types.persisted_types.contains(fn_name.as_str()) {
+                    let mut bound_vars = BTreeMap::new();
+                    for arg in goal_args {
+                        if let ExprKind::Var(name) = &arg.kind {
+                            if name != "_" && name != &template_name {
+                                bound_vars.insert(name.clone(), self.emit_expr(arg));
+                            }
+                        }
+                    }
+                    if let Some(query) = self.emit_persisted_query_expr(
+                        &fn_name,
+                        goal_args,
+                        Some(t_pos),
+                        &bound_vars,
+                    ) {
+                        return query;
+                    }
+                }
+                if let Some(query) =
+                    self.emit_persisted_rule_findall(&template_name, &fn_name, goal_args)
+                {
+                    return query;
+                }
+
                 let arity = goal_args.len();
                 let is_unary = arity == 1;
 
@@ -33791,6 +34193,73 @@ for x in [1, 2] {
         assert!(
             !rust.contains("cols.join(\", \")"),
             "db_query_row should not flatten multiple columns into a joined string: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_findall_over_persisted_type_uses_sql_select() {
+        let source = r#"
+# Item(id: Int, name: String, qty: Int)
+@ persist Item
+assert Item(1, "Widget", 100)
+assert Item(2, "Gadget", 50)
+= names = findall(name, Item(_, name, _))
+= gadget_ids = findall(id, Item(id, "Gadget", _))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("static __FUT_STORE_DB"),
+            "persisted findall should use a shared DB handle reachable from generated functions: {}",
+            rust
+        );
+        assert!(
+            rust.contains("SELECT name FROM item ORDER BY id, name, qty"),
+            "unfiltered persisted findall should project the requested column with deterministic ordering: {}",
+            rust
+        );
+        assert!(
+            rust.contains("SELECT id FROM item WHERE name = ?1 ORDER BY id, name, qty"),
+            "bound persisted findall should lower to a SQL WHERE clause: {}",
+            rust
+        );
+        assert!(
+            rust.contains("CREATE INDEX IF NOT EXISTS __idx_item_name ON item (name)"),
+            "first non-primary-key bound arg should get a basic index hint: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("ITEM_FACTS"),
+            "persisted findall must not fall back to an in-memory fact table: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_findall_over_rule_joining_persisted_and_memory_predicates() {
+        let source = r#"
+# Item(id: Int, name: String, qty: Int)
+@ persist Item
+| restock(50)
+| stocked_name(name) -> Item(_, name, qty), restock(qty)
+= names = findall(name, stocked_name(name))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn stocked_name"),
+            "derived rule should still be emitted as a callable predicate: {}",
+            rust
+        );
+        assert!(
+            rust.contains("SELECT id, name, qty FROM item ORDER BY id, name, qty"),
+            "rule-backed findall should enumerate persisted rows instead of ITEM_FACTS: {}",
+            rust
+        );
+        assert!(
+            rust.contains("if restock(qty) { __out.push(name.clone()); }"),
+            "rule-backed findall should join persisted row bindings against in-memory predicates: {}",
             rust
         );
     }
