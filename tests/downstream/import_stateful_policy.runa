@@ -2,11 +2,11 @@
 -- roundtrip-skip: library file, no expected output
 
 @ export
-> needs_archive(snapshot: String) -> Bool {
-    contains(snapshot, "archive")
+> counts_balanced(snapshot: String) -> Bool {
+    contains(snapshot, "pages=3") && contains(snapshot, "channels=3")
 }
 
 @ export
-> is_idle(snapshot: String) -> Bool {
-    contains(snapshot, "|active=idle|")
+> latests_ready(snapshot: String) -> Bool {
+    contains(snapshot, "latest_page=score") && contains(snapshot, "latest_channel=queue")
 }

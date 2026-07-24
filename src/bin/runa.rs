@@ -14429,6 +14429,7 @@ impl RustCodegen {
                 | Stmt::RustBlock(_)
                 | Stmt::Rule(_)
                 | Stmt::Bind(..)
+                | Stmt::StreamBind(_, _)
                 | Stmt::Use(_)
                 | Stmt::Invariant { .. } => out.push(stmt),
                 Stmt::Depend(crate_name, version) => {
@@ -16910,22 +16911,43 @@ impl RustCodegen {
                     }
                     out.push_str(&cg.emit_stmt(stmt));
                     if cg.uses_binary_global_env() {
-                        if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
-                            if cg.binary_global_binding_types.contains_key(name)
-                                && cg.lib_static_names.contains(name.as_str())
-                                && !cg
-                                    .types
-                                    .comptime_values
-                                    .get(name)
-                                    .map_or(false, |value| value.is_empty())
-                            {
-                                out.push_str(&format!(
-                                    "{}__fut_globals.{} = Some({}.clone());\n",
-                                    cg.ind(),
-                                    sanitize_name(name),
-                                    sanitize_name(name)
-                                ));
+                        match stmt {
+                            Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
+                                if cg.binary_global_binding_types.contains_key(name)
+                                    && cg.lib_static_names.contains(name.as_str())
+                                    && !cg
+                                        .types
+                                        .comptime_values
+                                        .get(name)
+                                        .map_or(false, |value| value.is_empty())
+                                {
+                                    out.push_str(&format!(
+                                        "{}__fut_globals.{} = Some({}.clone());\n",
+                                        cg.ind(),
+                                        sanitize_name(name),
+                                        sanitize_name(name)
+                                    ));
+                                }
                             }
+                            Stmt::Send(
+                                Expr {
+                                    kind: ExprKind::Var(name),
+                                    ..
+                                },
+                                _,
+                            ) => {
+                                if cg.binary_global_binding_types.contains_key(name)
+                                    && cg.lib_static_names.contains(name.as_str())
+                                {
+                                    out.push_str(&format!(
+                                        "{}__fut_globals.{} = Some({}.clone());\n",
+                                        cg.ind(),
+                                        sanitize_name(name),
+                                        sanitize_name(name)
+                                    ));
+                                }
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -17137,6 +17159,14 @@ impl RustCodegen {
 
         for stmt in main_stmts {
             let Stmt::Bind(Pat::Var(name), ty_ann, expr) = stmt else {
+                if let Stmt::StreamBind(name, _) = stmt {
+                    if name.starts_with("__") || !names.contains(name) {
+                        continue;
+                    }
+                    let rust_ty = self.infer_stream_binding_getter_type(name);
+                    top_level_type_env.insert(name.clone(), Self::rust_type_to_fir(&rust_ty));
+                    binding_types.insert(name.clone(), rust_ty);
+                }
                 continue;
             };
             if name.starts_with("__")
@@ -17308,11 +17338,14 @@ impl RustCodegen {
         let mut bind_counts: BTreeMap<String, usize> = BTreeMap::new();
         let mut bind_exprs: BTreeMap<String, &Expr> = BTreeMap::new();
         for stmt in main_stmts {
-            if let Stmt::Bind(Pat::Var(name), _, expr) = stmt {
-                if !name.starts_with("__") {
-                    *bind_counts.entry(name.clone()).or_insert(0) += 1;
-                    bind_exprs.insert(name.clone(), expr);
+            match stmt {
+                Stmt::Bind(Pat::Var(name), _, expr) | Stmt::StreamBind(name, expr) => {
+                    if !name.starts_with("__") {
+                        *bind_counts.entry(name.clone()).or_insert(0) += 1;
+                        bind_exprs.insert(name.clone(), expr);
+                    }
                 }
+                _ => {}
             }
         }
 
@@ -24820,6 +24853,24 @@ impl RustCodegen {
                     }
                 }
                 if let ExprKind::Var(var_name) = &obj.as_ref().kind {
+                    if self.binary_global_value_refs_in_scope
+                        && self.binary_global_binding_types.contains_key(var_name)
+                        && self.lib_static_names.contains(var_name.as_str())
+                        && !self.current_borrow_params.contains(var_name.as_str())
+                        && !self.var_types.contains_key(var_name)
+                        && !self.local_bindings.contains(var_name.as_str())
+                    {
+                        let obj_str = format!(
+                            "__fut_globals.{}.clone().expect(\"top-level binding `{}` not initialized\")",
+                            sanitize_name(var_name),
+                            var_name
+                        );
+                        match field.as_str() {
+                            "count" => return format!("({}.len() as i64)", obj_str),
+                            "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
+                            _ => {}
+                        }
+                    }
                     if self.getter_stream_bindings.contains(var_name.as_str())
                         && self.allow_global_getter_refs
                         && self.lib_static_names.contains(var_name.as_str())
@@ -31101,6 +31152,49 @@ for x in [1, 2] {
 
         let _ = std::fs::remove_file(&dep2_path);
         let _ = std::fs::remove_file(&dep1_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_top_level_stream_helpers_observe_current_subject_state() {
+        let output = compile_and_run_test_program(
+            "~ readings = subject(\"boot\")\n> latest_reading() -> String { readings.latest }\n> reading_count() -> Int { readings.count }\nreadings <- \"ingest\"\nreadings <- \"score\"\n@ print(latest_reading())\n@ print(show(reading_count()))\n",
+        );
+        assert_eq!(output, "score\n3\n");
+    }
+
+    #[test]
+    fn compiled_plain_imported_stream_helpers_observe_current_subject_state() {
+        let temp_name = format!(
+            "futuruna_import_stateful_stream_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+
+        std::fs::write(
+            &dep_path,
+            "~ readings = subject(\"boot\")\n> latest_reading() -> String { readings.latest }\n> reading_count() -> Int { readings.count }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            &main_path,
+            "@ import ./dep\nreadings <- \"ingest\"\nreadings <- \"score\"\n@ print(latest_reading())\n@ print(show(reading_count()))\n",
+        )
+        .unwrap();
+
+        let output = compile_and_run_test_file(&main_path);
+        assert_eq!(output, "score\n3\n");
+
+        let _ = std::fs::remove_file(&dep_path);
         let _ = std::fs::remove_file(&main_path);
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

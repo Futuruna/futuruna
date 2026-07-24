@@ -1,38 +1,33 @@
--- roundtrip-skip: imported downstream stateful consumers use actor surfaces
+-- roundtrip-skip: imported downstream stateful consumers use top-level stream bindings
 
 @ import ./import_stateful_shared
 @ import StatePolicy from ./import_stateful_policy
 
-= queue = spawn(job_queue, empty_queue())
+visit_pages <- "ingest"
+visit_channels <- "email"
+visit_pages <- "score"
+visit_channels <- "queue"
 
-queue <- Enqueue("ingest")
-queue <- Enqueue("score")
-queue <- Enqueue("archive")
+= page_count_ok = visit_pages.count == 3
+? page_count_ok
 
-= first_pick = ask(queue, StartNext)
-= first_ok = queue_snapshot(first_pick) == "pending=score>archive|active=ingest|done="
-? first_ok
+= channel_count_ok = visit_channels.count == 3
+? channel_count_ok
 
-queue <- FinishActive
-= second_pick = ask(queue, StartNext)
-= second_ok = queue_snapshot(second_pick) == "pending=archive|active=score|done=ingest"
-? second_ok
+= latest_page_ok = latest_visit_page() == "score"
+? latest_page_ok
 
-queue <- FinishActive
-= third_pick = ask(queue, StartNext)
-= third_ok = queue_snapshot(third_pick) == "pending=|active=archive|done=ingest>score"
-? third_ok
+= latest_channel_ok = latest_visit_channel() == "queue"
+? latest_channel_ok
 
-queue <- FinishActive
-= drained = ask(queue, StartNext)
-= drained_snapshot = queue_snapshot(drained)
-= drained_ok = drained_snapshot == "pending=|active=idle|done=ingest>score>archive"
-? drained_ok
+= snapshot = visit_snapshot()
+= snapshot_ok = snapshot == "pages=3|channels=3|latest_page=score|latest_channel=queue"
+? snapshot_ok
 
-= archive_ok = StatePolicy.needs_archive(third_pick.active)
-? archive_ok
+= balanced_ok = StatePolicy.counts_balanced(snapshot)
+? balanced_ok
 
-= idle_ok = StatePolicy.is_idle(drained_snapshot)
-? idle_ok
+= ready_ok = StatePolicy.latests_ready(snapshot)
+? ready_ok
 
 @ print("downstream stateful consumer passed")
