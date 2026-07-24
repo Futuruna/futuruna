@@ -11910,7 +11910,9 @@ impl<'a> LoweringCtx<'a> {
                             };
                         }
                     }
-                    if let Some(ty) = builtin_fixed_return_fir_ty(fn_name) {
+                    if let Some(ty) =
+                        builtin_fixed_return_fir_ty_for_call(fn_name, &self.types.user_functions)
+                    {
                         return FirExpr {
                             kind: FirExprKind::App(Box::new(fir_func), fir_args),
                             span: expr.span,
@@ -12890,7 +12892,7 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
     match &expr.kind {
         ExprKind::App(func, args) => {
             count_consuming_uses(func, counts);
-            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains_key" | "set_contains" | "set_len" | "set_to_list"));
+            let is_borrow_builtin = matches!(func.as_ref().kind, ExprKind::Var(ref n) if matches!(builtin_canonical(n), "show" | "length" | "head" | "tail" | "nth" | "contains" | "string_length" | "char_at" | "substring" | "any" | "all" | "find" | "count_by" | "map_get" | "map_get_or" | "map_len" | "map_keys" | "map_values" | "map_contains" | "set_contains" | "set_len" | "set_to_list"));
             for a in args {
                 if !is_borrow_builtin {
                     // Non-borrow function call: Var args are consuming
@@ -13048,7 +13050,7 @@ fn builtin_has_borrow_only_args(name: &str) -> bool {
             | "map_len"
             | "map_keys"
             | "map_values"
-            | "map_contains_key"
+            | "map_contains"
             | "set_contains"
             | "set_len"
             | "set_to_list"
@@ -14858,22 +14860,67 @@ fn futuruna_ty_to_sql_column(ty: &Ty) -> &'static str {
 /// heuristics like expr_is_float/expr_is_string.
 fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
     match builtin_canonical(name) {
-        "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "parse_float" | "phi"
-        | "mint" => Some(FirTy::Float),
+        "to_float" | "sqrt" | "exp" | "ln" | "pow" | "min_f" | "max_f" | "parse_float"
+        | "random_float" | "json_number" => Some(FirTy::Float),
         "length" | "string_length" | "map_len" | "set_len" | "count_by" | "index_of"
-        | "parse_int" | "abs" | "round" | "floor" => Some(FirTy::Int),
-        "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains_key"
-        | "set_contains" | "file_exists" => Some(FirTy::Bool),
-        "substring" | "char_at" | "show" | "show_int" | "show_float" | "describe" | "fizzbuzz"
-        | "list_to_string" | "list_items" => Some(FirTy::String),
-        "db_query_row" => Some(FirTy::List(Box::new(FirTy::String))),
+        | "parse_int" | "abs" | "round" | "floor" | "count" | "now"
+        | "time_diff" | "db_insert" => Some(FirTy::Int),
+        "contains" | "starts_with" | "ends_with" | "any" | "all" | "map_contains"
+        | "set_contains" | "file_exists" | "json_bool" | "regex_match" | "is_some" | "is_none"
+        | "not" => Some(FirTy::Bool),
+        "substring"
+        | "char_at"
+        | "show"
+        | "show_int"
+        | "show_float"
+        | "format_float"
+        | "read_file"
+        | "env_var"
+        | "json_parse"
+        | "json_get"
+        | "json_string"
+        | "json_emit"
+        | "json_object"
+        | "http_get"
+        | "http_post"
+        | "http_request_path"
+        | "http_request_method"
+        | "http_request_body"
+        | "regex_replace" => Some(FirTy::String),
+        "read_lines" | "json_array" | "regex_find_all" | "db_query_row" => {
+            Some(FirTy::List(Box::new(FirTy::String)))
+        }
+        "regex_find" => Some(FirTy::Option(Box::new(FirTy::String))),
+        "db_query" => Some(FirTy::List(Box::new(FirTy::List(Box::new(FirTy::String))))),
+        "http_respond" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
         "process_run" => Some(FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String])),
+        "print" | "assert" | "write_file" | "append_file" | "sleep" | "http_serve" | "db_exec"
+        | "db_close" | "subscribe" => Some(FirTy::Unit),
         _ => None,
     }
 }
 
-fn is_float_returning_builtin(name: &str) -> bool {
-    matches!(builtin_fixed_return_fir_ty(name), Some(FirTy::Float))
+fn builtin_fixed_return_can_be_shadowed(name: &str) -> bool {
+    let canonical = builtin_canonical(name);
+    if let Some(def) = rust_builtin_registry().get(canonical) {
+        return def.shadowable;
+    }
+    matches!(
+        canonical,
+        "show" | "show_int" | "show_float" | "print" | "not" | "assert"
+    )
+}
+
+fn builtin_fixed_return_fir_ty_for_call(
+    name: &str,
+    user_functions: &BTreeSet<String>,
+) -> Option<FirTy> {
+    let canonical = builtin_canonical(name);
+    if user_functions.contains(name) && builtin_fixed_return_can_be_shadowed(canonical) {
+        None
+    } else {
+        builtin_fixed_return_fir_ty(canonical)
+    }
 }
 
 /// Check whether `expr` is a Var that names one of the current function's
@@ -18487,8 +18534,9 @@ impl RustCodegen {
                 .unwrap_or_else(|| "impl Clone".to_string()),
             ExprKind::App(func, _) => {
                 if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                    if let Some(ret_ty) = builtin_fixed_return_fir_ty(fn_name)
-                        .and_then(|ty| Self::fir_type_to_rust(&ty))
+                    if let Some(ret_ty) =
+                        builtin_fixed_return_fir_ty_for_call(fn_name, &self.types.user_functions)
+                            .and_then(|ty| Self::fir_type_to_rust(&ty))
                     {
                         ret_ty
                     } else if self.types.variant_parent.contains_key(fn_name.as_str()) {
@@ -25358,7 +25406,10 @@ impl RustCodegen {
             ExprKind::BinOp(_, lhs, rhs) => self.expr_is_float(lhs) || self.expr_is_float(rhs),
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    if is_float_returning_builtin(name) {
+                    if matches!(
+                        builtin_fixed_return_fir_ty_for_call(name, &self.types.user_functions),
+                        Some(FirTy::Float)
+                    ) {
                         return true;
                     }
                     // foldl with float initial value → result is float
@@ -25792,8 +25843,10 @@ impl RustCodegen {
             }
             ExprKind::App(func, _) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    matches!(builtin_fixed_return_fir_ty(name), Some(FirTy::String))
-                        || self.string_returning_fns.contains(name.as_str())
+                    matches!(
+                        builtin_fixed_return_fir_ty_for_call(name, &self.types.user_functions),
+                        Some(FirTy::String)
+                    ) || self.string_returning_fns.contains(name.as_str())
                 } else {
                     false
                 }
@@ -33069,6 +33122,151 @@ for x in [1, 2] {
             repeated.is_empty(),
             "builtin templates should bind arguments to temporaries instead of expanding them more than once: {}",
             repeated.join(", ")
+        );
+    }
+
+    #[test]
+    fn codegen_builtin_registry_is_known_to_typechecker() {
+        let registry = rust_builtin_registry();
+        let tc = TypeChecker::new();
+        let mut missing = Vec::new();
+
+        for (name, def) in registry {
+            let known_arity = tc
+                .builtins
+                .get(name.as_str())
+                .or_else(|| tc.functions.get(name.as_str()))
+                .copied();
+            if known_arity != Some(def.arity) {
+                missing.push(format!(
+                    "{} registry arity {} typechecker {:?}",
+                    name, def.arity, known_arity
+                ));
+            }
+        }
+
+        assert!(
+            missing.is_empty(),
+            "codegen builtin registry drifted from TypeChecker arities: {}",
+            missing.join(", ")
+        );
+    }
+
+    #[test]
+    fn builtin_fixed_return_fir_types_match_documented_stdlib_contracts() {
+        let cases = vec![
+            ("abs", FirTy::Int),
+            ("sqrt", FirTy::Float),
+            ("pow", FirTy::Float),
+            ("exp", FirTy::Float),
+            ("ln", FirTy::Float),
+            ("round", FirTy::Int),
+            ("floor", FirTy::Int),
+            ("to_float", FirTy::Float),
+            ("string_length", FirTy::Int),
+            ("contains", FirTy::Bool),
+            ("starts_with", FirTy::Bool),
+            ("ends_with", FirTy::Bool),
+            ("substring", FirTy::String),
+            ("char_at", FirTy::String),
+            ("index_of", FirTy::Int),
+            ("format_float", FirTy::String),
+            ("parse_int", FirTy::Int),
+            ("parse_float", FirTy::Float),
+            ("map_contains", FirTy::Bool),
+            ("map_len", FirTy::Int),
+            ("set_contains", FirTy::Bool),
+            ("set_len", FirTy::Int),
+            ("is_some", FirTy::Bool),
+            ("is_none", FirTy::Bool),
+            ("not", FirTy::Bool),
+            ("read_file", FirTy::String),
+            ("file_exists", FirTy::Bool),
+            ("read_lines", FirTy::List(Box::new(FirTy::String))),
+            (
+                "process_run",
+                FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String]),
+            ),
+            ("json_parse", FirTy::String),
+            ("json_get", FirTy::String),
+            ("json_string", FirTy::String),
+            ("json_number", FirTy::Float),
+            ("json_bool", FirTy::Bool),
+            ("json_array", FirTy::List(Box::new(FirTy::String))),
+            ("json_emit", FirTy::String),
+            ("json_object", FirTy::String),
+            ("http_get", FirTy::String),
+            ("http_post", FirTy::String),
+            (
+                "http_respond",
+                FirTy::Tuple(vec![FirTy::Int, FirTy::String, FirTy::String]),
+            ),
+            ("http_request_path", FirTy::String),
+            ("http_request_method", FirTy::String),
+            ("http_request_body", FirTy::String),
+            (
+                "db_query",
+                FirTy::List(Box::new(FirTy::List(Box::new(FirTy::String)))),
+            ),
+            ("db_query_row", FirTy::List(Box::new(FirTy::String))),
+            ("db_insert", FirTy::Int),
+            ("regex_match", FirTy::Bool),
+            ("regex_find", FirTy::Option(Box::new(FirTy::String))),
+            ("regex_find_all", FirTy::List(Box::new(FirTy::String))),
+            ("regex_replace", FirTy::String),
+            ("random_float", FirTy::Float),
+            ("now", FirTy::Int),
+            ("time_diff", FirTy::Int),
+        ];
+
+        let tc = TypeChecker::new();
+        for (name, expected) in cases {
+            assert!(
+                tc.builtins.contains_key(name) || tc.functions.contains_key(name),
+                "{} should be known to the TypeChecker",
+                name
+            );
+            assert_eq!(
+                builtin_fixed_return_fir_ty(name),
+                Some(expected),
+                "{} fixed return type drifted",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn builtin_fixed_return_fir_types_do_not_claim_stale_user_helpers() {
+        for name in [
+            "phi",
+            "mint",
+            "describe",
+            "fizzbuzz",
+            "list_to_string",
+            "list_items",
+            "map_contains_key",
+        ] {
+            assert_eq!(
+                builtin_fixed_return_fir_ty(name),
+                None,
+                "{} is not a documented builtin fixed-return contract",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn shadowed_builtin_fixed_return_uses_user_function_signature() {
+        let fir = lower_with_registry(
+            "> parse_int(s: String) -> Result(Int, String) { Ok(1) }\n= parsed = parse_int(\"42\")",
+            1,
+            BTreeMap::new(),
+        );
+
+        assert_eq!(
+            fir.ty,
+            FirTy::Result(Box::new(FirTy::Int), Box::new(FirTy::String)),
+            "shadowed parse_int should infer from the user function, not the builtin contract"
         );
     }
 
