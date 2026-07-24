@@ -37,10 +37,12 @@ stream:
 for x in readings {
     @ print(show(x))
 }
+
+~ projected = readings |> filter(|x| x > 30) |> map(|x| x + 1)
 ```
 
-In compiled async mode, those forms become background receive loops. They are
-not just local list iteration.
+In compiled async mode, those forms become background receive loops or stream
+forwarder tasks. They are not just local list iteration.
 
 ## Allowed Ownership Shapes
 
@@ -76,6 +78,9 @@ Inside a named scope, the scope owns the subscription lifetime:
 ```
 
 When the scope is torn down or drops, its live subscriptions are cancelled.
+Derived streams built inside that scope are also scope-owned: their forwarder
+tasks stop, and later settled reads observe the frozen scope-local stream
+history instead of waiting on a dead pipeline.
 
 This is the preferred shape for:
 
@@ -115,7 +120,9 @@ If a function needs to work with stream data, prefer one of these shapes:
 }
 ```
 
-The caller decides where and how to subscribe.
+The caller decides where and how to subscribe. Avoid hiding derived stream work
+behind local bindings inside ordinary functions; either return the derived
+stream expression directly or place the pipeline inside a named scope.
 
 ### Consume a snapshot or terminal result
 
@@ -151,8 +158,11 @@ Named scopes are the lifetime owner for the live subscriptions they create.
 That means:
 
 - scope exit cancels scope-owned live subscriptions
+- scope exit cancels scope-owned derived stream forwarders
 - `@ teardown("ScopeName")` cancels them early
 - post-teardown sends should not keep invoking the torn-down subscribers
+- post-teardown settled reads of scope-owned derived streams should not hang on
+  stale barrier links
 
 This contract is part of why stateful canaries and lifecycle tests exist in the
 verification stack.
@@ -171,6 +181,7 @@ This surface is still [Preview](feature-stages.md), but the ownership rule
 itself is deliberate:
 
 - named scopes own live subscription lifetimes
+- named scopes own derived async stream operator tasks created inside them
 - detached function-local live subscriptions are rejected
 
 Future work may add more advanced explicit ownership forms, but implicit

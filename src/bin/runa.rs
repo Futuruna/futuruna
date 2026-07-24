@@ -16004,6 +16004,7 @@ impl RustCodegen {
                 "\n/// Scope lifecycle guard: Drop aborts all subscription tasks (M13c)\n",
             );
             out.push_str("struct _ScopeGuard {\n");
+            out.push_str("    name: &'static str,\n");
             out.push_str("    handles: Vec<tokio::task::JoinHandle<()>>,\n");
             out.push_str("}\n");
             out.push_str("impl Drop for _ScopeGuard {\n");
@@ -16011,7 +16012,38 @@ impl RustCodegen {
             out.push_str("        for h in &self.handles {\n");
             out.push_str("            h.abort();\n");
             out.push_str("        }\n");
+            out.push_str("        __fut_abort_scope(self.name);\n");
             out.push_str("    }\n");
+            out.push_str("}\n");
+            out.push_str("static __FUT_SCOPE_HANDLES: std::sync::OnceLock<std::sync::Mutex<BTreeMap<&'static str, Vec<tokio::task::JoinHandle<()>>>>> = std::sync::OnceLock::new();\n");
+            out.push_str("static __FUT_SCOPE_CLEANUPS: std::sync::OnceLock<std::sync::Mutex<BTreeMap<&'static str, Vec<Box<dyn Fn() + Send>>>>> = std::sync::OnceLock::new();\n");
+            out.push_str("fn __fut_scope_handles() -> &'static std::sync::Mutex<BTreeMap<&'static str, Vec<tokio::task::JoinHandle<()>>>> {\n");
+            out.push_str(
+                "    __FUT_SCOPE_HANDLES.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))\n",
+            );
+            out.push_str("}\n");
+            out.push_str("fn __fut_scope_cleanups() -> &'static std::sync::Mutex<BTreeMap<&'static str, Vec<Box<dyn Fn() + Send>>>> {\n");
+            out.push_str(
+                "    __FUT_SCOPE_CLEANUPS.get_or_init(|| std::sync::Mutex::new(BTreeMap::new()))\n",
+            );
+            out.push_str("}\n");
+            out.push_str("fn __fut_register_scope_handle(scope: &'static str, handle: tokio::task::JoinHandle<()>) {\n");
+            out.push_str("    __fut_scope_handles().lock().unwrap().entry(scope).or_default().push(handle);\n");
+            out.push_str("}\n");
+            out.push_str("fn __fut_register_scope_stream<T: Clone + Send + 'static>(scope: &'static str, stream: &__FutStream<T>) {\n");
+            out.push_str("    let stream = stream.clone();\n");
+            out.push_str("    __fut_scope_cleanups().lock().unwrap().entry(scope).or_default().push(Box::new(move || stream.disable_barriers()));\n");
+            out.push_str("}\n");
+            out.push_str("fn __fut_register_scope_barrier_chain<T: Clone + Send + 'static, U: Clone + Send + 'static>(scope: &'static str, target: &__FutStream<T>, upstream: &__FutStream<U>) {\n");
+            out.push_str("    let target = target.clone();\n");
+            out.push_str("    let expected = upstream.barrier_expected();\n");
+            out.push_str("    __fut_scope_cleanups().lock().unwrap().entry(scope).or_default().push(Box::new(move || target.remove_barrier_expectations(expected)));\n");
+            out.push_str("}\n");
+            out.push_str("fn __fut_abort_scope(scope: &'static str) {\n");
+            out.push_str("    let cleanups = __fut_scope_cleanups().lock().unwrap().remove(scope).unwrap_or_default();\n");
+            out.push_str("    for cleanup in cleanups { cleanup(); }\n");
+            out.push_str("    let handles = __fut_scope_handles().lock().unwrap().remove(scope).unwrap_or_default();\n");
+            out.push_str("    for h in handles { h.abort(); }\n");
             out.push_str("}\n");
             out.push_str("\n#[derive(Clone)]\nenum __FutEvent<T: Clone + Send + 'static> {\n");
             out.push_str("    Data(u64, T),\n");
@@ -16064,6 +16096,17 @@ impl RustCodegen {
             out.push_str("    fn inject_barrier(&self, id: u64) {\n");
             out.push_str("        let inject = self.inject_barrier.lock().unwrap().clone();\n");
             out.push_str("        inject(id);\n");
+            out.push_str("    }\n");
+            out.push_str("    fn disable_barriers(&self) {\n");
+            out.push_str(
+                "        self.barrier_expected.store(0, std::sync::atomic::Ordering::SeqCst);\n",
+            );
+            out.push_str(
+                "        *self.inject_barrier.lock().unwrap() = std::sync::Arc::new(|_| {});\n",
+            );
+            out.push_str("    }\n");
+            out.push_str("    fn remove_barrier_expectations(&self, count: usize) {\n");
+            out.push_str("        let _ = self.barrier_expected.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |cur| Some(cur.saturating_sub(count)));\n");
             out.push_str("    }\n");
             out.push_str("    fn barrier_expected(&self) -> usize {\n");
             out.push_str(
@@ -21068,8 +21111,9 @@ impl RustCodegen {
                         // Always emit scope guard so @ teardown("Name") can drop it
                         let handles = self.scope_handles.get(name).cloned().unwrap_or_default();
                         out.push_str(&format!(
-                            "{}let _scope_{} = _ScopeGuard {{ handles: vec![{}] }};\n",
+                            "{}let _scope_{} = _ScopeGuard {{ name: {:?}, handles: vec![{}] }};\n",
                             self.ind(),
+                            name,
                             name,
                             handles.join(", ")
                         ));
@@ -21188,6 +21232,15 @@ impl RustCodegen {
                             sanitize_name(target),
                             self.sub_counter
                         ));
+                        if let Some(scope) = &self.current_scope {
+                            out.push_str(&format!(
+                                "{}__fut_register_scope_barrier_chain({:?}, &{}, &__stream_{});\n",
+                                self.ind(),
+                                scope,
+                                sanitize_name(target),
+                                self.sub_counter
+                            ));
+                        }
                     }
                     out.push_str(&format!(
                         "{}let mut _rx_{} = __stream_{}.subscribe();\n",
@@ -21563,6 +21616,15 @@ impl RustCodegen {
                             sanitize_name(target),
                             self.sub_counter
                         ));
+                        if let Some(scope) = &self.current_scope {
+                            out.push_str(&format!(
+                                "{}__fut_register_scope_barrier_chain({:?}, &{}, &__stream_{});\n",
+                                self.ind(),
+                                scope,
+                                sanitize_name(target),
+                                self.sub_counter
+                            ));
+                        }
                     }
                     out.push_str(&format!(
                         "{}let mut _rx_{} = __stream_{}.subscribe();\n",
@@ -23893,6 +23955,22 @@ impl RustCodegen {
         format!("({})({})", callable_str, rendered_args.join(", "))
     }
 
+    fn async_stream_spawn_parts(&self, handle_name: &str, stream_name: &str) -> (String, String) {
+        if let Some(scope) = &self.current_scope {
+            (
+                format!("let {handle_name} = tokio::spawn(async move {{ "),
+                format!(
+                    "}}); __fut_register_scope_handle({scope:?}, {handle_name}); __fut_register_scope_stream({scope:?}, &{stream_name});"
+                ),
+            )
+        } else {
+            (
+                String::from("tokio::spawn(async move { "),
+                String::from("});"),
+            )
+        }
+    }
+
     /// Emit an async stream operator as a Rust block expression.
     /// Creates a history-preserving async stream wrapper and forwards live updates.
     fn emit_async_stream_op(&mut self, name: &str, args: &[Expr]) -> Option<String> {
@@ -23929,6 +24007,10 @@ impl RustCodegen {
                     &[String::from("__v")],
                     &seeded_param_tys,
                 );
+                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
+                    &format!("__stream_op_{}", n),
+                    &format!("__out_{}", n),
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let mut __out_{n} = __FutStream::new(); \
@@ -23939,7 +24021,7 @@ impl RustCodegen {
                         __out_{n}.send({seed_call}); \
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
-                    tokio::spawn(async move {{ \
+                    {spawn_start} \
                         while let Ok(__evt) = __srx_{n}.recv().await {{ \
                             match __evt {{ \
                                 __FutEvent::Data(__seq, __v) => {{ \
@@ -23949,7 +24031,7 @@ impl RustCodegen {
                                 __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
                             }} \
                         }} \
-                    }}); \
+                    {spawn_end} \
                     __out_{n} }}"
                 ))
             }
@@ -23977,6 +24059,10 @@ impl RustCodegen {
                     &[filter_arg],
                     &seeded_param_tys,
                 );
+                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
+                    &format!("__stream_op_{}", n),
+                    &format!("__out_{}", n),
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let mut __out_{n} = __FutStream::new(); \
@@ -23987,7 +24073,7 @@ impl RustCodegen {
                         if {seed_pred} {{ __out_{n}.send(__v); }} \
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
-                    tokio::spawn(async move {{ \
+                    {spawn_start} \
                         while let Ok(__evt) = __srx_{n}.recv().await {{ \
                             match __evt {{ \
                                 __FutEvent::Data(__seq, __v) => {{ \
@@ -23997,7 +24083,7 @@ impl RustCodegen {
                                 __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
                             }} \
                         }} \
-                    }}); \
+                    {spawn_end} \
                     __out_{n} }}"
                 ))
             }
@@ -24038,6 +24124,10 @@ impl RustCodegen {
                     &[scan_live_acc_arg, String::from("__v")],
                     &seeded_param_tys,
                 );
+                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
+                    &format!("__stream_op_{}", n),
+                    &format!("__out_{}", n),
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let mut __out_{n} = __FutStream::new(); \
@@ -24051,7 +24141,7 @@ impl RustCodegen {
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
                     let __seed_acc_{n} = __acc_seed_{n}.clone(); \
-                    tokio::spawn(async move {{ \
+                    {spawn_start} \
                         let mut __acc = __seed_acc_{n}; \
                         while let Ok(__evt) = __srx_{n}.recv().await {{ \
                             match __evt {{ \
@@ -24063,12 +24153,16 @@ impl RustCodegen {
                                 __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
                             }} \
                         }} \
-                    }}); \
+                    {spawn_end} \
                     __out_{n} }}"
                 ))
             }
             "take" if args.len() == 2 => {
                 let count = self.emit_expr(&args[1]);
+                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
+                    &format!("__stream_op_{}", n),
+                    &format!("__out_{}", n),
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let mut __out_{n} = __FutStream::new(); \
@@ -24083,7 +24177,7 @@ impl RustCodegen {
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
                     let __seed_seen_{n} = __seen_seed_{n}; \
-                    tokio::spawn(async move {{ \
+                    {spawn_start} \
                         let mut __c = __seed_seen_{n}; \
                         while let Ok(__evt) = __srx_{n}.recv().await {{ \
                             match __evt {{ \
@@ -24096,12 +24190,16 @@ impl RustCodegen {
                                 __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
                             }} \
                         }} \
-                    }}); \
+                    {spawn_end} \
                     __out_{n} }}"
                 ))
             }
             "skip" if args.len() == 2 => {
                 let count = self.emit_expr(&args[1]);
+                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
+                    &format!("__stream_op_{}", n),
+                    &format!("__out_{}", n),
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let mut __out_{n} = __FutStream::new(); \
@@ -24115,7 +24213,7 @@ impl RustCodegen {
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
                     let __seed_seen_{n} = __seen_seed_{n}; \
-                    tokio::spawn(async move {{ \
+                    {spawn_start} \
                         let mut __c = __seed_seen_{n}; \
                         while let Ok(__evt) = __srx_{n}.recv().await {{ \
                             match __evt {{ \
@@ -24127,7 +24225,7 @@ impl RustCodegen {
                                 __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
                             }} \
                         }} \
-                    }}); \
+                    {spawn_end} \
                     __out_{n} }}"
                 ))
             }
@@ -24155,6 +24253,10 @@ impl RustCodegen {
                     &[tap_arg],
                     &seeded_param_tys,
                 );
+                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
+                    &format!("__stream_op_{}", n),
+                    &format!("__out_{}", n),
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let mut __out_{n} = __FutStream::new(); \
@@ -24166,7 +24268,7 @@ impl RustCodegen {
                         __out_{n}.send(__v); \
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
-                    tokio::spawn(async move {{ \
+                    {spawn_start} \
                         while let Ok(__evt) = __srx_{n}.recv().await {{ \
                             match __evt {{ \
                                 __FutEvent::Data(__seq, __v) => {{ \
@@ -24177,7 +24279,7 @@ impl RustCodegen {
                                 __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
                             }} \
                         }} \
-                    }}); \
+                    {spawn_end} \
                     __out_{n} }}"
                 ))
             }
@@ -24191,6 +24293,14 @@ impl RustCodegen {
                         source2 = format!("{}.clone()", source2);
                     }
                 }
+                let (spawn_start, spawn_end) = self.async_stream_spawn_parts(
+                    &format!("__stream_op_{}", n),
+                    &format!("__out_{}", n),
+                );
+                let (spawn_start2, spawn_end2) = self.async_stream_spawn_parts(
+                    &format!("__stream_op_{}", n2),
+                    &format!("__out_{}", n),
+                );
                 Some(format!(
                     "{{ let __src_{n} = {source}; \
                     let __src_{n2} = {source2}; \
@@ -24214,7 +24324,7 @@ impl RustCodegen {
                     }} \
                     let __sfwd_{n} = __out_{n}.clone(); \
                     let __sfwd_{n2} = __out_{n}.clone(); \
-                    tokio::spawn(async move {{ \
+                    {spawn_start} \
                         while let Ok(__evt) = __srx_{n}.recv().await {{ \
                             match __evt {{ \
                                 __FutEvent::Data(__seq, __v) => {{ \
@@ -24224,8 +24334,8 @@ impl RustCodegen {
                                 __FutEvent::Barrier(__barrier) => __sfwd_{n}.emit_barrier(__barrier), \
                             }} \
                         }} \
-                    }}); \
-                    tokio::spawn(async move {{ \
+                    {spawn_end} \
+                    {spawn_start2} \
                         while let Ok(__evt) = __srx_{n2}.recv().await {{ \
                             match __evt {{ \
                                 __FutEvent::Data(__seq, __v) => {{ \
@@ -24235,7 +24345,7 @@ impl RustCodegen {
                                 __FutEvent::Barrier(__barrier) => __sfwd_{n2}.emit_barrier(__barrier), \
                             }} \
                         }} \
-                    }}); \
+                    {spawn_end2} \
                     __out_{n} }}"
                 ))
             }
@@ -32472,6 +32582,36 @@ routes <- "b"
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))
                 .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn legacy_emit_scope_registers_derived_async_stream_operator_handles() {
+        let source = "~ readings = subject()\n\
+             ~ sink = subject()\n\
+             | scope Dashboard {\n\
+                 ~ projected = readings |> map(|x| x + 1)\n\
+                 ~ running = projected |> scan(0, |acc, x| acc + x)\n\
+                 ~ running | total -> { sink <- total }\n\
+                 readings <- 1\n\
+             }\n\
+             @ teardown(\"Dashboard\")\n";
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("_ScopeGuard { name: \"Dashboard\""),
+            "scope guard should carry the owning scope name: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_register_scope_handle(\"Dashboard\", __stream_op_"),
+            "derived stream operator forwarders inside scopes should be teardown-owned: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_register_scope_barrier_chain(\"Dashboard\""),
+            "scope-owned subscriptions should unregister their barrier expectations on teardown: {}",
+            rust
         );
     }
 
