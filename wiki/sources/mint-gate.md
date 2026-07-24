@@ -32,6 +32,7 @@ The important point is not just the script name. The document defines which regr
 - release build health
 - interpreted Futuruna execution
 - compiled Futuruna execution
+- compiletest-style expectation cases
 - Rust codegen validation
 - roundtrip parity
 - high-value example programs that have already exposed compiler bugs
@@ -48,4 +49,3 @@ Those belong in adjacent jobs, not the fastest blocking gate.
 ## Why It Matters
 
 This note is the operational anchor for [[verification-lanes]] and the policy anchor for [[mint-ratchet]]. It says what "Futuruna is mint" means in practice instead of leaving that as team folklore.
-

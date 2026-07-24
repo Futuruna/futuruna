@@ -11,7 +11,7 @@ tags:
 
 ## Last Updated
 
-2026-07-18. The vault now includes an autoresearch package on how professional language/compiler projects harden themselves over time, grounded in Kotlin, Rust, Swift, Alive2, Csmith, and CsmithEdge.
+2026-07-18. Futuruna now has a first-class compiletest-style expectation lane for narrow compiler diagnostics, run/fail behavior, and phase-specific markers.
 
 ## Key Recent Facts
 
@@ -24,6 +24,7 @@ tags:
 - Futuruna now has a first-class repo compatibility policy covering stability stages and bug-fix exceptions.
 - Futuruna now also surfaces the current stage matrix in docs and `runa --help` instead of leaving stages implicit.
 - Futuruna now has a versioned compatibility-guide discipline and a rolling 0.1.x guide.
+- Futuruna now has `runa expect` plus `tests/expect/` for exact compiler expectations.
 
 ## Recent Changes
 
@@ -48,3 +49,4 @@ tags:
 - Shrink the proof trust boundary over time
 - Turn more canonical repo docs into linked wiki notes instead of leaving them as unconnected files
 - Convert the new hardening research into concrete Futuruna roadmap tasks and policy docs
+- Grow expectation suites for diagnostics, phase snapshots, and minimized compiler regressions

@@ -16,6 +16,7 @@ For the detailed contracts behind each lane, see:
 - [docs/compatibility-guides/](compatibility-guides/README.md)
 - [docs/canary-suite.md](canary-suite.md)
 - [docs/canary-matrix.md](canary-matrix.md)
+- [docs/expectation-suites.md](expectation-suites.md)
 - [docs/downstream-test-surface-audit.md](downstream-test-surface-audit.md)
 - [docs/differential-testing.md](differential-testing.md)
 - [docs/verified-bootstrap.md](verified-bootstrap.md)
@@ -30,6 +31,8 @@ Futuruna is no longer in the "add features and hope" phase.
 The project now has a real assurance stack:
 
 - A blocking mint gate in [scripts/mint.sh](../scripts/mint.sh) that checks interpreted execution, compiled execution, Rust codegen validation, roundtrip parity, and real example programs.
+- A compiletest-style expectation lane for narrow diagnostics, run/fail
+  behavior, and phase-specific compiler markers.
 - An authored canary suite for realistic user-shaped workflows, with the current coverage tracked in [docs/canary-matrix.md](canary-matrix.md).
 - A differential lane for generative and replayable semantic bug finding.
 - FIR phase validation snapshots that make compiler-structure drift visible instead of silent.
@@ -110,6 +113,9 @@ The lanes are meant to complement each other, not compete:
   Fast blocking contract for "is Futuruna mint right now?"
 - `./scripts/canary.sh`
   Authored realistic workflows that combine language subsystems the way users do.
+- `./scripts/expectations.sh`
+  Narrow compiler expectations for diagnostics, command pass/fail behavior, and
+  phase-specific markers.
 - `./scripts/differential.sh`
   Seed-stable search for edge cases and unknown semantic bugs.
 - FIR snapshots and focused regressions

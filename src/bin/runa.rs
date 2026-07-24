@@ -159,6 +159,7 @@ fn main_inner() {
                 eprintln!("  fmt --check   Check formatting without modifying");
                 eprintln!("  lsp           Start language server (stdio)");
                 eprintln!("  lint-library  Check importable library files for script leakage");
+                eprintln!("  expect        Run compiletest-style expectation cases");
                 eprintln!("  bench          Run performance benchmarks");
                 eprintln!("  from-rust     Transpile Rust source to Futuruna");
                 eprintln!("  from-rust --verify  Transpile + run both + compare outputs");
@@ -187,6 +188,7 @@ fn main_inner() {
                 eprintln!("  runa fmt program.runa       Format source file");
                 eprintln!("  runa fmt .                  Format all .runa files");
                 eprintln!("  runa lint-library tests     Check marked importable library files");
+                eprintln!("  runa expect tests/expect    Run compiler expectation cases");
                 eprintln!("  runa test                   Run all tests");
                 eprintln!("  runa test --run             Run all tests (compiled)");
                 eprintln!("  runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff");
@@ -248,6 +250,10 @@ fn main_inner() {
             }
             "lint-library" => {
                 mode = "lint-library";
+                i += 1;
+            }
+            "expect" => {
+                mode = "expect";
                 i += 1;
             }
             "bench" => {
@@ -343,6 +349,13 @@ fn main_inner() {
     if mode == "lint-library" {
         let target = filename.as_deref().unwrap_or("tests");
         lint_library_target(target);
+        return;
+    }
+
+    // ── runa expect [file|dir] — compiletest-style expectation cases ──
+    if mode == "expect" {
+        let target = filename.as_deref().unwrap_or("tests/expect");
+        run_expectation_suite(target, use_prelude);
         return;
     }
 
@@ -1548,6 +1561,356 @@ fn collect_expectation_markers(source: &str, prefix: &str) -> Vec<String> {
                 .then(|| trimmed[prefix.len()..].trim().to_string())
         })
         .collect()
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ExpectCommand {
+    Check,
+    Run,
+    Interpret,
+    EmitRust,
+    EmitFir,
+    Verify,
+}
+
+impl ExpectCommand {
+    fn parse(raw: &str) -> Result<Self, String> {
+        match raw.trim() {
+            "check" => Ok(Self::Check),
+            "run" => Ok(Self::Run),
+            "interp" | "interpret" => Ok(Self::Interpret),
+            "emit" | "emit-rust" => Ok(Self::EmitRust),
+            "emit-fir" | "fir" => Ok(Self::EmitFir),
+            "verify" => Ok(Self::Verify),
+            other => Err(format!(
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-fir, or verify",
+                other
+            )),
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Check => "check",
+            Self::Run => "run",
+            Self::Interpret => "interp",
+            Self::EmitRust => "emit-rust",
+            Self::EmitFir => "emit-fir",
+            Self::Verify => "verify",
+        }
+    }
+
+    fn apply_to_command(self, cmd: &mut std::process::Command, file: &str) {
+        match self {
+            Self::Check => {
+                cmd.arg("check").arg(file);
+            }
+            Self::Run => {
+                cmd.arg("run").arg(file);
+            }
+            Self::Interpret => {
+                cmd.arg(file);
+            }
+            Self::EmitRust => {
+                cmd.arg("emit").arg(file);
+            }
+            Self::EmitFir => {
+                cmd.arg("emit").arg("--fir").arg(file);
+            }
+            Self::Verify => {
+                cmd.arg("verify").arg(file);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExpectStatus {
+    Pass,
+    Fail,
+}
+
+impl ExpectStatus {
+    fn parse(raw: &str) -> Result<Self, String> {
+        match raw.trim() {
+            "pass" | "success" | "ok" => Ok(Self::Pass),
+            "fail" | "failure" | "error" => Ok(Self::Fail),
+            other => Err(format!(
+                "unknown expect-status `{}`; use pass or fail",
+                other
+            )),
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Pass => "pass",
+            Self::Fail => "fail",
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ExpectCase {
+    command: ExpectCommand,
+    status: ExpectStatus,
+    stdout: Vec<String>,
+    stderr: Vec<String>,
+    skip: Option<String>,
+}
+
+fn single_expectation_marker(
+    source: &str,
+    prefix: &str,
+    path: &std::path::Path,
+) -> Result<Option<String>, String> {
+    let markers = collect_expectation_markers(source, prefix);
+    if markers.len() > 1 {
+        return Err(format!(
+            "{} has multiple `{}` directives",
+            path.display(),
+            prefix.trim_end_matches(':')
+        ));
+    }
+    Ok(markers.into_iter().next())
+}
+
+fn parse_expect_case(source: &str, path: &std::path::Path) -> Result<ExpectCase, String> {
+    let has_marker = source
+        .lines()
+        .any(|line| line.trim_start().starts_with("-- expect-"));
+    if !has_marker {
+        return Err(format!(
+            "{} has no `-- expect-*` directives",
+            path.display()
+        ));
+    }
+
+    let command = match single_expectation_marker(source, "-- expect-command:", path)? {
+        Some(raw) => ExpectCommand::parse(&raw)?,
+        None => ExpectCommand::Check,
+    };
+    let status = match single_expectation_marker(source, "-- expect-status:", path)? {
+        Some(raw) => ExpectStatus::parse(&raw)?,
+        None => ExpectStatus::Pass,
+    };
+    let skip = single_expectation_marker(source, "-- expect-skip:", path)?;
+
+    Ok(ExpectCase {
+        command,
+        status,
+        stdout: collect_expectation_markers(source, "-- expect-stdout:"),
+        stderr: collect_expectation_markers(source, "-- expect-stderr:"),
+        skip,
+    })
+}
+
+fn collect_expectation_files(path: &std::path::Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
+    if path.is_file() {
+        if path.extension().and_then(|ext| ext.to_str()) == Some("runa") {
+            out.push(path.to_path_buf());
+        }
+        return Ok(());
+    }
+
+    if !path.is_dir() {
+        return Err(format!("{} is not a file or directory", path.display()));
+    }
+
+    let mut entries: Vec<PathBuf> = std::fs::read_dir(path)
+        .map_err(|err| format!("cannot read {}: {}", path.display(), err))?
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .collect();
+    entries.sort();
+
+    for entry in entries {
+        if entry.is_dir() {
+            collect_expectation_files(&entry, out)?;
+        } else if entry.extension().and_then(|ext| ext.to_str()) == Some("runa") {
+            out.push(entry);
+        }
+    }
+
+    Ok(())
+}
+
+fn short_duration(elapsed: std::time::Duration) -> String {
+    if elapsed.as_millis() >= 1000 {
+        format!("{:.1}s", elapsed.as_secs_f64())
+    } else {
+        format!("{}ms", elapsed.as_millis())
+    }
+}
+
+fn first_output_line(output: &str) -> &str {
+    output
+        .lines()
+        .find(|line| !line.trim().is_empty())
+        .unwrap_or("<empty>")
+}
+
+fn run_expectation_suite(target: &str, use_prelude: bool) {
+    let target_path = std::path::Path::new(target);
+    let mut files = Vec::new();
+    if let Err(err) = collect_expectation_files(target_path, &mut files) {
+        eprintln!("\x1b[1;31merror\x1b[0m: {}", err);
+        std::process::exit(1);
+    }
+    files.sort();
+
+    if files.is_empty() {
+        eprintln!("No .runa expectation cases found in {}", target);
+        std::process::exit(1);
+    }
+
+    let display_root = if target_path.is_dir() {
+        target_path
+    } else {
+        target_path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new(""))
+    };
+    let self_bin = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("runa"));
+    let suite_start = std::time::Instant::now();
+    let mut passed = 0usize;
+    let mut failed = 0usize;
+    let mut skipped = 0usize;
+    let mut failures = Vec::new();
+
+    eprintln!(
+        "\x1b[1mruna expect\x1b[0m: running {} expectation cases from {}\n",
+        files.len(),
+        target
+    );
+
+    for file_path in files {
+        let name = file_path
+            .strip_prefix(display_root)
+            .unwrap_or(&file_path)
+            .to_string_lossy()
+            .to_string();
+        let test_start = std::time::Instant::now();
+        let source = match std::fs::read_to_string(&file_path) {
+            Ok(source) => source,
+            Err(err) => {
+                failed += 1;
+                failures.push(name.clone());
+                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — cannot read: {}", name, err);
+                continue;
+            }
+        };
+
+        let case = match parse_expect_case(&source, &file_path) {
+            Ok(case) => case,
+            Err(err) => {
+                failed += 1;
+                failures.push(name.clone());
+                eprintln!("  \x1b[1;31mFAIL\x1b[0m  {} — {}", name, err);
+                continue;
+            }
+        };
+
+        if let Some(reason) = case.skip {
+            skipped += 1;
+            eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m({})\x1b[0m", name, reason);
+            continue;
+        }
+
+        let file_str = file_path.to_string_lossy().to_string();
+        let mut cmd = std::process::Command::new(&self_bin);
+        case.command.apply_to_command(&mut cmd, &file_str);
+        if !use_prelude {
+            cmd.arg("--no-prelude");
+        }
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+
+        let output = match cmd.output() {
+            Ok(output) => output,
+            Err(err) => {
+                failed += 1;
+                failures.push(name.clone());
+                eprintln!(
+                    "  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {}",
+                    name, err
+                );
+                continue;
+            }
+        };
+
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let elapsed = short_duration(test_start.elapsed());
+        let mut missing = Vec::new();
+
+        let status_matches = match case.status {
+            ExpectStatus::Pass => output.status.success(),
+            ExpectStatus::Fail => !output.status.success(),
+        };
+        if !status_matches {
+            missing.push(format!(
+                "expected status {} but command {}",
+                case.status.label(),
+                if output.status.success() {
+                    "succeeded"
+                } else {
+                    "failed"
+                }
+            ));
+        }
+        for expected in &case.stdout {
+            if !stdout.contains(expected) {
+                missing.push(format!("stdout missing {:?}", expected));
+            }
+        }
+        for expected in &case.stderr {
+            if !stderr.contains(expected) {
+                missing.push(format!("stderr missing {:?}", expected));
+            }
+        }
+
+        if missing.is_empty() {
+            passed += 1;
+            eprintln!(
+                "  \x1b[1;32mPASS\x1b[0m  {} \x1b[2m({} {}, {})\x1b[0m",
+                name,
+                case.command.label(),
+                case.status.label(),
+                elapsed
+            );
+        } else {
+            failed += 1;
+            failures.push(name.clone());
+            eprintln!(
+                "  \x1b[1;31mFAIL\x1b[0m  {} — {} \x1b[2m({} {}, {})\x1b[0m",
+                name,
+                missing.join("; "),
+                case.command.label(),
+                case.status.label(),
+                elapsed
+            );
+            eprintln!("    stdout: {}", first_output_line(&stdout));
+            eprintln!("    stderr: {}", first_output_line(&stderr));
+        }
+    }
+
+    let suite_time = short_duration(suite_start.elapsed());
+    eprintln!();
+    if failed == 0 {
+        eprintln!(
+            "\x1b[1;32mExpectations: {} passed\x1b[0m, {} skipped in {}.",
+            passed, skipped, suite_time
+        );
+    } else {
+        eprintln!(
+            "\x1b[1;31mExpectations: {} passed, {} failed\x1b[0m, {} skipped in {}:",
+            passed, failed, skipped, suite_time
+        );
+        for failure in failures {
+            eprintln!("  - {}", failure);
+        }
+        std::process::exit(1);
+    }
 }
 
 fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send>) -> String {

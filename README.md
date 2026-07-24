@@ -88,13 +88,15 @@ runa hashes program.runa    # Show content-addressed hashes
 runa test                   # Run all tests/*.runa (interpreted)
 runa test --run             # Run all tests/*.runa (compiled)
 runa test --roundtrip tests # Compare interpreter vs compiled output
+runa expect tests/expect    # Run compiletest-style compiler expectations
 runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 ./scripts/mint.sh           # Canonical "is Futuruna mint?" gate
 ./scripts/canary.sh         # Authored multi-feature canary programs
+./scripts/expectations.sh   # Narrow diagnostics/run-fail/phase expectations
 ./scripts/differential.sh   # Reproducible differential and generative lane
 ```
 
-See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
+See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, [docs/expectation-suites.md](docs/expectation-suites.md) for compiletest-style expectations, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
 
 Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md): core syntax and documented stdlib behavior are treated as stable, while `runa verify`, stateful/reactive surfaces, Rust interop, and several advanced tooling paths are still preview or experimental.
 
@@ -138,6 +140,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 - `CONTRIBUTING.md` - Contributor ratchet for semantic/compiler changes
 - `docs/compatibility-policy.md` - Compatibility categories, feature stages, and bug-fix exception policy
 - `docs/feature-stages.md` - Current stable/preview/experimental stage matrix for major surfaces and commands
+- `docs/expectation-suites.md` - Compiletest-style diagnostics, run/fail, and phase expectation lane
 - `docs/compatibility-guides/` - Release-facing compatibility ledger for stable changes, deprecations, and bug-fix exceptions
 - `docs/state-and-roadmap.md` - Where Futuruna stands now and the next three milestones
 - `docs/language-sketch.md` - Language design and three-axis analysis

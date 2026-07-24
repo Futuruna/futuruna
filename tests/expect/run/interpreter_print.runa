@@ -1,0 +1,5 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: expectation-ok
+@ print("expectation-ok")
+

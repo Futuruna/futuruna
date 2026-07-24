@@ -13,6 +13,7 @@ cargo test --quiet
 cargo build --release
 ./target/release/runa test
 ./target/release/runa test --run
+./target/release/runa expect tests/expect
 ./target/release/runa test --check-codegen
 ./target/release/runa test --roundtrip tests
 ./target/release/runa run tests/codegen_integration_regression_test.runa
@@ -29,6 +30,7 @@ These lanes are the core mint contract because they cover:
 - Rust unit and integration tests
 - interpreted Futuruna execution
 - compiled Futuruna execution
+- compiletest-style diagnostic, run/fail, and phase expectations
 - Rust codegen validation across the test corpus
 - interpreter-vs-compiled roundtrip parity across the test corpus
 - the blocking codegen regression program

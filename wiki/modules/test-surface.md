@@ -15,6 +15,7 @@ related:
   - "[[verification-lanes]]"
   - "[[mint-ratchet]]"
   - "[[canary-matrix]]"
+  - "[[expectation-suites]]"
 ---
 
 # Test Surface
@@ -25,6 +26,7 @@ Futuruna’s quality strategy is increasingly centered on realistic test surface
 
 - unit and regression tests embedded in Rust
 - ordinary Futuruna test programs under `tests/`
+- compiletest-style expectations under `tests/expect/`
 - authored canary tiers under `tests/canary/`
 - roundtrip and codegen parity checks
 - differential and downstream-style hardening work
@@ -36,6 +38,17 @@ Futuruna’s quality strategy is increasingly centered on realistic test surface
 - `extended`: runtime-heavy surfaces like JSON, regex, DB, HTTP, and WASM
 - `regressions`: authored workflows distilled from real user bug classes
 
+## Expectation Shape
+
+`tests/expect/` is the narrow compiler-contract lane. It holds explicit
+directives for diagnostics, command pass/fail status, stdout/stderr substrings,
+and phase-specific markers such as FIR output.
+
+Use it when a compiler bug can be reduced to "this command should fail with
+this diagnostic" or "this compiler phase should contain this structural
+marker." Keep realistic subsystem workflows in `tests/canary/` and
+import-consumer contracts in `tests/downstream/`.
+
 ## Current Pressure
 
 The biggest remaining pressure is downstream library-consumer behavior: nested imports, imported smoke leakage, ownership-heavy helper chains, and other shapes that are less visible in self-contained in-repo programs.
@@ -43,3 +56,4 @@ The biggest remaining pressure is downstream library-consumer behavior: nested i
 ## Key Reference
 
 - [[canary-matrix]]
+- [[expectation-suites]]

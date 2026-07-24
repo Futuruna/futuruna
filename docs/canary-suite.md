@@ -15,6 +15,13 @@ For the separate authored library-consumer lane, use:
 ./scripts/downstream-canary.sh
 ```
 
+For narrow compiler expectations such as diagnostics, pass/fail behavior, and
+phase-specific structural markers, use:
+
+```bash
+./scripts/expectations.sh
+```
+
 It intentionally uses programs written in this repository rather than pulling in
 downstream codebases as fixtures. The goal is to keep the suite:
 
@@ -34,6 +41,8 @@ downstream codebases as fixtures. The goal is to keep the suite:
 ## What does not belong here
 
 - tiny single-feature probes that are better as ordinary tests
+- exact compiler diagnostic or phase-output assertions that are better as
+  expectation cases under `tests/expect/`
 - giant downstream applications owned by another repository
 - random external ports with unclear maintenance value
 
