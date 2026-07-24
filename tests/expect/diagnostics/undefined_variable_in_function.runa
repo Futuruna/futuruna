@@ -1,0 +1,5 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: in function `foo`
+-- expect-stderr: undefined variable `xyz`
+> foo() -> Int { xyz + 1 }

@@ -1,0 +1,11 @@
+-- expect-command: emit-rust
+-- expect-status: pass
+-- expect-stdout: fn signature_value(x: f64) -> i64
+-- expect-stdout: if __d == 0 { 0 } else {
+-- expect-stdout: shifted % __d
+> signature_value(x: Float) -> Int {
+    = shifted = round(pow(x, 2.0))
+    shifted % 64
+}
+
+= y = signature_value(0.7)

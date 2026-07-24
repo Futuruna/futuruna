@@ -1,0 +1,17 @@
+-- expect-command: emit-rust
+-- expect-status: pass
+-- expect-stdout: stage_names: Option<Vec<String>>
+-- expect-stdout: stage_count: Option<i64>
+-- expect-stdout: answer: Option<i64>
+-- expect-stdout: fn read_answer(__fut_globals: &__FutGlobals) -> i64
+-- expect-stdout: __fut_globals.answer.clone().expect("top-level binding `answer` not initialized")
+-- expect-stdout: __fut_globals.answer = Some(answer.clone());
+= stage_names = ["north", "east"]
+= stage_count = length(stage_names)
+= answer = stage_count * 21
+
+> read_answer() -> Int {
+    answer
+}
+
+= seen = read_answer()

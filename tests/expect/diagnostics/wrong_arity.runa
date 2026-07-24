@@ -1,0 +1,6 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: `add` expects 2 arguments but got 3
+-- expect-stderr: = x = add(1, 2, 3)
+> add(a: Int, b: Int) -> Int { a + b }
+= x = add(1, 2, 3)
