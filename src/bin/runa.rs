@@ -18691,6 +18691,20 @@ impl RustCodegen {
             | Stmt::MonadicBind(_, _, expr)
             | Stmt::Expr(expr)
             | Stmt::StreamBind(_, expr) => {
+                if fn_name.is_some()
+                    && !in_scope
+                    && self.expr_contains_detached_async_stream_work(expr)
+                {
+                    let mut diag = Diagnostic::error_at(
+                        expr.span,
+                        "derived async stream operators require a named scope",
+                    )
+                    .with_note("bindings like `= x = readings |> map(...)` or `~ x = ...` start background forwarder tasks; wrap them in `| scope Name { ... }` or return the stream expression directly");
+                    if let Some(name) = fn_name {
+                        diag = diag.with_context(format!("in function `{}`", name));
+                    }
+                    diags.push(diag);
+                }
                 self.collect_scope_lifetime_expr(expr, fn_name, in_scope, diags);
             }
             Stmt::Send(target, msg) => {
@@ -18743,6 +18757,112 @@ impl RustCodegen {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn expr_contains_detached_async_stream_work(&self, expr: &Expr) -> bool {
+        if self.expr_spawns_async_stream_task(expr) {
+            return true;
+        }
+        match &expr.kind {
+            ExprKind::App(func, args) => {
+                self.expr_contains_detached_async_stream_work(func)
+                    || args
+                        .iter()
+                        .any(|arg| self.expr_contains_detached_async_stream_work(arg))
+            }
+            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Pipe(lhs, rhs) | ExprKind::Index(lhs, rhs) => {
+                self.expr_contains_detached_async_stream_work(lhs)
+                    || self.expr_contains_detached_async_stream_work(rhs)
+            }
+            ExprKind::UnOp(_, inner)
+            | ExprKind::Field(inner, _)
+            | ExprKind::Try(inner)
+            | ExprKind::Lambda(_, inner) => self.expr_contains_detached_async_stream_work(inner),
+            ExprKind::If(cond, then_expr, else_expr) => {
+                self.expr_contains_detached_async_stream_work(cond)
+                    || self.expr_contains_detached_async_stream_work(then_expr)
+                    || self.expr_contains_detached_async_stream_work(else_expr)
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                self.expr_contains_detached_async_stream_work(scrutinee)
+                    || arms.iter().any(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .map(|guard| self.expr_contains_detached_async_stream_work(guard))
+                            .unwrap_or(false)
+                            || self.expr_contains_detached_async_stream_work(&arm.body)
+                    })
+            }
+            ExprKind::Block(stmts) => stmts.iter().any(|stmt| match stmt {
+                Stmt::Bind(_, _, inner)
+                | Stmt::MonadicBind(_, _, inner)
+                | Stmt::Expr(inner)
+                | Stmt::StreamBind(_, inner) => {
+                    self.expr_contains_detached_async_stream_work(inner)
+                }
+                Stmt::Send(target, msg) => {
+                    self.expr_contains_detached_async_stream_work(target)
+                        || self.expr_contains_detached_async_stream_work(msg)
+                }
+                Stmt::While(cond, body) => {
+                    self.expr_contains_detached_async_stream_work(cond)
+                        || body.iter().any(|body_stmt| match body_stmt {
+                            Stmt::Bind(_, _, inner)
+                            | Stmt::MonadicBind(_, _, inner)
+                            | Stmt::Expr(inner)
+                            | Stmt::StreamBind(_, inner) => {
+                                self.expr_contains_detached_async_stream_work(inner)
+                            }
+                            _ => false,
+                        })
+                }
+                _ => false,
+            }),
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Effect(_, items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => items
+                .iter()
+                .any(|item| self.expr_contains_detached_async_stream_work(item)),
+            ExprKind::Handle { body, handlers, .. } => {
+                self.expr_contains_detached_async_stream_work(body)
+                    || handlers
+                        .iter()
+                        .any(|handler| self.expr_contains_detached_async_stream_work(&handler.body))
+            }
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => false,
+        }
+    }
+
+    fn expr_spawns_async_stream_task(&self, expr: &Expr) -> bool {
+        match &expr.kind {
+            ExprKind::App(func, args) => {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
+                    let async_ops = ["map", "filter", "scan", "take", "skip", "tap", "merge"];
+                    if async_ops.contains(&name.as_str()) && !args.is_empty() {
+                        return self.is_live_stream_expr_for_validation(&args[0]);
+                    }
+                }
+                false
+            }
+            ExprKind::Pipe(input, transform) => {
+                let desugared: Expr = match &transform.as_ref().kind {
+                    ExprKind::App(func, existing_args) => {
+                        let mut new_args = vec![input.as_ref().clone()];
+                        new_args.extend(existing_args.iter().cloned());
+                        ExprKind::App(func.clone(), new_args).into()
+                    }
+                    _ => ExprKind::App(
+                        Box::new(transform.as_ref().clone()),
+                        vec![input.as_ref().clone()],
+                    )
+                    .into(),
+                };
+                self.expr_spawns_async_stream_task(&desugared)
+            }
+            _ => false,
         }
     }
 
@@ -32279,6 +32399,50 @@ routes <- "b"
                     && d.notes.iter().any(|note| note.contains("| scope Name"))
             ),
             "expected function-local async stream for-loop diagnostic, got: {:?}",
+            diags
+                .iter()
+                .map(|d| (&d.message, &d.context, &d.notes))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn compiler_validation_rejects_function_local_async_stream_binding() {
+        let diags = compiler_validation_diags_for_source(
+            "~ readings = subject()\n\
+             > install() -> () {\n\
+                 ~ mapped = readings |> map(|x| x + 1)\n\
+             }\n",
+        );
+        assert!(
+            diags.iter().any(|d| d.message
+                == "derived async stream operators require a named scope"
+                && d.context.iter().any(|ctx| ctx == "in function `install`")
+                && d.notes
+                    .iter()
+                    .any(|note| note.contains("return the stream expression directly"))),
+            "expected function-local async stream binding diagnostic, got: {:?}",
+            diags
+                .iter()
+                .map(|d| (&d.message, &d.context, &d.notes))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn compiler_validation_rejects_nested_function_local_async_stream_binding_work() {
+        let diags = compiler_validation_diags_for_source(
+            "~ readings = subject()\n\
+             > install() -> Int {\n\
+                 = total = (readings |> map(|x| x + 1)).count\n\
+                 total\n\
+             }\n",
+        );
+        assert!(
+            diags.iter().any(|d| d.message
+                == "derived async stream operators require a named scope"
+                && d.context.iter().any(|ctx| ctx == "in function `install`")),
+            "expected nested function-local async stream work diagnostic, got: {:?}",
             diags
                 .iter()
                 .map(|d| (&d.message, &d.context, &d.notes))
