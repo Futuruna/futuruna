@@ -10368,6 +10368,7 @@ static LSP_BUILTINS: &[(&str, usize)] = &[
     ("distinct", 1),
     ("window", 2),
     ("from_list", 1),
+    ("watch", 1),
     ("sort", 1),
     ("sort_by", 2),
     ("any", 2),
@@ -10472,6 +10473,10 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
         "sum" => Some(("~ sum(stream) -> Int", "Sum all elements")),
         "distinct" => Some(("~ distinct(stream) -> Stream", "Remove duplicates")),
         "from_list" => Some(("~ from_list(list) -> Stream", "Create stream from list")),
+        "watch" => Some((
+            "~ watch(Type) -> Stream(ChangeEvent(Type))",
+            "Subscribe to persisted assert/retract changes for a type",
+        )),
         "sort" => Some(("> sort(list) -> [a]", "Sort in ascending order")),
         "join" => Some((
             "> join(list: [String], sep: String) -> String",
@@ -10822,6 +10827,8 @@ struct TypeRegistry {
     stored_type_schema_hash: BTreeMap<String, String>,
     /// M26b: Types with `@ persist` annotation — typed-column lowering
     persisted_types: BTreeSet<String>,
+    /// M26b: Persisted types observed through `watch(Type)` change streams.
+    watched_persist_types: BTreeSet<String>,
     /// User-defined function names (avoid overriding with builtins)
     user_functions: BTreeSet<String>,
     /// Declared function types: fn_name -> Arrow(param1, ... -> ret), using Unknown for gaps
@@ -10876,6 +10883,7 @@ impl TypeRegistry {
             store_delete_on_change: BTreeSet::new(),
             stored_type_schema_hash: BTreeMap::new(),
             persisted_types: BTreeSet::new(),
+            watched_persist_types: BTreeSet::new(),
             user_functions: BTreeSet::new(),
             fn_types: BTreeMap::new(),
             exported_names: BTreeSet::new(),
@@ -11009,6 +11017,8 @@ struct RustCodegen {
     persist_tx_depth: usize,
     /// Unique counter for generated persisted transaction guard names.
     persist_tx_counter: usize,
+    /// Persisted transaction guards currently surrounding emitted statements.
+    persist_tx_stack: Vec<String>,
 }
 
 /// Per-function ownership analysis results.
@@ -15072,6 +15082,7 @@ impl RustCodegen {
             empty_list_var_types: BTreeMap::new(),
             persist_tx_depth: 0,
             persist_tx_counter: 0,
+            persist_tx_stack: Vec::new(),
         }
     }
 
@@ -15565,6 +15576,182 @@ impl RustCodegen {
         "    ".repeat(self.indent)
     }
 
+    fn watch_type_name(expr: &Expr) -> Option<String> {
+        let ExprKind::App(func, args) = &expr.kind else {
+            return None;
+        };
+        if args.len() != 1 {
+            return None;
+        }
+        let ExprKind::Var(name) = &func.as_ref().kind else {
+            return None;
+        };
+        if name != "watch" {
+            return None;
+        }
+        let ExprKind::Var(type_name) = &args[0].kind else {
+            return None;
+        };
+        Some(type_name.clone())
+    }
+
+    fn collect_watch_type_names_from_stmt_list(stmts: &[Stmt], out: &mut BTreeSet<String>) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Defn(Defn::Fn { body, .. }) => {
+                    Self::collect_watch_type_names_from_expr(body, out);
+                }
+                Stmt::Defn(Defn::Actor { handlers, .. }) => {
+                    for handler in handlers {
+                        Self::collect_watch_type_names_from_expr(&handler.body, out);
+                    }
+                }
+                Stmt::Defn(Defn::Module { body, .. }) | Stmt::Rule(Rule::Scope { body, .. }) => {
+                    Self::collect_watch_type_names_from_stmt_list(body, out);
+                }
+                Stmt::TypeDecl(TypeDecl::ADT { methods, .. })
+                | Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                    for method in methods {
+                        if let Defn::Fn { body, .. } = method {
+                            Self::collect_watch_type_names_from_expr(body, out);
+                        }
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
+                    Self::collect_watch_type_names_from_expr(condition, out);
+                }
+                Stmt::Bind(_, _, expr)
+                | Stmt::MonadicBind(_, _, expr)
+                | Stmt::StreamBind(_, expr)
+                | Stmt::Expr(expr) => {
+                    Self::collect_watch_type_names_from_expr(expr, out);
+                }
+                Stmt::For(_, iter, body) => {
+                    Self::collect_watch_type_names_from_expr(iter, out);
+                    Self::collect_watch_type_names_from_stmt_list(body, out);
+                }
+                Stmt::Send(target, msg) => {
+                    Self::collect_watch_type_names_from_expr(target, out);
+                    Self::collect_watch_type_names_from_expr(msg, out);
+                }
+                Stmt::StreamSub(expr, arms) => {
+                    Self::collect_watch_type_names_from_expr(expr, out);
+                    for arm in arms {
+                        if let Some(guard) = &arm.guard {
+                            Self::collect_watch_type_names_from_expr(guard, out);
+                        }
+                        Self::collect_watch_type_names_from_expr(&arm.body, out);
+                    }
+                }
+                Stmt::While(cond, body) => {
+                    Self::collect_watch_type_names_from_expr(cond, out);
+                    Self::collect_watch_type_names_from_stmt_list(body, out);
+                }
+                Stmt::Invariant {
+                    subject, predicate, ..
+                } => {
+                    Self::collect_watch_type_names_from_expr(subject, out);
+                    Self::collect_watch_type_names_from_expr(predicate, out);
+                }
+                Stmt::Prove {
+                    pass_block,
+                    else_block,
+                    ..
+                } => {
+                    if let Some(pass) = pass_block {
+                        Self::collect_watch_type_names_from_stmt_list(pass, out);
+                    }
+                    if let Some(fail) = else_block {
+                        Self::collect_watch_type_names_from_stmt_list(fail, out);
+                    }
+                }
+                Stmt::Rule(Rule::Clause { head, body }) => {
+                    Self::collect_watch_type_names_from_expr(head, out);
+                    if let Some(body) = body {
+                        Self::collect_watch_type_names_from_expr(body, out);
+                    }
+                }
+                Stmt::Rule(Rule::Default {
+                    head,
+                    value,
+                    condition,
+                    ..
+                })
+                | Stmt::Rule(Rule::Exception {
+                    head,
+                    value,
+                    condition,
+                    ..
+                }) => {
+                    Self::collect_watch_type_names_from_expr(head, out);
+                    Self::collect_watch_type_names_from_expr(value, out);
+                    if let Some(condition) = condition {
+                        Self::collect_watch_type_names_from_expr(condition, out);
+                    }
+                }
+                Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+                    for arg in args {
+                        Self::collect_watch_type_names_from_expr(arg, out);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn collect_watch_type_names_from_expr(expr: &Expr, out: &mut BTreeSet<String>) {
+        if let Some(type_name) = Self::watch_type_name(expr) {
+            out.insert(type_name);
+        }
+        match &expr.kind {
+            ExprKind::App(func, args) => {
+                Self::collect_watch_type_names_from_expr(func, out);
+                for arg in args {
+                    Self::collect_watch_type_names_from_expr(arg, out);
+                }
+            }
+            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Pipe(lhs, rhs) | ExprKind::Index(lhs, rhs) => {
+                Self::collect_watch_type_names_from_expr(lhs, out);
+                Self::collect_watch_type_names_from_expr(rhs, out);
+            }
+            ExprKind::UnOp(_, inner)
+            | ExprKind::Field(inner, _)
+            | ExprKind::Try(inner)
+            | ExprKind::Lambda(_, inner) => Self::collect_watch_type_names_from_expr(inner, out),
+            ExprKind::If(cond, then_expr, else_expr) => {
+                Self::collect_watch_type_names_from_expr(cond, out);
+                Self::collect_watch_type_names_from_expr(then_expr, out);
+                Self::collect_watch_type_names_from_expr(else_expr, out);
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                Self::collect_watch_type_names_from_expr(scrutinee, out);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        Self::collect_watch_type_names_from_expr(guard, out);
+                    }
+                    Self::collect_watch_type_names_from_expr(&arm.body, out);
+                }
+            }
+            ExprKind::Block(stmts) => Self::collect_watch_type_names_from_stmt_list(stmts, out),
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Effect(_, items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => {
+                for item in items {
+                    Self::collect_watch_type_names_from_expr(item, out);
+                }
+            }
+            ExprKind::Handle { body, handlers, .. } => {
+                Self::collect_watch_type_names_from_expr(body, out);
+                for handler in handlers {
+                    Self::collect_watch_type_names_from_expr(&handler.body, out);
+                }
+            }
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+        }
+    }
+
     fn collect_exported_names_from_stmts(&self, stmts: &[Stmt]) -> BTreeSet<String> {
         let mut exported = BTreeSet::new();
         let mut is_export = false;
@@ -15899,6 +16086,23 @@ impl RustCodegen {
                         }
                     }
                 }
+            }
+        }
+
+        {
+            let mut watched_types = BTreeSet::new();
+            Self::collect_watch_type_names_from_stmt_list(stmts, &mut watched_types);
+            for type_name in watched_types {
+                if self.types.persisted_types.contains(type_name.as_str()) {
+                    self.types.watched_persist_types.insert(type_name);
+                }
+            }
+            if !self.types.watched_persist_types.is_empty() {
+                self.has_async = true;
+                self.cargo_deps.insert(
+                    "tokio".to_string(),
+                    "{ version = \"1\", features = [\"full\"] }".to_string(),
+                );
             }
         }
 
@@ -16545,6 +16749,12 @@ impl RustCodegen {
                         match name.as_str() {
                             "subject" => args.first().and_then(|init| {
                                 expr_to_rust_type(init, fn_types, local_tys, subject_tys)
+                            }),
+                            "watch" => args.first().and_then(|arg| match &arg.kind {
+                                ExprKind::Var(type_name) => {
+                                    Some(RustCodegen::watch_change_type_name(type_name))
+                                }
+                                _ => None,
                             }),
                             "as_stream" | "filter" | "take" | "skip" | "tap" | "distinct"
                             | "delay" | "debounce" | "throttle" | "timeout" | "sample" => {
@@ -17460,6 +17670,7 @@ impl RustCodegen {
             out.push_str("    db: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>,\n");
             out.push_str("    rollback_sql: &'static str,\n");
             out.push_str("    committed: bool,\n");
+            out.push_str("    pending_events: Vec<Box<dyn FnOnce() + Send>>,\n");
             out.push_str("}\n");
             out.push_str("impl __FutPersistTxGuard {\n");
             out.push_str("    fn begin(db: std::sync::Arc<std::sync::Mutex<rusqlite::Connection>>, begin_sql: &'static str, rollback_sql: &'static str) -> Self {\n");
@@ -17467,11 +17678,26 @@ impl RustCodegen {
             out.push_str("            let __db_lock = db.lock().unwrap();\n");
             out.push_str("            __db_lock.execute_batch(begin_sql).expect(\"persist transaction begin failed\");\n");
             out.push_str("        }\n");
-            out.push_str("        Self { db, rollback_sql, committed: false }\n");
+            out.push_str(
+                "        Self { db, rollback_sql, committed: false, pending_events: Vec::new() }\n",
+            );
             out.push_str("    }\n");
-            out.push_str("    fn commit(&mut self, commit_sql: &'static str) {\n");
+            out.push_str("    fn enqueue_event<F>(&mut self, event: F) where F: FnOnce() + Send + 'static {\n");
+            out.push_str("        self.pending_events.push(Box::new(event));\n");
+            out.push_str("    }\n");
+            out.push_str(
+                "    fn absorb_events(&mut self, mut events: Vec<Box<dyn FnOnce() + Send>>) {\n",
+            );
+            out.push_str("        self.pending_events.append(&mut events);\n");
+            out.push_str("    }\n");
+            out.push_str("    fn take_events_after_commit(&mut self, commit_sql: &'static str) -> Vec<Box<dyn FnOnce() + Send>> {\n");
             out.push_str("        self.db.lock().unwrap().execute_batch(commit_sql).expect(\"persist transaction commit failed\");\n");
             out.push_str("        self.committed = true;\n");
+            out.push_str("        std::mem::take(&mut self.pending_events)\n");
+            out.push_str("    }\n");
+            out.push_str("    fn commit(&mut self, commit_sql: &'static str) {\n");
+            out.push_str("        let events = self.take_events_after_commit(commit_sql);\n");
+            out.push_str("        for event in events { event(); }\n");
             out.push_str("    }\n");
             out.push_str("}\n");
             out.push_str("impl Drop for __FutPersistTxGuard {\n");
@@ -17638,6 +17864,7 @@ impl RustCodegen {
             );
             out.push_str("    }\n");
             out.push_str("}\n");
+            out.push_str(&self.emit_watch_runtime());
             out.push_str(
                 "async fn __fut_settle<T: Clone + Send + 'static>(stream: &__FutStream<T>) {\n",
             );
@@ -20140,6 +20367,8 @@ impl RustCodegen {
                     if is_subject {
                         self.subject_vars.insert(name.clone());
                         self.async_stream_vars.insert(name.clone());
+                    } else if Self::watch_type_name(expr).is_some() {
+                        self.async_stream_vars.insert(name.clone());
                     } else {
                         self.seed_async_stream_bindings_from_expr(expr);
                         if self.is_live_stream_expr_for_validation(expr) {
@@ -21342,6 +21571,127 @@ impl RustCodegen {
             .cloned()
             .unwrap_or(Ty::Hole);
         self.emit_type(&ty)
+    }
+
+    fn watch_change_type_name(type_name: &str) -> String {
+        format!("__Fut{}Change", sanitize_name(type_name))
+    }
+
+    fn watch_static_name(type_name: &str) -> String {
+        format!("__FUT_WATCH_{}", sanitize_name(type_name).to_uppercase())
+    }
+
+    fn watch_fn_name(type_name: &str) -> String {
+        format!("__fut_watch_{}", sanitize_name(type_name).to_lowercase())
+    }
+
+    fn watch_emit_fn_name(type_name: &str) -> String {
+        format!(
+            "__fut_emit_{}_change",
+            sanitize_name(type_name).to_lowercase()
+        )
+    }
+
+    fn emit_watch_runtime(&self) -> String {
+        if self.types.watched_persist_types.is_empty() {
+            return String::new();
+        }
+
+        let mut out = String::new();
+        out.push_str("#[derive(Debug, Clone, PartialEq)]\n");
+        out.push_str("enum __FutChangeOp {\n");
+        out.push_str("    Asserted,\n");
+        out.push_str("    Retracted,\n");
+        out.push_str("}\n");
+        out.push_str("impl fmt::Display for __FutChangeOp {\n");
+        out.push_str("    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n");
+        out.push_str("        match self {\n");
+        out.push_str("            __FutChangeOp::Asserted => write!(f, \"Asserted\"),\n");
+        out.push_str("            __FutChangeOp::Retracted => write!(f, \"Retracted\"),\n");
+        out.push_str("        }\n");
+        out.push_str("    }\n");
+        out.push_str("}\n");
+
+        for type_name in &self.types.watched_persist_types {
+            let row_ty = sanitize_name(type_name);
+            let event_ty = Self::watch_change_type_name(type_name);
+            let static_name = Self::watch_static_name(type_name);
+            let watch_fn = Self::watch_fn_name(type_name);
+            let emit_fn = Self::watch_emit_fn_name(type_name);
+            out.push_str(&format!(
+                "#[derive(Debug, Clone, PartialEq)]\nstruct {event_ty} {{\n"
+            ));
+            out.push_str("    pub op: __FutChangeOp,\n");
+            out.push_str(&format!("    pub row: {row_ty},\n"));
+            out.push_str("    pub matched_fields: Vec<String>,\n");
+            out.push_str("}\n");
+            out.push_str(&format!("impl fmt::Display for {event_ty} {{\n"));
+            out.push_str("    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n");
+            out.push_str("        write!(f, \"{}: {} matched={:?}\", self.op, self.row, self.matched_fields)\n");
+            out.push_str("    }\n");
+            out.push_str("}\n");
+            out.push_str(&format!(
+                "static {static_name}: std::sync::OnceLock<__FutStream<{event_ty}>> = std::sync::OnceLock::new();\n"
+            ));
+            out.push_str(&format!("fn {watch_fn}() -> __FutStream<{event_ty}> {{\n"));
+            out.push_str(&format!(
+                "    {static_name}.get_or_init(|| __FutStream::new()).clone()\n"
+            ));
+            out.push_str("}\n");
+            out.push_str(&format!("fn {emit_fn}(event: {event_ty}) {{\n"));
+            out.push_str(&format!(
+                "    if let Some(stream) = {static_name}.get() {{ stream.send(event); }}\n"
+            ));
+            out.push_str("}\n");
+        }
+
+        out
+    }
+
+    fn emit_persisted_row_literal(&self, type_name: &str, args: &[String]) -> String {
+        let sname = sanitize_name(type_name);
+        let is_positional = self
+            .types
+            .variant_positional
+            .get(type_name)
+            .copied()
+            .unwrap_or(false);
+        if is_positional {
+            format!("{}({})", sname, args.join(", "))
+        } else {
+            let fields = self
+                .types
+                .variant_fields
+                .get(type_name)
+                .cloned()
+                .unwrap_or_default();
+            let pairs: Vec<String> = fields
+                .iter()
+                .zip(args.iter())
+                .map(|(field, value)| format!("{}: {}", sanitize_name(field), value))
+                .collect();
+            format!("{} {{ {} }}", sname, pairs.join(", "))
+        }
+    }
+
+    fn emit_watch_event_delivery(&self, type_name: &str, event_var: &str) -> String {
+        let emit_fn = Self::watch_emit_fn_name(type_name);
+        let mut out = String::new();
+        if let Some(guard_name) = self.persist_tx_stack.last() {
+            out.push_str(&format!(
+                "{}{}.enqueue_event(move || {}({}));\n",
+                self.ind(),
+                guard_name,
+                emit_fn,
+                event_var
+            ));
+        } else {
+            out.push_str(&format!("{}{}({});\n", self.ind(), emit_fn, event_var));
+            if self.in_async_context() {
+                out.push_str(&format!("{}tokio::task::yield_now().await;\n", self.ind()));
+            }
+        }
+        out
     }
 
     fn emit_persisted_query_expr(
@@ -23097,6 +23447,11 @@ impl RustCodegen {
                     let transactional_scope = body.iter().any(|stmt| {
                         stmt_contains_persisted_mutation(stmt, &self.types.persisted_types)
                     });
+                    let parent_tx_guard = if transactional_scope {
+                        self.persist_tx_stack.last().cloned()
+                    } else {
+                        None
+                    };
                     let tx_guard = if transactional_scope {
                         let tx_idx = self.persist_tx_counter;
                         self.persist_tx_counter += 1;
@@ -23157,6 +23512,7 @@ impl RustCodegen {
                             rollback_sql
                         ));
                         self.persist_tx_depth += 1;
+                        self.persist_tx_stack.push(guard_name.clone());
                     }
 
                     if self.has_async {
@@ -23186,13 +23542,43 @@ impl RustCodegen {
                     }
 
                     if let Some((guard_name, _, _, commit_sql, _)) = &tx_guard {
-                        out.push_str(&format!(
-                            "{}{}.commit({:?});\n",
-                            self.ind(),
-                            guard_name,
-                            commit_sql
-                        ));
+                        if let Some(parent_guard) = parent_tx_guard
+                            .as_ref()
+                            .filter(|_| !self.types.watched_persist_types.is_empty())
+                        {
+                            let pending_name = format!("__fut_pending_events_{}", guard_name);
+                            out.push_str(&format!(
+                                "{}let {} = {}.take_events_after_commit({:?});\n",
+                                self.ind(),
+                                pending_name,
+                                guard_name,
+                                commit_sql
+                            ));
+                            out.push_str(&format!(
+                                "{}{}.absorb_events({});\n",
+                                self.ind(),
+                                parent_guard,
+                                pending_name
+                            ));
+                        } else {
+                            out.push_str(&format!(
+                                "{}{}.commit({:?});\n",
+                                self.ind(),
+                                guard_name,
+                                commit_sql
+                            ));
+                            if self.has_async
+                                && !self.types.watched_persist_types.is_empty()
+                                && self.in_async_context()
+                            {
+                                out.push_str(&format!(
+                                    "{}tokio::task::yield_now().await;\n",
+                                    self.ind()
+                                ));
+                            }
+                        }
                         self.persist_tx_depth = self.persist_tx_depth.saturating_sub(1);
+                        self.persist_tx_stack.pop();
                     }
 
                     // Track scope bindings for qualified access (ScopeName.field → field)
@@ -23944,6 +24330,24 @@ impl RustCodegen {
                         }
                         return out;
                     }
+                    if let Some(type_name) = Self::watch_type_name(expr) {
+                        if self
+                            .types
+                            .watched_persist_types
+                            .contains(type_name.as_str())
+                        {
+                            self.async_stream_vars.insert(name.clone());
+                            let event_ty = Self::watch_change_type_name(&type_name);
+                            let watch_fn = Self::watch_fn_name(&type_name);
+                            return format!(
+                                "{}let {}: __FutStream<{}> = {}();\n",
+                                self.ind(),
+                                name,
+                                event_ty,
+                                watch_fn
+                            );
+                        }
+                    }
                     if self.is_async_stream_expr(expr) {
                         self.async_stream_vars.insert(name.clone());
                     }
@@ -24171,7 +24575,6 @@ impl RustCodegen {
                 let table_name = sname.to_lowercase();
                 if self.types.persisted_types.contains(type_name.as_str()) {
                     // M26b: typed-column INSERT OR REPLACE.
-                    let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
                     let fields = self
                         .types
                         .variant_fields
@@ -24184,14 +24587,64 @@ impl RustCodegen {
                         .collect();
                     let placeholders: Vec<String> =
                         (1..=cols.len()).map(|i| format!("?{}", i)).collect();
-                    out.push_str(&format!(
-                        "{}__db.lock().unwrap().execute(\"INSERT OR REPLACE INTO {} ({}) VALUES ({})\", rusqlite::params![{}]).expect(\"assert failed\");\n",
-                        self.ind(),
-                        table_name,
-                        cols.join(", "),
-                        placeholders.join(", "),
-                        arg_strs.join(", ")
-                    ));
+                    if self
+                        .types
+                        .watched_persist_types
+                        .contains(type_name.as_str())
+                    {
+                        let temp_names: Vec<String> = (0..args.len())
+                            .map(|idx| format!("__fut_arg_{}", idx))
+                            .collect();
+                        out.push_str(&format!(
+                            "{}{{ // assert {} with watch\n",
+                            self.ind(),
+                            type_name
+                        ));
+                        self.indent += 1;
+                        out.push_str(&format!("{}let __db = __fut_persist_db();\n", self.ind()));
+                        for (temp, arg) in temp_names.iter().zip(args.iter()) {
+                            let value = self.emit_expr(arg);
+                            out.push_str(&format!("{}let {} = {};\n", self.ind(), temp, value));
+                        }
+                        let params: Vec<String> = temp_names
+                            .iter()
+                            .map(|name| format!("{}.clone()", name))
+                            .collect();
+                        out.push_str(&format!(
+                            "{}__db.lock().unwrap().execute(\"INSERT OR REPLACE INTO {} ({}) VALUES ({})\", rusqlite::params![{}]).expect(\"assert failed\");\n",
+                            self.ind(),
+                            table_name,
+                            cols.join(", "),
+                            placeholders.join(", "),
+                            params.join(", ")
+                        ));
+                        let row_args: Vec<String> = temp_names
+                            .iter()
+                            .map(|name| format!("{}.clone()", name))
+                            .collect();
+                        let row = self.emit_persisted_row_literal(type_name, &row_args);
+                        let event_ty = Self::watch_change_type_name(type_name);
+                        out.push_str(&format!(
+                            "{}let __fut_event = {} {{ op: __FutChangeOp::Asserted, row: {}, matched_fields: vec![] }};\n",
+                            self.ind(),
+                            event_ty,
+                            row
+                        ));
+                        out.push_str(&self.emit_watch_event_delivery(type_name, "__fut_event"));
+                        self.indent -= 1;
+                        out.push_str(&format!("{}}}\n", self.ind()));
+                    } else {
+                        let arg_strs: Vec<String> =
+                            args.iter().map(|a| self.emit_expr(a)).collect();
+                        out.push_str(&format!(
+                            "{}__db.lock().unwrap().execute(\"INSERT OR REPLACE INTO {} ({}) VALUES ({})\", rusqlite::params![{}]).expect(\"assert failed\");\n",
+                            self.ind(),
+                            table_name,
+                            cols.join(", "),
+                            placeholders.join(", "),
+                            arg_strs.join(", ")
+                        ));
+                    }
                 } else if self.types.stored_types.contains(type_name.as_str()) {
                     // Object store: serialize struct to JSON, INSERT OR REPLACE
                     let arg_strs: Vec<String> = args.iter().map(|a| self.emit_expr(a)).collect();
@@ -24284,7 +24737,162 @@ impl RustCodegen {
                     } else {
                         format!(" WHERE {}", where_parts.join(" AND "))
                     };
-                    if !args.is_empty() {
+                    if self
+                        .types
+                        .watched_persist_types
+                        .contains(type_name.as_str())
+                        && !args.is_empty()
+                    {
+                        let temp_names: Vec<String> = args
+                            .iter()
+                            .enumerate()
+                            .map(|(idx, _)| format!("__fut_arg_{}", idx))
+                            .collect();
+                        out.push_str(&format!(
+                            "{}{{ // retract {} with watch\n",
+                            self.ind(),
+                            type_name
+                        ));
+                        self.indent += 1;
+                        out.push_str(&format!("{}let __db = __fut_persist_db();\n", self.ind()));
+                        for (idx, arg) in args.iter().enumerate().take(cols.len()) {
+                            if matches!(arg.kind, ExprKind::Var(ref name) if name == "_") {
+                                continue;
+                            }
+                            let value = self.emit_expr(arg);
+                            out.push_str(&format!(
+                                "{}let {} = {};\n",
+                                self.ind(),
+                                temp_names[idx],
+                                value
+                            ));
+                        }
+                        let param_vars: Vec<String> = args
+                            .iter()
+                            .enumerate()
+                            .take(cols.len())
+                            .filter_map(|(idx, arg)| {
+                                if matches!(arg.kind, ExprKind::Var(ref name) if name == "_") {
+                                    None
+                                } else {
+                                    Some(format!("{}.clone()", temp_names[idx]))
+                                }
+                            })
+                            .collect();
+                        let params_expr = if param_vars.is_empty() {
+                            "rusqlite::params![]".to_string()
+                        } else {
+                            format!("rusqlite::params![{}]", param_vars.join(", "))
+                        };
+                        let select_sql = format!(
+                            "SELECT {} FROM {}{}",
+                            cols.join(", "),
+                            table_name,
+                            where_sql
+                        );
+                        let row_construct = if self
+                            .types
+                            .variant_positional
+                            .get(type_name.as_str())
+                            .copied()
+                            .unwrap_or(false)
+                        {
+                            let positional_getters: Vec<String> = fields
+                                .iter()
+                                .enumerate()
+                                .map(|(idx, field)| {
+                                    let ty = self.persisted_field_rust_type(type_name, field);
+                                    format!("row.get::<_, {}>({})?", ty, idx)
+                                })
+                                .collect();
+                            format!("{}({})", sname, positional_getters.join(", "))
+                        } else {
+                            let getters: Vec<String> = fields
+                                .iter()
+                                .enumerate()
+                                .map(|(idx, field)| {
+                                    let ty = self.persisted_field_rust_type(type_name, field);
+                                    format!(
+                                        "{}: row.get::<_, {}>({})?",
+                                        sanitize_name(field),
+                                        ty,
+                                        idx
+                                    )
+                                })
+                                .collect();
+                            format!("{} {{ {} }}", sname, getters.join(", "))
+                        };
+                        out.push_str(&format!(
+                            "{}let __fut_rows: Vec<{}> = {{\n",
+                            self.ind(),
+                            sname
+                        ));
+                        self.indent += 1;
+                        out.push_str(&format!(
+                            "{}let __db_lock = __db.lock().unwrap();\n",
+                            self.ind()
+                        ));
+                        out.push_str(&format!(
+                            "{}let mut __stmt = __db_lock.prepare({:?}).expect(\"retract watch select prepare failed\");\n",
+                            self.ind(),
+                            select_sql
+                        ));
+                        out.push_str(&format!(
+                            "{}let __rows = __stmt.query_map({}, |row| Ok({})).expect(\"retract watch select failed\");\n",
+                            self.ind(),
+                            params_expr,
+                            row_construct
+                        ));
+                        out.push_str(&format!(
+                            "{}__rows.filter_map(|row| row.ok()).collect()\n",
+                            self.ind()
+                        ));
+                        self.indent -= 1;
+                        out.push_str(&format!("{}}};\n", self.ind()));
+                        out.push_str(&format!(
+                            "{}__db.lock().unwrap().execute(\"DELETE FROM {}{}\", {}).expect(\"retract failed\");\n",
+                            self.ind(),
+                            table_name,
+                            where_sql,
+                            params_expr
+                        ));
+                        let matched_fields: Vec<String> = args
+                            .iter()
+                            .enumerate()
+                            .take(cols.len())
+                            .filter_map(|(idx, arg)| {
+                                if matches!(arg.kind, ExprKind::Var(ref name) if name == "_") {
+                                    None
+                                } else {
+                                    fields.get(idx).cloned()
+                                }
+                            })
+                            .map(|field| format!("{:?}.to_string()", field))
+                            .collect();
+                        let matched_expr = if matched_fields.is_empty() {
+                            "vec![]".to_string()
+                        } else {
+                            format!("vec![{}]", matched_fields.join(", "))
+                        };
+                        let event_ty = Self::watch_change_type_name(type_name);
+                        out.push_str(&format!(
+                            "{}let __fut_matched_fields = {};\n",
+                            self.ind(),
+                            matched_expr
+                        ));
+                        out.push_str(&format!("{}for __fut_row in __fut_rows {{\n", self.ind()));
+                        self.indent += 1;
+                        out.push_str(&format!(
+                            "{}let __fut_event = {} {{ op: __FutChangeOp::Retracted, row: __fut_row, matched_fields: __fut_matched_fields.clone() }};\n",
+                            self.ind(),
+                            event_ty
+                        ));
+                        out.push_str(&self.emit_watch_event_delivery(type_name, "__fut_event"));
+                        self.indent -= 1;
+                        out.push_str(&format!("{}}}\n", self.ind()));
+                        self.indent -= 1;
+                        out.push_str(&format!("{}}}\n", self.ind()));
+                    } else if !args.is_empty() {
                         let params_expr = if params.is_empty() {
                             "rusqlite::params![]".to_string()
                         } else {
@@ -25994,6 +26602,20 @@ impl RustCodegen {
                         "start_with",
                         "concat",
                     ];
+                    if name == "watch" {
+                        return args
+                            .first()
+                            .and_then(|arg| match &arg.kind {
+                                ExprKind::Var(type_name) => Some(type_name),
+                                _ => None,
+                            })
+                            .map(|type_name| {
+                                self.types
+                                    .watched_persist_types
+                                    .contains(type_name.as_str())
+                            })
+                            .unwrap_or(false);
+                    }
                     if name == "as_stream" && !args.is_empty() {
                         return self.is_live_stream_expr_for_validation(&args[0]);
                     }
@@ -27396,6 +28018,17 @@ impl RustCodegen {
                         }
                     }
                     // Builtin registry lookup — replaces 300+ lines of if-chain
+                    if name == "watch" && args.len() == 1 {
+                        if let ExprKind::Var(type_name) = &args[0].kind {
+                            if self
+                                .types
+                                .watched_persist_types
+                                .contains(type_name.as_str())
+                            {
+                                return format!("{}()", Self::watch_fn_name(type_name));
+                            }
+                        }
+                    }
                     if let Some(def) = self.builtin_registry.get(name.as_str()) {
                         if args_str.len() == def.arity
                             && (!def.shadowable

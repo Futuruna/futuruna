@@ -6249,6 +6249,7 @@ impl Interpreter {
         env.set("sample".into(), Value::Builtin("sample".into()));
         // Subject + lifecycle builtins (M13)
         env.set("subject".into(), Value::Builtin("subject".into()));
+        env.set("watch".into(), Value::Builtin("watch".into()));
         env.set("as_stream".into(), Value::Builtin("as_stream".into()));
         env.set("complete".into(), Value::Builtin("complete".into()));
         env.set("error".into(), Value::Builtin("error".into()));
@@ -9377,6 +9378,11 @@ impl Interpreter {
                     (None, _) => Value::Subject(vec![]),
                 }
             }
+            "watch" => {
+                // The interpreter has no persisted change-feed runtime. Codegen
+                // lowers watch(Type) to a broadcast stream backed by TxGuard.
+                Value::Stream(vec![])
+            }
             "as_stream" => {
                 // as_stream(subject) → Stream — strips write access (Subject→Stream narrowing)
                 // In interpreter: converts Subject(items) to Stream(items)
@@ -11395,6 +11401,7 @@ impl TypeChecker {
             ("set_from_list", 1),
             // Stream
             ("from_list", 1),
+            ("watch", 1),
             ("scan", 3),
             ("merge", 2),
             ("take", 2),

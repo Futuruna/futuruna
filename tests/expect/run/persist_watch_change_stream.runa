@@ -1,0 +1,22 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: Asserted: Item(id: 1, name: Widget, qty: 10) matched=[]
+-- expect-stdout: Retracted: Item(id: 1, name: Widget, qty: 10) matched=["id"]
+-- roundtrip-skip: watch streams require the codegen async runtime
+
+# Item(id: Int, name: String, qty: Int)
+@ persist Item
+
+| scope Monitor {
+    ~ events = watch(Item)
+    ~ events | ev -> {
+        @ print(ev)
+    }
+}
+
+| scope Writer {
+    assert Item(1, "Widget", 10)
+    retract Item(1, _, _)
+}
+
+@ sleep(10)
