@@ -13092,46 +13092,31 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
     }
 }
 
-fn builtin_has_borrow_only_args(name: &str) -> bool {
-    matches!(
-        builtin_canonical(name),
-        "show"
-            | "length"
-            | "head"
-            | "tail"
-            | "nth"
-            | "contains"
-            | "starts_with"
-            | "ends_with"
-            | "string_length"
-            | "char_at"
-            | "substring"
-            | "split"
-            | "join"
-            | "trim"
-            | "replace"
-            | "to_upper"
-            | "to_lower"
-            | "index_of"
-            | "string_chars"
-            | "parse_int"
-            | "parse_float"
-            | "any"
-            | "all"
-            | "find"
-            | "count_by"
-            | "map_get"
-            | "map_get_or"
-            | "map_len"
-            | "map_keys"
-            | "map_values"
-            | "map_contains"
-            | "set_contains"
-            | "set_len"
-            | "set_to_list"
-            | "is_some"
-            | "is_none"
-    )
+fn builtin_arg_is_borrow_only(name: &str, arg_index: usize) -> bool {
+    match builtin_canonical(name) {
+        "show" | "length" | "head" | "tail" | "string_length" | "trim" | "to_upper"
+        | "to_lower" | "string_chars" | "parse_int" | "parse_float" | "map_len" | "map_keys"
+        | "map_values" | "map_entries" | "set_len" | "set_to_list" | "is_some" | "is_none"
+        | "sort" | "reverse" | "enumerate" | "distinct" | "sum_list" | "from_list" | "collect"
+        | "count" | "sum" | "last" | "first" | "pairwise" => arg_index == 0,
+
+        "nth" | "contains" | "starts_with" | "ends_with" | "char_at" | "index_of" | "split"
+        | "join" | "format_float" | "map_get" | "map_contains" | "map_remove" | "set_contains"
+        | "set_remove" | "take" | "skip" | "window" | "start_with" | "concat" | "zip" | "merge"
+        | "combine_latest" | "debounce" | "throttle" | "delay" | "buffer" | "timeout"
+        | "sample" => arg_index <= 1,
+
+        "substring" | "replace" | "map_get_or" | "map_insert" => arg_index <= 2,
+
+        "map" | "filter" | "foldl" | "sort_by" | "any" | "all" | "find" | "flat_map"
+        | "take_while" | "drop_while" | "count_by" | "partition" | "chunked" | "scan"
+        | "reduce" | "tap" | "switch_map" => arg_index == 0,
+
+        "map_merge" | "set_union" | "set_intersect" | "set_diff" => arg_index <= 1,
+        "set_insert" | "set_from_list" => arg_index == 0,
+
+        _ => false,
+    }
 }
 
 /// Count consuming uses with borrow-awareness: args to known-borrow-param functions
@@ -13164,10 +13149,10 @@ fn count_consuming_uses_borrow_aware_impl(
                 self_param_names,
                 ignore_self_passthrough,
             );
-            let is_borrow_builtin = matches!(
-                func.as_ref().kind,
-                ExprKind::Var(ref n) if builtin_has_borrow_only_args(n)
-            );
+            let builtin_name = match &func.as_ref().kind {
+                ExprKind::Var(n) => Some(n.as_str()),
+                _ => None,
+            };
             // Phase 3d: Check if this is a self-recursive call
             let is_self_recursive = if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                 self_fn_name == Some(fn_name.as_str())
@@ -13195,7 +13180,10 @@ fn count_consuming_uses_borrow_aware_impl(
                     } else {
                         false
                     };
-                if !is_borrow_builtin
+                let is_borrow_builtin_arg = builtin_name
+                    .map(|name| builtin_arg_is_borrow_only(name, idx))
+                    .unwrap_or(false);
+                if !is_borrow_builtin_arg
                     && !is_borrow_param
                     && !(ignore_self_passthrough && is_self_passthrough)
                 {
@@ -13687,10 +13675,10 @@ fn has_consuming_non_field_use(
             ) {
                 return true;
             }
-            let is_borrow_builtin = matches!(
-                func.as_ref().kind,
-                ExprKind::Var(ref n) if builtin_has_borrow_only_args(n)
-            );
+            let builtin_name = match &func.as_ref().kind {
+                ExprKind::Var(n) => Some(n.as_str()),
+                _ => None,
+            };
             // Phase 3d: self-recursive call detection
             let is_self_recursive = if let ExprKind::Var(fn_name) = &func.as_ref().kind {
                 self_fn_name == Some(fn_name.as_str())
@@ -13716,7 +13704,10 @@ fn has_consuming_non_field_use(
                     } else {
                         false
                     };
-                if !is_borrow_builtin && !is_borrow_param && !is_self_passthrough {
+                let is_borrow_builtin_arg = builtin_name
+                    .map(|name| builtin_arg_is_borrow_only(name, idx))
+                    .unwrap_or(false);
+                if !is_borrow_builtin_arg && !is_borrow_param && !is_self_passthrough {
                     if let ExprKind::Var(name) = &a.kind {
                         if name == param {
                             return true;
@@ -17292,6 +17283,17 @@ impl RustCodegen {
     }
     /// Pass 2: Compute borrow-only parameter flags for all functions.
     /// Iterates to fixed point so transitive borrow info propagates.
+    fn constrain_wasm_export_borrow_flags(&self, name: &str, params: &[Param], flags: &mut [bool]) {
+        if !(self.wasm_mode && self.types.exported_names.contains(name)) {
+            return;
+        }
+        for (idx, p) in params.iter().enumerate() {
+            if !matches!(p.ty.as_ref(), Some(Ty::Name(n)) if n == "String") {
+                flags[idx] = false;
+            }
+        }
+    }
+
     fn compute_borrow_flags(&mut self, fn_stmts: &[&Stmt]) {
         for _round in 0..8 {
             let prev_count = self.borrow_only_params.len();
@@ -17311,6 +17313,7 @@ impl RustCodegen {
                         &self.borrow_only_params,
                         Some(name.as_str()),
                     );
+                    self.constrain_wasm_export_borrow_flags(name, params, &mut borrow_flags);
                     // Disable ref-match for types with boxed (recursive) fields
                     {
                         let mut matched_vars: BTreeSet<String> = BTreeSet::new();
@@ -17359,6 +17362,8 @@ impl RustCodegen {
                     }
                     if borrow_flags.iter().any(|f| *f) {
                         self.borrow_only_params.insert(name.clone(), borrow_flags);
+                    } else {
+                        self.borrow_only_params.remove(name);
                     }
                     // Also pre-register inout params
                     let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
@@ -22720,7 +22725,9 @@ impl RustCodegen {
                 // Use pre-pass results if available (fixed-point borrow analysis ran earlier),
                 // otherwise compute fresh.
                 let borrow_flags = if let Some(pre) = self.borrow_only_params.get(name) {
-                    pre.clone()
+                    let mut flags = pre.clone();
+                    self.constrain_wasm_export_borrow_flags(name, params, &mut flags);
+                    flags
                 } else {
                     let mut flags = analyze_borrow_only_params_named(
                         params,
@@ -22729,6 +22736,7 @@ impl RustCodegen {
                         &self.borrow_only_params,
                         Some(name.as_str()),
                     );
+                    self.constrain_wasm_export_borrow_flags(name, params, &mut flags);
                     // Phase 3b safety: disable ref-match for types with boxed (recursive) fields.
                     // Matching on &T can't dereference Box<T> fields — they'd be &Box<T>.
                     {
@@ -36868,6 +36876,99 @@ retract Item(_, _, _)
     }
 
     #[test]
+    fn legacy_emit_program_borrows_collection_helper_inputs_precisely() {
+        let source = r#"
+> reverse_words(words: List(String)) -> List(String) { reverse(words) }
+> concat_words(left: List(String), right: List(String)) -> List(String) { concat(left, right) }
+> uppercase_words(words: List(String)) -> List(String) { map(words, to_upper) }
+> keep_b_words(words: List(String)) -> List(String) { filter(words, |word| starts_with(word, "b")) }
+= words = ["alpha", "beta", "bravo"]
+= reversed = reverse_words(words)
+= combined = concat_words(words, reversed)
+= upper = uppercase_words(words)
+= kept = keep_b_words(words)
+@ print(show(words))
+@ print(show(combined))
+@ print(show(upper))
+@ print(show(kept))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn reverse_words(words: &Vec<String>) -> Vec<String> {"),
+            "reverse should allow wrapper functions to borrow collection inputs: {}",
+            rust
+        );
+        assert!(
+            rust.contains(
+                "fn concat_words(left: &Vec<String>, right: &Vec<String>) -> Vec<String> {"
+            ),
+            "concat should allow wrapper functions to borrow both collection inputs: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn uppercase_words(words: &Vec<String>) -> Vec<String> {"),
+            "map should allow wrapper functions to borrow the collection input: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn keep_b_words(words: &Vec<String>) -> Vec<String> {"),
+            "filter should allow wrapper functions to borrow the collection input: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let reversed = reverse_words(&words);"),
+            "reused collection values should be borrowed at reverse helper call sites: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let combined = concat_words(&words, &reversed);"),
+            "concat helper call sites should borrow both reusable inputs: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let upper = uppercase_words(&words);"),
+            "map helper call sites should borrow reusable inputs: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let kept = keep_b_words(&words);"),
+            "filter helper call sites should borrow reusable inputs: {}",
+            rust
+        );
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(
+            output,
+            "[alpha, beta, bravo]\n[alpha, beta, bravo, bravo, beta, alpha]\n[ALPHA, BETA, BRAVO]\n[beta, bravo]\n"
+        );
+    }
+
+    #[test]
+    fn legacy_emit_program_clones_reused_string_local_returned_from_if_branch() {
+        let source = r#"
+= predicted = "mint"
+= regret = 1.0
+= before_phase = if string_length(predicted) > 0 { "Solid" } else { "Gas" }
+= after_phase = if regret > 0.0 { "Liquid" } else { before_phase }
+= passed = if before_phase == "Solid" && after_phase == "Liquid" { 1 } else { 0 }
+@ print(show(passed))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains(
+                "let after_phase = if (regret > 0.0) { \"Liquid\".to_string() } else { before_phase.clone() };"
+            ),
+            "if branch returning a reused String local should clone it: {}",
+            rust
+        );
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output, "1\n");
+    }
+
+    #[test]
     fn legacy_emit_async_scan_lambda_seeds_ignored_item_type() {
         let source = r#"
 ~ routes = subject()
@@ -37719,6 +37820,49 @@ routes <- "b"
         assert!(
             rust.contains("normalize_name(name)"),
             "expected exported &str param to pass through helper chain without clone workaround, got:\n{}",
+            rust
+        );
+    }
+
+    #[test]
+    fn wasm_exported_list_params_stay_owned_at_bindgen_boundary() {
+        let rust = emit_wasm_program(
+            r#"
+> score_total(scores: List(Int)) -> Int { foldl(scores, 0, |acc, score| acc + score) }
+
+@ export
+> wasm_is_passing(scores: List(Int), threshold: Int) -> Bool {
+    score_total(scores) >= threshold
+}
+
+> wasm_shift_scores(scores: List(Int), delta: Int) -> List(Int) {
+    map(scores, |score| score + delta)
+}
+@ export wasm_shift_scores
+"#,
+        );
+        assert!(
+            rust.contains("fn score_total(scores: &Vec<i64>) -> i64"),
+            "private read-only list helper should still borrow: {}",
+            rust
+        );
+        assert!(
+            rust.contains(
+                "#[wasm_bindgen]\npub fn wasm_is_passing(scores: Vec<i64>, threshold: i64) -> bool"
+            ),
+            "WASM exported list params must stay owned for wasm-bindgen: {}",
+            rust
+        );
+        assert!(
+            rust.contains(
+                "#[wasm_bindgen]\npub fn wasm_shift_scores(scores: Vec<i64>, delta: i64) -> Vec<i64>"
+            ),
+            "WASM exported list-to-list params must stay owned for wasm-bindgen: {}",
+            rust
+        );
+        assert!(
+            rust.contains("score_total(&scores)"),
+            "owned WASM export params should still borrow when calling private helpers: {}",
             rust
         );
     }
