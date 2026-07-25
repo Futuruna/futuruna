@@ -30448,6 +30448,23 @@ impl RustCodegen {
     /// Determine which functions are pure (no side effects).
     /// A function is pure if: no effect ops, no @ print calls in the body,
     /// and all called functions are also pure. Iterates to fixed point.
+    fn collect_stream_binding_names(stmts: &[Stmt], names: &mut BTreeSet<String>) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::StreamBind(name, _) => {
+                    names.insert(name.clone());
+                }
+                Stmt::Defn(Defn::Module { body, .. }) | Stmt::Rule(Rule::Scope { body, .. }) => {
+                    Self::collect_stream_binding_names(body, names);
+                }
+                Stmt::For(_, _, body) | Stmt::While(_, body) => {
+                    Self::collect_stream_binding_names(body, names);
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn find_pure_functions(
         stmts: &[Stmt],
         effect_ops: &BTreeMap<String, BTreeSet<String>>,
@@ -30470,6 +30487,8 @@ impl RustCodegen {
                 all_effect_ops.insert(name.clone());
             }
         }
+        let mut stream_bindings = BTreeSet::new();
+        Self::collect_stream_binding_names(stmts, &mut stream_bindings);
 
         for stmt in stmts {
             if let Stmt::Defn(Defn::Fn {
@@ -30493,6 +30512,11 @@ impl RustCodegen {
             let mut calls = Vec::new();
             let mut is_impure = false;
             Self::check_purity(body, &all_effect_ops, &mut calls, &mut is_impure);
+            let mut free = BTreeSet::new();
+            collect_true_free_vars(body, &mut free, &BTreeSet::new());
+            if free.iter().any(|name| stream_bindings.contains(name)) {
+                is_impure = true;
+            }
             if is_impure {
                 pure.remove(fn_name);
             }
@@ -30552,6 +30576,25 @@ impl RustCodegen {
                         }
                         Stmt::Annot(name, _) if name == "print" => {
                             *impure = true;
+                        }
+                        Stmt::StreamBind(_, e) => {
+                            *impure = true;
+                            Self::check_purity(e, effect_ops, calls, impure);
+                        }
+                        Stmt::StreamSub(e, arms) => {
+                            *impure = true;
+                            Self::check_purity(e, effect_ops, calls, impure);
+                            for arm in arms {
+                                if let Some(guard) = &arm.guard {
+                                    Self::check_purity(guard, effect_ops, calls, impure);
+                                }
+                                Self::check_purity(&arm.body, effect_ops, calls, impure);
+                            }
+                        }
+                        Stmt::Send(target, msg) => {
+                            *impure = true;
+                            Self::check_purity(target, effect_ops, calls, impure);
+                            Self::check_purity(msg, effect_ops, calls, impure);
                         }
                         Stmt::For(_, iter_e, body) => {
                             Self::check_purity(iter_e, effect_ops, calls, impure);
@@ -37051,6 +37094,34 @@ for x in [1, 2] {
             "~ readings = subject(\"boot\")\n> latest_reading() -> String { readings.latest }\n> reading_count() -> Int { readings.count }\nreadings <- \"ingest\"\nreadings <- \"score\"\n@ print(latest_reading())\n@ print(show(reading_count()))\n",
         );
         assert_eq!(output, "score\n3\n");
+    }
+
+    #[test]
+    fn legacy_emit_program_skips_auto_comptime_for_stream_dependent_helpers() {
+        let source = r#"
+~ readings = subject("boot")
+> latest_reading() -> String { readings.latest }
+> reading_count() -> Int { readings.count }
+> render_snapshot() -> String {
+    "count=" + show(reading_count()) + "|latest=" + latest_reading()
+}
+readings <- "score"
+= snapshot = render_snapshot()
+= snapshot_ok = snapshot == "count=2|latest=score"
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("let snapshot = render_snapshot("),
+            "stream-dependent helper calls should remain runtime calls: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("let snapshot = \"count=()|latest=()\".to_string(); // @ comptime")
+                && !rust.contains("let snapshot_ok = false; // @ comptime"),
+            "auto-comptime must not fold stream-dependent helpers through placeholder Unit values: {}",
+            rust
+        );
     }
 
     #[test]
