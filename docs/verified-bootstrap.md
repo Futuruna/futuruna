@@ -88,8 +88,9 @@ proof-elaboration boundary.
 
 - Keep strengthening computation-lemma validation so generated proof facts stay
   tied to the source functions they claim to describe.
-- Audit the proof-kernel trusted-core surface so the implementation remains
-  reviewable and the documented trust boundary stays honest.
+- Keep the proof-kernel trusted-boundary audit in
+  [proof-kernel.md](proof-kernel.md) current whenever rules, primitive axioms,
+  or metadata-sensitive checking grow.
 - Keep extending the verified core only when the next compiler slice requires a
   concrete semantic feature.
 - Document, stage by stage, which compiler responsibilities have moved out of

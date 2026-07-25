@@ -6,7 +6,9 @@
 //! language promises about "proved" invariants rests on this file being
 //! correct. It is therefore treated like cryptographic code:
 //!
-//!   1. **Small.** Target under 800 LoC total. If it grows past that, cut.
+//!   1. **Small.** The trusted implementation is the non-test code in this
+//!      module. The current audited budget is documented in
+//!      `docs/proof-kernel.md`; tests are outside the trusted boundary.
 //!   2. **Closed.** No I/O, no globals, no mutable state outside the `Ctx`
 //!      passed to `check`. Only depends on `std`.
 //!   3. **Decidable.** Every rule terminates on well-formed input. No
@@ -25,6 +27,14 @@
 //! IND.
 //! Built-in axioms: a conservative subset of the v1 design doc, with the
 //! remainder landing in phase 2.
+//!
+//! ## Trusted boundary
+//!
+//! The trusted boundary includes the public syntax datatypes, `Ctx` metadata,
+//! the primitive axiom table and special axiom dispatch, unification,
+//! substitution/rewrite/synthesis support, and `check` with its CASES/IND/APPLY
+//! helpers. The `#[cfg(test)]` module, parser/elaboration code, computation
+//! lemma generation, and SMT fallback are not part of this kernel boundary.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;

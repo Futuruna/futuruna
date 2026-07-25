@@ -55,7 +55,7 @@ On the language side, the recent focus has been semantic parity and determinism:
 
 On the proof side, Futuruna has a real kernel-backed verification story, but only in stage 1 form:
 
-- explicit proof terms are checked by a small kernel in `src/proof_kernel.rs`
+- explicit proof terms are checked by the audited kernel in `src/proof_kernel.rs`
 - `cases`, `induction_on`, `apply`, and `rewrite` are real kernel features
 - Futuruna can already host tiny semantics-preservation proofs for toy compiler slices
 
@@ -81,12 +81,16 @@ This is why the mint, canary, differential, and snapshot lanes matter so much. T
 
 ### Trusted proof core
 
-The small trusted proof core is:
+The audited trusted proof core is:
 
 - `src/proof_kernel.rs`
 - the primitive hard-coded axiom table recognized by the kernel
 
-That core checks proof terms. It does not inspect arbitrary Futuruna code and infer truth by itself.
+That core checks proof terms. Its current trusted boundary is documented in
+[proof-kernel.md](proof-kernel.md): syntax datatypes, `Ctx` metadata,
+primitive axioms, unification/rewrite/synthesis, and the `check`/`apply`/
+`cases`/`induction` judgment code are inside; tests and compiler elaboration are
+outside. It does not inspect arbitrary Futuruna code and infer truth by itself.
 
 ### Trusted proof-elaboration pipeline
 

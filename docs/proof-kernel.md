@@ -1,9 +1,63 @@
 # Proof Kernel — Design Spec
 
-**Status:** Design (futuruna-75j). Blocks impl (futuruna-gfl) and parser (futuruna-rpr).
+**Status:** Implemented and audited for trusted-boundary size (`td-f8f162`).
 **Target:** The trusted core of the Curry-Howard verification layer for the `?` rune.
 
 ---
+
+## 0. Current Audit Decision
+
+The original design budget expected a roughly 540 LoC trusted core with an
+800 LoC hard ceiling. That is no longer an honest description of the shipped
+implementation. `src/proof_kernel.rs` now includes metadata-aware `cases` and
+`induction_on`, local schemas, rewrite synthesis, axiom dispatch, and the
+kernel-facing constructor metadata that those rules need.
+
+The decision for this audit is:
+
+- Keep `cases` and `induction_on` inside the proof-kernel trusted boundary.
+  They are judgment rules, not external scaffolding.
+- Keep constructor-family, field-family, and recursive-field metadata in `Ctx`
+  inside the trusted boundary. A wrong metadata interpretation can make the
+  kernel accept a wrong branch split or induction hypothesis.
+- Keep tests outside the trusted boundary, even though they live in the same
+  Rust file today under `#[cfg(test)]`.
+- Keep parser lowering, theorem construction, computation-lemma generation,
+  local-lemma registry seeding, and SMT fallback outside the kernel boundary.
+  They remain trusted proof-elaboration pipeline code, documented separately in
+  [verified-bootstrap.md](verified-bootstrap.md).
+- Do not refactor the file merely to satisfy the old line budget. Instead,
+  freeze the trusted surface explicitly and require any new rule form, primitive
+  axiom family, or growth beyond this audited size to come with a boundary
+  update or a split.
+
+Measured at the audit point:
+
+| Surface | Lines |
+| --- | ---: |
+| `src/proof_kernel.rs` total | 2,228 |
+| Trusted implementation before `#[cfg(test)]` | 1,572 |
+| Trusted implementation, nonblank/noncomment approximation | 1,233 |
+| Tests under `#[cfg(test)]` | 656 |
+
+The new review budget is therefore not "under 800 LoC total." The current
+target is to keep the trusted implementation at roughly this size: about
+1,600 pre-test lines or 1,300 nonblank/noncomment lines. If the kernel crosses
+that by more than small maintenance drift, the next change must either split
+support code away from `check`, reduce rule surface, or update this document
+with a new explicit trust argument.
+
+The code that remains inside the trusted boundary is:
+
+- `Term`, `Prop`, `ProofTerm`, `IndArm`, `CaseArm`, `Schema`, `Hyp`, and `Ctx`.
+- `Registry::with_builtins`, `Registry::register`, and built-in/special axiom
+  dispatch in `check_apply`.
+- first-order unification, occurs checking, substitution, schema freshening,
+  rewrite, synthesis, and goal-subterm collection.
+- `check`, `check_apply`, `check_cases`, and `check_induction`.
+
+Everything else that prepares inputs for the kernel is trusted pipeline code,
+not the small kernel itself.
 
 ## 1. Purpose
 
@@ -27,7 +81,9 @@ fn check(term: &ProofTerm, prop: &Prop, ctx: &Ctx) -> Result<(), ProofError>
 
 ## 2. Design Principles
 
-1. **Small.** Target ~500 LoC of Rust. If the core grows past 800, we have scope-crept and must cut.
+1. **Small.** Keep the audited trusted implementation near the measured budget
+   in Section 0. The old ~500 LoC estimate and 800 LoC hard ceiling were design
+   estimates, not the current implementation contract.
 2. **Closed.** No dependencies on the rest of the compiler beyond shared AST types for expressions that appear inside propositions. No I/O, no globals, no mutable state outside the `Ctx` passed to `check`.
 3. **Decidable.** Every rule terminates on well-formed input. No unbounded unfolding, no unrestricted fixpoints.
 4. **Axioms are named, not inspected.** `int_ring.comm_add` is a string the kernel recognizes. The kernel does **not** look inside `std/prove.runa` to verify axiom bodies. The primitive axiom set *is* the trust boundary.
@@ -275,19 +331,44 @@ That is the *only* form of inference the kernel performs. Everything else is syn
 
 ## 9. Size Budget
 
-| Component                                    | LoC estimate |
-| --------------------------------------------- | -----------: |
-| `Prop` + `Term` enums, display, equality      |           80 |
-| `Ctx` (ordered hypothesis list) + lookup      |           40 |
-| `check` dispatch + one branch per rule        |          220 |
-| First-order unification                       |           80 |
-| Goal-rewriting (substitution inside `Prop`)   |           60 |
-| Axiom registry (hard-coded table)             |           60 |
-| **Total trusted core**                        |      **540** |
-| Computation-lemma generator pass (outside kernel) |       100 |
-| Tests (not counted against trust budget)      |          200 |
+This section supersedes the original estimate. The old table said the trusted
+core would land around 540 LoC and stay under an 800 LoC hard ceiling. The
+actual implementation is larger because `cases`, `induction_on`, local schemas,
+schema freshening, and metadata-aware branch contexts are implemented in the
+kernel rather than left as parser-only sugar.
 
-The trusted core grew from 460 → 540 LoC after the Section 5 revisions (added `rewrite` rule + substitution machinery). Still comfortably under the 800-LoC hard ceiling. If the trusted core lands in this budget, it is small enough for one person to audit in one sitting. That is the entire point.
+Current implementation budget:
+
+| Component | Boundary | Audit note |
+| --- | --- | --- |
+| `Term`, `Prop`, proof-term datatypes, displays | Trusted kernel | Defines the language the kernel accepts. |
+| `Ctx` and constructor metadata | Trusted kernel | Required for sound `cases` and `induction_on`; wrong metadata can make a bad proof pass. |
+| Hard-coded primitive axiom table | Trusted kernel | Primitive trust boundary by name. |
+| Special axiom dispatch in `check_apply` | Trusted kernel | Handles proposition-valued axioms and concrete literal order checks. |
+| Unification, occurs check, substitution, freshening | Trusted kernel | Determines whether an axiom/schema really matches the goal. |
+| Rewrite and synthesis support | Trusted kernel | Determines the intermediate theorem used by `rewrite`. |
+| `check`, `check_apply`, `check_cases`, `check_induction` | Trusted kernel | The judgment rules themselves. |
+| Unit tests in `#[cfg(test)]` | Outside kernel | Essential evidence, not trusted by a released proof. |
+| Proof parsing and elaboration in `src/lib.rs` / `src/bin/runa.rs` | Outside kernel, trusted pipeline | Builds the proposition and context passed to the kernel. |
+| Computation-lemma generation | Outside kernel, trusted pipeline | Generates schemas the kernel then trusts as registry entries. |
+| Z3 fallback | Outside kernel | Automation only; not part of the closed proof-kernel trust story. |
+
+The audit count at `td-f8f162` is 1,572 pre-test lines in
+`src/proof_kernel.rs`, with about 1,233 nonblank/noncomment implementation
+lines. Tests add 656 lines and are explicitly excluded from the trusted budget.
+
+The current target is to keep the trusted implementation near this audited
+size. A future change must update this section before it:
+
+- adds a new proof-term rule form,
+- adds a new primitive axiom family,
+- moves elaboration or solver behavior into the kernel, or
+- grows the pre-test implementation materially beyond about 1,600 lines.
+
+If the next proof feature needs that much growth, prefer splitting the kernel
+into explicit modules such as syntax, registry, unification, and checking while
+keeping the same trust-boundary list above. A split is organizational; it does
+not by itself reduce the trusted boundary.
 
 ## 10. Out of Scope for v1
 
@@ -304,12 +385,22 @@ The trusted core grew from 460 → 540 LoC after the Section 5 revisions (added 
 
 Any `?` invariant outside this scope still works — it falls through to Z3 exactly as today. The kernel is a *strict upgrade* over the current `runa verify`, never a regression.
 
-## 11. Open Questions (to close before futuruna-gfl starts)
+## 11. Historical Open Questions, Now Resolved
 
-1. **How does the parser distinguish proof mode from value mode inside `|` arms?** Proposed answer: the parser tracks a boolean `in_proof_block` that is set when it enters `? ... by { ... }` and toggles term construction. Needs confirmation that the existing arm parser can be reused this way without a fork.
-2. **Do we canonicalize expressions inside propositions (sort commutative operands, etc.) before unification?** Proposed answer: no, v1 is syntactic. If `a + b == b + a` is stated directly, the user must close it with `int_ring.comm_add`. No implicit rewriting. This is annoying but it keeps the kernel honest.
-3. **Where does the axiom registry live — hard-coded Rust or loaded from `std/prove.runa`?** Proposed answer: hard-coded Rust. `std/prove.runa` declares the axioms for the user surface (so `apply` references resolve), but the kernel has its own internal table and treats `std/prove.runa` as documentation of the trust boundary, not as a source of truth. This keeps the kernel closed.
-4. **What happens when the Pattern in `forall Pattern. P` is a tuple or constructor pattern?** Proposed answer: v1 supports variable patterns only. Tuples and constructors in the head force an implicit `cases` split at the outermost rule, which we defer.
+1. **How does the parser distinguish proof mode from value mode inside `|` arms?**
+   Proof terms are parsed through the explicit proof-term parser used by
+   `? ... by { ... }`, not by evaluating ordinary Futuruna expressions as
+   proofs.
+2. **Do we canonicalize expressions inside propositions?** No. The current
+   kernel remains syntactic. Commutativity, associativity, and similar facts
+   must be invoked through explicit axioms or proved lemmas.
+3. **Where does the axiom registry live?** Primitive axioms live in the
+   hard-coded Rust registry. Checked local schemas can be registered alongside
+   them, but they do not become primitive trust.
+4. **What happens for tuple or constructor patterns?** The kernel does not
+   silently introduce an implicit split for arbitrary pattern heads. Explicit
+   `cases` and `induction_on` are supported when the trusted proof context has
+   constructor-family metadata.
 
 ## 12. Acceptance Criteria
 
@@ -319,15 +410,22 @@ This spec is **done** when:
 - [x] Section 5 (judgment rules) has one rule per term form and no hand-waving. *(Revised during walkthrough: added REWRITE, removed LEMMA, clarified APPLY + IND.)*
 - [x] Section 7 (axiom list) has every primitive named with its type schema.
 - [x] A pen-and-paper proof of `add_comm` and `length_nonneg` using only the listed axioms and rules has been walked through end-to-end. *(See Appendix A. The walkthrough forced three design changes: `rewrite` term form, computation-lemma pass, kernel sees open body not ∀-closed.)*
-- [ ] The four open questions in Section 11 have agreed answers.
+- [x] The four historical open questions in Section 11 have agreed answers.
+- [x] The trusted-boundary size/surface audit states which code remains inside
+  the proof-kernel trust boundary.
 
-4/5 boxes checked. The only remaining gate is user sign-off on the four open questions, after which futuruna-75j closes and futuruna-gfl (kernel impl) unblocks.
+The original design gates are now closed. Future acceptance is governed by the
+audit policy in Section 0: update the boundary and size budget before adding
+new rule forms, primitive axiom families, or material kernel growth.
 
 ---
 
 ## Appendix A. Walked Proofs
 
-These two proofs are the design's ground truth. Every one of the eight judgment rules, the axiom set, and the computation-lemma pass has to cooperate to close them. If any step can't be justified by the rules in Section 5, the design has a hole and must be revised before `futuruna-gfl` starts.
+These two proofs are the design's ground truth. Every judgment rule, the axiom
+set, and the computation-lemma pass has to cooperate to close them. If any step
+can't be justified by the rules in Section 5, the design has a hole and must be
+revised before expanding the kernel.
 
 ### A.1. `add_comm`
 
