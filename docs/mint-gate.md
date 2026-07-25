@@ -39,6 +39,8 @@ These lanes are the core mint contract because they cover:
   `Option`, and `Result`, plus an offline Cargo consumer for external-crate
   integration through `@ depend`, `@ use`, and regex-backed generated Rust, plus
   a downstream Cargo package consuming generated `src/lib.rs` by path dependency
+  and an intentional missing-dependency consumer that proves dependency guidance
+  appears in generated source/stderr
 - interpreted Futuruna execution
 - compiled Futuruna execution
 - compiletest-style diagnostic, run/fail, and phase expectations

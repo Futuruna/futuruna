@@ -176,6 +176,20 @@ Stable package layouts:
 `runa lib` mode, Futuruna emits source only; the consuming Cargo package owns
 its `Cargo.toml` and must provide matching dependency entries.
 
+When `runa lib` sees required Cargo dependencies, it prints a Cargo.toml-ready
+dependency list to stderr and writes the same guidance into the generated Rust
+header:
+
+```rust
+// Required Cargo dependencies for consumers:
+//   regex = "1"
+// Add these entries to the consuming Cargo.toml [dependencies].
+```
+
+If a Rust consumer omits one of those entries, Cargo will fail while compiling
+the generated source. Treat that as a consumer package setup issue: copy the
+listed entries into the consuming crate's `[dependencies]`.
+
 Blocking evidence:
 
 - `tests/expect/artifact/lib_export_contract.runa` snapshots the public/private
@@ -192,6 +206,9 @@ Blocking evidence:
 - the same canary also places generated output at `src/lib.rs` in a user-owned
   Cargo library crate and compiles a separate downstream Cargo package that
   depends on that generated library by path
+- the same canary intentionally builds a Cargo consumer without the required
+  `regex` dependency and verifies the generated source and `runa lib` stderr
+  carried actionable dependency guidance before Cargo reports the missing crate
 
 Outside the stable contract:
 

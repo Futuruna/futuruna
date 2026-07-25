@@ -96,7 +96,9 @@ contract is not just "generated Rust compiles"; it is that an ordinary Rust
 consumer can compile the `runa lib` output and call the exported API, including
 the case where generated code relies on external Cargo dependencies and the
 case where generated output is packaged as `src/lib.rs` in a downstream
-Cargo dependency.
+Cargo dependency. The same lane also covers the missing-dependency setup error:
+generated source and `runa lib` stderr must list required Cargo.toml entries
+before an intentionally incomplete consumer fails to compile.
 
 See [docs/canary-matrix.md](canary-matrix.md) for the current coverage map and
 the planned build-out.

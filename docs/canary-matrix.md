@@ -43,7 +43,7 @@ Target shape:
 | `tests/canary/extended/import_mesh_test.runa` | `extended` | transitive flat imports, qualified imports, content-addressed imports, deterministic cross-module summaries |
 | `tests/canary/extended/wasm_export_surface_test.runa` | `extended` | WASM-facing exported primitive/string/list-numeric/option functions, private helpers, zero-arg exports |
 | `tests/canary/interop/rust_consumer_lib.runa` | `interop` | `runa lib` output consumed from plain Rust via `rustc`, exported structs/enums/functions, borrowed params, lists, `Option`, `Result` |
-| `tests/canary/interop/rust_consumer_external_crate_lib.runa` | `interop` | `runa lib` output consumed from an offline Cargo project with `@ depend`, `@ use`, raw Rust helpers, regex-backed stdlib codegen, exported APIs, and `src/lib.rs` package layout through a downstream path dependency |
+| `tests/canary/interop/rust_consumer_external_crate_lib.runa` | `interop` | `runa lib` output consumed from an offline Cargo project with `@ depend`, `@ use`, raw Rust helpers, regex-backed stdlib codegen, exported APIs, `src/lib.rs` package layout through a downstream path dependency, and missing-dependency guidance in generated source/stderr |
 | `tests/canary/storage/persist_tx_commit_savepoint_test.runa` | `storage` | compiled persisted transaction commit plus nested savepoint release |
 | `tests/canary/storage/persist_tx_rollback_fail_test.runa` | `storage` | intentionally failing transactional scope used to prove rollback through a follow-up fixture |
 | `tests/canary/storage/persist_tx_rollback_check_test.runa` | `storage` | compiled persisted readback proving rollback left only the committed baseline row |
