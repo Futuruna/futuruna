@@ -226,10 +226,13 @@ classification model reviewers should apply when reading those changes.
 
 ## 7. What This Policy Does Not Yet Automate
 
-This policy is a contract first. Some enforcement still needs follow-up work:
+This policy is a contract first. Tooling now provides a lightweight prompt for
+stable-surface changes, but some enforcement still needs follow-up work:
 
 - feature stability metadata is not yet surfaced consistently in tooling/docs
-- compatibility guide updates are still enforced by review discipline, not by automated tooling
+- pull request CI runs `scripts/compatibility-guide-check.sh`, which requires
+  tracked stable-surface file changes to update a versioned compatibility guide
+  or fill the PR template reason for why no guide entry is needed
 - artifact compatibility is documented in
   [docs/artifact-codegen-contracts.md](artifact-codegen-contracts.md), but
   only a small initial artifact fixture set exists

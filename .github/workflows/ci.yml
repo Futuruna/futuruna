@@ -56,6 +56,21 @@ jobs:
           components: rustfmt
       - run: cargo fmt --check
 
+  compatibility-guide:
+    name: Compatibility guide
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Stable-surface compatibility prompt
+        env:
+          FUTURUNA_COMPAT_BASE: ${{ github.event.pull_request.base.sha }}
+          FUTURUNA_COMPAT_HEAD: HEAD
+        run: ./scripts/compatibility-guide-check.sh --base "$FUTURUNA_COMPAT_BASE" --head "$FUTURUNA_COMPAT_HEAD"
+
   differential:
     name: Differential
     runs-on: ubuntu-latest

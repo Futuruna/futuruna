@@ -74,6 +74,19 @@ When a stable surface changes:
 
 If no guide update is needed, the PR should say why.
 
+Pull request CI runs:
+
+```bash
+./scripts/compatibility-guide-check.sh
+```
+
+The check is path-based. When it sees a tracked stable-surface file change, it
+passes if the change updates a versioned guide such as
+`docs/compatibility-guides/0.1.x.md` or if the PR template field
+`Compatibility guide entry (or reason none was needed):` contains a concrete
+reason. For local dry runs without a PR body, set
+`FUTURUNA_COMPATIBILITY_GUIDE_REASON`.
+
 ## Current Guide
 
 - [0.1.x.md](0.1.x.md)

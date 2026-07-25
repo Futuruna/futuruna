@@ -7,6 +7,7 @@
 
 Changed contract:
 
+The compatibility-guide CI job reads the next field for stable-surface changes.
 Compatibility guide entry (or reason none was needed):
 
 Permanent coverage added:
