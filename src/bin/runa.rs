@@ -25763,6 +25763,23 @@ impl RustCodegen {
         }
     }
 
+    fn tuple_field_index(field: &str) -> Option<usize> {
+        match field {
+            "fst" | "0" => Some(0),
+            "snd" | "1" => Some(1),
+            "trd" | "2" => Some(2),
+            _ => field.parse::<usize>().ok(),
+        }
+    }
+
+    fn tuple_field_ty(&self, obj: &Expr, field: &str) -> Option<(usize, FirTy)> {
+        let idx = Self::tuple_field_index(field)?;
+        match self.infer_expr_fir_ty(obj) {
+            FirTy::Tuple(elems) => elems.get(idx).cloned().map(|ty| (idx, ty)),
+            _ => None,
+        }
+    }
+
     fn lambda_free_var_is_runtime_capture(&self, name: &str) -> bool {
         !self.types.user_functions.contains(name)
             && !self.builtin_registry.contains_key(name)
@@ -28677,6 +28694,15 @@ impl RustCodegen {
                         return format!("{}::{}()", path, sanitize_name(field));
                     }
                     return format!("{}::{}", path, sanitize_name(field));
+                }
+                if let Some((idx, field_ty)) = self.tuple_field_ty(obj, field) {
+                    let obj_str = self.emit_expr(obj);
+                    let clone_suffix = if Self::fir_ty_is_copy(&field_ty) {
+                        ""
+                    } else {
+                        ".clone()"
+                    };
+                    return format!("{}.{}{}", obj_str, idx, clone_suffix);
                 }
                 // Struct direct field access: check if the OBJECT's type is a struct
                 // by looking up the variable's type from params or bindings.
@@ -36966,6 +36992,32 @@ retract Item(_, _, _)
 
         let output = compile_and_run_test_program(source);
         assert_eq!(output, "1\n");
+    }
+
+    #[test]
+    fn legacy_emit_program_clones_reused_string_tuple_field() {
+        let source = r#"
+= triple = ("left", "middle", "right")
+= third = triple.2
+= ok = triple.2 == "right" && third == "right"
+@ print(show(ok))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            !rust.contains("let third = triple.2;"),
+            "binding a String tuple field should clone instead of moving from the tuple: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let third = triple.2.clone();")
+                || rust.contains("let third = triple.clone().2"),
+            "binding a String tuple field should preserve the original tuple value: {}",
+            rust
+        );
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output, "true\n");
     }
 
     #[test]

@@ -2462,6 +2462,18 @@ impl Parser {
         }
     }
 
+    pub fn expect_field_name(&mut self) -> Result<String, String> {
+        let tok = self.advance();
+        match tok.kind {
+            TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW => Ok(tok.text),
+            TokenKind::Int_ => Ok(tok.text),
+            _ => Err(format!(
+                "{}:{}: expected a field name or tuple index, got `{}`",
+                tok.line, tok.col, tok.text
+            )),
+        }
+    }
+
     /// Parse a qualified name like `fmt::Display` or `std::ops::Add`.
     /// Returns the full path string.
     pub fn parse_qualified_name(&mut self) -> Result<String, String> {
@@ -4717,7 +4729,7 @@ impl Parser {
                 // Safe call: expr?.field → match expr { Some(v) -> Some(v.field), None -> None }
                 TokenKind::SafeCall => {
                     self.advance(); // consume '?.'
-                    let field = self.expect_ident()?;
+                    let field = self.expect_field_name()?;
                     let v = format!("__safe_{}", field);
                     lhs = ExprKind::Match(
                         Box::new(lhs),
@@ -4771,7 +4783,7 @@ impl Parser {
                 TokenKind::Dot => {
                     let start_span = lhs.span;
                     self.advance();
-                    let field = self.expect_ident()?;
+                    let field = self.expect_field_name()?;
                     let span =
                         start_span.merge(self.span_since(&self.tokens[self.pos - 1].clone()));
                     lhs = Expr::new(ExprKind::Field(Box::new(lhs), field), span);

@@ -7,6 +7,9 @@
 = triple = ("left", "middle", "right")
 = nums = [11, 22, 33]
 = pair = head(enumerate(["north", "south"]))
+= numeric_third = triple.2
+= numeric_pair_idx = pair.0
+= numeric_pair_value = pair.1
 
 = sub_head = substring(phrase, 0 - 5, 3)
 | substring_clamps_start: sub_head -> sub_head == "the"
@@ -35,8 +38,14 @@
 | tuple_field_ok: triple.trd -> triple.trd == "right"
 ? tuple_field_ok
 
+| tuple_numeric_field_ok: numeric_third -> numeric_third == "right"
+? tuple_numeric_field_ok
+
 | tuple_first_pair_ok: pair -> pair.fst == 0 && pair.snd == "north"
 ? tuple_first_pair_ok
+
+| tuple_numeric_pair_ok: numeric_pair_idx -> numeric_pair_idx == 0 && numeric_pair_value == "north"
+? tuple_numeric_pair_ok
 
 = second = nums[1]
 = third = nth(nums, 2)
