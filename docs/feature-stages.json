@@ -89,9 +89,10 @@
       "id": "reactive-stateful-surfaces",
       "kind": "language",
       "name": "Streams, subjects, actors, and effect-heavy workflows",
-      "stage": "preview",
+      "stage": "stable",
       "docs": [
         "docs/reference/streams.md",
+        "docs/stream-lifetimes.md",
         "docs/tutorial/05-streams.md",
         "docs/tutorial/06-effects.md"
       ]
@@ -352,7 +353,14 @@
     },
     {
       "path": "docs/reference/streams.md",
-      "stage": "preview",
+      "stage": "stable",
+      "surfaces": [
+        "reactive-stateful-surfaces"
+      ]
+    },
+    {
+      "path": "docs/stream-lifetimes.md",
+      "stage": "stable",
       "surfaces": [
         "reactive-stateful-surfaces"
       ]
@@ -404,14 +412,14 @@
     },
     {
       "path": "docs/tutorial/05-streams.md",
-      "stage": "preview",
+      "stage": "stable",
       "surfaces": [
         "reactive-stateful-surfaces"
       ]
     },
     {
       "path": "docs/tutorial/06-effects.md",
-      "stage": "preview",
+      "stage": "mixed",
       "surfaces": [
         "reactive-stateful-surfaces",
         "rust-interop"

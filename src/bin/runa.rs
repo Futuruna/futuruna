@@ -192,8 +192,8 @@ fn main_inner() {
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
                 eprintln!("Feature stages:");
-                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes; core syntax + documented stdlib + pure/core codegen behavior");
-                eprintln!("  Preview: lib, wasm, lsp, stress-gen, verify; streams/stateful surfaces; Rust interop");
+                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes; core syntax + documented stdlib + pure/core codegen behavior + reactive/stateful workflows");
+                eprintln!("  Preview: lib, wasm, lsp, stress-gen, verify; Rust interop");
                 eprintln!("  Experimental: audit, from-rust");
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");

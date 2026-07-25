@@ -1,3 +1,9 @@
+---
+feature_stage: stable
+feature_stage_surfaces:
+  - reactive-stateful-surfaces
+---
+
 # Stream Lifetimes
 
 This document defines the current lifetime contract for live Futuruna stream
@@ -326,8 +332,8 @@ That is not part of the current contract.
 
 ## Current Status
 
-This surface is still [Preview](feature-stages.md), but the ownership rule
-itself is deliberate:
+This surface is [Stable](feature-stages.md), and the ownership rule is part of
+the production contract:
 
 - named scopes own live subscription lifetimes
 - named scopes own derived async stream operator tasks created inside them

@@ -114,7 +114,7 @@ runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 
 See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/production-readiness-scorecard.md](docs/production-readiness-scorecard.md) for the readiness table, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, [docs/expectation-suites.md](docs/expectation-suites.md) for compiletest-style expectations, [docs/artifact-codegen-contracts.md](docs/artifact-codegen-contracts.md) for emitted Rust and artifact boundaries, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
 
-Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md) and [docs/feature-stages.json](docs/feature-stages.json): core syntax, documented stdlib behavior, and pure/core generated Rust behavior are treated as stable, while `runa verify`, stateful/reactive surfaces, Rust interop, and several advanced tooling paths are still preview or experimental.
+Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md) and [docs/feature-stages.json](docs/feature-stages.json): core syntax, documented stdlib behavior, pure/core generated Rust behavior, and reactive/stateful workflows are treated as stable, while `runa verify`, Rust interop, and several advanced tooling paths are still preview or experimental.
 
 Release-facing compatibility history lives in
 [docs/compatibility-guides/](docs/compatibility-guides/). Stable breaks,

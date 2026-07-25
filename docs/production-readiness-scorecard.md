@@ -48,7 +48,7 @@ wiring, and the current `td` queue through 2026-07-18.
 | Compiler Rust codegen for pure/core programs | Production-ready | Stable feature stage for pure/core generated Rust behavior; mint/core canaries check codegen and roundtrip; phase marker cases, typed lowering corpus, artifact golden fixtures, duplicate-evaluation template audit, signature-table audit, minimized differential corpus, and ownership-sensitive artifact snapshots are in place. Exact emitted Rust remains internal outside named fixtures. | Keep artifact fixture diffs compatibility-reviewed and add new fixtures for every newly promised emitted shape. |
 | Interpreter-vs-compiled parity for pure/core programs | Production-ready | Mint roundtrip, core canary roundtrip, and checked-in minimized differential cases are strong, with 0 core canary skips. | Require every future parity bug to land in the narrowest permanent lane. |
 | Importable local libraries and downstream consumer shape | Preview | Dedicated downstream lane, library hygiene lint, and consumer checks pass. Generic roundtrip skips all downstream fixtures and check-codegen skips 8 of 13. | Teach generic check-codegen to cover local import consumers (`td-35b4e3`) and add import-aware deep-search cases (`td-a70b05`, `td-b4729e`). |
-| Streams, subjects, actors, and effect-heavy workflows | Preview | Stateful canaries pass execution and docs mark the surface preview. Generic check-codegen and roundtrip skip the whole stateful tier. | Continue stream lifetime hardening (`td-17811d`) and reduce external-crate skip reliance with explicit compiled-codegen lanes. |
+| Streams, subjects, actors, and effect-heavy workflows | Production-ready | Stable feature stage, explicit named-scope lifetime contract, 7 compiled stateful canaries including an adversarial subjects/streams/effects/actors workflow, async runtime artifact expectations, stream lifetime diagnostics, and explicit skip accounting for generic check-codegen/roundtrip live-async skips. | Keep stateful canaries and async artifact expectations blocking; add a new adversarial canary or expectation for every future stateful bug. |
 | WASM-facing behavior | Preview | WASM tests, an extended export-surface canary, an automated `runa wasm` build lane, and documented preview artifact boundaries exist. Missing `wasm-pack` is reported as an explicit skip unless CI requires it. | Decide where the WASM lane is required in CI and add package-shape expectations once the JS/ABI boundary is chosen. |
 | Rust interop and Rust-facing integration | Preview | Feature stage is preview; CI runs `from-rust --test examples/from-rust/`; `runa lib` export shape has an artifact expectation for public/private item boundaries. | Add canaries for stable integration shapes and broaden exported type/function fixtures before promotion. |
 | `runa lint-library` import-hygiene tooling | Preview | Downstream lane enforces hygiene over importable files and imports. | Deepen purity analysis through local helper calls (`td-fd7715`). |
@@ -84,7 +84,7 @@ changes Futuruna's production-readiness claim.
 | Rust formatting and repository hygiene | Production-ready | Keep `cargo fmt --check`, `runa fmt --check`, and `git diff --check` routine; keep formatting-only cleanups separate from semantic changes. | S | 3 |
 | Rust codegen for pure/core programs | Production-ready | Keep artifact fixture diffs compatibility-reviewed; add fixtures for newly promised emitted shapes; keep pure/core canaries 0-skip. | M | 5 |
 | Importable local libraries and downstream consumer shape | Preview | Cover local import consumers in generic check-codegen (`td-35b4e3`); add import-aware deep-search cases (`td-a70b05`); add import-consumer expectation cases (`td-b4729e`). | L | 5 |
-| Streams, subjects, actors, and effect-heavy workflows | Preview | Continue stream lifetime epic (`td-17811d`); reduce stateful canary skip reliance with explicit compiled-codegen coverage; infer actor payloads from send sites (`td-ca379f`). | XL | 5 |
+| Streams, subjects, actors, and effect-heavy workflows | Production-ready | Keep named-scope lifetime diagnostics stable; keep compiled stateful canaries and async artifact expectations green; add adversarial fixtures for future stateful bug classes. | M | 5 |
 | WASM-facing behavior | Preview | Keep automated WASM build canary green; require the WASM lane in CI where `wasm-pack` is installed; add package-shape expectations after choosing the JS/ABI boundary. | M | 4 |
 | Rust interop and integration | Preview | Add stable-shape interop canaries; broaden `runa lib` artifact expectations; document supported crate/import patterns. | L | 4 |
 | Library hygiene tooling | Preview | Deepen purity analysis through local helper calls (`td-fd7715`); add negative expectation cases; surface library markers in docs/tooling. | M | 3 |
@@ -123,10 +123,12 @@ A surface can move to production-ready only when all of these are true:
 
 The safe production claim is:
 
-> Futuruna's stable core language, core CLI, repository hygiene gates, and
-> pure/core Rust codegen behavior are production-ready for small to medium
-> pure/core programs that stay inside documented syntax and stdlib contracts,
-> with strong interpreter/compiled/codegen/roundtrip evidence.
+> Futuruna's stable core language, core CLI, repository hygiene gates,
+> pure/core Rust codegen behavior, and documented reactive/stateful workflows
+> are production-ready for small to medium programs that stay inside documented
+> syntax, stdlib, named-scope stream lifetime, actor, and effect-handler
+> contracts, with strong compiled/canary/artifact evidence and explicit skip
+> accounting.
 
 The unsafe production claim is:
 

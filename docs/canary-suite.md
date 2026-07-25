@@ -59,9 +59,11 @@ The blocking authored lane. These canaries should stay green in interpreter,
 compiled, codegen, and roundtrip execution.
 
 - `tests/canary/stateful/`
-Subjects, actors, lifecycle, and richer effectful workflows. Some of these may
-roundtrip-skip selectively, but they are still required to pass interpreted and
-compiled execution.
+Subjects, actors, lifecycle, and richer effectful workflows. This tier is part
+of the production evidence for the stable reactive/stateful surface: compiled
+execution is blocking, live-async roundtrip/check-codegen skips are reported
+explicitly, and async runtime artifact expectations cover emitted Rust shapes
+that the generic lanes intentionally skip.
 
 - `tests/canary/extended/`
 Heavier authored programs for JSON, DB, HTTP, WASM, regex, or import-heavy
@@ -99,9 +101,12 @@ For each selected tier it runs:
 ./target/release/runa test --roundtrip <tier>
 ```
 
-The roundtrip lane will naturally skip canaries that use constructs the generic
-roundtrip runner already excludes, such as `subject()`. Those canaries still
-participate in interpreted and compiled execution plus codegen validation.
+The roundtrip and generic check-codegen lanes will naturally skip canaries that
+use constructs the generic runners intentionally exclude, such as live
+`subject()`-backed async streams. Those skips are not counted as pass evidence
+for the stable stateful surface; the required evidence is compiled execution,
+stateful canary invariants, stream lifetime diagnostics, and emitted-Rust
+artifact expectations under `tests/expect/artifact/`.
 
 ## Storage Runtime Lane
 
