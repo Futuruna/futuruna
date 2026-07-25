@@ -1,0 +1,15 @@
+-- Minimized from read-only helper-chain ownership regressions: string/list
+-- query helpers should not consume a source value that is read again later.
+
+> normalize(raw: String) -> String { to_lower(trim(raw)) }
+
+> reverse_tokens(raw: String) -> String {
+    join(reverse(split(normalize(raw), " ")), "|")
+}
+
+= source = "  Alpha Beta Gamma  "
+= reversed = reverse_tokens(source)
+= still_readable = contains(source, "Alpha Beta")
+
+@ print(reversed)
+@ print("source=" + show(still_readable))

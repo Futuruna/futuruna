@@ -26022,6 +26022,69 @@ impl RustCodegen {
         false
     }
 
+    fn emit_function_value_call(
+        &mut self,
+        callable: &Expr,
+        args: &[(&str, &str)],
+    ) -> Option<String> {
+        let ExprKind::Var(fn_name) = &callable.kind else {
+            return None;
+        };
+
+        let builtin_name = builtin_canonical(fn_name);
+        if let Some((arity, shadowable, deps, rust_tpl)) = self
+            .builtin_registry
+            .get(builtin_name)
+            .map(|def| (def.arity, def.shadowable, def.deps, def.rust_tpl))
+        {
+            if arity == args.len()
+                && (!shadowable || !self.types.user_functions.contains(fn_name.as_str()))
+            {
+                for &(dep_name, dep_ver) in deps {
+                    self.cargo_deps
+                        .entry(dep_name.to_string())
+                        .or_insert(dep_ver.to_string());
+                }
+                let rendered_args: Vec<String> =
+                    args.iter().map(|(owned, _)| (*owned).to_string()).collect();
+                return Some(apply_builtin_template(rust_tpl, &rendered_args));
+            }
+        }
+
+        let rendered_args: Vec<String> = args
+            .iter()
+            .enumerate()
+            .map(|(idx, (owned, borrowed))| {
+                let borrows = self
+                    .borrow_only_params
+                    .get(fn_name.as_str())
+                    .and_then(|flags| flags.get(idx).copied())
+                    .unwrap_or(false);
+                if borrows {
+                    (*borrowed).to_string()
+                } else {
+                    (*owned).to_string()
+                }
+            })
+            .collect();
+        let callable_expr = self.emit_expr(callable);
+        Some(format!("({})({})", callable_expr, rendered_args.join(", ")))
+    }
+
+    fn is_builtin_function_value(&self, callable: &Expr, arity: usize) -> bool {
+        let ExprKind::Var(fn_name) = &callable.kind else {
+            return false;
+        };
+        let builtin_name = builtin_canonical(fn_name);
+        self.builtin_registry
+            .get(builtin_name)
+            .map(|def| {
+                def.arity == arity
+                    && (!def.shadowable || !self.types.user_functions.contains(fn_name.as_str()))
+            })
+            .unwrap_or(false)
+    }
+
     fn emit_async_callable_expr(
         &mut self,
         callable: &Expr,
@@ -26993,36 +27056,38 @@ impl RustCodegen {
                                 }
                             }
                         }
-                        // map with function name (not lambda): wrap to handle borrow
+                        if self.is_builtin_function_value(&args[1], 1) {
+                            let call = self
+                                .emit_function_value_call(&args[1], &[("__x", "&__x")])
+                                .unwrap();
+                            let coll = self.emit_expr(&args[0]);
+                            if name == "filter" {
+                                let pred = self
+                                    .emit_function_value_call(&args[1], &[("__x.clone()", "__x")])
+                                    .unwrap_or(call);
+                                return format!(
+                                    "{}.clone().into_iter().filter(|__x| {}).collect::<Vec<_>>()",
+                                    coll, pred
+                                );
+                            }
+                            if name == "partition" {
+                                let pred = self
+                                    .emit_function_value_call(&args[1], &[("__x.clone()", "__x")])
+                                    .unwrap_or(call);
+                                return format!(
+                                    "{{ let (__yes, __no): (Vec<_>, Vec<_>) = {}.clone().into_iter().partition(|__x| {}); (__yes, __no) }}",
+                                    coll, pred
+                                );
+                            }
+                            return format!(
+                                "{}.clone().into_iter().map(|__x| {}).collect::<Vec<_>>()",
+                                coll, call
+                            );
+                        }
+                        // map with user function name (not lambda): wrap to handle borrow.
                         if name == "map" {
                             if let ExprKind::Var(fn_name) = &&args[1].kind {
                                 let coll = self.emit_expr(&args[0]);
-                                let builtin_name = builtin_canonical(fn_name);
-                                if let Some((arity, shadowable, deps, rust_tpl)) = self
-                                    .builtin_registry
-                                    .get(builtin_name)
-                                    .map(|def| (def.arity, def.shadowable, def.deps, def.rust_tpl))
-                                {
-                                    if arity == 1
-                                        && (!shadowable
-                                            || !self
-                                                .types
-                                                .user_functions
-                                                .contains(fn_name.as_str()))
-                                    {
-                                        for &(dep_name, dep_ver) in deps {
-                                            self.cargo_deps
-                                                .entry(dep_name.to_string())
-                                                .or_insert(dep_ver.to_string());
-                                        }
-                                        let body =
-                                            apply_builtin_template(rust_tpl, &["__x".to_string()]);
-                                        return format!(
-                                            "{}.clone().into_iter().map(|__x| {}).collect::<Vec<_>>()",
-                                            coll, body
-                                        );
-                                    }
-                                }
                                 let f = sanitize_name(fn_name);
                                 let borrows = self
                                     .borrow_only_params
@@ -27033,6 +27098,114 @@ impl RustCodegen {
                                 } else {
                                     return format!("{}.clone().into_iter().map(|__x| {}(__x)).collect::<Vec<_>>()", coll, f);
                                 }
+                            }
+                        }
+                    }
+                    if matches!(
+                        name.as_str(),
+                        "any"
+                            | "all"
+                            | "find"
+                            | "flat_map"
+                            | "take_while"
+                            | "drop_while"
+                            | "count_by"
+                            | "subscribe"
+                    ) && args.len() == 2
+                        && !self.types.user_functions.contains(name.as_str())
+                        && self.is_builtin_function_value(&args[1], 1)
+                    {
+                        if let ExprKind::Var(_) = &args[1].kind {
+                            let coll = self.emit_expr(&args[0]);
+                            match name.as_str() {
+                                "any" => {
+                                    let pred = self
+                                        .emit_function_value_call(&args[1], &[("__x", "&__x")])
+                                        .unwrap();
+                                    return format!(
+                                        "{}.clone().into_iter().any(|__x| {})",
+                                        coll, pred
+                                    );
+                                }
+                                "all" => {
+                                    let pred = self
+                                        .emit_function_value_call(&args[1], &[("__x", "&__x")])
+                                        .unwrap();
+                                    return format!(
+                                        "{}.clone().into_iter().all(|__x| {})",
+                                        coll, pred
+                                    );
+                                }
+                                "find" => {
+                                    let pred = self
+                                        .emit_function_value_call(
+                                            &args[1],
+                                            &[("__x.clone()", "__x")],
+                                        )
+                                        .unwrap();
+                                    return format!(
+                                        "{}.clone().into_iter().find(|__x| {})",
+                                        coll, pred
+                                    );
+                                }
+                                "flat_map" => {
+                                    let mapped = self
+                                        .emit_function_value_call(&args[1], &[("__x", "&__x")])
+                                        .unwrap();
+                                    return format!(
+                                        "{}.clone().into_iter().flat_map(|__x| {}).collect::<Vec<_>>()",
+                                        coll, mapped
+                                    );
+                                }
+                                "take_while" => {
+                                    let pred = self
+                                        .emit_function_value_call(
+                                            &args[1],
+                                            &[("__x.clone()", "__x")],
+                                        )
+                                        .unwrap();
+                                    return format!(
+                                        "{}.clone().into_iter().take_while(|__x| {}).collect::<Vec<_>>()",
+                                        coll, pred
+                                    );
+                                }
+                                "drop_while" => {
+                                    let pred = self
+                                        .emit_function_value_call(
+                                            &args[1],
+                                            &[("__x.clone()", "__x")],
+                                        )
+                                        .unwrap();
+                                    return format!(
+                                        "{}.clone().into_iter().skip_while(|__x| {}).collect::<Vec<_>>()",
+                                        coll, pred
+                                    );
+                                }
+                                "count_by" => {
+                                    let pred = self
+                                        .emit_function_value_call(
+                                            &args[1],
+                                            &[("__x.clone()", "__x")],
+                                        )
+                                        .unwrap();
+                                    return format!(
+                                        "{}.clone().into_iter().filter(|__x| {}).count() as i64",
+                                        coll, pred
+                                    );
+                                }
+                                "subscribe" => {
+                                    let callback = self
+                                        .emit_function_value_call(
+                                            &args[1],
+                                            &[("__item.clone()", "__item")],
+                                        )
+                                        .unwrap();
+                                    return format!(
+                                        "{{ for __item in {}.iter() {{ {}; }} }}",
+                                        coll, callback
+                                    );
+                                }
+                                _ => {}
                             }
                         }
                     }
@@ -27075,6 +27248,39 @@ impl RustCodegen {
                             );
                             return format!("{{ let mut __v = {}.clone(); __v.sort_by(|__a, __b| {{ let {} = __a.clone(); format!(\"{{}}\", {}) }}.cmp(&{{ let {} = __b.clone(); format!(\"{{}}\", {}) }})); __v }}",
                                 coll, sp, body_a, sp, body_b);
+                        }
+                        if self.is_builtin_function_value(&args[1], 1) {
+                            let coll = self.emit_expr(&args[0]);
+                            let key_a = self
+                                .emit_function_value_call(&args[1], &[("__a.clone()", "__a")])
+                                .unwrap();
+                            let key_b = self
+                                .emit_function_value_call(&args[1], &[("__b.clone()", "__b")])
+                                .unwrap();
+                            return format!(
+                                "{{ let mut __v = {}.clone(); __v.sort_by(|__a, __b| format!(\"{{}}\", {}).cmp(&format!(\"{{}}\", {}))); __v }}",
+                                coll, key_a, key_b
+                            );
+                        }
+                    }
+                    if matches!(name.as_str(), "foldl" | "reduce")
+                        && args.len() == 3
+                        && !self.types.user_functions.contains(name.as_str())
+                        && self.is_builtin_function_value(&args[2], 2)
+                    {
+                        if let ExprKind::Var(_) = &args[2].kind {
+                            let step = self
+                                .emit_function_value_call(
+                                    &args[2],
+                                    &[("__acc", "&__acc"), ("__x", "&__x")],
+                                )
+                                .unwrap();
+                            let coll = self.emit_expr(&args[0]);
+                            let init = self.emit_expr(&args[1]);
+                            return format!(
+                                "{}.clone().into_iter().fold({}, |__acc, __x| {})",
+                                coll, init, step
+                            );
                         }
                     }
                     if name == "foldl"
@@ -35370,6 +35576,47 @@ for x in [1, 2] {
             "= items = [\"alpha\", \"beta\"]\n= labels = map(items, to_upper)\n@ print(show(labels))\n",
         );
         assert_eq!(output, "[ALPHA, BETA]\n");
+    }
+
+    #[test]
+    fn compiled_collection_hofs_can_apply_builtin_function_values() {
+        let output = compile_and_run_test_program(
+            r#"
+= words = ["alpha", "b", "cat"]
+= lens = map(words, string_length)
+= sorted = sort_by(words, string_length)
+= chars = flat_map(["ab", "c"], string_chars)
+= opts = [Some(1), None, Some(3)]
+= present = filter(opts, is_some)
+= any_present = any(opts, is_some)
+= all_present = all(opts, is_some)
+= first_missing = find(opts, is_none)
+= missing_count = count_by(opts, is_none)
+= split_opts = partition(opts, is_some)
+= prefix = take_while(opts, is_some)
+= suffix = drop_while(opts, is_some)
+= floats = [1.5, 2.25, 0.5]
+= folded = foldl(floats, 0.0, max_f)
+= reduced = reduce(floats, 0.0, max_f)
+@ print(show(lens))
+@ print(show(sorted))
+@ print(show(chars))
+@ print(show(present))
+@ print(show(any_present))
+@ print(show(all_present))
+@ print(show(first_missing))
+@ print(show(missing_count))
+@ print(show(split_opts))
+@ print(show(prefix))
+@ print(show(suffix))
+@ print(show(folded))
+@ print(show(reduced))
+"#,
+        );
+        assert_eq!(
+            output,
+            "[5, 1, 3]\n[b, cat, alpha]\n[a, b, c]\n[Some(1), Some(3)]\ntrue\nfalse\nSome(None)\n1\n([Some(1), Some(3)], [None])\n[Some(1)]\n[None, Some(3)]\n2.25\n2.25\n"
+        );
     }
 
     #[test]

@@ -1,0 +1,11 @@
+-- Minimized from ownership/codegen clone regressions: values placed in list
+-- literals must be cloned when the original binding is read later.
+
+# Item(name: String, value: Int)
+
+= first = Item("alpha", 1)
+= second = Item("beta", 2)
+= items = [first, second]
+
+@ print(first.name + ":" + second.name)
+@ print("items=" + show(length(items)))

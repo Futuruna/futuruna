@@ -1,0 +1,13 @@
+-- Minimized from Pair/map_entries lowering drift: map entries should behave as
+-- Pair(String, Int) in source while compiled Rust receives tuple references.
+
+> label(entry: Pair(String, Int)) -> String {
+    entry.fst + ":" + show(entry.snd)
+}
+
+= counts0 = map_new()
+= counts1 = map_insert(counts0, "north", 2)
+= counts2 = map_insert(counts1, "west", 3)
+= labels = sort(map(map_entries(counts2), |entry| label(entry)))
+
+@ print(join(labels, ","))

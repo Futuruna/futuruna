@@ -1,0 +1,35 @@
+-- Builtin function names should work anywhere collection higher-order builtins
+-- accept user function values, not only in map(..., builtin).
+
+= words = ["alpha", "b", "cat"]
+= lens = map(words, string_length)
+= sorted = sort_by(words, string_length)
+= chars = flat_map(["ab", "c"], string_chars)
+
+= opts = [Some(1), None, Some(3)]
+= present = filter(opts, is_some)
+= any_present = any(opts, is_some)
+= all_present = all(opts, is_some)
+= first_missing = find(opts, is_none)
+= missing_count = count_by(opts, is_none)
+= split_opts = partition(opts, is_some)
+= prefix = take_while(opts, is_some)
+= suffix = drop_while(opts, is_some)
+
+= floats = [1.5, 2.25, 0.5]
+= folded = foldl(floats, 0.0, max_f)
+= reduced = reduce(floats, 0.0, max_f)
+
+@ print(show(lens))
+@ print(show(sorted))
+@ print(show(chars))
+@ print(show(present))
+@ print(show(any_present))
+@ print(show(all_present))
+@ print(show(first_missing))
+@ print(show(missing_count))
+@ print(show(split_opts))
+@ print(show(prefix))
+@ print(show(suffix))
+@ print(show(folded))
+@ print(show(reduced))

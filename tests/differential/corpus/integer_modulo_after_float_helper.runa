@@ -1,0 +1,18 @@
+-- Minimized from the integer modulo lowering regression: an Int-returning
+-- helper may perform Float work internally, but the caller still needs integer
+-- modulo lowering and zero-divisor guards.
+
+> bucket(seed: Int) -> Int {
+    = shifted = round(to_float(seed * 11) / 3.0)
+    shifted % 64
+}
+
+> guarded_mod(n: Int, d: Int) -> Int { n % d }
+
+= bucketed = bucket(11)
+= ordinary = guarded_mod(23, 5)
+= zero = guarded_mod(23, 0)
+
+@ print("bucket=" + show(bucketed))
+@ print("ordinary=" + show(ordinary))
+@ print("zero=" + show(zero))
