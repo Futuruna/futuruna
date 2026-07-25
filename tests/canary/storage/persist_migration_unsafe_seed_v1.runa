@@ -1,0 +1,9 @@
+-- roundtrip-skip: persisted storage canary uses generated Cargo/rusqlite runtime
+
+# UnsafeItem(id: Int, name: String, qty: Int)
+@ persist UnsafeItem in "storage_canary_unsafe"
+
+retract UnsafeItem(_, _, _)
+assert UnsafeItem(1, "alpha", 10)
+
+@ print("migration_unsafe_seed_v1=ok")

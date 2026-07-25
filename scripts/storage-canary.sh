@@ -50,6 +50,14 @@ TARGET_DIR="tests/canary/storage"
 COMMIT_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_tx_commit_savepoint_test.runa"
 ROLLBACK_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_tx_rollback_fail_test.runa"
 ROLLBACK_CHECK_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_tx_rollback_check_test.runa"
+MIGRATE_CHAIN_SEED_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_migration_chain_seed_v1.runa"
+MIGRATE_CHAIN_TEST_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_migration_chain_v3_test.runa"
+MIGRATE_AUTO_SEED_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_migration_auto_seed_v1.runa"
+MIGRATE_AUTO_TEST_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_migration_auto_v2_test.runa"
+MIGRATE_UNSAFE_SEED_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_migration_unsafe_seed_v1.runa"
+MIGRATE_UNSAFE_TEST_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_migration_unsafe_missing_test.runa"
+MIGRATE_TYPE_SEED_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_migration_type_seed_v1.runa"
+MIGRATE_TYPE_TEST_FIXTURE="$ROOT_DIR/$TARGET_DIR/persist_migration_type_narrow_missing_test.runa"
 WORK_DIR="${FUTURUNA_STORAGE_CANARY_WORKDIR:-$(mktemp -d "${TMPDIR:-/tmp}/futuruna-storage-canary.XXXXXX")}"
 
 if [[ -z "${FUTURUNA_STORAGE_CANARY_WORKDIR:-}" ]]; then
@@ -87,6 +95,57 @@ printf '%s\n' "$check_output"
 assert_contains "$check_output" "after_rollback=baseline"
 assert_contains "$check_output" "after_rollback_qtys=[1]"
 assert_not_contains "$check_output" "rolledback"
+
+migrate_seed_output="$(capture_in_workdir "$WORK_DIR" "$RUNA_BIN_ABS" run "$MIGRATE_CHAIN_SEED_FIXTURE")"
+printf '%s\n' "$migrate_seed_output"
+assert_contains "$migrate_seed_output" "migration_seed_v1=ok"
+
+migrate_chain_output="$(capture_in_workdir "$WORK_DIR" "$RUNA_BIN_ABS" run "$MIGRATE_CHAIN_TEST_FIXTURE")"
+printf '%s\n' "$migrate_chain_output"
+assert_contains "$migrate_chain_output" "migration_lanes=[cold, cold]"
+assert_contains "$migrate_chain_output" "migration_qtys=[10, 10]"
+
+migrate_auto_seed_output="$(capture_in_workdir "$WORK_DIR" "$RUNA_BIN_ABS" run "$MIGRATE_AUTO_SEED_FIXTURE")"
+printf '%s\n' "$migrate_auto_seed_output"
+assert_contains "$migrate_auto_seed_output" "migration_auto_seed_v1=ok"
+
+migrate_auto_output="$(capture_in_workdir "$WORK_DIR" "$RUNA_BIN_ABS" run "$MIGRATE_AUTO_TEST_FIXTURE")"
+printf '%s\n' "$migrate_auto_output"
+assert_contains "$migrate_auto_output" "migration_auto_qtys=[0, 0]"
+
+migrate_type_seed_output="$(capture_in_workdir "$WORK_DIR" "$RUNA_BIN_ABS" run "$MIGRATE_TYPE_SEED_FIXTURE")"
+printf '%s\n' "$migrate_type_seed_output"
+assert_contains "$migrate_type_seed_output" "migration_type_seed_v1=ok"
+
+echo
+echo "[storage-canary] expecting type-change migration fixture to fail"
+set +e
+migrate_type_output="$(cd "$WORK_DIR" && "$RUNA_BIN_ABS" run "$MIGRATE_TYPE_TEST_FIXTURE" 2>&1)"
+migrate_type_status=$?
+set -e
+printf '%s\n' "$migrate_type_output"
+if [[ "$migrate_type_status" -eq 0 ]]; then
+    echo "[storage-canary] type-change migration fixture unexpectedly passed" >&2
+    exit 1
+fi
+assert_contains "$migrate_type_output" "stored SQL types differ"
+
+migrate_unsafe_seed_output="$(capture_in_workdir "$WORK_DIR" "$RUNA_BIN_ABS" run "$MIGRATE_UNSAFE_SEED_FIXTURE")"
+printf '%s\n' "$migrate_unsafe_seed_output"
+assert_contains "$migrate_unsafe_seed_output" "migration_unsafe_seed_v1=ok"
+
+echo
+echo "[storage-canary] expecting unsafe migration fixture to fail"
+set +e
+migrate_unsafe_output="$(cd "$WORK_DIR" && "$RUNA_BIN_ABS" run "$MIGRATE_UNSAFE_TEST_FIXTURE" 2>&1)"
+migrate_unsafe_status=$?
+set -e
+printf '%s\n' "$migrate_unsafe_output"
+if [[ "$migrate_unsafe_status" -eq 0 ]]; then
+    echo "[storage-canary] unsafe migration fixture unexpectedly passed" >&2
+    exit 1
+fi
+assert_contains "$migrate_unsafe_output" "requires unsafe"
 
 echo
 echo "[storage-canary] Persisted transaction runtime canaries passed offline in $WORK_DIR"

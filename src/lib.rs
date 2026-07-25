@@ -4109,6 +4109,24 @@ impl Parser {
             return Ok(Stmt::Annot(kind, args));
         }
 
+        // @ migrate Type(old_fields...) -> Type(new_fields...) [unsafe]
+        //
+        // Kept as an annotation payload so older compiler passes can ignore it
+        // unless they specifically care about persisted schema evolution.
+        if name == "migrate" {
+            let old_shape = self.parse_expr()?;
+            self.expect(TokenKind::Arrow)?;
+            let new_shape = self.parse_expr()?;
+            let mut args = vec![old_shape, new_shape];
+            if matches!(self.peek_kind(), TokenKind::Ident | TokenKind::KW)
+                && self.peek().text == "unsafe"
+            {
+                self.advance();
+                args.push(ExprKind::Var("unsafe".to_string()).into());
+            }
+            return Ok(Stmt::Annot(name, args));
+        }
+
         // @ sprog / @ language — already consumed by lexer, skip the code token
         if name == "sprog" || name == "language" {
             if self.peek_kind() == TokenKind::Ident || self.peek_kind() == TokenKind::KW {
@@ -12266,8 +12284,9 @@ impl TypeChecker {
                 self.pop_scope();
             }
             Stmt::Annot(name, args) => {
-                // Skip type-checking @ store args (delete_on_change flag, scope string are not expressions)
-                if name != "store" {
+                // Skip metadata annotations whose payloads are declarations, not
+                // executable expressions in the current schema.
+                if name != "store" && name != "migrate" {
                     for a in args {
                         self.check_expr(a, None);
                     }

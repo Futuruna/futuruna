@@ -1,0 +1,8 @@
+-- expect-runtime-error: requires unsafe
+-- roundtrip-skip: intentionally fails so the storage canary can verify unsafe migration refusal
+
+# UnsafeItem(id: Int, name: String)
+@ persist UnsafeItem in "storage_canary_unsafe"
+@ migrate UnsafeItem(id, name, qty) -> UnsafeItem(id, name)
+
+@ print("migration_unsafe_should_not_print")

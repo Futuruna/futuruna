@@ -1,0 +1,12 @@
+-- roundtrip-skip: persisted storage canary uses generated Cargo/rusqlite runtime
+
+# MigrationItem(id: Int, name: String, qty: Int, lane: String)
+@ persist MigrationItem in "storage_canary_migrate"
+@ migrate MigrationItem(id, name) -> MigrationItem(id, name, 10)
+@ migrate MigrationItem(id, name, qty) -> MigrationItem(id, name, qty, "cold")
+
+= lanes = sort(findall(lane, MigrationItem(_, _, _, lane)))
+= qtys = sort(findall(qty, MigrationItem(_, _, qty, _)))
+
+@ print("migration_lanes=" + show(lanes))
+@ print("migration_qtys=" + show(qtys))

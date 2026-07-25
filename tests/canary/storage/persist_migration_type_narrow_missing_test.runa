@@ -1,0 +1,7 @@
+-- expect-runtime-error: stored SQL types differ
+-- roundtrip-skip: intentionally fails so the storage canary can verify type-change refusal
+
+# TypeItem(id: Int, qty: Int)
+@ persist TypeItem in "storage_canary_type"
+
+@ print("migration_type_should_not_print")

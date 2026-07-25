@@ -884,7 +884,7 @@ The object store is dramatically simpler to implement. It might even be the righ
 
 ### Object Store Auto-Versioning
 
-The struct definition IS the schema. A hash of field names + types is computed at compile time and stored in a `__store_meta` table. On startup:
+The struct definition IS the schema. A hash of field names + types is computed at compile time and stored in a `schema_meta` table. On startup:
 
 1. **No entry** → first run, record hash, proceed
 2. **Hash matches** → same schema, proceed silently

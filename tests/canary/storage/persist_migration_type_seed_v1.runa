@@ -1,0 +1,9 @@
+-- roundtrip-skip: persisted storage canary uses generated Cargo/rusqlite runtime
+
+# TypeItem(id: Int, qty: Float)
+@ persist TypeItem in "storage_canary_type"
+
+retract TypeItem(_, _)
+assert TypeItem(1, 3.5)
+
+@ print("migration_type_seed_v1=ok")

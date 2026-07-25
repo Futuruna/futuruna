@@ -1,0 +1,10 @@
+-- roundtrip-skip: persisted storage canary uses generated Cargo/rusqlite runtime
+
+# MigrationItem(id: Int, name: String)
+@ persist MigrationItem in "storage_canary_migrate"
+
+retract MigrationItem(_, _)
+assert MigrationItem(1, "alpha")
+assert MigrationItem(2, "beta")
+
+@ print("migration_seed_v1=ok")

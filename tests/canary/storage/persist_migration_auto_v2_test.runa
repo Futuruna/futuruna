@@ -1,0 +1,8 @@
+-- roundtrip-skip: persisted storage canary uses generated Cargo/rusqlite runtime
+
+# AutoItem(id: Int, name: String, qty: Int)
+@ persist AutoItem in "storage_canary_auto"
+
+= qtys = sort(findall(qty, AutoItem(_, _, qty)))
+
+@ print("migration_auto_qtys=" + show(qtys))

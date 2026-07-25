@@ -10873,6 +10873,14 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
 /// Shared type metadata: types, variants, constructors, field info.
 /// Populated once during declaration scanning, consumed by analysis passes and emission.
 #[derive(Debug, Clone)]
+struct PersistMigration {
+    type_name: String,
+    old_fields: Vec<String>,
+    new_exprs: Vec<Expr>,
+    unsafe_allowed: bool,
+}
+
+#[derive(Debug, Clone)]
 struct TypeRegistry {
     /// Type declarations: name -> list of type params + list of variants
     type_decls: BTreeMap<String, (Vec<String>, Vec<String>)>,
@@ -10930,6 +10938,8 @@ struct TypeRegistry {
     stored_type_schema_hash: BTreeMap<String, String>,
     /// M26b: Types with `@ persist` annotation — typed-column lowering
     persisted_types: BTreeSet<String>,
+    /// M26g: Declared persisted schema migrations by type.
+    persist_migrations: BTreeMap<String, Vec<PersistMigration>>,
     /// M26b: Persisted types observed through `watch(Type)` change streams.
     watched_persist_types: BTreeSet<String>,
     /// User-defined function names (avoid overriding with builtins)
@@ -10987,6 +10997,7 @@ impl TypeRegistry {
             store_delete_on_change: BTreeSet::new(),
             stored_type_schema_hash: BTreeMap::new(),
             persisted_types: BTreeSet::new(),
+            persist_migrations: BTreeMap::new(),
             watched_persist_types: BTreeSet::new(),
             user_functions: BTreeSet::new(),
             fn_types: BTreeMap::new(),
@@ -15014,6 +15025,11 @@ fn is_copy_type(ty: &Ty) -> bool {
 /// will land as follow-up subtasks under td-c0a7a1.
 fn futuruna_ty_to_sql_column(ty: &Ty) -> &'static str {
     match ty {
+        Ty::App(con, args) if matches!(con.as_ref(), Ty::Name(n) if n == "Option") => args
+            .first()
+            .map(futuruna_ty_to_sql_nullable_column)
+            .unwrap_or("TEXT"),
+        Ty::Optional(inner) => futuruna_ty_to_sql_nullable_column(inner),
         Ty::Name(n) => match n.as_str() {
             "Int" | "Nat" | "Bool" => "INTEGER NOT NULL",
             "Float" => "REAL NOT NULL",
@@ -15022,6 +15038,63 @@ fn futuruna_ty_to_sql_column(ty: &Ty) -> &'static str {
         },
         _ => "TEXT NOT NULL",
     }
+}
+
+fn futuruna_ty_to_sql_nullable_column(ty: &Ty) -> &'static str {
+    match ty {
+        Ty::Name(n) => match n.as_str() {
+            "Int" | "Nat" | "Bool" => "INTEGER",
+            "Float" => "REAL",
+            "String" | "Char" => "TEXT",
+            _ => "TEXT",
+        },
+        _ => "TEXT",
+    }
+}
+
+fn futuruna_ty_to_sql_storage_type(ty: &Ty) -> &'static str {
+    match ty {
+        Ty::App(con, args) if matches!(con.as_ref(), Ty::Name(n) if n == "Option") => args
+            .first()
+            .map(|inner| futuruna_ty_to_sql_storage_type(inner))
+            .unwrap_or("TEXT"),
+        Ty::Optional(inner) => futuruna_ty_to_sql_storage_type(inner),
+        Ty::Name(n) => match n.as_str() {
+            "Int" | "Nat" | "Bool" => "INTEGER",
+            "Float" => "REAL",
+            "String" | "Char" => "TEXT",
+            _ => "TEXT",
+        },
+        _ => "TEXT",
+    }
+}
+
+fn futuruna_ty_sql_default(ty: &Ty) -> &'static str {
+    match ty {
+        Ty::App(con, _) if matches!(con.as_ref(), Ty::Name(n) if n == "Option") => "NULL",
+        Ty::Optional(_) => "NULL",
+        Ty::Name(n) => match n.as_str() {
+            "Int" | "Nat" | "Bool" => "0",
+            "Float" => "0.0",
+            "String" | "Char" => "''",
+            _ => "''",
+        },
+        _ => "''",
+    }
+}
+
+fn persist_schema_hash_from_fields(fields: &[(String, Ty)]) -> String {
+    let mut schema_str = String::new();
+    for (name, ty) in fields {
+        schema_str.push_str(name);
+        schema_str.push(':');
+        schema_str.push_str(&format!("{:?}", ty));
+        schema_str.push(';');
+    }
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    schema_str.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
 }
 
 /// Single source of truth for builtins whose return type is fixed regardless of
@@ -15191,6 +15264,552 @@ impl RustCodegen {
                 !matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
             })
             .unwrap_or(true)
+    }
+
+    fn migration_shape(expr: &Expr) -> Option<(String, Vec<Expr>)> {
+        let ExprKind::App(func, args) = &expr.kind else {
+            return None;
+        };
+        let ExprKind::Var(type_name) = &func.as_ref().kind else {
+            return None;
+        };
+        Some((type_name.clone(), args.clone()))
+    }
+
+    fn migration_old_field_name(expr: &Expr) -> Option<String> {
+        match &expr.kind {
+            ExprKind::Var(name) if name != "_" => Some(name.clone()),
+            _ => None,
+        }
+    }
+
+    fn collect_migration_expr_vars(expr: &Expr, out: &mut BTreeSet<String>) {
+        match &expr.kind {
+            ExprKind::Var(name) if name != "_" => {
+                out.insert(name.clone());
+            }
+            ExprKind::App(func, args) => {
+                Self::collect_migration_expr_vars(func, out);
+                for arg in args {
+                    Self::collect_migration_expr_vars(arg, out);
+                }
+            }
+            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Index(lhs, rhs) | ExprKind::Pipe(lhs, rhs) => {
+                Self::collect_migration_expr_vars(lhs, out);
+                Self::collect_migration_expr_vars(rhs, out);
+            }
+            ExprKind::UnOp(_, inner) | ExprKind::Field(inner, _) | ExprKind::Try(inner) => {
+                Self::collect_migration_expr_vars(inner, out);
+            }
+            ExprKind::If(cond, then_, else_) => {
+                Self::collect_migration_expr_vars(cond, out);
+                Self::collect_migration_expr_vars(then_, out);
+                Self::collect_migration_expr_vars(else_, out);
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                Self::collect_migration_expr_vars(scrutinee, out);
+                for arm in arms {
+                    if let Some(guard) = &arm.guard {
+                        Self::collect_migration_expr_vars(guard, out);
+                    }
+                    Self::collect_migration_expr_vars(&arm.body, out);
+                }
+            }
+            ExprKind::Block(stmts) => {
+                for stmt in stmts {
+                    match stmt {
+                        Stmt::Bind(_, _, expr)
+                        | Stmt::MonadicBind(_, _, expr)
+                        | Stmt::StreamBind(_, expr)
+                        | Stmt::Expr(expr) => Self::collect_migration_expr_vars(expr, out),
+                        Stmt::Assert(_, args) | Stmt::Retract(_, args) | Stmt::Annot(_, args) => {
+                            for arg in args {
+                                Self::collect_migration_expr_vars(arg, out);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            ExprKind::Lambda(_, body) => Self::collect_migration_expr_vars(body, out),
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Effect(_, items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => {
+                for item in items {
+                    Self::collect_migration_expr_vars(item, out);
+                }
+            }
+            ExprKind::Handle { body, handlers, .. } => {
+                Self::collect_migration_expr_vars(body, out);
+                for handler in handlers {
+                    Self::collect_migration_expr_vars(&handler.body, out);
+                }
+            }
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+        }
+    }
+
+    fn parse_persist_migration(args: &[Expr]) -> Option<PersistMigration> {
+        let (old_type, old_args) = Self::migration_shape(args.first()?)?;
+        let (new_type, new_args) = Self::migration_shape(args.get(1)?)?;
+        if old_type != new_type {
+            return None;
+        }
+        let old_fields = old_args
+            .iter()
+            .map(Self::migration_old_field_name)
+            .collect::<Option<Vec<_>>>()?;
+        let unsafe_allowed = args
+            .iter()
+            .skip(2)
+            .any(|arg| matches!(&arg.kind, ExprKind::Var(name) if name == "unsafe"));
+        Some(PersistMigration {
+            type_name: old_type,
+            old_fields,
+            new_exprs: new_args,
+            unsafe_allowed,
+        })
+    }
+
+    fn rust_string_vec(values: &[String]) -> String {
+        let items: Vec<String> = values
+            .iter()
+            .map(|value| format!("{:?}.to_string()", value))
+            .collect();
+        format!("vec![{}]", items.join(", "))
+    }
+
+    fn persisted_current_fields(&self, type_name: &str) -> Vec<String> {
+        self.types
+            .variant_fields
+            .get(type_name)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    fn persisted_field_ty_value(&self, type_name: &str, field: &str) -> Ty {
+        self.types
+            .variant_field_types
+            .get(type_name)
+            .and_then(|fields| fields.get(field))
+            .cloned()
+            .unwrap_or(Ty::Hole)
+    }
+
+    fn persisted_create_table_sql(
+        &self,
+        type_name: &str,
+        table_name: &str,
+        fields: &[String],
+        if_not_exists: bool,
+    ) -> String {
+        let mut col_defs: Vec<String> = Vec::new();
+        for (idx, fname) in fields.iter().enumerate() {
+            let ty = self.persisted_field_ty_value(type_name, fname);
+            let sql_ty = futuruna_ty_to_sql_column(&ty);
+            let pk_suffix = if idx == 0 { " PRIMARY KEY" } else { "" };
+            col_defs.push(format!("{} {}{}", sanitize_name(fname), sql_ty, pk_suffix));
+        }
+        let if_not_exists = if if_not_exists { "IF NOT EXISTS " } else { "" };
+        format!(
+            "CREATE TABLE {}{} ({})",
+            if_not_exists,
+            table_name,
+            col_defs.join(", ")
+        )
+    }
+
+    fn persisted_insert_sql(&self, table_name: &str, fields: &[String]) -> String {
+        let cols: Vec<String> = fields.iter().map(|field| sanitize_name(field)).collect();
+        let placeholders: Vec<String> = (1..=cols.len()).map(|idx| format!("?{}", idx)).collect();
+        format!(
+            "INSERT OR REPLACE INTO {} ({}) VALUES ({})",
+            table_name,
+            cols.join(", "),
+            placeholders.join(", ")
+        )
+    }
+
+    fn persisted_migration_source_ty(
+        &self,
+        type_name: &str,
+        field: &str,
+        migration: &PersistMigration,
+        target_fields: &[String],
+    ) -> Ty {
+        if let Some(ty) = self
+            .types
+            .variant_field_types
+            .get(type_name)
+            .and_then(|fields| fields.get(field))
+            .cloned()
+        {
+            return ty;
+        }
+
+        for (idx, expr) in migration.new_exprs.iter().enumerate() {
+            if matches!(&expr.kind, ExprKind::Var(name) if name == field) {
+                if let Some(target_field) = target_fields.get(idx) {
+                    return self.persisted_field_ty_value(type_name, target_field);
+                }
+            }
+        }
+
+        Ty::Name("String".to_string())
+    }
+
+    fn emit_persist_migration_new_exprs(
+        &mut self,
+        type_name: &str,
+        migration: &PersistMigration,
+        referenced_fields: &[String],
+        target_fields: &[String],
+    ) -> Vec<String> {
+        let saved_local_bindings = self.local_bindings.clone();
+        let saved_var_types = self.var_types.clone();
+        let saved_copy_vars = self.copy_vars.clone();
+        let saved_var_use_counts = self.var_use_counts.clone();
+        let saved_var_consuming_counts = self.var_consuming_counts.clone();
+
+        let mut use_counts = BTreeMap::new();
+        let mut consuming_counts = BTreeMap::new();
+        for expr in &migration.new_exprs {
+            count_var_uses(expr, &mut use_counts);
+            count_consuming_uses(expr, &mut consuming_counts);
+        }
+
+        for field in referenced_fields {
+            let rust_name = sanitize_name(field);
+            let ty = self.persisted_migration_source_ty(type_name, field, migration, target_fields);
+            self.local_bindings.insert(field.clone());
+            self.var_types.insert(field.clone(), self.emit_type(&ty));
+            if is_copy_type(&ty) {
+                self.copy_vars.insert(field.clone());
+            }
+            if let Some(count) = use_counts.get(field).copied() {
+                self.var_use_counts.insert(field.clone(), count);
+            }
+            if let Some(count) = consuming_counts.get(field).copied() {
+                self.var_consuming_counts.insert(field.clone(), count);
+            }
+            if rust_name != *field {
+                self.local_bindings.insert(rust_name);
+            }
+        }
+
+        let emitted: Vec<String> = migration
+            .new_exprs
+            .iter()
+            .map(|expr| self.emit_expr(expr))
+            .collect();
+
+        self.local_bindings = saved_local_bindings;
+        self.var_types = saved_var_types;
+        self.copy_vars = saved_copy_vars;
+        self.var_use_counts = saved_var_use_counts;
+        self.var_consuming_counts = saved_var_consuming_counts;
+
+        emitted
+    }
+
+    fn emit_persisted_migration_branch(
+        &mut self,
+        type_name: &str,
+        table_name: &str,
+        migration: &PersistMigration,
+        current_fields: &[String],
+        loop_indent: &str,
+    ) -> Option<String> {
+        let target_fields: Vec<String> = current_fields
+            .iter()
+            .take(migration.new_exprs.len())
+            .cloned()
+            .collect();
+        if target_fields.len() != migration.new_exprs.len() || target_fields.is_empty() {
+            return None;
+        }
+
+        let old_cols: Vec<String> = migration
+            .old_fields
+            .iter()
+            .map(|field| sanitize_name(field))
+            .collect();
+        let mut referenced_vars = BTreeSet::new();
+        for expr in &migration.new_exprs {
+            Self::collect_migration_expr_vars(expr, &mut referenced_vars);
+        }
+        let referenced_fields: Vec<String> = migration
+            .old_fields
+            .iter()
+            .filter(|field| referenced_vars.contains(*field))
+            .cloned()
+            .collect();
+        let referenced_set: BTreeSet<String> = referenced_fields.iter().cloned().collect();
+        let dropped_fields: Vec<String> = migration
+            .old_fields
+            .iter()
+            .filter(|field| !referenced_set.contains(*field))
+            .cloned()
+            .collect();
+
+        let old_cols_expr = Self::rust_string_vec(&old_cols);
+        let mut out = String::new();
+        out.push_str(&format!("{loop_indent}if __cols == {old_cols_expr} {{\n"));
+
+        if !dropped_fields.is_empty() && !migration.unsafe_allowed {
+            let msg = format!(
+                "persist migration for {} drops columns [{}] and requires unsafe",
+                type_name,
+                dropped_fields.join(", ")
+            );
+            out.push_str(&format!("{loop_indent}    panic!({:?});\n", msg));
+            out.push_str(&format!("{loop_indent}}}\n"));
+            return Some(out);
+        }
+
+        let select_cols: Vec<String> = referenced_fields
+            .iter()
+            .map(|field| sanitize_name(field))
+            .collect();
+        let select_sql = if select_cols.is_empty() {
+            format!(
+                "SELECT 1 FROM {} ORDER BY {}",
+                table_name,
+                old_cols.join(", ")
+            )
+        } else {
+            format!(
+                "SELECT {} FROM {} ORDER BY {}",
+                select_cols.join(", "),
+                table_name,
+                old_cols.join(", ")
+            )
+        };
+        let create_sql =
+            self.persisted_create_table_sql(type_name, table_name, &target_fields, false);
+        let insert_sql = self.persisted_insert_sql(table_name, &target_fields);
+        let new_exprs = self.emit_persist_migration_new_exprs(
+            type_name,
+            migration,
+            &referenced_fields,
+            &target_fields,
+        );
+        let tuple_expr = if new_exprs.len() == 1 {
+            format!("({},)", new_exprs[0])
+        } else {
+            format!("({})", new_exprs.join(", "))
+        };
+        let insert_params: Vec<String> = (0..target_fields.len())
+            .map(|idx| format!("__row.{}", idx))
+            .collect();
+
+        out.push_str(&format!("{loop_indent}    let __rows = {{\n"));
+        out.push_str(&format!(
+            "{loop_indent}        let mut __stmt = __db_lock.prepare({:?}).expect(\"persist migration select prepare failed\");\n",
+            select_sql
+        ));
+        out.push_str(&format!(
+            "{loop_indent}        let __rows = __stmt.query_map(rusqlite::params![], |row| {{\n"
+        ));
+        for (idx, field) in referenced_fields.iter().enumerate() {
+            let ty =
+                self.persisted_migration_source_ty(type_name, field, migration, &target_fields);
+            let rust_ty = self.emit_type(&ty);
+            out.push_str(&format!(
+                "{loop_indent}            let {}: {} = row.get::<_, {}>({})?;\n",
+                sanitize_name(field),
+                rust_ty,
+                rust_ty,
+                idx
+            ));
+        }
+        out.push_str(&format!("{loop_indent}            Ok({tuple_expr})\n"));
+        out.push_str(&format!(
+            "{loop_indent}        }}).expect(\"persist migration select failed\");\n"
+        ));
+        out.push_str(&format!(
+            "{loop_indent}        __rows.filter_map(|row| row.ok()).collect::<Vec<_>>()\n"
+        ));
+        out.push_str(&format!("{loop_indent}    }};\n"));
+        out.push_str(&format!(
+            "{loop_indent}    __db_lock.execute({:?}, rusqlite::params![]).expect(\"persist migration drop failed\");\n",
+            format!("DROP TABLE IF EXISTS {}", table_name)
+        ));
+        out.push_str(&format!(
+            "{loop_indent}    __db_lock.execute({:?}, rusqlite::params![]).expect(\"persist migration create failed\");\n",
+            create_sql
+        ));
+        out.push_str(&format!("{loop_indent}    for __row in __rows {{\n"));
+        out.push_str(&format!(
+            "{loop_indent}        __db_lock.execute({:?}, rusqlite::params![{}]).expect(\"persist migration insert failed\");\n",
+            insert_sql,
+            insert_params.join(", ")
+        ));
+        out.push_str(&format!("{loop_indent}    }}\n"));
+        out.push_str(&format!("{loop_indent}    continue;\n"));
+        out.push_str(&format!("{loop_indent}}}\n"));
+
+        Some(out)
+    }
+
+    fn emit_persisted_schema_startup(
+        &mut self,
+        type_name: &str,
+        table_name: &str,
+        hash: &str,
+    ) -> String {
+        let current_fields = self.persisted_current_fields(type_name);
+        let current_cols: Vec<String> = current_fields
+            .iter()
+            .map(|field| sanitize_name(field))
+            .collect();
+        let current_schema: Vec<(String, String)> = current_fields
+            .iter()
+            .map(|field| {
+                let ty = self.persisted_field_ty_value(type_name, field);
+                (
+                    sanitize_name(field),
+                    futuruna_ty_to_sql_storage_type(&ty).to_string(),
+                )
+            })
+            .collect();
+        let current_cols_expr = Self::rust_string_vec(&current_cols);
+        let current_schema_items: Vec<String> = current_schema
+            .iter()
+            .map(|(name, ty)| format!("({:?}.to_string(), {:?}.to_string())", name, ty))
+            .collect();
+        let current_schema_expr = format!("vec![{}]", current_schema_items.join(", "));
+        let create_sql =
+            self.persisted_create_table_sql(type_name, table_name, &current_fields, true);
+        let migrations = self
+            .types
+            .persist_migrations
+            .get(type_name)
+            .cloned()
+            .unwrap_or_default();
+
+        let i = self.ind();
+        let loop_indent = format!("{i}        ");
+        let mut out = String::new();
+        out.push_str(&format!(
+            "{i}{{ // persisted schema startup for {type_name}\n"
+        ));
+        out.push_str(&format!("{i}    let __db_lock = __db.lock().unwrap();\n"));
+        out.push_str(&format!("{i}    let __new_hash = {:?};\n", hash));
+        out.push_str(&format!(
+            "{i}    let __current_cols = {current_cols_expr};\n"
+        ));
+        out.push_str(&format!(
+            "{i}    let __current_schema = {current_schema_expr};\n"
+        ));
+        out.push_str(&format!(
+            "{i}    __db_lock.execute({:?}, rusqlite::params![]).expect(\"Failed to create table {table_name}\");\n",
+            create_sql
+        ));
+        out.push_str(&format!("{i}    loop {{\n"));
+        out.push_str(&format!(
+            "{i}        let __old_hash: Option<String> = __db_lock.query_row(\n"
+        ));
+        out.push_str(&format!(
+            "{i}            \"SELECT schema_hash FROM schema_meta WHERE type_name = ?1\",\n"
+        ));
+        out.push_str(&format!(
+            "{i}            rusqlite::params![\"{type_name}\"],\n"
+        ));
+        out.push_str(&format!("{i}            |row| row.get(0)\n"));
+        out.push_str(&format!("{i}        ).ok();\n"));
+        out.push_str(&format!(
+            "{i}        let __schema: Vec<(String, String)> = {{\n"
+        ));
+        out.push_str(&format!(
+            "{i}            let mut __stmt = __db_lock.prepare({:?}).expect(\"persist schema inspect prepare failed\");\n",
+            format!("PRAGMA table_info({})", table_name)
+        ));
+        out.push_str(&format!(
+            "{i}            let __rows = __stmt.query_map(rusqlite::params![], |row| {{\n"
+        ));
+        out.push_str(&format!(
+            "{i}                let __name: String = row.get(1)?;\n"
+        ));
+        out.push_str(&format!(
+            "{i}                let __ty: String = row.get::<_, String>(2)?.to_uppercase();\n"
+        ));
+        out.push_str(&format!("{i}                Ok((__name, __ty))\n"));
+        out.push_str(&format!(
+            "{i}            }}).expect(\"persist schema inspect failed\");\n"
+        ));
+        out.push_str(&format!(
+            "{i}            __rows.filter_map(|row| row.ok()).collect()\n"
+        ));
+        out.push_str(&format!("{i}        }};\n"));
+        out.push_str(&format!(
+            "{i}        let __cols: Vec<String> = __schema.iter().map(|(name, _)| name.clone()).collect();\n"
+        ));
+        out.push_str(&format!(
+            "{i}        if __old_hash.as_deref() == Some(__new_hash) && __schema == __current_schema {{ break; }}\n"
+        ));
+        out.push_str(&format!("{i}        if __schema == __current_schema {{\n"));
+        out.push_str(&format!(
+            "{i}            __db_lock.execute(\"INSERT OR REPLACE INTO schema_meta (type_name, schema_hash) VALUES (?1, ?2)\", rusqlite::params![\"{type_name}\", __new_hash]).expect(\"persist schema meta update failed\");\n"
+        ));
+        out.push_str(&format!("{i}            break;\n"));
+        out.push_str(&format!("{i}        }}\n"));
+
+        for migration in &migrations {
+            if let Some(branch) = self.emit_persisted_migration_branch(
+                type_name,
+                table_name,
+                migration,
+                &current_fields,
+                &loop_indent,
+            ) {
+                out.push_str(&branch);
+            }
+        }
+
+        out.push_str(&format!(
+            "{i}        if __cols.len() < __current_cols.len() && __current_cols.starts_with(&__cols) {{\n"
+        ));
+        out.push_str(&format!(
+            "{i}            for __field in __current_cols.iter().skip(__cols.len()) {{\n"
+        ));
+        out.push_str(&format!("{i}                match __field.as_str() {{\n"));
+        for field in &current_fields {
+            let col = sanitize_name(field);
+            let ty = self.persisted_field_ty_value(type_name, field);
+            let add_sql = format!(
+                "ALTER TABLE {} ADD COLUMN {} {} DEFAULT {}",
+                table_name,
+                col,
+                futuruna_ty_to_sql_column(&ty),
+                futuruna_ty_sql_default(&ty)
+            );
+            out.push_str(&format!(
+                "{i}                    {:?} => {{ __db_lock.execute({:?}, rusqlite::params![]).expect(\"persist auto-migrate add column failed\"); }}\n",
+                col,
+                add_sql
+            ));
+        }
+        out.push_str(&format!("{i}                    _ => {{}}\n"));
+        out.push_str(&format!("{i}                }}\n"));
+        out.push_str(&format!("{i}            }}\n"));
+        out.push_str(&format!(
+            "{i}            __db_lock.execute(\"INSERT OR REPLACE INTO schema_meta (type_name, schema_hash) VALUES (?1, ?2)\", rusqlite::params![\"{type_name}\", __new_hash]).expect(\"persist schema meta update failed\");\n"
+        ));
+        out.push_str(&format!("{i}            break;\n"));
+        out.push_str(&format!("{i}        }}\n"));
+        out.push_str(&format!("{i}        if __cols == __current_cols {{\n"));
+        out.push_str(&format!("{i}            panic!(\"persist schema mismatch for {type_name}; column names match but stored SQL types differ; add @ migrate {type_name}(old_fields...) -> {type_name}(new_fields...) unsafe\");\n"));
+        out.push_str(&format!("{i}        }}\n"));
+
+        out.push_str(&format!(
+            "{i}        panic!(\"persist schema mismatch for {type_name}; add @ migrate {type_name}(old_fields...) -> {type_name}(new_fields...) or use a safe appended field\");\n"
+        ));
+        out.push_str(&format!("{i}    }}\n"));
+        out.push_str(&format!("{i}}}\n"));
+        out
     }
 
     /// Resolve and parse an imported .runa file from a specific base directory.
@@ -16129,6 +16748,16 @@ impl RustCodegen {
                 if let Stmt::Annot(name, args) = stmt {
                     let is_store = name == "store";
                     let is_persist = name == "persist";
+                    if name == "migrate" {
+                        if let Some(migration) = Self::parse_persist_migration(args) {
+                            self.types
+                                .persist_migrations
+                                .entry(migration.type_name.clone())
+                                .or_default()
+                                .push(migration);
+                        }
+                        continue;
+                    }
                     if is_store || is_persist {
                         if let Some(Expr {
                             kind: ExprKind::Var(type_name),
@@ -16175,18 +16804,12 @@ impl RustCodegen {
                                     .stored_type_key_field
                                     .insert(name.clone(), f.name.clone());
                             }
-                            // Compute schema hash from field names + types
-                            let mut schema_str = String::new();
-                            for f in &v.fields {
-                                schema_str.push_str(&f.name);
-                                schema_str.push(':');
-                                schema_str.push_str(&format!("{:?}", f.ty));
-                                schema_str.push(';');
-                            }
-                            use std::hash::{Hash, Hasher};
-                            let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                            schema_str.hash(&mut hasher);
-                            let hash = format!("{:016x}", hasher.finish());
+                            let fields: Vec<(String, Ty)> = v
+                                .fields
+                                .iter()
+                                .map(|field| (field.name.clone(), field.ty.clone()))
+                                .collect();
+                            let hash = persist_schema_hash_from_fields(&fields);
                             self.types
                                 .stored_type_schema_hash
                                 .insert(name.clone(), hash);
@@ -19460,7 +20083,11 @@ impl RustCodegen {
                 ));
                 // Create meta table for schema versioning
                 out.push_str(&format!("{i}__db.lock().unwrap().execute(\n"));
-                out.push_str(&format!("{i}    \"CREATE TABLE IF NOT EXISTS __store_meta (type_name TEXT PRIMARY KEY, schema_hash TEXT NOT NULL)\",\n"));
+                out.push_str(&format!("{i}    \"CREATE TABLE IF NOT EXISTS schema_meta (type_name TEXT PRIMARY KEY, schema_hash TEXT NOT NULL)\",\n"));
+                out.push_str(&format!("{i}    rusqlite::params![]\n"));
+                out.push_str(&format!("{i}).ok();\n"));
+                out.push_str(&format!("{i}__db.lock().unwrap().execute(\n"));
+                out.push_str(&format!("{i}    \"INSERT OR IGNORE INTO schema_meta (type_name, schema_hash) SELECT type_name, schema_hash FROM __store_meta\",\n"));
                 out.push_str(&format!("{i}    rusqlite::params![]\n"));
                 out.push_str(&format!("{i}).ok();\n"));
                 for type_name in &self.types.stored_types.clone() {
@@ -19471,6 +20098,14 @@ impl RustCodegen {
                         .get(type_name)
                         .cloned()
                         .unwrap_or_default();
+                    if self.types.persisted_types.contains(type_name.as_str()) {
+                        out.push_str(&self.emit_persisted_schema_startup(
+                            type_name,
+                            &table_name,
+                            &hash,
+                        ));
+                        continue;
+                    }
                     let is_dump = self.types.store_delete_on_change.contains(type_name);
                     // Check stored schema hash vs current
                     out.push_str(&format!("{i}{{\n"));
@@ -19478,7 +20113,7 @@ impl RustCodegen {
                     out.push_str(&format!(
                         "{i}    let __old_hash: Option<String> = __db_lock.query_row(\n"
                     ));
-                    out.push_str(&format!("{i}        \"SELECT schema_hash FROM __store_meta WHERE type_name = ?1\",\n"));
+                    out.push_str(&format!("{i}        \"SELECT schema_hash FROM schema_meta WHERE type_name = ?1\",\n"));
                     out.push_str(&format!("{i}        rusqlite::params![\"{type_name}\"],\n"));
                     out.push_str(&format!("{i}        |row| row.get(0)\n"));
                     out.push_str(&format!("{i}    ).ok();\n"));
@@ -19510,7 +20145,7 @@ impl RustCodegen {
                         out.push_str(&format!("{i}            eprintln!(\"store: {type_name} schema changed — keeping data (new fields get defaults)\");\n"));
                     }
                     out.push_str(&format!("{i}            __db_lock.execute(\n"));
-                    out.push_str(&format!("{i}                \"INSERT OR REPLACE INTO __store_meta (type_name, schema_hash) VALUES (?1, ?2)\",\n"));
+                    out.push_str(&format!("{i}                \"INSERT OR REPLACE INTO schema_meta (type_name, schema_hash) VALUES (?1, ?2)\",\n"));
                     out.push_str(&format!(
                         "{i}                rusqlite::params![\"{type_name}\", __new_hash],\n"
                     ));
@@ -19521,7 +20156,7 @@ impl RustCodegen {
                         "{i}            // First run — record schema hash\n"
                     ));
                     out.push_str(&format!("{i}            __db_lock.execute(\n"));
-                    out.push_str(&format!("{i}                \"INSERT INTO __store_meta (type_name, schema_hash) VALUES (?1, ?2)\",\n"));
+                    out.push_str(&format!("{i}                \"INSERT INTO schema_meta (type_name, schema_hash) VALUES (?1, ?2)\",\n"));
                     out.push_str(&format!(
                         "{i}                rusqlite::params![\"{type_name}\", __new_hash],\n"
                     ));
@@ -37719,6 +38354,65 @@ retract Item(_, _, _)
         assert!(
             rust.contains("DELETE FROM item\", rusqlite::params![]"),
             "all-wildcard persisted retract should delete all rows explicitly: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_persist_migration_uses_schema_meta_and_rebuild_branch() {
+        let source = r#"
+# Item(id: Int, name: String, qty: Int)
+@ persist Item
+@ migrate Item(id, name) -> Item(id, name, 10)
+@ print("ready")
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("CREATE TABLE IF NOT EXISTS schema_meta"),
+            "persisted schema hashes should use the public schema_meta table: {}",
+            rust
+        );
+        assert!(
+            rust.contains("PRAGMA table_info(item)"),
+            "persisted startup should inspect existing columns before accepting a hash: {}",
+            rust
+        );
+        assert!(
+            rust.contains("ALTER TABLE item ADD COLUMN qty INTEGER NOT NULL DEFAULT 0"),
+            "safe appended fields should auto-migrate with a default: {}",
+            rust
+        );
+        assert!(
+            rust.contains("SELECT id, name FROM item ORDER BY id, name"),
+            "matching @ migrate rules should read old columns deterministically: {}",
+            rust
+        );
+        assert!(
+            rust.contains("DROP TABLE IF EXISTS item"),
+            "matching @ migrate rules should rebuild the persisted table: {}",
+            rust
+        );
+        assert!(
+            rust.contains("INSERT OR REPLACE INTO item (id, name, qty) VALUES (?1, ?2, ?3)"),
+            "matching @ migrate rules should insert rows in the migrated shape: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_persist_migration_refuses_unsafe_drop_without_marker() {
+        let source = r#"
+# Item(id: Int, name: String)
+@ persist Item
+@ migrate Item(id, name, qty) -> Item(id, name)
+@ print("ready")
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("drops columns [qty] and requires unsafe"),
+            "dropped persisted columns should require explicit unsafe migration marker: {}",
             rust
         );
     }

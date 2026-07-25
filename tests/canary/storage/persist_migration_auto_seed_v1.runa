@@ -1,0 +1,10 @@
+-- roundtrip-skip: persisted storage canary uses generated Cargo/rusqlite runtime
+
+# AutoItem(id: Int, name: String)
+@ persist AutoItem in "storage_canary_auto"
+
+retract AutoItem(_, _)
+assert AutoItem(1, "alpha")
+assert AutoItem(2, "beta")
+
+@ print("migration_auto_seed_v1=ok")
