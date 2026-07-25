@@ -12,28 +12,35 @@ Read this with [compatibility-policy.md](compatibility-policy.md) and
 | Surface | Stage | Contract |
 |---------|-------|----------|
 | `runa emit` command behavior | Stable | For accepted source, the command prints generated Rust to stdout, reports command metadata on stderr, and exits nonzero for parse/type/compiler errors. |
-| Pure/core generated Rust artifact shape | Preview | For stable pure/core source, generated Rust must compile on the supported Rust toolchain and preserve documented Futuruna behavior. Exact text is not stable unless covered by an artifact expectation fixture. |
+| Pure/core generated Rust behavior and reviewed artifact fixtures | Stable | For stable pure/core source, generated Rust must compile on the supported Rust toolchain and preserve documented Futuruna behavior. Exact text is stable only where covered by an artifact expectation fixture; helper names and private layout remain internal. |
 | Artifact expectation fixtures | Snapshot-stable | Files under `tests/expect/artifact/` and their golden files are reviewed emitted-artifact contracts. Any diff is a compatibility-facing change that must be intentional and documented. |
 | `runa build` native binary output | Stable command behavior, unstable path internals | The command produces a runnable native binary or reports a compiler bug if generated Rust does not compile. Cache paths, temporary Rust filenames, and internal build layout are not public contract. |
 | `runa lib` Rust-facing export shape | Preview | `@ export` functions and types are emitted as public Rust items using the documented type mapping; unexported helpers remain private; no binary `fn main` is emitted. Exact helper layout remains internal. |
 | `runa wasm` output | Preview | WASM export validation and build are supported, but package file layout, JS glue shape, and required toolchain policy are not stable yet. |
 | Helper names, private modules, formatting, internal prelude layout | Unstable internal | These may change without a compatibility cycle unless they appear in an artifact expectation fixture or a specific doc promises them. |
 
-## Pure/Core Rust Codegen Promotion Rule
+## Pure/Core Rust Codegen Stable Contract
 
-Pure/core Rust codegen can move out of Preview only when all of these hold:
+Pure/core Rust codegen is stable for the covered contract when all of these
+hold:
 
 1. Mint stays green for interpreted tests, compiled tests, check-codegen,
    roundtrip, expectations, and canaries.
 2. The core canary tier remains 0-skip for run, check-codegen, and roundtrip.
-3. Artifact expectations cover representative emitted Rust shapes: top-level
-   bindings, exported functions/types, collections, ownership-sensitive
-   borrowing, and documented stdlib helpers.
+3. Artifact expectations and permanent codegen fixtures cover representative
+   emitted Rust shapes: top-level bindings, exported functions/types,
+   collections, ownership-sensitive borrowing, and documented stdlib helpers.
 4. Every exact emitted shape that Futuruna promises has a golden artifact
    fixture, or the docs explicitly say the shape is internal.
 5. Any emitted-artifact diff is reviewed as source, behavioral, or
    artifact-facing compatibility work instead of being treated as incidental
    compiler churn.
+
+The current stable promise is intentionally narrow: pure/core programs that use
+stable source syntax and documented stdlib behavior must compile and preserve
+behavior. It does not freeze exact private helper names, module layout, cache
+paths, temporary filenames, Rust interop escape hatches, `runa lib`, or WASM
+package shape.
 
 ## Contributor Rules
 
@@ -56,4 +63,5 @@ When changing codegen:
 |---------|----------|
 | `tests/expect/artifact/emit_pure_core_contract.runa` | A small pure/core program has a reviewed full emitted-Rust snapshot, including top-level global lowering and the binary `main` shape. |
 | `tests/expect/artifact/collection_helper_eval_contract.runa` | Collection helpers and expression-valued builtin arguments bind callback/input expressions once before repeated runtime use. |
+| `tests/expect/artifact/ownership_branch_string_contract.runa` | Ownership-sensitive `String` branch lowering clones a reused local when the same binding is needed after an `if` arm. |
 | `tests/expect/artifact/lib_export_contract.runa` | `runa lib` emits exported functions/types as public Rust items, keeps private helpers private, and does not emit a binary `main`. |

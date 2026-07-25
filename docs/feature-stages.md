@@ -21,7 +21,7 @@ It should be read alongside [docs/compatibility-policy.md](compatibility-policy.
 |---------|-------|-------|
 | Core language syntax documented in `docs/reference/basics.md` and `docs/reference/runes.md` | Stable | Changes here are source-compatibility changes unless docs explicitly mark a subsection otherwise. |
 | Documented stdlib builtin semantics in `docs/reference/stdlib.md` | Stable | Behavioral changes require compatibility handling or an explicit bug-fix exception. |
-| Pure/core generated Rust artifact shape | Preview | Generated Rust for stable pure/core source must compile and preserve behavior; exact emitted text is stable only for named artifact fixtures. See `docs/artifact-codegen-contracts.md`. |
+| Pure/core generated Rust behavior and reviewed artifact fixtures | Stable | Generated Rust for stable pure/core source must compile on the supported Rust toolchain and preserve documented behavior. Exact emitted text is stable only for named artifact fixtures; helper names and private layout remain internal. See `docs/artifact-codegen-contracts.md`. |
 | Importable local libraries and downstream consumer shape | Preview | Dedicated canaries and linting exist, but import-aware codegen/search coverage is still expanding. |
 | Exact helper names, private generated layout, and internal compiler layouts | Unstable internal | Not a public compatibility surface unless a doc or artifact expectation explicitly promises it. |
 | Explicit kernel proof terms and documented proof-kernel rule forms | Stable | The small kernel-backed proof term surface is part of the published contract. |

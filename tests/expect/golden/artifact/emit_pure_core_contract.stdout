@@ -132,4 +132,3 @@ fn main() {
     __fut_globals.doubled = Some(doubled.clone());
     println!("{}", __futuruna_show_any(&add_bias(&__fut_globals, base)));
 }
-

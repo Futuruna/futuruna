@@ -192,7 +192,7 @@ fn main_inner() {
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
                 eprintln!("Feature stages:");
-                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes; core syntax + documented stdlib");
+                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes; core syntax + documented stdlib + pure/core codegen behavior");
                 eprintln!("  Preview: lib, wasm, lsp, stress-gen, verify; streams/stateful surfaces; Rust interop");
                 eprintln!("  Experimental: audit, from-rust");
                 eprintln!("  Machine-readable: runa feature-stages --json");
@@ -8125,7 +8125,7 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
                 .map(|s| s.to_string_lossy().to_string());
             let old_code = cg2.emit_program(&stmts);
             println!("// === FIR pipeline output ===");
-            println!("{}", code);
+            print!("{}", code);
             println!(
                 "// === Old pipeline output ({} lines) ===",
                 old_code.lines().count()
@@ -8163,7 +8163,7 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
                 .file_stem()
                 .map(|s| s.to_string_lossy().to_string());
             let code = cg.emit_program(&stmts);
-            println!("{}", code);
+            print!("{}", code);
             eprintln!(
                 "// runa --emit rust: {} → {} lines of Rust",
                 filename,

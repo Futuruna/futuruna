@@ -1,5 +1,5 @@
 ---
-feature_stage: preview
+feature_stage: mixed
 feature_stage_surfaces:
   - pure-core-rust-artifacts
   - rust-interop

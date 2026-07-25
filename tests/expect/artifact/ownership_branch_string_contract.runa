@@ -1,0 +1,13 @@
+-- expect-command: emit-rust
+-- expect-status: pass
+-- expect-stdout: let before_phase = if ((predicted.clone().chars().count() as i64) > 0i64)
+-- expect-stdout: let after_phase = if (regret > 0.0) { "Liquid".to_string() } else { before_phase.clone() };
+-- expect-stdout: let passed = if ((before_phase == "Solid") && (after_phase == "Liquid"))
+-- expect-stdout-file: ../golden/artifact/ownership_branch_string_contract.stdout
+= predicted = "dense"
+= regret = 1.0
+= before_phase = if string_length(predicted) > 0 { "Solid" } else { "Gas" }
+= after_phase = if regret > 0.0 { "Liquid" } else { before_phase }
+= passed = if before_phase == "Solid" && after_phase == "Liquid" { 1 } else { 0 }
+
+@ print(show(passed))

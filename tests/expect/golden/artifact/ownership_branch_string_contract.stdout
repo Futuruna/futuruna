@@ -77,22 +77,6 @@ trait Console {
     fn ask(&self, prompt: String) -> String;
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-struct Word {
-    pub form: String,
-    pub score: i64,
-}
-
-impl fmt::Display for Word {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Word(")?;
-        write!(f, "form: {}", self.form)?;
-        write!(f, ", ")?;
-        write!(f, "score: {}", self.score)?;
-        write!(f, ")")
-    }
-}
-
 fn unwrap_or<A: fmt::Display + Clone>(opt: Option<A>, default: A) -> A {
     match opt {
         Option::None => default,
@@ -130,19 +114,11 @@ fn identity<A: fmt::Display + Clone>(x: A) -> A {
     x
 }
 
-fn word_key(w: &Word) -> String {
-    w.form.clone()
-}
-
-fn json_passthrough(s: String) -> String {
-    s
-}
-
 fn main() {
-    let words = vec![Word { form: "beta".to_string(), score: 2i64 }, Word { form: "alpha".to_string(), score: 1i64 }, Word { form: "gamma".to_string(), score: 3i64 }];
-    let sorted = { let mut __v = words.clone().clone(); let mut __key = word_key.clone(); __v.sort_by_cached_key(|__item| format!("{}", __key(__item))); __v };
-    let labels = sorted.clone().into_iter().map(|__x| word_key(&__x)).collect::<Vec<_>>();
-    let keepers = { let (__yes, __no): (Vec<_>, Vec<_>) = words.clone().into_iter().partition(|w| {  let w = w.clone(); (w.score > 1i64) }); (__yes, __no) };
-    let decoded = { let __s = json_passthrough("\"mint\"".to_string()); let __j: serde_json::Value = serde_json::from_str(&__s).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => __s.trim_matches('"').to_string() } };
-    println!("{}:{}:{}", labels.clone().join(&*",".to_string()), decoded, __futuruna_show_any(&__futuruna_len(&keepers.0)));
+    let predicted = "dense".to_string();
+    let regret = 1.0;
+    let before_phase = if ((predicted.clone().chars().count() as i64) > 0i64) { "Solid".to_string() } else { "Gas".to_string() };
+    let after_phase = if (regret > 0.0) { "Liquid".to_string() } else { before_phase.clone() };
+    let passed = if ((before_phase == "Solid") && (after_phase == "Liquid")) { 1i64 } else { 0i64 };
+    println!("{}", __futuruna_show_any(&passed));
 }

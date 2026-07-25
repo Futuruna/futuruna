@@ -234,8 +234,9 @@ stable-surface changes, but some enforcement still needs follow-up work:
   tracked stable-surface file changes to update a versioned compatibility guide
   or fill the PR template reason for why no guide entry is needed
 - artifact compatibility is documented in
-  [docs/artifact-codegen-contracts.md](artifact-codegen-contracts.md), but
-  only a small initial artifact fixture set exists
+  [docs/artifact-codegen-contracts.md](artifact-codegen-contracts.md); exact
+  emitted Rust is stable only for reviewed artifact fixtures, and additional
+  emitted shapes must receive fixtures before they become public contracts
 
 Those gaps should be tracked explicitly in `td`, not left as implicit policy
 debt.

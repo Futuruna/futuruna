@@ -19,8 +19,8 @@ Tracked by `td-4ffe32`.
 
 ## Evidence Snapshot
 
-Evidence source: local scorecard sweep recorded in `td-f7f0d2` on 2026-05-01,
-current CI wiring, and the current open `td` queue.
+Evidence source: local scorecard sweeps recorded in `td-f7f0d2`, current CI
+wiring, and the current `td` queue through 2026-07-18.
 
 | Lane | Evidence | Readiness Signal |
 |------|----------|------------------|
@@ -34,25 +34,25 @@ current CI wiring, and the current open `td` queue.
 | Extended canary tier | 10 run passed, 5 check-codegen passed, 5 skipped, 2 roundtrip matched, 8 skipped. | Useful coverage, but not production-grade as a whole. |
 | Regression canary tier | 3 run passed, 2 check-codegen passed, 1 skipped, 1 roundtrip matched, 2 skipped. | Good bug-class coverage; skip accounting matters. |
 | Downstream consumer lane | `./scripts/downstream-canary.sh` passed: 15 importable files passed hygiene, 13 downstream tests ran, 5 check-codegen passed, 8 skipped, 13 roundtrip skipped. | Import/lint coverage is real; generic parity is not yet broad. |
-| Differential lane | Local reduced sweep passed 48 generated interpreter-vs-compiled cases, but `tests/differential/corpus` has no checked-in minimized cases. | Good generator signal; durable replay corpus is missing. `td-2061ce` tracks this. |
+| Differential lane | Local reduced sweep passed generated interpreter-vs-compiled cases, and `tests/differential/corpus` now contains minimized historical codegen cases plus an import-aware subcorpus. | Good generator signal with durable replay artifacts. |
 | CI wiring | CI runs mint on Ubuntu/macOS, Rust formatting, differential, authored canaries, and downstream consumers. | Strong project-level signal. |
 
 ## Surface Scorecard
 
 | Surface | Rating | Evidence | Next Gate Before Promotion |
 |---------|--------|----------|----------------------------|
-| Core documented syntax and ordinary expression semantics | Production-ready | Stable docs, mint, core canaries with 0 skips, roundtrip parity, many focused regression tests. | Keep semantic changes under the contributor ratchet; expand expectation coverage for diagnostics and phase markers (`td-4d7e81`). |
-| Documented stdlib builtin semantics | Production-ready | Stable docs, broad tests, typed lowering corpus, string/list/map/set/property tests, core canaries, and duplicate-evaluation audit coverage. | Finish remaining builtin contract audits: signature-table audit (`td-4f849b`) and expectation cases for contract edges. |
-| Core CLI commands: `run`, `check`, `emit`, `build`, `test`, `fmt`, `hashes` | Production-ready | Stable feature stage, mint and CI exercise the core commands. | Keep compatibility-guide enforcement moving (`td-6769d2`). |
-| Rust formatting and repository hygiene | Preview | `runa fmt --check` is used by canary/downstream/CI, but repo-wide cargo fmt parity has an open task. | Close `td-e7d877`. |
-| Compiler Rust codegen for pure/core programs | Preview | Strong mint/core-canary check-codegen signal, phase marker cases, documented artifact boundaries, artifact golden fixtures, and duplicate-evaluation template audit coverage exist; exact emitted Rust remains unstable outside named fixtures. | Add broader ownership-helper snapshots and finish borrow-only/signature-table audits before promotion. |
-| Interpreter-vs-compiled parity for pure/core programs | Production-ready | Mint roundtrip and core canary roundtrip are strong, with 0 core canary skips. | Seed minimized differential corpus so historical bugs replay permanently (`td-2061ce`). |
+| Core documented syntax and ordinary expression semantics | Production-ready | Stable docs, mint, core canaries with 0 skips, roundtrip parity, many focused regression tests. | Keep semantic changes under the contributor ratchet; expand expectation coverage when diagnostics or phase markers become stable promises. |
+| Documented stdlib builtin semantics | Production-ready | Stable docs, broad tests, typed lowering corpus, string/list/map/set/property tests, core canaries, signature-table audit coverage, and duplicate-evaluation audit coverage. | Keep signature-table and duplicate-evaluation regression tests active; add expectation cases for newly promised contract edges. |
+| Core CLI commands: `run`, `check`, `emit`, `build`, `test`, `fmt`, `hashes` | Production-ready | Stable feature stage, mint and CI exercise the core commands. | Keep `mint` authoritative, feature-stage metadata synchronized, and compatibility-guide enforcement active. |
+| Rust formatting and repository hygiene | Production-ready | `runa fmt --check` is used by canary/downstream/CI, `cargo fmt --check` is green repo-wide, and the dedicated repo-wide rustfmt parity task (`td-e7d877`) is closed. | Keep `cargo fmt --check`, `runa fmt --check`, and `git diff --check` as routine gates. |
+| Compiler Rust codegen for pure/core programs | Production-ready | Stable feature stage for pure/core generated Rust behavior; mint/core canaries check codegen and roundtrip; phase marker cases, typed lowering corpus, artifact golden fixtures, duplicate-evaluation template audit, signature-table audit, minimized differential corpus, and ownership-sensitive artifact snapshots are in place. Exact emitted Rust remains internal outside named fixtures. | Keep artifact fixture diffs compatibility-reviewed and add new fixtures for every newly promised emitted shape. |
+| Interpreter-vs-compiled parity for pure/core programs | Production-ready | Mint roundtrip, core canary roundtrip, and checked-in minimized differential cases are strong, with 0 core canary skips. | Require every future parity bug to land in the narrowest permanent lane. |
 | Importable local libraries and downstream consumer shape | Preview | Dedicated downstream lane, library hygiene lint, and consumer checks pass. Generic roundtrip skips all downstream fixtures and check-codegen skips 8 of 13. | Teach generic check-codegen to cover local import consumers (`td-35b4e3`) and add import-aware deep-search cases (`td-a70b05`, `td-b4729e`). |
 | Streams, subjects, actors, and effect-heavy workflows | Preview | Stateful canaries pass execution and docs mark the surface preview. Generic check-codegen and roundtrip skip the whole stateful tier. | Continue stream lifetime hardening (`td-17811d`) and reduce external-crate skip reliance with explicit compiled-codegen lanes. |
 | WASM-facing behavior | Preview | WASM tests, an extended export-surface canary, an automated `runa wasm` build lane, and documented preview artifact boundaries exist. Missing `wasm-pack` is reported as an explicit skip unless CI requires it. | Decide where the WASM lane is required in CI and add package-shape expectations once the JS/ABI boundary is chosen. |
 | Rust interop and Rust-facing integration | Preview | Feature stage is preview; CI runs `from-rust --test examples/from-rust/`; `runa lib` export shape has an artifact expectation for public/private item boundaries. | Add canaries for stable integration shapes and broaden exported type/function fixtures before promotion. |
 | `runa lint-library` import-hygiene tooling | Preview | Downstream lane enforces hygiene over importable files and imports. | Deepen purity analysis through local helper calls (`td-fd7715`). |
-| `runa stress-gen` and differential testing | Preview | CI has a differential job and seed-stable generator. No minimized checked-in replay corpus exists yet. | Close `td-2061ce`; require every differential-found compiler bug to land in corpus. |
+| `runa stress-gen` and differential testing | Preview | CI has a differential job, seed-stable generator, checked-in minimized replay corpus, and import-aware differential subcorpus. | Require every differential-found compiler bug to land in corpus; add more import/ownership pressure as failures are found. |
 | Compiletest-style expectations | Preview | Expectation runner is in mint and has diagnostic/run/phase cases plus exact golden-file checks. Corpus is still small. | Grow the golden snapshot corpus and require exact expectations for new diagnostics where stable. |
 | FIR and phase snapshots | Preview | Phase validation exists and has already caught drift classes, including cross-binding/module marker cases. | Add larger reviewed golden snapshots and document which phase markers are stable enough for tests. |
 | Explicit proof terms and proof kernel surface | Preview | Kernel exists in `src/proof_kernel.rs`; `td-f8f162` records the trusted-boundary audit and honest size budget; proof canaries exist. | Add more adversarial kernel tests and require boundary-budget updates for new rule or axiom growth before promotion. |
@@ -77,17 +77,18 @@ changes Futuruna's production-readiness claim.
 
 | Area | State | Next 1-3 Milestones | Effort for next state | Impact score |
 |------|-------|----------------------|-----------------------|--------------|
-| Core syntax and ordinary expression semantics | Production-ready | Keep mint green; expand diagnostics/phase expectations (`td-4d7e81`); keep compatibility guide updates enforced (`td-6769d2`). | M | 4 |
-| Documented stdlib builtins | Production-ready | Audit signature tables against stdlib docs (`td-4f849b`); add expectation cases for remaining contract edges; keep duplicate-evaluation fixtures in the artifact lane. | M | 4 |
-| Core CLI workflow | Production-ready | Keep `mint` authoritative; keep feature-stage metadata and doc frontmatter synchronized; enforce compatibility guide updates (`td-6769d2`). | M | 4 |
-| Pure/core interpreter-vs-compiled parity | Production-ready | Seed minimized differential corpus (`td-2061ce`); keep core canaries 0-skip; promote every new semantic bug into the narrowest permanent lane. | M | 5 |
-| Rust codegen for pure/core programs | Preview | Expand reviewed golden snapshots for ownership-sensitive shapes; finish borrow-only/signature-table audits; keep artifact fixture diffs compatibility-reviewed. | L | 5 |
+| Core syntax and ordinary expression semantics | Production-ready | Keep mint green; expand diagnostics/phase expectations when they become stable promises; keep compatibility guide updates enforced. | M | 4 |
+| Documented stdlib builtins | Production-ready | Keep signature-table audit tests green; add expectation cases for remaining contract edges; keep duplicate-evaluation fixtures in the artifact lane. | M | 4 |
+| Core CLI workflow | Production-ready | Keep `mint` authoritative; keep feature-stage metadata and doc frontmatter synchronized; keep compatibility guide updates enforced. | M | 4 |
+| Pure/core interpreter-vs-compiled parity | Production-ready | Keep minimized differential corpus growing; keep core canaries 0-skip; promote every new semantic bug into the narrowest permanent lane. | M | 5 |
+| Rust formatting and repository hygiene | Production-ready | Keep `cargo fmt --check`, `runa fmt --check`, and `git diff --check` routine; keep formatting-only cleanups separate from semantic changes. | S | 3 |
+| Rust codegen for pure/core programs | Production-ready | Keep artifact fixture diffs compatibility-reviewed; add fixtures for newly promised emitted shapes; keep pure/core canaries 0-skip. | M | 5 |
 | Importable local libraries and downstream consumer shape | Preview | Cover local import consumers in generic check-codegen (`td-35b4e3`); add import-aware deep-search cases (`td-a70b05`); add import-consumer expectation cases (`td-b4729e`). | L | 5 |
 | Streams, subjects, actors, and effect-heavy workflows | Preview | Continue stream lifetime epic (`td-17811d`); reduce stateful canary skip reliance with explicit compiled-codegen coverage; infer actor payloads from send sites (`td-ca379f`). | XL | 5 |
 | WASM-facing behavior | Preview | Keep automated WASM build canary green; require the WASM lane in CI where `wasm-pack` is installed; add package-shape expectations after choosing the JS/ABI boundary. | M | 4 |
 | Rust interop and integration | Preview | Add stable-shape interop canaries; broaden `runa lib` artifact expectations; document supported crate/import patterns. | L | 4 |
 | Library hygiene tooling | Preview | Deepen purity analysis through local helper calls (`td-fd7715`); add negative expectation cases; surface library markers in docs/tooling. | M | 3 |
-| Differential and generative testing | Preview | Seed minimized replay corpus (`td-2061ce`); add import-aware generation pressure; scale CI stress count once runtime is predictable. | L | 5 |
+| Differential and generative testing | Preview | Keep minimized replay corpus growing; add import-aware generation pressure; scale CI stress count once runtime is predictable. | L | 5 |
 | Compiletest-style expectations | Preview | Grow diagnostics and golden snapshot corpus; require exact expectations for new diagnostics where stable; keep expectation lanes fast enough for mint. | M | 4 |
 | FIR and phase snapshots | Preview | Add larger reviewed golden snapshots; connect snapshots to import normalization; document which phase markers are stable enough for tests. | M | 4 |
 | Explicit proof terms and proof kernel | Preview | Trusted-core size/surface audit recorded; add more adversarial kernel tests; keep solver fallback outside the kernel trust boundary. | M | 4 |
@@ -122,9 +123,10 @@ A surface can move to production-ready only when all of these are true:
 
 The safe production claim is:
 
-> Futuruna's stable core language and core CLI are production-ready for small to
-> medium pure/core programs that stay inside documented syntax and stdlib
-> contracts, with strong interpreter/compiled/codegen/roundtrip evidence.
+> Futuruna's stable core language, core CLI, repository hygiene gates, and
+> pure/core Rust codegen behavior are production-ready for small to medium
+> pure/core programs that stay inside documented syntax and stdlib contracts,
+> with strong interpreter/compiled/codegen/roundtrip evidence.
 
 The unsafe production claim is:
 
@@ -134,7 +136,9 @@ research-grade until the next gates above are closed.
 
 ## Next Evaluation Tasks
 
-2. Close `td-4d7e81` to grow exact diagnostic and phase expectations.
+2. Keep exact diagnostic and phase expectations growing as new stable
+   diagnostics or phase markers are promised.
 3. Decide where `wasm-pack` should be required rather than skipped and add
    package-shape expectations for the chosen WASM boundary.
-4. Close `td-2061ce` so differential testing has a checked-in replay corpus.
+4. Require every future differential-found compiler bug to land in the
+   checked-in replay corpus.
