@@ -3634,6 +3634,84 @@ fn run_roundtrip_tests(dir: &str, use_prelude: bool) {
 
 /// Run codegen validation: emit Rust for each .runa file and verify it compiles.
 /// Uses rustc directly for no-dep files, skips files that need external crates.
+fn codegen_check_direct_skip_reason(source: &str) -> Option<&'static str> {
+    if source.contains("@ depend")
+        || source.contains("db_open")
+        || source.contains("db_exec")
+        || source.contains("http_get")
+        || source.contains("http_serve")
+        || source.contains("json_parse")
+        || source.contains("json_get")
+        || source.contains("regex_match")
+        || source.contains("regex_find")
+        || source.contains("@ store")
+        || source.contains("@ persist")
+    {
+        return Some("needs external crate");
+    }
+
+    if source.contains("subject(") || source.contains("> actor") || source.contains("spawn(") {
+        return Some("needs async runtime");
+    }
+
+    None
+}
+
+fn codegen_check_skip_reason_for_file(file_path: &Path, source: &str) -> Option<String> {
+    let mut checked = BTreeSet::new();
+    codegen_check_skip_reason_for_source(file_path, source, &mut checked)
+}
+
+fn codegen_check_skip_reason_for_source(
+    file_path: &Path,
+    source: &str,
+    checked: &mut BTreeSet<String>,
+) -> Option<String> {
+    let canonical = std::fs::canonicalize(file_path)
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| file_path.to_string_lossy().to_string());
+    if !checked.insert(canonical) {
+        return None;
+    }
+
+    if let Some(reason) = codegen_check_direct_skip_reason(source) {
+        return Some(reason.to_string());
+    }
+
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let stmts = match parser.parse_program() {
+        Ok(stmts) => stmts,
+        Err(_) => return None,
+    };
+
+    let import_dir = file_path
+        .parent()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| ".".to_string());
+
+    for stmt in stmts {
+        let import_path = match stmt {
+            Stmt::Import(path) | Stmt::QualifiedImport(_, path) => path,
+            _ => continue,
+        };
+        let resolved = resolve_library_hygiene_import_path(&import_path, &import_dir);
+        let imported_path = Path::new(&resolved);
+        let imported_source = match std::fs::read_to_string(imported_path) {
+            Ok(source) => source,
+            Err(_) => return Some(format!("unresolved import {}", import_path)),
+        };
+        if let Some(reason) =
+            codegen_check_skip_reason_for_source(imported_path, &imported_source, checked)
+        {
+            return Some(format!("{} via import {}", reason, import_path));
+        }
+    }
+
+    None
+}
+
 fn run_codegen_check(dir: &str, use_prelude: bool) {
     use std::process::Command;
     use std::time::Instant;
@@ -3694,28 +3772,12 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
             continue;
         }
 
-        // Check if file uses external crates (needs Cargo, skip for rustc check)
-        let needs_crate = source.contains("@ depend")
-            || source.contains("db_open")
-            || source.contains("db_exec")
-            || source.contains("http_get")
-            || source.contains("http_serve")
-            || source.contains("json_parse")
-            || source.contains("json_get")
-            || source.contains("regex_match")
-            || source.contains("regex_find")
-            || source.contains("@ store")
-            || source.contains("@ persist")
-            || source.contains("subject(")
-            || source.contains("> actor")
-            || source.contains("spawn(")
-            || source.contains("@ import");
-        if needs_crate {
+        // Check if the root or any local import needs Cargo/async runtime support.
+        // Plain local imports are resolved before Rust emission and should be
+        // covered by this lane instead of skipped as external crates.
+        if let Some(reason) = codegen_check_skip_reason_for_file(&file_path, &source) {
             skipped += 1;
-            eprintln!(
-                "  \x1b[2mSKIP\x1b[0m  {} \x1b[2m(needs external crate)\x1b[0m",
-                name
-            );
+            eprintln!("  \x1b[2mSKIP\x1b[0m  {} \x1b[2m({})\x1b[0m", name, reason);
             continue;
         }
 
@@ -32804,6 +32866,74 @@ for x in [1, 2] {
             issues.is_empty(),
             "expected marked importable helper to pass, got: {:?}",
             issues
+        );
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn codegen_check_allows_plain_local_imports() {
+        let temp_name = format!(
+            "futuruna_codegen_check_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+        let main_source = "@ import ./dep\n@ print(show(helper()))\n";
+
+        std::fs::write(
+            &dep_path,
+            "-- library-hygiene: importable\n@ export\n> helper() -> Int { 1 }\n",
+        )
+        .unwrap();
+        std::fs::write(&main_path, main_source).unwrap();
+
+        assert_eq!(
+            codegen_check_skip_reason_for_file(&main_path, main_source),
+            None
+        );
+
+        let _ = std::fs::remove_file(&dep_path);
+        let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn codegen_check_reports_runtime_import_skip_reason() {
+        let temp_name = format!(
+            "futuruna_codegen_check_import_runtime_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let dep_path = temp_dir.join("dep.runa");
+        let main_path = temp_dir.join("main.runa");
+        let main_source = "@ import ./dep\n@ print(show(reading_count()))\n";
+
+        std::fs::write(
+            &dep_path,
+            "-- library-hygiene: importable\n~ readings = subject()\n@ export\n> reading_count() -> Int { readings.count }\n",
+        )
+        .unwrap();
+        std::fs::write(&main_path, main_source).unwrap();
+
+        assert_eq!(
+            codegen_check_skip_reason_for_file(&main_path, main_source),
+            Some("needs async runtime via import ./dep".to_string())
         );
 
         let _ = std::fs::remove_file(&dep_path);
