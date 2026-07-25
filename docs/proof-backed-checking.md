@@ -100,9 +100,10 @@ This is the natural successor to the current verified bootstrap fixture.
 
 ### 4. Ownership and borrow-sensitive Rust emission
 
-Current status: high-risk conventional codegen.
+Current status: high-risk conventional codegen with one narrow
+translation-checked slice.
 
-Why it is not first:
+Why it was not first:
 
 - the user-visible failures are important, but the model is Rust-specific and
   tangled with clone insertion, borrow lifetimes, and emitted code shape
@@ -113,8 +114,24 @@ Target for now:
 
 - keep this under mint, canaries, focused regressions, and generated Rust
   compile checks
-- later introduce translation validation around simple ownership-preserving
-  expression fragments
+- translation-check simple ownership-preserving expression fragments before
+  broader borrow/lifetime modeling
+
+Implemented narrow slice:
+
+- source-derived obligations now cover direct non-copy local reuse in `if`
+  branch results and list literals when the original local is referenced later
+- the checker validates that emitted Rust for the target binding contains a
+  clone of the reused local
+- adversarial tests tamper the emitted Rust and prove missing branch/list clones
+  are reported
+
+Boundary:
+
+- this does not prove all Rust borrow correctness
+- the checker only covers simple direct local reuse shapes today
+- richer flows through nested destructuring, match patterns, helper calls, and
+  lifetime-sensitive borrows remain trusted codegen plus mint/canary coverage
 
 ### 5. Stateful streams and async scope ownership
 
@@ -174,6 +191,27 @@ Structural independence boundary:
   lowering primitives for patterns, substituted bodies, and proof schemas
 - those shared lowering primitives remain part of the trusted proof-elaboration
   surface until a later slice reduces or audits them further
+
+## Second Concrete Slice
+
+The second implementation slice is:
+
+> translation-check ownership-sensitive Rust lowering for direct String/list
+> reuse patterns that previously produced moved-value bugs.
+
+Minimum useful version:
+
+1. collect source obligations where a non-copy local is moved into an `if` branch
+   result or list literal
+2. check that the same source local is referenced by later statements
+3. find the emitted Rust `let` statement for the target binding
+4. require the emitted expression to clone the reused local
+5. fail loudly if a tampered Rust artifact removes the required clone
+
+This is intentionally a shape check, not a general Rust ownership proof. It
+removes one concrete assumption from the codegen pipeline: that current clone
+insertion will keep later source-level reads valid for the direct branch/list
+reuse shapes covered by the fixtures.
 
 ## Non-Goals
 

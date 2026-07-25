@@ -39688,6 +39688,426 @@ routes <- "b"
         parser.parse_program().expect("parse failed")
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    enum OwnershipLoweringObligationKind {
+        BranchResultReuse,
+        ListElementReuse,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct OwnershipLoweringObligation {
+        binding: String,
+        reused_var: String,
+        kind: OwnershipLoweringObligationKind,
+    }
+
+    fn ty_is_copy_like_for_ownership_check(ty: &Ty) -> bool {
+        matches!(ty, Ty::Name(name) if matches!(name.as_str(), "Int" | "Float" | "Bool" | "Char"))
+    }
+
+    fn literal_is_copy_like_for_ownership_check(lit: &Literal) -> bool {
+        matches!(
+            lit,
+            Literal::Int(_) | Literal::Float(_) | Literal::Bool(_) | Literal::Char(_)
+        )
+    }
+
+    fn binding_is_copy_like_for_ownership_check(
+        name: &str,
+        bindings: &BTreeMap<String, Expr>,
+        binding_types: &BTreeMap<String, Option<Ty>>,
+    ) -> bool {
+        if let Some(Some(ty)) = binding_types.get(name) {
+            return ty_is_copy_like_for_ownership_check(ty);
+        }
+        matches!(
+            bindings.get(name).map(|expr| &expr.kind),
+            Some(ExprKind::Lit(lit)) if literal_is_copy_like_for_ownership_check(lit)
+        )
+    }
+
+    fn expr_references_var(expr: &Expr, name: &str) -> bool {
+        match &expr.kind {
+            ExprKind::Var(var) => var == name,
+            ExprKind::Lit(_) | ExprKind::Unit => false,
+            ExprKind::App(func, args) => {
+                expr_references_var(func, name)
+                    || args.iter().any(|arg| expr_references_var(arg, name))
+            }
+            ExprKind::Lambda(params, body) => {
+                !params.iter().any(|param| param.name == name) && expr_references_var(body, name)
+            }
+            ExprKind::BinOp(_, lhs, rhs) => {
+                expr_references_var(lhs, name) || expr_references_var(rhs, name)
+            }
+            ExprKind::UnOp(_, inner) | ExprKind::Try(inner) | ExprKind::Field(inner, _) => {
+                expr_references_var(inner, name)
+            }
+            ExprKind::If(cond, then_expr, else_expr) => {
+                expr_references_var(cond, name)
+                    || expr_references_var(then_expr, name)
+                    || expr_references_var(else_expr, name)
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                expr_references_var(scrutinee, name)
+                    || arms.iter().any(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .map(|guard| expr_references_var(guard, name))
+                            .unwrap_or(false)
+                            || expr_references_var(&arm.body, name)
+                    })
+            }
+            ExprKind::Block(stmts) => stmts.iter().any(|stmt| stmt_references_var(stmt, name)),
+            ExprKind::Index(base, index) => {
+                expr_references_var(base, name) || expr_references_var(index, name)
+            }
+            ExprKind::List(items) | ExprKind::Tuple(items) | ExprKind::Effect(_, items) => {
+                items.iter().any(|item| expr_references_var(item, name))
+            }
+            ExprKind::Handle { handlers, body, .. } => {
+                expr_references_var(body, name)
+                    || handlers.iter().any(|handler| {
+                        !handler.params.iter().any(|param| param == name)
+                            && expr_references_var(&handler.body, name)
+                    })
+            }
+            ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
+                goals.iter().any(|goal| expr_references_var(goal, name))
+            }
+            ExprKind::Pipe(input, transform) => {
+                expr_references_var(input, name) || expr_references_var(transform, name)
+            }
+        }
+    }
+
+    fn stmt_references_var(stmt: &Stmt, name: &str) -> bool {
+        match stmt {
+            Stmt::Bind(_, _, expr)
+            | Stmt::MonadicBind(_, _, expr)
+            | Stmt::Expr(expr)
+            | Stmt::StreamBind(_, expr) => expr_references_var(expr, name),
+            Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+                args.iter().any(|arg| expr_references_var(arg, name))
+            }
+            Stmt::For(var, iter_expr, body) => {
+                expr_references_var(iter_expr, name)
+                    || (var != name && body.iter().any(|stmt| stmt_references_var(stmt, name)))
+            }
+            Stmt::While(cond, body) => {
+                expr_references_var(cond, name)
+                    || body.iter().any(|stmt| stmt_references_var(stmt, name))
+            }
+            Stmt::Send(target, message) => {
+                expr_references_var(target, name) || expr_references_var(message, name)
+            }
+            Stmt::StreamSub(expr, arms) => {
+                expr_references_var(expr, name)
+                    || arms.iter().any(|arm| expr_references_var(&arm.body, name))
+            }
+            Stmt::Invariant {
+                subject, predicate, ..
+            } => expr_references_var(subject, name) || expr_references_var(predicate, name),
+            Stmt::Prove {
+                pass_block,
+                else_block,
+                ..
+            } => pass_block
+                .iter()
+                .flatten()
+                .chain(else_block.iter().flatten())
+                .any(|stmt| stmt_references_var(stmt, name)),
+            Stmt::Defn(Defn::Fn { params, body, .. }) => {
+                !params.iter().any(|param| param.name == name) && expr_references_var(body, name)
+            }
+            Stmt::Defn(Defn::Module { body, .. }) => {
+                body.iter().any(|stmt| stmt_references_var(stmt, name))
+            }
+            Stmt::Defn(Defn::Actor { handlers, .. }) => handlers
+                .iter()
+                .any(|handler| expr_references_var(&handler.body, name)),
+            Stmt::TypeDecl(_)
+            | Stmt::Rule(_)
+            | Stmt::Use(_)
+            | Stmt::Import(_)
+            | Stmt::QualifiedImport(_, _)
+            | Stmt::HashImport(_, _)
+            | Stmt::Depend(_, _)
+            | Stmt::RustBlock(_)
+            | Stmt::Abort => false,
+        }
+    }
+
+    fn later_stmts_reference_var(stmts: &[Stmt], start: usize, name: &str) -> bool {
+        stmts
+            .iter()
+            .skip(start)
+            .any(|stmt| stmt_references_var(stmt, name))
+    }
+
+    fn direct_var_name(expr: &Expr) -> Option<&str> {
+        match &expr.kind {
+            ExprKind::Var(name) => Some(name.as_str()),
+            ExprKind::Block(stmts) => match stmts.as_slice() {
+                [Stmt::Expr(expr)] => direct_var_name(expr),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn collect_ownership_lowering_obligations(stmts: &[Stmt]) -> Vec<OwnershipLoweringObligation> {
+        let bindings: BTreeMap<String, Expr> = stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Bind(Pat::Var(name), _, expr) => Some((name.clone(), expr.clone())),
+                _ => None,
+            })
+            .collect();
+        let binding_types: BTreeMap<String, Option<Ty>> = stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Bind(Pat::Var(name), ty, _) => Some((name.clone(), ty.clone())),
+                _ => None,
+            })
+            .collect();
+        let mut obligations = Vec::new();
+        let mut seen = BTreeSet::new();
+
+        for (idx, stmt) in stmts.iter().enumerate() {
+            let Stmt::Bind(Pat::Var(binding), _, expr) = stmt else {
+                continue;
+            };
+
+            match &expr.kind {
+                ExprKind::If(_, then_expr, else_expr) => {
+                    for arm_expr in [then_expr.as_ref(), else_expr.as_ref()] {
+                        let Some(var) = direct_var_name(arm_expr) else {
+                            continue;
+                        };
+                        if binding_is_copy_like_for_ownership_check(var, &bindings, &binding_types)
+                            || !later_stmts_reference_var(stmts, idx + 1, var)
+                        {
+                            continue;
+                        }
+                        if seen.insert((
+                            binding.clone(),
+                            var.to_string(),
+                            OwnershipLoweringObligationKind::BranchResultReuse,
+                        )) {
+                            obligations.push(OwnershipLoweringObligation {
+                                binding: binding.clone(),
+                                reused_var: var.to_string(),
+                                kind: OwnershipLoweringObligationKind::BranchResultReuse,
+                            });
+                        }
+                    }
+                }
+                ExprKind::List(items) => {
+                    for item in items {
+                        let Some(var) = direct_var_name(item) else {
+                            continue;
+                        };
+                        if binding_is_copy_like_for_ownership_check(var, &bindings, &binding_types)
+                            || !later_stmts_reference_var(stmts, idx + 1, var)
+                        {
+                            continue;
+                        }
+                        if seen.insert((
+                            binding.clone(),
+                            var.to_string(),
+                            OwnershipLoweringObligationKind::ListElementReuse,
+                        )) {
+                            obligations.push(OwnershipLoweringObligation {
+                                binding: binding.clone(),
+                                reused_var: var.to_string(),
+                                kind: OwnershipLoweringObligationKind::ListElementReuse,
+                            });
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        obligations
+    }
+
+    fn rust_let_statements_for_binding(rust: &str, binding: &str) -> Vec<String> {
+        let needle = format!("let {} =", sanitize_name(binding));
+        rust.match_indices(&needle)
+            .filter_map(|(start, _)| {
+                let rest = &rust[start..];
+                let end = rest.find(';')?;
+                Some(rest[..=end].replace('\n', " "))
+            })
+            .collect()
+    }
+
+    fn ownership_lowering_issues_for_rust(stmts: &[Stmt], rust: &str) -> Vec<String> {
+        collect_ownership_lowering_obligations(stmts)
+            .into_iter()
+            .filter_map(|obligation| {
+                let statements = rust_let_statements_for_binding(rust, &obligation.binding);
+                let required = format!("{}.clone()", sanitize_name(&obligation.reused_var));
+                if statements.iter().any(|stmt| stmt.contains(&required)) {
+                    return None;
+                }
+                let kind = match obligation.kind {
+                    OwnershipLoweringObligationKind::BranchResultReuse => "if branch result reuse",
+                    OwnershipLoweringObligationKind::ListElementReuse => "list element reuse",
+                };
+                let emitted = if statements.is_empty() {
+                    "no emitted let statement found".to_string()
+                } else {
+                    statements.join(" | ")
+                };
+                Some(format!(
+                    "{} for `{}` must preserve later use of `{}` by emitting `{}`; emitted: {}",
+                    kind, obligation.binding, obligation.reused_var, required, emitted
+                ))
+            })
+            .collect()
+    }
+
+    fn emit_rust_for_ownership_check(source: &str) -> (Vec<Stmt>, String) {
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut cg = RustCodegen::new();
+        let rust = cg.emit_program(&stmts);
+        (stmts, rust)
+    }
+
+    fn assert_ownership_lowering_translation_check_passes(source: &str) -> (Vec<Stmt>, String) {
+        let (stmts, rust) = emit_rust_for_ownership_check(source);
+        let issues = ownership_lowering_issues_for_rust(&stmts, &rust);
+        assert!(
+            issues.is_empty(),
+            "ownership lowering translation check failed:\n{}\n\nrust:\n{}",
+            issues.join("\n"),
+            rust
+        );
+        (stmts, rust)
+    }
+
+    #[test]
+    fn ownership_lowering_translation_check_accepts_branch_and_list_reuse() {
+        let source = r#"
+= predicted = "dense"
+= regret = 0.0
+= before_phase = if string_length(predicted) > 0 { "Solid" } else { "Gas" }
+= after_phase = if regret > 0.0 { "Liquid" } else { before_phase }
+= keep_before = before_phase + ":kept"
+
+= first = "delta"
+= second = "omega"
+= labels = [first, second]
+= joined = join(labels, "|")
+= keep_first = first + second
+
+@ print(after_phase + keep_before + joined + keep_first)
+"#;
+
+        let (stmts, rust) = assert_ownership_lowering_translation_check_passes(source);
+        let obligations = collect_ownership_lowering_obligations(&stmts);
+
+        assert!(
+            obligations.contains(&OwnershipLoweringObligation {
+                binding: "after_phase".to_string(),
+                reused_var: "before_phase".to_string(),
+                kind: OwnershipLoweringObligationKind::BranchResultReuse,
+            }),
+            "expected branch reuse obligation, got {:?}\n{}",
+            obligations,
+            rust
+        );
+        assert!(
+            obligations.contains(&OwnershipLoweringObligation {
+                binding: "labels".to_string(),
+                reused_var: "first".to_string(),
+                kind: OwnershipLoweringObligationKind::ListElementReuse,
+            }),
+            "expected list reuse obligation for first, got {:?}\n{}",
+            obligations,
+            rust
+        );
+        assert!(
+            obligations.contains(&OwnershipLoweringObligation {
+                binding: "labels".to_string(),
+                reused_var: "second".to_string(),
+                kind: OwnershipLoweringObligationKind::ListElementReuse,
+            }),
+            "expected list reuse obligation for second, got {:?}\n{}",
+            obligations,
+            rust
+        );
+    }
+
+    #[test]
+    fn ownership_lowering_translation_check_rejects_missing_branch_clone() {
+        let source = r#"
+= predicted = "dense"
+= regret = 0.0
+= before_phase = if string_length(predicted) > 0 { "Solid" } else { "Gas" }
+= after_phase = if regret > 0.0 { "Liquid" } else { before_phase }
+= keep_before = before_phase + ":kept"
+"#;
+        let (stmts, rust) = emit_rust_for_ownership_check(source);
+        let broken_rust = rust.replace("before_phase.clone()", "before_phase");
+        let issues = ownership_lowering_issues_for_rust(&stmts, &broken_rust);
+
+        assert!(
+            issues.iter().any(|issue| issue.contains("after_phase")
+                && issue.contains("before_phase")
+                && issue.contains("if branch result reuse")),
+            "expected missing branch clone issue, got {:?}\n{}",
+            issues,
+            broken_rust
+        );
+    }
+
+    #[test]
+    fn ownership_lowering_translation_check_rejects_missing_list_clone() {
+        let source = r#"
+= first = "delta"
+= second = "omega"
+= labels = [first, second]
+= keep_first = first + second
+"#;
+        let (stmts, rust) = emit_rust_for_ownership_check(source);
+        let broken_rust = rust.replace("first.clone()", "first");
+        let issues = ownership_lowering_issues_for_rust(&stmts, &broken_rust);
+
+        assert!(
+            issues.iter().any(|issue| issue.contains("labels")
+                && issue.contains("first")
+                && issue.contains("list element reuse")),
+            "expected missing list clone issue, got {:?}\n{}",
+            issues,
+            broken_rust
+        );
+    }
+
+    #[test]
+    fn ownership_lowering_translation_check_ignores_copy_like_values() {
+        let source = r#"
+= n = 1
+= values = [n]
+= again = n + 1
+"#;
+        let (stmts, rust) = assert_ownership_lowering_translation_check_passes(source);
+        let obligations = collect_ownership_lowering_obligations(&stmts);
+
+        assert!(
+            obligations
+                .iter()
+                .all(|obligation| obligation.reused_var != "n"),
+            "copy-like integer should not require a clone obligation, got {:?}\n{}",
+            obligations,
+            rust
+        );
+    }
+
     fn library_hygiene_issues_for_source(source: &str) -> Vec<String> {
         let stmts = parse_test_program(source);
         library_hygiene_issues_for_stmts(&stmts)

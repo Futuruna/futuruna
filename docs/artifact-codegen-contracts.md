@@ -30,6 +30,9 @@ hold:
 3. Artifact expectations and permanent codegen fixtures cover representative
    emitted Rust shapes: top-level bindings, exported functions/types,
    collections, ownership-sensitive borrowing, and documented stdlib helpers.
+   Ownership-sensitive direct branch/list reuse is also covered by a
+   source-derived translation check that rejects tampered emitted Rust missing
+   the required clone.
 4. Every exact emitted shape that Futuruna promises has a golden artifact
    fixture, or the docs explicitly say the shape is internal.
 5. Any emitted-artifact diff is reviewed as source, behavioral, or
@@ -63,6 +66,6 @@ When changing codegen:
 |---------|----------|
 | `tests/expect/artifact/emit_pure_core_contract.runa` | A small pure/core program has a reviewed full emitted-Rust snapshot, including top-level global lowering and the binary `main` shape. |
 | `tests/expect/artifact/collection_helper_eval_contract.runa` | Collection helpers and expression-valued builtin arguments bind callback/input expressions once before repeated runtime use. |
-| `tests/expect/artifact/ownership_branch_string_contract.runa` | Ownership-sensitive `String` branch lowering clones a reused local when the same binding is needed after an `if` arm. |
+| `tests/expect/artifact/ownership_branch_string_contract.runa` | Ownership-sensitive `String` branch lowering clones a reused local when the same binding is needed after an `if` arm; the same class is backed by source-derived translation-check tests for branch and list reuse. |
 | `tests/expect/artifact/stateful_async_runtime_contract.runa` | Async/stateful lowering emits an async main, stream event/runtime scaffolding, scope-owned stream task registration, subscription receivers, and settled snapshot reads. |
 | `tests/expect/artifact/lib_export_contract.runa` | `runa lib` emits exported functions/types as public Rust items, keeps private helpers private, and does not emit a binary `main`. |
