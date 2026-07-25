@@ -53,6 +53,8 @@ Importable library files should not execute top-level script flows such as:
 - top-level bindings whose expressions obviously perform import-time side effects
   such as `read_file`, `write_file`, `http_get`, `db_exec`, `process_run`, or
   similar impure builtins
+- top-level bindings or stream bindings that reach those side effects through
+  local helper function call chains
 
 When `runa lint-library --imports <file|dir>` checks a consumer, every file
 reached through plain or qualified imports must be marked importable and must

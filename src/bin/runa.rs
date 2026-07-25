@@ -8645,12 +8645,81 @@ fn import_time_impure_builtin_names() -> BTreeSet<String> {
     names
 }
 
+struct LibraryHelper<'a> {
+    body: &'a Expr,
+    has_declared_effects: bool,
+}
+
+fn library_scope_impure_helper_names(
+    stmts: &[Stmt],
+    impure_builtins: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    let mut helpers = BTreeMap::new();
+    collect_library_helpers(stmts, None, &mut helpers);
+
+    let mut impure_helpers = BTreeSet::new();
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for (name, helper) in &helpers {
+            if impure_helpers.contains(name) {
+                continue;
+            }
+            if helper.has_declared_effects
+                || expr_is_impure_for_library(helper.body, impure_builtins, &impure_helpers)
+            {
+                impure_helpers.insert(name.clone());
+                changed = true;
+            }
+        }
+    }
+
+    impure_helpers
+}
+
+fn collect_library_helpers<'a>(
+    stmts: &'a [Stmt],
+    prefix: Option<&str>,
+    helpers: &mut BTreeMap<String, LibraryHelper<'a>>,
+) {
+    for stmt in stmts {
+        match stmt {
+            Stmt::Defn(Defn::Fn {
+                name,
+                effects,
+                body,
+                ..
+            }) => {
+                let helper_name = prefix
+                    .map(|prefix| format!("{}.{}", prefix, name))
+                    .unwrap_or_else(|| name.clone());
+                helpers.insert(
+                    helper_name,
+                    LibraryHelper {
+                        body,
+                        has_declared_effects: !effects.is_empty(),
+                    },
+                );
+            }
+            Stmt::Defn(Defn::Module { name, body }) => {
+                let next_prefix = prefix
+                    .map(|prefix| format!("{}.{}", prefix, name))
+                    .unwrap_or_else(|| name.clone());
+                collect_library_helpers(body, Some(&next_prefix), helpers);
+            }
+            _ => {}
+        }
+    }
+}
+
 fn collect_library_scope_issues(
     stmts: &[Stmt],
     scope: Option<&str>,
     impure_builtins: &BTreeSet<String>,
     issues: &mut Vec<String>,
 ) {
+    let impure_helpers = library_scope_impure_helper_names(stmts, impure_builtins);
+
     for stmt in stmts {
         match stmt {
             Stmt::Defn(Defn::Module { name, body }) => {
@@ -8666,7 +8735,7 @@ fn collect_library_scope_issues(
                 );
             }
             Stmt::Bind(pat, _, expr) => {
-                if expr_is_obviously_impure_for_library(expr, impure_builtins) {
+                if expr_is_impure_for_library(expr, impure_builtins, &impure_helpers) {
                     issues.push(format_scope_issue(
                         scope,
                         &format!(
@@ -8677,7 +8746,7 @@ fn collect_library_scope_issues(
                 }
             }
             Stmt::StreamBind(name, expr) => {
-                if expr_is_obviously_impure_for_library(expr, impure_builtins) {
+                if expr_is_impure_for_library(expr, impure_builtins, &impure_helpers) {
                     issues.push(format_scope_issue(
                         scope,
                         &format!(
@@ -8692,8 +8761,8 @@ fn collect_library_scope_issues(
                 subject,
                 predicate,
             } => {
-                if expr_is_obviously_impure_for_library(subject, impure_builtins)
-                    || expr_is_obviously_impure_for_library(predicate, impure_builtins)
+                if expr_is_impure_for_library(subject, impure_builtins, &impure_helpers)
+                    || expr_is_impure_for_library(predicate, impure_builtins, &impure_helpers)
                 {
                     issues.push(format_scope_issue(
                         scope,
@@ -8713,7 +8782,7 @@ fn collect_library_scope_issues(
             Stmt::Expr(expr) => {
                 issues.push(format_scope_issue(
                     scope,
-                    top_level_expr_issue(expr, impure_builtins),
+                    top_level_expr_issue_with_helpers(expr, impure_builtins, &impure_helpers),
                 ));
             }
             Stmt::MonadicBind(_, _, _) => {
@@ -8797,14 +8866,18 @@ fn format_scope_issue(scope: Option<&str>, issue: &str) -> String {
     }
 }
 
-fn top_level_expr_issue(expr: &Expr, impure_builtins: &BTreeSet<String>) -> &'static str {
+fn top_level_expr_issue_with_helpers(
+    expr: &Expr,
+    impure_builtins: &BTreeSet<String>,
+    impure_helpers: &BTreeSet<String>,
+) -> &'static str {
     if matches!(
         expr.kind,
         ExprKind::App(ref func, _)
             if matches!(func.as_ref().kind, ExprKind::Var(ref name) if builtin_canonical(name) == "print")
     ) {
         "top-level `@ print` is script-only; move it into an entrypoint function"
-    } else if expr_is_obviously_impure_for_library(expr, impure_builtins) {
+    } else if expr_is_impure_for_library(expr, impure_builtins, impure_helpers) {
         "top-level effectful expression statements are script-only in importable library files"
     } else {
         "top-level expression statements are script-only in importable library files"
@@ -8821,10 +8894,19 @@ fn summarize_pat_for_library(pat: &Pat) -> String {
     }
 }
 
-fn expr_is_obviously_impure_for_library(expr: &Expr, impure_builtins: &BTreeSet<String>) -> bool {
+fn expr_is_impure_for_library(
+    expr: &Expr,
+    impure_builtins: &BTreeSet<String>,
+    impure_helpers: &BTreeSet<String>,
+) -> bool {
     match &expr.kind {
         ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => false,
         ExprKind::App(func, args) => {
+            if let Some(name) = expr_call_path_name(func) {
+                if impure_helpers.contains(&name) {
+                    return true;
+                }
+            }
             if let ExprKind::Var(name) = &func.as_ref().kind {
                 if impure_builtins.contains(builtin_canonical(name))
                     || impure_builtins.contains(name)
@@ -8832,79 +8914,98 @@ fn expr_is_obviously_impure_for_library(expr: &Expr, impure_builtins: &BTreeSet<
                     return true;
                 }
             }
-            expr_is_obviously_impure_for_library(func, impure_builtins)
+            expr_is_impure_for_library(func, impure_builtins, impure_helpers)
                 || args
                     .iter()
-                    .any(|arg| expr_is_obviously_impure_for_library(arg, impure_builtins))
+                    .any(|arg| expr_is_impure_for_library(arg, impure_builtins, impure_helpers))
         }
         ExprKind::Lambda(_, _) => false,
         ExprKind::BinOp(_, lhs, rhs) => {
-            expr_is_obviously_impure_for_library(lhs, impure_builtins)
-                || expr_is_obviously_impure_for_library(rhs, impure_builtins)
+            expr_is_impure_for_library(lhs, impure_builtins, impure_helpers)
+                || expr_is_impure_for_library(rhs, impure_builtins, impure_helpers)
         }
         ExprKind::UnOp(_, inner) | ExprKind::Try(inner) | ExprKind::Field(inner, _) => {
-            expr_is_obviously_impure_for_library(inner, impure_builtins)
+            expr_is_impure_for_library(inner, impure_builtins, impure_helpers)
         }
         ExprKind::If(cond, then_expr, else_expr) => {
-            expr_is_obviously_impure_for_library(cond, impure_builtins)
-                || expr_is_obviously_impure_for_library(then_expr, impure_builtins)
-                || expr_is_obviously_impure_for_library(else_expr, impure_builtins)
+            expr_is_impure_for_library(cond, impure_builtins, impure_helpers)
+                || expr_is_impure_for_library(then_expr, impure_builtins, impure_helpers)
+                || expr_is_impure_for_library(else_expr, impure_builtins, impure_helpers)
         }
         ExprKind::Match(scrutinee, arms) => {
-            expr_is_obviously_impure_for_library(scrutinee, impure_builtins)
+            expr_is_impure_for_library(scrutinee, impure_builtins, impure_helpers)
                 || arms.iter().any(|arm| {
                     arm.guard
                         .as_ref()
-                        .map(|guard| expr_is_obviously_impure_for_library(guard, impure_builtins))
+                        .map(|guard| {
+                            expr_is_impure_for_library(guard, impure_builtins, impure_helpers)
+                        })
                         .unwrap_or(false)
-                        || expr_is_obviously_impure_for_library(&arm.body, impure_builtins)
+                        || expr_is_impure_for_library(&arm.body, impure_builtins, impure_helpers)
                 })
         }
         ExprKind::Block(stmts) => stmts
             .iter()
-            .any(|stmt| stmt_is_obviously_impure_in_expr(stmt, impure_builtins)),
+            .any(|stmt| stmt_is_impure_in_expr(stmt, impure_builtins, impure_helpers)),
         ExprKind::Index(base, idx) => {
-            expr_is_obviously_impure_for_library(base, impure_builtins)
-                || expr_is_obviously_impure_for_library(idx, impure_builtins)
+            expr_is_impure_for_library(base, impure_builtins, impure_helpers)
+                || expr_is_impure_for_library(idx, impure_builtins, impure_helpers)
         }
-        ExprKind::List(items) | ExprKind::Tuple(items) | ExprKind::Effect(_, items) => items
+        ExprKind::List(items) | ExprKind::Tuple(items) => items
             .iter()
-            .any(|item| expr_is_obviously_impure_for_library(item, impure_builtins)),
+            .any(|item| expr_is_impure_for_library(item, impure_builtins, impure_helpers)),
+        ExprKind::Effect(_, _) => true,
         ExprKind::Handle { .. } => true,
         ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => goals
             .iter()
-            .any(|goal| expr_is_obviously_impure_for_library(goal, impure_builtins)),
+            .any(|goal| expr_is_impure_for_library(goal, impure_builtins, impure_helpers)),
         ExprKind::Pipe(input, transform) => {
-            expr_is_obviously_impure_for_library(input, impure_builtins)
-                || expr_is_obviously_impure_for_library(transform, impure_builtins)
+            expr_is_impure_for_library(input, impure_builtins, impure_helpers)
+                || expr_is_impure_for_library(transform, impure_builtins, impure_helpers)
         }
     }
 }
 
-fn stmt_is_obviously_impure_in_expr(stmt: &Stmt, impure_builtins: &BTreeSet<String>) -> bool {
+fn expr_call_path_name(expr: &Expr) -> Option<String> {
+    match &expr.kind {
+        ExprKind::Var(name) => Some(name.clone()),
+        ExprKind::Field(base, field) => {
+            expr_call_path_name(base).map(|base_name| format!("{}.{}", base_name, field))
+        }
+        _ => None,
+    }
+}
+
+fn stmt_is_impure_in_expr(
+    stmt: &Stmt,
+    impure_builtins: &BTreeSet<String>,
+    impure_helpers: &BTreeSet<String>,
+) -> bool {
     match stmt {
         Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr) | Stmt::Expr(expr) => {
-            expr_is_obviously_impure_for_library(expr, impure_builtins)
+            expr_is_impure_for_library(expr, impure_builtins, impure_helpers)
         }
-        Stmt::StreamBind(_, expr) => expr_is_obviously_impure_for_library(expr, impure_builtins),
+        Stmt::StreamBind(_, expr) => {
+            expr_is_impure_for_library(expr, impure_builtins, impure_helpers)
+        }
         Stmt::Invariant {
             subject, predicate, ..
         } => {
-            expr_is_obviously_impure_for_library(subject, impure_builtins)
-                || expr_is_obviously_impure_for_library(predicate, impure_builtins)
+            expr_is_impure_for_library(subject, impure_builtins, impure_helpers)
+                || expr_is_impure_for_library(predicate, impure_builtins, impure_helpers)
         }
         Stmt::Annot(name, _) => name == "print",
         Stmt::For(_, iter_expr, body) => {
-            expr_is_obviously_impure_for_library(iter_expr, impure_builtins)
+            expr_is_impure_for_library(iter_expr, impure_builtins, impure_helpers)
                 || body
                     .iter()
-                    .any(|stmt| stmt_is_obviously_impure_in_expr(stmt, impure_builtins))
+                    .any(|stmt| stmt_is_impure_in_expr(stmt, impure_builtins, impure_helpers))
         }
         Stmt::While(cond, body) => {
-            expr_is_obviously_impure_for_library(cond, impure_builtins)
+            expr_is_impure_for_library(cond, impure_builtins, impure_helpers)
                 || body
                     .iter()
-                    .any(|stmt| stmt_is_obviously_impure_in_expr(stmt, impure_builtins))
+                    .any(|stmt| stmt_is_impure_in_expr(stmt, impure_builtins, impure_helpers))
         }
         Stmt::Send(_, _)
         | Stmt::StreamSub(_, _)
@@ -34205,7 +34306,8 @@ for x in [1, 2] {
         assert!(
             issues
                 .iter()
-                .any(|issue| issue.contains("top-level expression statements are script-only")),
+                .any(|issue| issue
+                    .contains("top-level effectful expression statements are script-only")),
             "expected top-level expression issue, got: {:?}",
             issues
         );
@@ -34231,6 +34333,66 @@ for x in [1, 2] {
                 .iter()
                 .any(|issue| issue.contains("binding `cache` executes obvious side effects")),
             "expected impure binding issue, got: {:?}",
+            issues
+        );
+    }
+
+    #[test]
+    fn library_hygiene_rejects_impure_local_helper_call_chains() {
+        let issues = library_hygiene_issues_for_source(
+            r#"
+-- library-hygiene: importable
+> noisy(x: Int) -> Int {
+    @ print("side")
+    x + 1
+}
+> delegated(x: Int) -> Int { noisy(x) }
+= leaked = delegated(7)
+"#,
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue.contains("binding `leaked` executes obvious side effects")),
+            "expected helper-call impurity issue, got: {:?}",
+            issues
+        );
+    }
+
+    #[test]
+    fn library_hygiene_rejects_impure_stream_helper_call_chains() {
+        let issues = library_hygiene_issues_for_source(
+            r#"
+-- library-hygiene: importable
+> seed() -> String { read_file("seed.txt") }
+> stream_seed() -> String { seed() }
+~ updates = subject(stream_seed())
+"#,
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|issue| issue
+                    .contains("stream binding `updates` executes obvious side effects")),
+            "expected stream helper-call impurity issue, got: {:?}",
+            issues
+        );
+    }
+
+    #[test]
+    fn library_hygiene_allows_pure_local_helper_call_chains() {
+        let issues = library_hygiene_issues_for_source(
+            r#"
+-- library-hygiene: importable
+> inc(x: Int) -> Int { x + 1 }
+> twice(x: Int) -> Int { inc(inc(x)) }
+= safe = twice(3)
+~ readings = subject(safe)
+"#,
+        );
+        assert!(
+            issues.is_empty(),
+            "expected pure helper chain to pass, got: {:?}",
             issues
         );
     }
@@ -34270,7 +34432,8 @@ for x in [1, 2] {
         assert!(
             issues
                 .iter()
-                .any(|issue| issue.contains("top-level expression statements are script-only")),
+                .any(|issue| issue
+                    .contains("top-level effectful expression statements are script-only")),
             "expected imported script-flow issue, got: {:?}",
             issues
         );
