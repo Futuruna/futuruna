@@ -42,6 +42,20 @@ and reports the observed parse failure or output divergence as `XFAIL`. If an
 expected-unsupported fixture starts matching, the runner reports `XPASS` and
 fails so the directive can be removed and the supported subset can grow.
 
+Expected-unsupported fixtures should fail closed before Futuruna parse/run
+whenever the unsupported Rust shape is known. The runner reports these as stable
+unsupported diagnostics:
+
+- `borrowed-return-reference`: Rust functions that return borrowed references
+- `associated-types`: associated types in traits or impl blocks
+- `impl-trait`: `impl Trait` signatures
+- `rich-result-error-conversion`: `Result::map_err`/`From` conversion chains
+  whose `?` semantics are not yet preserved
+- `stateful-iterator-chain`: iterator/map state machines such as `scan`,
+  `sort_by`, `entry`, and `or_insert_with`
+- `reference-tuple-match`: matches over tuples of references that need
+  reference-pattern simplification
+
 Current expected-unsupported categories include:
 
 - recursive ownership patterns that return borrowed nodes
@@ -54,5 +68,5 @@ Current expected-unsupported categories include:
 
 Do not promote `runa from-rust` beyond experimental while the corpus still has
 expected-unsupported fixtures. Promotion requires shrinking or splitting those
-fixtures into explicit stable unsupported diagnostics and broadening the
-supported subset with exact output matches.
+fixtures into exact output matches, or into stable unsupported diagnostics for
+Rust shapes Futuruna intentionally does not translate.

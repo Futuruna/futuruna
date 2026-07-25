@@ -429,10 +429,13 @@ fn main_inner() {
                 run_from_rust_verify(path);
             } else {
                 match std::fs::read_to_string(path) {
-                    Ok(source) => {
-                        let result = rust_to_runa(&source);
-                        print!("{}", result);
-                    }
+                    Ok(source) => match rust_to_runa_checked(&source) {
+                        Ok(result) => print!("{}", result),
+                        Err(err) => {
+                            eprintln!("{}", from_rust_error_summary(&err));
+                            std::process::exit(1);
+                        }
+                    },
                     Err(e) => {
                         eprintln!("Cannot read {}: {}", path, e);
                         std::process::exit(1);
@@ -3091,7 +3094,7 @@ fn run_benchmarks() {
                     let source = std::fs::read_to_string(&path).unwrap_or_default();
                     total_lines += source.lines().count();
                     let start = Instant::now();
-                    let _ = rust_to_runa(&source);
+                    let _ = rust_to_runa_checked(&source);
                     total_time += start.elapsed();
                     count += 1;
                 }
@@ -3135,7 +3138,13 @@ fn run_from_rust_verify(path: &str) {
         .to_string();
 
     // Step 1: Transpile
-    let runa_source = rust_to_runa(&source);
+    let runa_source = match rust_to_runa_checked(&source) {
+        Ok(output) => output,
+        Err(err) => {
+            eprintln!("{}", from_rust_error_summary(&err));
+            std::process::exit(1);
+        }
+    };
     eprintln!("\x1b[1;36m── Transpiled: {} → Futuruna ──\x1b[0m\n", name);
     for (i, line) in runa_source.lines().enumerate() {
         eprintln!("  \x1b[2m{:3}\x1b[0m  {}", i + 1, line);
@@ -3354,7 +3363,31 @@ fn run_from_rust_tests(path: &str) {
         let _ = std::fs::remove_file(&tmp_bin);
 
         // Step 2: Transpile to Futuruna
-        let runa_source = rust_to_runa(&source);
+        let runa_source = match rust_to_runa_checked(&source) {
+            Ok(output) => output,
+            Err(err) => {
+                if let Some(reason) = &expected_unsupported_reason {
+                    expected_unsupported += 1;
+                    eprintln!(
+                        "  \x1b[1;33mXFAIL\x1b[0m  {} - expected unsupported: {}; observed {} \x1b[2m({}ms)\x1b[0m",
+                        name,
+                        reason,
+                        from_rust_error_summary(&err),
+                        file_start.elapsed().as_millis()
+                    );
+                    continue;
+                }
+                failed += 1;
+                failures.push(format!("{} ({})", name, from_rust_error_summary(&err)));
+                eprintln!(
+                    "  \x1b[1;31mUNSUPPORTED\x1b[0m  {} - {} \x1b[2m({}ms)\x1b[0m",
+                    name,
+                    from_rust_error_summary(&err),
+                    file_start.elapsed().as_millis()
+                );
+                continue;
+            }
+        };
 
         // Step 3: Parse and interpret the Futuruna
         let mut lexer = Lexer::new(&runa_source);
@@ -33255,6 +33288,66 @@ fn main() {}
         assert_eq!(from_rust_expected_unsupported(source), None);
     }
 
+    #[test]
+    fn from_rust_rejects_rich_error_conversion_with_category() {
+        let source = r#"
+enum AppError {
+    Parse(String),
+}
+
+fn parse_age(s: &str) -> Result<i64, AppError> {
+    let age: i64 = s.parse().map_err(|_| AppError::Parse("bad".to_string()))?;
+    Ok(age)
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "rich-result-error-conversion");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_rejects_borrowed_return_reference_with_category() {
+        let source = r#"
+struct Node {
+    value: i64,
+}
+
+fn find_node(node: &Node) -> Option<&Node> {
+    Some(node)
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "borrowed-return-reference");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_keeps_simple_result_try_supported() {
+        let source = r#"
+fn safe_div(a: i64, b: i64) -> Result<i64, String> {
+    if b == 0 {
+        Err("divide by zero".to_string())
+    } else {
+        Ok(a / b)
+    }
+}
+
+fn chain(a: i64, b: i64) -> Result<i64, String> {
+    let x = safe_div(a, b)?;
+    Ok(x)
+}
+"#;
+        rust_to_runa_checked(source).expect("simple Result try should stay supported");
+    }
+
     fn parse_invariant_and_proof(source: &str) -> (Expr, Expr, ProofBlock, BTreeMap<String, Expr>) {
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
@@ -40442,18 +40535,233 @@ routes <- "b"
 // PART 12: RUST → FUTURUNA TRANSPILER
 // ══════════════════════════════════════════════════════════════════════════════
 
-/// Transpile a Rust source string into Futuruna (.runa) source.
-fn rust_to_runa(source: &str) -> String {
+fn rust_to_runa_checked(source: &str) -> Result<String, FromRustTranspileError> {
     let file = match syn::parse_file(source) {
         Ok(f) => f,
         Err(e) => {
-            eprintln!("Rust parse error: {}", e);
-            std::process::exit(1);
+            return Err(FromRustTranspileError::RustParse(e.to_string()));
         }
     };
+    if let Some(unsupported) = from_rust_unsupported_diagnostic(&file) {
+        return Err(FromRustTranspileError::Unsupported(unsupported));
+    }
     let mut ctx = RustToRunaCtx::new();
     ctx.transpile_file(&file);
-    ctx.output
+    Ok(ctx.output)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct FromRustUnsupported {
+    category: &'static str,
+    message: String,
+}
+
+impl FromRustUnsupported {
+    fn new(category: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            category,
+            message: message.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum FromRustTranspileError {
+    RustParse(String),
+    Unsupported(FromRustUnsupported),
+}
+
+fn from_rust_error_summary(err: &FromRustTranspileError) -> String {
+    match err {
+        FromRustTranspileError::RustParse(msg) => {
+            format!(
+                "rust-parse error: {}",
+                msg.lines().next().unwrap_or("invalid Rust source")
+            )
+        }
+        FromRustTranspileError::Unsupported(unsupported) => {
+            format!(
+                "unsupported [{}]: {}",
+                unsupported.category, unsupported.message
+            )
+        }
+    }
+}
+
+#[derive(Default)]
+struct FromRustUnsupportedScan {
+    borrowed_return_reference: bool,
+    associated_type: bool,
+    impl_trait: bool,
+    from_trait_conversion: bool,
+    result_map_err: bool,
+    stateful_iterator_method: Option<&'static str>,
+    reference_tuple_match: bool,
+}
+
+impl FromRustUnsupportedScan {
+    fn diagnostic(&self) -> Option<FromRustUnsupported> {
+        if self.result_map_err || self.from_trait_conversion {
+            return Some(FromRustUnsupported::new(
+                "rich-result-error-conversion",
+                "Rust Result::map_err/From conversion chains with ? are not yet semantics-preserving; keep this fixture expected-unsupported or rewrite to a simple Result chain",
+            ));
+        }
+        if self.borrowed_return_reference {
+            return Some(FromRustUnsupported::new(
+                "borrowed-return-reference",
+                "functions that return borrowed references are outside the from-rust ownership subset",
+            ));
+        }
+        if self.associated_type {
+            return Some(FromRustUnsupported::new(
+                "associated-types",
+                "traits or impls with associated types are outside the from-rust generic subset",
+            ));
+        }
+        if self.impl_trait {
+            return Some(FromRustUnsupported::new(
+                "impl-trait",
+                "impl Trait signatures are outside the from-rust generic subset",
+            ));
+        }
+        if let Some(method) = self.stateful_iterator_method {
+            return Some(FromRustUnsupported::new(
+                "stateful-iterator-chain",
+                format!(
+                    "iterator/map state machine method '{}' is outside the from-rust collection subset",
+                    method
+                ),
+            ));
+        }
+        if self.reference_tuple_match {
+            return Some(FromRustUnsupported::new(
+                "reference-tuple-match",
+                "matches over tuples of references require reference-pattern simplification that from-rust does not yet implement",
+            ));
+        }
+        None
+    }
+}
+
+fn from_rust_unsupported_diagnostic(file: &syn::File) -> Option<FromRustUnsupported> {
+    let mut scan = FromRustUnsupportedScan::default();
+    syn::visit::visit_file(&mut scan, file);
+    scan.diagnostic()
+}
+
+impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
+    fn visit_signature(&mut self, sig: &'ast syn::Signature) {
+        if let syn::ReturnType::Type(_, ty) = &sig.output {
+            if from_rust_type_contains_reference(ty) {
+                self.borrowed_return_reference = true;
+            }
+        }
+        syn::visit::visit_signature(self, sig);
+    }
+
+    fn visit_item_trait(&mut self, item: &'ast syn::ItemTrait) {
+        if item
+            .items
+            .iter()
+            .any(|trait_item| matches!(trait_item, syn::TraitItem::Type(_)))
+        {
+            self.associated_type = true;
+        }
+        syn::visit::visit_item_trait(self, item);
+    }
+
+    fn visit_impl_item_type(&mut self, item: &'ast syn::ImplItemType) {
+        self.associated_type = true;
+        syn::visit::visit_impl_item_type(self, item);
+    }
+
+    fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+        if let Some((_, path, _)) = &item.trait_ {
+            if path
+                .segments
+                .last()
+                .map(|segment| segment.ident == "From")
+                .unwrap_or(false)
+            {
+                self.from_trait_conversion = true;
+            }
+        }
+        syn::visit::visit_item_impl(self, item);
+    }
+
+    fn visit_type_impl_trait(&mut self, item: &'ast syn::TypeImplTrait) {
+        self.impl_trait = true;
+        syn::visit::visit_type_impl_trait(self, item);
+    }
+
+    fn visit_expr_method_call(&mut self, item: &'ast syn::ExprMethodCall) {
+        match item.method.to_string().as_str() {
+            "map_err" => self.result_map_err = true,
+            "scan" => self.stateful_iterator_method = Some("scan"),
+            "sort_by" => self.stateful_iterator_method = Some("sort_by"),
+            "entry" => self.stateful_iterator_method = Some("entry"),
+            "or_insert_with" => self.stateful_iterator_method = Some("or_insert_with"),
+            _ => {}
+        }
+        syn::visit::visit_expr_method_call(self, item);
+    }
+
+    fn visit_expr_match(&mut self, item: &'ast syn::ExprMatch) {
+        if let syn::Expr::Tuple(tuple) = &*item.expr {
+            if tuple
+                .elems
+                .iter()
+                .any(|expr| matches!(expr, syn::Expr::Reference(_)))
+            {
+                self.reference_tuple_match = true;
+            }
+        }
+        syn::visit::visit_expr_match(self, item);
+    }
+}
+
+fn from_rust_type_contains_reference(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::Reference(_) => true,
+        syn::Type::Array(array) => from_rust_type_contains_reference(&array.elem),
+        syn::Type::Group(group) => from_rust_type_contains_reference(&group.elem),
+        syn::Type::Paren(paren) => from_rust_type_contains_reference(&paren.elem),
+        syn::Type::Ptr(ptr) => from_rust_type_contains_reference(&ptr.elem),
+        syn::Type::Slice(slice) => from_rust_type_contains_reference(&slice.elem),
+        syn::Type::Tuple(tuple) => tuple.elems.iter().any(from_rust_type_contains_reference),
+        syn::Type::Path(path) => path
+            .path
+            .segments
+            .iter()
+            .any(|segment| from_rust_path_arguments_contain_reference(&segment.arguments)),
+        _ => false,
+    }
+}
+
+fn from_rust_path_arguments_contain_reference(args: &syn::PathArguments) -> bool {
+    match args {
+        syn::PathArguments::AngleBracketed(angle_args) => {
+            angle_args.args.iter().any(|arg| match arg {
+                syn::GenericArgument::Type(ty) => from_rust_type_contains_reference(ty),
+                syn::GenericArgument::AssocType(assoc) => {
+                    from_rust_type_contains_reference(&assoc.ty)
+                }
+                _ => false,
+            })
+        }
+        syn::PathArguments::Parenthesized(paren_args) => {
+            paren_args
+                .inputs
+                .iter()
+                .any(from_rust_type_contains_reference)
+                || match &paren_args.output {
+                    syn::ReturnType::Default => false,
+                    syn::ReturnType::Type(_, ty) => from_rust_type_contains_reference(ty),
+                }
+        }
+        syn::PathArguments::None => false,
+    }
 }
 
 struct RustToRunaCtx {
