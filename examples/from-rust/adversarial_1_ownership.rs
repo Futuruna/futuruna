@@ -1,5 +1,6 @@
 // Adversarial 1: Complex ownership patterns
 // The kind of Rust that makes beginners cry
+// runa-from-rust: expect-unsupported recursive ownership with borrowed return references
 
 use std::collections::HashMap;
 

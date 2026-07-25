@@ -217,7 +217,9 @@ Outside the stable contract:
 - richer FFI patterns beyond ordinary Rust source inclusion and Cargo
   dependencies supplied by the consumer crate
 - `runa from-rust`, which remains experimental translational tooling rather than
-  part of the Rust-facing library contract
+  part of the Rust-facing library contract; see
+  [../from-rust-contract.md](../from-rust-contract.md) for its separate
+  validation lane
 
 ## Type Mapping
 

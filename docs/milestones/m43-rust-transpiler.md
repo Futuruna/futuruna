@@ -2,7 +2,8 @@
 
 **Tagline:** "Bring your Rust code."
 
-**Status:** DONE. 22/22 verified tests.
+**Status:** DONE historically. Current validation is maintained by
+`runa from-rust --test examples/from-rust/`.
 
 ## Result
 
@@ -10,13 +11,17 @@
 `runa from-rust --verify file.rs` shows transpiled code + side-by-side output comparison.
 `runa from-rust --test dir/` batch-verifies all .rs files (CI gate).
 
-22 test files, all producing identical output between Rust and Futuruna:
+Current supported fixtures produce identical output between Rust and Futuruna:
 - t01-t12: graduated core patterns (basics → iterator patterns)
 - t13-t15: traits, string processing, recursive linked lists
 - t16-t19: algorithms, state machines, expression simplifier, while loops
 - real_world_1: JSON value type (100 lines)
 - real_world_2: Expression evaluator (80 lines)
 - real_world_3: Mini type checker (120 lines)
+
+The corpus also contains explicit expected-unsupported adversarial fixtures. See
+`docs/from-rust-contract.md` for the current supported/unsupported validation
+contract.
 
 ## Mapping
 
@@ -40,5 +45,5 @@
 ## Verification
 
 ```bash
-runa from-rust --test examples/from-rust/    # 22 matched, 0 diverged
+runa from-rust --test examples/from-rust/    # supported fixtures match; expected-unsupported fixtures are explicit
 ```

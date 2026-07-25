@@ -60,7 +60,7 @@ wiring, and the current `td` queue through 2026-07-18.
 | Proof-backed compiler checking | Research-grade | Computation-lemma translation checking and a first ownership-sensitive Rust-lowering translation check exist, but the compiler is not verified and most high-risk passes remain trusted Rust. | Grow the ownership checker beyond direct branch/list reuse and add checked slices for another high-risk lowering pass before promotion to preview. |
 | `@ persist`, SQL-backed facts, watches, migrations, and transactional storage | Research-grade | Storage canaries exist and M26b is active; typed columns, SQL-backed `findall`, persisted retract codegen coverage, and scoped transaction codegen coverage exist, but phase-B children remain open. | Finish M26b phase B (`td-c0a7a1`, `td-13a997`, `td-25667e`) and add storage canary/roundtrip policy. |
 | Law and constitution examples | Research-grade | Useful real programs exist and mint checks legacy Danish constitution chapters. They are stress/examples, not production legal semantics. | Keep them as semantic pressure tests; do not market them as legal-reasoning production support. |
-| `runa from-rust` and `from-rust --verify` | Research-grade | Feature stage is experimental even though CI runs the example transpiler validation. | Define supported subset and compatibility boundary before promotion. |
+| `runa from-rust` and `from-rust --verify` | Research-grade | Feature stage is experimental; CI runs the example transpiler validation with 27 exact supported matches and 5 explicit expected-unsupported adversarial fixtures. The supported/unsupported validation contract is documented in `docs/from-rust-contract.md`. | Shrink or split the expected-unsupported fixtures and add stable unsupported diagnostics before promotion. |
 | `runa audit`, LSP, and other exploratory tooling | Research-grade | Feature stage is experimental or preview; output/interface shape is not frozen. | Add explicit contracts and canaries for any tool that becomes user-facing. |
 
 ## Upgrade Plan
@@ -96,7 +96,7 @@ changes Futuruna's production-readiness claim.
 | Proof-backed compiler checking | Research-grade | Extend the ownership-lowering checker beyond direct branch/list reuse; add independent source/target models for another high-risk lowering pass; keep docs explicit about checked vs trusted compiler machinery. | L | 5 |
 | `@ persist` and SQL-backed storage | Research-grade | Finish M26b phase B (`td-c0a7a1`); harden assert/retract/findall/transaction/watch/migrate tasks; add storage-specific canary and skip policy. | XL | 4 |
 | Law and constitution examples | Research-grade | Keep as semantic pressure tests; document non-legal-production status in README/docs; add expectation/canary distillations only when they expose language bugs. | S | 2 |
-| `runa from-rust` tooling | Research-grade | Define supported subset; add compatibility boundary docs; add fixture categories for accepted vs rejected Rust shapes. | L | 3 |
+| `runa from-rust` tooling | Research-grade | Keep the supported fixture subset matching Rust output exactly; reduce expected-unsupported adversarial fixtures or turn them into stable unsupported diagnostics; keep CI blocking. | L | 3 |
 | `runa audit`, LSP, and exploratory tooling | Research-grade | Pick which tools are user-facing; add explicit contracts for those; keep the rest marked experimental. | M | 2 |
 
 ## Promotion Rules

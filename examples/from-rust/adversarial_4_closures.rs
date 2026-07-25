@@ -1,5 +1,6 @@
 // Adversarial 4: Closures, iterators, functional chains
 // The kind of Rust that reads like Haskell
+// runa-from-rust: expect-unsupported iterator scan/sort_by/entry chains with mutable closure state
 
 fn pipeline_demo() {
     let data = vec![

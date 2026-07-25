@@ -1292,7 +1292,9 @@ guide is accurate for the current pipeline.
 - [x] **Format check**: `runa fmt --check tests/` in CI. Fails on unformatted.
 - [x] **Codegen validation**: `runa test --check-codegen` — 65/65 pass, fails build on regression.
 - [x] **Roundtrip validation**: `runa test --roundtrip` — 49/49 match, fails build on regression.
-- [x] **From-rust validation**: `runa from-rust --test examples/from-rust/` — 22/22 match.
+- [x] **From-rust validation**: `runa from-rust --test examples/from-rust/`
+      validates supported fixtures with exact output matches and reports
+      explicit expected-unsupported adversarial fixtures.
 - [x] **Release pipeline**: On tag `v*`, build release binaries (Linux x86_64,
   macOS arm64, macOS x86_64), create GitHub Release with binaries attached.
 - [ ] **Website auto-deploy**: On push to main, build website and deploy.

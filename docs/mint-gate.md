@@ -57,12 +57,19 @@ Intentionally omitted from the core mint gate:
 - `./scripts/canary.sh`
 - `./scripts/downstream-canary.sh`
 - `./scripts/differential.sh`
-- `./target/release/runa from-rust --test examples/from-rust/`
+- `./target/release/runa from-rust --test examples/from-rust/`, which is a
+  separate CI-blocking translational-tooling lane documented in
+  [from-rust-contract.md](from-rust-contract.md)
 - `./target/release/runa fmt --check tests/`
 - standalone solver-dependent flows such as `runa verify file.runa`
 - tests that the `runa test` runner already skips because they require optional external crates
 
 CI should call `./scripts/mint.sh` for the core language health gate, then run any omitted lanes as separate jobs or steps. The canary suite is the curated middle lane for realistic authored programs, while differential testing is the deeper search lane that exercises seed-stable generative programs and replayable minimized repros without slowing every core mint run.
+
+The from-rust lane is intentionally separate from mint while the command remains
+experimental, but it is still blocking in CI: supported fixtures must match Rust
+stdout exactly, and expected-unsupported adversarial fixtures must carry explicit
+directives.
 
 Passing machine lanes set `FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS=1` so
 informational `@ comptime` and auto-comptime comments do not obscure the

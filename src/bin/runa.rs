@@ -3189,6 +3189,7 @@ fn run_from_rust_verify(path: &str) {
         }
     };
     let mut interp = Interpreter::new();
+    interp.suppress_output = true;
     let mut env = interp.default_env();
     interp.run_program(&stmts, &mut env);
     let runa_output = interp.output.join("\n");
@@ -3240,6 +3241,33 @@ fn run_from_rust_verify(path: &str) {
     eprintln!();
 }
 
+fn from_rust_expected_unsupported(source: &str) -> Option<String> {
+    for line in source.lines().take(24) {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let Some(rest) = trimmed.strip_prefix("// runa-from-rust:") else {
+            if trimmed.starts_with("//") || trimmed.starts_with("#![") || trimmed.starts_with("#[")
+            {
+                continue;
+            }
+            break;
+        };
+        let rest = rest.trim();
+        let reason = rest
+            .strip_prefix("expect-unsupported")
+            .or_else(|| rest.strip_prefix("unsupported"))?
+            .trim();
+        return Some(if reason.is_empty() {
+            "unsupported Rust shape".to_string()
+        } else {
+            reason.to_string()
+        });
+    }
+    None
+}
+
 fn run_from_rust_tests(path: &str) {
     use std::process::Command;
     use std::time::Instant;
@@ -3268,6 +3296,7 @@ fn run_from_rust_tests(path: &str) {
     let mut passed = 0;
     let mut failed = 0;
     let mut parse_fail = 0;
+    let mut expected_unsupported = 0;
     let mut failures: Vec<String> = Vec::new();
 
     for file in &files {
@@ -3281,6 +3310,7 @@ fn run_from_rust_tests(path: &str) {
                 continue;
             }
         };
+        let expected_unsupported_reason = from_rust_expected_unsupported(&source);
 
         let file_start = Instant::now();
 
@@ -3333,6 +3363,17 @@ fn run_from_rust_tests(path: &str) {
         let stmts = match parser.parse_program() {
             Ok(s) => s,
             Err(e) => {
+                if let Some(reason) = &expected_unsupported_reason {
+                    expected_unsupported += 1;
+                    eprintln!(
+                        "  \x1b[1;33mXFAIL\x1b[0m  {} - expected unsupported: {}; observed parse failure: {} \x1b[2m({}ms)\x1b[0m",
+                        name,
+                        reason,
+                        e.split('\n').next().unwrap_or(&e),
+                        file_start.elapsed().as_millis()
+                    );
+                    continue;
+                }
                 parse_fail += 1;
                 failures.push(format!(
                     "{} (parse: {})",
@@ -3350,6 +3391,7 @@ fn run_from_rust_tests(path: &str) {
         };
 
         let mut interp = Interpreter::new();
+        interp.suppress_output = true;
         let mut env = interp.default_env();
         // Don't load stdlib — transpiled code uses builtins from default_env,
         // and stdlib's Cons-list functions would shadow the builtin Vec-based ones.
@@ -3364,13 +3406,24 @@ fn run_from_rust_tests(path: &str) {
         // Step 4: Compare outputs
         let elapsed = file_start.elapsed().as_millis();
         if rust_output == runa_output {
-            passed += 1;
-            eprintln!(
-                "  \x1b[1;32mMATCH\x1b[0m  {} \x1b[2m({}ms)\x1b[0m",
-                name, elapsed
-            );
+            if let Some(reason) = &expected_unsupported_reason {
+                failed += 1;
+                failures.push(format!(
+                    "{} (marked expected-unsupported but now matches; remove the directive or promote the fixture; reason: {})",
+                    name, reason
+                ));
+                eprintln!(
+                    "  \x1b[1;31mXPASS\x1b[0m  {} - marked expected-unsupported but matched \x1b[2m({}ms)\x1b[0m",
+                    name, elapsed
+                );
+            } else {
+                passed += 1;
+                eprintln!(
+                    "  \x1b[1;32mMATCH\x1b[0m  {} \x1b[2m({}ms)\x1b[0m",
+                    name, elapsed
+                );
+            }
         } else {
-            failed += 1;
             // Find first divergent line
             let rust_lines: Vec<&str> = rust_output.lines().collect();
             let runa_lines: Vec<&str> = runa_output.lines().collect();
@@ -3391,6 +3444,15 @@ fn run_from_rust_tests(path: &str) {
                     runa_lines.len()
                 )
             };
+            if let Some(reason) = &expected_unsupported_reason {
+                expected_unsupported += 1;
+                eprintln!(
+                    "  \x1b[1;33mXFAIL\x1b[0m  {} - expected unsupported: {}; observed divergence: {} \x1b[2m({}ms)\x1b[0m",
+                    name, reason, diff_info, elapsed
+                );
+                continue;
+            }
+            failed += 1;
             eprintln!(
                 "  \x1b[1;31mDIVERGE\x1b[0m  {} — {} \x1b[2m({}ms)\x1b[0m",
                 name, diff_info, elapsed
@@ -3402,14 +3464,21 @@ fn run_from_rust_tests(path: &str) {
     let suite_time = format!("{:.1}s", start.elapsed().as_secs_f64());
     eprintln!();
     if failed == 0 && parse_fail == 0 {
-        eprintln!(
-            "\x1b[1;32mFrom-rust: {} matched\x1b[0m in {}.",
-            passed, suite_time
-        );
+        if expected_unsupported == 0 {
+            eprintln!(
+                "\x1b[1;32mFrom-rust: {} matched\x1b[0m in {}.",
+                passed, suite_time
+            );
+        } else {
+            eprintln!(
+                "\x1b[1;32mFrom-rust: {} matched, {} expected-unsupported\x1b[0m in {}.",
+                passed, expected_unsupported, suite_time
+            );
+        }
     } else {
         eprintln!(
-            "\x1b[1;31mFrom-rust: {} matched, {} diverged, {} parse-failed\x1b[0m in {}:",
-            passed, failed, parse_fail, suite_time
+            "\x1b[1;31mFrom-rust: {} matched, {} expected-unsupported, {} failed, {} parse-failed\x1b[0m in {}:",
+            passed, expected_unsupported, failed, parse_fail, suite_time
         );
         for f in &failures {
             eprintln!("  - {}", f);
@@ -33162,6 +33231,29 @@ fn sanitize_name(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn from_rust_expected_unsupported_directive_parses() {
+        let source = r#"
+// Human heading
+// runa-from-rust: expect-unsupported associated types
+
+fn main() {}
+"#;
+        assert_eq!(
+            from_rust_expected_unsupported(source).as_deref(),
+            Some("associated types")
+        );
+    }
+
+    #[test]
+    fn from_rust_expected_unsupported_directive_stops_at_code() {
+        let source = r#"
+fn main() {}
+// runa-from-rust: expect-unsupported too late
+"#;
+        assert_eq!(from_rust_expected_unsupported(source), None);
+    }
 
     fn parse_invariant_and_proof(source: &str) -> (Expr, Expr, ProofBlock, BTreeMap<String, Expr>) {
         let mut lexer = Lexer::new(source);
