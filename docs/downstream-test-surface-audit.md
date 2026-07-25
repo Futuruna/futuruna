@@ -92,12 +92,14 @@ What it covers well:
 - replayable roundtrip corpus cases
 - replayable import-aware corpus cases under `tests/differential/corpus/imports`
 - seed-stable generated programs
+- seed-derived generated import graphs with exact compiled-output expectations
 - weird expression/program combinations the authored suite would not write
 
 What it still misses for downstream use:
 
-- generated programs are still effectively single-file
-- import-aware generation is replay-corpus based rather than synthesized
+- the core random expression generator is still effectively single-file
+- generated import graphs are synthesized around stable seeds, but not yet
+  randomized over broad import topologies
 - script-vs-library boundary mistakes are primarily covered by `lint-library`
   expectations and the downstream lane
 
@@ -193,8 +195,9 @@ Evidence:
 
 ### 5. Differential Testing Has An Import Graph Story
 
-The random generator remains single-file, but the replay corpus has an
-import-aware subcorpus.
+The random expression generator remains single-file, but the differential lane
+now has both an import-aware replay corpus and generated import graphs derived
+from the stable seed list.
 
 Evidence:
 
@@ -202,6 +205,9 @@ Evidence:
   compiled execution and `test --check-codegen`
 - the import mesh subcorpus covers nested flat imports, qualified imports,
   exported ADTs/functions/values, and named higher-order callbacks
+- the generated import cases create per-seed flat and qualified import graphs,
+  then run import hygiene, compiled execution, `test --check-codegen`, and exact
+  compiled stdout expectations
 
 ## Recommendations
 

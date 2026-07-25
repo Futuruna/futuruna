@@ -37,7 +37,8 @@ The project now has a real assurance stack:
 - An authored canary suite for realistic user-shaped workflows, with the current coverage tracked in [docs/canary-matrix.md](canary-matrix.md).
 - A blocking downstream consumer lane for importable local libraries, import
   hygiene, and library-shaped user workflows.
-- A differential lane for generative and replayable semantic bug finding.
+- A stable differential lane for replayable semantic bugs, seed-stable
+  generative search, generated import-aware pressure, and failure artifacts.
 - FIR phase validation snapshots that make compiler-structure drift visible instead of silent.
 - A contributor ratchet in [CONTRIBUTING.md](../CONTRIBUTING.md) that requires semantic changes to land with permanent coverage and documented follow-up tasks.
 - A published compatibility policy in [docs/compatibility-policy.md](compatibility-policy.md) that names source, behavioral, verification, and artifact-facing change categories and defines feature stages.
@@ -130,7 +131,8 @@ The lanes are meant to complement each other, not compete:
   Narrow compiler expectations for diagnostics, command pass/fail behavior, and
   phase-specific markers.
 - `./scripts/differential.sh`
-  Seed-stable search for edge cases and unknown semantic bugs.
+  Seed-stable search for edge cases and unknown semantic bugs, plus generated
+  import-aware codegen/run expectations.
 - FIR snapshots and focused regressions
   Guard compiler-internal invariants and keep every discovered bug permanent.
 - Verified bootstrap work

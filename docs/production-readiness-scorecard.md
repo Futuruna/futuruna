@@ -34,7 +34,7 @@ wiring, and the current `td` queue through 2026-07-18.
 | Extended canary tier | 10 run passed, 5 check-codegen passed, 5 skipped, 2 roundtrip matched, 8 skipped. | Useful coverage, but not production-grade as a whole. |
 | Regression canary tier | 3 run passed, 2 check-codegen passed, 1 skipped, 1 roundtrip matched, 2 skipped. | Good bug-class coverage; skip accounting matters. |
 | Downstream consumer lane | `./scripts/downstream-canary.sh` passed: 9 importable files passed hygiene, 13 import graphs passed hygiene, 4 consumer checks passed, 13 downstream tests ran, 11 check-codegen passed, 2 live-async skips were reported precisely, and 13 import roundtrip skips were reported explicitly. | Strong production signal for local import consumers because execution, codegen, linting, and skip accounting are all first-class. |
-| Differential lane | Local sweep passed checked-in roundtrip corpus cases, import-aware corpus compiled execution and check-codegen with 0 skips, and seed-stable generated interpreter-vs-compiled cases. | Good generator signal with durable replay artifacts and import-aware pressure. |
+| Differential lane | Local sweep passed checked-in roundtrip corpus cases, authored import-aware corpus compiled execution and check-codegen with 0 skips, seed-stable generated interpreter-vs-compiled cases, and generated import-aware cases with import hygiene, compiled execution, check-codegen, and exact compiled stdout expectations. | Strong production signal for compiler hardening because replay, generative search, import/codegen pressure, failure artifacts, and skip accounting are all first-class. |
 | CI wiring | CI runs mint on Ubuntu/macOS, Rust formatting, differential, authored canaries, and downstream consumers. | Strong project-level signal. |
 
 ## Surface Scorecard
@@ -52,7 +52,7 @@ wiring, and the current `td` queue through 2026-07-18.
 | WASM-facing behavior | Preview | WASM tests, an extended export-surface canary, an automated `runa wasm` build lane, and documented preview artifact boundaries exist. Missing `wasm-pack` is reported as an explicit skip unless CI requires it. | Decide where the WASM lane is required in CI and add package-shape expectations once the JS/ABI boundary is chosen. |
 | Rust interop and Rust-facing integration | Preview | Feature stage is preview; CI runs `from-rust --test examples/from-rust/`; `runa lib` export shape has an artifact expectation for public/private item boundaries. | Add canaries for stable integration shapes and broaden exported type/function fixtures before promotion. |
 | `runa lint-library` import-hygiene tooling | Production-ready | Stable feature stage; downstream lane enforces marked importable helpers and imported helper graphs; expectations cover pass/fail import hygiene, script leakage, unmarked imports, and local helper-call-chain impurity rejection. | Keep import-hygiene negative expectations and downstream lint checks blocking; expand the lint only with compatibility-guide notes when the stable policy changes. |
-| `runa stress-gen` and differential testing | Preview | CI has a differential job, seed-stable generator, checked-in minimized replay corpus, and import-aware differential subcorpus. | Require every differential-found compiler bug to land in corpus; add more import/ownership pressure as failures are found. |
+| `runa stress-gen` and differential testing | Production-ready | Stable feature stage; CI has a differential job; the canonical script replays minimized corpus cases, runs seed-stable generated interpreter-vs-compiled programs, writes replay artifacts for failures, exercises authored import-aware corpus with compiled execution/check-codegen, and generates per-seed import graphs with import hygiene, compiled execution, check-codegen, and exact compiled stdout expectations. Imported helper roundtrip skips are explicit and not counted as pass evidence. | Keep every differential-found compiler bug landing in the narrowest permanent corpus, expectation, or canary lane; scale stress count only when runtime remains predictable. |
 | Compiletest-style expectations | Preview | Expectation runner is in mint and has diagnostic/run/phase cases plus exact golden-file checks. Corpus is still small. | Grow the golden snapshot corpus and require exact expectations for new diagnostics where stable. |
 | FIR and phase snapshots | Preview | Phase validation exists and has already caught drift classes, including cross-binding/module marker cases. | Add larger reviewed golden snapshots and document which phase markers are stable enough for tests. |
 | Explicit proof terms and proof kernel surface | Preview | Kernel exists in `src/proof_kernel.rs`; `td-f8f162` records the trusted-boundary audit and honest size budget; proof canaries exist. | Add more adversarial kernel tests and require boundary-budget updates for new rule or axiom growth before promotion. |
@@ -88,7 +88,7 @@ changes Futuruna's production-readiness claim.
 | WASM-facing behavior | Preview | Keep automated WASM build canary green; require the WASM lane in CI where `wasm-pack` is installed; add package-shape expectations after choosing the JS/ABI boundary. | M | 4 |
 | Rust interop and integration | Preview | Add stable-shape interop canaries; broaden `runa lib` artifact expectations; document supported crate/import patterns. | L | 4 |
 | Library hygiene tooling | Production-ready | Keep `lint-library` and `lint-library --imports` blocking in downstream; preserve negative expectation coverage for script leakage, unmarked imports, and helper-chain impurity; document any policy expansion as compatibility-facing. | S | 3 |
-| Differential and generative testing | Preview | Keep minimized replay corpus growing; add import-aware generation pressure; scale CI stress count once runtime is predictable. | L | 5 |
+| Differential and generative testing | Production-ready | Keep minimized replay corpus growing; keep generated import-aware cases and exact compiled-output expectations green; scale CI stress count only when runtime remains predictable. | M | 5 |
 | Compiletest-style expectations | Preview | Grow diagnostics and golden snapshot corpus; require exact expectations for new diagnostics where stable; keep expectation lanes fast enough for mint. | M | 4 |
 | FIR and phase snapshots | Preview | Add larger reviewed golden snapshots; connect snapshots to import normalization; document which phase markers are stable enough for tests. | M | 4 |
 | Explicit proof terms and proof kernel | Preview | Trusted-core size/surface audit recorded; add more adversarial kernel tests; keep solver fallback outside the kernel trust boundary. | M | 4 |
@@ -124,12 +124,13 @@ A surface can move to production-ready only when all of these are true:
 The safe production claim is:
 
 > Futuruna's stable core language, core CLI, repository hygiene gates,
-> pure/core Rust codegen behavior, documented reactive/stateful workflows, and
-> importable local-library consumer shape are production-ready for small to
-> medium programs that stay inside documented syntax, stdlib, named-scope stream
-> lifetime, actor, effect-handler, local import, export, and import-hygiene
-> contracts, with strong compiled/canary/downstream/artifact evidence and
-> explicit skip accounting.
+> pure/core Rust codegen behavior, documented reactive/stateful workflows,
+> importable local-library consumer shape, and differential/generative compiler
+> hardening lane are production-ready for small to medium programs that stay
+> inside documented syntax, stdlib, named-scope stream lifetime, actor,
+> effect-handler, local import, export, and import-hygiene contracts, with
+> strong compiled/canary/downstream/artifact/differential evidence and explicit
+> skip accounting.
 
 The unsafe production claim is:
 
@@ -143,7 +144,8 @@ research-grade until the next gates above are closed.
    diagnostics or phase markers are promised.
 2. Decide where `wasm-pack` should be required rather than skipped and add
    package-shape expectations for the chosen WASM boundary.
-3. Require every future differential-found compiler bug to land in the
-   checked-in replay corpus.
+3. Keep every future differential-found compiler bug landing in the checked-in
+   replay corpus or a narrower expectation/canary when that better captures the
+   contract.
 4. Distill future compiler bugs into in-repo downstream, expectation, canary,
    or differential fixtures.

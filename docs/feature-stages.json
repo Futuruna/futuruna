@@ -132,17 +132,27 @@
       ]
     },
     {
+      "id": "differential-generative-testing",
+      "kind": "tooling",
+      "name": "Differential replay and generative compiler testing",
+      "stage": "stable",
+      "commands": [
+        "stress-gen"
+      ],
+      "docs": [
+        "docs/differential-testing.md"
+      ]
+    },
+    {
       "id": "differential-and-expectation-tooling",
       "kind": "tooling",
-      "name": "Stress generation, roundtrip, compiletest, and benchmark lanes",
+      "name": "Compiletest expectation and benchmark lanes",
       "stage": "preview",
       "commands": [
-        "stress-gen",
         "expect",
         "bench"
       ],
       "docs": [
-        "docs/differential-testing.md",
         "docs/expectation-suites.md"
       ]
     },
@@ -287,8 +297,8 @@
     },
     {
       "name": "stress-gen",
-      "stage": "preview",
-      "surface": "differential-and-expectation-tooling"
+      "stage": "stable",
+      "surface": "differential-generative-testing"
     },
     {
       "name": "expect",
@@ -324,6 +334,13 @@
       "surfaces": [
         "importable-local-libraries",
         "library-hygiene-tooling"
+      ]
+    },
+    {
+      "path": "docs/differential-testing.md",
+      "stage": "stable",
+      "surfaces": [
+        "differential-generative-testing"
       ]
     },
     {

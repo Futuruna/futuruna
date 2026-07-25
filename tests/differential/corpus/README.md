@@ -26,6 +26,15 @@ Because `runa test --roundtrip` intentionally skips `@ import` entrypoints,
 This keeps import-aware downstream coverage in the deeper differential lane
 rather than relying only on `scripts/downstream-canary.sh`.
 
+The script also generates import-aware seed cases under
+`$FUTURUNA_DIFFERENTIAL_GENERATED_IMPORT_DIR`, defaulting to
+`$FUTURUNA_DIFFERENTIAL_OUT/generated-imports`. Each stable stress seed gets a
+four-file local import graph: exported ADT/accessors, nested flat-import shared
+helpers, a qualified policy module, and a consumer entrypoint. The generated
+entrypoint carries `-- expect-command: run` plus exact `-- expect-stdout:`
+markers, so compiled output is checked as well as import hygiene, compiled
+execution, and check-codegen.
+
 Guideline:
 
 - keep each file as small as possible

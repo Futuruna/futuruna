@@ -35,8 +35,9 @@ It should be read alongside [docs/compatibility-policy.md](compatibility-policy.
 |---------------|-------|-------|
 | `runa run`, `check`, `emit`, `build`, `test`, `fmt`, `hashes`, `feature-stages` | Stable | These are core workflow commands. Their documented behavior is part of the normal public surface. `feature-stages` is stable through the versioned JSON schema. |
 | `runa lint-library` | Stable | Import-hygiene tooling for authored library surfaces, including import-graph checks and helper-call-chain impurity rejection. |
+| `runa stress-gen` and `./scripts/differential.sh` | Stable | Differential replay and generative compiler testing are stable as a quality gate: checked-in replay corpus, stable seed lists, failure artifacts, and generated import-aware pressure are part of the documented hardening contract. Generator internals and corpus volume may still grow. |
 | `runa init`, `add`, `lib`, `wasm`, `lsp` | Preview | Useful project and integration tooling, but still subject to package, interface, or behavior refinement. |
-| `runa stress-gen`, `expect`, `bench` | Preview | Used by the compiler hardening loop; corpus shape, fixture volume, and benchmark reporting can still evolve. |
+| `runa expect`, `bench` | Preview | Used by the compiler hardening loop; expectation corpus shape, fixture volume, and benchmark reporting can still evolve. |
 | `runa verify` | Preview | The command is supported, but the elaboration and automation path is not yet a frozen contract. |
 | `runa audit` | Experimental | Treat output shape and behavior as early and subject to redesign. |
 | `runa from-rust`, `from-rust --verify` | Experimental | Early translational tooling. Do not treat current behavior as a frozen compatibility contract. |
