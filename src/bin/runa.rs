@@ -27558,12 +27558,13 @@ impl RustCodegen {
                 };
                 self.is_live_stream_expr_for_validation(&desugared)
             }
-            ExprKind::Field(_, _) => self
-                .scope_qualified_stream_binding_name(expr)
-                .is_some_and(|binding_name| {
-                    self.subject_vars.contains(binding_name.as_str())
-                        || self.async_stream_vars.contains(binding_name.as_str())
-                }),
+            ExprKind::Field(_, _) => {
+                self.scope_qualified_stream_binding_name(expr)
+                    .is_some_and(|binding_name| {
+                        self.subject_vars.contains(binding_name.as_str())
+                            || self.async_stream_vars.contains(binding_name.as_str())
+                    })
+            }
             _ => false,
         }
     }
