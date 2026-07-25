@@ -1,5 +1,12 @@
 # Reactive Futuruna: Streams as Native Graph Topology
 
+> Status: historical design sketch. The current authoritative stream lifetime
+> contract is [Stream Lifetimes](stream-lifetimes.md): live subscriptions must
+> be top-level script work or owned by an explicit named `| scope Name { ... }`.
+> Ordinary helpers should return stream expressions and let the caller subscribe
+> inside its named scope. Futuruna does not currently expose returned
+> subscription handles.
+
 **Principle:** A reactive program IS a computation graph. Futuruna is built for graphs.
 Reactive programming isn't a library bolted onto Futuruna — it's what the language
 naturally becomes when you add time to a graph.
@@ -60,7 +67,7 @@ tilde means "approximately" or "wave", both evoke the flowing nature of streams.
 ~ count = scan(clicks, 0, |acc, _| acc + 1)
 ~ history = scan(search_terms, [], |h, term| push(h, term))
 
--- Subscribe: for-on-stream is the subscription
+-- Subscribe with the current ~ + | terminal form
 ~ search_terms | term -> {
     = results = search(term)?
     render(results)
@@ -170,6 +177,11 @@ bind("#spinner", map(loading, |l| if l { "visible" } else { "hidden" }))
 ```
 
 ## Transpilation to Rust
+
+Historical note: this section sketches the runtime shape. Current compiled
+async work is lifetime-owned by top-level script execution or by a named scope;
+codegen must not let ordinary functions hide live subscriptions behind detached
+tasks or returned handles.
 
 The compiler emits tokio channels + tasks:
 
@@ -292,7 +304,7 @@ M6 (actors) and reactive streams are the same thing viewed differently:
 | State | Actor's state param | `scan` accumulator |
 | Response | `ask` + oneshot | `combine_latest` |
 | Spawn | `spawn(actor, init)` | `~ stream = ...` |
-| Subscribe | message handler | `for x in stream` |
+| Subscribe | message handler | `~ stream | x -> { ... }` in top-level or a named scope |
 
 An actor IS a stream with `scan`. A stream IS a stateless actor. Futuruna should
 unify them — the `|` pathway handles both:
@@ -323,6 +335,9 @@ whichever style fits their mental model.
 - Parse `~ name = expr` as `Stmt::StreamBind`
 - Parse `|>` as pipe operator (infix, left-associative)
 - `~ stream_expr | x -> { }` works for both iterables and streams
+- Live stream subscriptions are accepted only at top level or inside a named
+  scope; historical `for x in stream` shorthand is not the current contract for
+  live streams.
 
 ### Phase 2: Stream operators (core set)
 - `map`, `filter`, `scan`, `merge`, `zip` as builtins

@@ -1,5 +1,11 @@
 # Reactive Futuruna: Subjects, Lifecycle, and the Weather App
 
+> Status: historical design sketch with current-contract annotations. The
+> authoritative lifetime contract is [Stream Lifetimes](stream-lifetimes.md):
+> live subscriptions must be top-level script work or owned by an explicit named
+> `| scope Name { ... }`. Returned subscription handles and `subscribe()`-style
+> disposables are not a supported surface today.
+
 **The gap:** `~ stream = source |> map(f) |> filter(p)` gives us derived streams —
 cold, pull-based, pipeline-only. Real applications need two more things:
 
@@ -23,7 +29,7 @@ A Subject is a stream you can write to. RxJS has `Subject`, `BehaviorSubject`,
 weather <- Sunny(temp: 22.0)
 count <- count.latest() + 1
 
--- Subscribe with for (same as derived streams)
+-- Subscribe with the current ~ + | terminal form
 ~ weather | w -> {
     @ print("Weather changed: " + show(w))
 }
@@ -71,12 +77,13 @@ RxJS lifecycle is manual: `subscription.unsubscribe()`. Angular added
 `takeUntilDestroyed()`. React has `useEffect` cleanup. All of these are
 bolted-on afterthoughts.
 
-Futuruna has blocks. Blocks have scope. **Streams die when their scope dies.**
+Futuruna has named scope blocks. **Live streams die when their owning named
+scope dies.**
 
 ### `| scope` for View Lifecycle
 
 ```tau
--- A view is a scope. When the scope exits, all streams inside are torn down.
+-- A view is a named scope. When the scope exits, all streams inside are torn down.
 | scope WeatherDashboard {
 
     -- Sources (subjects — pushed from outside)
@@ -108,6 +115,10 @@ Futuruna has blocks. Blocks have scope. **Streams die when their scope dies.**
 + a `JoinHandle`. The scope holds a `Vec<JoinHandle>`. When the scope drops,
 all handles are aborted. Zero manual cleanup. Rust's `Drop` does what RxJS
 needs `takeUntil` hacks for.
+
+Current-codegen note: this bridge is valid for top-level script work and named
+scopes. Ordinary functions may snapshot streams or return stream expressions,
+but they may not start live subscriptions unless a named scope owns them.
 
 ### `| scope` Nesting (Component Trees)
 
@@ -435,7 +446,7 @@ subjects, lifecycle, pipe operators, pattern matching, error handling.
 @ print("  match/if        — pattern matching on conditions")
 @ print("  scan            — stateful accumulation over time")
 @ print("  merge           — combining independent event sources")
-@ print("  for-in-stream   — subscription as iteration")
+@ print("  ~ + |           — subscription inside named scopes")
 ```
 
 ## The Production Version (What Changes)
@@ -474,7 +485,7 @@ The architecture doesn't change when you swap mock for real. That's the point.
 | Complete | `s.complete()` | `complete(s)` | Function, not method — composable |
 | Error | `s.error(e)` | `error(s, e)` | Same |
 | Subscribe | `s.subscribe(fn)` | `~ s \| x -> { }` | Dedicated syntax (`~ + |`) — structurally sound |
-| Unsubscribe | `sub.unsubscribe()` | Scope exit (automatic) | Rust's Drop = no memory leaks |
+| Unsubscribe | `sub.unsubscribe()` | Named scope exit or `@ teardown("Name")` | Rust's Drop = no memory leaks |
 | takeUntil | `s.pipe(takeUntil(d$))` | `s \|> take_until(d)` | Same, but scope makes it rarely needed |
 | BehaviorSubject | `new BehaviorSubject(0)` | `subject(0)` | Initial value = behavior, no initial = plain |
 | ReplaySubject | `new ReplaySubject(5)` | `subject([], replay: 5)` | Named parameter, obvious |
@@ -487,11 +498,11 @@ The architecture doesn't change when you swap mock for real. That's the point.
 | **Angular** | `takeUntilDestroyed()`, `DestroyRef` | Bolted onto DI system, easy to forget |
 | **React** | `useEffect` cleanup return | Closure footgun, stale closures |
 | **Svelte** | `onDestroy()` | Manual callback |
-| **Futuruna** | `\| scope { }` block exit | Automatic. Compiler enforces. Zero leaks possible |
+| **Futuruna** | named `\| scope Name { }` block exit or `@ teardown("Name")` | Automatic. Compiler enforces. Zero leaks possible |
 
-The key insight: **Rust already solved this problem** with `Drop`. A `| scope`
-is a struct that holds `Vec<JoinHandle>`. When it drops, handles abort. The
-compiler guarantees it. No discipline required.
+The key insight: **Rust already solved this problem** with `Drop`. A named
+`| scope Name` is a struct that holds its owned task handles. When it drops,
+handles abort. The compiler guarantees it. No discipline required.
 
 ### Nested Scope = Component Tree
 
@@ -519,6 +530,11 @@ Navigate from Weather to Settings:
 3. Zero manual cleanup. Zero leaked intervals. Zero stale closures.
 
 ## Transpilation Strategy
+
+Historical note: the standalone subject emission below sketches the mechanism.
+In current Futuruna, live subscriber tasks must be top-level script work or be
+registered under a named scope. A helper that wants reusable stream behavior
+should return a stream expression and let the caller subscribe inside its scope.
 
 ### Subject → Rust
 
@@ -619,12 +635,12 @@ design adds the hot/imperative side:
 | `~ x = derived` | Yes | Yes |
 | `\|>` pipe | Yes | Yes |
 | `map`, `filter`, etc | Yes | Yes |
-| `for x in stream` | Yes | Yes |
+| `for x in stream` | Historical shorthand | Current contract uses `~ stream | x -> { ... }` for live subscriptions |
 | `subject()` | No | **Yes** |
 | `s <- val` (push) | No (actor only) | **Yes** (unified with actors) |
 | `.latest()` | No | **Yes** |
 | `complete(s)` / `error(s, e)` | No | **Yes** |
-| `\| scope { }` teardown | No | **Yes** |
+| named `\| scope Name { }` teardown | No | **Yes** |
 | `poll(fn, ms)` | No | **Yes** |
 | `take_until(signal)` | No | **Yes** |
 | Nested scope lifecycle | No | **Yes** |
