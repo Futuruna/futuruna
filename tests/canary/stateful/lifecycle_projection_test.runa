@@ -70,10 +70,10 @@ readings <- 41
 = running_after_teardown_ok = collect(running_log) == ["sum:33", "sum:68", "sum:105"]
 ? running_after_teardown_ok
 
-= projected_stream_stopped_ok = projected.count == 3 && projected.latest == 37
+= projected_stream_stopped_ok = Dashboard.projected.count == 3 && Dashboard.projected.latest == 37
 ? projected_stream_stopped_ok
 
-= running_stream_stopped_ok = running.count == 3 && running.latest == 105
+= running_stream_stopped_ok = Dashboard.running.count == 3 && Dashboard.running.latest == 105
 ? running_stream_stopped_ok
 
 = reading_count_ok = readings.count == 7

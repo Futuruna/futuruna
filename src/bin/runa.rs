@@ -11092,6 +11092,8 @@ struct RustCodegen {
     sub_counter: usize,
     /// M13c: scope name -> list of binding names (for qualified access ScopeName.field → field)
     scope_bindings: BTreeMap<String, Vec<String>>,
+    /// M13c: scope name -> list of stream binding names for qualified stream accessors.
+    scope_stream_bindings: BTreeMap<String, Vec<String>>,
     /// Stored invariants for ? verification: name -> (subject_expr, predicate_expr)
     codegen_invariants: BTreeMap<String, (Expr, Expr)>,
     /// Actor handle variables: var_name -> actor_name (for qualifying __Ask in ask())
@@ -15164,6 +15166,7 @@ impl RustCodegen {
             current_scope: None,
             sub_counter: 0,
             scope_bindings: BTreeMap::new(),
+            scope_stream_bindings: BTreeMap::new(),
             codegen_invariants: BTreeMap::new(),
             actor_handle_vars: BTreeMap::new(),
             actor_message_site_tys: BTreeMap::new(),
@@ -24334,6 +24337,7 @@ impl RustCodegen {
 
                     // Collect scope bindings for struct generation
                     let mut scope_binds: Vec<(String, String)> = Vec::new(); // (name, value_expr)
+                    let mut scope_stream_binds: Vec<String> = Vec::new();
                     let mut other_stmts: Vec<&Stmt> = Vec::new();
                     for s in body {
                         match s {
@@ -24342,6 +24346,7 @@ impl RustCodegen {
                             }
                             Stmt::StreamBind(vname, expr) => {
                                 scope_binds.push((vname.clone(), self.emit_expr(expr)));
+                                scope_stream_binds.push(vname.clone());
                             }
                             _ => other_stmts.push(s),
                         }
@@ -24434,6 +24439,12 @@ impl RustCodegen {
                     // Track scope bindings for qualified access (ScopeName.field → field)
                     for (vname, _) in &scope_binds {
                         self.scope_bindings
+                            .entry(name.clone())
+                            .or_insert_with(Vec::new)
+                            .push(vname.clone());
+                    }
+                    for vname in &scope_stream_binds {
+                        self.scope_stream_bindings
                             .entry(name.clone())
                             .or_insert_with(Vec::new)
                             .push(vname.clone());
@@ -27450,6 +27461,46 @@ impl RustCodegen {
         self.is_live_stream_expr_for_validation(expr)
     }
 
+    fn scope_qualified_name_from(
+        &self,
+        expr: &Expr,
+        bindings_by_scope: &BTreeMap<String, Vec<String>>,
+    ) -> Option<String> {
+        let ExprKind::Field(scope_expr, binding_name) = &expr.kind else {
+            return None;
+        };
+
+        match &scope_expr.as_ref().kind {
+            ExprKind::Var(scope_name) => bindings_by_scope
+                .get(scope_name.as_str())
+                .filter(|bindings| bindings.iter().any(|name| name == binding_name))
+                .map(|_| binding_name.clone()),
+            ExprKind::Field(outer, inner_scope) => {
+                if bindings_by_scope
+                    .get(inner_scope.as_str())
+                    .is_some_and(|bindings| bindings.iter().any(|name| name == binding_name))
+                {
+                    return Some(binding_name.clone());
+                }
+                if let ExprKind::Var(scope_name) = &outer.as_ref().kind {
+                    if bindings_by_scope.contains_key(scope_name.as_str()) {
+                        return Some(binding_name.clone());
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    fn scope_qualified_binding_name(&self, expr: &Expr) -> Option<String> {
+        self.scope_qualified_name_from(expr, &self.scope_bindings)
+    }
+
+    fn scope_qualified_stream_binding_name(&self, expr: &Expr) -> Option<String> {
+        self.scope_qualified_name_from(expr, &self.scope_stream_bindings)
+    }
+
     fn is_live_stream_expr_for_validation(&self, expr: &Expr) -> bool {
         match &expr.kind {
             ExprKind::Var(name) => {
@@ -27507,6 +27558,12 @@ impl RustCodegen {
                 };
                 self.is_live_stream_expr_for_validation(&desugared)
             }
+            ExprKind::Field(_, _) => self
+                .scope_qualified_stream_binding_name(expr)
+                .is_some_and(|binding_name| {
+                    self.subject_vars.contains(binding_name.as_str())
+                        || self.async_stream_vars.contains(binding_name.as_str())
+                }),
             _ => false,
         }
     }
@@ -29435,19 +29492,17 @@ impl RustCodegen {
                         }
                     }
                 }
-                // Scope-qualified access: ScopeName.field → field (local variable)
-                if let ExprKind::Var(scope_name) = &obj.as_ref().kind {
-                    if self.scope_bindings.contains_key(scope_name.as_str()) {
-                        return sanitize_name(field);
+                if let Some(binding_name) = self.scope_qualified_stream_binding_name(obj) {
+                    let obj_str = sanitize_name(&binding_name);
+                    match field.as_str() {
+                        "count" => return format!("({}.len() as i64)", obj_str),
+                        "latest" => return format!("{}.last().cloned().unwrap()", obj_str),
+                        _ => {}
                     }
                 }
-                // Nested scope access: Outer.Inner.field → field
-                if let ExprKind::Field(outer, _inner_scope) = &obj.as_ref().kind {
-                    if let ExprKind::Var(scope_name) = &outer.as_ref().kind {
-                        if self.scope_bindings.contains_key(scope_name.as_str()) {
-                            return sanitize_name(field);
-                        }
-                    }
+                // Scope-qualified access: ScopeName.field → field (local variable)
+                if let Some(binding_name) = self.scope_qualified_binding_name(expr) {
+                    return sanitize_name(&binding_name);
                 }
                 // M3b: module qualified access uses :: in Rust (Name::func)
                 // Handles nested modules: App.Utils.func → App::Utils::func
@@ -38013,6 +38068,86 @@ routes <- "b"
         assert!(
             rust.contains("__fut_settle(&__stream).await; __stream.latest()"),
             "async .latest reads should settle derived stream state before reading: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_scope_qualified_async_stream_reads_wait_for_quiescence() {
+        let source = r#"
+~ readings = subject()
+~ observed = subject()
+| scope Dashboard {
+    ~ projected = readings |> map(|x| x + 1)
+    ~ projected | x -> {
+        observed <- x
+    }
+    readings <- 1
+    readings <- 2
+}
+= projected_snapshot = collect(Dashboard.projected)
+= projected_count = Dashboard.projected.count
+= projected_latest = Dashboard.projected.latest
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("let __stream = (projected.clone()).clone();")
+                || rust.contains("let __stream = (projected).clone();"),
+            "scope-qualified stream reads should clone the resolved stream handle instead of lowering to bare fields: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_settle(&__stream).await; __stream.snapshot()"),
+            "scope-qualified collect should settle resolved stream state before snapshot reads: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_settle(&__stream).await; __stream.count()"),
+            "scope-qualified .count reads should settle resolved stream state before reading: {}",
+            rust
+        );
+        assert!(
+            rust.contains("__fut_settle(&__stream).await; __stream.latest()"),
+            "scope-qualified .latest reads should settle resolved stream state before reading: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("let projected_count = count;")
+                && !rust.contains("let projected_latest = latest;"),
+            "scope-qualified stream accessors must not collapse to bare count/latest identifiers: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_scope_qualified_sync_stream_accessors_use_vec_reads() {
+        let source = r#"
+~ readings = subject()
+| scope Dashboard {
+    ~ projected = readings |> map(|x| x + 1)
+    readings <- 1
+    readings <- 2
+}
+= projected_count = Dashboard.projected.count
+= projected_latest = Dashboard.projected.latest
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("let projected_count = (projected.len() as i64);"),
+            "sync scope-qualified .count should lower to a Vec length read, not a bare identifier: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let projected_latest = projected.last().cloned().unwrap();"),
+            "sync scope-qualified .latest should lower to a Vec last read, not a bare identifier: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("let projected_count = count;")
+                && !rust.contains("let projected_latest = latest;"),
+            "sync scope-qualified stream accessors must not collapse to bare count/latest identifiers: {}",
             rust
         );
     }
