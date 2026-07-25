@@ -10793,6 +10793,8 @@ struct TypeRegistry {
     struct_types: BTreeSet<String>,
     /// User-defined ADTs whose emitted Rust type actually derives Default
     default_derive_types: BTreeSet<String>,
+    /// For Default-deriving ADTs, generic parameter positions that require Default.
+    default_derive_param_requirements: BTreeMap<String, BTreeSet<usize>>,
     /// Immutable recursive ADT names that use Rc/Arc instead of Box
     rc_types: BTreeSet<String>,
     /// Effect declarations: effect_name -> set of operation names
@@ -10867,6 +10869,7 @@ impl TypeRegistry {
             explicit_display_impls: BTreeSet::new(),
             struct_types: BTreeSet::new(),
             default_derive_types: BTreeSet::new(),
+            default_derive_param_requirements: BTreeMap::new(),
             rc_types: BTreeSet::new(),
             effect_ops: BTreeMap::new(),
             effect_ops_detail: BTreeMap::new(),
@@ -17047,16 +17050,25 @@ impl RustCodegen {
         let mut adts = Vec::new();
         self.collect_adt_default_infos(stmts, &mut adts);
         let mut default_types = BTreeSet::new();
+        let mut default_param_requirements = BTreeMap::new();
 
         loop {
             let mut changed = false;
             for (decl_name, rust_name, params, variants) in &adts {
-                if default_types.contains(rust_name) {
-                    continue;
-                }
-                if self.adt_can_derive_default(decl_name, params, variants, &default_types) {
-                    default_types.insert(rust_name.clone());
-                    changed = true;
+                if let Some(required_params) = self.adt_default_param_requirements(
+                    decl_name,
+                    params,
+                    variants,
+                    &default_types,
+                    &default_param_requirements,
+                ) {
+                    if default_types.insert(rust_name.clone()) {
+                        changed = true;
+                    }
+                    if default_param_requirements.get(rust_name) != Some(&required_params) {
+                        default_param_requirements.insert(rust_name.clone(), required_params);
+                        changed = true;
+                    }
                 }
             }
             if !changed {
@@ -17065,6 +17077,7 @@ impl RustCodegen {
         }
 
         self.types.default_derive_types = default_types;
+        self.types.default_derive_param_requirements = default_param_requirements;
     }
 
     fn collect_adt_default_infos(
@@ -17091,76 +17104,151 @@ impl RustCodegen {
         }
     }
 
-    fn adt_can_derive_default(
+    fn adt_default_param_requirements(
         &self,
         decl_name: &str,
         params: &[String],
         variants: &[Variant],
         default_types: &BTreeSet<String>,
-    ) -> bool {
+        default_param_requirements: &BTreeMap<String, BTreeSet<usize>>,
+    ) -> Option<BTreeSet<usize>> {
         if variants.is_empty() {
-            return false;
+            return None;
         }
 
-        let generic_params: BTreeSet<String> = params.iter().cloned().collect();
+        let generic_param_indices: BTreeMap<String, usize> = params
+            .iter()
+            .enumerate()
+            .map(|(index, param)| (param.clone(), index))
+            .collect();
+
         if variants.len() == 1 && variants[0].name == decl_name && !variants[0].fields.is_empty() {
-            variants[0]
-                .fields
-                .iter()
-                .all(|f| self.ty_supports_derive_default(&f.ty, &generic_params, default_types))
+            let mut required_params = BTreeSet::new();
+            for field in &variants[0].fields {
+                required_params.extend(self.ty_default_param_requirements(
+                    &field.ty,
+                    &generic_param_indices,
+                    default_types,
+                    default_param_requirements,
+                )?);
+            }
+            Some(required_params)
+        } else if variants.first().is_some_and(|v| v.fields.is_empty()) {
+            Some(BTreeSet::new())
         } else {
-            variants.first().is_some_and(|v| v.fields.is_empty())
+            None
         }
     }
 
-    fn ty_supports_derive_default(
+    fn ty_default_param_requirements(
         &self,
         ty: &Ty,
-        generic_params: &BTreeSet<String>,
+        generic_param_indices: &BTreeMap<String, usize>,
         default_types: &BTreeSet<String>,
-    ) -> bool {
+        default_param_requirements: &BTreeMap<String, BTreeSet<usize>>,
+    ) -> Option<BTreeSet<usize>> {
         match ty {
             Ty::Name(n) => {
-                generic_params.contains(n)
-                    || matches!(
-                        n.as_str(),
-                        "Int"
-                            | "Float"
-                            | "String"
-                            | "Bool"
-                            | "Char"
-                            | "Nat"
-                            | "List"
-                            | "Map"
-                            | "Set"
-                            | "Option"
-                    )
-                    || default_types.contains(&self.rust_type_name(n))
+                if let Some(index) = generic_param_indices.get(n) {
+                    return Some(BTreeSet::from([*index]));
+                }
+                if matches!(
+                    n.as_str(),
+                    "Int"
+                        | "Float"
+                        | "String"
+                        | "Bool"
+                        | "Char"
+                        | "Nat"
+                        | "List"
+                        | "Map"
+                        | "Set"
+                        | "Option"
+                ) {
+                    return Some(BTreeSet::new());
+                }
+
+                let rust_name = self.rust_type_name(n);
+                if default_types.contains(&rust_name) {
+                    return default_param_requirements.get(&rust_name).map_or_else(
+                        || Some(BTreeSet::new()),
+                        |params| params.is_empty().then(BTreeSet::new),
+                    );
+                }
+                None
             }
             Ty::App(con, args) => {
                 let Some(con_name) = Self::ty_constructor_name(con) else {
-                    return false;
+                    return None;
                 };
                 match con_name {
-                    "List" | "Map" | "Set" | "Option" => true,
-                    "Pair" => args.iter().all(|arg| {
-                        self.ty_supports_derive_default(arg, generic_params, default_types)
-                    }),
+                    "List" | "Map" | "Set" | "Option" => Some(BTreeSet::new()),
+                    "Pair" => self.collect_default_param_requirements(
+                        args.iter(),
+                        generic_param_indices,
+                        default_types,
+                        default_param_requirements,
+                    ),
                     _ => {
-                        default_types.contains(&self.rust_type_name(con_name))
-                            && args.iter().all(|arg| {
-                                self.ty_supports_derive_default(arg, generic_params, default_types)
-                            })
+                        let rust_name = self.rust_type_name(con_name);
+                        if !default_types.contains(&rust_name) {
+                            return None;
+                        }
+                        let Some(required_arg_indices) = default_param_requirements.get(&rust_name)
+                        else {
+                            return self.collect_default_param_requirements(
+                                args.iter(),
+                                generic_param_indices,
+                                default_types,
+                                default_param_requirements,
+                            );
+                        };
+
+                        let mut required_params = BTreeSet::new();
+                        for required_arg_index in required_arg_indices {
+                            let arg = args.get(*required_arg_index)?;
+                            required_params.extend(self.ty_default_param_requirements(
+                                arg,
+                                generic_param_indices,
+                                default_types,
+                                default_param_requirements,
+                            )?);
+                        }
+                        Some(required_params)
                     }
                 }
             }
-            Ty::Shared(inner) => {
-                self.ty_supports_derive_default(inner, generic_params, default_types)
-            }
-            Ty::Optional(_) | Ty::Unit => true,
-            Ty::Var(n) => generic_params.contains(n),
-            Ty::Ref(_) | Ty::MutRef(_) | Ty::Arrow(_, _) | Ty::Hole => false,
+            Ty::Shared(inner) => self.ty_default_param_requirements(
+                inner,
+                generic_param_indices,
+                default_types,
+                default_param_requirements,
+            ),
+            Ty::Optional(_) | Ty::Unit => Some(BTreeSet::new()),
+            Ty::Var(n) => generic_param_indices
+                .get(n)
+                .map(|index| BTreeSet::from([*index])),
+            Ty::Ref(_) | Ty::MutRef(_) | Ty::Arrow(_, _) | Ty::Hole => None,
         }
+    }
+
+    fn collect_default_param_requirements<'a>(
+        &self,
+        args: impl Iterator<Item = &'a Ty>,
+        generic_param_indices: &BTreeMap<String, usize>,
+        default_types: &BTreeSet<String>,
+        default_param_requirements: &BTreeMap<String, BTreeSet<usize>>,
+    ) -> Option<BTreeSet<usize>> {
+        let mut required_params = BTreeSet::new();
+        for arg in args {
+            required_params.extend(self.ty_default_param_requirements(
+                arg,
+                generic_param_indices,
+                default_types,
+                default_param_requirements,
+            )?);
+        }
+        Some(required_params)
     }
 
     fn ty_constructor_name(ty: &Ty) -> Option<&str> {
@@ -17202,7 +17290,6 @@ impl RustCodegen {
             }
         }
     }
-
     /// Pass 2: Compute borrow-only parameter flags for all functions.
     /// Iterates to fixed point so transitive borrow info propagates.
     fn compute_borrow_flags(&mut self, fn_stmts: &[&Stmt]) {
@@ -18325,13 +18412,17 @@ impl RustCodegen {
                                 self.types
                                     .type_decls
                                     .insert(tname.clone(), (param_names, variant_names));
-                                if self.adt_can_derive_default(
+                                if let Some(required_params) = self.adt_default_param_requirements(
                                     tname,
                                     &[],
                                     variants,
                                     &self.types.default_derive_types,
+                                    &self.types.default_derive_param_requirements,
                                 ) {
                                     self.types.default_derive_types.insert(tname.clone());
+                                    self.types
+                                        .default_derive_param_requirements
+                                        .insert(tname.clone(), required_params);
                                 }
                             }
                             let decl_str = self.emit_type_decl(&type_decl);
@@ -35063,9 +35154,16 @@ for x in [1, 2] {
 # BadMode = Busy(Int) | Idle
 # GoodMode = Idle | Busy(Int)
 # Inner(count: Int)
+# OptionBox(t) = OptionBox(value: Option(t))
+# DirectBox(t) = DirectBox(value: t)
+# PairBox(a, b) = PairBox(left: a, right: Option(b))
 # NeedsBad(mode: BadMode, label: String)
 # NeedsGood(mode: GoodMode, label: String)
 # NeedsInner(inner: Inner)
+# NeedsOptionBad(boxed: OptionBox(BadMode))
+# NeedsDirectBad(boxed: DirectBox(BadMode))
+# NeedsPairGood(boxed: PairBox(GoodMode, BadMode))
+# NeedsPairBad(boxed: PairBox(BadMode, GoodMode))
 "#;
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
@@ -35092,6 +35190,42 @@ for x in [1, 2] {
         assert!(
             rust.contains("#[derive(Debug, Clone, PartialEq, Default)]\nstruct NeedsInner {\n"),
             "structs wrapping tracked defaultable user structs should still derive Default: {}",
+            rust
+        );
+        assert!(
+            rust.contains("#[derive(Debug, Clone, PartialEq, Default)]\nstruct OptionBox<T> {\n"),
+            "generic structs whose type param is only under Option should derive Default: {}",
+            rust
+        );
+        assert!(
+            rust.contains("#[derive(Debug, Clone, PartialEq, Default)]\nstruct NeedsOptionBad {\n"),
+            "parents should derive Default when an applied generic ADT does not require that arg: {}",
+            rust
+        );
+        assert!(
+            rust.contains("#[derive(Debug, Clone, PartialEq)]\nstruct NeedsDirectBad {\n"),
+            "parents should not derive Default when an applied generic ADT requires a non-defaultable arg: {}",
+            rust
+        );
+        assert!(
+            !rust
+                .contains("#[derive(Debug, Clone, PartialEq, Default)]\nstruct NeedsDirectBad {\n"),
+            "direct generic-parameter requirements should block invalid parent Default derives: {}",
+            rust
+        );
+        assert!(
+            rust.contains("#[derive(Debug, Clone, PartialEq, Default)]\nstruct NeedsPairGood {\n"),
+            "only the actually required generic arguments should gate parent Default derives: {}",
+            rust
+        );
+        assert!(
+            rust.contains("#[derive(Debug, Clone, PartialEq)]\nstruct NeedsPairBad {\n"),
+            "a non-defaultable required generic argument should still block parent Default derives: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("#[derive(Debug, Clone, PartialEq, Default)]\nstruct NeedsPairBad {\n"),
+            "unused generic arguments must not hide a required non-defaultable argument: {}",
             rust
         );
     }
