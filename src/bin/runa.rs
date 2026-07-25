@@ -10708,13 +10708,13 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("to_lower",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.to_lowercase()" }),
         ("substring",    BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start_i = ({1}).max(0); let __len_i = ({2}).max(0); let __start = (__start_i as usize).min(__s.len()); let __end = __start.saturating_add(__len_i as usize).min(__s.len()); __s[__start..__end].iter().collect::<String>() }" }),
         ("char_at",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __i = {1} as usize; if __i < __s.len() { __s[__i].to_string() } else { String::new() } }" }),
-        ("index_of",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.find(&*{1}).map(|p| p as i64).unwrap_or(-1i64)" }),
+        ("index_of",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: &str = &*{0}; match __s.find(&*{1}) { Some(__byte) => __s[..__byte].chars().count() as i64, None => -1i64 } }" }),
         ("format_float", BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "format!(\"{:.prec$}\", {0} as f64, prec = {1} as usize)" }),
         ("parse_int",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().parse::<i64>().unwrap_or(0)" }),
         ("parse_float",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().parse::<f64>().unwrap_or(0.0)" }),
         ("string_chars", BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.chars().map(|c| c.to_string()).collect::<Vec<String>>()" }),
-        ("string_length",BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
-        ("length",       BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
+        ("string_length",BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.chars().count() as i64)" }),
+        ("length",       BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "__futuruna_len(&{0})" }),
         ("head",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; if __arr.is_empty() { panic!(\"head: empty list\") } else { __arr[0].clone() } }" }),
         ("tail",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; if __arr.len() <= 1 { __arr[0..0].to_vec() } else { __arr[1..].to_vec() } }" }),
         ("nth",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; let __i = {1}; if __i < 0 || __i as usize >= __arr.len() { panic!(\"index out of bounds: {} (len {})\", __i, __arr.len()) } else { __arr[__i as usize].clone() } }" }),
@@ -19101,6 +19101,14 @@ impl RustCodegen {
         out.push_str("fn __futuruna_set_key<T: fmt::Debug>(v: &T) -> String {\n");
         out.push_str("    __futuruna_show_any(v)\n");
         out.push_str("}\n");
+        out.push_str("trait __FuturunaLen { fn __futuruna_len(&self) -> i64; }\n");
+        out.push_str("impl __FuturunaLen for String { fn __futuruna_len(&self) -> i64 { self.chars().count() as i64 } }\n");
+        out.push_str("impl __FuturunaLen for str { fn __futuruna_len(&self) -> i64 { self.chars().count() as i64 } }\n");
+        out.push_str("impl<T> __FuturunaLen for Vec<T> { fn __futuruna_len(&self) -> i64 { self.len() as i64 } }\n");
+        out.push_str("impl<T: __FuturunaLen + ?Sized> __FuturunaLen for &T { fn __futuruna_len(&self) -> i64 { (*self).__futuruna_len() } }\n");
+        out.push_str(
+            "fn __futuruna_len<T: __FuturunaLen + ?Sized>(v: &T) -> i64 { v.__futuruna_len() }\n",
+        );
         out.push_str(
             "fn __futuruna_show_set<T: fmt::Debug>(items: &BTreeMap<String, T>) -> String {\n",
         );
@@ -37636,6 +37644,36 @@ for x in [1, 2] {
 
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "[]");
+    }
+
+    #[test]
+    fn unicode_string_scalar_semantics_match_interpreter_and_codegen() {
+        let source = r#"
+= text = "å🙂b"
+= lengths = map(["å🙂b"], length)
+@ print(show(string_length(text)))
+@ print(show(length(text)))
+@ print(substring(text, 1, 1))
+@ print(char_at(text, 0))
+@ print(show(index_of(text, "🙂")))
+@ print(show(index_of(text, "b")))
+@ print(show(head(lengths)))
+"#;
+
+        let expected = vec!["3", "3", "🙂", "å", "1", "2", "3"];
+        let interpreted = eval_source(source).expect("interpreter unicode string regression");
+        assert_eq!(
+            interpreted.lines().collect::<Vec<_>>(),
+            expected,
+            "interpreter should use Unicode scalar indexes for string builtins"
+        );
+
+        let compiled = compile_and_run_test_program(source);
+        assert_eq!(
+            compiled.lines().collect::<Vec<_>>(),
+            expected,
+            "compiled Rust should match interpreter Unicode scalar semantics"
+        );
     }
 
     #[test]

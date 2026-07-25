@@ -215,7 +215,7 @@ For the complete standard library with all ~70 builtins, see [stdlib.md](stdlib.
 ### String
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `string_length` | `String -> Int` | String length |
+| `string_length` | `String -> Int` | Unicode scalar length |
 | `starts_with` | `(String, String) -> Bool` | Prefix check |
 
 ### Option/Result

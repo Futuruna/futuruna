@@ -33,6 +33,12 @@ fn __futuruna_show_any<T: fmt::Debug>(v: &T) -> String {
 fn __futuruna_set_key<T: fmt::Debug>(v: &T) -> String {
     __futuruna_show_any(v)
 }
+trait __FuturunaLen { fn __futuruna_len(&self) -> i64; }
+impl __FuturunaLen for String { fn __futuruna_len(&self) -> i64 { self.chars().count() as i64 } }
+impl __FuturunaLen for str { fn __futuruna_len(&self) -> i64 { self.chars().count() as i64 } }
+impl<T> __FuturunaLen for Vec<T> { fn __futuruna_len(&self) -> i64 { self.len() as i64 } }
+impl<T: __FuturunaLen + ?Sized> __FuturunaLen for &T { fn __futuruna_len(&self) -> i64 { (*self).__futuruna_len() } }
+fn __futuruna_len<T: __FuturunaLen + ?Sized>(v: &T) -> i64 { v.__futuruna_len() }
 fn __futuruna_show_set<T: fmt::Debug>(items: &BTreeMap<String, T>) -> String {
     let parts = items.values().map(|v| __futuruna_show_any(v)).collect::<Vec<_>>();
     format!("{{{}}}", parts.join(", "))
@@ -138,6 +144,6 @@ fn main() {
     let labels = sorted.clone().into_iter().map(|__x| word_key(&__x)).collect::<Vec<_>>();
     let keepers = { let (__yes, __no): (Vec<_>, Vec<_>) = words.clone().into_iter().partition(|w| {  let w = w.clone(); (w.score > 1i64) }); (__yes, __no) };
     let decoded = { let __s = json_passthrough("\"mint\"".to_string()); let __j: serde_json::Value = serde_json::from_str(&__s).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => __s.trim_matches('"').to_string() } };
-    println!("{}:{}:{}", labels.clone().join(&*",".to_string()), decoded, __futuruna_show_any(&(keepers.0.len() as i64)));
+    println!("{}:{}:{}", labels.clone().join(&*",".to_string()), decoded, __futuruna_show_any(&__futuruna_len(&keepers.0)));
 }
 

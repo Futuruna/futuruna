@@ -1,0 +1,25 @@
+-- Authored regression canary: string length/index operations use Unicode
+-- scalar values, not UTF-8 byte offsets and not grapheme clusters.
+
+= text = "å🙂b"
+= lengths = map(["å🙂b"], length)
+
+= scalar_len = string_length(text)
+= generic_len = length(text)
+= face = char_at(text, 1)
+= first_two = substring(text, 0, 2)
+= face_pos = index_of(text, "🙂")
+= b_pos = index_of(text, "b")
+= mapped_len = head(lengths)
+
+| unicode_string_length_ok: scalar_len -> scalar_len == 3 && generic_len == 3 && mapped_len == 3
+| unicode_char_at_ok: face -> face == "🙂"
+| unicode_substring_ok: first_two -> first_two == "å🙂"
+| unicode_index_of_ok: face_pos -> face_pos == 1 && b_pos == 2
+
+? unicode_string_length_ok
+? unicode_char_at_ok
+? unicode_substring_ok
+? unicode_index_of_ok
+
+@ print("unicode string semantics passed")

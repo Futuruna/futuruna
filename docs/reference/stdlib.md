@@ -56,9 +56,17 @@ Built into the compiler — no imports needed. Every function here is available 
 
 ## String Operations
 
+String positions and lengths use Unicode scalar values, matching Rust `char`
+iteration. They are not UTF-8 byte offsets and not grapheme clusters:
+`string_length("å🙂b") == 3`, `char_at("å🙂b", 1) == "🙂"`, and
+`index_of("å🙂b", "b") == 2`. When `length` is applied to a `String`, it has
+the same scalar-count behavior as `string_length`; for lists, `length` still
+counts elements. `substring` clamps negative starts/lengths to zero and stops at
+the string end. `char_at` returns `""` when the index is out of range.
+
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `string_length` | `String -> Int` | Number of bytes in string |
+| `string_length` | `String -> Int` | Number of Unicode scalar values in string |
 | `split` | `(String, String) -> List(String)` | Split by separator |
 | `join` | `(List(String), String) -> String` | Join with separator |
 | `trim` | `String -> String` | Remove leading/trailing whitespace |
@@ -68,13 +76,13 @@ Built into the compiler — no imports needed. Every function here is available 
 | `replace` | `(String, String, String) -> String` | Replace all occurrences |
 | `to_upper` | `String -> String` | Convert to uppercase |
 | `to_lower` | `String -> String` | Convert to lowercase |
-| `substring` | `(String, Int, Int) -> String` | Extract substring by start index and length |
-| `char_at` | `(String, Int) -> String` | Single character by index |
-| `index_of` | `(String, String) -> Int` | Find substring position (-1 if absent) |
+| `substring` | `(String, Int, Int) -> String` | Extract by scalar start index and scalar length |
+| `char_at` | `(String, Int) -> String` | Single Unicode scalar value by index |
+| `index_of` | `(String, String) -> Int` | Find substring scalar position (-1 if absent) |
 | `format_float` | `(Float, Int) -> String` | Format float with N decimal places |
 | `parse_int` | `String -> Int` | Parse string to integer (0 on failure) |
 | `parse_float` | `String -> Float` | Parse string to float (0.0 on failure) |
-| `string_chars` | `String -> List(String)` | Explode into individual characters |
+| `string_chars` | `String -> List(String)` | Explode into Unicode scalar values |
 
 ```runa
 = parts = split("a,b,c", ",")         -- ["a", "b", "c"]

@@ -60,4 +60,7 @@ Target shape:
   shadowing
 - `tests/canary/regressions/verify_process_audit_test.runa`: `process_run`
   tuples, tuple accessors, substring, and list-valued invariant display
+- `tests/canary/regressions/unicode_string_semantics_test.runa`: non-ASCII
+  string length, substring, char_at, index_of, and `length` function values use
+  Unicode scalar values in interpreter and compiled execution
 - Keep minimized one-off compiler probes in ordinary regression tests, not here

@@ -7654,7 +7654,7 @@ impl Interpreter {
                 None => Value::Str("0".into()),
             },
             "length" => match args.first() {
-                Some(Value::Str(s)) => Value::Int(s.len() as i64),
+                Some(Value::Str(s)) => Value::Int(s.chars().count() as i64),
                 Some(v) => Value::Int(list_length(v)),
                 None => Value::Int(0),
             },
@@ -8381,7 +8381,7 @@ impl Interpreter {
                 _ => Value::Unit,
             },
             "string_length" => match args.first() {
-                Some(Value::Str(s)) => Value::Int(s.len() as i64),
+                Some(Value::Str(s)) => Value::Int(s.chars().count() as i64),
                 _ => Value::Int(0),
             },
             // ---- M14a: String builtins ----
@@ -8479,7 +8479,7 @@ impl Interpreter {
             },
             "index_of" => match (args.get(0), args.get(1)) {
                 (Some(Value::Str(s)), Some(Value::Str(sub))) => match s.find(sub.as_str()) {
-                    Some(pos) => Value::Int(pos as i64),
+                    Some(pos) => Value::Int(s[..pos].chars().count() as i64),
                     None => Value::Int(-1),
                 },
                 _ => Value::Int(-1),
