@@ -28,6 +28,12 @@ For persisted-storage runtime coverage, use:
 ./scripts/storage-canary.sh
 ```
 
+For the new-user project scaffold and first tutorial examples, use:
+
+```bash
+./scripts/first-run-canary.sh
+```
+
 It intentionally uses programs written in this repository rather than pulling in
 downstream codebases as fixtures. The goal is to keep the suite:
 

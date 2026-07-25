@@ -88,7 +88,27 @@ The eigenspace decomposition reveals three independent cognitive channels:
 
 ```bash
 cargo build --release
-./target/release/runa run examples/weather_demo.runa
+export PATH="$PWD/target/release:$PATH"
+
+runa init hello
+cd hello
+runa check src/main.runa
+runa fmt --check src/main.runa
+runa run src/main.runa
+runa build src/main.runa
+```
+
+That path is part of the first-run canary:
+
+```bash
+./scripts/first-run-canary.sh
+```
+
+For a feature tour after setup, run:
+
+```bash
+cd ..
+runa run examples/weather_demo.runa
 ```
 
 ### Commands

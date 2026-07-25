@@ -11,6 +11,7 @@ It runs the regression-prone lanes that have historically caught user-facing bre
 ```bash
 cargo test --quiet
 cargo build --release
+./scripts/first-run-canary.sh
 ./target/release/runa test
 ./target/release/runa test --run
 ./target/release/runa expect tests/expect
@@ -30,6 +31,8 @@ cargo build --release
 These lanes are the core mint contract because they cover:
 
 - Rust unit and integration tests
+- the first-run golden path: `runa init`, generated project metadata/source,
+  `check`, `fmt --check`, `run`, `build`, and tutorial 01 `.runa` examples
 - interpreted Futuruna execution
 - compiled Futuruna execution
 - compiletest-style diagnostic, run/fail, and phase expectations

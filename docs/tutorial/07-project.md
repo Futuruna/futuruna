@@ -72,7 +72,7 @@ This updates `runa.toml` and generates `runa.lock` for reproducible builds.
 
 ```bash
 runa run src/main.runa     # Compile + execute
-runa build src/main.runa   # Compile to native binary → ./my-app
+runa build src/main.runa   # Compile to native binary → ./main
 runa check src/main.runa   # Type-check without running
 runa emit src/main.runa    # Show generated Rust
 runa test                  # Run all tests/*.runa
