@@ -17385,6 +17385,648 @@ impl RustCodegen {
         }
     }
 
+    fn prescan_hof_named_callback_param_types(&mut self, stmts: &[Stmt]) {
+        let explicit_param_tys = Self::collect_declared_function_param_annotations(stmts);
+        let mut type_env = self.current_type_env();
+        self.prescan_hof_named_callback_param_types_stmts(
+            stmts,
+            &mut type_env,
+            &explicit_param_tys,
+        );
+    }
+
+    fn collect_declared_function_param_annotations(
+        stmts: &[Stmt],
+    ) -> BTreeMap<String, Vec<Option<Ty>>> {
+        let mut out = BTreeMap::new();
+        Self::collect_declared_function_param_annotations_stmts(stmts, &mut out);
+        out
+    }
+
+    fn collect_declared_function_param_annotations_stmts(
+        stmts: &[Stmt],
+        out: &mut BTreeMap<String, Vec<Option<Ty>>>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Defn(Defn::Fn { name, params, .. }) => {
+                    out.insert(
+                        name.clone(),
+                        params.iter().map(|param| param.ty.clone()).collect(),
+                    );
+                }
+                Stmt::Defn(Defn::Module { body, .. }) => {
+                    Self::collect_declared_function_param_annotations_stmts(body, out);
+                }
+                Stmt::TypeDecl(TypeDecl::ADT { methods, .. })
+                | Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                    for method in methods {
+                        if let Defn::Fn { name, params, .. } = method {
+                            out.insert(
+                                name.clone(),
+                                params.iter().map(|param| param.ty.clone()).collect(),
+                            );
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn prescan_hof_named_callback_param_types_stmts(
+        &mut self,
+        stmts: &[Stmt],
+        type_env: &mut BTreeMap<String, FirTy>,
+        explicit_param_tys: &BTreeMap<String, Vec<Option<Ty>>>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::Bind(pat, ty_ann, expr) => {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        expr,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                    let inferred = ty_ann
+                        .as_ref()
+                        .map(LoweringCtx::ty_to_fir)
+                        .unwrap_or_else(|| self.infer_expr_fir_ty_with_env(expr, type_env.clone()));
+                    Self::bind_pat_into_type_env(pat, &inferred, type_env);
+                }
+                Stmt::MonadicBind(pat, ty_ann, expr) => {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        expr,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                    let inferred = ty_ann
+                        .as_ref()
+                        .map(LoweringCtx::ty_to_fir)
+                        .unwrap_or_else(|| self.infer_expr_fir_ty_with_env(expr, type_env.clone()));
+                    Self::bind_pat_into_type_env(pat, &inferred, type_env);
+                }
+                Stmt::StreamBind(name, expr) => {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        expr,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                    let ty = self.infer_expr_fir_ty_with_env(expr, type_env.clone());
+                    if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+                        type_env.insert(name.clone(), ty);
+                    }
+                }
+                Stmt::Expr(expr) => {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        expr,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                }
+                Stmt::Invariant {
+                    subject, predicate, ..
+                } => {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        subject,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                    self.prescan_hof_named_callback_param_types_expr(
+                        predicate,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                }
+                Stmt::Send(target, msg) => {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        target,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                    self.prescan_hof_named_callback_param_types_expr(
+                        msg,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                }
+                Stmt::Defn(Defn::Fn {
+                    params, body, name, ..
+                }) => {
+                    let mut fn_env = type_env.clone();
+                    for (idx, param) in params.iter().enumerate() {
+                        if let Some(ty) =
+                            param.ty.as_ref().map(LoweringCtx::ty_to_fir).or_else(|| {
+                                self.function_param_fir_ty(name, idx)
+                                    .filter(|ty| !matches!(ty, FirTy::Unknown | FirTy::Var(_)))
+                            })
+                        {
+                            fn_env.insert(param.name.clone(), ty);
+                        }
+                    }
+                    self.prescan_hof_named_callback_param_types_expr(
+                        body,
+                        &mut fn_env,
+                        explicit_param_tys,
+                    );
+                }
+                Stmt::Defn(Defn::Actor {
+                    state_param,
+                    handlers,
+                    ..
+                }) => {
+                    let mut actor_env = type_env.clone();
+                    if let Some(ty) = state_param.ty.as_ref().map(LoweringCtx::ty_to_fir) {
+                        actor_env.insert(state_param.name.clone(), ty);
+                    }
+                    for handler in handlers {
+                        let mut handler_env = actor_env.clone();
+                        handler_env.entry("state".to_string()).or_insert_with(|| {
+                            actor_env
+                                .get(&state_param.name)
+                                .cloned()
+                                .unwrap_or(FirTy::Unknown)
+                        });
+                        self.prescan_hof_named_callback_param_types_expr(
+                            &handler.body,
+                            &mut handler_env,
+                            explicit_param_tys,
+                        );
+                    }
+                }
+                Stmt::Defn(Defn::Module { body, .. }) => {
+                    let mut module_env = type_env.clone();
+                    self.prescan_hof_named_callback_param_types_stmts(
+                        body,
+                        &mut module_env,
+                        explicit_param_tys,
+                    );
+                }
+                Stmt::TypeDecl(TypeDecl::ADT { methods, .. })
+                | Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                    for method in methods {
+                        if let Defn::Fn {
+                            name, params, body, ..
+                        } = method
+                        {
+                            let mut method_env = type_env.clone();
+                            for (idx, param) in params.iter().enumerate() {
+                                if let Some(ty) =
+                                    param.ty.as_ref().map(LoweringCtx::ty_to_fir).or_else(|| {
+                                        self.function_param_fir_ty(name, idx).filter(|ty| {
+                                            !matches!(ty, FirTy::Unknown | FirTy::Var(_))
+                                        })
+                                    })
+                                {
+                                    method_env.insert(param.name.clone(), ty);
+                                }
+                            }
+                            self.prescan_hof_named_callback_param_types_expr(
+                                body,
+                                &mut method_env,
+                                explicit_param_tys,
+                            );
+                        }
+                    }
+                }
+                Stmt::For(var, iter, body) => {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        iter,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                    let item_ty = self.iter_item_ty_with_env(iter, type_env);
+                    let mut body_env = type_env.clone();
+                    body_env.insert(var.clone(), item_ty);
+                    self.prescan_hof_named_callback_param_types_stmts(
+                        body,
+                        &mut body_env,
+                        explicit_param_tys,
+                    );
+                }
+                Stmt::While(cond, body) => {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        cond,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                    let mut body_env = type_env.clone();
+                    self.prescan_hof_named_callback_param_types_stmts(
+                        body,
+                        &mut body_env,
+                        explicit_param_tys,
+                    );
+                }
+                Stmt::Rule(Rule::Scope { body, .. }) => {
+                    let mut scope_env = type_env.clone();
+                    self.prescan_hof_named_callback_param_types_stmts(
+                        body,
+                        &mut scope_env,
+                        explicit_param_tys,
+                    );
+                }
+                Stmt::StreamSub(expr, arms) => {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        expr,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                    let item_ty = self.iter_item_ty_with_env(expr, type_env);
+                    for arm in arms {
+                        let mut arm_env = type_env.clone();
+                        Self::bind_pat_into_type_env(&arm.pat, &item_ty, &mut arm_env);
+                        if let Some(guard) = &arm.guard {
+                            self.prescan_hof_named_callback_param_types_expr(
+                                guard,
+                                &mut arm_env,
+                                explicit_param_tys,
+                            );
+                        }
+                        self.prescan_hof_named_callback_param_types_expr(
+                            &arm.body,
+                            &mut arm_env,
+                            explicit_param_tys,
+                        );
+                    }
+                }
+                Stmt::Rule(rule) => {
+                    self.prescan_hof_named_callback_param_types_rule(
+                        rule,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                }
+                Stmt::Prove {
+                    pass_block,
+                    else_block,
+                    ..
+                } => {
+                    if let Some(pass_block) = pass_block {
+                        let mut pass_env = type_env.clone();
+                        self.prescan_hof_named_callback_param_types_stmts(
+                            pass_block,
+                            &mut pass_env,
+                            explicit_param_tys,
+                        );
+                    }
+                    if let Some(else_block) = else_block {
+                        let mut else_env = type_env.clone();
+                        self.prescan_hof_named_callback_param_types_stmts(
+                            else_block,
+                            &mut else_env,
+                            explicit_param_tys,
+                        );
+                    }
+                }
+                Stmt::Assert(_, args) | Stmt::Retract(_, args) | Stmt::Annot(_, args) => {
+                    for arg in args {
+                        self.prescan_hof_named_callback_param_types_expr(
+                            arg,
+                            type_env,
+                            explicit_param_tys,
+                        );
+                    }
+                }
+                Stmt::Use(_)
+                | Stmt::Import(_)
+                | Stmt::QualifiedImport(_, _)
+                | Stmt::HashImport(_, _)
+                | Stmt::Depend(_, _)
+                | Stmt::RustBlock(_)
+                | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+                | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
+                | Stmt::TypeDecl(TypeDecl::WhenType { .. })
+                | Stmt::Abort => {}
+            }
+        }
+    }
+
+    fn prescan_hof_named_callback_param_types_rule(
+        &mut self,
+        rule: &Rule,
+        type_env: &mut BTreeMap<String, FirTy>,
+        explicit_param_tys: &BTreeMap<String, Vec<Option<Ty>>>,
+    ) {
+        match rule {
+            Rule::Clause { head, body } => {
+                self.prescan_hof_named_callback_param_types_expr(
+                    head,
+                    type_env,
+                    explicit_param_tys,
+                );
+                if let Some(body) = body {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        body,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                }
+            }
+            Rule::Default {
+                head,
+                value,
+                condition,
+            }
+            | Rule::Exception {
+                head,
+                value,
+                condition,
+                ..
+            } => {
+                self.prescan_hof_named_callback_param_types_expr(
+                    head,
+                    type_env,
+                    explicit_param_tys,
+                );
+                self.prescan_hof_named_callback_param_types_expr(
+                    value,
+                    type_env,
+                    explicit_param_tys,
+                );
+                if let Some(condition) = condition {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        condition,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                }
+            }
+            Rule::Scope { body, .. } => {
+                self.prescan_hof_named_callback_param_types_stmts(
+                    body,
+                    type_env,
+                    explicit_param_tys,
+                );
+            }
+        }
+    }
+
+    fn prescan_hof_named_callback_param_types_expr(
+        &mut self,
+        expr: &Expr,
+        type_env: &mut BTreeMap<String, FirTy>,
+        explicit_param_tys: &BTreeMap<String, Vec<Option<Ty>>>,
+    ) {
+        match &expr.kind {
+            ExprKind::App(func, args) => {
+                self.record_hof_named_callback_param_types(
+                    func,
+                    args,
+                    type_env,
+                    explicit_param_tys,
+                );
+                self.prescan_hof_named_callback_param_types_expr(
+                    func,
+                    type_env,
+                    explicit_param_tys,
+                );
+                for arg in args {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        arg,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                }
+            }
+            ExprKind::Lambda(params, body) => {
+                let mut lambda_env = type_env.clone();
+                for param in params {
+                    if let Some(ty) = param.ty.as_ref().map(LoweringCtx::ty_to_fir) {
+                        lambda_env.insert(param.name.clone(), ty);
+                    }
+                }
+                self.prescan_hof_named_callback_param_types_expr(
+                    body,
+                    &mut lambda_env,
+                    explicit_param_tys,
+                );
+            }
+            ExprKind::Block(stmts) => {
+                let mut block_env = type_env.clone();
+                self.prescan_hof_named_callback_param_types_stmts(
+                    stmts,
+                    &mut block_env,
+                    explicit_param_tys,
+                );
+            }
+            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Index(lhs, rhs) => {
+                self.prescan_hof_named_callback_param_types_expr(lhs, type_env, explicit_param_tys);
+                self.prescan_hof_named_callback_param_types_expr(rhs, type_env, explicit_param_tys);
+            }
+            ExprKind::Pipe(input, transform) => {
+                let desugared: Expr = match &transform.as_ref().kind {
+                    ExprKind::App(func, existing_args) => {
+                        let mut new_args = vec![input.as_ref().clone()];
+                        new_args.extend(existing_args.iter().cloned());
+                        ExprKind::App(func.clone(), new_args).into()
+                    }
+                    _ => ExprKind::App(
+                        Box::new(transform.as_ref().clone()),
+                        vec![input.as_ref().clone()],
+                    )
+                    .into(),
+                };
+                self.prescan_hof_named_callback_param_types_expr(
+                    &desugared,
+                    type_env,
+                    explicit_param_tys,
+                );
+                self.prescan_hof_named_callback_param_types_expr(
+                    input,
+                    type_env,
+                    explicit_param_tys,
+                );
+                self.prescan_hof_named_callback_param_types_expr(
+                    transform,
+                    type_env,
+                    explicit_param_tys,
+                );
+            }
+            ExprKind::If(cond, then_expr, else_expr) => {
+                self.prescan_hof_named_callback_param_types_expr(
+                    cond,
+                    type_env,
+                    explicit_param_tys,
+                );
+                self.prescan_hof_named_callback_param_types_expr(
+                    then_expr,
+                    type_env,
+                    explicit_param_tys,
+                );
+                self.prescan_hof_named_callback_param_types_expr(
+                    else_expr,
+                    type_env,
+                    explicit_param_tys,
+                );
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                self.prescan_hof_named_callback_param_types_expr(
+                    scrutinee,
+                    type_env,
+                    explicit_param_tys,
+                );
+                let scrut_ty = self.infer_expr_fir_ty_with_env(scrutinee, type_env.clone());
+                for arm in arms {
+                    let mut arm_env = type_env.clone();
+                    Self::bind_pat_into_type_env(&arm.pat, &scrut_ty, &mut arm_env);
+                    if let Some(guard) = &arm.guard {
+                        self.prescan_hof_named_callback_param_types_expr(
+                            guard,
+                            &mut arm_env,
+                            explicit_param_tys,
+                        );
+                    }
+                    self.prescan_hof_named_callback_param_types_expr(
+                        &arm.body,
+                        &mut arm_env,
+                        explicit_param_tys,
+                    );
+                }
+            }
+            ExprKind::UnOp(_, inner) | ExprKind::Field(inner, _) | ExprKind::Try(inner) => {
+                self.prescan_hof_named_callback_param_types_expr(
+                    inner,
+                    type_env,
+                    explicit_param_tys,
+                );
+            }
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Effect(_, items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => {
+                for item in items {
+                    self.prescan_hof_named_callback_param_types_expr(
+                        item,
+                        type_env,
+                        explicit_param_tys,
+                    );
+                }
+            }
+            ExprKind::Handle { handlers, body, .. } => {
+                self.prescan_hof_named_callback_param_types_expr(
+                    body,
+                    type_env,
+                    explicit_param_tys,
+                );
+                for handler in handlers {
+                    let mut handler_env = type_env.clone();
+                    for param in &handler.params {
+                        handler_env.entry(param.clone()).or_insert(FirTy::Unknown);
+                    }
+                    self.prescan_hof_named_callback_param_types_expr(
+                        &handler.body,
+                        &mut handler_env,
+                        explicit_param_tys,
+                    );
+                }
+            }
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+        }
+    }
+
+    fn record_hof_named_callback_param_types(
+        &mut self,
+        func: &Expr,
+        args: &[Expr],
+        type_env: &BTreeMap<String, FirTy>,
+        explicit_param_tys: &BTreeMap<String, Vec<Option<Ty>>>,
+    ) {
+        let ExprKind::Var(op_name) = &func.kind else {
+            return;
+        };
+        if self.types.user_functions.contains(op_name.as_str()) {
+            return;
+        }
+        let op = builtin_canonical(op_name);
+        match op {
+            "map" | "filter" | "sort_by" | "any" | "all" | "find" | "flat_map" | "take_while"
+            | "drop_while" | "count_by" | "partition" | "tap" | "switch_map" | "subscribe"
+                if args.len() >= 2 =>
+            {
+                let ExprKind::Var(callback) = &args[1].kind else {
+                    return;
+                };
+                let item_ty = self.iter_item_ty_with_env(&args[0], type_env);
+                self.merge_function_param_type_hint(callback, 0, item_ty, explicit_param_tys);
+            }
+            "foldl" | "reduce" | "scan" if args.len() >= 3 => {
+                let ExprKind::Var(callback) = &args[2].kind else {
+                    return;
+                };
+                let acc_ty = self.infer_expr_fir_ty_with_env(&args[1], type_env.clone());
+                let item_ty = self.iter_item_ty_with_env(&args[0], type_env);
+                self.merge_function_param_type_hint(callback, 0, acc_ty, explicit_param_tys);
+                self.merge_function_param_type_hint(callback, 1, item_ty, explicit_param_tys);
+            }
+            _ => {}
+        }
+    }
+
+    fn merge_function_param_type_hint(
+        &mut self,
+        fn_name: &str,
+        idx: usize,
+        hint: FirTy,
+        explicit_param_tys: &BTreeMap<String, Vec<Option<Ty>>>,
+    ) {
+        if matches!(hint, FirTy::Unknown | FirTy::Var(_)) {
+            return;
+        }
+        if !self.types.user_functions.contains(fn_name) {
+            return;
+        }
+        if explicit_param_tys
+            .get(fn_name)
+            .and_then(|params| params.get(idx))
+            .and_then(|ty| ty.as_ref())
+            .is_some()
+        {
+            return;
+        }
+        let Some(current) = self.function_param_fir_ty(fn_name, idx) else {
+            return;
+        };
+        if !matches!(current, FirTy::Unknown | FirTy::Var(_)) && current != hint {
+            return;
+        }
+        if let Some(fn_ty) = self.types.fn_types.get_mut(fn_name) {
+            Self::replace_arrow_param_ty(fn_ty, idx, hint);
+        }
+    }
+
+    fn replace_arrow_param_ty(ty: &mut FirTy, idx: usize, hint: FirTy) -> bool {
+        let FirTy::Arrow(param, ret) = ty else {
+            return false;
+        };
+        if idx == 0 {
+            **param = hint;
+            true
+        } else {
+            Self::replace_arrow_param_ty(ret, idx - 1, hint)
+        }
+    }
+
+    fn iter_item_ty_with_env(&self, expr: &Expr, type_env: &BTreeMap<String, FirTy>) -> FirTy {
+        match self.infer_expr_fir_ty_with_env(expr, type_env.clone()) {
+            FirTy::List(inner) | FirTy::Set(inner) => (*inner).clone(),
+            _ => FirTy::Unknown,
+        }
+    }
+
+    fn bind_pat_into_type_env(pat: &Pat, ty: &FirTy, type_env: &mut BTreeMap<String, FirTy>) {
+        match pat {
+            Pat::Var(name) => {
+                type_env.insert(name.clone(), ty.clone());
+            }
+            Pat::As(inner, name) => {
+                type_env.insert(name.clone(), ty.clone());
+                Self::bind_pat_into_type_env(inner, ty, type_env);
+            }
+            _ => {}
+        }
+    }
+
     fn prescan_map_types_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Bind(Pat::Var(var_name), _, value) => {
@@ -17673,6 +18315,7 @@ impl RustCodegen {
         let all_stmts = self.scan_declarations(input_stmts);
         self.prescan_actor_message_site_types(&all_stmts);
         self.prescan_map_types(&all_stmts);
+        self.prescan_hof_named_callback_param_types(&all_stmts);
         let stmts = &all_stmts;
         let mut out = String::new();
 
@@ -22806,6 +23449,10 @@ impl RustCodegen {
                         let ty =
                             p.ty.as_ref()
                                 .map(|t| self.emit_type(t))
+                                .or_else(|| {
+                                    self.function_param_fir_ty(name, idx)
+                                        .and_then(|ty| Self::fir_type_to_rust(&ty))
+                                })
                                 .unwrap_or_else(|| "i64".to_string());
                         self.fn_once_mode = false;
                         if p.inout {
@@ -22900,12 +23547,15 @@ impl RustCodegen {
                     }
                 }
                 // Track Copy-type parameters and register all param types
-                for p in params {
-                    if let Some(ty) = &p.ty {
-                        if is_copy_type(ty) {
+                for (idx, p) in params.iter().enumerate() {
+                    if let Some(ty) = p.ty.as_ref().map(LoweringCtx::ty_to_fir).or_else(|| {
+                        self.function_param_fir_ty(name, idx)
+                            .filter(|ty| !matches!(ty, FirTy::Unknown | FirTy::Var(_)))
+                    }) {
+                        if Self::fir_ty_is_copy(&ty) {
                             self.copy_vars.insert(p.name.clone());
                         }
-                        self.remember_var_type(&p.name, &LoweringCtx::ty_to_fir(ty));
+                        self.remember_var_type(&p.name, &ty);
                     }
                 }
                 // Auto-borrow params are effectively Copy (accessed via &, no ownership transfer)
@@ -26885,6 +27535,30 @@ impl RustCodegen {
             .unwrap_or(false)
     }
 
+    fn is_direct_function_value(&self, callable: &Expr, arity: usize) -> bool {
+        if self.is_builtin_function_value(callable, arity) {
+            return true;
+        }
+        let ExprKind::Var(fn_name) = &callable.kind else {
+            return false;
+        };
+        self.types
+            .fn_types
+            .get(fn_name.as_str())
+            .map(|ty| Self::fir_arrow_arity(ty) == arity)
+            .unwrap_or(false)
+    }
+
+    fn fir_arrow_arity(ty: &FirTy) -> usize {
+        let mut count = 0;
+        let mut current = ty;
+        while let FirTy::Arrow(_, ret) = current {
+            count += 1;
+            current = ret.as_ref();
+        }
+        count
+    }
+
     fn emit_async_callable_expr(
         &mut self,
         callable: &Expr,
@@ -27508,6 +28182,13 @@ impl RustCodegen {
             ExprKind::Lit(Literal::Str(s)) => format!("{:?}.to_string()", s),
             ExprKind::Lit(lit) => self.emit_literal(lit),
             ExprKind::App(func, args) => {
+                if let ExprKind::UnOp(op, inner_func) = &func.as_ref().kind {
+                    if op == "!" || op == "-" {
+                        let call_expr =
+                            Expr::new(ExprKind::App(inner_func.clone(), args.to_vec()), expr.span);
+                        return format!("{}{}", op, self.emit_expr(&call_expr));
+                    }
+                }
                 // resume(val) in effect handler body → just val (the return value)
                 if matches!(func.as_ref().kind, ExprKind::Var(ref n) if n == "resume") {
                     return if let Some(arg) = args.first() {
@@ -27856,7 +28537,27 @@ impl RustCodegen {
                                 }
                             }
                         }
-                        if self.is_builtin_function_value(&args[1], 1) {
+                        // map with user function name (not lambda): wrap to handle borrow.
+                        if name == "map" {
+                            if let ExprKind::Var(fn_name) = &&args[1].kind {
+                                if self.types.user_functions.contains(fn_name.as_str()) {
+                                    let coll = self.emit_expr(&args[0]);
+                                    let f = sanitize_name(fn_name);
+                                    let borrows = self
+                                        .borrow_only_params
+                                        .get(fn_name.as_str())
+                                        .map_or(false, |flags| {
+                                            flags.first().copied().unwrap_or(false)
+                                        });
+                                    if borrows {
+                                        return format!("{}.clone().into_iter().map(|__x| {}(&__x)).collect::<Vec<_>>()", coll, f);
+                                    } else {
+                                        return format!("{}.clone().into_iter().map(|__x| {}(__x)).collect::<Vec<_>>()", coll, f);
+                                    }
+                                }
+                            }
+                        }
+                        if self.is_direct_function_value(&args[1], 1) {
                             let call = self
                                 .emit_function_value_call(&args[1], &[("__x", "&__x")])
                                 .unwrap();
@@ -27884,22 +28585,6 @@ impl RustCodegen {
                                 coll, call
                             );
                         }
-                        // map with user function name (not lambda): wrap to handle borrow.
-                        if name == "map" {
-                            if let ExprKind::Var(fn_name) = &&args[1].kind {
-                                let coll = self.emit_expr(&args[0]);
-                                let f = sanitize_name(fn_name);
-                                let borrows = self
-                                    .borrow_only_params
-                                    .get(fn_name.as_str())
-                                    .map_or(false, |flags| flags.first().copied().unwrap_or(false));
-                                if borrows {
-                                    return format!("{}.clone().into_iter().map(|__x| {}(&__x)).collect::<Vec<_>>()", coll, f);
-                                } else {
-                                    return format!("{}.clone().into_iter().map(|__x| {}(__x)).collect::<Vec<_>>()", coll, f);
-                                }
-                            }
-                        }
                     }
                     if matches!(
                         name.as_str(),
@@ -27913,7 +28598,7 @@ impl RustCodegen {
                             | "subscribe"
                     ) && args.len() == 2
                         && !self.types.user_functions.contains(name.as_str())
-                        && self.is_builtin_function_value(&args[1], 1)
+                        && self.is_direct_function_value(&args[1], 1)
                     {
                         if let ExprKind::Var(_) = &args[1].kind {
                             let coll = self.emit_expr(&args[0]);
@@ -28066,7 +28751,7 @@ impl RustCodegen {
                     if matches!(name.as_str(), "foldl" | "reduce")
                         && args.len() == 3
                         && !self.types.user_functions.contains(name.as_str())
-                        && self.is_builtin_function_value(&args[2], 2)
+                        && self.is_direct_function_value(&args[2], 2)
                     {
                         if let ExprKind::Var(_) = &args[2].kind {
                             let step = self
@@ -35955,6 +36640,76 @@ for x in [1, 2] {
 
         let output = compile_and_run_test_program(source);
         assert_eq!(output, "[beta, beta, omicron]\n[zeta, alpha]\n");
+    }
+
+    #[test]
+    fn compiled_named_map_callback_infers_tuple_param_type() {
+        let source = r#"
+> summarize(plan) -> String {
+    plan.0 + ":" + plan.1 + ":" + join(plan.2, "+")
+}
+
+= plans = [
+("billing", "eu", ["dry", "db"]),
+("edge", "us", ["sync"])
+]
+
+= summaries = map(plans, summarize)
+@ print(join(summaries, "|"))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn summarize(plan: &(String, String, Vec<String>)) -> String {")
+                || rust.contains("fn summarize(plan: (String, String, Vec<String>)) -> String {"),
+            "named map callback should infer its tuple-shaped parameter from the collection item type: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("fn summarize(plan: &i64) -> String {")
+                && !rust.contains("fn summarize(plan: i64) -> String {"),
+            "named map callback should not fall back to Int/i64 for tuple-shaped inputs: {}",
+            rust
+        );
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output, "billing:eu:dry+db|edge:us:sync\n");
+    }
+
+    #[test]
+    fn compiled_negated_call_preserves_borrow_only_args() {
+        let source = r#"
+> passes(scores: List(Int), threshold: Int) -> Bool {
+    length(scores) > threshold
+}
+
+= scores = [1, 2, 3]
+= ok = passes(scores, 2) && !passes(scores, 4)
+@ print(show(ok))
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output, "true\n");
+    }
+
+    #[test]
+    fn compiled_named_fold_callback_wraps_borrow_only_accumulator() {
+        let source = r#"
+> bump(counts: Map(String, Int), key: String) -> Map(String, Int) {
+    map_insert(counts, key, map_get_or(counts, key, 0) + 1)
+}
+
+> count_word(counts: Map(String, Int), word: String) -> Map(String, Int) {
+    bump(counts, word)
+}
+
+= empty_counts: Map(String, Int) = map_new()
+= counts = foldl(["a", "b", "a"], empty_counts, count_word)
+@ print(show(map_get_or(counts, "a", 0)))
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output, "2\n");
     }
 
     #[test]

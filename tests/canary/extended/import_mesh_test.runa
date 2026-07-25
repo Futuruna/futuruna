@@ -15,7 +15,10 @@
     map_insert(counts, key, map_get_or(counts, key, 0) + 1)
 }
 
-> summarize(service: String, region: String, notes: List(String)) -> String {
+> summarize(plan) -> String {
+    = service = fst(plan)
+    = region = snd(plan)
+    = notes = trd(plan)
     = score = service_score(service, region, notes)
     Catalog.status_prefix(region) + ":" + mesh_key(service, region) + ":" + Catalog.classify(score) + ":" + risk_marker(score) + ":" + checkpoint_suffix(region)
 }
@@ -26,7 +29,7 @@
 ("auth worker", "eucentral", ["shadow", "audit", "tokens"])
 ]
 
-= summaries = map(plans, |plan| summarize(fst(plan), snd(plan), trd(plan)))
+= summaries = map(plans, summarize)
 = scores = map(plans, |plan| service_score(fst(plan), snd(plan), trd(plan)))
 
 = empty_counts: Map(String, Int) = map_new()
