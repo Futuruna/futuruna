@@ -267,15 +267,28 @@ let the caller scope," and revisit if real users hit the wall.
 
 ### Function-as-scope
 
-**Status: open question.**
+**Status: decided: stay with explicit named scopes.**
 
 The current contract requires an explicit `| scope Name { ... }` even when
 the function body is the obvious lifetime container for the subscription.
-Whether that explicit form is *right* — versus letting the function frame
-itself act as an implicit scope, or introducing an anonymous `| scope { ... }`
-form, or something else — is a design question still being thought through.
+That explicit form is the language contract for now. Ordinary function frames
+do **not** implicitly own live subscriptions, and Futuruna does not currently
+support anonymous `| scope { ... }` blocks.
 
-This doc does not record an answer. When one is reached it lands here.
+Rationale:
+
+- the lifetime owner should be visible at the call site and in diagnostics
+- function calls are too easy to treat as ordinary helpers, especially in
+  importable library code, so letting them spawn owned async work would hide a
+  material effect behind a normal call
+- named scopes already line up with teardown (`@ teardown("Name")`), generated
+  guard names, and scope-field access such as `Dashboard.label`
+- the ergonomic cost is a small explicit name, while the safety benefit is a
+  stable ownership boundary that users and canaries can reason about
+
+If real programs show that naming scopes is noisy but ownership should remain
+explicit, the next candidate is a deliberately designed anonymous-scope form.
+That is not part of the current contract.
 
 ## Current Status
 
