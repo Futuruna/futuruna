@@ -15184,6 +15184,15 @@ impl RustCodegen {
         }
     }
 
+    fn comptime_diagnostics_enabled() -> bool {
+        std::env::var("FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS")
+            .map(|value| {
+                let normalized = value.trim().to_ascii_lowercase();
+                !matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+            })
+            .unwrap_or(true)
+    }
+
     /// Resolve and parse an imported .runa file from a specific base directory.
     /// Returns the parsed statements plus the imported file's directory so nested
     /// imports resolve relative to the file they appear in.
@@ -19095,6 +19104,7 @@ impl RustCodegen {
             }
             // Now scan main_stmts for @ comptime + Bind pairs
             let mut comptime_type_decls: Vec<String> = Vec::new();
+            let emit_comptime_diagnostics = Self::comptime_diagnostics_enabled();
             let mut is_comptime = false;
             for stmt in &main_stmts {
                 if let Stmt::Annot(name, _) = stmt {
@@ -19117,12 +19127,14 @@ impl RustCodegen {
                         // Comptime type: if the value is a TypeDef, generate a type declaration
                         if let Value::TypeDef { kind, fields } = &val {
                             let type_decl = Self::typedef_to_type_decl(&name, kind, fields);
-                            eprintln!(
-                                "// comptime type: {} ({}, {} fields)",
-                                name,
-                                kind,
-                                fields.len()
-                            );
+                            if emit_comptime_diagnostics {
+                                eprintln!(
+                                    "// comptime type: {} ({}, {} fields)",
+                                    name,
+                                    kind,
+                                    fields.len()
+                                );
+                            }
                             // Register type metadata (variant_parent, struct_types, etc.)
                             // before emit_type_decl so struct detection works
                             if let TypeDecl::ADT {
@@ -19193,7 +19205,9 @@ impl RustCodegen {
                         } else {
                             let (rust_lit, rust_ty) =
                                 Self::value_to_rust_literal(&val, &self.types.variant_parent);
-                            eprintln!("// comptime: {} = {} ({})", name, rust_lit, rust_ty);
+                            if emit_comptime_diagnostics {
+                                eprintln!("// comptime: {} = {} ({})", name, rust_lit, rust_ty);
+                            }
                             self.types.comptime_values.insert(name.clone(), rust_lit);
                             self.types.comptime_types.insert(name.clone(), rust_ty);
                         }
@@ -19231,7 +19245,9 @@ impl RustCodegen {
                             };
                             match is_truthy {
                                 Some(true) => {
-                                    eprintln!("// comptime assert: PASS");
+                                    if emit_comptime_diagnostics {
+                                        eprintln!("// comptime assert: PASS");
+                                    }
                                 }
                                 Some(false) => {
                                     eprintln!("comptime assert FAILED: {:?}", assert_expr);
@@ -19282,10 +19298,12 @@ impl RustCodegen {
                                     &self.types.variant_parent,
                                 )
                             {
-                                eprintln!(
-                                    "// auto-comptime: {} = {} ({})",
-                                    name, rust_lit, rust_ty
-                                );
+                                if emit_comptime_diagnostics {
+                                    eprintln!(
+                                        "// auto-comptime: {} = {} ({})",
+                                        name, rust_lit, rust_ty
+                                    );
+                                }
                                 self.types.comptime_values.insert(name.clone(), rust_lit);
                                 self.types.comptime_types.insert(name.clone(), rust_ty);
                             }

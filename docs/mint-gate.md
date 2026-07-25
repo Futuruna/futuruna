@@ -52,6 +52,11 @@ Intentionally omitted from the core mint gate:
 
 CI should call `./scripts/mint.sh` for the core language health gate, then run any omitted lanes as separate jobs or steps. The canary suite is the curated middle lane for realistic authored programs, while differential testing is the deeper search lane that exercises seed-stable generative programs and replayable minimized repros without slowing every core mint run.
 
+Passing machine lanes set `FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS=1` so
+informational `@ comptime` and auto-comptime comments do not obscure the
+structured step output. Comptime assertion failures and ordinary compiler
+diagnostics still print because they are real failures, not progress chatter.
+
 The downstream lane now includes `runa lint-library tests`, so importable
 library hygiene is enforced there even though it remains outside the fast core
 mint gate.
