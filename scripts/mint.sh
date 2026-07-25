@@ -20,6 +20,7 @@ run_step "$RELEASE_RUNA" expect tests/expect
 run_step "$RELEASE_RUNA" test --check-codegen
 run_step "$RELEASE_RUNA" test --roundtrip tests
 run_step "$RELEASE_RUNA" run tests/codegen_integration_regression_test.runa
+run_step ./scripts/storage-canary.sh
 run_step ./scripts/wasm-canary.sh
 run_step "$RELEASE_RUNA" check examples/danish-constitution-legacy/kapitel-02.runa
 run_step "$RELEASE_RUNA" check examples/danish-constitution-legacy/kapitel-03.runa

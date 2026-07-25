@@ -17,6 +17,7 @@ cargo build --release
 ./target/release/runa test --check-codegen
 ./target/release/runa test --roundtrip tests
 ./target/release/runa run tests/codegen_integration_regression_test.runa
+./scripts/storage-canary.sh
 ./scripts/wasm-canary.sh
 ./target/release/runa check examples/danish-constitution-legacy/kapitel-02.runa
 ./target/release/runa check examples/danish-constitution-legacy/kapitel-03.runa
@@ -35,6 +36,7 @@ These lanes are the core mint contract because they cover:
 - Rust codegen validation across the test corpus
 - interpreter-vs-compiled roundtrip parity across the test corpus
 - the blocking codegen regression program
+- offline compiled persisted-storage transaction runtime canaries
 - WASM export build canaries, with an explicit skip when `wasm-pack` is unavailable
 - real example programs outside `tests/` that have previously exposed compiler bugs
 
@@ -53,6 +55,11 @@ CI should call `./scripts/mint.sh` for the core language health gate, then run a
 The downstream lane now includes `runa lint-library tests`, so importable
 library hygiene is enforced there even though it remains outside the fast core
 mint gate.
+
+The storage canary lane runs compiled persisted transaction fixtures from a
+temporary directory with `CARGO_NET_OFFLINE=true`. It is inside mint because the
+generic `runa test --run` and phase expectations do not prove the SQLite-backed
+transaction guard's commit, rollback, and nested savepoint behavior at runtime.
 
 The WASM canary lane discovers fixtures marked with `-- wasm-build-canary` and
 runs `runa wasm` for each one. By default, a missing `wasm-pack` is reported as

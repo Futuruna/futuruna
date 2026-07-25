@@ -1,0 +1,21 @@
+-- roundtrip-skip: persisted storage canary uses generated Cargo/rusqlite runtime
+
+@ print("=== Persist Transaction Commit/Savepoint Canary ===")
+
+# TxItem(id: Int, label: String, qty: Int)
+@ persist TxItem in "storage_canary_commit"
+
+retract TxItem(_, _, _)
+
+| scope OuterCommit {
+    assert TxItem(1, "outer", 10)
+    | scope InnerSavepoint {
+        assert TxItem(2, "inner", 20)
+    }
+}
+
+= labels = sort(findall(label, TxItem(_, label, _)))
+= qtys = sort(findall(qty, TxItem(_, _, qty)))
+
+@ print("committed=" + join(labels, ","))
+@ print("qtys=" + show(qtys))

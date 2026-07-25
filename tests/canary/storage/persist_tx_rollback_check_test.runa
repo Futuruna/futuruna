@@ -1,0 +1,10 @@
+-- roundtrip-skip: persisted storage canary uses generated Cargo/rusqlite runtime
+
+# RollbackItem(id: Int, label: String, qty: Int)
+@ persist RollbackItem in "storage_canary_rollback"
+
+= labels = sort(findall(label, RollbackItem(_, label, _)))
+= qtys = sort(findall(qty, RollbackItem(_, _, qty)))
+
+@ print("after_rollback=" + join(labels, ","))
+@ print("after_rollback_qtys=" + show(qtys))

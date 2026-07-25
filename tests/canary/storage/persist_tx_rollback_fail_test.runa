@@ -1,0 +1,16 @@
+-- expect-runtime-error: ? rollback_guard FAILED
+-- roundtrip-skip: intentionally fails so the storage canary can verify rollback
+
+# RollbackItem(id: Int, label: String, qty: Int)
+@ persist RollbackItem in "storage_canary_rollback"
+
+retract RollbackItem(_, _, _)
+assert RollbackItem(1, "baseline", 1)
+
+= bad_qty = -1
+| rollback_guard: bad_qty -> bad_qty > 0
+
+| scope RollbackScope {
+    assert RollbackItem(2, "rolledback", 2)
+    ? rollback_guard
+}

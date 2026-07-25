@@ -8,6 +8,8 @@ Target shape:
 - `core`: 15 blocking canaries with interpreter, compiled, codegen, and roundtrip parity
 - `stateful`: 10 canaries for subjects, actors, lifecycle, and effectful workflows
 - `extended`: 10 canaries for JSON, regex, DB, HTTP, WASM, and import-heavy programs
+- `storage`: dedicated persisted-storage runtime canaries for compiled SQLite
+  behavior that needs isolated temp databases
 - `regressions`: every user bug class distilled into a broader authored workflow
 
 ## Implemented
@@ -36,6 +38,9 @@ Target shape:
 | `tests/canary/extended/http_handler_contract_test.runa` | `extended` | request routing, response shaping, deterministic handler contract summaries |
 | `tests/canary/extended/import_mesh_test.runa` | `extended` | transitive flat imports, qualified imports, content-addressed imports, deterministic cross-module summaries |
 | `tests/canary/extended/wasm_export_surface_test.runa` | `extended` | WASM-facing exported primitive/string/list-numeric/option functions, private helpers, zero-arg exports |
+| `tests/canary/storage/persist_tx_commit_savepoint_test.runa` | `storage` | compiled persisted transaction commit plus nested savepoint release |
+| `tests/canary/storage/persist_tx_rollback_fail_test.runa` | `storage` | intentionally failing transactional scope used to prove rollback through a follow-up fixture |
+| `tests/canary/storage/persist_tx_rollback_check_test.runa` | `storage` | compiled persisted readback proving rollback left only the committed baseline row |
 
 ## Planned Next
 
