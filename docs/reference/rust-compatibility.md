@@ -119,6 +119,10 @@ Supported today:
   type mapping below
 - read-only non-copy parameters may be borrowed in Rust signatures, for example
   `Packet` as `&Packet`, `String` as `&String`, and `List(Int)` as `&Vec<i64>`
+- Rust consumers can compile `runa lib` output that references external crates
+  through `@ depend`, explicit `@ use` declarations, external-crate stdlib
+  builtins, or raw `@ rust` blocks, as long as the consuming Cargo project
+  provides the matching dependencies
 
 Blocking evidence:
 
@@ -128,12 +132,19 @@ Blocking evidence:
   `tests/canary/interop/rust_consumer_lib.runa` with `runa lib`, compiles it
   with `rustc`, and runs an ordinary Rust consumer that calls exported structs,
   enums, borrowed params, lists, `Option`, and `Result`
+- the same script emits
+  `tests/canary/interop/rust_consumer_external_crate_lib.runa` with `runa lib`,
+  compiles it inside an ordinary Cargo consumer with `CARGO_NET_OFFLINE=true`,
+  and verifies `@ depend`, `@ use`, a raw Rust helper using `regex`, and the
+  `regex_find_all` builtin
 
 Still preview:
 
 - exact helper names and private generated layout
 - crate/package layout around generated libraries
-- richer Rust crate integration, `@ depend` packaging policy, and FFI patterns
+- automatic manifest/package generation for `runa lib` consumers
+- richer FFI patterns beyond ordinary Rust source inclusion and Cargo
+  dependencies supplied by the consumer crate
 - `runa from-rust`, which remains experimental translational tooling rather than
   part of the Rust-facing library contract
 

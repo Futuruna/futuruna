@@ -16627,7 +16627,7 @@ impl RustCodegen {
                     let (imported, import_dir) = self.resolve_import_from_dir(path, &root_dir);
                     self.expand_plain_import_stmts(imported, &import_dir, &mut all_stmts);
                 }
-                Stmt::Use(_) => {}
+                Stmt::Use(_) => all_stmts.push(stmt.clone()),
                 Stmt::QualifiedImport(mod_name, path) => {
                     all_stmts
                         .push(self.build_qualified_import_module_stmt(mod_name, path, &root_dir));
@@ -19049,6 +19049,15 @@ impl RustCodegen {
         }
     }
 
+    fn generated_header_already_imports(path: &str) -> bool {
+        matches!(
+            path.trim(),
+            "std::collections::BTreeMap"
+                | "std::collections::HashMap"
+                | "std::collections::HashSet"
+        )
+    }
+
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
         let all_stmts = self.scan_declarations(input_stmts);
         self.prescan_actor_message_site_types(&all_stmts);
@@ -19139,7 +19148,9 @@ impl RustCodegen {
         // Emit use declarations
         for stmt in stmts.iter() {
             if let Stmt::Use(path) = stmt {
-                out.push_str(&format!("use {};\n", path));
+                if !Self::generated_header_already_imports(path) {
+                    out.push_str(&format!("use {};\n", path));
+                }
             }
         }
         if !self.types.stored_types.is_empty() {

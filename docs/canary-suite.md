@@ -93,7 +93,8 @@ rollback state.
 - `tests/canary/interop/`
 Rust-facing integration fixtures. These use a dedicated script because the
 contract is not just "generated Rust compiles"; it is that an ordinary Rust
-consumer can compile the `runa lib` output and call the exported API.
+consumer can compile the `runa lib` output and call the exported API, including
+the case where generated code relies on external Cargo dependencies.
 
 See [docs/canary-matrix.md](canary-matrix.md) for the current coverage map and
 the planned build-out.

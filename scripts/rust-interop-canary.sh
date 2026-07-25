@@ -49,8 +49,15 @@ if ! command -v "$RUSTC_BIN" >/dev/null 2>&1; then
     fail "rustc not found"
 fi
 
-FIXTURE="${1:-tests/canary/interop/rust_consumer_lib.runa}"
-[[ -f "$FIXTURE" ]] || fail "fixture not found: $FIXTURE"
+CARGO_BIN="${CARGO_BIN:-cargo}"
+if ! command -v "$CARGO_BIN" >/dev/null 2>&1; then
+    fail "cargo not found"
+fi
+
+BASIC_FIXTURE="${1:-tests/canary/interop/rust_consumer_lib.runa}"
+EXTERNAL_FIXTURE="${RUST_INTEROP_EXTERNAL_FIXTURE:-tests/canary/interop/rust_consumer_external_crate_lib.runa}"
+[[ -f "$BASIC_FIXTURE" ]] || fail "fixture not found: $BASIC_FIXTURE"
+[[ -f "$EXTERNAL_FIXTURE" ]] || fail "fixture not found: $EXTERNAL_FIXTURE"
 
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/futuruna-rust-interop.XXXXXX")"
 cleanup() {
@@ -58,13 +65,18 @@ cleanup() {
 }
 trap cleanup EXIT
 
-run_step "$RELEASE_RUNA" fmt --check "$FIXTURE"
+run_basic_consumer_canary() {
+    local fixture="$1"
+    local work_dir="$TMP_DIR/basic"
+    mkdir -p "$work_dir"
 
-echo
-echo "[rust-interop] $RELEASE_RUNA lib $FIXTURE > $TMP_DIR/futuruna_lib.rs"
-"$RELEASE_RUNA" lib "$FIXTURE" > "$TMP_DIR/futuruna_lib.rs"
+    run_step "$RELEASE_RUNA" fmt --check "$fixture"
 
-cat > "$TMP_DIR/consumer.rs" <<'RS'
+    echo
+    echo "[rust-interop] $RELEASE_RUNA lib $fixture > $work_dir/futuruna_lib.rs"
+    "$RELEASE_RUNA" lib "$fixture" > "$work_dir/futuruna_lib.rs"
+
+    cat > "$work_dir/consumer.rs" <<'RS'
 mod futuruna_lib;
 
 use futuruna_lib::{Mode, Packet};
@@ -102,13 +114,81 @@ fn main() {
 }
 RS
 
-run_step "$RUSTC_BIN" --edition=2021 "$TMP_DIR/consumer.rs" -o "$TMP_DIR/consumer"
+    run_step "$RUSTC_BIN" --edition=2021 "$work_dir/consumer.rs" -o "$work_dir/consumer"
 
-echo
-echo "[rust-interop] $TMP_DIR/consumer"
-"$TMP_DIR/consumer" | tee "$TMP_DIR/consumer.out"
-grep -Fxq "rust interop canary passed" "$TMP_DIR/consumer.out" \
-    || fail "Rust consumer did not print the expected success line"
+    echo
+    echo "[rust-interop] $work_dir/consumer"
+    "$work_dir/consumer" | tee "$work_dir/consumer.out"
+    grep -Fxq "rust interop canary passed" "$work_dir/consumer.out" \
+        || fail "Rust consumer did not print the expected success line"
 
-echo
-echo "[rust-interop] Rust-facing Futuruna library canary passed for: $FIXTURE"
+    echo
+    echo "[rust-interop] Rust-facing Futuruna library canary passed for: $fixture"
+}
+
+run_external_crate_consumer_canary() {
+    local fixture="$1"
+    local work_dir="$TMP_DIR/external"
+    mkdir -p "$work_dir/src"
+
+    run_step "$RELEASE_RUNA" fmt --check "$fixture"
+
+    echo
+    echo "[rust-interop] $RELEASE_RUNA lib $fixture > $work_dir/src/futuruna_lib.rs"
+    "$RELEASE_RUNA" lib "$fixture" > "$work_dir/src/futuruna_lib.rs"
+
+    cat > "$work_dir/Cargo.toml" <<'TOML'
+[package]
+name = "futuruna-rust-interop-external-canary"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+regex = "1"
+TOML
+
+    cat > "$work_dir/src/main.rs" <<'RS'
+mod futuruna_lib;
+
+fn main() {
+    let probe = futuruna_lib::make_pattern_probe("\\d+".to_string(), "A12 B007 C".to_string());
+    assert_eq!(probe.pattern, "\\d+");
+    assert_eq!(probe.text, "A12 B007 C");
+
+    assert_eq!(futuruna_lib::external_match_count(&probe), 2);
+    assert_eq!(
+        futuruna_lib::external_first_match(&probe),
+        Some("12".to_string())
+    );
+    assert_eq!(
+        futuruna_lib::external_replace_all(&probe, "#".to_string()),
+        "A# B# C".to_string()
+    );
+    assert_eq!(
+        futuruna_lib::external_builtin_matches("AA 12 BB 007".to_string()),
+        vec!["AA".to_string(), "BB".to_string()]
+    );
+    assert_eq!(
+        futuruna_lib::classify_external(&probe.pattern, &probe.text),
+        "matched:2".to_string()
+    );
+
+    println!("rust external crate interop canary passed");
+}
+RS
+
+    echo
+    echo "[rust-interop] (cd $work_dir && CARGO_NET_OFFLINE=true $CARGO_BIN run --release --quiet)"
+    (
+        cd "$work_dir"
+        CARGO_NET_OFFLINE=true "$CARGO_BIN" run --release --quiet
+    ) | tee "$work_dir/consumer.out"
+    grep -Fxq "rust external crate interop canary passed" "$work_dir/consumer.out" \
+        || fail "Rust external crate consumer did not print the expected success line"
+
+    echo
+    echo "[rust-interop] Rust external-crate Futuruna library canary passed for: $fixture"
+}
+
+run_basic_consumer_canary "$BASIC_FIXTURE"
+run_external_crate_consumer_canary "$EXTERNAL_FIXTURE"

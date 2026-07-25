@@ -1,0 +1,62 @@
+-- Rust-facing external-crate integration canary fixture.
+-- scripts/rust-interop-canary.sh emits this file with `runa lib`, places the
+-- generated Rust in a plain Cargo consumer, and builds with CARGO_NET_OFFLINE.
+
+@ depend "regex" "1"
+@ use regex::Regex
+
+@ rust {
+    fn rust_regex_count(pattern: String, text: String) -> i64 {
+        match Regex::new(&pattern) {
+            Ok(re) => re.find_iter(&text).count() as i64,
+            Err(_) => 0,
+        }
+    }
+
+    fn rust_regex_first(pattern: String, text: String) -> Option<String> {
+        Regex::new(&pattern)
+            .ok()
+            .and_then(|re| re.find(&text).map(|m| m.as_str().to_string()))
+    }
+
+    fn rust_regex_replace(pattern: String, text: String, replacement: String) -> String {
+        match Regex::new(&pattern) {
+            Ok(re) => re.replace_all(&text, replacement.as_str()).to_string(),
+            Err(_) => text,
+        }
+    }
+}
+
+@ export
+# PatternProbe(pattern: String, text: String)
+
+@ export
+> make_pattern_probe(pattern: String, text: String) -> PatternProbe {
+    PatternProbe(pattern, text)
+}
+
+@ export
+> external_match_count(probe: PatternProbe) -> Int {
+    rust_regex_count(probe.pattern.clone(), probe.text.clone())
+}
+
+@ export
+> external_first_match(probe: PatternProbe) -> Option(String) {
+    rust_regex_first(probe.pattern.clone(), probe.text.clone())
+}
+
+@ export
+> external_replace_all(probe: PatternProbe, replacement: String) -> String {
+    rust_regex_replace(probe.pattern.clone(), probe.text.clone(), replacement)
+}
+
+@ export
+> external_builtin_matches(text: String) -> List(String) {
+    regex_find_all("[A-Z]+", text)
+}
+
+@ export
+> classify_external(pattern: String, text: String) -> String {
+    = count = rust_regex_count(pattern.clone(), text.clone())
+    if count > 0 { "matched:" + show(count) } else { "none" }
+}

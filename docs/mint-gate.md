@@ -36,7 +36,8 @@ These lanes are the core mint contract because they cover:
   `check`, `fmt --check`, `run`, `build`, and tutorial 01 `.runa` examples
 - the Rust-facing integration canary: `runa lib` output compiled into a plain
   Rust consumer that calls exported structs, enums, borrowed params, lists,
-  `Option`, and `Result`
+  `Option`, and `Result`, plus an offline Cargo consumer for external-crate
+  integration through `@ depend`, `@ use`, and regex-backed generated Rust
 - interpreted Futuruna execution
 - compiled Futuruna execution
 - compiletest-style diagnostic, run/fail, and phase expectations
