@@ -1,0 +1,133 @@
+-- roundtrip-skip: stateful async workflows are verified by compiled run,
+-- stateful canaries, and async runtime artifact expectations.
+-- Authored adversarial canary: subjects, scoped derived streams, teardown,
+-- effect handlers, and an actor-backed audit ledger in one deterministic flow.
+
+~ readings = subject()
+~ routed_log = subject()
+~ hot_log = subject()
+
+> classify(x: Int) -> String {
+    if x >= 80 {
+        "hot:" + show(x)
+    } else if x >= 50 {
+        "warm:" + show(x)
+    } else {
+        "cold:" + show(x)
+    }
+}
+
+> is_hot(route: String) -> Bool {
+    starts_with(route, "hot:")
+}
+
+> render_alert(route: String) -> String {
+    "alert:" + route
+}
+
+> summarize_routes(routes: List(String)) -> String {
+    join(routes, "|")
+}
+
+| scope Monitor {
+    ~ routed = readings |> map(classify)
+    ~ hot = routed |> filter(is_hot)
+
+    ~ routed | route -> {
+        routed_log <- route
+    }
+
+    ~ hot |> map(render_alert) | route -> {
+        hot_log <- route
+    }
+
+    readings <- 42
+    readings <- 55
+    readings <- 81
+    readings <- 63
+    readings <- 99
+
+    = routed_snapshot = collect(routed)
+    = hot_snapshot = collect(hot)
+    = routed_summary = summarize_routes(routed_snapshot)
+    = hot_summary = summarize_routes(hot_snapshot)
+}
+
+= routed_before_ok = collect(routed_log) == ["cold:42", "warm:55", "hot:81", "warm:63", "hot:99"]
+? routed_before_ok
+
+= hot_before_ok = collect(hot_log) == ["alert:hot:81", "alert:hot:99"]
+? hot_before_ok
+
+= scope_snapshots_ok = Monitor.routed_snapshot == collect(routed_log) && Monitor.hot_snapshot == ["hot:81", "hot:99"]
+? scope_snapshots_ok
+
+= summaries_ok = Monitor.routed_summary == "cold:42|warm:55|hot:81|warm:63|hot:99" && Monitor.hot_summary == "hot:81|hot:99"
+? summaries_ok
+
+@ teardown("Monitor")
+
+readings <- 100
+readings <- 101
+
+= routed_after_ok = collect(routed_log) == ["cold:42", "warm:55", "hot:81", "warm:63", "hot:99"]
+? routed_after_ok
+
+= hot_after_ok = collect(hot_log) == ["alert:hot:81", "alert:hot:99"]
+? hot_after_ok
+
+# effect Audit {
+    > note(entry: String) -> ()
+}
+
+# AuditState(entries: List(String), last: String, hot_notes: Int)
+
+> empty_audit_state() -> AuditState {
+    AuditState([], "-", 0)
+}
+
+> record_entry(state: AuditState, entry: String) -> AuditState {
+    = hot_delta = if contains(entry, "hot:") { 1 } else { 0 }
+    AuditState(concat(state.entries, [entry]), entry, state.hot_notes + hot_delta)
+}
+
+> actor audit_book(state: AuditState) {
+    | Record(entry) -> record_entry(state, entry)
+    | Snapshot -> state
+}
+
+> emit_audit(summary: String, hot: String, latest: String) -> String with Audit {
+    note("summary:" + summary)
+    note("hot:" + hot)
+    note("latest:" + latest)
+    "audit-emitted"
+}
+
+= book = spawn(audit_book, empty_audit_state())
+
+= audit_result = | handle Audit {
+    | note(entry) -> {
+        = _ = ask(book, Record(entry))
+        resume(())
+    }
+} in emit_audit(Monitor.routed_summary, Monitor.hot_summary, routed_log.latest)
+
+= audit_result_ok = audit_result == "audit-emitted"
+? audit_result_ok
+
+= audit_state = ask(book, Snapshot)
+
+= audit_entries_ok = audit_state.entries == [
+"summary:cold:42|warm:55|hot:81|warm:63|hot:99",
+"hot:hot:81|hot:99",
+"latest:hot:99"
+]
+? audit_entries_ok
+
+= audit_last_ok = audit_state.last == "latest:hot:99"
+? audit_last_ok
+
+= audit_hot_count_ok = audit_state.hot_notes == 3
+? audit_hot_count_ok
+
+@ print("canary stateful adversarial workflow passed")

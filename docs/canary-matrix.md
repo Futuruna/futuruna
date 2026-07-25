@@ -7,6 +7,7 @@ Tracked in `td-39b478` under the broader mint epic `td-f7f0d2`.
 Target shape:
 - `core`: 15 blocking canaries with interpreter, compiled, codegen, and roundtrip parity
 - `stateful`: 10 canaries for subjects, actors, lifecycle, and effectful workflows
+  (7 implemented, including one adversarial cross-surface workflow)
 - `extended`: 10 canaries for JSON, regex, DB, HTTP, WASM, and import-heavy programs
 - `storage`: dedicated persisted-storage runtime canaries for compiled SQLite
   behavior that needs isolated temp databases
@@ -32,6 +33,7 @@ Target shape:
 | `tests/canary/stateful/lifecycle_projection_test.runa` | `stateful` | scoped projections, teardown, post-teardown stability, deterministic snapshots |
 | `tests/canary/stateful/effect_retry_flow_test.runa` | `stateful` | effect handlers, actor-backed retry state, branching outcomes, deterministic audit summaries |
 | `tests/canary/stateful/stream_subject_bridge_test.runa` | `stateful` | live stream-to-subject bridging, derived subscriptions, deterministic downstream aggregation |
+| `tests/canary/stateful/stateful_adversarial_workflow_test.runa` | `stateful` | subjects, scoped derived streams, teardown, effect handlers, actor-backed audit state, deterministic adversarial invariants |
 | `tests/canary/extended/json_report_pipeline_test.runa` | `extended` | JSON parse/build, nested arrays, list/map/set aggregation, deterministic report emission |
 | `tests/canary/extended/regex_classifier_test.runa` | `extended` | regex matching, extraction, replacement, tag collection, deterministic triage summaries |
 | `tests/canary/extended/db_reconciliation_test.runa` | `extended` | SQLite-backed ingest, reconciliation, deterministic query/report summaries |

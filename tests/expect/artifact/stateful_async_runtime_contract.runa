@@ -1,0 +1,34 @@
+-- expect-command: emit-rust
+-- expect-status: pass
+-- expect-stdout: #[tokio::main]
+-- expect-stdout: async fn main()
+-- expect-stdout: enum __FutEvent
+-- expect-stdout: struct __FutStream
+-- expect-stdout: fn __fut_register_scope_handle
+-- expect-stdout: fn __fut_register_scope_stream
+-- expect-stdout: __fut_register_scope_handle("Monitor"
+-- expect-stdout: __fut_register_scope_stream("Monitor"
+-- expect-stdout: tokio::spawn(async move
+-- expect-stdout: __fut_settle(&__stream).await; __stream.snapshot()
+-- expect-stdout: let mut _rx_
+~ readings = subject()
+~ sink = subject()
+
+> is_hot(x: Int) -> Bool {
+    x > 10
+}
+
+| scope Monitor {
+    ~ routed = readings |> filter(is_hot)
+
+    ~ routed | item -> {
+        sink <- item
+    }
+
+    readings <- 4
+    readings <- 12
+
+    = values = collect(routed)
+}
+
+@ print(show(Monitor.values))
