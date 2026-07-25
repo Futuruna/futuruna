@@ -139,19 +139,25 @@ needs `takeUntil` hacks for.
 -- Navigate away from MainContent → only WeatherPanel + NewsPanel torn down
 ```
 
-### Explicit Teardown (Escape Hatch)
+### Explicit Teardown (Current Contract)
 
-Sometimes you need manual control. `subscribe()` returns a handle:
+Current Futuruna uses named scopes as the explicit lifetime owner. Manual
+subscription handles are a deferred design, not a supported surface today:
 
 ```tau
-= sub = subscribe(weather, |w| render(w))
+| scope WeatherPanel {
+    ~ weather | w -> { render(w) }
+}
 
 -- Later:
-teardown(sub)
-
--- Or tear down all streams in a scope from outside:
-teardown(WeatherPanel)
+@ teardown("WeatherPanel")
 ```
+
+Historical sketches sometimes described `subscribe()` returning a disposable
+handle. That route is intentionally not part of the current contract because it
+would let ordinary helpers hide background work behind returned values. The
+supported shape is to return streams from helpers and subscribe inside the
+caller's named scope.
 
 ## `poll()` — Interval + Async Fetch
 

@@ -401,6 +401,12 @@ The same rule applies to `for x in stream { ... }` when `stream` is a live
 subject or derived async stream. This keeps compiled async subscriptions from
 quietly outliving the function that created them.
 
+Futuruna does not currently expose returned subscription handles. Factor
+advanced stream setup by returning a stream expression, then subscribe inside
+the caller's named scope. Use `@ teardown("ScopeName")` when the scope must be
+cancelled before normal scope exit. See [Stream Lifetimes](../stream-lifetimes.md)
+for the full ownership contract and the deferred handle design.
+
 ### Migrating from `for`
 
 | Before (for loop) | After (subscription) |

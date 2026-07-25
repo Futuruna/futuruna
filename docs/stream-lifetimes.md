@@ -249,21 +249,55 @@ created at the call site.
 
 ## Open Design Decisions
 
-### Returned-stream ownership
+### Explicit subscription handles
 
 **Status: deferred.** Tracked as `td-b48d46`.
 
-A function returning a live stream today either (a) returns a derived
-expression that the caller subscribes to, or (b) is rejected if it tries to
-return a *subscription handle* (a live `~ x | ...` arm) instead of a stream.
-There is no first-class way to hand out an owned subscription — the caller
-must open its own scope.
+Futuruna does **not** currently have a first-class subscription handle type.
+There is no supported form like:
 
-The open question is whether to add an explicit ownership type — something
-like `Subscription(T)` with a `cancel()` method or a `Drop` guarantee — that
-lets advanced code factor out subscriptions without a containing scope. The
-default answer for now is: keep the rejection, recommend "return the stream,
-let the caller scope," and revisit if real users hit the wall.
+```runa
+> install(readings) -> Subscription {
+    ~ readings | x -> { @ print(show(x)) }
+}
+
+= handle = install(readings)
+@ cancel(handle)
+```
+
+That design is deliberately deferred. A first-class handle would need a clear
+contract for at least:
+
+- ownership transfer: who must keep the handle alive, and what happens when it
+  is dropped
+- cancellation ordering relative to in-flight handler bodies and derived
+  stream forwarders
+- whether handles are `Send`, clonable, or single-owner values
+- whether imported libraries may return handles without becoming
+  script-lifetime code
+- how `@ teardown("ScopeName")` composes with separately returned handles
+
+Until those questions are answered, the production rule is:
+
+- return a stream expression when code wants to factor a pipeline
+- open the subscription in a named scope chosen by the caller
+- use `@ teardown("ScopeName")` for explicit early cancellation
+
+Example:
+
+```runa
+> alerts(readings) {
+    readings |> filter(|x| x > 30)
+}
+
+| scope Monitor {
+    ~ alerts(readings)
+        | x -> { @ print("alert: " + show(x)) }
+}
+```
+
+This keeps the lifetime owner visible in source and keeps importable helpers
+from smuggling background work through ordinary function calls.
 
 ### Function-as-scope
 
