@@ -98,7 +98,9 @@ runa run src/main.runa
 runa build src/main.runa
 ```
 
-That path is part of the first-run canary:
+That path is the stable first-run contract documented in
+[docs/first-run-contract.md](docs/first-run-contract.md) and covered by the
+first-run canary:
 
 ```bash
 ./scripts/first-run-canary.sh

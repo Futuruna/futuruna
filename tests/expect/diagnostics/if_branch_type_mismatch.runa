@@ -1,0 +1,5 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: if branches must have the same type; then branch is `String` but else branch is `Int`
+-- expect-stderr: = phase = if True { "solid" } else { 0 }
+= phase = if True { "solid" } else { 0 }

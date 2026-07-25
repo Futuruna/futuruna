@@ -34,6 +34,9 @@ For the new-user project scaffold and first tutorial examples, use:
 ./scripts/first-run-canary.sh
 ```
 
+The stable first-run path is documented in
+[docs/first-run-contract.md](first-run-contract.md).
+
 For Rust-facing integration through `runa lib`, use:
 
 ```bash

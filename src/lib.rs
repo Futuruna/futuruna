@@ -5022,7 +5022,7 @@ impl Parser {
                 let tok = self.advance();
                 match tok.text.as_str() {
                     "match" => self.parse_match_expr(),
-                    "if" => self.parse_if_expr(),
+                    "if" => self.parse_if_expr(tok),
                     _ => Ok(ExprKind::Var(tok.text).into()),
                 }
             }
@@ -5318,7 +5318,7 @@ impl Parser {
         Ok(ExprKind::Match(Box::new(scrut), arms).into())
     }
 
-    pub fn parse_if_expr(&mut self) -> Result<Expr, String> {
+    pub fn parse_if_expr(&mut self, start_tok: Token) -> Result<Expr, String> {
         let cond = self.parse_expr_prec(0)?;
         let then_ = self.parse_block_expr()?;
         // Skip newlines (Semi tokens) between } and else
@@ -5326,15 +5326,18 @@ impl Parser {
         let else_ = if self.peek_kind() == TokenKind::KW && self.peek().text == "else" {
             self.advance();
             if self.peek_kind() == TokenKind::KW && self.peek().text == "if" {
-                self.advance();
-                self.parse_if_expr()?
+                let if_tok = self.advance();
+                self.parse_if_expr(if_tok)?
             } else {
                 self.parse_block_expr()?
             }
         } else {
             ExprKind::Unit.into()
         };
-        Ok(ExprKind::If(Box::new(cond), Box::new(then_), Box::new(else_)).into())
+        Ok(self.spanned(
+            ExprKind::If(Box::new(cond), Box::new(then_), Box::new(else_)),
+            &start_tok,
+        ))
     }
 }
 
@@ -12067,6 +12070,86 @@ impl TypeChecker {
         }
     }
 
+    fn obvious_literal_ty(lit: &Literal) -> &'static str {
+        match lit {
+            Literal::Int(_) => "Int",
+            Literal::Float(_) => "Float",
+            Literal::Str(_) => "String",
+            Literal::Char(_) => "Char",
+            Literal::Bool(_) => "Bool",
+        }
+    }
+
+    fn obvious_expr_ty(&mut self, expr: &Expr) -> Option<String> {
+        match &expr.kind {
+            ExprKind::Lit(lit) => Some(Self::obvious_literal_ty(lit).to_string()),
+            ExprKind::Unit => Some("()".to_string()),
+            ExprKind::List(items) => {
+                let mut expected: Option<String> = None;
+                for item in items {
+                    let Some(item_ty) = self.obvious_expr_ty(item) else {
+                        continue;
+                    };
+                    if let Some(expected_ty) = &expected {
+                        if expected_ty != &item_ty {
+                            self.error_at_expr(
+                                item,
+                                format!(
+                                    "list elements must have the same type; first element is `{}` but this element is `{}`",
+                                    expected_ty, item_ty
+                                ),
+                            );
+                        }
+                    } else {
+                        expected = Some(item_ty);
+                    }
+                }
+                expected.map(|inner| format!("List({})", inner))
+            }
+            ExprKind::If(_, then_expr, else_expr) => {
+                let then_ty = self.obvious_expr_ty(then_expr);
+                let else_ty = self.obvious_expr_ty(else_expr);
+                match (then_ty, else_ty) {
+                    (Some(then_ty), Some(else_ty)) => {
+                        if then_ty != else_ty {
+                            self.error_at_expr(
+                                expr,
+                                format!(
+                                    "if branches must have the same type; then branch is `{}` but else branch is `{}`",
+                                    then_ty, else_ty
+                                ),
+                            );
+                        }
+                        Some(then_ty)
+                    }
+                    (Some(ty), None) | (None, Some(ty)) => Some(ty),
+                    (None, None) => None,
+                }
+            }
+            ExprKind::Block(stmts) => stmts.last().and_then(|stmt| match stmt {
+                Stmt::Expr(expr) => self.obvious_expr_ty(expr),
+                _ => None,
+            }),
+            _ => None,
+        }
+    }
+
+    fn check_declared_binding_ty(&mut self, ty: &Ty, expr: &Expr) {
+        let Some(actual_ty) = self.obvious_expr_ty(expr) else {
+            return;
+        };
+        let expected_ty = ty.to_string();
+        if expected_ty != actual_ty {
+            self.error_at_expr(
+                expr,
+                format!(
+                    "type mismatch: binding expects `{}` but expression has `{}`",
+                    expected_ty, actual_ty
+                ),
+            );
+        }
+    }
+
     pub fn check_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Defn(Defn::Fn {
@@ -12141,8 +12224,18 @@ impl TypeChecker {
                     }
                 }
             }
-            Stmt::Bind(pat, _, expr) | Stmt::MonadicBind(pat, _, expr) => {
+            Stmt::Bind(pat, ty, expr) => {
                 self.check_expr(expr, None);
+                if let Some(ty) = ty {
+                    self.check_declared_binding_ty(ty, expr);
+                } else {
+                    self.obvious_expr_ty(expr);
+                }
+                self.define_pat_vars(pat);
+            }
+            Stmt::MonadicBind(pat, _, expr) => {
+                self.check_expr(expr, None);
+                self.obvious_expr_ty(expr);
                 self.define_pat_vars(pat);
             }
             Stmt::StreamBind(name, expr) => {

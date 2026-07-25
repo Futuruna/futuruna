@@ -1,0 +1,5 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: expected version string after crate name in @ depend
+-- expect-stderr: Try: @ depend "regex" "1.0"
+@ depend "regex"

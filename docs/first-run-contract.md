@@ -1,0 +1,55 @@
+# First-Run Contract
+
+This is the stable new-user path Futuruna keeps green.
+
+The blocking proof is:
+
+```bash
+./scripts/first-run-canary.sh
+```
+
+That script is part of `./scripts/mint.sh`, so the first-run contract is a core
+mint gate, not an optional smoke test.
+
+## Stable Path
+
+For a freshly built `runa` binary, this flow must work without source edits:
+
+```bash
+runa init hello
+cd hello
+runa check src/main.runa
+runa fmt --check src/main.runa
+runa run src/main.runa
+runa build src/main.runa
+```
+
+The contract covers:
+
+- `runa init hello` creates `hello/runa.toml` and `hello/src/main.runa`
+- `runa.toml` records the package name and `entry = "src/main.runa"`
+- the generated source checks successfully
+- the generated source is already formatted
+- `runa run src/main.runa` prints `Hello from hello!`
+- `runa build src/main.runa` produces a runnable native binary for the entry
+- every `runa` block in `docs/tutorial/01-hello.md` checks, formats, and runs
+
+## Diagnostic Contract
+
+First-hour failures should stop at Futuruna-level diagnostics whenever the
+compiler has enough information to explain the problem. These cases are locked
+by `runa expect tests/expect` and include:
+
+- common syntax mistakes such as `=>` where `->` is required
+- undefined names and wrong arity
+- malformed `@ depend` declarations
+- obvious type mistakes such as annotated literal mismatches, heterogeneous list
+  literals, and mismatched literal `if` branches
+- named-scope diagnostics for live streams inside functions
+
+## Non-Goals
+
+This contract does not freeze cache directories, temporary Rust filenames, or
+private generated Rust helper layout. It does not claim every possible semantic
+type error is caught before codegen; newly discovered first-hour Rust compiler
+leaks should be reduced into expectation cases or canaries.
