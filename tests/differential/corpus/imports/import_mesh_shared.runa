@@ -1,0 +1,26 @@
+-- library-hygiene: importable
+-- roundtrip-skip: library file, no expected output
+--
+-- Differential import corpus helper: nested flat import plus exported derived
+-- values/functions used by a downstream consumer.
+
+@ import ./import_mesh_types
+
+@ export
+> compile_plan(service: String, region: String, notes: List(String)) -> Plan {
+    = lane = if starts_with(region, "eu") { Review } else { Draft }
+    Plan(service, region, lane, notes)
+}
+
+@ export
+> plan_key(plan: Plan) -> String {
+    plan_service(plan) + "@" + plan_region(plan)
+}
+
+@ export
+> plan_summary(plan: Plan) -> String {
+    plan_key(plan) + ":" + show(plan_note_count(plan))
+}
+
+@ export
+= import_probe = plan_summary(compile_plan("billing", "euwest", ["dry-run"]))

@@ -1,0 +1,37 @@
+-- Import-aware differential corpus entrypoint: nested flat imports, qualified
+-- imports, exported ADTs/functions/values, named HOF callbacks, and a
+-- downstream-style consumer all have to roundtrip with identical stdout.
+
+@ import ./import_mesh_shared
+@ import Policy from ./import_mesh_policy
+
+> decorate(plan: Plan) -> String {
+    Policy.region_tag(plan_region(plan)) + ":" + plan_key(plan) + ":" + Policy.decision(plan)
+}
+
+> bump(counts: Map(String, Int), key: String) -> Map(String, Int) {
+    map_insert(counts, key, map_get_or(counts, key, 0) + 1)
+}
+
+> count_decision(counts: Map(String, Int), plan: Plan) -> Map(String, Int) {
+    bump(counts, Policy.decision(plan))
+}
+
+> counts_csv(counts: Map(String, Int)) -> String {
+    = keys = sort(map_keys(counts))
+    join(map(keys, |key| key + ":" + show(map_get_or(counts, key, 0))), ",")
+}
+
+= plans = [
+compile_plan("billing", "euwest", ["dry-run", "db"]),
+compile_plan("edge", "useast", ["sync"]),
+compile_plan("auth", "eucentral", ["shadow", "tokens", "audit"])
+]
+
+= labels = map(plans, decorate)
+= empty_counts: Map(String, Int) = map_new()
+= decision_counts = foldl(plans, empty_counts, count_decision)
+
+@ print(join(labels, "|"))
+@ print(counts_csv(decision_counts))
+@ print("probe=" + import_probe)

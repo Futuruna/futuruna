@@ -14,6 +14,7 @@ RUNA_BIN="${RUNA_BIN:-./target/release/runa}"
 STRESS_COUNT="${FUTURUNA_STRESS_COUNT:-64}"
 SEEDS_FILE="${FUTURUNA_STRESS_SEEDS_FILE:-tests/differential/stress_gen_seeds.txt}"
 CORPUS_DIR="${FUTURUNA_DIFFERENTIAL_CORPUS:-tests/differential/corpus}"
+IMPORT_CORPUS_DIR="${FUTURUNA_DIFFERENTIAL_IMPORT_CORPUS:-${CORPUS_DIR}/imports}"
 OUT_DIR="${FUTURUNA_DIFFERENTIAL_OUT:-${TMPDIR:-/tmp}/futuruna-differential}"
 
 if [[ ! -x "$RUNA_BIN" ]]; then
@@ -31,6 +32,13 @@ if [[ -d "$CORPUS_DIR" ]] && find "$CORPUS_DIR" -type f -name '*.runa' -print -q
     run_step "$RUNA_BIN" test --roundtrip "$CORPUS_DIR"
 else
     echo "[differential] no differential corpus cases in $CORPUS_DIR"
+fi
+
+if [[ -d "$IMPORT_CORPUS_DIR" ]] && find "$IMPORT_CORPUS_DIR" -type f -name '*.runa' -print -quit | grep -q .; then
+    # `runa test --roundtrip` intentionally skips @ import entrypoints, so
+    # import-aware corpus cases use compiled execution plus codegen checks.
+    run_step "$RUNA_BIN" test --run "$IMPORT_CORPUS_DIR"
+    run_step "$RUNA_BIN" test --check-codegen "$IMPORT_CORPUS_DIR"
 fi
 
 while IFS= read -r raw_seed || [[ -n "$raw_seed" ]]; do

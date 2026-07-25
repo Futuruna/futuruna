@@ -1,0 +1,25 @@
+-- library-hygiene: importable
+-- roundtrip-skip: library file, no expected output
+--
+-- Differential import corpus helper: qualified policy module for the
+-- downstream consumer.
+
+@ import ./import_mesh_types
+
+@ export
+= review_note_cutoff = 2
+
+@ export
+> region_tag(region: String) -> String {
+    if starts_with(region, "eu") { "eu" } else { "gl" }
+}
+
+@ export
+> needs_review(plan: Plan) -> Bool {
+    plan_lane(plan) == Review || plan_note_count(plan) > review_note_cutoff
+}
+
+@ export
+> decision(plan: Plan) -> String {
+    if needs_review(plan) { "review" } else { "ship" }
+}

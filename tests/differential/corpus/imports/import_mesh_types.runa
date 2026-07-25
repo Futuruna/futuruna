@@ -1,0 +1,39 @@
+-- library-hygiene: importable
+-- roundtrip-skip: library file, no expected output
+--
+-- Differential import corpus helper: exported ADTs and accessors used by the
+-- import-aware downstream entrypoint.
+
+@ export
+# Lane = Draft | Review | Ship
+
+@ export
+# Plan = Plan(String, String, Lane, List(String))
+
+@ export
+> plan_service(plan: Plan) -> String {
+    match plan {
+        | Plan(service, _, _, _) -> service
+    }
+}
+
+@ export
+> plan_region(plan: Plan) -> String {
+    match plan {
+        | Plan(_, region, _, _) -> region
+    }
+}
+
+@ export
+> plan_lane(plan: Plan) -> Lane {
+    match plan {
+        | Plan(_, _, lane, _) -> lane
+    }
+}
+
+@ export
+> plan_note_count(plan: Plan) -> Int {
+    match plan {
+        | Plan(_, _, _, notes) -> length(notes)
+    }
+}
