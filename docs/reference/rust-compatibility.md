@@ -108,7 +108,7 @@ artifact expectation fixture or doc explicitly promises them.
 `runa lib file.runa` emits a Rust source file intended to be compiled into a
 Rust library or included as a Rust module.
 
-Supported today:
+Stable today:
 
 - exported Futuruna ADTs become public Rust structs/enums
 - exported struct fields are public
@@ -124,6 +124,58 @@ Supported today:
   builtins, or raw `@ rust` blocks, as long as the consuming Cargo project
   provides the matching dependencies
 
+Stable package layouts:
+
+1. Include the generated file as a Rust module inside an ordinary Cargo package:
+
+   ```bash
+   runa lib library.runa > src/futuruna_lib.rs
+   ```
+
+   ```rust
+   mod futuruna_lib;
+
+   fn main() {
+       let value = futuruna_lib::exported_function();
+   }
+   ```
+
+2. Place the generated file at `src/lib.rs` inside a user-owned Cargo library
+   crate, then depend on that crate from another Cargo package:
+
+   ```bash
+   mkdir -p generated/src
+   runa lib library.runa > generated/src/lib.rs
+   ```
+
+   ```toml
+   # generated/Cargo.toml
+   [package]
+   name = "futuruna_generated"
+   version = "0.1.0"
+   edition = "2021"
+
+   [dependencies]
+   # Add crates required by @ depend or dependency-backed builtins, for example:
+   regex = "1"
+   ```
+
+   ```toml
+   # app/Cargo.toml
+   [dependencies]
+   futuruna_generated = { path = "../generated" }
+   ```
+
+   ```rust
+   fn main() {
+       let value = futuruna_generated::exported_function();
+   }
+   ```
+
+`@ depend` records the Cargo dependencies needed by generated Rust. In
+`runa lib` mode, Futuruna emits source only; the consuming Cargo package owns
+its `Cargo.toml` and must provide matching dependency entries.
+
 Blocking evidence:
 
 - `tests/expect/artifact/lib_export_contract.runa` snapshots the public/private
@@ -137,11 +189,13 @@ Blocking evidence:
   compiles it inside an ordinary Cargo consumer with `CARGO_NET_OFFLINE=true`,
   and verifies `@ depend`, `@ use`, a raw Rust helper using `regex`, and the
   `regex_find_all` builtin
+- the same canary also places generated output at `src/lib.rs` in a user-owned
+  Cargo library crate and compiles a separate downstream Cargo package that
+  depends on that generated library by path
 
-Still preview:
+Outside the stable contract:
 
 - exact helper names and private generated layout
-- crate/package layout around generated libraries
 - automatic manifest/package generation for `runa lib` consumers
 - richer FFI patterns beyond ordinary Rust source inclusion and Cargo
   dependencies supplied by the consumer crate

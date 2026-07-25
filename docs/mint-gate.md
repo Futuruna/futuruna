@@ -37,7 +37,8 @@ These lanes are the core mint contract because they cover:
 - the Rust-facing integration canary: `runa lib` output compiled into a plain
   Rust consumer that calls exported structs, enums, borrowed params, lists,
   `Option`, and `Result`, plus an offline Cargo consumer for external-crate
-  integration through `@ depend`, `@ use`, and regex-backed generated Rust
+  integration through `@ depend`, `@ use`, and regex-backed generated Rust, plus
+  a downstream Cargo package consuming generated `src/lib.rs` by path dependency
 - interpreted Futuruna execution
 - compiled Futuruna execution
 - compiletest-style diagnostic, run/fail, and phase expectations

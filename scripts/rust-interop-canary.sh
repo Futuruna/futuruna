@@ -190,5 +190,81 @@ RS
     echo "[rust-interop] Rust external-crate Futuruna library canary passed for: $fixture"
 }
 
+run_package_crate_consumer_canary() {
+    local fixture="$1"
+    local work_dir="$TMP_DIR/package"
+    local lib_dir="$work_dir/futuruna_generated"
+    local app_dir="$work_dir/package_consumer"
+    mkdir -p "$lib_dir/src" "$app_dir/src"
+
+    run_step "$RELEASE_RUNA" fmt --check "$fixture"
+
+    echo
+    echo "[rust-interop] $RELEASE_RUNA lib $fixture > $lib_dir/src/lib.rs"
+    "$RELEASE_RUNA" lib "$fixture" > "$lib_dir/src/lib.rs"
+
+    cat > "$lib_dir/Cargo.toml" <<'TOML'
+[package]
+name = "futuruna_generated"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+regex = "1"
+TOML
+
+    cat > "$app_dir/Cargo.toml" <<'TOML'
+[package]
+name = "futuruna-rust-interop-package-consumer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+futuruna_generated = { path = "../futuruna_generated" }
+TOML
+
+    cat > "$app_dir/src/main.rs" <<'RS'
+use futuruna_generated::PatternProbe;
+
+fn main() {
+    let probe = futuruna_generated::make_pattern_probe("\\d+".to_string(), "A12 B007 C".to_string());
+    assert_eq!(futuruna_generated::external_match_count(&probe), 2);
+    assert_eq!(
+        futuruna_generated::external_first_match(&probe),
+        Some("12".to_string())
+    );
+
+    let direct = PatternProbe {
+        pattern: "[A-Z]+".to_string(),
+        text: "AA bb CC".to_string(),
+    };
+    assert_eq!(futuruna_generated::external_match_count(&direct), 2);
+    assert_eq!(
+        futuruna_generated::external_replace_all(&direct, "X".to_string()),
+        "X bb X".to_string()
+    );
+    assert_eq!(
+        futuruna_generated::classify_external(&probe.pattern, &probe.text),
+        "matched:2".to_string()
+    );
+
+    println!("rust package crate interop canary passed");
+}
+RS
+
+    echo
+    echo "[rust-interop] (cd $app_dir && CARGO_NET_OFFLINE=true $CARGO_BIN run --release --quiet)"
+    (
+        cd "$app_dir"
+        CARGO_NET_OFFLINE=true "$CARGO_BIN" run --release --quiet
+    ) | tee "$app_dir/consumer.out"
+    grep -Fxq "rust package crate interop canary passed" "$app_dir/consumer.out" \
+        || fail "Rust package crate consumer did not print the expected success line"
+
+    echo
+    echo "[rust-interop] Rust package-layout Futuruna library canary passed for: $fixture"
+}
+
 run_basic_consumer_canary "$BASIC_FIXTURE"
 run_external_crate_consumer_canary "$EXTERNAL_FIXTURE"
+run_package_crate_consumer_canary "$EXTERNAL_FIXTURE"

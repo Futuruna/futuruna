@@ -21,7 +21,7 @@ Complete reference documentation for the Futuruna programming language.
 | [runes.md](runes.md) | The seven runes (`#` `>` `|` `=` `~` `@` `?`) — all top-level statement forms | Stable |
 | [stdlib.md](stdlib.md) | Complete standard library (~70 builtins): math, strings, lists, collections, I/O, JSON, HTTP, database | Stable |
 | [streams.md](streams.md) | Reactive streams, subjects, subscriptions, named-scope lifetime ownership, actors, and effects | Stable |
-| [rust-compatibility.md](rust-compatibility.md) | Stable pure/core Rust codegen behavior, type mapping, build modes, and preview Rust interop | Mixed |
+| [rust-compatibility.md](rust-compatibility.md) | Stable pure/core Rust codegen behavior, type mapping, build modes, and stable `runa lib` Rust interop contract | Mixed |
 | [style.md](style.md) | Style, legal modeling, and audit workflow guidance | Preview |
 
 Start with **basics.md** for syntax fundamentals, then **runes.md** for the full language. Use **stdlib.md** as a lookup reference. Consult **streams.md** and **rust-compatibility.md** when working with reactive/stateful code, pure/core Rust codegen behavior, or Rust interop.

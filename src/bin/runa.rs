@@ -163,7 +163,7 @@ fn main_inner() {
                 eprintln!("  emit          Print generated Rust to stdout");
                 eprintln!("  build         Compile to native binary");
                 eprintln!("  run           Compile and execute");
-                eprintln!("  lib           Compile to Rust library (no main)");
+                eprintln!("  lib           Emit Rust library source (no main)");
                 eprintln!("  hashes        Show content hashes for all definitions");
                 eprintln!("  wasm          Compile to WebAssembly (via wasm-pack)");
                 eprintln!("  check         Parse and type-check without running");
@@ -192,8 +192,8 @@ fn main_inner() {
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
                 eprintln!("Feature stages:");
-                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes, lint-library, stress-gen; core syntax + documented stdlib + pure/core codegen behavior + reactive/stateful workflows + importable local libraries + differential/generative testing");
-                eprintln!("  Preview: lib, wasm, lsp, expect, bench, verify; Rust interop");
+                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes, lib, lint-library, stress-gen; core syntax + documented stdlib + pure/core codegen behavior + reactive/stateful workflows + importable local libraries + Rust-facing library interop + differential/generative testing");
+                eprintln!("  Preview: init, add, wasm, lsp, expect, bench, verify");
                 eprintln!("  Experimental: audit, from-rust");
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");

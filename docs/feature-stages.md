@@ -27,16 +27,16 @@ It should be read alongside [docs/compatibility-policy.md](compatibility-policy.
 | Explicit kernel proof terms and documented proof-kernel rule forms | Stable | The small kernel-backed proof term surface is part of the published contract. |
 | `runa verify` theorem elaboration, solver fallback, and broader verification automation | Preview | Useful and supported, but still evolving as the proof trust boundary and automation pipeline change. |
 | Reactive/stateful surfaces such as streams, subjects, actors, and effect-heavy workflows | Stable | User-facing and documented, with explicit named-scope ownership for live subscriptions, compiled stateful canaries, adversarial workflow coverage, and async emitted-Rust artifact expectations. Generic roundtrip/check-codegen skips for live async files are explicit and not treated as pass evidence. |
-| Rust interop and Rust-facing integration behavior | Preview | Supported, but still evolving around ownership, codegen, and artifact boundaries. |
+| Rust interop and Rust-facing library integration behavior | Stable | `runa lib` output, exported Rust-facing API shape, `@ use`, `@ depend`, raw `@ rust` helpers, external-crate generated code, and the documented module/Cargo-library consumer layouts are covered by blocking canaries. Exact helper/private layout and automatic manifest generation remain outside the stable contract; `runa from-rust` remains experimental. |
 
 ## Tooling And Command Surfaces
 
 | Command family | Stage | Notes |
 |---------------|-------|-------|
-| `runa run`, `check`, `emit`, `build`, `test`, `fmt`, `hashes`, `feature-stages` | Stable | These are core workflow commands. Their documented behavior is part of the normal public surface. `feature-stages` is stable through the versioned JSON schema. |
+| `runa run`, `check`, `emit`, `build`, `test`, `fmt`, `hashes`, `lib`, `feature-stages` | Stable | These are core workflow and Rust-facing library commands. Their documented behavior is part of the normal public surface. `feature-stages` is stable through the versioned JSON schema. |
 | `runa lint-library` | Stable | Import-hygiene tooling for authored library surfaces, including import-graph checks and helper-call-chain impurity rejection. |
 | `runa stress-gen` and `./scripts/differential.sh` | Stable | Differential replay and generative compiler testing are stable as a quality gate: checked-in replay corpus, stable seed lists, failure artifacts, and generated import-aware pressure are part of the documented hardening contract. Generator internals and corpus volume may still grow. |
-| `runa init`, `add`, `lib`, `wasm`, `lsp` | Preview | Useful project and integration tooling, but still subject to package, interface, or behavior refinement. |
+| `runa init`, `add`, `wasm`, `lsp` | Preview | Useful project and integration tooling, but still subject to package, interface, or behavior refinement. |
 | `runa expect`, `bench` | Preview | Used by the compiler hardening loop; expectation corpus shape, fixture volume, and benchmark reporting can still evolve. |
 | `runa verify` | Preview | The command is supported, but the elaboration and automation path is not yet a frozen contract. |
 | `runa audit` | Experimental | Treat output shape and behavior as early and subject to redesign. |

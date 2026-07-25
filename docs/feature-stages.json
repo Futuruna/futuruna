@@ -100,8 +100,8 @@
     {
       "id": "rust-interop",
       "kind": "integration",
-      "name": "Rust interop and Rust-facing integration behavior",
-      "stage": "preview",
+      "name": "Rust interop and Rust-facing library integration behavior",
+      "stage": "stable",
       "docs": [
         "docs/reference/rust-compatibility.md",
         "docs/tutorial/06-effects.md"
@@ -164,7 +164,6 @@
       "commands": [
         "init",
         "add",
-        "lib",
         "wasm",
         "lsp"
       ],
@@ -272,8 +271,8 @@
     },
     {
       "name": "lib",
-      "stage": "preview",
-      "surface": "package-and-project-tooling"
+      "stage": "stable",
+      "surface": "rust-interop"
     },
     {
       "name": "wasm",

@@ -94,7 +94,9 @@ rollback state.
 Rust-facing integration fixtures. These use a dedicated script because the
 contract is not just "generated Rust compiles"; it is that an ordinary Rust
 consumer can compile the `runa lib` output and call the exported API, including
-the case where generated code relies on external Cargo dependencies.
+the case where generated code relies on external Cargo dependencies and the
+case where generated output is packaged as `src/lib.rs` in a downstream
+Cargo dependency.
 
 See [docs/canary-matrix.md](canary-matrix.md) for the current coverage map and
 the planned build-out.
