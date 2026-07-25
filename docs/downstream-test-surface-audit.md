@@ -18,8 +18,9 @@ It means authored Futuruna programs that are:
 - depended on for exported values, types, and functions across files
 - exercised through the same codegen/check path a real consumer would hit
 
-This is why the new `./scripts/downstream-canary.sh` lane exists alongside the
-general canary tiers.
+This is why `./scripts/downstream-canary.sh` exists alongside the general
+canary tiers. It is now the blocking production evidence lane for the stable
+importable-local-library surface.
 
 ## Current Lane Coverage
 
@@ -34,7 +35,7 @@ What it covers well:
 - roundtrip parity over the main corpus
 - a few real non-test examples that historically exposed breakage
 
-What it misses for downstream use:
+What it deliberately leaves to the downstream lane:
 
 - multi-file library-consumer entrypoints as a named first-class lane
 - imported library hygiene as a distinct policy surface
@@ -50,13 +51,13 @@ What it covers well:
 - stateful and extended user workflows
 - curated authored regressions broader than narrow compiler probes
 
-What it misses for downstream use:
+What it deliberately leaves to the downstream lane:
 
 - library-consumer entrypoints are not the organizing abstraction
-- import-heavy authored programs exist, but they are still framed as canaries,
-  not as a dedicated consumer contract
-- the generic `test --check-codegen` path still skips many local multi-file
-  import consumers
+- import-heavy authored programs exist, but the production contract lives in the
+  dedicated downstream lane
+- live-async imported stream helpers still use stateful async artifact evidence
+  rather than generic rustc metadata codegen checks
 
 ### Downstream Consumer Lane
 
@@ -70,13 +71,17 @@ What it covers well:
 - exported type/value/function usage across files
 - explicit `runa check` on consumer programs
 - compiled/interpreted execution over local authored library consumers
+- generic `test --check-codegen` coverage for pure and effect consumer shapes
+- precise live-async skip reasons for imported stream helpers
+- `runa lint-library` and `runa lint-library --imports` enforcement
+- expectation coverage for import pass/fail and hygiene diagnostics
 
-What it still misses:
+Current bounded limits:
 
-- more breadth beyond the current pure, stateful, and effect-heavy starter families
-- direct participation of most consumer fixtures in the generic
-  `test --check-codegen` runner
-- import-hygiene policy enforcement beyond authored convention
+- `test --roundtrip` intentionally skips `@ import` entrypoints, so downstream
+  consumer parity evidence comes from compiled execution plus codegen checks
+- stateful live-async import codegen skips are counted separately and tied to
+  the stateful async artifact contract
 
 ### Differential Lane
 
@@ -85,14 +90,16 @@ What it still misses:
 What it covers well:
 
 - replayable roundtrip corpus cases
+- replayable import-aware corpus cases under `tests/differential/corpus/imports`
 - seed-stable generated programs
 - weird expression/program combinations the authored suite would not write
 
-What it misses for downstream use:
+What it still misses for downstream use:
 
-- generated programs are effectively single-file
-- it does not synthesize nested import graphs or library-consumer entrypoints
-- it does not pressure script-vs-library boundary mistakes
+- generated programs are still effectively single-file
+- import-aware generation is replay-corpus based rather than synthesized
+- script-vs-library boundary mistakes are primarily covered by `lint-library`
+  expectations and the downstream lane
 
 ### FIR Snapshots And Import-Normalization Snapshots
 
@@ -129,77 +136,72 @@ What it misses:
 
 ## Current Gap Map
 
-These are the important remaining downstream gaps after the new consumer lane.
+These were the important downstream gaps found by the audit and how they are
+covered now.
 
-### 1. Script-vs-Library Boundary Needs Explicit Tooling, Not Convention
+### 1. Script-vs-Library Boundary Has Explicit Tooling
 
-Imported top-level smoke leakage was one of the real user failures. We now test
-that class better, but the project still relies on convention rather than a
-hard rule for importable library files.
+Imported top-level smoke leakage was one of the real user failures. The stable
+contract now relies on `runa lint-library`, `runa lint-library --imports`, and
+the `-- library-hygiene: importable` marker instead of convention alone.
 
-Consequence:
+Evidence:
 
-- a `lib`-shaped file can still accumulate top-level smoke/demo code
-- the break may only surface when another file imports it
+- downstream canary runs both library-file and import-graph hygiene checks
+- expectation cases reject script leakage, unmarked imports, and local helper
+  call chains that reach impure behavior
 
-This is now addressed by `runa lint-library` plus the
-`-- library-hygiene: importable` marker, but the underlying reason remains
-important: importable library files need an explicit contract instead of
-convention alone.
+### 2. Generic Codegen Validation Covers Local Import Consumers
 
-### 2. Generic Codegen Validation Is Still Weaker Than The Explicit Consumer Lane
+Generic `runa test --check-codegen` now recursively follows local plain and
+qualified imports before deciding whether a fixture needs an external crate or
+async runtime.
 
-The new downstream lane uses explicit `runa check` for entrypoints because the
-generic `runa test --check-codegen` runner still skips most local multi-file
-consumer fixtures.
+Evidence:
 
-Consequence:
+- pure and effect downstream consumer fixtures participate in the rustc metadata
+  lane
+- imported live-async stream fixtures report precise async-runtime skips instead
+  of being mistaken for external-crate gaps
+- `td-35b4e3` is closed
 
-- downstream coverage exists, but in a parallel path rather than the generic
-  codegen validation machinery
+### 3. Constructor And Inference Corners Have Regressions
 
-Tracked by:
-
-- `td-35b4e3`
-
-### 3. Constructor And Inference Corners Still Leak Through Consumer Shapes
-
-Two concrete consumer-shaped bugs are now tracked:
+Two concrete consumer-shaped bugs from the first downstream wave are closed:
 
 - same-name single-constructor exported ADT lowering
 - tuple helper parameter inference in higher-order calls
 
-Consequence:
+Evidence:
 
-- the downstream lane is useful, but some authored fixtures still need local
-  workarounds
+- same-name single-constructor ADTs are covered by downstream alias fixtures
+- named tuple callback inference is covered by the import mesh and focused
+  compiled regressions
+- `td-8ec837` and `td-007fbc` are closed
 
-Tracked by:
+### 4. Import-Heavy Coverage Is Authored And Replayable
 
-- `td-8ec837`
-- `td-007fbc`
+The in-repo surface now has pure, stateful, and effect-heavy downstream
+consumer families plus import-heavy canary and differential corpus coverage.
 
-### 4. Import-Heavy Coverage Is Still Too Small
+Evidence:
 
-We now have one real downstream consumer family, but not enough breadth yet.
+- `tests/downstream/` has pure, stateful, and effect-heavy consumer families
+- `tests/canary/extended/import_mesh_test.runa` covers authored import-heavy
+  workflows
+- `tests/expect/imports/` covers pass/fail import and hygiene behavior
 
-Still missing:
+### 5. Differential Testing Has An Import Graph Story
 
-- more module consumers with richer exported ADT/trait surfaces
-- consumer fixtures that stress diagnostics and failure modes, not just success
+The random generator remains single-file, but the replay corpus has an
+import-aware subcorpus.
 
-### 5. Differential Testing Still Has No Import Graph Story
+Evidence:
 
-The differential lane is still effectively a single-file semantic fuzzer.
-
-Consequence:
-
-- it is excellent at expression/runtime edge cases
-- it is weak at the exact import/module/library-consumer shape that hurt us
-
-Needed:
-
-- an import-aware downstream corpus or generated import-graph cases
+- `scripts/differential.sh` runs `tests/differential/corpus/imports` with
+  compiled execution and `test --check-codegen`
+- the import mesh subcorpus covers nested flat imports, qualified imports,
+  exported ADTs/functions/values, and named higher-order callbacks
 
 ## Recommendations
 
@@ -219,25 +221,25 @@ Reason:
 
 ### Near-Term Engineering Order
 
-1. Make the downstream lane broader, not just present.
-2. Enforce script-vs-library hygiene.
-3. Make generic codegen validation understand local multi-file import consumers.
-4. Add import-aware downstream corpus pressure to the deeper lanes.
+1. Keep the downstream lane green and blocking for local import consumers.
+2. Distill every future import-consumer bug into `tests/downstream/`,
+   `tests/expect/imports/`, or the import-aware differential corpus.
+3. Keep live-async import skips explicit and tied to stateful async artifact
+   expectations.
 
 ## Task Queue
 
-Already tracked and still relevant:
+Closed task trail:
 
 - `td-35b4e3` teach the generic `check-codegen` lane to cover local import consumers
 - `td-8ec837` lower single-constructor exported ADTs correctly
 - `td-007fbc` infer tuple helper params in higher-order calls
 - `td-c812f4` design compiletest-style expectation suites
-
-Created from this audit:
-
 - `td-14f86b` define and enforce library-vs-script import hygiene
 - `td-b26732` expand downstream consumer fixtures to stateful and effect-heavy families
 - `td-a70b05` add import-aware downstream cases to deeper search lanes
+- `td-b4729e` add import-consumer expectation cases
+- `td-fd7715` deepen lint-library purity analysis through local helper calls
 
 ## Bottom Line
 
@@ -245,11 +247,16 @@ The main oversight was not "we forgot tests." It was that the old assurance
 stack mostly exercised Futuruna as standalone programs, while users were
 hitting it as imported libraries.
 
-That mismatch is now much smaller:
+That mismatch is now small enough for a bounded production-ready claim:
 
 - there is a dedicated downstream consumer lane
 - there are import-normalization snapshots
 - there is an import-heavy authored canary
+- there are import-consumer expectations
+- there is an import-aware differential subcorpus
+- library hygiene is enforced by stable tooling rather than convention
 
-But the surface is not fully professional yet until library hygiene, generic
-codegen coverage, and deeper import-aware search are all pulled forward.
+The stable claim is intentionally local: authored Futuruna libraries imported
+through documented local flat or qualified imports, with exported values, types,
+functions, stateful/effect consumer families, and import-safe helper files kept
+green by the downstream, expectation, and differential lanes.

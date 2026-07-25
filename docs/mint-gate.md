@@ -57,9 +57,10 @@ informational `@ comptime` and auto-comptime comments do not obscure the
 structured step output. Comptime assertion failures and ordinary compiler
 diagnostics still print because they are real failures, not progress chatter.
 
-The downstream lane now includes `runa lint-library tests`, so importable
-library hygiene is enforced there even though it remains outside the fast core
-mint gate.
+The downstream lane includes `runa lint-library tests/downstream` and
+`runa lint-library --imports tests/downstream`, so the stable importable-library
+contract is enforced there even though it remains outside the fast core mint
+gate.
 
 The storage canary lane runs compiled persisted transaction fixtures from a
 temporary directory with `CARGO_NET_OFFLINE=true`. It is inside mint because the

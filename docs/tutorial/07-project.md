@@ -1,5 +1,5 @@
 ---
-feature_stage: preview
+feature_stage: mixed
 feature_stage_surfaces:
   - core-cli-workflow
   - importable-local-libraries
@@ -55,6 +55,9 @@ entry = "src/main.runa"
 ```
 
 `@ export` marks what's public. `@ import Name from ./path` brings it in with qualified access.
+For reusable helper files, mark import-safe libraries with
+`-- library-hygiene: importable` and keep `runa lint-library --imports` green as
+described in [../library-hygiene.md](../library-hygiene.md).
 
 ## Add dependencies
 

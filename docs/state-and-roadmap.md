@@ -35,6 +35,8 @@ The project now has a real assurance stack:
 - A compiletest-style expectation lane for narrow diagnostics, run/fail
   behavior, and phase-specific compiler markers.
 - An authored canary suite for realistic user-shaped workflows, with the current coverage tracked in [docs/canary-matrix.md](canary-matrix.md).
+- A blocking downstream consumer lane for importable local libraries, import
+  hygiene, and library-shaped user workflows.
 - A differential lane for generative and replayable semantic bug finding.
 - FIR phase validation snapshots that make compiler-structure drift visible instead of silent.
 - A contributor ratchet in [CONTRIBUTING.md](../CONTRIBUTING.md) that requires semantic changes to land with permanent coverage and documented follow-up tasks.
@@ -52,6 +54,9 @@ On the language side, the recent focus has been semantic parity and determinism:
 - runtime error behavior for partial builtins such as indexing and empty-list access
 - explicit scope-owned lifetime rules for live stream subscriptions, instead of
   detached function-local async work
+- importable local library contracts with flat/qualified imports, exported
+  values/types/functions, import-hygiene linting, and downstream consumer
+  canaries
 
 On the proof side, Futuruna has a real kernel-backed verification story, but only in stage 1 form:
 
@@ -118,6 +123,9 @@ The lanes are meant to complement each other, not compete:
   Fast blocking contract for "is Futuruna mint right now?"
 - `./scripts/canary.sh`
   Authored realistic workflows that combine language subsystems the way users do.
+- `./scripts/downstream-canary.sh`
+  Authored library-consumer workflows that keep stable local import and
+  import-hygiene behavior production-ready.
 - `./scripts/expectations.sh`
   Narrow compiler expectations for diagnostics, command pass/fail behavior, and
   phase-specific markers.

@@ -127,7 +127,8 @@ canary does not rely on ambient network access. The lane checks:
 ## Downstream Consumer Lane
 
 `./scripts/downstream-canary.sh` is the companion blocking lane for authored
-fixtures that model Futuruna code being consumed as local libraries.
+fixtures that model Futuruna code being consumed as local libraries. It is part
+of the production evidence for the stable importable-local-library surface.
 
 It is not part of the tiered canary corpus because the emphasis is different:
 
@@ -135,6 +136,10 @@ It is not part of the tiered canary corpus because the emphasis is different:
 - nested and qualified import paths
 - exported type/value/function usage across files
 - direct `runa check` coverage on consumer programs
+- compiled execution and generic codegen coverage for pure/effect consumers
+- explicit skip accounting for live-async imported stream helpers that belong to
+  the stateful async artifact contract rather than the generic rustc metadata
+  lane
 
 The fixtures live in `tests/downstream/` and should stay authored and owned by
 this repository.
@@ -142,11 +147,13 @@ this repository.
 The lane also runs:
 
 ```bash
-./target/release/runa lint-library tests
+./target/release/runa lint-library tests/downstream
+./target/release/runa lint-library --imports tests/downstream
 ```
 
-That keeps marked importable helper files honest and stops script/demo leakage
-from creeping into library-shaped fixtures.
+Those checks keep marked importable helper files honest, reject imported
+script/demo leakage, and verify helper-call-chain impurity before downstream
+consumers run.
 
 ## WASM Build Canary Lane
 

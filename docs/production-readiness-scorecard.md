@@ -25,16 +25,16 @@ wiring, and the current `td` queue through 2026-07-18.
 | Lane | Evidence | Readiness Signal |
 |------|----------|------------------|
 | Mint gate | Latest recorded `./scripts/mint.sh` passed: Rust tests, release build, interpreted tests, compiled tests, expectations, check-codegen, roundtrip, one regression run, and Danish constitution checks. | Strong core health signal. |
-| Mint check-codegen | 84 passed, 22 skipped in the latest recorded mint run. | Passing but skip-heavy for external-crate surfaces. |
-| Mint roundtrip | 71 matched, 35 skipped in the latest recorded mint run. | Strong for pure/core programs; weaker for external/stateful surfaces. |
-| Expectations | Latest recorded `./scripts/expectations.sh` passed 20 cases with 1 skipped, including artifact and codegen contract fixtures. | Useful and growing; artifact snapshots now defend selected emitted Rust shapes. |
+| Mint check-codegen | 89 passed, 20 skipped in the latest recorded mint run. | Passing with explicit skips for external-crate and live-async surfaces. |
+| Mint roundtrip | 73 matched, 36 skipped in the latest recorded mint run. | Strong for pure/core programs; imported and live-async entrypoints use dedicated lanes instead of hidden roundtrip pass evidence. |
+| Expectations | Latest recorded mint expectation run passed 31 cases with 4 dependency-only skips; focused import expectations passed 7 cases with 3 dependency-only skips. | Useful and growing; artifact snapshots and import pass/fail cases now defend selected compiler-contract shapes. |
 | Authored canaries | `./scripts/canary.sh` passed across core, stateful, extended, and regressions. | Strong realistic workflow signal. |
 | Core canary tier | 10 run passed, 10 check-codegen passed, 10 roundtrip matched, 0 skipped. | Best production-readiness evidence in the project. |
-| Stateful canary tier | 6 run passed, 6 check-codegen skipped, 6 roundtrip skipped. | Execution signal is good; generic parity evidence is weak. |
+| Stateful canary tier | 7 run passed, 7 check-codegen skipped, 7 roundtrip skipped. | Execution signal is good and live-async skips are explicit; async artifact expectations provide emitted-runtime shape evidence. |
 | Extended canary tier | 10 run passed, 5 check-codegen passed, 5 skipped, 2 roundtrip matched, 8 skipped. | Useful coverage, but not production-grade as a whole. |
 | Regression canary tier | 3 run passed, 2 check-codegen passed, 1 skipped, 1 roundtrip matched, 2 skipped. | Good bug-class coverage; skip accounting matters. |
-| Downstream consumer lane | `./scripts/downstream-canary.sh` passed: 15 importable files passed hygiene, 13 downstream tests ran, 5 check-codegen passed, 8 skipped, 13 roundtrip skipped. | Import/lint coverage is real; generic parity is not yet broad. |
-| Differential lane | Local reduced sweep passed generated interpreter-vs-compiled cases, and `tests/differential/corpus` now contains minimized historical codegen cases plus an import-aware subcorpus. | Good generator signal with durable replay artifacts. |
+| Downstream consumer lane | `./scripts/downstream-canary.sh` passed: 9 importable files passed hygiene, 13 import graphs passed hygiene, 4 consumer checks passed, 13 downstream tests ran, 11 check-codegen passed, 2 live-async skips were reported precisely, and 13 import roundtrip skips were reported explicitly. | Strong production signal for local import consumers because execution, codegen, linting, and skip accounting are all first-class. |
+| Differential lane | Local sweep passed checked-in roundtrip corpus cases, import-aware corpus compiled execution and check-codegen with 0 skips, and seed-stable generated interpreter-vs-compiled cases. | Good generator signal with durable replay artifacts and import-aware pressure. |
 | CI wiring | CI runs mint on Ubuntu/macOS, Rust formatting, differential, authored canaries, and downstream consumers. | Strong project-level signal. |
 
 ## Surface Scorecard
@@ -47,11 +47,11 @@ wiring, and the current `td` queue through 2026-07-18.
 | Rust formatting and repository hygiene | Production-ready | `runa fmt --check` is used by canary/downstream/CI, `cargo fmt --check` is green repo-wide, and the dedicated repo-wide rustfmt parity task (`td-e7d877`) is closed. | Keep `cargo fmt --check`, `runa fmt --check`, and `git diff --check` as routine gates. |
 | Compiler Rust codegen for pure/core programs | Production-ready | Stable feature stage for pure/core generated Rust behavior; mint/core canaries check codegen and roundtrip; phase marker cases, typed lowering corpus, artifact golden fixtures, duplicate-evaluation template audit, signature-table audit, minimized differential corpus, and ownership-sensitive artifact snapshots are in place. Exact emitted Rust remains internal outside named fixtures. | Keep artifact fixture diffs compatibility-reviewed and add new fixtures for every newly promised emitted shape. |
 | Interpreter-vs-compiled parity for pure/core programs | Production-ready | Mint roundtrip, core canary roundtrip, and checked-in minimized differential cases are strong, with 0 core canary skips. | Require every future parity bug to land in the narrowest permanent lane. |
-| Importable local libraries and downstream consumer shape | Preview | Dedicated downstream lane, library hygiene lint, and consumer checks pass. Generic roundtrip skips all downstream fixtures and check-codegen skips 8 of 13. | Teach generic check-codegen to cover local import consumers (`td-35b4e3`) and add import-aware deep-search cases (`td-a70b05`, `td-b4729e`). |
+| Importable local libraries and downstream consumer shape | Production-ready | Stable feature stage; dedicated downstream lane covers flat and qualified imports, exported values/types/functions, pure/stateful/effect consumer families, library hygiene, import-graph hygiene, consumer `check`, compiled runs, and 11/13 generic codegen passes. The remaining 2 codegen skips are precise live-async imported stream cases covered by the stateful async contract; import roundtrip skips are explicit and not counted as pass evidence. Import-consumer expectations and the import-aware differential subcorpus cover smaller pass/fail and deeper replay shapes. | Keep downstream canary, import expectations, and import-aware differential coverage blocking; add a downstream or expectation fixture for every future import-consumer bug. |
 | Streams, subjects, actors, and effect-heavy workflows | Production-ready | Stable feature stage, explicit named-scope lifetime contract, 7 compiled stateful canaries including an adversarial subjects/streams/effects/actors workflow, async runtime artifact expectations, stream lifetime diagnostics, and explicit skip accounting for generic check-codegen/roundtrip live-async skips. | Keep stateful canaries and async artifact expectations blocking; add a new adversarial canary or expectation for every future stateful bug. |
 | WASM-facing behavior | Preview | WASM tests, an extended export-surface canary, an automated `runa wasm` build lane, and documented preview artifact boundaries exist. Missing `wasm-pack` is reported as an explicit skip unless CI requires it. | Decide where the WASM lane is required in CI and add package-shape expectations once the JS/ABI boundary is chosen. |
 | Rust interop and Rust-facing integration | Preview | Feature stage is preview; CI runs `from-rust --test examples/from-rust/`; `runa lib` export shape has an artifact expectation for public/private item boundaries. | Add canaries for stable integration shapes and broaden exported type/function fixtures before promotion. |
-| `runa lint-library` import-hygiene tooling | Preview | Downstream lane enforces hygiene over importable files and imports. | Deepen purity analysis through local helper calls (`td-fd7715`). |
+| `runa lint-library` import-hygiene tooling | Production-ready | Stable feature stage; downstream lane enforces marked importable helpers and imported helper graphs; expectations cover pass/fail import hygiene, script leakage, unmarked imports, and local helper-call-chain impurity rejection. | Keep import-hygiene negative expectations and downstream lint checks blocking; expand the lint only with compatibility-guide notes when the stable policy changes. |
 | `runa stress-gen` and differential testing | Preview | CI has a differential job, seed-stable generator, checked-in minimized replay corpus, and import-aware differential subcorpus. | Require every differential-found compiler bug to land in corpus; add more import/ownership pressure as failures are found. |
 | Compiletest-style expectations | Preview | Expectation runner is in mint and has diagnostic/run/phase cases plus exact golden-file checks. Corpus is still small. | Grow the golden snapshot corpus and require exact expectations for new diagnostics where stable. |
 | FIR and phase snapshots | Preview | Phase validation exists and has already caught drift classes, including cross-binding/module marker cases. | Add larger reviewed golden snapshots and document which phase markers are stable enough for tests. |
@@ -83,11 +83,11 @@ changes Futuruna's production-readiness claim.
 | Pure/core interpreter-vs-compiled parity | Production-ready | Keep minimized differential corpus growing; keep core canaries 0-skip; promote every new semantic bug into the narrowest permanent lane. | M | 5 |
 | Rust formatting and repository hygiene | Production-ready | Keep `cargo fmt --check`, `runa fmt --check`, and `git diff --check` routine; keep formatting-only cleanups separate from semantic changes. | S | 3 |
 | Rust codegen for pure/core programs | Production-ready | Keep artifact fixture diffs compatibility-reviewed; add fixtures for newly promised emitted shapes; keep pure/core canaries 0-skip. | M | 5 |
-| Importable local libraries and downstream consumer shape | Preview | Cover local import consumers in generic check-codegen (`td-35b4e3`); add import-aware deep-search cases (`td-a70b05`); add import-consumer expectation cases (`td-b4729e`). | L | 5 |
+| Importable local libraries and downstream consumer shape | Production-ready | Keep downstream canary, import-consumer expectations, and import-aware differential subcorpus green; add fixtures for every future import-consumer bug; keep live-async import skips tied to the stateful async artifact contract. | M | 5 |
 | Streams, subjects, actors, and effect-heavy workflows | Production-ready | Keep named-scope lifetime diagnostics stable; keep compiled stateful canaries and async artifact expectations green; add adversarial fixtures for future stateful bug classes. | M | 5 |
 | WASM-facing behavior | Preview | Keep automated WASM build canary green; require the WASM lane in CI where `wasm-pack` is installed; add package-shape expectations after choosing the JS/ABI boundary. | M | 4 |
 | Rust interop and integration | Preview | Add stable-shape interop canaries; broaden `runa lib` artifact expectations; document supported crate/import patterns. | L | 4 |
-| Library hygiene tooling | Preview | Deepen purity analysis through local helper calls (`td-fd7715`); add negative expectation cases; surface library markers in docs/tooling. | M | 3 |
+| Library hygiene tooling | Production-ready | Keep `lint-library` and `lint-library --imports` blocking in downstream; preserve negative expectation coverage for script leakage, unmarked imports, and helper-chain impurity; document any policy expansion as compatibility-facing. | S | 3 |
 | Differential and generative testing | Preview | Keep minimized replay corpus growing; add import-aware generation pressure; scale CI stress count once runtime is predictable. | L | 5 |
 | Compiletest-style expectations | Preview | Grow diagnostics and golden snapshot corpus; require exact expectations for new diagnostics where stable; keep expectation lanes fast enough for mint. | M | 4 |
 | FIR and phase snapshots | Preview | Add larger reviewed golden snapshots; connect snapshots to import normalization; document which phase markers are stable enough for tests. | M | 4 |
@@ -124,11 +124,12 @@ A surface can move to production-ready only when all of these are true:
 The safe production claim is:
 
 > Futuruna's stable core language, core CLI, repository hygiene gates,
-> pure/core Rust codegen behavior, and documented reactive/stateful workflows
-> are production-ready for small to medium programs that stay inside documented
-> syntax, stdlib, named-scope stream lifetime, actor, and effect-handler
-> contracts, with strong compiled/canary/artifact evidence and explicit skip
-> accounting.
+> pure/core Rust codegen behavior, documented reactive/stateful workflows, and
+> importable local-library consumer shape are production-ready for small to
+> medium programs that stay inside documented syntax, stdlib, named-scope stream
+> lifetime, actor, effect-handler, local import, export, and import-hygiene
+> contracts, with strong compiled/canary/downstream/artifact evidence and
+> explicit skip accounting.
 
 The unsafe production claim is:
 
@@ -138,9 +139,11 @@ research-grade until the next gates above are closed.
 
 ## Next Evaluation Tasks
 
-2. Keep exact diagnostic and phase expectations growing as new stable
+1. Keep exact diagnostic and phase expectations growing as new stable
    diagnostics or phase markers are promised.
-3. Decide where `wasm-pack` should be required rather than skipped and add
+2. Decide where `wasm-pack` should be required rather than skipped and add
    package-shape expectations for the chosen WASM boundary.
-4. Require every future differential-found compiler bug to land in the
+3. Require every future differential-found compiler bug to land in the
    checked-in replay corpus.
+4. Distill future compiler bugs into in-repo downstream, expectation, canary,
+   or differential fixtures.

@@ -79,7 +79,7 @@
       "id": "importable-local-libraries",
       "kind": "language",
       "name": "Importable local libraries and downstream consumer shape",
-      "stage": "preview",
+      "stage": "stable",
       "docs": [
         "docs/library-hygiene.md",
         "docs/tutorial/07-project.md"
@@ -123,7 +123,7 @@
       "id": "library-hygiene-tooling",
       "kind": "tooling",
       "name": "Import-hygiene tooling for authored libraries",
-      "stage": "preview",
+      "stage": "stable",
       "commands": [
         "lint-library"
       ],
@@ -252,7 +252,7 @@
     },
     {
       "name": "lint-library",
-      "stage": "preview",
+      "stage": "stable",
       "surface": "library-hygiene-tooling"
     },
     {
@@ -318,6 +318,14 @@
     }
   ],
   "documents": [
+    {
+      "path": "docs/library-hygiene.md",
+      "stage": "stable",
+      "surfaces": [
+        "importable-local-libraries",
+        "library-hygiene-tooling"
+      ]
+    },
     {
       "path": "docs/reference/README.md",
       "stage": "mixed",
@@ -427,7 +435,7 @@
     },
     {
       "path": "docs/tutorial/07-project.md",
-      "stage": "preview",
+      "stage": "mixed",
       "surfaces": [
         "core-cli-workflow",
         "importable-local-libraries",

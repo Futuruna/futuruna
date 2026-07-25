@@ -1,8 +1,16 @@
+---
+feature_stage: stable
+feature_stage_surfaces:
+  - importable-local-libraries
+  - library-hygiene-tooling
+---
+
 # Library Import Hygiene
 
-Importable Futuruna library files should be explicit about being import-safe.
+Importable Futuruna library files must be explicit about being import-safe when
+they participate in the stable local-library consumer contract.
 
-The canonical checker is:
+The stable checker is:
 
 ```bash
 runa lint-library tests
@@ -61,9 +69,10 @@ reached through plain or qualified imports must be marked importable and must
 pass these same rules. Content-hash imports are different: they select one
 declaration by hash, not the imported file's top-level script body.
 
-Normal `runa run`, `runa check`, and `runa emit` remain backward-compatible
-today. The import-graph hygiene check is the blocking gate for authored
-downstream/canary consumers.
+Normal `runa run`, `runa check`, and `runa emit` remain backward-compatible for
+ordinary scripts. The import-graph hygiene check is the blocking gate for
+authored downstream/canary consumers and for files that claim the importable
+library contract.
 
 ## Why This Exists
 

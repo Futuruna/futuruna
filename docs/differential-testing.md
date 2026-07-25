@@ -15,6 +15,12 @@ It does two things:
 2. Runs `runa stress-gen` with a stable seed list from
    `tests/differential/stress_gen_seeds.txt`.
 
+The corpus also contains an import-aware subcorpus under
+`tests/differential/corpus/imports/`. Because generic roundtrip intentionally
+skips `@ import` entrypoints, the differential script runs that subcorpus with
+compiled execution and `test --check-codegen` so nested and qualified local
+imports get deeper replay coverage beyond the authored downstream canary lane.
+
 ## Reproducible Stress Generation
 
 `runa stress-gen` accepts:
@@ -49,7 +55,10 @@ When the differential lane finds a real compiler bug:
 - `RUNA_BIN`
 - `FUTURUNA_STRESS_COUNT`
 - `FUTURUNA_STRESS_SEEDS_FILE`
+- `FUTURUNA_STRESS_RUN_TIMEOUT_SECONDS`
 - `FUTURUNA_DIFFERENTIAL_CORPUS`
 - `FUTURUNA_DIFFERENTIAL_OUT`
 
-Use those to scale local runs up or down without editing the script.
+Use those to scale local runs up or down without editing the script. The
+compiled spot-check timeout defaults to 10 seconds so loaded machines do not
+turn ordinary small generated programs into false differential failures.

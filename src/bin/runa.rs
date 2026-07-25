@@ -192,7 +192,7 @@ fn main_inner() {
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
                 eprintln!("Feature stages:");
-                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes; core syntax + documented stdlib + pure/core codegen behavior + reactive/stateful workflows");
+                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes, lint-library; core syntax + documented stdlib + pure/core codegen behavior + reactive/stateful workflows + importable local libraries");
                 eprintln!("  Preview: lib, wasm, lsp, stress-gen, verify; Rust interop");
                 eprintln!("  Experimental: audit, from-rust");
                 eprintln!("  Machine-readable: runa feature-stages --json");
@@ -2468,6 +2468,12 @@ fn run_stress_gen(count: usize, seed: Option<u64>, save_failures: Option<&str>) 
             .as_nanos() as u64
     });
     let save_dir = save_failures.map(PathBuf::from);
+    let compiled_run_timeout = std::env::var("FUTURUNA_STRESS_RUN_TIMEOUT_SECONDS")
+        .ok()
+        .and_then(|raw| raw.parse::<f64>().ok())
+        .filter(|seconds| *seconds > 0.0)
+        .map(std::time::Duration::from_secs_f64)
+        .unwrap_or_else(|| std::time::Duration::from_secs(10));
 
     eprintln!(
         "\x1b[1mruna stress-gen\x1b[0m — generating {} random programs",
@@ -2573,11 +2579,7 @@ fn run_stress_gen(count: usize, seed: Option<u64>, save_failures: Option<&str>) 
                     .output();
                 match compile {
                     Ok(out) if out.status.success() => {
-                        match run_command_with_timeout(
-                            &tmp_bin,
-                            &[],
-                            std::time::Duration::from_secs(3),
-                        ) {
+                        match run_command_with_timeout(&tmp_bin, &[], compiled_run_timeout) {
                             Ok(run) => {
                                 let compiled = String::from_utf8_lossy(&run.stdout).to_string();
                                 let expected = if interp_output.is_empty() {

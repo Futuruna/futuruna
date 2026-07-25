@@ -6,12 +6,6 @@ File extension: `.runa` | Compiler: `runa` | Website: [futuruna.com](https://fut
 
 ## Current State
 
-Futuruna has a strong and tested core, but the whole language is not yet a
-single production-ready surface. Core syntax, documented stdlib behavior, core
-CLI commands, and pure interpreter-vs-compiled parity are the strongest
-surfaces today. Stateful/reactive workflows, storage, proof-backed compiler
-checking, WASM artifacts, Rust interop, and
-experimental tooling are still preview or research-grade.
 
 The current production-readiness table lives in
 [docs/production-readiness-scorecard.md](docs/production-readiness-scorecard.md).
@@ -114,7 +108,7 @@ runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 
 See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/production-readiness-scorecard.md](docs/production-readiness-scorecard.md) for the readiness table, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, [docs/expectation-suites.md](docs/expectation-suites.md) for compiletest-style expectations, [docs/artifact-codegen-contracts.md](docs/artifact-codegen-contracts.md) for emitted Rust and artifact boundaries, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
 
-Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md) and [docs/feature-stages.json](docs/feature-stages.json): core syntax, documented stdlib behavior, pure/core generated Rust behavior, and reactive/stateful workflows are treated as stable, while `runa verify`, Rust interop, and several advanced tooling paths are still preview or experimental.
+Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md) and [docs/feature-stages.json](docs/feature-stages.json): core syntax, documented stdlib behavior, pure/core generated Rust behavior, reactive/stateful workflows, importable local libraries, and import-hygiene tooling are treated as stable, while `runa verify`, Rust interop, and several advanced tooling paths are still preview or experimental.
 
 Release-facing compatibility history lives in
 [docs/compatibility-guides/](docs/compatibility-guides/). Stable breaks,

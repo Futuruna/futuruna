@@ -40,7 +40,7 @@ Each `.runa` case uses source comments as directives:
 
 Supported directives:
 
-- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|verify`
+- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|verify|lint-library|lint-library-imports`
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`
@@ -74,6 +74,10 @@ The starter layout is:
 - `tests/expect/artifact/`
   Reviewed emitted-artifact contracts. Golden changes here are
   compatibility-facing and should be intentional.
+
+- `tests/expect/imports/`
+  Local import pass/fail cases, public/private visibility checks, and
+  import-hygiene diagnostics for the stable importable-library contract.
 
 Future subdirectories should be named by behavior, not by bug number. A bug
 number can appear in the file name when that helps traceability.
