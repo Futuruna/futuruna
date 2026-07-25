@@ -1,0 +1,47 @@
+-- Rust-facing integration canary fixture.
+-- scripts/rust-interop-canary.sh emits this file with `runa lib`, compiles the
+-- generated Rust into a plain Rust consumer, and calls the exported API.
+
+@ export
+# Packet(id: Int, label: String)
+
+@ export
+# Mode = Fast | Slow
+
+@ export
+> make_packet(id: Int, label: String) -> Packet {
+    Packet(id, label)
+}
+
+@ export
+> packet_label(packet: Packet) -> String {
+    packet.label
+}
+
+@ export
+> mode_name(mode: Mode) -> String {
+    match mode {
+        | Fast -> "fast"
+        | Slow -> "slow"
+    }
+}
+
+@ export
+> sum_scores(scores: List(Int)) -> Int {
+    sum_list(scores)
+}
+
+@ export
+> split_words(text: String) -> List(String) {
+    split(text, " ")
+}
+
+@ export
+> maybe_label(flag: Bool) -> Option(String) {
+    if flag { Some("yes") } else { None }
+}
+
+@ export
+> result_label(flag: Bool) -> Result(String, String) {
+    if flag { Ok("ok") } else { Err("bad") }
+}

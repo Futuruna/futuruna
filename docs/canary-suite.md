@@ -34,6 +34,12 @@ For the new-user project scaffold and first tutorial examples, use:
 ./scripts/first-run-canary.sh
 ```
 
+For Rust-facing integration through `runa lib`, use:
+
+```bash
+./scripts/rust-interop-canary.sh
+```
+
 It intentionally uses programs written in this repository rather than pulling in
 downstream codebases as fixtures. The goal is to keep the suite:
 
@@ -83,6 +89,11 @@ Persisted SQLite-backed runtime canaries. This tier has a dedicated script
 because it runs from a temporary directory with `CARGO_NET_OFFLINE=true` and one
 fixture is intentionally expected to fail so a follow-up fixture can verify
 rollback state.
+
+- `tests/canary/interop/`
+Rust-facing integration fixtures. These use a dedicated script because the
+contract is not just "generated Rust compiles"; it is that an ordinary Rust
+consumer can compile the `runa lib` output and call the exported API.
 
 See [docs/canary-matrix.md](canary-matrix.md) for the current coverage map and
 the planned build-out.

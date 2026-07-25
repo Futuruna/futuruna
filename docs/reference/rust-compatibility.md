@@ -103,6 +103,40 @@ rule is: generated Rust behavior for stable pure/core programs is a contract;
 exact emitted text, helper names, and private layout are internal unless an
 artifact expectation fixture or doc explicitly promises them.
 
+## Rust-Facing Library Contract
+
+`runa lib file.runa` emits a Rust source file intended to be compiled into a
+Rust library or included as a Rust module.
+
+Supported today:
+
+- exported Futuruna ADTs become public Rust structs/enums
+- exported struct fields are public
+- exported Futuruna functions become public Rust functions
+- private Futuruna helpers remain private Rust items
+- no binary `fn main` is emitted
+- `String`, `List`, `Option`, `Result`, and exported ADTs use the documented
+  type mapping below
+- read-only non-copy parameters may be borrowed in Rust signatures, for example
+  `Packet` as `&Packet`, `String` as `&String`, and `List(Int)` as `&Vec<i64>`
+
+Blocking evidence:
+
+- `tests/expect/artifact/lib_export_contract.runa` snapshots the public/private
+  emitted shape
+- `./scripts/rust-interop-canary.sh` emits
+  `tests/canary/interop/rust_consumer_lib.runa` with `runa lib`, compiles it
+  with `rustc`, and runs an ordinary Rust consumer that calls exported structs,
+  enums, borrowed params, lists, `Option`, and `Result`
+
+Still preview:
+
+- exact helper names and private generated layout
+- crate/package layout around generated libraries
+- richer Rust crate integration, `@ depend` packaging policy, and FFI patterns
+- `runa from-rust`, which remains experimental translational tooling rather than
+  part of the Rust-facing library contract
+
 ## Type Mapping
 
 | Futuruna | Rust | Copy? |
