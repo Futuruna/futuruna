@@ -217,6 +217,10 @@ unsupported diagnostics:
 - `unsupported-macro`: macro invocations outside the checked
   `println!`/`eprintln!`/`format!`/`vec!`/`panic!`/`todo!`/
   `unimplemented!`/`assert!`/`assert_eq!` subset
+- `unsupported-format-spec`: placeholders inside checked `println!`,
+  `eprintln!`, and `format!` macro names outside the supported `{}`, `{:?}`,
+  and `{:.N}` formatting subset, including named, width, padding, alignment,
+  and radix/hex formatting
 - `external-crate`: non-stdlib `use` or `extern crate` inputs outside the
   single-file validation subset
 
@@ -230,8 +234,9 @@ example corpus to prove the boundary is enforced: returning a borrowed
 reference from a general function, unchecked associated types, unchecked `impl
 Trait`, unsupported `Result::map_err`, unsupported iterator state machines,
 unsupported tuple-of-references matches, async/threading, unsafe blocks, and
-external crate imports, and unsupported macro names such as `print!` must
-remain fail-closed until those shapes are deliberately promoted.
+external crate imports, unsupported macro names such as `print!`, and
+unsupported format specs such as `{:x}` must remain fail-closed until those
+shapes are deliberately promoted.
 
 ## Preview Evidence
 
@@ -240,7 +245,7 @@ As of 2026-07-18, the preview boundary is backed by:
 - `runa from-rust --test examples/from-rust/`: 35 exact stdout matches
 - `./scripts/from-rust-downstream-canary.sh`: 9 downstream supported exact
   matches from a fresh temporary directory
-- the same downstream canary: 11 expected-unsupported fail-closed fixtures
+- the same downstream canary: 12 expected-unsupported fail-closed fixtures
   covering the stable unsupported diagnostic categories listed above
 - `./scripts/from-rust-differential.sh`: 6 generated supported-subset exact
   matches covering loops/branches, `Option`/`Result` parse validation, nested
@@ -250,12 +255,13 @@ As of 2026-07-18, the preview boundary is backed by:
   supported matches, recognized unsupported categories, translator parse
   failures, Rust compile/run failures, translated Futuruna parse failures, and
   stdout divergence. Focused CLI coverage currently exercises supported
-  matches, Rust parse failure, Rust compile failure, output mismatch,
-  `unsafe-rust`, `async-threading`, `unsupported-macro`, and help text. The
-  output-mismatch fixture no longer relies on `print!`; unsupported macro names
-  fail closed before translation. Translated Futuruna parse failure has a stable
-  summary contract, but no minimized source-level fixture currently reaches
-  that path.
+  matches, Rust parse failure, Rust compile failure, `unsafe-rust`,
+  `async-threading`, `unsupported-macro`, `unsupported-format-spec`, and help
+  text. The output-mismatch summary remains part of the stable contract, but
+  there is no current minimized source-level fixture for it after syntactic
+  macro-name and format-spec divergences were moved to fail-closed diagnostics.
+  Translated Futuruna parse failure has a stable summary contract, but no
+  minimized source-level fixture currently reaches that path.
 
 This evidence promotes the checked-in validation boundary to preview. It does
 not promote arbitrary Rust crate translation, broad macro expansion, full

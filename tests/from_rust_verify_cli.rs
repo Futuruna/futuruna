@@ -165,7 +165,7 @@ fn main() {
 }
 
 #[test]
-fn from_rust_verify_reports_stable_output_mismatch_line() {
+fn from_rust_verify_rejects_unsupported_format_spec_before_translation() {
     let output = run_from_rust_verify(
         r#"
 fn main() {
@@ -177,17 +177,22 @@ fn main() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
         !output.status.success(),
-        "expected output mismatch verify failure, stderr:\n{}",
+        "expected unsupported format-spec verify failure, stderr:\n{}",
         stderr
     );
     assert!(
-        stderr.contains("from-rust verify: mismatch "),
-        "missing stable mismatch line:\n{}",
+        stderr.contains("from-rust verify: unsupported unsupported-format-spec:"),
+        "missing stable unsupported format-spec line:\n{}",
         stderr
     );
     assert!(
-        stderr.contains(" rust_lines=1 futuruna_lines=1"),
-        "mismatch line should include both output line counts:\n{}",
+        !stderr.contains("from-rust verify: translated "),
+        "unsupported format spec should fail before translation:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: mismatch "),
+        "unsupported format spec should fail before output comparison:\n{}",
         stderr
     );
 }

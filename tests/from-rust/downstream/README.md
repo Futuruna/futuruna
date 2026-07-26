@@ -20,4 +20,4 @@ The unsupported corpus currently covers general borrowed-reference returns,
 async/threading, unsafe blocks, external crate imports, unchecked associated
 types, unchecked `impl Trait`, unsupported `Result::map_err`, unsupported
 iterator state machines, unsupported tuple-of-references matches, and
-unsupported macro names outside the checked macro subset.
+unsupported macro names and format specs outside the checked macro subset.

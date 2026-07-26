@@ -33859,10 +33859,46 @@ fn main() {
     }
 
     #[test]
+    fn from_rust_rejects_unsupported_format_spec_with_category() {
+        let source = r#"
+fn main() {
+    println!("{:x}", 10);
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsupported-format-spec");
+                assert!(unsupported.message.contains("{:x}"));
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_rejects_named_format_with_category() {
+        let source = r#"
+fn main() {
+    let value = 10;
+    println!("{value}");
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsupported-format-spec");
+                assert!(unsupported.message.contains("{value}"));
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn from_rust_keeps_supported_macro_subset_supported() {
         let source = r#"
 fn main() {
-    println!("{}", format!("{}", 7));
+    println!("{} {:?} {:.1}", format!("{}", 7), vec![1, 2], 3.5);
+    println!("literal {{ braces }} {}", 1);
     let xs = vec![1, 2];
     assert_eq!(xs.len(), 2);
 }
@@ -41203,6 +41239,7 @@ struct FromRustUnsupportedScan {
     async_or_threading: bool,
     unsafe_rust: bool,
     unsupported_macro: Option<String>,
+    unsupported_format_spec: Option<String>,
     borrowed_return_reference: bool,
     associated_type: bool,
     impl_trait: bool,
@@ -41241,6 +41278,12 @@ impl FromRustUnsupportedScan {
                     "macro '{}!' is outside the checked from-rust macro subset",
                     macro_name
                 ),
+            ));
+        }
+        if let Some(message) = &self.unsupported_format_spec {
+            return Some(FromRustUnsupported::new(
+                "unsupported-format-spec",
+                message.clone(),
             ));
         }
         if self.result_map_err {
@@ -41484,6 +41527,12 @@ impl FromRustUnsupportedScan {
         };
         if !from_rust_macro_name_supported(&name) {
             self.unsupported_macro = Some(name);
+            return;
+        }
+        if self.unsupported_format_spec.is_none() {
+            if let Some(message) = from_rust_macro_unsupported_format_spec(item, &name) {
+                self.unsupported_format_spec = Some(message);
+            }
         }
     }
 }
@@ -41508,6 +41557,90 @@ fn from_rust_macro_name_supported(name: &str) -> bool {
             | "assert"
             | "assert_eq"
     )
+}
+
+fn from_rust_macro_unsupported_format_spec(item: &syn::Macro, name: &str) -> Option<String> {
+    if !matches!(name, "println" | "eprintln" | "format") {
+        return None;
+    }
+    let parser = syn::punctuated::Punctuated::<syn::Expr, syn::Token![,]>::parse_terminated;
+    let Ok(args) = syn::parse::Parser::parse2(parser, item.tokens.clone()) else {
+        return Some(format!(
+            "{}! uses arguments outside the checked from-rust format subset",
+            name
+        ));
+    };
+    let Some(first_arg) = args.first() else {
+        return None;
+    };
+    let syn::Expr::Lit(expr_lit) = first_arg else {
+        return Some(format!(
+            "{}! uses a non-literal format string outside the checked from-rust format subset",
+            name
+        ));
+    };
+    let syn::Lit::Str(format_lit) = &expr_lit.lit else {
+        return Some(format!(
+            "{}! uses a non-string format literal outside the checked from-rust format subset",
+            name
+        ));
+    };
+    from_rust_format_string_unsupported_spec(&format_lit.value())
+}
+
+fn from_rust_format_string_unsupported_spec(format: &str) -> Option<String> {
+    let chars: Vec<char> = format.chars().collect();
+    let mut idx = 0;
+    while idx < chars.len() {
+        match chars[idx] {
+            '{' if idx + 1 < chars.len() && chars[idx + 1] == '{' => {
+                idx += 2;
+            }
+            '}' if idx + 1 < chars.len() && chars[idx + 1] == '}' => {
+                idx += 2;
+            }
+            '{' => {
+                let start = idx;
+                idx += 1;
+                let spec_start = idx;
+                while idx < chars.len() && chars[idx] != '}' {
+                    idx += 1;
+                }
+                if idx == chars.len() {
+                    return Some(
+                        "unclosed format placeholder is outside the checked from-rust format subset"
+                            .to_string(),
+                    );
+                }
+                let spec: String = chars[spec_start..idx].iter().collect();
+                if !from_rust_format_placeholder_supported(&spec) {
+                    let placeholder: String = chars[start..=idx].iter().collect();
+                    return Some(format!(
+                        "format placeholder '{}' is outside the checked from-rust format subset",
+                        placeholder
+                    ));
+                }
+                idx += 1;
+            }
+            '}' => {
+                return Some(
+                    "unmatched '}' is outside the checked from-rust format subset".to_string(),
+                );
+            }
+            _ => {
+                idx += 1;
+            }
+        }
+    }
+    None
+}
+
+fn from_rust_format_placeholder_supported(spec: &str) -> bool {
+    spec.is_empty()
+        || spec == ":?"
+        || spec.strip_prefix(":.").is_some_and(|decimals| {
+            !decimals.is_empty() && decimals.chars().all(|c| c.is_ascii_digit())
+        })
 }
 
 fn from_rust_use_root_allowed(root: &str) -> bool {
