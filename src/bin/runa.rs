@@ -33894,6 +33894,63 @@ fn main() {
     }
 
     #[test]
+    fn from_rust_rejects_unsupported_item_fallback_with_category() {
+        let source = r#"
+union Bits {
+    value: u32,
+}
+
+fn main() {}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsupported-rust-item");
+                assert!(unsupported.message.contains("union"));
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_rejects_unsupported_expr_fallback_with_category() {
+        let source = r#"
+fn main() {
+    let xs = [0; 3];
+    println!("{}", xs[0]);
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsupported-rust-expr");
+                assert!(unsupported.message.contains("array repeat"));
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_rejects_unsupported_expr_stmt_fallback_with_category() {
+        let source = r#"
+fn main() {
+    loop {
+        break;
+    }
+    println!("{}", 1);
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsupported-rust-expr");
+                assert!(unsupported.message.contains("break"));
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn from_rust_keeps_supported_macro_subset_supported() {
         let source = r#"
 fn main() {
@@ -33903,7 +33960,10 @@ fn main() {
     assert_eq!(xs.len(), 2);
 }
 "#;
-        rust_to_runa_checked(source).expect("checked macro subset should stay supported");
+        let runa =
+            rust_to_runa_checked(source).expect("checked macro subset should stay supported");
+        assert!(!runa.contains(FROM_RUST_UNSUPPORTED_ITEM_MARKER));
+        assert!(!runa.contains(FROM_RUST_UNSUPPORTED_EXPR_MARKER));
     }
 
     #[test]
@@ -41180,6 +41240,9 @@ routes <- "b"
 // PART 12: RUST → FUTURUNA TRANSPILER
 // ══════════════════════════════════════════════════════════════════════════════
 
+const FROM_RUST_UNSUPPORTED_ITEM_MARKER: &str = "-- [unsupported Rust item:";
+const FROM_RUST_UNSUPPORTED_EXPR_MARKER: &str = "(/* unsupported expr */)";
+
 fn rust_to_runa_checked(source: &str) -> Result<String, FromRustTranspileError> {
     let file = match syn::parse_file(source) {
         Ok(f) => f,
@@ -41192,6 +41255,9 @@ fn rust_to_runa_checked(source: &str) -> Result<String, FromRustTranspileError> 
     }
     let mut ctx = RustToRunaCtx::new();
     ctx.transpile_file(&file);
+    if let Some(unsupported) = from_rust_fallback_diagnostic(&ctx.output) {
+        return Err(FromRustTranspileError::Unsupported(unsupported));
+    }
     Ok(ctx.output)
 }
 
@@ -41240,6 +41306,8 @@ struct FromRustUnsupportedScan {
     unsafe_rust: bool,
     unsupported_macro: Option<String>,
     unsupported_format_spec: Option<String>,
+    unsupported_rust_item: Option<&'static str>,
+    unsupported_rust_expr: Option<&'static str>,
     borrowed_return_reference: bool,
     associated_type: bool,
     impl_trait: bool,
@@ -41325,6 +41393,24 @@ impl FromRustUnsupportedScan {
                 "this tuple-of-references match is outside the from-rust reference-pattern simplification subset",
             ));
         }
+        if let Some(kind) = self.unsupported_rust_item {
+            return Some(FromRustUnsupported::new(
+                "unsupported-rust-item",
+                format!(
+                    "Rust item '{}' is outside the checked from-rust item subset",
+                    kind
+                ),
+            ));
+        }
+        if let Some(kind) = self.unsupported_rust_expr {
+            return Some(FromRustUnsupported::new(
+                "unsupported-rust-expr",
+                format!(
+                    "Rust expression '{}' is outside the checked from-rust expression subset",
+                    kind
+                ),
+            ));
+        }
         None
     }
 }
@@ -41336,6 +41422,13 @@ fn from_rust_unsupported_diagnostic(file: &syn::File) -> Option<FromRustUnsuppor
 }
 
 impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
+    fn visit_item(&mut self, item: &'ast syn::Item) {
+        if self.unsupported_rust_item.is_none() && !from_rust_item_supported(item) {
+            self.unsupported_rust_item = Some(from_rust_item_kind(item));
+        }
+        syn::visit::visit_item(self, item);
+    }
+
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
         if item.sig.asyncness.is_some() {
             self.async_or_threading = true;
@@ -41514,6 +41607,85 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
         }
         syn::visit::visit_expr_match(self, item);
     }
+
+    fn visit_expr(&mut self, item: &'ast syn::Expr) {
+        if self.unsupported_rust_expr.is_none() {
+            if let Some(kind) = from_rust_expr_fallback_kind(item) {
+                self.unsupported_rust_expr = Some(kind);
+            }
+        }
+        syn::visit::visit_expr(self, item);
+    }
+}
+
+fn from_rust_item_supported(item: &syn::Item) -> bool {
+    matches!(
+        item,
+        syn::Item::Fn(_)
+            | syn::Item::Struct(_)
+            | syn::Item::Enum(_)
+            | syn::Item::Const(_)
+            | syn::Item::Static(_)
+            | syn::Item::Type(_)
+            | syn::Item::Impl(_)
+            | syn::Item::Trait(_)
+            | syn::Item::Use(_)
+            | syn::Item::Mod(_)
+    )
+}
+
+fn from_rust_item_kind(item: &syn::Item) -> &'static str {
+    match item {
+        syn::Item::Const(_) => "const",
+        syn::Item::Enum(_) => "enum",
+        syn::Item::ExternCrate(_) => "extern crate",
+        syn::Item::Fn(_) => "fn",
+        syn::Item::ForeignMod(_) => "extern block",
+        syn::Item::Impl(_) => "impl",
+        syn::Item::Macro(_) => "item macro",
+        syn::Item::Mod(_) => "mod",
+        syn::Item::Static(_) => "static",
+        syn::Item::Struct(_) => "struct",
+        syn::Item::Trait(_) => "trait",
+        syn::Item::TraitAlias(_) => "trait alias",
+        syn::Item::Type(_) => "type",
+        syn::Item::Union(_) => "union",
+        syn::Item::Use(_) => "use",
+        syn::Item::Verbatim(_) => "verbatim item",
+        _ => "unknown item",
+    }
+}
+
+fn from_rust_expr_fallback_kind(expr: &syn::Expr) -> Option<&'static str> {
+    match expr {
+        syn::Expr::Break(_) => Some("break"),
+        syn::Expr::Const(_) => Some("const block"),
+        syn::Expr::Continue(_) => Some("continue"),
+        syn::Expr::Group(_) => Some("group"),
+        syn::Expr::Infer(_) => Some("infer"),
+        syn::Expr::RawAddr(_) => Some("raw address"),
+        syn::Expr::Repeat(_) => Some("array repeat"),
+        syn::Expr::TryBlock(_) => Some("try block"),
+        syn::Expr::Verbatim(_) => Some("verbatim expression"),
+        syn::Expr::Yield(_) => Some("yield"),
+        _ => None,
+    }
+}
+
+fn from_rust_fallback_diagnostic(output: &str) -> Option<FromRustUnsupported> {
+    if output.contains(FROM_RUST_UNSUPPORTED_ITEM_MARKER) {
+        return Some(FromRustUnsupported::new(
+            "unsupported-rust-item",
+            "from-rust lowering reached an unsupported Rust item fallback",
+        ));
+    }
+    if output.contains(FROM_RUST_UNSUPPORTED_EXPR_MARKER) {
+        return Some(FromRustUnsupported::new(
+            "unsupported-rust-expr",
+            "from-rust lowering reached an unsupported Rust expression fallback",
+        ));
+    }
+    None
 }
 
 impl FromRustUnsupportedScan {
@@ -42655,7 +42827,8 @@ impl RustToRunaCtx {
             syn::Item::Mod(m) => self.transpile_mod(m),
             _ => {
                 self.emit_line(&format!(
-                    "-- [unsupported Rust item: {:?}]",
+                    "{} {:?}]",
+                    FROM_RUST_UNSUPPORTED_ITEM_MARKER,
                     std::mem::discriminant(item)
                 ));
             }
@@ -43904,7 +44077,7 @@ impl RustToRunaCtx {
                 // unsafe { ... } → @ rust { ... }
                 format!("@ rust {{ /* unsafe block */ }}")
             }
-            _ => format!("(/* unsupported expr */)"),
+            _ => FROM_RUST_UNSUPPORTED_EXPR_MARKER.to_string(),
         }
     }
 
@@ -45251,7 +45424,7 @@ impl RustToRunaCtx {
             }
             _ => {
                 let s = self.expr_to_string(expr);
-                if !s.is_empty() && s != "(/* unsupported expr */)" {
+                if !s.is_empty() {
                     self.emit_line(&s);
                 }
             }

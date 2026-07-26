@@ -231,6 +231,40 @@ fn main() {
 }
 
 #[test]
+fn from_rust_verify_rejects_unsupported_expr_fallback_before_translation() {
+    let output = run_from_rust_verify(
+        r#"
+fn main() {
+    let xs = [0; 3];
+    println!("{}", xs[0]);
+}
+"#,
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected unsupported expression verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: unsupported unsupported-rust-expr:"),
+        "missing stable unsupported expression line:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: translated "),
+        "unsupported expression fallback should fail before translation:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: mismatch "),
+        "unsupported expression fallback should fail before output comparison:\n{}",
+        stderr
+    );
+}
+
+#[test]
 fn from_rust_verify_reports_additional_unsupported_category() {
     let output = run_from_rust_verify(
         r#"

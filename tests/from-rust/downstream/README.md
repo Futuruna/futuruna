@@ -20,4 +20,5 @@ The unsupported corpus currently covers general borrowed-reference returns,
 async/threading, unsafe blocks, external crate imports, unchecked associated
 types, unchecked `impl Trait`, unsupported `Result::map_err`, unsupported
 iterator state machines, unsupported tuple-of-references matches, and
-unsupported macro names and format specs outside the checked macro subset.
+unsupported macro names and format specs outside the checked macro subset, plus
+top-level Rust item and expression fallback shapes with no checked lowering.

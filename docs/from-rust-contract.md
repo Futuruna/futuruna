@@ -221,6 +221,12 @@ unsupported diagnostics:
   `eprintln!`, and `format!` macro names outside the supported `{}`, `{:?}`,
   and `{:.N}` formatting subset, including named, width, padding, alignment,
   and radix/hex formatting
+- `unsupported-rust-item`: top-level Rust items outside the checked
+  `fn`/`struct`/`enum`/`const`/`static`/`type`/`impl`/`trait`/`use`/`mod`
+  item subset
+- `unsupported-rust-expr`: Rust expression forms with no checked lowering,
+  including expression statements that would otherwise reach a translator
+  fallback
 - `external-crate`: non-stdlib `use` or `extern crate` inputs outside the
   single-file validation subset
 
@@ -235,8 +241,9 @@ reference from a general function, unchecked associated types, unchecked `impl
 Trait`, unsupported `Result::map_err`, unsupported iterator state machines,
 unsupported tuple-of-references matches, async/threading, unsafe blocks, and
 external crate imports, unsupported macro names such as `print!`, and
-unsupported format specs such as `{:x}` must remain fail-closed until those
-shapes are deliberately promoted.
+unsupported format specs such as `{:x}`, unsupported top-level Rust items such
+as `union`, and unsupported expression fallbacks such as `break` statements
+must remain fail-closed until those shapes are deliberately promoted.
 
 ## Preview Evidence
 
@@ -245,7 +252,7 @@ As of 2026-07-18, the preview boundary is backed by:
 - `runa from-rust --test examples/from-rust/`: 35 exact stdout matches
 - `./scripts/from-rust-downstream-canary.sh`: 9 downstream supported exact
   matches from a fresh temporary directory
-- the same downstream canary: 12 expected-unsupported fail-closed fixtures
+- the same downstream canary: 14 expected-unsupported fail-closed fixtures
   covering the stable unsupported diagnostic categories listed above
 - `./scripts/from-rust-differential.sh`: 6 generated supported-subset exact
   matches covering loops/branches, `Option`/`Result` parse validation, nested
@@ -256,8 +263,9 @@ As of 2026-07-18, the preview boundary is backed by:
   failures, Rust compile/run failures, translated Futuruna parse failures, and
   stdout divergence. Focused CLI coverage currently exercises supported
   matches, Rust parse failure, Rust compile failure, `unsafe-rust`,
-  `async-threading`, `unsupported-macro`, `unsupported-format-spec`, and help
-  text. The output-mismatch summary remains part of the stable contract, but
+  `async-threading`, `unsupported-macro`, `unsupported-format-spec`,
+  `unsupported-rust-expr`, and help text. The output-mismatch summary remains
+  part of the stable contract, but
   there is no current minimized source-level fixture for it after syntactic
   macro-name and format-spec divergences were moved to fail-closed diagnostics.
   Translated Futuruna parse failure has a stable summary contract, but no
