@@ -118,6 +118,30 @@ means adding or unmarking a fixture and keeping the lane green.
 | Mint downstream canary | `./scripts/from-rust-downstream-canary.sh` | Runs consumer-shaped FRSS-v0 programs from a fresh temporary directory and proves expected-unsupported boundaries stay fail-closed. |
 | Mint generated differential lane | `./scripts/from-rust-differential.sh` | Generates deterministic FRSS-v0 programs, exact-matches Rust vs translated Futuruna stdout, and leaves replay artifacts on failure. |
 
+## FRSS-v0 `from-rust --verify` Output Contract
+
+`runa from-rust --verify <file.rs>` is the single-file interactive verifier for
+FRSS-v0. It compiles and runs the Rust file, translates the file to Futuruna,
+runs the translated Futuruna in the interpreter, and compares stdout.
+
+The stable summary lines are written to stderr:
+
+| Outcome | Exit | Stable summary |
+|---------|------|----------------|
+| Supported source matches | 0 | `from-rust verify: match <file> lines=<n>` |
+| Recognized unsupported source | 1 | `from-rust verify: unsupported <category>: <message>` |
+| Input read failure | 1 | `from-rust verify: read-failed <file>: <message>` |
+| Rust parse failure | 1 | `from-rust verify: rust-parse error: <message>` |
+| Rust compile failure | 1 | `from-rust verify: rust-compile-failed <file>: <message>` |
+| Rust run failure | 1 | `from-rust verify: rust-run-failed <file>: <message>` |
+| Missing `rustc` | 1 | `from-rust verify: rustc-unavailable: <message>` |
+| Translated Futuruna parse failure | 1 | `from-rust verify: translated-parse-failed <file>: <message>` |
+| Output divergence | 1 | `from-rust verify: mismatch <file> rust_lines=<n> futuruna_lines=<n>` |
+
+The colored transpiled source, pretty output block, and side-by-side mismatch
+diff are diagnostic display only. Tests and external tooling should key off the
+stable summary lines above.
+
 ## FRSS-v0 Compatibility Policy
 
 FRSS-v0 follows the project compatibility policy for a preview surface:
@@ -219,6 +243,10 @@ As of 2026-07-18, the preview boundary is backed by:
   matches covering loops/branches, `Option`/`Result` parse validation, nested
   data, deterministic map reporting, string transformation, and enum/reference
   conditional rebinding
+- `runa from-rust --verify <file.rs>`: stable success/failure summary lines for
+  supported matches, recognized unsupported categories, translator parse
+  failures, Rust compile/run failures, translated Futuruna parse failures, and
+  stdout divergence
 
 This evidence promotes the checked-in validation boundary to preview. It does
 not promote arbitrary Rust crate translation, broad macro expansion, full
@@ -300,7 +328,7 @@ the following at the same time:
 5. A generated Rust-subset differential lane or equivalent proof-backed checker
    searches within the named supported subset and minimizes any divergence into
    a permanent fixture before promotion.
-6. `runa from-rust --verify` has stable success/failure output for the
+6. `runa from-rust --verify` keeps stable success/failure output for the
    production subset, and CLI/help/docs explain how users distinguish supported
    source, expected unsupported source, and translator bugs.
 7. The compatibility guide records the production contract, including how future

@@ -152,6 +152,10 @@ fn main_inner() {
                 println!("runa 0.1.0");
                 std::process::exit(0);
             }
+            "--help" | "-h" | "help" if mode == "from-rust" => {
+                print_from_rust_help();
+                std::process::exit(0);
+            }
             "--help" | "-h" | "help" => {
                 eprintln!("runa — the Futuruna compiler");
                 eprintln!("Usage: runa [COMMAND] [OPTIONS] <file.runa>");
@@ -443,9 +447,7 @@ fn main_inner() {
                 }
             }
         } else {
-            eprintln!("Usage: runa from-rust <file.rs>           Transpile to stdout");
-            eprintln!("       runa from-rust --verify <file.rs>  Side-by-side: Rust vs Futuruna");
-            eprintln!("       runa from-rust --test <dir>        CI: verify all .rs files in dir");
+            print_from_rust_help();
             std::process::exit(1);
         }
         return;
@@ -3120,13 +3122,45 @@ fn run_benchmarks() {
     eprintln!("\n\x1b[2m(Run `runa bench` after changes to detect regressions)\x1b[0m");
 }
 
+fn print_from_rust_help() {
+    eprintln!("Usage: runa from-rust <file.rs>");
+    eprintln!("       runa from-rust --verify <file.rs>");
+    eprintln!("       runa from-rust --test <dir>");
+    eprintln!();
+    eprintln!("FRSS-v0 preview contract:");
+    eprintln!("  from-rust translates deterministic single-file Rust programs in FRSS-v0.");
+    eprintln!("  --verify compiles/runs Rust, runs translated Futuruna, and compares stdout.");
+    eprintln!("  --test validates a directory of .rs fixtures for CI/canary use.");
+    eprintln!();
+    eprintln!("Stable --verify summary lines are written to stderr:");
+    eprintln!("  from-rust verify: match <file> lines=<n>");
+    eprintln!("  from-rust verify: unsupported <category>: <message>");
+    eprintln!("  from-rust verify: mismatch <file> rust_lines=<n> futuruna_lines=<n>");
+    eprintln!();
+    eprintln!("Colored transpiled source and side-by-side diffs are diagnostic only.");
+    eprintln!("See docs/from-rust-contract.md for the full FRSS-v0 boundary.");
+}
+
+fn from_rust_verify_error_summary(err: &FromRustTranspileError) -> String {
+    match err {
+        FromRustTranspileError::RustParse(msg) => format!(
+            "from-rust verify: rust-parse error: {}",
+            msg.lines().next().unwrap_or("invalid Rust source")
+        ),
+        FromRustTranspileError::Unsupported(unsupported) => format!(
+            "from-rust verify: unsupported {}: {}",
+            unsupported.category, unsupported.message
+        ),
+    }
+}
+
 fn run_from_rust_verify(path: &str) {
     use std::process::Command;
 
     let source = match std::fs::read_to_string(path) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Cannot read {}: {}", path, e);
+            eprintln!("from-rust verify: read-failed {}: {}", path, e);
             std::process::exit(1);
         }
     };
@@ -3141,10 +3175,11 @@ fn run_from_rust_verify(path: &str) {
     let runa_source = match rust_to_runa_checked(&source) {
         Ok(output) => output,
         Err(err) => {
-            eprintln!("{}", from_rust_error_summary(&err));
+            eprintln!("{}", from_rust_verify_error_summary(&err));
             std::process::exit(1);
         }
     };
+    eprintln!("from-rust verify: translated {}", name);
     eprintln!("\x1b[1;36m── Transpiled: {} → Futuruna ──\x1b[0m\n", name);
     for (i, line) in runa_source.lines().enumerate() {
         eprintln!("  \x1b[2m{:3}\x1b[0m  {}", i + 1, line);
@@ -3160,20 +3195,27 @@ fn run_from_rust_verify(path: &str) {
         Ok(out) if out.status.success() => match Command::new(&tmp_bin).output() {
             Ok(run) => String::from_utf8_lossy(&run.stdout).to_string(),
             Err(e) => {
-                eprintln!("Failed to run Rust binary: {}", e);
-                return;
+                eprintln!("from-rust verify: rust-run-failed {}: {}", name, e);
+                std::process::exit(1);
             }
         },
         Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let first_err = stderr
+                .lines()
+                .find(|line| line.contains("error"))
+                .unwrap_or("compile failed")
+                .trim();
             eprintln!(
-                "Rust compilation failed:\n{}",
-                String::from_utf8_lossy(&out.stderr)
+                "from-rust verify: rust-compile-failed {}: {}",
+                name, first_err
             );
-            return;
+            eprintln!("Rust compilation failed:\n{}", stderr);
+            std::process::exit(1);
         }
         Err(e) => {
-            eprintln!("rustc not found: {}", e);
-            return;
+            eprintln!("from-rust verify: rustc-unavailable: {}", e);
+            std::process::exit(1);
         }
     };
     let _ = std::fs::remove_file(&tmp_bin);
@@ -3185,10 +3227,12 @@ fn run_from_rust_verify(path: &str) {
     let stmts = match parser.parse_program() {
         Ok(s) => s,
         Err(e) => {
+            let first = e.lines().next().unwrap_or(&e);
             eprintln!(
-                "\x1b[1;31mFuturuna parse error:\x1b[0m {}",
-                e.lines().next().unwrap_or(&e)
+                "from-rust verify: translated-parse-failed {}: {}",
+                name, first
             );
+            eprintln!("\x1b[1;31mFuturuna parse error:\x1b[0m {}", first);
             eprintln!();
             eprintln!("\x1b[1;36m── Rust output ──\x1b[0m");
             for line in rust_output.lines() {
@@ -3215,6 +3259,11 @@ fn run_from_rust_verify(path: &str) {
 
     if rust_output == runa_output {
         eprintln!(
+            "from-rust verify: match {} lines={}",
+            name,
+            rust_lines.len()
+        );
+        eprintln!(
             "\x1b[1;32m── Output: MATCH ({} lines) ──\x1b[0m\n",
             rust_lines.len()
         );
@@ -3222,6 +3271,12 @@ fn run_from_rust_verify(path: &str) {
             eprintln!("  {}", line);
         }
     } else {
+        eprintln!(
+            "from-rust verify: mismatch {} rust_lines={} futuruna_lines={}",
+            name,
+            rust_lines.len(),
+            runa_lines.len()
+        );
         // Find max width for alignment
         let max_rust_width = rust_lines
             .iter()
@@ -3246,6 +3301,7 @@ fn run_from_rust_verify(path: &str) {
             let marker = if r == f { " " } else { "\x1b[1;31m!\x1b[0m" };
             eprintln!(" {} {:<width$}  {}", marker, r, f, width = col_width);
         }
+        std::process::exit(1);
     }
     eprintln!();
 }

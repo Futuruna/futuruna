@@ -40,7 +40,7 @@ It should be read alongside [docs/compatibility-policy.md](compatibility-policy.
 | `runa expect`, `bench` | Preview | Used by the compiler hardening loop; expectation corpus shape, fixture volume, and benchmark reporting can still evolve. |
 | `runa verify` | Preview | The command is supported, but the elaboration and automation path is not yet a frozen contract. |
 | `runa audit` | Experimental | Treat output shape and behavior as early and subject to redesign. |
-| `runa from-rust`, `from-rust --verify` | Preview | Intended for real use inside FRSS-v0, the checked single-file validation boundary in `docs/from-rust-contract.md`. Do not treat it as arbitrary Rust crate translation or a production-ready stable source-compatibility contract. |
+| `runa from-rust`, `from-rust --verify` | Preview | Intended for real use inside FRSS-v0, the checked single-file validation boundary in `docs/from-rust-contract.md`. `from-rust --verify` has stable summary lines for supported matches, recognized unsupported categories, and translator/runtime failures, but this is still not arbitrary Rust crate translation or a production-ready stable source-compatibility contract. |
 | `runa registry` | Experimental hidden surface | Internal metadata helper; not documented as a public workflow command. |
 
 ## Structured Metadata
