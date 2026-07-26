@@ -53,7 +53,9 @@ The current supported examples cover:
   constructors and ordered matches over two references lowered into nested
   Futuruna matches
 - consumer-shaped single-file workflows for config parsing/validation, invoice
-  totals, event rollups, and text/parser transformations
+  totals, event rollups, text/parser transformations, nested customer/order
+  data, error-row pipelines, deterministic inventory reporting, and text
+  normalization
 - the downstream canary's clean-directory config validation and deterministic
   event-rollup fixtures, plus enum/reference loop aggregation with conditional
   accumulator rebinding
@@ -136,7 +138,7 @@ deliberately promoted.
 As of 2026-07-18, the preview boundary is backed by:
 
 - `runa from-rust --test examples/from-rust/`: 35 exact stdout matches
-- `./scripts/from-rust-downstream-canary.sh`: 5 downstream supported exact
+- `./scripts/from-rust-downstream-canary.sh`: 9 downstream supported exact
   matches from a fresh temporary directory
 - the same downstream canary: 10 expected-unsupported fail-closed fixtures
   covering the stable unsupported diagnostic categories listed above
@@ -145,6 +147,12 @@ This evidence promotes the checked-in validation boundary to preview. It does
 not promote arbitrary Rust crate translation, broad macro expansion, full
 lifetime preservation, general iterator state machines, unsafe or async
 semantics, or generated Cargo manifests.
+
+The downstream supported lane now includes the first production-corpus growth
+increment toward the checklist below: nested data, error handling, deterministic
+collection/reporting, and text transformation fixtures run from the same clean
+temporary-directory canary as the preview corpus. This is stronger production
+evidence, not a production-ready stage claim.
 
 ## Preview Promotion Checklist
 

@@ -203,9 +203,11 @@ consumer-shaped `runa from-rust` validation. It is separate from the full
 from a small deterministic Rust workflow: Rust stdout and translated Futuruna
 stdout must match exactly from a clean directory.
 
-The supported fixtures live in `tests/from-rust/downstream/supported/`. The
-unsupported fixtures live in `tests/from-rust/downstream/unsupported/` and must
-carry `runa-from-rust: expect-unsupported` directives so accidental promotion is
+The supported fixtures live in `tests/from-rust/downstream/supported/`; the lane
+currently requires 9 exact Rust-vs-Futuruna matches from a clean temporary
+directory. The unsupported fixtures live in
+`tests/from-rust/downstream/unsupported/` and must carry
+`runa-from-rust: expect-unsupported` directives so accidental promotion is
 reported as an `XPASS` failure.
 
 ## WASM Build Canary Lane

@@ -13,9 +13,10 @@ not rely on generated files, ambient working-directory state, or the broader
   stable diagnostics instead of silently entering the supported subset.
 
 The supported corpus currently covers config validation, deterministic event
-aggregation, invoice arithmetic, text command parsing, and enum/reference loop
-aggregation with conditional accumulator rebinding. The unsupported corpus
-currently covers general borrowed-reference returns, async/threading, unsafe
-blocks, external crate imports, unchecked associated types, unchecked
-`impl Trait`, unsupported `Result::map_err`, unsupported iterator state
-machines, and unsupported tuple-of-references matches.
+aggregation, invoice arithmetic, text command parsing, enum/reference loop
+aggregation with conditional accumulator rebinding, nested customer/order data,
+error-row pipelines, deterministic inventory reporting, and text normalization.
+The unsupported corpus currently covers general borrowed-reference returns,
+async/threading, unsafe blocks, external crate imports, unchecked associated
+types, unchecked `impl Trait`, unsupported `Result::map_err`, unsupported
+iterator state machines, and unsupported tuple-of-references matches.
