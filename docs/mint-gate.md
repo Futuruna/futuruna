@@ -68,8 +68,8 @@ CI should call `./scripts/mint.sh` for the core language health gate, then run a
 
 The from-rust lane is intentionally separate from mint while the command remains
 experimental, but it is still blocking in CI: supported fixtures must match Rust
-stdout exactly, and expected-unsupported adversarial fixtures must carry explicit
-directives.
+stdout exactly, and any expected-unsupported adversarial fixtures must carry
+explicit directives.
 
 Passing machine lanes set `FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS=1` so
 informational `@ comptime` and auto-comptime comments do not obscure the

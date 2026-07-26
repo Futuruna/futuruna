@@ -33654,6 +33654,58 @@ fn numbers() -> impl Iterator<Item = i64> {
     }
 
     #[test]
+    fn from_rust_supports_checked_reference_tuple_match_shape() {
+        let source = r#"
+enum Expr {
+    Lit(i64),
+    Add(Box<Expr>, Box<Expr>),
+}
+
+fn simplify(expr: &Expr) -> Expr {
+    match expr {
+        Expr::Add(a, b) => {
+            let a = simplify(a);
+            let b = simplify(b);
+            match (&a, &b) {
+                (Expr::Lit(0), _) => b,
+                (_, Expr::Lit(0)) => a,
+                (Expr::Lit(x), Expr::Lit(y)) => Expr::Lit(x + y),
+                _ => Expr::Add(Box::new(a), Box::new(b)),
+            }
+        }
+        other => other.clone(),
+    }
+}
+"#;
+        let runa = rust_to_runa_checked(source).expect("checked tuple ref match should lower");
+        assert!(runa.contains("match a {"));
+        assert!(runa.contains("| Lit(0) -> b"));
+        assert!(runa.contains("match b {"));
+        assert!(runa.contains("| Lit(0) -> a"));
+        assert!(runa.contains("| Lit(y) -> Lit(x + y)"));
+        assert!(!runa.contains("| (Lit(0), _)"));
+    }
+
+    #[test]
+    fn from_rust_rejects_unchecked_reference_tuple_match_shape() {
+        let source = r#"
+fn compare(a: &(i64, i64), b: &(i64, i64)) -> i64 {
+    match (&a, &b) {
+        ((x, _), _) => *x,
+        _ => 0,
+    }
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "reference-tuple-match");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn from_rust_keeps_simple_result_try_supported() {
         let source = r#"
 fn safe_div(a: i64, b: i64) -> Result<i64, String> {
@@ -40960,7 +41012,7 @@ impl FromRustUnsupportedScan {
         if self.reference_tuple_match {
             return Some(FromRustUnsupported::new(
                 "reference-tuple-match",
-                "matches over tuples of references require reference-pattern simplification that from-rust does not yet implement",
+                "this tuple-of-references match is outside the from-rust reference-pattern simplification subset",
             ));
         }
         None
@@ -41087,16 +41139,103 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
     }
 
     fn visit_expr_match(&mut self, item: &'ast syn::ExprMatch) {
-        if let syn::Expr::Tuple(tuple) = &*item.expr {
-            if tuple
-                .elems
-                .iter()
-                .any(|expr| matches!(expr, syn::Expr::Reference(_)))
-            {
-                self.reference_tuple_match = true;
-            }
+        if from_rust_is_reference_tuple_match(item)
+            && !from_rust_is_supported_reference_tuple_match(item)
+        {
+            self.reference_tuple_match = true;
         }
         syn::visit::visit_expr_match(self, item);
+    }
+}
+
+fn from_rust_is_reference_tuple_match(item: &syn::ExprMatch) -> bool {
+    let syn::Expr::Tuple(tuple) = item.expr.as_ref() else {
+        return false;
+    };
+    tuple
+        .elems
+        .iter()
+        .any(|expr| matches!(expr, syn::Expr::Reference(_)))
+}
+
+fn from_rust_is_supported_reference_tuple_match(item: &syn::ExprMatch) -> bool {
+    let syn::Expr::Tuple(tuple) = item.expr.as_ref() else {
+        return false;
+    };
+    if tuple.elems.len() != 2
+        || !tuple
+            .elems
+            .iter()
+            .all(|expr| matches!(expr, syn::Expr::Reference(_)))
+    {
+        return false;
+    }
+
+    let mut saw_fallback = false;
+    for arm in &item.arms {
+        if arm.guard.is_some() {
+            return false;
+        }
+        if from_rust_is_wild_pat(&arm.pat) {
+            saw_fallback = true;
+            continue;
+        }
+        if saw_fallback || !from_rust_tuple_match_arm_pat_supported(&arm.pat) {
+            return false;
+        }
+    }
+    saw_fallback
+}
+
+fn from_rust_is_wild_pat(pat: &syn::Pat) -> bool {
+    match pat {
+        syn::Pat::Wild(_) => true,
+        syn::Pat::Type(typed) => from_rust_is_wild_pat(&typed.pat),
+        syn::Pat::Reference(reference) => from_rust_is_wild_pat(&reference.pat),
+        _ => false,
+    }
+}
+
+fn from_rust_tuple_match_arm_pat_supported(pat: &syn::Pat) -> bool {
+    match pat {
+        syn::Pat::Tuple(tuple) if tuple.elems.len() == 2 => tuple
+            .elems
+            .iter()
+            .all(from_rust_tuple_match_element_pat_supported),
+        syn::Pat::Or(or) => or.cases.iter().all(from_rust_tuple_match_arm_pat_supported),
+        syn::Pat::Type(typed) => from_rust_tuple_match_arm_pat_supported(&typed.pat),
+        syn::Pat::Reference(reference) => from_rust_tuple_match_arm_pat_supported(&reference.pat),
+        _ => false,
+    }
+}
+
+fn from_rust_tuple_match_element_pat_supported(pat: &syn::Pat) -> bool {
+    match pat {
+        syn::Pat::Wild(_) | syn::Pat::Ident(_) | syn::Pat::Lit(_) | syn::Pat::Path(_) => true,
+        syn::Pat::TupleStruct(tuple_struct) => tuple_struct
+            .elems
+            .iter()
+            .all(from_rust_tuple_match_constructor_arg_supported),
+        syn::Pat::Type(typed) => from_rust_tuple_match_element_pat_supported(&typed.pat),
+        syn::Pat::Reference(reference) => {
+            from_rust_tuple_match_element_pat_supported(&reference.pat)
+        }
+        _ => false,
+    }
+}
+
+fn from_rust_tuple_match_constructor_arg_supported(pat: &syn::Pat) -> bool {
+    match pat {
+        syn::Pat::Wild(_) | syn::Pat::Ident(_) | syn::Pat::Lit(_) | syn::Pat::Path(_) => true,
+        syn::Pat::TupleStruct(tuple_struct) => tuple_struct
+            .elems
+            .iter()
+            .all(from_rust_tuple_match_constructor_arg_supported),
+        syn::Pat::Type(typed) => from_rust_tuple_match_constructor_arg_supported(&typed.pat),
+        syn::Pat::Reference(reference) => {
+            from_rust_tuple_match_constructor_arg_supported(&reference.pat)
+        }
+        _ => false,
     }
 }
 
@@ -41777,6 +41916,12 @@ fn from_rust_expr_is_statement_like(expr: &syn::Expr) -> bool {
             | syn::Expr::Macro(_)
             | syn::Expr::Unsafe(_)
     )
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum FromRustTupleMatchPattern {
+    Fallback,
+    Alternatives(Vec<(String, String)>),
 }
 
 struct RustToRunaCtx {
@@ -42723,6 +42868,110 @@ impl RustToRunaCtx {
         }
     }
 
+    fn reference_tuple_match_to_string(&self, item: &syn::ExprMatch) -> Option<String> {
+        if !from_rust_is_supported_reference_tuple_match(item) {
+            return None;
+        }
+
+        let syn::Expr::Tuple(tuple) = item.expr.as_ref() else {
+            return None;
+        };
+        let left = self.reference_tuple_elem_to_string(tuple.elems.first()?)?;
+        let right = self.reference_tuple_elem_to_string(tuple.elems.iter().nth(1)?)?;
+
+        let mut saw_fallback = false;
+        let mut fallback = None;
+        let mut alternatives = Vec::new();
+
+        for arm in &item.arms {
+            let body = self.expr_to_string(&arm.body);
+            match self.tuple_match_pattern(&arm.pat)? {
+                FromRustTupleMatchPattern::Fallback => {
+                    saw_fallback = true;
+                    fallback = Some(body);
+                }
+                FromRustTupleMatchPattern::Alternatives(patterns) => {
+                    if saw_fallback {
+                        return None;
+                    }
+                    for (left_pat, right_pat) in patterns {
+                        alternatives.push((left_pat, right_pat, body.clone()));
+                    }
+                }
+            }
+        }
+
+        let mut next = fallback?;
+        for (left_pat, right_pat, body) in alternatives.into_iter().rev() {
+            next = self.tuple_match_alternative_to_string(
+                &left, &right, &left_pat, &right_pat, &body, &next,
+            );
+        }
+        Some(next)
+    }
+
+    fn reference_tuple_elem_to_string(&self, expr: &syn::Expr) -> Option<String> {
+        match expr {
+            syn::Expr::Reference(reference) => Some(self.expr_to_string(&reference.expr)),
+            _ => None,
+        }
+    }
+
+    fn tuple_match_pattern(&self, pat: &syn::Pat) -> Option<FromRustTupleMatchPattern> {
+        match pat {
+            syn::Pat::Wild(_) => Some(FromRustTupleMatchPattern::Fallback),
+            syn::Pat::Tuple(tuple) if tuple.elems.len() == 2 => {
+                Some(FromRustTupleMatchPattern::Alternatives(vec![(
+                    self.pat_to_string(tuple.elems.first()?),
+                    self.pat_to_string(tuple.elems.iter().nth(1)?),
+                )]))
+            }
+            syn::Pat::Or(or) => {
+                let mut alternatives = Vec::new();
+                for case in &or.cases {
+                    match self.tuple_match_pattern(case)? {
+                        FromRustTupleMatchPattern::Alternatives(patterns) => {
+                            alternatives.extend(patterns);
+                        }
+                        FromRustTupleMatchPattern::Fallback => return None,
+                    }
+                }
+                Some(FromRustTupleMatchPattern::Alternatives(alternatives))
+            }
+            syn::Pat::Type(typed) => self.tuple_match_pattern(&typed.pat),
+            syn::Pat::Reference(reference) => self.tuple_match_pattern(&reference.pat),
+            _ => None,
+        }
+    }
+
+    fn tuple_match_alternative_to_string(
+        &self,
+        left: &str,
+        right: &str,
+        left_pat: &str,
+        right_pat: &str,
+        body: &str,
+        next: &str,
+    ) -> String {
+        let body = body.trim();
+        let next = next.trim();
+        match (left_pat == "_", right_pat == "_") {
+            (true, true) => body.to_string(),
+            (true, false) => format!(
+                "match {} {{\n    | {} -> {}\n    | _ -> {}\n}}",
+                right, right_pat, body, next
+            ),
+            (false, true) => format!(
+                "match {} {{\n    | {} -> {}\n    | _ -> {}\n}}",
+                left, left_pat, body, next
+            ),
+            (false, false) => format!(
+                "match {} {{\n    | {} -> match {} {{\n        | {} -> {}\n        | _ -> {}\n    }}\n    | _ -> {}\n}}",
+                left, left_pat, right, right_pat, body, next, next
+            ),
+        }
+    }
+
     // ── Expressions ───────────────────────────────────────────────────────
 
     fn expr_to_string(&self, expr: &syn::Expr) -> String {
@@ -42814,6 +43063,9 @@ impl RustToRunaCtx {
                 }
             }
             syn::Expr::Match(m) => {
+                if let Some(tuple_match) = self.reference_tuple_match_to_string(m) {
+                    return tuple_match;
+                }
                 let scrut = self.expr_to_string(&m.expr);
                 // Check if any arm has a multi-statement block body
                 let has_block_arm = m.arms.iter().any(|arm| {
@@ -44177,6 +44429,12 @@ impl RustToRunaCtx {
                 self.emit_line("}");
             }
             syn::Expr::Match(m) => {
+                if let Some(tuple_match) = self.reference_tuple_match_to_string(m) {
+                    for line in tuple_match.lines() {
+                        self.emit_line(line);
+                    }
+                    return;
+                }
                 let scrut = self.expr_to_string(&m.expr);
                 // At top level (indent 0), wrap match in binding for Futuruna parser
                 let prefix = if self.indent == 0 { "= _ = " } else { "" };

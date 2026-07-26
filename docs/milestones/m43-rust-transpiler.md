@@ -19,9 +19,10 @@ Current supported fixtures produce identical output between Rust and Futuruna:
 - real_world_2: Expression evaluator (80 lines)
 - real_world_3: Mini type checker (120 lines)
 
-The corpus also contains explicit expected-unsupported adversarial fixtures. See
-`docs/from-rust-contract.md` for the current supported/unsupported validation
-contract.
+The runner also supports explicit expected-unsupported adversarial fixtures when
+future checked-in Rust shapes are intentionally outside the supported subset.
+See `docs/from-rust-contract.md` for the current supported/unsupported
+validation contract.
 
 ## Mapping
 
@@ -45,5 +46,5 @@ contract.
 ## Verification
 
 ```bash
-runa from-rust --test examples/from-rust/    # supported fixtures match; expected-unsupported fixtures are explicit
+runa from-rust --test examples/from-rust/    # supported fixtures match exactly; XFAILs must be explicit if present
 ```

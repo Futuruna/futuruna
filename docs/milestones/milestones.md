@@ -1293,7 +1293,7 @@ guide is accurate for the current pipeline.
 - [x] **Codegen validation**: `runa test --check-codegen` — 65/65 pass, fails build on regression.
 - [x] **Roundtrip validation**: `runa test --roundtrip` — 49/49 match, fails build on regression.
 - [x] **From-rust validation**: `runa from-rust --test examples/from-rust/`
-      validates supported fixtures with exact output matches and reports
+      validates supported fixtures with exact output matches and reports any
       explicit expected-unsupported adversarial fixtures.
 - [x] **Release pipeline**: On tag `v*`, build release binaries (Linux x86_64,
   macOS arm64, macOS x86_64), create GitHub Release with binaries attached.

@@ -36,6 +36,9 @@ The current supported examples cover:
   associated-type shape for `Option` and `Result`, generic higher-order
   functions, `impl Fn` composition, generic struct constructors, and generic
   inherent methods
+- the checked-in nested pattern fixture, including recursive `Box<T>` enum
+  constructors and ordered matches over two references lowered into nested
+  Futuruna matches
 - small real-world examples: JSON-like values, expression evaluation, and a mini
   type checker
 
@@ -70,16 +73,17 @@ unsupported diagnostics:
   integer parse-error remapping subset
 - `stateful-iterator-chain`: iterator/map state machines outside the checked-in
   stateful subset
-- `reference-tuple-match`: matches over tuples of references that need
-  reference-pattern simplification
+- `reference-tuple-match`: matches over tuples of references outside the
+  checked two-reference pattern simplification subset
 
-Current expected-unsupported categories include:
-
-- nested boxed enum patterns and reference-pattern simplification
+The current checked-in corpus has no expected-unsupported fixtures. Future
+adversarial examples may still use the directive when they intentionally
+describe an unsupported Rust shape and fail closed with one of the stable
+diagnostics above.
 
 ## Promotion Rule
 
-Do not promote `runa from-rust` beyond experimental while the corpus still has
-expected-unsupported fixtures. Promotion requires shrinking or splitting those
-fixtures into exact output matches, or into stable unsupported diagnostics for
-Rust shapes Futuruna intentionally does not translate.
+A zero-XFAIL corpus is necessary but not sufficient for promoting `runa
+from-rust` beyond experimental. Promotion also requires a documented
+compatibility boundary, broader consumer-shaped fixtures, and stable diagnostics
+for Rust shapes Futuruna intentionally does not translate.

@@ -1,5 +1,4 @@
 // Adversarial 5: Pattern matching edge cases, nested enums, guards
-// runa-from-rust: expect-unsupported nested Box enum patterns and reference-pattern simplification
 
 #[derive(Debug, Clone)]
 enum Expr {
