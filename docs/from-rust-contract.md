@@ -21,6 +21,9 @@ The current supported examples cover:
 - functions, local bindings, loops, conditionals, and pattern matching
 - structs, enums, recursive ADTs, and simple impl dispatch
 - `String`, `Vec`, `Option`, `Result`, maps, and sets in the checked-in shapes
+- simple `Result` `?` chains, including checked-in integer
+  `parse().map_err(...)?` parse-error remapping and early `return Err(...)`
+  guard flows
 - closures and iterator patterns already represented by matching fixtures
 - small real-world examples: JSON-like values, expression evaluation, and a mini
   type checker
@@ -49,8 +52,8 @@ unsupported diagnostics:
 - `borrowed-return-reference`: Rust functions that return borrowed references
 - `associated-types`: associated types in traits or impl blocks
 - `impl-trait`: `impl Trait` signatures
-- `rich-result-error-conversion`: `Result::map_err`/`From` conversion chains
-  whose `?` semantics are not yet preserved
+- `unsupported-map-err`: `Result::map_err` shapes outside the checked-in
+  integer parse-error remapping subset
 - `stateful-iterator-chain`: iterator/map state machines such as `scan`,
   `sort_by`, `entry`, and `or_insert_with`
 - `reference-tuple-match`: matches over tuples of references that need
@@ -60,7 +63,6 @@ Current expected-unsupported categories include:
 
 - recursive ownership patterns that return borrowed nodes
 - associated types, trait bounds, higher-rank generic closures, and `impl Trait`
-- rich error enums, `From` conversions, `map_err`, and complex `?` chains
 - iterator state machines such as `scan`, `sort_by`, and map entry chains
 - nested boxed enum patterns and reference-pattern simplification
 

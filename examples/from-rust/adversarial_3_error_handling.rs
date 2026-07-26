@@ -1,6 +1,5 @@
 // Adversarial 3: Error handling chains, ?, early returns
 // The kind of Rust where ? does heavy lifting
-// runa-from-rust: expect-unsupported map_err, From conversions, and rich error enums
 
 use std::collections::HashMap;
 use std::num::ParseIntError;

@@ -33289,7 +33289,7 @@ fn main() {}
     }
 
     #[test]
-    fn from_rust_rejects_rich_error_conversion_with_category() {
+    fn from_rust_supports_parse_map_err_result_chain() {
         let source = r#"
 enum AppError {
     Parse(String),
@@ -33300,13 +33300,86 @@ fn parse_age(s: &str) -> Result<i64, AppError> {
     Ok(age)
 }
 "#;
+        let runa = rust_to_runa_checked(source).expect("parse map_err should be supported");
+        assert!(runa.contains("regex_match(\"^-?[0-9]+$\", s)"));
+        assert!(runa.contains("Err(Parse(\"bad\"))"));
+    }
+
+    #[test]
+    fn from_rust_rejects_unsupported_map_err_with_category() {
+        let source = r#"
+fn remap(input: Result<i64, String>) -> Result<i64, String> {
+    input.map_err(|e| "bad".to_string())
+}
+"#;
         let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
         match err {
             FromRustTranspileError::Unsupported(unsupported) => {
-                assert_eq!(unsupported.category, "rich-result-error-conversion");
+                assert_eq!(unsupported.category, "unsupported-map-err");
             }
             other => panic!("expected unsupported diagnostic, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn from_rust_supports_explicit_i64_parse_map_err() {
+        let source = r#"
+fn parse_age(s: &str) -> Result<i64, String> {
+    s.parse::<i64>().map_err(|_| "bad".to_string())
+}
+"#;
+        let runa = rust_to_runa_checked(source).expect("i64 parse map_err should be supported");
+        assert!(runa.contains("regex_match(\"^-?[0-9]+$\", s)"));
+        assert!(runa.contains("Err(\"bad\")"));
+    }
+
+    #[test]
+    fn from_rust_rejects_explicit_i32_parse_map_err_with_category() {
+        let source = r#"
+fn parse_age(s: &str) -> Result<i32, String> {
+    s.parse::<i32>().map_err(|_| "bad".to_string())
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsupported-map-err");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_rejects_explicit_float_parse_map_err_with_category() {
+        let source = r#"
+fn parse_weight(s: &str) -> Result<f64, String> {
+    s.parse::<f64>().map_err(|_| "bad".to_string())
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsupported-map-err");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_lowers_return_err_guard_to_else_tail() {
+        let source = r#"
+fn validate(age: i64) -> Result<i64, String> {
+    if age > 150 {
+        return Err("too old".to_string());
+    }
+    Ok(age)
+}
+"#;
+        let runa = rust_to_runa_checked(source).expect("return guard should lower");
+        assert!(runa.contains("if age > 150 {"));
+        assert!(runa.contains("} else {"));
+        assert!(runa.contains("Err(\"too old\")"));
+        assert!(runa.contains("Ok(age)"));
     }
 
     #[test]
@@ -40593,7 +40666,6 @@ struct FromRustUnsupportedScan {
     borrowed_return_reference: bool,
     associated_type: bool,
     impl_trait: bool,
-    from_trait_conversion: bool,
     result_map_err: bool,
     stateful_iterator_method: Option<&'static str>,
     reference_tuple_match: bool,
@@ -40601,10 +40673,10 @@ struct FromRustUnsupportedScan {
 
 impl FromRustUnsupportedScan {
     fn diagnostic(&self) -> Option<FromRustUnsupported> {
-        if self.result_map_err || self.from_trait_conversion {
+        if self.result_map_err {
             return Some(FromRustUnsupported::new(
-                "rich-result-error-conversion",
-                "Rust Result::map_err/From conversion chains with ? are not yet semantics-preserving; keep this fixture expected-unsupported or rewrite to a simple Result chain",
+                "unsupported-map-err",
+                "this Result::map_err shape is outside the from-rust error-handling subset",
             ));
         }
         if self.borrowed_return_reference {
@@ -40676,20 +40748,6 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
         syn::visit::visit_impl_item_type(self, item);
     }
 
-    fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
-        if let Some((_, path, _)) = &item.trait_ {
-            if path
-                .segments
-                .last()
-                .map(|segment| segment.ident == "From")
-                .unwrap_or(false)
-            {
-                self.from_trait_conversion = true;
-            }
-        }
-        syn::visit::visit_item_impl(self, item);
-    }
-
     fn visit_type_impl_trait(&mut self, item: &'ast syn::TypeImplTrait) {
         self.impl_trait = true;
         syn::visit::visit_type_impl_trait(self, item);
@@ -40697,7 +40755,9 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
 
     fn visit_expr_method_call(&mut self, item: &'ast syn::ExprMethodCall) {
         match item.method.to_string().as_str() {
-            "map_err" => self.result_map_err = true,
+            "map_err" if !from_rust_is_supported_parse_map_err(item) => {
+                self.result_map_err = true;
+            }
             "scan" => self.stateful_iterator_method = Some("scan"),
             "sort_by" => self.stateful_iterator_method = Some("sort_by"),
             "entry" => self.stateful_iterator_method = Some("entry"),
@@ -40762,6 +40822,43 @@ fn from_rust_path_arguments_contain_reference(args: &syn::PathArguments) -> bool
         }
         syn::PathArguments::None => false,
     }
+}
+
+fn from_rust_is_supported_parse_map_err(item: &syn::ExprMethodCall) -> bool {
+    if item.method != "map_err" || item.args.len() != 1 {
+        return false;
+    }
+    matches!(
+        item.receiver.as_ref(),
+        syn::Expr::MethodCall(receiver) if from_rust_is_supported_integer_parse_call(receiver)
+    )
+}
+
+fn from_rust_is_supported_integer_parse_call(item: &syn::ExprMethodCall) -> bool {
+    if item.method != "parse" {
+        return false;
+    }
+    let Some(turbofish) = &item.turbofish else {
+        return true;
+    };
+    let mut args = turbofish.args.iter();
+    let Some(first) = args.next() else {
+        return false;
+    };
+    if args.next().is_some() {
+        return false;
+    }
+    let syn::GenericArgument::Type(syn::Type::Path(path)) = first else {
+        return false;
+    };
+    if path.qself.is_some() {
+        return false;
+    }
+    path.path
+        .segments
+        .last()
+        .map(|segment| matches!(segment.ident.to_string().as_str(), "i64"))
+        .unwrap_or(false)
 }
 
 struct RustToRunaCtx {
@@ -41427,6 +41524,9 @@ impl RustToRunaCtx {
                 }
             }
             syn::Expr::MethodCall(mc) => {
+                if let Some(mapped_parse) = self.parse_map_err_to_runa(mc) {
+                    return mapped_parse;
+                }
                 let recv = self.expr_to_string(&mc.receiver);
                 let method = mc.method.to_string();
                 let args: Vec<String> = mc.args.iter().map(|a| self.expr_to_string(a)).collect();
@@ -41852,6 +41952,26 @@ impl RustToRunaCtx {
                 }
             }
         }
+    }
+
+    fn parse_map_err_to_runa(&self, mc: &syn::ExprMethodCall) -> Option<String> {
+        if !from_rust_is_supported_parse_map_err(mc) {
+            return None;
+        }
+        let parse_call = match mc.receiver.as_ref() {
+            syn::Expr::MethodCall(parse_call) => parse_call,
+            _ => return None,
+        };
+        let input = self.expr_to_string(&parse_call.receiver);
+        let err_expr = match mc.args.first() {
+            Some(syn::Expr::Closure(closure)) => self.expr_to_string(&closure.body),
+            Some(expr) => self.expr_to_string(expr),
+            None => return None,
+        };
+        Some(format!(
+            "if regex_match(\"^-?[0-9]+$\", {}) {{ Ok(parse_int({})) }} else {{ Err({}) }}",
+            input, input, err_expr
+        ))
     }
 
     // ── Macros ─────────────────────────────────────────────────────────────
@@ -42298,13 +42418,20 @@ impl RustToRunaCtx {
     }
 
     fn transpile_block_body(&mut self, block: &syn::Block) {
-        let len = block.stmts.len();
+        self.transpile_block_body_stmts(&block.stmts);
+    }
+
+    fn transpile_block_body_stmts(&mut self, stmts: &[syn::Stmt]) {
+        if stmts.is_empty() {
+            return;
+        }
+        let len = stmts.len();
 
         // Pattern: for x in xs { if cond { return Some(x) } } ; None → find(xs, |x| cond)
         if len >= 2 {
-            if let Some(find_expr) = self.detect_find_pattern(&block.stmts) {
+            if let Some(find_expr) = self.detect_find_pattern(stmts) {
                 // Emit all stmts before the for+None pair
-                for stmt in &block.stmts[..len - 2] {
+                for stmt in &stmts[..len - 2] {
                     self.transpile_stmt(stmt);
                 }
                 self.emit_line(&find_expr);
@@ -42312,7 +42439,23 @@ impl RustToRunaCtx {
             }
         }
 
-        for (i, stmt) in block.stmts.iter().enumerate() {
+        if let Some((idx, cond, return_expr)) = self.detect_early_return_guard(stmts) {
+            for stmt in &stmts[..idx] {
+                self.transpile_stmt(stmt);
+            }
+            self.emit_line(&format!("if {} {{", cond));
+            self.indent += 1;
+            self.emit_line(&return_expr);
+            self.indent -= 1;
+            self.emit_line("} else {");
+            self.indent += 1;
+            self.transpile_block_body_stmts(&stmts[idx + 1..]);
+            self.indent -= 1;
+            self.emit_line("}");
+            return;
+        }
+
+        for (i, stmt) in stmts.iter().enumerate() {
             let is_last = i == len - 1;
             match stmt {
                 syn::Stmt::Expr(expr, None) if is_last => {
@@ -42323,6 +42466,31 @@ impl RustToRunaCtx {
                 _ => self.transpile_stmt(stmt),
             }
         }
+    }
+
+    fn detect_early_return_guard(&self, stmts: &[syn::Stmt]) -> Option<(usize, String, String)> {
+        for (idx, stmt) in stmts.iter().enumerate() {
+            if idx + 1 >= stmts.len() {
+                continue;
+            }
+            let guard = match stmt {
+                syn::Stmt::Expr(syn::Expr::If(guard), _) => guard,
+                _ => continue,
+            };
+            if guard.else_branch.is_some() || guard.then_branch.stmts.len() != 1 {
+                continue;
+            }
+            let return_expr = match &guard.then_branch.stmts[0] {
+                syn::Stmt::Expr(syn::Expr::Return(ret), _) => ret.expr.as_ref()?,
+                _ => continue,
+            };
+            return Some((
+                idx,
+                self.expr_to_string(&guard.cond),
+                self.expr_to_string(return_expr),
+            ));
+        }
+        None
     }
 
     fn transpile_stmt(&mut self, stmt: &syn::Stmt) {
