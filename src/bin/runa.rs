@@ -10638,6 +10638,8 @@ static LSP_BUILTINS: &[(&str, usize)] = &[
     ("watch", 1),
     ("sort", 1),
     ("sort_by", 2),
+    ("list_min", 1),
+    ("list_max", 1),
     ("any", 2),
     ("all", 2),
     ("find", 2),
@@ -10934,6 +10936,8 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("foldl",        BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().fold({1}, {2})" }),
         ("sort",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }" }),
         ("sort_by",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| format!(\"{}\", __key(__item))); __v }" }),
+        ("list_min",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().min_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))" }),
+        ("list_max",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().max_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))" }),
         ("reverse",      BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }" }),
         ("is_some",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.is_some()" }),
         ("is_none",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.is_none()" }),
@@ -13380,7 +13384,9 @@ fn builtin_arg_is_borrow_only(name: &str, arg_index: usize) -> bool {
         | "to_upper" | "to_lower" | "string_chars" | "parse_int" | "parse_float" | "map_len"
         | "map_keys" | "map_values" | "map_entries" | "set_len" | "set_to_list" | "is_some"
         | "is_none" | "sort" | "reverse" | "enumerate" | "distinct" | "sum_list" | "from_list"
-        | "collect" | "count" | "sum" | "last" | "first" | "pairwise" => arg_index == 0,
+        | "collect" | "count" | "sum" | "last" | "first" | "pairwise" | "list_min" | "list_max" => {
+            arg_index == 0
+        }
 
         "nth" | "contains" | "starts_with" | "ends_with" | "char_at" | "index_of" | "split"
         | "join" | "format_float" | "map_get" | "map_contains" | "map_remove" | "set_contains"
@@ -33486,6 +33492,79 @@ fn find_node(node: &Node) -> Option<&Node> {
     }
 
     #[test]
+    fn from_rust_supports_checked_recursive_borrow_find_method() {
+        let source = r#"
+struct Node {
+    value: i64,
+    children: Vec<Box<Node>>,
+}
+
+impl Node {
+    fn new(value: i64) -> Self {
+        Node { value, children: Vec::new() }
+    }
+
+    fn add_child(&mut self, child: Node) {
+        self.children.push(Box::new(child));
+    }
+
+    fn find(&self, target: i64) -> Option<&Node> {
+        if self.value == target {
+            return Some(self);
+        }
+        for child in &self.children {
+            if let Some(found) = child.find(target) {
+                return Some(found);
+            }
+        }
+        None
+    }
+}
+
+fn main() {
+    let mut root = Node::new(1);
+    root.add_child(Node::new(2));
+    match root.find(2) {
+        Some(node) => println!("Found: {}", node.value),
+        None => println!("Not found"),
+    }
+}
+"#;
+        let runa = rust_to_runa_checked(source).expect("recursive borrow find should lower");
+        assert!(runa.contains("> Node_new(value: Int) -> Node"));
+        assert!(runa.contains("> Node_add_child(self: Node, child: Node) -> Node"));
+        assert!(runa.contains("Node(self.value, push(self.children, child))"));
+        assert!(runa.contains("> Node_find(self: Node, target: Int) -> Option(Node)"));
+        assert!(
+            runa.contains("match find(self.children, |child| is_some(Node_find(child, target)))")
+        );
+        assert!(runa.contains("= root = Node_add_child(root, Node_new(2))"));
+        assert!(runa.contains("match Node_find(root, 2)"));
+    }
+
+    #[test]
+    fn from_rust_rejects_unchecked_impl_borrowed_return_reference() {
+        let source = r#"
+struct Node {
+    value: i64,
+}
+
+impl Node {
+    fn identity(&self) -> &Node {
+        self
+    }
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "borrowed-return-reference");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn from_rust_keeps_simple_result_try_supported() {
         let source = r#"
 fn safe_div(a: i64, b: i64) -> Result<i64, String> {
@@ -40806,13 +40885,43 @@ fn from_rust_unsupported_diagnostic(file: &syn::File) -> Option<FromRustUnsuppor
 }
 
 impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
-    fn visit_signature(&mut self, sig: &'ast syn::Signature) {
-        if let syn::ReturnType::Type(_, ty) = &sig.output {
-            if from_rust_type_contains_reference(ty) {
-                self.borrowed_return_reference = true;
+    fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        if from_rust_signature_returns_reference(&item.sig) {
+            self.borrowed_return_reference = true;
+        }
+        syn::visit::visit_item_fn(self, item);
+    }
+
+    fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+        let self_ty_name = from_rust_item_impl_self_ty_name(item);
+        for impl_item in &item.items {
+            match impl_item {
+                syn::ImplItem::Fn(method) => {
+                    if from_rust_signature_returns_reference(&method.sig) {
+                        let supported = item.trait_.is_none()
+                            && self_ty_name.as_deref().is_some_and(|self_ty| {
+                                from_rust_is_supported_recursive_borrow_find_method(self_ty, method)
+                            });
+                        if supported {
+                            syn::visit::visit_block(self, &method.block);
+                        } else {
+                            self.borrowed_return_reference = true;
+                            syn::visit::visit_impl_item_fn(self, method);
+                        }
+                    } else {
+                        syn::visit::visit_impl_item_fn(self, method);
+                    }
+                }
+                other => syn::visit::visit_impl_item(self, other),
             }
         }
-        syn::visit::visit_signature(self, sig);
+    }
+
+    fn visit_trait_item_fn(&mut self, item: &'ast syn::TraitItemFn) {
+        if from_rust_signature_returns_reference(&item.sig) {
+            self.borrowed_return_reference = true;
+        }
+        syn::visit::visit_trait_item_fn(self, item);
     }
 
     fn visit_item_trait(&mut self, item: &'ast syn::ItemTrait) {
@@ -40882,6 +40991,14 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
     }
 }
 
+fn from_rust_signature_returns_reference(sig: &syn::Signature) -> bool {
+    if let syn::ReturnType::Type(_, ty) = &sig.output {
+        from_rust_type_contains_reference(ty)
+    } else {
+        false
+    }
+}
+
 fn from_rust_type_contains_reference(ty: &syn::Type) -> bool {
     match ty {
         syn::Type::Reference(_) => true,
@@ -40923,6 +41040,218 @@ fn from_rust_path_arguments_contain_reference(args: &syn::PathArguments) -> bool
         }
         syn::PathArguments::None => false,
     }
+}
+
+fn from_rust_item_impl_self_ty_name(item: &syn::ItemImpl) -> Option<String> {
+    match item.self_ty.as_ref() {
+        syn::Type::Path(path) if path.qself.is_none() => path
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident.to_string()),
+        _ => None,
+    }
+}
+
+fn from_rust_is_supported_recursive_borrow_find_method(
+    self_ty_name: &str,
+    method: &syn::ImplItemFn,
+) -> bool {
+    method.sig.ident == "find"
+        && from_rust_impl_method_has_shared_self_receiver(method)
+        && from_rust_return_option_reference_to(&method.sig, self_ty_name)
+        && from_rust_recursive_borrow_find_shape(method)
+}
+
+fn from_rust_impl_method_has_shared_self_receiver(method: &syn::ImplItemFn) -> bool {
+    matches!(
+        method.sig.inputs.first(),
+        Some(syn::FnArg::Receiver(receiver))
+            if receiver.reference.is_some() && receiver.mutability.is_none()
+    )
+}
+
+fn from_rust_return_option_reference_to(sig: &syn::Signature, self_ty_name: &str) -> bool {
+    let syn::ReturnType::Type(_, ty) = &sig.output else {
+        return false;
+    };
+    let syn::Type::Path(path) = ty.as_ref() else {
+        return false;
+    };
+    if path.qself.is_some() {
+        return false;
+    }
+    let Some(option_segment) = path.path.segments.last() else {
+        return false;
+    };
+    if option_segment.ident != "Option" {
+        return false;
+    }
+    let syn::PathArguments::AngleBracketed(args) = &option_segment.arguments else {
+        return false;
+    };
+    let Some(syn::GenericArgument::Type(syn::Type::Reference(reference))) = args.args.first()
+    else {
+        return false;
+    };
+    from_rust_type_path_last_ident(&reference.elem)
+        .as_deref()
+        .is_some_and(|name| name == self_ty_name || name == "Self")
+}
+
+fn from_rust_type_path_last_ident(ty: &syn::Type) -> Option<String> {
+    match ty {
+        syn::Type::Path(path) if path.qself.is_none() => path
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident.to_string()),
+        syn::Type::Reference(reference) => from_rust_type_path_last_ident(&reference.elem),
+        syn::Type::Paren(paren) => from_rust_type_path_last_ident(&paren.elem),
+        syn::Type::Group(group) => from_rust_type_path_last_ident(&group.elem),
+        _ => None,
+    }
+}
+
+fn from_rust_recursive_borrow_find_shape(method: &syn::ImplItemFn) -> bool {
+    let stmts = &method.block.stmts;
+    if stmts.len() != 3 {
+        return false;
+    }
+    from_rust_stmt_is_self_match_return(stmts.first().unwrap())
+        && from_rust_stmt_is_recursive_find_loop(stmts.get(1).unwrap())
+        && from_rust_stmt_is_none_expr(stmts.get(2).unwrap())
+}
+
+fn from_rust_stmt_is_self_match_return(stmt: &syn::Stmt) -> bool {
+    let syn::Stmt::Expr(syn::Expr::If(if_expr), _) = stmt else {
+        return false;
+    };
+    if if_expr.else_branch.is_some() || if_expr.then_branch.stmts.len() != 1 {
+        return false;
+    }
+    let syn::Expr::Binary(binary) = if_expr.cond.as_ref() else {
+        return false;
+    };
+    if !matches!(binary.op, syn::BinOp::Eq(_)) {
+        return false;
+    }
+    if !from_rust_expr_is_self_field(&binary.left) {
+        return false;
+    }
+    from_rust_stmt_returns_some_ident(if_expr.then_branch.stmts.first().unwrap(), "self")
+}
+
+fn from_rust_expr_is_self_field(expr: &syn::Expr) -> bool {
+    let syn::Expr::Field(field) = expr else {
+        return false;
+    };
+    from_rust_expr_is_self_path(&field.base)
+}
+
+fn from_rust_expr_is_self_path(expr: &syn::Expr) -> bool {
+    matches!(
+        expr,
+        syn::Expr::Path(path)
+            if path.path.segments.last().is_some_and(|segment| segment.ident == "self")
+    )
+}
+
+fn from_rust_stmt_is_recursive_find_loop(stmt: &syn::Stmt) -> bool {
+    let syn::Stmt::Expr(syn::Expr::ForLoop(for_loop), _) = stmt else {
+        return false;
+    };
+    let Some(loop_var) = from_rust_pat_ident(&for_loop.pat) else {
+        return false;
+    };
+    if !from_rust_expr_is_reference_to_self_field(&for_loop.expr) || for_loop.body.stmts.len() != 1
+    {
+        return false;
+    }
+    let syn::Stmt::Expr(syn::Expr::If(if_expr), _) = for_loop.body.stmts.first().unwrap() else {
+        return false;
+    };
+    if if_expr.else_branch.is_some() || if_expr.then_branch.stmts.len() != 1 {
+        return false;
+    }
+    let syn::Expr::Let(let_expr) = if_expr.cond.as_ref() else {
+        return false;
+    };
+    let Some(found_var) = from_rust_some_pat_ident(&let_expr.pat) else {
+        return false;
+    };
+    let syn::Expr::MethodCall(call) = let_expr.expr.as_ref() else {
+        return false;
+    };
+    if call.method != "find" || call.args.len() != 1 {
+        return false;
+    }
+    let receiver_is_loop_var = matches!(
+        call.receiver.as_ref(),
+        syn::Expr::Path(path)
+            if path.path.segments.last().is_some_and(|segment| segment.ident == loop_var.as_str())
+    );
+    receiver_is_loop_var
+        && from_rust_stmt_returns_some_ident(if_expr.then_branch.stmts.first().unwrap(), &found_var)
+}
+
+fn from_rust_expr_is_reference_to_self_field(expr: &syn::Expr) -> bool {
+    let syn::Expr::Reference(reference) = expr else {
+        return false;
+    };
+    from_rust_expr_is_self_field(&reference.expr)
+}
+
+fn from_rust_some_pat_ident(pat: &syn::Pat) -> Option<String> {
+    let syn::Pat::TupleStruct(tuple_struct) = pat else {
+        return None;
+    };
+    let is_some = tuple_struct
+        .path
+        .segments
+        .last()
+        .is_some_and(|segment| segment.ident == "Some");
+    if !is_some || tuple_struct.elems.len() != 1 {
+        return None;
+    }
+    from_rust_pat_ident(tuple_struct.elems.first().unwrap())
+}
+
+fn from_rust_stmt_returns_some_ident(stmt: &syn::Stmt, ident: &str) -> bool {
+    let syn::Stmt::Expr(syn::Expr::Return(ret), _) = stmt else {
+        return false;
+    };
+    let Some(expr) = &ret.expr else {
+        return false;
+    };
+    from_rust_expr_is_some_ident(expr, ident)
+}
+
+fn from_rust_expr_is_some_ident(expr: &syn::Expr, ident: &str) -> bool {
+    let syn::Expr::Call(call) = expr else {
+        return false;
+    };
+    let is_some = matches!(
+        call.func.as_ref(),
+        syn::Expr::Path(path)
+            if path.path.segments.last().is_some_and(|segment| segment.ident == "Some")
+    );
+    if !is_some || call.args.len() != 1 {
+        return false;
+    }
+    matches!(
+        call.args.first().unwrap(),
+        syn::Expr::Path(path)
+            if path.path.segments.last().is_some_and(|segment| segment.ident == ident)
+    )
+}
+
+fn from_rust_stmt_is_none_expr(stmt: &syn::Stmt) -> bool {
+    matches!(
+        stmt,
+        syn::Stmt::Expr(syn::Expr::Path(path), _)
+            if path.path.segments.last().is_some_and(|segment| segment.ident == "None")
+    )
 }
 
 fn from_rust_is_supported_parse_map_err(item: &syn::ExprMethodCall) -> bool {
@@ -41167,6 +41496,10 @@ struct RustToRunaCtx {
     output: String,
     indent: usize,
     map_vars: BTreeSet<String>,
+    struct_fields: BTreeMap<String, Vec<String>>,
+    impl_methods_by_name: BTreeMap<String, BTreeSet<String>>,
+    impl_static_methods: BTreeMap<String, String>,
+    mutating_impl_methods: BTreeSet<String>,
 }
 
 impl RustToRunaCtx {
@@ -41175,6 +41508,10 @@ impl RustToRunaCtx {
             output: String::new(),
             indent: 0,
             map_vars: BTreeSet::new(),
+            struct_fields: BTreeMap::new(),
+            impl_methods_by_name: BTreeMap::new(),
+            impl_static_methods: BTreeMap::new(),
+            mutating_impl_methods: BTreeSet::new(),
         }
     }
 
@@ -41197,11 +41534,88 @@ impl RustToRunaCtx {
     }
 
     fn transpile_file(&mut self, file: &syn::File) {
+        self.precollect_from_rust_metadata(file);
         self.emit_line("-- Transpiled from Rust by `runa from-rust`");
         self.emit_blank();
 
         for item in &file.items {
             self.transpile_item(item);
+        }
+    }
+
+    fn precollect_from_rust_metadata(&mut self, file: &syn::File) {
+        for item in &file.items {
+            match item {
+                syn::Item::Struct(item) => self.precollect_struct_fields(item),
+                syn::Item::Impl(item) if item.trait_.is_none() => {
+                    let self_ty = self.transpile_type(&item.self_ty);
+                    for impl_item in &item.items {
+                        let syn::ImplItem::Fn(method) = impl_item else {
+                            continue;
+                        };
+                        let method_name = method.sig.ident.to_string();
+                        let mangled = Self::impl_method_mangled_name(&self_ty, &method_name);
+                        self.impl_methods_by_name
+                            .entry(method_name.clone())
+                            .or_default()
+                            .insert(mangled.clone());
+                        self.impl_static_methods
+                            .insert(format!("{}::{}", self_ty, method_name), mangled.clone());
+                        if self.self_field_push_update(method, &self_ty).is_some() {
+                            self.mutating_impl_methods.insert(mangled);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn precollect_struct_fields(&mut self, s: &syn::ItemStruct) {
+        let name = s.ident.to_string();
+        let fields = match &s.fields {
+            syn::Fields::Named(fields) => fields
+                .named
+                .iter()
+                .filter_map(|field| field.ident.as_ref().map(|ident| ident.to_string()))
+                .collect(),
+            syn::Fields::Unnamed(fields) => fields
+                .unnamed
+                .iter()
+                .enumerate()
+                .map(|(idx, _)| format!("f{}", idx))
+                .collect(),
+            syn::Fields::Unit => Vec::new(),
+        };
+        self.struct_fields.insert(name, fields);
+    }
+
+    fn impl_method_mangled_name(self_ty: &str, method_name: &str) -> String {
+        format!(
+            "{}_{}",
+            Self::mangle_ident_fragment(self_ty),
+            Self::mangle_ident_fragment(method_name)
+        )
+    }
+
+    fn mangle_ident_fragment(raw: &str) -> String {
+        let mut out = String::new();
+        for ch in raw.chars() {
+            if ch.is_ascii_alphanumeric() || ch == '_' {
+                out.push(ch);
+            } else if !out.ends_with('_') {
+                out.push('_');
+            }
+        }
+        out.trim_matches('_').to_string()
+    }
+
+    fn unambiguous_impl_method(&self, method_name: &str) -> Option<String> {
+        let names = self.impl_methods_by_name.get(method_name)?;
+        if names.len() == 1 {
+            names.iter().next().cloned()
+        } else {
+            None
         }
     }
 
@@ -41546,7 +41960,8 @@ impl RustToRunaCtx {
     }
 
     fn transpile_impl_method(&mut self, method: &syn::ImplItemFn, self_ty: &str) {
-        let name = method.sig.ident.to_string();
+        let rust_name = method.sig.ident.to_string();
+        let name = Self::impl_method_mangled_name(self_ty, &rust_name);
 
         let params: Vec<String> = method
             .sig
@@ -41566,6 +41981,7 @@ impl RustToRunaCtx {
             syn::ReturnType::Default => String::new(),
             syn::ReturnType::Type(_, ty) => {
                 let t = self.transpile_type(ty);
+                let t = if t == "self" { self_ty.to_string() } else { t };
                 if t == "()" {
                     String::new()
                 } else {
@@ -41574,11 +41990,160 @@ impl RustToRunaCtx {
             }
         };
 
+        if let Some((field, pushed_value)) = self.self_field_push_update(method, self_ty) {
+            let fields = self.struct_fields.get(self_ty).cloned().unwrap_or_default();
+            let constructor_args = fields
+                .iter()
+                .map(|candidate| {
+                    if candidate == &field {
+                        format!("push(self.{}, {})", field, pushed_value)
+                    } else {
+                        format!("self.{}", candidate)
+                    }
+                })
+                .collect::<Vec<_>>();
+            self.emit_line(&format!(
+                "> {}({}) -> {} {{",
+                name,
+                params.join(", "),
+                self_ty
+            ));
+            self.indent += 1;
+            self.emit_line(&format!("{}({})", self_ty, constructor_args.join(", ")));
+            self.indent -= 1;
+            self.emit_line("}");
+            return;
+        }
+
+        if from_rust_is_supported_recursive_borrow_find_method(self_ty, method) {
+            self.transpile_recursive_borrow_find_method(method, self_ty, &name, &params, &ret);
+            return;
+        }
+
         self.emit_line(&format!("> {}({}){} {{", name, params.join(", "), ret));
         self.indent += 1;
         self.transpile_block_body(&method.block);
         self.indent -= 1;
         self.emit_line("}");
+    }
+
+    fn self_field_push_update(
+        &self,
+        method: &syn::ImplItemFn,
+        self_ty: &str,
+    ) -> Option<(String, String)> {
+        if !matches!(
+            method.sig.inputs.first(),
+            Some(syn::FnArg::Receiver(receiver)) if receiver.mutability.is_some()
+        ) {
+            return None;
+        }
+        let fields = self.struct_fields.get(self_ty)?;
+        if method.block.stmts.len() != 1 {
+            return None;
+        }
+        let syn::Stmt::Expr(syn::Expr::MethodCall(call), _) = method.block.stmts.first()? else {
+            return None;
+        };
+        if call.method != "push" || call.args.len() != 1 {
+            return None;
+        }
+        let syn::Expr::Field(field_expr) = call.receiver.as_ref() else {
+            return None;
+        };
+        let syn::Member::Named(field_name) = &field_expr.member else {
+            return None;
+        };
+        if !from_rust_expr_is_self_path(&field_expr.base) {
+            return None;
+        }
+        let field_name = field_name.to_string();
+        if !fields.contains(&field_name) {
+            return None;
+        }
+        Some((
+            field_name,
+            self.expr_to_string(call.args.first().expect("checked len")),
+        ))
+    }
+
+    fn transpile_recursive_borrow_find_method(
+        &mut self,
+        method: &syn::ImplItemFn,
+        self_ty: &str,
+        name: &str,
+        params: &[String],
+        ret: &str,
+    ) {
+        let Some((guard, collection, loop_var, recursive_target, fallback)) =
+            self.recursive_borrow_find_parts(method)
+        else {
+            self.emit_line(&format!("> {}({}){} {{", name, params.join(", "), ret));
+            self.indent += 1;
+            self.transpile_block_body(&method.block);
+            self.indent -= 1;
+            self.emit_line("}");
+            return;
+        };
+        let recursive_call =
+            self.method_call_to_runa(&loop_var, "find", std::slice::from_ref(&recursive_target));
+        self.emit_line(&format!(
+            "> {}({}) -> Option({}) {{",
+            name,
+            params.join(", "),
+            self_ty
+        ));
+        self.indent += 1;
+        self.emit_line(&format!("if {} {{", guard));
+        self.indent += 1;
+        self.emit_line("Some(self)");
+        self.indent -= 1;
+        self.emit_line("} else {");
+        self.indent += 1;
+        self.emit_line(&format!(
+            "match find({}, |{}| is_some({})) {{",
+            collection, loop_var, recursive_call
+        ));
+        self.indent += 1;
+        self.emit_line(&format!("| Some({}) -> {}", loop_var, recursive_call));
+        self.emit_line(&format!("| None -> {}", fallback));
+        self.indent -= 1;
+        self.emit_line("}");
+        self.indent -= 1;
+        self.emit_line("}");
+        self.indent -= 1;
+        self.emit_line("}");
+    }
+
+    fn recursive_borrow_find_parts(
+        &self,
+        method: &syn::ImplItemFn,
+    ) -> Option<(String, String, String, String, String)> {
+        let stmts = &method.block.stmts;
+        let syn::Stmt::Expr(syn::Expr::If(guard_if), _) = stmts.first()? else {
+            return None;
+        };
+        let guard = self.expr_to_string(&guard_if.cond);
+        let syn::Stmt::Expr(syn::Expr::ForLoop(for_loop), _) = stmts.get(1)? else {
+            return None;
+        };
+        let collection = self.expr_to_string(&for_loop.expr);
+        let loop_var = self.pat_to_string(&for_loop.pat);
+        let syn::Stmt::Expr(syn::Expr::If(if_expr), _) = for_loop.body.stmts.first()? else {
+            return None;
+        };
+        let syn::Expr::Let(let_expr) = if_expr.cond.as_ref() else {
+            return None;
+        };
+        let syn::Expr::MethodCall(recursive_call) = let_expr.expr.as_ref() else {
+            return None;
+        };
+        let recursive_target = self.expr_to_string(recursive_call.args.first()?);
+        let fallback = self.expr_to_string(match stmts.get(2)? {
+            syn::Stmt::Expr(expr, _) => expr,
+            _ => return None,
+        });
+        Some((guard, collection, loop_var, recursive_target, fallback))
     }
 
     // ── Traits ────────────────────────────────────────────────────────────
@@ -41807,6 +42372,9 @@ impl RustToRunaCtx {
                 };
                 let func = self.expr_to_string(&c.func);
                 let args: Vec<String> = c.args.iter().map(|a| self.expr_to_string(a)).collect();
+                if let Some(mangled) = self.impl_static_methods.get(&full_path) {
+                    return format!("{}({})", mangled, args.join(", "));
+                }
                 // Map common Rust calls (check full path first, then short name)
                 match full_path.as_str() {
                     "String::new" => "\"\"".to_string(),
@@ -42149,10 +42717,13 @@ impl RustToRunaCtx {
 
     /// Map Rust method calls to Futuruna equivalents.
     fn method_call_to_runa(&self, recv: &str, method: &str, args: &[String]) -> String {
+        if let Some(mangled) = self.inherent_method_call_name(recv, method, args) {
+            return Self::format_method_function_call(&mangled, recv, args);
+        }
         match method {
             // Iterator / collection methods
             "len" | "count" => format!("length({})", recv),
-            "is_empty" => format!("string_length({}) == 0", recv),
+            "is_empty" => format!("length({}) == 0", recv),
             "push" => format!("push({}, {})", recv, args.join(", ")),
             "pop" => format!("last({})", recv),
             "contains" => format!("contains({}, {})", recv, args.join(", ")),
@@ -42177,7 +42748,9 @@ impl RustToRunaCtx {
             "zip" => format!("zip({}, {})", recv, args.join(", ")),
             "enumerate" => format!("enumerate({})", recv),
             "sum" => format!("sum({})", recv),
-            "min" | "max" | "sort" | "reverse" => format!("{}({})", method, recv),
+            "min" => format!("list_min({})", recv),
+            "max" => format!("list_max({})", recv),
+            "sort" | "reverse" => format!("{}({})", method, recv),
             "cloned" | "copied" => recv.to_string(),
 
             // String methods
@@ -42265,6 +42838,67 @@ impl RustToRunaCtx {
                     format!("{}({}, {})", method, recv, args.join(", "))
                 }
             }
+        }
+    }
+
+    fn inherent_method_call_name(
+        &self,
+        recv: &str,
+        method: &str,
+        args: &[String],
+    ) -> Option<String> {
+        let mangled = self.unambiguous_impl_method(method)?;
+        if Self::should_prefer_inherent_method(recv, method, args) {
+            Some(mangled)
+        } else {
+            None
+        }
+    }
+
+    fn should_prefer_inherent_method(recv: &str, method: &str, args: &[String]) -> bool {
+        match method {
+            "find" => args
+                .first()
+                .map(|arg| !arg.trim_start().starts_with('|'))
+                .unwrap_or(true),
+            "sum" | "min" | "max" | "count" | "collect" | "any" | "all" | "filter" | "map"
+            | "flat_map" | "fold" | "take" | "skip" | "zip" | "enumerate" => {
+                !Self::recv_is_collection_pipeline(recv)
+            }
+            "len" | "is_empty" | "contains" | "iter" | "into_iter" => {
+                !Self::recv_is_collection_pipeline(recv)
+            }
+            _ => true,
+        }
+    }
+
+    fn recv_is_collection_pipeline(recv: &str) -> bool {
+        let recv = recv
+            .trim()
+            .trim_start_matches('(')
+            .trim_end_matches(')')
+            .trim();
+        recv.starts_with('[')
+            || recv.starts_with("range(")
+            || recv.starts_with("map(")
+            || recv.starts_with("filter(")
+            || recv.starts_with("flat_map(")
+            || recv.starts_with("take(")
+            || recv.starts_with("skip(")
+            || recv.starts_with("zip(")
+            || recv.starts_with("enumerate(")
+            || recv.starts_with("sort(")
+            || recv.starts_with("sort_by(")
+            || recv.starts_with("reverse(")
+            || recv.starts_with("map_entries(")
+            || recv.starts_with("string_chars(")
+    }
+
+    fn format_method_function_call(name: &str, recv: &str, args: &[String]) -> String {
+        if args.is_empty() {
+            format!("{}({})", name, recv)
+        } else {
+            format!("{}({}, {})", name, recv, args.join(", "))
         }
     }
 
@@ -42379,6 +43013,9 @@ impl RustToRunaCtx {
             .replace("vec! [", "[")
             // Fix negative number spacing: "- 1" → "-1"
             .replace("- ", "-");
+        if let Ok(expr) = syn::parse_str::<syn::Expr>(&s) {
+            return self.expr_to_string(&expr);
+        }
         // Convert method calls: x.join(y) → join(x, y), x.len() → length(x)
         Self::convert_method_calls_in_token(&s)
     }
@@ -43253,6 +43890,16 @@ impl RustToRunaCtx {
                 let recv = self.expr_to_string(&mc.receiver);
                 let method = mc.method.to_string();
                 let args: Vec<String> = mc.args.iter().map(|a| self.expr_to_string(a)).collect();
+                if let Some(mangled) = self.inherent_method_call_name(&recv, &method, &args) {
+                    if self.mutating_impl_methods.contains(&mangled) {
+                        self.emit_line(&format!(
+                            "= {} = {}",
+                            recv,
+                            Self::format_method_function_call(&mangled, &recv, &args)
+                        ));
+                        return;
+                    }
+                }
                 match method.as_str() {
                     "insert" if args.len() == 2 => {
                         self.emit_line(&format!(

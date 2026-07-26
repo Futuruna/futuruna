@@ -28,6 +28,10 @@ The current supported examples cover:
   including the checked-in stateful subset for tuple-key `sort_by`,
   Fibonacci-style `scan(...).collect()`, and
   `entry(...).or_insert_with(Vec::new).push(...)` map grouping
+- recursive owned tree patterns in the checked-in ownership fixture, including
+  `Vec<Box<T>>` children, inherent impl method calls that collide with builtin
+  names, functional lowering for `&mut self` field pushes, and the narrow
+  `Option<&T>` recursive search shape translated as value-returning `Option(T)`
 - small real-world examples: JSON-like values, expression evaluation, and a mini
   type checker
 
@@ -53,6 +57,7 @@ whenever the unsupported Rust shape is known. The runner reports these as stable
 unsupported diagnostics:
 
 - `borrowed-return-reference`: Rust functions that return borrowed references
+  outside the checked recursive owned-tree search subset
 - `associated-types`: associated types in traits or impl blocks
 - `impl-trait`: `impl Trait` signatures
 - `unsupported-map-err`: `Result::map_err` shapes outside the checked-in
@@ -64,7 +69,6 @@ unsupported diagnostics:
 
 Current expected-unsupported categories include:
 
-- recursive ownership patterns that return borrowed nodes
 - associated types, trait bounds, higher-rank generic closures, and `impl Trait`
 - nested boxed enum patterns and reference-pattern simplification
 

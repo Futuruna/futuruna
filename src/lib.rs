@@ -6116,6 +6116,8 @@ impl Interpreter {
         // Collection builtins (Kotlin-inspired)
         env.set("sort".into(), Value::Builtin("sort".into()));
         env.set("sort_by".into(), Value::Builtin("sort_by".into()));
+        env.set("list_min".into(), Value::Builtin("list_min".into()));
+        env.set("list_max".into(), Value::Builtin("list_max".into()));
         env.set("any".into(), Value::Builtin("any".into()));
         env.set("all".into(), Value::Builtin("all".into()));
         env.set("find".into(), Value::Builtin("find".into()));
@@ -7950,6 +7952,26 @@ impl Interpreter {
                     Value::List(items)
                 }
                 _ => Value::List(vec![]),
+            },
+            "list_min" => match args.first() {
+                Some(list) => {
+                    let items = list_to_vec(list);
+                    match items.into_iter().min_by(|a, b| value_sort_cmp(a, b)) {
+                        Some(value) => Value::Constructor("Some".into(), vec![value]),
+                        None => Value::Constructor("None".into(), vec![]),
+                    }
+                }
+                _ => Value::Constructor("None".into(), vec![]),
+            },
+            "list_max" => match args.first() {
+                Some(list) => {
+                    let items = list_to_vec(list);
+                    match items.into_iter().max_by(|a, b| value_sort_cmp(a, b)) {
+                        Some(value) => Value::Constructor("Some".into(), vec![value]),
+                        None => Value::Constructor("None".into(), vec![]),
+                    }
+                }
+                _ => Value::Constructor("None".into(), vec![]),
             },
             "any" => {
                 // Polymorphic: works on Stream/Subject/List/Cons
@@ -11443,6 +11465,8 @@ impl TypeChecker {
             ("foldl", 3),
             ("sort", 1),
             ("sort_by", 2),
+            ("list_min", 1),
+            ("list_max", 1),
             ("is_some", 1),
             ("is_none", 1),
             ("any", 2),
