@@ -246,7 +246,11 @@ As of 2026-07-18, the preview boundary is backed by:
 - `runa from-rust --verify <file.rs>`: stable success/failure summary lines for
   supported matches, recognized unsupported categories, translator parse
   failures, Rust compile/run failures, translated Futuruna parse failures, and
-  stdout divergence
+  stdout divergence. Focused CLI coverage currently exercises supported
+  matches, Rust parse failure, Rust compile failure, output mismatch,
+  `unsafe-rust`, `async-threading`, and help text. Translated Futuruna parse
+  failure has a stable summary contract, but no minimized source-level fixture
+  currently reaches that path.
 
 This evidence promotes the checked-in validation boundary to preview. It does
 not promote arbitrary Rust crate translation, broad macro expansion, full

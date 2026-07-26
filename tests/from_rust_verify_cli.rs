@@ -109,6 +109,111 @@ fn main() {
 }
 
 #[test]
+fn from_rust_verify_reports_stable_rust_parse_failure_line() {
+    let output = run_from_rust_verify(
+        r#"
+fn main( {
+    println!("bad");
+}
+"#,
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected Rust parse verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: rust-parse error:"),
+        "missing stable Rust parse failure line:\n{}",
+        stderr
+    );
+}
+
+#[test]
+fn from_rust_verify_reports_stable_rust_compile_failure_line() {
+    let output = run_from_rust_verify(
+        r#"
+fn main() {
+    println!("{}", missing_value);
+}
+"#,
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected Rust compile verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: translated "),
+        "compile failure path should still report translation first:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: rust-compile-failed "),
+        "missing stable Rust compile failure line:\n{}",
+        stderr
+    );
+}
+
+#[test]
+fn from_rust_verify_reports_stable_output_mismatch_line() {
+    let output = run_from_rust_verify(
+        r#"
+fn main() {
+    print!("hi");
+}
+"#,
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected output mismatch verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: mismatch "),
+        "missing stable mismatch line:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains(" rust_lines=1 futuruna_lines=0"),
+        "mismatch line should include both output line counts:\n{}",
+        stderr
+    );
+}
+
+#[test]
+fn from_rust_verify_reports_additional_unsupported_category() {
+    let output = run_from_rust_verify(
+        r#"
+use std::thread;
+
+fn main() {
+    let handle = thread::spawn(|| 7);
+    println!("{}", handle.join().unwrap());
+}
+"#,
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected async/threading unsupported verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: unsupported async-threading:"),
+        "missing stable async-threading unsupported line:\n{}",
+        stderr
+    );
+}
+
+#[test]
 fn from_rust_help_names_frss_v0_and_verify_summaries() {
     let output = Command::new(runa())
         .args(["from-rust", "--help"])
