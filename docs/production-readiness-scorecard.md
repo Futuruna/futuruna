@@ -99,6 +99,20 @@ changes Futuruna's production-readiness claim.
 | `runa from-rust` tooling | Preview | Work through the Production Promotion Checklist in `docs/from-rust-contract.md`: keep the 35-fixture FRSS-v0 example corpus, 9-fixture mint-blocking downstream canary, 6-case generated supported-subset differential lane, and stable `from-rust --verify` summary lines matching their contracts; freeze FRSS-v0 or a successor as a stable contract; keep broadening external/downstream, differential, and verify failure-category evidence; add translated-Futuruna parse failure coverage if a real minimized source path appears; and keep arbitrary Rust crate translation outside the claim unless separately promoted. | L | 4 |
 | `runa audit`, LSP, and exploratory tooling | Research-grade | Pick which tools are user-facing; add explicit contracts for those; keep the rest marked experimental. | M | 2 |
 
+## From-Rust Production Audit
+
+The 2026-07-18 FRSS-v0 production-readiness audit in
+[from-rust-contract.md](from-rust-contract.md) keeps `runa from-rust` in
+preview. Current production blockers are:
+
+| Blocker | Why It Blocks Production |
+|---------|--------------------------|
+| `td-f6df85` | No source-shape evidence manifest maps every documented FRSS-v0 supported form to exact Rust-vs-Futuruna fixture evidence. |
+| `td-52562a` | Pure/core non-goals for effectful Rust APIs such as file I/O, environment, process, time, randomness, and networking are not all stable fail-closed boundaries yet. |
+| `td-0f2bd8` | External Rust module declarations can still cross the documented single-file boundary without a production-grade unsupported diagnostic. |
+| `td-d47bff` | The from-rust differential lane is still a six-case enumerated corpus, not a production search/minimization lane over the supported-shape manifest. |
+| `td-ed2a52` | `from-rust --verify` still lacks minimized fixtures, or a revised contract, for translated-parse-failed and output-divergence translator-bug paths. |
+
 ## Promotion Rules
 
 A surface can move to production-ready only when all of these are true:

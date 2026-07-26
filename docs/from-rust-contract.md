@@ -364,3 +364,35 @@ the following at the same time:
 Production-ready still would not mean arbitrary Rust crate translation unless
 that broader crate-level contract is explicitly documented, canaried, and
 promoted separately.
+
+## Production Readiness Audit
+
+Audit date: 2026-07-18.
+
+Result: FRSS-v0 stays preview. The current evidence is strong enough for the
+documented preview boundary, but it does not yet prove the production checklist
+above. The missing items are now explicit `td` blockers instead of implicit
+readiness debt.
+
+| Checklist item | Current evidence | Audit result |
+|----------------|------------------|--------------|
+| 1. Freeze a stable release-line contract | FRSS-v0 is named and versioned, but `docs/feature-stages.md`, `docs/feature-stages.json`, the README state, and the compatibility guide still intentionally describe it as preview. | Blocked until the final promotion packet moves all public stage metadata together. |
+| 2. Fixture evidence for every supported source shape | The broad example corpus, downstream canary, and generated differential lane provide exact-match fixtures, but there is no source-shape-to-fixture manifest proving every documented syntax, stdlib, ownership, collection, generic, and formatting claim. | Blocked by `td-f6df85`. |
+| 3. Fail closed for every syntactically detectable unsupported boundary | The downstream unsupported corpus covers 14 permanent fail-closed fixtures, including ownership, generics, iterator state machines, tuple-reference matches, async/threading, unsafe, external crates, macros, format specs, item fallbacks, and expression fallbacks. The audit found remaining syntactic non-goals without production-grade coverage: effectful std APIs and external Rust module declarations. | Blocked by `td-52562a` and `td-0f2bd8`. |
+| 4. Larger downstream production corpus | The mint-blocking downstream lane runs 9 supported consumer-style fixtures from a fresh temporary directory across config validation, invoice arithmetic, event/report aggregation, text/parser transformations, nested data, error handling, inventory reporting, and normalization. | Satisfied for the current checklist. Keep growing with every promoted shape. |
+| 5. Production search or proof-backed differential checking | `./scripts/from-rust-differential.sh` gives replay artifacts for 6 deterministic generated cases, but it is still an enumerated corpus rather than a source-shape-manifest-driven or seed-stable search/minimization lane. | Blocked by `td-d47bff`. |
+| 6. Stable `from-rust --verify` user workflow | Stable summary lines exist for supported matches, recognized unsupported categories, Rust parse/compile/run failures, translated Futuruna parse failures, and output divergence. CLI coverage exercises many categories, but translated-parse-failed and mismatch currently lack minimized source-level fixtures after previous divergences moved to fail-closed diagnostics. | Blocked by `td-ed2a52`. |
+| 7. Compatibility guide records the production contract | The compatibility guide records preview hardening and support expansions, but not a production contract or future stable break policy for FRSS. | Blocked until the final promotion packet after the evidence blockers above. |
+| 8. Feature-stage metadata, README, contract, and scorecard move together | All current public stage metadata correctly keeps `runa from-rust` in preview. | Blocked until the final promotion packet after the evidence blockers above. |
+
+Current production blockers:
+
+- `td-f6df85`: add an FRSS-v0 source-shape evidence manifest.
+- `td-52562a`: fail closed on effectful Rust APIs outside the pure/core
+  boundary.
+- `td-0f2bd8`: fail closed on external Rust module declarations and other
+  multi-file package boundaries.
+- `td-d47bff`: promote the from-rust differential lane from six enumerated
+  cases to production search/minimization evidence.
+- `td-ed2a52`: cover or revise the `from-rust --verify` translator-bug paths
+  for translated parse failures and output divergence.
