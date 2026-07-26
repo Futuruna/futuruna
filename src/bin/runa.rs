@@ -3323,6 +3323,23 @@ fn run_from_rust_tests(path: &str) {
 
         let file_start = Instant::now();
 
+        if let Some(reason) = &expected_unsupported_reason {
+            match rust_to_runa_checked(&source) {
+                Ok(_) => {}
+                Err(err) => {
+                    expected_unsupported += 1;
+                    eprintln!(
+                        "  \x1b[1;33mXFAIL\x1b[0m  {} - expected unsupported: {}; observed {} \x1b[2m({}ms)\x1b[0m",
+                        name,
+                        reason,
+                        from_rust_error_summary(&err),
+                        file_start.elapsed().as_millis()
+                    );
+                    continue;
+                }
+            }
+        }
+
         // Step 1: Compile and run the Rust source
         let tmp_bin = format!("/tmp/__runa_from_rust_{}", name.replace('.', "_"));
         let rust_compile = Command::new("rustc")
@@ -33654,6 +33671,75 @@ fn numbers() -> impl Iterator<Item = i64> {
     }
 
     #[test]
+    fn from_rust_rejects_async_fn_with_category() {
+        let source = r#"
+async fn load() -> i64 {
+    1
+}
+
+fn main() {}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "async-threading");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_rejects_thread_spawn_with_category() {
+        let source = r#"
+use std::thread;
+
+fn main() {
+    let handle = thread::spawn(|| 7);
+    println!("{}", handle.join().unwrap());
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "async-threading");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_rejects_unsafe_block_with_category() {
+        let source = r#"
+fn read(ptr: *const i64) -> i64 {
+    unsafe { *ptr }
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsafe-rust");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_rejects_external_crate_use_with_category() {
+        let source = r#"
+use regex::Regex;
+
+fn main() {}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "external-crate");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn from_rust_supports_checked_reference_tuple_match_shape() {
         let source = r#"
 enum Expr {
@@ -40966,6 +41052,9 @@ fn from_rust_error_summary(err: &FromRustTranspileError) -> String {
 
 #[derive(Default)]
 struct FromRustUnsupportedScan {
+    external_crate: Option<String>,
+    async_or_threading: bool,
+    unsafe_rust: bool,
     borrowed_return_reference: bool,
     associated_type: bool,
     impl_trait: bool,
@@ -40976,6 +41065,27 @@ struct FromRustUnsupportedScan {
 
 impl FromRustUnsupportedScan {
     fn diagnostic(&self) -> Option<FromRustUnsupported> {
+        if let Some(crate_name) = &self.external_crate {
+            return Some(FromRustUnsupported::new(
+                "external-crate",
+                format!(
+                    "external crate import '{}' is outside the from-rust single-file validation subset",
+                    crate_name
+                ),
+            ));
+        }
+        if self.async_or_threading {
+            return Some(FromRustUnsupported::new(
+                "async-threading",
+                "async and thread-spawning Rust are outside the from-rust deterministic pure/core subset",
+            ));
+        }
+        if self.unsafe_rust {
+            return Some(FromRustUnsupported::new(
+                "unsafe-rust",
+                "unsafe Rust blocks are outside the from-rust validation subset",
+            ));
+        }
         if self.result_map_err {
             return Some(FromRustUnsupported::new(
                 "unsupported-map-err",
@@ -41027,6 +41137,9 @@ fn from_rust_unsupported_diagnostic(file: &syn::File) -> Option<FromRustUnsuppor
 
 impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        if item.sig.asyncness.is_some() {
+            self.async_or_threading = true;
+        }
         if from_rust_signature_contains_impl_trait(&item.sig) {
             if from_rust_is_supported_compose_impl_trait_fn(item) {
                 syn::visit::visit_block(self, &item.block);
@@ -41040,6 +41153,24 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
             self.borrowed_return_reference = true;
         }
         syn::visit::visit_item_fn(self, item);
+    }
+
+    fn visit_item_use(&mut self, item: &'ast syn::ItemUse) {
+        if from_rust_use_tree_mentions_thread(&item.tree) {
+            self.async_or_threading = true;
+        }
+        if let Some(crate_name) = from_rust_external_use_root(&item.tree) {
+            self.external_crate = Some(crate_name);
+        }
+        syn::visit::visit_item_use(self, item);
+    }
+
+    fn visit_item_extern_crate(&mut self, item: &'ast syn::ItemExternCrate) {
+        let crate_name = item.ident.to_string();
+        if !from_rust_use_root_allowed(&crate_name) {
+            self.external_crate = Some(crate_name);
+        }
+        syn::visit::visit_item_extern_crate(self, item);
     }
 
     fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
@@ -41138,6 +41269,28 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
         syn::visit::visit_expr_method_call(self, item);
     }
 
+    fn visit_expr_call(&mut self, item: &'ast syn::ExprCall) {
+        if from_rust_expr_call_is_thread_spawn(item) {
+            self.async_or_threading = true;
+        }
+        syn::visit::visit_expr_call(self, item);
+    }
+
+    fn visit_expr_async(&mut self, item: &'ast syn::ExprAsync) {
+        self.async_or_threading = true;
+        syn::visit::visit_expr_async(self, item);
+    }
+
+    fn visit_expr_await(&mut self, item: &'ast syn::ExprAwait) {
+        self.async_or_threading = true;
+        syn::visit::visit_expr_await(self, item);
+    }
+
+    fn visit_expr_unsafe(&mut self, item: &'ast syn::ExprUnsafe) {
+        self.unsafe_rust = true;
+        syn::visit::visit_expr_unsafe(self, item);
+    }
+
     fn visit_expr_match(&mut self, item: &'ast syn::ExprMatch) {
         if from_rust_is_reference_tuple_match(item)
             && !from_rust_is_supported_reference_tuple_match(item)
@@ -41146,6 +41299,89 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
         }
         syn::visit::visit_expr_match(self, item);
     }
+}
+
+fn from_rust_use_root_allowed(root: &str) -> bool {
+    matches!(root, "std" | "core" | "alloc" | "crate" | "self" | "super")
+}
+
+fn from_rust_external_use_root(tree: &syn::UseTree) -> Option<String> {
+    match tree {
+        syn::UseTree::Path(path) => {
+            let root = path.ident.to_string();
+            if from_rust_use_root_allowed(&root) {
+                None
+            } else {
+                Some(root)
+            }
+        }
+        syn::UseTree::Name(name) => {
+            let root = name.ident.to_string();
+            if from_rust_use_root_allowed(&root) {
+                None
+            } else {
+                Some(root)
+            }
+        }
+        syn::UseTree::Rename(rename) => {
+            let root = rename.ident.to_string();
+            if from_rust_use_root_allowed(&root) {
+                None
+            } else {
+                Some(root)
+            }
+        }
+        syn::UseTree::Group(group) => group.items.iter().find_map(from_rust_external_use_root),
+        syn::UseTree::Glob(_) => None,
+    }
+}
+
+fn from_rust_use_tree_mentions_thread(tree: &syn::UseTree) -> bool {
+    match tree {
+        syn::UseTree::Path(path) => {
+            path.ident == "thread"
+                || (path.ident == "std" && from_rust_use_tree_contains_ident(&path.tree, "thread"))
+                || from_rust_use_tree_mentions_thread(&path.tree)
+        }
+        syn::UseTree::Name(name) => name.ident == "thread",
+        syn::UseTree::Rename(rename) => rename.ident == "thread" || rename.rename == "thread",
+        syn::UseTree::Group(group) => group.items.iter().any(from_rust_use_tree_mentions_thread),
+        syn::UseTree::Glob(_) => false,
+    }
+}
+
+fn from_rust_use_tree_contains_ident(tree: &syn::UseTree, ident: &str) -> bool {
+    match tree {
+        syn::UseTree::Path(path) => {
+            path.ident == ident || from_rust_use_tree_contains_ident(&path.tree, ident)
+        }
+        syn::UseTree::Name(name) => name.ident == ident,
+        syn::UseTree::Rename(rename) => rename.ident == ident || rename.rename == ident,
+        syn::UseTree::Group(group) => group
+            .items
+            .iter()
+            .any(|item| from_rust_use_tree_contains_ident(item, ident)),
+        syn::UseTree::Glob(_) => false,
+    }
+}
+
+fn from_rust_expr_call_is_thread_spawn(item: &syn::ExprCall) -> bool {
+    let syn::Expr::Path(path) = item.func.as_ref() else {
+        return false;
+    };
+    let names: Vec<String> = path
+        .path
+        .segments
+        .iter()
+        .map(|segment| segment.ident.to_string())
+        .collect();
+    matches!(
+        names.as_slice(),
+        [thread, spawn] if thread == "thread" && spawn == "spawn"
+    ) || matches!(
+        names.as_slice(),
+        [std, thread, spawn] if std == "std" && thread == "thread" && spawn == "spawn"
+    )
 }
 
 fn from_rust_is_reference_tuple_match(item: &syn::ExprMatch) -> bool {

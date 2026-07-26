@@ -11,3 +11,8 @@ not rely on generated files, ambient working-directory state, or the broader
 - `unsupported/` contains intentionally out-of-boundary Rust programs with
   `runa-from-rust: expect-unsupported` directives. These must fail closed with
   stable diagnostics instead of silently entering the supported subset.
+
+The supported corpus currently covers config validation, deterministic event
+aggregation, invoice arithmetic, and text command parsing. The unsupported
+corpus currently covers general borrowed-reference returns, async/threading,
+unsafe blocks, and external crate imports.

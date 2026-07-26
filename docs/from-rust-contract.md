@@ -84,10 +84,12 @@ top-of-file directive:
 // runa-from-rust: expect-unsupported reason for the unsupported Rust shape
 ```
 
-The runner still compiles and runs the Rust program, attempts the translation,
-and reports the observed parse failure or output divergence as `XFAIL`. If an
-expected-unsupported fixture starts matching, the runner reports `XPASS` and
-fails so the directive can be removed and the supported subset can grow.
+For expected-unsupported fixtures, the runner first checks for known
+fail-closed diagnostics. If one is found, the fixture is reported as `XFAIL`
+without requiring the Rust program to compile in the standalone `rustc` lane.
+If the source translates, the runner compiles and runs the Rust program,
+interprets the translated Futuruna, and reports an output match as `XPASS` so
+the directive can be removed and the supported subset can grow.
 
 Expected-unsupported fixtures should fail closed before Futuruna parse/run
 whenever the unsupported Rust shape is known. The runner reports these as stable
@@ -105,16 +107,22 @@ unsupported diagnostics:
   stateful subset
 - `reference-tuple-match`: matches over tuples of references outside the
   checked two-reference pattern simplification subset
+- `async-threading`: `async` functions/blocks/awaits and thread-spawning code
+  outside the deterministic pure/core subset
+- `unsafe-rust`: `unsafe` blocks outside the validation subset
+- `external-crate`: non-stdlib `use` or `extern crate` inputs outside the
+  single-file validation subset
 
-The current checked-in corpus has no expected-unsupported fixtures. Future
+The broad example corpus currently has no expected-unsupported fixtures. Future
 adversarial examples may still use the directive when they intentionally
 describe an unsupported Rust shape and fail closed with one of the stable
 diagnostics above.
 
-The downstream canary also keeps one expected-unsupported fixture outside the
+The downstream canary also keeps expected-unsupported fixtures outside the
 example corpus to prove the boundary is enforced: returning a borrowed
-reference from a general function must remain `borrowed-return-reference` until
-that ownership shape is deliberately promoted.
+reference from a general function, async/threading, unsafe blocks, and external
+crate imports must remain fail-closed until those shapes are deliberately
+promoted.
 
 ## Preview Promotion Checklist
 

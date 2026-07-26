@@ -105,8 +105,15 @@ UNSUPPORTED_WORK_DIR="$TMP_DIR/unsupported"
 copy_fixture_dir "$SUPPORTED_SOURCE_DIR" "$SUPPORTED_WORK_DIR"
 copy_fixture_dir "$UNSUPPORTED_SOURCE_DIR" "$UNSUPPORTED_WORK_DIR"
 
-run_from_rust_lane supported "$SUPPORTED_WORK_DIR" "From-rust: 2 matched"
-run_from_rust_lane unsupported "$UNSUPPORTED_WORK_DIR" "1 expected-unsupported" "borrowed-return-reference"
+run_from_rust_lane supported "$SUPPORTED_WORK_DIR" "From-rust: 4 matched"
+run_from_rust_lane \
+    unsupported \
+    "$UNSUPPORTED_WORK_DIR" \
+    "5 expected-unsupported" \
+    "async-threading" \
+    "borrowed-return-reference" \
+    "external-crate" \
+    "unsafe-rust"
 
 echo
 echo "[from-rust-downstream] From-rust downstream consumer canaries passed in $TMP_DIR"
