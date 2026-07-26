@@ -16,4 +16,6 @@ The supported corpus currently covers config validation, deterministic event
 aggregation, invoice arithmetic, text command parsing, and enum/reference loop
 aggregation with conditional accumulator rebinding. The unsupported corpus
 currently covers general borrowed-reference returns, async/threading, unsafe
-blocks, and external crate imports.
+blocks, external crate imports, unchecked associated types, unchecked
+`impl Trait`, unsupported `Result::map_err`, unsupported iterator state
+machines, and unsupported tuple-of-references matches.

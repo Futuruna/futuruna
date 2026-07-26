@@ -124,9 +124,11 @@ diagnostics above.
 
 The downstream canary also keeps expected-unsupported fixtures outside the
 example corpus to prove the boundary is enforced: returning a borrowed
-reference from a general function, async/threading, unsafe blocks, and external
-crate imports must remain fail-closed until those shapes are deliberately
-promoted.
+reference from a general function, unchecked associated types, unchecked `impl
+Trait`, unsupported `Result::map_err`, unsupported iterator state machines,
+unsupported tuple-of-references matches, async/threading, unsafe blocks, and
+external crate imports must remain fail-closed until those shapes are
+deliberately promoted.
 
 ## Preview Promotion Checklist
 

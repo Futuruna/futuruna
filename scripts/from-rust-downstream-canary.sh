@@ -109,10 +109,15 @@ run_from_rust_lane supported "$SUPPORTED_WORK_DIR" "From-rust: 5 matched"
 run_from_rust_lane \
     unsupported \
     "$UNSUPPORTED_WORK_DIR" \
-    "5 expected-unsupported" \
+    "10 expected-unsupported" \
+    "associated-types" \
     "async-threading" \
     "borrowed-return-reference" \
     "external-crate" \
+    "impl-trait" \
+    "reference-tuple-match" \
+    "stateful-iterator-chain" \
+    "unsupported-map-err" \
     "unsafe-rust"
 
 echo

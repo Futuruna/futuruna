@@ -51,6 +51,11 @@ Target shape:
 | `tests/from-rust/downstream/supported/event_rollup.rs` | `from-rust-downstream` | clean-directory `runa from-rust` exact-match for a deterministic `BTreeMap<String, i64>` event aggregation workflow |
 | `tests/from-rust/downstream/supported/conditional_loop_aggregation.rs` | `from-rust-downstream` | clean-directory `runa from-rust` exact-match for enum/reference loop aggregation with conditional accumulator rebinding |
 | `tests/from-rust/downstream/unsupported/borrowed_return_reference.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for general borrowed-reference returns outside the current ownership boundary |
+| `tests/from-rust/downstream/unsupported/associated_type_trait.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for associated types outside the checked generic fixture |
+| `tests/from-rust/downstream/unsupported/impl_trait_iterator.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for `impl Trait` outside the checked compose fixture |
+| `tests/from-rust/downstream/unsupported/stateful_iterator_scan.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for iterator state machines outside the checked scan subset |
+| `tests/from-rust/downstream/unsupported/reference_tuple_match.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for tuple-of-references matches outside the checked simplification subset |
+| `tests/from-rust/downstream/unsupported/unsupported_map_err.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for `Result::map_err` outside integer parse remapping |
 | `tests/canary/storage/persist_tx_commit_savepoint_test.runa` | `storage` | compiled persisted transaction commit plus nested savepoint release |
 | `tests/canary/storage/persist_tx_rollback_fail_test.runa` | `storage` | intentionally failing transactional scope used to prove rollback through a follow-up fixture |
 | `tests/canary/storage/persist_tx_rollback_check_test.runa` | `storage` | compiled persisted readback proving rollback left only the committed baseline row |
