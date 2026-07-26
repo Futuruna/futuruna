@@ -116,11 +116,41 @@ example corpus to prove the boundary is enforced: returning a borrowed
 reference from a general function must remain `borrowed-return-reference` until
 that ownership shape is deliberately promoted.
 
-## Promotion Rule
+## Preview Promotion Checklist
 
-A zero-XFAIL corpus is necessary but not sufficient for promoting `runa
-from-rust` beyond experimental. Promotion also requires a documented
-compatibility boundary, broader consumer-shaped fixtures, and stable diagnostics
-for Rust shapes Futuruna intentionally does not translate. The downstream
-canary is production evidence for the current validation boundary, not a
-promise that arbitrary Rust crates translate.
+A zero-XFAIL example corpus is necessary but not sufficient for promoting
+`runa from-rust` beyond experimental. Promotion to preview requires all of the
+following evidence to be reviewed together:
+
+1. The broad example corpus passes with exact stdout parity:
+   `runa from-rust --test examples/from-rust/`.
+2. The mint-blocking downstream canary passes from a fresh temporary directory:
+   `./scripts/from-rust-downstream-canary.sh`.
+3. The downstream canary covers at least four distinct consumer families:
+   config validation, money or invoice arithmetic, deterministic event/report
+   aggregation, and text/parser-style transformation.
+4. The downstream canary includes expected-unsupported fixtures for every
+   preview non-goal that has a reasonably syntactic Rust marker, including
+   general borrowed-reference returns, unchecked associated-type or `impl
+   Trait` shapes, unsupported iterator state machines, unsupported tuple
+   reference patterns, async/threading, unsafe blocks, and external crate or
+   proc-macro-like entrypoints.
+5. Supported fixtures stay deterministic, single-file, and pure/core: no file
+   I/O, networking, process state, wall-clock time, ambient environment, or
+   nondeterministic stdout ordering.
+6. Any promoted Rust shape lands with a fixture and either a compatibility-guide
+   note or an explicit statement that the shape is still experimental tooling
+   scope rather than a stable source-compatibility promise.
+7. `docs/feature-stages.md`, `docs/feature-stages.json`, and this contract are
+   updated in the same reviewed change if the stage moves from experimental to
+   preview.
+
+Preview would mean "intended for real use inside this documented validation
+boundary." It would not mean arbitrary Rust crate translation, macro expansion
+beyond the checked small forms, async runtime translation, unsafe semantics,
+proc macro support, full generic trait machinery, full lifetime/reference
+preservation, general iterator state-machine translation, generated Cargo
+manifests, or stable formatting/layout of the emitted Futuruna source.
+
+The downstream canary is production evidence for the current validation
+boundary, not a promise that arbitrary Rust crates translate.
