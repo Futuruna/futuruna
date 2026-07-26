@@ -1,9 +1,10 @@
 # From-Rust Validation Contract
 
-`runa from-rust` is still experimental translational tooling. The current
-contract is a validation contract, not a frozen source-compatibility promise:
-checked-in supported fixtures must translate, parse, run in the Futuruna
-interpreter, and produce exactly the same stdout as the original Rust program.
+`runa from-rust` is preview translational tooling inside the validation
+boundary documented here. The current contract is a validation contract, not a
+frozen source-compatibility promise: checked-in supported fixtures must
+translate, parse, run in the Futuruna interpreter, and produce exactly the same
+stdout as the original Rust program.
 
 The broad example-corpus lane is:
 
@@ -130,11 +131,26 @@ unsupported tuple-of-references matches, async/threading, unsafe blocks, and
 external crate imports must remain fail-closed until those shapes are
 deliberately promoted.
 
+## Preview Evidence
+
+As of 2026-07-18, the preview boundary is backed by:
+
+- `runa from-rust --test examples/from-rust/`: 35 exact stdout matches
+- `./scripts/from-rust-downstream-canary.sh`: 5 downstream supported exact
+  matches from a fresh temporary directory
+- the same downstream canary: 10 expected-unsupported fail-closed fixtures
+  covering the stable unsupported diagnostic categories listed above
+
+This evidence promotes the checked-in validation boundary to preview. It does
+not promote arbitrary Rust crate translation, broad macro expansion, full
+lifetime preservation, general iterator state machines, unsafe or async
+semantics, or generated Cargo manifests.
+
 ## Preview Promotion Checklist
 
-A zero-XFAIL example corpus is necessary but not sufficient for promoting
-`runa from-rust` beyond experimental. Promotion to preview requires all of the
-following evidence to be reviewed together:
+A zero-XFAIL example corpus is necessary but not sufficient for keeping `runa
+from-rust` in preview. The preview claim depends on all of the following
+evidence staying green and reviewed together:
 
 1. The broad example corpus passes with exact stdout parity:
    `runa from-rust --test examples/from-rust/`.
@@ -153,11 +169,10 @@ following evidence to be reviewed together:
    I/O, networking, process state, wall-clock time, ambient environment, or
    nondeterministic stdout ordering.
 6. Any promoted Rust shape lands with a fixture and either a compatibility-guide
-   note or an explicit statement that the shape is still experimental tooling
-   scope rather than a stable source-compatibility promise.
-7. `docs/feature-stages.md`, `docs/feature-stages.json`, and this contract are
-   updated in the same reviewed change if the stage moves from experimental to
-   preview.
+   note or an explicit statement that the shape is still preview tooling scope
+   rather than a stable source-compatibility promise.
+7. `docs/feature-stages.md`, `docs/feature-stages.json`, and this contract stay
+   synchronized with the preview boundary.
 
 Preview would mean "intended for real use inside this documented validation
 boundary." It would not mean arbitrary Rust crate translation, macro expansion

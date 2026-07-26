@@ -193,8 +193,8 @@ fn main_inner() {
                 eprintln!();
                 eprintln!("Feature stages:");
                 eprintln!("  Stable: run, check, emit, build, test, fmt, hashes, lib, lint-library, stress-gen; core syntax + documented stdlib + pure/core codegen behavior + reactive/stateful workflows + importable local libraries + Rust-facing library interop + differential/generative testing");
-                eprintln!("  Preview: init, add, wasm, lsp, expect, bench, verify");
-                eprintln!("  Experimental: audit, from-rust");
+                eprintln!("  Preview: init, add, wasm, lsp, expect, bench, verify, from-rust");
+                eprintln!("  Experimental: audit");
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
                 eprintln!();
@@ -34077,9 +34077,9 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         assert!(commands.iter().any(|command| {
             command["name"] == "feature-stages" && command["stage"] == "stable"
         }));
-        assert!(commands.iter().any(|command| {
-            command["name"] == "from-rust" && command["stage"] == "experimental"
-        }));
+        assert!(commands
+            .iter()
+            .any(|command| { command["name"] == "from-rust" && command["stage"] == "preview" }));
 
         for command in commands {
             let surface = command["surface"].as_str().expect("command surface");

@@ -197,11 +197,13 @@
       "id": "from-rust-transpiler",
       "kind": "tooling",
       "name": "Rust-to-Futuruna translational tooling",
-      "stage": "experimental",
+      "stage": "preview",
       "commands": [
         "from-rust"
       ],
-      "docs": []
+      "docs": [
+        "docs/from-rust-contract.md"
+      ]
     },
     {
       "id": "internal-codegen-layout",
@@ -316,7 +318,7 @@
     },
     {
       "name": "from-rust",
-      "stage": "experimental",
+      "stage": "preview",
       "surface": "from-rust-transpiler"
     },
     {
@@ -340,6 +342,13 @@
       "stage": "stable",
       "surfaces": [
         "differential-generative-testing"
+      ]
+    },
+    {
+      "path": "docs/from-rust-contract.md",
+      "stage": "preview",
+      "surfaces": [
+        "from-rust-transpiler"
       ]
     },
     {

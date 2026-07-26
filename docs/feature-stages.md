@@ -27,7 +27,7 @@ It should be read alongside [docs/compatibility-policy.md](compatibility-policy.
 | Explicit kernel proof terms and documented proof-kernel rule forms | Stable | The small kernel-backed proof term surface is part of the published contract. |
 | `runa verify` theorem elaboration, solver fallback, and broader verification automation | Preview | Useful and supported, but still evolving as the proof trust boundary and automation pipeline change. |
 | Reactive/stateful surfaces such as streams, subjects, actors, and effect-heavy workflows | Stable | User-facing and documented, with explicit named-scope ownership for live subscriptions, compiled stateful canaries, adversarial workflow coverage, and async emitted-Rust artifact expectations. Generic roundtrip/check-codegen skips for live async files are explicit and not treated as pass evidence. |
-| Rust interop and Rust-facing library integration behavior | Stable | `runa lib` output, exported Rust-facing API shape, `@ use`, `@ depend`, raw `@ rust` helpers, dependency guidance for generated Cargo consumers, external-crate generated code, and the documented module/Cargo-library consumer layouts are covered by blocking canaries. Exact helper/private layout and automatic manifest generation remain outside the stable contract; `runa from-rust` remains experimental. |
+| Rust interop and Rust-facing library integration behavior | Stable | `runa lib` output, exported Rust-facing API shape, `@ use`, `@ depend`, raw `@ rust` helpers, dependency guidance for generated Cargo consumers, external-crate generated code, and the documented module/Cargo-library consumer layouts are covered by blocking canaries. Exact helper/private layout and automatic manifest generation remain outside the stable contract; `runa from-rust` has a separate preview validation boundary. |
 
 ## Tooling And Command Surfaces
 
@@ -40,7 +40,7 @@ It should be read alongside [docs/compatibility-policy.md](compatibility-policy.
 | `runa expect`, `bench` | Preview | Used by the compiler hardening loop; expectation corpus shape, fixture volume, and benchmark reporting can still evolve. |
 | `runa verify` | Preview | The command is supported, but the elaboration and automation path is not yet a frozen contract. |
 | `runa audit` | Experimental | Treat output shape and behavior as early and subject to redesign. |
-| `runa from-rust`, `from-rust --verify` | Experimental | Early translational tooling. Do not treat current behavior as a frozen compatibility contract. |
+| `runa from-rust`, `from-rust --verify` | Preview | Intended for real use inside the checked single-file validation boundary in `docs/from-rust-contract.md`. Do not treat it as arbitrary Rust crate translation or a frozen source-compatibility contract. |
 | `runa registry` | Experimental hidden surface | Internal metadata helper; not documented as a public workflow command. |
 
 ## Structured Metadata
