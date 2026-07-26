@@ -39,11 +39,30 @@ The current supported examples cover:
 - the checked-in nested pattern fixture, including recursive `Box<T>` enum
   constructors and ordered matches over two references lowered into nested
   Futuruna matches
+- consumer-shaped single-file workflows for config parsing/validation, invoice
+  totals, and event rollups
 - small real-world examples: JSON-like values, expression evaluation, and a mini
   type checker
 
 This subset is intentionally evidence-based: adding a Rust shape to the
 supported set means adding or unmarking a fixture and keeping the lane green.
+
+## Current Compatibility Boundary
+
+The current boundary is a single-file Rust-to-Futuruna validation lane. It is
+intended for pure/core Rust programs that use ordinary functions, ADTs, local
+value mutation, deterministic collections, and the explicitly documented
+checked-in shapes above. A supported fixture must be deterministic, must not
+depend on process state, files, networking, threads, or wall-clock time, and
+must exact-match stdout against the original Rust program.
+
+Current non-goals are arbitrary crate translation, macro expansion beyond the
+small checked-in print/vector/assert shapes, async/threading, unsafe semantics,
+proc macros, generic trait machinery outside the checked `Functor` fixture,
+general lifetime/reference-preserving translation, general iterator
+state-machine translation, and nondeterministic `HashMap` stdout ordering.
+Those shapes must either stay out of the supported corpus or fail closed with a
+stable unsupported diagnostic.
 
 ## Expected Unsupported Fixtures
 
