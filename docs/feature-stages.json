@@ -196,7 +196,7 @@
     {
       "id": "from-rust-transpiler",
       "kind": "tooling",
-      "name": "Rust-to-Futuruna translational tooling",
+      "name": "Rust-to-Futuruna translational tooling (FRSS-v0 preview)",
       "stage": "preview",
       "commands": [
         "from-rust"

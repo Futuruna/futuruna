@@ -1,10 +1,20 @@
 # From-Rust Validation Contract
 
 `runa from-rust` is preview translational tooling inside the validation
-boundary documented here. The current contract is a validation contract, not a
-frozen source-compatibility promise: checked-in supported fixtures must
-translate, parse, run in the Futuruna interpreter, and produce exactly the same
-stdout as the original Rust program.
+boundary documented here.
+
+The named current contract is **FRSS-v0**, the From-Rust Single-File Supported
+Subset version 0. FRSS-v0 is a versioned preview compatibility contract: it is
+specific enough for users, tests, and release notes to point at a known Rust
+source subset, but it is not yet a production-ready or stable arbitrary-Rust
+source-compatibility promise.
+
+For Rust source inside FRSS-v0, checked-in supported fixtures must translate,
+parse, run in the Futuruna interpreter, and produce exactly the same stdout as
+the original Rust program. For source outside FRSS-v0 that matches a known
+unsupported boundary, `runa from-rust` must fail closed with an unsupported
+diagnostic before Futuruna parse/run instead of silently producing wrong
+Futuruna.
 
 The broad example-corpus lane is:
 
@@ -21,8 +31,8 @@ The mint-blocking downstream canary is:
 That script copies checked-in fixtures from `tests/from-rust/downstream/` into a
 fresh temporary directory, exact-matches the supported consumer-shaped Rust
 programs, and verifies that intentionally unsupported Rust stays fail-closed
-with stable diagnostics. A fixture without an explicit directive is part of the
-supported subset and must match Rust output exactly.
+with stable diagnostics. A fixture without an explicit directive is part of
+FRSS-v0 and must match Rust output exactly.
 
 The mint-blocking generated supported-subset differential lane is:
 
@@ -30,13 +40,25 @@ The mint-blocking generated supported-subset differential lane is:
 ./scripts/from-rust-differential.sh
 ```
 
-That script writes deterministic single-file Rust programs inside the documented
-supported subset to a temporary directory, exact-matches Rust stdout against the
-translated Futuruna output, and leaves replay artifacts on failure.
+That script writes deterministic single-file Rust programs inside FRSS-v0 to a
+temporary directory, exact-matches Rust stdout against the translated Futuruna
+output, and leaves replay artifacts on failure.
 
-## Supported Fixture Subset
+## FRSS-v0 Contract Summary
 
-The current supported examples cover:
+| Field | FRSS-v0 contract |
+|-------|------------------|
+| Stage | Preview |
+| Source shape | One deterministic Rust source file with ordinary functions, local values, ADTs, checked impl/generic shapes, checked stdlib collection/string forms, and a `main` whose observable contract is stdout. |
+| Package shape | No Cargo workspace, module tree, build script, proc macro, or external crate translation. `std` imports used by checked fixtures are allowed. |
+| Runtime effects | Pure/core deterministic computation only: no file I/O, networking, process state, environment, threads, async, wall-clock time, randomness, or nondeterministic stdout ordering. |
+| Success guarantee | Supported FRSS-v0 fixtures must compile/run as Rust, translate to Futuruna, parse/run as Futuruna, and exact-match Rust stdout. |
+| Failure guarantee | Recognized unsupported boundaries must fail closed with a stable diagnostic category before Futuruna parse/run. |
+| Non-guarantees | Arbitrary Rust crate translation, broad macro expansion, exact emitted Futuruna formatting/layout, generated Cargo manifests, full lifetime/reference preservation, full generic trait machinery, unsafe semantics, async/threading semantics, and general iterator state-machine translation. |
+
+## FRSS-v0 Supported Categories
+
+The current FRSS-v0 supported examples cover:
 
 - functions, local bindings, loops, conditionals, and pattern matching
 - structs, enums, recursive ADTs, and simple impl dispatch
@@ -72,19 +94,57 @@ The current supported examples cover:
 - small real-world examples: JSON-like values, expression evaluation, and a mini
   type checker
 
-This subset is intentionally evidence-based: adding a Rust shape to the
-supported set means adding or unmarking a fixture and keeping the lane green.
+This subset is intentionally evidence-based: adding a Rust shape to FRSS-v0
+means adding or unmarking a fixture and keeping the lane green.
 
-## Current Compatibility Boundary
+## FRSS-v0 Category Matrix
 
-The current boundary is a single-file Rust-to-Futuruna validation lane. It is
+| Category | Supported in FRSS-v0 | Required evidence | Outside FRSS-v0 |
+|----------|----------------------|-------------------|-----------------|
+| Source and package boundary | Single-file Rust programs using checked `std` shapes and deterministic `main` stdout. | Exact match in the example corpus, downstream canary, or generated differential lane. | External crates, `extern crate`, multi-file modules, proc macros, build scripts, Cargo-manifest generation, or crate-level translation. |
+| Control flow and bindings | Functions, local bindings, `if`/`else`, `match`, `for`, `while`, local value mutation, checked conditional accumulator rebinding, and compound-assignment shapes. | Exact stdout parity in supported fixtures; generated numeric/branch differential coverage. | Process state, nondeterminism, or control flow tied to unsupported runtime effects. |
+| Data and ADTs | Structs, enums, recursive ADTs, `Box<T>` enum constructors, nested structs/vectors, simple inherent impl dispatch, checked recursive owned-tree search. | Example adversarial fixtures, downstream nested customer/order fixtures, generated nested-data cases. | General reference-preserving/lifetime translation or arbitrary borrowed-reference returns. |
+| Strings and formatting | Checked `String`, `&str`, trim/lowercase/replace/classification, `format!`, print/vector/assert macro shapes, and deterministic stdout formatting used by fixtures. | String examples, downstream text fixtures, generated text matrix. | Broad macro expansion, formatting/layout promises for emitted Futuruna, or unchecked formatting traits. |
+| Collections | Checked `Vec`, maps/sets, deterministic `BTreeMap` reports, list indexing in fixtures, and checked grouping/rollup patterns. | Example stress fixtures, downstream event/inventory fixtures, generated `BTreeMap` rollup. | Nondeterministic `HashMap` stdout ordering or arbitrary collection/iterator state machines. |
+| Error handling | `Option`, `Result`, simple `?` chains, early `return Err(...)`, and checked integer `parse().map_err(...)?` remapping. | Error-handling examples, downstream error-row pipeline, generated parse pipeline. | `Result::map_err` forms outside the checked parse-error remapping subset. |
+| Generic and trait subset | Narrow checked `Functor` associated-type shape for `Option` and `Result`, generic higher-order functions, `impl Fn` composition, generic struct constructors, and generic inherent methods. | Checked generic trait fixture. | General associated types, arbitrary trait machinery, and `impl Trait` signatures outside the checked `impl Fn` composition shape. |
+| Iterator/stateful subset | Checked tuple-key `sort_by`, Fibonacci-style `scan(...).collect()`, and `entry(...).or_insert_with(Vec::new).push(...)` map grouping. | Checked closure/iterator fixture. | General iterator state-machine translation. |
+
+## FRSS-v0 Lane Mapping
+
+| Lane | Command | FRSS-v0 role |
+|------|---------|--------------|
+| Broad example corpus | `runa from-rust --test examples/from-rust/` | Keeps the checked in-tree FRSS-v0 corpus exact-matching Rust stdout. |
+| Mint downstream canary | `./scripts/from-rust-downstream-canary.sh` | Runs consumer-shaped FRSS-v0 programs from a fresh temporary directory and proves expected-unsupported boundaries stay fail-closed. |
+| Mint generated differential lane | `./scripts/from-rust-differential.sh` | Generates deterministic FRSS-v0 programs, exact-matches Rust vs translated Futuruna stdout, and leaves replay artifacts on failure. |
+
+## FRSS-v0 Compatibility Policy
+
+FRSS-v0 follows the project compatibility policy for a preview surface:
+
+- Expanding FRSS-v0 requires a reviewed fixture or generated lane case before
+  the docs claim the new source shape is supported.
+- Narrowing or removing a documented FRSS-v0 shape requires either a bug-fix
+  rationale or a new contract version such as FRSS-v1. User-visible preview
+  changes should be recorded in the compatibility guide's preview notes.
+- Unsupported diagnostic category changes require updating the permanent
+  expected-unsupported fixture that proves the boundary.
+- Generated Futuruna source formatting, helper names, and internal layout remain
+  internal unless a future artifact expectation explicitly promotes them.
+- Production promotion requires satisfying the Production Promotion Checklist
+  below in one reviewed change. Renaming FRSS-v0 or passing one lane is not
+  enough to call `runa from-rust` production-ready.
+
+## FRSS-v0 Compatibility Boundary
+
+FRSS-v0 is a single-file Rust-to-Futuruna validation boundary. It is
 intended for pure/core Rust programs that use ordinary functions, ADTs, local
 value mutation, deterministic collections, and the explicitly documented
 checked-in shapes above. A supported fixture must be deterministic, must not
 depend on process state, files, networking, threads, or wall-clock time, and
 must exact-match stdout against the original Rust program.
 
-Current non-goals are arbitrary crate translation, macro expansion beyond the
+FRSS-v0 non-goals are arbitrary crate translation, macro expansion beyond the
 small checked-in print/vector/assert shapes, async/threading, unsafe semantics,
 proc macros, generic trait machinery outside the checked `Functor` fixture,
 general lifetime/reference-preserving translation, general iterator
@@ -92,7 +152,10 @@ state-machine translation, and nondeterministic `HashMap` stdout ordering.
 Those shapes must either stay out of the supported corpus or fail closed with a
 stable unsupported diagnostic.
 
-## Expected Unsupported Fixtures
+## FRSS-v0 Unsupported Boundaries
+
+The explicit unsupported boundaries for FRSS-v0 are represented by permanent
+expected-unsupported fixtures.
 
 Adversarial Rust examples may be kept in the same corpus with an explicit
 top-of-file directive:
@@ -106,7 +169,7 @@ fail-closed diagnostics. If one is found, the fixture is reported as `XFAIL`
 without requiring the Rust program to compile in the standalone `rustc` lane.
 If the source translates, the runner compiles and runs the Rust program,
 interprets the translated Futuruna, and reports an output match as `XPASS` so
-the directive can be removed and the supported subset can grow.
+the directive can be removed and FRSS-v0 can grow.
 
 Expected-unsupported fixtures should fail closed before Futuruna parse/run
 whenever the unsupported Rust shape is known. The runner reports these as stable
@@ -170,8 +233,8 @@ evidence, not a production-ready stage claim.
 
 The generated supported-subset differential lane is the first implementation of
 the production checklist's differential requirement. It searches an enumerated
-set of deterministic Rust programs inside the current documented subset and
-writes repro-ready source, output, manifest, and replay artifacts on failure.
+set of deterministic Rust programs inside FRSS-v0 and writes repro-ready
+source, output, manifest, and replay artifacts on failure.
 It is intentionally not evidence for arbitrary Rust crate translation.
 
 ## Preview Promotion Checklist
@@ -218,10 +281,10 @@ Preview is not enough for a production-ready `runa from-rust` claim. Promotion
 from preview to production-ready requires a reviewed change that proves all of
 the following at the same time:
 
-1. The supported Rust source subset is versioned as a stable compatibility
-   contract, including the exact Rust syntax families, stdlib shapes,
+1. FRSS-v0, or its successor, is frozen as a stable compatibility contract for
+   the release line, including the exact Rust syntax families, stdlib shapes,
    ownership simplifications, deterministic collection behavior, and
-   unsupported boundaries that users can rely on for the release line.
+   unsupported boundaries that users can rely on.
 2. Every supported source shape has at least one exact Rust-vs-Futuruna stdout
    fixture in either `examples/from-rust/` or the downstream canary, and every
    newly promoted shape adds coverage before the contract expands.
@@ -235,8 +298,8 @@ the following at the same time:
    workflows. At least one lane must run from a clean external-style fixture
    directory rather than relying only on in-tree examples.
 5. A generated Rust-subset differential lane or equivalent proof-backed checker
-   searches within the documented supported subset and minimizes any divergence
-   into a permanent fixture before promotion.
+   searches within the named supported subset and minimizes any divergence into
+   a permanent fixture before promotion.
 6. `runa from-rust --verify` has stable success/failure output for the
    production subset, and CLI/help/docs explain how users distinguish supported
    source, expected unsupported source, and translator bugs.

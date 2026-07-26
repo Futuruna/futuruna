@@ -39,6 +39,11 @@ The project now has a real assurance stack:
   hygiene, and library-shaped user workflows.
 - A stable differential lane for replayable semantic bugs, seed-stable
   generative search, generated import-aware pressure, and failure artifacts.
+- A named FRSS-v0 preview contract for `runa from-rust`: deterministic
+  single-file Rust programs are validated by exact stdout matching across the
+  example corpus, a clean-directory downstream canary, and a generated
+  supported-subset differential lane, while arbitrary crate translation remains
+  outside the claim.
 - FIR phase validation snapshots that make compiler-structure drift visible instead of silent.
 - A contributor ratchet in [CONTRIBUTING.md](../CONTRIBUTING.md) that requires semantic changes to land with permanent coverage and documented follow-up tasks.
 - A published compatibility policy in [docs/compatibility-policy.md](compatibility-policy.md) that names source, behavioral, verification, and artifact-facing change categories and defines feature stages.
@@ -142,6 +147,12 @@ The professional move is hybrid assurance:
 
 - prove what is worth proving
 - ratchet everything else with tests, canaries, differential checks, and review discipline
+
+For Rust-to-Futuruna translation, the immediate production route is explicit:
+freeze the FRSS-v0 single-file subset into a stable release-line contract, keep
+growing downstream and generated differential evidence inside that subset, keep
+unsupported Rust fail-closed, and only promote crate-level translation if it
+gets its own contract and canaries.
 
 ## What Futuruna Is Working Toward
 

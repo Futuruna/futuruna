@@ -213,9 +213,10 @@ reported as an `XPASS` failure.
 ## From-Rust Supported-Subset Differential Lane
 
 `./scripts/from-rust-differential.sh` is a mint-blocking generated lane for
-`runa from-rust`. It writes deterministic single-file Rust programs inside the
-documented supported subset to a temporary directory, then requires exact Rust
-stdout parity after translation to Futuruna.
+`runa from-rust`. It writes deterministic single-file Rust programs inside
+FRSS-v0, the supported subset named in
+[from-rust-contract.md](from-rust-contract.md), to a temporary directory, then
+requires exact Rust stdout parity after translation to Futuruna.
 
 The current generated set covers loops/branches, `Option`/`Result` parse
 validation, nested structs/vectors, deterministic `BTreeMap` reporting, string

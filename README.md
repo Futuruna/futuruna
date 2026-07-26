@@ -121,6 +121,7 @@ runa test --run             # Run all tests/*.runa (compiled)
 runa test --roundtrip tests # Compare interpreter vs compiled output
 runa expect tests/expect    # Run compiletest-style compiler expectations
 runa feature-stages --json  # Print machine-readable stability metadata
+runa from-rust --test examples/from-rust/ # Validate the FRSS-v0 preview corpus
 runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 ./scripts/mint.sh           # Canonical "is Futuruna mint?" gate
 ./scripts/canary.sh         # Authored multi-feature canary programs
@@ -128,7 +129,7 @@ runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 ./scripts/differential.sh   # Reproducible differential and generative lane
 ```
 
-See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/production-readiness-scorecard.md](docs/production-readiness-scorecard.md) for the readiness table, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, [docs/expectation-suites.md](docs/expectation-suites.md) for compiletest-style expectations, [docs/artifact-codegen-contracts.md](docs/artifact-codegen-contracts.md) for emitted Rust and artifact boundaries, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
+See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/production-readiness-scorecard.md](docs/production-readiness-scorecard.md) for the readiness table, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, [docs/expectation-suites.md](docs/expectation-suites.md) for compiletest-style expectations, [docs/artifact-codegen-contracts.md](docs/artifact-codegen-contracts.md) for emitted Rust and artifact boundaries, [docs/from-rust-contract.md](docs/from-rust-contract.md) for the FRSS-v0 Rust-to-Futuruna preview contract, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
 
 Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md)
 and [docs/feature-stages.json](docs/feature-stages.json). Stable surfaces

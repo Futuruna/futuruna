@@ -48,7 +48,7 @@ These lanes are the core mint contract because they cover:
   copied into a fresh temp directory, exact-matched against translated
   Futuruna, plus a fail-closed unsupported ownership fixture
 - the from-rust supported-subset differential canary: generated deterministic
-  Rust programs inside the documented supported subset exact-match Rust vs
+  Rust programs inside FRSS-v0 exact-match Rust vs
   translated Futuruna output and leave replay artifacts on failure
 - interpreted Futuruna execution
 - compiled Futuruna execution
@@ -76,10 +76,11 @@ Intentionally omitted from the core mint gate:
 CI should call `./scripts/mint.sh` for the core language health gate, then run any omitted lanes as separate jobs or steps. The canary suite is the curated middle lane for realistic authored programs, while differential testing is the deeper search lane that exercises seed-stable generative programs and replayable minimized repros without slowing every core mint run.
 
 The full from-rust example corpus remains separate from mint while the preview
-boundary keeps maturing. Mint still runs the narrower downstream canary and the
-generated supported-subset differential lane so the production-readiness signal
-includes clean-directory consumer-shaped exact matching, fail-closed
-unsupported-shape diagnostics, and generated supported-subset exact matching.
+FRSS-v0 boundary keeps maturing. Mint still runs the narrower downstream canary
+and the generated supported-subset differential lane so the
+production-readiness signal includes clean-directory consumer-shaped exact
+matching, fail-closed unsupported-shape diagnostics, and generated FRSS-v0 exact
+matching.
 
 Passing machine lanes set `FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS=1` so
 informational `@ comptime` and auto-comptime comments do not obscure the
