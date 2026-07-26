@@ -6079,6 +6079,7 @@ impl Interpreter {
         env.set("Nil".into(), Value::Constructor("Nil".into(), vec![]));
         env.set("print".into(), Value::Builtin("print".into()));
         env.set("show".into(), Value::Builtin("show".into()));
+        env.set("rust_debug".into(), Value::Builtin("rust_debug".into()));
         env.set("length".into(), Value::Builtin("length".into()));
         env.set("head".into(), Value::Builtin("head".into()));
         env.set("tail".into(), Value::Builtin("tail".into()));
@@ -7652,6 +7653,10 @@ impl Interpreter {
                 Some(v) => Value::Str(format!("{}", v)),
                 None => Value::Str(String::new()),
             },
+            "rust_debug" => match args.first() {
+                Some(v) => Value::Str(rust_debug_value(v)),
+                None => Value::Str(String::new()),
+            },
             "show_int" | "show_float" => match args.first() {
                 Some(v) => Value::Str(format!("{}", v)),
                 None => Value::Str("0".into()),
@@ -7940,7 +7945,7 @@ impl Interpreter {
                     items.sort_by(|a, b| {
                         let ka = self.apply(func.clone(), vec![a.clone()], env);
                         let kb = self.apply(func.clone(), vec![b.clone()], env);
-                        format!("{}", ka).cmp(&format!("{}", kb))
+                        value_sort_cmp(&ka, &kb)
                     });
                     Value::List(items)
                 }
@@ -8890,19 +8895,7 @@ impl Interpreter {
                 // push(list, elem) — append elem to list
                 match (args.get(0), args.get(1)) {
                     (Some(list), Some(elem)) => {
-                        let mut items = Vec::new();
-                        let mut cur = list.clone();
-                        loop {
-                            match cur {
-                                Value::Constructor(ref n, ref fs)
-                                    if n == "Cons" && fs.len() == 2 =>
-                                {
-                                    items.push(fs[0].clone());
-                                    cur = fs[1].clone();
-                                }
-                                _ => break,
-                            }
-                        }
+                        let mut items = list_to_vec(list);
                         items.push(elem.clone());
                         let mut result = Value::Constructor("Nil".into(), vec![]);
                         for item in items.into_iter().rev() {
@@ -11165,6 +11158,63 @@ pub fn list_to_vec(val: &Value) -> Vec<Value> {
     result
 }
 
+fn rust_debug_value(value: &Value) -> String {
+    match value {
+        Value::Str(s) => format!("{:?}", s),
+        Value::Char(c) => format!("{:?}", c),
+        Value::List(items) | Value::Stream(items) | Value::Subject(items) => {
+            let parts: Vec<String> = items.iter().map(rust_debug_value).collect();
+            format!("[{}]", parts.join(", "))
+        }
+        Value::Constructor(name, fields) if name == "Cons" => {
+            let parts: Vec<String> = list_to_vec(value).iter().map(rust_debug_value).collect();
+            format!("[{}]", parts.join(", "))
+        }
+        Value::Constructor(name, _) if name == "Nil" => "[]".to_string(),
+        Value::Tuple(items) => {
+            let mut parts: Vec<String> = items.iter().map(rust_debug_value).collect();
+            if parts.len() == 1 {
+                parts.push(String::new());
+            }
+            format!("({})", parts.join(", "))
+        }
+        Value::Map(entries) => {
+            let parts: Vec<String> = entries
+                .iter()
+                .map(|(k, v)| format!("{:?}: {}", k, rust_debug_value(v)))
+                .collect();
+            format!("{{{}}}", parts.join(", "))
+        }
+        Value::Set(items) => {
+            let parts: Vec<String> = items.values().map(rust_debug_value).collect();
+            format!("{{{}}}", parts.join(", "))
+        }
+        Value::Constructor(name, fields) if fields.is_empty() => name.clone(),
+        Value::Constructor(name, fields) => {
+            let parts: Vec<String> = fields.iter().map(rust_debug_value).collect();
+            format!("{}({})", name, parts.join(", "))
+        }
+        other => format!("{}", other),
+    }
+}
+
+fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
+    match (a, b) {
+        (Value::Int(a), Value::Int(b)) => a.cmp(b),
+        (Value::Float(a), Value::Float(b)) => a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal),
+        (Value::Int(a), Value::Float(b)) => (*a as f64)
+            .partial_cmp(b)
+            .unwrap_or(std::cmp::Ordering::Equal),
+        (Value::Float(a), Value::Int(b)) => a
+            .partial_cmp(&(*b as f64))
+            .unwrap_or(std::cmp::Ordering::Equal),
+        (Value::Str(a), Value::Str(b)) => a.cmp(b),
+        (Value::Char(a), Value::Char(b)) => a.cmp(b),
+        (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
+        _ => format!("{}", a).cmp(&format!("{}", b)),
+    }
+}
+
 pub fn vec_to_list(items: Vec<Value>) -> Value {
     let mut result = Value::Constructor("Nil".into(), vec![]);
     for item in items.into_iter().rev() {
@@ -11347,6 +11397,7 @@ impl TypeChecker {
             ("char_at", 2),
             ("index_of", 2),
             ("format_float", 2),
+            ("rust_debug", 1),
             ("parse_int", 1),
             ("parse_float", 1),
             ("string_chars", 1),

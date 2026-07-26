@@ -1,6 +1,5 @@
 // Adversarial 4: Closures, iterators, functional chains
 // The kind of Rust that reads like Haskell
-// runa-from-rust: expect-unsupported iterator scan/sort_by/entry chains with mutable closure state
 
 fn pipeline_demo() {
     let data = vec![
@@ -37,7 +36,7 @@ fn pipeline_demo() {
 
     // Group by first letter
     let words = vec!["apple", "avocado", "banana", "blueberry", "cherry", "coconut"];
-    let mut groups: HashMap<char, Vec<&str>> = HashMap::new();
+    let mut groups: BTreeMap<char, Vec<&str>> = BTreeMap::new();
     for word in &words {
         let first = word.chars().next().unwrap();
         groups.entry(first).or_insert_with(Vec::new).push(word);
@@ -48,7 +47,7 @@ fn pipeline_demo() {
     }
 }
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 fn main() {
     pipeline_demo();

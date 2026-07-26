@@ -24,7 +24,10 @@ The current supported examples cover:
 - simple `Result` `?` chains, including checked-in integer
   `parse().map_err(...)?` parse-error remapping and early `return Err(...)`
   guard flows
-- closures and iterator patterns already represented by matching fixtures
+- closures and iterator patterns already represented by matching fixtures,
+  including the checked-in stateful subset for tuple-key `sort_by`,
+  Fibonacci-style `scan(...).collect()`, and
+  `entry(...).or_insert_with(Vec::new).push(...)` map grouping
 - small real-world examples: JSON-like values, expression evaluation, and a mini
   type checker
 
@@ -54,8 +57,8 @@ unsupported diagnostics:
 - `impl-trait`: `impl Trait` signatures
 - `unsupported-map-err`: `Result::map_err` shapes outside the checked-in
   integer parse-error remapping subset
-- `stateful-iterator-chain`: iterator/map state machines such as `scan`,
-  `sort_by`, `entry`, and `or_insert_with`
+- `stateful-iterator-chain`: iterator/map state machines outside the checked-in
+  stateful subset
 - `reference-tuple-match`: matches over tuples of references that need
   reference-pattern simplification
 
@@ -63,7 +66,6 @@ Current expected-unsupported categories include:
 
 - recursive ownership patterns that return borrowed nodes
 - associated types, trait bounds, higher-rank generic closures, and `impl Trait`
-- iterator state machines such as `scan`, `sort_by`, and map entry chains
 - nested boxed enum patterns and reference-pattern simplification
 
 ## Promotion Rule

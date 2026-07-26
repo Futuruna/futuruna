@@ -10664,6 +10664,7 @@ static LSP_BUILTINS: &[(&str, usize)] = &[
     ("parse_float", 1),
     ("string_chars", 1),
     ("format_float", 2),
+    ("rust_debug", 1),
     ("read_file", 1),
     ("write_file", 2),
     ("append_file", 2),
@@ -10876,6 +10877,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("char_at",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __i = {1} as usize; if __i < __s.len() { __s[__i].to_string() } else { String::new() } }" }),
         ("index_of",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: &str = &*{0}; match __s.find(&*{1}) { Some(__byte) => __s[..__byte].chars().count() as i64, None => -1i64 } }" }),
         ("format_float", BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "format!(\"{:.prec$}\", {0} as f64, prec = {1} as usize)" }),
+        ("rust_debug",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "format!(\"{:?}\", {0})" }),
         ("parse_int",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().parse::<i64>().unwrap_or(0)" }),
         ("parse_float",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().parse::<f64>().unwrap_or(0.0)" }),
         ("string_chars", BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.chars().map(|c| c.to_string()).collect::<Vec<String>>()" }),
@@ -13374,11 +13376,11 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
 
 fn builtin_arg_is_borrow_only(name: &str, arg_index: usize) -> bool {
     match builtin_canonical(name) {
-        "show" | "length" | "head" | "tail" | "string_length" | "trim" | "to_upper"
-        | "to_lower" | "string_chars" | "parse_int" | "parse_float" | "map_len" | "map_keys"
-        | "map_values" | "map_entries" | "set_len" | "set_to_list" | "is_some" | "is_none"
-        | "sort" | "reverse" | "enumerate" | "distinct" | "sum_list" | "from_list" | "collect"
-        | "count" | "sum" | "last" | "first" | "pairwise" => arg_index == 0,
+        "show" | "rust_debug" | "length" | "head" | "tail" | "string_length" | "trim"
+        | "to_upper" | "to_lower" | "string_chars" | "parse_int" | "parse_float" | "map_len"
+        | "map_keys" | "map_values" | "map_entries" | "set_len" | "set_to_list" | "is_some"
+        | "is_none" | "sort" | "reverse" | "enumerate" | "distinct" | "sum_list" | "from_list"
+        | "collect" | "count" | "sum" | "last" | "first" | "pairwise" => arg_index == 0,
 
         "nth" | "contains" | "starts_with" | "ends_with" | "char_at" | "index_of" | "split"
         | "join" | "format_float" | "map_get" | "map_contains" | "map_remove" | "set_contains"
@@ -15282,6 +15284,7 @@ fn builtin_fixed_return_fir_ty(name: &str) -> Option<FirTy> {
         | "show_int"
         | "show_float"
         | "format_float"
+        | "rust_debug"
         | "read_file"
         | "env_var"
         | "json_parse"
@@ -33334,6 +33337,86 @@ fn parse_age(s: &str) -> Result<i64, String> {
     }
 
     #[test]
+    fn from_rust_supports_descending_tuple_sort_by_shape() {
+        let source = r#"
+fn main() {
+    let mut results = vec![("a", 1.0), ("b", 2.0)];
+    results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+}
+"#;
+        let runa = rust_to_runa_checked(source).expect("tuple sort_by should be supported");
+        assert!(runa.contains("= results = reverse(sort_by(results, |__entry| snd(__entry)))"));
+    }
+
+    #[test]
+    fn from_rust_supports_fibonacci_scan_collect_shape() {
+        let source = r#"
+fn main() {
+    let fibs: Vec<i64> = (0..3)
+        .scan((0i64, 1i64), |state, _| {
+            let next = state.0 + state.1;
+            *state = (state.1, next);
+            Some(state.0)
+        })
+        .collect();
+    println!("{:?}", fibs);
+}
+"#;
+        let runa = rust_to_runa_checked(source).expect("fibonacci scan should be supported");
+        assert!(runa.contains("for _ in (range(0, 3)) {"));
+        assert!(runa.contains("= __scan_state_fibs = (snd(__scan_state_fibs), next)"));
+        assert!(runa.contains("= fibs = push(fibs, fst(__scan_state_fibs))"));
+        assert!(runa.contains("rust_debug(fibs)"));
+    }
+
+    #[test]
+    fn from_rust_supports_entry_or_insert_vec_push_shape() {
+        let source = r#"
+use std::collections::BTreeMap;
+
+fn main() {
+    let words = vec!["apple", "avocado"];
+    let mut groups: BTreeMap<char, Vec<&str>> = BTreeMap::new();
+    for word in &words {
+        let first = word.chars().next().unwrap();
+        groups.entry(first).or_insert_with(Vec::new).push(word);
+    }
+    for (letter, words) in &groups {
+        println!("{}: {:?}", letter, words);
+    }
+}
+"#;
+        let runa = rust_to_runa_checked(source).expect("entry push should be supported");
+        assert!(runa.contains(
+            "= groups = map_insert(groups, first, push(map_get_or(groups, first, []), word))"
+        ));
+        assert!(runa.contains("for __item in map_entries(groups) {"));
+        assert!(runa.contains("rust_debug(words)"));
+    }
+
+    #[test]
+    fn from_rust_rejects_unsupported_scan_with_category() {
+        let source = r#"
+fn main() {
+    let xs: Vec<i64> = (0..3)
+        .scan(0, |state, x| {
+            *state = *state + x;
+            Some(*state)
+        })
+        .collect();
+    println!("{:?}", xs);
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "stateful-iterator-chain");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn from_rust_rejects_explicit_i32_parse_map_err_with_category() {
         let source = r#"
 fn parse_age(s: &str) -> Result<i32, String> {
@@ -40754,12 +40837,30 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
     }
 
     fn visit_expr_method_call(&mut self, item: &'ast syn::ExprMethodCall) {
+        if from_rust_is_supported_entry_or_insert_push(item) {
+            if let syn::Expr::MethodCall(or_insert) = item.receiver.as_ref() {
+                if let syn::Expr::MethodCall(entry) = or_insert.receiver.as_ref() {
+                    syn::visit::visit_expr(self, &entry.receiver);
+                    for arg in &entry.args {
+                        syn::visit::visit_expr(self, arg);
+                    }
+                }
+            }
+            for arg in &item.args {
+                syn::visit::visit_expr(self, arg);
+            }
+            return;
+        }
         match item.method.to_string().as_str() {
             "map_err" if !from_rust_is_supported_parse_map_err(item) => {
                 self.result_map_err = true;
             }
-            "scan" => self.stateful_iterator_method = Some("scan"),
-            "sort_by" => self.stateful_iterator_method = Some("sort_by"),
+            "scan" if !from_rust_is_supported_scan_method(item) => {
+                self.stateful_iterator_method = Some("scan");
+            }
+            "sort_by" if !from_rust_is_supported_sort_by_method(item) => {
+                self.stateful_iterator_method = Some("sort_by");
+            }
             "entry" => self.stateful_iterator_method = Some("entry"),
             "or_insert_with" => self.stateful_iterator_method = Some("or_insert_with"),
             _ => {}
@@ -40861,9 +40962,211 @@ fn from_rust_is_supported_integer_parse_call(item: &syn::ExprMethodCall) -> bool
         .unwrap_or(false)
 }
 
+fn from_rust_is_supported_scan_method(item: &syn::ExprMethodCall) -> bool {
+    if item.method != "scan" || item.args.len() != 2 || !from_rust_expr_is_range(&item.receiver) {
+        return false;
+    }
+    let Some(syn::Expr::Closure(closure)) = item.args.iter().nth(1) else {
+        return false;
+    };
+    if closure.inputs.len() != 2 {
+        return false;
+    }
+    let Some(state_name) = from_rust_pat_ident(closure.inputs.first().unwrap()) else {
+        return false;
+    };
+    let syn::Expr::Block(body) = closure.body.as_ref() else {
+        return false;
+    };
+    if body.block.stmts.len() != 3 {
+        return false;
+    }
+    matches!(&body.block.stmts[0], syn::Stmt::Local(local) if local.init.is_some())
+        && from_rust_stmt_assigns_scan_state(&body.block.stmts[1], &state_name)
+        && from_rust_stmt_returns_some(&body.block.stmts[2])
+}
+
+fn from_rust_is_supported_sort_by_method(item: &syn::ExprMethodCall) -> bool {
+    item.method == "sort_by"
+        && item.args.len() == 1
+        && from_rust_sort_by_tuple_field_direction(item.args.first().unwrap()).is_some()
+}
+
+fn from_rust_is_supported_entry_or_insert_push(item: &syn::ExprMethodCall) -> bool {
+    if item.method != "push" || item.args.len() != 1 {
+        return false;
+    }
+    let syn::Expr::MethodCall(or_insert) = item.receiver.as_ref() else {
+        return false;
+    };
+    if or_insert.method != "or_insert_with"
+        || or_insert.args.len() != 1
+        || !from_rust_expr_is_vec_new(or_insert.args.first().unwrap())
+    {
+        return false;
+    }
+    let syn::Expr::MethodCall(entry) = or_insert.receiver.as_ref() else {
+        return false;
+    };
+    entry.method == "entry" && entry.args.len() == 1
+}
+
+fn from_rust_sort_by_tuple_field_direction(expr: &syn::Expr) -> Option<(usize, bool)> {
+    let syn::Expr::Closure(closure) = expr else {
+        return None;
+    };
+    if closure.inputs.len() != 2 {
+        return None;
+    }
+    let left_param = from_rust_pat_ident(closure.inputs.first()?)?;
+    let right_param = from_rust_pat_ident(closure.inputs.iter().nth(1)?)?;
+    let body = from_rust_strip_unwrap(closure.body.as_ref());
+    let syn::Expr::MethodCall(partial_cmp) = body else {
+        return None;
+    };
+    if partial_cmp.method != "partial_cmp" || partial_cmp.args.len() != 1 {
+        return None;
+    }
+    let (recv_name, recv_field) = from_rust_tuple_field_access(&partial_cmp.receiver)?;
+    let (arg_name, arg_field) = from_rust_tuple_field_access(partial_cmp.args.first()?)?;
+    if recv_field != arg_field {
+        return None;
+    }
+    if recv_name == right_param && arg_name == left_param {
+        Some((recv_field, true))
+    } else if recv_name == left_param && arg_name == right_param {
+        Some((recv_field, false))
+    } else {
+        None
+    }
+}
+
+fn from_rust_expr_is_range(expr: &syn::Expr) -> bool {
+    match expr {
+        syn::Expr::Range(_) => true,
+        syn::Expr::Paren(paren) => from_rust_expr_is_range(&paren.expr),
+        _ => false,
+    }
+}
+
+fn from_rust_expr_is_vec_new(expr: &syn::Expr) -> bool {
+    let syn::Expr::Path(path) = expr else {
+        return false;
+    };
+    path.path
+        .segments
+        .iter()
+        .map(|segment| segment.ident.to_string())
+        .collect::<Vec<_>>()
+        .join("::")
+        == "Vec::new"
+}
+
+fn from_rust_pat_ident(pat: &syn::Pat) -> Option<String> {
+    match pat {
+        syn::Pat::Ident(ident) => Some(ident.ident.to_string()),
+        syn::Pat::Type(typed) => from_rust_pat_ident(&typed.pat),
+        syn::Pat::Reference(reference) => from_rust_pat_ident(&reference.pat),
+        _ => None,
+    }
+}
+
+fn from_rust_strip_unwrap(expr: &syn::Expr) -> &syn::Expr {
+    if let syn::Expr::MethodCall(method) = expr {
+        if method.method == "unwrap" && method.args.is_empty() {
+            return method.receiver.as_ref();
+        }
+    }
+    expr
+}
+
+fn from_rust_tuple_field_access(expr: &syn::Expr) -> Option<(String, usize)> {
+    let expr = match expr {
+        syn::Expr::Reference(reference) => reference.expr.as_ref(),
+        syn::Expr::Paren(paren) => paren.expr.as_ref(),
+        _ => expr,
+    };
+    let syn::Expr::Field(field) = expr else {
+        return None;
+    };
+    let syn::Member::Unnamed(index) = &field.member else {
+        return None;
+    };
+    let syn::Expr::Path(base) = field.base.as_ref() else {
+        return None;
+    };
+    let name = base.path.segments.last()?.ident.to_string();
+    Some((name, index.index as usize))
+}
+
+fn from_rust_tuple_accessor_expr(obj: &str, index: usize) -> String {
+    match index {
+        0 => format!("fst({})", obj),
+        1 => format!("snd({})", obj),
+        2 => format!("trd({})", obj),
+        _ => format!("nth({}, {})", obj, index),
+    }
+}
+
+fn from_rust_stmt_assigns_scan_state(stmt: &syn::Stmt, state_name: &str) -> bool {
+    let syn::Stmt::Expr(syn::Expr::Assign(assign), _) = stmt else {
+        return false;
+    };
+    match assign.left.as_ref() {
+        syn::Expr::Unary(unary) if matches!(unary.op, syn::UnOp::Deref(_)) => {
+            matches!(unary.expr.as_ref(), syn::Expr::Path(path) if path.path.segments.last().map(|segment| segment.ident == state_name).unwrap_or(false))
+        }
+        syn::Expr::Path(path) => path
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident == state_name)
+            .unwrap_or(false),
+        _ => false,
+    }
+}
+
+fn from_rust_stmt_returns_some(stmt: &syn::Stmt) -> bool {
+    let syn::Stmt::Expr(syn::Expr::Call(call), _) = stmt else {
+        return false;
+    };
+    if call.args.len() != 1 {
+        return false;
+    }
+    matches!(call.func.as_ref(), syn::Expr::Path(path) if path.path.segments.last().map(|segment| segment.ident == "Some").unwrap_or(false))
+}
+
+fn from_rust_some_call_arg(expr: &syn::Expr) -> Option<&syn::Expr> {
+    let syn::Expr::Call(call) = expr else {
+        return None;
+    };
+    if call.args.len() != 1 {
+        return None;
+    }
+    let is_some = matches!(call.func.as_ref(), syn::Expr::Path(path) if path.path.segments.last().map(|segment| segment.ident == "Some").unwrap_or(false));
+    if is_some {
+        call.args.first()
+    } else {
+        None
+    }
+}
+
+fn from_rust_expr_is_statement_like(expr: &syn::Expr) -> bool {
+    matches!(
+        expr,
+        syn::Expr::ForLoop(_)
+            | syn::Expr::While(_)
+            | syn::Expr::Loop(_)
+            | syn::Expr::Assign(_)
+            | syn::Expr::Macro(_)
+            | syn::Expr::Unsafe(_)
+    )
+}
+
 struct RustToRunaCtx {
     output: String,
     indent: usize,
+    map_vars: BTreeSet<String>,
 }
 
 impl RustToRunaCtx {
@@ -40871,6 +41174,7 @@ impl RustToRunaCtx {
         Self {
             output: String::new(),
             indent: 0,
+            map_vars: BTreeSet::new(),
         }
     }
 
@@ -41663,17 +41967,25 @@ impl RustToRunaCtx {
                     if let syn::Pat::Tuple(t) = &c.inputs[0] {
                         let names: Vec<String> =
                             t.elems.iter().map(|p| self.pat_to_string(p)).collect();
-                        let body = self.expr_to_string(&c.body);
                         if names.len() == 2 {
+                            let mut lines = vec![
+                                format!("= {} = fst(__p)", names[0]),
+                                format!("= {} = snd(__p)", names[1]),
+                            ];
+                            lines.extend(self.closure_body_lines(&c.body));
                             return format!(
-                                "|__p| {{\n    = {} = fst(__p)\n    = {} = snd(__p)\n    {}\n}}",
-                                names[0], names[1], body
+                                "|__p| {{\n{}\n}}",
+                                lines
+                                    .iter()
+                                    .map(|line| format!("    {}", line))
+                                    .collect::<Vec<_>>()
+                                    .join("\n")
                             );
                         }
                     }
                 }
                 let params: Vec<String> = c.inputs.iter().map(|p| self.pat_to_string(p)).collect();
-                let body = self.expr_to_string(&c.body);
+                let body = self.closure_body_to_string(&c.body);
                 format!("|{}| {}", params.join(", "), body)
             }
             syn::Expr::Tuple(t) => {
@@ -41691,11 +42003,12 @@ impl RustToRunaCtx {
             }
             syn::Expr::Field(f) => {
                 let obj = self.expr_to_string(&f.base);
-                let field = match &f.member {
-                    syn::Member::Named(n) => n.to_string(),
-                    syn::Member::Unnamed(idx) => format!("{}", idx.index),
-                };
-                format!("{}.{}", obj, field)
+                match &f.member {
+                    syn::Member::Named(n) => format!("{}.{}", obj, n),
+                    syn::Member::Unnamed(idx) => {
+                        from_rust_tuple_accessor_expr(&obj, idx.index as usize)
+                    }
+                }
             }
             syn::Expr::Reference(r) => {
                 // Strip reference — invisible ownership
@@ -41899,7 +42212,8 @@ impl RustToRunaCtx {
             "to_uppercase" => format!("to_upper({})", recv),
             "to_lowercase" => format!("to_lower({})", recv),
             "parse" => format!("parse_int({})", recv),
-            "chars" => format!("chars({})", recv),
+            "chars" => format!("string_chars({})", recv),
+            "next" => format!("head({})", recv),
             "rev" => format!("reverse({})", recv),
 
             // Option / Result
@@ -42188,20 +42502,23 @@ impl RustToRunaCtx {
                         }
                         first = false;
                         if arg_idx < args.len() {
-                            let arg = self.clean_macro_arg(args[arg_idx]);
-                            result.push_str(&format!("show({})", arg));
+                            result.push_str(&self.format_macro_arg_for_spec(args[arg_idx], ""));
                             arg_idx += 1;
                         }
                     } else {
-                        // Named/formatted: {:?}, {:.2}, etc — just use show()
-                        while chars.next() != Some('}') {}
+                        let mut spec = String::new();
+                        while let Some(nc) = chars.next() {
+                            if nc == '}' {
+                                break;
+                            }
+                            spec.push(nc);
+                        }
                         if !first {
                             result.push_str(" + ");
                         }
                         first = false;
                         if arg_idx < args.len() {
-                            let arg = self.clean_macro_arg(args[arg_idx]);
-                            result.push_str(&format!("show({})", arg));
+                            result.push_str(&self.format_macro_arg_for_spec(args[arg_idx], &spec));
                             arg_idx += 1;
                         }
                     }
@@ -42241,6 +42558,19 @@ impl RustToRunaCtx {
 
         // Fallback: just emit as string
         format!("@ print({})", tokens)
+    }
+
+    fn format_macro_arg_for_spec(&self, arg: &str, spec: &str) -> String {
+        let arg = self.clean_macro_arg(arg);
+        if spec == ":?" {
+            return format!("rust_debug({})", arg);
+        }
+        if let Some(decimals) = spec.strip_prefix(":.") {
+            if !decimals.is_empty() && decimals.chars().all(|c| c.is_ascii_digit()) {
+                return format!("format_float({}, {})", arg, decimals);
+            }
+        }
+        format!("show({})", arg)
     }
 
     fn transpile_format_tokens(&self, tokens: &str) -> String {
@@ -42411,6 +42741,64 @@ impl RustToRunaCtx {
         "...".to_string()
     }
 
+    fn closure_body_to_string(&self, body: &syn::Expr) -> String {
+        let lines = self.closure_body_lines(body);
+        if lines.len() == 1 {
+            lines[0].clone()
+        } else {
+            format!(
+                "{{\n{}\n}}",
+                lines
+                    .iter()
+                    .map(|line| format!("    {}", line))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            )
+        }
+    }
+
+    fn closure_body_lines(&self, body: &syn::Expr) -> Vec<String> {
+        match body {
+            syn::Expr::Block(block) => self.block_to_closure_lines(&block.block),
+            _ => vec![self.expr_to_string(body)],
+        }
+    }
+
+    fn block_to_closure_lines(&self, block: &syn::Block) -> Vec<String> {
+        let mut lines = Vec::new();
+        for stmt in &block.stmts {
+            match stmt {
+                syn::Stmt::Local(local) => {
+                    let pat = self.pat_to_string(&local.pat);
+                    if let Some(init) = &local.init {
+                        if let syn::Expr::Try(try_expr) = init.expr.as_ref() {
+                            lines.push(format!(
+                                "= {} <- {}",
+                                pat,
+                                self.expr_to_string(&try_expr.expr)
+                            ));
+                        } else {
+                            lines.push(format!("= {} = {}", pat, self.expr_to_string(&init.expr)));
+                        }
+                    } else {
+                        lines.push(format!("= {} = ()", pat));
+                    }
+                }
+                syn::Stmt::Expr(syn::Expr::Assign(assign), _) => {
+                    lines.push(format!(
+                        "= {} = {}",
+                        self.expr_to_string(&assign.left),
+                        self.expr_to_string(&assign.right)
+                    ));
+                }
+                syn::Stmt::Expr(expr, _) => lines.push(self.expr_to_string(expr)),
+                syn::Stmt::Macro(mac) => lines.push(self.transpile_macro_stmt(mac)),
+                syn::Stmt::Item(_) => {}
+            }
+        }
+        lines
+    }
+
     fn transpile_block_stmts(&mut self, block: &syn::Block) {
         for stmt in &block.stmts {
             self.transpile_stmt(stmt);
@@ -42458,7 +42846,9 @@ impl RustToRunaCtx {
         for (i, stmt) in stmts.iter().enumerate() {
             let is_last = i == len - 1;
             match stmt {
-                syn::Stmt::Expr(expr, None) if is_last => {
+                syn::Stmt::Expr(expr, None)
+                    if is_last && !from_rust_expr_is_statement_like(expr) =>
+                {
                     // Last expression without semicolon — the return value
                     let s = self.expr_to_string(expr);
                     self.emit_line(&s);
@@ -42493,9 +42883,133 @@ impl RustToRunaCtx {
         None
     }
 
+    fn scan_collect_local_to_lines(&self, local: &syn::Local) -> Option<Vec<String>> {
+        let target = from_rust_pat_ident(&local.pat)?;
+        let init = local.init.as_ref()?;
+        let syn::Expr::MethodCall(collect) = init.expr.as_ref() else {
+            return None;
+        };
+        if collect.method != "collect" {
+            return None;
+        }
+        let syn::Expr::MethodCall(scan) = collect.receiver.as_ref() else {
+            return None;
+        };
+        if !from_rust_is_supported_scan_method(scan) {
+            return None;
+        }
+        let closure = match scan.args.iter().nth(1)? {
+            syn::Expr::Closure(closure) => closure,
+            _ => return None,
+        };
+        let state_name = from_rust_pat_ident(closure.inputs.first()?)?;
+        let body = match closure.body.as_ref() {
+            syn::Expr::Block(block) => &block.block,
+            _ => return None,
+        };
+        let state_var = format!("__scan_state_{}", target);
+        let mut lines = vec![
+            format!("= {} = []", target),
+            format!(
+                "= {} = {}",
+                state_var,
+                self.expr_to_string(scan.args.first()?)
+            ),
+            format!("for _ in {} {{", self.expr_to_string(&scan.receiver)),
+        ];
+        for stmt in &body.stmts {
+            match stmt {
+                syn::Stmt::Local(local) => {
+                    let pat = self.pat_to_string(&local.pat);
+                    let init = local.init.as_ref()?;
+                    let value = self.replace_scan_state_expr(&init.expr, &state_name, &state_var);
+                    lines.push(format!("    = {} = {}", pat, value));
+                }
+                syn::Stmt::Expr(syn::Expr::Assign(assign), _) => {
+                    if from_rust_stmt_assigns_scan_state(stmt, &state_name) {
+                        let value =
+                            self.replace_scan_state_expr(&assign.right, &state_name, &state_var);
+                        lines.push(format!("    = {} = {}", state_var, value));
+                    }
+                }
+                syn::Stmt::Expr(expr, _) => {
+                    let value_expr = from_rust_some_call_arg(expr).unwrap_or(expr);
+                    let value = self.replace_scan_state_expr(value_expr, &state_name, &state_var);
+                    lines.push(format!("    = {} = push({}, {})", target, target, value));
+                }
+                _ => {}
+            }
+        }
+        lines.push("}".to_string());
+        Some(lines)
+    }
+
+    fn replace_scan_state_expr(
+        &self,
+        expr: &syn::Expr,
+        state_name: &str,
+        state_var: &str,
+    ) -> String {
+        self.expr_to_string(expr)
+            .replace(
+                &format!("fst({})", state_name),
+                &format!("fst({})", state_var),
+            )
+            .replace(
+                &format!("snd({})", state_name),
+                &format!("snd({})", state_var),
+            )
+            .replace(
+                &format!("trd({})", state_name),
+                &format!("trd({})", state_var),
+            )
+    }
+
+    fn sort_by_stmt_to_line(&self, item: &syn::ExprMethodCall) -> Option<String> {
+        if item.method != "sort_by" || item.args.len() != 1 {
+            return None;
+        }
+        let (field, reverse_order) =
+            from_rust_sort_by_tuple_field_direction(item.args.first().unwrap())?;
+        let recv = self.expr_to_string(&item.receiver);
+        let key = from_rust_tuple_accessor_expr("__entry", field);
+        let sorted = format!("sort_by({}, |__entry| {})", recv, key);
+        let sorted = if reverse_order {
+            format!("reverse({})", sorted)
+        } else {
+            sorted
+        };
+        Some(format!("= {} = {}", recv, sorted))
+    }
+
+    fn entry_or_insert_push_stmt_to_line(&self, item: &syn::ExprMethodCall) -> Option<String> {
+        if !from_rust_is_supported_entry_or_insert_push(item) {
+            return None;
+        }
+        let syn::Expr::MethodCall(or_insert) = item.receiver.as_ref() else {
+            return None;
+        };
+        let syn::Expr::MethodCall(entry) = or_insert.receiver.as_ref() else {
+            return None;
+        };
+        let map = self.expr_to_string(&entry.receiver);
+        let key = self.expr_to_string(entry.args.first()?);
+        let value = self.expr_to_string(item.args.first()?);
+        Some(format!(
+            "= {} = map_insert({}, {}, push(map_get_or({}, {}, []), {}))",
+            map, map, key, map, key, value
+        ))
+    }
+
     fn transpile_stmt(&mut self, stmt: &syn::Stmt) {
         match stmt {
             syn::Stmt::Local(local) => {
+                if let Some(lines) = self.scan_collect_local_to_lines(local) {
+                    for line in lines {
+                        self.emit_line(&line);
+                    }
+                    return;
+                }
                 let pat_str = self.pat_to_string(&local.pat);
                 if let Some(init) = &local.init {
                     let val = self.expr_to_string(&init.expr);
@@ -42534,6 +43048,9 @@ impl RustToRunaCtx {
                                 return;
                             }
                         }
+                    }
+                    if !is_try && inner_val == "map_new()" {
+                        self.map_vars.insert(pat_str.clone());
                     }
                     self.emit_line(&format!("= {} {} {}", pat_str, bind_op, inner_val));
                 } else {
@@ -42650,7 +43167,12 @@ impl RustToRunaCtx {
                     if t.elems.len() == 2 {
                         let names: Vec<String> =
                             t.elems.iter().map(|p| self.pat_to_string(p)).collect();
-                        self.emit_line(&format!("for __item in {} {{", iter));
+                        let iter_source = if self.map_vars.contains(&iter) {
+                            format!("map_entries({})", iter)
+                        } else {
+                            iter.clone()
+                        };
+                        self.emit_line(&format!("for __item in {} {{", iter_source));
                         self.indent += 1;
                         self.emit_line(&format!("= {} = fst(__item)", names[0]));
                         self.emit_line(&format!("= {} = snd(__item)", names[1]));
@@ -42720,6 +43242,14 @@ impl RustToRunaCtx {
             }
             // Mutation method calls → rebinding (HashMap.insert, Vec.push, etc.)
             syn::Expr::MethodCall(mc) => {
+                if let Some(line) = self.entry_or_insert_push_stmt_to_line(mc) {
+                    self.emit_line(&line);
+                    return;
+                }
+                if let Some(line) = self.sort_by_stmt_to_line(mc) {
+                    self.emit_line(&line);
+                    return;
+                }
                 let recv = self.expr_to_string(&mc.receiver);
                 let method = mc.method.to_string();
                 let args: Vec<String> = mc.args.iter().map(|a| self.expr_to_string(a)).collect();
