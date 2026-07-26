@@ -210,6 +210,19 @@ directory. The unsupported fixtures live in
 `runa-from-rust: expect-unsupported` directives so accidental promotion is
 reported as an `XPASS` failure.
 
+## From-Rust Supported-Subset Differential Lane
+
+`./scripts/from-rust-differential.sh` is a mint-blocking generated lane for
+`runa from-rust`. It writes deterministic single-file Rust programs inside the
+documented supported subset to a temporary directory, then requires exact Rust
+stdout parity after translation to Futuruna.
+
+The current generated set covers loops/branches, `Option`/`Result` parse
+validation, nested structs/vectors, deterministic `BTreeMap` reporting, string
+normalization, and enum/reference conditional rebinding. On failure, the script
+keeps generated source, a manifest, captured output, and a replay script in the
+artifact directory so a minimized permanent fixture can be checked in.
+
 ## WASM Build Canary Lane
 
 `./scripts/wasm-canary.sh` discovers `.runa` fixtures marked with

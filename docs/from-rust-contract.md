@@ -24,6 +24,16 @@ programs, and verifies that intentionally unsupported Rust stays fail-closed
 with stable diagnostics. A fixture without an explicit directive is part of the
 supported subset and must match Rust output exactly.
 
+The mint-blocking generated supported-subset differential lane is:
+
+```bash
+./scripts/from-rust-differential.sh
+```
+
+That script writes deterministic single-file Rust programs inside the documented
+supported subset to a temporary directory, exact-matches Rust stdout against the
+translated Futuruna output, and leaves replay artifacts on failure.
+
 ## Supported Fixture Subset
 
 The current supported examples cover:
@@ -142,6 +152,10 @@ As of 2026-07-18, the preview boundary is backed by:
   matches from a fresh temporary directory
 - the same downstream canary: 10 expected-unsupported fail-closed fixtures
   covering the stable unsupported diagnostic categories listed above
+- `./scripts/from-rust-differential.sh`: 6 generated supported-subset exact
+  matches covering loops/branches, `Option`/`Result` parse validation, nested
+  data, deterministic map reporting, string transformation, and enum/reference
+  conditional rebinding
 
 This evidence promotes the checked-in validation boundary to preview. It does
 not promote arbitrary Rust crate translation, broad macro expansion, full
@@ -153,6 +167,12 @@ increment toward the checklist below: nested data, error handling, deterministic
 collection/reporting, and text transformation fixtures run from the same clean
 temporary-directory canary as the preview corpus. This is stronger production
 evidence, not a production-ready stage claim.
+
+The generated supported-subset differential lane is the first implementation of
+the production checklist's differential requirement. It searches an enumerated
+set of deterministic Rust programs inside the current documented subset and
+writes repro-ready source, output, manifest, and replay artifacts on failure.
+It is intentionally not evidence for arbitrary Rust crate translation.
 
 ## Preview Promotion Checklist
 
