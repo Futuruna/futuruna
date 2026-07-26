@@ -183,3 +183,42 @@ manifests, or stable formatting/layout of the emitted Futuruna source.
 
 The downstream canary is production evidence for the current validation
 boundary, not a promise that arbitrary Rust crates translate.
+
+## Production Promotion Checklist
+
+Preview is not enough for a production-ready `runa from-rust` claim. Promotion
+from preview to production-ready requires a reviewed change that proves all of
+the following at the same time:
+
+1. The supported Rust source subset is versioned as a stable compatibility
+   contract, including the exact Rust syntax families, stdlib shapes,
+   ownership simplifications, deterministic collection behavior, and
+   unsupported boundaries that users can rely on for the release line.
+2. Every supported source shape has at least one exact Rust-vs-Futuruna stdout
+   fixture in either `examples/from-rust/` or the downstream canary, and every
+   newly promoted shape adds coverage before the contract expands.
+3. Every unsupported boundary that can be detected syntactically fails closed
+   before Futuruna parse/run, with a stable diagnostic category and a permanent
+   expected-unsupported fixture. Unsupported shapes must not silently translate
+   into wrong Futuruna.
+4. The mint-blocking downstream lane includes a larger production corpus with
+   real consumer-style programs across parsing/validation, reporting,
+   transformations, nested data, error handling, and deterministic collection
+   workflows. At least one lane must run from a clean external-style fixture
+   directory rather than relying only on in-tree examples.
+5. A generated Rust-subset differential lane or equivalent proof-backed checker
+   searches within the documented supported subset and minimizes any divergence
+   into a permanent fixture before promotion.
+6. `runa from-rust --verify` has stable success/failure output for the
+   production subset, and CLI/help/docs explain how users distinguish supported
+   source, expected unsupported source, and translator bugs.
+7. The compatibility guide records the production contract, including how future
+   source-subset breaks, diagnostic category changes, and fixture removals are
+   handled under `docs/compatibility-policy.md`.
+8. `docs/feature-stages.md`, `docs/feature-stages.json`, this contract, the
+   README, and the production-readiness scorecard move together in the same
+   reviewed change.
+
+Production-ready still would not mean arbitrary Rust crate translation unless
+that broader crate-level contract is explicitly documented, canaried, and
+promoted separately.
