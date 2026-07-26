@@ -41,6 +41,9 @@ The current supported examples cover:
   `Vec<Box<T>>` children, inherent impl method calls that collide with builtin
   names, functional lowering for `&mut self` field pushes, and the narrow
   `Option<&T>` recursive search shape translated as value-returning `Option(T)`
+- conditional accumulator rebinding in loop bodies for checked single-target
+  assignment and compound-assignment shapes, lowered as Futuruna `if`
+  expressions so values updated in a branch remain visible after the branch
 - the checked-in generic trait fixture, including the narrow `Functor`
   associated-type shape for `Option` and `Result`, generic higher-order
   functions, `impl Fn` composition, generic struct constructors, and generic
@@ -49,9 +52,10 @@ The current supported examples cover:
   constructors and ordered matches over two references lowered into nested
   Futuruna matches
 - consumer-shaped single-file workflows for config parsing/validation, invoice
-  totals, and event rollups
+  totals, event rollups, and text/parser transformations
 - the downstream canary's clean-directory config validation and deterministic
-  event-rollup fixtures
+  event-rollup fixtures, plus enum/reference loop aggregation with conditional
+  accumulator rebinding
 - small real-world examples: JSON-like values, expression evaluation, and a mini
   type checker
 

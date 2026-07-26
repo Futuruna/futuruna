@@ -105,7 +105,7 @@ UNSUPPORTED_WORK_DIR="$TMP_DIR/unsupported"
 copy_fixture_dir "$SUPPORTED_SOURCE_DIR" "$SUPPORTED_WORK_DIR"
 copy_fixture_dir "$UNSUPPORTED_SOURCE_DIR" "$UNSUPPORTED_WORK_DIR"
 
-run_from_rust_lane supported "$SUPPORTED_WORK_DIR" "From-rust: 4 matched"
+run_from_rust_lane supported "$SUPPORTED_WORK_DIR" "From-rust: 5 matched"
 run_from_rust_lane \
     unsupported \
     "$UNSUPPORTED_WORK_DIR" \

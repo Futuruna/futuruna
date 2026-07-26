@@ -33489,6 +33489,68 @@ fn validate(age: i64) -> Result<i64, String> {
     }
 
     #[test]
+    fn from_rust_lowers_conditional_accumulator_rebinding_to_if_expression() {
+        let source = r#"
+fn count_large(xs: Vec<i64>) -> i64 {
+    let mut total = 0;
+    for x in xs {
+        if x > 1 {
+            total += x;
+        }
+    }
+    total
+}
+"#;
+        let runa = rust_to_runa_checked(source).expect("conditional accumulator should lower");
+        assert!(
+            runa.contains("= total = if x > 1 { total + x } else { total }"),
+            "expected if-expression rebinding, got:\n{}",
+            runa
+        );
+        assert!(
+            !runa.contains("if x > 1 {\n        = total = total + x"),
+            "conditional accumulator should not lower to a block-local rebinding:\n{}",
+            runa
+        );
+    }
+
+    #[test]
+    fn from_rust_lowers_enum_reference_loop_aggregation_rebinding() {
+        let source = r#"
+enum Command {
+    Enable(String),
+    Ignore,
+}
+
+fn command_label(command: &Command) -> String {
+    match command {
+        Command::Enable(name) => format!("enable {}", name),
+        Command::Ignore => "ignore".to_string(),
+    }
+}
+
+fn enabled_count(commands: &Vec<Command>) -> i64 {
+    let mut total = 0;
+    for command in commands {
+        let label = command_label(command);
+        if label.starts_with("enable") {
+            total += 1;
+        }
+    }
+    total
+}
+"#;
+        let runa = rust_to_runa_checked(source).expect("enum loop aggregation should lower");
+        assert!(
+            runa.contains(
+                "= total = if starts_with(label, \"enable\") { total + 1 } else { total }"
+            ),
+            "expected conditional rebinding in enum loop aggregation, got:\n{}",
+            runa
+        );
+    }
+
+    #[test]
     fn from_rust_rejects_borrowed_return_reference_with_category() {
         let source = r#"
 struct Node {
@@ -42062,6 +42124,18 @@ fn from_rust_pat_ident(pat: &syn::Pat) -> Option<String> {
     }
 }
 
+fn from_rust_direct_assignment_lhs(expr: &syn::Expr) -> Option<String> {
+    match expr {
+        syn::Expr::Path(path) if path.qself.is_none() => path
+            .path
+            .segments
+            .last()
+            .map(|segment| segment.ident.to_string()),
+        syn::Expr::Paren(paren) => from_rust_direct_assignment_lhs(&paren.expr),
+        _ => None,
+    }
+}
+
 fn from_rust_strip_unwrap(expr: &syn::Expr) -> &syn::Expr {
     if let syn::Expr::MethodCall(method) = expr {
         if method.method == "unwrap" && method.args.is_empty() {
@@ -44537,6 +44611,73 @@ impl RustToRunaCtx {
         ))
     }
 
+    fn conditional_rebinding_if_stmt_to_line(&self, item: &syn::ExprIf) -> Option<String> {
+        if matches!(item.cond.as_ref(), syn::Expr::Let(_)) || item.then_branch.stmts.len() != 1 {
+            return None;
+        }
+
+        let (lhs, then_value) =
+            self.single_rebinding_stmt_to_lhs_value(item.then_branch.stmts.first()?)?;
+        let else_value = match &item.else_branch {
+            None => lhs.clone(),
+            Some((_, else_branch)) => {
+                let syn::Expr::Block(block) = else_branch.as_ref() else {
+                    return None;
+                };
+                if block.block.stmts.len() != 1 {
+                    return None;
+                }
+                let (else_lhs, else_value) =
+                    self.single_rebinding_stmt_to_lhs_value(block.block.stmts.first()?)?;
+                if else_lhs != lhs {
+                    return None;
+                }
+                else_value
+            }
+        };
+
+        Some(format!(
+            "= {} = if {} {{ {} }} else {{ {} }}",
+            lhs,
+            self.expr_to_string(&item.cond),
+            then_value,
+            else_value
+        ))
+    }
+
+    fn single_rebinding_stmt_to_lhs_value(&self, stmt: &syn::Stmt) -> Option<(String, String)> {
+        let syn::Stmt::Expr(expr, _) = stmt else {
+            return None;
+        };
+        self.rebinding_expr_to_lhs_value(expr)
+    }
+
+    fn rebinding_expr_to_lhs_value(&self, expr: &syn::Expr) -> Option<(String, String)> {
+        match expr {
+            syn::Expr::Assign(assign) => {
+                let lhs = from_rust_direct_assignment_lhs(&assign.left)?;
+                let rhs = self.expr_to_string(&assign.right);
+                Some((lhs, rhs))
+            }
+            syn::Expr::Binary(binary)
+                if matches!(
+                    binary.op,
+                    syn::BinOp::AddAssign(_)
+                        | syn::BinOp::SubAssign(_)
+                        | syn::BinOp::MulAssign(_)
+                        | syn::BinOp::DivAssign(_)
+                        | syn::BinOp::RemAssign(_)
+                ) =>
+            {
+                let lhs = from_rust_direct_assignment_lhs(&binary.left)?;
+                let rhs = self.expr_to_string(&binary.right);
+                let op = self.binop_to_string(&binary.op);
+                Some((lhs.clone(), format!("{} {} {}", lhs, op, rhs)))
+            }
+            _ => None,
+        }
+    }
+
     fn transpile_stmt(&mut self, stmt: &syn::Stmt) {
         match stmt {
             syn::Stmt::Local(local) => {
@@ -44636,6 +44777,10 @@ impl RustToRunaCtx {
                     return;
                 }
                 let cond = self.expr_to_string(&i.cond);
+                if let Some(line) = self.conditional_rebinding_if_stmt_to_line(i) {
+                    self.emit_line(&line);
+                    return;
+                }
                 self.emit_line(&format!("if {} {{", cond));
                 self.indent += 1;
                 self.transpile_block_body(&i.then_branch);

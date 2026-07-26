@@ -13,6 +13,7 @@ not rely on generated files, ambient working-directory state, or the broader
   stable diagnostics instead of silently entering the supported subset.
 
 The supported corpus currently covers config validation, deterministic event
-aggregation, invoice arithmetic, and text command parsing. The unsupported
-corpus currently covers general borrowed-reference returns, async/threading,
-unsafe blocks, and external crate imports.
+aggregation, invoice arithmetic, text command parsing, and enum/reference loop
+aggregation with conditional accumulator rebinding. The unsupported corpus
+currently covers general borrowed-reference returns, async/threading, unsafe
+blocks, and external crate imports.
