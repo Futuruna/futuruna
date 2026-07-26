@@ -19,6 +19,7 @@ run_step cargo test --quiet
 run_step cargo build --release
 run_step ./scripts/first-run-canary.sh
 run_step ./scripts/rust-interop-canary.sh
+run_step ./scripts/from-rust-downstream-canary.sh
 run_step "$RELEASE_RUNA" test
 run_step "$RELEASE_RUNA" test --run
 run_step "$RELEASE_RUNA" expect tests/expect

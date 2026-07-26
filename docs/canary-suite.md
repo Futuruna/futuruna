@@ -43,6 +43,12 @@ For Rust-facing integration through `runa lib`, use:
 ./scripts/rust-interop-canary.sh
 ```
 
+For Rust-to-Futuruna validation through `runa from-rust`, use:
+
+```bash
+./scripts/from-rust-downstream-canary.sh
+```
+
 It intentionally uses programs written in this repository rather than pulling in
 downstream codebases as fixtures. The goal is to keep the suite:
 
@@ -102,6 +108,15 @@ case where generated output is packaged as `src/lib.rs` in a downstream
 Cargo dependency. The same lane also covers the missing-dependency setup error:
 generated source and `runa lib` stderr must list required Cargo.toml entries
 before an intentionally incomplete consumer fails to compile.
+
+- `tests/from-rust/downstream/`
+Rust-to-Futuruna validation fixtures. These use a dedicated script because the
+contract is differential rather than authored Futuruna execution: each
+supported Rust file is compiled and run with `rustc`, translated with
+`runa from-rust`, interpreted as Futuruna, and required to exact-match stdout.
+The lane copies fixtures into a fresh temporary directory before running and
+also includes expected-unsupported files that prove documented non-goals fail
+closed with stable diagnostics.
 
 See [docs/canary-matrix.md](canary-matrix.md) for the current coverage map and
 the planned build-out.
@@ -179,6 +194,19 @@ The lane also runs:
 Those checks keep marked importable helper files honest, reject imported
 script/demo leakage, and verify helper-call-chain impurity before downstream
 consumers run.
+
+## From-Rust Downstream Lane
+
+`./scripts/from-rust-downstream-canary.sh` is the mint-blocking lane for
+consumer-shaped `runa from-rust` validation. It is separate from the full
+`examples/from-rust` corpus because it models what a downstream user expects
+from a small deterministic Rust workflow: Rust stdout and translated Futuruna
+stdout must match exactly from a clean directory.
+
+The supported fixtures live in `tests/from-rust/downstream/supported/`. The
+unsupported fixtures live in `tests/from-rust/downstream/unsupported/` and must
+carry `runa-from-rust: expect-unsupported` directives so accidental promotion is
+reported as an `XPASS` failure.
 
 ## WASM Build Canary Lane
 

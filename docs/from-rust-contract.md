@@ -5,14 +5,23 @@ contract is a validation contract, not a frozen source-compatibility promise:
 checked-in supported fixtures must translate, parse, run in the Futuruna
 interpreter, and produce exactly the same stdout as the original Rust program.
 
-The blocking lane is:
+The broad example-corpus lane is:
 
 ```bash
 runa from-rust --test examples/from-rust/
 ```
 
-CI runs this lane after mint. A fixture without an explicit directive is part of
-the supported subset and must match Rust output exactly.
+The mint-blocking downstream canary is:
+
+```bash
+./scripts/from-rust-downstream-canary.sh
+```
+
+That script copies checked-in fixtures from `tests/from-rust/downstream/` into a
+fresh temporary directory, exact-matches the supported consumer-shaped Rust
+programs, and verifies that intentionally unsupported Rust stays fail-closed
+with stable diagnostics. A fixture without an explicit directive is part of the
+supported subset and must match Rust output exactly.
 
 ## Supported Fixture Subset
 
@@ -41,6 +50,8 @@ The current supported examples cover:
   Futuruna matches
 - consumer-shaped single-file workflows for config parsing/validation, invoice
   totals, and event rollups
+- the downstream canary's clean-directory config validation and deterministic
+  event-rollup fixtures
 - small real-world examples: JSON-like values, expression evaluation, and a mini
   type checker
 
@@ -100,9 +111,16 @@ adversarial examples may still use the directive when they intentionally
 describe an unsupported Rust shape and fail closed with one of the stable
 diagnostics above.
 
+The downstream canary also keeps one expected-unsupported fixture outside the
+example corpus to prove the boundary is enforced: returning a borrowed
+reference from a general function must remain `borrowed-return-reference` until
+that ownership shape is deliberately promoted.
+
 ## Promotion Rule
 
 A zero-XFAIL corpus is necessary but not sufficient for promoting `runa
 from-rust` beyond experimental. Promotion also requires a documented
 compatibility boundary, broader consumer-shaped fixtures, and stable diagnostics
-for Rust shapes Futuruna intentionally does not translate.
+for Rust shapes Futuruna intentionally does not translate. The downstream
+canary is production evidence for the current validation boundary, not a
+promise that arbitrary Rust crates translate.

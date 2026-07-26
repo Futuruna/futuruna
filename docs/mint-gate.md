@@ -13,6 +13,7 @@ cargo test --quiet
 cargo build --release
 ./scripts/first-run-canary.sh
 ./scripts/rust-interop-canary.sh
+./scripts/from-rust-downstream-canary.sh
 ./target/release/runa test
 ./target/release/runa test --run
 ./target/release/runa expect tests/expect
@@ -42,6 +43,9 @@ These lanes are the core mint contract because they cover:
   a downstream Cargo package consuming generated `src/lib.rs` by path dependency
   and an intentional missing-dependency consumer that proves dependency guidance
   appears in generated source/stderr
+- the from-rust downstream canary: deterministic consumer-shaped Rust fixtures
+  copied into a fresh temp directory, exact-matched against translated
+  Futuruna, plus a fail-closed unsupported ownership fixture
 - interpreted Futuruna execution
 - compiled Futuruna execution
 - compiletest-style diagnostic, run/fail, and phase expectations
@@ -57,8 +61,9 @@ Intentionally omitted from the core mint gate:
 - `./scripts/canary.sh`
 - `./scripts/downstream-canary.sh`
 - `./scripts/differential.sh`
-- `./target/release/runa from-rust --test examples/from-rust/`, which is a
-  separate CI-blocking translational-tooling lane documented in
+- the full `./target/release/runa from-rust --test examples/from-rust/`
+  example corpus, which is a separate CI-blocking translational-tooling lane
+  documented in
   [from-rust-contract.md](from-rust-contract.md)
 - `./target/release/runa fmt --check tests/`
 - standalone solver-dependent flows such as `runa verify file.runa`
@@ -66,10 +71,10 @@ Intentionally omitted from the core mint gate:
 
 CI should call `./scripts/mint.sh` for the core language health gate, then run any omitted lanes as separate jobs or steps. The canary suite is the curated middle lane for realistic authored programs, while differential testing is the deeper search lane that exercises seed-stable generative programs and replayable minimized repros without slowing every core mint run.
 
-The from-rust lane is intentionally separate from mint while the command remains
-experimental, but it is still blocking in CI: supported fixtures must match Rust
-stdout exactly, and any expected-unsupported adversarial fixtures must carry
-explicit directives.
+The full from-rust example corpus remains separate from mint while the command
+is experimental. Mint still runs the narrower downstream canary so the
+production-readiness signal includes clean-directory consumer-shaped exact
+matching and fail-closed unsupported-shape diagnostics.
 
 Passing machine lanes set `FUTURUNA_SUPPRESS_COMPTIME_DIAGNOSTICS=1` so
 informational `@ comptime` and auto-comptime comments do not obscure the

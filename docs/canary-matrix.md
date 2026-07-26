@@ -13,6 +13,9 @@ Target shape:
   behavior that needs isolated temp databases
 - `interop`: dedicated Rust-facing library consumer canaries for `runa lib`
   output and Cargo integration
+- `from-rust-downstream`: dedicated Rust-to-Futuruna differential canaries that
+  exact-match consumer-shaped Rust stdout and keep unsupported ownership shapes
+  fail-closed
 - `regressions`: every user bug class distilled into a broader authored workflow
 
 ## Implemented
@@ -44,6 +47,9 @@ Target shape:
 | `tests/canary/extended/wasm_export_surface_test.runa` | `extended` | WASM-facing exported primitive/string/list-numeric/option functions, private helpers, zero-arg exports |
 | `tests/canary/interop/rust_consumer_lib.runa` | `interop` | `runa lib` output consumed from plain Rust via `rustc`, exported structs/enums/functions, borrowed params, lists, `Option`, `Result` |
 | `tests/canary/interop/rust_consumer_external_crate_lib.runa` | `interop` | `runa lib` output consumed from an offline Cargo project with `@ depend`, `@ use`, raw Rust helpers, regex-backed stdlib codegen, exported APIs, `src/lib.rs` package layout through a downstream path dependency, and missing-dependency guidance in generated source/stderr |
+| `tests/from-rust/downstream/supported/config_validation.rs` | `from-rust-downstream` | clean-directory `runa from-rust` exact-match for `Option<String>`, `Result<i64, ConfigError>`, integer parse remapping, and config-summary branching |
+| `tests/from-rust/downstream/supported/event_rollup.rs` | `from-rust-downstream` | clean-directory `runa from-rust` exact-match for a deterministic `BTreeMap<String, i64>` event aggregation workflow |
+| `tests/from-rust/downstream/unsupported/borrowed_return_reference.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for general borrowed-reference returns outside the current ownership boundary |
 | `tests/canary/storage/persist_tx_commit_savepoint_test.runa` | `storage` | compiled persisted transaction commit plus nested savepoint release |
 | `tests/canary/storage/persist_tx_rollback_fail_test.runa` | `storage` | intentionally failing transactional scope used to prove rollback through a follow-up fixture |
 | `tests/canary/storage/persist_tx_rollback_check_test.runa` | `storage` | compiled persisted readback proving rollback left only the committed baseline row |
