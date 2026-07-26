@@ -33842,6 +33842,35 @@ fn read(ptr: *const i64) -> i64 {
     }
 
     #[test]
+    fn from_rust_rejects_unsupported_macro_with_category() {
+        let source = r#"
+fn main() {
+    print!("hi");
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsupported-macro");
+                assert!(unsupported.message.contains("print!"));
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_keeps_supported_macro_subset_supported() {
+        let source = r#"
+fn main() {
+    println!("{}", format!("{}", 7));
+    let xs = vec![1, 2];
+    assert_eq!(xs.len(), 2);
+}
+"#;
+        rust_to_runa_checked(source).expect("checked macro subset should stay supported");
+    }
+
+    #[test]
     fn from_rust_rejects_external_crate_use_with_category() {
         let source = r#"
 use regex::Regex;
@@ -41173,6 +41202,7 @@ struct FromRustUnsupportedScan {
     external_crate: Option<String>,
     async_or_threading: bool,
     unsafe_rust: bool,
+    unsupported_macro: Option<String>,
     borrowed_return_reference: bool,
     associated_type: bool,
     impl_trait: bool,
@@ -41202,6 +41232,15 @@ impl FromRustUnsupportedScan {
             return Some(FromRustUnsupported::new(
                 "unsafe-rust",
                 "unsafe Rust blocks are outside the from-rust validation subset",
+            ));
+        }
+        if let Some(macro_name) = &self.unsupported_macro {
+            return Some(FromRustUnsupported::new(
+                "unsupported-macro",
+                format!(
+                    "macro '{}!' is outside the checked from-rust macro subset",
+                    macro_name
+                ),
             ));
         }
         if self.result_map_err {
@@ -41409,6 +41448,21 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
         syn::visit::visit_expr_unsafe(self, item);
     }
 
+    fn visit_expr_macro(&mut self, item: &'ast syn::ExprMacro) {
+        self.record_macro(&item.mac);
+        syn::visit::visit_expr_macro(self, item);
+    }
+
+    fn visit_stmt_macro(&mut self, item: &'ast syn::StmtMacro) {
+        self.record_macro(&item.mac);
+        syn::visit::visit_stmt_macro(self, item);
+    }
+
+    fn visit_item_macro(&mut self, item: &'ast syn::ItemMacro) {
+        self.record_macro(&item.mac);
+        syn::visit::visit_item_macro(self, item);
+    }
+
     fn visit_expr_match(&mut self, item: &'ast syn::ExprMatch) {
         if from_rust_is_reference_tuple_match(item)
             && !from_rust_is_supported_reference_tuple_match(item)
@@ -41417,6 +41471,43 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
         }
         syn::visit::visit_expr_match(self, item);
     }
+}
+
+impl FromRustUnsupportedScan {
+    fn record_macro(&mut self, item: &syn::Macro) {
+        if self.unsupported_macro.is_some() {
+            return;
+        }
+        let Some(name) = from_rust_macro_name(item) else {
+            self.unsupported_macro = Some("<unknown>".to_string());
+            return;
+        };
+        if !from_rust_macro_name_supported(&name) {
+            self.unsupported_macro = Some(name);
+        }
+    }
+}
+
+fn from_rust_macro_name(item: &syn::Macro) -> Option<String> {
+    item.path
+        .segments
+        .last()
+        .map(|segment| segment.ident.to_string())
+}
+
+fn from_rust_macro_name_supported(name: &str) -> bool {
+    matches!(
+        name,
+        "println"
+            | "eprintln"
+            | "format"
+            | "vec"
+            | "panic"
+            | "todo"
+            | "unimplemented"
+            | "assert"
+            | "assert_eq"
+    )
 }
 
 fn from_rust_use_root_allowed(root: &str) -> bool {

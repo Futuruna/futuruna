@@ -19,4 +19,5 @@ error-row pipelines, deterministic inventory reporting, and text normalization.
 The unsupported corpus currently covers general borrowed-reference returns,
 async/threading, unsafe blocks, external crate imports, unchecked associated
 types, unchecked `impl Trait`, unsupported `Result::map_err`, unsupported
-iterator state machines, and unsupported tuple-of-references matches.
+iterator state machines, unsupported tuple-of-references matches, and
+unsupported macro names outside the checked macro subset.

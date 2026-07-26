@@ -1,6 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Output};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static TEMP_RUST_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 struct TempRustFile {
     path: PathBuf,
@@ -9,10 +12,12 @@ struct TempRustFile {
 impl TempRustFile {
     fn new(stem: &str, source: &str) -> Self {
         let mut path = std::env::temp_dir();
+        let seq = TEMP_RUST_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
         let unique = format!(
-            "futuruna_from_rust_verify_{}_{}_{}.rs",
+            "futuruna_from_rust_verify_{}_{}_{}_{}.rs",
             stem,
             std::process::id(),
+            seq,
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .expect("system clock before unix epoch")
@@ -164,7 +169,7 @@ fn from_rust_verify_reports_stable_output_mismatch_line() {
     let output = run_from_rust_verify(
         r#"
 fn main() {
-    print!("hi");
+    println!("{:x}", 10);
 }
 "#,
     );
@@ -181,8 +186,41 @@ fn main() {
         stderr
     );
     assert!(
-        stderr.contains(" rust_lines=1 futuruna_lines=0"),
+        stderr.contains(" rust_lines=1 futuruna_lines=1"),
         "mismatch line should include both output line counts:\n{}",
+        stderr
+    );
+}
+
+#[test]
+fn from_rust_verify_rejects_unsupported_macro_before_translation() {
+    let output = run_from_rust_verify(
+        r#"
+fn main() {
+    print!("hi");
+}
+"#,
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected unsupported macro verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: unsupported unsupported-macro:"),
+        "missing stable unsupported macro line:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: translated "),
+        "unsupported macro should fail before translation:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: mismatch "),
+        "unsupported macro should fail before output comparison:\n{}",
         stderr
     );
 }
