@@ -1,6 +1,5 @@
 // Adversarial 2: Generics, trait bounds, associated types
 // The kind of Rust that makes intermediate developers sweat
-// runa-from-rust: expect-unsupported associated types, higher-rank generic closures, and impl Trait
 
 trait Functor {
     type Inner;

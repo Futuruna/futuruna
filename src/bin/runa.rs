@@ -33565,6 +33565,95 @@ impl Node {
     }
 
     #[test]
+    fn from_rust_supports_checked_functor_generics_fixture_shapes() {
+        let source = r#"
+trait Functor {
+    type Inner;
+    type Mapped<B>;
+    fn fmap<B, F: Fn(Self::Inner) -> B>(self, f: F) -> Self::Mapped<B>;
+}
+
+impl<A> Functor for Option<A> {
+    type Inner = A;
+    type Mapped<B> = Option<B>;
+    fn fmap<B, F: Fn(A) -> B>(self, f: F) -> Option<B> {
+        self.map(f)
+    }
+}
+
+fn double_inner<T: Functor<Inner = i64>>(container: T) -> T::Mapped<i64> {
+    container.fmap(|x| x * 2)
+}
+
+fn compose<A, B, C>(f: impl Fn(A) -> B, g: impl Fn(B) -> C) -> impl Fn(A) -> C {
+    move |x| g(f(x))
+}
+
+struct Pair<A, B> {
+    first: A,
+    second: B,
+}
+
+impl<A, B> Pair<A, B> {
+    fn map_second<C, F: Fn(B) -> C>(self, f: F) -> Pair<A, C> {
+        Pair { first: self.first, second: f(self.second) }
+    }
+}
+
+fn main() {
+    let x: Option<i64> = Some(21);
+    let doubled = double_inner(x);
+    println!("{:?}", doubled);
+    let add_one_then_double = compose(|x: i64| x + 1, |x: i64| x * 2);
+    println!("{}", add_one_then_double(10));
+    let p = Pair { first: "hello", second: 42 };
+    let p2 = p.map_second(|n| n * 2);
+    println!("Pair: ({}, {})", p2.first, p2.second);
+}
+"#;
+        let runa = rust_to_runa_checked(source).expect("checked generic fixture should lower");
+        assert!(runa.contains("-- trait Functor uses associated types"));
+        assert!(runa.contains("match container { | Some(__v) -> Some((|x| x * 2)(__v))"));
+        assert!(runa.contains("> compose(f: a -> b, g: b -> c) -> a -> c"));
+        assert!(runa.contains("# Pair(a, b) = Pair(first: a, second: b)"));
+        assert!(runa.contains("> Pair_a_b_map_second(self: Pair(a, b), f: f) -> Pair(a, c)"));
+        assert!(runa.contains("= p2 = Pair_a_b_map_second(p, |n| n * 2)"));
+    }
+
+    #[test]
+    fn from_rust_rejects_unchecked_associated_type_trait() {
+        let source = r#"
+trait Source {
+    type Item;
+    fn next(self) -> Self::Item;
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "associated-types");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_rejects_unchecked_impl_trait_signature() {
+        let source = r#"
+fn numbers() -> impl Iterator<Item = i64> {
+    vec![1, 2, 3].into_iter()
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "impl-trait");
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn from_rust_keeps_simple_result_try_supported() {
         let source = r#"
 fn safe_div(a: i64, b: i64) -> Result<i64, String> {
@@ -40886,6 +40975,15 @@ fn from_rust_unsupported_diagnostic(file: &syn::File) -> Option<FromRustUnsuppor
 
 impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
     fn visit_item_fn(&mut self, item: &'ast syn::ItemFn) {
+        if from_rust_signature_contains_impl_trait(&item.sig) {
+            if from_rust_is_supported_compose_impl_trait_fn(item) {
+                syn::visit::visit_block(self, &item.block);
+                return;
+            }
+            self.impl_trait = true;
+            syn::visit::visit_block(self, &item.block);
+            return;
+        }
         if from_rust_signature_returns_reference(&item.sig) {
             self.borrowed_return_reference = true;
         }
@@ -40894,8 +40992,10 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
 
     fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
         let self_ty_name = from_rust_item_impl_self_ty_name(item);
+        let supported_associated_impl = from_rust_is_supported_functor_impl(item);
         for impl_item in &item.items {
             match impl_item {
+                syn::ImplItem::Type(_) if supported_associated_impl => {}
                 syn::ImplItem::Fn(method) => {
                     if from_rust_signature_returns_reference(&method.sig) {
                         let supported = item.trait_.is_none()
@@ -40930,7 +41030,16 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
             .iter()
             .any(|trait_item| matches!(trait_item, syn::TraitItem::Type(_)))
         {
-            self.associated_type = true;
+            if from_rust_is_supported_functor_trait(item) {
+                for trait_item in &item.items {
+                    if let syn::TraitItem::Fn(method) = trait_item {
+                        syn::visit::visit_trait_item_fn(self, method);
+                    }
+                }
+                return;
+            } else {
+                self.associated_type = true;
+            }
         }
         syn::visit::visit_item_trait(self, item);
     }
@@ -40999,6 +41108,60 @@ fn from_rust_signature_returns_reference(sig: &syn::Signature) -> bool {
     }
 }
 
+fn from_rust_signature_contains_impl_trait(sig: &syn::Signature) -> bool {
+    sig.inputs.iter().any(|arg| match arg {
+        syn::FnArg::Typed(pat_type) => from_rust_type_contains_impl_trait(&pat_type.ty),
+        syn::FnArg::Receiver(_) => false,
+    }) || match &sig.output {
+        syn::ReturnType::Default => false,
+        syn::ReturnType::Type(_, ty) => from_rust_type_contains_impl_trait(ty),
+    }
+}
+
+fn from_rust_type_contains_impl_trait(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::ImplTrait(_) => true,
+        syn::Type::Array(array) => from_rust_type_contains_impl_trait(&array.elem),
+        syn::Type::Group(group) => from_rust_type_contains_impl_trait(&group.elem),
+        syn::Type::Paren(paren) => from_rust_type_contains_impl_trait(&paren.elem),
+        syn::Type::Ptr(ptr) => from_rust_type_contains_impl_trait(&ptr.elem),
+        syn::Type::Reference(reference) => from_rust_type_contains_impl_trait(&reference.elem),
+        syn::Type::Slice(slice) => from_rust_type_contains_impl_trait(&slice.elem),
+        syn::Type::Tuple(tuple) => tuple.elems.iter().any(from_rust_type_contains_impl_trait),
+        syn::Type::Path(path) => path
+            .path
+            .segments
+            .iter()
+            .any(|segment| from_rust_path_arguments_contain_impl_trait(&segment.arguments)),
+        _ => false,
+    }
+}
+
+fn from_rust_path_arguments_contain_impl_trait(args: &syn::PathArguments) -> bool {
+    match args {
+        syn::PathArguments::AngleBracketed(angle_args) => {
+            angle_args.args.iter().any(|arg| match arg {
+                syn::GenericArgument::Type(ty) => from_rust_type_contains_impl_trait(ty),
+                syn::GenericArgument::AssocType(assoc) => {
+                    from_rust_type_contains_impl_trait(&assoc.ty)
+                }
+                _ => false,
+            })
+        }
+        syn::PathArguments::Parenthesized(paren_args) => {
+            paren_args
+                .inputs
+                .iter()
+                .any(from_rust_type_contains_impl_trait)
+                || match &paren_args.output {
+                    syn::ReturnType::Default => false,
+                    syn::ReturnType::Type(_, ty) => from_rust_type_contains_impl_trait(ty),
+                }
+        }
+        syn::PathArguments::None => false,
+    }
+}
+
 fn from_rust_type_contains_reference(ty: &syn::Type) -> bool {
     match ty {
         syn::Type::Reference(_) => true,
@@ -41051,6 +41214,130 @@ fn from_rust_item_impl_self_ty_name(item: &syn::ItemImpl) -> Option<String> {
             .map(|segment| segment.ident.to_string()),
         _ => None,
     }
+}
+
+fn from_rust_is_supported_functor_trait(item: &syn::ItemTrait) -> bool {
+    if item.ident != "Functor" || item.items.len() != 3 {
+        return false;
+    }
+    let mut has_inner = false;
+    let mut has_mapped = false;
+    let mut has_fmap = false;
+    for trait_item in &item.items {
+        match trait_item {
+            syn::TraitItem::Type(assoc) if assoc.ident == "Inner" => {
+                has_inner = true;
+            }
+            syn::TraitItem::Type(assoc)
+                if assoc.ident == "Mapped" && assoc.generics.params.len() == 1 =>
+            {
+                has_mapped = true;
+            }
+            syn::TraitItem::Fn(method) if method.sig.ident == "fmap" => {
+                has_fmap = from_rust_signature_looks_like_functor_fmap(&method.sig);
+            }
+            _ => return false,
+        }
+    }
+    has_inner && has_mapped && has_fmap
+}
+
+fn from_rust_is_supported_functor_impl(item: &syn::ItemImpl) -> bool {
+    let Some((_, trait_path, _)) = &item.trait_ else {
+        return false;
+    };
+    let is_functor = trait_path
+        .segments
+        .last()
+        .is_some_and(|segment| segment.ident == "Functor");
+    if !is_functor {
+        return false;
+    }
+    let self_ty = from_rust_item_impl_self_ty_name(item).unwrap_or_default();
+    if !matches!(self_ty.as_str(), "Option" | "Result") {
+        return false;
+    }
+    let mut has_inner = false;
+    let mut has_mapped = false;
+    let mut has_fmap = false;
+    for impl_item in &item.items {
+        match impl_item {
+            syn::ImplItem::Type(assoc) if assoc.ident == "Inner" => {
+                has_inner = true;
+            }
+            syn::ImplItem::Type(assoc) if assoc.ident == "Mapped" => {
+                has_mapped = true;
+            }
+            syn::ImplItem::Fn(method) if method.sig.ident == "fmap" => {
+                has_fmap = from_rust_signature_looks_like_functor_fmap(&method.sig)
+                    && from_rust_block_is_self_map_call(&method.block);
+            }
+            _ => return false,
+        }
+    }
+    has_inner && has_mapped && has_fmap
+}
+
+fn from_rust_signature_looks_like_functor_fmap(sig: &syn::Signature) -> bool {
+    sig.ident == "fmap" && sig.inputs.len() == 2 && sig.generics.params.len() == 2
+}
+
+fn from_rust_block_is_self_map_call(block: &syn::Block) -> bool {
+    if block.stmts.len() != 1 {
+        return false;
+    }
+    let syn::Stmt::Expr(syn::Expr::MethodCall(call), _) = block.stmts.first().unwrap() else {
+        return false;
+    };
+    call.method == "map"
+        && call.args.len() == 1
+        && matches!(
+            call.receiver.as_ref(),
+            syn::Expr::Path(path)
+                if path.path.segments.last().is_some_and(|segment| segment.ident == "self")
+        )
+}
+
+fn from_rust_is_supported_compose_impl_trait_fn(item: &syn::ItemFn) -> bool {
+    if item.sig.ident != "compose" || item.sig.inputs.len() != 2 {
+        return false;
+    }
+    let params_are_impl_fn = item.sig.inputs.iter().all(|arg| match arg {
+        syn::FnArg::Typed(pat_type) => match pat_type.ty.as_ref() {
+            syn::Type::ImplTrait(impl_trait) => from_rust_impl_trait_is_fn(impl_trait),
+            _ => false,
+        },
+        syn::FnArg::Receiver(_) => false,
+    });
+    let returns_impl_fn = match &item.sig.output {
+        syn::ReturnType::Type(_, ty) => match ty.as_ref() {
+            syn::Type::ImplTrait(impl_trait) => from_rust_impl_trait_is_fn(impl_trait),
+            _ => false,
+        },
+        syn::ReturnType::Default => false,
+    };
+    params_are_impl_fn && returns_impl_fn && from_rust_block_is_compose_closure(&item.block)
+}
+
+fn from_rust_impl_trait_is_fn(item: &syn::TypeImplTrait) -> bool {
+    item.bounds.iter().any(|bound| match bound {
+        syn::TypeParamBound::Trait(trait_bound) => trait_bound
+            .path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "Fn"),
+        _ => false,
+    })
+}
+
+fn from_rust_block_is_compose_closure(block: &syn::Block) -> bool {
+    if block.stmts.len() != 1 {
+        return false;
+    }
+    matches!(
+        block.stmts.first().unwrap(),
+        syn::Stmt::Expr(syn::Expr::Closure(_), _)
+    )
 }
 
 fn from_rust_is_supported_recursive_borrow_find_method(
@@ -41686,13 +41973,59 @@ impl RustToRunaCtx {
                     format!("({}) -> {}", params.join(", "), ret)
                 }
             }
+            syn::Type::ImplTrait(impl_trait) => self.transpile_impl_trait_type(impl_trait),
             syn::Type::Never(_) => "()".to_string(),
             syn::Type::Infer(_) => "_".to_string(),
             _ => "Any".to_string(),
         }
     }
 
+    fn transpile_impl_trait_type(&self, item: &syn::TypeImplTrait) -> String {
+        for bound in &item.bounds {
+            let syn::TypeParamBound::Trait(trait_bound) = bound else {
+                continue;
+            };
+            let Some(segment) = trait_bound.path.segments.last() else {
+                continue;
+            };
+            if segment.ident != "Fn" {
+                continue;
+            }
+            let syn::PathArguments::Parenthesized(args) = &segment.arguments else {
+                continue;
+            };
+            let inputs = args
+                .inputs
+                .iter()
+                .map(|ty| self.transpile_type(ty))
+                .collect::<Vec<_>>();
+            let output = match &args.output {
+                syn::ReturnType::Default => "()".to_string(),
+                syn::ReturnType::Type(_, ty) => self.transpile_type(ty),
+            };
+            return if inputs.len() == 1 {
+                format!("{} -> {}", inputs[0], output)
+            } else {
+                format!("({}) -> {}", inputs.join(", "), output)
+            };
+        }
+        "Any".to_string()
+    }
+
     fn transpile_type_path(&self, tp: &syn::TypePath) -> String {
+        let raw_segments = tp
+            .path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>();
+        if raw_segments.len() > 1
+            && raw_segments
+                .first()
+                .is_some_and(|name| Self::is_rust_generic_type_param(name))
+        {
+            return "Any".to_string();
+        }
         let segments: Vec<String> = tp
             .path
             .segments
@@ -41713,6 +42046,9 @@ impl RustToRunaCtx {
                     "HashMap" | "BTreeMap" => "Map",
                     "HashSet" => "Set",
                     "Self" => "self",
+                    _ if Self::is_rust_generic_type_param(&name) => {
+                        return self.transpile_generic_type_param_segment(seg);
+                    }
                     _ => &name,
                 };
                 match &seg.arguments {
@@ -41741,6 +42077,34 @@ impl RustToRunaCtx {
             .last()
             .cloned()
             .unwrap_or_else(|| "Any".to_string())
+    }
+
+    fn is_rust_generic_type_param(name: &str) -> bool {
+        let mut chars = name.chars();
+        matches!(chars.next(), Some(ch) if ch.is_ascii_uppercase()) && chars.next().is_none()
+    }
+
+    fn transpile_generic_type_param_segment(&self, seg: &syn::PathSegment) -> String {
+        let mapped = seg.ident.to_string().to_lowercase();
+        match &seg.arguments {
+            syn::PathArguments::None => mapped,
+            syn::PathArguments::AngleBracketed(ab) => {
+                let args = ab
+                    .args
+                    .iter()
+                    .filter_map(|arg| match arg {
+                        syn::GenericArgument::Type(ty) => Some(self.transpile_type(ty)),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                if args.is_empty() {
+                    mapped
+                } else {
+                    format!("{}({})", mapped, args.join(", "))
+                }
+            }
+            _ => mapped,
+        }
     }
 
     /// Unwrap Box<T>/Rc<T>/Arc<T> → just T (invisible ownership)
@@ -41853,12 +42217,17 @@ impl RustToRunaCtx {
                         format!("{}: {}", fname, ty)
                     })
                     .collect();
-                self.emit_line(&format!(
-                    "# {}{}({})",
-                    name,
-                    generics,
-                    field_strs.join(", ")
-                ));
+                if generics.is_empty() {
+                    self.emit_line(&format!("# {}({})", name, field_strs.join(", ")));
+                } else {
+                    self.emit_line(&format!(
+                        "# {}{} = {}({})",
+                        name,
+                        generics,
+                        name,
+                        field_strs.join(", ")
+                    ));
+                }
             }
             syn::Fields::Unnamed(fields) => {
                 let field_strs: Vec<String> = fields
@@ -41867,12 +42236,17 @@ impl RustToRunaCtx {
                     .enumerate()
                     .map(|(i, f)| format!("f{}: {}", i, self.transpile_type(&f.ty)))
                     .collect();
-                self.emit_line(&format!(
-                    "# {}{}({})",
-                    name,
-                    generics,
-                    field_strs.join(", ")
-                ));
+                if generics.is_empty() {
+                    self.emit_line(&format!("# {}({})", name, field_strs.join(", ")));
+                } else {
+                    self.emit_line(&format!(
+                        "# {}{} = {}({})",
+                        name,
+                        generics,
+                        name,
+                        field_strs.join(", ")
+                    ));
+                }
             }
             syn::Fields::Unit => {
                 self.emit_line(&format!("# {}{}", name, generics));
@@ -41939,6 +42313,18 @@ impl RustToRunaCtx {
                 .last()
                 .map(|s| s.ident.to_string())
                 .unwrap_or_default();
+            if imp
+                .items
+                .iter()
+                .any(|item| matches!(item, syn::ImplItem::Type(_)))
+            {
+                self.emit_line(&format!(
+                    "-- trait impl {} for {} uses associated types; calls lower at use sites",
+                    trait_name, self_ty
+                ));
+                self.emit_blank();
+                return;
+            }
             self.emit_line(&format!("# impl {} for {} {{", trait_name, self_ty));
         } else {
             // Inherent impl: methods go inside ADT definition
@@ -42150,6 +42536,18 @@ impl RustToRunaCtx {
 
     fn transpile_trait(&mut self, tr: &syn::ItemTrait) {
         let name = tr.ident.to_string();
+        if tr
+            .items
+            .iter()
+            .any(|item| matches!(item, syn::TraitItem::Type(_)))
+        {
+            self.emit_line(&format!(
+                "-- trait {} uses associated types; calls lower at use sites",
+                name
+            ));
+            self.emit_blank();
+            return;
+        }
         self.emit_line(&format!("# trait {} {{", name));
         self.indent += 1;
         for item in &tr.items {
@@ -42820,6 +43218,7 @@ impl RustToRunaCtx {
             "is_err" => format!("is_err({})", recv),
             "ok" => recv.to_string(),
             "map_err" => recv.to_string(),
+            "fmap" if args.len() == 1 => Self::option_result_map_expr(recv, &args[0]),
             "and_then" => format!("flat_map({}, {})", recv, args.join(", ")),
 
             // HashMap/BTreeMap/Map methods
@@ -42900,6 +43299,18 @@ impl RustToRunaCtx {
         } else {
             format!("{}({}, {})", name, recv, args.join(", "))
         }
+    }
+
+    fn option_result_map_expr(recv: &str, func: &str) -> String {
+        let callable = if func.trim_start().starts_with('|') {
+            format!("({})", func)
+        } else {
+            func.to_string()
+        };
+        format!(
+            "match {} {{ | Some(__v) -> Some({}(__v)) | Ok(__v) -> Ok({}(__v)) | Err(__e) -> Err(__e) | None -> None }}",
+            recv, callable, callable
+        )
     }
 
     fn parse_map_err_to_runa(&self, mc: &syn::ExprMethodCall) -> Option<String> {

@@ -32,6 +32,10 @@ The current supported examples cover:
   `Vec<Box<T>>` children, inherent impl method calls that collide with builtin
   names, functional lowering for `&mut self` field pushes, and the narrow
   `Option<&T>` recursive search shape translated as value-returning `Option(T)`
+- the checked-in generic trait fixture, including the narrow `Functor`
+  associated-type shape for `Option` and `Result`, generic higher-order
+  functions, `impl Fn` composition, generic struct constructors, and generic
+  inherent methods
 - small real-world examples: JSON-like values, expression evaluation, and a mini
   type checker
 
@@ -58,8 +62,10 @@ unsupported diagnostics:
 
 - `borrowed-return-reference`: Rust functions that return borrowed references
   outside the checked recursive owned-tree search subset
-- `associated-types`: associated types in traits or impl blocks
-- `impl-trait`: `impl Trait` signatures
+- `associated-types`: associated types outside the checked `Functor` fixture
+  shape
+- `impl-trait`: `impl Trait` signatures outside the checked `impl Fn`
+  composition shape
 - `unsupported-map-err`: `Result::map_err` shapes outside the checked-in
   integer parse-error remapping subset
 - `stateful-iterator-chain`: iterator/map state machines outside the checked-in
@@ -69,7 +75,6 @@ unsupported diagnostics:
 
 Current expected-unsupported categories include:
 
-- associated types, trait bounds, higher-rank generic closures, and `impl Trait`
 - nested boxed enum patterns and reference-pattern simplification
 
 ## Promotion Rule
