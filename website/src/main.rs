@@ -2323,7 +2323,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Calculation slice" }
                             strong { "Calculation-ready" }
-                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures, 2026 Copenhagen reform-threshold wage fixtures, and synthetic § 13 complex-case breakdown fixtures." }
+                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, and synthetic § 13 complex-case breakdown fixtures." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
@@ -2336,9 +2336,11 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2021/1284", "Retsinformation, LBK nr. 1284 af 14/06/2021" }
                         " · historisk linje: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
+                        " · reform: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2024/482", "LOV nr. 482 af 22/05/2024" }
                     }
                     p { class: "const-stats",
-                        "11 filer \u{00B7} §§ 1-28 første slice \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner og § 13 fixtures \u{00B7} audit-signaler"
+                        "11 filer \u{00B7} §§ 1-28 første slice \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, kapital og § 13 fixtures \u{00B7} audit-signaler"
                     }
                 }
 
@@ -2374,7 +2376,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "2026 reform and § 13 complex calculators are executable; dependent tax statutes remain" }
+                            strong { "2026 reform, mellemskat capital branch, and § 13 complex calculators are executable; dependent tax statutes remain" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }

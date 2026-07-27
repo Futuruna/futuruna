@@ -19,7 +19,7 @@ Officiel XML-metadata for 2024/482, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -58,6 +58,8 @@ Kategori: Skat
 
 Mellemskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket:
 7,5 % / 641.200 kr.
+Bundfradrag i positiv nettokapitalindkomst i mellemskattegrundlaget:
+55.000 kr. (enlig), 110.000 kr. (ægtefæller).
 Topskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket:
 7,5 % / 777.900 kr.
 Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket:
@@ -73,20 +75,31 @@ Ikke aktuel
 = m5_2026_statsskat_udligning = statsskat_indeholder_i_år(Udligningsskat, 2026)
 = m5_2026_progressiv_fixture = beregn_lønmodtager(LønmodtagerInput(2026, København, 900000, 0, 0, Fyldt18EllerGift, Falskt))
 = m5_2026_toptop_fixture = beregn_lønmodtager(LønmodtagerInput(2026, København, 3000000, 0, 0, Fyldt18EllerGift, Falskt))
+= m5_2026_kapital_fixture = beregn_lønmodtager(LønmodtagerInput(2026, København, 650000, 110000, 0, Fyldt18EllerGift, Falskt))
+= m5_2026_ægtefællekapital_input = MellemskatÆgtefælleKapitalInput(650000, 500000, 70000, 50000, 110000, 641200, 750)
+= m5_2026_ægtefællekapital_over = mellemskat_ægtefæller_kapital_over_bundfradrag_kroner(m5_2026_ægtefællekapital_input)
+= m5_2026_ægtefællekapital_skat = mellemskat_ægtefælle_kapital_skat_kroner(m5_2026_ægtefællekapital_input)
 
 | m5_2026_parameterpakke_dækket: m5_2026_københavn_komplet -> m5_2026_københavn_komplet == Sandt
 | m5_2026_statsskat_reformstruktur: m5_2026_statsskat_mellemskat -> m5_2026_statsskat_mellemskat == Sandt && m5_2026_statsskat_toptopskat == Sandt && m5_2026_statsskat_udligning == Falskt
 | m5_2026_mellemskat_fixture: m5_2026_progressiv_fixture -> m5_2026_progressiv_fixture.mellemskat_før_personfradrag_kroner == 14010
 | m5_2026_topskat_fixture: m5_2026_progressiv_fixture -> m5_2026_progressiv_fixture.topskat_før_personfradrag_kroner == 3757
 | m5_2026_toptopskat_fixture: m5_2026_toptop_fixture -> m5_2026_toptop_fixture.toptopskat_før_personfradrag_kroner == 8365
+| m5_2026_mellemskat_kapital_fixture: m5_2026_kapital_fixture -> m5_2026_kapital_fixture.mellemskat_før_personfradrag_kroner == 885
+| m5_2026_mellemskat_ægtefællekapital_tærskel: m5_2026_ægtefællekapital_over -> m5_2026_ægtefællekapital_over == 10000
+| m5_2026_mellemskat_ægtefællekapital_skat: m5_2026_ægtefællekapital_skat -> m5_2026_ægtefællekapital_skat == 750
 | m5_2026_skatteloft_reform: par19_personlig_skatteloft_basispoint(2026) -> par19_personlig_skatteloft_basispoint(2026) == 4457
 | m5_audit_2026_reform_signal: audit_signal(Skatteår2026ReformDækket) -> audit_signal(Skatteår2026ReformDækket) == Sandt
+| m5_audit_mellemskat_kapital_signal: audit_signal(MellemskatKapitalDækket) -> audit_signal(MellemskatKapitalDækket) == Sandt
 
 ? m5_2026_parameterpakke_dækket
 ? m5_2026_statsskat_reformstruktur
 ? m5_2026_mellemskat_fixture
 ? m5_2026_topskat_fixture
 ? m5_2026_toptopskat_fixture
+? m5_2026_mellemskat_kapital_fixture
+? m5_2026_mellemskat_ægtefællekapital_tærskel
+? m5_2026_mellemskat_ægtefællekapital_skat
 ? m5_2026_skatteloft_reform
 
 ----
@@ -226,4 +239,4 @@ afgrænsning.
 ? m5_audit_par26_signal
 ? m5_audit_par28_signal
 
-@ print("m5 audit: 2026-reform, § 13 calculator og §§ 14-28 har executable audit-fixtures; AM-lov og kommunal lov er fortsat markerede afhængigheder")
+@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, § 13 calculator og §§ 14-28 har executable audit-fixtures; AM-lov og kommunal lov er fortsat markerede afhængigheder")

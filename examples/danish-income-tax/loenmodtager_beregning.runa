@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./skatteaar - parametre
+@ importer ./kapitel - 02 - statsskat
 @ importer ./kapitel - 03 - personfradrag
 
 -- Personskatteloven — ordinær lønmodtagerberegning, første fixture-slice.
@@ -55,12 +56,13 @@ i det omfang det samlede beløb overstiger bundfradraget anført i stk. 2.
 LOV nr. 482 af 22/05/2024 ændrer fra og med indkomståret 2026 statsskatten til
 bundskat, mellemskat, topskat og toptopskat. Skattestyrelsens 2026-satser
 angiver mellemskattegrænse efter am-bidrag 641.200 kr., topskattegrænse
-777.900 kr. og toptopskattegrænse 2.592.700 kr.
+777.900 kr., toptopskattegrænse 2.592.700 kr. og bundfradrag i positiv
+nettokapitalindkomst i mellemskattegrundlaget 55.000 kr.
 ----
 
-| mellemskat_personligt_overskud_fixture(input: LønmodtagerInput) -> 0
-| exception mellemskat_2026 mellemskat_personligt_overskud_fixture(input: LønmodtagerInput) -> positivt_beløb(personlig_indkomst_efter_am(input) - nationalparametre_for(input.skatteår).mellemskattegrænse_efter_am_kroner) under input.skatteår == 2026
-| mellemskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(mellemskat_personligt_overskud_fixture(input), nationalparametre_for(input.skatteår).mellemskat_basispoint)
+| mellemskat_input_for(input: LønmodtagerInput) -> MellemskatKapitalInput(personlig_indkomst_efter_am(input), input.positiv_nettokapitalindkomst_kroner, nationalparametre_for(input.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner, nationalparametre_for(input.skatteår).mellemskattegrænse_efter_am_kroner, nationalparametre_for(input.skatteår).mellemskat_basispoint)
+| mellemskat_før_personfradrag(input: LønmodtagerInput) -> 0
+| exception mellemskat_2026 mellemskat_før_personfradrag(input: LønmodtagerInput) -> mellemskat_med_kapital_kroner(mellemskat_input_for(input)) under input.skatteår == 2026
 | toptopskat_personligt_overskud_fixture(input: LønmodtagerInput) -> 0
 | exception toptopskat_2026 toptopskat_personligt_overskud_fixture(input: LønmodtagerInput) -> positivt_beløb(personlig_indkomst_efter_am(input) - nationalparametre_for(input.skatteår).toptopskattegrænse_efter_am_kroner) under input.skatteår == 2026
 | toptopskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(toptopskat_personligt_overskud_fixture(input), nationalparametre_for(input.skatteår).toptopskat_basispoint)

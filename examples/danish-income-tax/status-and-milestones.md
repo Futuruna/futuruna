@@ -177,6 +177,9 @@ M2 - State tax computation skeleton
 - Current slice: 2026 LOV nr. 482/2024 state-tax structure is represented:
   mellemskat under § 7, topskat under § 7 a, toptopskat under § 8, and
   udligningsskat/sundhedsbidrag are no longer active components from 2026.
+  The § 7 mellemskat slice now covers positive net capital income over the
+  regulated 2026 threshold, including an executable spouse doubled-threshold
+  case.
 
 M3 - Tax-year parameter packs
 
@@ -205,7 +208,8 @@ M4 - Ordinary taxpayer calculator
   now cover spouse-transfer deficit, LL § 33 A relief, 2026 post-PBL-repeal
   transfer, and same-business loss carry-forward cases. 2026 Copenhagen
   wage-earner fixtures now exercise mellemskat, topskat, and toptopskat under
-  the LOV nr. 482/2024 reform thresholds.
+  the LOV nr. 482/2024 reform thresholds, and a 2026 Copenhagen positive
+  net-capital fixture exercises the mellemskat capital addition.
 
 M5 - Audit suite
 
@@ -215,8 +219,9 @@ M5 - Audit suite
 - Done when: audits can fail loudly without blocking legal reformulation work.
 - Current slice: source-status rejection, covered normal-fixture
   personfradrag, covered 2026 state-tax reform layers, covered § 13 deficit
-  mechanics, topskat threshold activation, covered § 14 annualization, covered
-  § 19 skatteloft including the 2026 44,57 pct. ceiling, covered § 20
+  mechanics, mellemskat positive-net-capital and spouse-threshold activation,
+  topskat threshold activation, covered § 14 annualization, covered § 19
+  skatteloft including the 2026 44,57 pct. ceiling, covered § 20
   regulation/rounding, covered § 26 transition compensation, covered § 28
   territorial exclusion, AM-law dependency, municipal-tax-law dependency, and
   § 13 foreign/pension/business amount limitations are executable audit signals,

@@ -153,6 +153,33 @@ Skattestyrelsens 2026-satser.
 
 ----
 Fixture 5
+Skatteår: 2026
+Kommune: København
+Bruttoløn: 650.000 kr.
+Positiv nettokapitalindkomst: 110.000 kr.
+Ligningsmæssige fradrag: 0 kr.
+Kirkeskat: nej
+Kilder: Personskatteloven § 7 som ændret ved LOV nr. 482 af 22/05/2024;
+Skattestyrelsens 2026-satser.
+----
+
+= m4_københavn_2026_kapital_input = LønmodtagerInput(2026, København, 650000, 110000, 0, Fyldt18EllerGift, Falskt)
+= m4_københavn_2026_kapital = beregn_lønmodtager(m4_københavn_2026_kapital_input)
+
+| m4_københavn_2026_kapital_personlig: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.personlig_indkomst_efter_am_kroner == 598000
+| m4_københavn_2026_kapital_almindelig: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.almindelig_skattepligtig_indkomst_kroner == 708000
+| m4_københavn_2026_kapital_mellemskat: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.mellemskat_før_personfradrag_kroner == 885
+| m4_københavn_2026_kapital_topskat_ikke_aktiveret: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.topskat_før_personfradrag_kroner == 0
+| m4_københavn_2026_kapital_samlet_efter: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.samlet_inkl_am_efter_personfradrag_kroner == 284366
+
+? m4_københavn_2026_kapital_personlig
+? m4_københavn_2026_kapital_almindelig
+? m4_københavn_2026_kapital_mellemskat
+? m4_københavn_2026_kapital_topskat_ikke_aktiveret
+? m4_københavn_2026_kapital_samlet_efter
+
+----
+Fixture 6
 Skatteår: 2025
 Kommune-/kirkeskat: København 2025 som satsinput
 § 13-situation: skattepligtigt underskud, negativ personlig indkomst og
@@ -177,7 +204,7 @@ København 2025.
 ? m4_par13_ægtefælle_overfører
 
 ----
-Fixture 6
+Fixture 7
 Skatteår: 2025
 § 13-situation: udenlandsk indkomst og udlandsfradrag, men lempelse efter
 Ligningsloven § 33 A.
@@ -192,7 +219,7 @@ Kilder: Personskatteloven § 13, stk. 5; Ligningsloven § 33 A.
 ? m4_par13_ll33a_frigiver_overførsel
 
 ----
-Fixture 7
+Fixture 8
 Skatteår: 2026
 § 13-situation: Pensionsbeskatningsloven § 16-beløb efter LOV nr. 482/2024's
 ophævelse af Personskatteloven § 13, stk. 5, 4. pkt.
@@ -207,7 +234,7 @@ Kilder: Personskatteloven § 13, stk. 5; LOV nr. 482 af 22/05/2024.
 ? m4_par13_2026_pbl_ikke_afskåret
 
 ----
-Fixture 8
+Fixture 9
 Skatteår: 2025
 § 13-situation: passiv virksomhedsunderskud modregnes kun i samme virksomhed og
 fremføres med restbeløbet.
@@ -224,5 +251,6 @@ Kilder: Personskatteloven § 13, stk. 6-7.
 @ print("m4 København 2025 samlet inkl. AM efter personfradrag: " + vis(m4_københavn_2025.samlet_inkl_am_efter_personfradrag_kroner))
 @ print("m4 Gentofte 2025 samlet inkl. AM efter personfradrag: " + vis(m4_gentofte_2025.samlet_inkl_am_efter_personfradrag_kroner))
 @ print("m4 København 2026 mellemskat/topskat/toptopskat: " + vis(m4_københavn_2026.mellemskat_før_personfradrag_kroner) + "/" + vis(m4_københavn_2026.topskat_før_personfradrag_kroner) + "/" + vis(m4_københavn_2026_toptop.toptopskat_før_personfradrag_kroner))
+@ print("m4 København 2026 positiv nettokapital mellemskat: " + vis(m4_københavn_2026_kapital.mellemskat_før_personfradrag_kroner))
 @ print("m4 §13 kompleks ægtefælleoverførsel: " + vis(m4_par13_ægtefælle.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner))
 @ print("m4 §13 2026 PBL-afskæring: " + vis(m4_par13_2026_pbl.stk5_overførsel.afskåret_pbl16_kroner))
