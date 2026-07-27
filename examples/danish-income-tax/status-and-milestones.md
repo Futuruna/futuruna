@@ -80,7 +80,8 @@ encoded as a temporal rule on top of the consolidation.
   §§ 1-4 b income taxonomy, the §§ 5-9 state-tax skeleton, the §§ 10-13
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
   slice, the §§ 21-28 concluding provisions slice, 2024/2025 tax-year parameter
-  packs, first wage-earner fixtures, and first audit signals.
+  packs, first wage-earner fixtures, complex § 13 calculator fixtures, and
+  first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
   multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
@@ -194,7 +195,9 @@ M4 - Ordinary taxpayer calculator
   deterministic AM contribution, personal income after AM, ordinary taxable
   income, bundskat, topskat, municipal tax, church tax, § 10 personfradrag,
   § 12 personfradrag tax values, after-personfradrag totals, and a § 13
-  ordinary-positive-income boundary.
+  ordinary-positive-income boundary. Separate § 13 calculator breakdown fixtures
+  now cover spouse-transfer deficit, LL § 33 A relief, 2026 post-PBL-repeal
+  transfer, and same-business loss carry-forward cases.
 
 M5 - Audit suite
 
@@ -209,7 +212,8 @@ M5 - Audit suite
   compensation, covered § 28 territorial exclusion, AM-law dependency,
   municipal-tax-law dependency, and § 13 foreign/pension/business amount
   limitations are executable audit signals, including 2025 PBL § 16 behavior,
-  2026 repeal behavior, LL § 33 A relief, and seamen-relief exceptions.
+  2026 repeal behavior, LL § 33 A relief, seamen-relief exceptions, and
+  calculator-level § 13 integration signals.
 
 M6 - Website integration
 
@@ -239,8 +243,11 @@ M7 - Personfradrag and deficit layer
   transfer limitations are executable, and same-business loss carry-forward
   amounts are fixture-tested. § 13's first dependent-source validation now
   covers PBL § 16 through 2025, the 2026 repeal, LL § 33 A relief, and seamen
-  relief. Remaining work is calculator integration for complex § 13 cases rather
-  than the first amount formulas themselves.
+  relief. Complex § 13 calculator breakdown fixtures now cover spouse transfer,
+  LL § 33 A relief, 2026 PBL repeal, and same-business carry-forward. Remaining
+  work is broader calculator integration with complete 2026 parameters and
+  external differential fixtures rather than the first § 13 amount formulas
+  themselves.
 
 M8 - Omregning, skatteloft, and regulation
 

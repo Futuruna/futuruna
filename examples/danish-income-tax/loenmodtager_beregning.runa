@@ -81,3 +81,34 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | kræver_par13_underskud_fixture(input: LønmodtagerInput) -> par13_kræver_underskudsbehandling(par13_underskud_input_for(input))
 | personfradrag_anvendt_i_slutskat_fixture(input: LønmodtagerInput) -> kræver_par13_underskud_fixture(input) == Falskt
 | beregn_lønmodtager(input: LønmodtagerInput) -> LønmodtagerBreakdown(input.skatteår, input.kommune, input.bruttoløn_kroner, arbejdsmarkedsbidrag_for(input), personlig_indkomst_efter_am(input), almindelig_skattepligtig_indkomst_fixture(input), bundskat_før_personfradrag(input), topskat_før_personfradrag(input), kommuneskat_før_personfradrag(input), kirkeskat_før_personfradrag(input), samlet_inkl_am_før_personfradrag(input), personfradrag_for(input), statslig_personfradrag_skatteværdi_for(input), kommunal_personfradrag_skatteværdi_for(input), kirkelig_personfradrag_skatteværdi_for(input), samlet_inkl_am_efter_personfradrag(input), personfradrag_anvendt_i_slutskat_fixture(input), kræver_par13_underskud_fixture(input))
+
+----
+§ 13. Hvis den skattepligtige indkomst udviser underskud, beregnes
+skatteværdien af underskuddet med beskatningsprocenten for kommunal
+indkomstskat og kirkeskat.
+
+Stk. 4. I det omfang underskuddet ikke kan modregnes efter stk. 2 eller 3,
+fradrages det i den anden ægtefælles skattepligtige indkomst.
+
+Stk. 5. Den del af underskuddet, der svarer til en positiv personlig indkomst,
+som beskattes i udlandet og ikke her i landet, kan ikke overføres til
+ægtefællen. Den del af underskuddet, der svarer til udgifter, som den
+skattepligtige får fradrag for i udlandet, kan ikke overføres til ægtefællen.
+
+Stk. 6. Underskud i skattepligtig almindelig indkomst fra en virksomhed som
+nævnt i § 4, stk. 1, nr. 9 eller 11, kan ikke fratrækkes i den skattepligtiges
+øvrige skattepligtige indkomst, men fremføres til modregning i positiv
+skattepligtig indkomst i et senere indkomstår fra samme virksomhed.
+----
+
+# Par13KompleksBeregningInput(skatteår: Heltal, skattepligtigt_underskud_kroner: Heltal, personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk, sundhedsbidrag_basispoint: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, par8c_basispoint: Heltal, betaler_par8c: Boolsk, par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, ønsket_ægtefælleoverførsel_kroner: Heltal, udenlandsk_beskattet_personlig_indkomst_kroner: Heltal, fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner: Heltal, udgifter_fradraget_i_udlandet_kroner: Heltal, pbl16_beløb_kroner: Heltal, overførsel_efter_stk4: Boolsk, lempelsesgrundlag: Par13Stk5Lempelsesgrundlag, virksomhedsunderskud_kroner: Heltal, positiv_indkomst_samme_virksomhed_kroner: Heltal, virksomhedsstatus: Par13VirksomhedsUnderskudStatus)
+# Par13KompleksBeregningResult(skatteår: Heltal, kræver_underskudsbehandling: Boolsk, underskud_skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, negativ_personlig_rest_kroner: Heltal, ægtefælleoverførsel: Par13ÆgtefælleOverførselResult, stk5_overførsel: Par13Stk5OverførselResult, virksomhedsunderskud: Par13VirksomhedsUnderskudResult)
+
+| par13_calculator_underskud_input(input: Par13KompleksBeregningInput) -> Par13UnderskudInput(0 - par13_positivt_beløb(input.skattepligtigt_underskud_kroner), input.personlig_indkomst_kroner, input.positiv_kapitalindkomst_kroner, input.gift_samlevende_ved_årets_udløb)
+| par13_calculator_skatteværdi_input(input: Par13KompleksBeregningInput) -> Par13UnderskudSkatteværdiInput(par13_positivt_beløb(input.skattepligtigt_underskud_kroner), input.sundhedsbidrag_basispoint, input.kommuneskat_basispoint, input.kirkeskat_basispoint, input.par8c_basispoint, input.betaler_par8c)
+| par13_calculator_modregning_input(input: Par13KompleksBeregningInput) -> Par13ModregningInput(par13_underskud_skatteværdi_kroner(par13_calculator_skatteværdi_input(input)), input.par6_skat_kroner, input.par7_skat_kroner, input.par7a_skat_kroner, input.par8a_stk2_skat_kroner)
+| par13_calculator_negativ_personlig_input(input: Par13KompleksBeregningInput) -> Par13NegativPersonligInput(input.personlig_indkomst_kroner, input.positiv_kapitalindkomst_kroner)
+| par13_calculator_ægtefælle_input(input: Par13KompleksBeregningInput) -> Par13ÆgtefælleOverførselInput(input.ønsket_ægtefælleoverførsel_kroner, input.ægtefælle_skattepligtig_indkomst_kroner, input.gift_samlevende_ved_årets_udløb)
+| par13_calculator_stk5_input(input: Par13KompleksBeregningInput) -> Par13Stk5OverførselInput(input.skatteår, input.ønsket_ægtefælleoverførsel_kroner, input.udenlandsk_beskattet_personlig_indkomst_kroner, input.fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner, input.udgifter_fradraget_i_udlandet_kroner, input.pbl16_beløb_kroner, input.overførsel_efter_stk4, input.lempelsesgrundlag)
+| par13_calculator_virksomhed_input(input: Par13KompleksBeregningInput) -> Par13VirksomhedsUnderskudInput(input.virksomhedsunderskud_kroner, input.positiv_indkomst_samme_virksomhed_kroner, input.virksomhedsstatus)
+| beregn_par13_kompleks(input: Par13KompleksBeregningInput) -> Par13KompleksBeregningResult(input.skatteår, par13_kræver_underskudsbehandling(par13_calculator_underskud_input(input)), par13_underskud_skatteværdi_kroner(par13_calculator_skatteværdi_input(input)), par13_modregning_resultat(par13_calculator_modregning_input(input)), par13_negativ_personlig_rest_kroner(par13_calculator_negativ_personlig_input(input)), par13_ægtefælleoverførsel_resultat(par13_calculator_ægtefælle_input(input)), par13_stk5_overførsel_resultat(par13_calculator_stk5_input(input)), par13_virksomhedsunderskud_beløbsresultat(par13_calculator_virksomhed_input(input)))

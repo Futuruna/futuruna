@@ -96,5 +96,77 @@ Skatteministeriets kommuneskat for Gentofte 2025.
 ? m4_gentofte_2025_personfradrag_anvendt
 ? m4_gentofte_2025_uden_par13_underskud
 
+----
+Fixture 3
+Skatteår: 2025
+Kommune-/kirkeskat: København 2025 som satsinput
+§ 13-situation: skattepligtigt underskud, negativ personlig indkomst og
+ægtefælleoverførsel.
+Kilder: Personskatteloven § 13, stk. 1-4; Skatteministeriets kommuneskat for
+København 2025.
+----
+
+= m4_par13_ægtefælle_input = Par13KompleksBeregningInput(2025, 100000, -10000, 2000, 45000, Sandt, 0, 2350, 80, 0, Falskt, 10000, 5000, 0, 20000, 60000, 0, 0, 0, 0, Sandt, IngenPar13Lempelse, 0, 0, SkibsvirksomhedGodkendtSenest1993)
+= m4_par13_ægtefælle = beregn_par13_kompleks(m4_par13_ægtefælle_input)
+
+| m4_par13_ægtefælle_kræver_behandling: m4_par13_ægtefælle -> m4_par13_ægtefælle.kræver_underskudsbehandling == Sandt
+| m4_par13_ægtefælle_skatteværdi: m4_par13_ægtefælle -> m4_par13_ægtefælle.underskud_skatteværdi_kroner == 24300
+| m4_par13_ægtefælle_modregning: m4_par13_ægtefælle -> m4_par13_ægtefælle.modregning.par6_efter_kroner == 0 && m4_par13_ægtefælle.modregning.par7_efter_kroner == 0 && m4_par13_ægtefælle.modregning.par8a_stk2_efter_kroner == 10700
+| m4_par13_ægtefælle_negativ_personlig: m4_par13_ægtefælle -> m4_par13_ægtefælle.negativ_personlig_rest_kroner == 8000
+| m4_par13_ægtefælle_overfører: m4_par13_ægtefælle -> m4_par13_ægtefælle.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner == 45000 && m4_par13_ægtefælle.ægtefælleoverførsel.resterende_underskud_kroner == 15000
+
+? m4_par13_ægtefælle_kræver_behandling
+? m4_par13_ægtefælle_skatteværdi
+? m4_par13_ægtefælle_modregning
+? m4_par13_ægtefælle_negativ_personlig
+? m4_par13_ægtefælle_overfører
+
+----
+Fixture 4
+Skatteår: 2025
+§ 13-situation: udenlandsk indkomst og udlandsfradrag, men lempelse efter
+Ligningsloven § 33 A.
+Kilder: Personskatteloven § 13, stk. 5; Ligningsloven § 33 A.
+----
+
+= m4_par13_ll33a_input = Par13KompleksBeregningInput(2025, 100000, 0, 0, 100000, Sandt, 0, 2350, 80, 0, Falskt, 0, 0, 0, 0, 100000, 30000, 5000, 12000, 10000, Sandt, LigningslovPar33A, 0, 0, SkibsvirksomhedGodkendtSenest1993)
+= m4_par13_ll33a = beregn_par13_kompleks(m4_par13_ll33a_input)
+
+| m4_par13_ll33a_frigiver_overførsel: m4_par13_ll33a -> m4_par13_ll33a.stk5_overførsel.overførbart_underskud_kroner == 100000 && m4_par13_ll33a.stk5_overførsel.samlet_afskåret_kroner == 0
+
+? m4_par13_ll33a_frigiver_overførsel
+
+----
+Fixture 5
+Skatteår: 2026
+§ 13-situation: Pensionsbeskatningsloven § 16-beløb efter LOV nr. 482/2024's
+ophævelse af Personskatteloven § 13, stk. 5, 4. pkt.
+Kilder: Personskatteloven § 13, stk. 5; LOV nr. 482 af 22/05/2024.
+----
+
+= m4_par13_2026_pbl_input = Par13KompleksBeregningInput(2026, 100000, 0, 0, 100000, Sandt, 0, 2350, 80, 0, Falskt, 0, 0, 0, 0, 100000, 0, 0, 0, 10000, Sandt, IngenPar13Lempelse, 0, 0, SkibsvirksomhedGodkendtSenest1993)
+= m4_par13_2026_pbl = beregn_par13_kompleks(m4_par13_2026_pbl_input)
+
+| m4_par13_2026_pbl_ikke_afskåret: m4_par13_2026_pbl -> m4_par13_2026_pbl.stk5_overførsel.overførbart_underskud_kroner == 100000 && m4_par13_2026_pbl.stk5_overførsel.afskåret_pbl16_kroner == 0
+
+? m4_par13_2026_pbl_ikke_afskåret
+
+----
+Fixture 6
+Skatteår: 2025
+§ 13-situation: passiv virksomhedsunderskud modregnes kun i samme virksomhed og
+fremføres med restbeløbet.
+Kilder: Personskatteloven § 13, stk. 6-7.
+----
+
+= m4_par13_virksomhed_input = Par13KompleksBeregningInput(2025, 0, 0, 0, 0, Falskt, 0, 2350, 80, 0, Falskt, 0, 0, 0, 0, 0, 0, 0, 0, 0, Falskt, IngenPar13Lempelse, 80000, 30000, PassivVirksomhedPar4Nr9Eller11)
+= m4_par13_virksomhed = beregn_par13_kompleks(m4_par13_virksomhed_input)
+
+| m4_par13_virksomhed_fremfører_rest: m4_par13_virksomhed -> m4_par13_virksomhed.virksomhedsunderskud.fradrag_i_øvrig_indkomst_kroner == 0 && m4_par13_virksomhed.virksomhedsunderskud.modregnet_i_samme_virksomhed_kroner == 30000 && m4_par13_virksomhed.virksomhedsunderskud.fremført_til_samme_virksomhed_kroner == 50000
+
+? m4_par13_virksomhed_fremfører_rest
+
 @ print("m4 København 2025 samlet inkl. AM efter personfradrag: " + vis(m4_københavn_2025.samlet_inkl_am_efter_personfradrag_kroner))
 @ print("m4 Gentofte 2025 samlet inkl. AM efter personfradrag: " + vis(m4_gentofte_2025.samlet_inkl_am_efter_personfradrag_kroner))
+@ print("m4 §13 kompleks ægtefælleoverførsel: " + vis(m4_par13_ægtefælle.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner))
+@ print("m4 §13 2026 PBL-afskæring: " + vis(m4_par13_2026_pbl.stk5_overførsel.afskåret_pbl16_kroner))
