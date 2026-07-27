@@ -34,6 +34,8 @@ enum Route {
         ResearchDanishConstitution {},
         #[route("/research/danish-constitution-audit")]
         ResearchDanishConstitutionAudit {},
+        #[route("/research/personskatteloven")]
+        ResearchPersonskatteloven {},
         #[route("/research/us-constitution")]
         ResearchUSConstitution {},
         #[route("/research/ownership")]
@@ -1620,6 +1622,16 @@ const DK_KAP10: &str = include_str!("../../examples/danish-constitution/kapitel-
 const DK_KAP11: &str = include_str!("../../examples/danish-constitution/kapitel-11.runa");
 const DK_AUDIT: &str = include_str!("../../examples/danish-constitution/grundlov-audit.runa");
 
+// Danish personal income tax law .runa files
+const TAX_STATUS_MD: &str = include_str!("../../examples/danish-income-tax/status-and-milestones.md");
+const TAX_SOURCE_STATUS: &str = include_str!("../../examples/danish-income-tax/source-status.runa");
+const TAX_KAP01: &str = include_str!("../../examples/danish-income-tax/kapitel-01-indkomst.runa");
+const TAX_KAP02: &str = include_str!("../../examples/danish-income-tax/kapitel-02-statsskat.runa");
+const TAX_PARAMS: &str = include_str!("../../examples/danish-income-tax/skatteaar-parametre.runa");
+const TAX_CALC: &str = include_str!("../../examples/danish-income-tax/loenmodtager_beregning.runa");
+const TAX_FIXTURES: &str = include_str!("../../examples/danish-income-tax/loenmodtager-fixtures.runa");
+const TAX_AUDIT: &str = include_str!("../../examples/danish-income-tax/personskatteloven-audit.runa");
+
 // US Constitution .runa files
 const US_CONSTITUTION: &str = include_str!("../../examples/us-constitution/constitution.runa");
 const US_ART1: &str = include_str!("../../examples/us-constitution/article-1.runa");
@@ -1770,12 +1782,12 @@ fn WhyPage() -> Element {
 fn ResearchIndex() -> Element {
     rsx! {
         document::Title { "Research — Futuruna Programming Language" }
-        document::Meta { name: "description", content: "Formal explorations — from information theory optimization to encoding the Danish and US Constitutions as computable invariants in Futuruna." }
+        document::Meta { name: "description", content: "Formal explorations — from information theory optimization to encoding constitutions and Danish personal income tax law as computable Futuruna rules." }
         div { class: "research-hub",
             div { class: "research-header",
                 h1 { class: "research-title", "Research" }
                 p { class: "research-subtitle",
-                    "Formal explorations — from information theory to constitutional law."
+                    "Formal explorations — from information theory to law as executable code."
                 }
             }
             div { class: "research-grid",
@@ -1812,6 +1824,16 @@ fn ResearchIndex() -> Element {
                          og påtrængende love før vælgerkontrol."
                     }
                     span { class: "research-card-meta", "Formel verifikation \u{00B7} Dansk grundlov" }
+                }
+                a { class: "research-card", href: "/research/personskatteloven",
+                    div { class: "research-card-rune rune-pipe", "|" }
+                    h2 { class: "research-card-title", "Personskatteloven" }
+                    p { class: "research-card-desc",
+                        "Danish personal income tax law encoded as Futuruna: source lineage, \
+                         §§ 1-9, tax-year parameter packs, wage-earner calculation fixtures, \
+                         and audit signals for missing dependencies and legal cliffs."
+                    }
+                    span { class: "research-card-meta", "Skatteret \u{00B7} Dansk \u{00B7} Research slice" }
                 }
                 // US Constitution
                 a { class: "research-card", href: "/research/us-constitution",
@@ -2230,6 +2252,128 @@ fn ResearchDanishConstitutionAudit() -> Element {
                 }
                 div { id: "article", class: "docs-rendered", dangerous_inner_html: article_html }
                 div { dangerous_inner_html: audit_highlighted }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Research: Personskatteloven — /research/personskatteloven
+// ============================================================================
+
+#[component]
+fn ResearchPersonskatteloven() -> Element {
+    let sections: Vec<(&str, &str, &str)> = vec![
+        ("source-status.runa — Kildepostur og historisk linje", "source-status-code", TAX_SOURCE_STATUS),
+        ("kapitel-01-indkomst.runa — §§ 1-4 b indkomsttaxonomi", "kapitel-01-code", TAX_KAP01),
+        ("kapitel-02-statsskat.runa — §§ 5-9 statsskat", "kapitel-02-code", TAX_KAP02),
+        ("skatteaar-parametre.runa — 2024/2025 parameterpakker", "params-code", TAX_PARAMS),
+        ("loenmodtager_beregning.runa — første beregningsslice", "calculator-code", TAX_CALC),
+        ("loenmodtager-fixtures.runa — eksekverbare normalperson-fixtures", "fixtures-code", TAX_FIXTURES),
+        ("personskatteloven-audit.runa — audit-signaler", "audit-code", TAX_AUDIT),
+    ];
+
+    let body_html: String = sections
+        .iter()
+        .map(|(title, id, src)| constitution_file_section(title, id, src))
+        .collect();
+    let milestone_html = md_to_html_with_ids(TAX_STATUS_MD);
+
+    rsx! {
+        document::Title { "Personskatteloven — Futuruna Research" }
+        document::Meta { name: "description", content: "Danish personal income tax law encoded in Futuruna: source status, milestones, checked code, wage-earner fixtures, and audit signals." }
+        div { class: "why-page",
+            nav { class: "why-toc",
+                h3 { class: "why-toc-title", "Personskat" }
+                a { class: "why-toc-link research-back", href: "/research", "\u{2190} All Research" }
+                a { class: "why-toc-link", href: "#overview", "Status" }
+                a { class: "why-toc-link", href: "#source-posture", "Kilder" }
+                a { class: "why-toc-link", href: "#milestones", "Milestones" }
+                a { class: "why-toc-link", href: "#audit-signals", "Audits" }
+                for (title, id, _) in sections.iter() {
+                    a { class: "why-toc-link", href: "#{id}", "{title}" }
+                }
+            }
+            article { class: "why-main const-article tax-article",
+                div { id: "overview", class: "const-intro",
+                    p { class: "lang-note", "This page is in Danish where the law itself is Danish; the implementation notes are intentionally explicit about calculation scope." }
+                    h1 { "Personskatteloven" }
+                    p {
+                        "Danish personal income tax law encoded as Futuruna. The current corpus \
+                         preserves official legal text in multiline source blocks, then translates \
+                         each slice into typed "
+                        code { "|" }
+                        " rules, "
+                        code { "under" }
+                        " conditions, "
+                        code { "exception" }
+                        " overrides, parameter packs, executable fixtures, and audit signals."
+                    }
+                    div { class: "tax-status-grid",
+                        div { class: "tax-status-item ready",
+                            span { class: "tax-status-label", "Calculation slice" }
+                            strong { "Calculation-ready" }
+                            p { "Limited to the checked 2025 wage-earner fixtures for Copenhagen and Gentofte before § 9 personfradrag settlement." }
+                        }
+                        div { class: "tax-status-item research",
+                            span { class: "tax-status-label", "Whole statute" }
+                            strong { "Research/audit-only" }
+                            p { "The full Personskatteloven model is incomplete: spouse rules, negative capital income, §§ 10-13, 2026 reform layers, and dependent tax statutes remain explicit gaps." }
+                        }
+                    }
+                    p { class: "lang-note",
+                        "Kildegrundlag: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2021/1284", "Retsinformation, LBK nr. 1284 af 14/06/2021" }
+                        " · historisk linje: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
+                    }
+                    p { class: "const-stats",
+                        "8 filer \u{00B7} §§ 1-9 første slice \u{00B7} 2024/2025 parameterpakker \u{00B7} wage-earner fixtures \u{00B7} audit-signaler"
+                    }
+                }
+
+                section { id: "source-posture", class: "tax-section",
+                    h2 { "Source Status" }
+                    div { class: "tax-source-grid",
+                        div { class: "tax-source-row",
+                            span { "Current working source" }
+                            strong { "2021/1284 — Valid in the checked XML metadata" }
+                        }
+                        div { class: "tax-source-row",
+                            span { "Prompt source lineage" }
+                            strong { "2019/799 — Historic, preserved for audit and diffing" }
+                        }
+                        div { class: "tax-source-row",
+                            span { "Live calculation guard" }
+                            strong { "Historic sources are rejected for current tax calculation" }
+                        }
+                    }
+                }
+
+                section { id: "milestones", class: "tax-section",
+                    h2 { "Status And Milestones" }
+                    div { class: "docs-rendered tax-milestones", dangerous_inner_html: milestone_html }
+                }
+
+                section { id: "audit-signals", class: "tax-section",
+                    h2 { "Selected Audit Signals" }
+                    div { class: "const-audit-highlights tax-audit-highlights",
+                        a { href: "#audit-code",
+                            span { "source" }
+                            strong { "Historic law cannot silently drive current calculation" }
+                        }
+                        a { href: "#audit-code",
+                            span { "gap" }
+                            strong { "§ 9 personfradrag and §§ 10-13 remain marked dependencies" }
+                        }
+                        a { href: "#audit-code",
+                            span { "cliff" }
+                            strong { "Topskat threshold activation is executable as an audit signal" }
+                        }
+                    }
+                }
+
+                div { dangerous_inner_html: body_html }
             }
         }
     }

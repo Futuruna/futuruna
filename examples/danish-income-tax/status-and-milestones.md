@@ -45,6 +45,9 @@ calculating a current taxpayer's tax.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.runa` exists and checks/runs with `runa run`.
 - `personskatteloven-audit.runa` exists and checks/runs with `runa run`.
+- Website research page exists at `/research/personskatteloven` and renders
+  source status, milestone status, selected audit signals, and the checked
+  `.runa` corpus.
 - The current `.runa` slices encode source validity, source lineage, the
   §§ 1-4 b income taxonomy, the §§ 5-9 state-tax skeleton, 2024/2025 tax-year
   parameter packs, first wage-earner fixtures, and first audit signals.
@@ -85,10 +88,9 @@ calculating a current taxpayer's tax.
 - Gather complementary official sources for:
   arbejdsmarkedsbidrag, municipal income tax, church tax, personal allowance,
   ligningsmæssige fradrag, kildeskat, and annual rate/threshold adjustments.
-- Add the first audit file for source drift, missing dependencies, tax cliffs,
+- Expand audit coverage for source drift, missing dependencies, tax cliffs,
   delegated powers, and category boundary problems.
-- Add a website research page once the foundation file checks and the project
-  has a stable first slice to show.
+- Extend the website page as more of the corpus becomes calculation-ready.
 
 ## Later
 
@@ -166,8 +168,12 @@ M5 - Audit suite
 
 M6 - Website integration
 
-- Status: not started.
+- Status: first slice implemented.
 - Output: research page under the website showing the Personskatteloven corpus,
   source status, milestones, and selected audits.
 - Done when: the website renders the checked corpus and clearly marks whether it
   is a calculation-ready slice or a research/audit slice.
+- Current slice: `/research/personskatteloven` links the valid and historic
+  sources, renders the milestone log, embeds the checked `.runa` corpus, marks
+  the limited wage-earner fixture slice as calculation-ready, and marks the full
+  statute model as research/audit-only.

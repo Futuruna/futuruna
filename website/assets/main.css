@@ -1211,6 +1211,113 @@ section {
     line-height: 1.65 !important;
 }
 
+/* ---- Personskatteloven research page ---- */
+
+.tax-article {
+    max-width: 940px;
+}
+
+.tax-status-grid,
+.tax-source-grid {
+    display: grid;
+    gap: 0.85rem;
+    margin: 1.25rem 0;
+}
+
+.tax-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tax-status-item,
+.tax-source-row {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-card);
+}
+
+.tax-status-item {
+    padding: 1rem;
+}
+
+.tax-status-item.ready {
+    border-color: rgba(80, 176, 96, 0.45);
+}
+
+.tax-status-item.research {
+    border-color: rgba(224, 128, 80, 0.45);
+}
+
+.tax-status-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.25rem;
+}
+
+.tax-status-item strong {
+    display: block;
+    font-size: 0.95rem;
+    margin-bottom: 0.35rem;
+}
+
+.tax-status-item p {
+    margin: 0;
+    font-size: 0.84rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+
+.tax-section {
+    scroll-margin-top: 5rem;
+    margin-bottom: 2.75rem;
+}
+
+.tax-section h2 {
+    font-family: var(--font-mono);
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding-bottom: 0.45rem;
+    margin-bottom: 0.9rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.tax-source-row {
+    display: grid;
+    grid-template-columns: minmax(10rem, 0.7fr) 1fr;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+}
+
+.tax-source-row span {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.tax-source-row strong {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.tax-milestones {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-card);
+    padding: 1.25rem;
+    max-height: 34rem;
+    overflow: auto;
+}
+
+.tax-audit-highlights {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 /* ---- Why page ---- */
 
 .why-page {
@@ -1633,6 +1740,16 @@ section {
     .const-analysis-strip,
     .const-audit-highlights {
         grid-template-columns: 1fr;
+    }
+
+    .tax-status-grid,
+    .tax-audit-highlights {
+        grid-template-columns: 1fr;
+    }
+
+    .tax-source-row {
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
     }
 
     .const-analysis-strip a,
