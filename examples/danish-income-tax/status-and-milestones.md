@@ -39,8 +39,12 @@ calculating a current taxpayer's tax.
 
 - Folder created at `examples/danish-income-tax/`.
 - `source-status.runa` exists and checks with `runa check`.
-- The current `.runa` slice encodes source validity, source lineage, and the
-  first §§ 1-2 income category structure.
+- `kapitel-01-indkomst.runa` exists and checks with `runa check`.
+- `kapitel-02-statsskat.runa` exists and checks with `runa check`.
+- The current `.runa` slices encode source validity, source lineage, the
+  §§ 1-4 b income taxonomy, and the §§ 5-9 state-tax skeleton.
+- The chapter files follow the repeating structure: official legal text in a
+  multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
   text in multiline source blocks, followed by Futuruna types, constants, and
   typed `|` legal rules.
@@ -109,7 +113,7 @@ M0 - Source foundation
 
 M1 - Income taxonomy
 
-- Status: not started.
+- Status: first slice implemented.
 - Output: chapter/foundation `.runa` file for §§ 1-4 b.
 - Done when: ordinary income, personal income, capital income, share income, and
   CFC income are represented as typed legal categories with original text
@@ -117,7 +121,7 @@ M1 - Income taxonomy
 
 M2 - State tax computation skeleton
 
-- Status: not started.
+- Status: first slice implemented.
 - Output: `.runa` files for §§ 5-9.
 - Done when: the legal structure of bundskat, topskat, abolished/zeroed taxes,
   aktieindkomstskat, CFC tax, and municipal-equivalent state tax is encoded.

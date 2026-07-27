@@ -1,0 +1,422 @@
+@ sprog da
+
+-- Personskatteloven — statsskat og skatteværdi (§§ 5-9).
+--
+-- Kilde: Retsinformation, LBK nr. 1284 af 14/06/2021.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2021/1284
+-- XML: https://www.retsinformation.dk/eli/lta/2021/1284/dan/xml
+
+----
+§ 5. Indkomstskatten til staten opgøres som summen af
+1) bundskat efter § 6,
+2) topskat efter § 7,
+3) udligningsskat efter § 7 a,
+4) sundhedsbidrag efter § 8,
+5) skat af aktieindkomst efter § 8 a,
+6) skat af CFC-indkomst efter § 8 b og
+7) skat svarende til kommunal indkomstskat efter § 8 c.
+----
+
+# StatsskatKomponent = Bundskat | Topskat | Udligningsskat | Sundhedsbidrag | Aktieindkomstskat | CfcIndkomstskat | KommunalLignendeStatsskat
+
+| statsskat_indeholder(komponent: StatsskatKomponent) -> Sandt
+
+= par5_bundskat = statsskat_indeholder(Bundskat)
+= par5_topskat = statsskat_indeholder(Topskat)
+= par5_udligning = statsskat_indeholder(Udligningsskat)
+= par5_sundhed = statsskat_indeholder(Sundhedsbidrag)
+= par5_aktie = statsskat_indeholder(Aktieindkomstskat)
+= par5_cfc = statsskat_indeholder(CfcIndkomstskat)
+= par5_par8c = statsskat_indeholder(KommunalLignendeStatsskat)
+
+| par5_bundskat_indgår: par5_bundskat -> par5_bundskat == Sandt
+| par5_topskat_indgår: par5_topskat -> par5_topskat == Sandt
+| par5_udligning_indgår: par5_udligning -> par5_udligning == Sandt
+| par5_sundhed_indgår: par5_sundhed -> par5_sundhed == Sandt
+| par5_aktie_indgår: par5_aktie -> par5_aktie == Sandt
+| par5_cfc_indgår: par5_cfc -> par5_cfc == Sandt
+| par5_par8c_indgår: par5_par8c -> par5_par8c == Sandt
+
+----
+§ 6. Skatten efter § 5, nr. 1, beregnes med den procent, der anføres i stk. 2,
+af den personlige indkomst med tillæg af positiv nettokapitalindkomst.
+
+Stk. 2. For indkomståret 2021 udgør procenten 12,09. For indkomståret 2022 og
+efterfølgende indkomstår udgør procenten 12,10. For personer, der ikke har pligt
+til at betale indkomstskat efter § 8 c eller kommunal indkomstskat efter lov om
+kommunal indkomstskat, udgør procenten for indkomståret 2021 4,09. For
+indkomståret 2022 og efterfølgende indkomstår udgør procenten 4,10.
+
+Stk. 3. Hvis en gift person har negativ nettokapitalindkomst, modregnes dette
+beløb i den anden ægtefælles positive nettokapitalindkomst, inden skatten efter
+stk. 1 og 2 beregnes. Det er en forudsætning, at ægtefællerne er samlevende ved
+indkomstårets udløb.
+----
+
+# KommunalSkattepligt = BetalerKommunalEllerPar8c | BetalerIkkeKommunalEllerPar8c
+# BundskatInput(personlig_indkomst: Heltal, positiv_nettokapitalindkomst: Heltal)
+# ÆgtefælleKapitalModregning(gift: Boolsk, samlevende_ved_årets_udløb: Boolsk, negativ_nettokapitalindkomst: Boolsk)
+
+| bundskat_grundlag(input: BundskatInput) -> input.personlig_indkomst + input.positiv_nettokapitalindkomst
+
+| bundskatte_sats_basispoint(år: Heltal, skattepligt: KommunalSkattepligt) -> 1209 under år == 2021 && skattepligt == BetalerKommunalEllerPar8c
+| bundskatte_sats_basispoint(år: Heltal, skattepligt: KommunalSkattepligt) -> 1210 under år >= 2022 && skattepligt == BetalerKommunalEllerPar8c
+| bundskatte_sats_basispoint(år: Heltal, skattepligt: KommunalSkattepligt) -> 409 under år == 2021 && skattepligt == BetalerIkkeKommunalEllerPar8c
+| bundskatte_sats_basispoint(år: Heltal, skattepligt: KommunalSkattepligt) -> 410 under år >= 2022 && skattepligt == BetalerIkkeKommunalEllerPar8c
+
+| ægtefælles_negative_kapital_modregnes(input: ÆgtefælleKapitalModregning) -> input.gift && input.samlevende_ved_årets_udløb && input.negativ_nettokapitalindkomst
+
+= par6_grundlag = bundskat_grundlag(BundskatInput(500000, 10000))
+= par6_sats_2021 = bundskatte_sats_basispoint(2021, BetalerKommunalEllerPar8c)
+= par6_sats_2022 = bundskatte_sats_basispoint(2022, BetalerKommunalEllerPar8c)
+= par6_sats_ikke_kommunal = bundskatte_sats_basispoint(2022, BetalerIkkeKommunalEllerPar8c)
+= par6_modregning = ægtefælles_negative_kapital_modregnes(ÆgtefælleKapitalModregning(Sandt, Sandt, Sandt))
+
+| par6_grundlag_lægger_til: par6_grundlag -> par6_grundlag == 510000
+| par6_2021_sats: par6_sats_2021 -> par6_sats_2021 == 1209
+| par6_2022_sats: par6_sats_2022 -> par6_sats_2022 == 1210
+| par6_ikke_kommunal_sats: par6_sats_ikke_kommunal -> par6_sats_ikke_kommunal == 410
+| par6_ægtefælle_modregning: par6_modregning -> par6_modregning == Sandt
+
+----
+§ 6 a. (Ophævet)
+----
+
+| par6a_ophævet() -> Sandt
+
+----
+§ 7. Skatten efter § 5, nr. 2, udgør 15 pct. af den personlige indkomst med
+tillæg af heri fradragne og ikke medregnede beløb omfattet af beløbsgrænsen i
+pensionsbeskatningslovens § 16, stk. 1, 4. pkt., og med tillæg af positiv
+nettokapitalindkomst, der overstiger et grundbeløb på 40.000 kr. (2010-niveau),
+i det omfang det samlede beløb overstiger bundfradraget anført i stk. 2.
+
+Stk. 2. Bundfradraget udgør 389.900 kr. For indkomståret 2013 udgør
+bundfradraget 421.000 kr. (2010-niveau). For indkomståret 2014 udgør
+bundfradraget 441.100 kr. (2010- niveau). For indkomståret 2015 udgør
+bundfradraget 444.500 kr. (2010-niveau). For indkomståret 2016 udgør
+bundfradraget 446.300 kr. (2010-niveau). For indkomståret 2017 udgør
+bundfradraget 448.200 kr. (2010-niveau). For indkomståret 2018 udgør
+bundfradraget 456.000 kr. (2010-niveau). For indkomståret 2019 udgør
+bundfradraget 459.200 kr. (2010-niveau). For indkomståret 2020 udgør
+bundfradraget 464.500 (2010-niveau). For indkomståret 2021 udgør bundfradraget
+466.000 kr. (2010-niveau). For indkomståret 2022 og efterfølgende indkomstår
+udgør bundfradraget 467.000 kr. (2010-niveau).
+
+Stk. 3. For personer, der ikke er omfattet af stk. 7, beregnes skat med 15 pct.
+af vedkommendes personlige indkomst med tillæg af heri fradragne og ikke
+medregnede beløb omfattet af beløbsgrænsen i pensionsbeskatningslovens § 16,
+stk. 1, 4. pkt., i det omfang dette beregningsgrundlag overstiger bundfradraget
+i stk. 2.
+
+Stk. 4. Der beregnes tillige skat af personens positive nettokapitalindkomst,
+der overstiger bundfradraget i stk. 1. Skatten beregnes med 15 pct. af
+beregningsgrundlaget efter stk. 3 med tillæg af den del af den positive
+nettokapitalindkomst, der overstiger grundbeløbet i stk. 1. Skatten beregnes dog
+kun, i det omfang det samlede beløb overstiger bundfradraget i stk. 2. Forskellen
+mellem skatten efter 2. og 3. pkt. og skatten efter stk. 3 udgør skatten af
+personens positive nettokapitalindkomst, jf. dog § 19, stk. 2.
+
+Stk. 5. Er en gift persons nettokapitalindkomst lavere end grundbeløbet for
+positiv nettokapitalindkomst i stk. 1, forhøjes den anden ægtefælles grundbeløb
+med forskelsbeløbet, hvis ægtefællerne er samlevende ved indkomstårets udløb. Er
+personens nettokapitalindkomst negativ, modregnes dette beløb i den anden
+ægtefælles positive nettokapitalindkomst, inden ægtefællens grundbeløb forhøjes
+efter 1. pkt.
+
+Stk. 6. For ægtefæller beregnes skatten efter stk. 7-12, når de er samlevende i
+hele indkomståret og dette udgør en periode af et helt år.
+
+Stk. 7. For hver ægtefælle beregnes skat med 15 pct. af vedkommendes personlige
+indkomst med tillæg af heri fradragne og ikke medregnede beløb omfattet af
+beløbsgrænsen i pensionsbeskatningslovens § 16, stk. 1, 4. pkt., i det omfang
+dette beregningsgrundlag overstiger bundfradraget i stk. 2.
+
+Stk. 8. Der beregnes tillige skat af ægtefællernes samlede positive
+nettokapitalindkomst. Til dette formål beregnes skat hos den af ægtefællerne,
+der har det højeste beregningsgrundlag efter stk. 7. Skatten beregnes med 15
+pct. af denne ægtefælles beregningsgrundlag efter stk. 7 med tillæg af den del
+af ægtefællernes samlede positive nettokapitalindkomst, der overstiger det
+dobbelte af grundbeløbet i stk. 1. Skatten beregnes dog kun i det omfang, det
+samlede beløb overstiger bundfradraget i stk. 2.
+
+Stk. 9. Forskellen mellem skatten efter stk. 8 og skatten efter stk. 7 for den
+ægtefælle, der har det højeste beregningsgrundlag efter stk. 7, udgør skatten af
+ægtefællernes samlede positive nettokapitalindkomst, jf. dog § 19, stk. 2.
+
+Stk. 10. Har kun den ene ægtefælle positiv nettokapitalindkomst over grundbeløbet
+i stk. 1, påhviler den samlede skat af ægtefællernes nettokapitalindkomst efter
+stk. 9 denne ægtefælle.
+
+Stk. 11. Hvis begge ægtefæller har positiv nettokapitalindkomst over grundbeløbet
+i stk. 1, fordeles skatten af ægtefællernes samlede nettokapitalindkomst imellem
+dem efter forholdet mellem hver enkelt ægtefælles nettokapitalindkomst over
+grundbeløbet i stk. 1.
+
+Stk. 12. Hvis ægtefællernes beregningsgrundlag efter stk. 7 er lige store, anses
+den af ægtefællerne, som har de største udgifter af den art, der fradrages ved
+opgørelsen af den skattepligtige indkomst, men ikke ved opgørelsen af personlig
+indkomst og kapitalindkomst, for at have det højeste beregningsgrundlag efter stk. 7.
+
+Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
+----
+
+# TopskatInput(personlig_indkomst: Heltal, pbl16_tillæg: Heltal)
+# ÆgtefælleTopskatStatus = IkkeÆgtefælleRegel | HeleÅretSamlevendeÆgtefæller
+# KapitalTærskelStatus = IngenOverGrundbeløb | EnÆgtefælleOverGrundbeløb | BeggeÆgtefællerOverGrundbeløb
+
+| topskat_sats_basispoint() -> 1500
+| topskat_personligt_grundlag(input: TopskatInput) -> input.personlig_indkomst + input.pbl16_tillæg
+| topskat_beregnes_over_bundfradrag(grundlag: Heltal, bundfradrag: Heltal) -> grundlag > bundfradrag
+| topskat_ægtefælleregler_gælder(status: ÆgtefælleTopskatStatus) -> status == HeleÅretSamlevendeÆgtefæller
+| positiv_kapital_topskat_fordeles(status: KapitalTærskelStatus) -> status == BeggeÆgtefællerOverGrundbeløb
+| positiv_kapital_topskat_påhviler_ene(status: KapitalTærskelStatus) -> status == EnÆgtefælleOverGrundbeløb
+| topskat_grundbeløb_reguleres_efter_par20() -> Sandt
+
+= par7_sats = topskat_sats_basispoint()
+= par7_personligt = topskat_personligt_grundlag(TopskatInput(600000, 20000))
+= par7_over_bundfradrag = topskat_beregnes_over_bundfradrag(620000, 467000)
+= par7_ægtefæller = topskat_ægtefælleregler_gælder(HeleÅretSamlevendeÆgtefæller)
+= par7_fordeling = positiv_kapital_topskat_fordeles(BeggeÆgtefællerOverGrundbeløb)
+= par7_ene = positiv_kapital_topskat_påhviler_ene(EnÆgtefælleOverGrundbeløb)
+
+| par7_sats_15pct: par7_sats -> par7_sats == 1500
+| par7_personligt_grundlag_lægger_til: par7_personligt -> par7_personligt == 620000
+| par7_kun_over_bundfradrag: par7_over_bundfradrag -> par7_over_bundfradrag == Sandt
+| par7_ægtefælleperiode_kræves: par7_ægtefæller -> par7_ægtefæller == Sandt
+| par7_begge_positive_fordeles: par7_fordeling -> par7_fordeling == Sandt
+| par7_en_positiv_påhviler_ene: par7_ene -> par7_ene == Sandt
+
+----
+§ 7 a. Udligningsskatten efter § 5, nr. 3, beregnes af summen af følgende
+indkomstskattepligtige beløb:
+1) Udbetalinger omfattet af pensionsbeskatningslovens § 20, stk. 1, nr. 1-4.
+2) Udbetalinger omfattet af pensionsbeskatningslovens § 53 A, stk. 5.
+3) Udbetalinger omfattet af pensionsbeskatningslovens § 53 B, stk. 6.
+4) Vederlag for afløsning af pensionstilsagn omfattet af ligningslovens § 7 O,
+stk. 1, nr. 3, eksklusive arbejdsmarkedsbidrag.
+5) Pension i henhold til løfte afgivet over for en direktør eller dennes
+efterladte i forbindelse med et ansættelsesforhold, når udbetalingen er omfattet
+af statsskattelovens § 4, litra c, eksklusive arbejdsmarkedsbidrag.
+6) Folkepensionens grundbeløb, jf. § 12 i lov om social pension.
+7) Andre pensioner og pensionslignende ydelser omfattet af statsskattelovens
+§ 4, litra c, eller pensionsbeskatningslovens § 50 som affattet i
+lovbekendtgørelse nr. 580 af 7. august 1991. 1. pkt. omfatter ikke efterløn,
+jf. kapitel 11 a i lov om arbejdsløshedsforsikring m.v., eller fleksydelse
+omfattet af lov om fleksydelse. 1. pkt. omfatter endvidere ikke førtidspension,
+jf. § 16 i lov om social pension og lov om højeste, mellemste, forhøjet
+almindelig og almindelig førtidspension m.v. 1. pkt. omfatter heller ikke
+ydelser fra obligatoriske, udenlandske sikringsordninger.
+
+Stk. 2. Beløb, der udbetales som invalidepension, omfattes ikke af stk. 1.
+Skelnes der ikke mellem invalide- og alderspension, er alene udbetalinger indtil
+opnåelse af folkepensionsalderen ikke omfattet af stk. 1.
+
+Stk. 3. Udligningsskatten beregnes af den personlige indkomst med tillæg af heri
+fradragne og ikke medregnede indbetalinger til pensionsordninger reguleret efter
+§ 13, hvis det korrigerede beløb er mindre end beløbet opgjort efter stk. 1.
+
+Stk. 4. For indkomstårene 2011-2014 udgør udligningsskatten 6 pct. af den del af
+det samlede beløb efter stk. 1, jf. stk. 3, der overstiger et grundbeløb på
+362.800 kr. (2010-niveau).
+
+Stk. 5. Satsen på 6 pct. i stk. 4 nedsættes fra indkomståret 2015 og for hvert
+efterfølgende indkomstår med 1 procentenhed i forhold til satsen for det nærmest
+forudgående indkomstår. For indkomståret 2018 og efterfølgende indkomstår udgør
+satsen 0 pct.
+
+Stk. 6. Er en gift persons udbetalte beløb efter stk. 1 lavere end grundbeløbet
+efter stk. 4, eller udbetales der ikke beløb efter stk. 1, forhøjes den anden
+ægtefælles grundbeløb med forskelsbeløbet, dog højst med 121.000 kr.
+(2010-niveau) med fradrag af personlig indkomst efter regulering efter § 13.
+Det er en forudsætning for fradrag efter 1. pkt., at ægtefællerne er samlevende
+ved indkomstårets udløb.
+
+Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
+----
+
+# UdligningsskatPost = Pbl20Udbetaling | Pbl53AUdbetaling | Pbl53BUdbetaling | AfløsningAfPensionstilsagn | DirektørPension | FolkepensionGrundbeløb | AndrePensioner
+# UdligningsskatUndtagelse = Invalidepension | Efterløn | Fleksydelse | Førtidspension | ObligatoriskUdenlandskSikring
+
+| udligningsskat_omfatter(post: UdligningsskatPost) -> Sandt
+| udligningsskat_undtager(undtagelse: UdligningsskatUndtagelse) -> Sandt
+| udligningsskat_sats_basispoint(år: Heltal) -> 600 under år >= 2011 && år <= 2014
+| udligningsskat_sats_basispoint(år: Heltal) -> 500 under år == 2015
+| udligningsskat_sats_basispoint(år: Heltal) -> 400 under år == 2016
+| udligningsskat_sats_basispoint(år: Heltal) -> 300 under år == 2017
+| udligningsskat_sats_basispoint(år: Heltal) -> 0 under år >= 2018
+| udligningsskat_beløb_reguleres_efter_par20() -> Sandt
+
+= par7a_pension = udligningsskat_omfatter(Pbl20Udbetaling)
+= par7a_invalidepension = udligningsskat_undtager(Invalidepension)
+= par7a_sats_2014 = udligningsskat_sats_basispoint(2014)
+= par7a_sats_2018 = udligningsskat_sats_basispoint(2018)
+
+| par7a_pension_omfattes: par7a_pension -> par7a_pension == Sandt
+| par7a_invalidepension_undtages: par7a_invalidepension -> par7a_invalidepension == Sandt
+| par7a_2014_sats: par7a_sats_2014 -> par7a_sats_2014 == 600
+| par7a_2018_nul: par7a_sats_2018 -> par7a_sats_2018 == 0
+
+----
+§ 8. Sundhedsbidrag efter § 5, nr. 4, beregnes af den skattepligtige indkomst
+med den procent, der anføres i 2.-9. pkt. For indkomstårene 2010 og 2011 udgør
+procenten 8,0. For indkomståret 2012 udgør procenten 7,0. For indkomståret 2013
+udgør procenten 6,0. For indkomståret 2014 udgør procenten 5,0. For
+indkomståret 2015 udgør procenten 4,0. For indkomståret 2016 udgør procenten
+3,0. For indkomståret 2017 udgør procenten 2,0. For indkomståret 2018 udgør
+procenten 1,0. For indkomståret 2019 og efterfølgende indkomstår udgør
+procenten 0.
+
+Stk. 2. Pligt til at betale sundhedsbidrag efter stk. 1 påhviler enhver person,
+der har pligt til at betale indkomstskat efter § 8 c eller kommunal indkomstskat
+efter lov om kommunal indkomstskat.
+----
+
+| sundhedsbidrag_sats_basispoint(år: Heltal) -> 800 under år == 2010 || år == 2011
+| sundhedsbidrag_sats_basispoint(år: Heltal) -> 700 under år == 2012
+| sundhedsbidrag_sats_basispoint(år: Heltal) -> 600 under år == 2013
+| sundhedsbidrag_sats_basispoint(år: Heltal) -> 500 under år == 2014
+| sundhedsbidrag_sats_basispoint(år: Heltal) -> 400 under år == 2015
+| sundhedsbidrag_sats_basispoint(år: Heltal) -> 300 under år == 2016
+| sundhedsbidrag_sats_basispoint(år: Heltal) -> 200 under år == 2017
+| sundhedsbidrag_sats_basispoint(år: Heltal) -> 100 under år == 2018
+| sundhedsbidrag_sats_basispoint(år: Heltal) -> 0 under år >= 2019
+| sundhedsbidrag_pligt(skattepligt: KommunalSkattepligt) -> skattepligt == BetalerKommunalEllerPar8c
+
+= par8_sats_2011 = sundhedsbidrag_sats_basispoint(2011)
+= par8_sats_2019 = sundhedsbidrag_sats_basispoint(2019)
+= par8_pligt = sundhedsbidrag_pligt(BetalerKommunalEllerPar8c)
+
+| par8_2011_sats: par8_sats_2011 -> par8_sats_2011 == 800
+| par8_2019_nul: par8_sats_2019 -> par8_sats_2019 == 0
+| par8_pligt_følger_kommunal: par8_pligt -> par8_pligt == Sandt
+
+----
+§ 8 a. Skat af aktieindkomst, der ikke overstiger et grundbeløb på 48.300 kr.
+(2010-niveau), beregnes som en endelig skat, der for indkomstårene 2010 og 2011
+udgør 28 pct. og for indkomståret 2012 og efterfølgende indkomstår udgør 27 pct.
+Indeholdt udbytteskat efter kildeskattelovens § 65 af aktieindkomst, der ikke
+overstiger grundbeløbet, er endelig betaling af skatten, og udbytteskatten
+modregnes ikke i slutskatten efter kildeskattelovens § 67.
+
+Stk. 2. Skat af aktieindkomst, der overstiger et grundbeløb på 48.300 kr.
+(2010-niveau), beregnes med 42 pct. Skatten indgår i slutskatten, og den
+udbytteskat, der er indeholdt i denne del af udbyttet efter kildeskattelovens
+§ 65, modregnes i slutskatten efter kildeskattelovens § 67.
+
+Stk. 3. Overstiger den indeholdte udbytteskat efter kildeskattelovens § 65 den i
+stk. 1 nævnte skatteprocent af den samlede aktieindkomst, modregnes det
+overskydende beløb i slutskatten. Er aktieindkomsten negativ, modregnes hele den
+indeholdte udbytteskat i slutskatten.
+
+Stk. 4. Er en gift persons aktieindkomst lavere end de i stk. 1 og 2 nævnte
+grundbeløb, forhøjes den anden ægtefælles grundbeløb med forskelsbeløbet, dog
+højst med grundbeløbet. Det er en forudsætning, at ægtefællerne er samlevende
+ved indkomstårets udløb.
+
+Stk. 5. Er aktieindkomsten negativ, beregnes negativ skat med den i stk. 1 nævnte
+procentsats af beløb, der ikke overstiger grundbeløbet, og med skatteprocenten
+nævnt i stk. 2 af beløb, der overstiger grundbeløbet. Den negative skat
+modregnes i den skattepligtiges slutskat, og et eventuelt resterende beløb
+fremføres til modregning i slutskatten for de følgende indkomstår.
+
+Stk. 6. Er en gift persons aktieindkomst negativ, modregnes beløbet i den anden
+ægtefælles positive aktieindkomst. Det er en forudsætning, at ægtefællerne er
+samlevende ved indkomstårets udløb. Af et eventuelt resterende negativt beløb
+beregnes negativ skat efter stk. 5 med anvendelse af dobbelt grundbeløb. Har
+begge ægtefæller negativ aktieindkomst, fordeles det dobbelte grundbeløb
+forholdsmæssigt mellem ægtefællerne. Negativ skat, der ikke kan modregnes i den
+skattepligtiges slutskat, modregnes i ægtefællens slutskat.
+
+Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
+----
+
+# AktieSkatteLag = LavAktieSkat | HøjAktieSkat
+# AktieSkatStatus = PositivAktieindkomst | NegativAktieindkomst
+# ÆgtefælleAktieStatus = IkkeSamlevende | SamlevendeVedÅretsUdløb
+
+| aktieindkomstskat_sats_basispoint(år: Heltal, lag: AktieSkatteLag) -> 2800 under lag == LavAktieSkat && (år == 2010 || år == 2011)
+| aktieindkomstskat_sats_basispoint(år: Heltal, lag: AktieSkatteLag) -> 2700 under lag == LavAktieSkat && år >= 2012
+| aktieindkomstskat_sats_basispoint(år: Heltal, lag: AktieSkatteLag) -> 4200 under lag == HøjAktieSkat
+| lav_aktieindkomstskat_er_endelig() -> Sandt
+| høj_aktieindkomstskat_indgår_i_slutskat() -> Sandt
+| negativ_aktieindkomst_modregnes(status: AktieSkatStatus) -> status == NegativAktieindkomst
+| ægtefælle_aktiegrundbeløb_kan_forhøjes(status: ÆgtefælleAktieStatus) -> status == SamlevendeVedÅretsUdløb
+| aktiegrundbeløb_reguleres_efter_par20() -> Sandt
+
+= par8a_lav_2011 = aktieindkomstskat_sats_basispoint(2011, LavAktieSkat)
+= par8a_lav_2012 = aktieindkomstskat_sats_basispoint(2012, LavAktieSkat)
+= par8a_høj = aktieindkomstskat_sats_basispoint(2022, HøjAktieSkat)
+= par8a_negativ = negativ_aktieindkomst_modregnes(NegativAktieindkomst)
+
+| par8a_lav_2011_sats: par8a_lav_2011 -> par8a_lav_2011 == 2800
+| par8a_lav_2012_sats: par8a_lav_2012 -> par8a_lav_2012 == 2700
+| par8a_høj_sats: par8a_høj -> par8a_høj == 4200
+| par8a_negativ_modregnes: par8a_negativ -> par8a_negativ == Sandt
+
+----
+§ 8 b. Af CFC-indkomst svares skat med den sats, der er nævnt i
+selskabsskattelovens § 17, stk. 1.
+----
+
+| cfc_skat_bruger_selskabsskattelovens_par17_stk1() -> Sandt
+
+----
+§ 8 c. For personer, der omfattes af kildeskattelovens § 2, stk. 1, nr. 1, 2,
+4, 5, 7 og 9-25, eller § 2, stk. 2, beregnes en skat svarende til kommunal
+indkomstskat af den skattepligtige almindelige indkomst. Tilsvarende gælder for
+personer omfattet af kildeskattelovens § 2, stk. 1, nr. 3, kulbrinteskattelovens
+§ 21, stk. 2, eller § 9 i lov om beskatning af søfolk, når de pågældende har
+valgt at blive beskattet, som om de var omfattet af kildeskattelovens § 2,
+stk. 1, nr. 1. Skatten svares med den gennemsnitlige samlede kommunale
+udskrivningsprocent for det pågældende kalenderår nedrundet til nærmeste hele
+procent.
+
+Stk. 2. I tilfælde, hvor der i medfør af § 10, stk. 5, skal ske nedsættelse af
+de beregnede skatter under anvendelse af personfradrag, nedsættes skatten
+svarende til den kommunale indkomstskat under anvendelse af samme personfradrag.
+----
+
+# Par8cPersonstatus = Ksl2Nr1_2_4_5_7_9Til25EllerStk2 | Ksl2Nr3ValgtSomNr1 | Kulbrinte21Stk2ValgtSomNr1 | SøfolkPar9ValgtSomNr1 | IkkePar8cOmfattet
+
+| par8c_omfattet(status: Par8cPersonstatus) -> Falskt
+| exception ksl_hovedgruppe par8c_omfattet(status: Par8cPersonstatus) -> Sandt under status == Ksl2Nr1_2_4_5_7_9Til25EllerStk2
+| exception ksl_nr3_valg par8c_omfattet(status: Par8cPersonstatus) -> Sandt under status == Ksl2Nr3ValgtSomNr1
+| exception kulbrinte_valg par8c_omfattet(status: Par8cPersonstatus) -> Sandt under status == Kulbrinte21Stk2ValgtSomNr1
+| exception søfolk_valg par8c_omfattet(status: Par8cPersonstatus) -> Sandt under status == SøfolkPar9ValgtSomNr1
+| par8c_sats_er_kommunalt_gennemsnit_nedrundet() -> Sandt
+| par8c_personfradrag_nedsætter_samme_skat() -> Sandt
+
+= par8c_omfattet_ksl = par8c_omfattet(Ksl2Nr1_2_4_5_7_9Til25EllerStk2)
+= par8c_ikke_omfattet = par8c_omfattet(IkkePar8cOmfattet)
+
+| par8c_ksl_omfattet: par8c_omfattet_ksl -> par8c_omfattet_ksl == Sandt
+| par8c_ikke_omfattet_afvises: par8c_ikke_omfattet -> par8c_ikke_omfattet == Falskt
+
+----
+§ 9. Indkomstskatten efter §§ 6, 7, 7 a og 8 og § 8 a, stk. 2, til staten skal,
+efter at skattebeløbene er reguleret efter § 13, nedsættes med skatteværdien af
+personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
+§ 12. I det omfang skatteværdien af personfradraget beregnet med skatteprocenten
+efter § 8 ikke kan fradrages i skatten efter § 8, fragår den i nævnte rækkefølge
+i skatterne efter §§ 6, 7 og 7 a og § 8 a, stk. 2. Tilsvarende, hvis
+skatteværdien af personfradraget beregnet med skatteprocenten efter § 6 ikke kan
+fradrages i skatten efter § 6, fragår den i nævnte rækkefølge i skatterne efter
+§§ 8, 7 og 7 a og § 8 a, stk. 2. Indkomstskat efter § 8 c og indkomstskat til
+kommunen samt kirkeskat nedsættes på tilsvarende måde.
+----
+
+# PersonfradragKomponent = PersonfradragSundhedsbidrag | PersonfradragBundskat | PersonfradragTopskat | PersonfradragUdligningsskat | PersonfradragHøjAktieSkat | PersonfradragPar8c | PersonfradragKommuneskat | PersonfradragKirkeskat
+
+| personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt
+| personfradrag_opgøres_efter_par10() -> Sandt
+| personfradrag_skatteværdi_efter_par12() -> Sandt
+| personfradrag_anvendes_efter_par13_regulering() -> Sandt
+
+= par9_bundskat_nedsættes = personfradrag_nedsætter(PersonfradragBundskat)
+= par9_høj_aktie_nedsættes = personfradrag_nedsætter(PersonfradragHøjAktieSkat)
+= par9_par8c_nedsættes = personfradrag_nedsætter(PersonfradragPar8c)
+
+| par9_bundskat_personfradrag: par9_bundskat_nedsættes -> par9_bundskat_nedsættes == Sandt
+| par9_aktie_personfradrag: par9_høj_aktie_nedsættes -> par9_høj_aktie_nedsættes == Sandt
+| par9_par8c_personfradrag: par9_par8c_nedsættes -> par9_par8c_nedsættes == Sandt

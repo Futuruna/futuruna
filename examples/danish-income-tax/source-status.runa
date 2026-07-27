@@ -49,35 +49,3 @@ StartDate: 2021-06-16
 | historisk_kilde_afvises_til_aktuel_beregning: historisk_til_aktuel_beregning -> historisk_til_aktuel_beregning == Falskt
 | gældende_kilde_accepteres_til_aktuel_beregning: gældende_til_aktuel_beregning -> gældende_til_aktuel_beregning == Sandt
 | historisk_kilde_accepteres_til_audit: historisk_til_audit -> historisk_til_audit == Sandt
-
-----
-§ 1. For personer, der er skattepligtige her til landet, opgøres den
-skattepligtige almindelige indkomst efter skattelovgivningens almindelige
-regler med de ændringer, der følger af denne lov.
-
-§ 2. Foruden den skattepligtige almindelige indkomst opgøres personlig
-indkomst, kapitalindkomst, aktieindkomst og CFC-indkomst.
-----
-
-# Indkomstkategori = AlmindeligSkattepligtigIndkomst | PersonligIndkomst | Kapitalindkomst | Aktieindkomst | CfcIndkomst
-
-| almindelig_indkomst_opgøres_efter_almindelige_regler() -> Sandt
-| almindelig_indkomst_ændres_af_personskatteloven() -> Sandt
-
-| særskilt_indkomstkategori(kategori: Indkomstkategori) -> Falskt
-| exception personlig_indkomst særskilt_indkomstkategori(kategori: Indkomstkategori) -> Sandt under kategori == PersonligIndkomst
-| exception kapitalindkomst særskilt_indkomstkategori(kategori: Indkomstkategori) -> Sandt under kategori == Kapitalindkomst
-| exception aktieindkomst særskilt_indkomstkategori(kategori: Indkomstkategori) -> Sandt under kategori == Aktieindkomst
-| exception cfc_indkomst særskilt_indkomstkategori(kategori: Indkomstkategori) -> Sandt under kategori == CfcIndkomst
-
-= personskatteloven_par2_personlig = særskilt_indkomstkategori(PersonligIndkomst)
-= personskatteloven_par2_kapital = særskilt_indkomstkategori(Kapitalindkomst)
-= personskatteloven_par2_aktie = særskilt_indkomstkategori(Aktieindkomst)
-= personskatteloven_par2_cfc = særskilt_indkomstkategori(CfcIndkomst)
-= personskatteloven_par2_almindelig = særskilt_indkomstkategori(AlmindeligSkattepligtigIndkomst)
-
-| par2_personlig_opgøres_særskilt: personskatteloven_par2_personlig -> personskatteloven_par2_personlig == Sandt
-| par2_kapital_opgøres_særskilt: personskatteloven_par2_kapital -> personskatteloven_par2_kapital == Sandt
-| par2_aktie_opgøres_særskilt: personskatteloven_par2_aktie -> personskatteloven_par2_aktie == Sandt
-| par2_cfc_opgøres_særskilt: personskatteloven_par2_cfc -> personskatteloven_par2_cfc == Sandt
-| par2_almindelig_er_basis_ikke_tillægskategori: personskatteloven_par2_almindelig -> personskatteloven_par2_almindelig == Falskt
