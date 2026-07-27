@@ -1,3 +1,10 @@
+---
+feature_stage: stable
+feature_stage_surfaces:
+  - first-run-project-initialization
+  - core-cli-workflow
+---
+
 # First-Run Contract
 
 This is the stable new-user path Futuruna keeps green.

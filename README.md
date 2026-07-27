@@ -158,10 +158,10 @@ Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.m
 and [docs/feature-stages.json](docs/feature-stages.json). Stable surfaces
 include core syntax, documented stdlib behavior, pure/core generated Rust
 behavior, reactive/stateful workflows, importable local libraries,
-import-hygiene tooling, FRSS-v0 `runa from-rust` validation, and
-`runa stress-gen`/differential testing. Compiletest expectation growth,
-`runa verify`, WASM, and several advanced tooling paths are still preview or
-experimental.
+import-hygiene tooling, first-run project initialization, FRSS-v0 `runa
+from-rust` validation, and `runa stress-gen`/differential testing. Compiletest
+expectation growth, `runa verify`, WASM, and several advanced tooling paths are
+still preview or experimental.
 
 Release-facing compatibility history lives in
 [docs/compatibility-guides/](docs/compatibility-guides/). Stable breaks,

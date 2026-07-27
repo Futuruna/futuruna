@@ -2,6 +2,7 @@
 feature_stage: mixed
 feature_stage_surfaces:
   - core-cli-workflow
+  - first-run-project-initialization
   - importable-local-libraries
   - package-and-project-tooling
   - solver-assisted-verification

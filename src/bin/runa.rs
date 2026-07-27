@@ -202,8 +202,10 @@ fn main_inner() {
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
                 eprintln!("Feature stages:");
-                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes, lib, lint-library, stress-gen, from-rust; core syntax + documented stdlib + pure/core codegen behavior + reactive/stateful workflows + importable local libraries + Rust-facing library interop + FRSS-v0 Rust translation + differential/generative testing");
-                eprintln!("  Preview: init, add, wasm, lsp, expect, bench, verify");
+                eprintln!("  Stable commands: run, check, emit, build, test, fmt, hashes, lib, init, lint-library, stress-gen, from-rust");
+                eprintln!("  Stable surfaces: core syntax, documented stdlib, pure/core codegen, first-run project initialization,");
+                eprintln!("    reactive/stateful workflows, importable local libraries, Rust interop, FRSS-v0, differential/generative testing");
+                eprintln!("  Preview: add, wasm, lsp, expect, bench, verify");
                 eprintln!("  Experimental: audit");
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
@@ -34676,6 +34678,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             .map(|surface| surface["id"].as_str().expect("surface id").to_string())
             .collect();
         assert!(surfaces.contains("core-language-syntax"));
+        assert!(surfaces.contains("first-run-project-initialization"));
         assert!(surfaces.contains("solver-assisted-verification"));
 
         let commands = metadata["commands"].as_array().expect("commands array");
@@ -34685,6 +34688,11 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         assert!(commands
             .iter()
             .any(|command| { command["name"] == "from-rust" && command["stage"] == "stable" }));
+        assert!(commands.iter().any(|command| {
+            command["name"] == "init"
+                && command["stage"] == "stable"
+                && command["surface"] == "first-run-project-initialization"
+        }));
 
         for command in commands {
             let surface = command["surface"].as_str().expect("command surface");

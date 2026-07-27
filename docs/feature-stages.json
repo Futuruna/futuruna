@@ -56,6 +56,20 @@
       ]
     },
     {
+      "id": "first-run-project-initialization",
+      "kind": "tooling",
+      "name": "First-run project initialization",
+      "stage": "stable",
+      "commands": [
+        "init"
+      ],
+      "docs": [
+        "README.md",
+        "docs/first-run-contract.md",
+        "docs/tutorial/07-project.md"
+      ]
+    },
+    {
       "id": "proof-kernel-terms",
       "kind": "verification",
       "name": "Explicit kernel proof terms and documented proof-kernel rule forms",
@@ -162,7 +176,6 @@
       "name": "Project scaffolding, dependencies, and package metadata",
       "stage": "preview",
       "commands": [
-        "init",
         "add",
         "wasm",
         "lsp"
@@ -288,8 +301,8 @@
     },
     {
       "name": "init",
-      "stage": "preview",
-      "surface": "package-and-project-tooling"
+      "stage": "stable",
+      "surface": "first-run-project-initialization"
     },
     {
       "name": "add",
@@ -349,6 +362,14 @@
       "stage": "stable",
       "surfaces": [
         "from-rust-transpiler"
+      ]
+    },
+    {
+      "path": "docs/first-run-contract.md",
+      "stage": "stable",
+      "surfaces": [
+        "first-run-project-initialization",
+        "core-cli-workflow"
       ]
     },
     {
@@ -463,6 +484,7 @@
       "stage": "mixed",
       "surfaces": [
         "core-cli-workflow",
+        "first-run-project-initialization",
         "importable-local-libraries",
         "package-and-project-tooling",
         "solver-assisted-verification",
