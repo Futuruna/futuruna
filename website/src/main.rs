@@ -2321,7 +2321,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven model is incomplete: spouse rules, negative capital income, advanced § 13 underskud, 2026 reform layers, and dependent tax statutes remain explicit gaps." }
+                            p { "The full Personskatteloven model is incomplete: § 13 foreign/pension/business amount limitations, 2026 reform layers, and dependent tax statutes remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -2367,7 +2367,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "Advanced § 13 spouse, deficit, and negative-capital rules remain marked dependencies" }
+                            strong { "§ 13 foreign, pension, and business-loss amount rules remain marked dependencies" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }

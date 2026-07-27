@@ -267,7 +267,15 @@ væsentligt omfang. 1. og 2. pkt. omfatter ikke underskud omfattet af stk. 6.
 ----
 
 # Par13UnderskudInput(skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par13UnderskudSkatteværdiInput(underskud_kroner: Heltal, sundhedsbidrag_basispoint: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, par8c_basispoint: Heltal, betaler_par8c: Boolsk)
+# Par13ModregningInput(skatteværdi_kroner: Heltal, par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal)
+# Par13ModregningResult(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, ubrugt_skatteværdi_kroner: Heltal)
+# Par13ÆgtefælleOverførselInput(ubenyttet_underskud_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par13ÆgtefælleOverførselResult(fradrag_i_ægtefælle_indkomst_kroner: Heltal, resterende_underskud_kroner: Heltal, overførsel_tilladt: Boolsk)
+# Par13NegativPersonligInput(personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal)
 # Par13Underskudstype = SkattepligtigIndkomstUnderskud | PersonligIndkomstUnderskud | PassivVirksomhedsUnderskud | TransparentSelskabsUnderskud
+# Par13OverførselsBegrænsning = UdenlandskBeskattetPersonligIndkomst | UdgiftFradragetIUdlandet | PensionsbeløbPbl16 | LempelseEfterLl33AEllerSømandsbeskatning
+# Par13VirksomhedsUnderskudStatus = PassivVirksomhedPar4Nr9Eller11 | SkibsvirksomhedGodkendtSenest1993 | TransparentSelskabPassiv | TransparentSelskabDeltagetVæsentligt36Måneder
 
 | par13_skattepligtig_indkomst_har_underskud(input: Par13UnderskudInput) -> input.skattepligtig_indkomst_kroner < 0
 | par13_personlig_indkomst_er_negativ(input: Par13UnderskudInput) -> input.personlig_indkomst_kroner < 0
@@ -276,11 +284,49 @@ væsentligt omfang. 1. og 2. pkt. omfatter ikke underskud omfattet af stk. 6.
 | par13_ægtefælleunderskud_overføres(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 | par13_negativ_personlig_modregnes_først_i_positiv_kapital() -> Sandt
 | par13_passiv_virksomhedsunderskud_låses_til_samme_virksomhed(type: Par13Underskudstype) -> type == PassivVirksomhedsUnderskud || type == TransparentSelskabsUnderskud
+| par13_positivt_beløb(beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { beløb_kroner } ellers { 0 }
+| par13_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> hvis a_kroner < b_kroner { a_kroner } ellers { b_kroner }
+| par13_absolut_underskud(indkomst_kroner: Heltal) -> hvis indkomst_kroner < 0 { 0 - indkomst_kroner } ellers { 0 }
+| par13_skatteværdi_sats_basispoint(input: Par13UnderskudSkatteværdiInput) -> input.sundhedsbidrag_basispoint + input.par8c_basispoint under input.betaler_par8c
+| par13_skatteværdi_sats_basispoint(input: Par13UnderskudSkatteværdiInput) -> input.sundhedsbidrag_basispoint + input.kommuneskat_basispoint + input.kirkeskat_basispoint under input.betaler_par8c == Falskt
+| par13_underskud_skatteværdi_kroner(input: Par13UnderskudSkatteværdiInput) -> input.underskud_kroner * par13_skatteværdi_sats_basispoint(input) / 10000
+| par13_ubrugt_nedslag_efter_skat(skat_kroner: Heltal, nedslag_kroner: Heltal) -> hvis nedslag_kroner > skat_kroner { nedslag_kroner - skat_kroner } ellers { 0 }
+| par13_rester_efter_par6(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par6_skat_kroner, input.skatteværdi_kroner)
+| par13_rester_efter_par7(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par7_skat_kroner, par13_rester_efter_par6(input))
+| par13_rester_efter_par7a(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par7a_skat_kroner, par13_rester_efter_par7(input))
+| par13_rester_efter_par8a_stk2(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par8a_stk2_skat_kroner, par13_rester_efter_par7a(input))
+| par13_modregning_resultat(input: Par13ModregningInput) -> Par13ModregningResult(skat_efter_nedsættelse(input.par6_skat_kroner, input.skatteværdi_kroner), skat_efter_nedsættelse(input.par7_skat_kroner, par13_rester_efter_par6(input)), skat_efter_nedsættelse(input.par7a_skat_kroner, par13_rester_efter_par7(input)), skat_efter_nedsættelse(input.par8a_stk2_skat_kroner, par13_rester_efter_par7a(input)), par13_rester_efter_par8a_stk2(input))
+| par13_underskud_fremføres(status: Par13Underskudstype, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk) -> par13_underskud_kan_fremføres(status) && ikke_rummet_i_tidligere_indkomst_eller_skat
+| par13_ægtefælleoverførsel_resultat(input: Par13ÆgtefælleOverførselInput) -> hvis input.gift_samlevende_ved_årets_udløb { Par13ÆgtefælleOverførselResult(par13_mindste_beløb(input.ubenyttet_underskud_kroner, par13_positivt_beløb(input.ægtefælle_skattepligtig_indkomst_kroner)), input.ubenyttet_underskud_kroner - par13_mindste_beløb(input.ubenyttet_underskud_kroner, par13_positivt_beløb(input.ægtefælle_skattepligtig_indkomst_kroner)), Sandt) } ellers { Par13ÆgtefælleOverførselResult(0, input.ubenyttet_underskud_kroner, Falskt) }
+| par13_ægtefællens_egne_underskud_modregnes_først() -> Sandt
+| par13_negativ_personlig_beløb(input: Par13NegativPersonligInput) -> par13_absolut_underskud(input.personlig_indkomst_kroner)
+| par13_negativ_personlig_modregnet_i_kapital_kroner(input: Par13NegativPersonligInput) -> par13_mindste_beløb(par13_negativ_personlig_beløb(input), input.positiv_kapitalindkomst_kroner)
+| par13_negativ_personlig_rest_kroner(input: Par13NegativPersonligInput) -> par13_negativ_personlig_beløb(input) - par13_negativ_personlig_modregnet_i_kapital_kroner(input)
+| par13_negativ_personlig_fremføres(input: Par13NegativPersonligInput) -> par13_negativ_personlig_rest_kroner(input) > 0
+| par13_stk5_begrænsning_afskærer_ægtefælleoverførsel(begrænsning: Par13OverførselsBegrænsning) -> begrænsning == UdenlandskBeskattetPersonligIndkomst || begrænsning == UdgiftFradragetIUdlandet || begrænsning == PensionsbeløbPbl16
+| par13_stk5_begrænsning_finder_ikke_anvendelse(begrænsning: Par13OverførselsBegrænsning) -> begrænsning == LempelseEfterLl33AEllerSømandsbeskatning
+| par13_virksomhedsunderskud_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> status == PassivVirksomhedPar4Nr9Eller11 || status == TransparentSelskabPassiv
+| exception godkendt_skibsvirksomhed par13_virksomhedsunderskud_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> Falskt under status == SkibsvirksomhedGodkendtSenest1993
+| exception væsentlig_deltagelse par13_virksomhedsunderskud_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> Falskt under status == TransparentSelskabDeltagetVæsentligt36Måneder
 
 = par13_normal_lønmodtager = par13_kræver_underskudsbehandling(Par13UnderskudInput(460000, 460000, 0, Falskt))
 = par13_negativ_personlig = par13_kræver_underskudsbehandling(Par13UnderskudInput(0, -10000, 2000, Falskt))
 = par13_ægtefælle = par13_ægtefælleunderskud_overføres(GiftSamlevendeVedÅretsUdløb)
+= par13_skatteværdi_fixture = par13_underskud_skatteværdi_kroner(Par13UnderskudSkatteværdiInput(100000, 0, 2350, 80, 0, Falskt))
+= par13_modregning_fixture = par13_modregning_resultat(Par13ModregningInput(par13_skatteværdi_fixture, 10000, 5000, 0, 20000))
+= par13_ægtefælle_resultat_fixture = par13_ægtefælleoverførsel_resultat(Par13ÆgtefælleOverførselInput(60000, 45000, Sandt))
+= par13_negativ_personlig_rest_fixture = par13_negativ_personlig_rest_kroner(Par13NegativPersonligInput(-10000, 2000))
+= par13_fremførsel_fixture = par13_underskud_fremføres(SkattepligtigIndkomstUnderskud, Sandt)
+= par13_virksomhed_låst_fixture = par13_virksomhedsunderskud_låses_til_samme_virksomhed(PassivVirksomhedPar4Nr9Eller11)
+= par13_virksomhed_undtagelse_fixture = par13_virksomhedsunderskud_låses_til_samme_virksomhed(TransparentSelskabDeltagetVæsentligt36Måneder)
 
 | par13_normal_fixture_ingen_underskud: par13_normal_lønmodtager -> par13_normal_lønmodtager == Falskt
 | par13_negativ_personlig_kræver_behandling: par13_negativ_personlig -> par13_negativ_personlig == Sandt
 | par13_ægtefælleoverførsel: par13_ægtefælle -> par13_ægtefælle == Sandt
+| par13_underskud_skatteværdi_fixture: par13_skatteværdi_fixture -> par13_skatteværdi_fixture == 24300
+| par13_modregner_i_lovbestemt_rækkefølge: par13_modregning_fixture -> par13_modregning_fixture.par6_efter_kroner == 0 && par13_modregning_fixture.par7_efter_kroner == 0 && par13_modregning_fixture.par8a_stk2_efter_kroner == 10700 && par13_modregning_fixture.ubrugt_skatteværdi_kroner == 0
+| par13_ægtefælle_fradrager_i_størst_muligt_omfang: par13_ægtefælle_resultat_fixture -> par13_ægtefælle_resultat_fixture.fradrag_i_ægtefælle_indkomst_kroner == 45000 && par13_ægtefælle_resultat_fixture.resterende_underskud_kroner == 15000
+| par13_negativ_personlig_rest_fremføres: par13_negativ_personlig_rest_fixture -> par13_negativ_personlig_rest_fixture == 8000
+| par13_skattepligtigt_underskud_fremføres: par13_fremførsel_fixture -> par13_fremførsel_fixture == Sandt
+| par13_passiv_virksomhed_låses: par13_virksomhed_låst_fixture -> par13_virksomhed_låst_fixture == Sandt
+| par13_væsentlig_deltagelse_undtages: par13_virksomhed_undtagelse_fixture -> par13_virksomhed_undtagelse_fixture == Falskt

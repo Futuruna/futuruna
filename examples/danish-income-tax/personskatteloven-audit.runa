@@ -13,7 +13,7 @@ Officiel XML-metadata for 2021/1284, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | Skatteår2026ReformIkkeKodet | TopskatTærskelAktivererKlint | ManglerPar13ÆgtefælleOgUnderskudRegler
+# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Par13UnderskudsmekanikDækket | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | Skatteår2026ReformIkkeKodet | TopskatTærskelAktivererKlint | ManglerPar13UdenlandskeOgVirksomhedsBeløbsopgørelser
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -84,17 +84,33 @@ arbejdsmarkedsbidrag til 611.800 kr.
 ? m5_topskat_tærskel_over
 
 ----
-§§ 11 og 13 har negativ kapitalindkomst-, underskuds- og ægtefælleregler, mens
-den første lønmodtagerfixture kun dækker enlige helårsskattepligtige med
-positiv indkomst.
+§ 13 har nu en første underskudsmekanik for skatteværdi, modregningsrækkefølge,
+ægtefælleoverførsel og negativ personlig indkomst. Den resterende auditgrænse
+er beløbsopgørelse for udenlandsk beskattet indkomst, pensionsbeløb og særlige
+virksomhedsunderskud.
 ----
 
+= m5_par13_skatteværdi_fixture = par13_underskud_skatteværdi_kroner(Par13UnderskudSkatteværdiInput(100000, 0, 2350, 80, 0, Falskt))
+= m5_par13_modregning_fixture = par13_modregning_resultat(Par13ModregningInput(m5_par13_skatteværdi_fixture, 10000, 5000, 0, 20000))
+= m5_par13_ægtefælle_fixture = par13_ægtefælleoverførsel_resultat(Par13ÆgtefælleOverførselInput(60000, 45000, Sandt))
+= m5_par13_negativ_personlig_fixture = par13_negativ_personlig_rest_kroner(Par13NegativPersonligInput(-10000, 2000))
+
+| m5_par13_skatteværdi: m5_par13_skatteværdi_fixture -> m5_par13_skatteværdi_fixture == 24300
+| m5_par13_modregningsrækkefølge: m5_par13_modregning_fixture -> m5_par13_modregning_fixture.par6_efter_kroner == 0 && m5_par13_modregning_fixture.par7_efter_kroner == 0 && m5_par13_modregning_fixture.par8a_stk2_efter_kroner == 10700
+| m5_par13_ægtefælleoverførsel: m5_par13_ægtefælle_fixture -> m5_par13_ægtefælle_fixture.fradrag_i_ægtefælle_indkomst_kroner == 45000 && m5_par13_ægtefælle_fixture.resterende_underskud_kroner == 15000
+| m5_par13_negativ_personlig_rest: m5_par13_negativ_personlig_fixture -> m5_par13_negativ_personlig_fixture == 8000
+| m5_audit_par13_mekanik_signal: audit_signal(Par13UnderskudsmekanikDækket) -> audit_signal(Par13UnderskudsmekanikDækket) == Sandt
 | m5_audit_am_lov_signal: audit_signal(ManglerArbejdsmarkedsbidragslov) -> audit_signal(ManglerArbejdsmarkedsbidragslov) == Sandt
 | m5_audit_kommunal_lov_signal: audit_signal(ManglerKommunalIndkomstskattelov) -> audit_signal(ManglerKommunalIndkomstskattelov) == Sandt
-| m5_audit_par13_signal: audit_signal(ManglerPar13ÆgtefælleOgUnderskudRegler) -> audit_signal(ManglerPar13ÆgtefælleOgUnderskudRegler) == Sandt
+| m5_audit_par13_rest_signal: audit_signal(ManglerPar13UdenlandskeOgVirksomhedsBeløbsopgørelser) -> audit_signal(ManglerPar13UdenlandskeOgVirksomhedsBeløbsopgørelser) == Sandt
 
+? m5_par13_skatteværdi
+? m5_par13_modregningsrækkefølge
+? m5_par13_ægtefælleoverførsel
+? m5_par13_negativ_personlig_rest
+? m5_audit_par13_mekanik_signal
 ? m5_audit_am_lov_signal
 ? m5_audit_kommunal_lov_signal
-? m5_audit_par13_signal
+? m5_audit_par13_rest_signal
 
-@ print("m5 audit: kendte gaps markeret for 2026-reform, AM-lov, kommunal lov og § 13 ægtefælle/underskudsregler")
+@ print("m5 audit: kendte gaps markeret for 2026-reform, AM-lov, kommunal lov og § 13 udenlandske/virksomhedsbeløbsopgørelser")

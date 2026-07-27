@@ -83,7 +83,8 @@ calculating a current taxpayer's tax.
 
 ## Next
 
-- Extend the § 13 underskud layer beyond the normal positive-income fixture.
+- Extend § 13 foreign-income, pension-limit, and business-loss amount
+  limitations beyond the current executable boundary signals.
 - Separate legal structure from annual parameter packs: rates, thresholds,
   personal allowances, municipal tax, church tax, and other tax-year data.
 - Build calculation fixtures for ordinary wage-earner cases before handling
@@ -166,9 +167,10 @@ M5 - Audit suite
   discontinuities, and source drift.
 - Done when: audits can fail loudly without blocking legal reformulation work.
 - Current slice: source-status rejection, covered normal-fixture
-  personfradrag, 2026 reform parameter gap, topskat threshold activation,
-  AM-law dependency, municipal-tax-law dependency, and § 13
-  spouse/negative-capital/underskud gaps are executable audit signals.
+  personfradrag, covered § 13 deficit mechanics, 2026 reform parameter gap,
+  topskat threshold activation, AM-law dependency, municipal-tax-law dependency,
+  and remaining § 13 foreign/pension/business amount gaps are executable audit
+  signals.
 
 M6 - Website integration
 
@@ -192,5 +194,7 @@ M7 - Personfradrag and deficit layer
   executable.
 - Current slice: adult 2025 personfradrag is pulled from the official
   tax-year parameter pack, state/municipal/church tax values are calculated,
-  Copenhagen and Gentofte fixtures settle after personfradrag, and advanced
-  § 13/spouse/negative-capital cases remain explicit audit work.
+  Copenhagen and Gentofte fixtures settle after personfradrag, § 13 deficit tax
+  value and offset order are executable, spouse deficit transfer and negative
+  personal income carry-forward are fixture-tested, and foreign/pension/business
+  amount limitations remain explicit audit work.
