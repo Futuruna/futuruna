@@ -13460,6 +13460,28 @@ fn count_var_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
                 count_var_uses(&arm.body, counts);
             }
         }
+        Stmt::Invariant {
+            subject, predicate, ..
+        } => {
+            count_var_uses(subject, counts);
+            count_var_uses(predicate, counts);
+        }
+        Stmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            if let Some(pass_block) = pass_block {
+                for s in pass_block {
+                    count_var_uses_stmt(s, counts);
+                }
+            }
+            if let Some(else_block) = else_block {
+                for s in else_block {
+                    count_var_uses_stmt(s, counts);
+                }
+            }
+        }
         Stmt::Rule(Rule::Scope { body, .. }) => {
             for s in body {
                 count_var_uses_stmt(s, counts);
@@ -13596,6 +13618,28 @@ fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) 
                     count_consuming_uses(g, counts);
                 }
                 count_consuming_uses(&arm.body, counts);
+            }
+        }
+        Stmt::Invariant {
+            subject, predicate, ..
+        } => {
+            count_consuming_uses(subject, counts);
+            count_consuming_uses(predicate, counts);
+        }
+        Stmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            if let Some(pass_block) = pass_block {
+                for s in pass_block {
+                    count_consuming_uses_stmt(s, counts);
+                }
+            }
+            if let Some(else_block) = else_block {
+                for s in else_block {
+                    count_consuming_uses_stmt(s, counts);
+                }
             }
         }
         _ => {}
@@ -14131,6 +14175,56 @@ fn count_consuming_uses_borrow_aware_stmt_impl(
                     self_param_names,
                     ignore_self_passthrough,
                 );
+            }
+        }
+        Stmt::Invariant {
+            subject, predicate, ..
+        } => {
+            count_consuming_uses_borrow_aware_impl(
+                subject,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+                ignore_self_passthrough,
+            );
+            count_consuming_uses_borrow_aware_impl(
+                predicate,
+                counts,
+                known_borrow_fns,
+                self_fn_name,
+                self_param_names,
+                ignore_self_passthrough,
+            );
+        }
+        Stmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            if let Some(pass_block) = pass_block {
+                for s in pass_block {
+                    count_consuming_uses_borrow_aware_stmt_impl(
+                        s,
+                        counts,
+                        known_borrow_fns,
+                        self_fn_name,
+                        self_param_names,
+                        ignore_self_passthrough,
+                    );
+                }
+            }
+            if let Some(else_block) = else_block {
+                for s in else_block {
+                    count_consuming_uses_borrow_aware_stmt_impl(
+                        s,
+                        counts,
+                        known_borrow_fns,
+                        self_fn_name,
+                        self_param_names,
+                        ignore_self_passthrough,
+                    );
+                }
             }
         }
         Stmt::Rule(Rule::Scope { body, .. }) => {
@@ -35387,6 +35481,38 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             VarMode::Move
         };
         assert_eq!(mode, VarMode::Clone);
+    }
+
+    #[test]
+    fn ownership_analysis_counts_invariant_row_reuse() {
+        let source = "\
+= duplicate_bundle = checked_bundle()\n\
+= duplicate_state = may_become_state(duplicate_bundle)\n\
+| duplicate_evidence_rejects: duplicate_state -> duplicate_bundle.conserved == 0 && duplicate_state.admitted == 0\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse failed");
+        let stmt_refs: Vec<&Stmt> = stmts.iter().collect();
+        let analysis = OwnershipAnalysis::analyze_stmt_refs(&stmt_refs, &BTreeMap::new());
+        assert!(
+            analysis
+                .var_uses
+                .get("duplicate_bundle")
+                .copied()
+                .unwrap_or(0)
+                >= 2,
+            "invariant predicate should count duplicate_bundle as a later use"
+        );
+        assert!(
+            analysis
+                .consuming_uses
+                .get("duplicate_bundle")
+                .copied()
+                .unwrap_or(0)
+                >= 2,
+            "invariant predicate should force clone before constructor move"
+        );
     }
 
     // ── Lowering tests ──────────────────────────────────────────────

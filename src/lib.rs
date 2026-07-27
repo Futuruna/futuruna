@@ -12103,7 +12103,14 @@ impl TypeChecker {
                                 if let Some(import_stmts) =
                                     self.parse_imported_source_for_tc(path, &file_path)
                                 {
+                                    let imported_dir = std::path::Path::new(&file_path)
+                                        .parent()
+                                        .map(|p| p.to_string_lossy().to_string())
+                                        .unwrap_or(dir);
+                                    let previous_dir = self.source_dir.clone();
+                                    self.source_dir = Some(imported_dir);
                                     self.collect_declarations(&import_stmts);
+                                    self.source_dir = previous_dir;
                                 }
                             }
                         }
@@ -13273,6 +13280,45 @@ mod tests {
                     .contains("qualified import `Helper` has no exported member `hidden`")
             }),
             "expected private qualified import diagnostic after plain import, got {:?}",
+            diags
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn nested_plain_imports_resolve_relative_to_imported_file() {
+        let temp_name = format!(
+            "futuruna_nested_plain_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        std::fs::write(temp_dir.join("leaf.runa"), "> leaf() -> Int { 7 }\n").unwrap();
+        std::fs::write(
+            temp_dir.join("middle.runa"),
+            "@ import ./leaf\n> middle() -> Int { leaf() }\n",
+        )
+        .unwrap();
+
+        let source = "@ import ./middle\n= value = middle()\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().unwrap();
+        let diags = TypeChecker::check_with_diagnostics(
+            &stmts,
+            Some(temp_dir.to_string_lossy().to_string()),
+            source,
+        );
+        assert!(
+            diags.is_empty(),
+            "expected nested plain import to resolve from imported file dir, got {:?}",
             diags
         );
 
