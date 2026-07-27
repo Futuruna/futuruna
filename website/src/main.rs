@@ -188,6 +188,7 @@ fn Home() -> Element {
         document::Meta { name: "description", content: "Futuruna is the first programming language discovered by multi-objective optimization — Pareto-optimal across consciousness, optionality, and information density. Compiles to Rust." }
         Hero {}
         Discovery {}
+        AiGuide {}
         RunesShowcase {}
         Pitch {}
         CodeExample {}
@@ -217,6 +218,7 @@ fn Nav() -> Element {
                 img { src: LOGO, alt: "Futuruna", width: "28", height: "28" }
             }
             a { class: active("/why"), href: "/why", "Why" }
+            a { class: "nav-link", href: "/#ai-guide", "AI Guide" }
             a { class: active("/research"), href: "/research", "Research" }
             a { class: active("/docs"), href: "/docs", "Docs" }
             a { class: active("/playground"), href: "/playground", "Playground" }
@@ -319,6 +321,55 @@ fn Discovery() -> Element {
                     " (Information Theory)."
                 }
                 a { class: "discovery-link", href: "/research/optimization", "Read more \u{2192}" }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// AI Guide
+// ============================================================================
+
+#[component]
+fn AiGuide() -> Element {
+    rsx! {
+        section { id: "ai-guide", class: "ai-guide-section",
+            div { class: "ai-guide-shell",
+                p { class: "ai-guide-kicker", "AI Guide" }
+                h2 { class: "section-title", "How to get your AI working with Futuruna" }
+                p { class: "section-desc",
+                    "Ask your Claude Code, Codex, or AI system to:"
+                }
+                ol { class: "ai-guide-steps",
+                    li { class: "ai-guide-step",
+                        span { class: "ai-guide-step-index", "1" }
+                        h3 { "Download and install Futuruna" }
+                        p {
+                            "Clone the project, install the Rust toolchain if needed, and run the local checks before editing."
+                        }
+                        a {
+                            class: "ai-guide-link",
+                            href: "https://github.com/Futuruna/futuruna",
+                            "Install from GitHub"
+                        }
+                    }
+                    li { class: "ai-guide-step",
+                        span { class: "ai-guide-step-index", "2" }
+                        h3 { "Integrate the Futuruna skill" }
+                        p {
+                            "Take the "
+                            code { "Using Futuruna" }
+                            " skill or instruction packet, add it to the AI's working context, and ask it to follow that workflow while translating."
+                        }
+                    }
+                    li { class: "ai-guide-step",
+                        span { class: "ai-guide-step-index", "3" }
+                        h3 { "Translate and audit a real text" }
+                        p {
+                            "Start with a law, policy, or contract. Ask for a Futuruna translation and an audit pass that calls out paradoxes, tensions, loopholes, missing definitions, and enforcement gaps."
+                        }
+                    }
+                }
             }
         }
     }

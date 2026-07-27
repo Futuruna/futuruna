@@ -328,6 +328,104 @@ section {
     margin: 0 auto 3rem;
 }
 
+/* ---- AI Guide ---- */
+
+.ai-guide-section {
+    border-top: 1px solid var(--border);
+    padding-top: 5rem;
+}
+
+.ai-guide-shell {
+    max-width: 980px;
+    margin: 0 auto;
+}
+
+.ai-guide-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--accent-glow);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 0.6rem;
+}
+
+.ai-guide-steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+    list-style: none;
+}
+
+.ai-guide-step {
+    position: relative;
+    min-height: 260px;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.ai-guide-step:nth-child(1) {
+    border-top-color: var(--rune-gt);
+}
+
+.ai-guide-step:nth-child(2) {
+    border-top-color: var(--rune-at);
+}
+
+.ai-guide-step:nth-child(3) {
+    border-top-color: var(--rune-pipe);
+}
+
+.ai-guide-step-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    background: var(--bg-surface);
+    color: var(--accent-glow);
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.ai-guide-step h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.65rem;
+}
+
+.ai-guide-step p {
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    line-height: 1.65;
+}
+
+.ai-guide-step code {
+    color: var(--accent-glow);
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+}
+
+.ai-guide-link {
+    display: inline-block;
+    margin-top: 1rem;
+    color: var(--accent-glow);
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.ai-guide-link:hover {
+    text-decoration: underline;
+}
+
 /* ---- Runes Grid ---- */
 
 .runes-section {
@@ -1658,6 +1756,24 @@ section {
 /* ---- Responsive ---- */
 
 @media (max-width: 768px) {
+    .top-nav {
+        left: 0;
+        right: 0;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.1rem;
+        padding: 0.75rem 0.5rem;
+    }
+
+    .nav-logo {
+        margin-right: 0.2rem;
+    }
+
+    .nav-link {
+        font-size: 0.72rem;
+        padding: 0.3rem 0.45rem;
+    }
+
     .hero-title {
         font-size: 3rem;
     }
@@ -1678,6 +1794,14 @@ section {
 
     .runes-grid {
         grid-template-columns: 1fr;
+    }
+
+    .ai-guide-steps {
+        grid-template-columns: 1fr;
+    }
+
+    .ai-guide-step {
+        min-height: auto;
     }
 
     .research-hub {
