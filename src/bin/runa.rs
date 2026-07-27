@@ -11445,6 +11445,9 @@ struct RustCodegen {
     fn_return_types: BTreeMap<String, String>,
     /// Local bindings in current function (names from let/= bindings, NOT top-level)
     local_bindings: BTreeSet<String>,
+    /// True only while emitting an immediate top-level binding that was
+    /// explicitly or automatically evaluated at compile time.
+    allow_comptime_binding_emit: bool,
     /// Inside an iterator closure (foldl/map/filter) — captured non-Copy vars need .clone()
     in_iter_closure: bool,
     /// Parameters of the current closure (not captured — don't clone these)
@@ -15707,6 +15710,7 @@ impl RustCodegen {
             binary_global_value_refs_in_scope: false,
             fn_return_types: BTreeMap::new(),
             local_bindings: BTreeSet::new(),
+            allow_comptime_binding_emit: false,
             in_iter_closure: false,
             closure_params: BTreeSet::new(),
             wasm_mode: false,
@@ -20869,7 +20873,10 @@ impl RustCodegen {
                             continue;
                         }
                     }
+                    let prev_allow_comptime_binding_emit = cg.allow_comptime_binding_emit;
+                    cg.allow_comptime_binding_emit = matches!(stmt, Stmt::Bind(_, _, _));
                     out.push_str(&cg.emit_stmt(stmt));
+                    cg.allow_comptime_binding_emit = prev_allow_comptime_binding_emit;
                     if cg.uses_binary_global_env() {
                         match stmt {
                             Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
@@ -25294,6 +25301,8 @@ impl RustCodegen {
             Stmt::Defn(defn) => self.emit_defn(defn),
             Stmt::TypeDecl(decl) => self.emit_type_decl(decl),
             Stmt::Bind(pat, _ty, value) => {
+                let allow_comptime_binding_emit = self.allow_comptime_binding_emit;
+                self.allow_comptime_binding_emit = false;
                 // Track local binding names (for lib mode getter scope)
                 if let Pat::Var(name) = pat {
                     self.local_bindings.insert(name.clone());
@@ -25304,50 +25313,53 @@ impl RustCodegen {
                     Pat::Con(name, args) if args.is_empty() => Some(name.as_str()),
                     _ => None,
                 };
-                if let Some(name) = comptime_name {
-                    if let Some(rust_lit) = self.types.comptime_values.get(name).cloned() {
-                        // Comptime types are emitted as type declarations, not bindings
-                        if rust_lit.is_empty() {
-                            return format!(
-                                "{}// @ comptime type {} (emitted above)\n",
-                                self.ind(),
-                                name
-                            );
-                        }
-                        let rust_ty = self
-                            .types
-                            .comptime_types
-                            .get(name)
-                            .cloned()
-                            .unwrap_or_default();
-                        // Use const for Copy types, let for heap types
-                        if matches!(
-                            rust_ty.as_str(),
-                            "i64" | "f64" | "bool" | "char" | "u64" | "()"
-                        ) {
-                            return format!(
-                                "{}const {}: {} = {}; // @ comptime\n",
-                                self.ind(),
-                                sanitize_name(name),
-                                rust_ty,
-                                rust_lit
-                            );
-                        } else {
-                            // Include type annotation for Result/Option (Rust can't infer error type from Ok/Some)
-                            let ty_annot = if !rust_ty.is_empty()
-                                && (rust_ty.starts_with("Result") || rust_ty.starts_with("Option"))
-                            {
-                                format!(": {}", rust_ty)
+                if allow_comptime_binding_emit {
+                    if let Some(name) = comptime_name {
+                        if let Some(rust_lit) = self.types.comptime_values.get(name).cloned() {
+                            // Comptime types are emitted as type declarations, not bindings
+                            if rust_lit.is_empty() {
+                                return format!(
+                                    "{}// @ comptime type {} (emitted above)\n",
+                                    self.ind(),
+                                    name
+                                );
+                            }
+                            let rust_ty = self
+                                .types
+                                .comptime_types
+                                .get(name)
+                                .cloned()
+                                .unwrap_or_default();
+                            // Use const for Copy types, let for heap types
+                            if matches!(
+                                rust_ty.as_str(),
+                                "i64" | "f64" | "bool" | "char" | "u64" | "()"
+                            ) {
+                                return format!(
+                                    "{}const {}: {} = {}; // @ comptime\n",
+                                    self.ind(),
+                                    sanitize_name(name),
+                                    rust_ty,
+                                    rust_lit
+                                );
                             } else {
-                                String::new()
-                            };
-                            return format!(
-                                "{}let {}{} = {}; // @ comptime\n",
-                                self.ind(),
-                                sanitize_name(name),
-                                ty_annot,
-                                rust_lit
-                            );
+                                // Include type annotation for Result/Option (Rust can't infer error type from Ok/Some)
+                                let ty_annot = if !rust_ty.is_empty()
+                                    && (rust_ty.starts_with("Result")
+                                        || rust_ty.starts_with("Option"))
+                                {
+                                    format!(": {}", rust_ty)
+                                } else {
+                                    String::new()
+                                };
+                                return format!(
+                                    "{}let {}{} = {}; // @ comptime\n",
+                                    self.ind(),
+                                    sanitize_name(name),
+                                    ty_annot,
+                                    rust_lit
+                                );
+                            }
                         }
                     }
                 }
@@ -38803,6 +38815,25 @@ for x in [1, 2] {
             "free function should read the auto-comptime binding through the hidden globals env: {}",
             rust
         );
+    }
+
+    #[test]
+    fn compiled_function_local_binding_shadows_auto_comptime_top_level_binding() {
+        let source = r#"
+# AlphaWorkRow(work: Float)
+# CostRow(work_units: Int)
+> demo_work() -> AlphaWorkRow { AlphaWorkRow(1.0) }
+> cost_row(n: Int) -> CostRow {
+    = work = n + 1
+    CostRow(work)
+}
+= work = demo_work()
+= row = cost_row(4)
+@ print(show(row.work_units))
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "5");
     }
 
     #[test]

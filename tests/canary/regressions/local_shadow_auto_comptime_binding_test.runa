@@ -1,0 +1,16 @@
+# AlphaWorkRow(work: Float)
+# CostRow(work_units: Int)
+
+> demo_work() -> AlphaWorkRow {
+    AlphaWorkRow(1.0)
+}
+
+> cost_row(n: Int) -> CostRow {
+    = work = n + 1
+    CostRow(work)
+}
+
+= work = demo_work()
+= row = cost_row(4)
+
+@ print(show(row.work_units))
