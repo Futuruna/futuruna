@@ -34072,6 +34072,50 @@ fn main() {}
     }
 
     #[test]
+    fn from_rust_rejects_external_module_declaration_with_category() {
+        let source = r#"
+mod helper;
+
+fn main() {
+    println!("module fixture declared");
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsupported-module");
+                assert!(unsupported.message.contains("mod helper;"));
+                assert!(unsupported.message.contains("flat single-file"));
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn from_rust_rejects_inline_module_declaration_with_category() {
+        let source = r#"
+mod helper {
+    pub fn value() -> i64 {
+        7
+    }
+}
+
+fn main() {
+    println!("{}", helper::value());
+}
+"#;
+        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+        match err {
+            FromRustTranspileError::Unsupported(unsupported) => {
+                assert_eq!(unsupported.category, "unsupported-module");
+                assert!(unsupported.message.contains("mod helper { ... }"));
+                assert!(unsupported.message.contains("inline Rust modules"));
+            }
+            other => panic!("expected unsupported diagnostic, got {:?}", other),
+        }
+    }
+
+    #[test]
     fn from_rust_supports_checked_reference_tuple_match_shape() {
         let source = r#"
 enum Expr {
@@ -41391,6 +41435,7 @@ fn from_rust_error_summary(err: &FromRustTranspileError) -> String {
 #[derive(Default)]
 struct FromRustUnsupportedScan {
     external_crate: Option<String>,
+    unsupported_module: Option<String>,
     async_or_threading: bool,
     unsupported_effect: Option<String>,
     unsafe_rust: bool,
@@ -41415,6 +41460,12 @@ impl FromRustUnsupportedScan {
                     "external crate import '{}' is outside the from-rust single-file validation subset",
                     crate_name
                 ),
+            ));
+        }
+        if let Some(message) = &self.unsupported_module {
+            return Some(FromRustUnsupported::new(
+                "unsupported-module",
+                message.clone(),
             ));
         }
         if self.async_or_threading {
@@ -41563,6 +41614,27 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
             self.external_crate = Some(crate_name);
         }
         syn::visit::visit_item_extern_crate(self, item);
+    }
+
+    fn visit_item_mod(&mut self, item: &'ast syn::ItemMod) {
+        if self.unsupported_module.is_none() {
+            let name = item.ident.to_string();
+            let declaration = if item.content.is_some() {
+                format!("mod {} {{ ... }}", name)
+            } else {
+                format!("mod {};", name)
+            };
+            let shape = if item.content.is_some() {
+                "inline Rust modules"
+            } else {
+                "external Rust module declarations"
+            };
+            self.unsupported_module = Some(format!(
+                "{} ('{}') are outside the from-rust flat single-file validation subset",
+                shape, declaration
+            ));
+        }
+        syn::visit::visit_item_mod(self, item);
     }
 
     fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
@@ -41732,7 +41804,6 @@ fn from_rust_item_supported(item: &syn::Item) -> bool {
             | syn::Item::Impl(_)
             | syn::Item::Trait(_)
             | syn::Item::Use(_)
-            | syn::Item::Mod(_)
     )
 }
 

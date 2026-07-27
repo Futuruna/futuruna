@@ -109,7 +109,7 @@ run_from_rust_lane supported "$SUPPORTED_WORK_DIR" "From-rust: 9 matched"
 run_from_rust_lane \
     unsupported \
     "$UNSUPPORTED_WORK_DIR" \
-    "15 expected-unsupported" \
+    "16 expected-unsupported" \
     "associated-types" \
     "async-threading" \
     "borrowed-return-reference" \
@@ -120,6 +120,7 @@ run_from_rust_lane \
     "unsupported-effect" \
     "unsupported-format-spec" \
     "unsupported-macro" \
+    "unsupported-module" \
     "unsupported-map-err" \
     "unsupported-rust-expr" \
     "unsupported-rust-item" \

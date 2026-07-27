@@ -324,6 +324,41 @@ fn main() {
 }
 
 #[test]
+fn from_rust_verify_rejects_module_declaration_before_translation() {
+    let output = run_from_rust_verify(
+        r#"
+mod helper;
+
+fn main() {
+    println!("module fixture declared");
+}
+"#,
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected unsupported module verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: unsupported unsupported-module:"),
+        "missing stable unsupported-module line:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: translated "),
+        "unsupported module should fail before translation:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: mismatch "),
+        "unsupported module should fail before output comparison:\n{}",
+        stderr
+    );
+}
+
+#[test]
 fn from_rust_help_names_frss_v0_and_verify_summaries() {
     let output = Command::new(runa())
         .args(["from-rust", "--help"])

@@ -208,7 +208,9 @@ currently requires 9 exact Rust-vs-Futuruna matches from a clean temporary
 directory. The unsupported fixtures live in
 `tests/from-rust/downstream/unsupported/` and must carry
 `runa-from-rust: expect-unsupported` directives so accidental promotion is
-reported as an `XPASS` failure.
+reported as an `XPASS` failure. The unsupported lane currently requires 16
+fail-closed fixtures, including the flat single-file boundary for Rust `mod`
+declarations.
 
 ## From-Rust Supported-Subset Differential Lane
 

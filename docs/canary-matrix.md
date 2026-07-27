@@ -70,6 +70,7 @@ Target shape:
 | `tests/from-rust/downstream/unsupported/unsupported_map_err.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for `Result::map_err` outside integer parse remapping |
 | `tests/from-rust/downstream/unsupported/unsupported_macro.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for macro names outside the checked macro subset |
 | `tests/from-rust/downstream/unsupported/unsupported_format_spec.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for format specs outside the checked macro subset |
+| `tests/from-rust/downstream/unsupported/external_module_declaration.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for Rust `mod` declarations outside the flat single-file FRSS-v0 boundary |
 | `tests/from-rust/downstream/unsupported/unsupported_expr_fallback.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for Rust expression statements with no checked lowering |
 | `tests/from-rust/downstream/unsupported/unsupported_item_union.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for top-level Rust items outside the checked item subset |
 | `tests/canary/storage/persist_tx_commit_savepoint_test.runa` | `storage` | compiled persisted transaction commit plus nested savepoint release |
