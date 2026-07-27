@@ -1798,7 +1798,7 @@ fn ResearchIndex() -> Element {
                     p { class: "research-card-desc",
                         "Den komplette danske grundlov af 1953 kodet i Futuruna. \
                          11 kapitler, 89 paragraffer: original lovtekst, typer, \
-                         | regler og formelle invarianter."
+                         typede | regler, betingelser og undtagelser."
                     }
                     span { class: "research-card-meta", "Forfatningsret \u{00B7} Dansk" }
                 }
@@ -1808,7 +1808,8 @@ fn ResearchIndex() -> Element {
                     h2 { class: "research-card-title", "Grundlovsrevision" }
                     p { class: "research-card-desc",
                         "Auditlaget for den danske grundlovsmodel: tærskelsymmetrier, \
-                         grundlovsparadokser, delegeringssporing og de fire ukrænkeligheder."
+                         grundlovsparadokser, indfødsret/vælgerkorps, fattighjælp/valgret \
+                         og påtrængende love før vælgerkontrol."
                     }
                     span { class: "research-card-meta", "Formel verifikation \u{00B7} Dansk grundlov" }
                 }
@@ -1981,7 +1982,12 @@ fn ResearchDanishConstitution() -> Element {
                         "Den danske grundlov af 5. juni 1953, kodet i Futuruna. \
                          89 paragraffer fordelt p\u{00E5} 11 kapitler, hvor den originale \
                          lovtekst st\u{00E5}r i multiline source blocks og Futuruna-oversættelsen \
-                         f\u{00F8}lger direkte nedenunder som typer, konstanter og | regler."
+                         f\u{00F8}lger direkte nedenunder som typer, konstanter og typede | regler. \
+                         Betingelser modelleres med "
+                        code { "under" }
+                        ", og undtagelser modelleres med "
+                        code { "exception" }
+                        "."
                     }
                     p { class: "lang-note",
                         "Kilde: "
@@ -1990,7 +1996,24 @@ fn ResearchDanishConstitution() -> Element {
                         a { href: "https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov", "Folketingets tekstvisning" }
                     }
                     p { class: "const-stats",
-                        "12 filer \u{00B7} 11 kapitler + revision \u{00B7} 89 paragraffer \u{00B7} officiel kilde citeret"
+                        "12 filer \u{00B7} 11 kapitler + revision \u{00B7} 89 paragraffer \u{00B7} typede | lovregler \u{00B7} officiel kilde citeret"
+                    }
+                    div { class: "const-analysis-strip",
+                        a { href: "/research/danish-constitution-audit#indfoedsret-vaelgerkorps",
+                            span { class: "const-analysis-kicker", "Ny audit" }
+                            strong { "Indfødsret og vælgerkorps" }
+                            small { "§§ 29, 41, 42, 44" }
+                        }
+                        a { href: "/research/danish-constitution-audit#fattighjaelp-valgret",
+                            span { class: "const-analysis-kicker", "Ny audit" }
+                            strong { "Fattighjælp og valgret" }
+                            small { "§§ 29, 75" }
+                        }
+                        a { href: "/research/danish-constitution-audit#paatraengende-love",
+                            span { class: "const-analysis-kicker", "Ny audit" }
+                            strong { "Påtrængende love" }
+                            small { "§ 42 stk. 7" }
+                        }
                     }
                 }
                 div { dangerous_inner_html: body_html }
@@ -2073,6 +2096,72 @@ består begge). Men en konfiskatorisk skattesats opfylder § 43 og omgår § 73.
 Ingen bestemmelse forbyder det. Ingen støttebestemmelse definerer hvornår
 beskatning bliver ekspropriation.
 
+<span id="indfoedsret-vaelgerkorps"></span>
+
+### Indfødsret og vælgerkorps uden referendum
+
+§ 44 siger at ingen udlænding kan få indfødsret uden ved lov. § 29 gør
+indfødsret til adgangsbillet til valgret. Samtidig er indfødsretslove afskåret
+fra folkeafstemning efter § 42 stk. 6, og de kan heller ikke bremses med
+12-dages udsættelsen i § 41 stk. 3.
+
+Revisionen koder dette som en særskilt lovtype:
+
+```runa
+# AfskærmetLovtype = Indfødsretslov | Ekspropriationslov | DirekteSkattelov | IndirekteSkattelov | Traktatgennemførelseslov
+
+| folkeafstemning_afskåret(lovtype: AfskærmetLovtype) -> lovtype == Indfødsretslov || lovtype == Ekspropriationslov || lovtype == DirekteSkattelov || lovtype == IndirekteSkattelov || lovtype == Traktatgennemførelseslov
+| udsættelse_af_tredje_behandling_afskåret(lovtype: AfskærmetLovtype) -> lovtype == Indfødsretslov || lovtype == Ekspropriationslov || lovtype == IndirekteSkattelov
+| dobbelt_afskåret(lovtype: AfskærmetLovtype) -> folkeafstemning_afskåret(lovtype) && udsættelse_af_tredje_behandling_afskåret(lovtype)
+```
+
+Det interessante er ikke bare at indfødsret gives ved lov. Det er at
+vælgerkorpsets medlemskreds kan udvides via en lovtype, som grundloven selv
+afskærer fra de normale vælgerkontrolmekanismer. Valgretsalderen er låst af
+folkeafstemning; indfødsretsadgangen er ikke.
+
+<span id="fattighjaelp-valgret"></span>
+
+### Fattighjælp som valgretsrisiko
+
+§ 75 giver ret til offentlig hjælp ved manglende forsørgelse. § 29 lader
+derimod loven bestemme i hvilket omfang understøttelse, der betragtes som
+fattighjælp, medfører tab af valgret.
+
+Revisionen modellerer det som en betinget undtagelse:
+
+```runa
+# ForsørgelsesStatus = Selvforsørgende | Fattighjælp
+
+| hjælp_kan_have_valgretspris(status: ForsørgelsesStatus) -> Falskt
+| exception fattighjælp hjælp_kan_have_valgretspris(status: ForsørgelsesStatus) -> Sandt under status == Fattighjælp
+```
+
+Dermed bliver spændingen synlig: social beskyttelse og politisk deltagelse er
+ikke fuldt adskilte spor i teksten. Hjælp er en rettighed, men en bestemt
+historisk kategori af hjælp kan stadig være en lovkanal til tab af valgret.
+
+<span id="paatraengende-love"></span>
+
+### Påtrængende love før vælgerkontrol
+
+§ 42 stk. 7 siger at et særdeles påtrængende lovforslag kan stadfæstes straks,
+hvis forslaget selv bestemmer det. Hvis en tredjedel derefter kræver
+folkeafstemning og loven forkastes, bortfalder loven først fra
+kundgørelsesdagen.
+
+Revisionen koder tidsstillingen direkte:
+
+```runa
+# PåtrængendeLovStadium = FørFolkeafstemning | EfterForkastelseKundgjort
+
+| påtrængende_lov_virker(stadium: PåtrængendeLovStadium) -> påtrængende_lovforslag_kan_stadfæstes_straks() under stadium == FørFolkeafstemning
+| exception forkastet påtrængende_lov_virker(stadium: PåtrængendeLovStadium) -> Falskt under stadium == EfterForkastelseKundgjort
+```
+
+Vælgerkontrollen er derfor ikke nødvendigvis opsættende. I den påtrængende
+lovkanal kan loven virke først og bortfalde bagefter.
+
 ### Delegeringssporing
 Revisionen identificerer ethvert punkt hvor grundloven delegerer til almindelig lovgivning
 (31 delegeringer på tværs af alle kapitler), og synliggør grænsen mellem
@@ -2121,7 +2210,22 @@ fn ResearchDanishConstitutionAudit() -> Element {
                     p {
                         "Auditlaget samler formelle invarianter p\u{00E5} tv\u{00E6}rs af alle 11 kapitler \
                          i den danske grundlov: tærskelsymmetrier, grundlovsparadokser, \
-                         delegeringssporing og de fire ukrænkeligheder."
+                         delegeringssporing, de fire ukrænkeligheder og nye krydsanalyser \
+                         af indfødsret, fattighjælp og påtrængende love."
+                    }
+                    div { class: "const-audit-highlights",
+                        a { href: "#indfoedsret-vaelgerkorps",
+                            span { "|" }
+                            strong { "Indfødsret ændrer vælgerkorps uden referendum" }
+                        }
+                        a { href: "#fattighjaelp-valgret",
+                            span { "exception" }
+                            strong { "Fattighjælp kan blive valgretspris" }
+                        }
+                        a { href: "#paatraengende-love",
+                            span { "under" }
+                            strong { "Påtrængende love virker før vælgerkontrol" }
+                        }
                     }
                 }
                 div { id: "article", class: "docs-rendered", dangerous_inner_html: article_html }

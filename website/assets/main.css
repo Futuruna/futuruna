@@ -1112,6 +1112,70 @@ section {
     margin-top: 0.5rem;
 }
 
+.const-intro code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    color: var(--accent-glow);
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.05rem 0.28rem;
+}
+
+.const-analysis-strip,
+.const-audit-highlights {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+}
+
+.const-analysis-strip a,
+.const-audit-highlights a {
+    display: grid;
+    gap: 0.25rem;
+    min-height: 6rem;
+    padding: 0.9rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.const-analysis-strip a:hover,
+.const-audit-highlights a:hover {
+    border-color: var(--rune-pipe);
+    background: var(--bg-surface);
+}
+
+.const-analysis-kicker,
+.const-audit-highlights span {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--rune-pipe);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.const-analysis-strip strong,
+.const-audit-highlights strong {
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+.const-analysis-strip small {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-dim);
+}
+
+.const-audit-highlights {
+    margin-top: 1rem;
+}
+
 .lang-note {
     font-size: 0.82rem;
     color: var(--text-dim);
@@ -1564,6 +1628,16 @@ section {
 
     .why-toc-title {
         width: 100%;
+    }
+
+    .const-analysis-strip,
+    .const-audit-highlights {
+        grid-template-columns: 1fr;
+    }
+
+    .const-analysis-strip a,
+    .const-audit-highlights a {
+        min-height: auto;
     }
 
     .pg-page {
