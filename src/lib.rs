@@ -2065,6 +2065,28 @@ where
     }
 }
 
+pub fn walk_ast_expr<'a, F>(expr: &'a Expr, visit: &mut F)
+where
+    F: FnMut(AstChild<'a>),
+{
+    visit(AstChild::Expr(expr));
+    visit_ast_expr_children(expr, &mut |child| match child {
+        AstChild::Expr(expr) => walk_ast_expr(expr, visit),
+        AstChild::Stmt(stmt) => walk_ast_stmt(stmt, visit),
+    });
+}
+
+pub fn walk_ast_stmt<'a, F>(stmt: &'a Stmt, visit: &mut F)
+where
+    F: FnMut(AstChild<'a>),
+{
+    visit(AstChild::Stmt(stmt));
+    visit_ast_stmt_children(stmt, &mut |child| match child {
+        AstChild::Expr(expr) => walk_ast_expr(expr, visit),
+        AstChild::Stmt(stmt) => walk_ast_stmt(stmt, visit),
+    });
+}
+
 // ============================================================================
 // PART 3b: CONTENT HASHING (Unison's Lesson)
 // ============================================================================
@@ -14507,24 +14529,27 @@ mod tests {
     }
 
     fn collect_ast_visitor_vars_from_expr(expr: &Expr, vars: &mut BTreeSet<String>) {
-        if let ExprKind::Var(name) = &expr.kind {
-            vars.insert(name.clone());
-        }
-        visit_ast_expr_children(expr, &mut |child| match child {
-            AstChild::Expr(expr) => collect_ast_visitor_vars_from_expr(expr, vars),
-            AstChild::Stmt(stmt) => collect_ast_visitor_vars_from_stmt(stmt, vars),
+        walk_ast_expr(expr, &mut |child| {
+            if let AstChild::Expr(expr) = child {
+                if let ExprKind::Var(name) = &expr.kind {
+                    vars.insert(name.clone());
+                }
+            }
         });
     }
 
     fn collect_ast_visitor_vars_from_stmt(stmt: &Stmt, vars: &mut BTreeSet<String>) {
-        visit_ast_stmt_children(stmt, &mut |child| match child {
-            AstChild::Expr(expr) => collect_ast_visitor_vars_from_expr(expr, vars),
-            AstChild::Stmt(stmt) => collect_ast_visitor_vars_from_stmt(stmt, vars),
+        walk_ast_stmt(stmt, &mut |child| {
+            if let AstChild::Expr(expr) = child {
+                if let ExprKind::Var(name) = &expr.kind {
+                    vars.insert(name.clone());
+                }
+            }
         });
     }
 
     #[test]
-    fn canonical_ast_child_visitor_reaches_pass_coverage_markers() {
+    fn canonical_ast_walk_reaches_pass_coverage_markers() {
         for row in typechecker_pass_coverage_cases() {
             let mut vars = BTreeSet::new();
             collect_ast_visitor_vars_from_stmt(&row.stmt, &mut vars);

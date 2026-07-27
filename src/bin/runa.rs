@@ -11792,19 +11792,11 @@ impl TypeInference {
 
     /// Resolve all type variables in a FIR expression tree.
     fn substitute_expr(&self, expr: &mut FirExpr) {
-        expr.ty = self.resolve(&expr.ty);
-        visit_fir_expr_children_mut(expr, &mut |child| match child {
-            FirChildMut::Expr(expr) => self.substitute_expr(expr),
-            FirChildMut::Stmt(stmt) => self.substitute_stmt(stmt),
-        });
-    }
-
-    /// Resolve all type variables in a FIR statement tree.
-    fn substitute_stmt(&self, stmt: &mut FirStmt) {
-        visit_fir_stmt_children_mut(stmt, &mut |child| match child {
-            FirChildMut::Expr(expr) => self.substitute_expr(expr),
-            FirChildMut::Stmt(stmt) => self.substitute_stmt(stmt),
-        });
+        walk_fir_expr_mut(
+            expr,
+            &mut |expr| expr.ty = self.resolve(&expr.ty),
+            &mut |_| {},
+        );
     }
 
     #[cfg(test)]
@@ -12353,6 +12345,60 @@ where
         | FirStmt::RustBlock(_)
         | FirStmt::Abort => {}
     }
+}
+
+#[allow(dead_code)]
+fn walk_fir_expr<'a, F>(expr: &'a FirExpr, visit: &mut F)
+where
+    F: FnMut(FirChild<'a>),
+{
+    visit(FirChild::Expr(expr));
+    visit_fir_expr_children(expr, &mut |child| match child {
+        FirChild::Expr(expr) => walk_fir_expr(expr, visit),
+        FirChild::Stmt(stmt) => walk_fir_stmt(stmt, visit),
+    });
+}
+
+#[allow(dead_code)]
+fn walk_fir_stmt<'a, F>(stmt: &'a FirStmt, visit: &mut F)
+where
+    F: FnMut(FirChild<'a>),
+{
+    visit(FirChild::Stmt(stmt));
+    visit_fir_stmt_children(stmt, &mut |child| match child {
+        FirChild::Expr(expr) => walk_fir_expr(expr, visit),
+        FirChild::Stmt(stmt) => walk_fir_stmt(stmt, visit),
+    });
+}
+
+fn walk_fir_expr_mut<FExpr, FStmt>(
+    expr: &mut FirExpr,
+    visit_expr: &mut FExpr,
+    visit_stmt: &mut FStmt,
+) where
+    FExpr: FnMut(&mut FirExpr),
+    FStmt: FnMut(&mut FirStmt),
+{
+    visit_expr(expr);
+    visit_fir_expr_children_mut(expr, &mut |child| match child {
+        FirChildMut::Expr(expr) => walk_fir_expr_mut(expr, visit_expr, visit_stmt),
+        FirChildMut::Stmt(stmt) => walk_fir_stmt_mut(stmt, visit_expr, visit_stmt),
+    });
+}
+
+fn walk_fir_stmt_mut<FExpr, FStmt>(
+    stmt: &mut FirStmt,
+    visit_expr: &mut FExpr,
+    visit_stmt: &mut FStmt,
+) where
+    FExpr: FnMut(&mut FirExpr),
+    FStmt: FnMut(&mut FirStmt),
+{
+    visit_stmt(stmt);
+    visit_fir_stmt_children_mut(stmt, &mut |child| match child {
+        FirChildMut::Expr(expr) => walk_fir_expr_mut(expr, visit_expr, visit_stmt),
+        FirChildMut::Stmt(stmt) => walk_fir_stmt_mut(stmt, visit_expr, visit_stmt),
+    });
 }
 
 // ============================================================================
@@ -13616,19 +13662,22 @@ fn format_pat(pat: &Pat) -> String {
 /// Count how many times each variable name appears as ExprKind::Var in an expression tree.
 /// This is the core of escape analysis: single-use variables can be moved, not cloned.
 fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
-    if let ExprKind::Var(name) = &expr.kind {
-        *counts.entry(name.clone()).or_insert(0) += 1;
-    }
-    visit_ast_expr_children(expr, &mut |child| match child {
-        AstChild::Expr(expr) => count_var_uses(expr, counts),
-        AstChild::Stmt(stmt) => count_var_uses_stmt(stmt, counts),
+    walk_ast_expr(expr, &mut |child| {
+        if let AstChild::Expr(expr) = child {
+            if let ExprKind::Var(name) = &expr.kind {
+                *counts.entry(name.clone()).or_insert(0) += 1;
+            }
+        }
     });
 }
 
 fn count_var_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
-    visit_ast_stmt_children(stmt, &mut |child| match child {
-        AstChild::Expr(expr) => count_var_uses(expr, counts),
-        AstChild::Stmt(stmt) => count_var_uses_stmt(stmt, counts),
+    walk_ast_stmt(stmt, &mut |child| {
+        if let AstChild::Expr(expr) = child {
+            if let ExprKind::Var(name) = &expr.kind {
+                *counts.entry(name.clone()).or_insert(0) += 1;
+            }
+        }
     });
 }
 
@@ -36793,25 +36842,18 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         ]
     }
 
-    fn collect_fir_visitor_vars_from_expr(expr: &FirExpr, vars: &mut BTreeSet<String>) {
-        if let FirExprKind::Var(name, _) = &expr.kind {
-            vars.insert(name.clone());
-        }
-        visit_fir_expr_children(expr, &mut |child| match child {
-            FirChild::Expr(expr) => collect_fir_visitor_vars_from_expr(expr, vars),
-            FirChild::Stmt(stmt) => collect_fir_visitor_vars_from_stmt(stmt, vars),
-        });
-    }
-
     fn collect_fir_visitor_vars_from_stmt(stmt: &FirStmt, vars: &mut BTreeSet<String>) {
-        visit_fir_stmt_children(stmt, &mut |child| match child {
-            FirChild::Expr(expr) => collect_fir_visitor_vars_from_expr(expr, vars),
-            FirChild::Stmt(stmt) => collect_fir_visitor_vars_from_stmt(stmt, vars),
+        walk_fir_stmt(stmt, &mut |child| {
+            if let FirChild::Expr(expr) = child {
+                if let FirExprKind::Var(name, _) = &expr.kind {
+                    vars.insert(name.clone());
+                }
+            }
         });
     }
 
     #[test]
-    fn canonical_fir_child_visitor_reaches_phase_coverage_markers() {
+    fn canonical_fir_walk_reaches_phase_coverage_markers() {
         let rows = fir_phase_coverage_cases();
         let expected: &[(&str, &[&str])] = &[
             ("FirStmt::Defn::Actor", &["actor_body"]),
