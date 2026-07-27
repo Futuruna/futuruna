@@ -44,6 +44,8 @@ calculating a current taxpayer's tax.
 - `kapitel-02-statsskat.runa` exists and checks with `runa check`.
 - `kapitel-03-personfradrag.runa` exists and checks with `runa check`.
 - `kapitel-04-omregning-skatteloft.runa` exists and checks with `runa check`.
+- `kapitel-05-afsluttende-bestemmelser.runa` exists and checks with
+  `runa check`.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.runa` exists and checks/runs with `runa run`.
@@ -54,8 +56,8 @@ calculating a current taxpayer's tax.
 - The current `.runa` slices encode source validity, source lineage, the
   §§ 1-4 b income taxonomy, the §§ 5-9 state-tax skeleton, the §§ 10-13
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
-  slice, 2024/2025 tax-year parameter packs, first wage-earner fixtures, and
-  first audit signals.
+  slice, the §§ 21-28 concluding provisions slice, 2024/2025 tax-year parameter
+  packs, first wage-earner fixtures, and first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
   multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
@@ -85,6 +87,9 @@ calculating a current taxpayer's tax.
 
 ## Next
 
+- Deepen the first-pass full-statute corpus from structural coverage into
+  calculation coverage where official fixtures and dependent statutes make that
+  safe.
 - Extend § 13 foreign-income, pension-limit, and business-loss amount
   limitations beyond the current executable boundary signals.
 - Decide how § 14 partial-year annualization and § 19 skatteloftsnedslag should
@@ -174,7 +179,8 @@ M5 - Audit suite
 - Current slice: source-status rejection, covered normal-fixture
   personfradrag, covered § 13 deficit mechanics, 2026 reform parameter gap,
   topskat threshold activation, covered § 14 annualization, covered § 19
-  skatteloft, covered § 20 regulation/rounding, AM-law dependency,
+  skatteloft, covered § 20 regulation/rounding, covered § 26 transition
+  compensation, covered § 28 territorial exclusion, AM-law dependency,
   municipal-tax-law dependency, and remaining § 13 foreign/pension/business
   amount gaps are executable audit signals.
 
@@ -186,9 +192,9 @@ M6 - Website integration
 - Done when: the website renders the checked corpus and clearly marks whether it
   is a calculation-ready slice or a research/audit slice.
 - Current slice: `/research/personskatteloven` links the valid and historic
-  sources, renders the milestone log, embeds the checked `.runa` corpus, marks
-  the limited wage-earner fixture slice as calculation-ready, and marks the full
-  statute model as research/audit-only.
+  sources, renders the milestone log, embeds the checked §§ 1-28 `.runa`
+  corpus, marks the limited wage-earner fixture slice as calculation-ready, and
+  marks the full statute model as research/audit-only.
 
 M7 - Personfradrag and deficit layer
 
@@ -218,3 +224,17 @@ M8 - Omregning, skatteloft, and regulation
   markers, § 19 computes personal and positive-capital tax ceiling excess and
   relief, and § 20 computes 2010-level amount regulation with round-up to the
   nearest 100 kroner.
+
+M9 - Final provisions and transition compensation
+
+- Status: first slice implemented.
+- Output: `.runa` file for §§ 21-28 plus audit coverage for effective date,
+  transition compensation, ministerial delegation, and territorial exclusion.
+- Done when: repealed tail provisions, effect from income year 1987, § 26
+  compensation and offset order, § 27 delegation, and § 28 exclusion of the
+  Faroe Islands and Greenland are executable.
+- Current slice: §§ 21-24 a, 25 a, 25 b, and 27 a are explicit repeal markers,
+  § 25 applies from 1987, § 26 computes negative transition difference as
+  compensation and applies it in statutory order, § 27 is encoded as delegated
+  implementation/administration authority, and § 28 excludes the Faroe Islands
+  and Greenland.

@@ -3,6 +3,7 @@
 @ importer ./source - status
 @ importer ./loenmodtager_beregning
 @ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./kapitel - 05 - afsluttende - bestemmelser
 
 -- Personskatteloven — audit-signaler for den aktuelle research-slice.
 
@@ -14,7 +15,7 @@ Officiel XML-metadata for 2021/1284, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Par13UnderskudsmekanikDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | Skatteår2026ReformIkkeKodet | TopskatTærskelAktivererKlint | ManglerPar13UdenlandskeOgVirksomhedsBeløbsopgørelser
+# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Par13UnderskudsmekanikDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | Skatteår2026ReformIkkeKodet | TopskatTærskelAktivererKlint | ManglerPar13UdenlandskeOgVirksomhedsBeløbsopgørelser
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -143,4 +144,35 @@ skatteloftsnedslag og regulering/afrunding af grundbeløb.
 ? m5_audit_par19_signal
 ? m5_audit_par20_signal
 
-@ print("m5 audit: kendte gaps markeret for 2026-reform, AM-lov, kommunal lov og § 13 udenlandske/virksomhedsbeløbsopgørelser; §§ 14, 19 og 20 har executable audit-fixtures")
+----
+§§ 21-28 har nu en første afsluttende slice: ophævede bestemmelser, virkning
+fra 1987, § 26-overgangskompensation, ministerdelegation og territorial
+afgrænsning.
+----
+
+= m5_par25_virkningsår_fixture = personskatteloven_virker_fra_indkomstår()
+= m5_par26_kompensation_fixture = par26_kompensation_kroner(Par26ForskelsbeløbInput(2015, 1000, 2000, 3000, 400, 600, 2500, 700, 4500, Sandt))
+= m5_par26_modregning_fixture = par26_modregning_resultat(Par26ModregningInput(m5_par26_kompensation_fixture, 200, 100, 0, 50, 100, 0, 200, 200))
+= m5_par27_delegation_fixture = par27_skatteministeren_fastsætter_gennemførelsesregler()
+= m5_par28_færøerne_fixture = personskatteloven_gælder_i_territorium(PersonskatFærøerne)
+= m5_par28_grønland_fixture = personskatteloven_gælder_i_territorium(PersonskatGrønland)
+
+| m5_par25_virker_fra_1987: m5_par25_virkningsår_fixture -> m5_par25_virkningsår_fixture == 1987
+| m5_par26_kompensation: m5_par26_kompensation_fixture -> m5_par26_kompensation_fixture == 700
+| m5_par26_modregningsrækkefølge: m5_par26_modregning_fixture -> m5_par26_modregning_fixture.par6_efter_kroner == 0 && m5_par26_modregning_fixture.par7_efter_kroner == 0 && m5_par26_modregning_fixture.kirkeskat_efter_kroner == 150
+| m5_par27_ministerdelegation: m5_par27_delegation_fixture -> m5_par27_delegation_fixture == Sandt
+| m5_par28_færøerne_undtaget: m5_par28_færøerne_fixture -> m5_par28_færøerne_fixture == Falskt
+| m5_par28_grønland_undtaget: m5_par28_grønland_fixture -> m5_par28_grønland_fixture == Falskt
+| m5_audit_par26_signal: audit_signal(Par26KompensationDækket) -> audit_signal(Par26KompensationDækket) == Sandt
+| m5_audit_par28_signal: audit_signal(Par28TerritorialAfgrænsningDækket) -> audit_signal(Par28TerritorialAfgrænsningDækket) == Sandt
+
+? m5_par25_virker_fra_1987
+? m5_par26_kompensation
+? m5_par26_modregningsrækkefølge
+? m5_par27_ministerdelegation
+? m5_par28_færøerne_undtaget
+? m5_par28_grønland_undtaget
+? m5_audit_par26_signal
+? m5_audit_par28_signal
+
+@ print("m5 audit: kendte gaps markeret for 2026-reform, AM-lov, kommunal lov og § 13 udenlandske/virksomhedsbeløbsopgørelser; §§ 14-20 og §§ 21-28 har executable audit-fixtures")

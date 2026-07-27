@@ -1631,6 +1631,8 @@ const TAX_KAP03: &str =
     include_str!("../../examples/danish-income-tax/kapitel-03-personfradrag.runa");
 const TAX_KAP04: &str =
     include_str!("../../examples/danish-income-tax/kapitel-04-omregning-skatteloft.runa");
+const TAX_KAP05: &str =
+    include_str!("../../examples/danish-income-tax/kapitel-05-afsluttende-bestemmelser.runa");
 const TAX_PARAMS: &str = include_str!("../../examples/danish-income-tax/skatteaar-parametre.runa");
 const TAX_CALC: &str = include_str!("../../examples/danish-income-tax/loenmodtager_beregning.runa");
 const TAX_FIXTURES: &str = include_str!("../../examples/danish-income-tax/loenmodtager-fixtures.runa");
@@ -2273,6 +2275,7 @@ fn ResearchPersonskatteloven() -> Element {
         ("kapitel-02-statsskat.runa — §§ 5-9 statsskat", "kapitel-02-code", TAX_KAP02),
         ("kapitel-03-personfradrag.runa — §§ 10-13 personfradrag og underskud", "kapitel-03-code", TAX_KAP03),
         ("kapitel-04-omregning-skatteloft.runa — §§ 14-20 omregning og skatteloft", "kapitel-04-code", TAX_KAP04),
+        ("kapitel-05-afsluttende-bestemmelser.runa — §§ 21-28 afslutning", "kapitel-05-code", TAX_KAP05),
         ("skatteaar-parametre.runa — 2024/2025 parameterpakker", "params-code", TAX_PARAMS),
         ("loenmodtager_beregning.runa — første beregningsslice", "calculator-code", TAX_CALC),
         ("loenmodtager-fixtures.runa — eksekverbare normalperson-fixtures", "fixtures-code", TAX_FIXTURES),
@@ -2324,7 +2327,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven model is incomplete: § 13 foreign/pension/business amount limitations, § 14/§ 19 calculator integration, 2026 reform layers, and dependent tax statutes remain explicit gaps." }
+                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: § 13 amount limitations, § 14/§ 19 calculator integration, 2026 reform layers, and dependent tax statutes remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -2334,7 +2337,7 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
                     }
                     p { class: "const-stats",
-                        "10 filer \u{00B7} §§ 1-20 første slice \u{00B7} 2024/2025 parameterpakker \u{00B7} wage-earner fixtures efter personfradrag \u{00B7} audit-signaler"
+                        "11 filer \u{00B7} §§ 1-28 første slice \u{00B7} 2024/2025 parameterpakker \u{00B7} wage-earner fixtures efter personfradrag \u{00B7} audit-signaler"
                     }
                 }
 
@@ -2370,7 +2373,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "§ 13 amount limits and § 14/§ 19 calculator integration remain marked dependencies" }
+                            strong { "First-pass §§ 1-28 coverage is present; deeper § 13 and calculator integrations remain dependencies" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }

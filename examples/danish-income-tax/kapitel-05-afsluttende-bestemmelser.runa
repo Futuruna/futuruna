@@ -1,0 +1,222 @@
+@ sprog da
+
+@ importer ./kapitel - 04 - omregning - skatteloft
+
+-- Personskatteloven — fælles bestemmelser, ikrafttræden og afslutning (§§ 21-28).
+--
+-- Kilde: Retsinformation, LBK nr. 1284 af 14/06/2021.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2021/1284
+-- XML: https://www.retsinformation.dk/eli/lta/2021/1284/dan/xml
+
+----
+§§ 21-24 a. (Ophævet)
+----
+
+# AfsluttendeOphævetParagraf = Par21Til24a | Par25a | Par25b | Par27a
+
+| afsluttende_paragraf_ophævet(paragraf: AfsluttendeOphævetParagraf) -> Sandt
+
+= par21_24a_ophævet = afsluttende_paragraf_ophævet(Par21Til24a)
+
+| par21_24a_er_ophævet: par21_24a_ophævet -> par21_24a_ophævet == Sandt
+
+----
+§ 25. Loven har virkning fra og med indkomståret 1987.
+----
+
+| personskatteloven_virker_fra_indkomstår() -> 1987
+| personskatteloven_har_virkning_i_indkomstår(skatteår: Heltal) -> skatteår >= personskatteloven_virker_fra_indkomstår()
+
+= par25_virkningsår = personskatteloven_virker_fra_indkomstår()
+= par25_1987_gælder = personskatteloven_har_virkning_i_indkomstår(1987)
+= par25_1986_gælder = personskatteloven_har_virkning_i_indkomstår(1986)
+
+| par25_fra_1987: par25_virkningsår -> par25_virkningsår == 1987
+| par25_1987_omfattet: par25_1987_gælder -> par25_1987_gælder == Sandt
+| par25_1986_ikke_omfattet: par25_1986_gælder -> par25_1986_gælder == Falskt
+
+----
+§ 25 a. (Ophævet)
+----
+
+= par25a_ophævet = afsluttende_paragraf_ophævet(Par25a)
+
+| par25a_er_ophævet: par25a_ophævet -> par25a_ophævet == Sandt
+
+----
+§ 25 b. (Ophævet)
+----
+
+= par25b_ophævet = afsluttende_paragraf_ophævet(Par25b)
+
+| par25b_er_ophævet: par25b_ophævet -> par25b_ophævet == Sandt
+
+----
+§ 26. For indkomstårene 2012-2019 beregnes en kompensation, hvis
+forskelsbeløbet beregnet efter stk. 2 og 3 er negativt.
+Kompensationen modregnes i skatterne efter §§ 6, 7, 7 a og 8, § 8 a, stk. 2,
+og § 8 c, indkomstskat til kommunen og kirkeskat i den nævnte rækkefølge.
+
+Stk. 2. I beregningen af forskelsbeløbet indgår følgende beløb:
+1) 1,5 pct. af grundlaget for bundskatten, jf. § 6, i det omfang grundlaget
+overstiger et bundfradrag på 44.800 kr. (2010-niveau).
+For personer, som ved indkomstårets udløb ikke er fyldt 18 år og ikke har
+indgået ægteskab, er bundfradraget 33.600 kr. (2010-niveau).
+2) 6 pct. af den personlige indkomst med tillæg af positiv
+nettokapitalindkomst, i det omfang grundlaget overstiger et bundfradrag på
+362.800 kr. (2010-niveau).
+3) 15 pct. af grundlaget for topskat, jf. § 7, stk. 1, i det omfang grundlaget
+overstiger et bundfradrag på 362.800 kr. (2010-niveau) fratrukket 15 pct. af
+grundlaget for topskat, jf. § 7, stk. 1, i det omfang grundlaget overstiger
+bundfradraget anført i § 7, stk. 2.
+4) 1 pct. af grundlaget for aktieindkomstskat, jf. § 8 a, stk. 1 og 2.
+5) 8 pct. plus procenten ved beregning af indkomstskat til kommunen og
+kirkeskat af fradragene beregnet efter ligningslovens §§ 9 J, 9K og 9 L
+fratrukket et fradrag opgjort på samme grundlag som fradraget efter § 9 J ved
+anvendelse af en fradragsprocent på 4,25 og et grundbeløb på 14.200 kr.
+(2010-niveau).
+6) Skatteværdien opgjort efter § 12 af et grundbeløb på 1.900 kr.
+(2010-niveau).
+7) Udligningsskat efter § 7 a.
+8) 8 pct. minus skatteprocenten for sundhedsbidraget, jf. § 8, af summen af
+negativ nettokapitalindkomst, der overstiger beløbsgrænsen i § 11, stk. 1, og
+udgifter af den art, der fradrages ved opgørelsen af den skattepligtige
+indkomst, men ikke ved opgørelsen af personlig indkomst og kapitalindkomst
+(ligningsmæssige fradrag).
+
+Stk. 3. Forskelsbeløbet opgøres som summen af beløbene opgjort efter stk. 2,
+nr. 1-5, fratrukket beløbene opgjort efter stk. 2, nr. 6 og 7.
+Er beløbet negativt, sættes det til 0.
+Fra dette beløb trækkes beløbet opgjort efter stk. 2, nr. 8.
+
+Stk. 4. Hvis en gift persons forskelsbeløb efter stk. 3 er positivt, nedsættes
+den anden ægtefælles negative forskelsbeløb med et beløb svarende til det
+positive forskelsbeløb, hvis ægtefællerne er samlevende ved indkomstårets
+udløb.
+
+Stk. 5. Hvis en gift person har negativ nettokapitalindkomst, modregnes dette
+beløb i den anden ægtefælles positive nettokapitalindkomst, inden beløbet efter
+stk. 2, nr. 2, beregnes, hvis ægtefællerne er samlevende ved indkomstårets
+udløb.
+
+Stk. 6. Hvis en gift persons personlige indkomst med tillæg af positiv
+nettokapitalindkomst er lavere end bundfradraget i stk. 2, nr. 2, forhøjes den
+anden ægtefælles bundfradrag med forskelsbeløbet, inden beløbet efter stk. 2,
+nr. 2, beregnes, hvis ægtefællerne er samlevende ved indkomstårets udløb.
+1. pkt. finder ikke anvendelse for indkomstår, hvor der er valgt beskatning
+efter kildeskattelovens § 48 F, stk. 1-3.
+
+Stk. 7. For ægtefæller finder § 7, stk. 5-10, anvendelse ved beregning af
+beløbet efter stk. 2, nr. 3, med de bundfradrag, der er anført i stk. 2,
+nr. 3.
+
+Stk. 8. Hvis en gift person har positiv nettokapitalindkomst, modregnes dette
+beløb i den anden ægtefælles negative nettokapitalindkomst, inden beløbet efter
+stk. 2, nr. 8, beregnes, hvis ægtefællerne er samlevende ved indkomstårets
+udløb.
+
+Stk. 9. Grundbeløb og bundfradrag i stk. 2, nr. 1, 2, 3, 5 og 6, reguleres
+efter § 20.
+
+Stk. 10. Kompensation efter stk. 1-8 omfatter alene personer, der har pligt til
+at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
+----
+
+# Par26AlderStatus = Par26Fyldt18EllerGift | Par26Under18Ugift
+# Par26ForskelsbeløbInput(skatteår: Heltal, nr1_kroner: Heltal, nr2_kroner: Heltal, nr3_kroner: Heltal, nr4_kroner: Heltal, nr5_kroner: Heltal, nr6_kroner: Heltal, nr7_kroner: Heltal, nr8_kroner: Heltal, betaler_kommunal_eller_par8c: Boolsk)
+# Par26ModregningInput(kompensation_kroner: Heltal, par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par8c_skat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal)
+# Par26ModregningResult(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, par8c_efter_kroner: Heltal, kommuneskat_efter_kroner: Heltal, kirkeskat_efter_kroner: Heltal, ubrugt_kompensation_kroner: Heltal)
+# Par26ÆgtefælleStatus = Par26IkkeSamlevende | Par26GiftSamlevendeVedÅretsUdløb | Par26Forskerordning48FValgt
+
+| par26_gælder_for_skatteår(skatteår: Heltal) -> skatteår >= 2012 && skatteår <= 2019
+| par26_positivt_beløb(beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { beløb_kroner } ellers { 0 }
+| par26_bundfradrag_nr1_2010_niveau(status: Par26AlderStatus) -> 44800 under status == Par26Fyldt18EllerGift
+| par26_bundfradrag_nr1_2010_niveau(status: Par26AlderStatus) -> 33600 under status == Par26Under18Ugift
+| par26_bundfradrag_nr2_og_nr3_2010_niveau() -> 362800
+| par26_fradragsgrundbeløb_nr5_2010_niveau() -> 14200
+| par26_personfradrag_nr6_2010_niveau() -> 1900
+| par26_reguleres_efter_par20() -> Sandt
+| par26_nr1_kroner(bundskat_grundlag_kroner: Heltal, status: Par26AlderStatus) -> par26_positivt_beløb(bundskat_grundlag_kroner - par26_bundfradrag_nr1_2010_niveau(status)) * 150 / 10000
+| par26_nr2_kroner(personlig_plus_positiv_kapital_kroner: Heltal) -> par26_positivt_beløb(personlig_plus_positiv_kapital_kroner - par26_bundfradrag_nr2_og_nr3_2010_niveau()) * 600 / 10000
+| par26_nr3_kroner(topskat_grundlag_kroner: Heltal, par7_bundfradrag_kroner: Heltal) -> par26_positivt_beløb(topskat_grundlag_kroner - par26_bundfradrag_nr2_og_nr3_2010_niveau()) * 1500 / 10000 - par26_positivt_beløb(topskat_grundlag_kroner - par7_bundfradrag_kroner) * 1500 / 10000
+| par26_nr4_kroner(aktieindkomstskat_grundlag_kroner: Heltal) -> aktieindkomstskat_grundlag_kroner * 100 / 10000
+| par26_nr5_kroner(fradrag_efter_ll9j_9k_9l_kroner: Heltal, kommunal_og_kirke_basispoint: Heltal, baseline_fradrag_kroner: Heltal) -> fradrag_efter_ll9j_9k_9l_kroner * (800 + kommunal_og_kirke_basispoint) / 10000 - baseline_fradrag_kroner * 425 / 10000
+| par26_nr8_kroner(negativ_kapital_og_ligningsmæssige_fradrag_kroner: Heltal, sundhedsbidrag_basispoint: Heltal) -> negativ_kapital_og_ligningsmæssige_fradrag_kroner * (800 - sundhedsbidrag_basispoint) / 10000
+| par26_forskelsbeløb_før_nr8(input: Par26ForskelsbeløbInput) -> par26_positivt_beløb(input.nr1_kroner + input.nr2_kroner + input.nr3_kroner + input.nr4_kroner + input.nr5_kroner - input.nr6_kroner - input.nr7_kroner)
+| par26_forskelsbeløb_efter_stk3(input: Par26ForskelsbeløbInput) -> par26_forskelsbeløb_før_nr8(input) - input.nr8_kroner
+| par26_kompensation_kroner(input: Par26ForskelsbeløbInput) -> hvis par26_gælder_for_skatteår(input.skatteår) && input.betaler_kommunal_eller_par8c && par26_forskelsbeløb_efter_stk3(input) < 0 { 0 - par26_forskelsbeløb_efter_stk3(input) } ellers { 0 }
+| par26_ubrugt_efter_skat(skat_kroner: Heltal, kompensation_kroner: Heltal) -> hvis kompensation_kroner > skat_kroner { kompensation_kroner - skat_kroner } ellers { 0 }
+| par26_skat_efter_kompensation(skat_kroner: Heltal, kompensation_kroner: Heltal) -> hvis skat_kroner > kompensation_kroner { skat_kroner - kompensation_kroner } ellers { 0 }
+| par26_rester_efter_par6(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.par6_skat_kroner, input.kompensation_kroner)
+| par26_rester_efter_par7(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.par7_skat_kroner, par26_rester_efter_par6(input))
+| par26_rester_efter_par7a(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.par7a_skat_kroner, par26_rester_efter_par7(input))
+| par26_rester_efter_par8(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.par8_skat_kroner, par26_rester_efter_par7a(input))
+| par26_rester_efter_par8a_stk2(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.par8a_stk2_skat_kroner, par26_rester_efter_par8(input))
+| par26_rester_efter_par8c(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.par8c_skat_kroner, par26_rester_efter_par8a_stk2(input))
+| par26_rester_efter_kommuneskat(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.kommuneskat_kroner, par26_rester_efter_par8c(input))
+| par26_rester_efter_kirkeskat(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.kirkeskat_kroner, par26_rester_efter_kommuneskat(input))
+| par26_modregning_resultat(input: Par26ModregningInput) -> Par26ModregningResult(par26_skat_efter_kompensation(input.par6_skat_kroner, input.kompensation_kroner), par26_skat_efter_kompensation(input.par7_skat_kroner, par26_rester_efter_par6(input)), par26_skat_efter_kompensation(input.par7a_skat_kroner, par26_rester_efter_par7(input)), par26_skat_efter_kompensation(input.par8_skat_kroner, par26_rester_efter_par7a(input)), par26_skat_efter_kompensation(input.par8a_stk2_skat_kroner, par26_rester_efter_par8(input)), par26_skat_efter_kompensation(input.par8c_skat_kroner, par26_rester_efter_par8a_stk2(input)), par26_skat_efter_kompensation(input.kommuneskat_kroner, par26_rester_efter_par8c(input)), par26_skat_efter_kompensation(input.kirkeskat_kroner, par26_rester_efter_kommuneskat(input)), par26_rester_efter_kirkeskat(input))
+| par26_positivt_forskelsbeløb_nedsætter_ægtefælles_negative(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
+| par26_negativ_kapital_modregnes_i_ægtefælles_positive(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
+| par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
+| exception forskerordning_48f par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(status: Par26ÆgtefælleStatus) -> Falskt under status == Par26Forskerordning48FValgt
+| par26_par7_ægtefælleregler_anvendes_for_nr3(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
+| par26_positiv_kapital_modregnes_i_ægtefælles_negative(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
+| par26_kompensation_kræver_kommunal_eller_par8c(input: Par26ForskelsbeløbInput) -> input.betaler_kommunal_eller_par8c
+
+= par26_nr1_fixture = par26_nr1_kroner(100000, Par26Fyldt18EllerGift)
+= par26_nr2_fixture = par26_nr2_kroner(400000)
+= par26_nr3_fixture = par26_nr3_kroner(500000, 467000)
+= par26_forskelsbeløb_fixture = Par26ForskelsbeløbInput(2015, 1000, 2000, 3000, 400, 600, 2500, 700, 4500, Sandt)
+= par26_kompensation_fixture = par26_kompensation_kroner(par26_forskelsbeløb_fixture)
+= par26_modregning_fixture = par26_modregning_resultat(Par26ModregningInput(par26_kompensation_fixture, 200, 100, 0, 50, 100, 0, 200, 200))
+= par26_ægtefælle_fixture = par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(Par26GiftSamlevendeVedÅretsUdløb)
+= par26_forsker_fixture = par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(Par26Forskerordning48FValgt)
+
+| par26_nr1_voksen_bundfradrag: par26_nr1_fixture -> par26_nr1_fixture == 828
+| par26_nr2_6pct_over_bundfradrag: par26_nr2_fixture -> par26_nr2_fixture == 2232
+| par26_nr3_gammel_minus_ny_topskat: par26_nr3_fixture -> par26_nr3_fixture == 15630
+| par26_negativt_forskelsbeløb_bliver_kompensation: par26_kompensation_fixture -> par26_kompensation_fixture == 700
+| par26_modregner_i_lovbestemt_rækkefølge: par26_modregning_fixture -> par26_modregning_fixture.par6_efter_kroner == 0 && par26_modregning_fixture.par7_efter_kroner == 0 && par26_modregning_fixture.par8_efter_kroner == 0 && par26_modregning_fixture.par8a_stk2_efter_kroner == 0 && par26_modregning_fixture.kommuneskat_efter_kroner == 0 && par26_modregning_fixture.kirkeskat_efter_kroner == 150 && par26_modregning_fixture.ubrugt_kompensation_kroner == 0
+| par26_ægtefælle_bundfradrag_forhøjes: par26_ægtefælle_fixture -> par26_ægtefælle_fixture == Sandt
+| par26_forskerordning_afskærer_forhøjelse: par26_forsker_fixture -> par26_forsker_fixture == Falskt
+
+----
+§ 27. Skatteministeren fastsætter de nærmere regler, der er nødvendige til
+lovens gennemførelse og administration.
+----
+
+| par27_skatteministeren_fastsætter_gennemførelsesregler() -> Sandt
+| par27_skatteministeren_fastsætter_administrationsregler() -> Sandt
+
+= par27_gennemførelse = par27_skatteministeren_fastsætter_gennemførelsesregler()
+= par27_administration = par27_skatteministeren_fastsætter_administrationsregler()
+
+| par27_delegerer_gennemførelse: par27_gennemførelse -> par27_gennemførelse == Sandt
+| par27_delegerer_administration: par27_administration -> par27_administration == Sandt
+
+----
+§ 27 a. (Ophævet)
+----
+
+= par27a_ophævet = afsluttende_paragraf_ophævet(Par27a)
+
+| par27a_er_ophævet: par27a_ophævet -> par27a_ophævet == Sandt
+
+----
+§ 28. Loven gælder ikke for Færøerne og Grønland.
+----
+
+# PersonskattelovTerritorium = PersonskatDanmark | PersonskatFærøerne | PersonskatGrønland
+
+| personskatteloven_gælder_i_territorium(territorium: PersonskattelovTerritorium) -> Sandt
+| exception færøerne personskatteloven_gælder_i_territorium(territorium: PersonskattelovTerritorium) -> Falskt under territorium == PersonskatFærøerne
+| exception grønland personskatteloven_gælder_i_territorium(territorium: PersonskattelovTerritorium) -> Falskt under territorium == PersonskatGrønland
+
+= par28_danmark = personskatteloven_gælder_i_territorium(PersonskatDanmark)
+= par28_færøerne = personskatteloven_gælder_i_territorium(PersonskatFærøerne)
+= par28_grønland = personskatteloven_gælder_i_territorium(PersonskatGrønland)
+
+| par28_gælder_i_danmark: par28_danmark -> par28_danmark == Sandt
+| par28_gælder_ikke_for_færøerne: par28_færøerne -> par28_færøerne == Falskt
+| par28_gælder_ikke_for_grønland: par28_grønland -> par28_grønland == Falskt
