@@ -1,5 +1,11 @@
 @ sprog da
 
+-- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
+-- Parlamentarisk spejl:
+-- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
+-- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+
 -- Kapitel VIII -- Borgernes rettigheder
 
 ----
@@ -106,9 +112,7 @@ kan ved lov henlægges til domstole oprettet i dette øjemed.
 -- Stk. 2: 1/3 kan kræve udsættelse til efter nyvalg
 = ekspropriation_frist_søgnedage = 3
 
-> kan_kræve_ekspropriationsudsættelse(begærende: Heltal, medlemmer: Heltal) -> Boolsk {
-    hvis begærende * 3 >= medlemmer { Sandt } ellers { Falskt }
-}
+| kan_kræve_ekspropriationsudsættelse(begærende: Heltal, medlemmer: Heltal) -> begærende * 3 >= medlemmer
 
 | ekspropriationsudsættelse_kræver_nyvalg_og_genvedtagelse()
 

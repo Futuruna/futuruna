@@ -1,5 +1,11 @@
 @ sprog da
 
+-- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
+-- Parlamentarisk spejl:
+-- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
+-- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+
 -- ═══════════════════════════════════════════════════════════════
 -- Kapitel II — Kongen (§ 5–11)
 -- ═══════════════════════════════════════════════════════════════
@@ -115,53 +121,3 @@ der skal overlades kongen til brug.
 
 | årpenge_fastsættes_ved_lov()
 | årpenge_i_udlandet(s: Samtykke) -> s == Givet
-
--- ═══════════════════════════════════════════════════════════════
--- Verifikation
--- ═══════════════════════════════════════════════════════════════
-
-@ print("--- Kapitel II: Kongen ---")
-
--- Invariant-subjekt (kapitel-scope)
-= kapitel = "II"
-
--- § 5: Samtykke virker begge veje
-| par5_samtykke_tillader: kapitel -> regent_i_udlandet(Givet)
-| par5_samtykke_forbyder: kapitel -> not(regent_i_udlandet(IkkeGivet))
-? par5_samtykke_tillader -> { @ print("§ 5  ✓ Samtykke → tilladt") } else { @ print("§ 5  ✗ FEJL") }
-? par5_samtykke_forbyder -> { @ print("§ 5  ✓ Uden samtykke → forbudt") } else { @ print("§ 5  ✗ FEJL") }
-
--- § 6: Troskrav
-| par6_troskrav: kapitel -> kongen_skal_tilhøre(EvangeliskLuthersk)
-? par6_troskrav -> { @ print("§ 6  ✓ Kongen tilhører den evangelisk-lutherske kirke") } else { @ print("§ 6  ✗ FEJL") }
-
--- § 7: Myndighedsalder og subjekter
-= myndig_subjekter = findall(s, myndighedsregel_gælder_for(s))
-| par7_alder: myndighedsalder -> myndighedsalder == 18
-| par7_begge: myndig_subjekter -> length(myndig_subjekter) == 2
-? par7_alder -> { @ print("§ 7  ✓ Myndighedsalder er 18") } else { @ print("§ 7  ✗ FEJL: alder != 18") }
-? par7_begge -> { @ print("§ 7  ✓ Gælder for " + show(myndig_subjekter)) } else { @ print("§ 7  ✗ FEJL: gælder ikke for begge") }
-
--- § 8: Forsikringsakten opbevares to steder
-= arkiver = findall(a, forsikringsakt_opbevares_i(a))
-| par8_to_eksemplarer: arkiver -> length(arkiver) == 2
-| par8_normalt_monarken: arkiver -> regering_ved_tronskifte() == MonarkenSelv
-? par8_to_eksemplarer -> { @ print("§ 8  ✓ Forsikringsakt i " + show(arkiver)) } else { @ print("§ 8  ✗ FEJL: ikke to eksemplarer") }
-? par8_normalt_monarken -> { @ print("§ 8  ✓ Normalt regerer monarken selv") } else { @ print("§ 8  ✗ FEJL") }
-
--- § 9: Alle regentskabsgrunde dækket
-= regentskabsgrunde = findall(g, regentskab_fastsættes_ved_lov(g))
-| par9_tre_grunde: regentskabsgrunde -> length(regentskabsgrunde) == 3
-? par9_tre_grunde -> { @ print("§ 9  ✓ Regentskab ved " + show(regentskabsgrunde)) } else { @ print("§ 9  ✗ FEJL: ikke alle grunde dækket") }
-
--- § 10: Statsydelse
-| par10_ved_lov: kapitel -> statsydelse_fastsættes_ved_lov()
-| par10_gæld: kapitel -> statsydelse_gæld_forbudt()
-? par10_ved_lov -> { @ print("§ 10 ✓ Statsydelse fastsættes ved lov") } else { @ print("§ 10 ✗ FEJL") }
-? par10_gæld -> { @ print("§ 10 ✓ Gæld forbudt") } else { @ print("§ 10 ✗ FEJL") }
-
--- § 11: Årpenge
-| par11_samtykke_tillader: kapitel -> årpenge_i_udlandet(Givet)
-| par11_samtykke_forbyder: kapitel -> not(årpenge_i_udlandet(IkkeGivet))
-? par11_samtykke_tillader -> { @ print("§ 11 ✓ Årpenge i udlandet med samtykke") } else { @ print("§ 11 ✗ FEJL") }
-? par11_samtykke_forbyder -> { @ print("§ 11 ✓ Årpenge i udlandet uden samtykke forbudt") } else { @ print("§ 11 ✗ FEJL") }

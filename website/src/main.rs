@@ -1797,8 +1797,8 @@ fn ResearchIndex() -> Element {
                     h2 { class: "research-card-title", "Danmarks Riges Grundlov" }
                     p { class: "research-card-desc",
                         "Den komplette danske grundlov af 1953 kodet i Futuruna. \
-                         11 kapitler, 89 paragraffer: typer, regler, beregnelige funktioner \
-                         og formelle invarianter."
+                         11 kapitler, 89 paragraffer: original lovtekst, typer, \
+                         | regler og formelle invarianter."
                     }
                     span { class: "research-card-meta", "Forfatningsret \u{00B7} Dansk" }
                 }
@@ -1807,9 +1807,8 @@ fn ResearchIndex() -> Element {
                     div { class: "research-card-rune rune-question", "?" }
                     h2 { class: "research-card-title", "Grundlovsrevision" }
                     p { class: "research-card-desc",
-                        "100+ formelle invarianter p\u{00E5} tv\u{00E6}rs af alle 11 kapitler. T\u{00E6}rskelsymmetrier, \
-                         grundlovsparadokser, delegeringssporing og de fire ukr\u{00E6}nkeligheder. \
-                         Alt opdaget af maskinen."
+                        "Auditlaget for den danske grundlovsmodel: tærskelsymmetrier, \
+                         grundlovsparadokser, delegeringssporing og de fire ukrænkeligheder."
                     }
                     span { class: "research-card-meta", "Formel verifikation \u{00B7} Dansk grundlov" }
                 }
@@ -1965,7 +1964,7 @@ fn ResearchDanishConstitution() -> Element {
 
     rsx! {
         document::Title { "Danmarks Riges Grundlov — Futuruna Research" }
-        document::Meta { name: "description", content: "The complete Danish Constitution of 1953 encoded in Futuruna: 89 paragraphs, 11 chapters, 100+ formal invariants, and cross-chapter verification proofs." }
+        document::Meta { name: "description", content: "The complete Danish Constitution of 1953 encoded in Futuruna: original source text, 89 paragraphs, 11 chapters, and | rule formulations for legal structure." }
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Grundlov" }
@@ -1980,11 +1979,18 @@ fn ResearchDanishConstitution() -> Element {
                     h1 { "Danmarks Riges Grundlov" }
                     p {
                         "Den danske grundlov af 5. juni 1953, kodet i Futuruna. \
-                         89 paragraffer fordelt p\u{00E5} 11 kapitler med beregnelige funktioner, \
-                         formelle invarianter og krydskontrol p\u{00E5} tv\u{00E6}rs af kapitler."
+                         89 paragraffer fordelt p\u{00E5} 11 kapitler, hvor den originale \
+                         lovtekst st\u{00E5}r i multiline source blocks og Futuruna-oversættelsen \
+                         f\u{00F8}lger direkte nedenunder som typer, konstanter og | regler."
+                    }
+                    p { class: "lang-note",
+                        "Kilde: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/1953/169", "Retsinformation, LOV nr. 169 af 05/06/1953" }
+                        " · "
+                        a { href: "https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov", "Folketingets tekstvisning" }
                     }
                     p { class: "const-stats",
-                        "12 filer \u{00B7} 11 kapitler + revision \u{00B7} 89 paragraffer \u{00B7} 100+ formelle invarianter"
+                        "12 filer \u{00B7} 11 kapitler + revision \u{00B7} 89 paragraffer \u{00B7} officiel kilde citeret"
                     }
                 }
                 div { dangerous_inner_html: body_html }
@@ -2004,8 +2010,14 @@ spændinger og paradokser, der først bliver synlige når man formaliserer regle
 præcist nok til at teste dem.
 
 **Grundlovsrevisionen** tager enhver regel, tærskel, delegering og garanti
-i den danske grundlov og udtrykker dem som beregnelige invarianter i
-Futuruna. Derefter *beviser* den dem. Ikke ved juridisk argumentation, men ved eksekvering.
+i den danske grundlov og udtrykker dem først som kildefaste Futuruna-regler.
+Auditlaget kan derefter bevise, sammenligne og finde huller i regelstrukturen.
+Ikke ved juridisk argumentation, men ved eksekvering.
+
+Kildeteksten er Danmarks Riges Grundlov, LOV nr. 169 af 05/06/1953, med
+Retsinformation som officiel tekstgrundlag og Folketingets tekstvisning som
+parlamentarisk spejl. I kapitel-filerne står den originale lovtekst i
+`----` blokke; Futuruna-oversættelsen står direkte nedenunder.
 
 ## Sådan virker det
 
@@ -2013,10 +2025,11 @@ Hver paragraf i grundloven kodes med Futurunas syv runer:
 
 - **`#` (typer)** definerer de forfatningsmæssige aktører: `Monark`, `Tronfølger`,
   `Rigsdel`, `Statsmagt`, `Samtykke`
-- **`>` (funktioner)** koder beregnelige regler: `har_valgret()`, `er_myndig()`,
-  `beslutning_gyldig()`, `grundlovsændring_godkendt()`
-- **`|` (invarianter)** angiver hvad der skal gælde:
-  `personlig_frihed_er_ukrænkelig()`, `censur_kan_aldrig_indføres()`
+- **`|` (regler)** koder de juridiske udsagn: pligter, forbud, beføjelser,
+  delegationer og tærskler som `har_valgret()`, `personlig_frihed_er_ukrænkelig()`
+  og `grundlovsændring_godkendt()`
+- **`>` (funktioner)** reserveres til egentlig beregning uden selvstændig
+  retsnorm; lovformuleringen skal som udgangspunkt være `|`
 - **`=` (bindinger)** fastsætter forfatningskonstanter: `frist_fremstilling_timer = 24`,
   `godkendelsestærskel_pct = 40`
 - **`?` (beviser)** verificerer at hver invariant holder
@@ -2093,7 +2106,7 @@ fn ResearchDanishConstitutionAudit() -> Element {
 
     rsx! {
         document::Title { "Grundlov Audit — Futuruna Research" }
-        document::Meta { name: "description", content: "100+ formal invariants across all 11 chapters of the Danish Constitution — threshold symmetries, constitutional paradoxes, and delegation tracking, all machine-verified." }
+        document::Meta { name: "description", content: "Formal audit layer for the Danish Constitution model in Futuruna: threshold symmetries, constitutional tensions, delegation tracking, and cross-chapter checks." }
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Revision" }
@@ -2106,9 +2119,9 @@ fn ResearchDanishConstitutionAudit() -> Element {
                     p { class: "lang-note", "This page is in Danish — the audit analyses the constitution in its original language." }
                     h1 { "Grundlovsrevision" }
                     p {
-                        "100+ formelle invarianter p\u{00E5} tv\u{00E6}rs af alle 11 kapitler i den danske grundlov. \
-                         T\u{00E6}rskelsymmetrier, grundlovsparadokser, delegeringssporing \
-                         og de fire ukr\u{00E6}nkeligheder. Alt maskinverificeret."
+                        "Auditlaget samler formelle invarianter p\u{00E5} tv\u{00E6}rs af alle 11 kapitler \
+                         i den danske grundlov: tærskelsymmetrier, grundlovsparadokser, \
+                         delegeringssporing og de fire ukrænkeligheder."
                     }
                 }
                 div { id: "article", class: "docs-rendered", dangerous_inner_html: article_html }
