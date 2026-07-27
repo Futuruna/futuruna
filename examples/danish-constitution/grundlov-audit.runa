@@ -377,6 +377,19 @@
 | par13_kongen_fri() -> kongen_er_ansvarsfri()
 | par13_ministre_ansvarlige() -> ministrene_er_ansvarlige_for_regeringsførelse()
 
+-- Kapitel III: restaurerede kildeklausuler fra §§ 17-23 og 27
+| par17_statsrådet_fører_forsæde_ved_par8() -> statsrådet_fører_forsædet_i_par8_tilfælde()
+| par17_statsrådet_kan_føre_regeringen_ved_par9_lov() -> statsrådet_kan_føre_regeringen_efter_par9_lov()
+| par18_ministerråd_votum_til_protokol() -> hver_minister_afgiver_votum_til_protokollen()
+| par18_ministerråd_protokol_forelægges() -> statsministeren_forelægger_ministerrådsprotokol_for_kongen()
+| par19_forsvar_danske_styrker() -> forsvar_mod_angreb_på_danske_styrker_tilladt()
+| par19_udenrigsnævn_forud() -> regeringen_rådfører_sig_med_udenrigsnævn_forud()
+| par19_større_rækkevidde_rådføring() -> rådføring_gælder_større_udenrigspolitisk_rækkevidde()
+| par22_kundgørelse() -> kongen_befaler_lovens_kundgørelse()
+| par22_fuldbyrdelse() -> kongen_drager_omsorg_for_lovens_fuldbyrdelse()
+| par23_forelæggelse_til_afgørelse() -> foreløbige_love_forelægges_til_godkendelse_eller_forkastelse()
+| par27_pensionsvalg() -> forflyttelse_uden_samtykke_kræver_valg_mellem_forflyttelse_og_pension()
+
 -- Tværgående: delegationer til lov
 | delegation_regentskab() -> regentskab_fastsættes_ved_lov(Umyndighed)
 | delegation_statsydelse() -> statsydelse_fastsættes_ved_lov()
@@ -653,6 +666,17 @@
 ? par6_ikke_tronfølger
 ? par13_kongen_fri
 ? par13_ministre_ansvarlige
+? par17_statsrådet_fører_forsæde_ved_par8
+? par17_statsrådet_kan_føre_regeringen_ved_par9_lov
+? par18_ministerråd_votum_til_protokol
+? par18_ministerråd_protokol_forelægges
+? par19_forsvar_danske_styrker
+? par19_udenrigsnævn_forud
+? par19_større_rækkevidde_rådføring
+? par22_kundgørelse
+? par22_fuldbyrdelse
+? par23_forelæggelse_til_afgørelse
+? par27_pensionsvalg
 ? ed_symmetri_tjenestemand_folketingsmedlem
 ? delegation_regentskab
 ? delegation_statsydelse
