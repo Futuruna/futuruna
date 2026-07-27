@@ -128,11 +128,13 @@ M2 - State tax computation skeleton
 
 M3 - Tax-year parameter packs
 
-- Status: not started.
+- Status: first slice implemented.
 - Output: sourceable annual tables for rates, thresholds, allowances, and
   municipality-specific inputs.
 - Done when: the same legal rules can run for at least two tax years by swapping
   parameter packs.
+- Current slice: 2024 and 2025 national parameters from Skattestyrelsen plus
+  Copenhagen and Gentofte municipal/church-tax inputs from Skatteministeriet.
 
 M4 - Ordinary taxpayer calculator
 

@@ -1,0 +1,111 @@
+@ sprog da
+
+-- Personskatteloven — skatteårsspecifikke parameterpakker.
+--
+-- Kilder:
+-- Skattestyrelsen, "Se alle skattesatser for i år og de forudgående år".
+-- https://skat.dk/hjaelp/satser
+--
+-- Skatteministeriet, "Oversigt over kommuneskatter".
+-- https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter
+
+----
+Skattestyrelsen, "Se alle skattesatser for i år og de forudgående år"
+Kategori: Skat
+År: 2024
+
+Aktieindkomst (progressionsgrænse): 61.000 kr.
+Aktieindkomst (skattesatser under/over progressionsgrænsen): 27/42 %
+Am-bidrag (arbejdsmarkedsbidrag): 8 %
+Bundfradrag i positiv nettokapitalindkomst i topskattegrundlaget: 50.500 kr.
+Bundskat: 12,01 %
+Personfradrag (fyldt 18 år): 49.700 kr.
+Personfradrag (under 18 år): 49.700 kr.
+Skatteloft (personlig indkomst): 52,07 %
+Skatteloft (positiv nettokapitalindkomst): 42 %
+Topskat (til og med 2025): 15 %
+Topskat (topskattegrænse til og med 2025 efter am-bidrag er fratrukket): 588.900 kr.
+----
+
+# NationalParametre(skatteår: Heltal, bundskat_basispoint: Heltal, topskat_basispoint: Heltal, topskattegrænse_efter_am_kroner: Heltal, am_bidrag_basispoint: Heltal, personfradrag_voksen_kroner: Heltal, personfradrag_under18_kroner: Heltal, aktieindkomst_progressionsgrænse_kroner: Heltal, aktieindkomst_lav_basispoint: Heltal, aktieindkomst_høj_basispoint: Heltal, positiv_nettokapital_topskat_bundfradrag_kroner: Heltal, skatteloft_personlig_basispoint: Heltal, skatteloft_positiv_nettokapital_basispoint: Heltal)
+
+| nationalparametre_for(skatteår: Heltal) -> NationalParametre(2024, 1201, 1500, 588900, 800, 49700, 49700, 61000, 2700, 4200, 50500, 5207, 4200) under skatteår == 2024
+
+----
+Skattestyrelsen, "Se alle skattesatser for i år og de forudgående år"
+Kategori: Skat
+År: 2025
+
+Aktieindkomst (progressionsgrænse): 67.500 kr.
+Aktieindkomst (skattesatser under/over progressionsgrænsen): 27/42 %
+Am-bidrag (arbejdsmarkedsbidrag): 8 %
+Bundfradrag i positiv nettokapitalindkomst i topskattegrundlaget: 52.400 kr.
+Bundskat: 12,01%
+Personfradrag (fyldt 18 år): 51.600 kr.
+Personfradrag (under 18 år): 51.600 kr.
+Skatteloft (personlig indkomst): 52,07%
+Skatteloft (positiv nettokapitalindkomst): 42%
+Topskat (til og med 2025): 15 %
+Topskat (topskattegrænse til og med 2025 efter am-bidrag er fratrukket): 611.800 kr.
+----
+
+| nationalparametre_for(skatteår: Heltal) -> NationalParametre(2025, 1201, 1500, 611800, 800, 51600, 51600, 67500, 2700, 4200, 52400, 5207, 4200) under skatteår == 2025
+
+----
+Skatteministeriet, "Oversigt over kommuneskatter"
+Tabel: Kommuneskatter
+År: 2024
+
+Kommunenavn | År | Kommuneskat | Kirkeskat | Sundhedsbidrag | Bundskat | I alt | Skatteloftsnedslag* | Grundskyldspromille (Kommune)
+København | 2024 | 23,60 | 0,80 | 0,00 | 12,01 | 36,41 | 0,00 | 5,10
+Gentofte | 2024 | 24,34 | 0,40 | 0,00 | 12,01 | 36,75 | 0,00 | 5,10
+----
+
+# Kommune = København | Gentofte
+# KommunaleParametre(skatteår: Heltal, kommune: Kommune, kommunekode: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, sundhedsbidrag_basispoint: Heltal, bundskat_basispoint: Heltal, skatteloftsnedslag_basispoint: Heltal, grundskyld_promille_tiendedele: Heltal)
+# SkatteårParameterpakke(nationale: NationalParametre, kommunale: KommunaleParametre)
+
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2024, København, 101, 2360, 80, 0, 1201, 0, 51) under skatteår == 2024 && kommune == København
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2024, Gentofte, 157, 2434, 40, 0, 1201, 0, 51) under skatteår == 2024 && kommune == Gentofte
+
+----
+Skatteministeriet, "Oversigt over kommuneskatter"
+Tabel: Kommuneskatter
+År: 2025
+
+Kommunenavn | År | Kommuneskat | Kirkeskat | Sundhedsbidrag | Bundskat | I alt | Skatteloftsnedslag* | Grundskyldspromille (Kommune)
+København | 2025 | 23,50 | 0,80 | 0,00 | 12,01 | 36,31 | 0,00 | 5,10
+Gentofte | 2025 | 24,24 | 0,39 | 0,00 | 12,01 | 36,64 | 0,00 | 5,10
+----
+
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2025, København, 101, 2350, 80, 0, 1201, 0, 51) under skatteår == 2025 && kommune == København
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2025, Gentofte, 157, 2424, 39, 0, 1201, 0, 51) under skatteår == 2025 && kommune == Gentofte
+
+| skatteår_understøttet(skatteår: Heltal) -> Falskt
+| exception skatteår_2024 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2024
+| exception skatteår_2025 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2025
+
+| kommune_understøttet(kommune: Kommune) -> Sandt
+| skatteår_parameterpakke_for(skatteår: Heltal, kommune: Kommune) -> SkatteårParameterpakke(nationalparametre_for(skatteår), kommunale_parametre_for(skatteår, kommune)) under skatteår_understøttet(skatteår) && kommune_understøttet(kommune)
+
+| samlet_indkomstskatteprocent_basispoint(kommunale: KommunaleParametre) -> kommunale.kommuneskat_basispoint + kommunale.kirkeskat_basispoint + kommunale.sundhedsbidrag_basispoint + kommunale.bundskat_basispoint - kommunale.skatteloftsnedslag_basispoint
+| parameterpakke_komplet(skatteår: Heltal, kommune: Kommune) -> skatteår_understøttet(skatteår) && kommune_understøttet(kommune)
+
+= m3_2024_national = nationalparametre_for(2024)
+= m3_2025_national = nationalparametre_for(2025)
+= m3_2024_københavn = kommunale_parametre_for(2024, København)
+= m3_2025_gentofte = kommunale_parametre_for(2025, Gentofte)
+= m3_2024_københavn_samlet = samlet_indkomstskatteprocent_basispoint(m3_2024_københavn)
+= m3_2025_gentofte_samlet = samlet_indkomstskatteprocent_basispoint(m3_2025_gentofte)
+= m3_2024_københavn_pakke = skatteår_parameterpakke_for(2024, København)
+= m3_2026_mangler = skatteår_understøttet(2026)
+
+| m3_2024_bundskat_fra_skat: m3_2024_national -> m3_2024_national.bundskat_basispoint == 1201
+| m3_2025_topskatgrænse_fra_skat: m3_2025_national -> m3_2025_national.topskattegrænse_efter_am_kroner == 611800
+| m3_2024_københavn_kommuneskat_fra_skm: m3_2024_københavn -> m3_2024_københavn.kommuneskat_basispoint == 2360
+| m3_2025_gentofte_kirkeskat_fra_skm: m3_2025_gentofte -> m3_2025_gentofte.kirkeskat_basispoint == 39
+| m3_2024_københavn_samlet_procent: m3_2024_københavn_samlet -> m3_2024_københavn_samlet == 3641
+| m3_2025_gentofte_samlet_procent: m3_2025_gentofte_samlet -> m3_2025_gentofte_samlet == 3664
+| m3_pakke_bærer_nationalt_år: m3_2024_københavn_pakke -> m3_2024_københavn_pakke.nationale.skatteår == 2024
+| m3_pakke_bærer_kommunekode: m3_2024_københavn_pakke -> m3_2024_københavn_pakke.kommunale.kommunekode == 101
+| m3_2026_ikke_endnu_i_pakken: m3_2026_mangler -> m3_2026_mangler == Falskt
