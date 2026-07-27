@@ -11793,79 +11793,18 @@ impl TypeInference {
     /// Resolve all type variables in a FIR expression tree.
     fn substitute_expr(&self, expr: &mut FirExpr) {
         expr.ty = self.resolve(&expr.ty);
-        match &mut expr.kind {
-            FirExprKind::App(func, args) => {
-                self.substitute_expr(func);
-                for a in args {
-                    self.substitute_expr(a);
-                }
-            }
-            FirExprKind::BinOp(_, lhs, rhs) => {
-                self.substitute_expr(lhs);
-                self.substitute_expr(rhs);
-            }
-            FirExprKind::UnOp(_, inner) | FirExprKind::Try(inner) => {
-                self.substitute_expr(inner);
-            }
-            FirExprKind::If(c, t, e) => {
-                self.substitute_expr(c);
-                self.substitute_expr(t);
-                self.substitute_expr(e);
-            }
-            FirExprKind::Lambda(_, body) => self.substitute_expr(body),
-            FirExprKind::Field(obj, _) => self.substitute_expr(obj),
-            FirExprKind::Index(base, idx) => {
-                self.substitute_expr(base);
-                self.substitute_expr(idx);
-            }
-            FirExprKind::List(elems)
-            | FirExprKind::Tuple(elems)
-            | FirExprKind::Conjunction(elems) => {
-                for e in elems {
-                    self.substitute_expr(e);
-                }
-            }
-            FirExprKind::Match(scrutinee, arms) => {
-                self.substitute_expr(scrutinee);
-                for arm in arms {
-                    self.substitute_expr(&mut arm.body);
-                    if let Some(g) = &mut arm.guard {
-                        self.substitute_expr(g);
-                    }
-                }
-            }
-            FirExprKind::Pipe(lhs, rhs) => {
-                self.substitute_expr(lhs);
-                self.substitute_expr(rhs);
-            }
-            FirExprKind::Block(stmts) => {
-                for s in stmts {
-                    match s {
-                        FirStmt::Expr(e)
-                        | FirStmt::Bind(_, _, e)
-                        | FirStmt::MonadicBind(_, _, e)
-                        | FirStmt::StreamBind(_, e) => self.substitute_expr(e),
-                        FirStmt::For(_, iter, _body) => {
-                            self.substitute_expr(iter);
-                            // body stmts would need recursive handling
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            FirExprKind::Effect(_, args) => {
-                for a in args {
-                    self.substitute_expr(a);
-                }
-            }
-            FirExprKind::Handle { body, handlers, .. } => {
-                self.substitute_expr(body);
-                for h in handlers {
-                    self.substitute_expr(&mut h.body);
-                }
-            }
-            _ => {} // Var, Lit, Unit — no children
-        }
+        visit_fir_expr_children_mut(expr, &mut |child| match child {
+            FirChildMut::Expr(expr) => self.substitute_expr(expr),
+            FirChildMut::Stmt(stmt) => self.substitute_stmt(stmt),
+        });
+    }
+
+    /// Resolve all type variables in a FIR statement tree.
+    fn substitute_stmt(&self, stmt: &mut FirStmt) {
+        visit_fir_stmt_children_mut(stmt, &mut |child| match child {
+            FirChildMut::Expr(expr) => self.substitute_expr(expr),
+            FirChildMut::Stmt(stmt) => self.substitute_stmt(stmt),
+        });
     }
 
     #[cfg(test)]
@@ -12099,6 +12038,321 @@ struct FirHandler {
 struct FirProgram {
     stmts: Vec<FirStmt>,
     types: TypeRegistry,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
+enum FirChild<'a> {
+    Expr(&'a FirExpr),
+    Stmt(&'a FirStmt),
+}
+
+enum FirChildMut<'a> {
+    Expr(&'a mut FirExpr),
+    Stmt(&'a mut FirStmt),
+}
+
+#[allow(dead_code)]
+fn visit_fir_defn_children<'a, F>(defn: &'a FirDefn, visit: &mut F)
+where
+    F: FnMut(FirChild<'a>),
+{
+    match defn {
+        FirDefn::Fn { body, .. } => visit(FirChild::Expr(body)),
+        FirDefn::Actor { handlers, .. } => {
+            for handler in handlers {
+                visit(FirChild::Expr(&handler.body));
+            }
+        }
+        FirDefn::Module { body, .. } => {
+            for stmt in body {
+                visit(FirChild::Stmt(stmt));
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+fn visit_fir_expr_children<'a, F>(expr: &'a FirExpr, visit: &mut F)
+where
+    F: FnMut(FirChild<'a>),
+{
+    match &expr.kind {
+        FirExprKind::App(func, args) => {
+            visit(FirChild::Expr(func));
+            for arg in args {
+                visit(FirChild::Expr(arg));
+            }
+        }
+        FirExprKind::Lambda(_, body) | FirExprKind::UnOp(_, body) | FirExprKind::Try(body) => {
+            visit(FirChild::Expr(body));
+        }
+        FirExprKind::BinOp(_, lhs, rhs)
+        | FirExprKind::Index(lhs, rhs)
+        | FirExprKind::Pipe(lhs, rhs) => {
+            visit(FirChild::Expr(lhs));
+            visit(FirChild::Expr(rhs));
+        }
+        FirExprKind::If(cond, then_, else_) => {
+            visit(FirChild::Expr(cond));
+            visit(FirChild::Expr(then_));
+            visit(FirChild::Expr(else_));
+        }
+        FirExprKind::Match(scrutinee, arms) => {
+            visit(FirChild::Expr(scrutinee));
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    visit(FirChild::Expr(guard));
+                }
+                visit(FirChild::Expr(&arm.body));
+            }
+        }
+        FirExprKind::Block(stmts) => {
+            for stmt in stmts {
+                visit(FirChild::Stmt(stmt));
+            }
+        }
+        FirExprKind::Field(base, _) => visit(FirChild::Expr(base)),
+        FirExprKind::List(items)
+        | FirExprKind::Tuple(items)
+        | FirExprKind::Conjunction(items)
+        | FirExprKind::Disjunction(items) => {
+            for item in items {
+                visit(FirChild::Expr(item));
+            }
+        }
+        FirExprKind::Effect(_, args) => {
+            for arg in args {
+                visit(FirChild::Expr(arg));
+            }
+        }
+        FirExprKind::Handle { handlers, body, .. } => {
+            visit(FirChild::Expr(body));
+            for handler in handlers {
+                visit(FirChild::Expr(&handler.body));
+            }
+        }
+        FirExprKind::Var(_, _) | FirExprKind::Lit(_) | FirExprKind::Unit => {}
+    }
+}
+
+#[allow(dead_code)]
+fn visit_fir_stmt_children<'a, F>(stmt: &'a FirStmt, visit: &mut F)
+where
+    F: FnMut(FirChild<'a>),
+{
+    match stmt {
+        FirStmt::Defn(defn) => visit_fir_defn_children(defn, visit),
+        FirStmt::Annot(_, args) | FirStmt::Assert(_, args) | FirStmt::Retract(_, args) => {
+            for arg in args {
+                visit(FirChild::Expr(arg));
+            }
+        }
+        FirStmt::Bind(_, _, expr)
+        | FirStmt::MonadicBind(_, _, expr)
+        | FirStmt::StreamBind(_, expr)
+        | FirStmt::Expr(expr) => visit(FirChild::Expr(expr)),
+        FirStmt::For(_, iter_expr, body) => {
+            visit(FirChild::Expr(iter_expr));
+            for stmt in body {
+                visit(FirChild::Stmt(stmt));
+            }
+        }
+        FirStmt::Send(target, msg) => {
+            visit(FirChild::Expr(target));
+            visit(FirChild::Expr(msg));
+        }
+        FirStmt::StreamSub(expr, arms) => {
+            visit(FirChild::Expr(expr));
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    visit(FirChild::Expr(guard));
+                }
+                visit(FirChild::Expr(&arm.body));
+            }
+        }
+        FirStmt::Invariant {
+            subject, predicate, ..
+        } => {
+            visit(FirChild::Expr(subject));
+            visit(FirChild::Expr(predicate));
+        }
+        FirStmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            if let Some(stmts) = pass_block {
+                for stmt in stmts {
+                    visit(FirChild::Stmt(stmt));
+                }
+            }
+            if let Some(stmts) = else_block {
+                for stmt in stmts {
+                    visit(FirChild::Stmt(stmt));
+                }
+            }
+        }
+        FirStmt::TypeDecl(_)
+        | FirStmt::Rule(_)
+        | FirStmt::Use(_)
+        | FirStmt::Import(_)
+        | FirStmt::QualifiedImport(_, _)
+        | FirStmt::HashImport(_, _)
+        | FirStmt::Depend(_, _)
+        | FirStmt::RustBlock(_)
+        | FirStmt::Abort => {}
+    }
+}
+
+fn visit_fir_defn_children_mut<F>(defn: &mut FirDefn, visit: &mut F)
+where
+    F: for<'a> FnMut(FirChildMut<'a>),
+{
+    match defn {
+        FirDefn::Fn { body, .. } => visit(FirChildMut::Expr(body)),
+        FirDefn::Actor { handlers, .. } => {
+            for handler in handlers {
+                visit(FirChildMut::Expr(&mut handler.body));
+            }
+        }
+        FirDefn::Module { body, .. } => {
+            for stmt in body {
+                visit(FirChildMut::Stmt(stmt));
+            }
+        }
+    }
+}
+
+fn visit_fir_expr_children_mut<F>(expr: &mut FirExpr, visit: &mut F)
+where
+    F: for<'a> FnMut(FirChildMut<'a>),
+{
+    match &mut expr.kind {
+        FirExprKind::App(func, args) => {
+            visit(FirChildMut::Expr(func));
+            for arg in args {
+                visit(FirChildMut::Expr(arg));
+            }
+        }
+        FirExprKind::Lambda(_, body) | FirExprKind::UnOp(_, body) | FirExprKind::Try(body) => {
+            visit(FirChildMut::Expr(body));
+        }
+        FirExprKind::BinOp(_, lhs, rhs)
+        | FirExprKind::Index(lhs, rhs)
+        | FirExprKind::Pipe(lhs, rhs) => {
+            visit(FirChildMut::Expr(lhs));
+            visit(FirChildMut::Expr(rhs));
+        }
+        FirExprKind::If(cond, then_, else_) => {
+            visit(FirChildMut::Expr(cond));
+            visit(FirChildMut::Expr(then_));
+            visit(FirChildMut::Expr(else_));
+        }
+        FirExprKind::Match(scrutinee, arms) => {
+            visit(FirChildMut::Expr(scrutinee));
+            for arm in arms {
+                if let Some(guard) = &mut arm.guard {
+                    visit(FirChildMut::Expr(guard));
+                }
+                visit(FirChildMut::Expr(&mut arm.body));
+            }
+        }
+        FirExprKind::Block(stmts) => {
+            for stmt in stmts {
+                visit(FirChildMut::Stmt(stmt));
+            }
+        }
+        FirExprKind::Field(base, _) => visit(FirChildMut::Expr(base)),
+        FirExprKind::List(items)
+        | FirExprKind::Tuple(items)
+        | FirExprKind::Conjunction(items)
+        | FirExprKind::Disjunction(items) => {
+            for item in items {
+                visit(FirChildMut::Expr(item));
+            }
+        }
+        FirExprKind::Effect(_, args) => {
+            for arg in args {
+                visit(FirChildMut::Expr(arg));
+            }
+        }
+        FirExprKind::Handle { handlers, body, .. } => {
+            visit(FirChildMut::Expr(body));
+            for handler in handlers {
+                visit(FirChildMut::Expr(&mut handler.body));
+            }
+        }
+        FirExprKind::Var(_, _) | FirExprKind::Lit(_) | FirExprKind::Unit => {}
+    }
+}
+
+fn visit_fir_stmt_children_mut<F>(stmt: &mut FirStmt, visit: &mut F)
+where
+    F: for<'a> FnMut(FirChildMut<'a>),
+{
+    match stmt {
+        FirStmt::Defn(defn) => visit_fir_defn_children_mut(defn, visit),
+        FirStmt::Annot(_, args) | FirStmt::Assert(_, args) | FirStmt::Retract(_, args) => {
+            for arg in args {
+                visit(FirChildMut::Expr(arg));
+            }
+        }
+        FirStmt::Bind(_, _, expr)
+        | FirStmt::MonadicBind(_, _, expr)
+        | FirStmt::StreamBind(_, expr)
+        | FirStmt::Expr(expr) => visit(FirChildMut::Expr(expr)),
+        FirStmt::For(_, iter_expr, body) => {
+            visit(FirChildMut::Expr(iter_expr));
+            for stmt in body {
+                visit(FirChildMut::Stmt(stmt));
+            }
+        }
+        FirStmt::Send(target, msg) => {
+            visit(FirChildMut::Expr(target));
+            visit(FirChildMut::Expr(msg));
+        }
+        FirStmt::StreamSub(expr, arms) => {
+            visit(FirChildMut::Expr(expr));
+            for arm in arms {
+                if let Some(guard) = &mut arm.guard {
+                    visit(FirChildMut::Expr(guard));
+                }
+                visit(FirChildMut::Expr(&mut arm.body));
+            }
+        }
+        FirStmt::Invariant {
+            subject, predicate, ..
+        } => {
+            visit(FirChildMut::Expr(subject));
+            visit(FirChildMut::Expr(predicate));
+        }
+        FirStmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            if let Some(stmts) = pass_block {
+                for stmt in stmts {
+                    visit(FirChildMut::Stmt(stmt));
+                }
+            }
+            if let Some(stmts) = else_block {
+                for stmt in stmts {
+                    visit(FirChildMut::Stmt(stmt));
+                }
+            }
+        }
+        FirStmt::TypeDecl(_)
+        | FirStmt::Rule(_)
+        | FirStmt::Use(_)
+        | FirStmt::Import(_)
+        | FirStmt::QualifiedImport(_, _)
+        | FirStmt::HashImport(_, _)
+        | FirStmt::Depend(_, _)
+        | FirStmt::RustBlock(_)
+        | FirStmt::Abort => {}
+    }
 }
 
 // ============================================================================
@@ -35979,14 +36233,6 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         }
     }
 
-    fn fir_valid_expr() -> FirExpr {
-        FirExpr {
-            kind: FirExprKind::Lit(Literal::Int(1)),
-            span: Span::dummy(),
-            ty: FirTy::Int,
-        }
-    }
-
     fn fir_invalid_expr(marker: &str) -> FirExpr {
         FirExpr {
             kind: FirExprKind::Var(marker.to_string(), VarMode::Move),
@@ -36020,7 +36266,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                         body: fir_invalid_expr("actor_body"),
                     }],
                 }),
-                coverage: ignored,
+                coverage: visits,
             },
             FirPassCoverageCase {
                 label: "FirStmt::Defn::Module",
@@ -36028,7 +36274,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     name: "ModuleVisit".to_string(),
                     body: vec![FirStmt::Expr(fir_invalid_expr("module_body"))],
                 }),
-                coverage: ignored,
+                coverage: visits,
             },
             FirPassCoverageCase {
                 label: "FirStmt::TypeDecl",
@@ -36106,13 +36352,16 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 stmt: FirStmt::For(
                     "item".to_string(),
                     fir_invalid_expr("for_iter"),
-                    vec![FirStmt::Expr(fir_valid_expr())],
+                    vec![FirStmt::Expr(fir_invalid_expr("for_body"))],
                 ),
                 coverage: visits,
             },
             FirPassCoverageCase {
                 label: "FirStmt::Send",
-                stmt: FirStmt::Send(fir_invalid_expr("send_target"), fir_valid_expr()),
+                stmt: FirStmt::Send(
+                    fir_invalid_expr("send_target"),
+                    fir_invalid_expr("send_msg"),
+                ),
                 coverage: visits,
             },
             FirPassCoverageCase {
@@ -36129,8 +36378,8 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     fir_invalid_expr("stream_sub_expr"),
                     vec![FirMatchArm {
                         pat: Pat::Wild,
-                        guard: None,
-                        body: fir_valid_expr(),
+                        guard: Some(fir_invalid_expr("stream_sub_guard")),
+                        body: fir_invalid_expr("stream_sub_body"),
                     }],
                 ),
                 coverage: visits,
@@ -36140,7 +36389,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 stmt: FirStmt::Invariant {
                     name: "invariant_visit".to_string(),
                     subject: fir_invalid_expr("invariant_subject"),
-                    predicate: fir_valid_expr(),
+                    predicate: fir_invalid_expr("invariant_predicate"),
                 },
                 coverage: visits,
             },
@@ -36151,7 +36400,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     proof_block: None,
                     capture: None,
                     pass_block: Some(vec![FirStmt::Expr(fir_invalid_expr("prove_pass"))]),
-                    else_block: None,
+                    else_block: Some(vec![FirStmt::Expr(fir_invalid_expr("prove_else"))]),
                 },
                 coverage: visits,
             },
@@ -36176,6 +36425,61 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 coverage: visits,
             },
         ]
+    }
+
+    fn collect_fir_visitor_vars_from_expr(expr: &FirExpr, vars: &mut BTreeSet<String>) {
+        if let FirExprKind::Var(name, _) = &expr.kind {
+            vars.insert(name.clone());
+        }
+        visit_fir_expr_children(expr, &mut |child| match child {
+            FirChild::Expr(expr) => collect_fir_visitor_vars_from_expr(expr, vars),
+            FirChild::Stmt(stmt) => collect_fir_visitor_vars_from_stmt(stmt, vars),
+        });
+    }
+
+    fn collect_fir_visitor_vars_from_stmt(stmt: &FirStmt, vars: &mut BTreeSet<String>) {
+        visit_fir_stmt_children(stmt, &mut |child| match child {
+            FirChild::Expr(expr) => collect_fir_visitor_vars_from_expr(expr, vars),
+            FirChild::Stmt(stmt) => collect_fir_visitor_vars_from_stmt(stmt, vars),
+        });
+    }
+
+    #[test]
+    fn canonical_fir_child_visitor_reaches_phase_coverage_markers() {
+        let rows = fir_phase_coverage_cases();
+        let expected: &[(&str, &[&str])] = &[
+            ("FirStmt::Defn::Actor", &["actor_body"]),
+            ("FirStmt::Defn::Module", &["module_body"]),
+            ("FirStmt::For", &["for_iter", "for_body"]),
+            ("FirStmt::Send", &["send_target", "send_msg"]),
+            (
+                "FirStmt::StreamSub",
+                &["stream_sub_expr", "stream_sub_guard", "stream_sub_body"],
+            ),
+            (
+                "FirStmt::Invariant",
+                &["invariant_subject", "invariant_predicate"],
+            ),
+            ("FirStmt::Prove", &["prove_pass", "prove_else"]),
+        ];
+
+        for (label, markers) in expected {
+            let row = rows
+                .iter()
+                .find(|row| row.label == *label)
+                .unwrap_or_else(|| panic!("missing FIR coverage row {label}"));
+            let mut vars = BTreeSet::new();
+            collect_fir_visitor_vars_from_stmt(&row.stmt, &mut vars);
+            for marker in *markers {
+                assert!(
+                    vars.contains(*marker),
+                    "canonical FIR visitor missed `{}` in {}; visited {:?}",
+                    marker,
+                    label,
+                    vars
+                );
+            }
+        }
     }
 
     #[test]
@@ -37057,123 +37361,38 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     assert_fir_expr_phase_validated(arg, false);
                 }
             }
-            FirExprKind::Lambda(_, body) | FirExprKind::UnOp(_, body) | FirExprKind::Try(body) => {
-                assert_fir_expr_phase_validated(body, false)
+            FirExprKind::Lambda(_, _)
+            | FirExprKind::BinOp(_, _, _)
+            | FirExprKind::UnOp(_, _)
+            | FirExprKind::If(_, _, _)
+            | FirExprKind::Match(_, _)
+            | FirExprKind::Block(_)
+            | FirExprKind::Field(_, _)
+            | FirExprKind::Index(_, _)
+            | FirExprKind::List(_)
+            | FirExprKind::Tuple(_)
+            | FirExprKind::Effect(_, _)
+            | FirExprKind::Handle { .. }
+            | FirExprKind::Try(_)
+            | FirExprKind::Conjunction(_)
+            | FirExprKind::Disjunction(_)
+            | FirExprKind::Pipe(_, _)
+            | FirExprKind::Var(_, _)
+            | FirExprKind::Lit(_)
+            | FirExprKind::Unit => {
+                visit_fir_expr_children(expr, &mut |child| match child {
+                    FirChild::Expr(expr) => assert_fir_expr_phase_validated(expr, false),
+                    FirChild::Stmt(stmt) => assert_fir_stmt_phase_validated(stmt),
+                });
             }
-            FirExprKind::BinOp(_, lhs, rhs)
-            | FirExprKind::Index(lhs, rhs)
-            | FirExprKind::Pipe(lhs, rhs) => {
-                assert_fir_expr_phase_validated(lhs, false);
-                assert_fir_expr_phase_validated(rhs, false);
-            }
-            FirExprKind::If(cond, then_, else_) => {
-                assert_fir_expr_phase_validated(cond, false);
-                assert_fir_expr_phase_validated(then_, false);
-                assert_fir_expr_phase_validated(else_, false);
-            }
-            FirExprKind::Match(scrutinee, arms) => {
-                assert_fir_expr_phase_validated(scrutinee, false);
-                for arm in arms {
-                    if let Some(guard) = &arm.guard {
-                        assert_fir_expr_phase_validated(guard, false);
-                    }
-                    assert_fir_expr_phase_validated(&arm.body, false);
-                }
-            }
-            FirExprKind::Block(stmts) => {
-                for stmt in stmts {
-                    assert_fir_stmt_phase_validated(stmt);
-                }
-            }
-            FirExprKind::Field(base, _) => assert_fir_expr_phase_validated(base, false),
-            FirExprKind::List(elems)
-            | FirExprKind::Tuple(elems)
-            | FirExprKind::Conjunction(elems)
-            | FirExprKind::Disjunction(elems) => {
-                for elem in elems {
-                    assert_fir_expr_phase_validated(elem, false);
-                }
-            }
-            FirExprKind::Effect(_, args) => {
-                for arg in args {
-                    assert_fir_expr_phase_validated(arg, false);
-                }
-            }
-            FirExprKind::Handle { handlers, body, .. } => {
-                assert_fir_expr_phase_validated(body, false);
-                for handler in handlers {
-                    assert_fir_expr_phase_validated(&handler.body, false);
-                }
-            }
-            FirExprKind::Var(_, _) | FirExprKind::Lit(_) | FirExprKind::Unit => {}
         }
     }
 
     fn assert_fir_stmt_phase_validated(stmt: &FirStmt) {
-        match stmt {
-            FirStmt::Defn(FirDefn::Fn { body, .. }) => assert_fir_expr_phase_validated(body, false),
-            FirStmt::Bind(_, _, expr)
-            | FirStmt::MonadicBind(_, _, expr)
-            | FirStmt::StreamBind(_, expr)
-            | FirStmt::Expr(expr) => assert_fir_expr_phase_validated(expr, false),
-            FirStmt::Annot(_, args) | FirStmt::Assert(_, args) | FirStmt::Retract(_, args) => {
-                for arg in args {
-                    assert_fir_expr_phase_validated(arg, false);
-                }
-            }
-            FirStmt::For(_, iter, body) => {
-                assert_fir_expr_phase_validated(iter, false);
-                for stmt in body {
-                    assert_fir_stmt_phase_validated(stmt);
-                }
-            }
-            FirStmt::Send(target, msg) => {
-                assert_fir_expr_phase_validated(target, false);
-                assert_fir_expr_phase_validated(msg, false);
-            }
-            FirStmt::StreamSub(expr, arms) => {
-                assert_fir_expr_phase_validated(expr, false);
-                for arm in arms {
-                    if let Some(guard) = &arm.guard {
-                        assert_fir_expr_phase_validated(guard, false);
-                    }
-                    assert_fir_expr_phase_validated(&arm.body, false);
-                }
-            }
-            FirStmt::Invariant {
-                subject, predicate, ..
-            } => {
-                assert_fir_expr_phase_validated(subject, false);
-                assert_fir_expr_phase_validated(predicate, false);
-            }
-            FirStmt::Prove {
-                pass_block,
-                else_block,
-                ..
-            } => {
-                if let Some(stmts) = pass_block {
-                    for stmt in stmts {
-                        assert_fir_stmt_phase_validated(stmt);
-                    }
-                }
-                if let Some(stmts) = else_block {
-                    for stmt in stmts {
-                        assert_fir_stmt_phase_validated(stmt);
-                    }
-                }
-            }
-            FirStmt::Defn(FirDefn::Actor { .. })
-            | FirStmt::Defn(FirDefn::Module { .. })
-            | FirStmt::TypeDecl(_)
-            | FirStmt::Rule(_)
-            | FirStmt::Use(_)
-            | FirStmt::Import(_)
-            | FirStmt::QualifiedImport(_, _)
-            | FirStmt::HashImport(_, _)
-            | FirStmt::Depend(_, _)
-            | FirStmt::RustBlock(_)
-            | FirStmt::Abort => {}
-        }
+        visit_fir_stmt_children(stmt, &mut |child| match child {
+            FirChild::Expr(expr) => assert_fir_expr_phase_validated(expr, false),
+            FirChild::Stmt(stmt) => assert_fir_stmt_phase_validated(stmt),
+        });
     }
 
     const FIR_PHASE_SAMPLE_SOURCE: &str = r#"
@@ -41914,6 +42133,70 @@ routes <- "b"
         };
         inf.substitute_expr(&mut expr);
         assert_eq!(expr.ty, FirTy::Int);
+    }
+
+    #[test]
+    fn substitute_resolves_vars_in_block_for_body() {
+        let mut inf = TypeInference::new();
+        let iter_ty = inf.fresh();
+        let body_ty = inf.fresh();
+        inf.unify(&iter_ty, &FirTy::List(Box::new(FirTy::String)))
+            .unwrap();
+        inf.unify(&body_ty, &FirTy::String).unwrap();
+
+        let mut expr = FirExpr {
+            kind: FirExprKind::Block(vec![FirStmt::For(
+                "item".to_string(),
+                FirExpr {
+                    kind: FirExprKind::Var("items".to_string(), VarMode::Move),
+                    span: Span::dummy(),
+                    ty: iter_ty,
+                },
+                vec![FirStmt::Expr(FirExpr {
+                    kind: FirExprKind::Var("item".to_string(), VarMode::Move),
+                    span: Span::dummy(),
+                    ty: body_ty,
+                })],
+            )]),
+            span: Span::dummy(),
+            ty: FirTy::Unit,
+        };
+
+        inf.substitute_expr(&mut expr);
+        let FirExprKind::Block(stmts) = &expr.kind else {
+            panic!("expected FIR block");
+        };
+        let FirStmt::For(_, iter, body) = &stmts[0] else {
+            panic!("expected FIR for stmt");
+        };
+        assert_eq!(iter.ty, FirTy::List(Box::new(FirTy::String)));
+        let FirStmt::Expr(body_expr) = &body[0] else {
+            panic!("expected FIR for body expr");
+        };
+        assert_eq!(body_expr.ty, FirTy::String);
+    }
+
+    #[test]
+    fn substitute_resolves_vars_in_disjunction_children() {
+        let mut inf = TypeInference::new();
+        let disjunction_ty = inf.fresh();
+        inf.unify(&disjunction_ty, &FirTy::Bool).unwrap();
+
+        let mut expr = FirExpr {
+            kind: FirExprKind::Disjunction(vec![FirExpr {
+                kind: FirExprKind::Var("right_branch".to_string(), VarMode::Move),
+                span: Span::dummy(),
+                ty: disjunction_ty,
+            }]),
+            span: Span::dummy(),
+            ty: FirTy::Bool,
+        };
+
+        inf.substitute_expr(&mut expr);
+        let FirExprKind::Disjunction(branches) = &expr.kind else {
+            panic!("expected FIR disjunction");
+        };
+        assert_eq!(branches[0].ty, FirTy::Bool);
     }
 
     // ── Type inference tests ──────────────────────────────────────
