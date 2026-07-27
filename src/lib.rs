@@ -13712,6 +13712,525 @@ mod tests {
         );
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum TypecheckerPassCoverage {
+        VisitsExpressions,
+        IntentionallyIgnored,
+    }
+
+    #[derive(Debug)]
+    struct TypecheckerPassCoverageCase {
+        label: &'static str,
+        stmt: Stmt,
+        coverage: TypecheckerPassCoverage,
+        diagnostic_markers: Vec<&'static str>,
+    }
+
+    fn typechecker_missing_expr(name: &str) -> Expr {
+        ExprKind::Var(name.to_string()).into()
+    }
+
+    fn typechecker_missing_call(name: &str) -> Expr {
+        ExprKind::App(Box::new(ExprKind::Var(name.to_string()).into()), vec![]).into()
+    }
+
+    fn typechecker_expr_stmt(name: &str) -> Stmt {
+        Stmt::Expr(typechecker_missing_expr(name))
+    }
+
+    fn typechecker_param(name: &str) -> Param {
+        Param {
+            name: name.to_string(),
+            ty: None,
+            inout: false,
+        }
+    }
+
+    fn typechecker_stmt_variant_label(stmt: &Stmt) -> &'static str {
+        match stmt {
+            Stmt::Defn(_) => "Defn",
+            Stmt::TypeDecl(_) => "TypeDecl",
+            Stmt::Rule(_) => "Rule",
+            Stmt::Use(_) => "Use",
+            Stmt::Import(_) => "Import",
+            Stmt::QualifiedImport(_, _) => "QualifiedImport",
+            Stmt::HashImport(_, _) => "HashImport",
+            Stmt::Depend(_, _) => "Depend",
+            Stmt::RustBlock(_) => "RustBlock",
+            Stmt::Annot(_, _) => "Annot",
+            Stmt::Bind(_, _, _) => "Bind",
+            Stmt::MonadicBind(_, _, _) => "MonadicBind",
+            Stmt::For(_, _, _) => "For",
+            Stmt::While(_, _) => "While",
+            Stmt::Send(_, _) => "Send",
+            Stmt::StreamBind(_, _) => "StreamBind",
+            Stmt::StreamSub(_, _) => "StreamSub",
+            Stmt::Invariant { .. } => "Invariant",
+            Stmt::Prove { .. } => "Prove",
+            Stmt::Assert(_, _) => "Assert",
+            Stmt::Retract(_, _) => "Retract",
+            Stmt::Abort => "Abort",
+            Stmt::Expr(_) => "Expr",
+        }
+    }
+
+    fn typechecker_type_decl_variant_label(decl: &TypeDecl) -> &'static str {
+        match decl {
+            TypeDecl::ADT { .. } => "ADT",
+            TypeDecl::WhenType { .. } => "WhenType",
+            TypeDecl::EffectDecl { .. } => "EffectDecl",
+            TypeDecl::TraitDecl { .. } => "TraitDecl",
+            TypeDecl::ImplBlock { .. } => "ImplBlock",
+        }
+    }
+
+    fn typechecker_type_decl_coverage(decl: &TypeDecl) -> TypecheckerPassCoverage {
+        match decl {
+            TypeDecl::ADT { .. }
+            | TypeDecl::WhenType { .. }
+            | TypeDecl::TraitDecl { .. }
+            | TypeDecl::ImplBlock { .. } => TypecheckerPassCoverage::VisitsExpressions,
+            TypeDecl::EffectDecl { .. } => TypecheckerPassCoverage::IntentionallyIgnored,
+        }
+    }
+
+    fn typechecker_stmt_coverage(stmt: &Stmt) -> TypecheckerPassCoverage {
+        match stmt {
+            Stmt::Defn(_)
+            | Stmt::Rule(_)
+            | Stmt::Bind(_, _, _)
+            | Stmt::MonadicBind(_, _, _)
+            | Stmt::For(_, _, _)
+            | Stmt::While(_, _)
+            | Stmt::Send(_, _)
+            | Stmt::StreamBind(_, _)
+            | Stmt::StreamSub(_, _)
+            | Stmt::Invariant { .. }
+            | Stmt::Prove { .. }
+            | Stmt::Assert(_, _)
+            | Stmt::Retract(_, _)
+            | Stmt::Expr(_) => TypecheckerPassCoverage::VisitsExpressions,
+            Stmt::TypeDecl(decl) => typechecker_type_decl_coverage(decl),
+            Stmt::Annot(name, _) if name == "store" || name == "migrate" => {
+                TypecheckerPassCoverage::IntentionallyIgnored
+            }
+            Stmt::Annot(_, _) => TypecheckerPassCoverage::VisitsExpressions,
+            Stmt::Use(_)
+            | Stmt::Import(_)
+            | Stmt::QualifiedImport(_, _)
+            | Stmt::HashImport(_, _)
+            | Stmt::Depend(_, _)
+            | Stmt::RustBlock(_)
+            | Stmt::Abort => TypecheckerPassCoverage::IntentionallyIgnored,
+        }
+    }
+
+    fn typechecker_pass_coverage_cases() -> Vec<TypecheckerPassCoverageCase> {
+        let visits = TypecheckerPassCoverage::VisitsExpressions;
+        let ignored = TypecheckerPassCoverage::IntentionallyIgnored;
+        vec![
+            TypecheckerPassCoverageCase {
+                label: "Defn::Fn",
+                stmt: Stmt::Defn(Defn::Fn {
+                    name: "fn_visit".to_string(),
+                    params: vec![],
+                    ret_ty: None,
+                    effects: vec![],
+                    body: typechecker_missing_expr("missing_fn_body"),
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_fn_body"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Defn::Actor",
+                stmt: Stmt::Defn(Defn::Actor {
+                    name: "ActorVisit".to_string(),
+                    state_param: typechecker_param("state"),
+                    handlers: vec![Handler {
+                        msg_pat: Pat::Wild,
+                        body: typechecker_missing_expr("missing_actor_body"),
+                    }],
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_actor_body"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Defn::Module",
+                stmt: Stmt::Defn(Defn::Module {
+                    name: "ModuleVisit".to_string(),
+                    body: vec![typechecker_expr_stmt("missing_module_body")],
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_module_body"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "TypeDecl::ADT",
+                stmt: Stmt::TypeDecl(TypeDecl::ADT {
+                    name: "MethodCarrier".to_string(),
+                    params: vec![],
+                    variants: vec![],
+                    methods: vec![Defn::Fn {
+                        name: "method_visit".to_string(),
+                        params: vec![],
+                        ret_ty: None,
+                        effects: vec![],
+                        body: typechecker_missing_expr("missing_adt_method_body"),
+                    }],
+                    except_from: None,
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_adt_method_body"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "TypeDecl::WhenType",
+                stmt: Stmt::TypeDecl(TypeDecl::WhenType {
+                    name: "WhenCarrier".to_string(),
+                    condition: typechecker_missing_expr("missing_when_condition"),
+                    variants: vec![],
+                    except_from: None,
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_when_condition"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "TypeDecl::EffectDecl",
+                stmt: Stmt::TypeDecl(TypeDecl::EffectDecl {
+                    name: "EffectVisit".to_string(),
+                    ops: vec![("op".to_string(), vec![], None)],
+                }),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "TypeDecl::TraitDecl",
+                stmt: Stmt::TypeDecl(TypeDecl::TraitDecl {
+                    name: "TraitVisit".to_string(),
+                    params: vec![],
+                    methods: vec![TraitMethod {
+                        name: "default_visit".to_string(),
+                        params: vec![],
+                        ret_ty: None,
+                        default_body: Some(typechecker_missing_expr("missing_trait_default_body")),
+                    }],
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_trait_default_body"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "TypeDecl::ImplBlock",
+                stmt: Stmt::TypeDecl(TypeDecl::ImplBlock {
+                    trait_name: "TraitVisit".to_string(),
+                    for_type: "MethodCarrier".to_string(),
+                    methods: vec![Defn::Fn {
+                        name: "impl_visit".to_string(),
+                        params: vec![],
+                        ret_ty: None,
+                        effects: vec![],
+                        body: typechecker_missing_expr("missing_impl_body"),
+                    }],
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_impl_body"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Rule::Clause",
+                stmt: Stmt::Rule(Rule::Clause {
+                    head: typechecker_missing_call("missing_rule_head"),
+                    body: Some(typechecker_missing_expr("missing_rule_body")),
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_rule_head", "missing_rule_body"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Rule::Default",
+                stmt: Stmt::Rule(Rule::Default {
+                    head: typechecker_missing_call("missing_default_head"),
+                    value: typechecker_missing_expr("missing_default_value"),
+                    condition: Some(typechecker_missing_expr("missing_default_condition")),
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_default_value", "missing_default_condition"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Rule::Exception",
+                stmt: Stmt::Rule(Rule::Exception {
+                    label: "exception_visit".to_string(),
+                    head: typechecker_missing_call("missing_exception_head"),
+                    value: typechecker_missing_expr("missing_exception_value"),
+                    condition: Some(typechecker_missing_expr("missing_exception_condition")),
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_exception_value", "missing_exception_condition"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Rule::Scope",
+                stmt: Stmt::Rule(Rule::Scope {
+                    name: "ScopeVisit".to_string(),
+                    body: vec![typechecker_expr_stmt("missing_scope_body")],
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_scope_body"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Use",
+                stmt: Stmt::Use("std::fmt".to_string()),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Import",
+                stmt: Stmt::Import("./dep".to_string()),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "QualifiedImport",
+                stmt: Stmt::QualifiedImport("Dep".to_string(), "./dep".to_string()),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "HashImport",
+                stmt: Stmt::HashImport("abc123".to_string(), "./dep".to_string()),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Depend",
+                stmt: Stmt::Depend("serde".to_string(), "1".to_string()),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "RustBlock",
+                stmt: Stmt::RustBlock("fn imported_rust() {}".to_string()),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Annot::metadata",
+                stmt: Stmt::Annot(
+                    "audit".to_string(),
+                    vec![typechecker_missing_expr("missing_annot_arg")],
+                ),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_annot_arg"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Annot::store",
+                stmt: Stmt::Annot(
+                    "store".to_string(),
+                    vec![typechecker_missing_expr("missing_store_arg")],
+                ),
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Bind",
+                stmt: Stmt::Bind(
+                    Pat::Var("bound".to_string()),
+                    None,
+                    typechecker_missing_expr("missing_bind_rhs"),
+                ),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_bind_rhs"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "MonadicBind",
+                stmt: Stmt::MonadicBind(
+                    Pat::Var("monadic".to_string()),
+                    None,
+                    typechecker_missing_expr("missing_monadic_rhs"),
+                ),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_monadic_rhs"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "For",
+                stmt: Stmt::For(
+                    "item".to_string(),
+                    typechecker_missing_expr("missing_for_iter"),
+                    vec![typechecker_expr_stmt("missing_for_body")],
+                ),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_for_iter", "missing_for_body"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "While",
+                stmt: Stmt::While(
+                    typechecker_missing_expr("missing_while_cond"),
+                    vec![typechecker_expr_stmt("missing_while_body")],
+                ),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_while_cond", "missing_while_body"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Send",
+                stmt: Stmt::Send(
+                    typechecker_missing_expr("missing_send_target"),
+                    typechecker_missing_expr("missing_send_msg"),
+                ),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_send_target", "missing_send_msg"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "StreamBind",
+                stmt: Stmt::StreamBind(
+                    "stream_visit".to_string(),
+                    typechecker_missing_expr("missing_stream_rhs"),
+                ),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_stream_rhs"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "StreamSub",
+                stmt: Stmt::StreamSub(
+                    typechecker_missing_expr("missing_stream_sub_expr"),
+                    vec![MatchArm {
+                        pat: Pat::Wild,
+                        guard: Some(typechecker_missing_expr("missing_stream_sub_guard")),
+                        body: typechecker_missing_expr("missing_stream_sub_body"),
+                    }],
+                ),
+                coverage: visits,
+                diagnostic_markers: vec![
+                    "missing_stream_sub_expr",
+                    "missing_stream_sub_guard",
+                    "missing_stream_sub_body",
+                ],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Invariant",
+                stmt: Stmt::Invariant {
+                    name: "invariant_visit".to_string(),
+                    subject: typechecker_missing_call("missing_invariant_subject"),
+                    predicate: typechecker_missing_expr("missing_invariant_predicate"),
+                },
+                coverage: visits,
+                diagnostic_markers: vec![
+                    "missing_invariant_subject",
+                    "missing_invariant_predicate",
+                ],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Prove",
+                stmt: Stmt::Prove {
+                    name: "prove_visit".to_string(),
+                    proof_block: None,
+                    capture: None,
+                    pass_block: Some(vec![typechecker_expr_stmt("missing_prove_pass")]),
+                    else_block: Some(vec![typechecker_expr_stmt("missing_prove_else")]),
+                },
+                coverage: visits,
+                diagnostic_markers: vec!["missing_prove_pass", "missing_prove_else"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Assert",
+                stmt: Stmt::Assert(
+                    "Fact".to_string(),
+                    vec![typechecker_missing_expr("missing_assert_arg")],
+                ),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_assert_arg"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Retract",
+                stmt: Stmt::Retract(
+                    "Fact".to_string(),
+                    vec![typechecker_missing_expr("missing_retract_arg")],
+                ),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_retract_arg"],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Abort",
+                stmt: Stmt::Abort,
+                coverage: ignored,
+                diagnostic_markers: vec![],
+            },
+            TypecheckerPassCoverageCase {
+                label: "Expr",
+                stmt: typechecker_expr_stmt("missing_expr_stmt"),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_expr_stmt"],
+            },
+        ]
+    }
+
+    #[test]
+    fn typechecker_pass_coverage_matrix_classifies_stmt_and_type_decl_variants() {
+        let rows = typechecker_pass_coverage_cases();
+        let expected_stmt_variants: BTreeSet<_> = [
+            "Defn",
+            "TypeDecl",
+            "Rule",
+            "Use",
+            "Import",
+            "QualifiedImport",
+            "HashImport",
+            "Depend",
+            "RustBlock",
+            "Annot",
+            "Bind",
+            "MonadicBind",
+            "For",
+            "While",
+            "Send",
+            "StreamBind",
+            "StreamSub",
+            "Invariant",
+            "Prove",
+            "Assert",
+            "Retract",
+            "Abort",
+            "Expr",
+        ]
+        .into_iter()
+        .collect();
+        let observed_stmt_variants: BTreeSet<_> = rows
+            .iter()
+            .map(|row| typechecker_stmt_variant_label(&row.stmt))
+            .collect();
+        assert_eq!(observed_stmt_variants, expected_stmt_variants);
+
+        let expected_type_decl_variants: BTreeSet<_> =
+            ["ADT", "WhenType", "EffectDecl", "TraitDecl", "ImplBlock"]
+                .into_iter()
+                .collect();
+        let observed_type_decl_variants: BTreeSet<_> = rows
+            .iter()
+            .filter_map(|row| match &row.stmt {
+                Stmt::TypeDecl(decl) => Some(typechecker_type_decl_variant_label(decl)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(observed_type_decl_variants, expected_type_decl_variants);
+
+        for row in &rows {
+            assert_eq!(
+                typechecker_stmt_coverage(&row.stmt),
+                row.coverage,
+                "typechecker pass coverage classification mismatch for {}",
+                row.label
+            );
+
+            let mut checker = TypeChecker::new();
+            checker.check_stmt(&row.stmt);
+            for marker in &row.diagnostic_markers {
+                assert!(
+                    checker
+                        .diagnostics
+                        .iter()
+                        .any(|diag| diag.message.contains(marker)),
+                    "typechecker traversal missed `{}` in {}; diagnostics: {:?}",
+                    marker,
+                    row.label,
+                    checker.diagnostics
+                );
+            }
+        }
+    }
+
     #[test]
     fn typechecker_diagnostic_has_span() {
         let source = "> main() -> Int { xyz(1) }";

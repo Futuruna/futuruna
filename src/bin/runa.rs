@@ -35783,6 +35783,764 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         }
     }
 
+    #[derive(Debug)]
+    struct AstPassCoverageCase {
+        label: &'static str,
+        stmt: Stmt,
+        ownership_markers: Vec<&'static str>,
+        import_expansion: ImportedStmtExpansion,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum FirPhaseCoverage {
+        VisitsFirExpressions,
+        IntentionallyIgnored,
+    }
+
+    #[derive(Debug)]
+    struct FirPassCoverageCase {
+        label: &'static str,
+        stmt: FirStmt,
+        coverage: FirPhaseCoverage,
+    }
+
+    fn coverage_param(name: &str) -> Param {
+        Param {
+            name: name.to_string(),
+            ty: None,
+            inout: false,
+        }
+    }
+
+    fn coverage_expr(name: &str) -> Expr {
+        ExprKind::App(
+            Box::new(ExprKind::Var("consume".to_string()).into()),
+            vec![ExprKind::Var(name.to_string()).into()],
+        )
+        .into()
+    }
+
+    fn coverage_expr_stmt(name: &str) -> Stmt {
+        Stmt::Expr(coverage_expr(name))
+    }
+
+    fn stmt_variant_label(stmt: &Stmt) -> &'static str {
+        match stmt {
+            Stmt::Defn(_) => "Defn",
+            Stmt::TypeDecl(_) => "TypeDecl",
+            Stmt::Rule(_) => "Rule",
+            Stmt::Use(_) => "Use",
+            Stmt::Import(_) => "Import",
+            Stmt::QualifiedImport(_, _) => "QualifiedImport",
+            Stmt::HashImport(_, _) => "HashImport",
+            Stmt::Depend(_, _) => "Depend",
+            Stmt::RustBlock(_) => "RustBlock",
+            Stmt::Annot(_, _) => "Annot",
+            Stmt::Bind(_, _, _) => "Bind",
+            Stmt::MonadicBind(_, _, _) => "MonadicBind",
+            Stmt::For(_, _, _) => "For",
+            Stmt::While(_, _) => "While",
+            Stmt::Send(_, _) => "Send",
+            Stmt::StreamBind(_, _) => "StreamBind",
+            Stmt::StreamSub(_, _) => "StreamSub",
+            Stmt::Invariant { .. } => "Invariant",
+            Stmt::Prove { .. } => "Prove",
+            Stmt::Assert(_, _) => "Assert",
+            Stmt::Retract(_, _) => "Retract",
+            Stmt::Abort => "Abort",
+            Stmt::Expr(_) => "Expr",
+        }
+    }
+
+    fn type_decl_variant_label(decl: &TypeDecl) -> &'static str {
+        match decl {
+            TypeDecl::ADT { .. } => "ADT",
+            TypeDecl::WhenType { .. } => "WhenType",
+            TypeDecl::EffectDecl { .. } => "EffectDecl",
+            TypeDecl::TraitDecl { .. } => "TraitDecl",
+            TypeDecl::ImplBlock { .. } => "ImplBlock",
+        }
+    }
+
+    fn ast_pass_coverage_cases() -> Vec<AstPassCoverageCase> {
+        let retained = ImportedStmtExpansion::RetainedLibraryStmt;
+        let ignored = ImportedStmtExpansion::IgnoredScriptFlow;
+        vec![
+            AstPassCoverageCase {
+                label: "Defn::Fn",
+                stmt: Stmt::Defn(Defn::Fn {
+                    name: "fn_visit".to_string(),
+                    params: vec![],
+                    ret_ty: None,
+                    effects: vec![],
+                    body: coverage_expr("fn_body"),
+                }),
+                ownership_markers: vec!["fn_body"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Defn::Actor",
+                stmt: Stmt::Defn(Defn::Actor {
+                    name: "ActorVisit".to_string(),
+                    state_param: coverage_param("state"),
+                    handlers: vec![Handler {
+                        msg_pat: Pat::Wild,
+                        body: coverage_expr("actor_body"),
+                    }],
+                }),
+                ownership_markers: vec!["actor_body"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Defn::Module",
+                stmt: Stmt::Defn(Defn::Module {
+                    name: "ModuleVisit".to_string(),
+                    body: vec![coverage_expr_stmt("module_body")],
+                }),
+                ownership_markers: vec!["module_body"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "TypeDecl::ADT",
+                stmt: Stmt::TypeDecl(TypeDecl::ADT {
+                    name: "MethodCarrier".to_string(),
+                    params: vec![],
+                    variants: vec![],
+                    methods: vec![Defn::Fn {
+                        name: "method_visit".to_string(),
+                        params: vec![],
+                        ret_ty: None,
+                        effects: vec![],
+                        body: coverage_expr("adt_method_body"),
+                    }],
+                    except_from: None,
+                }),
+                ownership_markers: vec!["adt_method_body"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "TypeDecl::WhenType",
+                stmt: Stmt::TypeDecl(TypeDecl::WhenType {
+                    name: "WhenCarrier".to_string(),
+                    condition: coverage_expr("when_condition"),
+                    variants: vec![],
+                    except_from: None,
+                }),
+                ownership_markers: vec!["when_condition"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "TypeDecl::EffectDecl",
+                stmt: Stmt::TypeDecl(TypeDecl::EffectDecl {
+                    name: "EffectVisit".to_string(),
+                    ops: vec![("op".to_string(), vec![], None)],
+                }),
+                ownership_markers: vec![],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "TypeDecl::TraitDecl",
+                stmt: Stmt::TypeDecl(TypeDecl::TraitDecl {
+                    name: "TraitVisit".to_string(),
+                    params: vec![],
+                    methods: vec![TraitMethod {
+                        name: "default_visit".to_string(),
+                        params: vec![],
+                        ret_ty: None,
+                        default_body: Some(coverage_expr("trait_default_body")),
+                    }],
+                }),
+                ownership_markers: vec!["trait_default_body"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "TypeDecl::ImplBlock",
+                stmt: Stmt::TypeDecl(TypeDecl::ImplBlock {
+                    trait_name: "TraitVisit".to_string(),
+                    for_type: "MethodCarrier".to_string(),
+                    methods: vec![Defn::Fn {
+                        name: "impl_visit".to_string(),
+                        params: vec![],
+                        ret_ty: None,
+                        effects: vec![],
+                        body: coverage_expr("impl_body"),
+                    }],
+                }),
+                ownership_markers: vec!["impl_body"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Rule::Clause",
+                stmt: Stmt::Rule(Rule::Clause {
+                    head: coverage_expr("rule_head"),
+                    body: Some(coverage_expr("rule_body")),
+                }),
+                ownership_markers: vec!["rule_head", "rule_body"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Rule::Default",
+                stmt: Stmt::Rule(Rule::Default {
+                    head: coverage_expr("default_head"),
+                    value: coverage_expr("default_value"),
+                    condition: Some(coverage_expr("default_condition")),
+                }),
+                ownership_markers: vec!["default_head", "default_value", "default_condition"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Rule::Exception",
+                stmt: Stmt::Rule(Rule::Exception {
+                    label: "exception_visit".to_string(),
+                    head: coverage_expr("exception_head"),
+                    value: coverage_expr("exception_value"),
+                    condition: Some(coverage_expr("exception_condition")),
+                }),
+                ownership_markers: vec!["exception_head", "exception_value", "exception_condition"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Rule::Scope",
+                stmt: Stmt::Rule(Rule::Scope {
+                    name: "ScopeVisit".to_string(),
+                    body: vec![coverage_expr_stmt("scope_body")],
+                }),
+                ownership_markers: vec!["scope_body"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Use",
+                stmt: Stmt::Use("std::fmt".to_string()),
+                ownership_markers: vec![],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Import",
+                stmt: Stmt::Import("./dep".to_string()),
+                ownership_markers: vec![],
+                import_expansion: ImportedStmtExpansion::NestedPlainImport,
+            },
+            AstPassCoverageCase {
+                label: "QualifiedImport",
+                stmt: Stmt::QualifiedImport("Dep".to_string(), "./dep".to_string()),
+                ownership_markers: vec![],
+                import_expansion: ImportedStmtExpansion::NestedQualifiedImport,
+            },
+            AstPassCoverageCase {
+                label: "HashImport",
+                stmt: Stmt::HashImport("abc123".to_string(), "./dep".to_string()),
+                ownership_markers: vec![],
+                import_expansion: ImportedStmtExpansion::HashImport,
+            },
+            AstPassCoverageCase {
+                label: "Depend",
+                stmt: Stmt::Depend("serde".to_string(), "1".to_string()),
+                ownership_markers: vec![],
+                import_expansion: ImportedStmtExpansion::CargoDependency,
+            },
+            AstPassCoverageCase {
+                label: "RustBlock",
+                stmt: Stmt::RustBlock("fn imported_rust() {}".to_string()),
+                ownership_markers: vec![],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Annot::metadata",
+                stmt: Stmt::Annot("audit".to_string(), vec![coverage_expr("annot_arg")]),
+                ownership_markers: vec!["annot_arg"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Annot::print",
+                stmt: Stmt::Annot("print".to_string(), vec![coverage_expr("print_arg")]),
+                ownership_markers: vec!["print_arg"],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
+                label: "Bind",
+                stmt: Stmt::Bind(
+                    Pat::Var("bound".to_string()),
+                    None,
+                    coverage_expr("bind_rhs"),
+                ),
+                ownership_markers: vec!["bind_rhs"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "MonadicBind",
+                stmt: Stmt::MonadicBind(
+                    Pat::Var("monadic".to_string()),
+                    None,
+                    coverage_expr("monadic_rhs"),
+                ),
+                ownership_markers: vec!["monadic_rhs"],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
+                label: "For",
+                stmt: Stmt::For(
+                    "item".to_string(),
+                    coverage_expr("for_iter"),
+                    vec![coverage_expr_stmt("for_body")],
+                ),
+                ownership_markers: vec!["for_iter", "for_body"],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
+                label: "While",
+                stmt: Stmt::While(
+                    coverage_expr("while_cond"),
+                    vec![coverage_expr_stmt("while_body")],
+                ),
+                ownership_markers: vec!["while_cond", "while_body"],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
+                label: "Send",
+                stmt: Stmt::Send(coverage_expr("send_target"), coverage_expr("send_msg")),
+                ownership_markers: vec!["send_target", "send_msg"],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
+                label: "StreamBind",
+                stmt: Stmt::StreamBind("stream_visit".to_string(), coverage_expr("stream_rhs")),
+                ownership_markers: vec!["stream_rhs"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "StreamSub",
+                stmt: Stmt::StreamSub(
+                    coverage_expr("stream_sub_expr"),
+                    vec![MatchArm {
+                        pat: Pat::Wild,
+                        guard: Some(coverage_expr("stream_sub_guard")),
+                        body: coverage_expr("stream_sub_body"),
+                    }],
+                ),
+                ownership_markers: vec!["stream_sub_expr", "stream_sub_guard", "stream_sub_body"],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
+                label: "Invariant",
+                stmt: Stmt::Invariant {
+                    name: "invariant_visit".to_string(),
+                    subject: coverage_expr("invariant_subject"),
+                    predicate: coverage_expr("invariant_predicate"),
+                },
+                ownership_markers: vec!["invariant_subject", "invariant_predicate"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
+                label: "Prove",
+                stmt: Stmt::Prove {
+                    name: "prove_visit".to_string(),
+                    proof_block: None,
+                    capture: None,
+                    pass_block: Some(vec![coverage_expr_stmt("prove_pass")]),
+                    else_block: Some(vec![coverage_expr_stmt("prove_else")]),
+                },
+                ownership_markers: vec!["prove_pass", "prove_else"],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
+                label: "Assert",
+                stmt: Stmt::Assert("Fact".to_string(), vec![coverage_expr("assert_arg")]),
+                ownership_markers: vec!["assert_arg"],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
+                label: "Retract",
+                stmt: Stmt::Retract("Fact".to_string(), vec![coverage_expr("retract_arg")]),
+                ownership_markers: vec!["retract_arg"],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
+                label: "Abort",
+                stmt: Stmt::Abort,
+                ownership_markers: vec![],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
+                label: "Expr",
+                stmt: coverage_expr_stmt("expr_stmt"),
+                ownership_markers: vec!["expr_stmt"],
+                import_expansion: ignored,
+            },
+        ]
+    }
+
+    fn fir_stmt_variant_label(stmt: &FirStmt) -> &'static str {
+        match stmt {
+            FirStmt::Defn(_) => "Defn",
+            FirStmt::TypeDecl(_) => "TypeDecl",
+            FirStmt::Rule(_) => "Rule",
+            FirStmt::Use(_) => "Use",
+            FirStmt::Import(_) => "Import",
+            FirStmt::QualifiedImport(_, _) => "QualifiedImport",
+            FirStmt::HashImport(_, _) => "HashImport",
+            FirStmt::Depend(_, _) => "Depend",
+            FirStmt::RustBlock(_) => "RustBlock",
+            FirStmt::Annot(_, _) => "Annot",
+            FirStmt::Bind(_, _, _) => "Bind",
+            FirStmt::MonadicBind(_, _, _) => "MonadicBind",
+            FirStmt::For(_, _, _) => "For",
+            FirStmt::Send(_, _) => "Send",
+            FirStmt::StreamBind(_, _) => "StreamBind",
+            FirStmt::StreamSub(_, _) => "StreamSub",
+            FirStmt::Invariant { .. } => "Invariant",
+            FirStmt::Prove { .. } => "Prove",
+            FirStmt::Assert(_, _) => "Assert",
+            FirStmt::Retract(_, _) => "Retract",
+            FirStmt::Abort => "Abort",
+            FirStmt::Expr(_) => "Expr",
+        }
+    }
+
+    fn fir_defn_variant_label(defn: &FirDefn) -> &'static str {
+        match defn {
+            FirDefn::Fn { .. } => "Fn",
+            FirDefn::Actor { .. } => "Actor",
+            FirDefn::Module { .. } => "Module",
+        }
+    }
+
+    fn fir_valid_expr() -> FirExpr {
+        FirExpr {
+            kind: FirExprKind::Lit(Literal::Int(1)),
+            span: Span::dummy(),
+            ty: FirTy::Int,
+        }
+    }
+
+    fn fir_invalid_expr(marker: &str) -> FirExpr {
+        FirExpr {
+            kind: FirExprKind::Var(marker.to_string(), VarMode::Move),
+            span: Span::dummy(),
+            ty: FirTy::Unknown,
+        }
+    }
+
+    fn fir_phase_coverage_cases() -> Vec<FirPassCoverageCase> {
+        let visits = FirPhaseCoverage::VisitsFirExpressions;
+        let ignored = FirPhaseCoverage::IntentionallyIgnored;
+        vec![
+            FirPassCoverageCase {
+                label: "FirStmt::Defn::Fn",
+                stmt: FirStmt::Defn(FirDefn::Fn {
+                    name: "fn_visit".to_string(),
+                    params: vec![],
+                    ret_ty: None,
+                    effects: vec![],
+                    body: fir_invalid_expr("fn_body"),
+                }),
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Defn::Actor",
+                stmt: FirStmt::Defn(FirDefn::Actor {
+                    name: "ActorVisit".to_string(),
+                    state_param: coverage_param("state"),
+                    handlers: vec![FirHandler {
+                        msg_pat: Pat::Wild,
+                        body: fir_invalid_expr("actor_body"),
+                    }],
+                }),
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Defn::Module",
+                stmt: FirStmt::Defn(FirDefn::Module {
+                    name: "ModuleVisit".to_string(),
+                    body: vec![FirStmt::Expr(fir_invalid_expr("module_body"))],
+                }),
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::TypeDecl",
+                stmt: FirStmt::TypeDecl(TypeDecl::WhenType {
+                    name: "WhenCarrier".to_string(),
+                    condition: coverage_expr("when_condition"),
+                    variants: vec![],
+                    except_from: None,
+                }),
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Rule",
+                stmt: FirStmt::Rule(Rule::Clause {
+                    head: coverage_expr("rule_head"),
+                    body: Some(coverage_expr("rule_body")),
+                }),
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Use",
+                stmt: FirStmt::Use("std::fmt".to_string()),
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Import",
+                stmt: FirStmt::Import("./dep".to_string()),
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::QualifiedImport",
+                stmt: FirStmt::QualifiedImport("Dep".to_string(), "./dep".to_string()),
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::HashImport",
+                stmt: FirStmt::HashImport("abc123".to_string(), "./dep".to_string()),
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Depend",
+                stmt: FirStmt::Depend("serde".to_string(), "1".to_string()),
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::RustBlock",
+                stmt: FirStmt::RustBlock("fn imported_rust() {}".to_string()),
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Annot",
+                stmt: FirStmt::Annot("audit".to_string(), vec![fir_invalid_expr("annot_arg")]),
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Bind",
+                stmt: FirStmt::Bind(
+                    Pat::Var("bound".to_string()),
+                    None,
+                    fir_invalid_expr("bind_rhs"),
+                ),
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::MonadicBind",
+                stmt: FirStmt::MonadicBind(
+                    Pat::Var("monadic".to_string()),
+                    None,
+                    fir_invalid_expr("monadic_rhs"),
+                ),
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::For",
+                stmt: FirStmt::For(
+                    "item".to_string(),
+                    fir_invalid_expr("for_iter"),
+                    vec![FirStmt::Expr(fir_valid_expr())],
+                ),
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Send",
+                stmt: FirStmt::Send(fir_invalid_expr("send_target"), fir_valid_expr()),
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::StreamBind",
+                stmt: FirStmt::StreamBind(
+                    "stream_visit".to_string(),
+                    fir_invalid_expr("stream_rhs"),
+                ),
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::StreamSub",
+                stmt: FirStmt::StreamSub(
+                    fir_invalid_expr("stream_sub_expr"),
+                    vec![FirMatchArm {
+                        pat: Pat::Wild,
+                        guard: None,
+                        body: fir_valid_expr(),
+                    }],
+                ),
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Invariant",
+                stmt: FirStmt::Invariant {
+                    name: "invariant_visit".to_string(),
+                    subject: fir_invalid_expr("invariant_subject"),
+                    predicate: fir_valid_expr(),
+                },
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Prove",
+                stmt: FirStmt::Prove {
+                    name: "prove_visit".to_string(),
+                    proof_block: None,
+                    capture: None,
+                    pass_block: Some(vec![FirStmt::Expr(fir_invalid_expr("prove_pass"))]),
+                    else_block: None,
+                },
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Assert",
+                stmt: FirStmt::Assert("Fact".to_string(), vec![fir_invalid_expr("assert_arg")]),
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Retract",
+                stmt: FirStmt::Retract("Fact".to_string(), vec![fir_invalid_expr("retract_arg")]),
+                coverage: visits,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Abort",
+                stmt: FirStmt::Abort,
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
+                label: "FirStmt::Expr",
+                stmt: FirStmt::Expr(fir_invalid_expr("expr_stmt")),
+                coverage: visits,
+            },
+        ]
+    }
+
+    #[test]
+    fn compiler_pass_coverage_matrix_classifies_stmt_type_decl_and_fir_variants() {
+        let ast_rows = ast_pass_coverage_cases();
+        let expected_stmt_variants: BTreeSet<_> = [
+            "Defn",
+            "TypeDecl",
+            "Rule",
+            "Use",
+            "Import",
+            "QualifiedImport",
+            "HashImport",
+            "Depend",
+            "RustBlock",
+            "Annot",
+            "Bind",
+            "MonadicBind",
+            "For",
+            "While",
+            "Send",
+            "StreamBind",
+            "StreamSub",
+            "Invariant",
+            "Prove",
+            "Assert",
+            "Retract",
+            "Abort",
+            "Expr",
+        ]
+        .into_iter()
+        .collect();
+        let observed_stmt_variants: BTreeSet<_> = ast_rows
+            .iter()
+            .map(|row| stmt_variant_label(&row.stmt))
+            .collect();
+        assert_eq!(observed_stmt_variants, expected_stmt_variants);
+
+        let expected_type_decl_variants: BTreeSet<_> =
+            ["ADT", "WhenType", "EffectDecl", "TraitDecl", "ImplBlock"]
+                .into_iter()
+                .collect();
+        let observed_type_decl_variants: BTreeSet<_> = ast_rows
+            .iter()
+            .filter_map(|row| match &row.stmt {
+                Stmt::TypeDecl(decl) => Some(type_decl_variant_label(decl)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(observed_type_decl_variants, expected_type_decl_variants);
+
+        for row in &ast_rows {
+            assert_eq!(
+                RustCodegen::classify_imported_stmt_for_expansion(&row.stmt),
+                row.import_expansion,
+                "import normalization coverage mismatch for {}",
+                row.label
+            );
+
+            let analysis = OwnershipAnalysis::analyze_stmt_refs(&[&row.stmt], &BTreeMap::new());
+            for marker in &row.ownership_markers {
+                assert!(
+                    analysis.var_uses.get(*marker).copied().unwrap_or(0) >= 1,
+                    "ownership var-use traversal missed `{}` in {}",
+                    marker,
+                    row.label
+                );
+                assert!(
+                    analysis.consuming_uses.get(*marker).copied().unwrap_or(0) >= 1,
+                    "ownership consuming-use traversal missed `{}` in {}",
+                    marker,
+                    row.label
+                );
+            }
+        }
+
+        let fir_rows = fir_phase_coverage_cases();
+        let expected_fir_stmt_variants: BTreeSet<_> = [
+            "Defn",
+            "TypeDecl",
+            "Rule",
+            "Use",
+            "Import",
+            "QualifiedImport",
+            "HashImport",
+            "Depend",
+            "RustBlock",
+            "Annot",
+            "Bind",
+            "MonadicBind",
+            "For",
+            "Send",
+            "StreamBind",
+            "StreamSub",
+            "Invariant",
+            "Prove",
+            "Assert",
+            "Retract",
+            "Abort",
+            "Expr",
+        ]
+        .into_iter()
+        .collect();
+        let observed_fir_stmt_variants: BTreeSet<_> = fir_rows
+            .iter()
+            .map(|row| fir_stmt_variant_label(&row.stmt))
+            .collect();
+        assert_eq!(observed_fir_stmt_variants, expected_fir_stmt_variants);
+
+        let expected_fir_defn_variants: BTreeSet<_> =
+            ["Fn", "Actor", "Module"].into_iter().collect();
+        let observed_fir_defn_variants: BTreeSet<_> = fir_rows
+            .iter()
+            .filter_map(|row| match &row.stmt {
+                FirStmt::Defn(defn) => Some(fir_defn_variant_label(defn)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(observed_fir_defn_variants, expected_fir_defn_variants);
+
+        for row in &fir_rows {
+            let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                assert_fir_stmt_phase_validated(&row.stmt);
+            }))
+            .is_err();
+            match row.coverage {
+                FirPhaseCoverage::VisitsFirExpressions => assert!(
+                    panicked,
+                    "FIR phase validation failed to visit invalid expression in {}",
+                    row.label
+                ),
+                FirPhaseCoverage::IntentionallyIgnored => assert!(
+                    !panicked,
+                    "FIR phase validation unexpectedly visited intentionally ignored {}",
+                    row.label
+                ),
+            }
+        }
+    }
+
     // ── Lowering tests ──────────────────────────────────────────────
 
     /// Helper: parse source, compute ownership, lower to FIR
