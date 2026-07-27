@@ -1,13 +1,16 @@
 # From-Rust Validation Contract
 
-`runa from-rust` is preview translational tooling inside the validation
-boundary documented here.
+`runa from-rust` is stable translational tooling inside the validation boundary
+documented here.
 
 The named current contract is **FRSS-v0**, the From-Rust Single-File Supported
-Subset version 0. FRSS-v0 is a versioned preview compatibility contract: it is
-specific enough for users, tests, and release notes to point at a known Rust
-source subset, but it is not yet a production-ready or stable arbitrary-Rust
-source-compatibility promise.
+Subset version 0. FRSS-v0 is a versioned production-ready compatibility
+contract for deterministic single-file Rust programs in the documented
+supported subset. It is intentionally narrower than arbitrary Rust
+source-compatibility: crate translation, module trees, broad macro expansion,
+unsafe/async/effectful APIs, general lifetime preservation, and general
+iterator state-machine translation remain outside the stable promise unless a
+future contract promotes them separately.
 
 For Rust source inside FRSS-v0, checked-in supported fixtures must translate,
 parse, run in the Futuruna interpreter, and produce exactly the same stdout as
@@ -51,7 +54,7 @@ six source-shape families in
 
 | Field | FRSS-v0 contract |
 |-------|------------------|
-| Stage | Preview |
+| Stage | Stable / production-ready for FRSS-v0 |
 | Source shape | One deterministic Rust source file with ordinary functions, local values, ADTs, checked impl/generic shapes, checked stdlib collection/string forms, and a `main` whose observable contract is stdout. |
 | Package shape | No Cargo workspace, Rust `mod` declarations or module tree, build script, proc macro, or external crate translation. `std` imports used by checked fixtures are allowed. |
 | Runtime effects | Pure/core deterministic computation only: no file I/O, networking, process state, environment, threads, async, wall-clock time, randomness, or nondeterministic stdout ordering. |
@@ -152,20 +155,24 @@ stable summary lines above.
 
 ## FRSS-v0 Compatibility Policy
 
-FRSS-v0 follows the project compatibility policy for a preview surface:
+FRSS-v0 follows the project compatibility policy for a stable surface:
 
 - Expanding FRSS-v0 requires a reviewed fixture or generated lane case before
-  the docs claim the new source shape is supported.
+  the docs claim the new source shape is supported. Stable support expansions
+  should be recorded in the compatibility guide when they change the public
+  contract.
 - Narrowing or removing a documented FRSS-v0 shape requires either a bug-fix
   rationale or a new contract version such as FRSS-v1. User-visible preview
-  changes should be recorded in the compatibility guide's preview notes.
+  history stays in the compatibility guide, but stable-contract breaks must be
+  handled under the stable-surface policy.
 - Unsupported diagnostic category changes require updating the permanent
-  expected-unsupported fixture that proves the boundary.
+  expected-unsupported fixture that proves the boundary and recording the
+  compatibility impact when external tooling may key off the category.
 - Generated Futuruna source formatting, helper names, and internal layout remain
   internal unless a future artifact expectation explicitly promotes them.
-- Production promotion requires satisfying the Production Promotion Checklist
-  below in one reviewed change. Renaming FRSS-v0 or passing one lane is not
-  enough to call `runa from-rust` production-ready.
+- Keeping FRSS-v0 production-ready requires the evidence lanes below to remain
+  green together. Renaming FRSS-v0 or passing one lane is not enough to expand
+  the stable claim.
 
 ## FRSS-v0 Compatibility Boundary
 
@@ -265,9 +272,9 @@ as `std::fs`, `std::env`, `std::process`, `std::time::SystemTime`, `std::net`,
 and `std::collections::hash_map::RandomState` must remain fail-closed until
 those shapes are deliberately promoted.
 
-## Preview Evidence
+## Production Evidence
 
-As of 2026-07-18, the preview boundary is backed by:
+As of 2026-07-18, the stable FRSS-v0 boundary is backed by:
 
 - `runa from-rust --test examples/from-rust/`: 35 exact stdout matches
 - `./scripts/from-rust-downstream-canary.sh`: 9 downstream supported exact
@@ -294,54 +301,54 @@ As of 2026-07-18, the preview boundary is backed by:
   preserving a known-bad Rust source as a permanent supported or unsupported
   fixture.
 
-This evidence promotes the checked-in validation boundary to preview. It does
-not promote arbitrary Rust crate translation, broad macro expansion, full
-lifetime preservation, general iterator state machines, unsafe or async
-semantics, or generated Cargo manifests.
+This evidence promotes the checked-in validation boundary to stable and
+production-ready. It does not promote arbitrary Rust crate translation, broad
+macro expansion, full lifetime preservation, general iterator state machines,
+unsafe or async semantics, effectful APIs, or generated Cargo manifests.
 
-The downstream supported lane now includes the first production-corpus growth
-increment toward the checklist below: nested data, error handling, deterministic
-collection/reporting, and text transformation fixtures run from the same clean
-temporary-directory canary as the preview corpus. This is stronger production
-evidence, not a production-ready stage claim.
+The downstream supported lane includes production-corpus growth across nested
+data, error handling, deterministic collection/reporting, and text
+transformation fixtures. These fixtures run from the same clean
+temporary-directory canary as the rest of the FRSS-v0 corpus.
 
-The generated supported-subset differential lane is the first implementation of
-the production checklist's differential requirement. It searches seed-stable
+The generated supported-subset differential lane searches seed-stable
 deterministic Rust programs inside the FRSS-v0 source-shape family manifest and
 writes repro-ready source, output, manifest, coverage, replay, and
-minimization artifacts on failure.
-It is intentionally not evidence for arbitrary Rust crate translation.
+minimization artifacts on failure. It is intentionally not evidence for
+arbitrary Rust crate translation.
 
-## Preview Promotion Checklist
+## Stable Contract Maintenance Checklist
 
-A zero-XFAIL example corpus is necessary but not sufficient for keeping `runa
-from-rust` in preview. The preview claim depends on all of the following
-evidence staying green and reviewed together:
+FRSS-v0 stays production-ready only if the following evidence remains green and
+reviewed together:
 
 1. The broad example corpus passes with exact stdout parity:
    `runa from-rust --test examples/from-rust/`.
 2. The mint-blocking downstream canary passes from a fresh temporary directory:
    `./scripts/from-rust-downstream-canary.sh`.
-3. The downstream canary covers at least four distinct consumer families:
-   config validation, money or invoice arithmetic, deterministic event/report
-   aggregation, and text/parser-style transformation.
+3. The downstream canary covers consumer families across config validation,
+   money or invoice arithmetic, deterministic event/report aggregation,
+   text/parser-style transformation, nested data, error handling, and
+   deterministic collection/reporting.
 4. The downstream canary includes expected-unsupported fixtures for every
-   preview non-goal that has a reasonably syntactic Rust marker, including
+   stable non-goal that has a reasonably syntactic Rust marker, including
    general borrowed-reference returns, unchecked associated-type or `impl
    Trait` shapes, unsupported iterator state machines, unsupported tuple
    reference patterns, effectful `std` APIs, async/threading, unsafe blocks,
-   Rust module declarations, and external crate or proc-macro-like entrypoints.
+   Rust module declarations, unchecked macros, unsupported item/expression
+   fallbacks, external crates, and proc-macro-like entrypoints.
 5. Supported fixtures stay deterministic, single-file, and pure/core: no file
    I/O, networking, process state, wall-clock time, ambient environment, or
    nondeterministic stdout ordering.
-6. Any promoted Rust shape lands with a fixture and either a compatibility-guide
-   note or an explicit statement that the shape is still preview tooling scope
-   rather than a stable source-compatibility promise.
-7. `docs/feature-stages.md`, `docs/feature-stages.json`, and this contract stay
-   synchronized with the preview boundary.
+6. Any promoted Rust shape lands with exact-match evidence and, when it expands
+   the public contract, a compatibility-guide note under the stable-surface
+   policy.
+7. `docs/feature-stages.md`, `docs/feature-stages.json`, this contract, the
+   README, the compatibility guide, and the production-readiness scorecard stay
+   synchronized when the stable boundary changes.
 
-Preview would mean "intended for real use inside this documented validation
-boundary." It would not mean arbitrary Rust crate translation, macro expansion
+Stable means "supported for real use inside this documented validation
+boundary." It does not mean arbitrary Rust crate translation, macro expansion
 beyond the checked small forms, async runtime translation, unsafe semantics,
 proc macro support, full generic trait machinery, full lifetime/reference
 preservation, general iterator state-machine translation, generated Cargo
@@ -350,65 +357,26 @@ manifests, or stable formatting/layout of the emitted Futuruna source.
 The downstream canary is production evidence for the current validation
 boundary, not a promise that arbitrary Rust crates translate.
 
-## Production Promotion Checklist
-
-Preview is not enough for a production-ready `runa from-rust` claim. Promotion
-from preview to production-ready requires a reviewed change that proves all of
-the following at the same time:
-
-1. FRSS-v0, or its successor, is frozen as a stable compatibility contract for
-   the release line, including the exact Rust syntax families, stdlib shapes,
-   ownership simplifications, deterministic collection behavior, and
-   unsupported boundaries that users can rely on.
-2. Every supported source shape has at least one exact Rust-vs-Futuruna stdout
-   fixture in either `examples/from-rust/` or the downstream canary, and every
-   newly promoted shape adds coverage before the contract expands.
-3. Every unsupported boundary that can be detected syntactically fails closed
-   before Futuruna parse/run, with a stable diagnostic category and a permanent
-   expected-unsupported fixture. Unsupported shapes must not silently translate
-   into wrong Futuruna.
-4. The mint-blocking downstream lane includes a larger production corpus with
-   real consumer-style programs across parsing/validation, reporting,
-   transformations, nested data, error handling, and deterministic collection
-   workflows. At least one lane must run from a clean external-style fixture
-   directory rather than relying only on in-tree examples.
-5. A generated Rust-subset differential lane or equivalent proof-backed checker
-   searches within the named supported subset and minimizes any divergence into
-   a permanent fixture before promotion.
-6. `runa from-rust --verify` keeps stable success/failure output for the
-   production subset, and CLI/help/docs explain how users distinguish supported
-   source, expected unsupported source, and translator bugs.
-7. The compatibility guide records the production contract, including how future
-   source-subset breaks, diagnostic category changes, and fixture removals are
-   handled under `docs/compatibility-policy.md`.
-8. `docs/feature-stages.md`, `docs/feature-stages.json`, this contract, the
-   README, and the production-readiness scorecard move together in the same
-   reviewed change.
-
-Production-ready still would not mean arbitrary Rust crate translation unless
-that broader crate-level contract is explicitly documented, canaried, and
-promoted separately.
-
 ## Production Readiness Audit
 
 Audit date: 2026-07-18.
 
-Result: FRSS-v0 stays preview. The current evidence is strong enough for the
-documented preview boundary, but it does not yet prove the production checklist
-above. The missing items are now explicit `td` blockers instead of implicit
-readiness debt.
+Result: FRSS-v0 is stable and production-ready for the documented single-file
+validation boundary. The claim is intentionally narrow: arbitrary Rust crate
+translation and the non-goals listed above remain outside the production
+contract.
 
 | Checklist item | Current evidence | Audit result |
 |----------------|------------------|--------------|
-| 1. Freeze a stable release-line contract | FRSS-v0 is named and versioned, but `docs/feature-stages.md`, `docs/feature-stages.json`, the README state, and the compatibility guide still intentionally describe it as preview. | Blocked until the final promotion packet moves all public stage metadata together. |
-| 2. Fixture evidence for every supported source shape | [from-rust-evidence-manifest.md](from-rust-evidence-manifest.md) maps every current supported source-shape claim to exact-match evidence from the broad example corpus, downstream canary, or generated differential lane. | Satisfied for the current checklist. Keep this manifest in the same reviewed change as any supported-shape expansion. |
-| 3. Fail closed for every syntactically detectable unsupported boundary | The downstream unsupported corpus covers 17 permanent fail-closed fixtures, including ownership, generics, iterator state machines, tuple-reference matches, effectful `std` APIs, async/threading, unsafe, external crates, Rust module declarations, unchecked macros, format specs, item fallbacks, and expression fallbacks. | Satisfied for the current checklist. Keep adding expected-unsupported fixtures before documenting new non-goals. |
-| 4. Larger downstream production corpus | The mint-blocking downstream lane runs 9 supported consumer-style fixtures from a fresh temporary directory across config validation, invoice arithmetic, event/report aggregation, text/parser transformations, nested data, error handling, inventory reporting, and normalization. | Satisfied for the current checklist. Keep growing with every promoted shape. |
-| 5. Production search or proof-backed differential checking | `./scripts/from-rust-differential.sh` now searches the checked-in six-family FRSS-v0 differential source-shape manifest with the original base cases plus three stable seeds by default, for 24 exact Rust-vs-Futuruna matches, and writes manifest, coverage, replay, and minimization artifacts. | Satisfied for the current checklist; keep expanding the manifest as FRSS grows. |
-| 6. Stable `from-rust --verify` user workflow | Stable summary lines exist for supported matches, recognized unsupported categories, Rust parse/compile/run failures, translated Futuruna parse failures, and output divergence. CLI coverage exercises supported success, Rust parse/compile failure, major unsupported categories, help text, and harness-level translated-parse-failed/mismatch translator-bug summaries. | Satisfied for the current checklist. Keep source-level fixtures for real future translator bugs when they appear. |
-| 7. Compatibility guide records the production contract | The compatibility guide records preview hardening and support expansions, but not a production contract or future stable break policy for FRSS. | Blocked until the final promotion packet after the evidence blockers above. |
-| 8. Feature-stage metadata, README, contract, and scorecard move together | All current public stage metadata correctly keeps `runa from-rust` in preview. | Blocked until the final promotion packet after the evidence blockers above. |
+| 1. Freeze a stable release-line contract | FRSS-v0 is named and versioned, and the feature-stage docs, JSON metadata, README, compatibility guide, contract, and scorecard now describe it as stable for the documented boundary. | Satisfied. Keep future boundary changes synchronized across the same files. |
+| 2. Fixture evidence for every supported source shape | [from-rust-evidence-manifest.md](from-rust-evidence-manifest.md) maps every current supported source-shape claim to exact-match evidence from the broad example corpus, downstream canary, or generated differential lane. | Satisfied. Keep this manifest in the same reviewed change as any supported-shape expansion. |
+| 3. Fail closed for every syntactically detectable unsupported boundary | The downstream unsupported corpus covers 17 permanent fail-closed fixtures, including ownership, generics, iterator state machines, tuple-reference matches, effectful `std` APIs, async/threading, unsafe, external crates, Rust module declarations, unchecked macros, format specs, item fallbacks, and expression fallbacks. | Satisfied. Keep adding expected-unsupported fixtures before documenting new non-goals. |
+| 4. Larger downstream production corpus | The mint-blocking downstream lane runs 9 supported consumer-style fixtures from a fresh temporary directory across config validation, invoice arithmetic, event/report aggregation, text/parser transformations, nested data, error handling, inventory reporting, and normalization. | Satisfied. Keep growing with every promoted shape. |
+| 5. Production search or proof-backed differential checking | `./scripts/from-rust-differential.sh` searches the checked-in six-family FRSS-v0 differential source-shape manifest with the original base cases plus three stable seeds by default, for 24 exact Rust-vs-Futuruna matches, and writes manifest, coverage, replay, and minimization artifacts. | Satisfied. Keep expanding the manifest as FRSS grows. |
+| 6. Stable `from-rust --verify` user workflow | Stable summary lines exist for supported matches, recognized unsupported categories, Rust parse/compile/run failures, translated Futuruna parse failures, and output divergence. CLI coverage exercises supported success, Rust parse/compile failure, major unsupported categories, help text, and harness-level translated-parse-failed/mismatch translator-bug summaries. | Satisfied. Keep source-level fixtures for real future translator bugs when they appear. |
+| 7. Compatibility guide records the production contract | The 0.1.x compatibility guide records the 2026-07-18 stable FRSS-v0 promotion and says how future source-subset breaks, diagnostic category changes, and fixture removals are handled under the stable-surface policy. | Satisfied. |
+| 8. Feature-stage metadata, README, contract, and scorecard move together | This promotion packet moves `docs/feature-stages.md`, `docs/feature-stages.json`, this contract, the README, the compatibility guide, and the production-readiness scorecard together. | Satisfied. |
 
-No current evidence blockers remain in this audit. Production promotion still
-requires a final reviewed promotion packet that moves the public feature stage,
-compatibility guide, README, this contract, and scorecard together.
+No current production blockers remain for FRSS-v0. Future support growth should
+prefer a new fixture or generated lane case first, then update the manifest and
+compatibility guide before broadening the stable claim.

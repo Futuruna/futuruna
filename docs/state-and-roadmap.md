@@ -39,7 +39,7 @@ The project now has a real assurance stack:
   hygiene, and library-shaped user workflows.
 - A stable differential lane for replayable semantic bugs, seed-stable
   generative search, generated import-aware pressure, and failure artifacts.
-- A named FRSS-v0 preview contract for `runa from-rust`: deterministic
+- A named stable FRSS-v0 contract for `runa from-rust`: deterministic
   single-file Rust programs are validated by exact stdout matching across the
   example corpus, a clean-directory downstream canary, and a generated
   supported-subset differential lane. `from-rust --verify` has stable summary
@@ -149,9 +149,9 @@ The professional move is hybrid assurance:
 - prove what is worth proving
 - ratchet everything else with tests, canaries, differential checks, and review discipline
 
-For Rust-to-Futuruna translation, the immediate production route is explicit:
-freeze the FRSS-v0 single-file subset into a stable release-line contract, keep
-growing downstream and generated differential evidence inside that subset, keep
+For Rust-to-Futuruna translation, the production route is explicit: keep the
+stable FRSS-v0 single-file subset green as a release-line contract, keep growing
+downstream and generated differential evidence inside that subset, keep
 unsupported Rust fail-closed, preserve stable `from-rust --verify` summaries,
 and only promote crate-level translation if it gets its own contract and
 canaries.

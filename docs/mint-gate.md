@@ -76,9 +76,9 @@ Intentionally omitted from the core mint gate:
 
 CI should call `./scripts/mint.sh` for the core language health gate, then run any omitted lanes as separate jobs or steps. The canary suite is the curated middle lane for realistic authored programs, while differential testing is the deeper search lane that exercises seed-stable generative programs and replayable minimized repros without slowing every core mint run.
 
-The full from-rust example corpus remains separate from mint while the preview
-FRSS-v0 boundary keeps maturing. Mint still runs the narrower downstream canary
-and the generated supported-subset differential lane so the
+The full from-rust example corpus remains separate from mint for runtime budget
+and is documented in the stable FRSS-v0 contract. Mint still runs the narrower
+downstream canary and the generated supported-subset differential lane so the
 production-readiness signal includes clean-directory consumer-shaped exact
 matching, fail-closed unsupported-shape diagnostics, and generated FRSS-v0 exact
 matching.

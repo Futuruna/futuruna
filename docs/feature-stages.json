@@ -196,8 +196,8 @@
     {
       "id": "from-rust-transpiler",
       "kind": "tooling",
-      "name": "Rust-to-Futuruna translational tooling (FRSS-v0 preview)",
-      "stage": "preview",
+      "name": "Rust-to-Futuruna translational tooling (FRSS-v0 stable contract)",
+      "stage": "stable",
       "commands": [
         "from-rust"
       ],
@@ -318,7 +318,7 @@
     },
     {
       "name": "from-rust",
-      "stage": "preview",
+      "stage": "stable",
       "surface": "from-rust-transpiler"
     },
     {
@@ -346,7 +346,7 @@
     },
     {
       "path": "docs/from-rust-contract.md",
-      "stage": "preview",
+      "stage": "stable",
       "surfaces": [
         "from-rust-transpiler"
       ]

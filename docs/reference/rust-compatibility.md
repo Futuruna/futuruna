@@ -216,8 +216,8 @@ Outside the stable contract:
 - automatic manifest/package generation for `runa lib` consumers
 - richer FFI patterns beyond ordinary Rust source inclusion and Cargo
   dependencies supplied by the consumer crate
-- `runa from-rust`, which is preview translational tooling rather than part of
-  the stable Rust-facing library contract; see
+- `runa from-rust`, which has a separate stable FRSS-v0 single-file validation
+  contract rather than being part of the Rust-facing library contract; see
   [../from-rust-contract.md](../from-rust-contract.md) for its separate
   validation lane
 

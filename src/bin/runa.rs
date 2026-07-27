@@ -34461,7 +34461,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         }));
         assert!(commands
             .iter()
-            .any(|command| { command["name"] == "from-rust" && command["stage"] == "preview" }));
+            .any(|command| { command["name"] == "from-rust" && command["stage"] == "stable" }));
 
         for command in commands {
             let surface = command["surface"].as_str().expect("command surface");
