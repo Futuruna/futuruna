@@ -37217,6 +37217,165 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         }
     }
 
+    struct StmtWildcardGuardRegion {
+        file: &'static str,
+        label: &'static str,
+        source: &'static str,
+        start_marker: &'static str,
+        end_marker: &'static str,
+    }
+
+    fn high_risk_stmt_wildcard_guard_regions() -> Vec<StmtWildcardGuardRegion> {
+        vec![
+            StmtWildcardGuardRegion {
+                file: "src/lib.rs",
+                label: "TypeChecker::exported_names_from_stmts",
+                source: include_str!("../lib.rs"),
+                start_marker: "    fn exported_names_from_stmts(stmts: &[Stmt])",
+                end_marker: "\n    fn import_path_span",
+            },
+            StmtWildcardGuardRegion {
+                file: "src/lib.rs",
+                label: "TypeChecker::collect_declarations",
+                source: include_str!("../lib.rs"),
+                start_marker: "    pub fn collect_declarations(&mut self, stmts: &[Stmt])",
+                end_marker: "\n    /// Pass 2: check the program for errors",
+            },
+            StmtWildcardGuardRegion {
+                file: "src/bin/runa.rs",
+                label: "RustCodegen::collect_exported_names_from_stmts",
+                source: include_str!("runa.rs"),
+                start_marker: "    fn collect_exported_names_from_stmts(&self, stmts: &[Stmt])",
+                end_marker: "\n    fn classify_imported_stmt_for_expansion",
+            },
+            StmtWildcardGuardRegion {
+                file: "src/bin/runa.rs",
+                label: "RustCodegen::scan_declarations import resolution",
+                source: include_str!("runa.rs"),
+                start_marker:
+                    "        // Resolve @ import statements: parse imported .runa files and merge their definitions",
+                end_marker: "        // Deduplicate type declarations from imports",
+            },
+            StmtWildcardGuardRegion {
+                file: "src/bin/runa.rs",
+                label: "RustCodegen::scan_declarations export pre-scan",
+                source: include_str!("runa.rs"),
+                start_marker: "        // Pre-scan: collect @ export annotations (M3b)",
+                end_marker: "        // M26: Pre-scan for @ store / @ persist annotations",
+            },
+        ]
+    }
+
+    fn guarded_region_text<'a>(region: &'a StmtWildcardGuardRegion) -> (&'a str, usize) {
+        let start = region.source.find(region.start_marker).unwrap_or_else(|| {
+            panic!(
+                "{} guard region missing start marker for {}",
+                region.file, region.label
+            )
+        });
+        let after_start = &region.source[start..];
+        let end = after_start.find(region.end_marker).unwrap_or_else(|| {
+            panic!(
+                "{} guard region missing end marker for {}",
+                region.file, region.label
+            )
+        });
+        let start_line = region.source[..start].lines().count() + 1;
+        (&after_start[..end], start_line)
+    }
+
+    fn broad_stmt_wildcard_ignore_violations(region: &str, start_line: usize) -> Vec<String> {
+        let lines: Vec<&str> = region.lines().collect();
+        let mut violations = Vec::new();
+        for (idx, line) in lines.iter().enumerate() {
+            let trimmed = line.trim_start();
+            if !trimmed.starts_with("_ =>") {
+                continue;
+            }
+
+            let mut snippet = trimmed.to_string();
+            for next in lines.iter().skip(idx + 1).take(6) {
+                if snippet.contains(',') {
+                    break;
+                }
+                snippet.push_str(next.trim());
+            }
+            let compact: String = snippet.chars().filter(|ch| !ch.is_whitespace()).collect();
+            let is_ignore = compact.starts_with("_=>{}")
+                || compact.starts_with("_=>false")
+                || compact.starts_with("_=>None")
+                || compact.starts_with("_=>()");
+            if is_ignore {
+                violations.push(format!("line {}: {}", start_line + idx, trimmed));
+            }
+        }
+        violations
+    }
+
+    #[test]
+    fn broad_stmt_wildcard_guard_rejects_ignores_and_allows_explicit_arms() {
+        let bad = r#"
+match stmt {
+    Stmt::Defn(_) => {}
+    _ => {}
+}
+"#;
+        assert_eq!(broad_stmt_wildcard_ignore_violations(bad, 1).len(), 1);
+
+        let bad_false = r#"
+match stmt {
+    Stmt::Defn(_) => true,
+    _ => false,
+}
+"#;
+        assert_eq!(
+            broad_stmt_wildcard_ignore_violations(bad_false, 10).len(),
+            1
+        );
+
+        let explicit = r#"
+match stmt {
+    Stmt::Defn(_) => {}
+    Stmt::TypeDecl(_) | Stmt::Abort | Stmt::Expr(_) => {}
+}
+"#;
+        assert!(broad_stmt_wildcard_ignore_violations(explicit, 20).is_empty());
+
+        let passthrough = r#"
+match stmt {
+    Stmt::Defn(_) => Some(stmt),
+    _ => Some(stmt),
+}
+"#;
+        assert!(broad_stmt_wildcard_ignore_violations(passthrough, 30).is_empty());
+    }
+
+    #[test]
+    fn high_risk_stmt_regions_have_no_broad_wildcard_ignores() {
+        let regions = high_risk_stmt_wildcard_guard_regions();
+        assert!(
+            regions.len() >= 5,
+            "guard should cover TypeChecker and RustCodegen declaration/import/export regions"
+        );
+
+        let mut violations = Vec::new();
+        for region in &regions {
+            let (text, start_line) = guarded_region_text(region);
+            for violation in broad_stmt_wildcard_ignore_violations(text, start_line) {
+                violations.push(format!(
+                    "{} {} has broad Stmt wildcard ignore: {}",
+                    region.file, region.label, violation
+                ));
+            }
+        }
+
+        assert!(
+            violations.is_empty(),
+            "high-risk Stmt wildcard guard failed:\n{}",
+            violations.join("\n")
+        );
+    }
+
     // ── Lowering tests ──────────────────────────────────────────────
 
     /// Helper: parse source, compute ownership, lower to FIR
