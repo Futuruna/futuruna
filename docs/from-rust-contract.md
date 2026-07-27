@@ -112,7 +112,7 @@ removed from the contract.
 | Source and package boundary | Single-file Rust programs using checked `std` shapes and deterministic `main` stdout, with supported items at the Rust file top level. | Exact match in the example corpus, downstream canary, or generated differential lane. | External crates, `extern crate`, Rust `mod` declarations or module trees, proc macros, build scripts, Cargo-manifest generation, or crate-level translation. |
 | Control flow and bindings | Functions, local bindings, `if`/`else`, `match`, `for`, `while`, local value mutation, checked conditional accumulator rebinding, and compound-assignment shapes. | Exact stdout parity in supported fixtures; generated numeric/branch differential coverage. | Process state, nondeterminism, or control flow tied to unsupported runtime effects. |
 | Data and ADTs | Structs, enums, recursive ADTs, `Box<T>` enum constructors, nested structs/vectors, simple inherent impl dispatch, checked recursive owned-tree search. | Example adversarial fixtures, downstream nested customer/order fixtures, generated nested-data cases. | General reference-preserving/lifetime translation or arbitrary borrowed-reference returns. |
-| Strings and formatting | Checked `String`, `&str`, trim/lowercase/replace/classification, `format!`, print/vector/assert macro shapes, and deterministic stdout formatting used by fixtures. | String examples, downstream text fixtures, generated text matrix. | Broad macro expansion, formatting/layout promises for emitted Futuruna, or unchecked formatting traits. |
+| Strings and formatting | Checked `String`, `&str`, trim/lowercase/replace/classification, `format!`, stdout/vector macro shapes, and deterministic stdout formatting used by fixtures. | String examples, downstream text fixtures, generated text matrix. | Broad macro expansion, formatting/layout promises for emitted Futuruna, or unchecked formatting traits. |
 | Collections | Checked `Vec`, maps/sets, deterministic `BTreeMap` reports, list indexing in fixtures, and checked grouping/rollup patterns. | Example stress fixtures, downstream event/inventory fixtures, generated `BTreeMap` rollup. | Nondeterministic `HashMap` stdout ordering or arbitrary collection/iterator state machines. |
 | Error handling | `Option`, `Result`, simple `?` chains, early `return Err(...)`, and checked integer `parse().map_err(...)?` remapping. | Error-handling examples, downstream error-row pipeline, generated parse pipeline. | `Result::map_err` forms outside the checked parse-error remapping subset. |
 | Generic and trait subset | Narrow checked `Functor` associated-type shape for `Option` and `Result`, generic higher-order functions, `impl Fn` composition, generic struct constructors, and generic inherent methods. | Checked generic trait fixture. | General associated types, arbitrary trait machinery, and `impl Trait` signatures outside the checked `impl Fn` composition shape. |
@@ -177,7 +177,7 @@ depend on process state, files, networking, threads, or wall-clock time, and
 must exact-match stdout against the original Rust program.
 
 FRSS-v0 non-goals are arbitrary crate translation, macro expansion beyond the
-small checked-in print/vector/assert shapes, async/threading, unsafe semantics,
+small checked-in stdout/vector formatting shapes, async/threading, unsafe semantics,
 proc macros, generic trait machinery outside the checked `Functor` fixture,
 general lifetime/reference-preserving translation, general iterator
 state-machine translation, Rust `mod` declarations or module trees, and
@@ -227,8 +227,9 @@ unsupported diagnostics:
   and randomized hashing through `RandomState`
 - `unsafe-rust`: `unsafe` blocks outside the validation subset
 - `unsupported-macro`: macro invocations outside the checked
-  `println!`/`eprintln!`/`format!`/`vec!`/`panic!`/`todo!`/
-  `unimplemented!`/`assert!`/`assert_eq!` subset
+  `println!`/`eprintln!`/`format!`/`vec!` subset. Unproven control/assertion
+  macros such as `panic!`, `todo!`, `unimplemented!`, `assert!`, and
+  `assert_eq!` stay unsupported until promoted with exact-match evidence.
 - `unsupported-format-spec`: placeholders inside checked `println!`,
   `eprintln!`, and `format!` macro names outside the supported `{}`, `{:?}`,
   and `{:.N}` formatting subset, including named, width, padding, alignment,
@@ -255,7 +256,8 @@ example corpus to prove the boundary is enforced: returning a borrowed
 reference from a general function, unchecked associated types, unchecked `impl
 Trait`, unsupported `Result::map_err`, unsupported iterator state machines,
 unsupported tuple-of-references matches, async/threading, unsafe blocks, and
-external crate imports, unsupported macro names such as `print!`, and
+external crate imports, unsupported macro names such as `print!`, unchecked
+control/assertion macros such as `assert!`, and
 unsupported format specs such as `{:x}`, unsupported top-level Rust items such
 as `union`, unsupported expression fallbacks such as `break` statements, and
 Rust module declarations such as `mod helper;`, and effectful `std` APIs such
@@ -270,7 +272,7 @@ As of 2026-07-18, the preview boundary is backed by:
 - `runa from-rust --test examples/from-rust/`: 35 exact stdout matches
 - `./scripts/from-rust-downstream-canary.sh`: 9 downstream supported exact
   matches from a fresh temporary directory
-- the same downstream canary: 16 expected-unsupported fail-closed fixtures
+- the same downstream canary: 17 expected-unsupported fail-closed fixtures
   covering the stable unsupported diagnostic categories listed above
 - `./scripts/from-rust-differential.sh`: 24 generated supported-subset exact
   matches by default, covering three stable search seeds plus base cases for
@@ -400,7 +402,7 @@ readiness debt.
 |----------------|------------------|--------------|
 | 1. Freeze a stable release-line contract | FRSS-v0 is named and versioned, but `docs/feature-stages.md`, `docs/feature-stages.json`, the README state, and the compatibility guide still intentionally describe it as preview. | Blocked until the final promotion packet moves all public stage metadata together. |
 | 2. Fixture evidence for every supported source shape | [from-rust-evidence-manifest.md](from-rust-evidence-manifest.md) maps every current supported source-shape claim to exact-match evidence from the broad example corpus, downstream canary, or generated differential lane. | Satisfied for the current checklist. Keep this manifest in the same reviewed change as any supported-shape expansion. |
-| 3. Fail closed for every syntactically detectable unsupported boundary | The downstream unsupported corpus covers 16 permanent fail-closed fixtures, including ownership, generics, iterator state machines, tuple-reference matches, effectful `std` APIs, async/threading, unsafe, external crates, Rust module declarations, macros, format specs, item fallbacks, and expression fallbacks. | Satisfied for the current checklist. Keep adding expected-unsupported fixtures before documenting new non-goals. |
+| 3. Fail closed for every syntactically detectable unsupported boundary | The downstream unsupported corpus covers 17 permanent fail-closed fixtures, including ownership, generics, iterator state machines, tuple-reference matches, effectful `std` APIs, async/threading, unsafe, external crates, Rust module declarations, unchecked macros, format specs, item fallbacks, and expression fallbacks. | Satisfied for the current checklist. Keep adding expected-unsupported fixtures before documenting new non-goals. |
 | 4. Larger downstream production corpus | The mint-blocking downstream lane runs 9 supported consumer-style fixtures from a fresh temporary directory across config validation, invoice arithmetic, event/report aggregation, text/parser transformations, nested data, error handling, inventory reporting, and normalization. | Satisfied for the current checklist. Keep growing with every promoted shape. |
 | 5. Production search or proof-backed differential checking | `./scripts/from-rust-differential.sh` now searches the checked-in six-family FRSS-v0 differential source-shape manifest with the original base cases plus three stable seeds by default, for 24 exact Rust-vs-Futuruna matches, and writes manifest, coverage, replay, and minimization artifacts. | Satisfied for the current checklist; keep expanding the manifest as FRSS grows. |
 | 6. Stable `from-rust --verify` user workflow | Stable summary lines exist for supported matches, recognized unsupported categories, Rust parse/compile/run failures, translated Futuruna parse failures, and output divergence. CLI coverage exercises supported success, Rust parse/compile failure, major unsupported categories, help text, and harness-level translated-parse-failed/mismatch translator-bug summaries. | Satisfied for the current checklist. Keep source-level fixtures for real future translator bugs when they appear. |

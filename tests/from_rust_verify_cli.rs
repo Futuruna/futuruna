@@ -304,6 +304,40 @@ fn main() {
 }
 
 #[test]
+fn from_rust_verify_rejects_unchecked_assert_macro_before_translation() {
+    let output = run_from_rust_verify(
+        r#"
+fn main() {
+    assert!(1 + 1 == 2);
+    println!("ok");
+}
+"#,
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected unsupported assert macro verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: unsupported unsupported-macro:"),
+        "missing stable unsupported macro line:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("assert!"),
+        "unsupported macro line should name assert!:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: translated "),
+        "unchecked assert macro should fail before translation:\n{}",
+        stderr
+    );
+}
+
+#[test]
 fn from_rust_verify_rejects_unsupported_expr_fallback_before_translation() {
     let output = run_from_rust_verify(
         r#"

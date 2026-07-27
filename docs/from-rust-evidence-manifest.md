@@ -61,7 +61,7 @@ contract remains explicit about what users can rely on failing closed.
 | `async-threading` | `async`, `.await`, and thread-spawning Rust | `tests/from-rust/downstream/unsupported/async_function.rs`; `tests/from-rust/downstream/unsupported/thread_spawn.rs` | downstream canary |
 | `unsupported-effect` | File I/O, environment/process state, runtime I/O, networking, wall-clock time, and randomized hashing through `std` APIs | `tests/from-rust/downstream/unsupported/effectful_std_api.rs` | downstream canary |
 | `unsafe-rust` | Unsafe blocks | `tests/from-rust/downstream/unsupported/unsafe_block.rs` | downstream canary |
-| `unsupported-macro` | Macro names outside the checked print/vector/assert subset | `tests/from-rust/downstream/unsupported/unsupported_macro.rs` | downstream canary |
+| `unsupported-macro` | Macro names outside the checked stdout/vector formatting subset, including unproven control/assertion macros | `tests/from-rust/downstream/unsupported/unsupported_macro.rs`; `tests/from-rust/downstream/unsupported/unchecked_assert_macro.rs` | downstream canary |
 | `unsupported-format-spec` | Formatting placeholders outside `{}`, `{:?}`, and `{:.N}` checked forms | `tests/from-rust/downstream/unsupported/unsupported_format_spec.rs` | downstream canary |
 | `unsupported-module` | Rust `mod` declarations and module trees outside the flat single-file boundary | `tests/from-rust/downstream/unsupported/external_module_declaration.rs` | downstream canary |
 | `unsupported-rust-item` | Top-level Rust item forms outside the checked item subset | `tests/from-rust/downstream/unsupported/unsupported_item_union.rs` | downstream canary |

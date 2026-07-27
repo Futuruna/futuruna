@@ -33950,18 +33950,68 @@ fn read(ptr: *const i64) -> i64 {
 
     #[test]
     fn from_rust_rejects_unsupported_macro_with_category() {
-        let source = r#"
+        for (name, source) in [
+            (
+                "print",
+                r#"
 fn main() {
     print!("hi");
 }
-"#;
-        let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
-        match err {
-            FromRustTranspileError::Unsupported(unsupported) => {
-                assert_eq!(unsupported.category, "unsupported-macro");
-                assert!(unsupported.message.contains("print!"));
+"#,
+            ),
+            (
+                "assert",
+                r#"
+fn main() {
+    assert!(1 + 1 == 2);
+}
+"#,
+            ),
+            (
+                "assert_eq",
+                r#"
+fn main() {
+    assert_eq!(2 + 2, 4);
+}
+"#,
+            ),
+            (
+                "panic",
+                r#"
+fn main() {
+    panic!("boom");
+}
+"#,
+            ),
+            (
+                "todo",
+                r#"
+fn main() {
+    todo!("later");
+}
+"#,
+            ),
+            (
+                "unimplemented",
+                r#"
+fn main() {
+    unimplemented!("later");
+}
+"#,
+            ),
+        ] {
+            let err = rust_to_runa_checked(source).expect_err("expected unsupported diagnostic");
+            match err {
+                FromRustTranspileError::Unsupported(unsupported) => {
+                    assert_eq!(unsupported.category, "unsupported-macro");
+                    assert!(
+                        unsupported.message.contains(&format!("{}!", name)),
+                        "{name}: {}",
+                        unsupported.message
+                    );
+                }
+                other => panic!("expected unsupported diagnostic, got {:?}", other),
             }
-            other => panic!("expected unsupported diagnostic, got {:?}", other),
         }
     }
 
@@ -34064,7 +34114,7 @@ fn main() {
     println!("{} {:?} {:.1}", format!("{}", 7), vec![1, 2], 3.5);
     println!("literal {{ braces }} {}", 1);
     let xs = vec![1, 2];
-    assert_eq!(xs.len(), 2);
+    println!("{}", xs.len());
 }
 "#;
         let runa =
@@ -41908,18 +41958,7 @@ fn from_rust_macro_name(item: &syn::Macro) -> Option<String> {
 }
 
 fn from_rust_macro_name_supported(name: &str) -> bool {
-    matches!(
-        name,
-        "println"
-            | "eprintln"
-            | "format"
-            | "vec"
-            | "panic"
-            | "todo"
-            | "unimplemented"
-            | "assert"
-            | "assert_eq"
-    )
+    matches!(name, "println" | "eprintln" | "format" | "vec")
 }
 
 fn from_rust_macro_unsupported_format_spec(item: &syn::Macro, name: &str) -> Option<String> {
