@@ -43,6 +43,7 @@ calculating a current taxpayer's tax.
 - `kapitel-01-indkomst.runa` exists and checks with `runa check`.
 - `kapitel-02-statsskat.runa` exists and checks with `runa check`.
 - `kapitel-03-personfradrag.runa` exists and checks with `runa check`.
+- `kapitel-04-omregning-skatteloft.runa` exists and checks with `runa check`.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.runa` exists and checks/runs with `runa run`.
@@ -52,8 +53,9 @@ calculating a current taxpayer's tax.
   `.runa` corpus.
 - The current `.runa` slices encode source validity, source lineage, the
   §§ 1-4 b income taxonomy, the §§ 5-9 state-tax skeleton, the §§ 10-13
-  personfradrag/underskud slice, 2024/2025 tax-year parameter packs, first
-  wage-earner fixtures, and first audit signals.
+  personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
+  slice, 2024/2025 tax-year parameter packs, first wage-earner fixtures, and
+  first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
   multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
@@ -85,6 +87,9 @@ calculating a current taxpayer's tax.
 
 - Extend § 13 foreign-income, pension-limit, and business-loss amount
   limitations beyond the current executable boundary signals.
+- Decide how § 14 partial-year annualization and § 19 skatteloftsnedslag should
+  flow into the ordinary wage-earner calculator once there are trusted
+  partial-year and high-rate fixtures.
 - Separate legal structure from annual parameter packs: rates, thresholds,
   personal allowances, municipal tax, church tax, and other tax-year data.
 - Build calculation fixtures for ordinary wage-earner cases before handling
@@ -168,9 +173,10 @@ M5 - Audit suite
 - Done when: audits can fail loudly without blocking legal reformulation work.
 - Current slice: source-status rejection, covered normal-fixture
   personfradrag, covered § 13 deficit mechanics, 2026 reform parameter gap,
-  topskat threshold activation, AM-law dependency, municipal-tax-law dependency,
-  and remaining § 13 foreign/pension/business amount gaps are executable audit
-  signals.
+  topskat threshold activation, covered § 14 annualization, covered § 19
+  skatteloft, covered § 20 regulation/rounding, AM-law dependency,
+  municipal-tax-law dependency, and remaining § 13 foreign/pension/business
+  amount gaps are executable audit signals.
 
 M6 - Website integration
 
@@ -198,3 +204,17 @@ M7 - Personfradrag and deficit layer
   value and offset order are executable, spouse deficit transfer and negative
   personal income carry-forward are fixture-tested, and foreign/pension/business
   amount limitations remain explicit audit work.
+
+M8 - Omregning, skatteloft, and regulation
+
+- Status: first slice implemented.
+- Output: `.runa` file for §§ 14-20 plus audit coverage for annualization,
+  tax-ceiling relief, and statutory regulation rounding.
+- Done when: partial-year annualization, repeal markers, personal/capital
+  tax-ceiling rates, calculated ceiling relief, and § 20 rounded regulated
+  amounts are executable.
+- Current slice: § 14 converts partial-year income to whole-year equivalents
+  and reduces whole-year tax proportionally, §§ 15-18 are explicit repealed
+  markers, § 19 computes personal and positive-capital tax ceiling excess and
+  relief, and § 20 computes 2010-level amount regulation with round-up to the
+  nearest 100 kroner.

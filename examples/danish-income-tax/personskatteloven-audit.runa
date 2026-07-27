@@ -2,6 +2,7 @@
 
 @ importer ./source - status
 @ importer ./loenmodtager_beregning
+@ importer ./kapitel - 04 - omregning - skatteloft
 
 -- Personskatteloven — audit-signaler for den aktuelle research-slice.
 
@@ -13,7 +14,7 @@ Officiel XML-metadata for 2021/1284, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Par13UnderskudsmekanikDækket | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | Skatteår2026ReformIkkeKodet | TopskatTærskelAktivererKlint | ManglerPar13UdenlandskeOgVirksomhedsBeløbsopgørelser
+# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Par13UnderskudsmekanikDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | Skatteår2026ReformIkkeKodet | TopskatTærskelAktivererKlint | ManglerPar13UdenlandskeOgVirksomhedsBeløbsopgørelser
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -113,4 +114,33 @@ virksomhedsunderskud.
 ? m5_audit_kommunal_lov_signal
 ? m5_audit_par13_rest_signal
 
-@ print("m5 audit: kendte gaps markeret for 2026-reform, AM-lov, kommunal lov og § 13 udenlandske/virksomhedsbeløbsopgørelser")
+----
+§§ 14, 19 og 20 er nu en første executable slice for helårsomregning,
+skatteloftsnedslag og regulering/afrunding af grundbeløb.
+----
+
+= m5_par14_fixture = par14_helårsindkomst(Par14OmregningInput(180000, 200000, -20000, 180))
+= m5_par14_skattenedsættelse_fixture = par14_helårsskat_nedsat_for_delår(Par14SkattenedsættelseInput(100000, 180000, m5_par14_fixture.skattepligtig_indkomst_kroner))
+= m5_par19_skatteloft_fixture = par19_personlig_overskydende_basispoint(Par19SkatteloftInput(2025, 1201, 1500, 0, 2700, 100000))
+= m5_par19_nedslag_fixture = par19_skatteloftsnedslag_kroner(Par19SkatteloftInput(2025, 1201, 1500, 0, 2700, 100000), m5_par19_skatteloft_fixture)
+= m5_par20_regulering_fixture = par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(39350, 1311))
+
+| m5_par14_helårsomregning: m5_par14_fixture -> m5_par14_fixture.skattepligtig_indkomst_kroner == 365000 && m5_par14_fixture.personlig_indkomst_kroner == 405555
+| m5_par14_skattenedsættelse: m5_par14_skattenedsættelse_fixture -> m5_par14_skattenedsættelse_fixture == 49315
+| m5_par19_skatteloftsnedslag: m5_par19_skatteloft_fixture -> m5_par19_skatteloft_fixture == 194
+| m5_par19_nedslag_i_kroner: m5_par19_nedslag_fixture -> m5_par19_nedslag_fixture == 1940
+| m5_par20_regulering_afrunding: m5_par20_regulering_fixture -> m5_par20_regulering_fixture == 51600
+| m5_audit_par14_signal: audit_signal(Par14HelårsomregningDækket) -> audit_signal(Par14HelårsomregningDækket) == Sandt
+| m5_audit_par19_signal: audit_signal(Par19SkatteloftDækket) -> audit_signal(Par19SkatteloftDækket) == Sandt
+| m5_audit_par20_signal: audit_signal(Par20ReguleringDækket) -> audit_signal(Par20ReguleringDækket) == Sandt
+
+? m5_par14_helårsomregning
+? m5_par14_skattenedsættelse
+? m5_par19_skatteloftsnedslag
+? m5_par19_nedslag_i_kroner
+? m5_par20_regulering_afrunding
+? m5_audit_par14_signal
+? m5_audit_par19_signal
+? m5_audit_par20_signal
+
+@ print("m5 audit: kendte gaps markeret for 2026-reform, AM-lov, kommunal lov og § 13 udenlandske/virksomhedsbeløbsopgørelser; §§ 14, 19 og 20 har executable audit-fixtures")
