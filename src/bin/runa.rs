@@ -35833,6 +35833,308 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         coverage: FirPhaseCoverage,
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    enum CompilerPassId {
+        OwnershipUseAnalysis,
+        ImportResolution,
+        FirLowering,
+        RustCodegen,
+    }
+
+    impl CompilerPassId {
+        fn label(self) -> &'static str {
+            match self {
+                CompilerPassId::OwnershipUseAnalysis => "Ownership/use analysis",
+                CompilerPassId::ImportResolution => "Import resolution",
+                CompilerPassId::FirLowering => "FIR lowering",
+                CompilerPassId::RustCodegen => "Rust codegen",
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    enum ContractSurface {
+        Canary,
+        Check,
+        CheckCodegen,
+        Differential,
+        EmitFir,
+        EmitImports,
+        EmitRust,
+        Expect,
+        Roundtrip,
+        Run,
+    }
+
+    #[derive(Debug)]
+    struct ContractFixture {
+        path: &'static str,
+        surfaces: &'static [ContractSurface],
+    }
+
+    #[derive(Debug)]
+    enum PassCoverageExpectation {
+        AstOwnership {
+            row: &'static str,
+            markers: &'static [&'static str],
+        },
+        AstImportExpansion {
+            row: &'static str,
+            expansion: ImportedStmtExpansion,
+        },
+        FirPhase {
+            row: &'static str,
+            markers: &'static [&'static str],
+        },
+        FixtureText {
+            path: &'static str,
+            marker: &'static str,
+        },
+    }
+
+    #[derive(Debug)]
+    struct CompilerPassContract {
+        id: CompilerPassId,
+        input_phase: &'static str,
+        output_phase: &'static str,
+        owned_invariants: &'static [&'static str],
+        traversal_expectation: &'static str,
+        module_leak_guard: &'static str,
+        coverage: Vec<PassCoverageExpectation>,
+        fixtures: Vec<ContractFixture>,
+    }
+
+    fn compiler_pass_contracts() -> Vec<CompilerPassContract> {
+        vec![
+            CompilerPassContract {
+                id: CompilerPassId::OwnershipUseAnalysis,
+                input_phase: "Parsed AST after declaration scan and import expansion",
+                output_phase: "per-scope ownership counts consumed by AST and FIR Rust emitters",
+                owned_invariants: &[
+                    "every expression-bearing Stmt, TypeDecl, Rule, and Defn child is visited",
+                    "Invariant and Prove rows count later uses before clone/move decisions",
+                    "non-Copy locals reused after branch returns are marked for clone or borrow",
+                ],
+                traversal_expectation:
+                    "use canonical AST child traversal or exhaustive expression-bearing matches",
+                module_leak_guard:
+                    "imported script flow must not become root runtime code during ownership scans",
+                coverage: vec![
+                    PassCoverageExpectation::AstOwnership {
+                        row: "Invariant",
+                        markers: &["invariant_subject", "invariant_predicate"],
+                    },
+                    PassCoverageExpectation::AstOwnership {
+                        row: "Prove",
+                        markers: &["prove_pass", "prove_else"],
+                    },
+                    PassCoverageExpectation::AstOwnership {
+                        row: "StreamSub",
+                        markers: &[
+                            "stream_sub_expr",
+                            "stream_sub_guard",
+                            "stream_sub_body",
+                        ],
+                    },
+                    PassCoverageExpectation::FixtureText {
+                        path: "tests/expect/artifact/ownership_branch_string_contract.runa",
+                        marker: "before_phase.clone()",
+                    },
+                ],
+                fixtures: vec![
+                    ContractFixture {
+                        path: "tests/expect/artifact/ownership_branch_string_contract.runa",
+                        surfaces: &[ContractSurface::Expect, ContractSurface::EmitRust],
+                    },
+                    ContractFixture {
+                        path: "tests/canary/core/ownership_text_pipeline_test.runa",
+                        surfaces: &[
+                            ContractSurface::Canary,
+                            ContractSurface::Run,
+                            ContractSurface::CheckCodegen,
+                            ContractSurface::Roundtrip,
+                        ],
+                    },
+                    ContractFixture {
+                        path: "scripts/compiler-cross-product-canary.sh",
+                        surfaces: &[
+                            ContractSurface::Canary,
+                            ContractSurface::Check,
+                            ContractSurface::Run,
+                            ContractSurface::CheckCodegen,
+                            ContractSurface::Roundtrip,
+                            ContractSurface::EmitRust,
+                        ],
+                    },
+                ],
+            },
+            CompilerPassContract {
+                id: CompilerPassId::ImportResolution,
+                input_phase: "parsed AST with caller source_dir",
+                output_phase: "normalized public import/export graph plus imported declarations",
+                owned_invariants: &[
+                    "nested plain imports resolve relative to the imported file directory",
+                    "qualified imports expose only exported module members",
+                    "script-only statements remain ignored when expanding libraries",
+                ],
+                traversal_expectation:
+                    "classify every Stmt variant before retaining, ignoring, or recursively expanding",
+                module_leak_guard:
+                    "source_dir is restored after each import and private/script symbols do not leak",
+                coverage: vec![
+                    PassCoverageExpectation::AstImportExpansion {
+                        row: "Import",
+                        expansion: ImportedStmtExpansion::NestedPlainImport,
+                    },
+                    PassCoverageExpectation::AstImportExpansion {
+                        row: "QualifiedImport",
+                        expansion: ImportedStmtExpansion::NestedQualifiedImport,
+                    },
+                    PassCoverageExpectation::AstImportExpansion {
+                        row: "HashImport",
+                        expansion: ImportedStmtExpansion::HashImport,
+                    },
+                    PassCoverageExpectation::AstImportExpansion {
+                        row: "Annot::print",
+                        expansion: ImportedStmtExpansion::IgnoredScriptFlow,
+                    },
+                    PassCoverageExpectation::FixtureText {
+                        path: "tests/expect/imports/import_normalization_contract.runa",
+                        marker: "-- expect-stdout-not: hidden_label",
+                    },
+                ],
+                fixtures: vec![
+                    ContractFixture {
+                        path: "tests/expect/imports/import_normalization_contract.runa",
+                        surfaces: &[ContractSurface::Expect, ContractSurface::EmitImports],
+                    },
+                    ContractFixture {
+                        path: "tests/differential/corpus/imports/import_mesh_consumer.runa",
+                        surfaces: &[
+                            ContractSurface::Differential,
+                            ContractSurface::Run,
+                            ContractSurface::CheckCodegen,
+                        ],
+                    },
+                    ContractFixture {
+                        path: "scripts/compiler-cross-product-canary.sh",
+                        surfaces: &[
+                            ContractSurface::Canary,
+                            ContractSurface::Check,
+                            ContractSurface::Run,
+                            ContractSurface::CheckCodegen,
+                            ContractSurface::Roundtrip,
+                            ContractSurface::EmitRust,
+                        ],
+                    },
+                ],
+            },
+            CompilerPassContract {
+                id: CompilerPassId::FirLowering,
+                input_phase: "resolved AST after type registry and ownership analysis",
+                output_phase: "FIR tree with resolved types and ownership modes",
+                owned_invariants: &[
+                    "every FIR expression-bearing statement is phase validated",
+                    "Block, For, Invariant, Prove, and Disjunction children remain traversable",
+                    "lowered variables keep their VarMode through substitution",
+                ],
+                traversal_expectation:
+                    "use canonical FIR immutable or mutable child traversal for recursive FIR passes",
+                module_leak_guard:
+                    "module-qualified and imported symbols stay scoped through FIR snapshots",
+                coverage: vec![
+                    PassCoverageExpectation::FirPhase {
+                        row: "FirStmt::Defn::Module",
+                        markers: &["module_body"],
+                    },
+                    PassCoverageExpectation::FirPhase {
+                        row: "FirStmt::For",
+                        markers: &["for_iter", "for_body"],
+                    },
+                    PassCoverageExpectation::FirPhase {
+                        row: "FirStmt::Invariant",
+                        markers: &["invariant_subject", "invariant_predicate"],
+                    },
+                    PassCoverageExpectation::FirPhase {
+                        row: "FirStmt::Prove",
+                        markers: &["prove_pass", "prove_else"],
+                    },
+                    PassCoverageExpectation::FixtureText {
+                        path: "tests/expect/phase/fir_cross_binding.runa",
+                        marker: "-- expect-command: emit-fir",
+                    },
+                ],
+                fixtures: vec![
+                    ContractFixture {
+                        path: "tests/expect/phase/fir_cross_binding.runa",
+                        surfaces: &[ContractSurface::Expect, ContractSurface::EmitFir],
+                    },
+                    ContractFixture {
+                        path: "tests/expect/phase/fir_module_qualified.runa",
+                        surfaces: &[ContractSurface::Expect, ContractSurface::EmitFir],
+                    },
+                ],
+            },
+            CompilerPassContract {
+                id: CompilerPassId::RustCodegen,
+                input_phase: "resolved AST/FIR plus import, type, ownership, and borrow metadata",
+                output_phase: "Rust source that compiles and preserves Futuruna value semantics",
+                owned_invariants: &[
+                    "read-only String/list/map flows borrow or clone instead of moving too early",
+                    "lowered Pair/map_entries values use stable Rust tuple contracts",
+                    "generated Rust does not leak private imported symbols or script-only flow",
+                ],
+                traversal_expectation:
+                    "emit expression-bearing children through checked ownership/type metadata paths",
+                module_leak_guard:
+                    "library exports are public only when exported and helper script output is suppressed",
+                coverage: vec![
+                    PassCoverageExpectation::FixtureText {
+                        path: "tests/expect/artifact/ownership_branch_string_contract.runa",
+                        marker: "let after_phase = if (regret > 0.0) { \"Liquid\".to_string() } else { before_phase.clone() };",
+                    },
+                    PassCoverageExpectation::FixtureText {
+                        path: "tests/expect/phase/rust_map_entries_pairs.runa",
+                        marker: "iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>()",
+                    },
+                    PassCoverageExpectation::FixtureText {
+                        path: "scripts/compiler-cross-product-canary.sh",
+                        marker: "before_phase.clone()",
+                    },
+                ],
+                fixtures: vec![
+                    ContractFixture {
+                        path: "tests/expect/artifact/ownership_branch_string_contract.runa",
+                        surfaces: &[ContractSurface::Expect, ContractSurface::EmitRust],
+                    },
+                    ContractFixture {
+                        path: "tests/expect/phase/rust_map_entries_pairs.runa",
+                        surfaces: &[ContractSurface::Expect, ContractSurface::EmitRust],
+                    },
+                    ContractFixture {
+                        path: "tests/codegen_integration_regression_test.runa",
+                        surfaces: &[
+                            ContractSurface::Canary,
+                            ContractSurface::Run,
+                            ContractSurface::CheckCodegen,
+                        ],
+                    },
+                    ContractFixture {
+                        path: "scripts/compiler-cross-product-canary.sh",
+                        surfaces: &[
+                            ContractSurface::Canary,
+                            ContractSurface::Check,
+                            ContractSurface::Run,
+                            ContractSurface::CheckCodegen,
+                            ContractSurface::Roundtrip,
+                            ContractSurface::EmitRust,
+                        ],
+                    },
+                ],
+            },
+        ]
+    }
+
     fn coverage_param(name: &str) -> Param {
         Param {
             name: name.to_string(),
@@ -36616,6 +36918,195 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "FIR phase validation unexpectedly visited intentionally ignored {}",
                     row.label
                 ),
+            }
+        }
+    }
+
+    fn contract_fixture_text(path: &str) -> String {
+        let full_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(path);
+        std::fs::read_to_string(&full_path)
+            .unwrap_or_else(|err| panic!("failed to read contract fixture `{path}`: {err}"))
+    }
+
+    #[test]
+    fn compiler_pass_contracts_cover_required_passes_and_evidence() {
+        let contracts = compiler_pass_contracts();
+        let required: BTreeSet<_> = [
+            CompilerPassId::OwnershipUseAnalysis,
+            CompilerPassId::ImportResolution,
+            CompilerPassId::FirLowering,
+            CompilerPassId::RustCodegen,
+        ]
+        .into_iter()
+        .collect();
+        let observed: BTreeSet<_> = contracts.iter().map(|contract| contract.id).collect();
+        assert!(
+            required.is_subset(&observed),
+            "missing required compiler pass contracts: required={required:?} observed={observed:?}"
+        );
+        assert_eq!(
+            observed.len(),
+            contracts.len(),
+            "duplicate compiler pass contract ids"
+        );
+
+        for contract in &contracts {
+            let label = contract.id.label();
+            assert!(
+                !contract.input_phase.trim().is_empty(),
+                "{label} missing input phase"
+            );
+            assert!(
+                !contract.output_phase.trim().is_empty(),
+                "{label} missing output phase"
+            );
+            assert!(
+                !contract.owned_invariants.is_empty(),
+                "{label} missing owned invariants"
+            );
+            assert!(
+                !contract.traversal_expectation.trim().is_empty(),
+                "{label} missing traversal expectation"
+            );
+            assert!(
+                !contract.module_leak_guard.trim().is_empty(),
+                "{label} missing module/import leak guard"
+            );
+            assert!(
+                !contract.coverage.is_empty(),
+                "{label} has no representative coverage markers"
+            );
+            assert!(
+                !contract.fixtures.is_empty(),
+                "{label} has no representative fixtures"
+            );
+
+            for invariant in contract.owned_invariants {
+                assert!(
+                    !invariant.trim().is_empty(),
+                    "{label} has an empty invariant row"
+                );
+            }
+            for fixture in &contract.fixtures {
+                assert!(
+                    !fixture.surfaces.is_empty(),
+                    "{label} fixture {} has no checked surfaces",
+                    fixture.path
+                );
+                let full_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(fixture.path);
+                assert!(
+                    full_path.exists(),
+                    "{label} representative fixture missing: {}",
+                    fixture.path
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn compiler_pass_contract_coverage_markers_are_backed_by_matrix() {
+        let ast_rows = ast_pass_coverage_cases();
+        let fir_rows = fir_phase_coverage_cases();
+
+        for contract in compiler_pass_contracts() {
+            let label = contract.id.label();
+            for coverage in &contract.coverage {
+                match coverage {
+                    PassCoverageExpectation::AstOwnership { row, markers } => {
+                        assert!(
+                            !markers.is_empty(),
+                            "{label} AST ownership row {row} has no markers"
+                        );
+                        let ast_row = ast_rows
+                            .iter()
+                            .find(|candidate| candidate.label == *row)
+                            .unwrap_or_else(|| {
+                                panic!("{label} references missing AST coverage row {row}")
+                            });
+                        let analysis = OwnershipAnalysis::analyze_stmt_refs(
+                            &[&ast_row.stmt],
+                            &BTreeMap::new(),
+                        );
+                        for marker in *markers {
+                            assert!(
+                                ast_row.ownership_markers.contains(marker),
+                                "{label} marker {marker} is not declared on AST row {row}"
+                            );
+                            assert!(
+                                analysis.var_uses.get(*marker).copied().unwrap_or(0) >= 1,
+                                "{label} ownership var-use traversal missed {marker} in {row}"
+                            );
+                            assert!(
+                                analysis.consuming_uses.get(*marker).copied().unwrap_or(0) >= 1,
+                                "{label} ownership consuming-use traversal missed {marker} in {row}"
+                            );
+                        }
+                    }
+                    PassCoverageExpectation::AstImportExpansion { row, expansion } => {
+                        let ast_row = ast_rows
+                            .iter()
+                            .find(|candidate| candidate.label == *row)
+                            .unwrap_or_else(|| {
+                                panic!("{label} references missing import coverage row {row}")
+                            });
+                        assert_eq!(
+                            ast_row.import_expansion, *expansion,
+                            "{label} import expansion contract drifted for {row}"
+                        );
+                        assert_eq!(
+                            RustCodegen::classify_imported_stmt_for_expansion(&ast_row.stmt),
+                            *expansion,
+                            "{label} import classifier drifted for {row}"
+                        );
+                    }
+                    PassCoverageExpectation::FirPhase { row, markers } => {
+                        assert!(!markers.is_empty(), "{label} FIR row {row} has no markers");
+                        let fir_row = fir_rows
+                            .iter()
+                            .find(|candidate| candidate.label == *row)
+                            .unwrap_or_else(|| {
+                                panic!("{label} references missing FIR coverage row {row}")
+                            });
+                        assert_eq!(
+                            fir_row.coverage,
+                            FirPhaseCoverage::VisitsFirExpressions,
+                            "{label} FIR contract row {row} must visit expressions"
+                        );
+                        let mut vars = BTreeSet::new();
+                        collect_fir_visitor_vars_from_stmt(&fir_row.stmt, &mut vars);
+                        for marker in *markers {
+                            assert!(
+                                vars.contains(*marker),
+                                "{label} canonical FIR visitor missed {marker} in {row}; visited {vars:?}"
+                            );
+                        }
+                    }
+                    PassCoverageExpectation::FixtureText { path, marker } => {
+                        assert!(
+                            contract_fixture_text(path).contains(marker),
+                            "{label} fixture {path} does not contain contract marker {marker:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn compiler_pass_contract_docs_track_checked_metadata() {
+        let docs = contract_fixture_text("docs/compiler-pass-contracts.md");
+        for contract in compiler_pass_contracts() {
+            let label = contract.id.label();
+            assert!(
+                docs.contains(label),
+                "docs/compiler-pass-contracts.md missing contract label {label}"
+            );
+            for fixture in &contract.fixtures {
+                assert!(
+                    docs.contains(fixture.path),
+                    "docs/compiler-pass-contracts.md missing fixture path {} for {label}",
+                    fixture.path
+                );
             }
         }
     }
