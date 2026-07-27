@@ -40,6 +40,32 @@ Structs are defined with `#` and constructed by name. Fields are accessed with d
 
 Pattern matching with `|` arms is how you work with enums. The compiler checks for exhaustiveness — miss a variant and you get an error.
 
+For named-field variants, a match on a named local can use tag-only arms and
+access fields through the refined subject:
+
+```runa
+# Expr = Lit(value: String) | Add(left: Expr, right: Expr) | Var(name: String)
+
+> render(e: Expr) -> String {
+    match e {
+        | Lit -> show(e.value)
+        | Add -> render(e.left) + render(e.right)
+        | Var -> e.name
+    }
+}
+```
+
+This shorthand only refines a named match subject. If the scrutinee is an
+expression, destructure fields explicitly:
+
+```runa
+match parse_expr(src) {
+    | Lit(value: n) -> show(n)
+    | Add(left: l, right: r) -> render(l) + render(r)
+    | Var(name: n) -> n
+}
+```
+
 ## Option and Result
 
 ```runa

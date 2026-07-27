@@ -1,0 +1,16 @@
+-- Bare fielded variant arms refine a named match subject.
+
+# Expr = Lit(value: String) | Add(left: Expr, right: Expr) | Var(name: String)
+
+> render(e: Expr) -> String {
+    match e {
+        | Lit -> "lit:" + e.value
+        | Add -> "(" + render(e.left) + " + " + render(e.right) + ")"
+        | Var -> e.name
+    }
+}
+
+= expr = Add(Lit("x"), Var("y"))
+
+@ print(render(expr))
+@ print(render(expr))

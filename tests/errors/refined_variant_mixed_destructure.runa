@@ -1,0 +1,9 @@
+-- expect-error: cannot be mixed with destructuring
+# Expr = Lit(value: String) | Var(name: String)
+
+> bad(e: Expr) -> String {
+    match e {
+        | Lit -> e.value
+        | Var(name: n) -> n
+    }
+}

@@ -7605,7 +7605,11 @@ impl Interpreter {
             },
             ExprKind::Match(scrut, arms) => {
                 let val = self.eval(scrut, env);
-                self.eval_match(val, arms, env)
+                let allow_bare_fielded_tag = matches!(scrut.kind, ExprKind::Var(_))
+                    && arms
+                        .iter()
+                        .any(|arm| matches!(&arm.pat, Pat::Con(_, args) if args.is_empty()));
+                self.eval_match(val, arms, env, allow_bare_fielded_tag)
             }
             ExprKind::Block(stmts) => {
                 let mut block_env = env.child();
@@ -10142,10 +10146,17 @@ impl Interpreter {
         }
     }
 
-    pub fn eval_match(&mut self, val: Value, arms: &[MatchArm], env: &Env) -> Value {
+    pub fn eval_match(
+        &mut self,
+        val: Value,
+        arms: &[MatchArm],
+        env: &Env,
+        allow_bare_fielded_tag: bool,
+    ) -> Value {
         for arm in arms {
             let mut arm_env = env.child();
-            if self.match_pattern(&arm.pat, &val, &mut arm_env) {
+            if self.match_pattern_with_options(&arm.pat, &val, &mut arm_env, allow_bare_fielded_tag)
+            {
                 // Check guard
                 if let Some(guard) = &arm.guard {
                     match self.eval(guard, &arm_env) {
@@ -10160,6 +10171,16 @@ impl Interpreter {
     }
 
     pub fn match_pattern(&self, pat: &Pat, val: &Value, env: &mut Env) -> bool {
+        self.match_pattern_with_options(pat, val, env, false)
+    }
+
+    fn match_pattern_with_options(
+        &self,
+        pat: &Pat,
+        val: &Value,
+        env: &mut Env,
+        allow_bare_fielded_tag: bool,
+    ) -> bool {
         match (pat, val) {
             (Pat::Wild, _) => true,
             (Pat::Var(name), _) => {
@@ -10172,11 +10193,17 @@ impl Interpreter {
             (Pat::Lit(Literal::Bool(a)), Value::Bool(b)) => a == b,
             (Pat::Lit(Literal::Char(a)), Value::Char(b)) => a == b,
             (Pat::Con(pname, pargs), Value::Constructor(vname, vargs)) => {
-                if pname != vname || pargs.len() != vargs.len() {
+                if pname != vname {
+                    return false;
+                }
+                if pargs.is_empty() {
+                    return allow_bare_fielded_tag || vargs.is_empty();
+                }
+                if pargs.len() != vargs.len() {
                     return false;
                 }
                 for (pp, va) in pargs.iter().zip(vargs.iter()) {
-                    if !self.match_pattern(pp, va, env) {
+                    if !self.match_pattern_with_options(pp, va, env, false) {
                         return false;
                     }
                 }
@@ -10184,11 +10211,17 @@ impl Interpreter {
             }
             // Positional pattern on NamedConstructor (extract values by position)
             (Pat::Con(pname, pargs), Value::NamedConstructor(vname, vfields)) => {
-                if pname != vname || pargs.len() != vfields.len() {
+                if pname != vname {
+                    return false;
+                }
+                if pargs.is_empty() {
+                    return allow_bare_fielded_tag || vfields.is_empty();
+                }
+                if pargs.len() != vfields.len() {
                     return false;
                 }
                 for (pp, (_, va)) in pargs.iter().zip(vfields.iter()) {
-                    if !self.match_pattern(pp, va, env) {
+                    if !self.match_pattern_with_options(pp, va, env, false) {
                         return false;
                     }
                 }
@@ -10203,7 +10236,7 @@ impl Interpreter {
                     let found = vfields.iter().find(|(fn_, _)| fn_ == field_name);
                     match found {
                         Some((_, val)) => {
-                            if !self.match_pattern(pat, val, env) {
+                            if !self.match_pattern_with_options(pat, val, env, false) {
                                 return false;
                             }
                         }
@@ -10221,7 +10254,7 @@ impl Interpreter {
                     for (field_name, pat) in named_pats {
                         if let Some(idx) = names.iter().position(|n| n == field_name) {
                             if let Some(val) = vargs.get(idx) {
-                                if !self.match_pattern(pat, val, env) {
+                                if !self.match_pattern_with_options(pat, val, env, false) {
                                     return false;
                                 }
                             } else {
@@ -10241,7 +10274,7 @@ impl Interpreter {
                 (name == "True" && *b) || (name == "False" && !*b)
             }
             (Pat::As(inner, name), _) => {
-                if self.match_pattern(inner, val, env) {
+                if self.match_pattern_with_options(inner, val, env, allow_bare_fielded_tag) {
                     env.set(name.clone(), val.clone());
                     true
                 } else {
@@ -13061,6 +13094,7 @@ impl TypeChecker {
             }
             ExprKind::Match(scrutinee, arms) => {
                 self.check_expr(scrutinee, _in_fn);
+                self.check_refined_variant_match(scrutinee, arms);
                 for arm in arms {
                     self.push_scope();
                     self.define_pat_vars(&arm.pat);
@@ -13196,6 +13230,64 @@ impl TypeChecker {
                 self.define_var(name);
             }
             Pat::Wild | Pat::Lit(_) => {}
+        }
+    }
+
+    fn bare_fielded_constructor_name<'a>(&self, pat: &'a Pat) -> Option<&'a str> {
+        let Pat::Con(name, args) = pat else {
+            return None;
+        };
+        if !args.is_empty() {
+            return None;
+        }
+        self.constructors
+            .get(name)
+            .and_then(|(_, field_count)| (*field_count > 0).then_some(name.as_str()))
+    }
+
+    fn tag_only_pattern(pat: &Pat) -> bool {
+        match pat {
+            Pat::Wild | Pat::Lit(_) => true,
+            Pat::Con(_, args) => args.is_empty(),
+            Pat::Var(_) | Pat::NamedCon(_, _) | Pat::As(_, _) => false,
+        }
+    }
+
+    fn check_refined_variant_match(&mut self, scrutinee: &Expr, arms: &[MatchArm]) {
+        let bare_names: Vec<&str> = arms
+            .iter()
+            .filter_map(|arm| self.bare_fielded_constructor_name(&arm.pat))
+            .collect();
+        if bare_names.is_empty() {
+            return;
+        }
+
+        if !matches!(scrutinee.kind, ExprKind::Var(_)) {
+            let first = bare_names[0];
+            self.error_at_expr(
+                scrutinee,
+                format!(
+                    "bare fielded variant pattern `{}` only refines a named match subject; bind the scrutinee with `=` first or destructure fields explicitly",
+                    first
+                ),
+            );
+        }
+
+        if let Some(arm) = arms.iter().find(|arm| !Self::tag_only_pattern(&arm.pat)) {
+            self.error(format!(
+                "bare fielded variant refinement cannot be mixed with destructuring pattern `{}` in the same match",
+                Self::pattern_label(&arm.pat)
+            ));
+        }
+    }
+
+    fn pattern_label(pat: &Pat) -> String {
+        match pat {
+            Pat::Wild => "_".to_string(),
+            Pat::Var(name) => name.clone(),
+            Pat::Con(name, _) | Pat::NamedCon(name, _) => name.clone(),
+            Pat::Lit(lit) => lit.to_string(),
+            Pat::As(_, name) => name.clone(),
         }
     }
 

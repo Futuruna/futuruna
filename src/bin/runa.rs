@@ -27019,21 +27019,6 @@ impl RustCodegen {
         }
     }
 
-    /// Find which variant contains a named field, returns (variant_name, parent_enum_name, is_boxed)
-    fn find_variant_field(&self, field: &str) -> Option<(String, String)> {
-        for (variant_name, fields) in &self.types.variant_fields {
-            if fields.contains(&field.to_string()) {
-                if let Some(parent) = self.types.variant_parent.get(variant_name) {
-                    // Only for enum types (not struct types)
-                    if !self.types.struct_types.contains(parent) {
-                        return Some((variant_name.clone(), parent.clone()));
-                    }
-                }
-            }
-        }
-        None
-    }
-
     /// Find ALL variants that have a given field name (for multi-variant field access)
     fn find_all_variant_fields(&self, field: &str) -> Vec<(String, String)> {
         let mut results = Vec::new();
@@ -30700,11 +30685,21 @@ impl RustCodegen {
             }
             ExprKind::Match(scrut, arms) => {
                 let s = self.emit_expr(scrut);
-                let mut out = format!("match {} {{\n", s);
+                let refined_subject = self.match_uses_refined_variant_subject(scrut, arms);
+                let match_subject = if refined_subject {
+                    if let ExprKind::Var(name) = &scrut.kind {
+                        format!("&{}", sanitize_name(name))
+                    } else {
+                        format!("&{}", s)
+                    }
+                } else {
+                    s
+                };
+                let mut out = format!("match {} {{\n", match_subject);
                 for arm in arms {
                     let prev_local_bindings = self.local_bindings.clone();
                     collect_pattern_names(&arm.pat, &mut self.local_bindings);
-                    let pat = self.emit_pattern_match(&arm.pat);
+                    let pat = self.emit_match_arm_pattern(&arm.pat, refined_subject);
                     // Build guard: combine user guard + boxed pattern guards
                     let user_guard = arm.guard.as_ref().map(|g| self.emit_expr(g));
                     let box_guard = self.emit_boxed_pattern_guard(&arm.pat);
@@ -30988,15 +30983,7 @@ impl RustCodegen {
                 {
                     let matches = self.find_all_variant_fields(field);
                     if !matches.is_empty() {
-                        let mut obj_str = self.emit_expr(obj);
-                        // If the object is itself a boxed field access, we need to deref it
-                        if let ExprKind::Field(_, inner_field) = &obj.as_ref().kind {
-                            if let Some((iv, _ip)) = self.find_variant_field(inner_field) {
-                                if self.is_field_boxed(&iv, inner_field) {
-                                    obj_str = format!("*{}", obj_str);
-                                }
-                            }
-                        }
+                        let obj_str = self.emit_expr(obj);
                         // Build match arms for all variants that have this field
                         let mut arms = Vec::new();
                         for (variant_name, parent_name) in &matches {
@@ -31005,7 +30992,7 @@ impl RustCodegen {
                             {
                                 let is_boxed = self.is_field_boxed(variant_name, field);
                                 let clone_expr = if is_boxed {
-                                    "(*__f).clone()"
+                                    "(**__f).clone()"
                                 } else {
                                     "__f.clone()"
                                 };
@@ -32657,10 +32644,20 @@ impl RustCodegen {
             }
             ExprKind::Match(scrutinee, arms) => {
                 let scrut_str = self.emit_expr(scrutinee);
-                let mut out = format!("{}match {} {{\n", ind, scrut_str);
+                let refined_subject = self.match_uses_refined_variant_subject(scrutinee, arms);
+                let match_subject = if refined_subject {
+                    if let ExprKind::Var(name) = &scrutinee.kind {
+                        format!("&{}", sanitize_name(name))
+                    } else {
+                        format!("&{}", scrut_str)
+                    }
+                } else {
+                    scrut_str
+                };
+                let mut out = format!("{}match {} {{\n", ind, match_subject);
                 self.indent += 1;
                 for arm in arms {
-                    let pat_str = self.emit_pattern_match(&arm.pat);
+                    let pat_str = self.emit_match_arm_pattern(&arm.pat, refined_subject);
                     let guard_str = arm
                         .guard
                         .as_ref()
@@ -33439,6 +33436,61 @@ impl RustCodegen {
             }
         }
         false
+    }
+
+    fn variant_field_count(&self, variant_name: &str) -> usize {
+        self.types
+            .variant_field_types
+            .get(variant_name)
+            .map(|fields| fields.len())
+            .unwrap_or(0)
+    }
+
+    fn is_bare_fielded_variant_pattern(&self, pat: &Pat) -> bool {
+        matches!(pat, Pat::Con(name, args) if args.is_empty() && self.variant_field_count(name) > 0)
+    }
+
+    fn match_uses_refined_variant_subject(&self, scrutinee: &Expr, arms: &[MatchArm]) -> bool {
+        matches!(scrutinee.kind, ExprKind::Var(_))
+            && arms
+                .iter()
+                .any(|arm| self.is_bare_fielded_variant_pattern(&arm.pat))
+    }
+
+    fn emit_bare_constructor_pattern(&self, name: &str) -> String {
+        let parent = self.find_parent_type(name);
+        let field_count = self.variant_field_count(name);
+        let is_struct_type = self.types.struct_types.contains(&parent);
+        if field_count == 0 {
+            if is_struct_type {
+                return name.to_string();
+            }
+            return format!("{}::{}", parent, name);
+        }
+
+        let is_pos = self
+            .types
+            .variant_positional
+            .get(name)
+            .copied()
+            .unwrap_or(true);
+        match (is_struct_type, is_pos) {
+            (true, true) => format!("{}(..)", parent),
+            (true, false) => format!("{} {{ .. }}", parent),
+            (false, true) => format!("{}::{}(..)", parent, name),
+            (false, false) => format!("{}::{} {{ .. }}", parent, name),
+        }
+    }
+
+    fn emit_match_arm_pattern(&self, pat: &Pat, refined_subject: bool) -> String {
+        if refined_subject {
+            if let Pat::Con(name, args) = pat {
+                if args.is_empty() && self.variant_field_count(name) > 0 {
+                    return self.emit_bare_constructor_pattern(name);
+                }
+            }
+        }
+        self.emit_pattern_match(pat)
     }
 
     fn emit_pattern_binding(&self, pat: &Pat) -> String {

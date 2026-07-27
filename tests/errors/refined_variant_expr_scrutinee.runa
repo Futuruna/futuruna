@@ -1,0 +1,9 @@
+-- expect-error: only refines a named match subject
+# Token = Word(text: String) | End
+
+> bad() -> String {
+    match Word("x") {
+        | Word -> "word"
+        | End -> "end"
+    }
+}
