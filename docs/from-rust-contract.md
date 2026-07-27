@@ -287,12 +287,10 @@ As of 2026-07-18, the preview boundary is backed by:
   matches, Rust parse failure, Rust compile failure, `unsafe-rust`,
   `async-threading`, `unsupported-effect`, `unsupported-macro`,
   `unsupported-format-spec`, `unsupported-module`, `unsupported-rust-expr`,
-  and help text. The output-mismatch summary remains part of the stable
-  contract, but there is no current minimized source-level fixture for it after
-  syntactic macro-name and format-spec divergences were moved to fail-closed
-  diagnostics.
-  Translated Futuruna parse failure has a stable summary contract, but no
-  minimized source-level fixture currently reaches that path.
+  harness-level `translated-parse-failed`, harness-level `mismatch`, and help
+  text. The harness cases keep translator-bug summary formatting stable without
+  preserving a known-bad Rust source as a permanent supported or unsupported
+  fixture.
 
 This evidence promotes the checked-in validation boundary to preview. It does
 not promote arbitrary Rust crate translation, broad macro expansion, full
@@ -405,11 +403,10 @@ readiness debt.
 | 3. Fail closed for every syntactically detectable unsupported boundary | The downstream unsupported corpus covers 16 permanent fail-closed fixtures, including ownership, generics, iterator state machines, tuple-reference matches, effectful `std` APIs, async/threading, unsafe, external crates, Rust module declarations, macros, format specs, item fallbacks, and expression fallbacks. | Satisfied for the current checklist. Keep adding expected-unsupported fixtures before documenting new non-goals. |
 | 4. Larger downstream production corpus | The mint-blocking downstream lane runs 9 supported consumer-style fixtures from a fresh temporary directory across config validation, invoice arithmetic, event/report aggregation, text/parser transformations, nested data, error handling, inventory reporting, and normalization. | Satisfied for the current checklist. Keep growing with every promoted shape. |
 | 5. Production search or proof-backed differential checking | `./scripts/from-rust-differential.sh` now searches the checked-in six-family FRSS-v0 differential source-shape manifest with the original base cases plus three stable seeds by default, for 24 exact Rust-vs-Futuruna matches, and writes manifest, coverage, replay, and minimization artifacts. | Satisfied for the current checklist; keep expanding the manifest as FRSS grows. |
-| 6. Stable `from-rust --verify` user workflow | Stable summary lines exist for supported matches, recognized unsupported categories, Rust parse/compile/run failures, translated Futuruna parse failures, and output divergence. CLI coverage exercises many categories, but translated-parse-failed and mismatch currently lack minimized source-level fixtures after previous divergences moved to fail-closed diagnostics. | Blocked by `td-ed2a52`. |
+| 6. Stable `from-rust --verify` user workflow | Stable summary lines exist for supported matches, recognized unsupported categories, Rust parse/compile/run failures, translated Futuruna parse failures, and output divergence. CLI coverage exercises supported success, Rust parse/compile failure, major unsupported categories, help text, and harness-level translated-parse-failed/mismatch translator-bug summaries. | Satisfied for the current checklist. Keep source-level fixtures for real future translator bugs when they appear. |
 | 7. Compatibility guide records the production contract | The compatibility guide records preview hardening and support expansions, but not a production contract or future stable break policy for FRSS. | Blocked until the final promotion packet after the evidence blockers above. |
 | 8. Feature-stage metadata, README, contract, and scorecard move together | All current public stage metadata correctly keeps `runa from-rust` in preview. | Blocked until the final promotion packet after the evidence blockers above. |
 
-Current production blocker:
-
-- `td-ed2a52`: cover or revise the `from-rust --verify` translator-bug paths
-  for translated parse failures and output divergence.
+No current evidence blockers remain in this audit. Production promotion still
+requires a final reviewed promotion packet that moves the public feature stage,
+compatibility guide, README, this contract, and scorecard together.

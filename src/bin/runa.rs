@@ -3135,6 +3135,7 @@ fn print_from_rust_help() {
     eprintln!("Stable --verify summary lines are written to stderr:");
     eprintln!("  from-rust verify: match <file> lines=<n>");
     eprintln!("  from-rust verify: unsupported <category>: <message>");
+    eprintln!("  from-rust verify: translated-parse-failed <file>: <message>");
     eprintln!("  from-rust verify: mismatch <file> rust_lines=<n> futuruna_lines=<n>");
     eprintln!();
     eprintln!("Colored transpiled source and side-by-side diffs are diagnostic only.");
@@ -3151,6 +3152,20 @@ fn from_rust_verify_error_summary(err: &FromRustTranspileError) -> String {
             "from-rust verify: unsupported {}: {}",
             unsupported.category, unsupported.message
         ),
+    }
+}
+
+fn from_rust_verify_harness_runa_source() -> Option<String> {
+    // Test harness for stable translator-bug summaries without preserving a
+    // known-bad Rust source as a permanent user-facing fixture.
+    if std::env::var("FUTURUNA_FROM_RUST_VERIFY_HARNESS")
+        .ok()
+        .as_deref()
+        == Some("1")
+    {
+        std::env::var("FUTURUNA_FROM_RUST_VERIFY_RUNA_SOURCE").ok()
+    } else {
+        None
     }
 }
 
@@ -3172,13 +3187,16 @@ fn run_from_rust_verify(path: &str) {
         .to_string();
 
     // Step 1: Transpile
-    let runa_source = match rust_to_runa_checked(&source) {
+    let mut runa_source = match rust_to_runa_checked(&source) {
         Ok(output) => output,
         Err(err) => {
             eprintln!("{}", from_rust_verify_error_summary(&err));
             std::process::exit(1);
         }
     };
+    if let Some(harness_source) = from_rust_verify_harness_runa_source() {
+        runa_source = harness_source;
+    }
     eprintln!("from-rust verify: translated {}", name);
     eprintln!("\x1b[1;36m── Transpiled: {} → Futuruna ──\x1b[0m\n", name);
     for (i, line) in runa_source.lines().enumerate() {

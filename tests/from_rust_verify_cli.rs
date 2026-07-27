@@ -40,15 +40,21 @@ fn runa() -> &'static str {
 }
 
 fn run_from_rust_verify(source: &str) -> Output {
+    run_from_rust_verify_with_env(source, &[])
+}
+
+fn run_from_rust_verify_with_env(source: &str, envs: &[(&str, &str)]) -> Output {
     let fixture = TempRustFile::new("fixture", source);
-    Command::new(runa())
-        .args([
-            "from-rust",
-            "--verify",
-            fixture.path.to_str().expect("utf8 path"),
-        ])
-        .output()
-        .expect("run runa from-rust --verify")
+    let mut command = Command::new(runa());
+    command.args([
+        "from-rust",
+        "--verify",
+        fixture.path.to_str().expect("utf8 path"),
+    ]);
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    command.output().expect("run runa from-rust --verify")
 }
 
 #[test]
@@ -160,6 +166,73 @@ fn main() {
     assert!(
         stderr.contains("from-rust verify: rust-compile-failed "),
         "missing stable Rust compile failure line:\n{}",
+        stderr
+    );
+}
+
+#[test]
+fn from_rust_verify_reports_translated_parse_failed_harness_line() {
+    let output = run_from_rust_verify_with_env(
+        r#"
+fn main() {
+    println!("rust");
+}
+"#,
+        &[
+            ("FUTURUNA_FROM_RUST_VERIFY_HARNESS", "1"),
+            ("FUTURUNA_FROM_RUST_VERIFY_RUNA_SOURCE", "> broken("),
+        ],
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected translated parse verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: translated-parse-failed "),
+        "missing stable translated parse failure line:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: mismatch "),
+        "parse failure should stop before output comparison:\n{}",
+        stderr
+    );
+}
+
+#[test]
+fn from_rust_verify_reports_mismatch_harness_line() {
+    let output = run_from_rust_verify_with_env(
+        r#"
+fn main() {
+    println!("rust");
+}
+"#,
+        &[
+            ("FUTURUNA_FROM_RUST_VERIFY_HARNESS", "1"),
+            (
+                "FUTURUNA_FROM_RUST_VERIFY_RUNA_SOURCE",
+                "-- harness translated source\n@ print(\"futuruna\")\n",
+            ),
+        ],
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected mismatch verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: mismatch "),
+        "missing stable mismatch line:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains(" rust_lines=1 futuruna_lines=1"),
+        "mismatch line should include line counts:\n{}",
         stderr
     );
 }
@@ -379,6 +452,16 @@ fn from_rust_help_names_frss_v0_and_verify_summaries() {
     );
     assert!(
         stderr.contains("from-rust verify: unsupported <category>: <message>"),
+        "stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: translated-parse-failed <file>: <message>"),
+        "stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: mismatch <file> rust_lines=<n> futuruna_lines=<n>"),
         "stderr:\n{}",
         stderr
     );
