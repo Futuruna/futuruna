@@ -1846,6 +1846,225 @@ pub enum Rule {
     },
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum AstChild<'a> {
+    Expr(&'a Expr),
+    Stmt(&'a Stmt),
+}
+
+pub fn visit_ast_defn_children<'a, F>(defn: &'a Defn, visit: &mut F)
+where
+    F: FnMut(AstChild<'a>),
+{
+    match defn {
+        Defn::Fn { body, .. } => visit(AstChild::Expr(body)),
+        Defn::Actor { handlers, .. } => {
+            for handler in handlers {
+                visit(AstChild::Expr(&handler.body));
+            }
+        }
+        Defn::Module { body, .. } => {
+            for stmt in body {
+                visit(AstChild::Stmt(stmt));
+            }
+        }
+    }
+}
+
+pub fn visit_ast_expr_children<'a, F>(expr: &'a Expr, visit: &mut F)
+where
+    F: FnMut(AstChild<'a>),
+{
+    match &expr.kind {
+        ExprKind::App(func, args) => {
+            visit(AstChild::Expr(func));
+            for arg in args {
+                visit(AstChild::Expr(arg));
+            }
+        }
+        ExprKind::Lambda(_, body) | ExprKind::UnOp(_, body) | ExprKind::Try(body) => {
+            visit(AstChild::Expr(body));
+        }
+        ExprKind::BinOp(_, lhs, rhs) | ExprKind::Index(lhs, rhs) | ExprKind::Pipe(lhs, rhs) => {
+            visit(AstChild::Expr(lhs));
+            visit(AstChild::Expr(rhs));
+        }
+        ExprKind::If(cond, then_, else_) => {
+            visit(AstChild::Expr(cond));
+            visit(AstChild::Expr(then_));
+            visit(AstChild::Expr(else_));
+        }
+        ExprKind::Match(scrutinee, arms) => {
+            visit(AstChild::Expr(scrutinee));
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    visit(AstChild::Expr(guard));
+                }
+                visit(AstChild::Expr(&arm.body));
+            }
+        }
+        ExprKind::Block(stmts) => {
+            for stmt in stmts {
+                visit(AstChild::Stmt(stmt));
+            }
+        }
+        ExprKind::Field(base, _) => visit(AstChild::Expr(base)),
+        ExprKind::List(items)
+        | ExprKind::Tuple(items)
+        | ExprKind::Conjunction(items)
+        | ExprKind::Disjunction(items) => {
+            for item in items {
+                visit(AstChild::Expr(item));
+            }
+        }
+        ExprKind::Effect(_, args) => {
+            for arg in args {
+                visit(AstChild::Expr(arg));
+            }
+        }
+        ExprKind::Handle { handlers, body, .. } => {
+            visit(AstChild::Expr(body));
+            for handler in handlers {
+                visit(AstChild::Expr(&handler.body));
+            }
+        }
+        ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+    }
+}
+
+pub fn visit_ast_type_decl_children<'a, F>(decl: &'a TypeDecl, visit: &mut F)
+where
+    F: FnMut(AstChild<'a>),
+{
+    match decl {
+        TypeDecl::ADT { methods, .. } | TypeDecl::ImplBlock { methods, .. } => {
+            for method in methods {
+                visit_ast_defn_children(method, visit);
+            }
+        }
+        TypeDecl::WhenType { condition, .. } => visit(AstChild::Expr(condition)),
+        TypeDecl::TraitDecl { methods, .. } => {
+            for method in methods {
+                if let Some(body) = &method.default_body {
+                    visit(AstChild::Expr(body));
+                }
+            }
+        }
+        TypeDecl::EffectDecl { .. } => {}
+    }
+}
+
+pub fn visit_ast_rule_children<'a, F>(rule: &'a Rule, visit: &mut F)
+where
+    F: FnMut(AstChild<'a>),
+{
+    match rule {
+        Rule::Clause { head, body } => {
+            visit(AstChild::Expr(head));
+            if let Some(body) = body {
+                visit(AstChild::Expr(body));
+            }
+        }
+        Rule::Default {
+            head,
+            value,
+            condition,
+            ..
+        }
+        | Rule::Exception {
+            head,
+            value,
+            condition,
+            ..
+        } => {
+            visit(AstChild::Expr(head));
+            visit(AstChild::Expr(value));
+            if let Some(condition) = condition {
+                visit(AstChild::Expr(condition));
+            }
+        }
+        Rule::Scope { body, .. } => {
+            for stmt in body {
+                visit(AstChild::Stmt(stmt));
+            }
+        }
+    }
+}
+
+pub fn visit_ast_stmt_children<'a, F>(stmt: &'a Stmt, visit: &mut F)
+where
+    F: FnMut(AstChild<'a>),
+{
+    match stmt {
+        Stmt::Defn(defn) => visit_ast_defn_children(defn, visit),
+        Stmt::TypeDecl(decl) => visit_ast_type_decl_children(decl, visit),
+        Stmt::Rule(rule) => visit_ast_rule_children(rule, visit),
+        Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+            for arg in args {
+                visit(AstChild::Expr(arg));
+            }
+        }
+        Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr) | Stmt::StreamBind(_, expr) => {
+            visit(AstChild::Expr(expr));
+        }
+        Stmt::For(_, iter_expr, body) => {
+            visit(AstChild::Expr(iter_expr));
+            for stmt in body {
+                visit(AstChild::Stmt(stmt));
+            }
+        }
+        Stmt::While(cond, body) => {
+            visit(AstChild::Expr(cond));
+            for stmt in body {
+                visit(AstChild::Stmt(stmt));
+            }
+        }
+        Stmt::Send(target, msg) => {
+            visit(AstChild::Expr(target));
+            visit(AstChild::Expr(msg));
+        }
+        Stmt::StreamSub(expr, arms) => {
+            visit(AstChild::Expr(expr));
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    visit(AstChild::Expr(guard));
+                }
+                visit(AstChild::Expr(&arm.body));
+            }
+        }
+        Stmt::Invariant {
+            subject, predicate, ..
+        } => {
+            visit(AstChild::Expr(subject));
+            visit(AstChild::Expr(predicate));
+        }
+        Stmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            if let Some(stmts) = pass_block {
+                for stmt in stmts {
+                    visit(AstChild::Stmt(stmt));
+                }
+            }
+            if let Some(stmts) = else_block {
+                for stmt in stmts {
+                    visit(AstChild::Stmt(stmt));
+                }
+            }
+        }
+        Stmt::Expr(expr) => visit(AstChild::Expr(expr)),
+        Stmt::Use(_)
+        | Stmt::Import(_)
+        | Stmt::QualifiedImport(_, _)
+        | Stmt::HashImport(_, _)
+        | Stmt::Depend(_, _)
+        | Stmt::RustBlock(_)
+        | Stmt::Abort => {}
+    }
+}
+
 // ============================================================================
 // PART 3b: CONTENT HASHING (Unison's Lesson)
 // ============================================================================
@@ -14226,6 +14445,40 @@ mod tests {
                     marker,
                     row.label,
                     checker.diagnostics
+                );
+            }
+        }
+    }
+
+    fn collect_ast_visitor_vars_from_expr(expr: &Expr, vars: &mut BTreeSet<String>) {
+        if let ExprKind::Var(name) = &expr.kind {
+            vars.insert(name.clone());
+        }
+        visit_ast_expr_children(expr, &mut |child| match child {
+            AstChild::Expr(expr) => collect_ast_visitor_vars_from_expr(expr, vars),
+            AstChild::Stmt(stmt) => collect_ast_visitor_vars_from_stmt(stmt, vars),
+        });
+    }
+
+    fn collect_ast_visitor_vars_from_stmt(stmt: &Stmt, vars: &mut BTreeSet<String>) {
+        visit_ast_stmt_children(stmt, &mut |child| match child {
+            AstChild::Expr(expr) => collect_ast_visitor_vars_from_expr(expr, vars),
+            AstChild::Stmt(stmt) => collect_ast_visitor_vars_from_stmt(stmt, vars),
+        });
+    }
+
+    #[test]
+    fn canonical_ast_child_visitor_reaches_pass_coverage_markers() {
+        for row in typechecker_pass_coverage_cases() {
+            let mut vars = BTreeSet::new();
+            collect_ast_visitor_vars_from_stmt(&row.stmt, &mut vars);
+            for marker in row.diagnostic_markers {
+                assert!(
+                    vars.contains(marker),
+                    "canonical AST visitor missed `{}` in {}; visited {:?}",
+                    marker,
+                    row.label,
+                    vars
                 );
             }
         }
