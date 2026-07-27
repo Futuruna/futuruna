@@ -5,6 +5,7 @@
 # Breakdown(amount: Int, tax: Int, rate: Int)
 # DelegationInput(amount: Int)
 # DelegationRecord(amount: Int, rate: Int, literal_marker: Int)
+# DelegationMode = Ordinary | PreferProjection | PreferForwardedValue
 
 | params() -> Params(800, 51600)
 | rate_basispoint() -> params().rate_basispoint
@@ -13,22 +14,34 @@
 | delegated_breakdown(amount: Int) -> Breakdown(amount, delegated_tax(amount), rate_basispoint())
 | delegated_record(input: DelegationInput) -> DelegationRecord(input.amount, rate_basispoint(), 0)
 | delegated_record_rate(input: DelegationInput) -> delegated_record(input).rate
+| delegated_default_tax(amount: Int, mode: DelegationMode) -> delegated_tax(amount)
+| exception projection_value delegated_default_tax(amount: Int, mode: DelegationMode) -> delegated_record(DelegationInput(amount)).rate under mode == PreferProjection
+| exception forwarded_value delegated_default_tax(amount: Int, mode: DelegationMode) -> delegated_tax(amount) under mode == PreferForwardedValue
 
 = rule_value_tax = delegated_tax(500000)
 = rule_value_breakdown = delegated_breakdown(500000)
 = rule_value_record = delegated_record(DelegationInput(500000))
 = rule_value_record_rate = delegated_record_rate(DelegationInput(500000))
+= rule_value_default_tax = delegated_default_tax(500000, Ordinary)
+= rule_value_exception_projection = delegated_default_tax(500000, PreferProjection)
+= rule_value_exception_forwarded = delegated_default_tax(500000, PreferForwardedValue)
 
 | rule_value_delegates_tax: rule_value_tax -> rule_value_tax == 40000
 | rule_value_delegates_field_projection: rule_value_breakdown -> rule_value_breakdown.rate == 800
 | rule_value_delegates_record_field: rule_value_breakdown -> rule_value_breakdown.tax == 40000
 | rule_value_constructs_literal_record: rule_value_record -> rule_value_record.literal_marker == 0
 | rule_value_delegates_constructed_projection: rule_value_record_rate -> rule_value_record_rate == 800
+| rule_value_default_delegates_call: rule_value_default_tax -> rule_value_default_tax == 40000
+| rule_value_exception_delegates_projection: rule_value_exception_projection -> rule_value_exception_projection == 800
+| rule_value_exception_delegates_call: rule_value_exception_forwarded -> rule_value_exception_forwarded == 40000
 
 ? rule_value_delegates_tax
 ? rule_value_delegates_field_projection
 ? rule_value_delegates_record_field
 ? rule_value_constructs_literal_record
 ? rule_value_delegates_constructed_projection
+? rule_value_default_delegates_call
+? rule_value_exception_delegates_projection
+? rule_value_exception_delegates_call
 
 @ print("rule value delegation passed")
