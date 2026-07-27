@@ -11537,6 +11537,16 @@ struct RustCodegen {
     persist_tx_stack: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ImportedStmtExpansion {
+    NestedPlainImport,
+    NestedQualifiedImport,
+    HashImport,
+    CargoDependency,
+    RetainedLibraryStmt,
+    IgnoredScriptFlow,
+}
+
 /// Per-function ownership analysis results.
 /// Computed once per function body, consumed during Rust emission to decide
 /// clone/move/borrow for each variable.
@@ -16993,6 +17003,35 @@ impl RustCodegen {
         exported
     }
 
+    fn classify_imported_stmt_for_expansion(stmt: &Stmt) -> ImportedStmtExpansion {
+        match stmt {
+            Stmt::Import(_) => ImportedStmtExpansion::NestedPlainImport,
+            Stmt::QualifiedImport(_, _) => ImportedStmtExpansion::NestedQualifiedImport,
+            Stmt::HashImport(_, _) => ImportedStmtExpansion::HashImport,
+            Stmt::Depend(_, _) => ImportedStmtExpansion::CargoDependency,
+            Stmt::Annot(name, _) if name == "print" => ImportedStmtExpansion::IgnoredScriptFlow,
+            Stmt::Defn(_)
+            | Stmt::TypeDecl(_)
+            | Stmt::Rule(_)
+            | Stmt::Use(_)
+            | Stmt::RustBlock(_)
+            | Stmt::Annot(_, _)
+            | Stmt::Bind(_, _, _)
+            | Stmt::StreamBind(_, _)
+            | Stmt::Invariant { .. } => ImportedStmtExpansion::RetainedLibraryStmt,
+            Stmt::MonadicBind(_, _, _)
+            | Stmt::For(_, _, _)
+            | Stmt::While(_, _)
+            | Stmt::Send(_, _)
+            | Stmt::StreamSub(_, _)
+            | Stmt::Prove { .. }
+            | Stmt::Assert(_, _)
+            | Stmt::Retract(_, _)
+            | Stmt::Abort
+            | Stmt::Expr(_) => ImportedStmtExpansion::IgnoredScriptFlow,
+        }
+    }
+
     fn expand_plain_import_stmts(
         &mut self,
         imported: Vec<Stmt>,
@@ -17005,29 +17044,34 @@ impl RustCodegen {
             .extend(imported_exports.iter().cloned());
         self.types.exported_names.extend(imported_exports);
         for stmt in imported {
-            match stmt {
-                Stmt::Import(path) => {
+            match Self::classify_imported_stmt_for_expansion(&stmt) {
+                ImportedStmtExpansion::NestedPlainImport => {
+                    let Stmt::Import(path) = stmt else {
+                        unreachable!("import classifier drifted for nested plain import")
+                    };
                     let (nested, nested_dir) = self.resolve_import_from_dir(&path, import_dir);
                     self.expand_plain_import_stmts(nested, &nested_dir, out);
                 }
-                Stmt::QualifiedImport(mod_name, path) => {
+                ImportedStmtExpansion::NestedQualifiedImport => {
+                    let Stmt::QualifiedImport(mod_name, path) = stmt else {
+                        unreachable!("import classifier drifted for nested qualified import")
+                    };
                     out.push(self.build_qualified_import_module_stmt(&mod_name, &path, import_dir));
                 }
-                Stmt::HashImport(hash, path) => {
+                ImportedStmtExpansion::HashImport => {
+                    let Stmt::HashImport(hash, path) = stmt else {
+                        unreachable!("import classifier drifted for hash import")
+                    };
                     out.extend(self.resolve_hash_import(&hash, &path));
                 }
-                Stmt::Defn(_)
-                | Stmt::TypeDecl(_)
-                | Stmt::RustBlock(_)
-                | Stmt::Rule(_)
-                | Stmt::Bind(..)
-                | Stmt::StreamBind(_, _)
-                | Stmt::Use(_)
-                | Stmt::Invariant { .. } => out.push(stmt),
-                Stmt::Depend(crate_name, version) => {
+                ImportedStmtExpansion::CargoDependency => {
+                    let Stmt::Depend(crate_name, version) = stmt else {
+                        unreachable!("import classifier drifted for dependency import")
+                    };
                     self.cargo_deps.insert(crate_name, version);
                 }
-                _ => {}
+                ImportedStmtExpansion::RetainedLibraryStmt => out.push(stmt),
+                ImportedStmtExpansion::IgnoredScriptFlow => {}
             }
         }
     }
@@ -17040,31 +17084,37 @@ impl RustCodegen {
         seen: &mut BTreeSet<String>,
     ) {
         for stmt in imported {
-            match stmt {
-                Stmt::Import(path) => {
+            match Self::classify_imported_stmt_for_expansion(&stmt) {
+                ImportedStmtExpansion::NestedPlainImport => {
+                    let Stmt::Import(path) = stmt else {
+                        unreachable!("import classifier drifted for nested plain import")
+                    };
                     let (nested, nested_dir) =
                         self.resolve_import_from_dir_uncached(&path, import_dir, seen);
                     self.expand_module_import_body(nested, &nested_dir, body, seen);
                 }
-                Stmt::QualifiedImport(mod_name, path) => {
+                ImportedStmtExpansion::NestedQualifiedImport => {
+                    let Stmt::QualifiedImport(mod_name, path) = stmt else {
+                        unreachable!("import classifier drifted for nested qualified import")
+                    };
                     body.push(self.build_qualified_import_module_stmt_with_seen(
                         &mod_name, &path, import_dir, seen,
                     ));
                 }
-                Stmt::HashImport(hash, path) => {
+                ImportedStmtExpansion::HashImport => {
+                    let Stmt::HashImport(hash, path) = stmt else {
+                        unreachable!("import classifier drifted for hash import")
+                    };
                     body.extend(self.resolve_hash_import(&hash, &path));
                 }
-                Stmt::Defn(_)
-                | Stmt::TypeDecl(_)
-                | Stmt::RustBlock(_)
-                | Stmt::Bind(Pat::Var(_), _, _)
-                | Stmt::StreamBind(_, _)
-                | Stmt::Use(_)
-                | Stmt::Annot(_, _) => body.push(stmt),
-                Stmt::Depend(crate_name, version) => {
+                ImportedStmtExpansion::CargoDependency => {
+                    let Stmt::Depend(crate_name, version) = stmt else {
+                        unreachable!("import classifier drifted for dependency import")
+                    };
                     self.cargo_deps.insert(crate_name, version);
                 }
-                _ => {}
+                ImportedStmtExpansion::RetainedLibraryStmt => body.push(stmt),
+                ImportedStmtExpansion::IgnoredScriptFlow => {}
             }
         }
     }
@@ -36700,6 +36750,117 @@ module Local
     }
 
     #[test]
+    fn imported_stmt_expansion_classifier_covers_all_stmt_variants() {
+        fn expr() -> Expr {
+            ExprKind::Lit(Literal::Int(1)).into()
+        }
+
+        let retained = vec![
+            Stmt::Defn(Defn::Fn {
+                name: "helper".to_string(),
+                params: vec![],
+                ret_ty: None,
+                effects: vec![],
+                body: expr(),
+            }),
+            Stmt::TypeDecl(TypeDecl::ADT {
+                name: "Flag".to_string(),
+                params: vec![],
+                variants: vec![],
+                methods: vec![],
+                except_from: None,
+            }),
+            Stmt::Rule(Rule::Clause {
+                head: ExprKind::Var("allowed".to_string()).into(),
+                body: None,
+            }),
+            Stmt::Use("std::fmt".to_string()),
+            Stmt::RustBlock("fn imported_rust() {}".to_string()),
+            Stmt::Annot("export".to_string(), vec![]),
+            Stmt::Bind(Pat::Var("value".to_string()), None, expr()),
+            Stmt::StreamBind("stream".to_string(), expr()),
+            Stmt::Invariant {
+                name: "pure_law".to_string(),
+                subject: expr(),
+                predicate: expr(),
+            },
+        ];
+        for stmt in retained {
+            assert_eq!(
+                RustCodegen::classify_imported_stmt_for_expansion(&stmt),
+                ImportedStmtExpansion::RetainedLibraryStmt,
+                "expected retained import-library statement, got {:?}",
+                stmt
+            );
+        }
+
+        let ignored = vec![
+            Stmt::Annot("print".to_string(), vec![expr()]),
+            Stmt::MonadicBind(Pat::Var("fallible".to_string()), None, expr()),
+            Stmt::For("item".to_string(), expr(), vec![]),
+            Stmt::While(expr(), vec![]),
+            Stmt::Send(expr(), expr()),
+            Stmt::StreamSub(
+                expr(),
+                vec![MatchArm {
+                    pat: Pat::Wild,
+                    guard: None,
+                    body: expr(),
+                }],
+            ),
+            Stmt::Prove {
+                name: "run_check".to_string(),
+                proof_block: None,
+                capture: None,
+                pass_block: Some(vec![Stmt::Bind(
+                    Pat::Var("pass_probe".to_string()),
+                    None,
+                    expr(),
+                )]),
+                else_block: None,
+            },
+            Stmt::Assert("Fact".to_string(), vec![expr()]),
+            Stmt::Retract("Fact".to_string(), vec![expr()]),
+            Stmt::Abort,
+            Stmt::Expr(expr()),
+        ];
+        for stmt in ignored {
+            assert_eq!(
+                RustCodegen::classify_imported_stmt_for_expansion(&stmt),
+                ImportedStmtExpansion::IgnoredScriptFlow,
+                "expected ignored import-script-flow statement, got {:?}",
+                stmt
+            );
+        }
+
+        assert_eq!(
+            RustCodegen::classify_imported_stmt_for_expansion(&Stmt::Import("./dep".to_string())),
+            ImportedStmtExpansion::NestedPlainImport
+        );
+        assert_eq!(
+            RustCodegen::classify_imported_stmt_for_expansion(&Stmt::QualifiedImport(
+                "Dep".to_string(),
+                "./dep".to_string(),
+            )),
+            ImportedStmtExpansion::NestedQualifiedImport
+        );
+        assert_eq!(
+            RustCodegen::classify_imported_stmt_for_expansion(&Stmt::HashImport(
+                "abc123".to_string(),
+                "./dep".to_string(),
+            )),
+            ImportedStmtExpansion::HashImport
+        );
+        assert_eq!(
+            RustCodegen::classify_imported_stmt_for_expansion(&Stmt::Depend(
+                "serde".to_string(),
+                "1".to_string(),
+            )),
+            ImportedStmtExpansion::CargoDependency
+        );
+    }
+
+    #[test]
     fn import_normalization_library_consumer_snapshot_matches_golden() {
         let temp_name = format!(
             "futuruna_import_snapshot_{}_{}",
@@ -36746,7 +36907,9 @@ module Local
 
         let expected = r#"exports: consumer, read_threshold, reader, signature_symbol, threshold
 module-exports Config: read_threshold, threshold
+@ export
 fn signature_symbol/3
+@ export
 fn reader/0
 bind smoke_probe = app reader /0
 module Config
