@@ -35,8 +35,10 @@ These lanes are the core mint contract because they cover:
 
 - Rust unit and integration tests
 - the first-run golden path: `runa init`, generated project metadata/source,
-  `check`, `fmt --check`, `run`, `build`, and tutorial 01 `.runa` examples,
-  as documented in [first-run-contract.md](first-run-contract.md)
+  `check`, `fmt --check`, `run`, `build`, feature-stage metadata visibility,
+  a local qualified import/library smoke, intentional first-hour diagnostic
+  failures, and tutorial 01 `.runa` examples, as documented in
+  [first-run-contract.md](first-run-contract.md)
 - the Rust-facing integration canary: `runa lib` output compiled into a plain
   Rust consumer that calls exported structs, enums, borrowed params, lists,
   `Option`, and `Result`, plus an offline Cargo consumer for external-crate

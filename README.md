@@ -149,6 +149,10 @@ runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff
 ```
 
 See [docs/state-and-roadmap.md](docs/state-and-roadmap.md) for the current high-level map, [docs/production-readiness-scorecard.md](docs/production-readiness-scorecard.md) for the readiness table, [docs/mint-gate.md](docs/mint-gate.md) for the exact mint contract, [docs/canary-suite.md](docs/canary-suite.md) for the curated canary lane, [docs/canary-matrix.md](docs/canary-matrix.md) for the authored coverage map, [docs/expectation-suites.md](docs/expectation-suites.md) for compiletest-style expectations, [docs/artifact-codegen-contracts.md](docs/artifact-codegen-contracts.md) for emitted Rust and artifact boundaries, [docs/from-rust-contract.md](docs/from-rust-contract.md) for the FRSS-v0 Rust-to-Futuruna stable contract, and [docs/differential-testing.md](docs/differential-testing.md) for the deeper proactive lane.
+The new-user stability ledger in
+[docs/new-user-stability-packet.md](docs/new-user-stability-packet.md) states
+current conjectures, trust boundaries, first-hour diagnostics, fail-closed
+unsupported paths, and the formal-strengthening ranking.
 
 Current stage visibility lives in [docs/feature-stages.md](docs/feature-stages.md)
 and [docs/feature-stages.json](docs/feature-stages.json). Stable surfaces
@@ -199,6 +203,7 @@ See `editors/vscode/` for syntax highlighting and the Futuruna Axes color theme.
 - `CONTRIBUTING.md` - Contributor ratchet for semantic/compiler changes
 - `docs/compatibility-policy.md` - Compatibility categories, feature stages, and bug-fix exception policy
 - `docs/artifact-codegen-contracts.md` - Emitted Rust, native artifact, `runa lib`, and WASM stability boundaries
+- `docs/new-user-stability-packet.md` - New-user stability ledger: conjectures, trust boundaries, first-hour canaries, diagnostics, and formal-strengthening plan
 - `docs/feature-stages.md` / `docs/feature-stages.json` - Human and machine-readable stable/preview/experimental stage matrix for major surfaces and commands
 - `docs/production-readiness-scorecard.md` - Evidence-backed readiness ratings and promotion plan
 - `docs/expectation-suites.md` - Compiletest-style diagnostics, run/fail, and phase expectation lane

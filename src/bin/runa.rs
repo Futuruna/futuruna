@@ -196,8 +196,8 @@ fn main_inner() {
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
                 eprintln!("Feature stages:");
-                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes, lib, lint-library, stress-gen; core syntax + documented stdlib + pure/core codegen behavior + reactive/stateful workflows + importable local libraries + Rust-facing library interop + differential/generative testing");
-                eprintln!("  Preview: init, add, wasm, lsp, expect, bench, verify, from-rust");
+                eprintln!("  Stable: run, check, emit, build, test, fmt, hashes, lib, lint-library, stress-gen, from-rust; core syntax + documented stdlib + pure/core codegen behavior + reactive/stateful workflows + importable local libraries + Rust-facing library interop + FRSS-v0 Rust translation + differential/generative testing");
+                eprintln!("  Preview: init, add, wasm, lsp, expect, bench, verify");
                 eprintln!("  Experimental: audit");
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
@@ -1066,11 +1066,13 @@ fn run_type_check(stmts: &[Stmt], source: &str, filename: &str) -> bool {
         .file_stem()
         .map(|s| s.to_string_lossy().to_string());
     let mut diags = TypeChecker::check_with_diagnostics(stmts, source_dir.clone(), source);
-    diags.extend(compiler_validation_diagnostics(
-        stmts,
-        source_dir,
-        source_name,
-    ));
+    if diags.is_empty() {
+        diags.extend(compiler_validation_diagnostics(
+            stmts,
+            source_dir,
+            source_name,
+        ));
+    }
     if diags.is_empty() {
         return false;
     }
@@ -37511,86 +37513,33 @@ for x in [1, 2] {
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
-    fn compile_test_source_expect_rust_failure(
-        source: &str,
-        filename: Option<&str>,
-        expected_substrings: &[&str],
-    ) {
-        let user_stmts = parse_test_program(source);
+    fn check_test_file_expect_type_failure(path: &std::path::Path, expected_substrings: &[&str]) {
+        let source = std::fs::read_to_string(path).expect("read test file");
+        let user_stmts = parse_test_program(&source);
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
-
-        let source_dir = filename.and_then(source_dir_for);
-        let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), source);
-        diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
-        assert!(
-            diags.is_empty(),
-            "typecheck failed for compiled privacy regression: {:?}",
-            diags
-        );
-
-        let mut cg = RustCodegen::new();
-        if let Some(filename) = filename {
-            cg.source_dir = source_dir_for(filename);
-            cg.source_name = Some(filename.to_string());
+        let source_dir = source_dir_for(path.to_str().expect("utf-8 test path"));
+        let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), &source);
+        if diags.is_empty() {
+            diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
         }
-        let code = cg.emit_program(&stmts);
-
-        let temp_name = format!(
-            "futuruna_compiled_failure_{}_{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
-        let temp_dir = std::env::temp_dir().join(temp_name);
-        std::fs::create_dir_all(&temp_dir).unwrap();
-
-        let rs_path = temp_dir.join("wrapper_failure.rs");
-        let bin_path = temp_dir.join("wrapper_failure_bin");
-        std::fs::write(&rs_path, &code).unwrap();
-
-        let rustc_bin = find_rust_tool("rustc");
-        let compile = std::process::Command::new(&rustc_bin)
-            .args([
-                rs_path.to_str().unwrap(),
-                "-o",
-                bin_path.to_str().unwrap(),
-                "--edition",
-                "2021",
-            ])
-            .output()
-            .unwrap();
-
-        let stderr = String::from_utf8_lossy(&compile.stderr).to_string();
         assert!(
-            !compile.status.success(),
-            "generated Rust unexpectedly compiled:\nstderr:\n{}\ncode:\n{}",
-            stderr,
-            code
+            !diags.is_empty(),
+            "expected Futuruna diagnostic failure for {}",
+            path.display()
         );
+        let rendered = diags
+            .iter()
+            .map(|diag| diag.message.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
         for expected in expected_substrings {
             assert!(
-                stderr.contains(expected),
-                "expected rustc failure to mention {:?}, stderr:\n{}\ncode:\n{}",
+                rendered.contains(expected),
+                "expected Futuruna diagnostic to mention {:?}, diagnostics:\n{}",
                 expected,
-                stderr,
-                code
+                rendered
             );
         }
-
-        let _ = std::fs::remove_file(&rs_path);
-        let _ = std::fs::remove_file(&bin_path);
-        let _ = std::fs::remove_dir_all(&temp_dir);
-    }
-
-    fn compile_test_file_expect_rust_failure(path: &std::path::Path, expected_substrings: &[&str]) {
-        let source = std::fs::read_to_string(path).expect("read test file");
-        compile_test_source_expect_rust_failure(
-            &source,
-            Some(path.to_str().expect("utf-8 test path")),
-            expected_substrings,
-        )
     }
 
     #[test]
@@ -39151,7 +39100,13 @@ readings <- "score"
         )
         .unwrap();
 
-        compile_test_file_expect_rust_failure(&main_path, &["private", "hidden"]);
+        check_test_file_expect_type_failure(
+            &main_path,
+            &[
+                "qualified import `Config` has no exported member `hidden`",
+                "add `@ export`",
+            ],
+        );
 
         let _ = std::fs::remove_file(&dep_path);
         let _ = std::fs::remove_file(&main_path);
@@ -39181,7 +39136,13 @@ readings <- "score"
         )
         .unwrap();
 
-        compile_test_file_expect_rust_failure(&main_path, &["private", "secret"]);
+        check_test_file_expect_type_failure(
+            &main_path,
+            &[
+                "qualified import `Config` has no exported member `secret`",
+                "add `@ export`",
+            ],
+        );
 
         let _ = std::fs::remove_file(&dep_path);
         let _ = std::fs::remove_file(&main_path);

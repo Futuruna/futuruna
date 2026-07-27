@@ -1,0 +1,11 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: cannot resolve import `./missing_first_hour_helper`
+-- expect-stderr-not: check ok
+-- expect-stderr-not: Cannot read
+-- expect-stderr-not: error[E
+-- expect-stderr-not: panicked
+
+@ import ./missing_first_hour_helper
+
+= x = 1

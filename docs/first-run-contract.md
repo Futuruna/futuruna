@@ -32,16 +32,24 @@ The contract covers:
 - the generated source is already formatted
 - `runa run src/main.runa` prints `Hello from hello!`
 - `runa build src/main.runa` produces a runnable native binary for the entry
+- `runa feature-stages --json` reports the versioned stage schema and stable
+  core CLI metadata
+- a local qualified import/library consumer checks, formats, runs, builds, and
+  can access exported functions and values
 - every `runa` block in `docs/tutorial/01-hello.md` checks, formats, and runs
 
 ## Diagnostic Contract
 
 First-hour failures should stop at Futuruna-level diagnostics whenever the
 compiler has enough information to explain the problem. These cases are locked
-by `runa expect tests/expect` and include:
+by `runa expect tests/expect`, and selected first-hour mistakes are also
+checked directly by `./scripts/first-run-canary.sh`. The covered cases include:
 
 - common syntax mistakes such as `=>` where `->` is required
 - undefined names and wrong arity
+- missing local imports
+- private qualified import member access that should suggest `@ export` instead
+  of leaking rustc privacy errors
 - malformed `@ depend` declarations
 - obvious type mistakes such as annotated literal mismatches, heterogeneous list
   literals, and mismatched literal `if` branches

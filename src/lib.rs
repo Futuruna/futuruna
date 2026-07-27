@@ -11339,6 +11339,8 @@ pub struct TypeChecker {
     trait_method_receivers: BTreeMap<(String, String), MethodReceiverShape>,
     /// (trait_name, for_type, method_name) -> receiver semantics provided by the impl
     impl_method_receivers: BTreeMap<(String, String, String), MethodReceiverShape>,
+    /// qualified import module name -> exported member names
+    module_exports: BTreeMap<String, BTreeSet<String>>,
     /// structured diagnostics accumulated during checking
     pub diagnostics: Vec<Diagnostic>,
     /// current variable scope stack
@@ -11368,6 +11370,7 @@ impl TypeChecker {
             impl_methods: BTreeMap::new(),
             trait_method_receivers: BTreeMap::new(),
             impl_method_receivers: BTreeMap::new(),
+            module_exports: BTreeMap::new(),
             diagnostics: Vec::new(),
             scopes: vec![BTreeSet::new()],
             user_functions: BTreeSet::new(),
@@ -11772,6 +11775,110 @@ impl TypeChecker {
         None
     }
 
+    fn exported_names_from_stmts(stmts: &[Stmt]) -> BTreeSet<String> {
+        let mut exported = BTreeSet::new();
+        let mut is_export = false;
+        for stmt in stmts {
+            if let Stmt::Annot(name, args) = stmt {
+                if name == "export" {
+                    for arg in args {
+                        if let ExprKind::Var(n) = &arg.kind {
+                            exported.insert(n.clone());
+                        }
+                    }
+                    if args.is_empty() {
+                        is_export = true;
+                    }
+                    continue;
+                }
+            }
+            if is_export {
+                match stmt {
+                    Stmt::Defn(Defn::Fn { name, .. })
+                    | Stmt::Defn(Defn::Actor { name, .. })
+                    | Stmt::Defn(Defn::Module { name, .. }) => {
+                        exported.insert(name.clone());
+                    }
+                    Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                        exported.insert(name.clone());
+                        for variant in variants {
+                            exported.insert(variant.name.clone());
+                        }
+                    }
+                    Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
+                        exported.insert(name.clone());
+                    }
+                    _ => {}
+                }
+                is_export = false;
+            }
+        }
+        for stmt in stmts {
+            if let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = stmt {
+                if exported.contains(name) {
+                    for variant in variants {
+                        exported.insert(variant.name.clone());
+                    }
+                }
+            }
+        }
+        exported
+    }
+
+    fn import_path_span(&self, import_path: &str) -> Option<Span> {
+        if self.source_text.is_empty() {
+            return None;
+        }
+        Self::find_symbol_in_source(&self.source_text, import_path)
+            .map(|(line, col)| line_col_to_span(&self.source_text, line, col))
+    }
+
+    fn error_at_import_path(&mut self, import_path: &str, msg: String) {
+        let mut diag = if let Some(span) = self.import_path_span(import_path) {
+            Diagnostic::error_at(span, &msg)
+        } else {
+            Diagnostic::error(&msg)
+        };
+        diag.context = self.error_context.clone();
+        self.diagnostics.push(diag);
+    }
+
+    fn parse_imported_source_for_tc(
+        &mut self,
+        import_path: &str,
+        file_path: &str,
+    ) -> Option<Vec<Stmt>> {
+        let source = match std::fs::read_to_string(file_path) {
+            Ok(source) => source,
+            Err(e) => {
+                self.error_at_import_path(
+                    import_path,
+                    format!(
+                        "cannot resolve import `{}`: {} ({})",
+                        import_path, file_path, e
+                    ),
+                );
+                return None;
+            }
+        };
+        let mut lexer = Lexer::new(&source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &source);
+        match parser.parse_program() {
+            Ok(stmts) => Some(stmts),
+            Err(e) => {
+                self.error_at_import_path(
+                    import_path,
+                    format!(
+                        "cannot parse imported module `{}` at {}: {}",
+                        import_path, file_path, e
+                    ),
+                );
+                None
+            }
+        }
+    }
+
     /// Resolve an import path for the type checker (manifest-aware).
     fn resolve_tc_import(import_path: &str, dir: &str) -> Option<String> {
         let rel = import_path.trim_start_matches("./");
@@ -11985,51 +12092,72 @@ impl TypeChecker {
                 }
                 Stmt::Import(path) => {
                     // Resolve @ import and collect declarations.
-                    if let Some(ref dir) = self.source_dir {
-                        let file_path = Self::resolve_tc_import(path, dir);
+                    if let Some(dir) = self.source_dir.clone() {
+                        let file_path = Self::resolve_tc_import(path, &dir);
                         if let Some(file_path) = file_path {
                             let canon = std::fs::canonicalize(&file_path)
                                 .map(|p| p.to_string_lossy().to_string())
                                 .unwrap_or(file_path.clone());
                             if !self.imported.contains(&canon) {
                                 self.imported.insert(canon);
-                                if let Ok(source) = std::fs::read_to_string(&file_path) {
-                                    let mut lexer = Lexer::new(&source);
-                                    let tokens = lexer.tokenize();
-                                    let mut parser = Parser::new(tokens, &source);
-                                    if let Ok(import_stmts) = parser.parse_program() {
-                                        self.collect_declarations(&import_stmts);
-                                    }
+                                if let Some(import_stmts) =
+                                    self.parse_imported_source_for_tc(path, &file_path)
+                                {
+                                    self.collect_declarations(&import_stmts);
                                 }
+                            }
+                        }
+                    }
+                }
+                Stmt::QualifiedImport(mod_name, path) => {
+                    self.define_var(mod_name);
+                    if let Some(dir) = self.source_dir.clone() {
+                        if let Some(file_path) = Self::resolve_tc_import(path, &dir) {
+                            let canon = std::fs::canonicalize(&file_path)
+                                .map(|p| p.to_string_lossy().to_string())
+                                .unwrap_or(file_path.clone());
+                            if !self.imported.contains(&canon) {
+                                self.imported.insert(canon);
+                            }
+                            if let Some(import_stmts) =
+                                self.parse_imported_source_for_tc(path, &file_path)
+                            {
+                                let exported = Self::exported_names_from_stmts(&import_stmts);
+                                self.module_exports.insert(mod_name.clone(), exported);
                             }
                         }
                     }
                 }
                 Stmt::Use(_) => {}
                 Stmt::HashImport(hash, path) => {
-                    if let Some(ref dir) = self.source_dir {
-                        if let Some(file_path) = Self::resolve_tc_import(path, dir) {
+                    if let Some(dir) = self.source_dir.clone() {
+                        if let Some(file_path) = Self::resolve_tc_import(path, &dir) {
                             let canon = std::fs::canonicalize(&file_path)
                                 .map(|p| p.to_string_lossy().to_string())
                                 .unwrap_or(file_path.clone());
                             let import_key = format!("{}#{}", canon, hash);
                             if !self.imported.contains(&import_key) {
                                 self.imported.insert(import_key);
-                                if let Ok(source) = std::fs::read_to_string(&file_path) {
-                                    let mut lexer = Lexer::new(&source);
-                                    let tokens = lexer.tokenize();
-                                    let mut parser = Parser::new(tokens, &source);
-                                    if let Ok(import_stmts) = parser.parse_program() {
-                                        let matched: Vec<Stmt> = import_stmts
-                                            .into_iter()
-                                            .filter(|s| match s {
-                                                Stmt::Defn(d) => content_hash_defn(d) == *hash,
-                                                Stmt::TypeDecl(td) => {
-                                                    content_hash_type(td) == *hash
-                                                }
-                                                _ => false,
-                                            })
-                                            .collect();
+                                if let Some(import_stmts) =
+                                    self.parse_imported_source_for_tc(path, &file_path)
+                                {
+                                    let matched: Vec<Stmt> = import_stmts
+                                        .into_iter()
+                                        .filter(|s| match s {
+                                            Stmt::Defn(d) => content_hash_defn(d) == *hash,
+                                            Stmt::TypeDecl(td) => content_hash_type(td) == *hash,
+                                            _ => false,
+                                        })
+                                        .collect();
+                                    if matched.is_empty() {
+                                        self.error_at_import_path(
+                                            path,
+                                            format!(
+                                                "cannot resolve hash import `#{}` from `{}`: no matching definition",
+                                                hash, path
+                                            ),
+                                        );
+                                    } else {
                                         self.collect_declarations(&matched);
                                     }
                                 }
@@ -12605,8 +12733,21 @@ impl TypeChecker {
                 self.check_expr(body, _in_fn);
                 self.pop_scope();
             }
-            ExprKind::Field(base, _) => {
+            ExprKind::Field(base, field) => {
                 self.check_expr(base, _in_fn);
+                if let ExprKind::Var(module_name) = &base.kind {
+                    if let Some(exported) = self.module_exports.get(module_name) {
+                        if !exported.contains(field) {
+                            self.error_at_expr(
+                                expr,
+                                format!(
+                                    "qualified import `{}` has no exported member `{}`; add `@ export` in the imported file or use an exported member",
+                                    module_name, field
+                                ),
+                            );
+                        }
+                    }
+                }
             }
             ExprKind::Index(base, idx) => {
                 self.check_expr(base, _in_fn);
@@ -12981,6 +13122,158 @@ mod tests {
             use_diags[0].message.contains("undefined function `ping`"),
             "expected @ use to stay Rust-only, got {:?}",
             use_diags
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn missing_import_produces_futuruna_diagnostic() {
+        let temp_name = format!(
+            "futuruna_missing_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let source = "@ import ./missing\n= x = 1\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().unwrap();
+        let diags = TypeChecker::check_with_diagnostics(
+            &stmts,
+            Some(temp_dir.to_string_lossy().to_string()),
+            source,
+        );
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.message.contains("cannot resolve import `./missing`")),
+            "expected missing import diagnostic, got {:?}",
+            diags
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn qualified_import_private_member_produces_futuruna_diagnostic() {
+        let temp_name = format!(
+            "futuruna_private_qualified_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("helper.runa"),
+            "@ export\n> visible() -> String { \"ok\" }\n> hidden() -> String { \"secret\" }\n",
+        )
+        .unwrap();
+
+        let source = "@ import Helper from ./helper\n= value = Helper.hidden()\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().unwrap();
+        let diags = TypeChecker::check_with_diagnostics(
+            &stmts,
+            Some(temp_dir.to_string_lossy().to_string()),
+            source,
+        );
+        assert!(
+            diags.iter().any(|diag| {
+                diag.message
+                    .contains("qualified import `Helper` has no exported member `hidden`")
+            }),
+            "expected private qualified import diagnostic, got {:?}",
+            diags
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn qualified_import_exported_adt_constructors_are_public() {
+        let temp_name = format!(
+            "futuruna_public_qualified_adt_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("colors.runa"),
+            "@ export\n# Color = Red | Green | Blue\n# Hidden = Secret\n",
+        )
+        .unwrap();
+
+        let source = "@ import Colors from ./colors\n= color = Colors.Red\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().unwrap();
+        let diags = TypeChecker::check_with_diagnostics(
+            &stmts,
+            Some(temp_dir.to_string_lossy().to_string()),
+            source,
+        );
+        assert!(
+            diags.is_empty(),
+            "expected exported ADT constructor to be public through qualified import, got {:?}",
+            diags
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn qualified_import_private_member_still_checked_after_plain_import() {
+        let temp_name = format!(
+            "futuruna_mixed_import_visibility_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("helper.runa"),
+            "@ export\n> visible() -> String { \"ok\" }\n> hidden() -> String { \"secret\" }\n",
+        )
+        .unwrap();
+
+        let source =
+            "@ import ./helper\n@ import Helper from ./helper\n= value = Helper.hidden()\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().unwrap();
+        let diags = TypeChecker::check_with_diagnostics(
+            &stmts,
+            Some(temp_dir.to_string_lossy().to_string()),
+            source,
+        );
+        assert!(
+            diags.iter().any(|diag| {
+                diag.message
+                    .contains("qualified import `Helper` has no exported member `hidden`")
+            }),
+            "expected private qualified import diagnostic after plain import, got {:?}",
+            diags
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);

@@ -32,6 +32,39 @@ require_contains() {
     grep -Fq "$expected" "$file" || fail "expected '$file' to contain: $expected"
 }
 
+require_not_contains() {
+    local file="$1"
+    local unexpected="$2"
+    if grep -Fq "$unexpected" "$file"; then
+        fail "expected '$file' not to contain: $unexpected"
+    fi
+}
+
+run_expected_failure() {
+    local label="$1"
+    local expected="$2"
+    shift 2
+
+    local stdout="$TMP_DIR/${label}.stdout"
+    local stderr="$TMP_DIR/${label}.stderr"
+
+    echo
+    echo "[first-run] expect-fail ${label}: $*"
+    if "$@" >"$stdout" 2>"$stderr"; then
+        cat "$stdout"
+        cat "$stderr" >&2
+        fail "expected ${label} to fail"
+    fi
+    cat "$stderr"
+
+    require_contains "$stderr" "$expected"
+    require_not_contains "$stderr" "check ok"
+    require_not_contains "$stderr" "Cannot read"
+    require_not_contains "$stderr" "error[E"
+    require_not_contains "$stderr" "rustc"
+    require_not_contains "$stderr" "panicked"
+}
+
 resolve_runa_bin() {
     local runa_bin="${RUNA_BIN:-./target/release/runa}"
     case "$runa_bin" in
@@ -101,6 +134,13 @@ run_step "$RELEASE_RUNA" check src/main.runa
 run_step "$RELEASE_RUNA" fmt --check src/main.runa
 
 echo
+echo "[first-run] $RELEASE_RUNA feature-stages --json"
+"$RELEASE_RUNA" feature-stages --json > "$TMP_DIR/feature-stages.json"
+require_contains "$TMP_DIR/feature-stages.json" "\"schema\": \"futuruna.feature-stages.v1\""
+require_contains "$TMP_DIR/feature-stages.json" "\"id\": \"core-cli-workflow\""
+require_contains "$TMP_DIR/feature-stages.json" "\"stage\": \"stable\""
+
+echo
 echo "[first-run] $RELEASE_RUNA run src/main.runa"
 "$RELEASE_RUNA" run src/main.runa > "$TMP_DIR/init-run.out"
 cat "$TMP_DIR/init-run.out"
@@ -109,6 +149,79 @@ grep -Fxq "Hello from $PROJECT_NAME!" "$TMP_DIR/init-run.out" \
 
 run_step "$RELEASE_RUNA" build src/main.runa
 require_executable "main"
+
+cat > src/greetings.runa <<'RUNA'
+-- library-hygiene: importable
+
+@ export
+> greeting(name: String) -> String {
+    "Hello, " + name + "!"
+}
+
+> secret_greeting(name: String) -> String {
+    "secret:" + name
+}
+
+@ export
+> probe() -> String {
+    greeting("library")
+}
+RUNA
+
+cat > src/import_smoke.runa <<'RUNA'
+@ import Greeter from ./greetings
+
+= msg = Greeter.greeting("import")
+= probe = Greeter.probe()
+= ok = msg == "Hello, import!" && probe == "Hello, library!"
+? ok
+
+@ print(msg)
+RUNA
+
+run_step "$RELEASE_RUNA" check src/import_smoke.runa
+run_step "$RELEASE_RUNA" fmt --check src/import_smoke.runa
+
+echo
+echo "[first-run] $RELEASE_RUNA run src/import_smoke.runa"
+"$RELEASE_RUNA" run src/import_smoke.runa > "$TMP_DIR/import-run.out"
+cat "$TMP_DIR/import-run.out"
+grep -Fxq "Hello, import!" "$TMP_DIR/import-run.out" \
+    || fail "local import smoke did not print the expected greeting"
+
+run_step "$RELEASE_RUNA" build src/import_smoke.runa
+require_executable "import_smoke"
+
+cat > src/bad_arrow.runa <<'RUNA'
+> add(a: Int, b: Int) => Int { a + b }
+RUNA
+
+cat > src/missing_import.runa <<'RUNA'
+@ import ./missing_first_hour_helper
+
+= x = 1
+RUNA
+
+cat > src/private_import.runa <<'RUNA'
+@ import Greeter from ./greetings
+
+= hidden = Greeter.secret_greeting("import")
+RUNA
+
+run_expected_failure \
+    "bad-arrow" \
+    'Futuruna uses `->` for return types, not `=>`.' \
+    "$RELEASE_RUNA" check src/bad_arrow.runa
+
+run_expected_failure \
+    "missing-import" \
+    'cannot resolve import `./missing_first_hour_helper`' \
+    "$RELEASE_RUNA" check src/missing_import.runa
+
+run_expected_failure \
+    "private-import" \
+    'qualified import `Greeter` has no exported member `secret_greeting`' \
+    "$RELEASE_RUNA" check src/private_import.runa
 
 TUTORIAL_EXAMPLES="$TMP_DIR/tutorial-01"
 mkdir -p "$TUTORIAL_EXAMPLES"

@@ -12,6 +12,7 @@ For the detailed contracts behind each lane, see:
 
 - [docs/mint-gate.md](mint-gate.md)
 - [docs/production-readiness-scorecard.md](production-readiness-scorecard.md)
+- [docs/new-user-stability-packet.md](new-user-stability-packet.md)
 - [docs/compatibility-policy.md](compatibility-policy.md)
 - [docs/feature-stages.md](feature-stages.md)
 - [docs/compatibility-guides/](compatibility-guides/README.md)
@@ -49,6 +50,11 @@ The project now has a real assurance stack:
 - A contributor ratchet in [CONTRIBUTING.md](../CONTRIBUTING.md) that requires semantic changes to land with permanent coverage and documented follow-up tasks.
 - A published compatibility policy in [docs/compatibility-policy.md](compatibility-policy.md) that names source, behavioral, verification, and artifact-facing change categories and defines feature stages.
 - A surfaced stage matrix in [docs/feature-stages.md](feature-stages.md) so users and contributors can see which major surfaces are stable, preview, or experimental.
+- A new-user stability packet in
+  [docs/new-user-stability-packet.md](new-user-stability-packet.md) that
+  states production claims, conjectures, trust boundaries, first-hour
+  diagnostics, fail-closed unsupported paths, and the formal-strengthening
+  ranking in one place.
 - A versioned compatibility-guide discipline in [docs/compatibility-guides/](compatibility-guides/README.md) so stable changes and bug-fix exceptions become release-facing history instead of only PR-local context.
 
 On the language side, the recent focus has been semantic parity and determinism:
@@ -170,48 +176,41 @@ In short: keep Futuruna mint, then make more of it provable.
 
 ## Next Three Milestones
 
-### 1. Close the remaining semantic contract gaps
+### 1. Keep the first hour boring
 
-Current open gaps are mostly precise, known compiler/runtime edges rather than vague instability.
+Tracked now by `td-1c5b00` and the stability packet.
 
-Examples:
+The next assurance growth is to make a first-time user's expected path stable
+and predictable:
 
-- `td-88706d`: context-free empty-list expressions stay under-inferred in compiled mode
-- `td-a1b98e`: add runtime-error fixtures to the runner so error contracts are tested directly
-- `td-3fcc3e` and `td-00f228`: recursive ADT lowering gaps
-- `td-4b1694`: list literal ownership can still consume reused strings
-
-Success looks like:
-
-- fewer raw Rust inference failures leaking through codegen
-- partial builtins behaving by explicit Futuruna contract
-- remaining compiler bugs increasingly concentrated in tracked, narrow edge cases
-
-### 2. Expand realistic authored coverage and internal compiler visibility
-
-The next assurance growth is not another giant feature wave. It is broader coverage of real workflows and more compiler-internal validation.
-
-Key tracked work:
-
-- `td-90448d`: expand the stateful canary wave
-- `td-9fdd94`: expand the extended canary wave
-- `td-48e5d9`: broaden FIR snapshot coverage to richer cross-binding and module samples
-- `td-9e6db1`: reduce machine-lane noise so failures stay high-signal
+- `runa init`, `check`, `fmt --check`, `run`, and `build`
+- tutorial snippets
+- feature-stage visibility
+- local import/library use
+- intentional first-hour mistakes that fail with Futuruna diagnostics instead
+  of raw Rust, Cargo, or misleading success
 
 Success looks like:
 
-- more real user patterns represented in-repo
-- better visibility when internal compiler phases drift
-- fewer "Claude found this in another repo" surprises
+- `./scripts/first-run-canary.sh` stays mint-blocking
+- every new first-hour bug lands in an exact expectation or canary
+- unsupported paths fail closed with explicit messages
+
+### 2. Make production claims evidence-addressable
+
+The production-readiness table says what is strong. The stability packet says
+why users should believe it and where the conjectures still are.
+
+Success looks like:
+
+- every production-facing claim has an evidence class
+- every weak claim has a named strengthening path or is explicitly outside
+  scope
+- README, feature stages, CLI help, and roadmap do not contradict each other
 
 ### 3. Shrink the proof trust boundary around real compiler slices
 
 This is the serious formal-methods milestone.
-
-Key tracked work:
-
-- `td-84cd25`: build a proof-carrying Futuruna bootstrap
-- `td-165c01`: plan proof-backed or translation-checked handling for higher-risk compiler passes
 
 The practical direction is:
 

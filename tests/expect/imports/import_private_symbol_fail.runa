@@ -1,7 +1,10 @@
 -- expect-command: check
 -- expect-status: fail
--- expect-stderr: private
--- expect-stderr: hidden_label
+-- expect-stderr: qualified import `Lib` has no exported member `hidden_label`
+-- expect-stderr: add `@ export`
+-- expect-stderr-not: error[E
+-- expect-stderr-not: private function
+-- expect-stderr-not: rustc
 
 @ import Lib from ./import_visibility_lib
 
