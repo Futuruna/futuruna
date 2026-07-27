@@ -16,7 +16,7 @@ Kilder: Personskatteloven §§ 1, 3, 6, 7 og 9; Skattestyrelsens 2025-satser;
 Skatteministeriets kommuneskat for København 2025.
 ----
 
-= m4_københavn_2025_input = LønmodtagerInput(2025, København, 500000, 0, 0, Sandt)
+= m4_københavn_2025_input = LønmodtagerInput(2025, København, 500000, 0, 0, Fyldt18EllerGift, Sandt)
 = m4_københavn_2025 = beregn_lønmodtager(m4_københavn_2025_input)
 
 | m4_københavn_2025_am: m4_københavn_2025 -> m4_københavn_2025.arbejdsmarkedsbidrag_kroner == 40000
@@ -25,7 +25,14 @@ Skatteministeriets kommuneskat for København 2025.
 | m4_københavn_2025_topskat: m4_københavn_2025 -> m4_københavn_2025.topskat_før_personfradrag_kroner == 0
 | m4_københavn_2025_kommuneskat: m4_københavn_2025 -> m4_københavn_2025.kommuneskat_før_personfradrag_kroner == 108100
 | m4_københavn_2025_kirkeskat: m4_københavn_2025 -> m4_københavn_2025.kirkeskat_før_personfradrag_kroner == 3680
-| m4_københavn_2025_samlet: m4_københavn_2025 -> m4_københavn_2025.samlet_inkl_am_før_personfradrag_kroner == 207026
+| m4_københavn_2025_samlet_før: m4_københavn_2025 -> m4_københavn_2025.samlet_inkl_am_før_personfradrag_kroner == 207026
+| m4_københavn_2025_personfradrag: m4_københavn_2025 -> m4_københavn_2025.personfradrag_kroner == 51600
+| m4_københavn_2025_statslig_skatteværdi: m4_københavn_2025 -> m4_københavn_2025.statslig_personfradrag_skatteværdi_kroner == 6197
+| m4_københavn_2025_kommunal_skatteværdi: m4_københavn_2025 -> m4_københavn_2025.kommunal_personfradrag_skatteværdi_kroner == 12126
+| m4_københavn_2025_kirkelig_skatteværdi: m4_københavn_2025 -> m4_københavn_2025.kirkelig_personfradrag_skatteværdi_kroner == 412
+| m4_københavn_2025_samlet_efter: m4_københavn_2025 -> m4_københavn_2025.samlet_inkl_am_efter_personfradrag_kroner == 188291
+| m4_københavn_2025_personfradrag_anvendt: m4_københavn_2025 -> m4_københavn_2025.personfradrag_anvendt_i_slutskat == Sandt
+| m4_københavn_2025_uden_par13_underskud: m4_københavn_2025 -> m4_københavn_2025.kræver_par13_underskud == Falskt
 
 ? m4_københavn_2025_am
 ? m4_københavn_2025_personlig
@@ -33,7 +40,14 @@ Skatteministeriets kommuneskat for København 2025.
 ? m4_københavn_2025_topskat
 ? m4_københavn_2025_kommuneskat
 ? m4_københavn_2025_kirkeskat
-? m4_københavn_2025_samlet
+? m4_københavn_2025_samlet_før
+? m4_københavn_2025_personfradrag
+? m4_københavn_2025_statslig_skatteværdi
+? m4_københavn_2025_kommunal_skatteværdi
+? m4_københavn_2025_kirkelig_skatteværdi
+? m4_københavn_2025_samlet_efter
+? m4_københavn_2025_personfradrag_anvendt
+? m4_københavn_2025_uden_par13_underskud
 
 ----
 Fixture 2
@@ -47,7 +61,7 @@ Kilder: Personskatteloven §§ 1, 3, 6, 7 og 9; Skattestyrelsens 2025-satser;
 Skatteministeriets kommuneskat for Gentofte 2025.
 ----
 
-= m4_gentofte_2025_input = LønmodtagerInput(2025, Gentofte, 750000, 20000, 10000, Sandt)
+= m4_gentofte_2025_input = LønmodtagerInput(2025, Gentofte, 750000, 20000, 10000, Fyldt18EllerGift, Sandt)
 = m4_gentofte_2025 = beregn_lønmodtager(m4_gentofte_2025_input)
 
 | m4_gentofte_2025_am: m4_gentofte_2025 -> m4_gentofte_2025.arbejdsmarkedsbidrag_kroner == 60000
@@ -57,8 +71,14 @@ Skatteministeriets kommuneskat for Gentofte 2025.
 | m4_gentofte_2025_topskat: m4_gentofte_2025 -> m4_gentofte_2025.topskat_før_personfradrag_kroner == 11730
 | m4_gentofte_2025_kommuneskat: m4_gentofte_2025 -> m4_gentofte_2025.kommuneskat_før_personfradrag_kroner == 169680
 | m4_gentofte_2025_kirkeskat: m4_gentofte_2025 -> m4_gentofte_2025.kirkeskat_før_personfradrag_kroner == 2730
-| m4_gentofte_2025_samlet: m4_gentofte_2025 -> m4_gentofte_2025.samlet_inkl_am_før_personfradrag_kroner == 329411
-| m4_gentofte_2025_markerer_personfradrag: m4_gentofte_2025 -> m4_gentofte_2025.kræver_par9_personfradrag == Sandt
+| m4_gentofte_2025_samlet_før: m4_gentofte_2025 -> m4_gentofte_2025.samlet_inkl_am_før_personfradrag_kroner == 329411
+| m4_gentofte_2025_personfradrag: m4_gentofte_2025 -> m4_gentofte_2025.personfradrag_kroner == 51600
+| m4_gentofte_2025_statslig_skatteværdi: m4_gentofte_2025 -> m4_gentofte_2025.statslig_personfradrag_skatteværdi_kroner == 6197
+| m4_gentofte_2025_kommunal_skatteværdi: m4_gentofte_2025 -> m4_gentofte_2025.kommunal_personfradrag_skatteværdi_kroner == 12507
+| m4_gentofte_2025_kirkelig_skatteværdi: m4_gentofte_2025 -> m4_gentofte_2025.kirkelig_personfradrag_skatteværdi_kroner == 201
+| m4_gentofte_2025_samlet_efter: m4_gentofte_2025 -> m4_gentofte_2025.samlet_inkl_am_efter_personfradrag_kroner == 310506
+| m4_gentofte_2025_personfradrag_anvendt: m4_gentofte_2025 -> m4_gentofte_2025.personfradrag_anvendt_i_slutskat == Sandt
+| m4_gentofte_2025_uden_par13_underskud: m4_gentofte_2025 -> m4_gentofte_2025.kræver_par13_underskud == Falskt
 
 ? m4_gentofte_2025_am
 ? m4_gentofte_2025_personlig
@@ -67,8 +87,14 @@ Skatteministeriets kommuneskat for Gentofte 2025.
 ? m4_gentofte_2025_topskat
 ? m4_gentofte_2025_kommuneskat
 ? m4_gentofte_2025_kirkeskat
-? m4_gentofte_2025_samlet
-? m4_gentofte_2025_markerer_personfradrag
+? m4_gentofte_2025_samlet_før
+? m4_gentofte_2025_personfradrag
+? m4_gentofte_2025_statslig_skatteværdi
+? m4_gentofte_2025_kommunal_skatteværdi
+? m4_gentofte_2025_kirkelig_skatteværdi
+? m4_gentofte_2025_samlet_efter
+? m4_gentofte_2025_personfradrag_anvendt
+? m4_gentofte_2025_uden_par13_underskud
 
-@ print("m4 København 2025 samlet inkl. AM før personfradrag: " + vis(m4_københavn_2025.samlet_inkl_am_før_personfradrag_kroner))
-@ print("m4 Gentofte 2025 samlet inkl. AM før personfradrag: " + vis(m4_gentofte_2025.samlet_inkl_am_før_personfradrag_kroner))
+@ print("m4 København 2025 samlet inkl. AM efter personfradrag: " + vis(m4_københavn_2025.samlet_inkl_am_efter_personfradrag_kroner))
+@ print("m4 Gentofte 2025 samlet inkl. AM efter personfradrag: " + vis(m4_gentofte_2025.samlet_inkl_am_efter_personfradrag_kroner))

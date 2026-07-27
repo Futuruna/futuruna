@@ -1627,6 +1627,8 @@ const TAX_STATUS_MD: &str = include_str!("../../examples/danish-income-tax/statu
 const TAX_SOURCE_STATUS: &str = include_str!("../../examples/danish-income-tax/source-status.runa");
 const TAX_KAP01: &str = include_str!("../../examples/danish-income-tax/kapitel-01-indkomst.runa");
 const TAX_KAP02: &str = include_str!("../../examples/danish-income-tax/kapitel-02-statsskat.runa");
+const TAX_KAP03: &str =
+    include_str!("../../examples/danish-income-tax/kapitel-03-personfradrag.runa");
 const TAX_PARAMS: &str = include_str!("../../examples/danish-income-tax/skatteaar-parametre.runa");
 const TAX_CALC: &str = include_str!("../../examples/danish-income-tax/loenmodtager_beregning.runa");
 const TAX_FIXTURES: &str = include_str!("../../examples/danish-income-tax/loenmodtager-fixtures.runa");
@@ -1830,8 +1832,8 @@ fn ResearchIndex() -> Element {
                     h2 { class: "research-card-title", "Personskatteloven" }
                     p { class: "research-card-desc",
                         "Danish personal income tax law encoded as Futuruna: source lineage, \
-                         §§ 1-9, tax-year parameter packs, wage-earner calculation fixtures, \
-                         and audit signals for missing dependencies and legal cliffs."
+                         §§ 1-13, tax-year parameter packs, wage-earner calculation fixtures \
+                         through personfradrag, and audit signals for missing dependencies and legal cliffs."
                     }
                     span { class: "research-card-meta", "Skatteret \u{00B7} Dansk \u{00B7} Research slice" }
                 }
@@ -2267,6 +2269,7 @@ fn ResearchPersonskatteloven() -> Element {
         ("source-status.runa — Kildepostur og historisk linje", "source-status-code", TAX_SOURCE_STATUS),
         ("kapitel-01-indkomst.runa — §§ 1-4 b indkomsttaxonomi", "kapitel-01-code", TAX_KAP01),
         ("kapitel-02-statsskat.runa — §§ 5-9 statsskat", "kapitel-02-code", TAX_KAP02),
+        ("kapitel-03-personfradrag.runa — §§ 10-13 personfradrag og underskud", "kapitel-03-code", TAX_KAP03),
         ("skatteaar-parametre.runa — 2024/2025 parameterpakker", "params-code", TAX_PARAMS),
         ("loenmodtager_beregning.runa — første beregningsslice", "calculator-code", TAX_CALC),
         ("loenmodtager-fixtures.runa — eksekverbare normalperson-fixtures", "fixtures-code", TAX_FIXTURES),
@@ -2313,12 +2316,12 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Calculation slice" }
                             strong { "Calculation-ready" }
-                            p { "Limited to the checked 2025 wage-earner fixtures for Copenhagen and Gentofte before § 9 personfradrag settlement." }
+                            p { "Limited to the checked 2025 wage-earner fixtures for Copenhagen and Gentofte after § 10/§ 12 personfradrag settlement." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven model is incomplete: spouse rules, negative capital income, §§ 10-13, 2026 reform layers, and dependent tax statutes remain explicit gaps." }
+                            p { "The full Personskatteloven model is incomplete: spouse rules, negative capital income, advanced § 13 underskud, 2026 reform layers, and dependent tax statutes remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -2328,7 +2331,7 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
                     }
                     p { class: "const-stats",
-                        "8 filer \u{00B7} §§ 1-9 første slice \u{00B7} 2024/2025 parameterpakker \u{00B7} wage-earner fixtures \u{00B7} audit-signaler"
+                        "9 filer \u{00B7} §§ 1-13 første slice \u{00B7} 2024/2025 parameterpakker \u{00B7} wage-earner fixtures efter personfradrag \u{00B7} audit-signaler"
                     }
                 }
 
@@ -2364,7 +2367,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "§ 9 personfradrag and §§ 10-13 remain marked dependencies" }
+                            strong { "Advanced § 13 spouse, deficit, and negative-capital rules remain marked dependencies" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }

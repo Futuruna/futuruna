@@ -1,0 +1,286 @@
+@ sprog da
+
+@ importer ./skatteaar - parametre
+
+-- Personskatteloven — personfradrag, negativ kapitalindkomst og underskud (§§ 10-13).
+--
+-- Kilde: Retsinformation, LBK nr. 1284 af 14/06/2021.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2021/1284
+-- XML: https://www.retsinformation.dk/eli/lta/2021/1284/dan/xml
+
+----
+§ 10. For her i landet fuldt skattepligtige personer udgør personfradragets
+grundbeløb 42.000 kr. (2010-niveau). For indkomståret 2019 udgør grundbeløbet
+41.300 kr. (2010-niveau). For indkomståret 2020 udgør grundbeløbet 40.600 kr.
+(2010-niveau). For indkomståret 2021 udgør grundbeløbet 39.900 kr.
+(2010-niveau). For indkomståret 2022 og efterfølgende indkomstår udgør
+grundbeløbet 39.350 kr. (2010-niveau).
+
+Stk. 2. For personer, som ved indkomstårets udløb ikke er fyldt 18 år og ikke
+har indgået ægteskab, udgør personfradragets grundbeløb 31.500 kr.
+(2010-niveau).
+
+Stk. 3. I det omfang en gift person, der er samlevende med ægtefællen ved
+indkomstårets udløb, ikke kan udnytte skatteværdien af personfradragene,
+benyttes den ikke udnyttede del af skatteværdien til nedsættelse efter § 9 af
+den anden ægtefælles skatter.
+
+Stk. 4. For personer, som har valgt beskatning efter kildeskattelovens §§ 48 E
+og 48 F, finder reglerne i stk. 1 og 2 ikke anvendelse ved beregningen af
+skatten af den indkomst, der omfattes af kildeskattelovens §§ 48 E og 48 F. For
+disse personer finder heller ikke reglen i stk. 3 anvendelse for personfradrag,
+der tilkommer de pågældende.
+
+Stk. 5. For personer, som er skattepligtige efter kildeskattelovens § 2, og hvis
+indkomstansættelse omfatter en periode på 1 år, nedsættes de beregnede skatter
+med skatteværdien af et personfradrag efter reglerne i stk. 1 og 2, hvis de
+skattepligtige indtægter er omfattet af kildeskattelovens § 2, stk. 1, nr. 1 og
+9-13, eller stk. 2, 1-3. pkt. Bestemmelserne i 1. pkt. finder ikke anvendelse,
+i det omfang de skattepligtige indtægter beskattes efter § 9, stk. 1, i lov om
+beskatning af søfolk. Bestemmelsen i 1. pkt. finder endvidere ikke anvendelse
+på personer, der ansøger om opholdstilladelse efter udlændingelovens § 7.
+
+Stk. 6. Personer omfattet af kildeskattelovens § 2, og hvis indkomstansættelse
+omfatter en kortere periode end 1 år, jf. dog kildeskattelovens §§ 5 A-5 D, kan
+vælge at få de beregnede skatter nedsat med skatteværdien af et personfradrag
+efter reglerne i stk. 1 og 2, hvis de skattepligtige indtægter er omfattet af
+kildeskattelovens § 2, stk. 1, nr. 1 og 9-13, eller stk. 2, 1-3. pkt. Valget
+for et indkomstår skal træffes senest den 1. juli i året efter det pågældende
+indkomstår. Valget kan omgøres senest den 30. juni i det andet kalenderår efter
+indkomstårets udløb. Bestemmelserne i 1. pkt. finder ikke anvendelse, i det
+omfang de skattepligtige indtægter beskattes efter § 9, stk. 1, i lov om
+beskatning af søfolk. Bestemmelsen i 1. pkt. finder endvidere ikke anvendelse
+på personer, der ansøger om opholdstilladelse efter udlændingelovens § 7.
+
+Stk. 7. De nævnte grundbeløb reguleres efter § 20.
+----
+
+# PersonfradragAlderStatus = Fyldt18EllerGift | Under18Ugift
+# PersonfradragSkattepligt = FuldtSkattepligtigHerILandet | KildeskattelovPar2HelårRelevantIndtægt | KildeskattelovPar2DelårValgtRelevantIndtægt | KildeskattelovPar2DelårIkkeValgt | Kildeskattelov48Eller48FIndkomst | SømandsbeskatningPar9Indkomst | OpholdstilladelseUdl7Ansøger
+# ÆgtefællePersonfradragStatus = IkkeGiftEllerIkkeSamlevende | GiftSamlevendeVedÅretsUdløb
+
+| personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 42000 under status == Fyldt18EllerGift
+| exception voksen_2019 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 41300 under status == Fyldt18EllerGift && skatteår == 2019
+| exception voksen_2020 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 40600 under status == Fyldt18EllerGift && skatteår == 2020
+| exception voksen_2021 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 39900 under status == Fyldt18EllerGift && skatteår == 2021
+| exception voksen_2022_og_frem personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 39350 under status == Fyldt18EllerGift && skatteår >= 2022
+| exception under18_ugift personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 31500 under status == Under18Ugift
+
+| personfradrag_beløb_for(skatteår: Heltal, status: PersonfradragAlderStatus) -> nationalparametre_for(skatteår).personfradrag_voksen_kroner under status == Fyldt18EllerGift
+| personfradrag_beløb_for(skatteår: Heltal, status: PersonfradragAlderStatus) -> nationalparametre_for(skatteår).personfradrag_under18_kroner under status == Under18Ugift
+
+| personfradrag_anvendes_for(status: PersonfradragSkattepligt) -> Falskt
+| exception fuldt_skattepligtig personfradrag_anvendes_for(status: PersonfradragSkattepligt) -> Sandt under status == FuldtSkattepligtigHerILandet
+| exception ksl_par2_helår personfradrag_anvendes_for(status: PersonfradragSkattepligt) -> Sandt under status == KildeskattelovPar2HelårRelevantIndtægt
+| exception ksl_par2_delår_valgt personfradrag_anvendes_for(status: PersonfradragSkattepligt) -> Sandt under status == KildeskattelovPar2DelårValgtRelevantIndtægt
+
+| ubrugt_personfradrag_skatteværdi_overføres_til_ægtefælle(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
+| personfradrag_grundbeløb_reguleres_efter_par20() -> Sandt
+
+= par10_voksen_2025_2010niveau = personfradrag_grundbeløb_2010_niveau(Fyldt18EllerGift, 2025)
+= par10_under18_2010niveau = personfradrag_grundbeløb_2010_niveau(Under18Ugift, 2025)
+= par10_voksen_2025 = personfradrag_beløb_for(2025, Fyldt18EllerGift)
+= par10_fuld_skattepligt = personfradrag_anvendes_for(FuldtSkattepligtigHerILandet)
+= par10_forskerordning_afskåret = personfradrag_anvendes_for(Kildeskattelov48Eller48FIndkomst)
+= par10_ægtefælleoverførsel = ubrugt_personfradrag_skatteværdi_overføres_til_ægtefælle(GiftSamlevendeVedÅretsUdløb)
+
+| par10_voksen_2025_grundbeløb: par10_voksen_2025_2010niveau -> par10_voksen_2025_2010niveau == 39350
+| par10_under18_grundbeløb: par10_under18_2010niveau -> par10_under18_2010niveau == 31500
+| par10_voksen_2025_parameter: par10_voksen_2025 -> par10_voksen_2025 == 51600
+| par10_fuld_skattepligtig_får_fradrag: par10_fuld_skattepligt -> par10_fuld_skattepligt == Sandt
+| par10_forskerordning_afskæres: par10_forskerordning_afskåret -> par10_forskerordning_afskåret == Falskt
+| par10_ubrugt_overføres: par10_ægtefælleoverførsel -> par10_ægtefælleoverførsel == Sandt
+
+----
+§ 11. For den del af den skattepligtiges negative nettokapitalindkomst, der ikke
+overstiger et beløb på 50.000 kr., beregnes et nedslag i skatten med den
+procent, der anføres i stk. 2. Nedslaget modregnes i skatterne efter §§ 6, 7,
+7 a og 8, § 8 a, stk. 2, og § 8 c, indkomstskat til kommunen og kirkeskat i den
+nævnte rækkefølge.
+
+Stk. 2. For indkomståret 2012 udgør procenten 1. For indkomståret 2013 udgør
+procenten 2. For indkomståret 2014 udgør procenten 3. For indkomståret 2015
+udgør procenten 4. For indkomståret 2016 udgør procenten 5. For indkomståret
+2017 udgør procenten 6. For indkomståret 2018 udgør procenten 7. For
+indkomståret 2019 og efterfølgende indkomstår udgør procenten 8.
+
+Stk. 3. Er en gift persons negative nettokapitalindkomst mindre end
+beløbsgrænsen i stk. 1, forhøjes den anden ægtefælles beløbsgrænse med
+forskelsbeløbet, hvis ægtefællerne er samlevende ved indkomstårets udløb. Er
+personens nettokapitalindkomst positiv, modregnes dette beløb i den anden
+ægtefælles negative nettokapitalindkomst, inden ægtefællens beløbsgrænse
+forhøjes efter 1. pkt.
+
+Stk. 4. Hvis en gift person ikke kan udnytte nedslaget beregnet efter stk. 1-3,
+modregnes den ikke udnyttede del i den anden ægtefælles skatter, hvis
+ægtefællerne er samlevende ved indkomstårets udløb.
+
+Stk. 5. Nedslag i skatten efter stk. 1-4 omfatter alene personer, der har pligt
+til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
+----
+
+# NegativKapitalNedslagInput(skatteår: Heltal, negativ_nettokapitalindkomst_kroner: Heltal, betaler_kommunal_eller_par8c: Boolsk)
+
+| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 100 under skatteår == 2012
+| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 200 under skatteår == 2013
+| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 300 under skatteår == 2014
+| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 400 under skatteår == 2015
+| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 500 under skatteår == 2016
+| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 600 under skatteår == 2017
+| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 700 under skatteår == 2018
+| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 800 under skatteår >= 2019
+
+| negativ_kapital_nedslag_grundlag(input: NegativKapitalNedslagInput) -> hvis input.negativ_nettokapitalindkomst_kroner > 50000 { 50000 } ellers { input.negativ_nettokapitalindkomst_kroner }
+| negativ_kapital_nedslag_kroner(input: NegativKapitalNedslagInput) -> negativ_kapital_nedslag_grundlag(input) * negativ_kapital_nedslag_sats_basispoint(input.skatteår) / 10000 under input.betaler_kommunal_eller_par8c
+| negativ_kapital_ægtefælle_beløbsgrænse_kan_forhøjes(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
+| uudnyttet_negativ_kapital_nedslag_overføres_til_ægtefælle(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
+
+= par11_nedslag_2025 = negativ_kapital_nedslag_kroner(NegativKapitalNedslagInput(2025, 40000, Sandt))
+= par11_nedslag_loft = negativ_kapital_nedslag_kroner(NegativKapitalNedslagInput(2025, 80000, Sandt))
+
+| par11_2025_8pct: par11_nedslag_2025 -> par11_nedslag_2025 == 3200
+| par11_loft_50000: par11_nedslag_loft -> par11_nedslag_loft == 4000
+
+----
+§ 12. Skatteværdien af de i § 10 nævnte personfradrag opgøres som en procentdel
+af fradragene. Ved opgørelsen anvendes samme procent som ved beregningen af
+indkomstskat til kommunen samt kirkeskat. For skattepligtige, der svarer skat
+efter § 8 c, anvendes dog beskatningsprocenten for skatten efter § 5, nr. 7.
+Ved beregningen af indkomstskat til staten beregnes skatteværdien af
+personfradraget med beskatningsprocenterne for bundskat efter § 5, nr. 1, og for
+sundhedsbidrag efter § 5, nr. 4.
+
+Stk. 2. Hvis skatteværdien af personfradraget ikke kan udnyttes ved beregningen
+af en eller flere af de i § 9 nævnte skatter, anvendes den ikke udnyttede del
+til nedsættelse af de øvrige skatter.
+----
+
+# PersonfradragSkatteværdiInput(fradrag_kroner: Heltal, bundskat_basispoint: Heltal, sundhedsbidrag_basispoint: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, par8c_basispoint: Heltal)
+
+| personfradrag_skatteværdi_med_sats(fradrag_kroner: Heltal, sats_basispoint: Heltal) -> fradrag_kroner * sats_basispoint / 10000
+| personfradrag_statslig_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.bundskat_basispoint + input.sundhedsbidrag_basispoint)
+| personfradrag_kommunal_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.kommuneskat_basispoint)
+| personfradrag_kirkelig_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.kirkeskat_basispoint)
+| personfradrag_par8c_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.par8c_basispoint)
+| uudnyttet_personfradrag_skatteværdi_omfordeles() -> Sandt
+| skat_efter_nedsættelse(skat_kroner: Heltal, nedsættelse_kroner: Heltal) -> hvis skat_kroner > nedsættelse_kroner { skat_kroner - nedsættelse_kroner } ellers { 0 }
+
+= par12_fixture = PersonfradragSkatteværdiInput(51600, 1201, 0, 2350, 80, 0)
+= par12_statslig = personfradrag_statslig_skatteværdi(par12_fixture)
+= par12_kommunal = personfradrag_kommunal_skatteværdi(par12_fixture)
+= par12_kirkelig = personfradrag_kirkelig_skatteværdi(par12_fixture)
+= par12_nedsat = skat_efter_nedsættelse(55246, par12_statslig)
+
+| par12_statslig_værdi: par12_statslig -> par12_statslig == 6197
+| par12_kommunal_værdi: par12_kommunal -> par12_kommunal == 12126
+| par12_kirkelig_værdi: par12_kirkelig -> par12_kirkelig == 412
+| par12_skat_nedsættes: par12_nedsat -> par12_nedsat == 49049
+
+----
+§ 13. Hvis den skattepligtige indkomst udviser underskud, beregnes
+skatteværdien af underskuddet med beskatningsprocenten for sundhedsbidrag, jf.
+§ 8, og beskatningsprocenterne for kommunal indkomstskat og kirkeskat
+henholdsvis med beskatningsprocenten efter § 8 c. Skatteværdien af underskuddet
+modregnes i den nævnte rækkefølge i skatterne efter §§ 6, 7 og 7 a og § 8 a,
+stk. 2. Et herefter resterende underskud fremføres til fradrag i den
+skattepligtige indkomst for de følgende indkomstår. Fradraget for underskud i
+skattepligtig indkomst kan kun fremføres til et senere indkomstår, hvis det ikke
+kan rummes i skattepligtig indkomst eller modregnes med skatteværdien i skat
+efter §§ 6, 7 og 7 a og § 8 a, stk. 2, for et tidligere indkomstår.
+
+Stk. 2. Hvis en gift persons skattepligtige indkomst udviser underskud, og
+ægtefællerne er samlevende ved indkomstårets udløb, skal underskud, der ikke er
+modregnet efter stk. 1, 2. pkt., i størst muligt omfang fradrages i den anden
+ægtefælles skattepligtige indkomst. Derefter modregnes skatteværdien af
+uudnyttet underskud i ægtefællens beregnede skatter efter §§ 6, 7 og 7 a og
+§ 8 a, stk. 2. Modregning sker, før ægtefællens egne uudnyttede underskud fra
+tidligere indkomstår fremføres efter 4.-6. pkt. Et herefter overskydende beløb
+fremføres til fradrag i følgende indkomstår efter stk. 1, 4. pkt. Hvert år
+fradrages underskud først i den skattepligtiges indkomst og i øvrigt efter samme
+regler, som gælder for underskudsåret. Hvis ægtefællen ligeledes har uudnyttet
+underskud vedrørende tidligere indkomstår, skal ægtefællens egne underskud
+modregnes først.
+
+Stk. 3. Hvis den personlige indkomst er negativ, modregnes den inden opgørelsen
+af beregningsgrundlaget efter §§ 6 og 7 i indkomstårets positive
+kapitalindkomst. Et resterende negativt beløb fremføres til modregning først i
+kapitalindkomst og derefter i personlig indkomst med tillæg af heri fradragne og
+ikke medregnede beløb omfattet af beløbsgrænsen i pensionsbeskatningslovens
+§ 16, stk. 1, 4. pkt., for de følgende indkomstår inden opgørelsen af
+beregningsgrundlagene efter §§ 6 og 7. Negativ personlig indkomst kan kun
+fremføres, i det omfang den ikke kan modregnes efter 1. eller 2. pkt. for et
+tidligere indkomstår.
+
+Stk. 4. Hvis en gift persons personlige indkomst er negativ og ægtefællerne er
+samlevende ved indkomstårets udløb, skal det negative beløb inden opgørelse af
+beregningsgrundlagene efter §§ 6 og 7 modregnes i den anden ægtefælles
+personlige indkomst med tillæg af heri fradragne og ikke medregnede beløb
+omfattet af beløbsgrænsen i pensionsbeskatningslovens § 16, stk. 1, 4. pkt. Et
+overskydende negativt beløb modregnes i ægtefællernes positive kapitalindkomst
+opgjort under ét. Har begge ægtefæller positiv kapitalindkomst, modregnes det
+negative beløb fortrinsvis i den skattepligtiges kapitalindkomst og derefter i
+ægtefællens kapitalindkomst. Modregning sker, før ægtefællens egne uudnyttede
+underskud fra tidligere indkomstår fremføres efter 5.-8. pkt. Et negativt
+beløb, der herefter ikke er modregnet, fremføres inden for de følgende
+indkomstår, i det omfang beløbet ikke kan modregnes for et tidligere indkomstår,
+til modregning inden opgørelsen af beregningsgrundlagene efter §§ 6 og 7. Hvert
+år modregnes negativ personlig indkomst først i ægtefællernes positive
+kapitalindkomst opgjort under ét, derefter i den skattepligtiges personlige
+indkomst med tillæg af heri fradragne og ikke medregnede beløb omfattet af
+beløbsgrænsen i pensionsbeskatningslovens § 16, stk. 1, 4. pkt., og endelig i
+ægtefællens personlige indkomst med tillæg af heri fradragne og ikke medregnede
+beløb omfattet af beløbsgrænsen i pensionsbeskatningslovens § 16, stk. 1,
+4. pkt. finder tilsvarende anvendelse. Hvis ægtefællen ligeledes har uudnyttet
+underskud vedrørende tidligere indkomstår, skal ægtefællens egne underskud
+modregnes først.
+
+Stk. 5. Ved overførsel efter stk. 2 eller 4 af underskud mellem ægtefæller ses
+der ved opgørelsen af ægtefællernes skattepligtige indkomst og personlige
+indkomst i denne forbindelse bort fra personlig indkomst, der beskattes i
+udlandet og ikke her i landet. Den del af underskuddet, der svarer til udgifter,
+som den skattepligtige får fradrag for i udlandet, kan ikke overføres til
+ægtefællen. Den personlige indkomst reduceres med fradragsberettigede udgifter,
+der vedrører denne indkomst, uanset om disse udgifter er omfattet af § 3,
+stk. 2. Der kan ikke ske overførsel efter stk. 4 af den del af underskuddet, der
+modsvares af fradragne og ikke medregnede beløb omfattet af beløbsgrænsen i
+pensionsbeskatningslovens § 16, stk. 1, 4. pkt. Bestemmelsen finder dog ikke
+anvendelse, hvor skatten er nedsat i henhold til bestemmelsen i ligningslovens
+§ 33 A eller efter sømandsbeskatningslovens §§ 5-8.
+
+Stk. 6. Underskud i skattepligtig almindelig indkomst fra en virksomhed som
+nævnt i § 4, stk. 1, nr. 9 eller 11, kan ikke fratrækkes i den skattepligtiges
+øvrige skattepligtige indkomst, men fremføres til modregning i positiv
+skattepligtig indkomst i et senere indkomstår fra samme virksomhed. Tilsvarende
+gælder også for forskudsafskrivninger efter afskrivningsloven på aktiver, der
+efter færdiggørelsen benyttes i virksomheden. Bestemmelserne gælder dog ikke
+underskud fra skibsvirksomhed omfattet af § 4, stk. 1, nr. 9 eller 11, når
+erhvervsministeren senest den 31. december 1993 har godkendt skibsprojektet.
+
+Stk. 7. Underskud fra virksomhed, der drives i et efter danske skatteregler
+skattemæssigt transparent selskab m.v., hvis forhold er reguleret af
+selskabslovgivning, en selskabsaftale el.lign., kan ikke fradrages i den
+skattepligtiges øvrige skattepligtige indkomst. Underskuddet fremføres til
+fradrag i positiv skattepligtig indkomst i et senere indkomstår fra samme
+virksomhed. 1. og 2. pkt. gælder dog ikke, hvis den skattepligtige deltager
+eller i mindst 36 måneder af sin ejertid har deltaget i virksomhedens drift i
+væsentligt omfang. 1. og 2. pkt. omfatter ikke underskud omfattet af stk. 6.
+----
+
+# Par13UnderskudInput(skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par13Underskudstype = SkattepligtigIndkomstUnderskud | PersonligIndkomstUnderskud | PassivVirksomhedsUnderskud | TransparentSelskabsUnderskud
+
+| par13_skattepligtig_indkomst_har_underskud(input: Par13UnderskudInput) -> input.skattepligtig_indkomst_kroner < 0
+| par13_personlig_indkomst_er_negativ(input: Par13UnderskudInput) -> input.personlig_indkomst_kroner < 0
+| par13_kræver_underskudsbehandling(input: Par13UnderskudInput) -> par13_skattepligtig_indkomst_har_underskud(input) || par13_personlig_indkomst_er_negativ(input)
+| par13_underskud_kan_fremføres(type: Par13Underskudstype) -> type == SkattepligtigIndkomstUnderskud || type == PersonligIndkomstUnderskud
+| par13_ægtefælleunderskud_overføres(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
+| par13_negativ_personlig_modregnes_først_i_positiv_kapital() -> Sandt
+| par13_passiv_virksomhedsunderskud_låses_til_samme_virksomhed(type: Par13Underskudstype) -> type == PassivVirksomhedsUnderskud || type == TransparentSelskabsUnderskud
+
+= par13_normal_lønmodtager = par13_kræver_underskudsbehandling(Par13UnderskudInput(460000, 460000, 0, Falskt))
+= par13_negativ_personlig = par13_kræver_underskudsbehandling(Par13UnderskudInput(0, -10000, 2000, Falskt))
+= par13_ægtefælle = par13_ægtefælleunderskud_overføres(GiftSamlevendeVedÅretsUdløb)
+
+| par13_normal_fixture_ingen_underskud: par13_normal_lønmodtager -> par13_normal_lønmodtager == Falskt
+| par13_negativ_personlig_kræver_behandling: par13_negativ_personlig -> par13_negativ_personlig == Sandt
+| par13_ægtefælleoverførsel: par13_ægtefælle -> par13_ægtefælle == Sandt

@@ -42,6 +42,7 @@ calculating a current taxpayer's tax.
 - `source-status.runa` exists and checks with `runa check`.
 - `kapitel-01-indkomst.runa` exists and checks with `runa check`.
 - `kapitel-02-statsskat.runa` exists and checks with `runa check`.
+- `kapitel-03-personfradrag.runa` exists and checks with `runa check`.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.runa` exists and checks/runs with `runa run`.
@@ -50,8 +51,9 @@ calculating a current taxpayer's tax.
   source status, milestone status, selected audit signals, and the checked
   `.runa` corpus.
 - The current `.runa` slices encode source validity, source lineage, the
-  §§ 1-4 b income taxonomy, the §§ 5-9 state-tax skeleton, 2024/2025 tax-year
-  parameter packs, first wage-earner fixtures, and first audit signals.
+  §§ 1-4 b income taxonomy, the §§ 5-9 state-tax skeleton, the §§ 10-13
+  personfradrag/underskud slice, 2024/2025 tax-year parameter packs, first
+  wage-earner fixtures, and first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
   multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
@@ -59,8 +61,8 @@ calculating a current taxpayer's tax.
   typed `|` legal rules.
 - Typed `|` rule heads, `under` conditions, and `exception` rules are already
   present in the language test corpus and should be used for legal formulations.
-- Website integration is intentionally deferred until there is at least one
-  checked Personskatteloven `.runa` file to display.
+- Website integration is active and should be updated whenever a checked
+  Personskatteloven `.runa` slice becomes part of the displayed corpus.
 
 ## Now
 
@@ -81,7 +83,7 @@ calculating a current taxpayer's tax.
 
 ## Next
 
-- Encode the state income tax composition in §§ 5-9 as executable rules.
+- Extend the § 13 underskud layer beyond the normal positive-income fixture.
 - Separate legal structure from annual parameter packs: rates, thresholds,
   personal allowances, municipal tax, church tax, and other tax-year data.
 - Build calculation fixtures for ordinary wage-earner cases before handling
@@ -153,8 +155,9 @@ M4 - Ordinary taxpayer calculator
   assumptions.
 - Current slice: 2025 Copenhagen and Gentofte wage-earner fixtures produce
   deterministic AM contribution, personal income after AM, ordinary taxable
-  income, bundskat, topskat, municipal tax, church tax, and a marked § 9
-  personfradrag gap.
+  income, bundskat, topskat, municipal tax, church tax, § 10 personfradrag,
+  § 12 personfradrag tax values, after-personfradrag totals, and a § 13
+  ordinary-positive-income boundary.
 
 M5 - Audit suite
 
@@ -162,10 +165,10 @@ M5 - Audit suite
 - Output: audit files that intentionally search for tension, missing inputs,
   discontinuities, and source drift.
 - Done when: audits can fail loudly without blocking legal reformulation work.
-- Current slice: source-status rejection, § 9 personfradrag gap, 2026 reform
-  parameter gap, topskat threshold activation, AM-law dependency,
-  municipal-tax-law dependency, and spouse/negative-capital gaps are executable
-  audit signals.
+- Current slice: source-status rejection, covered normal-fixture
+  personfradrag, 2026 reform parameter gap, topskat threshold activation,
+  AM-law dependency, municipal-tax-law dependency, and § 13
+  spouse/negative-capital/underskud gaps are executable audit signals.
 
 M6 - Website integration
 
@@ -178,3 +181,16 @@ M6 - Website integration
   sources, renders the milestone log, embeds the checked `.runa` corpus, marks
   the limited wage-earner fixture slice as calculation-ready, and marks the full
   statute model as research/audit-only.
+
+M7 - Personfradrag and deficit layer
+
+- Status: first slice implemented.
+- Output: `.runa` file for §§ 10-13 plus calculator/audit integration for
+  ordinary positive-income wage-earner cases.
+- Done when: personfradrag amount selection, § 12 tax-value calculation,
+  after-personfradrag fixture totals, and § 13 deficit boundary signals are
+  executable.
+- Current slice: adult 2025 personfradrag is pulled from the official
+  tax-year parameter pack, state/municipal/church tax values are calculated,
+  Copenhagen and Gentofte fixtures settle after personfradrag, and advanced
+  § 13/spouse/negative-capital cases remain explicit audit work.

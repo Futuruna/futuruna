@@ -3,22 +3,32 @@
 
 # Params(rate_basispoint: Int, allowance: Int)
 # Breakdown(amount: Int, tax: Int, rate: Int)
+# DelegationInput(amount: Int)
+# DelegationRecord(amount: Int, rate: Int, literal_marker: Int)
 
 | params() -> Params(800, 51600)
 | rate_basispoint() -> params().rate_basispoint
 | tax_kroner(amount: Int, rate: Int) -> amount * rate / 10000
 | delegated_tax(amount: Int) -> tax_kroner(amount, rate_basispoint())
 | delegated_breakdown(amount: Int) -> Breakdown(amount, delegated_tax(amount), rate_basispoint())
+| delegated_record(input: DelegationInput) -> DelegationRecord(input.amount, rate_basispoint(), 0)
+| delegated_record_rate(input: DelegationInput) -> delegated_record(input).rate
 
 = rule_value_tax = delegated_tax(500000)
 = rule_value_breakdown = delegated_breakdown(500000)
+= rule_value_record = delegated_record(DelegationInput(500000))
+= rule_value_record_rate = delegated_record_rate(DelegationInput(500000))
 
 | rule_value_delegates_tax: rule_value_tax -> rule_value_tax == 40000
 | rule_value_delegates_field_projection: rule_value_breakdown -> rule_value_breakdown.rate == 800
 | rule_value_delegates_record_field: rule_value_breakdown -> rule_value_breakdown.tax == 40000
+| rule_value_constructs_literal_record: rule_value_record -> rule_value_record.literal_marker == 0
+| rule_value_delegates_constructed_projection: rule_value_record_rate -> rule_value_record_rate == 800
 
 ? rule_value_delegates_tax
 ? rule_value_delegates_field_projection
 ? rule_value_delegates_record_field
+? rule_value_constructs_literal_record
+? rule_value_delegates_constructed_projection
 
 @ print("rule value delegation passed")

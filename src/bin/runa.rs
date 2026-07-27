@@ -22946,7 +22946,11 @@ impl RustCodegen {
     }
 
     /// Check if any clause in a rule group has Prolog-style features:
-    /// ground terms in heads, or conjunction bodies
+    /// ground terms in heads, or conjunction bodies.
+    ///
+    /// A literal argument in the body alone is not enough. Rules like
+    /// `| mk(x) -> Record(x, 0)` and `| tax(x) -> rate(x, 800)` are ordinary
+    /// value-returning rules, not Prolog lookups returning `Option<T>`.
     fn rules_have_prolog_features(rules: &[&Rule]) -> bool {
         rules.iter().any(|r| {
             if let Rule::Clause { head, body } = r {
@@ -22958,25 +22962,7 @@ impl RustCodegen {
                 let has_conjunction = body
                     .as_ref()
                     .map_or(false, |b| matches!(b.kind, ExprKind::Conjunction(_)));
-                // Body calls with literal args (e.g., has_children(p) -> parent(p, "bob"))
-                let has_body_literals = match body {
-                    Some(Expr {
-                        kind: ExprKind::App(_, args),
-                        ..
-                    }) => args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_))),
-                    Some(Expr {
-                        kind: ExprKind::Conjunction(goals),
-                        ..
-                    }) => goals.iter().any(|g| {
-                        if let ExprKind::App(_, args) = &g.kind {
-                            args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_)))
-                        } else {
-                            false
-                        }
-                    }),
-                    _ => false,
-                };
-                has_ground || has_conjunction || has_body_literals
+                has_ground || has_conjunction
             } else {
                 false
             }
@@ -40049,6 +40035,18 @@ for x in [1, 2] {
         let output =
             compile_and_run_test_file(std::path::Path::new("tests/typed_rule_heads_test.runa"));
         assert_typed_rule_heads_output(&output, "compiled codegen");
+    }
+
+    #[test]
+    fn compiled_rule_value_delegation_fixture_executes() {
+        let output = compile_and_run_test_file(std::path::Path::new(
+            "tests/rule_value_delegation_test.runa",
+        ));
+        assert!(
+            output.contains("rule value delegation passed"),
+            "value-returning rule delegation fixture should execute: {}",
+            output
+        );
     }
 
     fn interpret_test_source_expect_runtime_failure(source: &str, expected_substrings: &[&str]) {
