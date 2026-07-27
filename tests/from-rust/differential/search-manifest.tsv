@@ -1,0 +1,7 @@
+source_shape_id	generator	default_seeds	covered_supported_subset
+frss-control-flow	numeric_branch_matrix	17,29,43	functions, local bindings, Vec literals, for loops, if/else chains, integer arithmetic, modulo, deterministic stdout
+frss-option-result	option_result_pipeline	17,29,43	Option<String>, Result<i64, enum>, match arms, integer parse().map_err(...)? validation, early error reporting
+frss-nested-data	nested_order_totals	17,29,43	nested structs, Vec fields, borrowed helper functions, field access, list indexing, String cloning
+frss-deterministic-map	btree_rollup_report	17,29,43	BTreeMap<String, i64> aggregation, get/insert, deterministic key reporting
+frss-strings-formatting	text_transform_matrix	17,29,43	String/&str trim, lowercase, replace, starts_with, ends_with, format!, deterministic classification
+frss-enum-rebinding	enum_loop_rebinding	17,29,43	enum/reference matching, Vec pushes, loop traversal, conditional accumulator rebinding

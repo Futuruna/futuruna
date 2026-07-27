@@ -218,11 +218,18 @@ FRSS-v0, the supported subset named in
 [from-rust-contract.md](from-rust-contract.md), to a temporary directory, then
 requires exact Rust stdout parity after translation to Futuruna.
 
-The current generated set covers loops/branches, `Option`/`Result` parse
-validation, nested structs/vectors, deterministic `BTreeMap` reporting, string
-normalization, and enum/reference conditional rebinding. On failure, the script
-keeps generated source, a manifest, captured output, and a replay script in the
-artifact directory so a minimized permanent fixture can be checked in.
+The searched source-shape families are listed in
+`tests/from-rust/differential/search-manifest.tsv`. The default generated set
+keeps the six original base cases, then searches three stable seeds across
+loops/branches, `Option`/`Result` parse validation, nested structs/vectors,
+deterministic `BTreeMap` reporting, string normalization, and enum/reference
+conditional rebinding. On failure, the script keeps generated source,
+`manifest.tsv`, `cases.tsv`, `coverage.tsv`, captured output, `replay.sh`, and
+`minimize.md` in the artifact directory so a minimized permanent fixture can be
+checked in.
+
+Set `FUTURUNA_FROM_RUST_DIFF_SEEDS` to a space-separated seed list to replay or
+scale the search deterministically without changing the checked-in manifest.
 
 ## WASM Build Canary Lane
 

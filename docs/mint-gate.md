@@ -47,9 +47,10 @@ These lanes are the core mint contract because they cover:
 - the from-rust downstream canary: deterministic consumer-shaped Rust fixtures
   copied into a fresh temp directory, exact-matched against translated
   Futuruna, plus a fail-closed unsupported ownership fixture
-- the from-rust supported-subset differential canary: generated deterministic
-  Rust programs inside FRSS-v0 exact-match Rust vs
-  translated Futuruna output and leave replay artifacts on failure
+- the from-rust supported-subset differential canary: generated seed-stable
+  Rust programs inside FRSS-v0 exact-match Rust vs translated Futuruna output
+  from a checked-in search manifest and leave replay/minimization artifacts on
+  failure
 - interpreted Futuruna execution
 - compiled Futuruna execution
 - compiletest-style diagnostic, run/fail, and phase expectations

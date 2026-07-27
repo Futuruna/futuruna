@@ -16,8 +16,9 @@ Target shape:
 - `from-rust-downstream`: dedicated Rust-to-Futuruna differential canaries that
   exact-match consumer-shaped Rust stdout and keep unsupported ownership shapes
   fail-closed
-- `from-rust-differential`: generated FRSS-v0 Rust programs that
-  exact-match Rust stdout after translation and keep replay artifacts on failure
+- `from-rust-differential`: generated seed-stable FRSS-v0 Rust programs that
+  exact-match Rust stdout after translation and keep replay/minimization
+  artifacts on failure
 - `regressions`: every user bug class distilled into a broader authored workflow
 
 ## Implemented
@@ -58,7 +59,8 @@ Target shape:
 | `tests/from-rust/downstream/supported/error_row_pipeline.rs` | `from-rust-downstream` | clean-directory `runa from-rust` exact-match for `Result` parse/validation pipelines and error enum reporting |
 | `tests/from-rust/downstream/supported/inventory_report.rs` | `from-rust-downstream` | clean-directory `runa from-rust` exact-match for deterministic `BTreeMap<String, i64>` inventory reporting |
 | `tests/from-rust/downstream/supported/text_normalization_report.rs` | `from-rust-downstream` | clean-directory `runa from-rust` exact-match for trim/lowercase/replace string normalization and classification |
-| `scripts/from-rust-differential.sh` | `from-rust-differential` | generated deterministic single-file Rust cases inside FRSS-v0, exact Rust-vs-Futuruna stdout matching, manifest/output/replay artifacts on failure |
+| `tests/from-rust/differential/search-manifest.tsv` | `from-rust-differential` | checked-in source-shape family manifest for the seed-stable FRSS-v0 from-rust differential search |
+| `scripts/from-rust-differential.sh` | `from-rust-differential` | generated seed-stable deterministic single-file Rust cases inside FRSS-v0, exact Rust-vs-Futuruna stdout matching, manifest/cases/coverage/output/replay/minimization artifacts on failure |
 | `tests/from-rust/downstream/unsupported/borrowed_return_reference.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for general borrowed-reference returns outside the current ownership boundary |
 | `tests/from-rust/downstream/unsupported/associated_type_trait.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for associated types outside the checked generic fixture |
 | `tests/from-rust/downstream/unsupported/impl_trait_iterator.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for `impl Trait` outside the checked compose fixture |
