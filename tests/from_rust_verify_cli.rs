@@ -291,6 +291,39 @@ fn main() {
 }
 
 #[test]
+fn from_rust_verify_rejects_effectful_std_api_before_translation() {
+    let output = run_from_rust_verify(
+        r#"
+fn main() {
+    let _ = std::env::var("HOME");
+}
+"#,
+    );
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success(),
+        "expected effectful std unsupported verify failure, stderr:\n{}",
+        stderr
+    );
+    assert!(
+        stderr.contains("from-rust verify: unsupported unsupported-effect:"),
+        "missing stable unsupported-effect line:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: translated "),
+        "unsupported effect should fail before translation:\n{}",
+        stderr
+    );
+    assert!(
+        !stderr.contains("from-rust verify: mismatch "),
+        "unsupported effect should fail before output comparison:\n{}",
+        stderr
+    );
+}
+
+#[test]
 fn from_rust_help_names_frss_v0_and_verify_summaries() {
     let output = Command::new(runa())
         .args(["from-rust", "--help"])

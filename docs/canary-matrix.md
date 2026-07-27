@@ -64,6 +64,7 @@ Target shape:
 | `tests/from-rust/downstream/unsupported/impl_trait_iterator.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for `impl Trait` outside the checked compose fixture |
 | `tests/from-rust/downstream/unsupported/stateful_iterator_scan.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for iterator state machines outside the checked scan subset |
 | `tests/from-rust/downstream/unsupported/reference_tuple_match.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for tuple-of-references matches outside the checked simplification subset |
+| `tests/from-rust/downstream/unsupported/effectful_std_api.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for effectful `std` APIs outside the deterministic pure/core subset |
 | `tests/from-rust/downstream/unsupported/unsupported_map_err.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for `Result::map_err` outside integer parse remapping |
 | `tests/from-rust/downstream/unsupported/unsupported_macro.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for macro names outside the checked macro subset |
 | `tests/from-rust/downstream/unsupported/unsupported_format_spec.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for format specs outside the checked macro subset |

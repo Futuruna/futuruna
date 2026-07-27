@@ -213,6 +213,10 @@ unsupported diagnostics:
   checked two-reference pattern simplification subset
 - `async-threading`: `async` functions/blocks/awaits and thread-spawning code
   outside the deterministic pure/core subset
+- `unsupported-effect`: effectful `std` APIs outside the deterministic
+  pure/core subset, including file I/O, environment/process-state APIs,
+  process control, runtime I/O, networking, wall-clock `SystemTime`/`Instant`,
+  and randomized hashing through `RandomState`
 - `unsafe-rust`: `unsafe` blocks outside the validation subset
 - `unsupported-macro`: macro invocations outside the checked
   `println!`/`eprintln!`/`format!`/`vec!`/`panic!`/`todo!`/
@@ -242,7 +246,9 @@ Trait`, unsupported `Result::map_err`, unsupported iterator state machines,
 unsupported tuple-of-references matches, async/threading, unsafe blocks, and
 external crate imports, unsupported macro names such as `print!`, and
 unsupported format specs such as `{:x}`, unsupported top-level Rust items such
-as `union`, and unsupported expression fallbacks such as `break` statements
+as `union`, unsupported expression fallbacks such as `break` statements, and
+effectful `std` APIs such as `std::fs`, `std::env`, `std::process`,
+`std::time::SystemTime`, `std::net`, and `std::collections::hash_map::RandomState`
 must remain fail-closed until those shapes are deliberately promoted.
 
 ## Preview Evidence
@@ -252,7 +258,7 @@ As of 2026-07-18, the preview boundary is backed by:
 - `runa from-rust --test examples/from-rust/`: 35 exact stdout matches
 - `./scripts/from-rust-downstream-canary.sh`: 9 downstream supported exact
   matches from a fresh temporary directory
-- the same downstream canary: 14 expected-unsupported fail-closed fixtures
+- the same downstream canary: 15 expected-unsupported fail-closed fixtures
   covering the stable unsupported diagnostic categories listed above
 - `./scripts/from-rust-differential.sh`: 6 generated supported-subset exact
   matches covering loops/branches, `Option`/`Result` parse validation, nested
@@ -263,9 +269,9 @@ As of 2026-07-18, the preview boundary is backed by:
   failures, Rust compile/run failures, translated Futuruna parse failures, and
   stdout divergence. Focused CLI coverage currently exercises supported
   matches, Rust parse failure, Rust compile failure, `unsafe-rust`,
-  `async-threading`, `unsupported-macro`, `unsupported-format-spec`,
-  `unsupported-rust-expr`, and help text. The output-mismatch summary remains
-  part of the stable contract, but
+  `async-threading`, `unsupported-effect`, `unsupported-macro`,
+  `unsupported-format-spec`, `unsupported-rust-expr`, and help text. The
+  output-mismatch summary remains part of the stable contract, but
   there is no current minimized source-level fixture for it after syntactic
   macro-name and format-spec divergences were moved to fail-closed diagnostics.
   Translated Futuruna parse failure has a stable summary contract, but no
@@ -305,8 +311,8 @@ evidence staying green and reviewed together:
    preview non-goal that has a reasonably syntactic Rust marker, including
    general borrowed-reference returns, unchecked associated-type or `impl
    Trait` shapes, unsupported iterator state machines, unsupported tuple
-   reference patterns, async/threading, unsafe blocks, and external crate or
-   proc-macro-like entrypoints.
+   reference patterns, effectful `std` APIs, async/threading, unsafe blocks,
+   and external crate or proc-macro-like entrypoints.
 5. Supported fixtures stay deterministic, single-file, and pure/core: no file
    I/O, networking, process state, wall-clock time, ambient environment, or
    nondeterministic stdout ordering.
@@ -378,7 +384,7 @@ readiness debt.
 |----------------|------------------|--------------|
 | 1. Freeze a stable release-line contract | FRSS-v0 is named and versioned, but `docs/feature-stages.md`, `docs/feature-stages.json`, the README state, and the compatibility guide still intentionally describe it as preview. | Blocked until the final promotion packet moves all public stage metadata together. |
 | 2. Fixture evidence for every supported source shape | The broad example corpus, downstream canary, and generated differential lane provide exact-match fixtures, but there is no source-shape-to-fixture manifest proving every documented syntax, stdlib, ownership, collection, generic, and formatting claim. | Blocked by `td-f6df85`. |
-| 3. Fail closed for every syntactically detectable unsupported boundary | The downstream unsupported corpus covers 14 permanent fail-closed fixtures, including ownership, generics, iterator state machines, tuple-reference matches, async/threading, unsafe, external crates, macros, format specs, item fallbacks, and expression fallbacks. The audit found remaining syntactic non-goals without production-grade coverage: effectful std APIs and external Rust module declarations. | Blocked by `td-52562a` and `td-0f2bd8`. |
+| 3. Fail closed for every syntactically detectable unsupported boundary | The downstream unsupported corpus covers 15 permanent fail-closed fixtures, including ownership, generics, iterator state machines, tuple-reference matches, effectful `std` APIs, async/threading, unsafe, external crates, macros, format specs, item fallbacks, and expression fallbacks. The audit found a remaining syntactic non-goal without production-grade coverage: external Rust module declarations. | Blocked by `td-0f2bd8`. |
 | 4. Larger downstream production corpus | The mint-blocking downstream lane runs 9 supported consumer-style fixtures from a fresh temporary directory across config validation, invoice arithmetic, event/report aggregation, text/parser transformations, nested data, error handling, inventory reporting, and normalization. | Satisfied for the current checklist. Keep growing with every promoted shape. |
 | 5. Production search or proof-backed differential checking | `./scripts/from-rust-differential.sh` gives replay artifacts for 6 deterministic generated cases, but it is still an enumerated corpus rather than a source-shape-manifest-driven or seed-stable search/minimization lane. | Blocked by `td-d47bff`. |
 | 6. Stable `from-rust --verify` user workflow | Stable summary lines exist for supported matches, recognized unsupported categories, Rust parse/compile/run failures, translated Futuruna parse failures, and output divergence. CLI coverage exercises many categories, but translated-parse-failed and mismatch currently lack minimized source-level fixtures after previous divergences moved to fail-closed diagnostics. | Blocked by `td-ed2a52`. |
@@ -388,8 +394,6 @@ readiness debt.
 Current production blockers:
 
 - `td-f6df85`: add an FRSS-v0 source-shape evidence manifest.
-- `td-52562a`: fail closed on effectful Rust APIs outside the pure/core
-  boundary.
 - `td-0f2bd8`: fail closed on external Rust module declarations and other
   multi-file package boundaries.
 - `td-d47bff`: promote the from-rust differential lane from six enumerated

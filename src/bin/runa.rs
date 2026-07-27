@@ -33826,6 +33826,95 @@ fn main() {
     }
 
     #[test]
+    fn from_rust_rejects_effectful_std_apis_with_category() {
+        let cases = [
+            (
+                "fs import",
+                r#"
+use std::fs;
+
+fn main() {
+    let _ = fs::read_to_string("config.txt");
+}
+"#,
+                "file I/O",
+            ),
+            (
+                "env direct call",
+                r#"
+fn main() {
+    let _ = std::env::var("HOME");
+}
+"#,
+                "environment/process-state",
+            ),
+            (
+                "process command",
+                r#"
+use std::process::Command;
+
+fn main() {
+    let _ = Command::new("echo");
+}
+"#,
+                "process control/state",
+            ),
+            (
+                "wall clock",
+                r#"
+fn main() {
+    let _ = std::time::SystemTime::now();
+}
+"#,
+                "wall-clock time",
+            ),
+            (
+                "networking",
+                r#"
+use std::net::TcpStream;
+
+fn main() {
+    let _ = TcpStream::connect("127.0.0.1:9");
+}
+"#,
+                "networking",
+            ),
+            (
+                "random state",
+                r#"
+use std::collections::hash_map::RandomState;
+
+fn main() {
+    let _ = RandomState::new();
+}
+"#,
+                "randomized hashing",
+            ),
+        ];
+
+        for (name, source, expected_message) in cases {
+            let err = match rust_to_runa_checked(source) {
+                Ok(_) => panic!("expected unsupported-effect diagnostic for {name}"),
+                Err(err) => err,
+            };
+            match err {
+                FromRustTranspileError::Unsupported(unsupported) => {
+                    assert_eq!(unsupported.category, "unsupported-effect", "{name}");
+                    assert!(
+                        unsupported.message.contains(expected_message),
+                        "{name}: expected message to mention {expected_message:?}, got {:?}",
+                        unsupported.message
+                    );
+                }
+                other => panic!(
+                    "expected unsupported diagnostic for {name}, got {:?}",
+                    other
+                ),
+            }
+        }
+    }
+
+    #[test]
     fn from_rust_rejects_unsafe_block_with_category() {
         let source = r#"
 fn read(ptr: *const i64) -> i64 {
@@ -41303,6 +41392,7 @@ fn from_rust_error_summary(err: &FromRustTranspileError) -> String {
 struct FromRustUnsupportedScan {
     external_crate: Option<String>,
     async_or_threading: bool,
+    unsupported_effect: Option<String>,
     unsafe_rust: bool,
     unsupported_macro: Option<String>,
     unsupported_format_spec: Option<String>,
@@ -41331,6 +41421,12 @@ impl FromRustUnsupportedScan {
             return Some(FromRustUnsupported::new(
                 "async-threading",
                 "async and thread-spawning Rust are outside the from-rust deterministic pure/core subset",
+            ));
+        }
+        if let Some(message) = &self.unsupported_effect {
+            return Some(FromRustUnsupported::new(
+                "unsupported-effect",
+                message.clone(),
             ));
         }
         if self.unsafe_rust {
@@ -41452,6 +41548,9 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
         if from_rust_use_tree_mentions_thread(&item.tree) {
             self.async_or_threading = true;
         }
+        if self.unsupported_effect.is_none() {
+            self.unsupported_effect = from_rust_use_tree_unsupported_effect(&item.tree);
+        }
         if let Some(crate_name) = from_rust_external_use_root(&item.tree) {
             self.external_crate = Some(crate_name);
         }
@@ -41565,6 +41664,9 @@ impl<'ast> syn::visit::Visit<'ast> for FromRustUnsupportedScan {
     fn visit_expr_call(&mut self, item: &'ast syn::ExprCall) {
         if from_rust_expr_call_is_thread_spawn(item) {
             self.async_or_threading = true;
+        }
+        if self.unsupported_effect.is_none() {
+            self.unsupported_effect = from_rust_expr_call_unsupported_effect(item);
         }
         syn::visit::visit_expr_call(self, item);
     }
@@ -41877,6 +41979,98 @@ fn from_rust_use_tree_contains_ident(tree: &syn::UseTree, ident: &str) -> bool {
             .any(|item| from_rust_use_tree_contains_ident(item, ident)),
         syn::UseTree::Glob(_) => false,
     }
+}
+
+fn from_rust_use_tree_unsupported_effect(tree: &syn::UseTree) -> Option<String> {
+    let mut prefix = Vec::new();
+    from_rust_use_tree_unsupported_effect_with_prefix(tree, &mut prefix)
+}
+
+fn from_rust_use_tree_unsupported_effect_with_prefix(
+    tree: &syn::UseTree,
+    prefix: &mut Vec<String>,
+) -> Option<String> {
+    match tree {
+        syn::UseTree::Path(path) => {
+            prefix.push(path.ident.to_string());
+            let result = from_rust_use_tree_unsupported_effect_with_prefix(&path.tree, prefix);
+            prefix.pop();
+            result
+        }
+        syn::UseTree::Name(name) => {
+            prefix.push(name.ident.to_string());
+            let result = from_rust_effectful_std_path_message(prefix);
+            prefix.pop();
+            result
+        }
+        syn::UseTree::Rename(rename) => {
+            prefix.push(rename.ident.to_string());
+            let result = from_rust_effectful_std_path_message(prefix);
+            prefix.pop();
+            result
+        }
+        syn::UseTree::Group(group) => group
+            .items
+            .iter()
+            .find_map(|item| from_rust_use_tree_unsupported_effect_with_prefix(item, prefix)),
+        syn::UseTree::Glob(_) => {
+            prefix.push("*".to_string());
+            let result = from_rust_effectful_std_path_message(prefix);
+            prefix.pop();
+            result
+        }
+    }
+}
+
+fn from_rust_expr_call_unsupported_effect(item: &syn::ExprCall) -> Option<String> {
+    let syn::Expr::Path(path) = item.func.as_ref() else {
+        return None;
+    };
+    let segments: Vec<String> = path
+        .path
+        .segments
+        .iter()
+        .map(|segment| segment.ident.to_string())
+        .collect();
+    from_rust_effectful_std_path_message(&segments)
+}
+
+fn from_rust_effectful_std_path_message(segments: &[String]) -> Option<String> {
+    let [root, module, ..] = segments else {
+        return None;
+    };
+    if root.as_str() != "std" {
+        return None;
+    }
+    let kind = match module.as_str() {
+        "env" => Some("environment/process-state"),
+        "fs" => Some("file I/O"),
+        "io" => Some("runtime I/O"),
+        "net" => Some("networking"),
+        "process" => Some("process control/state"),
+        "time" if from_rust_time_path_is_effectful(segments) => Some("wall-clock time"),
+        "collections" | "hash" if from_rust_path_mentions_segment(segments, "RandomState") => {
+            Some("randomized hashing")
+        }
+        _ => None,
+    }?;
+    Some(format!(
+        "std path '{}' uses {} outside the from-rust deterministic pure/core subset",
+        segments.join("::"),
+        kind
+    ))
+}
+
+fn from_rust_time_path_is_effectful(segments: &[String]) -> bool {
+    segments.len() <= 2
+        || matches!(
+            segments.get(2).map(String::as_str),
+            Some("*" | "self" | "Instant" | "SystemTime")
+        )
+}
+
+fn from_rust_path_mentions_segment(segments: &[String], needle: &str) -> bool {
+    segments.iter().any(|segment| segment == needle)
 }
 
 fn from_rust_expr_call_is_thread_spawn(item: &syn::ExprCall) -> bool {
