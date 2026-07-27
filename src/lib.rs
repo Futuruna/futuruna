@@ -12449,6 +12449,22 @@ impl TypeChecker {
                     }
                 }
             }
+            Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
+                self.check_expr(condition, None);
+            }
+            Stmt::TypeDecl(TypeDecl::TraitDecl { methods, .. }) => {
+                for method in methods {
+                    if let Some(body) = &method.default_body {
+                        self.push_scope();
+                        for p in &method.params {
+                            self.define_var(&p.name);
+                        }
+                        self.check_expr(body, Some(&method.name));
+                        self.pop_scope();
+                    }
+                }
+            }
+            Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
             Stmt::Bind(pat, ty, expr) => {
                 self.check_expr(expr, None);
                 if let Some(ty) = ty {
@@ -12471,6 +12487,14 @@ impl TypeChecker {
                 self.check_expr(iter_expr, None);
                 self.push_scope();
                 self.define_var(var);
+                for s in body {
+                    self.check_stmt(s);
+                }
+                self.pop_scope();
+            }
+            Stmt::While(cond, body) => {
+                self.check_expr(cond, None);
+                self.push_scope();
                 for s in body {
                     self.check_stmt(s);
                 }
@@ -12601,6 +12625,18 @@ impl TypeChecker {
                 }
                 self.pop_scope();
             }
+            Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+                for arg in args {
+                    self.check_expr(arg, None);
+                }
+            }
+            Stmt::Use(_)
+            | Stmt::Import(_)
+            | Stmt::QualifiedImport(_, _)
+            | Stmt::HashImport(_, _)
+            | Stmt::Depend(_, _)
+            | Stmt::RustBlock(_)
+            | Stmt::Abort => {}
             Stmt::Annot(name, args) => {
                 // Skip metadata annotations whose payloads are declarations, not
                 // executable expressions in the current schema.
@@ -12610,7 +12646,6 @@ impl TypeChecker {
                     }
                 }
             }
-            _ => {} // Use, Import, Depend, RustBlock
         }
     }
 
@@ -13612,6 +13647,68 @@ mod tests {
             diags[0].context.iter().any(|c| c.contains("outer")),
             "expected context mentioning `outer`, got: {:?}",
             diags[0].context
+        );
+    }
+
+    #[test]
+    fn typechecker_checks_while_condition_and_body() {
+        let source = "while missing_cond { = body_value = missing_body }\n";
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.message.contains("missing_cond")),
+            "expected undefined while condition diagnostic, got {:?}",
+            diags
+        );
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.message.contains("missing_body")),
+            "expected undefined while body diagnostic, got {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_checks_assert_and_retract_args() {
+        let source = "assert Fact(missing_assert)\nretract Fact(missing_retract)\n";
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.message.contains("missing_assert")),
+            "expected undefined assert argument diagnostic, got {:?}",
+            diags
+        );
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.message.contains("missing_retract")),
+            "expected undefined retract argument diagnostic, got {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_checks_when_type_conditions_and_trait_defaults() {
+        let source = "\
+# Flag WHEN missing_condition -> On | Off\n\
+# trait WithDefault { > value() -> Int { missing_default } }\n";
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.message.contains("missing_condition")),
+            "expected undefined WHEN condition diagnostic, got {:?}",
+            diags
+        );
+        assert!(
+            diags
+                .iter()
+                .any(|diag| diag.message.contains("missing_default")),
+            "expected undefined trait default diagnostic, got {:?}",
+            diags
         );
     }
 
