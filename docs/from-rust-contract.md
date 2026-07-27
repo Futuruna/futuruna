@@ -100,6 +100,11 @@ The current FRSS-v0 supported examples cover:
 This subset is intentionally evidence-based: adding a Rust shape to FRSS-v0
 means adding or unmarking a fixture and keeping the lane green.
 
+The reviewed source-shape-to-fixture map lives in
+[from-rust-evidence-manifest.md](from-rust-evidence-manifest.md). Public
+supported-shape claims in this document should either appear there or be
+removed from the contract.
+
 ## FRSS-v0 Category Matrix
 
 | Category | Supported in FRSS-v0 | Required evidence | Outside FRSS-v0 |
@@ -272,6 +277,9 @@ As of 2026-07-18, the preview boundary is backed by:
   loops/branches, `Option`/`Result` parse validation, nested data,
   deterministic map reporting, string transformation, and enum/reference
   conditional rebinding
+- [from-rust-evidence-manifest.md](from-rust-evidence-manifest.md): reviewed
+  map from every current supported source-shape claim to exact-match fixture or
+  generated-lane evidence, plus the fail-closed unsupported boundary map
 - `runa from-rust --verify <file.rs>`: stable success/failure summary lines for
   supported matches, recognized unsupported categories, translator parse
   failures, Rust compile/run failures, translated Futuruna parse failures, and
@@ -393,7 +401,7 @@ readiness debt.
 | Checklist item | Current evidence | Audit result |
 |----------------|------------------|--------------|
 | 1. Freeze a stable release-line contract | FRSS-v0 is named and versioned, but `docs/feature-stages.md`, `docs/feature-stages.json`, the README state, and the compatibility guide still intentionally describe it as preview. | Blocked until the final promotion packet moves all public stage metadata together. |
-| 2. Fixture evidence for every supported source shape | The broad example corpus, downstream canary, and generated differential lane provide exact-match fixtures, but there is no source-shape-to-fixture manifest proving every documented syntax, stdlib, ownership, collection, generic, and formatting claim. | Blocked by `td-f6df85`. |
+| 2. Fixture evidence for every supported source shape | [from-rust-evidence-manifest.md](from-rust-evidence-manifest.md) maps every current supported source-shape claim to exact-match evidence from the broad example corpus, downstream canary, or generated differential lane. | Satisfied for the current checklist. Keep this manifest in the same reviewed change as any supported-shape expansion. |
 | 3. Fail closed for every syntactically detectable unsupported boundary | The downstream unsupported corpus covers 16 permanent fail-closed fixtures, including ownership, generics, iterator state machines, tuple-reference matches, effectful `std` APIs, async/threading, unsafe, external crates, Rust module declarations, macros, format specs, item fallbacks, and expression fallbacks. | Satisfied for the current checklist. Keep adding expected-unsupported fixtures before documenting new non-goals. |
 | 4. Larger downstream production corpus | The mint-blocking downstream lane runs 9 supported consumer-style fixtures from a fresh temporary directory across config validation, invoice arithmetic, event/report aggregation, text/parser transformations, nested data, error handling, inventory reporting, and normalization. | Satisfied for the current checklist. Keep growing with every promoted shape. |
 | 5. Production search or proof-backed differential checking | `./scripts/from-rust-differential.sh` now searches the checked-in six-family FRSS-v0 differential source-shape manifest with the original base cases plus three stable seeds by default, for 24 exact Rust-vs-Futuruna matches, and writes manifest, coverage, replay, and minimization artifacts. | Satisfied for the current checklist; keep expanding the manifest as FRSS grows. |
@@ -401,8 +409,7 @@ readiness debt.
 | 7. Compatibility guide records the production contract | The compatibility guide records preview hardening and support expansions, but not a production contract or future stable break policy for FRSS. | Blocked until the final promotion packet after the evidence blockers above. |
 | 8. Feature-stage metadata, README, contract, and scorecard move together | All current public stage metadata correctly keeps `runa from-rust` in preview. | Blocked until the final promotion packet after the evidence blockers above. |
 
-Current production blockers:
+Current production blocker:
 
-- `td-f6df85`: add an FRSS-v0 source-shape evidence manifest.
 - `td-ed2a52`: cover or revise the `from-rust --verify` translator-bug paths
   for translated parse failures and output divergence.

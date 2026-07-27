@@ -212,6 +212,11 @@ reported as an `XPASS` failure. The unsupported lane currently requires 16
 fail-closed fixtures, including the flat single-file boundary for Rust `mod`
 declarations.
 
+The reviewed source-shape evidence map is
+[from-rust-evidence-manifest.md](from-rust-evidence-manifest.md). Any future
+FRSS-v0 supported-shape expansion should update that manifest in the same
+change as the fixture or generated lane evidence.
+
 ## From-Rust Supported-Subset Differential Lane
 
 `./scripts/from-rust-differential.sh` is a mint-blocking generated lane for

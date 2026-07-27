@@ -59,6 +59,7 @@ Target shape:
 | `tests/from-rust/downstream/supported/error_row_pipeline.rs` | `from-rust-downstream` | clean-directory `runa from-rust` exact-match for `Result` parse/validation pipelines and error enum reporting |
 | `tests/from-rust/downstream/supported/inventory_report.rs` | `from-rust-downstream` | clean-directory `runa from-rust` exact-match for deterministic `BTreeMap<String, i64>` inventory reporting |
 | `tests/from-rust/downstream/supported/text_normalization_report.rs` | `from-rust-downstream` | clean-directory `runa from-rust` exact-match for trim/lowercase/replace string normalization and classification |
+| `docs/from-rust-evidence-manifest.md` | `from-rust-contract` | reviewed FRSS-v0 source-shape-to-fixture map for supported claims and fail-closed unsupported boundaries |
 | `tests/from-rust/differential/search-manifest.tsv` | `from-rust-differential` | checked-in source-shape family manifest for the seed-stable FRSS-v0 from-rust differential search |
 | `scripts/from-rust-differential.sh` | `from-rust-differential` | generated seed-stable deterministic single-file Rust cases inside FRSS-v0, exact Rust-vs-Futuruna stdout matching, manifest/cases/coverage/output/replay/minimization artifacts on failure |
 | `tests/from-rust/downstream/unsupported/borrowed_return_reference.rs` | `from-rust-downstream` | expected-unsupported fail-closed coverage for general borrowed-reference returns outside the current ownership boundary |
