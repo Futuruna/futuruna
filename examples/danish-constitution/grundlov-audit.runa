@@ -24,6 +24,9 @@
 # Monark(alder: Heltal, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
 # Tronfølger(alder: Heltal, trossamfund: Trossamfund)
 # Beslutning(kongelig: Boolsk, minister_underskrift: Boolsk)
+# AfskærmetLovtype = Indfødsretslov | Ekspropriationslov | DirekteSkattelov | IndirekteSkattelov | Traktatgennemførelseslov
+# ForsørgelsesStatus = Selvforsørgende | Fattighjælp
+# PåtrængendeLovStadium = FørFolkeafstemning | EfterForkastelseKundgjort
 
 | opfylder_troskrav(monark: Monark) -> monark.trossamfund == EvangeliskLuthersk
 
@@ -57,6 +60,18 @@
 
 | troskrav_gælder_ikke_tronfølger()
 | ministrene_er_ansvarlige_for_regeringsførelse() -> ministrene_er_ansvarlige()
+
+| folkeafstemning_afskåret(lovtype: AfskærmetLovtype) -> lovtype == Indfødsretslov || lovtype == Ekspropriationslov || lovtype == DirekteSkattelov || lovtype == IndirekteSkattelov || lovtype == Traktatgennemførelseslov
+
+| udsættelse_af_tredje_behandling_afskåret(lovtype: AfskærmetLovtype) -> lovtype == Indfødsretslov || lovtype == Ekspropriationslov || lovtype == IndirekteSkattelov
+
+| dobbelt_afskåret(lovtype: AfskærmetLovtype) -> folkeafstemning_afskåret(lovtype) && udsættelse_af_tredje_behandling_afskåret(lovtype)
+
+| hjælp_kan_have_valgretspris(status: ForsørgelsesStatus) -> Falskt
+| exception fattighjælp hjælp_kan_have_valgretspris(status: ForsørgelsesStatus) -> Sandt under status == Fattighjælp
+
+| påtrængende_lov_virker(stadium: PåtrængendeLovStadium) -> påtrængende_lovforslag_kan_stadfæstes_straks() under stadium == FørFolkeafstemning
+| exception forkastet påtrængende_lov_virker(stadium: PåtrængendeLovStadium) -> Falskt under stadium == EfterForkastelseKundgjort
 
 -- ============================================================================
 -- Invarianter
@@ -323,6 +338,35 @@
 | indfødsret_krav_tjenestemand() -> tjenestemand_kræver_indfødsret()
 | indfødsret_krav_valgret: valgret_mangler_indfødsret -> valgret_mangler_indfødsret == Falskt
 
+-- Tværgående: par. 29, 41, 42 og 44 — vælgerkorps uden referendum
+-- § 44: indfødsret gives ved lov. § 29: indfødsret er adgangsbillet til valgret.
+-- § 41 stk. 3: indfødsretslove kan ikke bremses med 12 dages udsættelse.
+-- § 42 stk. 6: indfødsretslove kan ikke undergives folkeafstemning.
+-- Vælgerkorpsets medlemskreds kan derfor udvides ved almindelig lov uden
+-- den folkeafstemningslås, som gælder for valgretsalderen.
+= par29_44_indfødsret_uden_referendum = folkeafstemning_afskåret(Indfødsretslov)
+= par41_42_indfødsret_dobbelt = dobbelt_afskåret(Indfødsretslov)
+= par41_42_ekspropriation_dobbelt = dobbelt_afskåret(Ekspropriationslov)
+= par41_42_direkte_skat_kun_referendum = dobbelt_afskåret(DirekteSkattelov)
+| indfødsret_udvider_vælgerkorps_uden_referendum: par29_44_indfødsret_uden_referendum -> par29_44_indfødsret_uden_referendum == Sandt
+| indfødsret_dobbelt_afskåret: par41_42_indfødsret_dobbelt -> par41_42_indfødsret_dobbelt == Sandt
+| ekspropriation_dobbelt_afskåret: par41_42_ekspropriation_dobbelt -> par41_42_ekspropriation_dobbelt == Sandt
+| direkte_skat_ikke_dobbelt_afskåret: par41_42_direkte_skat_kun_referendum -> par41_42_direkte_skat_kun_referendum == Falskt
+
+-- Tværgående: par. 29 vs par. 75 — hjælp som ret, men med politisk risiko
+-- § 75 giver ret til offentlig hjælp ved manglende forsørgelse.
+-- § 29 lader loven bestemme, hvornår understøttelse betragtet som fattighjælp
+-- medfører tab af valgret. Social beskyttelse og politisk deltagelse er derfor
+-- ikke helt adskilte spor i grundlovsteksten.
+= par29_75_fattighjælp_risiko = hjælp_kan_have_valgretspris(Fattighjælp)
+= par29_75_selvforsørgende_ingen_risiko = hjælp_kan_have_valgretspris(Selvforsørgende)
+= par75_hjælp_ret = ret_til_offentlig_hjælp_ved_manglende_forsørgelse()
+= par29_fattighjælp_valgretstab_lovkanal = tab_af_valgret_ved_straf_og_fattighjælp_fastsættes_ved_lov()
+| par75_hjælp_er_ret: par75_hjælp_ret -> par75_hjælp_ret == Sandt
+| par29_fattighjælp_kan_koste_valgret: par29_fattighjælp_valgretstab_lovkanal -> par29_fattighjælp_valgretstab_lovkanal == Sandt
+| fattighjælp_valgretsrisiko: par29_75_fattighjælp_risiko -> par29_75_fattighjælp_risiko == Sandt
+| selvforsørgende_uden_fattighjælpsrisiko: par29_75_selvforsørgende_ingen_risiko -> par29_75_selvforsørgende_ingen_risiko == Falskt
+
 -- Tværgående: par. 42 stk. 5 — lavt valgdeltagelse-paradoks
 -- Ved folkeafstemning: bortfald kræver flertal + 30% af stemmeberettigede.
 -- Hvis kun 40% af stemmeberettigede deltager, og ALLE stemmer imod:
@@ -336,6 +380,16 @@
 = par42_grænse_deltagelse = lovforslag_forkastet_ved_folkeafstemning(300000, 300000, 1000000)
 | par42_enstemmig_modstand_ikke_nok: par42_lav_deltagelse -> par42_lav_deltagelse == Falskt
 | par42_grænse_30pct_nok: par42_grænse_deltagelse -> par42_grænse_deltagelse == Sandt
+
+-- Tværgående: par. 42 stk. 7 — påtrængende love virker før vælgerkontrol
+-- Påtrængende lovforslag kan stadfæstes straks. Hvis en tredjedel derefter
+-- kræver folkeafstemning og loven forkastes, bortfalder den først fra
+-- kundgørelsesdagen. Referendumkontrollen kan altså være efterfølgende,
+-- ikke opsættende.
+= par42_påtrængende_før_afstemning = påtrængende_lov_virker(FørFolkeafstemning)
+= par42_påtrængende_efter_forkastelse = påtrængende_lov_virker(EfterForkastelseKundgjort)
+| påtrængende_lov_midlertidigt_i_kraft: par42_påtrængende_før_afstemning -> par42_påtrængende_før_afstemning == Sandt
+| påtrængende_lov_bortfalder_efter_kundgørelse: par42_påtrængende_efter_forkastelse -> par42_påtrængende_efter_forkastelse == Falskt
 
 -- Tværgående: par. 27 + 32 stk. 7 — edssprog-symmetri
 | ed_symmetri_tjenestemand_folketingsmedlem() -> nyt_medlem_aflægger_grundlovs_ed()
@@ -686,8 +740,18 @@
 ? kongen_kan_blokere_lovgivning
 ? indfødsret_krav_tjenestemand
 ? indfødsret_krav_valgret
+? indfødsret_udvider_vælgerkorps_uden_referendum
+? indfødsret_dobbelt_afskåret
+? ekspropriation_dobbelt_afskåret
+? direkte_skat_ikke_dobbelt_afskåret
+? par75_hjælp_er_ret
+? par29_fattighjælp_kan_koste_valgret
+? fattighjælp_valgretsrisiko
+? selvforsørgende_uden_fattighjælpsrisiko
 ? par42_enstemmig_modstand_ikke_nok
 ? par42_grænse_30pct_nok
+? påtrængende_lov_midlertidigt_i_kraft
+? påtrængende_lov_bortfalder_efter_kundgørelse
 ? par59_max_dommere
 ? par59_valgperiode
 ? par59_fuld_besætning

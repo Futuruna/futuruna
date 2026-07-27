@@ -40,6 +40,7 @@ folkeafstemning, der ikke har medført bestemmelsens bortfald.
 | har_valgret(indfødsret: Boolsk, fast_bopæl: Boolsk, valgretsalder_nået: Boolsk, umyndiggjort: Boolsk) -> hvis umyndiggjort { Falskt } ellers { indfødsret && fast_bopæl && valgretsalder_nået }
 
 | tab_af_valgret_ved_straf_fastsættes_ved_lov()
+| tab_af_valgret_ved_straf_og_fattighjælp_fastsættes_ved_lov()
 
 -- Stk. 2: valgretsalder kræver folkeafstemning at ændre
 | valgretsalder_fastsættes_ved_folkeafstemning()
