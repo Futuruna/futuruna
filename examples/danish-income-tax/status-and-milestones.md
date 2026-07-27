@@ -27,6 +27,7 @@ Current working source:
 - XML status on 2026-07-18: `Valid`
 - Signed: `2021-06-14`
 - In force from: `2021-06-16`
+- XML end date observed on 2026-07-18: `2026-06-19`
 - Change references in XML: 7
 
 Working decision: use `2021/1284` as the current consolidated source for live

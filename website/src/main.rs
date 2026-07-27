@@ -2337,7 +2337,7 @@ fn ResearchPersonskatteloven() -> Element {
                     div { class: "tax-source-grid",
                         div { class: "tax-source-row",
                             span { "Current working source" }
-                            strong { "2021/1284 — Valid in the checked XML metadata" }
+                            strong { "2021/1284 — Status Valid; XML EndDate 2026-06-19" }
                         }
                         div { class: "tax-source-row",
                             span { "Prompt source lineage" }
