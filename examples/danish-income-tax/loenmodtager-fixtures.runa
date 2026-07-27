@@ -98,6 +98,61 @@ Skatteministeriets kommuneskat for Gentofte 2025.
 
 ----
 Fixture 3
+Skatteår: 2026
+Kommune: København
+Bruttoløn: 900.000 kr.
+Positiv nettokapitalindkomst: 0 kr.
+Ligningsmæssige fradrag: 0 kr.
+Kirkeskat: nej
+Kilder: Personskatteloven §§ 1, 3, 5-9 som ændret ved LOV nr. 482 af
+22/05/2024; Skattestyrelsens 2026-satser; Skatteministeriets kommuneskat for
+København 2026.
+----
+
+= m4_københavn_2026_input = LønmodtagerInput(2026, København, 900000, 0, 0, Fyldt18EllerGift, Falskt)
+= m4_københavn_2026 = beregn_lønmodtager(m4_københavn_2026_input)
+
+| m4_københavn_2026_personlig: m4_københavn_2026 -> m4_københavn_2026.personlig_indkomst_efter_am_kroner == 828000
+| m4_københavn_2026_mellemskat: m4_københavn_2026 -> m4_københavn_2026.mellemskat_før_personfradrag_kroner == 14010
+| m4_københavn_2026_topskat: m4_københavn_2026 -> m4_københavn_2026.topskat_før_personfradrag_kroner == 3757
+| m4_københavn_2026_toptopskat_ikke_aktiveret: m4_københavn_2026 -> m4_københavn_2026.toptopskat_før_personfradrag_kroner == 0
+| m4_københavn_2026_personfradrag: m4_københavn_2026 -> m4_københavn_2026.personfradrag_kroner == 54100
+| m4_københavn_2026_samlet_efter: m4_københavn_2026 -> m4_københavn_2026.samlet_inkl_am_efter_personfradrag_kroner == 363728
+
+? m4_københavn_2026_personlig
+? m4_københavn_2026_mellemskat
+? m4_københavn_2026_topskat
+? m4_københavn_2026_toptopskat_ikke_aktiveret
+? m4_københavn_2026_personfradrag
+? m4_københavn_2026_samlet_efter
+
+----
+Fixture 4
+Skatteår: 2026
+Kommune: København
+Bruttoløn: 3.000.000 kr.
+Positiv nettokapitalindkomst: 0 kr.
+Ligningsmæssige fradrag: 0 kr.
+Kirkeskat: nej
+Kilder: Personskatteloven §§ 5-8 som ændret ved LOV nr. 482 af 22/05/2024;
+Skattestyrelsens 2026-satser.
+----
+
+= m4_københavn_2026_toptop_input = LønmodtagerInput(2026, København, 3000000, 0, 0, Fyldt18EllerGift, Falskt)
+= m4_københavn_2026_toptop = beregn_lønmodtager(m4_københavn_2026_toptop_input)
+
+| m4_københavn_2026_toptop_mellemskat: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.mellemskat_før_personfradrag_kroner == 158910
+| m4_københavn_2026_toptop_topskat: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.topskat_før_personfradrag_kroner == 148657
+| m4_københavn_2026_toptop_toptopskat: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.toptopskat_før_personfradrag_kroner == 8365
+| m4_københavn_2026_toptop_samlet_efter: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.samlet_inkl_am_efter_personfradrag_kroner == 1513822
+
+? m4_københavn_2026_toptop_mellemskat
+? m4_københavn_2026_toptop_topskat
+? m4_københavn_2026_toptop_toptopskat
+? m4_københavn_2026_toptop_samlet_efter
+
+----
+Fixture 5
 Skatteår: 2025
 Kommune-/kirkeskat: København 2025 som satsinput
 § 13-situation: skattepligtigt underskud, negativ personlig indkomst og
@@ -122,7 +177,7 @@ København 2025.
 ? m4_par13_ægtefælle_overfører
 
 ----
-Fixture 4
+Fixture 6
 Skatteår: 2025
 § 13-situation: udenlandsk indkomst og udlandsfradrag, men lempelse efter
 Ligningsloven § 33 A.
@@ -137,7 +192,7 @@ Kilder: Personskatteloven § 13, stk. 5; Ligningsloven § 33 A.
 ? m4_par13_ll33a_frigiver_overførsel
 
 ----
-Fixture 5
+Fixture 7
 Skatteår: 2026
 § 13-situation: Pensionsbeskatningsloven § 16-beløb efter LOV nr. 482/2024's
 ophævelse af Personskatteloven § 13, stk. 5, 4. pkt.
@@ -152,7 +207,7 @@ Kilder: Personskatteloven § 13, stk. 5; LOV nr. 482 af 22/05/2024.
 ? m4_par13_2026_pbl_ikke_afskåret
 
 ----
-Fixture 6
+Fixture 8
 Skatteår: 2025
 § 13-situation: passiv virksomhedsunderskud modregnes kun i samme virksomhed og
 fremføres med restbeløbet.
@@ -168,5 +223,6 @@ Kilder: Personskatteloven § 13, stk. 6-7.
 
 @ print("m4 København 2025 samlet inkl. AM efter personfradrag: " + vis(m4_københavn_2025.samlet_inkl_am_efter_personfradrag_kroner))
 @ print("m4 Gentofte 2025 samlet inkl. AM efter personfradrag: " + vis(m4_gentofte_2025.samlet_inkl_am_efter_personfradrag_kroner))
+@ print("m4 København 2026 mellemskat/topskat/toptopskat: " + vis(m4_københavn_2026.mellemskat_før_personfradrag_kroner) + "/" + vis(m4_københavn_2026.topskat_før_personfradrag_kroner) + "/" + vis(m4_københavn_2026_toptop.toptopskat_før_personfradrag_kroner))
 @ print("m4 §13 kompleks ægtefælleoverførsel: " + vis(m4_par13_ægtefælle.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner))
 @ print("m4 §13 2026 PBL-afskæring: " + vis(m4_par13_2026_pbl.stk5_overførsel.afskåret_pbl16_kroner))

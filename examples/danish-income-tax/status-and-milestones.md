@@ -171,8 +171,12 @@ M2 - State tax computation skeleton
 
 - Status: first slice implemented.
 - Output: `.runa` files for §§ 5-9.
-- Done when: the legal structure of bundskat, topskat, abolished/zeroed taxes,
-  aktieindkomstskat, CFC tax, and municipal-equivalent state tax is encoded.
+- Done when: the legal structure of bundskat, mellemskat, topskat, toptopskat,
+  abolished/zeroed taxes, aktieindkomstskat, CFC tax, and
+  municipal-equivalent state tax is encoded.
+- Current slice: 2026 LOV nr. 482/2024 state-tax structure is represented:
+  mellemskat under § 7, topskat under § 7 a, toptopskat under § 8, and
+  udligningsskat/sundhedsbidrag are no longer active components from 2026.
 
 M3 - Tax-year parameter packs
 
@@ -181,8 +185,10 @@ M3 - Tax-year parameter packs
   municipality-specific inputs.
 - Done when: the same legal rules can run for at least two tax years by swapping
   parameter packs.
-- Current slice: 2024 and 2025 national parameters from Skattestyrelsen plus
-  Copenhagen and Gentofte municipal/church-tax inputs from Skatteministeriet.
+- Current slice: 2024, 2025, and 2026 national parameters from
+  Skattestyrelsen/SKM plus Copenhagen and Gentofte municipal/church-tax inputs
+  from Skatteministeriet. The 2026 pack covers mellemskat, topskat,
+  toptopskat, personfradrag, aktieindkomst, skatteloft, and municipal rates.
 
 M4 - Ordinary taxpayer calculator
 
@@ -197,7 +203,9 @@ M4 - Ordinary taxpayer calculator
   § 12 personfradrag tax values, after-personfradrag totals, and a § 13
   ordinary-positive-income boundary. Separate § 13 calculator breakdown fixtures
   now cover spouse-transfer deficit, LL § 33 A relief, 2026 post-PBL-repeal
-  transfer, and same-business loss carry-forward cases.
+  transfer, and same-business loss carry-forward cases. 2026 Copenhagen
+  wage-earner fixtures now exercise mellemskat, topskat, and toptopskat under
+  the LOV nr. 482/2024 reform thresholds.
 
 M5 - Audit suite
 
@@ -206,14 +214,14 @@ M5 - Audit suite
   discontinuities, and source drift.
 - Done when: audits can fail loudly without blocking legal reformulation work.
 - Current slice: source-status rejection, covered normal-fixture
-  personfradrag, covered § 13 deficit mechanics, 2026 reform parameter gap,
-  topskat threshold activation, covered § 14 annualization, covered § 19
-  skatteloft, covered § 20 regulation/rounding, covered § 26 transition
-  compensation, covered § 28 territorial exclusion, AM-law dependency,
-  municipal-tax-law dependency, and § 13 foreign/pension/business amount
-  limitations are executable audit signals, including 2025 PBL § 16 behavior,
-  2026 repeal behavior, LL § 33 A relief, seamen-relief exceptions, and
-  calculator-level § 13 integration signals.
+  personfradrag, covered 2026 state-tax reform layers, covered § 13 deficit
+  mechanics, topskat threshold activation, covered § 14 annualization, covered
+  § 19 skatteloft including the 2026 44,57 pct. ceiling, covered § 20
+  regulation/rounding, covered § 26 transition compensation, covered § 28
+  territorial exclusion, AM-law dependency, municipal-tax-law dependency, and
+  § 13 foreign/pension/business amount limitations are executable audit signals,
+  including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
+  seamen-relief exceptions, and calculator-level § 13 integration signals.
 
 M6 - Website integration
 

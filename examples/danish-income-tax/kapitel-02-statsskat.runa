@@ -17,9 +17,16 @@
 7) skat svarende til kommunal indkomstskat efter § 8 c.
 ----
 
-# StatsskatKomponent = Bundskat | Topskat | Udligningsskat | Sundhedsbidrag | Aktieindkomstskat | CfcIndkomstskat | KommunalLignendeStatsskat
+# StatsskatKomponent = Bundskat | Mellemskat | Topskat | Toptopskat | Udligningsskat | Sundhedsbidrag | Aktieindkomstskat | CfcIndkomstskat | KommunalLignendeStatsskat
 
-| statsskat_indeholder(komponent: StatsskatKomponent) -> Sandt
+| statsskat_indeholder(komponent: StatsskatKomponent) -> Falskt
+| exception par5_historisk_bundskat statsskat_indeholder(komponent: StatsskatKomponent) -> Sandt under komponent == Bundskat
+| exception par5_historisk_topskat statsskat_indeholder(komponent: StatsskatKomponent) -> Sandt under komponent == Topskat
+| exception par5_historisk_udligning statsskat_indeholder(komponent: StatsskatKomponent) -> Sandt under komponent == Udligningsskat
+| exception par5_historisk_sundhed statsskat_indeholder(komponent: StatsskatKomponent) -> Sandt under komponent == Sundhedsbidrag
+| exception par5_historisk_aktie statsskat_indeholder(komponent: StatsskatKomponent) -> Sandt under komponent == Aktieindkomstskat
+| exception par5_historisk_cfc statsskat_indeholder(komponent: StatsskatKomponent) -> Sandt under komponent == CfcIndkomstskat
+| exception par5_historisk_par8c statsskat_indeholder(komponent: StatsskatKomponent) -> Sandt under komponent == KommunalLignendeStatsskat
 
 = par5_bundskat = statsskat_indeholder(Bundskat)
 = par5_topskat = statsskat_indeholder(Topskat)
@@ -36,6 +43,51 @@
 | par5_aktie_indgår: par5_aktie -> par5_aktie == Sandt
 | par5_cfc_indgår: par5_cfc -> par5_cfc == Sandt
 | par5_par8c_indgår: par5_par8c -> par5_par8c == Sandt
+
+----
+LOV nr. 482 af 22/05/2024, § 1, nr. 1.
+
+§ 5 affattes således:
+
+§ 5. Indkomstskatten til staten opgøres som summen af
+1) bundskat efter § 6,
+2) mellemskat efter § 7,
+3) topskat efter § 7 a,
+4) toptopskat efter § 8,
+5) skat af aktieindkomst efter § 8 a,
+6) skat af CFC-indkomst efter § 8 b og
+7) skat svarende til kommunal indkomstskat efter § 8 c.
+
+LOV nr. 482 af 22/05/2024, § 8, stk. 4.
+
+§ 1, § 2, nr. 2 og 4, og §§ 4-6 har virkning fra og med indkomståret 2026.
+----
+
+| statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Falskt
+| exception historisk_bundskat statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår < 2026 && komponent == Bundskat
+| exception historisk_topskat statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår < 2026 && komponent == Topskat
+| exception historisk_udligning statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår < 2026 && komponent == Udligningsskat
+| exception historisk_sundhed statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår < 2026 && komponent == Sundhedsbidrag
+| exception historisk_aktie statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår < 2026 && komponent == Aktieindkomstskat
+| exception historisk_cfc statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår < 2026 && komponent == CfcIndkomstskat
+| exception historisk_par8c statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår < 2026 && komponent == KommunalLignendeStatsskat
+| exception reform_bundskat statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår >= 2026 && komponent == Bundskat
+| exception reform_mellemskat statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår >= 2026 && komponent == Mellemskat
+| exception reform_topskat statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår >= 2026 && komponent == Topskat
+| exception reform_toptopskat statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår >= 2026 && komponent == Toptopskat
+| exception reform_aktie statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår >= 2026 && komponent == Aktieindkomstskat
+| exception reform_cfc statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår >= 2026 && komponent == CfcIndkomstskat
+| exception reform_par8c statsskat_indeholder_i_år(komponent: StatsskatKomponent, skatteår: Heltal) -> Sandt under skatteår >= 2026 && komponent == KommunalLignendeStatsskat
+
+= par5_2026_mellemskat = statsskat_indeholder_i_år(Mellemskat, 2026)
+= par5_2026_toptopskat = statsskat_indeholder_i_år(Toptopskat, 2026)
+= par5_2026_udligning = statsskat_indeholder_i_år(Udligningsskat, 2026)
+= par5_2026_sundhed = statsskat_indeholder_i_år(Sundhedsbidrag, 2026)
+
+| par5_2026_mellemskat_indgår: par5_2026_mellemskat -> par5_2026_mellemskat == Sandt
+| par5_2026_toptopskat_indgår: par5_2026_toptopskat -> par5_2026_toptopskat == Sandt
+| par5_2026_udligningsskat_udgår: par5_2026_udligning -> par5_2026_udligning == Falskt
+| par5_2026_sundhedsbidrag_udgår: par5_2026_sundhed -> par5_2026_sundhed == Falskt
 
 ----
 § 6. Skatten efter § 5, nr. 1, beregnes med den procent, der anføres i stk. 2,
@@ -186,6 +238,67 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 | par7_ægtefælleperiode_kræves: par7_ægtefæller -> par7_ægtefæller == Sandt
 | par7_begge_positive_fordeles: par7_fordeling -> par7_fordeling == Sandt
 | par7_en_positiv_påhviler_ene: par7_ene -> par7_ene == Sandt
+
+----
+LOV nr. 482 af 22/05/2024, § 1, nr. 2, 5 og 6.
+
+§ 7, stk. 1-3, affattes således:
+
+Skatten efter § 5, nr. 2, udgør 7,5 pct. af den personlige indkomst med tillæg
+af positiv nettokapitalindkomst, der overstiger et grundbeløb på 40.000 kr.
+(2010-niveau), i det omfang det samlede beløb overstiger bundfradraget anført i
+stk. 2.
+
+Stk. 2. Bundfradraget udgør 467.000 kr. (2010-niveau).
+Bundfradraget reguleres efter § 20.
+
+Stk. 3. For personer, der ikke er omfattet af stk. 7, beregnes skat med 7,5 pct.
+af vedkommendes personlige indkomst, i det omfang den personlige indkomst
+overstiger bundfradraget anført i stk. 2.
+
+§ 7 a affattes således:
+
+§ 7 a. Skatten efter § 5, nr. 3, udgør 7,5 pct. af den personlige indkomst, i det
+omfang den personlige indkomst overstiger bundfradraget i stk. 2.
+
+Stk. 2. Bundfradraget udgør 566.500 kr. (2010-niveau).
+Bundfradraget reguleres efter § 20.
+
+§ 8 affattes således:
+
+§ 8. Skatten efter § 5, nr. 4, udgør 5 pct. af den personlige indkomst, i det
+omfang den personlige indkomst overstiger bundfradraget i stk. 2.
+
+Stk. 2. Bundfradraget udgør 1.888.300 kr. (2010-niveau).
+Bundfradraget reguleres efter § 20.
+----
+
+# ProgressivStatsskatLag = MellemskatLag | TopskatLag | ToptopskatLag
+# ProgressivStatsskatInput(personlig_indkomst_efter_am_kroner: Heltal, grænse_efter_am_kroner: Heltal, sats_basispoint: Heltal)
+
+| progressiv_personlig_overskud_kroner(input: ProgressivStatsskatInput) -> 0
+| exception progressiv_personlig_over_grænse progressiv_personlig_overskud_kroner(input: ProgressivStatsskatInput) -> input.personlig_indkomst_efter_am_kroner - input.grænse_efter_am_kroner under input.personlig_indkomst_efter_am_kroner > input.grænse_efter_am_kroner
+| progressiv_statsskat_kroner(input: ProgressivStatsskatInput) -> progressiv_personlig_overskud_kroner(input) * input.sats_basispoint / 10000
+| reform_statskat_sats_basispoint(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 0
+| exception mellemskat_2026 reform_statskat_sats_basispoint(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 750 under skatteår >= 2026 && lag == MellemskatLag
+| exception topskat_2026 reform_statskat_sats_basispoint(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 750 under skatteår >= 2026 && lag == TopskatLag
+| exception toptopskat_2026 reform_statskat_sats_basispoint(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 500 under skatteår >= 2026 && lag == ToptopskatLag
+| reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 0
+| exception mellemskat_grænse_2026 reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 641200 under skatteår == 2026 && lag == MellemskatLag
+| exception topskat_grænse_2026 reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 777900 under skatteår == 2026 && lag == TopskatLag
+| exception toptopskat_grænse_2026 reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 2592700 under skatteår == 2026 && lag == ToptopskatLag
+| reform_statskat_input(lag: ProgressivStatsskatLag, skatteår: Heltal, personlig_indkomst_efter_am_kroner: Heltal) -> ProgressivStatsskatInput(personlig_indkomst_efter_am_kroner, reform_statskat_grænse_efter_am_kroner(lag, skatteår), reform_statskat_sats_basispoint(lag, skatteår))
+| reform_statskat_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal, personlig_indkomst_efter_am_kroner: Heltal) -> progressiv_statsskat_kroner(reform_statskat_input(lag, skatteår, personlig_indkomst_efter_am_kroner))
+
+= par7_2026_mellemskat_under = reform_statskat_kroner(MellemskatLag, 2026, 641200)
+= par7_2026_mellemskat_over = reform_statskat_kroner(MellemskatLag, 2026, 651200)
+= par7a_2026_topskat_over = reform_statskat_kroner(TopskatLag, 2026, 800000)
+= par8_2026_toptopskat_over = reform_statskat_kroner(ToptopskatLag, 2026, 2600000)
+
+| par7_2026_mellemskat_under_grænse: par7_2026_mellemskat_under -> par7_2026_mellemskat_under == 0
+| par7_2026_mellemskat_aktiveres: par7_2026_mellemskat_over -> par7_2026_mellemskat_over == 750
+| par7a_2026_topskat_aktiveres: par7a_2026_topskat_over -> par7a_2026_topskat_over == 1657
+| par8_2026_toptopskat_aktiveres: par8_2026_toptopskat_over -> par8_2026_toptopskat_over == 365
 
 ----
 § 7 a. Udligningsskatten efter § 5, nr. 3, beregnes af summen af følgende
