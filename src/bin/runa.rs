@@ -17024,7 +17024,30 @@ impl RustCodegen {
                     Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
                         exported.insert(name.clone());
                     }
-                    _ => {}
+                    Stmt::TypeDecl(TypeDecl::WhenType { .. })
+                    | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+                    | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
+                    | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
+                    | Stmt::Rule(_)
+                    | Stmt::Use(_)
+                    | Stmt::Import(_)
+                    | Stmt::QualifiedImport(_, _)
+                    | Stmt::HashImport(_, _)
+                    | Stmt::Depend(_, _)
+                    | Stmt::RustBlock(_)
+                    | Stmt::Annot(_, _)
+                    | Stmt::Bind(_, _, _)
+                    | Stmt::MonadicBind(_, _, _)
+                    | Stmt::For(_, _, _)
+                    | Stmt::While(_, _)
+                    | Stmt::Send(_, _)
+                    | Stmt::StreamSub(_, _)
+                    | Stmt::Invariant { .. }
+                    | Stmt::Prove { .. }
+                    | Stmt::Assert(_, _)
+                    | Stmt::Retract(_, _)
+                    | Stmt::Abort
+                    | Stmt::Expr(_) => {}
                 }
                 is_export = false;
             }
@@ -17210,7 +17233,24 @@ impl RustCodegen {
                 Stmt::Depend(crate_name, version) => {
                     self.cargo_deps.insert(crate_name.clone(), version.clone());
                 }
-                _ => all_stmts.push(stmt.clone()),
+                Stmt::Defn(_)
+                | Stmt::TypeDecl(_)
+                | Stmt::Rule(_)
+                | Stmt::RustBlock(_)
+                | Stmt::Annot(_, _)
+                | Stmt::Bind(_, _, _)
+                | Stmt::MonadicBind(_, _, _)
+                | Stmt::For(_, _, _)
+                | Stmt::While(_, _)
+                | Stmt::Send(_, _)
+                | Stmt::StreamBind(_, _)
+                | Stmt::StreamSub(_, _)
+                | Stmt::Invariant { .. }
+                | Stmt::Prove { .. }
+                | Stmt::Assert(_, _)
+                | Stmt::Retract(_, _)
+                | Stmt::Abort
+                | Stmt::Expr(_) => all_stmts.push(stmt.clone()),
             }
         }
 
@@ -17312,7 +17352,31 @@ impl RustCodegen {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
                         }
-                        _ => {}
+                        Stmt::Defn(Defn::Module { .. })
+                        | Stmt::TypeDecl(TypeDecl::WhenType { .. })
+                        | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+                        | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
+                        | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
+                        | Stmt::Rule(_)
+                        | Stmt::Use(_)
+                        | Stmt::Import(_)
+                        | Stmt::QualifiedImport(_, _)
+                        | Stmt::HashImport(_, _)
+                        | Stmt::Depend(_, _)
+                        | Stmt::RustBlock(_)
+                        | Stmt::Annot(_, _)
+                        | Stmt::Bind(_, _, _)
+                        | Stmt::MonadicBind(_, _, _)
+                        | Stmt::For(_, _, _)
+                        | Stmt::While(_, _)
+                        | Stmt::Send(_, _)
+                        | Stmt::StreamSub(_, _)
+                        | Stmt::Invariant { .. }
+                        | Stmt::Prove { .. }
+                        | Stmt::Assert(_, _)
+                        | Stmt::Retract(_, _)
+                        | Stmt::Abort
+                        | Stmt::Expr(_) => {}
                     }
                     is_export = false;
                 }

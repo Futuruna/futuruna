@@ -12027,7 +12027,30 @@ impl TypeChecker {
                     Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
                         exported.insert(name.clone());
                     }
-                    _ => {}
+                    Stmt::TypeDecl(TypeDecl::WhenType { .. })
+                    | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+                    | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
+                    | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
+                    | Stmt::Rule(_)
+                    | Stmt::Use(_)
+                    | Stmt::Import(_)
+                    | Stmt::QualifiedImport(_, _)
+                    | Stmt::HashImport(_, _)
+                    | Stmt::Depend(_, _)
+                    | Stmt::RustBlock(_)
+                    | Stmt::Annot(_, _)
+                    | Stmt::Bind(_, _, _)
+                    | Stmt::MonadicBind(_, _, _)
+                    | Stmt::For(_, _, _)
+                    | Stmt::While(_, _)
+                    | Stmt::Send(_, _)
+                    | Stmt::StreamSub(_, _)
+                    | Stmt::Invariant { .. }
+                    | Stmt::Prove { .. }
+                    | Stmt::Assert(_, _)
+                    | Stmt::Retract(_, _)
+                    | Stmt::Abort
+                    | Stmt::Expr(_) => {}
                 }
                 is_export = false;
             }
@@ -12385,7 +12408,27 @@ impl TypeChecker {
                                         .filter(|s| match s {
                                             Stmt::Defn(d) => content_hash_defn(d) == *hash,
                                             Stmt::TypeDecl(td) => content_hash_type(td) == *hash,
-                                            _ => false,
+                                            Stmt::Rule(_)
+                                            | Stmt::Use(_)
+                                            | Stmt::Import(_)
+                                            | Stmt::QualifiedImport(_, _)
+                                            | Stmt::HashImport(_, _)
+                                            | Stmt::Depend(_, _)
+                                            | Stmt::RustBlock(_)
+                                            | Stmt::Annot(_, _)
+                                            | Stmt::Bind(_, _, _)
+                                            | Stmt::MonadicBind(_, _, _)
+                                            | Stmt::For(_, _, _)
+                                            | Stmt::While(_, _)
+                                            | Stmt::Send(_, _)
+                                            | Stmt::StreamBind(_, _)
+                                            | Stmt::StreamSub(_, _)
+                                            | Stmt::Invariant { .. }
+                                            | Stmt::Prove { .. }
+                                            | Stmt::Assert(_, _)
+                                            | Stmt::Retract(_, _)
+                                            | Stmt::Abort
+                                            | Stmt::Expr(_) => false,
                                         })
                                         .collect();
                                     if matched.is_empty() {
@@ -12406,7 +12449,20 @@ impl TypeChecker {
                         }
                     }
                 }
-                _ => {}
+                Stmt::TypeDecl(TypeDecl::WhenType { .. })
+                | Stmt::Depend(_, _)
+                | Stmt::Annot(_, _)
+                | Stmt::Bind(_, _, _)
+                | Stmt::MonadicBind(_, _, _)
+                | Stmt::While(_, _)
+                | Stmt::Send(_, _)
+                | Stmt::StreamSub(_, _)
+                | Stmt::Invariant { .. }
+                | Stmt::Prove { .. }
+                | Stmt::Assert(_, _)
+                | Stmt::Retract(_, _)
+                | Stmt::Abort
+                | Stmt::Expr(_) => {}
             }
         }
     }
