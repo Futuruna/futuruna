@@ -1,7 +1,6 @@
 -- typed_rule_heads_test.runa
 -- Regression coverage for typed | rule heads.
 -- Typed rule parameters are legal predicates, not >-function escape hatches.
--- roundtrip-skip: compiled typed-rule heads intentionally exercise codegen ahead of interpreter parity
 
 # Samtykke = Givet | IkkeGivet
 # Afgorelse = Gyldig | Ugyldig

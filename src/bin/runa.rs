@@ -39996,35 +39996,59 @@ for x in [1, 2] {
         compile_and_run_test_source(&source, Some(path.to_str().expect("utf-8 test path")))
     }
 
+    fn interpret_test_source(source: &str, filename: Option<&str>) -> String {
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+
+        let source_dir = filename.and_then(source_dir_for);
+        let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), source);
+        diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
+        assert!(
+            diags.is_empty(),
+            "typecheck failed for interpreter regression: {:?}",
+            diags
+        );
+
+        let mut interp = Interpreter::new();
+        interp.suppress_output = true;
+        interp.source_dir = filename.and_then(source_dir_for);
+        let mut env = interp.default_env();
+        interp.run_program(&stmts, &mut env);
+        interp.output.join("\n")
+    }
+
+    fn interpret_test_file(path: &std::path::Path) -> String {
+        let source = std::fs::read_to_string(path).expect("read test file");
+        interpret_test_source(&source, Some(path.to_str().expect("utf-8 test path")))
+    }
+
+    fn assert_typed_rule_heads_output(output: &str, lane: &str) {
+        for expected in [
+            "typed bool rule: PROVED",
+            "typed ADT rule: PROVED",
+            "typed default rule: PROVED",
+            "typed default fallback: PROVED",
+            "typed exception rule: PROVED",
+            "typed Prolog rule: PROVED",
+        ] {
+            assert!(
+                output.contains(expected),
+                "{expected} should execute through {lane}: {output}"
+            );
+        }
+    }
+
+    #[test]
+    fn interpreted_typed_rule_heads_fixture_executes() {
+        let output = interpret_test_file(std::path::Path::new("tests/typed_rule_heads_test.runa"));
+        assert_typed_rule_heads_output(&output, "interpreter");
+    }
+
     #[test]
     fn compiled_typed_rule_heads_fixture_executes() {
         let output =
             compile_and_run_test_file(std::path::Path::new("tests/typed_rule_heads_test.runa"));
-        assert!(
-            output.contains("typed bool rule: PROVED"),
-            "typed bool rule should execute through compiled codegen: {}",
-            output
-        );
-        assert!(
-            output.contains("typed ADT rule: PROVED"),
-            "typed ADT rule should execute through compiled codegen: {}",
-            output
-        );
-        assert!(
-            output.contains("typed default rule: PROVED"),
-            "typed default rule should execute through compiled codegen: {}",
-            output
-        );
-        assert!(
-            output.contains("typed exception rule: PROVED"),
-            "typed exception rule should execute through compiled codegen: {}",
-            output
-        );
-        assert!(
-            output.contains("typed Prolog rule: PROVED"),
-            "typed Prolog rule should execute through compiled codegen: {}",
-            output
-        );
+        assert_typed_rule_heads_output(&output, "compiled codegen");
     }
 
     fn interpret_test_source_expect_runtime_failure(source: &str, expected_substrings: &[&str]) {

@@ -10353,10 +10353,10 @@ impl Interpreter {
             };
             if let ExprKind::App(_, params) = &head.kind {
                 for param in params {
-                    if let ExprKind::Var(name) = &param.kind {
-                        if name != "_" {
-                            base_env.remove(name);
-                        }
+                    let mut local_vars = Vec::new();
+                    Self::collect_rule_head_vars(param, &mut local_vars);
+                    for name in local_vars {
+                        base_env.remove(&name);
                     }
                 }
             }
@@ -10380,10 +10380,10 @@ impl Interpreter {
                 for goal in &body_goals {
                     if let ExprKind::App(_, goal_args) = &goal.kind {
                         for ga in goal_args {
-                            if let ExprKind::Var(name) = &ga.kind {
-                                if name != "_" {
-                                    base_env.remove(name);
-                                }
+                            let mut local_vars = Vec::new();
+                            Self::collect_rule_head_vars(ga, &mut local_vars);
+                            for name in local_vars {
+                                base_env.remove(&name);
                             }
                         }
                     }
@@ -10490,76 +10490,8 @@ impl Interpreter {
         let mut rule_env = env.clone();
         if let ExprKind::App(_, params) = &head.kind {
             for (param, val) in params.iter().zip(args.iter()) {
-                match &param.kind {
-                    // Typed parameter: __typed(var, TypeName) — check type constraint
-                    ExprKind::App(func, typed_args)
-                        if matches!(&func.kind, ExprKind::Var(n) if n == "__typed")
-                            && typed_args.len() == 2 =>
-                    {
-                        let param_name = match &typed_args[0].kind {
-                            ExprKind::Var(n) => n.clone(),
-                            _ => "_".to_string(),
-                        };
-                        let type_name = match &typed_args[1].kind {
-                            ExprKind::Var(n) => n.clone(),
-                            _ => String::new(),
-                        };
-                        // Check if the value is a valid variant of the type
-                        let is_valid = match val {
-                            Value::Constructor(cname, _) => {
-                                // Check if this constructor belongs to the type
-                                self.type_variants
-                                    .get(&type_name)
-                                    .map_or(false, |variants| variants.contains(cname))
-                            }
-                            _ => false,
-                        };
-                        if !is_valid {
-                            return None;
-                        }
-                        if param_name != "_" {
-                            rule_env.set(param_name, val.clone());
-                        }
-                    }
-                    ExprKind::Var(name) if name == "_" => {
-                        // Wildcard — matches anything, don't bind
-                    }
-                    ExprKind::Var(name)
-                        if name.chars().next().map_or(false, |c| c.is_uppercase()) =>
-                    {
-                        // Constructor (uppercase) — must match exactly as ground term
-                        let expected = Value::Constructor(name.clone(), vec![]);
-                        if !values_equal(&expected, val) {
-                            // Also try string comparison for findall candidates
-                            if let Value::Str(s) = val {
-                                if s != name {
-                                    return None;
-                                }
-                            } else {
-                                return None;
-                            }
-                        }
-                    }
-                    ExprKind::Var(name) => {
-                        // Variable (lowercase) — bind to the argument value
-                        rule_env.set(name.clone(), val.clone());
-                    }
-                    ExprKind::Lit(lit) => {
-                        // Ground term — must match exactly
-                        let expected = self.literal_to_value(lit);
-                        if !values_equal(&expected, val) {
-                            return None; // ground term mismatch
-                        }
-                    }
-                    _ => {
-                        // Other expressions in head (e.g., constructors) — bind as variable
-                        // for now, treat as variable via name extraction
-                        if let Some(name) = self.extract_var_name(param) {
-                            if name != "_" {
-                                rule_env.set(name, val.clone());
-                            }
-                        }
-                    }
+                if !self.match_rule_param(param, val, &mut rule_env) {
+                    return None;
                 }
             }
             Some(rule_env)
@@ -10572,6 +10504,104 @@ impl Interpreter {
     /// Convert a literal to a Value for comparison during fact matching
     fn literal_to_value(&self, lit: &Literal) -> Value {
         literal_to_value_static(lit)
+    }
+
+    fn typed_rule_arg_parts(arg: &Expr) -> Option<(&Expr, &str)> {
+        let ExprKind::App(func, args) = &arg.kind else {
+            return None;
+        };
+        if !matches!(&func.kind, ExprKind::Var(n) if n == "__typed") || args.len() != 2 {
+            return None;
+        }
+        let ExprKind::Var(type_name) = &args[1].kind else {
+            return None;
+        };
+        Some((&args[0], type_name.as_str()))
+    }
+
+    fn is_rule_variable_name(name: &str) -> bool {
+        name != "_" && !name.chars().next().map_or(false, |c| c.is_uppercase())
+    }
+
+    fn collect_rule_head_vars(arg: &Expr, out: &mut Vec<String>) {
+        if let Some((inner, _)) = Self::typed_rule_arg_parts(arg) {
+            Self::collect_rule_head_vars(inner, out);
+            return;
+        }
+
+        match &arg.kind {
+            ExprKind::Var(name) if Self::is_rule_variable_name(name) => {
+                if !out.contains(name) {
+                    out.push(name.clone());
+                }
+            }
+            ExprKind::App(_, args) | ExprKind::Tuple(args) => {
+                for arg in args {
+                    Self::collect_rule_head_vars(arg, out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn value_matches_type(&self, value: &Value, type_name: &str) -> bool {
+        match type_name {
+            "_" | "Any" => true,
+            "Unit" => matches!(value, Value::Unit),
+            "Int" => matches!(value, Value::Int(_)),
+            "Nat" => matches!(value, Value::Int(n) if *n >= 0),
+            "Float" => matches!(value, Value::Float(_)),
+            "String" => matches!(value, Value::Str(_)),
+            "Bool" => matches!(value, Value::Bool(_)),
+            "Char" => matches!(value, Value::Char(_)),
+            _ => {
+                if self.runtime_type_name(value).as_deref() == Some(type_name) {
+                    return true;
+                }
+                match value {
+                    Value::Constructor(name, _) | Value::NamedConstructor(name, _) => self
+                        .type_variants
+                        .get(type_name)
+                        .map_or(false, |variants| variants.contains(name)),
+                    _ => false,
+                }
+            }
+        }
+    }
+
+    fn match_rule_param(&self, param: &Expr, val: &Value, env: &mut Env) -> bool {
+        if let Some((inner, type_name)) = Self::typed_rule_arg_parts(param) {
+            return self.value_matches_type(val, type_name)
+                && self.match_rule_param(inner, val, env);
+        }
+
+        match &param.kind {
+            ExprKind::Var(name) if name == "_" => true,
+            ExprKind::Var(name) if name.chars().next().map_or(false, |c| c.is_uppercase()) => {
+                match val {
+                    Value::Constructor(vname, args) => vname == name && args.is_empty(),
+                    Value::NamedConstructor(vname, fields) => vname == name && fields.is_empty(),
+                    Value::Str(s) => s == name,
+                    _ => false,
+                }
+            }
+            ExprKind::Var(name) => {
+                env.set(name.clone(), val.clone());
+                true
+            }
+            ExprKind::Lit(lit) => {
+                let expected = self.literal_to_value(lit);
+                values_equal(&expected, val)
+            }
+            _ => {
+                if let Some(name) = self.extract_var_name(param) {
+                    if name != "_" {
+                        env.set(name, val.clone());
+                    }
+                }
+                true
+            }
+        }
     }
 }
 
@@ -11329,6 +11359,9 @@ impl Interpreter {
     pub fn bind_rule_params(&self, head: &Expr, args: &[Value], env: &mut Env) {
         if let ExprKind::App(_, params) = &head.kind {
             for (param, val) in params.iter().zip(args.iter()) {
+                let param = Self::typed_rule_arg_parts(param)
+                    .map(|(inner, _)| inner)
+                    .unwrap_or(param);
                 if let ExprKind::Var(name) = &param.kind {
                     env.set(name.clone(), val.clone());
                 }
