@@ -2328,7 +2328,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: § 13 source-dependent validation, § 14/§ 19 calculator integration, 2026 reform layers, and dependent tax statutes remain explicit gaps." }
+                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: § 13 complex-case calculator integration, § 14/§ 19 calculator integration, remaining 2026 reform layers, and dependent tax statutes remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -2374,7 +2374,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "§ 13 amount formulas are executable; dependent statute validation and calculator integrations remain" }
+                            strong { "§ 13 dependent sources are executable; complex calculator integrations remain" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }

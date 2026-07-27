@@ -13,18 +13,24 @@ Status: Historic
 
 Officiel XML-metadata for 2021/1284, hentet 2026-07-18:
 Status: Valid
+
+Officiel XML-metadata for 2024/482, hentet 2026-07-18:
+Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | Skatteår2026ReformIkkeKodet | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | Skatteår2026ReformIkkeKodet | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
 = m5_historisk_til_aktuel = kilde_egnet_til_formål(personskatteloven_2019_799, AktuelSkatteberegning)
+= m5_reform_til_aktuel = kilde_egnet_til_formål(personskat_reform_2024_482, AktuelSkatteberegning)
 
 | m5_historisk_kilde_afvises: m5_historisk_til_aktuel -> m5_historisk_til_aktuel == Falskt
+| m5_reform_kilde_accepteres: m5_reform_til_aktuel -> m5_reform_til_aktuel == Sandt
 | m5_audit_historisk_kilde_signal: audit_signal(HistoriskKildeTilAktuelBeregning) -> audit_signal(HistoriskKildeTilAktuelBeregning) == Sandt
 
 ? m5_historisk_kilde_afvises
+? m5_reform_kilde_accepteres
 
 ----
 § 9. Indkomstskatten efter §§ 6, 7, 7 a og 8 og § 8 a, stk. 2, til staten skal,
@@ -88,24 +94,34 @@ arbejdsmarkedsbidrag til 611.800 kr.
 ----
 § 13 har nu en første underskudsmekanik for skatteværdi, modregningsrækkefølge,
 ægtefælleoverførsel, negativ personlig indkomst, beløbsbegrænsninger efter
-stk. 5 og særlige virksomhedsunderskud efter stk. 6-7.
+stk. 5 og særlige virksomhedsunderskud efter stk. 6-7. § 13, stk. 5 er
+valideret mod Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
+Sømandsbeskatningsloven §§ 5-8 og LOV nr. 482/2024's 2026-ophævelse af
+PBL § 16-leddet.
 ----
 
 = m5_par13_skatteværdi_fixture = par13_underskud_skatteværdi_kroner(Par13UnderskudSkatteværdiInput(100000, 0, 2350, 80, 0, Falskt))
 = m5_par13_modregning_fixture = par13_modregning_resultat(Par13ModregningInput(m5_par13_skatteværdi_fixture, 10000, 5000, 0, 20000))
 = m5_par13_ægtefælle_fixture = par13_ægtefælleoverførsel_resultat(Par13ÆgtefælleOverførselInput(60000, 45000, Sandt))
 = m5_par13_negativ_personlig_fixture = par13_negativ_personlig_rest_kroner(Par13NegativPersonligInput(-10000, 2000))
-= m5_par13_stk5_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(100000, 30000, 5000, 12000, 10000, Sandt, Falskt))
+= m5_par13_stk5_2025_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(2025, 100000, 30000, 5000, 12000, 10000, Sandt, IngenPar13Lempelse))
+= m5_par13_stk5_2026_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(2026, 100000, 0, 0, 0, 10000, Sandt, IngenPar13Lempelse))
+= m5_par13_stk5_ll33a_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(2025, 100000, 30000, 5000, 12000, 10000, Sandt, LigningslovPar33A))
+= m5_par13_stk5_sømand_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(2025, 100000, 30000, 5000, 12000, 10000, Sandt, SømandsbeskatningslovPar5))
 = m5_par13_virksomhed_fixture = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(80000, 30000, PassivVirksomhedPar4Nr9Eller11))
 
 | m5_par13_skatteværdi: m5_par13_skatteværdi_fixture -> m5_par13_skatteværdi_fixture == 24300
 | m5_par13_modregningsrækkefølge: m5_par13_modregning_fixture -> m5_par13_modregning_fixture.par6_efter_kroner == 0 && m5_par13_modregning_fixture.par7_efter_kroner == 0 && m5_par13_modregning_fixture.par8a_stk2_efter_kroner == 10700
 | m5_par13_ægtefælleoverførsel: m5_par13_ægtefælle_fixture -> m5_par13_ægtefælle_fixture.fradrag_i_ægtefælle_indkomst_kroner == 45000 && m5_par13_ægtefælle_fixture.resterende_underskud_kroner == 15000
 | m5_par13_negativ_personlig_rest: m5_par13_negativ_personlig_fixture -> m5_par13_negativ_personlig_fixture == 8000
-| m5_par13_stk5_beløbsbegrænsning: m5_par13_stk5_fixture -> m5_par13_stk5_fixture.overførbart_underskud_kroner == 53000 && m5_par13_stk5_fixture.samlet_afskåret_kroner == 47000
+| m5_par13_stk5_beløbsbegrænsning_2025: m5_par13_stk5_2025_fixture -> m5_par13_stk5_2025_fixture.overførbart_underskud_kroner == 53000 && m5_par13_stk5_2025_fixture.afskåret_udenlandsk_nettoindkomst_kroner == 25000 && m5_par13_stk5_2025_fixture.afskåret_udlandsfradrag_kroner == 12000 && m5_par13_stk5_2025_fixture.afskåret_pbl16_kroner == 10000
+| m5_par13_stk5_pbl16_ophævet_2026: m5_par13_stk5_2026_fixture -> m5_par13_stk5_2026_fixture.overførbart_underskud_kroner == 100000 && m5_par13_stk5_2026_fixture.afskåret_pbl16_kroner == 0
+| m5_par13_stk5_ll33a_lempelse: m5_par13_stk5_ll33a_fixture -> m5_par13_stk5_ll33a_fixture.overførbart_underskud_kroner == 100000 && m5_par13_stk5_ll33a_fixture.samlet_afskåret_kroner == 0
+| m5_par13_stk5_sømandslempelse: m5_par13_stk5_sømand_fixture -> m5_par13_stk5_sømand_fixture.overførbart_underskud_kroner == 100000 && m5_par13_stk5_sømand_fixture.samlet_afskåret_kroner == 0
 | m5_par13_virksomhedsbeløb_låses: m5_par13_virksomhed_fixture -> m5_par13_virksomhed_fixture.fradrag_i_øvrig_indkomst_kroner == 0 && m5_par13_virksomhed_fixture.modregnet_i_samme_virksomhed_kroner == 30000 && m5_par13_virksomhed_fixture.fremført_til_samme_virksomhed_kroner == 50000
 | m5_audit_par13_mekanik_signal: audit_signal(Par13UnderskudsmekanikDækket) -> audit_signal(Par13UnderskudsmekanikDækket) == Sandt
 | m5_audit_par13_beløb_signal: audit_signal(Par13BeløbsbegrænsningerDækket) -> audit_signal(Par13BeløbsbegrænsningerDækket) == Sandt
+| m5_audit_par13_kilder_signal: audit_signal(Par13AfhængigeKilderValideret) -> audit_signal(Par13AfhængigeKilderValideret) == Sandt
 | m5_audit_am_lov_signal: audit_signal(ManglerArbejdsmarkedsbidragslov) -> audit_signal(ManglerArbejdsmarkedsbidragslov) == Sandt
 | m5_audit_kommunal_lov_signal: audit_signal(ManglerKommunalIndkomstskattelov) -> audit_signal(ManglerKommunalIndkomstskattelov) == Sandt
 
@@ -113,10 +129,14 @@ stk. 5 og særlige virksomhedsunderskud efter stk. 6-7.
 ? m5_par13_modregningsrækkefølge
 ? m5_par13_ægtefælleoverførsel
 ? m5_par13_negativ_personlig_rest
-? m5_par13_stk5_beløbsbegrænsning
+? m5_par13_stk5_beløbsbegrænsning_2025
+? m5_par13_stk5_pbl16_ophævet_2026
+? m5_par13_stk5_ll33a_lempelse
+? m5_par13_stk5_sømandslempelse
 ? m5_par13_virksomhedsbeløb_låses
 ? m5_audit_par13_mekanik_signal
 ? m5_audit_par13_beløb_signal
+? m5_audit_par13_kilder_signal
 ? m5_audit_am_lov_signal
 ? m5_audit_kommunal_lov_signal
 
@@ -180,4 +200,4 @@ afgrænsning.
 ? m5_audit_par26_signal
 ? m5_audit_par28_signal
 
-@ print("m5 audit: kendte gaps markeret for 2026-reform, AM-lov og kommunal lov; § 13 beløbsbegrænsninger samt §§ 14-28 har executable audit-fixtures")
+@ print("m5 audit: kendte gaps markeret for 2026-reform, AM-lov og kommunal lov; § 13 afhængige kilder samt §§ 14-28 har executable audit-fixtures")

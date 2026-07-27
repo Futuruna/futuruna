@@ -7,6 +7,11 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2021/1284
 -- XML: https://www.retsinformation.dk/eli/lta/2021/1284/dan/xml
 --
+-- Gældende ændringslov for 2026-reformen i § 13:
+-- Retsinformation, LOV nr. 482 af 22/05/2024.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/482
+-- XML: https://www.retsinformation.dk/eli/lta/2024/482/dan/xml
+--
 -- Historisk kildelinje fra projektoplægget:
 -- Retsinformation, LBK nr. 799 af 07/08/2019.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2019/799
@@ -28,6 +33,12 @@ Status: Valid
 DiesSigni: 2021-06-14
 StartDate: 2021-06-16
 EndDate: 2026-06-19
+
+Officiel XML-metadata for 2024/482, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af personskatteloven, ligningsloven og forskellige andre love (Udmøntning af dele af aftale om reform af personskat)
+Status: Valid
+StartDate: 2024-05-22
+EndDate: 2026-06-19
 ----
 
 # Kildestatus = Gældende | Historisk
@@ -36,8 +47,10 @@ EndDate: 2026-06-19
 
 = personskatteloven_2019_799 = Retskilde("https://www.retsinformation.dk/eli/lta/2019/799", 2019, 799, Historisk)
 = personskatteloven_2021_1284 = Retskilde("https://www.retsinformation.dk/eli/lta/2021/1284", 2021, 1284, Gældende)
+= personskat_reform_2024_482 = Retskilde("https://www.retsinformation.dk/eli/lta/2024/482", 2024, 482, Gældende)
 
 | kilde_er_personskatteloven(kilde: Retskilde) -> kilde.nummer == 799 || kilde.nummer == 1284
+| kilde_er_personskat_reform(kilde: Retskilde) -> kilde.nummer == 482 && kilde.år == 2024
 
 | kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Sandt under kilde.status == Gældende
 | kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Sandt under formål == HistoriskAudit || formål == KildeDiff
@@ -45,8 +58,10 @@ EndDate: 2026-06-19
 
 = historisk_til_aktuel_beregning = kilde_egnet_til_formål(personskatteloven_2019_799, AktuelSkatteberegning)
 = gældende_til_aktuel_beregning = kilde_egnet_til_formål(personskatteloven_2021_1284, AktuelSkatteberegning)
+= reform_til_aktuel_beregning = kilde_egnet_til_formål(personskat_reform_2024_482, AktuelSkatteberegning)
 = historisk_til_audit = kilde_egnet_til_formål(personskatteloven_2019_799, HistoriskAudit)
 
 | historisk_kilde_afvises_til_aktuel_beregning: historisk_til_aktuel_beregning -> historisk_til_aktuel_beregning == Falskt
 | gældende_kilde_accepteres_til_aktuel_beregning: gældende_til_aktuel_beregning -> gældende_til_aktuel_beregning == Sandt
+| reformkilde_accepteres_til_aktuel_beregning: reform_til_aktuel_beregning -> reform_til_aktuel_beregning == Sandt
 | historisk_kilde_accepteres_til_audit: historisk_til_audit -> historisk_til_audit == Sandt

@@ -30,11 +30,34 @@ Current working source:
 - XML end date observed on 2026-07-18: `2026-06-19`
 - Change references in XML: 7
 
+Current § 13 amendment/dependency sources:
+
+- Person-tax reform amendment:
+  `https://www.retsinformation.dk/eli/lta/2024/482`
+  - XML status on 2026-07-18: `Valid`
+  - § 1, nr. 14 repeals Personskatteloven § 13, stk. 5, 4. pkt.
+  - § 8, stk. 4 gives § 1 effect from income year 2026.
+- Pensionsbeskatningsloven:
+  `https://www.retsinformation.dk/eli/lta/2024/1243`
+  - XML status on 2026-07-18: `Valid`
+  - § 16, stk. 1, 4. pkt. is the historic PBL cap reference used by
+    Personskatteloven § 13 through income year 2025.
+- Ligningsloven:
+  `https://www.retsinformation.dk/eli/lta/2025/1500`
+  - XML status on 2026-07-18: `Valid`
+  - § 33 A is the foreign-wage relief exception in § 13, stk. 5.
+- Sømandsbeskatningsloven:
+  `https://www.retsinformation.dk/eli/lta/2023/1181`
+  - XML status on 2026-07-18: `Valid`
+  - §§ 5-8 are the seamen relief exception in § 13, stk. 5.
+
 Working decision: use `2021/1284` as the current consolidated source for live
 encoding, while preserving `2019/799` as source lineage because the valid
 consolidation explicitly builds on it. The 2019 source remains useful for
 historical audit and diffing, but it should not be treated as the live basis for
-calculating a current taxpayer's tax.
+calculating a current taxpayer's tax. For provisions modified by later valid
+amendment acts, such as § 13's 2026 PBL § 16 repeal, the amendment act must be
+encoded as a temporal rule on top of the consolidation.
 
 ## Current Implementation Status
 
@@ -92,8 +115,9 @@ calculating a current taxpayer's tax.
   safe.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for AM contribution,
-  municipal/church taxation, Kildeskatteloven, Pensionsbeskatningsloven, and
-  Ligningsloven references used by § 13.
+  municipal/church taxation, and Kildeskatteloven. § 13's first dependent-source
+  slice now covers Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
+  Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
 - Decide how § 14 partial-year annualization and § 19 skatteloftsnedslag should
   flow into the ordinary wage-earner calculator once there are trusted
   partial-year and high-rate fixtures.
@@ -184,7 +208,8 @@ M5 - Audit suite
   skatteloft, covered § 20 regulation/rounding, covered § 26 transition
   compensation, covered § 28 territorial exclusion, AM-law dependency,
   municipal-tax-law dependency, and § 13 foreign/pension/business amount
-  limitations are executable audit signals.
+  limitations are executable audit signals, including 2025 PBL § 16 behavior,
+  2026 repeal behavior, LL § 33 A relief, and seamen-relief exceptions.
 
 M6 - Website integration
 
@@ -212,9 +237,10 @@ M7 - Personfradrag and deficit layer
   value and offset order are executable, spouse deficit transfer and negative
   personal income carry-forward are fixture-tested, foreign/pension spouse
   transfer limitations are executable, and same-business loss carry-forward
-  amounts are fixture-tested. Remaining work is source-dependent validation and
-  calculator integration for complex § 13 cases rather than the first amount
-  formulas themselves.
+  amounts are fixture-tested. § 13's first dependent-source validation now
+  covers PBL § 16 through 2025, the 2026 repeal, LL § 33 A relief, and seamen
+  relief. Remaining work is calculator integration for complex § 13 cases rather
+  than the first amount formulas themselves.
 
 M8 - Omregning, skatteloft, and regulation
 
