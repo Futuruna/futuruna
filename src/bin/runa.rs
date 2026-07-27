@@ -16888,158 +16888,13 @@ impl RustCodegen {
 
     fn collect_watch_type_names_from_stmt_list(stmts: &[Stmt], out: &mut BTreeSet<String>) {
         for stmt in stmts {
-            match stmt {
-                Stmt::Defn(Defn::Fn { body, .. }) => {
-                    Self::collect_watch_type_names_from_expr(body, out);
-                }
-                Stmt::Defn(Defn::Actor { handlers, .. }) => {
-                    for handler in handlers {
-                        Self::collect_watch_type_names_from_expr(&handler.body, out);
+            walk_ast_stmt(stmt, &mut |child| {
+                if let AstChild::Expr(expr) = child {
+                    if let Some(type_name) = Self::watch_type_name(expr) {
+                        out.insert(type_name);
                     }
                 }
-                Stmt::Defn(Defn::Module { body, .. }) | Stmt::Rule(Rule::Scope { body, .. }) => {
-                    Self::collect_watch_type_names_from_stmt_list(body, out);
-                }
-                Stmt::TypeDecl(TypeDecl::ADT { methods, .. })
-                | Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
-                    for method in methods {
-                        if let Defn::Fn { body, .. } = method {
-                            Self::collect_watch_type_names_from_expr(body, out);
-                        }
-                    }
-                }
-                Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
-                    Self::collect_watch_type_names_from_expr(condition, out);
-                }
-                Stmt::Bind(_, _, expr)
-                | Stmt::MonadicBind(_, _, expr)
-                | Stmt::StreamBind(_, expr)
-                | Stmt::Expr(expr) => {
-                    Self::collect_watch_type_names_from_expr(expr, out);
-                }
-                Stmt::For(_, iter, body) => {
-                    Self::collect_watch_type_names_from_expr(iter, out);
-                    Self::collect_watch_type_names_from_stmt_list(body, out);
-                }
-                Stmt::Send(target, msg) => {
-                    Self::collect_watch_type_names_from_expr(target, out);
-                    Self::collect_watch_type_names_from_expr(msg, out);
-                }
-                Stmt::StreamSub(expr, arms) => {
-                    Self::collect_watch_type_names_from_expr(expr, out);
-                    for arm in arms {
-                        if let Some(guard) = &arm.guard {
-                            Self::collect_watch_type_names_from_expr(guard, out);
-                        }
-                        Self::collect_watch_type_names_from_expr(&arm.body, out);
-                    }
-                }
-                Stmt::While(cond, body) => {
-                    Self::collect_watch_type_names_from_expr(cond, out);
-                    Self::collect_watch_type_names_from_stmt_list(body, out);
-                }
-                Stmt::Invariant {
-                    subject, predicate, ..
-                } => {
-                    Self::collect_watch_type_names_from_expr(subject, out);
-                    Self::collect_watch_type_names_from_expr(predicate, out);
-                }
-                Stmt::Prove {
-                    pass_block,
-                    else_block,
-                    ..
-                } => {
-                    if let Some(pass) = pass_block {
-                        Self::collect_watch_type_names_from_stmt_list(pass, out);
-                    }
-                    if let Some(fail) = else_block {
-                        Self::collect_watch_type_names_from_stmt_list(fail, out);
-                    }
-                }
-                Stmt::Rule(Rule::Clause { head, body }) => {
-                    Self::collect_watch_type_names_from_expr(head, out);
-                    if let Some(body) = body {
-                        Self::collect_watch_type_names_from_expr(body, out);
-                    }
-                }
-                Stmt::Rule(Rule::Default {
-                    head,
-                    value,
-                    condition,
-                    ..
-                })
-                | Stmt::Rule(Rule::Exception {
-                    head,
-                    value,
-                    condition,
-                    ..
-                }) => {
-                    Self::collect_watch_type_names_from_expr(head, out);
-                    Self::collect_watch_type_names_from_expr(value, out);
-                    if let Some(condition) = condition {
-                        Self::collect_watch_type_names_from_expr(condition, out);
-                    }
-                }
-                Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
-                    for arg in args {
-                        Self::collect_watch_type_names_from_expr(arg, out);
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn collect_watch_type_names_from_expr(expr: &Expr, out: &mut BTreeSet<String>) {
-        if let Some(type_name) = Self::watch_type_name(expr) {
-            out.insert(type_name);
-        }
-        match &expr.kind {
-            ExprKind::App(func, args) => {
-                Self::collect_watch_type_names_from_expr(func, out);
-                for arg in args {
-                    Self::collect_watch_type_names_from_expr(arg, out);
-                }
-            }
-            ExprKind::BinOp(_, lhs, rhs) | ExprKind::Pipe(lhs, rhs) | ExprKind::Index(lhs, rhs) => {
-                Self::collect_watch_type_names_from_expr(lhs, out);
-                Self::collect_watch_type_names_from_expr(rhs, out);
-            }
-            ExprKind::UnOp(_, inner)
-            | ExprKind::Field(inner, _)
-            | ExprKind::Try(inner)
-            | ExprKind::Lambda(_, inner) => Self::collect_watch_type_names_from_expr(inner, out),
-            ExprKind::If(cond, then_expr, else_expr) => {
-                Self::collect_watch_type_names_from_expr(cond, out);
-                Self::collect_watch_type_names_from_expr(then_expr, out);
-                Self::collect_watch_type_names_from_expr(else_expr, out);
-            }
-            ExprKind::Match(scrutinee, arms) => {
-                Self::collect_watch_type_names_from_expr(scrutinee, out);
-                for arm in arms {
-                    if let Some(guard) = &arm.guard {
-                        Self::collect_watch_type_names_from_expr(guard, out);
-                    }
-                    Self::collect_watch_type_names_from_expr(&arm.body, out);
-                }
-            }
-            ExprKind::Block(stmts) => Self::collect_watch_type_names_from_stmt_list(stmts, out),
-            ExprKind::List(items)
-            | ExprKind::Tuple(items)
-            | ExprKind::Effect(_, items)
-            | ExprKind::Conjunction(items)
-            | ExprKind::Disjunction(items) => {
-                for item in items {
-                    Self::collect_watch_type_names_from_expr(item, out);
-                }
-            }
-            ExprKind::Handle { body, handlers, .. } => {
-                Self::collect_watch_type_names_from_expr(body, out);
-                for handler in handlers {
-                    Self::collect_watch_type_names_from_expr(&handler.body, out);
-                }
-            }
-            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+            });
         }
     }
 
@@ -35948,6 +35803,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     enum CompilerPassId {
+        TypeChecking,
         OwnershipUseAnalysis,
         ImportResolution,
         FirLowering,
@@ -35957,6 +35813,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
     impl CompilerPassId {
         fn label(self) -> &'static str {
             match self {
+                CompilerPassId::TypeChecking => "Type checking diagnostics",
                 CompilerPassId::OwnershipUseAnalysis => "Ownership/use analysis",
                 CompilerPassId::ImportResolution => "Import resolution",
                 CompilerPassId::FirLowering => "FIR lowering",
@@ -36005,6 +35862,45 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         },
     }
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum TraversalAuditKind {
+        CanonicalAstWalker,
+        CanonicalFirWalker,
+        ExhaustiveSemantic,
+        StatementClassifier,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    enum ContractSourceFile {
+        LibRs,
+        RunaRs,
+    }
+
+    impl ContractSourceFile {
+        fn label(self) -> &'static str {
+            match self {
+                ContractSourceFile::LibRs => "src/lib.rs",
+                ContractSourceFile::RunaRs => "src/bin/runa.rs",
+            }
+        }
+
+        fn text(self) -> &'static str {
+            match self {
+                ContractSourceFile::LibRs => include_str!("../lib.rs"),
+                ContractSourceFile::RunaRs => include_str!("runa.rs"),
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    struct TraversalAudit {
+        path: &'static str,
+        kind: TraversalAuditKind,
+        source: ContractSourceFile,
+        evidence_marker: &'static str,
+        reason: &'static str,
+    }
+
     #[derive(Debug)]
     struct CompilerPassContract {
         id: CompilerPassId,
@@ -36013,12 +35909,70 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         owned_invariants: &'static [&'static str],
         traversal_expectation: &'static str,
         module_leak_guard: &'static str,
+        traversal_audit: Vec<TraversalAudit>,
         coverage: Vec<PassCoverageExpectation>,
         fixtures: Vec<ContractFixture>,
     }
 
     fn compiler_pass_contracts() -> Vec<CompilerPassContract> {
         vec![
+            CompilerPassContract {
+                id: CompilerPassId::TypeChecking,
+                input_phase: "Parsed AST after declaration collection",
+                output_phase: "scoped diagnostics with spans, context, arity, and export checks",
+                owned_invariants: &[
+                    "statement diagnostics preserve lexical scopes and declaration pre-scan order",
+                    "expression diagnostics visit all expression-bearing branches with pattern bindings in scope",
+                    "imported module diagnostics use restored source_dir and qualified export metadata",
+                ],
+                traversal_expectation:
+                    "semantic traversal must remain exhaustive because it carries scopes and diagnostic context",
+                module_leak_guard:
+                    "qualified imports expose only exported names and imported source_dir state is restored",
+                traversal_audit: vec![
+                    TraversalAudit {
+                        path: "TypeChecker::check_stmt",
+                        kind: TraversalAuditKind::ExhaustiveSemantic,
+                        source: ContractSourceFile::LibRs,
+                        evidence_marker: "    pub fn check_stmt(&mut self, stmt: &Stmt) {",
+                        reason:
+                            "stmt checking mutates scopes, declaration state, and diagnostic context while recursing",
+                    },
+                    TraversalAudit {
+                        path: "TypeChecker::check_expr",
+                        kind: TraversalAuditKind::ExhaustiveSemantic,
+                        source: ContractSourceFile::LibRs,
+                        evidence_marker:
+                            "    pub fn check_expr(&mut self, expr: &Expr, _in_fn: Option<&str>) {",
+                        reason:
+                            "expr checking needs scope-sensitive arity, constructor, pattern, and module-export checks",
+                    },
+                    TraversalAudit {
+                        path: "TypeChecker::collect_declarations",
+                        kind: TraversalAuditKind::ExhaustiveSemantic,
+                        source: ContractSourceFile::LibRs,
+                        evidence_marker:
+                            "    pub fn collect_declarations(&mut self, stmts: &[Stmt]) {",
+                        reason:
+                            "declaration collection mutates symbol tables and import source_dir state",
+                    },
+                ],
+                coverage: vec![
+                    PassCoverageExpectation::FixtureText {
+                        path: "src/lib.rs",
+                        marker:
+                            "fn typechecker_pass_coverage_matrix_classifies_stmt_and_type_decl_variants()",
+                    },
+                    PassCoverageExpectation::FixtureText {
+                        path: "tests/expect/diagnostics/undefined_variable_in_function.runa",
+                        marker: "undefined variable `xyz`",
+                    },
+                ],
+                fixtures: vec![ContractFixture {
+                    path: "tests/expect/diagnostics/undefined_variable_in_function.runa",
+                    surfaces: &[ContractSurface::Check, ContractSurface::Expect],
+                }],
+            },
             CompilerPassContract {
                 id: CompilerPassId::OwnershipUseAnalysis,
                 input_phase: "Parsed AST after declaration scan and import expansion",
@@ -36032,6 +35986,24 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "use canonical AST child traversal or exhaustive expression-bearing matches",
                 module_leak_guard:
                     "imported script flow must not become root runtime code during ownership scans",
+                traversal_audit: vec![
+                    TraversalAudit {
+                        path: "count_var_uses/count_var_uses_stmt",
+                        kind: TraversalAuditKind::CanonicalAstWalker,
+                        source: ContractSourceFile::RunaRs,
+                        evidence_marker: "    walk_ast_expr(expr, &mut |child| {",
+                        reason:
+                            "generic variable reference counting has no scope side effects and should ride the AST walker",
+                    },
+                    TraversalAudit {
+                        path: "count_consuming_uses_borrow_aware_impl",
+                        kind: TraversalAuditKind::ExhaustiveSemantic,
+                        source: ContractSourceFile::RunaRs,
+                        evidence_marker: "fn count_consuming_uses_borrow_aware_impl(",
+                        reason:
+                            "consuming-use analysis needs branch max-counting and borrow-aware call semantics",
+                    },
+                ],
                 coverage: vec![
                     PassCoverageExpectation::AstOwnership {
                         row: "Invariant",
@@ -36094,6 +36066,34 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "classify every Stmt variant before retaining, ignoring, or recursively expanding",
                 module_leak_guard:
                     "source_dir is restored after each import and private/script symbols do not leak",
+                traversal_audit: vec![
+                    TraversalAudit {
+                        path: "RustCodegen::classify_imported_stmt_for_expansion",
+                        kind: TraversalAuditKind::StatementClassifier,
+                        source: ContractSourceFile::RunaRs,
+                        evidence_marker:
+                            "    fn classify_imported_stmt_for_expansion(stmt: &Stmt) -> ImportedStmtExpansion {",
+                        reason:
+                            "import normalization is a statement classifier, not a recursive expression walk",
+                    },
+                    TraversalAudit {
+                        path: "RustCodegen::scan_declarations import expansion",
+                        kind: TraversalAuditKind::ExhaustiveSemantic,
+                        source: ContractSourceFile::RunaRs,
+                        evidence_marker: "    fn scan_declarations(&mut self, stmts: &[Stmt]) -> Vec<Stmt> {",
+                        reason:
+                            "scan_declarations mutates import, export, dependency, and type-registry state in order",
+                    },
+                    TraversalAudit {
+                        path: "TypeChecker::collect_declarations import expansion",
+                        kind: TraversalAuditKind::ExhaustiveSemantic,
+                        source: ContractSourceFile::LibRs,
+                        evidence_marker:
+                            "    pub fn collect_declarations(&mut self, stmts: &[Stmt]) {",
+                        reason:
+                            "type-checker import declaration collection resolves files with scoped source_dir state",
+                    },
+                ],
                 coverage: vec![
                     PassCoverageExpectation::AstImportExpansion {
                         row: "Import",
@@ -36155,6 +36155,24 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "use canonical FIR immutable or mutable child traversal for recursive FIR passes",
                 module_leak_guard:
                     "module-qualified and imported symbols stay scoped through FIR snapshots",
+                traversal_audit: vec![
+                    TraversalAudit {
+                        path: "TypeInference::substitute_expr",
+                        kind: TraversalAuditKind::CanonicalFirWalker,
+                        source: ContractSourceFile::RunaRs,
+                        evidence_marker: "        walk_fir_expr_mut(",
+                        reason:
+                            "FIR type substitution is a generic recursive metadata rewrite",
+                    },
+                    TraversalAudit {
+                        path: "LoweringCtx::lower_stmt/lower_expr",
+                        kind: TraversalAuditKind::ExhaustiveSemantic,
+                        source: ContractSourceFile::RunaRs,
+                        evidence_marker: "    fn lower_stmt(&mut self, stmt: &Stmt) -> FirStmt {",
+                        reason:
+                            "lowering changes representation while threading type, ownership, and borrow metadata",
+                    },
+                ],
                 coverage: vec![
                     PassCoverageExpectation::FirPhase {
                         row: "FirStmt::Defn::Module",
@@ -36201,6 +36219,32 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "emit expression-bearing children through checked ownership/type metadata paths",
                 module_leak_guard:
                     "library exports are public only when exported and helper script output is suppressed",
+                traversal_audit: vec![
+                    TraversalAudit {
+                        path: "RustCodegen::collect_watch_type_names_from_stmt_list",
+                        kind: TraversalAuditKind::CanonicalAstWalker,
+                        source: ContractSourceFile::RunaRs,
+                        evidence_marker: "            walk_ast_stmt(stmt, &mut |child| {",
+                        reason:
+                            "watch-type discovery is generic expression discovery over AST statements",
+                    },
+                    TraversalAudit {
+                        path: "RustCodegen::emit_stmt/emit_expr",
+                        kind: TraversalAuditKind::ExhaustiveSemantic,
+                        source: ContractSourceFile::RunaRs,
+                        evidence_marker: "    fn emit_stmt(&mut self, stmt: &Stmt) -> String {",
+                        reason:
+                            "Rust emission is metadata-sensitive lowering, not a pure structural walk",
+                    },
+                    TraversalAudit {
+                        path: "RustCodegen::scan_declarations export pre-scan",
+                        kind: TraversalAuditKind::StatementClassifier,
+                        source: ContractSourceFile::RunaRs,
+                        evidence_marker: "        // Pre-scan: collect @ export annotations (M3b)",
+                        reason:
+                            "export visibility depends on prefix annotation state and statement classification",
+                    },
+                ],
                 coverage: vec![
                     PassCoverageExpectation::FixtureText {
                         path: "tests/expect/artifact/ownership_branch_string_contract.runa",
@@ -36260,6 +36304,14 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         ExprKind::App(
             Box::new(ExprKind::Var("consume".to_string()).into()),
             vec![ExprKind::Var(name.to_string()).into()],
+        )
+        .into()
+    }
+
+    fn watch_expr(type_name: &str) -> Expr {
+        ExprKind::App(
+            Box::new(ExprKind::Var("watch".to_string()).into()),
+            vec![ExprKind::Var(type_name.to_string()).into()],
         )
         .into()
     }
@@ -36891,6 +36943,48 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
     }
 
     #[test]
+    fn rust_codegen_watch_collection_reaches_nested_ast_shapes() {
+        let stmts = vec![
+            Stmt::Invariant {
+                name: "watch_invariant".to_string(),
+                subject: watch_expr("InvariantFact"),
+                predicate: coverage_expr("invariant_predicate"),
+            },
+            Stmt::Prove {
+                name: "watch_prove".to_string(),
+                proof_block: None,
+                capture: None,
+                pass_block: Some(vec![Stmt::Expr(watch_expr("ProvePassFact"))]),
+                else_block: Some(vec![Stmt::StreamSub(
+                    watch_expr("StreamFact"),
+                    vec![MatchArm {
+                        pat: Pat::Wild,
+                        guard: Some(watch_expr("GuardFact")),
+                        body: watch_expr("BodyFact"),
+                    }],
+                )]),
+            },
+            Stmt::Expr(ExprKind::Block(vec![Stmt::Expr(watch_expr("BlockFact"))]).into()),
+        ];
+
+        let mut watched = BTreeSet::new();
+        RustCodegen::collect_watch_type_names_from_stmt_list(&stmts, &mut watched);
+        let expected: BTreeSet<String> = [
+            "InvariantFact",
+            "ProvePassFact",
+            "StreamFact",
+            "GuardFact",
+            "BodyFact",
+            "BlockFact",
+        ]
+        .into_iter()
+        .map(str::to_string)
+        .collect();
+
+        assert_eq!(watched, expected);
+    }
+
+    #[test]
     fn compiler_pass_coverage_matrix_classifies_stmt_type_decl_and_fir_variants() {
         let ast_rows = ast_pass_coverage_cases();
         let expected_stmt_variants: BTreeSet<_> = [
@@ -37038,6 +37132,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
     fn compiler_pass_contracts_cover_required_passes_and_evidence() {
         let contracts = compiler_pass_contracts();
         let required: BTreeSet<_> = [
+            CompilerPassId::TypeChecking,
             CompilerPassId::OwnershipUseAnalysis,
             CompilerPassId::ImportResolution,
             CompilerPassId::FirLowering,
@@ -37079,6 +37174,10 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 "{label} missing module/import leak guard"
             );
             assert!(
+                !contract.traversal_audit.is_empty(),
+                "{label} missing traversal audit rows"
+            );
+            assert!(
                 !contract.coverage.is_empty(),
                 "{label} has no representative coverage markers"
             );
@@ -37092,6 +37191,44 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     !invariant.trim().is_empty(),
                     "{label} has an empty invariant row"
                 );
+            }
+            for audit in &contract.traversal_audit {
+                assert!(
+                    !audit.path.trim().is_empty(),
+                    "{label} has empty traversal audit path"
+                );
+                assert!(
+                    !audit.evidence_marker.trim().is_empty(),
+                    "{label} traversal audit {} has empty source marker",
+                    audit.path
+                );
+                assert!(
+                    !audit.reason.trim().is_empty(),
+                    "{label} traversal audit {} has empty reason",
+                    audit.path
+                );
+                let source = audit.source.text();
+                assert!(
+                    source.contains(audit.evidence_marker),
+                    "{label} traversal audit {} references missing marker {:?} in {}",
+                    audit.path,
+                    audit.evidence_marker,
+                    audit.source.label()
+                );
+                match audit.kind {
+                    TraversalAuditKind::CanonicalAstWalker => assert!(
+                        audit.evidence_marker.contains("walk_ast_"),
+                        "{label} canonical AST audit {} must point at a walk_ast_* call",
+                        audit.path
+                    ),
+                    TraversalAuditKind::CanonicalFirWalker => assert!(
+                        audit.evidence_marker.contains("walk_fir_"),
+                        "{label} canonical FIR audit {} must point at a walk_fir_* call",
+                        audit.path
+                    ),
+                    TraversalAuditKind::ExhaustiveSemantic
+                    | TraversalAuditKind::StatementClassifier => {}
+                }
             }
             for fixture in &contract.fixtures {
                 assert!(
@@ -37107,6 +37244,93 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 );
             }
         }
+    }
+
+    #[test]
+    fn compiler_pass_traversal_audits_classify_high_risk_paths() {
+        let contracts = compiler_pass_contracts();
+        let audit_rows: Vec<_> = contracts
+            .iter()
+            .flat_map(|contract| {
+                contract
+                    .traversal_audit
+                    .iter()
+                    .map(move |audit| (contract.id, audit))
+            })
+            .collect();
+
+        let expected_paths = [
+            "TypeChecker::check_stmt",
+            "TypeChecker::check_expr",
+            "TypeChecker::collect_declarations",
+            "count_var_uses/count_var_uses_stmt",
+            "count_consuming_uses_borrow_aware_impl",
+            "RustCodegen::classify_imported_stmt_for_expansion",
+            "RustCodegen::scan_declarations import expansion",
+            "TypeInference::substitute_expr",
+            "LoweringCtx::lower_stmt/lower_expr",
+            "RustCodegen::collect_watch_type_names_from_stmt_list",
+            "RustCodegen::emit_stmt/emit_expr",
+            "RustCodegen::scan_declarations export pre-scan",
+        ];
+
+        for expected in expected_paths {
+            assert!(
+                audit_rows.iter().any(|(_, audit)| audit.path == expected),
+                "missing traversal audit row for {expected}"
+            );
+        }
+
+        for pass in [
+            CompilerPassId::TypeChecking,
+            CompilerPassId::OwnershipUseAnalysis,
+            CompilerPassId::ImportResolution,
+            CompilerPassId::FirLowering,
+            CompilerPassId::RustCodegen,
+        ] {
+            assert!(
+                audit_rows.iter().any(|(id, _)| *id == pass),
+                "{} has no traversal audit rows",
+                pass.label()
+            );
+        }
+
+        assert!(
+            audit_rows.iter().any(|(id, audit)| {
+                *id == CompilerPassId::OwnershipUseAnalysis
+                    && audit.kind == TraversalAuditKind::CanonicalAstWalker
+            }),
+            "ownership/use analysis should keep generic var-use counting on the canonical AST walker"
+        );
+        assert!(
+            audit_rows.iter().any(|(id, audit)| {
+                *id == CompilerPassId::FirLowering
+                    && audit.kind == TraversalAuditKind::CanonicalFirWalker
+            }),
+            "FIR lowering should keep generic FIR substitution on the canonical FIR walker"
+        );
+        assert!(
+            audit_rows.iter().any(|(id, audit)| {
+                *id == CompilerPassId::RustCodegen
+                    && audit.path == "RustCodegen::collect_watch_type_names_from_stmt_list"
+                    && audit.kind == TraversalAuditKind::CanonicalAstWalker
+            }),
+            "Rust codegen watch discovery should use the canonical AST walker"
+        );
+        assert!(
+            audit_rows.iter().any(|(id, audit)| {
+                *id == CompilerPassId::ImportResolution
+                    && audit.kind == TraversalAuditKind::StatementClassifier
+            }),
+            "import resolution should expose its statement classifier audit row"
+        );
+        assert!(
+            audit_rows.iter().any(|(id, audit)| {
+                *id == CompilerPassId::TypeChecking
+                    && audit.kind == TraversalAuditKind::ExhaustiveSemantic
+            }),
+            "type checking should be explicitly classified as semantic traversal"
+        );
     }
 
     #[test]
@@ -37207,6 +37431,13 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 docs.contains(label),
                 "docs/compiler-pass-contracts.md missing contract label {label}"
             );
+            for audit in &contract.traversal_audit {
+                assert!(
+                    docs.contains(audit.path),
+                    "docs/compiler-pass-contracts.md missing traversal audit path {} for {label}",
+                    audit.path
+                );
+            }
             for fixture in &contract.fixtures {
                 assert!(
                     docs.contains(fixture.path),
