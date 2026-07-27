@@ -76,9 +76,7 @@ folketinget har udtalt sin mistillid til ham.
 ----
 
 | minister_fjernes_ved_udtalt_mistillid()
-> minister_kan_forblive(m: Mistillid) -> Boolsk {
-    m == IkkeUdtalt
-}
+| minister_kan_forblive(m: Mistillid) -> m == IkkeUdtalt
 
 ----
 § 15. Stk. 2. Udtaler folketinget sin mistillid til statsministeren,
@@ -106,9 +104,7 @@ embedsførelse anlagte sager.
 
 | kongen_kan_tiltale_minister()
 | folketinget_kan_tiltale_minister()
-> kan_tiltale_minister(t: Tiltaler) -> Boolsk {
-    Sandt
-}
+| kan_tiltale_minister(t: Tiltaler) -> Sandt
 | rigsretten_påkender_ministersager()
 
 -- ─────────────────────────────────────────────────────────
@@ -178,9 +174,7 @@ nogen mellemfolkelig overenskomst, som er indgået med folketingets samtykke.
 | forpligtelse_med_folketingets_medvirken_kræver_samtykke()
 | større_forpligtelse_kræver_folketingets_samtykke()
 | opsigelse_af_samtykketraktat_kræver_folketingets_samtykke()
-> kræver_folketingets_samtykke(h: SamtykkeKrævende) -> Boolsk {
-    Sandt
-}
+| kræver_folketingets_samtykke(h: SamtykkeKrævende) -> Sandt
 
 ----
 § 19. Stk. 2. Bortset fra forsvar mod væbnet angreb på riget eller danske
@@ -288,9 +282,7 @@ med folketingets samtykke benåde for de dem af rigsretten idømte straffe.
 | kongen_kan_benåde()
 | kongen_kan_give_amnesti()
 | benådning_af_rigsretsdømt_minister_kræver_samtykke()
-> benåde_minister_fra_rigsret(s: Samtykke) -> Boolsk {
-    s == Givet
-}
+| benåde_minister_fra_rigsret(s: Samtykke) -> s == Givet
 
 -- ─────────────────────────────────────────────────────────
 -- § 25–26. Bevillinger og møntret

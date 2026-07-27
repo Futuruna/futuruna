@@ -2675,9 +2675,9 @@ impl Parser {
             } else if kind == TokenKind::LBrace && tok.kind == TokenKind::Arrow {
                 "\n  Hint: did you forget `{` before the body?"
             } else if kind == TokenKind::Comma && tok.kind == TokenKind::Colon {
-                "\n  Hint: this looks like a type annotation.\n  Rule parameters (| rune) don't take types — they are inferred.\n    Try: | rule_name(param) -> ...\n  For typed parameters, use a function (> rune):\n    Try: > func_name(param: Type) -> Type { ... }"
+                "\n  Hint: this looks like a type annotation. Typed parameters are valid in `>` functions and `|` rule heads, but ordinary call arguments use values, not declarations."
             } else if kind == TokenKind::RParen && tok.kind == TokenKind::Colon {
-                "\n  Hint: unexpected `:` — did you mean to add a type annotation?\n  Type annotations use `name: Type` inside `>` functions, not here."
+                "\n  Hint: unexpected `:` — type annotations belong in parameter declarations, such as `> f(x: Type)` or `| rule(x: Type) -> ...`."
             } else {
                 ""
             };

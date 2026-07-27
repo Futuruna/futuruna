@@ -33,9 +33,7 @@
 
 -- Samtykke er en binær mekanisme: givet → tilladt, ikke givet → forbudt
 | regent_i_udlandet_kræver_folketingets_samtykke()
-> regent_i_udlandet(s: Samtykke) -> Boolsk {
-    s == Givet
-}
+| regent_i_udlandet(s: Samtykke) -> s == Givet
 
 ----
 § 6. Kongen skal høre til den evangelisk-lutherske kirke.
@@ -54,9 +52,7 @@ Det samme gælder tronfølgeren.
 # MyndighedsSubjekt = Kongen | Tronfølgeren
 | myndighedsregel_gælder_for_kongen()
 | myndighedsregel_gælder_for_tronfølgeren()
-> myndighedsregel_gælder_for(s: MyndighedsSubjekt) -> Boolsk {
-    Sandt
-}
+| myndighedsregel_gælder_for(s: MyndighedsSubjekt) -> Sandt
 
 ----
 § 8. Forinden kongen tiltræder regeringen, afgiver han skriftligt i statsrådet
@@ -99,9 +95,7 @@ umyndighed, sygdom eller fraværelse fastsættes ved lov.
 | regentskab_fastsættes_ved_lov_for_umyndighed()
 | regentskab_fastsættes_ved_lov_for_sygdom()
 | regentskab_fastsættes_ved_lov_for_fraværelse()
-> regentskab_fastsættes_ved_lov(g: Regentskabsgrund) -> Boolsk {
-    Sandt
-}
+| regentskab_fastsættes_ved_lov(g: Regentskabsgrund) -> Sandt
 
 ----
 Er der ved tronledighed ingen tronfølger, vælger
@@ -133,6 +127,4 @@ der skal overlades kongen til brug.
 
 | årpenge_fastsættes_ved_lov()
 | årpenge_i_udlandet_kræver_folketingets_samtykke()
-> årpenge_i_udlandet(s: Samtykke) -> Boolsk {
-    s == Givet
-}
+| årpenge_i_udlandet(s: Samtykke) -> s == Givet

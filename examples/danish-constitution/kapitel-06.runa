@@ -35,9 +35,7 @@ Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 = rigsret_valgperiode_år = 6
 
 | rigsret_valgte_medlemmer_svarer_til_dommermedlemmer()
-> rigsret_medlemmer_fra_folketinget(dommermedlemmer: Heltal) -> Heltal {
-    dommermedlemmer
-}
+| rigsret_medlemmer_fra_folketinget(dommermedlemmer: Heltal) -> dommermedlemmer
 
 | rigsret_valgt_efter_forholdstal()
 | rigsret_stedfortrædere_for_valgte()
@@ -47,9 +45,7 @@ Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 
 -- Afbalancering: ved dommerinhabilitet fratræder sidst valgte
 | rigsret_afbalanceres_ved_dommerinhabilitet()
-> rigsret_afbalanceret(dommermedlemmer: Heltal, inhabilde: Heltal) -> Heltal {
-    hvis inhabilde > dommermedlemmer { 0 } ellers { dommermedlemmer - inhabilde }
-}
+| rigsret_afbalanceret(dommermedlemmer: Heltal, inhabilde: Heltal) -> hvis inhabilde > dommermedlemmer { 0 } ellers { dommermedlemmer - inhabilde }
 
 -- Stk. 2
 | rigsretten_vælger_egen_formand()
@@ -74,9 +70,7 @@ tiltale for forbrydelser, som han finder særdeles farlige for staten.
 
 -- Stk. 2: samtykke-mønster
 | tiltale_af_andre_ved_rigsretten_kræver_samtykke()
-> tiltale_andre_ved_rigsretten(samtykke: Samtykke) -> Boolsk {
-    samtykke == Givet
-}
+| tiltale_andre_ved_rigsretten(samtykke: Samtykke) -> samtykke == Givet
 
 ----
 § 61. Den dømmende magts udøvelse kan kun ordnes ved lov. Særdomstole med
@@ -131,9 +125,7 @@ tidspunkt, til hvilket han skulle være afskediget på grund af alder.
 | forflyttelse_undtaget_ved_omordning()
 
 | dommer_afskedigelse_ved_alder_fra_femogtres()
-> dommer_kan_afskediges_ved_alder(alder: Heltal) -> Boolsk {
-    alder >= 65
-}
+| dommer_kan_afskediges_ved_alder(alder: Heltal) -> alder >= 65
 
 | afskedigelse_ved_alder_uden_tab_af_indtægter()
 

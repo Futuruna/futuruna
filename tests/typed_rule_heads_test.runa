@@ -1,0 +1,42 @@
+-- typed_rule_heads_test.runa
+-- Regression coverage for typed | rule heads.
+-- Typed rule parameters are legal predicates, not >-function escape hatches.
+
+# Samtykke = Givet | IkkeGivet
+# Afgorelse = Gyldig | Ugyldig
+# Person = Person(navn: String, alder: Int)
+
+| positiv(x: Int) -> x > 0
+| myndig(p: Person) -> p.alder >= 18
+
+| regent_i_udlandet(s: Samtykke) -> Ugyldig
+| regent_i_udlandet(s: Samtykke) -> Gyldig under s == Givet
+
+| exception manglende_samtykke udlandsophold(s: Samtykke) -> Ugyldig under s == IkkeGivet
+| udlandsophold(s: Samtykke) -> Gyldig
+
+| parent("alice", "bob")
+| parent("bob", "charlie")
+| ancestor(a: String, b: String) -> parent(a, b)
+| ancestor(a: String, b: String) -> parent(a, mid), ancestor(mid, b)
+
+= positiv_ok = positiv(12)
+= myndig_ok = myndig(Person("Ada", 37))
+= beslutning_ok = regent_i_udlandet(Givet)
+= beslutning_default = regent_i_udlandet(IkkeGivet)
+= undtagelse_ok = udlandsophold(IkkeGivet)
+= typed_prolog_ok = ancestor("alice", "charlie")
+
+| typed_bool_ok: positiv_ok -> positiv_ok
+| typed_adt_ok: myndig_ok -> myndig_ok
+| typed_default_ok: beslutning_ok -> beslutning_ok == Gyldig
+| typed_default_fallback_ok: beslutning_default -> beslutning_default == Ugyldig
+| typed_exception_ok: undtagelse_ok -> undtagelse_ok == Ugyldig
+| typed_prolog_rule_ok: typed_prolog_ok -> typed_prolog_ok
+
+? typed_bool_ok -> { @ print("typed bool rule: PROVED") } else { @ print("typed bool rule: FAILED") }
+? typed_adt_ok -> { @ print("typed ADT rule: PROVED") } else { @ print("typed ADT rule: FAILED") }
+? typed_default_ok -> { @ print("typed default rule: PROVED") } else { @ print("typed default rule: FAILED") }
+? typed_default_fallback_ok -> { @ print("typed default fallback: PROVED") } else { @ print("typed default fallback: FAILED") }
+? typed_exception_ok -> { @ print("typed exception rule: PROVED") } else { @ print("typed exception rule: FAILED") }
+? typed_prolog_rule_ok -> { @ print("typed Prolog rule: PROVED") } else { @ print("typed Prolog rule: FAILED") }

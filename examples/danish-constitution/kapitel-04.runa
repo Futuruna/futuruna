@@ -37,9 +37,7 @@ folkeafstemning, der ikke har medført bestemmelsens bortfald.
 | valgret_kræver_fast_bopæl()
 | valgret_kræver_valgretsalder()
 | umyndiggjorte_har_ikke_valgret()
-> har_valgret(indfødsret: Boolsk, fast_bopæl: Boolsk, valgretsalder_nået: Boolsk, umyndiggjort: Boolsk) -> Boolsk {
-    hvis umyndiggjort { Falskt } ellers { indfødsret && fast_bopæl && valgretsalder_nået }
-}
+| har_valgret(indfødsret: Boolsk, fast_bopæl: Boolsk, valgretsalder_nået: Boolsk, umyndiggjort: Boolsk) -> hvis umyndiggjort { Falskt } ellers { indfødsret && fast_bopæl && valgretsalder_nået }
 
 | tab_af_valgret_ved_straf_fastsættes_ved_lov()
 
@@ -59,9 +57,7 @@ regeringens tilladelse til at modtage valget.
 -- Stk. 1: valgbarhed kræver valgret + ingen uværdig straf
 | valgbarhed_kræver_valgret()
 | uværdig_straf_udelukker_valgbarhed()
-> er_valgbar(valgret_opfyldt: Boolsk, straffet_uværdig: Boolsk) -> Boolsk {
-    hvis straffet_uværdig { Falskt } ellers { valgret_opfyldt }
-}
+| er_valgbar(valgret_opfyldt: Boolsk, straffet_uværdig: Boolsk) -> hvis straffet_uværdig { Falskt } ellers { valgret_opfyldt }
 
 -- Stk. 2
 | tjenestemænd_behøver_ikke_tilladelse_til_valg()
@@ -137,9 +133,7 @@ forsikring om at ville holde grundloven.
 | mandater_bortfalder_når_nyvalg_afholdt()
 
 | nyt_ministerium_skal_fremstilles_før_nyvalg()
-> kan_udskrive_valg_efter_nyt_ministerium(statsminister_fremstillet: Boolsk) -> Boolsk {
-    statsminister_fremstillet
-}
+| kan_udskrive_valg_efter_nyt_ministerium(statsminister_fremstillet: Boolsk) -> statsminister_fremstillet
 
 -- Stk. 3
 | statsministeren_skal_foranledige_nyvalg_inden_udløb()

@@ -25,48 +25,27 @@
 # Tronfølger(alder: Heltal, trossamfund: Trossamfund)
 # Beslutning(kongelig: Boolsk, minister_underskrift: Boolsk)
 
-> opfylder_troskrav(monark: Monark) -> Boolsk {
-    monark.trossamfund == EvangeliskLuthersk
-}
+| opfylder_troskrav(monark: Monark) -> monark.trossamfund == EvangeliskLuthersk
 
-> er_myndig(monark: Monark) -> Boolsk {
-    monark.alder >= myndighedsalder
-}
+| er_myndig(monark: Monark) -> monark.alder >= myndighedsalder
 
-> tronfølger_er_myndig(arving: Tronfølger) -> Boolsk {
-    arving.alder >= myndighedsalder
-}
+| tronfølger_er_myndig(arving: Tronfølger) -> arving.alder >= myndighedsalder
 
-> beslutning_gyldig(beslutning: Beslutning) -> Boolsk {
-    beslutning.kongelig && beslutning.minister_underskrift
-}
+| beslutning_gyldig(beslutning: Beslutning) -> beslutning.kongelig && beslutning.minister_underskrift
 
-> ministeriet_skal_afgå(nyvalg_udskrevet: Boolsk) -> Boolsk {
-    hvis nyvalg_udskrevet { Falskt } ellers { Sandt }
-}
+| ministeriet_skal_afgå(nyvalg_udskrevet: Boolsk) -> hvis nyvalg_udskrevet { Falskt } ellers { Sandt }
 
-> tronfølger_i_statsrådet(arving: Tronfølger) -> Boolsk {
-    tronfølger_er_myndig(arving)
-}
+| tronfølger_i_statsrådet(arving: Tronfølger) -> tronfølger_er_myndig(arving)
 
-> militær_magtanvendelse(grund: MilitærGrund, samtykke: Samtykke) -> Boolsk {
-    grund == Forsvar || samtykke == Givet
-}
+| militær_magtanvendelse(grund: MilitærGrund, samtykke: Samtykke) -> grund == Forsvar || samtykke == Givet
 
-> ændre_rigets_område(samtykke: Samtykke) -> Boolsk {
-    samtykke == Givet
-}
+| ændre_rigets_område(samtykke: Samtykke) -> samtykke == Givet
 
-> indgå_forpligtelse_af_betydning(samtykke: Samtykke) -> Boolsk {
-    samtykke == Givet
-}
+| indgå_forpligtelse_af_betydning(samtykke: Samtykke) -> samtykke == Givet
 
-> opsige_overenskomst_indgået_med_samtykke(samtykke: Samtykke) -> Boolsk {
-    samtykke == Givet
-}
+| opsige_overenskomst_indgået_med_samtykke(samtykke: Samtykke) -> samtykke == Givet
 
-> hvem_regerer_ved_tronskifte(monark: Monark, til_stede: Boolsk, særlov_eksisterer: Boolsk) -> Regeringsfører {
-    hvis særlov_eksisterer {
+| hvem_regerer_ved_tronskifte(monark: Monark, til_stede: Boolsk, særlov_eksisterer: Boolsk) -> hvis særlov_eksisterer {
         Regent
     } ellers {
         hvis monark.forsikring == AfgivetSomTronfølger {
@@ -75,7 +54,6 @@
             hvis til_stede { MonarkenSelv } ellers { Statsrådet }
         }
     }
-}
 
 | troskrav_gælder_ikke_tronfølger()
 | ministrene_er_ansvarlige_for_regeringsførelse() -> ministrene_er_ansvarlige()

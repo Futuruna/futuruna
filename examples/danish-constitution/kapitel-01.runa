@@ -39,9 +39,7 @@ DANMARKS RIGES GRUNDLOV
 ----
 
 | grundloven_gælder_for_alle_dele_af_riget()
-> grundloven_gælder_for(del: Rigsdel) -> Boolsk {
-    Sandt
-}
+| grundloven_gælder_for(del: Rigsdel) -> Sandt
 
 ----
 § 2. Regeringsformen er indskrænket-monarkisk.
@@ -51,9 +49,7 @@ tronfølgeloven af 27. marts 1953 fastsatte regler.
 
 | regeringsformen_er_indskrænket_monarkisk()
 | tronfølgeloven_regulerer_arvefølgen()
-> kongemagten_nedarves_til(køn: Køn) -> Boolsk {
-    Sandt
-}
+| kongemagten_nedarves_til(køn: Køn) -> Sandt
 = tronfølgeloven_dato = "27. marts 1953"
 
 ----

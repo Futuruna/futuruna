@@ -20065,43 +20065,41 @@ impl RustCodegen {
                     rules.iter().map(|rule| (*rule).clone()).collect(),
                 );
                 let arity = Self::rule_arity(rules);
+                for r in rules.iter() {
+                    let head = match r {
+                        Rule::Clause { head, .. }
+                        | Rule::Default { head, .. }
+                        | Rule::Exception { head, .. } => head,
+                        Rule::Scope { .. } => continue,
+                    };
+                    if let ExprKind::App(_, args) = &head.kind {
+                        for arg in args {
+                            if let Some((_, type_name)) = Self::typed_rule_arg_parts(arg) {
+                                self.types
+                                    .typed_rule_types
+                                    .insert(fn_name.clone(), type_name.to_string());
+                            }
+                        }
+                    }
+                }
                 if arity > 0 && Self::rules_have_prolog_features(rules) {
-                    let mut param_types: Vec<&str> = vec!["String"; arity];
+                    let mut param_types: Vec<String> = vec!["String".to_string(); arity];
                     // Infer from ground terms in fact heads
                     for r in rules.iter() {
                         if let Rule::Clause { head, body: None } = r {
                             if let ExprKind::App(_, args) = &head.kind {
                                 for (i, arg) in args.iter().enumerate() {
+                                    if let Some(rust_ty) = Self::typed_rule_arg_rust_type(arg) {
+                                        param_types[i] = rust_ty;
+                                        continue;
+                                    }
                                     if let ExprKind::Lit(lit) = &arg.kind {
-                                        param_types[i] = Self::literal_rust_type(lit);
+                                        param_types[i] = Self::literal_rust_type(lit).to_string();
                                     }
                                 }
                             }
                         }
                     }
-                    // Detect __typed args: | rule(__typed(var, TypeName)) -> ...
-                    for r in rules.iter() {
-                        if let Rule::Clause { head, .. } = r {
-                            if let ExprKind::App(_, args) = &head.kind {
-                                for arg in args {
-                                    if let ExprKind::App(func, typed_args) = &arg.kind {
-                                        if let ExprKind::Var(n) = &func.kind {
-                                            if n == "__typed" && typed_args.len() == 2 {
-                                                if let ExprKind::Var(type_name) =
-                                                    &typed_args[1].kind
-                                                {
-                                                    self.types
-                                                        .typed_rule_types
-                                                        .insert(fn_name.clone(), type_name.clone());
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
                     // Infer from literals in body calls
                     for r in rules.iter() {
                         if let Rule::Clause {
@@ -20110,17 +20108,7 @@ impl RustCodegen {
                         } = r
                         {
                             if let ExprKind::App(_, head_args) = &head.kind {
-                                let head_vars: Vec<(String, usize)> = head_args
-                                    .iter()
-                                    .enumerate()
-                                    .filter_map(|(i, a)| {
-                                        if let ExprKind::Var(name) = &a.kind {
-                                            Some((name.clone(), i))
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .collect();
+                                let head_vars = Self::rule_head_param_vars(head_args);
                                 // Check body for literal args that tell us param types
                                 let body_calls: Vec<&Expr> = match &body.kind {
                                     ExprKind::Conjunction(goals) => goals.iter().collect(),
@@ -20144,7 +20132,8 @@ impl RustCodegen {
                                                             if param_types[*hi] == "String" {
                                                                 // Same call, same function → likely same type domain
                                                                 param_types[*hi] =
-                                                                    Self::literal_rust_type(lit);
+                                                                    Self::literal_rust_type(lit)
+                                                                        .to_string();
                                                             }
                                                         }
                                                     }
@@ -20159,10 +20148,10 @@ impl RustCodegen {
                     let param_type_strs: Vec<String> = param_types
                         .iter()
                         .map(|t| {
-                            if *t == "String" {
+                            if t == "String" {
                                 "&str".to_string()
                             } else {
-                                t.to_string()
+                                t.clone()
                             }
                         })
                         .collect();
@@ -20185,17 +20174,7 @@ impl RustCodegen {
                             } = r
                             {
                                 if let ExprKind::App(_, head_args) = &head.kind {
-                                    let head_vars: Vec<(String, usize)> = head_args
-                                        .iter()
-                                        .enumerate()
-                                        .filter_map(|(i, a)| {
-                                            if let ExprKind::Var(name) = &a.kind {
-                                                Some((name.clone(), i))
-                                            } else {
-                                                None
-                                            }
-                                        })
-                                        .collect();
+                                    let head_vars = Self::rule_head_param_vars(head_args);
                                     let body_calls: Vec<&Expr> = match &body.kind {
                                         ExprKind::Conjunction(goals) => goals.iter().collect(),
                                         _ => vec![body],
@@ -20210,6 +20189,15 @@ impl RustCodegen {
                                                             .iter()
                                                             .find(|(n, _)| n == vname)
                                                         {
+                                                            if head_args
+                                                                .get(*hi)
+                                                                .and_then(
+                                                                    Self::typed_rule_arg_rust_type,
+                                                                )
+                                                                .is_some()
+                                                            {
+                                                                continue;
+                                                            }
                                                             if updated[*hi] == "&str"
                                                                 || ci >= called_types.len()
                                                             {
@@ -22952,19 +22940,7 @@ impl RustCodegen {
                     }),
                     _ => false,
                 };
-                // Check for __typed args (type-constrained rules)
-                let has_typed = if let ExprKind::App(_, args) = &head.kind {
-                    args.iter().any(|a| {
-                        if let ExprKind::App(func, _) = &a.kind {
-                            matches!(&func.kind, ExprKind::Var(n) if n == "__typed")
-                        } else {
-                            false
-                        }
-                    })
-                } else {
-                    false
-                };
-                has_ground || has_conjunction || has_body_literals || has_typed
+                has_ground || has_conjunction || has_body_literals
             } else {
                 false
             }
@@ -23083,14 +23059,69 @@ impl RustCodegen {
         }
     }
 
-    fn prolog_param_fir_tys(param_types: &[&str]) -> Vec<FirTy> {
+    fn prolog_param_fir_tys(param_types: &[String]) -> Vec<FirTy> {
         param_types
             .iter()
-            .map(|ty| match *ty {
+            .map(|ty| match ty.as_str() {
                 "String" | "&str" => FirTy::String,
                 other => Self::rust_type_to_fir(other),
             })
             .collect()
+    }
+
+    fn typed_rule_arg_parts(arg: &Expr) -> Option<(&Expr, &str)> {
+        let ExprKind::App(func, args) = &arg.kind else {
+            return None;
+        };
+        if !matches!(&func.kind, ExprKind::Var(n) if n == "__typed") || args.len() != 2 {
+            return None;
+        }
+        let ExprKind::Var(type_name) = &args[1].kind else {
+            return None;
+        };
+        Some((&args[0], type_name.as_str()))
+    }
+
+    fn rule_head_arg_expr(arg: &Expr) -> &Expr {
+        Self::typed_rule_arg_parts(arg)
+            .map(|(inner, _)| inner)
+            .unwrap_or(arg)
+    }
+
+    fn rule_head_var_name(arg: &Expr) -> Option<String> {
+        match &Self::rule_head_arg_expr(arg).kind {
+            ExprKind::Var(name) => Some(name.clone()),
+            _ => None,
+        }
+    }
+
+    fn rule_head_param_vars(head_args: &[Expr]) -> Vec<(String, usize)> {
+        head_args
+            .iter()
+            .enumerate()
+            .filter_map(|(i, arg)| Self::rule_head_var_name(arg).map(|name| (name, i)))
+            .collect()
+    }
+
+    fn rule_type_name_to_rust(type_name: &str) -> String {
+        match type_name {
+            "Int" => "i64".to_string(),
+            "Float" => "f64".to_string(),
+            "String" => "String".to_string(),
+            "Char" => "char".to_string(),
+            "Bool" => "bool".to_string(),
+            "Nat" => "u64".to_string(),
+            other => other.to_string(),
+        }
+    }
+
+    fn typed_rule_arg_rust_type(arg: &Expr) -> Option<String> {
+        Self::typed_rule_arg_parts(arg)
+            .map(|(_, type_name)| Self::rule_type_name_to_rust(type_name))
+    }
+
+    fn typed_rule_arg_fir_ty(arg: &Expr) -> Option<FirTy> {
+        Self::typed_rule_arg_rust_type(arg).map(|rust_ty| Self::rust_type_to_fir(&rust_ty))
     }
 
     fn prolog_head_var_type_bindings(
@@ -23101,14 +23132,14 @@ impl RustCodegen {
             .iter()
             .enumerate()
             .filter_map(|(i, a)| {
-                if let ExprKind::Var(name) = &a.kind {
-                    Some((
-                        name.clone(),
-                        param_tys.get(i).cloned().unwrap_or(FirTy::Unknown),
-                    ))
-                } else {
-                    None
-                }
+                Self::rule_head_var_name(a).map(|name| {
+                    (
+                        name,
+                        Self::typed_rule_arg_fir_ty(a)
+                            .or_else(|| param_tys.get(i).cloned())
+                            .unwrap_or(FirTy::Unknown),
+                    )
+                })
             })
             .unzip()
     }
@@ -23159,13 +23190,17 @@ impl RustCodegen {
         let sanitized = sanitize_name(fn_name);
 
         // Determine param types from ground terms in any clause head
-        let mut param_types: Vec<&str> = vec!["String"; arity];
+        let mut param_types: Vec<String> = vec!["String".to_string(); arity];
         for r in rules {
             if let Rule::Clause { head, .. } = r {
                 if let ExprKind::App(_, args) = &head.kind {
                     for (i, arg) in args.iter().enumerate() {
+                        if let Some(rust_ty) = Self::typed_rule_arg_rust_type(arg) {
+                            param_types[i] = rust_ty;
+                            continue;
+                        }
                         if let ExprKind::Lit(lit) = &arg.kind {
-                            param_types[i] = Self::literal_rust_type(lit);
+                            param_types[i] = Self::literal_rust_type(lit).to_string();
                         }
                     }
                 }
@@ -23177,10 +23212,10 @@ impl RustCodegen {
         let param_type_strs: Vec<String> = param_types
             .iter()
             .map(|t| {
-                if *t == "String" {
+                if t == "String" {
                     "&str".to_string()
                 } else {
-                    t.to_string()
+                    t.clone()
                 }
             })
             .collect();
@@ -23237,18 +23272,24 @@ impl RustCodegen {
         if !facts.is_empty() {
             if arity == 1 {
                 let ty = if param_types[0] == "String" {
-                    "&str"
+                    "&str".to_string()
                 } else {
-                    param_types[0]
+                    param_types[0].clone()
                 };
                 out.push_str(&format!("const {}: &[{}] = &[", table_name, ty));
                 let vals: Vec<String> = facts.iter().map(|f| f[0].clone()).collect();
                 out.push_str(&vals.join(", "));
                 out.push_str("];\n\n");
             } else {
-                let types: Vec<&str> = param_types
+                let types: Vec<String> = param_types
                     .iter()
-                    .map(|t| if *t == "String" { "&str" } else { t })
+                    .map(|t| {
+                        if t == "String" {
+                            "&str".to_string()
+                        } else {
+                            t.clone()
+                        }
+                    })
                     .collect();
                 out.push_str(&format!(
                     "const {}: &[({},)] = &[\n",
@@ -23287,17 +23328,7 @@ impl RustCodegen {
             {
                 if let ExprKind::App(_, head_args) = &head.kind {
                     // Map head variable names to parameter positions
-                    let head_vars: Vec<(String, usize)> = head_args
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(i, a)| {
-                            if let ExprKind::Var(name) = &a.kind {
-                                Some((name.clone(), i))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
+                    let head_vars = Self::rule_head_param_vars(head_args);
                     let (head_var_type_names, head_var_type_tys) =
                         Self::prolog_head_var_type_bindings(head_args, &param_fir_tys);
 
@@ -23935,7 +23966,7 @@ impl RustCodegen {
 
             let mut head_bindings: BTreeMap<String, Expr> = BTreeMap::new();
             for (head_arg, goal_arg) in head_args.iter().zip(goal_args.iter()) {
-                if let ExprKind::Var(name) = &head_arg.kind {
+                if let Some(name) = Self::rule_head_var_name(head_arg) {
                     head_bindings.insert(name.clone(), goal_arg.clone());
                 }
             }
@@ -24228,7 +24259,7 @@ impl RustCodegen {
         _fn_name: &str,
         rules: &[&Rule],
         arity: usize,
-        param_types: &[&str],
+        param_types: &[String],
         param_fir_tys: &[FirTy],
         value_type_str: &str,
     ) -> String {
@@ -24273,9 +24304,15 @@ impl RustCodegen {
         // Emit fact table (key columns + value column)
         let table_name = format!("{}_FACTS", sanitized.to_uppercase());
         if !value_facts.is_empty() {
-            let key_types: Vec<&str> = param_types
+            let key_types: Vec<String> = param_types
                 .iter()
-                .map(|t| if *t == "String" { "&str" } else { t })
+                .map(|t| {
+                    if t == "String" {
+                        "&str".to_string()
+                    } else {
+                        t.clone()
+                    }
+                })
                 .collect();
             out.push_str(&format!(
                 "const {}: &[({}, {},)] = &[\n",
@@ -24398,17 +24435,7 @@ impl RustCodegen {
                     if head_args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
                         continue;
                     }
-                    let head_vars: Vec<(String, usize)> = head_args
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(i, a)| {
-                            if let ExprKind::Var(name) = &a.kind {
-                                Some((name.clone(), i))
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
+                    let head_vars = Self::rule_head_param_vars(head_args);
 
                     let (head_var_names, head_var_tys) =
                         Self::prolog_head_var_type_bindings(head_args, param_fir_tys);
@@ -24471,17 +24498,7 @@ impl RustCodegen {
                     _ => return None,
                 };
                 if let ExprKind::App(_, args) = &head.kind {
-                    Some(
-                        args.iter()
-                            .filter_map(|a| {
-                                if let ExprKind::Var(n) = &a.kind {
-                                    Some(n.clone())
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect(),
-                    )
+                    Some(args.iter().filter_map(Self::rule_head_var_name).collect())
                 } else {
                     Some(vec![])
                 }
@@ -28048,6 +28065,23 @@ impl RustCodegen {
     }
 
     fn infer_rule_param_fir_ty(&self, param: &str, rules: &[&Rule]) -> FirTy {
+        for rule in rules {
+            let head = match rule {
+                Rule::Clause { head, .. }
+                | Rule::Default { head, .. }
+                | Rule::Exception { head, .. } => head,
+                Rule::Scope { .. } => continue,
+            };
+            if let ExprKind::App(_, args) = &head.kind {
+                for arg in args {
+                    if Self::rule_head_var_name(arg).as_deref() == Some(param) {
+                        if let Some(ty) = Self::typed_rule_arg_fir_ty(arg) {
+                            return ty;
+                        }
+                    }
+                }
+            }
+        }
         self.infer_param_type_from_fields(param, rules)
             .or_else(|| self.infer_param_type_from_body(param, rules))
             .map(|ty| Self::rust_type_to_fir(&Self::normalize_rule_rust_type(&ty)))
@@ -39868,6 +39902,37 @@ for x in [1, 2] {
     fn compile_and_run_test_file(path: &std::path::Path) -> String {
         let source = std::fs::read_to_string(path).expect("read test file");
         compile_and_run_test_source(&source, Some(path.to_str().expect("utf-8 test path")))
+    }
+
+    #[test]
+    fn compiled_typed_rule_heads_fixture_executes() {
+        let output =
+            compile_and_run_test_file(std::path::Path::new("tests/typed_rule_heads_test.runa"));
+        assert!(
+            output.contains("typed bool rule: PROVED"),
+            "typed bool rule should execute through compiled codegen: {}",
+            output
+        );
+        assert!(
+            output.contains("typed ADT rule: PROVED"),
+            "typed ADT rule should execute through compiled codegen: {}",
+            output
+        );
+        assert!(
+            output.contains("typed default rule: PROVED"),
+            "typed default rule should execute through compiled codegen: {}",
+            output
+        );
+        assert!(
+            output.contains("typed exception rule: PROVED"),
+            "typed exception rule should execute through compiled codegen: {}",
+            output
+        );
+        assert!(
+            output.contains("typed Prolog rule: PROVED"),
+            "typed Prolog rule should execute through compiled codegen: {}",
+            output
+        );
     }
 
     fn interpret_test_source_expect_runtime_failure(source: &str, expected_substrings: &[&str]) {

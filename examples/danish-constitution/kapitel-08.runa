@@ -113,9 +113,7 @@ kan ved lov henlægges til domstole oprettet i dette øjemed.
 = ekspropriation_frist_søgnedage = 3
 
 | en_tredjedel_kan_kræve_ekspropriationsudsættelse()
-> kan_kræve_ekspropriationsudsættelse(begærende: Heltal, medlemmer: Heltal) -> Boolsk {
-    begærende * 3 >= medlemmer
-}
+| kan_kræve_ekspropriationsudsættelse(begærende: Heltal, medlemmer: Heltal) -> begærende * 3 >= medlemmer
 
 | ekspropriationsudsættelse_kræver_nyvalg_og_genvedtagelse()
 
