@@ -1,0 +1,83 @@
+@ sprog da
+
+-- Personskatteloven — kildegrundlag og første lovstruktur.
+--
+-- Gældende arbejdskilde:
+-- Retsinformation, LBK nr. 1284 af 14/06/2021.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2021/1284
+-- XML: https://www.retsinformation.dk/eli/lta/2021/1284/dan/xml
+--
+-- Historisk kildelinje fra projektoplægget:
+-- Retsinformation, LBK nr. 799 af 07/08/2019.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2019/799
+-- XML: https://www.retsinformation.dk/eli/lta/2019/799/dan/xml
+--
+-- Hver ---- blok er original lovtekst eller officiel metadata fra kilden.
+-- Futuruna-reglerne nedenfor er projektets kildefaste oversættelse.
+
+----
+Officiel XML-metadata for 2019/799, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om indkomstskat for personer m.v. (personskatteloven)
+Status: Historic
+StartDate: 2019-08-13
+DateOfHistoricMark: 2021-06-16
+
+Officiel XML-metadata for 2021/1284, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om indkomstskat for personer m.v. (personskatteloven)
+Status: Valid
+DiesSigni: 2021-06-14
+StartDate: 2021-06-16
+----
+
+# Kildestatus = Gældende | Historisk
+# Beregningsformål = AktuelSkatteberegning | HistoriskAudit | KildeDiff
+# Retskilde(eli: Tekst, år: Heltal, nummer: Heltal, status: Kildestatus)
+
+= personskatteloven_2019_799 = Retskilde("https://www.retsinformation.dk/eli/lta/2019/799", 2019, 799, Historisk)
+= personskatteloven_2021_1284 = Retskilde("https://www.retsinformation.dk/eli/lta/2021/1284", 2021, 1284, Gældende)
+
+| kilde_er_personskatteloven(kilde: Retskilde) -> kilde.nummer == 799 || kilde.nummer == 1284
+
+| kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Sandt under kilde.status == Gældende
+| kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Sandt under formål == HistoriskAudit || formål == KildeDiff
+| exception historisk_kilde kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Falskt under kilde.status == Historisk && formål == AktuelSkatteberegning
+
+= historisk_til_aktuel_beregning = kilde_egnet_til_formål(personskatteloven_2019_799, AktuelSkatteberegning)
+= gældende_til_aktuel_beregning = kilde_egnet_til_formål(personskatteloven_2021_1284, AktuelSkatteberegning)
+= historisk_til_audit = kilde_egnet_til_formål(personskatteloven_2019_799, HistoriskAudit)
+
+| historisk_kilde_afvises_til_aktuel_beregning: historisk_til_aktuel_beregning -> historisk_til_aktuel_beregning == Falskt
+| gældende_kilde_accepteres_til_aktuel_beregning: gældende_til_aktuel_beregning -> gældende_til_aktuel_beregning == Sandt
+| historisk_kilde_accepteres_til_audit: historisk_til_audit -> historisk_til_audit == Sandt
+
+----
+§ 1. For personer, der er skattepligtige her til landet, opgøres den
+skattepligtige almindelige indkomst efter skattelovgivningens almindelige
+regler med de ændringer, der følger af denne lov.
+
+§ 2. Foruden den skattepligtige almindelige indkomst opgøres personlig
+indkomst, kapitalindkomst, aktieindkomst og CFC-indkomst.
+----
+
+# Indkomstkategori = AlmindeligSkattepligtigIndkomst | PersonligIndkomst | Kapitalindkomst | Aktieindkomst | CfcIndkomst
+
+| almindelig_indkomst_opgøres_efter_almindelige_regler() -> Sandt
+| almindelig_indkomst_ændres_af_personskatteloven() -> Sandt
+
+| særskilt_indkomstkategori(kategori: Indkomstkategori) -> Falskt
+| exception personlig_indkomst særskilt_indkomstkategori(kategori: Indkomstkategori) -> Sandt under kategori == PersonligIndkomst
+| exception kapitalindkomst særskilt_indkomstkategori(kategori: Indkomstkategori) -> Sandt under kategori == Kapitalindkomst
+| exception aktieindkomst særskilt_indkomstkategori(kategori: Indkomstkategori) -> Sandt under kategori == Aktieindkomst
+| exception cfc_indkomst særskilt_indkomstkategori(kategori: Indkomstkategori) -> Sandt under kategori == CfcIndkomst
+
+= personskatteloven_par2_personlig = særskilt_indkomstkategori(PersonligIndkomst)
+= personskatteloven_par2_kapital = særskilt_indkomstkategori(Kapitalindkomst)
+= personskatteloven_par2_aktie = særskilt_indkomstkategori(Aktieindkomst)
+= personskatteloven_par2_cfc = særskilt_indkomstkategori(CfcIndkomst)
+= personskatteloven_par2_almindelig = særskilt_indkomstkategori(AlmindeligSkattepligtigIndkomst)
+
+| par2_personlig_opgøres_særskilt: personskatteloven_par2_personlig -> personskatteloven_par2_personlig == Sandt
+| par2_kapital_opgøres_særskilt: personskatteloven_par2_kapital -> personskatteloven_par2_kapital == Sandt
+| par2_aktie_opgøres_særskilt: personskatteloven_par2_aktie -> personskatteloven_par2_aktie == Sandt
+| par2_cfc_opgøres_særskilt: personskatteloven_par2_cfc -> personskatteloven_par2_cfc == Sandt
+| par2_almindelig_er_basis_ikke_tillægskategori: personskatteloven_par2_almindelig -> personskatteloven_par2_almindelig == Falskt
