@@ -90,8 +90,10 @@ calculating a current taxpayer's tax.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe.
-- Extend § 13 foreign-income, pension-limit, and business-loss amount
-  limitations beyond the current executable boundary signals.
+- Replace remaining source-dependency placeholders with complementary official
+  statutes and trusted calculation examples, especially for AM contribution,
+  municipal/church taxation, Kildeskatteloven, Pensionsbeskatningsloven, and
+  Ligningsloven references used by § 13.
 - Decide how § 14 partial-year annualization and § 19 skatteloftsnedslag should
   flow into the ordinary wage-earner calculator once there are trusted
   partial-year and high-rate fixtures.
@@ -181,8 +183,8 @@ M5 - Audit suite
   topskat threshold activation, covered § 14 annualization, covered § 19
   skatteloft, covered § 20 regulation/rounding, covered § 26 transition
   compensation, covered § 28 territorial exclusion, AM-law dependency,
-  municipal-tax-law dependency, and remaining § 13 foreign/pension/business
-  amount gaps are executable audit signals.
+  municipal-tax-law dependency, and § 13 foreign/pension/business amount
+  limitations are executable audit signals.
 
 M6 - Website integration
 
@@ -208,8 +210,11 @@ M7 - Personfradrag and deficit layer
   tax-year parameter pack, state/municipal/church tax values are calculated,
   Copenhagen and Gentofte fixtures settle after personfradrag, § 13 deficit tax
   value and offset order are executable, spouse deficit transfer and negative
-  personal income carry-forward are fixture-tested, and foreign/pension/business
-  amount limitations remain explicit audit work.
+  personal income carry-forward are fixture-tested, foreign/pension spouse
+  transfer limitations are executable, and same-business loss carry-forward
+  amounts are fixture-tested. Remaining work is source-dependent validation and
+  calculator integration for complex § 13 cases rather than the first amount
+  formulas themselves.
 
 M8 - Omregning, skatteloft, and regulation
 

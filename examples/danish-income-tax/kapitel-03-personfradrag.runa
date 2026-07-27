@@ -273,6 +273,10 @@ væsentligt omfang. 1. og 2. pkt. omfatter ikke underskud omfattet af stk. 6.
 # Par13ÆgtefælleOverførselInput(ubenyttet_underskud_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par13ÆgtefælleOverførselResult(fradrag_i_ægtefælle_indkomst_kroner: Heltal, resterende_underskud_kroner: Heltal, overførsel_tilladt: Boolsk)
 # Par13NegativPersonligInput(personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal)
+# Par13Stk5OverførselInput(ønsket_overførsel_kroner: Heltal, udenlandsk_beskattet_personlig_indkomst_kroner: Heltal, fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner: Heltal, udgifter_fradraget_i_udlandet_kroner: Heltal, pbl16_beløb_kroner: Heltal, overførsel_efter_stk4: Boolsk, lempelse_ll33a_eller_sømandsbeskatning: Boolsk)
+# Par13Stk5OverførselResult(overførbart_underskud_kroner: Heltal, afskåret_udenlandsk_nettoindkomst_kroner: Heltal, afskåret_udlandsfradrag_kroner: Heltal, afskåret_pbl16_kroner: Heltal, samlet_afskåret_kroner: Heltal)
+# Par13VirksomhedsUnderskudInput(underskud_kroner: Heltal, positiv_indkomst_samme_virksomhed_kroner: Heltal, status: Par13VirksomhedsUnderskudStatus)
+# Par13VirksomhedsUnderskudResult(fradrag_i_øvrig_indkomst_kroner: Heltal, modregnet_i_samme_virksomhed_kroner: Heltal, fremført_til_samme_virksomhed_kroner: Heltal)
 # Par13Underskudstype = SkattepligtigIndkomstUnderskud | PersonligIndkomstUnderskud | PassivVirksomhedsUnderskud | TransparentSelskabsUnderskud
 # Par13OverførselsBegrænsning = UdenlandskBeskattetPersonligIndkomst | UdgiftFradragetIUdlandet | PensionsbeløbPbl16 | LempelseEfterLl33AEllerSømandsbeskatning
 # Par13VirksomhedsUnderskudStatus = PassivVirksomhedPar4Nr9Eller11 | SkibsvirksomhedGodkendtSenest1993 | TransparentSelskabPassiv | TransparentSelskabDeltagetVæsentligt36Måneder
@@ -305,9 +309,18 @@ væsentligt omfang. 1. og 2. pkt. omfatter ikke underskud omfattet af stk. 6.
 | par13_negativ_personlig_fremføres(input: Par13NegativPersonligInput) -> par13_negativ_personlig_rest_kroner(input) > 0
 | par13_stk5_begrænsning_afskærer_ægtefælleoverførsel(begrænsning: Par13OverførselsBegrænsning) -> begrænsning == UdenlandskBeskattetPersonligIndkomst || begrænsning == UdgiftFradragetIUdlandet || begrænsning == PensionsbeløbPbl16
 | par13_stk5_begrænsning_finder_ikke_anvendelse(begrænsning: Par13OverførselsBegrænsning) -> begrænsning == LempelseEfterLl33AEllerSømandsbeskatning
+| par13_stk5_begrænsning_aktiv(input: Par13Stk5OverførselInput) -> input.lempelse_ll33a_eller_sømandsbeskatning == Falskt
+| par13_stk5_udenlandsk_nettoindkomst_kroner(input: Par13Stk5OverførselInput) -> par13_positivt_beløb(input.udenlandsk_beskattet_personlig_indkomst_kroner - input.fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner)
+| par13_stk5_udenlandsk_indkomst_afskåret_kroner(input: Par13Stk5OverførselInput) -> hvis par13_stk5_begrænsning_aktiv(input) { par13_stk5_udenlandsk_nettoindkomst_kroner(input) } ellers { 0 }
+| par13_stk5_udlandsfradrag_afskåret_kroner(input: Par13Stk5OverførselInput) -> hvis par13_stk5_begrænsning_aktiv(input) { par13_positivt_beløb(input.udgifter_fradraget_i_udlandet_kroner) } ellers { 0 }
+| par13_stk5_pbl16_afskåret_kroner(input: Par13Stk5OverførselInput) -> hvis par13_stk5_begrænsning_aktiv(input) && input.overførsel_efter_stk4 { par13_positivt_beløb(input.pbl16_beløb_kroner) } ellers { 0 }
+| par13_stk5_samlet_afskåret_kroner(input: Par13Stk5OverførselInput) -> par13_mindste_beløb(par13_positivt_beløb(input.ønsket_overførsel_kroner), par13_stk5_udenlandsk_indkomst_afskåret_kroner(input) + par13_stk5_udlandsfradrag_afskåret_kroner(input) + par13_stk5_pbl16_afskåret_kroner(input))
+| par13_stk5_overførsel_resultat(input: Par13Stk5OverførselInput) -> Par13Stk5OverførselResult(par13_positivt_beløb(input.ønsket_overførsel_kroner) - par13_stk5_samlet_afskåret_kroner(input), par13_stk5_udenlandsk_indkomst_afskåret_kroner(input), par13_stk5_udlandsfradrag_afskåret_kroner(input), par13_stk5_pbl16_afskåret_kroner(input), par13_stk5_samlet_afskåret_kroner(input))
 | par13_virksomhedsunderskud_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> status == PassivVirksomhedPar4Nr9Eller11 || status == TransparentSelskabPassiv
 | exception godkendt_skibsvirksomhed par13_virksomhedsunderskud_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> Falskt under status == SkibsvirksomhedGodkendtSenest1993
 | exception væsentlig_deltagelse par13_virksomhedsunderskud_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> Falskt under status == TransparentSelskabDeltagetVæsentligt36Måneder
+| par13_forskudsafskrivning_låses_til_samme_virksomhed(status: Par13VirksomhedsUnderskudStatus) -> par13_virksomhedsunderskud_låses_til_samme_virksomhed(status)
+| par13_virksomhedsunderskud_beløbsresultat(input: Par13VirksomhedsUnderskudInput) -> hvis par13_virksomhedsunderskud_låses_til_samme_virksomhed(input.status) { Par13VirksomhedsUnderskudResult(0, par13_mindste_beløb(par13_positivt_beløb(input.underskud_kroner), par13_positivt_beløb(input.positiv_indkomst_samme_virksomhed_kroner)), par13_positivt_beløb(input.underskud_kroner) - par13_mindste_beløb(par13_positivt_beløb(input.underskud_kroner), par13_positivt_beløb(input.positiv_indkomst_samme_virksomhed_kroner))) } ellers { Par13VirksomhedsUnderskudResult(par13_positivt_beløb(input.underskud_kroner), 0, 0) }
 
 = par13_normal_lønmodtager = par13_kræver_underskudsbehandling(Par13UnderskudInput(460000, 460000, 0, Falskt))
 = par13_negativ_personlig = par13_kræver_underskudsbehandling(Par13UnderskudInput(0, -10000, 2000, Falskt))
@@ -319,6 +332,12 @@ væsentligt omfang. 1. og 2. pkt. omfatter ikke underskud omfattet af stk. 6.
 = par13_fremførsel_fixture = par13_underskud_fremføres(SkattepligtigIndkomstUnderskud, Sandt)
 = par13_virksomhed_låst_fixture = par13_virksomhedsunderskud_låses_til_samme_virksomhed(PassivVirksomhedPar4Nr9Eller11)
 = par13_virksomhed_undtagelse_fixture = par13_virksomhedsunderskud_låses_til_samme_virksomhed(TransparentSelskabDeltagetVæsentligt36Måneder)
+= par13_stk5_resultat_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(100000, 30000, 5000, 12000, 10000, Sandt, Falskt))
+= par13_stk5_lempelse_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(100000, 30000, 5000, 12000, 10000, Sandt, Sandt))
+= par13_stk5_stk2_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(100000, 30000, 5000, 12000, 10000, Falskt, Falskt))
+= par13_virksomhedsbeløb_fixture = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(80000, 30000, PassivVirksomhedPar4Nr9Eller11))
+= par13_virksomhedsbeløb_undtagelse_fixture = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(80000, 30000, TransparentSelskabDeltagetVæsentligt36Måneder))
+= par13_forskudsafskrivning_fixture = par13_forskudsafskrivning_låses_til_samme_virksomhed(PassivVirksomhedPar4Nr9Eller11)
 
 | par13_normal_fixture_ingen_underskud: par13_normal_lønmodtager -> par13_normal_lønmodtager == Falskt
 | par13_negativ_personlig_kræver_behandling: par13_negativ_personlig -> par13_negativ_personlig == Sandt
@@ -330,3 +349,9 @@ væsentligt omfang. 1. og 2. pkt. omfatter ikke underskud omfattet af stk. 6.
 | par13_skattepligtigt_underskud_fremføres: par13_fremførsel_fixture -> par13_fremførsel_fixture == Sandt
 | par13_passiv_virksomhed_låses: par13_virksomhed_låst_fixture -> par13_virksomhed_låst_fixture == Sandt
 | par13_væsentlig_deltagelse_undtages: par13_virksomhed_undtagelse_fixture -> par13_virksomhed_undtagelse_fixture == Falskt
+| par13_stk5_afskærer_beløb_fra_ægtefælleoverførsel: par13_stk5_resultat_fixture -> par13_stk5_resultat_fixture.overførbart_underskud_kroner == 53000 && par13_stk5_resultat_fixture.afskåret_udenlandsk_nettoindkomst_kroner == 25000 && par13_stk5_resultat_fixture.afskåret_udlandsfradrag_kroner == 12000 && par13_stk5_resultat_fixture.afskåret_pbl16_kroner == 10000
+| par13_stk5_lempelse_ophæver_begrænsning: par13_stk5_lempelse_fixture -> par13_stk5_lempelse_fixture.overførbart_underskud_kroner == 100000 && par13_stk5_lempelse_fixture.samlet_afskåret_kroner == 0
+| par13_stk5_pbl16_kun_stk4: par13_stk5_stk2_fixture -> par13_stk5_stk2_fixture.overførbart_underskud_kroner == 63000 && par13_stk5_stk2_fixture.afskåret_pbl16_kroner == 0
+| par13_virksomhedsunderskud_modregnes_kun_i_samme_virksomhed: par13_virksomhedsbeløb_fixture -> par13_virksomhedsbeløb_fixture.fradrag_i_øvrig_indkomst_kroner == 0 && par13_virksomhedsbeløb_fixture.modregnet_i_samme_virksomhed_kroner == 30000 && par13_virksomhedsbeløb_fixture.fremført_til_samme_virksomhed_kroner == 50000
+| par13_væsentlig_deltagelse_frigiver_virksomhedsunderskud: par13_virksomhedsbeløb_undtagelse_fixture -> par13_virksomhedsbeløb_undtagelse_fixture.fradrag_i_øvrig_indkomst_kroner == 80000 && par13_virksomhedsbeløb_undtagelse_fixture.fremført_til_samme_virksomhed_kroner == 0
+| par13_forskudsafskrivning_følger_samme_lås: par13_forskudsafskrivning_fixture -> par13_forskudsafskrivning_fixture == Sandt

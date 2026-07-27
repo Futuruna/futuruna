@@ -1836,8 +1836,9 @@ fn ResearchIndex() -> Element {
                     h2 { class: "research-card-title", "Personskatteloven" }
                     p { class: "research-card-desc",
                         "Danish personal income tax law encoded as Futuruna: source lineage, \
-                         §§ 1-13, tax-year parameter packs, wage-earner calculation fixtures \
-                         through personfradrag, and audit signals for missing dependencies and legal cliffs."
+                         first-pass §§ 1-28 coverage, tax-year parameter packs, wage-earner \
+                         calculation fixtures through personfradrag, and audit signals for \
+                         missing dependencies and legal cliffs."
                     }
                     span { class: "research-card-meta", "Skatteret \u{00B7} Dansk \u{00B7} Research slice" }
                 }
@@ -2327,7 +2328,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: § 13 amount limitations, § 14/§ 19 calculator integration, 2026 reform layers, and dependent tax statutes remain explicit gaps." }
+                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: § 13 source-dependent validation, § 14/§ 19 calculator integration, 2026 reform layers, and dependent tax statutes remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -2373,7 +2374,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "First-pass §§ 1-28 coverage is present; deeper § 13 and calculator integrations remain dependencies" }
+                            strong { "§ 13 amount formulas are executable; dependent statute validation and calculator integrations remain" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }
