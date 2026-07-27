@@ -1,0 +1,96 @@
+@ sprog da
+
+@ importer ./source - status
+@ importer ./loenmodtager_beregning
+
+-- Personskatteloven — audit-signaler for den aktuelle research-slice.
+
+----
+Officiel XML-metadata for 2019/799, hentet 2026-07-18:
+Status: Historic
+
+Officiel XML-metadata for 2021/1284, hentet 2026-07-18:
+Status: Valid
+----
+
+# AuditSignal = HistoriskKildeTilAktuelBeregning | ManglerPersonfradragPar10Til13 | ManglerArbejdsmarkedsbidragslov | ManglerKommunalIndkomstskattelov | Skatteår2026ReformIkkeKodet | TopskatTærskelAktivererKlint | ManglerNegativKapitalOgÆgtefælleRegler
+
+| audit_signal(signal: AuditSignal) -> Sandt
+
+= m5_historisk_til_aktuel = kilde_egnet_til_formål(personskatteloven_2019_799, AktuelSkatteberegning)
+
+| m5_historisk_kilde_afvises: m5_historisk_til_aktuel -> m5_historisk_til_aktuel == Falskt
+| m5_audit_historisk_kilde_signal: audit_signal(HistoriskKildeTilAktuelBeregning) -> audit_signal(HistoriskKildeTilAktuelBeregning) == Sandt
+
+? m5_historisk_kilde_afvises
+
+----
+§ 9. Indkomstskatten efter §§ 6, 7, 7 a og 8 og § 8 a, stk. 2, til staten skal,
+efter at skattebeløbene er reguleret efter § 13, nedsættes med skatteværdien af
+personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
+§ 12.
+----
+
+= m5_personfradrag_fixture = beregn_lønmodtager(LønmodtagerInput(2025, København, 500000, 0, 0, Sandt))
+
+| m5_personfradrag_gap_markeret: m5_personfradrag_fixture -> m5_personfradrag_fixture.kræver_par9_personfradrag == Sandt
+| m5_audit_personfradrag_signal: audit_signal(ManglerPersonfradragPar10Til13) -> audit_signal(ManglerPersonfradragPar10Til13) == Sandt
+
+? m5_personfradrag_gap_markeret
+
+----
+Skattestyrelsen, "Se alle skattesatser for i år og de forudgående år"
+Kategori: Skat
+År: 2026
+
+Mellemskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket:
+7,5 % / 641.200 kr.
+Topskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket:
+7,5 % / 777.900 kr.
+Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket:
+5 % / 2.592.700 kr.
+Topskat (til og med 2025): Ikke aktuel
+Topskat (topskattegrænse til og med 2025 efter am-bidrag er fratrukket):
+Ikke aktuel
+----
+
+= m5_2026_københavn_komplet = parameterpakke_komplet(2026, København)
+
+| m5_2026_reform_gap_markeret: m5_2026_københavn_komplet -> m5_2026_københavn_komplet == Falskt
+| m5_audit_2026_reform_signal: audit_signal(Skatteår2026ReformIkkeKodet) -> audit_signal(Skatteår2026ReformIkkeKodet) == Sandt
+
+? m5_2026_reform_gap_markeret
+
+----
+Personskatteloven § 7 bruger bundfradrag og grundbeløb som tærskler for
+topskat. Skattestyrelsens 2025-tabel angiver topskattegrænsen efter
+arbejdsmarkedsbidrag til 611.800 kr.
+----
+
+= m5_topskat_lige_under = LønmodtagerInput(2025, København, 665000, 0, 0, Falskt)
+= m5_topskat_lige_over = LønmodtagerInput(2025, København, 665001, 0, 0, Falskt)
+= m5_topskat_under_overskud = topskat_personligt_overskud_fixture(m5_topskat_lige_under)
+= m5_topskat_over_overskud = topskat_personligt_overskud_fixture(m5_topskat_lige_over)
+
+| m5_topskat_tærskel_under: m5_topskat_under_overskud -> m5_topskat_under_overskud == 0
+| m5_topskat_tærskel_over: m5_topskat_over_overskud -> m5_topskat_over_overskud == 1
+| m5_audit_topskat_klint_signal: audit_signal(TopskatTærskelAktivererKlint) -> audit_signal(TopskatTærskelAktivererKlint) == Sandt
+
+? m5_topskat_tærskel_under
+? m5_topskat_tærskel_over
+
+----
+§ 6, stk. 3, og § 7, stk. 5-12, har ægtefælle- og kapitalindkomstregler, mens
+den første lønmodtagerfixture kun dækker enlige helårsskattepligtige uden
+negativ nettokapitalindkomst.
+----
+
+| m5_audit_am_lov_signal: audit_signal(ManglerArbejdsmarkedsbidragslov) -> audit_signal(ManglerArbejdsmarkedsbidragslov) == Sandt
+| m5_audit_kommunal_lov_signal: audit_signal(ManglerKommunalIndkomstskattelov) -> audit_signal(ManglerKommunalIndkomstskattelov) == Sandt
+| m5_audit_negativ_kapital_signal: audit_signal(ManglerNegativKapitalOgÆgtefælleRegler) -> audit_signal(ManglerNegativKapitalOgÆgtefælleRegler) == Sandt
+
+? m5_audit_am_lov_signal
+? m5_audit_kommunal_lov_signal
+? m5_audit_negativ_kapital_signal
+
+@ print("m5 audit: kendte gaps markeret for personfradrag, 2026-reform, AM-lov, kommunal lov og ægtefælle/kapitalregler")

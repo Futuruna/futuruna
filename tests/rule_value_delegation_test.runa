@@ -1,0 +1,24 @@
+-- Regression: value-returning | rules may delegate to other value-returning
+-- | rules or project fields from returned records.
+
+# Params(rate_basispoint: Int, allowance: Int)
+# Breakdown(amount: Int, tax: Int, rate: Int)
+
+| params() -> Params(800, 51600)
+| rate_basispoint() -> params().rate_basispoint
+| tax_kroner(amount: Int, rate: Int) -> amount * rate / 10000
+| delegated_tax(amount: Int) -> tax_kroner(amount, rate_basispoint())
+| delegated_breakdown(amount: Int) -> Breakdown(amount, delegated_tax(amount), rate_basispoint())
+
+= rule_value_tax = delegated_tax(500000)
+= rule_value_breakdown = delegated_breakdown(500000)
+
+| rule_value_delegates_tax: rule_value_tax -> rule_value_tax == 40000
+| rule_value_delegates_field_projection: rule_value_breakdown -> rule_value_breakdown.rate == 800
+| rule_value_delegates_record_field: rule_value_breakdown -> rule_value_breakdown.tax == 40000
+
+? rule_value_delegates_tax
+? rule_value_delegates_field_projection
+? rule_value_delegates_record_field
+
+@ print("rule value delegation passed")

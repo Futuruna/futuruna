@@ -41,8 +41,13 @@ calculating a current taxpayer's tax.
 - `source-status.runa` exists and checks with `runa check`.
 - `kapitel-01-indkomst.runa` exists and checks with `runa check`.
 - `kapitel-02-statsskat.runa` exists and checks with `runa check`.
+- `skatteaar-parametre.runa` exists and checks with `runa check`.
+- `loenmodtager_beregning.runa` exists and checks with `runa check`.
+- `loenmodtager-fixtures.runa` exists and checks/runs with `runa run`.
+- `personskatteloven-audit.runa` exists and checks/runs with `runa run`.
 - The current `.runa` slices encode source validity, source lineage, the
-  §§ 1-4 b income taxonomy, and the §§ 5-9 state-tax skeleton.
+  §§ 1-4 b income taxonomy, the §§ 5-9 state-tax skeleton, 2024/2025 tax-year
+  parameter packs, first wage-earner fixtures, and first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
   multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
@@ -138,18 +143,26 @@ M3 - Tax-year parameter packs
 
 M4 - Ordinary taxpayer calculator
 
-- Status: not started.
+- Status: first slice implemented.
 - Output: fixtures and executable examples for wage income, capital income,
   deductions, municipal tax, church tax, and AM contribution.
 - Done when: normal cases produce reproducible tax breakdowns with source-backed
   assumptions.
+- Current slice: 2025 Copenhagen and Gentofte wage-earner fixtures produce
+  deterministic AM contribution, personal income after AM, ordinary taxable
+  income, bundskat, topskat, municipal tax, church tax, and a marked § 9
+  personfradrag gap.
 
 M5 - Audit suite
 
-- Status: not started.
+- Status: first slice implemented.
 - Output: audit files that intentionally search for tension, missing inputs,
   discontinuities, and source drift.
 - Done when: audits can fail loudly without blocking legal reformulation work.
+- Current slice: source-status rejection, § 9 personfradrag gap, 2026 reform
+  parameter gap, topskat threshold activation, AM-law dependency,
+  municipal-tax-law dependency, and spouse/negative-capital gaps are executable
+  audit signals.
 
 M6 - Website integration
 

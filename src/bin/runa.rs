@@ -20218,6 +20218,42 @@ impl RustCodegen {
                 }
             }
 
+            // Register value-returning rule signatures before emitting bodies.
+            // This lets `| a(x) -> b(x)` and `| rate() -> params().rate`
+            // infer through the same FIR function type path as ordinary
+            // `>` functions instead of falling back to predicate/bool codegen.
+            for _ in 0..rule_groups.len().max(1) {
+                let mut changed = false;
+                for (fn_name, rules) in &rule_groups {
+                    let params = Self::rule_params(rules);
+                    let param_tys = self.infer_rule_param_fir_tys(&params, rules);
+                    let Some(ret_type) = self.infer_rule_return_type(rules, &params, &param_tys)
+                    else {
+                        continue;
+                    };
+                    let ret_type = Self::normalize_rule_rust_type(&ret_type);
+                    let mut fn_ty = Self::rust_type_to_fir(&ret_type);
+                    for param_ty in param_tys.iter().rev() {
+                        fn_ty = FirTy::Arrow(Box::new(param_ty.clone()), Box::new(fn_ty));
+                    }
+                    if self.types.fn_types.get(fn_name.as_str()) != Some(&fn_ty) {
+                        self.types.fn_types.insert(fn_name.clone(), fn_ty);
+                        changed = true;
+                    }
+                    if self.fn_return_types.get(fn_name.as_str()) != Some(&ret_type) {
+                        self.fn_return_types
+                            .insert(fn_name.clone(), ret_type.clone());
+                        changed = true;
+                    }
+                    if ret_type == "String" {
+                        self.string_returning_fns.insert(fn_name.clone());
+                    }
+                }
+                if !changed {
+                    break;
+                }
+            }
+
             for (fn_name, rules) in &rule_groups {
                 // Count params and track which are borrowed (struct/enum types)
                 // Register borrow flags: true for params whose type was inferred from fields
@@ -23006,6 +23042,25 @@ impl RustCodegen {
             .unwrap_or(0)
     }
 
+    fn rule_params(rules: &[&Rule]) -> Vec<String> {
+        rules
+            .iter()
+            .find_map(|r| {
+                let head = match r {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    _ => return None,
+                };
+                if let ExprKind::App(_, args) = &head.kind {
+                    Some(args.iter().filter_map(Self::rule_head_var_name).collect())
+                } else {
+                    Some(vec![])
+                }
+            })
+            .unwrap_or_default()
+    }
+
     /// Emit a Rust literal from a Futuruna Literal
     fn emit_literal_value(lit: &Literal) -> String {
         match lit {
@@ -24488,22 +24543,7 @@ impl RustCodegen {
         // --- Original Catala-style codegen ---
 
         // Extract params from the first rule's head
-        let params: Vec<String> = rules
-            .iter()
-            .find_map(|r| {
-                let head = match r {
-                    Rule::Clause { head, .. }
-                    | Rule::Default { head, .. }
-                    | Rule::Exception { head, .. } => head,
-                    _ => return None,
-                };
-                if let ExprKind::App(_, args) = &head.kind {
-                    Some(args.iter().filter_map(Self::rule_head_var_name).collect())
-                } else {
-                    Some(vec![])
-                }
-            })
-            .unwrap_or_default();
+        let params = Self::rule_params(rules);
 
         let inferred_param_tys = self.infer_rule_param_fir_tys(&params, rules);
         let inferred_types: Vec<String> = inferred_param_tys

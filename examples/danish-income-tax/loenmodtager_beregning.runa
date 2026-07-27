@@ -1,0 +1,72 @@
+@ sprog da
+
+@ importer ./skatteaar - parametre
+
+-- Personskatteloven — ordinær lønmodtagerberegning, første fixture-slice.
+--
+-- Kilder:
+-- Personskatteloven, LBK nr. 1284 af 14/06/2021.
+-- https://www.retsinformation.dk/eli/lta/2021/1284
+
+----
+§ 3, stk. 2. Ved opgørelsen af den personlige indkomst fradrages
+6) arbejdsmarkedsbidrag og obligatoriske udenlandske sociale bidrag i samme
+omfang som nævnt i ligningslovens § 8 M,
+----
+
+# LønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, betaler_kirkeskat: Boolsk)
+# LønmodtagerBreakdown(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal, bundskat_før_personfradrag_kroner: Heltal, topskat_før_personfradrag_kroner: Heltal, kommuneskat_før_personfradrag_kroner: Heltal, kirkeskat_før_personfradrag_kroner: Heltal, samlet_inkl_am_før_personfradrag_kroner: Heltal, personfradrag_kroner: Heltal, kræver_par9_personfradrag: Boolsk)
+
+| skat_i_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> beløb_kroner * sats_basispoint / 10000
+| positivt_beløb(beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { beløb_kroner } ellers { 0 }
+| arbejdsmarkedsbidrag_for(input: LønmodtagerInput) -> skat_i_kroner(input.bruttoløn_kroner, nationalparametre_for(input.skatteår).am_bidrag_basispoint)
+| personlig_indkomst_efter_am(input: LønmodtagerInput) -> input.bruttoløn_kroner - arbejdsmarkedsbidrag_for(input)
+
+----
+§ 1. For personer, der er skattepligtige her til landet, opgøres den
+skattepligtige almindelige indkomst efter skattelovgivningens almindelige
+regler med de ændringer, der følger af denne lov.
+----
+
+| almindelig_skattepligtig_indkomst_fixture(input: LønmodtagerInput) -> personlig_indkomst_efter_am(input) + input.positiv_nettokapitalindkomst_kroner - input.ligningsmæssige_fradrag_kroner
+
+----
+§ 6. Skatten efter § 5, nr. 1, beregnes med den procent, der anføres i stk. 2,
+af den personlige indkomst med tillæg af positiv nettokapitalindkomst.
+----
+
+| bundskat_grundlag_fixture(input: LønmodtagerInput) -> personlig_indkomst_efter_am(input) + input.positiv_nettokapitalindkomst_kroner
+| bundskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(bundskat_grundlag_fixture(input), nationalparametre_for(input.skatteår).bundskat_basispoint)
+
+----
+§ 7. Skatten efter § 5, nr. 2, udgør 15 pct. af den personlige indkomst med
+tillæg af heri fradragne og ikke medregnede beløb omfattet af beløbsgrænsen i
+pensionsbeskatningslovens § 16, stk. 1, 4. pkt., og med tillæg af positiv
+nettokapitalindkomst, der overstiger et grundbeløb på 40.000 kr. (2010-niveau),
+i det omfang det samlede beløb overstiger bundfradraget anført i stk. 2.
+----
+
+| topskat_personligt_overskud_fixture(input: LønmodtagerInput) -> positivt_beløb(personlig_indkomst_efter_am(input) - nationalparametre_for(input.skatteår).topskattegrænse_efter_am_kroner)
+| topskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(topskat_personligt_overskud_fixture(input), nationalparametre_for(input.skatteår).topskat_basispoint)
+
+----
+Skatteministeriet, "Oversigt over kommuneskatter"
+Tabelkolonner: Kommunenavn, År, Kommuneskat, Kirkeskat, Sundhedsbidrag,
+Bundskat, I alt, Skatteloftsnedslag, Grundskyldspromille (Kommune).
+----
+
+| kirkeskat_sats_for(input: LønmodtagerInput) -> hvis input.betaler_kirkeskat { kommunale_parametre_for(input.skatteår, input.kommune).kirkeskat_basispoint } ellers { 0 }
+| kommuneskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(almindelig_skattepligtig_indkomst_fixture(input), kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint)
+| kirkeskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(almindelig_skattepligtig_indkomst_fixture(input), kirkeskat_sats_for(input))
+
+----
+§ 9. Indkomstskatten efter §§ 6, 7, 7 a og 8 og § 8 a, stk. 2, til staten skal,
+efter at skattebeløbene er reguleret efter § 13, nedsættes med skatteværdien af
+personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
+§ 12.
+----
+
+| personfradrag_for(input: LønmodtagerInput) -> nationalparametre_for(input.skatteår).personfradrag_voksen_kroner
+| par9_personfradrag_mangler_i_slutskat_fixture() -> Sandt
+| samlet_inkl_am_før_personfradrag(input: LønmodtagerInput) -> arbejdsmarkedsbidrag_for(input) + bundskat_før_personfradrag(input) + topskat_før_personfradrag(input) + kommuneskat_før_personfradrag(input) + kirkeskat_før_personfradrag(input)
+| beregn_lønmodtager(input: LønmodtagerInput) -> LønmodtagerBreakdown(input.skatteår, input.kommune, input.bruttoløn_kroner, arbejdsmarkedsbidrag_for(input), personlig_indkomst_efter_am(input), almindelig_skattepligtig_indkomst_fixture(input), bundskat_før_personfradrag(input), topskat_før_personfradrag(input), kommuneskat_før_personfradrag(input), kirkeskat_før_personfradrag(input), samlet_inkl_am_før_personfradrag(input), personfradrag_for(input), par9_personfradrag_mangler_i_slutskat_fixture())
