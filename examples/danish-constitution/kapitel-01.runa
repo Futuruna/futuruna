@@ -31,14 +31,17 @@ DANMARKS RIGES GRUNDLOV
 -- Køn for tronfølge (§ 2)
 # Køn = Mand | Kvinde
 
--- Trossamfund (§ 4)
-# Trossamfund = EvangeliskLuthersk
+-- Trossamfund (§§ 4, 6, 67-70)
+# Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
 
 ----
 § 1. Denne grundlov gælder for alle dele af Danmarks Rige.
 ----
 
-| grundloven_gælder_for(del: Rigsdel) -> true
+| grundloven_gælder_for_alle_dele_af_riget()
+> grundloven_gælder_for(del: Rigsdel) -> Boolsk {
+    Sandt
+}
 
 ----
 § 2. Regeringsformen er indskrænket-monarkisk.
@@ -47,7 +50,10 @@ tronfølgeloven af 27. marts 1953 fastsatte regler.
 ----
 
 | regeringsformen_er_indskrænket_monarkisk()
-| kongemagten_nedarves_til(køn: Køn) -> true
+| tronfølgeloven_regulerer_arvefølgen()
+> kongemagten_nedarves_til(køn: Køn) -> Boolsk {
+    Sandt
+}
 = tronfølgeloven_dato = "27. marts 1953"
 
 ----

@@ -60,7 +60,11 @@ fremsætter begæring herom med angivelse af dagsorden.
 
 | formanden_indkalder_med_dagsorden()
 
-| formanden_skal_indkalde(begærende: Heltal, medlemmer: Heltal, statsminister_begærer: Boolsk) -> statsminister_begærer || begærende * 5 >= medlemmer * 2
+| statsministeren_kan_begære_indkaldelse()
+| to_femtedele_kan_begære_indkaldelse()
+> formanden_skal_indkalde(begærende: Heltal, medlemmer: Heltal, statsminister_begærer: Boolsk) -> Boolsk {
+    statsminister_begærer || begærende * 5 >= medlemmer * 2
+}
 
 ----
 § 40. Ministrene har i embeds medfør adgang til folketinget og er berettigede
@@ -100,7 +104,10 @@ love og andre beslutninger, der ikke forinden er endeligt vedtaget.
 = påkrævede_behandlinger = 3
 
 -- Stk. 3: udsættelse af tredje behandling
-| kan_begære_udsættelse(begærende: Heltal, medlemmer: Heltal) -> begærende * 5 >= medlemmer * 2
+| to_femtedele_kan_begære_udsættelse()
+> kan_begære_udsættelse(begærende: Heltal, medlemmer: Heltal) -> Boolsk {
+    begærende * 5 >= medlemmer * 2
+}
 
 = udsættelse_søgnedage = 12
 
@@ -168,7 +175,10 @@ folkeafstemning skal finde sted på Færøerne og i Grønland, fastsættes ved l
 ----
 
 -- Stk. 1: krav om folkeafstemning
-| kan_begære_folkeafstemning(begærende: Heltal, medlemmer: Heltal) -> begærende * 3 >= medlemmer
+| en_tredjedel_kan_begære_folkeafstemning()
+> kan_begære_folkeafstemning(begærende: Heltal, medlemmer: Heltal) -> Boolsk {
+    begærende * 3 >= medlemmer
+}
 
 = frist_begæring_søgnedage = 3
 
@@ -184,7 +194,10 @@ folkeafstemning skal finde sted på Færøerne og i Grønland, fastsættes ved l
 = folkeafstemning_senest_søgnedage = 18
 
 -- Stk. 5: bortfaldskrav — dobbelt betingelse
-| lovforslag_forkastet_ved_folkeafstemning(mod_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal) -> mod_stemmer * 2 > deltagende && mod_stemmer * 100 >= stemmeberettigede * 30
+| lovforslag_bortfalder_ved_flertal_mod_og_tredive_pct()
+> lovforslag_forkastet_ved_folkeafstemning(mod_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal) -> Boolsk {
+    mod_stemmer * 2 > deltagende && mod_stemmer * 100 >= stemmeberettigede * 30
+}
 
 -- Stk. 6: undtaget fra folkeafstemning
 | finanslove_undtaget_fra_folkeafstemning()
@@ -303,7 +316,10 @@ skal forhandles i et offentligt eller lukket møde.
 er tilstede og deltager i afstemningen.
 ----
 
-| folketinget_er_beslutningsdygtigt(tilstede: Heltal, medlemmer: Heltal) -> tilstede * 2 > medlemmer
+| beslutningsdygtighed_kræver_over_halvdelen()
+> folketinget_er_beslutningsdygtigt(tilstede: Heltal, medlemmer: Heltal) -> Boolsk {
+    tilstede * 2 > medlemmer
+}
 
 ----
 § 51. Folketinget kan nedsætte kommissioner af sine medlemmer til at undersøge

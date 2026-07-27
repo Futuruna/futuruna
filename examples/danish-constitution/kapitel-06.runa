@@ -8,6 +8,9 @@
 
 -- Kapitel VI -- Domstolene
 
+-- Samtykke: den grundlæggende juridiske mekanisme
+# Samtykke = Givet | IkkeGivet
+
 ----
 § 59. Stk. 1. Rigsretten består af indtil 15 af de efter embedsalder ældste
 ordentlige medlemmer af rigets øverste domstol og et tilsvarende antal af
@@ -31,7 +34,10 @@ Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 = rigsret_max_dommermedlemmer = 15
 = rigsret_valgperiode_år = 6
 
-| rigsret_medlemmer_fra_folketinget(dommermedlemmer: Heltal) -> dommermedlemmer
+| rigsret_valgte_medlemmer_svarer_til_dommermedlemmer()
+> rigsret_medlemmer_fra_folketinget(dommermedlemmer: Heltal) -> Heltal {
+    dommermedlemmer
+}
 
 | rigsret_valgt_efter_forholdstal()
 | rigsret_stedfortrædere_for_valgte()
@@ -40,7 +46,10 @@ Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 | folketingsmedlem_uforenelig_med_rigsretsmedlem()
 
 -- Afbalancering: ved dommerinhabilitet fratræder sidst valgte
-| rigsret_afbalanceret(dommermedlemmer: Heltal, inhabilde: Heltal) -> hvis inhabilde > dommermedlemmer { 0 } ellers { dommermedlemmer - inhabilde }
+| rigsret_afbalanceres_ved_dommerinhabilitet()
+> rigsret_afbalanceret(dommermedlemmer: Heltal, inhabilde: Heltal) -> Heltal {
+    hvis inhabilde > dommermedlemmer { 0 } ellers { dommermedlemmer - inhabilde }
+}
 
 -- Stk. 2
 | rigsretten_vælger_egen_formand()
@@ -64,7 +73,10 @@ tiltale for forbrydelser, som han finder særdeles farlige for staten.
 | rigsretten_påkender_ministersager_anlagt_af_folketinget()
 
 -- Stk. 2: samtykke-mønster
-| tiltale_andre_ved_rigsretten(samtykke: Samtykke) -> samtykke == Givet
+| tiltale_af_andre_ved_rigsretten_kræver_samtykke()
+> tiltale_andre_ved_rigsretten(samtykke: Samtykke) -> Boolsk {
+    samtykke == Givet
+}
 
 ----
 § 61. Den dømmende magts udøvelse kan kun ordnes ved lov. Særdomstole med
@@ -118,7 +130,10 @@ tidspunkt, til hvilket han skulle være afskediget på grund af alder.
 | dommere_kan_ikke_forflyttes_mod_ønske()
 | forflyttelse_undtaget_ved_omordning()
 
-| dommer_kan_afskediges_ved_alder(alder: Heltal) -> alder >= 65
+| dommer_afskedigelse_ved_alder_fra_femogtres()
+> dommer_kan_afskediges_ved_alder(alder: Heltal) -> Boolsk {
+    alder >= 65
+}
 
 | afskedigelse_ved_alder_uden_tab_af_indtægter()
 

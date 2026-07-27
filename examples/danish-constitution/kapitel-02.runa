@@ -13,7 +13,7 @@
 -- Typer fra Kapitel I (ville normalt importeres)
 # Rigsdel = Danmark | Færøerne | Grønland
 # Institution = Kongen | Folketinget | Domstolene
-# Trossamfund = EvangeliskLuthersk
+# Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
 
 -- Samtykke: den grundlæggende juridiske mekanisme
 # Samtykke = Givet | IkkeGivet
@@ -32,7 +32,10 @@
 ----
 
 -- Samtykke er en binær mekanisme: givet → tilladt, ikke givet → forbudt
-| regent_i_udlandet(s: Samtykke) -> s == Givet
+| regent_i_udlandet_kræver_folketingets_samtykke()
+> regent_i_udlandet(s: Samtykke) -> Boolsk {
+    s == Givet
+}
 
 ----
 § 6. Kongen skal høre til den evangelisk-lutherske kirke.
@@ -49,7 +52,11 @@ Det samme gælder tronfølgeren.
 
 -- Myndighedsreglen gælder for begge — § 7 siger eksplicit "det samme gælder tronfølgeren"
 # MyndighedsSubjekt = Kongen | Tronfølgeren
-| myndighedsregel_gælder_for(s: MyndighedsSubjekt) -> true
+| myndighedsregel_gælder_for_kongen()
+| myndighedsregel_gælder_for_tronfølgeren()
+> myndighedsregel_gælder_for(s: MyndighedsSubjekt) -> Boolsk {
+    Sandt
+}
 
 ----
 § 8. Forinden kongen tiltræder regeringen, afgiver han skriftligt i statsrådet
@@ -89,7 +96,12 @@ umyndighed, sygdom eller fraværelse fastsættes ved lov.
 ----
 
 # Regentskabsgrund = Umyndighed | Sygdom | Fraværelse
-| regentskab_fastsættes_ved_lov(g: Regentskabsgrund) -> true
+| regentskab_fastsættes_ved_lov_for_umyndighed()
+| regentskab_fastsættes_ved_lov_for_sygdom()
+| regentskab_fastsættes_ved_lov_for_fraværelse()
+> regentskab_fastsættes_ved_lov(g: Regentskabsgrund) -> Boolsk {
+    Sandt
+}
 
 ----
 § 9 (fortsat). Er der ved tronledighed ingen tronfølger, vælger
@@ -120,4 +132,7 @@ der skal overlades kongen til brug.
 ----
 
 | årpenge_fastsættes_ved_lov()
-| årpenge_i_udlandet(s: Samtykke) -> s == Givet
+| årpenge_i_udlandet_kræver_folketingets_samtykke()
+> årpenge_i_udlandet(s: Samtykke) -> Boolsk {
+    s == Givet
+}

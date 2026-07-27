@@ -15,6 +15,72 @@
 @ importer ./kapitel - 11
 
 -- ============================================================================
+-- Audit-scenarier
+-- ============================================================================
+
+-- Disse typer og regler er ikke ny lovtekst. De er auditens konkrete
+-- scenarier for at teste den formaliserede lovtekst ovenfor.
+# ForsikringsStatus = IkkeAfgivet | AfgivetSomTronfølger
+# Monark(alder: Heltal, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
+# Tronfølger(alder: Heltal, trossamfund: Trossamfund)
+# Beslutning(kongelig: Boolsk, minister_underskrift: Boolsk)
+
+> opfylder_troskrav(monark: Monark) -> Boolsk {
+    monark.trossamfund == EvangeliskLuthersk
+}
+
+> er_myndig(monark: Monark) -> Boolsk {
+    monark.alder >= myndighedsalder
+}
+
+> tronfølger_er_myndig(arving: Tronfølger) -> Boolsk {
+    arving.alder >= myndighedsalder
+}
+
+> beslutning_gyldig(beslutning: Beslutning) -> Boolsk {
+    beslutning.kongelig && beslutning.minister_underskrift
+}
+
+> ministeriet_skal_afgå(nyvalg_udskrevet: Boolsk) -> Boolsk {
+    hvis nyvalg_udskrevet { Falskt } ellers { Sandt }
+}
+
+> tronfølger_i_statsrådet(arving: Tronfølger) -> Boolsk {
+    tronfølger_er_myndig(arving)
+}
+
+> militær_magtanvendelse(grund: MilitærGrund, samtykke: Samtykke) -> Boolsk {
+    grund == Forsvar || samtykke == Givet
+}
+
+> ændre_rigets_område(samtykke: Samtykke) -> Boolsk {
+    samtykke == Givet
+}
+
+> indgå_forpligtelse_af_betydning(samtykke: Samtykke) -> Boolsk {
+    samtykke == Givet
+}
+
+> opsige_overenskomst_indgået_med_samtykke(samtykke: Samtykke) -> Boolsk {
+    samtykke == Givet
+}
+
+> hvem_regerer_ved_tronskifte(monark: Monark, til_stede: Boolsk, særlov_eksisterer: Boolsk) -> Regeringsfører {
+    hvis særlov_eksisterer {
+        Regent
+    } ellers {
+        hvis monark.forsikring == AfgivetSomTronfølger {
+            MonarkenSelv
+        } ellers {
+            hvis til_stede { MonarkenSelv } ellers { Statsrådet }
+        }
+    }
+}
+
+| troskrav_gælder_ikke_tronfølger()
+| ministrene_er_ansvarlige_for_regeringsførelse() -> ministrene_er_ansvarlige()
+
+-- ============================================================================
 -- Invarianter
 -- ============================================================================
 
@@ -27,8 +93,8 @@
 | par1_grønland: par1_gl -> par1_gl == Sandt
 
 -- Par. 5: samtykke-mønster
-= par5_uden = regent_i_andre_lande(IkkeGivet)
-= par5_med = regent_i_andre_lande(Givet)
+= par5_uden = regent_i_udlandet(IkkeGivet)
+= par5_med = regent_i_udlandet(Givet)
 | par5_default_nej: par5_uden -> par5_uden == Falskt
 | par5_samtykke_ja: par5_med -> par5_med == Sandt
 
@@ -312,13 +378,13 @@
 | par13_ministre_ansvarlige() -> ministrene_er_ansvarlige_for_regeringsførelse()
 
 -- Tværgående: delegationer til lov
-| delegation_regentskab() -> regentskab_fastsættes_ved_lov()
+| delegation_regentskab() -> regentskab_fastsættes_ved_lov(Umyndighed)
 | delegation_statsydelse() -> statsydelse_fastsættes_ved_lov()
 | delegation_årpenge() -> årpenge_fastsættes_ved_lov()
 | delegation_ministeransvar() -> ministeransvar_fastsættes_ved_lov()
 | delegation_udenrigsnævn() -> udenrigsnævn_fastsættes_ved_lov()
 | delegation_tjenestemandsansættelse() -> tjenestemandsansættelse_fastsættes_ved_lov()
-| delegation_tjenestemandsafskedigelse() -> tjenestemandsafskedigelse_fastsættes_ved_lov()
+| delegation_tjenestemandsafskedigelse() -> tjenestemandsforhold_fastsættes_ved_lov()
 | delegation_tab_af_valgret() -> tab_af_valgret_ved_straf_fastsættes_ved_lov()
 | delegation_valgmåde() -> valgmåde_fastsættes_ved_valglov()
 | delegation_rigsretten() -> rigsretten_fastsættes_ved_lov()
@@ -744,6 +810,40 @@
 -- Par. 89: ikrafttrædelse
 | par89_straks() -> grundloven_træder_i_kraft_straks()
 
+-- Tværgående: par. 20 vs par. 88 — suverænitet kan flyttes uden grundlovsændringsformen
+-- § 20 kan overlade grundlovsbeføjelser til mellemfolkelige myndigheder ved
+-- 5/6-flertal, eller ved almindeligt flertal efterfulgt af folkeafstemning.
+-- § 88 kræver derimod nyvalg, uændret genvedtagelse, folkeafstemning og
+-- stadfæstelse. Tensionen er, at forfatningsvirkelighed kan ændres uden at
+-- selve grundlovsteksten ændres.
+| par20_suverænitet_kan_overlades() -> beføjelser_kan_overlades_mellemfolkeligt()
+| par20_alternativ_folkeafstemning() -> alternativt_folkeafstemning_ved_simpelt_flertal()
+| par20_tærskel: suverænitetskrav_flertal -> suverænitetskrav_flertal == "5/6 af folketingets medlemmer"
+| par20_par88_nyvalg_asymmetri() -> grundlovsændring_kræver_nyvalg()
+
+-- Tværgående: par. 31 vs par. 56 — repræsentation af anskuelser, men frit mandat
+-- § 31 pålægger valgloven at sikre ligelig repræsentation af anskuelser.
+-- § 56 binder det enkelte medlem alene ved sin overbevisning.
+-- Systemet repræsenterer vælgernes anskuelser; mandatet er ikke bundet af dem.
+| par31_repræsenterer_anskuelser() -> ligelig_repræsentation_af_anskuelser()
+| par56_frit_mandat() -> frit_mandat()
+| par56_ikke_bundet_af_vælgere() -> ikke_bundet_af_vælgernes_forskrift()
+
+-- Tværgående: par. 49 — offentlighed med intern lukkemekanisme
+-- Folketingets møder er offentlige som udgangspunkt, men formand, medlemmer
+-- eller ministre kan forlange dørene lukkede. Offentlighed er default, ikke absolut.
+| par49_offentlighed_default() -> folketingets_møder_er_offentlige()
+| par49_lukket_møde_kan_rejses() -> formanden_kan_forlange_lukket_møde()
+| par49_lukning_afgøres_uden_forhandling() -> lukket_møde_afgøres_uden_forhandling()
+
+-- Tværgående: par. 29 vs par. 86 — national valgretsalder og rigsdelsundtagelser
+-- § 29 ændrer folketingsvalgretsalder via lov + folkeafstemning.
+-- § 86 lader kommunal valgretsalder følge folketinget, men Færøerne og Grønland
+-- kan fastsættes ved lov. Rigets dele får dermed en eksplicit lokal lovkanal.
+| par29_valgretsalder_folkeafstemning() -> ændring_af_valgretsalder_kræver_folkeafstemning()
+| par86_kommunal_følger_folketinget() -> kommunal_valgretsalder_følger_folketingsvalg()
+| par86_rigsdelsundtagelser() -> færøerne_kommunal_valgretsalder_fastsættes_ved_lov()
+
 ? par86_kommunal_følger
 ? par86_menighedsråd_følger
 ? delegation_færøerne_kommunal_valgret
@@ -760,6 +860,19 @@
 ? par88_krav_folkeafstemning
 ? par88_krav_stadfæstelse
 ? par89_straks
+? par20_suverænitet_kan_overlades
+? par20_alternativ_folkeafstemning
+? par20_tærskel
+? par20_par88_nyvalg_asymmetri
+? par31_repræsenterer_anskuelser
+? par56_frit_mandat
+? par56_ikke_bundet_af_vælgere
+? par49_offentlighed_default
+? par49_lukket_møde_kan_rejses
+? par49_lukning_afgøres_uden_forhandling
+? par29_valgretsalder_folkeafstemning
+? par86_kommunal_følger_folketinget
+? par86_rigsdelsundtagelser
 
 ? all -> {
     @ skriv("Alle invarianter holder.")

@@ -30,4 +30,7 @@ kongen, er den grundlov.
 | afstemningsregler_fastsættes_ved_lov()
 
 -- Dobbelt godkendelseskrav: flertal af deltagende + 40% af stemmeberettigede
-| grundlovsændring_godkendt(for_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal) -> for_stemmer * 2 > deltagende && for_stemmer * 100 >= stemmeberettigede * 40
+| grundlovsændring_kræver_flertal_og_fyrre_pct()
+> grundlovsændring_godkendt(for_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal) -> Boolsk {
+    for_stemmer * 2 > deltagende && for_stemmer * 100 >= stemmeberettigede * 40
+}

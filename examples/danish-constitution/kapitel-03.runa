@@ -13,10 +13,10 @@
 -- Typer
 # Samtykke = Givet | IkkeGivet
 # Mistillid = Udtalt | IkkeUdtalt
-# Råd = Statsrådet | Ministerrådet
+# Råd = StatsrådsRåd | MinisterrådsRåd
 # MilitærGrund = Forsvar | Anden
 # Tiltaler = Kongen | Folketinget
-# ForhandlingsForum = Statsrådet | Ministerrådet
+# ForhandlingsForum = StatsrådsForum | MinisterrådsForum
 
 -- ─────────────────────────────────────────────────────────
 -- § 12. Kongens myndighed
@@ -75,7 +75,10 @@ Enhver minister, som har underskrevet, er ansvarlig for beslutningen.
 folketinget har udtalt sin mistillid til ham.
 ----
 
-| minister_kan_forblive(m: Mistillid) -> m == IkkeUdtalt
+| minister_fjernes_ved_udtalt_mistillid()
+> minister_kan_forblive(m: Mistillid) -> Boolsk {
+    m == IkkeUdtalt
+}
 
 ----
 § 15. Stk. 2. Udtaler folketinget sin mistillid til statsministeren,
@@ -101,7 +104,11 @@ embedsførelse. Rigsretten påkender de mod ministrene for deres
 embedsførelse anlagte sager.
 ----
 
-| kan_tiltale_minister(t: Tiltaler) -> true
+| kongen_kan_tiltale_minister()
+| folketinget_kan_tiltale_minister()
+> kan_tiltale_minister(t: Tiltaler) -> Boolsk {
+    Sandt
+}
 | rigsretten_påkender_ministersager()
 
 -- ─────────────────────────────────────────────────────────
@@ -129,8 +136,8 @@ forhandle i et ministerråd. Dette består af samtlige ministre under
 forsæde af statsministeren. Beslutning tages efter stemmeflerhed.
 ----
 
-| forhandlingsforum() -> Statsrådet
-| forhandlingsforum() -> Ministerrådet under kongen_forhindret()
+| forhandlingsforum() -> StatsrådsForum
+| forhandlingsforum() -> MinisterrådsForum under kongen_forhindret()
 | kongen_forhindret() -> false
 
 | ministerråd_under_statsministeren()
@@ -152,7 +159,12 @@ større betydning.
 
 -- Tre handlinger der kræver samtykke
 # SamtykkeKrævende = ÆndreRigetsOmråde | IndgåForpligtelse | OpsigeTraktat
-| kræver_folketingets_samtykke(h: SamtykkeKrævende) -> true
+| områdeændring_kræver_folketingets_samtykke()
+| større_forpligtelse_kræver_folketingets_samtykke()
+| opsigelse_af_samtykketraktat_kræver_folketingets_samtykke()
+> kræver_folketingets_samtykke(h: SamtykkeKrævende) -> Boolsk {
+    Sandt
+}
 
 ----
 § 19. Stk. 2. Bortset fra forsvar mod væbnet angreb kan kongen ikke
@@ -235,7 +247,10 @@ med folketingets samtykke benåde for rigsretsdomme.
 
 | kongen_kan_benåde()
 | kongen_kan_give_amnesti()
-| benåde_minister_fra_rigsret(s: Samtykke) -> s == Givet
+| benådning_af_rigsretsdømt_minister_kræver_samtykke()
+> benåde_minister_fra_rigsret(s: Samtykke) -> Boolsk {
+    s == Givet
+}
 
 -- ─────────────────────────────────────────────────────────
 -- § 25–26. Bevillinger og møntret
