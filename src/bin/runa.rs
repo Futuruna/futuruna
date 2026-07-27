@@ -29474,6 +29474,15 @@ impl RustCodegen {
         }
         chain.reverse(); // innermost first
 
+        if chain.iter().any(|(_, extra_args)| {
+            matches!(
+                extra_args.first().map(|arg| &arg.kind),
+                Some(ExprKind::Lambda(_, _))
+            )
+        }) {
+            return None;
+        }
+
         // Emit the source (the non-fusible base expression)
         let source_str = self.emit_expr(source);
         let mut out = format!("{}.clone().into_iter()", source_str);
@@ -29858,6 +29867,126 @@ impl RustCodegen {
                     // Stream fusion: fuse chains of map/filter/take/skip into single iterator
                     if let Some(fused) = self.try_emit_fused_chain(name, args) {
                         return fused;
+                    }
+                    if matches!(
+                        name.as_str(),
+                        "any"
+                            | "all"
+                            | "find"
+                            | "flat_map"
+                            | "take_while"
+                            | "drop_while"
+                            | "count_by"
+                            | "subscribe"
+                    ) && args.len() == 2
+                        && !self.types.user_functions.contains(name.as_str())
+                    {
+                        if let ExprKind::Lambda(params, body) = &&args[1].kind {
+                            let mut seeded_param_tys = BTreeMap::new();
+                            if let (Some(param), ty) = (params.first(), self.iter_item_ty(&args[0]))
+                            {
+                                if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+                                    seeded_param_tys.insert(param.name.clone(), ty);
+                                }
+                            }
+                            let param_tys =
+                                self.resolve_lambda_param_tys(params, body, &seeded_param_tys);
+                            let coll = self.emit_expr(&args[0]);
+                            let param = if params.is_empty() {
+                                "__x".to_string()
+                            } else {
+                                sanitize_name(&params[0].name)
+                            };
+                            let body_code =
+                                self.with_lambda_param_scope(params, &param_tys, body, |cg| {
+                                    cg.emit_expr(body)
+                                });
+                            let mut param_bound = BTreeSet::new();
+                            for p in params {
+                                param_bound.insert(p.name.clone());
+                            }
+                            let mut free_in_body = BTreeSet::new();
+                            collect_true_free_vars(body, &mut free_in_body, &param_bound);
+                            let lsp_names: BTreeSet<&str> =
+                                LSP_BUILTINS.iter().map(|(n, _)| *n).collect();
+                            let captured: Vec<String> = free_in_body
+                                .into_iter()
+                                .filter(|v| {
+                                    self.lambda_free_var_is_runtime_capture(v.as_str())
+                                        && !self.copy_vars.contains(v.as_str())
+                                        && !lsp_names.contains(v.as_str())
+                                        && !matches!(
+                                            v.as_str(),
+                                            "true"
+                                                | "false"
+                                                | "True"
+                                                | "False"
+                                                | "None"
+                                                | "Some"
+                                                | "Ok"
+                                                | "Err"
+                                                | "Nil"
+                                                | "Cons"
+                                                | "not"
+                                                | "findall"
+                                                | "search"
+                                        )
+                                })
+                                .collect();
+                            let clone_prefix = if captured.is_empty() {
+                                String::new()
+                            } else {
+                                captured
+                                    .iter()
+                                    .map(|v| {
+                                        format!(
+                                            "let {} = {}.clone();",
+                                            sanitize_name(v),
+                                            sanitize_name(v)
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
+                                    + " "
+                            };
+                            let borrowed_param_prefix =
+                                format!("let {} = (*{}).clone();", param, param);
+                            return match name.as_str() {
+                                "any" => format!(
+                                    "{}.clone().into_iter().any(|{}| {{ {} {} }})",
+                                    coll, param, clone_prefix, body_code
+                                ),
+                                "all" => format!(
+                                    "{}.clone().into_iter().all(|{}| {{ {} {} }})",
+                                    coll, param, clone_prefix, body_code
+                                ),
+                                "find" => format!(
+                                    "{}.clone().into_iter().find(|{}| {{ {} {} {} }})",
+                                    coll, param, clone_prefix, borrowed_param_prefix, body_code
+                                ),
+                                "flat_map" => format!(
+                                    "{}.clone().into_iter().flat_map(|{}| {{ {} {} }}).collect::<Vec<_>>()",
+                                    coll, param, clone_prefix, body_code
+                                ),
+                                "take_while" => format!(
+                                    "{}.clone().into_iter().take_while(|{}| {{ {} {} {} }}).collect::<Vec<_>>()",
+                                    coll, param, clone_prefix, borrowed_param_prefix, body_code
+                                ),
+                                "drop_while" => format!(
+                                    "{}.clone().into_iter().skip_while(|{}| {{ {} {} {} }}).collect::<Vec<_>>()",
+                                    coll, param, clone_prefix, borrowed_param_prefix, body_code
+                                ),
+                                "count_by" => format!(
+                                    "{}.clone().into_iter().filter(|{}| {{ {} {} {} }}).count() as i64",
+                                    coll, param, clone_prefix, borrowed_param_prefix, body_code
+                                ),
+                                "subscribe" => format!(
+                                    "{{ for {} in {}.iter() {{ {} {} {}; }} }}",
+                                    param, coll, clone_prefix, borrowed_param_prefix, body_code
+                                ),
+                                _ => unreachable!(),
+                            };
+                        }
                     }
                     // Inline lambda into filter/map/partition to avoid nested-lambda
                     // type inference failures in Rust codegen.
@@ -39765,6 +39894,17 @@ readings <- "score"
         assert_eq!(
             output,
             "[5, 1, 3]\n[b, cat, alpha]\n[a, b, c]\n[Some(1), Some(3)]\ntrue\nfalse\nSome(None)\n1\n([Some(1), Some(3)], [None])\n[Some(1)]\n[None, Some(3)]\n2.25\n2.25\n"
+        );
+    }
+
+    #[test]
+    fn compiled_collection_lambdas_use_contextual_record_element_type() {
+        let output = compile_and_run_test_file(std::path::Path::new(
+            "tests/canary/regressions/collection_lambda_context_record_field_test.runa",
+        ));
+        assert_eq!(
+            output,
+            "true\ntrue\n2\ncanary collection lambda context record field passed\n"
         );
     }
 

@@ -1,0 +1,29 @@
+-- Authored regression canary: collection lambdas over List(T) must use the
+-- contextual element type T even when earlier record types share field names.
+
+# ATransition(from_idx: Int, to_idx: Int, prob: Float)
+# AUnits(units: String)
+# SparseTransitionUnits(from_idx: Int, to_idx: Int, units: Int)
+
+> transition_indices_valid(edges: List(SparseTransitionUnits), n: Int) -> Bool {
+    all(edges, |e| e.from_idx >= 0 && e.from_idx < n && e.to_idx >= 0 && e.to_idx < n)
+}
+
+> transition_units_valid(edges: List(SparseTransitionUnits), scale: Int) -> Bool {
+    scale > 0 && all(edges, |e| e.units >= 0 && e.units <= scale)
+}
+
+> outgoing_units(edges: List(SparseTransitionUnits), from_idx: Int) -> Int {
+    foldl(map(filter(edges, |e| e.from_idx == from_idx), |e| e.units), 0, |acc, x| acc + x)
+}
+
+= edges = [
+    SparseTransitionUnits(0, 1, 1),
+    SparseTransitionUnits(0, 2, 1),
+    SparseTransitionUnits(1, 1, 2)
+]
+
+@ print(show(transition_indices_valid(edges, 3)))
+@ print(show(transition_units_valid(edges, 2)))
+@ print(show(outgoing_units(edges, 0)))
+@ print("canary collection lambda context record field passed")
