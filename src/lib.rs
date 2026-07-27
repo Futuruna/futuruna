@@ -11879,6 +11879,22 @@ impl TypeChecker {
         }
     }
 
+    fn collect_declarations_from_imported_file(
+        &mut self,
+        import_stmts: &[Stmt],
+        file_path: &str,
+        fallback_dir: &str,
+    ) {
+        let imported_dir = std::path::Path::new(file_path)
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| fallback_dir.to_string());
+        let previous_dir = self.source_dir.clone();
+        self.source_dir = Some(imported_dir);
+        self.collect_declarations(import_stmts);
+        self.source_dir = previous_dir;
+    }
+
     /// Resolve an import path for the type checker (manifest-aware).
     fn resolve_tc_import(import_path: &str, dir: &str) -> Option<String> {
         let rel = import_path.trim_start_matches("./");
@@ -12103,14 +12119,11 @@ impl TypeChecker {
                                 if let Some(import_stmts) =
                                     self.parse_imported_source_for_tc(path, &file_path)
                                 {
-                                    let imported_dir = std::path::Path::new(&file_path)
-                                        .parent()
-                                        .map(|p| p.to_string_lossy().to_string())
-                                        .unwrap_or(dir);
-                                    let previous_dir = self.source_dir.clone();
-                                    self.source_dir = Some(imported_dir);
-                                    self.collect_declarations(&import_stmts);
-                                    self.source_dir = previous_dir;
+                                    self.collect_declarations_from_imported_file(
+                                        &import_stmts,
+                                        &file_path,
+                                        &dir,
+                                    );
                                 }
                             }
                         }
@@ -12165,7 +12178,9 @@ impl TypeChecker {
                                             ),
                                         );
                                     } else {
-                                        self.collect_declarations(&matched);
+                                        self.collect_declarations_from_imported_file(
+                                            &matched, &file_path, &dir,
+                                        );
                                     }
                                 }
                             }
@@ -13319,6 +13334,54 @@ mod tests {
         assert!(
             diags.is_empty(),
             "expected nested plain import to resolve from imported file dir, got {:?}",
+            diags
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn nested_plain_imports_restore_parent_dir_for_sibling_import() {
+        let temp_name = format!(
+            "futuruna_nested_import_restore_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        let module_dir = temp_dir.join("modules");
+        std::fs::create_dir_all(&module_dir).unwrap();
+
+        std::fs::write(module_dir.join("leaf.runa"), "> leaf() -> Int { 7 }\n").unwrap();
+        std::fs::write(
+            module_dir.join("middle.runa"),
+            "@ import ./leaf\n> middle() -> Int { leaf() }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("root_leaf.runa"),
+            "> root_leaf() -> Int { 11 }\n",
+        )
+        .unwrap();
+
+        let source = "\
+@ import ./modules/middle\n\
+@ import ./root_leaf\n\
+= value = middle() + root_leaf()\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().unwrap();
+        let diags = TypeChecker::check_with_diagnostics(
+            &stmts,
+            Some(temp_dir.to_string_lossy().to_string()),
+            source,
+        );
+        assert!(
+            diags.is_empty(),
+            "expected source_dir to restore before sibling import, got {:?}",
             diags
         );
 

@@ -13349,6 +13349,163 @@ fn format_pat(pat: &Pat) -> String {
 // OWNERSHIP COUNTING FUNCTIONS
 // ============================================================================
 
+enum OwnershipStmtChild<'a> {
+    Expr(&'a Expr),
+    Stmt(&'a Stmt),
+}
+
+fn visit_ownership_relevant_defn_children<'a, F>(defn: &'a Defn, visit: &mut F)
+where
+    F: FnMut(OwnershipStmtChild<'a>),
+{
+    match defn {
+        Defn::Fn { body, .. } => visit(OwnershipStmtChild::Expr(body)),
+        Defn::Actor { handlers, .. } => {
+            for handler in handlers {
+                visit(OwnershipStmtChild::Expr(&handler.body));
+            }
+        }
+        Defn::Module { body, .. } => {
+            for stmt in body {
+                visit(OwnershipStmtChild::Stmt(stmt));
+            }
+        }
+    }
+}
+
+fn visit_ownership_relevant_type_decl_children<'a, F>(decl: &'a TypeDecl, visit: &mut F)
+where
+    F: FnMut(OwnershipStmtChild<'a>),
+{
+    match decl {
+        TypeDecl::ADT { methods, .. } | TypeDecl::ImplBlock { methods, .. } => {
+            for method in methods {
+                visit_ownership_relevant_defn_children(method, visit);
+            }
+        }
+        TypeDecl::WhenType { condition, .. } => visit(OwnershipStmtChild::Expr(condition)),
+        TypeDecl::TraitDecl { methods, .. } => {
+            for method in methods {
+                if let Some(body) = &method.default_body {
+                    visit(OwnershipStmtChild::Expr(body));
+                }
+            }
+        }
+        TypeDecl::EffectDecl { .. } => {}
+    }
+}
+
+fn visit_ownership_relevant_rule_children<'a, F>(rule: &'a Rule, visit: &mut F)
+where
+    F: FnMut(OwnershipStmtChild<'a>),
+{
+    match rule {
+        Rule::Clause { head, body } => {
+            visit(OwnershipStmtChild::Expr(head));
+            if let Some(body) = body {
+                visit(OwnershipStmtChild::Expr(body));
+            }
+        }
+        Rule::Default {
+            head,
+            value,
+            condition,
+            ..
+        }
+        | Rule::Exception {
+            head,
+            value,
+            condition,
+            ..
+        } => {
+            visit(OwnershipStmtChild::Expr(head));
+            visit(OwnershipStmtChild::Expr(value));
+            if let Some(condition) = condition {
+                visit(OwnershipStmtChild::Expr(condition));
+            }
+        }
+        Rule::Scope { body, .. } => {
+            for stmt in body {
+                visit(OwnershipStmtChild::Stmt(stmt));
+            }
+        }
+    }
+}
+
+fn visit_ownership_relevant_stmt_children<'a, F>(stmt: &'a Stmt, visit: &mut F)
+where
+    F: FnMut(OwnershipStmtChild<'a>),
+{
+    match stmt {
+        Stmt::Defn(defn) => visit_ownership_relevant_defn_children(defn, visit),
+        Stmt::TypeDecl(decl) => visit_ownership_relevant_type_decl_children(decl, visit),
+        Stmt::Rule(rule) => visit_ownership_relevant_rule_children(rule, visit),
+        Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+            for arg in args {
+                visit(OwnershipStmtChild::Expr(arg));
+            }
+        }
+        Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr) | Stmt::StreamBind(_, expr) => {
+            visit(OwnershipStmtChild::Expr(expr));
+        }
+        Stmt::For(_, iter_expr, body) => {
+            visit(OwnershipStmtChild::Expr(iter_expr));
+            for stmt in body {
+                visit(OwnershipStmtChild::Stmt(stmt));
+            }
+        }
+        Stmt::While(cond, body) => {
+            visit(OwnershipStmtChild::Expr(cond));
+            for stmt in body {
+                visit(OwnershipStmtChild::Stmt(stmt));
+            }
+        }
+        Stmt::Send(target, msg) => {
+            visit(OwnershipStmtChild::Expr(target));
+            visit(OwnershipStmtChild::Expr(msg));
+        }
+        Stmt::StreamSub(expr, arms) => {
+            visit(OwnershipStmtChild::Expr(expr));
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    visit(OwnershipStmtChild::Expr(guard));
+                }
+                visit(OwnershipStmtChild::Expr(&arm.body));
+            }
+        }
+        Stmt::Invariant {
+            subject, predicate, ..
+        } => {
+            visit(OwnershipStmtChild::Expr(subject));
+            visit(OwnershipStmtChild::Expr(predicate));
+        }
+        Stmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            if let Some(pass_block) = pass_block {
+                for stmt in pass_block {
+                    visit(OwnershipStmtChild::Stmt(stmt));
+                }
+            }
+            if let Some(else_block) = else_block {
+                for stmt in else_block {
+                    visit(OwnershipStmtChild::Stmt(stmt));
+                }
+            }
+        }
+        Stmt::Expr(expr) => visit(OwnershipStmtChild::Expr(expr)),
+        Stmt::Use(_)
+        | Stmt::Import(_)
+        | Stmt::QualifiedImport(_, _)
+        | Stmt::HashImport(_, _)
+        | Stmt::Depend(_, _)
+        | Stmt::RustBlock(_)
+        | Stmt::Abort => {}
+    }
+}
+
 /// Count how many times each variable name appears as ExprKind::Var in an expression tree.
 /// This is the core of escape analysis: single-use variables can be moved, not cloned.
 fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
@@ -13430,68 +13587,10 @@ fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
 }
 
 fn count_var_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
-    match stmt {
-        Stmt::Bind(_, _, expr) | Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => {
-            count_var_uses(expr, counts)
-        }
-        Stmt::Defn(defn) => match defn {
-            Defn::Fn { body, .. } => count_var_uses(body, counts),
-            _ => {}
-        },
-        Stmt::Annot(_, args) => {
-            for a in args {
-                count_var_uses(a, counts);
-            }
-        }
-        Stmt::For(_, iter_expr, body) => {
-            count_var_uses(iter_expr, counts);
-            for s in body {
-                count_var_uses_stmt(s, counts);
-            }
-        }
-        Stmt::Send(target, msg) => {
-            count_var_uses(target, counts);
-            count_var_uses(msg, counts);
-        }
-        Stmt::StreamBind(_, expr) => count_var_uses(expr, counts),
-        Stmt::StreamSub(expr, arms) => {
-            count_var_uses(expr, counts);
-            for arm in arms {
-                if let Some(g) = &arm.guard {
-                    count_var_uses(g, counts);
-                }
-                count_var_uses(&arm.body, counts);
-            }
-        }
-        Stmt::Invariant {
-            subject, predicate, ..
-        } => {
-            count_var_uses(subject, counts);
-            count_var_uses(predicate, counts);
-        }
-        Stmt::Prove {
-            pass_block,
-            else_block,
-            ..
-        } => {
-            if let Some(pass_block) = pass_block {
-                for s in pass_block {
-                    count_var_uses_stmt(s, counts);
-                }
-            }
-            if let Some(else_block) = else_block {
-                for s in else_block {
-                    count_var_uses_stmt(s, counts);
-                }
-            }
-        }
-        Stmt::Rule(Rule::Scope { body, .. }) => {
-            for s in body {
-                count_var_uses_stmt(s, counts);
-            }
-        }
-        _ => {}
-    }
+    visit_ownership_relevant_stmt_children(stmt, &mut |child| match child {
+        OwnershipStmtChild::Expr(expr) => count_var_uses(expr, counts),
+        OwnershipStmtChild::Stmt(stmt) => count_var_uses_stmt(stmt, counts),
+    });
 }
 
 /// Count only CONSUMING uses of variables — places where ownership is required.
@@ -13584,69 +13683,16 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
 }
 
 fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
-    match stmt {
-        Stmt::Bind(_, _, expr) => {
-            // Binding a variable to another variable is a consuming use (move)
-            if let ExprKind::Var(name) = &expr.kind {
-                *counts.entry(name.clone()).or_insert(0) += 1;
-            }
-            count_consuming_uses(expr, counts);
+    if let Stmt::Bind(_, _, expr) = stmt {
+        // Binding a variable to another variable is a consuming use (move).
+        if let ExprKind::Var(name) = &expr.kind {
+            *counts.entry(name.clone()).or_insert(0) += 1;
         }
-        Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => count_consuming_uses(expr, counts),
-        Stmt::Defn(defn) => {
-            if let Defn::Fn { body, .. } = defn {
-                count_consuming_uses(body, counts);
-            }
-        }
-        Stmt::Annot(_, args) => {
-            for a in args {
-                count_consuming_uses(a, counts);
-            }
-        }
-        Stmt::For(_, iter_expr, body) => {
-            count_consuming_uses(iter_expr, counts);
-            for s in body {
-                count_consuming_uses_stmt(s, counts);
-            }
-        }
-        Stmt::Send(target, msg) => {
-            count_consuming_uses(target, counts);
-            count_consuming_uses(msg, counts);
-        }
-        Stmt::StreamBind(_, expr) => count_consuming_uses(expr, counts),
-        Stmt::StreamSub(expr, arms) => {
-            count_consuming_uses(expr, counts);
-            for arm in arms {
-                if let Some(g) = &arm.guard {
-                    count_consuming_uses(g, counts);
-                }
-                count_consuming_uses(&arm.body, counts);
-            }
-        }
-        Stmt::Invariant {
-            subject, predicate, ..
-        } => {
-            count_consuming_uses(subject, counts);
-            count_consuming_uses(predicate, counts);
-        }
-        Stmt::Prove {
-            pass_block,
-            else_block,
-            ..
-        } => {
-            if let Some(pass_block) = pass_block {
-                for s in pass_block {
-                    count_consuming_uses_stmt(s, counts);
-                }
-            }
-            if let Some(else_block) = else_block {
-                for s in else_block {
-                    count_consuming_uses_stmt(s, counts);
-                }
-            }
-        }
-        _ => {}
     }
+    visit_ownership_relevant_stmt_children(stmt, &mut |child| match child {
+        OwnershipStmtChild::Expr(expr) => count_consuming_uses(expr, counts),
+        OwnershipStmtChild::Stmt(stmt) => count_consuming_uses_stmt(stmt, counts),
+    });
 }
 
 fn builtin_arg_is_borrow_only(name: &str, arg_index: usize) -> bool {
@@ -14056,93 +14102,13 @@ fn count_consuming_uses_borrow_aware_stmt_impl(
     self_param_names: &[&str],
     ignore_self_passthrough: bool,
 ) {
-    match stmt {
-        Stmt::Bind(_, _, expr) => {
-            if let ExprKind::Var(name) = &expr.kind {
-                *counts.entry(name.clone()).or_insert(0) += 1;
-            }
-            count_consuming_uses_borrow_aware_impl(
-                expr,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-                ignore_self_passthrough,
-            );
+    if let Stmt::Bind(_, _, expr) = stmt {
+        if let ExprKind::Var(name) = &expr.kind {
+            *counts.entry(name.clone()).or_insert(0) += 1;
         }
-        Stmt::Expr(expr) | Stmt::MonadicBind(_, _, expr) => {
-            count_consuming_uses_borrow_aware_impl(
-                expr,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-                ignore_self_passthrough,
-            );
-        }
-        Stmt::Defn(defn) => {
-            if let Defn::Fn { body, .. } = defn {
-                count_consuming_uses_borrow_aware_impl(
-                    body,
-                    counts,
-                    known_borrow_fns,
-                    self_fn_name,
-                    self_param_names,
-                    ignore_self_passthrough,
-                );
-            }
-        }
-        Stmt::Annot(_, args) => {
-            for a in args {
-                count_consuming_uses_borrow_aware_impl(
-                    a,
-                    counts,
-                    known_borrow_fns,
-                    self_fn_name,
-                    self_param_names,
-                    ignore_self_passthrough,
-                );
-            }
-        }
-        Stmt::For(_, iter_expr, body) => {
-            count_consuming_uses_borrow_aware_impl(
-                iter_expr,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-                ignore_self_passthrough,
-            );
-            for s in body {
-                count_consuming_uses_borrow_aware_stmt_impl(
-                    s,
-                    counts,
-                    known_borrow_fns,
-                    self_fn_name,
-                    self_param_names,
-                    ignore_self_passthrough,
-                );
-            }
-        }
-        Stmt::Send(target, msg) => {
-            count_consuming_uses_borrow_aware_impl(
-                target,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-                ignore_self_passthrough,
-            );
-            count_consuming_uses_borrow_aware_impl(
-                msg,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-                ignore_self_passthrough,
-            );
-        }
-        Stmt::StreamBind(_, expr) => count_consuming_uses_borrow_aware_impl(
+    }
+    visit_ownership_relevant_stmt_children(stmt, &mut |child| match child {
+        OwnershipStmtChild::Expr(expr) => count_consuming_uses_borrow_aware_impl(
             expr,
             counts,
             known_borrow_fns,
@@ -14150,100 +14116,15 @@ fn count_consuming_uses_borrow_aware_stmt_impl(
             self_param_names,
             ignore_self_passthrough,
         ),
-        Stmt::StreamSub(expr, arms) => {
-            count_consuming_uses_borrow_aware_impl(
-                expr,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-                ignore_self_passthrough,
-            );
-            for arm in arms {
-                if let Some(g) = &arm.guard {
-                    count_consuming_uses_borrow_aware_impl(
-                        g,
-                        counts,
-                        known_borrow_fns,
-                        self_fn_name,
-                        self_param_names,
-                        ignore_self_passthrough,
-                    );
-                }
-                count_consuming_uses_borrow_aware_impl(
-                    &arm.body,
-                    counts,
-                    known_borrow_fns,
-                    self_fn_name,
-                    self_param_names,
-                    ignore_self_passthrough,
-                );
-            }
-        }
-        Stmt::Invariant {
-            subject, predicate, ..
-        } => {
-            count_consuming_uses_borrow_aware_impl(
-                subject,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-                ignore_self_passthrough,
-            );
-            count_consuming_uses_borrow_aware_impl(
-                predicate,
-                counts,
-                known_borrow_fns,
-                self_fn_name,
-                self_param_names,
-                ignore_self_passthrough,
-            );
-        }
-        Stmt::Prove {
-            pass_block,
-            else_block,
-            ..
-        } => {
-            if let Some(pass_block) = pass_block {
-                for s in pass_block {
-                    count_consuming_uses_borrow_aware_stmt_impl(
-                        s,
-                        counts,
-                        known_borrow_fns,
-                        self_fn_name,
-                        self_param_names,
-                        ignore_self_passthrough,
-                    );
-                }
-            }
-            if let Some(else_block) = else_block {
-                for s in else_block {
-                    count_consuming_uses_borrow_aware_stmt_impl(
-                        s,
-                        counts,
-                        known_borrow_fns,
-                        self_fn_name,
-                        self_param_names,
-                        ignore_self_passthrough,
-                    );
-                }
-            }
-        }
-        Stmt::Rule(Rule::Scope { body, .. }) => {
-            for s in body {
-                count_consuming_uses_borrow_aware_stmt_impl(
-                    s,
-                    counts,
-                    known_borrow_fns,
-                    self_fn_name,
-                    self_param_names,
-                    ignore_self_passthrough,
-                );
-            }
-        }
-        _ => {}
-    }
+        OwnershipStmtChild::Stmt(stmt) => count_consuming_uses_borrow_aware_stmt_impl(
+            stmt,
+            counts,
+            known_borrow_fns,
+            self_fn_name,
+            self_param_names,
+            ignore_self_passthrough,
+        ),
+    });
 }
 
 fn count_consuming_uses_borrow_aware_stmt(
@@ -35654,6 +35535,202 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 >= 2,
             "invariant predicate should force clone before constructor move"
         );
+    }
+
+    #[test]
+    fn ownership_stmt_traversal_counts_expression_bearing_children() {
+        fn param(name: &str) -> Param {
+            Param {
+                name: name.to_string(),
+                ty: None,
+                inout: false,
+            }
+        }
+
+        fn owned_expr(name: &str) -> Expr {
+            ExprKind::App(
+                Box::new(ExprKind::Var("consume".to_string()).into()),
+                vec![ExprKind::Var(name.to_string()).into()],
+            )
+            .into()
+        }
+
+        fn expr_stmt(name: &str) -> Stmt {
+            Stmt::Expr(owned_expr(name))
+        }
+
+        let stmts = vec![
+            Stmt::Defn(Defn::Fn {
+                name: "fn_visit".to_string(),
+                params: vec![],
+                ret_ty: None,
+                effects: vec![],
+                body: owned_expr("fn_body"),
+            }),
+            Stmt::Defn(Defn::Actor {
+                name: "ActorVisit".to_string(),
+                state_param: param("state"),
+                handlers: vec![Handler {
+                    msg_pat: Pat::Wild,
+                    body: owned_expr("actor_body"),
+                }],
+            }),
+            Stmt::Defn(Defn::Module {
+                name: "ModuleVisit".to_string(),
+                body: vec![expr_stmt("module_body")],
+            }),
+            Stmt::TypeDecl(TypeDecl::ADT {
+                name: "MethodCarrier".to_string(),
+                params: vec![],
+                variants: vec![],
+                methods: vec![Defn::Fn {
+                    name: "method_visit".to_string(),
+                    params: vec![],
+                    ret_ty: None,
+                    effects: vec![],
+                    body: owned_expr("adt_method_body"),
+                }],
+                except_from: None,
+            }),
+            Stmt::TypeDecl(TypeDecl::WhenType {
+                name: "WhenCarrier".to_string(),
+                condition: owned_expr("when_condition"),
+                variants: vec![],
+                except_from: None,
+            }),
+            Stmt::TypeDecl(TypeDecl::TraitDecl {
+                name: "TraitVisit".to_string(),
+                params: vec![],
+                methods: vec![TraitMethod {
+                    name: "default_visit".to_string(),
+                    params: vec![],
+                    ret_ty: None,
+                    default_body: Some(owned_expr("trait_default_body")),
+                }],
+            }),
+            Stmt::TypeDecl(TypeDecl::ImplBlock {
+                trait_name: "TraitVisit".to_string(),
+                for_type: "MethodCarrier".to_string(),
+                methods: vec![Defn::Fn {
+                    name: "impl_visit".to_string(),
+                    params: vec![],
+                    ret_ty: None,
+                    effects: vec![],
+                    body: owned_expr("impl_body"),
+                }],
+            }),
+            Stmt::Rule(Rule::Clause {
+                head: owned_expr("rule_head"),
+                body: Some(owned_expr("rule_body")),
+            }),
+            Stmt::Rule(Rule::Default {
+                head: owned_expr("default_head"),
+                value: owned_expr("default_value"),
+                condition: Some(owned_expr("default_condition")),
+            }),
+            Stmt::Rule(Rule::Exception {
+                label: "exception_visit".to_string(),
+                head: owned_expr("exception_head"),
+                value: owned_expr("exception_value"),
+                condition: Some(owned_expr("exception_condition")),
+            }),
+            Stmt::Rule(Rule::Scope {
+                name: "ScopeVisit".to_string(),
+                body: vec![expr_stmt("scope_body")],
+            }),
+            Stmt::Annot("audit".to_string(), vec![owned_expr("annot_arg")]),
+            Stmt::Bind(Pat::Var("bound".to_string()), None, owned_expr("bind_rhs")),
+            Stmt::MonadicBind(
+                Pat::Var("monadic".to_string()),
+                None,
+                owned_expr("monadic_rhs"),
+            ),
+            Stmt::For(
+                "item".to_string(),
+                owned_expr("for_iter"),
+                vec![expr_stmt("for_body")],
+            ),
+            Stmt::While(owned_expr("while_cond"), vec![expr_stmt("while_body")]),
+            Stmt::Send(owned_expr("send_target"), owned_expr("send_msg")),
+            Stmt::StreamBind("stream_visit".to_string(), owned_expr("stream_rhs")),
+            Stmt::StreamSub(
+                owned_expr("stream_sub_expr"),
+                vec![MatchArm {
+                    pat: Pat::Wild,
+                    guard: Some(owned_expr("stream_sub_guard")),
+                    body: owned_expr("stream_sub_body"),
+                }],
+            ),
+            Stmt::Invariant {
+                name: "invariant_visit".to_string(),
+                subject: owned_expr("invariant_subject"),
+                predicate: owned_expr("invariant_predicate"),
+            },
+            Stmt::Prove {
+                name: "prove_visit".to_string(),
+                proof_block: None,
+                capture: None,
+                pass_block: Some(vec![expr_stmt("prove_pass")]),
+                else_block: Some(vec![expr_stmt("prove_else")]),
+            },
+            Stmt::Assert("Fact".to_string(), vec![owned_expr("assert_arg")]),
+            Stmt::Retract("Fact".to_string(), vec![owned_expr("retract_arg")]),
+            expr_stmt("expr_stmt"),
+        ];
+
+        let stmt_refs: Vec<&Stmt> = stmts.iter().collect();
+        let analysis = OwnershipAnalysis::analyze_stmt_refs(&stmt_refs, &BTreeMap::new());
+        let expected = [
+            "fn_body",
+            "actor_body",
+            "module_body",
+            "adt_method_body",
+            "when_condition",
+            "trait_default_body",
+            "impl_body",
+            "rule_head",
+            "rule_body",
+            "default_head",
+            "default_value",
+            "default_condition",
+            "exception_head",
+            "exception_value",
+            "exception_condition",
+            "scope_body",
+            "annot_arg",
+            "bind_rhs",
+            "monadic_rhs",
+            "for_iter",
+            "for_body",
+            "while_cond",
+            "while_body",
+            "send_target",
+            "send_msg",
+            "stream_rhs",
+            "stream_sub_expr",
+            "stream_sub_guard",
+            "stream_sub_body",
+            "invariant_subject",
+            "invariant_predicate",
+            "prove_pass",
+            "prove_else",
+            "assert_arg",
+            "retract_arg",
+            "expr_stmt",
+        ];
+
+        for name in expected {
+            assert!(
+                analysis.var_uses.get(name).copied().unwrap_or(0) >= 1,
+                "var-use traversal missed `{}`",
+                name
+            );
+            assert!(
+                analysis.consuming_uses.get(name).copied().unwrap_or(0) >= 1,
+                "consuming-use traversal missed `{}`",
+                name
+            );
+        }
     }
 
     // ── Lowering tests ──────────────────────────────────────────────
