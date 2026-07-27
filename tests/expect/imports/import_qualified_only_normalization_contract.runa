@@ -1,0 +1,16 @@
+-- expect-command: emit-imports
+-- expect-status: pass
+-- expect-stdout: root-exports: -
+-- expect-stdout: root-constructors: -
+-- expect-stdout: module-exports Alpha: Color, exported_count, exported_label
+-- expect-stdout: module-constructors Alpha: Green, Red
+-- expect-stdout-not: hidden_label
+-- expect-stdout-not: hidden_count
+-- expect-stdout-not: Hidden
+-- expect-stdout-not: script-only noise
+
+@ import Alpha from ./import_normalization_lib
+
+= alpha_label = Alpha.exported_label("alpha")
+= alpha_count = Alpha.exported_count
+= alpha_color = Alpha.Green

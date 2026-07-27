@@ -14,7 +14,7 @@ is expected:
 
 Supported directives:
 
-- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|verify|lint-library|lint-library-imports`
+- `-- expect-command: check|run|interp|emit-rust|emit-lib|emit-fir|emit-imports|verify|lint-library|lint-library-imports`
 - `-- expect-status: pass|fail`
 - `-- expect-stdout: text that must appear on stdout`
 - `-- expect-stderr: text that must appear on stderr`
@@ -32,5 +32,7 @@ stable full snapshot and a few high-signal markers.
 Use this suite for minimized compiler-facing contracts: diagnostics,
 pass-specific output, artifact snapshots, and run/fail behavior. Artifact
 contracts live under `artifact/` with golden files under `golden/artifact/`.
-Use `tests/canary/` for realistic multi-subsystem workflows and
-`tests/downstream/` for library-consumer contracts.
+The `emit-imports` command snapshots the normalized public import/export graph
+for import-boundary translation checks. Use `tests/canary/` for realistic
+multi-subsystem workflows and `tests/downstream/` for library-consumer
+contracts.

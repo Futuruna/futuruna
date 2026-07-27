@@ -22,6 +22,17 @@ For a consumer surface, also check the actual import graph:
 runa lint-library --imports tests/downstream
 ```
 
+For a compiler-facing snapshot of the public import/export boundary, use:
+
+```bash
+runa emit --imports path/to/consumer.runa
+```
+
+That report is intentionally narrow: it lists the normalized public export sets
+and ADT constructors for flat and qualified imports. The exact expectation
+`tests/expect/imports/import_normalization_contract.runa` keeps mixed
+plain-plus-qualified imports and multiple aliases from regressing.
+
 ## Marker
 
 Mark importable library files with:

@@ -42,6 +42,7 @@ fn main_inner() {
     let mut verify_mode = false; // --verify flag for `runa from-rust --verify`
     let mut fmt_check = false; // --check flag for `runa fmt --check`
     let mut use_fir = false; // --fir flag for `runa emit --fir`
+    let mut emit_imports = false; // --imports flag for `runa emit --imports`
     let mut check_codegen = false; // --check-codegen flag for `runa test --check-codegen`
     let mut lint_import_graph = false; // --imports flag for `runa lint-library`
     let mut stress_seed = None;
@@ -80,6 +81,10 @@ fn main_inner() {
             }
             "--fir" if mode == "emit" => {
                 use_fir = true;
+                i += 1;
+            }
+            "--imports" if mode == "emit" => {
+                emit_imports = true;
                 i += 1;
             }
             "--check-codegen" if mode == "test" => {
@@ -165,6 +170,7 @@ fn main_inner() {
                 eprintln!("  init [name]   Create a new project with runa.toml");
                 eprintln!("  add <path>    Add a local dependency to runa.toml");
                 eprintln!("  emit          Print generated Rust to stdout");
+                eprintln!("  emit --imports  Print normalized public import/export graph");
                 eprintln!("  build         Compile to native binary");
                 eprintln!("  run           Compile and execute");
                 eprintln!("  lib           Emit Rust library source (no main)");
@@ -207,6 +213,7 @@ fn main_inner() {
                 eprintln!("  runa run program.runa       Compile + execute");
                 eprintln!("  runa check program.runa     Type-check without running");
                 eprintln!("  runa emit program.runa      Show Rust output");
+                eprintln!("  runa emit --imports program.runa  Show public import/export graph");
                 eprintln!("  runa build program.runa     Compile to ./program");
                 eprintln!("  runa fmt program.runa       Format source file");
                 eprintln!("  runa fmt .                  Format all .runa files");
@@ -456,6 +463,9 @@ fn main_inner() {
     if let Some(ref path) = filename {
         match std::fs::read_to_string(path) {
             Ok(source) => match mode {
+                "emit" if emit_imports => {
+                    emit_import_normalization_source(&source, path, use_prelude)
+                }
                 "emit" if use_fir => emit_rust_source_fir(&source, path, use_prelude),
                 "emit" => emit_rust_source(&source, path, use_prelude),
                 "build" => build_native(&source, path, false, use_prelude),
@@ -1612,6 +1622,7 @@ enum ExpectCommand {
     EmitRust,
     EmitLib,
     EmitFir,
+    EmitImports,
     Verify,
     LintLibrary,
     LintLibraryImports,
@@ -1626,11 +1637,12 @@ impl ExpectCommand {
             "emit" | "emit-rust" => Ok(Self::EmitRust),
             "emit-lib" | "lib" => Ok(Self::EmitLib),
             "emit-fir" | "fir" => Ok(Self::EmitFir),
+            "emit-imports" | "imports" => Ok(Self::EmitImports),
             "verify" => Ok(Self::Verify),
             "lint-library" => Ok(Self::LintLibrary),
             "lint-library-imports" => Ok(Self::LintLibraryImports),
             other => Err(format!(
-                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, verify, lint-library, or lint-library-imports",
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, verify, lint-library, or lint-library-imports",
                 other
             )),
         }
@@ -1644,6 +1656,7 @@ impl ExpectCommand {
             Self::EmitRust => "emit-rust",
             Self::EmitLib => "emit-lib",
             Self::EmitFir => "emit-fir",
+            Self::EmitImports => "emit-imports",
             Self::Verify => "verify",
             Self::LintLibrary => "lint-library",
             Self::LintLibraryImports => "lint-library-imports",
@@ -1669,6 +1682,9 @@ impl ExpectCommand {
             }
             Self::EmitFir => {
                 cmd.arg("emit").arg("--fir").arg(file);
+            }
+            Self::EmitImports => {
+                cmd.arg("emit").arg("--imports").arg(file);
             }
             Self::Verify => {
                 cmd.arg("verify").arg(file);
@@ -8340,6 +8356,115 @@ fn emit_rust_source_fir(source: &str, filename: &str, use_prelude: bool) {
     }
 }
 
+fn join_public_names(names: &BTreeSet<String>) -> String {
+    if names.is_empty() {
+        "-".to_string()
+    } else {
+        names.iter().cloned().collect::<Vec<_>>().join(", ")
+    }
+}
+
+fn public_adt_constructor_names(
+    stmts: &[Stmt],
+    exported_names: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    let mut constructors = BTreeSet::new();
+    for stmt in stmts {
+        if let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = stmt {
+            if exported_names.contains(name) {
+                for variant in variants {
+                    constructors.insert(variant.name.clone());
+                }
+            }
+        }
+    }
+    constructors
+}
+
+fn module_body_for<'a>(stmts: &'a [Stmt], module_name: &str) -> Option<&'a [Stmt]> {
+    stmts.iter().find_map(|stmt| match stmt {
+        Stmt::Defn(Defn::Module { name, body }) if name == module_name => Some(body.as_slice()),
+        _ => None,
+    })
+}
+
+fn render_import_normalization_contract(
+    filename: &str,
+    cg: &RustCodegen,
+    normalized_stmts: &[Stmt],
+) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("import-normalization: {}\n", filename));
+    out.push_str(&format!(
+        "root-exports: {}\n",
+        join_public_names(&cg.types.root_exported_names)
+    ));
+    let root_constructors =
+        public_adt_constructor_names(normalized_stmts, &cg.types.root_exported_names);
+    out.push_str(&format!(
+        "root-constructors: {}\n",
+        join_public_names(&root_constructors)
+    ));
+
+    for (module, exports) in &cg.types.module_exports {
+        out.push_str(&format!(
+            "module-exports {}: {}\n",
+            module,
+            join_public_names(exports)
+        ));
+        let constructors = module_body_for(normalized_stmts, module)
+            .map(|body| public_adt_constructor_names(body, exports))
+            .unwrap_or_default();
+        out.push_str(&format!(
+            "module-constructors {}: {}\n",
+            module,
+            join_public_names(&constructors)
+        ));
+    }
+
+    out
+}
+
+fn emit_import_normalization_source(source: &str, filename: &str, use_prelude: bool) {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    match parser.parse_program() {
+        Ok(user_stmts) => {
+            let stmts = if use_prelude {
+                prepend_prelude(parse_prelude(), &user_stmts)
+            } else {
+                user_stmts
+            };
+
+            if run_type_check(&stmts, source, filename) {
+                std::process::exit(1);
+            }
+
+            let mut cg = RustCodegen::new();
+            if let Some(parent) = std::path::Path::new(filename).parent() {
+                cg.source_dir = Some(parent.to_string_lossy().to_string());
+            }
+            cg.source_name = std::path::Path::new(filename)
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string());
+            let normalized_stmts = cg.scan_declarations(&stmts);
+            print!(
+                "{}",
+                render_import_normalization_contract(filename, &cg, &normalized_stmts)
+            );
+            eprintln!(
+                "// runa emit --imports: {} — public import/export graph",
+                filename
+            );
+        }
+        Err(e) => {
+            display_error_in(source, &e, filename);
+            std::process::exit(1);
+        }
+    }
+}
+
 fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
@@ -11213,6 +11338,9 @@ struct TypeRegistry {
     fn_types: BTreeMap<String, FirTy>,
     /// Names marked with `@ export` — emitted as `pub` in Rust
     exported_names: BTreeSet<String>,
+    /// Names exported from the root module after flat imports and local exports.
+    /// Qualified-import member exports stay in `module_exports`.
+    root_exported_names: BTreeSet<String>,
     /// Module names from imports and inline modules
     known_modules: BTreeSet<String>,
     /// Qualified-import module name -> exported member names.
@@ -11267,6 +11395,7 @@ impl TypeRegistry {
             user_functions: BTreeSet::new(),
             fn_types: BTreeMap::new(),
             exported_names: BTreeSet::new(),
+            root_exported_names: BTreeSet::new(),
             known_modules: BTreeSet::new(),
             module_exports: BTreeMap::new(),
             module_value_bindings: BTreeMap::new(),
@@ -16179,6 +16308,105 @@ impl RustCodegen {
         (Self::parse_tau_file(&file_path), resolved_dir)
     }
 
+    /// Resolve and parse an imported module without using the global flattening
+    /// cache. Qualified imports need a fresh module body per alias even when the
+    /// same file was already flattened by a plain import.
+    fn resolve_import_from_dir_uncached(
+        &self,
+        import_path: &str,
+        dir: &str,
+        seen: &mut BTreeSet<String>,
+    ) -> (Vec<Stmt>, String) {
+        let rel = import_path.trim_start_matches("./");
+        let file_path = format!("{}/{}.runa", dir, rel);
+
+        if import_path.starts_with("./")
+            || import_path.starts_with("../")
+            || std::path::Path::new(&file_path).exists()
+        {
+            let canon = std::fs::canonicalize(&file_path)
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or(file_path.clone());
+            if !seen.insert(canon) {
+                return (Vec::new(), dir.to_string());
+            }
+            let resolved_dir = std::path::Path::new(&file_path)
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| dir.to_string());
+            return (Self::parse_tau_file(&file_path), resolved_dir);
+        }
+
+        if let Some(toml_path) = find_runa_toml(&dir) {
+            if let Some(manifest) = parse_runa_toml(&toml_path) {
+                let toml_dir = std::path::Path::new(&toml_path)
+                    .parent()
+                    .map(|p| {
+                        let s = p.to_string_lossy().to_string();
+                        if s.is_empty() {
+                            ".".to_string()
+                        } else {
+                            s
+                        }
+                    })
+                    .unwrap_or_else(|| ".".to_string());
+
+                let parts: Vec<&str> = import_path.splitn(2, '/').collect();
+                let dep_name = parts[0];
+                let module = if parts.len() > 1 { parts[1] } else { "lib" };
+
+                for (name, dep_spec) in &manifest.dependencies {
+                    if name == dep_name {
+                        let abs_dep = match resolve_dep_to_path(dep_spec, &toml_dir) {
+                            Some(p) => p,
+                            None => return (Vec::new(), dir.to_string()),
+                        };
+                        let dep_file = format!("{}/{}.runa", abs_dep, module);
+                        let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
+
+                        let resolved = if std::path::Path::new(&dep_file).exists() {
+                            dep_file
+                        } else if std::path::Path::new(&dep_file_src).exists() {
+                            dep_file_src
+                        } else {
+                            eprintln!(
+                                "\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'",
+                                module, dep_name
+                            );
+                            eprintln!("  Searched: {}", dep_file);
+                            eprintln!("  Searched: {}", dep_file_src);
+                            return (Vec::new(), dir.to_string());
+                        };
+
+                        let canon = std::fs::canonicalize(&resolved)
+                            .map(|p| p.to_string_lossy().to_string())
+                            .unwrap_or(resolved.clone());
+                        if !seen.insert(canon) {
+                            return (Vec::new(), dir.to_string());
+                        }
+                        let resolved_dir = std::path::Path::new(&resolved)
+                            .parent()
+                            .map(|p| p.to_string_lossy().to_string())
+                            .unwrap_or_else(|| dir.to_string());
+                        return (Self::parse_tau_file(&resolved), resolved_dir);
+                    }
+                }
+            }
+        }
+
+        let canon = std::fs::canonicalize(&file_path)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or(file_path.clone());
+        if !seen.insert(canon) {
+            return (Vec::new(), dir.to_string());
+        }
+        let resolved_dir = std::path::Path::new(&file_path)
+            .parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| dir.to_string());
+        (Self::parse_tau_file(&file_path), resolved_dir)
+    }
+
     /// Parse a .runa file without import-cycle tracking (for hash imports).
     fn parse_tau_file(file_path: &str) -> Vec<Stmt> {
         match std::fs::read_to_string(file_path) {
@@ -16790,9 +17018,11 @@ impl RustCodegen {
         import_dir: &str,
         out: &mut Vec<Stmt>,
     ) {
+        let imported_exports = self.collect_exported_names_from_stmts(&imported);
         self.types
-            .exported_names
-            .extend(self.collect_exported_names_from_stmts(&imported));
+            .root_exported_names
+            .extend(imported_exports.iter().cloned());
+        self.types.exported_names.extend(imported_exports);
         for stmt in imported {
             match stmt {
                 Stmt::Import(path) => {
@@ -16826,17 +17056,19 @@ impl RustCodegen {
         imported: Vec<Stmt>,
         import_dir: &str,
         body: &mut Vec<Stmt>,
+        seen: &mut BTreeSet<String>,
     ) {
         for stmt in imported {
             match stmt {
                 Stmt::Import(path) => {
-                    let (nested, nested_dir) = self.resolve_import_from_dir(&path, import_dir);
-                    self.expand_module_import_body(nested, &nested_dir, body);
+                    let (nested, nested_dir) =
+                        self.resolve_import_from_dir_uncached(&path, import_dir, seen);
+                    self.expand_module_import_body(nested, &nested_dir, body, seen);
                 }
                 Stmt::QualifiedImport(mod_name, path) => {
-                    body.push(
-                        self.build_qualified_import_module_stmt(&mod_name, &path, import_dir),
-                    );
+                    body.push(self.build_qualified_import_module_stmt_with_seen(
+                        &mod_name, &path, import_dir, seen,
+                    ));
                 }
                 Stmt::HashImport(hash, path) => {
                     body.extend(self.resolve_hash_import(&hash, &path));
@@ -16862,7 +17094,19 @@ impl RustCodegen {
         path: &str,
         import_dir: &str,
     ) -> Stmt {
-        let (imported, resolved_dir) = self.resolve_import_from_dir(path, import_dir);
+        let mut seen = BTreeSet::new();
+        self.build_qualified_import_module_stmt_with_seen(mod_name, path, import_dir, &mut seen)
+    }
+
+    fn build_qualified_import_module_stmt_with_seen(
+        &mut self,
+        mod_name: &str,
+        path: &str,
+        import_dir: &str,
+        seen: &mut BTreeSet<String>,
+    ) -> Stmt {
+        let (imported, resolved_dir) =
+            self.resolve_import_from_dir_uncached(path, import_dir, seen);
         let mod_exported = self.collect_exported_names_from_stmts(&imported);
         for name in &mod_exported {
             self.types.exported_names.insert(name.clone());
@@ -16871,7 +17115,7 @@ impl RustCodegen {
             .module_exports
             .insert(mod_name.to_string(), mod_exported);
         let mut mod_body = Vec::new();
-        self.expand_module_import_body(imported, &resolved_dir, &mut mod_body);
+        self.expand_module_import_body(imported, &resolved_dir, &mut mod_body, seen);
         self.types.known_modules.insert(mod_name.to_string());
         Stmt::Defn(Defn::Module {
             name: mod_name.to_string(),
@@ -16885,6 +17129,7 @@ impl RustCodegen {
     fn scan_declarations(&mut self, stmts: &[Stmt]) -> Vec<Stmt> {
         // Resolve @ import statements: parse imported .runa files and merge their definitions
         self.types.module_exports.clear();
+        self.types.root_exported_names.clear();
         let mut all_stmts: Vec<Stmt> = Vec::new();
         let root_dir = self.source_dir.clone().unwrap_or_default();
         for stmt in stmts {
@@ -16975,6 +17220,7 @@ impl RustCodegen {
                             for arg in args {
                                 if let ExprKind::Var(n) = &arg.kind {
                                     self.types.exported_names.insert(n.clone());
+                                    self.types.root_exported_names.insert(n.clone());
                                 }
                             }
                             continue;
@@ -16988,18 +17234,23 @@ impl RustCodegen {
                     match stmt {
                         Stmt::Defn(Defn::Fn { name, .. }) => {
                             self.types.exported_names.insert(name.clone());
+                            self.types.root_exported_names.insert(name.clone());
                         }
                         Stmt::Defn(Defn::Actor { name, .. }) => {
                             self.types.exported_names.insert(name.clone());
+                            self.types.root_exported_names.insert(name.clone());
                         }
                         Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
                             self.types.exported_names.insert(name.clone());
+                            self.types.root_exported_names.insert(name.clone());
                         }
                         Stmt::Bind(Pat::Var(name), _, _) => {
                             self.types.exported_names.insert(name.clone());
+                            self.types.root_exported_names.insert(name.clone());
                         }
                         Stmt::StreamBind(name, _) => {
                             self.types.exported_names.insert(name.clone());
+                            self.types.root_exported_names.insert(name.clone());
                         }
                         _ => {}
                     }
@@ -24933,36 +25184,6 @@ impl RustCodegen {
                 }
                 self.indent = 0;
                 out.push_str("}\n");
-                // Re-export enum variants so Module::Variant works
-                for stmt in body {
-                    if let Stmt::TypeDecl(TypeDecl::ADT {
-                        name: ty_name,
-                        variants,
-                        ..
-                    }) = stmt
-                    {
-                        if module_exports
-                            .as_ref()
-                            .map_or(false, |exports| !exports.contains(ty_name.as_str()))
-                        {
-                            continue;
-                        }
-                        if variants.len() > 1
-                            || (variants.len() == 1 && variants[0].name != *ty_name)
-                        {
-                            let sname = sanitize_name(name);
-                            let rty = self.rust_type_name(ty_name);
-                            let vnames: Vec<String> =
-                                variants.iter().map(|v| v.name.clone()).collect();
-                            out.push_str(&format!(
-                                "#[allow(unused_imports)]\nuse {}::{}::{{{}}};\n",
-                                sname,
-                                rty,
-                                vnames.join(", ")
-                            ));
-                        }
-                    }
-                }
                 self.lib_static_names = saved_lib_static_names;
                 self.allow_global_getter_refs = saved_allow_global_getter_refs;
                 self.sync_subject_vars = saved_sync_subject_vars;

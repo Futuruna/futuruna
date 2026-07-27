@@ -1,0 +1,24 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: ok:flat
+-- expect-stdout: ok:alpha
+-- expect-stdout: 2
+-- expect-stdout: Red
+-- expect-stdout: Green
+-- expect-stdout-not: script-only noise
+
+@ import ./import_normalization_lib
+@ import Alpha from ./import_normalization_lib
+@ import Beta from ./import_normalization_lib
+
+= flat_label = exported_label("flat")
+= alpha_label = Alpha.exported_label("alpha")
+= beta_count = Beta.exported_count
+= flat_color = Red
+= alpha_color = Alpha.Green
+
+@ print(flat_label)
+@ print(alpha_label)
+@ print(show(beta_count))
+@ print(show(flat_color))
+@ print(show(alpha_color))

@@ -56,7 +56,8 @@ This is the first slice that directly shrinks the trusted proof boundary.
 
 ### 2. Import normalization and library boundary preservation
 
-Current status: partially guarded by snapshots and downstream canaries.
+Current status: guarded by downstream canaries plus an exact `emit-imports`
+normalization expectation for the flat/qualified local import boundary.
 
 Why it matters:
 
@@ -67,10 +68,11 @@ Why it matters:
 
 Target:
 
-- define the source import graph, normalized module graph, and exported symbol
-  set as checkable artifacts
-- validate that normalized output preserves reachable exported declarations and
-  excludes script-only top-level smoke code
+- extend the source import graph, normalized module graph, and exported symbol
+  set as checkable artifacts beyond the first exact expectation
+- validate that normalized output preserves reachable exported declarations,
+  ADT constructors, and top-level bindings while excluding private names and
+  script-only top-level smoke code
 - keep behavioral downstream canaries as the end-to-end guard
 
 This should be translation-checked first, not kernel-proved first.
