@@ -2398,12 +2398,12 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Calculation slice" }
                             strong { "Calculation-ready" }
-                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, Kildeskatteloven A-income/withholding posture, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
+                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort posture, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: AM-law special cases, e-skattekort/forskudsopgørelse inputs, Opkrævningsloven payment and settlement mechanics, § 14/§ 19 calculator integration beyond fixtures, municipal settlement/allocation, and external differential fixtures remain explicit gaps." }
+                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: AM-law special cases, forskudsopgørelse generation, Opkrævningsloven payment and settlement mechanics, § 14/§ 19 calculator integration beyond fixtures, municipal settlement/allocation, and external differential fixtures remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -2434,7 +2434,7 @@ fn ResearchPersonskatteloven() -> Element {
                     div { class: "tax-source-grid",
                         div { class: "tax-source-row",
                             span { "Current working source" }
-                            strong { "2021/1284 — Status Valid; XML EndDate 2026-06-19" }
+                            strong { "2021/1284 — Status Valid; XML EndDate 2026-06-20" }
                         }
                         div { class: "tax-source-row",
                             span { "Prompt source lineage" }
@@ -2461,7 +2461,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "2026 reform, mellemskat capital branch, ordinary AM/Ligningsloven/municipal/church tax, Kildeskatteloven A-income/withholding, a fictional household, and § 13 complex calculators are executable; e-skattekort and special cases remain" }
+                            strong { "2026 reform, mellemskat capital branch, ordinary AM/Ligningsloven/municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort, a fictional household, and § 13 complex calculators are executable; forskudsopgørelse generation and special cases remain" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }

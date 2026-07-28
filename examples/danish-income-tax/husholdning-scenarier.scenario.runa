@@ -22,24 +22,32 @@ Kirkeskat: nej for begge ægtefæller.
 Positiv nettokapitalindkomst: 0 kr.
 Øvrige ligningsmæssige fradrag ud over Ligningsloven §§ 9 J og 9 K: 0 kr.
 
+Illustrative e-skattekort input:
+Mandens skattekort: 12.000 kr. månedsfradrag, 38 pct. trækprocent.
+Ægtefællens skattekort: 7.000 kr. månedsfradrag, 37 pct. trækprocent.
+
 Current model scope: ordinary wage tax under Personskatteloven with AM-bidrag,
 municipal tax, church-tax membership switch, personfradrag, 2026 state-tax
-thresholds, and ordinary Ligningsloven §§ 9 J and 9 K wage-earner deductions.
-Rent, child benefits, housing support, other deduction discovery, and
-social-benefit rules are not encoded in this slice.
-Kildeskatteloven now covers ordinary A-indkomst, duty to withhold A-skat, and
-the statutory fallback when no skattekort, bikort or frikort is available. A
-normal monthly withholding amount still requires the taxpayer's e-skattekort
-fradrag/procent data and is therefore not inferred from final annual tax.
+thresholds, ordinary Ligningsloven §§ 9 J and 9 K wage-earner deductions, and
+Kildeskatteloven monthly A-skat from provided e-skattekort inputs. Rent is
+subtracted as a cash-flow scenario fact. Child benefits, housing support, other
+deduction discovery, social-benefit rules, generation of the e-skattekort from
+forskudsopgørelse, and payroll settlement are not encoded in this slice.
 ----
 
 # HusholdningScenarieResult(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, samlet_skat_årligt_kroner: Heltal, samlet_netto_årligt_kroner: Heltal, samlet_netto_månedligt_kroner: Heltal, husleje_månedligt_kroner: Heltal, efter_husleje_månedligt_kroner: Heltal)
+# HusholdningIndeholdelseScenarieResult(mand_a_skat_månedligt_kroner: Heltal, ægtefælle_a_skat_månedligt_kroner: Heltal, mand_lønudbetaling_månedligt_kroner: Heltal, ægtefælle_lønudbetaling_månedligt_kroner: Heltal, samlet_lønudbetaling_månedligt_kroner: Heltal, efter_husleje_lønudbetaling_månedligt_kroner: Heltal)
 
 | husholdning_samlet_skat_årligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown) -> mand.samlet_inkl_am_efter_personfradrag_kroner + ægtefælle.samlet_inkl_am_efter_personfradrag_kroner
 | husholdning_samlet_netto_årligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown) -> mand.bruttoløn_kroner + ægtefælle.bruttoløn_kroner - husholdning_samlet_skat_årligt(mand, ægtefælle)
 | husholdning_samlet_netto_månedligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown) -> husholdning_samlet_netto_årligt(mand, ægtefælle) / 12
 | husholdning_efter_husleje_månedligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, husleje_månedligt_kroner: Heltal) -> husholdning_samlet_netto_månedligt(mand, ægtefælle) - husleje_månedligt_kroner
 | beregn_husholdning_scenarie(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, husleje_månedligt_kroner: Heltal) -> HusholdningScenarieResult(mand, ægtefælle, husholdning_samlet_skat_årligt(mand, ægtefælle), husholdning_samlet_netto_årligt(mand, ægtefælle), husholdning_samlet_netto_månedligt(mand, ægtefælle), husleje_månedligt_kroner, husholdning_efter_husleje_månedligt(mand, ægtefælle, husleje_månedligt_kroner))
+| lønmodtager_bruttoløn_månedligt(person: LønmodtagerBreakdown) -> person.bruttoløn_kroner / 12
+| lønmodtager_am_månedligt(person: LønmodtagerBreakdown) -> person.arbejdsmarkedsbidrag_kroner / 12
+| lønmodtager_lønudbetaling_månedligt(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> lønmodtager_bruttoløn_månedligt(person) - lønmodtager_am_månedligt(person) - a_skat_månedligt_kroner
+| husholdning_lønudbetaling_månedligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, mand_a_skat_månedligt_kroner: Heltal, ægtefælle_a_skat_månedligt_kroner: Heltal) -> lønmodtager_lønudbetaling_månedligt(mand, mand_a_skat_månedligt_kroner) + lønmodtager_lønudbetaling_månedligt(ægtefælle, ægtefælle_a_skat_månedligt_kroner)
+| beregn_husholdning_indeholdelse_scenarie(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, mand_a_skat_månedligt_kroner: Heltal, ægtefælle_a_skat_månedligt_kroner: Heltal, husleje_månedligt_kroner: Heltal) -> HusholdningIndeholdelseScenarieResult(mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner, lønmodtager_lønudbetaling_månedligt(mand, mand_a_skat_månedligt_kroner), lønmodtager_lønudbetaling_månedligt(ægtefælle, ægtefælle_a_skat_månedligt_kroner), husholdning_lønudbetaling_månedligt(mand, ægtefælle, mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner), husholdning_lønudbetaling_månedligt(mand, ægtefælle, mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner) - husleje_månedligt_kroner)
 
 = scenarie1_mand_input = LønmodtagerInput(2026, København, 600000, 0, 0, Fyldt18EllerGift, Falskt)
 = scenarie1_ægtefælle_input = LønmodtagerInput(2026, København, 240000, 0, 0, Fyldt18EllerGift, Falskt)
@@ -47,8 +55,14 @@ fradrag/procent data and is therefore not inferred from final annual tax.
 = scenarie1_ægtefælle = beregn_lønmodtager(scenarie1_ægtefælle_input)
 = scenarie1_husholdning = beregn_husholdning_scenarie(scenarie1_mand, scenarie1_ægtefælle, 10000)
 = scenarie1_mand_månedsløn_a_indkomst = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(50000, 0, Sandt, Falskt, Falskt))
+= scenarie1_ægtefælle_månedsløn_a_indkomst = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(20000, 0, Sandt, Falskt, Falskt))
 = scenarie1_mand_a_skat_indeholdelsespligt = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(scenarie1_mand_månedsløn_a_indkomst, Sandt, 0))
 = scenarie1_mand_manglende_skattekort_a_skat = kildeskat_a_skat_kroner(KildeskatSkattekortInput(scenarie1_mand_månedsløn_a_indkomst, 0, 0, IntetESkattekort))
+= scenarie1_mand_skattekort_input = KildeskatESkattekortInput(scenarie1_mand_månedsløn_a_indkomst, 12000, 6000, 3000, 600, 3800, 0, Skattekort, Måned, Sandt)
+= scenarie1_ægtefælle_skattekort_input = KildeskatESkattekortInput(scenarie1_ægtefælle_månedsløn_a_indkomst, 7000, 3500, 1750, 350, 3700, 0, Skattekort, Måned, Sandt)
+= scenarie1_mand_skattekort_a_skat = kildeskat_a_skat_med_eskattekort_kroner(scenarie1_mand_skattekort_input)
+= scenarie1_ægtefælle_skattekort_a_skat = kildeskat_a_skat_med_eskattekort_kroner(scenarie1_ægtefælle_skattekort_input)
+= scenarie1_indeholdelse = beregn_husholdning_indeholdelse_scenarie(scenarie1_mand, scenarie1_ægtefælle, scenarie1_mand_skattekort_a_skat, scenarie1_ægtefælle_skattekort_a_skat, 10000)
 
 | scenarie1_mand_beskæftigelsesfradrag: scenarie1_mand -> scenarie1_mand.beskæftigelsesfradrag_kroner == 63300
 | scenarie1_mand_jobfradrag: scenarie1_mand -> scenarie1_mand.jobfradrag_kroner == 3100
@@ -64,6 +78,11 @@ fradrag/procent data and is therefore not inferred from final annual tax.
 | scenarie1_mand_månedsløn_er_a_indkomst: scenarie1_mand_månedsløn_a_indkomst -> scenarie1_mand_månedsløn_a_indkomst == 50000
 | scenarie1_mand_a_skat_skal_indeholdes: scenarie1_mand_a_skat_indeholdelsespligt -> scenarie1_mand_a_skat_indeholdelsespligt == Sandt
 | scenarie1_mand_manglende_skattekort_55_pct: scenarie1_mand_manglende_skattekort_a_skat -> scenarie1_mand_manglende_skattekort_a_skat == 27500
+| scenarie1_mand_skattekort_a_skat_månedligt: scenarie1_mand_skattekort_a_skat -> scenarie1_mand_skattekort_a_skat == 14440
+| scenarie1_ægtefælle_skattekort_a_skat_månedligt: scenarie1_ægtefælle_skattekort_a_skat -> scenarie1_ægtefælle_skattekort_a_skat == 4810
+| scenarie1_mand_lønudbetaling_månedligt: scenarie1_indeholdelse -> scenarie1_indeholdelse.mand_lønudbetaling_månedligt_kroner == 31560
+| scenarie1_husholdning_lønudbetaling_månedligt: scenarie1_indeholdelse -> scenarie1_indeholdelse.samlet_lønudbetaling_månedligt_kroner == 45150
+| scenarie1_husholdning_lønudbetaling_efter_husleje: scenarie1_indeholdelse -> scenarie1_indeholdelse.efter_husleje_lønudbetaling_månedligt_kroner == 35150
 
 ? scenarie1_mand_skat_årligt
 ? scenarie1_mand_skat_månedligt
@@ -79,10 +98,18 @@ fradrag/procent data and is therefore not inferred from final annual tax.
 ? scenarie1_mand_månedsløn_er_a_indkomst
 ? scenarie1_mand_a_skat_skal_indeholdes
 ? scenarie1_mand_manglende_skattekort_55_pct
+? scenarie1_mand_skattekort_a_skat_månedligt
+? scenarie1_ægtefælle_skattekort_a_skat_månedligt
+? scenarie1_mand_lønudbetaling_månedligt
+? scenarie1_husholdning_lønudbetaling_månedligt
+? scenarie1_husholdning_lønudbetaling_efter_husleje
 
 @ print("scenarie1 mand årlig skat inkl. AM efter personfradrag: " + vis(scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner))
 @ print("scenarie1 mand månedlig skat afrundet ned i kroner: " + vis(scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner / 12))
 @ print("scenarie1 mand månedlig netto afrundet ned i kroner: " + vis((scenarie1_mand.bruttoløn_kroner - scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner) / 12))
 @ print("scenarie1 husholdning samlet månedlig netto afrundet ned i kroner: " + vis(scenarie1_husholdning.samlet_netto_månedligt_kroner))
 @ print("scenarie1 husholdning efter husleje afrundet ned i kroner: " + vis(scenarie1_husholdning.efter_husleje_månedligt_kroner))
+@ print("scenarie1 mand månedlig A-skat med oplyst e-skattekort: " + vis(scenarie1_mand_skattekort_a_skat))
+@ print("scenarie1 husholdning lønudbetaling efter AM og A-skat med oplyst e-skattekort: " + vis(scenarie1_indeholdelse.samlet_lønudbetaling_månedligt_kroner))
+@ print("scenarie1 husholdning lønudbetaling efter husleje med oplyst e-skattekort: " + vis(scenarie1_indeholdelse.efter_husleje_lønudbetaling_månedligt_kroner))
 @ print("scenarie1 mand A-skat hvis intet e-skattekort er modtaget: " + vis(scenarie1_mand_manglende_skattekort_a_skat))

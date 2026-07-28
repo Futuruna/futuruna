@@ -12,7 +12,7 @@ DocumentTitle: Bekendtgørelse af kildeskatteloven
 PopularTitle: Kildeskatteloven
 Status: Valid
 StartDate: 2024-05-16
-EndDate: 2026-06-19
+EndDate: 2026-06-20
 
 Retsinformation metadata viser senere ændringer i 2024 og 2025, herunder LOV
 nr. 333 af 09/04/2024, LOV nr. 1214 af 26/11/2024, LOV nr. 1694 af 30/12/2024
@@ -84,49 +84,160 @@ stk. 6.
 | kildeskat_indeholdelse_sker_efter_seks_måneder(input: KildeskatIndeholdelsespligtInput) -> input.a_indkomst_kroner > 0 && input.udbetaling_fundet_sted == Falskt && input.måneder_siden_endelig_ret >= 6
 
 ----
-§ 48. Til brug ved indeholdelse af foreløbig skat i A-indkomst udarbejder told-
-og skatteforvaltningen skattekort og bikort eller frikort, jf. stk. 7,
-vedrørende skattepligtige, som forventes at få A-indkomst i det pågældende år,
-jf. dog stk. 2.
+§ 48. Til brug ved indeholdelse af foreløbig skat i A-indkomst udarbejder
+told- og skatteforvaltningen skattekort og bikort eller frikort, jf. stk. 7,
+vedrørende skattepligtige, som forventes at få A-indkomst i det pågældende
+år, jf. dog stk. 2.
 
 Den indeholdelsespligtige, som udbetaler A-indkomst til den skattepligtige,
 skal elektronisk indhente skattekort, bikort eller frikort (e-skattekort) fra
 told- og skatteforvaltningen.
 
+Skattekortet kan kun anvendes hos en enkelt indeholdelsespligtig (den
+hovedindeholdelsespligtige).
+
+Modtager den skattepligtige A-indkomst fra andre indeholdelsespligtige end den
+hovedindeholdelsespligtige, udarbejdes der elektronisk et bikort til disse.
+
+Stk. 2. En anmodning om udstedelse af skattekort fra en tredjelandsstatsborger
+imødekommes alene, hvis told- og skatteforvaltningen kan konstatere, at den
+pågældende har ret til at arbejde i Danmark.
+
 Stk. 3. Told- og skatteforvaltningen drager omsorg for, at det på skattekortet
 anføres, hvilket beløb der skal fradrages i A-indkomst for henholdsvis en
 måned, 14 dage, en uge og en dag, forinden indeholdelse foretages.
 
+Fradragsbeløbene udgør forholdsmæssige andele af summen af de fradrag, der må
+forventes at ville tilkomme den skattepligtige ved den endelige
+indkomstopgørelse og skatteberegning for det pågældende år.
+
 På bikort anføres intet fradragsbeløb.
+
+Stk. 4. Skatteministeren kan fastsætte regler, hvorefter der under særlige
+omstændigheder ikke skal anføres fradragsbeløb på skattekortet eller skal ske
+fordeling af det samlede fradrag på anden måde end efter stk. 3.
 
 Stk. 5. Told- og skatteforvaltningen drager omsorg for, at det på skattekort og
 bikort anføres, med hvilken procent indeholdelse skal foretages.
 
+Indeholdelsesprocenten fastsættes under hensyn til den skattepligtiges
+forventede indkomstforhold og under hensyn til forventet skat efter
+ejendomsskattelovens kapitel 1-3.
+
+Skatteministeren kan fastsætte regler om op- eller nedrunding af de beregnede
+indeholdelsesprocenter, som dog i intet tilfælde må forhøjes eller nedsættes
+med mere end 1,5.
+
+Skatteministeren fastsætter endvidere regler om, hvorledes der ved beregningen
+af skattekortets fradragsbeløb og indeholdelsesprocenten skal tages hensyn til
+den skattepligtiges personfradrag efter personskattelovens §§ 9, 10 og 12.
+
+Til den efter 2.-4. pkt. opgjorte indeholdelsesprocent lægges en eventuel
+indeholdelsesprocent efter § 10 i lov om inddrivelse af gæld til det
+offentlige.
+
+Stk. 6. Skatteministeren kan bestemme, at der ved den indeholdelsespligtiges
+beregning af A-skat skal ske nedrunding af det beløb, hvoraf skatten beregnes,
+til det nærmeste med 10 delelige kronebeløb.
+
+Stk. 7. Når omstændighederne i det enkelte tilfælde taler derfor, således når
+det er åbenbart, at den skattepligtiges indkomst ikke vil blive så stor, at han
+skal svare de i § 40 nævnte skatter, bortset fra arbejdsmarkedsbidrag, kan
+told- og skatteforvaltningen med fremtidig virkning bestemme, at der ikke skal
+indeholdes skat i A-indkomst, som den skattepligtige oppebærer.
+
+Bestemmelsen kan begrænses til at angå en vis A-indkomst eller A-indkomst, som
+udbetales eller godskrives i en vis periode eller indtil et vist maksimalbeløb.
+
+Når sådan bestemmelse er truffet, udarbejder told- og skatteforvaltningen et
+frikort.
+
+Hvis der skal foretages lønindeholdelse efter reglerne i § 10 i lov om
+inddrivelse af gæld til det offentlige, udsteder told- og skatteforvaltningen
+dog i stedet skattekort og bikort uden fradragsbeløb og med en
+indeholdelsesprocent svarende til indeholdelsesprocenten efter § 10 i lov om
+inddrivelse af gæld til det offentlige.
+
+Skatteministeren kan fastsætte nærmere regler om opdatering af frikort og af
+skattekort og bikort efter 4. pkt. Skatteministeren kan, når særlige forhold
+taler derfor, bestemme, at indeholdelse af skat i en vis art af A-indkomst skal
+undlades uden anvendelse af frikort.
+
+I så fald ses der ved beregningen af fradragsbeløb efter stk. 3 bort fra
+udgiftsfradrag, der er knyttet til den omhandlede art af A-indkomst.
+
 Stk. 8. Har den indeholdelsespligtige hverken modtaget skattekort, bikort eller
 frikort, skal der indeholdes 55 pct. af den udbetalte eller godskrevne
 A-indkomst uden fradrag efter stk. 3 og 4.
+
+Stk. 9. Den skattepligtige kan over for den indeholdelsespligtige begære, at
+denne indeholder A-skatten med en højere procent end angivet på skattekortet
+eller bikortet.
+
+Skatteministeren fastsætter de nærmere regler herom.
+
+Stk. 10. Skatteministeren kan fastsætte de nærmere regler for
+indeholdelsespligtige, som ikke kan modtage skattekort, bikort og frikort
+elektronisk, herunder om pligt til at opbevare skattekort, bikort og frikort.
+
+Stk. 11. For indbetalinger som nævnt i § 46, stk. 6, indeholder
+pensionsinstituttet m.v. 40 pct. i A-skat uden fradrag efter stk. 3 og regler
+fastsat i medfør af stk. 4.
 ----
 
+# KildeskatFradragsperiode = Måned | FjortenDage | Uge | Dag
 # KildeskatSkattekortInput(a_indkomst_kroner: Heltal, fradrag_kroner: Heltal, indeholdelsesprocent_basispoint: Heltal, kort: KildeskatKort)
+# KildeskatESkattekortInput(a_indkomst_kroner: Heltal, månedsfradrag_kroner: Heltal, fjorten_dages_fradrag_kroner: Heltal, ugefradrag_kroner: Heltal, dagsfradrag_kroner: Heltal, indeholdelsesprocent_basispoint: Heltal, ønsket_højere_indeholdelsesprocent_basispoint: Heltal, kort: KildeskatKort, periode: KildeskatFradragsperiode, nedrunding_til_ti_kroner: Boolsk)
 
 | kildeskat_positivt_beløb(beløb_kroner: Heltal) -> 0
 | exception kildeskat_beløb_over_nul kildeskat_positivt_beløb(beløb_kroner: Heltal) -> beløb_kroner under beløb_kroner > 0
+| kildeskat_nedrundet_til_ti_kroner(beløb_kroner: Heltal) -> beløb_kroner / 10 * 10
+
+| kildeskat_e_skattekort_modtaget(kort: KildeskatKort) -> Sandt
+| exception kildeskat_intet_e_skattekort_modtaget kildeskat_e_skattekort_modtaget(kort: KildeskatKort) -> Falskt under kort == IntetESkattekort
+
+| kildeskat_kort_er_skattekort_eller_bikort(kort: KildeskatKort) -> Falskt
+| exception kildeskat_hovedkort_er_procentkort kildeskat_kort_er_skattekort_eller_bikort(kort: KildeskatKort) -> Sandt under kort == Skattekort
+| exception kildeskat_bikort_er_procentkort kildeskat_kort_er_skattekort_eller_bikort(kort: KildeskatKort) -> Sandt under kort == Bikort
+
+| kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput) -> 0
+| exception kildeskat_hovedkort_månedsfradrag kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput) -> input.månedsfradrag_kroner under input.kort == Skattekort && input.periode == Måned
+| exception kildeskat_hovedkort_fjorten_dage_fradrag kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput) -> input.fjorten_dages_fradrag_kroner under input.kort == Skattekort && input.periode == FjortenDage
+| exception kildeskat_hovedkort_ugefradrag kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput) -> input.ugefradrag_kroner under input.kort == Skattekort && input.periode == Uge
+| exception kildeskat_hovedkort_dagsfradrag kildeskat_skattekort_periodefradrag_kroner(input: KildeskatESkattekortInput) -> input.dagsfradrag_kroner under input.kort == Skattekort && input.periode == Dag
 
 | kildeskat_skattekort_fradrag_kroner(input: KildeskatSkattekortInput) -> 0
 | exception kildeskat_hovedkort_fradrag kildeskat_skattekort_fradrag_kroner(input: KildeskatSkattekortInput) -> input.fradrag_kroner under input.kort == Skattekort
 
-| kildeskat_indeholdelsesprocent_basispoint(input: KildeskatSkattekortInput) -> input.indeholdelsesprocent_basispoint
-| exception kildeskat_frikort_procent kildeskat_indeholdelsesprocent_basispoint(input: KildeskatSkattekortInput) -> 0 under input.kort == Frikort
-| exception kildeskat_manglende_kort_55_pct kildeskat_indeholdelsesprocent_basispoint(input: KildeskatSkattekortInput) -> 5500 under input.kort == IntetESkattekort
+| kildeskat_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> input.indeholdelsesprocent_basispoint
+| exception kildeskat_frikort_procent kildeskat_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> 0 under input.kort == Frikort
+| exception kildeskat_manglende_kort_55_pct kildeskat_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> 5500 under input.kort == IntetESkattekort
 
-| kildeskat_a_skat_kroner(input: KildeskatSkattekortInput) -> kildeskat_positivt_beløb(input.a_indkomst_kroner - kildeskat_skattekort_fradrag_kroner(input)) * kildeskat_indeholdelsesprocent_basispoint(input) / 10000
+| kildeskat_effektiv_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> kildeskat_indeholdelsesprocent_basispoint(input)
+| exception kildeskat_skattepligtig_begærer_højere_procent kildeskat_effektiv_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> input.ønsket_højere_indeholdelsesprocent_basispoint under kildeskat_kort_er_skattekort_eller_bikort(input.kort) && input.ønsket_højere_indeholdelsesprocent_basispoint > kildeskat_indeholdelsesprocent_basispoint(input)
+
+| kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input: KildeskatESkattekortInput) -> kildeskat_positivt_beløb(input.a_indkomst_kroner - kildeskat_skattekort_periodefradrag_kroner(input))
+| kildeskat_a_skat_beregningsgrundlag_kroner(input: KildeskatESkattekortInput) -> kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input)
+| exception kildeskat_nedrunder_a_skat_grundlag_til_ti kildeskat_a_skat_beregningsgrundlag_kroner(input: KildeskatESkattekortInput) -> kildeskat_nedrundet_til_ti_kroner(kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input)) under input.nedrunding_til_ti_kroner
+
+| kildeskat_a_skat_med_eskattekort_kroner(input: KildeskatESkattekortInput) -> kildeskat_a_skat_beregningsgrundlag_kroner(input) * kildeskat_effektiv_indeholdelsesprocent_basispoint(input) / 10000
+| kildeskat_simpelt_eskattekort_input(input: KildeskatSkattekortInput) -> KildeskatESkattekortInput(input.a_indkomst_kroner, input.fradrag_kroner, input.fradrag_kroner, input.fradrag_kroner, input.fradrag_kroner, input.indeholdelsesprocent_basispoint, 0, input.kort, Måned, Falskt)
+| kildeskat_a_skat_kroner(input: KildeskatSkattekortInput) -> kildeskat_a_skat_med_eskattekort_kroner(kildeskat_simpelt_eskattekort_input(input))
 
 = kildeskat_løn_fixture = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(50000, 0, Sandt, Falskt, Falskt))
 = kildeskat_indeholdelsespligt_fixture = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(kildeskat_løn_fixture, Sandt, 0))
 = kildeskat_manglende_kort_fixture = kildeskat_a_skat_kroner(KildeskatSkattekortInput(50000, 0, 0, IntetESkattekort))
 = kildeskat_frikort_fixture = kildeskat_a_skat_kroner(KildeskatSkattekortInput(50000, 0, 0, Frikort))
+= kildeskat_hovedkort_måned_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(50000, 12000, 6000, 3000, 600, 3800, 0, Skattekort, Måned, Sandt))
+= kildeskat_bikort_uden_fradrag_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(50000, 12000, 6000, 3000, 600, 3800, 0, Bikort, Måned, Sandt))
+= kildeskat_højere_procent_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(50000, 12000, 6000, 3000, 600, 3800, 4100, Skattekort, Måned, Sandt))
+= kildeskat_nedrunding_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(50007, 12003, 6000, 3000, 600, 3800, 0, Skattekort, Måned, Sandt))
 
 | kildeskat_løn_er_a_indkomst: kildeskat_løn_fixture -> kildeskat_løn_fixture == 50000
 | kildeskat_løn_udløser_indeholdelsespligt: kildeskat_indeholdelsespligt_fixture -> kildeskat_indeholdelsespligt_fixture == Sandt
 | kildeskat_manglende_skattekort_indeholdes_med_55_pct: kildeskat_manglende_kort_fixture -> kildeskat_manglende_kort_fixture == 27500
 | kildeskat_frikort_indeholdes_med_0_pct: kildeskat_frikort_fixture -> kildeskat_frikort_fixture == 0
+| kildeskat_hovedkort_månedsfradrag_beregnes: kildeskat_hovedkort_måned_fixture -> kildeskat_hovedkort_måned_fixture == 14440
+| kildeskat_bikort_beregnes_uden_fradrag: kildeskat_bikort_uden_fradrag_fixture -> kildeskat_bikort_uden_fradrag_fixture == 19000
+| kildeskat_højere_procent_begæres: kildeskat_højere_procent_fixture -> kildeskat_højere_procent_fixture == 15580
+| kildeskat_beregningsgrundlag_nedrundes_til_ti: kildeskat_nedrunding_fixture -> kildeskat_nedrunding_fixture == 14440
