@@ -34,6 +34,7 @@ Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for København
 | m4_københavn_2025_statslig_skatteværdi: m4_københavn_2025 -> m4_københavn_2025.statslig_personfradrag_skatteværdi_kroner == 6197
 | m4_københavn_2025_kommunal_skatteværdi: m4_københavn_2025 -> m4_københavn_2025.kommunal_personfradrag_skatteværdi_kroner == 12126
 | m4_københavn_2025_kirkelig_skatteværdi: m4_københavn_2025 -> m4_københavn_2025.kirkelig_personfradrag_skatteværdi_kroner == 412
+| m4_københavn_2025_skatteloft_under_loft: m4_københavn_2025 -> m4_københavn_2025.personligt_skatteloft.overskydende_basispoint == 0 && m4_københavn_2025.personligt_skatteloft.nedslag_kroner == 0
 | m4_københavn_2025_samlet_efter: m4_københavn_2025 -> m4_københavn_2025.samlet_inkl_am_efter_personfradrag_kroner == 174075
 | m4_københavn_2025_personfradrag_anvendt: m4_københavn_2025 -> m4_københavn_2025.personfradrag_anvendt_i_slutskat == Sandt
 | m4_københavn_2025_uden_par13_underskud: m4_københavn_2025 -> m4_københavn_2025.kræver_par13_underskud == Falskt
@@ -52,6 +53,7 @@ Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for København
 ? m4_københavn_2025_statslig_skatteværdi
 ? m4_københavn_2025_kommunal_skatteværdi
 ? m4_københavn_2025_kirkelig_skatteværdi
+? m4_københavn_2025_skatteloft_under_loft
 ? m4_københavn_2025_samlet_efter
 ? m4_københavn_2025_personfradrag_anvendt
 ? m4_københavn_2025_uden_par13_underskud
@@ -87,6 +89,8 @@ Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for Gentofte
 | m4_gentofte_2025_statslig_skatteværdi: m4_gentofte_2025 -> m4_gentofte_2025.statslig_personfradrag_skatteværdi_kroner == 6197
 | m4_gentofte_2025_kommunal_skatteværdi: m4_gentofte_2025 -> m4_gentofte_2025.kommunal_personfradrag_skatteværdi_kroner == 12507
 | m4_gentofte_2025_kirkelig_skatteværdi: m4_gentofte_2025 -> m4_gentofte_2025.kirkelig_personfradrag_skatteværdi_kroner == 201
+| m4_gentofte_2025_skatteloft_personlig_basis: m4_gentofte_2025 -> m4_gentofte_2025.personligt_skatteloft.input.beregningsgrundlag_kroner == 78200
+| m4_gentofte_2025_skatteloft_under_loft: m4_gentofte_2025 -> m4_gentofte_2025.personligt_skatteloft.overskydende_basispoint == 0 && m4_gentofte_2025.personligt_skatteloft.nedslag_kroner == 0
 | m4_gentofte_2025_samlet_efter: m4_gentofte_2025 -> m4_gentofte_2025.samlet_inkl_am_efter_personfradrag_kroner == 296096
 | m4_gentofte_2025_personfradrag_anvendt: m4_gentofte_2025 -> m4_gentofte_2025.personfradrag_anvendt_i_slutskat == Sandt
 | m4_gentofte_2025_uden_par13_underskud: m4_gentofte_2025 -> m4_gentofte_2025.kræver_par13_underskud == Falskt
@@ -106,6 +110,8 @@ Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for Gentofte
 ? m4_gentofte_2025_statslig_skatteværdi
 ? m4_gentofte_2025_kommunal_skatteværdi
 ? m4_gentofte_2025_kirkelig_skatteværdi
+? m4_gentofte_2025_skatteloft_personlig_basis
+? m4_gentofte_2025_skatteloft_under_loft
 ? m4_gentofte_2025_samlet_efter
 ? m4_gentofte_2025_personfradrag_anvendt
 ? m4_gentofte_2025_uden_par13_underskud
@@ -134,6 +140,8 @@ Skatteministeriets kommuneskat for København 2026.
 | m4_københavn_2026_topskat: m4_københavn_2026 -> m4_københavn_2026.topskat_før_personfradrag_kroner == 3757
 | m4_københavn_2026_toptopskat_ikke_aktiveret: m4_københavn_2026 -> m4_københavn_2026.toptopskat_før_personfradrag_kroner == 0
 | m4_københavn_2026_personfradrag: m4_københavn_2026 -> m4_københavn_2026.personfradrag_kroner == 54100
+| m4_københavn_2026_skatteloft_personlig_basis: m4_københavn_2026 -> m4_københavn_2026.personligt_skatteloft.input.beregningsgrundlag_kroner == 186800
+| m4_københavn_2026_skatteloft_under_loft: m4_københavn_2026 -> m4_københavn_2026.personligt_skatteloft.overskydende_basispoint == 0 && m4_københavn_2026.personligt_skatteloft.nedslag_kroner == 0
 | m4_københavn_2026_samlet_efter: m4_københavn_2026 -> m4_københavn_2026.samlet_inkl_am_efter_personfradrag_kroner == 348197
 
 ? m4_københavn_2026_personlig
@@ -144,6 +152,8 @@ Skatteministeriets kommuneskat for København 2026.
 ? m4_københavn_2026_topskat
 ? m4_københavn_2026_toptopskat_ikke_aktiveret
 ? m4_københavn_2026_personfradrag
+? m4_københavn_2026_skatteloft_personlig_basis
+? m4_københavn_2026_skatteloft_under_loft
 ? m4_københavn_2026_samlet_efter
 
 ----
@@ -164,11 +174,15 @@ Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
 | m4_københavn_2026_toptop_mellemskat: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.mellemskat_før_personfradrag_kroner == 158910
 | m4_københavn_2026_toptop_topskat: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.topskat_før_personfradrag_kroner == 148657
 | m4_københavn_2026_toptop_toptopskat: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.toptopskat_før_personfradrag_kroner == 8365
+| m4_københavn_2026_toptop_skatteloft_personlig_basis: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.personligt_skatteloft.input.beregningsgrundlag_kroner == 2118800
+| m4_københavn_2026_toptop_skatteloft_under_loft: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.personligt_skatteloft.overskydende_basispoint == 0 && m4_københavn_2026_toptop.personligt_skatteloft.nedslag_kroner == 0
 | m4_københavn_2026_toptop_samlet_efter: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.samlet_inkl_am_efter_personfradrag_kroner == 1498291
 
 ? m4_københavn_2026_toptop_mellemskat
 ? m4_københavn_2026_toptop_topskat
 ? m4_københavn_2026_toptop_toptopskat
+? m4_københavn_2026_toptop_skatteloft_personlig_basis
+? m4_københavn_2026_toptop_skatteloft_under_loft
 ? m4_københavn_2026_toptop_samlet_efter
 
 ----
