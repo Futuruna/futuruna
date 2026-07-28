@@ -197,9 +197,10 @@ encoded as a temporal rule on top of the consolidation.
   shared money/rounding posture for whole kroner, ten-kroner floors,
   basispoint rounding, and øre-level fractions,
   Ligningsloven ordinary wage-earner deduction
-  dependency slices, 2024/2025/2026 tax-year parameter packs, first wage-earner
-  scenarios, a first § 14 partial-year wage-earner scenario, a first fictional
-  household scenario, complex § 13 calculator fixtures, and first audit signals.
+  dependency slices, 2024/2025/2026 tax-year parameter packs, grouped
+  wage-earner calculation-domain records, first wage-earner scenarios, a first
+  § 14 partial-year wage-earner scenario, a first fictional household scenario,
+  complex § 13 calculator fixtures, and first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
   multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
@@ -306,6 +307,12 @@ Current decision:
   excess basis points, and kroner relief together for both personal and
   positive-capital skatteloft paths instead of adding loose scalar fields to the
   calculator surface.
+- `LønmodtagerBeregning` now composes the ordinary wage-earner calculation from
+  named domain records: income basis, Ligningsloven deductions, tax before
+  person allowance, person allowance tax value, tax after person allowance before
+  skatteloft, and final tax after § 19 relief. The existing flat
+  `LønmodtagerBreakdown` remains as the reporting/API projection so website and
+  scenario consumers do not have to learn every internal calculation layer.
 - `loenmodtager_beregning.runa` now separates state income tax, municipal/church
   income tax, total income tax, and the final total including AM contribution.
   This keeps Personskatteloven § 14's "helårsskat efter §§ 6-9" from
