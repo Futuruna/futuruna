@@ -2,8 +2,11 @@
 
 @ importer ./source - status
 @ importer ./arbejdsmarkedsbidragsloven
+@ importer ./kommuneskatteloven
+@ importer ./folkekirkens - oekonomi
 @ importer ./kapitel - 02 - statsskat
 @ importer ./loenmodtager_beregning
+@ importer ./husholdning - scenarier
 @ importer ./kapitel - 04 - omregning - skatteloft
 @ importer ./kapitel - 05 - afsluttende - bestemmelser
 
@@ -18,24 +21,42 @@ Status: Valid
 
 Officiel XML-metadata for 2024/482, hentet 2026-07-18:
 Status: Valid
+
+Officiel XML-metadata for 2019/935, hentet 2026-07-18:
+Status: Valid
+
+Officiel XML-metadata for 2023/424, hentet 2026-07-18:
+Status: Valid
+
+Officiel XML-metadata for 2025/1772, hentet 2026-07-18:
+Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ManglerArbejdsmarkedsbidragslovSærtilfælde | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | ManglerKommunalIndkomstskattelov | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ManglerArbejdsmarkedsbidragslovSærtilfælde | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | FiktivHusholdningScenarieDækket | ManglerKildeskattelovOpkrævningOgKommunalAfregning | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
 = m5_historisk_til_aktuel = kilde_egnet_til_formål(personskatteloven_2019_799, AktuelSkatteberegning)
 = m5_reform_til_aktuel = kilde_egnet_til_formål(personskat_reform_2024_482, AktuelSkatteberegning)
 = m5_am_lov_til_aktuel = kilde_egnet_til_formål(arbejdsmarkedsbidragsloven_2020_121, AktuelSkatteberegning)
+= m5_kommuneskattelov_til_aktuel = kilde_egnet_til_formål(kommuneskatteloven_2019_935, AktuelSkatteberegning)
+= m5_folkekirkens_økonomilov_til_aktuel = kilde_egnet_til_formål(folkekirkens_økonomilov_2023_424, AktuelSkatteberegning)
+= m5_folkekirke_aendring_til_aktuel = kilde_egnet_til_formål(folkekirke_økonomi_aendring_2025_1772, AktuelSkatteberegning)
 
 | m5_historisk_kilde_afvises: m5_historisk_til_aktuel -> m5_historisk_til_aktuel == Falskt
 | m5_reform_kilde_accepteres: m5_reform_til_aktuel -> m5_reform_til_aktuel == Sandt
 | m5_am_lov_kilde_accepteres: m5_am_lov_til_aktuel -> m5_am_lov_til_aktuel == Sandt
+| m5_kommuneskattelov_kilde_accepteres: m5_kommuneskattelov_til_aktuel -> m5_kommuneskattelov_til_aktuel == Sandt
+| m5_folkekirkens_økonomilov_kilde_accepteres: m5_folkekirkens_økonomilov_til_aktuel -> m5_folkekirkens_økonomilov_til_aktuel == Sandt
+| m5_folkekirke_aendring_kilde_accepteres: m5_folkekirke_aendring_til_aktuel -> m5_folkekirke_aendring_til_aktuel == Sandt
 | m5_audit_historisk_kilde_signal: audit_signal(HistoriskKildeTilAktuelBeregning) -> audit_signal(HistoriskKildeTilAktuelBeregning) == Sandt
 
 ? m5_historisk_kilde_afvises
 ? m5_reform_kilde_accepteres
 ? m5_am_lov_kilde_accepteres
+? m5_kommuneskattelov_kilde_accepteres
+? m5_folkekirkens_økonomilov_kilde_accepteres
+? m5_folkekirke_aendring_kilde_accepteres
 
 ----
 § 9. Indkomstskatten efter §§ 6, 7, 7 a og 8 og § 8 a, stk. 2, til staten skal,
@@ -149,6 +170,10 @@ virksomhedsunderskud.
 = m5_am_løn_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(500000, 0))
 = m5_am_naturalie_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(500000, 10000))
 = m5_am_sats_2026_parameter = nationalparametre_for(2026).am_bidrag_basispoint
+= m5_kommuneskat_lov_fixture = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(460000, 2350))
+= m5_kirkeskat_lov_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(460000, 80, Sandt))
+= m5_kirkeskat_ikke_medlem_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(460000, 80, Falskt))
+= m5_husholdning_scenarie_fixture = scenarie1_husholdning
 
 | m5_par13_skatteværdi: m5_par13_skatteværdi_fixture -> m5_par13_skatteværdi_fixture == 24300
 | m5_par13_modregningsrækkefølge: m5_par13_modregning_fixture -> m5_par13_modregning_fixture.par6_efter_kroner == 0 && m5_par13_modregning_fixture.par7_efter_kroner == 0 && m5_par13_modregning_fixture.par8a_stk2_efter_kroner == 10700
@@ -164,13 +189,22 @@ virksomhedsunderskud.
 | m5_am_lønvederlag_dækket: m5_am_løn_fixture -> m5_am_løn_fixture == 40000
 | m5_am_naturalieværdi_dækket: m5_am_naturalie_fixture -> m5_am_naturalie_fixture == 40800
 | m5_am_sats_matcher_parameterpakke: m5_am_sats_2026_parameter -> m5_am_sats_2026_parameter == arbejdsmarkedsbidrag_sats_basispoint()
+| m5_kommuneskat_lov_dækket: m5_kommuneskat_lov_fixture -> m5_kommuneskat_lov_fixture == 108100
+| m5_kirkeskat_lov_medlem_dækket: m5_kirkeskat_lov_fixture -> m5_kirkeskat_lov_fixture == 3680
+| m5_kirkeskat_lov_ikke_medlem_dækket: m5_kirkeskat_ikke_medlem_fixture -> m5_kirkeskat_ikke_medlem_fixture == 0
+| m5_kommuneskat_matcher_lønmodtager_fixture: m5_personfradrag_fixture -> m5_personfradrag_fixture.kommuneskat_før_personfradrag_kroner == m5_kommuneskat_lov_fixture
+| m5_kirkeskat_matcher_lønmodtager_fixture: m5_personfradrag_fixture -> m5_personfradrag_fixture.kirkeskat_før_personfradrag_kroner == m5_kirkeskat_lov_fixture
+| m5_fiktiv_husholdning_scenarie: m5_husholdning_scenarie_fixture -> m5_husholdning_scenarie_fixture.mand.samlet_inkl_am_efter_personfradrag_kroner == 224257 && m5_husholdning_scenarie_fixture.samlet_netto_månedligt_kroner == 44794 && m5_husholdning_scenarie_fixture.efter_husleje_månedligt_kroner == 34794
 | m5_audit_par13_mekanik_signal: audit_signal(Par13UnderskudsmekanikDækket) -> audit_signal(Par13UnderskudsmekanikDækket) == Sandt
 | m5_audit_par13_beløb_signal: audit_signal(Par13BeløbsbegrænsningerDækket) -> audit_signal(Par13BeløbsbegrænsningerDækket) == Sandt
 | m5_audit_par13_kilder_signal: audit_signal(Par13AfhængigeKilderValideret) -> audit_signal(Par13AfhængigeKilderValideret) == Sandt
 | m5_audit_par13_calculator_signal: audit_signal(Par13KompleksCalculatorDækket) -> audit_signal(Par13KompleksCalculatorDækket) == Sandt
 | m5_audit_am_lov_signal: audit_signal(ArbejdsmarkedsbidragslovAlmindeligLønDækket) -> audit_signal(ArbejdsmarkedsbidragslovAlmindeligLønDækket) == Sandt
 | m5_audit_am_lov_særtilfælde_signal: audit_signal(ManglerArbejdsmarkedsbidragslovSærtilfælde) -> audit_signal(ManglerArbejdsmarkedsbidragslovSærtilfælde) == Sandt
-| m5_audit_kommunal_lov_signal: audit_signal(ManglerKommunalIndkomstskattelov) -> audit_signal(ManglerKommunalIndkomstskattelov) == Sandt
+| m5_audit_kommuneskattelov_signal: audit_signal(KommuneskattelovAlmindeligIndkomstskatDækket) -> audit_signal(KommuneskattelovAlmindeligIndkomstskatDækket) == Sandt
+| m5_audit_folkekirke_kirkeskat_signal: audit_signal(FolkekirkensØkonomiKirkeskatDækket) -> audit_signal(FolkekirkensØkonomiKirkeskatDækket) == Sandt
+| m5_audit_fiktiv_husholdning_signal: audit_signal(FiktivHusholdningScenarieDækket) -> audit_signal(FiktivHusholdningScenarieDækket) == Sandt
+| m5_audit_kildeskat_afregning_signal: audit_signal(ManglerKildeskattelovOpkrævningOgKommunalAfregning) -> audit_signal(ManglerKildeskattelovOpkrævningOgKommunalAfregning) == Sandt
 
 ? m5_par13_skatteværdi
 ? m5_par13_modregningsrækkefølge
@@ -186,13 +220,22 @@ virksomhedsunderskud.
 ? m5_am_lønvederlag_dækket
 ? m5_am_naturalieværdi_dækket
 ? m5_am_sats_matcher_parameterpakke
+? m5_kommuneskat_lov_dækket
+? m5_kirkeskat_lov_medlem_dækket
+? m5_kirkeskat_lov_ikke_medlem_dækket
+? m5_kommuneskat_matcher_lønmodtager_fixture
+? m5_kirkeskat_matcher_lønmodtager_fixture
+? m5_fiktiv_husholdning_scenarie
 ? m5_audit_par13_mekanik_signal
 ? m5_audit_par13_beløb_signal
 ? m5_audit_par13_kilder_signal
 ? m5_audit_par13_calculator_signal
 ? m5_audit_am_lov_signal
 ? m5_audit_am_lov_særtilfælde_signal
-? m5_audit_kommunal_lov_signal
+? m5_audit_kommuneskattelov_signal
+? m5_audit_folkekirke_kirkeskat_signal
+? m5_audit_fiktiv_husholdning_signal
+? m5_audit_kildeskat_afregning_signal
 
 ----
 §§ 14, 19 og 20 er nu en første executable slice for helårsomregning,
@@ -254,4 +297,4 @@ afgrænsning.
 ? m5_audit_par26_signal
 ? m5_audit_par28_signal
 
-@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, AM-lov almindelig løn, § 13 calculator og §§ 14-28 har executable audit-fixtures; AM-særtilfælde og kommunal lov er fortsat markerede afhængigheder")
+@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, AM-lov almindelig løn, kommunal/kirkelig normalberegning, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures; AM-særtilfælde, kildeskat/opkrævning og kommunal afregning er fortsat markerede afhængigheder")

@@ -1,0 +1,68 @@
+@ sprog da
+
+-- Kommuneskatteloven — afhængig lovkilde for kommunal indkomstskat.
+--
+-- Kilde: Retsinformation, LBK nr. 935 af 30/08/2019.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2019/935
+-- XML: https://www.retsinformation.dk/eli/lta/2019/935/dan/xml
+
+----
+Officiel XML-metadata for 2019/935, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om kommunal indkomstskat
+PopularTitle: Kommuneskatteloven
+Status: Valid
+StartDate: 2019-09-13
+EndDate: 2026-06-19
+
+Retsinformation metadata viser senere ændringer, herunder LOV nr. 679 af
+03/06/2023 om opkrævning og inddrivelse af grundskyld m.v. og LOV nr. 720 af
+20/06/2025 om ændring af selvbudgetteringsordningen.
+----
+
+----
+§ 1. Pligt til at svare kommunal indkomstskat påhviler enhver person, der er
+indkomstskattepligtig til staten efter § 1, jf. §§ 3-5, i kildeskatteloven.
+
+Stk. 2. Med hensyn til den kommunale skattepligts indtræden og ophør gælder
+reglerne om indtræden og ophør af indkomstskattepligt til staten, jf. afsnit II
+i kildeskatteloven.
+----
+
+# KommunalSkattepligtInput(indkomstskattepligtig_til_staten_efter_kildeskatteloven: Boolsk)
+
+| kommunal_indkomstskattepligt(input: KommunalSkattepligtInput) -> input.indkomstskattepligtig_til_staten_efter_kildeskatteloven
+
+----
+§ 5. Kommunal indkomstskat beregnes på grundlag af den i henhold til
+personskatteloven opgjorte skattepligtige indkomst.
+
+Skatten nedsættes efter personskattelovens §§ 10 og 12, jf. til dels § 9.
+
+Stk. 2. Den indkomst, hvoraf kommunal indkomstskat beregnes, afrundes efter
+samme regler som gælder for afrunding af den indkomst, hvoraf skatten til
+staten beregnes.
+----
+
+# KommunalIndkomstskatInput(skattepligtig_indkomst_kroner: Heltal, udskrivningsprocent_basispoint: Heltal)
+
+| kommunal_indkomstskat_grundlag_kroner(input: KommunalIndkomstskatInput) -> input.skattepligtig_indkomst_kroner
+| kommunal_indkomstskat_før_personfradrag_kroner(input: KommunalIndkomstskatInput) -> kommunal_indkomstskat_grundlag_kroner(input) * input.udskrivningsprocent_basispoint / 10000
+
+----
+§ 6. Kommunal indkomstskat svares med en udskrivningsprocent, der fastsættes af
+kommunalbestyrelsen for det pågældende kalenderår, og som skal angive forholdet
+mellem på den ene side de beløb, der skal udskrives som kommunal indkomstskat,
+og på den anden side det udskrivningsgrundlag, som kommunen har lagt til grund
+for budgettet, jf. § 7, stk. 1.
+
+Fremkommer der ved beregningen af udskrivningsprocenten flere decimaler,
+forhøjes den første med 1, og de øvrige bortkastes.
+----
+
+| kommunal_udskrivningsprocent_basispoint(input: KommunalIndkomstskatInput) -> input.udskrivningsprocent_basispoint
+
+= kommuneskattelov_skattepligt_fixture = kommunal_indkomstskattepligt(KommunalSkattepligtInput(Sandt))
+= kommuneskattelov_københavn_2025_fixture = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(460000, 2350))
+
+| kommunal_skattepligt_følger_statsskattepligt: kommuneskattelov_skattepligt_fixture -> kommuneskattelov_skattepligt_fixture == Sandt
+| kommunal_skat_beregnes_af_personskattepligtig_indkomst: kommuneskattelov_københavn_2025_fixture -> kommuneskattelov_københavn_2025_fixture == 108100

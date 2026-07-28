@@ -1,0 +1,64 @@
+@ sprog da
+
+@ importer ./loenmodtager_beregning
+
+-- Personskatteloven — executable fictional household scenarios.
+--
+-- This file is deliberately a scenario/audit fixture, not a legal source
+-- translation. Legal text remains in the law modules; this file records
+-- assumptions and checks whether the current executable model can answer a
+-- normal household question.
+
+----
+Scenario 1
+Skatteår: 2026
+Kommune: København
+Mandens bruttoløn: 50.000 kr. pr. måned, 600.000 kr. pr. år.
+Ægtefællens bruttoløn: 20.000 kr. pr. måned, 240.000 kr. pr. år.
+Bolig: leje 10.000 kr. pr. måned.
+Børn: 3 børn på 2, 7 og 10 år.
+Kirkeskat: nej for begge ægtefæller.
+Positiv nettokapitalindkomst: 0 kr.
+Ligningsmæssige fradrag: 0 kr.
+
+Current model scope: ordinary wage tax under Personskatteloven with AM-bidrag,
+municipal tax, church-tax membership switch, personfradrag, and 2026 state-tax
+thresholds. Rent, child benefits, housing support, withholding timing,
+deduction discovery, and social-benefit rules are not encoded in this slice.
+----
+
+# HusholdningScenarieResult(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, samlet_skat_årligt_kroner: Heltal, samlet_netto_årligt_kroner: Heltal, samlet_netto_månedligt_kroner: Heltal, husleje_månedligt_kroner: Heltal, efter_husleje_månedligt_kroner: Heltal)
+
+| husholdning_samlet_skat_årligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown) -> mand.samlet_inkl_am_efter_personfradrag_kroner + ægtefælle.samlet_inkl_am_efter_personfradrag_kroner
+| husholdning_samlet_netto_årligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown) -> mand.bruttoløn_kroner + ægtefælle.bruttoløn_kroner - husholdning_samlet_skat_årligt(mand, ægtefælle)
+| husholdning_samlet_netto_månedligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown) -> husholdning_samlet_netto_årligt(mand, ægtefælle) / 12
+| husholdning_efter_husleje_månedligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, husleje_månedligt_kroner: Heltal) -> husholdning_samlet_netto_månedligt(mand, ægtefælle) - husleje_månedligt_kroner
+| beregn_husholdning_scenarie(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, husleje_månedligt_kroner: Heltal) -> HusholdningScenarieResult(mand, ægtefælle, husholdning_samlet_skat_årligt(mand, ægtefælle), husholdning_samlet_netto_årligt(mand, ægtefælle), husholdning_samlet_netto_månedligt(mand, ægtefælle), husleje_månedligt_kroner, husholdning_efter_husleje_månedligt(mand, ægtefælle, husleje_månedligt_kroner))
+
+= scenarie1_mand_input = LønmodtagerInput(2026, København, 600000, 0, 0, Fyldt18EllerGift, Falskt)
+= scenarie1_ægtefælle_input = LønmodtagerInput(2026, København, 240000, 0, 0, Fyldt18EllerGift, Falskt)
+= scenarie1_mand = beregn_lønmodtager(scenarie1_mand_input)
+= scenarie1_ægtefælle = beregn_lønmodtager(scenarie1_ægtefælle_input)
+= scenarie1_husholdning = beregn_husholdning_scenarie(scenarie1_mand, scenarie1_ægtefælle, 10000)
+
+| scenarie1_mand_skat_årligt: scenarie1_mand -> scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner == 224257
+| scenarie1_mand_skat_månedligt: scenarie1_mand -> scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner / 12 == 18688
+| scenarie1_mand_netto_månedligt: scenarie1_mand -> (scenarie1_mand.bruttoløn_kroner - scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner) / 12 == 31311
+| scenarie1_ægtefælle_skat_årligt: scenarie1_ægtefælle -> scenarie1_ægtefælle.samlet_inkl_am_efter_personfradrag_kroner == 78213
+| scenarie1_husholdning_skat_årligt: scenarie1_husholdning -> scenarie1_husholdning.samlet_skat_årligt_kroner == 302470
+| scenarie1_husholdning_netto_månedligt: scenarie1_husholdning -> scenarie1_husholdning.samlet_netto_månedligt_kroner == 44794
+| scenarie1_husholdning_efter_husleje: scenarie1_husholdning -> scenarie1_husholdning.efter_husleje_månedligt_kroner == 34794
+
+? scenarie1_mand_skat_årligt
+? scenarie1_mand_skat_månedligt
+? scenarie1_mand_netto_månedligt
+? scenarie1_ægtefælle_skat_årligt
+? scenarie1_husholdning_skat_årligt
+? scenarie1_husholdning_netto_månedligt
+? scenarie1_husholdning_efter_husleje
+
+@ print("scenarie1 mand årlig skat inkl. AM efter personfradrag: " + vis(scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner))
+@ print("scenarie1 mand månedlig skat afrundet ned i kroner: " + vis(scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner / 12))
+@ print("scenarie1 mand månedlig netto afrundet ned i kroner: " + vis((scenarie1_mand.bruttoløn_kroner - scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner) / 12))
+@ print("scenarie1 husholdning samlet månedlig netto afrundet ned i kroner: " + vis(scenarie1_husholdning.samlet_netto_månedligt_kroner))
+@ print("scenarie1 husholdning efter husleje afrundet ned i kroner: " + vis(scenarie1_husholdning.efter_husleje_månedligt_kroner))

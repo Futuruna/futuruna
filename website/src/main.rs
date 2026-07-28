@@ -1686,9 +1686,15 @@ const TAX_KAP05: &str =
     include_str!("../../examples/danish-income-tax/kapitel-05-afsluttende-bestemmelser.runa");
 const TAX_AM: &str =
     include_str!("../../examples/danish-income-tax/arbejdsmarkedsbidragsloven.runa");
+const TAX_KOMMUNE: &str =
+    include_str!("../../examples/danish-income-tax/kommuneskatteloven.runa");
+const TAX_KIRKE: &str =
+    include_str!("../../examples/danish-income-tax/folkekirkens-oekonomi.runa");
 const TAX_PARAMS: &str = include_str!("../../examples/danish-income-tax/skatteaar-parametre.runa");
 const TAX_CALC: &str = include_str!("../../examples/danish-income-tax/loenmodtager_beregning.runa");
 const TAX_FIXTURES: &str = include_str!("../../examples/danish-income-tax/loenmodtager-fixtures.runa");
+const TAX_HOUSEHOLD: &str =
+    include_str!("../../examples/danish-income-tax/husholdning-scenarier.runa");
 const TAX_AUDIT: &str = include_str!("../../examples/danish-income-tax/personskatteloven-audit.runa");
 
 // US Constitution .runa files
@@ -2331,9 +2337,12 @@ fn ResearchPersonskatteloven() -> Element {
         ("kapitel-04-omregning-skatteloft.runa — §§ 14-20 omregning og skatteloft", "kapitel-04-code", TAX_KAP04),
         ("kapitel-05-afsluttende-bestemmelser.runa — §§ 21-28 afslutning", "kapitel-05-code", TAX_KAP05),
         ("arbejdsmarkedsbidragsloven.runa — AM-bidrag almindelig løn", "am-code", TAX_AM),
+        ("kommuneskatteloven.runa — kommunal indkomstskat", "kommuneskatteloven-code", TAX_KOMMUNE),
+        ("folkekirkens-oekonomi.runa — kirkeskat", "folkekirken-code", TAX_KIRKE),
         ("skatteaar-parametre.runa — 2024/2025/2026 parameterpakker", "params-code", TAX_PARAMS),
         ("loenmodtager_beregning.runa — første beregningsslice", "calculator-code", TAX_CALC),
         ("loenmodtager-fixtures.runa — eksekverbare normalperson-fixtures", "fixtures-code", TAX_FIXTURES),
+        ("husholdning-scenarier.runa — fiktivt husholdningsscenarie", "household-code", TAX_HOUSEHOLD),
         ("personskatteloven-audit.runa — audit-signaler", "audit-code", TAX_AUDIT),
     ];
 
@@ -2377,12 +2386,12 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Calculation slice" }
                             strong { "Calculation-ready" }
-                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary AM-bidrag, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, and synthetic § 13 complex-case breakdown fixtures." }
+                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary AM-bidrag plus municipal/church tax, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: AM-law special cases, § 14/§ 19 calculator integration beyond fixtures, dependent municipal/tax-withholding statutes, and external differential fixtures remain explicit gaps." }
+                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: AM-law special cases, § 14/§ 19 calculator integration beyond fixtures, Kildeskatteloven collection/withholding, municipal settlement/allocation, and external differential fixtures remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -2392,9 +2401,15 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
                         " · reform: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2024/482", "LOV nr. 482 af 22/05/2024" }
+                        " · kommunal/kirkelig: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2019/935", "Kommuneskatteloven" }
+                        " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2023/424", "Folkekirkens økonomi" }
+                        " + "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1772", "LOV nr. 1772/2025" }
                     }
                     p { class: "const-stats",
-                        "12 filer \u{00B7} §§ 1-28 første slice \u{00B7} AM-lov almindelig løn \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, kapital og § 13 fixtures \u{00B7} audit-signaler"
+                        "15 filer \u{00B7} §§ 1-28 første slice \u{00B7} AM/kommunal/kirkelig normalberegning \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, husholdning, kapital og § 13 fixtures \u{00B7} audit-signaler"
                     }
                 }
 
@@ -2430,7 +2445,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "2026 reform, mellemskat capital branch, ordinary AM law, and § 13 complex calculators are executable; municipal and AM special cases remain" }
+                            strong { "2026 reform, mellemskat capital branch, ordinary AM/municipal/church tax, a fictional household, and § 13 complex calculators are executable; withholding and special cases remain" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }

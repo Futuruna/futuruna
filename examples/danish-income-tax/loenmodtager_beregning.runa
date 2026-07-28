@@ -1,6 +1,8 @@
 @ sprog da
 
 @ importer ./arbejdsmarkedsbidragsloven
+@ importer ./kommuneskatteloven
+@ importer ./folkekirkens - oekonomi
 @ importer ./skatteaar - parametre
 @ importer ./kapitel - 02 - statsskat
 @ importer ./kapitel - 03 - personfradrag
@@ -75,10 +77,11 @@ Tabelkolonner: Kommunenavn, År, Kommuneskat, Kirkeskat, Sundhedsbidrag,
 Bundskat, I alt, Skatteloftsnedslag, Grundskyldspromille (Kommune).
 ----
 
-| kirkeskat_sats_for(input: LønmodtagerInput) -> 0
-| exception kirkeskat_for_medlem kirkeskat_sats_for(input: LønmodtagerInput) -> kommunale_parametre_for(input.skatteår, input.kommune).kirkeskat_basispoint under input.betaler_kirkeskat
-| kommuneskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(almindelig_skattepligtig_indkomst_fixture(input), kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint)
-| kirkeskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(almindelig_skattepligtig_indkomst_fixture(input), kirkeskat_sats_for(input))
+| kommuneskat_input_for(input: LønmodtagerInput) -> KommunalIndkomstskatInput(almindelig_skattepligtig_indkomst_fixture(input), kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint)
+| kirkeskat_input_for(input: LønmodtagerInput) -> KirkeskatInput(almindelig_skattepligtig_indkomst_fixture(input), kommunale_parametre_for(input.skatteår, input.kommune).kirkeskat_basispoint, input.betaler_kirkeskat)
+| kirkeskat_sats_for(input: LønmodtagerInput) -> kirkeskat_sats_basispoint(kirkeskat_input_for(input))
+| kommuneskat_før_personfradrag(input: LønmodtagerInput) -> kommunal_indkomstskat_før_personfradrag_kroner(kommuneskat_input_for(input))
+| kirkeskat_før_personfradrag(input: LønmodtagerInput) -> kirkeskat_før_personfradrag_kroner(kirkeskat_input_for(input))
 
 ----
 § 9. Indkomstskatten efter §§ 6, 7, 7 a og 8 og § 8 a, stk. 2, til staten skal,

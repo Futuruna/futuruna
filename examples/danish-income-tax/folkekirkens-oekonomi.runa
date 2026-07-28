@@ -1,0 +1,62 @@
+@ sprog da
+
+-- Folkekirkens økonomi — afhængig lovkilde for kirkeskat i normalberegningen.
+--
+-- Kilde: Retsinformation, LBK nr. 424 af 19/04/2023.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2023/424
+-- XML: https://www.retsinformation.dk/eli/lta/2023/424/dan/xml
+--
+-- Ændringskilde: Retsinformation, LOV nr. 1772 af 29/12/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1772
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1772/dan/xml
+
+----
+Officiel XML-metadata for 2023/424, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om folkekirkens økonomi
+Status: Valid
+StartDate: 2023-04-25
+EndDate: 2025-12-31
+
+Retsinformation metadata viser senere ændringer, herunder LOV nr. 1772 af
+29/12/2025 om forenkling og bedre understøttelse af menighedsrådsarbejdet m.v.
+
+Officiel XML-metadata for 2025/1772, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af lov om menighedsråd, lov om folkekirkens
+økonomi, lov om folkekirkens kirkebygninger og kirkegårde og forskellige andre
+love
+Status: Valid
+StartDate: 2025-12-29
+EndDate: 2025-12-30
+----
+
+----
+§ 18. Ligningsbeløbet til kirkekasserne og provstiudvalgskasserne samt
+landskirkeskat pålignes folkekirkens medlemmer under ét efter samme regler,
+hvorefter kommunal indkomstskat svares til vedkommende kommune, dog at den
+kirkelige ligningsprocent fastsættes med 2 decimaler.
+
+Bestemmelserne i lov om kommunal indkomstskat om fordeling af kommunal
+indkomstskat mellem kommunerne finder tilsvarende anvendelse.
+
+Stk. 2. Påligningen sker under ét for kommunen, uanset om denne omfatter flere
+sogne.
+----
+
+----
+LOV nr. 1772 af 29/12/2025 § 2, nr. 4-6, ændrer Folkekirkens økonomi § 18 ved
+at udtage ordene »en af provstiudvalget godkendt«, indsætte et nyt stk. 2 om
+stiftsøvrighedens godkendelse af reguleringsplaner for umistelige kirkegårde
+og lade det hidtidige stk. 2 blive stk. 3 med en tekstændring.
+----
+
+# KirkeskatInput(skattepligtig_indkomst_kroner: Heltal, kirkelig_ligningsprocent_basispoint: Heltal, folkekirkemedlem: Boolsk)
+
+| kirkeskat_sats_basispoint(input: KirkeskatInput) -> 0
+| exception folkekirkemedlem_pålignes_kirkeskat kirkeskat_sats_basispoint(input: KirkeskatInput) -> input.kirkelig_ligningsprocent_basispoint under input.folkekirkemedlem
+| kirkeskat_før_personfradrag_kroner(input: KirkeskatInput) -> input.skattepligtig_indkomst_kroner * kirkeskat_sats_basispoint(input) / 10000
+
+= kirkeskat_medlem_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(460000, 80, Sandt))
+= kirkeskat_ikke_medlem_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(460000, 80, Falskt))
+
+| folkekirkemedlem_pålignes_ligning: kirkeskat_medlem_fixture -> kirkeskat_medlem_fixture == 3680
+| ikke_medlem_pålignes_ikke_kirkeskat: kirkeskat_ikke_medlem_fixture -> kirkeskat_ikke_medlem_fixture == 0
