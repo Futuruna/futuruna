@@ -1,0 +1,109 @@
+@ sprog da
+
+@ importer ./skatteaar - parametre
+
+-- Bekendtgørelse om forskudsregistrering og beregning af indeholdelsesprocent
+-- for indkomståret 2026.
+--
+-- Kilde: Retsinformation, BEK nr. 1094 af 10/09/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1094
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1094/dan/xml
+--
+-- Ændring: Retsinformation, BEK nr. 1828 af 29/12/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1828
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1828/dan/xml
+
+----
+Officiel XML-metadata for 2025/1094, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse om forskudsregistrering og beregning af
+indeholdelsesprocent for indkomståret 2026
+Status: Valid
+DiesSigni: 2025-09-10
+StartDate: 2025-09-11
+EndDate: 2026-06-20
+
+Officiel XML-metadata for 2025/1828, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse om ændring af bekendtgørelse om
+forskudsregistrering og beregning af indeholdelsesprocent for indkomståret 2026
+Status: Valid
+DiesSigni: 2025-12-29
+StartDate: 2025-12-29
+EndDate: 2026-06-20
+
+BEK nr. 1828/2025 ændrer BEK nr. 1094/2025 § 1, stk. 2, og ændrer ikke § 6 om
+beregning af indeholdelsesprocentsatsen.
+----
+
+----
+§ 6. Indeholdelsesprocentsatsen på skattekortet for indkomståret 2026
+beregnes som summen af følgende procentsatser, der er større end 0:
+
+1) Skattekommunens laveste skatteprocentsats, der opgøres som summen af den
+kommunale skatteprocentsats, kirkeskatteprocentsatsen for medlemmer af
+folkekirken og bundskatten efter personskattelovens § 6.
+I stedet for den kommunale skatteprocentsats anvendes for begrænset
+skattepligtige satsen for skat svarende til kommunal indkomstskat efter
+personskattelovens § 8 c.
+
+2) En procentsats beregnet som mellemskat efter personskattelovens § 7 og
+nedsat efter personskattelovens § 19, opgjort uden nedsættelse for
+personfradrag, delt med den personlige indkomst og med tillæg af positiv
+nettokapitalindkomst over kapitalindkomstbundgrænsen, og ganget med 100.
+
+3) En procentsats beregnet som topskat efter personskattelovens § 7 a, opgjort
+uden nedsættelse for personfradrag, delt med den personlige indkomst og ganget
+med 100.
+
+4) En procentsats beregnet som toptopskat efter personskattelovens § 8, opgjort
+uden nedsættelse for personfradrag, delt med den personlige indkomst og ganget
+med 100.
+
+Stk. 2. Procentsatserne efter stk. 1 beregnes med 2 decimaler.
+
+Stk. 3. Forhøjelse af indeholdelsesprocentsatsen sker efter reglerne i § 12 i
+bekendtgørelse nr. 839 af 24. juni 2025 om kildeskat.
+----
+
+# Forskudsregistrering2026Skattekommune(skatteår: Heltal, kommunal_skat_basispoint: Heltal, kirkeskat_basispoint: Heltal, betaler_kirkeskat: Boolsk, bundskat_basispoint: Heltal, begrænset_skattepligtig: Boolsk, par8c_basispoint: Heltal)
+# Forskudsregistrering2026Progressionsgrundlag(personlig_indkomst_kroner: Heltal, positiv_nettokapitalindkomst_over_grænse_kroner: Heltal)
+# Forskudsregistrering2026Progressionsskatter(mellemskat_efter_skatteloft_kroner: Heltal, topskat_kroner: Heltal, toptopskat_kroner: Heltal)
+# Forskudsregistrering2026IndeholdelsesprocentInput(skattekommune: Forskudsregistrering2026Skattekommune, progressionsgrundlag: Forskudsregistrering2026Progressionsgrundlag, progressionsskatter: Forskudsregistrering2026Progressionsskatter)
+
+| forskudsregistrering_2026_kirkeskat_basispoint(input: Forskudsregistrering2026Skattekommune) -> 0
+| exception forskudsregistrering_2026_folkekirkemedlem_kirkeskat forskudsregistrering_2026_kirkeskat_basispoint(input: Forskudsregistrering2026Skattekommune) -> input.kirkeskat_basispoint under input.betaler_kirkeskat
+| forskudsregistrering_2026_kommunal_eller_par8c_basispoint(input: Forskudsregistrering2026Skattekommune) -> input.kommunal_skat_basispoint
+| exception forskudsregistrering_2026_begrænset_skattepligtig_par8c forskudsregistrering_2026_kommunal_eller_par8c_basispoint(input: Forskudsregistrering2026Skattekommune) -> input.par8c_basispoint under input.begrænset_skattepligtig
+| forskudsregistrering_2026_laveste_skatteprocentsats_basispoint(input: Forskudsregistrering2026Skattekommune) -> forskudsregistrering_2026_kommunal_eller_par8c_basispoint(input) + forskudsregistrering_2026_kirkeskat_basispoint(input) + input.bundskat_basispoint
+
+| forskudsregistrering_2026_procentsats_basispoint(skat_kroner: Heltal, grundlag_kroner: Heltal) -> 0
+| exception forskudsregistrering_2026_to_decimal_procentsats forskudsregistrering_2026_procentsats_basispoint(skat_kroner: Heltal, grundlag_kroner: Heltal) -> skat_kroner * 10000 / grundlag_kroner under skat_kroner > 0 && grundlag_kroner > 0
+| forskudsregistrering_2026_mellemskat_nævner_kroner(input: Forskudsregistrering2026IndeholdelsesprocentInput) -> input.progressionsgrundlag.personlig_indkomst_kroner + input.progressionsgrundlag.positiv_nettokapitalindkomst_over_grænse_kroner
+| forskudsregistrering_2026_mellemskat_procentsats_basispoint(input: Forskudsregistrering2026IndeholdelsesprocentInput) -> forskudsregistrering_2026_procentsats_basispoint(input.progressionsskatter.mellemskat_efter_skatteloft_kroner, forskudsregistrering_2026_mellemskat_nævner_kroner(input))
+| forskudsregistrering_2026_topskat_procentsats_basispoint(input: Forskudsregistrering2026IndeholdelsesprocentInput) -> forskudsregistrering_2026_procentsats_basispoint(input.progressionsskatter.topskat_kroner, input.progressionsgrundlag.personlig_indkomst_kroner)
+| forskudsregistrering_2026_toptopskat_procentsats_basispoint(input: Forskudsregistrering2026IndeholdelsesprocentInput) -> forskudsregistrering_2026_procentsats_basispoint(input.progressionsskatter.toptopskat_kroner, input.progressionsgrundlag.personlig_indkomst_kroner)
+| forskudsregistrering_2026_indeholdelsesprocent_basispoint(input: Forskudsregistrering2026IndeholdelsesprocentInput) -> forskudsregistrering_2026_laveste_skatteprocentsats_basispoint(input.skattekommune) + forskudsregistrering_2026_mellemskat_procentsats_basispoint(input) + forskudsregistrering_2026_topskat_procentsats_basispoint(input) + forskudsregistrering_2026_toptopskat_procentsats_basispoint(input)
+
+| forskudsregistrering_2026_skattekommune_for(skatteår: Heltal, kommune: Kommune, betaler_kirkeskat: Boolsk) -> Forskudsregistrering2026Skattekommune(skatteår, kommunale_parametre_for(skatteår, kommune).kommuneskat_basispoint, kommunale_parametre_for(skatteår, kommune).kirkeskat_basispoint, betaler_kirkeskat, nationalparametre_for(skatteår).bundskat_basispoint, Falskt, 0) under skatteår == 2026 && parameterpakke_komplet(skatteår, kommune)
+
+= forskudsregistrering_2026_københavn_uden_kirke = forskudsregistrering_2026_skattekommune_for(2026, København, Falskt)
+= forskudsregistrering_2026_københavn_med_kirke = forskudsregistrering_2026_skattekommune_for(2026, København, Sandt)
+= forskudsregistrering_2026_almindelig_input = Forskudsregistrering2026IndeholdelsesprocentInput(forskudsregistrering_2026_københavn_uden_kirke, Forskudsregistrering2026Progressionsgrundlag(552000, 0), Forskudsregistrering2026Progressionsskatter(0, 0, 0))
+= forskudsregistrering_2026_progressiv_input = Forskudsregistrering2026IndeholdelsesprocentInput(forskudsregistrering_2026_københavn_uden_kirke, Forskudsregistrering2026Progressionsgrundlag(828000, 0), Forskudsregistrering2026Progressionsskatter(14010, 3757, 0))
+= forskudsregistrering_2026_mellemskat_procentsats_fixture = forskudsregistrering_2026_mellemskat_procentsats_basispoint(forskudsregistrering_2026_progressiv_input)
+= forskudsregistrering_2026_topskat_procentsats_fixture = forskudsregistrering_2026_topskat_procentsats_basispoint(forskudsregistrering_2026_progressiv_input)
+= forskudsregistrering_2026_almindelig_procent = forskudsregistrering_2026_indeholdelsesprocent_basispoint(forskudsregistrering_2026_almindelig_input)
+= forskudsregistrering_2026_progressiv_procent = forskudsregistrering_2026_indeholdelsesprocent_basispoint(forskudsregistrering_2026_progressiv_input)
+
+| forskudsregistrering_2026_laveste_uden_kirke: forskudsregistrering_2026_københavn_uden_kirke -> forskudsregistrering_2026_laveste_skatteprocentsats_basispoint(forskudsregistrering_2026_københavn_uden_kirke) == 3540
+| forskudsregistrering_2026_laveste_med_kirke: forskudsregistrering_2026_københavn_med_kirke -> forskudsregistrering_2026_laveste_skatteprocentsats_basispoint(forskudsregistrering_2026_københavn_med_kirke) == 3620
+| forskudsregistrering_2026_almindelig_procent_beregnes: forskudsregistrering_2026_almindelig_procent -> forskudsregistrering_2026_almindelig_procent == 3540
+| forskudsregistrering_2026_mellemskat_to_decimaler: forskudsregistrering_2026_mellemskat_procentsats_fixture -> forskudsregistrering_2026_mellemskat_procentsats_fixture == 169
+| forskudsregistrering_2026_topskat_to_decimaler: forskudsregistrering_2026_topskat_procentsats_fixture -> forskudsregistrering_2026_topskat_procentsats_fixture == 45
+| forskudsregistrering_2026_progressiv_procent_beregnes: forskudsregistrering_2026_progressiv_procent -> forskudsregistrering_2026_progressiv_procent == 3754
+
+? forskudsregistrering_2026_laveste_uden_kirke
+? forskudsregistrering_2026_laveste_med_kirke
+? forskudsregistrering_2026_almindelig_procent_beregnes
+? forskudsregistrering_2026_mellemskat_to_decimaler
+? forskudsregistrering_2026_topskat_to_decimaler
+? forskudsregistrering_2026_progressiv_procent_beregnes

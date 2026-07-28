@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./kildeskatteloven
+@ importer ./forskudsregistrering_2026
 
 -- Bekendtgørelse om kildeskat — forskudsopgørelse til skattekort.
 --
@@ -190,18 +191,22 @@ fradragsbeløb efter Skatteforvaltningens nærmere bestemmelse.
 | kildeskattebekendtgørelse_skattekort_resultat(input: KildeskattebekendtgørelseForskudskortInput) -> KildeskattebekendtgørelseSkattekortResult(kildeskattebekendtgørelse_samlet_skattekortfradrag_kroner(input), kildeskattebekendtgørelse_månedsfradrag_kroner(input), kildeskattebekendtgørelse_fjorten_dages_fradrag_kroner(input), kildeskattebekendtgørelse_ugefradrag_kroner(input), kildeskattebekendtgørelse_dagsfradrag_kroner(input), kildeskattebekendtgørelse_indeholdelsesprocent_for_kort_basispoint(input), kildeskattebekendtgørelse_skattebillet_b_skat_kroner(input), kildeskattebekendtgørelse_korttype(input), kildeskattebekendtgørelse_eskattekort_input(input))
 
 = kildeskattebekendtgørelse_kildevalg_fixture = forskudsgrundlag_ændringskilde(ForskudsregistreringKildevalg(Sandt, Sandt, Falskt, Falskt, Falskt))
-= kildeskattebekendtgørelse_skattekort_fixture = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(2026, 600000, 50000, 0, 160726, 3800, 5200, 0, Sandt, Sandt, Måned, Sandt))
-= kildeskattebekendtgørelse_bikort_fixture = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(2026, 600000, 50000, 0, 160726, 3800, 5200, 0, Falskt, Sandt, Måned, Sandt))
+= kildeskattebekendtgørelse_procentgrundlag_fixture = Forskudsregistrering2026IndeholdelsesprocentInput(forskudsregistrering_2026_skattekommune_for(2026, København, Falskt), Forskudsregistrering2026Progressionsgrundlag(552000, 0), Forskudsregistrering2026Progressionsskatter(0, 0, 0))
+= kildeskattebekendtgørelse_uafrundet_indeholdelsesprocent_fixture = forskudsregistrering_2026_indeholdelsesprocent_basispoint(kildeskattebekendtgørelse_procentgrundlag_fixture)
+= kildeskattebekendtgørelse_skattekort_fixture = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(2026, 600000, 50000, 0, 160726, kildeskattebekendtgørelse_uafrundet_indeholdelsesprocent_fixture, 5200, 0, Sandt, Sandt, Måned, Sandt))
+= kildeskattebekendtgørelse_bikort_fixture = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(2026, 600000, 50000, 0, 160726, kildeskattebekendtgørelse_uafrundet_indeholdelsesprocent_fixture, 5200, 0, Falskt, Sandt, Måned, Sandt))
 = kildeskattebekendtgørelse_skatteloft_fixture = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(2026, 600000, 50000, 0, 280000, 4800, 4457, 0, Sandt, Sandt, Måned, Sandt))
 
 | kildeskattebekendtgørelse_sidste_forskudsændring_prioriteres: kildeskattebekendtgørelse_kildevalg_fixture -> kildeskattebekendtgørelse_kildevalg_fixture == SidsteÅrsForskudsændring
-| kildeskattebekendtgørelse_samlet_fradrag_genereres: kildeskattebekendtgørelse_skattekort_fixture -> kildeskattebekendtgørelse_skattekort_fixture.samlet_skattekortfradrag_kroner == 177037
-| kildeskattebekendtgørelse_månedsfradrag_genereres: kildeskattebekendtgørelse_skattekort_fixture -> kildeskattebekendtgørelse_skattekort_fixture.månedsfradrag_kroner == 14753
-| kildeskattebekendtgørelse_eskattekort_beregner_a_skat: kildeskattebekendtgørelse_skattekort_fixture -> kildeskat_a_skat_med_eskattekort_kroner(kildeskattebekendtgørelse_skattekort_fixture.eskattekort) == 13391
-| kildeskattebekendtgørelse_bikort_får_ingen_fradragsvirkning: kildeskattebekendtgørelse_bikort_fixture -> kildeskat_a_skat_med_eskattekort_kroner(kildeskattebekendtgørelse_bikort_fixture.eskattekort) == 19000
+| kildeskattebekendtgørelse_uafrundet_procent_afledes: kildeskattebekendtgørelse_uafrundet_indeholdelsesprocent_fixture -> kildeskattebekendtgørelse_uafrundet_indeholdelsesprocent_fixture == 3540
+| kildeskattebekendtgørelse_samlet_fradrag_genereres: kildeskattebekendtgørelse_skattekort_fixture -> kildeskattebekendtgørelse_skattekort_fixture.samlet_skattekortfradrag_kroner == 145972
+| kildeskattebekendtgørelse_månedsfradrag_genereres: kildeskattebekendtgørelse_skattekort_fixture -> kildeskattebekendtgørelse_skattekort_fixture.månedsfradrag_kroner == 12164
+| kildeskattebekendtgørelse_eskattekort_beregner_a_skat: kildeskattebekendtgørelse_skattekort_fixture -> kildeskat_a_skat_med_eskattekort_kroner(kildeskattebekendtgørelse_skattekort_fixture.eskattekort) == 13618
+| kildeskattebekendtgørelse_bikort_får_ingen_fradragsvirkning: kildeskattebekendtgørelse_bikort_fixture -> kildeskat_a_skat_med_eskattekort_kroner(kildeskattebekendtgørelse_bikort_fixture.eskattekort) == 18000
 | kildeskattebekendtgørelse_skatteloft_udløser_b_skat: kildeskattebekendtgørelse_skatteloft_fixture -> kildeskattebekendtgørelse_skatteloft_fixture.indeholdelsesprocent_basispoint == 4500 && kildeskattebekendtgørelse_skatteloft_fixture.skattebillet_b_skat_kroner == 12580
 
 ? kildeskattebekendtgørelse_sidste_forskudsændring_prioriteres
+? kildeskattebekendtgørelse_uafrundet_procent_afledes
 ? kildeskattebekendtgørelse_samlet_fradrag_genereres
 ? kildeskattebekendtgørelse_månedsfradrag_genereres
 ? kildeskattebekendtgørelse_eskattekort_beregner_a_skat

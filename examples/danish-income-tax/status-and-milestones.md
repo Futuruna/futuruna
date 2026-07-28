@@ -103,6 +103,17 @@ Current municipal/church-tax and withholding dependency sources:
     generation slice used to turn a forskudsskat and unrounded withholding
     percentage into card allowance, rounded withholding percentage, and
     possible B-tax overflow.
+- Forskudsregistrering/indeholdelsesprocent 2026:
+  `https://www.retsinformation.dk/eli/lta/2025/1094`
+  - XML status on 2026-07-18: `Valid`
+  - § 6 is the first annual source-backed derivation of the 2026
+    indeholdelsesprocentsats: skattekommunens laveste skatteprocentsats plus
+    positive mellemskat/topskat/toptopskat rates computed with two decimals.
+- Forskudsregistrering/indeholdelsesprocent 2026 amendment:
+  `https://www.retsinformation.dk/eli/lta/2025/1828`
+  - XML status on 2026-07-18: `Valid`
+  - Amends BEK 1094 § 1, stk. 2, and is tracked as a current dependency;
+    it does not change § 6.
 - Opkrævningsloven:
   `https://www.retsinformation.dk/eli/lta/2024/1040`
   - XML status on 2026-07-18: `Valid`
@@ -134,6 +145,7 @@ encoded as a temporal rule on top of the consolidation.
 - `folkekirkens-oekonomi.runa` exists and checks with `runa check`.
 - `kildeskatteloven.runa` exists and checks with `runa check`.
 - `kildeskattebekendtgoerelsen.runa` exists and checks/runs with `runa run`.
+- `forskudsregistrering_2026.runa` exists and checks/runs with `runa run`.
 - `opkraevningsloven.runa` exists and checks/runs with `runa run`.
 - `ligningsloven_fradrag.runa` exists and checks with `runa check`.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
@@ -152,7 +164,8 @@ encoded as a temporal rule on top of the consolidation.
   slice, the §§ 21-28 concluding provisions slice, ordinary and special-case
   AM-law,
   municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding,
-  BEK 839 forskudskort generation, Opkrævningsloven payment deadlines,
+  BEK 839 forskudskort generation, BEK 1094 2026 indeholdelsesprocent,
+  Opkrævningsloven payment deadlines,
   Ligningsloven ordinary wage-earner deduction
   dependency slices, 2024/2025/2026 tax-year parameter packs, first wage-earner
   scenarios, a first fictional household scenario, complex § 13 calculator
@@ -218,9 +231,10 @@ Current decision:
 Review candidates to revisit deliberately, not as broad churn:
 
 - `KildeskatESkattekortInput` and
-  `KildeskattebekendtgørelseForskudskortInput` may eventually share smaller
-  card-period and withholding-percentage objects, but this should wait until the
-  full trækprocent derivation source is encoded.
+  `KildeskattebekendtgørelseForskudskortInput` still may eventually share
+  smaller card-period and withholding-percentage objects, but the current BEK
+  1094 slice keeps the annual 2026 percentage derivation as its own domain
+  object rather than forcing a broader card refactor prematurely.
 - `ArbejdsmarkedsbidragUdvidetLønmodtagerInput` and
   `ArbejdsmarkedsbidragVirksomhedsordningInput` are wide, but they still mirror
   dense statutory enumerations closely enough that premature grouping could hurt
@@ -249,8 +263,8 @@ Review candidates to revisit deliberately, not as broad churn:
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Replace remaining source-dependency placeholders with complementary official
-  statutes and trusted calculation examples, especially for full trækprocent
-  derivation, municipal/church settlement edge cases, final settlement/payment
+  statutes and trusted calculation examples, especially for municipal/church
+  settlement edge cases, final settlement/payment
   mechanics beyond the first Opkrævningsloven deadline slice, and remaining AM edge cases beyond the first source-explicit
   special-case slice. The AM-law slice now covers ordinary wage remuneration,
   taxable benefits, § 3 exclusions, self-employed bases with and without
@@ -262,10 +276,13 @@ Review candidates to revisit deliberately, not as broad churn:
   main-card period allowances, bikort without allowance, optional higher
   withholding percentage, base rounding, and the statutory 55 pct. no-card
   fallback. The first BEK 839 slice now generates skattekort values from
-  forskudsskat plus an unrounded withholding percentage. The fictional
-  household scenario now computes monthly A-skat and cash-flow payroll output
-  both from supplied e-skattekort allowance/procent inputs and generated BEK
-  839 card values. The first Opkrævningsloven slice now covers ordinary and
+  forskudsskat plus an unrounded withholding percentage. The first BEK 1094
+  slice now derives the 2026 unrounded withholding percentage from municipal,
+  church, bundskat, mellemskat, topskat and toptopskat components. The
+  fictional household scenario now computes monthly A-skat and cash-flow payroll
+  output both from supplied e-skattekort allowance/procent inputs and generated
+  BEK 839 card values using the BEK 1094-derived percentage. The first
+  Opkrævningsloven slice now covers ordinary and
   large-withholder A-skat/AM payment deadlines, late payment posture, and
   provisional assessment posture. § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
@@ -278,7 +295,6 @@ Review candidates to revisit deliberately, not as broad churn:
 - Build calculation fixtures for ordinary wage-earner cases before handling
   complex cases.
 - Gather complementary official sources for:
-  full trækprocent derivation,
   municipal and church-tax settlement/allocation, personal allowance, remaining
   payment/settlement mechanics beyond the first Opkrævningsloven deadline
   slice, remaining AM edge cases, other
@@ -383,8 +399,9 @@ M4 - Ordinary taxpayer calculator
   withholding if no e-skattekort, bikort or frikort has been received, and
   computes monthly A-skat/cash-flow payroll output when e-skattekort
   allowance/procent inputs are supplied. BEK 839 now generates the household's
-  main-card monthly allowances from forskudsskat and unrounded withholding
-  percentage inputs, producing a separate generated-card payroll view.
+  main-card monthly allowances from forskudsskat and BEK 1094-derived
+  withholding percentage inputs, producing a separate generated-card payroll
+  view.
   Opkrævningsloven now provides source-backed payment-deadline/remittance rules,
   with fixtures separated into `indeholdelse-afregning.scenario.runa`. The § 13
   complex calculator input now uses domain objects for income basis, tax-value
@@ -403,13 +420,13 @@ M5 - Audit suite
   ordinary wage and special-case AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
   wage-earner-deduction coverage, ordinary municipal/church-tax legal coverage,
   covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture,
-  covered BEK 839 forskudskort generation, covered fictional household
+  covered BEK 839 forskudskort generation, covered BEK 1094 2026
+  indeholdelsesprocent derivation, covered fictional household
   scenario, topskat threshold activation, covered § 14
   annualization, covered § 19 skatteloft including the 2026 44,57 pct. ceiling,
   covered § 20 regulation/rounding, covered § 26 transition compensation,
   covered § 28 territorial exclusion, covered AM-law special cases,
   covered Opkrævningsloven payment-deadline/remittance posture,
-  full trækprocent-derivation dependency, and
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
   seamen-relief exceptions, and calculator-level § 13 integration signals over
@@ -427,8 +444,9 @@ M6 - Website integration
   corpus plus `.scenario.runa` executable scenarios and the `.audit.runa`
   audit suite, marks the limited wage-earner fixture slice plus ordinary and
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
-  A-income/withholding/e-skattekort posture, BEK 839 generated-card path, and
-  Opkrævningsloven payment-deadline slice as
+  A-income/withholding/e-skattekort posture, BEK 839 generated-card path,
+  BEK 1094 2026 indeholdelsesprocent derivation, and Opkrævningsloven
+  payment-deadline slice as
   calculation-ready, and marks the full statute model as
   research/audit-only.
 
