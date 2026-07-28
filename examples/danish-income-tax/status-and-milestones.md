@@ -136,6 +136,10 @@ Current municipal/church-tax and withholding dependency sources:
     LOV 1694/2024, LOV 1783/2025 and BEK 1793/2025: the live supplement is
     0,85 procentpoint from January 1, 2026, so the 2026 late-payment monthly
     rate fixture is 0,95 pct. before daily accrual mechanics.
+  - Den juridiske vejledning 2026-1, A.B.4.7.2, supplies the administrative
+    daily-interest convention: the renteår is the calendar year, so the day
+    divisor is 365 or 366 in leap years:
+    `https://info.skat.dk/data.aspx?oid=2168585&chk=220619`.
 
 Working decision: use `2021/1284` as the current consolidated source for live
 encoding, while preserving `2019/799` as source lineage because the valid
@@ -275,14 +279,17 @@ Current decision:
   exception, and `opkrævning_par7_stk1_månedlig_forsinkelsesrente_basispoint`
   derives the combined monthly late-payment rate from the published § 7, stk. 2
   row plus that supplement.
-- Second-pass review: the current Opkrævningsloven § 7 update should stay as
-  rate rules keyed by `kalenderår`. A domain record would be premature while the
-  executable surface is only source-chain status, published monthly rate,
-  late-payment supplement, and a daily-accrual posture flag.
-- The next legitimate Opkrævningsloven domain object is a date-exact
-  late-payment interest context once kroner calculation is encoded: principal,
-  due date, payment date, published § 7 stk. 2 row, stk. 1 supplement, source
-  chain, and daily accrual convention.
+- `OpkrævningDato`, `OpkrævningPar7DagligRenteInput`,
+  `OpkrævningPar7DagligRenteKontekst`, and
+  `OpkrævningPar7DagligRenteBeregning` are now the right-sized domain boundary
+  for § 7 daily late-payment interest. The context carries principal, latest
+  timely payment date, actual payment date, calendar-year rate row, supplement,
+  day-count convention, and rentedage together, avoiding loose date/rate
+  parameters being passed down merely so subrules can project them.
+- The § 7 daily-interest result deliberately exposes the øre numerator,
+  denominator, and nedrundet øre amount. That keeps precision and rounding
+  posture visible until broader kroner/øre rounding policy is unified across the
+  tax corpus.
 - The household scenario helpers are a future candidate for a compact scenario
   input object if more household scenarios are added. With one scenario, the
   current explicit facts remain easier to audit than a new wrapper layer.
@@ -477,8 +484,9 @@ M4 - Ordinary taxpayer calculator
   withholding percentage inputs, producing a separate generated-card payroll
   view.
   Opkrævningsloven now provides source-backed payment-deadline/remittance rules
-  plus the § 7 annual-rate formula, with fixtures separated into
-  `indeholdelse-afregning.scenario.runa` where they are scenario facts. The § 13
+  plus the § 7 annual-rate formula and date-exact daily late-payment interest
+  context, with fixtures separated into `indeholdelse-afregning.scenario.runa`
+  where they are scenario facts. The § 13
   complex calculator input now uses domain objects for income basis, tax-value
   rates, offset taxes, spouse transfer, stk. 5 limits, and same-business loss
   facts. `slutopgoerelse.scenario.runa` now also computes the fictional
@@ -509,9 +517,9 @@ M5 - Audit suite
   compensation, covered § 28 territorial exclusion, covered AM-law special cases,
   covered Opkrævningsloven payment-deadline/remittance posture and § 7
   rate-derivation fixture plus 2026 late-payment supplement source-chain
-  amendment, covered B-skat installment calendar/rate-window projection,
-  covered § 62 A interest fixtures, exposed restskat remaining
-  B-skat-rate minimum tension,
+  amendment and date-exact daily interest context, covered B-skat installment
+  calendar/rate-window projection, covered § 62 A interest fixtures, exposed
+  restskat remaining B-skat-rate minimum tension,
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
   seamen-relief exceptions, and calculator-level § 13 integration signals over
@@ -531,8 +539,9 @@ M6 - Website integration
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
-  Opkrævningsloven payment-deadline and § 7 rate-derivation slices, the B-skat
-  calendar projection, and § 62 A interest fixtures as calculation-ready, and
+  Opkrævningsloven payment-deadline, § 7 rate-derivation, and date-exact daily
+  interest-context slices, the B-skat calendar projection, and § 62 A interest
+  fixtures as calculation-ready, and
   marks the full statute model as research/audit-only.
 
 M7 - Personfradrag and deficit layer
