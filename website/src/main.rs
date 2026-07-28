@@ -3603,7 +3603,7 @@ fn ResearchPersonskatteloven() -> Element {
             TAX_REMITTANCE,
         ),
         (
-            "personskatteloven-bomber.audit.runa — § 8 a/§ 14/§ 19 spændingsprober",
+            "personskatteloven-bomber.audit.runa — § 8 a/§ 8 b/§ 13/§ 14/§ 19 spændingsprober",
             "bomb-audit-code",
             TAX_BOMB_AUDIT,
         ),

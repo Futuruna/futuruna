@@ -548,7 +548,27 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 selskabsskattelovens § 17, stk. 1.
 ----
 
+----
+Selskabsskatteloven, LBK nr. 279 af 13/03/2025, § 17, stk. 1:
+
+Indkomstskatten for de i § 1, stk. 1, nr. 1-2 i og 3 a-5 b, og § 3, stk. 7,
+nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes af den
+skattepligtige indkomst og udgør 22 pct.
+----
+
+# CfcSkatInput(skatteår: Heltal, cfc_indkomst_kroner: Heltal)
+# CfcSkatResultat(cfc_indkomst_kroner: Heltal, sats_basispoint: Heltal, skat_kroner: Heltal)
+
 | cfc_skat_bruger_selskabsskattelovens_par17_stk1() -> Sandt
+| selskabsskattelov_par17_stk1_sats_basispoint(skatteår: Heltal) -> 2200 under skatteår >= 2024
+| cfc_skat_sats_basispoint(skatteår: Heltal) -> selskabsskattelov_par17_stk1_sats_basispoint(skatteår)
+| cfc_skat_kroner(input: CfcSkatInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.cfc_indkomst_kroner), cfc_skat_sats_basispoint(input.skatteår))
+| cfc_skat_resultat(input: CfcSkatInput) -> CfcSkatResultat(penge_positivt_beløb(input.cfc_indkomst_kroner), cfc_skat_sats_basispoint(input.skatteår), cfc_skat_kroner(input))
+
+= par8b_cfc_500k = cfc_skat_resultat(CfcSkatInput(2026, 500000))
+
+| par8b_cfc_selskabsskat_sats: cfc_skat_sats_basispoint(2026) -> cfc_skat_sats_basispoint(2026) == 2200
+| par8b_cfc_500k_skat: par8b_cfc_500k -> par8b_cfc_500k.skat_kroner == 110000
 
 ----
 § 8 c. For personer, der omfattes af kildeskattelovens § 2, stk. 1, nr. 1, 2,
@@ -595,9 +615,17 @@ fradrages i skatten efter § 6, fragår den i nævnte rækkefølge i skatterne e
 kommunen samt kirkeskat nedsættes på tilsvarende måde.
 ----
 
-# PersonfradragKomponent = PersonfradragSundhedsbidrag | PersonfradragBundskat | PersonfradragTopskat | PersonfradragUdligningsskat | PersonfradragHøjAktieSkat | PersonfradragPar8c | PersonfradragKommuneskat | PersonfradragKirkeskat
+# PersonfradragKomponent = PersonfradragSundhedsbidrag | PersonfradragBundskat | PersonfradragTopskat | PersonfradragUdligningsskat | PersonfradragHøjAktieSkat | PersonfradragPar8c | PersonfradragKommuneskat | PersonfradragKirkeskat | PersonfradragCfcSkat
 
-| personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt
+| personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Falskt
+| exception personfradrag_nedsætter_sundhedsbidrag personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt under komponent == PersonfradragSundhedsbidrag
+| exception personfradrag_nedsætter_bundskat personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt under komponent == PersonfradragBundskat
+| exception personfradrag_nedsætter_topskat personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt under komponent == PersonfradragTopskat
+| exception personfradrag_nedsætter_udligningsskat personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt under komponent == PersonfradragUdligningsskat
+| exception personfradrag_nedsætter_høj_aktieskat personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt under komponent == PersonfradragHøjAktieSkat
+| exception personfradrag_nedsætter_par8c personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt under komponent == PersonfradragPar8c
+| exception personfradrag_nedsætter_kommuneskat personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt under komponent == PersonfradragKommuneskat
+| exception personfradrag_nedsætter_kirkeskat personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt under komponent == PersonfradragKirkeskat
 | personfradrag_opgøres_efter_par10() -> Sandt
 | personfradrag_skatteværdi_efter_par12() -> Sandt
 | personfradrag_anvendes_efter_par13_regulering() -> Sandt
@@ -605,7 +633,9 @@ kommunen samt kirkeskat nedsættes på tilsvarende måde.
 = par9_bundskat_nedsættes = personfradrag_nedsætter(PersonfradragBundskat)
 = par9_høj_aktie_nedsættes = personfradrag_nedsætter(PersonfradragHøjAktieSkat)
 = par9_par8c_nedsættes = personfradrag_nedsætter(PersonfradragPar8c)
+= par9_cfc_nedsættes_ikke = personfradrag_nedsætter(PersonfradragCfcSkat)
 
 | par9_bundskat_personfradrag: par9_bundskat_nedsættes -> par9_bundskat_nedsættes == Sandt
 | par9_aktie_personfradrag: par9_høj_aktie_nedsættes -> par9_høj_aktie_nedsættes == Sandt
 | par9_par8c_personfradrag: par9_par8c_nedsættes -> par9_par8c_nedsættes == Sandt
+| par9_cfc_uden_personfradrag: par9_cfc_nedsættes_ikke -> par9_cfc_nedsættes_ikke == Falskt
