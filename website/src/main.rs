@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 use gloo_timers::future::TimeoutFuture;
-use pulldown_cmark::{Parser, Options, html, Event, Tag, TagEnd, HeadingLevel};
+use pulldown_cmark::{html, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
 const CSS: Asset = asset!("../assets/main.css");
 const LOGO: Asset = asset!("../assets/logo.svg");
@@ -56,7 +56,8 @@ fn Shell() -> Element {
     // Inject the doc tooltip system once on mount
     use_effect(move || {
         let db_js = doc_db_js();
-        let setup_js = format!(r#"
+        let setup_js = format!(
+            r#"
             {db_js}
             (function() {{
                 var tip = document.getElementById('doc-tooltip');
@@ -136,7 +137,9 @@ fn Shell() -> Element {
                     tip.classList.add('visible');
                 }});
             }})();
-        "#, db_js = db_js);
+        "#,
+            db_js = db_js
+        );
         dioxus::document::eval(&setup_js);
     });
 
@@ -232,10 +235,22 @@ fn Nav() -> Element {
 // ============================================================================
 
 const OPTIMAL_FOR: &[&str] = &[
-    "Humans", "AI's", "Systems Programming", "Law", "Finance",
-    "Defense", "Autonomous Systems", "Smart Contracts",
-    "Cybersecurity", "MedTech", "Quantitative Finance",
-    "Edge Computing", "Aerospace", "RegTech", "Embedded", "IoT",
+    "Humans",
+    "AI's",
+    "Systems Programming",
+    "Law",
+    "Finance",
+    "Defense",
+    "Autonomous Systems",
+    "Smart Contracts",
+    "Cybersecurity",
+    "MedTech",
+    "Quantitative Finance",
+    "Edge Computing",
+    "Aerospace",
+    "RegTech",
+    "Embedded",
+    "IoT",
 ];
 
 #[component]
@@ -255,7 +270,11 @@ fn Hero() -> Element {
     });
 
     let word = OPTIMAL_FOR[current()];
-    let fade_class = if fading() { "hero-rotating fade-out" } else { "hero-rotating fade-in" };
+    let fade_class = if fading() {
+        "hero-rotating fade-out"
+    } else {
+        "hero-rotating fade-in"
+    };
 
     rsx! {
         section { class: "hero",
@@ -392,13 +411,48 @@ struct RuneInfo {
 }
 
 const RUNES: [RuneInfo; 7] = [
-    RuneInfo { symbol: "#", name: "What exists", meaning: "Types, effects, traits, impls", example: "# Point(x: Float, y: Float)" },
-    RuneInfo { symbol: ">", name: "What happens", meaning: "Functions, actors, modules", example: "> distance(a: Point, b: Point) -> Float" },
-    RuneInfo { symbol: "|", name: "What should be true", meaning: "Rules, match arms, handlers", example: "| is_valid(p) -> p.x > 0 && p.y > 0" },
-    RuneInfo { symbol: "=", name: "What is", meaning: "Bindings, ground truth", example: "= origin = Point(0.0, 0.0)" },
-    RuneInfo { symbol: "~", name: "What flows", meaning: "Reactive streams, temporal behavior", example: "~ clicks = from_list([1, 2, 3]) |> map(|x| x * 2)" },
-    RuneInfo { symbol: "@", name: "Where proofs stop", meaning: "Meta/effects: print, use, import", example: "@ print(\"Hello, consciousness\")" },
-    RuneInfo { symbol: "?", name: "Prove it", meaning: "Solver/verification invocation", example: "? valid_point -> { @ print(\"verified\") }" },
+    RuneInfo {
+        symbol: "#",
+        name: "What exists",
+        meaning: "Types, effects, traits, impls",
+        example: "# Point(x: Float, y: Float)",
+    },
+    RuneInfo {
+        symbol: ">",
+        name: "What happens",
+        meaning: "Functions, actors, modules",
+        example: "> distance(a: Point, b: Point) -> Float",
+    },
+    RuneInfo {
+        symbol: "|",
+        name: "What should be true",
+        meaning: "Rules, match arms, handlers",
+        example: "| is_valid(p) -> p.x > 0 && p.y > 0",
+    },
+    RuneInfo {
+        symbol: "=",
+        name: "What is",
+        meaning: "Bindings, ground truth",
+        example: "= origin = Point(0.0, 0.0)",
+    },
+    RuneInfo {
+        symbol: "~",
+        name: "What flows",
+        meaning: "Reactive streams, temporal behavior",
+        example: "~ clicks = from_list([1, 2, 3]) |> map(|x| x * 2)",
+    },
+    RuneInfo {
+        symbol: "@",
+        name: "Where proofs stop",
+        meaning: "Meta/effects: print, use, import",
+        example: "@ print(\"Hello, consciousness\")",
+    },
+    RuneInfo {
+        symbol: "?",
+        name: "Prove it",
+        meaning: "Solver/verification invocation",
+        example: "? valid_point -> { @ print(\"verified\") }",
+    },
 ];
 
 #[component]
@@ -515,13 +569,35 @@ fn push_span(out: &mut String, cls: &str, text: &str) {
 }
 
 fn is_kw(w: &str) -> bool {
-    matches!(w, "if" | "else" | "match" | "for" | "in" | "under" | "exception"
-        | "with" | "resume" | "return" | "spawn" | "ask" | "inout" | "pub"
-        | "actor" | "trait" | "sealed" | "effect" | "impl" | "handle")
+    matches!(
+        w,
+        "if" | "else"
+            | "match"
+            | "for"
+            | "in"
+            | "under"
+            | "exception"
+            | "with"
+            | "resume"
+            | "return"
+            | "spawn"
+            | "ask"
+            | "inout"
+            | "pub"
+            | "actor"
+            | "trait"
+            | "sealed"
+            | "effect"
+            | "impl"
+            | "handle"
+    )
 }
 
 fn is_at_kw(w: &str) -> bool {
-    matches!(w, "print" | "import" | "depend" | "use" | "comptime" | "export" | "rust")
+    matches!(
+        w,
+        "print" | "import" | "depend" | "use" | "comptime" | "export" | "rust"
+    )
 }
 
 // ============================================================================
@@ -538,182 +614,1130 @@ struct DocEntry {
 
 const DOC_DB: &[DocEntry] = &[
     // -- Runes --
-    DocEntry { id: "rune_hash",     name: "#",            oneliner: "What exists \u{2014} define types, effects, traits, impls",          rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "rune_gt",       name: ">",            oneliner: "What happens \u{2014} define functions, actors, modules",             rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "rune_pipe",     name: "|",            oneliner: "What must be true \u{2014} rules, invariants, match arms",            rune: "|", rune_class: "hl-rune-pipe" },
-    DocEntry { id: "rune_eq",       name: "=",            oneliner: "What is \u{2014} bindings, ground truth, constants",                  rune: "=", rune_class: "hl-rune-eq" },
-    DocEntry { id: "rune_tilde",    name: "~",            oneliner: "What flows \u{2014} reactive streams, temporal behavior",              rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "rune_at",       name: "@",            oneliner: "Where proofs stop \u{2014} IO, imports, effects, meta",                rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "rune_question", name: "?",            oneliner: "Prove it \u{2014} verification demands and assertions",                rune: "?", rune_class: "hl-rune-question" },
+    DocEntry {
+        id: "rune_hash",
+        name: "#",
+        oneliner: "What exists \u{2014} define types, effects, traits, impls",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "rune_gt",
+        name: ">",
+        oneliner: "What happens \u{2014} define functions, actors, modules",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "rune_pipe",
+        name: "|",
+        oneliner: "What must be true \u{2014} rules, invariants, match arms",
+        rune: "|",
+        rune_class: "hl-rune-pipe",
+    },
+    DocEntry {
+        id: "rune_eq",
+        name: "=",
+        oneliner: "What is \u{2014} bindings, ground truth, constants",
+        rune: "=",
+        rune_class: "hl-rune-eq",
+    },
+    DocEntry {
+        id: "rune_tilde",
+        name: "~",
+        oneliner: "What flows \u{2014} reactive streams, temporal behavior",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "rune_at",
+        name: "@",
+        oneliner: "Where proofs stop \u{2014} IO, imports, effects, meta",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "rune_question",
+        name: "?",
+        oneliner: "Prove it \u{2014} verification demands and assertions",
+        rune: "?",
+        rune_class: "hl-rune-question",
+    },
     // -- Operators --
-    DocEntry { id: "op_pipe",       name: "|>",           oneliner: "Pipe \u{2014} pass left side as input to right side",                  rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "op_arrow",      name: "->",           oneliner: "Arrow \u{2014} separates parameters from return type or body",         rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "op_send",       name: "<-",           oneliner: "Send \u{2014} deliver a message to an actor",                          rune: ">", rune_class: "hl-rune-gt" },
+    DocEntry {
+        id: "op_pipe",
+        name: "|>",
+        oneliner: "Pipe \u{2014} pass left side as input to right side",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "op_arrow",
+        name: "->",
+        oneliner: "Arrow \u{2014} separates parameters from return type or body",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "op_send",
+        name: "<-",
+        oneliner: "Send \u{2014} deliver a message to an actor",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
     // -- Keywords --
-    DocEntry { id: "match",         name: "match",        oneliner: "Branch on value \u{2014} pattern matching with | arms",                rune: "|", rune_class: "hl-rune-pipe" },
-    DocEntry { id: "for",           name: "for",          oneliner: "Loop over a list or range",                                            rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "if",            name: "if",           oneliner: "Conditional expression \u{2014} evaluates to a value",                  rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "else",          name: "else",         oneliner: "Alternative branch of an if or ? expression",                          rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "in",            name: "in",           oneliner: "Iterator binding \u{2014} used with for loops",                         rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "while",         name: "while",        oneliner: "Loop while condition is true",                                         rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "under",         name: "under",        oneliner: "Rule condition \u{2014} when this rule layer applies",                  rune: "|", rune_class: "hl-rune-pipe" },
-    DocEntry { id: "exception",     name: "exception",    oneliner: "Rule override \u{2014} takes priority over base rules",                 rune: "|", rune_class: "hl-rune-pipe" },
-    DocEntry { id: "inout",         name: "inout",        oneliner: "Mutable parameter \u{2014} allows in-place mutation",                   rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "return",        name: "return",       oneliner: "Early return from a function",                                         rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "actor",         name: "actor",        oneliner: "Define a stateful concurrent actor",                                   rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "spawn",         name: "spawn",        oneliner: "Launch an actor instance",                                             rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "ask",           name: "ask",          oneliner: "Send a request to an actor and await response",                        rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "trait",         name: "trait",        oneliner: "Define a shared interface for types",                                  rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "effect",        name: "effect",       oneliner: "Declare algebraic effects",                                            rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "impl",          name: "impl",         oneliner: "Implement a trait for a type",                                         rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "handle",        name: "handle",       oneliner: "Intercept and handle algebraic effects",                               rune: "|", rune_class: "hl-rune-pipe" },
-    DocEntry { id: "with",          name: "with",         oneliner: "Provide an effect handler scope",                                      rune: "|", rune_class: "hl-rune-pipe" },
-    DocEntry { id: "resume",        name: "resume",       oneliner: "Continue execution from an effect handler",                            rune: "|", rune_class: "hl-rune-pipe" },
+    DocEntry {
+        id: "match",
+        name: "match",
+        oneliner: "Branch on value \u{2014} pattern matching with | arms",
+        rune: "|",
+        rune_class: "hl-rune-pipe",
+    },
+    DocEntry {
+        id: "for",
+        name: "for",
+        oneliner: "Loop over a list or range",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "if",
+        name: "if",
+        oneliner: "Conditional expression \u{2014} evaluates to a value",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "else",
+        name: "else",
+        oneliner: "Alternative branch of an if or ? expression",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "in",
+        name: "in",
+        oneliner: "Iterator binding \u{2014} used with for loops",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "while",
+        name: "while",
+        oneliner: "Loop while condition is true",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "under",
+        name: "under",
+        oneliner: "Rule condition \u{2014} when this rule layer applies",
+        rune: "|",
+        rune_class: "hl-rune-pipe",
+    },
+    DocEntry {
+        id: "exception",
+        name: "exception",
+        oneliner: "Rule override \u{2014} takes priority over base rules",
+        rune: "|",
+        rune_class: "hl-rune-pipe",
+    },
+    DocEntry {
+        id: "inout",
+        name: "inout",
+        oneliner: "Mutable parameter \u{2014} allows in-place mutation",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "return",
+        name: "return",
+        oneliner: "Early return from a function",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "actor",
+        name: "actor",
+        oneliner: "Define a stateful concurrent actor",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "spawn",
+        name: "spawn",
+        oneliner: "Launch an actor instance",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "ask",
+        name: "ask",
+        oneliner: "Send a request to an actor and await response",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "trait",
+        name: "trait",
+        oneliner: "Define a shared interface for types",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "effect",
+        name: "effect",
+        oneliner: "Declare algebraic effects",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "impl",
+        name: "impl",
+        oneliner: "Implement a trait for a type",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "handle",
+        name: "handle",
+        oneliner: "Intercept and handle algebraic effects",
+        rune: "|",
+        rune_class: "hl-rune-pipe",
+    },
+    DocEntry {
+        id: "with",
+        name: "with",
+        oneliner: "Provide an effect handler scope",
+        rune: "|",
+        rune_class: "hl-rune-pipe",
+    },
+    DocEntry {
+        id: "resume",
+        name: "resume",
+        oneliner: "Continue execution from an effect handler",
+        rune: "|",
+        rune_class: "hl-rune-pipe",
+    },
     // -- Booleans --
-    DocEntry { id: "True",          name: "True",         oneliner: "Boolean true value",                                                   rune: "=", rune_class: "hl-rune-eq" },
-    DocEntry { id: "False",         name: "False",        oneliner: "Boolean false value",                                                  rune: "=", rune_class: "hl-rune-eq" },
+    DocEntry {
+        id: "True",
+        name: "True",
+        oneliner: "Boolean true value",
+        rune: "=",
+        rune_class: "hl-rune-eq",
+    },
+    DocEntry {
+        id: "False",
+        name: "False",
+        oneliner: "Boolean false value",
+        rune: "=",
+        rune_class: "hl-rune-eq",
+    },
     // -- Primitive types --
-    DocEntry { id: "Int",           name: "Int",          oneliner: "64-bit signed integer \u{2014} compiles to i64",                        rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Float",         name: "Float",        oneliner: "64-bit floating point \u{2014} compiles to f64",                        rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "String",        name: "String",       oneliner: "UTF-8 text \u{2014} compiles to String",                               rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Bool",          name: "Bool",         oneliner: "Boolean type \u{2014} True or False",                                   rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Char",          name: "Char",         oneliner: "Single Unicode character \u{2014} compiles to char",                    rune: "#", rune_class: "hl-rune-hash" },
+    DocEntry {
+        id: "Int",
+        name: "Int",
+        oneliner: "64-bit signed integer \u{2014} compiles to i64",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Float",
+        name: "Float",
+        oneliner: "64-bit floating point \u{2014} compiles to f64",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "String",
+        name: "String",
+        oneliner: "UTF-8 text \u{2014} compiles to String",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Bool",
+        name: "Bool",
+        oneliner: "Boolean type \u{2014} True or False",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Char",
+        name: "Char",
+        oneliner: "Single Unicode character \u{2014} compiles to char",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
     // -- Composite types --
-    DocEntry { id: "List",          name: "List",         oneliner: "Ordered collection \u{2014} compiles to Vec<T>",                        rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Option",        name: "Option",       oneliner: "Optional value \u{2014} None or Some(value)",                           rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Result",        name: "Result",       oneliner: "Success or error \u{2014} Ok(value) or Err(error)",                     rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Pair",          name: "Pair",         oneliner: "Two-element tuple \u{2014} access with .fst and .snd",                  rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Map",           name: "Map",          oneliner: "Key-value dictionary \u{2014} compiles to HashMap",                     rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Set",           name: "Set",          oneliner: "Unique collection \u{2014} compiles to HashSet",                        rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Some",          name: "Some",         oneliner: "Wraps a value in Option \u{2014} indicates presence",                   rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "None",          name: "None",         oneliner: "Empty Option \u{2014} indicates absence",                               rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Ok",            name: "Ok",           oneliner: "Success variant of Result",                                            rune: "#", rune_class: "hl-rune-hash" },
-    DocEntry { id: "Err",           name: "Err",          oneliner: "Error variant of Result",                                              rune: "#", rune_class: "hl-rune-hash" },
+    DocEntry {
+        id: "List",
+        name: "List",
+        oneliner: "Ordered collection \u{2014} compiles to Vec<T>",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Option",
+        name: "Option",
+        oneliner: "Optional value \u{2014} None or Some(value)",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Result",
+        name: "Result",
+        oneliner: "Success or error \u{2014} Ok(value) or Err(error)",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Pair",
+        name: "Pair",
+        oneliner: "Two-element tuple \u{2014} access with .fst and .snd",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Map",
+        name: "Map",
+        oneliner: "Key-value dictionary \u{2014} compiles to HashMap",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Set",
+        name: "Set",
+        oneliner: "Unique collection \u{2014} compiles to HashSet",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Some",
+        name: "Some",
+        oneliner: "Wraps a value in Option \u{2014} indicates presence",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "None",
+        name: "None",
+        oneliner: "Empty Option \u{2014} indicates absence",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Ok",
+        name: "Ok",
+        oneliner: "Success variant of Result",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
+    DocEntry {
+        id: "Err",
+        name: "Err",
+        oneliner: "Error variant of Result",
+        rune: "#",
+        rune_class: "hl-rune-hash",
+    },
     // -- @ keywords --
-    DocEntry { id: "print",         name: "print",        oneliner: "Output text to stdout \u{2014} primary IO effect",                      rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "import",        name: "import",       oneliner: "Import definitions from another module",                               rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "depend",        name: "depend",       oneliner: "Declare a Rust crate dependency",                                      rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "export",        name: "export",       oneliner: "Make a definition visible to other modules",                            rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "comptime",      name: "comptime",     oneliner: "Evaluate expression at compile time",                                  rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "rust",          name: "@ rust",       oneliner: "Embed raw Rust code \u{2014} escape hatch",                             rune: "@", rune_class: "hl-rune-at" },
+    DocEntry {
+        id: "print",
+        name: "print",
+        oneliner: "Output text to stdout \u{2014} primary IO effect",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "import",
+        name: "import",
+        oneliner: "Import definitions from another module",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "depend",
+        name: "depend",
+        oneliner: "Declare a Rust crate dependency",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "export",
+        name: "export",
+        oneliner: "Make a definition visible to other modules",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "comptime",
+        name: "comptime",
+        oneliner: "Evaluate expression at compile time",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "rust",
+        name: "@ rust",
+        oneliner: "Embed raw Rust code \u{2014} escape hatch",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
     // -- Display --
-    DocEntry { id: "show",          name: "show",         oneliner: "Convert any value to its string representation",                       rune: ">", rune_class: "hl-rune-gt" },
+    DocEntry {
+        id: "show",
+        name: "show",
+        oneliner: "Convert any value to its string representation",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
     // -- Math --
-    DocEntry { id: "abs",           name: "abs",          oneliner: "Absolute value of an integer",                                         rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "sqrt",          name: "sqrt",         oneliner: "Square root of a float",                                               rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "pow",           name: "pow",          oneliner: "Raise a float to a power",                                             rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "exp",           name: "exp",          oneliner: "Natural exponential (e^x)",                                            rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "ln",            name: "ln",           oneliner: "Natural logarithm",                                                    rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "round",         name: "round",        oneliner: "Round a float to the nearest integer",                                 rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "floor",         name: "floor",        oneliner: "Round a float down to an integer",                                     rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "to_float",      name: "to_float",     oneliner: "Convert an integer to a float",                                        rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "max_int",       name: "max_int",      oneliner: "Maximum of two integers",                                              rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "min_int",       name: "min_int",      oneliner: "Minimum of two integers",                                              rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "clamp",         name: "clamp",        oneliner: "Clamp value to range [lo, hi]",                                        rune: ">", rune_class: "hl-rune-gt" },
+    DocEntry {
+        id: "abs",
+        name: "abs",
+        oneliner: "Absolute value of an integer",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "sqrt",
+        name: "sqrt",
+        oneliner: "Square root of a float",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "pow",
+        name: "pow",
+        oneliner: "Raise a float to a power",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "exp",
+        name: "exp",
+        oneliner: "Natural exponential (e^x)",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "ln",
+        name: "ln",
+        oneliner: "Natural logarithm",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "round",
+        name: "round",
+        oneliner: "Round a float to the nearest integer",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "floor",
+        name: "floor",
+        oneliner: "Round a float down to an integer",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "to_float",
+        name: "to_float",
+        oneliner: "Convert an integer to a float",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "max_int",
+        name: "max_int",
+        oneliner: "Maximum of two integers",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "min_int",
+        name: "min_int",
+        oneliner: "Minimum of two integers",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "clamp",
+        name: "clamp",
+        oneliner: "Clamp value to range [lo, hi]",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
     // -- String --
-    DocEntry { id: "string_length", name: "string_length", oneliner: "Number of Unicode scalar values in a string",                         rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "split",         name: "split",        oneliner: "Split a string by separator into a list",                              rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "join",          name: "join",         oneliner: "Join a list of strings with a separator",                              rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "trim",          name: "trim",         oneliner: "Remove leading and trailing whitespace",                               rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "contains",      name: "contains",     oneliner: "Test if a string contains a substring",                                rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "starts_with",   name: "starts_with",  oneliner: "Test if a string starts with a prefix",                               rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "ends_with",     name: "ends_with",    oneliner: "Test if a string ends with a suffix",                                  rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "replace",       name: "replace",      oneliner: "Replace all occurrences of a substring",                               rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "to_upper",      name: "to_upper",     oneliner: "Convert a string to uppercase",                                        rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "to_lower",      name: "to_lower",     oneliner: "Convert a string to lowercase",                                        rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "substring",     name: "substring",    oneliner: "Extract a string slice by Unicode scalar index and length",             rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "char_at",       name: "char_at",      oneliner: "Get one Unicode scalar value from a string by index",                   rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "index_of",      name: "index_of",     oneliner: "Find scalar position of a substring (\u{2212}1 if absent)",             rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "string_chars",  name: "string_chars", oneliner: "Explode a string into Unicode scalar values",                          rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "parse_int",     name: "parse_int",    oneliner: "Parse a string to integer (0 on failure)",                             rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "parse_float",   name: "parse_float",  oneliner: "Parse a string to float (0.0 on failure)",                             rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "format_float",  name: "format_float", oneliner: "Format a float with N decimal places",                                 rune: ">", rune_class: "hl-rune-gt" },
+    DocEntry {
+        id: "string_length",
+        name: "string_length",
+        oneliner: "Number of Unicode scalar values in a string",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "split",
+        name: "split",
+        oneliner: "Split a string by separator into a list",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "join",
+        name: "join",
+        oneliner: "Join a list of strings with a separator",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "trim",
+        name: "trim",
+        oneliner: "Remove leading and trailing whitespace",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "contains",
+        name: "contains",
+        oneliner: "Test if a string contains a substring",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "starts_with",
+        name: "starts_with",
+        oneliner: "Test if a string starts with a prefix",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "ends_with",
+        name: "ends_with",
+        oneliner: "Test if a string ends with a suffix",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "replace",
+        name: "replace",
+        oneliner: "Replace all occurrences of a substring",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "to_upper",
+        name: "to_upper",
+        oneliner: "Convert a string to uppercase",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "to_lower",
+        name: "to_lower",
+        oneliner: "Convert a string to lowercase",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "substring",
+        name: "substring",
+        oneliner: "Extract a string slice by Unicode scalar index and length",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "char_at",
+        name: "char_at",
+        oneliner: "Get one Unicode scalar value from a string by index",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "index_of",
+        name: "index_of",
+        oneliner: "Find scalar position of a substring (\u{2212}1 if absent)",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "string_chars",
+        name: "string_chars",
+        oneliner: "Explode a string into Unicode scalar values",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "parse_int",
+        name: "parse_int",
+        oneliner: "Parse a string to integer (0 on failure)",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "parse_float",
+        name: "parse_float",
+        oneliner: "Parse a string to float (0.0 on failure)",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "format_float",
+        name: "format_float",
+        oneliner: "Format a float with N decimal places",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
     // -- List --
-    DocEntry { id: "push",          name: "push",         oneliner: "Append an element to the end of a list",                               rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "length",        name: "length",       oneliner: "Number of elements in a list",                                         rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "head",          name: "head",         oneliner: "First element of a list",                                              rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "tail",          name: "tail",         oneliner: "All elements except the first",                                        rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "nth",           name: "nth",          oneliner: "Get element at index (O(1) access)",                                   rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "reverse",       name: "reverse",      oneliner: "Reverse the order of a list",                                          rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "count",         name: "count",        oneliner: "Number of elements in a list",                                         rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "sort",          name: "sort",         oneliner: "Sort a list in ascending order",                                       rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "sort_by",       name: "sort_by",      oneliner: "Sort a list with a custom comparison function",                        rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "filter",        name: "filter",       oneliner: "Keep elements matching a predicate",                                   rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "map",           name: "map",          oneliner: "Transform each element with a function",                               rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "flat_map",      name: "flat_map",     oneliner: "Map then flatten nested lists",                                        rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "zip",           name: "zip",          oneliner: "Combine two lists element-wise into pairs",                            rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "enumerate",     name: "enumerate",    oneliner: "Pair each element with its index",                                     rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "any",           name: "any",          oneliner: "True if any element matches a predicate",                              rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "all",           name: "all",          oneliner: "True if all elements match a predicate",                               rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "find",          name: "find",         oneliner: "First element matching a predicate",                                   rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "sum_list",      name: "sum_list",     oneliner: "Sum all numbers in a list",                                            rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "distinct",      name: "distinct",     oneliner: "Remove duplicate elements",                                            rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "take_while",    name: "take_while",   oneliner: "Take elements while predicate holds",                                  rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "drop_while",    name: "drop_while",   oneliner: "Skip elements while predicate holds",                                  rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "count_by",      name: "count_by",     oneliner: "Count elements matching a predicate",                                  rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "partition",     name: "partition",    oneliner: "Split list by predicate into two lists",                               rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "chunked",       name: "chunked",      oneliner: "Split list into chunks of size N",                                     rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "range",         name: "range",        oneliner: "Generate a list of integers from start to end",                        rune: ">", rune_class: "hl-rune-gt" },
+    DocEntry {
+        id: "push",
+        name: "push",
+        oneliner: "Append an element to the end of a list",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "length",
+        name: "length",
+        oneliner: "Number of elements in a list",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "head",
+        name: "head",
+        oneliner: "First element of a list",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "tail",
+        name: "tail",
+        oneliner: "All elements except the first",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "nth",
+        name: "nth",
+        oneliner: "Get element at index (O(1) access)",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "reverse",
+        name: "reverse",
+        oneliner: "Reverse the order of a list",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "count",
+        name: "count",
+        oneliner: "Number of elements in a list",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "sort",
+        name: "sort",
+        oneliner: "Sort a list in ascending order",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "sort_by",
+        name: "sort_by",
+        oneliner: "Sort a list with a custom comparison function",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "filter",
+        name: "filter",
+        oneliner: "Keep elements matching a predicate",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "map",
+        name: "map",
+        oneliner: "Transform each element with a function",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "flat_map",
+        name: "flat_map",
+        oneliner: "Map then flatten nested lists",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "zip",
+        name: "zip",
+        oneliner: "Combine two lists element-wise into pairs",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "enumerate",
+        name: "enumerate",
+        oneliner: "Pair each element with its index",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "any",
+        name: "any",
+        oneliner: "True if any element matches a predicate",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "all",
+        name: "all",
+        oneliner: "True if all elements match a predicate",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "find",
+        name: "find",
+        oneliner: "First element matching a predicate",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "sum_list",
+        name: "sum_list",
+        oneliner: "Sum all numbers in a list",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "distinct",
+        name: "distinct",
+        oneliner: "Remove duplicate elements",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "take_while",
+        name: "take_while",
+        oneliner: "Take elements while predicate holds",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "drop_while",
+        name: "drop_while",
+        oneliner: "Skip elements while predicate holds",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "count_by",
+        name: "count_by",
+        oneliner: "Count elements matching a predicate",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "partition",
+        name: "partition",
+        oneliner: "Split list by predicate into two lists",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "chunked",
+        name: "chunked",
+        oneliner: "Split list into chunks of size N",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "range",
+        name: "range",
+        oneliner: "Generate a list of integers from start to end",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
     // -- Streams --
-    DocEntry { id: "from_list",     name: "from_list",    oneliner: "Create a stream from a list",                                          rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "subject",       name: "subject",      oneliner: "Create a push-based broadcast stream",                                 rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "complete",      name: "complete",     oneliner: "Signal that a subject has finished",                                   rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "subscribe",     name: "subscribe",    oneliner: "Listen to stream emissions",                                           rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "scan",          name: "scan",         oneliner: "Accumulate stream values with a function",                             rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "take",          name: "take",         oneliner: "Take first N elements from a stream",                                  rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "skip",          name: "skip",         oneliner: "Skip first N elements of a stream",                                    rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "tap",           name: "tap",          oneliner: "Side-effect on each stream element",                                   rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "merge",         name: "merge",        oneliner: "Combine multiple streams into one",                                    rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "collect",       name: "collect",      oneliner: "Gather all stream elements into a list",                               rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "debounce",      name: "debounce",     oneliner: "Wait for silence before emitting latest value",                        rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "throttle",      name: "throttle",     oneliner: "Limit emission rate to one per interval",                              rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "delay",         name: "delay",        oneliner: "Delay each emission by N milliseconds",                                rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "buffer",        name: "buffer",       oneliner: "Collect emissions into time-windowed batches",                         rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "timeout",       name: "timeout",      oneliner: "Fail if no emission within time limit",                                rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "switch_map",    name: "switch_map",   oneliner: "Map to stream, cancel previous on new emission",                       rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "sample",        name: "sample",       oneliner: "Emit latest value when another stream emits",                          rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "first",         name: "first",        oneliner: "Take only the first emission",                                         rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "reduce",        name: "reduce",       oneliner: "Reduce stream to single value",                                        rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "start_with",    name: "start_with",   oneliner: "Prepend a value before stream emissions",                              rune: "~", rune_class: "hl-rune-tilde" },
-    DocEntry { id: "pairwise",      name: "pairwise",     oneliner: "Emit consecutive pairs of values",                                     rune: "~", rune_class: "hl-rune-tilde" },
+    DocEntry {
+        id: "from_list",
+        name: "from_list",
+        oneliner: "Create a stream from a list",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "subject",
+        name: "subject",
+        oneliner: "Create a push-based broadcast stream",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "complete",
+        name: "complete",
+        oneliner: "Signal that a subject has finished",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "subscribe",
+        name: "subscribe",
+        oneliner: "Listen to stream emissions",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "scan",
+        name: "scan",
+        oneliner: "Accumulate stream values with a function",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "take",
+        name: "take",
+        oneliner: "Take first N elements from a stream",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "skip",
+        name: "skip",
+        oneliner: "Skip first N elements of a stream",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "tap",
+        name: "tap",
+        oneliner: "Side-effect on each stream element",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "merge",
+        name: "merge",
+        oneliner: "Combine multiple streams into one",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "collect",
+        name: "collect",
+        oneliner: "Gather all stream elements into a list",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "debounce",
+        name: "debounce",
+        oneliner: "Wait for silence before emitting latest value",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "throttle",
+        name: "throttle",
+        oneliner: "Limit emission rate to one per interval",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "delay",
+        name: "delay",
+        oneliner: "Delay each emission by N milliseconds",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "buffer",
+        name: "buffer",
+        oneliner: "Collect emissions into time-windowed batches",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "timeout",
+        name: "timeout",
+        oneliner: "Fail if no emission within time limit",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "switch_map",
+        name: "switch_map",
+        oneliner: "Map to stream, cancel previous on new emission",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "sample",
+        name: "sample",
+        oneliner: "Emit latest value when another stream emits",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "first",
+        name: "first",
+        oneliner: "Take only the first emission",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "reduce",
+        name: "reduce",
+        oneliner: "Reduce stream to single value",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "start_with",
+        name: "start_with",
+        oneliner: "Prepend a value before stream emissions",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
+    DocEntry {
+        id: "pairwise",
+        name: "pairwise",
+        oneliner: "Emit consecutive pairs of values",
+        rune: "~",
+        rune_class: "hl-rune-tilde",
+    },
     // -- Logic --
-    DocEntry { id: "findall",       name: "findall",      oneliner: "Collect all solutions to a goal into a list",                           rune: "|", rune_class: "hl-rune-pipe" },
-    DocEntry { id: "not",           name: "not",          oneliner: "Negation as failure \u{2014} true if goal fails",                       rune: "|", rune_class: "hl-rune-pipe" },
+    DocEntry {
+        id: "findall",
+        name: "findall",
+        oneliner: "Collect all solutions to a goal into a list",
+        rune: "|",
+        rune_class: "hl-rune-pipe",
+    },
+    DocEntry {
+        id: "not",
+        name: "not",
+        oneliner: "Negation as failure \u{2014} true if goal fails",
+        rune: "|",
+        rune_class: "hl-rune-pipe",
+    },
     // -- Map builtins --
-    DocEntry { id: "map_new",       name: "map_new",      oneliner: "Create an empty Map",                                                  rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "map_insert",    name: "map_insert",   oneliner: "Add or update a key-value pair in a Map",                              rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "map_get",       name: "map_get",      oneliner: "Get value by key (returns Option)",                                    rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "map_contains",  name: "map_contains", oneliner: "Check if a key exists in a Map",                                       rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "map_remove",    name: "map_remove",   oneliner: "Remove a key from a Map",                                              rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "map_keys",      name: "map_keys",     oneliner: "Get all keys as a list",                                               rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "map_values",    name: "map_values",   oneliner: "Get all values as a list",                                             rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "map_len",       name: "map_len",      oneliner: "Number of entries in a Map",                                            rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "map_merge",     name: "map_merge",    oneliner: "Merge two Maps (right wins on conflict)",                               rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "set_new",       name: "set_new",      oneliner: "Create an empty Set",                                                  rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "set_insert",    name: "set_insert",   oneliner: "Add an element to a Set",                                              rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "set_contains",  name: "set_contains", oneliner: "Check if element exists in a Set",                                     rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "set_union",     name: "set_union",    oneliner: "Union of two Sets",                                                    rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "set_intersect", name: "set_intersect", oneliner: "Intersection of two Sets",                                            rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "set_diff",      name: "set_diff",     oneliner: "Elements in first Set but not second",                                 rune: ">", rune_class: "hl-rune-gt" },
+    DocEntry {
+        id: "map_new",
+        name: "map_new",
+        oneliner: "Create an empty Map",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "map_insert",
+        name: "map_insert",
+        oneliner: "Add or update a key-value pair in a Map",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "map_get",
+        name: "map_get",
+        oneliner: "Get value by key (returns Option)",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "map_contains",
+        name: "map_contains",
+        oneliner: "Check if a key exists in a Map",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "map_remove",
+        name: "map_remove",
+        oneliner: "Remove a key from a Map",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "map_keys",
+        name: "map_keys",
+        oneliner: "Get all keys as a list",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "map_values",
+        name: "map_values",
+        oneliner: "Get all values as a list",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "map_len",
+        name: "map_len",
+        oneliner: "Number of entries in a Map",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "map_merge",
+        name: "map_merge",
+        oneliner: "Merge two Maps (right wins on conflict)",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "set_new",
+        name: "set_new",
+        oneliner: "Create an empty Set",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "set_insert",
+        name: "set_insert",
+        oneliner: "Add an element to a Set",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "set_contains",
+        name: "set_contains",
+        oneliner: "Check if element exists in a Set",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "set_union",
+        name: "set_union",
+        oneliner: "Union of two Sets",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "set_intersect",
+        name: "set_intersect",
+        oneliner: "Intersection of two Sets",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "set_diff",
+        name: "set_diff",
+        oneliner: "Elements in first Set but not second",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
     // -- File I/O --
-    DocEntry { id: "read_file",     name: "read_file",    oneliner: "Read entire file contents as a string",                                rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "write_file",    name: "write_file",   oneliner: "Write string to a file (creates or overwrites)",                       rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "read_lines",    name: "read_lines",   oneliner: "Read file as list of lines",                                           rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "env_var",       name: "env_var",      oneliner: "Get environment variable value",                                       rune: "@", rune_class: "hl-rune-at" },
+    DocEntry {
+        id: "read_file",
+        name: "read_file",
+        oneliner: "Read entire file contents as a string",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "write_file",
+        name: "write_file",
+        oneliner: "Write string to a file (creates or overwrites)",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "read_lines",
+        name: "read_lines",
+        oneliner: "Read file as list of lines",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "env_var",
+        name: "env_var",
+        oneliner: "Get environment variable value",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
     // -- JSON --
-    DocEntry { id: "json_parse",    name: "json_parse",   oneliner: "Parse a JSON string into a value",                                     rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "json_get",      name: "json_get",     oneliner: "Get a field from a JSON object",                                       rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "json_emit",     name: "json_emit",    oneliner: "Convert a value to a JSON string",                                     rune: ">", rune_class: "hl-rune-gt" },
+    DocEntry {
+        id: "json_parse",
+        name: "json_parse",
+        oneliner: "Parse a JSON string into a value",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "json_get",
+        name: "json_get",
+        oneliner: "Get a field from a JSON object",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "json_emit",
+        name: "json_emit",
+        oneliner: "Convert a value to a JSON string",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
     // -- HTTP --
-    DocEntry { id: "http_get",      name: "http_get",     oneliner: "Make an HTTP GET request",                                             rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "http_post",     name: "http_post",    oneliner: "Make an HTTP POST request",                                            rune: "@", rune_class: "hl-rune-at" },
+    DocEntry {
+        id: "http_get",
+        name: "http_get",
+        oneliner: "Make an HTTP GET request",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "http_post",
+        name: "http_post",
+        oneliner: "Make an HTTP POST request",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
     // -- DB --
-    DocEntry { id: "db_open",       name: "db_open",      oneliner: "Open a SQLite database connection",                                    rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "db_exec",       name: "db_exec",      oneliner: "Execute a SQL statement",                                              rune: "@", rune_class: "hl-rune-at" },
-    DocEntry { id: "db_query",      name: "db_query",     oneliner: "Query rows from the database",                                         rune: "@", rune_class: "hl-rune-at" },
+    DocEntry {
+        id: "db_open",
+        name: "db_open",
+        oneliner: "Open a SQLite database connection",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "db_exec",
+        name: "db_exec",
+        oneliner: "Execute a SQL statement",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
+    DocEntry {
+        id: "db_query",
+        name: "db_query",
+        oneliner: "Query rows from the database",
+        rune: "@",
+        rune_class: "hl-rune-at",
+    },
     // -- Pair accessors --
-    DocEntry { id: "fst",           name: "fst",          oneliner: "First element of a Pair",                                              rune: ">", rune_class: "hl-rune-gt" },
-    DocEntry { id: "snd",           name: "snd",          oneliner: "Second element of a Pair",                                             rune: ">", rune_class: "hl-rune-gt" },
+    DocEntry {
+        id: "fst",
+        name: "fst",
+        oneliner: "First element of a Pair",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
+    DocEntry {
+        id: "snd",
+        name: "snd",
+        oneliner: "Second element of a Pair",
+        rune: ">",
+        rune_class: "hl-rune-gt",
+    },
 ];
 
 /// Check whether a word has a doc entry (for the highlighter).
@@ -722,48 +1746,44 @@ fn word_doc_id<'a>(w: &'a str) -> Option<&'a str> {
     // Rune characters and operators are handled separately in the highlighter.
     match w {
         // keywords
-        "match" | "for" | "if" | "else" | "in" | "while" | "under" | "exception"
-        | "inout" | "return" | "actor" | "spawn" | "ask" | "trait" | "effect"
-        | "impl" | "handle" | "with" | "resume" => Some(w),
+        "match" | "for" | "if" | "else" | "in" | "while" | "under" | "exception" | "inout"
+        | "return" | "actor" | "spawn" | "ask" | "trait" | "effect" | "impl" | "handle"
+        | "with" | "resume" => Some(w),
         // booleans (source is lowercase true/false, doc id is True/False)
         "true" => Some("True"),
         "false" => Some("False"),
         // types + constructors
-        "Int" | "Float" | "String" | "Bool" | "Char" | "List" | "Option" | "Result"
-        | "Pair" | "Map" | "Set" | "Some" | "None" | "Ok" | "Err" => Some(w),
+        "Int" | "Float" | "String" | "Bool" | "Char" | "List" | "Option" | "Result" | "Pair"
+        | "Map" | "Set" | "Some" | "None" | "Ok" | "Err" => Some(w),
         // @ keywords
         "print" | "import" | "depend" | "export" | "comptime" | "rust" => Some(w),
         // display
         "show" => Some(w),
         // math
-        "abs" | "sqrt" | "pow" | "exp" | "ln" | "round" | "floor" | "to_float"
-        | "max_int" | "min_int" | "clamp" => Some(w),
+        "abs" | "sqrt" | "pow" | "exp" | "ln" | "round" | "floor" | "to_float" | "max_int"
+        | "min_int" | "clamp" => Some(w),
         // string
-        "string_length" | "split" | "join" | "trim" | "contains" | "starts_with"
-        | "ends_with" | "replace" | "to_upper" | "to_lower" | "substring" | "char_at"
-        | "index_of" | "string_chars" | "parse_int" | "parse_float" | "format_float" => Some(w),
+        "string_length" | "split" | "join" | "trim" | "contains" | "starts_with" | "ends_with"
+        | "replace" | "to_upper" | "to_lower" | "substring" | "char_at" | "index_of"
+        | "string_chars" | "parse_int" | "parse_float" | "format_float" => Some(w),
         // list
-        "push" | "length" | "head" | "tail" | "nth" | "reverse" | "count" | "sort"
-        | "sort_by" | "filter" | "map" | "flat_map" | "zip" | "enumerate" | "any"
-        | "all" | "find" | "sum_list" | "distinct" | "take_while" | "drop_while"
-        | "count_by" | "partition" | "chunked" | "range" => Some(w),
+        "push" | "length" | "head" | "tail" | "nth" | "reverse" | "count" | "sort" | "sort_by"
+        | "filter" | "map" | "flat_map" | "zip" | "enumerate" | "any" | "all" | "find"
+        | "sum_list" | "distinct" | "take_while" | "drop_while" | "count_by" | "partition"
+        | "chunked" | "range" => Some(w),
         // streams
-        "from_list" | "subject" | "complete" | "subscribe" | "scan" | "take" | "skip"
-        | "tap" | "merge" | "collect" | "debounce" | "throttle" | "delay" | "buffer"
-        | "timeout" | "switch_map" | "sample" | "first" | "reduce" | "start_with"
-        | "pairwise" => Some(w),
+        "from_list" | "subject" | "complete" | "subscribe" | "scan" | "take" | "skip" | "tap"
+        | "merge" | "collect" | "debounce" | "throttle" | "delay" | "buffer" | "timeout"
+        | "switch_map" | "sample" | "first" | "reduce" | "start_with" | "pairwise" => Some(w),
         // logic
         "findall" | "not" => Some(w),
         // map/set builtins
-        "map_new" | "map_insert" | "map_get" | "map_contains" | "map_remove"
-        | "map_keys" | "map_values" | "map_len" | "map_merge"
-        | "set_new" | "set_insert" | "set_contains" | "set_union" | "set_intersect"
-        | "set_diff" => Some(w),
+        "map_new" | "map_insert" | "map_get" | "map_contains" | "map_remove" | "map_keys"
+        | "map_values" | "map_len" | "map_merge" | "set_new" | "set_insert" | "set_contains"
+        | "set_union" | "set_intersect" | "set_diff" => Some(w),
         // file/json/http/db
-        "read_file" | "write_file" | "read_lines" | "env_var"
-        | "json_parse" | "json_get" | "json_emit"
-        | "http_get" | "http_post"
-        | "db_open" | "db_exec" | "db_query" => Some(w),
+        "read_file" | "write_file" | "read_lines" | "env_var" | "json_parse" | "json_get"
+        | "json_emit" | "http_get" | "http_post" | "db_open" | "db_exec" | "db_query" => Some(w),
         // pair
         "fst" | "snd" => Some(w),
         _ => None,
@@ -806,7 +1826,9 @@ fn highlight_runa(code: &str) -> String {
     let mut out = String::with_capacity(code.len() * 2);
     let mut in_block_comment = false;
     for (i, line) in code.split('\n').enumerate() {
-        if i > 0 { out.push('\n'); }
+        if i > 0 {
+            out.push('\n');
+        }
         in_block_comment = hl_line(line, &mut out, in_block_comment);
     }
     out
@@ -835,7 +1857,9 @@ fn hl_line(line: &str, out: &mut String, in_block_comment: bool) -> bool {
         }
     }
 
-    if trimmed.is_empty() { return false; }
+    if trimmed.is_empty() {
+        return false;
+    }
 
     if trimmed.starts_with("--") {
         push_span(out, "hl-comment", trimmed);
@@ -864,13 +1888,20 @@ fn hl_line_inner(trimmed: &str, out: &mut String) -> bool {
             '?' => Some("hl-rune-question"),
             _ => None,
         }
-    } else { None };
+    } else {
+        None
+    };
 
     if let Some(cls) = rune {
         let doc_id = match ch[0] {
-            '#' => "rune_hash", '>' => "rune_gt", '|' => "rune_pipe",
-            '=' => "rune_eq", '~' => "rune_tilde", '@' => "rune_at",
-            '?' => "rune_question", _ => "",
+            '#' => "rune_hash",
+            '>' => "rune_gt",
+            '|' => "rune_pipe",
+            '=' => "rune_eq",
+            '~' => "rune_tilde",
+            '@' => "rune_at",
+            '?' => "rune_question",
+            _ => "",
         };
         push_span_doc(out, cls, &ch[0].to_string(), doc_id);
         i = 1;
@@ -908,9 +1939,14 @@ fn hl_line_inner(trimmed: &str, out: &mut String) -> bool {
             let start = i;
             i += 1;
             while i < n {
-                if ch[i] == '\\' && i + 1 < n { i += 2; }
-                else if ch[i] == '"' { i += 1; break; }
-                else { i += 1; }
+                if ch[i] == '\\' && i + 1 < n {
+                    i += 2;
+                } else if ch[i] == '"' {
+                    i += 1;
+                    break;
+                } else {
+                    i += 1;
+                }
             }
             let s: String = ch[start..i].iter().collect();
             push_span(out, "hl-string", &s);
@@ -920,25 +1956,30 @@ fn hl_line_inner(trimmed: &str, out: &mut String) -> bool {
         // Pipe |>
         if c == '|' && i + 1 < n && ch[i + 1] == '>' {
             push_span_doc(out, "hl-pipe", "|>", "op_pipe");
-            i += 2; continue;
+            i += 2;
+            continue;
         }
 
         // Arrow ->
         if c == '-' && i + 1 < n && ch[i + 1] == '>' {
             push_span_doc(out, "hl-arrow", "->", "op_arrow");
-            i += 2; continue;
+            i += 2;
+            continue;
         }
 
         // Send <-
         if c == '<' && i + 1 < n && ch[i + 1] == '-' {
             push_span_doc(out, "hl-arrow", "<-", "op_send");
-            i += 2; continue;
+            i += 2;
+            continue;
         }
 
         // Number
         if c.is_ascii_digit() {
             let start = i;
-            while i < n && (ch[i].is_ascii_digit() || ch[i] == '.') { i += 1; }
+            while i < n && (ch[i].is_ascii_digit() || ch[i] == '.') {
+                i += 1;
+            }
             let num: String = ch[start..i].iter().collect();
             push_span(out, "hl-number", &num);
             continue;
@@ -947,7 +1988,9 @@ fn hl_line_inner(trimmed: &str, out: &mut String) -> bool {
         // Word
         if c.is_alphabetic() || c == '_' {
             let start = i;
-            while i < n && (ch[i].is_alphanumeric() || ch[i] == '_') { i += 1; }
+            while i < n && (ch[i].is_alphanumeric() || ch[i] == '_') {
+                i += 1;
+            }
             let w: String = ch[start..i].iter().collect();
             if after_at && is_at_kw(&w) {
                 if let Some(did) = word_doc_id(&w) {
@@ -1215,12 +2258,30 @@ struct Example {
 }
 
 const EXAMPLES: &[Example] = &[
-    Example { name: "Weather", code: EXAMPLE_WEATHER },
-    Example { name: "Hello", code: EXAMPLE_HELLO },
-    Example { name: "Streams", code: EXAMPLE_STREAMS },
-    Example { name: "Rules", code: EXAMPLE_RULES },
-    Example { name: "Fibonacci", code: EXAMPLE_FIBONACCI },
-    Example { name: "Boot", code: EXAMPLE_BOOT },
+    Example {
+        name: "Weather",
+        code: EXAMPLE_WEATHER,
+    },
+    Example {
+        name: "Hello",
+        code: EXAMPLE_HELLO,
+    },
+    Example {
+        name: "Streams",
+        code: EXAMPLE_STREAMS,
+    },
+    Example {
+        name: "Rules",
+        code: EXAMPLE_RULES,
+    },
+    Example {
+        name: "Fibonacci",
+        code: EXAMPLE_FIBONACCI,
+    },
+    Example {
+        name: "Boot",
+        code: EXAMPLE_BOOT,
+    },
 ];
 
 #[component]
@@ -1231,7 +2292,9 @@ fn Playground() -> Element {
     let mut active_example = use_signal(|| 0usize);
 
     let run_code = move |_| {
-        if *is_running.read() { return; }
+        if *is_running.read() {
+            return;
+        }
         is_running.set(true);
         output.set(String::new());
         let source = code.read().clone();
@@ -1243,8 +2306,12 @@ fn Playground() -> Element {
                 let after = &s[pos + 9..];
                 if let Some(end) = after.find(')') {
                     after[..end].trim().parse::<u32>().unwrap_or(0)
-                } else { 0 }
-            } else { 0 }
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
         };
 
         spawn(async move {
@@ -1338,7 +2405,8 @@ fn PlaygroundPage() -> Element {
     // Restore from URL hash (deflate+base64url) or localStorage on mount
     use_effect(move || {
         spawn(async move {
-            let mut eval = dioxus::document::eval(r#"
+            let mut eval = dioxus::document::eval(
+                r#"
                 (async function() {
                     var hash = window.location.hash || '';
                     if (hash.startsWith('#code=')) {
@@ -1355,7 +2423,8 @@ fn PlaygroundPage() -> Element {
                     var saved = localStorage.getItem('futuruna-pg-code');
                     dioxus.send(saved || '');
                 })();
-            "#);
+            "#,
+            );
             if let Ok(val) = eval.recv::<String>().await {
                 if !val.is_empty() {
                     code.set(val);
@@ -1405,7 +2474,9 @@ fn PlaygroundPage() -> Element {
     };
 
     let run_code = move |_| {
-        if *is_running.read() { return; }
+        if *is_running.read() {
+            return;
+        }
         is_running.set(true);
         output.set(String::new());
         let source = code.read().clone();
@@ -1416,8 +2487,12 @@ fn PlaygroundPage() -> Element {
                 let after = &s[pos + 9..];
                 if let Some(end) = after.find(')') {
                     after[..end].trim().parse::<u32>().unwrap_or(0)
-                } else { 0 }
-            } else { 0 }
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
         };
 
         spawn(async move {
@@ -1611,11 +2686,26 @@ struct DocPage {
 }
 
 const DOC_PAGES: &[DocPage] = &[
-    DocPage { label: "Runes", content: DOC_RUNES },
-    DocPage { label: "Basics", content: DOC_BASICS },
-    DocPage { label: "Stdlib", content: DOC_STDLIB },
-    DocPage { label: "Streams", content: DOC_STREAMS },
-    DocPage { label: "Rust", content: DOC_RUST },
+    DocPage {
+        label: "Runes",
+        content: DOC_RUNES,
+    },
+    DocPage {
+        label: "Basics",
+        content: DOC_BASICS,
+    },
+    DocPage {
+        label: "Stdlib",
+        content: DOC_STDLIB,
+    },
+    DocPage {
+        label: "Streams",
+        content: DOC_STREAMS,
+    },
+    DocPage {
+        label: "Rust",
+        content: DOC_RUST,
+    },
 ];
 
 fn md_to_html(md: &str) -> String {
@@ -1679,7 +2769,8 @@ const DK_KAP11: &str = include_str!("../../examples/danish-constitution/kapitel-
 const DK_AUDIT: &str = include_str!("../../examples/danish-constitution/grundlov.audit.runa");
 
 // Danish personal income tax law .runa files
-const TAX_STATUS_MD: &str = include_str!("../../examples/danish-income-tax/status-and-milestones.md");
+const TAX_STATUS_MD: &str =
+    include_str!("../../examples/danish-income-tax/status-and-milestones.md");
 const TAX_SOURCE_STATUS: &str = include_str!("../../examples/danish-income-tax/source-status.runa");
 const TAX_MONEY: &str = include_str!("../../examples/danish-income-tax/pengebeloeb.runa");
 const TAX_KAP01: &str = include_str!("../../examples/danish-income-tax/kapitel-01-indkomst.runa");
@@ -1692,12 +2783,9 @@ const TAX_KAP05: &str =
     include_str!("../../examples/danish-income-tax/kapitel-05-afsluttende-bestemmelser.runa");
 const TAX_AM: &str =
     include_str!("../../examples/danish-income-tax/arbejdsmarkedsbidragsloven.runa");
-const TAX_KOMMUNE: &str =
-    include_str!("../../examples/danish-income-tax/kommuneskatteloven.runa");
-const TAX_KIRKE: &str =
-    include_str!("../../examples/danish-income-tax/folkekirkens-oekonomi.runa");
-const TAX_KILDESKAT: &str =
-    include_str!("../../examples/danish-income-tax/kildeskatteloven.runa");
+const TAX_KOMMUNE: &str = include_str!("../../examples/danish-income-tax/kommuneskatteloven.runa");
+const TAX_KIRKE: &str = include_str!("../../examples/danish-income-tax/folkekirkens-oekonomi.runa");
+const TAX_KILDESKAT: &str = include_str!("../../examples/danish-income-tax/kildeskatteloven.runa");
 const TAX_KILDESKAT_BEK: &str =
     include_str!("../../examples/danish-income-tax/kildeskattebekendtgoerelsen.runa");
 const TAX_FORSKUDSREG_2026: &str =
@@ -1720,7 +2808,8 @@ const TAX_SETTLEMENT_SCENARIO: &str =
     include_str!("../../examples/danish-income-tax/slutopgoerelse.scenario.runa");
 const TAX_REMITTANCE: &str =
     include_str!("../../examples/danish-income-tax/indeholdelse-afregning.scenario.runa");
-const TAX_AUDIT: &str = include_str!("../../examples/danish-income-tax/personskatteloven.audit.runa");
+const TAX_AUDIT: &str =
+    include_str!("../../examples/danish-income-tax/personskatteloven.audit.runa");
 
 // US Constitution .runa files
 const US_CONSTITUTION: &str = include_str!("../../examples/us-constitution/constitution.runa");
@@ -1756,13 +2845,18 @@ fn extract_h2_headings(md: &str) -> Vec<(String, String)> {
     let mut text = String::new();
     for event in parser {
         match event {
-            Event::Start(Tag::Heading { level: HeadingLevel::H2, .. }) => {
+            Event::Start(Tag::Heading {
+                level: HeadingLevel::H2,
+                ..
+            }) => {
                 in_h2 = true;
                 text.clear();
             }
             Event::End(TagEnd::Heading(HeadingLevel::H2)) => {
                 in_h2 = false;
-                let slug = text.trim().to_lowercase()
+                let slug = text
+                    .trim()
+                    .to_lowercase()
                     .replace(|c: char| !c.is_alphanumeric() && c != ' ', "")
                     .replace(' ', "-");
                 headings.push((slug, text.trim().to_string()));
@@ -1791,7 +2885,10 @@ fn md_to_html_with_ids(md: &str) -> String {
 
     for event in parser {
         match &event {
-            Event::Start(Tag::Heading { level: HeadingLevel::H2, .. }) => {
+            Event::Start(Tag::Heading {
+                level: HeadingLevel::H2,
+                ..
+            }) => {
                 in_h2 = true;
                 h2_text.clear();
                 h2_start_idx = Some(events.len());
@@ -1799,7 +2896,9 @@ fn md_to_html_with_ids(md: &str) -> String {
             }
             Event::End(TagEnd::Heading(HeadingLevel::H2)) => {
                 in_h2 = false;
-                let slug = h2_text.trim().to_lowercase()
+                let slug = h2_text
+                    .trim()
+                    .to_lowercase()
                     .replace(|c: char| !c.is_alphanumeric() && c != ' ', "")
                     .replace(' ', "-");
                 // Replace the start tag with one that has an id
@@ -1816,7 +2915,9 @@ fn md_to_html_with_ids(md: &str) -> String {
                 h2_text.push_str(t);
                 events.push(event);
             }
-            _ => { events.push(event); }
+            _ => {
+                events.push(event);
+            }
         }
     }
 
@@ -2057,22 +3158,44 @@ fn ResearchDanishConstitution() -> Element {
     let sections: Vec<(&str, &str, &str)> = vec![
         ("Kapitel I — Statsformen (§§ 1-4)", "kap-1", DK_KAP01),
         ("Kapitel II — Kongen (§§ 5-11)", "kap-2", DK_KAP02),
-        ("Kapitel III — Kongen og ministrene (§§ 12-27)", "kap-3", DK_KAP03),
+        (
+            "Kapitel III — Kongen og ministrene (§§ 12-27)",
+            "kap-3",
+            DK_KAP03,
+        ),
         ("Kapitel IV — Folketinget (§§ 28-34)", "kap-4", DK_KAP04),
-        ("Kapitel V — Folketingets virksomhed (§§ 35-58)", "kap-5", DK_KAP05),
+        (
+            "Kapitel V — Folketingets virksomhed (§§ 35-58)",
+            "kap-5",
+            DK_KAP05,
+        ),
         ("Kapitel VI — Domstolene (§§ 59-65)", "kap-6", DK_KAP06),
         ("Kapitel VII — Folkekirken (§§ 66-70)", "kap-7", DK_KAP07),
-        ("Kapitel VIII — Grundrettigheder (§§ 71-85)", "kap-8", DK_KAP08),
-        ("Kapitel IX — Forskellige bestemmelser (§§ 86-87)", "kap-9", DK_KAP09),
+        (
+            "Kapitel VIII — Grundrettigheder (§§ 71-85)",
+            "kap-8",
+            DK_KAP08,
+        ),
+        (
+            "Kapitel IX — Forskellige bestemmelser (§§ 86-87)",
+            "kap-9",
+            DK_KAP09,
+        ),
         ("Kapitel X — Grundlovsændring (§ 88)", "kap-10", DK_KAP10),
-        ("Kapitel XI — Overgangsbestemmelser (§ 89)", "kap-11", DK_KAP11),
+        (
+            "Kapitel XI — Overgangsbestemmelser (§ 89)",
+            "kap-11",
+            DK_KAP11,
+        ),
     ];
 
-    let toc: Vec<(String, String)> = sections.iter()
+    let toc: Vec<(String, String)> = sections
+        .iter()
         .map(|(title, id, _)| (id.to_string(), title.to_string()))
         .collect();
 
-    let body_html: String = sections.iter()
+    let body_html: String = sections
+        .iter()
         .map(|(title, id, src)| constitution_file_section(title, id, src))
         .collect();
 
@@ -2355,30 +3478,126 @@ fn ResearchDanishConstitutionAudit() -> Element {
 #[component]
 fn ResearchPersonskatteloven() -> Element {
     let sections: Vec<(&str, &str, &str)> = vec![
-        ("source-status.runa — Kildepostur og historisk linje", "source-status-code", TAX_SOURCE_STATUS),
-        ("pengebeloeb.runa — fælles pengebeløb og afrunding", "money-code", TAX_MONEY),
-        ("kapitel-01-indkomst.runa — §§ 1-4 b indkomsttaxonomi", "kapitel-01-code", TAX_KAP01),
-        ("kapitel-02-statsskat.runa — §§ 5-9 statsskat", "kapitel-02-code", TAX_KAP02),
-        ("kapitel-03-personfradrag.runa — §§ 10-13 personfradrag og underskud", "kapitel-03-code", TAX_KAP03),
-        ("kapitel-04-omregning-skatteloft.runa — §§ 14-20 omregning og skatteloft", "kapitel-04-code", TAX_KAP04),
-        ("kapitel-05-afsluttende-bestemmelser.runa — §§ 21-28 afslutning", "kapitel-05-code", TAX_KAP05),
-        ("arbejdsmarkedsbidragsloven.runa — AM-bidrag almindelig løn og særtilfælde", "am-code", TAX_AM),
-        ("kommuneskatteloven.runa — kommunal indkomstskat", "kommuneskatteloven-code", TAX_KOMMUNE),
-        ("folkekirkens-oekonomi.runa — kirkeskat", "folkekirken-code", TAX_KIRKE),
-        ("kildeskatteloven.runa — A-indkomst og A-skat", "kildeskat-code", TAX_KILDESKAT),
-        ("kildeskattebekendtgoerelsen.runa — forskudskortgenerering", "kildeskat-bek-code", TAX_KILDESKAT_BEK),
-        ("forskudsregistrering_2026.runa — BEK 1094 indeholdelsesprocent", "forskudsreg-2026-code", TAX_FORSKUDSREG_2026),
-        ("slutopgoerelse.runa — Kildeskatteloven §§ 60-62/67", "slutopgoerelse-code", TAX_SLUTOPGOERELSE),
-        ("opkraevningsloven.runa — betalingsfrister for A-skat og AM-bidrag", "opkraevning-code", TAX_OPKRAEVNING),
-        ("ligningsloven_fradrag.runa — §§ 9 J/9 K lønmodtagerfradrag", "ligningsfradrag-code", TAX_LIGNINGSFRADRAG),
-        ("skatteaar-parametre.runa — 2024/2025/2026 parameterpakker", "params-code", TAX_PARAMS),
-        ("loenmodtager_beregning.runa — første beregningsslice", "calculator-code", TAX_CALC),
-        ("loenmodtager-fixtures.scenario.runa — eksekverbare normalperson-scenarier", "fixtures-code", TAX_FIXTURES),
-        ("delaar-scenarier.scenario.runa — § 14 delårsscenarie", "partial-year-code", TAX_PARTIAL_YEAR),
-        ("husholdning-scenarier.scenario.runa — fiktivt husholdningsscenarie", "household-code", TAX_HOUSEHOLD),
-        ("slutopgoerelse.scenario.runa — årsopgørelse for fiktiv husholdning", "settlement-scenario-code", TAX_SETTLEMENT_SCENARIO),
-        ("indeholdelse-afregning.scenario.runa — A-skat/AM betalingsscenarier", "remittance-code", TAX_REMITTANCE),
-        ("personskatteloven.audit.runa — audit-signaler", "audit-code", TAX_AUDIT),
+        (
+            "source-status.runa — Kildepostur og historisk linje",
+            "source-status-code",
+            TAX_SOURCE_STATUS,
+        ),
+        (
+            "pengebeloeb.runa — fælles pengebeløb og afrunding",
+            "money-code",
+            TAX_MONEY,
+        ),
+        (
+            "kapitel-01-indkomst.runa — §§ 1-4 b indkomsttaxonomi",
+            "kapitel-01-code",
+            TAX_KAP01,
+        ),
+        (
+            "kapitel-02-statsskat.runa — §§ 5-9 statsskat",
+            "kapitel-02-code",
+            TAX_KAP02,
+        ),
+        (
+            "kapitel-03-personfradrag.runa — §§ 10-13 personfradrag og underskud",
+            "kapitel-03-code",
+            TAX_KAP03,
+        ),
+        (
+            "kapitel-04-omregning-skatteloft.runa — §§ 14-20 omregning og skatteloft",
+            "kapitel-04-code",
+            TAX_KAP04,
+        ),
+        (
+            "kapitel-05-afsluttende-bestemmelser.runa — §§ 21-28 afslutning",
+            "kapitel-05-code",
+            TAX_KAP05,
+        ),
+        (
+            "arbejdsmarkedsbidragsloven.runa — AM-bidrag almindelig løn og særtilfælde",
+            "am-code",
+            TAX_AM,
+        ),
+        (
+            "kommuneskatteloven.runa — kommunal indkomstskat",
+            "kommuneskatteloven-code",
+            TAX_KOMMUNE,
+        ),
+        (
+            "folkekirkens-oekonomi.runa — kirkeskat",
+            "folkekirken-code",
+            TAX_KIRKE,
+        ),
+        (
+            "kildeskatteloven.runa — A-indkomst og A-skat",
+            "kildeskat-code",
+            TAX_KILDESKAT,
+        ),
+        (
+            "kildeskattebekendtgoerelsen.runa — forskudskortgenerering",
+            "kildeskat-bek-code",
+            TAX_KILDESKAT_BEK,
+        ),
+        (
+            "forskudsregistrering_2026.runa — BEK 1094 indeholdelsesprocent",
+            "forskudsreg-2026-code",
+            TAX_FORSKUDSREG_2026,
+        ),
+        (
+            "slutopgoerelse.runa — Kildeskatteloven §§ 60-62/67",
+            "slutopgoerelse-code",
+            TAX_SLUTOPGOERELSE,
+        ),
+        (
+            "opkraevningsloven.runa — betalingsfrister for A-skat og AM-bidrag",
+            "opkraevning-code",
+            TAX_OPKRAEVNING,
+        ),
+        (
+            "ligningsloven_fradrag.runa — §§ 9 J/9 K lønmodtagerfradrag",
+            "ligningsfradrag-code",
+            TAX_LIGNINGSFRADRAG,
+        ),
+        (
+            "skatteaar-parametre.runa — 2024/2025/2026 parameterpakker",
+            "params-code",
+            TAX_PARAMS,
+        ),
+        (
+            "loenmodtager_beregning.runa — første beregningsslice",
+            "calculator-code",
+            TAX_CALC,
+        ),
+        (
+            "loenmodtager-fixtures.scenario.runa — eksekverbare normalperson-scenarier",
+            "fixtures-code",
+            TAX_FIXTURES,
+        ),
+        (
+            "delaar-scenarier.scenario.runa — § 14 delårsscenarie",
+            "partial-year-code",
+            TAX_PARTIAL_YEAR,
+        ),
+        (
+            "husholdning-scenarier.scenario.runa — fiktivt husholdningsscenarie",
+            "household-code",
+            TAX_HOUSEHOLD,
+        ),
+        (
+            "slutopgoerelse.scenario.runa — årsopgørelse for fiktiv husholdning",
+            "settlement-scenario-code",
+            TAX_SETTLEMENT_SCENARIO,
+        ),
+        (
+            "indeholdelse-afregning.scenario.runa — A-skat/AM betalingsscenarier",
+            "remittance-code",
+            TAX_REMITTANCE,
+        ),
+        (
+            "personskatteloven.audit.runa — audit-signaler",
+            "audit-code",
+            TAX_AUDIT,
+        ),
     ];
 
     let body_html: String = sections
@@ -2520,34 +3739,84 @@ fn ResearchPersonskatteloven() -> Element {
 #[component]
 fn ResearchUSConstitution() -> Element {
     let sections: Vec<(&str, &str, &str)> = vec![
-        ("constitution.runa — Preamble & Foundation", "preamble", US_CONSTITUTION),
+        (
+            "constitution.runa — Preamble & Foundation",
+            "preamble",
+            US_CONSTITUTION,
+        ),
         ("Article I — Legislative Branch (§§ 1-2)", "art-1", US_ART1),
         ("Article I, Section 3 — The Senate", "art-1-s3", US_ART1_S3),
         ("Article I, Section 4 — Elections", "art-1-s4", US_ART1_S4),
-        ("Article I, Section 5 — Rules of Each House", "art-1-s5", US_ART1_S5),
+        (
+            "Article I, Section 5 — Rules of Each House",
+            "art-1-s5",
+            US_ART1_S5,
+        ),
         ("Article I, Section 6 — Privileges", "art-1-s6", US_ART1_S6),
-        ("Article I, Section 7 — Bills & Veto", "art-1-s7", US_ART1_S7),
-        ("Article I, Section 8 — Enumerated Powers", "art-1-s8", US_ART1_S8),
-        ("Article I, Section 9 — Limits on Congress", "art-1-s9", US_ART1_S9),
-        ("Article I, Section 10 — Limits on States", "art-1-s10", US_ART1_S10),
-        ("Article II, Section 1 — Executive Power", "art-2-s1", US_ART2_S1),
-        ("Article II, Section 2 — Presidential Powers", "art-2-s2", US_ART2_S2),
-        ("Article II, Section 3 — Presidential Duties", "art-2-s3", US_ART2_S3),
-        ("Article II, Section 4 — Impeachment", "art-2-s4", US_ART2_S4),
+        (
+            "Article I, Section 7 — Bills & Veto",
+            "art-1-s7",
+            US_ART1_S7,
+        ),
+        (
+            "Article I, Section 8 — Enumerated Powers",
+            "art-1-s8",
+            US_ART1_S8,
+        ),
+        (
+            "Article I, Section 9 — Limits on Congress",
+            "art-1-s9",
+            US_ART1_S9,
+        ),
+        (
+            "Article I, Section 10 — Limits on States",
+            "art-1-s10",
+            US_ART1_S10,
+        ),
+        (
+            "Article II, Section 1 — Executive Power",
+            "art-2-s1",
+            US_ART2_S1,
+        ),
+        (
+            "Article II, Section 2 — Presidential Powers",
+            "art-2-s2",
+            US_ART2_S2,
+        ),
+        (
+            "Article II, Section 3 — Presidential Duties",
+            "art-2-s3",
+            US_ART2_S3,
+        ),
+        (
+            "Article II, Section 4 — Impeachment",
+            "art-2-s4",
+            US_ART2_S4,
+        ),
         ("Article III — Judicial Power", "art-3", US_ART3),
         ("Article IV — States Relations", "art-4", US_ART4),
         ("Article V — Amendment Process", "art-5", US_ART5),
         ("Article VI — Supremacy Clause", "art-6", US_ART6),
         ("Article VII — Ratification", "art-7", US_ART7),
-        ("Presidential Succession Act (1947)", "succession", US_SUCCESSION),
-        ("Verification — Cross-File Proofs", "verification", US_VERIFICATION),
+        (
+            "Presidential Succession Act (1947)",
+            "succession",
+            US_SUCCESSION,
+        ),
+        (
+            "Verification — Cross-File Proofs",
+            "verification",
+            US_VERIFICATION,
+        ),
     ];
 
-    let toc: Vec<(String, String)> = sections.iter()
+    let toc: Vec<(String, String)> = sections
+        .iter()
         .map(|(title, id, _)| (id.to_string(), title.to_string()))
         .collect();
 
-    let body_html: String = sections.iter()
+    let body_html: String = sections
+        .iter()
         .map(|(title, id, src)| constitution_file_section(title, id, src))
         .collect();
 
