@@ -56,6 +56,21 @@ Current § 13 amendment/dependency sources:
   - XML status on 2026-07-18: `Valid`
   - §§ 5-8 are the seamen relief exception in § 13, stk. 5.
 
+Current AM-contribution dependency sources:
+
+- Arbejdsmarkedsbidragsloven:
+  `https://www.retsinformation.dk/eli/lta/2020/121`
+  - XML status on 2026-07-18: `Valid`
+  - §§ 1-7 cover the first ordinary and special-case AM-contribution slice:
+    ordinary wage remuneration/naturalier, § 3 exclusions, self-employed bases
+    with and without virksomhedsordning, library-fee compensation, and
+    collection-reference posture.
+- AM youth exemption amendment:
+  `https://www.retsinformation.dk/eli/lta/2025/96`
+  - XML status on 2026-07-18: `Valid`
+  - § 1 adds 0 pct. AM contribution through the income year in which the
+    person turns 17, with effect from January 1, 2026 under § 7, stk. 4.
+
 Current municipal/church-tax and withholding dependency sources:
 
 - Kommuneskatteloven:
@@ -124,7 +139,8 @@ encoded as a temporal rule on top of the consolidation.
 - The current `.runa` slices encode source validity, source lineage, the
   §§ 1-4 b income taxonomy, the §§ 5-9 state-tax skeleton, the §§ 10-13
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
-  slice, the §§ 21-28 concluding provisions slice, ordinary AM-law,
+  slice, the §§ 21-28 concluding provisions slice, ordinary and special-case
+  AM-law,
   municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding and
   BEK 839 forskudskort generation, Ligningsloven ordinary wage-earner deduction
   dependency slices, 2024/2025/2026 tax-year parameter packs, first wage-earner
@@ -186,10 +202,13 @@ whole statute to be calculation-complete.
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Replace remaining source-dependency placeholders with complementary official
-  statutes and trusted calculation examples, especially for AM special cases,
-  full trækprocent derivation, Opkrævningsloven/payment deadlines, and
-  municipal/church settlement edge cases. The first AM-law slice now covers
-  ordinary wage remuneration and taxable benefits. The first municipal/church
+  statutes and trusted calculation examples, especially for full trækprocent
+  derivation, Opkrævningsloven/payment deadlines, municipal/church settlement
+  edge cases, and remaining AM edge cases beyond the first source-explicit
+  special-case slice. The AM-law slice now covers ordinary wage remuneration,
+  taxable benefits, § 3 exclusions, self-employed bases with and without
+  virksomhedsordning, library-fee compensation, the 2026 youth exemption, and
+  collection-reference posture. The first municipal/church
   slice now covers ordinary municipal tax on Personskatteloven taxable income
   and church tax for Folkekirken members. The first Kildeskatteloven slice now
   covers ordinary wage A-income, withholding duty, e-skattekort card types,
@@ -210,11 +229,11 @@ whole statute to be calculation-complete.
 - Build calculation fixtures for ordinary wage-earner cases before handling
   complex cases.
 - Gather complementary official sources for:
-  AM-law special cases, full trækprocent derivation,
+  full trækprocent derivation,
   Opkrævningsloven collection/payment deadlines, municipal and church-tax
-  settlement/allocation, personal allowance, other itemized deductions beyond
-  the ordinary §§ 9 J/9 K wage-earner deductions, and annual rate/threshold
-  adjustments.
+  settlement/allocation, personal allowance, remaining AM edge cases, other
+  itemized deductions beyond the ordinary §§ 9 J/9 K wage-earner deductions,
+  and annual rate/threshold adjustments.
 - Expand audit coverage for source drift, missing dependencies, tax cliffs,
   delegated powers, and category boundary problems.
 - Extend the website page as more of the corpus becomes calculation-ready.
@@ -298,8 +317,11 @@ M4 - Ordinary taxpayer calculator
   the LOV nr. 482/2024 reform thresholds, and a 2026 Copenhagen positive
   net-capital fixture exercises the mellemskat capital addition. The ordinary
   wage-earner AM contribution now imports Arbejdsmarkedsbidragsloven instead of
-  using a local arithmetic shortcut. Ordinary municipal income tax and church
-  tax now import Kommuneskatteloven and Folkekirkens økonomi instead of using
+  using a local arithmetic shortcut, and the AM-law module now has
+  source-backed special-case fixtures for § 3 exclusions, self-employed bases,
+  library-fee compensation, and the 2026 youth exemption. Ordinary municipal
+  income tax and church tax now import Kommuneskatteloven and Folkekirkens
+  økonomi instead of using
   local arithmetic shortcuts. Ordinary Ligningsloven employment/job deductions
   now import the Ligningsloven dependency slice instead of being manual zeroes.
   A first fictional household scenario now computes a 2026 Copenhagen married
@@ -323,14 +345,14 @@ M5 - Audit suite
 - Current slice: source-status rejection, covered normal-fixture
   personfradrag, covered 2026 state-tax reform layers, covered § 13 deficit
   mechanics, mellemskat positive-net-capital and spouse-threshold activation,
-  ordinary wage AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
+  ordinary wage and special-case AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
   wage-earner-deduction coverage, ordinary municipal/church-tax legal coverage,
   covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture,
   covered BEK 839 forskudskort generation, covered fictional household
   scenario, topskat threshold activation, covered § 14
   annualization, covered § 19 skatteloft including the 2026 44,57 pct. ceiling,
   covered § 20 regulation/rounding, covered § 26 transition compensation,
-  covered § 28 territorial exclusion, AM-law special-case dependency,
+  covered § 28 territorial exclusion, covered AM-law special cases,
   full trækprocent-derivation/afregning dependency, and
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
@@ -346,8 +368,8 @@ M6 - Website integration
 - Current slice: `/research/personskatteloven` links the valid and historic
   sources, renders the milestone log, embeds the checked §§ 1-28 `.runa`
   corpus plus `.scenario.runa` executable scenarios and the `.audit.runa`
-  audit suite, marks the limited wage-earner fixture slice plus ordinary
-  Ligningsloven deductions, Kildeskatteloven
+  audit suite, marks the limited wage-earner fixture slice plus ordinary and
+  special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort posture, and BEK 839 generated-card path as
   calculation-ready, and marks the full statute model as
   research/audit-only.

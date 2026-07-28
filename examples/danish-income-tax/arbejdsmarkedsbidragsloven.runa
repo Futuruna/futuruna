@@ -5,6 +5,9 @@
 -- Kilde: Retsinformation, LBK nr. 121 af 07/02/2020.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2020/121
 -- XML: https://www.retsinformation.dk/eli/lta/2020/121/dan/xml
+-- Ændringskilde: Retsinformation, LOV nr. 96 af 04/02/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/96
+-- XML: https://www.retsinformation.dk/eli/lta/2025/96/dan/xml
 
 ----
 Officiel XML-metadata for 2020/121, hentet 2026-07-18:
@@ -15,6 +18,13 @@ EndDate: 2026-06-20
 
 Retsinformation metadata viser senere ændringer, herunder LOV nr. 96 af
 04/02/2025 om unges fritagelse for arbejdsmarkedsbidrag m.v.
+
+Officiel XML-metadata for 2025/96, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af arbejdsmarkedsbidragsloven og forskellige
+andre love (Unges fritagelse for arbejdsmarkedsbidrag m.v.)
+Status: Valid
+StartDate: 2025-02-04
+EndDate: 2026-06-20
 ----
 
 ----
@@ -25,6 +35,31 @@ Bidraget udgør 8 pct. af grundlaget.
 ----
 
 | arbejdsmarkedsbidrag_sats_basispoint() -> 800
+
+----
+LOV nr. 96 af 04/02/2025, § 1, nr. 1-2:
+
+I arbejdsmarkedsbidragsloven, jf. lovbekendtgørelse nr. 121 af 7. februar
+2020, som ændret ved § 5 i lov nr. 2226 af 29. december 2020 og § 18 i lov
+nr. 679 af 3. juni 2023, foretages følgende ændringer:
+
+1. I § 1, 2. pkt., indsættes efter »grundlaget«: », jf. dog stk. 2«.
+
+2. I § 1 indsættes som stk. 2:
+
+Stk. 2. Til og med den 31. december i det indkomstår, hvor personen fylder
+17 år, udgør bidraget 0 pct. af grundlaget.
+
+LOV nr. 96 af 04/02/2025, § 7, stk. 4:
+
+§ 1 har virkning fra den 1. januar 2026.
+----
+
+# ArbejdsmarkedsbidragPersonSatsInput(skatteår: Heltal, alder_ved_indkomstårets_udløb: Heltal)
+
+| arbejdsmarkedsbidrag_sats_for_person_basispoint(input: ArbejdsmarkedsbidragPersonSatsInput) -> arbejdsmarkedsbidrag_sats_basispoint()
+| exception arbejdsmarkedsbidrag_unge_fritaget_fra_2026 arbejdsmarkedsbidrag_sats_for_person_basispoint(input: ArbejdsmarkedsbidragPersonSatsInput) -> 0 under input.skatteår >= 2026 && input.alder_ved_indkomstårets_udløb <= 17
+| arbejdsmarkedsbidrag_for_person_kroner(grundlag_kroner: Heltal, input: ArbejdsmarkedsbidragPersonSatsInput) -> grundlag_kroner * arbejdsmarkedsbidrag_sats_for_person_basispoint(input) / 10000
 
 ----
 § 2. Grundlaget for arbejdsmarkedsbidrag for lønmodtagere m.v. er følgende
@@ -40,13 +75,140 @@ for arbejdsmarkedsbidrag med den skattepligtige værdi.
 ----
 
 # ArbejdsmarkedsbidragInput(lønvederlag_kroner: Heltal, naturalieværdi_kroner: Heltal)
+# ArbejdsmarkedsbidragUdvidetLønmodtagerInput(ansættelsesvederlag_skatteværdi_kroner: Heltal, udenfor_ansættelse_skatteværdi_kroner: Heltal, rådighed_danmark_skatteværdi_kroner: Heltal, arbejdsgiver_pension_kroner: Heltal, udenlandsk_pension_kroner: Heltal, pbl14b_udbetaling_kroner: Heltal, fælles_firmapension_kroner: Heltal, sømandsvederlag_kroner: Heltal, biblioteksafgift_kroner: Heltal, ikke_skattepligtigt_vederlag_kroner: Heltal, pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner: Heltal, obligatorisk_atp_pension_kroner: Heltal)
 
-| arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input: ArbejdsmarkedsbidragInput) -> input.lønvederlag_kroner + input.naturalieværdi_kroner
+| arbejdsmarkedsbidrag_positivt_beløb(beløb_kroner: Heltal) -> 0
+| exception arbejdsmarkedsbidrag_beløb_over_nul arbejdsmarkedsbidrag_positivt_beløb(beløb_kroner: Heltal) -> beløb_kroner under beløb_kroner > 0
+
+| arbejdsmarkedsbidrag_lønmodtager_brutto_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.ansættelsesvederlag_skatteværdi_kroner + input.udenfor_ansættelse_skatteværdi_kroner + input.rådighed_danmark_skatteværdi_kroner + input.arbejdsgiver_pension_kroner + input.udenlandsk_pension_kroner + input.pbl14b_udbetaling_kroner + input.fælles_firmapension_kroner
+| arbejdsmarkedsbidrag_lønmodtager_udelukket_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.sømandsvederlag_kroner + input.biblioteksafgift_kroner + input.ikke_skattepligtigt_vederlag_kroner + input.pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner + input.obligatorisk_atp_pension_kroner
+| arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_positivt_beløb(arbejdsmarkedsbidrag_lønmodtager_brutto_grundlag_kroner(input) - arbejdsmarkedsbidrag_lønmodtager_udelukket_grundlag_kroner(input))
+
+| arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input: ArbejdsmarkedsbidragInput) -> arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(input.lønvederlag_kroner + input.naturalieværdi_kroner, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 | arbejdsmarkedsbidrag_lønmodtager_kroner(input: ArbejdsmarkedsbidragInput) -> arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input) * arbejdsmarkedsbidrag_sats_basispoint() / 10000
+
+----
+§ 3. Følgende medregnes ikke i grundlaget for arbejdsmarkedsbidrag:
+1) Vederlag omfattet af sømandsbeskatningslovens §§ 5-8.
+2) Ydelser i henhold til lov om biblioteksafgift.
+3) Vederlag som nævnt i § 2, stk. 1, nr. 1 og 2, i det omfang sådanne
+vederlag ikke skal medregnes ved opgørelsen af den skattepligtige indkomst.
+4) Vederlag som nævnt i nr. 3, når dette indbetales på en pensionsordning.
+5) Indbetalinger til den obligatoriske pensionsordning efter § 17 s i lov om
+Arbejdsmarkedets Tillægspension.
+----
+
+| arbejdsmarkedsbidrag_sømandsvederlag_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.sømandsvederlag_kroner > 0
+| arbejdsmarkedsbidrag_biblioteksafgift_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.biblioteksafgift_kroner > 0
+| arbejdsmarkedsbidrag_ikke_skattepligtigt_vederlag_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.ikke_skattepligtigt_vederlag_kroner > 0 || input.pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner > 0
+
+----
+§ 4. Grundlaget for arbejdsmarkedsbidrag for selvstændigt erhvervsdrivende,
+som ikke anvender virksomhedsordningen i virksomhedsskattelovens afsnit I,
+udgør den personlige indkomst ved selvstændig virksomhed, jf.
+personskattelovens § 3.
+
+Ydelser i henhold til lov om biblioteksafgift medregnes ikke i grundlaget.
+
+Stk. 2. Bidrag og præmier til pensionsordninger m.v. i samme omfang som nævnt i
+pensionsbeskatningslovens § 18 samt bidrag efter denne lov fragår ikke ved
+opgørelsen af grundlaget for arbejdsmarkedsbidraget.
+
+Stk. 3. Negativ personlig indkomst, der er fremført efter personskattelovens
+§ 13, stk. 3 og 4, fragår i grundlaget for arbejdsmarkedsbidraget.
+
+Den del af den fremførte negative personlige indkomst, der hidrører fra bidrag
+og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
+§ 18, fragår dog ikke.
+----
+
+# ArbejdsmarkedsbidragSelvstændigInput(personlig_indkomst_ved_selvstændig_virksomhed_kroner: Heltal, biblioteksafgift_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal)
+
+| arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal) -> arbejdsmarkedsbidrag_positivt_beløb(fremført_negativ_personlig_indkomst_kroner - fremført_negativ_personlig_indkomst_fra_pension_kroner)
+| arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(input: ArbejdsmarkedsbidragSelvstændigInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.personlig_indkomst_ved_selvstændig_virksomhed_kroner - input.biblioteksafgift_kroner - arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(input.fremført_negativ_personlig_indkomst_kroner, input.fremført_negativ_personlig_indkomst_fra_pension_kroner))
+| arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_kroner(input: ArbejdsmarkedsbidragSelvstændigInput) -> arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(input) * arbejdsmarkedsbidrag_sats_basispoint() / 10000
+
+----
+§ 5. Grundlaget for arbejdsmarkedsbidrag for selvstændigt erhvervsdrivende,
+som anvender virksomhedsordningen i virksomhedsskattelovens afsnit I, udgør
+summen af overførsel fra virksomhedens skattepligtige overskud med fradrag af
+kapitalafkast efter virksomhedsskattelovens § 5, stk. 1, nr. 3, litra a, og
+overførsel af beløb fra virksomhedens konto for opsparet overskud med tillæg af
+den virksomhedsskat, der svarer hertil, til den skattepligtige samt
+rentekorrektion, der medregnes til den personlige indkomst efter
+virksomhedsskattelovens § 11, stk. 3.
+
+Stk. 2. Hvis den skattepligtige efter virksomhedsskattelovens § 23 a har valgt
+at medregne kapitalafkast som personlig indkomst, nedsættes kapitalafkastet,
+der skal fradrages efter stk. 1, med det beløb, der skal medregnes som
+personlig indkomst.
+
+Stk. 3. § 4, stk. 2 og 3, finder tilsvarende anvendelse for personer omfattet
+af stk. 1.
+----
+
+# ArbejdsmarkedsbidragVirksomhedsordningInput(overførsel_fra_virksomhedsoverskud_kroner: Heltal, kapitalafkast_fradrag_kroner: Heltal, kapitalafkast_medregnet_personlig_indkomst_kroner: Heltal, overførsel_opsparet_overskud_kroner: Heltal, tilhørende_virksomhedsskat_kroner: Heltal, rentekorrektion_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal)
+
+| arbejdsmarkedsbidrag_virksomhedsordning_kapitalafkast_fradrag_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.kapitalafkast_fradrag_kroner - input.kapitalafkast_medregnet_personlig_indkomst_kroner)
+| arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.overførsel_fra_virksomhedsoverskud_kroner - arbejdsmarkedsbidrag_virksomhedsordning_kapitalafkast_fradrag_kroner(input) + input.overførsel_opsparet_overskud_kroner + input.tilhørende_virksomhedsskat_kroner + input.rentekorrektion_kroner - arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(input.fremført_negativ_personlig_indkomst_kroner, input.fremført_negativ_personlig_indkomst_fra_pension_kroner))
+| arbejdsmarkedsbidrag_virksomhedsordning_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(input) * arbejdsmarkedsbidrag_sats_basispoint() / 10000
+
+----
+§ 6. Til personer omfattet af § 5, som modtager ydelser i henhold til lov om
+biblioteksafgift, ydes en godtgørelse på 8,7 pct. af biblioteksafgiften.
+
+Stk. 2. Godtgørelsen ydes i det indkomstår, hvor biblioteksafgiften modtages.
+
+Godtgørelsen indgår i bidragsgrundlaget efter denne lov og medregnes i
+modtagerens skattepligtige indkomst i det pågældende indkomstår.
+
+Godtgørelsen betragtes som indbetalt foreløbig skat og modregnes i modtagerens
+slutskat for det pågældende indkomstår, jf. kildeskattelovens § 60, stk. 1,
+litra i.
+----
+
+# ArbejdsmarkedsbidragBiblioteksafgiftInput(biblioteksafgift_kroner: Heltal, modtager_omfattet_af_virksomhedsordning: Boolsk)
+
+| arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(input: ArbejdsmarkedsbidragBiblioteksafgiftInput) -> 0
+| exception arbejdsmarkedsbidrag_biblioteksafgift_godtgøres_for_virksomhedsordning arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(input: ArbejdsmarkedsbidragBiblioteksafgiftInput) -> input.biblioteksafgift_kroner * 870 / 10000 under input.modtager_omfattet_af_virksomhedsordning
+| arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_indgår_i_grundlag_kroner(input: ArbejdsmarkedsbidragBiblioteksafgiftInput) -> arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(input)
+
+----
+§ 7. Bestemmelserne i kildeskatteloven og opkrævningsloven om indeholdelse,
+opkrævning, hæftelse m.v. finder anvendelse ved indeholdelse og opkrævning af
+arbejdsmarkedsbidrag efter denne lov.
+----
+
+| arbejdsmarkedsbidrag_opkrævning_følger_kildeskat_og_opkrævningslov() -> Sandt
 
 = am_lønmodtager_løn_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(500000, 0))
 = am_lønmodtager_naturalie_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(500000, 10000))
+= am_lønmodtager_sømand_fixture = arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(100000, 0, 0, 0, 0, 0, 0, 100000, 0, 0, 0, 0))
+= am_lønmodtager_udenfor_ansættelse_fixture = arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(0, 80000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+= am_selvstændig_fixture = arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(ArbejdsmarkedsbidragSelvstændigInput(300000, 10000, 40000, 5000))
+= am_virksomhedsordning_fixture = arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(ArbejdsmarkedsbidragVirksomhedsordningInput(400000, 50000, 10000, 30000, 9000, 2000, 20000, 5000))
+= am_biblioteksafgift_godtgørelse_fixture = arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(ArbejdsmarkedsbidragBiblioteksafgiftInput(10000, Sandt))
+= am_unge_2026_fixture = arbejdsmarkedsbidrag_for_person_kroner(100000, ArbejdsmarkedsbidragPersonSatsInput(2026, 17))
+= am_voksen_2026_fixture = arbejdsmarkedsbidrag_for_person_kroner(100000, ArbejdsmarkedsbidragPersonSatsInput(2026, 18))
 
 | am_sats_er_8_pct: arbejdsmarkedsbidrag_sats_basispoint() -> arbejdsmarkedsbidrag_sats_basispoint() == 800
 | am_lønvederlag_beskattes: am_lønmodtager_løn_fixture -> am_lønmodtager_løn_fixture == 40000
 | am_naturalier_indgår_med_skatteværdi: am_lønmodtager_naturalie_fixture -> am_lønmodtager_naturalie_fixture == 40800
+| am_sømandsvederlag_udelukkes: am_lønmodtager_sømand_fixture -> am_lønmodtager_sømand_fixture == 0
+| am_udenfor_ansættelse_indgår: am_lønmodtager_udenfor_ansættelse_fixture -> am_lønmodtager_udenfor_ansættelse_fixture == 80000
+| am_selvstændig_fratrækker_biblioteksafgift_og_underskud: am_selvstændig_fixture -> am_selvstændig_fixture == 255000
+| am_virksomhedsordning_kapitalafkast_og_underskud: am_virksomhedsordning_fixture -> am_virksomhedsordning_fixture == 386000
+| am_biblioteksafgift_godtgøres_med_8_7_pct: am_biblioteksafgift_godtgørelse_fixture -> am_biblioteksafgift_godtgørelse_fixture == 870
+| am_unge_2026_fritages: am_unge_2026_fixture -> am_unge_2026_fixture == 0
+| am_voksen_2026_betaler_8_pct: am_voksen_2026_fixture -> am_voksen_2026_fixture == 8000
+
+? am_sats_er_8_pct
+? am_lønvederlag_beskattes
+? am_naturalier_indgår_med_skatteværdi
+? am_sømandsvederlag_udelukkes
+? am_udenfor_ansættelse_indgår
+? am_selvstændig_fratrækker_biblioteksafgift_og_underskud
+? am_virksomhedsordning_kapitalafkast_og_underskud
+? am_biblioteksafgift_godtgøres_med_8_7_pct
+? am_unge_2026_fritages
+? am_voksen_2026_betaler_8_pct
