@@ -61,7 +61,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | OpkrævningslovBetalingsfristDækket | LigningslovLønmodtagerfradragDækket | FiktivHusholdningScenarieDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | OpkrævningslovBetalingsfristDækket | LigningslovLønmodtagerfradragDækket | FiktivHusholdningScenarieDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -261,6 +261,11 @@ virksomhedsunderskud.
 = m5_slutopgørelse_restskat_fixture = kildeskat_restskat_resultat_fixture
 = m5_slutopgørelse_husholdning_fixture = scenarie1_husholdning_genereret_overskydende_skat
 = m5_slutopgørelse_ægtefælleudligning_fixture = kildeskat_ægtefælleudligning_fixture
+= m5_slutopgørelse_restskat_tillæg_fixture = kildeskat_restskat_tillæg_fixture
+= m5_slutopgørelse_restskat_plan_fixture = kildeskat_restskat_tidlig_plan_fixture
+= m5_slutopgørelse_husholdning_godtgørelse_fixture = scenarie1_husholdning_genereret_godtgørelse
+= m5_slutopgørelse_husholdning_udbetaling_fixture = scenarie1_husholdning_genereret_udbetaling
+= m5_slutopgørelse_par62c_lille_restskat_fixture = kildeskat_par62c_lille_restskat_fixture
 = m5_opkrævning_rettidig_fixture = afregning_ordinær_rettidig
 = m5_opkrævning_for_sen_fixture = afregning_ordinær_for_sen
 = m5_opkrævning_stor_indeholdelsespligtig_fixture = afregning_stor_indeholdelsespligtig
@@ -306,6 +311,10 @@ virksomhedsunderskud.
 | m5_kildeskat_slutopgørelse_restskat_dækket: m5_slutopgørelse_restskat_fixture -> m5_slutopgørelse_restskat_fixture.restskat_kroner == 20000 && m5_slutopgørelse_restskat_fixture.art == Restskat
 | m5_kildeskat_slutopgørelse_husholdning_dækket: m5_slutopgørelse_husholdning_fixture -> m5_slutopgørelse_husholdning_fixture == 3541
 | m5_kildeskat_ægtefælleudligning_dækket: m5_slutopgørelse_ægtefælleudligning_fixture -> m5_slutopgørelse_ægtefælleudligning_fixture.anvendt_a_til_b_kroner == 7000 && m5_slutopgørelse_ægtefælleudligning_fixture.person_b_restskat_efter_udligning_kroner == 0
+| m5_kildeskat_restskat_tillæg_dækket: m5_slutopgørelse_restskat_tillæg_fixture -> m5_slutopgørelse_restskat_tillæg_fixture == 1700
+| m5_kildeskat_restskat_plan_dækket: m5_slutopgørelse_restskat_plan_fixture -> m5_slutopgørelse_restskat_plan_fixture.indregnes_i_følgende_år_kroner == 18300 && m5_slutopgørelse_restskat_plan_fixture.tre_rater_kroner == 11700
+| m5_kildeskat_overskydende_godtgørelse_dækket: m5_slutopgørelse_husholdning_godtgørelse_fixture -> m5_slutopgørelse_husholdning_godtgørelse_fixture == 63 && m5_slutopgørelse_husholdning_udbetaling_fixture == 3604
+| m5_kildeskat_par62c_minimum_dækket: m5_slutopgørelse_par62c_lille_restskat_fixture -> m5_slutopgørelse_par62c_lille_restskat_fixture == Falskt
 | m5_opkrævning_ordinær_rettidig_dækket: m5_opkrævning_rettidig_fixture -> opkrævning_betalt_rettidigt(m5_opkrævning_rettidig_fixture) == Sandt && opkrævning_betalingsfrist_dag(m5_opkrævning_rettidig_fixture) == 10
 | m5_opkrævning_for_sen_dækket: m5_opkrævning_for_sen_fixture -> opkrævning_betalt_rettidigt(m5_opkrævning_for_sen_fixture) == Falskt && opkrævning_for_sen_betaling_udløser_rente(m5_opkrævning_for_sen_fixture) == Sandt
 | m5_opkrævning_stor_indeholdelsespligtig_dækket: m5_opkrævning_stor_indeholdelsespligtig_fixture -> opkrævning_betalingsfrist_måned(m5_opkrævning_stor_indeholdelsespligtig_fixture) == 3 && opkrævning_betalingsfrist_dag(m5_opkrævning_stor_indeholdelsespligtig_fixture) == 31
@@ -322,6 +331,7 @@ virksomhedsunderskud.
 | m5_audit_kildeskattebekendtgørelse_signal: audit_signal(KildeskattebekendtgørelseForskudskortDækket) -> audit_signal(KildeskattebekendtgørelseForskudskortDækket) == Sandt
 | m5_audit_forskudsregistrering_indeholdelsesprocent_signal: audit_signal(ForskudsregistreringIndeholdelsesprocentDækket) -> audit_signal(ForskudsregistreringIndeholdelsesprocentDækket) == Sandt
 | m5_audit_kildeskat_slutopgørelse_signal: audit_signal(KildeskattelovSlutopgørelseDækket) -> audit_signal(KildeskattelovSlutopgørelseDækket) == Sandt
+| m5_audit_kildeskat_restskat_timing_signal: audit_signal(KildeskattelovRestskatTimingDækket) -> audit_signal(KildeskattelovRestskatTimingDækket) == Sandt
 | m5_audit_opkrævningslov_signal: audit_signal(OpkrævningslovBetalingsfristDækket) -> audit_signal(OpkrævningslovBetalingsfristDækket) == Sandt
 | m5_audit_fiktiv_husholdning_signal: audit_signal(FiktivHusholdningScenarieDækket) -> audit_signal(FiktivHusholdningScenarieDækket) == Sandt
 
@@ -366,6 +376,10 @@ virksomhedsunderskud.
 ? m5_kildeskat_slutopgørelse_restskat_dækket
 ? m5_kildeskat_slutopgørelse_husholdning_dækket
 ? m5_kildeskat_ægtefælleudligning_dækket
+? m5_kildeskat_restskat_tillæg_dækket
+? m5_kildeskat_restskat_plan_dækket
+? m5_kildeskat_overskydende_godtgørelse_dækket
+? m5_kildeskat_par62c_minimum_dækket
 ? m5_opkrævning_ordinær_rettidig_dækket
 ? m5_opkrævning_for_sen_dækket
 ? m5_opkrævning_stor_indeholdelsespligtig_dækket
@@ -382,6 +396,7 @@ virksomhedsunderskud.
 ? m5_audit_kildeskattebekendtgørelse_signal
 ? m5_audit_forskudsregistrering_indeholdelsesprocent_signal
 ? m5_audit_kildeskat_slutopgørelse_signal
+? m5_audit_kildeskat_restskat_timing_signal
 ? m5_audit_opkrævningslov_signal
 ? m5_audit_fiktiv_husholdning_signal
 
@@ -445,4 +460,4 @@ afgrænsning.
 ? m5_audit_par26_signal
 ? m5_audit_par28_signal
 
-@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Opkrævningslov betalingsfrister, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")
+@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Opkrævningslov betalingsfrister, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")

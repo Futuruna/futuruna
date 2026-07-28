@@ -31,20 +31,35 @@ overskydende skat efter § 62.
 = scenarie1_husholdning_oplyst_kort_overskydende_skat = scenarie1_mand_slutopgørelse_oplyst_kort.overskydende_skat_kroner + scenarie1_ægtefælle_slutopgørelse_oplyst_kort.overskydende_skat_kroner
 
 = scenarie1_mand_slutopgørelse_lav_indeholdelse = slutopgørelse_lønmodtager_resultat(scenarie1_mand, 12000)
+= scenarie1_opkrævningslov_rente_fixture_basispoint = 700
+= scenarie1_husholdning_genereret_godtgørelse = kildeskat_overskydende_godtgørelse_kroner(KildeskatOverskydendeGodtgørelseInput(scenarie1_husholdning_genereret_overskydende_skat, 0, 0, 0, scenarie1_opkrævningslov_rente_fixture_basispoint))
+= scenarie1_husholdning_genereret_udbetaling = kildeskat_overskydende_udbetaling_efter_restancemodregning_kroner(KildeskatOverskydendeTilbagebetalingInput(scenarie1_husholdning_genereret_overskydende_skat, scenarie1_husholdning_genereret_godtgørelse, 0, Sandt, Falskt, 0, scenarie1_opkrævningslov_rente_fixture_basispoint))
+= scenarie1_mand_lav_indeholdelse_tillæg = kildeskat_restskat_procenttillæg_kroner(KildeskatRestskatTillægInput(scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner, scenarie1_opkrævningslov_rente_fixture_basispoint))
+= scenarie1_mand_lav_indeholdelse_plan = kildeskat_restskat_opkrævning_plan(KildeskatRestskatOpkrævningInput(scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner, kildeskat_restskat_grænse_2010_niveau_kroner(), SenestSeptemberFørAugust, Sandt))
 
 | scenarie1_mand_genereret_slutopgørelse_overskydende: scenarie1_mand_slutopgørelse_genereret -> scenarie1_mand_slutopgørelse_genereret.overskydende_skat_kroner == 2690 && scenarie1_mand_slutopgørelse_genereret.restskat_kroner == 0
 | scenarie1_ægtefælle_genereret_slutopgørelse_overskydende: scenarie1_ægtefælle_slutopgørelse_genereret -> scenarie1_ægtefælle_slutopgørelse_genereret.overskydende_skat_kroner == 851 && scenarie1_ægtefælle_slutopgørelse_genereret.restskat_kroner == 0
 | scenarie1_husholdning_genereret_overskydende: scenarie1_husholdning_genereret_overskydende_skat -> scenarie1_husholdning_genereret_overskydende_skat == 3541
 | scenarie1_husholdning_oplyst_kort_overskydende: scenarie1_husholdning_oplyst_kort_overskydende_skat -> scenarie1_husholdning_oplyst_kort_overskydende_skat == 18469
 | scenarie1_mand_lav_indeholdelse_bliver_restskat: scenarie1_mand_slutopgørelse_lav_indeholdelse -> scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner == 16726 && scenarie1_mand_slutopgørelse_lav_indeholdelse.art == Restskat
+| scenarie1_husholdning_genereret_godtgørelse_beregnet: scenarie1_husholdning_genereret_godtgørelse -> scenarie1_husholdning_genereret_godtgørelse == 63
+| scenarie1_husholdning_genereret_udbetaling_beregnet: scenarie1_husholdning_genereret_udbetaling -> scenarie1_husholdning_genereret_udbetaling == 3604
+| scenarie1_lav_indeholdelse_restskat_tillæg: scenarie1_mand_lav_indeholdelse_tillæg -> scenarie1_mand_lav_indeholdelse_tillæg == 1421
+| scenarie1_lav_indeholdelse_indregnes_i_følgende_år: scenarie1_mand_lav_indeholdelse_plan -> scenarie1_mand_lav_indeholdelse_plan.indregnes_i_følgende_år_kroner == 16726 && scenarie1_mand_lav_indeholdelse_plan.tre_rater_kroner == 0
 
 ? scenarie1_mand_genereret_slutopgørelse_overskydende
 ? scenarie1_ægtefælle_genereret_slutopgørelse_overskydende
 ? scenarie1_husholdning_genereret_overskydende
 ? scenarie1_husholdning_oplyst_kort_overskydende
 ? scenarie1_mand_lav_indeholdelse_bliver_restskat
+? scenarie1_husholdning_genereret_godtgørelse_beregnet
+? scenarie1_husholdning_genereret_udbetaling_beregnet
+? scenarie1_lav_indeholdelse_restskat_tillæg
+? scenarie1_lav_indeholdelse_indregnes_i_følgende_år
 
 @ print("scenarie1 mand slutopgoerelse med genereret kort: overskydende skat " + vis(scenarie1_mand_slutopgørelse_genereret.overskydende_skat_kroner))
 @ print("scenarie1 aegtefaelle slutopgoerelse med genereret kort: overskydende skat " + vis(scenarie1_ægtefælle_slutopgørelse_genereret.overskydende_skat_kroner))
 @ print("scenarie1 husholdning genereret kort samlet overskydende skat: " + vis(scenarie1_husholdning_genereret_overskydende_skat))
+@ print("scenarie1 husholdning genereret kort godtgoerelse fixture: " + vis(scenarie1_husholdning_genereret_godtgørelse))
+@ print("scenarie1 husholdning genereret kort udbetaling inkl. godtgoerelse fixture: " + vis(scenarie1_husholdning_genereret_udbetaling))
 @ print("scenarie1 husholdning oplyst kort samlet overskydende skat: " + vis(scenarie1_husholdning_oplyst_kort_overskydende_skat))

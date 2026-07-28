@@ -2416,12 +2416,12 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Calculation slice" }
                             strong { "Calculation-ready" }
-                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary and special-case AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort and §§ 60-62/67 settlement balance posture, BEK 839 generated card values with BEK 1094-derived 2026 indeholdelsesprocent, Opkrævningsloven payment-deadline fixtures, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
+                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary and special-case AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort and §§ 60-62/62 A/62 C/67 settlement, restskat timing, and overskydende skat compensation posture, BEK 839 generated card values with BEK 1094-derived 2026 indeholdelsesprocent, Opkrævningsloven payment-deadline fixtures, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: restskat rate/timing mechanics beyond the first settlement-balance slice and Opkrævningsloven deadline slice, § 14/§ 19 calculator integration beyond fixtures, municipal settlement/allocation, remaining AM edge cases, and external differential fixtures remain explicit gaps." }
+                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: dynamic Opkrævningsloven rate sourcing, exact B-tax installment calendars, full § 62 A interest treatment, § 14/§ 19 calculator integration beyond fixtures, municipal settlement/allocation, remaining AM edge cases, and external differential fixtures remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -2455,7 +2455,7 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/1500", "Ligningsloven" }
                     }
                     p { class: "const-stats",
-                        "23 filer \u{00B7} §§ 1-28 første slice \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 9 J/9 K \u{00B7} Kildeskatteloven A-indkomst/A-skat/slutopgørelse \u{00B7} BEK 839 forskudskort \u{00B7} BEK 1094 indeholdelsesprocent \u{00B7} Opkrævningsloven betalingsfrister \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, husholdning, slutopgørelse, afregning, kapital og § 13 fixtures \u{00B7} audit-signaler"
+                        "23 filer \u{00B7} §§ 1-28 første slice \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 9 J/9 K \u{00B7} Kildeskatteloven A-indkomst/A-skat/slutopgørelse/restskat-timing \u{00B7} BEK 839 forskudskort \u{00B7} BEK 1094 indeholdelsesprocent \u{00B7} Opkrævningsloven betalingsfrister \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, husholdning, slutopgørelse, afregning, kapital og § 13 fixtures \u{00B7} audit-signaler"
                     }
                 }
 
@@ -2491,7 +2491,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "coverage" }
-                            strong { "2026 reform, mellemskat capital branch, ordinary and special-case AM law, Ligningsloven, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort/slutopgørelse, BEK 839 generated card values, BEK 1094 withholding percentage derivation, Opkrævningsloven payment deadlines, a fictional household, and § 13 complex calculators are executable; restskat timing/rate details remain" }
+                            strong { "2026 reform, mellemskat capital branch, ordinary and special-case AM law, Ligningsloven, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort/slutopgørelse/restskat timing, BEK 839 generated card values, BEK 1094 withholding percentage derivation, Opkrævningsloven payment deadlines, a fictional household, and § 13 complex calculators are executable" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }
