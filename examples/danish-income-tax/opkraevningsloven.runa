@@ -1,0 +1,169 @@
+@ sprog da
+
+-- Opkrævningsloven — afhængig lovkilde for betaling af indeholdt A-skat og
+-- arbejdsmarkedsbidrag.
+--
+-- Kilde: Retsinformation, LBK nr. 1040 af 13/09/2024.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/1040
+-- XML: https://www.retsinformation.dk/eli/lta/2024/1040/dan/xml
+
+----
+Officiel XML-metadata for 2024/1040, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om opkrævning af skatter og afgifter m.v. (opkrævningsloven)
+PopularTitle: Opkrævningsloven
+Status: Valid
+DiesSigni: 2024-09-13
+StartDate: 2024-09-18
+EndDate: 2026-06-20
+----
+
+----
+§ 1. Loven gælder for opkrævning af skatter og afgifter m.v., for hvilke
+virksomheder, selskaber, fonde eller foreninger m.v. er eller skulle have
+været registreret hos eller anmeldt til told- og skatteforvaltningen, i det
+omfang der ikke er fastsat særlige bestemmelser i anden lovgivning eller i
+EF-forordninger.
+
+Stk. 3. Loven gælder derudover for opkrævning af andre skatter og afgifter
+m.v. end de i stk. 1 nævnte, i det omfang der i anden lovgivning henvises til
+denne lov.
+----
+
+# OpkrævningKravArt = ASkatOgArbejdsmarkedsbidrag | AndenSkatEllerAfgift | Told | Aktiesparekonto
+
+| opkrævningsloven_omfatter_krav(art: OpkrævningKravArt) -> Sandt
+| exception opkrævningsloven_omfatter_ikke_told opkrævningsloven_omfatter_krav(art: OpkrævningKravArt) -> Falskt under art == Told
+| exception opkrævningsloven_omfatter_ikke_aktiesparekonto opkrævningsloven_omfatter_krav(art: OpkrævningKravArt) -> Falskt under art == Aktiesparekonto
+
+----
+§ 2. Afregningsperioden er kalendermåneden.
+
+Hvor der i anden lovgivning er henvist til afgiftsperioden, svarer dette til
+afregningsperioden.
+
+For hver afregningsperiode og for hver skat eller afgift m.v. skal der
+indgives en angivelse med de oplysninger, som følger af reglerne i den enkelte
+skatte- og afgiftslov.
+
+3. pkt. finder dog ikke anvendelse, for så vidt angår indeholdt A-skat og
+arbejdsmarkedsbidrag, som skal indberettes til indkomstregisteret, og indeholdt
+udbytteskat, som skal indberettes efter skatteindberetningslovens § 29.
+
+Stk. 3. Såfremt den sidste rettidige angivelsesdag er en banklukkedag, anses
+den førstkommende bankdag som sidste rettidige angivelsesdag.
+
+Stk. 5. Indeholdt A-skat og arbejdsmarkedsbidrag, som er omfattet af stk. 1,
+4. pkt., forfalder til betaling den 1. i den første måned efter udløbet af
+afregningsperioden og skal indbetales senest den 10. i den første måned efter
+udløbet af afregningsperioden, jf. dog stk. 6.
+
+Stk. 2, 3. pkt., og stk. 3 finder tilsvarende anvendelse, for så vidt angår
+fristen for indbetaling efter 1. pkt.
+
+Stk. 6. For indeholdelsespligtige efter kildeskatteloven, hvor det sammenlagte
+tilsvar i henhold til indgivne angivelser, foretagne indberetninger til
+indkomstregisteret eller foreløbige fastsættelser, jf. § 4, af enten
+arbejdsmarkedsbidrag eller A-skat i en forudgående 12-måneders-periode regnet
+fra og med oktober 2 år før kalenderåret til og med september i året før
+kalenderåret overstiger 250.000 kr. henholdsvis 1 mio. kr., forfalder
+indeholdt A-skat og arbejdsmarkedsbidrag i kalenderåret til betaling den sidste
+hverdag (bankdag) i den måned, som indkomsten vedrører.
+
+Forfaldstidspunktet for indeholdt A-skat m.v. som nævnt i 1. pkt. finder
+tilsvarende anvendelse for indeholdelsespligtige med flere virksomheder, for
+hvilke der føres særskilt regnskab, og som har fået tildelt flere SE-numre.
+
+Dette gælder dog ikke, hvis den indeholdelsespligtiges samlede tilsvar ikke
+overstiger 250.000 kr. henholdsvis 1 mio. kr., jf. 1. pkt. Sidste rettidige
+angivelses- og betalingsdag er forfaldsdagen.
+
+1.-4. pkt. finder ikke anvendelse på regioner og kommuner.
+----
+
+# OpkrævningAfregningsperiode(år: Heltal, måned: Heltal)
+# OpkrævningTilsvarHistorik(am_tilsvar_forrige_12_måneder_kroner: Heltal, a_skat_tilsvar_forrige_12_måneder_kroner: Heltal)
+# OpkrævningBankkalender(ordinær_fristsdag_banklukkedag: Boolsk, førstkommende_bankdag_efter_ordinær_fristsdag_dag: Heltal, sidste_bankdag_i_afregningsmåned_dag: Heltal)
+# OpkrævningBetaling(år: Heltal, måned: Heltal, dag: Heltal)
+# OpkrævningASkatAmAfregningInput(afregningsperiode: OpkrævningAfregningsperiode, tilsvarshistorik: OpkrævningTilsvarHistorik, indeholdelsespligtig_er_region_eller_kommune: Boolsk, bankkalender: OpkrævningBankkalender, betaling: OpkrævningBetaling)
+
+| opkrævning_måned_efter(måned: Heltal) -> 1
+| exception opkrævning_måned_efter_uden_årsskifte opkrævning_måned_efter(måned: Heltal) -> måned + 1 under måned < 12
+| opkrævning_år_for_måned_efter(år: Heltal, måned: Heltal) -> år
+| exception opkrævning_år_efter_december opkrævning_år_for_måned_efter(år: Heltal, måned: Heltal) -> år + 1 under måned == 12
+
+| opkrævning_stor_indeholdelsespligtig(input: OpkrævningASkatAmAfregningInput) -> Falskt
+| exception opkrævning_stor_indeholdelsespligtig_am opkrævning_stor_indeholdelsespligtig(input: OpkrævningASkatAmAfregningInput) -> Sandt under input.indeholdelsespligtig_er_region_eller_kommune == Falskt && input.tilsvarshistorik.am_tilsvar_forrige_12_måneder_kroner > 250000
+| exception opkrævning_stor_indeholdelsespligtig_a_skat opkrævning_stor_indeholdelsespligtig(input: OpkrævningASkatAmAfregningInput) -> Sandt under input.indeholdelsespligtig_er_region_eller_kommune == Falskt && input.tilsvarshistorik.a_skat_tilsvar_forrige_12_måneder_kroner > 1000000
+
+| opkrævning_ordinær_fristsdag(input: OpkrævningASkatAmAfregningInput) -> 10
+| exception opkrævning_januarfrist_er_17 opkrævning_ordinær_fristsdag(input: OpkrævningASkatAmAfregningInput) -> 17 under opkrævning_måned_efter(input.afregningsperiode.måned) == 1
+| opkrævning_ordinær_betalingsfrist_dag(input: OpkrævningASkatAmAfregningInput) -> opkrævning_ordinær_fristsdag(input)
+| exception opkrævning_banklukkedag_udskyder_frist opkrævning_ordinær_betalingsfrist_dag(input: OpkrævningASkatAmAfregningInput) -> input.bankkalender.førstkommende_bankdag_efter_ordinær_fristsdag_dag under input.bankkalender.ordinær_fristsdag_banklukkedag
+
+| opkrævning_betalingsfrist_år(input: OpkrævningASkatAmAfregningInput) -> opkrævning_år_for_måned_efter(input.afregningsperiode.år, input.afregningsperiode.måned)
+| exception opkrævning_stor_indeholdelsespligtig_fristsår opkrævning_betalingsfrist_år(input: OpkrævningASkatAmAfregningInput) -> input.afregningsperiode.år under opkrævning_stor_indeholdelsespligtig(input)
+| opkrævning_betalingsfrist_måned(input: OpkrævningASkatAmAfregningInput) -> opkrævning_måned_efter(input.afregningsperiode.måned)
+| exception opkrævning_stor_indeholdelsespligtig_fristsmåned opkrævning_betalingsfrist_måned(input: OpkrævningASkatAmAfregningInput) -> input.afregningsperiode.måned under opkrævning_stor_indeholdelsespligtig(input)
+| opkrævning_betalingsfrist_dag(input: OpkrævningASkatAmAfregningInput) -> opkrævning_ordinær_betalingsfrist_dag(input)
+| exception opkrævning_stor_indeholdelsespligtig_sidste_bankdag opkrævning_betalingsfrist_dag(input: OpkrævningASkatAmAfregningInput) -> input.bankkalender.sidste_bankdag_i_afregningsmåned_dag under opkrævning_stor_indeholdelsespligtig(input)
+
+| opkrævning_betalt_rettidigt(input: OpkrævningASkatAmAfregningInput) -> Falskt
+| exception opkrævning_betalt_før_fristsår opkrævning_betalt_rettidigt(input: OpkrævningASkatAmAfregningInput) -> Sandt under input.betaling.år < opkrævning_betalingsfrist_år(input)
+| exception opkrævning_betalt_før_fristsmåned opkrævning_betalt_rettidigt(input: OpkrævningASkatAmAfregningInput) -> Sandt under input.betaling.år == opkrævning_betalingsfrist_år(input) && input.betaling.måned < opkrævning_betalingsfrist_måned(input)
+| exception opkrævning_betalt_senest_fristsdag opkrævning_betalt_rettidigt(input: OpkrævningASkatAmAfregningInput) -> Sandt under input.betaling.år == opkrævning_betalingsfrist_år(input) && input.betaling.måned == opkrævning_betalingsfrist_måned(input) && input.betaling.dag <= opkrævning_betalingsfrist_dag(input)
+
+----
+§ 4. Har told- og skatteforvaltningen efter afleveringsfristens udløb ikke
+modtaget angivelse for en afregningsperiode, kan de fastsætte virksomhedens
+tilsvar af skatter og afgifter m.v. foreløbigt til et skønsmæssigt beløb.
+
+Tilsvarende gælder, hvis indkomstregisteret eller told- og skatteforvaltningen
+efter udløbet af fristen for indberetning for en afregningsperiode ikke har
+modtaget indberetning af indeholdte beløb omfattet af § 2, stk. 1, 4. pkt. For
+betalingen af det skønsmæssigt fastsatte beløb finder betalingsfristen, der
+anvendes ved en rettidig angivelse eller indberetning, jf. § 2, anvendelse.
+
+Stk. 2. Virksomheden skal betale en afgift på 800 kr. for en foreløbig
+fastsættelse.
+
+Foretages der en foreløbig fastsættelse for både A-skat og
+arbejdsmarkedsbidrag, betales dog kun én afgift pr. afregningsperiode.
+----
+
+# OpkrævningIndberetningInput(indberetning_modtaget_rettidigt: Boolsk, foreløbig_a_skat: Boolsk, foreløbig_arbejdsmarkedsbidrag: Boolsk, skønsmæssigt_fast_sat_tilsvar_kroner: Heltal, korrekt_tilsvar_kroner: Heltal)
+
+| opkrævning_foreløbig_fastsættelse_kan_ske(input: OpkrævningIndberetningInput) -> input.indberetning_modtaget_rettidigt == Falskt
+| opkrævning_foreløbig_fastsættelsesafgift_kroner(input: OpkrævningIndberetningInput) -> 0
+| exception opkrævning_foreløbig_fastsættelse_udløser_en_afgift opkrævning_foreløbig_fastsættelsesafgift_kroner(input: OpkrævningIndberetningInput) -> 800 under opkrævning_foreløbig_fastsættelse_kan_ske(input) && (input.foreløbig_a_skat || input.foreløbig_arbejdsmarkedsbidrag)
+
+----
+§ 5. Har en virksomhed ikke afgivet en både korrekt og rettidig angivelse eller
+indberetning af beløb omfattet af § 2, stk. 1, 4. pkt., eller svarer et beløb,
+der efter § 4, stk. 1, er skønsmæssigt fastsat, ikke til det korrekte beløb,
+således at virksomheden har betalt for lidt i skatter eller afgifter m.v. eller
+har fået udbetalt for meget i negativt tilsvar eller godtgørelse, skal
+virksomheden betale det skyldige beløb.
+
+For betalingen af det for lidt betalte tilsvar af skatter eller afgifter m.v.
+og kravet på tilbagebetaling af for meget udbetalt negativt tilsvar eller
+godtgørelse finder betalingsfristen, der anvendes ved en rettidig angivelse
+eller indberetning, anvendelse.
+----
+
+| opkrævning_positivt_beløb(beløb_kroner: Heltal) -> 0
+| exception opkrævning_beløb_over_nul opkrævning_positivt_beløb(beløb_kroner: Heltal) -> beløb_kroner under beløb_kroner > 0
+| opkrævning_skyldigt_beløb_efter_for_lav_betaling_kroner(input: OpkrævningIndberetningInput) -> opkrævning_positivt_beløb(input.korrekt_tilsvar_kroner - input.skønsmæssigt_fast_sat_tilsvar_kroner)
+
+----
+§ 7. Betales et beløb ikke rettidigt, eller er der ydet henstand med
+betalingen, skal der betales en månedlig rente som fastsat efter stk. 2 med
+tillæg af 0,7 procentpoint regnet fra den seneste rettidige betalingsdag for
+beløbet, og frem til beløbet betales.
+
+Renten beregnes dagligt.
+
+Renten kan ikke fratrækkes ved opgørelsen af den skattepligtige indkomst.
+----
+
+| opkrævning_for_sen_betaling_udløser_rente(input: OpkrævningASkatAmAfregningInput) -> opkrævning_betalt_rettidigt(input) == Falskt
+| opkrævning_rente_er_fradragsberettiget() -> Falskt

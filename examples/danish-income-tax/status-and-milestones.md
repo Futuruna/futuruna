@@ -103,6 +103,13 @@ Current municipal/church-tax and withholding dependency sources:
     generation slice used to turn a forskudsskat and unrounded withholding
     percentage into card allowance, rounded withholding percentage, and
     possible B-tax overflow.
+- Opkrævningsloven:
+  `https://www.retsinformation.dk/eli/lta/2024/1040`
+  - XML status on 2026-07-18: `Valid`
+  - §§ 1, 2, 4, 5 and 7 are the first payment-deadline/remittance slice for
+    withheld A-skat and AM-bidrag: ordinary monthly deadline, large-withholder
+    deadline, region/municipality exception, provisional assessment posture,
+    corrected underpayment, and late-payment interest posture.
 
 Working decision: use `2021/1284` as the current consolidated source for live
 encoding, while preserving `2019/799` as source lineage because the valid
@@ -127,11 +134,14 @@ encoded as a temporal rule on top of the consolidation.
 - `folkekirkens-oekonomi.runa` exists and checks with `runa check`.
 - `kildeskatteloven.runa` exists and checks with `runa check`.
 - `kildeskattebekendtgoerelsen.runa` exists and checks/runs with `runa run`.
+- `opkraevningsloven.runa` exists and checks/runs with `runa run`.
 - `ligningsloven_fradrag.runa` exists and checks with `runa check`.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
 - `husholdning-scenarier.scenario.runa` exists and checks/runs with `runa run`.
+- `indeholdelse-afregning.scenario.runa` exists and checks/runs with
+  `runa run`.
 - `personskatteloven.audit.runa` exists and checks/runs with `runa run`.
 - Website research page exists at `/research/personskatteloven` and renders
   source status, milestone status, selected audit signals, and the checked
@@ -141,8 +151,9 @@ encoded as a temporal rule on top of the consolidation.
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
   slice, the §§ 21-28 concluding provisions slice, ordinary and special-case
   AM-law,
-  municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding and
-  BEK 839 forskudskort generation, Ligningsloven ordinary wage-earner deduction
+  municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding,
+  BEK 839 forskudskort generation, Opkrævningsloven payment deadlines,
+  Ligningsloven ordinary wage-earner deduction
   dependency slices, 2024/2025/2026 tax-year parameter packs, first wage-earner
   scenarios, a first fictional household scenario, complex § 13 calculator
   fixtures, and first audit signals.
@@ -157,6 +168,9 @@ encoded as a temporal rule on top of the consolidation.
   Personskatteloven `.runa` slice becomes part of the displayed corpus.
 - Executable scenario tests use `.scenario.runa` filenames. Cross-cutting audit
   suites use `.audit.runa` filenames.
+- New source-law modules should avoid embedding scenario assertions where the
+  test facts are better expressed as `.scenario.runa` files. Existing local
+  smoke fixtures can be migrated as their surrounding legal slices are revised.
 
 ## File Layout
 
@@ -178,6 +192,37 @@ Imports are preferred over large monolithic files. This lets each slice be
 checked independently, lets audit modules compose across laws, and keeps the
 website integration able to show verified progress without waiting for the
 whole statute to be calculation-complete.
+
+## Domain Model Review
+
+Wide records are not automatically a problem. Parameter packs and result
+breakdowns are expected to be wide because they represent a table row or a
+reporting surface. A record becomes suspect when unrelated facts are passed down
+only so subrules can project one or two fields from it.
+
+Current decision:
+
+- `opkraevningsloven.runa` now splits the former 11-field remittance input into
+  `OpkrævningAfregningsperiode`, `OpkrævningTilsvarHistorik`,
+  `OpkrævningBankkalender`, `OpkrævningBetaling`, and a small composed
+  `OpkrævningASkatAmAfregningInput`.
+- `indeholdelse-afregning.scenario.runa` owns the executable remittance facts
+  and assertions. The source-law module keeps the original legal text and the
+  corresponding rules.
+
+Review candidates to revisit deliberately, not as broad churn:
+
+- `Par13KompleksBeregningInput` is the strongest next candidate for domain
+  objects: tax-value rates, offset pools, spouse transfer, stk. 5 limitation, and
+  same-business loss facts are different legal subdomains.
+- `KildeskatESkattekortInput` and
+  `KildeskattebekendtgørelseForskudskortInput` may eventually share smaller
+  card-period and withholding-percentage objects, but this should wait until the
+  full trækprocent derivation source is encoded.
+- `ArbejdsmarkedsbidragUdvidetLønmodtagerInput` and
+  `ArbejdsmarkedsbidragVirksomhedsordningInput` are wide, but they still mirror
+  dense statutory enumerations closely enough that premature grouping could hurt
+  source traceability.
 
 ## Now
 
@@ -203,8 +248,8 @@ whole statute to be calculation-complete.
   safe.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for full trækprocent
-  derivation, Opkrævningsloven/payment deadlines, municipal/church settlement
-  edge cases, and remaining AM edge cases beyond the first source-explicit
+  derivation, municipal/church settlement edge cases, final settlement/payment
+  mechanics beyond the first Opkrævningsloven deadline slice, and remaining AM edge cases beyond the first source-explicit
   special-case slice. The AM-law slice now covers ordinary wage remuneration,
   taxable benefits, § 3 exclusions, self-employed bases with and without
   virksomhedsordning, library-fee compensation, the 2026 youth exemption, and
@@ -218,7 +263,9 @@ whole statute to be calculation-complete.
   forskudsskat plus an unrounded withholding percentage. The fictional
   household scenario now computes monthly A-skat and cash-flow payroll output
   both from supplied e-skattekort allowance/procent inputs and generated BEK
-  839 card values. § 13's first dependent-source slice now covers
+  839 card values. The first Opkrævningsloven slice now covers ordinary and
+  large-withholder A-skat/AM payment deadlines, late payment posture, and
+  provisional assessment posture. § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
 - Decide how § 14 partial-year annualization and § 19 skatteloftsnedslag should
@@ -230,8 +277,9 @@ whole statute to be calculation-complete.
   complex cases.
 - Gather complementary official sources for:
   full trækprocent derivation,
-  Opkrævningsloven collection/payment deadlines, municipal and church-tax
-  settlement/allocation, personal allowance, remaining AM edge cases, other
+  municipal and church-tax settlement/allocation, personal allowance, remaining
+  payment/settlement mechanics beyond the first Opkrævningsloven deadline
+  slice, remaining AM edge cases, other
   itemized deductions beyond the ordinary §§ 9 J/9 K wage-earner deductions,
   and annual rate/threshold adjustments.
 - Expand audit coverage for source drift, missing dependencies, tax cliffs,
@@ -335,6 +383,8 @@ M4 - Ordinary taxpayer calculator
   allowance/procent inputs are supplied. BEK 839 now generates the household's
   main-card monthly allowances from forskudsskat and unrounded withholding
   percentage inputs, producing a separate generated-card payroll view.
+  Opkrævningsloven now provides source-backed payment-deadline/remittance rules,
+  with fixtures separated into `indeholdelse-afregning.scenario.runa`.
 
 M5 - Audit suite
 
@@ -353,7 +403,8 @@ M5 - Audit suite
   annualization, covered § 19 skatteloft including the 2026 44,57 pct. ceiling,
   covered § 20 regulation/rounding, covered § 26 transition compensation,
   covered § 28 territorial exclusion, covered AM-law special cases,
-  full trækprocent-derivation/afregning dependency, and
+  covered Opkrævningsloven payment-deadline/remittance posture,
+  full trækprocent-derivation dependency, and
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
   seamen-relief exceptions, and calculator-level § 13 integration signals.
@@ -370,7 +421,8 @@ M6 - Website integration
   corpus plus `.scenario.runa` executable scenarios and the `.audit.runa`
   audit suite, marks the limited wage-earner fixture slice plus ordinary and
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
-  A-income/withholding/e-skattekort posture, and BEK 839 generated-card path as
+  A-income/withholding/e-skattekort posture, BEK 839 generated-card path, and
+  Opkrævningsloven payment-deadline slice as
   calculation-ready, and marks the full statute model as
   research/audit-only.
 

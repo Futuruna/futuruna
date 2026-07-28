@@ -1,0 +1,64 @@
+@ sprog da
+
+@ importer ./opkraevningsloven
+
+-- Opkrævningsloven — executable A-skat/AM withholding-remittance scenarios.
+--
+-- This file is a scenario fixture. Legal text is kept in opkraevningsloven.runa.
+
+----
+Scenario: ordinary employer remits withheld A-skat and AM-bidrag for March 2026.
+
+Ordinary withholding posture:
+- the accounting period is March 2026,
+- the employer is not a large withholder under Opkrævningsloven § 2, stk. 6,
+- payment on April 10, 2026 is timely,
+- payment on April 11, 2026 is late and triggers the § 7 interest posture.
+
+Large-withholder posture:
+- if the prior 12-month AM liability exceeds 250.000 kr., the deadline is the
+  last bank day in the income month,
+- regions and municipalities do not use the large-withholder rule in § 2,
+  stk. 6, 1.-4. pkt.
+----
+
+= afregning_marts_2026 = OpkrævningAfregningsperiode(2026, 3)
+= afregning_april_2026 = OpkrævningAfregningsperiode(2026, 4)
+= afregning_december_2026 = OpkrævningAfregningsperiode(2026, 12)
+= afregning_ordinær_tilsvarshistorik = OpkrævningTilsvarHistorik(100000, 500000)
+= afregning_stor_tilsvarshistorik = OpkrævningTilsvarHistorik(300000, 500000)
+= afregning_region_tilsvarshistorik = OpkrævningTilsvarHistorik(300000, 1200000)
+= afregning_marts_bankkalender = OpkrævningBankkalender(Falskt, 0, 31)
+= afregning_april_banklukket_kalender = OpkrævningBankkalender(Sandt, 12, 30)
+= afregning_december_bankkalender = OpkrævningBankkalender(Falskt, 0, 30)
+= afregning_betaling_2026_03_31 = OpkrævningBetaling(2026, 3, 31)
+= afregning_betaling_2026_04_10 = OpkrævningBetaling(2026, 4, 10)
+= afregning_betaling_2026_04_11 = OpkrævningBetaling(2026, 4, 11)
+= afregning_betaling_2026_05_12 = OpkrævningBetaling(2026, 5, 12)
+= afregning_betaling_2027_01_17 = OpkrævningBetaling(2027, 1, 17)
+
+= afregning_ordinær_rettidig = OpkrævningASkatAmAfregningInput(afregning_marts_2026, afregning_ordinær_tilsvarshistorik, Falskt, afregning_marts_bankkalender, afregning_betaling_2026_04_10)
+= afregning_ordinær_for_sen = OpkrævningASkatAmAfregningInput(afregning_marts_2026, afregning_ordinær_tilsvarshistorik, Falskt, afregning_marts_bankkalender, afregning_betaling_2026_04_11)
+= afregning_december_januarfrist = OpkrævningASkatAmAfregningInput(afregning_december_2026, afregning_ordinær_tilsvarshistorik, Falskt, afregning_december_bankkalender, afregning_betaling_2027_01_17)
+= afregning_banklukkedag = OpkrævningASkatAmAfregningInput(afregning_april_2026, afregning_ordinær_tilsvarshistorik, Falskt, afregning_april_banklukket_kalender, afregning_betaling_2026_05_12)
+= afregning_stor_indeholdelsespligtig = OpkrævningASkatAmAfregningInput(afregning_marts_2026, afregning_stor_tilsvarshistorik, Falskt, afregning_marts_bankkalender, afregning_betaling_2026_03_31)
+= afregning_region_ordinær = OpkrævningASkatAmAfregningInput(afregning_marts_2026, afregning_region_tilsvarshistorik, Sandt, afregning_marts_bankkalender, afregning_betaling_2026_04_10)
+= afregning_foreløbig_fastsættelse = OpkrævningIndberetningInput(Falskt, Sandt, Sandt, 100000, 125000)
+
+| afregning_ordinær_frist: afregning_ordinær_rettidig -> opkrævning_betalingsfrist_måned(afregning_ordinær_rettidig) == 4 && opkrævning_betalingsfrist_dag(afregning_ordinær_rettidig) == 10
+| afregning_ordinær_rettidig_betaling: afregning_ordinær_rettidig -> opkrævning_betalt_rettidigt(afregning_ordinær_rettidig) == Sandt
+| afregning_ordinær_for_sen_betaling: afregning_ordinær_for_sen -> opkrævning_betalt_rettidigt(afregning_ordinær_for_sen) == Falskt && opkrævning_for_sen_betaling_udløser_rente(afregning_ordinær_for_sen) == Sandt
+| afregning_december_frist_er_17_januar: afregning_december_januarfrist -> opkrævning_betalingsfrist_år(afregning_december_januarfrist) == 2027 && opkrævning_betalingsfrist_måned(afregning_december_januarfrist) == 1 && opkrævning_betalingsfrist_dag(afregning_december_januarfrist) == 17
+| afregning_banklukkedag_udskyder_til_bankdag: afregning_banklukkedag -> opkrævning_betalingsfrist_dag(afregning_banklukkedag) == 12
+| afregning_stor_indeholdelsespligtig_frist: afregning_stor_indeholdelsespligtig -> opkrævning_betalingsfrist_måned(afregning_stor_indeholdelsespligtig) == 3 && opkrævning_betalingsfrist_dag(afregning_stor_indeholdelsespligtig) == 31
+| afregning_region_er_ordinær: afregning_region_ordinær -> opkrævning_stor_indeholdelsespligtig(afregning_region_ordinær) == Falskt && opkrævning_betalingsfrist_måned(afregning_region_ordinær) == 4
+| afregning_foreløbig_fastsættelse_afgift: afregning_foreløbig_fastsættelse -> opkrævning_foreløbig_fastsættelsesafgift_kroner(afregning_foreløbig_fastsættelse) == 800 && opkrævning_skyldigt_beløb_efter_for_lav_betaling_kroner(afregning_foreløbig_fastsættelse) == 25000
+
+? afregning_ordinær_frist
+? afregning_ordinær_rettidig_betaling
+? afregning_ordinær_for_sen_betaling
+? afregning_december_frist_er_17_januar
+? afregning_banklukkedag_udskyder_til_bankdag
+? afregning_stor_indeholdelsespligtig_frist
+? afregning_region_er_ordinær
+? afregning_foreløbig_fastsættelse_afgift

@@ -1699,6 +1699,8 @@ const TAX_KILDESKAT: &str =
     include_str!("../../examples/danish-income-tax/kildeskatteloven.runa");
 const TAX_KILDESKAT_BEK: &str =
     include_str!("../../examples/danish-income-tax/kildeskattebekendtgoerelsen.runa");
+const TAX_OPKRAEVNING: &str =
+    include_str!("../../examples/danish-income-tax/opkraevningsloven.runa");
 const TAX_LIGNINGSFRADRAG: &str =
     include_str!("../../examples/danish-income-tax/ligningsloven_fradrag.runa");
 const TAX_PARAMS: &str = include_str!("../../examples/danish-income-tax/skatteaar-parametre.runa");
@@ -1707,6 +1709,8 @@ const TAX_FIXTURES: &str =
     include_str!("../../examples/danish-income-tax/loenmodtager-fixtures.scenario.runa");
 const TAX_HOUSEHOLD: &str =
     include_str!("../../examples/danish-income-tax/husholdning-scenarier.scenario.runa");
+const TAX_REMITTANCE: &str =
+    include_str!("../../examples/danish-income-tax/indeholdelse-afregning.scenario.runa");
 const TAX_AUDIT: &str = include_str!("../../examples/danish-income-tax/personskatteloven.audit.runa");
 
 // US Constitution .runa files
@@ -2353,11 +2357,13 @@ fn ResearchPersonskatteloven() -> Element {
         ("folkekirkens-oekonomi.runa — kirkeskat", "folkekirken-code", TAX_KIRKE),
         ("kildeskatteloven.runa — A-indkomst og A-skat", "kildeskat-code", TAX_KILDESKAT),
         ("kildeskattebekendtgoerelsen.runa — forskudskortgenerering", "kildeskat-bek-code", TAX_KILDESKAT_BEK),
+        ("opkraevningsloven.runa — betalingsfrister for A-skat og AM-bidrag", "opkraevning-code", TAX_OPKRAEVNING),
         ("ligningsloven_fradrag.runa — §§ 9 J/9 K lønmodtagerfradrag", "ligningsfradrag-code", TAX_LIGNINGSFRADRAG),
         ("skatteaar-parametre.runa — 2024/2025/2026 parameterpakker", "params-code", TAX_PARAMS),
         ("loenmodtager_beregning.runa — første beregningsslice", "calculator-code", TAX_CALC),
         ("loenmodtager-fixtures.scenario.runa — eksekverbare normalperson-scenarier", "fixtures-code", TAX_FIXTURES),
         ("husholdning-scenarier.scenario.runa — fiktivt husholdningsscenarie", "household-code", TAX_HOUSEHOLD),
+        ("indeholdelse-afregning.scenario.runa — A-skat/AM betalingsscenarier", "remittance-code", TAX_REMITTANCE),
         ("personskatteloven.audit.runa — audit-signaler", "audit-code", TAX_AUDIT),
     ];
 
@@ -2401,12 +2407,12 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Calculation slice" }
                             strong { "Calculation-ready" }
-                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary and special-case AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort posture, BEK 839 generated card values, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
+                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary and special-case AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort posture, BEK 839 generated card values, Opkrævningsloven payment-deadline fixtures, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: full trækprocent derivation, Opkrævningsloven payment and settlement mechanics, § 14/§ 19 calculator integration beyond fixtures, municipal settlement/allocation, remaining AM edge cases, and external differential fixtures remain explicit gaps." }
+                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: full trækprocent derivation, final payment/settlement mechanics beyond the first Opkrævningsloven deadline slice, § 14/§ 19 calculator integration beyond fixtures, municipal settlement/allocation, remaining AM edge cases, and external differential fixtures remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -2430,11 +2436,13 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2024/460", "Kildeskatteloven" }
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/839", "BEK nr. 839/2025" }
+                        " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2024/1040", "Opkrævningsloven" }
                         " · lønmodtagerfradrag: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/1500", "Ligningsloven" }
                     }
                     p { class: "const-stats",
-                        "18 filer \u{00B7} §§ 1-28 første slice \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 9 J/9 K \u{00B7} Kildeskatteloven A-indkomst/A-skat \u{00B7} BEK 839 forskudskort \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, husholdning, kapital og § 13 fixtures \u{00B7} audit-signaler"
+                        "20 filer \u{00B7} §§ 1-28 første slice \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 9 J/9 K \u{00B7} Kildeskatteloven A-indkomst/A-skat \u{00B7} BEK 839 forskudskort \u{00B7} Opkrævningsloven betalingsfrister \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, husholdning, afregning, kapital og § 13 fixtures \u{00B7} audit-signaler"
                     }
                 }
 
@@ -2470,7 +2478,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "2026 reform, mellemskat capital branch, ordinary and special-case AM law, Ligningsloven, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort, BEK 839 generated card values, a fictional household, and § 13 complex calculators are executable; full trækprocent derivation and settlement remain" }
+                            strong { "2026 reform, mellemskat capital branch, ordinary and special-case AM law, Ligningsloven, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort, BEK 839 generated card values, Opkrævningsloven payment deadlines, a fictional household, and § 13 complex calculators are executable; full trækprocent derivation and final settlement remain" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }
