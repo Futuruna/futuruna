@@ -92,6 +92,27 @@ encoded as a temporal rule on top of the consolidation.
 - Website integration is active and should be updated whenever a checked
   Personskatteloven `.runa` slice becomes part of the displayed corpus.
 
+## File Layout
+
+The corpus is intentionally split across multiple `.runa` files. The split is
+legal and operational, not arbitrary: Personskatteloven is grouped by chapter,
+tax-year data lives in parameter modules, executable normal-person calculations
+live in calculator/fixture modules, and dependent statutes such as
+Arbejdsmarkedsbidragsloven live in their own source-cited files.
+
+Each legal file should remain a repeating source sequence:
+
+1. official legal text in a multiline block,
+2. an optional note only when the code cannot make the legal choice clear on
+   its own,
+3. idiomatic Futuruna rules, preferably typed `|` rules with `under` and
+   `exception` where the law has conditions or carve-outs.
+
+Imports are preferred over large monolithic files. This lets each slice be
+checked independently, lets audit modules compose across laws, and keeps the
+website integration able to show verified progress without waiting for the
+whole statute to be calculation-complete.
+
 ## Now
 
 - Create the source foundation for Personskatteloven using official
@@ -115,10 +136,12 @@ encoded as a temporal rule on top of the consolidation.
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Replace remaining source-dependency placeholders with complementary official
-  statutes and trusted calculation examples, especially for AM contribution,
-  municipal/church taxation, and Kildeskatteloven. § 13's first dependent-source
-  slice now covers Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
-  Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
+  statutes and trusted calculation examples, especially for AM special cases,
+  municipal/church taxation, and Kildeskatteloven. The first AM-law slice now
+  covers ordinary wage remuneration and taxable benefits. § 13's first
+  dependent-source slice now covers Pensionsbeskatningsloven § 16,
+  Ligningsloven § 33 A, Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in
+  LOV nr. 482/2024.
 - Decide how § 14 partial-year annualization and § 19 skatteloftsnedslag should
   flow into the ordinary wage-earner calculator once there are trusted
   partial-year and high-rate fixtures.
@@ -127,7 +150,7 @@ encoded as a temporal rule on top of the consolidation.
 - Build calculation fixtures for ordinary wage-earner cases before handling
   complex cases.
 - Gather complementary official sources for:
-  arbejdsmarkedsbidrag, municipal income tax, church tax, personal allowance,
+  AM-law special cases, municipal income tax, church tax, personal allowance,
   ligningsmæssige fradrag, kildeskat, and annual rate/threshold adjustments.
 - Expand audit coverage for source drift, missing dependencies, tax cliffs,
   delegated powers, and category boundary problems.
@@ -209,7 +232,9 @@ M4 - Ordinary taxpayer calculator
   transfer, and same-business loss carry-forward cases. 2026 Copenhagen
   wage-earner fixtures now exercise mellemskat, topskat, and toptopskat under
   the LOV nr. 482/2024 reform thresholds, and a 2026 Copenhagen positive
-  net-capital fixture exercises the mellemskat capital addition.
+  net-capital fixture exercises the mellemskat capital addition. The ordinary
+  wage-earner AM contribution now imports Arbejdsmarkedsbidragsloven instead of
+  using a local arithmetic shortcut.
 
 M5 - Audit suite
 
@@ -220,11 +245,13 @@ M5 - Audit suite
 - Current slice: source-status rejection, covered normal-fixture
   personfradrag, covered 2026 state-tax reform layers, covered § 13 deficit
   mechanics, mellemskat positive-net-capital and spouse-threshold activation,
-  topskat threshold activation, covered § 14 annualization, covered § 19
-  skatteloft including the 2026 44,57 pct. ceiling, covered § 20
+  ordinary wage AM-law coverage, topskat threshold activation, covered § 14
+  annualization, covered § 19 skatteloft including the 2026 44,57 pct. ceiling,
+  covered § 20
   regulation/rounding, covered § 26 transition compensation, covered § 28
-  territorial exclusion, AM-law dependency, municipal-tax-law dependency, and
-  § 13 foreign/pension/business amount limitations are executable audit signals,
+  territorial exclusion, AM-law special-case dependency, municipal-tax-law
+  dependency, and § 13 foreign/pension/business amount limitations are
+  executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
   seamen-relief exceptions, and calculator-level § 13 integration signals.
 

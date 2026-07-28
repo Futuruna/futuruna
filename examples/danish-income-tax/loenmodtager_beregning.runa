@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./arbejdsmarkedsbidragsloven
 @ importer ./skatteaar - parametre
 @ importer ./kapitel - 02 - statsskat
 @ importer ./kapitel - 03 - personfradrag
@@ -22,7 +23,8 @@ omfang som nævnt i ligningslovens § 8 M,
 | skat_i_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> beløb_kroner * sats_basispoint / 10000
 | positivt_beløb(beløb_kroner: Heltal) -> 0
 | exception positivt_beløb_over_nul positivt_beløb(beløb_kroner: Heltal) -> beløb_kroner under beløb_kroner > 0
-| arbejdsmarkedsbidrag_for(input: LønmodtagerInput) -> skat_i_kroner(input.bruttoløn_kroner, nationalparametre_for(input.skatteår).am_bidrag_basispoint)
+| arbejdsmarkedsbidrag_input_for(input: LønmodtagerInput) -> ArbejdsmarkedsbidragInput(input.bruttoløn_kroner, 0)
+| arbejdsmarkedsbidrag_for(input: LønmodtagerInput) -> arbejdsmarkedsbidrag_lønmodtager_kroner(arbejdsmarkedsbidrag_input_for(input))
 | personlig_indkomst_efter_am(input: LønmodtagerInput) -> input.bruttoløn_kroner - arbejdsmarkedsbidrag_for(input)
 
 ----

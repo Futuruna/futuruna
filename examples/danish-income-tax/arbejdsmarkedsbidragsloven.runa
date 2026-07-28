@@ -1,0 +1,52 @@
+@ sprog da
+
+-- Arbejdsmarkedsbidragsloven — afhængig lovkilde for lønmodtagerens AM-bidrag.
+--
+-- Kilde: Retsinformation, LBK nr. 121 af 07/02/2020.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2020/121
+-- XML: https://www.retsinformation.dk/eli/lta/2020/121/dan/xml
+
+----
+Officiel XML-metadata for 2020/121, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om arbejdsmarkedsbidrag (arbejdsmarkedsbidragsloven)
+Status: Valid
+StartDate: 2020-02-12
+EndDate: 2026-06-19
+
+Retsinformation metadata viser senere ændringer, herunder LOV nr. 96 af
+04/02/2025 om unges fritagelse for arbejdsmarkedsbidrag m.v.
+----
+
+----
+§ 1. Personer, der er skattepligtige her til landet, svarer skat i form af
+arbejdsmarkedsbidrag til staten efter denne lov.
+
+Bidraget udgør 8 pct. af grundlaget.
+----
+
+| arbejdsmarkedsbidrag_sats_basispoint() -> 800
+
+----
+§ 2. Grundlaget for arbejdsmarkedsbidrag for lønmodtagere m.v. er følgende
+indkomster, jf. dog stk. 2 og § 3:
+1) Ethvert vederlag i penge eller naturalier, der kan henføres til personligt
+arbejde i ansættelsesforhold, herunder løn i opsigelsesperiode, løn under
+sygdom og barsel m.v., efterbetalinger, fratrædelsesgodtgørelser, efterløns- og
+pensionslignende ydelser m.v., når sådanne ydelser har sammenhæng med et
+tidligere ansættelsesforhold eller hverv.
+
+Stk. 2. Vederlag i form af naturalier som nævnt i stk. 1 indgår i grundlaget
+for arbejdsmarkedsbidrag med den skattepligtige værdi.
+----
+
+# ArbejdsmarkedsbidragInput(lønvederlag_kroner: Heltal, naturalieværdi_kroner: Heltal)
+
+| arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input: ArbejdsmarkedsbidragInput) -> input.lønvederlag_kroner + input.naturalieværdi_kroner
+| arbejdsmarkedsbidrag_lønmodtager_kroner(input: ArbejdsmarkedsbidragInput) -> arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input) * arbejdsmarkedsbidrag_sats_basispoint() / 10000
+
+= am_lønmodtager_løn_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(500000, 0))
+= am_lønmodtager_naturalie_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(500000, 10000))
+
+| am_sats_er_8_pct: arbejdsmarkedsbidrag_sats_basispoint() -> arbejdsmarkedsbidrag_sats_basispoint() == 800
+| am_lønvederlag_beskattes: am_lønmodtager_løn_fixture -> am_lønmodtager_løn_fixture == 40000
+| am_naturalier_indgår_med_skatteværdi: am_lønmodtager_naturalie_fixture -> am_lønmodtager_naturalie_fixture == 40800

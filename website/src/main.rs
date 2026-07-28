@@ -1684,6 +1684,8 @@ const TAX_KAP04: &str =
     include_str!("../../examples/danish-income-tax/kapitel-04-omregning-skatteloft.runa");
 const TAX_KAP05: &str =
     include_str!("../../examples/danish-income-tax/kapitel-05-afsluttende-bestemmelser.runa");
+const TAX_AM: &str =
+    include_str!("../../examples/danish-income-tax/arbejdsmarkedsbidragsloven.runa");
 const TAX_PARAMS: &str = include_str!("../../examples/danish-income-tax/skatteaar-parametre.runa");
 const TAX_CALC: &str = include_str!("../../examples/danish-income-tax/loenmodtager_beregning.runa");
 const TAX_FIXTURES: &str = include_str!("../../examples/danish-income-tax/loenmodtager-fixtures.runa");
@@ -2328,6 +2330,7 @@ fn ResearchPersonskatteloven() -> Element {
         ("kapitel-03-personfradrag.runa — §§ 10-13 personfradrag og underskud", "kapitel-03-code", TAX_KAP03),
         ("kapitel-04-omregning-skatteloft.runa — §§ 14-20 omregning og skatteloft", "kapitel-04-code", TAX_KAP04),
         ("kapitel-05-afsluttende-bestemmelser.runa — §§ 21-28 afslutning", "kapitel-05-code", TAX_KAP05),
+        ("arbejdsmarkedsbidragsloven.runa — AM-bidrag almindelig løn", "am-code", TAX_AM),
         ("skatteaar-parametre.runa — 2024/2025/2026 parameterpakker", "params-code", TAX_PARAMS),
         ("loenmodtager_beregning.runa — første beregningsslice", "calculator-code", TAX_CALC),
         ("loenmodtager-fixtures.runa — eksekverbare normalperson-fixtures", "fixtures-code", TAX_FIXTURES),
@@ -2374,12 +2377,12 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Calculation slice" }
                             strong { "Calculation-ready" }
-                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, and synthetic § 13 complex-case breakdown fixtures." }
+                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary AM-bidrag, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, and synthetic § 13 complex-case breakdown fixtures." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: § 14/§ 19 calculator integration beyond fixtures, dependent tax statutes, and external differential fixtures remain explicit gaps." }
+                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: AM-law special cases, § 14/§ 19 calculator integration beyond fixtures, dependent municipal/tax-withholding statutes, and external differential fixtures remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -2391,7 +2394,7 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2024/482", "LOV nr. 482 af 22/05/2024" }
                     }
                     p { class: "const-stats",
-                        "11 filer \u{00B7} §§ 1-28 første slice \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, kapital og § 13 fixtures \u{00B7} audit-signaler"
+                        "12 filer \u{00B7} §§ 1-28 første slice \u{00B7} AM-lov almindelig løn \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, kapital og § 13 fixtures \u{00B7} audit-signaler"
                     }
                 }
 
@@ -2427,7 +2430,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "2026 reform, mellemskat capital branch, and § 13 complex calculators are executable; dependent tax statutes remain" }
+                            strong { "2026 reform, mellemskat capital branch, ordinary AM law, and § 13 complex calculators are executable; municipal and AM special cases remain" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }
