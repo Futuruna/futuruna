@@ -1,6 +1,6 @@
 -- lexer.runa — Futuruna self-hosting lexer
 -- Tokenizes .runa source into a token stream
--- See lexer-audit.runa for invariants + verification
+-- See lexer.audit.runa for invariants + verification
 
 -- ============================================================================
 -- # What exists — token types

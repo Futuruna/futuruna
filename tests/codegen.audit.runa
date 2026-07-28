@@ -1,6 +1,6 @@
 -- Codegen Audit: exercises every pattern that has caused codegen bugs.
--- Run in interpreter: runa tests/codegen_audit.runa
--- Run compiled:       runa run tests/codegen_audit.runa
+-- Run in interpreter: runa tests/codegen.audit.runa
+-- Run compiled:       runa run tests/codegen.audit.runa
 -- Both should produce identical output. Any difference = codegen bug.
 
 -- ═══════════════════════════════════════════════════════════════════

@@ -1,10 +1,10 @@
--- top_level_module_audit_test.runa
+-- top_level_module.audit.runa
 -- Audit regression: top-level values inside qualified imports and inline modules
 -- must behave the same in interpreter and compiled execution.
 
 @ print("=== top-level/module audit ===")
 
-@ import Config from ./top_level_module_audit_dep
+@ import Config from ./top_level_module_dep
 
 > module Local {
     = base = 9

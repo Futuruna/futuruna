@@ -95,7 +95,7 @@ Target shape:
 - `tests/canary/regressions/module_shadowing_regression_test.runa`: imported
   top-level bindings, computed getters, module-qualified access, and local
   shadowing
-- `tests/canary/regressions/verify_process_audit_test.runa`: `process_run`
+- `tests/canary/regressions/verify_process.audit.runa`: `process_run`
   tuples, tuple accessors, substring, and list-valued invariant display
 - `tests/canary/regressions/unicode_string_semantics_test.runa`: non-ASCII
   string length, substring, char_at, index_of, and `length` function values use

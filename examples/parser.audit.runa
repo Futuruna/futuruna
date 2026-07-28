@@ -1,4 +1,4 @@
--- parser-audit.runa — Verification suite for the Futuruna self-hosting parser
+-- parser.audit.runa — Verification suite for the Futuruna self-hosting parser
 -- Uses 5/7 runes: # types, = bindings, | invariants, @ effects, ? verification
 -- Plus |> pipes throughout for idiomatic stream-style queries
 

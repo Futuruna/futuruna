@@ -1676,7 +1676,7 @@ const DK_KAP08: &str = include_str!("../../examples/danish-constitution/kapitel-
 const DK_KAP09: &str = include_str!("../../examples/danish-constitution/kapitel-09.runa");
 const DK_KAP10: &str = include_str!("../../examples/danish-constitution/kapitel-10.runa");
 const DK_KAP11: &str = include_str!("../../examples/danish-constitution/kapitel-11.runa");
-const DK_AUDIT: &str = include_str!("../../examples/danish-constitution/grundlov-audit.runa");
+const DK_AUDIT: &str = include_str!("../../examples/danish-constitution/grundlov.audit.runa");
 
 // Danish personal income tax law .runa files
 const TAX_STATUS_MD: &str = include_str!("../../examples/danish-income-tax/status-and-milestones.md");
@@ -2286,7 +2286,7 @@ Alle består.
 fn ResearchDanishConstitutionAudit() -> Element {
     let article_html = md_to_html_with_ids(DK_AUDIT_ARTICLE);
     let audit_highlighted = constitution_file_section(
-        "grundlov-audit.runa \u{2014} Formelle invarianter og krydskontrol",
+        "grundlov.audit.runa \u{2014} Formelle invarianter og krydskontrol",
         "audit-code",
         DK_AUDIT,
     );

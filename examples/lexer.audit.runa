@@ -1,4 +1,4 @@
--- lexer-audit.runa — Verification suite for the Futuruna self-hosting lexer
+-- lexer.audit.runa — Verification suite for the Futuruna self-hosting lexer
 -- Uses 5/7 runes: # types, = bindings, | invariants, @ effects, ? verification
 -- Plus |> pipes throughout for idiomatic stream-style queries
 

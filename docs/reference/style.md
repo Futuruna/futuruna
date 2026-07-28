@@ -193,5 +193,5 @@ If you need to see values, write `?` proofs with pass/fail blocks, not print sta
 ## Structure for multi-file models
 
 - **Source files** (kapitel-01.runa, kapitel-02.runa): types, `|` facts, `>` functions. No `@ print`. No verification. The law and nothing else.
-- **Audit file** (grundlov-audit.runa): collects all rules, defines `|` invariants, runs `?` proofs, fed to `runa audit`.
+- **Audit file** (grundlov.audit.runa): collects all rules, defines `|` invariants, runs `?` proofs, fed to `runa audit`.
 - **Source text in `----` blocks**: the actual text being modeled, verbatim. The code that follows must be traceable to the text above it.

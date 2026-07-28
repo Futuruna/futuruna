@@ -344,8 +344,8 @@ Usage pattern for constitutional/legal modeling:
 ```bash
 # Source files define types + facts + functions (no verification, no prints)
 # Audit file imports everything, defines invariants, runs proofs
-runa audit examples/danish-constitution/grundlov-audit.runa
-runa run examples/danish-constitution/grundlov-audit.runa
+runa audit examples/danish-constitution/grundlov.audit.runa
+runa run examples/danish-constitution/grundlov.audit.runa
 ```
 
 ---
@@ -500,7 +500,7 @@ Three is the information-theoretic ceiling of what a 22×22 transition matrix ca
 
 ### Self-Hosting
 - `examples/lexer.runa` — Self-hosting lexer (~300 lines), tokenizes all 7 runes
-- `examples/lexer-audit.runa` — Verification suite for the lexer
+- `examples/lexer.audit.runa` — Verification suite for the lexer
 - Status: lexer done, parser is next
 
 ---

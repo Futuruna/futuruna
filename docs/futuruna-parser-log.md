@@ -332,8 +332,8 @@ This is the proof that Futuruna is self-sustaining.
 
 ### P6: Verification suite
 
-**Scope:** `examples/parser-audit.runa` with `|` invariants and `?` proofs,
-mirroring `examples/lexer-audit.runa`.
+**Scope:** `examples/parser.audit.runa` with `|` invariants and `?` proofs,
+mirroring `examples/lexer.audit.runa`.
 
 Invariants:
 - Parsed AST is non-empty for non-empty input
@@ -650,7 +650,7 @@ Structural check: count of `DFn` nodes matches `>` rune count in source.
 
 ~50 lines (test harness, integrated into parser.runa itself).
 
-### S6: Audit — `parser-audit.runa`
+### S6: Audit — `parser.audit.runa`
 
 Verification suite using `|` invariants and `?` proofs. This is where
 the remaining runes shine — not in the parser, but in its verification.
