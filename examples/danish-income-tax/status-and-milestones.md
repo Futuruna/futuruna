@@ -81,6 +81,13 @@ Current municipal/church-tax and withholding dependency sources:
     now covers e-skattekort retrieval posture, main-card period allowances,
     bikort with no allowance, frikort/no-card behavior, optional higher
     withholding percentage, and base rounding to whole 10-kroner amounts.
+- Bekendtgørelse om kildeskat:
+  `https://www.retsinformation.dk/eli/lta/2025/839`
+  - XML status on 2026-07-18: `Valid`
+  - §§ 2, 5, 8, 9, 12 and 13 are the first forskudsopgørelse-to-skattekort
+    generation slice used to turn a forskudsskat and unrounded withholding
+    percentage into card allowance, rounded withholding percentage, and
+    possible B-tax overflow.
 
 Working decision: use `2021/1284` as the current consolidated source for live
 encoding, while preserving `2019/799` as source lineage because the valid
@@ -104,6 +111,7 @@ encoded as a temporal rule on top of the consolidation.
 - `kommuneskatteloven.runa` exists and checks with `runa check`.
 - `folkekirkens-oekonomi.runa` exists and checks with `runa check`.
 - `kildeskatteloven.runa` exists and checks with `runa check`.
+- `kildeskattebekendtgoerelsen.runa` exists and checks/runs with `runa run`.
 - `ligningsloven_fradrag.runa` exists and checks with `runa check`.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
@@ -118,10 +126,10 @@ encoded as a temporal rule on top of the consolidation.
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
   slice, the §§ 21-28 concluding provisions slice, ordinary AM-law,
   municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding and
-  Ligningsloven ordinary wage-earner deduction dependency slices, 2024/2025
-  tax-year parameter packs, first wage-earner scenarios, a first fictional
-  household scenario, complex § 13 calculator fixtures, and first audit
-  signals.
+  BEK 839 forskudskort generation, Ligningsloven ordinary wage-earner deduction
+  dependency slices, 2024/2025/2026 tax-year parameter packs, first wage-earner
+  scenarios, a first fictional household scenario, complex § 13 calculator
+  fixtures, and first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
   multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
@@ -179,18 +187,20 @@ whole statute to be calculation-complete.
   safe.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for AM special cases,
-  forskudsopgørelse-to-e-skattekort generation, Opkrævningsloven/payment
-  deadlines, and municipal/church settlement edge cases. The first AM-law slice
-  now covers ordinary wage remuneration and taxable benefits. The first
-  municipal/church slice now covers ordinary municipal tax on Personskatteloven
-  taxable income and church tax for Folkekirken members. The first
-  Kildeskatteloven slice now covers ordinary wage A-income, withholding duty,
-  e-skattekort card types, main-card period allowances, bikort without
-  allowance, optional higher withholding percentage, base rounding, and the
-  statutory 55 pct. no-card fallback. The fictional household scenario now
-  computes monthly A-skat and cash-flow payroll output when e-skattekort
-  allowance/procent inputs are supplied. § 13's first dependent-source slice now
-  covers Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
+  full trækprocent derivation, Opkrævningsloven/payment deadlines, and
+  municipal/church settlement edge cases. The first AM-law slice now covers
+  ordinary wage remuneration and taxable benefits. The first municipal/church
+  slice now covers ordinary municipal tax on Personskatteloven taxable income
+  and church tax for Folkekirken members. The first Kildeskatteloven slice now
+  covers ordinary wage A-income, withholding duty, e-skattekort card types,
+  main-card period allowances, bikort without allowance, optional higher
+  withholding percentage, base rounding, and the statutory 55 pct. no-card
+  fallback. The first BEK 839 slice now generates skattekort values from
+  forskudsskat plus an unrounded withholding percentage. The fictional
+  household scenario now computes monthly A-skat and cash-flow payroll output
+  both from supplied e-skattekort allowance/procent inputs and generated BEK
+  839 card values. § 13's first dependent-source slice now covers
+  Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
 - Decide how § 14 partial-year annualization and § 19 skatteloftsnedslag should
   flow into the ordinary wage-earner calculator once there are trusted
@@ -200,7 +210,7 @@ whole statute to be calculation-complete.
 - Build calculation fixtures for ordinary wage-earner cases before handling
   complex cases.
 - Gather complementary official sources for:
-  AM-law special cases, forskudsopgørelse-to-e-skattekort generation,
+  AM-law special cases, full trækprocent derivation,
   Opkrævningsloven collection/payment deadlines, municipal and church-tax
   settlement/allocation, personal allowance, other itemized deductions beyond
   the ordinary §§ 9 J/9 K wage-earner deductions, and annual rate/threshold
@@ -300,7 +310,9 @@ M4 - Ordinary taxpayer calculator
   proves that A-skat must be withheld, computes the statutory 55 pct.
   withholding if no e-skattekort, bikort or frikort has been received, and
   computes monthly A-skat/cash-flow payroll output when e-skattekort
-  allowance/procent inputs are supplied.
+  allowance/procent inputs are supplied. BEK 839 now generates the household's
+  main-card monthly allowances from forskudsskat and unrounded withholding
+  percentage inputs, producing a separate generated-card payroll view.
 
 M5 - Audit suite
 
@@ -313,12 +325,13 @@ M5 - Audit suite
   mechanics, mellemskat positive-net-capital and spouse-threshold activation,
   ordinary wage AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
   wage-earner-deduction coverage, ordinary municipal/church-tax legal coverage,
-  covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture, covered
-  fictional household scenario, topskat threshold activation, covered § 14
+  covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture,
+  covered BEK 839 forskudskort generation, covered fictional household
+  scenario, topskat threshold activation, covered § 14
   annualization, covered § 19 skatteloft including the 2026 44,57 pct. ceiling,
   covered § 20 regulation/rounding, covered § 26 transition compensation,
   covered § 28 territorial exclusion, AM-law special-case dependency,
-  forskudsopgørelse-generation/afregning dependency, and
+  full trækprocent-derivation/afregning dependency, and
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
   seamen-relief exceptions, and calculator-level § 13 integration signals.
@@ -334,8 +347,9 @@ M6 - Website integration
   sources, renders the milestone log, embeds the checked §§ 1-28 `.runa`
   corpus plus `.scenario.runa` executable scenarios and the `.audit.runa`
   audit suite, marks the limited wage-earner fixture slice plus ordinary
-  Ligningsloven deductions and Kildeskatteloven A-income/withholding/e-skattekort
-  posture as calculation-ready, and marks the full statute model as
+  Ligningsloven deductions, Kildeskatteloven
+  A-income/withholding/e-skattekort posture, and BEK 839 generated-card path as
+  calculation-ready, and marks the full statute model as
   research/audit-only.
 
 M7 - Personfradrag and deficit layer

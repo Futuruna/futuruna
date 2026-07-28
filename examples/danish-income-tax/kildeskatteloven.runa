@@ -241,3 +241,92 @@ fastsat i medfør af stk. 4.
 | kildeskat_bikort_beregnes_uden_fradrag: kildeskat_bikort_uden_fradrag_fixture -> kildeskat_bikort_uden_fradrag_fixture == 19000
 | kildeskat_højere_procent_begæres: kildeskat_højere_procent_fixture -> kildeskat_højere_procent_fixture == 15580
 | kildeskat_beregningsgrundlag_nedrundes_til_ti: kildeskat_nedrunding_fixture -> kildeskat_nedrunding_fixture == 14440
+
+----
+§ 52. Hvor der ifølge foranstående bestemmelser skal tages hensyn til den
+skattepligtiges forventede indkomstforhold og forventet skat efter
+ejendomsskattelovens kapitel 1-3, fastsættes disse, for så vidt andet ikke
+følger af bestemmelserne i §§ 53 og 54, i overensstemmelse med de oplysninger
+om den skattepligtiges indkomstforhold, som følger af
+1) årsopgørelsen for det andet indkomstår forud for det indkomstår,
+forskudsopgørelsen vedrører,
+2) ændringer af forskudsopgørelsen for indkomståret forud for det indkomstår,
+forskudsopgørelsen vedrører,
+3) løbende oplysninger fra indberetningspligtige efter skatteindberetningsloven
+for året forud for det indkomstår, forskudsopgørelsen vedrører, og
+4) oplysninger fra indkomstregisteret og andre registre, som told- og
+skatteforvaltningen modtager oplysninger fra, for året forud for det
+indkomstår, som forskudsopgørelsen vedrører.
+
+Stk. 2. Oplysningerne i stk. 1, nr. 1-4, skal foreligge senest den 1. september
+i året forud for indkomståret, for at de kan indgå i grundlaget for
+fastsættelsen af forskudsskatten, jf. dog § 53, stk. 2.
+
+De seneste ændringer af oplysningerne lægges til grund.
+
+Oplysningerne omfattet af stk. 1, nr. 2, lægges dog til grund, uanset om der
+er senere ændringer af oplysninger omfattet af stk. 1, nr. 1, 3 eller 4.
+
+Stk. 4. Skatteministeren kan fastsætte nærmere regler om
+forskudsregistreringen efter stk. 1-3 og fastsætte regler om, hvilke nærmere
+oplysninger som efter stk. 1, nr. 3 og 4, skal indgå i grundlaget for
+fastsættelsen af forskudsskatten, og om underretning af den skattepligtige om
+disse oplysninger.
+
+Stk. 5. Er der ikke tidligere foretaget en skatteansættelse eller fastsat et
+grundlag for forskudsskatten for den skattepligtige, skal denne over for told-
+og skatteforvaltningen redegøre for sine forventede indkomstforhold m.v. Det
+beror på et skøn fra told- og skatteforvaltningen, i hvilket omfang
+oplysningerne i redegørelsen skal lægges til grund for fastsættelsen af
+forskudsskatten.
+----
+
+# KildeskatForskudsgrundlagKilde = KildeskatÅrsopgørelseAndetForudgåendeÅr | KildeskatSidsteÅrsForskudsændring | KildeskatLøbendeIndberetning | KildeskatRegisteroplysning | KildeskatFørstegangsRedegørelse
+# KildeskatForskudsgrundlagInput(sidste_års_forskudsændring_rettidig: Boolsk, førstegangsredegørelse: Boolsk, oplysning_senest_foerste_september: Boolsk)
+
+| kildeskat_forskudsgrundlag_kilde(input: KildeskatForskudsgrundlagInput) -> KildeskatÅrsopgørelseAndetForudgåendeÅr
+| exception kildeskat_sidste_års_forskudsændring_går_forud kildeskat_forskudsgrundlag_kilde(input: KildeskatForskudsgrundlagInput) -> KildeskatSidsteÅrsForskudsændring under input.sidste_års_forskudsændring_rettidig
+| exception kildeskat_førstegangs_redegørelse kildeskat_forskudsgrundlag_kilde(input: KildeskatForskudsgrundlagInput) -> KildeskatFørstegangsRedegørelse under input.førstegangsredegørelse
+| kildeskat_forskudsoplysning_kan_indgå(input: KildeskatForskudsgrundlagInput) -> input.oplysning_senest_foerste_september || input.sidste_års_forskudsændring_rettidig
+
+----
+§ 53. Antager den skattepligtige, at vedkommendes indkomstforhold i
+indkomståret vil afvige væsentligt fra grundlaget for forskudsskatten som
+fastsat efter § 52, stk. 1-4, kan den skattepligtige anmode told- og
+skatteforvaltningen om, at grundlaget fastsættes under hensyn hertil.
+
+I det omfang told- og skatteforvaltningen finder den skattepligtiges
+oplysninger i anmodningen tilstrækkelig sandsynliggjort, lægges anmodningen til
+grund ved fastsættelsen af forskudsskatten.
+
+Stk. 2. I øvrigt kan told- og skatteforvaltningen fastsætte grundlaget for
+forskudsskatten efter anslåede forventede indkomstforhold m.v., når
+forvaltningen efter foreliggende oplysninger finder nærliggende grund til at
+antage, at den skattepligtiges indkomstforhold i indkomståret vil afvige fra
+grundlaget efter § 52, stk. 1-4.
+
+Den skattepligtige underrettes samtidig med modtagelsen af forskudsopgørelsen
+om baggrunden for afvigelsen af grundlaget.
+
+Stk. 3. I løbet af den periode, hvori skattekortene, bikortene og
+skattebilletterne skal benyttes, kan den skattepligtige under de betingelser,
+som er nævnt i stk. 1, anmode told- og skatteforvaltningen om at få grundlaget
+for forskudsskatten ændret med virkning for den fremtidige skattebetaling.
+
+I løbet af den nævnte periode kan told- og skatteforvaltningen tilsvarende
+under de betingelser, som er nævnt i stk. 2, ændre grundlaget for
+forskudsskatten efter § 52 eller stk. 2, hvis ændringen overstiger en fastsat
+grænse, jf. stk. 4.
+----
+
+# KildeskatForskudsændringInput(skattepligtig_anmodning: Boolsk, oplysninger_tilstrækkeligt_sandsynliggjort: Boolsk, forvaltning_har_nærliggende_afvigelsesgrund: Boolsk, ændring_overstiger_fast_grænse: Boolsk)
+
+| kildeskat_forskudsgrundlag_ændres(input: KildeskatForskudsændringInput) -> Falskt
+| exception kildeskat_skattepligtig_anmodning_lægges_til_grund kildeskat_forskudsgrundlag_ændres(input: KildeskatForskudsændringInput) -> Sandt under input.skattepligtig_anmodning && input.oplysninger_tilstrækkeligt_sandsynliggjort
+| exception kildeskat_forvaltning_kan_ændre_forskudsgrundlag kildeskat_forskudsgrundlag_ændres(input: KildeskatForskudsændringInput) -> Sandt under input.forvaltning_har_nærliggende_afvigelsesgrund && input.ændring_overstiger_fast_grænse
+
+= kildeskat_forskudsgrundlag_sidste_års_fixture = kildeskat_forskudsgrundlag_kilde(KildeskatForskudsgrundlagInput(Sandt, Falskt, Sandt))
+= kildeskat_forskudsændring_anmodning_fixture = kildeskat_forskudsgrundlag_ændres(KildeskatForskudsændringInput(Sandt, Sandt, Falskt, Falskt))
+
+| kildeskat_forskudsgrundlag_sidste_års_ændring: kildeskat_forskudsgrundlag_sidste_års_fixture -> kildeskat_forskudsgrundlag_sidste_års_fixture == KildeskatSidsteÅrsForskudsændring
+| kildeskat_forskudsgrundlag_kan_ændres_ved_sandsynliggjort_anmodning: kildeskat_forskudsændring_anmodning_fixture -> kildeskat_forskudsændring_anmodning_fixture == Sandt

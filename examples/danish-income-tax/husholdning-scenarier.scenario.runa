@@ -2,6 +2,7 @@
 
 @ importer ./loenmodtager_beregning
 @ importer ./kildeskatteloven
+@ importer ./kildeskattebekendtgoerelsen
 
 -- Personskatteloven — executable fictional household scenarios.
 --
@@ -26,13 +27,20 @@ Illustrative e-skattekort input:
 Mandens skattekort: 12.000 kr. månedsfradrag, 38 pct. trækprocent.
 Ægtefællens skattekort: 7.000 kr. månedsfradrag, 37 pct. trækprocent.
 
+Generated forskudsopgørelse-to-e-skattekort input:
+Mandens forskudsskat til A-skat: slutskat inkl. AM minus AM-bidrag, 38 pct.
+uafrundet trækprocent.
+Ægtefællens forskudsskat til A-skat: slutskat inkl. AM minus AM-bidrag, 37 pct.
+uafrundet trækprocent.
+
 Current model scope: ordinary wage tax under Personskatteloven with AM-bidrag,
 municipal tax, church-tax membership switch, personfradrag, 2026 state-tax
 thresholds, ordinary Ligningsloven §§ 9 J and 9 K wage-earner deductions, and
-Kildeskatteloven monthly A-skat from provided e-skattekort inputs. Rent is
-subtracted as a cash-flow scenario fact. Child benefits, housing support, other
-deduction discovery, social-benefit rules, generation of the e-skattekort from
-forskudsopgørelse, and payroll settlement are not encoded in this slice.
+Kildeskatteloven monthly A-skat from provided e-skattekort inputs or generated
+BEK 2025/839 card values. Rent is subtracted as a cash-flow scenario fact.
+Child benefits, housing support, other deduction discovery, social-benefit
+rules, derivation of the unrounded withholding percentage, and payroll
+settlement are not encoded in this slice.
 ----
 
 # HusholdningScenarieResult(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, samlet_skat_årligt_kroner: Heltal, samlet_netto_årligt_kroner: Heltal, samlet_netto_månedligt_kroner: Heltal, husleje_månedligt_kroner: Heltal, efter_husleje_månedligt_kroner: Heltal)
@@ -63,6 +71,13 @@ forskudsopgørelse, and payroll settlement are not encoded in this slice.
 = scenarie1_mand_skattekort_a_skat = kildeskat_a_skat_med_eskattekort_kroner(scenarie1_mand_skattekort_input)
 = scenarie1_ægtefælle_skattekort_a_skat = kildeskat_a_skat_med_eskattekort_kroner(scenarie1_ægtefælle_skattekort_input)
 = scenarie1_indeholdelse = beregn_husholdning_indeholdelse_scenarie(scenarie1_mand, scenarie1_ægtefælle, scenarie1_mand_skattekort_a_skat, scenarie1_ægtefælle_skattekort_a_skat, 10000)
+= scenarie1_mand_forskudsskat_til_a_skat = scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner - scenarie1_mand.arbejdsmarkedsbidrag_kroner
+= scenarie1_ægtefælle_forskudsskat_til_a_skat = scenarie1_ægtefælle.samlet_inkl_am_efter_personfradrag_kroner - scenarie1_ægtefælle.arbejdsmarkedsbidrag_kroner
+= scenarie1_mand_genereret_skattekort = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(2026, scenarie1_mand.bruttoløn_kroner, scenarie1_mand_månedsløn_a_indkomst, 0, scenarie1_mand_forskudsskat_til_a_skat, 3800, 5200, 0, Sandt, Sandt, Måned, Sandt))
+= scenarie1_ægtefælle_genereret_skattekort = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(2026, scenarie1_ægtefælle.bruttoløn_kroner, scenarie1_ægtefælle_månedsløn_a_indkomst, 0, scenarie1_ægtefælle_forskudsskat_til_a_skat, 3700, 5200, 0, Sandt, Sandt, Måned, Sandt))
+= scenarie1_mand_genereret_skattekort_a_skat = kildeskat_a_skat_med_eskattekort_kroner(scenarie1_mand_genereret_skattekort.eskattekort)
+= scenarie1_ægtefælle_genereret_skattekort_a_skat = kildeskat_a_skat_med_eskattekort_kroner(scenarie1_ægtefælle_genereret_skattekort.eskattekort)
+= scenarie1_genereret_indeholdelse = beregn_husholdning_indeholdelse_scenarie(scenarie1_mand, scenarie1_ægtefælle, scenarie1_mand_genereret_skattekort_a_skat, scenarie1_ægtefælle_genereret_skattekort_a_skat, 10000)
 
 | scenarie1_mand_beskæftigelsesfradrag: scenarie1_mand -> scenarie1_mand.beskæftigelsesfradrag_kroner == 63300
 | scenarie1_mand_jobfradrag: scenarie1_mand -> scenarie1_mand.jobfradrag_kroner == 3100
@@ -83,6 +98,14 @@ forskudsopgørelse, and payroll settlement are not encoded in this slice.
 | scenarie1_mand_lønudbetaling_månedligt: scenarie1_indeholdelse -> scenarie1_indeholdelse.mand_lønudbetaling_månedligt_kroner == 31560
 | scenarie1_husholdning_lønudbetaling_månedligt: scenarie1_indeholdelse -> scenarie1_indeholdelse.samlet_lønudbetaling_månedligt_kroner == 45150
 | scenarie1_husholdning_lønudbetaling_efter_husleje: scenarie1_indeholdelse -> scenarie1_indeholdelse.efter_husleje_lønudbetaling_månedligt_kroner == 35150
+| scenarie1_mand_forskudsskat_til_a_skat_beregnet: scenarie1_mand_forskudsskat_til_a_skat -> scenarie1_mand_forskudsskat_til_a_skat == 160726
+| scenarie1_ægtefælle_forskudsskat_til_a_skat_beregnet: scenarie1_ægtefælle_forskudsskat_til_a_skat -> scenarie1_ægtefælle_forskudsskat_til_a_skat == 51805
+| scenarie1_mand_genereret_månedsfradrag: scenarie1_mand_genereret_skattekort -> scenarie1_mand_genereret_skattekort.månedsfradrag_kroner == 14753
+| scenarie1_ægtefælle_genereret_månedsfradrag: scenarie1_ægtefælle_genereret_skattekort -> scenarie1_ægtefælle_genereret_skattekort.månedsfradrag_kroner == 8332
+| scenarie1_mand_genereret_a_skat_månedligt: scenarie1_mand_genereret_skattekort_a_skat -> scenarie1_mand_genereret_skattekort_a_skat == 13391
+| scenarie1_ægtefælle_genereret_a_skat_månedligt: scenarie1_ægtefælle_genereret_skattekort_a_skat -> scenarie1_ægtefælle_genereret_skattekort_a_skat == 4314
+| scenarie1_husholdning_genereret_lønudbetaling_månedligt: scenarie1_genereret_indeholdelse -> scenarie1_genereret_indeholdelse.samlet_lønudbetaling_månedligt_kroner == 46695
+| scenarie1_husholdning_genereret_lønudbetaling_efter_husleje: scenarie1_genereret_indeholdelse -> scenarie1_genereret_indeholdelse.efter_husleje_lønudbetaling_månedligt_kroner == 36695
 
 ? scenarie1_mand_skat_årligt
 ? scenarie1_mand_skat_månedligt
@@ -103,6 +126,14 @@ forskudsopgørelse, and payroll settlement are not encoded in this slice.
 ? scenarie1_mand_lønudbetaling_månedligt
 ? scenarie1_husholdning_lønudbetaling_månedligt
 ? scenarie1_husholdning_lønudbetaling_efter_husleje
+? scenarie1_mand_forskudsskat_til_a_skat_beregnet
+? scenarie1_ægtefælle_forskudsskat_til_a_skat_beregnet
+? scenarie1_mand_genereret_månedsfradrag
+? scenarie1_ægtefælle_genereret_månedsfradrag
+? scenarie1_mand_genereret_a_skat_månedligt
+? scenarie1_ægtefælle_genereret_a_skat_månedligt
+? scenarie1_husholdning_genereret_lønudbetaling_månedligt
+? scenarie1_husholdning_genereret_lønudbetaling_efter_husleje
 
 @ print("scenarie1 mand årlig skat inkl. AM efter personfradrag: " + vis(scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner))
 @ print("scenarie1 mand månedlig skat afrundet ned i kroner: " + vis(scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner / 12))
@@ -112,4 +143,7 @@ forskudsopgørelse, and payroll settlement are not encoded in this slice.
 @ print("scenarie1 mand månedlig A-skat med oplyst e-skattekort: " + vis(scenarie1_mand_skattekort_a_skat))
 @ print("scenarie1 husholdning lønudbetaling efter AM og A-skat med oplyst e-skattekort: " + vis(scenarie1_indeholdelse.samlet_lønudbetaling_månedligt_kroner))
 @ print("scenarie1 husholdning lønudbetaling efter husleje med oplyst e-skattekort: " + vis(scenarie1_indeholdelse.efter_husleje_lønudbetaling_månedligt_kroner))
+@ print("scenarie1 mand genereret månedsfradrag fra forskudsskat: " + vis(scenarie1_mand_genereret_skattekort.månedsfradrag_kroner))
+@ print("scenarie1 mand månedlig A-skat med genereret e-skattekort: " + vis(scenarie1_mand_genereret_skattekort_a_skat))
+@ print("scenarie1 husholdning lønudbetaling efter husleje med genereret e-skattekort: " + vis(scenarie1_genereret_indeholdelse.efter_husleje_lønudbetaling_månedligt_kroner))
 @ print("scenarie1 mand A-skat hvis intet e-skattekort er modtaget: " + vis(scenarie1_mand_manglende_skattekort_a_skat))
