@@ -96,11 +96,12 @@ Current municipal/church-tax and withholding dependency sources:
     now covers e-skattekort retrieval posture, main-card period allowances,
     bikort with no allowance, frikort/no-card behavior, optional higher
     withholding percentage, and base rounding to whole 10-kroner amounts.
-    §§ 60-62, 62 A, 62 C and 67 now cover the first final-settlement slice:
-    crediting, restskat/overskydende skat balance, spouse offsetting, restskat
-    percentage supplement and timing posture, overskydende skat compensation and
-    refund posture, amended annual statement posture, minimum-rate thresholds,
-    and dividend-tax credit posture.
+    §§ 58, 60-62, 62 A, 62 C and 67 now cover the first final-settlement slice:
+    B-skat installment calendar projection, crediting, restskat/overskydende
+    skat balance, spouse offsetting, restskat percentage supplement and timing
+    posture, overskydende skat compensation and refund posture, amended annual
+    statement interest posture, minimum-rate thresholds, and dividend-tax credit
+    posture.
 - Bekendtgørelse om kildeskat:
   `https://www.retsinformation.dk/eli/lta/2025/839`
   - XML status on 2026-07-18: `Valid`
@@ -122,10 +123,12 @@ Current municipal/church-tax and withholding dependency sources:
 - Opkrævningsloven:
   `https://www.retsinformation.dk/eli/lta/2024/1040`
   - XML status on 2026-07-18: `Valid`
-  - §§ 1, 2, 4, 5 and 7 are the first payment-deadline/remittance slice for
-    withheld A-skat and AM-bidrag: ordinary monthly deadline, large-withholder
-    deadline, region/municipality exception, provisional assessment posture,
-    corrected underpayment, and late-payment interest posture.
+  - §§ 1, 2, 4, 5 and 7 are the first payment-deadline/remittance/rate slice
+    for withheld A-skat and AM-bidrag: ordinary monthly deadline,
+    large-withholder deadline, region/municipality exception, provisional
+    assessment posture, corrected underpayment, late-payment interest posture,
+    and the § 7 stk. 2 annual-rate formula from Nationalbank July/August/
+    September kassekreditrente inputs.
 
 Working decision: use `2021/1284` as the current consolidated source for live
 encoding, while preserving `2019/799` as source lineage because the valid
@@ -244,6 +247,11 @@ Current decision:
   `KildeskatRestskatUdskrivningspostur` instead of a cluster of timing booleans.
   The enum models the statutory issuance posture directly and rules derive the
   § 61 branches from it, so impossible flag combinations cannot become fixtures.
+- `KildeskatBSkatRateVindue` now groups the B-skat installment calendar
+  projection for restskat collection. The restskat input still carries the
+  system/scenario fact "first remaining B-skat rate", while downstream checks
+  read a single rate-window object instead of threading first-rate, last-rate,
+  month, and deadline fields separately.
 
 Review candidates to revisit deliberately, not as broad churn:
 
@@ -280,8 +288,9 @@ Review candidates to revisit deliberately, not as broad churn:
   safe.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for municipal/church
-  settlement edge cases, dynamic Opkrævningsloven rate sourcing, exact B-tax
-  installment calendar details, full § 62 A interest details, and remaining AM
+  settlement edge cases, automated Nationalbank input sourcing for
+  Opkrævningsloven § 7 annual rates, date-exact B-tax first-remaining-rate
+  selection, date-exact § 62 A issue/payout scheduling, and remaining AM
   edge cases beyond the first source-explicit special-case slice. The AM-law
   slice now covers ordinary wage remuneration,
   taxable benefits, § 3 exclusions, self-employed bases with and without
@@ -300,14 +309,17 @@ Review candidates to revisit deliberately, not as broad churn:
   output both from supplied e-skattekort allowance/procent inputs and generated
   BEK 839 card values using the BEK 1094-derived percentage. The first
   Opkrævningsloven slice now covers ordinary and large-withholder A-skat/AM
-  payment deadlines, late payment posture, and provisional assessment posture.
+  payment deadlines, late payment posture, provisional assessment posture, and
+  the § 7 stk. 2 annual-rate formula from July/August/September Nationalbank
+  kassekreditrente inputs.
   The first Kildeskatteloven slutopgørelse slice now covers § 60 crediting,
   § 61 restskat plus percentage supplement and timing posture, § 62
   overskydende skat plus compensation/refund posture, § 60 spouse offsetting,
-  § 62 A amended annual statement posture, § 62 C minimum thresholds, and § 67
-  dividend-tax credit posture; the fictional household's generated-card annual
-  settlement currently yields 3.541 kr. overskydende skat and 3.604 kr. payout
-  including the current illustrative compensation fixture.
+  § 58 B-skat calendar projection, § 62 A amended annual statement interest
+  posture, § 62 C minimum thresholds, and § 67 dividend-tax credit posture; the
+  fictional household's generated-card annual settlement currently yields
+  3.541 kr. overskydende skat and 3.541 kr. payout under the source-derived
+  § 7 rate fixture.
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
@@ -319,9 +331,10 @@ Review candidates to revisit deliberately, not as broad churn:
 - Build calculation fixtures for ordinary wage-earner cases before handling
   complex cases.
 - Gather complementary official sources for:
-  municipal and church-tax settlement/allocation, personal allowance, dynamic
-  Opkrævningsloven rate lookup, exact B-tax installment calendars, full § 62 A
-  interest treatment, remaining AM edge cases, other
+  municipal and church-tax settlement/allocation, personal allowance, automated
+  Opkrævningsloven § 7 input lookup from Nationalbank data, date-exact B-tax
+  remaining-rate selection, date-exact § 62 A issue/payout scheduling, remaining
+  AM edge cases, other
   itemized deductions beyond the ordinary §§ 9 J/9 K wage-earner deductions,
   and annual rate/threshold adjustments.
 - Expand audit coverage for source drift, missing dependencies, tax cliffs,
@@ -426,13 +439,17 @@ M4 - Ordinary taxpayer calculator
   main-card monthly allowances from forskudsskat and BEK 1094-derived
   withholding percentage inputs, producing a separate generated-card payroll
   view.
-  Opkrævningsloven now provides source-backed payment-deadline/remittance rules,
-  with fixtures separated into `indeholdelse-afregning.scenario.runa`. The § 13
+  Opkrævningsloven now provides source-backed payment-deadline/remittance rules
+  plus the § 7 annual-rate formula, with fixtures separated into
+  `indeholdelse-afregning.scenario.runa` where they are scenario facts. The § 13
   complex calculator input now uses domain objects for income basis, tax-value
   rates, offset taxes, spouse transfer, stk. 5 limits, and same-business loss
   facts. `slutopgoerelse.scenario.runa` now also computes the fictional
   household's generated-card overskydende skat compensation and payout, plus a
   low-withholding restskat path with supplement and next-year transfer posture.
+  Kildeskatteloven now also exposes the § 58 B-skat calendar as a rate-window
+  domain object, § 62 A interest fixtures, and a restskat minimum-rate tension
+  when remaining B-skat rates are too few.
 
 M5 - Audit suite
 
@@ -453,7 +470,10 @@ M5 - Audit suite
   covered § 14 annualization, covered § 19 skatteloft including the 2026
   44,57 pct. ceiling, covered § 20 regulation/rounding, covered § 26 transition
   compensation, covered § 28 territorial exclusion, covered AM-law special cases,
-  covered Opkrævningsloven payment-deadline/remittance posture,
+  covered Opkrævningsloven payment-deadline/remittance posture and § 7
+  rate-derivation fixture, covered B-skat installment calendar/rate-window
+  projection, covered § 62 A interest fixtures, exposed restskat remaining
+  B-skat-rate minimum tension,
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
   seamen-relief exceptions, and calculator-level § 13 integration signals over
@@ -473,8 +493,9 @@ M6 - Website integration
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
-  and Opkrævningsloven payment-deadline slice as calculation-ready, and marks
-  the full statute model as research/audit-only.
+  Opkrævningsloven payment-deadline and § 7 rate-derivation slices, the B-skat
+  calendar projection, and § 62 A interest fixtures as calculation-ready, and
+  marks the full statute model as research/audit-only.
 
 M7 - Personfradrag and deficit layer
 

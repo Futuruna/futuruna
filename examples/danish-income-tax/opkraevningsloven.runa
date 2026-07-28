@@ -163,7 +163,45 @@ beløbet, og frem til beløbet betales.
 Renten beregnes dagligt.
 
 Renten kan ikke fratrækkes ved opgørelsen af den skattepligtige indkomst.
+
+Stk. 2. Renten fastsættes for kalenderåret.
+
+Renten offentliggøres senest den 15. december forud for det år, hvor den skal
+have virkning.
+
+Renten for 1 år beregnes på grundlag af et simpelt gennemsnit af den af
+Danmarks Nationalbank opgjorte kassekreditrente for ikkefinansielle selskaber i
+månederne juli, august og september i det foregående kalenderår.
+
+Den af Nationalbanken opgjorte månedlige kassekreditrente for ikkefinansielle
+selskaber opgøres i henhold til Den Europæiske Centralbanks forordning (EF)
+nr. 63/2002 af 20. december 2001 vedrørende statistik over de monetære
+finansielle institutioners rentesatser på indlån fra og udlån til husholdninger
+og ikkefinansielle selskaber (ECB/2001/18).
+
+Den af Nationalbanken opgjorte månedlige kassekreditrente for ikkefinansielle
+selskaber opgøres som et vægtet gennemsnit af den effektive rentesats for den
+udestående lånemasse opgjort med to decimaler, og det simple gennemsnit, jf.
+3. pkt., nedrundes til nærmeste hele procentsats, og den beregnede rente
+divideres med 24 og afrundes nedad til én decimal.
 ----
+
+# OpkrævningPar7RenteInput(kalenderår: Heltal, juli_kassekreditrente_basispoint: Heltal, august_kassekreditrente_basispoint: Heltal, september_kassekreditrente_basispoint: Heltal)
 
 | opkrævning_for_sen_betaling_udløser_rente(input: OpkrævningASkatAmAfregningInput) -> opkrævning_betalt_rettidigt(input) == Falskt
 | opkrævning_rente_er_fradragsberettiget() -> Falskt
+| opkrævning_par7_simpelt_gennemsnit_basispoint(input: OpkrævningPar7RenteInput) -> (input.juli_kassekreditrente_basispoint + input.august_kassekreditrente_basispoint + input.september_kassekreditrente_basispoint) / 3
+| opkrævning_par7_gennemsnit_nedrundet_til_hel_procent_basispoint(input: OpkrævningPar7RenteInput) -> opkrævning_par7_simpelt_gennemsnit_basispoint(input) / 100 * 100
+| opkrævning_par7_stk2_rente_basispoint(input: OpkrævningPar7RenteInput) -> opkrævning_par7_gennemsnit_nedrundet_til_hel_procent_basispoint(input) / 24 / 10 * 10
+| opkrævning_par7_stk2_tredje_pkt_rente_basispoint(input: OpkrævningPar7RenteInput) -> opkrævning_par7_stk2_rente_basispoint(input)
+| opkrævning_par7_rente_offentliggøres_senest_15_december() -> Sandt
+
+= opkrævning_par7_eksempel_input = OpkrævningPar7RenteInput(2026, 700, 700, 700)
+= opkrævning_par7_gennemsnit_fixture = opkrævning_par7_gennemsnit_nedrundet_til_hel_procent_basispoint(opkrævning_par7_eksempel_input)
+= opkrævning_par7_rente_fixture = opkrævning_par7_stk2_rente_basispoint(opkrævning_par7_eksempel_input)
+
+| opkrævning_par7_gennemsnit_nedrundes_til_hel_procent: opkrævning_par7_gennemsnit_fixture -> opkrævning_par7_gennemsnit_fixture == 700
+| opkrævning_par7_rente_divideres_og_afrundes_til_en_decimal: opkrævning_par7_rente_fixture -> opkrævning_par7_rente_fixture == 20
+
+? opkrævning_par7_gennemsnit_nedrundes_til_hel_procent
+? opkrævning_par7_rente_divideres_og_afrundes_til_en_decimal

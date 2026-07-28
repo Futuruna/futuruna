@@ -1306,12 +1306,12 @@ impl Lexer {
 // PART 2b: SPANS & DIAGNOSTICS
 // ============================================================================
 
-/// Source location span — byte offsets into source text.
+/// Source location span — character offsets into source text.
 /// Use `Span::to_line_col()` to convert to human-readable line:col.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Span {
-    pub start: usize, // byte offset (0-based)
-    pub end: usize,   // byte offset (exclusive)
+    pub start: usize, // character offset (0-based)
+    pub end: usize,   // character offset (exclusive)
 }
 
 impl Span {
@@ -1342,21 +1342,21 @@ impl Span {
         }
     }
 
-    /// Convert byte offset to 1-based (line, col) using source text.
+    /// Convert character offset to 1-based (line, col) using source text.
     pub fn start_line_col(&self, source: &str) -> (usize, usize) {
-        byte_offset_to_line_col(source, self.start)
+        char_offset_to_line_col(source, self.start)
     }
 
     pub fn end_line_col(&self, source: &str) -> (usize, usize) {
-        byte_offset_to_line_col(source, self.end)
+        char_offset_to_line_col(source, self.end)
     }
 }
 
-/// Convert a byte offset to 1-based (line, col).
-pub fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
+/// Convert a character offset to 1-based (line, col).
+pub fn char_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
     let mut line = 1;
     let mut col = 1;
-    for (i, ch) in source.char_indices() {
+    for (i, ch) in source.chars().enumerate() {
         if i >= offset {
             break;
         }
@@ -1368,6 +1368,12 @@ pub fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
         }
     }
     (line, col)
+}
+
+/// Backwards-compatible alias for older call sites. Parser spans are character
+/// offsets, so new code should call `char_offset_to_line_col`.
+pub fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
+    char_offset_to_line_col(source, offset)
 }
 
 /// Severity level for diagnostics.
@@ -2592,7 +2598,7 @@ impl Parser {
     /// Create a Span from a token's position to the end of its text.
     pub fn token_span(&self, tok: &Token) -> Span {
         let start = self.char_offset(tok.line, tok.col);
-        let end = start + tok.text.len();
+        let end = start + tok.text.chars().count();
         Span::new(start, end)
     }
 
@@ -2604,7 +2610,7 @@ impl Parser {
         } else {
             start_tok
         };
-        let end = self.char_offset(prev.line, prev.col) + prev.text.len();
+        let end = self.char_offset(prev.line, prev.col) + prev.text.chars().count();
         Span::new(start, end)
     }
 
@@ -11579,7 +11585,7 @@ pub fn display_error_in(source: &str, error: &str, filename: &str) {
             parts[1].trim().parse::<usize>(),
         ) {
             let msg = parts[2..].join(":").trim().to_string();
-            // Convert line:col to byte offset
+            // Convert line:col to the parser's character-offset span model.
             let span = line_col_to_span(source, line_num, col_num);
             let diag = Diagnostic::error_at(span, msg);
             eprint!("{}", diag.display(source, filename, use_color));
@@ -11601,7 +11607,7 @@ pub fn display_diagnostic(source: &str, diag: &Diagnostic, filename: &str) {
 fn line_col_to_span(source: &str, line: usize, col: usize) -> Span {
     let mut current_line = 1;
     let mut line_start = 0;
-    for (i, ch) in source.char_indices() {
+    for (i, ch) in source.chars().enumerate() {
         if current_line == line {
             let start = line_start + (col - 1);
             return Span::new(start, start + 1);
@@ -13898,6 +13904,13 @@ mod tests {
     }
 
     #[test]
+    fn char_offset_to_line_col_handles_unicode_before_span() {
+        let source = "æøå\nKildeskatRestskatOpkrævningInput";
+        let offset = source.chars().position(|c| c == 'K').unwrap();
+        assert_eq!(char_offset_to_line_col(source, offset), (2, 1));
+    }
+
+    #[test]
     fn span_start_line_col() {
         let source = "first\nsecond\nthird";
         let span = Span::new(6, 12); // "second"
@@ -14094,6 +14107,59 @@ mod tests {
         assert!(!diags.is_empty());
         assert!(diags[0].message.contains("2 arguments"));
         assert!(diags[0].message.contains("3"));
+    }
+
+    #[test]
+    fn typechecker_resolves_single_variant_struct_constructors_by_name() {
+        let source = r#"
+# First(a: Int, b: Int, c: Int, d: Int, e: Int)
+# Second(a: Int, b: Bool, c: Bool, d: Bool)
+# Third(a: Int, b: Bool, c: Bool)
+
+= second = Second(1, True, False, True)
+= third = Third(1, True, False)
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "struct constructors should resolve by name, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_resolves_local_struct_constructors_after_import() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "futuruna-typechecker-import-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(temp_dir.join("dep.runa"), "# Imported(a: Int)\n").unwrap();
+
+        let source = r#"
+@ import ./dep
+# First(a: Int, b: Int, c: Int, d: Int, e: Int)
+# Second(a: Int, b: Bool, c: Bool, d: Bool)
+# Third(a: Int, b: Bool, c: Bool)
+
+= second = Second(1, True, False, True)
+= third = Third(1, True, False)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse should succeed");
+        let diags = TypeChecker::check_with_diagnostics(
+            &stmts,
+            Some(temp_dir.to_string_lossy().to_string()),
+            source,
+        );
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        assert!(
+            diags.is_empty(),
+            "local struct constructors after imports should resolve by name, got: {:?}",
+            diags
+        );
     }
 
     #[test]
@@ -14757,14 +14823,21 @@ mod tests {
     fn line_col_to_span_first_line() {
         let source = "hello world";
         let span = line_col_to_span(source, 1, 6);
-        assert_eq!(span.start, 5); // 'w' is at byte offset 5
+        assert_eq!(span.start, 5); // 'w' is at character offset 5
     }
 
     #[test]
     fn line_col_to_span_second_line() {
         let source = "first\nsecond";
         let span = line_col_to_span(source, 2, 1);
-        assert_eq!(span.start, 6); // 's' of "second" is at byte offset 6
+        assert_eq!(span.start, 6); // 's' of "second" is at character offset 6
+    }
+
+    #[test]
+    fn line_col_to_span_handles_unicode_before_target_line() {
+        let source = "lovtekst æøå\n= x = Missing(1)";
+        let span = line_col_to_span(source, 2, 7);
+        assert_eq!(span.start_line_col(source), (2, 7));
     }
 
     /// Helper: parse + type-check source, return diagnostics
