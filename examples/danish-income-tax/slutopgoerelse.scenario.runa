@@ -1,0 +1,50 @@
+@ sprog da
+
+@ importer ./slutopgoerelse
+@ importer ./husholdning - scenarier.scenario
+
+-- Slutopgoerelse-scenarier for den fiktive husholdning.
+
+----
+Den fiktive mand tjener 50.000 kr. om måneden før skat, bor til leje for
+10.000 kr. om måneden, er gift, og ægtefællen tjener 20.000 kr. om måneden.
+Parret har tre børn, men børne- og boligydelser er fortsat uden for denne
+Personskatteloven/Kildeskatteloven-slice.
+
+Denne scenario-fil sammenholder årlig slutskat inkl. AM-bidrag med foreløbige
+skatter efter Kildeskatteloven § 60: indeholdt A-skat plus indeholdt
+arbejdsmarkedsbidrag. Resultatet er enten restskat efter § 61 eller
+overskydende skat efter § 62.
+----
+
+| slutopgørelse_årlig_a_skat_kroner(a_skat_månedligt_kroner: Heltal) -> a_skat_månedligt_kroner * 12
+| slutopgørelse_lønmodtager_kreditter(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> KildeskatPar60Kreditter(slutopgørelse_årlig_a_skat_kroner(a_skat_månedligt_kroner) + person.arbejdsmarkedsbidrag_kroner, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+| slutopgørelse_lønmodtager_input(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> KildeskatSlutopgørelseInput(person.samlet_inkl_am_efter_personfradrag_kroner, 0, 0, slutopgørelse_lønmodtager_kreditter(person, a_skat_månedligt_kroner))
+| slutopgørelse_lønmodtager_resultat(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> kildeskat_slutopgørelse_resultat(slutopgørelse_lønmodtager_input(person, a_skat_månedligt_kroner))
+
+= scenarie1_mand_slutopgørelse_genereret = slutopgørelse_lønmodtager_resultat(scenarie1_mand, scenarie1_mand_genereret_skattekort_a_skat)
+= scenarie1_ægtefælle_slutopgørelse_genereret = slutopgørelse_lønmodtager_resultat(scenarie1_ægtefælle, scenarie1_ægtefælle_genereret_skattekort_a_skat)
+= scenarie1_husholdning_genereret_overskydende_skat = scenarie1_mand_slutopgørelse_genereret.overskydende_skat_kroner + scenarie1_ægtefælle_slutopgørelse_genereret.overskydende_skat_kroner
+
+= scenarie1_mand_slutopgørelse_oplyst_kort = slutopgørelse_lønmodtager_resultat(scenarie1_mand, scenarie1_mand_skattekort_a_skat)
+= scenarie1_ægtefælle_slutopgørelse_oplyst_kort = slutopgørelse_lønmodtager_resultat(scenarie1_ægtefælle, scenarie1_ægtefælle_skattekort_a_skat)
+= scenarie1_husholdning_oplyst_kort_overskydende_skat = scenarie1_mand_slutopgørelse_oplyst_kort.overskydende_skat_kroner + scenarie1_ægtefælle_slutopgørelse_oplyst_kort.overskydende_skat_kroner
+
+= scenarie1_mand_slutopgørelse_lav_indeholdelse = slutopgørelse_lønmodtager_resultat(scenarie1_mand, 12000)
+
+| scenarie1_mand_genereret_slutopgørelse_overskydende: scenarie1_mand_slutopgørelse_genereret -> scenarie1_mand_slutopgørelse_genereret.overskydende_skat_kroner == 2690 && scenarie1_mand_slutopgørelse_genereret.restskat_kroner == 0
+| scenarie1_ægtefælle_genereret_slutopgørelse_overskydende: scenarie1_ægtefælle_slutopgørelse_genereret -> scenarie1_ægtefælle_slutopgørelse_genereret.overskydende_skat_kroner == 851 && scenarie1_ægtefælle_slutopgørelse_genereret.restskat_kroner == 0
+| scenarie1_husholdning_genereret_overskydende: scenarie1_husholdning_genereret_overskydende_skat -> scenarie1_husholdning_genereret_overskydende_skat == 3541
+| scenarie1_husholdning_oplyst_kort_overskydende: scenarie1_husholdning_oplyst_kort_overskydende_skat -> scenarie1_husholdning_oplyst_kort_overskydende_skat == 18469
+| scenarie1_mand_lav_indeholdelse_bliver_restskat: scenarie1_mand_slutopgørelse_lav_indeholdelse -> scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner == 16726 && scenarie1_mand_slutopgørelse_lav_indeholdelse.art == Restskat
+
+? scenarie1_mand_genereret_slutopgørelse_overskydende
+? scenarie1_ægtefælle_genereret_slutopgørelse_overskydende
+? scenarie1_husholdning_genereret_overskydende
+? scenarie1_husholdning_oplyst_kort_overskydende
+? scenarie1_mand_lav_indeholdelse_bliver_restskat
+
+@ print("scenarie1 mand slutopgoerelse med genereret kort: overskydende skat " + vis(scenarie1_mand_slutopgørelse_genereret.overskydende_skat_kroner))
+@ print("scenarie1 aegtefaelle slutopgoerelse med genereret kort: overskydende skat " + vis(scenarie1_ægtefælle_slutopgørelse_genereret.overskydende_skat_kroner))
+@ print("scenarie1 husholdning genereret kort samlet overskydende skat: " + vis(scenarie1_husholdning_genereret_overskydende_skat))
+@ print("scenarie1 husholdning oplyst kort samlet overskydende skat: " + vis(scenarie1_husholdning_oplyst_kort_overskydende_skat))

@@ -1,0 +1,168 @@
+@ sprog da
+
+-- Kildeskatteloven -- slutopgoerelse, restskat og overskydende skat.
+--
+-- Kilde: Retsinformation, LBK nr. 460 af 03/05/2024.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/460
+-- XML: https://www.retsinformation.dk/eli/lta/2024/460/dan/xml
+
+----
+Officiel XML-metadata for 2024/460, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af kildeskatteloven
+PopularTitle: Kildeskatteloven
+Status: Valid
+DiesSigni: 2024-05-03
+StartDate: 2024-05-16
+EndDate: 2026-06-20
+----
+
+----
+§ 60. I den slutskat, der for et år udskrives for den skattepligtige, med
+tillæg af eventuel overført restskat m.v. efter § 61, stk. 3, og afgiften
+omfattet af pensionsbeskatningslovens § 25 A, stk. 5-9, modregnes nedennævnte
+beløb vedrørende samme år:
+
+a) Foreløbige skattebeløb, som er indeholdt i A-indkomst og
+arbejdsmarkedsbidragspligtig indkomst, der skal medregnes ved den
+skattepligtiges ansættelse til slutskat.
+b) Foreløbige skattebeløb, som har skullet indbetales efter § 68.
+c) Foreløbige skattebeløb, som har skullet betales i henhold til skattebillet.
+d) De i § 67, stk. 1, 1. pkt., nævnte beløb.
+e) Beløb, som den skattepligtige har indbetalt i henhold til § 59.
+f) Beløb efter virksomhedsskattelovens § 10, stk. 3, 2. pkt., § 13, stk. 1,
+3. pkt., og § 22 b, stk. 5.
+g) Beløb efter personskattelovens § 8 a, stk. 5.
+h) Beløb, der er indbetalt som acontoskat efter afskrivningslovens § 40 C,
+stk. 8-10.
+i) Beløb efter § 6 i lov om arbejdsmarkedsbidrag.
+j) Nedslag efter lov om skattenedslag for seniorer.
+k) Beløb efter lov om skattefri kompensation for forhøjede energi- og
+miljøafgifter.
+
+Stk. 3. Ved opgørelsen af det beløb, der skal modregnes efter stk. 1 eller
+stk. 2, fradrages skatter, der måtte være tilbagebetalt i henhold til § 55.
+
+Stk. 4. Skatteministeren kan fastsætte regler, hvorefter der åbnes adgang til,
+at ægtefæller, der er samlevende ved udgangen af det år, for hvilket slutskatten
+skal beregnes, kan erklære sig indforstået med, at eventuel overskydende skat,
+der efter reglerne i § 62 tilkommer den ene af ægtefællerne, anvendes til
+udligning af eventuel restskat, som efter reglerne i § 61 påhviler den anden
+ægtefælle.
+
+I det omfang der efter udligning efter 1. pkt. bliver tale om restskat eller
+overskydende skat for en af ægtefællerne, opkræves denne efter reglerne i § 61,
+henholdsvis udbetales efter reglerne i § 62.
+----
+
+# KildeskatSlutopgørelseArt = IngenSlutopgørelsesDifference | Restskat | OverskydendeSkat
+# KildeskatPar60Kreditter(a_skat_og_am_indeholdt_kroner: Heltal, par68_indbetalt_kroner: Heltal, b_skat_betalt_kroner: Heltal, udbytteskat_modregningsberettiget_kroner: Heltal, frivillig_indbetaling_par59_kroner: Heltal, virksomhedsordning_beløb_kroner: Heltal, personskattelov_par8a_stk5_beløb_kroner: Heltal, afskrivningslov_acontoskat_kroner: Heltal, am_lov_par6_beløb_kroner: Heltal, seniornedslag_kroner: Heltal, energiafgiftskompensation_kroner: Heltal, tilbagebetalt_par55_kroner: Heltal)
+# KildeskatSlutopgørelseInput(slutskat_kroner: Heltal, overført_restskat_mv_kroner: Heltal, pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
+# KildeskatSlutopgørelseResult(slutskat_med_tillæg_kroner: Heltal, modregnede_foreløbige_skatter_kroner: Heltal, restskat_kroner: Heltal, overskydende_skat_kroner: Heltal, art: KildeskatSlutopgørelseArt)
+# KildeskatÆgtefælleUdligningInput(person_a_restskat_kroner: Heltal, person_a_overskydende_skat_kroner: Heltal, person_b_restskat_kroner: Heltal, person_b_overskydende_skat_kroner: Heltal, samlevende_ved_årets_udgang: Boolsk, begge_indforstået: Boolsk)
+# KildeskatÆgtefælleUdligningResult(person_a_restskat_efter_udligning_kroner: Heltal, person_a_overskydende_skat_efter_udligning_kroner: Heltal, person_b_restskat_efter_udligning_kroner: Heltal, person_b_overskydende_skat_efter_udligning_kroner: Heltal, anvendt_a_til_b_kroner: Heltal, anvendt_b_til_a_kroner: Heltal)
+
+| kildeskat_slutopgørelse_positivt_beløb(beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { beløb_kroner } ellers { 0 }
+| kildeskat_slutopgørelse_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> hvis a_kroner < b_kroner { a_kroner } ellers { b_kroner }
+| kildeskat_par60_modregning_brutto_kroner(kreditter: KildeskatPar60Kreditter) -> kreditter.a_skat_og_am_indeholdt_kroner + kreditter.par68_indbetalt_kroner + kreditter.b_skat_betalt_kroner + kreditter.udbytteskat_modregningsberettiget_kroner + kreditter.frivillig_indbetaling_par59_kroner + kreditter.virksomhedsordning_beløb_kroner + kreditter.personskattelov_par8a_stk5_beløb_kroner + kreditter.afskrivningslov_acontoskat_kroner + kreditter.am_lov_par6_beløb_kroner + kreditter.seniornedslag_kroner + kreditter.energiafgiftskompensation_kroner
+| kildeskat_par60_modregning_kroner(kreditter: KildeskatPar60Kreditter) -> kildeskat_slutopgørelse_positivt_beløb(kildeskat_par60_modregning_brutto_kroner(kreditter) - kreditter.tilbagebetalt_par55_kroner)
+| kildeskat_slutskat_med_tillæg_kroner(input: KildeskatSlutopgørelseInput) -> input.slutskat_kroner + input.overført_restskat_mv_kroner + input.pensionsbeskatningsafgift_kroner
+| kildeskat_ægtefælleudligning_tilladt(input: KildeskatÆgtefælleUdligningInput) -> input.samlevende_ved_årets_udgang && input.begge_indforstået
+| kildeskat_ægtefælleudligning_a_til_b_kroner(input: KildeskatÆgtefælleUdligningInput) -> 0
+| exception kildeskat_ægtefælle_a_overskydende_udligner_b_restskat kildeskat_ægtefælleudligning_a_til_b_kroner(input: KildeskatÆgtefælleUdligningInput) -> kildeskat_slutopgørelse_mindste_beløb(input.person_a_overskydende_skat_kroner, input.person_b_restskat_kroner) under kildeskat_ægtefælleudligning_tilladt(input) && input.person_a_overskydende_skat_kroner > 0 && input.person_b_restskat_kroner > 0
+| kildeskat_ægtefælleudligning_b_til_a_kroner(input: KildeskatÆgtefælleUdligningInput) -> 0
+| exception kildeskat_ægtefælle_b_overskydende_udligner_a_restskat kildeskat_ægtefælleudligning_b_til_a_kroner(input: KildeskatÆgtefælleUdligningInput) -> kildeskat_slutopgørelse_mindste_beløb(input.person_b_overskydende_skat_kroner, input.person_a_restskat_kroner) under kildeskat_ægtefælleudligning_tilladt(input) && input.person_b_overskydende_skat_kroner > 0 && input.person_a_restskat_kroner > 0
+| kildeskat_ægtefælleudligning_resultat(input: KildeskatÆgtefælleUdligningInput) -> KildeskatÆgtefælleUdligningResult(input.person_a_restskat_kroner - kildeskat_ægtefælleudligning_b_til_a_kroner(input), input.person_a_overskydende_skat_kroner - kildeskat_ægtefælleudligning_a_til_b_kroner(input), input.person_b_restskat_kroner - kildeskat_ægtefælleudligning_a_til_b_kroner(input), input.person_b_overskydende_skat_kroner - kildeskat_ægtefælleudligning_b_til_a_kroner(input), kildeskat_ægtefælleudligning_a_til_b_kroner(input), kildeskat_ægtefælleudligning_b_til_a_kroner(input))
+
+----
+§ 61. Den skattepligtige skal tilsvare det beløb, hvormed slutskatten med
+tillæg af eventuel overført restskat m.v. efter stk. 3, og af eventuel afgift
+omfattet af pensionsbeskatningslovens § 25 A, stk. 5-9, måtte overstige de
+foreløbige skatter, der modregnes efter § 60.
+
+Beløbet benævnes »restskat«.
+
+Stk. 9. Af de skattebeløb, der opkræves eller inddrives for et indkomstår,
+dækkes indkomstskat forud for ejendomsværdiskat og grundskyld som nævnt i
+ejendomsskattelovens § 31, stk. 1, og renter, der forfalder til betaling efter
+ejendomsskattelovens § 59, stk. 4, og arbejdsmarkedsbidrag dækkes forud for
+A-skat og B-skat.
+
+§ 62. Det beløb hvormed slutskatten med tillæg af eventuel overført restskat
+m.v. efter § 61, stk. 3, og af eventuel afgift omfattet af
+pensionsbeskatningslovens § 25 A, stk. 5-9, måtte være mindre end de
+foreløbige skatter, der modregnes efter § 60, benævnes »overskydende skat«.
+
+Stk. 2. Ved tilbagebetaling af overskydende skat ydes der den skattepligtige
+et procenttillæg af beløbet i godtgørelse.
+
+Stk. 4. Af det beløb, der efter foranstående skal udbetales den skattepligtige,
+udbetales kun det hele kronebeløb.
+----
+
+| kildeskat_slutopgørelse_difference_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_slutskat_med_tillæg_kroner(input) - kildeskat_par60_modregning_kroner(input.kreditter)
+| kildeskat_restskat_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_slutopgørelse_positivt_beløb(kildeskat_slutopgørelse_difference_kroner(input))
+| kildeskat_overskydende_skat_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_slutopgørelse_positivt_beløb(0 - kildeskat_slutopgørelse_difference_kroner(input))
+| kildeskat_slutopgørelse_art(input: KildeskatSlutopgørelseInput) -> IngenSlutopgørelsesDifference
+| exception kildeskat_slutopgørelse_er_restskat kildeskat_slutopgørelse_art(input: KildeskatSlutopgørelseInput) -> Restskat under kildeskat_restskat_kroner(input) > 0
+| exception kildeskat_slutopgørelse_er_overskydende kildeskat_slutopgørelse_art(input: KildeskatSlutopgørelseInput) -> OverskydendeSkat under kildeskat_overskydende_skat_kroner(input) > 0
+| kildeskat_slutopgørelse_resultat(input: KildeskatSlutopgørelseInput) -> KildeskatSlutopgørelseResult(kildeskat_slutskat_med_tillæg_kroner(input), kildeskat_par60_modregning_kroner(input.kreditter), kildeskat_restskat_kroner(input), kildeskat_overskydende_skat_kroner(input), kildeskat_slutopgørelse_art(input))
+| kildeskat_restskat_opkræves_efter_par61(input: KildeskatSlutopgørelseInput) -> kildeskat_restskat_kroner(input) > 0
+| kildeskat_overskydende_skat_udbetales_efter_par62(input: KildeskatSlutopgørelseInput) -> kildeskat_overskydende_skat_kroner(input) > 0
+| kildeskat_indkomstskat_dækkes_før_ejendomsskatter() -> Sandt
+| kildeskat_arbejdsmarkedsbidrag_dækkes_før_a_og_b_skat() -> Sandt
+| kildeskat_overskydende_skat_udbetales_i_hele_kroner(overskydende_skat_kroner: Heltal) -> overskydende_skat_kroner
+
+----
+§ 67. Har nogen, der er skattepligtig efter § 1 eller § 2, stk. 1, nr. 4,
+erhvervet udbytte, hvori der efter § 65 er indeholdt udbytteskat, modregnes
+udbytteskatten i slutskatten, jf. § 60, stk. 1, litra d. Er den indeholdte
+udbytteskat endelig betaling af skatten, jf. personskattelovens § 8 a, stk. 1,
+indgår beløbet ikke i slutskatten, og der foretages ikke modregning efter
+1. pkt.
+
+Stk. 5. For skattepligtige omfattet af § 1, stk. 1, udbetales udbytteskat, der
+ikke kan modregnes i slutskatten, og som ikke er endelig efter
+personskattelovens § 8 a, stk. 1, som overskydende skat efter reglerne i § 62 C.
+
+Er udbyttemodtageren ikke omfattet af § 1, stk. 1, udbetales beløbet kun
+kontant, hvis det udgør 25 kr. eller derover.
+----
+
+# KildeskatUdbytteskatModregningInput(indeholdt_udbytteskat_kroner: Heltal, skattepligtig_person_par1_eller_par2_stk1_nr4: Boolsk, endelig_betaling_personskatteloven_par8a_stk1: Boolsk, fuldt_skattepligtig_par1_stk1: Boolsk)
+# KildeskatUdbytteskatOverskydendeInput(ikke_modregnet_udbytteskat_kroner: Heltal, fuldt_skattepligtig_par1_stk1: Boolsk, endelig_betaling_personskatteloven_par8a_stk1: Boolsk)
+
+| kildeskat_udbytteskat_indgår_i_slutskat(input: KildeskatUdbytteskatModregningInput) -> Falskt
+| exception kildeskat_udbytteskat_personlig_modregning kildeskat_udbytteskat_indgår_i_slutskat(input: KildeskatUdbytteskatModregningInput) -> Sandt under input.skattepligtig_person_par1_eller_par2_stk1_nr4 && input.endelig_betaling_personskatteloven_par8a_stk1 == Falskt
+| kildeskat_udbytteskat_modregningsbeløb_kroner(input: KildeskatUdbytteskatModregningInput) -> 0
+| exception kildeskat_udbytteskat_modregnes_i_slutskat kildeskat_udbytteskat_modregningsbeløb_kroner(input: KildeskatUdbytteskatModregningInput) -> input.indeholdt_udbytteskat_kroner under kildeskat_udbytteskat_indgår_i_slutskat(input)
+| kildeskat_udbytteskat_udbetales_som_overskydende_skat_kroner(input: KildeskatUdbytteskatOverskydendeInput) -> 0
+| exception kildeskat_fuld_skattepligt_udbytteskat_overskydende kildeskat_udbytteskat_udbetales_som_overskydende_skat_kroner(input: KildeskatUdbytteskatOverskydendeInput) -> input.ikke_modregnet_udbytteskat_kroner under input.fuldt_skattepligtig_par1_stk1 && input.endelig_betaling_personskatteloven_par8a_stk1 == Falskt
+| kildeskat_udbytteskat_kontant_minimum_for_ikke_fuldt_skattepligtig_kroner() -> 25
+
+= kildeskat_restskat_kreditter_fixture = KildeskatPar60Kreditter(100000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+= kildeskat_restskat_input_fixture = KildeskatSlutopgørelseInput(120000, 0, 0, kildeskat_restskat_kreditter_fixture)
+= kildeskat_restskat_resultat_fixture = kildeskat_slutopgørelse_resultat(kildeskat_restskat_input_fixture)
+= kildeskat_overskydende_kreditter_fixture = KildeskatPar60Kreditter(115000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+= kildeskat_overskydende_input_fixture = KildeskatSlutopgørelseInput(100000, 0, 0, kildeskat_overskydende_kreditter_fixture)
+= kildeskat_overskydende_resultat_fixture = kildeskat_slutopgørelse_resultat(kildeskat_overskydende_input_fixture)
+= kildeskat_par55_tilbagebetaling_fixture = kildeskat_par60_modregning_kroner(KildeskatPar60Kreditter(115000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10000))
+= kildeskat_udbytteskat_modregning_fixture = kildeskat_udbytteskat_modregningsbeløb_kroner(KildeskatUdbytteskatModregningInput(15000, Sandt, Falskt, Sandt))
+= kildeskat_udbytteskat_endelig_fixture = kildeskat_udbytteskat_modregningsbeløb_kroner(KildeskatUdbytteskatModregningInput(15000, Sandt, Sandt, Sandt))
+= kildeskat_udbytteskat_overskydende_fixture = kildeskat_udbytteskat_udbetales_som_overskydende_skat_kroner(KildeskatUdbytteskatOverskydendeInput(5000, Sandt, Falskt))
+= kildeskat_ægtefælleudligning_fixture = kildeskat_ægtefælleudligning_resultat(KildeskatÆgtefælleUdligningInput(0, 12000, 7000, 0, Sandt, Sandt))
+
+| kildeskat_restskat_beregnes_efter_par61: kildeskat_restskat_resultat_fixture -> kildeskat_restskat_resultat_fixture.restskat_kroner == 20000 && kildeskat_restskat_resultat_fixture.art == Restskat
+| kildeskat_overskydende_beregnes_efter_par62: kildeskat_overskydende_resultat_fixture -> kildeskat_overskydende_resultat_fixture.overskydende_skat_kroner == 15000 && kildeskat_overskydende_resultat_fixture.art == OverskydendeSkat
+| kildeskat_par55_tilbagebetaling_fradrages: kildeskat_par55_tilbagebetaling_fixture -> kildeskat_par55_tilbagebetaling_fixture == 105000
+| kildeskat_udbytteskat_modregnes: kildeskat_udbytteskat_modregning_fixture -> kildeskat_udbytteskat_modregning_fixture == 15000
+| kildeskat_endelig_udbytteskat_modregnes_ikke: kildeskat_udbytteskat_endelig_fixture -> kildeskat_udbytteskat_endelig_fixture == 0
+| kildeskat_udbytteskat_kan_blive_overskydende_skat: kildeskat_udbytteskat_overskydende_fixture -> kildeskat_udbytteskat_overskydende_fixture == 5000
+| kildeskat_ægtefælle_overskydende_udligner_restskat: kildeskat_ægtefælleudligning_fixture -> kildeskat_ægtefælleudligning_fixture.anvendt_a_til_b_kroner == 7000 && kildeskat_ægtefælleudligning_fixture.person_a_overskydende_skat_efter_udligning_kroner == 5000 && kildeskat_ægtefælleudligning_fixture.person_b_restskat_efter_udligning_kroner == 0
+
+? kildeskat_restskat_beregnes_efter_par61
+? kildeskat_overskydende_beregnes_efter_par62
+? kildeskat_par55_tilbagebetaling_fradrages
+? kildeskat_udbytteskat_modregnes
+? kildeskat_endelig_udbytteskat_modregnes_ikke
+? kildeskat_udbytteskat_kan_blive_overskydende_skat
+? kildeskat_ægtefælle_overskydende_udligner_restskat

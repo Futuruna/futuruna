@@ -146,12 +146,14 @@ encoded as a temporal rule on top of the consolidation.
 - `kildeskatteloven.runa` exists and checks with `runa check`.
 - `kildeskattebekendtgoerelsen.runa` exists and checks/runs with `runa run`.
 - `forskudsregistrering_2026.runa` exists and checks/runs with `runa run`.
+- `slutopgoerelse.runa` exists and checks/runs with `runa run`.
 - `opkraevningsloven.runa` exists and checks/runs with `runa run`.
 - `ligningsloven_fradrag.runa` exists and checks with `runa check`.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
 - `husholdning-scenarier.scenario.runa` exists and checks/runs with `runa run`.
+- `slutopgoerelse.scenario.runa` exists and checks/runs with `runa run`.
 - `indeholdelse-afregning.scenario.runa` exists and checks/runs with
   `runa run`.
 - `personskatteloven.audit.runa` exists and checks/runs with `runa run`.
@@ -165,6 +167,7 @@ encoded as a temporal rule on top of the consolidation.
   AM-law,
   municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding,
   BEK 839 forskudskort generation, BEK 1094 2026 indeholdelsesprocent,
+  Kildeskatteloven §§ 60-62/67 slutopgørelse balance,
   Opkrævningsloven payment deadlines,
   Ligningsloven ordinary wage-earner deduction
   dependency slices, 2024/2025/2026 tax-year parameter packs, first wage-earner
@@ -227,6 +230,10 @@ Current decision:
   spouse-transfer facts, stk. 5 limitation facts, and same-business loss facts.
   The calculator rules project from those domain objects, and the scenario/audit
   fixtures name those facts before composing the calculator input.
+- `slutopgoerelse.runa` keeps the year-end balance as `KildeskatSlutopgørelseInput`
+  plus a statutory `KildeskatPar60Kreditter` credit basket. This is a better
+  domain boundary than passing A-skat, AM-bidrag, B-skat, dividend-tax credits,
+  voluntary payments, and special credit categories through every subrule.
 
 Review candidates to revisit deliberately, not as broad churn:
 
@@ -264,8 +271,9 @@ Review candidates to revisit deliberately, not as broad churn:
   safe.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for municipal/church
-  settlement edge cases, final settlement/payment
-  mechanics beyond the first Opkrævningsloven deadline slice, and remaining AM edge cases beyond the first source-explicit
+  settlement edge cases, restskat/overskydende skat rate and payment timing
+  mechanics beyond the first Kildeskatteloven balance slice and
+  Opkrævningsloven deadline slice, and remaining AM edge cases beyond the first source-explicit
   special-case slice. The AM-law slice now covers ordinary wage remuneration,
   taxable benefits, § 3 exclusions, self-employed bases with and without
   virksomhedsordning, library-fee compensation, the 2026 youth exemption, and
@@ -284,7 +292,11 @@ Review candidates to revisit deliberately, not as broad churn:
   BEK 839 card values using the BEK 1094-derived percentage. The first
   Opkrævningsloven slice now covers ordinary and
   large-withholder A-skat/AM payment deadlines, late payment posture, and
-  provisional assessment posture. § 13's first dependent-source slice now covers
+  provisional assessment posture. The first Kildeskatteloven slutopgørelse slice
+  now covers § 60 crediting, § 61 restskat, § 62 overskydende skat, § 60 spouse
+  offsetting, and § 67 dividend-tax credit posture; the fictional household's
+  generated-card annual settlement currently yields 3.541 kr. overskydende skat.
+  § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
 - Decide how § 14 partial-year annualization and § 19 skatteloftsnedslag should
@@ -295,9 +307,10 @@ Review candidates to revisit deliberately, not as broad churn:
 - Build calculation fixtures for ordinary wage-earner cases before handling
   complex cases.
 - Gather complementary official sources for:
-  municipal and church-tax settlement/allocation, personal allowance, remaining
-  payment/settlement mechanics beyond the first Opkrævningsloven deadline
-  slice, remaining AM edge cases, other
+  municipal and church-tax settlement/allocation, personal allowance, restskat
+  percentage/rate/timing mechanics beyond the first Kildeskatteloven
+  slutopgørelse balance slice and first Opkrævningsloven deadline slice,
+  remaining AM edge cases, other
   itemized deductions beyond the ordinary §§ 9 J/9 K wage-earner deductions,
   and annual rate/threshold adjustments.
 - Expand audit coverage for source drift, missing dependencies, tax cliffs,
@@ -421,7 +434,8 @@ M5 - Audit suite
   wage-earner-deduction coverage, ordinary municipal/church-tax legal coverage,
   covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture,
   covered BEK 839 forskudskort generation, covered BEK 1094 2026
-  indeholdelsesprocent derivation, covered fictional household
+  indeholdelsesprocent derivation, covered Kildeskatteloven slutopgørelse
+  balance/restskat/overskydende skat/dividend-tax credit posture, covered fictional household
   scenario, topskat threshold activation, covered § 14
   annualization, covered § 19 skatteloft including the 2026 44,57 pct. ceiling,
   covered § 20 regulation/rounding, covered § 26 transition compensation,
