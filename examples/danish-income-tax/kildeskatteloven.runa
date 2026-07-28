@@ -1,0 +1,132 @@
+@ sprog da
+
+-- Kildeskatteloven — afhængig lovkilde for A-indkomst og A-skat.
+--
+-- Kilde: Retsinformation, LBK nr. 460 af 03/05/2024.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/460
+-- XML: https://www.retsinformation.dk/eli/lta/2024/460/dan/xml
+
+----
+Officiel XML-metadata for 2024/460, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af kildeskatteloven
+PopularTitle: Kildeskatteloven
+Status: Valid
+StartDate: 2024-05-16
+EndDate: 2026-06-19
+
+Retsinformation metadata viser senere ændringer i 2024 og 2025, herunder LOV
+nr. 333 af 09/04/2024, LOV nr. 1214 af 26/11/2024, LOV nr. 1694 af 30/12/2024
+og senere ændringer i 2025.
+----
+
+----
+§ 41. Indkomstskat til staten, virksomhedsskat, konjunkturudligningsskat,
+kommunal indkomstskat, ejendomsværdiskat og grundskyld som nævnt i
+ejendomsskattelovens § 31, stk. 1, og kirkeskat tilsvares i løbet af
+indkomståret, med foreløbige beløb.
+
+Dette sker enten ved indeholdelse i skattepligtig indkomst efter reglerne i
+§§ 43-49, ved indeholdelse efter reglerne i §§ 49 A-49 D, ved indeholdelse i
+aktieudbytte m.v. efter reglerne i afsnit VI eller ved betaling i henhold til
+skattebillet.
+
+Stk. 2. Foreløbige beløb, der tilsvares ved indeholdelse efter reglerne i
+§§ 43-49, benævnes A-skat.
+
+Skattepligtig indkomst, hvori A-skat skal indeholdes, benævnes A-indkomst.
+----
+
+# KildeskatForeløbigSkatArt = ASkat | BSkat
+# KildeskatIndkomstArt = AIndkomst | BIndkomst
+# KildeskatKort = Skattekort | Bikort | Frikort | IntetESkattekort
+
+| kildeskat_foreløbig_skat_i_indkomståret() -> Sandt
+| kildeskat_betegnelse_for_indeholdt_foreløbig_skat() -> ASkat
+| kildeskat_betegnelse_for_indeholdelsespligtig_indkomst() -> AIndkomst
+
+----
+§ 43. Til A-indkomst henregnes enhver form for vederlag i penge samt i
+forbindelse hermed ydet fri kost og logi for personligt arbejde i
+tjenesteforhold, herunder løn, feriegodtgørelse, honorar, tantieme, provision,
+drikkepenge og lignende ydelser.
+
+Arbejdsgiverens indbetaling til gruppelivsforsikring som nævnt i
+pensionsbeskatningslovens § 56, stk. 3 og 5, anses dog ikke for A-indkomst.
+
+Tilsvarende anses beløb, som indbetales fra den enkelte arbejdsgiver til et
+medarbejderinvesteringsselskab, jf. § 3 i lov om
+medarbejderinvesteringsselskaber, og som for den enkelte medarbejder ikke
+overstiger beløbsgrænsen på 30.000 kr. i ligningslovens § 7 N i kalenderåret,
+ikke for A-indkomst.
+----
+
+# KildeskatAIndkomstInput(vederlag_i_penge_kroner: Heltal, fri_kost_og_logi_skatteværdi_kroner: Heltal, personligt_arbejde_i_tjenesteforhold: Boolsk, undtaget_gruppeliv_pbl56: Boolsk, undtaget_medarbejderinvestering_under_grænse: Boolsk)
+
+| kildeskat_a_indkomst_løn(input: KildeskatAIndkomstInput) -> input.personligt_arbejde_i_tjenesteforhold && input.undtaget_gruppeliv_pbl56 == Falskt && input.undtaget_medarbejderinvestering_under_grænse == Falskt
+| kildeskat_a_indkomst_beløb_kroner(input: KildeskatAIndkomstInput) -> 0
+| exception kildeskat_lønvederlag_er_a_indkomst kildeskat_a_indkomst_beløb_kroner(input: KildeskatAIndkomstInput) -> input.vederlag_i_penge_kroner + input.fri_kost_og_logi_skatteværdi_kroner under kildeskat_a_indkomst_løn(input)
+
+----
+§ 46. I forbindelse med enhver udbetaling af A-indkomst skal den, for hvis
+regning udbetalingen foretages, indeholde foreløbig skat i det udbetalte beløb.
+
+Indeholdelsen foretages ved, at den indeholdelsespligtige beregner det beløb,
+der skal indeholdes, og tilbageholder dette beløb i A-indkomsten.
+
+Stk. 2. Indeholdelse skal foretages ved udbetalingen af A-indkomsten, jf. dog
+stk. 6.
+----
+
+# KildeskatIndeholdelsespligtInput(a_indkomst_kroner: Heltal, udbetaling_fundet_sted: Boolsk, måneder_siden_endelig_ret: Heltal)
+
+| kildeskat_a_skat_skal_indeholdes(input: KildeskatIndeholdelsespligtInput) -> input.a_indkomst_kroner > 0
+| kildeskat_indeholdelse_sker_ved_udbetaling(input: KildeskatIndeholdelsespligtInput) -> input.a_indkomst_kroner > 0 && input.udbetaling_fundet_sted
+| kildeskat_indeholdelse_sker_efter_seks_måneder(input: KildeskatIndeholdelsespligtInput) -> input.a_indkomst_kroner > 0 && input.udbetaling_fundet_sted == Falskt && input.måneder_siden_endelig_ret >= 6
+
+----
+§ 48. Til brug ved indeholdelse af foreløbig skat i A-indkomst udarbejder told-
+og skatteforvaltningen skattekort og bikort eller frikort, jf. stk. 7,
+vedrørende skattepligtige, som forventes at få A-indkomst i det pågældende år,
+jf. dog stk. 2.
+
+Den indeholdelsespligtige, som udbetaler A-indkomst til den skattepligtige,
+skal elektronisk indhente skattekort, bikort eller frikort (e-skattekort) fra
+told- og skatteforvaltningen.
+
+Stk. 3. Told- og skatteforvaltningen drager omsorg for, at det på skattekortet
+anføres, hvilket beløb der skal fradrages i A-indkomst for henholdsvis en
+måned, 14 dage, en uge og en dag, forinden indeholdelse foretages.
+
+På bikort anføres intet fradragsbeløb.
+
+Stk. 5. Told- og skatteforvaltningen drager omsorg for, at det på skattekort og
+bikort anføres, med hvilken procent indeholdelse skal foretages.
+
+Stk. 8. Har den indeholdelsespligtige hverken modtaget skattekort, bikort eller
+frikort, skal der indeholdes 55 pct. af den udbetalte eller godskrevne
+A-indkomst uden fradrag efter stk. 3 og 4.
+----
+
+# KildeskatSkattekortInput(a_indkomst_kroner: Heltal, fradrag_kroner: Heltal, indeholdelsesprocent_basispoint: Heltal, kort: KildeskatKort)
+
+| kildeskat_positivt_beløb(beløb_kroner: Heltal) -> 0
+| exception kildeskat_beløb_over_nul kildeskat_positivt_beløb(beløb_kroner: Heltal) -> beløb_kroner under beløb_kroner > 0
+
+| kildeskat_skattekort_fradrag_kroner(input: KildeskatSkattekortInput) -> 0
+| exception kildeskat_hovedkort_fradrag kildeskat_skattekort_fradrag_kroner(input: KildeskatSkattekortInput) -> input.fradrag_kroner under input.kort == Skattekort
+
+| kildeskat_indeholdelsesprocent_basispoint(input: KildeskatSkattekortInput) -> input.indeholdelsesprocent_basispoint
+| exception kildeskat_frikort_procent kildeskat_indeholdelsesprocent_basispoint(input: KildeskatSkattekortInput) -> 0 under input.kort == Frikort
+| exception kildeskat_manglende_kort_55_pct kildeskat_indeholdelsesprocent_basispoint(input: KildeskatSkattekortInput) -> 5500 under input.kort == IntetESkattekort
+
+| kildeskat_a_skat_kroner(input: KildeskatSkattekortInput) -> kildeskat_positivt_beløb(input.a_indkomst_kroner - kildeskat_skattekort_fradrag_kroner(input)) * kildeskat_indeholdelsesprocent_basispoint(input) / 10000
+
+= kildeskat_løn_fixture = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(50000, 0, Sandt, Falskt, Falskt))
+= kildeskat_indeholdelsespligt_fixture = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(kildeskat_løn_fixture, Sandt, 0))
+= kildeskat_manglende_kort_fixture = kildeskat_a_skat_kroner(KildeskatSkattekortInput(50000, 0, 0, IntetESkattekort))
+= kildeskat_frikort_fixture = kildeskat_a_skat_kroner(KildeskatSkattekortInput(50000, 0, 0, Frikort))
+
+| kildeskat_løn_er_a_indkomst: kildeskat_løn_fixture -> kildeskat_løn_fixture == 50000
+| kildeskat_løn_udløser_indeholdelsespligt: kildeskat_indeholdelsespligt_fixture -> kildeskat_indeholdelsespligt_fixture == Sandt
+| kildeskat_manglende_skattekort_indeholdes_med_55_pct: kildeskat_manglende_kort_fixture -> kildeskat_manglende_kort_fixture == 27500
+| kildeskat_frikort_indeholdes_med_0_pct: kildeskat_frikort_fixture -> kildeskat_frikort_fixture == 0
