@@ -1697,12 +1697,15 @@ const TAX_KIRKE: &str =
     include_str!("../../examples/danish-income-tax/folkekirkens-oekonomi.runa");
 const TAX_KILDESKAT: &str =
     include_str!("../../examples/danish-income-tax/kildeskatteloven.runa");
+const TAX_LIGNINGSFRADRAG: &str =
+    include_str!("../../examples/danish-income-tax/ligningsloven_fradrag.runa");
 const TAX_PARAMS: &str = include_str!("../../examples/danish-income-tax/skatteaar-parametre.runa");
 const TAX_CALC: &str = include_str!("../../examples/danish-income-tax/loenmodtager_beregning.runa");
-const TAX_FIXTURES: &str = include_str!("../../examples/danish-income-tax/loenmodtager-fixtures.runa");
+const TAX_FIXTURES: &str =
+    include_str!("../../examples/danish-income-tax/loenmodtager-fixtures.scenario.runa");
 const TAX_HOUSEHOLD: &str =
-    include_str!("../../examples/danish-income-tax/husholdning-scenarier.runa");
-const TAX_AUDIT: &str = include_str!("../../examples/danish-income-tax/personskatteloven-audit.runa");
+    include_str!("../../examples/danish-income-tax/husholdning-scenarier.scenario.runa");
+const TAX_AUDIT: &str = include_str!("../../examples/danish-income-tax/personskatteloven.audit.runa");
 
 // US Constitution .runa files
 const US_CONSTITUTION: &str = include_str!("../../examples/us-constitution/constitution.runa");
@@ -2347,11 +2350,12 @@ fn ResearchPersonskatteloven() -> Element {
         ("kommuneskatteloven.runa — kommunal indkomstskat", "kommuneskatteloven-code", TAX_KOMMUNE),
         ("folkekirkens-oekonomi.runa — kirkeskat", "folkekirken-code", TAX_KIRKE),
         ("kildeskatteloven.runa — A-indkomst og A-skat", "kildeskat-code", TAX_KILDESKAT),
+        ("ligningsloven_fradrag.runa — §§ 9 J/9 K lønmodtagerfradrag", "ligningsfradrag-code", TAX_LIGNINGSFRADRAG),
         ("skatteaar-parametre.runa — 2024/2025/2026 parameterpakker", "params-code", TAX_PARAMS),
         ("loenmodtager_beregning.runa — første beregningsslice", "calculator-code", TAX_CALC),
-        ("loenmodtager-fixtures.runa — eksekverbare normalperson-fixtures", "fixtures-code", TAX_FIXTURES),
-        ("husholdning-scenarier.runa — fiktivt husholdningsscenarie", "household-code", TAX_HOUSEHOLD),
-        ("personskatteloven-audit.runa — audit-signaler", "audit-code", TAX_AUDIT),
+        ("loenmodtager-fixtures.scenario.runa — eksekverbare normalperson-scenarier", "fixtures-code", TAX_FIXTURES),
+        ("husholdning-scenarier.scenario.runa — fiktivt husholdningsscenarie", "household-code", TAX_HOUSEHOLD),
+        ("personskatteloven.audit.runa — audit-signaler", "audit-code", TAX_AUDIT),
     ];
 
     let body_html: String = sections
@@ -2394,7 +2398,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Calculation slice" }
                             strong { "Calculation-ready" }
-                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary AM-bidrag plus municipal/church tax, Kildeskatteloven A-income/withholding posture, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
+                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with source-backed ordinary AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, Kildeskatteloven A-income/withholding posture, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
@@ -2417,9 +2421,11 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/1772", "LOV nr. 1772/2025" }
                         " · indeholdelse: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2024/460", "Kildeskatteloven" }
+                        " · lønmodtagerfradrag: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1500", "Ligningsloven" }
                     }
                     p { class: "const-stats",
-                        "16 filer \u{00B7} §§ 1-28 første slice \u{00B7} AM/kommunal/kirkelig normalberegning \u{00B7} Kildeskatteloven A-indkomst/A-skat \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, husholdning, kapital og § 13 fixtures \u{00B7} audit-signaler"
+                        "17 filer \u{00B7} §§ 1-28 første slice \u{00B7} AM/kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 9 J/9 K \u{00B7} Kildeskatteloven A-indkomst/A-skat \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, husholdning, kapital og § 13 fixtures \u{00B7} audit-signaler"
                     }
                 }
 
@@ -2455,7 +2461,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "gap" }
-                            strong { "2026 reform, mellemskat capital branch, ordinary AM/municipal/church tax, Kildeskatteloven A-income/withholding, a fictional household, and § 13 complex calculators are executable; e-skattekort and special cases remain" }
+                            strong { "2026 reform, mellemskat capital branch, ordinary AM/Ligningsloven/municipal/church tax, Kildeskatteloven A-income/withholding, a fictional household, and § 13 complex calculators are executable; e-skattekort and special cases remain" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }

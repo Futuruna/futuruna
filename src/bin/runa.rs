@@ -1059,6 +1059,38 @@ fn source_dir_for(filename: &str) -> Option<String> {
         .map(|p| p.to_string_lossy().to_string())
 }
 
+fn file_stem_for_source(filename: &str, fallback: &str) -> String {
+    std::path::Path::new(filename)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(fallback)
+        .to_string()
+}
+
+fn sanitized_rust_artifact_name(name: &str) -> String {
+    let mut out = String::new();
+    if name.chars().next().is_some_and(|ch| ch.is_ascii_digit()) {
+        out.push('_');
+    }
+    for (idx, ch) in name.chars().enumerate() {
+        let valid = ch.is_ascii_alphanumeric() || ch == '_';
+        if valid {
+            out.push(ch);
+        } else if idx > 0 || !out.ends_with('_') {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "runa_out".to_string()
+    } else {
+        out
+    }
+}
+
+fn rust_artifact_stem_for_source(filename: &str, fallback: &str) -> String {
+    sanitized_rust_artifact_name(&file_stem_for_source(filename, fallback))
+}
+
 fn compiler_validation_diagnostics(
     stmts: &[Stmt],
     source_dir: Option<String>,
@@ -1137,10 +1169,8 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 .map(|s| s.to_string_lossy().to_string());
             let code = cg.emit_program(&stmts);
 
-            let stem = std::path::Path::new(filename)
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("tau_out");
+            let stem = file_stem_for_source(filename, "tau_out");
+            let artifact_stem = rust_artifact_stem_for_source(filename, "tau_out");
 
             // Incremental compilation: hash the generated code, skip if unchanged
             let code_hash = hash_string(&code);
@@ -1150,17 +1180,17 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 let cache_dir = std::env::temp_dir().join("runa-cache");
                 std::fs::create_dir_all(&cache_dir).ok();
                 let hash_path = cache_dir
-                    .join(format!("{}.hash", stem))
+                    .join(format!("{}.hash", artifact_stem))
                     .to_string_lossy()
                     .to_string();
-                let cached_bin = cache_dir.join(stem).to_string_lossy().to_string();
+                let cached_bin = cache_dir.join(&artifact_stem).to_string_lossy().to_string();
 
                 // Check if binary exists and hash matches (incremental: skip recompilation)
                 let cached_hash = std::fs::read_to_string(&hash_path).unwrap_or_default();
                 let bin_path = if execute {
                     cached_bin.clone()
                 } else {
-                    stem.to_string()
+                    stem.clone()
                 };
 
                 if cached_hash.trim() == code_hash && std::path::Path::new(&cached_bin).exists() {
@@ -1184,7 +1214,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 }
 
                 let rs_path = cache_dir
-                    .join(format!("{}.rs", stem))
+                    .join(format!("{}.rs", artifact_stem))
                     .to_string_lossy()
                     .to_string();
 
@@ -1236,7 +1266,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 }
             } else {
                 // Has dependencies — generate Cargo project in .runa-build/
-                let build_dir = format!(".runa-build/{}", stem);
+                let build_dir = format!(".runa-build/{}", artifact_stem);
                 let src_dir = format!("{}/src", build_dir);
                 std::fs::create_dir_all(&src_dir).unwrap_or_else(|e| {
                     eprintln!("Error creating {}: {}", src_dir, e);
@@ -1251,19 +1281,9 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 });
 
                 // Generate Cargo.toml (sanitize inputs to prevent TOML injection)
-                let safe_stem: String = stem
-                    .chars()
-                    .map(|c| {
-                        if c.is_alphanumeric() || c == '-' || c == '_' {
-                            c
-                        } else {
-                            '_'
-                        }
-                    })
-                    .collect();
                 let mut cargo_toml = format!(
                     "[package]\nname = \"{}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n",
-                    safe_stem
+                    artifact_stem
                 );
                 for (crate_name, version) in &cg.cargo_deps {
                     // Validate crate name: only alphanumeric, hyphens, underscores
@@ -1307,7 +1327,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                             eprintln!("{}", String::from_utf8_lossy(&output.stderr));
                             std::process::exit(1);
                         }
-                        let cargo_bin = format!("{}/target/release/{}", build_dir, stem);
+                        let cargo_bin = format!("{}/target/release/{}", build_dir, artifact_stem);
                         if execute {
                             let status = Command::new(&cargo_bin).status().unwrap_or_else(|e| {
                                 eprintln!("Error running {}: {}", cargo_bin, e);
@@ -1316,7 +1336,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                             std::process::exit(status.code().unwrap_or(1));
                         } else {
                             // Copy binary to current directory
-                            std::fs::copy(&cargo_bin, stem).unwrap_or_else(|e| {
+                            std::fs::copy(&cargo_bin, &stem).unwrap_or_else(|e| {
                                 eprintln!("Error copying binary: {}", e);
                                 std::process::exit(1);
                             });
@@ -33864,6 +33884,18 @@ fn sanitize_name(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rust_artifact_stem_sanitizes_role_suffixed_filenames() {
+        assert_eq!(
+            rust_artifact_stem_for_source("examples/personskatteloven.audit.runa", "tau_out"),
+            "personskatteloven_audit"
+        );
+        assert_eq!(
+            rust_artifact_stem_for_source("examples/123.scenario.runa", "tau_out"),
+            "_123_scenario"
+        );
+    }
 
     #[test]
     fn from_rust_expected_unsupported_directive_parses() {

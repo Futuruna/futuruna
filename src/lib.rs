@@ -4649,6 +4649,10 @@ impl Parser {
             if self.peek_kind() == TokenKind::Op && self.peek().text == "/" {
                 self.advance();
                 path.push('/');
+            } else if self.peek_kind() == TokenKind::Dot {
+                // Allow role-suffixed modules such as personskatteloven.audit.runa.
+                self.advance();
+                path.push('.');
             } else if self.peek_kind() == TokenKind::Op && self.peek().text == "-" {
                 // Allow dashes in module paths (e.g. kapitel-08)
                 self.advance();
@@ -13601,6 +13605,38 @@ mod tests {
             use_diags[0].message.contains("undefined function `ping`"),
             "expected @ use to stay Rust-only, got {:?}",
             use_diags
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn import_resolves_role_suffixed_dotted_modules() {
+        let temp_name = format!(
+            "futuruna_dotted_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let helper = temp_dir.join("policy.audit.runa");
+        std::fs::write(&helper, "> probe() -> String { \"audit-ok\" }\n").unwrap();
+
+        let dir = temp_dir.to_string_lossy().to_string();
+        let source = "@ import ./policy.audit\n@ print(probe())\n";
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().unwrap();
+        let diags = TypeChecker::check_with_diagnostics(&stmts, Some(dir), source);
+        assert!(
+            diags.is_empty(),
+            "expected dotted role-suffixed import to resolve, got {:?}",
+            diags
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);

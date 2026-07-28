@@ -3,6 +3,7 @@
 @ importer ./arbejdsmarkedsbidragsloven
 @ importer ./kommuneskatteloven
 @ importer ./folkekirkens - oekonomi
+@ importer ./ligningsloven_fradrag
 @ importer ./skatteaar - parametre
 @ importer ./kapitel - 02 - statsskat
 @ importer ./kapitel - 03 - personfradrag
@@ -20,7 +21,7 @@ omfang som nævnt i ligningslovens § 8 M,
 ----
 
 # LønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
-# LønmodtagerBreakdown(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal, bundskat_før_personfradrag_kroner: Heltal, mellemskat_før_personfradrag_kroner: Heltal, topskat_før_personfradrag_kroner: Heltal, toptopskat_før_personfradrag_kroner: Heltal, kommuneskat_før_personfradrag_kroner: Heltal, kirkeskat_før_personfradrag_kroner: Heltal, samlet_inkl_am_før_personfradrag_kroner: Heltal, personfradrag_kroner: Heltal, statslig_personfradrag_skatteværdi_kroner: Heltal, kommunal_personfradrag_skatteværdi_kroner: Heltal, kirkelig_personfradrag_skatteværdi_kroner: Heltal, samlet_inkl_am_efter_personfradrag_kroner: Heltal, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
+# LønmodtagerBreakdown(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal, bundskat_før_personfradrag_kroner: Heltal, mellemskat_før_personfradrag_kroner: Heltal, topskat_før_personfradrag_kroner: Heltal, toptopskat_før_personfradrag_kroner: Heltal, kommuneskat_før_personfradrag_kroner: Heltal, kirkeskat_før_personfradrag_kroner: Heltal, samlet_inkl_am_før_personfradrag_kroner: Heltal, personfradrag_kroner: Heltal, statslig_personfradrag_skatteværdi_kroner: Heltal, kommunal_personfradrag_skatteværdi_kroner: Heltal, kirkelig_personfradrag_skatteværdi_kroner: Heltal, samlet_inkl_am_efter_personfradrag_kroner: Heltal, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
 
 | skat_i_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> beløb_kroner * sats_basispoint / 10000
 | positivt_beløb(beløb_kroner: Heltal) -> 0
@@ -28,6 +29,11 @@ omfang som nævnt i ligningslovens § 8 M,
 | arbejdsmarkedsbidrag_input_for(input: LønmodtagerInput) -> ArbejdsmarkedsbidragInput(input.bruttoløn_kroner, 0)
 | arbejdsmarkedsbidrag_for(input: LønmodtagerInput) -> arbejdsmarkedsbidrag_lønmodtager_kroner(arbejdsmarkedsbidrag_input_for(input))
 | personlig_indkomst_efter_am(input: LønmodtagerInput) -> input.bruttoløn_kroner - arbejdsmarkedsbidrag_for(input)
+| ligningslov_fradrag_input_for(input: LønmodtagerInput) -> LigningslovLønmodtagerFradragInput(input.skatteår, input.bruttoløn_kroner, Falskt)
+| beskæftigelsesfradrag_for(input: LønmodtagerInput) -> ll_lønmodtager_beskæftigelsesfradrag_kroner(ligningslov_fradrag_input_for(input))
+| jobfradrag_for(input: LønmodtagerInput) -> ll_lønmodtager_jobfradrag_kroner(ligningslov_fradrag_input_for(input))
+| standard_ligningsmæssige_fradrag_for(input: LønmodtagerInput) -> ll_lønmodtager_standardfradrag_kroner(ligningslov_fradrag_input_for(input))
+| samlede_ligningsmæssige_fradrag_for(input: LønmodtagerInput) -> standard_ligningsmæssige_fradrag_for(input) + input.ligningsmæssige_fradrag_kroner
 
 ----
 § 1. For personer, der er skattepligtige her til landet, opgøres den
@@ -35,7 +41,7 @@ skattepligtige almindelige indkomst efter skattelovgivningens almindelige
 regler med de ændringer, der følger af denne lov.
 ----
 
-| almindelig_skattepligtig_indkomst_fixture(input: LønmodtagerInput) -> personlig_indkomst_efter_am(input) + input.positiv_nettokapitalindkomst_kroner - input.ligningsmæssige_fradrag_kroner
+| almindelig_skattepligtig_indkomst_fixture(input: LønmodtagerInput) -> personlig_indkomst_efter_am(input) + input.positiv_nettokapitalindkomst_kroner - samlede_ligningsmæssige_fradrag_for(input)
 
 ----
 § 6. Skatten efter § 5, nr. 1, beregnes med den procent, der anføres i stk. 2,
@@ -103,7 +109,7 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | par13_underskud_input_for(input: LønmodtagerInput) -> Par13UnderskudInput(almindelig_skattepligtig_indkomst_fixture(input), personlig_indkomst_efter_am(input), input.positiv_nettokapitalindkomst_kroner, Falskt)
 | kræver_par13_underskud_fixture(input: LønmodtagerInput) -> par13_kræver_underskudsbehandling(par13_underskud_input_for(input))
 | personfradrag_anvendt_i_slutskat_fixture(input: LønmodtagerInput) -> kræver_par13_underskud_fixture(input) == Falskt
-| beregn_lønmodtager(input: LønmodtagerInput) -> LønmodtagerBreakdown(input.skatteår, input.kommune, input.bruttoløn_kroner, arbejdsmarkedsbidrag_for(input), personlig_indkomst_efter_am(input), almindelig_skattepligtig_indkomst_fixture(input), bundskat_før_personfradrag(input), mellemskat_før_personfradrag(input), topskat_før_personfradrag(input), toptopskat_før_personfradrag(input), kommuneskat_før_personfradrag(input), kirkeskat_før_personfradrag(input), samlet_inkl_am_før_personfradrag(input), personfradrag_for(input), statslig_personfradrag_skatteværdi_for(input), kommunal_personfradrag_skatteværdi_for(input), kirkelig_personfradrag_skatteværdi_for(input), samlet_inkl_am_efter_personfradrag(input), personfradrag_anvendt_i_slutskat_fixture(input), kræver_par13_underskud_fixture(input))
+| beregn_lønmodtager(input: LønmodtagerInput) -> LønmodtagerBreakdown(input.skatteår, input.kommune, input.bruttoløn_kroner, arbejdsmarkedsbidrag_for(input), personlig_indkomst_efter_am(input), beskæftigelsesfradrag_for(input), jobfradrag_for(input), input.ligningsmæssige_fradrag_kroner, samlede_ligningsmæssige_fradrag_for(input), almindelig_skattepligtig_indkomst_fixture(input), bundskat_før_personfradrag(input), mellemskat_før_personfradrag(input), topskat_før_personfradrag(input), toptopskat_før_personfradrag(input), kommuneskat_før_personfradrag(input), kirkeskat_før_personfradrag(input), samlet_inkl_am_før_personfradrag(input), personfradrag_for(input), statslig_personfradrag_skatteværdi_for(input), kommunal_personfradrag_skatteværdi_for(input), kirkelig_personfradrag_skatteværdi_for(input), samlet_inkl_am_efter_personfradrag(input), personfradrag_anvendt_i_slutskat_fixture(input), kræver_par13_underskud_fixture(input))
 
 ----
 § 13. Hvis den skattepligtige indkomst udviser underskud, beregnes

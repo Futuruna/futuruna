@@ -1,0 +1,158 @@
+@ sprog da
+
+-- Ligningsloven — almindelige lønmodtagerfradrag efter §§ 9 J og 9 K.
+--
+-- Kilde: Retsinformation, LBK nr. 1500 af 12/12/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1500/dan/xml
+--
+-- Satser og regulerede maksimumsbeløb:
+-- Skatteministeriet, "Ligningsloven".
+-- https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven
+-- Skatteministeriet, "Beløbsgrænser ... PSL § 20 - 2024-2025".
+-- https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2024-2025
+
+----
+Officiel XML-metadata for 2025/1500, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om påligningen af indkomstskat til staten
+(ligningsloven)
+PopularTitle: Ligningsloven
+Status: Valid
+StartDate: 2025-12-12
+EndDate: 2026-06-19
+----
+
+----
+§ 9 J. Ved opgørelsen af den skattepligtige indkomst kan lønmodtagere m.fl. og
+selvstændigt erhvervsdrivende fradrage procenten anført i stk. 2 af grundlaget
+for arbejdsmarkedsbidrag efter arbejdsmarkedsbidragslovens § 2, stk. 1, nr. 1,
+2, 4 og 6, jf. dog 2.-4. pkt. og arbejdsmarkedsbidragslovens § 3, og §§ 4 og
+5.
+
+Indbetalinger til ratepension og ophørende livrente omfattet af
+pensionsbeskatningslovens § 19 indgår med det beløb, for hvilket der er
+bortseelsesret efter pensionsbeskatningslovens § 19.
+
+Indbetalinger til Arbejdsmarkedets Tillægspension indgår med de indbetalinger,
+som arbejdsgiverne indberetter til skatteforvaltningen.
+
+Indbetalinger omfattet af pensionsbeskatningslovens § 19, stk. 2 og 4, indgår
+ikke.
+
+Fradraget kan dog højst udgøre grundbeløbet anført i stk. 2.
+
+1.-5. pkt. finder ikke anvendelse for bidragspligtige, som efter bestemmelserne
+i en dobbeltbeskatningsoverenskomst anses for hjemmehørende i en fremmed stat,
+i Grønland eller på Færøerne, og som erhverver bidragspligtig indkomst ved
+beskæftigelse udført i udlandet for en udenlandsk arbejdsgiver.
+
+Hvis beregningen medfører, at fradraget er negativt, sættes fradraget til 0 kr.
+for det pågældende indkomstår.
+
+Stk. 2. For indkomståret 2024 udgør procenten 10,65 og grundbeløbet 35.700 kr.
+(2010-niveau).
+
+For indkomståret 2025 udgør procenten 12,3, og grundbeløbet 42.400 kr.
+(2010-niveau).
+
+For indkomståret 2026 og efterfølgende indkomstår udgør procenten 12,75, og
+grundbeløbet 46.100 kr. (2010-niveau).
+
+Grundbeløbene reguleres efter personskattelovens § 20.
+----
+
+----
+Skatteministeriet, "Ligningsloven", satser og beløbsgrænser:
+
+Beskæftigelsesfradrag, § 9 J, stk. 2
+2024: procent 10,65; maksimalt fradrag 45.100 kr.
+2025: procent 12,3; maksimalt fradrag 55.600 kr.
+2026: procent 12,75; maksimalt fradrag 63.300 kr.
+----
+
+# Ligningslov9JInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk)
+# Ligningslov9JParametre(skatteår: Heltal, beskæftigelsesfradrag_basispoint: Heltal, beskæftigelsesfradrag_maks_kroner: Heltal)
+
+| ligningslov_positivt_beløb(beløb_kroner: Heltal) -> 0
+| exception ligningslov_beløb_over_nul ligningslov_positivt_beløb(beløb_kroner: Heltal) -> beløb_kroner under beløb_kroner > 0
+
+| ligningslov_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> a_kroner under a_kroner <= b_kroner
+| ligningslov_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> b_kroner under a_kroner > b_kroner
+
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(2024, 1065, 45100) under skatteår == 2024
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(2025, 1230, 55600) under skatteår == 2025
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(2026, 1275, 63300) under skatteår == 2026
+| ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input: Ligningslov9JInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
+| ll9j_beregnet_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner) * ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_basispoint / 10000
+| ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> 0
+| exception ll9j_almindelig_lønmodtager ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> ligningslov_mindste_beløb(ll9j_beregnet_beskæftigelsesfradrag_kroner(input), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_maks_kroner) under ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input)
+
+= ll9j_2025_500000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2025, 500000, Falskt))
+= ll9j_2026_600000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, 600000, Falskt))
+= ll9j_2026_240000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, 240000, Falskt))
+= ll9j_udland_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, 600000, Sandt))
+
+| ll9j_2025_løn_loftes: ll9j_2025_500000_fixture -> ll9j_2025_500000_fixture == 55600
+| ll9j_2026_løn_loftes: ll9j_2026_600000_fixture -> ll9j_2026_600000_fixture == 63300
+| ll9j_2026_lavere_løn_under_loft: ll9j_2026_240000_fixture -> ll9j_2026_240000_fixture == 30600
+| ll9j_udland_undtages: ll9j_udland_fixture -> ll9j_udland_fixture == 0
+
+----
+§ 9 K. Ved opgørelsen af den skattepligtige indkomst kan lønmodtagere m.fl. og
+selvstændigt erhvervsdrivende fradrage procenten anført i stk. 2 af samme
+grundlag og under samme betingelser som nævnt i § 9 J, stk. 1, 1.- 4. og 6.
+pkt., for den del, der overstiger et grundbeløb på 171.300 kr. (2010-niveau).
+
+Fradraget kan dog højst udgøre grundbeløbet nævnt i stk. 2.
+
+Stk. 2. For indkomståret 2018 udgør procenten 2,5, og grundbeløbet 1.200 kr.
+(2010-niveau).
+
+For indkomståret 2019 udgør procenten 3,75, og grundbeløbet 1.800 kr.
+(2010-niveau).
+
+For indkomståret 2020 og efterfølgende indkomstår udgør procenten 4,5, og
+grundbeløbet 2.200 kr. (2010-niveau).
+
+Stk. 3. Grundbeløbene i stk. 1 og 2 reguleres efter personskattelovens § 20.
+----
+
+----
+Skatteministeriet, "Ligningsloven", satser og beløbsgrænser:
+
+Jobfradrag, § 9 K
+2024: procent 4,5; indkomstgrænse 216.100 kr.; maksimalt fradrag 2.800 kr.
+2025: procent 4,5; indkomstgrænse 224.500 kr.; maksimalt fradrag 2.900 kr.
+2026: procent 4,5; indkomstgrænse 235.200 kr.; maksimalt fradrag 3.100 kr.
+----
+
+# Ligningslov9KInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk)
+# Ligningslov9KParametre(skatteår: Heltal, jobfradrag_basispoint: Heltal, jobfradrag_indkomstgrænse_kroner: Heltal, jobfradrag_maks_kroner: Heltal)
+# LigningslovLønmodtagerFradragInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk)
+
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(2024, 450, 216100, 2800) under skatteår == 2024
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(2025, 450, 224500, 2900) under skatteår == 2025
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(2026, 450, 235200, 3100) under skatteår == 2026
+| ll9k_almindeligt_jobfradrag_berettiget(input: Ligningslov9KInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
+| ll9k_jobfradrag_grundlag_kroner(input: Ligningslov9KInput) -> ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner - ll9k_parametre_for(input.skatteår).jobfradrag_indkomstgrænse_kroner)
+| ll9k_beregnet_jobfradrag_kroner(input: Ligningslov9KInput) -> ll9k_jobfradrag_grundlag_kroner(input) * ll9k_parametre_for(input.skatteår).jobfradrag_basispoint / 10000
+| ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> 0
+| exception ll9k_almindelig_lønmodtager ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> ligningslov_mindste_beløb(ll9k_beregnet_jobfradrag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_maks_kroner) under ll9k_almindeligt_jobfradrag_berettiget(input)
+
+| ll_lønmodtager_9j_input(input: LigningslovLønmodtagerFradragInput) -> Ligningslov9JInput(input.skatteår, input.arbejdsmarkedsbidragsgrundlag_kroner, input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver)
+| ll_lønmodtager_9k_input(input: LigningslovLønmodtagerFradragInput) -> Ligningslov9KInput(input.skatteår, input.arbejdsmarkedsbidragsgrundlag_kroner, input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver)
+| ll_lønmodtager_beskæftigelsesfradrag_kroner(input: LigningslovLønmodtagerFradragInput) -> ll9j_beskæftigelsesfradrag_kroner(ll_lønmodtager_9j_input(input))
+| ll_lønmodtager_jobfradrag_kroner(input: LigningslovLønmodtagerFradragInput) -> ll9k_jobfradrag_kroner(ll_lønmodtager_9k_input(input))
+| ll_lønmodtager_standardfradrag_kroner(input: LigningslovLønmodtagerFradragInput) -> ll_lønmodtager_beskæftigelsesfradrag_kroner(input) + ll_lønmodtager_jobfradrag_kroner(input)
+
+= ll9k_2025_500000_fixture = ll9k_jobfradrag_kroner(Ligningslov9KInput(2025, 500000, Falskt))
+= ll9k_2026_600000_fixture = ll9k_jobfradrag_kroner(Ligningslov9KInput(2026, 600000, Falskt))
+= ll9k_2026_240000_fixture = ll9k_jobfradrag_kroner(Ligningslov9KInput(2026, 240000, Falskt))
+= ll_lønmodtager_2026_600000_fixture = ll_lønmodtager_standardfradrag_kroner(LigningslovLønmodtagerFradragInput(2026, 600000, Falskt))
+= ll_lønmodtager_2026_240000_fixture = ll_lønmodtager_standardfradrag_kroner(LigningslovLønmodtagerFradragInput(2026, 240000, Falskt))
+
+| ll9k_2025_løn_loftes: ll9k_2025_500000_fixture -> ll9k_2025_500000_fixture == 2900
+| ll9k_2026_løn_loftes: ll9k_2026_600000_fixture -> ll9k_2026_600000_fixture == 3100
+| ll9k_2026_lavere_løn_over_grænse: ll9k_2026_240000_fixture -> ll9k_2026_240000_fixture == 216
+| ll_lønmodtager_2026_standardfradrag_høj_løn: ll_lønmodtager_2026_600000_fixture -> ll_lønmodtager_2026_600000_fixture == 66400
+| ll_lønmodtager_2026_standardfradrag_lavere_løn: ll_lønmodtager_2026_240000_fixture -> ll_lønmodtager_2026_240000_fixture == 30816

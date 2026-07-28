@@ -38,6 +38,11 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/460
 -- XML: https://www.retsinformation.dk/eli/lta/2024/460/dan/xml
 --
+-- Afhængig kilde for lønmodtagerfradrag:
+-- Retsinformation, LBK nr. 1500 af 12/12/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1500/dan/xml
+--
 -- Hver ---- blok er original lovtekst eller officiel metadata fra kilden.
 -- Futuruna-reglerne nedenfor er projektets kildefaste oversættelse.
 
@@ -92,6 +97,13 @@ PopularTitle: Kildeskatteloven
 Status: Valid
 StartDate: 2024-05-16
 EndDate: 2026-06-19
+
+Officiel XML-metadata for 2025/1500, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om påligningen af indkomstskat til staten (ligningsloven)
+PopularTitle: Ligningsloven
+Status: Valid
+StartDate: 2025-12-12
+EndDate: 2026-06-19
 ----
 
 # Kildestatus = Gældende | Historisk
@@ -106,6 +118,7 @@ EndDate: 2026-06-19
 = folkekirkens_økonomilov_2023_424 = Retskilde("https://www.retsinformation.dk/eli/lta/2023/424", 2023, 424, Gældende)
 = folkekirke_økonomi_aendring_2025_1772 = Retskilde("https://www.retsinformation.dk/eli/lta/2025/1772", 2025, 1772, Gældende)
 = kildeskatteloven_2024_460 = Retskilde("https://www.retsinformation.dk/eli/lta/2024/460", 2024, 460, Gældende)
+= ligningsloven_2025_1500 = Retskilde("https://www.retsinformation.dk/eli/lta/2025/1500", 2025, 1500, Gældende)
 
 | kilde_er_personskatteloven(kilde: Retskilde) -> kilde.nummer == 799 || kilde.nummer == 1284
 | kilde_er_personskat_reform(kilde: Retskilde) -> kilde.nummer == 482 && kilde.år == 2024
@@ -114,6 +127,7 @@ EndDate: 2026-06-19
 | kilde_er_folkekirkens_økonomilov(kilde: Retskilde) -> kilde.nummer == 424 && kilde.år == 2023
 | kilde_er_folkekirke_økonomi_aendring(kilde: Retskilde) -> kilde.nummer == 1772 && kilde.år == 2025
 | kilde_er_kildeskatteloven(kilde: Retskilde) -> kilde.nummer == 460 && kilde.år == 2024
+| kilde_er_ligningsloven(kilde: Retskilde) -> kilde.nummer == 1500 && kilde.år == 2025
 
 | kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Sandt under kilde.status == Gældende
 | kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Sandt under formål == HistoriskAudit || formål == KildeDiff
@@ -127,6 +141,7 @@ EndDate: 2026-06-19
 = folkekirkens_økonomilov_til_aktuel_beregning = kilde_egnet_til_formål(folkekirkens_økonomilov_2023_424, AktuelSkatteberegning)
 = folkekirke_aendring_til_aktuel_beregning = kilde_egnet_til_formål(folkekirke_økonomi_aendring_2025_1772, AktuelSkatteberegning)
 = kildeskattelov_til_aktuel_beregning = kilde_egnet_til_formål(kildeskatteloven_2024_460, AktuelSkatteberegning)
+= ligningslov_til_aktuel_beregning = kilde_egnet_til_formål(ligningsloven_2025_1500, AktuelSkatteberegning)
 = historisk_til_audit = kilde_egnet_til_formål(personskatteloven_2019_799, HistoriskAudit)
 
 | historisk_kilde_afvises_til_aktuel_beregning: historisk_til_aktuel_beregning -> historisk_til_aktuel_beregning == Falskt
@@ -137,4 +152,5 @@ EndDate: 2026-06-19
 | folkekirkens_økonomilov_accepteres_til_aktuel_beregning: folkekirkens_økonomilov_til_aktuel_beregning -> folkekirkens_økonomilov_til_aktuel_beregning == Sandt
 | folkekirke_aendring_accepteres_til_aktuel_beregning: folkekirke_aendring_til_aktuel_beregning -> folkekirke_aendring_til_aktuel_beregning == Sandt
 | kildeskattelov_accepteres_til_aktuel_beregning: kildeskattelov_til_aktuel_beregning -> kildeskattelov_til_aktuel_beregning == Sandt
+| ligningslov_accepteres_til_aktuel_beregning: ligningslov_til_aktuel_beregning -> ligningslov_til_aktuel_beregning == Sandt
 | historisk_kilde_accepteres_til_audit: historisk_til_audit -> historisk_til_audit == Sandt

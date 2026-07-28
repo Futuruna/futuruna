@@ -20,11 +20,12 @@ Bolig: leje 10.000 kr. pr. måned.
 Børn: 3 børn på 2, 7 og 10 år.
 Kirkeskat: nej for begge ægtefæller.
 Positiv nettokapitalindkomst: 0 kr.
-Ligningsmæssige fradrag: 0 kr.
+Øvrige ligningsmæssige fradrag ud over Ligningsloven §§ 9 J og 9 K: 0 kr.
 
 Current model scope: ordinary wage tax under Personskatteloven with AM-bidrag,
-municipal tax, church-tax membership switch, personfradrag, and 2026 state-tax
-thresholds. Rent, child benefits, housing support, deduction discovery, and
+municipal tax, church-tax membership switch, personfradrag, 2026 state-tax
+thresholds, and ordinary Ligningsloven §§ 9 J and 9 K wage-earner deductions.
+Rent, child benefits, housing support, other deduction discovery, and
 social-benefit rules are not encoded in this slice.
 Kildeskatteloven now covers ordinary A-indkomst, duty to withhold A-skat, and
 the statutory fallback when no skattekort, bikort or frikort is available. A
@@ -49,13 +50,17 @@ fradrag/procent data and is therefore not inferred from final annual tax.
 = scenarie1_mand_a_skat_indeholdelsespligt = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(scenarie1_mand_månedsløn_a_indkomst, Sandt, 0))
 = scenarie1_mand_manglende_skattekort_a_skat = kildeskat_a_skat_kroner(KildeskatSkattekortInput(scenarie1_mand_månedsløn_a_indkomst, 0, 0, IntetESkattekort))
 
-| scenarie1_mand_skat_årligt: scenarie1_mand -> scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner == 224257
-| scenarie1_mand_skat_månedligt: scenarie1_mand -> scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner / 12 == 18688
-| scenarie1_mand_netto_månedligt: scenarie1_mand -> (scenarie1_mand.bruttoløn_kroner - scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner) / 12 == 31311
-| scenarie1_ægtefælle_skat_årligt: scenarie1_ægtefælle -> scenarie1_ægtefælle.samlet_inkl_am_efter_personfradrag_kroner == 78213
-| scenarie1_husholdning_skat_årligt: scenarie1_husholdning -> scenarie1_husholdning.samlet_skat_årligt_kroner == 302470
-| scenarie1_husholdning_netto_månedligt: scenarie1_husholdning -> scenarie1_husholdning.samlet_netto_månedligt_kroner == 44794
-| scenarie1_husholdning_efter_husleje: scenarie1_husholdning -> scenarie1_husholdning.efter_husleje_månedligt_kroner == 34794
+| scenarie1_mand_beskæftigelsesfradrag: scenarie1_mand -> scenarie1_mand.beskæftigelsesfradrag_kroner == 63300
+| scenarie1_mand_jobfradrag: scenarie1_mand -> scenarie1_mand.jobfradrag_kroner == 3100
+| scenarie1_mand_skat_årligt: scenarie1_mand -> scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner == 208726
+| scenarie1_mand_skat_månedligt: scenarie1_mand -> scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner / 12 == 17393
+| scenarie1_mand_netto_månedligt: scenarie1_mand -> (scenarie1_mand.bruttoløn_kroner - scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner) / 12 == 32606
+| scenarie1_ægtefælle_beskæftigelsesfradrag: scenarie1_ægtefælle -> scenarie1_ægtefælle.beskæftigelsesfradrag_kroner == 30600
+| scenarie1_ægtefælle_jobfradrag: scenarie1_ægtefælle -> scenarie1_ægtefælle.jobfradrag_kroner == 216
+| scenarie1_ægtefælle_skat_årligt: scenarie1_ægtefælle -> scenarie1_ægtefælle.samlet_inkl_am_efter_personfradrag_kroner == 71005
+| scenarie1_husholdning_skat_årligt: scenarie1_husholdning -> scenarie1_husholdning.samlet_skat_årligt_kroner == 279731
+| scenarie1_husholdning_netto_månedligt: scenarie1_husholdning -> scenarie1_husholdning.samlet_netto_månedligt_kroner == 46689
+| scenarie1_husholdning_efter_husleje: scenarie1_husholdning -> scenarie1_husholdning.efter_husleje_månedligt_kroner == 36689
 | scenarie1_mand_månedsløn_er_a_indkomst: scenarie1_mand_månedsløn_a_indkomst -> scenarie1_mand_månedsløn_a_indkomst == 50000
 | scenarie1_mand_a_skat_skal_indeholdes: scenarie1_mand_a_skat_indeholdelsespligt -> scenarie1_mand_a_skat_indeholdelsespligt == Sandt
 | scenarie1_mand_manglende_skattekort_55_pct: scenarie1_mand_manglende_skattekort_a_skat -> scenarie1_mand_manglende_skattekort_a_skat == 27500
@@ -63,6 +68,10 @@ fradrag/procent data and is therefore not inferred from final annual tax.
 ? scenarie1_mand_skat_årligt
 ? scenarie1_mand_skat_månedligt
 ? scenarie1_mand_netto_månedligt
+? scenarie1_mand_beskæftigelsesfradrag
+? scenarie1_mand_jobfradrag
+? scenarie1_ægtefælle_beskæftigelsesfradrag
+? scenarie1_ægtefælle_jobfradrag
 ? scenarie1_ægtefælle_skat_årligt
 ? scenarie1_husholdning_skat_årligt
 ? scenarie1_husholdning_netto_månedligt

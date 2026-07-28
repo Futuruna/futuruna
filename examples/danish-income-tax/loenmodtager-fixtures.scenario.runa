@@ -12,8 +12,9 @@ Bruttoløn: 500.000 kr.
 Positiv nettokapitalindkomst: 0 kr.
 Ligningsmæssige fradrag: 0 kr.
 Kirkeskat: ja
-Kilder: Personskatteloven §§ 1, 3, 6, 7 og 9; Skattestyrelsens 2025-satser;
-Skatteministeriets kommuneskat for København 2025.
+Kilder: Personskatteloven §§ 1, 3, 6, 7 og 9; Ligningsloven §§ 9 J og 9 K;
+Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for København
+2025.
 ----
 
 = m4_københavn_2025_input = LønmodtagerInput(2025, København, 500000, 0, 0, Fyldt18EllerGift, Sandt)
@@ -21,21 +22,27 @@ Skatteministeriets kommuneskat for København 2025.
 
 | m4_københavn_2025_am: m4_københavn_2025 -> m4_københavn_2025.arbejdsmarkedsbidrag_kroner == 40000
 | m4_københavn_2025_personlig: m4_københavn_2025 -> m4_københavn_2025.personlig_indkomst_efter_am_kroner == 460000
+| m4_københavn_2025_beskæftigelsesfradrag: m4_københavn_2025 -> m4_københavn_2025.beskæftigelsesfradrag_kroner == 55600
+| m4_københavn_2025_jobfradrag: m4_københavn_2025 -> m4_københavn_2025.jobfradrag_kroner == 2900
+| m4_københavn_2025_samlede_ligningsfradrag: m4_københavn_2025 -> m4_københavn_2025.samlede_ligningsmæssige_fradrag_kroner == 58500
 | m4_københavn_2025_bundskat: m4_københavn_2025 -> m4_københavn_2025.bundskat_før_personfradrag_kroner == 55246
 | m4_københavn_2025_topskat: m4_københavn_2025 -> m4_københavn_2025.topskat_før_personfradrag_kroner == 0
-| m4_københavn_2025_kommuneskat: m4_københavn_2025 -> m4_københavn_2025.kommuneskat_før_personfradrag_kroner == 108100
-| m4_københavn_2025_kirkeskat: m4_københavn_2025 -> m4_københavn_2025.kirkeskat_før_personfradrag_kroner == 3680
-| m4_københavn_2025_samlet_før: m4_københavn_2025 -> m4_københavn_2025.samlet_inkl_am_før_personfradrag_kroner == 207026
+| m4_københavn_2025_kommuneskat: m4_københavn_2025 -> m4_københavn_2025.kommuneskat_før_personfradrag_kroner == 94352
+| m4_københavn_2025_kirkeskat: m4_københavn_2025 -> m4_københavn_2025.kirkeskat_før_personfradrag_kroner == 3212
+| m4_københavn_2025_samlet_før: m4_københavn_2025 -> m4_københavn_2025.samlet_inkl_am_før_personfradrag_kroner == 192810
 | m4_københavn_2025_personfradrag: m4_københavn_2025 -> m4_københavn_2025.personfradrag_kroner == 51600
 | m4_københavn_2025_statslig_skatteværdi: m4_københavn_2025 -> m4_københavn_2025.statslig_personfradrag_skatteværdi_kroner == 6197
 | m4_københavn_2025_kommunal_skatteværdi: m4_københavn_2025 -> m4_københavn_2025.kommunal_personfradrag_skatteværdi_kroner == 12126
 | m4_københavn_2025_kirkelig_skatteværdi: m4_københavn_2025 -> m4_københavn_2025.kirkelig_personfradrag_skatteværdi_kroner == 412
-| m4_københavn_2025_samlet_efter: m4_københavn_2025 -> m4_københavn_2025.samlet_inkl_am_efter_personfradrag_kroner == 188291
+| m4_københavn_2025_samlet_efter: m4_københavn_2025 -> m4_københavn_2025.samlet_inkl_am_efter_personfradrag_kroner == 174075
 | m4_københavn_2025_personfradrag_anvendt: m4_københavn_2025 -> m4_københavn_2025.personfradrag_anvendt_i_slutskat == Sandt
 | m4_københavn_2025_uden_par13_underskud: m4_københavn_2025 -> m4_københavn_2025.kræver_par13_underskud == Falskt
 
 ? m4_københavn_2025_am
 ? m4_københavn_2025_personlig
+? m4_københavn_2025_beskæftigelsesfradrag
+? m4_københavn_2025_jobfradrag
+? m4_københavn_2025_samlede_ligningsfradrag
 ? m4_københavn_2025_bundskat
 ? m4_københavn_2025_topskat
 ? m4_københavn_2025_kommuneskat
@@ -57,8 +64,9 @@ Bruttoløn: 750.000 kr.
 Positiv nettokapitalindkomst: 20.000 kr.
 Ligningsmæssige fradrag: 10.000 kr.
 Kirkeskat: ja
-Kilder: Personskatteloven §§ 1, 3, 6, 7 og 9; Skattestyrelsens 2025-satser;
-Skatteministeriets kommuneskat for Gentofte 2025.
+Kilder: Personskatteloven §§ 1, 3, 6, 7 og 9; Ligningsloven §§ 9 J og 9 K;
+Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for Gentofte
+2025.
 ----
 
 = m4_gentofte_2025_input = LønmodtagerInput(2025, Gentofte, 750000, 20000, 10000, Fyldt18EllerGift, Sandt)
@@ -66,22 +74,28 @@ Skatteministeriets kommuneskat for Gentofte 2025.
 
 | m4_gentofte_2025_am: m4_gentofte_2025 -> m4_gentofte_2025.arbejdsmarkedsbidrag_kroner == 60000
 | m4_gentofte_2025_personlig: m4_gentofte_2025 -> m4_gentofte_2025.personlig_indkomst_efter_am_kroner == 690000
-| m4_gentofte_2025_almindelig: m4_gentofte_2025 -> m4_gentofte_2025.almindelig_skattepligtig_indkomst_kroner == 700000
+| m4_gentofte_2025_beskæftigelsesfradrag: m4_gentofte_2025 -> m4_gentofte_2025.beskæftigelsesfradrag_kroner == 55600
+| m4_gentofte_2025_jobfradrag: m4_gentofte_2025 -> m4_gentofte_2025.jobfradrag_kroner == 2900
+| m4_gentofte_2025_samlede_ligningsfradrag: m4_gentofte_2025 -> m4_gentofte_2025.samlede_ligningsmæssige_fradrag_kroner == 68500
+| m4_gentofte_2025_almindelig: m4_gentofte_2025 -> m4_gentofte_2025.almindelig_skattepligtig_indkomst_kroner == 641500
 | m4_gentofte_2025_bundskat: m4_gentofte_2025 -> m4_gentofte_2025.bundskat_før_personfradrag_kroner == 85271
 | m4_gentofte_2025_topskat: m4_gentofte_2025 -> m4_gentofte_2025.topskat_før_personfradrag_kroner == 11730
-| m4_gentofte_2025_kommuneskat: m4_gentofte_2025 -> m4_gentofte_2025.kommuneskat_før_personfradrag_kroner == 169680
-| m4_gentofte_2025_kirkeskat: m4_gentofte_2025 -> m4_gentofte_2025.kirkeskat_før_personfradrag_kroner == 2730
-| m4_gentofte_2025_samlet_før: m4_gentofte_2025 -> m4_gentofte_2025.samlet_inkl_am_før_personfradrag_kroner == 329411
+| m4_gentofte_2025_kommuneskat: m4_gentofte_2025 -> m4_gentofte_2025.kommuneskat_før_personfradrag_kroner == 155499
+| m4_gentofte_2025_kirkeskat: m4_gentofte_2025 -> m4_gentofte_2025.kirkeskat_før_personfradrag_kroner == 2501
+| m4_gentofte_2025_samlet_før: m4_gentofte_2025 -> m4_gentofte_2025.samlet_inkl_am_før_personfradrag_kroner == 315001
 | m4_gentofte_2025_personfradrag: m4_gentofte_2025 -> m4_gentofte_2025.personfradrag_kroner == 51600
 | m4_gentofte_2025_statslig_skatteværdi: m4_gentofte_2025 -> m4_gentofte_2025.statslig_personfradrag_skatteværdi_kroner == 6197
 | m4_gentofte_2025_kommunal_skatteværdi: m4_gentofte_2025 -> m4_gentofte_2025.kommunal_personfradrag_skatteværdi_kroner == 12507
 | m4_gentofte_2025_kirkelig_skatteværdi: m4_gentofte_2025 -> m4_gentofte_2025.kirkelig_personfradrag_skatteværdi_kroner == 201
-| m4_gentofte_2025_samlet_efter: m4_gentofte_2025 -> m4_gentofte_2025.samlet_inkl_am_efter_personfradrag_kroner == 310506
+| m4_gentofte_2025_samlet_efter: m4_gentofte_2025 -> m4_gentofte_2025.samlet_inkl_am_efter_personfradrag_kroner == 296096
 | m4_gentofte_2025_personfradrag_anvendt: m4_gentofte_2025 -> m4_gentofte_2025.personfradrag_anvendt_i_slutskat == Sandt
 | m4_gentofte_2025_uden_par13_underskud: m4_gentofte_2025 -> m4_gentofte_2025.kræver_par13_underskud == Falskt
 
 ? m4_gentofte_2025_am
 ? m4_gentofte_2025_personlig
+? m4_gentofte_2025_beskæftigelsesfradrag
+? m4_gentofte_2025_jobfradrag
+? m4_gentofte_2025_samlede_ligningsfradrag
 ? m4_gentofte_2025_almindelig
 ? m4_gentofte_2025_bundskat
 ? m4_gentofte_2025_topskat
@@ -105,21 +119,27 @@ Positiv nettokapitalindkomst: 0 kr.
 Ligningsmæssige fradrag: 0 kr.
 Kirkeskat: nej
 Kilder: Personskatteloven §§ 1, 3, 5-9 som ændret ved LOV nr. 482 af
-22/05/2024; Skattestyrelsens 2026-satser; Skatteministeriets kommuneskat for
-København 2026.
+22/05/2024; Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser;
+Skatteministeriets kommuneskat for København 2026.
 ----
 
 = m4_københavn_2026_input = LønmodtagerInput(2026, København, 900000, 0, 0, Fyldt18EllerGift, Falskt)
 = m4_københavn_2026 = beregn_lønmodtager(m4_københavn_2026_input)
 
 | m4_københavn_2026_personlig: m4_københavn_2026 -> m4_københavn_2026.personlig_indkomst_efter_am_kroner == 828000
+| m4_københavn_2026_beskæftigelsesfradrag: m4_københavn_2026 -> m4_københavn_2026.beskæftigelsesfradrag_kroner == 63300
+| m4_københavn_2026_jobfradrag: m4_københavn_2026 -> m4_københavn_2026.jobfradrag_kroner == 3100
+| m4_københavn_2026_samlede_ligningsfradrag: m4_københavn_2026 -> m4_københavn_2026.samlede_ligningsmæssige_fradrag_kroner == 66400
 | m4_københavn_2026_mellemskat: m4_københavn_2026 -> m4_københavn_2026.mellemskat_før_personfradrag_kroner == 14010
 | m4_københavn_2026_topskat: m4_københavn_2026 -> m4_københavn_2026.topskat_før_personfradrag_kroner == 3757
 | m4_københavn_2026_toptopskat_ikke_aktiveret: m4_københavn_2026 -> m4_københavn_2026.toptopskat_før_personfradrag_kroner == 0
 | m4_københavn_2026_personfradrag: m4_københavn_2026 -> m4_københavn_2026.personfradrag_kroner == 54100
-| m4_københavn_2026_samlet_efter: m4_københavn_2026 -> m4_københavn_2026.samlet_inkl_am_efter_personfradrag_kroner == 363728
+| m4_københavn_2026_samlet_efter: m4_københavn_2026 -> m4_københavn_2026.samlet_inkl_am_efter_personfradrag_kroner == 348197
 
 ? m4_københavn_2026_personlig
+? m4_københavn_2026_beskæftigelsesfradrag
+? m4_københavn_2026_jobfradrag
+? m4_københavn_2026_samlede_ligningsfradrag
 ? m4_københavn_2026_mellemskat
 ? m4_københavn_2026_topskat
 ? m4_københavn_2026_toptopskat_ikke_aktiveret
@@ -135,7 +155,7 @@ Positiv nettokapitalindkomst: 0 kr.
 Ligningsmæssige fradrag: 0 kr.
 Kirkeskat: nej
 Kilder: Personskatteloven §§ 5-8 som ændret ved LOV nr. 482 af 22/05/2024;
-Skattestyrelsens 2026-satser.
+Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
 ----
 
 = m4_københavn_2026_toptop_input = LønmodtagerInput(2026, København, 3000000, 0, 0, Fyldt18EllerGift, Falskt)
@@ -144,7 +164,7 @@ Skattestyrelsens 2026-satser.
 | m4_københavn_2026_toptop_mellemskat: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.mellemskat_før_personfradrag_kroner == 158910
 | m4_københavn_2026_toptop_topskat: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.topskat_før_personfradrag_kroner == 148657
 | m4_københavn_2026_toptop_toptopskat: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.toptopskat_før_personfradrag_kroner == 8365
-| m4_københavn_2026_toptop_samlet_efter: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.samlet_inkl_am_efter_personfradrag_kroner == 1513822
+| m4_københavn_2026_toptop_samlet_efter: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.samlet_inkl_am_efter_personfradrag_kroner == 1498291
 
 ? m4_københavn_2026_toptop_mellemskat
 ? m4_københavn_2026_toptop_topskat
@@ -160,19 +180,21 @@ Positiv nettokapitalindkomst: 110.000 kr.
 Ligningsmæssige fradrag: 0 kr.
 Kirkeskat: nej
 Kilder: Personskatteloven § 7 som ændret ved LOV nr. 482 af 22/05/2024;
-Skattestyrelsens 2026-satser.
+Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
 ----
 
 = m4_københavn_2026_kapital_input = LønmodtagerInput(2026, København, 650000, 110000, 0, Fyldt18EllerGift, Falskt)
 = m4_københavn_2026_kapital = beregn_lønmodtager(m4_københavn_2026_kapital_input)
 
 | m4_københavn_2026_kapital_personlig: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.personlig_indkomst_efter_am_kroner == 598000
-| m4_københavn_2026_kapital_almindelig: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.almindelig_skattepligtig_indkomst_kroner == 708000
+| m4_københavn_2026_kapital_samlede_ligningsfradrag: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.samlede_ligningsmæssige_fradrag_kroner == 66400
+| m4_københavn_2026_kapital_almindelig: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.almindelig_skattepligtig_indkomst_kroner == 641600
 | m4_københavn_2026_kapital_mellemskat: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.mellemskat_før_personfradrag_kroner == 885
 | m4_københavn_2026_kapital_topskat_ikke_aktiveret: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.topskat_før_personfradrag_kroner == 0
-| m4_københavn_2026_kapital_samlet_efter: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.samlet_inkl_am_efter_personfradrag_kroner == 284366
+| m4_københavn_2026_kapital_samlet_efter: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.samlet_inkl_am_efter_personfradrag_kroner == 268835
 
 ? m4_københavn_2026_kapital_personlig
+? m4_københavn_2026_kapital_samlede_ligningsfradrag
 ? m4_københavn_2026_kapital_almindelig
 ? m4_københavn_2026_kapital_mellemskat
 ? m4_københavn_2026_kapital_topskat_ikke_aktiveret

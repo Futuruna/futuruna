@@ -46,6 +46,10 @@ Current § 13 amendment/dependency sources:
   `https://www.retsinformation.dk/eli/lta/2025/1500`
   - XML status on 2026-07-18: `Valid`
   - § 33 A is the foreign-wage relief exception in § 13, stk. 5.
+  - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
+    wage-earner calculator.
+  - SKM rates page used for current basis points and caps:
+    `https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven`
 - Sømandsbeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2023/1181`
   - XML status on 2026-07-18: `Valid`
@@ -96,11 +100,12 @@ encoded as a temporal rule on top of the consolidation.
 - `kommuneskatteloven.runa` exists and checks with `runa check`.
 - `folkekirkens-oekonomi.runa` exists and checks with `runa check`.
 - `kildeskatteloven.runa` exists and checks with `runa check`.
+- `ligningsloven_fradrag.runa` exists and checks with `runa check`.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
-- `loenmodtager-fixtures.runa` exists and checks/runs with `runa run`.
-- `husholdning-scenarier.runa` exists and checks/runs with `runa run`.
-- `personskatteloven-audit.runa` exists and checks/runs with `runa run`.
+- `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
+- `husholdning-scenarier.scenario.runa` exists and checks/runs with `runa run`.
+- `personskatteloven.audit.runa` exists and checks/runs with `runa run`.
 - Website research page exists at `/research/personskatteloven` and renders
   source status, milestone status, selected audit signals, and the checked
   `.runa` corpus.
@@ -108,10 +113,11 @@ encoded as a temporal rule on top of the consolidation.
   §§ 1-4 b income taxonomy, the §§ 5-9 state-tax skeleton, the §§ 10-13
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
   slice, the §§ 21-28 concluding provisions slice, ordinary AM-law,
-  municipal-income-tax, church-tax and Kildeskatteloven A-income/withholding
-  dependency slices, 2024/2025 tax-year parameter packs, first wage-earner
-  fixtures, a first fictional household scenario, complex § 13 calculator
-  fixtures, and first audit signals.
+  municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding and
+  Ligningsloven ordinary wage-earner deduction dependency slices, 2024/2025
+  tax-year parameter packs, first wage-earner scenarios, a first fictional
+  household scenario, complex § 13 calculator fixtures, and first audit
+  signals.
 - The chapter files follow the repeating structure: official legal text in a
   multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
@@ -121,6 +127,8 @@ encoded as a temporal rule on top of the consolidation.
   present in the language test corpus and should be used for legal formulations.
 - Website integration is active and should be updated whenever a checked
   Personskatteloven `.runa` slice becomes part of the displayed corpus.
+- Executable scenario tests use `.scenario.runa` filenames. Cross-cutting audit
+  suites use `.audit.runa` filenames.
 
 ## File Layout
 
@@ -188,8 +196,9 @@ whole statute to be calculation-complete.
 - Gather complementary official sources for:
   AM-law special cases, e-skattekort/forskudsopgørelse data mechanics,
   Opkrævningsloven collection/payment deadlines, municipal and church-tax
-  settlement/allocation, personal allowance, ligningsmæssige fradrag, and
-  annual rate/threshold adjustments.
+  settlement/allocation, personal allowance, other itemized deductions beyond
+  the ordinary §§ 9 J/9 K wage-earner deductions, and annual rate/threshold
+  adjustments.
 - Expand audit coverage for source drift, missing dependencies, tax cliffs,
   delegated powers, and category boundary problems.
 - Extend the website page as more of the corpus becomes calculation-ready.
@@ -263,8 +272,9 @@ M4 - Ordinary taxpayer calculator
   assumptions.
 - Current slice: 2025 Copenhagen and Gentofte wage-earner fixtures produce
   deterministic AM contribution, personal income after AM, ordinary taxable
-  income, bundskat, topskat, municipal tax, church tax, § 10 personfradrag,
-  § 12 personfradrag tax values, after-personfradrag totals, and a § 13
+  income after derived Ligningsloven §§ 9 J/9 K wage-earner deductions,
+  bundskat, topskat, municipal tax, church tax, § 10 personfradrag, § 12
+  personfradrag tax values, after-personfradrag totals, and a § 13
   ordinary-positive-income boundary. Separate § 13 calculator breakdown fixtures
   now cover spouse-transfer deficit, LL § 33 A relief, 2026 post-PBL-repeal
   transfer, and same-business loss carry-forward cases. 2026 Copenhagen
@@ -274,13 +284,15 @@ M4 - Ordinary taxpayer calculator
   wage-earner AM contribution now imports Arbejdsmarkedsbidragsloven instead of
   using a local arithmetic shortcut. Ordinary municipal income tax and church
   tax now import Kommuneskatteloven and Folkekirkens økonomi instead of using
-  local arithmetic shortcuts. A first fictional household scenario now computes
-  a 2026 Copenhagen married renter household with 50.000 kr./month primary wage
-  income and 20.000 kr./month spouse wage income, while explicitly marking rent,
-  child benefits, housing support and deduction discovery as outside the
-  current executable slice. Kildeskatteloven now marks the primary wage as
-  A-income, proves that A-skat must be withheld, and computes the statutory
-  55 pct. withholding if no e-skattekort, bikort or frikort has been received.
+  local arithmetic shortcuts. Ordinary Ligningsloven employment/job deductions
+  now import the Ligningsloven dependency slice instead of being manual zeroes.
+  A first fictional household scenario now computes a 2026 Copenhagen married
+  renter household with 50.000 kr./month primary wage income and 20.000
+  kr./month spouse wage income, while explicitly marking rent, child benefits,
+  housing support and other deduction discovery as outside the current
+  executable slice. Kildeskatteloven now marks the primary wage as A-income,
+  proves that A-skat must be withheld, and computes the statutory 55 pct.
+  withholding if no e-skattekort, bikort or frikort has been received.
 
 M5 - Audit suite
 
@@ -291,7 +303,8 @@ M5 - Audit suite
 - Current slice: source-status rejection, covered normal-fixture
   personfradrag, covered 2026 state-tax reform layers, covered § 13 deficit
   mechanics, mellemskat positive-net-capital and spouse-threshold activation,
-  ordinary wage AM-law coverage, ordinary municipal/church-tax legal coverage,
+  ordinary wage AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
+  wage-earner-deduction coverage, ordinary municipal/church-tax legal coverage,
   covered Kildeskatteloven ordinary A-income/withholding posture, covered
   fictional household scenario, topskat threshold activation, covered § 14
   annualization, covered § 19 skatteloft including the 2026 44,57 pct. ceiling,
@@ -311,9 +324,10 @@ M6 - Website integration
   is a calculation-ready slice or a research/audit slice.
 - Current slice: `/research/personskatteloven` links the valid and historic
   sources, renders the milestone log, embeds the checked §§ 1-28 `.runa`
-  corpus, marks the limited wage-earner fixture slice plus ordinary
-  Kildeskatteloven A-income/withholding posture as calculation-ready, and marks
-  the full statute model as research/audit-only.
+  corpus plus `.scenario.runa` executable scenarios and the `.audit.runa`
+  audit suite, marks the limited wage-earner fixture slice plus ordinary
+  Ligningsloven deductions and Kildeskatteloven A-income/withholding posture as
+  calculation-ready, and marks the full statute model as research/audit-only.
 
 M7 - Personfradrag and deficit layer
 
