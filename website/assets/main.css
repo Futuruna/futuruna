@@ -412,6 +412,17 @@ section {
     font-size: 0.86em;
 }
 
+.ai-guide-command {
+    display: block;
+    margin-top: 1rem;
+    padding: 0.65rem 0.75rem;
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
 .ai-guide-link {
     display: inline-block;
     margin-top: 1rem;
@@ -420,6 +431,7 @@ section {
     font-size: 0.82rem;
     font-weight: 600;
     text-decoration: none;
+    overflow-wrap: anywhere;
 }
 
 .ai-guide-link:hover {

@@ -338,19 +338,24 @@ fn AiGuide() -> Element {
                 p { class: "ai-guide-kicker", "AI Guide" }
                 h2 { class: "section-title", "How to get your AI working with Futuruna" }
                 p { class: "section-desc",
-                    "Ask your Claude Code, Codex, or AI system to:"
+                    "Ask your Claude Code, Codex, Claude Cowork, or AI system to:"
                 }
                 ol { class: "ai-guide-steps",
                     li { class: "ai-guide-step",
                         span { class: "ai-guide-step-index", "1" }
                         h3 { "Download and install Futuruna" }
                         p {
-                            "Clone the project, install the Rust toolchain if needed, and run the local checks before editing."
+                            "Use the public bootstrap script to clone the project, build "
+                            code { "runa" }
+                            ", and run the weather demo smoke test."
+                        }
+                        code { class: "ai-guide-command",
+                            "curl -fsSL https://futuruna.com/ai-bootstrap.sh | bash"
                         }
                         a {
                             class: "ai-guide-link",
-                            href: "https://github.com/Futuruna/futuruna",
-                            "Install from GitHub"
+                            href: "https://futuruna.com/ai-bootstrap.sh",
+                            "https://futuruna.com/ai-bootstrap.sh"
                         }
                     }
                     li { class: "ai-guide-step",
