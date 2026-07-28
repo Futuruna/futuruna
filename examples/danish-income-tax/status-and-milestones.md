@@ -429,12 +429,15 @@ Review candidates to revisit deliberately, not as broad churn:
   fictional household's generated-card annual settlement currently yields
   3.541 kr. overskydende skat and 3.541 kr. payout under the source-derived
   § 7 rate fixture.
-  The first bomb-audit probes now formalize three daisy-chain tensions: § 14
+  The first bomb-audit probes now formalize five daisy-chain tensions: § 14
   helårsomregning can increase the state-tax component for the 180-day
   wage-earner case by 3.293 kr.; a high municipal rate can lower the state-tax
-  component through § 19 while still increasing total tax; and the 2026
-  personlige skatteloft sits 10,83 percentage points below the full
-  mellemskat/topskat/toptopskat progression stack in the Copenhagen probe.
+  component through § 19 while still increasing total tax; the 2026 personlige
+  skatteloft sits 10,83 percentage points below the full
+  mellemskat/topskat/toptopskat progression stack in the Copenhagen probe; §
+  8 a unused spouse share-income threshold can remove the high share-income
+  tax bracket; and § 8 a mandatory negative share-income spouse offset is not
+  neutral in the family-net probe.
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
@@ -457,9 +460,10 @@ Review candidates to revisit deliberately, not as broad churn:
   and annual rate/threshold adjustments.
 - Expand audit coverage for source drift, missing dependencies, tax cliffs,
   delegated powers, category boundary problems, and multi-step daisy-chain
-  effects. The first dedicated bomb-audit file now covers § 14 annualisation
-  and § 19 skatteloft interactions; remaining probes should target spouse
-  transfer, share-income boundaries, CFC/business income, and benefit cliffs.
+  effects. The first dedicated bomb-audit file now covers § 8 a share-income
+  spouse-threshold/negative-offset interactions, § 14 annualisation, and § 19
+  skatteloft interactions; remaining probes should target CFC/business income,
+  benefit cliffs, and cross-law allowance or collection timing chains.
 - Extend the website page as more of the corpus becomes calculation-ready.
 
 ## Later
@@ -609,7 +613,7 @@ M5 - Audit suite
   posture, covered fictional household scenario, covered external Skat.dk 2026
   ordinary wage-earner fixture, topskat threshold activation,
   covered § 14 annualization and first wage-earner calculator integration,
-  covered first bomb-audit probes for § 14/§ 19 daisy-chain tensions,
+  covered first bomb-audit probes for § 8 a/§ 14/§ 19 daisy-chain tensions,
   covered § 19 skatteloft including the 2026
   44,57 pct. personal ceiling, 42 pct. positive-capital ceiling, and
   calculator-level wage-earner integration for both paths, including
@@ -645,7 +649,7 @@ M6 - Website integration
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
-  first § 14/§ 19 bomb-audit probes,
+  first § 8 a/§ 14/§ 19 bomb-audit probes,
   Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily
   interest-context, and cross-calendar-year interest-split slices, the B-skat
   calendar projection, § 62 A interest fixtures, § 14 partial-year wage-earner
