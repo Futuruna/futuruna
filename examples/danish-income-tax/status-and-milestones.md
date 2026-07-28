@@ -143,6 +143,22 @@ Current municipal/church-tax and withholding dependency sources:
     divisor is 365 or 366 in leap years:
     `https://info.skat.dk/data.aspx?oid=2168585&chk=220619`.
 
+Current external validation sources:
+
+- Skattestyrelsen calculator:
+  `https://www.tastselv.skat.dk/fskbrgn2/Skprofil.aspx?indkomstaar=2026`
+  - Supporting public page:
+    `https://skat.dk/en-us/individuals/preliminary-income-assessment/calculate-your-pay`
+  - Retrieved on 2026-07-18.
+  - Calculator version observed in the profile form: `26.2.2.3`.
+  - First fixture: enlig Copenhagen taxpayer, born 01.01.1980, no church tax,
+    no spouse/children/self-employment, 600.000 kr. in `Lønindkomst mv.`
+    (`tbAFYfnr201`), all other tax-information fields blank/default.
+  - Observed result used in `skatdk-2026-ekstern.scenario.runa`: final tax
+    including AM contribution 208.725,64 kr., forskudsskat to A/B-tax
+    collection 160.725,64 kr., trækprocent 36 pct., and monthly tax-card
+    allowance 8.164 kr.
+
 Working decision: use `2021/1284` as the current consolidated source for live
 encoding, while preserving `2019/799` as source lineage because the valid
 consolidation explicitly builds on it. The 2019 source remains useful for
@@ -173,6 +189,7 @@ encoded as a temporal rule on top of the consolidation.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
+- `skatdk-2026-ekstern.scenario.runa` exists and checks/runs with `runa run`.
 - `delaar-scenarier.scenario.runa` exists and checks/runs with `runa run`.
 - `husholdning-scenarier.scenario.runa` exists and checks/runs with `runa run`.
 - `slutopgoerelse.scenario.runa` exists and checks/runs with `runa run`.
@@ -200,7 +217,8 @@ encoded as a temporal rule on top of the consolidation.
   dependency slices, 2024/2025/2026 tax-year parameter packs, grouped
   wage-earner calculation-domain records, first wage-earner scenarios, a first
   § 14 partial-year wage-earner scenario, a first fictional household scenario,
-  complex § 13 calculator fixtures, and first audit signals.
+  a source-backed external Skat.dk 2026 wage-earner scenario, complex § 13
+  calculator fixtures, and first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
   multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
@@ -321,6 +339,14 @@ Current decision:
   wage-earner partial-year cases. It carries tax-liability change status, the
   delårs wage-earner input, and tax-liability days together, instead of passing
   those scalars through every helper rule.
+- `KildeskattebekendtgørelseForskudskortInput` now composes a named
+  `KildeskattebekendtgørelseForskudskortIndkomstgrundlag` instead of passing
+  annual basis, period basis, and excluded basis as loose scalars. The source
+  backed Skat.dk fixture showed why this matters: generated tax-card values
+  must use the AM-reduced A-tax basis for ordinary wages, not the gross wage
+  amount. `KildeskatESkattekortInput` now names that field
+  `a_skat_grundlag_kroner` so downstream rules do not smuggle gross A-income
+  semantics into withholding calculations.
 - `parameterpakke_komplet` now depends on a year+municipality coverage rule
   rather than a broad municipality predicate. This keeps the parameter-pack
   domain honest as new municipalities are added for selected years; Langeland is
@@ -335,10 +361,9 @@ Current decision:
 
 Review candidates to revisit deliberately, not as broad churn:
 
-- `KildeskatESkattekortInput` and
-  `KildeskattebekendtgørelseForskudskortInput` still may eventually share
-  smaller card-period and withholding-percentage objects, but the current BEK
-  1094 slice keeps the annual 2026 percentage derivation as its own domain
+- `KildeskatESkattekortInput` and the generated-card result may eventually
+  share smaller card-period and withholding-percentage objects, but the current
+  BEK 1094 slice keeps the annual 2026 percentage derivation as its own domain
   object rather than forcing a broader card refactor prematurely.
 - `ArbejdsmarkedsbidragUdvidetLønmodtagerInput` and
   `ArbejdsmarkedsbidragVirksomhedsordningInput` are wide, but they still mirror
@@ -407,7 +432,9 @@ Review candidates to revisit deliberately, not as broad churn:
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
 - Add trusted external partial-year differential fixtures for § 14 and external
-  differential fixtures for the § 19 calculator paths. The source-backed
+  differential fixtures for the § 19 calculator paths. The ordinary 2026
+  Copenhagen wage-earner path now has a source-backed Skat.dk calculator
+  fixture for final tax and generated tax-card values. The source-backed
   Langeland 2026 high-municipal-rate fixture now exercises both § 19 personal
   and positive-capital relief inside the wage-earner calculator.
 - Separate legal structure from annual parameter packs: rates, thresholds,
@@ -569,7 +596,8 @@ M5 - Audit suite
   covered BEK 839 forskudskort generation, covered BEK 1094 2026
   indeholdelsesprocent derivation, covered Kildeskatteloven slutopgørelse
   balance/restskat timing/overskydende skat compensation/dividend-tax credit
-  posture, covered fictional household scenario, topskat threshold activation,
+  posture, covered fictional household scenario, covered external Skat.dk 2026
+  ordinary wage-earner fixture, topskat threshold activation,
   covered § 14 annualization and first wage-earner calculator integration,
   covered § 19 skatteloft including the 2026
   44,57 pct. personal ceiling, 42 pct. positive-capital ceiling, and
@@ -601,7 +629,8 @@ M6 - Website integration
   sources, renders the milestone log, embeds the checked §§ 1-28 `.runa`
   corpus plus `.scenario.runa` executable scenarios and the `.audit.runa`
   audit suite, marks the shared Pengebeløb rounding posture, the limited
-  wage-earner fixture slice plus ordinary and
+  wage-earner fixture slice, a source-backed external Skat.dk 2026 ordinary
+  wage-earner fixture, plus ordinary and
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,

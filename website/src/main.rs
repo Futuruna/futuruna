@@ -2800,6 +2800,8 @@ const TAX_PARAMS: &str = include_str!("../../examples/danish-income-tax/skatteaa
 const TAX_CALC: &str = include_str!("../../examples/danish-income-tax/loenmodtager_beregning.runa");
 const TAX_FIXTURES: &str =
     include_str!("../../examples/danish-income-tax/loenmodtager-fixtures.scenario.runa");
+const TAX_SKATDK_EXTERNAL: &str =
+    include_str!("../../examples/danish-income-tax/skatdk-2026-ekstern.scenario.runa");
 const TAX_PARTIAL_YEAR: &str =
     include_str!("../../examples/danish-income-tax/delaar-scenarier.scenario.runa");
 const TAX_HOUSEHOLD: &str =
@@ -3572,6 +3574,11 @@ fn ResearchPersonskatteloven() -> Element {
             "loenmodtager-fixtures.scenario.runa — eksekverbare normalperson-scenarier",
             "fixtures-code",
             TAX_FIXTURES,
+        ),
+        (
+            "skatdk-2026-ekstern.scenario.runa — ekstern Skat.dk 2026 kontrol",
+            "skatdk-external-code",
+            TAX_SKATDK_EXTERNAL,
         ),
         (
             "delaar-scenarier.scenario.runa — § 14 delårsscenarie",

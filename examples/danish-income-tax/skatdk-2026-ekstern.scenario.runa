@@ -1,0 +1,83 @@
+@ sprog da
+
+@ importer ./loenmodtager_beregning
+@ importer ./kildeskattebekendtgoerelsen
+@ importer ./forskudsregistrering_2026
+
+-- Personskatteloven -- source-backed external SKAT calculator scenario.
+--
+-- This file is deliberately a scenario fixture. Legal text remains in the law
+-- modules; this file records a reproducible external comparison point.
+
+----
+Scenario 1
+External source:
+Skattestyrelsen, "Beregn skat og skattekort 2026 - Resultat"
+Calculator URL:
+https://www.tastselv.skat.dk/fskbrgn2/Skprofil.aspx?indkomstaar=2026
+Supporting SKAT page:
+https://skat.dk/en-us/individuals/preliminary-income-assessment/calculate-your-pay
+Retrieved: 2026-07-18
+Calculator version observed in profile form: 26.2.2.3
+
+Profile:
+Civilstand: enlig.
+Fødselsdato: 01.01.1980.
+Kommune: København, kommunekode 101.
+Kirkeskat: nej.
+Selvstændig erhvervsdrivende: nej.
+Children and spouse fields: none.
+
+Skatteoplysninger:
+tbAFYfnr201 / "Lønindkomst mv.": 600.000 kr.
+All other input fields left blank/default.
+
+Observed result:
+Trækprocent: 36.
+Månedsfradrag: 8.164 kr.
+Lønindkomst mv.: 600.000 kr.
+AM-bidrag A-indkomst: -48.000 kr.
+Personlig indkomst i alt: 552.000 kr.
+Beskæftigelsesfradrag: -63.300 kr.
+Jobfradrag: -3.100 kr.
+Skattepligtig indkomst: 485.600 kr.
+Bundskat 12,01 pct.: 66.295,20 kr.
+Kommuneskat 23,39 pct.: 113.581,84 kr.
+Skatteværdi af personfradrag i bundskat: -6.497,41 kr.
+Skatteværdi af personfradrag i kommuneskat: -12.653,99 kr.
+Samlet skat, inkl. AM-bidrag: 208.725,64 kr.
+Forskudsskat til opkrævning som A-skat og B-skat mv.: 160.725,64 kr.
+----
+
+# SkatDkEksternBeregning2026(kilde_url: Tekst, støtte_url: Tekst, hentet_dato: Tekst, calculator_version: Tekst, samlet_skat_inkl_am_øre: Heltal, forskudsskat_til_a_og_b_skat_øre: Heltal, trækprocent_basispoint: Heltal, månedsfradrag_kroner: Heltal)
+
+| skatdk_øre_afrundet_til_kroner(øre: Heltal) -> (øre + 50) / 100
+
+= skatdk_2026_københavn_600k_kilde = SkatDkEksternBeregning2026("https://www.tastselv.skat.dk/fskbrgn2/Skprofil.aspx?indkomstaar=2026", "https://skat.dk/en-us/individuals/preliminary-income-assessment/calculate-your-pay", "2026-06-21", "26.2.2.3", 20872564, 16072564, 3600, 8164)
+= skatdk_2026_københavn_600k_input = LønmodtagerInput(2026, København, 600000, 0, 0, Fyldt18EllerGift, Falskt)
+= skatdk_2026_københavn_600k_futuruna = beregn_lønmodtager(skatdk_2026_københavn_600k_input)
+= skatdk_2026_københavn_600k_forskudsskat_afrundet = skatdk_øre_afrundet_til_kroner(skatdk_2026_københavn_600k_kilde.forskudsskat_til_a_og_b_skat_øre)
+= skatdk_2026_københavn_600k_indkomstgrundlag = KildeskattebekendtgørelseForskudskortIndkomstgrundlag(skatdk_2026_københavn_600k_futuruna.personlig_indkomst_efter_am_kroner, skatdk_2026_københavn_600k_futuruna.personlig_indkomst_efter_am_kroner / 12, 0)
+= skatdk_2026_københavn_600k_procentinput = Forskudsregistrering2026IndeholdelsesprocentInput(forskudsregistrering_2026_skattekommune_for(2026, København, Falskt), Forskudsregistrering2026Progressionsgrundlag(skatdk_2026_københavn_600k_futuruna.personlig_indkomst_efter_am_kroner, 0), Forskudsregistrering2026Progressionsskatter(skatdk_2026_københavn_600k_futuruna.mellemskat_før_personfradrag_kroner, skatdk_2026_københavn_600k_futuruna.topskat_før_personfradrag_kroner, skatdk_2026_københavn_600k_futuruna.toptopskat_før_personfradrag_kroner))
+= skatdk_2026_københavn_600k_kort = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(2026, skatdk_2026_københavn_600k_indkomstgrundlag, skatdk_2026_københavn_600k_forskudsskat_afrundet, forskudsregistrering_2026_indeholdelsesprocent_basispoint(skatdk_2026_københavn_600k_procentinput), 5200, 0, Sandt, Sandt, Måned, Sandt))
+
+| skatdk_2026_københavn_600k_kildespor: skatdk_2026_københavn_600k_kilde -> skatdk_2026_københavn_600k_kilde.calculator_version == "26.2.2.3" && skatdk_2026_københavn_600k_kilde.hentet_dato == "2026-06-21"
+| skatdk_2026_københavn_600k_am: skatdk_2026_københavn_600k_futuruna -> skatdk_2026_københavn_600k_futuruna.arbejdsmarkedsbidrag_kroner == 48000
+| skatdk_2026_københavn_600k_personlig: skatdk_2026_københavn_600k_futuruna -> skatdk_2026_københavn_600k_futuruna.personlig_indkomst_efter_am_kroner == 552000
+| skatdk_2026_københavn_600k_fradrag: skatdk_2026_københavn_600k_futuruna -> skatdk_2026_københavn_600k_futuruna.beskæftigelsesfradrag_kroner == 63300 && skatdk_2026_københavn_600k_futuruna.jobfradrag_kroner == 3100 && skatdk_2026_københavn_600k_futuruna.almindelig_skattepligtig_indkomst_kroner == 485600
+| skatdk_2026_københavn_600k_skatter: skatdk_2026_københavn_600k_futuruna -> skatdk_2026_københavn_600k_futuruna.bundskat_før_personfradrag_kroner == 66295 && skatdk_2026_københavn_600k_futuruna.kommuneskat_før_personfradrag_kroner == 113581
+| skatdk_2026_københavn_600k_samlet_skat_matcher: skatdk_2026_københavn_600k_futuruna -> skatdk_2026_københavn_600k_futuruna.samlet_inkl_am_efter_personfradrag_kroner == skatdk_øre_afrundet_til_kroner(skatdk_2026_københavn_600k_kilde.samlet_skat_inkl_am_øre)
+| skatdk_2026_københavn_600k_forskudsskat_matcher: skatdk_2026_københavn_600k_futuruna -> skatdk_2026_københavn_600k_futuruna.samlet_inkl_am_efter_personfradrag_kroner - skatdk_2026_københavn_600k_futuruna.arbejdsmarkedsbidrag_kroner == skatdk_2026_københavn_600k_forskudsskat_afrundet
+| skatdk_2026_københavn_600k_skattekort_matcher: skatdk_2026_københavn_600k_kort -> skatdk_2026_københavn_600k_kort.indeholdelsesprocent_basispoint == skatdk_2026_københavn_600k_kilde.trækprocent_basispoint && skatdk_2026_københavn_600k_kort.månedsfradrag_kroner == skatdk_2026_københavn_600k_kilde.månedsfradrag_kroner
+
+? skatdk_2026_københavn_600k_kildespor
+? skatdk_2026_københavn_600k_am
+? skatdk_2026_københavn_600k_personlig
+? skatdk_2026_københavn_600k_fradrag
+? skatdk_2026_københavn_600k_skatter
+? skatdk_2026_københavn_600k_samlet_skat_matcher
+? skatdk_2026_københavn_600k_forskudsskat_matcher
+? skatdk_2026_københavn_600k_skattekort_matcher
+
+@ print("skat.dk 2026 København 600k samlet skat inkl. AM helkrone: " + vis(skatdk_2026_københavn_600k_futuruna.samlet_inkl_am_efter_personfradrag_kroner))
+@ print("skat.dk 2026 København 600k skattekort trækprocent/månedsfradrag: " + vis(skatdk_2026_københavn_600k_kort.indeholdelsesprocent_basispoint / 100) + "/" + vis(skatdk_2026_københavn_600k_kort.månedsfradrag_kroner))

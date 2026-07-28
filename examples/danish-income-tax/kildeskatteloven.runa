@@ -188,8 +188,8 @@ fastsat i medfør af stk. 4.
 ----
 
 # KildeskatFradragsperiode = Måned | FjortenDage | Uge | Dag
-# KildeskatSkattekortInput(a_indkomst_kroner: Heltal, fradrag_kroner: Heltal, indeholdelsesprocent_basispoint: Heltal, kort: KildeskatKort)
-# KildeskatESkattekortInput(a_indkomst_kroner: Heltal, månedsfradrag_kroner: Heltal, fjorten_dages_fradrag_kroner: Heltal, ugefradrag_kroner: Heltal, dagsfradrag_kroner: Heltal, indeholdelsesprocent_basispoint: Heltal, ønsket_højere_indeholdelsesprocent_basispoint: Heltal, kort: KildeskatKort, periode: KildeskatFradragsperiode, nedrunding_til_ti_kroner: Boolsk)
+# KildeskatSkattekortInput(a_skat_grundlag_kroner: Heltal, fradrag_kroner: Heltal, indeholdelsesprocent_basispoint: Heltal, kort: KildeskatKort)
+# KildeskatESkattekortInput(a_skat_grundlag_kroner: Heltal, månedsfradrag_kroner: Heltal, fjorten_dages_fradrag_kroner: Heltal, ugefradrag_kroner: Heltal, dagsfradrag_kroner: Heltal, indeholdelsesprocent_basispoint: Heltal, ønsket_højere_indeholdelsesprocent_basispoint: Heltal, kort: KildeskatKort, periode: KildeskatFradragsperiode, nedrunding_til_ti_kroner: Boolsk)
 
 | kildeskat_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 | kildeskat_nedrundet_til_ti_kroner(beløb_kroner: Heltal) -> penge_nedrundet_til_ti_kroner(beløb_kroner)
@@ -217,12 +217,12 @@ fastsat i medfør af stk. 4.
 | kildeskat_effektiv_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> kildeskat_indeholdelsesprocent_basispoint(input)
 | exception kildeskat_skattepligtig_begærer_højere_procent kildeskat_effektiv_indeholdelsesprocent_basispoint(input: KildeskatESkattekortInput) -> input.ønsket_højere_indeholdelsesprocent_basispoint under kildeskat_kort_er_skattekort_eller_bikort(input.kort) && input.ønsket_højere_indeholdelsesprocent_basispoint > kildeskat_indeholdelsesprocent_basispoint(input)
 
-| kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input: KildeskatESkattekortInput) -> kildeskat_positivt_beløb(input.a_indkomst_kroner - kildeskat_skattekort_periodefradrag_kroner(input))
+| kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input: KildeskatESkattekortInput) -> kildeskat_positivt_beløb(input.a_skat_grundlag_kroner - kildeskat_skattekort_periodefradrag_kroner(input))
 | kildeskat_a_skat_beregningsgrundlag_kroner(input: KildeskatESkattekortInput) -> kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input)
 | exception kildeskat_nedrunder_a_skat_grundlag_til_ti kildeskat_a_skat_beregningsgrundlag_kroner(input: KildeskatESkattekortInput) -> kildeskat_nedrundet_til_ti_kroner(kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input)) under input.nedrunding_til_ti_kroner
 
 | kildeskat_a_skat_med_eskattekort_kroner(input: KildeskatESkattekortInput) -> penge_beløb_gange_basispoint_kroner(kildeskat_a_skat_beregningsgrundlag_kroner(input), kildeskat_effektiv_indeholdelsesprocent_basispoint(input))
-| kildeskat_simpelt_eskattekort_input(input: KildeskatSkattekortInput) -> KildeskatESkattekortInput(input.a_indkomst_kroner, input.fradrag_kroner, input.fradrag_kroner, input.fradrag_kroner, input.fradrag_kroner, input.indeholdelsesprocent_basispoint, 0, input.kort, Måned, Falskt)
+| kildeskat_simpelt_eskattekort_input(input: KildeskatSkattekortInput) -> KildeskatESkattekortInput(input.a_skat_grundlag_kroner, input.fradrag_kroner, input.fradrag_kroner, input.fradrag_kroner, input.fradrag_kroner, input.indeholdelsesprocent_basispoint, 0, input.kort, Måned, Falskt)
 | kildeskat_a_skat_kroner(input: KildeskatSkattekortInput) -> kildeskat_a_skat_med_eskattekort_kroner(kildeskat_simpelt_eskattekort_input(input))
 
 = kildeskat_løn_fixture = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(50000, 0, Sandt, Falskt, Falskt))
