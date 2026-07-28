@@ -24,7 +24,7 @@ omfang som nævnt i ligningslovens § 8 M,
 
 # LønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # LønmodtagerSkatteloftResult(input: Par19SkatteloftInput, overskydende_basispoint: Heltal, nedslag_kroner: Heltal)
-# LønmodtagerBreakdown(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal, bundskat_før_personfradrag_kroner: Heltal, mellemskat_før_personfradrag_kroner: Heltal, topskat_før_personfradrag_kroner: Heltal, toptopskat_før_personfradrag_kroner: Heltal, kommuneskat_før_personfradrag_kroner: Heltal, kirkeskat_før_personfradrag_kroner: Heltal, samlet_inkl_am_før_personfradrag_kroner: Heltal, personfradrag_kroner: Heltal, statslig_personfradrag_skatteværdi_kroner: Heltal, kommunal_personfradrag_skatteværdi_kroner: Heltal, kirkelig_personfradrag_skatteværdi_kroner: Heltal, personligt_skatteloft: LønmodtagerSkatteloftResult, samlet_inkl_am_efter_personfradrag_kroner: Heltal, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
+# LønmodtagerBreakdown(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal, bundskat_før_personfradrag_kroner: Heltal, mellemskat_før_personfradrag_kroner: Heltal, topskat_før_personfradrag_kroner: Heltal, toptopskat_før_personfradrag_kroner: Heltal, kommuneskat_før_personfradrag_kroner: Heltal, kirkeskat_før_personfradrag_kroner: Heltal, samlet_inkl_am_før_personfradrag_kroner: Heltal, personfradrag_kroner: Heltal, statslig_personfradrag_skatteværdi_kroner: Heltal, kommunal_personfradrag_skatteværdi_kroner: Heltal, kirkelig_personfradrag_skatteværdi_kroner: Heltal, personligt_skatteloft: LønmodtagerSkatteloftResult, positiv_kapital_skatteloft: LønmodtagerSkatteloftResult, samlet_inkl_am_efter_personfradrag_kroner: Heltal, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
 
 | skat_i_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(beløb_kroner, sats_basispoint)
 | positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
@@ -62,7 +62,11 @@ i det omfang det samlede beløb overstiger bundfradraget anført i stk. 2.
 ----
 
 | topskat_personligt_overskud_fixture(input: LønmodtagerInput) -> positivt_beløb(personlig_indkomst_efter_am(input) - nationalparametre_for(input.skatteår).topskattegrænse_efter_am_kroner)
-| topskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(topskat_personligt_overskud_fixture(input), nationalparametre_for(input.skatteår).topskat_basispoint)
+| progressiv_kapital_over_bundfradrag(input: LønmodtagerInput) -> positivt_beløb(input.positiv_nettokapitalindkomst_kroner - nationalparametre_for(input.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner)
+| topskat_grundlag_med_kapital_fixture(input: LønmodtagerInput) -> positivt_beløb(personlig_indkomst_efter_am(input) + progressiv_kapital_over_bundfradrag(input) - nationalparametre_for(input.skatteår).topskattegrænse_efter_am_kroner)
+| topskat_kapitalgrundlag_fixture(input: LønmodtagerInput) -> positivt_beløb(topskat_grundlag_med_kapital_fixture(input) - topskat_personligt_overskud_fixture(input))
+| topskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(topskat_grundlag_med_kapital_fixture(input), nationalparametre_for(input.skatteår).topskat_basispoint)
+| exception topskat_2026_kun_personlig topskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(topskat_personligt_overskud_fixture(input), nationalparametre_for(input.skatteår).topskat_basispoint) under input.skatteår >= 2026
 
 ----
 LOV nr. 482 af 22/05/2024 ændrer fra og med indkomståret 2026 statsskatten til
@@ -73,6 +77,8 @@ nettokapitalindkomst i mellemskattegrundlaget 55.000 kr.
 ----
 
 | mellemskat_input_for(input: LønmodtagerInput) -> MellemskatKapitalInput(personlig_indkomst_efter_am(input), input.positiv_nettokapitalindkomst_kroner, nationalparametre_for(input.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner, nationalparametre_for(input.skatteår).mellemskattegrænse_efter_am_kroner, nationalparametre_for(input.skatteår).mellemskat_basispoint)
+| mellemskat_personligt_grundlag_for(input: LønmodtagerInput) -> progressiv_personlig_overskud_kroner(reform_statskat_input(MellemskatLag, input.skatteår, personlig_indkomst_efter_am(input)))
+| mellemskat_kapitalgrundlag_for(input: LønmodtagerInput) -> positivt_beløb(mellemskat_grundlag_med_kapital_kroner(mellemskat_input_for(input)) - mellemskat_personligt_grundlag_for(input))
 | mellemskat_før_personfradrag(input: LønmodtagerInput) -> 0
 | exception mellemskat_2026 mellemskat_før_personfradrag(input: LønmodtagerInput) -> mellemskat_med_kapital_kroner(mellemskat_input_for(input)) under input.skatteår == 2026
 | toptopskat_personligt_overskud_fixture(input: LønmodtagerInput) -> 0
@@ -130,6 +136,12 @@ skattepligtiges kommunale indkomstskatteprocent henholdsvis skatteprocenten
 efter § 8 c overstiger 44,57 pct., beregnes et nedslag i statsskatten, svarende
 til at skatteprocenten ved beregningen af skatten efter § 7, stk. 3 og 7, blev
 nedsat med de overskydende procenter.
+
+Stk. 2. Hvis summen af skatteprocenterne efter §§ 6 og 7 tillagt den
+skattepligtiges kommunale indkomstskatteprocent henholdsvis skatteprocenten
+efter § 8 c overstiger 42,0 pct., beregnes et nedslag i statsskatten, svarende
+til at skatteprocenten ved beregningen af skatten efter § 7, stk. 4 og 8-11, blev
+nedsat med de overskydende procenter.
 ----
 
 | lønmodtager_personligt_skatteloft_beregningsgrundlag(input: LønmodtagerInput) -> topskat_personligt_overskud_fixture(input) under input.skatteår < 2026
@@ -138,11 +150,17 @@ nedsat med de overskydende procenter.
 | lønmodtager_personligt_skatteloft_overskydende_basispoint(input: LønmodtagerInput) -> par19_personlig_overskydende_basispoint(lønmodtager_personligt_skatteloft_input_for(input))
 | lønmodtager_personligt_skatteloft_nedslag_kroner(input: LønmodtagerInput) -> par19_skatteloftsnedslag_kroner(lønmodtager_personligt_skatteloft_input_for(input), lønmodtager_personligt_skatteloft_overskydende_basispoint(input))
 | lønmodtager_personligt_skatteloft_resultat(input: LønmodtagerInput) -> LønmodtagerSkatteloftResult(lønmodtager_personligt_skatteloft_input_for(input), lønmodtager_personligt_skatteloft_overskydende_basispoint(input), lønmodtager_personligt_skatteloft_nedslag_kroner(input))
-| samlet_inkl_am_efter_personfradrag(input: LønmodtagerInput) -> positivt_beløb(samlet_inkl_am_efter_personfradrag_før_skatteloft(input) - lønmodtager_personligt_skatteloft_nedslag_kroner(input))
+| lønmodtager_positiv_kapital_skatteloft_beregningsgrundlag(input: LønmodtagerInput) -> topskat_kapitalgrundlag_fixture(input) under input.skatteår < 2026
+| exception reform_mellemskat_positiv_kapital_skatteloftgrundlag lønmodtager_positiv_kapital_skatteloft_beregningsgrundlag(input: LønmodtagerInput) -> mellemskat_kapitalgrundlag_for(input) under input.skatteår >= 2026
+| lønmodtager_positiv_kapital_skatteloft_input_for(input: LønmodtagerInput) -> par19_positiv_kapital_skatteloft_input_for(input.skatteår, input.kommune, lønmodtager_positiv_kapital_skatteloft_beregningsgrundlag(input))
+| lønmodtager_positiv_kapital_skatteloft_overskydende_basispoint(input: LønmodtagerInput) -> par19_positiv_kapital_overskydende_basispoint(lønmodtager_positiv_kapital_skatteloft_input_for(input))
+| lønmodtager_positiv_kapital_skatteloft_nedslag_kroner(input: LønmodtagerInput) -> par19_skatteloftsnedslag_kroner(lønmodtager_positiv_kapital_skatteloft_input_for(input), lønmodtager_positiv_kapital_skatteloft_overskydende_basispoint(input))
+| lønmodtager_positiv_kapital_skatteloft_resultat(input: LønmodtagerInput) -> LønmodtagerSkatteloftResult(lønmodtager_positiv_kapital_skatteloft_input_for(input), lønmodtager_positiv_kapital_skatteloft_overskydende_basispoint(input), lønmodtager_positiv_kapital_skatteloft_nedslag_kroner(input))
+| samlet_inkl_am_efter_personfradrag(input: LønmodtagerInput) -> positivt_beløb(samlet_inkl_am_efter_personfradrag_før_skatteloft(input) - lønmodtager_personligt_skatteloft_nedslag_kroner(input) - lønmodtager_positiv_kapital_skatteloft_nedslag_kroner(input))
 | par13_underskud_input_for(input: LønmodtagerInput) -> Par13UnderskudInput(almindelig_skattepligtig_indkomst_fixture(input), personlig_indkomst_efter_am(input), input.positiv_nettokapitalindkomst_kroner, Falskt)
 | kræver_par13_underskud_fixture(input: LønmodtagerInput) -> par13_kræver_underskudsbehandling(par13_underskud_input_for(input))
 | personfradrag_anvendt_i_slutskat_fixture(input: LønmodtagerInput) -> kræver_par13_underskud_fixture(input) == Falskt
-| beregn_lønmodtager(input: LønmodtagerInput) -> LønmodtagerBreakdown(input.skatteår, input.kommune, input.bruttoløn_kroner, arbejdsmarkedsbidrag_for(input), personlig_indkomst_efter_am(input), beskæftigelsesfradrag_for(input), jobfradrag_for(input), input.ligningsmæssige_fradrag_kroner, samlede_ligningsmæssige_fradrag_for(input), almindelig_skattepligtig_indkomst_fixture(input), bundskat_før_personfradrag(input), mellemskat_før_personfradrag(input), topskat_før_personfradrag(input), toptopskat_før_personfradrag(input), kommuneskat_før_personfradrag(input), kirkeskat_før_personfradrag(input), samlet_inkl_am_før_personfradrag(input), personfradrag_for(input), statslig_personfradrag_skatteværdi_for(input), kommunal_personfradrag_skatteværdi_for(input), kirkelig_personfradrag_skatteværdi_for(input), lønmodtager_personligt_skatteloft_resultat(input), samlet_inkl_am_efter_personfradrag(input), personfradrag_anvendt_i_slutskat_fixture(input), kræver_par13_underskud_fixture(input))
+| beregn_lønmodtager(input: LønmodtagerInput) -> LønmodtagerBreakdown(input.skatteår, input.kommune, input.bruttoløn_kroner, arbejdsmarkedsbidrag_for(input), personlig_indkomst_efter_am(input), beskæftigelsesfradrag_for(input), jobfradrag_for(input), input.ligningsmæssige_fradrag_kroner, samlede_ligningsmæssige_fradrag_for(input), almindelig_skattepligtig_indkomst_fixture(input), bundskat_før_personfradrag(input), mellemskat_før_personfradrag(input), topskat_før_personfradrag(input), toptopskat_før_personfradrag(input), kommuneskat_før_personfradrag(input), kirkeskat_før_personfradrag(input), samlet_inkl_am_før_personfradrag(input), personfradrag_for(input), statslig_personfradrag_skatteværdi_for(input), kommunal_personfradrag_skatteværdi_for(input), kirkelig_personfradrag_skatteværdi_for(input), lønmodtager_personligt_skatteloft_resultat(input), lønmodtager_positiv_kapital_skatteloft_resultat(input), samlet_inkl_am_efter_personfradrag(input), personfradrag_anvendt_i_slutskat_fixture(input), kræver_par13_underskud_fixture(input))
 
 ----
 § 13. Hvis den skattepligtige indkomst udviser underskud, beregnes

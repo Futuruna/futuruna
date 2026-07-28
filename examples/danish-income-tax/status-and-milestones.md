@@ -302,8 +302,9 @@ Current decision:
   local legal names but delegate the common arithmetic posture to this file.
 - `LønmodtagerSkatteloftResult` is now the right-sized § 19 boundary inside the
   ordinary wage-earner breakdown. It carries the derived `Par19SkatteloftInput`,
-  excess basis points, and kroner relief together instead of adding loose
-  skatteloft scalar fields to the calculator surface.
+  excess basis points, and kroner relief together for both personal and
+  positive-capital skatteloft paths instead of adding loose scalar fields to the
+  calculator surface.
 - Domain review pass: exact duplicate scalar helpers for positive amounts,
   minimum amounts, and kroner-by-basispoint calculations now route through
   `pengebeloeb.runa`. Wider statutory input records stay explicit where their
@@ -385,9 +386,9 @@ Review candidates to revisit deliberately, not as broad churn:
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
-- Decide how § 14 partial-year annualization and § 19 positive-capital
-  skatteloftsnedslag should flow into the ordinary wage-earner calculator once
-  there are trusted partial-year, high-rate, and differential fixtures.
+- Decide how § 14 partial-year annualization should flow into the ordinary
+  wage-earner calculator once there are trusted partial-year fixtures, and add
+  external high-rate/differential fixtures for the § 19 calculator paths.
 - Separate legal structure from annual parameter packs: rates, thresholds,
   personal allowances, municipal tax, church tax, and other tax-year data.
 - Build calculation fixtures for ordinary wage-earner cases before handling
@@ -481,11 +482,13 @@ M4 - Ordinary taxpayer calculator
   wage-earner fixtures now exercise mellemskat, topskat, and toptopskat under
   the LOV nr. 482/2024 reform thresholds, and a 2026 Copenhagen positive
   net-capital fixture exercises the mellemskat capital addition. The wage-earner
-  breakdown now includes `LønmodtagerSkatteloftResult`, so § 19 personal
-  skatteloft input, excess basis points, and kroner relief are part of ordinary
-  2025/2026 calculator output; the current Copenhagen/Gentofte fixtures are
-  explicitly under the personal ceiling. The ordinary wage-earner AM contribution
-  now imports Arbejdsmarkedsbidragsloven instead of
+  breakdown now includes `LønmodtagerSkatteloftResult`, so § 19 personal and
+  positive-capital skatteloft input, excess basis points, and kroner relief are
+  part of ordinary 2025/2026 calculator output. The 2026 Copenhagen
+  positive-net-capital fixture now applies the 42 pct. positive-capital ceiling,
+  reducing final tax by 106 kr.; current Copenhagen/Gentofte personal-income
+  fixtures are explicitly under the personal ceiling. The ordinary wage-earner
+  AM contribution now imports Arbejdsmarkedsbidragsloven instead of
   using a local arithmetic shortcut, and the AM-law module now has
   source-backed special-case fixtures for § 3 exclusions, self-employed bases,
   library-fee compensation, and the 2026 youth exemption. Ordinary municipal
@@ -535,7 +538,8 @@ M5 - Audit suite
   balance/restskat timing/overskydende skat compensation/dividend-tax credit
   posture, covered fictional household scenario, topskat threshold activation,
   covered § 14 annualization, covered § 19 skatteloft including the 2026
-  44,57 pct. ceiling and calculator-level personal-skatteloft integration,
+  44,57 pct. personal ceiling, 42 pct. positive-capital ceiling, and
+  calculator-level wage-earner integration for both paths,
   covered § 20 regulation/rounding, covered § 26 transition
   compensation, covered § 28 territorial exclusion, covered AM-law special cases,
   covered shared Pengebeløb rounding and øre-fraction posture,
@@ -567,9 +571,9 @@ M6 - Website integration
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily
   interest-context, and cross-calendar-year interest-split slices, the B-skat
-  calendar projection, § 62 A interest fixtures, and personal § 19 skatteloft
-  inside the wage-earner breakdown as calculation-ready, and marks the full
-  statute model as research/audit-only.
+  calendar projection, § 62 A interest fixtures, and personal plus
+  positive-capital § 19 skatteloft inside the wage-earner breakdown as
+  calculation-ready, and marks the full statute model as research/audit-only.
 
 M7 - Personfradrag and deficit layer
 
@@ -604,9 +608,10 @@ M8 - Omregning, skatteloft, and regulation
 - Current slice: § 14 converts partial-year income to whole-year equivalents
   and reduces whole-year tax proportionally, §§ 15-18 are explicit repealed
   markers, § 19 computes personal and positive-capital tax ceiling excess and
-  relief, personal § 19 relief now flows into the ordinary wage-earner
-  breakdown for supported tax years and municipalities, and § 20 computes
-  2010-level amount regulation with round-up to the nearest 100 kroner.
+  relief, both personal and positive-capital § 19 relief now flow into the
+  ordinary wage-earner breakdown for supported tax years and municipalities, and
+  § 20 computes 2010-level amount regulation with round-up to the nearest
+  100 kroner.
 
 M9 - Final provisions and transition compensation
 

@@ -205,13 +205,19 @@ Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
 | m4_københavn_2026_kapital_almindelig: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.almindelig_skattepligtig_indkomst_kroner == 641600
 | m4_københavn_2026_kapital_mellemskat: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.mellemskat_før_personfradrag_kroner == 885
 | m4_københavn_2026_kapital_topskat_ikke_aktiveret: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.topskat_før_personfradrag_kroner == 0
-| m4_københavn_2026_kapital_samlet_efter: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.samlet_inkl_am_efter_personfradrag_kroner == 268835
+| m4_københavn_2026_kapital_skatteloft_basis: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.positiv_kapital_skatteloft.input.beregningsgrundlag_kroner == 11800
+| m4_københavn_2026_kapital_skatteloft_sats: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.positiv_kapital_skatteloft.overskydende_basispoint == 90
+| m4_københavn_2026_kapital_skatteloft_nedslag: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.positiv_kapital_skatteloft.nedslag_kroner == 106
+| m4_københavn_2026_kapital_samlet_efter: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.samlet_inkl_am_efter_personfradrag_kroner == 268729
 
 ? m4_københavn_2026_kapital_personlig
 ? m4_københavn_2026_kapital_samlede_ligningsfradrag
 ? m4_københavn_2026_kapital_almindelig
 ? m4_københavn_2026_kapital_mellemskat
 ? m4_københavn_2026_kapital_topskat_ikke_aktiveret
+? m4_københavn_2026_kapital_skatteloft_basis
+? m4_københavn_2026_kapital_skatteloft_sats
+? m4_københavn_2026_kapital_skatteloft_nedslag
 ? m4_københavn_2026_kapital_samlet_efter
 
 ----
