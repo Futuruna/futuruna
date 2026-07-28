@@ -2810,6 +2810,8 @@ const TAX_SETTLEMENT_SCENARIO: &str =
     include_str!("../../examples/danish-income-tax/slutopgoerelse.scenario.runa");
 const TAX_REMITTANCE: &str =
     include_str!("../../examples/danish-income-tax/indeholdelse-afregning.scenario.runa");
+const TAX_BOMB_AUDIT: &str =
+    include_str!("../../examples/danish-income-tax/personskatteloven-bomber.audit.runa");
 const TAX_AUDIT: &str =
     include_str!("../../examples/danish-income-tax/personskatteloven.audit.runa");
 
@@ -3599,6 +3601,11 @@ fn ResearchPersonskatteloven() -> Element {
             "indeholdelse-afregning.scenario.runa — A-skat/AM betalingsscenarier",
             "remittance-code",
             TAX_REMITTANCE,
+        ),
+        (
+            "personskatteloven-bomber.audit.runa — § 14/§ 19 spændingsprober",
+            "bomb-audit-code",
+            TAX_BOMB_AUDIT,
         ),
         (
             "personskatteloven.audit.runa — audit-signaler",

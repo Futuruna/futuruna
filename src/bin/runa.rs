@@ -20021,12 +20021,16 @@ impl RustCodegen {
             }
         }
 
+        let rule_groups = Self::collect_rule_groups_from_stmts(stmts);
+
         self.lib_static_names = self.collect_top_level_binding_getter_names(&main_stmts, &fn_stmts);
+        self.lib_static_names
+            .extend(self.collect_rule_top_level_binding_getter_names(&main_stmts, &rule_groups));
         let duplicate_top_level_binds = Self::duplicate_top_level_binding_names(&main_stmts);
         (
             self.binary_global_env_fns,
             self.binary_global_env_fn_arities,
-        ) = self.collect_binary_global_env_fn_names(&fn_stmts);
+        ) = self.collect_binary_global_env_fn_names(&fn_stmts, &rule_groups);
 
         // Pass 2: Borrow analysis (extracted from emit_program)
         self.compute_borrow_flags(&fn_stmts);
@@ -20048,36 +20052,11 @@ impl RustCodegen {
             }
         }
 
+        self.binary_global_binding_types =
+            self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
+
         // Emit rules as Rust functions (Catala-style: exception > conditional default > unconditional default > clause)
         {
-            // Group rules by name
-            let mut rule_groups: BTreeMap<String, Vec<&Rule>> = BTreeMap::new();
-            for stmt in stmts {
-                if let Stmt::Rule(rule) = stmt {
-                    match rule {
-                        Rule::Scope { .. } => {} // scopes handled separately
-                        _ => {
-                            let name = match rule {
-                                Rule::Clause { head, .. }
-                                | Rule::Default { head, .. }
-                                | Rule::Exception { head, .. } => match &head.kind {
-                                    ExprKind::App(f, _) => {
-                                        if let ExprKind::Var(n) = &f.as_ref().kind {
-                                            n.clone()
-                                        } else {
-                                            continue;
-                                        }
-                                    }
-                                    ExprKind::Var(n) => n.clone(),
-                                    _ => continue,
-                                },
-                                _ => continue,
-                            };
-                            rule_groups.entry(name).or_default().push(rule);
-                        }
-                    }
-                }
-            }
             // Pre-register Prolog-style rule functions so type propagation works across groups
             for (fn_name, rules) in &rule_groups {
                 self.types.prolog_rule_groups.insert(
@@ -20273,6 +20252,9 @@ impl RustCodegen {
                     break;
                 }
             }
+
+            self.binary_global_binding_types =
+                self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
 
             for (fn_name, rules) in &rule_groups {
                 // Count params and track which are borrowed (struct/enum types)
@@ -21004,9 +20986,128 @@ impl RustCodegen {
         !self.lib_mode && !self.binary_global_env_fns.is_empty()
     }
 
+    fn rule_group_name(rule: &Rule) -> Option<String> {
+        let head = match rule {
+            Rule::Clause { head, .. }
+            | Rule::Default { head, .. }
+            | Rule::Exception { head, .. } => head,
+            Rule::Scope { .. } => return None,
+        };
+        match &head.kind {
+            ExprKind::App(f, _) => {
+                if let ExprKind::Var(n) = &f.as_ref().kind {
+                    Some(n.clone())
+                } else {
+                    None
+                }
+            }
+            ExprKind::Var(n) => Some(n.clone()),
+            _ => None,
+        }
+    }
+
+    fn collect_rule_groups_from_stmts<'a>(stmts: &'a [Stmt]) -> BTreeMap<String, Vec<&'a Rule>> {
+        let mut rule_groups: BTreeMap<String, Vec<&Rule>> = BTreeMap::new();
+        for stmt in stmts {
+            let Stmt::Rule(rule) = stmt else {
+                continue;
+            };
+            if let Some(name) = Self::rule_group_name(rule) {
+                rule_groups.entry(name).or_default().push(rule);
+            }
+        }
+        rule_groups
+    }
+
+    fn rule_value_and_condition_exprs<'a>(rule: &'a Rule, out: &mut Vec<&'a Expr>) {
+        match rule {
+            Rule::Clause {
+                body: Some(body), ..
+            } => out.push(body),
+            Rule::Default {
+                value, condition, ..
+            }
+            | Rule::Exception {
+                value, condition, ..
+            } => {
+                out.push(value);
+                if let Some(condition) = condition {
+                    out.push(condition);
+                }
+            }
+            Rule::Clause { body: None, .. } | Rule::Scope { .. } => {}
+        }
+    }
+
+    fn top_level_binding_exprs<'a>(
+        main_stmts: &'a [&'a Stmt],
+    ) -> (BTreeSet<String>, BTreeMap<String, &'a Expr>) {
+        let mut names = BTreeSet::new();
+        let mut exprs = BTreeMap::new();
+        for stmt in main_stmts {
+            match stmt {
+                Stmt::Bind(Pat::Var(name), _, expr) | Stmt::StreamBind(name, expr) => {
+                    if !name.starts_with("__") {
+                        names.insert(name.clone());
+                        exprs.insert(name.clone(), expr);
+                    }
+                }
+                _ => {}
+            }
+        }
+        (names, exprs)
+    }
+
+    fn collect_rule_top_level_binding_getter_names(
+        &self,
+        main_stmts: &[&Stmt],
+        rule_groups: &BTreeMap<String, Vec<&Rule>>,
+    ) -> BTreeSet<String> {
+        let (top_level_names, bind_exprs) = Self::top_level_binding_exprs(main_stmts);
+        let mut getter_names = BTreeSet::new();
+
+        for rules in rule_groups.values() {
+            let bound: BTreeSet<String> = Self::rule_params(rules).into_iter().collect();
+            for rule in rules {
+                let mut exprs = Vec::new();
+                Self::rule_value_and_condition_exprs(rule, &mut exprs);
+                for expr in exprs {
+                    let mut free = BTreeSet::new();
+                    collect_true_free_vars(expr, &mut free, &bound);
+                    for name in free {
+                        if top_level_names.contains(&name) {
+                            getter_names.insert(name);
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut changed = true;
+        while changed {
+            changed = false;
+            let current: Vec<String> = getter_names.iter().cloned().collect();
+            for getter_name in current {
+                let Some(expr) = bind_exprs.get(&getter_name) else {
+                    continue;
+                };
+                let mut free = BTreeSet::new();
+                collect_true_free_vars(expr, &mut free, &BTreeSet::new());
+                for name in free {
+                    if top_level_names.contains(&name) && getter_names.insert(name) {
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        getter_names
+    }
+
     fn collect_binary_global_env_fn_names(
         &self,
         fn_stmts: &[&Stmt],
+        rule_groups: &BTreeMap<String, Vec<&Rule>>,
     ) -> (BTreeSet<String>, BTreeMap<String, usize>) {
         if self.lib_mode || self.lib_static_names.is_empty() {
             return (BTreeSet::new(), BTreeMap::new());
@@ -21038,6 +21139,32 @@ impl RustCodegen {
 
             let mut called = BTreeSet::new();
             collect_called_vars_expr(body, &mut called);
+            fn_calls.insert(name.clone(), called);
+        }
+
+        for (name, rules) in rule_groups {
+            let params = Self::rule_params(rules);
+            fn_arities.insert(name.clone(), params.len());
+
+            let bound: BTreeSet<String> = params.into_iter().collect();
+            let mut free = BTreeSet::new();
+            let mut called = BTreeSet::new();
+
+            for rule in rules {
+                let mut exprs = Vec::new();
+                Self::rule_value_and_condition_exprs(rule, &mut exprs);
+                for expr in exprs {
+                    collect_true_free_vars(expr, &mut free, &bound);
+                    collect_called_vars_expr(expr, &mut called);
+                }
+            }
+
+            if free
+                .iter()
+                .any(|free_name| self.lib_static_names.contains(free_name.as_str()))
+            {
+                env_fns.insert(name.clone());
+            }
             fn_calls.insert(name.clone(), called);
         }
 
@@ -24562,6 +24689,16 @@ impl RustCodegen {
             .map(|(p, ty)| format!("{}: {}", sanitize_name(p), ty))
             .collect::<Vec<_>>()
             .join(", ");
+        let uses_binary_global_env = !self.lib_mode && self.binary_global_env_fns.contains(fn_name);
+        let rule_param_str = if uses_binary_global_env {
+            if param_str.is_empty() {
+                "__fut_globals: &__FutGlobals".to_string()
+            } else {
+                format!("__fut_globals: &__FutGlobals, {}", param_str)
+            }
+        } else {
+            param_str
+        };
 
         // Infer return type from FIR, seeded with inferred rule param types.
         let ret_type = self
@@ -24578,11 +24715,18 @@ impl RustCodegen {
             }
         }
 
-        self.with_temporary_named_types(&params, &inferred_param_tys, |cg| {
+        let prev_allow_global_getter_refs =
+            std::mem::replace(&mut self.allow_global_getter_refs, !uses_binary_global_env);
+        let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
+        let prev_binary_global_value_refs_in_scope = self.binary_global_value_refs_in_scope;
+        self.binary_global_env_arg_in_scope = uses_binary_global_env;
+        self.binary_global_value_refs_in_scope = uses_binary_global_env;
+
+        let emitted = self.with_temporary_named_types(&params, &inferred_param_tys, |cg| {
             let mut out = format!(
                 "fn {}({}) -> {} {{\n",
                 sanitize_name(fn_name),
-                param_str,
+                rule_param_str,
                 ret_type
             );
 
@@ -24719,7 +24863,13 @@ impl RustCodegen {
             }
             out.push_str("}\n");
             out
-        })
+        });
+
+        self.allow_global_getter_refs = prev_allow_global_getter_refs;
+        self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
+        self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
+
+        emitted
     }
 
     fn emit_defn(&mut self, defn: &Defn) -> String {
@@ -25049,7 +25199,7 @@ impl RustCodegen {
                 // Disable TCE when a borrowed param gets a new value in a tail call
                 // (can't reassign &T loop variables).
                 let prev_allow_global_getter_refs =
-                    std::mem::replace(&mut self.allow_global_getter_refs, true);
+                    std::mem::replace(&mut self.allow_global_getter_refs, !uses_binary_global_env);
                 let prev_binary_global_env_arg_in_scope = self.binary_global_env_arg_in_scope;
                 let prev_binary_global_value_refs_in_scope = self.binary_global_value_refs_in_scope;
                 self.binary_global_env_arg_in_scope = uses_binary_global_env;
@@ -40078,6 +40228,60 @@ for x in [1, 2] {
             output.contains("rule value delegation passed"),
             "value-returning rule delegation fixture should execute: {}",
             output
+        );
+    }
+
+    #[test]
+    fn compiled_nullary_rule_reads_top_level_bindings_through_hidden_globals() {
+        let output = compile_and_run_test_program(
+            r#"
+@ rust {
+    use std::sync::atomic::{AtomicI64, Ordering};
+
+    static CALLS: AtomicI64 = AtomicI64::new(0);
+
+    fn bump() -> i64 {
+        CALLS.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    fn calls() -> i64 {
+        CALLS.load(Ordering::SeqCst)
+    }
+}
+
+= base = bump()
+= derived = base + 41
+| ok() -> derived == 42
+= result = ok()
+@ print(show(result))
+@ print(show(calls()))
+"#,
+        );
+
+        assert_eq!(
+            output.lines().collect::<Vec<_>>(),
+            vec!["true", "1"],
+            "nullary rule reads of top-level bindings should use hidden globals and preserve single-evaluation semantics"
+        );
+    }
+
+    #[test]
+    fn compiled_nullary_rule_projects_top_level_rule_value_through_hidden_globals() {
+        let output = compile_and_run_test_program(
+            r#"
+# Box(value: Int)
+| make_box() -> Box(41)
+= top = make_box()
+| ok() -> top.value == 41
+= result = ok()
+@ print(show(result))
+"#,
+        );
+
+        assert_eq!(
+            output.trim(),
+            "true",
+            "nullary rule field projections of top-level rule-derived values should use hidden globals"
         );
     }
 
