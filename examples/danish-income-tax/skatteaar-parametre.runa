@@ -85,7 +85,7 @@ København | 2024 | 23,60 | 0,80 | 0,00 | 12,01 | 36,41 | 0,00 | 5,10
 Gentofte | 2024 | 24,34 | 0,40 | 0,00 | 12,01 | 36,75 | 0,00 | 5,10
 ----
 
-# Kommune = København | Gentofte
+# Kommune = København | Gentofte | Langeland
 # KommunaleParametre(skatteår: Heltal, kommune: Kommune, kommunekode: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, sundhedsbidrag_basispoint: Heltal, bundskat_basispoint: Heltal, skatteloftsnedslag_basispoint: Heltal, grundskyld_promille_tiendedele: Heltal)
 # SkatteårParameterpakke(nationale: NationalParametre, kommunale: KommunaleParametre)
 
@@ -113,21 +113,32 @@ Ark: 2026
 Kommune | Region | Kommune nr. | Region nr. | Alfabet nr. | Skatte pct. | Kirke pct. | Nedslag pct. | Grundskyldspromille
 København | Hovedstaden | 101 | 1084 | 50 | 23,39 | 0,80 | 0,00 | 5,10
 Gentofte | Hovedstaden | 157 | 1084 | 24 | 24,14 | 0,38 | 0,00 | 5,10
+Langeland | Syddanmark | 482 | 1083 | 52 | 26,30 | 1,14 | 1,24 | 12,20
 ----
 
 | kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2026, København, 101, 2339, 80, 0, 1201, 0, 51) under skatteår == 2026 && kommune == København
 | kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2026, Gentofte, 157, 2414, 38, 0, 1201, 0, 51) under skatteår == 2026 && kommune == Gentofte
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2026, Langeland, 482, 2630, 114, 0, 1201, 124, 122) under skatteår == 2026 && kommune == Langeland
 
 | skatteår_understøttet(skatteår: Heltal) -> Falskt
 | exception skatteår_2024 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2024
 | exception skatteår_2025 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2025
 | exception skatteår_2026 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2026
 
-| kommune_understøttet(kommune: Kommune) -> Sandt
-| skatteår_parameterpakke_for(skatteår: Heltal, kommune: Kommune) -> SkatteårParameterpakke(nationalparametre_for(skatteår), kommunale_parametre_for(skatteår, kommune)) under skatteår_understøttet(skatteår) && kommune_understøttet(kommune)
+| kommune_understøttet(kommune: Kommune) -> Falskt
+| exception kommune_københavn kommune_understøttet(kommune: Kommune) -> Sandt under kommune == København
+| exception kommune_gentofte kommune_understøttet(kommune: Kommune) -> Sandt under kommune == Gentofte
+| exception kommune_langeland kommune_understøttet(kommune: Kommune) -> Sandt under kommune == Langeland
+
+| kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Falskt
+| exception kommune_københavn_2024_2026 kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommune == København && skatteår >= 2024 && skatteår <= 2026
+| exception kommune_gentofte_2024_2026 kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommune == Gentofte && skatteår >= 2024 && skatteår <= 2026
+| exception kommune_langeland_2026 kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommune == Langeland && skatteår == 2026
+
+| skatteår_parameterpakke_for(skatteår: Heltal, kommune: Kommune) -> SkatteårParameterpakke(nationalparametre_for(skatteår), kommunale_parametre_for(skatteår, kommune)) under parameterpakke_komplet(skatteår, kommune)
 
 | samlet_indkomstskatteprocent_basispoint(kommunale: KommunaleParametre) -> kommunale.kommuneskat_basispoint + kommunale.kirkeskat_basispoint + kommunale.sundhedsbidrag_basispoint + kommunale.bundskat_basispoint - kommunale.skatteloftsnedslag_basispoint
-| parameterpakke_komplet(skatteår: Heltal, kommune: Kommune) -> skatteår_understøttet(skatteår) && kommune_understøttet(kommune)
+| parameterpakke_komplet(skatteår: Heltal, kommune: Kommune) -> skatteår_understøttet(skatteår) && kommune_understøttet_i_år(skatteår, kommune)
 
 = m3_2024_national = nationalparametre_for(2024)
 = m3_2025_national = nationalparametre_for(2025)
@@ -136,12 +147,16 @@ Gentofte | Hovedstaden | 157 | 1084 | 24 | 24,14 | 0,38 | 0,00 | 5,10
 = m3_2025_gentofte = kommunale_parametre_for(2025, Gentofte)
 = m3_2026_københavn = kommunale_parametre_for(2026, København)
 = m3_2026_gentofte = kommunale_parametre_for(2026, Gentofte)
+= m3_2026_langeland = kommunale_parametre_for(2026, Langeland)
 = m3_2024_københavn_samlet = samlet_indkomstskatteprocent_basispoint(m3_2024_københavn)
 = m3_2025_gentofte_samlet = samlet_indkomstskatteprocent_basispoint(m3_2025_gentofte)
 = m3_2026_københavn_samlet = samlet_indkomstskatteprocent_basispoint(m3_2026_københavn)
+= m3_2026_langeland_samlet = samlet_indkomstskatteprocent_basispoint(m3_2026_langeland)
 = m3_2024_københavn_pakke = skatteår_parameterpakke_for(2024, København)
 = m3_2026_københavn_pakke = skatteår_parameterpakke_for(2026, København)
 = m3_2026_understøttet = skatteår_understøttet(2026)
+= m3_2026_langeland_pakke_komplet = parameterpakke_komplet(2026, Langeland)
+= m3_2025_langeland_pakke_ikke_komplet = parameterpakke_komplet(2025, Langeland)
 
 | m3_2024_bundskat_fra_skat: m3_2024_national -> m3_2024_national.bundskat_basispoint == 1201
 | m3_2025_topskatgrænse_fra_skat: m3_2025_national -> m3_2025_national.topskattegrænse_efter_am_kroner == 611800
@@ -153,10 +168,16 @@ Gentofte | Hovedstaden | 157 | 1084 | 24 | 24,14 | 0,38 | 0,00 | 5,10
 | m3_2025_gentofte_kirkeskat_fra_skm: m3_2025_gentofte -> m3_2025_gentofte.kirkeskat_basispoint == 39
 | m3_2026_københavn_kommuneskat_fra_skm: m3_2026_københavn -> m3_2026_københavn.kommuneskat_basispoint == 2339
 | m3_2026_gentofte_kirkeskat_fra_skm: m3_2026_gentofte -> m3_2026_gentofte.kirkeskat_basispoint == 38
+| m3_2026_langeland_kommuneskat_fra_skm: m3_2026_langeland -> m3_2026_langeland.kommuneskat_basispoint == 2630
+| m3_2026_langeland_skatteloftsnedslag_fra_skm: m3_2026_langeland -> m3_2026_langeland.skatteloftsnedslag_basispoint == 124
+| m3_2026_langeland_grundskyld_fra_skm: m3_2026_langeland -> m3_2026_langeland.grundskyld_promille_tiendedele == 122
 | m3_2024_københavn_samlet_procent: m3_2024_københavn_samlet -> m3_2024_københavn_samlet == 3641
 | m3_2025_gentofte_samlet_procent: m3_2025_gentofte_samlet -> m3_2025_gentofte_samlet == 3664
 | m3_2026_københavn_samlet_procent: m3_2026_københavn_samlet -> m3_2026_københavn_samlet == 3619
+| m3_2026_langeland_samlet_procent: m3_2026_langeland_samlet -> m3_2026_langeland_samlet == 3821
 | m3_pakke_bærer_nationalt_år: m3_2024_københavn_pakke -> m3_2024_københavn_pakke.nationale.skatteår == 2024
 | m3_pakke_bærer_kommunekode: m3_2024_københavn_pakke -> m3_2024_københavn_pakke.kommunale.kommunekode == 101
 | m3_2026_pakke_bærer_reformår: m3_2026_københavn_pakke -> m3_2026_københavn_pakke.nationale.skatteår == 2026
 | m3_2026_er_i_pakken: m3_2026_understøttet -> m3_2026_understøttet == Sandt
+| m3_2026_langeland_er_komplet: m3_2026_langeland_pakke_komplet -> m3_2026_langeland_pakke_komplet == Sandt
+| m3_2025_langeland_er_ikke_komplet: m3_2025_langeland_pakke_ikke_komplet -> m3_2025_langeland_pakke_ikke_komplet == Falskt

@@ -72,7 +72,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | FiktivHusholdningScenarieDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | FiktivHusholdningScenarieDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -187,11 +187,15 @@ Ikke aktuel
 = m5_2026_progressiv_fixture = beregn_lønmodtager(LønmodtagerInput(2026, København, 900000, 0, 0, Fyldt18EllerGift, Falskt))
 = m5_2026_toptop_fixture = beregn_lønmodtager(LønmodtagerInput(2026, København, 3000000, 0, 0, Fyldt18EllerGift, Falskt))
 = m5_2026_kapital_fixture = beregn_lønmodtager(LønmodtagerInput(2026, København, 650000, 110000, 0, Fyldt18EllerGift, Falskt))
+= m5_2026_langeland_komplet = parameterpakke_komplet(2026, Langeland)
+= m5_2026_langeland_personlig_fixture = beregn_lønmodtager(LønmodtagerInput(2026, Langeland, 900000, 0, 0, Fyldt18EllerGift, Falskt))
+= m5_2026_langeland_kapital_fixture = beregn_lønmodtager(LønmodtagerInput(2026, Langeland, 650000, 110000, 0, Fyldt18EllerGift, Falskt))
 = m5_2026_ægtefællekapital_input = MellemskatÆgtefælleKapitalInput(650000, 500000, 70000, 50000, 110000, 641200, 750)
 = m5_2026_ægtefællekapital_over = mellemskat_ægtefæller_kapital_over_bundfradrag_kroner(m5_2026_ægtefællekapital_input)
 = m5_2026_ægtefællekapital_skat = mellemskat_ægtefælle_kapital_skat_kroner(m5_2026_ægtefællekapital_input)
 
 | m5_2026_parameterpakke_dækket: m5_2026_københavn_komplet -> m5_2026_københavn_komplet == Sandt
+| m5_2026_langeland_parameterpakke_dækket: m5_2026_langeland_komplet -> m5_2026_langeland_komplet == Sandt
 | m5_2026_statsskat_reformstruktur: m5_2026_statsskat_mellemskat -> m5_2026_statsskat_mellemskat == Sandt && m5_2026_statsskat_toptopskat == Sandt && m5_2026_statsskat_udligning == Falskt
 | m5_2026_mellemskat_fixture: m5_2026_progressiv_fixture -> m5_2026_progressiv_fixture.mellemskat_før_personfradrag_kroner == 14010
 | m5_2026_topskat_fixture: m5_2026_progressiv_fixture -> m5_2026_progressiv_fixture.topskat_før_personfradrag_kroner == 3757
@@ -199,14 +203,18 @@ Ikke aktuel
 | m5_2026_mellemskat_kapital_fixture: m5_2026_kapital_fixture -> m5_2026_kapital_fixture.mellemskat_før_personfradrag_kroner == 885
 | m5_2026_skatteloft_lønmodtager_reformgrundlag: m5_2026_progressiv_fixture -> m5_2026_progressiv_fixture.personligt_skatteloft.input.progressiv_statsskat_basispoint == 750 && m5_2026_progressiv_fixture.personligt_skatteloft.input.beregningsgrundlag_kroner == 186800 && m5_2026_progressiv_fixture.personligt_skatteloft.nedslag_kroner == 0
 | m5_2026_skatteloft_kapital_reformgrundlag: m5_2026_kapital_fixture -> m5_2026_kapital_fixture.positiv_kapital_skatteloft.input.progressiv_statsskat_basispoint == 750 && m5_2026_kapital_fixture.positiv_kapital_skatteloft.input.beregningsgrundlag_kroner == 11800 && m5_2026_kapital_fixture.positiv_kapital_skatteloft.overskydende_basispoint == 90 && m5_2026_kapital_fixture.positiv_kapital_skatteloft.nedslag_kroner == 106 && m5_2026_kapital_fixture.samlet_inkl_am_efter_personfradrag_kroner == 268729
+| m5_2026_langeland_personligt_skatteloft_høj_sats: m5_2026_langeland_personlig_fixture -> m5_2026_langeland_personlig_fixture.personligt_skatteloft.input.kommunal_eller_par8c_basispoint == 2630 && m5_2026_langeland_personlig_fixture.personligt_skatteloft.overskydende_basispoint == 124 && m5_2026_langeland_personlig_fixture.personligt_skatteloft.nedslag_kroner == 2316
+| m5_2026_langeland_kapital_skatteloft_høj_sats: m5_2026_langeland_kapital_fixture -> m5_2026_langeland_kapital_fixture.positiv_kapital_skatteloft.overskydende_basispoint == 381 && m5_2026_langeland_kapital_fixture.positiv_kapital_skatteloft.nedslag_kroner == 449 && m5_2026_langeland_kapital_fixture.samlet_inkl_am_efter_personfradrag_kroner == 285481
 | m5_2026_mellemskat_ægtefællekapital_tærskel: m5_2026_ægtefællekapital_over -> m5_2026_ægtefællekapital_over == 10000
 | m5_2026_mellemskat_ægtefællekapital_skat: m5_2026_ægtefællekapital_skat -> m5_2026_ægtefællekapital_skat == 750
 | m5_2026_skatteloft_reform: par19_personlig_skatteloft_basispoint(2026) -> par19_personlig_skatteloft_basispoint(2026) == 4457
 | m5_audit_2026_reform_signal: audit_signal(Skatteår2026ReformDækket) -> audit_signal(Skatteår2026ReformDækket) == Sandt
 | m5_audit_mellemskat_kapital_signal: audit_signal(MellemskatKapitalDækket) -> audit_signal(MellemskatKapitalDækket) == Sandt
 | m5_audit_par19_kapital_calculator_signal: audit_signal(Par19KapitalSkatteloftCalculatorDækket) -> audit_signal(Par19KapitalSkatteloftCalculatorDækket) == Sandt
+| m5_audit_par19_høj_kommuneskat_signal: audit_signal(Par19HøjKommuneskatCalculatorDækket) -> audit_signal(Par19HøjKommuneskatCalculatorDækket) == Sandt
 
 ? m5_2026_parameterpakke_dækket
+? m5_2026_langeland_parameterpakke_dækket
 ? m5_2026_statsskat_reformstruktur
 ? m5_2026_mellemskat_fixture
 ? m5_2026_topskat_fixture
@@ -214,10 +222,13 @@ Ikke aktuel
 ? m5_2026_mellemskat_kapital_fixture
 ? m5_2026_skatteloft_lønmodtager_reformgrundlag
 ? m5_2026_skatteloft_kapital_reformgrundlag
+? m5_2026_langeland_personligt_skatteloft_høj_sats
+? m5_2026_langeland_kapital_skatteloft_høj_sats
 ? m5_2026_mellemskat_ægtefællekapital_tærskel
 ? m5_2026_mellemskat_ægtefællekapital_skat
 ? m5_2026_skatteloft_reform
 ? m5_audit_par19_kapital_calculator_signal
+? m5_audit_par19_høj_kommuneskat_signal
 
 ----
 Personskatteloven § 7 bruger bundfradrag og grundbeløb som tærskler for
@@ -551,4 +562,4 @@ afgrænsning.
 ? m5_audit_par26_signal
 ? m5_audit_par28_signal
 
-@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, § 14 delårs-lønmodtager, personlig og positiv-kapital § 19 skatteloft i lønmodtagerberegningen, fælles Pengebeløb-afrunding, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")
+@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, § 14 delårs-lønmodtager, personlig og positiv-kapital § 19 skatteloft i lønmodtagerberegningen inkl. Langeland høj kommuneskat, fælles Pengebeløb-afrunding, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")

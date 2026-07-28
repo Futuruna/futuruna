@@ -222,6 +222,60 @@ Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
 
 ----
 Fixture 6
+Skatteår: 2026
+Kommune: Langeland
+Bruttoløn: 900.000 kr.
+Positiv nettokapitalindkomst: 0 kr.
+Ligningsmæssige fradrag: 0 kr.
+Kirkeskat: nej
+Kilder: Personskatteloven § 19 som ændret ved LOV nr. 482 af 22/05/2024;
+Skattestyrelsens 2026-satser; Skatteministeriets kommuneskattesatser 2026
+for Langeland.
+----
+
+= m4_langeland_2026_input = LønmodtagerInput(2026, Langeland, 900000, 0, 0, Fyldt18EllerGift, Falskt)
+= m4_langeland_2026 = beregn_lønmodtager(m4_langeland_2026_input)
+
+| m4_langeland_2026_skatteloft_personlig_basis: m4_langeland_2026 -> m4_langeland_2026.personligt_skatteloft.input.beregningsgrundlag_kroner == 186800
+| m4_langeland_2026_skatteloft_personlig_sats: m4_langeland_2026 -> m4_langeland_2026.personligt_skatteloft.overskydende_basispoint == 124
+| m4_langeland_2026_skatteloft_personlig_nedslag: m4_langeland_2026 -> m4_langeland_2026.personligt_skatteloft.nedslag_kroner == 2316
+| m4_langeland_2026_kommuneskat: m4_langeland_2026 -> m4_langeland_2026.kommuneskat_før_personfradrag_kroner == 200300
+| m4_langeland_2026_samlet_efter: m4_langeland_2026 -> m4_langeland_2026.samlet_inkl_am_efter_personfradrag_kroner == 366468
+
+? m4_langeland_2026_skatteloft_personlig_basis
+? m4_langeland_2026_skatteloft_personlig_sats
+? m4_langeland_2026_skatteloft_personlig_nedslag
+? m4_langeland_2026_kommuneskat
+? m4_langeland_2026_samlet_efter
+
+----
+Fixture 7
+Skatteår: 2026
+Kommune: Langeland
+Bruttoløn: 650.000 kr.
+Positiv nettokapitalindkomst: 110.000 kr.
+Ligningsmæssige fradrag: 0 kr.
+Kirkeskat: nej
+Kilder: Personskatteloven § 19, stk. 2, som ændret ved LOV nr. 482 af
+22/05/2024; Skattestyrelsens 2026-satser; Skatteministeriets
+kommuneskattesatser 2026 for Langeland.
+----
+
+= m4_langeland_2026_kapital_input = LønmodtagerInput(2026, Langeland, 650000, 110000, 0, Fyldt18EllerGift, Falskt)
+= m4_langeland_2026_kapital = beregn_lønmodtager(m4_langeland_2026_kapital_input)
+
+| m4_langeland_2026_kapital_skatteloft_basis: m4_langeland_2026_kapital -> m4_langeland_2026_kapital.positiv_kapital_skatteloft.input.beregningsgrundlag_kroner == 11800
+| m4_langeland_2026_kapital_skatteloft_sats: m4_langeland_2026_kapital -> m4_langeland_2026_kapital.positiv_kapital_skatteloft.overskydende_basispoint == 381
+| m4_langeland_2026_kapital_skatteloft_nedslag: m4_langeland_2026_kapital -> m4_langeland_2026_kapital.positiv_kapital_skatteloft.nedslag_kroner == 449
+| m4_langeland_2026_kapital_samlet_efter: m4_langeland_2026_kapital -> m4_langeland_2026_kapital.samlet_inkl_am_efter_personfradrag_kroner == 285481
+
+? m4_langeland_2026_kapital_skatteloft_basis
+? m4_langeland_2026_kapital_skatteloft_sats
+? m4_langeland_2026_kapital_skatteloft_nedslag
+? m4_langeland_2026_kapital_samlet_efter
+
+----
+Fixture 8
 Skatteår: 2025
 Kommune-/kirkeskat: København 2025 som satsinput
 § 13-situation: skattepligtigt underskud, negativ personlig indkomst og
@@ -255,7 +309,7 @@ København 2025.
 ? m4_par13_ægtefælle_overfører
 
 ----
-Fixture 7
+Fixture 9
 Skatteår: 2025
 § 13-situation: udenlandsk indkomst og udlandsfradrag, men lempelse efter
 Ligningsloven § 33 A.
@@ -273,7 +327,7 @@ Kilder: Personskatteloven § 13, stk. 5; Ligningsloven § 33 A.
 ? m4_par13_ll33a_frigiver_overførsel
 
 ----
-Fixture 8
+Fixture 10
 Skatteår: 2026
 § 13-situation: Pensionsbeskatningsloven § 16-beløb efter LOV nr. 482/2024's
 ophævelse af Personskatteloven § 13, stk. 5, 4. pkt.
@@ -291,7 +345,7 @@ Kilder: Personskatteloven § 13, stk. 5; LOV nr. 482 af 22/05/2024.
 ? m4_par13_2026_pbl_ikke_afskåret
 
 ----
-Fixture 9
+Fixture 11
 Skatteår: 2025
 § 13-situation: passiv virksomhedsunderskud modregnes kun i samme virksomhed og
 fremføres med restbeløbet.
@@ -311,5 +365,7 @@ Kilder: Personskatteloven § 13, stk. 6-7.
 @ print("m4 Gentofte 2025 samlet inkl. AM efter personfradrag: " + vis(m4_gentofte_2025.samlet_inkl_am_efter_personfradrag_kroner))
 @ print("m4 København 2026 mellemskat/topskat/toptopskat: " + vis(m4_københavn_2026.mellemskat_før_personfradrag_kroner) + "/" + vis(m4_københavn_2026.topskat_før_personfradrag_kroner) + "/" + vis(m4_københavn_2026_toptop.toptopskat_før_personfradrag_kroner))
 @ print("m4 København 2026 positiv nettokapital mellemskat: " + vis(m4_københavn_2026_kapital.mellemskat_før_personfradrag_kroner))
+@ print("m4 Langeland 2026 personlig § 19 nedslag: " + vis(m4_langeland_2026.personligt_skatteloft.nedslag_kroner))
+@ print("m4 Langeland 2026 positiv kapital § 19 nedslag: " + vis(m4_langeland_2026_kapital.positiv_kapital_skatteloft.nedslag_kroner))
 @ print("m4 §13 kompleks ægtefælleoverførsel: " + vis(m4_par13_ægtefælle.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner))
 @ print("m4 §13 2026 PBL-afskæring: " + vis(m4_par13_2026_pbl.stk5_overførsel.afskåret_pbl16_kroner))

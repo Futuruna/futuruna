@@ -162,6 +162,10 @@ nedsat med de overskydende procenter.
 = par19_kapital_overskydende = par19_positiv_kapital_overskydende_basispoint(par19_2025_københavn_input)
 = par19_2026_københavn_input = par19_personlig_skatteloft_input_for(2026, København, 100000)
 = par19_2026_københavn_overskydende = par19_personlig_overskydende_basispoint(par19_2026_københavn_input)
+= par19_2026_langeland_input = par19_personlig_skatteloft_input_for(2026, Langeland, 100000)
+= par19_2026_langeland_overskydende = par19_personlig_overskydende_basispoint(par19_2026_langeland_input)
+= par19_2026_langeland_nedslag = par19_skatteloftsnedslag_kroner(par19_2026_langeland_input, par19_2026_langeland_overskydende)
+= par19_2026_langeland_kapital_overskydende = par19_positiv_kapital_overskydende_basispoint(par19_2026_langeland_input)
 
 | par19_2025_loft_5207: par19_2025_københavn_input -> par19_personlig_skatteloft_basispoint(2025) == 5207
 | par19_københavn_under_personligt_loft: par19_2025_københavn_overskydende -> par19_2025_københavn_overskydende == 0
@@ -172,6 +176,9 @@ nedsat med de overskydende procenter.
 | par19_2026_loft_4457: par19_2026_københavn_input -> par19_personlig_skatteloft_basispoint(2026) == 4457
 | par19_2026_bruger_mellemskat_i_loft: par19_2026_københavn_input -> par19_2026_københavn_input.progressiv_statsskat_basispoint == 750
 | par19_2026_københavn_under_personligt_loft: par19_2026_københavn_overskydende -> par19_2026_københavn_overskydende == 0
+| par19_2026_langeland_udløser_personligt_nedslag: par19_2026_langeland_overskydende -> par19_2026_langeland_overskydende == 124
+| par19_2026_langeland_nedslag_i_kroner: par19_2026_langeland_nedslag -> par19_2026_langeland_nedslag == 1240
+| par19_2026_langeland_kapital_loft_lavere: par19_2026_langeland_kapital_overskydende -> par19_2026_langeland_kapital_overskydende == 381
 
 ----
 § 20. Ved regulering af beløb efter denne bestemmelse anvendes et årligt

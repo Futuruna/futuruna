@@ -314,6 +314,10 @@ Current decision:
   wage-earner partial-year cases. It carries tax-liability change status, the
   delårs wage-earner input, and tax-liability days together, instead of passing
   those scalars through every helper rule.
+- `parameterpakke_komplet` now depends on a year+municipality coverage rule
+  rather than a broad municipality predicate. This keeps the parameter-pack
+  domain honest as new municipalities are added for selected years; Langeland is
+  currently source-backed for 2026 only.
 - Domain review pass: exact duplicate scalar helpers for positive amounts,
   minimum amounts, and kroner-by-basispoint calculations now route through
   `pengebeloeb.runa`. Wider statutory input records stay explicit where their
@@ -395,8 +399,10 @@ Review candidates to revisit deliberately, not as broad churn:
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
-- Add trusted external partial-year differential fixtures for § 14 and
-  high-rate/differential fixtures for the § 19 calculator paths.
+- Add trusted external partial-year differential fixtures for § 14 and external
+  differential fixtures for the § 19 calculator paths. The source-backed
+  Langeland 2026 high-municipal-rate fixture now exercises both § 19 personal
+  and positive-capital relief inside the wage-earner calculator.
 - Separate legal structure from annual parameter packs: rates, thresholds,
   personal allowances, municipal tax, church tax, and other tax-year data.
 - Build calculation fixtures for ordinary wage-earner cases before handling
@@ -469,8 +475,13 @@ M3 - Tax-year parameter packs
   parameter packs.
 - Current slice: 2024, 2025, and 2026 national parameters from
   Skattestyrelsen/SKM plus Copenhagen and Gentofte municipal/church-tax inputs
-  from Skatteministeriet. The 2026 pack covers mellemskat, topskat,
-  toptopskat, personfradrag, aktieindkomst, skatteloft, and municipal rates.
+  from Skatteministeriet, and a 2026-only Langeland municipal row from
+  Skatteministeriet's `kommuneskattesatser_2026.xlsx`. The 2026 pack covers
+  mellemskat, topskat, toptopskat, personfradrag, aktieindkomst, skatteloft,
+  municipal rates, church-tax rates, published skatteloftsnedslag, and
+  grundskyldspromille. Parameter completeness is year+municipality specific, so
+  Langeland is not treated as supported for 2024/2025 until those rows are
+  source-backed.
 
 M4 - Ordinary taxpayer calculator
 
@@ -495,7 +506,11 @@ M4 - Ordinary taxpayer calculator
   part of ordinary 2025/2026 calculator output. The 2026 Copenhagen
   positive-net-capital fixture now applies the 42 pct. positive-capital ceiling,
   reducing final tax by 106 kr.; current Copenhagen/Gentofte personal-income
-  fixtures are explicitly under the personal ceiling. The ordinary wage-earner
+  fixtures are explicitly under the personal ceiling. 2026 Langeland
+  wage-earner fixtures now exercise source-backed high-municipal-rate § 19
+  relief: 124 basis points and 2.316 kr. personal relief on a 900.000 kr. wage
+  case, plus 381 basis points and 449 kr. positive-capital relief on a
+  650.000 kr. wage plus 110.000 kr. capital-income case. The ordinary wage-earner
   AM contribution now imports Arbejdsmarkedsbidragsloven instead of
   using a local arithmetic shortcut, and the AM-law module now has
   source-backed special-case fixtures for § 3 exclusions, self-employed bases,
@@ -551,7 +566,9 @@ M5 - Audit suite
   covered § 14 annualization and first wage-earner calculator integration,
   covered § 19 skatteloft including the 2026
   44,57 pct. personal ceiling, 42 pct. positive-capital ceiling, and
-  calculator-level wage-earner integration for both paths,
+  calculator-level wage-earner integration for both paths, including
+  source-backed Langeland 2026 high-municipal-rate personal and positive-capital
+  relief fixtures,
   covered § 20 regulation/rounding, covered § 26 transition
   compensation, covered § 28 territorial exclusion, covered AM-law special cases,
   covered shared Pengebeløb rounding and øre-fraction posture,
@@ -584,9 +601,10 @@ M6 - Website integration
   Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily
   interest-context, and cross-calendar-year interest-split slices, the B-skat
   calendar projection, § 62 A interest fixtures, § 14 partial-year wage-earner
-  scenario, and personal plus
-  positive-capital § 19 skatteloft inside the wage-earner breakdown as
-  calculation-ready, and marks the full statute model as research/audit-only.
+  scenario, and personal plus positive-capital § 19 skatteloft inside the
+  wage-earner breakdown, including the 2026 Langeland high-rate municipality
+  fixture, as calculation-ready, and marks the full statute model as
+  research/audit-only.
 
 M7 - Personfradrag and deficit layer
 
@@ -625,8 +643,9 @@ M8 - Omregning, skatteloft, and regulation
   are explicit repealed markers, § 19 computes personal and positive-capital tax
   ceiling excess and relief, both personal and positive-capital § 19 relief now
   flow into the ordinary wage-earner breakdown for supported tax years and
-  municipalities, and § 20 computes 2010-level amount regulation with round-up
-  to the nearest 100 kroner.
+  municipalities, the 2026 Langeland fixture proves a source-backed high
+  municipal-tax ceiling case, and § 20 computes 2010-level amount regulation
+  with round-up to the nearest 100 kroner.
 
 M9 - Final provisions and transition compensation
 
