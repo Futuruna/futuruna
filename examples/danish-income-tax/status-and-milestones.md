@@ -173,6 +173,7 @@ encoded as a temporal rule on top of the consolidation.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
+- `delaar-scenarier.scenario.runa` exists and checks/runs with `runa run`.
 - `husholdning-scenarier.scenario.runa` exists and checks/runs with `runa run`.
 - `slutopgoerelse.scenario.runa` exists and checks/runs with `runa run`.
 - `indeholdelse-afregning.scenario.runa` exists and checks/runs with
@@ -197,8 +198,8 @@ encoded as a temporal rule on top of the consolidation.
   basispoint rounding, and øre-level fractions,
   Ligningsloven ordinary wage-earner deduction
   dependency slices, 2024/2025/2026 tax-year parameter packs, first wage-earner
-  scenarios, a first fictional household scenario, complex § 13 calculator
-  fixtures, and first audit signals.
+  scenarios, a first § 14 partial-year wage-earner scenario, a first fictional
+  household scenario, complex § 13 calculator fixtures, and first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
   multiline block, then the corresponding Futuruna rules.
 - Existing Danish Constitution examples show the intended style: original legal
@@ -305,6 +306,14 @@ Current decision:
   excess basis points, and kroner relief together for both personal and
   positive-capital skatteloft paths instead of adding loose scalar fields to the
   calculator surface.
+- `loenmodtager_beregning.runa` now separates state income tax, municipal/church
+  income tax, total income tax, and the final total including AM contribution.
+  This keeps Personskatteloven § 14's "helårsskat efter §§ 6-9" from
+  accidentally consuming an AM-inclusive cash-flow total.
+- `LønmodtagerPar14Input` is the current right-sized § 14 boundary for ordinary
+  wage-earner partial-year cases. It carries tax-liability change status, the
+  delårs wage-earner input, and tax-liability days together, instead of passing
+  those scalars through every helper rule.
 - Domain review pass: exact duplicate scalar helpers for positive amounts,
   minimum amounts, and kroner-by-basispoint calculations now route through
   `pengebeloeb.runa`. Wider statutory input records stay explicit where their
@@ -386,9 +395,8 @@ Review candidates to revisit deliberately, not as broad churn:
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
-- Decide how § 14 partial-year annualization should flow into the ordinary
-  wage-earner calculator once there are trusted partial-year fixtures, and add
-  external high-rate/differential fixtures for the § 19 calculator paths.
+- Add trusted external partial-year differential fixtures for § 14 and
+  high-rate/differential fixtures for the § 19 calculator paths.
 - Separate legal structure from annual parameter packs: rates, thresholds,
   personal allowances, municipal tax, church tax, and other tax-year data.
 - Build calculation fixtures for ordinary wage-earner cases before handling
@@ -519,7 +527,10 @@ M4 - Ordinary taxpayer calculator
   low-withholding restskat path with supplement and next-year transfer posture.
   Kildeskatteloven now also exposes the § 58 B-skat calendar as a rate-window
   domain object, § 62 A interest fixtures, and a restskat minimum-rate tension
-  when remaining B-skat rates are too few.
+  when remaining B-skat rates are too few. `delaar-scenarier.scenario.runa`
+  now runs a 2026 Copenhagen § 14 partial-year wage-earner case, annualizing
+  180 days of wage income and applying the reduced §§ 6-9 state-income-tax
+  result while keeping AM outside the § 14 helårsskat component.
 
 M5 - Audit suite
 
@@ -537,7 +548,8 @@ M5 - Audit suite
   indeholdelsesprocent derivation, covered Kildeskatteloven slutopgørelse
   balance/restskat timing/overskydende skat compensation/dividend-tax credit
   posture, covered fictional household scenario, topskat threshold activation,
-  covered § 14 annualization, covered § 19 skatteloft including the 2026
+  covered § 14 annualization and first wage-earner calculator integration,
+  covered § 19 skatteloft including the 2026
   44,57 pct. personal ceiling, 42 pct. positive-capital ceiling, and
   calculator-level wage-earner integration for both paths,
   covered § 20 regulation/rounding, covered § 26 transition
@@ -571,7 +583,8 @@ M6 - Website integration
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily
   interest-context, and cross-calendar-year interest-split slices, the B-skat
-  calendar projection, § 62 A interest fixtures, and personal plus
+  calendar projection, § 62 A interest fixtures, § 14 partial-year wage-earner
+  scenario, and personal plus
   positive-capital § 19 skatteloft inside the wage-earner breakdown as
   calculation-ready, and marks the full statute model as research/audit-only.
 
@@ -606,12 +619,14 @@ M8 - Omregning, skatteloft, and regulation
   tax-ceiling rates, calculated ceiling relief, and § 20 rounded regulated
   amounts are executable.
 - Current slice: § 14 converts partial-year income to whole-year equivalents
-  and reduces whole-year tax proportionally, §§ 15-18 are explicit repealed
-  markers, § 19 computes personal and positive-capital tax ceiling excess and
-  relief, both personal and positive-capital § 19 relief now flow into the
-  ordinary wage-earner breakdown for supported tax years and municipalities, and
-  § 20 computes 2010-level amount regulation with round-up to the nearest
-  100 kroner.
+  and reduces whole-year tax proportionally. A first ordinary wage-earner § 14
+  integration now annualizes a delårs wage-earner input and uses the state
+  income-tax component after §§ 6-9, rather than the AM-inclusive total. §§ 15-18
+  are explicit repealed markers, § 19 computes personal and positive-capital tax
+  ceiling excess and relief, both personal and positive-capital § 19 relief now
+  flow into the ordinary wage-earner breakdown for supported tax years and
+  municipalities, and § 20 computes 2010-level amount regulation with round-up
+  to the nearest 100 kroner.
 
 M9 - Final provisions and transition compensation
 
