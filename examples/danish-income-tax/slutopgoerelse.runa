@@ -25,6 +25,11 @@ august, september, oktober og november med sidste rettidige betalingsdag for
 den skattepligtige den 20. i forfaldsmåneden.
 ----
 
+# KildeskatDato(år: Heltal, måned: Heltal, dag: Heltal)
+# KildeskatRestskatSystemdatoer(indkomstår: Heltal, seneste_systemdato_for_overførsel: KildeskatDato)
+
+| kildeskat_dato_før_eller_lig(a: KildeskatDato, b: KildeskatDato) -> a.år < b.år || (a.år == b.år && (a.måned < b.måned || (a.måned == b.måned && a.dag <= b.dag)))
+| kildeskat_dato_efter(a: KildeskatDato, b: KildeskatDato) -> kildeskat_dato_før_eller_lig(a, b) == Falskt
 | kildeskat_b_skat_antal_rater() -> 10
 | kildeskat_b_skat_rate_forfaldsdag() -> 1
 | kildeskat_b_skat_sidste_rettidige_betalingsdag() -> 20
@@ -46,6 +51,18 @@ den skattepligtige den 20. i forfaldsmåneden.
 | exception kildeskat_b_skat_sidste_rate_er_10 kildeskat_b_skat_sidste_rate_nr_fra(første_rate_nr: Heltal) -> 10 under første_rate_nr >= 1 && første_rate_nr <= 10
 | kildeskat_b_skat_første_rate_måned_fra(første_rate_nr: Heltal) -> kildeskat_b_skat_rate_forfaldsmåned(første_rate_nr)
 | kildeskat_b_skat_sidste_rate_måned_fra(første_rate_nr: Heltal) -> kildeskat_b_skat_rate_forfaldsmåned(kildeskat_b_skat_sidste_rate_nr_fra(første_rate_nr))
+| kildeskat_b_skat_rate_resterer_på_dato(rate_nr: Heltal, dato: KildeskatDato) -> kildeskat_b_skat_rate_forfaldsmåned(rate_nr) > dato.måned || (kildeskat_b_skat_rate_forfaldsmåned(rate_nr) == dato.måned && kildeskat_b_skat_rate_forfaldsdag() > dato.dag)
+| kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 0
+| exception kildeskat_b_skat_første_resterende_rate_1 kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 1 under kildeskat_b_skat_rate_resterer_på_dato(1, dato)
+| exception kildeskat_b_skat_første_resterende_rate_2 kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 2 under kildeskat_b_skat_rate_resterer_på_dato(1, dato) == Falskt && kildeskat_b_skat_rate_resterer_på_dato(2, dato)
+| exception kildeskat_b_skat_første_resterende_rate_3 kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 3 under kildeskat_b_skat_rate_resterer_på_dato(2, dato) == Falskt && kildeskat_b_skat_rate_resterer_på_dato(3, dato)
+| exception kildeskat_b_skat_første_resterende_rate_4 kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 4 under kildeskat_b_skat_rate_resterer_på_dato(3, dato) == Falskt && kildeskat_b_skat_rate_resterer_på_dato(4, dato)
+| exception kildeskat_b_skat_første_resterende_rate_5 kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 5 under kildeskat_b_skat_rate_resterer_på_dato(4, dato) == Falskt && kildeskat_b_skat_rate_resterer_på_dato(5, dato)
+| exception kildeskat_b_skat_første_resterende_rate_6 kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 6 under kildeskat_b_skat_rate_resterer_på_dato(5, dato) == Falskt && kildeskat_b_skat_rate_resterer_på_dato(6, dato)
+| exception kildeskat_b_skat_første_resterende_rate_7 kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 7 under kildeskat_b_skat_rate_resterer_på_dato(6, dato) == Falskt && kildeskat_b_skat_rate_resterer_på_dato(7, dato)
+| exception kildeskat_b_skat_første_resterende_rate_8 kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 8 under kildeskat_b_skat_rate_resterer_på_dato(7, dato) == Falskt && kildeskat_b_skat_rate_resterer_på_dato(8, dato)
+| exception kildeskat_b_skat_første_resterende_rate_9 kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 9 under kildeskat_b_skat_rate_resterer_på_dato(8, dato) == Falskt && kildeskat_b_skat_rate_resterer_på_dato(9, dato)
+| exception kildeskat_b_skat_første_resterende_rate_10 kildeskat_b_skat_første_resterende_rate_nr_på_dato(dato: KildeskatDato) -> 10 under kildeskat_b_skat_rate_resterer_på_dato(9, dato) == Falskt && kildeskat_b_skat_rate_resterer_på_dato(10, dato)
 
 ----
 § 60. I den slutskat, der for et år udskrives for den skattepligtige, med
@@ -350,13 +367,16 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 # KildeskatForsinkelsesrenteInput(beløb_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, påbegyndte_måneder: Heltal, rente_udløses: Boolsk)
 # KildeskatRestskatUdskrivningspostur = SenestSeptemberFørAugust | SenestSeptemberFraAugust | EfterSeptemberFørJanuar | JanuarEllerSenere
 # KildeskatRestskatOpkrævningInput(restskat_med_eventuelle_renter_kroner: Heltal, reguleret_overførselsgrænse_kroner: Heltal, udskrivningspostur: KildeskatRestskatUdskrivningspostur, skattepligtig_ved_begyndelsen_af_efterfølgende_år: Boolsk, første_resterende_b_skat_rate_nr: Heltal)
+# KildeskatRestskatOpkrævningDatoInput(restskat_med_eventuelle_renter_kroner: Heltal, reguleret_overførselsgrænse_kroner: Heltal, skattepligtig_ved_begyndelsen_af_efterfølgende_år: Boolsk, udskrivningsdato: KildeskatDato, systemdatoer: KildeskatRestskatSystemdatoer)
 # KildeskatRestskatOpkrævningPlan(indregnes_i_følgende_år_kroner: Heltal, tre_rater_kroner: Heltal, b_skat_tidspunkter_kroner: Heltal, resterende_b_skat_rater_kroner: Heltal, mindste_antal_rater: Heltal, ordinære_rater_startmåned: Heltal, sidste_rettidige_betalingsdag: Heltal)
 # KildeskatBSkatRateVindue(første_rate_nr: Heltal, sidste_rate_nr: Heltal, antal_rater: Heltal, første_forfaldsmåned: Heltal, sidste_forfaldsmåned: Heltal, sidste_rettidige_betalingsdag: Heltal)
 # KildeskatOverskydendeGodtgørelseInput(overskydende_skat_kroner: Heltal, modsvarer_par59_indbetaling_kroner: Heltal, modsvarer_seniornedslag_kroner: Heltal, modsvarer_energiafgiftskompensation_kroner: Heltal, opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint: Heltal)
 # KildeskatOverskydendeTilbagebetalingInput(overskydende_skat_kroner: Heltal, godtgørelse_kroner: Heltal, restancer_personlig_skat_med_morarenter_kroner: Heltal, tilbagebetaling_i_ordinært_vindue: Boolsk, tilbagebetaling_efter_1_september: Boolsk, påbegyndte_måneder_efter_1_september: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal)
 # KildeskatÆndretÅrsopgørelseArt = ÆndretRestskatEllerYderligereRestskat | ÆndretOverskydendeSkatSkalTilbagebetales | ÆndretRestskatNedsatEllerBortfaldet | ÆndretOverskydendeSkatFremkommer
 # KildeskatPar62ARenteInput(art: KildeskatÆndretÅrsopgørelseArt, beløb_kroner: Heltal, tillæg_eller_godtgørelse_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, påbegyndte_måneder_fra_1_september: Heltal, udskrives_efter_september_systemdato: Boolsk)
+# KildeskatPar62ARenteDatoInput(art: KildeskatÆndretÅrsopgørelseArt, beløb_kroner: Heltal, tillæg_eller_godtgørelse_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, udskrivningsdato: KildeskatDato, systemdatoer: KildeskatRestskatSystemdatoer)
 # KildeskatPar62AForsinketUdbetalingInput(forventet_samlet_udbetaling_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, ekstra_påbegyndte_måneder: Heltal, forvaltningen_vælger_samlet_beløb_som_grundlag: Boolsk)
+# KildeskatPar62AForsinketUdbetalingsdatoInput(forventet_samlet_udbetaling_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, forudsat_udbetalingsdato: KildeskatDato, faktisk_udbetalingsdato: KildeskatDato, forvaltningen_vælger_samlet_beløb_som_grundlag: Boolsk)
 # KildeskatPar62CMindreRestskatInput(restskat_tillæg_renter_kroner: Heltal, tidligere_ikke_opkrævet_kroner: Heltal, ikke_indregnet_efter_par61_stk3: Boolsk)
 
 | kildeskat_basispoint_afrundet_til_en_decimal(sats_basispoint: Heltal) -> hvis sats_basispoint > 0 { (sats_basispoint + 5) / 10 * 10 } ellers { 0 }
@@ -371,6 +391,11 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 | kildeskat_restskat_udskrives_efter_september_systemdato(postur: KildeskatRestskatUdskrivningspostur) -> postur == EfterSeptemberFørJanuar || postur == JanuarEllerSenere
 | kildeskat_restskat_udskrives_foerst_august_eller_senere(postur: KildeskatRestskatUdskrivningspostur) -> postur == SenestSeptemberFraAugust || postur == EfterSeptemberFørJanuar || postur == JanuarEllerSenere
 | kildeskat_restskat_udskrives_foerst_januar_eller_senere(postur: KildeskatRestskatUdskrivningspostur) -> postur == JanuarEllerSenere
+| kildeskat_restskat_udskrivningspostur_fra_dato(input: KildeskatRestskatOpkrævningDatoInput) -> EfterSeptemberFørJanuar
+| exception kildeskat_restskat_dato_senest_september_foer_august kildeskat_restskat_udskrivningspostur_fra_dato(input: KildeskatRestskatOpkrævningDatoInput) -> SenestSeptemberFørAugust under kildeskat_dato_før_eller_lig(input.udskrivningsdato, input.systemdatoer.seneste_systemdato_for_overførsel) && input.udskrivningsdato.måned < 8
+| exception kildeskat_restskat_dato_senest_september_fra_august kildeskat_restskat_udskrivningspostur_fra_dato(input: KildeskatRestskatOpkrævningDatoInput) -> SenestSeptemberFraAugust under kildeskat_dato_før_eller_lig(input.udskrivningsdato, input.systemdatoer.seneste_systemdato_for_overførsel) && input.udskrivningsdato.måned >= 8
+| exception kildeskat_restskat_dato_januar_eller_senere kildeskat_restskat_udskrivningspostur_fra_dato(input: KildeskatRestskatOpkrævningDatoInput) -> JanuarEllerSenere under input.udskrivningsdato.år >= input.systemdatoer.indkomstår + 2
+| kildeskat_restskat_opkrævning_input_fra_dato(input: KildeskatRestskatOpkrævningDatoInput) -> KildeskatRestskatOpkrævningInput(input.restskat_med_eventuelle_renter_kroner, input.reguleret_overførselsgrænse_kroner, kildeskat_restskat_udskrivningspostur_fra_dato(input), input.skattepligtig_ved_begyndelsen_af_efterfølgende_år, kildeskat_b_skat_første_resterende_rate_nr_på_dato(input.udskrivningsdato))
 | kildeskat_restskat_del_under_reguleret_grænse_kroner(input: KildeskatRestskatOpkrævningInput) -> kildeskat_slutopgørelse_mindste_beløb(input.restskat_med_eventuelle_renter_kroner, input.reguleret_overførselsgrænse_kroner)
 | kildeskat_restskat_resterende_efter_reguleret_grænse_kroner(input: KildeskatRestskatOpkrævningInput) -> kildeskat_slutopgørelse_positivt_beløb(input.restskat_med_eventuelle_renter_kroner - input.reguleret_overførselsgrænse_kroner)
 | kildeskat_restskat_indregnes_i_følgende_år_kroner(input: KildeskatRestskatOpkrævningInput) -> 0
@@ -412,6 +437,15 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 | kildeskat_ændret_årsopgørelse_tilbagebetaling_efter_par61_stk4(art: KildeskatÆndretÅrsopgørelseArt) -> art == ÆndretOverskydendeSkatSkalTilbagebetales
 | kildeskat_ændret_årsopgørelse_udbetales_senest_næste_måned(art: KildeskatÆndretÅrsopgørelseArt) -> art == ÆndretRestskatNedsatEllerBortfaldet || art == ÆndretOverskydendeSkatFremkommer
 | kildeskat_ændret_årsopgørelse_modregner_restancer_før_udbetaling(art: KildeskatÆndretÅrsopgørelseArt) -> art == ÆndretRestskatNedsatEllerBortfaldet || art == ÆndretOverskydendeSkatFremkommer
+| kildeskat_påbegyndte_måneder_fra_1_september(indkomstår: Heltal, dato: KildeskatDato) -> 0
+| exception kildeskat_påbegyndte_måneder_i_året_efter_indkomståret kildeskat_påbegyndte_måneder_fra_1_september(indkomstår: Heltal, dato: KildeskatDato) -> dato.måned - 8 under dato.år == indkomstår + 1 && dato.måned >= 9
+| exception kildeskat_påbegyndte_måneder_efter_året_efter_indkomståret kildeskat_påbegyndte_måneder_fra_1_september(indkomstår: Heltal, dato: KildeskatDato) -> 4 + (dato.år - indkomstår - 2) * 12 + dato.måned under dato.år > indkomstår + 1
+| kildeskat_påbegyndt_måned_dagstillæg(fra: KildeskatDato, til: KildeskatDato) -> 0
+| exception kildeskat_forsinkelse_startet_ny_måned kildeskat_påbegyndt_måned_dagstillæg(fra: KildeskatDato, til: KildeskatDato) -> 1 under til.dag > fra.dag
+| kildeskat_påbegyndte_måneder_efter_dato(fra: KildeskatDato, til: KildeskatDato) -> 0
+| exception kildeskat_påbegyndte_måneder_efter_forudsat_dato kildeskat_påbegyndte_måneder_efter_dato(fra: KildeskatDato, til: KildeskatDato) -> (til.år - fra.år) * 12 + til.måned - fra.måned + kildeskat_påbegyndt_måned_dagstillæg(fra, til) under kildeskat_dato_efter(til, fra)
+| kildeskat_par62a_rente_input_fra_dato(input: KildeskatPar62ARenteDatoInput) -> KildeskatPar62ARenteInput(input.art, input.beløb_kroner, input.tillæg_eller_godtgørelse_kroner, input.opkrævningslov_par7_stk2_rente_basispoint, kildeskat_påbegyndte_måneder_fra_1_september(input.systemdatoer.indkomstår, input.udskrivningsdato), kildeskat_dato_efter(input.udskrivningsdato, input.systemdatoer.seneste_systemdato_for_overførsel))
+| kildeskat_par62a_forsinket_udbetalingsinput_fra_dato(input: KildeskatPar62AForsinketUdbetalingsdatoInput) -> KildeskatPar62AForsinketUdbetalingInput(input.forventet_samlet_udbetaling_kroner, input.opkrævningslov_par7_stk2_rente_basispoint, kildeskat_påbegyndte_måneder_efter_dato(input.forudsat_udbetalingsdato, input.faktisk_udbetalingsdato), input.forvaltningen_vælger_samlet_beløb_som_grundlag)
 | kildeskat_par62a_rente_udløses(input: KildeskatPar62ARenteInput) -> Falskt
 | exception kildeskat_par62a_stk1_restskat_efter_september_forrentes kildeskat_par62a_rente_udløses(input: KildeskatPar62ARenteInput) -> Sandt under input.art == ÆndretRestskatEllerYderligereRestskat && input.udskrives_efter_september_systemdato
 | exception kildeskat_par62a_stk2_tilbagebetaling_forrentes kildeskat_par62a_rente_udløses(input: KildeskatPar62ARenteInput) -> Sandt under input.art == ÆndretOverskydendeSkatSkalTilbagebetales
@@ -469,15 +503,22 @@ kontant, hvis det udgør 25 kr. eller derover.
 = kildeskat_udbytteskat_endelig_fixture = kildeskat_udbytteskat_modregningsbeløb_kroner(KildeskatUdbytteskatModregningInput(15000, Sandt, Sandt, Sandt))
 = kildeskat_udbytteskat_overskydende_fixture = kildeskat_udbytteskat_udbetales_som_overskydende_skat_kroner(KildeskatUdbytteskatOverskydendeInput(5000, Sandt, Falskt))
 = kildeskat_ægtefælleudligning_fixture = kildeskat_ægtefælleudligning_resultat(KildeskatÆgtefælleUdligningInput(0, 12000, 7000, 0, Sandt, Sandt))
-= kildeskat_opkrævningslov_par7_input_fixture = OpkrævningPar7RenteInput(2026, 700, 700, 700)
-= kildeskat_opkrævningslov_par7_rente_fixture = opkrævning_par7_stk2_rente_basispoint(kildeskat_opkrævningslov_par7_input_fixture)
+= kildeskat_opkrævningslov_par7_sats_fixture = opkrævning_par7_offentliggjort_sats(2026)
+= kildeskat_opkrævningslov_par7_rente_fixture = opkrævning_par7_offentliggjort_stk2_rente_basispoint(2026)
 = kildeskat_restskat_tillæg_fixture = kildeskat_restskat_procenttillæg_kroner(KildeskatRestskatTillægInput(20000, kildeskat_opkrævningslov_par7_rente_fixture))
 = kildeskat_restskat_oplysningsrente_fixture = kildeskat_forsinkelsesrente_kroner(KildeskatForsinkelsesrenteInput(21700, kildeskat_opkrævningslov_par7_rente_fixture, 2, Sandt))
-= kildeskat_restskat_tidlig_opkrævning_input_fixture = KildeskatRestskatOpkrævningInput(30000, 18300, SenestSeptemberFørAugust, Sandt, 1)
-= kildeskat_restskat_sen_opkrævning_input_fixture = KildeskatRestskatOpkrævningInput(30000, 18300, EfterSeptemberFørJanuar, Sandt, 1)
-= kildeskat_restskat_januar_opkrævning_input_fixture = KildeskatRestskatOpkrævningInput(30000, 18300, JanuarEllerSenere, Sandt, 1)
+= kildeskat_restskat_systemdatoer_2025_fixture = KildeskatRestskatSystemdatoer(2025, KildeskatDato(2026, 9, 30))
+= kildeskat_restskat_tidlig_opkrævning_dato_input_fixture = KildeskatRestskatOpkrævningDatoInput(30000, 18300, Sandt, KildeskatDato(2026, 3, 15), kildeskat_restskat_systemdatoer_2025_fixture)
+= kildeskat_restskat_sen_opkrævning_dato_input_fixture = KildeskatRestskatOpkrævningDatoInput(30000, 18300, Sandt, KildeskatDato(2026, 10, 15), kildeskat_restskat_systemdatoer_2025_fixture)
+= kildeskat_restskat_januar_opkrævning_dato_input_fixture = KildeskatRestskatOpkrævningDatoInput(30000, 18300, Sandt, KildeskatDato(2027, 1, 2), kildeskat_restskat_systemdatoer_2025_fixture)
+= kildeskat_restskat_februar_opkrævning_dato_input_fixture = KildeskatRestskatOpkrævningDatoInput(30000, 18300, Sandt, KildeskatDato(2027, 2, 12), kildeskat_restskat_systemdatoer_2025_fixture)
+= kildeskat_restskat_tidlig_opkrævning_input_fixture = kildeskat_restskat_opkrævning_input_fra_dato(kildeskat_restskat_tidlig_opkrævning_dato_input_fixture)
+= kildeskat_restskat_sen_opkrævning_input_fixture = kildeskat_restskat_opkrævning_input_fra_dato(kildeskat_restskat_sen_opkrævning_dato_input_fixture)
+= kildeskat_restskat_januar_opkrævning_input_fixture = kildeskat_restskat_opkrævning_input_fra_dato(kildeskat_restskat_januar_opkrævning_dato_input_fixture)
+= kildeskat_restskat_februar_opkrævning_input_fixture = kildeskat_restskat_opkrævning_input_fra_dato(kildeskat_restskat_februar_opkrævning_dato_input_fixture)
 = kildeskat_restskat_sen_b_skat_ratevindue_fixture = kildeskat_restskat_b_skat_ratevindue(kildeskat_restskat_sen_opkrævning_input_fixture)
 = kildeskat_restskat_januar_b_skat_ratevindue_fixture = kildeskat_restskat_b_skat_ratevindue(kildeskat_restskat_januar_opkrævning_input_fixture)
+= kildeskat_restskat_februar_b_skat_ratevindue_fixture = kildeskat_restskat_b_skat_ratevindue(kildeskat_restskat_februar_opkrævning_input_fixture)
 = kildeskat_restskat_b_skat_under_minimum_input_fixture = KildeskatRestskatOpkrævningInput(30000, 18300, JanuarEllerSenere, Sandt, 9)
 = kildeskat_restskat_b_skat_under_minimum_fixture = kildeskat_restskat_resterende_b_skat_rater_under_minimum(kildeskat_restskat_b_skat_under_minimum_input_fixture)
 = kildeskat_b_skat_sjette_rate_måned_fixture = kildeskat_b_skat_rate_forfaldsmåned(6)
@@ -489,10 +530,14 @@ kontant, hvis det udgør 25 kr. eller derover.
 = kildeskat_overskydende_forsinket_udbetaling_fixture = kildeskat_overskydende_udbetaling_efter_restancemodregning_kroner(KildeskatOverskydendeTilbagebetalingInput(15000, kildeskat_overskydende_godtgørelse_fixture, 0, Falskt, Sandt, 2, kildeskat_opkrævningslov_par7_rente_fixture))
 = kildeskat_par62a_restskat_fixture = kildeskat_ændret_årsopgørelse_bruger_par61_stk3_6(ÆndretRestskatEllerYderligereRestskat)
 = kildeskat_par62a_udbetaling_fixture = kildeskat_ændret_årsopgørelse_udbetales_senest_næste_måned(ÆndretOverskydendeSkatFremkommer)
-= kildeskat_par62a_restskat_rente_fixture = kildeskat_par62a_rente_kroner(KildeskatPar62ARenteInput(ÆndretRestskatEllerYderligereRestskat, 10000, 170, kildeskat_opkrævningslov_par7_rente_fixture, 2, Sandt))
-= kildeskat_par62a_restskat_uden_septemberrente_fixture = kildeskat_par62a_rente_kroner(KildeskatPar62ARenteInput(ÆndretRestskatEllerYderligereRestskat, 10000, 170, kildeskat_opkrævningslov_par7_rente_fixture, 2, Falskt))
-= kildeskat_par62a_tilbagebetaling_rente_fixture = kildeskat_par62a_rente_kroner(KildeskatPar62ARenteInput(ÆndretOverskydendeSkatSkalTilbagebetales, 15000, 0, kildeskat_opkrævningslov_par7_rente_fixture, 2, Falskt))
-= kildeskat_par62a_forsinket_udbetaling_fixture = kildeskat_par62a_forsinket_udbetalingsrente_kroner(KildeskatPar62AForsinketUdbetalingInput(20000, kildeskat_opkrævningslov_par7_rente_fixture, 1, Sandt))
+= kildeskat_par62a_restskat_rente_input_fixture = kildeskat_par62a_rente_input_fra_dato(KildeskatPar62ARenteDatoInput(ÆndretRestskatEllerYderligereRestskat, 10000, 170, kildeskat_opkrævningslov_par7_rente_fixture, KildeskatDato(2026, 10, 15), kildeskat_restskat_systemdatoer_2025_fixture))
+= kildeskat_par62a_restskat_uden_septemberrente_input_fixture = kildeskat_par62a_rente_input_fra_dato(KildeskatPar62ARenteDatoInput(ÆndretRestskatEllerYderligereRestskat, 10000, 170, kildeskat_opkrævningslov_par7_rente_fixture, KildeskatDato(2026, 9, 1), kildeskat_restskat_systemdatoer_2025_fixture))
+= kildeskat_par62a_tilbagebetaling_rente_input_fixture = kildeskat_par62a_rente_input_fra_dato(KildeskatPar62ARenteDatoInput(ÆndretOverskydendeSkatSkalTilbagebetales, 15000, 0, kildeskat_opkrævningslov_par7_rente_fixture, KildeskatDato(2026, 10, 15), kildeskat_restskat_systemdatoer_2025_fixture))
+= kildeskat_par62a_forsinket_udbetaling_input_fixture = kildeskat_par62a_forsinket_udbetalingsinput_fra_dato(KildeskatPar62AForsinketUdbetalingsdatoInput(20000, kildeskat_opkrævningslov_par7_rente_fixture, KildeskatDato(2026, 10, 20), KildeskatDato(2026, 10, 21), Sandt))
+= kildeskat_par62a_restskat_rente_fixture = kildeskat_par62a_rente_kroner(kildeskat_par62a_restskat_rente_input_fixture)
+= kildeskat_par62a_restskat_uden_septemberrente_fixture = kildeskat_par62a_rente_kroner(kildeskat_par62a_restskat_uden_septemberrente_input_fixture)
+= kildeskat_par62a_tilbagebetaling_rente_fixture = kildeskat_par62a_rente_kroner(kildeskat_par62a_tilbagebetaling_rente_input_fixture)
+= kildeskat_par62a_forsinket_udbetaling_fixture = kildeskat_par62a_forsinket_udbetalingsrente_kroner(kildeskat_par62a_forsinket_udbetaling_input_fixture)
 = kildeskat_par62c_lille_restskat_fixture = kildeskat_par62c_restskat_opkræves(KildeskatPar62CMindreRestskatInput(499, 0, Sandt))
 = kildeskat_par62c_restskat_500_fixture = kildeskat_par62c_restskat_opkræves(KildeskatPar62CMindreRestskatInput(500, 0, Sandt))
 = kildeskat_par62c_nemkonto_fixture = kildeskat_par62c_nemkonto_beløb_bortfalder(200, Sandt)
@@ -504,25 +549,26 @@ kontant, hvis det udgør 25 kr. eller derover.
 | kildeskat_endelig_udbytteskat_modregnes_ikke: kildeskat_udbytteskat_endelig_fixture -> kildeskat_udbytteskat_endelig_fixture == 0
 | kildeskat_udbytteskat_kan_blive_overskydende_skat: kildeskat_udbytteskat_overskydende_fixture -> kildeskat_udbytteskat_overskydende_fixture == 5000
 | kildeskat_ægtefælle_overskydende_udligner_restskat: kildeskat_ægtefælleudligning_fixture -> kildeskat_ægtefælleudligning_fixture.anvendt_a_til_b_kroner == 7000 && kildeskat_ægtefælleudligning_fixture.person_a_overskydende_skat_efter_udligning_kroner == 5000 && kildeskat_ægtefælleudligning_fixture.person_b_restskat_efter_udligning_kroner == 0
-| kildeskat_opkrævningslov_par7_rente_kobles_til_slutopgørelse: kildeskat_opkrævningslov_par7_rente_fixture -> kildeskat_opkrævningslov_par7_rente_fixture == 20
-| kildeskat_restskat_procenttillæg_beregnes: kildeskat_restskat_tillæg_fixture -> kildeskat_restskat_tillæg_fixture == 340
-| kildeskat_restskat_oplysningsrente_beregnes: kildeskat_restskat_oplysningsrente_fixture -> kildeskat_restskat_oplysningsrente_fixture == 260
+| kildeskat_opkrævningslov_par7_rente_kobles_til_slutopgørelse: kildeskat_opkrævningslov_par7_rente_fixture -> kildeskat_opkrævningslov_par7_rente_fixture == 10
+| kildeskat_restskat_procenttillæg_beregnes: kildeskat_restskat_tillæg_fixture -> kildeskat_restskat_tillæg_fixture == 320
+| kildeskat_restskat_oplysningsrente_beregnes: kildeskat_restskat_oplysningsrente_fixture -> kildeskat_restskat_oplysningsrente_fixture == 217
 | kildeskat_restskat_tidlig_plan_indregner_grænse: kildeskat_restskat_tidlig_plan_fixture -> kildeskat_restskat_tidlig_plan_fixture.indregnes_i_følgende_år_kroner == 18300 && kildeskat_restskat_tidlig_plan_fixture.tre_rater_kroner == 11700 && kildeskat_restskat_tidlig_plan_fixture.ordinære_rater_startmåned == 8
 | kildeskat_restskat_sen_plan_bruger_b_skat: kildeskat_restskat_sen_plan_fixture -> kildeskat_restskat_sen_plan_fixture.b_skat_tidspunkter_kroner == 18300 && kildeskat_restskat_sen_plan_fixture.tre_rater_kroner == 11700
 | kildeskat_restskat_januar_plan_resterende_b_skat: kildeskat_restskat_januar_plan_fixture -> kildeskat_restskat_januar_plan_fixture.resterende_b_skat_rater_kroner == 18300 && kildeskat_restskat_januar_plan_fixture.mindste_antal_rater == 3
 | kildeskat_b_skat_kalender_udelader_juni_og_december: kildeskat_b_skat_sjette_rate_måned_fixture -> kildeskat_b_skat_rate_forfaldsmåned(6) == 7 && kildeskat_b_skat_måned_har_rate(6) == Falskt && kildeskat_b_skat_måned_har_rate(12) == Falskt
 | kildeskat_restskat_sen_b_skat_ratevindue_dækket: kildeskat_restskat_sen_b_skat_ratevindue_fixture -> kildeskat_restskat_sen_b_skat_ratevindue_fixture.første_rate_nr == 1 && kildeskat_restskat_sen_b_skat_ratevindue_fixture.antal_rater == 10 && kildeskat_restskat_sen_b_skat_ratevindue_fixture.sidste_forfaldsmåned == 11
-| kildeskat_restskat_januar_b_skat_ratevindue_dækket: kildeskat_restskat_januar_b_skat_ratevindue_fixture -> kildeskat_restskat_januar_b_skat_ratevindue_fixture.første_forfaldsmåned == 1 && kildeskat_restskat_januar_b_skat_ratevindue_fixture.antal_rater == 10
+| kildeskat_restskat_januar_b_skat_ratevindue_dækket: kildeskat_restskat_januar_b_skat_ratevindue_fixture -> kildeskat_restskat_januar_b_skat_ratevindue_fixture.første_forfaldsmåned == 2 && kildeskat_restskat_januar_b_skat_ratevindue_fixture.antal_rater == 9
+| kildeskat_restskat_februar_b_skat_ratevindue_dækket: kildeskat_restskat_februar_b_skat_ratevindue_fixture -> kildeskat_restskat_februar_b_skat_ratevindue_fixture.første_rate_nr == 3 && kildeskat_restskat_februar_b_skat_ratevindue_fixture.antal_rater == 8 && kildeskat_restskat_februar_b_skat_ratevindue_fixture.første_forfaldsmåned == 3
 | kildeskat_restskat_b_skat_kan_komme_under_minimum: kildeskat_restskat_b_skat_under_minimum_fixture -> kildeskat_restskat_b_skat_under_minimum_fixture == Sandt
 | kildeskat_overskydende_godtgørelse_beregnes: kildeskat_overskydende_godtgørelse_fixture -> kildeskat_overskydende_godtgørelse_fixture == 0
 | kildeskat_overskydende_modregner_restancer: kildeskat_overskydende_udbetaling_fixture -> kildeskat_overskydende_udbetaling_fixture == 14000
-| kildeskat_overskydende_forsinket_forrentes: kildeskat_overskydende_forsinket_udbetaling_fixture -> kildeskat_overskydende_forsinket_udbetaling_fixture == 15180
+| kildeskat_overskydende_forsinket_forrentes: kildeskat_overskydende_forsinket_udbetaling_fixture -> kildeskat_overskydende_forsinket_udbetaling_fixture == 15150
 | kildeskat_par62a_ændret_restskat_bruger_par61: kildeskat_par62a_restskat_fixture -> kildeskat_par62a_restskat_fixture == Sandt
 | kildeskat_par62a_ny_overskydende_udbetales_næste_måned: kildeskat_par62a_udbetaling_fixture -> kildeskat_par62a_udbetaling_fixture == Sandt
-| kildeskat_par62a_restskat_efter_september_forrentes: kildeskat_par62a_restskat_rente_fixture -> kildeskat_par62a_restskat_rente_fixture == 122
+| kildeskat_par62a_restskat_efter_september_forrentes: kildeskat_par62a_restskat_rente_fixture -> kildeskat_par62a_restskat_rente_fixture == 101
 | kildeskat_par62a_restskat_før_septemberrente_forrentes_ikke: kildeskat_par62a_restskat_uden_septemberrente_fixture -> kildeskat_par62a_restskat_uden_septemberrente_fixture == 0
-| kildeskat_par62a_tilbagebetaling_forrentes: kildeskat_par62a_tilbagebetaling_rente_fixture -> kildeskat_par62a_tilbagebetaling_rente_fixture == 180
-| kildeskat_par62a_forsinket_udbetaling_forrentes: kildeskat_par62a_forsinket_udbetaling_fixture -> kildeskat_par62a_forsinket_udbetaling_fixture == 120
+| kildeskat_par62a_tilbagebetaling_forrentes: kildeskat_par62a_tilbagebetaling_rente_fixture -> kildeskat_par62a_tilbagebetaling_rente_fixture == 150
+| kildeskat_par62a_forsinket_udbetaling_forrentes: kildeskat_par62a_forsinket_udbetaling_fixture -> kildeskat_par62a_forsinket_udbetaling_fixture == 100
 | kildeskat_par62c_lille_restskat_opkræves_ikke: kildeskat_par62c_lille_restskat_fixture -> kildeskat_par62c_lille_restskat_fixture == Falskt
 | kildeskat_par62c_500_kr_opkræves: kildeskat_par62c_restskat_500_fixture -> kildeskat_par62c_restskat_500_fixture == Sandt
 | kildeskat_par62c_nemkonto_bortfald: kildeskat_par62c_nemkonto_fixture -> kildeskat_par62c_nemkonto_fixture == Sandt
@@ -543,6 +589,7 @@ kontant, hvis det udgør 25 kr. eller derover.
 ? kildeskat_b_skat_kalender_udelader_juni_og_december
 ? kildeskat_restskat_sen_b_skat_ratevindue_dækket
 ? kildeskat_restskat_januar_b_skat_ratevindue_dækket
+? kildeskat_restskat_februar_b_skat_ratevindue_dækket
 ? kildeskat_restskat_b_skat_kan_komme_under_minimum
 ? kildeskat_overskydende_godtgørelse_beregnes
 ? kildeskat_overskydende_modregner_restancer

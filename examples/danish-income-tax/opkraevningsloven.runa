@@ -6,6 +6,12 @@
 -- Kilde: Retsinformation, LBK nr. 1040 af 13/09/2024.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/1040
 -- XML: https://www.retsinformation.dk/eli/lta/2024/1040/dan/xml
+--
+-- Offentliggjorte § 7-satser:
+-- Skattestyrelsen, SKM2025.720.SKTST:
+-- https://info.skat.dk/data.aspx?oid=2459995
+-- Skatteministeriets satsoversigt:
+-- https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/opkraevningsloven
 
 ----
 Officiel XML-metadata for 2024/1040, hentet 2026-07-18:
@@ -187,6 +193,7 @@ divideres med 24 og afrundes nedad til én decimal.
 ----
 
 # OpkrævningPar7RenteInput(kalenderår: Heltal, juli_kassekreditrente_basispoint: Heltal, august_kassekreditrente_basispoint: Heltal, september_kassekreditrente_basispoint: Heltal)
+# OpkrævningPar7OffentliggjortSats(kalenderår: Heltal, stk2_rente_basispoint: Heltal, kilde_eli: Tekst)
 
 | opkrævning_for_sen_betaling_udløser_rente(input: OpkrævningASkatAmAfregningInput) -> opkrævning_betalt_rettidigt(input) == Falskt
 | opkrævning_rente_er_fradragsberettiget() -> Falskt
@@ -194,14 +201,23 @@ divideres med 24 og afrundes nedad til én decimal.
 | opkrævning_par7_gennemsnit_nedrundet_til_hel_procent_basispoint(input: OpkrævningPar7RenteInput) -> opkrævning_par7_simpelt_gennemsnit_basispoint(input) / 100 * 100
 | opkrævning_par7_stk2_rente_basispoint(input: OpkrævningPar7RenteInput) -> opkrævning_par7_gennemsnit_nedrundet_til_hel_procent_basispoint(input) / 24 / 10 * 10
 | opkrævning_par7_stk2_tredje_pkt_rente_basispoint(input: OpkrævningPar7RenteInput) -> opkrævning_par7_stk2_rente_basispoint(input)
+| opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(kalenderår, 0, "")
+| exception opkrævning_par7_skm2025_720_2026 opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(2026, 10, "https://info.skat.dk/data.aspx?oid=2459995") under kalenderår == 2026
+| opkrævning_par7_offentliggjort_stk2_rente_basispoint(kalenderår: Heltal) -> opkrævning_par7_offentliggjort_sats(kalenderår).stk2_rente_basispoint
 | opkrævning_par7_rente_offentliggøres_senest_15_december() -> Sandt
 
 = opkrævning_par7_eksempel_input = OpkrævningPar7RenteInput(2026, 700, 700, 700)
 = opkrævning_par7_gennemsnit_fixture = opkrævning_par7_gennemsnit_nedrundet_til_hel_procent_basispoint(opkrævning_par7_eksempel_input)
 = opkrævning_par7_rente_fixture = opkrævning_par7_stk2_rente_basispoint(opkrævning_par7_eksempel_input)
+= opkrævning_par7_2026_offentliggjort_sats_fixture = opkrævning_par7_offentliggjort_sats(2026)
+= opkrævning_par7_2026_offentliggjort_rente_fixture = opkrævning_par7_offentliggjort_stk2_rente_basispoint(2026)
 
 | opkrævning_par7_gennemsnit_nedrundes_til_hel_procent: opkrævning_par7_gennemsnit_fixture -> opkrævning_par7_gennemsnit_fixture == 700
 | opkrævning_par7_rente_divideres_og_afrundes_til_en_decimal: opkrævning_par7_rente_fixture -> opkrævning_par7_rente_fixture == 20
+| opkrævning_par7_2026_skm_sats_er_kildebundet: opkrævning_par7_2026_offentliggjort_sats_fixture -> opkrævning_par7_2026_offentliggjort_sats_fixture.stk2_rente_basispoint == 10 && opkrævning_par7_2026_offentliggjort_sats_fixture.kilde_eli == "https://info.skat.dk/data.aspx?oid=2459995"
+| opkrævning_par7_2026_offentliggjort_rente_dækket: opkrævning_par7_2026_offentliggjort_rente_fixture -> opkrævning_par7_2026_offentliggjort_rente_fixture == 10
 
 ? opkrævning_par7_gennemsnit_nedrundes_til_hel_procent
 ? opkrævning_par7_rente_divideres_og_afrundes_til_en_decimal
+? opkrævning_par7_2026_skm_sats_er_kildebundet
+? opkrævning_par7_2026_offentliggjort_rente_dækket

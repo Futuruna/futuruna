@@ -267,6 +267,7 @@ virksomhedsunderskud.
 = m5_slutopgørelse_husholdning_udbetaling_fixture = scenarie1_husholdning_genereret_udbetaling
 = m5_opkrævningslov_par7_rente_fixture = kildeskat_opkrævningslov_par7_rente_fixture
 = m5_b_skat_ratevindue_fixture = kildeskat_restskat_sen_b_skat_ratevindue_fixture
+= m5_b_skat_februar_dato_ratevindue_fixture = kildeskat_restskat_februar_b_skat_ratevindue_fixture
 = m5_b_skat_under_minimum_fixture = kildeskat_restskat_b_skat_under_minimum_fixture
 = m5_par62a_restskat_rente_fixture = kildeskat_par62a_restskat_rente_fixture
 = m5_par62a_tilbagebetaling_rente_fixture = kildeskat_par62a_tilbagebetaling_rente_fixture
@@ -317,13 +318,14 @@ virksomhedsunderskud.
 | m5_kildeskat_slutopgørelse_restskat_dækket: m5_slutopgørelse_restskat_fixture -> m5_slutopgørelse_restskat_fixture.restskat_kroner == 20000 && m5_slutopgørelse_restskat_fixture.art == Restskat
 | m5_kildeskat_slutopgørelse_husholdning_dækket: m5_slutopgørelse_husholdning_fixture -> m5_slutopgørelse_husholdning_fixture == 3541
 | m5_kildeskat_ægtefælleudligning_dækket: m5_slutopgørelse_ægtefælleudligning_fixture -> m5_slutopgørelse_ægtefælleudligning_fixture.anvendt_a_til_b_kroner == 7000 && m5_slutopgørelse_ægtefælleudligning_fixture.person_b_restskat_efter_udligning_kroner == 0
-| m5_kildeskat_restskat_tillæg_dækket: m5_slutopgørelse_restskat_tillæg_fixture -> m5_slutopgørelse_restskat_tillæg_fixture == 340
+| m5_kildeskat_restskat_tillæg_dækket: m5_slutopgørelse_restskat_tillæg_fixture -> m5_slutopgørelse_restskat_tillæg_fixture == 320
 | m5_kildeskat_restskat_plan_dækket: m5_slutopgørelse_restskat_plan_fixture -> m5_slutopgørelse_restskat_plan_fixture.indregnes_i_følgende_år_kroner == 18300 && m5_slutopgørelse_restskat_plan_fixture.tre_rater_kroner == 11700
 | m5_kildeskat_overskydende_godtgørelse_dækket: m5_slutopgørelse_husholdning_godtgørelse_fixture -> m5_slutopgørelse_husholdning_godtgørelse_fixture == 0 && m5_slutopgørelse_husholdning_udbetaling_fixture == 3541
-| m5_opkrævningslov_par7_rente_dækket: m5_opkrævningslov_par7_rente_fixture -> m5_opkrævningslov_par7_rente_fixture == 20
+| m5_opkrævningslov_par7_rente_dækket: m5_opkrævningslov_par7_rente_fixture -> m5_opkrævningslov_par7_rente_fixture == 10
 | m5_kildeskat_b_skat_kalender_dækket: m5_b_skat_ratevindue_fixture -> m5_b_skat_ratevindue_fixture.første_rate_nr == 1 && m5_b_skat_ratevindue_fixture.antal_rater == 10 && m5_b_skat_ratevindue_fixture.sidste_forfaldsmåned == 11
+| m5_kildeskat_b_skat_dato_ratevindue_dækket: m5_b_skat_februar_dato_ratevindue_fixture -> m5_b_skat_februar_dato_ratevindue_fixture.første_rate_nr == 3 && m5_b_skat_februar_dato_ratevindue_fixture.antal_rater == 8
 | m5_kildeskat_b_skat_minimum_tension: m5_b_skat_under_minimum_fixture -> m5_b_skat_under_minimum_fixture == Sandt
-| m5_kildeskat_par62a_renter_dækket: m5_par62a_restskat_rente_fixture -> m5_par62a_restskat_rente_fixture == 122 && m5_par62a_tilbagebetaling_rente_fixture == 180 && m5_par62a_forsinket_udbetaling_fixture == 120
+| m5_kildeskat_par62a_renter_dækket: m5_par62a_restskat_rente_fixture -> m5_par62a_restskat_rente_fixture == 101 && m5_par62a_tilbagebetaling_rente_fixture == 150 && m5_par62a_forsinket_udbetaling_fixture == 100
 | m5_kildeskat_par62c_minimum_dækket: m5_slutopgørelse_par62c_lille_restskat_fixture -> m5_slutopgørelse_par62c_lille_restskat_fixture == Falskt
 | m5_opkrævning_ordinær_rettidig_dækket: m5_opkrævning_rettidig_fixture -> opkrævning_betalt_rettidigt(m5_opkrævning_rettidig_fixture) == Sandt && opkrævning_betalingsfrist_dag(m5_opkrævning_rettidig_fixture) == 10
 | m5_opkrævning_for_sen_dækket: m5_opkrævning_for_sen_fixture -> opkrævning_betalt_rettidigt(m5_opkrævning_for_sen_fixture) == Falskt && opkrævning_for_sen_betaling_udløser_rente(m5_opkrævning_for_sen_fixture) == Sandt
@@ -395,6 +397,7 @@ virksomhedsunderskud.
 ? m5_kildeskat_overskydende_godtgørelse_dækket
 ? m5_opkrævningslov_par7_rente_dækket
 ? m5_kildeskat_b_skat_kalender_dækket
+? m5_kildeskat_b_skat_dato_ratevindue_dækket
 ? m5_kildeskat_b_skat_minimum_tension
 ? m5_kildeskat_par62a_renter_dækket
 ? m5_kildeskat_par62c_minimum_dækket
