@@ -52,6 +52,15 @@
 -- Retsinformation, LBK nr. 1040 af 13/09/2024.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/1040
 -- XML: https://www.retsinformation.dk/eli/lta/2024/1040/dan/xml
+-- Retsinformation, LOV nr. 1694 af 30/12/2024.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/1694
+-- XML: https://www.retsinformation.dk/eli/lta/2024/1694/dan/xml
+-- Retsinformation, LOV nr. 1783 af 29/12/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1783
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1783/dan/xml
+-- Retsinformation, BEK nr. 1793 af 29/12/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1793
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1793/dan/xml
 --
 -- Afhængig kilde for lønmodtagerfradrag:
 -- Retsinformation, LBK nr. 1500 af 12/12/2025.
@@ -149,6 +158,27 @@ DiesSigni: 2024-09-13
 StartDate: 2024-09-18
 EndDate: 2026-06-20
 
+Officiel XML-metadata for 2024/1694, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af opkrævningsloven og forskellige andre love (Ny opkrævningsløsning for visse krav, renteharmonisering, hæftelse for kildeskat efter solvent likvidation og sikring af rentekrav ved udbetaling af refusion af kildeskat til modtagere af udbytter, renter og royalties m.v.)
+Status: Valid
+DiesSigni: 2024-12-30
+StartDate: 2024-12-30
+EndDate: 2026-06-20
+
+Officiel XML-metadata for 2025/1783, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af momsloven, opkrævningsloven og forskellige andre love (Ændring af reglerne om momsfritagelse af uddannelse af børn og unge under 30 år, harmoniseringsrente og skattetillæg for selskaber m.v.)
+Status: Valid
+DiesSigni: 2025-12-29
+StartDate: 2025-12-29
+EndDate: 2026-06-20
+
+Officiel XML-metadata for 2025/1793, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse om ikrafttræden af § 1, nr. 6 og 17, i lov om ændring af opkrævningsloven og forskellige andre love (Ny opkrævningsløsning for visse krav, renteharmonisering, hæftelse for kildeskat efter solvent likvidation og sikring af rentekrav ved udbetaling af refusion af kildeskat til modtagere af udbytter, renter og royalties m.v.) og § 2, nr. 5 og 6, i lov om ændring af momsloven, opkrævningsloven og forskellige andre love (Ændring af reglerne om momsfritagelse af uddannelse af børn og unge under 30 år, harmoniseringsrente og skattetillæg for selskaber m.v.)
+Status: Valid
+DiesSigni: 2025-12-29
+StartDate: 2025-12-29
+EndDate: 2026-06-20
+
 Officiel XML-metadata for 2025/1500, hentet 2026-07-18:
 DocumentTitle: Bekendtgørelse af lov om påligningen af indkomstskat til staten (ligningsloven)
 PopularTitle: Ligningsloven
@@ -174,6 +204,9 @@ EndDate: 2026-06-20
 = forskudsregistrering_indeholdelsesprocent_2025_1094 = Retskilde("https://www.retsinformation.dk/eli/lta/2025/1094", 2025, 1094, Gældende)
 = forskudsregistrering_indeholdelsesprocent_aendring_2025_1828 = Retskilde("https://www.retsinformation.dk/eli/lta/2025/1828", 2025, 1828, Gældende)
 = opkrævningsloven_2024_1040 = Retskilde("https://www.retsinformation.dk/eli/lta/2024/1040", 2024, 1040, Gældende)
+= opkrævningslov_aendring_2024_1694 = Retskilde("https://www.retsinformation.dk/eli/lta/2024/1694", 2024, 1694, Gældende)
+= opkrævningslov_aendring_2025_1783 = Retskilde("https://www.retsinformation.dk/eli/lta/2025/1783", 2025, 1783, Gældende)
+= opkrævningslov_ikraft_2025_1793 = Retskilde("https://www.retsinformation.dk/eli/lta/2025/1793", 2025, 1793, Gældende)
 = ligningsloven_2025_1500 = Retskilde("https://www.retsinformation.dk/eli/lta/2025/1500", 2025, 1500, Gældende)
 
 | kilde_er_personskatteloven(kilde: Retskilde) -> kilde.nummer == 799 || kilde.nummer == 1284
@@ -187,6 +220,7 @@ EndDate: 2026-06-20
 | kilde_er_kildeskattebekendtgørelse(kilde: Retskilde) -> kilde.nummer == 839 && kilde.år == 2025
 | kilde_er_forskudsregistrering_indeholdelsesprocent(kilde: Retskilde) -> kilde.nummer == 1094 && kilde.år == 2025 || kilde.nummer == 1828 && kilde.år == 2025
 | kilde_er_opkrævningsloven(kilde: Retskilde) -> kilde.nummer == 1040 && kilde.år == 2024
+| kilde_er_opkrævningslov_aendring(kilde: Retskilde) -> (kilde.nummer == 1694 && kilde.år == 2024) || (kilde.nummer == 1783 && kilde.år == 2025) || (kilde.nummer == 1793 && kilde.år == 2025)
 | kilde_er_ligningsloven(kilde: Retskilde) -> kilde.nummer == 1500 && kilde.år == 2025
 
 | kilde_egnet_til_formål(kilde: Retskilde, formål: Beregningsformål) -> Sandt under kilde.status == Gældende
@@ -206,6 +240,7 @@ EndDate: 2026-06-20
 = forskudsregistrering_indeholdelsesprocent_til_aktuel_beregning = kilde_egnet_til_formål(forskudsregistrering_indeholdelsesprocent_2025_1094, AktuelSkatteberegning)
 = forskudsregistrering_indeholdelsesprocent_aendring_til_aktuel_beregning = kilde_egnet_til_formål(forskudsregistrering_indeholdelsesprocent_aendring_2025_1828, AktuelSkatteberegning)
 = opkrævningslov_til_aktuel_beregning = kilde_egnet_til_formål(opkrævningsloven_2024_1040, AktuelSkatteberegning)
+= opkrævningslov_aendring_til_aktuel_beregning = kilde_egnet_til_formål(opkrævningslov_aendring_2024_1694, AktuelSkatteberegning) && kilde_egnet_til_formål(opkrævningslov_aendring_2025_1783, AktuelSkatteberegning) && kilde_egnet_til_formål(opkrævningslov_ikraft_2025_1793, AktuelSkatteberegning)
 = ligningslov_til_aktuel_beregning = kilde_egnet_til_formål(ligningsloven_2025_1500, AktuelSkatteberegning)
 = historisk_til_audit = kilde_egnet_til_formål(personskatteloven_2019_799, HistoriskAudit)
 
@@ -222,5 +257,6 @@ EndDate: 2026-06-20
 | forskudsregistrering_indeholdelsesprocent_accepteres_til_aktuel_beregning: forskudsregistrering_indeholdelsesprocent_til_aktuel_beregning -> forskudsregistrering_indeholdelsesprocent_til_aktuel_beregning == Sandt
 | forskudsregistrering_indeholdelsesprocent_aendring_accepteres_til_aktuel_beregning: forskudsregistrering_indeholdelsesprocent_aendring_til_aktuel_beregning -> forskudsregistrering_indeholdelsesprocent_aendring_til_aktuel_beregning == Sandt
 | opkrævningslov_accepteres_til_aktuel_beregning: opkrævningslov_til_aktuel_beregning -> opkrævningslov_til_aktuel_beregning == Sandt
+| opkrævningslov_aendring_accepteres_til_aktuel_beregning: opkrævningslov_aendring_til_aktuel_beregning -> opkrævningslov_aendring_til_aktuel_beregning == Sandt
 | ligningslov_accepteres_til_aktuel_beregning: ligningslov_til_aktuel_beregning -> ligningslov_til_aktuel_beregning == Sandt
 | historisk_kilde_accepteres_til_audit: historisk_til_audit -> historisk_til_audit == Sandt

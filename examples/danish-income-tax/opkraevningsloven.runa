@@ -6,6 +6,15 @@
 -- Kilde: Retsinformation, LBK nr. 1040 af 13/09/2024.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/1040
 -- XML: https://www.retsinformation.dk/eli/lta/2024/1040/dan/xml
+-- Retsinformation, LOV nr. 1694 af 30/12/2024.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/1694
+-- XML: https://www.retsinformation.dk/eli/lta/2024/1694/dan/xml
+-- Retsinformation, LOV nr. 1783 af 29/12/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1783
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1783/dan/xml
+-- Retsinformation, BEK nr. 1793 af 29/12/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1793
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1793/dan/xml
 --
 -- Offentliggjorte § 7-satser:
 -- Skattestyrelsen, SKM2025.720.SKTST:
@@ -20,6 +29,27 @@ PopularTitle: Opkrævningsloven
 Status: Valid
 DiesSigni: 2024-09-13
 StartDate: 2024-09-18
+EndDate: 2026-06-20
+
+Officiel XML-metadata for 2024/1694, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af opkrævningsloven og forskellige andre love (Ny opkrævningsløsning for visse krav, renteharmonisering, hæftelse for kildeskat efter solvent likvidation og sikring af rentekrav ved udbetaling af refusion af kildeskat til modtagere af udbytter, renter og royalties m.v.)
+Status: Valid
+DiesSigni: 2024-12-30
+StartDate: 2024-12-30
+EndDate: 2026-06-20
+
+Officiel XML-metadata for 2025/1783, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af momsloven, opkrævningsloven og forskellige andre love (Ændring af reglerne om momsfritagelse af uddannelse af børn og unge under 30 år, harmoniseringsrente og skattetillæg for selskaber m.v.)
+Status: Valid
+DiesSigni: 2025-12-29
+StartDate: 2025-12-29
+EndDate: 2026-06-20
+
+Officiel XML-metadata for 2025/1793, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse om ikrafttræden af § 1, nr. 6 og 17, i lov om ændring af opkrævningsloven og forskellige andre love (Ny opkrævningsløsning for visse krav, renteharmonisering, hæftelse for kildeskat efter solvent likvidation og sikring af rentekrav ved udbetaling af refusion af kildeskat til modtagere af udbytter, renter og royalties m.v.) og § 2, nr. 5 og 6, i lov om ændring af momsloven, opkrævningsloven og forskellige andre love (Ændring af reglerne om momsfritagelse af uddannelse af børn og unge under 30 år, harmoniseringsrente og skattetillæg for selskaber m.v.)
+Status: Valid
+DiesSigni: 2025-12-29
+StartDate: 2025-12-29
 EndDate: 2026-06-20
 ----
 
@@ -192,6 +222,42 @@ udestående lånemasse opgjort med to decimaler, og det simple gennemsnit, jf.
 divideres med 24 og afrundes nedad til én decimal.
 ----
 
+----
+LOV nr. 1694 af 30/12/2024, § 1, nr. 5:
+I § 7, stk. 1, 1. pkt., ændres »månedlig rente som fastsat efter stk. 2 med
+tillæg af 0,7 procentpoint regnet fra« til: »daglig rente beregnet ud fra den
+rentesats, der efter stk. 2 er fastsat for en måned, med tillæg af 0,7
+procentpoint regnet fra udløbet af«, og i 2. pkt. ændres »beregnes dagligt«
+til: »påløber for hver af kalenderårets dage efter den seneste rettidige
+betalingsdag til og med dagen, hvor betaling sker, og forfalder til betaling,
+når renten påløber«.
+
+LOV nr. 1694 af 30/12/2024, § 1, nr. 6:
+I § 7, stk. 1, 1. pkt., ændres »0,7« til: »0,85«.
+
+LOV nr. 1694 af 30/12/2024, § 18, stk. 1:
+Loven træder i kraft den 1. januar 2025, jf. dog stk. 2.
+
+LOV nr. 1694 af 30/12/2024, § 18, stk. 2:
+Skatteministeren fastsætter tidspunktet for ikrafttrædelse af § 1, nr. 6, 15,
+17 og 18.
+
+LOV nr. 1783 af 29/12/2025, § 5, nr. 2:
+I § 18, stk. 2, 1. pkt., ændres »§ 1, nr. 6, 15, 17 og 18« til: »§ 1, nr. 6
+og 17«.
+
+BEK nr. 1793 af 29/12/2025, § 1:
+§ 1, nr. 6 og 17, i lov nr. 1694 af 30. december 2024 om ændring af
+opkrævningsloven og forskellige andre love (Ny opkrævningsløsning for visse
+krav, renteharmonisering, hæftelse for kildeskat efter solvent likvidation og
+sikring af rentekrav ved udbetaling af refusion af kildeskat til modtagere af
+udbytter, renter og royalties m.v.), som ændret ved lov nr. 1783 af 29.
+december 2025, sættes i kraft.
+
+BEK nr. 1793 af 29/12/2025, § 3:
+Bekendtgørelsen træder i kraft den 1. januar 2026.
+----
+
 # OpkrævningPar7RenteInput(kalenderår: Heltal, juli_kassekreditrente_basispoint: Heltal, august_kassekreditrente_basispoint: Heltal, september_kassekreditrente_basispoint: Heltal)
 # OpkrævningPar7OffentliggjortSats(kalenderår: Heltal, stk2_rente_basispoint: Heltal, kilde_eli: Tekst)
 
@@ -204,6 +270,10 @@ divideres med 24 og afrundes nedad til én decimal.
 | opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(kalenderår, 0, "")
 | exception opkrævning_par7_skm2025_720_2026 opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(2026, 10, "https://info.skat.dk/data.aspx?oid=2459995") under kalenderår == 2026
 | opkrævning_par7_offentliggjort_stk2_rente_basispoint(kalenderår: Heltal) -> opkrævning_par7_offentliggjort_sats(kalenderår).stk2_rente_basispoint
+| opkrævning_par7_stk1_forsinkelsestillæg_basispoint(kalenderår: Heltal) -> 70
+| exception opkrævning_par7_lov1694_bek1793_tillæg_2026 opkrævning_par7_stk1_forsinkelsestillæg_basispoint(kalenderår: Heltal) -> 85 under kalenderår >= 2026
+| opkrævning_par7_stk1_månedlig_forsinkelsesrente_basispoint(kalenderår: Heltal) -> opkrævning_par7_offentliggjort_stk2_rente_basispoint(kalenderår) + opkrævning_par7_stk1_forsinkelsestillæg_basispoint(kalenderår)
+| opkrævning_par7_stk1_daglig_rente_påløber_til_og_med_betalingsdag(kalenderår: Heltal) -> kalenderår >= 2025
 | opkrævning_par7_rente_offentliggøres_senest_15_december() -> Sandt
 
 = opkrævning_par7_eksempel_input = OpkrævningPar7RenteInput(2026, 700, 700, 700)
@@ -211,13 +281,22 @@ divideres med 24 og afrundes nedad til én decimal.
 = opkrævning_par7_rente_fixture = opkrævning_par7_stk2_rente_basispoint(opkrævning_par7_eksempel_input)
 = opkrævning_par7_2026_offentliggjort_sats_fixture = opkrævning_par7_offentliggjort_sats(2026)
 = opkrævning_par7_2026_offentliggjort_rente_fixture = opkrævning_par7_offentliggjort_stk2_rente_basispoint(2026)
+= opkrævning_par7_2026_forsinkelsestillæg_fixture = opkrævning_par7_stk1_forsinkelsestillæg_basispoint(2026)
+= opkrævning_par7_2026_månedlig_forsinkelsesrente_fixture = opkrævning_par7_stk1_månedlig_forsinkelsesrente_basispoint(2026)
+= opkrævning_par7_2026_daglig_påløb_fixture = opkrævning_par7_stk1_daglig_rente_påløber_til_og_med_betalingsdag(2026)
 
 | opkrævning_par7_gennemsnit_nedrundes_til_hel_procent: opkrævning_par7_gennemsnit_fixture -> opkrævning_par7_gennemsnit_fixture == 700
 | opkrævning_par7_rente_divideres_og_afrundes_til_en_decimal: opkrævning_par7_rente_fixture -> opkrævning_par7_rente_fixture == 20
 | opkrævning_par7_2026_skm_sats_er_kildebundet: opkrævning_par7_2026_offentliggjort_sats_fixture -> opkrævning_par7_2026_offentliggjort_sats_fixture.stk2_rente_basispoint == 10 && opkrævning_par7_2026_offentliggjort_sats_fixture.kilde_eli == "https://info.skat.dk/data.aspx?oid=2459995"
 | opkrævning_par7_2026_offentliggjort_rente_dækket: opkrævning_par7_2026_offentliggjort_rente_fixture -> opkrævning_par7_2026_offentliggjort_rente_fixture == 10
+| opkrævning_par7_2026_tillæg_ikraftsat: opkrævning_par7_2026_forsinkelsestillæg_fixture -> opkrævning_par7_2026_forsinkelsestillæg_fixture == 85
+| opkrævning_par7_2026_forsinkelsesrente_samlet: opkrævning_par7_2026_månedlig_forsinkelsesrente_fixture -> opkrævning_par7_2026_månedlig_forsinkelsesrente_fixture == 95
+| opkrævning_par7_2026_dagligt_påløb_dækket: opkrævning_par7_2026_daglig_påløb_fixture -> opkrævning_par7_2026_daglig_påløb_fixture == Sandt
 
 ? opkrævning_par7_gennemsnit_nedrundes_til_hel_procent
 ? opkrævning_par7_rente_divideres_og_afrundes_til_en_decimal
 ? opkrævning_par7_2026_skm_sats_er_kildebundet
 ? opkrævning_par7_2026_offentliggjort_rente_dækket
+? opkrævning_par7_2026_tillæg_ikraftsat
+? opkrævning_par7_2026_forsinkelsesrente_samlet
+? opkrævning_par7_2026_dagligt_påløb_dækket

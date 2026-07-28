@@ -132,6 +132,10 @@ Current municipal/church-tax and withholding dependency sources:
   - The 2026 § 7 stk. 2 settlement-rate fixture now uses Skattestyrelsen's
     published `SKM2025.720.SKTST` rate source:
     `https://info.skat.dk/data.aspx?oid=2459995`.
+  - The § 7, stk. 1 late-payment supplement source drift is resolved through
+    LOV 1694/2024, LOV 1783/2025 and BEK 1793/2025: the live supplement is
+    0,85 procentpoint from January 1, 2026, so the 2026 late-payment monthly
+    rate fixture is 0,95 pct. before daily accrual mechanics.
 
 Working decision: use `2021/1284` as the current consolidated source for live
 encoding, while preserving `2019/799` as source lineage because the valid
@@ -181,7 +185,7 @@ encoded as a temporal rule on top of the consolidation.
   Kildeskatteloven §§ 60-62/62 A/62 C/67 slutopgørelse balance,
   restskat timing, date-derived B-skat rate windows, date-derived § 62 A
   interest spans, and overskydende-skat compensation posture,
-  Opkrævningsloven payment deadlines,
+  Opkrævningsloven payment deadlines and § 7 late-payment rate posture,
   Ligningsloven ordinary wage-earner deduction
   dependency slices, 2024/2025/2026 tax-year parameter packs, first wage-earner
   scenarios, a first fictional household scenario, complex § 13 calculator
@@ -266,6 +270,22 @@ Current decision:
   for settlement examples. The Nationalbank July/August/September formula stays
   executable, while live Kildeskatteloven fixtures use the Skattestyrelsen
   source row instead of synthetic monthly-rate literals.
+- `opkrævning_par7_stk1_forsinkelsestillæg_basispoint` now captures the
+  2026 source-chain amendment from 0,7 to 0,85 procentpoint as a temporal
+  exception, and `opkrævning_par7_stk1_månedlig_forsinkelsesrente_basispoint`
+  derives the combined monthly late-payment rate from the published § 7, stk. 2
+  row plus that supplement.
+- Second-pass review: the current Opkrævningsloven § 7 update should stay as
+  rate rules keyed by `kalenderår`. A domain record would be premature while the
+  executable surface is only source-chain status, published monthly rate,
+  late-payment supplement, and a daily-accrual posture flag.
+- The next legitimate Opkrævningsloven domain object is a date-exact
+  late-payment interest context once kroner calculation is encoded: principal,
+  due date, payment date, published § 7 stk. 2 row, stk. 1 supplement, source
+  chain, and daily accrual convention.
+- The household scenario helpers are a future candidate for a compact scenario
+  input object if more household scenarios are added. With one scenario, the
+  current explicit facts remain easier to audit than a new wrapper layer.
 
 Review candidates to revisit deliberately, not as broad churn:
 
@@ -278,10 +298,6 @@ Review candidates to revisit deliberately, not as broad churn:
   `ArbejdsmarkedsbidragVirksomhedsordningInput` are wide, but they still mirror
   dense statutory enumerations closely enough that premature grouping could hurt
   source traceability.
-- Opkrævningsloven § 7, stk. 1 needs a focused source-drift audit before any
-  current-year late-payment total-rate rule is treated as live. The source block
-  from LBK 1040/2024 says 0,7 procentpoint, while Skatteministeriet's 2026 rate
-  table lists a 0,85 tillægsprocentsats.
 
 ## Now
 
@@ -308,8 +324,7 @@ Review candidates to revisit deliberately, not as broad churn:
   statutes and trusted calculation examples, especially for municipal/church
   settlement edge cases, direct Nationalbank raw-data ingestion beyond the
   Skattestyrelsen-published Opkrævningsloven § 7 annual rate, merged restskat
-  rate schedules that show large/small installments per due date, Opkrævningsloven
-  § 7 stk. 1 source-drift resolution, and remaining AM
+  rate schedules that show large/small installments per due date, and remaining AM
   edge cases beyond the first source-explicit special-case slice. The AM-law
   slice now covers ordinary wage remuneration,
   taxable benefits, § 3 exclusions, self-employed bases with and without
@@ -330,12 +345,15 @@ Review candidates to revisit deliberately, not as broad churn:
   Opkrævningsloven slice now covers ordinary and large-withholder A-skat/AM
   payment deadlines, late payment posture, provisional assessment posture, and
   the § 7 stk. 2 annual-rate formula from July/August/September Nationalbank
-  kassekreditrente inputs plus the Skattestyrelsen-published 2026 annual rate.
+  kassekreditrente inputs plus the Skattestyrelsen-published 2026 annual rate
+  and the 2026 source-chain amendment to the § 7, stk. 1 late-payment
+  supplement.
   The first Kildeskatteloven slutopgørelse slice now covers § 60 crediting,
   § 61 restskat plus percentage supplement and timing posture, § 62
   overskydende skat plus compensation/refund posture, § 60 spouse offsetting,
   § 58 B-skat calendar projection, § 62 A amended annual statement interest
-  posture with date-derived month counts, § 62 C minimum thresholds, and § 67 dividend-tax credit posture; the
+  posture with date-derived month counts, § 62 C minimum thresholds, and § 67
+  dividend-tax credit posture; the
   fictional household's generated-card annual settlement currently yields
   3.541 kr. overskydende skat and 3.541 kr. payout under the source-derived
   § 7 rate fixture.
@@ -490,8 +508,9 @@ M5 - Audit suite
   44,57 pct. ceiling, covered § 20 regulation/rounding, covered § 26 transition
   compensation, covered § 28 territorial exclusion, covered AM-law special cases,
   covered Opkrævningsloven payment-deadline/remittance posture and § 7
-  rate-derivation fixture, covered B-skat installment calendar/rate-window
-  projection, covered § 62 A interest fixtures, exposed restskat remaining
+  rate-derivation fixture plus 2026 late-payment supplement source-chain
+  amendment, covered B-skat installment calendar/rate-window projection,
+  covered § 62 A interest fixtures, exposed restskat remaining
   B-skat-rate minimum tension,
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,

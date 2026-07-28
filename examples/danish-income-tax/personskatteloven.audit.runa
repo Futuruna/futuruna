@@ -54,6 +54,15 @@ Status: Valid
 Officiel XML-metadata for 2024/1040, hentet 2026-07-18:
 Status: Valid
 
+Officiel XML-metadata for 2024/1694, hentet 2026-07-18:
+Status: Valid
+
+Officiel XML-metadata for 2025/1783, hentet 2026-07-18:
+Status: Valid
+
+Officiel XML-metadata for 2025/1793, hentet 2026-07-18:
+Status: Valid
+
 Officiel XML-metadata for 2025/1500, hentet 2026-07-18:
 Status: Valid
 
@@ -77,6 +86,7 @@ Status: Valid
 = m5_forskudsregistrering_indeholdelsesprocent_til_aktuel = kilde_egnet_til_formål(forskudsregistrering_indeholdelsesprocent_2025_1094, AktuelSkatteberegning)
 = m5_forskudsregistrering_indeholdelsesprocent_aendring_til_aktuel = kilde_egnet_til_formål(forskudsregistrering_indeholdelsesprocent_aendring_2025_1828, AktuelSkatteberegning)
 = m5_opkrævningslov_til_aktuel = kilde_egnet_til_formål(opkrævningsloven_2024_1040, AktuelSkatteberegning)
+= m5_opkrævningslov_aendring_til_aktuel = opkrævningslov_aendring_til_aktuel_beregning
 = m5_ligningslov_til_aktuel = kilde_egnet_til_formål(ligningsloven_2025_1500, AktuelSkatteberegning)
 
 | m5_historisk_kilde_afvises: m5_historisk_til_aktuel -> m5_historisk_til_aktuel == Falskt
@@ -91,6 +101,7 @@ Status: Valid
 | m5_forskudsregistrering_indeholdelsesprocent_kilde_accepteres: m5_forskudsregistrering_indeholdelsesprocent_til_aktuel -> m5_forskudsregistrering_indeholdelsesprocent_til_aktuel == Sandt
 | m5_forskudsregistrering_indeholdelsesprocent_aendring_kilde_accepteres: m5_forskudsregistrering_indeholdelsesprocent_aendring_til_aktuel -> m5_forskudsregistrering_indeholdelsesprocent_aendring_til_aktuel == Sandt
 | m5_opkrævningslov_kilde_accepteres: m5_opkrævningslov_til_aktuel -> m5_opkrævningslov_til_aktuel == Sandt
+| m5_opkrævningslov_aendring_kilde_accepteres: m5_opkrævningslov_aendring_til_aktuel -> m5_opkrævningslov_aendring_til_aktuel == Sandt
 | m5_ligningslov_kilde_accepteres: m5_ligningslov_til_aktuel -> m5_ligningslov_til_aktuel == Sandt
 | m5_audit_historisk_kilde_signal: audit_signal(HistoriskKildeTilAktuelBeregning) -> audit_signal(HistoriskKildeTilAktuelBeregning) == Sandt
 
@@ -106,6 +117,7 @@ Status: Valid
 ? m5_forskudsregistrering_indeholdelsesprocent_kilde_accepteres
 ? m5_forskudsregistrering_indeholdelsesprocent_aendring_kilde_accepteres
 ? m5_opkrævningslov_kilde_accepteres
+? m5_opkrævningslov_aendring_kilde_accepteres
 ? m5_ligningslov_kilde_accepteres
 
 ----
@@ -266,6 +278,8 @@ virksomhedsunderskud.
 = m5_slutopgørelse_husholdning_godtgørelse_fixture = scenarie1_husholdning_genereret_godtgørelse
 = m5_slutopgørelse_husholdning_udbetaling_fixture = scenarie1_husholdning_genereret_udbetaling
 = m5_opkrævningslov_par7_rente_fixture = kildeskat_opkrævningslov_par7_rente_fixture
+= m5_opkrævningslov_par7_tillæg_fixture = opkrævning_par7_2026_forsinkelsestillæg_fixture
+= m5_opkrævningslov_par7_forsinkelsesrente_fixture = opkrævning_par7_2026_månedlig_forsinkelsesrente_fixture
 = m5_b_skat_ratevindue_fixture = kildeskat_restskat_sen_b_skat_ratevindue_fixture
 = m5_b_skat_februar_dato_ratevindue_fixture = kildeskat_restskat_februar_b_skat_ratevindue_fixture
 = m5_b_skat_under_minimum_fixture = kildeskat_restskat_b_skat_under_minimum_fixture
@@ -322,6 +336,7 @@ virksomhedsunderskud.
 | m5_kildeskat_restskat_plan_dækket: m5_slutopgørelse_restskat_plan_fixture -> m5_slutopgørelse_restskat_plan_fixture.indregnes_i_følgende_år_kroner == 18300 && m5_slutopgørelse_restskat_plan_fixture.tre_rater_kroner == 11700
 | m5_kildeskat_overskydende_godtgørelse_dækket: m5_slutopgørelse_husholdning_godtgørelse_fixture -> m5_slutopgørelse_husholdning_godtgørelse_fixture == 0 && m5_slutopgørelse_husholdning_udbetaling_fixture == 3541
 | m5_opkrævningslov_par7_rente_dækket: m5_opkrævningslov_par7_rente_fixture -> m5_opkrævningslov_par7_rente_fixture == 10
+| m5_opkrævningslov_par7_forsinkelsestillæg_dækket: m5_opkrævningslov_par7_tillæg_fixture -> m5_opkrævningslov_par7_tillæg_fixture == 85 && m5_opkrævningslov_par7_forsinkelsesrente_fixture == 95
 | m5_kildeskat_b_skat_kalender_dækket: m5_b_skat_ratevindue_fixture -> m5_b_skat_ratevindue_fixture.første_rate_nr == 1 && m5_b_skat_ratevindue_fixture.antal_rater == 10 && m5_b_skat_ratevindue_fixture.sidste_forfaldsmåned == 11
 | m5_kildeskat_b_skat_dato_ratevindue_dækket: m5_b_skat_februar_dato_ratevindue_fixture -> m5_b_skat_februar_dato_ratevindue_fixture.første_rate_nr == 3 && m5_b_skat_februar_dato_ratevindue_fixture.antal_rater == 8
 | m5_kildeskat_b_skat_minimum_tension: m5_b_skat_under_minimum_fixture -> m5_b_skat_under_minimum_fixture == Sandt
@@ -396,6 +411,7 @@ virksomhedsunderskud.
 ? m5_kildeskat_restskat_plan_dækket
 ? m5_kildeskat_overskydende_godtgørelse_dækket
 ? m5_opkrævningslov_par7_rente_dækket
+? m5_opkrævningslov_par7_forsinkelsestillæg_dækket
 ? m5_kildeskat_b_skat_kalender_dækket
 ? m5_kildeskat_b_skat_dato_ratevindue_dækket
 ? m5_kildeskat_b_skat_minimum_tension
