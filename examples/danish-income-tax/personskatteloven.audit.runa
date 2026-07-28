@@ -70,7 +70,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | LigningslovLønmodtagerfradragDækket | FiktivHusholdningScenarieDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | FiktivHusholdningScenarieDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par19SkatteloftDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -282,6 +282,7 @@ virksomhedsunderskud.
 = m5_opkrævningslov_par7_forsinkelsesrente_fixture = opkrævning_par7_2026_månedlig_forsinkelsesrente_fixture
 = m5_opkrævningslov_par7_daglig_rente_kontekst_fixture = afregning_par7_daglig_rente_kontekst
 = m5_opkrævningslov_par7_daglig_rente_beregning_fixture = afregning_par7_daglig_rente_beregning
+= m5_opkrævningslov_par7_tværår_rente_fixture = afregning_par7_tværår_beregning
 = m5_b_skat_ratevindue_fixture = kildeskat_restskat_sen_b_skat_ratevindue_fixture
 = m5_b_skat_februar_dato_ratevindue_fixture = kildeskat_restskat_februar_b_skat_ratevindue_fixture
 = m5_b_skat_under_minimum_fixture = kildeskat_restskat_b_skat_under_minimum_fixture
@@ -341,6 +342,9 @@ virksomhedsunderskud.
 | m5_opkrævningslov_par7_forsinkelsestillæg_dækket: m5_opkrævningslov_par7_tillæg_fixture -> m5_opkrævningslov_par7_tillæg_fixture == 85 && m5_opkrævningslov_par7_forsinkelsesrente_fixture == 95
 | m5_opkrævningslov_par7_daglig_rente_kontekst_dækket: m5_opkrævningslov_par7_daglig_rente_kontekst_fixture -> m5_opkrævningslov_par7_daglig_rente_kontekst_fixture.rentedage == 5 && m5_opkrævningslov_par7_daglig_rente_kontekst_fixture.renteår_dage == 365 && m5_opkrævningslov_par7_daglig_rente_kontekst_fixture.månedlig_forsinkelsesrente_basispoint == 95
 | m5_opkrævningslov_par7_daglig_rente_beregning_dækket: m5_opkrævningslov_par7_daglig_rente_beregning_fixture -> m5_opkrævningslov_par7_daglig_rente_beregning_fixture.rente_tæller_øre == 57000000000 && m5_opkrævningslov_par7_daglig_rente_beregning_fixture.rente_nævner == 3650000 && m5_opkrævningslov_par7_daglig_rente_beregning_fixture.rente_øre_nedrundet == 15616
+| m5_opkrævningslov_par7_tværår_første_årsdel_dækket: m5_opkrævningslov_par7_tværår_rente_fixture -> m5_opkrævningslov_par7_tværår_rente_fixture.første_årsdel.kalenderår == 2025 && m5_opkrævningslov_par7_tværår_rente_fixture.første_årsdel.rentedage == 1 && m5_opkrævningslov_par7_tværår_rente_fixture.første_årsdel.offentliggjort_sats.stk2_rente_basispoint == 20 && m5_opkrævningslov_par7_tværår_rente_fixture.første_årsdel.forsinkelsestillæg_basispoint == 70 && m5_opkrævningslov_par7_tværår_rente_fixture.første_årsdel.rente_øre_nedrundet == 2958
+| m5_opkrævningslov_par7_tværår_sidste_årsdel_dækket: m5_opkrævningslov_par7_tværår_rente_fixture -> m5_opkrævningslov_par7_tværår_rente_fixture.sidste_årsdel.kalenderår == 2026 && m5_opkrævningslov_par7_tværår_rente_fixture.sidste_årsdel.rentedage == 2 && m5_opkrævningslov_par7_tværår_rente_fixture.sidste_årsdel.offentliggjort_sats.stk2_rente_basispoint == 10 && m5_opkrævningslov_par7_tværår_rente_fixture.sidste_årsdel.forsinkelsestillæg_basispoint == 85 && m5_opkrævningslov_par7_tværår_rente_fixture.sidste_årsdel.rente_øre_nedrundet == 6246
+| m5_opkrævningslov_par7_tværår_samlet_dækket: m5_opkrævningslov_par7_tværår_rente_fixture -> m5_opkrævningslov_par7_tværår_rente_fixture.mellemliggende_år_rente_øre_nedrundet == 0 && m5_opkrævningslov_par7_tværår_rente_fixture.samlet_rente_øre_nedrundet == 9204
 | m5_kildeskat_b_skat_kalender_dækket: m5_b_skat_ratevindue_fixture -> m5_b_skat_ratevindue_fixture.første_rate_nr == 1 && m5_b_skat_ratevindue_fixture.antal_rater == 10 && m5_b_skat_ratevindue_fixture.sidste_forfaldsmåned == 11
 | m5_kildeskat_b_skat_dato_ratevindue_dækket: m5_b_skat_februar_dato_ratevindue_fixture -> m5_b_skat_februar_dato_ratevindue_fixture.første_rate_nr == 3 && m5_b_skat_februar_dato_ratevindue_fixture.antal_rater == 8
 | m5_kildeskat_b_skat_minimum_tension: m5_b_skat_under_minimum_fixture -> m5_b_skat_under_minimum_fixture == Sandt
@@ -369,6 +373,7 @@ virksomhedsunderskud.
 | m5_audit_opkrævningslov_signal: audit_signal(OpkrævningslovBetalingsfristDækket) -> audit_signal(OpkrævningslovBetalingsfristDækket) == Sandt
 | m5_audit_opkrævningslov_par7_rente_signal: audit_signal(OpkrævningslovPar7RenteDækket) -> audit_signal(OpkrævningslovPar7RenteDækket) == Sandt
 | m5_audit_opkrævningslov_par7_daglig_rente_signal: audit_signal(OpkrævningslovPar7DagligRenteDækket) -> audit_signal(OpkrævningslovPar7DagligRenteDækket) == Sandt
+| m5_audit_opkrævningslov_par7_tværår_rente_signal: audit_signal(OpkrævningslovPar7TværårRenteDækket) -> audit_signal(OpkrævningslovPar7TværårRenteDækket) == Sandt
 | m5_audit_fiktiv_husholdning_signal: audit_signal(FiktivHusholdningScenarieDækket) -> audit_signal(FiktivHusholdningScenarieDækket) == Sandt
 
 ? m5_par13_skatteværdi
@@ -419,6 +424,9 @@ virksomhedsunderskud.
 ? m5_opkrævningslov_par7_forsinkelsestillæg_dækket
 ? m5_opkrævningslov_par7_daglig_rente_kontekst_dækket
 ? m5_opkrævningslov_par7_daglig_rente_beregning_dækket
+? m5_opkrævningslov_par7_tværår_første_årsdel_dækket
+? m5_opkrævningslov_par7_tværår_sidste_årsdel_dækket
+? m5_opkrævningslov_par7_tværår_samlet_dækket
 ? m5_kildeskat_b_skat_kalender_dækket
 ? m5_kildeskat_b_skat_dato_ratevindue_dækket
 ? m5_kildeskat_b_skat_minimum_tension
@@ -447,6 +455,7 @@ virksomhedsunderskud.
 ? m5_audit_opkrævningslov_signal
 ? m5_audit_opkrævningslov_par7_rente_signal
 ? m5_audit_opkrævningslov_par7_daglig_rente_signal
+? m5_audit_opkrævningslov_par7_tværår_rente_signal
 ? m5_audit_fiktiv_husholdning_signal
 
 ----
@@ -509,4 +518,4 @@ afgrænsning.
 ? m5_audit_par26_signal
 ? m5_audit_par28_signal
 
-@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Opkrævningslov betalingsfrister og § 7 daglig rentekontekst, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")
+@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")

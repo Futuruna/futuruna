@@ -129,8 +129,10 @@ Current municipal/church-tax and withholding dependency sources:
     assessment posture, corrected underpayment, late-payment interest posture,
     and the § 7 stk. 2 annual-rate formula from Nationalbank July/August/
     September kassekreditrente inputs.
-  - The 2026 § 7 stk. 2 settlement-rate fixture now uses Skattestyrelsen's
-    published `SKM2025.720.SKTST` rate source:
+  - The 2025 and 2026 § 7 stk. 2 settlement-rate fixtures now use
+    Skattestyrelsen's published `SKM2024.619.SKTST` and
+    `SKM2025.720.SKTST` rate sources:
+    `https://info.skat.dk/data.aspx?oid=2436822` and
     `https://info.skat.dk/data.aspx?oid=2459995`.
   - The § 7, stk. 1 late-payment supplement source drift is resolved through
     LOV 1694/2024, LOV 1783/2025 and BEK 1793/2025: the live supplement is
@@ -286,6 +288,12 @@ Current decision:
   timely payment date, actual payment date, calendar-year rate row, supplement,
   day-count convention, and rentedage together, avoiding loose date/rate
   parameters being passed down merely so subrules can project them.
+- `OpkrævningPar7DagligRenteÅrsdel` and
+  `OpkrævningPar7DagligRenteTværårBeregning` extend that boundary across
+  New Year. Each segment carries its own calendar-year published-rate row,
+  supplement, year divisor, rentedage, numerator, denominator, and rounded øre
+  result, so a cross-year payment cannot accidentally price 2025 days with a
+  2026 rate or divisor.
 - The § 7 daily-interest result deliberately exposes the øre numerator,
   denominator, and nedrundet øre amount. That keeps precision and rounding
   posture visible until broader kroner/øre rounding policy is unified across the
@@ -518,7 +526,8 @@ M5 - Audit suite
   covered Opkrævningsloven payment-deadline/remittance posture and § 7
   rate-derivation fixture plus 2026 late-payment supplement source-chain
   amendment and date-exact daily interest context, covered B-skat installment
-  calendar/rate-window projection, covered § 62 A interest fixtures, exposed
+  calendar/rate-window projection, covered § 7 cross-calendar-year daily
+  interest split, covered § 62 A interest fixtures, exposed
   restskat remaining B-skat-rate minimum tension,
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
@@ -539,9 +548,9 @@ M6 - Website integration
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
-  Opkrævningsloven payment-deadline, § 7 rate-derivation, and date-exact daily
-  interest-context slices, the B-skat calendar projection, and § 62 A interest
-  fixtures as calculation-ready, and
+  Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily
+  interest-context, and cross-calendar-year interest-split slices, the B-skat
+  calendar projection, and § 62 A interest fixtures as calculation-ready, and
   marks the full statute model as research/audit-only.
 
 M7 - Personfradrag and deficit layer

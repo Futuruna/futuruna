@@ -24,6 +24,7 @@ Large-withholder posture:
 
 = afregning_marts_2026 = OpkrævningAfregningsperiode(2026, 3)
 = afregning_april_2026 = OpkrævningAfregningsperiode(2026, 4)
+= afregning_december_2025 = OpkrævningAfregningsperiode(2025, 12)
 = afregning_december_2026 = OpkrævningAfregningsperiode(2026, 12)
 = afregning_ordinær_tilsvarshistorik = OpkrævningTilsvarHistorik(100000, 500000)
 = afregning_stor_tilsvarshistorik = OpkrævningTilsvarHistorik(300000, 500000)
@@ -36,12 +37,14 @@ Large-withholder posture:
 = afregning_betaling_2026_04_11 = OpkrævningBetaling(2026, 4, 11)
 = afregning_betaling_2026_04_15 = OpkrævningBetaling(2026, 4, 15)
 = afregning_betaling_2026_05_12 = OpkrævningBetaling(2026, 5, 12)
+= afregning_betaling_2026_01_02 = OpkrævningBetaling(2026, 1, 2)
 = afregning_betaling_2027_01_17 = OpkrævningBetaling(2027, 1, 17)
 
 = afregning_ordinær_rettidig = OpkrævningASkatAmAfregningInput(afregning_marts_2026, afregning_ordinær_tilsvarshistorik, Falskt, afregning_marts_bankkalender, afregning_betaling_2026_04_10)
 = afregning_ordinær_for_sen = OpkrævningASkatAmAfregningInput(afregning_marts_2026, afregning_ordinær_tilsvarshistorik, Falskt, afregning_marts_bankkalender, afregning_betaling_2026_04_11)
 = afregning_ordinær_for_sen_fem_dage = OpkrævningASkatAmAfregningInput(afregning_marts_2026, afregning_ordinær_tilsvarshistorik, Falskt, afregning_marts_bankkalender, afregning_betaling_2026_04_15)
 = afregning_december_januarfrist = OpkrævningASkatAmAfregningInput(afregning_december_2026, afregning_ordinær_tilsvarshistorik, Falskt, afregning_december_bankkalender, afregning_betaling_2027_01_17)
+= afregning_december_2025_tværår_for_sen = OpkrævningASkatAmAfregningInput(afregning_december_2025, afregning_stor_tilsvarshistorik, Falskt, afregning_december_bankkalender, afregning_betaling_2026_01_02)
 = afregning_banklukkedag = OpkrævningASkatAmAfregningInput(afregning_april_2026, afregning_ordinær_tilsvarshistorik, Falskt, afregning_april_banklukket_kalender, afregning_betaling_2026_05_12)
 = afregning_stor_indeholdelsespligtig = OpkrævningASkatAmAfregningInput(afregning_marts_2026, afregning_stor_tilsvarshistorik, Falskt, afregning_marts_bankkalender, afregning_betaling_2026_03_31)
 = afregning_region_ordinær = OpkrævningASkatAmAfregningInput(afregning_marts_2026, afregning_region_tilsvarshistorik, Sandt, afregning_marts_bankkalender, afregning_betaling_2026_04_10)
@@ -50,6 +53,8 @@ Large-withholder posture:
 = afregning_par7_daglig_rente_input = OpkrævningPar7DagligRenteInput(100000, afregning_ordinær_for_sen_fem_dage)
 = afregning_par7_daglig_rente_kontekst = opkrævning_par7_daglig_rente_kontekst(afregning_par7_daglig_rente_input)
 = afregning_par7_daglig_rente_beregning = opkrævning_par7_daglig_rente_beregning(afregning_par7_daglig_rente_input)
+= afregning_par7_tværår_input = OpkrævningPar7DagligRenteInput(100000, afregning_december_2025_tværår_for_sen)
+= afregning_par7_tværår_beregning = opkrævning_par7_daglig_rente_tværår_beregning(afregning_par7_tværår_input)
 
 | afregning_ordinær_frist: afregning_ordinær_rettidig -> opkrævning_betalingsfrist_måned(afregning_ordinær_rettidig) == 4 && opkrævning_betalingsfrist_dag(afregning_ordinær_rettidig) == 10
 | afregning_ordinær_rettidig_betaling: afregning_ordinær_rettidig -> opkrævning_betalt_rettidigt(afregning_ordinær_rettidig) == Sandt
@@ -62,6 +67,9 @@ Large-withholder posture:
 | afregning_dato_skudår_og_dagnummer: afregning_2024_marts_1_dagnummer -> opkrævning_skudår(2024) == Sandt && opkrævning_dage_i_år(2026) == 365 && afregning_2024_marts_1_dagnummer == 61
 | afregning_par7_daglig_rente_kontekst_dækket: afregning_par7_daglig_rente_kontekst -> afregning_par7_daglig_rente_kontekst.seneste_rettidige_betalingsdag.måned == 4 && afregning_par7_daglig_rente_kontekst.seneste_rettidige_betalingsdag.dag == 10 && afregning_par7_daglig_rente_kontekst.betalingsdag.dag == 15 && afregning_par7_daglig_rente_kontekst.rentedage == 5 && afregning_par7_daglig_rente_kontekst.renteår_dage == 365 && afregning_par7_daglig_rente_kontekst.offentliggjort_sats.stk2_rente_basispoint == 10 && afregning_par7_daglig_rente_kontekst.forsinkelsestillæg_basispoint == 85 && afregning_par7_daglig_rente_kontekst.månedlig_forsinkelsesrente_basispoint == 95
 | afregning_par7_daglig_rente_beregning_dækket: afregning_par7_daglig_rente_beregning -> afregning_par7_daglig_rente_beregning.rente_tæller_øre == 57000000000 && afregning_par7_daglig_rente_beregning.rente_nævner == 3650000 && afregning_par7_daglig_rente_beregning.rente_øre_nedrundet == 15616
+| afregning_par7_tværår_første_årsdel_dækket: afregning_par7_tværår_beregning -> afregning_par7_tværår_beregning.seneste_rettidige_betalingsdag.år == 2025 && afregning_par7_tværår_beregning.seneste_rettidige_betalingsdag.måned == 12 && afregning_par7_tværår_beregning.seneste_rettidige_betalingsdag.dag == 30 && afregning_par7_tværår_beregning.første_årsdel.kalenderår == 2025 && afregning_par7_tværår_beregning.første_årsdel.rentedage == 1 && afregning_par7_tværår_beregning.første_årsdel.månedlig_forsinkelsesrente_basispoint == 90 && afregning_par7_tværår_beregning.første_årsdel.rente_øre_nedrundet == 2958
+| afregning_par7_tværår_sidste_årsdel_dækket: afregning_par7_tværår_beregning -> afregning_par7_tværår_beregning.betalingsdag.år == 2026 && afregning_par7_tværår_beregning.betalingsdag.måned == 1 && afregning_par7_tværår_beregning.betalingsdag.dag == 2 && afregning_par7_tværår_beregning.sidste_årsdel.kalenderår == 2026 && afregning_par7_tværår_beregning.sidste_årsdel.rentedage == 2 && afregning_par7_tværår_beregning.sidste_årsdel.månedlig_forsinkelsesrente_basispoint == 95 && afregning_par7_tværår_beregning.sidste_årsdel.rente_øre_nedrundet == 6246
+| afregning_par7_tværår_samlet_dækket: afregning_par7_tværår_beregning -> afregning_par7_tværår_beregning.mellemliggende_år_rente_øre_nedrundet == 0 && afregning_par7_tværår_beregning.samlet_rente_øre_nedrundet == 9204
 
 ? afregning_ordinær_frist
 ? afregning_ordinær_rettidig_betaling
@@ -74,3 +82,6 @@ Large-withholder posture:
 ? afregning_dato_skudår_og_dagnummer
 ? afregning_par7_daglig_rente_kontekst_dækket
 ? afregning_par7_daglig_rente_beregning_dækket
+? afregning_par7_tværår_første_årsdel_dækket
+? afregning_par7_tværår_sidste_årsdel_dækket
+? afregning_par7_tværår_samlet_dækket
