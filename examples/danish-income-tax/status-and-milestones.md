@@ -209,12 +209,14 @@ Current decision:
 - `indeholdelse-afregning.scenario.runa` owns the executable remittance facts
   and assertions. The source-law module keeps the original legal text and the
   corresponding rules.
+- `Par13KompleksBeregningInput` now composes named subdomains instead of a
+  25-field positional record: income basis, tax-value rates, offset-tax pools,
+  spouse-transfer facts, stk. 5 limitation facts, and same-business loss facts.
+  The calculator rules project from those domain objects, and the scenario/audit
+  fixtures name those facts before composing the calculator input.
 
 Review candidates to revisit deliberately, not as broad churn:
 
-- `Par13KompleksBeregningInput` is the strongest next candidate for domain
-  objects: tax-value rates, offset pools, spouse transfer, stk. 5 limitation, and
-  same-business loss facts are different legal subdomains.
 - `KildeskatESkattekortInput` and
   `KildeskattebekendtgørelseForskudskortInput` may eventually share smaller
   card-period and withholding-percentage objects, but this should wait until the
@@ -384,7 +386,10 @@ M4 - Ordinary taxpayer calculator
   main-card monthly allowances from forskudsskat and unrounded withholding
   percentage inputs, producing a separate generated-card payroll view.
   Opkrævningsloven now provides source-backed payment-deadline/remittance rules,
-  with fixtures separated into `indeholdelse-afregning.scenario.runa`.
+  with fixtures separated into `indeholdelse-afregning.scenario.runa`. The § 13
+  complex calculator input now uses domain objects for income basis, tax-value
+  rates, offset taxes, spouse transfer, stk. 5 limits, and same-business loss
+  facts.
 
 M5 - Audit suite
 
@@ -407,7 +412,8 @@ M5 - Audit suite
   full trækprocent-derivation dependency, and
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
-  seamen-relief exceptions, and calculator-level § 13 integration signals.
+  seamen-relief exceptions, and calculator-level § 13 integration signals over
+  the domain-object calculator input.
 
 M6 - Website integration
 
