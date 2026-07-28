@@ -15,6 +15,7 @@
 @ importer ./loenmodtager_beregning
 @ importer ./delaar - scenarier.scenario
 @ importer ./husholdning - scenarier.scenario
+@ importer ./husholdning - benefit - cliffs.audit
 @ importer ./skatdk - 2026 - ekstern.scenario
 @ importer ./personskatteloven - bomber.audit
 @ importer ./slutopgoerelse.scenario
@@ -74,7 +75,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | SkatDkEksternFixtureDækket | PersonskatBombAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | PersonskatBombAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -306,6 +307,7 @@ virksomhedsunderskud.
 = m5_kirkeskat_lønmodtager_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner, 80, Sandt))
 = m5_husholdning_scenarie_fixture = scenarie1_husholdning
 = m5_husholdning_indeholdelse_fixture = scenarie1_indeholdelse
+= m5_husholdning_benefit_cliff_fixture = husholdning_benefit_cliff_audit_samlet()
 = m5_skatdk_ekstern_fixture = skatdk_2026_københavn_600k_futuruna
 = m5_skatdk_ekstern_kort_fixture = skatdk_2026_københavn_600k_kort
 = m5_personskat_bomb_audit_fixture = personskat_bomb_audit_samlet()
@@ -370,6 +372,7 @@ virksomhedsunderskud.
 | m5_kommuneskat_matcher_lønmodtager_fixture: m5_personfradrag_fixture -> m5_personfradrag_fixture.kommuneskat_før_personfradrag_kroner == m5_kommuneskat_lønmodtager_fixture
 | m5_kirkeskat_matcher_lønmodtager_fixture: m5_personfradrag_fixture -> m5_personfradrag_fixture.kirkeskat_før_personfradrag_kroner == m5_kirkeskat_lønmodtager_fixture
 | m5_fiktiv_husholdning_scenarie: m5_husholdning_scenarie_fixture -> m5_husholdning_scenarie_fixture.mand.samlet_inkl_am_efter_personfradrag_kroner == 208726 && m5_husholdning_scenarie_fixture.samlet_netto_månedligt_kroner == 46689 && m5_husholdning_scenarie_fixture.efter_husleje_månedligt_kroner == 36689
+| m5_husholdning_benefit_cliff_audit_dækket: m5_husholdning_benefit_cliff_fixture -> m5_husholdning_benefit_cliff_fixture == Sandt
 | m5_skatdk_ekstern_fixture_dækket: m5_skatdk_ekstern_fixture -> m5_skatdk_ekstern_fixture.samlet_inkl_am_efter_personfradrag_kroner == 208726
 | m5_skatdk_ekstern_skattekort_dækket: m5_skatdk_ekstern_kort_fixture -> m5_skatdk_ekstern_kort_fixture.indeholdelsesprocent_basispoint == 3600 && m5_skatdk_ekstern_kort_fixture.månedsfradrag_kroner == 8164
 | m5_audit_skatdk_ekstern_signal: audit_signal(SkatDkEksternFixtureDækket) -> audit_signal(SkatDkEksternFixtureDækket) == Sandt
@@ -431,6 +434,7 @@ virksomhedsunderskud.
 | m5_audit_opkrævningslov_par7_daglig_rente_signal: audit_signal(OpkrævningslovPar7DagligRenteDækket) -> audit_signal(OpkrævningslovPar7DagligRenteDækket) == Sandt
 | m5_audit_opkrævningslov_par7_tværår_rente_signal: audit_signal(OpkrævningslovPar7TværårRenteDækket) -> audit_signal(OpkrævningslovPar7TværårRenteDækket) == Sandt
 | m5_audit_fiktiv_husholdning_signal: audit_signal(FiktivHusholdningScenarieDækket) -> audit_signal(FiktivHusholdningScenarieDækket) == Sandt
+| m5_audit_husholdning_benefit_cliff_signal: audit_signal(HusholdningBenefitCliffAuditDækket) -> audit_signal(HusholdningBenefitCliffAuditDækket) == Sandt
 
 ? m5_par13_skatteværdi
 ? m5_par13_modregningsrækkefølge
@@ -457,6 +461,7 @@ virksomhedsunderskud.
 ? m5_kommuneskat_matcher_lønmodtager_fixture
 ? m5_kirkeskat_matcher_lønmodtager_fixture
 ? m5_fiktiv_husholdning_scenarie
+? m5_husholdning_benefit_cliff_audit_dækket
 ? m5_skatdk_ekstern_fixture_dækket
 ? m5_skatdk_ekstern_skattekort_dækket
 ? m5_audit_skatdk_ekstern_signal
@@ -518,6 +523,7 @@ virksomhedsunderskud.
 ? m5_audit_opkrævningslov_par7_daglig_rente_signal
 ? m5_audit_opkrævningslov_par7_tværår_rente_signal
 ? m5_audit_fiktiv_husholdning_signal
+? m5_audit_husholdning_benefit_cliff_signal
 
 ----
 §§ 14, 19 og 20 er nu en første executable slice for helårsomregning,
@@ -586,4 +592,4 @@ afgrænsning.
 ? m5_audit_par26_signal
 ? m5_audit_par28_signal
 
-@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, § 14 delårs-lønmodtager, personlig og positiv-kapital § 19 skatteloft i lønmodtagerberegningen inkl. Langeland høj kommuneskat, grouped lønmodtager domain-model projection, fælles Pengebeløb-afrunding, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Skat.dk ekstern 2026 normalcase-fixture, bomb-audit for § 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")
+@ print("m5 audit: 2026-reform inkl. mellemskat kapitalgren, § 14 delårs-lønmodtager, personlig og positiv-kapital § 19 skatteloft i lønmodtagerberegningen inkl. Langeland høj kommuneskat, grouped lønmodtager domain-model projection, fælles Pengebeløb-afrunding, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Skat.dk ekstern 2026 normalcase-fixture, bomb-audit for § 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions, Børne- og ungeydelse benefit-cliff/source-tension audit, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")

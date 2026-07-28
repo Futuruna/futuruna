@@ -1,0 +1,116 @@
+@ sprog da
+
+@ importer ./husholdning - scenarier.scenario
+@ importer ./pengebeloeb
+
+-- Husholdning -- executable cross-law benefit cliff probes.
+--
+-- This file is deliberately an audit file. It keeps non-Personskatteloven
+-- household benefits separate from the ordinary income-tax scenario while
+-- making their dependencies on Personskatteloven explicit.
+
+----
+Benefit probe sources:
+
+Børne- og ungeydelsesloven § 1 a:
+Retsinformation, LBK nr. 603 af 19/05/2025.
+https://www.retsinformation.dk/eli/lta/2025/603
+
+Skatteministeriet, "Børne- og ungeydelsesloven" rates and thresholds:
+https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/boerne-og-ungeydelsesloven
+
+Borger.dk, "Børne- og ungeydelse":
+https://www.borger.dk/familie-og-boern/Familieydelser-oversigt/Boerne-ungeydelse
+----
+
+----
+§ 1 a. Den samlede børne- og ungeydelse, jf. § 1, som en person modtager i et
+kalenderår, nedsættes med et beløb svarende til 2 pct. af et indtægtsgrundlag,
+der svarer til grundlaget for mellemskat efter personskattelovens § 7, stk. 1
+og 3, i det omfang grundlaget for mellemskat hos modtageren af ydelsen i det
+pågældende indkomstår overstiger et bundfradrag på 700.000 kr. (2010-niveau),
+jf. dog stk. 4.
+
+Stk. 2. For personer, der kun har været skattepligtige en del af året, jf.
+kildeskattelovens § 1, anvendes grundlaget for mellemskat efter omregning i
+henhold til reglerne i personskattelovens § 14 ved beregningen af nedsættelse
+efter stk. 1.
+----
+
+----
+Skatteministeriet 2026 satser:
+0-2 årige: 21.480 kr. pr. år.
+3-6 årige: 16.992 kr. pr. år.
+7-14 årige: 13.368 kr. pr. år.
+15-17 årige: 13.368 kr. pr. år.
+Beløbsgrænse for aftrapning: 961.100 kr.
+Aftrapningen sker med 2 pct. af den del af indkomsten, der overstiger
+beløbsgrænsen.
+
+Borger.dk:
+Det er kun din halvdel af børne- og ungeydelsen, der bliver sat ned ud fra din
+indkomst. Den anden forælders indkomst påvirker ikke din halvdel.
+
+Audit note:
+Retsinformation § 1 a and Borger.dk are used for the calculation rule because
+they point the 2026 reduction base at the mellemskat-linked income basis.
+Skatteministeriet's rate page supplies the 2026 amounts but still describes the
+reduction income as the topskat basis; that source wording is kept as an audit
+tension below.
+----
+
+# BørneUngeydelseAldersgruppe = Barn0Til2 | Barn3Til6 | Barn7Til14 | Ung15Til17
+# BørneUngeydelseAftrapningsgrundlag = MellemskatGrundlag | TopskatGrundlag
+# BørneUngeydelseModtagerInput(skatteår: Heltal, modtager_ydelse_før_aftrapning_kroner: Heltal, modtager_mellemskatgrundlag_kroner: Heltal)
+# BørneUngeydelseResultat(ydelse_før_aftrapning_kroner: Heltal, aftrapningsgrundlag_kroner: Heltal, aftrapning_kroner: Heltal, ydelse_efter_aftrapning_kroner: Heltal)
+# HusholdningBørneUngeydelseInput(skatteår: Heltal, barn_0_til_2_antal: Heltal, barn_3_til_6_antal: Heltal, barn_7_til_14_antal: Heltal, ung_15_til_17_antal: Heltal, første_modtager_mellemskatgrundlag_kroner: Heltal, anden_modtager_mellemskatgrundlag_kroner: Heltal)
+# HusholdningBørneUngeydelseResultat(brutto_ydelse_kroner: Heltal, første_modtager: BørneUngeydelseResultat, anden_modtager: BørneUngeydelseResultat, samlet_ydelse_efter_aftrapning_kroner: Heltal)
+
+| børneungeydelse_årlig_sats_kroner(skatteår: Heltal, aldersgruppe: BørneUngeydelseAldersgruppe) -> 21480 under skatteår == 2026 && aldersgruppe == Barn0Til2
+| børneungeydelse_årlig_sats_kroner(skatteår: Heltal, aldersgruppe: BørneUngeydelseAldersgruppe) -> 16992 under skatteår == 2026 && aldersgruppe == Barn3Til6
+| børneungeydelse_årlig_sats_kroner(skatteår: Heltal, aldersgruppe: BørneUngeydelseAldersgruppe) -> 13368 under skatteår == 2026 && aldersgruppe == Barn7Til14
+| børneungeydelse_årlig_sats_kroner(skatteår: Heltal, aldersgruppe: BørneUngeydelseAldersgruppe) -> 13368 under skatteår == 2026 && aldersgruppe == Ung15Til17
+| børneungeydelse_aftrapningsgrænse_kroner(skatteår: Heltal) -> 961100 under skatteår == 2026
+| børneungeydelse_aftrapning_basispoint() -> 200
+| børneungeydelse_delår_bruger_par14_omregnet_mellemskatgrundlag() -> Sandt
+| børneungeydelse_lovtekst_aftrapningsgrundlag() -> MellemskatGrundlag
+| børneungeydelse_skm_satside_aftrapningsgrundlag() -> TopskatGrundlag
+| børneungeydelse_satside_mod_lovtekst_kildespænding() -> børneungeydelse_lovtekst_aftrapningsgrundlag() != børneungeydelse_skm_satside_aftrapningsgrundlag()
+| børneungeydelse_aftrapningsgrundlag_kroner(input: BørneUngeydelseModtagerInput) -> penge_positivt_beløb(input.modtager_mellemskatgrundlag_kroner - børneungeydelse_aftrapningsgrænse_kroner(input.skatteår))
+| børneungeydelse_aftrapning_før_loft_kroner(input: BørneUngeydelseModtagerInput) -> penge_beløb_gange_basispoint_kroner(børneungeydelse_aftrapningsgrundlag_kroner(input), børneungeydelse_aftrapning_basispoint())
+| børneungeydelse_aftrapning_kroner(input: BørneUngeydelseModtagerInput) -> penge_mindste_beløb(input.modtager_ydelse_før_aftrapning_kroner, børneungeydelse_aftrapning_før_loft_kroner(input))
+| børneungeydelse_modtager_resultat(input: BørneUngeydelseModtagerInput) -> BørneUngeydelseResultat(input.modtager_ydelse_før_aftrapning_kroner, børneungeydelse_aftrapningsgrundlag_kroner(input), børneungeydelse_aftrapning_kroner(input), input.modtager_ydelse_før_aftrapning_kroner - børneungeydelse_aftrapning_kroner(input))
+| husholdning_børneungeydelse_brutto_kroner(input: HusholdningBørneUngeydelseInput) -> input.barn_0_til_2_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Barn0Til2) + input.barn_3_til_6_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Barn3Til6) + input.barn_7_til_14_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Barn7Til14) + input.ung_15_til_17_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Ung15Til17)
+| husholdning_børneungeydelse_modtager_halvdel_kroner(input: HusholdningBørneUngeydelseInput) -> husholdning_børneungeydelse_brutto_kroner(input) / 2
+| husholdning_børneungeydelse_første_modtager(input: HusholdningBørneUngeydelseInput) -> børneungeydelse_modtager_resultat(BørneUngeydelseModtagerInput(input.skatteår, husholdning_børneungeydelse_modtager_halvdel_kroner(input), input.første_modtager_mellemskatgrundlag_kroner))
+| husholdning_børneungeydelse_anden_modtager(input: HusholdningBørneUngeydelseInput) -> børneungeydelse_modtager_resultat(BørneUngeydelseModtagerInput(input.skatteår, husholdning_børneungeydelse_modtager_halvdel_kroner(input), input.anden_modtager_mellemskatgrundlag_kroner))
+| husholdning_børneungeydelse_resultat(input: HusholdningBørneUngeydelseInput) -> HusholdningBørneUngeydelseResultat(husholdning_børneungeydelse_brutto_kroner(input), husholdning_børneungeydelse_første_modtager(input), husholdning_børneungeydelse_anden_modtager(input), husholdning_børneungeydelse_første_modtager(input).ydelse_efter_aftrapning_kroner + husholdning_børneungeydelse_anden_modtager(input).ydelse_efter_aftrapning_kroner)
+
+= scenarie1_børneungeydelse_input = HusholdningBørneUngeydelseInput(2026, 1, 0, 2, 0, scenarie1_mand.personlig_indkomst_efter_am_kroner, scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner)
+= scenarie1_børneungeydelse = husholdning_børneungeydelse_resultat(scenarie1_børneungeydelse_input)
+= benefit_bomb_en_forælder_lige_over_grænse = husholdning_børneungeydelse_resultat(HusholdningBørneUngeydelseInput(2026, 1, 0, 2, 0, 961200, scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner))
+= benefit_bomb_en_forælder_fuldt_aftrappet = husholdning_børneungeydelse_resultat(HusholdningBørneUngeydelseInput(2026, 1, 0, 2, 0, 2166500, scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner))
+= benefit_bomb_delår_par14_signal = benefit_bomb_delår_kobler_til_par14()
+= benefit_bomb_satside_kildespænding_signal = børneungeydelse_satside_mod_lovtekst_kildespænding()
+
+| scenarie1_børneungeydelse_brutto_2026: scenarie1_børneungeydelse -> scenarie1_børneungeydelse.brutto_ydelse_kroner == 48216
+| scenarie1_børneungeydelse_ingen_aftrapning: scenarie1_børneungeydelse -> scenarie1_børneungeydelse.samlet_ydelse_efter_aftrapning_kroner == 48216 && scenarie1_børneungeydelse.første_modtager.aftrapning_kroner == 0 && scenarie1_børneungeydelse.anden_modtager.aftrapning_kroner == 0
+| benefit_bomb_lige_over_grænse_reducerer_kun_egen_halvdel: benefit_bomb_en_forælder_lige_over_grænse -> benefit_bomb_en_forælder_lige_over_grænse.første_modtager.aftrapningsgrundlag_kroner == 100 && benefit_bomb_en_forælder_lige_over_grænse.første_modtager.aftrapning_kroner == 2 && benefit_bomb_en_forælder_lige_over_grænse.anden_modtager.aftrapning_kroner == 0 && benefit_bomb_en_forælder_lige_over_grænse.samlet_ydelse_efter_aftrapning_kroner == 48214
+| benefit_bomb_en_forælder_kan_nulstille_sin_halvdel: benefit_bomb_en_forælder_fuldt_aftrappet -> benefit_bomb_en_forælder_fuldt_aftrappet.første_modtager.ydelse_efter_aftrapning_kroner == 0 && benefit_bomb_en_forælder_fuldt_aftrappet.anden_modtager.ydelse_efter_aftrapning_kroner == 24108 && benefit_bomb_en_forælder_fuldt_aftrappet.samlet_ydelse_efter_aftrapning_kroner == 24108
+| benefit_bomb_delår_kobler_til_par14() -> børneungeydelse_delår_bruger_par14_omregnet_mellemskatgrundlag() == Sandt
+| benefit_bomb_delår_bruger_par14_signal: benefit_bomb_delår_par14_signal -> benefit_bomb_delår_par14_signal == Sandt
+| benefit_bomb_skm_satside_topskat_mod_lovtekst_mellemskat: benefit_bomb_satside_kildespænding_signal -> benefit_bomb_satside_kildespænding_signal == Sandt
+| husholdning_benefit_cliff_audit_samlet() -> scenarie1_børneungeydelse.samlet_ydelse_efter_aftrapning_kroner == 48216 && benefit_bomb_en_forælder_lige_over_grænse.første_modtager.aftrapning_kroner == 2 && benefit_bomb_en_forælder_fuldt_aftrappet.samlet_ydelse_efter_aftrapning_kroner == 24108 && benefit_bomb_satside_kildespænding_signal == Sandt
+
+? scenarie1_børneungeydelse_brutto_2026
+? scenarie1_børneungeydelse_ingen_aftrapning
+? benefit_bomb_lige_over_grænse_reducerer_kun_egen_halvdel
+? benefit_bomb_en_forælder_kan_nulstille_sin_halvdel
+? benefit_bomb_delår_bruger_par14_signal
+? benefit_bomb_skm_satside_topskat_mod_lovtekst_mellemskat
+
+@ print("benefit audit scenarie1 børne- og ungeydelse før aftrapning: " + vis(scenarie1_børneungeydelse.brutto_ydelse_kroner))
+@ print("benefit audit scenarie1 børne- og ungeydelse efter aftrapning: " + vis(scenarie1_børneungeydelse.samlet_ydelse_efter_aftrapning_kroner))
+@ print("benefit audit 100 kr. over aftrapningsgrænse reducerer egen halvdel med: " + vis(benefit_bomb_en_forælder_lige_over_grænse.første_modtager.aftrapning_kroner))
+@ print("benefit audit en forælder fuldt aftrappet, anden halvdel består: " + vis(benefit_bomb_en_forælder_fuldt_aftrappet.samlet_ydelse_efter_aftrapning_kroner))
+@ print("benefit audit kilde-spænding lovtekst/satside om aftrapningsgrundlag: " + vis(benefit_bomb_satside_kildespænding_signal))

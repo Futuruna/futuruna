@@ -192,6 +192,8 @@ encoded as a temporal rule on top of the consolidation.
 - `skatdk-2026-ekstern.scenario.runa` exists and checks/runs with `runa run`.
 - `delaar-scenarier.scenario.runa` exists and checks/runs with `runa run`.
 - `husholdning-scenarier.scenario.runa` exists and checks/runs with `runa run`.
+- `husholdning-benefit-cliffs.audit.runa` exists and checks/runs with
+  `runa run`.
 - `slutopgoerelse.scenario.runa` exists and checks/runs with `runa run`.
 - `indeholdelse-afregning.scenario.runa` exists and checks/runs with
   `runa run`.
@@ -441,6 +443,15 @@ Review candidates to revisit deliberately, not as broad churn:
   personfradrag and § 19 skatteloft in the executable model; and § 13 can lock
   passive business losses to same-business carry-forward while active
   participation releases the same amount into current other-income deduction.
+  A first cross-law household benefit audit now covers Børne- og ungeydelse:
+  the fictional three-child household has 48.216 kr. annual benefit before
+  aftrapning and no reduction at the current wage levels, while a parent 100
+  kr. over the 2026 mellemskat-linked threshold loses 2 kr. of that parent's
+  own half and one fully phased-out parent leaves the other parent's 24.108 kr.
+  half intact. The same audit also flags a source-wording tension: the current
+  Retsinformation § 1 a and Borger.dk posture point to the mellemskat-linked
+  reduction base for 2026, while the Skatteministeriet rate page still describes
+  the reduction income as the topskat basis.
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
@@ -466,8 +477,10 @@ Review candidates to revisit deliberately, not as broad churn:
   effects. The first dedicated bomb-audit file now covers § 8 a share-income
   spouse-threshold/negative-offset interactions, § 8 b CFC tax outside
   personfradrag/skatteloft, § 13 passive business-loss lock-in, § 14
-  annualisation, and § 19 skatteloft interactions; remaining probes should
-  target benefit cliffs and cross-law allowance or collection timing chains.
+  annualisation, and § 19 skatteloft interactions. A separate household benefit
+  audit now covers Børne- og ungeydelse aftrapning plus an official-source
+  mellemskat/topskat wording tension; remaining probes should target housing
+  support and cross-law allowance or collection timing chains.
 - Extend the website page as more of the corpus becomes calculation-ready.
 
 ## Later
@@ -573,7 +586,8 @@ M4 - Ordinary taxpayer calculator
   now import the Ligningsloven dependency slice instead of being manual zeroes.
   A first fictional household scenario now computes a 2026 Copenhagen married
   renter household with 50.000 kr./month primary wage income and 20.000
-  kr./month spouse wage income, while explicitly marking child benefits,
+  kr./month spouse wage income. A first household benefit-cliff audit covers
+  Børne- og ungeydelse for the three-child scenario while explicitly marking
   housing support and other deduction discovery as outside the current
   executable slice. Kildeskatteloven now marks the primary wage as A-income,
   proves that A-skat must be withheld, computes the statutory 55 pct.
@@ -614,7 +628,8 @@ M5 - Audit suite
   covered BEK 839 forskudskort generation, covered BEK 1094 2026
   indeholdelsesprocent derivation, covered Kildeskatteloven slutopgørelse
   balance/restskat timing/overskydende skat compensation/dividend-tax credit
-  posture, covered fictional household scenario, covered external Skat.dk 2026
+  posture, covered fictional household scenario, covered Børne- og ungeydelse
+  benefit-cliff/source-tension audit, covered external Skat.dk 2026
   ordinary wage-earner fixture, topskat threshold activation,
   covered § 14 annualization and first wage-earner calculator integration,
   covered first bomb-audit probes for § 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions,
@@ -653,7 +668,8 @@ M6 - Website integration
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
-  first § 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes,
+  first § 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
+  household benefit-cliff/source-tension probe,
   Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily
   interest-context, and cross-calendar-year interest-split slices, the B-skat
   calendar projection, § 62 A interest fixtures, § 14 partial-year wage-earner

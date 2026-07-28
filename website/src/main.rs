@@ -2806,6 +2806,8 @@ const TAX_PARTIAL_YEAR: &str =
     include_str!("../../examples/danish-income-tax/delaar-scenarier.scenario.runa");
 const TAX_HOUSEHOLD: &str =
     include_str!("../../examples/danish-income-tax/husholdning-scenarier.scenario.runa");
+const TAX_HOUSEHOLD_BENEFIT_CLIFFS: &str =
+    include_str!("../../examples/danish-income-tax/husholdning-benefit-cliffs.audit.runa");
 const TAX_SETTLEMENT_SCENARIO: &str =
     include_str!("../../examples/danish-income-tax/slutopgoerelse.scenario.runa");
 const TAX_REMITTANCE: &str =
@@ -3591,6 +3593,11 @@ fn ResearchPersonskatteloven() -> Element {
             "husholdning-scenarier.scenario.runa — fiktivt husholdningsscenarie",
             "household-code",
             TAX_HOUSEHOLD,
+        ),
+        (
+            "husholdning-benefit-cliffs.audit.runa — børneydelse/kildespænding",
+            "household-benefit-cliffs-code",
+            TAX_HOUSEHOLD_BENEFIT_CLIFFS,
         ),
         (
             "slutopgoerelse.scenario.runa — årsopgørelse for fiktiv husholdning",
