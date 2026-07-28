@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./pengebeloeb
 @ importer ./skatteaar - parametre
 
 -- Personskatteloven — omregning, skatteloft og regulering (§§ 14-20).
@@ -145,7 +146,7 @@ nedsat med de overskydende procenter.
 | exception par19_topskat_efter_nedslag par19_topskat_efter_loft_basispoint(topskat_basispoint: Heltal, overskydende_basispoint: Heltal) -> topskat_basispoint - overskydende_basispoint under topskat_basispoint > overskydende_basispoint
 | par19_personlig_overskydende_basispoint(input: Par19SkatteloftInput) -> par19_overskydende_basispoint(par19_samlet_skatteprocent_basispoint(input), par19_personlig_skatteloft_basispoint(input.skatteår))
 | par19_positiv_kapital_overskydende_basispoint(input: Par19SkatteloftInput) -> par19_overskydende_basispoint(par19_samlet_skatteprocent_basispoint(input), par19_positiv_kapital_skatteloft_basispoint(input.skatteår))
-| par19_skatteloftsnedslag_kroner(input: Par19SkatteloftInput, overskydende_basispoint: Heltal) -> input.beregningsgrundlag_kroner * overskydende_basispoint / 10000
+| par19_skatteloftsnedslag_kroner(input: Par19SkatteloftInput, overskydende_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(input.beregningsgrundlag_kroner, overskydende_basispoint)
 | par19_loftrelevant_progressiv_statsskat_basispoint(skatteår: Heltal) -> nationalparametre_for(skatteår).topskat_basispoint under skatteår < 2026
 | exception reform_mellemskat_loftgrundlag par19_loftrelevant_progressiv_statsskat_basispoint(skatteår: Heltal) -> nationalparametre_for(skatteår).mellemskat_basispoint under skatteår >= 2026
 | par19_personlig_skatteloft_input_for(skatteår: Heltal, kommune: Kommune, beregningsgrundlag_kroner: Heltal) -> Par19SkatteloftInput(skatteår, nationalparametre_for(skatteår).bundskat_basispoint, par19_loftrelevant_progressiv_statsskat_basispoint(skatteår), kommunale_parametre_for(skatteår, kommune).sundhedsbidrag_basispoint, kommunale_parametre_for(skatteår, kommune).kommuneskat_basispoint, beregningsgrundlag_kroner) under parameterpakke_komplet(skatteår, kommune)

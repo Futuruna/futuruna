@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 
 -- Personskatteloven — fælles bestemmelser, ikrafttræden og afslutning (§§ 21-28).
@@ -129,24 +130,24 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par26ÆgtefælleStatus = Par26IkkeSamlevende | Par26GiftSamlevendeVedÅretsUdløb | Par26Forskerordning48FValgt
 
 | par26_gælder_for_skatteår(skatteår: Heltal) -> skatteår >= 2012 && skatteår <= 2019
-| par26_positivt_beløb(beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { beløb_kroner } ellers { 0 }
+| par26_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 | par26_bundfradrag_nr1_2010_niveau(status: Par26AlderStatus) -> 44800 under status == Par26Fyldt18EllerGift
 | par26_bundfradrag_nr1_2010_niveau(status: Par26AlderStatus) -> 33600 under status == Par26Under18Ugift
 | par26_bundfradrag_nr2_og_nr3_2010_niveau() -> 362800
 | par26_fradragsgrundbeløb_nr5_2010_niveau() -> 14200
 | par26_personfradrag_nr6_2010_niveau() -> 1900
 | par26_reguleres_efter_par20() -> Sandt
-| par26_nr1_kroner(bundskat_grundlag_kroner: Heltal, status: Par26AlderStatus) -> par26_positivt_beløb(bundskat_grundlag_kroner - par26_bundfradrag_nr1_2010_niveau(status)) * 150 / 10000
-| par26_nr2_kroner(personlig_plus_positiv_kapital_kroner: Heltal) -> par26_positivt_beløb(personlig_plus_positiv_kapital_kroner - par26_bundfradrag_nr2_og_nr3_2010_niveau()) * 600 / 10000
-| par26_nr3_kroner(topskat_grundlag_kroner: Heltal, par7_bundfradrag_kroner: Heltal) -> par26_positivt_beløb(topskat_grundlag_kroner - par26_bundfradrag_nr2_og_nr3_2010_niveau()) * 1500 / 10000 - par26_positivt_beløb(topskat_grundlag_kroner - par7_bundfradrag_kroner) * 1500 / 10000
-| par26_nr4_kroner(aktieindkomstskat_grundlag_kroner: Heltal) -> aktieindkomstskat_grundlag_kroner * 100 / 10000
-| par26_nr5_kroner(fradrag_efter_ll9j_9k_9l_kroner: Heltal, kommunal_og_kirke_basispoint: Heltal, baseline_fradrag_kroner: Heltal) -> fradrag_efter_ll9j_9k_9l_kroner * (800 + kommunal_og_kirke_basispoint) / 10000 - baseline_fradrag_kroner * 425 / 10000
-| par26_nr8_kroner(negativ_kapital_og_ligningsmæssige_fradrag_kroner: Heltal, sundhedsbidrag_basispoint: Heltal) -> negativ_kapital_og_ligningsmæssige_fradrag_kroner * (800 - sundhedsbidrag_basispoint) / 10000
+| par26_nr1_kroner(bundskat_grundlag_kroner: Heltal, status: Par26AlderStatus) -> penge_beløb_gange_basispoint_kroner(par26_positivt_beløb(bundskat_grundlag_kroner - par26_bundfradrag_nr1_2010_niveau(status)), 150)
+| par26_nr2_kroner(personlig_plus_positiv_kapital_kroner: Heltal) -> penge_beløb_gange_basispoint_kroner(par26_positivt_beløb(personlig_plus_positiv_kapital_kroner - par26_bundfradrag_nr2_og_nr3_2010_niveau()), 600)
+| par26_nr3_kroner(topskat_grundlag_kroner: Heltal, par7_bundfradrag_kroner: Heltal) -> penge_beløb_gange_basispoint_kroner(par26_positivt_beløb(topskat_grundlag_kroner - par26_bundfradrag_nr2_og_nr3_2010_niveau()), 1500) - penge_beløb_gange_basispoint_kroner(par26_positivt_beløb(topskat_grundlag_kroner - par7_bundfradrag_kroner), 1500)
+| par26_nr4_kroner(aktieindkomstskat_grundlag_kroner: Heltal) -> penge_beløb_gange_basispoint_kroner(aktieindkomstskat_grundlag_kroner, 100)
+| par26_nr5_kroner(fradrag_efter_ll9j_9k_9l_kroner: Heltal, kommunal_og_kirke_basispoint: Heltal, baseline_fradrag_kroner: Heltal) -> penge_beløb_gange_basispoint_kroner(fradrag_efter_ll9j_9k_9l_kroner, 800 + kommunal_og_kirke_basispoint) - penge_beløb_gange_basispoint_kroner(baseline_fradrag_kroner, 425)
+| par26_nr8_kroner(negativ_kapital_og_ligningsmæssige_fradrag_kroner: Heltal, sundhedsbidrag_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(negativ_kapital_og_ligningsmæssige_fradrag_kroner, 800 - sundhedsbidrag_basispoint)
 | par26_forskelsbeløb_før_nr8(input: Par26ForskelsbeløbInput) -> par26_positivt_beløb(input.nr1_kroner + input.nr2_kroner + input.nr3_kroner + input.nr4_kroner + input.nr5_kroner - input.nr6_kroner - input.nr7_kroner)
 | par26_forskelsbeløb_efter_stk3(input: Par26ForskelsbeløbInput) -> par26_forskelsbeløb_før_nr8(input) - input.nr8_kroner
 | par26_kompensation_kroner(input: Par26ForskelsbeløbInput) -> hvis par26_gælder_for_skatteår(input.skatteår) && input.betaler_kommunal_eller_par8c && par26_forskelsbeløb_efter_stk3(input) < 0 { 0 - par26_forskelsbeløb_efter_stk3(input) } ellers { 0 }
-| par26_ubrugt_efter_skat(skat_kroner: Heltal, kompensation_kroner: Heltal) -> hvis kompensation_kroner > skat_kroner { kompensation_kroner - skat_kroner } ellers { 0 }
-| par26_skat_efter_kompensation(skat_kroner: Heltal, kompensation_kroner: Heltal) -> hvis skat_kroner > kompensation_kroner { skat_kroner - kompensation_kroner } ellers { 0 }
+| par26_ubrugt_efter_skat(skat_kroner: Heltal, kompensation_kroner: Heltal) -> penge_positivt_beløb(kompensation_kroner - skat_kroner)
+| par26_skat_efter_kompensation(skat_kroner: Heltal, kompensation_kroner: Heltal) -> penge_positivt_beløb(skat_kroner - kompensation_kroner)
 | par26_rester_efter_par6(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.par6_skat_kroner, input.kompensation_kroner)
 | par26_rester_efter_par7(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.par7_skat_kroner, par26_rester_efter_par6(input))
 | par26_rester_efter_par7a(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.par7a_skat_kroner, par26_rester_efter_par7(input))

@@ -1,5 +1,7 @@
 @ sprog da
 
+@ importer ./pengebeloeb
+
 -- Arbejdsmarkedsbidragsloven — afhængig lovkilde for lønmodtagerens AM-bidrag.
 --
 -- Kilde: Retsinformation, LBK nr. 121 af 07/02/2020.
@@ -59,7 +61,7 @@ LOV nr. 96 af 04/02/2025, § 7, stk. 4:
 
 | arbejdsmarkedsbidrag_sats_for_person_basispoint(input: ArbejdsmarkedsbidragPersonSatsInput) -> arbejdsmarkedsbidrag_sats_basispoint()
 | exception arbejdsmarkedsbidrag_unge_fritaget_fra_2026 arbejdsmarkedsbidrag_sats_for_person_basispoint(input: ArbejdsmarkedsbidragPersonSatsInput) -> 0 under input.skatteår >= 2026 && input.alder_ved_indkomstårets_udløb <= 17
-| arbejdsmarkedsbidrag_for_person_kroner(grundlag_kroner: Heltal, input: ArbejdsmarkedsbidragPersonSatsInput) -> grundlag_kroner * arbejdsmarkedsbidrag_sats_for_person_basispoint(input) / 10000
+| arbejdsmarkedsbidrag_for_person_kroner(grundlag_kroner: Heltal, input: ArbejdsmarkedsbidragPersonSatsInput) -> penge_beløb_gange_basispoint_kroner(grundlag_kroner, arbejdsmarkedsbidrag_sats_for_person_basispoint(input))
 
 ----
 § 2. Grundlaget for arbejdsmarkedsbidrag for lønmodtagere m.v. er følgende
@@ -77,15 +79,14 @@ for arbejdsmarkedsbidrag med den skattepligtige værdi.
 # ArbejdsmarkedsbidragInput(lønvederlag_kroner: Heltal, naturalieværdi_kroner: Heltal)
 # ArbejdsmarkedsbidragUdvidetLønmodtagerInput(ansættelsesvederlag_skatteværdi_kroner: Heltal, udenfor_ansættelse_skatteværdi_kroner: Heltal, rådighed_danmark_skatteværdi_kroner: Heltal, arbejdsgiver_pension_kroner: Heltal, udenlandsk_pension_kroner: Heltal, pbl14b_udbetaling_kroner: Heltal, fælles_firmapension_kroner: Heltal, sømandsvederlag_kroner: Heltal, biblioteksafgift_kroner: Heltal, ikke_skattepligtigt_vederlag_kroner: Heltal, pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner: Heltal, obligatorisk_atp_pension_kroner: Heltal)
 
-| arbejdsmarkedsbidrag_positivt_beløb(beløb_kroner: Heltal) -> 0
-| exception arbejdsmarkedsbidrag_beløb_over_nul arbejdsmarkedsbidrag_positivt_beløb(beløb_kroner: Heltal) -> beløb_kroner under beløb_kroner > 0
+| arbejdsmarkedsbidrag_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 
 | arbejdsmarkedsbidrag_lønmodtager_brutto_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.ansættelsesvederlag_skatteværdi_kroner + input.udenfor_ansættelse_skatteværdi_kroner + input.rådighed_danmark_skatteværdi_kroner + input.arbejdsgiver_pension_kroner + input.udenlandsk_pension_kroner + input.pbl14b_udbetaling_kroner + input.fælles_firmapension_kroner
 | arbejdsmarkedsbidrag_lønmodtager_udelukket_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.sømandsvederlag_kroner + input.biblioteksafgift_kroner + input.ikke_skattepligtigt_vederlag_kroner + input.pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner + input.obligatorisk_atp_pension_kroner
 | arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_positivt_beløb(arbejdsmarkedsbidrag_lønmodtager_brutto_grundlag_kroner(input) - arbejdsmarkedsbidrag_lønmodtager_udelukket_grundlag_kroner(input))
 
 | arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input: ArbejdsmarkedsbidragInput) -> arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(input.lønvederlag_kroner + input.naturalieværdi_kroner, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-| arbejdsmarkedsbidrag_lønmodtager_kroner(input: ArbejdsmarkedsbidragInput) -> arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input) * arbejdsmarkedsbidrag_sats_basispoint() / 10000
+| arbejdsmarkedsbidrag_lønmodtager_kroner(input: ArbejdsmarkedsbidragInput) -> penge_beløb_gange_basispoint_kroner(arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input), arbejdsmarkedsbidrag_sats_basispoint())
 
 ----
 § 3. Følgende medregnes ikke i grundlaget for arbejdsmarkedsbidrag:
@@ -126,7 +127,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 
 | arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal) -> arbejdsmarkedsbidrag_positivt_beløb(fremført_negativ_personlig_indkomst_kroner - fremført_negativ_personlig_indkomst_fra_pension_kroner)
 | arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(input: ArbejdsmarkedsbidragSelvstændigInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.personlig_indkomst_ved_selvstændig_virksomhed_kroner - input.biblioteksafgift_kroner - arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(input.fremført_negativ_personlig_indkomst_kroner, input.fremført_negativ_personlig_indkomst_fra_pension_kroner))
-| arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_kroner(input: ArbejdsmarkedsbidragSelvstændigInput) -> arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(input) * arbejdsmarkedsbidrag_sats_basispoint() / 10000
+| arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_kroner(input: ArbejdsmarkedsbidragSelvstændigInput) -> penge_beløb_gange_basispoint_kroner(arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(input), arbejdsmarkedsbidrag_sats_basispoint())
 
 ----
 § 5. Grundlaget for arbejdsmarkedsbidrag for selvstændigt erhvervsdrivende,
@@ -151,7 +152,7 @@ af stk. 1.
 
 | arbejdsmarkedsbidrag_virksomhedsordning_kapitalafkast_fradrag_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.kapitalafkast_fradrag_kroner - input.kapitalafkast_medregnet_personlig_indkomst_kroner)
 | arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.overførsel_fra_virksomhedsoverskud_kroner - arbejdsmarkedsbidrag_virksomhedsordning_kapitalafkast_fradrag_kroner(input) + input.overførsel_opsparet_overskud_kroner + input.tilhørende_virksomhedsskat_kroner + input.rentekorrektion_kroner - arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(input.fremført_negativ_personlig_indkomst_kroner, input.fremført_negativ_personlig_indkomst_fra_pension_kroner))
-| arbejdsmarkedsbidrag_virksomhedsordning_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(input) * arbejdsmarkedsbidrag_sats_basispoint() / 10000
+| arbejdsmarkedsbidrag_virksomhedsordning_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> penge_beløb_gange_basispoint_kroner(arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(input), arbejdsmarkedsbidrag_sats_basispoint())
 
 ----
 § 6. Til personer omfattet af § 5, som modtager ydelser i henhold til lov om
@@ -170,7 +171,7 @@ litra i.
 # ArbejdsmarkedsbidragBiblioteksafgiftInput(biblioteksafgift_kroner: Heltal, modtager_omfattet_af_virksomhedsordning: Boolsk)
 
 | arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(input: ArbejdsmarkedsbidragBiblioteksafgiftInput) -> 0
-| exception arbejdsmarkedsbidrag_biblioteksafgift_godtgøres_for_virksomhedsordning arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(input: ArbejdsmarkedsbidragBiblioteksafgiftInput) -> input.biblioteksafgift_kroner * 870 / 10000 under input.modtager_omfattet_af_virksomhedsordning
+| exception arbejdsmarkedsbidrag_biblioteksafgift_godtgøres_for_virksomhedsordning arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(input: ArbejdsmarkedsbidragBiblioteksafgiftInput) -> penge_beløb_gange_basispoint_kroner(input.biblioteksafgift_kroner, 870) under input.modtager_omfattet_af_virksomhedsordning
 | arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_indgår_i_grundlag_kroner(input: ArbejdsmarkedsbidragBiblioteksafgiftInput) -> arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(input)
 
 ----

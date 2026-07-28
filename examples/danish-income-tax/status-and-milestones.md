@@ -178,6 +178,7 @@ encoded as a temporal rule on top of the consolidation.
 - `indeholdelse-afregning.scenario.runa` exists and checks/runs with
   `runa run`.
 - `personskatteloven.audit.runa` exists and checks/runs with `runa run`.
+- `pengebeloeb.runa` exists and checks/runs with `runa run`.
 - Website research page exists at `/research/personskatteloven` and renders
   source status, milestone status, selected audit signals, and the checked
   `.runa` corpus.
@@ -192,6 +193,8 @@ encoded as a temporal rule on top of the consolidation.
   restskat timing, date-derived B-skat rate windows, date-derived § 62 A
   interest spans, and overskydende-skat compensation posture,
   Opkrævningsloven payment deadlines and § 7 late-payment rate posture,
+  shared money/rounding posture for whole kroner, ten-kroner floors,
+  basispoint rounding, and øre-level fractions,
   Ligningsloven ordinary wage-earner deduction
   dependency slices, 2024/2025/2026 tax-year parameter packs, first wage-earner
   scenarios, a first fictional household scenario, complex § 13 calculator
@@ -291,13 +294,16 @@ Current decision:
 - `OpkrævningPar7DagligRenteÅrsdel` and
   `OpkrævningPar7DagligRenteTværårBeregning` extend that boundary across
   New Year. Each segment carries its own calendar-year published-rate row,
-  supplement, year divisor, rentedage, numerator, denominator, and rounded øre
-  result, so a cross-year payment cannot accidentally price 2025 days with a
-  2026 rate or divisor.
-- The § 7 daily-interest result deliberately exposes the øre numerator,
-  denominator, and nedrundet øre amount. That keeps precision and rounding
-  posture visible until broader kroner/øre rounding policy is unified across the
-  tax corpus.
+  supplement, year divisor, rentedage, and `PengeØreBeregning`, so a cross-year
+  payment cannot accidentally price 2025 days with a 2026 rate or divisor.
+- `pengebeloeb.runa` is now the shared precision boundary for positive clamps,
+  minimum amounts, ten-kroner floors, basispoint rounding, basispoint-to-kroner
+  multiplication, and øre-fraction rounding. Statutory modules retain their
+  local legal names but delegate the common arithmetic posture to this file.
+- Domain review pass: exact duplicate scalar helpers for positive amounts,
+  minimum amounts, and kroner-by-basispoint calculations now route through
+  `pengebeloeb.runa`. Wider statutory input records stay explicit where their
+  fields are enumerated legal facts rather than accidental parameter plumbing.
 - The household scenario helpers are a future candidate for a compact scenario
   input object if more household scenarios are added. With one scenario, the
   current explicit facts remain easier to audit than a new wrapper layer.
@@ -523,6 +529,7 @@ M5 - Audit suite
   covered § 14 annualization, covered § 19 skatteloft including the 2026
   44,57 pct. ceiling, covered § 20 regulation/rounding, covered § 26 transition
   compensation, covered § 28 territorial exclusion, covered AM-law special cases,
+  covered shared Pengebeløb rounding and øre-fraction posture,
   covered Opkrævningsloven payment-deadline/remittance posture and § 7
   rate-derivation fixture plus 2026 late-payment supplement source-chain
   amendment and date-exact daily interest context, covered B-skat installment
@@ -544,7 +551,8 @@ M6 - Website integration
 - Current slice: `/research/personskatteloven` links the valid and historic
   sources, renders the milestone log, embeds the checked §§ 1-28 `.runa`
   corpus plus `.scenario.runa` executable scenarios and the `.audit.runa`
-  audit suite, marks the limited wage-earner fixture slice plus ordinary and
+  audit suite, marks the shared Pengebeløb rounding posture, the limited
+  wage-earner fixture slice plus ordinary and
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,

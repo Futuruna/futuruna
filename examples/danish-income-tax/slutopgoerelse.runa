@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./pengebeloeb
 @ importer ./opkraevningsloven
 
 -- Kildeskatteloven -- slutopgoerelse, restskat og overskydende skat.
@@ -109,8 +110,8 @@ henholdsvis udbetales efter reglerne i § 62.
 # KildeskatÆgtefælleUdligningInput(person_a_restskat_kroner: Heltal, person_a_overskydende_skat_kroner: Heltal, person_b_restskat_kroner: Heltal, person_b_overskydende_skat_kroner: Heltal, samlevende_ved_årets_udgang: Boolsk, begge_indforstået: Boolsk)
 # KildeskatÆgtefælleUdligningResult(person_a_restskat_efter_udligning_kroner: Heltal, person_a_overskydende_skat_efter_udligning_kroner: Heltal, person_b_restskat_efter_udligning_kroner: Heltal, person_b_overskydende_skat_efter_udligning_kroner: Heltal, anvendt_a_til_b_kroner: Heltal, anvendt_b_til_a_kroner: Heltal)
 
-| kildeskat_slutopgørelse_positivt_beløb(beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { beløb_kroner } ellers { 0 }
-| kildeskat_slutopgørelse_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> hvis a_kroner < b_kroner { a_kroner } ellers { b_kroner }
+| kildeskat_slutopgørelse_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
+| kildeskat_slutopgørelse_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> penge_mindste_beløb(a_kroner, b_kroner)
 | kildeskat_par60_modregning_brutto_kroner(kreditter: KildeskatPar60Kreditter) -> kreditter.a_skat_og_am_indeholdt_kroner + kreditter.par68_indbetalt_kroner + kreditter.b_skat_betalt_kroner + kreditter.udbytteskat_modregningsberettiget_kroner + kreditter.frivillig_indbetaling_par59_kroner + kreditter.virksomhedsordning_beløb_kroner + kreditter.personskattelov_par8a_stk5_beløb_kroner + kreditter.afskrivningslov_acontoskat_kroner + kreditter.am_lov_par6_beløb_kroner + kreditter.seniornedslag_kroner + kreditter.energiafgiftskompensation_kroner
 | kildeskat_par60_modregning_kroner(kreditter: KildeskatPar60Kreditter) -> kildeskat_slutopgørelse_positivt_beløb(kildeskat_par60_modregning_brutto_kroner(kreditter) - kreditter.tilbagebetalt_par55_kroner)
 | kildeskat_slutskat_med_tillæg_kroner(input: KildeskatSlutopgørelseInput) -> input.slutskat_kroner + input.overført_restskat_mv_kroner + input.pensionsbeskatningsafgift_kroner
@@ -379,12 +380,12 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 # KildeskatPar62AForsinketUdbetalingsdatoInput(forventet_samlet_udbetaling_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, forudsat_udbetalingsdato: KildeskatDato, faktisk_udbetalingsdato: KildeskatDato, forvaltningen_vælger_samlet_beløb_som_grundlag: Boolsk)
 # KildeskatPar62CMindreRestskatInput(restskat_tillæg_renter_kroner: Heltal, tidligere_ikke_opkrævet_kroner: Heltal, ikke_indregnet_efter_par61_stk3: Boolsk)
 
-| kildeskat_basispoint_afrundet_til_en_decimal(sats_basispoint: Heltal) -> hvis sats_basispoint > 0 { (sats_basispoint + 5) / 10 * 10 } ellers { 0 }
+| kildeskat_basispoint_afrundet_til_en_decimal(sats_basispoint: Heltal) -> penge_basispoint_afrundet_til_en_decimal(sats_basispoint)
 | kildeskat_restskat_procenttillæg_basispoint(input: KildeskatRestskatTillægInput) -> kildeskat_basispoint_afrundet_til_en_decimal(input.opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint + 150)
-| kildeskat_restskat_procenttillæg_kroner(input: KildeskatRestskatTillægInput) -> input.restskat_kroner * kildeskat_restskat_procenttillæg_basispoint(input) / 10000
+| kildeskat_restskat_procenttillæg_kroner(input: KildeskatRestskatTillægInput) -> penge_beløb_gange_basispoint_kroner(input.restskat_kroner, kildeskat_restskat_procenttillæg_basispoint(input))
 | kildeskat_forsinkelsesrente_basispoint_pr_påbegyndt_måned(input: KildeskatForsinkelsesrenteInput) -> input.opkrævningslov_par7_stk2_rente_basispoint + 40
 | kildeskat_forsinkelsesrente_kroner(input: KildeskatForsinkelsesrenteInput) -> 0
-| exception kildeskat_forsinket_beløb_forrentes kildeskat_forsinkelsesrente_kroner(input: KildeskatForsinkelsesrenteInput) -> input.beløb_kroner * kildeskat_forsinkelsesrente_basispoint_pr_påbegyndt_måned(input) * input.påbegyndte_måneder / 10000 under input.rente_udløses && input.påbegyndte_måneder > 0
+| exception kildeskat_forsinket_beløb_forrentes kildeskat_forsinkelsesrente_kroner(input: KildeskatForsinkelsesrenteInput) -> penge_beløb_gange_basispoint_kroner(input.beløb_kroner * input.påbegyndte_måneder, kildeskat_forsinkelsesrente_basispoint_pr_påbegyndt_måned(input)) under input.rente_udløses && input.påbegyndte_måneder > 0
 
 | kildeskat_restskat_grænse_2010_niveau_kroner() -> 18300
 | kildeskat_restskat_udskrives_senest_september_systemdato(postur: KildeskatRestskatUdskrivningspostur) -> postur == SenestSeptemberFørAugust || postur == SenestSeptemberFraAugust
@@ -428,7 +429,7 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 
 | kildeskat_overskydende_godtgørelse_basispoint(input: KildeskatOverskydendeGodtgørelseInput) -> kildeskat_basispoint_afrundet_til_en_decimal(input.opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint - 520)
 | kildeskat_overskydende_godtgørelsesgrundlag_kroner(input: KildeskatOverskydendeGodtgørelseInput) -> kildeskat_slutopgørelse_positivt_beløb(input.overskydende_skat_kroner - input.modsvarer_par59_indbetaling_kroner - input.modsvarer_seniornedslag_kroner - input.modsvarer_energiafgiftskompensation_kroner)
-| kildeskat_overskydende_godtgørelse_kroner(input: KildeskatOverskydendeGodtgørelseInput) -> kildeskat_overskydende_godtgørelsesgrundlag_kroner(input) * kildeskat_overskydende_godtgørelse_basispoint(input) / 10000
+| kildeskat_overskydende_godtgørelse_kroner(input: KildeskatOverskydendeGodtgørelseInput) -> penge_beløb_gange_basispoint_kroner(kildeskat_overskydende_godtgørelsesgrundlag_kroner(input), kildeskat_overskydende_godtgørelse_basispoint(input))
 | kildeskat_overskydende_ordinært_tilbagebetalingsvindue(input: KildeskatOverskydendeTilbagebetalingInput) -> input.tilbagebetaling_i_ordinært_vindue
 | kildeskat_overskydende_forsinkelsesrente_kroner(input: KildeskatOverskydendeTilbagebetalingInput) -> kildeskat_forsinkelsesrente_kroner(KildeskatForsinkelsesrenteInput(input.overskydende_skat_kroner + input.godtgørelse_kroner, input.opkrævningslov_par7_stk2_rente_basispoint, input.påbegyndte_måneder_efter_1_september, input.tilbagebetaling_efter_1_september))
 | kildeskat_overskydende_udbetaling_efter_restancemodregning_kroner(input: KildeskatOverskydendeTilbagebetalingInput) -> kildeskat_slutopgørelse_positivt_beløb(input.overskydende_skat_kroner + input.godtgørelse_kroner + kildeskat_overskydende_forsinkelsesrente_kroner(input) - input.restancer_personlig_skat_med_morarenter_kroner)

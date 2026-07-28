@@ -1,5 +1,7 @@
 @ sprog da
 
+@ importer ./pengebeloeb
+
 -- Personskatteloven — statsskat og skatteværdi (§§ 5-9).
 --
 -- Kilde: Retsinformation, LBK nr. 1284 af 14/06/2021.
@@ -288,12 +290,12 @@ Bundfradraget reguleres efter § 20.
 
 | progressiv_personlig_overskud_kroner(input: ProgressivStatsskatInput) -> 0
 | exception progressiv_personlig_over_grænse progressiv_personlig_overskud_kroner(input: ProgressivStatsskatInput) -> input.personlig_indkomst_efter_am_kroner - input.grænse_efter_am_kroner under input.personlig_indkomst_efter_am_kroner > input.grænse_efter_am_kroner
-| progressiv_statsskat_kroner(input: ProgressivStatsskatInput) -> progressiv_personlig_overskud_kroner(input) * input.sats_basispoint / 10000
+| progressiv_statsskat_kroner(input: ProgressivStatsskatInput) -> penge_beløb_gange_basispoint_kroner(progressiv_personlig_overskud_kroner(input), input.sats_basispoint)
 | mellemskat_kapital_over_bundfradrag_kroner(input: MellemskatKapitalInput) -> 0
 | exception mellemskat_kapital_over_grundbeløb mellemskat_kapital_over_bundfradrag_kroner(input: MellemskatKapitalInput) -> input.positiv_nettokapitalindkomst_kroner - input.kapital_bundfradrag_kroner under input.positiv_nettokapitalindkomst_kroner > input.kapital_bundfradrag_kroner
 | mellemskat_grundlag_med_kapital_kroner(input: MellemskatKapitalInput) -> 0
 | exception mellemskat_samlet_over_bundfradrag mellemskat_grundlag_med_kapital_kroner(input: MellemskatKapitalInput) -> input.personlig_indkomst_efter_am_kroner + mellemskat_kapital_over_bundfradrag_kroner(input) - input.mellemskattegrænse_efter_am_kroner under input.personlig_indkomst_efter_am_kroner + mellemskat_kapital_over_bundfradrag_kroner(input) > input.mellemskattegrænse_efter_am_kroner
-| mellemskat_med_kapital_kroner(input: MellemskatKapitalInput) -> mellemskat_grundlag_med_kapital_kroner(input) * input.sats_basispoint / 10000
+| mellemskat_med_kapital_kroner(input: MellemskatKapitalInput) -> penge_beløb_gange_basispoint_kroner(mellemskat_grundlag_med_kapital_kroner(input), input.sats_basispoint)
 | mellemskat_ægtefæller_samlet_positiv_kapital_kroner(input: MellemskatÆgtefælleKapitalInput) -> input.positiv_nettokapitalindkomst_kroner + input.ægtefælle_positiv_nettokapitalindkomst_kroner
 | mellemskat_ægtefæller_kapital_over_bundfradrag_kroner(input: MellemskatÆgtefælleKapitalInput) -> 0
 | exception mellemskat_ægtefæller_over_dobbelt_grundbeløb mellemskat_ægtefæller_kapital_over_bundfradrag_kroner(input: MellemskatÆgtefælleKapitalInput) -> mellemskat_ægtefæller_samlet_positiv_kapital_kroner(input) - input.ægtefælle_kapital_bundfradrag_kroner under mellemskat_ægtefæller_samlet_positiv_kapital_kroner(input) > input.ægtefælle_kapital_bundfradrag_kroner
@@ -303,8 +305,8 @@ Bundfradraget reguleres efter § 20.
 | exception mellemskat_ægtefælle_personlig_over_bundfradrag mellemskat_ægtefælle_personlig_grundlag_kroner(input: MellemskatÆgtefælleKapitalInput) -> mellemskat_ægtefælle_højeste_personlig_indkomst_kroner(input) - input.mellemskattegrænse_efter_am_kroner under mellemskat_ægtefælle_højeste_personlig_indkomst_kroner(input) > input.mellemskattegrænse_efter_am_kroner
 | mellemskat_ægtefælle_samlet_grundlag_kroner(input: MellemskatÆgtefælleKapitalInput) -> 0
 | exception mellemskat_ægtefælle_samlet_over_bundfradrag mellemskat_ægtefælle_samlet_grundlag_kroner(input: MellemskatÆgtefælleKapitalInput) -> mellemskat_ægtefælle_højeste_personlig_indkomst_kroner(input) + mellemskat_ægtefæller_kapital_over_bundfradrag_kroner(input) - input.mellemskattegrænse_efter_am_kroner under mellemskat_ægtefælle_højeste_personlig_indkomst_kroner(input) + mellemskat_ægtefæller_kapital_over_bundfradrag_kroner(input) > input.mellemskattegrænse_efter_am_kroner
-| mellemskat_ægtefælle_samlet_skat_kroner(input: MellemskatÆgtefælleKapitalInput) -> mellemskat_ægtefælle_samlet_grundlag_kroner(input) * input.sats_basispoint / 10000
-| mellemskat_ægtefælle_personlig_skat_kroner(input: MellemskatÆgtefælleKapitalInput) -> mellemskat_ægtefælle_personlig_grundlag_kroner(input) * input.sats_basispoint / 10000
+| mellemskat_ægtefælle_samlet_skat_kroner(input: MellemskatÆgtefælleKapitalInput) -> penge_beløb_gange_basispoint_kroner(mellemskat_ægtefælle_samlet_grundlag_kroner(input), input.sats_basispoint)
+| mellemskat_ægtefælle_personlig_skat_kroner(input: MellemskatÆgtefælleKapitalInput) -> penge_beløb_gange_basispoint_kroner(mellemskat_ægtefælle_personlig_grundlag_kroner(input), input.sats_basispoint)
 | mellemskat_ægtefælle_kapital_skat_kroner(input: MellemskatÆgtefælleKapitalInput) -> mellemskat_ægtefælle_samlet_skat_kroner(input) - mellemskat_ægtefælle_personlig_skat_kroner(input)
 | reform_statskat_sats_basispoint(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 0
 | exception mellemskat_2026 reform_statskat_sats_basispoint(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 750 under skatteår >= 2026 && lag == MellemskatLag

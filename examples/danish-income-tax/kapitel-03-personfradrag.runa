@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./pengebeloeb
 @ importer ./skatteaar - parametre
 
 -- Personskatteloven — personfradrag, negativ kapitalindkomst og underskud (§§ 10-13).
@@ -141,7 +142,7 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 800 under skatteår >= 2019
 
 | negativ_kapital_nedslag_grundlag(input: NegativKapitalNedslagInput) -> hvis input.negativ_nettokapitalindkomst_kroner > 50000 { 50000 } ellers { input.negativ_nettokapitalindkomst_kroner }
-| negativ_kapital_nedslag_kroner(input: NegativKapitalNedslagInput) -> negativ_kapital_nedslag_grundlag(input) * negativ_kapital_nedslag_sats_basispoint(input.skatteår) / 10000 under input.betaler_kommunal_eller_par8c
+| negativ_kapital_nedslag_kroner(input: NegativKapitalNedslagInput) -> penge_beløb_gange_basispoint_kroner(negativ_kapital_nedslag_grundlag(input), negativ_kapital_nedslag_sats_basispoint(input.skatteår)) under input.betaler_kommunal_eller_par8c
 | negativ_kapital_ægtefælle_beløbsgrænse_kan_forhøjes(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 | uudnyttet_negativ_kapital_nedslag_overføres_til_ægtefælle(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 
@@ -167,13 +168,13 @@ til nedsættelse af de øvrige skatter.
 
 # PersonfradragSkatteværdiInput(fradrag_kroner: Heltal, bundskat_basispoint: Heltal, sundhedsbidrag_basispoint: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, par8c_basispoint: Heltal)
 
-| personfradrag_skatteværdi_med_sats(fradrag_kroner: Heltal, sats_basispoint: Heltal) -> fradrag_kroner * sats_basispoint / 10000
+| personfradrag_skatteværdi_med_sats(fradrag_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(fradrag_kroner, sats_basispoint)
 | personfradrag_statslig_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.bundskat_basispoint + input.sundhedsbidrag_basispoint)
 | personfradrag_kommunal_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.kommuneskat_basispoint)
 | personfradrag_kirkelig_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.kirkeskat_basispoint)
 | personfradrag_par8c_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.par8c_basispoint)
 | uudnyttet_personfradrag_skatteværdi_omfordeles() -> Sandt
-| skat_efter_nedsættelse(skat_kroner: Heltal, nedsættelse_kroner: Heltal) -> hvis skat_kroner > nedsættelse_kroner { skat_kroner - nedsættelse_kroner } ellers { 0 }
+| skat_efter_nedsættelse(skat_kroner: Heltal, nedsættelse_kroner: Heltal) -> penge_positivt_beløb(skat_kroner - nedsættelse_kroner)
 
 = par12_fixture = PersonfradragSkatteværdiInput(51600, 1201, 0, 2350, 80, 0)
 = par12_statslig = personfradrag_statslig_skatteværdi(par12_fixture)
@@ -350,13 +351,13 @@ som nævnt i § 10, stk. 1.
 | par13_ægtefælleunderskud_overføres(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 | par13_negativ_personlig_modregnes_først_i_positiv_kapital() -> Sandt
 | par13_passiv_virksomhedsunderskud_låses_til_samme_virksomhed(type: Par13Underskudstype) -> type == PassivVirksomhedsUnderskud || type == TransparentSelskabsUnderskud
-| par13_positivt_beløb(beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { beløb_kroner } ellers { 0 }
-| par13_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> hvis a_kroner < b_kroner { a_kroner } ellers { b_kroner }
+| par13_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
+| par13_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> penge_mindste_beløb(a_kroner, b_kroner)
 | par13_absolut_underskud(indkomst_kroner: Heltal) -> hvis indkomst_kroner < 0 { 0 - indkomst_kroner } ellers { 0 }
 | par13_skatteværdi_sats_basispoint(input: Par13UnderskudSkatteværdiInput) -> input.sundhedsbidrag_basispoint + input.par8c_basispoint under input.betaler_par8c
 | par13_skatteværdi_sats_basispoint(input: Par13UnderskudSkatteværdiInput) -> input.sundhedsbidrag_basispoint + input.kommuneskat_basispoint + input.kirkeskat_basispoint under input.betaler_par8c == Falskt
-| par13_underskud_skatteværdi_kroner(input: Par13UnderskudSkatteværdiInput) -> input.underskud_kroner * par13_skatteværdi_sats_basispoint(input) / 10000
-| par13_ubrugt_nedslag_efter_skat(skat_kroner: Heltal, nedslag_kroner: Heltal) -> hvis nedslag_kroner > skat_kroner { nedslag_kroner - skat_kroner } ellers { 0 }
+| par13_underskud_skatteværdi_kroner(input: Par13UnderskudSkatteværdiInput) -> penge_beløb_gange_basispoint_kroner(input.underskud_kroner, par13_skatteværdi_sats_basispoint(input))
+| par13_ubrugt_nedslag_efter_skat(skat_kroner: Heltal, nedslag_kroner: Heltal) -> penge_positivt_beløb(nedslag_kroner - skat_kroner)
 | par13_rester_efter_par6(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par6_skat_kroner, input.skatteværdi_kroner)
 | par13_rester_efter_par7(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par7_skat_kroner, par13_rester_efter_par6(input))
 | par13_rester_efter_par7a(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par7a_skat_kroner, par13_rester_efter_par7(input))

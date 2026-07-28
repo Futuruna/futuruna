@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./pengebeloeb
 @ importer ./kildeskatteloven
 @ importer ./forskudsregistrering_2026
 
@@ -128,8 +129,7 @@ ejendomsskattelovens § 31 og med fradrag af følgende beløb:
 # KildeskattebekendtgørelseForskudskortInput(skatteår: Heltal, års_a_indkomst_kroner: Heltal, periode_a_indkomst_kroner: Heltal, udelukket_a_indkomst_kroner: Heltal, forskudsskat_kroner: Heltal, uafrundet_indeholdelsesprocent_basispoint: Heltal, skatteloft_plus_par7a_og_kirke_basispoint: Heltal, lønindeholdelsesprocent_basispoint: Heltal, hovedkort: Boolsk, skattekortfradrag_kan_udnyttes: Boolsk, periode: KildeskatFradragsperiode, nedrunding_til_ti_kroner: Boolsk)
 # KildeskattebekendtgørelseSkattekortResult(samlet_skattekortfradrag_kroner: Heltal, månedsfradrag_kroner: Heltal, fjorten_dages_fradrag_kroner: Heltal, ugefradrag_kroner: Heltal, dagsfradrag_kroner: Heltal, indeholdelsesprocent_basispoint: Heltal, skattebillet_b_skat_kroner: Heltal, kort: KildeskatKort, eskattekort: KildeskatESkattekortInput)
 
-| kildeskattebekendtgørelse_positivt_beløb(beløb_kroner: Heltal) -> 0
-| exception kildeskattebekendtgørelse_beløb_over_nul kildeskattebekendtgørelse_positivt_beløb(beløb_kroner: Heltal) -> beløb_kroner under beløb_kroner > 0
+| kildeskattebekendtgørelse_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 
 | kildeskattebekendtgørelse_a_indkomst_til_skattekort_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_positivt_beløb(input.års_a_indkomst_kroner - input.udelukket_a_indkomst_kroner)
 | kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_positivt_beløb(input.forskudsskat_kroner)
@@ -163,12 +163,12 @@ Stk. 3. Indeholdelsesprocentsatsen efter stk. 1 og 2 forhøjes til nærmeste hel
 procent.
 ----
 
-| kildeskattebekendtgørelse_afrundet_op_til_hel_procent_basispoint(procent_basispoint: Heltal) -> (procent_basispoint + 99) / 100 * 100
+| kildeskattebekendtgørelse_afrundet_op_til_hel_procent_basispoint(procent_basispoint: Heltal) -> penge_basispoint_afrundet_op_til_hel_procent(procent_basispoint)
 | kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input: KildeskattebekendtgørelseForskudskortInput) -> input.uafrundet_indeholdelsesprocent_basispoint
 | exception kildeskattebekendtgørelse_skatteloft_afskærer_procent kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input: KildeskattebekendtgørelseForskudskortInput) -> input.skatteloft_plus_par7a_og_kirke_basispoint under input.uafrundet_indeholdelsesprocent_basispoint > input.skatteloft_plus_par7a_og_kirke_basispoint
 | kildeskattebekendtgørelse_indeholdelsesprocent_for_kort_basispoint(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_afrundet_op_til_hel_procent_basispoint(kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input)) + input.lønindeholdelsesprocent_basispoint
 
-| kildeskattebekendtgørelse_maksimal_indeholdelig_a_skat_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_a_indkomst_til_skattekort_kroner(input) * kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input) / 10000
+| kildeskattebekendtgørelse_maksimal_indeholdelig_a_skat_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> penge_beløb_gange_basispoint_kroner(kildeskattebekendtgørelse_a_indkomst_til_skattekort_kroner(input), kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input))
 | kildeskattebekendtgørelse_skattebillet_b_skat_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_positivt_beløb(kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) - kildeskattebekendtgørelse_maksimal_indeholdelig_a_skat_kroner(input))
 | kildeskattebekendtgørelse_samlet_skattekortfradrag_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> 0
 | exception kildeskattebekendtgørelse_skattekortfradrag_beregnes kildeskattebekendtgørelse_samlet_skattekortfradrag_kroner(input: KildeskattebekendtgørelseForskudskortInput) -> kildeskattebekendtgørelse_positivt_beløb(kildeskattebekendtgørelse_a_indkomst_til_skattekort_kroner(input) - kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) * 10000 / kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input)) under input.hovedkort && input.skattekortfradrag_kan_udnyttes && kildeskattebekendtgørelse_indeholdelsesprocent_før_helprocent_basispoint(input) > 0 && kildeskattebekendtgørelse_forskudsskat_til_a_skat_kroner(input) > 0

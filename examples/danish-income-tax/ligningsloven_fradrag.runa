@@ -1,5 +1,7 @@
 @ sprog da
 
+@ importer ./pengebeloeb
+
 -- Ligningsloven — almindelige lønmodtagerfradrag efter §§ 9 J og 9 K.
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 12/12/2025.
@@ -73,17 +75,15 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
 # Ligningslov9JInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk)
 # Ligningslov9JParametre(skatteår: Heltal, beskæftigelsesfradrag_basispoint: Heltal, beskæftigelsesfradrag_maks_kroner: Heltal)
 
-| ligningslov_positivt_beløb(beløb_kroner: Heltal) -> 0
-| exception ligningslov_beløb_over_nul ligningslov_positivt_beløb(beløb_kroner: Heltal) -> beløb_kroner under beløb_kroner > 0
+| ligningslov_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 
-| ligningslov_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> a_kroner under a_kroner <= b_kroner
-| ligningslov_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> b_kroner under a_kroner > b_kroner
+| ligningslov_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> penge_mindste_beløb(a_kroner, b_kroner)
 
 | ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(2024, 1065, 45100) under skatteår == 2024
 | ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(2025, 1230, 55600) under skatteår == 2025
 | ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(2026, 1275, 63300) under skatteår == 2026
 | ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input: Ligningslov9JInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
-| ll9j_beregnet_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner) * ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_basispoint / 10000
+| ll9j_beregnet_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> penge_beløb_gange_basispoint_kroner(ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_basispoint)
 | ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> 0
 | exception ll9j_almindelig_lønmodtager ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> ligningslov_mindste_beløb(ll9j_beregnet_beskæftigelsesfradrag_kroner(input), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_maks_kroner) under ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input)
 
@@ -135,7 +135,7 @@ Jobfradrag, § 9 K
 | ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(2026, 450, 235200, 3100) under skatteår == 2026
 | ll9k_almindeligt_jobfradrag_berettiget(input: Ligningslov9KInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
 | ll9k_jobfradrag_grundlag_kroner(input: Ligningslov9KInput) -> ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner - ll9k_parametre_for(input.skatteår).jobfradrag_indkomstgrænse_kroner)
-| ll9k_beregnet_jobfradrag_kroner(input: Ligningslov9KInput) -> ll9k_jobfradrag_grundlag_kroner(input) * ll9k_parametre_for(input.skatteår).jobfradrag_basispoint / 10000
+| ll9k_beregnet_jobfradrag_kroner(input: Ligningslov9KInput) -> penge_beløb_gange_basispoint_kroner(ll9k_jobfradrag_grundlag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_basispoint)
 | ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> 0
 | exception ll9k_almindelig_lønmodtager ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> ligningslov_mindste_beløb(ll9k_beregnet_jobfradrag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_maks_kroner) under ll9k_almindeligt_jobfradrag_berettiget(input)
 
