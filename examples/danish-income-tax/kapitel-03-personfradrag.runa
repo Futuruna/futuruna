@@ -394,6 +394,8 @@ til nedsættelse af de øvrige skatter.
 ----
 
 # PersonfradragSkatteværdiInput(fradrag_kroner: Heltal, bundskat_basispoint: Heltal, sundhedsbidrag_basispoint: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, par8c_basispoint: Heltal)
+# PersonfradragStatsskatNedsættelseInput(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, statslig_skatteværdi_kroner: Heltal)
+# PersonfradragStatsskatNedsættelseResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, ubrugt_skatteværdi_kroner: Heltal)
 
 | personfradrag_skatteværdi_med_sats(fradrag_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(fradrag_kroner, sats_basispoint)
 | personfradrag_statslig_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.bundskat_basispoint + input.sundhedsbidrag_basispoint)
@@ -402,6 +404,29 @@ til nedsættelse af de øvrige skatter.
 | personfradrag_par8c_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.par8c_basispoint)
 | uudnyttet_personfradrag_skatteværdi_omfordeles() -> Sandt
 | skat_efter_nedsættelse(skat_kroner: Heltal, nedsættelse_kroner: Heltal) -> penge_positivt_beløb(skat_kroner - nedsættelse_kroner)
+| personfradrag_ubrugt_skatteværdi_efter_skat(skat_kroner: Heltal, skatteværdi_kroner: Heltal) -> penge_positivt_beløb(skatteværdi_kroner - skat_kroner)
+
+# PersonfradragStatsskatNedsættelseSag(input: PersonfradragStatsskatNedsættelseInput) {
+    | par6_efter() -> skat_efter_nedsættelse(input.par6_skat_kroner, input.statslig_skatteværdi_kroner)
+    | rest_efter_par6() -> personfradrag_ubrugt_skatteværdi_efter_skat(input.par6_skat_kroner, input.statslig_skatteværdi_kroner)
+    | par7_efter() -> skat_efter_nedsættelse(input.par7_skat_kroner, rest_efter_par6())
+    | rest_efter_par7() -> personfradrag_ubrugt_skatteværdi_efter_skat(input.par7_skat_kroner, rest_efter_par6())
+    | par7a_efter() -> skat_efter_nedsættelse(input.par7a_skat_kroner, rest_efter_par7())
+    | rest_efter_par7a() -> personfradrag_ubrugt_skatteværdi_efter_skat(input.par7a_skat_kroner, rest_efter_par7())
+    | par8_efter() -> skat_efter_nedsættelse(input.par8_skat_kroner, rest_efter_par7a())
+    | rest_efter_par8() -> personfradrag_ubrugt_skatteværdi_efter_skat(input.par8_skat_kroner, rest_efter_par7a())
+    | par8a_stk2_efter() -> skat_efter_nedsættelse(input.par8a_stk2_skat_kroner, rest_efter_par8())
+    | ubrugt_skatteværdi() -> personfradrag_ubrugt_skatteværdi_efter_skat(input.par8a_stk2_skat_kroner, rest_efter_par8())
+    | resultat() -> PersonfradragStatsskatNedsættelseResultat(
+        par6_efter_kroner = par6_efter(),
+        par7_efter_kroner = par7_efter(),
+        par7a_efter_kroner = par7a_efter(),
+        par8_efter_kroner = par8_efter(),
+        par8a_stk2_efter_kroner = par8a_stk2_efter(),
+        ubrugt_skatteværdi_kroner = ubrugt_skatteværdi()
+    )
+}
+| personfradrag_statsskat_nedsættelse_resultat(input: PersonfradragStatsskatNedsættelseInput) -> PersonfradragStatsskatNedsættelseSag(input).resultat()
 
 = par12_fixture = PersonfradragSkatteværdiInput(
     fradrag_kroner = 51600,
@@ -415,11 +440,29 @@ til nedsættelse af de øvrige skatter.
 = par12_kommunal = personfradrag_kommunal_skatteværdi(par12_fixture)
 = par12_kirkelig = personfradrag_kirkelig_skatteværdi(par12_fixture)
 = par12_nedsat = skat_efter_nedsættelse(55246, par12_statslig)
+= par12_statsskat_omfordeling = personfradrag_statsskat_nedsættelse_resultat(PersonfradragStatsskatNedsættelseInput(
+    par6_skat_kroner = 1000,
+    par7_skat_kroner = 300,
+    par7a_skat_kroner = 200,
+    par8_skat_kroner = 100,
+    par8a_stk2_skat_kroner = 50,
+    statslig_skatteværdi_kroner = 1300
+))
+= par12_statsskat_udtømmer_skatter = personfradrag_statsskat_nedsættelse_resultat(PersonfradragStatsskatNedsættelseInput(
+    par6_skat_kroner = 1000,
+    par7_skat_kroner = 300,
+    par7a_skat_kroner = 200,
+    par8_skat_kroner = 100,
+    par8a_stk2_skat_kroner = 50,
+    statslig_skatteværdi_kroner = 2000
+))
 
 | par12_statslig_værdi: par12_statslig -> par12_statslig == 6197
 | par12_kommunal_værdi: par12_kommunal -> par12_kommunal == 12126
 | par12_kirkelig_værdi: par12_kirkelig -> par12_kirkelig == 412
 | par12_skat_nedsættes: par12_nedsat -> par12_nedsat == 49049
+| par12_uudnyttet_statsværdi_nedsætter_par7: par12_statsskat_omfordeling -> par12_statsskat_omfordeling.par6_efter_kroner == 0 && par12_statsskat_omfordeling.par7_efter_kroner == 0 && par12_statsskat_omfordeling.par7a_efter_kroner == 200 && par12_statsskat_omfordeling.ubrugt_skatteværdi_kroner == 0
+| par12_uudnyttet_statsværdi_kan_udtømme_alle_par9_skatter: par12_statsskat_udtømmer_skatter -> par12_statsskat_udtømmer_skatter.par6_efter_kroner == 0 && par12_statsskat_udtømmer_skatter.par7_efter_kroner == 0 && par12_statsskat_udtømmer_skatter.par7a_efter_kroner == 0 && par12_statsskat_udtømmer_skatter.par8_efter_kroner == 0 && par12_statsskat_udtømmer_skatter.par8a_stk2_efter_kroner == 0 && par12_statsskat_udtømmer_skatter.ubrugt_skatteværdi_kroner == 350
 
 ----
 § 13. Hvis den skattepligtige indkomst udviser underskud, beregnes

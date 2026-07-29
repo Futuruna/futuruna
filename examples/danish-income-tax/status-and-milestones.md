@@ -256,7 +256,8 @@ encoded as a temporal rule on top of the consolidation.
   §§ 1-4 b income taxonomy including amount-level § 4 a pension deduction from
   positive share income, the §§ 5-9 state-tax skeleton including amount-level
   § 6 spouse negative net-capital offset and § 7 stk. 5 spouse
-  positive-capital threshold/negative-capital offset, the §§ 10-13
+  positive-capital threshold/negative-capital offset, § 12 unused
+  personfradrag tax-value allocation across the § 9 state-tax basket, the §§ 10-13
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
   slice, the §§ 21-28 concluding provisions slice, ordinary and special-case
   AM-law,
@@ -360,6 +361,11 @@ Current decision:
   partial-year election deadline, omvalg deadline, sailor-tax exclusion,
   residence-permit applicant exclusion, and researcher-tax exclusion are derived
   from one legal case.
+- `PersonfradragStatsskatNedsættelseSag` uses product-scoped `|` rules for
+  § 12 stk. 2. It keeps the § 9 state-tax basket and state personfradrag tax
+  value together so the unused value after § 6, § 7, § 7 a, § 8, and
+  § 8 a stk. 2 is derived inside one legal case instead of passed through a
+  chain of loose remainders.
 - `Par11NegativKapitalNedslagSag` uses product-scoped `|` rules for § 11.
   It keeps tax year, the taxpayer's net-capital income, the spouse's
   net-capital income, samliv status, and municipal/§ 8 c tax-liability posture
@@ -802,7 +808,7 @@ M5 - Audit suite
   personfradrag, covered § 10 stk. 5-6 choice/deadline/exclusion posture,
   covered § 11 negative net-capital reduction with spouse threshold pooling,
   spouse positive-capital offset, statutory reduction order, and unused spouse
-  transfer,
+  transfer, covered § 12 unused state personfradrag tax-value allocation,
   covered 2026 state-tax reform layers, covered § 13 deficit mechanics,
   mellemskat positive-net-capital and spouse-threshold activation,
   § 7 stk. 5 spouse negative-capital offset/effective-grundbeløb activation,
@@ -865,6 +871,7 @@ M6 - Website integration
   first § 8 a/§ 67 share-income annual-settlement scenario,
   first § 8 c limited-taxpayer municipal-equivalent tax calculation,
   first § 11 negative net-capital reduction order and spouse-transfer audit,
+  first § 12 unused state personfradrag tax-value allocation audit,
   first § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
   household benefit-cliff/source-tension probe plus a boligsikring § 22
   threshold-cliff probe,
@@ -893,7 +900,9 @@ M7 - Personfradrag and deficit layer
   Kildeskatteloven § 2 taxpayers is modeled with choice/reversal deadlines and
   explicit sailor/residence-permit/researcher exclusions, § 11 negative
   net-capital reduction covers spouse threshold pooling, spouse positive-capital
-  offset, statutory tax-order reduction, and unused spouse transfer, spouse
+  offset, statutory tax-order reduction, and unused spouse transfer, § 12
+  unused state personfradrag tax-value allocation across the § 9 state-tax
+  basket, spouse
   deficit transfer and negative personal income carry-forward are fixture-tested,
   foreign/pension spouse transfer limitations are executable, and same-business
   loss carry-forward amounts are fixture-tested. § 13's first dependent-source validation now
