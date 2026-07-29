@@ -111,6 +111,8 @@ indkomstårets udløb.
 # KommunalSkattepligt = BetalerKommunalEllerPar8c | BetalerIkkeKommunalEllerPar8c
 # BundskatInput(personlig_indkomst: Heltal, positiv_nettokapitalindkomst: Heltal)
 # ÆgtefælleKapitalModregning(gift: Boolsk, samlevende_ved_årets_udløb: Boolsk, negativ_nettokapitalindkomst: Boolsk)
+# Par6ÆgtefælleKapitalModregningInput(gift: Boolsk, samlevende_ved_årets_udløb: Boolsk, positiv_nettokapitalindkomst_kroner: Heltal, ægtefælle_negativ_nettokapitalindkomst_kroner: Heltal)
+# Par6ÆgtefælleKapitalModregningResult(modregnet_i_positiv_nettokapitalindkomst_kroner: Heltal, positiv_nettokapitalindkomst_efter_modregning_kroner: Heltal, resterende_negativ_nettokapitalindkomst_kroner: Heltal)
 
 | bundskat_grundlag(input: BundskatInput) -> input.personlig_indkomst + input.positiv_nettokapitalindkomst
 
@@ -120,6 +122,27 @@ indkomstårets udløb.
 | bundskatte_sats_basispoint(år: Heltal, skattepligt: KommunalSkattepligt) -> 410 under år >= 2022 && skattepligt == BetalerIkkeKommunalEllerPar8c
 
 | ægtefælles_negative_kapital_modregnes(input: ÆgtefælleKapitalModregning) -> input.gift && input.samlevende_ved_årets_udløb && input.negativ_nettokapitalindkomst
+# Par6ÆgtefælleKapitalModregningSag(input: Par6ÆgtefælleKapitalModregningInput) {
+    | modregning_gælder() -> input.gift && input.samlevende_ved_årets_udløb && input.positiv_nettokapitalindkomst_kroner > 0 && input.ægtefælle_negativ_nettokapitalindkomst_kroner < 0
+    | negativ_nettokapital_abs_kroner() -> penge_positivt_beløb(0 - input.ægtefælle_negativ_nettokapitalindkomst_kroner)
+    | modregnet_kroner() -> 0
+    | exception par6_samlevende_ægtefælles_negative_kapital_modregnes modregnet_kroner() -> penge_mindste_beløb(input.positiv_nettokapitalindkomst_kroner, negativ_nettokapital_abs_kroner()) under modregning_gælder()
+    | positiv_nettokapitalindkomst_efter_modregning_kroner() -> input.positiv_nettokapitalindkomst_kroner - modregnet_kroner()
+    | resterende_ægtefælle_negativ_nettokapitalindkomst_kroner() -> negativ_nettokapital_abs_kroner() - modregnet_kroner()
+    | resultat() -> Par6ÆgtefælleKapitalModregningResult(
+        modregnet_i_positiv_nettokapitalindkomst_kroner = modregnet_kroner(),
+        positiv_nettokapitalindkomst_efter_modregning_kroner = positiv_nettokapitalindkomst_efter_modregning_kroner(),
+        resterende_negativ_nettokapitalindkomst_kroner = resterende_ægtefælle_negativ_nettokapitalindkomst_kroner()
+    )
+}
+| par6_ægtefællekapital_modregning_sag(input: Par6ÆgtefælleKapitalModregningInput) -> Par6ÆgtefælleKapitalModregningSag(input)
+| par6_ægtefællekapital_modregning_gælder(input: Par6ÆgtefælleKapitalModregningInput) -> par6_ægtefællekapital_modregning_sag(input).modregning_gælder()
+| par6_ægtefælle_negativ_nettokapital_abs_kroner(input: Par6ÆgtefælleKapitalModregningInput) -> par6_ægtefællekapital_modregning_sag(input).negativ_nettokapital_abs_kroner()
+| par6_ægtefællekapital_modregnet_kroner(input: Par6ÆgtefælleKapitalModregningInput) -> par6_ægtefællekapital_modregning_sag(input).modregnet_kroner()
+| par6_positiv_nettokapitalindkomst_efter_ægtefællemodregning_kroner(input: Par6ÆgtefælleKapitalModregningInput) -> par6_ægtefællekapital_modregning_sag(input).positiv_nettokapitalindkomst_efter_modregning_kroner()
+| par6_resterende_ægtefælle_negativ_nettokapitalindkomst_kroner(input: Par6ÆgtefælleKapitalModregningInput) -> par6_ægtefællekapital_modregning_sag(input).resterende_ægtefælle_negativ_nettokapitalindkomst_kroner()
+| par6_ægtefællekapital_modregning_resultat(input: Par6ÆgtefælleKapitalModregningInput) -> par6_ægtefællekapital_modregning_sag(input).resultat()
+| bundskat_grundlag_efter_ægtefællekapitalmodregning(personlig_indkomst_kroner: Heltal, input: Par6ÆgtefælleKapitalModregningInput) -> personlig_indkomst_kroner + par6_positiv_nettokapitalindkomst_efter_ægtefællemodregning_kroner(input)
 
 = par6_grundlag = bundskat_grundlag(BundskatInput(
     personlig_indkomst = 500000,
@@ -133,12 +156,36 @@ indkomstårets udløb.
     samlevende_ved_årets_udløb = Sandt,
     negativ_nettokapitalindkomst = Sandt
 ))
+= par6_ægtefællekapital_input = Par6ÆgtefælleKapitalModregningInput(
+    gift = Sandt,
+    samlevende_ved_årets_udløb = Sandt,
+    positiv_nettokapitalindkomst_kroner = 10000,
+    ægtefælle_negativ_nettokapitalindkomst_kroner = -3000
+)
+= par6_ægtefællekapital_resultat = par6_ægtefællekapital_modregning_resultat(par6_ægtefællekapital_input)
+= par6_grundlag_efter_ægtefællekapitalmodregning = bundskat_grundlag_efter_ægtefællekapitalmodregning(500000, par6_ægtefællekapital_input)
+= par6_ægtefællekapital_fuld_modregning = par6_ægtefællekapital_modregning_resultat(Par6ÆgtefælleKapitalModregningInput(
+    gift = Sandt,
+    samlevende_ved_årets_udløb = Sandt,
+    positiv_nettokapitalindkomst_kroner = 10000,
+    ægtefælle_negativ_nettokapitalindkomst_kroner = -15000
+))
+= par6_ægtefællekapital_ikke_samlevende = par6_ægtefællekapital_modregning_resultat(Par6ÆgtefælleKapitalModregningInput(
+    gift = Sandt,
+    samlevende_ved_årets_udløb = Falskt,
+    positiv_nettokapitalindkomst_kroner = 10000,
+    ægtefælle_negativ_nettokapitalindkomst_kroner = -3000
+))
 
 | par6_grundlag_lægger_til: par6_grundlag -> par6_grundlag == 510000
 | par6_2021_sats: par6_sats_2021 -> par6_sats_2021 == 1209
 | par6_2022_sats: par6_sats_2022 -> par6_sats_2022 == 1210
 | par6_ikke_kommunal_sats: par6_sats_ikke_kommunal -> par6_sats_ikke_kommunal == 410
 | par6_ægtefælle_modregning: par6_modregning -> par6_modregning == Sandt
+| par6_ægtefællekapital_modregning_beløb: par6_ægtefællekapital_resultat -> par6_ægtefællekapital_resultat.modregnet_i_positiv_nettokapitalindkomst_kroner == 3000 && par6_ægtefællekapital_resultat.positiv_nettokapitalindkomst_efter_modregning_kroner == 7000 && par6_ægtefællekapital_resultat.resterende_negativ_nettokapitalindkomst_kroner == 0
+| par6_ægtefællekapital_reducerer_bundskatgrundlag: par6_grundlag_efter_ægtefællekapitalmodregning -> par6_grundlag_efter_ægtefællekapitalmodregning == 507000
+| par6_ægtefællekapital_loftes_til_positiv_kapital: par6_ægtefællekapital_fuld_modregning -> par6_ægtefællekapital_fuld_modregning.modregnet_i_positiv_nettokapitalindkomst_kroner == 10000 && par6_ægtefællekapital_fuld_modregning.positiv_nettokapitalindkomst_efter_modregning_kroner == 0 && par6_ægtefællekapital_fuld_modregning.resterende_negativ_nettokapitalindkomst_kroner == 5000
+| par6_ægtefællekapital_kræver_samliv_ved_årets_udløb: par6_ægtefællekapital_ikke_samlevende -> par6_ægtefællekapital_ikke_samlevende.modregnet_i_positiv_nettokapitalindkomst_kroner == 0 && par6_ægtefællekapital_ikke_samlevende.positiv_nettokapitalindkomst_efter_modregning_kroner == 10000
 
 ----
 § 6 a. (Ophævet)

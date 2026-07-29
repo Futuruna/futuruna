@@ -254,7 +254,8 @@ encoded as a temporal rule on top of the consolidation.
   `.runa` corpus.
 - The current `.runa` slices encode source validity, source lineage, the
   §§ 1-4 b income taxonomy including amount-level § 4 a pension deduction from
-  positive share income, the §§ 5-9 state-tax skeleton, the §§ 10-13
+  positive share income, the §§ 5-9 state-tax skeleton including amount-level
+  § 6 spouse negative net-capital offset, the §§ 10-13
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
   slice, the §§ 21-28 concluding provisions slice, ordinary and special-case
   AM-law,
@@ -350,6 +351,12 @@ Current decision:
   pension deduction, notice to the tax administration, no-double-deduction
   status, capped deduction, remaining share income, and disallowed amount
   together while stable wrapper rules expose the calculation to audits.
+- `Par6ÆgtefælleKapitalModregningSag` uses product-scoped `|` rules for the
+  § 6, stk. 3 amount layer. It keeps marriage/samliv status, one spouse's
+  positive net-capital income, and the other spouse's negative net-capital
+  income together so the offset amount, reduced positive capital basis, and
+  residual negative amount are derived from one legal case rather than passed as
+  loose scalars.
 - `slutopgoerelse.runa` keeps the year-end balance as `KildeskatSlutopgørelseInput`
   plus a statutory `KildeskatPar60Kreditter` credit basket. This is a better
   domain boundary than passing A-skat, AM-bidrag, B-skat, dividend-tax credits,
@@ -530,8 +537,9 @@ Review candidates to revisit deliberately, not as broad churn:
   fictional household's generated-card annual settlement currently yields
   3.541 kr. overskydende skat and 3.541 kr. payout under the source-derived
   § 7 rate fixture.
-  The first bomb-audit probes now formalize seven daisy-chain tensions: § 14
-  helårsomregning can increase the state-tax component for the 180-day
+  The first bomb-audit probes now formalize eight daisy-chain tensions: § 6
+  spouse negative net-capital offset can lower the other spouse's bundskat
+  basis; § 14 helårsomregning can increase the state-tax component for the 180-day
   wage-earner case by 3.293 kr.; a high municipal rate can lower the state-tax
   component through § 19 while still increasing total tax; the 2026 personlige
   skatteloft sits 10,83 percentage points below the full
@@ -584,7 +592,8 @@ Review candidates to revisit deliberately, not as broad churn:
   and annual rate/threshold adjustments.
 - Expand audit coverage for source drift, missing dependencies, tax cliffs,
   delegated powers, category boundary problems, and multi-step daisy-chain
-  effects. The first dedicated bomb-audit file now covers § 8 a share-income
+  effects. The first dedicated bomb-audit file now covers § 6 spouse negative
+  net-capital offset, § 8 a share-income
   spouse-threshold/negative-offset interactions, § 8 b CFC tax outside
   personfradrag/skatteloft, § 13 passive business-loss lock-in, § 14
   annualisation, and § 19 skatteloft interactions. A separate household benefit
@@ -638,6 +647,8 @@ M2 - State tax computation skeleton
 - Current slice: 2026 LOV nr. 482/2024 state-tax structure is represented:
   mellemskat under § 7, topskat under § 7 a, toptopskat under § 8, and
   udligningsskat/sundhedsbidrag are no longer active components from 2026.
+  The § 6 slice now computes the amount-level spouse negative net-capital
+  offset before bundskat basis calculation.
   The § 7 mellemskat slice now covers positive net capital income over the
   regulated 2026 threshold, including an executable spouse doubled-threshold
   case.
