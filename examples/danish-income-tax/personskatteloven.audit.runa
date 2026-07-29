@@ -38,6 +38,12 @@ Status: Valid
 Officiel XML-metadata for 2024/482, hentet 2026-07-18:
 Status: Valid
 
+Officiel XML-metadata for 2024/1243, hentet 2026-07-18:
+Status: Valid
+
+Officiel XML-metadata for 2023/1181, hentet 2026-07-18:
+Status: Valid
+
 Officiel XML-metadata for 2019/935, hentet 2026-07-18:
 Status: Valid
 
@@ -78,12 +84,14 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
 = m5_historisk_til_aktuel = kilde_egnet_til_formål(personskatteloven_2019_799, AktuelSkatteberegning)
 = m5_reform_til_aktuel = kilde_egnet_til_formål(personskat_reform_2024_482, AktuelSkatteberegning)
+= m5_pensionsbeskatningslov_til_aktuel = kilde_egnet_til_formål(pensionsbeskatningsloven_2024_1243, AktuelSkatteberegning)
+= m5_sømandsbeskatningslov_til_aktuel = kilde_egnet_til_formål(sømandsbeskatningsloven_2023_1181, AktuelSkatteberegning)
 = m5_am_lov_til_aktuel = kilde_egnet_til_formål(arbejdsmarkedsbidragsloven_2020_121, AktuelSkatteberegning)
 = m5_am_aendring_til_aktuel = kilde_egnet_til_formål(arbejdsmarkedsbidrag_aendring_2025_96, AktuelSkatteberegning)
 = m5_kommuneskattelov_til_aktuel = kilde_egnet_til_formål(kommuneskatteloven_2019_935, AktuelSkatteberegning)
@@ -96,9 +104,13 @@ Status: Valid
 = m5_opkrævningslov_til_aktuel = kilde_egnet_til_formål(opkrævningsloven_2024_1040, AktuelSkatteberegning)
 = m5_opkrævningslov_aendring_til_aktuel = opkrævningslov_aendring_til_aktuel_beregning
 = m5_ligningslov_til_aktuel = kilde_egnet_til_formål(ligningsloven_2025_1500, AktuelSkatteberegning)
+= m5_personskattelov_dagsaktuel = personskattelov_dagsaktuel_beregning
+= m5_metadata_horisont_udløbet = alle_gældende_kilder_metadata_horisont_udløbet
 
 | m5_historisk_kilde_afvises: m5_historisk_til_aktuel -> m5_historisk_til_aktuel == Falskt
 | m5_reform_kilde_accepteres: m5_reform_til_aktuel -> m5_reform_til_aktuel == Sandt
+| m5_pensionsbeskatningslov_kilde_accepteres: m5_pensionsbeskatningslov_til_aktuel -> m5_pensionsbeskatningslov_til_aktuel == Sandt
+| m5_sømandsbeskatningslov_kilde_accepteres: m5_sømandsbeskatningslov_til_aktuel -> m5_sømandsbeskatningslov_til_aktuel == Sandt
 | m5_am_lov_kilde_accepteres: m5_am_lov_til_aktuel -> m5_am_lov_til_aktuel == Sandt
 | m5_am_aendring_kilde_accepteres: m5_am_aendring_til_aktuel -> m5_am_aendring_til_aktuel == Sandt
 | m5_kommuneskattelov_kilde_accepteres: m5_kommuneskattelov_til_aktuel -> m5_kommuneskattelov_til_aktuel == Sandt
@@ -111,7 +123,10 @@ Status: Valid
 | m5_opkrævningslov_kilde_accepteres: m5_opkrævningslov_til_aktuel -> m5_opkrævningslov_til_aktuel == Sandt
 | m5_opkrævningslov_aendring_kilde_accepteres: m5_opkrævningslov_aendring_til_aktuel -> m5_opkrævningslov_aendring_til_aktuel == Sandt
 | m5_ligningslov_kilde_accepteres: m5_ligningslov_til_aktuel -> m5_ligningslov_til_aktuel == Sandt
+| m5_dagsaktuel_kilde_afviser_udløbet_metadata: m5_personskattelov_dagsaktuel -> m5_personskattelov_dagsaktuel == Falskt
+| m5_metadata_horisont_udløbet_fanges: m5_metadata_horisont_udløbet -> m5_metadata_horisont_udløbet == Sandt
 | m5_audit_historisk_kilde_signal: audit_signal(HistoriskKildeTilAktuelBeregning) -> audit_signal(HistoriskKildeTilAktuelBeregning) == Sandt
+| m5_audit_metadata_horisont_signal: audit_signal(KildeMetadataHorisontUdløbet) -> audit_signal(KildeMetadataHorisontUdløbet) == Sandt
 
 = m5_penge_øre_fixture = penge_øre_beregning_fixture
 = m5_penge_ti_kroner_fixture = penge_ti_kroner_fixture
@@ -125,6 +140,8 @@ Status: Valid
 
 ? m5_historisk_kilde_afvises
 ? m5_reform_kilde_accepteres
+? m5_pensionsbeskatningslov_kilde_accepteres
+? m5_sømandsbeskatningslov_kilde_accepteres
 ? m5_am_lov_kilde_accepteres
 ? m5_am_aendring_kilde_accepteres
 ? m5_kommuneskattelov_kilde_accepteres
@@ -137,6 +154,9 @@ Status: Valid
 ? m5_opkrævningslov_kilde_accepteres
 ? m5_opkrævningslov_aendring_kilde_accepteres
 ? m5_ligningslov_kilde_accepteres
+? m5_dagsaktuel_kilde_afviser_udløbet_metadata
+? m5_metadata_horisont_udløbet_fanges
+? m5_audit_metadata_horisont_signal
 ? m5_penge_øre_beregning_dækket
 ? m5_penge_ti_kroner_nedrunding_dækket
 ? m5_penge_basispoint_postur_dækket

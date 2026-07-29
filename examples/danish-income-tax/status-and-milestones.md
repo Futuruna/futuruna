@@ -31,6 +31,18 @@ Current working source:
 - XML end date observed on 2026-07-18: `2026-06-23`
 - Change references in XML: 7
 
+Current source-refresh finding:
+
+- The tracked Retsinformation XML sources were re-fetched on 2026-07-18.
+- The official XML `Status` fields remained unchanged: the working/dependency
+  sources still report `Valid`, while `2019/799` reports `Historic`.
+- Every tracked `Valid` source now has an XML `EndDate` horizon before
+  2026-06-26, so `source-status.runa` distinguishes formal legal validity from
+  current-day automation freshness.
+- `AktuelSkatteberegning` still accepts formally valid sources; the new
+  `DagsaktuelAutomatiskBeregning` purpose rejects sources whose metadata horizon
+  does not cover `20260626`.
+
 Current § 13 amendment/dependency sources:
 
 - Person-tax reform amendment:
@@ -193,7 +205,9 @@ encoded as a temporal rule on top of the consolidation.
 ## Current Implementation Status
 
 - Folder created at `examples/danish-income-tax/`.
-- `source-status.runa` exists and checks with `runa check`.
+- `source-status.runa` exists and checks/runs with `runa run`; it now models
+  Retskilde records with named metadata fields and separates formal legal
+  validity from current-day XML metadata freshness.
 - `kapitel-01-indkomst.runa` exists and checks with `runa check`.
 - `kapitel-02-statsskat.runa` exists and checks with `runa check`.
 - `kapitel-03-personfradrag.runa` exists and checks with `runa check`.

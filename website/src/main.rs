@@ -3697,6 +3697,10 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
                         " · reform: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2024/482", "LOV nr. 482 af 22/05/2024" }
+                        " · § 13 dependencies: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2024/1243", "Pensionsbeskatningsloven" }
+                        " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2023/1181", "Sømandsbeskatningsloven" }
                         " · AM: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2020/121", "Arbejdsmarkedsbidragsloven" }
                         " + "
@@ -3740,7 +3744,7 @@ fn ResearchPersonskatteloven() -> Element {
                     div { class: "tax-source-grid",
                         div { class: "tax-source-row",
                             span { "Current working source" }
-                            strong { "2021/1284 — Status Valid; XML EndDate 2026-06-20" }
+                            strong { "2021/1284 — Status Valid; XML EndDate 2026-06-23, fetched 2026-07-18" }
                         }
                         div { class: "tax-source-row",
                             span { "Prompt source lineage" }
@@ -3748,7 +3752,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         div { class: "tax-source-row",
                             span { "Live calculation guard" }
-                            strong { "Historic sources are rejected for current tax calculation" }
+                            strong { "Historic sources are rejected; dagsaktuel automation is rejected when XML metadata horizon predates 2026-06-26" }
                         }
                     }
                 }
@@ -3763,7 +3767,7 @@ fn ResearchPersonskatteloven() -> Element {
                     div { class: "const-audit-highlights tax-audit-highlights",
                         a { href: "#audit-code",
                             span { "source" }
-                            strong { "Historic law cannot silently drive current calculation" }
+                            strong { "Historic law cannot silently drive current calculation, and stale XML metadata cannot silently drive dagsaktuel automation" }
                         }
                         a { href: "#audit-code",
                             span { "coverage" }
