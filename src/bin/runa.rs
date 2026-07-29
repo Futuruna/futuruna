@@ -20372,12 +20372,8 @@ impl RustCodegen {
                         if let Rule::Clause { head, body: None } = r {
                             if let ExprKind::App(_, args) = &head.kind {
                                 for (i, arg) in args.iter().enumerate() {
-                                    if let Some(rust_ty) = Self::typed_rule_arg_rust_type(arg) {
+                                    if let Some(rust_ty) = self.rule_head_arg_rust_type_hint(arg) {
                                         param_types[i] = rust_ty;
-                                        continue;
-                                    }
-                                    if let ExprKind::Lit(lit) = &arg.kind {
-                                        param_types[i] = Self::literal_rust_type(lit).to_string();
                                     }
                                 }
                             }
@@ -24120,7 +24116,7 @@ impl RustCodegen {
         rules.iter().any(|r| {
             if let Rule::Clause { head, body } = r {
                 let has_ground = if let ExprKind::App(_, args) = &head.kind {
-                    args.iter().any(|a| matches!(a.kind, ExprKind::Lit(_)))
+                    args.iter().any(Self::rule_head_arg_is_ground_term)
                 } else {
                     false
                 };
@@ -24132,6 +24128,116 @@ impl RustCodegen {
                 false
             }
         })
+    }
+
+    fn is_uppercase_ident(name: &str) -> bool {
+        name.chars().next().map_or(false, |c| c.is_uppercase())
+    }
+
+    fn rule_head_arg_is_ground_term(arg: &Expr) -> bool {
+        if let Some((inner, _)) = Self::typed_rule_arg_parts(arg) {
+            return Self::rule_head_arg_is_ground_term(inner);
+        }
+
+        match &arg.kind {
+            ExprKind::Lit(_) => true,
+            ExprKind::Var(name) => Self::is_uppercase_ident(name),
+            ExprKind::Tuple(items) => items.iter().all(Self::rule_head_arg_is_ground_term),
+            ExprKind::App(func, args) => {
+                if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
+                    return args
+                        .get(1)
+                        .map_or(false, Self::rule_head_arg_is_ground_term);
+                }
+                matches!(&func.kind, ExprKind::Var(name) if Self::is_uppercase_ident(name))
+                    && args.iter().all(Self::rule_head_arg_is_ground_term)
+            }
+            _ => false,
+        }
+    }
+
+    fn rule_head_arg_requires_lazy_fact_table(arg: &Expr) -> bool {
+        if let Some((inner, _)) = Self::typed_rule_arg_parts(arg) {
+            return Self::rule_head_arg_requires_lazy_fact_table(inner);
+        }
+
+        match &arg.kind {
+            ExprKind::Lit(_) => false,
+            ExprKind::Var(name) => !Self::is_uppercase_ident(name),
+            ExprKind::App(func, _) => {
+                if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
+                    return true;
+                }
+                matches!(&func.kind, ExprKind::Var(name) if Self::is_uppercase_ident(name))
+            }
+            ExprKind::Tuple(items) => items
+                .iter()
+                .any(Self::rule_head_arg_requires_lazy_fact_table),
+            _ => true,
+        }
+    }
+
+    fn rule_head_arg_rust_type_hint(&self, arg: &Expr) -> Option<String> {
+        if let Some((_, type_name)) = Self::typed_rule_arg_parts(arg) {
+            return Some(Self::rule_type_name_to_rust(type_name));
+        }
+
+        match &arg.kind {
+            ExprKind::Lit(lit) => Some(Self::literal_rust_type(lit).to_string()),
+            ExprKind::Var(name) if Self::is_uppercase_ident(name) => self
+                .types
+                .variant_parent
+                .get(name.as_str())
+                .cloned()
+                .or_else(|| Some(name.clone())),
+            ExprKind::App(func, _) => {
+                if let ExprKind::Var(name) = &func.kind {
+                    if name == NAMED_ARG_MARKER {
+                        return None;
+                    }
+                    if Self::is_uppercase_ident(name) {
+                        return self
+                            .types
+                            .variant_parent
+                            .get(name.as_str())
+                            .cloned()
+                            .or_else(|| Some(name.clone()));
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    fn emit_rule_fact_value(
+        &mut self,
+        arg: &Expr,
+        target_ty: &str,
+        lazy_table: bool,
+    ) -> Option<String> {
+        if let Some((inner, _)) = Self::typed_rule_arg_parts(arg) {
+            return self.emit_rule_fact_value(inner, target_ty, lazy_table);
+        }
+
+        match &arg.kind {
+            ExprKind::Lit(Literal::Str(s)) if lazy_table && target_ty == "String" => {
+                Some(format!("{:?}.to_string()", s))
+            }
+            ExprKind::Lit(lit) => Some(Self::emit_literal_value(lit)),
+            ExprKind::Var(name) if Self::is_uppercase_ident(name) => Some(self.emit_expr(arg)),
+            ExprKind::Tuple(_) | ExprKind::App(_, _) if Self::rule_head_arg_is_ground_term(arg) => {
+                Some(self.emit_expr(arg))
+            }
+            _ => None,
+        }
+    }
+
+    fn rust_rule_param_type_is_copy(type_name: &str) -> bool {
+        matches!(
+            type_name,
+            "i64" | "u64" | "usize" | "f64" | "bool" | "char" | "&str"
+        )
     }
 
     /// Determine if a Prolog rule group returns values (not just bool).
@@ -24409,12 +24515,8 @@ impl RustCodegen {
             if let Rule::Clause { head, .. } = r {
                 if let ExprKind::App(_, args) = &head.kind {
                     for (i, arg) in args.iter().enumerate() {
-                        if let Some(rust_ty) = Self::typed_rule_arg_rust_type(arg) {
+                        if let Some(rust_ty) = self.rule_head_arg_rust_type_hint(arg) {
                             param_types[i] = rust_ty;
-                            continue;
-                        }
-                        if let ExprKind::Lit(lit) = &arg.kind {
-                            param_types[i] = Self::literal_rust_type(lit).to_string();
                         }
                     }
                 }
@@ -24456,28 +24558,33 @@ impl RustCodegen {
             );
         }
 
-        // Collect bare facts (clauses with no body, all-literal heads)
-        let facts: Vec<Vec<String>> = rules
+        // Collect bare facts (clauses with no body, all-ground heads).
+        let fact_rows: Vec<Vec<Expr>> = rules
             .iter()
             .filter_map(|r| {
                 if let Rule::Clause { head, body: None } = r {
                     if let ExprKind::App(_, args) = &head.kind {
-                        if args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
-                            let vals: Vec<String> = args
-                                .iter()
-                                .map(|a| {
-                                    if let ExprKind::Lit(lit) = &a.kind {
-                                        Self::emit_literal_value(lit)
-                                    } else {
-                                        "?".into()
-                                    }
-                                })
-                                .collect();
-                            return Some(vals);
+                        if args.iter().all(Self::rule_head_arg_is_ground_term) {
+                            return Some(args.clone());
                         }
                     }
                 }
                 None
+            })
+            .collect();
+        let lazy_fact_table = fact_rows
+            .iter()
+            .flatten()
+            .any(Self::rule_head_arg_requires_lazy_fact_table);
+        let facts: Vec<Vec<String>> = fact_rows
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .enumerate()
+                    .filter_map(|(idx, arg)| {
+                        self.emit_rule_fact_value(arg, &param_types[idx], lazy_fact_table)
+                    })
+                    .collect()
             })
             .collect();
 
@@ -24490,10 +24597,24 @@ impl RustCodegen {
                 } else {
                     param_types[0].clone()
                 };
-                out.push_str(&format!("const {}: &[{}] = &[", table_name, ty));
                 let vals: Vec<String> = facts.iter().map(|f| f[0].clone()).collect();
-                out.push_str(&vals.join(", "));
-                out.push_str("];\n\n");
+                if lazy_fact_table {
+                    let lazy_ty = if param_types[0] == "String" {
+                        "String".to_string()
+                    } else {
+                        param_types[0].clone()
+                    };
+                    out.push_str(&format!(
+                        "static {}: std::sync::LazyLock<Vec<{}>> = std::sync::LazyLock::new(|| vec![{}]);\n\n",
+                        table_name,
+                        lazy_ty,
+                        vals.join(", ")
+                    ));
+                } else {
+                    out.push_str(&format!("const {}: &[{}] = &[", table_name, ty));
+                    out.push_str(&vals.join(", "));
+                    out.push_str("];\n\n");
+                }
             } else {
                 let types: Vec<String> = param_types
                     .iter()
@@ -24505,15 +24626,37 @@ impl RustCodegen {
                         }
                     })
                     .collect();
-                out.push_str(&format!(
-                    "const {}: &[({},)] = &[\n",
-                    table_name,
-                    types.join(", ")
-                ));
-                for fact in &facts {
-                    out.push_str(&format!("    ({}),\n", fact.join(", ")));
+                if lazy_fact_table {
+                    let lazy_types: Vec<String> = param_types
+                        .iter()
+                        .map(|t| {
+                            if t == "String" {
+                                "String".to_string()
+                            } else {
+                                t.clone()
+                            }
+                        })
+                        .collect();
+                    out.push_str(&format!(
+                        "static {}: std::sync::LazyLock<Vec<({})>> = std::sync::LazyLock::new(|| vec![\n",
+                        table_name,
+                        lazy_types.join(", ")
+                    ));
+                    for fact in &facts {
+                        out.push_str(&format!("    ({}),\n", fact.join(", ")));
+                    }
+                    out.push_str("]);\n\n");
+                } else {
+                    out.push_str(&format!(
+                        "const {}: &[({},)] = &[\n",
+                        table_name,
+                        types.join(", ")
+                    ));
+                    for fact in &facts {
+                        out.push_str(&format!("    ({}),\n", fact.join(", ")));
+                    }
+                    out.push_str("];\n\n");
                 }
-                out.push_str("];\n\n");
             }
         }
 
@@ -25316,6 +25459,14 @@ impl RustCodegen {
                     .and_then(|types| types.get(t_pos))
                     .map(|t| t == "&str")
                     .unwrap_or(false);
+                let template_ty = self
+                    .types
+                    .prolog_rule_fns
+                    .get(&fn_name)
+                    .and_then(|types| types.get(t_pos))
+                    .cloned()
+                    .unwrap_or_else(|| "i64".to_string());
+                let template_is_copy = Self::rust_rule_param_type_is_copy(&template_ty);
 
                 // Typed rules: enumerate type variants instead of fact table
                 if let Some(type_name) = self.types.typed_rule_types.get(&fn_name).cloned() {
@@ -25363,23 +25514,41 @@ impl RustCodegen {
                         continue;
                     }
                     let val = self.emit_prolog_arg(a);
+                    let param_ty = self
+                        .types
+                        .prolog_rule_fns
+                        .get(&fn_name)
+                        .and_then(|types| types.get(i))
+                        .cloned()
+                        .unwrap_or_else(|| "i64".to_string());
+                    let param_is_copy = Self::rust_rule_param_type_is_copy(&param_ty);
                     if is_unary {
-                        filters.push(format!("f == &{}", val));
-                    } else {
+                        if param_is_copy || param_ty == "&str" {
+                            filters.push(format!("f == &{}", val));
+                        } else {
+                            filters.push(format!("(*f).clone() == {}", val));
+                        }
+                    } else if param_is_copy || param_ty == "&str" {
                         filters.push(format!("f.{} == {}", i, val));
+                    } else {
+                        filters.push(format!("f.{}.clone() == {}", i, val));
                     }
                 }
 
                 let value_expr = if is_unary {
                     if is_str {
                         "f.to_string()".to_string()
-                    } else {
+                    } else if template_is_copy {
                         "(*f)".to_string()
+                    } else {
+                        "(*f).clone()".to_string()
                     }
                 } else if is_str {
                     format!("f.{}.to_string()", t_pos)
-                } else {
+                } else if template_is_copy {
                     format!("f.{}", t_pos)
+                } else {
+                    format!("f.{}.clone()", t_pos)
                 };
 
                 if filters.is_empty() {
@@ -41346,6 +41515,30 @@ for x in [1, 2] {
         let output =
             compile_and_run_test_file(std::path::Path::new("tests/typed_rule_heads_test.runa"));
         assert_typed_rule_heads_output(&output, "compiled codegen");
+    }
+
+    #[test]
+    fn interpreted_findall_constructor_facts_fixture_executes() {
+        let output = interpret_test_file(std::path::Path::new(
+            "tests/findall_constructor_facts_test.runa",
+        ));
+        assert!(
+            output.contains("findall constructor facts passed"),
+            "constructor-shaped facts should enumerate through interpreter findall: {}",
+            output
+        );
+    }
+
+    #[test]
+    fn compiled_findall_constructor_facts_fixture_executes() {
+        let output = compile_and_run_test_file(std::path::Path::new(
+            "tests/findall_constructor_facts_test.runa",
+        ));
+        assert!(
+            output.contains("findall constructor facts passed"),
+            "constructor-shaped facts should enumerate through compiled findall: {}",
+            output
+        );
     }
 
     #[test]

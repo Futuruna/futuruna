@@ -11003,6 +11003,67 @@ impl Interpreter {
         }
     }
 
+    fn rule_constructor_pattern_args(&self, ctor_name: &str, args: &[Expr]) -> Option<Vec<Expr>> {
+        if has_named_args(args) {
+            let field_order = self.field_names.get(ctor_name)?;
+            reorder_named_args_by_names(field_order, args)
+        } else {
+            Some(args.to_vec())
+        }
+    }
+
+    fn rule_head_ground_value(&self, expr: &Expr) -> Option<Value> {
+        if let Some((inner, _)) = Self::typed_rule_arg_parts(expr) {
+            return self.rule_head_ground_value(inner);
+        }
+
+        match &expr.kind {
+            ExprKind::Lit(lit) => Some(self.literal_to_value(lit)),
+            ExprKind::Var(name) if name.chars().next().map_or(false, |c| c.is_uppercase()) => {
+                match self.constructors.get(name.as_str()) {
+                    Some((0, _)) => Some(Value::Constructor(name.clone(), vec![])),
+                    None => Some(Value::Constructor(name.clone(), vec![])),
+                    _ => None,
+                }
+            }
+            ExprKind::Tuple(items) => {
+                let values: Option<Vec<Value>> = items
+                    .iter()
+                    .map(|item| self.rule_head_ground_value(item))
+                    .collect();
+                values.map(Value::Tuple)
+            }
+            ExprKind::App(func, args) => {
+                let ExprKind::Var(ctor_name) = &func.kind else {
+                    return None;
+                };
+                let Some((arity, positional)) = self.constructors.get(ctor_name.as_str()).copied()
+                else {
+                    return None;
+                };
+                let ordered = self.rule_constructor_pattern_args(ctor_name, args)?;
+                if ordered.len() != arity {
+                    return None;
+                }
+                let values: Option<Vec<Value>> = ordered
+                    .iter()
+                    .map(|arg| self.rule_head_ground_value(arg))
+                    .collect();
+                let values = values?;
+                if positional {
+                    Some(Value::Constructor(ctor_name.clone(), values))
+                } else {
+                    let field_order = self.field_names.get(ctor_name)?;
+                    Some(Value::NamedConstructor(
+                        ctor_name.clone(),
+                        field_order.iter().cloned().zip(values).collect(),
+                    ))
+                }
+            }
+            _ => None,
+        }
+    }
+
     fn match_rule_param(&self, param: &Expr, val: &Value, env: &mut Env) -> bool {
         if let Some((inner, type_name)) = Self::typed_rule_arg_parts(param) {
             return self.value_matches_type(val, type_name)
@@ -11026,6 +11087,55 @@ impl Interpreter {
             ExprKind::Lit(lit) => {
                 let expected = self.literal_to_value(lit);
                 values_equal(&expected, val)
+            }
+            ExprKind::Tuple(items) => {
+                let Value::Tuple(values) = val else {
+                    return false;
+                };
+                items.len() == values.len()
+                    && items
+                        .iter()
+                        .zip(values.iter())
+                        .all(|(param, value)| self.match_rule_param(param, value, env))
+            }
+            ExprKind::App(func, args) => {
+                let ExprKind::Var(ctor_name) = &func.kind else {
+                    return false;
+                };
+                if !self.constructors.contains_key(ctor_name.as_str()) {
+                    return false;
+                }
+                let Some(pattern_args) = self.rule_constructor_pattern_args(ctor_name, args) else {
+                    return false;
+                };
+                match val {
+                    Value::Constructor(value_ctor, values) if value_ctor == ctor_name => {
+                        pattern_args.len() == values.len()
+                            && pattern_args
+                                .iter()
+                                .zip(values.iter())
+                                .all(|(param, value)| self.match_rule_param(param, value, env))
+                    }
+                    Value::NamedConstructor(value_ctor, fields) if value_ctor == ctor_name => {
+                        let Some(field_order) = self.field_names.get(ctor_name.as_str()) else {
+                            return false;
+                        };
+                        if pattern_args.len() != field_order.len() {
+                            return false;
+                        }
+                        pattern_args
+                            .iter()
+                            .zip(field_order.iter())
+                            .all(|(param, field_name)| {
+                                fields
+                                    .iter()
+                                    .find(|(name, _)| name == field_name)
+                                    .map(|(_, value)| self.match_rule_param(param, value, env))
+                                    .unwrap_or(false)
+                            })
+                    }
+                    _ => false,
+                }
             }
             _ => {
                 if let Some(name) = self.extract_var_name(param) {
@@ -11233,136 +11343,19 @@ impl Interpreter {
         // The goal should be a rule call: App(Var(fn_name), args)
         if let ExprKind::App(func, goal_args) = &goal.kind {
             let fn_name = self.expr_name(func);
-
-            // Strategy: collect all possible values from ground facts across
-            // all rules in the database. Then for each candidate, check if
-            // the goal succeeds with that binding.
-            let mut candidates = std::collections::BTreeSet::new();
-            self.collect_all_values(&mut candidates);
-
-            // Identify which goal arg positions are wildcards (_)
-            let wildcard_positions: Vec<usize> = goal_args
+            let template_pos = goal_args
                 .iter()
-                .enumerate()
-                .filter(|(_, a)| matches!(&a.kind, ExprKind::Var(n) if n == "_"))
-                .map(|(i, _)| i)
+                .position(|a| matches!(&a.kind, ExprKind::Var(ref n) if n == &template_name));
+            let bound_vals: Vec<Option<Value>> = goal_args
+                .iter()
+                .map(|arg| match &arg.kind {
+                    ExprKind::Var(name) if name == "_" || name == &template_name => None,
+                    ExprKind::Var(name) => env.get(name).cloned(),
+                    _ => Some(self.eval(arg, env)),
+                })
                 .collect();
-
             let mut results = Vec::new();
-            for candidate_str in &candidates {
-                // Build args with the candidate substituted for the template var
-                // and wildcards substituted with each possible value
-                // Build an expression for a candidate value (string or constructor)
-                let candidate_to_expr = |s: &str| -> Expr {
-                    if s.chars().next().map_or(false, |c| c.is_uppercase()) {
-                        ExprKind::Var(s.to_string()).into() // Constructor
-                    } else {
-                        ExprKind::Lit(Literal::Str(s.to_string())).into()
-                    }
-                };
-                let make_test_args = |wildcard_val: &str| -> Vec<Expr> {
-                    goal_args
-                        .iter()
-                        .map(|a| {
-                            if let ExprKind::Var(name) = &a.kind {
-                                if name == &template_name {
-                                    candidate_to_expr(candidate_str)
-                                } else if name == "_" {
-                                    candidate_to_expr(wildcard_val)
-                                } else {
-                                    a.clone()
-                                }
-                            } else {
-                                a.clone()
-                            }
-                        })
-                        .collect()
-                };
-
-                // If there are wildcards, check ground facts directly (fast path)
-                let found = if !wildcard_positions.is_empty() {
-                    // For wildcard queries like needs(c, _), scan ground facts
-                    // Pre-evaluate bound args
-                    let bound_arg_vals: Vec<(usize, Value)> = goal_args.iter().enumerate()
-                        .filter(|(_, a)| {
-                            !matches!(&a.kind, ExprKind::Var(n) if n == &template_name || n == "_")
-                        })
-                        .map(|(i, a)| (i, self.eval(a, env)))
-                        .collect();
-                    let rules_snapshot: Vec<(String, Rule)> = self.rules.clone();
-                    rules_snapshot.iter().any(|(rn, rule)| {
-                        if rn != &fn_name {
-                            return false;
-                        }
-                        if let Rule::Clause { head, body: None } = rule {
-                            if let ExprKind::App(_, params) = &head.kind {
-                                if params.len() != goal_args.len() {
-                                    return false;
-                                }
-                                // Template position must match candidate
-                                for (i, (hp, ga)) in params.iter().zip(goal_args.iter()).enumerate()
-                                {
-                                    if let ExprKind::Var(n) = &ga.kind {
-                                        if n == &template_name {
-                                            if let ExprKind::Lit(Literal::Str(s)) = &hp.kind {
-                                                if s != candidate_str {
-                                                    return false;
-                                                }
-                                            } else if let ExprKind::Lit(Literal::Int(n)) = &hp.kind
-                                            {
-                                                if n.to_string() != *candidate_str {
-                                                    return false;
-                                                }
-                                            } else {
-                                                return false;
-                                            }
-                                        }
-                                        // Wildcard _ matches anything — skip
-                                    }
-                                }
-                                // Check bound positions
-                                for (idx, val) in &bound_arg_vals {
-                                    if let ExprKind::Lit(lit) = &params[*idx].kind {
-                                        let hv = literal_to_value_static(lit);
-                                        if !values_equal(&hv, val) {
-                                            return false;
-                                        }
-                                    }
-                                }
-                                return true;
-                            }
-                        }
-                        false
-                    })
-                } else {
-                    let test_args = make_test_args("");
-                    if let Some(result) = self.try_rule_call(&fn_name, &test_args, env) {
-                        !matches!(result, Value::Bool(false))
-                    } else {
-                        false
-                    }
-                };
-
-                if found {
-                    let val = if candidate_str
-                        .chars()
-                        .next()
-                        .map_or(false, |c| c.is_uppercase())
-                    {
-                        Value::Constructor(candidate_str.clone(), vec![])
-                    } else if let Ok(n) = candidate_str.parse::<i64>() {
-                        Value::Int(n)
-                    } else if let Ok(f) = candidate_str.parse::<f64>() {
-                        Value::Float(f)
-                    } else {
-                        Value::Str(candidate_str.clone())
-                    };
-                    let vs = format!("{}", val);
-                    if !results.iter().any(|r: &Value| format!("{}", r) == vs) {
-                        results.push(val);
-                    }
-                }
-            }
+            self.findall_enumerate(&fn_name, &bound_vals, template_pos, env, &mut results, 0);
             Value::List(results)
         } else {
             Value::List(vec![])
@@ -11463,24 +11456,21 @@ impl Interpreter {
                         if body.is_none() {
                             let mut ok = true;
                             let mut candidate = None;
+                            let mut fact_env = env.clone();
                             for (i, (hp, bv)) in
                                 head_params.iter().zip(bound_vals.iter()).enumerate()
                             {
-                                match (&hp.kind, bv) {
-                                    (ExprKind::Lit(lit), Some(val)) => {
-                                        if !values_equal(&self.literal_to_value(lit), val) {
+                                match bv {
+                                    Some(val) => {
+                                        if !self.match_rule_param(hp, val, &mut fact_env) {
                                             ok = false;
                                             break;
                                         }
                                     }
-                                    (ExprKind::Lit(lit), None) => {
-                                        if Some(i) == template_pos {
-                                            candidate = Some(self.literal_to_value(lit));
-                                        }
+                                    None if Some(i) == template_pos => {
+                                        candidate = self.rule_head_ground_value(hp);
                                     }
-                                    (ExprKind::Var(_), Some(_)) => {} // variable matches bound
-                                    (ExprKind::Var(_), None) => {}    // both free
-                                    _ => {}
+                                    None => {}
                                 }
                             }
                             if ok {

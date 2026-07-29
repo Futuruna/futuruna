@@ -1,0 +1,20 @@
+# GridFact(year: Int, municipality: String)
+
+| grid_fact(GridFact(year = 2024, municipality = "Copenhagen"))
+| grid_fact(GridFact(year = 2026, municipality = "Langeland"))
+| grid_fact(GridFact(year = 2026, municipality = "Gentofte"))
+
+= grid_entries = findall(entry, grid_fact(entry))
+= grid_count = length(grid_entries)
+= has_langeland = any(grid_entries, |entry: GridFact| entry.year == 2026 && entry.municipality == "Langeland")
+= first_year = head(grid_entries).year
+
+| findall_constructor_fact_count: grid_count -> grid_count == 3
+| findall_constructor_fact_keeps_fields: has_langeland -> has_langeland == True
+| findall_constructor_fact_order: first_year -> first_year == 2024
+
+? findall_constructor_fact_count
+? findall_constructor_fact_keeps_fields
+? findall_constructor_fact_order
+
+@ print("findall constructor facts passed")

@@ -99,15 +99,15 @@ current-year Personskatteloven tax itself doing so.
 | konfiskatorisk_effektiv_basispoint(belastning_kroner: Heltal, indkomstgrundlag_kroner: Heltal) -> 0 under indkomstgrundlag_kroner <= 0
 | exception positivt_indkomstgrundlag konfiskatorisk_effektiv_basispoint(belastning_kroner: Heltal, indkomstgrundlag_kroner: Heltal) -> belastning_kroner * 10000 / indkomstgrundlag_kroner under indkomstgrundlag_kroner > 0
 
-= konfiskatorisk_år_kommuner = [
-    KonfiskatoriskÅrKommune(skatteår = 2024, kommune = København),
-    KonfiskatoriskÅrKommune(skatteår = 2024, kommune = Gentofte),
-    KonfiskatoriskÅrKommune(skatteår = 2025, kommune = København),
-    KonfiskatoriskÅrKommune(skatteår = 2025, kommune = Gentofte),
-    KonfiskatoriskÅrKommune(skatteår = 2026, kommune = København),
-    KonfiskatoriskÅrKommune(skatteår = 2026, kommune = Gentofte),
-    KonfiskatoriskÅrKommune(skatteår = 2026, kommune = Langeland)
-]
+| konfiskatorisk_år_kommune(KonfiskatoriskÅrKommune(skatteår = 2024, kommune = København))
+| konfiskatorisk_år_kommune(KonfiskatoriskÅrKommune(skatteår = 2024, kommune = Gentofte))
+| konfiskatorisk_år_kommune(KonfiskatoriskÅrKommune(skatteår = 2025, kommune = København))
+| konfiskatorisk_år_kommune(KonfiskatoriskÅrKommune(skatteår = 2025, kommune = Gentofte))
+| konfiskatorisk_år_kommune(KonfiskatoriskÅrKommune(skatteår = 2026, kommune = København))
+| konfiskatorisk_år_kommune(KonfiskatoriskÅrKommune(skatteår = 2026, kommune = Gentofte))
+| konfiskatorisk_år_kommune(KonfiskatoriskÅrKommune(skatteår = 2026, kommune = Langeland))
+
+= konfiskatorisk_år_kommuner = findall(ak, konfiskatorisk_år_kommune(ak))
 = konfiskatorisk_bruttoløn_trin = [0, 100000, 600000, 900000, 1500000, 3000000]
 = konfiskatorisk_kapital_trin = [0, 110000, 500000]
 = konfiskatorisk_aktie_trin = [0, 79400, 150000, 300000]

@@ -248,7 +248,8 @@ encoded as a temporal rule on top of the consolidation.
   `runa run`.
 - `personskatteloven-bomber.audit.runa` exists and checks/runs with `runa run`.
 - `personskatteloven-konfiskatorisk.audit.runa` exists and checks/runs with
-  `runa run`.
+  `runa run`; its bounded year/municipality grid is now declared as
+  constructor-shaped `|` facts and enumerated with `findall`.
 - `personskatteloven.audit.runa` exists and checks/runs with `runa run`.
 - `pengebeloeb.runa` exists and checks/runs with `runa run`.
 - Website research page exists at `/research/personskatteloven` and renders
@@ -337,6 +338,10 @@ Current decision:
   receiver type through checking, and named constructors inside nested
   collection lambdas no longer leak the internal named-argument marker into
   generated closure captures.
+- Futuruna now treats constructor-shaped rule facts as proper ground facts for
+  `findall` in both interpreted and compiled execution. This lets audit search
+  spaces be declared as legal/domain facts instead of duplicated hand-written
+  lists.
 - A readability sweep now uses named construction and named function/rule calls
   for the broad executable Danish-income-tax records and boolean-heavy calls
   found by scan, including statutory rate rows, remittance calendar/history
