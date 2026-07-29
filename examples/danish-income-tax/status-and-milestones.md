@@ -306,6 +306,10 @@ Current decision:
   spouse-transfer facts, stk. 5 limitation facts, and same-business loss facts.
   The calculator rules project from those domain objects, and the scenario/audit
   fixtures name those facts before composing the calculator input.
+- `Par13ModregningSag` uses product-scoped `|` rules for the § 13 ordered
+  tax-value offset chain, keeping the carried remainder after § 6, § 7, § 7 a,
+  and § 8 a, stk. 2 inside the same legal case while preserving public wrapper
+  rule names for downstream calculator/audit files.
 - `slutopgoerelse.runa` keeps the year-end balance as `KildeskatSlutopgørelseInput`
   plus a statutory `KildeskatPar60Kreditter` credit basket. This is a better
   domain boundary than passing A-skat, AM-bidrag, B-skat, dividend-tax credits,

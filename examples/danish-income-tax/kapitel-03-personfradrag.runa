@@ -358,11 +358,23 @@ som nævnt i § 10, stk. 1.
 | par13_skatteværdi_sats_basispoint(input: Par13UnderskudSkatteværdiInput) -> input.sundhedsbidrag_basispoint + input.kommuneskat_basispoint + input.kirkeskat_basispoint under input.betaler_par8c == Falskt
 | par13_underskud_skatteværdi_kroner(input: Par13UnderskudSkatteværdiInput) -> penge_beløb_gange_basispoint_kroner(input.underskud_kroner, par13_skatteværdi_sats_basispoint(input))
 | par13_ubrugt_nedslag_efter_skat(skat_kroner: Heltal, nedslag_kroner: Heltal) -> penge_positivt_beløb(nedslag_kroner - skat_kroner)
-| par13_rester_efter_par6(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par6_skat_kroner, input.skatteværdi_kroner)
-| par13_rester_efter_par7(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par7_skat_kroner, par13_rester_efter_par6(input))
-| par13_rester_efter_par7a(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par7a_skat_kroner, par13_rester_efter_par7(input))
-| par13_rester_efter_par8a_stk2(input: Par13ModregningInput) -> par13_ubrugt_nedslag_efter_skat(input.par8a_stk2_skat_kroner, par13_rester_efter_par7a(input))
-| par13_modregning_resultat(input: Par13ModregningInput) -> Par13ModregningResult(skat_efter_nedsættelse(input.par6_skat_kroner, input.skatteværdi_kroner), skat_efter_nedsættelse(input.par7_skat_kroner, par13_rester_efter_par6(input)), skat_efter_nedsættelse(input.par7a_skat_kroner, par13_rester_efter_par7(input)), skat_efter_nedsættelse(input.par8a_stk2_skat_kroner, par13_rester_efter_par7a(input)), par13_rester_efter_par8a_stk2(input))
+# Par13ModregningSag(input: Par13ModregningInput) {
+    | par6_efter() -> skat_efter_nedsættelse(input.par6_skat_kroner, input.skatteværdi_kroner)
+    | rester_efter_par6() -> par13_ubrugt_nedslag_efter_skat(input.par6_skat_kroner, input.skatteværdi_kroner)
+    | par7_efter() -> skat_efter_nedsættelse(input.par7_skat_kroner, rester_efter_par6())
+    | rester_efter_par7() -> par13_ubrugt_nedslag_efter_skat(input.par7_skat_kroner, rester_efter_par6())
+    | par7a_efter() -> skat_efter_nedsættelse(input.par7a_skat_kroner, rester_efter_par7())
+    | rester_efter_par7a() -> par13_ubrugt_nedslag_efter_skat(input.par7a_skat_kroner, rester_efter_par7())
+    | par8a_stk2_efter() -> skat_efter_nedsættelse(input.par8a_stk2_skat_kroner, rester_efter_par7a())
+    | rester_efter_par8a_stk2() -> par13_ubrugt_nedslag_efter_skat(input.par8a_stk2_skat_kroner, rester_efter_par7a())
+    | resultat() -> Par13ModregningResult(par6_efter(), par7_efter(), par7a_efter(), par8a_stk2_efter(), rester_efter_par8a_stk2())
+}
+| par13_modregning_sag(input: Par13ModregningInput) -> Par13ModregningSag(input)
+| par13_rester_efter_par6(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par6()
+| par13_rester_efter_par7(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par7()
+| par13_rester_efter_par7a(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par7a()
+| par13_rester_efter_par8a_stk2(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par8a_stk2()
+| par13_modregning_resultat(input: Par13ModregningInput) -> par13_modregning_sag(input).resultat()
 | par13_underskud_fremføres(status: Par13Underskudstype, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk) -> par13_underskud_kan_fremføres(status) && ikke_rummet_i_tidligere_indkomst_eller_skat
 | par13_ægtefælleoverførsel_resultat(input: Par13ÆgtefælleOverførselInput) -> hvis input.gift_samlevende_ved_årets_udløb { Par13ÆgtefælleOverførselResult(par13_mindste_beløb(input.ubenyttet_underskud_kroner, par13_positivt_beløb(input.ægtefælle_skattepligtig_indkomst_kroner)), input.ubenyttet_underskud_kroner - par13_mindste_beløb(input.ubenyttet_underskud_kroner, par13_positivt_beløb(input.ægtefælle_skattepligtig_indkomst_kroner)), Sandt) } ellers { Par13ÆgtefælleOverførselResult(0, input.ubenyttet_underskud_kroner, Falskt) }
 | par13_ægtefællens_egne_underskud_modregnes_først() -> Sandt
