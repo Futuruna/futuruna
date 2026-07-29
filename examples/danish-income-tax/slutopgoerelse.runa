@@ -610,7 +610,9 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
     sidste_rettidige_betalingsdag = kildeskat_restskat_sidste_rettidige_betalingsdag()
 )
 
-| kildeskat_overskydende_godtgørelse_basispoint(input: KildeskatOverskydendeGodtgørelseInput) -> kildeskat_basispoint_afrundet_til_en_decimal(input.opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint - 520)
+| kildeskat_overskydende_godtgørelse_rå_basispoint(input: KildeskatOverskydendeGodtgørelseInput) -> input.opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint - 520
+| kildeskat_overskydende_godtgørelse_basispoint(input: KildeskatOverskydendeGodtgørelseInput) -> 0
+| exception kildeskat_overskydende_godtgørelse_positiv_sats kildeskat_overskydende_godtgørelse_basispoint(input: KildeskatOverskydendeGodtgørelseInput) -> kildeskat_basispoint_afrundet_til_en_decimal(kildeskat_overskydende_godtgørelse_rå_basispoint(input)) under kildeskat_overskydende_godtgørelse_rå_basispoint(input) > 0
 | kildeskat_overskydende_godtgørelsesgrundlag_kroner(input: KildeskatOverskydendeGodtgørelseInput) -> kildeskat_slutopgørelse_positivt_beløb(input.overskydende_skat_kroner - input.modsvarer_par59_indbetaling_kroner - input.modsvarer_seniornedslag_kroner - input.modsvarer_energiafgiftskompensation_kroner)
 | kildeskat_overskydende_godtgørelse_kroner(input: KildeskatOverskydendeGodtgørelseInput) -> penge_beløb_gange_basispoint_kroner(kildeskat_overskydende_godtgørelsesgrundlag_kroner(input), kildeskat_overskydende_godtgørelse_basispoint(input))
 | kildeskat_overskydende_ordinært_tilbagebetalingsvindue(input: KildeskatOverskydendeTilbagebetalingInput) -> input.tilbagebetaling_i_ordinært_vindue
@@ -889,6 +891,27 @@ kontant, hvis det udgør 25 kr. eller derover.
     modsvarer_energiafgiftskompensation_kroner = 1000,
     opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint = kildeskat_opkrævningslov_par7_rente_fixture
 ))
+= kildeskat_overskydende_godtgørelse_floor_basispoint_fixture = kildeskat_overskydende_godtgørelse_basispoint(KildeskatOverskydendeGodtgørelseInput(
+    overskydende_skat_kroner = 10000,
+    modsvarer_par59_indbetaling_kroner = 0,
+    modsvarer_seniornedslag_kroner = 0,
+    modsvarer_energiafgiftskompensation_kroner = 0,
+    opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint = 10
+))
+= kildeskat_overskydende_godtgørelse_positiv_basispoint_fixture = kildeskat_overskydende_godtgørelse_basispoint(KildeskatOverskydendeGodtgørelseInput(
+    overskydende_skat_kroner = 10000,
+    modsvarer_par59_indbetaling_kroner = 0,
+    modsvarer_seniornedslag_kroner = 0,
+    modsvarer_energiafgiftskompensation_kroner = 0,
+    opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint = 650
+))
+= kildeskat_overskydende_godtgørelse_positiv_fixture = kildeskat_overskydende_godtgørelse_kroner(KildeskatOverskydendeGodtgørelseInput(
+    overskydende_skat_kroner = 10000,
+    modsvarer_par59_indbetaling_kroner = 0,
+    modsvarer_seniornedslag_kroner = 0,
+    modsvarer_energiafgiftskompensation_kroner = 0,
+    opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint = 650
+))
 = kildeskat_overskydende_udbetaling_fixture = kildeskat_overskydende_udbetaling_efter_restancemodregning_kroner(KildeskatOverskydendeTilbagebetalingInput(
     overskydende_skat_kroner = 15000,
     godtgørelse_kroner = kildeskat_overskydende_godtgørelse_fixture,
@@ -986,6 +1009,8 @@ kontant, hvis det udgør 25 kr. eller derover.
 | kildeskat_restskat_januar_rateplan_viser_store_og_små_rater: kildeskat_restskat_januar_b_skat_rateplan_fixture -> kildeskat_restskat_januar_b_skat_rateplan_fixture.art == RestskatStk5ResterendeBSkat && kildeskat_restskat_januar_b_skat_rateplan_fixture.første_forfaldsdato.år == 2027 && kildeskat_restskat_januar_b_skat_rateplan_fixture.første_forfaldsdato.måned == 2 && kildeskat_restskat_januar_b_skat_rateplan_fixture.sidste_forfaldsdato.måned == 11 && kildeskat_restskat_januar_b_skat_rateplan_fixture.rateantal == 9 && kildeskat_restskat_januar_b_skat_rateplan_fixture.beløbsdeling.lille_rate_kroner == 2033 && kildeskat_restskat_januar_b_skat_rateplan_fixture.beløbsdeling.lille_rateantal == 6 && kildeskat_restskat_januar_b_skat_rateplan_fixture.beløbsdeling.stor_rate_kroner == 2034 && kildeskat_restskat_januar_b_skat_rateplan_fixture.beløbsdeling.stor_rateantal == 3
 | kildeskat_restskat_supplerende_minimum_rateplan_dækket: kildeskat_restskat_minimum_supplerende_rateplan_fixture -> kildeskat_restskat_minimum_supplerende_rateplan_fixture.art == RestskatStk5SupplerendeMinimum && kildeskat_restskat_minimum_supplerende_rateplan_fixture.første_forfaldsdato.måned == 12 && kildeskat_restskat_minimum_supplerende_rateplan_fixture.sidste_forfaldsdato.måned == 12 && kildeskat_restskat_minimum_supplerende_rateplan_fixture.rateantal == 1 && kildeskat_restskat_minimum_supplerende_rateplan_fixture.beløbsdeling.samlet_beløb_kroner == 6100 && kildeskat_restskat_minimum_supplerende_rateplan_november_fixture.rateantal == 2 && kildeskat_restskat_minimum_supplerende_rateplan_november_fixture.sidste_forfaldsdato.år == 2028 && kildeskat_restskat_minimum_supplerende_rateplan_november_fixture.sidste_forfaldsdato.måned == 1 && kildeskat_restskat_minimum_supplerende_rateplan_november_fixture.beløbsdeling.samlet_beløb_kroner == 12200
 | kildeskat_overskydende_godtgørelse_beregnes: kildeskat_overskydende_godtgørelse_fixture -> kildeskat_overskydende_godtgørelse_fixture == 0
+| kildeskat_overskydende_godtgørelse_sats_floores: kildeskat_overskydende_godtgørelse_floor_basispoint_fixture -> kildeskat_overskydende_godtgørelse_floor_basispoint_fixture == 0
+| kildeskat_overskydende_godtgørelse_positiv_sats_beregnes: kildeskat_overskydende_godtgørelse_positiv_basispoint_fixture -> kildeskat_overskydende_godtgørelse_positiv_basispoint_fixture == 130 && kildeskat_overskydende_godtgørelse_positiv_fixture == 130
 | kildeskat_overskydende_modregner_restancer: kildeskat_overskydende_udbetaling_fixture -> kildeskat_overskydende_udbetaling_fixture == 14000
 | kildeskat_overskydende_forsinket_forrentes: kildeskat_overskydende_forsinket_udbetaling_fixture -> kildeskat_overskydende_forsinket_udbetaling_fixture == 15150
 | kildeskat_par62a_ændret_restskat_bruger_par61: kildeskat_par62a_restskat_fixture -> kildeskat_par62a_restskat_fixture == Sandt
@@ -1025,6 +1050,8 @@ kontant, hvis det udgør 25 kr. eller derover.
 ? kildeskat_restskat_januar_rateplan_viser_store_og_små_rater
 ? kildeskat_restskat_supplerende_minimum_rateplan_dækket
 ? kildeskat_overskydende_godtgørelse_beregnes
+? kildeskat_overskydende_godtgørelse_sats_floores
+? kildeskat_overskydende_godtgørelse_positiv_sats_beregnes
 ? kildeskat_overskydende_modregner_restancer
 ? kildeskat_overskydende_forsinket_forrentes
 ? kildeskat_par62a_ændret_restskat_bruger_par61

@@ -150,9 +150,14 @@ current-year Personskatteloven tax itself doing so.
 = konfiskatorisk_søgecase_antal = length(konfiskatorisk_søgecases)
 = konfiskatorisk_årsskat_over100_antal = length(konfiskatorisk_årsskat_over100)
 = konfiskatorisk_betalingsbelastning_over100_antal = length(konfiskatorisk_betalingsbelastning_over100)
+= konfiskatorisk_betalingsbelastning_over100_uden_overført_restskat_antal = length(filter(konfiskatorisk_betalingsbelastning_over100, |r| r.nøgle.overført_restskat_mv_kroner == 0))
+= konfiskatorisk_betalingsbelastning_over100_med_overført_restskat_antal = length(filter(konfiskatorisk_betalingsbelastning_over100, |r| r.nøgle.overført_restskat_mv_kroner > 0))
 
 = konfiskatorisk_højeste_årsskat = foldl(tail(konfiskatorisk_søgeresultater), head(konfiskatorisk_søgeresultater), |bedste, r| if r.årsskat_basispoint > bedste.årsskat_basispoint { r } else { bedste })
 = konfiskatorisk_højeste_betalingsbelastning = foldl(tail(konfiskatorisk_søgeresultater), head(konfiskatorisk_søgeresultater), |bedste, r| if r.betalingsbelastning_basispoint > bedste.betalingsbelastning_basispoint { r } else { bedste })
+= konfiskatorisk_mindste_over100_betalingsbelastning = foldl(tail(konfiskatorisk_betalingsbelastning_over100), head(konfiskatorisk_betalingsbelastning_over100), |bedste, r| if r.betalingsbelastning_basispoint < bedste.betalingsbelastning_basispoint { r } else { bedste })
+= konfiskatorisk_laveste_indkomst_over100_betalingsbelastning = foldl(tail(konfiskatorisk_betalingsbelastning_over100), head(konfiskatorisk_betalingsbelastning_over100), |bedste, r| if r.positiv_indkomstgrundlag_kroner < bedste.positiv_indkomstgrundlag_kroner { r } else { bedste })
+= konfiskatorisk_højeste_indkomst_over100_betalingsbelastning = foldl(tail(konfiskatorisk_betalingsbelastning_over100), head(konfiskatorisk_betalingsbelastning_over100), |bedste, r| if r.positiv_indkomstgrundlag_kroner > bedste.positiv_indkomstgrundlag_kroner { r } else { bedste })
 
 = konfiskatorisk_betalingsprobe = KonfiskatoriskCase(
     skatteår = 2026,
@@ -173,11 +178,13 @@ current-year Personskatteloven tax itself doing so.
 | konfiskatorisk_søgerum_har_forventet_størrelse: konfiskatorisk_søgecase_antal -> konfiskatorisk_søgecase_antal == 8064
 | konfiskatorisk_årsskat_ikke_over100_i_søgerum: konfiskatorisk_årsskat_over100_antal -> konfiskatorisk_årsskat_over100_antal == 0
 | konfiskatorisk_betalingsbelastning_kan_over100_i_søgerum: konfiskatorisk_betalingsbelastning_over100_antal -> konfiskatorisk_betalingsbelastning_over100_antal > 0
+| konfiskatorisk_betalingsbelastning_over100_kræver_overført_restskat: konfiskatorisk_betalingsbelastning_over100_med_overført_restskat_antal -> konfiskatorisk_betalingsbelastning_over100_uden_overført_restskat_antal == 0 && konfiskatorisk_betalingsbelastning_over100_med_overført_restskat_antal == konfiskatorisk_betalingsbelastning_over100_antal
 | konfiskatorisk_betalingsprobe_adskiller_årsskat_og_betaling: konfiskatorisk_betalingsprobe_adskiller -> konfiskatorisk_betalingsprobe_adskiller == Sandt
 
 ? konfiskatorisk_søgerum_har_forventet_størrelse
 ? konfiskatorisk_årsskat_ikke_over100_i_søgerum
 ? konfiskatorisk_betalingsbelastning_kan_over100_i_søgerum
+? konfiskatorisk_betalingsbelastning_over100_kræver_overført_restskat
 ? konfiskatorisk_betalingsprobe_adskiller_årsskat_og_betaling
 
 @ print("konfiskatorisk audit søgerum: " + vis(konfiskatorisk_søgecase_antal))
@@ -185,7 +192,13 @@ current-year Personskatteloven tax itself doing so.
 @ print("konfiskatorisk audit højeste årsskat basispoint: " + vis(konfiskatorisk_højeste_årsskat.årsskat_basispoint))
 @ print("konfiskatorisk audit højeste årsskat case: " + vis(konfiskatorisk_højeste_årsskat.nøgle))
 @ print("konfiskatorisk audit betalingsbelastning > 100 pct. fund: " + vis(konfiskatorisk_betalingsbelastning_over100_antal))
+@ print("konfiskatorisk audit betalingsbelastning > 100 pct. uden overført restskat: " + vis(konfiskatorisk_betalingsbelastning_over100_uden_overført_restskat_antal))
+@ print("konfiskatorisk audit betalingsbelastning > 100 pct. med overført restskat: " + vis(konfiskatorisk_betalingsbelastning_over100_med_overført_restskat_antal))
 @ print("konfiskatorisk audit højeste betalingsbelastning basispoint: " + vis(konfiskatorisk_højeste_betalingsbelastning.betalingsbelastning_basispoint))
 @ print("konfiskatorisk audit højeste betalingsbelastning case: " + vis(konfiskatorisk_højeste_betalingsbelastning.nøgle))
+@ print("konfiskatorisk audit mindste over100 betalingsbelastning basispoint: " + vis(konfiskatorisk_mindste_over100_betalingsbelastning.betalingsbelastning_basispoint))
+@ print("konfiskatorisk audit mindste over100 betalingsbelastning case: " + vis(konfiskatorisk_mindste_over100_betalingsbelastning.nøgle))
+@ print("konfiskatorisk audit laveste indkomstgrundlag over100 betaling: " + vis(konfiskatorisk_laveste_indkomst_over100_betalingsbelastning.positiv_indkomstgrundlag_kroner))
+@ print("konfiskatorisk audit højeste indkomstgrundlag over100 betaling: " + vis(konfiskatorisk_højeste_indkomst_over100_betalingsbelastning.positiv_indkomstgrundlag_kroner))
 @ print("konfiskatorisk audit betalingsprobe årsskat basispoint: " + vis(konfiskatorisk_betalingsprobe_resultat.årsskat_basispoint))
 @ print("konfiskatorisk audit betalingsprobe betalingsbelastning basispoint: " + vis(konfiskatorisk_betalingsprobe_resultat.betalingsbelastning_basispoint))

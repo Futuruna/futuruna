@@ -342,6 +342,11 @@ Current decision:
   `findall` in both interpreted and compiled execution. This lets audit search
   spaces be declared as legal/domain facts instead of duplicated hand-written
   lists.
+- The confiscatory audit now records the current distinction between
+  current-year annual tax and Kildeskatteloven payment burden: the bounded
+  search finds no current-year tax over 100% of the positive income base, but
+  does find payment-burden cases over 100% when transferred restskat m.v. is
+  included.
 - A readability sweep now uses named construction and named function/rule calls
   for the broad executable Danish-income-tax records and boolean-heavy calls
   found by scan, including statutory rate rows, remittance calendar/history
@@ -544,9 +549,11 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
-- Deepen the executable Kildeskatteloven settlement path around ordinary
-  taxpayers: restskat supplement/timing, overskydende skat compensation,
-  amended annual statement posture, and § 62 C minimum thresholds.
+- Continue deepening the executable Kildeskatteloven settlement path from the
+  current ordinary-taxpayer slice: restskat supplement/timing, explicit § 62
+  overskydende-skat compensation floor, amended annual statement posture, and
+  § 62 C minimum thresholds are now covered by executable fixtures, with more
+  edge cases to add as source-dependent details are introduced.
 - Keep reviewing domain boundaries as each slice grows. Encapsulate repeated
   legal facts when they are genuine statutory objects, but avoid broad refactors
   that would make source traceability weaker.
