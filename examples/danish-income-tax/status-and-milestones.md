@@ -334,6 +334,10 @@ Current decision:
   three-rate collection and stk. 6 residual collection, including the January
   18.300 kr. over nine remaining B-skat rates case with three 2.034 kr. rates
   and six 2.033 kr. rates.
+- `KildeskatRestskatTreRateSag` uses product-scoped `|` rules for the § 61
+  stk. 4/stk. 6 three-rate case. The scope keeps the shared derived
+  `opkrævning`, system-start dates, installment count, and amount splitting
+  together while the public wrapper rules keep the surrounding file stable.
 - `KildeskatPar62ARenteDatoInput` and
   `KildeskatPar62AForsinketUdbetalingsdatoInput` keep § 62 A issue and payout
   scheduling date-based. They derive the old "påbegyndte måneder" helper input

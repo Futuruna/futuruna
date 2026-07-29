@@ -11904,6 +11904,8 @@ pub struct TypeChecker {
     rule_scope_methods: BTreeMap<String, BTreeMap<String, usize>>,
     /// RuleScope name -> ordinary product method name -> arity excluding implicit self.
     rule_scope_value_methods: BTreeMap<String, BTreeMap<String, usize>>,
+    /// Rule/function name -> RuleScope type directly constructed by its body.
+    rule_scope_returning_rules: BTreeMap<String, String>,
     /// RuleScope-typed variables per lexical scope.
     rule_scope_vars: Vec<BTreeMap<String, String>>,
     /// Type name -> known field names.
@@ -11943,6 +11945,7 @@ impl TypeChecker {
             impl_method_receivers: BTreeMap::new(),
             rule_scope_methods: BTreeMap::new(),
             rule_scope_value_methods: BTreeMap::new(),
+            rule_scope_returning_rules: BTreeMap::new(),
             rule_scope_vars: vec![BTreeMap::new()],
             type_fields: BTreeMap::new(),
             var_types: vec![BTreeMap::new()],
@@ -12320,6 +12323,29 @@ impl TypeChecker {
         }
     }
 
+    fn direct_constructor_call_name(expr: &Expr) -> Option<&str> {
+        match &expr.kind {
+            ExprKind::App(func, _) => match &func.kind {
+                ExprKind::Var(name) => Some(name.as_str()),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn rule_scope_return_candidate(rule: &Rule) -> Option<(String, String)> {
+        let (rule_name, _) = Self::rule_name_arity(rule)?;
+        let value = match rule {
+            Rule::Clause {
+                body: Some(body), ..
+            } => body,
+            Rule::Default { value, .. } | Rule::Exception { value, .. } => value,
+            _ => return None,
+        };
+        let scope_name = Self::direct_constructor_call_name(value)?;
+        Some((rule_name, scope_name.to_string()))
+    }
+
     fn rule_scope_method_arities(body: &[Stmt]) -> BTreeMap<String, usize> {
         let mut methods = BTreeMap::new();
         for stmt in body {
@@ -12351,6 +12377,11 @@ impl TypeChecker {
             ExprKind::Var(name) => self.rule_scope_var_type(name).map(str::to_string),
             ExprKind::App(func, _) => match &func.kind {
                 ExprKind::Var(name) if self.type_has_scoped_members(name) => Some(name.clone()),
+                ExprKind::Var(name) => self
+                    .rule_scope_returning_rules
+                    .get(name)
+                    .filter(|scope_name| self.type_has_scoped_members(scope_name))
+                    .cloned(),
                 _ => None,
             },
             _ => None,
@@ -12960,6 +12991,14 @@ impl TypeChecker {
                         // Zero-arg rule without parens: | foo -> Bar
                         self.functions.entry(fname.clone()).or_insert(0);
                         self.define_var(fname);
+                    }
+                    if let Stmt::Rule(rule) = stmt {
+                        if let Some((rule_name, scope_name)) =
+                            Self::rule_scope_return_candidate(rule)
+                        {
+                            self.rule_scope_returning_rules
+                                .insert(rule_name, scope_name);
+                        }
                     }
                 }
                 Stmt::For(var, _, _) => {

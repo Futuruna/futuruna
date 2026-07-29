@@ -1,7 +1,7 @@
 -- rule_scope_test.runa: pure scoped legal rules
 -- Covers constructor inputs, sibling scoped rules, under/default/exception
 -- priority, method parameters, field projection returns, ADT-valued product
--- fields, and global-name collision without leakage.
+-- fields, rules returning scoped values, and global-name collision without leakage.
 
 # Person(age: Int, gross_income: Int, lives_in_denmark: Bool)
 # TaxRates(personal_allowance: Int, child_allowance: Int, municipal_percent: Int, state_percent: Int)
@@ -50,6 +50,10 @@
 = adult = TaxCase(Person(40, 1000, True), rates)
 = foreign = TaxCase(Person(40, 1000, False), rates)
 = direct_due = TaxCase(Person(40, 1000, True), rates).tax_due()
+| adult_case() -> TaxCase(Person(40, 1000, True), rates)
+= adult_from_rule = adult_case()
+= due_from_rule_returned_scope = adult_case().tax_due()
+= bound_rule_returned_due = adult_from_rule.tax_due()
 = receipt = Receipt(7)
 = filing_label = FilingLabel("case", Paper("manual"))
 
@@ -57,6 +61,8 @@
 | adult_allowance_ok: adult.personal_allowance() -> adult.personal_allowance() == 100
 | sibling_ok: adult.tax_due() -> adult.tax_due() == 225
 | direct_constructor_ok: direct_due -> direct_due == 225
+| rule_returned_scope_member_ok: due_from_rule_returned_scope -> due_from_rule_returned_scope == 225
+| bound_rule_returned_scope_member_ok: bound_rule_returned_due -> bound_rule_returned_due == 225
 | final_call_only_ok: adult.final_due() -> adult.final_due() == 225
 | projected_param_ok: adult.projected_tax(100) -> adult.projected_tax(100) == 245
 | field_projection_ok: adult.reported_income() -> adult.reported_income() == 1000
@@ -75,6 +81,8 @@
 ? adult_allowance_ok
 ? sibling_ok
 ? direct_constructor_ok
+? rule_returned_scope_member_ok
+? bound_rule_returned_scope_member_ok
 ? final_call_only_ok
 ? projected_param_ok
 ? field_projection_ok
