@@ -21666,6 +21666,15 @@ impl RustCodegen {
         (names, tys)
     }
 
+    fn rule_scope_defn_methods(body: &[Stmt]) -> Vec<&Defn> {
+        body.iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Defn(defn @ Defn::Fn { .. }) => Some(defn),
+                _ => None,
+            })
+            .collect()
+    }
+
     fn infer_rule_scope_method_types(
         &mut self,
         scope_params: &[Param],
@@ -21847,6 +21856,9 @@ impl RustCodegen {
                 pub_prefix,
             ));
         }
+        for method in Self::rule_scope_defn_methods(body) {
+            out.push_str(&self.emit_rule_scope_value_method(params, method, pub_prefix));
+        }
         out.push_str("}\n");
 
         self.current_rule_scope_methods = prev_methods;
@@ -21989,6 +22001,106 @@ impl RustCodegen {
         self.copy_vars = prev_copy_vars;
         self.in_self_method = prev_in_self_method;
         body
+    }
+
+    fn emit_rule_scope_value_method(
+        &mut self,
+        scope_params: &[Param],
+        method: &Defn,
+        pub_prefix: &str,
+    ) -> String {
+        let Defn::Fn {
+            name,
+            params,
+            ret_ty,
+            body,
+            ..
+        } = method
+        else {
+            return String::new();
+        };
+
+        let mut sig_params = vec!["&self".to_string()];
+        let mut method_param_names = Vec::new();
+        let mut method_param_tys = Vec::new();
+        for param in params {
+            if param.name == "self" {
+                continue;
+            }
+            let ty = param
+                .ty
+                .as_ref()
+                .map(LoweringCtx::ty_to_fir)
+                .unwrap_or(FirTy::Unknown);
+            let rust_ty = param
+                .ty
+                .as_ref()
+                .map(|ty| self.emit_type(ty))
+                .unwrap_or_else(|| {
+                    Self::fir_type_to_rust(&ty).unwrap_or_else(|| "i64".to_string())
+                });
+            sig_params.push(format!("{}: {}", sanitize_name(&param.name), rust_ty));
+            method_param_names.push(param.name.clone());
+            method_param_tys.push(ty);
+        }
+
+        let ret = ret_ty
+            .as_ref()
+            .map(|ty| format!(" -> {}", self.emit_type(ty)))
+            .unwrap_or_default();
+        let (scope_names, scope_tys) = self.rule_scope_input_names_and_tys(scope_params);
+        let mut all_names = scope_names.clone();
+        all_names.extend(method_param_names.clone());
+        all_names.push("self".to_string());
+        let mut all_tys = scope_tys.clone();
+        all_tys.extend(method_param_tys.clone());
+        all_tys.push(FirTy::Unknown);
+
+        let prev_local_bindings = self.local_bindings.clone();
+        let prev_copy_vars = self.copy_vars.clone();
+        let prev_in_self_method = self.in_self_method;
+        for (name, ty) in all_names.iter().zip(all_tys.iter()) {
+            self.local_bindings.insert(name.clone());
+            if Self::fir_ty_is_copy(ty) {
+                self.copy_vars.insert(name.clone());
+            }
+        }
+        self.in_self_method = true;
+
+        let rendered = self.with_temporary_named_types(&all_names, &all_tys, |cg| {
+            let mut out = format!(
+                "    {}fn {}({}){} {{\n",
+                pub_prefix,
+                sanitize_name(name),
+                sig_params.join(", "),
+                ret
+            );
+            for param in scope_params {
+                let field = sanitize_name(&param.name);
+                out.push_str(&format!(
+                    "        let {} = self.{}.clone();\n",
+                    field, field
+                ));
+            }
+            let prev_counts = std::mem::take(&mut cg.var_use_counts);
+            let prev_consuming = std::mem::take(&mut cg.var_consuming_counts);
+            let ownership = OwnershipAnalysis::analyze_simple(body);
+            cg.var_use_counts = ownership.var_uses;
+            cg.var_consuming_counts = ownership.consuming_uses;
+            let saved_indent = cg.indent;
+            cg.indent = 2;
+            out.push_str(&cg.emit_expr_as_return(body));
+            cg.indent = saved_indent;
+            cg.var_use_counts = prev_counts;
+            cg.var_consuming_counts = prev_consuming;
+            out.push_str("    }\n\n");
+            out
+        });
+
+        self.local_bindings = prev_local_bindings;
+        self.copy_vars = prev_copy_vars;
+        self.in_self_method = prev_in_self_method;
+        rendered
     }
 
     fn emit_type_decl(&mut self, decl: &TypeDecl) -> String {

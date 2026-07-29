@@ -11,4 +11,5 @@
 # TaxCase(person: Person, rates: Rates) {
     | taxable_income() -> person.gross_income
     | tax_due() -> taxable_income() * rates.percent / 100
+    > label() -> String { "tax:" + show(tax_due()) }
 }

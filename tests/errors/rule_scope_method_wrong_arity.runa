@@ -1,9 +1,9 @@
 # Person(age: Int)
 
 # TaxCase(person: Person) {
-    = helper = 1
     | allowance() -> person.age
+    > explain(extra: Int) -> Int { allowance() + extra }
 }
 
 = tax = TaxCase(Person(40))
-= allowance = tax.allowance()
+= bad = tax.explain()

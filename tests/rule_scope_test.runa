@@ -1,10 +1,25 @@
 -- rule_scope_test.runa: pure scoped legal rules
 -- Covers constructor inputs, sibling scoped rules, under/default/exception
--- priority, method parameters, field projection returns, and global-name
--- collision without leakage.
+-- priority, method parameters, field projection returns, ADT-valued product
+-- fields, and global-name collision without leakage.
 
 # Person(age: Int, gross_income: Int, lives_in_denmark: Bool)
 # TaxRates(personal_allowance: Int, child_allowance: Int, municipal_percent: Int, state_percent: Int)
+# FilingMode = Digital | Paper(String)
+
+# FilingLabel(prefix: String, mode: FilingMode) {
+    > suffix() -> String {
+        match mode {
+            | Digital -> "digital"
+            | Paper(code) -> code
+        }
+    }
+}
+
+# Receipt(amount: Int) {
+    > double() -> Int { amount * 2 }
+    > label() -> String { "receipt:" + show(amount) }
+}
 
 | personal_allowance() -> 999
 
@@ -23,6 +38,11 @@
     | filing_status() -> "resident"
     | exception nonresident filing_status() -> "nonresident" under person.lives_in_denmark == False
     | status_copy() -> filing_status()
+
+    > method_due() -> Int { tax_due() }
+    > self_method_due(self) -> Int { self.tax_due() }
+    > labeled_status(label: FilingLabel) -> String { label.prefix + ":" + label.suffix() + ":" + filing_status() }
+    > method_field_projection() -> Int { person.gross_income }
 }
 
 = rates = TaxRates(100, 300, 20, 5)
@@ -30,6 +50,8 @@
 = adult = TaxCase(Person(40, 1000, True), rates)
 = foreign = TaxCase(Person(40, 1000, False), rates)
 = direct_due = TaxCase(Person(40, 1000, True), rates).tax_due()
+= receipt = Receipt(7)
+= filing_label = FilingLabel("case", Paper("manual"))
 
 | child_allowance_ok: child.personal_allowance() -> child.personal_allowance() == 300
 | adult_allowance_ok: adult.personal_allowance() -> adult.personal_allowance() == 100
@@ -41,6 +63,13 @@
 | exception_ok: foreign.filing_status() -> foreign.filing_status() == "nonresident"
 | call_only_string_ok: foreign.status_copy() -> foreign.status_copy() == "nonresident"
 | global_collision_ok: personal_allowance() -> personal_allowance() == 999
+| method_calls_rule_ok: adult.method_due() -> adult.method_due() == 225
+| explicit_self_method_ok: adult.self_method_due() -> adult.self_method_due() == 225
+| method_cross_product_ok: adult.labeled_status(filing_label) -> adult.labeled_status(filing_label) == "case:manual:resident"
+| method_adt_field_ok: filing_label.suffix() -> filing_label.suffix() == "manual"
+| method_field_projection_ok: adult.method_field_projection() -> adult.method_field_projection() == 1000
+| method_only_product_ok: receipt.double() -> receipt.double() == 14
+| method_only_product_label_ok: receipt.label() -> receipt.label() == "receipt:7"
 
 ? child_allowance_ok
 ? adult_allowance_ok
@@ -52,3 +81,10 @@
 ? exception_ok
 ? call_only_string_ok
 ? global_collision_ok
+? method_calls_rule_ok
+? explicit_self_method_ok
+? method_cross_product_ok
+? method_adt_field_ok
+? method_field_projection_ok
+? method_only_product_ok
+? method_only_product_label_ok

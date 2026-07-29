@@ -6223,6 +6223,7 @@ impl Interpreter {
                 .get(name)
                 .cloned()
                 .or_else(|| Some(name.clone())),
+            Value::RuleScopeInstance { name, .. } => Some(name.clone()),
             Value::Str(_) => Some("String".into()),
             Value::Int(_) => Some("Int".into()),
             Value::Float(_) => Some("Float".into()),
@@ -6237,6 +6238,12 @@ impl Interpreter {
             if let Some(func_def) = self.impl_methods.get(&(type_name, field.to_string())) {
                 let mut method_env = env.child();
                 method_env.set("self".to_string(), obj_val.clone());
+                if let Value::RuleScopeInstance { bindings, .. } = obj_val {
+                    method_env.set("__rulescope_self".to_string(), obj_val.clone());
+                    for (name, value) in bindings {
+                        method_env.set(name.clone(), value.clone());
+                    }
+                }
                 let remaining_params: Vec<String> = func_def
                     .params
                     .iter()
@@ -6263,6 +6270,12 @@ impl Interpreter {
         method_body_params.map(|(body, params)| {
             let mut method_env = env.child();
             method_env.set("self".to_string(), obj_val.clone());
+            if let Value::RuleScopeInstance { bindings, .. } = obj_val {
+                method_env.set("__rulescope_self".to_string(), obj_val.clone());
+                for (name, value) in bindings {
+                    method_env.set(name.clone(), value.clone());
+                }
+            }
             let remaining_params: Vec<String> = params
                 .iter()
                 .filter(|p| p.as_str() != "self")
@@ -6743,6 +6756,25 @@ impl Interpreter {
                         body: body.clone(),
                     },
                 );
+                for stmt in body {
+                    if let Stmt::Defn(Defn::Fn {
+                        name: method_name,
+                        params,
+                        body,
+                        ..
+                    }) = stmt
+                    {
+                        let param_names: Vec<String> =
+                            params.iter().map(|p| p.name.clone()).collect();
+                        self.impl_methods.insert(
+                            (name.clone(), method_name.clone()),
+                            FnDef {
+                                params: param_names,
+                                body: body.clone(),
+                            },
+                        );
+                    }
+                }
             }
         }
     }
@@ -7591,7 +7623,10 @@ impl Interpreter {
                 if let ExprKind::Field(obj, method) = &func.as_ref().kind {
                     let obj_val = self.eval(obj, env);
                     if let Value::RuleScopeInstance { name, bindings } = obj_val {
-                        return self.eval_rule_scope_method(&name, &bindings, method, args, env);
+                        if self.rule_scope_has_rule_method(&name, method) {
+                            return self
+                                .eval_rule_scope_method(&name, &bindings, method, args, env);
+                        }
                     }
                 }
                 // Check if this is an effect operation call dispatched to a handler
@@ -7771,6 +7806,11 @@ impl Interpreter {
                         "state" => *state.clone(),
                         _ => Value::Unit,
                     },
+                    Value::RuleScopeInstance { bindings, .. } => bindings
+                        .get(field)
+                        .cloned()
+                        .or_else(|| self.bind_method_value(&obj_val, field, env))
+                        .unwrap_or(Value::Unit),
                     // Scope field access: MyScope.field → look up field in scope bindings
                     Value::Scope { bindings, .. } => {
                         if let Some(value) = bindings.get(field) {
@@ -7935,7 +7975,16 @@ impl Interpreter {
                 for (p, a) in params.iter().zip(args.iter()) {
                     call.set(p.clone(), a.clone());
                 }
-                self.eval(body, &call)
+                let rulescope_self = base_env.get("__rulescope_self").cloned();
+                if let Some(Value::RuleScopeInstance { name, bindings }) = rulescope_self {
+                    self.active_rule_scopes
+                        .push(RuleScopeFrame { name, bindings });
+                    let result = self.eval(body, &call);
+                    self.active_rule_scopes.pop();
+                    result
+                } else {
+                    self.eval(body, &call)
+                }
             }
             Value::Builtin(ref name) => self.eval_builtin(name, args, call_env),
             Value::Constructor(name, existing) => {
@@ -10446,6 +10495,13 @@ impl Interpreter {
             .collect()
     }
 
+    fn rule_scope_has_rule_method(&self, scope_name: &str, method: &str) -> bool {
+        self.rule_scopes
+            .get(scope_name)
+            .map(|def| !Self::rule_scope_matching_rules(def, method).is_empty())
+            .unwrap_or(false)
+    }
+
     fn expr_name_static(expr: &Expr) -> String {
         match &expr.kind {
             ExprKind::App(f, _) => Self::expr_name_static(f),
@@ -11846,6 +11902,8 @@ pub struct TypeChecker {
     impl_method_receivers: BTreeMap<(String, String, String), MethodReceiverShape>,
     /// RuleScope name -> scoped rule name -> arity.
     rule_scope_methods: BTreeMap<String, BTreeMap<String, usize>>,
+    /// RuleScope name -> ordinary product method name -> arity excluding implicit self.
+    rule_scope_value_methods: BTreeMap<String, BTreeMap<String, usize>>,
     /// RuleScope-typed variables per lexical scope.
     rule_scope_vars: Vec<BTreeMap<String, String>>,
     /// Type name -> known field names.
@@ -11884,6 +11942,7 @@ impl TypeChecker {
             trait_method_receivers: BTreeMap::new(),
             impl_method_receivers: BTreeMap::new(),
             rule_scope_methods: BTreeMap::new(),
+            rule_scope_value_methods: BTreeMap::new(),
             rule_scope_vars: vec![BTreeMap::new()],
             type_fields: BTreeMap::new(),
             var_types: vec![BTreeMap::new()],
@@ -12174,12 +12233,27 @@ impl TypeChecker {
         }
     }
 
+    fn type_has_scoped_members(&self, type_name: &str) -> bool {
+        self.rule_scope_methods.contains_key(type_name)
+            || self.rule_scope_value_methods.contains_key(type_name)
+    }
+
     fn define_var_type(&mut self, name: &str, ty: &Ty) {
         match ty {
-            Ty::Name(type_name) => self.define_var_type_name(name, type_name),
+            Ty::Name(type_name) => {
+                if self.type_has_scoped_members(type_name) {
+                    self.define_rule_scope_var(name, type_name);
+                } else {
+                    self.define_var_type_name(name, type_name);
+                }
+            }
             Ty::App(base, _) => {
                 if let Ty::Name(type_name) = base.as_ref() {
-                    self.define_var_type_name(name, type_name);
+                    if self.type_has_scoped_members(type_name) {
+                        self.define_rule_scope_var(name, type_name);
+                    } else {
+                        self.define_var_type_name(name, type_name);
+                    }
                 }
             }
             _ => {}
@@ -12258,13 +12332,25 @@ impl TypeChecker {
         methods
     }
 
+    fn rule_scope_value_method_arities(body: &[Stmt]) -> BTreeMap<String, usize> {
+        let mut methods = BTreeMap::new();
+        for stmt in body {
+            if let Stmt::Defn(Defn::Fn { name, params, .. }) = stmt {
+                let arity = params
+                    .iter()
+                    .filter(|param| param.name.as_str() != "self")
+                    .count();
+                methods.insert(name.clone(), arity);
+            }
+        }
+        methods
+    }
+
     fn expr_rule_scope_type(&self, expr: &Expr) -> Option<String> {
         match &expr.kind {
             ExprKind::Var(name) => self.rule_scope_var_type(name).map(str::to_string),
             ExprKind::App(func, _) => match &func.kind {
-                ExprKind::Var(name) if self.rule_scope_methods.contains_key(name) => {
-                    Some(name.clone())
-                }
+                ExprKind::Var(name) if self.type_has_scoped_members(name) => Some(name.clone()),
                 _ => None,
             },
             _ => None,
@@ -12277,16 +12363,31 @@ impl TypeChecker {
             .any(|methods| methods.contains_key(method))
     }
 
+    fn is_rule_scope_member_name(&self, method: &str) -> bool {
+        self.is_rule_scope_method_name(method)
+            || self
+                .rule_scope_value_methods
+                .values()
+                .any(|methods| methods.contains_key(method))
+    }
+
     fn check_rule_scope_decl(&mut self, name: &str, params: &[Param], body: &[Stmt]) {
         self.push_context(format!("in rulescope `{}`", name));
 
         let mut methods = BTreeMap::new();
+        let mut value_methods = BTreeMap::new();
         for stmt in body {
             match stmt {
                 Stmt::Rule(rule @ Rule::Clause { .. })
                 | Stmt::Rule(rule @ Rule::Default { .. })
                 | Stmt::Rule(rule @ Rule::Exception { .. }) => {
                     if let Some((method, arity)) = Self::rule_name_arity(rule) {
+                        if value_methods.contains_key(&method) {
+                            self.error(format!(
+                                "RuleScope `{}` has both a `|` rule and a `>` method named `{}`; member names must be unambiguous",
+                                name, method
+                            ));
+                        }
                         if let Some(previous) = methods.insert(method.clone(), arity) {
                             if previous != arity {
                                 self.error(format!(
@@ -12294,6 +12395,30 @@ impl TypeChecker {
                                     method, name, previous, arity
                                 ));
                             }
+                        }
+                    }
+                }
+                Stmt::Defn(Defn::Fn {
+                    name: method_name,
+                    params,
+                    ..
+                }) => {
+                    let arity = params
+                        .iter()
+                        .filter(|param| param.name.as_str() != "self")
+                        .count();
+                    if methods.contains_key(method_name) {
+                        self.error(format!(
+                            "RuleScope `{}` has both a `|` rule and a `>` method named `{}`; member names must be unambiguous",
+                            name, method_name
+                        ));
+                    }
+                    if let Some(previous) = value_methods.insert(method_name.clone(), arity) {
+                        if previous != arity {
+                            self.error(format!(
+                                "method `{}` in RuleScope `{}` is declared with incompatible arities: {} and {}",
+                                method_name, name, previous, arity
+                            ));
                         }
                     }
                 }
@@ -12306,7 +12431,7 @@ impl TypeChecker {
                 Stmt::Annot(_, _) => {}
                 _ => {
                     self.error(format!(
-                        "RuleScope `{}` currently only allows `|` rules in its body",
+                        "RuleScope `{}` currently only allows `|` rules and `>` methods in its body",
                         name
                     ));
                 }
@@ -12320,17 +12445,54 @@ impl TypeChecker {
             self.user_functions.insert(method.clone());
         }
 
-        self.push_scope();
-        for param in params {
-            self.define_var(&param.name);
-            if let Some(ty) = &param.ty {
-                self.define_var_type(&param.name, ty);
+        for stmt in body {
+            match stmt {
+                Stmt::Rule(Rule::Clause { .. })
+                | Stmt::Rule(Rule::Default { .. })
+                | Stmt::Rule(Rule::Exception { .. }) => {
+                    self.push_scope();
+                    for param in params {
+                        self.define_var(&param.name);
+                        if let Some(ty) = &param.ty {
+                            self.define_var_type(&param.name, ty);
+                        }
+                    }
+                    self.check_stmt(stmt);
+                    self.pop_scope();
+                }
+                Stmt::Defn(Defn::Fn {
+                    name: method_name,
+                    params: method_params,
+                    body,
+                    ..
+                }) => {
+                    self.push_context(format!("in method `{}`", method_name));
+                    self.push_scope();
+                    self.define_var("self");
+                    self.define_rule_scope_var("self", name);
+                    self.define_var_type("self", &Ty::Name(name.to_string()));
+                    for param in params {
+                        self.define_var(&param.name);
+                        if let Some(ty) = &param.ty {
+                            self.define_var_type(&param.name, ty);
+                        }
+                    }
+                    for param in method_params {
+                        if param.name == "self" {
+                            continue;
+                        }
+                        self.define_var(&param.name);
+                        if let Some(ty) = &param.ty {
+                            self.define_var_type(&param.name, ty);
+                        }
+                    }
+                    self.check_expr(body, Some(method_name));
+                    self.pop_scope();
+                    self.pop_context();
+                }
+                _ => {}
             }
         }
-        for stmt in body {
-            self.check_stmt(stmt);
-        }
-        self.pop_scope();
 
         self.functions = old_functions;
         self.user_functions = old_user_functions;
@@ -12728,6 +12890,8 @@ impl TypeChecker {
                     );
                     self.rule_scope_methods
                         .insert(name.clone(), Self::rule_scope_method_arities(body));
+                    self.rule_scope_value_methods
+                        .insert(name.clone(), Self::rule_scope_value_method_arities(body));
                 }
                 Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                     self.types.insert(name.clone());
@@ -13472,36 +13636,58 @@ impl TypeChecker {
                         }
                     }
                     if let Some(scope_name) = self.expr_rule_scope_type(base) {
-                        if let Some(methods) = self.rule_scope_methods.get(&scope_name) {
-                            if let Some(expected) = methods.get(method) {
-                                if args.len() != *expected {
-                                    self.error_at_expr(
-                                        expr,
-                                        format!(
-                                            "scoped rule `{}.{}` expects {} argument{} but got {}",
-                                            scope_name,
-                                            method,
-                                            expected,
-                                            if *expected == 1 { "" } else { "s" },
-                                            args.len()
-                                        ),
-                                    );
-                                }
-                            } else {
+                        let scoped_rule_arity = self
+                            .rule_scope_methods
+                            .get(&scope_name)
+                            .and_then(|methods| methods.get(method))
+                            .copied();
+                        let value_method_arity = self
+                            .rule_scope_value_methods
+                            .get(&scope_name)
+                            .and_then(|methods| methods.get(method))
+                            .copied();
+                        if let Some(expected) = scoped_rule_arity {
+                            if args.len() != expected {
                                 self.error_at_expr(
-                                    func,
+                                    expr,
                                     format!(
-                                        "RuleScope `{}` has no scoped rule `{}`",
-                                        scope_name, method
+                                        "scoped rule `{}.{}` expects {} argument{} but got {}",
+                                        scope_name,
+                                        method,
+                                        expected,
+                                        if expected == 1 { "" } else { "s" },
+                                        args.len()
                                     ),
                                 );
                             }
+                        } else if let Some(expected) = value_method_arity {
+                            if args.len() != expected {
+                                self.error_at_expr(
+                                    expr,
+                                    format!(
+                                        "method `{}.{}` expects {} argument{} but got {}",
+                                        scope_name,
+                                        method,
+                                        expected,
+                                        if expected == 1 { "" } else { "s" },
+                                        args.len()
+                                    ),
+                                );
+                            }
+                        } else {
+                            self.error_at_expr(
+                                func,
+                                format!(
+                                    "RuleScope `{}` has no scoped rule or method `{}`",
+                                    scope_name, method
+                                ),
+                            );
                         }
-                    } else if self.is_rule_scope_method_name(method) {
+                    } else if self.is_rule_scope_member_name(method) {
                         self.error_at_expr(
                             func,
                             format!(
-                                "scoped rule `{}` must be called on a RuleScope value",
+                                "scoped member `{}` must be called on a RuleScope value",
                                 method
                             ),
                         );

@@ -61,21 +61,32 @@ Fields are accessed with dot notation: `w.temp`, `w.condition`.
 
 Methods are standalone functions. The first parameter (without type annotation) receives the ADT type.
 
-### RuleScope
+### Product types with rule members
 ```runa
 # TaxCase(person: Person, rates: Rates) {
     | taxable_income() -> person.gross_income
     | tax_due() -> taxable_income() * rates.percent / 100
+
+    > label() -> String { "tax:" + show(tax_due()) }
 }
 
 = tax = TaxCase(Person(1000), Rates(25))
 = due = tax.tax_due()
+= label = tax.label()
 ```
 
-A RuleScope is a pure calculation object for scoped legal rules. Constructor
-inputs are visible inside the scoped rules, scoped rules can call sibling
-rules, and `under` / `exception` keep the same priority semantics as top-level
-rules. Scoped rule names do not leak globally.
+When a product type body contains `|` entries, those entries are rule members
+of the product value. This is the RuleScope model: a pure calculation object
+whose constructor inputs are visible inside scoped rules. Rule members can call
+sibling rule members, ordinary global functions/rules, and use `under` /
+`exception` with the same priority semantics as top-level rules. Rule member
+names do not leak globally.
+
+The same product body may contain ordinary `>` methods. Methods share the
+product instance and can call rule members with `tax_due()` or `self.tax_due()`.
+Fields are also available in product methods, so `person.gross_income` works in
+both `|` rule members and `>` methods. A `|` rule member and `>` method cannot
+use the same member name.
 
 RuleScope is different from `| scope Name { ... }`: `| scope` owns reactive
 lifecycle work such as subjects, streams, subscriptions, and teardown. A
