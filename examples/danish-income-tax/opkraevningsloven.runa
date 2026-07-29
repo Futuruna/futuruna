@@ -153,8 +153,16 @@ angivelses- og betalingsdag er forfaldsdagen.
 | exception opkrævning_betalt_før_fristsmåned opkrævning_betalt_rettidigt(input: OpkrævningASkatAmAfregningInput) -> Sandt under input.betaling.år == opkrævning_betalingsfrist_år(input) && input.betaling.måned < opkrævning_betalingsfrist_måned(input)
 | exception opkrævning_betalt_senest_fristsdag opkrævning_betalt_rettidigt(input: OpkrævningASkatAmAfregningInput) -> Sandt under input.betaling.år == opkrævning_betalingsfrist_år(input) && input.betaling.måned == opkrævning_betalingsfrist_måned(input) && input.betaling.dag <= opkrævning_betalingsfrist_dag(input)
 
-| opkrævning_betalingsfrist_dato(input: OpkrævningASkatAmAfregningInput) -> OpkrævningDato(opkrævning_betalingsfrist_år(input), opkrævning_betalingsfrist_måned(input), opkrævning_betalingsfrist_dag(input))
-| opkrævning_betalingsdato(input: OpkrævningASkatAmAfregningInput) -> OpkrævningDato(input.betaling.år, input.betaling.måned, input.betaling.dag)
+| opkrævning_betalingsfrist_dato(input: OpkrævningASkatAmAfregningInput) -> OpkrævningDato(
+    år = opkrævning_betalingsfrist_år(input),
+    måned = opkrævning_betalingsfrist_måned(input),
+    dag = opkrævning_betalingsfrist_dag(input)
+)
+| opkrævning_betalingsdato(input: OpkrævningASkatAmAfregningInput) -> OpkrævningDato(
+    år = input.betaling.år,
+    måned = input.betaling.måned,
+    dag = input.betaling.dag
+)
 | opkrævning_skudår(år: Heltal) -> Falskt
 | exception opkrævning_skudår_delelig_med_400 opkrævning_skudår(år: Heltal) -> Sandt under år % 400 == 0
 | exception opkrævning_skudår_delelig_med_4_ikke_100 opkrævning_skudår(år: Heltal) -> Sandt under år % 4 == 0 && år % 100 != 0
@@ -309,9 +317,21 @@ Kilde: https://info.skat.dk/data.aspx?oid=2168585&chk=220619
 | opkrævning_par7_gennemsnit_nedrundet_til_hel_procent_basispoint(input: OpkrævningPar7RenteInput) -> penge_basispoint_nedrundet_til_hel_procent(opkrævning_par7_simpelt_gennemsnit_basispoint(input))
 | opkrævning_par7_stk2_rente_basispoint(input: OpkrævningPar7RenteInput) -> penge_basispoint_nedrundet_til_en_decimal(opkrævning_par7_gennemsnit_nedrundet_til_hel_procent_basispoint(input) / 24)
 | opkrævning_par7_stk2_tredje_pkt_rente_basispoint(input: OpkrævningPar7RenteInput) -> opkrævning_par7_stk2_rente_basispoint(input)
-| opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(kalenderår, 0, "")
-| exception opkrævning_par7_skm2024_619_2025 opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(2025, 20, "https://info.skat.dk/data.aspx?oid=2436822") under kalenderår == 2025
-| exception opkrævning_par7_skm2025_720_2026 opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(2026, 10, "https://info.skat.dk/data.aspx?oid=2459995") under kalenderår == 2026
+| opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(
+    kalenderår = kalenderår,
+    stk2_rente_basispoint = 0,
+    kilde_eli = ""
+)
+| exception opkrævning_par7_skm2024_619_2025 opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(
+    kalenderår = 2025,
+    stk2_rente_basispoint = 20,
+    kilde_eli = "https://info.skat.dk/data.aspx?oid=2436822"
+) under kalenderår == 2025
+| exception opkrævning_par7_skm2025_720_2026 opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(
+    kalenderår = 2026,
+    stk2_rente_basispoint = 10,
+    kilde_eli = "https://info.skat.dk/data.aspx?oid=2459995"
+) under kalenderår == 2026
 | opkrævning_par7_offentliggjort_stk2_rente_basispoint(kalenderår: Heltal) -> opkrævning_par7_offentliggjort_sats(kalenderår).stk2_rente_basispoint
 | opkrævning_par7_stk1_forsinkelsestillæg_basispoint(kalenderår: Heltal) -> 70
 | exception opkrævning_par7_lov1694_bek1793_tillæg_2026 opkrævning_par7_stk1_forsinkelsestillæg_basispoint(kalenderår: Heltal) -> 85 under kalenderår >= 2026
@@ -339,8 +359,16 @@ Kilde: https://info.skat.dk/data.aspx?oid=2168585&chk=220619
     kontekst = opkrævning_par7_daglig_rente_kontekst(input),
     rente = opkrævning_par7_daglig_rente_øre_beregning(opkrævning_par7_daglig_rente_kontekst(input))
 )
-| opkrævning_årets_første_dato(år: Heltal) -> OpkrævningDato(år, 1, 1)
-| opkrævning_årets_sidste_dato(år: Heltal) -> OpkrævningDato(år, 12, 31)
+| opkrævning_årets_første_dato(år: Heltal) -> OpkrævningDato(
+    år = år,
+    måned = 1,
+    dag = 1
+)
+| opkrævning_årets_sidste_dato(år: Heltal) -> OpkrævningDato(
+    år = år,
+    måned = 12,
+    dag = 31
+)
 | opkrævning_dage_efter_til_årets_slut(dato: OpkrævningDato) -> opkrævning_dage_i_år(dato.år) - opkrævning_dagnummer_i_år(dato)
 | opkrævning_dage_fra_årets_start_til_og_med(dato: OpkrævningDato) -> opkrævning_dagnummer_i_år(dato)
 | opkrævning_par7_daglig_rente_årsdel_tæller_øre(krav_kroner: Heltal, månedlig_forsinkelsesrente_basispoint: Heltal, rentedage: Heltal) -> krav_kroner * månedlig_forsinkelsesrente_basispoint * 12 * rentedage * 100
