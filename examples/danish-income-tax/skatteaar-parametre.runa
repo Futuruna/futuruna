@@ -32,7 +32,25 @@ Topskat (topskattegrænse til og med 2025 efter am-bidrag er fratrukket): 588.90
 
 # NationalParametre(skatteår: Heltal, bundskat_basispoint: Heltal, topskat_basispoint: Heltal, topskattegrænse_efter_am_kroner: Heltal, mellemskat_basispoint: Heltal, mellemskattegrænse_efter_am_kroner: Heltal, toptopskat_basispoint: Heltal, toptopskattegrænse_efter_am_kroner: Heltal, am_bidrag_basispoint: Heltal, personfradrag_voksen_kroner: Heltal, personfradrag_under18_kroner: Heltal, aktieindkomst_progressionsgrænse_kroner: Heltal, aktieindkomst_lav_basispoint: Heltal, aktieindkomst_høj_basispoint: Heltal, positiv_nettokapital_progressiv_bundfradrag_kroner: Heltal, skatteloft_personlig_basispoint: Heltal, skatteloft_positiv_nettokapital_basispoint: Heltal)
 
-| nationalparametre_for(skatteår: Heltal) -> NationalParametre(2024, 1201, 1500, 588900, 0, 0, 0, 0, 800, 49700, 49700, 61000, 2700, 4200, 50500, 5207, 4200) under skatteår == 2024
+| nationalparametre_for(skatteår: Heltal) -> NationalParametre(
+    skatteår = 2024,
+    bundskat_basispoint = 1201,
+    topskat_basispoint = 1500,
+    topskattegrænse_efter_am_kroner = 588900,
+    mellemskat_basispoint = 0,
+    mellemskattegrænse_efter_am_kroner = 0,
+    toptopskat_basispoint = 0,
+    toptopskattegrænse_efter_am_kroner = 0,
+    am_bidrag_basispoint = 800,
+    personfradrag_voksen_kroner = 49700,
+    personfradrag_under18_kroner = 49700,
+    aktieindkomst_progressionsgrænse_kroner = 61000,
+    aktieindkomst_lav_basispoint = 2700,
+    aktieindkomst_høj_basispoint = 4200,
+    positiv_nettokapital_progressiv_bundfradrag_kroner = 50500,
+    skatteloft_personlig_basispoint = 5207,
+    skatteloft_positiv_nettokapital_basispoint = 4200
+) under skatteår == 2024
 
 ----
 Skattestyrelsen, "Se alle skattesatser for i år og de forudgående år"
@@ -52,7 +70,25 @@ Topskat (til og med 2025): 15 %
 Topskat (topskattegrænse til og med 2025 efter am-bidrag er fratrukket): 611.800 kr.
 ----
 
-| nationalparametre_for(skatteår: Heltal) -> NationalParametre(2025, 1201, 1500, 611800, 0, 0, 0, 0, 800, 51600, 51600, 67500, 2700, 4200, 52400, 5207, 4200) under skatteår == 2025
+| nationalparametre_for(skatteår: Heltal) -> NationalParametre(
+    skatteår = 2025,
+    bundskat_basispoint = 1201,
+    topskat_basispoint = 1500,
+    topskattegrænse_efter_am_kroner = 611800,
+    mellemskat_basispoint = 0,
+    mellemskattegrænse_efter_am_kroner = 0,
+    toptopskat_basispoint = 0,
+    toptopskattegrænse_efter_am_kroner = 0,
+    am_bidrag_basispoint = 800,
+    personfradrag_voksen_kroner = 51600,
+    personfradrag_under18_kroner = 51600,
+    aktieindkomst_progressionsgrænse_kroner = 67500,
+    aktieindkomst_lav_basispoint = 2700,
+    aktieindkomst_høj_basispoint = 4200,
+    positiv_nettokapital_progressiv_bundfradrag_kroner = 52400,
+    skatteloft_personlig_basispoint = 5207,
+    skatteloft_positiv_nettokapital_basispoint = 4200
+) under skatteår == 2025
 
 ----
 Skattestyrelsen, "Se alle skattesatser for i år og de forudgående år"
@@ -73,7 +109,25 @@ Topskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 7,5 % / 777.90
 Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592.700 kr.
 ----
 
-| nationalparametre_for(skatteår: Heltal) -> NationalParametre(2026, 1201, 750, 777900, 750, 641200, 500, 2592700, 800, 54100, 54100, 79400, 2700, 4200, 55000, 4457, 4200) under skatteår == 2026
+| nationalparametre_for(skatteår: Heltal) -> NationalParametre(
+    skatteår = 2026,
+    bundskat_basispoint = 1201,
+    topskat_basispoint = 750,
+    topskattegrænse_efter_am_kroner = 777900,
+    mellemskat_basispoint = 750,
+    mellemskattegrænse_efter_am_kroner = 641200,
+    toptopskat_basispoint = 500,
+    toptopskattegrænse_efter_am_kroner = 2592700,
+    am_bidrag_basispoint = 800,
+    personfradrag_voksen_kroner = 54100,
+    personfradrag_under18_kroner = 54100,
+    aktieindkomst_progressionsgrænse_kroner = 79400,
+    aktieindkomst_lav_basispoint = 2700,
+    aktieindkomst_høj_basispoint = 4200,
+    positiv_nettokapital_progressiv_bundfradrag_kroner = 55000,
+    skatteloft_personlig_basispoint = 4457,
+    skatteloft_positiv_nettokapital_basispoint = 4200
+) under skatteår == 2026
 
 ----
 Skatteministeriet, "Oversigt over kommuneskatter"
@@ -89,8 +143,28 @@ Gentofte | 2024 | 24,34 | 0,40 | 0,00 | 12,01 | 36,75 | 0,00 | 5,10
 # KommunaleParametre(skatteår: Heltal, kommune: Kommune, kommunekode: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, sundhedsbidrag_basispoint: Heltal, bundskat_basispoint: Heltal, skatteloftsnedslag_basispoint: Heltal, grundskyld_promille_tiendedele: Heltal)
 # SkatteårParameterpakke(nationale: NationalParametre, kommunale: KommunaleParametre)
 
-| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2024, København, 101, 2360, 80, 0, 1201, 0, 51) under skatteår == 2024 && kommune == København
-| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2024, Gentofte, 157, 2434, 40, 0, 1201, 0, 51) under skatteår == 2024 && kommune == Gentofte
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
+    skatteår = 2024,
+    kommune = København,
+    kommunekode = 101,
+    kommuneskat_basispoint = 2360,
+    kirkeskat_basispoint = 80,
+    sundhedsbidrag_basispoint = 0,
+    bundskat_basispoint = 1201,
+    skatteloftsnedslag_basispoint = 0,
+    grundskyld_promille_tiendedele = 51
+) under skatteår == 2024 && kommune == København
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
+    skatteår = 2024,
+    kommune = Gentofte,
+    kommunekode = 157,
+    kommuneskat_basispoint = 2434,
+    kirkeskat_basispoint = 40,
+    sundhedsbidrag_basispoint = 0,
+    bundskat_basispoint = 1201,
+    skatteloftsnedslag_basispoint = 0,
+    grundskyld_promille_tiendedele = 51
+) under skatteår == 2024 && kommune == Gentofte
 
 ----
 Skatteministeriet, "Oversigt over kommuneskatter"
@@ -102,8 +176,28 @@ København | 2025 | 23,50 | 0,80 | 0,00 | 12,01 | 36,31 | 0,00 | 5,10
 Gentofte | 2025 | 24,24 | 0,39 | 0,00 | 12,01 | 36,64 | 0,00 | 5,10
 ----
 
-| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2025, København, 101, 2350, 80, 0, 1201, 0, 51) under skatteår == 2025 && kommune == København
-| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2025, Gentofte, 157, 2424, 39, 0, 1201, 0, 51) under skatteår == 2025 && kommune == Gentofte
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
+    skatteår = 2025,
+    kommune = København,
+    kommunekode = 101,
+    kommuneskat_basispoint = 2350,
+    kirkeskat_basispoint = 80,
+    sundhedsbidrag_basispoint = 0,
+    bundskat_basispoint = 1201,
+    skatteloftsnedslag_basispoint = 0,
+    grundskyld_promille_tiendedele = 51
+) under skatteår == 2025 && kommune == København
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
+    skatteår = 2025,
+    kommune = Gentofte,
+    kommunekode = 157,
+    kommuneskat_basispoint = 2424,
+    kirkeskat_basispoint = 39,
+    sundhedsbidrag_basispoint = 0,
+    bundskat_basispoint = 1201,
+    skatteloftsnedslag_basispoint = 0,
+    grundskyld_promille_tiendedele = 51
+) under skatteår == 2025 && kommune == Gentofte
 
 ----
 Skatteministeriet, "Kommuneskattesatser 2026"
@@ -116,9 +210,39 @@ Gentofte | Hovedstaden | 157 | 1084 | 24 | 24,14 | 0,38 | 0,00 | 5,10
 Langeland | Syddanmark | 482 | 1083 | 52 | 26,30 | 1,14 | 1,24 | 12,20
 ----
 
-| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2026, København, 101, 2339, 80, 0, 1201, 0, 51) under skatteår == 2026 && kommune == København
-| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2026, Gentofte, 157, 2414, 38, 0, 1201, 0, 51) under skatteår == 2026 && kommune == Gentofte
-| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(2026, Langeland, 482, 2630, 114, 0, 1201, 124, 122) under skatteår == 2026 && kommune == Langeland
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
+    skatteår = 2026,
+    kommune = København,
+    kommunekode = 101,
+    kommuneskat_basispoint = 2339,
+    kirkeskat_basispoint = 80,
+    sundhedsbidrag_basispoint = 0,
+    bundskat_basispoint = 1201,
+    skatteloftsnedslag_basispoint = 0,
+    grundskyld_promille_tiendedele = 51
+) under skatteår == 2026 && kommune == København
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
+    skatteår = 2026,
+    kommune = Gentofte,
+    kommunekode = 157,
+    kommuneskat_basispoint = 2414,
+    kirkeskat_basispoint = 38,
+    sundhedsbidrag_basispoint = 0,
+    bundskat_basispoint = 1201,
+    skatteloftsnedslag_basispoint = 0,
+    grundskyld_promille_tiendedele = 51
+) under skatteår == 2026 && kommune == Gentofte
+| kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> KommunaleParametre(
+    skatteår = 2026,
+    kommune = Langeland,
+    kommunekode = 482,
+    kommuneskat_basispoint = 2630,
+    kirkeskat_basispoint = 114,
+    sundhedsbidrag_basispoint = 0,
+    bundskat_basispoint = 1201,
+    skatteloftsnedslag_basispoint = 124,
+    grundskyld_promille_tiendedele = 122
+) under skatteår == 2026 && kommune == Langeland
 
 | skatteår_understøttet(skatteår: Heltal) -> Falskt
 | exception skatteår_2024 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2024

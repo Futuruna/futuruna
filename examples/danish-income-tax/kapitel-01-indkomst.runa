@@ -322,8 +322,18 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 = par4a_aktieavance = aktieindkomst_omfatter(AktieFortjenesteTab)
 = par4a_undtager_19c = aktieindkomst_undtager(Aktieavance19C)
 = par4a_19b_til_personlig = aktieundtagelse_medregnes_personligt(Aktieavance19BHvis17)
-= par4a_pension_ok = kan_fradrage_pension_i_aktieindkomst(AktiePensionsFradrag(Sandt, Sandt, Sandt, Sandt))
-= par4a_pension_mangler_meddelelse = kan_fradrage_pension_i_aktieindkomst(AktiePensionsFradrag(Sandt, Sandt, Falskt, Sandt))
+= par4a_pension_ok = kan_fradrage_pension_i_aktieindkomst(AktiePensionsFradrag(
+    positiv_aktieindkomst = Sandt,
+    fradrag_højst_aktieindkomst = Sandt,
+    meddelt_forvaltning = Sandt,
+    ikke_fradraget_i_personlig_indkomst = Sandt
+))
+= par4a_pension_mangler_meddelelse = kan_fradrage_pension_i_aktieindkomst(AktiePensionsFradrag(
+    positiv_aktieindkomst = Sandt,
+    fradrag_højst_aktieindkomst = Sandt,
+    meddelt_forvaltning = Falskt,
+    ikke_fradraget_i_personlig_indkomst = Sandt
+))
 = par4a_ikke_skattepligtig = aktieindkomst_indgår_i_skattepligtig_indkomst()
 
 | par4a_udbytte_er_aktieindkomst: par4a_udbytte -> par4a_udbytte == Sandt

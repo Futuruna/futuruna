@@ -19,16 +19,36 @@ the executable amount probes out of the source-law sequence.
 
 | par4a_pension_audit_signal(signal: Par4aPensionAuditSignal) -> Sandt
 
-= audit_par4a_pension_loftet_input = AktiePensionsFradragInput(80000, 120000, Sandt, Falskt)
+= audit_par4a_pension_loftet_input = AktiePensionsFradragInput(
+    aktieindkomst_efter_stk1_og_2_kroner = 80000,
+    ønsket_fradrag_kroner = 120000,
+    meddelt_forvaltning = Sandt,
+    fradraget_i_personlig_indkomst = Falskt
+)
 = audit_par4a_pension_loftet_resultat = par4a_pensionsfradrag_resultat(audit_par4a_pension_loftet_input)
 
-= audit_par4a_pension_uden_meddelelse_input = AktiePensionsFradragInput(80000, 50000, Falskt, Falskt)
+= audit_par4a_pension_uden_meddelelse_input = AktiePensionsFradragInput(
+    aktieindkomst_efter_stk1_og_2_kroner = 80000,
+    ønsket_fradrag_kroner = 50000,
+    meddelt_forvaltning = Falskt,
+    fradraget_i_personlig_indkomst = Falskt
+)
 = audit_par4a_pension_uden_meddelelse_resultat = par4a_pensionsfradrag_resultat(audit_par4a_pension_uden_meddelelse_input)
 
-= audit_par4a_pension_dobbeltfradrag_input = AktiePensionsFradragInput(80000, 50000, Sandt, Sandt)
+= audit_par4a_pension_dobbeltfradrag_input = AktiePensionsFradragInput(
+    aktieindkomst_efter_stk1_og_2_kroner = 80000,
+    ønsket_fradrag_kroner = 50000,
+    meddelt_forvaltning = Sandt,
+    fradraget_i_personlig_indkomst = Sandt
+)
 = audit_par4a_pension_dobbeltfradrag_resultat = par4a_pensionsfradrag_resultat(audit_par4a_pension_dobbeltfradrag_input)
 
-= audit_par4a_pension_negativ_aktieindkomst_input = AktiePensionsFradragInput(-10000, 50000, Sandt, Falskt)
+= audit_par4a_pension_negativ_aktieindkomst_input = AktiePensionsFradragInput(
+    aktieindkomst_efter_stk1_og_2_kroner = -10000,
+    ønsket_fradrag_kroner = 50000,
+    meddelt_forvaltning = Sandt,
+    fradraget_i_personlig_indkomst = Falskt
+)
 = audit_par4a_pension_negativ_aktieindkomst_resultat = par4a_pensionsfradrag_resultat(audit_par4a_pension_negativ_aktieindkomst_input)
 
 | audit_par4a_pension_fradrag_loftes_til_aktieindkomst: audit_par4a_pension_loftet_resultat -> audit_par4a_pension_loftet_resultat.fradrag_i_aktieindkomst_kroner == 80000 && audit_par4a_pension_loftet_resultat.aktieindkomst_efter_fradrag_kroner == 0 && audit_par4a_pension_loftet_resultat.afskåret_fradrag_kroner == 40000

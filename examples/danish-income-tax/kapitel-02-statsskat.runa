@@ -121,11 +121,18 @@ indkomstårets udløb.
 
 | ægtefælles_negative_kapital_modregnes(input: ÆgtefælleKapitalModregning) -> input.gift && input.samlevende_ved_årets_udløb && input.negativ_nettokapitalindkomst
 
-= par6_grundlag = bundskat_grundlag(BundskatInput(500000, 10000))
+= par6_grundlag = bundskat_grundlag(BundskatInput(
+    personlig_indkomst = 500000,
+    positiv_nettokapitalindkomst = 10000
+))
 = par6_sats_2021 = bundskatte_sats_basispoint(2021, BetalerKommunalEllerPar8c)
 = par6_sats_2022 = bundskatte_sats_basispoint(2022, BetalerKommunalEllerPar8c)
 = par6_sats_ikke_kommunal = bundskatte_sats_basispoint(2022, BetalerIkkeKommunalEllerPar8c)
-= par6_modregning = ægtefælles_negative_kapital_modregnes(ÆgtefælleKapitalModregning(Sandt, Sandt, Sandt))
+= par6_modregning = ægtefælles_negative_kapital_modregnes(ÆgtefælleKapitalModregning(
+    gift = Sandt,
+    samlevende_ved_årets_udløb = Sandt,
+    negativ_nettokapitalindkomst = Sandt
+))
 
 | par6_grundlag_lægger_til: par6_grundlag -> par6_grundlag == 510000
 | par6_2021_sats: par6_sats_2021 -> par6_sats_2021 == 1209
@@ -229,7 +236,10 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 | topskat_grundbeløb_reguleres_efter_par20() -> Sandt
 
 = par7_sats = topskat_sats_basispoint()
-= par7_personligt = topskat_personligt_grundlag(TopskatInput(600000, 20000))
+= par7_personligt = topskat_personligt_grundlag(TopskatInput(
+    personlig_indkomst = 600000,
+    pbl16_tillæg = 20000
+))
 = par7_over_bundfradrag = topskat_beregnes_over_bundfradrag(620000, 467000)
 = par7_ægtefæller = topskat_ægtefælleregler_gælder(HeleÅretSamlevendeÆgtefæller)
 = par7_fordeling = positiv_kapital_topskat_fordeles(BeggeÆgtefællerOverGrundbeløb)
@@ -317,16 +327,34 @@ Bundfradraget reguleres efter § 20.
 | exception mellemskat_grænse_2026 reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 641200 under skatteår == 2026 && lag == MellemskatLag
 | exception topskat_grænse_2026 reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 777900 under skatteår == 2026 && lag == TopskatLag
 | exception toptopskat_grænse_2026 reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 2592700 under skatteår == 2026 && lag == ToptopskatLag
-| reform_statskat_input(lag: ProgressivStatsskatLag, skatteår: Heltal, personlig_indkomst_efter_am_kroner: Heltal) -> ProgressivStatsskatInput(personlig_indkomst_efter_am_kroner, reform_statskat_grænse_efter_am_kroner(lag, skatteår), reform_statskat_sats_basispoint(lag, skatteår))
+| reform_statskat_input(lag: ProgressivStatsskatLag, skatteår: Heltal, personlig_indkomst_efter_am_kroner: Heltal) -> ProgressivStatsskatInput(
+    personlig_indkomst_efter_am_kroner = personlig_indkomst_efter_am_kroner,
+    grænse_efter_am_kroner = reform_statskat_grænse_efter_am_kroner(lag, skatteår),
+    sats_basispoint = reform_statskat_sats_basispoint(lag, skatteår)
+)
 | reform_statskat_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal, personlig_indkomst_efter_am_kroner: Heltal) -> progressiv_statsskat_kroner(reform_statskat_input(lag, skatteår, personlig_indkomst_efter_am_kroner))
 
 = par7_2026_mellemskat_under = reform_statskat_kroner(MellemskatLag, 2026, 641200)
 = par7_2026_mellemskat_over = reform_statskat_kroner(MellemskatLag, 2026, 651200)
 = par7a_2026_topskat_over = reform_statskat_kroner(TopskatLag, 2026, 800000)
 = par8_2026_toptopskat_over = reform_statskat_kroner(ToptopskatLag, 2026, 2600000)
-= par7_2026_mellemskat_kapital_input = MellemskatKapitalInput(598000, 110000, 55000, 641200, 750)
+= par7_2026_mellemskat_kapital_input = MellemskatKapitalInput(
+    personlig_indkomst_efter_am_kroner = 598000,
+    positiv_nettokapitalindkomst_kroner = 110000,
+    kapital_bundfradrag_kroner = 55000,
+    mellemskattegrænse_efter_am_kroner = 641200,
+    sats_basispoint = 750
+)
 = par7_2026_mellemskat_kapital_skat = mellemskat_med_kapital_kroner(par7_2026_mellemskat_kapital_input)
-= par7_2026_mellemskat_ægtefæller_input = MellemskatÆgtefælleKapitalInput(650000, 500000, 70000, 50000, 110000, 641200, 750)
+= par7_2026_mellemskat_ægtefæller_input = MellemskatÆgtefælleKapitalInput(
+    personlig_indkomst_efter_am_kroner = 650000,
+    ægtefælle_personlig_indkomst_efter_am_kroner = 500000,
+    positiv_nettokapitalindkomst_kroner = 70000,
+    ægtefælle_positiv_nettokapitalindkomst_kroner = 50000,
+    ægtefælle_kapital_bundfradrag_kroner = 110000,
+    mellemskattegrænse_efter_am_kroner = 641200,
+    sats_basispoint = 750
+)
 = par7_2026_mellemskat_ægtefæller_kapital_over = mellemskat_ægtefæller_kapital_over_bundfradrag_kroner(par7_2026_mellemskat_ægtefæller_input)
 = par7_2026_mellemskat_ægtefæller_kapital_skat = mellemskat_ægtefælle_kapital_skat_kroner(par7_2026_mellemskat_ægtefæller_input)
 
@@ -528,10 +556,28 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 = par8a_høj = aktieindkomstskat_sats_basispoint(2022, HøjAktieSkat)
 = par8a_negativ = negativ_aktieindkomst_modregnes(NegativAktieindkomst)
 = par8a_grundbeløb_2026 = aktieindkomst_grundbeløb_for(2026)
-= par8a_150k_enlig = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(2026, 150000, par8a_grundbeløb_2026))
-= par8a_150k_ægtefælle_grundbeløb = aktieindkomst_effektivt_grundbeløb_for_person(AktieindkomstÆgtefælleGrundbeløbInput(2026, 150000, 0, Sandt))
-= par8a_150k_ægtefælle = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(2026, 150000, par8a_150k_ægtefælle_grundbeløb))
-= par8a_negativ_ægtefælle = aktieindkomst_ægtefælle_negativ_resultat(AktieindkomstÆgtefælleNegativInput(2026, -180000, 50000, Sandt))
+= par8a_150k_enlig = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
+    skatteår = 2026,
+    aktieindkomst_kroner = 150000,
+    effektivt_grundbeløb_kroner = par8a_grundbeløb_2026
+))
+= par8a_150k_ægtefælle_grundbeløb = aktieindkomst_effektivt_grundbeløb_for_person(AktieindkomstÆgtefælleGrundbeløbInput(
+    skatteår = 2026,
+    aktieindkomst_kroner = 150000,
+    ægtefælle_aktieindkomst_kroner = 0,
+    samlevende_ved_årets_udløb = Sandt
+))
+= par8a_150k_ægtefælle = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
+    skatteår = 2026,
+    aktieindkomst_kroner = 150000,
+    effektivt_grundbeløb_kroner = par8a_150k_ægtefælle_grundbeløb
+))
+= par8a_negativ_ægtefælle = aktieindkomst_ægtefælle_negativ_resultat(AktieindkomstÆgtefælleNegativInput(
+    skatteår = 2026,
+    negativ_aktieindkomst_kroner = -180000,
+    ægtefælle_positiv_aktieindkomst_kroner = 50000,
+    samlevende_ved_årets_udløb = Sandt
+))
 
 | par8a_lav_2011_sats: par8a_lav_2011 -> par8a_lav_2011 == 2800
 | par8a_lav_2012_sats: par8a_lav_2012 -> par8a_lav_2012 == 2700

@@ -1642,6 +1642,8 @@ pub enum ExprKind {
     Unit,
 }
 
+pub const NAMED_ARG_MARKER: &str = "__named_arg";
+
 /// Expression AST node: wraps ExprKind with source location.
 #[derive(Debug, Clone)]
 pub struct Expr {
@@ -1662,6 +1664,38 @@ impl Expr {
             span: Span::dummy(),
         }
     }
+}
+
+pub fn named_arg_expr(field: String, value: Expr) -> Expr {
+    ExprKind::App(
+        Box::new(ExprKind::Var(NAMED_ARG_MARKER.to_string()).into()),
+        vec![ExprKind::Lit(Literal::Str(field)).into(), value],
+    )
+    .into()
+}
+
+pub fn named_arg_parts(expr: &Expr) -> Option<(&str, &Expr)> {
+    let ExprKind::App(func, args) = &expr.kind else {
+        return None;
+    };
+    let ExprKind::Var(marker) = &func.kind else {
+        return None;
+    };
+    if marker != NAMED_ARG_MARKER || args.len() != 2 {
+        return None;
+    }
+    let ExprKind::Lit(Literal::Str(field)) = &args[0].kind else {
+        return None;
+    };
+    Some((field.as_str(), &args[1]))
+}
+
+pub fn is_named_arg_expr(expr: &Expr) -> bool {
+    named_arg_parts(expr).is_some()
+}
+
+pub fn has_named_args(args: &[Expr]) -> bool {
+    args.iter().any(is_named_arg_expr)
 }
 
 /// Allow ExprKind to convert to Expr (with dummy span) during migration.
@@ -5371,10 +5405,30 @@ impl Parser {
 
     pub fn parse_arg_list(&mut self) -> Result<Vec<Expr>, String> {
         self.expect(TokenKind::LParen)?;
+        self.skip_semis();
         let mut args = Vec::new();
         while self.peek_kind() != TokenKind::RParen {
             if !args.is_empty() {
                 self.expect(TokenKind::Comma)?;
+                self.skip_semis();
+            }
+            if self.peek_kind() == TokenKind::Ident
+                && self.tokens.get(self.pos + 1).is_some_and(|tok| {
+                    tok.kind == TokenKind::Eq || (tok.kind == TokenKind::Op && tok.text == "=")
+                })
+            {
+                let field_name = self.advance().text;
+                if self.peek_kind() == TokenKind::Eq {
+                    self.advance();
+                } else if self.peek_kind() == TokenKind::Op && self.peek().text == "=" {
+                    self.advance();
+                } else {
+                    self.expect(TokenKind::Eq)?;
+                }
+                let value = self.parse_expr()?;
+                args.push(named_arg_expr(field_name, value));
+                self.skip_semis();
+                continue;
             }
             let arg = self.parse_expr()?;
             // Allow optional type annotation `: Type` on args (used in rule heads)
@@ -5397,6 +5451,7 @@ impl Parser {
             } else {
                 args.push(arg);
             }
+            self.skip_semis();
         }
         self.expect(TokenKind::RParen)?;
         Ok(args)
@@ -7576,6 +7631,34 @@ impl Interpreter {
         }
     }
 
+    fn eval_named_constructor_args(
+        &mut self,
+        ctor_name: &str,
+        args: &[Expr],
+        env: &Env,
+    ) -> Option<Vec<Value>> {
+        if !has_named_args(args) {
+            return None;
+        }
+        let field_order = self.field_names.get(ctor_name)?.clone();
+        let mut values = HashMap::new();
+        for arg in args {
+            let (field, value_expr) = named_arg_parts(arg)?;
+            if !field_order.iter().any(|known| known == field) || values.contains_key(field) {
+                return None;
+            }
+            values.insert(field.to_string(), self.eval(value_expr, env));
+        }
+        if values.len() != field_order.len() {
+            return None;
+        }
+        let mut ordered = Vec::with_capacity(field_order.len());
+        for field in field_order {
+            ordered.push(values.remove(&field)?);
+        }
+        Some(ordered)
+    }
+
     pub fn eval(&mut self, expr: &Expr, env: &Env) -> Value {
         if self.step_limit > 0 {
             self.step_count += 1;
@@ -7650,6 +7733,13 @@ impl Interpreter {
                     }
                     if let Some(result) = self.try_active_rule_scope_call(fn_name, args, env) {
                         return result;
+                    }
+                    if self.constructors.contains_key(fn_name) && has_named_args(args) {
+                        let f = self.eval(func, env);
+                        let arg_vals = self
+                            .eval_named_constructor_args(fn_name, args, env)
+                            .unwrap_or_default();
+                        return self.apply(f, arg_vals, env);
                     }
                     // Check if this is a rule call (| name(...) -> value)
                     if let Some(result) = self.try_rule_call(fn_name, args, env) {
@@ -11886,6 +11976,8 @@ pub struct TypeChecker {
     pub types: BTreeSet<String>,
     /// constructor/variant name -> (parent type, field count)
     pub constructors: BTreeMap<String, (String, usize)>,
+    /// constructor/variant name -> declaration-order named fields.
+    pub constructor_fields: BTreeMap<String, Vec<String>>,
     /// type name -> variant names (for exhaustiveness checking)
     pub type_variants: BTreeMap<String, Vec<String>>,
     /// builtin name -> arity
@@ -11936,6 +12028,7 @@ impl TypeChecker {
             functions: BTreeMap::new(),
             types: BTreeSet::new(),
             constructors: BTreeMap::new(),
+            constructor_fields: BTreeMap::new(),
             type_variants: BTreeMap::new(),
             builtins: BTreeMap::new(),
             effect_ops: BTreeMap::new(),
@@ -12163,6 +12256,8 @@ impl TypeChecker {
         tc.constructors.insert("Ok".into(), ("Result".into(), 1));
         tc.constructors.insert("Err".into(), ("Result".into(), 1));
         tc.constructors.insert("Pair".into(), ("Pair".into(), 2));
+        tc.constructor_fields
+            .insert("Pair".into(), vec!["fst".into(), "snd".into()]);
         tc.constructors.insert("True".into(), ("Bool".into(), 0));
         tc.constructors.insert("False".into(), ("Bool".into(), 0));
         // Prelude type variants (for exhaustiveness checking)
@@ -12330,6 +12425,96 @@ impl TypeChecker {
                 _ => None,
             },
             _ => None,
+        }
+    }
+
+    fn check_named_constructor_args(
+        &mut self,
+        expr: &Expr,
+        constructor: &str,
+        args: &[Expr],
+        expected: usize,
+    ) {
+        if args.iter().any(|arg| !is_named_arg_expr(arg)) {
+            self.error_at_expr(
+                expr,
+                format!(
+                    "constructor `{}` call mixes named and positional arguments; use either all named fields or all positional fields",
+                    constructor
+                ),
+            );
+            for arg in args {
+                if let Some((_, value)) = named_arg_parts(arg) {
+                    self.check_expr(value, None);
+                } else {
+                    self.check_expr(arg, None);
+                }
+            }
+            return;
+        }
+
+        let Some(fields) = self.constructor_fields.get(constructor).cloned() else {
+            self.error_at_expr(
+                expr,
+                format!(
+                    "constructor `{}` does not have named fields; use positional arguments",
+                    constructor
+                ),
+            );
+            for arg in args {
+                if let Some((_, value)) = named_arg_parts(arg) {
+                    self.check_expr(value, None);
+                }
+            }
+            return;
+        };
+
+        let field_set: BTreeSet<&str> = fields.iter().map(|field| field.as_str()).collect();
+        let mut seen = BTreeSet::new();
+        for arg in args {
+            if let Some((field, value)) = named_arg_parts(arg) {
+                if !field_set.contains(field) {
+                    self.error_at_expr(
+                        arg,
+                        format!("constructor `{}` has no field `{}`", constructor, field),
+                    );
+                }
+                if !seen.insert(field.to_string()) {
+                    self.error_at_expr(
+                        arg,
+                        format!(
+                            "constructor `{}` field `{}` was provided more than once",
+                            constructor, field
+                        ),
+                    );
+                }
+                self.check_expr(value, None);
+            }
+        }
+
+        if args.len() != expected {
+            self.error_at_expr(
+                expr,
+                format!(
+                    "constructor `{}` expects {} named field{} but got {}",
+                    constructor,
+                    expected,
+                    if expected == 1 { "" } else { "s" },
+                    args.len()
+                ),
+            );
+        }
+
+        for field in &fields {
+            if !seen.contains(field) {
+                self.error_at_expr(
+                    expr,
+                    format!(
+                        "constructor `{}` is missing named field `{}`",
+                        constructor, field
+                    ),
+                );
+            }
         }
     }
 
@@ -12892,6 +13077,16 @@ impl TypeChecker {
                         if !variant_field_names.is_empty() {
                             self.type_fields
                                 .insert(variant.name.clone(), variant_field_names);
+                        }
+                        if !variant.positional && !variant.fields.is_empty() {
+                            self.constructor_fields.insert(
+                                variant.name.clone(),
+                                variant
+                                    .fields
+                                    .iter()
+                                    .map(|field| field.name.clone())
+                                    .collect(),
+                            );
                         }
                         if variants.len() == 1 && variant.name == *name && field_count > 0 {
                             self.functions.insert(name.clone(), field_count);
@@ -13739,6 +13934,27 @@ impl TypeChecker {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     let canonical = builtin_canonical(name);
                     let actual_arity = args.len();
+                    if has_named_args(args) {
+                        if let Some((_, expected)) = self.constructors.get(name).cloned() {
+                            self.check_named_constructor_args(expr, name, args, expected);
+                        } else {
+                            self.error_at_expr(
+                                expr,
+                                format!(
+                                    "named arguments are only supported for constructor calls; `{}` is not a constructor",
+                                    name
+                                ),
+                            );
+                            for arg in args {
+                                if let Some((_, value)) = named_arg_parts(arg) {
+                                    self.check_expr(value, _in_fn);
+                                } else {
+                                    self.check_expr(arg, _in_fn);
+                                }
+                            }
+                        }
+                        return;
+                    }
 
                     if let Some(&expected) = self.functions.get(name) {
                         if actual_arity != expected && !self.is_rule_function(name) {

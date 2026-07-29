@@ -58,17 +58,67 @@ rules, and payroll settlement are not encoded in this slice.
 | husholdning_lønudbetaling_månedligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, mand_a_skat_månedligt_kroner: Heltal, ægtefælle_a_skat_månedligt_kroner: Heltal) -> lønmodtager_lønudbetaling_månedligt(mand, mand_a_skat_månedligt_kroner) + lønmodtager_lønudbetaling_månedligt(ægtefælle, ægtefælle_a_skat_månedligt_kroner)
 | beregn_husholdning_indeholdelse_scenarie(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, mand_a_skat_månedligt_kroner: Heltal, ægtefælle_a_skat_månedligt_kroner: Heltal, husleje_månedligt_kroner: Heltal) -> HusholdningIndeholdelseScenarieResult(mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner, lønmodtager_lønudbetaling_månedligt(mand, mand_a_skat_månedligt_kroner), lønmodtager_lønudbetaling_månedligt(ægtefælle, ægtefælle_a_skat_månedligt_kroner), husholdning_lønudbetaling_månedligt(mand, ægtefælle, mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner), husholdning_lønudbetaling_månedligt(mand, ægtefælle, mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner) - husleje_månedligt_kroner)
 
-= scenarie1_mand_input = LønmodtagerInput(2026, København, 600000, 0, 0, Fyldt18EllerGift, Falskt)
-= scenarie1_ægtefælle_input = LønmodtagerInput(2026, København, 240000, 0, 0, Fyldt18EllerGift, Falskt)
+= scenarie1_mand_input = LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= scenarie1_ægtefælle_input = LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 240000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
 = scenarie1_mand = beregn_lønmodtager(scenarie1_mand_input)
 = scenarie1_ægtefælle = beregn_lønmodtager(scenarie1_ægtefælle_input)
 = scenarie1_husholdning = beregn_husholdning_scenarie(scenarie1_mand, scenarie1_ægtefælle, 10000)
-= scenarie1_mand_månedsløn_a_indkomst = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(50000, 0, Sandt, Falskt, Falskt))
-= scenarie1_ægtefælle_månedsløn_a_indkomst = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(20000, 0, Sandt, Falskt, Falskt))
+= scenarie1_mand_månedsløn_a_indkomst = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(
+    vederlag_i_penge_kroner = 50000,
+    fri_kost_og_logi_skatteværdi_kroner = 0,
+    personligt_arbejde_i_tjenesteforhold = Sandt,
+    undtaget_gruppeliv_pbl56 = Falskt,
+    undtaget_medarbejderinvestering_under_grænse = Falskt
+))
+= scenarie1_ægtefælle_månedsløn_a_indkomst = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(
+    vederlag_i_penge_kroner = 20000,
+    fri_kost_og_logi_skatteværdi_kroner = 0,
+    personligt_arbejde_i_tjenesteforhold = Sandt,
+    undtaget_gruppeliv_pbl56 = Falskt,
+    undtaget_medarbejderinvestering_under_grænse = Falskt
+))
 = scenarie1_mand_a_skat_indeholdelsespligt = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(scenarie1_mand_månedsløn_a_indkomst, Sandt, 0))
 = scenarie1_mand_manglende_skattekort_a_skat = kildeskat_a_skat_kroner(KildeskatSkattekortInput(scenarie1_mand_månedsløn_a_indkomst, 0, 0, IntetESkattekort))
-= scenarie1_mand_skattekort_input = KildeskatESkattekortInput(scenarie1_mand_månedsløn_a_indkomst, 12000, 6000, 3000, 600, 3800, 0, Skattekort, Måned, Sandt)
-= scenarie1_ægtefælle_skattekort_input = KildeskatESkattekortInput(scenarie1_ægtefælle_månedsløn_a_indkomst, 7000, 3500, 1750, 350, 3700, 0, Skattekort, Måned, Sandt)
+= scenarie1_mand_skattekort_input = KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = scenarie1_mand_månedsløn_a_indkomst,
+    månedsfradrag_kroner = 12000,
+    fjorten_dages_fradrag_kroner = 6000,
+    ugefradrag_kroner = 3000,
+    dagsfradrag_kroner = 600,
+    indeholdelsesprocent_basispoint = 3800,
+    ønsket_højere_indeholdelsesprocent_basispoint = 0,
+    kort = Skattekort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+)
+= scenarie1_ægtefælle_skattekort_input = KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = scenarie1_ægtefælle_månedsløn_a_indkomst,
+    månedsfradrag_kroner = 7000,
+    fjorten_dages_fradrag_kroner = 3500,
+    ugefradrag_kroner = 1750,
+    dagsfradrag_kroner = 350,
+    indeholdelsesprocent_basispoint = 3700,
+    ønsket_højere_indeholdelsesprocent_basispoint = 0,
+    kort = Skattekort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+)
 = scenarie1_mand_skattekort_a_skat = kildeskat_a_skat_med_eskattekort_kroner(scenarie1_mand_skattekort_input)
 = scenarie1_ægtefælle_skattekort_a_skat = kildeskat_a_skat_med_eskattekort_kroner(scenarie1_ægtefælle_skattekort_input)
 = scenarie1_indeholdelse = beregn_husholdning_indeholdelse_scenarie(scenarie1_mand, scenarie1_ægtefælle, scenarie1_mand_skattekort_a_skat, scenarie1_ægtefælle_skattekort_a_skat, 10000)
@@ -80,8 +130,30 @@ rules, and payroll settlement are not encoded in this slice.
 = scenarie1_ægtefælle_afledt_indeholdelsesprocent = forskudsregistrering_2026_indeholdelsesprocent_basispoint(scenarie1_ægtefælle_forskudsprocent_input)
 = scenarie1_mand_genereret_skattekort_indkomstgrundlag = KildeskattebekendtgørelseForskudskortIndkomstgrundlag(scenarie1_mand.personlig_indkomst_efter_am_kroner, scenarie1_mand.personlig_indkomst_efter_am_kroner / 12, 0)
 = scenarie1_ægtefælle_genereret_skattekort_indkomstgrundlag = KildeskattebekendtgørelseForskudskortIndkomstgrundlag(scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner, scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner / 12, 0)
-= scenarie1_mand_genereret_skattekort = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(2026, scenarie1_mand_genereret_skattekort_indkomstgrundlag, scenarie1_mand_forskudsskat_til_a_skat, scenarie1_mand_afledt_indeholdelsesprocent, 5200, 0, Sandt, Sandt, Måned, Sandt))
-= scenarie1_ægtefælle_genereret_skattekort = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(2026, scenarie1_ægtefælle_genereret_skattekort_indkomstgrundlag, scenarie1_ægtefælle_forskudsskat_til_a_skat, scenarie1_ægtefælle_afledt_indeholdelsesprocent, 5200, 0, Sandt, Sandt, Måned, Sandt))
+= scenarie1_mand_genereret_skattekort = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(
+    skatteår = 2026,
+    indkomstgrundlag = scenarie1_mand_genereret_skattekort_indkomstgrundlag,
+    forskudsskat_kroner = scenarie1_mand_forskudsskat_til_a_skat,
+    uafrundet_indeholdelsesprocent_basispoint = scenarie1_mand_afledt_indeholdelsesprocent,
+    skatteloft_plus_par7a_og_kirke_basispoint = 5200,
+    lønindeholdelsesprocent_basispoint = 0,
+    hovedkort = Sandt,
+    skattekortfradrag_kan_udnyttes = Sandt,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+))
+= scenarie1_ægtefælle_genereret_skattekort = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(
+    skatteår = 2026,
+    indkomstgrundlag = scenarie1_ægtefælle_genereret_skattekort_indkomstgrundlag,
+    forskudsskat_kroner = scenarie1_ægtefælle_forskudsskat_til_a_skat,
+    uafrundet_indeholdelsesprocent_basispoint = scenarie1_ægtefælle_afledt_indeholdelsesprocent,
+    skatteloft_plus_par7a_og_kirke_basispoint = 5200,
+    lønindeholdelsesprocent_basispoint = 0,
+    hovedkort = Sandt,
+    skattekortfradrag_kan_udnyttes = Sandt,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+))
 = scenarie1_mand_genereret_skattekort_a_skat = kildeskat_a_skat_med_eskattekort_kroner(scenarie1_mand_genereret_skattekort.eskattekort)
 = scenarie1_ægtefælle_genereret_skattekort_a_skat = kildeskat_a_skat_med_eskattekort_kroner(scenarie1_ægtefælle_genereret_skattekort.eskattekort)
 = scenarie1_genereret_indeholdelse = beregn_husholdning_indeholdelse_scenarie(scenarie1_mand, scenarie1_ægtefælle, scenarie1_mand_genereret_skattekort_a_skat, scenarie1_ægtefælle_genereret_skattekort_a_skat, 10000)

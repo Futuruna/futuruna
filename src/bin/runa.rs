@@ -17,6 +17,36 @@ fn feature_stage_metadata_json() -> &'static str {
     FEATURE_STAGE_METADATA_JSON
 }
 
+fn reorder_named_constructor_args(
+    fields_by_constructor: &BTreeMap<String, Vec<String>>,
+    ctor_name: &str,
+    args: &[Expr],
+) -> Option<Vec<Expr>> {
+    if !has_named_args(args) {
+        return None;
+    }
+    if args.iter().any(|arg| !is_named_arg_expr(arg)) {
+        return None;
+    }
+    let fields = fields_by_constructor.get(ctor_name)?;
+    let mut by_name: BTreeMap<String, Expr> = BTreeMap::new();
+    for arg in args {
+        let (field, value) = named_arg_parts(arg)?;
+        if !fields.iter().any(|known| known == field) || by_name.contains_key(field) {
+            return None;
+        }
+        by_name.insert(field.to_string(), value.clone());
+    }
+    if by_name.len() != fields.len() {
+        return None;
+    }
+    let mut ordered = Vec::with_capacity(fields.len());
+    for field in fields {
+        ordered.push(by_name.get(field)?.clone());
+    }
+    Some(ordered)
+}
+
 fn main() {
     // Use a large stack (64 MB) to handle deep recursion in comptime evaluation
     let builder = std::thread::Builder::new().stack_size(64 * 1024 * 1024);
@@ -12811,8 +12841,17 @@ impl<'a> LoweringCtx<'a> {
                 }
             }
             ExprKind::App(func, args) => {
+                let reordered_args = if let ExprKind::Var(ref fn_name) = func.kind {
+                    reorder_named_constructor_args(&self.types.variant_fields, fn_name, args)
+                } else {
+                    None
+                };
+                let args_for_lowering: &[Expr] = reordered_args.as_deref().unwrap_or(args);
                 let fir_func = self.lower_expr(func);
-                let fir_args: Vec<FirExpr> = args.iter().map(|a| self.lower_expr(a)).collect();
+                let fir_args: Vec<FirExpr> = args_for_lowering
+                    .iter()
+                    .map(|a| self.lower_expr(a))
+                    .collect();
 
                 if let ExprKind::Var(ref fn_name) = func.kind {
                     if let Some(ty) = self.constructor_app_ty(fn_name, &fir_args) {
@@ -30449,6 +30488,15 @@ impl RustCodegen {
                     } else {
                         "()".to_string()
                     };
+                }
+                if let ExprKind::Var(name) = &func.as_ref().kind {
+                    if let Some(ordered_args) =
+                        reorder_named_constructor_args(&self.types.variant_fields, name, args)
+                    {
+                        let positional_app =
+                            Expr::new(ExprKind::App(func.clone(), ordered_args), expr.span);
+                        return self.emit_expr(&positional_app);
+                    }
                 }
                 // Phase 1b: Check if this is a borrow-builtin BEFORE processing args
                 let is_borrow_call = matches!(func.as_ref().kind, ExprKind::Var(ref n) if builtin_canonical(n) == "show");

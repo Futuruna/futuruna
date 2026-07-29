@@ -17,7 +17,15 @@ Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for København
 2025.
 ----
 
-= m4_københavn_2025_input = LønmodtagerInput(2025, København, 500000, 0, 0, Fyldt18EllerGift, Sandt)
+= m4_københavn_2025_input = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 500000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Sandt
+)
 = m4_københavn_2025 = beregn_lønmodtager(m4_københavn_2025_input)
 
 | m4_københavn_2025_am: m4_københavn_2025 -> m4_københavn_2025.arbejdsmarkedsbidrag_kroner == 40000
@@ -71,7 +79,15 @@ Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for Gentofte
 2025.
 ----
 
-= m4_gentofte_2025_input = LønmodtagerInput(2025, Gentofte, 750000, 20000, 10000, Fyldt18EllerGift, Sandt)
+= m4_gentofte_2025_input = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = Gentofte,
+    bruttoløn_kroner = 750000,
+    positiv_nettokapitalindkomst_kroner = 20000,
+    ligningsmæssige_fradrag_kroner = 10000,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Sandt
+)
 = m4_gentofte_2025 = beregn_lønmodtager(m4_gentofte_2025_input)
 
 | m4_gentofte_2025_am: m4_gentofte_2025 -> m4_gentofte_2025.arbejdsmarkedsbidrag_kroner == 60000
@@ -129,7 +145,15 @@ Kilder: Personskatteloven §§ 1, 3, 5-9 som ændret ved LOV nr. 482 af
 Skatteministeriets kommuneskat for København 2026.
 ----
 
-= m4_københavn_2026_input = LønmodtagerInput(2026, København, 900000, 0, 0, Fyldt18EllerGift, Falskt)
+= m4_københavn_2026_input = LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 900000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
 = m4_københavn_2026 = beregn_lønmodtager(m4_københavn_2026_input)
 
 | m4_københavn_2026_personlig: m4_københavn_2026 -> m4_københavn_2026.personlig_indkomst_efter_am_kroner == 828000
@@ -168,7 +192,15 @@ Kilder: Personskatteloven §§ 5-8 som ændret ved LOV nr. 482 af 22/05/2024;
 Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
 ----
 
-= m4_københavn_2026_toptop_input = LønmodtagerInput(2026, København, 3000000, 0, 0, Fyldt18EllerGift, Falskt)
+= m4_københavn_2026_toptop_input = LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 3000000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
 = m4_københavn_2026_toptop = beregn_lønmodtager(m4_københavn_2026_toptop_input)
 
 | m4_københavn_2026_toptop_mellemskat: m4_københavn_2026_toptop -> m4_københavn_2026_toptop.mellemskat_før_personfradrag_kroner == 158910
@@ -197,7 +229,15 @@ Kilder: Personskatteloven § 7 som ændret ved LOV nr. 482 af 22/05/2024;
 Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
 ----
 
-= m4_københavn_2026_kapital_input = LønmodtagerInput(2026, København, 650000, 110000, 0, Fyldt18EllerGift, Falskt)
+= m4_københavn_2026_kapital_input = LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 650000,
+    positiv_nettokapitalindkomst_kroner = 110000,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
 = m4_københavn_2026_kapital = beregn_lønmodtager(m4_københavn_2026_kapital_input)
 
 | m4_københavn_2026_kapital_personlig: m4_københavn_2026_kapital -> m4_københavn_2026_kapital.personlig_indkomst_efter_am_kroner == 598000
@@ -233,7 +273,15 @@ Skattestyrelsens 2026-satser; Skatteministeriets kommuneskattesatser 2026
 for Langeland.
 ----
 
-= m4_langeland_2026_input = LønmodtagerInput(2026, Langeland, 900000, 0, 0, Fyldt18EllerGift, Falskt)
+= m4_langeland_2026_input = LønmodtagerInput(
+    skatteår = 2026,
+    kommune = Langeland,
+    bruttoløn_kroner = 900000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
 = m4_langeland_2026 = beregn_lønmodtager(m4_langeland_2026_input)
 
 | m4_langeland_2026_skatteloft_personlig_basis: m4_langeland_2026 -> m4_langeland_2026.personligt_skatteloft.input.beregningsgrundlag_kroner == 186800
@@ -261,7 +309,15 @@ Kilder: Personskatteloven § 19, stk. 2, som ændret ved LOV nr. 482 af
 kommuneskattesatser 2026 for Langeland.
 ----
 
-= m4_langeland_2026_kapital_input = LønmodtagerInput(2026, Langeland, 650000, 110000, 0, Fyldt18EllerGift, Falskt)
+= m4_langeland_2026_kapital_input = LønmodtagerInput(
+    skatteår = 2026,
+    kommune = Langeland,
+    bruttoløn_kroner = 650000,
+    positiv_nettokapitalindkomst_kroner = 110000,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
 = m4_langeland_2026_kapital = beregn_lønmodtager(m4_langeland_2026_kapital_input)
 
 | m4_langeland_2026_kapital_skatteloft_basis: m4_langeland_2026_kapital -> m4_langeland_2026_kapital.positiv_kapital_skatteloft.input.beregningsgrundlag_kroner == 11800

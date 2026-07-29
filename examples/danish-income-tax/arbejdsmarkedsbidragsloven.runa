@@ -85,7 +85,20 @@ for arbejdsmarkedsbidrag med den skattepligtige værdi.
 | arbejdsmarkedsbidrag_lønmodtager_udelukket_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.sømandsvederlag_kroner + input.biblioteksafgift_kroner + input.ikke_skattepligtigt_vederlag_kroner + input.pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner + input.obligatorisk_atp_pension_kroner
 | arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_positivt_beløb(arbejdsmarkedsbidrag_lønmodtager_brutto_grundlag_kroner(input) - arbejdsmarkedsbidrag_lønmodtager_udelukket_grundlag_kroner(input))
 
-| arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input: ArbejdsmarkedsbidragInput) -> arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(input.lønvederlag_kroner + input.naturalieværdi_kroner, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+| arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input: ArbejdsmarkedsbidragInput) -> arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(
+    ansættelsesvederlag_skatteværdi_kroner = input.lønvederlag_kroner + input.naturalieværdi_kroner,
+    udenfor_ansættelse_skatteværdi_kroner = 0,
+    rådighed_danmark_skatteværdi_kroner = 0,
+    arbejdsgiver_pension_kroner = 0,
+    udenlandsk_pension_kroner = 0,
+    pbl14b_udbetaling_kroner = 0,
+    fælles_firmapension_kroner = 0,
+    sømandsvederlag_kroner = 0,
+    biblioteksafgift_kroner = 0,
+    ikke_skattepligtigt_vederlag_kroner = 0,
+    pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner = 0,
+    obligatorisk_atp_pension_kroner = 0
+))
 | arbejdsmarkedsbidrag_lønmodtager_kroner(input: ArbejdsmarkedsbidragInput) -> penge_beløb_gange_basispoint_kroner(arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input), arbejdsmarkedsbidrag_sats_basispoint())
 
 ----
@@ -182,15 +195,70 @@ arbejdsmarkedsbidrag efter denne lov.
 
 | arbejdsmarkedsbidrag_opkrævning_følger_kildeskat_og_opkrævningslov() -> Sandt
 
-= am_lønmodtager_løn_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(500000, 0))
-= am_lønmodtager_naturalie_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(500000, 10000))
-= am_lønmodtager_sømand_fixture = arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(100000, 0, 0, 0, 0, 0, 0, 100000, 0, 0, 0, 0))
-= am_lønmodtager_udenfor_ansættelse_fixture = arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(0, 80000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
-= am_selvstændig_fixture = arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(ArbejdsmarkedsbidragSelvstændigInput(300000, 10000, 40000, 5000))
-= am_virksomhedsordning_fixture = arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(ArbejdsmarkedsbidragVirksomhedsordningInput(400000, 50000, 10000, 30000, 9000, 2000, 20000, 5000))
-= am_biblioteksafgift_godtgørelse_fixture = arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(ArbejdsmarkedsbidragBiblioteksafgiftInput(10000, Sandt))
-= am_unge_2026_fixture = arbejdsmarkedsbidrag_for_person_kroner(100000, ArbejdsmarkedsbidragPersonSatsInput(2026, 17))
-= am_voksen_2026_fixture = arbejdsmarkedsbidrag_for_person_kroner(100000, ArbejdsmarkedsbidragPersonSatsInput(2026, 18))
+= am_lønmodtager_løn_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(
+    lønvederlag_kroner = 500000,
+    naturalieværdi_kroner = 0
+))
+= am_lønmodtager_naturalie_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(
+    lønvederlag_kroner = 500000,
+    naturalieværdi_kroner = 10000
+))
+= am_lønmodtager_sømand_fixture = arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(
+    ansættelsesvederlag_skatteværdi_kroner = 100000,
+    udenfor_ansættelse_skatteværdi_kroner = 0,
+    rådighed_danmark_skatteværdi_kroner = 0,
+    arbejdsgiver_pension_kroner = 0,
+    udenlandsk_pension_kroner = 0,
+    pbl14b_udbetaling_kroner = 0,
+    fælles_firmapension_kroner = 0,
+    sømandsvederlag_kroner = 100000,
+    biblioteksafgift_kroner = 0,
+    ikke_skattepligtigt_vederlag_kroner = 0,
+    pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner = 0,
+    obligatorisk_atp_pension_kroner = 0
+))
+= am_lønmodtager_udenfor_ansættelse_fixture = arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(
+    ansættelsesvederlag_skatteværdi_kroner = 0,
+    udenfor_ansættelse_skatteværdi_kroner = 80000,
+    rådighed_danmark_skatteværdi_kroner = 0,
+    arbejdsgiver_pension_kroner = 0,
+    udenlandsk_pension_kroner = 0,
+    pbl14b_udbetaling_kroner = 0,
+    fælles_firmapension_kroner = 0,
+    sømandsvederlag_kroner = 0,
+    biblioteksafgift_kroner = 0,
+    ikke_skattepligtigt_vederlag_kroner = 0,
+    pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner = 0,
+    obligatorisk_atp_pension_kroner = 0
+))
+= am_selvstændig_fixture = arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(ArbejdsmarkedsbidragSelvstændigInput(
+    personlig_indkomst_ved_selvstændig_virksomhed_kroner = 300000,
+    biblioteksafgift_kroner = 10000,
+    fremført_negativ_personlig_indkomst_kroner = 40000,
+    fremført_negativ_personlig_indkomst_fra_pension_kroner = 5000
+))
+= am_virksomhedsordning_fixture = arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(ArbejdsmarkedsbidragVirksomhedsordningInput(
+    overførsel_fra_virksomhedsoverskud_kroner = 400000,
+    kapitalafkast_fradrag_kroner = 50000,
+    kapitalafkast_medregnet_personlig_indkomst_kroner = 10000,
+    overførsel_opsparet_overskud_kroner = 30000,
+    tilhørende_virksomhedsskat_kroner = 9000,
+    rentekorrektion_kroner = 2000,
+    fremført_negativ_personlig_indkomst_kroner = 20000,
+    fremført_negativ_personlig_indkomst_fra_pension_kroner = 5000
+))
+= am_biblioteksafgift_godtgørelse_fixture = arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(ArbejdsmarkedsbidragBiblioteksafgiftInput(
+    biblioteksafgift_kroner = 10000,
+    modtager_omfattet_af_virksomhedsordning = Sandt
+))
+= am_unge_2026_fixture = arbejdsmarkedsbidrag_for_person_kroner(100000, ArbejdsmarkedsbidragPersonSatsInput(
+    skatteår = 2026,
+    alder_ved_indkomstårets_udløb = 17
+))
+= am_voksen_2026_fixture = arbejdsmarkedsbidrag_for_person_kroner(100000, ArbejdsmarkedsbidragPersonSatsInput(
+    skatteår = 2026,
+    alder_ved_indkomstårets_udløb = 18
+))
 
 | am_sats_er_8_pct: arbejdsmarkedsbidrag_sats_basispoint() -> arbejdsmarkedsbidrag_sats_basispoint() == 800
 | am_lønvederlag_beskattes: am_lønmodtager_løn_fixture -> am_lønmodtager_løn_fixture == 40000
