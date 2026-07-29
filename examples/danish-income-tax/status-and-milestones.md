@@ -276,7 +276,8 @@ encoded as a temporal rule on top of the consolidation.
   wage-earner calculation-domain records, first wage-earner scenarios, a first
   § 14 partial-year wage-earner scenario, a first fictional household scenario,
   a first § 8 a share-income final-settlement scenario with § 67 dividend-tax
-  credit splitting,
+  credit splitting and § 8 a stk. 2 composition through the § 9/§ 12 state
+  personfradrag allocation slot,
   a source-backed external Skat.dk 2026 wage-earner scenario, complex § 13
   calculator fixtures, and first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
@@ -430,7 +431,10 @@ Current decision:
   monthly A-skat, share income, spouse share-income threshold facts, and
   withheld dividend tax together while methods derive the effective
   progression threshold, final low-layer share tax, high-layer tax entering
-  final tax, § 60 credit basket, and final annual-settlement result.
+  final tax before and after § 12 state personfradrag allocation, § 60 credit
+  basket, and final annual-settlement result. The low-wage/high-share scenario
+  now audits that unused state personfradrag tax value can reduce the
+  § 8 a, stk. 2 amount before Kildeskatteloven final settlement.
 - `AktieindkomstUdbytteskatStk3Sag` uses product-scoped `|` rules for
   Personskatteloven § 8 a, stk. 3. It keeps tax year, total share income, and
   dividend tax withheld under Kildeskatteloven § 65 together while defaults and

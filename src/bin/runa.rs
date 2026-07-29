@@ -20249,7 +20249,7 @@ impl RustCodegen {
 
         self.prepare_effect_metadata(stmts);
         let rule_groups = Self::collect_rule_groups_from_stmts(stmts);
-        self.register_value_returning_rule_signatures(&rule_groups);
+        self.prescan_value_rule_and_rule_scope_signatures(stmts, &rule_groups);
 
         // First pass: emit type declarations
         for stmt in stmts {
@@ -21303,6 +21303,102 @@ impl RustCodegen {
         }
     }
 
+    fn register_rule_scope_member_signature_entry(
+        &mut self,
+        scope_name: &str,
+        rust_name: &str,
+        method: &str,
+        fn_ty: FirTy,
+    ) {
+        self.types.rule_scope_member_fn_types.insert(
+            (scope_name.to_string(), method.to_string()),
+            fn_ty.clone(),
+        );
+        self.types
+            .rule_scope_member_fn_types
+            .insert((rust_name.to_string(), method.to_string()), fn_ty);
+    }
+
+    fn register_rule_scope_member_signatures_for(
+        &mut self,
+        scope_name: &str,
+        params: &[Param],
+        body: &[Stmt],
+    ) {
+        let rust_name = self.rust_type_name(scope_name);
+        let rule_groups = Self::collect_rule_groups_from_stmts(body);
+        let (_method_params, method_param_tys, method_return_tys) =
+            self.infer_rule_scope_method_types(scope_name, &rust_name, params, &rule_groups);
+
+        for (method, param_tys) in &method_param_tys {
+            let ret_ty = method_return_tys
+                .get(method)
+                .cloned()
+                .unwrap_or(FirTy::Bool);
+            self.register_rule_scope_member_signature_entry(
+                scope_name,
+                &rust_name,
+                method,
+                Self::fn_type_from_parts(param_tys, ret_ty),
+            );
+        }
+
+        for method in Self::rule_scope_defn_methods(body) {
+            if let Some((method_name, fn_ty)) =
+                self.infer_rule_scope_value_method_fn_type(&rust_name, params, method)
+            {
+                self.register_rule_scope_member_signature_entry(
+                    scope_name,
+                    &rust_name,
+                    &method_name,
+                    fn_ty,
+                );
+            }
+        }
+    }
+
+    fn register_rule_scope_member_signatures(&mut self, stmts: &[Stmt]) {
+        for stmt in stmts {
+            match stmt {
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
+                    self.register_rule_scope_member_signatures_for(name, params, body);
+                }
+                Stmt::Defn(Defn::Module { body, .. }) => {
+                    for inner_stmt in body {
+                        if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) =
+                            inner_stmt
+                        {
+                            self.register_rule_scope_member_signatures_for(name, params, body);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn prescan_value_rule_and_rule_scope_signatures<'a>(
+        &mut self,
+        stmts: &[Stmt],
+        rule_groups: &BTreeMap<String, Vec<&'a Rule>>,
+    ) {
+        for _ in 0..stmts.len().max(1) {
+            let before_fn_types = self.types.fn_types.clone();
+            let before_member_fn_types = self.types.rule_scope_member_fn_types.clone();
+            let before_return_types = self.fn_return_types.clone();
+
+            self.register_rule_scope_member_signatures(stmts);
+            self.register_value_returning_rule_signatures(rule_groups);
+
+            if self.types.fn_types == before_fn_types
+                && self.types.rule_scope_member_fn_types == before_member_fn_types
+                && self.fn_return_types == before_return_types
+            {
+                break;
+            }
+        }
+    }
+
     fn rule_value_and_condition_exprs<'a>(rule: &'a Rule, out: &mut Vec<&'a Expr>) {
         match rule {
             Rule::Clause {
@@ -21959,6 +22055,8 @@ impl RustCodegen {
 
     fn infer_rule_scope_method_types(
         &mut self,
+        scope_name: &str,
+        rust_name: &str,
         scope_params: &[Param],
         rule_groups: &BTreeMap<String, Vec<&Rule>>,
     ) -> (
@@ -21982,16 +22080,25 @@ impl RustCodegen {
         }
 
         let saved_fn_types = self.types.fn_types.clone();
+        let saved_rule_scope_member_fn_types = self.types.rule_scope_member_fn_types.clone();
         for _ in 0..6 {
             self.types.fn_types = saved_fn_types.clone();
+            self.types.rule_scope_member_fn_types = saved_rule_scope_member_fn_types.clone();
             for (method, param_tys) in &method_param_tys {
                 let ret_ty = method_return_tys
                     .get(method)
                     .cloned()
                     .unwrap_or(FirTy::Unknown);
-                self.types
-                    .fn_types
-                    .insert(method.clone(), Self::fn_type_from_parts(param_tys, ret_ty));
+                let fn_ty = Self::fn_type_from_parts(param_tys, ret_ty);
+                self.types.fn_types.insert(method.clone(), fn_ty.clone());
+                self.types.rule_scope_member_fn_types.insert(
+                    (scope_name.to_string(), method.clone()),
+                    fn_ty.clone(),
+                );
+                self.types.rule_scope_member_fn_types.insert(
+                    (rust_name.to_string(), method.clone()),
+                    fn_ty,
+                );
             }
 
             let mut changed = false;
@@ -22035,6 +22142,7 @@ impl RustCodegen {
             }
         }
         self.types.fn_types = saved_fn_types;
+        self.types.rule_scope_member_fn_types = saved_rule_scope_member_fn_types;
 
         for ret_ty in method_return_tys.values_mut() {
             if matches!(ret_ty, FirTy::Unknown | FirTy::Var(_)) {
@@ -22106,7 +22214,7 @@ impl RustCodegen {
         let rule_groups = Self::collect_rule_groups_from_stmts(body);
         let mut method_names: BTreeSet<String> = rule_groups.keys().cloned().collect();
         let (method_params, method_param_tys, method_return_tys) =
-            self.infer_rule_scope_method_types(params, &rule_groups);
+            self.infer_rule_scope_method_types(name, &rust_name, params, &rule_groups);
 
         for (method, param_tys) in &method_param_tys {
             let ret_ty = method_return_tys
@@ -22117,6 +22225,16 @@ impl RustCodegen {
             self.types
                 .rule_scope_member_fn_types
                 .insert((rust_name.clone(), method.clone()), fn_ty);
+            if name != rust_name {
+                let ret_ty = method_return_tys
+                    .get(method)
+                    .cloned()
+                    .unwrap_or(FirTy::Bool);
+                self.types.rule_scope_member_fn_types.insert(
+                    (name.to_string(), method.clone()),
+                    Self::fn_type_from_parts(param_tys, ret_ty),
+                );
+            }
         }
         for method in Self::rule_scope_defn_methods(body) {
             if let Some((method_name, fn_ty)) =
@@ -42078,6 +42196,9 @@ for x in [1, 2] {
 
 # Case(x: Int) {
     | amount() -> Output(x + 1)
+    | delegated_amount() -> amount()
+    | amount_value() -> amount().value
+    | delegated_amount_value() -> delegated_amount().value
     > method_amount() -> Output { amount() }
 }
 
@@ -42091,6 +42212,21 @@ for x in [1, 2] {
         assert!(
             rust.contains("fn amount(&self) -> Output {"),
             "RuleScope member should keep inferred product return type: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn delegated_amount(&self) -> Output {"),
+            "RuleScope member delegated to another member should keep product return type: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn amount_value(&self) -> i64 {"),
+            "RuleScope member projection should keep field return type: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn delegated_amount_value(&self) -> i64 {"),
+            "RuleScope member projection from delegated member should keep field return type: {}",
             rust
         );
         assert!(
@@ -42118,6 +42254,61 @@ for x in [1, 2] {
             "wrapper rule over RuleScope product method must not be lowered as a boolean predicate: {}",
             rust
         );
+        assert!(
+            !rust.contains("if self.amount()"),
+            "delegated RuleScope member must not be lowered as a boolean predicate: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("if self.delegated_amount()"),
+            "projection from delegated RuleScope member must not be lowered as a boolean predicate: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn compiled_rulescope_member_value_delegation_executes() {
+        let source = r#"
+# Output(value: Int)
+
+# Case(x: Int) {
+    | amount() -> Output(x + 1)
+    | delegated_amount() -> amount()
+    | amount_value() -> amount().value
+    | delegated_amount_value() -> delegated_amount().value
+}
+
+= case = Case(41)
+@ print(show(case.delegated_amount().value))
+@ print(show(case.amount_value()))
+@ print(show(case.delegated_amount_value()))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "42\n42\n42");
+    }
+
+    #[test]
+    fn compiled_later_rulescope_sees_top_level_wrapper_over_rulescope_member() {
+        let source = r#"
+# Output(value: Int)
+
+# InnerCase(x: Int) {
+    | result() -> Output(x + 1)
+}
+
+| inner_result(x: Int) -> InnerCase(x).result()
+
+# OuterCase(x: Int) {
+    | delegated() -> inner_result(x)
+    | projected() -> delegated().value
+}
+
+= case = OuterCase(41)
+@ print(show(case.delegated().value))
+@ print(show(case.projected()))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "42\n42");
     }
 
     #[test]

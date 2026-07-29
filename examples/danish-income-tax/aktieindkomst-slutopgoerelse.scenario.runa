@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./kapitel - 02 - statsskat
+@ importer ./kapitel - 03 - personfradrag
 @ importer ./slutopgoerelse
 @ importer ./husholdning - scenarier.scenario
 
@@ -50,7 +51,7 @@ ikke kan modregnes i slutskatten, og som ikke er endelig efter
 personskattelovens § 8 a, stk. 1, som overskydende skat efter reglerne i § 62 C.
 ----
 
-# AktieindkomstSlutopgørelseResult(effektivt_grundbeløb_kroner: Heltal, aktieskat: AktieindkomstSkatResultat, slutskat_input: KildeskatSlutopgørelseInput, slutopgørelse: KildeskatSlutopgørelseResult, endelig_aktieskat_kroner: Heltal, udbytteskat_endelig_betaling_kroner: Heltal, udbytteskat_modregningsberettiget_kroner: Heltal, udbytteskat_som_overskydende_skat_kroner: Heltal, samlet_skat_inkl_endelig_aktieskat_kroner: Heltal)
+# AktieindkomstSlutopgørelseResult(effektivt_grundbeløb_kroner: Heltal, aktieskat: AktieindkomstSkatResultat, statsskat_personfradrag_nedsættelse: PersonfradragStatsskatNedsættelseResultat, slutskat_indgående_aktieskat_efter_personfradrag_kroner: Heltal, slutskat_input: KildeskatSlutopgørelseInput, slutopgørelse: KildeskatSlutopgørelseResult, endelig_aktieskat_kroner: Heltal, udbytteskat_endelig_betaling_kroner: Heltal, udbytteskat_modregningsberettiget_kroner: Heltal, udbytteskat_som_overskydende_skat_kroner: Heltal, samlet_skat_inkl_endelig_aktieskat_kroner: Heltal)
 
 # AktieindkomstSlutopgørelseCase(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal, aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk, indeholdt_udbytteskat_kroner: Heltal) {
     | årlig_a_skat_kroner() -> a_skat_månedligt_kroner * 12
@@ -70,6 +71,22 @@ personskattelovens § 8 a, stk. 1, som overskydende skat efter reglerne i § 62 
     | aktieskat() -> aktieindkomst_positiv_skat(skat_input())
     | endelig_aktieskat_kroner() -> aktieskat().endelig_skat_kroner
     | høj_aktieskat_indgår_i_slutskat() -> aktieskat().slutskat_indgående_skat_kroner > 0
+    | par7_skat_før_personfradrag_kroner() -> person.topskat_før_personfradrag_kroner under person.skatteår < 2026
+    | exception aktie_reform_par7_er_mellemskat par7_skat_før_personfradrag_kroner() -> person.mellemskat_før_personfradrag_kroner under person.skatteår >= 2026
+    | par7a_skat_før_personfradrag_kroner() -> 0 under person.skatteår < 2026
+    | exception aktie_reform_par7a_er_topskat par7a_skat_før_personfradrag_kroner() -> person.topskat_før_personfradrag_kroner under person.skatteår >= 2026
+    | par8_skat_før_personfradrag_kroner() -> 0 under person.skatteår < 2026
+    | exception aktie_reform_par8_er_toptopskat par8_skat_før_personfradrag_kroner() -> person.toptopskat_før_personfradrag_kroner under person.skatteår >= 2026
+    | statsskat_personfradrag_input() -> PersonfradragStatsskatNedsættelseInput(
+        par6_skat_kroner = person.bundskat_før_personfradrag_kroner,
+        par7_skat_kroner = par7_skat_før_personfradrag_kroner(),
+        par7a_skat_kroner = par7a_skat_før_personfradrag_kroner(),
+        par8_skat_kroner = par8_skat_før_personfradrag_kroner(),
+        par8a_stk2_skat_kroner = aktieskat().slutskat_indgående_skat_kroner,
+        statslig_skatteværdi_kroner = person.statslig_personfradrag_skatteværdi_kroner
+    )
+    | statsskat_personfradrag_nedsættelse() -> personfradrag_statsskat_nedsættelse_resultat(statsskat_personfradrag_input())
+    | slutskat_indgående_aktieskat_efter_personfradrag_kroner() -> statsskat_personfradrag_nedsættelse().par8a_stk2_efter_kroner
     | udbytteskat_endelig_betaling_kroner() -> penge_mindste_beløb(indeholdt_udbytteskat_kroner, endelig_aktieskat_kroner())
     | udbytteskat_efter_endelig_betaling_kroner() -> penge_positivt_beløb(indeholdt_udbytteskat_kroner - udbytteskat_endelig_betaling_kroner())
     | udbytteskat_modregning_input() -> KildeskatUdbytteskatModregningInput(
@@ -100,7 +117,7 @@ personskattelovens § 8 a, stk. 1, som overskydende skat efter reglerne i § 62 
         energiafgiftskompensation_kroner = 0,
         tilbagebetalt_par55_kroner = 0
     )
-    | slutskat_kroner() -> person.samlet_inkl_am_efter_personfradrag_kroner + aktieskat().slutskat_indgående_skat_kroner
+    | slutskat_kroner() -> person.samlet_inkl_am_efter_personfradrag_kroner + slutskat_indgående_aktieskat_efter_personfradrag_kroner()
     | slutskat_input() -> KildeskatSlutopgørelseInput(
         slutskat_kroner = slutskat_kroner(),
         overført_restskat_mv_kroner = 0,
@@ -112,6 +129,8 @@ personskattelovens § 8 a, stk. 1, som overskydende skat efter reglerne i § 62 
     | resultat() -> AktieindkomstSlutopgørelseResult(
         effektivt_grundbeløb_kroner = effektivt_grundbeløb_kroner(),
         aktieskat = aktieskat(),
+        statsskat_personfradrag_nedsættelse = statsskat_personfradrag_nedsættelse(),
+        slutskat_indgående_aktieskat_efter_personfradrag_kroner = slutskat_indgående_aktieskat_efter_personfradrag_kroner(),
         slutskat_input = slutskat_input(),
         slutopgørelse = slutopgørelse(),
         endelig_aktieskat_kroner = endelig_aktieskat_kroner(),
@@ -142,12 +161,33 @@ personskattelovens § 8 a, stk. 1, som overskydende skat efter reglerne i § 62 
 )
 = scenarie1_mand_aktie_høj_skat_slutopgørelse = scenarie1_mand_aktie_høj_skat_case.resultat()
 
+= scenarie1_lav_løn_høj_aktie_person = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 0,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
+= scenarie1_lav_løn_høj_aktie_case = AktieindkomstSlutopgørelseCase(
+    person = scenarie1_lav_løn_høj_aktie_person,
+    a_skat_månedligt_kroner = 0,
+    aktieindkomst_kroner = 150000,
+    ægtefælle_aktieindkomst_kroner = 100000,
+    samlevende_ved_årets_udløb = Sandt,
+    indeholdt_udbytteskat_kroner = 40500
+)
+= scenarie1_lav_løn_høj_aktie_slutopgørelse = scenarie1_lav_løn_høj_aktie_case.resultat()
+
 | scenarie1_aktie_ægtefællegrundbeløb_fjerner_høj_skat: scenarie1_mand_aktie_slutopgørelse -> scenarie1_mand_aktie_slutopgørelse.effektivt_grundbeløb_kroner == 158800 && scenarie1_mand_aktie_slutopgørelse.aktieskat.højt_grundlag_kroner == 0
 | scenarie1_aktie_lav_skat_er_endelig: scenarie1_mand_aktie_slutopgørelse -> scenarie1_mand_aktie_slutopgørelse.endelig_aktieskat_kroner == 40500 && scenarie1_mand_aktie_slutopgørelse.udbytteskat_modregningsberettiget_kroner == 0
 | scenarie1_aktie_slutopgørelse_bevarer_løn_restskat: scenarie1_mand_aktie_slutopgørelse -> scenarie1_mand_aktie_slutopgørelse.slutopgørelse.overskydende_skat_kroner == 2690 && scenarie1_mand_aktie_slutopgørelse.samlet_skat_inkl_endelig_aktieskat_kroner == 249226
 | scenarie1_aktie_høj_skat_splitter_endelig_og_slutskat: scenarie1_mand_aktie_høj_skat_slutopgørelse -> scenarie1_mand_aktie_høj_skat_slutopgørelse.aktieskat.lavt_grundlag_kroner == 79400 && scenarie1_mand_aktie_høj_skat_slutopgørelse.aktieskat.højt_grundlag_kroner == 70600 && scenarie1_mand_aktie_høj_skat_slutopgørelse.aktieskat.samlet_skat_kroner == 51090
 | scenarie1_aktie_høj_skat_udbytteskat_modregnes: scenarie1_mand_aktie_høj_skat_slutopgørelse -> scenarie1_mand_aktie_høj_skat_slutopgørelse.udbytteskat_endelig_betaling_kroner == 21438 && scenarie1_mand_aktie_høj_skat_slutopgørelse.udbytteskat_modregningsberettiget_kroner == 19062
-| scenarie1_aktie_høj_skat_årsopgørelse: scenarie1_mand_aktie_høj_skat_slutopgørelse -> scenarie1_mand_aktie_høj_skat_slutopgørelse.slutopgørelse.slutskat_med_tillæg_kroner == 238378 && scenarie1_mand_aktie_høj_skat_slutopgørelse.slutopgørelse.modregnede_foreløbige_skatter_kroner == 230478 && scenarie1_mand_aktie_høj_skat_slutopgørelse.slutopgørelse.restskat_kroner == 7900 && scenarie1_mand_aktie_høj_skat_slutopgørelse.samlet_skat_inkl_endelig_aktieskat_kroner == 259816
+| scenarie1_aktie_høj_skat_årsopgørelse: scenarie1_mand_aktie_høj_skat_slutopgørelse -> scenarie1_mand_aktie_høj_skat_slutopgørelse.slutskat_indgående_aktieskat_efter_personfradrag_kroner == 29652 && scenarie1_mand_aktie_høj_skat_slutopgørelse.slutopgørelse.slutskat_med_tillæg_kroner == 238378 && scenarie1_mand_aktie_høj_skat_slutopgørelse.slutopgørelse.modregnede_foreløbige_skatter_kroner == 230478 && scenarie1_mand_aktie_høj_skat_slutopgørelse.slutopgørelse.restskat_kroner == 7900 && scenarie1_mand_aktie_høj_skat_slutopgørelse.samlet_skat_inkl_endelig_aktieskat_kroner == 259816
+| scenarie1_lav_løn_høj_aktie_personfradrag_nedsætter_høj_aktieskat: scenarie1_lav_løn_høj_aktie_slutopgørelse -> scenarie1_lav_løn_høj_aktie_slutopgørelse.aktieskat.slutskat_indgående_skat_kroner == 29652 && scenarie1_lav_løn_høj_aktie_slutopgørelse.statsskat_personfradrag_nedsættelse.par8a_stk2_efter_kroner == 23155 && scenarie1_lav_løn_høj_aktie_slutopgørelse.slutskat_indgående_aktieskat_efter_personfradrag_kroner == 23155
+| scenarie1_lav_løn_høj_aktie_årsopgørelse: scenarie1_lav_løn_høj_aktie_slutopgørelse -> scenarie1_lav_løn_høj_aktie_slutopgørelse.slutopgørelse.restskat_kroner == 4093 && scenarie1_lav_løn_høj_aktie_slutopgørelse.samlet_skat_inkl_endelig_aktieskat_kroner == 44593
 
 ? scenarie1_aktie_ægtefællegrundbeløb_fjerner_høj_skat
 ? scenarie1_aktie_lav_skat_er_endelig
@@ -155,6 +195,9 @@ personskattelovens § 8 a, stk. 1, som overskydende skat efter reglerne i § 62 
 ? scenarie1_aktie_høj_skat_splitter_endelig_og_slutskat
 ? scenarie1_aktie_høj_skat_udbytteskat_modregnes
 ? scenarie1_aktie_høj_skat_årsopgørelse
+? scenarie1_lav_løn_høj_aktie_personfradrag_nedsætter_høj_aktieskat
+? scenarie1_lav_løn_høj_aktie_årsopgørelse
 
 @ print("scenarie1 mand aktieindkomst med aegtefaelles ubrugt grundbeloeb: samlet skat inkl. endelig aktieskat " + vis(scenarie1_mand_aktie_slutopgørelse.samlet_skat_inkl_endelig_aktieskat_kroner))
 @ print("scenarie1 mand aktieindkomst med hoej aktieskat: restskat " + vis(scenarie1_mand_aktie_høj_skat_slutopgørelse.slutopgørelse.restskat_kroner))
+@ print("scenarie1 lav loen med hoej aktieskat: par8a stk.2 efter personfradrag " + vis(scenarie1_lav_løn_høj_aktie_slutopgørelse.slutskat_indgående_aktieskat_efter_personfradrag_kroner))

@@ -906,6 +906,7 @@ virksomhedsunderskud.
 | m5_audit_skatdk_ekstern_signal: audit_signal(SkatDkEksternFixtureDækket) -> audit_signal(SkatDkEksternFixtureDækket) == Sandt
 = m5_aktie_slutopgørelse_lav_fixture = scenarie1_mand_aktie_slutopgørelse
 = m5_aktie_slutopgørelse_høj_fixture = scenarie1_mand_aktie_høj_skat_slutopgørelse
+= m5_aktie_slutopgørelse_lav_løn_personfradrag_fixture = scenarie1_lav_løn_høj_aktie_slutopgørelse
 = m5_par8a_stk3_overindeholdt_fixture = aktieindkomst_udbytteskat_stk3_resultat(AktieindkomstUdbytteskatStk3Input(
     skatteår = 2026,
     aktieindkomst_kroner = 100000,
@@ -918,7 +919,8 @@ virksomhedsunderskud.
 ))
 
 | m5_aktie_slutopgørelse_lav_dækket: m5_aktie_slutopgørelse_lav_fixture -> m5_aktie_slutopgørelse_lav_fixture.endelig_aktieskat_kroner == 40500 && m5_aktie_slutopgørelse_lav_fixture.udbytteskat_modregningsberettiget_kroner == 0 && m5_aktie_slutopgørelse_lav_fixture.slutopgørelse.overskydende_skat_kroner == 2690
-| m5_aktie_slutopgørelse_høj_dækket: m5_aktie_slutopgørelse_høj_fixture -> m5_aktie_slutopgørelse_høj_fixture.aktieskat.højt_grundlag_kroner == 70600 && m5_aktie_slutopgørelse_høj_fixture.udbytteskat_modregningsberettiget_kroner == 19062 && m5_aktie_slutopgørelse_høj_fixture.slutopgørelse.restskat_kroner == 7900 && m5_aktie_slutopgørelse_høj_fixture.samlet_skat_inkl_endelig_aktieskat_kroner == 259816
+| m5_aktie_slutopgørelse_høj_dækket: m5_aktie_slutopgørelse_høj_fixture -> m5_aktie_slutopgørelse_høj_fixture.aktieskat.højt_grundlag_kroner == 70600 && m5_aktie_slutopgørelse_høj_fixture.udbytteskat_modregningsberettiget_kroner == 19062 && m5_aktie_slutopgørelse_høj_fixture.slutskat_indgående_aktieskat_efter_personfradrag_kroner == 29652 && m5_aktie_slutopgørelse_høj_fixture.slutopgørelse.restskat_kroner == 7900 && m5_aktie_slutopgørelse_høj_fixture.samlet_skat_inkl_endelig_aktieskat_kroner == 259816
+| m5_aktie_slutopgørelse_personfradrag_par8a_dækket: m5_aktie_slutopgørelse_lav_løn_personfradrag_fixture -> m5_aktie_slutopgørelse_lav_løn_personfradrag_fixture.aktieskat.slutskat_indgående_skat_kroner == 29652 && m5_aktie_slutopgørelse_lav_løn_personfradrag_fixture.statsskat_personfradrag_nedsættelse.par8a_stk2_efter_kroner == 23155 && m5_aktie_slutopgørelse_lav_løn_personfradrag_fixture.slutopgørelse.restskat_kroner == 4093
 | m5_audit_aktie_slutopgørelse_signal: audit_signal(AktieindkomstSlutopgørelseDækket) -> audit_signal(AktieindkomstSlutopgørelseDækket) == Sandt
 | m5_par8a_stk3_overindeholdt_dækket: m5_par8a_stk3_overindeholdt_fixture -> m5_par8a_stk3_overindeholdt_fixture.stk1_skat_af_samlet_aktieindkomst_kroner == 27000 && m5_par8a_stk3_overindeholdt_fixture.overskydende_udbytteskat_til_slutskat_kroner == 8000 && m5_par8a_stk3_overindeholdt_fixture.endelig_udbytteskat_kroner == 27000
 | m5_par8a_stk3_negativ_dækket: m5_par8a_stk3_negativ_fixture -> m5_par8a_stk3_negativ_fixture.negativ_aktieindkomst_udbytteskat_til_slutskat_kroner == 2700 && m5_par8a_stk3_negativ_fixture.samlet_udbytteskat_til_slutskat_kroner == 2700 && m5_par8a_stk3_negativ_fixture.endelig_udbytteskat_kroner == 0
@@ -1022,6 +1024,7 @@ virksomhedsunderskud.
 ? m5_audit_skatdk_ekstern_signal
 ? m5_aktie_slutopgørelse_lav_dækket
 ? m5_aktie_slutopgørelse_høj_dækket
+? m5_aktie_slutopgørelse_personfradrag_par8a_dækket
 ? m5_audit_aktie_slutopgørelse_signal
 ? m5_par8a_stk3_overindeholdt_dækket
 ? m5_par8a_stk3_negativ_dækket

@@ -6,6 +6,7 @@
 # Person(age: Int, gross_income: Int, lives_in_denmark: Bool)
 # TaxRates(personal_allowance: Int, child_allowance: Int, municipal_percent: Int, state_percent: Int)
 # FilingMode = Digital | Paper(String)
+# TaxSummary(total: Int, source: String)
 
 # FilingLabel(prefix: String, mode: FilingMode) {
     > suffix() -> String {
@@ -34,6 +35,10 @@
     | final_due() -> tax_due()
     | projected_tax(extra_income: Int) -> tax_due() + extra_income * rates.municipal_percent / 100
     | reported_income() -> person.gross_income
+    | summary() -> TaxSummary(tax_due(), filing_status())
+    | summary_copy() -> summary()
+    | summary_total() -> summary().total
+    | summary_source_copy() -> summary_copy().source
 
     | filing_status() -> "resident"
     | exception nonresident filing_status() -> "nonresident" under person.lives_in_denmark == False
@@ -66,6 +71,9 @@
 | final_call_only_ok: adult.final_due() -> adult.final_due() == 225
 | projected_param_ok: adult.projected_tax(100) -> adult.projected_tax(100) == 245
 | field_projection_ok: adult.reported_income() -> adult.reported_income() == 1000
+| rulescope_record_delegation_ok: adult.summary_copy() -> adult.summary_copy().total == 225
+| rulescope_delegated_projection_ok: adult.summary_total() -> adult.summary_total() == 225
+| rulescope_delegated_record_projection_ok: adult.summary_source_copy() -> adult.summary_source_copy() == "resident"
 | exception_ok: foreign.filing_status() -> foreign.filing_status() == "nonresident"
 | call_only_string_ok: foreign.status_copy() -> foreign.status_copy() == "nonresident"
 | global_collision_ok: personal_allowance() -> personal_allowance() == 999
@@ -86,6 +94,9 @@
 ? final_call_only_ok
 ? projected_param_ok
 ? field_projection_ok
+? rulescope_record_delegation_ok
+? rulescope_delegated_projection_ok
+? rulescope_delegated_record_projection_ok
 ? exception_ok
 ? call_only_string_ok
 ? global_collision_ok
