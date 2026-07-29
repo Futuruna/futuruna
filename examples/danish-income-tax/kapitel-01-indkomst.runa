@@ -1,5 +1,7 @@
 @ sprog da
 
+@ importer ./pengebeloeb
+
 -- Personskatteloven — indkomsttaxonomi (§§ 1-4 b).
 --
 -- Kilde: Retsinformation, LBK nr. 1284 af 14/06/2021.
@@ -287,12 +289,34 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 # AktieUndtagelse = Aktieavance19C | Ligningslov16AStk5 | MedarbejderinvesteringsselskabAndel
 # AktieTilPersonligUndtagelse = Aktieavance19BHvis17
 # AktiePensionsFradrag(positiv_aktieindkomst: Boolsk, fradrag_højst_aktieindkomst: Boolsk, meddelt_forvaltning: Boolsk, ikke_fradraget_i_personlig_indkomst: Boolsk)
+# AktiePensionsFradragInput(aktieindkomst_efter_stk1_og_2_kroner: Heltal, ønsket_fradrag_kroner: Heltal, meddelt_forvaltning: Boolsk, fradraget_i_personlig_indkomst: Boolsk)
+# AktiePensionsFradragResultat(fradrag_i_aktieindkomst_kroner: Heltal, aktieindkomst_efter_fradrag_kroner: Heltal, afskåret_fradrag_kroner: Heltal, dobbeltfradrag_afskåret: Boolsk)
 
 | aktieindkomst_omfatter(post: Aktiepost) -> Sandt
 | aktieindkomst_undtager(undtagelse: AktieUndtagelse) -> Sandt
 | aktieundtagelse_medregnes_personligt(undtagelse: AktieTilPersonligUndtagelse) -> Sandt
 | kan_fradrage_pension_i_aktieindkomst(fradrag: AktiePensionsFradrag) -> fradrag.positiv_aktieindkomst && fradrag.fradrag_højst_aktieindkomst && fradrag.meddelt_forvaltning && fradrag.ikke_fradraget_i_personlig_indkomst
 | aktieindkomst_indgår_i_skattepligtig_indkomst() -> Falskt
+
+# Par4aPensionsfradragSag(input: AktiePensionsFradragInput) {
+    | positiv_aktieindkomst_kroner() -> penge_positivt_beløb(input.aktieindkomst_efter_stk1_og_2_kroner)
+    | ønsket_fradrag_kroner() -> penge_positivt_beløb(input.ønsket_fradrag_kroner)
+    | har_positiv_aktieindkomst() -> positiv_aktieindkomst_kroner() > 0
+    | meddelelse_givet() -> input.meddelt_forvaltning
+    | ikke_fradraget_personligt() -> input.fradraget_i_personlig_indkomst == Falskt
+    | betingelser_opfyldt() -> har_positiv_aktieindkomst() && meddelelse_givet() && ikke_fradraget_personligt()
+    | fradrag_i_aktieindkomst_kroner() -> 0
+    | exception pension_betingelser_opfyldt fradrag_i_aktieindkomst_kroner() -> penge_mindste_beløb(ønsket_fradrag_kroner(), positiv_aktieindkomst_kroner()) under betingelser_opfyldt()
+    | aktieindkomst_efter_fradrag_kroner() -> positiv_aktieindkomst_kroner() - fradrag_i_aktieindkomst_kroner()
+    | afskåret_fradrag_kroner() -> ønsket_fradrag_kroner() - fradrag_i_aktieindkomst_kroner()
+    | dobbeltfradrag_afskåret() -> input.fradraget_i_personlig_indkomst && ønsket_fradrag_kroner() > 0
+    | resultat() -> AktiePensionsFradragResultat(fradrag_i_aktieindkomst_kroner(), aktieindkomst_efter_fradrag_kroner(), afskåret_fradrag_kroner(), dobbeltfradrag_afskåret())
+}
+
+| par4a_pensionsfradrag_sag(input: AktiePensionsFradragInput) -> Par4aPensionsfradragSag(input)
+| par4a_pensionsfradrag_kroner(input: AktiePensionsFradragInput) -> par4a_pensionsfradrag_sag(input).fradrag_i_aktieindkomst_kroner()
+| par4a_aktieindkomst_efter_pensionsfradrag_kroner(input: AktiePensionsFradragInput) -> par4a_pensionsfradrag_sag(input).aktieindkomst_efter_fradrag_kroner()
+| par4a_pensionsfradrag_resultat(input: AktiePensionsFradragInput) -> par4a_pensionsfradrag_sag(input).resultat()
 
 = par4a_udbytte = aktieindkomst_omfatter(Ligningslov16AUdbytte)
 = par4a_aktieavance = aktieindkomst_omfatter(AktieFortjenesteTab)

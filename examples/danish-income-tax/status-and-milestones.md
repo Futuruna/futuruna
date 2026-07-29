@@ -219,6 +219,7 @@ encoded as a temporal rule on top of the consolidation.
 - `husholdning-scenarier.scenario.runa` exists and checks/runs with `runa run`.
 - `husholdning-benefit-cliffs.audit.runa` exists and checks/runs with
   `runa run`.
+- `aktieindkomst-pension.audit.runa` exists and checks/runs with `runa run`.
 - `slutopgoerelse.scenario.runa` exists and checks/runs with `runa run`.
 - `indeholdelse-afregning.scenario.runa` exists and checks/runs with
   `runa run`.
@@ -229,7 +230,8 @@ encoded as a temporal rule on top of the consolidation.
   source status, milestone status, selected audit signals, and the checked
   `.runa` corpus.
 - The current `.runa` slices encode source validity, source lineage, the
-  §§ 1-4 b income taxonomy, the §§ 5-9 state-tax skeleton, the §§ 10-13
+  §§ 1-4 b income taxonomy including amount-level § 4 a pension deduction from
+  positive share income, the §§ 5-9 state-tax skeleton, the §§ 10-13
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
   slice, the §§ 21-28 concluding provisions slice, ordinary and special-case
   AM-law,
@@ -310,6 +312,11 @@ Current decision:
   tax-value offset chain, keeping the carried remainder after § 6, § 7, § 7 a,
   and § 8 a, stk. 2 inside the same legal case while preserving public wrapper
   rule names for downstream calculator/audit files.
+- `Par4aPensionsfradragSag` uses product-scoped `|` rules for the § 4 a,
+  stk. 4 amount layer. The scope keeps positive share income, the requested
+  pension deduction, notice to the tax administration, no-double-deduction
+  status, capped deduction, remaining share income, and disallowed amount
+  together while stable wrapper rules expose the calculation to audits.
 - `slutopgoerelse.runa` keeps the year-end balance as `KildeskatSlutopgørelseInput`
   plus a statutory `KildeskatPar60Kreditter` credit basket. This is a better
   domain boundary than passing A-skat, AM-bidrag, B-skat, dividend-tax credits,
@@ -513,6 +520,10 @@ Review candidates to revisit deliberately, not as broad churn:
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
+  § 4 a's first amount-level audit now covers pensionsfradrag in positive
+  share income: the deduction is capped at positive share income, requires
+  notice to the tax administration, is blocked if already deducted in personal
+  income, and is unavailable without positive share income.
 - Add more trusted external differential fixtures after the first § 14/§ 19
   external slice. The ordinary 2026 Copenhagen wage-earner path now has a
   source-backed Skat.dk calculator fixture for final tax and generated tax-card
@@ -698,6 +709,7 @@ M5 - Audit suite
   benefit-cliff/source-tension audit plus a first boligsikring § 22 threshold
   cliff, covered external Skat.dk 2026
   ordinary wage-earner fixture, topskat threshold activation,
+  covered § 4 a pension deduction from positive share income,
   covered § 14 annualization and first wage-earner calculator integration plus
   the Den juridiske vejledning external annualisation example,
   covered first bomb-audit probes for § 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions,
@@ -737,6 +749,7 @@ M6 - Website integration
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing and system-start rateplan posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
+  first § 4 a pension/share-income audit,
   first § 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
   household benefit-cliff/source-tension probe plus a boligsikring § 22
   threshold-cliff probe,
