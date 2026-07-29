@@ -11332,6 +11332,9 @@ struct TypeRegistry {
     type_decls: BTreeMap<String, (Vec<String>, Vec<String>)>,
     /// Maps variant name -> parent ADT name (e.g. "Some" -> "FuturunaOption")
     variant_parent: BTreeMap<String, String>,
+    /// Maps variant name -> every parent ADT name that declares it. This keeps
+    /// duplicate constructor names usable when an expression supplies type context.
+    variant_parents: BTreeMap<String, BTreeSet<String>>,
     /// Maps original ADT name -> Rust-safe name (e.g. "Option" -> "FuturunaOption")
     type_rename: BTreeMap<String, String>,
     /// Maps variant name -> which argument indices need Box::new() wrapping (recursive fields)
@@ -11427,6 +11430,7 @@ impl TypeRegistry {
         TypeRegistry {
             type_decls: BTreeMap::new(),
             variant_parent: BTreeMap::new(),
+            variant_parents: BTreeMap::new(),
             type_rename: BTreeMap::new(),
             variant_boxed_args: BTreeMap::new(),
             variant_positional: BTreeMap::new(),
@@ -11469,6 +11473,55 @@ impl TypeRegistry {
             comptime_types: BTreeMap::new(),
             inout_params: BTreeMap::new(),
             cow_params: BTreeMap::new(),
+        }
+    }
+
+    fn register_variant_parent(&mut self, variant: &str, parent: &str) {
+        self.variant_parent
+            .insert(variant.to_string(), parent.to_string());
+        self.variant_parents
+            .entry(variant.to_string())
+            .or_default()
+            .insert(parent.to_string());
+    }
+
+    fn named_type_candidates_for_expected(&self, expected_ty: &FirTy) -> Vec<String> {
+        let FirTy::Named(type_name) = expected_ty else {
+            return Vec::new();
+        };
+        let mut candidates = vec![type_name.clone()];
+        if let Some(renamed) = self.type_rename.get(type_name) {
+            candidates.push(renamed.clone());
+        }
+        for (original, renamed) in &self.type_rename {
+            if renamed == type_name {
+                candidates.push(original.clone());
+            }
+        }
+        candidates.sort();
+        candidates.dedup();
+        candidates
+    }
+
+    fn parent_for_variant_with_expected(
+        &self,
+        variant: &str,
+        expected_ty: &FirTy,
+    ) -> Option<String> {
+        let parents = self.variant_parents.get(variant)?;
+        for candidate in self.named_type_candidates_for_expected(expected_ty) {
+            if parents.contains(candidate.as_str()) {
+                return Some(candidate);
+            }
+        }
+        None
+    }
+
+    fn emit_nullary_variant_with_parent(&self, variant: &str, parent: &str) -> String {
+        if self.struct_types.contains(parent) {
+            variant.to_string()
+        } else {
+            format!("{}::{}", parent, variant)
         }
     }
 }
@@ -12712,6 +12765,27 @@ impl<'a> LoweringCtx<'a> {
         FirTy::Unknown
     }
 
+    fn align_nullary_constructor_ty_to_expected(
+        &self,
+        source_expr: &Expr,
+        fir_expr: &mut FirExpr,
+        expected_ty: &FirTy,
+    ) {
+        if matches!(expected_ty, FirTy::Unknown | FirTy::Var(_)) {
+            return;
+        }
+        let ExprKind::Var(name) = &source_expr.kind else {
+            return;
+        };
+        if self
+            .types
+            .parent_for_variant_with_expected(name, expected_ty)
+            .is_some()
+        {
+            fir_expr.ty = expected_ty.clone();
+        }
+    }
+
     #[cfg(test)]
     /// Infer types for a function with possibly unannotated parameters.
     /// Creates type variables for missing annotations, lowers the body,
@@ -13182,8 +13256,12 @@ impl<'a> LoweringCtx<'a> {
                 }
             }
             ExprKind::BinOp(op, lhs, rhs) => {
-                let fir_lhs = self.lower_expr(lhs);
-                let fir_rhs = self.lower_expr(rhs);
+                let mut fir_lhs = self.lower_expr(lhs);
+                let mut fir_rhs = self.lower_expr(rhs);
+                if matches!(op.as_str(), "==" | "!=" | "=") {
+                    self.align_nullary_constructor_ty_to_expected(rhs, &mut fir_rhs, &fir_lhs.ty);
+                    self.align_nullary_constructor_ty_to_expected(lhs, &mut fir_lhs, &fir_rhs.ty);
+                }
                 let ty = Self::binop_ty(op, &fir_lhs.ty, &fir_rhs.ty);
                 // Generate constraints: for arithmetic ops, operands should match result type
                 if let Some(ref mut inf) = self.inference {
@@ -13568,11 +13646,11 @@ fn emit_fir_expr(expr: &FirExpr, types: &TypeRegistry) -> String {
     match &expr.kind {
         FirExprKind::Var(name, mode) => {
             // Check if it's a nullary constructor
+            if let Some(parent) = types.parent_for_variant_with_expected(name, &expr.ty) {
+                return types.emit_nullary_variant_with_parent(name, parent.as_str());
+            }
             if let Some(parent) = types.variant_parent.get(name.as_str()) {
-                if types.struct_types.contains(parent) {
-                    return name.clone();
-                }
-                return format!("{}::{}", parent, name);
+                return types.emit_nullary_variant_with_parent(name, parent.as_str());
             }
             let sname = sanitize_name(name);
             match mode {
@@ -18283,8 +18361,7 @@ impl RustCodegen {
                 let variant_names: Vec<String> = variants.iter().map(|v| v.name.clone()).collect();
                 for v in variants {
                     self.types
-                        .variant_parent
-                        .insert(v.name.clone(), rust_name.clone());
+                        .register_variant_parent(v.name.as_str(), rust_name.as_str());
                     self.types
                         .variant_positional
                         .insert(v.name.clone(), v.positional);
@@ -18407,8 +18484,7 @@ impl RustCodegen {
                             variants.iter().map(|v| v.name.clone()).collect();
                         for v in variants {
                             self.types
-                                .variant_parent
-                                .insert(v.name.clone(), rust_name.clone());
+                                .register_variant_parent(v.name.as_str(), rust_name.as_str());
                             self.types
                                 .variant_positional
                                 .insert(v.name.clone(), v.positional);
@@ -20617,8 +20693,7 @@ impl RustCodegen {
                             {
                                 for v in variants {
                                     self.types
-                                        .variant_parent
-                                        .insert(v.name.clone(), tname.clone());
+                                        .register_variant_parent(v.name.as_str(), tname.as_str());
                                     self.types
                                         .variant_positional
                                         .insert(v.name.clone(), v.positional);
@@ -30938,15 +31013,30 @@ impl RustCodegen {
         }
     }
 
+    fn emit_nullary_constructor_with_expected_ty(
+        &self,
+        expr: &Expr,
+        expected_ty: &FirTy,
+    ) -> Option<String> {
+        let ExprKind::Var(name) = &expr.kind else {
+            return None;
+        };
+        self.types
+            .parent_for_variant_with_expected(name, expected_ty)
+            .map(|parent| {
+                self.types
+                    .emit_nullary_variant_with_parent(name, parent.as_str())
+            })
+    }
+
     fn emit_expr(&mut self, expr: &Expr) -> String {
         match &expr.kind {
             ExprKind::Var(name) => {
                 // Nullary constructor
                 if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
-                    if self.types.struct_types.contains(parent) {
-                        return name.clone(); // struct type — no prefix
-                    }
-                    return format!("{}::{}", parent, name);
+                    return self
+                        .types
+                        .emit_nullary_variant_with_parent(name, parent.as_str());
                 }
                 if self.binary_global_env_arg_in_scope
                     && self.binary_global_env_fns.contains(name.as_str())
@@ -32044,6 +32134,16 @@ impl RustCodegen {
                     return self.emit_string_concat(expr);
                 }
                 let is_comparison = op == "==" || op == "!=" || op == "=";
+                let lhs_ty = if is_comparison {
+                    Some(self.infer_expr_fir_ty(lhs))
+                } else {
+                    None
+                };
+                let rhs_ty = if is_comparison {
+                    Some(self.infer_expr_fir_ty(rhs))
+                } else {
+                    None
+                };
                 let empty_list_fallback_both_sides = is_comparison
                     && self.expr_needs_empty_list_fallback(lhs)
                     && self.expr_needs_empty_list_fallback(rhs);
@@ -32059,6 +32159,13 @@ impl RustCodegen {
                     } else {
                         self.emit_expr(lhs)
                     }
+                } else if is_comparison {
+                    if let Some(expected_ty) = rhs_ty.as_ref() {
+                        self.emit_nullary_constructor_with_expected_ty(lhs, expected_ty)
+                            .unwrap_or_else(|| self.emit_expr(lhs))
+                    } else {
+                        self.emit_expr(lhs)
+                    }
                 } else {
                     self.emit_expr(lhs)
                 };
@@ -32069,6 +32176,13 @@ impl RustCodegen {
                 {
                     if let ExprKind::Lit(Literal::Str(s)) = &rhs.as_ref().kind {
                         format!("{:?}", s) // &str, no .to_string()
+                    } else {
+                        self.emit_expr(rhs)
+                    }
+                } else if is_comparison {
+                    if let Some(expected_ty) = lhs_ty.as_ref() {
+                        self.emit_nullary_constructor_with_expected_ty(rhs, expected_ty)
+                            .unwrap_or_else(|| self.emit_expr(rhs))
                     } else {
                         self.emit_expr(rhs)
                     }
@@ -42370,6 +42484,47 @@ for x in [1, 2] {
         assert!(
             !rust.contains("if input.clone().items"),
             "fold-valued rule body must not be lowered as a boolean guard: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_rule_condition_uses_typed_parent_for_duplicate_nullary_constructor() {
+        let source = r#"
+# Desired = Shared | DesiredOnly
+# Other = Shared | OtherOnly
+| is_shared(value: Desired) -> Falskt
+| exception shared_case is_shared(value: Desired) -> Sandt under value == Shared
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rules: Vec<&Rule> = stmts
+            .iter()
+            .filter_map(|stmt| {
+                if let Stmt::Rule(rule) = stmt {
+                    Some(rule)
+                } else {
+                    None
+                }
+            })
+            .filter(|rule| {
+                let head = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    Rule::ReactiveScope { .. } => return false,
+                };
+                matches!(&head.kind, ExprKind::App(func, _) if matches!(&func.kind, ExprKind::Var(name) if name == "is_shared"))
+            })
+            .collect();
+        let rust = cg.emit_rule_function("is_shared", &rules);
+        assert!(
+            rust.contains("value.clone() == Desired::Shared"),
+            "typed comparison should qualify duplicate constructor with the parameter enum: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("value.clone() == Other::Shared"),
+            "typed comparison must not use the later duplicate constructor parent: {}",
             rust
         );
     }

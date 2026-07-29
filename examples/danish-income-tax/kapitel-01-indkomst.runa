@@ -226,6 +226,11 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 # Anskaffelsesstatus = Før19Maj1993 | PåEllerEfter19Maj1993
 # SkatterådsTilladelse = TilladelseGivet | TilladelseIkkeGivet
 # RådetsSkøn = Godtgjort | IkkeGodtgjort
+# KapitalPersonligReklassifikation = IngenPersonligReklassifikation | FordringsEllerKontraktNæringReklassifikation | FinansieringsNæringReklassifikation | Kursgevinstlov17Fordringstab | AndelsUdlodningIkkeNormal | Aktieavance17Aktier | Aktieavance19CHvis17Aktier | Investeringsformidler19CHvis17Aktier | MedarbejderinvesteringsselskabAndel
+# Par4Kapitalpost(art: Kapitalpost, beløb_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
+# Par4Kapitalomkostning(beløb_kroner: Heltal)
+# Par4KapitalindkomstInput(poster: List(Par4Kapitalpost), omkostninger: List(Par4Kapitalomkostning))
+# Par4KapitalindkomstResultat(postbeløb_i_kapitalindkomst_kroner: Heltal, fradragsberettigede_omkostninger_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, negativ_nettokapitalindkomst_abs_kroner: Heltal, omklassificeret_personlig_indkomst_kroner: Heltal)
 
 | kapitalindkomst_omfatter(post: Kapitalpost) -> Sandt
 | kapitalomkostning_fradrages_i_kapitalindkomst() -> Sandt
@@ -245,6 +250,36 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 | medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p: Boolsk) -> Sandt
 | exception vedvarende_energi medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p: Boolsk) -> Falskt under anvender_ligningslov8p
 
+| par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Falskt
+| exception par4_stk3_fordrings_eller_kontraktnæring par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == FordringsEllerKontraktNæringReklassifikation
+| exception par4_stk3_finansieringsnæring par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == FinansieringsNæringReklassifikation
+| exception par4_stk3_kursgevinstlov17_tab par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Kursgevinstlov17Fordringstab
+| exception par4_stk4_andelsudlodning_ikke_normal par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == AndelsUdlodningIkkeNormal
+| exception par4_stk5_aktieavance17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Aktieavance17Aktier
+| exception par4_stk5_aktieavance19c_hvis17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Aktieavance19CHvis17Aktier
+| exception par4_stk6_investeringsformidler19c_hvis17 par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == Investeringsformidler19CHvis17Aktier
+| exception par4_stk7_medarbejderinvesteringsselskab par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == MedarbejderinvesteringsselskabAndel
+| par4_kapitalpost_reklassificeres_til_personlig_indkomst(post: Par4Kapitalpost) -> par4_reklassifikation_til_personlig_indkomst(post.personlig_reklassifikation)
+| par4_kapitalpost_i_kapitalindkomst_kroner(post: Par4Kapitalpost) -> post.beløb_kroner
+| exception par4_stk3_til_7_reklassificeret_ikke_kapital par4_kapitalpost_i_kapitalindkomst_kroner(post: Par4Kapitalpost) -> 0 under par4_kapitalpost_reklassificeres_til_personlig_indkomst(post)
+| par4_kapitalpost_i_personlig_indkomst_kroner(post: Par4Kapitalpost) -> 0
+| exception par4_stk3_til_7_reklassificeret_personlig par4_kapitalpost_i_personlig_indkomst_kroner(post: Par4Kapitalpost) -> post.beløb_kroner under par4_kapitalpost_reklassificeres_til_personlig_indkomst(post)
+| par4_kapitalomkostning_kroner(omkostning: Par4Kapitalomkostning) -> penge_positivt_beløb(omkostning.beløb_kroner)
+| par4_postbeløb_i_kapitalindkomst_kroner(input: Par4KapitalindkomstInput) -> foldl(input.poster, 0, |sum, post| sum + par4_kapitalpost_i_kapitalindkomst_kroner(post))
+| par4_fradragsberettigede_omkostninger_kroner(input: Par4KapitalindkomstInput) -> foldl(input.omkostninger, 0, |sum, omkostning| sum + par4_kapitalomkostning_kroner(omkostning))
+| par4_nettokapitalindkomst_kroner(input: Par4KapitalindkomstInput) -> par4_postbeløb_i_kapitalindkomst_kroner(input) - par4_fradragsberettigede_omkostninger_kroner(input)
+| par4_positiv_nettokapitalindkomst_kroner(input: Par4KapitalindkomstInput) -> penge_positivt_beløb(par4_nettokapitalindkomst_kroner(input))
+| par4_negativ_nettokapitalindkomst_abs_kroner(input: Par4KapitalindkomstInput) -> penge_positivt_beløb(0 - par4_nettokapitalindkomst_kroner(input))
+| par4_omklassificeret_personlig_indkomst_kroner(input: Par4KapitalindkomstInput) -> foldl(input.poster, 0, |sum, post| sum + par4_kapitalpost_i_personlig_indkomst_kroner(post))
+| par4_kapitalindkomst_resultat(input: Par4KapitalindkomstInput) -> Par4KapitalindkomstResultat(
+    postbeløb_i_kapitalindkomst_kroner = par4_postbeløb_i_kapitalindkomst_kroner(input),
+    fradragsberettigede_omkostninger_kroner = par4_fradragsberettigede_omkostninger_kroner(input),
+    nettokapitalindkomst_kroner = par4_nettokapitalindkomst_kroner(input),
+    positiv_nettokapitalindkomst_kroner = par4_positiv_nettokapitalindkomst_kroner(input),
+    negativ_nettokapitalindkomst_abs_kroner = par4_negativ_nettokapitalindkomst_abs_kroner(input),
+    omklassificeret_personlig_indkomst_kroner = par4_omklassificeret_personlig_indkomst_kroner(input)
+)
+
 = par4_rente = kapitalindkomst_omfatter(RenterOgLigningslov6)
 = par4_kursgevinst = kapitalindkomst_omfatter(KursgevinstOgTab)
 = par4_passiv_erhverv = kapitalindkomst_omfatter(PassivSelvstændigErhvervsvirksomhed)
@@ -254,6 +289,26 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 = par4_andel_ikke_normal = andelsudlodning_medregnes_personligt(IkkeNormalForrentning)
 = par4_skatteråd_undtager = udlejning_af_driftsmidler_regel_anvendes(Før19Maj1993, TilladelseGivet, Godtgjort)
 = par4_ve_ejer_tælles = medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p = Sandt)
+= par4_kapitalindkomst_resultat_fixture = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        Par4Kapitalpost(art = RenterOgLigningslov6, beløb_kroner = 12000, personlig_reklassifikation = IngenPersonligReklassifikation),
+        Par4Kapitalpost(art = KursgevinstOgTab, beløb_kroner = -5000, personlig_reklassifikation = IngenPersonligReklassifikation),
+        Par4Kapitalpost(art = PassivSelvstændigErhvervsvirksomhed, beløb_kroner = 40000, personlig_reklassifikation = IngenPersonligReklassifikation),
+        Par4Kapitalpost(art = AktieudbytteIkkeAktieindkomst, beløb_kroner = 8000, personlig_reklassifikation = Aktieavance17Aktier),
+        Par4Kapitalpost(art = InvesteringsformidlerBeløb, beløb_kroner = 3000, personlig_reklassifikation = Investeringsformidler19CHvis17Aktier)
+    ],
+    omkostninger = [
+        Par4Kapitalomkostning(beløb_kroner = 2000)
+    ]
+))
+= par4_negativ_nettokapitalindkomst_fixture = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        Par4Kapitalpost(art = RenterOgLigningslov6, beløb_kroner = -20000, personlig_reklassifikation = IngenPersonligReklassifikation)
+    ],
+    omkostninger = [
+        Par4Kapitalomkostning(beløb_kroner = 5000)
+    ]
+))
 
 | par4_renter_er_kapital: par4_rente -> par4_rente == Sandt
 | par4_kursgevinst_er_kapital: par4_kursgevinst -> par4_kursgevinst == Sandt
@@ -264,6 +319,8 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 | par4_ikke_normal_andelsudlodning_personlig: par4_andel_ikke_normal -> par4_andel_ikke_normal == Sandt
 | par4_skatteråd_kan_afskære_nr11: par4_skatteråd_undtager -> par4_skatteråd_undtager == Falskt
 | par4_ve_ejer_tælles_ikke: par4_ve_ejer_tælles -> par4_ve_ejer_tælles == Falskt
+| par4_nettokapitalindkomst_beregnes_beløb: par4_kapitalindkomst_resultat_fixture -> par4_kapitalindkomst_resultat_fixture.postbeløb_i_kapitalindkomst_kroner == 47000 && par4_kapitalindkomst_resultat_fixture.fradragsberettigede_omkostninger_kroner == 2000 && par4_kapitalindkomst_resultat_fixture.nettokapitalindkomst_kroner == 45000 && par4_kapitalindkomst_resultat_fixture.positiv_nettokapitalindkomst_kroner == 45000 && par4_kapitalindkomst_resultat_fixture.omklassificeret_personlig_indkomst_kroner == 11000
+| par4_negativ_nettokapitalindkomst_beregnes: par4_negativ_nettokapitalindkomst_fixture -> par4_negativ_nettokapitalindkomst_fixture.nettokapitalindkomst_kroner == -25000 && par4_negativ_nettokapitalindkomst_fixture.positiv_nettokapitalindkomst_kroner == 0 && par4_negativ_nettokapitalindkomst_fixture.negativ_nettokapitalindkomst_abs_kroner == 25000
 
 ----
 § 4 a. Aktieindkomst omfatter det samlede beløb af:
