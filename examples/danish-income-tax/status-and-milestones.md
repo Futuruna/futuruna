@@ -237,7 +237,8 @@ encoded as a temporal rule on top of the consolidation.
   BEK 839 forskudskort generation, BEK 1094 2026 indeholdelsesprocent,
   Kildeskatteloven §§ 60-62/62 A/62 C/67 slutopgørelse balance,
   restskat timing, date-derived B-skat rate windows, B-skat minimum-rate
-  completion plans, date-derived § 62 A interest spans, and overskydende-skat
+  completion plans, restskat rateplans with exact and mixed large/small
+  installment splits, date-derived § 62 A interest spans, and overskydende-skat
   compensation posture,
   Opkrævningsloven payment deadlines and § 7 late-payment rate posture,
   shared money/rounding posture for whole kroner, ten-kroner floors,
@@ -325,6 +326,12 @@ Current decision:
   missing supplemental rate count, divisible fixture amount, supplemental due
   dates, total rate count, and § 58 last-timely-payment day together instead of
   scattering late-year calendar assumptions across audit rules.
+- `KildeskatRestskatRateplan` and `KildeskatRestskatBeløbsdeling` now expose
+  the executable installment schedule layer for § 61. The model records
+  statutory branch, first/last due date, rate count, last-timely-payment day,
+  and exact-vs-mixed large/small installment splits, including the January
+  18.300 kr. over nine remaining B-skat rates case with three 2.034 kr. rates
+  and six 2.033 kr. rates.
 - `KildeskatPar62ARenteDatoInput` and
   `KildeskatPar62AForsinketUdbetalingsdatoInput` keep § 62 A issue and payout
   scheduling date-based. They derive the old "påbegyndte måneder" helper input
@@ -432,9 +439,9 @@ Review candidates to revisit deliberately, not as broad churn:
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for municipal/church
   settlement edge cases, direct Nationalbank raw-data ingestion beyond the
-  Skattestyrelsen-published Opkrævningsloven § 7 annual rate, merged restskat
-  rate schedules that show large/small installments per due date, and remaining AM
-  edge cases beyond the first source-explicit special-case slice. The AM-law
+  Skattestyrelsen-published Opkrævningsloven § 7 annual rate, the
+  system-supported start date for late residual restskat three-rate collection,
+  and remaining AM edge cases beyond the first source-explicit special-case slice. The AM-law
   slice now covers ordinary wage remuneration,
   taxable benefits, § 3 exclusions, self-employed bases with and without
   virksomhedsordning, library-fee compensation, the 2026 youth exemption, and
@@ -458,7 +465,8 @@ Review candidates to revisit deliberately, not as broad churn:
   and the 2026 source-chain amendment to the § 7, stk. 1 late-payment
   supplement.
   The first Kildeskatteloven slutopgørelse slice now covers § 60 crediting,
-  § 61 restskat plus percentage supplement and timing posture, § 62
+  § 61 restskat plus percentage supplement, timing posture, B-skat/restskat
+  rateplans with large/small installment splits, § 62
   overskydende skat plus compensation/refund posture, § 60 spouse offsetting,
   § 58 B-skat calendar projection, § 62 A amended annual statement interest
   posture with date-derived month counts, § 62 C minimum thresholds, and § 67
