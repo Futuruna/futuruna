@@ -365,7 +365,9 @@ Current decision:
   § 12 stk. 2. It keeps the § 9 state-tax basket and state personfradrag tax
   value together so the unused value after § 6, § 7, § 7 a, § 8, and
   § 8 a stk. 2 is derived inside one legal case instead of passed through a
-  chain of loose remainders.
+  chain of loose remainders. The ordinary wage-earner calculator now projects
+  its state-tax component fields through this allocator, using tax-year-aware
+  mapping because § 7 is topskat before 2026 and mellemskat from 2026 onward.
 - `Par11NegativKapitalNedslagSag` uses product-scoped `|` rules for § 11.
   It keeps tax year, the taxpayer's net-capital income, the spouse's
   net-capital income, samliv status, and municipal/§ 8 c tax-liability posture
@@ -726,9 +728,10 @@ M4 - Ordinary taxpayer calculator
   deterministic AM contribution, personal income after AM, ordinary taxable
   income after derived Ligningsloven §§ 9 J/9 K wage-earner deductions,
   bundskat, topskat, municipal tax, church tax, § 10 personfradrag, § 12
-  personfradrag tax values, after-personfradrag totals, and a § 13
-  ordinary-positive-income boundary. Separate § 13 calculator breakdown fixtures
-  now cover spouse-transfer deficit, LL § 33 A relief, 2026 post-PBL-repeal
+  personfradrag tax values and § 9/§ 12 state-tax allocation,
+  after-personfradrag totals, and a § 13 ordinary-positive-income boundary.
+  Separate § 13 calculator breakdown fixtures now cover spouse-transfer deficit,
+  LL § 33 A relief, 2026 post-PBL-repeal
   transfer, and same-business loss carry-forward cases. 2026 Copenhagen
   wage-earner fixtures now exercise mellemskat, topskat, and toptopskat under
   the LOV nr. 482/2024 reform thresholds, and a 2026 Copenhagen positive
@@ -808,7 +811,8 @@ M5 - Audit suite
   personfradrag, covered § 10 stk. 5-6 choice/deadline/exclusion posture,
   covered § 11 negative net-capital reduction with spouse threshold pooling,
   spouse positive-capital offset, statutory reduction order, and unused spouse
-  transfer, covered § 12 unused state personfradrag tax-value allocation,
+  transfer, covered § 12 unused state personfradrag tax-value allocation and
+  wage-earner component projection,
   covered 2026 state-tax reform layers, covered § 13 deficit mechanics,
   mellemskat positive-net-capital and spouse-threshold activation,
   § 7 stk. 5 spouse negative-capital offset/effective-grundbeløb activation,
@@ -871,7 +875,8 @@ M6 - Website integration
   first § 8 a/§ 67 share-income annual-settlement scenario,
   first § 8 c limited-taxpayer municipal-equivalent tax calculation,
   first § 11 negative net-capital reduction order and spouse-transfer audit,
-  first § 12 unused state personfradrag tax-value allocation audit,
+  first § 12 unused state personfradrag tax-value allocation audit and
+  wage-earner component projection,
   first § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
   household benefit-cliff/source-tension probe plus a boligsikring § 22
   threshold-cliff probe,
@@ -902,7 +907,7 @@ M7 - Personfradrag and deficit layer
   net-capital reduction covers spouse threshold pooling, spouse positive-capital
   offset, statutory tax-order reduction, and unused spouse transfer, § 12
   unused state personfradrag tax-value allocation across the § 9 state-tax
-  basket, spouse
+  basket now wired into the wage-earner calculator, spouse
   deficit transfer and negative personal income carry-forward are fixture-tested,
   foreign/pension spouse transfer limitations are executable, and same-business
   loss carry-forward amounts are fixture-tested. § 13's first dependent-source validation now

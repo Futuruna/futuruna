@@ -146,10 +146,31 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | kommunal_og_kirkelig_indkomstskat_før_personfradrag(input: LønmodtagerInput) -> kommuneskat_før_personfradrag(input) + kirkeskat_før_personfradrag(input)
 | samlet_indkomstskat_før_personfradrag(input: LønmodtagerInput) -> statslig_indkomstskat_før_personfradrag(input) + kommunal_og_kirkelig_indkomstskat_før_personfradrag(input)
 | samlet_inkl_am_før_personfradrag(input: LønmodtagerInput) -> arbejdsmarkedsbidrag_for(input) + samlet_indkomstskat_før_personfradrag(input)
-| bundskat_efter_personfradrag(input: LønmodtagerInput) -> skat_efter_nedsættelse(bundskat_før_personfradrag(input), statslig_personfradrag_skatteværdi_for(input))
+| lønmodtager_par7_skat_før_personfradrag(input: LønmodtagerInput) -> topskat_før_personfradrag(input) under input.skatteår < 2026
+| exception reform_par7_er_mellemskat lønmodtager_par7_skat_før_personfradrag(input: LønmodtagerInput) -> mellemskat_før_personfradrag(input) under input.skatteår >= 2026
+| lønmodtager_par7a_skat_før_personfradrag(input: LønmodtagerInput) -> 0 under input.skatteår < 2026
+| exception reform_par7a_er_topskat lønmodtager_par7a_skat_før_personfradrag(input: LønmodtagerInput) -> topskat_før_personfradrag(input) under input.skatteår >= 2026
+| lønmodtager_par8_skat_før_personfradrag(input: LønmodtagerInput) -> 0 under input.skatteår < 2026
+| exception reform_par8_er_toptopskat lønmodtager_par8_skat_før_personfradrag(input: LønmodtagerInput) -> toptopskat_før_personfradrag(input) under input.skatteår >= 2026
+| lønmodtager_statsskat_personfradrag_input(input: LønmodtagerInput) -> PersonfradragStatsskatNedsættelseInput(
+    par6_skat_kroner = bundskat_før_personfradrag(input),
+    par7_skat_kroner = lønmodtager_par7_skat_før_personfradrag(input),
+    par7a_skat_kroner = lønmodtager_par7a_skat_før_personfradrag(input),
+    par8_skat_kroner = lønmodtager_par8_skat_før_personfradrag(input),
+    par8a_stk2_skat_kroner = 0,
+    statslig_skatteværdi_kroner = statslig_personfradrag_skatteværdi_for(input)
+)
+| lønmodtager_statsskat_personfradrag_nedsættelse(input: LønmodtagerInput) -> personfradrag_statsskat_nedsættelse_resultat(lønmodtager_statsskat_personfradrag_input(input))
+| bundskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_statsskat_personfradrag_nedsættelse(input).par6_efter_kroner
+| mellemskat_efter_personfradrag(input: LønmodtagerInput) -> 0 under input.skatteår < 2026
+| exception reform_mellemskat_efter_personfradrag mellemskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_statsskat_personfradrag_nedsættelse(input).par7_efter_kroner under input.skatteår >= 2026
+| topskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_statsskat_personfradrag_nedsættelse(input).par7_efter_kroner under input.skatteår < 2026
+| exception reform_topskat_efter_personfradrag topskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_statsskat_personfradrag_nedsættelse(input).par7a_efter_kroner under input.skatteår >= 2026
+| toptopskat_efter_personfradrag(input: LønmodtagerInput) -> 0 under input.skatteår < 2026
+| exception reform_toptopskat_efter_personfradrag toptopskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_statsskat_personfradrag_nedsættelse(input).par8_efter_kroner under input.skatteår >= 2026
 | kommuneskat_efter_personfradrag(input: LønmodtagerInput) -> skat_efter_nedsættelse(kommuneskat_før_personfradrag(input), kommunal_personfradrag_skatteværdi_for(input))
 | kirkeskat_efter_personfradrag(input: LønmodtagerInput) -> skat_efter_nedsættelse(kirkeskat_før_personfradrag(input), kirkelig_personfradrag_skatteværdi_for(input))
-| statslig_indkomstskat_efter_personfradrag_før_skatteloft(input: LønmodtagerInput) -> bundskat_efter_personfradrag(input) + mellemskat_før_personfradrag(input) + topskat_før_personfradrag(input) + toptopskat_før_personfradrag(input)
+| statslig_indkomstskat_efter_personfradrag_før_skatteloft(input: LønmodtagerInput) -> bundskat_efter_personfradrag(input) + mellemskat_efter_personfradrag(input) + topskat_efter_personfradrag(input) + toptopskat_efter_personfradrag(input)
 | kommunal_og_kirkelig_indkomstskat_efter_personfradrag(input: LønmodtagerInput) -> kommuneskat_efter_personfradrag(input) + kirkeskat_efter_personfradrag(input)
 | samlet_indkomstskat_efter_personfradrag_før_skatteloft(input: LønmodtagerInput) -> statslig_indkomstskat_efter_personfradrag_før_skatteloft(input) + kommunal_og_kirkelig_indkomstskat_efter_personfradrag(input)
 | samlet_inkl_am_efter_personfradrag_før_skatteloft(input: LønmodtagerInput) -> arbejdsmarkedsbidrag_for(input) + samlet_indkomstskat_efter_personfradrag_før_skatteloft(input)
@@ -249,9 +270,9 @@ nedsat med de overskydende procenter.
 )
 | lønmodtager_skat_efter_personfradrag_før_skatteloft(input: LønmodtagerInput) -> LønmodtagerSkattekomponenter(
     bundskat_kroner = bundskat_efter_personfradrag(input),
-    mellemskat_kroner = mellemskat_før_personfradrag(input),
-    topskat_kroner = topskat_før_personfradrag(input),
-    toptopskat_kroner = toptopskat_før_personfradrag(input),
+    mellemskat_kroner = mellemskat_efter_personfradrag(input),
+    topskat_kroner = topskat_efter_personfradrag(input),
+    toptopskat_kroner = toptopskat_efter_personfradrag(input),
     kommuneskat_kroner = kommuneskat_efter_personfradrag(input),
     kirkeskat_kroner = kirkeskat_efter_personfradrag(input),
     statslig_indkomstskat_kroner = statslig_indkomstskat_efter_personfradrag_før_skatteloft(input),
