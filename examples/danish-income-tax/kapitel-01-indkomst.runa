@@ -76,8 +76,14 @@ iværksætterkonto
 | er_personlig_indkomst(vurdering: IndkomstVurdering) -> vurdering.indgår_i_skattepligtig_indkomst && vurdering.er_kapitalindkomst == Falskt
 | fradrages_i_personlig_indkomst(fradrag: PersonligFradrag) -> Sandt
 
-= par3_personlig_default = er_personlig_indkomst(IndkomstVurdering(Sandt, Falskt))
-= par3_kapital_udelukket = er_personlig_indkomst(IndkomstVurdering(Sandt, Sandt))
+= par3_personlig_default = er_personlig_indkomst(IndkomstVurdering(
+    indgår_i_skattepligtig_indkomst = Sandt,
+    er_kapitalindkomst = Falskt
+))
+= par3_kapital_udelukket = er_personlig_indkomst(IndkomstVurdering(
+    indgår_i_skattepligtig_indkomst = Sandt,
+    er_kapitalindkomst = Sandt
+))
 = par3_fradrag_am = fradrages_i_personlig_indkomst(Arbejdsmarkedsbidrag)
 = par3_fradrag_pension = fradrages_i_personlig_indkomst(PensionsbidragOgPræmier)
 = par3_fradrag_erhverv = fradrages_i_personlig_indkomst(ErhverveSikreVedligeholdeSelvstændigIndkomst)
@@ -310,7 +316,12 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
     | aktieindkomst_efter_fradrag_kroner() -> positiv_aktieindkomst_kroner() - fradrag_i_aktieindkomst_kroner()
     | afskåret_fradrag_kroner() -> ønsket_fradrag_kroner() - fradrag_i_aktieindkomst_kroner()
     | dobbeltfradrag_afskåret() -> input.fradraget_i_personlig_indkomst && ønsket_fradrag_kroner() > 0
-    | resultat() -> AktiePensionsFradragResultat(fradrag_i_aktieindkomst_kroner(), aktieindkomst_efter_fradrag_kroner(), afskåret_fradrag_kroner(), dobbeltfradrag_afskåret())
+    | resultat() -> AktiePensionsFradragResultat(
+        fradrag_i_aktieindkomst_kroner = fradrag_i_aktieindkomst_kroner(),
+        aktieindkomst_efter_fradrag_kroner = aktieindkomst_efter_fradrag_kroner(),
+        afskåret_fradrag_kroner = afskåret_fradrag_kroner(),
+        dobbeltfradrag_afskåret = dobbeltfradrag_afskåret()
+    )
 }
 
 | par4a_pensionsfradrag_sag(input: AktiePensionsFradragInput) -> Par4aPensionsfradragSag(input)

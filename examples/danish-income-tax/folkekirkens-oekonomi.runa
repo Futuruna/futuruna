@@ -59,8 +59,16 @@ og lade det hidtidige stk. 2 blive stk. 3 med en tekstændring.
 | exception folkekirkemedlem_pålignes_kirkeskat kirkeskat_sats_basispoint(input: KirkeskatInput) -> input.kirkelig_ligningsprocent_basispoint under input.folkekirkemedlem
 | kirkeskat_før_personfradrag_kroner(input: KirkeskatInput) -> penge_beløb_gange_basispoint_kroner(input.skattepligtig_indkomst_kroner, kirkeskat_sats_basispoint(input))
 
-= kirkeskat_medlem_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(460000, 80, Sandt))
-= kirkeskat_ikke_medlem_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(460000, 80, Falskt))
+= kirkeskat_medlem_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(
+    skattepligtig_indkomst_kroner = 460000,
+    kirkelig_ligningsprocent_basispoint = 80,
+    folkekirkemedlem = Sandt
+))
+= kirkeskat_ikke_medlem_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(
+    skattepligtig_indkomst_kroner = 460000,
+    kirkelig_ligningsprocent_basispoint = 80,
+    folkekirkemedlem = Falskt
+))
 
 | folkekirkemedlem_pålignes_ligning: kirkeskat_medlem_fixture -> kirkeskat_medlem_fixture == 3680
 | ikke_medlem_pålignes_ikke_kirkeskat: kirkeskat_ikke_medlem_fixture -> kirkeskat_ikke_medlem_fixture == 0

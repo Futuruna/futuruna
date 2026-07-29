@@ -31,7 +31,11 @@ without using AM-bidrag as part of the §§ 6-9 helårsskat component.
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
-= delaar1_par14_input = LønmodtagerPar14Input(FuldSkattepligtIndtræder, delaar1_input, 180)
+= delaar1_par14_input = LønmodtagerPar14Input(
+    skattepligtsændring = FuldSkattepligtIndtræder,
+    delårs_input = delaar1_input,
+    skattepligtsdage = 180
+)
 = delaar1_par14 = beregn_lønmodtager_par14(delaar1_par14_input)
 
 | delaar1_helårs_bruttoløn: delaar1_par14 -> delaar1_par14.helår.bruttoløn_kroner == 608333

@@ -26,12 +26,33 @@ Large-withholder posture:
 = afregning_april_2026 = OpkrævningAfregningsperiode(2026, 4)
 = afregning_december_2025 = OpkrævningAfregningsperiode(2025, 12)
 = afregning_december_2026 = OpkrævningAfregningsperiode(2026, 12)
-= afregning_ordinær_tilsvarshistorik = OpkrævningTilsvarHistorik(100000, 500000)
-= afregning_stor_tilsvarshistorik = OpkrævningTilsvarHistorik(300000, 500000)
-= afregning_region_tilsvarshistorik = OpkrævningTilsvarHistorik(300000, 1200000)
-= afregning_marts_bankkalender = OpkrævningBankkalender(Falskt, 0, 31)
-= afregning_april_banklukket_kalender = OpkrævningBankkalender(Sandt, 12, 30)
-= afregning_december_bankkalender = OpkrævningBankkalender(Falskt, 0, 30)
+= afregning_ordinær_tilsvarshistorik = OpkrævningTilsvarHistorik(
+    am_tilsvar_forrige_12_måneder_kroner = 100000,
+    a_skat_tilsvar_forrige_12_måneder_kroner = 500000
+)
+= afregning_stor_tilsvarshistorik = OpkrævningTilsvarHistorik(
+    am_tilsvar_forrige_12_måneder_kroner = 300000,
+    a_skat_tilsvar_forrige_12_måneder_kroner = 500000
+)
+= afregning_region_tilsvarshistorik = OpkrævningTilsvarHistorik(
+    am_tilsvar_forrige_12_måneder_kroner = 300000,
+    a_skat_tilsvar_forrige_12_måneder_kroner = 1200000
+)
+= afregning_marts_bankkalender = OpkrævningBankkalender(
+    ordinær_fristsdag_banklukkedag = Falskt,
+    førstkommende_bankdag_efter_ordinær_fristsdag_dag = 0,
+    sidste_bankdag_i_afregningsmåned_dag = 31
+)
+= afregning_april_banklukket_kalender = OpkrævningBankkalender(
+    ordinær_fristsdag_banklukkedag = Sandt,
+    førstkommende_bankdag_efter_ordinær_fristsdag_dag = 12,
+    sidste_bankdag_i_afregningsmåned_dag = 30
+)
+= afregning_december_bankkalender = OpkrævningBankkalender(
+    ordinær_fristsdag_banklukkedag = Falskt,
+    førstkommende_bankdag_efter_ordinær_fristsdag_dag = 0,
+    sidste_bankdag_i_afregningsmåned_dag = 30
+)
 = afregning_betaling_2026_03_31 = OpkrævningBetaling(2026, 3, 31)
 = afregning_betaling_2026_04_10 = OpkrævningBetaling(2026, 4, 10)
 = afregning_betaling_2026_04_11 = OpkrævningBetaling(2026, 4, 11)

@@ -146,8 +146,16 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | negativ_kapital_ægtefælle_beløbsgrænse_kan_forhøjes(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 | uudnyttet_negativ_kapital_nedslag_overføres_til_ægtefælle(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 
-= par11_nedslag_2025 = negativ_kapital_nedslag_kroner(NegativKapitalNedslagInput(2025, 40000, Sandt))
-= par11_nedslag_loft = negativ_kapital_nedslag_kroner(NegativKapitalNedslagInput(2025, 80000, Sandt))
+= par11_nedslag_2025 = negativ_kapital_nedslag_kroner(NegativKapitalNedslagInput(
+    skatteår = 2025,
+    negativ_nettokapitalindkomst_kroner = 40000,
+    betaler_kommunal_eller_par8c = Sandt
+))
+= par11_nedslag_loft = negativ_kapital_nedslag_kroner(NegativKapitalNedslagInput(
+    skatteår = 2025,
+    negativ_nettokapitalindkomst_kroner = 80000,
+    betaler_kommunal_eller_par8c = Sandt
+))
 
 | par11_2025_8pct: par11_nedslag_2025 -> par11_nedslag_2025 == 3200
 | par11_loft_50000: par11_nedslag_loft -> par11_nedslag_loft == 4000

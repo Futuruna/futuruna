@@ -37,7 +37,11 @@ omfang som nævnt i ligningslovens § 8 M,
 | arbejdsmarkedsbidrag_input_for(input: LønmodtagerInput) -> ArbejdsmarkedsbidragInput(input.bruttoløn_kroner, 0)
 | arbejdsmarkedsbidrag_for(input: LønmodtagerInput) -> arbejdsmarkedsbidrag_lønmodtager_kroner(arbejdsmarkedsbidrag_input_for(input))
 | personlig_indkomst_efter_am(input: LønmodtagerInput) -> input.bruttoløn_kroner - arbejdsmarkedsbidrag_for(input)
-| ligningslov_fradrag_input_for(input: LønmodtagerInput) -> LigningslovLønmodtagerFradragInput(input.skatteår, input.bruttoløn_kroner, Falskt)
+| ligningslov_fradrag_input_for(input: LønmodtagerInput) -> LigningslovLønmodtagerFradragInput(
+    skatteår = input.skatteår,
+    arbejdsmarkedsbidragsgrundlag_kroner = input.bruttoløn_kroner,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+)
 | beskæftigelsesfradrag_for(input: LønmodtagerInput) -> ll_lønmodtager_beskæftigelsesfradrag_kroner(ligningslov_fradrag_input_for(input))
 | jobfradrag_for(input: LønmodtagerInput) -> ll_lønmodtager_jobfradrag_kroner(ligningslov_fradrag_input_for(input))
 | standard_ligningsmæssige_fradrag_for(input: LønmodtagerInput) -> ll_lønmodtager_standardfradrag_kroner(ligningslov_fradrag_input_for(input))
@@ -97,8 +101,15 @@ Tabelkolonner: Kommunenavn, År, Kommuneskat, Kirkeskat, Sundhedsbidrag,
 Bundskat, I alt, Skatteloftsnedslag, Grundskyldspromille (Kommune).
 ----
 
-| kommuneskat_input_for(input: LønmodtagerInput) -> KommunalIndkomstskatInput(almindelig_skattepligtig_indkomst_fixture(input), kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint)
-| kirkeskat_input_for(input: LønmodtagerInput) -> KirkeskatInput(almindelig_skattepligtig_indkomst_fixture(input), kommunale_parametre_for(input.skatteår, input.kommune).kirkeskat_basispoint, input.betaler_kirkeskat)
+| kommuneskat_input_for(input: LønmodtagerInput) -> KommunalIndkomstskatInput(
+    skattepligtig_indkomst_kroner = almindelig_skattepligtig_indkomst_fixture(input),
+    udskrivningsprocent_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
+)
+| kirkeskat_input_for(input: LønmodtagerInput) -> KirkeskatInput(
+    skattepligtig_indkomst_kroner = almindelig_skattepligtig_indkomst_fixture(input),
+    kirkelig_ligningsprocent_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kirkeskat_basispoint,
+    folkekirkemedlem = input.betaler_kirkeskat
+)
 | kirkeskat_sats_for(input: LønmodtagerInput) -> kirkeskat_sats_basispoint(kirkeskat_input_for(input))
 | kommuneskat_før_personfradrag(input: LønmodtagerInput) -> kommunal_indkomstskat_før_personfradrag_kroner(kommuneskat_input_for(input))
 | kirkeskat_før_personfradrag(input: LønmodtagerInput) -> kirkeskat_før_personfradrag_kroner(kirkeskat_input_for(input))

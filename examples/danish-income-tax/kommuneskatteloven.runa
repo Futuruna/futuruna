@@ -63,8 +63,13 @@ forhøjes den første med 1, og de øvrige bortkastes.
 
 | kommunal_udskrivningsprocent_basispoint(input: KommunalIndkomstskatInput) -> input.udskrivningsprocent_basispoint
 
-= kommuneskattelov_skattepligt_fixture = kommunal_indkomstskattepligt(KommunalSkattepligtInput(Sandt))
-= kommuneskattelov_københavn_2025_fixture = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(460000, 2350))
+= kommuneskattelov_skattepligt_fixture = kommunal_indkomstskattepligt(KommunalSkattepligtInput(
+    indkomstskattepligtig_til_staten_efter_kildeskatteloven = Sandt
+))
+= kommuneskattelov_københavn_2025_fixture = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(
+    skattepligtig_indkomst_kroner = 460000,
+    udskrivningsprocent_basispoint = 2350
+))
 
 | kommunal_skattepligt_følger_statsskattepligt: kommuneskattelov_skattepligt_fixture -> kommuneskattelov_skattepligt_fixture == Sandt
 | kommunal_skat_beregnes_af_personskattepligtig_indkomst: kommuneskattelov_københavn_2025_fixture -> kommuneskattelov_københavn_2025_fixture == 108100

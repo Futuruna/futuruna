@@ -79,18 +79,46 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
 
 | ligningslov_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> penge_mindste_beløb(a_kroner, b_kroner)
 
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(2024, 1065, 45100) under skatteår == 2024
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(2025, 1230, 55600) under skatteår == 2025
-| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(2026, 1275, 63300) under skatteår == 2026
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2024,
+    beskæftigelsesfradrag_basispoint = 1065,
+    beskæftigelsesfradrag_maks_kroner = 45100
+) under skatteår == 2024
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2025,
+    beskæftigelsesfradrag_basispoint = 1230,
+    beskæftigelsesfradrag_maks_kroner = 55600
+) under skatteår == 2025
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2026,
+    beskæftigelsesfradrag_basispoint = 1275,
+    beskæftigelsesfradrag_maks_kroner = 63300
+) under skatteår == 2026
 | ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input: Ligningslov9JInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
 | ll9j_beregnet_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> penge_beløb_gange_basispoint_kroner(ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_basispoint)
 | ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> 0
 | exception ll9j_almindelig_lønmodtager ll9j_beskæftigelsesfradrag_kroner(input: Ligningslov9JInput) -> ligningslov_mindste_beløb(ll9j_beregnet_beskæftigelsesfradrag_kroner(input), ll9j_parametre_for(input.skatteår).beskæftigelsesfradrag_maks_kroner) under ll9j_almindeligt_beskæftigelsesfradrag_berettiget(input)
 
-= ll9j_2025_500000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2025, 500000, Falskt))
-= ll9j_2026_600000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, 600000, Falskt))
-= ll9j_2026_240000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, 240000, Falskt))
-= ll9j_udland_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(2026, 600000, Sandt))
+= ll9j_2025_500000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(
+    skatteår = 2025,
+    arbejdsmarkedsbidragsgrundlag_kroner = 500000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
+= ll9j_2026_600000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(
+    skatteår = 2026,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
+= ll9j_2026_240000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(
+    skatteår = 2026,
+    arbejdsmarkedsbidragsgrundlag_kroner = 240000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
+= ll9j_udland_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(
+    skatteår = 2026,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Sandt
+))
 
 | ll9j_2025_løn_loftes: ll9j_2025_500000_fixture -> ll9j_2025_500000_fixture == 55600
 | ll9j_2026_løn_loftes: ll9j_2026_600000_fixture -> ll9j_2026_600000_fixture == 63300
@@ -154,17 +182,45 @@ Jobfradrag, § 9 K
 | ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> 0
 | exception ll9k_almindelig_lønmodtager ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> ligningslov_mindste_beløb(ll9k_beregnet_jobfradrag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_maks_kroner) under ll9k_almindeligt_jobfradrag_berettiget(input)
 
-| ll_lønmodtager_9j_input(input: LigningslovLønmodtagerFradragInput) -> Ligningslov9JInput(input.skatteår, input.arbejdsmarkedsbidragsgrundlag_kroner, input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver)
-| ll_lønmodtager_9k_input(input: LigningslovLønmodtagerFradragInput) -> Ligningslov9KInput(input.skatteår, input.arbejdsmarkedsbidragsgrundlag_kroner, input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver)
+| ll_lønmodtager_9j_input(input: LigningslovLønmodtagerFradragInput) -> Ligningslov9JInput(
+    skatteår = input.skatteår,
+    arbejdsmarkedsbidragsgrundlag_kroner = input.arbejdsmarkedsbidragsgrundlag_kroner,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver
+)
+| ll_lønmodtager_9k_input(input: LigningslovLønmodtagerFradragInput) -> Ligningslov9KInput(
+    skatteår = input.skatteår,
+    arbejdsmarkedsbidragsgrundlag_kroner = input.arbejdsmarkedsbidragsgrundlag_kroner,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver
+)
 | ll_lønmodtager_beskæftigelsesfradrag_kroner(input: LigningslovLønmodtagerFradragInput) -> ll9j_beskæftigelsesfradrag_kroner(ll_lønmodtager_9j_input(input))
 | ll_lønmodtager_jobfradrag_kroner(input: LigningslovLønmodtagerFradragInput) -> ll9k_jobfradrag_kroner(ll_lønmodtager_9k_input(input))
 | ll_lønmodtager_standardfradrag_kroner(input: LigningslovLønmodtagerFradragInput) -> ll_lønmodtager_beskæftigelsesfradrag_kroner(input) + ll_lønmodtager_jobfradrag_kroner(input)
 
-= ll9k_2025_500000_fixture = ll9k_jobfradrag_kroner(Ligningslov9KInput(2025, 500000, Falskt))
-= ll9k_2026_600000_fixture = ll9k_jobfradrag_kroner(Ligningslov9KInput(2026, 600000, Falskt))
-= ll9k_2026_240000_fixture = ll9k_jobfradrag_kroner(Ligningslov9KInput(2026, 240000, Falskt))
-= ll_lønmodtager_2026_600000_fixture = ll_lønmodtager_standardfradrag_kroner(LigningslovLønmodtagerFradragInput(2026, 600000, Falskt))
-= ll_lønmodtager_2026_240000_fixture = ll_lønmodtager_standardfradrag_kroner(LigningslovLønmodtagerFradragInput(2026, 240000, Falskt))
+= ll9k_2025_500000_fixture = ll9k_jobfradrag_kroner(Ligningslov9KInput(
+    skatteår = 2025,
+    arbejdsmarkedsbidragsgrundlag_kroner = 500000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
+= ll9k_2026_600000_fixture = ll9k_jobfradrag_kroner(Ligningslov9KInput(
+    skatteår = 2026,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
+= ll9k_2026_240000_fixture = ll9k_jobfradrag_kroner(Ligningslov9KInput(
+    skatteår = 2026,
+    arbejdsmarkedsbidragsgrundlag_kroner = 240000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
+= ll_lønmodtager_2026_600000_fixture = ll_lønmodtager_standardfradrag_kroner(LigningslovLønmodtagerFradragInput(
+    skatteår = 2026,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
+= ll_lønmodtager_2026_240000_fixture = ll_lønmodtager_standardfradrag_kroner(LigningslovLønmodtagerFradragInput(
+    skatteår = 2026,
+    arbejdsmarkedsbidragsgrundlag_kroner = 240000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
 
 | ll9k_2025_løn_loftes: ll9k_2025_500000_fixture -> ll9k_2025_500000_fixture == 2900
 | ll9k_2026_løn_loftes: ll9k_2026_600000_fixture -> ll9k_2026_600000_fixture == 3100

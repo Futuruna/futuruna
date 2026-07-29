@@ -401,7 +401,11 @@ grænse, jf. stk. 4.
 | exception kildeskat_skattepligtig_anmodning_lægges_til_grund kildeskat_forskudsgrundlag_ændres(input: KildeskatForskudsændringInput) -> Sandt under input.skattepligtig_anmodning && input.oplysninger_tilstrækkeligt_sandsynliggjort
 | exception kildeskat_forvaltning_kan_ændre_forskudsgrundlag kildeskat_forskudsgrundlag_ændres(input: KildeskatForskudsændringInput) -> Sandt under input.forvaltning_har_nærliggende_afvigelsesgrund && input.ændring_overstiger_fast_grænse
 
-= kildeskat_forskudsgrundlag_sidste_års_fixture = kildeskat_forskudsgrundlag_kilde(KildeskatForskudsgrundlagInput(Sandt, Falskt, Sandt))
+= kildeskat_forskudsgrundlag_sidste_års_fixture = kildeskat_forskudsgrundlag_kilde(KildeskatForskudsgrundlagInput(
+    sidste_års_forskudsændring_rettidig = Sandt,
+    førstegangsredegørelse = Falskt,
+    oplysning_senest_foerste_september = Sandt
+))
 = kildeskat_forskudsændring_anmodning_fixture = kildeskat_forskudsgrundlag_ændres(KildeskatForskudsændringInput(
     skattepligtig_anmodning = Sandt,
     oplysninger_tilstrækkeligt_sandsynliggjort = Sandt,

@@ -255,7 +255,8 @@ encoded as a temporal rule on top of the consolidation.
 - The current `.runa` slices encode source validity, source lineage, the
   §§ 1-4 b income taxonomy including amount-level § 4 a pension deduction from
   positive share income, the §§ 5-9 state-tax skeleton including amount-level
-  § 6 spouse negative net-capital offset, the §§ 10-13
+  § 6 spouse negative net-capital offset and § 7 stk. 5 spouse
+  positive-capital threshold/negative-capital offset, the §§ 10-13
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
   slice, the §§ 21-28 concluding provisions slice, ordinary and special-case
   AM-law,
@@ -328,8 +329,10 @@ Current decision:
   positional arguments would hide legal meaning, especially for boolean flags,
   statutory rate rows, tax-credit baskets, and settlement/date cases.
 - A readability sweep now uses named construction for the broad executable
-  Danish-income-tax records found by scan; short date-like triples and compact
-  arithmetic helpers can remain positional where that is still idiomatic.
+  Danish-income-tax records found by scan, including boolean-heavy fixtures,
+  statutory rate rows, remittance calendar/history facts, and audit inputs;
+  short date-like triples and compact arithmetic helpers can remain positional
+  where that is still idiomatic.
 - `opkraevningsloven.runa` now splits the former 11-field remittance input into
   `OpkrævningAfregningsperiode`, `OpkrævningTilsvarHistorik`,
   `OpkrævningBankkalender`, `OpkrævningBetaling`, and a small composed
@@ -357,6 +360,11 @@ Current decision:
   income together so the offset amount, reduced positive capital basis, and
   residual negative amount are derived from one legal case rather than passed as
   loose scalars.
+- `Par7ÆgtefælleKapitalStk5Sag` uses product-scoped `|` rules for the § 7,
+  stk. 5 capital-threshold layer. It keeps the taxpayer's net-capital income,
+  the spouse's positive net-capital income, the regulated grundbeløb, and
+  samliv status together so negative capital is offset before the spouse's
+  effective threshold is increased.
 - `slutopgoerelse.runa` keeps the year-end balance as `KildeskatSlutopgørelseInput`
   plus a statutory `KildeskatPar60Kreditter` credit basket. This is a better
   domain boundary than passing A-skat, AM-bidrag, B-skat, dividend-tax credits,
@@ -537,9 +545,12 @@ Review candidates to revisit deliberately, not as broad churn:
   fictional household's generated-card annual settlement currently yields
   3.541 kr. overskydende skat and 3.541 kr. payout under the source-derived
   § 7 rate fixture.
-  The first bomb-audit probes now formalize eight daisy-chain tensions: § 6
+  The first bomb-audit probes now formalize nine daisy-chain tensions: § 6
   spouse negative net-capital offset can lower the other spouse's bundskat
-  basis; § 14 helårsomregning can increase the state-tax component for the 180-day
+  basis; § 7 stk. 5 negative net capital can both offset the spouse's positive
+  net-capital income and raise the spouse's effective positive-capital
+  threshold, removing 6.375 kr. mellemskat in the probe; § 14 helårsomregning
+  can increase the state-tax component for the 180-day
   wage-earner case by 3.293 kr.; a high municipal rate can lower the state-tax
   component through § 19 while still increasing total tax; the 2026 personlige
   skatteloft sits 10,83 percentage points below the full
@@ -593,7 +604,8 @@ Review candidates to revisit deliberately, not as broad churn:
 - Expand audit coverage for source drift, missing dependencies, tax cliffs,
   delegated powers, category boundary problems, and multi-step daisy-chain
   effects. The first dedicated bomb-audit file now covers § 6 spouse negative
-  net-capital offset, § 8 a share-income
+  net-capital offset, § 7 stk. 5 spouse capital-threshold/negative-capital
+  offset, § 8 a share-income
   spouse-threshold/negative-offset interactions, § 8 b CFC tax outside
   personfradrag/skatteloft, § 13 passive business-loss lock-in, § 14
   annualisation, and § 19 skatteloft interactions. A separate household benefit
@@ -651,7 +663,9 @@ M2 - State tax computation skeleton
   offset before bundskat basis calculation.
   The § 7 mellemskat slice now covers positive net capital income over the
   regulated 2026 threshold, including an executable spouse doubled-threshold
-  case.
+  case and the § 7 stk. 5 rule that negative net capital is offset against the
+  spouse's positive net-capital income before the spouse's effective
+  grundbeløb is increased.
 
 M3 - Tax-year parameter packs
 
@@ -754,6 +768,7 @@ M5 - Audit suite
 - Current slice: source-status rejection, covered normal-fixture
   personfradrag, covered 2026 state-tax reform layers, covered § 13 deficit
   mechanics, mellemskat positive-net-capital and spouse-threshold activation,
+  § 7 stk. 5 spouse negative-capital offset/effective-grundbeløb activation,
   ordinary wage and special-case AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
   wage-earner-deduction coverage, ordinary municipal/church-tax legal coverage,
   covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture,
@@ -770,7 +785,7 @@ M5 - Audit suite
   covered § 4 a pension deduction from positive share income,
   covered § 14 annualization and first wage-earner calculator integration plus
   the Den juridiske vejledning external annualisation example,
-  covered first bomb-audit probes for § 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions,
+  covered first bomb-audit probes for § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions,
   covered § 19 skatteloft including the 2026
   44,57 pct. personal ceiling, 42 pct. positive-capital ceiling, and
   calculator-level wage-earner integration for both paths, including
@@ -809,7 +824,7 @@ M6 - Website integration
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   first § 4 a pension/share-income audit,
   first § 8 a/§ 67 share-income annual-settlement scenario,
-  first § 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
+  first § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
   household benefit-cliff/source-tension probe plus a boligsikring § 22
   threshold-cliff probe,
   Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily

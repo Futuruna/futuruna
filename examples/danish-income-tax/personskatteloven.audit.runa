@@ -84,7 +84,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | Par6ÆgtefælleKapitalModregningDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -283,6 +283,18 @@ Ikke aktuel
 )
 = m5_par6_ægtefællekapital_resultat = par6_ægtefællekapital_modregning_resultat(m5_par6_ægtefællekapital_input)
 = m5_par6_ægtefællekapital_bundskatgrundlag = bundskat_grundlag_efter_ægtefællekapitalmodregning(500000, m5_par6_ægtefællekapital_input)
+= m5_par7_stk5_negativ_ægtefællekapital = par7_ægtefællekapital_stk5_resultat(Par7ÆgtefælleKapitalStk5Input(
+    nettokapitalindkomst_kroner = -20000,
+    ægtefælle_positiv_nettokapitalindkomst_kroner = 140000,
+    grundbeløb_kroner = 55000,
+    samlevende_ved_årets_udløb = Sandt
+))
+= m5_par7_stk5_negativ_ægtefællekapital_skat = par7_ægtefællekapital_stk5_skat_kroner(Par7ÆgtefælleKapitalStk5Input(
+    nettokapitalindkomst_kroner = -20000,
+    ægtefælle_positiv_nettokapitalindkomst_kroner = 140000,
+    grundbeløb_kroner = 55000,
+    samlevende_ved_årets_udløb = Sandt
+), 750)
 = m5_2026_progressiv_model = beregn_lønmodtager_model(LønmodtagerInput(
     skatteår = 2026,
     kommune = København,
@@ -307,6 +319,7 @@ Ikke aktuel
 | m5_2026_mellemskat_ægtefællekapital_tærskel: m5_2026_ægtefællekapital_over -> m5_2026_ægtefællekapital_over == 10000
 | m5_2026_mellemskat_ægtefællekapital_skat: m5_2026_ægtefællekapital_skat -> m5_2026_ægtefællekapital_skat == 750
 | m5_par6_ægtefællekapital_modregning_beløb: m5_par6_ægtefællekapital_resultat -> m5_par6_ægtefællekapital_resultat.modregnet_i_positiv_nettokapitalindkomst_kroner == 3000 && m5_par6_ægtefællekapital_resultat.positiv_nettokapitalindkomst_efter_modregning_kroner == 7000 && m5_par6_ægtefællekapital_bundskatgrundlag == 507000
+| m5_par7_stk5_ægtefællekapital_modregning_og_grundbeløb: m5_par7_stk5_negativ_ægtefællekapital -> m5_par7_stk5_negativ_ægtefællekapital.modregnet_i_ægtefælles_positive_nettokapitalindkomst_kroner == 20000 && m5_par7_stk5_negativ_ægtefællekapital.grundbeløbsforhøjelse_kroner == 75000 && m5_par7_stk5_negativ_ægtefællekapital.ægtefælle_effektivt_grundbeløb_kroner == 130000 && m5_par7_stk5_negativ_ægtefællekapital.ægtefælle_kapital_over_grundbeløb_kroner == 0 && m5_par7_stk5_negativ_ægtefællekapital_skat == 0
 | m5_lønmodtager_model_indkomstgrundlag: m5_2026_progressiv_model -> m5_2026_progressiv_model.indkomstgrundlag.personlig_indkomst_efter_am_kroner == m5_2026_progressiv_fixture.personlig_indkomst_efter_am_kroner && m5_2026_progressiv_model.indkomstgrundlag.almindelig_skattepligtig_indkomst_kroner == m5_2026_progressiv_fixture.almindelig_skattepligtig_indkomst_kroner
 | m5_lønmodtager_model_før_personfradrag: m5_2026_progressiv_model -> m5_2026_progressiv_model.før_personfradrag.mellemskat_kroner == m5_2026_progressiv_fixture.mellemskat_før_personfradrag_kroner && m5_2026_progressiv_model.før_personfradrag.samlet_inkl_am_kroner == m5_2026_progressiv_fixture.samlet_inkl_am_før_personfradrag_kroner
 | m5_lønmodtager_model_slutskat: m5_2026_progressiv_model -> m5_2026_progressiv_model.slutskat.samlet_inkl_am_kroner == m5_2026_progressiv_fixture.samlet_inkl_am_efter_personfradrag_kroner && m5_2026_progressiv_model.slutskat.personligt_skatteloft.nedslag_kroner == m5_2026_progressiv_fixture.personligt_skatteloft.nedslag_kroner
@@ -315,6 +328,7 @@ Ikke aktuel
 | m5_audit_2026_reform_signal: audit_signal(Skatteår2026ReformDækket) -> audit_signal(Skatteår2026ReformDækket) == Sandt
 | m5_audit_mellemskat_kapital_signal: audit_signal(MellemskatKapitalDækket) -> audit_signal(MellemskatKapitalDækket) == Sandt
 | m5_audit_par6_ægtefællekapital_signal: audit_signal(Par6ÆgtefælleKapitalModregningDækket) -> audit_signal(Par6ÆgtefælleKapitalModregningDækket) == Sandt
+| m5_audit_par7_stk5_ægtefællekapital_signal: audit_signal(Par7ÆgtefælleKapitalStk5Dækket) -> audit_signal(Par7ÆgtefælleKapitalStk5Dækket) == Sandt
 | m5_audit_par19_kapital_calculator_signal: audit_signal(Par19KapitalSkatteloftCalculatorDækket) -> audit_signal(Par19KapitalSkatteloftCalculatorDækket) == Sandt
 | m5_audit_par19_høj_kommuneskat_signal: audit_signal(Par19HøjKommuneskatCalculatorDækket) -> audit_signal(Par19HøjKommuneskatCalculatorDækket) == Sandt
 
@@ -332,12 +346,14 @@ Ikke aktuel
 ? m5_2026_mellemskat_ægtefællekapital_tærskel
 ? m5_2026_mellemskat_ægtefællekapital_skat
 ? m5_par6_ægtefællekapital_modregning_beløb
+? m5_par7_stk5_ægtefællekapital_modregning_og_grundbeløb
 ? m5_lønmodtager_model_indkomstgrundlag
 ? m5_lønmodtager_model_før_personfradrag
 ? m5_lønmodtager_model_slutskat
 ? m5_audit_lønmodtager_domain_model_signal
 ? m5_2026_skatteloft_reform
 ? m5_audit_par6_ægtefællekapital_signal
+? m5_audit_par7_stk5_ægtefællekapital_signal
 ? m5_audit_par19_kapital_calculator_signal
 ? m5_audit_par19_høj_kommuneskat_signal
 
@@ -572,7 +588,10 @@ virksomhedsunderskud.
     fremført_negativ_personlig_indkomst_kroner = 20000,
     fremført_negativ_personlig_indkomst_fra_pension_kroner = 5000
 ))
-= m5_am_biblioteksafgift_godtgørelse_fixture = arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(ArbejdsmarkedsbidragBiblioteksafgiftInput(10000, Sandt))
+= m5_am_biblioteksafgift_godtgørelse_fixture = arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(ArbejdsmarkedsbidragBiblioteksafgiftInput(
+    biblioteksafgift_kroner = 10000,
+    modtager_omfattet_af_virksomhedsordning = Sandt
+))
 = m5_am_unge_2026_fixture = arbejdsmarkedsbidrag_for_person_kroner(100000, ArbejdsmarkedsbidragPersonSatsInput(
     skatteår = 2026,
     alder_ved_indkomstårets_udløb = 17
@@ -1021,4 +1040,4 @@ afgrænsning.
 ? m5_audit_par26_signal
 ? m5_audit_par28_signal
 
-@ print("m5 audit: 2026-reform inkl. § 6 ægtefællekapitalmodregning, mellemskat kapitalgren, § 4 a pensionsfradrag i aktieindkomst, § 8 a aktieindkomst i slutopgørelse med § 67 udbytteskatmodregning, § 14 delårs-lønmodtager og ekstern DJV-differential, personlig og positiv-kapital § 19 skatteloft i lønmodtagerberegningen inkl. Langeland høj kommuneskat og ekstern SKM-nedslag, grouped lønmodtager domain-model projection, fælles Pengebeløb-afrunding, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Skat.dk ekstern 2026 normalcase-fixture, bomb-audit for § 6/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions, Børne- og ungeydelse benefit-cliff/source-tension audit og boligsikring § 22 threshold-cliff audit, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")
+@ print("m5 audit: 2026-reform inkl. § 6 ægtefællekapitalmodregning, § 7 stk. 5 ægtefællekapitalgrundbeløb, mellemskat kapitalgren, § 4 a pensionsfradrag i aktieindkomst, § 8 a aktieindkomst i slutopgørelse med § 67 udbytteskatmodregning, § 14 delårs-lønmodtager og ekstern DJV-differential, personlig og positiv-kapital § 19 skatteloft i lønmodtagerberegningen inkl. Langeland høj kommuneskat og ekstern SKM-nedslag, grouped lønmodtager domain-model projection, fælles Pengebeløb-afrunding, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Skat.dk ekstern 2026 normalcase-fixture, bomb-audit for § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions, Børne- og ungeydelse benefit-cliff/source-tension audit og boligsikring § 22 threshold-cliff audit, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")

@@ -48,7 +48,7 @@ share-income offsetting, CFC tax outside personfradrag/skatteloft, passive
 business-loss lock-in, and the narrow 2026 skatteloft basis.
 ----
 
-# PersonskatBombSignal = Par14HelårsomregningØgerStatsligDelårsskat | KommunalSatsSænkerStatsligSkatViaSkatteloft | PositivKapitalLoftAktiveresUdenPersonligtLoft | SkatteloftDækkerIkkeHele2026Progression | ÆgtefælleNegativKapitalReducererBundskat | AktieÆgtefællegrundbeløbFjernerHøjSkat | NegativAktieÆgtefællemodregningÆndrerFamilienetto | CfcSkatUdenPersonfradragOgSkatteloft | PassivtVirksomhedsunderskudLåses
+# PersonskatBombSignal = Par14HelårsomregningØgerStatsligDelårsskat | KommunalSatsSænkerStatsligSkatViaSkatteloft | PositivKapitalLoftAktiveresUdenPersonligtLoft | SkatteloftDækkerIkkeHele2026Progression | ÆgtefælleNegativKapitalReducererBundskat | MellemskatNegativÆgtefællekapitalFjernerKapitalskat | AktieÆgtefællegrundbeløbFjernerHøjSkat | NegativAktieÆgtefællemodregningÆndrerFamilienetto | CfcSkatUdenPersonfradragOgSkatteloft | PassivtVirksomhedsunderskudLåses
 
 | personskat_bomb_signal(signal: PersonskatBombSignal) -> Sandt
 
@@ -116,6 +116,22 @@ business-loss lock-in, and the narrow 2026 skatteloft basis.
 = bomb_par6_bundskat_uden_ægtefællemodregning_kroner = penge_beløb_gange_basispoint_kroner(bomb_par6_bundskat_grundlag_uden_ægtefællemodregning_kroner, nationalparametre_for(2026).bundskat_basispoint)
 = bomb_par6_bundskat_med_ægtefællemodregning_kroner = penge_beløb_gange_basispoint_kroner(bomb_par6_bundskat_grundlag_med_ægtefællemodregning_kroner, nationalparametre_for(2026).bundskat_basispoint)
 = bomb_par6_ægtefællekapital_bundskat_delta_kroner = bomb_par6_bundskat_uden_ægtefællemodregning_kroner - bomb_par6_bundskat_med_ægtefællemodregning_kroner
+= bomb_par7_stk5_negativ_ægtefællekapital_input = Par7ÆgtefælleKapitalStk5Input(
+    nettokapitalindkomst_kroner = -20000,
+    ægtefælle_positiv_nettokapitalindkomst_kroner = 140000,
+    grundbeløb_kroner = nationalparametre_for(2026).positiv_nettokapital_progressiv_bundfradrag_kroner,
+    samlevende_ved_årets_udløb = Sandt
+)
+= bomb_par7_stk5_negativ_ægtefællekapital = par7_ægtefællekapital_stk5_resultat(bomb_par7_stk5_negativ_ægtefællekapital_input)
+= bomb_par7_stk5_mellemskat_med_ægtefælleregel_kroner = par7_ægtefællekapital_stk5_skat_kroner(bomb_par7_stk5_negativ_ægtefællekapital_input, nationalparametre_for(2026).mellemskat_basispoint)
+= bomb_par7_mellemskat_uden_ægtefælleregel_kroner = mellemskat_med_kapital_kroner(MellemskatKapitalInput(
+    personlig_indkomst_efter_am_kroner = nationalparametre_for(2026).mellemskattegrænse_efter_am_kroner,
+    positiv_nettokapitalindkomst_kroner = 140000,
+    kapital_bundfradrag_kroner = nationalparametre_for(2026).positiv_nettokapital_progressiv_bundfradrag_kroner,
+    mellemskattegrænse_efter_am_kroner = nationalparametre_for(2026).mellemskattegrænse_efter_am_kroner,
+    sats_basispoint = nationalparametre_for(2026).mellemskat_basispoint
+))
+= bomb_par7_stk5_negativ_ægtefællekapital_skattebesparelse_kroner = bomb_par7_mellemskat_uden_ægtefælleregel_kroner - bomb_par7_stk5_mellemskat_med_ægtefælleregel_kroner
 
 | bomb_2026_fuld_progressiv_kommunal_stack_basispoint(kommune: Kommune) -> nationalparametre_for(2026).bundskat_basispoint + nationalparametre_for(2026).mellemskat_basispoint + nationalparametre_for(2026).topskat_basispoint + nationalparametre_for(2026).toptopskat_basispoint + kommunale_parametre_for(2026, kommune).kommuneskat_basispoint
 
@@ -168,8 +184,16 @@ business-loss lock-in, and the narrow 2026 skatteloft basis.
     cfc_indkomst_kroner = 500000
 ))
 
-= bomb_passivt_virksomhedsunderskud_låst = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(100000, 30000, PassivVirksomhedPar4Nr9Eller11))
-= bomb_aktivt_virksomhedsunderskud_frigivet = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(100000, 30000, TransparentSelskabDeltagetVæsentligt36Måneder))
+= bomb_passivt_virksomhedsunderskud_låst = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(
+    underskud_kroner = 100000,
+    positiv_indkomst_samme_virksomhed_kroner = 30000,
+    status = PassivVirksomhedPar4Nr9Eller11
+))
+= bomb_aktivt_virksomhedsunderskud_frigivet = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(
+    underskud_kroner = 100000,
+    positiv_indkomst_samme_virksomhed_kroner = 30000,
+    status = TransparentSelskabDeltagetVæsentligt36Måneder
+))
 = bomb_virksomhedsunderskud_aktivitetsdelta_kroner = bomb_aktivt_virksomhedsunderskud_frigivet.fradrag_i_øvrig_indkomst_kroner - bomb_passivt_virksomhedsunderskud_låst.fradrag_i_øvrig_indkomst_kroner
 
 | bomb_par14_helårsomregning_øger_statslig_delårsskat: bomb_par14_annualiseringsdelta_kroner -> bomb_par14_annualiseringsdelta_kroner == 3293 && bomb_par14_annualiseret_statslig_delårsskat_kroner > bomb_par14_normal_statslig_delårsskat_kroner
@@ -187,6 +211,9 @@ business-loss lock-in, and the narrow 2026 skatteloft basis.
 | bomb_par6_ægtefælle_negativ_kapital_reducerer_bundskat: bomb_par6_ægtefællekapital_bundskat_delta_kroner -> bomb_par6_ægtefællekapital_resultat.modregnet_i_positiv_nettokapitalindkomst_kroner == 3000 && bomb_par6_bundskat_grundlag_med_ægtefællemodregning_kroner == 507000 && bomb_par6_ægtefællekapital_bundskat_delta_kroner == 361
 | bomb_par6_ægtefællekapital_signal: personskat_bomb_signal(ÆgtefælleNegativKapitalReducererBundskat) -> personskat_bomb_signal(ÆgtefælleNegativKapitalReducererBundskat) == Sandt
 
+| bomb_par7_stk5_negativ_ægtefællekapital_fjerner_mellemskat: bomb_par7_stk5_negativ_ægtefællekapital_skattebesparelse_kroner -> bomb_par7_stk5_negativ_ægtefællekapital.modregnet_i_ægtefælles_positive_nettokapitalindkomst_kroner == 20000 && bomb_par7_stk5_negativ_ægtefællekapital.ægtefælle_effektivt_grundbeløb_kroner == 130000 && bomb_par7_stk5_mellemskat_med_ægtefælleregel_kroner == 0 && bomb_par7_mellemskat_uden_ægtefælleregel_kroner == 6375 && bomb_par7_stk5_negativ_ægtefællekapital_skattebesparelse_kroner == 6375
+| bomb_par7_stk5_negativ_ægtefællekapital_signal: personskat_bomb_signal(MellemskatNegativÆgtefællekapitalFjernerKapitalskat) -> personskat_bomb_signal(MellemskatNegativÆgtefællekapitalFjernerKapitalskat) == Sandt
+
 | bomb_aktie_ægtefællegrundbeløb_fjerner_høj_skat: bomb_aktie_ægtefællegrundbeløb_skattebesparelse_kroner -> bomb_aktie_2026_grundbeløb == 79400 && bomb_aktie_150k_ægtefællegrundbeløb == 158800 && bomb_aktie_150k_enlig.højt_grundlag_kroner == 70600 && bomb_aktie_150k_med_ægtefællegrundbeløb.højt_grundlag_kroner == 0 && bomb_aktie_ægtefællegrundbeløb_skattebesparelse_kroner == 10590
 | bomb_aktie_ægtefællegrundbeløb_signal: personskat_bomb_signal(AktieÆgtefællegrundbeløbFjernerHøjSkat) -> personskat_bomb_signal(AktieÆgtefællegrundbeløbFjernerHøjSkat) == Sandt
 
@@ -199,7 +226,7 @@ business-loss lock-in, and the narrow 2026 skatteloft basis.
 | bomb_passivt_virksomhedsunderskud_låses: bomb_virksomhedsunderskud_aktivitetsdelta_kroner -> bomb_passivt_virksomhedsunderskud_låst.fradrag_i_øvrig_indkomst_kroner == 0 && bomb_passivt_virksomhedsunderskud_låst.modregnet_i_samme_virksomhed_kroner == 30000 && bomb_passivt_virksomhedsunderskud_låst.fremført_til_samme_virksomhed_kroner == 70000 && bomb_aktivt_virksomhedsunderskud_frigivet.fradrag_i_øvrig_indkomst_kroner == 100000 && bomb_virksomhedsunderskud_aktivitetsdelta_kroner == 100000
 | bomb_passivt_virksomhedsunderskud_signal: personskat_bomb_signal(PassivtVirksomhedsunderskudLåses) -> personskat_bomb_signal(PassivtVirksomhedsunderskudLåses) == Sandt
 
-| personskat_bomb_audit_samlet() -> bomb_par14_annualiseringsdelta_kroner == 3293 && bomb_langeland_statslig_skattenedsættelse_mod_københavn_kroner == 2316 && bomb_københavn_kapital.positiv_kapital_skatteloft.nedslag_kroner == 106 && bomb_københavn_2026_stack_over_personligt_skatteloft_basispoint == 1083 && bomb_par6_ægtefællekapital_bundskat_delta_kroner == 361 && bomb_aktie_ægtefællegrundbeløb_skattebesparelse_kroner == 10590 && bomb_negativ_aktie_modregning_familienetto_delta_kroner == 3180 && bomb_cfc_500k.skat_kroner == 110000 && bomb_virksomhedsunderskud_aktivitetsdelta_kroner == 100000
+| personskat_bomb_audit_samlet() -> bomb_par14_annualiseringsdelta_kroner == 3293 && bomb_langeland_statslig_skattenedsættelse_mod_københavn_kroner == 2316 && bomb_københavn_kapital.positiv_kapital_skatteloft.nedslag_kroner == 106 && bomb_københavn_2026_stack_over_personligt_skatteloft_basispoint == 1083 && bomb_par6_ægtefællekapital_bundskat_delta_kroner == 361 && bomb_par7_stk5_negativ_ægtefællekapital_skattebesparelse_kroner == 6375 && bomb_aktie_ægtefællegrundbeløb_skattebesparelse_kroner == 10590 && bomb_negativ_aktie_modregning_familienetto_delta_kroner == 3180 && bomb_cfc_500k.skat_kroner == 110000 && bomb_virksomhedsunderskud_aktivitetsdelta_kroner == 100000
 
 ? bomb_par14_helårsomregning_øger_statslig_delårsskat
 ? bomb_par14_signal
@@ -211,6 +238,8 @@ business-loss lock-in, and the narrow 2026 skatteloft basis.
 ? bomb_2026_skatteloft_signal
 ? bomb_par6_ægtefælle_negativ_kapital_reducerer_bundskat
 ? bomb_par6_ægtefællekapital_signal
+? bomb_par7_stk5_negativ_ægtefællekapital_fjerner_mellemskat
+? bomb_par7_stk5_negativ_ægtefællekapital_signal
 ? bomb_aktie_ægtefællegrundbeløb_fjerner_høj_skat
 ? bomb_aktie_ægtefællegrundbeløb_signal
 ? bomb_negativ_aktie_ægtefællemodregning_ikke_neutral
@@ -225,6 +254,7 @@ business-loss lock-in, and the narrow 2026 skatteloft basis.
 @ print("bomb audit København positiv kapital §19-nedslag uden personligt nedslag: " + vis(bomb_københavn_kapital.positiv_kapital_skatteloft.nedslag_kroner))
 @ print("bomb audit 2026 fuld progressiv stack over personligt skatteloft: " + vis(bomb_københavn_2026_stack_over_personligt_skatteloft_basispoint))
 @ print("bomb audit §6 ægtefælles negative nettokapital reducerer bundskat: " + vis(bomb_par6_ægtefællekapital_bundskat_delta_kroner))
+@ print("bomb audit §7 stk. 5 negativ ægtefællekapital fjerner mellemskat: " + vis(bomb_par7_stk5_negativ_ægtefællekapital_skattebesparelse_kroner))
 @ print("bomb audit §8a ægtefællegrundbeløb fjerner høj aktieskat: " + vis(bomb_aktie_ægtefællegrundbeløb_skattebesparelse_kroner))
 @ print("bomb audit §8a negativ aktie ægtefællemodregning familienetto-delta: " + vis(bomb_negativ_aktie_modregning_familienetto_delta_kroner))
 @ print("bomb audit §8b CFC-skat uden personfradrag/skatteloft: " + vis(bomb_cfc_500k.skat_kroner))
