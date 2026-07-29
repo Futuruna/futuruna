@@ -72,9 +72,29 @@ iværksætterkonto
 
 # IndkomstVurdering(indgår_i_skattepligtig_indkomst: Boolsk, er_kapitalindkomst: Boolsk)
 # PersonligFradrag = ErhverveSikreVedligeholdeSelvstændigIndkomst | LigningslovsudgiftVedSelvstændigErhverv | PensionsbidragOgPræmier | HusdyrbesætningForskelsbeløb | VarelagerNedskrivning | Arbejdsmarkedsbidrag | VirksomhedsskatteHenlæggelse | Ligningslov9BUdgift | TilbagebetaltKontanthjælp | AfskrivningerTabFradragSelvstændige | IværksætterkontoIndskud
+# Par3Indkomstpost(indgår_i_skattepligtig_indkomst: Boolsk, er_kapitalindkomst: Boolsk, beløb_kroner: Heltal)
+# Par3Fradragspost(art: PersonligFradrag, beløb_kroner: Heltal)
+# Par3PersonligIndkomstInput(indkomstposter: List(Par3Indkomstpost), fradragsposter: List(Par3Fradragspost))
+# Par3PersonligIndkomstResultat(brutto_personlig_indkomst_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, netto_personlig_indkomst_kroner: Heltal)
 
 | er_personlig_indkomst(vurdering: IndkomstVurdering) -> vurdering.indgår_i_skattepligtig_indkomst && vurdering.er_kapitalindkomst == Falskt
 | fradrages_i_personlig_indkomst(fradrag: PersonligFradrag) -> Sandt
+| par3_indkomstpost_er_personlig_indkomst(post: Par3Indkomstpost) -> er_personlig_indkomst(IndkomstVurdering(
+    indgår_i_skattepligtig_indkomst = post.indgår_i_skattepligtig_indkomst,
+    er_kapitalindkomst = post.er_kapitalindkomst
+))
+| par3_indkomstpost_personlig_kroner(post: Par3Indkomstpost) -> 0
+| exception par3_indkomstpost_medregnes par3_indkomstpost_personlig_kroner(post: Par3Indkomstpost) -> post.beløb_kroner under par3_indkomstpost_er_personlig_indkomst(post)
+| par3_fradragspost_kroner(post: Par3Fradragspost) -> 0
+| exception par3_stk2_fradrag par3_fradragspost_kroner(post: Par3Fradragspost) -> penge_positivt_beløb(post.beløb_kroner) under fradrages_i_personlig_indkomst(post.art)
+| par3_brutto_personlig_indkomst_kroner(input: Par3PersonligIndkomstInput) -> foldl(input.indkomstposter, 0, |sum, post| sum + par3_indkomstpost_personlig_kroner(post))
+| par3_fradrag_i_personlig_indkomst_kroner(input: Par3PersonligIndkomstInput) -> foldl(input.fradragsposter, 0, |sum, post| sum + par3_fradragspost_kroner(post))
+| par3_netto_personlig_indkomst_kroner(input: Par3PersonligIndkomstInput) -> par3_brutto_personlig_indkomst_kroner(input) - par3_fradrag_i_personlig_indkomst_kroner(input)
+| par3_personlig_indkomst_resultat(input: Par3PersonligIndkomstInput) -> Par3PersonligIndkomstResultat(
+    brutto_personlig_indkomst_kroner = par3_brutto_personlig_indkomst_kroner(input),
+    fradrag_i_personlig_indkomst_kroner = par3_fradrag_i_personlig_indkomst_kroner(input),
+    netto_personlig_indkomst_kroner = par3_netto_personlig_indkomst_kroner(input)
+)
 
 = par3_personlig_default = er_personlig_indkomst(IndkomstVurdering(
     indgår_i_skattepligtig_indkomst = Sandt,
@@ -87,12 +107,25 @@ iværksætterkonto
 = par3_fradrag_am = fradrages_i_personlig_indkomst(Arbejdsmarkedsbidrag)
 = par3_fradrag_pension = fradrages_i_personlig_indkomst(PensionsbidragOgPræmier)
 = par3_fradrag_erhverv = fradrages_i_personlig_indkomst(ErhverveSikreVedligeholdeSelvstændigIndkomst)
+= par3_personlig_indkomst_resultat_fixture = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(indgår_i_skattepligtig_indkomst = Sandt, er_kapitalindkomst = Falskt, beløb_kroner = 600000),
+        Par3Indkomstpost(indgår_i_skattepligtig_indkomst = Sandt, er_kapitalindkomst = Sandt, beløb_kroner = 20000),
+        Par3Indkomstpost(indgår_i_skattepligtig_indkomst = Falskt, er_kapitalindkomst = Falskt, beløb_kroner = 10000)
+    ],
+    fradragsposter = [
+        Par3Fradragspost(art = Arbejdsmarkedsbidrag, beløb_kroner = 48000),
+        Par3Fradragspost(art = PensionsbidragOgPræmier, beløb_kroner = 30000),
+        Par3Fradragspost(art = ErhverveSikreVedligeholdeSelvstændigIndkomst, beløb_kroner = 22000)
+    ]
+))
 
 | par3_personlig_hvis_ikke_kapital: par3_personlig_default -> par3_personlig_default == Sandt
 | par3_kapital_er_ikke_personlig_default: par3_kapital_udelukket -> par3_kapital_udelukket == Falskt
 | par3_am_fradrages: par3_fradrag_am -> par3_fradrag_am == Sandt
 | par3_pension_fradrages: par3_fradrag_pension -> par3_fradrag_pension == Sandt
 | par3_erhverv_fradrages: par3_fradrag_erhverv -> par3_fradrag_erhverv == Sandt
+| par3_personlig_indkomst_beregnes_beløb: par3_personlig_indkomst_resultat_fixture -> par3_personlig_indkomst_resultat_fixture.brutto_personlig_indkomst_kroner == 600000 && par3_personlig_indkomst_resultat_fixture.fradrag_i_personlig_indkomst_kroner == 100000 && par3_personlig_indkomst_resultat_fixture.netto_personlig_indkomst_kroner == 500000
 
 ----
 § 4. Kapitalindkomst omfatter det samlede nettobeløb af

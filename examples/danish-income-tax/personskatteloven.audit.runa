@@ -11,6 +11,7 @@
 @ importer ./slutopgoerelse
 @ importer ./opkraevningsloven
 @ importer ./ligningsloven_fradrag
+@ importer ./kapitel - 01 - indkomst
 @ importer ./kapitel - 02 - statsskat
 @ importer ./loenmodtager_beregning
 @ importer ./delaar - scenarier.scenario
@@ -85,7 +86,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Par10PersonfradragSkattepligtDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8cKommunalLignendeSkatDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | PersonfradragNormalfixtureDækket | Par10PersonfradragSkattepligtDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8cKommunalLignendeSkatDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -137,7 +138,9 @@ Status: Valid
 | m5_penge_øre_beregning_dækket: m5_penge_øre_fixture -> m5_penge_øre_fixture.tæller == 57000000000 && m5_penge_øre_fixture.nævner == 3650000 && m5_penge_øre_fixture.øre_nedrundet == 15616
 | m5_penge_ti_kroner_nedrunding_dækket: m5_penge_ti_kroner_fixture -> m5_penge_ti_kroner_fixture == 38000
 | m5_penge_basispoint_postur_dækket: m5_penge_basispoint_ned_decimal_fixture -> m5_penge_basispoint_ned_decimal_fixture == 20 && m5_penge_basispoint_op_hel_procent_fixture == 3600
+| m5_indkomsttaxonomi_par3_beløb_dækket: par3_personlig_indkomst_resultat_fixture -> par3_personlig_indkomst_resultat_fixture.brutto_personlig_indkomst_kroner == 600000 && par3_personlig_indkomst_resultat_fixture.fradrag_i_personlig_indkomst_kroner == 100000 && par3_personlig_indkomst_resultat_fixture.netto_personlig_indkomst_kroner == 500000
 | m5_audit_penge_afrundingspostur_signal: audit_signal(PengeAfrundingsposturDækket) -> audit_signal(PengeAfrundingsposturDækket) == Sandt
+| m5_audit_indkomsttaxonomi_signal: audit_signal(IndkomsttaxonomiDækket) -> audit_signal(IndkomsttaxonomiDækket) == Sandt
 
 ? m5_historisk_kilde_afvises
 ? m5_reform_kilde_accepteres
@@ -161,7 +164,9 @@ Status: Valid
 ? m5_penge_øre_beregning_dækket
 ? m5_penge_ti_kroner_nedrunding_dækket
 ? m5_penge_basispoint_postur_dækket
+? m5_indkomsttaxonomi_par3_beløb_dækket
 ? m5_audit_penge_afrundingspostur_signal
+? m5_audit_indkomsttaxonomi_signal
 
 ----
 § 9. Indkomstskatten efter §§ 6, 7, 7 a og 8 og § 8 a, stk. 2, til staten skal,

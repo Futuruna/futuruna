@@ -256,7 +256,8 @@ encoded as a temporal rule on top of the consolidation.
   source status, milestone status, selected audit signals, and the checked
   `.runa` corpus.
 - The current `.runa` slices encode source validity, source lineage, the
-  §§ 1-4 b income taxonomy including amount-level § 4 a pension deduction from
+  §§ 1-4 b income taxonomy including amount-level § 3 personal-income inclusion
+  and deduction totals plus amount-level § 4 a pension deduction from
   positive share income, the §§ 5-9 state-tax skeleton including amount-level
   § 6 spouse negative net-capital offset and § 7 stk. 5 spouse
   positive-capital threshold/negative-capital offset, § 12 unused

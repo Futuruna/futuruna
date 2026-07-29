@@ -12974,6 +12974,13 @@ impl<'a> LoweringCtx<'a> {
                             };
                         }
                     }
+                    if fn_name == "foldl" && fir_args.len() >= 2 {
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args.clone()),
+                            span: expr.span,
+                            ty: fir_args[1].ty.clone(),
+                        };
+                    }
                     // map_entries(Map(K, V)) -> List(Tuple(K, V))
                     if fn_name == "map_entries" && !fir_args.is_empty() {
                         let kv = if let FirTy::Map(k, v) = &fir_args[0].ty {
@@ -42324,6 +42331,47 @@ for x in [1, 2] {
         } else {
             panic!("expected Bind");
         }
+    }
+
+    #[test]
+    fn legacy_emit_rule_function_infers_foldl_return_type_from_seed() {
+        let source = r#"
+# Item(value: Heltal)
+# TotalInput(items: List(Item))
+| item_value(item: Item) -> item.value
+| total(input: TotalInput) -> foldl(input.items, 0, |sum, item| sum + item_value(item))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rules: Vec<&Rule> = stmts
+            .iter()
+            .filter_map(|stmt| {
+                if let Stmt::Rule(rule) = stmt {
+                    Some(rule)
+                } else {
+                    None
+                }
+            })
+            .filter(|rule| {
+                let head = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    Rule::ReactiveScope { .. } => return false,
+                };
+                matches!(&head.kind, ExprKind::App(func, _) if matches!(&func.kind, ExprKind::Var(name) if name == "total"))
+            })
+            .collect();
+        let rust = cg.emit_rule_function("total", &rules);
+        assert!(
+            rust.contains("fn total(input: TotalInput) -> i64 {"),
+            "rule signature should infer foldl accumulator return type: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("if input.clone().items"),
+            "fold-valued rule body must not be lowered as a boolean guard: {}",
+            rust
+        );
     }
 
     #[test]
