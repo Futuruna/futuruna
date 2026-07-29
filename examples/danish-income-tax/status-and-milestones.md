@@ -259,8 +259,10 @@ encoded as a temporal rule on top of the consolidation.
   §§ 1-4 b income taxonomy including amount-level § 3 personal-income inclusion
   and deduction totals, amount-level § 4 net capital-income inclusion,
   deductible capital costs, positive/negative net-capital projections and
-  personal-income reclassification, plus amount-level § 4 a pension deduction
-  from positive share income, the §§ 5-9 state-tax skeleton including amount-level
+  personal-income reclassification, plus amount-level § 4 a share-income
+  inclusion, stk. 2 exclusions, stk. 3 personal-income reclassification,
+  negative share-income preservation and pension deduction from positive share
+  income, the §§ 5-9 state-tax skeleton including amount-level
   § 6 spouse negative net-capital offset and § 7 stk. 5 spouse
   positive-capital threshold/negative-capital offset, § 12 unused
   personfradrag tax-value allocation across the § 9 state-tax basket, the §§ 10-13
@@ -653,10 +655,12 @@ Review candidates to revisit deliberately, not as broad churn:
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
-  § 4 a's first amount-level audit now covers pensionsfradrag in positive
-  share income: the deduction is capped at positive share income, requires
-  notice to the tax administration, is blocked if already deducted in personal
-  income, and is unavailable without positive share income.
+  § 4 a's amount-level audit now covers included and excluded share-income
+  posts, § 19 B-to-§ 17 personal-income reclassification, negative share-income
+  preservation and pensionsfradrag in positive share income: the deduction is
+  capped at positive share income, requires notice to the tax administration,
+  is blocked if already deducted in personal income, and is unavailable without
+  positive share income.
 - Add more trusted external differential fixtures after the first § 14/§ 19
   external slice. The ordinary 2026 Copenhagen wage-earner path now has a
   source-backed Skat.dk calculator fixture for final tax and generated tax-card
@@ -876,7 +880,8 @@ M5 - Audit suite
   benefit-cliff/source-tension audit plus a first boligsikring § 22 threshold
   cliff, covered external Skat.dk 2026
   ordinary wage-earner fixture, topskat threshold activation,
-  covered § 4 a pension deduction from positive share income,
+  covered § 4 a share-income aggregation, exclusions, personal-income
+  reclassification and pension deduction from positive share income,
   covered § 14 annualization and first wage-earner calculator integration plus
   the Den juridiske vejledning external annualisation example,
   covered first bomb-audit probes for § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions,

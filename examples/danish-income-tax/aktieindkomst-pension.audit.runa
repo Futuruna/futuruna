@@ -60,7 +60,7 @@ the executable amount probes out of the source-law sequence.
 | audit_par4a_pension_dobbeltfradrag_afskæres: audit_par4a_pension_dobbeltfradrag_resultat -> audit_par4a_pension_dobbeltfradrag_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_dobbeltfradrag_resultat.dobbeltfradrag_afskåret == Sandt
 | audit_par4a_pension_dobbeltfradrag_signal: par4a_pension_audit_signal(DobbeltFradragAfskæres) -> par4a_pension_audit_signal(DobbeltFradragAfskæres) == Sandt
 
-| audit_par4a_pension_kræver_positiv_aktieindkomst: audit_par4a_pension_negativ_aktieindkomst_resultat -> audit_par4a_pension_negativ_aktieindkomst_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_negativ_aktieindkomst_resultat.aktieindkomst_efter_fradrag_kroner == 0
+| audit_par4a_pension_kræver_positiv_aktieindkomst: audit_par4a_pension_negativ_aktieindkomst_resultat -> audit_par4a_pension_negativ_aktieindkomst_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_negativ_aktieindkomst_resultat.aktieindkomst_efter_fradrag_kroner == -10000
 | audit_par4a_pension_positiv_aktieindkomst_signal: par4a_pension_audit_signal(IkkePositivAktieindkomstAfskærerFradrag) -> par4a_pension_audit_signal(IkkePositivAktieindkomstAfskærerFradrag) == Sandt
 
 | audit_par4a_pensionsfradrag_samlet() -> audit_par4a_pension_loftet_resultat.fradrag_i_aktieindkomst_kroner == 80000 && audit_par4a_pension_uden_meddelelse_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_dobbeltfradrag_resultat.dobbeltfradrag_afskåret == Sandt && audit_par4a_pension_negativ_aktieindkomst_resultat.fradrag_i_aktieindkomst_kroner == 0
