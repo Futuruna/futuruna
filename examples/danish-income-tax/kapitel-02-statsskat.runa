@@ -610,6 +610,8 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 # ÆgtefælleAktieStatus = IkkeSamlevende | SamlevendeVedÅretsUdløb
 # AktieindkomstPositivSkatInput(skatteår: Heltal, aktieindkomst_kroner: Heltal, effektivt_grundbeløb_kroner: Heltal)
 # AktieindkomstSkatResultat(lavt_grundlag_kroner: Heltal, højt_grundlag_kroner: Heltal, endelig_skat_kroner: Heltal, slutskat_indgående_skat_kroner: Heltal, samlet_skat_kroner: Heltal)
+# AktieindkomstUdbytteskatStk3Input(skatteår: Heltal, aktieindkomst_kroner: Heltal, indeholdt_udbytteskat_kroner: Heltal)
+# AktieindkomstUdbytteskatStk3Resultat(stk1_skat_af_samlet_aktieindkomst_kroner: Heltal, endelig_udbytteskat_kroner: Heltal, overskydende_udbytteskat_til_slutskat_kroner: Heltal, negativ_aktieindkomst_udbytteskat_til_slutskat_kroner: Heltal, samlet_udbytteskat_til_slutskat_kroner: Heltal)
 # AktieindkomstÆgtefælleGrundbeløbInput(skatteår: Heltal, aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk)
 # AktieindkomstNegativSkatInput(skatteår: Heltal, negativ_aktieindkomst_abs_kroner: Heltal, effektivt_grundbeløb_kroner: Heltal)
 # AktieindkomstÆgtefælleNegativInput(skatteår: Heltal, negativ_aktieindkomst_kroner: Heltal, ægtefælle_positiv_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk)
@@ -634,6 +636,25 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 | aktieindkomst_lav_skat_kroner(input: AktieindkomstPositivSkatInput) -> penge_beløb_gange_basispoint_kroner(aktieindkomst_lavt_grundlag_kroner(input), aktieindkomstskat_sats_basispoint(input.skatteår, LavAktieSkat))
 | aktieindkomst_høj_skat_kroner(input: AktieindkomstPositivSkatInput) -> penge_beløb_gange_basispoint_kroner(aktieindkomst_højt_grundlag_kroner(input), aktieindkomstskat_sats_basispoint(input.skatteår, HøjAktieSkat))
 | aktieindkomst_positiv_skat(input: AktieindkomstPositivSkatInput) -> AktieindkomstSkatResultat(aktieindkomst_lavt_grundlag_kroner(input), aktieindkomst_højt_grundlag_kroner(input), aktieindkomst_lav_skat_kroner(input), aktieindkomst_høj_skat_kroner(input), aktieindkomst_lav_skat_kroner(input) + aktieindkomst_høj_skat_kroner(input))
+# AktieindkomstUdbytteskatStk3Sag(input: AktieindkomstUdbytteskatStk3Input) {
+    | indeholdt_udbytteskat_kroner() -> penge_positivt_beløb(input.indeholdt_udbytteskat_kroner)
+    | stk1_skat_af_samlet_aktieindkomst_kroner() -> penge_beløb_gange_basispoint_kroner(aktieindkomst_positivt_beløb(input.aktieindkomst_kroner), aktieindkomstskat_sats_basispoint(input.skatteår, LavAktieSkat))
+    | overskydende_udbytteskat_til_slutskat_kroner() -> 0
+    | exception par8a_stk3_overindeholdt_udbytteskat_modregnes overskydende_udbytteskat_til_slutskat_kroner() -> indeholdt_udbytteskat_kroner() - stk1_skat_af_samlet_aktieindkomst_kroner() under input.aktieindkomst_kroner >= 0 && indeholdt_udbytteskat_kroner() > stk1_skat_af_samlet_aktieindkomst_kroner()
+    | negativ_aktieindkomst_udbytteskat_til_slutskat_kroner() -> 0
+    | exception par8a_stk3_negativ_aktieindkomst_modregner_hele_udbytteskat negativ_aktieindkomst_udbytteskat_til_slutskat_kroner() -> indeholdt_udbytteskat_kroner() under input.aktieindkomst_kroner < 0
+    | samlet_udbytteskat_til_slutskat_kroner() -> overskydende_udbytteskat_til_slutskat_kroner() + negativ_aktieindkomst_udbytteskat_til_slutskat_kroner()
+    | endelig_udbytteskat_kroner() -> indeholdt_udbytteskat_kroner() - samlet_udbytteskat_til_slutskat_kroner()
+    | resultat() -> AktieindkomstUdbytteskatStk3Resultat(
+        stk1_skat_af_samlet_aktieindkomst_kroner = stk1_skat_af_samlet_aktieindkomst_kroner(),
+        endelig_udbytteskat_kroner = endelig_udbytteskat_kroner(),
+        overskydende_udbytteskat_til_slutskat_kroner = overskydende_udbytteskat_til_slutskat_kroner(),
+        negativ_aktieindkomst_udbytteskat_til_slutskat_kroner = negativ_aktieindkomst_udbytteskat_til_slutskat_kroner(),
+        samlet_udbytteskat_til_slutskat_kroner = samlet_udbytteskat_til_slutskat_kroner()
+    )
+}
+| aktieindkomst_udbytteskat_stk3_sag(input: AktieindkomstUdbytteskatStk3Input) -> AktieindkomstUdbytteskatStk3Sag(input)
+| aktieindkomst_udbytteskat_stk3_resultat(input: AktieindkomstUdbytteskatStk3Input) -> aktieindkomst_udbytteskat_stk3_sag(input).resultat()
 | aktieindkomst_negativ_lavt_grundlag_kroner(input: AktieindkomstNegativSkatInput) -> penge_mindste_beløb(aktieindkomst_positivt_beløb(input.negativ_aktieindkomst_abs_kroner), input.effektivt_grundbeløb_kroner)
 | aktieindkomst_negativ_højt_grundlag_kroner(input: AktieindkomstNegativSkatInput) -> aktieindkomst_positivt_beløb(input.negativ_aktieindkomst_abs_kroner - aktieindkomst_negativ_lavt_grundlag_kroner(input))
 | aktieindkomst_negativ_skat_kroner(input: AktieindkomstNegativSkatInput) -> penge_beløb_gange_basispoint_kroner(aktieindkomst_negativ_lavt_grundlag_kroner(input), aktieindkomstskat_sats_basispoint(input.skatteår, LavAktieSkat)) + penge_beløb_gange_basispoint_kroner(aktieindkomst_negativ_højt_grundlag_kroner(input), aktieindkomstskat_sats_basispoint(input.skatteår, HøjAktieSkat))
@@ -673,6 +694,16 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
     ægtefælle_positiv_aktieindkomst_kroner = 50000,
     samlevende_ved_årets_udløb = Sandt
 ))
+= par8a_stk3_overindeholdt = aktieindkomst_udbytteskat_stk3_resultat(AktieindkomstUdbytteskatStk3Input(
+    skatteår = 2026,
+    aktieindkomst_kroner = 100000,
+    indeholdt_udbytteskat_kroner = 35000
+))
+= par8a_stk3_negativ = aktieindkomst_udbytteskat_stk3_resultat(AktieindkomstUdbytteskatStk3Input(
+    skatteår = 2026,
+    aktieindkomst_kroner = -10000,
+    indeholdt_udbytteskat_kroner = 2700
+))
 
 | par8a_lav_2011_sats: par8a_lav_2011 -> par8a_lav_2011 == 2800
 | par8a_lav_2012_sats: par8a_lav_2012 -> par8a_lav_2012 == 2700
@@ -683,6 +714,8 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 | par8a_ægtefælle_grundbeløb_forhøjes: par8a_150k_ægtefælle_grundbeløb -> par8a_150k_ægtefælle_grundbeløb == 158800
 | par8a_ægtefælle_forhøjelse_fjerner_høj_skat: par8a_150k_ægtefælle -> par8a_150k_ægtefælle.højt_grundlag_kroner == 0 && par8a_150k_ægtefælle.samlet_skat_kroner == 40500
 | par8a_negativ_ægtefælle_modregner_og_dobler_grundbeløb: par8a_negativ_ægtefælle -> par8a_negativ_ægtefælle.modregnet_i_ægtefælles_positive_aktieindkomst_kroner == 50000 && par8a_negativ_ægtefælle.resterende_negativ_aktieindkomst_kroner == 130000 && par8a_negativ_ægtefælle.negativ_skat_kroner == 35100
+| par8a_stk3_overindeholdt_modregnes_i_slutskat: par8a_stk3_overindeholdt -> par8a_stk3_overindeholdt.stk1_skat_af_samlet_aktieindkomst_kroner == 27000 && par8a_stk3_overindeholdt.overskydende_udbytteskat_til_slutskat_kroner == 8000 && par8a_stk3_overindeholdt.endelig_udbytteskat_kroner == 27000
+| par8a_stk3_negativ_aktieindkomst_modregner_hele_udbytteskat: par8a_stk3_negativ -> par8a_stk3_negativ.negativ_aktieindkomst_udbytteskat_til_slutskat_kroner == 2700 && par8a_stk3_negativ.samlet_udbytteskat_til_slutskat_kroner == 2700 && par8a_stk3_negativ.endelig_udbytteskat_kroner == 0
 
 ----
 § 8 b. Af CFC-indkomst svares skat med den sats, der er nævnt i

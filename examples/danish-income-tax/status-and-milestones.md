@@ -403,6 +403,12 @@ Current decision:
   withheld dividend tax together while methods derive the effective
   progression threshold, final low-layer share tax, high-layer tax entering
   final tax, § 60 credit basket, and final annual-settlement result.
+- `AktieindkomstUdbytteskatStk3Sag` uses product-scoped `|` rules for
+  Personskatteloven § 8 a, stk. 3. It keeps tax year, total share income, and
+  dividend tax withheld under Kildeskatteloven § 65 together while defaults and
+  exceptions derive the low-rate comparison amount, any over-withheld amount
+  credited in slutskatten, the negative-share-income full credit, and the
+  remaining final dividend-tax payment.
 - `KildeskatPar62ARenteDatoInput` and
   `KildeskatPar62AForsinketUdbetalingsdatoInput` keep § 62 A issue and payout
   scheduling date-based. They derive the old "påbegyndte måneder" helper input
@@ -757,7 +763,9 @@ M4 - Ordinary taxpayer calculator
   150.000 kr. share income with the spouse's unused share-income threshold stays
   in the 27 pct. final-tax layer, while the high-tax variant splits 21.438 kr.
   final low-layer tax from 29.652 kr. high-layer tax entering slutskat and
-  leaves 7.900 kr. restskat after 19.062 kr. dividend-tax credit.
+  leaves 7.900 kr. restskat after 19.062 kr. dividend-tax credit. The source-law
+  module now also covers § 8 a, stk. 3 as a separate scoped rule case for
+  over-withheld dividend tax and negative-share-income full credit.
 
 M5 - Audit suite
 
@@ -777,7 +785,8 @@ M5 - Audit suite
   balance/restskat timing/system-date-driven § 61 stk. 4/stk. 6 rateplans/
   overskydende skat compensation/dividend-tax credit posture, covered § 8 a
   share-income final-settlement scenarios with § 67 dividend-tax credit
-  splitting, covered fictional
+  splitting plus § 8 a, stk. 3 over-withheld/negative-share-income dividend-tax
+  credits, covered fictional
   household scenario, covered Børne- og ungeydelse
   benefit-cliff/source-tension audit plus a first boligsikring § 22 threshold
   cliff, covered external Skat.dk 2026
