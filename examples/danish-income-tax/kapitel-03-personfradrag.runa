@@ -210,6 +210,11 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 ----
 
 # NegativKapitalNedslagInput(skatteår: Heltal, negativ_nettokapitalindkomst_kroner: Heltal, betaler_kommunal_eller_par8c: Boolsk)
+# Par11NegativKapitalNedslagInput(skatteår: Heltal, nettokapitalindkomst_kroner: Heltal, ægtefælle_nettokapitalindkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk, betaler_kommunal_eller_par8c: Boolsk)
+# Par11NegativKapitalNedslagResultat(negativ_nettokapitalindkomst_kroner: Heltal, ægtefælle_positiv_modregning_kroner: Heltal, negativ_nettokapitalindkomst_efter_ægtefællepositiv_kroner: Heltal, ægtefælle_ubrugt_beløbsgrænse_kroner: Heltal, effektiv_beløbsgrænse_kroner: Heltal, nedslagsgrundlag_kroner: Heltal, sats_basispoint: Heltal, nedslag_kroner: Heltal)
+# Par11NedslagSkatter(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par8c_skat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal)
+# Par11NedslagModregningInput(nedslag_kroner: Heltal, skatter: Par11NedslagSkatter, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par11NedslagModregningResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, par8c_efter_kroner: Heltal, kommuneskat_efter_kroner: Heltal, kirkeskat_efter_kroner: Heltal, ubrugt_efter_egne_skatter_kroner: Heltal, overført_til_ægtefælle_kroner: Heltal)
 
 | negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 100 under skatteår == 2012
 | negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 200 under skatteår == 2013
@@ -220,8 +225,89 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 700 under skatteår == 2018
 | negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 800 under skatteår >= 2019
 
-| negativ_kapital_nedslag_grundlag(input: NegativKapitalNedslagInput) -> hvis input.negativ_nettokapitalindkomst_kroner > 50000 { 50000 } ellers { input.negativ_nettokapitalindkomst_kroner }
-| negativ_kapital_nedslag_kroner(input: NegativKapitalNedslagInput) -> penge_beløb_gange_basispoint_kroner(negativ_kapital_nedslag_grundlag(input), negativ_kapital_nedslag_sats_basispoint(input.skatteår)) under input.betaler_kommunal_eller_par8c
+| par11_beløbsgrænse_kroner() -> 50000
+| par11_negativ_abs_kroner(nettokapitalindkomst_kroner: Heltal) -> penge_positivt_beløb(0 - nettokapitalindkomst_kroner)
+| par11_positiv_nettokapitalindkomst_kroner(nettokapitalindkomst_kroner: Heltal) -> penge_positivt_beløb(nettokapitalindkomst_kroner)
+| par11_skat_efter_nedslag(skat_kroner: Heltal, nedslag_kroner: Heltal) -> penge_positivt_beløb(skat_kroner - nedslag_kroner)
+| par11_ubrugt_efter_skat(skat_kroner: Heltal, nedslag_kroner: Heltal) -> penge_positivt_beløb(nedslag_kroner - skat_kroner)
+
+# Par11NegativKapitalNedslagSag(input: Par11NegativKapitalNedslagInput) {
+    | negativ_nettokapitalindkomst_kroner() -> par11_negativ_abs_kroner(input.nettokapitalindkomst_kroner)
+    | ægtefælle_negativ_nettokapitalindkomst_kroner() -> par11_negativ_abs_kroner(input.ægtefælle_nettokapitalindkomst_kroner)
+    | ægtefælle_positiv_nettokapitalindkomst_kroner() -> par11_positiv_nettokapitalindkomst_kroner(input.ægtefælle_nettokapitalindkomst_kroner)
+    | ægtefælle_positiv_modregning_kroner() -> 0
+    | exception par11_stk3_ægtefælles_positive_modregnes ægtefælle_positiv_modregning_kroner() -> penge_mindste_beløb(negativ_nettokapitalindkomst_kroner(), ægtefælle_positiv_nettokapitalindkomst_kroner()) under input.gift_samlevende_ved_årets_udløb && ægtefælle_positiv_nettokapitalindkomst_kroner() > 0
+    | negativ_nettokapitalindkomst_efter_ægtefællepositiv_kroner() -> negativ_nettokapitalindkomst_kroner() - ægtefælle_positiv_modregning_kroner()
+    | ægtefælle_ubrugt_beløbsgrænse_kroner() -> 0
+    | exception par11_stk3_ægtefælle_uden_negativ_kapital ægtefælle_ubrugt_beløbsgrænse_kroner() -> par11_beløbsgrænse_kroner() under input.gift_samlevende_ved_årets_udløb && input.ægtefælle_nettokapitalindkomst_kroner >= 0
+    | exception par11_stk3_ægtefælle_negativ_under_beløbsgrænse ægtefælle_ubrugt_beløbsgrænse_kroner() -> par11_beløbsgrænse_kroner() - ægtefælle_negativ_nettokapitalindkomst_kroner() under input.gift_samlevende_ved_årets_udløb && input.ægtefælle_nettokapitalindkomst_kroner < 0 && ægtefælle_negativ_nettokapitalindkomst_kroner() < par11_beløbsgrænse_kroner()
+    | effektiv_beløbsgrænse_kroner() -> par11_beløbsgrænse_kroner() + ægtefælle_ubrugt_beløbsgrænse_kroner()
+    | nedslagsgrundlag_kroner() -> penge_mindste_beløb(negativ_nettokapitalindkomst_efter_ægtefællepositiv_kroner(), effektiv_beløbsgrænse_kroner())
+    | sats_basispoint() -> negativ_kapital_nedslag_sats_basispoint(input.skatteår)
+    | nedslag_kroner() -> 0
+    | exception par11_stk5_kommunal_eller_par8c_pligt nedslag_kroner() -> penge_beløb_gange_basispoint_kroner(nedslagsgrundlag_kroner(), sats_basispoint()) under input.betaler_kommunal_eller_par8c
+    | resultat() -> Par11NegativKapitalNedslagResultat(
+        negativ_nettokapitalindkomst_kroner = negativ_nettokapitalindkomst_kroner(),
+        ægtefælle_positiv_modregning_kroner = ægtefælle_positiv_modregning_kroner(),
+        negativ_nettokapitalindkomst_efter_ægtefællepositiv_kroner = negativ_nettokapitalindkomst_efter_ægtefællepositiv_kroner(),
+        ægtefælle_ubrugt_beløbsgrænse_kroner = ægtefælle_ubrugt_beløbsgrænse_kroner(),
+        effektiv_beløbsgrænse_kroner = effektiv_beløbsgrænse_kroner(),
+        nedslagsgrundlag_kroner = nedslagsgrundlag_kroner(),
+        sats_basispoint = sats_basispoint(),
+        nedslag_kroner = nedslag_kroner()
+    )
+}
+| par11_negativ_kapital_nedslag_sag(input: Par11NegativKapitalNedslagInput) -> Par11NegativKapitalNedslagSag(input)
+| par11_negativ_kapital_nedslag_resultat(input: Par11NegativKapitalNedslagInput) -> par11_negativ_kapital_nedslag_sag(input).resultat()
+
+# Par11NedslagModregningSag(input: Par11NedslagModregningInput) {
+    | par6_efter() -> par11_skat_efter_nedslag(input.skatter.par6_skat_kroner, input.nedslag_kroner)
+    | rester_efter_par6() -> par11_ubrugt_efter_skat(input.skatter.par6_skat_kroner, input.nedslag_kroner)
+    | par7_efter() -> par11_skat_efter_nedslag(input.skatter.par7_skat_kroner, rester_efter_par6())
+    | rester_efter_par7() -> par11_ubrugt_efter_skat(input.skatter.par7_skat_kroner, rester_efter_par6())
+    | par7a_efter() -> par11_skat_efter_nedslag(input.skatter.par7a_skat_kroner, rester_efter_par7())
+    | rester_efter_par7a() -> par11_ubrugt_efter_skat(input.skatter.par7a_skat_kroner, rester_efter_par7())
+    | par8_efter() -> par11_skat_efter_nedslag(input.skatter.par8_skat_kroner, rester_efter_par7a())
+    | rester_efter_par8() -> par11_ubrugt_efter_skat(input.skatter.par8_skat_kroner, rester_efter_par7a())
+    | par8a_stk2_efter() -> par11_skat_efter_nedslag(input.skatter.par8a_stk2_skat_kroner, rester_efter_par8())
+    | rester_efter_par8a_stk2() -> par11_ubrugt_efter_skat(input.skatter.par8a_stk2_skat_kroner, rester_efter_par8())
+    | par8c_efter() -> par11_skat_efter_nedslag(input.skatter.par8c_skat_kroner, rester_efter_par8a_stk2())
+    | rester_efter_par8c() -> par11_ubrugt_efter_skat(input.skatter.par8c_skat_kroner, rester_efter_par8a_stk2())
+    | kommuneskat_efter() -> par11_skat_efter_nedslag(input.skatter.kommuneskat_kroner, rester_efter_par8c())
+    | rester_efter_kommuneskat() -> par11_ubrugt_efter_skat(input.skatter.kommuneskat_kroner, rester_efter_par8c())
+    | kirkeskat_efter() -> par11_skat_efter_nedslag(input.skatter.kirkeskat_kroner, rester_efter_kommuneskat())
+    | ubrugt_efter_egne_skatter() -> par11_ubrugt_efter_skat(input.skatter.kirkeskat_kroner, rester_efter_kommuneskat())
+    | overført_til_ægtefælle() -> 0
+    | exception par11_stk4_ubrugt_nedslag_til_ægtefælle overført_til_ægtefælle() -> ubrugt_efter_egne_skatter() under input.gift_samlevende_ved_årets_udløb
+    | resultat() -> Par11NedslagModregningResultat(
+        par6_efter_kroner = par6_efter(),
+        par7_efter_kroner = par7_efter(),
+        par7a_efter_kroner = par7a_efter(),
+        par8_efter_kroner = par8_efter(),
+        par8a_stk2_efter_kroner = par8a_stk2_efter(),
+        par8c_efter_kroner = par8c_efter(),
+        kommuneskat_efter_kroner = kommuneskat_efter(),
+        kirkeskat_efter_kroner = kirkeskat_efter(),
+        ubrugt_efter_egne_skatter_kroner = ubrugt_efter_egne_skatter(),
+        overført_til_ægtefælle_kroner = overført_til_ægtefælle()
+    )
+}
+| par11_nedslag_modregning_resultat(input: Par11NedslagModregningInput) -> Par11NedslagModregningSag(input).resultat()
+
+| negativ_kapital_nedslag_grundlag(input: NegativKapitalNedslagInput) -> par11_negativ_kapital_nedslag_resultat(Par11NegativKapitalNedslagInput(
+    skatteår = input.skatteår,
+    nettokapitalindkomst_kroner = 0 - input.negativ_nettokapitalindkomst_kroner,
+    ægtefælle_nettokapitalindkomst_kroner = 0,
+    gift_samlevende_ved_årets_udløb = Falskt,
+    betaler_kommunal_eller_par8c = input.betaler_kommunal_eller_par8c
+)).nedslagsgrundlag_kroner
+| negativ_kapital_nedslag_kroner(input: NegativKapitalNedslagInput) -> par11_negativ_kapital_nedslag_resultat(Par11NegativKapitalNedslagInput(
+    skatteår = input.skatteår,
+    nettokapitalindkomst_kroner = 0 - input.negativ_nettokapitalindkomst_kroner,
+    ægtefælle_nettokapitalindkomst_kroner = 0,
+    gift_samlevende_ved_årets_udløb = Falskt,
+    betaler_kommunal_eller_par8c = input.betaler_kommunal_eller_par8c
+)).nedslag_kroner
 | negativ_kapital_ægtefælle_beløbsgrænse_kan_forhøjes(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 | uudnyttet_negativ_kapital_nedslag_overføres_til_ægtefælle(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 
@@ -235,9 +321,63 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     negativ_nettokapitalindkomst_kroner = 80000,
     betaler_kommunal_eller_par8c = Sandt
 ))
+= par11_ægtefælle_pooling = par11_negativ_kapital_nedslag_resultat(Par11NegativKapitalNedslagInput(
+    skatteår = 2026,
+    nettokapitalindkomst_kroner = -80000,
+    ægtefælle_nettokapitalindkomst_kroner = -20000,
+    gift_samlevende_ved_årets_udløb = Sandt,
+    betaler_kommunal_eller_par8c = Sandt
+))
+= par11_ægtefælle_positiv_modregning = par11_negativ_kapital_nedslag_resultat(Par11NegativKapitalNedslagInput(
+    skatteår = 2026,
+    nettokapitalindkomst_kroner = -120000,
+    ægtefælle_nettokapitalindkomst_kroner = 30000,
+    gift_samlevende_ved_årets_udløb = Sandt,
+    betaler_kommunal_eller_par8c = Sandt
+))
+= par11_ingen_kommunal_pligt = par11_negativ_kapital_nedslag_resultat(Par11NegativKapitalNedslagInput(
+    skatteår = 2026,
+    nettokapitalindkomst_kroner = -50000,
+    ægtefælle_nettokapitalindkomst_kroner = 0,
+    gift_samlevende_ved_årets_udløb = Falskt,
+    betaler_kommunal_eller_par8c = Falskt
+))
+= par11_modregning = par11_nedslag_modregning_resultat(Par11NedslagModregningInput(
+    nedslag_kroner = par11_ægtefælle_pooling.nedslag_kroner,
+    skatter = Par11NedslagSkatter(
+        par6_skat_kroner = 1000,
+        par7_skat_kroner = 2000,
+        par7a_skat_kroner = 0,
+        par8_skat_kroner = 100,
+        par8a_stk2_skat_kroner = 300,
+        par8c_skat_kroner = 1000,
+        kommuneskat_kroner = 3000,
+        kirkeskat_kroner = 500
+    ),
+    gift_samlevende_ved_årets_udløb = Sandt
+))
+= par11_ubrugt_til_ægtefælle = par11_nedslag_modregning_resultat(Par11NedslagModregningInput(
+    nedslag_kroner = 6400,
+    skatter = Par11NedslagSkatter(
+        par6_skat_kroner = 500,
+        par7_skat_kroner = 0,
+        par7a_skat_kroner = 0,
+        par8_skat_kroner = 0,
+        par8a_stk2_skat_kroner = 0,
+        par8c_skat_kroner = 0,
+        kommuneskat_kroner = 0,
+        kirkeskat_kroner = 0
+    ),
+    gift_samlevende_ved_årets_udløb = Sandt
+))
 
 | par11_2025_8pct: par11_nedslag_2025 -> par11_nedslag_2025 == 3200
 | par11_loft_50000: par11_nedslag_loft -> par11_nedslag_loft == 4000
+| par11_ægtefælle_beløbsgrænse_pooles: par11_ægtefælle_pooling -> par11_ægtefælle_pooling.ægtefælle_ubrugt_beløbsgrænse_kroner == 30000 && par11_ægtefælle_pooling.effektiv_beløbsgrænse_kroner == 80000 && par11_ægtefælle_pooling.nedslagsgrundlag_kroner == 80000 && par11_ægtefælle_pooling.nedslag_kroner == 6400
+| par11_ægtefælle_positiv_modregnes_før_grænseforhøjelse: par11_ægtefælle_positiv_modregning -> par11_ægtefælle_positiv_modregning.ægtefælle_positiv_modregning_kroner == 30000 && par11_ægtefælle_positiv_modregning.negativ_nettokapitalindkomst_efter_ægtefællepositiv_kroner == 90000 && par11_ægtefælle_positiv_modregning.effektiv_beløbsgrænse_kroner == 100000 && par11_ægtefælle_positiv_modregning.nedslag_kroner == 7200
+| par11_kommunal_eller_par8c_pligt_kræves: par11_ingen_kommunal_pligt -> par11_ingen_kommunal_pligt.nedslagsgrundlag_kroner == 50000 && par11_ingen_kommunal_pligt.nedslag_kroner == 0
+| par11_modregner_i_lovbestemt_rækkefølge: par11_modregning -> par11_modregning.par6_efter_kroner == 0 && par11_modregning.par7_efter_kroner == 0 && par11_modregning.par8c_efter_kroner == 0 && par11_modregning.kommuneskat_efter_kroner == 1000 && par11_modregning.kirkeskat_efter_kroner == 500 && par11_modregning.ubrugt_efter_egne_skatter_kroner == 0
+| par11_ubrugt_nedslag_overføres_til_ægtefælle: par11_ubrugt_til_ægtefælle -> par11_ubrugt_til_ægtefælle.ubrugt_efter_egne_skatter_kroner == 5900 && par11_ubrugt_til_ægtefælle.overført_til_ægtefælle_kroner == 5900
 
 ----
 § 12. Skatteværdien af de i § 10 nævnte personfradrag opgøres som en procentdel
