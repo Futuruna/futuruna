@@ -99,9 +99,9 @@ Current municipal/church-tax and withholding dependency sources:
     §§ 58, 60-62, 62 A, 62 C and 67 now cover the first final-settlement slice:
     B-skat installment calendar projection, crediting, restskat/overskydende
     skat balance, spouse offsetting, restskat percentage supplement and timing
-    posture, overskydende skat compensation and refund posture, amended annual
-    statement interest posture, minimum-rate thresholds, and dividend-tax credit
-    posture.
+    posture, system-date-driven § 61 stk. 4/stk. 6 restskat rateplans,
+    overskydende skat compensation and refund posture, amended annual statement
+    interest posture, minimum-rate thresholds, and dividend-tax credit posture.
 - Bekendtgørelse om kildeskat:
   `https://www.retsinformation.dk/eli/lta/2025/839`
   - XML status on 2026-07-18: `Valid`
@@ -237,8 +237,8 @@ encoded as a temporal rule on top of the consolidation.
   BEK 839 forskudskort generation, BEK 1094 2026 indeholdelsesprocent,
   Kildeskatteloven §§ 60-62/62 A/62 C/67 slutopgørelse balance,
   restskat timing, date-derived B-skat rate windows, B-skat minimum-rate
-  completion plans, restskat rateplans with exact and mixed large/small
-  installment splits, date-derived § 62 A interest spans, and overskydende-skat
+  completion plans, system-date-driven § 61 stk. 4/stk. 6 restskat rateplans
+  with exact and mixed large/small installment splits, date-derived § 62 A interest spans, and overskydende-skat
   compensation posture,
   Opkrævningsloven payment deadlines and § 7 late-payment rate posture,
   shared money/rounding posture for whole kroner, ten-kroner floors,
@@ -329,7 +329,9 @@ Current decision:
 - `KildeskatRestskatRateplan` and `KildeskatRestskatBeløbsdeling` now expose
   the executable installment schedule layer for § 61. The model records
   statutory branch, first/last due date, rate count, last-timely-payment day,
-  and exact-vs-mixed large/small installment splits, including the January
+  and exact-vs-mixed large/small installment splits. `KildeskatRestskatSystemdatoer`
+  now carries separate source-backed system-start dates for late stk. 4
+  three-rate collection and stk. 6 residual collection, including the January
   18.300 kr. over nine remaining B-skat rates case with three 2.034 kr. rates
   and six 2.033 kr. rates.
 - `KildeskatPar62ARenteDatoInput` and
@@ -439,9 +441,8 @@ Review candidates to revisit deliberately, not as broad churn:
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for municipal/church
   settlement edge cases, direct Nationalbank raw-data ingestion beyond the
-  Skattestyrelsen-published Opkrævningsloven § 7 annual rate, the
-  system-supported start date for late residual restskat three-rate collection,
-  and remaining AM edge cases beyond the first source-explicit special-case slice. The AM-law
+  Skattestyrelsen-published Opkrævningsloven § 7 annual rate, and remaining AM
+  edge cases beyond the first source-explicit special-case slice. The AM-law
   slice now covers ordinary wage remuneration,
   taxable benefits, § 3 exclusions, self-employed bases with and without
   virksomhedsordning, library-fee compensation, the 2026 youth exemption, and
@@ -466,7 +467,8 @@ Review candidates to revisit deliberately, not as broad churn:
   supplement.
   The first Kildeskatteloven slutopgørelse slice now covers § 60 crediting,
   § 61 restskat plus percentage supplement, timing posture, B-skat/restskat
-  rateplans with large/small installment splits, § 62
+  rateplans with large/small installment splits, including system-date-driven
+  late stk. 4 and stk. 6 three-rate plans, § 62
   overskydende skat plus compensation/refund posture, § 60 spouse offsetting,
   § 58 B-skat calendar projection, § 62 A amended annual statement interest
   posture with date-derived month counts, § 62 C minimum thresholds, and § 67
@@ -660,7 +662,9 @@ M4 - Ordinary taxpayer calculator
   low-withholding restskat path with supplement and next-year transfer posture.
   Kildeskatteloven now also exposes the § 58 B-skat calendar as a rate-window
   domain object, § 62 A interest fixtures, and a restskat minimum-rate tension
-  plus completion plan when remaining B-skat rates are too few.
+  plus completion plan when remaining B-skat rates are too few, and separates
+  late § 61 stk. 4 and stk. 6 system-start dates in executable restskat
+  rateplans.
   `delaar-scenarier.scenario.runa`
   now runs a 2026 Copenhagen § 14 partial-year wage-earner case, annualizing
   180 days of wage income and applying the reduced §§ 6-9 state-income-tax
@@ -680,8 +684,9 @@ M5 - Audit suite
   covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture,
   covered BEK 839 forskudskort generation, covered BEK 1094 2026
   indeholdelsesprocent derivation, covered Kildeskatteloven slutopgørelse
-  balance/restskat timing/overskydende skat compensation/dividend-tax credit
-  posture, covered fictional household scenario, covered Børne- og ungeydelse
+  balance/restskat timing/system-date-driven § 61 stk. 4/stk. 6 rateplans/
+  overskydende skat compensation/dividend-tax credit posture, covered fictional
+  household scenario, covered Børne- og ungeydelse
   benefit-cliff/source-tension audit plus a first boligsikring § 22 threshold
   cliff, covered external Skat.dk 2026
   ordinary wage-earner fixture, topskat threshold activation,
@@ -701,7 +706,8 @@ M5 - Audit suite
   amendment and date-exact daily interest context, covered B-skat installment
   calendar/rate-window projection, covered § 7 cross-calendar-year daily
   interest split, covered § 62 A interest fixtures, exposed and scheduled
-  restskat remaining B-skat-rate minimum tension,
+  restskat remaining B-skat-rate minimum tension and system-start residual
+  restskat collection,
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
   seamen-relief exceptions, and calculator-level § 13 integration signals over
@@ -721,14 +727,15 @@ M6 - Website integration
   wage-earner fixture slice, a source-backed external Skat.dk 2026 ordinary
   wage-earner fixture, the § 14/§ 19 external differential scenario, plus ordinary and
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
-  A-income/withholding/e-skattekort/slutopgørelse/restskat timing posture,
+  A-income/withholding/e-skattekort/slutopgørelse/restskat timing and system-start rateplan posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   first § 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
   household benefit-cliff/source-tension probe plus a boligsikring § 22
   threshold-cliff probe,
   Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily
   interest-context, and cross-calendar-year interest-split slices, the B-skat
-  calendar projection and minimum-rate completion plan, § 62 A interest
+  calendar projection, system-date-driven § 61 stk. 4/stk. 6 rateplans,
+  minimum-rate completion plan, § 62 A interest
   fixtures, § 14 partial-year wage-earner
   scenario, § 14 official guidance example, and personal plus positive-capital § 19 skatteloft inside the
   wage-earner breakdown, including the 2026 Langeland high-rate municipality

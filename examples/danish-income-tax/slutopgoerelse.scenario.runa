@@ -36,7 +36,7 @@ overskydende skat efter § 62.
 = scenarie1_husholdning_genereret_godtgørelse = kildeskat_overskydende_godtgørelse_kroner(KildeskatOverskydendeGodtgørelseInput(scenarie1_husholdning_genereret_overskydende_skat, 0, 0, 0, scenarie1_opkrævningslov_rente_fixture_basispoint))
 = scenarie1_husholdning_genereret_udbetaling = kildeskat_overskydende_udbetaling_efter_restancemodregning_kroner(KildeskatOverskydendeTilbagebetalingInput(scenarie1_husholdning_genereret_overskydende_skat, scenarie1_husholdning_genereret_godtgørelse, 0, Sandt, Falskt, 0, scenarie1_opkrævningslov_rente_fixture_basispoint))
 = scenarie1_mand_lav_indeholdelse_tillæg = kildeskat_restskat_procenttillæg_kroner(KildeskatRestskatTillægInput(scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner, scenarie1_opkrævningslov_rente_fixture_basispoint))
-= scenarie1_mand_lav_indeholdelse_systemdatoer = KildeskatRestskatSystemdatoer(2026, KildeskatDato(2027, 9, 30))
+= scenarie1_mand_lav_indeholdelse_systemdatoer = KildeskatRestskatSystemdatoer(2026, KildeskatDato(2027, 9, 30), KildeskatDato(2027, 10, 1), KildeskatDato(2027, 11, 1))
 = scenarie1_mand_lav_indeholdelse_opkrævning_input = kildeskat_restskat_opkrævning_input_fra_dato(KildeskatRestskatOpkrævningDatoInput(scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner, kildeskat_restskat_grænse_2010_niveau_kroner(), Sandt, KildeskatDato(2027, 3, 15), scenarie1_mand_lav_indeholdelse_systemdatoer))
 = scenarie1_mand_lav_indeholdelse_plan = kildeskat_restskat_opkrævning_plan(scenarie1_mand_lav_indeholdelse_opkrævning_input)
 
