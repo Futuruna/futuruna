@@ -5,17 +5,23 @@
 # Point(x: Int, y: Int)
 # TaxFlags(positive_share_income: Bool, capped_at_share_income: Bool, notice_given: Bool, not_deducted_personally: Bool)
 # Shape = Circle(radius: Int) | Rectangle(width: Int, height: Int)
+# TaxCase(person_income: Int, allowance: Int) {
+    | taxable_income() -> person_income - allowance
+}
 
 = point_named = Point(y = 20, x = 10)
 = flags_named = TaxFlags(not_deducted_personally = True, notice_given = False, capped_at_share_income = True, positive_share_income = True)
 = rectangle_named = Rectangle(height = 4, width = 3)
+= rule_scope_named = TaxCase(allowance = 100, person_income = 1000)
 
 | point_named_reordered: point_named -> point_named.x == 10 && point_named.y == 20
 | flags_named_reordered: flags_named -> flags_named.positive_share_income && flags_named.capped_at_share_income && flags_named.notice_given == False && flags_named.not_deducted_personally
 | adt_named_reordered: rectangle_named -> rectangle_named.width == 3 && rectangle_named.height == 4
+| rule_scope_named_reordered: rule_scope_named.taxable_income() -> rule_scope_named.taxable_income() == 900
 
 ? point_named_reordered
 ? flags_named_reordered
 ? adt_named_reordered
+? rule_scope_named_reordered
 
 @ print("named constructor arguments passed")

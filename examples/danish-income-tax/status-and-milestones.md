@@ -220,6 +220,8 @@ encoded as a temporal rule on top of the consolidation.
 - `husholdning-benefit-cliffs.audit.runa` exists and checks/runs with
   `runa run`.
 - `aktieindkomst-pension.audit.runa` exists and checks/runs with `runa run`.
+- `aktieindkomst-slutopgoerelse.scenario.runa` exists and checks/runs with
+  `runa run`.
 - `slutopgoerelse.scenario.runa` exists and checks/runs with `runa run`.
 - `indeholdelse-afregning.scenario.runa` exists and checks/runs with
   `runa run`.
@@ -249,6 +251,8 @@ encoded as a temporal rule on top of the consolidation.
   dependency slices, 2024/2025/2026 tax-year parameter packs, grouped
   wage-earner calculation-domain records, first wage-earner scenarios, a first
   § 14 partial-year wage-earner scenario, a first fictional household scenario,
+  a first § 8 a share-income final-settlement scenario with § 67 dividend-tax
+  credit splitting,
   a source-backed external Skat.dk 2026 wage-earner scenario, complex § 13
   calculator fixtures, and first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
@@ -349,6 +353,12 @@ Current decision:
   stk. 4/stk. 6 three-rate case. The scope keeps the shared derived
   `opkrævning`, system-start dates, installment count, and amount splitting
   together while the public wrapper rules keep the surrounding file stable.
+- `AktieindkomstSlutopgørelseCase` uses product-scoped `|` rules for the
+  § 8 a/§ 67 annual-settlement case. The scope keeps the wage-earner breakdown,
+  monthly A-skat, share income, spouse share-income threshold facts, and
+  withheld dividend tax together while methods derive the effective
+  progression threshold, final low-layer share tax, high-layer tax entering
+  final tax, § 60 credit basket, and final annual-settlement result.
 - `KildeskatPar62ARenteDatoInput` and
   `KildeskatPar62AForsinketUdbetalingsdatoInput` keep § 62 A issue and payout
   scheduling date-based. They derive the old "påbegyndte måneder" helper input
@@ -688,6 +698,12 @@ M4 - Ordinary taxpayer calculator
   now runs a 2026 Copenhagen § 14 partial-year wage-earner case, annualizing
   180 days of wage income and applying the reduced §§ 6-9 state-income-tax
   result while keeping AM outside the § 14 helårsskat component.
+  `aktieindkomst-slutopgoerelse.scenario.runa` now composes Personskatteloven
+  § 8 a with Kildeskatteloven § 67 for the fictional primary wage-earner:
+  150.000 kr. share income with the spouse's unused share-income threshold stays
+  in the 27 pct. final-tax layer, while the high-tax variant splits 21.438 kr.
+  final low-layer tax from 29.652 kr. high-layer tax entering slutskat and
+  leaves 7.900 kr. restskat after 19.062 kr. dividend-tax credit.
 
 M5 - Audit suite
 
@@ -704,7 +720,9 @@ M5 - Audit suite
   covered BEK 839 forskudskort generation, covered BEK 1094 2026
   indeholdelsesprocent derivation, covered Kildeskatteloven slutopgørelse
   balance/restskat timing/system-date-driven § 61 stk. 4/stk. 6 rateplans/
-  overskydende skat compensation/dividend-tax credit posture, covered fictional
+  overskydende skat compensation/dividend-tax credit posture, covered § 8 a
+  share-income final-settlement scenarios with § 67 dividend-tax credit
+  splitting, covered fictional
   household scenario, covered Børne- og ungeydelse
   benefit-cliff/source-tension audit plus a first boligsikring § 22 threshold
   cliff, covered external Skat.dk 2026
@@ -750,6 +768,7 @@ M6 - Website integration
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing and system-start rateplan posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   first § 4 a pension/share-income audit,
+  first § 8 a/§ 67 share-income annual-settlement scenario,
   first § 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
   household benefit-cliff/source-tension probe plus a boligsikring § 22
   threshold-cliff probe,

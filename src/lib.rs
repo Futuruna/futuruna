@@ -6804,6 +6804,14 @@ impl Interpreter {
                 // Handled in run_program (needs env to evaluate condition)
             }
             TypeDecl::RuleScope { name, params, body } => {
+                let positional = false;
+                self.constructors
+                    .insert(name.clone(), (params.len(), positional));
+                self.field_names.insert(
+                    name.clone(),
+                    params.iter().map(|param| param.name.clone()).collect(),
+                );
+                self.ctor_to_type.insert(name.clone(), name.clone());
                 self.rule_scopes.insert(
                     name.clone(),
                     RuleScopeDef {
@@ -13107,6 +13115,12 @@ impl TypeChecker {
                 }
                 Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
                     self.types.insert(name.clone());
+                    self.constructors
+                        .insert(name.clone(), (name.clone(), params.len()));
+                    self.constructor_fields.insert(
+                        name.clone(),
+                        params.iter().map(|param| param.name.clone()).collect(),
+                    );
                     self.functions.insert(name.clone(), params.len());
                     self.user_functions.insert(name.clone());
                     self.define_var(name);

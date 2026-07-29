@@ -18275,17 +18275,24 @@ impl RustCodegen {
                         .insert(name.clone(), rust_name.clone());
                 }
                 self.types.struct_types.insert(rust_name.clone());
-                self.types.variant_fields.insert(
-                    rust_name.clone(),
-                    params.iter().map(|p| p.name.clone()).collect(),
-                );
-                self.types.variant_field_types.insert(
-                    rust_name.clone(),
-                    params
-                        .iter()
-                        .filter_map(|p| p.ty.as_ref().map(|ty| (p.name.clone(), ty.clone())))
-                        .collect(),
-                );
+                let rule_scope_fields: Vec<String> =
+                    params.iter().map(|p| p.name.clone()).collect();
+                let rule_scope_field_types: BTreeMap<String, Ty> = params
+                    .iter()
+                    .filter_map(|p| p.ty.as_ref().map(|ty| (p.name.clone(), ty.clone())))
+                    .collect();
+                self.types
+                    .variant_fields
+                    .insert(name.clone(), rule_scope_fields.clone());
+                self.types
+                    .variant_fields
+                    .insert(rust_name.clone(), rule_scope_fields);
+                self.types
+                    .variant_field_types
+                    .insert(name.clone(), rule_scope_field_types.clone());
+                self.types
+                    .variant_field_types
+                    .insert(rust_name.clone(), rule_scope_field_types);
                 self.types
                     .type_decls
                     .insert(rust_name.clone(), (Vec::new(), Vec::new()));
@@ -18381,19 +18388,24 @@ impl RustCodegen {
                                 .insert(name.clone(), rust_name.clone());
                         }
                         self.types.struct_types.insert(rust_name.clone());
-                        self.types.variant_fields.insert(
-                            rust_name.clone(),
-                            params.iter().map(|p| p.name.clone()).collect(),
-                        );
-                        self.types.variant_field_types.insert(
-                            rust_name.clone(),
-                            params
-                                .iter()
-                                .filter_map(|p| {
-                                    p.ty.as_ref().map(|ty| (p.name.clone(), ty.clone()))
-                                })
-                                .collect(),
-                        );
+                        let rule_scope_fields: Vec<String> =
+                            params.iter().map(|p| p.name.clone()).collect();
+                        let rule_scope_field_types: BTreeMap<String, Ty> = params
+                            .iter()
+                            .filter_map(|p| p.ty.as_ref().map(|ty| (p.name.clone(), ty.clone())))
+                            .collect();
+                        self.types
+                            .variant_fields
+                            .insert(name.clone(), rule_scope_fields.clone());
+                        self.types
+                            .variant_fields
+                            .insert(rust_name.clone(), rule_scope_fields);
+                        self.types
+                            .variant_field_types
+                            .insert(name.clone(), rule_scope_field_types.clone());
+                        self.types
+                            .variant_field_types
+                            .insert(rust_name.clone(), rule_scope_field_types);
                         self.types
                             .type_decls
                             .insert(rust_name.clone(), (Vec::new(), Vec::new()));

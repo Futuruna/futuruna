@@ -2804,6 +2804,8 @@ const TAX_SKATDK_EXTERNAL: &str =
     include_str!("../../examples/danish-income-tax/skatdk-2026-ekstern.scenario.runa");
 const TAX_AKTIE_PENSION_AUDIT: &str =
     include_str!("../../examples/danish-income-tax/aktieindkomst-pension.audit.runa");
+const TAX_AKTIE_SETTLEMENT_SCENARIO: &str =
+    include_str!("../../examples/danish-income-tax/aktieindkomst-slutopgoerelse.scenario.runa");
 const TAX_PARTIAL_YEAR: &str =
     include_str!("../../examples/danish-income-tax/delaar-scenarier.scenario.runa");
 const TAX_OMREGNING_EXTERNAL: &str =
@@ -3594,6 +3596,11 @@ fn ResearchPersonskatteloven() -> Element {
             TAX_AKTIE_PENSION_AUDIT,
         ),
         (
+            "aktieindkomst-slutopgoerelse.scenario.runa — § 8 a/§ 67 aktieindkomst-årsopgørelse",
+            "aktie-settlement-scenario-code",
+            TAX_AKTIE_SETTLEMENT_SCENARIO,
+        ),
+        (
             "delaar-scenarier.scenario.runa — § 14 delårsscenarie",
             "partial-year-code",
             TAX_PARTIAL_YEAR,
@@ -3675,7 +3682,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Calculation slice" }
                             strong { "Calculation-ready" }
-                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with shared Pengebeløb rounding and øre-fraction posture, source-backed ordinary and special-case AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, amount-level § 4 a pensionsfradrag in aktieindkomst, personal and positive-capital § 19 skatteloft inside the wage-earner breakdown, § 14 partial-year annualization through the wage-earner model using the state income-tax component after §§ 6-9, the official § 14 guidance example for annualization and one-off income handling, Kildeskatteloven A-income/withholding/e-skattekort and §§ 58/60-62/62 A/62 C/67 settlement, B-skat calendar projection, B-skat minimum-rate completion plans, system-date-driven § 61 stk. 4/stk. 6 restskat rateplans with large/small installment splits, restskat timing, § 62 A interest fixtures, and overskydende skat compensation posture, BEK 839 generated card values with BEK 1094-derived 2026 indeholdelsesprocent, Opkrævningsloven payment-deadline, § 7 rate-derivation, same-year daily interest, and cross-year interest-split fixtures, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, 2026 Langeland high-municipal-rate § 19 personal and positive-capital fixtures checked against the published SKM Nedslag pct., a fictional household scenario, first household benefit-cliff probes for Børne- og ungeydelse plus boligsikring § 22, and synthetic § 13 complex-case breakdown fixtures." }
+                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with shared Pengebeløb rounding and øre-fraction posture, source-backed ordinary and special-case AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, amount-level § 4 a pensionsfradrag in aktieindkomst, § 8 a share-income final-settlement scenarios with § 67 dividend-tax credit split, personal and positive-capital § 19 skatteloft inside the wage-earner breakdown, § 14 partial-year annualization through the wage-earner model using the state income-tax component after §§ 6-9, the official § 14 guidance example for annualization and one-off income handling, Kildeskatteloven A-income/withholding/e-skattekort and §§ 58/60-62/62 A/62 C/67 settlement, B-skat calendar projection, B-skat minimum-rate completion plans, system-date-driven § 61 stk. 4/stk. 6 restskat rateplans with large/small installment splits, restskat timing, § 62 A interest fixtures, and overskydende skat compensation posture, BEK 839 generated card values with BEK 1094-derived 2026 indeholdelsesprocent, Opkrævningsloven payment-deadline, § 7 rate-derivation, same-year daily interest, and cross-year interest-split fixtures, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, 2026 Langeland high-municipal-rate § 19 personal and positive-capital fixtures checked against the published SKM Nedslag pct., a fictional household scenario, first household benefit-cliff probes for Børne- og ungeydelse plus boligsikring § 22, and synthetic § 13 complex-case breakdown fixtures." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
@@ -3724,7 +3731,7 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://star.dk/ydelser/boligstoette-boernetilskud-og-hjaelp-i-saerlige-tilfaelde/boligstoette/boligsikring", "STAR boligsikring" }
                     }
                     p { class: "const-stats",
-                        "29 filer \u{00B7} fælles Pengebeløb-afrunding \u{00B7} §§ 1-28 første slice \u{00B7} § 4 a pensionsfradrag \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 9 J/9 K \u{00B7} § 14 delår + ekstern DJV-differential \u{00B7} personlig og positiv-kapital § 19 skatteloft inkl. Langeland høj kommuneskat + SKM-nedslag \u{00B7} Kildeskatteloven A-indkomst/A-skat/slutopgørelse/restskat-timing/B-skat/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A \u{00B7} BEK 839 forskudskort \u{00B7} BEK 1094 indeholdelsesprocent \u{00B7} Opkrævningsloven betalingsfrister, § 7-rente og tværårssplit \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, delår, ekstern differential, husholdning, boligsikring, slutopgørelse, afregning, kapital og § 13 fixtures \u{00B7} audit-signaler"
+                        "30 filer \u{00B7} fælles Pengebeløb-afrunding \u{00B7} §§ 1-28 første slice \u{00B7} § 4 a pensionsfradrag \u{00B7} § 8 a/§ 67 aktieindkomst-årsopgørelse \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 9 J/9 K \u{00B7} § 14 delår + ekstern DJV-differential \u{00B7} personlig og positiv-kapital § 19 skatteloft inkl. Langeland høj kommuneskat + SKM-nedslag \u{00B7} Kildeskatteloven A-indkomst/A-skat/slutopgørelse/restskat-timing/B-skat/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A \u{00B7} BEK 839 forskudskort \u{00B7} BEK 1094 indeholdelsesprocent \u{00B7} Opkrævningsloven betalingsfrister, § 7-rente og tværårssplit \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, delår, ekstern differential, husholdning, boligsikring, slutopgørelse, afregning, kapital og § 13 fixtures \u{00B7} audit-signaler"
                     }
                 }
 
