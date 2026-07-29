@@ -62,14 +62,27 @@ https://info.skat.dk/data.aspx?oid=1977388
 | par14_helårsbeløb(delårsbeløb_kroner: Heltal, skattepligtsdage: Heltal) -> par14_helt_kroner_afrundet(delårsbeløb_kroner * 365, skattepligtsdage) under skattepligtsdage > 0
 | par14_helårsbeløb_for_post(post: Par14Beløbspost, skattepligtsdage: Heltal) -> par14_helårsbeløb(post.beløb_kroner, skattepligtsdage) under post.art == Par14LøbendeBeløb
 | par14_helårsbeløb_for_post(post: Par14Beløbspost, skattepligtsdage: Heltal) -> post.beløb_kroner under post.art == Par14EngangsBeløb
-| par14_helårsindkomst(input: Par14OmregningInput) -> Par14Helårsindkomst(par14_helårsbeløb(input.delårs_skattepligtig_indkomst_kroner, input.skattepligtsdage), par14_helårsbeløb(input.delårs_personlig_indkomst_kroner, input.skattepligtsdage), par14_helårsbeløb(input.delårs_kapitalindkomst_kroner, input.skattepligtsdage))
+| par14_helårsindkomst(input: Par14OmregningInput) -> Par14Helårsindkomst(
+    skattepligtig_indkomst_kroner = par14_helårsbeløb(input.delårs_skattepligtig_indkomst_kroner, input.skattepligtsdage),
+    personlig_indkomst_kroner = par14_helårsbeløb(input.delårs_personlig_indkomst_kroner, input.skattepligtsdage),
+    kapitalindkomst_kroner = par14_helårsbeløb(input.delårs_kapitalindkomst_kroner, input.skattepligtsdage)
+)
 | par14_helårsskat_beregnes_efter_par6_til_par9() -> Sandt
 | par14_helårsskat_nedsat_for_delår(input: Par14SkattenedsættelseInput) -> input.helårsskat_kroner * input.delårsbeløb_kroner / input.helårsbeløb_kroner under input.helårsbeløb_kroner > 0
 | par14_valg_træffes_ved_oplysninger_til_forvaltningen() -> Sandt
 | par14_valg_kan_omgøres_senest_30_juni_i_andet_år() -> Sandt
 
-= par14_fixture = par14_helårsindkomst(Par14OmregningInput(180000, 200000, -20000, 180))
-= par14_skattenedsættelse_fixture = par14_helårsskat_nedsat_for_delår(Par14SkattenedsættelseInput(100000, 180000, par14_fixture.skattepligtig_indkomst_kroner))
+= par14_fixture = par14_helårsindkomst(Par14OmregningInput(
+    delårs_skattepligtig_indkomst_kroner = 180000,
+    delårs_personlig_indkomst_kroner = 200000,
+    delårs_kapitalindkomst_kroner = -20000,
+    skattepligtsdage = 180
+))
+= par14_skattenedsættelse_fixture = par14_helårsskat_nedsat_for_delår(Par14SkattenedsættelseInput(
+    helårsskat_kroner = 100000,
+    delårsbeløb_kroner = 180000,
+    helårsbeløb_kroner = par14_fixture.skattepligtig_indkomst_kroner
+))
 = par14_engangsbeløb_fixture = par14_helårsbeløb_for_post(Par14Beløbspost(168232, Par14EngangsBeløb), 27)
 = par14_fuld_skattepligt_omregnes = par14_helårsomregning_gælder(FuldSkattepligtIndtræder)
 = par14_valg_muligt = par14_valg_uden_helårsomregning_muligt(FuldSkattepligtOphører)
@@ -170,13 +183,27 @@ nedsat med de overskydende procenter.
 | par19_skatteloftsnedslag_kroner(input: Par19SkatteloftInput, overskydende_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(input.beregningsgrundlag_kroner, overskydende_basispoint)
 | par19_loftrelevant_progressiv_statsskat_basispoint(skatteår: Heltal) -> nationalparametre_for(skatteår).topskat_basispoint under skatteår < 2026
 | exception reform_mellemskat_loftgrundlag par19_loftrelevant_progressiv_statsskat_basispoint(skatteår: Heltal) -> nationalparametre_for(skatteår).mellemskat_basispoint under skatteår >= 2026
-| par19_skatteloft_input_for(skatteår: Heltal, kommune: Kommune, beregningsgrundlag_kroner: Heltal) -> Par19SkatteloftInput(skatteår, nationalparametre_for(skatteår).bundskat_basispoint, par19_loftrelevant_progressiv_statsskat_basispoint(skatteår), kommunale_parametre_for(skatteår, kommune).sundhedsbidrag_basispoint, kommunale_parametre_for(skatteår, kommune).kommuneskat_basispoint, beregningsgrundlag_kroner) under parameterpakke_komplet(skatteår, kommune)
+| par19_skatteloft_input_for(skatteår: Heltal, kommune: Kommune, beregningsgrundlag_kroner: Heltal) -> Par19SkatteloftInput(
+    skatteår = skatteår,
+    bundskat_basispoint = nationalparametre_for(skatteår).bundskat_basispoint,
+    progressiv_statsskat_basispoint = par19_loftrelevant_progressiv_statsskat_basispoint(skatteår),
+    sundhedsbidrag_basispoint = kommunale_parametre_for(skatteår, kommune).sundhedsbidrag_basispoint,
+    kommunal_eller_par8c_basispoint = kommunale_parametre_for(skatteår, kommune).kommuneskat_basispoint,
+    beregningsgrundlag_kroner = beregningsgrundlag_kroner
+) under parameterpakke_komplet(skatteår, kommune)
 | par19_personlig_skatteloft_input_for(skatteår: Heltal, kommune: Kommune, beregningsgrundlag_kroner: Heltal) -> par19_skatteloft_input_for(skatteår, kommune, beregningsgrundlag_kroner)
 | par19_positiv_kapital_skatteloft_input_for(skatteår: Heltal, kommune: Kommune, beregningsgrundlag_kroner: Heltal) -> par19_skatteloft_input_for(skatteår, kommune, beregningsgrundlag_kroner)
 
 = par19_2025_københavn_input = par19_personlig_skatteloft_input_for(2025, København, 100000)
 = par19_2025_københavn_overskydende = par19_personlig_overskydende_basispoint(par19_2025_københavn_input)
-= par19_høj_kommune_input = Par19SkatteloftInput(2025, 1201, 1500, 0, 2700, 100000)
+= par19_høj_kommune_input = Par19SkatteloftInput(
+    skatteår = 2025,
+    bundskat_basispoint = 1201,
+    progressiv_statsskat_basispoint = 1500,
+    sundhedsbidrag_basispoint = 0,
+    kommunal_eller_par8c_basispoint = 2700,
+    beregningsgrundlag_kroner = 100000
+)
 = par19_høj_kommune_overskydende = par19_personlig_overskydende_basispoint(par19_høj_kommune_input)
 = par19_høj_kommune_topskat_efter_loft = par19_topskat_efter_loft_basispoint(par19_høj_kommune_input.progressiv_statsskat_basispoint, par19_høj_kommune_overskydende)
 = par19_høj_kommune_nedslag = par19_skatteloftsnedslag_kroner(par19_høj_kommune_input, par19_høj_kommune_overskydende)
@@ -229,7 +256,10 @@ Stk. 3. Reguleringstallet udgør 100,0 for indkomstårene 2009-2013.
 | par20_reguleret_og_afrundet_kroner(input: Par20ReguleringInput) -> par20_afrund_op_til_nærmeste_100_kroner(par20_reguleret_før_afrunding_kroner(input))
 
 = par20_basisår = par20_reguleringstal_2009_til_2013_tiendedele(2012)
-= par20_personfradrag_2025_fixture = par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(39350, 1311))
+= par20_personfradrag_2025_fixture = par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = 39350,
+    reguleringstal_tiendedele = 1311
+))
 = par20_præcis_hundrede_fixture = par20_afrund_op_til_nærmeste_100_kroner(51600)
 
 | par20_basisår_100_0: par20_basisår -> par20_basisår == 1000

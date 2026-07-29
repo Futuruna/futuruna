@@ -22,7 +22,15 @@ Purpose: exercise Personskatteloven § 14 through the ordinary wage-earner model
 without using AM-bidrag as part of the §§ 6-9 helårsskat component.
 ----
 
-= delaar1_input = LønmodtagerInput(2026, København, 300000, 0, 0, Fyldt18EllerGift, Falskt)
+= delaar1_input = LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 300000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
 = delaar1_par14_input = LønmodtagerPar14Input(FuldSkattepligtIndtræder, delaar1_input, 180)
 = delaar1_par14 = beregn_lønmodtager_par14(delaar1_par14_input)
 

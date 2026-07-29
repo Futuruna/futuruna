@@ -83,12 +83,42 @@ bekendtgørelse nr. 839 af 24. juni 2025 om kildeskat.
 | forskudsregistrering_2026_toptopskat_procentsats_basispoint(input: Forskudsregistrering2026IndeholdelsesprocentInput) -> forskudsregistrering_2026_procentsats_basispoint(input.progressionsskatter.toptopskat_kroner, input.progressionsgrundlag.personlig_indkomst_kroner)
 | forskudsregistrering_2026_indeholdelsesprocent_basispoint(input: Forskudsregistrering2026IndeholdelsesprocentInput) -> forskudsregistrering_2026_laveste_skatteprocentsats_basispoint(input.skattekommune) + forskudsregistrering_2026_mellemskat_procentsats_basispoint(input) + forskudsregistrering_2026_topskat_procentsats_basispoint(input) + forskudsregistrering_2026_toptopskat_procentsats_basispoint(input)
 
-| forskudsregistrering_2026_skattekommune_for(skatteår: Heltal, kommune: Kommune, betaler_kirkeskat: Boolsk) -> Forskudsregistrering2026Skattekommune(skatteår, kommunale_parametre_for(skatteår, kommune).kommuneskat_basispoint, kommunale_parametre_for(skatteår, kommune).kirkeskat_basispoint, betaler_kirkeskat, nationalparametre_for(skatteår).bundskat_basispoint, Falskt, 0) under skatteår == 2026 && parameterpakke_komplet(skatteår, kommune)
+| forskudsregistrering_2026_skattekommune_for(skatteår: Heltal, kommune: Kommune, betaler_kirkeskat: Boolsk) -> Forskudsregistrering2026Skattekommune(
+    skatteår = skatteår,
+    kommunal_skat_basispoint = kommunale_parametre_for(skatteår, kommune).kommuneskat_basispoint,
+    kirkeskat_basispoint = kommunale_parametre_for(skatteår, kommune).kirkeskat_basispoint,
+    betaler_kirkeskat = betaler_kirkeskat,
+    bundskat_basispoint = nationalparametre_for(skatteår).bundskat_basispoint,
+    begrænset_skattepligtig = Falskt,
+    par8c_basispoint = 0
+) under skatteår == 2026 && parameterpakke_komplet(skatteår, kommune)
 
 = forskudsregistrering_2026_københavn_uden_kirke = forskudsregistrering_2026_skattekommune_for(2026, København, Falskt)
 = forskudsregistrering_2026_københavn_med_kirke = forskudsregistrering_2026_skattekommune_for(2026, København, Sandt)
-= forskudsregistrering_2026_almindelig_input = Forskudsregistrering2026IndeholdelsesprocentInput(forskudsregistrering_2026_københavn_uden_kirke, Forskudsregistrering2026Progressionsgrundlag(552000, 0), Forskudsregistrering2026Progressionsskatter(0, 0, 0))
-= forskudsregistrering_2026_progressiv_input = Forskudsregistrering2026IndeholdelsesprocentInput(forskudsregistrering_2026_københavn_uden_kirke, Forskudsregistrering2026Progressionsgrundlag(828000, 0), Forskudsregistrering2026Progressionsskatter(14010, 3757, 0))
+= forskudsregistrering_2026_almindelig_input = Forskudsregistrering2026IndeholdelsesprocentInput(
+    skattekommune = forskudsregistrering_2026_københavn_uden_kirke,
+    progressionsgrundlag = Forskudsregistrering2026Progressionsgrundlag(
+        personlig_indkomst_kroner = 552000,
+        positiv_nettokapitalindkomst_over_grænse_kroner = 0
+    ),
+    progressionsskatter = Forskudsregistrering2026Progressionsskatter(
+        mellemskat_efter_skatteloft_kroner = 0,
+        topskat_kroner = 0,
+        toptopskat_kroner = 0
+    )
+)
+= forskudsregistrering_2026_progressiv_input = Forskudsregistrering2026IndeholdelsesprocentInput(
+    skattekommune = forskudsregistrering_2026_københavn_uden_kirke,
+    progressionsgrundlag = Forskudsregistrering2026Progressionsgrundlag(
+        personlig_indkomst_kroner = 828000,
+        positiv_nettokapitalindkomst_over_grænse_kroner = 0
+    ),
+    progressionsskatter = Forskudsregistrering2026Progressionsskatter(
+        mellemskat_efter_skatteloft_kroner = 14010,
+        topskat_kroner = 3757,
+        toptopskat_kroner = 0
+    )
+)
 = forskudsregistrering_2026_mellemskat_procentsats_fixture = forskudsregistrering_2026_mellemskat_procentsats_basispoint(forskudsregistrering_2026_progressiv_input)
 = forskudsregistrering_2026_topskat_procentsats_fixture = forskudsregistrering_2026_topskat_procentsats_basispoint(forskudsregistrering_2026_progressiv_input)
 = forskudsregistrering_2026_almindelig_procent = forskudsregistrering_2026_indeholdelsesprocent_basispoint(forskudsregistrering_2026_almindelig_input)

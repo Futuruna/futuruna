@@ -222,17 +222,92 @@ fastsat i medfør af stk. 4.
 | exception kildeskat_nedrunder_a_skat_grundlag_til_ti kildeskat_a_skat_beregningsgrundlag_kroner(input: KildeskatESkattekortInput) -> kildeskat_nedrundet_til_ti_kroner(kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input)) under input.nedrunding_til_ti_kroner
 
 | kildeskat_a_skat_med_eskattekort_kroner(input: KildeskatESkattekortInput) -> penge_beløb_gange_basispoint_kroner(kildeskat_a_skat_beregningsgrundlag_kroner(input), kildeskat_effektiv_indeholdelsesprocent_basispoint(input))
-| kildeskat_simpelt_eskattekort_input(input: KildeskatSkattekortInput) -> KildeskatESkattekortInput(input.a_skat_grundlag_kroner, input.fradrag_kroner, input.fradrag_kroner, input.fradrag_kroner, input.fradrag_kroner, input.indeholdelsesprocent_basispoint, 0, input.kort, Måned, Falskt)
+| kildeskat_simpelt_eskattekort_input(input: KildeskatSkattekortInput) -> KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = input.a_skat_grundlag_kroner,
+    månedsfradrag_kroner = input.fradrag_kroner,
+    fjorten_dages_fradrag_kroner = input.fradrag_kroner,
+    ugefradrag_kroner = input.fradrag_kroner,
+    dagsfradrag_kroner = input.fradrag_kroner,
+    indeholdelsesprocent_basispoint = input.indeholdelsesprocent_basispoint,
+    ønsket_højere_indeholdelsesprocent_basispoint = 0,
+    kort = input.kort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Falskt
+)
 | kildeskat_a_skat_kroner(input: KildeskatSkattekortInput) -> kildeskat_a_skat_med_eskattekort_kroner(kildeskat_simpelt_eskattekort_input(input))
 
-= kildeskat_løn_fixture = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(50000, 0, Sandt, Falskt, Falskt))
-= kildeskat_indeholdelsespligt_fixture = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(kildeskat_løn_fixture, Sandt, 0))
-= kildeskat_manglende_kort_fixture = kildeskat_a_skat_kroner(KildeskatSkattekortInput(50000, 0, 0, IntetESkattekort))
-= kildeskat_frikort_fixture = kildeskat_a_skat_kroner(KildeskatSkattekortInput(50000, 0, 0, Frikort))
-= kildeskat_hovedkort_måned_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(50000, 12000, 6000, 3000, 600, 3800, 0, Skattekort, Måned, Sandt))
-= kildeskat_bikort_uden_fradrag_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(50000, 12000, 6000, 3000, 600, 3800, 0, Bikort, Måned, Sandt))
-= kildeskat_højere_procent_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(50000, 12000, 6000, 3000, 600, 3800, 4100, Skattekort, Måned, Sandt))
-= kildeskat_nedrunding_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(50007, 12003, 6000, 3000, 600, 3800, 0, Skattekort, Måned, Sandt))
+= kildeskat_løn_fixture = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(
+    vederlag_i_penge_kroner = 50000,
+    fri_kost_og_logi_skatteværdi_kroner = 0,
+    personligt_arbejde_i_tjenesteforhold = Sandt,
+    undtaget_gruppeliv_pbl56 = Falskt,
+    undtaget_medarbejderinvestering_under_grænse = Falskt
+))
+= kildeskat_indeholdelsespligt_fixture = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(
+    a_indkomst_kroner = kildeskat_løn_fixture,
+    udbetaling_fundet_sted = Sandt,
+    måneder_siden_endelig_ret = 0
+))
+= kildeskat_manglende_kort_fixture = kildeskat_a_skat_kroner(KildeskatSkattekortInput(
+    a_skat_grundlag_kroner = 50000,
+    fradrag_kroner = 0,
+    indeholdelsesprocent_basispoint = 0,
+    kort = IntetESkattekort
+))
+= kildeskat_frikort_fixture = kildeskat_a_skat_kroner(KildeskatSkattekortInput(
+    a_skat_grundlag_kroner = 50000,
+    fradrag_kroner = 0,
+    indeholdelsesprocent_basispoint = 0,
+    kort = Frikort
+))
+= kildeskat_hovedkort_måned_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = 50000,
+    månedsfradrag_kroner = 12000,
+    fjorten_dages_fradrag_kroner = 6000,
+    ugefradrag_kroner = 3000,
+    dagsfradrag_kroner = 600,
+    indeholdelsesprocent_basispoint = 3800,
+    ønsket_højere_indeholdelsesprocent_basispoint = 0,
+    kort = Skattekort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+))
+= kildeskat_bikort_uden_fradrag_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = 50000,
+    månedsfradrag_kroner = 12000,
+    fjorten_dages_fradrag_kroner = 6000,
+    ugefradrag_kroner = 3000,
+    dagsfradrag_kroner = 600,
+    indeholdelsesprocent_basispoint = 3800,
+    ønsket_højere_indeholdelsesprocent_basispoint = 0,
+    kort = Bikort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+))
+= kildeskat_højere_procent_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = 50000,
+    månedsfradrag_kroner = 12000,
+    fjorten_dages_fradrag_kroner = 6000,
+    ugefradrag_kroner = 3000,
+    dagsfradrag_kroner = 600,
+    indeholdelsesprocent_basispoint = 3800,
+    ønsket_højere_indeholdelsesprocent_basispoint = 4100,
+    kort = Skattekort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+))
+= kildeskat_nedrunding_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = 50007,
+    månedsfradrag_kroner = 12003,
+    fjorten_dages_fradrag_kroner = 6000,
+    ugefradrag_kroner = 3000,
+    dagsfradrag_kroner = 600,
+    indeholdelsesprocent_basispoint = 3800,
+    ønsket_højere_indeholdelsesprocent_basispoint = 0,
+    kort = Skattekort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+))
 
 | kildeskat_løn_er_a_indkomst: kildeskat_løn_fixture -> kildeskat_løn_fixture == 50000
 | kildeskat_løn_udløser_indeholdelsespligt: kildeskat_indeholdelsespligt_fixture -> kildeskat_indeholdelsespligt_fixture == Sandt
@@ -327,7 +402,12 @@ grænse, jf. stk. 4.
 | exception kildeskat_forvaltning_kan_ændre_forskudsgrundlag kildeskat_forskudsgrundlag_ændres(input: KildeskatForskudsændringInput) -> Sandt under input.forvaltning_har_nærliggende_afvigelsesgrund && input.ændring_overstiger_fast_grænse
 
 = kildeskat_forskudsgrundlag_sidste_års_fixture = kildeskat_forskudsgrundlag_kilde(KildeskatForskudsgrundlagInput(Sandt, Falskt, Sandt))
-= kildeskat_forskudsændring_anmodning_fixture = kildeskat_forskudsgrundlag_ændres(KildeskatForskudsændringInput(Sandt, Sandt, Falskt, Falskt))
+= kildeskat_forskudsændring_anmodning_fixture = kildeskat_forskudsgrundlag_ændres(KildeskatForskudsændringInput(
+    skattepligtig_anmodning = Sandt,
+    oplysninger_tilstrækkeligt_sandsynliggjort = Sandt,
+    forvaltning_har_nærliggende_afvigelsesgrund = Falskt,
+    ændring_overstiger_fast_grænse = Falskt
+))
 
 | kildeskat_forskudsgrundlag_sidste_års_ændring: kildeskat_forskudsgrundlag_sidste_års_fixture -> kildeskat_forskudsgrundlag_sidste_års_fixture == KildeskatSidsteÅrsForskudsændring
 | kildeskat_forskudsgrundlag_kan_ændres_ved_sandsynliggjort_anmodning: kildeskat_forskudsændring_anmodning_fixture -> kildeskat_forskudsændring_anmodning_fixture == Sandt

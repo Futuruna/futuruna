@@ -169,7 +169,15 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 § 12.
 ----
 
-= m5_personfradrag_fixture = beregn_lønmodtager(LønmodtagerInput(2025, København, 500000, 0, 0, Fyldt18EllerGift, Sandt))
+= m5_personfradrag_fixture = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 500000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Sandt
+))
 
 | m5_personfradrag_normalfixture_dækket: m5_personfradrag_fixture -> m5_personfradrag_fixture.personfradrag_anvendt_i_slutskat == Sandt
 | m5_personfradrag_skatteværdi_beregnet: m5_personfradrag_fixture -> m5_personfradrag_fixture.statslig_personfradrag_skatteværdi_kroner == 6197 && m5_personfradrag_fixture.kommunal_personfradrag_skatteværdi_kroner == 12126
@@ -210,16 +218,72 @@ Ikke aktuel
 = m5_2026_statsskat_mellemskat = statsskat_indeholder_i_år(Mellemskat, 2026)
 = m5_2026_statsskat_toptopskat = statsskat_indeholder_i_år(Toptopskat, 2026)
 = m5_2026_statsskat_udligning = statsskat_indeholder_i_år(Udligningsskat, 2026)
-= m5_2026_progressiv_fixture = beregn_lønmodtager(LønmodtagerInput(2026, København, 900000, 0, 0, Fyldt18EllerGift, Falskt))
-= m5_2026_toptop_fixture = beregn_lønmodtager(LønmodtagerInput(2026, København, 3000000, 0, 0, Fyldt18EllerGift, Falskt))
-= m5_2026_kapital_fixture = beregn_lønmodtager(LønmodtagerInput(2026, København, 650000, 110000, 0, Fyldt18EllerGift, Falskt))
+= m5_2026_progressiv_fixture = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 900000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
+= m5_2026_toptop_fixture = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 3000000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
+= m5_2026_kapital_fixture = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 650000,
+    positiv_nettokapitalindkomst_kroner = 110000,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
 = m5_2026_langeland_komplet = parameterpakke_komplet(2026, Langeland)
-= m5_2026_langeland_personlig_fixture = beregn_lønmodtager(LønmodtagerInput(2026, Langeland, 900000, 0, 0, Fyldt18EllerGift, Falskt))
-= m5_2026_langeland_kapital_fixture = beregn_lønmodtager(LønmodtagerInput(2026, Langeland, 650000, 110000, 0, Fyldt18EllerGift, Falskt))
-= m5_2026_ægtefællekapital_input = MellemskatÆgtefælleKapitalInput(650000, 500000, 70000, 50000, 110000, 641200, 750)
+= m5_2026_langeland_personlig_fixture = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2026,
+    kommune = Langeland,
+    bruttoløn_kroner = 900000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
+= m5_2026_langeland_kapital_fixture = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2026,
+    kommune = Langeland,
+    bruttoløn_kroner = 650000,
+    positiv_nettokapitalindkomst_kroner = 110000,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
+= m5_2026_ægtefællekapital_input = MellemskatÆgtefælleKapitalInput(
+    personlig_indkomst_efter_am_kroner = 650000,
+    ægtefælle_personlig_indkomst_efter_am_kroner = 500000,
+    positiv_nettokapitalindkomst_kroner = 70000,
+    ægtefælle_positiv_nettokapitalindkomst_kroner = 50000,
+    ægtefælle_kapital_bundfradrag_kroner = 110000,
+    mellemskattegrænse_efter_am_kroner = 641200,
+    sats_basispoint = 750
+)
 = m5_2026_ægtefællekapital_over = mellemskat_ægtefæller_kapital_over_bundfradrag_kroner(m5_2026_ægtefællekapital_input)
 = m5_2026_ægtefællekapital_skat = mellemskat_ægtefælle_kapital_skat_kroner(m5_2026_ægtefællekapital_input)
-= m5_2026_progressiv_model = beregn_lønmodtager_model(LønmodtagerInput(2026, København, 900000, 0, 0, Fyldt18EllerGift, Falskt))
+= m5_2026_progressiv_model = beregn_lønmodtager_model(LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 900000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
 
 | m5_2026_parameterpakke_dækket: m5_2026_københavn_komplet -> m5_2026_københavn_komplet == Sandt
 | m5_2026_langeland_parameterpakke_dækket: m5_2026_langeland_komplet -> m5_2026_langeland_komplet == Sandt
@@ -271,8 +335,24 @@ topskat. Skattestyrelsens 2025-tabel angiver topskattegrænsen efter
 arbejdsmarkedsbidrag til 611.800 kr.
 ----
 
-= m5_topskat_lige_under = LønmodtagerInput(2025, København, 665000, 0, 0, Fyldt18EllerGift, Falskt)
-= m5_topskat_lige_over = LønmodtagerInput(2025, København, 665001, 0, 0, Fyldt18EllerGift, Falskt)
+= m5_topskat_lige_under = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 665000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= m5_topskat_lige_over = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 665001,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
 = m5_topskat_under_overskud = topskat_personligt_overskud_fixture(m5_topskat_lige_under)
 = m5_topskat_over_overskud = topskat_personligt_overskud_fixture(m5_topskat_lige_over)
 
@@ -294,40 +374,220 @@ PBL § 16-leddet. De samme regler er nu samlet i calculator-breakdowns for
 virksomhedsunderskud.
 ----
 
-= m5_par13_skatteværdi_fixture = par13_underskud_skatteværdi_kroner(Par13UnderskudSkatteværdiInput(100000, 0, 2350, 80, 0, Falskt))
-= m5_par13_modregning_fixture = par13_modregning_resultat(Par13ModregningInput(m5_par13_skatteværdi_fixture, 10000, 5000, 0, 20000))
-= m5_par13_ægtefælle_fixture = par13_ægtefælleoverførsel_resultat(Par13ÆgtefælleOverførselInput(60000, 45000, Sandt))
-= m5_par13_negativ_personlig_fixture = par13_negativ_personlig_rest_kroner(Par13NegativPersonligInput(-10000, 2000))
-= m5_par13_stk5_2025_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(2025, 100000, 30000, 5000, 12000, 10000, Sandt, IngenPar13Lempelse))
-= m5_par13_stk5_2026_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(2026, 100000, 0, 0, 0, 10000, Sandt, IngenPar13Lempelse))
-= m5_par13_stk5_ll33a_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(2025, 100000, 30000, 5000, 12000, 10000, Sandt, LigningslovPar33A))
-= m5_par13_stk5_sømand_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(2025, 100000, 30000, 5000, 12000, 10000, Sandt, SømandsbeskatningslovPar5))
-= m5_par13_virksomhed_fixture = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(80000, 30000, PassivVirksomhedPar4Nr9Eller11))
-= m5_par13_kompleks_satser = Par13KompleksSkatteværdiSatser(0, 2350, 80, 0, Falskt)
-= m5_par13_kompleks_ingen_modregningsskatter = Par13KompleksModregningsskatter(0, 0, 0, 0)
-= m5_par13_kompleks_ingen_virksomhedsunderskud = Par13KompleksVirksomhedsunderskud(0, 0, SkibsvirksomhedGodkendtSenest1993)
-= m5_par13_calculator_ægtefælle_indkomstgrundlag = Par13KompleksIndkomstgrundlag(2025, 100000, -10000, 2000)
-= m5_par13_calculator_ægtefælle_modregningsskatter = Par13KompleksModregningsskatter(10000, 5000, 0, 20000)
-= m5_par13_calculator_ægtefælle_forhold = Par13KompleksÆgtefælleforhold(45000, Sandt, 60000)
-= m5_par13_calculator_ægtefælle_stk5 = Par13KompleksStk5Begrænsning(0, 0, 0, 0, Sandt, IngenPar13Lempelse)
-= m5_par13_calculator_2026_indkomstgrundlag = Par13KompleksIndkomstgrundlag(2026, 100000, 0, 0)
-= m5_par13_calculator_2026_forhold = Par13KompleksÆgtefælleforhold(100000, Sandt, 100000)
-= m5_par13_calculator_2026_stk5 = Par13KompleksStk5Begrænsning(0, 0, 0, 10000, Sandt, IngenPar13Lempelse)
-= m5_par13_calculator_ægtefælle_fixture = beregn_par13_kompleks(Par13KompleksBeregningInput(m5_par13_calculator_ægtefælle_indkomstgrundlag, m5_par13_kompleks_satser, m5_par13_calculator_ægtefælle_modregningsskatter, m5_par13_calculator_ægtefælle_forhold, m5_par13_calculator_ægtefælle_stk5, m5_par13_kompleks_ingen_virksomhedsunderskud))
-= m5_par13_calculator_2026_fixture = beregn_par13_kompleks(Par13KompleksBeregningInput(m5_par13_calculator_2026_indkomstgrundlag, m5_par13_kompleks_satser, m5_par13_kompleks_ingen_modregningsskatter, m5_par13_calculator_2026_forhold, m5_par13_calculator_2026_stk5, m5_par13_kompleks_ingen_virksomhedsunderskud))
-= m5_am_løn_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(500000, 0))
-= m5_am_naturalie_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(500000, 10000))
+= m5_par13_skatteværdi_fixture = par13_underskud_skatteværdi_kroner(Par13UnderskudSkatteværdiInput(
+    underskud_kroner = 100000,
+    sundhedsbidrag_basispoint = 0,
+    kommuneskat_basispoint = 2350,
+    kirkeskat_basispoint = 80,
+    par8c_basispoint = 0,
+    betaler_par8c = Falskt
+))
+= m5_par13_modregning_fixture = par13_modregning_resultat(Par13ModregningInput(
+    skatteværdi_kroner = m5_par13_skatteværdi_fixture,
+    par6_skat_kroner = 10000,
+    par7_skat_kroner = 5000,
+    par7a_skat_kroner = 0,
+    par8a_stk2_skat_kroner = 20000
+))
+= m5_par13_ægtefælle_fixture = par13_ægtefælleoverførsel_resultat(Par13ÆgtefælleOverførselInput(
+    ubenyttet_underskud_kroner = 60000,
+    ægtefælle_skattepligtig_indkomst_kroner = 45000,
+    gift_samlevende_ved_årets_udløb = Sandt
+))
+= m5_par13_negativ_personlig_fixture = par13_negativ_personlig_rest_kroner(Par13NegativPersonligInput(
+    personlig_indkomst_kroner = -10000,
+    positiv_kapitalindkomst_kroner = 2000
+))
+= m5_par13_stk5_2025_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(
+    skatteår = 2025,
+    ønsket_overførsel_kroner = 100000,
+    udenlandsk_beskattet_personlig_indkomst_kroner = 30000,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 5000,
+    udgifter_fradraget_i_udlandet_kroner = 12000,
+    pbl16_beløb_kroner = 10000,
+    overførsel_efter_stk4 = Sandt,
+    lempelsesgrundlag = IngenPar13Lempelse
+))
+= m5_par13_stk5_2026_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(
+    skatteår = 2026,
+    ønsket_overførsel_kroner = 100000,
+    udenlandsk_beskattet_personlig_indkomst_kroner = 0,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 0,
+    udgifter_fradraget_i_udlandet_kroner = 0,
+    pbl16_beløb_kroner = 10000,
+    overførsel_efter_stk4 = Sandt,
+    lempelsesgrundlag = IngenPar13Lempelse
+))
+= m5_par13_stk5_ll33a_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(
+    skatteår = 2025,
+    ønsket_overførsel_kroner = 100000,
+    udenlandsk_beskattet_personlig_indkomst_kroner = 30000,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 5000,
+    udgifter_fradraget_i_udlandet_kroner = 12000,
+    pbl16_beløb_kroner = 10000,
+    overførsel_efter_stk4 = Sandt,
+    lempelsesgrundlag = LigningslovPar33A
+))
+= m5_par13_stk5_sømand_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(
+    skatteår = 2025,
+    ønsket_overførsel_kroner = 100000,
+    udenlandsk_beskattet_personlig_indkomst_kroner = 30000,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 5000,
+    udgifter_fradraget_i_udlandet_kroner = 12000,
+    pbl16_beløb_kroner = 10000,
+    overførsel_efter_stk4 = Sandt,
+    lempelsesgrundlag = SømandsbeskatningslovPar5
+))
+= m5_par13_virksomhed_fixture = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(
+    underskud_kroner = 80000,
+    positiv_indkomst_samme_virksomhed_kroner = 30000,
+    status = PassivVirksomhedPar4Nr9Eller11
+))
+= m5_par13_kompleks_satser = Par13KompleksSkatteværdiSatser(
+    sundhedsbidrag_basispoint = 0,
+    kommuneskat_basispoint = 2350,
+    kirkeskat_basispoint = 80,
+    par8c_basispoint = 0,
+    betaler_par8c = Falskt
+)
+= m5_par13_kompleks_ingen_modregningsskatter = Par13KompleksModregningsskatter(
+    par6_skat_kroner = 0,
+    par7_skat_kroner = 0,
+    par7a_skat_kroner = 0,
+    par8a_stk2_skat_kroner = 0
+)
+= m5_par13_kompleks_ingen_virksomhedsunderskud = Par13KompleksVirksomhedsunderskud(
+    virksomhedsunderskud_kroner = 0,
+    positiv_indkomst_samme_virksomhed_kroner = 0,
+    virksomhedsstatus = SkibsvirksomhedGodkendtSenest1993
+)
+= m5_par13_calculator_ægtefælle_indkomstgrundlag = Par13KompleksIndkomstgrundlag(
+    skatteår = 2025,
+    skattepligtigt_underskud_kroner = 100000,
+    personlig_indkomst_kroner = -10000,
+    positiv_kapitalindkomst_kroner = 2000
+)
+= m5_par13_calculator_ægtefælle_modregningsskatter = Par13KompleksModregningsskatter(
+    par6_skat_kroner = 10000,
+    par7_skat_kroner = 5000,
+    par7a_skat_kroner = 0,
+    par8a_stk2_skat_kroner = 20000
+)
+= m5_par13_calculator_ægtefælle_forhold = Par13KompleksÆgtefælleforhold(
+    ægtefælle_skattepligtig_indkomst_kroner = 45000,
+    gift_samlevende_ved_årets_udløb = Sandt,
+    ønsket_ægtefælleoverførsel_kroner = 60000
+)
+= m5_par13_calculator_ægtefælle_stk5 = Par13KompleksStk5Begrænsning(
+    udenlandsk_beskattet_personlig_indkomst_kroner = 0,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 0,
+    udgifter_fradraget_i_udlandet_kroner = 0,
+    pbl16_beløb_kroner = 0,
+    overførsel_efter_stk4 = Sandt,
+    lempelsesgrundlag = IngenPar13Lempelse
+)
+= m5_par13_calculator_2026_indkomstgrundlag = Par13KompleksIndkomstgrundlag(
+    skatteår = 2026,
+    skattepligtigt_underskud_kroner = 100000,
+    personlig_indkomst_kroner = 0,
+    positiv_kapitalindkomst_kroner = 0
+)
+= m5_par13_calculator_2026_forhold = Par13KompleksÆgtefælleforhold(
+    ægtefælle_skattepligtig_indkomst_kroner = 100000,
+    gift_samlevende_ved_årets_udløb = Sandt,
+    ønsket_ægtefælleoverførsel_kroner = 100000
+)
+= m5_par13_calculator_2026_stk5 = Par13KompleksStk5Begrænsning(
+    udenlandsk_beskattet_personlig_indkomst_kroner = 0,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 0,
+    udgifter_fradraget_i_udlandet_kroner = 0,
+    pbl16_beløb_kroner = 10000,
+    overførsel_efter_stk4 = Sandt,
+    lempelsesgrundlag = IngenPar13Lempelse
+)
+= m5_par13_calculator_ægtefælle_fixture = beregn_par13_kompleks(Par13KompleksBeregningInput(
+    indkomstgrundlag = m5_par13_calculator_ægtefælle_indkomstgrundlag,
+    skatteværdi_satser = m5_par13_kompleks_satser,
+    modregningsskatter = m5_par13_calculator_ægtefælle_modregningsskatter,
+    ægtefælleforhold = m5_par13_calculator_ægtefælle_forhold,
+    stk5_begrænsning = m5_par13_calculator_ægtefælle_stk5,
+    virksomhedsunderskud = m5_par13_kompleks_ingen_virksomhedsunderskud
+))
+= m5_par13_calculator_2026_fixture = beregn_par13_kompleks(Par13KompleksBeregningInput(
+    indkomstgrundlag = m5_par13_calculator_2026_indkomstgrundlag,
+    skatteværdi_satser = m5_par13_kompleks_satser,
+    modregningsskatter = m5_par13_kompleks_ingen_modregningsskatter,
+    ægtefælleforhold = m5_par13_calculator_2026_forhold,
+    stk5_begrænsning = m5_par13_calculator_2026_stk5,
+    virksomhedsunderskud = m5_par13_kompleks_ingen_virksomhedsunderskud
+))
+= m5_am_løn_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(
+    lønvederlag_kroner = 500000,
+    naturalieværdi_kroner = 0
+))
+= m5_am_naturalie_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(
+    lønvederlag_kroner = 500000,
+    naturalieværdi_kroner = 10000
+))
 = m5_am_sats_2026_parameter = nationalparametre_for(2026).am_bidrag_basispoint
-= m5_am_sømand_fixture = arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(100000, 0, 0, 0, 0, 0, 0, 100000, 0, 0, 0, 0))
-= m5_am_selvstændig_fixture = arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(ArbejdsmarkedsbidragSelvstændigInput(300000, 10000, 40000, 5000))
-= m5_am_virksomhedsordning_fixture = arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(ArbejdsmarkedsbidragVirksomhedsordningInput(400000, 50000, 10000, 30000, 9000, 2000, 20000, 5000))
+= m5_am_sømand_fixture = arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(ArbejdsmarkedsbidragUdvidetLønmodtagerInput(
+    ansættelsesvederlag_skatteværdi_kroner = 100000,
+    udenfor_ansættelse_skatteværdi_kroner = 0,
+    rådighed_danmark_skatteværdi_kroner = 0,
+    arbejdsgiver_pension_kroner = 0,
+    udenlandsk_pension_kroner = 0,
+    pbl14b_udbetaling_kroner = 0,
+    fælles_firmapension_kroner = 0,
+    sømandsvederlag_kroner = 100000,
+    biblioteksafgift_kroner = 0,
+    ikke_skattepligtigt_vederlag_kroner = 0,
+    pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner = 0,
+    obligatorisk_atp_pension_kroner = 0
+))
+= m5_am_selvstændig_fixture = arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(ArbejdsmarkedsbidragSelvstændigInput(
+    personlig_indkomst_ved_selvstændig_virksomhed_kroner = 300000,
+    biblioteksafgift_kroner = 10000,
+    fremført_negativ_personlig_indkomst_kroner = 40000,
+    fremført_negativ_personlig_indkomst_fra_pension_kroner = 5000
+))
+= m5_am_virksomhedsordning_fixture = arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(ArbejdsmarkedsbidragVirksomhedsordningInput(
+    overførsel_fra_virksomhedsoverskud_kroner = 400000,
+    kapitalafkast_fradrag_kroner = 50000,
+    kapitalafkast_medregnet_personlig_indkomst_kroner = 10000,
+    overførsel_opsparet_overskud_kroner = 30000,
+    tilhørende_virksomhedsskat_kroner = 9000,
+    rentekorrektion_kroner = 2000,
+    fremført_negativ_personlig_indkomst_kroner = 20000,
+    fremført_negativ_personlig_indkomst_fra_pension_kroner = 5000
+))
 = m5_am_biblioteksafgift_godtgørelse_fixture = arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(ArbejdsmarkedsbidragBiblioteksafgiftInput(10000, Sandt))
-= m5_am_unge_2026_fixture = arbejdsmarkedsbidrag_for_person_kroner(100000, ArbejdsmarkedsbidragPersonSatsInput(2026, 17))
-= m5_kommuneskat_lov_fixture = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner, 2350))
-= m5_kirkeskat_lov_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner, 80, Sandt))
-= m5_kirkeskat_ikke_medlem_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner, 80, Falskt))
-= m5_kommuneskat_lønmodtager_fixture = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner, 2350))
-= m5_kirkeskat_lønmodtager_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner, 80, Sandt))
+= m5_am_unge_2026_fixture = arbejdsmarkedsbidrag_for_person_kroner(100000, ArbejdsmarkedsbidragPersonSatsInput(
+    skatteår = 2026,
+    alder_ved_indkomstårets_udløb = 17
+))
+= m5_kommuneskat_lov_fixture = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(
+    skattepligtig_indkomst_kroner = m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner,
+    udskrivningsprocent_basispoint = 2350
+))
+= m5_kirkeskat_lov_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(
+    skattepligtig_indkomst_kroner = m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner,
+    kirkelig_ligningsprocent_basispoint = 80,
+    folkekirkemedlem = Sandt
+))
+= m5_kirkeskat_ikke_medlem_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(
+    skattepligtig_indkomst_kroner = m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner,
+    kirkelig_ligningsprocent_basispoint = 80,
+    folkekirkemedlem = Falskt
+))
+= m5_kommuneskat_lønmodtager_fixture = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(
+    skattepligtig_indkomst_kroner = m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner,
+    udskrivningsprocent_basispoint = 2350
+))
+= m5_kirkeskat_lønmodtager_fixture = kirkeskat_før_personfradrag_kroner(KirkeskatInput(
+    skattepligtig_indkomst_kroner = m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner,
+    kirkelig_ligningsprocent_basispoint = 80,
+    folkekirkemedlem = Sandt
+))
 = m5_omregning_skatteloft_ekstern_fixture = omregning_skatteloft_ekstern_audit_samlet()
 = m5_husholdning_scenarie_fixture = scenarie1_husholdning
 = m5_husholdning_indeholdelse_fixture = scenarie1_indeholdelse
@@ -336,13 +596,72 @@ virksomhedsunderskud.
 = m5_skatdk_ekstern_kort_fixture = skatdk_2026_københavn_600k_kort
 = m5_par4a_pensionsfradrag_fixture = audit_par4a_pensionsfradrag_samlet()
 = m5_personskat_bomb_audit_fixture = personskat_bomb_audit_samlet()
-= m5_kildeskat_løn_fixture = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(50000, 0, Sandt, Falskt, Falskt))
-= m5_kildeskat_indeholdelsespligt_fixture = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(m5_kildeskat_løn_fixture, Sandt, 0))
-= m5_kildeskat_manglende_kort_fixture = kildeskat_a_skat_kroner(KildeskatSkattekortInput(m5_kildeskat_løn_fixture, 0, 0, IntetESkattekort))
-= m5_kildeskat_hovedkort_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(m5_kildeskat_løn_fixture, 12000, 6000, 3000, 600, 3800, 0, Skattekort, Måned, Sandt))
-= m5_kildeskat_bikort_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(m5_kildeskat_løn_fixture, 12000, 6000, 3000, 600, 3800, 0, Bikort, Måned, Sandt))
-= m5_kildeskat_højere_procent_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(m5_kildeskat_løn_fixture, 12000, 6000, 3000, 600, 3800, 4100, Skattekort, Måned, Sandt))
-= m5_kildeskat_nedrunding_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(50007, 12003, 6000, 3000, 600, 3800, 0, Skattekort, Måned, Sandt))
+= m5_kildeskat_løn_fixture = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(
+    vederlag_i_penge_kroner = 50000,
+    fri_kost_og_logi_skatteværdi_kroner = 0,
+    personligt_arbejde_i_tjenesteforhold = Sandt,
+    undtaget_gruppeliv_pbl56 = Falskt,
+    undtaget_medarbejderinvestering_under_grænse = Falskt
+))
+= m5_kildeskat_indeholdelsespligt_fixture = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(
+    a_indkomst_kroner = m5_kildeskat_løn_fixture,
+    udbetaling_fundet_sted = Sandt,
+    måneder_siden_endelig_ret = 0
+))
+= m5_kildeskat_manglende_kort_fixture = kildeskat_a_skat_kroner(KildeskatSkattekortInput(
+    a_skat_grundlag_kroner = m5_kildeskat_løn_fixture,
+    fradrag_kroner = 0,
+    indeholdelsesprocent_basispoint = 0,
+    kort = IntetESkattekort
+))
+= m5_kildeskat_hovedkort_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = m5_kildeskat_løn_fixture,
+    månedsfradrag_kroner = 12000,
+    fjorten_dages_fradrag_kroner = 6000,
+    ugefradrag_kroner = 3000,
+    dagsfradrag_kroner = 600,
+    indeholdelsesprocent_basispoint = 3800,
+    ønsket_højere_indeholdelsesprocent_basispoint = 0,
+    kort = Skattekort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+))
+= m5_kildeskat_bikort_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = m5_kildeskat_løn_fixture,
+    månedsfradrag_kroner = 12000,
+    fjorten_dages_fradrag_kroner = 6000,
+    ugefradrag_kroner = 3000,
+    dagsfradrag_kroner = 600,
+    indeholdelsesprocent_basispoint = 3800,
+    ønsket_højere_indeholdelsesprocent_basispoint = 0,
+    kort = Bikort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+))
+= m5_kildeskat_højere_procent_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = m5_kildeskat_løn_fixture,
+    månedsfradrag_kroner = 12000,
+    fjorten_dages_fradrag_kroner = 6000,
+    ugefradrag_kroner = 3000,
+    dagsfradrag_kroner = 600,
+    indeholdelsesprocent_basispoint = 3800,
+    ønsket_højere_indeholdelsesprocent_basispoint = 4100,
+    kort = Skattekort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+))
+= m5_kildeskat_nedrunding_fixture = kildeskat_a_skat_med_eskattekort_kroner(KildeskatESkattekortInput(
+    a_skat_grundlag_kroner = 50007,
+    månedsfradrag_kroner = 12003,
+    fjorten_dages_fradrag_kroner = 6000,
+    ugefradrag_kroner = 3000,
+    dagsfradrag_kroner = 600,
+    indeholdelsesprocent_basispoint = 3800,
+    ønsket_højere_indeholdelsesprocent_basispoint = 0,
+    kort = Skattekort,
+    periode = Måned,
+    nedrunding_til_ti_kroner = Sandt
+))
 = m5_kildeskat_bekendtgørelse_skattekort_fixture = scenarie1_mand_genereret_skattekort
 = m5_kildeskat_bekendtgørelse_a_skat_fixture = scenarie1_mand_genereret_skattekort_a_skat
 = m5_kildeskat_bekendtgørelse_husholdning_fixture = scenarie1_genereret_indeholdelse
@@ -587,12 +906,32 @@ virksomhedsunderskud.
 skatteloftsnedslag og regulering/afrunding af grundbeløb.
 ----
 
-= m5_par14_fixture = par14_helårsindkomst(Par14OmregningInput(180000, 200000, -20000, 180))
-= m5_par14_skattenedsættelse_fixture = par14_helårsskat_nedsat_for_delår(Par14SkattenedsættelseInput(100000, 180000, m5_par14_fixture.skattepligtig_indkomst_kroner))
+= m5_par14_fixture = par14_helårsindkomst(Par14OmregningInput(
+    delårs_skattepligtig_indkomst_kroner = 180000,
+    delårs_personlig_indkomst_kroner = 200000,
+    delårs_kapitalindkomst_kroner = -20000,
+    skattepligtsdage = 180
+))
+= m5_par14_skattenedsættelse_fixture = par14_helårsskat_nedsat_for_delår(Par14SkattenedsættelseInput(
+    helårsskat_kroner = 100000,
+    delårsbeløb_kroner = 180000,
+    helårsbeløb_kroner = m5_par14_fixture.skattepligtig_indkomst_kroner
+))
 = m5_par14_lønmodtager_fixture = delaar1_par14
-= m5_par19_skatteloft_fixture = par19_personlig_overskydende_basispoint(Par19SkatteloftInput(2025, 1201, 1500, 0, 2700, 100000))
-= m5_par19_nedslag_fixture = par19_skatteloftsnedslag_kroner(Par19SkatteloftInput(2025, 1201, 1500, 0, 2700, 100000), m5_par19_skatteloft_fixture)
-= m5_par20_regulering_fixture = par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(39350, 1311))
+= m5_par19_skatteloft_input = Par19SkatteloftInput(
+    skatteår = 2025,
+    bundskat_basispoint = 1201,
+    progressiv_statsskat_basispoint = 1500,
+    sundhedsbidrag_basispoint = 0,
+    kommunal_eller_par8c_basispoint = 2700,
+    beregningsgrundlag_kroner = 100000
+)
+= m5_par19_skatteloft_fixture = par19_personlig_overskydende_basispoint(m5_par19_skatteloft_input)
+= m5_par19_nedslag_fixture = par19_skatteloftsnedslag_kroner(m5_par19_skatteloft_input, m5_par19_skatteloft_fixture)
+= m5_par20_regulering_fixture = par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = 39350,
+    reguleringstal_tiendedele = 1311
+))
 
 | m5_par14_helårsomregning: m5_par14_fixture -> m5_par14_fixture.skattepligtig_indkomst_kroner == 365000 && m5_par14_fixture.personlig_indkomst_kroner == 405556
 | m5_par14_skattenedsættelse: m5_par14_skattenedsættelse_fixture -> m5_par14_skattenedsættelse_fixture == 49315
@@ -625,8 +964,29 @@ afgrænsning.
 ----
 
 = m5_par25_virkningsår_fixture = personskatteloven_virker_fra_indkomstår()
-= m5_par26_kompensation_fixture = par26_kompensation_kroner(Par26ForskelsbeløbInput(2015, 1000, 2000, 3000, 400, 600, 2500, 700, 4500, Sandt))
-= m5_par26_modregning_fixture = par26_modregning_resultat(Par26ModregningInput(m5_par26_kompensation_fixture, 200, 100, 0, 50, 100, 0, 200, 200))
+= m5_par26_kompensation_fixture = par26_kompensation_kroner(Par26ForskelsbeløbInput(
+    skatteår = 2015,
+    nr1_kroner = 1000,
+    nr2_kroner = 2000,
+    nr3_kroner = 3000,
+    nr4_kroner = 400,
+    nr5_kroner = 600,
+    nr6_kroner = 2500,
+    nr7_kroner = 700,
+    nr8_kroner = 4500,
+    betaler_kommunal_eller_par8c = Sandt
+))
+= m5_par26_modregning_fixture = par26_modregning_resultat(Par26ModregningInput(
+    kompensation_kroner = m5_par26_kompensation_fixture,
+    par6_skat_kroner = 200,
+    par7_skat_kroner = 100,
+    par7a_skat_kroner = 0,
+    par8_skat_kroner = 50,
+    par8a_stk2_skat_kroner = 100,
+    par8c_skat_kroner = 0,
+    kommuneskat_kroner = 200,
+    kirkeskat_kroner = 200
+))
 = m5_par27_delegation_fixture = par27_skatteministeren_fastsætter_gennemførelsesregler()
 = m5_par28_færøerne_fixture = personskatteloven_gælder_i_territorium(PersonskatFærøerne)
 = m5_par28_grønland_fixture = personskatteloven_gælder_i_territorium(PersonskatGrønland)

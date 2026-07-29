@@ -130,9 +130,24 @@ Jobfradrag, § 9 K
 # Ligningslov9KParametre(skatteår: Heltal, jobfradrag_basispoint: Heltal, jobfradrag_indkomstgrænse_kroner: Heltal, jobfradrag_maks_kroner: Heltal)
 # LigningslovLønmodtagerFradragInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk)
 
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(2024, 450, 216100, 2800) under skatteår == 2024
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(2025, 450, 224500, 2900) under skatteår == 2025
-| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(2026, 450, 235200, 3100) under skatteår == 2026
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+    skatteår = 2024,
+    jobfradrag_basispoint = 450,
+    jobfradrag_indkomstgrænse_kroner = 216100,
+    jobfradrag_maks_kroner = 2800
+) under skatteår == 2024
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+    skatteår = 2025,
+    jobfradrag_basispoint = 450,
+    jobfradrag_indkomstgrænse_kroner = 224500,
+    jobfradrag_maks_kroner = 2900
+) under skatteår == 2025
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+    skatteår = 2026,
+    jobfradrag_basispoint = 450,
+    jobfradrag_indkomstgrænse_kroner = 235200,
+    jobfradrag_maks_kroner = 3100
+) under skatteår == 2026
 | ll9k_almindeligt_jobfradrag_berettiget(input: Ligningslov9KInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
 | ll9k_jobfradrag_grundlag_kroner(input: Ligningslov9KInput) -> ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner - ll9k_parametre_for(input.skatteår).jobfradrag_indkomstgrænse_kroner)
 | ll9k_beregnet_jobfradrag_kroner(input: Ligningslov9KInput) -> penge_beløb_gange_basispoint_kroner(ll9k_jobfradrag_grundlag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_basispoint)

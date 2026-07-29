@@ -82,14 +82,51 @@ tension below.
 | børneungeydelse_modtager_resultat(input: BørneUngeydelseModtagerInput) -> BørneUngeydelseResultat(input.modtager_ydelse_før_aftrapning_kroner, børneungeydelse_aftrapningsgrundlag_kroner(input), børneungeydelse_aftrapning_kroner(input), input.modtager_ydelse_før_aftrapning_kroner - børneungeydelse_aftrapning_kroner(input))
 | husholdning_børneungeydelse_brutto_kroner(input: HusholdningBørneUngeydelseInput) -> input.barn_0_til_2_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Barn0Til2) + input.barn_3_til_6_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Barn3Til6) + input.barn_7_til_14_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Barn7Til14) + input.ung_15_til_17_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Ung15Til17)
 | husholdning_børneungeydelse_modtager_halvdel_kroner(input: HusholdningBørneUngeydelseInput) -> husholdning_børneungeydelse_brutto_kroner(input) / 2
-| husholdning_børneungeydelse_første_modtager(input: HusholdningBørneUngeydelseInput) -> børneungeydelse_modtager_resultat(BørneUngeydelseModtagerInput(input.skatteår, husholdning_børneungeydelse_modtager_halvdel_kroner(input), input.første_modtager_mellemskatgrundlag_kroner))
-| husholdning_børneungeydelse_anden_modtager(input: HusholdningBørneUngeydelseInput) -> børneungeydelse_modtager_resultat(BørneUngeydelseModtagerInput(input.skatteår, husholdning_børneungeydelse_modtager_halvdel_kroner(input), input.anden_modtager_mellemskatgrundlag_kroner))
-| husholdning_børneungeydelse_resultat(input: HusholdningBørneUngeydelseInput) -> HusholdningBørneUngeydelseResultat(husholdning_børneungeydelse_brutto_kroner(input), husholdning_børneungeydelse_første_modtager(input), husholdning_børneungeydelse_anden_modtager(input), husholdning_børneungeydelse_første_modtager(input).ydelse_efter_aftrapning_kroner + husholdning_børneungeydelse_anden_modtager(input).ydelse_efter_aftrapning_kroner)
+| husholdning_børneungeydelse_første_modtager(input: HusholdningBørneUngeydelseInput) -> børneungeydelse_modtager_resultat(BørneUngeydelseModtagerInput(
+    skatteår = input.skatteår,
+    modtager_ydelse_før_aftrapning_kroner = husholdning_børneungeydelse_modtager_halvdel_kroner(input),
+    modtager_mellemskatgrundlag_kroner = input.første_modtager_mellemskatgrundlag_kroner
+))
+| husholdning_børneungeydelse_anden_modtager(input: HusholdningBørneUngeydelseInput) -> børneungeydelse_modtager_resultat(BørneUngeydelseModtagerInput(
+    skatteår = input.skatteår,
+    modtager_ydelse_før_aftrapning_kroner = husholdning_børneungeydelse_modtager_halvdel_kroner(input),
+    modtager_mellemskatgrundlag_kroner = input.anden_modtager_mellemskatgrundlag_kroner
+))
+| husholdning_børneungeydelse_resultat(input: HusholdningBørneUngeydelseInput) -> HusholdningBørneUngeydelseResultat(
+    brutto_ydelse_kroner = husholdning_børneungeydelse_brutto_kroner(input),
+    første_modtager = husholdning_børneungeydelse_første_modtager(input),
+    anden_modtager = husholdning_børneungeydelse_anden_modtager(input),
+    samlet_ydelse_efter_aftrapning_kroner = husholdning_børneungeydelse_første_modtager(input).ydelse_efter_aftrapning_kroner + husholdning_børneungeydelse_anden_modtager(input).ydelse_efter_aftrapning_kroner
+)
 
-= scenarie1_børneungeydelse_input = HusholdningBørneUngeydelseInput(2026, 1, 0, 2, 0, scenarie1_mand.personlig_indkomst_efter_am_kroner, scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner)
+= scenarie1_børneungeydelse_input = HusholdningBørneUngeydelseInput(
+    skatteår = 2026,
+    barn_0_til_2_antal = 1,
+    barn_3_til_6_antal = 0,
+    barn_7_til_14_antal = 2,
+    ung_15_til_17_antal = 0,
+    første_modtager_mellemskatgrundlag_kroner = scenarie1_mand.personlig_indkomst_efter_am_kroner,
+    anden_modtager_mellemskatgrundlag_kroner = scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner
+)
 = scenarie1_børneungeydelse = husholdning_børneungeydelse_resultat(scenarie1_børneungeydelse_input)
-= benefit_bomb_en_forælder_lige_over_grænse = husholdning_børneungeydelse_resultat(HusholdningBørneUngeydelseInput(2026, 1, 0, 2, 0, 961200, scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner))
-= benefit_bomb_en_forælder_fuldt_aftrappet = husholdning_børneungeydelse_resultat(HusholdningBørneUngeydelseInput(2026, 1, 0, 2, 0, 2166500, scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner))
+= benefit_bomb_en_forælder_lige_over_grænse = husholdning_børneungeydelse_resultat(HusholdningBørneUngeydelseInput(
+    skatteår = 2026,
+    barn_0_til_2_antal = 1,
+    barn_3_til_6_antal = 0,
+    barn_7_til_14_antal = 2,
+    ung_15_til_17_antal = 0,
+    første_modtager_mellemskatgrundlag_kroner = 961200,
+    anden_modtager_mellemskatgrundlag_kroner = scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner
+))
+= benefit_bomb_en_forælder_fuldt_aftrappet = husholdning_børneungeydelse_resultat(HusholdningBørneUngeydelseInput(
+    skatteår = 2026,
+    barn_0_til_2_antal = 1,
+    barn_3_til_6_antal = 0,
+    barn_7_til_14_antal = 2,
+    ung_15_til_17_antal = 0,
+    første_modtager_mellemskatgrundlag_kroner = 2166500,
+    anden_modtager_mellemskatgrundlag_kroner = scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner
+))
 = benefit_bomb_delår_par14_signal = benefit_bomb_delår_kobler_til_par14()
 = benefit_bomb_satside_kildespænding_signal = børneungeydelse_satside_mod_lovtekst_kildespænding()
 
@@ -165,10 +202,28 @@ Maksimal årlig boligsikring, § 23, stk. 1: 50.412 kr. pr. år.
 | boligsikring_par22_maks_efter_egenbetaling_kroner(input: BoligsikringPar22Input) -> penge_positivt_beløb(input.årlig_boligudgift_kroner - boligsikring_2026_mindste_egenbetaling_kroner()) under input.skatteår == 2026
 | boligsikring_par22_efter_minimum_egenbetaling_kroner(input: BoligsikringPar22Input) -> penge_mindste_beløb(boligsikring_par22_før_minimum_egenbetaling_kroner(input), boligsikring_par22_maks_efter_egenbetaling_kroner(input))
 | boligsikring_par22_efter_par23_loft_kroner(input: BoligsikringPar22Input) -> penge_mindste_beløb(boligsikring_par22_efter_minimum_egenbetaling_kroner(input), boligsikring_2026_maksimal_årlig_boligsikring_kroner()) under input.skatteår == 2026
-| boligsikring_par22_resultat(input: BoligsikringPar22Input) -> BoligsikringPar22Resultat(boligsikring_par22_indkomstgrænse_kroner(input), boligsikring_par22_børnetillægsantal(input), boligsikring_par22_indkomst_over_grænse_kroner(input), boligsikring_par22_indkomstfradrag_kroner(input), boligsikring_par22_før_minimum_egenbetaling_kroner(input), boligsikring_par22_efter_minimum_egenbetaling_kroner(input), boligsikring_par22_efter_par23_loft_kroner(input))
+| boligsikring_par22_resultat(input: BoligsikringPar22Input) -> BoligsikringPar22Resultat(
+    indkomstgrænse_kroner = boligsikring_par22_indkomstgrænse_kroner(input),
+    børnetillægsantal = boligsikring_par22_børnetillægsantal(input),
+    indkomst_over_grænse_kroner = boligsikring_par22_indkomst_over_grænse_kroner(input),
+    indkomstfradrag_kroner = boligsikring_par22_indkomstfradrag_kroner(input),
+    støtte_før_minimum_egenbetaling_kroner = boligsikring_par22_før_minimum_egenbetaling_kroner(input),
+    støtte_efter_minimum_egenbetaling_kroner = boligsikring_par22_efter_minimum_egenbetaling_kroner(input),
+    støtte_efter_par23_loft_kroner = boligsikring_par22_efter_par23_loft_kroner(input)
+)
 
-= boligsikring_probe_et_barn = boligsikring_par22_resultat(BoligsikringPar22Input(2026, 80000, 215000, 1))
-= boligsikring_probe_to_børn = boligsikring_par22_resultat(BoligsikringPar22Input(2026, 80000, 215000, 2))
+= boligsikring_probe_et_barn = boligsikring_par22_resultat(BoligsikringPar22Input(
+    skatteår = 2026,
+    årlig_boligudgift_kroner = 80000,
+    husstandsindkomst_kroner = 215000,
+    barn_antal = 1
+))
+= boligsikring_probe_to_børn = boligsikring_par22_resultat(BoligsikringPar22Input(
+    skatteår = 2026,
+    årlig_boligudgift_kroner = 80000,
+    husstandsindkomst_kroner = 215000,
+    barn_antal = 2
+))
 = boligsikring_probe_andet_barn_signal = boligsikring_probe_andet_barn_cliff()
 
 | boligsikring_probe_et_barn_forhøjer_ikke_grænse: boligsikring_probe_et_barn -> boligsikring_probe_et_barn.børnetillægsantal == 0 && boligsikring_probe_et_barn.indkomstgrænse_kroner == 170300

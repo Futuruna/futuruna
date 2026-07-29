@@ -19,8 +19,26 @@ overskydende skat efter § 62.
 ----
 
 | slutopgørelse_årlig_a_skat_kroner(a_skat_månedligt_kroner: Heltal) -> a_skat_månedligt_kroner * 12
-| slutopgørelse_lønmodtager_kreditter(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> KildeskatPar60Kreditter(slutopgørelse_årlig_a_skat_kroner(a_skat_månedligt_kroner) + person.arbejdsmarkedsbidrag_kroner, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-| slutopgørelse_lønmodtager_input(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> KildeskatSlutopgørelseInput(person.samlet_inkl_am_efter_personfradrag_kroner, 0, 0, slutopgørelse_lønmodtager_kreditter(person, a_skat_månedligt_kroner))
+| slutopgørelse_lønmodtager_kreditter(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> KildeskatPar60Kreditter(
+    a_skat_og_am_indeholdt_kroner = slutopgørelse_årlig_a_skat_kroner(a_skat_månedligt_kroner) + person.arbejdsmarkedsbidrag_kroner,
+    par68_indbetalt_kroner = 0,
+    b_skat_betalt_kroner = 0,
+    udbytteskat_modregningsberettiget_kroner = 0,
+    frivillig_indbetaling_par59_kroner = 0,
+    virksomhedsordning_beløb_kroner = 0,
+    personskattelov_par8a_stk5_beløb_kroner = 0,
+    afskrivningslov_acontoskat_kroner = 0,
+    am_lov_par6_beløb_kroner = 0,
+    seniornedslag_kroner = 0,
+    energiafgiftskompensation_kroner = 0,
+    tilbagebetalt_par55_kroner = 0
+)
+| slutopgørelse_lønmodtager_input(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> KildeskatSlutopgørelseInput(
+    slutskat_kroner = person.samlet_inkl_am_efter_personfradrag_kroner,
+    overført_restskat_mv_kroner = 0,
+    pensionsbeskatningsafgift_kroner = 0,
+    kreditter = slutopgørelse_lønmodtager_kreditter(person, a_skat_månedligt_kroner)
+)
 | slutopgørelse_lønmodtager_resultat(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> kildeskat_slutopgørelse_resultat(slutopgørelse_lønmodtager_input(person, a_skat_månedligt_kroner))
 
 = scenarie1_mand_slutopgørelse_genereret = slutopgørelse_lønmodtager_resultat(scenarie1_mand, scenarie1_mand_genereret_skattekort_a_skat)
@@ -33,11 +51,39 @@ overskydende skat efter § 62.
 
 = scenarie1_mand_slutopgørelse_lav_indeholdelse = slutopgørelse_lønmodtager_resultat(scenarie1_mand, 12000)
 = scenarie1_opkrævningslov_rente_fixture_basispoint = opkrævning_par7_offentliggjort_stk2_rente_basispoint(2026)
-= scenarie1_husholdning_genereret_godtgørelse = kildeskat_overskydende_godtgørelse_kroner(KildeskatOverskydendeGodtgørelseInput(scenarie1_husholdning_genereret_overskydende_skat, 0, 0, 0, scenarie1_opkrævningslov_rente_fixture_basispoint))
-= scenarie1_husholdning_genereret_udbetaling = kildeskat_overskydende_udbetaling_efter_restancemodregning_kroner(KildeskatOverskydendeTilbagebetalingInput(scenarie1_husholdning_genereret_overskydende_skat, scenarie1_husholdning_genereret_godtgørelse, 0, Sandt, Falskt, 0, scenarie1_opkrævningslov_rente_fixture_basispoint))
-= scenarie1_mand_lav_indeholdelse_tillæg = kildeskat_restskat_procenttillæg_kroner(KildeskatRestskatTillægInput(scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner, scenarie1_opkrævningslov_rente_fixture_basispoint))
-= scenarie1_mand_lav_indeholdelse_systemdatoer = KildeskatRestskatSystemdatoer(2026, KildeskatDato(2027, 9, 30), KildeskatDato(2027, 10, 1), KildeskatDato(2027, 11, 1))
-= scenarie1_mand_lav_indeholdelse_opkrævning_input = kildeskat_restskat_opkrævning_input_fra_dato(KildeskatRestskatOpkrævningDatoInput(scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner, kildeskat_restskat_grænse_2010_niveau_kroner(), Sandt, KildeskatDato(2027, 3, 15), scenarie1_mand_lav_indeholdelse_systemdatoer))
+= scenarie1_husholdning_genereret_godtgørelse = kildeskat_overskydende_godtgørelse_kroner(KildeskatOverskydendeGodtgørelseInput(
+    overskydende_skat_kroner = scenarie1_husholdning_genereret_overskydende_skat,
+    modsvarer_par59_indbetaling_kroner = 0,
+    modsvarer_seniornedslag_kroner = 0,
+    modsvarer_energiafgiftskompensation_kroner = 0,
+    opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint = scenarie1_opkrævningslov_rente_fixture_basispoint
+))
+= scenarie1_husholdning_genereret_udbetaling = kildeskat_overskydende_udbetaling_efter_restancemodregning_kroner(KildeskatOverskydendeTilbagebetalingInput(
+    overskydende_skat_kroner = scenarie1_husholdning_genereret_overskydende_skat,
+    godtgørelse_kroner = scenarie1_husholdning_genereret_godtgørelse,
+    restancer_personlig_skat_med_morarenter_kroner = 0,
+    tilbagebetaling_i_ordinært_vindue = Sandt,
+    tilbagebetaling_efter_1_september = Falskt,
+    påbegyndte_måneder_efter_1_september = 0,
+    opkrævningslov_par7_stk2_rente_basispoint = scenarie1_opkrævningslov_rente_fixture_basispoint
+))
+= scenarie1_mand_lav_indeholdelse_tillæg = kildeskat_restskat_procenttillæg_kroner(KildeskatRestskatTillægInput(
+    restskat_kroner = scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner,
+    opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint = scenarie1_opkrævningslov_rente_fixture_basispoint
+))
+= scenarie1_mand_lav_indeholdelse_systemdatoer = KildeskatRestskatSystemdatoer(
+    indkomstår = 2026,
+    seneste_systemdato_for_overførsel = KildeskatDato(år = 2027, måned = 9, dag = 30),
+    første_systemdato_for_stk4_tre_rater = KildeskatDato(år = 2027, måned = 10, dag = 1),
+    første_systemdato_for_stk6_tre_rater = KildeskatDato(år = 2027, måned = 11, dag = 1)
+)
+= scenarie1_mand_lav_indeholdelse_opkrævning_input = kildeskat_restskat_opkrævning_input_fra_dato(KildeskatRestskatOpkrævningDatoInput(
+    restskat_med_eventuelle_renter_kroner = scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner,
+    reguleret_overførselsgrænse_kroner = kildeskat_restskat_grænse_2010_niveau_kroner(),
+    skattepligtig_ved_begyndelsen_af_efterfølgende_år = Sandt,
+    udskrivningsdato = KildeskatDato(år = 2027, måned = 3, dag = 15),
+    systemdatoer = scenarie1_mand_lav_indeholdelse_systemdatoer
+))
 = scenarie1_mand_lav_indeholdelse_plan = kildeskat_restskat_opkrævning_plan(scenarie1_mand_lav_indeholdelse_opkrævning_input)
 
 | scenarie1_mand_genereret_slutopgørelse_overskydende: scenarie1_mand_slutopgørelse_genereret -> scenarie1_mand_slutopgørelse_genereret.overskydende_skat_kroner == 2690 && scenarie1_mand_slutopgørelse_genereret.restskat_kroner == 0

@@ -156,7 +156,17 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | par26_rester_efter_par8c(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.par8c_skat_kroner, par26_rester_efter_par8a_stk2(input))
 | par26_rester_efter_kommuneskat(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.kommuneskat_kroner, par26_rester_efter_par8c(input))
 | par26_rester_efter_kirkeskat(input: Par26ModregningInput) -> par26_ubrugt_efter_skat(input.kirkeskat_kroner, par26_rester_efter_kommuneskat(input))
-| par26_modregning_resultat(input: Par26ModregningInput) -> Par26ModregningResult(par26_skat_efter_kompensation(input.par6_skat_kroner, input.kompensation_kroner), par26_skat_efter_kompensation(input.par7_skat_kroner, par26_rester_efter_par6(input)), par26_skat_efter_kompensation(input.par7a_skat_kroner, par26_rester_efter_par7(input)), par26_skat_efter_kompensation(input.par8_skat_kroner, par26_rester_efter_par7a(input)), par26_skat_efter_kompensation(input.par8a_stk2_skat_kroner, par26_rester_efter_par8(input)), par26_skat_efter_kompensation(input.par8c_skat_kroner, par26_rester_efter_par8a_stk2(input)), par26_skat_efter_kompensation(input.kommuneskat_kroner, par26_rester_efter_par8c(input)), par26_skat_efter_kompensation(input.kirkeskat_kroner, par26_rester_efter_kommuneskat(input)), par26_rester_efter_kirkeskat(input))
+| par26_modregning_resultat(input: Par26ModregningInput) -> Par26ModregningResult(
+    par6_efter_kroner = par26_skat_efter_kompensation(input.par6_skat_kroner, input.kompensation_kroner),
+    par7_efter_kroner = par26_skat_efter_kompensation(input.par7_skat_kroner, par26_rester_efter_par6(input)),
+    par7a_efter_kroner = par26_skat_efter_kompensation(input.par7a_skat_kroner, par26_rester_efter_par7(input)),
+    par8_efter_kroner = par26_skat_efter_kompensation(input.par8_skat_kroner, par26_rester_efter_par7a(input)),
+    par8a_stk2_efter_kroner = par26_skat_efter_kompensation(input.par8a_stk2_skat_kroner, par26_rester_efter_par8(input)),
+    par8c_efter_kroner = par26_skat_efter_kompensation(input.par8c_skat_kroner, par26_rester_efter_par8a_stk2(input)),
+    kommuneskat_efter_kroner = par26_skat_efter_kompensation(input.kommuneskat_kroner, par26_rester_efter_par8c(input)),
+    kirkeskat_efter_kroner = par26_skat_efter_kompensation(input.kirkeskat_kroner, par26_rester_efter_kommuneskat(input)),
+    ubrugt_kompensation_kroner = par26_rester_efter_kirkeskat(input)
+)
 | par26_positivt_forskelsbeløb_nedsætter_ægtefælles_negative(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
 | par26_negativ_kapital_modregnes_i_ægtefælles_positive(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
 | par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
@@ -168,9 +178,30 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 = par26_nr1_fixture = par26_nr1_kroner(100000, Par26Fyldt18EllerGift)
 = par26_nr2_fixture = par26_nr2_kroner(400000)
 = par26_nr3_fixture = par26_nr3_kroner(500000, 467000)
-= par26_forskelsbeløb_fixture = Par26ForskelsbeløbInput(2015, 1000, 2000, 3000, 400, 600, 2500, 700, 4500, Sandt)
+= par26_forskelsbeløb_fixture = Par26ForskelsbeløbInput(
+    skatteår = 2015,
+    nr1_kroner = 1000,
+    nr2_kroner = 2000,
+    nr3_kroner = 3000,
+    nr4_kroner = 400,
+    nr5_kroner = 600,
+    nr6_kroner = 2500,
+    nr7_kroner = 700,
+    nr8_kroner = 4500,
+    betaler_kommunal_eller_par8c = Sandt
+)
 = par26_kompensation_fixture = par26_kompensation_kroner(par26_forskelsbeløb_fixture)
-= par26_modregning_fixture = par26_modregning_resultat(Par26ModregningInput(par26_kompensation_fixture, 200, 100, 0, 50, 100, 0, 200, 200))
+= par26_modregning_fixture = par26_modregning_resultat(Par26ModregningInput(
+    kompensation_kroner = par26_kompensation_fixture,
+    par6_skat_kroner = 200,
+    par7_skat_kroner = 100,
+    par7a_skat_kroner = 0,
+    par8_skat_kroner = 50,
+    par8a_stk2_skat_kroner = 100,
+    par8c_skat_kroner = 0,
+    kommuneskat_kroner = 200,
+    kirkeskat_kroner = 200
+))
 = par26_ægtefælle_fixture = par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(Par26GiftSamlevendeVedÅretsUdløb)
 = par26_forsker_fixture = par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(Par26Forskerordning48FValgt)
 

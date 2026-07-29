@@ -26,7 +26,11 @@ positivbeløb, procent- eller øreafrunding.
 | penge_beløb_gange_basispoint_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> beløb_kroner * sats_basispoint / 10000
 | penge_øre_nedrundet(tæller: Heltal, nævner: Heltal) -> 0
 | exception penge_positiv_ørebrøk_nedrundes penge_øre_nedrundet(tæller: Heltal, nævner: Heltal) -> tæller / nævner under tæller > 0 && nævner > 0
-| penge_øre_beregning(tæller: Heltal, nævner: Heltal) -> PengeØreBeregning(tæller, nævner, penge_øre_nedrundet(tæller, nævner))
+| penge_øre_beregning(tæller: Heltal, nævner: Heltal) -> PengeØreBeregning(
+    tæller = tæller,
+    nævner = nævner,
+    øre_nedrundet = penge_øre_nedrundet(tæller, nævner)
+)
 
 = penge_positivt_fixture = penge_positivt_beløb(-5)
 = penge_mindste_fixture = penge_mindste_beløb(20, 12)

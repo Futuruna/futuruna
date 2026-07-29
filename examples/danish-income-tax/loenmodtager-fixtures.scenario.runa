@@ -340,16 +340,70 @@ Kilder: Personskatteloven § 13, stk. 1-4; Skatteministeriets kommuneskat for
 København 2025.
 ----
 
-= m4_par13_københavn_satser = Par13KompleksSkatteværdiSatser(0, 2350, 80, 0, Falskt)
-= m4_par13_ingen_modregningsskatter = Par13KompleksModregningsskatter(0, 0, 0, 0)
-= m4_par13_ingen_stk5_begrænsning = Par13KompleksStk5Begrænsning(0, 0, 0, 0, Falskt, IngenPar13Lempelse)
-= m4_par13_ingen_virksomhedsunderskud = Par13KompleksVirksomhedsunderskud(0, 0, SkibsvirksomhedGodkendtSenest1993)
-= m4_par13_ingen_ægtefælle = Par13KompleksÆgtefælleforhold(0, Falskt, 0)
-= m4_par13_ægtefælle_indkomstgrundlag = Par13KompleksIndkomstgrundlag(2025, 100000, -10000, 2000)
-= m4_par13_ægtefælle_modregningsskatter = Par13KompleksModregningsskatter(10000, 5000, 0, 20000)
-= m4_par13_ægtefælle_forhold = Par13KompleksÆgtefælleforhold(45000, Sandt, 60000)
-= m4_par13_ægtefælle_stk5_begrænsning = Par13KompleksStk5Begrænsning(0, 0, 0, 0, Sandt, IngenPar13Lempelse)
-= m4_par13_ægtefælle_input = Par13KompleksBeregningInput(m4_par13_ægtefælle_indkomstgrundlag, m4_par13_københavn_satser, m4_par13_ægtefælle_modregningsskatter, m4_par13_ægtefælle_forhold, m4_par13_ægtefælle_stk5_begrænsning, m4_par13_ingen_virksomhedsunderskud)
+= m4_par13_københavn_satser = Par13KompleksSkatteværdiSatser(
+    sundhedsbidrag_basispoint = 0,
+    kommuneskat_basispoint = 2350,
+    kirkeskat_basispoint = 80,
+    par8c_basispoint = 0,
+    betaler_par8c = Falskt
+)
+= m4_par13_ingen_modregningsskatter = Par13KompleksModregningsskatter(
+    par6_skat_kroner = 0,
+    par7_skat_kroner = 0,
+    par7a_skat_kroner = 0,
+    par8a_stk2_skat_kroner = 0
+)
+= m4_par13_ingen_stk5_begrænsning = Par13KompleksStk5Begrænsning(
+    udenlandsk_beskattet_personlig_indkomst_kroner = 0,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 0,
+    udgifter_fradraget_i_udlandet_kroner = 0,
+    pbl16_beløb_kroner = 0,
+    overførsel_efter_stk4 = Falskt,
+    lempelsesgrundlag = IngenPar13Lempelse
+)
+= m4_par13_ingen_virksomhedsunderskud = Par13KompleksVirksomhedsunderskud(
+    virksomhedsunderskud_kroner = 0,
+    positiv_indkomst_samme_virksomhed_kroner = 0,
+    virksomhedsstatus = SkibsvirksomhedGodkendtSenest1993
+)
+= m4_par13_ingen_ægtefælle = Par13KompleksÆgtefælleforhold(
+    ægtefælle_skattepligtig_indkomst_kroner = 0,
+    gift_samlevende_ved_årets_udløb = Falskt,
+    ønsket_ægtefælleoverførsel_kroner = 0
+)
+= m4_par13_ægtefælle_indkomstgrundlag = Par13KompleksIndkomstgrundlag(
+    skatteår = 2025,
+    skattepligtigt_underskud_kroner = 100000,
+    personlig_indkomst_kroner = -10000,
+    positiv_kapitalindkomst_kroner = 2000
+)
+= m4_par13_ægtefælle_modregningsskatter = Par13KompleksModregningsskatter(
+    par6_skat_kroner = 10000,
+    par7_skat_kroner = 5000,
+    par7a_skat_kroner = 0,
+    par8a_stk2_skat_kroner = 20000
+)
+= m4_par13_ægtefælle_forhold = Par13KompleksÆgtefælleforhold(
+    ægtefælle_skattepligtig_indkomst_kroner = 45000,
+    gift_samlevende_ved_årets_udløb = Sandt,
+    ønsket_ægtefælleoverførsel_kroner = 60000
+)
+= m4_par13_ægtefælle_stk5_begrænsning = Par13KompleksStk5Begrænsning(
+    udenlandsk_beskattet_personlig_indkomst_kroner = 0,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 0,
+    udgifter_fradraget_i_udlandet_kroner = 0,
+    pbl16_beløb_kroner = 0,
+    overførsel_efter_stk4 = Sandt,
+    lempelsesgrundlag = IngenPar13Lempelse
+)
+= m4_par13_ægtefælle_input = Par13KompleksBeregningInput(
+    indkomstgrundlag = m4_par13_ægtefælle_indkomstgrundlag,
+    skatteværdi_satser = m4_par13_københavn_satser,
+    modregningsskatter = m4_par13_ægtefælle_modregningsskatter,
+    ægtefælleforhold = m4_par13_ægtefælle_forhold,
+    stk5_begrænsning = m4_par13_ægtefælle_stk5_begrænsning,
+    virksomhedsunderskud = m4_par13_ingen_virksomhedsunderskud
+)
 = m4_par13_ægtefælle = beregn_par13_kompleks(m4_par13_ægtefælle_input)
 
 | m4_par13_ægtefælle_kræver_behandling: m4_par13_ægtefælle -> m4_par13_ægtefælle.kræver_underskudsbehandling == Sandt
@@ -372,10 +426,33 @@ Ligningsloven § 33 A.
 Kilder: Personskatteloven § 13, stk. 5; Ligningsloven § 33 A.
 ----
 
-= m4_par13_ll33a_indkomstgrundlag = Par13KompleksIndkomstgrundlag(2025, 100000, 0, 0)
-= m4_par13_ll33a_forhold = Par13KompleksÆgtefælleforhold(100000, Sandt, 100000)
-= m4_par13_ll33a_stk5_begrænsning = Par13KompleksStk5Begrænsning(30000, 5000, 12000, 10000, Sandt, LigningslovPar33A)
-= m4_par13_ll33a_input = Par13KompleksBeregningInput(m4_par13_ll33a_indkomstgrundlag, m4_par13_københavn_satser, m4_par13_ingen_modregningsskatter, m4_par13_ll33a_forhold, m4_par13_ll33a_stk5_begrænsning, m4_par13_ingen_virksomhedsunderskud)
+= m4_par13_ll33a_indkomstgrundlag = Par13KompleksIndkomstgrundlag(
+    skatteår = 2025,
+    skattepligtigt_underskud_kroner = 100000,
+    personlig_indkomst_kroner = 0,
+    positiv_kapitalindkomst_kroner = 0
+)
+= m4_par13_ll33a_forhold = Par13KompleksÆgtefælleforhold(
+    ægtefælle_skattepligtig_indkomst_kroner = 100000,
+    gift_samlevende_ved_årets_udløb = Sandt,
+    ønsket_ægtefælleoverførsel_kroner = 100000
+)
+= m4_par13_ll33a_stk5_begrænsning = Par13KompleksStk5Begrænsning(
+    udenlandsk_beskattet_personlig_indkomst_kroner = 30000,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 5000,
+    udgifter_fradraget_i_udlandet_kroner = 12000,
+    pbl16_beløb_kroner = 10000,
+    overførsel_efter_stk4 = Sandt,
+    lempelsesgrundlag = LigningslovPar33A
+)
+= m4_par13_ll33a_input = Par13KompleksBeregningInput(
+    indkomstgrundlag = m4_par13_ll33a_indkomstgrundlag,
+    skatteværdi_satser = m4_par13_københavn_satser,
+    modregningsskatter = m4_par13_ingen_modregningsskatter,
+    ægtefælleforhold = m4_par13_ll33a_forhold,
+    stk5_begrænsning = m4_par13_ll33a_stk5_begrænsning,
+    virksomhedsunderskud = m4_par13_ingen_virksomhedsunderskud
+)
 = m4_par13_ll33a = beregn_par13_kompleks(m4_par13_ll33a_input)
 
 | m4_par13_ll33a_frigiver_overførsel: m4_par13_ll33a -> m4_par13_ll33a.stk5_overførsel.overførbart_underskud_kroner == 100000 && m4_par13_ll33a.stk5_overførsel.samlet_afskåret_kroner == 0
@@ -390,10 +467,33 @@ ophævelse af Personskatteloven § 13, stk. 5, 4. pkt.
 Kilder: Personskatteloven § 13, stk. 5; LOV nr. 482 af 22/05/2024.
 ----
 
-= m4_par13_2026_pbl_indkomstgrundlag = Par13KompleksIndkomstgrundlag(2026, 100000, 0, 0)
-= m4_par13_2026_pbl_forhold = Par13KompleksÆgtefælleforhold(100000, Sandt, 100000)
-= m4_par13_2026_pbl_stk5_begrænsning = Par13KompleksStk5Begrænsning(0, 0, 0, 10000, Sandt, IngenPar13Lempelse)
-= m4_par13_2026_pbl_input = Par13KompleksBeregningInput(m4_par13_2026_pbl_indkomstgrundlag, m4_par13_københavn_satser, m4_par13_ingen_modregningsskatter, m4_par13_2026_pbl_forhold, m4_par13_2026_pbl_stk5_begrænsning, m4_par13_ingen_virksomhedsunderskud)
+= m4_par13_2026_pbl_indkomstgrundlag = Par13KompleksIndkomstgrundlag(
+    skatteår = 2026,
+    skattepligtigt_underskud_kroner = 100000,
+    personlig_indkomst_kroner = 0,
+    positiv_kapitalindkomst_kroner = 0
+)
+= m4_par13_2026_pbl_forhold = Par13KompleksÆgtefælleforhold(
+    ægtefælle_skattepligtig_indkomst_kroner = 100000,
+    gift_samlevende_ved_årets_udløb = Sandt,
+    ønsket_ægtefælleoverførsel_kroner = 100000
+)
+= m4_par13_2026_pbl_stk5_begrænsning = Par13KompleksStk5Begrænsning(
+    udenlandsk_beskattet_personlig_indkomst_kroner = 0,
+    fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 0,
+    udgifter_fradraget_i_udlandet_kroner = 0,
+    pbl16_beløb_kroner = 10000,
+    overførsel_efter_stk4 = Sandt,
+    lempelsesgrundlag = IngenPar13Lempelse
+)
+= m4_par13_2026_pbl_input = Par13KompleksBeregningInput(
+    indkomstgrundlag = m4_par13_2026_pbl_indkomstgrundlag,
+    skatteværdi_satser = m4_par13_københavn_satser,
+    modregningsskatter = m4_par13_ingen_modregningsskatter,
+    ægtefælleforhold = m4_par13_2026_pbl_forhold,
+    stk5_begrænsning = m4_par13_2026_pbl_stk5_begrænsning,
+    virksomhedsunderskud = m4_par13_ingen_virksomhedsunderskud
+)
 = m4_par13_2026_pbl = beregn_par13_kompleks(m4_par13_2026_pbl_input)
 
 | m4_par13_2026_pbl_ikke_afskåret: m4_par13_2026_pbl -> m4_par13_2026_pbl.stk5_overførsel.overførbart_underskud_kroner == 100000 && m4_par13_2026_pbl.stk5_overførsel.afskåret_pbl16_kroner == 0
@@ -408,9 +508,25 @@ fremføres med restbeløbet.
 Kilder: Personskatteloven § 13, stk. 6-7.
 ----
 
-= m4_par13_virksomhed_indkomstgrundlag = Par13KompleksIndkomstgrundlag(2025, 0, 0, 0)
-= m4_par13_virksomhed_fakta = Par13KompleksVirksomhedsunderskud(80000, 30000, PassivVirksomhedPar4Nr9Eller11)
-= m4_par13_virksomhed_input = Par13KompleksBeregningInput(m4_par13_virksomhed_indkomstgrundlag, m4_par13_københavn_satser, m4_par13_ingen_modregningsskatter, m4_par13_ingen_ægtefælle, m4_par13_ingen_stk5_begrænsning, m4_par13_virksomhed_fakta)
+= m4_par13_virksomhed_indkomstgrundlag = Par13KompleksIndkomstgrundlag(
+    skatteår = 2025,
+    skattepligtigt_underskud_kroner = 0,
+    personlig_indkomst_kroner = 0,
+    positiv_kapitalindkomst_kroner = 0
+)
+= m4_par13_virksomhed_fakta = Par13KompleksVirksomhedsunderskud(
+    virksomhedsunderskud_kroner = 80000,
+    positiv_indkomst_samme_virksomhed_kroner = 30000,
+    virksomhedsstatus = PassivVirksomhedPar4Nr9Eller11
+)
+= m4_par13_virksomhed_input = Par13KompleksBeregningInput(
+    indkomstgrundlag = m4_par13_virksomhed_indkomstgrundlag,
+    skatteværdi_satser = m4_par13_københavn_satser,
+    modregningsskatter = m4_par13_ingen_modregningsskatter,
+    ægtefælleforhold = m4_par13_ingen_ægtefælle,
+    stk5_begrænsning = m4_par13_ingen_stk5_begrænsning,
+    virksomhedsunderskud = m4_par13_virksomhed_fakta
+)
 = m4_par13_virksomhed = beregn_par13_kompleks(m4_par13_virksomhed_input)
 
 | m4_par13_virksomhed_fremfører_rest: m4_par13_virksomhed -> m4_par13_virksomhed.virksomhedsunderskud.fradrag_i_øvrig_indkomst_kroner == 0 && m4_par13_virksomhed.virksomhedsunderskud.modregnet_i_samme_virksomhed_kroner == 30000 && m4_par13_virksomhed.virksomhedsunderskud.fremført_til_samme_virksomhed_kroner == 50000

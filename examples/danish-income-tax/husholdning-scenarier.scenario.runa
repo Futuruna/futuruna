@@ -51,12 +51,27 @@ rules, and payroll settlement are not encoded in this slice.
 | husholdning_samlet_netto_årligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown) -> mand.bruttoløn_kroner + ægtefælle.bruttoløn_kroner - husholdning_samlet_skat_årligt(mand, ægtefælle)
 | husholdning_samlet_netto_månedligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown) -> husholdning_samlet_netto_årligt(mand, ægtefælle) / 12
 | husholdning_efter_husleje_månedligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, husleje_månedligt_kroner: Heltal) -> husholdning_samlet_netto_månedligt(mand, ægtefælle) - husleje_månedligt_kroner
-| beregn_husholdning_scenarie(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, husleje_månedligt_kroner: Heltal) -> HusholdningScenarieResult(mand, ægtefælle, husholdning_samlet_skat_årligt(mand, ægtefælle), husholdning_samlet_netto_årligt(mand, ægtefælle), husholdning_samlet_netto_månedligt(mand, ægtefælle), husleje_månedligt_kroner, husholdning_efter_husleje_månedligt(mand, ægtefælle, husleje_månedligt_kroner))
+| beregn_husholdning_scenarie(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, husleje_månedligt_kroner: Heltal) -> HusholdningScenarieResult(
+    mand = mand,
+    ægtefælle = ægtefælle,
+    samlet_skat_årligt_kroner = husholdning_samlet_skat_årligt(mand, ægtefælle),
+    samlet_netto_årligt_kroner = husholdning_samlet_netto_årligt(mand, ægtefælle),
+    samlet_netto_månedligt_kroner = husholdning_samlet_netto_månedligt(mand, ægtefælle),
+    husleje_månedligt_kroner = husleje_månedligt_kroner,
+    efter_husleje_månedligt_kroner = husholdning_efter_husleje_månedligt(mand, ægtefælle, husleje_månedligt_kroner)
+)
 | lønmodtager_bruttoløn_månedligt(person: LønmodtagerBreakdown) -> person.bruttoløn_kroner / 12
 | lønmodtager_am_månedligt(person: LønmodtagerBreakdown) -> person.arbejdsmarkedsbidrag_kroner / 12
 | lønmodtager_lønudbetaling_månedligt(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> lønmodtager_bruttoløn_månedligt(person) - lønmodtager_am_månedligt(person) - a_skat_månedligt_kroner
 | husholdning_lønudbetaling_månedligt(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, mand_a_skat_månedligt_kroner: Heltal, ægtefælle_a_skat_månedligt_kroner: Heltal) -> lønmodtager_lønudbetaling_månedligt(mand, mand_a_skat_månedligt_kroner) + lønmodtager_lønudbetaling_månedligt(ægtefælle, ægtefælle_a_skat_månedligt_kroner)
-| beregn_husholdning_indeholdelse_scenarie(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, mand_a_skat_månedligt_kroner: Heltal, ægtefælle_a_skat_månedligt_kroner: Heltal, husleje_månedligt_kroner: Heltal) -> HusholdningIndeholdelseScenarieResult(mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner, lønmodtager_lønudbetaling_månedligt(mand, mand_a_skat_månedligt_kroner), lønmodtager_lønudbetaling_månedligt(ægtefælle, ægtefælle_a_skat_månedligt_kroner), husholdning_lønudbetaling_månedligt(mand, ægtefælle, mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner), husholdning_lønudbetaling_månedligt(mand, ægtefælle, mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner) - husleje_månedligt_kroner)
+| beregn_husholdning_indeholdelse_scenarie(mand: LønmodtagerBreakdown, ægtefælle: LønmodtagerBreakdown, mand_a_skat_månedligt_kroner: Heltal, ægtefælle_a_skat_månedligt_kroner: Heltal, husleje_månedligt_kroner: Heltal) -> HusholdningIndeholdelseScenarieResult(
+    mand_a_skat_månedligt_kroner = mand_a_skat_månedligt_kroner,
+    ægtefælle_a_skat_månedligt_kroner = ægtefælle_a_skat_månedligt_kroner,
+    mand_lønudbetaling_månedligt_kroner = lønmodtager_lønudbetaling_månedligt(mand, mand_a_skat_månedligt_kroner),
+    ægtefælle_lønudbetaling_månedligt_kroner = lønmodtager_lønudbetaling_månedligt(ægtefælle, ægtefælle_a_skat_månedligt_kroner),
+    samlet_lønudbetaling_månedligt_kroner = husholdning_lønudbetaling_månedligt(mand, ægtefælle, mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner),
+    efter_husleje_lønudbetaling_månedligt_kroner = husholdning_lønudbetaling_månedligt(mand, ægtefælle, mand_a_skat_månedligt_kroner, ægtefælle_a_skat_månedligt_kroner) - husleje_månedligt_kroner
+)
 
 = scenarie1_mand_input = LønmodtagerInput(
     skatteår = 2026,
@@ -93,8 +108,17 @@ rules, and payroll settlement are not encoded in this slice.
     undtaget_gruppeliv_pbl56 = Falskt,
     undtaget_medarbejderinvestering_under_grænse = Falskt
 ))
-= scenarie1_mand_a_skat_indeholdelsespligt = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(scenarie1_mand_månedsløn_a_indkomst, Sandt, 0))
-= scenarie1_mand_manglende_skattekort_a_skat = kildeskat_a_skat_kroner(KildeskatSkattekortInput(scenarie1_mand_månedsløn_a_indkomst, 0, 0, IntetESkattekort))
+= scenarie1_mand_a_skat_indeholdelsespligt = kildeskat_a_skat_skal_indeholdes(KildeskatIndeholdelsespligtInput(
+    a_indkomst_kroner = scenarie1_mand_månedsløn_a_indkomst,
+    udbetaling_fundet_sted = Sandt,
+    måneder_siden_endelig_ret = 0
+))
+= scenarie1_mand_manglende_skattekort_a_skat = kildeskat_a_skat_kroner(KildeskatSkattekortInput(
+    a_skat_grundlag_kroner = scenarie1_mand_månedsløn_a_indkomst,
+    fradrag_kroner = 0,
+    indeholdelsesprocent_basispoint = 0,
+    kort = IntetESkattekort
+))
 = scenarie1_mand_skattekort_input = KildeskatESkattekortInput(
     a_skat_grundlag_kroner = scenarie1_mand_månedsløn_a_indkomst,
     månedsfradrag_kroner = 12000,
@@ -124,12 +148,42 @@ rules, and payroll settlement are not encoded in this slice.
 = scenarie1_indeholdelse = beregn_husholdning_indeholdelse_scenarie(scenarie1_mand, scenarie1_ægtefælle, scenarie1_mand_skattekort_a_skat, scenarie1_ægtefælle_skattekort_a_skat, 10000)
 = scenarie1_mand_forskudsskat_til_a_skat = scenarie1_mand.samlet_inkl_am_efter_personfradrag_kroner - scenarie1_mand.arbejdsmarkedsbidrag_kroner
 = scenarie1_ægtefælle_forskudsskat_til_a_skat = scenarie1_ægtefælle.samlet_inkl_am_efter_personfradrag_kroner - scenarie1_ægtefælle.arbejdsmarkedsbidrag_kroner
-= scenarie1_mand_forskudsprocent_input = Forskudsregistrering2026IndeholdelsesprocentInput(forskudsregistrering_2026_skattekommune_for(2026, København, Falskt), Forskudsregistrering2026Progressionsgrundlag(scenarie1_mand.personlig_indkomst_efter_am_kroner, 0), Forskudsregistrering2026Progressionsskatter(scenarie1_mand.mellemskat_før_personfradrag_kroner, scenarie1_mand.topskat_før_personfradrag_kroner, scenarie1_mand.toptopskat_før_personfradrag_kroner))
-= scenarie1_ægtefælle_forskudsprocent_input = Forskudsregistrering2026IndeholdelsesprocentInput(forskudsregistrering_2026_skattekommune_for(2026, København, Falskt), Forskudsregistrering2026Progressionsgrundlag(scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner, 0), Forskudsregistrering2026Progressionsskatter(scenarie1_ægtefælle.mellemskat_før_personfradrag_kroner, scenarie1_ægtefælle.topskat_før_personfradrag_kroner, scenarie1_ægtefælle.toptopskat_før_personfradrag_kroner))
+= scenarie1_mand_forskudsprocent_input = Forskudsregistrering2026IndeholdelsesprocentInput(
+    skattekommune = forskudsregistrering_2026_skattekommune_for(2026, København, Falskt),
+    progressionsgrundlag = Forskudsregistrering2026Progressionsgrundlag(
+        personlig_indkomst_kroner = scenarie1_mand.personlig_indkomst_efter_am_kroner,
+        positiv_nettokapitalindkomst_over_grænse_kroner = 0
+    ),
+    progressionsskatter = Forskudsregistrering2026Progressionsskatter(
+        mellemskat_efter_skatteloft_kroner = scenarie1_mand.mellemskat_før_personfradrag_kroner,
+        topskat_kroner = scenarie1_mand.topskat_før_personfradrag_kroner,
+        toptopskat_kroner = scenarie1_mand.toptopskat_før_personfradrag_kroner
+    )
+)
+= scenarie1_ægtefælle_forskudsprocent_input = Forskudsregistrering2026IndeholdelsesprocentInput(
+    skattekommune = forskudsregistrering_2026_skattekommune_for(2026, København, Falskt),
+    progressionsgrundlag = Forskudsregistrering2026Progressionsgrundlag(
+        personlig_indkomst_kroner = scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner,
+        positiv_nettokapitalindkomst_over_grænse_kroner = 0
+    ),
+    progressionsskatter = Forskudsregistrering2026Progressionsskatter(
+        mellemskat_efter_skatteloft_kroner = scenarie1_ægtefælle.mellemskat_før_personfradrag_kroner,
+        topskat_kroner = scenarie1_ægtefælle.topskat_før_personfradrag_kroner,
+        toptopskat_kroner = scenarie1_ægtefælle.toptopskat_før_personfradrag_kroner
+    )
+)
 = scenarie1_mand_afledt_indeholdelsesprocent = forskudsregistrering_2026_indeholdelsesprocent_basispoint(scenarie1_mand_forskudsprocent_input)
 = scenarie1_ægtefælle_afledt_indeholdelsesprocent = forskudsregistrering_2026_indeholdelsesprocent_basispoint(scenarie1_ægtefælle_forskudsprocent_input)
-= scenarie1_mand_genereret_skattekort_indkomstgrundlag = KildeskattebekendtgørelseForskudskortIndkomstgrundlag(scenarie1_mand.personlig_indkomst_efter_am_kroner, scenarie1_mand.personlig_indkomst_efter_am_kroner / 12, 0)
-= scenarie1_ægtefælle_genereret_skattekort_indkomstgrundlag = KildeskattebekendtgørelseForskudskortIndkomstgrundlag(scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner, scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner / 12, 0)
+= scenarie1_mand_genereret_skattekort_indkomstgrundlag = KildeskattebekendtgørelseForskudskortIndkomstgrundlag(
+    års_a_skat_grundlag_kroner = scenarie1_mand.personlig_indkomst_efter_am_kroner,
+    periode_a_skat_grundlag_kroner = scenarie1_mand.personlig_indkomst_efter_am_kroner / 12,
+    udelukket_a_skat_grundlag_kroner = 0
+)
+= scenarie1_ægtefælle_genereret_skattekort_indkomstgrundlag = KildeskattebekendtgørelseForskudskortIndkomstgrundlag(
+    års_a_skat_grundlag_kroner = scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner,
+    periode_a_skat_grundlag_kroner = scenarie1_ægtefælle.personlig_indkomst_efter_am_kroner / 12,
+    udelukket_a_skat_grundlag_kroner = 0
+)
 = scenarie1_mand_genereret_skattekort = kildeskattebekendtgørelse_skattekort_resultat(KildeskattebekendtgørelseForskudskortInput(
     skatteår = 2026,
     indkomstgrundlag = scenarie1_mand_genereret_skattekort_indkomstgrundlag,

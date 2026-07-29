@@ -52,19 +52,55 @@ lock-in, and the narrow 2026 skatteloft basis.
 
 | personskat_bomb_signal(signal: PersonskatBombSignal) -> Sandt
 
-= bomb_par14_input = LønmodtagerPar14Input(FuldSkattepligtIndtræder, LønmodtagerInput(2026, København, 300000, 0, 0, Fyldt18EllerGift, Falskt), 180)
+= bomb_par14_input = LønmodtagerPar14Input(
+    skattepligtsændring = FuldSkattepligtIndtræder,
+    delårs_input = LønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 300000,
+        positiv_nettokapitalindkomst_kroner = 0,
+        ligningsmæssige_fradrag_kroner = 0,
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    skattepligtsdage = 180
+)
 = bomb_par14_resultat = beregn_lønmodtager_par14(bomb_par14_input)
 = bomb_par14_normal_statslig_delårsskat_kroner = bomb_par14_resultat.delår.statslig_indkomstskat_efter_personfradrag_kroner
 = bomb_par14_annualiseret_statslig_delårsskat_kroner = bomb_par14_resultat.delårsskat_efter_par6_til_par9_kroner
 = bomb_par14_annualiseringsdelta_kroner = bomb_par14_annualiseret_statslig_delårsskat_kroner - bomb_par14_normal_statslig_delårsskat_kroner
 
-= bomb_københavn_900k = beregn_lønmodtager(LønmodtagerInput(2026, København, 900000, 0, 0, Fyldt18EllerGift, Falskt))
-= bomb_langeland_900k = beregn_lønmodtager(LønmodtagerInput(2026, Langeland, 900000, 0, 0, Fyldt18EllerGift, Falskt))
+= bomb_københavn_900k = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 900000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
+= bomb_langeland_900k = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2026,
+    kommune = Langeland,
+    bruttoløn_kroner = 900000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
 = bomb_langeland_statslig_skattenedsættelse_mod_københavn_kroner = bomb_københavn_900k.statslig_indkomstskat_efter_personfradrag_kroner - bomb_langeland_900k.statslig_indkomstskat_efter_personfradrag_kroner
 = bomb_langeland_kommunal_merbelastning_mod_københavn_kroner = bomb_langeland_900k.kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner - bomb_københavn_900k.kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner
 = bomb_langeland_samlet_merbelastning_mod_københavn_kroner = bomb_langeland_900k.samlet_inkl_am_efter_personfradrag_kroner - bomb_københavn_900k.samlet_inkl_am_efter_personfradrag_kroner
 
-= bomb_københavn_kapital = beregn_lønmodtager(LønmodtagerInput(2026, København, 650000, 110000, 0, Fyldt18EllerGift, Falskt))
+= bomb_københavn_kapital = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 650000,
+    positiv_nettokapitalindkomst_kroner = 110000,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
 
 | bomb_2026_fuld_progressiv_kommunal_stack_basispoint(kommune: Kommune) -> nationalparametre_for(2026).bundskat_basispoint + nationalparametre_for(2026).mellemskat_basispoint + nationalparametre_for(2026).topskat_basispoint + nationalparametre_for(2026).toptopskat_basispoint + kommunale_parametre_for(2026, kommune).kommuneskat_basispoint
 
@@ -73,20 +109,49 @@ lock-in, and the narrow 2026 skatteloft basis.
 = bomb_københavn_2026_stack_over_personligt_skatteloft_basispoint = bomb_københavn_2026_fuld_progressiv_stack_basispoint - bomb_københavn_2026_personligt_skatteloft_basispoint
 
 = bomb_aktie_2026_grundbeløb = aktieindkomst_grundbeløb_for(2026)
-= bomb_aktie_150k_enlig = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(2026, 150000, bomb_aktie_2026_grundbeløb))
-= bomb_aktie_150k_ægtefællegrundbeløb = aktieindkomst_effektivt_grundbeløb_for_person(AktieindkomstÆgtefælleGrundbeløbInput(2026, 150000, 0, Sandt))
-= bomb_aktie_150k_med_ægtefællegrundbeløb = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(2026, 150000, bomb_aktie_150k_ægtefællegrundbeløb))
+= bomb_aktie_150k_enlig = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
+    skatteår = 2026,
+    aktieindkomst_kroner = 150000,
+    effektivt_grundbeløb_kroner = bomb_aktie_2026_grundbeløb
+))
+= bomb_aktie_150k_ægtefællegrundbeløb = aktieindkomst_effektivt_grundbeløb_for_person(AktieindkomstÆgtefælleGrundbeløbInput(
+    skatteår = 2026,
+    aktieindkomst_kroner = 150000,
+    ægtefælle_aktieindkomst_kroner = 0,
+    samlevende_ved_årets_udløb = Sandt
+))
+= bomb_aktie_150k_med_ægtefællegrundbeløb = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
+    skatteår = 2026,
+    aktieindkomst_kroner = 150000,
+    effektivt_grundbeløb_kroner = bomb_aktie_150k_ægtefællegrundbeløb
+))
 = bomb_aktie_ægtefællegrundbeløb_skattebesparelse_kroner = bomb_aktie_150k_enlig.samlet_skat_kroner - bomb_aktie_150k_med_ægtefællegrundbeløb.samlet_skat_kroner
 
 = bomb_negativ_aktie_dobbelt_grundbeløb = bomb_aktie_2026_grundbeløb * 2
-= bomb_negativ_aktie_uden_modregning_negativ_skat_kroner = aktieindkomst_negativ_skat_kroner(AktieindkomstNegativSkatInput(2026, 180000, bomb_negativ_aktie_dobbelt_grundbeløb))
-= bomb_negativ_aktie_med_ægtefællemodregning = aktieindkomst_ægtefælle_negativ_resultat(AktieindkomstÆgtefælleNegativInput(2026, -180000, 50000, Sandt))
-= bomb_negativ_aktie_ægtefælle_positiv_50k_skat = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(2026, 50000, bomb_aktie_2026_grundbeløb))
+= bomb_negativ_aktie_uden_modregning_negativ_skat_kroner = aktieindkomst_negativ_skat_kroner(AktieindkomstNegativSkatInput(
+    skatteår = 2026,
+    negativ_aktieindkomst_abs_kroner = 180000,
+    effektivt_grundbeløb_kroner = bomb_negativ_aktie_dobbelt_grundbeløb
+))
+= bomb_negativ_aktie_med_ægtefællemodregning = aktieindkomst_ægtefælle_negativ_resultat(AktieindkomstÆgtefælleNegativInput(
+    skatteår = 2026,
+    negativ_aktieindkomst_kroner = -180000,
+    ægtefælle_positiv_aktieindkomst_kroner = 50000,
+    samlevende_ved_årets_udløb = Sandt
+))
+= bomb_negativ_aktie_ægtefælle_positiv_50k_skat = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
+    skatteår = 2026,
+    aktieindkomst_kroner = 50000,
+    effektivt_grundbeløb_kroner = bomb_aktie_2026_grundbeløb
+))
 = bomb_negativ_aktie_familienetto_uden_modregning_kroner = bomb_negativ_aktie_ægtefælle_positiv_50k_skat.samlet_skat_kroner - bomb_negativ_aktie_uden_modregning_negativ_skat_kroner
 = bomb_negativ_aktie_familienetto_med_modregning_kroner = 0 - bomb_negativ_aktie_med_ægtefællemodregning.negativ_skat_kroner
 = bomb_negativ_aktie_modregning_familienetto_delta_kroner = bomb_negativ_aktie_familienetto_med_modregning_kroner - bomb_negativ_aktie_familienetto_uden_modregning_kroner
 
-= bomb_cfc_500k = cfc_skat_resultat(CfcSkatInput(2026, 500000))
+= bomb_cfc_500k = cfc_skat_resultat(CfcSkatInput(
+    skatteår = 2026,
+    cfc_indkomst_kroner = 500000
+))
 
 = bomb_passivt_virksomhedsunderskud_låst = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(100000, 30000, PassivVirksomhedPar4Nr9Eller11))
 = bomb_aktivt_virksomhedsunderskud_frigivet = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(100000, 30000, TransparentSelskabDeltagetVæsentligt36Måneder))
