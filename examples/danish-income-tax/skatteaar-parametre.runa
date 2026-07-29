@@ -259,7 +259,10 @@ Langeland | Syddanmark | 482 | 1083 | 52 | 26,30 | 1,14 | 1,24 | 12,20
 | exception kommune_gentofte_2024_2026 kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommune == Gentofte && skatteår >= 2024 && skatteår <= 2026
 | exception kommune_langeland_2026 kommune_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommune == Langeland && skatteår == 2026
 
-| skatteår_parameterpakke_for(skatteår: Heltal, kommune: Kommune) -> SkatteårParameterpakke(nationalparametre_for(skatteår), kommunale_parametre_for(skatteår, kommune)) under parameterpakke_komplet(skatteår, kommune)
+| skatteår_parameterpakke_for(skatteår: Heltal, kommune: Kommune) -> SkatteårParameterpakke(
+    nationale = nationalparametre_for(skatteår),
+    kommunale = kommunale_parametre_for(skatteår, kommune)
+) under parameterpakke_komplet(skatteår, kommune)
 
 | samlet_indkomstskatteprocent_basispoint(kommunale: KommunaleParametre) -> kommunale.kommuneskat_basispoint + kommunale.kirkeskat_basispoint + kommunale.sundhedsbidrag_basispoint + kommunale.bundskat_basispoint - kommunale.skatteloftsnedslag_basispoint
 | parameterpakke_komplet(skatteår: Heltal, kommune: Kommune) -> skatteår_understøttet(skatteår) && kommune_understøttet_i_år(skatteår, kommune)

@@ -42053,6 +42053,21 @@ for x in [1, 2] {
     }
 
     #[test]
+    fn compiled_named_constructor_args_are_reordered_by_field_name() {
+        let source = r#"
+# TaxFact(first: Int, second: Int, third: Int)
+
+= fact = TaxFact(third = 30, first = 10, second = 20)
+@ print(show(fact.first))
+@ print(show(fact.second))
+@ print(show(fact.third))
+"#;
+
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "10\n20\n30");
+    }
+
+    #[test]
     fn legacy_emit_program_hoists_array_returning_rust_top_level_bindings_for_free_function_reads()
     {
         let source = r#"

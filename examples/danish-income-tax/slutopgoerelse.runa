@@ -121,7 +121,14 @@ henholdsvis udbetales efter reglerne i § 62.
 | exception kildeskat_ægtefælle_a_overskydende_udligner_b_restskat kildeskat_ægtefælleudligning_a_til_b_kroner(input: KildeskatÆgtefælleUdligningInput) -> kildeskat_slutopgørelse_mindste_beløb(input.person_a_overskydende_skat_kroner, input.person_b_restskat_kroner) under kildeskat_ægtefælleudligning_tilladt(input) && input.person_a_overskydende_skat_kroner > 0 && input.person_b_restskat_kroner > 0
 | kildeskat_ægtefælleudligning_b_til_a_kroner(input: KildeskatÆgtefælleUdligningInput) -> 0
 | exception kildeskat_ægtefælle_b_overskydende_udligner_a_restskat kildeskat_ægtefælleudligning_b_til_a_kroner(input: KildeskatÆgtefælleUdligningInput) -> kildeskat_slutopgørelse_mindste_beløb(input.person_b_overskydende_skat_kroner, input.person_a_restskat_kroner) under kildeskat_ægtefælleudligning_tilladt(input) && input.person_b_overskydende_skat_kroner > 0 && input.person_a_restskat_kroner > 0
-| kildeskat_ægtefælleudligning_resultat(input: KildeskatÆgtefælleUdligningInput) -> KildeskatÆgtefælleUdligningResult(input.person_a_restskat_kroner - kildeskat_ægtefælleudligning_b_til_a_kroner(input), input.person_a_overskydende_skat_kroner - kildeskat_ægtefælleudligning_a_til_b_kroner(input), input.person_b_restskat_kroner - kildeskat_ægtefælleudligning_a_til_b_kroner(input), input.person_b_overskydende_skat_kroner - kildeskat_ægtefælleudligning_b_til_a_kroner(input), kildeskat_ægtefælleudligning_a_til_b_kroner(input), kildeskat_ægtefælleudligning_b_til_a_kroner(input))
+| kildeskat_ægtefælleudligning_resultat(input: KildeskatÆgtefælleUdligningInput) -> KildeskatÆgtefælleUdligningResult(
+    person_a_restskat_efter_udligning_kroner = input.person_a_restskat_kroner - kildeskat_ægtefælleudligning_b_til_a_kroner(input),
+    person_a_overskydende_skat_efter_udligning_kroner = input.person_a_overskydende_skat_kroner - kildeskat_ægtefælleudligning_a_til_b_kroner(input),
+    person_b_restskat_efter_udligning_kroner = input.person_b_restskat_kroner - kildeskat_ægtefælleudligning_a_til_b_kroner(input),
+    person_b_overskydende_skat_efter_udligning_kroner = input.person_b_overskydende_skat_kroner - kildeskat_ægtefælleudligning_b_til_a_kroner(input),
+    anvendt_a_til_b_kroner = kildeskat_ægtefælleudligning_a_til_b_kroner(input),
+    anvendt_b_til_a_kroner = kildeskat_ægtefælleudligning_b_til_a_kroner(input)
+)
 
 ----
 § 61. Den skattepligtige skal tilsvare det beløb, hvormed slutskatten med
@@ -155,7 +162,13 @@ udbetales kun det hele kronebeløb.
 | kildeskat_slutopgørelse_art(input: KildeskatSlutopgørelseInput) -> IngenSlutopgørelsesDifference
 | exception kildeskat_slutopgørelse_er_restskat kildeskat_slutopgørelse_art(input: KildeskatSlutopgørelseInput) -> Restskat under kildeskat_restskat_kroner(input) > 0
 | exception kildeskat_slutopgørelse_er_overskydende kildeskat_slutopgørelse_art(input: KildeskatSlutopgørelseInput) -> OverskydendeSkat under kildeskat_overskydende_skat_kroner(input) > 0
-| kildeskat_slutopgørelse_resultat(input: KildeskatSlutopgørelseInput) -> KildeskatSlutopgørelseResult(kildeskat_slutskat_med_tillæg_kroner(input), kildeskat_par60_modregning_kroner(input.kreditter), kildeskat_restskat_kroner(input), kildeskat_overskydende_skat_kroner(input), kildeskat_slutopgørelse_art(input))
+| kildeskat_slutopgørelse_resultat(input: KildeskatSlutopgørelseInput) -> KildeskatSlutopgørelseResult(
+    slutskat_med_tillæg_kroner = kildeskat_slutskat_med_tillæg_kroner(input),
+    modregnede_foreløbige_skatter_kroner = kildeskat_par60_modregning_kroner(input.kreditter),
+    restskat_kroner = kildeskat_restskat_kroner(input),
+    overskydende_skat_kroner = kildeskat_overskydende_skat_kroner(input),
+    art = kildeskat_slutopgørelse_art(input)
+)
 | kildeskat_restskat_opkræves_efter_par61(input: KildeskatSlutopgørelseInput) -> kildeskat_restskat_kroner(input) > 0
 | kildeskat_overskydende_skat_udbetales_efter_par62(input: KildeskatSlutopgørelseInput) -> kildeskat_overskydende_skat_kroner(input) > 0
 | kildeskat_indkomstskat_dækkes_før_ejendomsskatter() -> Sandt
@@ -426,7 +439,15 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 | kildeskat_restskat_ordinære_rater_startmåned(input: KildeskatRestskatOpkrævningInput) -> 8
 | exception kildeskat_restskat_rater_fra_systemmulig_måned kildeskat_restskat_ordinære_rater_startmåned(input: KildeskatRestskatOpkrævningInput) -> 0 under kildeskat_restskat_udskrives_foerst_august_eller_senere(input.udskrivningspostur)
 | kildeskat_restskat_sidste_rettidige_betalingsdag() -> 20
-| kildeskat_restskat_opkrævning_plan(input: KildeskatRestskatOpkrævningInput) -> KildeskatRestskatOpkrævningPlan(kildeskat_restskat_indregnes_i_følgende_år_kroner(input), kildeskat_restskat_tre_rater_stk4_kroner(input) + kildeskat_restskat_stk6_resterende_tre_måneder_kroner(input), kildeskat_restskat_b_skat_tidspunkter_stk5_kroner(input), kildeskat_restskat_resterende_b_skat_rater_stk5_kroner(input), kildeskat_restskat_mindste_antal_rater(input), kildeskat_restskat_ordinære_rater_startmåned(input), kildeskat_restskat_sidste_rettidige_betalingsdag())
+| kildeskat_restskat_opkrævning_plan(input: KildeskatRestskatOpkrævningInput) -> KildeskatRestskatOpkrævningPlan(
+    indregnes_i_følgende_år_kroner = kildeskat_restskat_indregnes_i_følgende_år_kroner(input),
+    tre_rater_kroner = kildeskat_restskat_tre_rater_stk4_kroner(input) + kildeskat_restskat_stk6_resterende_tre_måneder_kroner(input),
+    b_skat_tidspunkter_kroner = kildeskat_restskat_b_skat_tidspunkter_stk5_kroner(input),
+    resterende_b_skat_rater_kroner = kildeskat_restskat_resterende_b_skat_rater_stk5_kroner(input),
+    mindste_antal_rater = kildeskat_restskat_mindste_antal_rater(input),
+    ordinære_rater_startmåned = kildeskat_restskat_ordinære_rater_startmåned(input),
+    sidste_rettidige_betalingsdag = kildeskat_restskat_sidste_rettidige_betalingsdag()
+)
 | kildeskat_restskat_b_skat_første_rate_nr(input: KildeskatRestskatOpkrævningInput) -> 0
 | exception kildeskat_restskat_sen_årsopgørelse_bruger_hele_b_skat_kalender kildeskat_restskat_b_skat_første_rate_nr(input: KildeskatRestskatOpkrævningInput) -> 1 under kildeskat_restskat_b_skat_tidspunkter_stk5_kroner(input) > 0
 | exception kildeskat_restskat_januar_bruger_resterende_b_skat_kalender kildeskat_restskat_b_skat_første_rate_nr(input: KildeskatRestskatOpkrævningInput) -> input.første_resterende_b_skat_rate_nr under kildeskat_restskat_resterende_b_skat_rater_stk5_kroner(input) > 0

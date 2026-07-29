@@ -15066,6 +15066,38 @@ mod tests {
     }
 
     #[test]
+    fn typechecker_accepts_named_constructor_fields_out_of_order() {
+        let source = r#"
+# TaxFact(first: Int, second: Bool, third: Int)
+
+= fact = TaxFact(third = 30, first = 10, second = True)
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "named constructor fields should type-check out of declaration order, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_rejects_mixed_named_and_positional_constructor_args() {
+        let source = r#"
+# TaxFact(first: Int, second: Bool, third: Int)
+
+= fact = TaxFact(first = 10, True, third = 30)
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.iter().any(|diag| diag
+                .message
+                .contains("mixes named and positional arguments")),
+            "mixed named/positional constructor args should be rejected, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
     fn typechecker_resolves_local_struct_constructors_after_import() {
         let temp_dir = std::env::temp_dir().join(format!(
             "futuruna-typechecker-import-{}",

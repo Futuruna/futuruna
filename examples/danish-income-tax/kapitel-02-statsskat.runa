@@ -635,7 +635,13 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 | aktieindkomst_højt_grundlag_kroner(input: AktieindkomstPositivSkatInput) -> aktieindkomst_positivt_beløb(input.aktieindkomst_kroner - aktieindkomst_lavt_grundlag_kroner(input))
 | aktieindkomst_lav_skat_kroner(input: AktieindkomstPositivSkatInput) -> penge_beløb_gange_basispoint_kroner(aktieindkomst_lavt_grundlag_kroner(input), aktieindkomstskat_sats_basispoint(input.skatteår, LavAktieSkat))
 | aktieindkomst_høj_skat_kroner(input: AktieindkomstPositivSkatInput) -> penge_beløb_gange_basispoint_kroner(aktieindkomst_højt_grundlag_kroner(input), aktieindkomstskat_sats_basispoint(input.skatteår, HøjAktieSkat))
-| aktieindkomst_positiv_skat(input: AktieindkomstPositivSkatInput) -> AktieindkomstSkatResultat(aktieindkomst_lavt_grundlag_kroner(input), aktieindkomst_højt_grundlag_kroner(input), aktieindkomst_lav_skat_kroner(input), aktieindkomst_høj_skat_kroner(input), aktieindkomst_lav_skat_kroner(input) + aktieindkomst_høj_skat_kroner(input))
+| aktieindkomst_positiv_skat(input: AktieindkomstPositivSkatInput) -> AktieindkomstSkatResultat(
+    lavt_grundlag_kroner = aktieindkomst_lavt_grundlag_kroner(input),
+    højt_grundlag_kroner = aktieindkomst_højt_grundlag_kroner(input),
+    endelig_skat_kroner = aktieindkomst_lav_skat_kroner(input),
+    slutskat_indgående_skat_kroner = aktieindkomst_høj_skat_kroner(input),
+    samlet_skat_kroner = aktieindkomst_lav_skat_kroner(input) + aktieindkomst_høj_skat_kroner(input)
+)
 # AktieindkomstUdbytteskatStk3Sag(input: AktieindkomstUdbytteskatStk3Input) {
     | indeholdt_udbytteskat_kroner() -> penge_positivt_beløb(input.indeholdt_udbytteskat_kroner)
     | stk1_skat_af_samlet_aktieindkomst_kroner() -> penge_beløb_gange_basispoint_kroner(aktieindkomst_positivt_beløb(input.aktieindkomst_kroner), aktieindkomstskat_sats_basispoint(input.skatteår, LavAktieSkat))
@@ -664,8 +670,16 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 | aktieindkomst_ægtefælle_resterende_negativ_kroner(input: AktieindkomstÆgtefælleNegativInput) -> aktieindkomst_ægtefælle_negativ_abs_kroner(input) - aktieindkomst_ægtefælle_negativ_modregning_kroner(input)
 | aktieindkomst_ægtefælle_negativt_grundbeløb_kroner(input: AktieindkomstÆgtefælleNegativInput) -> aktieindkomst_grundbeløb_for(input.skatteår)
 | exception samlevende_resterende_negativ_aktie_dobbelt_grundbeløb aktieindkomst_ægtefælle_negativt_grundbeløb_kroner(input: AktieindkomstÆgtefælleNegativInput) -> aktieindkomst_grundbeløb_for(input.skatteår) * 2 under input.samlevende_ved_årets_udløb
-| aktieindkomst_ægtefælle_negativ_skat_kroner(input: AktieindkomstÆgtefælleNegativInput) -> aktieindkomst_negativ_skat_kroner(AktieindkomstNegativSkatInput(input.skatteår, aktieindkomst_ægtefælle_resterende_negativ_kroner(input), aktieindkomst_ægtefælle_negativt_grundbeløb_kroner(input)))
-| aktieindkomst_ægtefælle_negativ_resultat(input: AktieindkomstÆgtefælleNegativInput) -> AktieindkomstÆgtefælleNegativResultat(aktieindkomst_ægtefælle_negativ_modregning_kroner(input), aktieindkomst_ægtefælle_resterende_negativ_kroner(input), aktieindkomst_ægtefælle_negativ_skat_kroner(input))
+| aktieindkomst_ægtefælle_negativ_skat_kroner(input: AktieindkomstÆgtefælleNegativInput) -> aktieindkomst_negativ_skat_kroner(AktieindkomstNegativSkatInput(
+    skatteår = input.skatteår,
+    negativ_aktieindkomst_abs_kroner = aktieindkomst_ægtefælle_resterende_negativ_kroner(input),
+    effektivt_grundbeløb_kroner = aktieindkomst_ægtefælle_negativt_grundbeløb_kroner(input)
+))
+| aktieindkomst_ægtefælle_negativ_resultat(input: AktieindkomstÆgtefælleNegativInput) -> AktieindkomstÆgtefælleNegativResultat(
+    modregnet_i_ægtefælles_positive_aktieindkomst_kroner = aktieindkomst_ægtefælle_negativ_modregning_kroner(input),
+    resterende_negativ_aktieindkomst_kroner = aktieindkomst_ægtefælle_resterende_negativ_kroner(input),
+    negativ_skat_kroner = aktieindkomst_ægtefælle_negativ_skat_kroner(input)
+)
 
 = par8a_lav_2011 = aktieindkomstskat_sats_basispoint(2011, LavAktieSkat)
 = par8a_lav_2012 = aktieindkomstskat_sats_basispoint(2012, LavAktieSkat)

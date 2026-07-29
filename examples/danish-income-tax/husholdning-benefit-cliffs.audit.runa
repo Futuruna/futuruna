@@ -79,7 +79,12 @@ tension below.
 | børneungeydelse_aftrapningsgrundlag_kroner(input: BørneUngeydelseModtagerInput) -> penge_positivt_beløb(input.modtager_mellemskatgrundlag_kroner - børneungeydelse_aftrapningsgrænse_kroner(input.skatteår))
 | børneungeydelse_aftrapning_før_loft_kroner(input: BørneUngeydelseModtagerInput) -> penge_beløb_gange_basispoint_kroner(børneungeydelse_aftrapningsgrundlag_kroner(input), børneungeydelse_aftrapning_basispoint())
 | børneungeydelse_aftrapning_kroner(input: BørneUngeydelseModtagerInput) -> penge_mindste_beløb(input.modtager_ydelse_før_aftrapning_kroner, børneungeydelse_aftrapning_før_loft_kroner(input))
-| børneungeydelse_modtager_resultat(input: BørneUngeydelseModtagerInput) -> BørneUngeydelseResultat(input.modtager_ydelse_før_aftrapning_kroner, børneungeydelse_aftrapningsgrundlag_kroner(input), børneungeydelse_aftrapning_kroner(input), input.modtager_ydelse_før_aftrapning_kroner - børneungeydelse_aftrapning_kroner(input))
+| børneungeydelse_modtager_resultat(input: BørneUngeydelseModtagerInput) -> BørneUngeydelseResultat(
+    ydelse_før_aftrapning_kroner = input.modtager_ydelse_før_aftrapning_kroner,
+    aftrapningsgrundlag_kroner = børneungeydelse_aftrapningsgrundlag_kroner(input),
+    aftrapning_kroner = børneungeydelse_aftrapning_kroner(input),
+    ydelse_efter_aftrapning_kroner = input.modtager_ydelse_før_aftrapning_kroner - børneungeydelse_aftrapning_kroner(input)
+)
 | husholdning_børneungeydelse_brutto_kroner(input: HusholdningBørneUngeydelseInput) -> input.barn_0_til_2_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Barn0Til2) + input.barn_3_til_6_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Barn3Til6) + input.barn_7_til_14_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Barn7Til14) + input.ung_15_til_17_antal * børneungeydelse_årlig_sats_kroner(input.skatteår, Ung15Til17)
 | husholdning_børneungeydelse_modtager_halvdel_kroner(input: HusholdningBørneUngeydelseInput) -> husholdning_børneungeydelse_brutto_kroner(input) / 2
 | husholdning_børneungeydelse_første_modtager(input: HusholdningBørneUngeydelseInput) -> børneungeydelse_modtager_resultat(BørneUngeydelseModtagerInput(

@@ -34,7 +34,10 @@ omfang som nævnt i ligningslovens § 8 M,
 
 | skat_i_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(beløb_kroner, sats_basispoint)
 | positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
-| arbejdsmarkedsbidrag_input_for(input: LønmodtagerInput) -> ArbejdsmarkedsbidragInput(input.bruttoløn_kroner, 0)
+| arbejdsmarkedsbidrag_input_for(input: LønmodtagerInput) -> ArbejdsmarkedsbidragInput(
+    lønvederlag_kroner = input.bruttoløn_kroner,
+    naturalieværdi_kroner = 0
+)
 | arbejdsmarkedsbidrag_for(input: LønmodtagerInput) -> arbejdsmarkedsbidrag_lønmodtager_kroner(arbejdsmarkedsbidrag_input_for(input))
 | personlig_indkomst_efter_am(input: LønmodtagerInput) -> input.bruttoløn_kroner - arbejdsmarkedsbidrag_for(input)
 | ligningslov_fradrag_input_for(input: LønmodtagerInput) -> LigningslovLønmodtagerFradragInput(
@@ -86,7 +89,13 @@ angiver mellemskattegrænse efter am-bidrag 641.200 kr., topskattegrænse
 nettokapitalindkomst i mellemskattegrundlaget 55.000 kr.
 ----
 
-| mellemskat_input_for(input: LønmodtagerInput) -> MellemskatKapitalInput(personlig_indkomst_efter_am(input), input.positiv_nettokapitalindkomst_kroner, nationalparametre_for(input.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner, nationalparametre_for(input.skatteår).mellemskattegrænse_efter_am_kroner, nationalparametre_for(input.skatteår).mellemskat_basispoint)
+| mellemskat_input_for(input: LønmodtagerInput) -> MellemskatKapitalInput(
+    personlig_indkomst_efter_am_kroner = personlig_indkomst_efter_am(input),
+    positiv_nettokapitalindkomst_kroner = input.positiv_nettokapitalindkomst_kroner,
+    kapital_bundfradrag_kroner = nationalparametre_for(input.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner,
+    mellemskattegrænse_efter_am_kroner = nationalparametre_for(input.skatteår).mellemskattegrænse_efter_am_kroner,
+    sats_basispoint = nationalparametre_for(input.skatteår).mellemskat_basispoint
+)
 | mellemskat_personligt_grundlag_for(input: LønmodtagerInput) -> progressiv_personlig_overskud_kroner(reform_statskat_input(MellemskatLag, input.skatteår, personlig_indkomst_efter_am(input)))
 | mellemskat_kapitalgrundlag_for(input: LønmodtagerInput) -> positivt_beløb(mellemskat_grundlag_med_kapital_kroner(mellemskat_input_for(input)) - mellemskat_personligt_grundlag_for(input))
 | mellemskat_før_personfradrag(input: LønmodtagerInput) -> 0
@@ -122,7 +131,14 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 ----
 
 | personfradrag_for(input: LønmodtagerInput) -> personfradrag_beløb_for(input.skatteår, input.personfradrag_alder_status)
-| personfradrag_skatteværdi_input(input: LønmodtagerInput) -> PersonfradragSkatteværdiInput(personfradrag_for(input), nationalparametre_for(input.skatteår).bundskat_basispoint, kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint, kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint, kirkeskat_sats_for(input), 0)
+| personfradrag_skatteværdi_input(input: LønmodtagerInput) -> PersonfradragSkatteværdiInput(
+    fradrag_kroner = personfradrag_for(input),
+    bundskat_basispoint = nationalparametre_for(input.skatteår).bundskat_basispoint,
+    sundhedsbidrag_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint,
+    kommuneskat_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint,
+    kirkeskat_basispoint = kirkeskat_sats_for(input),
+    par8c_basispoint = 0
+)
 | statslig_personfradrag_skatteværdi_for(input: LønmodtagerInput) -> personfradrag_statslig_skatteværdi(personfradrag_skatteværdi_input(input))
 | kommunal_personfradrag_skatteværdi_for(input: LønmodtagerInput) -> personfradrag_kommunal_skatteværdi(personfradrag_skatteværdi_input(input))
 | kirkelig_personfradrag_skatteværdi_for(input: LønmodtagerInput) -> personfradrag_kirkelig_skatteværdi(personfradrag_skatteværdi_input(input))
