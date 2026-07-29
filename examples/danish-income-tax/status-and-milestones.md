@@ -236,8 +236,9 @@ encoded as a temporal rule on top of the consolidation.
   municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding,
   BEK 839 forskudskort generation, BEK 1094 2026 indeholdelsesprocent,
   Kildeskatteloven §§ 60-62/62 A/62 C/67 slutopgørelse balance,
-  restskat timing, date-derived B-skat rate windows, date-derived § 62 A
-  interest spans, and overskydende-skat compensation posture,
+  restskat timing, date-derived B-skat rate windows, B-skat minimum-rate
+  completion plans, date-derived § 62 A interest spans, and overskydende-skat
+  compensation posture,
   Opkrævningsloven payment deadlines and § 7 late-payment rate posture,
   shared money/rounding posture for whole kroner, ten-kroner floors,
   basispoint rounding, and øre-level fractions,
@@ -318,6 +319,12 @@ Current decision:
   statutory issuance posture and the first remaining B-skat rate instead of
   passing those as scenario literals. The lower-level input remains as a
   compatibility helper for focused edge-case audits.
+- `KildeskatRestskatMinimumsplan` is the date-aware boundary for the § 61,
+  stk. 5 command that January-or-later restskat paid over remaining B-skat rates
+  must still be paid in at least three rates. It keeps the ordinary B-skat count,
+  missing supplemental rate count, divisible fixture amount, supplemental due
+  dates, total rate count, and § 58 last-timely-payment day together instead of
+  scattering late-year calendar assumptions across audit rules.
 - `KildeskatPar62ARenteDatoInput` and
   `KildeskatPar62AForsinketUdbetalingsdatoInput` keep § 62 A issue and payout
   scheduling date-based. They derive the old "påbegyndte måneder" helper input
@@ -645,7 +652,8 @@ M4 - Ordinary taxpayer calculator
   low-withholding restskat path with supplement and next-year transfer posture.
   Kildeskatteloven now also exposes the § 58 B-skat calendar as a rate-window
   domain object, § 62 A interest fixtures, and a restskat minimum-rate tension
-  when remaining B-skat rates are too few. `delaar-scenarier.scenario.runa`
+  plus completion plan when remaining B-skat rates are too few.
+  `delaar-scenarier.scenario.runa`
   now runs a 2026 Copenhagen § 14 partial-year wage-earner case, annualizing
   180 days of wage income and applying the reduced §§ 6-9 state-income-tax
   result while keeping AM outside the § 14 helårsskat component.
@@ -684,7 +692,7 @@ M5 - Audit suite
   rate-derivation fixture plus 2026 late-payment supplement source-chain
   amendment and date-exact daily interest context, covered B-skat installment
   calendar/rate-window projection, covered § 7 cross-calendar-year daily
-  interest split, covered § 62 A interest fixtures, exposed
+  interest split, covered § 62 A interest fixtures, exposed and scheduled
   restskat remaining B-skat-rate minimum tension,
   § 13 foreign/pension/business amount limitations are executable audit signals,
   including 2025 PBL § 16 behavior, 2026 repeal behavior, LL § 33 A relief,
@@ -712,7 +720,8 @@ M6 - Website integration
   threshold-cliff probe,
   Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily
   interest-context, and cross-calendar-year interest-split slices, the B-skat
-  calendar projection, § 62 A interest fixtures, § 14 partial-year wage-earner
+  calendar projection and minimum-rate completion plan, § 62 A interest
+  fixtures, § 14 partial-year wage-earner
   scenario, § 14 official guidance example, and personal plus positive-capital § 19 skatteloft inside the
   wage-earner breakdown, including the 2026 Langeland high-rate municipality
   fixture and published SKM `Nedslag pct.` differential, as calculation-ready, and marks the full statute model as
