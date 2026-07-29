@@ -17,7 +17,7 @@ Primary prompt source:
 - XML endpoint checked: `https://www.retsinformation.dk/eli/lta/2019/799/dan/xml`
 - Title: `Bekendtgørelse af lov om indkomstskat for personer m.v. (personskatteloven)`
 - XML status on 2026-07-18: `Historic`
-- XML end date observed on 2026-07-18: `2026-06-20`
+- XML end date observed on 2026-07-18: `2026-06-23`
 - Historic mark in XML: `2021-06-16`
 
 Current working source:
@@ -28,7 +28,7 @@ Current working source:
 - XML status on 2026-07-18: `Valid`
 - Signed: `2021-06-14`
 - In force from: `2021-06-16`
-- XML end date observed on 2026-07-18: `2026-06-20`
+- XML end date observed on 2026-07-18: `2026-06-23`
 - Change references in XML: 7
 
 Current § 13 amendment/dependency sources:
