@@ -400,7 +400,7 @@ pipeline language.
 Make them real: execute the body, provide a child environment, enable
 scope-qualified access.
 
-- [x] **Interpreter: execute scope body** — `Rule::Scope { name, body }` runs
+- [x] **Interpreter: execute scope body** — `Rule::ReactiveScope { name, body }` runs
   body statements in a child `Env`. Bindings inside are local. Functions
   defined with `>` inside `{ }` blocks work (Op(">") handling added).
 - [x] **Scope-qualified access** — `WeatherApp.location` accesses a binding

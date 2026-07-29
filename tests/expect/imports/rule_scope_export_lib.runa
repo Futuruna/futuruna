@@ -1,0 +1,14 @@
+-- expect-skip: dependency-only fixture for RuleScope import/export
+-- library-hygiene: importable
+
+@ export
+# Person(gross_income: Int)
+
+@ export
+# Rates(percent: Int)
+
+@ export
+# TaxCase(person: Person, rates: Rates) {
+    | taxable_income() -> person.gross_income
+    | tax_due() -> taxable_income() * rates.percent / 100
+}

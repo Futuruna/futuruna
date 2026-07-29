@@ -1,0 +1,8 @@
+# Person(age: Int)
+
+# TaxCase(person: Person) {
+    | allowance(extra: Int) -> person.age + extra
+}
+
+= tax = TaxCase(Person(40))
+= bad = tax.allowance()

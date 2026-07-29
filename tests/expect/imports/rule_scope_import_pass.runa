@@ -1,0 +1,8 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 250
+
+@ import ./rule_scope_export_lib
+
+= tax = TaxCase(Person(1000), Rates(25))
+@ print(show(tax.tax_due()))

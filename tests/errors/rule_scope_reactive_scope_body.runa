@@ -1,0 +1,11 @@
+# Person(age: Int)
+
+# TaxCase(person: Person) {
+    | scope Inner {
+        = value = 1
+    }
+    | allowance() -> person.age
+}
+
+= tax = TaxCase(Person(40))
+= allowance = tax.allowance()

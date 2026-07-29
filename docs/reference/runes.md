@@ -61,6 +61,26 @@ Fields are accessed with dot notation: `w.temp`, `w.condition`.
 
 Methods are standalone functions. The first parameter (without type annotation) receives the ADT type.
 
+### RuleScope
+```runa
+# TaxCase(person: Person, rates: Rates) {
+    | taxable_income() -> person.gross_income
+    | tax_due() -> taxable_income() * rates.percent / 100
+}
+
+= tax = TaxCase(Person(1000), Rates(25))
+= due = tax.tax_due()
+```
+
+A RuleScope is a pure calculation object for scoped legal rules. Constructor
+inputs are visible inside the scoped rules, scoped rules can call sibling
+rules, and `under` / `exception` keep the same priority semantics as top-level
+rules. Scoped rule names do not leak globally.
+
+RuleScope is different from `| scope Name { ... }`: `| scope` owns reactive
+lifecycle work such as subjects, streams, subscriptions, and teardown. A
+RuleScope has no mutation or lifecycle ownership.
+
 ### Effect declaration
 ```runa
 # effect Console {

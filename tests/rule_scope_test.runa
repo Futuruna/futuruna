@@ -1,0 +1,54 @@
+-- rule_scope_test.runa: pure scoped legal rules
+-- Covers constructor inputs, sibling scoped rules, under/default/exception
+-- priority, method parameters, field projection returns, and global-name
+-- collision without leakage.
+
+# Person(age: Int, gross_income: Int, lives_in_denmark: Bool)
+# TaxRates(personal_allowance: Int, child_allowance: Int, municipal_percent: Int, state_percent: Int)
+
+| personal_allowance() -> 999
+
+# TaxCase(person: Person, rates: TaxRates) {
+    | personal_allowance() -> rates.child_allowance under person.age < 18
+    | personal_allowance() -> rates.personal_allowance
+
+    | taxable_income() -> person.gross_income - personal_allowance()
+    | municipal_tax() -> taxable_income() * rates.municipal_percent / 100
+    | state_tax() -> taxable_income() * rates.state_percent / 100
+    | tax_due() -> municipal_tax() + state_tax()
+    | final_due() -> tax_due()
+    | projected_tax(extra_income: Int) -> tax_due() + extra_income * rates.municipal_percent / 100
+    | reported_income() -> person.gross_income
+
+    | filing_status() -> "resident"
+    | exception nonresident filing_status() -> "nonresident" under person.lives_in_denmark == False
+    | status_copy() -> filing_status()
+}
+
+= rates = TaxRates(100, 300, 20, 5)
+= child = TaxCase(Person(12, 1000, True), rates)
+= adult = TaxCase(Person(40, 1000, True), rates)
+= foreign = TaxCase(Person(40, 1000, False), rates)
+= direct_due = TaxCase(Person(40, 1000, True), rates).tax_due()
+
+| child_allowance_ok: child.personal_allowance() -> child.personal_allowance() == 300
+| adult_allowance_ok: adult.personal_allowance() -> adult.personal_allowance() == 100
+| sibling_ok: adult.tax_due() -> adult.tax_due() == 225
+| direct_constructor_ok: direct_due -> direct_due == 225
+| final_call_only_ok: adult.final_due() -> adult.final_due() == 225
+| projected_param_ok: adult.projected_tax(100) -> adult.projected_tax(100) == 245
+| field_projection_ok: adult.reported_income() -> adult.reported_income() == 1000
+| exception_ok: foreign.filing_status() -> foreign.filing_status() == "nonresident"
+| call_only_string_ok: foreign.status_copy() -> foreign.status_copy() == "nonresident"
+| global_collision_ok: personal_allowance() -> personal_allowance() == 999
+
+? child_allowance_ok
+? adult_allowance_ok
+? sibling_ok
+? direct_constructor_ok
+? final_call_only_ok
+? projected_param_ok
+? field_projection_ok
+? exception_ok
+? call_only_string_ok
+? global_collision_ok

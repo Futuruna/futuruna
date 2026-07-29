@@ -1805,6 +1805,11 @@ pub enum TypeDecl {
         for_type: String,
         methods: Vec<Defn>,
     },
+    RuleScope {
+        name: String,
+        params: Vec<Param>,
+        body: Vec<Stmt>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -1846,10 +1851,22 @@ pub enum Rule {
         value: Expr,
         condition: Option<Expr>,
     },
-    Scope {
+    ReactiveScope {
         name: String,
         body: Vec<Stmt>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct RuleScopeDef {
+    pub params: Vec<Param>,
+    pub body: Vec<Stmt>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RuleScopeFrame {
+    pub name: String,
+    pub bindings: HashMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1957,6 +1974,11 @@ where
             }
         }
         TypeDecl::EffectDecl { .. } => {}
+        TypeDecl::RuleScope { body, .. } => {
+            for stmt in body {
+                visit(AstChild::Stmt(stmt));
+            }
+        }
     }
 }
 
@@ -1989,7 +2011,7 @@ where
                 visit(AstChild::Expr(condition));
             }
         }
-        Rule::Scope { body, .. } => {
+        Rule::ReactiveScope { body, .. } => {
             for stmt in body {
                 visit(AstChild::Stmt(stmt));
             }
@@ -2208,7 +2230,7 @@ fn strip_spans_rule(rule: &Rule) -> Rule {
             value: strip_spans_expr(value),
             condition: condition.as_ref().map(strip_spans_expr),
         },
-        Rule::Scope { name, body } => Rule::Scope {
+        Rule::ReactiveScope { name, body } => Rule::ReactiveScope {
             name: name.clone(),
             body: body.iter().map(strip_spans_stmt).collect(),
         },
@@ -2307,6 +2329,11 @@ fn strip_spans_type_decl(td: &TypeDecl) -> TypeDecl {
             trait_name: trait_name.clone(),
             for_type: for_type.clone(),
             methods: methods.iter().map(strip_spans_defn).collect(),
+        },
+        TypeDecl::RuleScope { name, params, body } => TypeDecl::RuleScope {
+            name: name.clone(),
+            params: params.clone(),
+            body: body.iter().map(strip_spans_stmt).collect(),
         },
     }
 }
@@ -2481,6 +2508,13 @@ pub fn content_hash_type(td: &TypeDecl) -> String {
                     .join("|")
             )
         }
+        TypeDecl::RuleScope { params, body, .. } => {
+            format!(
+                "RULESCOPE({:?},{:?})",
+                params,
+                body.iter().map(strip_spans_stmt).collect::<Vec<_>>()
+            )
+        }
     };
     hash_string(&canonical)
 }
@@ -2521,6 +2555,7 @@ pub fn type_decl_name(td: &TypeDecl) -> &str {
             for_type
         }
         TypeDecl::WhenType { name, .. } => name,
+        TypeDecl::RuleScope { name, .. } => name,
     }
 }
 
@@ -2547,6 +2582,7 @@ pub fn print_hashes(stmts: &[Stmt]) {
                     TypeDecl::TraitDecl { .. } => "# trait",
                     TypeDecl::ImplBlock { .. } => "# impl",
                     TypeDecl::WhenType { .. } => "# WHEN",
+                    TypeDecl::RuleScope { .. } => "# rulescope",
                 };
                 println!("  {} {} #{}", kind, type_decl_name(td), hash);
                 found = true;
@@ -3740,7 +3776,7 @@ impl Parser {
                 self.skip_semis();
             }
             self.expect(TokenKind::RBrace)?;
-            return Ok(Stmt::Rule(Rule::Scope { name, body }));
+            return Ok(Stmt::Rule(Rule::ReactiveScope { name, body }));
         }
 
         // | exception label ...
@@ -3940,6 +3976,18 @@ impl Parser {
         } else {
             Vec::new()
         };
+
+        if self.peek_kind() == TokenKind::LBrace {
+            self.advance();
+            self.skip_semis();
+            let mut body = Vec::new();
+            while self.peek_kind() != TokenKind::RBrace && self.peek_kind() != TokenKind::Eof {
+                body.push(self.parse_statement()?);
+                self.skip_semis();
+            }
+            self.expect(TokenKind::RBrace)?;
+            return Ok(Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }));
+        }
 
         // Check for = (ADT definition) vs standalone declaration
         if self.peek_kind() == TokenKind::Op && self.peek().text == "=" {
@@ -5740,6 +5788,11 @@ pub enum Value {
         name: String,
         bindings: HashMap<String, Value>,
     },
+    /// RuleScope instance: pure scoped legal/calculation rules with captured inputs.
+    RuleScopeInstance {
+        name: String,
+        bindings: HashMap<String, Value>,
+    },
     /// Comptime type definition: describes a type to be generated at compile time.
     /// fields: vec of (field_name, type_name) for structs, or variant descriptions for enums.
     TypeDef {
@@ -5868,6 +5921,7 @@ impl fmt::Display for Value {
                 write!(f, "}}")
             }
             Value::Scope { name, .. } => write!(f, "<scope:{}>", name),
+            Value::RuleScopeInstance { name, .. } => write!(f, "<rulescope:{}>", name),
             Value::TypeDef { kind, fields } => {
                 write!(f, "<typedef:{} {{", kind)?;
                 for (i, (n, t)) in fields.iter().enumerate() {
@@ -6058,6 +6112,10 @@ pub struct Interpreter {
     pub functions: BTreeMap<String, FnDef>,
     /// Runtime impl methods keyed by (receiver type, method name)
     pub impl_methods: BTreeMap<(String, String), FnDef>,
+    /// RuleScope definitions keyed by scope name.
+    pub rule_scopes: BTreeMap<String, RuleScopeDef>,
+    /// Active RuleScope stack for resolving sibling scoped rules.
+    pub active_rule_scopes: Vec<RuleScopeFrame>,
     /// Output buffer for tests
     pub output: Vec<String>,
     /// Current source file directory (for resolving @ import paths)
@@ -6101,6 +6159,8 @@ impl Interpreter {
             ctor_to_type: BTreeMap::new(),
             functions: BTreeMap::new(),
             impl_methods: BTreeMap::new(),
+            rule_scopes: BTreeMap::new(),
+            active_rule_scopes: Vec::new(),
             output: Vec::new(),
             source_dir: None,
             imported: BTreeSet::new(),
@@ -6675,6 +6735,15 @@ impl Interpreter {
             TypeDecl::WhenType { .. } => {
                 // Handled in run_program (needs env to evaluate condition)
             }
+            TypeDecl::RuleScope { name, params, body } => {
+                self.rule_scopes.insert(
+                    name.clone(),
+                    RuleScopeDef {
+                        params: params.clone(),
+                        body: body.clone(),
+                    },
+                );
+            }
         }
     }
 
@@ -6748,7 +6817,7 @@ impl Interpreter {
                 }
                 Stmt::Rule(rule) => {
                     // Scopes are executed immediately, not registered as rules
-                    if let Rule::Scope { name, body } = rule {
+                    if let Rule::ReactiveScope { name, body } = rule {
                         let mut scope_env = env.child();
                         // Execute all body statements in the child environment
                         let _scope_last = self.run_program(body, &mut scope_env);
@@ -7466,6 +7535,12 @@ impl Interpreter {
                     }
                 }
             }
+            TypeDecl::RuleScope { name, params, .. } => {
+                env.set(
+                    name.clone(),
+                    Value::Builtin(format!("rulescope:{}/{}", name, params.len())),
+                );
+            }
         }
     }
 
@@ -7513,6 +7588,12 @@ impl Interpreter {
                 Literal::Bool(b) => Value::Bool(*b),
             },
             ExprKind::App(func, args) => {
+                if let ExprKind::Field(obj, method) = &func.as_ref().kind {
+                    let obj_val = self.eval(obj, env);
+                    if let Value::RuleScopeInstance { name, bindings } = obj_val {
+                        return self.eval_rule_scope_method(&name, &bindings, method, args, env);
+                    }
+                }
                 // Check if this is an effect operation call dispatched to a handler
                 if let ExprKind::Var(ref fn_name) = (*func).kind {
                     if let Some(result) = self.try_effect_dispatch(fn_name, args, env) {
@@ -7531,6 +7612,9 @@ impl Interpreter {
                             }
                             _ => Value::Constructor("None".into(), vec![]),
                         };
+                    }
+                    if let Some(result) = self.try_active_rule_scope_call(fn_name, args, env) {
+                        return result;
                     }
                     // Check if this is a rule call (| name(...) -> value)
                     if let Some(result) = self.try_rule_call(fn_name, args, env) {
@@ -7871,6 +7955,21 @@ impl Interpreter {
         // resume(val) — algebraic effect continuation (identity in tail-resumptive)
         if name == "__resume" {
             return args.into_iter().next().unwrap_or(Value::Unit);
+        }
+        if name.starts_with("rulescope:") {
+            let parts: Vec<&str> = name["rulescope:".len()..].split('/').collect();
+            let scope_name = parts[0];
+            let Some(def) = self.rule_scopes.get(scope_name) else {
+                return Value::Unit;
+            };
+            let mut bindings = HashMap::new();
+            for (param, value) in def.params.iter().zip(args.into_iter()) {
+                bindings.insert(param.name.clone(), value);
+            }
+            return Value::RuleScopeInstance {
+                name: scope_name.to_string(),
+                bindings,
+            };
         }
         // Constructor application
         if name.starts_with("nctor:") {
@@ -10325,6 +10424,85 @@ impl Interpreter {
         }
     }
 
+    fn rule_scope_matching_rules(def: &RuleScopeDef, fn_name: &str) -> Vec<Rule> {
+        def.body
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Rule(rule @ Rule::Clause { .. })
+                | Stmt::Rule(rule @ Rule::Default { .. })
+                | Stmt::Rule(rule @ Rule::Exception { .. }) => Some(rule),
+                _ => None,
+            })
+            .filter(|rule| {
+                let name = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => Self::expr_name_static(head),
+                    Rule::ReactiveScope { .. } => "?".to_string(),
+                };
+                name == fn_name
+            })
+            .cloned()
+            .collect()
+    }
+
+    fn expr_name_static(expr: &Expr) -> String {
+        match &expr.kind {
+            ExprKind::App(f, _) => Self::expr_name_static(f),
+            ExprKind::Var(name) => name.clone(),
+            _ => "?".into(),
+        }
+    }
+
+    fn eval_rule_scope_method(
+        &mut self,
+        scope_name: &str,
+        bindings: &HashMap<String, Value>,
+        method: &str,
+        args: &[Expr],
+        env: &Env,
+    ) -> Value {
+        let Some(def) = self.rule_scopes.get(scope_name).cloned() else {
+            return Value::Unit;
+        };
+        let matching = Self::rule_scope_matching_rules(&def, method);
+        if matching.is_empty() {
+            return Value::Unit;
+        }
+        let mut scoped_env = env.child();
+        for (name, value) in bindings {
+            scoped_env.set(name.clone(), value.clone());
+        }
+        self.active_rule_scopes.push(RuleScopeFrame {
+            name: scope_name.to_string(),
+            bindings: bindings.clone(),
+        });
+        let result = self
+            .try_rule_call_from_rules(method, args, &scoped_env, matching)
+            .unwrap_or(Value::Unit);
+        self.active_rule_scopes.pop();
+        result
+    }
+
+    fn try_active_rule_scope_call(
+        &mut self,
+        fn_name: &str,
+        args: &[Expr],
+        env: &Env,
+    ) -> Option<Value> {
+        let frame = self.active_rule_scopes.last().cloned()?;
+        let def = self.rule_scopes.get(&frame.name).cloned()?;
+        let matching = Self::rule_scope_matching_rules(&def, fn_name);
+        if matching.is_empty() {
+            return None;
+        }
+        let mut scoped_env = env.child();
+        for (name, value) in &frame.bindings {
+            scoped_env.set(name.clone(), value.clone());
+        }
+        self.try_rule_call_from_rules(fn_name, args, &scoped_env, matching)
+    }
+
     /// Try to evaluate a rule call. Returns Some(value) if a rule with the given
     /// name exists and evaluates successfully, None otherwise.
     ///
@@ -10342,6 +10520,16 @@ impl Interpreter {
             .map(|(_, rule)| rule.clone())
             .collect();
 
+        self.try_rule_call_from_rules(fn_name, args, env, matching)
+    }
+
+    fn try_rule_call_from_rules(
+        &mut self,
+        _fn_name: &str,
+        args: &[Expr],
+        env: &Env,
+        matching: Vec<Rule>,
+    ) -> Option<Value> {
         if matching.is_empty() {
             return None;
         }
@@ -11384,7 +11572,7 @@ impl Interpreter {
             Rule::Clause { head, .. } => self.expr_name(head),
             Rule::Default { head, .. } => self.expr_name(head),
             Rule::Exception { head, .. } => self.expr_name(head),
-            Rule::Scope { name, .. } => name.clone(),
+            Rule::ReactiveScope { name, .. } => name.clone(),
         }
     }
 
@@ -11656,6 +11844,14 @@ pub struct TypeChecker {
     trait_method_receivers: BTreeMap<(String, String), MethodReceiverShape>,
     /// (trait_name, for_type, method_name) -> receiver semantics provided by the impl
     impl_method_receivers: BTreeMap<(String, String, String), MethodReceiverShape>,
+    /// RuleScope name -> scoped rule name -> arity.
+    rule_scope_methods: BTreeMap<String, BTreeMap<String, usize>>,
+    /// RuleScope-typed variables per lexical scope.
+    rule_scope_vars: Vec<BTreeMap<String, String>>,
+    /// Type name -> known field names.
+    type_fields: BTreeMap<String, BTreeSet<String>>,
+    /// Variable type names per lexical scope.
+    var_types: Vec<BTreeMap<String, String>>,
     /// qualified import module name -> exported member names
     module_exports: BTreeMap<String, BTreeSet<String>>,
     /// structured diagnostics accumulated during checking
@@ -11687,6 +11883,10 @@ impl TypeChecker {
             impl_methods: BTreeMap::new(),
             trait_method_receivers: BTreeMap::new(),
             impl_method_receivers: BTreeMap::new(),
+            rule_scope_methods: BTreeMap::new(),
+            rule_scope_vars: vec![BTreeMap::new()],
+            type_fields: BTreeMap::new(),
+            var_types: vec![BTreeMap::new()],
             module_exports: BTreeMap::new(),
             diagnostics: Vec::new(),
             scopes: vec![BTreeSet::new()],
@@ -11936,16 +12136,63 @@ impl TypeChecker {
 
     pub fn push_scope(&mut self) {
         self.scopes.push(BTreeSet::new());
+        self.rule_scope_vars.push(BTreeMap::new());
+        self.var_types.push(BTreeMap::new());
     }
 
     pub fn pop_scope(&mut self) {
         self.scopes.pop();
+        self.rule_scope_vars.pop();
+        self.var_types.pop();
     }
 
     pub fn define_var(&mut self, name: &str) {
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(name.to_string());
         }
+    }
+
+    fn define_rule_scope_var(&mut self, name: &str, scope_name: &str) {
+        if let Some(scope) = self.rule_scope_vars.last_mut() {
+            scope.insert(name.to_string(), scope_name.to_string());
+        }
+        self.define_var_type_name(name, scope_name);
+    }
+
+    fn rule_scope_var_type(&self, name: &str) -> Option<&str> {
+        for scope in self.rule_scope_vars.iter().rev() {
+            if let Some(scope_name) = scope.get(name) {
+                return Some(scope_name);
+            }
+        }
+        None
+    }
+
+    fn define_var_type_name(&mut self, name: &str, type_name: &str) {
+        if let Some(scope) = self.var_types.last_mut() {
+            scope.insert(name.to_string(), type_name.to_string());
+        }
+    }
+
+    fn define_var_type(&mut self, name: &str, ty: &Ty) {
+        match ty {
+            Ty::Name(type_name) => self.define_var_type_name(name, type_name),
+            Ty::App(base, _) => {
+                if let Ty::Name(type_name) = base.as_ref() {
+                    self.define_var_type_name(name, type_name);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn var_type_name(&self, name: &str) -> Option<&str> {
+        for scope in self.var_types.iter().rev() {
+            if let Some(type_name) = scope.get(name) {
+                return Some(type_name);
+            }
+        }
+        None
     }
 
     /// Extract and define variable names from a rule head argument,
@@ -11977,6 +12224,117 @@ impl TypeChecker {
             }
             _ => {}
         }
+    }
+
+    fn rule_head_name_arity(head: &Expr) -> Option<(String, usize)> {
+        match &head.kind {
+            ExprKind::App(func, args) => match &func.kind {
+                ExprKind::Var(name) => Some((name.clone(), args.len())),
+                _ => Self::rule_head_name_arity(func).map(|(name, _)| (name, args.len())),
+            },
+            ExprKind::Var(name) => Some((name.clone(), 0)),
+            _ => None,
+        }
+    }
+
+    fn rule_name_arity(rule: &Rule) -> Option<(String, usize)> {
+        match rule {
+            Rule::Clause { head, .. }
+            | Rule::Default { head, .. }
+            | Rule::Exception { head, .. } => Self::rule_head_name_arity(head),
+            Rule::ReactiveScope { .. } => None,
+        }
+    }
+
+    fn rule_scope_method_arities(body: &[Stmt]) -> BTreeMap<String, usize> {
+        let mut methods = BTreeMap::new();
+        for stmt in body {
+            if let Stmt::Rule(rule) = stmt {
+                if let Some((method, arity)) = Self::rule_name_arity(rule) {
+                    methods.entry(method).or_insert(arity);
+                }
+            }
+        }
+        methods
+    }
+
+    fn expr_rule_scope_type(&self, expr: &Expr) -> Option<String> {
+        match &expr.kind {
+            ExprKind::Var(name) => self.rule_scope_var_type(name).map(str::to_string),
+            ExprKind::App(func, _) => match &func.kind {
+                ExprKind::Var(name) if self.rule_scope_methods.contains_key(name) => {
+                    Some(name.clone())
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    fn is_rule_scope_method_name(&self, method: &str) -> bool {
+        self.rule_scope_methods
+            .values()
+            .any(|methods| methods.contains_key(method))
+    }
+
+    fn check_rule_scope_decl(&mut self, name: &str, params: &[Param], body: &[Stmt]) {
+        self.push_context(format!("in rulescope `{}`", name));
+
+        let mut methods = BTreeMap::new();
+        for stmt in body {
+            match stmt {
+                Stmt::Rule(rule @ Rule::Clause { .. })
+                | Stmt::Rule(rule @ Rule::Default { .. })
+                | Stmt::Rule(rule @ Rule::Exception { .. }) => {
+                    if let Some((method, arity)) = Self::rule_name_arity(rule) {
+                        if let Some(previous) = methods.insert(method.clone(), arity) {
+                            if previous != arity {
+                                self.error(format!(
+                                    "scoped rule `{}` in `{}` is declared with incompatible arities: {} and {}",
+                                    method, name, previous, arity
+                                ));
+                            }
+                        }
+                    }
+                }
+                Stmt::Rule(Rule::ReactiveScope { .. }) => {
+                    self.error(format!(
+                        "`| scope` is a reactive lifecycle scope; use `# {}(...) {{ | rule(...) -> ... }}` for pure scoped rules",
+                        name
+                    ));
+                }
+                Stmt::Annot(_, _) => {}
+                _ => {
+                    self.error(format!(
+                        "RuleScope `{}` currently only allows `|` rules in its body",
+                        name
+                    ));
+                }
+            }
+        }
+
+        let old_functions = self.functions.clone();
+        let old_user_functions = self.user_functions.clone();
+        for (method, arity) in &methods {
+            self.functions.insert(method.clone(), *arity);
+            self.user_functions.insert(method.clone());
+        }
+
+        self.push_scope();
+        for param in params {
+            self.define_var(&param.name);
+            if let Some(ty) = &param.ty {
+                self.define_var_type(&param.name, ty);
+            }
+        }
+        for stmt in body {
+            self.check_stmt(stmt);
+        }
+        self.pop_scope();
+
+        self.functions = old_functions;
+        self.user_functions = old_user_functions;
+        self.pop_context();
     }
 
     pub fn var_defined(&self, name: &str) -> bool {
@@ -12121,6 +12479,9 @@ impl TypeChecker {
                         for variant in variants {
                             exported.insert(variant.name.clone());
                         }
+                    }
+                    Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                        exported.insert(name.clone());
                     }
                     Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
                         exported.insert(name.clone());
@@ -12322,16 +12683,30 @@ impl TypeChecker {
                     ..
                 }) => {
                     self.types.insert(name.clone());
+                    let mut type_field_names = BTreeSet::new();
                     let mut variant_names = Vec::new();
                     for variant in variants {
                         let field_count = variant.fields.len();
                         self.constructors
                             .insert(variant.name.clone(), (name.clone(), field_count));
                         variant_names.push(variant.name.clone());
+                        let variant_field_names: BTreeSet<String> = variant
+                            .fields
+                            .iter()
+                            .map(|field| field.name.clone())
+                            .collect();
+                        type_field_names.extend(variant_field_names.iter().cloned());
+                        if !variant_field_names.is_empty() {
+                            self.type_fields
+                                .insert(variant.name.clone(), variant_field_names);
+                        }
                         if variants.len() == 1 && variant.name == *name && field_count > 0 {
                             self.functions.insert(name.clone(), field_count);
                             self.user_functions.insert(name.clone());
                         }
+                    }
+                    if !type_field_names.is_empty() {
+                        self.type_fields.insert(name.clone(), type_field_names);
                     }
                     if variants.len() > 1 {
                         self.type_variants.insert(name.clone(), variant_names);
@@ -12341,6 +12716,18 @@ impl TypeChecker {
                             self.functions.insert(name.clone(), params.len());
                         }
                     }
+                }
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
+                    self.types.insert(name.clone());
+                    self.functions.insert(name.clone(), params.len());
+                    self.user_functions.insert(name.clone());
+                    self.define_var(name);
+                    self.type_fields.insert(
+                        name.clone(),
+                        params.iter().map(|param| param.name.clone()).collect(),
+                    );
+                    self.rule_scope_methods
+                        .insert(name.clone(), Self::rule_scope_method_arities(body));
                 }
                 Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                     self.types.insert(name.clone());
@@ -12393,7 +12780,7 @@ impl TypeChecker {
                 Stmt::StreamBind(name, _) => {
                     self.define_var(name);
                 }
-                Stmt::Rule(Rule::Scope { name, body }) => {
+                Stmt::Rule(Rule::ReactiveScope { name, body }) => {
                     self.define_var(name);
                     self.collect_declarations(body);
                 }
@@ -12757,6 +13144,9 @@ impl TypeChecker {
                 self.push_scope();
                 for p in params {
                     self.define_var(&p.name);
+                    if let Some(ty) = &p.ty {
+                        self.define_var_type(&p.name, ty);
+                    }
                 }
                 self.check_expr(body, Some(name));
                 self.pop_scope();
@@ -12772,6 +13162,9 @@ impl TypeChecker {
                 for handler in handlers {
                     self.push_scope();
                     self.define_var(&state_param.name);
+                    if let Some(ty) = &state_param.ty {
+                        self.define_var_type(&state_param.name, ty);
+                    }
                     self.define_pat_vars(&handler.msg_pat);
                     self.check_expr(&handler.body, None);
                     self.pop_scope();
@@ -12798,6 +13191,9 @@ impl TypeChecker {
                         self.push_scope();
                         for p in params {
                             self.define_var(&p.name);
+                            if let Some(ty) = &p.ty {
+                                self.define_var_type(&p.name, ty);
+                            }
                         }
                         self.check_expr(body, Some(mname));
                         self.pop_scope();
@@ -12816,6 +13212,9 @@ impl TypeChecker {
                         self.push_scope();
                         for p in params {
                             self.define_var(&p.name);
+                            if let Some(ty) = &p.ty {
+                                self.define_var_type(&p.name, ty);
+                            }
                         }
                         self.check_expr(body, Some(mname));
                         self.pop_scope();
@@ -12831,6 +13230,9 @@ impl TypeChecker {
                         self.push_scope();
                         for p in &method.params {
                             self.define_var(&p.name);
+                            if let Some(ty) = &p.ty {
+                                self.define_var_type(&p.name, ty);
+                            }
                         }
                         self.check_expr(body, Some(&method.name));
                         self.pop_scope();
@@ -12838,6 +13240,9 @@ impl TypeChecker {
                 }
             }
             Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+            Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
+                self.check_rule_scope_decl(name, params, body);
+            }
             Stmt::Bind(pat, ty, expr) => {
                 self.check_expr(expr, None);
                 if let Some(ty) = ty {
@@ -12846,11 +13251,22 @@ impl TypeChecker {
                     self.obvious_expr_ty(expr);
                 }
                 self.define_pat_vars(pat);
+                if let (Pat::Var(name), Some(ty)) = (pat, ty.as_ref()) {
+                    self.define_var_type(name, ty);
+                }
+                if let Pat::Var(name) = pat {
+                    if let Some(scope_name) = self.expr_rule_scope_type(expr) {
+                        self.define_rule_scope_var(name, &scope_name);
+                    }
+                }
             }
-            Stmt::MonadicBind(pat, _, expr) => {
+            Stmt::MonadicBind(pat, ty, expr) => {
                 self.check_expr(expr, None);
                 self.obvious_expr_ty(expr);
                 self.define_pat_vars(pat);
+                if let (Pat::Var(name), Some(ty)) = (pat, ty.as_ref()) {
+                    self.define_var_type(name, ty);
+                }
             }
             Stmt::StreamBind(name, expr) => {
                 self.check_expr(expr, None);
@@ -12892,7 +13308,7 @@ impl TypeChecker {
                     self.pop_scope();
                 }
             }
-            Stmt::Rule(Rule::Scope { body, .. }) => {
+            Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                 self.push_scope();
                 self.collect_declarations(body);
                 self.check_stmt_sequence(body);
@@ -13040,6 +13456,61 @@ impl TypeChecker {
                 }
             }
             ExprKind::App(func, args) => {
+                if let ExprKind::Field(base, method) = &func.as_ref().kind {
+                    self.check_expr(base, _in_fn);
+                    if let ExprKind::Var(module_name) = &base.kind {
+                        if let Some(exported) = self.module_exports.get(module_name) {
+                            if !exported.contains(method) {
+                                self.error_at_expr(
+                                    func,
+                                    format!(
+                                        "qualified import `{}` has no exported member `{}`; add `@ export` in the imported file or use an exported member",
+                                        module_name, method
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                    if let Some(scope_name) = self.expr_rule_scope_type(base) {
+                        if let Some(methods) = self.rule_scope_methods.get(&scope_name) {
+                            if let Some(expected) = methods.get(method) {
+                                if args.len() != *expected {
+                                    self.error_at_expr(
+                                        expr,
+                                        format!(
+                                            "scoped rule `{}.{}` expects {} argument{} but got {}",
+                                            scope_name,
+                                            method,
+                                            expected,
+                                            if *expected == 1 { "" } else { "s" },
+                                            args.len()
+                                        ),
+                                    );
+                                }
+                            } else {
+                                self.error_at_expr(
+                                    func,
+                                    format!(
+                                        "RuleScope `{}` has no scoped rule `{}`",
+                                        scope_name, method
+                                    ),
+                                );
+                            }
+                        }
+                    } else if self.is_rule_scope_method_name(method) {
+                        self.error_at_expr(
+                            func,
+                            format!(
+                                "scoped rule `{}` must be called on a RuleScope value",
+                                method
+                            ),
+                        );
+                    }
+                    for arg in args {
+                        self.check_expr(arg, _in_fn);
+                    }
+                    return;
+                }
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     let canonical = builtin_canonical(name);
                     let actual_arity = args.len();
@@ -13176,6 +13647,18 @@ impl TypeChecker {
                                     module_name, field
                                 ),
                             );
+                        }
+                    }
+                }
+                if let ExprKind::Var(var_name) = &base.kind {
+                    if let Some(type_name) = self.var_type_name(var_name) {
+                        if let Some(fields) = self.type_fields.get(type_name) {
+                            if !fields.contains(field) {
+                                self.error_at_expr(
+                                    expr,
+                                    format!("type `{}` has no field `{}`", type_name, field),
+                                );
+                            }
                         }
                     }
                 }
@@ -14305,6 +14788,7 @@ mod tests {
             TypeDecl::EffectDecl { .. } => "EffectDecl",
             TypeDecl::TraitDecl { .. } => "TraitDecl",
             TypeDecl::ImplBlock { .. } => "ImplBlock",
+            TypeDecl::RuleScope { .. } => "RuleScope",
         }
     }
 
@@ -14313,7 +14797,8 @@ mod tests {
             TypeDecl::ADT { .. }
             | TypeDecl::WhenType { .. }
             | TypeDecl::TraitDecl { .. }
-            | TypeDecl::ImplBlock { .. } => TypecheckerPassCoverage::VisitsExpressions,
+            | TypeDecl::ImplBlock { .. }
+            | TypeDecl::RuleScope { .. } => TypecheckerPassCoverage::VisitsExpressions,
             TypeDecl::EffectDecl { .. } => TypecheckerPassCoverage::IntentionallyIgnored,
         }
     }
@@ -14457,6 +14942,19 @@ mod tests {
                 diagnostic_markers: vec!["missing_impl_body"],
             },
             TypecheckerPassCoverageCase {
+                label: "TypeDecl::RuleScope",
+                stmt: Stmt::TypeDecl(TypeDecl::RuleScope {
+                    name: "RuleScopeVisit".to_string(),
+                    params: vec![typechecker_param("input")],
+                    body: vec![Stmt::Rule(Rule::Clause {
+                        head: typechecker_missing_call("missing_rulescope_head"),
+                        body: Some(typechecker_missing_expr("missing_rulescope_body")),
+                    })],
+                }),
+                coverage: visits,
+                diagnostic_markers: vec!["missing_rulescope_body"],
+            },
+            TypecheckerPassCoverageCase {
                 label: "Rule::Clause",
                 stmt: Stmt::Rule(Rule::Clause {
                     head: typechecker_missing_call("missing_rule_head"),
@@ -14487,8 +14985,8 @@ mod tests {
                 diagnostic_markers: vec!["missing_exception_value", "missing_exception_condition"],
             },
             TypecheckerPassCoverageCase {
-                label: "Rule::Scope",
-                stmt: Stmt::Rule(Rule::Scope {
+                label: "Rule::ReactiveScope",
+                stmt: Stmt::Rule(Rule::ReactiveScope {
                     name: "ScopeVisit".to_string(),
                     body: vec![typechecker_expr_stmt("missing_scope_body")],
                 }),
@@ -14717,10 +15215,16 @@ mod tests {
             .collect();
         assert_eq!(observed_stmt_variants, expected_stmt_variants);
 
-        let expected_type_decl_variants: BTreeSet<_> =
-            ["ADT", "WhenType", "EffectDecl", "TraitDecl", "ImplBlock"]
-                .into_iter()
-                .collect();
+        let expected_type_decl_variants: BTreeSet<_> = [
+            "ADT",
+            "WhenType",
+            "EffectDecl",
+            "TraitDecl",
+            "ImplBlock",
+            "RuleScope",
+        ]
+        .into_iter()
+        .collect();
         let observed_type_decl_variants: BTreeSet<_> = rows
             .iter()
             .filter_map(|row| match &row.stmt {

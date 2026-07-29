@@ -4972,7 +4972,7 @@ fn collect_true_free_vars_stmt(stmt: &Stmt, free: &mut BTreeSet<String>, bound: 
                 }
             }
         }
-        Stmt::Rule(Rule::Scope { body, .. }) => {
+        Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
             let mut scope_bound = bound.clone();
             for body_stmt in body {
                 collect_true_free_vars_stmt(body_stmt, free, &scope_bound);
@@ -5325,7 +5325,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                     Rule::Clause { head, .. }
                     | Rule::Default { head, .. }
                     | Rule::Exception { head, .. } => head,
-                    Rule::Scope { .. } => return None,
+                    Rule::ReactiveScope { .. } => return None,
                 };
                 match &head.kind {
                     ExprKind::App(_, args) => Some(
@@ -11524,6 +11524,8 @@ struct RustCodegen {
     scope_bindings: BTreeMap<String, Vec<String>>,
     /// M13c: scope name -> list of stream binding names for qualified stream accessors.
     scope_stream_bindings: BTreeMap<String, Vec<String>>,
+    /// RuleScope method names visible while emitting a RuleScope method body.
+    current_rule_scope_methods: BTreeSet<String>,
     /// Stored invariants for ? verification: name -> (subject_expr, predicate_expr)
     codegen_invariants: BTreeMap<String, (Expr, Expr)>,
     /// Actor handle variables: var_name -> actor_name (for qualifying __Ask in ask())
@@ -15268,7 +15270,7 @@ fn stmt_contains_persisted_mutation(stmt: &Stmt, persisted_types: &BTreeSet<Stri
                     })
                     .unwrap_or(false)
         }
-        Stmt::Rule(Rule::Scope { body, .. }) => body
+        Stmt::Rule(Rule::ReactiveScope { body, .. }) => body
             .iter()
             .any(|stmt| stmt_contains_persisted_mutation(stmt, persisted_types)),
         Stmt::Defn(_)
@@ -15726,6 +15728,7 @@ impl RustCodegen {
             sub_counter: 0,
             scope_bindings: BTreeMap::new(),
             scope_stream_bindings: BTreeMap::new(),
+            current_rule_scope_methods: BTreeSet::new(),
             codegen_invariants: BTreeMap::new(),
             actor_handle_vars: BTreeMap::new(),
             actor_message_site_tys: BTreeMap::new(),
@@ -16945,6 +16948,9 @@ impl RustCodegen {
                     Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
                         exported.insert(name.clone());
                     }
+                    Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                        exported.insert(name.clone());
+                    }
                     Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
                         exported.insert(name.clone());
                     }
@@ -17268,6 +17274,10 @@ impl RustCodegen {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
                         }
+                        Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                            self.types.exported_names.insert(name.clone());
+                            self.types.root_exported_names.insert(name.clone());
+                        }
                         Stmt::Bind(Pat::Var(name), _, _) => {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
@@ -17415,7 +17425,9 @@ impl RustCodegen {
                                 names.insert(name.clone());
                             }
                         }
-                        Stmt::Rule(Rule::Scope { body, .. }) => collect_subject_names(body, names),
+                        Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
+                            collect_subject_names(body, names)
+                        }
                         _ => {}
                     }
                 }
@@ -17439,7 +17451,7 @@ impl RustCodegen {
                             },
                             _,
                         ) if subjects.contains(name) => return true,
-                        Stmt::Rule(Rule::Scope { body, .. }) => {
+                        Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                             if has_for_on_subject(body, subjects) {
                                 return true;
                             }
@@ -17461,7 +17473,7 @@ impl RustCodegen {
                     for s in stmts {
                         match s {
                             Stmt::StreamSub(_, _) => return true,
-                            Stmt::Rule(Rule::Scope { body, .. }) => {
+                            Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                                 if has_any_stream_sub(body) {
                                     return true;
                                 }
@@ -17534,7 +17546,7 @@ impl RustCodegen {
                             Stmt::StreamBind(name, expr) => {
                                 stream_bind_exprs.insert(name.clone(), expr.clone());
                             }
-                            Stmt::Rule(Rule::Scope { body, .. }) => {
+                            Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                                 collect_stream_bind_exprs(body, stream_bind_exprs);
                             }
                             _ => {}
@@ -17560,7 +17572,7 @@ impl RustCodegen {
                             }
                         }
                     }
-                    if let Stmt::Rule(Rule::Scope { body, .. }) = s {
+                    if let Stmt::Rule(Rule::ReactiveScope { body, .. }) = s {
                         infer_subject_types(body, fn_types, types);
                     }
                 }
@@ -17886,7 +17898,7 @@ impl RustCodegen {
                                     );
                                 }
                             }
-                            Stmt::Rule(Rule::Scope { body, .. }) => {
+                            Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                                 scan_stmts_for_subject_sends(
                                     body,
                                     subject_names,
@@ -18124,7 +18136,9 @@ impl RustCodegen {
                             out.insert(name.clone(), fn_ty);
                         }
                         Stmt::Defn(Defn::Module { body, .. })
-                        | Stmt::Rule(Rule::Scope { body, .. }) => collect_fn_types(body, out),
+                        | Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
+                            collect_fn_types(body, out)
+                        }
                         _ => {}
                     }
                 }
@@ -18197,6 +18211,45 @@ impl RustCodegen {
                     .type_decls
                     .insert(rust_name, (param_names, variant_names));
             }
+            if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) = stmt {
+                let rust_name = if conflicting.contains(&name.as_str()) {
+                    format!("Futuruna{}", name)
+                } else {
+                    name.clone()
+                };
+                if rust_name != *name {
+                    self.types
+                        .type_rename
+                        .insert(name.clone(), rust_name.clone());
+                }
+                self.types.struct_types.insert(rust_name.clone());
+                self.types.variant_fields.insert(
+                    rust_name.clone(),
+                    params.iter().map(|p| p.name.clone()).collect(),
+                );
+                self.types.variant_field_types.insert(
+                    rust_name.clone(),
+                    params
+                        .iter()
+                        .filter_map(|p| p.ty.as_ref().map(|ty| (p.name.clone(), ty.clone())))
+                        .collect(),
+                );
+                self.types
+                    .type_decls
+                    .insert(rust_name.clone(), (Vec::new(), Vec::new()));
+                self.types.user_functions.insert(name.clone());
+                let mut fn_ty = FirTy::Named(rust_name.clone());
+                for param in params.iter().rev() {
+                    let param_ty = param
+                        .ty
+                        .as_ref()
+                        .map(LoweringCtx::ty_to_fir)
+                        .unwrap_or(FirTy::Unknown);
+                    fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
+                }
+                self.types.fn_types.insert(name.clone(), fn_ty);
+                self.fn_return_types.insert(name.clone(), rust_name);
+            }
             // Scan types inside modules too
             if let Stmt::Defn(Defn::Module { body, .. }) = stmt {
                 for inner_stmt in body {
@@ -18263,6 +18316,47 @@ impl RustCodegen {
                         self.types
                             .type_decls
                             .insert(rust_name, (param_names, variant_names));
+                    }
+                    if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) = inner_stmt {
+                        let rust_name = if conflicting.contains(&name.as_str()) {
+                            format!("Futuruna{}", name)
+                        } else {
+                            name.clone()
+                        };
+                        if rust_name != *name {
+                            self.types
+                                .type_rename
+                                .insert(name.clone(), rust_name.clone());
+                        }
+                        self.types.struct_types.insert(rust_name.clone());
+                        self.types.variant_fields.insert(
+                            rust_name.clone(),
+                            params.iter().map(|p| p.name.clone()).collect(),
+                        );
+                        self.types.variant_field_types.insert(
+                            rust_name.clone(),
+                            params
+                                .iter()
+                                .filter_map(|p| {
+                                    p.ty.as_ref().map(|ty| (p.name.clone(), ty.clone()))
+                                })
+                                .collect(),
+                        );
+                        self.types
+                            .type_decls
+                            .insert(rust_name.clone(), (Vec::new(), Vec::new()));
+                        self.types.user_functions.insert(name.clone());
+                        let mut fn_ty = FirTy::Named(rust_name.clone());
+                        for param in params.iter().rev() {
+                            let param_ty = param
+                                .ty
+                                .as_ref()
+                                .map(LoweringCtx::ty_to_fir)
+                                .unwrap_or(FirTy::Unknown);
+                            fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
+                        }
+                        self.types.fn_types.insert(name.clone(), fn_ty);
+                        self.fn_return_types.insert(name.clone(), rust_name);
                     }
                 }
             }
@@ -18892,6 +18986,19 @@ impl RustCodegen {
                         }
                     }
                 }
+                Stmt::TypeDecl(TypeDecl::RuleScope { params, body, .. }) => {
+                    let mut scope_env = type_env.clone();
+                    for param in params {
+                        if let Some(ty) = param.ty.as_ref().map(LoweringCtx::ty_to_fir) {
+                            scope_env.insert(param.name.clone(), ty);
+                        }
+                    }
+                    self.prescan_hof_named_callback_param_types_stmts(
+                        body,
+                        &mut scope_env,
+                        explicit_param_tys,
+                    );
+                }
                 Stmt::For(var, iter, body) => {
                     self.prescan_hof_named_callback_param_types_expr(
                         iter,
@@ -18920,7 +19027,7 @@ impl RustCodegen {
                         explicit_param_tys,
                     );
                 }
-                Stmt::Rule(Rule::Scope { body, .. }) => {
+                Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                     let mut scope_env = type_env.clone();
                     self.prescan_hof_named_callback_param_types_stmts(
                         body,
@@ -19054,7 +19161,7 @@ impl RustCodegen {
                     );
                 }
             }
-            Rule::Scope { body, .. } => {
+            Rule::ReactiveScope { body, .. } => {
                 self.prescan_hof_named_callback_param_types_stmts(
                     body,
                     type_env,
@@ -19363,6 +19470,9 @@ impl RustCodegen {
                     self.prescan_map_types_defn(method);
                 }
             }
+            Stmt::TypeDecl(TypeDecl::RuleScope { body, .. }) => {
+                self.prescan_map_types(body);
+            }
             Stmt::Rule(rule) => self.prescan_map_types_rule(rule),
             Stmt::For(_, iter, body) => {
                 self.prescan_map_types_expr(iter);
@@ -19466,7 +19576,7 @@ impl RustCodegen {
                     self.prescan_map_types_expr(condition);
                 }
             }
-            Rule::Scope { body, .. } => self.prescan_map_types(body),
+            Rule::ReactiveScope { body, .. } => self.prescan_map_types(body),
         }
     }
 
@@ -20008,7 +20118,7 @@ impl RustCodegen {
                 Stmt::Annot(_, _) => {}                                              // skip others
                 Stmt::Rule(rule) => {
                     // M13c: scopes with async content go to main (need async context)
-                    if matches!(rule, Rule::Scope { .. }) {
+                    if matches!(rule, Rule::ReactiveScope { .. }) {
                         if self.has_async {
                             main_stmts.push(stmt);
                         } else {
@@ -20069,7 +20179,7 @@ impl RustCodegen {
                         Rule::Clause { head, .. }
                         | Rule::Default { head, .. }
                         | Rule::Exception { head, .. } => head,
-                        Rule::Scope { .. } => continue,
+                        Rule::ReactiveScope { .. } => continue,
                     };
                     if let ExprKind::App(_, args) = &head.kind {
                         for arg in args {
@@ -20991,7 +21101,7 @@ impl RustCodegen {
             Rule::Clause { head, .. }
             | Rule::Default { head, .. }
             | Rule::Exception { head, .. } => head,
-            Rule::Scope { .. } => return None,
+            Rule::ReactiveScope { .. } => return None,
         };
         match &head.kind {
             ExprKind::App(f, _) => {
@@ -21035,7 +21145,7 @@ impl RustCodegen {
                     out.push(condition);
                 }
             }
-            Rule::Clause { body: None, .. } | Rule::Scope { .. } => {}
+            Rule::Clause { body: None, .. } | Rule::ReactiveScope { .. } => {}
         }
     }
 
@@ -21537,6 +21647,350 @@ impl RustCodegen {
         Self::type_references_adt_static(ty, adt_name)
     }
 
+    fn fn_type_from_parts(param_tys: &[FirTy], ret_ty: FirTy) -> FirTy {
+        param_tys.iter().rev().fold(ret_ty, |acc, param_ty| {
+            FirTy::Arrow(Box::new(param_ty.clone()), Box::new(acc))
+        })
+    }
+
+    fn rule_scope_input_names_and_tys(&self, params: &[Param]) -> (Vec<String>, Vec<FirTy>) {
+        let names = params.iter().map(|p| p.name.clone()).collect();
+        let tys = params
+            .iter()
+            .map(|p| {
+                p.ty.as_ref()
+                    .map(LoweringCtx::ty_to_fir)
+                    .unwrap_or(FirTy::Unknown)
+            })
+            .collect();
+        (names, tys)
+    }
+
+    fn infer_rule_scope_method_types(
+        &mut self,
+        scope_params: &[Param],
+        rule_groups: &BTreeMap<String, Vec<&Rule>>,
+    ) -> (
+        BTreeMap<String, Vec<String>>,
+        BTreeMap<String, Vec<FirTy>>,
+        BTreeMap<String, FirTy>,
+    ) {
+        let (scope_names, scope_tys) = self.rule_scope_input_names_and_tys(scope_params);
+        let mut method_params = BTreeMap::new();
+        let mut method_param_tys = BTreeMap::new();
+        let mut method_return_tys = BTreeMap::new();
+
+        for (method, rules) in rule_groups {
+            let params = Self::rule_params(rules);
+            let param_tys = self.with_temporary_named_types(&scope_names, &scope_tys, |cg| {
+                cg.infer_rule_param_fir_tys(&params, rules)
+            });
+            method_params.insert(method.clone(), params);
+            method_param_tys.insert(method.clone(), param_tys);
+            method_return_tys.insert(method.clone(), FirTy::Unknown);
+        }
+
+        let saved_fn_types = self.types.fn_types.clone();
+        for _ in 0..6 {
+            self.types.fn_types = saved_fn_types.clone();
+            for (method, param_tys) in &method_param_tys {
+                let ret_ty = method_return_tys
+                    .get(method)
+                    .cloned()
+                    .unwrap_or(FirTy::Unknown);
+                self.types
+                    .fn_types
+                    .insert(method.clone(), Self::fn_type_from_parts(param_tys, ret_ty));
+            }
+
+            let mut changed = false;
+            for (method, rules) in rule_groups {
+                let params = method_params.get(method).cloned().unwrap_or_default();
+                let param_tys = method_param_tys.get(method).cloned().unwrap_or_default();
+                let mut names = scope_names.clone();
+                names.extend(params.clone());
+                let mut tys = scope_tys.clone();
+                tys.extend(param_tys.clone());
+
+                let inferred = self.with_temporary_named_types(&names, &tys, |cg| {
+                    let type_env = cg.current_type_env();
+                    for rule in rules {
+                        let value = match rule {
+                            Rule::Default { value, .. } | Rule::Exception { value, .. } => value,
+                            Rule::Clause {
+                                body: Some(body), ..
+                            } => body,
+                            Rule::Clause { body: None, .. } => return FirTy::Bool,
+                            Rule::ReactiveScope { .. } => continue,
+                        };
+                        let ty = cg.infer_expr_fir_ty_with_env(value, type_env.clone());
+                        if !matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+                            return ty;
+                        }
+                    }
+                    FirTy::Unknown
+                });
+
+                if !matches!(inferred, FirTy::Unknown | FirTy::Var(_))
+                    && method_return_tys.get(method) != Some(&inferred)
+                {
+                    method_return_tys.insert(method.clone(), inferred);
+                    changed = true;
+                }
+            }
+
+            if !changed {
+                break;
+            }
+        }
+        self.types.fn_types = saved_fn_types;
+
+        for ret_ty in method_return_tys.values_mut() {
+            if matches!(ret_ty, FirTy::Unknown | FirTy::Var(_)) {
+                *ret_ty = FirTy::Bool;
+            }
+        }
+
+        (method_params, method_param_tys, method_return_tys)
+    }
+
+    fn emit_rule_scope_decl(&mut self, name: &str, params: &[Param], body: &[Stmt]) -> String {
+        let rust_name = self.rust_type_name(name);
+        let pub_prefix = if self.types.exported_names.contains(name) {
+            "pub "
+        } else {
+            ""
+        };
+        let mut out = String::new();
+
+        out.push_str("#[derive(Debug, Clone)]\n");
+        out.push_str(&format!("{}struct {} {{\n", pub_prefix, rust_name));
+        for param in params {
+            let ty = param
+                .ty
+                .as_ref()
+                .map(|ty| self.emit_type(ty))
+                .unwrap_or_else(|| "i64".to_string());
+            out.push_str(&format!(
+                "    pub {}: {},\n",
+                sanitize_name(&param.name),
+                ty
+            ));
+        }
+        out.push_str("}\n\n");
+
+        let ctor_params: Vec<String> = params
+            .iter()
+            .map(|param| {
+                let ty = param
+                    .ty
+                    .as_ref()
+                    .map(|ty| self.emit_type(ty))
+                    .unwrap_or_else(|| "i64".to_string());
+                format!("{}: {}", sanitize_name(&param.name), ty)
+            })
+            .collect();
+        let ctor_fields: Vec<String> = params
+            .iter()
+            .map(|param| {
+                let name = sanitize_name(&param.name);
+                format!("{}: {}", name, name)
+            })
+            .collect();
+        out.push_str("#[allow(non_snake_case)]\n");
+        out.push_str(&format!(
+            "{}fn {}({}) -> {} {{\n",
+            pub_prefix,
+            sanitize_name(name),
+            ctor_params.join(", "),
+            rust_name
+        ));
+        out.push_str(&format!(
+            "    {} {{ {} }}\n",
+            rust_name,
+            ctor_fields.join(", ")
+        ));
+        out.push_str("}\n\n");
+
+        let rule_groups = Self::collect_rule_groups_from_stmts(body);
+        let method_names: BTreeSet<String> = rule_groups.keys().cloned().collect();
+        let (method_params, method_param_tys, method_return_tys) =
+            self.infer_rule_scope_method_types(params, &rule_groups);
+
+        let saved_fn_types = self.types.fn_types.clone();
+        for (method, param_tys) in &method_param_tys {
+            let ret_ty = method_return_tys
+                .get(method)
+                .cloned()
+                .unwrap_or(FirTy::Bool);
+            self.types
+                .fn_types
+                .insert(method.clone(), Self::fn_type_from_parts(param_tys, ret_ty));
+        }
+        let prev_methods = std::mem::replace(&mut self.current_rule_scope_methods, method_names);
+
+        out.push_str(&format!("impl {} {{\n", rust_name));
+        for (method, rules) in &rule_groups {
+            let params_for_method = method_params.get(method).cloned().unwrap_or_default();
+            let param_tys = method_param_tys.get(method).cloned().unwrap_or_default();
+            let ret_ty = method_return_tys
+                .get(method)
+                .cloned()
+                .unwrap_or(FirTy::Bool);
+            out.push_str(&self.emit_rule_scope_method(
+                params,
+                method,
+                rules,
+                &params_for_method,
+                &param_tys,
+                &ret_ty,
+                pub_prefix,
+            ));
+        }
+        out.push_str("}\n");
+
+        self.current_rule_scope_methods = prev_methods;
+        self.types.fn_types = saved_fn_types;
+        out
+    }
+
+    fn emit_rule_scope_method(
+        &mut self,
+        scope_params: &[Param],
+        method_name: &str,
+        rules: &[&Rule],
+        params: &[String],
+        param_tys: &[FirTy],
+        ret_ty: &FirTy,
+        pub_prefix: &str,
+    ) -> String {
+        let ret_type = Self::fir_type_to_rust(ret_ty).unwrap_or_else(|| "bool".to_string());
+        let mut sig_params = vec!["&self".to_string()];
+        sig_params.extend(params.iter().zip(param_tys.iter()).map(|(param, ty)| {
+            let rust_ty = Self::fir_type_to_rust(ty).unwrap_or_else(|| "i64".to_string());
+            format!("{}: {}", sanitize_name(param), rust_ty)
+        }));
+
+        let (scope_names, scope_tys) = self.rule_scope_input_names_and_tys(scope_params);
+        let mut all_names = scope_names.clone();
+        all_names.extend(params.to_vec());
+        let mut all_tys = scope_tys.clone();
+        all_tys.extend(param_tys.to_vec());
+
+        let prev_local_bindings = self.local_bindings.clone();
+        let prev_copy_vars = self.copy_vars.clone();
+        let prev_in_self_method = self.in_self_method;
+        for (name, ty) in all_names.iter().zip(all_tys.iter()) {
+            self.local_bindings.insert(name.clone());
+            if Self::fir_ty_is_copy(ty) {
+                self.copy_vars.insert(name.clone());
+            }
+        }
+        self.in_self_method = true;
+
+        let body = self.with_temporary_named_types(&all_names, &all_tys, |cg| {
+            let mut out = format!(
+                "    {}fn {}({}) -> {} {{\n",
+                pub_prefix,
+                sanitize_name(method_name),
+                sig_params.join(", "),
+                ret_type
+            );
+            for param in scope_params {
+                let field = sanitize_name(&param.name);
+                out.push_str(&format!(
+                    "        let {} = self.{}.clone();\n",
+                    field, field
+                ));
+            }
+
+            for rule in rules {
+                if let Rule::Exception {
+                    value, condition, ..
+                } = rule
+                {
+                    if let Some(cond) = condition {
+                        out.push_str(&format!(
+                            "        if {} {{ return {}; }}\n",
+                            cg.emit_expr(cond),
+                            cg.emit_expr(value)
+                        ));
+                    } else {
+                        out.push_str(&format!("        return {};\n", cg.emit_expr(value)));
+                        out.push_str("    }\n\n");
+                        return out;
+                    }
+                }
+            }
+
+            for rule in rules {
+                if let Rule::Default {
+                    value,
+                    condition: Some(cond),
+                    ..
+                } = rule
+                {
+                    out.push_str(&format!(
+                        "        if {} {{ return {}; }}\n",
+                        cg.emit_expr(cond),
+                        cg.emit_expr(value)
+                    ));
+                }
+            }
+
+            for rule in rules {
+                match rule {
+                    Rule::Default {
+                        value,
+                        condition: None,
+                        ..
+                    } => {
+                        out.push_str(&format!("        return {};\n", cg.emit_expr(value)));
+                        out.push_str("    }\n\n");
+                        return out;
+                    }
+                    Rule::Clause {
+                        body: Some(body), ..
+                    } if ret_type == "bool" => {
+                        out.push_str(&format!(
+                            "        if {} {{ return true; }}\n",
+                            cg.emit_expr(body)
+                        ));
+                    }
+                    Rule::Clause {
+                        body: Some(body), ..
+                    } => {
+                        out.push_str(&format!("        return {};\n", cg.emit_expr(body)));
+                        out.push_str("    }\n\n");
+                        return out;
+                    }
+                    Rule::Clause { body: None, .. } => {
+                        out.push_str("        return true;\n");
+                        out.push_str("    }\n\n");
+                        return out;
+                    }
+                    _ => {}
+                }
+            }
+
+            if ret_type == "bool" {
+                out.push_str("        false\n");
+            } else {
+                out.push_str(&format!(
+                    "        panic!(\"no scoped | rule matched for '{}'\")\n",
+                    method_name
+                ));
+            }
+            out.push_str("    }\n\n");
+            out
+        });
+
+        self.local_bindings = prev_local_bindings;
+        self.copy_vars = prev_copy_vars;
+        self.in_self_method = prev_in_self_method;
+        body
+    }
+
     fn emit_type_decl(&mut self, decl: &TypeDecl) -> String {
         match decl {
             TypeDecl::ADT {
@@ -21950,6 +22404,9 @@ impl RustCodegen {
                 }
 
                 out
+            }
+            TypeDecl::RuleScope { name, params, body } => {
+                self.emit_rule_scope_decl(name, params, body)
             }
             TypeDecl::EffectDecl { name, ops } => {
                 // Emit effect as a trait — each operation becomes a method
@@ -22595,7 +23052,7 @@ impl RustCodegen {
                         }
                     }
                 }
-                Stmt::Rule(Rule::Scope { body, .. }) => {
+                Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                     self.seed_async_stream_bindings_from_stmt_list(body);
                 }
                 Stmt::StreamBind(name, expr) => {
@@ -22766,7 +23223,7 @@ impl RustCodegen {
                     }
                 }
             }
-            Stmt::Rule(Rule::Scope { body, .. }) => {
+            Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                 self.collect_scope_lifetime_stmt_list(body, fn_name, true, diags);
             }
             Stmt::For(_, iter_expr, body) => {
@@ -25373,6 +25830,14 @@ impl RustCodegen {
                                 self.types.exported_names.insert(ty_name.clone());
                             }
                         }
+                        Stmt::TypeDecl(TypeDecl::RuleScope { name: ty_name, .. }) => {
+                            if module_exports
+                                .as_ref()
+                                .map_or(true, |exports| exports.contains(ty_name.as_str()))
+                            {
+                                self.types.exported_names.insert(ty_name.clone());
+                            }
+                        }
                         Stmt::Bind(Pat::Var(bind_name), _, _) => {
                             if module_exports
                                 .as_ref()
@@ -25704,7 +26169,7 @@ impl RustCodegen {
             }
             Stmt::Rule(rule) => {
                 // M13c: scope codegen — emit scope body with lifecycle guard
-                if let Rule::Scope { name, body } = rule {
+                if let Rule::ReactiveScope { name, body } = rule {
                     let mut out = String::new();
                     out.push_str(&format!("{}// | scope {}\n", self.ind(), name));
                     let transactional_scope = body.iter().any(|stmt| {
@@ -28031,7 +28496,7 @@ impl RustCodegen {
                 Stmt::StreamSub(expr, _) => {
                     self.collect_subject_send_targets_from_expr(expr, targets);
                 }
-                Stmt::Rule(Rule::Scope { body, .. }) => {
+                Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                     self.collect_subject_send_targets_from_stmts(body, targets);
                 }
                 Stmt::Invariant {
@@ -28251,7 +28716,7 @@ impl RustCodegen {
                 Rule::Clause { head, .. }
                 | Rule::Default { head, .. }
                 | Rule::Exception { head, .. } => head,
-                Rule::Scope { .. } => continue,
+                Rule::ReactiveScope { .. } => continue,
             };
             if let ExprKind::App(_, args) = &head.kind {
                 for arg in args {
@@ -29935,6 +30400,9 @@ impl RustCodegen {
                     })
                     .collect();
                 if let ExprKind::Var(name) = &func.as_ref().kind {
+                    if self.current_rule_scope_methods.contains(name.as_str()) {
+                        return format!("self.{}({})", sanitize_name(name), args_str.join(", "));
+                    }
                     // Builtin: show(x) — Display for strings, Debug for everything else
                     // Strings: no quotes. Vec/Option/Result: Debug works universally.
                     if builtin_canonical(name) == "show" && args_str.len() == 1 {
@@ -31998,7 +32466,8 @@ impl RustCodegen {
                 Stmt::StreamBind(name, _) => {
                     names.insert(name.clone());
                 }
-                Stmt::Defn(Defn::Module { body, .. }) | Stmt::Rule(Rule::Scope { body, .. }) => {
+                Stmt::Defn(Defn::Module { body, .. })
+                | Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                     Self::collect_stream_binding_names(body, names);
                 }
                 Stmt::For(_, _, body) | Stmt::While(_, body) => {
@@ -33105,7 +33574,17 @@ impl RustCodegen {
                         );
                     }
                 }
-                Stmt::Rule(Rule::Scope { body, .. }) => {
+                Stmt::TypeDecl(TypeDecl::RuleScope { params, body, .. }) => {
+                    let mut scope_handles = actor_handles.clone();
+                    let mut scope_tys = local_tys.clone();
+                    for param in params {
+                        if let Some(ty) = &param.ty {
+                            scope_tys.insert(param.name.clone(), LoweringCtx::ty_to_fir(ty));
+                        }
+                    }
+                    self.scan_actor_message_site_stmts(body, &mut scope_handles, &mut scope_tys);
+                }
+                Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                     let mut scope_handles = actor_handles.clone();
                     let mut scope_tys = local_tys.clone();
                     self.scan_actor_message_site_stmts(body, &mut scope_handles, &mut scope_tys);
@@ -35975,7 +36454,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 value: owned_expr("exception_value"),
                 condition: Some(owned_expr("exception_condition")),
             }),
-            Stmt::Rule(Rule::Scope {
+            Stmt::Rule(Rule::ReactiveScope {
                 name: "ScopeVisit".to_string(),
                 body: vec![expr_stmt("scope_body")],
             }),
@@ -36649,6 +37128,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             TypeDecl::EffectDecl { .. } => "EffectDecl",
             TypeDecl::TraitDecl { .. } => "TraitDecl",
             TypeDecl::ImplBlock { .. } => "ImplBlock",
+            TypeDecl::RuleScope { .. } => "RuleScope",
         }
     }
 
@@ -36760,6 +37240,19 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 import_expansion: retained,
             },
             AstPassCoverageCase {
+                label: "TypeDecl::RuleScope",
+                stmt: Stmt::TypeDecl(TypeDecl::RuleScope {
+                    name: "RuleScopeVisit".to_string(),
+                    params: vec![coverage_param("input")],
+                    body: vec![Stmt::Rule(Rule::Clause {
+                        head: coverage_expr("rulescope_head"),
+                        body: Some(coverage_expr("rulescope_body")),
+                    })],
+                }),
+                ownership_markers: vec!["rulescope_head", "rulescope_body"],
+                import_expansion: retained,
+            },
+            AstPassCoverageCase {
                 label: "Rule::Clause",
                 stmt: Stmt::Rule(Rule::Clause {
                     head: coverage_expr("rule_head"),
@@ -36790,8 +37283,8 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 import_expansion: retained,
             },
             AstPassCoverageCase {
-                label: "Rule::Scope",
-                stmt: Stmt::Rule(Rule::Scope {
+                label: "Rule::ReactiveScope",
+                stmt: Stmt::Rule(Rule::ReactiveScope {
                     name: "ScopeVisit".to_string(),
                     body: vec![coverage_expr_stmt("scope_body")],
                 }),
@@ -37314,10 +37807,16 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             .collect();
         assert_eq!(observed_stmt_variants, expected_stmt_variants);
 
-        let expected_type_decl_variants: BTreeSet<_> =
-            ["ADT", "WhenType", "EffectDecl", "TraitDecl", "ImplBlock"]
-                .into_iter()
-                .collect();
+        let expected_type_decl_variants: BTreeSet<_> = [
+            "ADT",
+            "WhenType",
+            "EffectDecl",
+            "TraitDecl",
+            "ImplBlock",
+            "RuleScope",
+        ]
+        .into_iter()
+        .collect();
         let observed_type_decl_variants: BTreeSet<_> = ast_rows
             .iter()
             .filter_map(|row| match &row.stmt {
@@ -38129,6 +38628,12 @@ match stmt {
                     for_type
                 ));
             }
+            Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
+                out.push_str(&format!("{}rulescope {}/{}\n", pad, name, params.len()));
+                for stmt in body {
+                    render_import_stmt_snapshot(stmt, indent + 1, out);
+                }
+            }
             Stmt::Annot(name, args) => {
                 if args.is_empty() {
                     out.push_str(&format!("{}@ {}\n", pad, name));
@@ -38192,7 +38697,7 @@ match stmt {
             Stmt::Rule(Rule::Exception { label, .. }) => {
                 out.push_str(&format!("{}rule exception {}\n", pad, label))
             }
-            Stmt::Rule(Rule::Scope { name, body }) => {
+            Stmt::Rule(Rule::ReactiveScope { name, body }) => {
                 out.push_str(&format!("{}scope {}\n", pad, name));
                 for stmt in body {
                     render_import_stmt_snapshot(stmt, indent + 1, out);

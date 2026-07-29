@@ -1,0 +1,7 @@
+# Person(age: Int)
+
+# TaxCase(person: Person) {
+    | allowance() -> person.age
+}
+
+= bad = TaxCase()
