@@ -69,6 +69,8 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 # PersonfradragAlderStatus = Fyldt18EllerGift | Under18Ugift
 # PersonfradragSkattepligt = FuldtSkattepligtigHerILandet | KildeskattelovPar2HelårRelevantIndtægt | KildeskattelovPar2DelårValgtRelevantIndtægt | KildeskattelovPar2DelårIkkeValgt | Kildeskattelov48Eller48FIndkomst | SømandsbeskatningPar9Indkomst | OpholdstilladelseUdl7Ansøger
 # ÆgtefællePersonfradragStatus = IkkeGiftEllerIkkeSamlevende | GiftSamlevendeVedÅretsUdløb
+# PersonfradragPar10Input(skatteår: Heltal, alder_status: PersonfradragAlderStatus, skattepligt: PersonfradragSkattepligt, valg_dato_yyyymmdd: Heltal, omvalg_dato_yyyymmdd: Heltal)
+# PersonfradragPar10Resultat(personfradrag_anvendes: Boolsk, personfradrag_kroner: Heltal, valgfrist_yyyymmdd: Heltal, omvalgsfrist_yyyymmdd: Heltal, delårsvalg_rettidigt: Boolsk, omvalg_rettidigt: Boolsk, afskåret_af_sømandsbeskatning: Boolsk, afskåret_af_opholdstilladelse: Boolsk, afskåret_af_forskerordning: Boolsk)
 
 | personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 42000 under status == Fyldt18EllerGift
 | exception voksen_2019 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 41300 under status == Fyldt18EllerGift && skatteår == 2019
@@ -87,6 +89,35 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 
 | ubrugt_personfradrag_skatteværdi_overføres_til_ægtefælle(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 | personfradrag_grundbeløb_reguleres_efter_par20() -> Sandt
+| personfradrag_par10_valgfrist_yyyymmdd(skatteår: Heltal) -> (skatteår + 1) * 10000 + 701
+| personfradrag_par10_omvalgsfrist_yyyymmdd(skatteår: Heltal) -> (skatteår + 2) * 10000 + 630
+
+# PersonfradragPar10Sag(input: PersonfradragPar10Input) {
+    | delårsvalg_rettidigt() -> input.valg_dato_yyyymmdd > 0 && input.valg_dato_yyyymmdd <= personfradrag_par10_valgfrist_yyyymmdd(input.skatteår)
+    | omvalg_rettidigt() -> input.omvalg_dato_yyyymmdd > 0 && input.omvalg_dato_yyyymmdd <= personfradrag_par10_omvalgsfrist_yyyymmdd(input.skatteår)
+    | afskåret_af_sømandsbeskatning() -> input.skattepligt == SømandsbeskatningPar9Indkomst
+    | afskåret_af_opholdstilladelse() -> input.skattepligt == OpholdstilladelseUdl7Ansøger
+    | afskåret_af_forskerordning() -> input.skattepligt == Kildeskattelov48Eller48FIndkomst
+    | personfradrag_anvendes() -> Falskt
+    | exception par10_fuldt_skattepligtig personfradrag_anvendes() -> Sandt under input.skattepligt == FuldtSkattepligtigHerILandet
+    | exception par10_stk5_ksl_par2_helår personfradrag_anvendes() -> Sandt under input.skattepligt == KildeskattelovPar2HelårRelevantIndtægt
+    | exception par10_stk6_ksl_par2_delår_rettidigt_valgt personfradrag_anvendes() -> Sandt under input.skattepligt == KildeskattelovPar2DelårValgtRelevantIndtægt && delårsvalg_rettidigt()
+    | personfradrag_kroner() -> 0
+    | exception par10_personfradrag_beløb personfradrag_kroner() -> personfradrag_beløb_for(input.skatteår, input.alder_status) under personfradrag_anvendes()
+    | resultat() -> PersonfradragPar10Resultat(
+        personfradrag_anvendes = personfradrag_anvendes(),
+        personfradrag_kroner = personfradrag_kroner(),
+        valgfrist_yyyymmdd = personfradrag_par10_valgfrist_yyyymmdd(input.skatteår),
+        omvalgsfrist_yyyymmdd = personfradrag_par10_omvalgsfrist_yyyymmdd(input.skatteår),
+        delårsvalg_rettidigt = delårsvalg_rettidigt(),
+        omvalg_rettidigt = omvalg_rettidigt(),
+        afskåret_af_sømandsbeskatning = afskåret_af_sømandsbeskatning(),
+        afskåret_af_opholdstilladelse = afskåret_af_opholdstilladelse(),
+        afskåret_af_forskerordning = afskåret_af_forskerordning()
+    )
+}
+| personfradrag_par10_sag(input: PersonfradragPar10Input) -> PersonfradragPar10Sag(input)
+| personfradrag_par10_resultat(input: PersonfradragPar10Input) -> personfradrag_par10_sag(input).resultat()
 
 = par10_voksen_2025_2010niveau = personfradrag_grundbeløb_2010_niveau(Fyldt18EllerGift, 2025)
 = par10_under18_2010niveau = personfradrag_grundbeløb_2010_niveau(Under18Ugift, 2025)
@@ -94,6 +125,48 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 = par10_fuld_skattepligt = personfradrag_anvendes_for(FuldtSkattepligtigHerILandet)
 = par10_forskerordning_afskåret = personfradrag_anvendes_for(Kildeskattelov48Eller48FIndkomst)
 = par10_ægtefælleoverførsel = ubrugt_personfradrag_skatteværdi_overføres_til_ægtefælle(GiftSamlevendeVedÅretsUdløb)
+= par10_stk5_helår = personfradrag_par10_resultat(PersonfradragPar10Input(
+    skatteår = 2026,
+    alder_status = Fyldt18EllerGift,
+    skattepligt = KildeskattelovPar2HelårRelevantIndtægt,
+    valg_dato_yyyymmdd = 0,
+    omvalg_dato_yyyymmdd = 0
+))
+= par10_stk6_delår_rettidigt = personfradrag_par10_resultat(PersonfradragPar10Input(
+    skatteår = 2026,
+    alder_status = Fyldt18EllerGift,
+    skattepligt = KildeskattelovPar2DelårValgtRelevantIndtægt,
+    valg_dato_yyyymmdd = 20270701,
+    omvalg_dato_yyyymmdd = 20280630
+))
+= par10_stk6_delår_for_sen = personfradrag_par10_resultat(PersonfradragPar10Input(
+    skatteår = 2026,
+    alder_status = Fyldt18EllerGift,
+    skattepligt = KildeskattelovPar2DelårValgtRelevantIndtægt,
+    valg_dato_yyyymmdd = 20270702,
+    omvalg_dato_yyyymmdd = 20280701
+))
+= par10_stk5_sømandsbeskatning_afskåret = personfradrag_par10_resultat(PersonfradragPar10Input(
+    skatteår = 2026,
+    alder_status = Fyldt18EllerGift,
+    skattepligt = SømandsbeskatningPar9Indkomst,
+    valg_dato_yyyymmdd = 0,
+    omvalg_dato_yyyymmdd = 0
+))
+= par10_stk5_opholdstilladelse_afskåret = personfradrag_par10_resultat(PersonfradragPar10Input(
+    skatteår = 2026,
+    alder_status = Fyldt18EllerGift,
+    skattepligt = OpholdstilladelseUdl7Ansøger,
+    valg_dato_yyyymmdd = 0,
+    omvalg_dato_yyyymmdd = 0
+))
+= par10_stk4_forskerordning_afskåret = personfradrag_par10_resultat(PersonfradragPar10Input(
+    skatteår = 2026,
+    alder_status = Fyldt18EllerGift,
+    skattepligt = Kildeskattelov48Eller48FIndkomst,
+    valg_dato_yyyymmdd = 0,
+    omvalg_dato_yyyymmdd = 0
+))
 
 | par10_voksen_2025_grundbeløb: par10_voksen_2025_2010niveau -> par10_voksen_2025_2010niveau == 39350
 | par10_under18_grundbeløb: par10_under18_2010niveau -> par10_under18_2010niveau == 31500
@@ -101,6 +174,12 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 | par10_fuld_skattepligtig_får_fradrag: par10_fuld_skattepligt -> par10_fuld_skattepligt == Sandt
 | par10_forskerordning_afskæres: par10_forskerordning_afskåret -> par10_forskerordning_afskåret == Falskt
 | par10_ubrugt_overføres: par10_ægtefælleoverførsel -> par10_ægtefælleoverførsel == Sandt
+| par10_stk5_helår_relevant_ksl2_får_personfradrag: par10_stk5_helår -> par10_stk5_helår.personfradrag_anvendes == Sandt && par10_stk5_helår.personfradrag_kroner == 54100
+| par10_stk6_delår_rettidigt_valgt_får_personfradrag: par10_stk6_delår_rettidigt -> par10_stk6_delår_rettidigt.delårsvalg_rettidigt == Sandt && par10_stk6_delår_rettidigt.omvalg_rettidigt == Sandt && par10_stk6_delår_rettidigt.personfradrag_kroner == 54100
+| par10_stk6_delår_for_sen_afskæres: par10_stk6_delår_for_sen -> par10_stk6_delår_for_sen.delårsvalg_rettidigt == Falskt && par10_stk6_delår_for_sen.omvalg_rettidigt == Falskt && par10_stk6_delår_for_sen.personfradrag_anvendes == Falskt
+| par10_stk5_sømandsbeskatning_afskærer: par10_stk5_sømandsbeskatning_afskåret -> par10_stk5_sømandsbeskatning_afskåret.afskåret_af_sømandsbeskatning == Sandt && par10_stk5_sømandsbeskatning_afskåret.personfradrag_kroner == 0
+| par10_stk5_opholdstilladelse_afskærer: par10_stk5_opholdstilladelse_afskåret -> par10_stk5_opholdstilladelse_afskåret.afskåret_af_opholdstilladelse == Sandt && par10_stk5_opholdstilladelse_afskåret.personfradrag_anvendes == Falskt
+| par10_stk4_forskerordning_afskærer: par10_stk4_forskerordning_afskåret -> par10_stk4_forskerordning_afskåret.afskåret_af_forskerordning == Sandt && par10_stk4_forskerordning_afskåret.personfradrag_anvendes == Falskt
 
 ----
 § 11. For den del af den skattepligtiges negative nettokapitalindkomst, der ikke

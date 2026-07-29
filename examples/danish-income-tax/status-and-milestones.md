@@ -354,6 +354,12 @@ Current decision:
   pension deduction, notice to the tax administration, no-double-deduction
   status, capped deduction, remaining share income, and disallowed amount
   together while stable wrapper rules expose the calculation to audits.
+- `PersonfradragPar10Sag` uses product-scoped `|` rules for § 10 eligibility.
+  It keeps tax year, age status, tax-liability posture, partial-year election
+  date, and reversal date together so the Kildeskatteloven § 2 full-year case,
+  partial-year election deadline, omvalg deadline, sailor-tax exclusion,
+  residence-permit applicant exclusion, and researcher-tax exclusion are derived
+  from one legal case.
 - `Par6ÆgtefælleKapitalModregningSag` uses product-scoped `|` rules for the
   § 6, stk. 3 amount layer. It keeps marriage/samliv status, one spouse's
   positive net-capital income, and the other spouse's negative net-capital
@@ -774,8 +780,9 @@ M5 - Audit suite
   discontinuities, and source drift.
 - Done when: audits can fail loudly without blocking legal reformulation work.
 - Current slice: source-status rejection, covered normal-fixture
-  personfradrag, covered 2026 state-tax reform layers, covered § 13 deficit
-  mechanics, mellemskat positive-net-capital and spouse-threshold activation,
+  personfradrag, covered § 10 stk. 5-6 choice/deadline/exclusion posture,
+  covered 2026 state-tax reform layers, covered § 13 deficit mechanics,
+  mellemskat positive-net-capital and spouse-threshold activation,
   § 7 stk. 5 spouse negative-capital offset/effective-grundbeløb activation,
   ordinary wage and special-case AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
   wage-earner-deduction coverage, ordinary municipal/church-tax legal coverage,
@@ -857,10 +864,12 @@ M7 - Personfradrag and deficit layer
 - Current slice: adult 2025 personfradrag is pulled from the official
   tax-year parameter pack, state/municipal/church tax values are calculated,
   Copenhagen and Gentofte fixtures settle after personfradrag, § 13 deficit tax
-  value and offset order are executable, spouse deficit transfer and negative
-  personal income carry-forward are fixture-tested, foreign/pension spouse
-  transfer limitations are executable, and same-business loss carry-forward
-  amounts are fixture-tested. § 13's first dependent-source validation now
+  value and offset order are executable, § 10 stk. 5-6 eligibility for
+  Kildeskatteloven § 2 taxpayers is modeled with choice/reversal deadlines and
+  explicit sailor/residence-permit/researcher exclusions, spouse deficit
+  transfer and negative personal income carry-forward are fixture-tested,
+  foreign/pension spouse transfer limitations are executable, and same-business
+  loss carry-forward amounts are fixture-tested. § 13's first dependent-source validation now
   covers PBL § 16 through 2025, the 2026 repeal, LL § 33 A relief, and seamen
   relief. Complex § 13 calculator breakdown fixtures now cover spouse transfer,
   LL § 33 A relief, 2026 PBL repeal, and same-business carry-forward. Remaining
