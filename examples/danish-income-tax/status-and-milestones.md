@@ -42,6 +42,10 @@ Current source-refresh finding:
 - `AktuelSkatteberegning` still accepts formally valid sources; the new
   `DagsaktuelAutomatiskBeregning` purpose rejects sources whose metadata horizon
   does not cover `20260626`.
+- `scripts/refresh-danish-tax-source-status.py --today 20260626 --fail-on-drift`
+  fetches official XML for every `Retskilde(...)` record and reports semantic
+  drift between Retsinformation and the encoded source model. On 2026-07-18 it
+  checked 19 records with 0 drift and 0 fetch/parse errors.
 
 Current § 13 amendment/dependency sources:
 
@@ -208,6 +212,9 @@ encoded as a temporal rule on top of the consolidation.
 - `source-status.runa` exists and checks/runs with `runa run`; it now models
   Retskilde records with named metadata fields and separates formal legal
   validity from current-day XML metadata freshness.
+- `scripts/refresh-danish-tax-source-status.py` exists and self-tests; the live
+  run checks all `Retskilde(...)` records against official Retsinformation XML
+  before source metadata is refreshed by hand.
 - `kapitel-01-indkomst.runa` exists and checks with `runa check`.
 - `kapitel-02-statsskat.runa` exists and checks with `runa check`.
 - `kapitel-03-personfradrag.runa` exists and checks with `runa check`.
@@ -587,8 +594,8 @@ Review candidates to revisit deliberately, not as broad churn:
   tax-year parameter packs.
 - Add differential checks against official examples or trusted calculators where
   legally safe and sourceable.
-- Add Retsinformation update automation: fetch current XML, detect source
-  status changes, and produce semantic diffs against the encoded model.
+- Extend the Retsinformation update automation with optional reviewed patch
+  generation after the fetch/detect/report workflow has been used a few times.
 - Expand audits into legal "bomb" discovery: confiscatory effective rates,
   cliff effects, hidden delegations, obsolete provisions, incoherent categories,
   and temporal contradictions between consolidated law and annual parameters.

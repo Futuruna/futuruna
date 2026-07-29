@@ -2,6 +2,12 @@
 
 -- Personskatteloven — kildegrundlag og første lovstruktur.
 --
+-- Metadata-refresh check:
+-- scripts/refresh-danish-tax-source-status.py --today 20260626 --fail-on-drift
+-- Replace --today with the refresh date in YYYYMMDD form.
+-- The script fetches official Retsinformation XML for every Retskilde record
+-- below and reports semantic drift; it does not rewrite the legal model.
+--
 -- Gældende arbejdskilde:
 -- Retsinformation, LBK nr. 1284 af 14/06/2021.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2021/1284
