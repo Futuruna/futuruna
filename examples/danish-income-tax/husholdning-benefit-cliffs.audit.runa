@@ -100,7 +100,7 @@ tension below.
 | benefit_bomb_delår_kobler_til_par14() -> børneungeydelse_delår_bruger_par14_omregnet_mellemskatgrundlag() == Sandt
 | benefit_bomb_delår_bruger_par14_signal: benefit_bomb_delår_par14_signal -> benefit_bomb_delår_par14_signal == Sandt
 | benefit_bomb_skm_satside_topskat_mod_lovtekst_mellemskat: benefit_bomb_satside_kildespænding_signal -> benefit_bomb_satside_kildespænding_signal == Sandt
-| husholdning_benefit_cliff_audit_samlet() -> scenarie1_børneungeydelse.samlet_ydelse_efter_aftrapning_kroner == 48216 && benefit_bomb_en_forælder_lige_over_grænse.første_modtager.aftrapning_kroner == 2 && benefit_bomb_en_forælder_fuldt_aftrappet.samlet_ydelse_efter_aftrapning_kroner == 24108 && benefit_bomb_satside_kildespænding_signal == Sandt
+| husholdning_benefit_cliff_audit_samlet() -> scenarie1_børneungeydelse.samlet_ydelse_efter_aftrapning_kroner == 48216 && benefit_bomb_en_forælder_lige_over_grænse.første_modtager.aftrapning_kroner == 2 && benefit_bomb_en_forælder_fuldt_aftrappet.samlet_ydelse_efter_aftrapning_kroner == 24108 && benefit_bomb_satside_kildespænding_signal == Sandt && boligsikring_probe_andet_barn_signal == Sandt
 
 ? scenarie1_børneungeydelse_brutto_2026
 ? scenarie1_børneungeydelse_ingen_aftrapning
@@ -114,3 +114,74 @@ tension below.
 @ print("benefit audit 100 kr. over aftrapningsgrænse reducerer egen halvdel med: " + vis(benefit_bomb_en_forælder_lige_over_grænse.første_modtager.aftrapning_kroner))
 @ print("benefit audit en forælder fuldt aftrappet, anden halvdel består: " + vis(benefit_bomb_en_forælder_fuldt_aftrappet.samlet_ydelse_efter_aftrapning_kroner))
 @ print("benefit audit kilde-spænding lovtekst/satside om aftrapningsgrundlag: " + vis(benefit_bomb_satside_kildespænding_signal))
+
+----
+Boligsikring probe sources:
+
+Styrelsen for Arbejdsmarked og Rekruttering, "Boligsikring":
+https://star.dk/ydelser/boligstoette-boernetilskud-og-hjaelp-i-saerlige-tilfaelde/boligstoette/boligsikring
+
+Beskæftigelsesministeriet, "Boligstøtte", satser for 2026:
+https://bm.dk/satser/satser-for-2026/boligstoette
+
+Retsinformation, LBK nr. 995 af 01/07/2025:
+Bekendtgørelse af lov om individuel boligstøtte (Boligstøtteloven).
+https://www.retsinformation.dk/eli/lta/2025/995
+----
+
+----
+Styrelsen for Arbejdsmarked og Rekruttering:
+Boligsikring beregnes som forskellen mellem en andel af lejen og en andel af
+indkomsten. Huslejeandelen er 60 pct. af lejen. Indkomstandelen udgør 18 pct.
+af husstandens indkomst over et grænsebeløb (§ 22, stk. 1).
+
+Hvis der er børn i husstanden, forøges grænsebeløbet med et vist beløb (§ 22,
+stk. 1) for hvert barn fra det 2. til det 4. barn. Er der kun ét barn i
+husstanden, forøges grænsebeløbet ikke.
+
+Beskæftigelsesministeriet 2026, boligsikring:
+Indkomstgrænse, § 22, stk. 1, 1. pkt.: 170.300 kr. pr. år.
+Forøgelsen af indkomstgrænsen for 2.-4. barn, § 22, stk. 1, 2. pkt.:
+44.900 kr. pr. år.
+Mindstebeløb for årlig egenbetaling, § 22, stk. 2: 28.700 kr. pr. år.
+Maksimal årlig boligsikring, § 23, stk. 1: 50.412 kr. pr. år.
+----
+
+# BoligsikringPar22Input(skatteår: Heltal, årlig_boligudgift_kroner: Heltal, husstandsindkomst_kroner: Heltal, barn_antal: Heltal)
+# BoligsikringPar22Resultat(indkomstgrænse_kroner: Heltal, børnetillægsantal: Heltal, indkomst_over_grænse_kroner: Heltal, indkomstfradrag_kroner: Heltal, støtte_før_minimum_egenbetaling_kroner: Heltal, støtte_efter_minimum_egenbetaling_kroner: Heltal, støtte_efter_par23_loft_kroner: Heltal)
+
+| boligsikring_2026_indkomstgrænse_kroner() -> 170300
+| boligsikring_2026_barnetillæg_indkomstgrænse_kroner() -> 44900
+| boligsikring_2026_mindste_egenbetaling_kroner() -> 28700
+| boligsikring_2026_maksimal_årlig_boligsikring_kroner() -> 50412
+| boligsikring_huslejeandel_basispoint() -> 6000
+| boligsikring_indkomstandel_basispoint() -> 1800
+| boligsikring_par22_børnetillægsantal(input: BoligsikringPar22Input) -> penge_mindste_beløb(penge_positivt_beløb(input.barn_antal - 1), 3)
+| boligsikring_par22_indkomstgrænse_kroner(input: BoligsikringPar22Input) -> boligsikring_2026_indkomstgrænse_kroner() + boligsikring_par22_børnetillægsantal(input) * boligsikring_2026_barnetillæg_indkomstgrænse_kroner() under input.skatteår == 2026
+| boligsikring_par22_indkomst_over_grænse_kroner(input: BoligsikringPar22Input) -> penge_positivt_beløb(input.husstandsindkomst_kroner - boligsikring_par22_indkomstgrænse_kroner(input))
+| boligsikring_par22_indkomstfradrag_kroner(input: BoligsikringPar22Input) -> penge_beløb_gange_basispoint_kroner(boligsikring_par22_indkomst_over_grænse_kroner(input), boligsikring_indkomstandel_basispoint())
+| boligsikring_par22_huslejeandel_kroner(input: BoligsikringPar22Input) -> penge_beløb_gange_basispoint_kroner(input.årlig_boligudgift_kroner, boligsikring_huslejeandel_basispoint())
+| boligsikring_par22_før_minimum_egenbetaling_kroner(input: BoligsikringPar22Input) -> penge_positivt_beløb(boligsikring_par22_huslejeandel_kroner(input) - boligsikring_par22_indkomstfradrag_kroner(input))
+| boligsikring_par22_maks_efter_egenbetaling_kroner(input: BoligsikringPar22Input) -> penge_positivt_beløb(input.årlig_boligudgift_kroner - boligsikring_2026_mindste_egenbetaling_kroner()) under input.skatteår == 2026
+| boligsikring_par22_efter_minimum_egenbetaling_kroner(input: BoligsikringPar22Input) -> penge_mindste_beløb(boligsikring_par22_før_minimum_egenbetaling_kroner(input), boligsikring_par22_maks_efter_egenbetaling_kroner(input))
+| boligsikring_par22_efter_par23_loft_kroner(input: BoligsikringPar22Input) -> penge_mindste_beløb(boligsikring_par22_efter_minimum_egenbetaling_kroner(input), boligsikring_2026_maksimal_årlig_boligsikring_kroner()) under input.skatteår == 2026
+| boligsikring_par22_resultat(input: BoligsikringPar22Input) -> BoligsikringPar22Resultat(boligsikring_par22_indkomstgrænse_kroner(input), boligsikring_par22_børnetillægsantal(input), boligsikring_par22_indkomst_over_grænse_kroner(input), boligsikring_par22_indkomstfradrag_kroner(input), boligsikring_par22_før_minimum_egenbetaling_kroner(input), boligsikring_par22_efter_minimum_egenbetaling_kroner(input), boligsikring_par22_efter_par23_loft_kroner(input))
+
+= boligsikring_probe_et_barn = boligsikring_par22_resultat(BoligsikringPar22Input(2026, 80000, 215000, 1))
+= boligsikring_probe_to_børn = boligsikring_par22_resultat(BoligsikringPar22Input(2026, 80000, 215000, 2))
+= boligsikring_probe_andet_barn_signal = boligsikring_probe_andet_barn_cliff()
+
+| boligsikring_probe_et_barn_forhøjer_ikke_grænse: boligsikring_probe_et_barn -> boligsikring_probe_et_barn.børnetillægsantal == 0 && boligsikring_probe_et_barn.indkomstgrænse_kroner == 170300
+| boligsikring_probe_andet_barn_forhøjer_grænse: boligsikring_probe_to_børn -> boligsikring_probe_to_børn.børnetillægsantal == 1 && boligsikring_probe_to_børn.indkomstgrænse_kroner == 215200
+| boligsikring_probe_andet_barn_fjerner_indkomstfradrag: boligsikring_probe_to_børn -> boligsikring_probe_et_barn.indkomstfradrag_kroner == 8046 && boligsikring_probe_to_børn.indkomstfradrag_kroner == 0
+| boligsikring_probe_andet_barn_cliff() -> boligsikring_probe_to_børn.støtte_efter_par23_loft_kroner - boligsikring_probe_et_barn.støtte_efter_par23_loft_kroner == 8046
+| boligsikring_probe_andet_barn_cliff_dækket: boligsikring_probe_andet_barn_signal -> boligsikring_probe_andet_barn_signal == Sandt
+
+? boligsikring_probe_et_barn_forhøjer_ikke_grænse
+? boligsikring_probe_andet_barn_forhøjer_grænse
+? boligsikring_probe_andet_barn_fjerner_indkomstfradrag
+? boligsikring_probe_andet_barn_cliff_dækket
+
+@ print("benefit audit boligsikring et barn støtte efter loft: " + vis(boligsikring_probe_et_barn.støtte_efter_par23_loft_kroner))
+@ print("benefit audit boligsikring to børn støtte efter loft: " + vis(boligsikring_probe_to_børn.støtte_efter_par23_loft_kroner))
+@ print("benefit audit boligsikring andet barn cliff kr.: " + vis(boligsikring_probe_to_børn.støtte_efter_par23_loft_kroner - boligsikring_probe_et_barn.støtte_efter_par23_loft_kroner))

@@ -170,6 +170,17 @@ Current external validation sources:
   - Used in `omregning-skatteloft-ekstern.scenario.runa` for the
     `kommuneskattesatser_2026.xlsx` Langeland row: 26,30 pct. municipal tax and
     1,24 pct. published `Nedslag pct.`.
+- Beskæftigelsesministeriet, "Boligstøtte", satser for 2026:
+  `https://bm.dk/satser/satser-for-2026/boligstoette`
+  - Used in `husholdning-benefit-cliffs.audit.runa` for boligsikring § 22/§ 23
+    rates: 170.300 kr. income threshold, 44.900 kr. child-threshold increment
+    for the 2nd-4th child, 28.700 kr. minimum own payment, and 50.412 kr.
+    annual maximum boligsikring.
+- Styrelsen for Arbejdsmarked og Rekruttering, "Boligsikring":
+  `https://star.dk/ydelser/boligstoette-boernetilskud-og-hjaelp-i-saerlige-tilfaelde/boligstoette/boligsikring`
+  - Used in `husholdning-benefit-cliffs.audit.runa` for the official
+    calculation posture that only children from the 2nd through 4th child
+    increase the § 22 boligsikring income threshold.
 
 Working decision: use `2021/1284` as the current consolidated source for live
 encoding, while preserving `2019/799` as source lineage because the valid
@@ -469,6 +480,11 @@ Review candidates to revisit deliberately, not as broad churn:
   Retsinformation § 1 a and Borger.dk posture point to the mellemskat-linked
   reduction base for 2026, while the Skatteministeriet rate page still describes
   the reduction income as the topskat basis.
+  The same audit now covers a first boligsikring § 22 cliff: at 80.000 kr.
+  annual housing expense and 215.000 kr. household income, one child gives no
+  child increment to the income threshold and leaves an 8.046 kr. income
+  deduction, while the second child raises the threshold enough to remove that
+  deduction in the encoded 2026 slice.
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
@@ -498,8 +514,9 @@ Review candidates to revisit deliberately, not as broad churn:
   personfradrag/skatteloft, § 13 passive business-loss lock-in, § 14
   annualisation, and § 19 skatteloft interactions. A separate household benefit
   audit now covers Børne- og ungeydelse aftrapning plus an official-source
-  mellemskat/topskat wording tension; remaining probes should target housing
-  support and cross-law allowance or collection timing chains.
+  mellemskat/topskat wording tension, and a first boligsikring § 22 threshold
+  cliff; remaining probes should target broader housing-support calculators and
+  cross-law allowance or collection timing chains.
 - Extend the website page as more of the corpus becomes calculation-ready.
 
 ## Later
@@ -606,9 +623,10 @@ M4 - Ordinary taxpayer calculator
   A first fictional household scenario now computes a 2026 Copenhagen married
   renter household with 50.000 kr./month primary wage income and 20.000
   kr./month spouse wage income. A first household benefit-cliff audit covers
-  Børne- og ungeydelse for the three-child scenario while explicitly marking
-  housing support and other deduction discovery as outside the current
-  executable slice. Kildeskatteloven now marks the primary wage as A-income,
+  Børne- og ungeydelse for the three-child scenario and a first boligsikring
+  § 22 child-threshold cliff while explicitly marking broader housing-support
+  and other deduction discovery as outside the current executable slice.
+  Kildeskatteloven now marks the primary wage as A-income,
   proves that A-skat must be withheld, computes the statutory 55 pct.
   withholding if no e-skattekort, bikort or frikort has been received, and
   computes monthly A-skat/cash-flow payroll output when e-skattekort
@@ -648,7 +666,8 @@ M5 - Audit suite
   indeholdelsesprocent derivation, covered Kildeskatteloven slutopgørelse
   balance/restskat timing/overskydende skat compensation/dividend-tax credit
   posture, covered fictional household scenario, covered Børne- og ungeydelse
-  benefit-cliff/source-tension audit, covered external Skat.dk 2026
+  benefit-cliff/source-tension audit plus a first boligsikring § 22 threshold
+  cliff, covered external Skat.dk 2026
   ordinary wage-earner fixture, topskat threshold activation,
   covered § 14 annualization and first wage-earner calculator integration plus
   the Den juridiske vejledning external annualisation example,
@@ -689,7 +708,8 @@ M6 - Website integration
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   first § 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
-  household benefit-cliff/source-tension probe,
+  household benefit-cliff/source-tension probe plus a boligsikring § 22
+  threshold-cliff probe,
   Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily
   interest-context, and cross-calendar-year interest-split slices, the B-skat
   calendar projection, § 62 A interest fixtures, § 14 partial-year wage-earner
