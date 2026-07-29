@@ -22,29 +22,21 @@ fn reorder_named_constructor_args(
     ctor_name: &str,
     args: &[Expr],
 ) -> Option<Vec<Expr>> {
-    if !has_named_args(args) {
-        return None;
-    }
-    if args.iter().any(|arg| !is_named_arg_expr(arg)) {
-        return None;
-    }
     let fields = fields_by_constructor.get(ctor_name)?;
-    let mut by_name: BTreeMap<String, Expr> = BTreeMap::new();
-    for arg in args {
-        let (field, value) = named_arg_parts(arg)?;
-        if !fields.iter().any(|known| known == field) || by_name.contains_key(field) {
-            return None;
-        }
-        by_name.insert(field.to_string(), value.clone());
+    reorder_named_args_by_names(fields, args)
+}
+
+fn reorder_named_direct_call_args(
+    fields_by_constructor: &BTreeMap<String, Vec<String>>,
+    params_by_callable: &BTreeMap<String, Vec<String>>,
+    name: &str,
+    args: &[Expr],
+) -> Option<Vec<Expr>> {
+    if let Some(fields) = fields_by_constructor.get(name) {
+        return reorder_named_args_by_names(fields, args);
     }
-    if by_name.len() != fields.len() {
-        return None;
-    }
-    let mut ordered = Vec::with_capacity(fields.len());
-    for field in fields {
-        ordered.push(by_name.get(field)?.clone());
-    }
-    Some(ordered)
+    let params = params_by_callable.get(name)?;
+    reorder_named_args_by_names(params, args)
 }
 
 fn main() {
@@ -11336,10 +11328,14 @@ struct TypeRegistry {
     variant_positional: BTreeMap<String, bool>,
     /// Maps variant name -> field names (for named/struct variants)
     variant_fields: BTreeMap<String, Vec<String>>,
+    /// Direct callable name -> declaration-order parameter names.
+    call_params: BTreeMap<String, Vec<String>>,
     /// Maps variant name -> (field name -> field type) for non-Copy field detection
     variant_field_types: BTreeMap<String, BTreeMap<String, Ty>>,
     /// RuleScope member signatures: (scope type, member name) -> function type excluding self.
     rule_scope_member_fn_types: BTreeMap<(String, String), FirTy>,
+    /// RuleScope member parameter names keyed by (scope type, member name).
+    rule_scope_member_params: BTreeMap<(String, String), Vec<String>>,
     /// Types with explicit user-provided Display impl (skip auto-generation)
     explicit_display_impls: BTreeSet<String>,
     /// Types that are structs (single-variant ADTs where variant name == type name)
@@ -11423,8 +11419,10 @@ impl TypeRegistry {
             variant_boxed_args: BTreeMap::new(),
             variant_positional: BTreeMap::new(),
             variant_fields: BTreeMap::new(),
+            call_params: BTreeMap::new(),
             variant_field_types: BTreeMap::new(),
             rule_scope_member_fn_types: BTreeMap::new(),
+            rule_scope_member_params: BTreeMap::new(),
             explicit_display_impls: BTreeSet::new(),
             struct_types: BTreeSet::new(),
             default_derive_types: BTreeSet::new(),
@@ -12811,6 +12809,50 @@ impl<'a> LoweringCtx<'a> {
         VarMode::Move
     }
 
+    fn rule_scope_member_param_names_for_type(
+        &self,
+        obj_ty: &FirTy,
+        method: &str,
+    ) -> Option<Vec<String>> {
+        let FirTy::Named(type_name) = obj_ty else {
+            return None;
+        };
+        let mut candidates = vec![type_name.clone()];
+        if let Some(renamed) = self.types.type_rename.get(type_name) {
+            candidates.push(renamed.clone());
+        }
+        for candidate in candidates {
+            if let Some(params) = self
+                .types
+                .rule_scope_member_params
+                .get(&(candidate, method.to_string()))
+            {
+                return Some(params.clone());
+            }
+        }
+        None
+    }
+
+    fn reorder_named_app_args(&mut self, func: &Expr, args: &[Expr]) -> Option<Vec<Expr>> {
+        if !has_named_args(args) {
+            return None;
+        }
+        match &func.kind {
+            ExprKind::Var(name) => reorder_named_direct_call_args(
+                &self.types.variant_fields,
+                &self.types.call_params,
+                name,
+                args,
+            ),
+            ExprKind::Field(obj, method) => {
+                let obj_ty = self.lower_expr(obj).ty;
+                let params = self.rule_scope_member_param_names_for_type(&obj_ty, method)?;
+                reorder_named_args_by_names(&params, args)
+            }
+            _ => None,
+        }
+    }
+
     /// Lower an AST expression to FIR with type resolution.
     fn lower_expr(&mut self, expr: &Expr) -> FirExpr {
         match &expr.kind {
@@ -12841,11 +12883,7 @@ impl<'a> LoweringCtx<'a> {
                 }
             }
             ExprKind::App(func, args) => {
-                let reordered_args = if let ExprKind::Var(ref fn_name) = func.kind {
-                    reorder_named_constructor_args(&self.types.variant_fields, fn_name, args)
-                } else {
-                    None
-                };
+                let reordered_args = self.reorder_named_app_args(func, args);
                 let args_for_lowering: &[Expr] = reordered_args.as_deref().unwrap_or(args);
                 let fir_func = self.lower_expr(func);
                 let fir_args: Vec<FirExpr> = args_for_lowering
@@ -18208,6 +18246,7 @@ impl RustCodegen {
                 name,
                 params,
                 variants,
+                methods,
                 ..
             }) = stmt
             {
@@ -18262,8 +18301,16 @@ impl RustCodegen {
                 self.types
                     .type_decls
                     .insert(rust_name, (param_names, variant_names));
+                for method in methods {
+                    if let Defn::Fn { name, params, .. } = method {
+                        self.types.call_params.insert(
+                            name.clone(),
+                            params.iter().map(|param| param.name.clone()).collect(),
+                        );
+                    }
+                }
             }
-            if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) = stmt {
+            if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) = stmt {
                 let rust_name = if conflicting.contains(&name.as_str()) {
                     format!("Futuruna{}", name)
                 } else {
@@ -18287,6 +18334,10 @@ impl RustCodegen {
                 self.types
                     .variant_fields
                     .insert(rust_name.clone(), rule_scope_fields);
+                self.types.call_params.insert(
+                    name.clone(),
+                    params.iter().map(|param| param.name.clone()).collect(),
+                );
                 self.types
                     .variant_field_types
                     .insert(name.clone(), rule_scope_field_types.clone());
@@ -18308,6 +18359,7 @@ impl RustCodegen {
                 }
                 self.types.fn_types.insert(name.clone(), fn_ty);
                 self.fn_return_types.insert(name.clone(), rust_name);
+                self.register_rule_scope_member_params(name, body);
             }
             // Scan types inside modules too
             if let Stmt::Defn(Defn::Module { body, .. }) = stmt {
@@ -18316,6 +18368,7 @@ impl RustCodegen {
                         name,
                         params,
                         variants,
+                        methods,
                         ..
                     }) = inner_stmt
                     {
@@ -18375,8 +18428,16 @@ impl RustCodegen {
                         self.types
                             .type_decls
                             .insert(rust_name, (param_names, variant_names));
+                        for method in methods {
+                            if let Defn::Fn { name, params, .. } = method {
+                                self.types.call_params.insert(
+                                    name.clone(),
+                                    params.iter().map(|param| param.name.clone()).collect(),
+                                );
+                            }
+                        }
                     }
-                    if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) = inner_stmt {
+                    if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) = inner_stmt {
                         let rust_name = if conflicting.contains(&name.as_str()) {
                             format!("Futuruna{}", name)
                         } else {
@@ -18400,6 +18461,10 @@ impl RustCodegen {
                         self.types
                             .variant_fields
                             .insert(rust_name.clone(), rule_scope_fields);
+                        self.types.call_params.insert(
+                            name.clone(),
+                            params.iter().map(|param| param.name.clone()).collect(),
+                        );
                         self.types
                             .variant_field_types
                             .insert(name.clone(), rule_scope_field_types.clone());
@@ -18421,6 +18486,7 @@ impl RustCodegen {
                         }
                         self.types.fn_types.insert(name.clone(), fn_ty);
                         self.fn_return_types.insert(name.clone(), rust_name);
+                        self.register_rule_scope_member_params(name, body);
                     }
                 }
             }
@@ -18433,6 +18499,10 @@ impl RustCodegen {
             }) = stmt
             {
                 self.types.user_functions.insert(name.clone());
+                self.types.call_params.insert(
+                    name.clone(),
+                    params.iter().map(|param| param.name.clone()).collect(),
+                );
                 let mut fn_ty = ret_ty
                     .as_ref()
                     .map(LoweringCtx::ty_to_fir)
@@ -18457,6 +18527,28 @@ impl RustCodegen {
             if let Stmt::RustBlock(code) = stmt {
                 self.collect_rust_block_fn_signatures(code);
             }
+            if let Stmt::TypeDecl(TypeDecl::TraitDecl { methods, .. }) = stmt {
+                for method in methods {
+                    self.types.call_params.insert(
+                        method.name.clone(),
+                        method
+                            .params
+                            .iter()
+                            .map(|param| param.name.clone())
+                            .collect(),
+                    );
+                }
+            }
+            if let Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) = stmt {
+                for method in methods {
+                    if let Defn::Fn { name, params, .. } = method {
+                        self.types.call_params.insert(
+                            name.clone(),
+                            params.iter().map(|param| param.name.clone()).collect(),
+                        );
+                    }
+                }
+            }
             // Also register rule functions (| rule_name(params) -> ...)
             if let Stmt::Rule(Rule::Default { head, .. })
             | Stmt::Rule(Rule::Exception { head, .. })
@@ -18465,6 +18557,12 @@ impl RustCodegen {
                 if let ExprKind::App(func, _) = &head.kind {
                     if let ExprKind::Var(fname) = &func.as_ref().kind {
                         self.types.user_functions.insert(fname.clone());
+                        if let Some(params) = Self::rule_head_param_names(head) {
+                            self.types
+                                .call_params
+                                .entry(fname.clone())
+                                .or_insert(params);
+                        }
                     }
                 }
             }
@@ -21171,6 +21269,12 @@ impl RustCodegen {
             let mut changed = false;
             for (fn_name, rules) in rule_groups {
                 let params = Self::rule_params(rules);
+                if !params.is_empty() || Self::rule_arity(rules) == 0 {
+                    self.types
+                        .call_params
+                        .entry(fn_name.clone())
+                        .or_insert(params.clone());
+                }
                 let param_tys = self.infer_rule_param_fir_tys(&params, rules);
                 let Some(ret_type) = self.infer_rule_return_type(rules, &params, &param_tys) else {
                     continue;
@@ -21745,6 +21849,57 @@ impl RustCodegen {
             .collect()
     }
 
+    fn register_rule_scope_member_params(&mut self, scope_name: &str, body: &[Stmt]) {
+        let rust_name = self
+            .types
+            .type_rename
+            .get(scope_name)
+            .cloned()
+            .unwrap_or_else(|| scope_name.to_string());
+        for stmt in body {
+            match stmt {
+                Stmt::Rule(rule @ Rule::Clause { .. })
+                | Stmt::Rule(rule @ Rule::Default { .. })
+                | Stmt::Rule(rule @ Rule::Exception { .. }) => {
+                    let head = match rule {
+                        Rule::Clause { head, .. }
+                        | Rule::Default { head, .. }
+                        | Rule::Exception { head, .. } => head,
+                        Rule::ReactiveScope { .. } => continue,
+                    };
+                    let Some(method) = Self::rule_group_name(rule) else {
+                        continue;
+                    };
+                    let Some(params) = Self::rule_head_param_names(head) else {
+                        continue;
+                    };
+                    self.types
+                        .rule_scope_member_params
+                        .entry((scope_name.to_string(), method.clone()))
+                        .or_insert(params.clone());
+                    self.types
+                        .rule_scope_member_params
+                        .entry((rust_name.clone(), method))
+                        .or_insert(params);
+                }
+                Stmt::Defn(Defn::Fn { name, params, .. }) => {
+                    let params: Vec<String> = params
+                        .iter()
+                        .filter(|param| param.name != "self")
+                        .map(|param| param.name.clone())
+                        .collect();
+                    self.types
+                        .rule_scope_member_params
+                        .insert((scope_name.to_string(), name.clone()), params.clone());
+                    self.types
+                        .rule_scope_member_params
+                        .insert((rust_name.clone(), name.clone()), params);
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn infer_rule_scope_value_method_fn_type(
         &mut self,
         rust_name: &str,
@@ -21949,7 +22104,7 @@ impl RustCodegen {
         out.push_str("}\n\n");
 
         let rule_groups = Self::collect_rule_groups_from_stmts(body);
-        let method_names: BTreeSet<String> = rule_groups.keys().cloned().collect();
+        let mut method_names: BTreeSet<String> = rule_groups.keys().cloned().collect();
         let (method_params, method_param_tys, method_return_tys) =
             self.infer_rule_scope_method_types(params, &rule_groups);
 
@@ -21974,6 +22129,7 @@ impl RustCodegen {
         }
 
         let saved_fn_types = self.types.fn_types.clone();
+        let saved_call_params = self.types.call_params.clone();
         for (method, param_tys) in &method_param_tys {
             let ret_ty = method_return_tys
                 .get(method)
@@ -21982,6 +22138,24 @@ impl RustCodegen {
             self.types
                 .fn_types
                 .insert(method.clone(), Self::fn_type_from_parts(param_tys, ret_ty));
+        }
+        for (method, params) in &method_params {
+            self.types
+                .call_params
+                .insert(method.clone(), params.clone());
+        }
+        for method in Self::rule_scope_defn_methods(body) {
+            if let Defn::Fn { name, params, .. } = method {
+                method_names.insert(name.clone());
+                self.types.call_params.insert(
+                    name.clone(),
+                    params
+                        .iter()
+                        .filter(|param| param.name != "self")
+                        .map(|param| param.name.clone())
+                        .collect(),
+                );
+            }
         }
         let prev_methods = std::mem::replace(&mut self.current_rule_scope_methods, method_names);
 
@@ -22010,6 +22184,7 @@ impl RustCodegen {
 
         self.current_rule_scope_methods = prev_methods;
         self.types.fn_types = saved_fn_types;
+        self.types.call_params = saved_call_params;
         out
     }
 
@@ -23908,6 +24083,14 @@ impl RustCodegen {
                 }
             })
             .unwrap_or_default()
+    }
+
+    fn rule_head_param_names(head: &Expr) -> Option<Vec<String>> {
+        match &head.kind {
+            ExprKind::App(_, args) => args.iter().map(Self::rule_head_var_name).collect(),
+            ExprKind::Var(_) => Some(vec![]),
+            _ => None,
+        }
     }
 
     /// Emit a Rust literal from a Futuruna Literal
@@ -30408,6 +30591,50 @@ impl RustCodegen {
         Some(out)
     }
 
+    fn rule_scope_member_param_names_for_type(
+        &self,
+        obj_ty: &FirTy,
+        method: &str,
+    ) -> Option<Vec<String>> {
+        let FirTy::Named(type_name) = obj_ty else {
+            return None;
+        };
+        let mut candidates = vec![type_name.clone()];
+        if let Some(renamed) = self.types.type_rename.get(type_name) {
+            candidates.push(renamed.clone());
+        }
+        for candidate in candidates {
+            if let Some(params) = self
+                .types
+                .rule_scope_member_params
+                .get(&(candidate, method.to_string()))
+            {
+                return Some(params.clone());
+            }
+        }
+        None
+    }
+
+    fn reorder_named_app_args_for_emit(&self, func: &Expr, args: &[Expr]) -> Option<Vec<Expr>> {
+        if !has_named_args(args) {
+            return None;
+        }
+        match &func.kind {
+            ExprKind::Var(name) => reorder_named_direct_call_args(
+                &self.types.variant_fields,
+                &self.types.call_params,
+                name,
+                args,
+            ),
+            ExprKind::Field(obj, method) => {
+                let obj_ty = self.infer_expr_fir_ty(obj);
+                let params = self.rule_scope_member_param_names_for_type(&obj_ty, method)?;
+                reorder_named_args_by_names(&params, args)
+            }
+            _ => None,
+        }
+    }
+
     fn emit_expr(&mut self, expr: &Expr) -> String {
         match &expr.kind {
             ExprKind::Var(name) => {
@@ -30501,6 +30728,8 @@ impl RustCodegen {
                         "()".to_string()
                     };
                 }
+                let reordered_args = self.reorder_named_app_args_for_emit(func, args);
+                let args: &[Expr] = reordered_args.as_deref().unwrap_or(args);
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     if let Some(ordered_args) =
                         reorder_named_constructor_args(&self.types.variant_fields, name, args)
@@ -42065,6 +42294,44 @@ for x in [1, 2] {
 
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "10\n20\n30");
+    }
+
+    fn named_function_rule_and_scoped_rule_source() -> &'static str {
+        r#"
+# ScopedCase(rate: Int) {
+    | contribution(base: Int, exempt: Bool) -> if exempt { 0 } else { base * rate }
+    | delegated() -> contribution(exempt = False, base = 10)
+}
+
+> taxable(base: Int, allowance: Int, active: Bool) -> Int {
+    if active { base - allowance } else { 0 }
+}
+
+| due(gross: Int, allowance: Int, resident: Bool) -> if resident { gross - allowance } else { 0 }
+
+= case_named = ScopedCase(rate = 8)
+= fn_named = taxable(active = True, allowance = 200, base = 1200)
+= rule_named = due(resident = True, gross = 900, allowance = 300)
+= scoped_named = case_named.contribution(exempt = False, base = 10)
+= scoped_direct_named = case_named.delegated()
+
+@ print(show(fn_named))
+@ print(show(rule_named))
+@ print(show(scoped_named))
+@ print(show(scoped_direct_named))
+"#
+    }
+
+    #[test]
+    fn interpreted_named_function_rule_and_scoped_rule_args_are_reordered() {
+        let output = interpret_test_source(named_function_rule_and_scoped_rule_source(), None);
+        assert_eq!(output.trim(), "1000\n600\n80\n80");
+    }
+
+    #[test]
+    fn compiled_named_function_rule_and_scoped_rule_args_are_reordered() {
+        let output = compile_and_run_test_program(named_function_rule_and_scoped_rule_source());
+        assert_eq!(output.trim(), "1000\n600\n80\n80");
     }
 
     #[test]

@@ -1,0 +1,7 @@
+-- expect-error: has no parameter `missing`
+
+> taxable(base: Int, active: Bool) -> Int {
+    if active { base } else { 0 }
+}
+
+= bad = taxable(missing = 1, active = True)

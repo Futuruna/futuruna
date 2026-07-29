@@ -220,7 +220,11 @@ fradragsbeløb efter Skatteforvaltningens nærmere bestemmelse.
     forvaltning_har_nærliggende_afvigelsesgrund = Falskt
 ))
 = kildeskattebekendtgørelse_procentgrundlag_fixture = Forskudsregistrering2026IndeholdelsesprocentInput(
-    skattekommune = forskudsregistrering_2026_skattekommune_for(2026, København, Falskt),
+    skattekommune = forskudsregistrering_2026_skattekommune_for(
+        skatteår = 2026,
+        kommune = København,
+        betaler_kirkeskat = Falskt
+    ),
     progressionsgrundlag = Forskudsregistrering2026Progressionsgrundlag(
         personlig_indkomst_kroner = 552000,
         positiv_nettokapitalindkomst_over_grænse_kroner = 0

@@ -954,7 +954,10 @@ kontant, hvis det udgør 25 kr. eller derover.
     tidligere_ikke_opkrævet_kroner = 0,
     ikke_indregnet_efter_par61_stk3 = Sandt
 ))
-= kildeskat_par62c_nemkonto_fixture = kildeskat_par62c_nemkonto_beløb_bortfalder(200, Sandt)
+= kildeskat_par62c_nemkonto_fixture = kildeskat_par62c_nemkonto_beløb_bortfalder(
+    beløb_kroner = 200,
+    ikke_udbetalt_i_tre_måneder = Sandt
+)
 
 | kildeskat_restskat_beregnes_efter_par61: kildeskat_restskat_resultat_fixture -> kildeskat_restskat_resultat_fixture.restskat_kroner == 20000 && kildeskat_restskat_resultat_fixture.art == Restskat
 | kildeskat_overskydende_beregnes_efter_par62: kildeskat_overskydende_resultat_fixture -> kildeskat_overskydende_resultat_fixture.overskydende_skat_kroner == 15000 && kildeskat_overskydende_resultat_fixture.art == OverskydendeSkat

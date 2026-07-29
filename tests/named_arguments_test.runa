@@ -1,0 +1,35 @@
+-- Named arguments for functions, rules, scoped rules, and constructors.
+-- Named calls may be supplied out of declaration order; the compiler lowers
+-- them to declaration-order positional calls after validation.
+
+# TaxFact(first: Int, second: Int, third: Int)
+
+# ScopedCase(rate: Int) {
+    | contribution(base: Int, exempt: Bool) -> if exempt { 0 } else { base * rate }
+    | delegated() -> contribution(exempt = False, base = 10)
+}
+
+> taxable(base: Int, allowance: Int, active: Bool) -> Int {
+    if active { base - allowance } else { 0 }
+}
+
+| due(gross: Int, allowance: Int, resident: Bool) -> if resident { gross - allowance } else { 0 }
+
+= fact = TaxFact(third = 30, first = 10, second = 20)
+= case_named = ScopedCase(rate = 8)
+= fn_named = taxable(active = True, allowance = 200, base = 1200)
+= rule_named = due(resident = True, gross = 900, allowance = 300)
+= scoped_named = case_named.contribution(exempt = False, base = 10)
+= scoped_direct_named = case_named.delegated()
+
+| named_constructor_args_ok: fact -> fact.first == 10 && fact.second == 20 && fact.third == 30
+| named_function_args_ok: fn_named -> fn_named == 1000
+| named_rule_args_ok: rule_named -> rule_named == 600
+| named_scoped_rule_args_ok: scoped_named -> scoped_named == 80 && scoped_direct_named == 80
+
+? named_constructor_args_ok
+? named_function_args_ok
+? named_rule_args_ok
+? named_scoped_rule_args_ok
+
+@ print("named arguments passed")

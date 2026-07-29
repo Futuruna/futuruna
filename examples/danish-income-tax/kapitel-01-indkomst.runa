@@ -220,7 +220,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 = par4_andel_normal = andelsudlodning_medregnes_personligt(NormalForrentning)
 = par4_andel_ikke_normal = andelsudlodning_medregnes_personligt(IkkeNormalForrentning)
 = par4_skatteråd_undtager = udlejning_af_driftsmidler_regel_anvendes(Før19Maj1993, TilladelseGivet, Godtgjort)
-= par4_ve_ejer_tælles = medregnes_i_ejertal_par4_nr9(Sandt)
+= par4_ve_ejer_tælles = medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p = Sandt)
 
 | par4_renter_er_kapital: par4_rente -> par4_rente == Sandt
 | par4_kursgevinst_er_kapital: par4_kursgevinst -> par4_kursgevinst == Sandt

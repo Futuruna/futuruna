@@ -1667,11 +1667,17 @@ impl Expr {
 }
 
 pub fn named_arg_expr(field: String, value: Expr) -> Expr {
-    ExprKind::App(
-        Box::new(ExprKind::Var(NAMED_ARG_MARKER.to_string()).into()),
-        vec![ExprKind::Lit(Literal::Str(field)).into(), value],
+    named_arg_expr_with_span(field, value, Span::dummy())
+}
+
+pub fn named_arg_expr_with_span(field: String, value: Expr, span: Span) -> Expr {
+    Expr::new(
+        ExprKind::App(
+            Box::new(ExprKind::Var(NAMED_ARG_MARKER.to_string()).into()),
+            vec![ExprKind::Lit(Literal::Str(field)).into(), value],
+        ),
+        span,
     )
-    .into()
 }
 
 pub fn named_arg_parts(expr: &Expr) -> Option<(&str, &Expr)> {
@@ -1696,6 +1702,32 @@ pub fn is_named_arg_expr(expr: &Expr) -> bool {
 
 pub fn has_named_args(args: &[Expr]) -> bool {
     args.iter().any(is_named_arg_expr)
+}
+
+pub fn all_named_args(args: &[Expr]) -> bool {
+    args.iter().all(is_named_arg_expr)
+}
+
+pub fn reorder_named_args_by_names(param_order: &[String], args: &[Expr]) -> Option<Vec<Expr>> {
+    if !has_named_args(args) || !all_named_args(args) {
+        return None;
+    }
+    let mut by_name: BTreeMap<String, Expr> = BTreeMap::new();
+    for arg in args {
+        let (name, value) = named_arg_parts(arg)?;
+        if !param_order.iter().any(|known| known == name) || by_name.contains_key(name) {
+            return None;
+        }
+        by_name.insert(name.to_string(), value.clone());
+    }
+    if by_name.len() != param_order.len() {
+        return None;
+    }
+    let mut ordered = Vec::with_capacity(param_order.len());
+    for name in param_order {
+        ordered.push(by_name.get(name)?.clone());
+    }
+    Some(ordered)
 }
 
 /// Allow ExprKind to convert to Expr (with dummy span) during migration.
@@ -5417,6 +5449,7 @@ impl Parser {
                     tok.kind == TokenKind::Eq || (tok.kind == TokenKind::Op && tok.text == "=")
                 })
             {
+                let start_tok = self.peek().clone();
                 let field_name = self.advance().text;
                 if self.peek_kind() == TokenKind::Eq {
                     self.advance();
@@ -5426,7 +5459,11 @@ impl Parser {
                     self.expect(TokenKind::Eq)?;
                 }
                 let value = self.parse_expr()?;
-                args.push(named_arg_expr(field_name, value));
+                args.push(named_arg_expr_with_span(
+                    field_name,
+                    value,
+                    self.span_since(&start_tok),
+                ));
                 self.skip_semis();
                 continue;
             }
@@ -6147,6 +6184,7 @@ fn comptime_typedef_to_type_decl(name: &str, kind: &str, fields: &[(String, Stri
 // PART 6: EVALUATOR
 // ============================================================================
 
+#[derive(Clone)]
 pub struct FnDef {
     pub params: Vec<String>,
     pub body: Expr,
@@ -7645,26 +7683,18 @@ impl Interpreter {
         args: &[Expr],
         env: &Env,
     ) -> Option<Vec<Value>> {
-        if !has_named_args(args) {
-            return None;
-        }
         let field_order = self.field_names.get(ctor_name)?.clone();
-        let mut values = HashMap::new();
-        for arg in args {
-            let (field, value_expr) = named_arg_parts(arg)?;
-            if !field_order.iter().any(|known| known == field) || values.contains_key(field) {
-                return None;
-            }
-            values.insert(field.to_string(), self.eval(value_expr, env));
-        }
-        if values.len() != field_order.len() {
-            return None;
-        }
-        let mut ordered = Vec::with_capacity(field_order.len());
-        for field in field_order {
-            ordered.push(values.remove(&field)?);
-        }
-        Some(ordered)
+        self.eval_named_args_by_names(&field_order, args, env)
+    }
+
+    fn eval_named_args_by_names(
+        &mut self,
+        param_order: &[String],
+        args: &[Expr],
+        env: &Env,
+    ) -> Option<Vec<Value>> {
+        let ordered = reorder_named_args_by_names(param_order, args)?;
+        Some(ordered.iter().map(|arg| self.eval(arg, env)).collect())
     }
 
     pub fn eval(&mut self, expr: &Expr, env: &Env) -> Value {
@@ -7748,6 +7778,20 @@ impl Interpreter {
                             .eval_named_constructor_args(fn_name, args, env)
                             .unwrap_or_default();
                         return self.apply(f, arg_vals, env);
+                    }
+                    if has_named_args(args) {
+                        if let Some(def) = self.functions.get(fn_name).cloned() {
+                            let f = Value::Closure {
+                                name: Some(fn_name.clone()),
+                                params: def.params.clone(),
+                                body: def.body.clone(),
+                                env: Env::new(),
+                            };
+                            let arg_vals = self
+                                .eval_named_args_by_names(&def.params, args, env)
+                                .unwrap_or_default();
+                            return self.apply(f, arg_vals, env);
+                        }
                     }
                     // Check if this is a rule call (| name(...) -> value)
                     if let Some(result) = self.try_rule_call(fn_name, args, env) {
@@ -10688,8 +10732,16 @@ impl Interpreter {
             return None;
         }
 
-        // Evaluate arguments once (in caller's env so variables resolve correctly)
-        let arg_vals: Vec<Value> = args.iter().map(|a| self.eval(a, env)).collect();
+        // Evaluate arguments once (in caller's env so variables resolve correctly).
+        // Named rule calls are normalized to the declaration-order head names here
+        // so exception/default/clause matching stays purely positional below.
+        let ordered_args = if has_named_args(args) {
+            let param_names = Self::rule_param_names_from_rules(&matching)?;
+            reorder_named_args_by_names(&param_names, args)?
+        } else {
+            args.to_vec()
+        };
+        let arg_vals: Vec<Value> = ordered_args.iter().map(|a| self.eval(a, env)).collect();
 
         // Create a base env: caller's env minus all rule-local variables
         // (variables that appear as params in ANY clause head for this function).
@@ -10894,6 +10946,36 @@ impl Interpreter {
             }
             _ => {}
         }
+    }
+
+    fn rule_head_param_name(arg: &Expr) -> Option<String> {
+        if let Some((inner, _)) = Self::typed_rule_arg_parts(arg) {
+            return Self::rule_head_param_name(inner);
+        }
+        match &arg.kind {
+            ExprKind::Var(name) if Self::is_rule_variable_name(name) => Some(name.clone()),
+            _ => None,
+        }
+    }
+
+    fn rule_head_param_names(head: &Expr) -> Option<Vec<String>> {
+        match &head.kind {
+            ExprKind::App(_, args) => args.iter().map(Self::rule_head_param_name).collect(),
+            ExprKind::Var(_) => Some(vec![]),
+            _ => None,
+        }
+    }
+
+    fn rule_param_names_from_rules(rules: &[Rule]) -> Option<Vec<String>> {
+        rules.iter().find_map(|rule| {
+            let head = match rule {
+                Rule::Clause { head, .. }
+                | Rule::Default { head, .. }
+                | Rule::Exception { head, .. } => head,
+                Rule::ReactiveScope { .. } => return None,
+            };
+            Self::rule_head_param_names(head)
+        })
     }
 
     fn value_matches_type(&self, value: &Value, type_name: &str) -> bool {
@@ -11980,6 +12062,8 @@ fn line_col_to_span(source: &str, line: usize, col: usize) -> Span {
 pub struct TypeChecker {
     /// function name -> param count
     pub functions: BTreeMap<String, usize>,
+    /// function/rule name -> declaration-order parameter names for named calls.
+    pub function_params: BTreeMap<String, Vec<String>>,
     /// type name -> exists
     pub types: BTreeSet<String>,
     /// constructor/variant name -> (parent type, field count)
@@ -12002,8 +12086,12 @@ pub struct TypeChecker {
     impl_method_receivers: BTreeMap<(String, String, String), MethodReceiverShape>,
     /// RuleScope name -> scoped rule name -> arity.
     rule_scope_methods: BTreeMap<String, BTreeMap<String, usize>>,
+    /// RuleScope name -> scoped rule name -> declaration-order parameter names.
+    rule_scope_method_params: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     /// RuleScope name -> ordinary product method name -> arity excluding implicit self.
     rule_scope_value_methods: BTreeMap<String, BTreeMap<String, usize>>,
+    /// RuleScope name -> ordinary product method name -> parameter names excluding implicit self.
+    rule_scope_value_method_params: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     /// Rule/function name -> RuleScope type directly constructed by its body.
     rule_scope_returning_rules: BTreeMap<String, String>,
     /// RuleScope-typed variables per lexical scope.
@@ -12034,6 +12122,7 @@ impl TypeChecker {
     pub fn new() -> Self {
         let mut tc = TypeChecker {
             functions: BTreeMap::new(),
+            function_params: BTreeMap::new(),
             types: BTreeSet::new(),
             constructors: BTreeMap::new(),
             constructor_fields: BTreeMap::new(),
@@ -12045,7 +12134,9 @@ impl TypeChecker {
             trait_method_receivers: BTreeMap::new(),
             impl_method_receivers: BTreeMap::new(),
             rule_scope_methods: BTreeMap::new(),
+            rule_scope_method_params: BTreeMap::new(),
             rule_scope_value_methods: BTreeMap::new(),
+            rule_scope_value_method_params: BTreeMap::new(),
             rule_scope_returning_rules: BTreeMap::new(),
             rule_scope_vars: vec![BTreeMap::new()],
             type_fields: BTreeMap::new(),
@@ -12406,6 +12497,39 @@ impl TypeChecker {
         }
     }
 
+    fn typed_rule_arg_parts(arg: &Expr) -> Option<(&Expr, &str)> {
+        let ExprKind::App(func, args) = &arg.kind else {
+            return None;
+        };
+        if !matches!(&func.kind, ExprKind::Var(n) if n == "__typed") || args.len() != 2 {
+            return None;
+        }
+        let ExprKind::Var(type_name) = &args[1].kind else {
+            return None;
+        };
+        Some((&args[0], type_name.as_str()))
+    }
+
+    fn rule_head_param_name(arg: &Expr) -> Option<String> {
+        if let Some((inner, _)) = Self::typed_rule_arg_parts(arg) {
+            return Self::rule_head_param_name(inner);
+        }
+        match &arg.kind {
+            ExprKind::Var(name) if !name.starts_with(|c: char| c.is_uppercase()) && name != "_" => {
+                Some(name.clone())
+            }
+            _ => None,
+        }
+    }
+
+    fn rule_head_param_names(head: &Expr) -> Option<Vec<String>> {
+        match &head.kind {
+            ExprKind::App(_, args) => args.iter().map(Self::rule_head_param_name).collect(),
+            ExprKind::Var(_) => Some(vec![]),
+            _ => None,
+        }
+    }
+
     fn rule_head_name_arity(head: &Expr) -> Option<(String, usize)> {
         match &head.kind {
             ExprKind::App(func, args) => match &func.kind {
@@ -12526,6 +12650,82 @@ impl TypeChecker {
         }
     }
 
+    fn check_named_call_args(
+        &mut self,
+        expr: &Expr,
+        kind: &str,
+        callable: &str,
+        args: &[Expr],
+        params: &[String],
+    ) {
+        if args.iter().any(|arg| !is_named_arg_expr(arg)) {
+            self.error_at_expr(
+                expr,
+                format!(
+                    "{} `{}` call mixes named and positional arguments; use either all named arguments or all positional arguments",
+                    kind, callable
+                ),
+            );
+            for arg in args {
+                if let Some((_, value)) = named_arg_parts(arg) {
+                    self.check_expr(value, None);
+                } else {
+                    self.check_expr(arg, None);
+                }
+            }
+            return;
+        }
+
+        let param_set: BTreeSet<&str> = params.iter().map(|param| param.as_str()).collect();
+        let mut seen = BTreeSet::new();
+        for arg in args {
+            if let Some((param, value)) = named_arg_parts(arg) {
+                if !param_set.contains(param) {
+                    self.error_at_expr(
+                        arg,
+                        format!("{} `{}` has no parameter `{}`", kind, callable, param),
+                    );
+                }
+                if !seen.insert(param.to_string()) {
+                    self.error_at_expr(
+                        arg,
+                        format!(
+                            "{} `{}` parameter `{}` was provided more than once",
+                            kind, callable, param
+                        ),
+                    );
+                }
+                self.check_expr(value, None);
+            }
+        }
+
+        if args.len() != params.len() {
+            self.error_at_expr(
+                expr,
+                format!(
+                    "{} `{}` expects {} named argument{} but got {}",
+                    kind,
+                    callable,
+                    params.len(),
+                    if params.len() == 1 { "" } else { "s" },
+                    args.len()
+                ),
+            );
+        }
+
+        for param in params {
+            if !seen.contains(param) {
+                self.error_at_expr(
+                    expr,
+                    format!(
+                        "{} `{}` is missing named argument `{}`",
+                        kind, callable, param
+                    ),
+                );
+            }
+        }
+    }
+
     fn rule_scope_return_candidate(rule: &Rule) -> Option<(String, String)> {
         let (rule_name, _) = Self::rule_name_arity(rule)?;
         let value = match rule {
@@ -12551,6 +12751,26 @@ impl TypeChecker {
         methods
     }
 
+    fn rule_scope_method_params(body: &[Stmt]) -> BTreeMap<String, Vec<String>> {
+        let mut methods = BTreeMap::new();
+        for stmt in body {
+            if let Stmt::Rule(rule) = stmt {
+                let head = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    Rule::ReactiveScope { .. } => continue,
+                };
+                if let Some((method, _)) = Self::rule_name_arity(rule) {
+                    if let Some(params) = Self::rule_head_param_names(head) {
+                        methods.entry(method).or_insert(params);
+                    }
+                }
+            }
+        }
+        methods
+    }
+
     fn rule_scope_value_method_arities(body: &[Stmt]) -> BTreeMap<String, usize> {
         let mut methods = BTreeMap::new();
         for stmt in body {
@@ -12560,6 +12780,23 @@ impl TypeChecker {
                     .filter(|param| param.name.as_str() != "self")
                     .count();
                 methods.insert(name.clone(), arity);
+            }
+        }
+        methods
+    }
+
+    fn rule_scope_value_method_params(body: &[Stmt]) -> BTreeMap<String, Vec<String>> {
+        let mut methods = BTreeMap::new();
+        for stmt in body {
+            if let Stmt::Defn(Defn::Fn { name, params, .. }) = stmt {
+                methods.insert(
+                    name.clone(),
+                    params
+                        .iter()
+                        .filter(|param| param.name.as_str() != "self")
+                        .map(|param| param.name.clone())
+                        .collect(),
+                );
             }
         }
         methods
@@ -12663,9 +12900,30 @@ impl TypeChecker {
         }
 
         let old_functions = self.functions.clone();
+        let old_function_params = self.function_params.clone();
         let old_user_functions = self.user_functions.clone();
         for (method, arity) in &methods {
             self.functions.insert(method.clone(), *arity);
+            if let Some(params) = self
+                .rule_scope_method_params
+                .get(name)
+                .and_then(|by_method| by_method.get(method))
+                .cloned()
+            {
+                self.function_params.insert(method.clone(), params);
+            }
+            self.user_functions.insert(method.clone());
+        }
+        for (method, arity) in &value_methods {
+            self.functions.insert(method.clone(), *arity);
+            if let Some(params) = self
+                .rule_scope_value_method_params
+                .get(name)
+                .and_then(|by_method| by_method.get(method))
+                .cloned()
+            {
+                self.function_params.insert(method.clone(), params);
+            }
             self.user_functions.insert(method.clone());
         }
 
@@ -12719,6 +12977,7 @@ impl TypeChecker {
         }
 
         self.functions = old_functions;
+        self.function_params = old_function_params;
         self.user_functions = old_user_functions;
         self.pop_context();
     }
@@ -13051,6 +13310,10 @@ impl TypeChecker {
             match stmt {
                 Stmt::Defn(Defn::Fn { name, params, .. }) => {
                     self.functions.insert(name.clone(), params.len());
+                    self.function_params.insert(
+                        name.clone(),
+                        params.iter().map(|param| param.name.clone()).collect(),
+                    );
                     self.user_functions.insert(name.clone());
                     self.define_var(name);
                 }
@@ -13110,6 +13373,10 @@ impl TypeChecker {
                     for defn in methods {
                         if let Defn::Fn { name, params, .. } = defn {
                             self.functions.insert(name.clone(), params.len());
+                            self.function_params.insert(
+                                name.clone(),
+                                params.iter().map(|param| param.name.clone()).collect(),
+                            );
                         }
                     }
                 }
@@ -13122,6 +13389,10 @@ impl TypeChecker {
                         params.iter().map(|param| param.name.clone()).collect(),
                     );
                     self.functions.insert(name.clone(), params.len());
+                    self.function_params.insert(
+                        name.clone(),
+                        params.iter().map(|param| param.name.clone()).collect(),
+                    );
                     self.user_functions.insert(name.clone());
                     self.define_var(name);
                     self.type_fields.insert(
@@ -13130,8 +13401,12 @@ impl TypeChecker {
                     );
                     self.rule_scope_methods
                         .insert(name.clone(), Self::rule_scope_method_arities(body));
+                    self.rule_scope_method_params
+                        .insert(name.clone(), Self::rule_scope_method_params(body));
                     self.rule_scope_value_methods
                         .insert(name.clone(), Self::rule_scope_value_method_arities(body));
+                    self.rule_scope_value_method_params
+                        .insert(name.clone(), Self::rule_scope_value_method_params(body));
                 }
                 Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                     self.types.insert(name.clone());
@@ -13139,6 +13414,10 @@ impl TypeChecker {
                     for (op_name, params, _) in ops {
                         ops_map.insert(op_name.clone(), params.len());
                         self.functions.insert(op_name.clone(), params.len());
+                        self.function_params.insert(
+                            op_name.clone(),
+                            params.iter().map(|param| param.name.clone()).collect(),
+                        );
                     }
                     self.effect_ops.insert(name.clone(), ops_map);
                 }
@@ -13148,6 +13427,14 @@ impl TypeChecker {
                     for method in methods {
                         self.functions
                             .insert(method.name.clone(), method.params.len());
+                        self.function_params.insert(
+                            method.name.clone(),
+                            method
+                                .params
+                                .iter()
+                                .map(|param| param.name.clone())
+                                .collect(),
+                        );
                         method_names.push(method.name.clone());
                         self.trait_method_receivers.insert(
                             (name.clone(), method.name.clone()),
@@ -13165,6 +13452,10 @@ impl TypeChecker {
                     for defn in methods {
                         if let Defn::Fn { name, params, .. } = defn {
                             self.functions.insert(name.clone(), params.len());
+                            self.function_params.insert(
+                                name.clone(),
+                                params.iter().map(|param| param.name.clone()).collect(),
+                            );
                             method_names.push(name.clone());
                             self.impl_method_receivers.insert(
                                 (trait_name.clone(), for_type.clone(), name.clone()),
@@ -13194,11 +13485,17 @@ impl TypeChecker {
                     if let ExprKind::App(func, args) = &head.kind {
                         if let ExprKind::Var(fname) = &func.as_ref().kind {
                             self.functions.entry(fname.clone()).or_insert(args.len());
+                            if let Some(param_names) = Self::rule_head_param_names(head) {
+                                self.function_params
+                                    .entry(fname.clone())
+                                    .or_insert(param_names);
+                            }
                             self.define_var(fname);
                         }
                     } else if let ExprKind::Var(fname) = &head.kind {
                         // Zero-arg rule without parens: | foo -> Bar
                         self.functions.entry(fname.clone()).or_insert(0);
+                        self.function_params.entry(fname.clone()).or_insert(vec![]);
                         self.define_var(fname);
                     }
                     if let Stmt::Rule(rule) = stmt {
@@ -13895,7 +14192,31 @@ impl TypeChecker {
                             .and_then(|methods| methods.get(method))
                             .copied();
                         if let Some(expected) = scoped_rule_arity {
-                            if args.len() != expected {
+                            if has_named_args(args) {
+                                if let Some(params) = self
+                                    .rule_scope_method_params
+                                    .get(&scope_name)
+                                    .and_then(|methods| methods.get(method))
+                                    .cloned()
+                                {
+                                    self.check_named_call_args(
+                                        expr,
+                                        "scoped rule",
+                                        &format!("{}.{}", scope_name, method),
+                                        args,
+                                        &params,
+                                    );
+                                } else {
+                                    self.error_at_expr(
+                                        expr,
+                                        format!(
+                                            "scoped rule `{}.{}` does not expose named parameters",
+                                            scope_name, method
+                                        ),
+                                    );
+                                }
+                                return;
+                            } else if args.len() != expected {
                                 self.error_at_expr(
                                     expr,
                                     format!(
@@ -13909,7 +14230,31 @@ impl TypeChecker {
                                 );
                             }
                         } else if let Some(expected) = value_method_arity {
-                            if args.len() != expected {
+                            if has_named_args(args) {
+                                if let Some(params) = self
+                                    .rule_scope_value_method_params
+                                    .get(&scope_name)
+                                    .and_then(|methods| methods.get(method))
+                                    .cloned()
+                                {
+                                    self.check_named_call_args(
+                                        expr,
+                                        "method",
+                                        &format!("{}.{}", scope_name, method),
+                                        args,
+                                        &params,
+                                    );
+                                } else {
+                                    self.error_at_expr(
+                                        expr,
+                                        format!(
+                                            "method `{}.{}` does not expose named parameters",
+                                            scope_name, method
+                                        ),
+                                    );
+                                }
+                                return;
+                            } else if args.len() != expected {
                                 self.error_at_expr(
                                     expr,
                                     format!(
@@ -13951,11 +14296,40 @@ impl TypeChecker {
                     if has_named_args(args) {
                         if let Some((_, expected)) = self.constructors.get(name).cloned() {
                             self.check_named_constructor_args(expr, name, args, expected);
+                        } else if let Some(params) = self.function_params.get(name).cloned() {
+                            self.check_named_call_args(expr, "function/rule", name, args, &params);
+                        } else if self.functions.contains_key(name) {
+                            self.error_at_expr(
+                                expr,
+                                format!(
+                                    "function/rule `{}` does not expose named parameters",
+                                    name
+                                ),
+                            );
+                            for arg in args {
+                                if let Some((_, value)) = named_arg_parts(arg) {
+                                    self.check_expr(value, _in_fn);
+                                } else {
+                                    self.check_expr(arg, _in_fn);
+                                }
+                            }
+                        } else if self.builtins.contains_key(canonical) {
+                            self.error_at_expr(
+                                expr,
+                                format!("named arguments are not supported for builtin `{}`", name),
+                            );
+                            for arg in args {
+                                if let Some((_, value)) = named_arg_parts(arg) {
+                                    self.check_expr(value, _in_fn);
+                                } else {
+                                    self.check_expr(arg, _in_fn);
+                                }
+                            }
                         } else {
                             self.error_at_expr(
                                 expr,
                                 format!(
-                                    "named arguments are only supported for constructor calls; `{}` is not a constructor",
+                                    "named arguments require a known function, rule, or constructor; `{}` is not defined",
                                     name
                                 ),
                             );

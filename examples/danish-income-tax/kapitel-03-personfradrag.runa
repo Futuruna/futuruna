@@ -749,7 +749,10 @@ som nævnt i § 10, stk. 1.
     personlig_indkomst_kroner = -10000,
     positiv_kapitalindkomst_kroner = 2000
 ))
-= par13_fremførsel_fixture = par13_underskud_fremføres(SkattepligtigIndkomstUnderskud, Sandt)
+= par13_fremførsel_fixture = par13_underskud_fremføres(
+    status = SkattepligtigIndkomstUnderskud,
+    ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
+)
 = par13_virksomhed_låst_fixture = par13_virksomhedsunderskud_låses_til_samme_virksomhed(PassivVirksomhedPar4Nr9Eller11)
 = par13_virksomhed_undtagelse_fixture = par13_virksomhedsunderskud_låses_til_samme_virksomhed(TransparentSelskabDeltagetVæsentligt36Måneder)
 = par13_stk5_2025_resultat_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(

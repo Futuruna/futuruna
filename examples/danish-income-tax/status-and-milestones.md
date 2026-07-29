@@ -324,16 +324,17 @@ only so subrules can project one or two fields from it.
 
 Current decision:
 
-- Futuruna already supports named constructor arguments (`Field = value`) for
-  named-field records and scoped-rule constructors. Wide legal/domain records
-  should use named construction at fixture and boundary-assembly points when
-  positional arguments would hide legal meaning, especially for boolean flags,
-  statutory rate rows, tax-credit baskets, and settlement/date cases.
-- A readability sweep now uses named construction for the broad executable
-  Danish-income-tax records found by scan, including boolean-heavy fixtures,
-  statutory rate rows, remittance calendar/history facts, and audit inputs;
-  short date-like triples and compact arithmetic helpers can remain positional
-  where that is still idiomatic.
+- Futuruna supports named arguments (`name = value`) for named-field records,
+  scoped-rule constructors, ordinary functions, rule calls, and scoped-rule
+  member calls. Wide legal/domain records and boolean-bearing legal predicates
+  should use named calls at fixture and boundary-assembly points when
+  positional arguments would hide legal meaning.
+- A readability sweep now uses named construction and named function/rule calls
+  for the broad executable Danish-income-tax records and boolean-heavy calls
+  found by scan, including statutory rate rows, remittance calendar/history
+  facts, household scenario assembly, and audit inputs; short date-like triples
+  and compact arithmetic helpers can remain positional where that is still
+  idiomatic.
 - `opkraevningsloven.runa` now splits the former 11-field remittance input into
   `OpkrævningAfregningsperiode`, `OpkrævningTilsvarHistorik`,
   `OpkrævningBankkalender`, `OpkrævningBetaling`, and a small composed

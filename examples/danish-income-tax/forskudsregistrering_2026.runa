@@ -93,8 +93,16 @@ bekendtgørelse nr. 839 af 24. juni 2025 om kildeskat.
     par8c_basispoint = 0
 ) under skatteår == 2026 && parameterpakke_komplet(skatteår, kommune)
 
-= forskudsregistrering_2026_københavn_uden_kirke = forskudsregistrering_2026_skattekommune_for(2026, København, Falskt)
-= forskudsregistrering_2026_københavn_med_kirke = forskudsregistrering_2026_skattekommune_for(2026, København, Sandt)
+= forskudsregistrering_2026_københavn_uden_kirke = forskudsregistrering_2026_skattekommune_for(
+    skatteår = 2026,
+    kommune = København,
+    betaler_kirkeskat = Falskt
+)
+= forskudsregistrering_2026_københavn_med_kirke = forskudsregistrering_2026_skattekommune_for(
+    skatteår = 2026,
+    kommune = København,
+    betaler_kirkeskat = Sandt
+)
 = forskudsregistrering_2026_almindelig_input = Forskudsregistrering2026IndeholdelsesprocentInput(
     skattekommune = forskudsregistrering_2026_københavn_uden_kirke,
     progressionsgrundlag = Forskudsregistrering2026Progressionsgrundlag(
