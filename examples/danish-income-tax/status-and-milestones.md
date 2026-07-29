@@ -371,6 +371,11 @@ Current decision:
   the spouse's positive net-capital income, the regulated grundbeløb, and
   samliv status together so negative capital is offset before the spouse's
   effective threshold is increased.
+- `Par8cSkatSag` uses product-scoped `|` rules for the § 8 c municipal
+  equivalent tax. It keeps tax year, limited-taxpayer posture, taxable ordinary
+  income, and the § 10 stk. 5 personfradrag amount together so coverage,
+  taxable base, published rate, personfradrag tax value, and final § 8 c tax
+  are derived from one legal case.
 - `slutopgoerelse.runa` keeps the year-end balance as `KildeskatSlutopgørelseInput`
   plus a statutory `KildeskatPar60Kreditter` credit basket. This is a better
   domain boundary than passing A-skat, AM-bidrag, B-skat, dividend-tax credits,
@@ -772,6 +777,9 @@ M4 - Ordinary taxpayer calculator
   leaves 7.900 kr. restskat after 19.062 kr. dividend-tax credit. The source-law
   module now also covers § 8 a, stk. 3 as a separate scoped rule case for
   over-withheld dividend tax and negative-share-income full credit.
+  Personskatteloven § 8 c now computes the municipal-equivalent tax for covered
+  limited-taxpayer postures, using the Skatteministeriet-published 25 pct.
+  2026 rate and the same personfradrag reduction posture as § 10 stk. 5.
 
 M5 - Audit suite
 
@@ -793,7 +801,8 @@ M5 - Audit suite
   overskydende skat compensation/dividend-tax credit posture, covered § 8 a
   share-income final-settlement scenarios with § 67 dividend-tax credit
   splitting plus § 8 a, stk. 3 over-withheld/negative-share-income dividend-tax
-  credits, covered fictional
+  credits, covered § 8 c municipal-equivalent limited-taxpayer tax with
+  personfradrag reduction and non-covered boundary case, covered fictional
   household scenario, covered Børne- og ungeydelse
   benefit-cliff/source-tension audit plus a first boligsikring § 22 threshold
   cliff, covered external Skat.dk 2026
@@ -840,6 +849,7 @@ M6 - Website integration
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   first § 4 a pension/share-income audit,
   first § 8 a/§ 67 share-income annual-settlement scenario,
+  first § 8 c limited-taxpayer municipal-equivalent tax calculation,
   first § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
   household benefit-cliff/source-tension probe plus a boligsikring § 22
   threshold-cliff probe,

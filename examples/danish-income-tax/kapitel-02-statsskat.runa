@@ -737,9 +737,16 @@ skattepligtige indkomst og udgør 22 pct.
 | selskabsskattelov_par17_stk1_sats_basispoint(skatteår: Heltal) -> 2200 under skatteår >= 2024
 | cfc_skat_sats_basispoint(skatteår: Heltal) -> selskabsskattelov_par17_stk1_sats_basispoint(skatteår)
 | cfc_skat_kroner(input: CfcSkatInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.cfc_indkomst_kroner), cfc_skat_sats_basispoint(input.skatteår))
-| cfc_skat_resultat(input: CfcSkatInput) -> CfcSkatResultat(penge_positivt_beløb(input.cfc_indkomst_kroner), cfc_skat_sats_basispoint(input.skatteår), cfc_skat_kroner(input))
+| cfc_skat_resultat(input: CfcSkatInput) -> CfcSkatResultat(
+    cfc_indkomst_kroner = penge_positivt_beløb(input.cfc_indkomst_kroner),
+    sats_basispoint = cfc_skat_sats_basispoint(input.skatteår),
+    skat_kroner = cfc_skat_kroner(input)
+)
 
-= par8b_cfc_500k = cfc_skat_resultat(CfcSkatInput(2026, 500000))
+= par8b_cfc_500k = cfc_skat_resultat(CfcSkatInput(
+    skatteår = 2026,
+    cfc_indkomst_kroner = 500000
+))
 
 | par8b_cfc_selskabsskat_sats: cfc_skat_sats_basispoint(2026) -> cfc_skat_sats_basispoint(2026) == 2200
 | par8b_cfc_500k_skat: par8b_cfc_500k -> par8b_cfc_500k.skat_kroner == 110000
@@ -760,7 +767,18 @@ de beregnede skatter under anvendelse af personfradrag, nedsættes skatten
 svarende til den kommunale indkomstskat under anvendelse af samme personfradrag.
 ----
 
+----
+Skatteministeriet, "Begrænset skattepligtige - kommunal skattesats",
+opdateret 27-10-2025:
+Tabel 1 angiver skattesatsen for kommunal indkomstskat for begrænset
+skattepligtige til 25 pct. for indkomstårene 2023-2026.
+Kilde:
+https://skm.dk/tal-og-metode/satser/statistik-i-kommunerne/begraenset-skattepligtige-kommunal-skattesats
+----
+
 # Par8cPersonstatus = Ksl2Nr1_2_4_5_7_9Til25EllerStk2 | Ksl2Nr3ValgtSomNr1 | Kulbrinte21Stk2ValgtSomNr1 | SøfolkPar9ValgtSomNr1 | IkkePar8cOmfattet
+# Par8cSkatInput(skatteår: Heltal, status: Par8cPersonstatus, skattepligtig_almindelig_indkomst_kroner: Heltal, personfradrag_kroner: Heltal)
+# Par8cSkatResultat(omfattet: Boolsk, skattepligtig_almindelig_indkomst_kroner: Heltal, skattegrundlag_kroner: Heltal, sats_basispoint: Heltal, skat_før_personfradrag_kroner: Heltal, personfradrag_skatteværdi_kroner: Heltal, skat_efter_personfradrag_kroner: Heltal)
 
 | par8c_omfattet(status: Par8cPersonstatus) -> Falskt
 | exception ksl_hovedgruppe par8c_omfattet(status: Par8cPersonstatus) -> Sandt under status == Ksl2Nr1_2_4_5_7_9Til25EllerStk2
@@ -769,12 +787,59 @@ svarende til den kommunale indkomstskat under anvendelse af samme personfradrag.
 | exception søfolk_valg par8c_omfattet(status: Par8cPersonstatus) -> Sandt under status == SøfolkPar9ValgtSomNr1
 | par8c_sats_er_kommunalt_gennemsnit_nedrundet() -> Sandt
 | par8c_personfradrag_nedsætter_samme_skat() -> Sandt
+| par8c_sats_basispoint(skatteår: Heltal) -> 2500 under skatteår >= 2023 && skatteår <= 2026
+
+# Par8cSkatSag(input: Par8cSkatInput) {
+    | omfattet() -> par8c_omfattet(input.status)
+    | skattepligtig_almindelig_indkomst_kroner() -> penge_positivt_beløb(input.skattepligtig_almindelig_indkomst_kroner)
+    | skattegrundlag_kroner() -> 0
+    | exception par8c_omfattet_skattegrundlag skattegrundlag_kroner() -> skattepligtig_almindelig_indkomst_kroner() under omfattet()
+    | sats_basispoint() -> par8c_sats_basispoint(input.skatteår)
+    | skat_før_personfradrag_kroner() -> penge_beløb_gange_basispoint_kroner(skattegrundlag_kroner(), sats_basispoint())
+    | personfradrag_grundlag_kroner() -> penge_positivt_beløb(input.personfradrag_kroner)
+    | personfradrag_skatteværdi_kroner() -> 0
+    | exception par8c_stk2_personfradrag_nedsætter personfradrag_skatteværdi_kroner() -> penge_beløb_gange_basispoint_kroner(personfradrag_grundlag_kroner(), sats_basispoint()) under omfattet() && personfradrag_grundlag_kroner() > 0
+    | skat_efter_personfradrag_kroner() -> penge_positivt_beløb(skat_før_personfradrag_kroner() - personfradrag_skatteværdi_kroner())
+    | resultat() -> Par8cSkatResultat(
+        omfattet = omfattet(),
+        skattepligtig_almindelig_indkomst_kroner = skattepligtig_almindelig_indkomst_kroner(),
+        skattegrundlag_kroner = skattegrundlag_kroner(),
+        sats_basispoint = sats_basispoint(),
+        skat_før_personfradrag_kroner = skat_før_personfradrag_kroner(),
+        personfradrag_skatteværdi_kroner = personfradrag_skatteværdi_kroner(),
+        skat_efter_personfradrag_kroner = skat_efter_personfradrag_kroner()
+    )
+}
+| par8c_skat_sag(input: Par8cSkatInput) -> Par8cSkatSag(input)
+| par8c_skat_resultat(input: Par8cSkatInput) -> par8c_skat_sag(input).resultat()
 
 = par8c_omfattet_ksl = par8c_omfattet(Ksl2Nr1_2_4_5_7_9Til25EllerStk2)
 = par8c_ikke_omfattet = par8c_omfattet(IkkePar8cOmfattet)
+= par8c_2026_begrænset_skat = par8c_skat_resultat(Par8cSkatInput(
+    skatteår = 2026,
+    status = Ksl2Nr1_2_4_5_7_9Til25EllerStk2,
+    skattepligtig_almindelig_indkomst_kroner = 300000,
+    personfradrag_kroner = 0
+))
+= par8c_2026_personfradrag = par8c_skat_resultat(Par8cSkatInput(
+    skatteår = 2026,
+    status = Ksl2Nr1_2_4_5_7_9Til25EllerStk2,
+    skattepligtig_almindelig_indkomst_kroner = 300000,
+    personfradrag_kroner = 54100
+))
+= par8c_2026_ikke_omfattet_skat = par8c_skat_resultat(Par8cSkatInput(
+    skatteår = 2026,
+    status = IkkePar8cOmfattet,
+    skattepligtig_almindelig_indkomst_kroner = 300000,
+    personfradrag_kroner = 54100
+))
 
 | par8c_ksl_omfattet: par8c_omfattet_ksl -> par8c_omfattet_ksl == Sandt
 | par8c_ikke_omfattet_afvises: par8c_ikke_omfattet -> par8c_ikke_omfattet == Falskt
+| par8c_2026_sats_fra_skm: par8c_sats_basispoint(2026) -> par8c_sats_basispoint(2026) == 2500
+| par8c_2026_begrænset_skat_beregnes: par8c_2026_begrænset_skat -> par8c_2026_begrænset_skat.omfattet == Sandt && par8c_2026_begrænset_skat.skattegrundlag_kroner == 300000 && par8c_2026_begrænset_skat.sats_basispoint == 2500 && par8c_2026_begrænset_skat.skat_før_personfradrag_kroner == 75000 && par8c_2026_begrænset_skat.skat_efter_personfradrag_kroner == 75000
+| par8c_2026_personfradrag_nedsætter_skat: par8c_2026_personfradrag -> par8c_2026_personfradrag.personfradrag_skatteværdi_kroner == 13525 && par8c_2026_personfradrag.skat_efter_personfradrag_kroner == 61475
+| par8c_2026_ikke_omfattet_beregner_ikke_skat: par8c_2026_ikke_omfattet_skat -> par8c_2026_ikke_omfattet_skat.omfattet == Falskt && par8c_2026_ikke_omfattet_skat.skattegrundlag_kroner == 0 && par8c_2026_ikke_omfattet_skat.skat_før_personfradrag_kroner == 0 && par8c_2026_ikke_omfattet_skat.skat_efter_personfradrag_kroner == 0
 
 ----
 § 9. Indkomstskatten efter §§ 6, 7, 7 a og 8 og § 8 a, stk. 2, til staten skal,
