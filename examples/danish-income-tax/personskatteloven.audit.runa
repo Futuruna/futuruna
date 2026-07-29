@@ -21,6 +21,7 @@
 @ importer ./aktieindkomst - pension.audit
 @ importer ./aktieindkomst - slutopgoerelse.scenario
 @ importer ./personskatteloven - bomber.audit
+@ importer ./personskatteloven - konfiskatorisk.audit
 @ importer ./slutopgoerelse.scenario
 @ importer ./indeholdelse - afregning.scenario
 @ importer ./kapitel - 04 - omregning - skatteloft
@@ -84,7 +85,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Par10PersonfradragSkattepligtDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8cKommunalLignendeSkatDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PengeAfrundingsposturDækket | PersonfradragNormalfixtureDækket | Par10PersonfradragSkattepligtDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8cKommunalLignendeSkatDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -772,6 +773,7 @@ virksomhedsunderskud.
 = m5_skatdk_ekstern_kort_fixture = skatdk_2026_københavn_600k_kort
 = m5_par4a_pensionsfradrag_fixture = audit_par4a_pensionsfradrag_samlet()
 = m5_personskat_bomb_audit_fixture = personskat_bomb_audit_samlet()
+= m5_konfiskatorisk_audit_fixture = konfiskatorisk_audit_samlet
 = m5_kildeskat_løn_fixture = kildeskat_a_indkomst_beløb_kroner(KildeskatAIndkomstInput(
     vederlag_i_penge_kroner = 50000,
     fri_kost_og_logi_skatteværdi_kroner = 0,
@@ -929,6 +931,8 @@ virksomhedsunderskud.
 | m5_audit_par4a_pensionsfradrag_signal: audit_signal(Par4aPensionsfradragDækket) -> audit_signal(Par4aPensionsfradragDækket) == Sandt
 | m5_personskat_bomb_audit_dækket: m5_personskat_bomb_audit_fixture -> m5_personskat_bomb_audit_fixture == Sandt
 | m5_audit_personskat_bomb_signal: audit_signal(PersonskatBombAuditDækket) -> audit_signal(PersonskatBombAuditDækket) == Sandt
+| m5_konfiskatorisk_audit_dækket: m5_konfiskatorisk_audit_fixture -> m5_konfiskatorisk_audit_fixture == Sandt
+| m5_audit_konfiskatorisk_signal: audit_signal(KonfiskatoriskEffektivSatsAuditDækket) -> audit_signal(KonfiskatoriskEffektivSatsAuditDækket) == Sandt
 | m5_kildeskat_løn_a_indkomst_dækket: m5_kildeskat_løn_fixture -> m5_kildeskat_løn_fixture == 50000
 | m5_kildeskat_indeholdelsespligt_dækket: m5_kildeskat_indeholdelsespligt_fixture -> m5_kildeskat_indeholdelsespligt_fixture == Sandt
 | m5_kildeskat_manglende_kort_55_pct_dækket: m5_kildeskat_manglende_kort_fixture -> m5_kildeskat_manglende_kort_fixture == 27500
@@ -1033,6 +1037,8 @@ virksomhedsunderskud.
 ? m5_audit_par4a_pensionsfradrag_signal
 ? m5_personskat_bomb_audit_dækket
 ? m5_audit_personskat_bomb_signal
+? m5_konfiskatorisk_audit_dækket
+? m5_audit_konfiskatorisk_signal
 ? m5_kildeskat_løn_a_indkomst_dækket
 ? m5_kildeskat_indeholdelsespligt_dækket
 ? m5_kildeskat_manglende_kort_55_pct_dækket
@@ -1204,4 +1210,4 @@ afgrænsning.
 ? m5_audit_par26_signal
 ? m5_audit_par28_signal
 
-@ print("m5 audit: 2026-reform inkl. § 6 ægtefællekapitalmodregning, § 7 stk. 5 ægtefællekapitalgrundbeløb, mellemskat kapitalgren, § 4 a pensionsfradrag i aktieindkomst, § 8 a aktieindkomst i slutopgørelse med § 67 udbytteskatmodregning og særskilt stk. 3 overindeholdt/negativ udbytteskat, § 8 c kommunallignende skat for begrænset skattepligt med personfradragsnedsættelse, § 10 stk. 5-6 personfradrag for KSL § 2 med valgfrister og undtagelser, § 11 negativ nettokapital-nedslag med ægtefællegrænse, positiv modregning, modregningsorden og uudnyttet ægtefælleoverførsel, § 12 omfordeling af personfradragets skatteværdi mellem § 9-statsskatter, § 14 delårs-lønmodtager og ekstern DJV-differential, personlig og positiv-kapital § 19 skatteloft i lønmodtagerberegningen inkl. Langeland høj kommuneskat og ekstern SKM-nedslag, grouped lønmodtager domain-model projection, fælles Pengebeløb-afrunding, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Skat.dk ekstern 2026 normalcase-fixture, bomb-audit for § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions, Børne- og ungeydelse benefit-cliff/source-tension audit og boligsikring § 22 threshold-cliff audit, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")
+@ print("m5 audit: 2026-reform inkl. § 6 ægtefællekapitalmodregning, § 7 stk. 5 ægtefællekapitalgrundbeløb, mellemskat kapitalgren, § 4 a pensionsfradrag i aktieindkomst, § 8 a aktieindkomst i slutopgørelse med § 67 udbytteskatmodregning og særskilt stk. 3 overindeholdt/negativ udbytteskat, § 8 c kommunallignende skat for begrænset skattepligt med personfradragsnedsættelse, § 10 stk. 5-6 personfradrag for KSL § 2 med valgfrister og undtagelser, § 11 negativ nettokapital-nedslag med ægtefællegrænse, positiv modregning, modregningsorden og uudnyttet ægtefælleoverførsel, § 12 omfordeling af personfradragets skatteværdi mellem § 9-statsskatter, § 14 delårs-lønmodtager og ekstern DJV-differential, personlig og positiv-kapital § 19 skatteloft i lønmodtagerberegningen inkl. Langeland høj kommuneskat og ekstern SKM-nedslag, grouped lønmodtager domain-model projection, fælles Pengebeløb-afrunding, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Skat.dk ekstern 2026 normalcase-fixture, bomb-audit for § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions, konfiskatorisk effektiv-sats audit for årsskat vs betalingsbelastning, Børne- og ungeydelse benefit-cliff/source-tension audit og boligsikring § 22 threshold-cliff audit, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")

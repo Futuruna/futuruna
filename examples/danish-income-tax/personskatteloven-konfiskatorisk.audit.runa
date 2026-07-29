@@ -1,0 +1,191 @@
+@ sprog da
+
+@ importer ./loenmodtager_beregning
+@ importer ./aktieindkomst - slutopgoerelse.scenario
+
+-- Personskatteloven -- confiscatory effective-rate audit.
+--
+-- This file is deliberately an audit file. It searches a bounded configuration
+-- space for cases where the encoded tax burden can exceed the income base.
+
+----
+Audit probe sources:
+
+Personskatteloven §§ 1, 3, 5-9, 12 and 19:
+Retsinformation, LBK nr. 1284 af 14/06/2021.
+https://www.retsinformation.dk/eli/lta/2021/1284
+
+Personskatteloven § 8 a aktieindkomst:
+Retsinformation, LBK nr. 1284 af 14/06/2021.
+https://www.retsinformation.dk/eli/lta/2021/1284
+
+Personskatteloven § 19 and the 2026 state-tax reform:
+LOV nr. 482 af 22/05/2024.
+https://www.retsinformation.dk/eli/lta/2024/482
+
+Kildeskatteloven §§ 60-61:
+Retsinformation, LBK nr. 460 af 03/05/2024.
+https://www.retsinformation.dk/eli/lta/2024/460
+
+Tax-year, municipal, church-tax and share-income rates:
+Skattestyrelsen, "Se alle skattesatser for i år og de forudgående år".
+https://skat.dk/hjaelp/satser
+
+Skatteministeriet, "Oversigt over kommuneskatter" and
+"Kommuneskattesatser 2026".
+https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter
+
+Purpose:
+The probe keeps two denominators visible. "Årsskat" is current-year tax on
+current positive wage, positive net-capital income and positive share income.
+"Betalingsbelastning" additionally includes transferred restskat m.v. under
+Kildeskatteloven. A payment burden can exceed current-year income without the
+current-year Personskatteloven tax itself doing so.
+----
+
+# KonfiskatoriskÅrKommune(skatteår: Heltal, kommune: Kommune)
+# KonfiskatoriskSøgenøgle(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk, betaler_kirkeskat: Boolsk, overført_restskat_mv_kroner: Heltal)
+# KonfiskatoriskSøgeresultat(nøgle: KonfiskatoriskSøgenøgle, årsopgørelse: AktieindkomstSlutopgørelseResult, positiv_indkomstgrundlag_kroner: Heltal, årsskat_kroner: Heltal, årsskat_basispoint: Heltal, betalingsbelastning_kroner: Heltal, betalingsbelastning_basispoint: Heltal)
+
+# KonfiskatoriskCase(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk, betaler_kirkeskat: Boolsk, overført_restskat_mv_kroner: Heltal) {
+    | nøgle() -> KonfiskatoriskSøgenøgle(
+        skatteår = skatteår,
+        kommune = kommune,
+        bruttoløn_kroner = bruttoløn_kroner,
+        positiv_nettokapitalindkomst_kroner = positiv_nettokapitalindkomst_kroner,
+        aktieindkomst_kroner = aktieindkomst_kroner,
+        ægtefælle_aktieindkomst_kroner = ægtefælle_aktieindkomst_kroner,
+        samlevende_ved_årets_udløb = samlevende_ved_årets_udløb,
+        betaler_kirkeskat = betaler_kirkeskat,
+        overført_restskat_mv_kroner = overført_restskat_mv_kroner
+    )
+    | lønmodtager_input() -> LønmodtagerInput(
+        skatteår = skatteår,
+        kommune = kommune,
+        bruttoløn_kroner = bruttoløn_kroner,
+        positiv_nettokapitalindkomst_kroner = positiv_nettokapitalindkomst_kroner,
+        ligningsmæssige_fradrag_kroner = 0,
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = betaler_kirkeskat
+    )
+    | lønmodtager() -> beregn_lønmodtager(lønmodtager_input())
+    | aktie_slutopgørelse_case() -> AktieindkomstSlutopgørelseCase(
+        person = lønmodtager(),
+        a_skat_månedligt_kroner = 0,
+        aktieindkomst_kroner = aktieindkomst_kroner,
+        ægtefælle_aktieindkomst_kroner = ægtefælle_aktieindkomst_kroner,
+        samlevende_ved_årets_udløb = samlevende_ved_årets_udløb,
+        indeholdt_udbytteskat_kroner = 0
+    )
+    | årsopgørelse() -> konfiskatorisk_aktie_slutopgørelse_resultat(aktie_slutopgørelse_case())
+    | positiv_indkomstgrundlag_kroner() -> bruttoløn_kroner + positiv_nettokapitalindkomst_kroner + aktieindkomst_kroner
+    | årsskat_kroner() -> årsopgørelse().samlet_skat_inkl_endelig_aktieskat_kroner
+    | årsskat_basispoint() -> konfiskatorisk_effektiv_basispoint(årsskat_kroner(), positiv_indkomstgrundlag_kroner())
+    | betalingsbelastning_kroner() -> årsskat_kroner() + overført_restskat_mv_kroner
+    | betalingsbelastning_basispoint() -> konfiskatorisk_effektiv_basispoint(betalingsbelastning_kroner(), positiv_indkomstgrundlag_kroner())
+    | resultat() -> KonfiskatoriskSøgeresultat(
+        nøgle = nøgle(),
+        årsopgørelse = årsopgørelse(),
+        positiv_indkomstgrundlag_kroner = positiv_indkomstgrundlag_kroner(),
+        årsskat_kroner = årsskat_kroner(),
+        årsskat_basispoint = årsskat_basispoint(),
+        betalingsbelastning_kroner = betalingsbelastning_kroner(),
+        betalingsbelastning_basispoint = betalingsbelastning_basispoint()
+    )
+}
+
+| konfiskatorisk_aktie_slutopgørelse_resultat(case: AktieindkomstSlutopgørelseCase) -> case.resultat()
+| konfiskatorisk_resultat(case: KonfiskatoriskCase) -> case.resultat()
+| konfiskatorisk_effektiv_basispoint(belastning_kroner: Heltal, indkomstgrundlag_kroner: Heltal) -> 0 under indkomstgrundlag_kroner <= 0
+| exception positivt_indkomstgrundlag konfiskatorisk_effektiv_basispoint(belastning_kroner: Heltal, indkomstgrundlag_kroner: Heltal) -> belastning_kroner * 10000 / indkomstgrundlag_kroner under indkomstgrundlag_kroner > 0
+
+= konfiskatorisk_år_kommuner = [
+    KonfiskatoriskÅrKommune(skatteår = 2024, kommune = København),
+    KonfiskatoriskÅrKommune(skatteår = 2024, kommune = Gentofte),
+    KonfiskatoriskÅrKommune(skatteår = 2025, kommune = København),
+    KonfiskatoriskÅrKommune(skatteår = 2025, kommune = Gentofte),
+    KonfiskatoriskÅrKommune(skatteår = 2026, kommune = København),
+    KonfiskatoriskÅrKommune(skatteår = 2026, kommune = Gentofte),
+    KonfiskatoriskÅrKommune(skatteår = 2026, kommune = Langeland)
+]
+= konfiskatorisk_bruttoløn_trin = [0, 100000, 600000, 900000, 1500000, 3000000]
+= konfiskatorisk_kapital_trin = [0, 110000, 500000]
+= konfiskatorisk_aktie_trin = [0, 79400, 150000, 300000]
+= konfiskatorisk_ægtefælle_aktie_trin = [0, 50000]
+= konfiskatorisk_samliv_trin = [Falskt, Sandt]
+= konfiskatorisk_kirkeskat_trin = [Falskt, Sandt]
+= konfiskatorisk_overført_restskat_trin = [0, 150000]
+
+= konfiskatorisk_søgecases = flat_map(konfiskatorisk_år_kommuner, |ak| {
+    flat_map(konfiskatorisk_bruttoløn_trin, |løn| {
+        flat_map(konfiskatorisk_kapital_trin, |kapital| {
+            flat_map(konfiskatorisk_aktie_trin, |aktie| {
+                flat_map(konfiskatorisk_ægtefælle_aktie_trin, |ægtefælle_aktie| {
+                    flat_map(konfiskatorisk_samliv_trin, |samliv| {
+                        flat_map(konfiskatorisk_kirkeskat_trin, |kirkeskat| {
+                            map(konfiskatorisk_overført_restskat_trin, |overført| {
+                                KonfiskatoriskCase(
+                                    skatteår = ak.skatteår,
+                                    kommune = ak.kommune,
+                                    bruttoløn_kroner = løn,
+                                    positiv_nettokapitalindkomst_kroner = kapital,
+                                    aktieindkomst_kroner = aktie,
+                                    ægtefælle_aktieindkomst_kroner = ægtefælle_aktie,
+                                    samlevende_ved_årets_udløb = samliv,
+                                    betaler_kirkeskat = kirkeskat,
+                                    overført_restskat_mv_kroner = overført
+                                )
+                            })
+                        })
+                    })
+                })
+            })
+        })
+    })
+})
+
+= konfiskatorisk_søgeresultater = map(konfiskatorisk_søgecases, |c: KonfiskatoriskCase| konfiskatorisk_resultat(c))
+= konfiskatorisk_årsskat_over100 = filter(konfiskatorisk_søgeresultater, |r| r.årsskat_basispoint > 10000)
+= konfiskatorisk_betalingsbelastning_over100 = filter(konfiskatorisk_søgeresultater, |r| r.betalingsbelastning_basispoint > 10000)
+= konfiskatorisk_søgecase_antal = length(konfiskatorisk_søgecases)
+= konfiskatorisk_årsskat_over100_antal = length(konfiskatorisk_årsskat_over100)
+= konfiskatorisk_betalingsbelastning_over100_antal = length(konfiskatorisk_betalingsbelastning_over100)
+
+= konfiskatorisk_højeste_årsskat = foldl(tail(konfiskatorisk_søgeresultater), head(konfiskatorisk_søgeresultater), |bedste, r| if r.årsskat_basispoint > bedste.årsskat_basispoint { r } else { bedste })
+= konfiskatorisk_højeste_betalingsbelastning = foldl(tail(konfiskatorisk_søgeresultater), head(konfiskatorisk_søgeresultater), |bedste, r| if r.betalingsbelastning_basispoint > bedste.betalingsbelastning_basispoint { r } else { bedste })
+
+= konfiskatorisk_betalingsprobe = KonfiskatoriskCase(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 100000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    aktieindkomst_kroner = 0,
+    ægtefælle_aktieindkomst_kroner = 0,
+    samlevende_ved_årets_udløb = Falskt,
+    betaler_kirkeskat = Falskt,
+    overført_restskat_mv_kroner = 150000
+)
+= konfiskatorisk_betalingsprobe_resultat = konfiskatorisk_resultat(konfiskatorisk_betalingsprobe)
+= konfiskatorisk_betalingsprobe_adskiller = konfiskatorisk_betalingsprobe_resultat.årsskat_basispoint < 10000 && konfiskatorisk_betalingsprobe_resultat.betalingsbelastning_basispoint > 10000
+
+= konfiskatorisk_audit_samlet = konfiskatorisk_årsskat_over100_antal == 0 && konfiskatorisk_betalingsbelastning_over100_antal > 0 && konfiskatorisk_betalingsprobe_resultat.betalingsbelastning_basispoint > 10000
+
+| konfiskatorisk_søgerum_har_forventet_størrelse: konfiskatorisk_søgecase_antal -> konfiskatorisk_søgecase_antal == 8064
+| konfiskatorisk_årsskat_ikke_over100_i_søgerum: konfiskatorisk_årsskat_over100_antal -> konfiskatorisk_årsskat_over100_antal == 0
+| konfiskatorisk_betalingsbelastning_kan_over100_i_søgerum: konfiskatorisk_betalingsbelastning_over100_antal -> konfiskatorisk_betalingsbelastning_over100_antal > 0
+| konfiskatorisk_betalingsprobe_adskiller_årsskat_og_betaling: konfiskatorisk_betalingsprobe_adskiller -> konfiskatorisk_betalingsprobe_adskiller == Sandt
+
+? konfiskatorisk_søgerum_har_forventet_størrelse
+? konfiskatorisk_årsskat_ikke_over100_i_søgerum
+? konfiskatorisk_betalingsbelastning_kan_over100_i_søgerum
+? konfiskatorisk_betalingsprobe_adskiller_årsskat_og_betaling
+
+@ print("konfiskatorisk audit søgerum: " + vis(konfiskatorisk_søgecase_antal))
+@ print("konfiskatorisk audit årsskat > 100 pct. fund: " + vis(konfiskatorisk_årsskat_over100_antal))
+@ print("konfiskatorisk audit højeste årsskat basispoint: " + vis(konfiskatorisk_højeste_årsskat.årsskat_basispoint))
+@ print("konfiskatorisk audit højeste årsskat case: " + vis(konfiskatorisk_højeste_årsskat.nøgle))
+@ print("konfiskatorisk audit betalingsbelastning > 100 pct. fund: " + vis(konfiskatorisk_betalingsbelastning_over100_antal))
+@ print("konfiskatorisk audit højeste betalingsbelastning basispoint: " + vis(konfiskatorisk_højeste_betalingsbelastning.betalingsbelastning_basispoint))
+@ print("konfiskatorisk audit højeste betalingsbelastning case: " + vis(konfiskatorisk_højeste_betalingsbelastning.nøgle))
+@ print("konfiskatorisk audit betalingsprobe årsskat basispoint: " + vis(konfiskatorisk_betalingsprobe_resultat.årsskat_basispoint))
+@ print("konfiskatorisk audit betalingsprobe betalingsbelastning basispoint: " + vis(konfiskatorisk_betalingsprobe_resultat.betalingsbelastning_basispoint))

@@ -2820,6 +2820,8 @@ const TAX_REMITTANCE: &str =
     include_str!("../../examples/danish-income-tax/indeholdelse-afregning.scenario.runa");
 const TAX_BOMB_AUDIT: &str =
     include_str!("../../examples/danish-income-tax/personskatteloven-bomber.audit.runa");
+const TAX_CONFISCATORY_AUDIT: &str =
+    include_str!("../../examples/danish-income-tax/personskatteloven-konfiskatorisk.audit.runa");
 const TAX_AUDIT: &str =
     include_str!("../../examples/danish-income-tax/personskatteloven.audit.runa");
 
@@ -3636,6 +3638,11 @@ fn ResearchPersonskatteloven() -> Element {
             TAX_BOMB_AUDIT,
         ),
         (
+            "personskatteloven-konfiskatorisk.audit.runa — årsskat vs betalingsbelastning",
+            "confiscatory-audit-code",
+            TAX_CONFISCATORY_AUDIT,
+        ),
+        (
             "personskatteloven.audit.runa — audit-signaler",
             "audit-code",
             TAX_AUDIT,
@@ -3775,7 +3782,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "cliff" }
-                            strong { "Topskat threshold activation and a boligsikring § 22 second-child cliff are executable audit signals" }
+                            strong { "Topskat threshold activation, a boligsikring § 22 second-child cliff, and the confiscatory årsskat-vs-payment-burden distinction are executable audit signals" }
                         }
                     }
                 }

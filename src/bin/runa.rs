@@ -5035,6 +5035,12 @@ fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTre
         }
         ExprKind::UnOp(_, inner) => collect_true_free_vars(inner, free, bound),
         ExprKind::App(func, args) => {
+            if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
+                if let Some(value) = args.get(1) {
+                    collect_true_free_vars(value, free, bound);
+                }
+                return;
+            }
             // findall/search: first arg is a query variable, treat as bound
             if let ExprKind::Var(fn_name) = &func.kind {
                 if (fn_name == "findall" || fn_name == "search") && args.len() >= 2 {
@@ -5165,6 +5171,12 @@ fn collect_free_vars(expr: &Expr, vars: &mut BTreeSet<String>) {
         }
         ExprKind::UnOp(_, inner) => collect_free_vars(inner, vars),
         ExprKind::App(func, args) => {
+            if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
+                if let Some(value) = args.get(1) {
+                    collect_free_vars(value, vars);
+                }
+                return;
+            }
             collect_free_vars(func, vars);
             for a in args {
                 collect_free_vars(a, vars);
@@ -21310,10 +21322,9 @@ impl RustCodegen {
         method: &str,
         fn_ty: FirTy,
     ) {
-        self.types.rule_scope_member_fn_types.insert(
-            (scope_name.to_string(), method.to_string()),
-            fn_ty.clone(),
-        );
+        self.types
+            .rule_scope_member_fn_types
+            .insert((scope_name.to_string(), method.to_string()), fn_ty.clone());
         self.types
             .rule_scope_member_fn_types
             .insert((rust_name.to_string(), method.to_string()), fn_ty);
@@ -22091,14 +22102,12 @@ impl RustCodegen {
                     .unwrap_or(FirTy::Unknown);
                 let fn_ty = Self::fn_type_from_parts(param_tys, ret_ty);
                 self.types.fn_types.insert(method.clone(), fn_ty.clone());
-                self.types.rule_scope_member_fn_types.insert(
-                    (scope_name.to_string(), method.clone()),
-                    fn_ty.clone(),
-                );
-                self.types.rule_scope_member_fn_types.insert(
-                    (rust_name.to_string(), method.clone()),
-                    fn_ty,
-                );
+                self.types
+                    .rule_scope_member_fn_types
+                    .insert((scope_name.to_string(), method.clone()), fn_ty.clone());
+                self.types
+                    .rule_scope_member_fn_types
+                    .insert((rust_name.to_string(), method.clone()), fn_ty);
             }
 
             let mut changed = false;
@@ -42309,6 +42318,42 @@ for x in [1, 2] {
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "42\n42");
+    }
+
+    #[test]
+    fn compiled_typed_rule_head_rulescope_param_can_call_member() {
+        let source = r#"
+# Output(value: Int)
+
+# Case(x: Int) {
+    | result() -> Output(x + 1)
+}
+
+| wrapped(case: Case) -> case.result()
+= instance = Case(41)
+@ print(show(wrapped(instance).value))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "42");
+    }
+
+    #[test]
+    fn compiled_named_constructor_inside_nested_lambda_does_not_capture_marker() {
+        let source = r#"
+# Point(x: Int, y: Int)
+
+= xs = [1, 2]
+= points = flat_map(xs, |x| {
+    map(xs, |y| {
+        Point(x = x, y = y)
+    })
+})
+
+@ print(show(length(points)))
+@ print(show(head(points).x + head(points).y))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "4\n2");
     }
 
     #[test]

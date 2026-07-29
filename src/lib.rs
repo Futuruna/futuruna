@@ -12497,6 +12497,32 @@ impl TypeChecker {
         }
     }
 
+    fn define_rule_head_var_types(&mut self, arg: &Expr) {
+        match &arg.kind {
+            ExprKind::App(func, args) if matches!(&func.kind, ExprKind::Var(n) if n == "__typed") => {
+                if args.len() == 2 {
+                    if let (ExprKind::Var(name), ExprKind::Var(type_name)) =
+                        (&args[0].kind, &args[1].kind)
+                    {
+                        self.define_var_type(name, &Ty::Name(type_name.clone()));
+                    }
+                    self.define_rule_head_var_types(&args[0]);
+                }
+            }
+            ExprKind::App(_, args) => {
+                for arg in args {
+                    self.define_rule_head_var_types(arg);
+                }
+            }
+            ExprKind::Tuple(items) => {
+                for item in items {
+                    self.define_rule_head_var_types(item);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn typed_rule_arg_parts(arg: &Expr) -> Option<(&Expr, &str)> {
         let ExprKind::App(func, args) = &arg.kind else {
             return None;
@@ -14034,6 +14060,7 @@ impl TypeChecker {
                 if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
                         Self::define_rule_head_vars(arg, &mut self.scopes);
+                        self.define_rule_head_var_types(arg);
                     }
                 }
                 self.check_expr(value, None);
@@ -14052,6 +14079,7 @@ impl TypeChecker {
                 if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
                         Self::define_rule_head_vars(arg, &mut self.scopes);
+                        self.define_rule_head_var_types(arg);
                     }
                 }
                 self.check_expr(value, None);
@@ -14065,6 +14093,7 @@ impl TypeChecker {
                 if let ExprKind::App(_, args) = &head.kind {
                     for arg in args {
                         Self::define_rule_head_vars(arg, &mut self.scopes);
+                        self.define_rule_head_var_types(arg);
                     }
                 }
                 // For conjunctive bodies, also define existential variables
@@ -14095,6 +14124,7 @@ impl TypeChecker {
             } => {
                 self.push_scope();
                 Self::define_rule_head_vars(subject, &mut self.scopes);
+                self.define_rule_head_var_types(subject);
                 self.check_expr(subject, None);
                 self.check_expr(predicate, None);
                 self.pop_scope();

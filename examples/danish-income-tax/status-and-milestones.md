@@ -247,6 +247,8 @@ encoded as a temporal rule on top of the consolidation.
 - `indeholdelse-afregning.scenario.runa` exists and checks/runs with
   `runa run`.
 - `personskatteloven-bomber.audit.runa` exists and checks/runs with `runa run`.
+- `personskatteloven-konfiskatorisk.audit.runa` exists and checks/runs with
+  `runa run`.
 - `personskatteloven.audit.runa` exists and checks/runs with `runa run`.
 - `pengebeloeb.runa` exists and checks/runs with `runa run`.
 - Website research page exists at `/research/personskatteloven` and renders
@@ -330,6 +332,11 @@ Current decision:
   member calls. Wide legal/domain records and boolean-bearing legal predicates
   should use named calls at fixture and boundary-assembly points when
   positional arguments would hide legal meaning.
+- The confiscatory audit work tightened Futuruna's language/runtime support:
+  typed `|` rule-head parameters that name a `RuleScope` type now keep that
+  receiver type through checking, and named constructors inside nested
+  collection lambdas no longer leak the internal named-argument marker into
+  generated closure captures.
 - A readability sweep now uses named construction and named function/rule calls
   for the broad executable Danish-income-tax records and boolean-heavy calls
   found by scan, including statutory rate rows, remittance calendar/history
@@ -441,6 +448,12 @@ Current decision:
   exceptions derive the low-rate comparison amount, any over-withheld amount
   credited in slutskatten, the negative-share-income full credit, and the
   remaining final dividend-tax payment.
+- `KonfiskatoriskCase` uses product-scoped `|` rules for the effective-rate
+  audit. It keeps tax year, municipality, wage, positive net-capital income,
+  share income, spouse share-income posture, church-tax membership, and
+  transferred restskat m.v. together while deriving the wage-earner input,
+  § 8 a final-settlement result, positive income denominator, current-year
+  tax basis points, and broader payment-burden basis points from one case.
 - `KildeskatPar62ARenteDatoInput` and
   `KildeskatPar62AForsinketUdbetalingsdatoInput` keep § 62 A issue and payout
   scheduling date-based. They derive the old "påbegyndte måneder" helper input
@@ -599,6 +612,15 @@ Review candidates to revisit deliberately, not as broad churn:
   personfradrag and § 19 skatteloft in the executable model; and § 13 can lock
   passive business losses to same-business carry-forward while active
   participation releases the same amount into current other-income deduction.
+  A separate confiscatory effective-rate audit now searches 8.064 bounded
+  year/municipality/income/payment configurations. It finds no encoded
+  current-year `årsskat` above current positive wage/capital/share income in
+  that grid, while it finds 360 configurations above 100 pct. when transferred
+  restskat m.v. under Kildeskatteloven is included as a payment burden. The
+  highest current-year `årsskat` rate in the grid is 52,63 pct. in a 2026
+  Langeland high-wage church-tax case; the highest payment burden is 215,91
+  pct. in a 2024 Copenhagen low-income share-income case with 150.000 kr.
+  transferred restskat m.v.
   A first cross-law household benefit audit now covers Børne- og ungeydelse:
   the fictional three-child household has 48.216 kr. annual benefit before
   aftrapning and no reduction at the current wage levels, while a parent 100
@@ -649,8 +671,11 @@ Review candidates to revisit deliberately, not as broad churn:
   annualisation, and § 19 skatteloft interactions. A separate household benefit
   audit now covers Børne- og ungeydelse aftrapning plus an official-source
   mellemskat/topskat wording tension, and a first boligsikring § 22 threshold
-  cliff; remaining probes should target broader housing-support calculators and
-  cross-law allowance or collection timing chains.
+  cliff. The first confiscatory effective-rate audit now distinguishes
+  current-year `årsskat` from broader Kildeskatteloven payment burden and finds
+  the >100 pct. cases only in the payment-burden denominator. Remaining probes
+  should target broader housing-support calculators and cross-law allowance or
+  collection timing chains.
 - Extend the website page as more of the corpus becomes calculation-ready.
 
 ## Later
