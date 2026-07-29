@@ -1,0 +1,94 @@
+@ sprog da
+
+@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./loenmodtager_beregning
+@ importer ./pengebeloeb
+
+-- Personskatteloven §§ 14 og 19 -- external differential scenarios.
+--
+-- This file is deliberately a scenario fixture. The legal rules remain in the
+-- law modules; this file keeps independently source-backed comparison points
+-- close to the executable assertions.
+
+----
+External § 14 source:
+
+Den juridiske vejledning 2026-1, C.F.1.6.2.1:
+https://info.skat.dk/data.aspx?oid=1977388
+
+Example values used here:
+Skattepligtsperiode: 27 dage.
+Løn: 20.405 kr.
+Engangsindtægt: 168.232 kr.
+Renteindtægt: 20 kr.
+Bankrenteudgift: 465 kr.
+Realkreditrente i skattepligtsperiode: 2.370 kr.
+Realkreditrente uden for skattepligtsperiode: 29.666 kr.
+A-kasse: 314 kr.
+
+Official example outputs:
+Helårsomregnet personlig indkomst: 444.077 kr.
+Helårsomregnet kapitalindkomst: -38.052 kr.
+Helårsomregnede ligningsmæssige fradrag: -60.865 kr.
+Helårsomregnet skattepligtig indkomst: 345.160 kr.
+----
+
+# Par14JuridiskVejledningEksempelInput(skattepligtsdage: Heltal, lønindkomst_delår_kroner: Heltal, engangsindkomst_kroner: Heltal, renteindtægt_delår_kroner: Heltal, bankrenteudgift_delår_kroner: Heltal, realkreditrente_i_perioden_kroner: Heltal, realkreditrente_udenfor_perioden_kroner: Heltal, a_kasse_delår_kroner: Heltal, beskæftigelsesfradrag_basispoint: Heltal, beskæftigelsesfradrag_loft_kroner: Heltal)
+# Par14JuridiskVejledningEksempelResult(helårsomregnet_personlig_indkomst_kroner: Heltal, helårsomregnet_kapitalindkomst_kroner: Heltal, helårsomregnet_ligningsmæssige_fradrag_kroner: Heltal, helårsomregnet_skattepligtig_indkomst_kroner: Heltal)
+
+| par14_ekstern_beløb_gange_basispoint_afrundet_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> (beløb_kroner * sats_basispoint + 5000) / 10000 under beløb_kroner >= 0 && sats_basispoint >= 0
+| par14_jv_løbende_personlig_indkomst_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost(input.lønindkomst_delår_kroner, Par14LøbendeBeløb), input.skattepligtsdage)
+| par14_jv_engangsindkomst(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost(input.engangsindkomst_kroner, Par14EngangsBeløb), input.skattepligtsdage)
+| par14_jv_personlig_indkomst_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_jv_løbende_personlig_indkomst_helår(input) + par14_jv_engangsindkomst(input)
+| par14_jv_kapitalindkomst_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost(input.renteindtægt_delår_kroner, Par14LøbendeBeløb), input.skattepligtsdage) - par14_helårsbeløb_for_post(Par14Beløbspost(input.bankrenteudgift_delår_kroner, Par14LøbendeBeløb), input.skattepligtsdage) - input.realkreditrente_i_perioden_kroner - input.realkreditrente_udenfor_perioden_kroner
+| par14_jv_beskæftigelsesfradrag_helår(input: Par14JuridiskVejledningEksempelInput) -> penge_mindste_beløb(input.beskæftigelsesfradrag_loft_kroner, par14_ekstern_beløb_gange_basispoint_afrundet_kroner(par14_jv_personlig_indkomst_helår(input), input.beskæftigelsesfradrag_basispoint))
+| par14_jv_ligningsmæssige_fradrag_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost(input.a_kasse_delår_kroner, Par14LøbendeBeløb), input.skattepligtsdage) + par14_jv_beskæftigelsesfradrag_helår(input)
+| par14_jv_resultat(input: Par14JuridiskVejledningEksempelInput) -> Par14JuridiskVejledningEksempelResult(par14_jv_personlig_indkomst_helår(input), par14_jv_kapitalindkomst_helår(input), par14_jv_ligningsmæssige_fradrag_helår(input), par14_jv_personlig_indkomst_helår(input) + par14_jv_kapitalindkomst_helår(input) - par14_jv_ligningsmæssige_fradrag_helår(input))
+
+= par14_jv_eksempel_input = Par14JuridiskVejledningEksempelInput(27, 20405, 168232, 20, 465, 2370, 29666, 314, 1275, 63300)
+= par14_jv_eksempel = par14_jv_resultat(par14_jv_eksempel_input)
+
+| par14_jv_personlig_indkomst_matcher_eksempel: par14_jv_eksempel -> par14_jv_eksempel.helårsomregnet_personlig_indkomst_kroner == 444077
+| par14_jv_kapitalindkomst_matcher_eksempel: par14_jv_eksempel -> par14_jv_eksempel.helårsomregnet_kapitalindkomst_kroner == -38052
+| par14_jv_ligningsfradrag_matcher_eksempel: par14_jv_eksempel -> par14_jv_eksempel.helårsomregnet_ligningsmæssige_fradrag_kroner == 60865
+| par14_jv_skattepligtig_indkomst_matcher_eksempel: par14_jv_eksempel -> par14_jv_eksempel.helårsomregnet_skattepligtig_indkomst_kroner == 345160
+| par14_jv_engangsbeløb_ikke_omregnet: par14_jv_eksempel_input -> par14_jv_engangsindkomst(par14_jv_eksempel_input) == 168232
+
+? par14_jv_personlig_indkomst_matcher_eksempel
+? par14_jv_kapitalindkomst_matcher_eksempel
+? par14_jv_ligningsfradrag_matcher_eksempel
+? par14_jv_skattepligtig_indkomst_matcher_eksempel
+? par14_jv_engangsbeløb_ikke_omregnet
+
+----
+External § 19 source:
+
+Skatteministeriet, "Kommuneskattesatser 2026",
+kommuneskattesatser_2026.xlsx, row for Langeland:
+Skatte pct. 26,30; Nedslag pct. 1,24.
+https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter
+----
+
+# Par19EksternKommunalRække(skatteår: Heltal, kommune: Kommune, bundskat_basispoint: Heltal, progressiv_statsskat_basispoint: Heltal, kommuneskat_basispoint: Heltal, offentlig_personlig_nedslag_basispoint: Heltal, personlig_loft_basispoint: Heltal, positiv_kapital_loft_basispoint: Heltal)
+
+| par19_ekstern_samlet_personlig_sats_basispoint(input: Par19EksternKommunalRække) -> input.bundskat_basispoint + input.progressiv_statsskat_basispoint + input.kommuneskat_basispoint
+| par19_ekstern_personligt_nedslag_basispoint(input: Par19EksternKommunalRække) -> penge_positivt_beløb(par19_ekstern_samlet_personlig_sats_basispoint(input) - input.personlig_loft_basispoint)
+| par19_ekstern_positiv_kapital_nedslag_basispoint(input: Par19EksternKommunalRække) -> penge_positivt_beløb(par19_ekstern_samlet_personlig_sats_basispoint(input) - input.positiv_kapital_loft_basispoint)
+
+= par19_ekstern_langeland_2026 = Par19EksternKommunalRække(2026, Langeland, 1201, 750, 2630, 124, 4457, 4200)
+= par19_ekstern_langeland_2026_lønmodtager = beregn_lønmodtager(LønmodtagerInput(2026, Langeland, 900000, 0, 0, Fyldt18EllerGift, Falskt))
+= par19_ekstern_langeland_2026_kapital = beregn_lønmodtager(LønmodtagerInput(2026, Langeland, 650000, 110000, 0, Fyldt18EllerGift, Falskt))
+
+| par19_ekstern_langeland_personligt_nedslag_matcher_skm: par19_ekstern_langeland_2026 -> par19_ekstern_personligt_nedslag_basispoint(par19_ekstern_langeland_2026) == par19_ekstern_langeland_2026.offentlig_personlig_nedslag_basispoint && kommunale_parametre_for(2026, Langeland).skatteloftsnedslag_basispoint == par19_ekstern_langeland_2026.offentlig_personlig_nedslag_basispoint
+| par19_ekstern_langeland_lønmodtager_matcher_calculator: par19_ekstern_langeland_2026_lønmodtager -> par19_ekstern_langeland_2026_lønmodtager.personligt_skatteloft.overskydende_basispoint == par19_ekstern_langeland_2026.offentlig_personlig_nedslag_basispoint && par19_ekstern_langeland_2026_lønmodtager.personligt_skatteloft.nedslag_kroner == 2316
+| par19_ekstern_langeland_kapital_differential: par19_ekstern_langeland_2026_kapital -> par19_ekstern_positiv_kapital_nedslag_basispoint(par19_ekstern_langeland_2026) == 381 && par19_ekstern_langeland_2026_kapital.positiv_kapital_skatteloft.overskydende_basispoint == 381 && par19_ekstern_langeland_2026_kapital.positiv_kapital_skatteloft.nedslag_kroner == 449
+| omregning_skatteloft_ekstern_audit_samlet() -> par14_jv_eksempel.helårsomregnet_skattepligtig_indkomst_kroner == 345160 && par19_ekstern_personligt_nedslag_basispoint(par19_ekstern_langeland_2026) == 124 && par19_ekstern_langeland_2026_lønmodtager.personligt_skatteloft.nedslag_kroner == 2316 && par19_ekstern_langeland_2026_kapital.positiv_kapital_skatteloft.overskydende_basispoint == 381
+
+? par19_ekstern_langeland_personligt_nedslag_matcher_skm
+? par19_ekstern_langeland_lønmodtager_matcher_calculator
+? par19_ekstern_langeland_kapital_differential
+
+@ print("ekstern § 14 helårsomregnet personlig indkomst: " + vis(par14_jv_eksempel.helårsomregnet_personlig_indkomst_kroner))
+@ print("ekstern § 14 helårsomregnet skattepligtig indkomst: " + vis(par14_jv_eksempel.helårsomregnet_skattepligtig_indkomst_kroner))
+@ print("ekstern § 19 Langeland offentligt personligt nedslag bp: " + vis(par19_ekstern_langeland_2026.offentlig_personlig_nedslag_basispoint))
+@ print("ekstern § 19 Langeland positiv kapital nedslag bp: " + vis(par19_ekstern_langeland_2026_kapital.positiv_kapital_skatteloft.overskydende_basispoint))

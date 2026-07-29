@@ -158,6 +158,18 @@ Current external validation sources:
     including AM contribution 208.725,64 kr., forskudsskat to A/B-tax
     collection 160.725,64 kr., trækprocent 36 pct., and monthly tax-card
     allowance 8.164 kr.
+- Den juridiske vejledning 2026-1, C.F.1.6.2.1:
+  `https://info.skat.dk/data.aspx?oid=1977388`
+  - Used in `omregning-skatteloft-ekstern.scenario.runa` for the official
+    § 14 annualisation example: 27-day tax-liability period, one-off income not
+    annualised, recurring items annualised and rounded to whole kroner, yielding
+    444.077 kr. personal income, -38.052 kr. capital income, 60.865 kr.
+    ligningsmæssige fradrag, and 345.160 kr. taxable income.
+- Skatteministeriet, "Oversigt over kommuneskatter":
+  `https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter`
+  - Used in `omregning-skatteloft-ekstern.scenario.runa` for the
+    `kommuneskattesatser_2026.xlsx` Langeland row: 26,30 pct. municipal tax and
+    1,24 pct. published `Nedslag pct.`.
 
 Working decision: use `2021/1284` as the current consolidated source for live
 encoding, while preserving `2019/799` as source lineage because the valid
@@ -191,6 +203,8 @@ encoded as a temporal rule on top of the consolidation.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
 - `skatdk-2026-ekstern.scenario.runa` exists and checks/runs with `runa run`.
 - `delaar-scenarier.scenario.runa` exists and checks/runs with `runa run`.
+- `omregning-skatteloft-ekstern.scenario.runa` exists and checks/runs with
+  `runa run`.
 - `husholdning-scenarier.scenario.runa` exists and checks/runs with `runa run`.
 - `husholdning-benefit-cliffs.audit.runa` exists and checks/runs with
   `runa run`.
@@ -342,6 +356,9 @@ Current decision:
   wage-earner partial-year cases. It carries tax-liability change status, the
   delårs wage-earner input, and tax-liability days together, instead of passing
   those scalars through every helper rule.
+- `Par14Beløbspost` now captures whether a § 14 amount is recurring or one-off.
+  This keeps the official annualisation example from forcing one-off income
+  through the same annualisation path as wage, interest, or A-kasse amounts.
 - `KildeskattebekendtgørelseForskudskortInput` now composes a named
   `KildeskattebekendtgørelseForskudskortIndkomstgrundlag` instead of passing
   annual basis, period basis, and excluded basis as loose scalars. The source
@@ -455,11 +472,13 @@ Review candidates to revisit deliberately, not as broad churn:
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
   Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
-- Add trusted external partial-year differential fixtures for § 14 and external
-  differential fixtures for the § 19 calculator paths. The ordinary 2026
-  Copenhagen wage-earner path now has a source-backed Skat.dk calculator
-  fixture for final tax and generated tax-card values. The source-backed
-  Langeland 2026 high-municipal-rate fixture now exercises both § 19 personal
+- Add more trusted external differential fixtures after the first § 14/§ 19
+  external slice. The ordinary 2026 Copenhagen wage-earner path now has a
+  source-backed Skat.dk calculator fixture for final tax and generated tax-card
+  values. The official § 14 guidance example now verifies annualisation
+  rounding and one-off income handling, and the source-backed Langeland 2026
+  high-municipal-rate fixture now compares § 19 personal relief against the
+  published 1,24 pct. municipal `Nedslag pct.` while exercising both personal
   and positive-capital relief inside the wage-earner calculator.
 - Separate legal structure from annual parameter packs: rates, thresholds,
   personal allowances, municipal tax, church tax, and other tax-year data.
@@ -631,13 +650,14 @@ M5 - Audit suite
   posture, covered fictional household scenario, covered Børne- og ungeydelse
   benefit-cliff/source-tension audit, covered external Skat.dk 2026
   ordinary wage-earner fixture, topskat threshold activation,
-  covered § 14 annualization and first wage-earner calculator integration,
+  covered § 14 annualization and first wage-earner calculator integration plus
+  the Den juridiske vejledning external annualisation example,
   covered first bomb-audit probes for § 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions,
   covered § 19 skatteloft including the 2026
   44,57 pct. personal ceiling, 42 pct. positive-capital ceiling, and
   calculator-level wage-earner integration for both paths, including
   source-backed Langeland 2026 high-municipal-rate personal and positive-capital
-  relief fixtures,
+  relief fixtures and the published 1,24 pct. SKM `Nedslag pct.` differential,
   covered § 20 regulation/rounding, covered § 26 transition
   compensation, covered § 28 territorial exclusion, covered AM-law special cases,
   covered shared Pengebeløb rounding and øre-fraction posture,
@@ -664,7 +684,7 @@ M6 - Website integration
   corpus plus `.scenario.runa` executable scenarios and the `.audit.runa`
   audit suite, marks the shared Pengebeløb rounding posture, the limited
   wage-earner fixture slice, a source-backed external Skat.dk 2026 ordinary
-  wage-earner fixture, plus ordinary and
+  wage-earner fixture, the § 14/§ 19 external differential scenario, plus ordinary and
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
@@ -673,9 +693,9 @@ M6 - Website integration
   Opkrævningsloven payment-deadline, § 7 rate-derivation, date-exact daily
   interest-context, and cross-calendar-year interest-split slices, the B-skat
   calendar projection, § 62 A interest fixtures, § 14 partial-year wage-earner
-  scenario, and personal plus positive-capital § 19 skatteloft inside the
+  scenario, § 14 official guidance example, and personal plus positive-capital § 19 skatteloft inside the
   wage-earner breakdown, including the 2026 Langeland high-rate municipality
-  fixture, as calculation-ready, and marks the full statute model as
+  fixture and published SKM `Nedslag pct.` differential, as calculation-ready, and marks the full statute model as
   research/audit-only.
 
 M7 - Personfradrag and deficit layer
@@ -709,15 +729,17 @@ M8 - Omregning, skatteloft, and regulation
   tax-ceiling rates, calculated ceiling relief, and § 20 rounded regulated
   amounts are executable.
 - Current slice: § 14 converts partial-year income to whole-year equivalents
-  and reduces whole-year tax proportionally. A first ordinary wage-earner § 14
-  integration now annualizes a delårs wage-earner input and uses the state
-  income-tax component after §§ 6-9, rather than the AM-inclusive total. §§ 15-18
-  are explicit repealed markers, § 19 computes personal and positive-capital tax
-  ceiling excess and relief, both personal and positive-capital § 19 relief now
-  flow into the ordinary wage-earner breakdown for supported tax years and
-  municipalities, the 2026 Langeland fixture proves a source-backed high
-  municipal-tax ceiling case, and § 20 computes 2010-level amount regulation
-  with round-up to the nearest 100 kroner.
+  rounded to whole kroner and reduces whole-year tax proportionally. A first
+  ordinary wage-earner § 14 integration now annualizes a delårs wage-earner
+  input and uses the state income-tax component after §§ 6-9, rather than the
+  AM-inclusive total. The official guidance example now proves recurring-vs.
+  one-off amount handling. §§ 15-18 are explicit repealed markers, § 19 computes
+  personal and positive-capital tax ceiling excess and relief, both personal and
+  positive-capital § 19 relief now flow into the ordinary wage-earner breakdown
+  for supported tax years and municipalities, the 2026 Langeland fixture proves
+  a source-backed high municipal-tax ceiling case and matches the published
+  1,24 pct. `Nedslag pct.`, and § 20 computes 2010-level amount regulation with
+  round-up to the nearest 100 kroner.
 
 M9 - Final provisions and transition compensation
 

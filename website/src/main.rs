@@ -2804,6 +2804,8 @@ const TAX_SKATDK_EXTERNAL: &str =
     include_str!("../../examples/danish-income-tax/skatdk-2026-ekstern.scenario.runa");
 const TAX_PARTIAL_YEAR: &str =
     include_str!("../../examples/danish-income-tax/delaar-scenarier.scenario.runa");
+const TAX_OMREGNING_EXTERNAL: &str =
+    include_str!("../../examples/danish-income-tax/omregning-skatteloft-ekstern.scenario.runa");
 const TAX_HOUSEHOLD: &str =
     include_str!("../../examples/danish-income-tax/husholdning-scenarier.scenario.runa");
 const TAX_HOUSEHOLD_BENEFIT_CLIFFS: &str =
@@ -3590,6 +3592,11 @@ fn ResearchPersonskatteloven() -> Element {
             TAX_PARTIAL_YEAR,
         ),
         (
+            "omregning-skatteloft-ekstern.scenario.runa — § 14/§ 19 ekstern differential",
+            "conversion-ceiling-external-code",
+            TAX_OMREGNING_EXTERNAL,
+        ),
+        (
             "husholdning-scenarier.scenario.runa — fiktivt husholdningsscenarie",
             "household-code",
             TAX_HOUSEHOLD,
@@ -3661,12 +3668,12 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Calculation slice" }
                             strong { "Calculation-ready" }
-                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with shared Pengebeløb rounding and øre-fraction posture, source-backed ordinary and special-case AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, personal and positive-capital § 19 skatteloft inside the wage-earner breakdown, § 14 partial-year annualization through the wage-earner model using the state income-tax component after §§ 6-9, Kildeskatteloven A-income/withholding/e-skattekort and §§ 58/60-62/62 A/62 C/67 settlement, B-skat calendar projection, restskat timing, § 62 A interest fixtures, and overskydende skat compensation posture, BEK 839 generated card values with BEK 1094-derived 2026 indeholdelsesprocent, Opkrævningsloven payment-deadline, § 7 rate-derivation, same-year daily interest, and cross-year interest-split fixtures, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, 2026 Langeland high-municipal-rate § 19 personal and positive-capital fixtures, a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
+                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with shared Pengebeløb rounding and øre-fraction posture, source-backed ordinary and special-case AM-bidrag, Ligningsloven §§ 9 J/9 K wage-earner deductions, municipal/church tax, personal and positive-capital § 19 skatteloft inside the wage-earner breakdown, § 14 partial-year annualization through the wage-earner model using the state income-tax component after §§ 6-9, the official § 14 guidance example for annualization and one-off income handling, Kildeskatteloven A-income/withholding/e-skattekort and §§ 58/60-62/62 A/62 C/67 settlement, B-skat calendar projection, restskat timing, § 62 A interest fixtures, and overskydende skat compensation posture, BEK 839 generated card values with BEK 1094-derived 2026 indeholdelsesprocent, Opkrævningsloven payment-deadline, § 7 rate-derivation, same-year daily interest, and cross-year interest-split fixtures, 2026 Copenhagen reform-threshold wage and positive-capital fixtures, 2026 Langeland high-municipal-rate § 19 personal and positive-capital fixtures checked against the published SKM Nedslag pct., a fictional household scenario, and synthetic § 13 complex-case breakdown fixtures." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Whole statute" }
                             strong { "Research/audit-only" }
-                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: automated Nationalbank input lookup for Opkrævningsloven § 7 rates, merged restskat rate schedules, trusted external § 14 partial-year differential fixtures, external § 19 differential fixtures, municipal settlement/allocation, remaining AM edge cases, and broader external differential fixtures remain explicit gaps." }
+                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: automated Nationalbank input lookup for Opkrævningsloven § 7 rates, merged restskat rate schedules, municipal settlement/allocation, remaining AM edge cases, and broader external differential fixtures beyond the first § 14/§ 19 slice remain explicit gaps." }
                         }
                     }
                     p { class: "lang-note",
@@ -3700,9 +3707,13 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2024/1040", "Opkrævningsloven" }
                         " · lønmodtagerfradrag: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/1500", "Ligningsloven" }
+                        " · ekstern § 14/§ 19: "
+                        a { href: "https://info.skat.dk/data.aspx?oid=1977388", "DJV C.F.1.6.2.1" }
+                        " / "
+                        a { href: "https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter", "SKM kommuneskatter" }
                     }
                     p { class: "const-stats",
-                        "25 filer \u{00B7} fælles Pengebeløb-afrunding \u{00B7} §§ 1-28 første slice \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 9 J/9 K \u{00B7} § 14 delår \u{00B7} personlig og positiv-kapital § 19 skatteloft inkl. Langeland høj kommuneskat \u{00B7} Kildeskatteloven A-indkomst/A-skat/slutopgørelse/restskat-timing/B-skat/§ 62 A \u{00B7} BEK 839 forskudskort \u{00B7} BEK 1094 indeholdelsesprocent \u{00B7} Opkrævningsloven betalingsfrister, § 7-rente og tværårssplit \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, delår, husholdning, slutopgørelse, afregning, kapital og § 13 fixtures \u{00B7} audit-signaler"
+                        "28 filer \u{00B7} fælles Pengebeløb-afrunding \u{00B7} §§ 1-28 første slice \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 9 J/9 K \u{00B7} § 14 delår + ekstern DJV-differential \u{00B7} personlig og positiv-kapital § 19 skatteloft inkl. Langeland høj kommuneskat + SKM-nedslag \u{00B7} Kildeskatteloven A-indkomst/A-skat/slutopgørelse/restskat-timing/B-skat/§ 62 A \u{00B7} BEK 839 forskudskort \u{00B7} BEK 1094 indeholdelsesprocent \u{00B7} Opkrævningsloven betalingsfrister, § 7-rente og tværårssplit \u{00B7} 2024/2025/2026 parameterpakker \u{00B7} wage-earner, delår, ekstern differential, husholdning, slutopgørelse, afregning, kapital og § 13 fixtures \u{00B7} audit-signaler"
                     }
                 }
 
@@ -3738,7 +3749,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#audit-code",
                             span { "coverage" }
-                            strong { "Shared Pengebeløb rounding, 2026 reform, mellemskat capital branch, personal and positive-capital § 19 calculator integration, ordinary and special-case AM law, Ligningsloven, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort/slutopgørelse/restskat timing/B-skat calendar/§ 62 A interest, BEK 839 generated card values, BEK 1094 withholding percentage derivation, Opkrævningsloven payment deadlines, § 7 rate derivation, and § 7 cross-year interest split, a fictional household, and § 13 complex calculators are executable" }
+                            strong { "Shared Pengebeløb rounding, 2026 reform, mellemskat capital branch, § 14 external annualization fixture, personal and positive-capital § 19 calculator integration with SKM Langeland differential, ordinary and special-case AM law, Ligningsloven, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort/slutopgørelse/restskat timing/B-skat calendar/§ 62 A interest, BEK 839 generated card values, BEK 1094 withholding percentage derivation, Opkrævningsloven payment deadlines, § 7 rate derivation, and § 7 cross-year interest split, a fictional household, and § 13 complex calculators are executable" }
                         }
                         a { href: "#audit-code",
                             span { "cliff" }

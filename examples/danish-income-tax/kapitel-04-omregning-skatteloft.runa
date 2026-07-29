@@ -41,14 +41,27 @@ Den beregnede helårsskat nedsættes efter forholdet mellem delårsbeløbene og
 helårsbeløbene.
 ----
 
+----
+Den juridiske vejledning 2026-1, C.F.1.6.2.1:
+Eksemplet om helårsomregning viser, at løbende delårsbeløb omregnes til hele
+året og afrundes til hele kroner, mens engangsbeløb ikke omregnes.
+https://info.skat.dk/data.aspx?oid=1977388
+----
+
 # Par14Skattepligtsændring = FuldSkattepligtIndtræder | FuldSkattepligtOphører | BegrænsetSkattepligtPar10Stk6Indtræder | BegrænsetSkattepligtPar10Stk6Ophører | IngenSkattepligtsændring
+# Par14Beløbsart = Par14LøbendeBeløb | Par14EngangsBeløb
+# Par14Beløbspost(beløb_kroner: Heltal, art: Par14Beløbsart)
 # Par14OmregningInput(delårs_skattepligtig_indkomst_kroner: Heltal, delårs_personlig_indkomst_kroner: Heltal, delårs_kapitalindkomst_kroner: Heltal, skattepligtsdage: Heltal)
 # Par14Helårsindkomst(skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par14SkattenedsættelseInput(helårsskat_kroner: Heltal, delårsbeløb_kroner: Heltal, helårsbeløb_kroner: Heltal)
 
 | par14_helårsomregning_gælder(status: Par14Skattepligtsændring) -> status == FuldSkattepligtIndtræder || status == FuldSkattepligtOphører || status == BegrænsetSkattepligtPar10Stk6Indtræder || status == BegrænsetSkattepligtPar10Stk6Ophører
 | par14_valg_uden_helårsomregning_muligt(status: Par14Skattepligtsændring) -> status == FuldSkattepligtIndtræder || status == FuldSkattepligtOphører
-| par14_helårsbeløb(delårsbeløb_kroner: Heltal, skattepligtsdage: Heltal) -> delårsbeløb_kroner * 365 / skattepligtsdage under skattepligtsdage > 0
+| par14_helt_kroner_afrundet(tæller: Heltal, nævner: Heltal) -> (tæller + nævner / 2) / nævner under tæller >= 0 && nævner > 0
+| par14_helt_kroner_afrundet(tæller: Heltal, nævner: Heltal) -> 0 - ((0 - tæller + nævner / 2) / nævner) under tæller < 0 && nævner > 0
+| par14_helårsbeløb(delårsbeløb_kroner: Heltal, skattepligtsdage: Heltal) -> par14_helt_kroner_afrundet(delårsbeløb_kroner * 365, skattepligtsdage) under skattepligtsdage > 0
+| par14_helårsbeløb_for_post(post: Par14Beløbspost, skattepligtsdage: Heltal) -> par14_helårsbeløb(post.beløb_kroner, skattepligtsdage) under post.art == Par14LøbendeBeløb
+| par14_helårsbeløb_for_post(post: Par14Beløbspost, skattepligtsdage: Heltal) -> post.beløb_kroner under post.art == Par14EngangsBeløb
 | par14_helårsindkomst(input: Par14OmregningInput) -> Par14Helårsindkomst(par14_helårsbeløb(input.delårs_skattepligtig_indkomst_kroner, input.skattepligtsdage), par14_helårsbeløb(input.delårs_personlig_indkomst_kroner, input.skattepligtsdage), par14_helårsbeløb(input.delårs_kapitalindkomst_kroner, input.skattepligtsdage))
 | par14_helårsskat_beregnes_efter_par6_til_par9() -> Sandt
 | par14_helårsskat_nedsat_for_delår(input: Par14SkattenedsættelseInput) -> input.helårsskat_kroner * input.delårsbeløb_kroner / input.helårsbeløb_kroner under input.helårsbeløb_kroner > 0
@@ -57,11 +70,13 @@ helårsbeløbene.
 
 = par14_fixture = par14_helårsindkomst(Par14OmregningInput(180000, 200000, -20000, 180))
 = par14_skattenedsættelse_fixture = par14_helårsskat_nedsat_for_delår(Par14SkattenedsættelseInput(100000, 180000, par14_fixture.skattepligtig_indkomst_kroner))
+= par14_engangsbeløb_fixture = par14_helårsbeløb_for_post(Par14Beløbspost(168232, Par14EngangsBeløb), 27)
 = par14_fuld_skattepligt_omregnes = par14_helårsomregning_gælder(FuldSkattepligtIndtræder)
 = par14_valg_muligt = par14_valg_uden_helårsomregning_muligt(FuldSkattepligtOphører)
 
-| par14_helårsomregner_indkomster: par14_fixture -> par14_fixture.skattepligtig_indkomst_kroner == 365000 && par14_fixture.personlig_indkomst_kroner == 405555 && par14_fixture.kapitalindkomst_kroner == -40555
+| par14_helårsomregner_indkomster: par14_fixture -> par14_fixture.skattepligtig_indkomst_kroner == 365000 && par14_fixture.personlig_indkomst_kroner == 405556 && par14_fixture.kapitalindkomst_kroner == -40556
 | par14_nedsætter_helårsskat_forholdsmæssigt: par14_skattenedsættelse_fixture -> par14_skattenedsættelse_fixture == 49315
+| par14_engangsbeløb_omregnes_ikke: par14_engangsbeløb_fixture -> par14_engangsbeløb_fixture == 168232
 | par14_fuld_skattepligt_kræver_omregning: par14_fuld_skattepligt_omregnes -> par14_fuld_skattepligt_omregnes == Sandt
 | par14_stk2_valg_findes: par14_valg_muligt -> par14_valg_muligt == Sandt
 
