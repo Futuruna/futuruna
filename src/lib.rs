@@ -12088,6 +12088,12 @@ pub struct TypeChecker {
     rule_scope_vars: Vec<BTreeMap<String, String>>,
     /// Type name -> known field names.
     type_fields: BTreeMap<String, BTreeSet<String>>,
+    /// Type name -> field name -> field type name.
+    type_field_types: BTreeMap<String, BTreeMap<String, String>>,
+    /// Rule/function name -> inferred value return type name.
+    rule_return_types: BTreeMap<String, String>,
+    /// RuleScope name -> scoped member name -> inferred value return type name.
+    rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     /// Variable type names per lexical scope.
     var_types: Vec<BTreeMap<String, String>>,
     /// qualified import module name -> exported member names
@@ -12130,6 +12136,9 @@ impl TypeChecker {
             rule_scope_returning_rules: BTreeMap::new(),
             rule_scope_vars: vec![BTreeMap::new()],
             type_fields: BTreeMap::new(),
+            type_field_types: BTreeMap::new(),
+            rule_return_types: BTreeMap::new(),
+            rule_scope_member_return_types: BTreeMap::new(),
             var_types: vec![BTreeMap::new()],
             module_exports: BTreeMap::new(),
             diagnostics: Vec::new(),
@@ -12420,6 +12429,14 @@ impl TypeChecker {
         }
     }
 
+    fn define_inferred_var_type_name(&mut self, name: &str, type_name: &str) {
+        if self.type_has_scoped_members(type_name) {
+            self.define_rule_scope_var(name, type_name);
+        } else {
+            self.define_var_type_name(name, type_name);
+        }
+    }
+
     fn type_has_scoped_members(&self, type_name: &str) -> bool {
         self.rule_scope_methods.contains_key(type_name)
             || self.rule_scope_value_methods.contains_key(type_name)
@@ -12572,6 +12589,17 @@ impl TypeChecker {
                 ExprKind::Var(name) => Some(name.as_str()),
                 _ => None,
             },
+            _ => None,
+        }
+    }
+
+    fn type_name_from_ty(ty: &Ty) -> Option<String> {
+        match ty {
+            Ty::Name(type_name) => Some(type_name.clone()),
+            Ty::App(base, _) => Self::type_name_from_ty(base),
+            Ty::Optional(inner) | Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
+                Self::type_name_from_ty(inner)
+            }
             _ => None,
         }
     }
@@ -12738,6 +12766,288 @@ impl TypeChecker {
                         kind, callable, param
                     ),
                 );
+            }
+        }
+    }
+
+    fn rule_head_local_types(&self, head: &Expr) -> BTreeMap<String, String> {
+        let mut locals = BTreeMap::new();
+        if let ExprKind::App(_, args) = &head.kind {
+            for arg in args {
+                Self::collect_typed_rule_head_locals(arg, &mut locals);
+            }
+        }
+        locals
+    }
+
+    fn collect_typed_rule_head_locals(arg: &Expr, locals: &mut BTreeMap<String, String>) {
+        if let Some((inner, type_name)) = Self::typed_rule_arg_parts(arg) {
+            if let ExprKind::Var(name) = &inner.kind {
+                locals.insert(name.clone(), type_name.to_string());
+            }
+            Self::collect_typed_rule_head_locals(inner, locals);
+            return;
+        }
+
+        match &arg.kind {
+            ExprKind::App(func, args) if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) => {
+                if let Some(value) = args.get(1) {
+                    Self::collect_typed_rule_head_locals(value, locals);
+                }
+            }
+            ExprKind::App(_, args) => {
+                for arg in args {
+                    Self::collect_typed_rule_head_locals(arg, locals);
+                }
+            }
+            ExprKind::Tuple(items) => {
+                for item in items {
+                    Self::collect_typed_rule_head_locals(item, locals);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn scoped_member_return_type(&self, scope_name: &str, member: &str) -> Option<String> {
+        self.rule_scope_member_return_types
+            .get(scope_name)
+            .and_then(|members| members.get(member))
+            .cloned()
+    }
+
+    fn field_type_name(&self, type_name: &str, field: &str) -> Option<String> {
+        self.type_field_types
+            .get(type_name)
+            .and_then(|fields| fields.get(field))
+            .cloned()
+    }
+
+    fn infer_expr_type_name(&self, expr: &Expr) -> Option<String> {
+        self.infer_expr_type_name_with_locals(expr, &BTreeMap::new())
+    }
+
+    fn infer_expr_type_name_with_locals(
+        &self,
+        expr: &Expr,
+        locals: &BTreeMap<String, String>,
+    ) -> Option<String> {
+        match &expr.kind {
+            ExprKind::Var(name) => locals
+                .get(name)
+                .cloned()
+                .or_else(|| self.var_type_name(name).map(str::to_string))
+                .or_else(|| {
+                    self.constructors
+                        .get(name)
+                        .map(|(parent, _)| parent.clone())
+                }),
+            ExprKind::App(func, args) => {
+                if let ExprKind::Var(name) = &func.as_ref().kind {
+                    if name == NAMED_ARG_MARKER {
+                        return args.get(1).and_then(|value| {
+                            self.infer_expr_type_name_with_locals(value, locals)
+                        });
+                    }
+                    if let Some((parent, _)) = self.constructors.get(name) {
+                        return Some(parent.clone());
+                    }
+                    if let Some(ret) = self.rule_return_types.get(name) {
+                        return Some(ret.clone());
+                    }
+                }
+
+                if let ExprKind::Field(base, member) = &func.as_ref().kind {
+                    let base_type = self.infer_expr_type_name_with_locals(base, locals)?;
+                    if let Some(ret) = self.scoped_member_return_type(&base_type, member) {
+                        return Some(ret);
+                    }
+                    return self.field_type_name(&base_type, member);
+                }
+
+                None
+            }
+            ExprKind::Field(base, field) => {
+                let base_type = self.infer_expr_type_name_with_locals(base, locals)?;
+                self.field_type_name(&base_type, field)
+            }
+            ExprKind::If(_, then_expr, else_expr) => {
+                let then_ty = self.infer_expr_type_name_with_locals(then_expr, locals);
+                let else_ty = self.infer_expr_type_name_with_locals(else_expr, locals);
+                if then_ty == else_ty {
+                    then_ty
+                } else {
+                    None
+                }
+            }
+            ExprKind::Block(stmts) => stmts.last().and_then(|stmt| match stmt {
+                Stmt::Expr(expr) => self.infer_expr_type_name_with_locals(expr, locals),
+                Stmt::Bind(Pat::Var(name), Some(ty), _) => Self::type_name_from_ty(ty)
+                    .or_else(|| locals.get(name).cloned())
+                    .or_else(|| self.var_type_name(name).map(str::to_string)),
+                Stmt::Bind(Pat::Var(name), None, expr) => self
+                    .infer_expr_type_name_with_locals(expr, locals)
+                    .or_else(|| locals.get(name).cloned())
+                    .or_else(|| self.var_type_name(name).map(str::to_string)),
+                _ => None,
+            }),
+            _ => None,
+        }
+    }
+
+    fn infer_rule_scope_member_return_types(
+        &mut self,
+        scope_name: &str,
+        params: &[Param],
+        body: &[Stmt],
+    ) {
+        self.rule_scope_member_return_types
+            .entry(scope_name.to_string())
+            .or_default();
+
+        let mut scope_locals = BTreeMap::new();
+        for param in params {
+            if let Some(ty) = &param.ty {
+                if let Some(type_name) = Self::type_name_from_ty(ty) {
+                    scope_locals.insert(param.name.clone(), type_name);
+                }
+            }
+        }
+
+        for _ in 0..body.len().max(1) {
+            let mut changed = false;
+            for stmt in body {
+                match stmt {
+                    Stmt::Rule(rule @ Rule::Clause { .. })
+                    | Stmt::Rule(rule @ Rule::Default { .. })
+                    | Stmt::Rule(rule @ Rule::Exception { .. }) => {
+                        let Some((member, _)) = Self::rule_name_arity(rule) else {
+                            continue;
+                        };
+                        let (head, value) = match rule {
+                            Rule::Clause {
+                                head,
+                                body: Some(body),
+                            } => (head, body),
+                            Rule::Default { head, value, .. }
+                            | Rule::Exception { head, value, .. } => (head, value),
+                            _ => continue,
+                        };
+                        let mut locals = scope_locals.clone();
+                        locals.extend(self.rule_head_local_types(head));
+                        let Some(ret) = self.infer_expr_type_name_with_locals(value, &locals)
+                        else {
+                            continue;
+                        };
+                        let members = self
+                            .rule_scope_member_return_types
+                            .entry(scope_name.to_string())
+                            .or_default();
+                        if members.get(&member) != Some(&ret) {
+                            members.insert(member, ret);
+                            changed = true;
+                        }
+                    }
+                    Stmt::Defn(Defn::Fn {
+                        name,
+                        params: method_params,
+                        ret_ty,
+                        body: method_body,
+                        ..
+                    }) => {
+                        let ret = ret_ty
+                            .as_ref()
+                            .and_then(Self::type_name_from_ty)
+                            .or_else(|| {
+                                let mut locals = scope_locals.clone();
+                                locals.insert("self".to_string(), scope_name.to_string());
+                                for param in method_params {
+                                    if param.name == "self" {
+                                        continue;
+                                    }
+                                    if let Some(ty) = &param.ty {
+                                        if let Some(type_name) = Self::type_name_from_ty(ty) {
+                                            locals.insert(param.name.clone(), type_name);
+                                        }
+                                    }
+                                }
+                                self.infer_expr_type_name_with_locals(method_body, &locals)
+                            });
+                        let Some(ret) = ret else {
+                            continue;
+                        };
+                        let members = self
+                            .rule_scope_member_return_types
+                            .entry(scope_name.to_string())
+                            .or_default();
+                        if members.get(name) != Some(&ret) {
+                            members.insert(name.clone(), ret);
+                            changed = true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+    }
+
+    fn infer_rule_return_types(&mut self, stmts: &[Stmt]) {
+        let mut groups: BTreeMap<String, Vec<&Rule>> = BTreeMap::new();
+        for stmt in stmts {
+            if let Stmt::Rule(rule @ Rule::Clause { .. })
+            | Stmt::Rule(rule @ Rule::Default { .. })
+            | Stmt::Rule(rule @ Rule::Exception { .. }) = stmt
+            {
+                if let Some((name, _)) = Self::rule_name_arity(rule) {
+                    groups.entry(name).or_default().push(rule);
+                }
+            }
+        }
+
+        for _ in 0..groups.len().max(1) {
+            let mut changed = false;
+            for (name, rules) in &groups {
+                for rule in rules {
+                    let (head, value) = match rule {
+                        Rule::Clause {
+                            head,
+                            body: Some(body),
+                        } => (head, body),
+                        Rule::Default { head, value, .. } | Rule::Exception { head, value, .. } => {
+                            (head, value)
+                        }
+                        _ => continue,
+                    };
+                    let locals = self.rule_head_local_types(head);
+                    let Some(ret) = self.infer_expr_type_name_with_locals(value, &locals) else {
+                        continue;
+                    };
+                    if self.rule_return_types.get(name) != Some(&ret) {
+                        self.rule_return_types.insert(name.clone(), ret);
+                        changed = true;
+                    }
+                    break;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+    }
+
+    fn infer_top_level_binding_types(&mut self, stmts: &[Stmt]) {
+        for stmt in stmts {
+            if let Stmt::Bind(Pat::Var(name), ty, expr) = stmt {
+                let inferred = ty
+                    .as_ref()
+                    .and_then(Self::type_name_from_ty)
+                    .or_else(|| self.infer_expr_type_name(expr));
+                if let Some(type_name) = inferred {
+                    self.define_inferred_var_type_name(name, &type_name);
+                }
             }
         }
     }
@@ -13263,6 +13573,8 @@ impl TypeChecker {
         let previous_dir = self.source_dir.clone();
         self.source_dir = Some(imported_dir);
         self.collect_declarations(import_stmts);
+        self.infer_rule_return_types(import_stmts);
+        self.infer_top_level_binding_types(import_stmts);
         self.source_dir = previous_dir;
     }
 
@@ -13358,6 +13670,7 @@ impl TypeChecker {
                 }) => {
                     self.types.insert(name.clone());
                     let mut type_field_names = BTreeSet::new();
+                    let mut type_field_types = BTreeMap::new();
                     let mut variant_names = Vec::new();
                     for variant in variants {
                         let field_count = variant.fields.len();
@@ -13370,9 +13683,26 @@ impl TypeChecker {
                             .map(|field| field.name.clone())
                             .collect();
                         type_field_names.extend(variant_field_names.iter().cloned());
+                        let variant_field_types: BTreeMap<String, String> = variant
+                            .fields
+                            .iter()
+                            .filter_map(|field| {
+                                Self::type_name_from_ty(&field.ty)
+                                    .map(|ty| (field.name.clone(), ty))
+                            })
+                            .collect();
+                        for (field_name, field_ty) in &variant_field_types {
+                            type_field_types
+                                .entry(field_name.clone())
+                                .or_insert_with(|| field_ty.clone());
+                        }
                         if !variant_field_names.is_empty() {
                             self.type_fields
                                 .insert(variant.name.clone(), variant_field_names);
+                        }
+                        if !variant_field_types.is_empty() {
+                            self.type_field_types
+                                .insert(variant.name.clone(), variant_field_types);
                         }
                         if !variant.positional && !variant.fields.is_empty() {
                             self.constructor_fields.insert(
@@ -13391,6 +13721,9 @@ impl TypeChecker {
                     }
                     if !type_field_names.is_empty() {
                         self.type_fields.insert(name.clone(), type_field_names);
+                    }
+                    if !type_field_types.is_empty() {
+                        self.type_field_types.insert(name.clone(), type_field_types);
                     }
                     if variants.len() > 1 {
                         self.type_variants.insert(name.clone(), variant_names);
@@ -13424,6 +13757,20 @@ impl TypeChecker {
                         name.clone(),
                         params.iter().map(|param| param.name.clone()).collect(),
                     );
+                    let rule_scope_field_types: BTreeMap<String, String> = params
+                        .iter()
+                        .filter_map(|param| {
+                            param
+                                .ty
+                                .as_ref()
+                                .and_then(Self::type_name_from_ty)
+                                .map(|ty| (param.name.clone(), ty))
+                        })
+                        .collect();
+                    if !rule_scope_field_types.is_empty() {
+                        self.type_field_types
+                            .insert(name.clone(), rule_scope_field_types);
+                    }
                     self.rule_scope_methods
                         .insert(name.clone(), Self::rule_scope_method_arities(body));
                     self.rule_scope_method_params
@@ -13432,6 +13779,7 @@ impl TypeChecker {
                         .insert(name.clone(), Self::rule_scope_value_method_arities(body));
                     self.rule_scope_value_method_params
                         .insert(name.clone(), Self::rule_scope_value_method_params(body));
+                    self.infer_rule_scope_member_return_types(name, params, body);
                 }
                 Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
                     self.types.insert(name.clone());
@@ -13987,6 +14335,10 @@ impl TypeChecker {
                 self.define_pat_vars(pat);
                 if let (Pat::Var(name), Some(ty)) = (pat, ty.as_ref()) {
                     self.define_var_type(name, ty);
+                } else if let Pat::Var(name) = pat {
+                    if let Some(type_name) = self.infer_expr_type_name(expr) {
+                        self.define_inferred_var_type_name(name, &type_name);
+                    }
                 }
                 if let Pat::Var(name) = pat {
                     if let Some(scope_name) = self.expr_rule_scope_type(expr) {
@@ -14508,15 +14860,13 @@ impl TypeChecker {
                         }
                     }
                 }
-                if let ExprKind::Var(var_name) = &base.kind {
-                    if let Some(type_name) = self.var_type_name(var_name) {
-                        if let Some(fields) = self.type_fields.get(type_name) {
-                            if !fields.contains(field) {
-                                self.error_at_expr(
-                                    expr,
-                                    format!("type `{}` has no field `{}`", type_name, field),
-                                );
-                            }
+                if let Some(type_name) = self.infer_expr_type_name(base) {
+                    if let Some(fields) = self.type_fields.get(&type_name) {
+                        if !fields.contains(field) {
+                            self.error_at_expr(
+                                expr,
+                                format!("type `{}` has no field `{}`", type_name, field),
+                            );
                         }
                     }
                 }
@@ -14765,6 +15115,8 @@ impl TypeChecker {
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
         tc.collect_declarations(stmts);
+        tc.infer_rule_return_types(stmts);
+        tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
         tc.diagnostics
     }
@@ -15518,6 +15870,32 @@ mod tests {
         assert!(
             diags.is_empty(),
             "delegated RuleScope-returning wrappers should preserve the RuleScope type, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_rejects_missing_field_on_rulescope_rule_return_binding() {
+        let source = r#"
+# Output(value: Int)
+
+# Case(x: Int) {
+    | result() -> Output(value = x)
+}
+
+| make_case(x: Int) -> Case(x)
+| case_result(x: Int) -> make_case(x).result()
+| delegated_result(x: Int) -> case_result(x)
+= result = delegated_result(41)
+
+| result_must_use_declared_field: result -> result.x == 41
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.iter().any(|diag| diag
+                .message
+                .contains("type `Output` has no field `x`")),
+            "missing fields on rule-returned scenario bindings should be rejected before codegen, got: {:?}",
             diags
         );
     }
