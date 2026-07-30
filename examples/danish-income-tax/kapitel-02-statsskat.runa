@@ -331,6 +331,10 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 # Par7TopskatResultat(bundfradrag_kroner: Heltal, kapital_grundbeløb_kroner: Heltal, personligt_beregningsgrundlag_kroner: Heltal, personlig_over_bundfradrag_kroner: Heltal, kapital_over_grundbeløb_kroner: Heltal, samlet_grundlag_over_bundfradrag_kroner: Heltal, kapitalgrundlag_kroner: Heltal, personlig_skat_kroner: Heltal, kapital_skat_kroner: Heltal, samlet_skat_kroner: Heltal)
 # ÆgtefælleTopskatStatus = IkkeÆgtefælleRegel | HeleÅretSamlevendeÆgtefæller
 # KapitalTærskelStatus = IngenOverGrundbeløb | EnÆgtefælleOverGrundbeløb | BeggeÆgtefællerOverGrundbeløb
+# Par7KapitalskatFordelingInput(samlet_kapitalskat_kroner: Heltal, egen_nettokapitalindkomst_over_grundbeløb_kroner: Heltal, ægtefælles_nettokapitalindkomst_over_grundbeløb_kroner: Heltal)
+# Par7KapitalskatFordelingResultat(samlet_kapitalskat_kroner: Heltal, egen_kapitalskat_kroner: Heltal, ægtefælles_kapitalskat_kroner: Heltal, kapital_tærskel_status: KapitalTærskelStatus)
+# Par7HøjesteBeregningsgrundlag = EgenHøjesteBeregningsgrundlag | ÆgtefælleHøjesteBeregningsgrundlag | LigeBeregningsgrundlagUafklaret
+# Par7ÆgtefælleBeregningsgrundlagInput(egen_beregningsgrundlag_efter_stk7_kroner: Heltal, ægtefælles_beregningsgrundlag_efter_stk7_kroner: Heltal, egne_ligningsmæssige_fradrag_kroner: Heltal, ægtefælles_ligningsmæssige_fradrag_kroner: Heltal)
 
 | topskat_sats_basispoint() -> 1500
 | topskat_personligt_grundlag(input: TopskatInput) -> input.personlig_indkomst + input.pbl16_tillæg
@@ -338,6 +342,37 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 | topskat_ægtefælleregler_gælder(status: ÆgtefælleTopskatStatus) -> status == HeleÅretSamlevendeÆgtefæller
 | positiv_kapital_topskat_fordeles(status: KapitalTærskelStatus) -> status == BeggeÆgtefællerOverGrundbeløb
 | positiv_kapital_topskat_påhviler_ene(status: KapitalTærskelStatus) -> status == EnÆgtefælleOverGrundbeløb
+# Par7KapitalskatFordelingSag(input: Par7KapitalskatFordelingInput) {
+    | samlet_kapitalskat_kroner() -> penge_positivt_beløb(input.samlet_kapitalskat_kroner)
+    | egen_kapital_over_grundbeløb_kroner() -> penge_positivt_beløb(input.egen_nettokapitalindkomst_over_grundbeløb_kroner)
+    | ægtefælles_kapital_over_grundbeløb_kroner() -> penge_positivt_beløb(input.ægtefælles_nettokapitalindkomst_over_grundbeløb_kroner)
+    | samlet_kapital_over_grundbeløb_kroner() -> egen_kapital_over_grundbeløb_kroner() + ægtefælles_kapital_over_grundbeløb_kroner()
+    | kapital_tærskel_status() -> IngenOverGrundbeløb
+    | exception par7_stk10_kun_egen_over_grundbeløb kapital_tærskel_status() -> EnÆgtefælleOverGrundbeløb under egen_kapital_over_grundbeløb_kroner() > 0 && ægtefælles_kapital_over_grundbeløb_kroner() == 0
+    | exception par7_stk10_kun_ægtefælle_over_grundbeløb kapital_tærskel_status() -> EnÆgtefælleOverGrundbeløb under egen_kapital_over_grundbeløb_kroner() == 0 && ægtefælles_kapital_over_grundbeløb_kroner() > 0
+    | exception par7_stk11_begge_over_grundbeløb kapital_tærskel_status() -> BeggeÆgtefællerOverGrundbeløb under egen_kapital_over_grundbeløb_kroner() > 0 && ægtefælles_kapital_over_grundbeløb_kroner() > 0
+    | egen_forholdsmæssig_kapitalskat_kroner() -> 0
+    | exception par7_stk11_egen_forholdsmæssig_kapitalskat egen_forholdsmæssig_kapitalskat_kroner() -> samlet_kapitalskat_kroner() * egen_kapital_over_grundbeløb_kroner() / samlet_kapital_over_grundbeløb_kroner() under kapital_tærskel_status() == BeggeÆgtefællerOverGrundbeløb
+    | egen_kapitalskat_kroner() -> 0
+    | exception par7_stk10_kapitalskat_påhviler_egen egen_kapitalskat_kroner() -> samlet_kapitalskat_kroner() under egen_kapital_over_grundbeløb_kroner() > 0 && ægtefælles_kapital_over_grundbeløb_kroner() == 0
+    | exception par7_stk11_kapitalskat_fordeles_til_egen egen_kapitalskat_kroner() -> egen_forholdsmæssig_kapitalskat_kroner() under kapital_tærskel_status() == BeggeÆgtefællerOverGrundbeløb
+    | ægtefælles_kapitalskat_kroner() -> 0
+    | exception par7_stk10_kapitalskat_påhviler_ægtefælle ægtefælles_kapitalskat_kroner() -> samlet_kapitalskat_kroner() under egen_kapital_over_grundbeløb_kroner() == 0 && ægtefælles_kapital_over_grundbeløb_kroner() > 0
+    | exception par7_stk11_kapitalskat_fordeles_til_ægtefælle ægtefælles_kapitalskat_kroner() -> samlet_kapitalskat_kroner() - egen_kapitalskat_kroner() under kapital_tærskel_status() == BeggeÆgtefællerOverGrundbeløb
+    | resultat() -> Par7KapitalskatFordelingResultat(
+        samlet_kapitalskat_kroner = samlet_kapitalskat_kroner(),
+        egen_kapitalskat_kroner = egen_kapitalskat_kroner(),
+        ægtefælles_kapitalskat_kroner = ægtefælles_kapitalskat_kroner(),
+        kapital_tærskel_status = kapital_tærskel_status()
+    )
+}
+| par7_kapitalskat_fordeling_sag(input: Par7KapitalskatFordelingInput) -> Par7KapitalskatFordelingSag(input)
+| par7_kapitalskat_fordeling_resultat(input: Par7KapitalskatFordelingInput) -> par7_kapitalskat_fordeling_sag(input).resultat()
+| par7_højeste_beregningsgrundlag(input: Par7ÆgtefælleBeregningsgrundlagInput) -> LigeBeregningsgrundlagUafklaret
+| exception par7_stk8_egen_højere_beregningsgrundlag par7_højeste_beregningsgrundlag(input: Par7ÆgtefælleBeregningsgrundlagInput) -> EgenHøjesteBeregningsgrundlag under input.egen_beregningsgrundlag_efter_stk7_kroner > input.ægtefælles_beregningsgrundlag_efter_stk7_kroner
+| exception par7_stk8_ægtefælle_højere_beregningsgrundlag par7_højeste_beregningsgrundlag(input: Par7ÆgtefælleBeregningsgrundlagInput) -> ÆgtefælleHøjesteBeregningsgrundlag under input.ægtefælles_beregningsgrundlag_efter_stk7_kroner > input.egen_beregningsgrundlag_efter_stk7_kroner
+| exception par7_stk12_egen_største_ligningsfradrag par7_højeste_beregningsgrundlag(input: Par7ÆgtefælleBeregningsgrundlagInput) -> EgenHøjesteBeregningsgrundlag under input.egen_beregningsgrundlag_efter_stk7_kroner == input.ægtefælles_beregningsgrundlag_efter_stk7_kroner && input.egne_ligningsmæssige_fradrag_kroner > input.ægtefælles_ligningsmæssige_fradrag_kroner
+| exception par7_stk12_ægtefælle_største_ligningsfradrag par7_højeste_beregningsgrundlag(input: Par7ÆgtefælleBeregningsgrundlagInput) -> ÆgtefælleHøjesteBeregningsgrundlag under input.egen_beregningsgrundlag_efter_stk7_kroner == input.ægtefælles_beregningsgrundlag_efter_stk7_kroner && input.ægtefælles_ligningsmæssige_fradrag_kroner > input.egne_ligningsmæssige_fradrag_kroner
 | topskat_grundbeløb_reguleres_efter_par20() -> Sandt
 | topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 389900 under skatteår == 2012
 | topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 421000 under skatteår == 2013
@@ -388,6 +423,27 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 = par7_ægtefæller = topskat_ægtefælleregler_gælder(HeleÅretSamlevendeÆgtefæller)
 = par7_fordeling = positiv_kapital_topskat_fordeles(BeggeÆgtefællerOverGrundbeløb)
 = par7_ene = positiv_kapital_topskat_påhviler_ene(EnÆgtefælleOverGrundbeløb)
+= par7_kapitalskat_begge_over = par7_kapitalskat_fordeling_resultat(Par7KapitalskatFordelingInput(
+    samlet_kapitalskat_kroner = 750,
+    egen_nettokapitalindkomst_over_grundbeløb_kroner = 30000,
+    ægtefælles_nettokapitalindkomst_over_grundbeløb_kroner = 10000
+))
+= par7_kapitalskat_kun_egen_over = par7_kapitalskat_fordeling_resultat(Par7KapitalskatFordelingInput(
+    samlet_kapitalskat_kroner = 750,
+    egen_nettokapitalindkomst_over_grundbeløb_kroner = 10000,
+    ægtefælles_nettokapitalindkomst_over_grundbeløb_kroner = 0
+))
+= par7_kapitalskat_kun_ægtefælle_over = par7_kapitalskat_fordeling_resultat(Par7KapitalskatFordelingInput(
+    samlet_kapitalskat_kroner = 750,
+    egen_nettokapitalindkomst_over_grundbeløb_kroner = 0,
+    ægtefælles_nettokapitalindkomst_over_grundbeløb_kroner = 10000
+))
+= par7_stk12_højeste_beregningsgrundlag_fixture = par7_højeste_beregningsgrundlag(Par7ÆgtefælleBeregningsgrundlagInput(
+    egen_beregningsgrundlag_efter_stk7_kroner = 650000,
+    ægtefælles_beregningsgrundlag_efter_stk7_kroner = 650000,
+    egne_ligningsmæssige_fradrag_kroner = 60000,
+    ægtefælles_ligningsmæssige_fradrag_kroner = 40000
+))
 = par7_bundfradrag_2015_2010_niveau = topskat_bundfradrag_2010_niveau_kroner(2015)
 = par7_bundfradrag_2019_2010_niveau = topskat_bundfradrag_2010_niveau_kroner(2019)
 = par7_bundfradrag_2022_2010_niveau = topskat_bundfradrag_2010_niveau_kroner(2022)
@@ -404,6 +460,9 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 | par7_ægtefælleperiode_kræves: par7_ægtefæller -> par7_ægtefæller == Sandt
 | par7_begge_positive_fordeles: par7_fordeling -> par7_fordeling == Sandt
 | par7_en_positiv_påhviler_ene: par7_ene -> par7_ene == Sandt
+| par7_stk11_kapitalskat_fordeles_forholdsmæssigt: par7_kapitalskat_begge_over -> par7_kapitalskat_begge_over.kapital_tærskel_status == BeggeÆgtefællerOverGrundbeløb && par7_kapitalskat_begge_over.egen_kapitalskat_kroner == 562 && par7_kapitalskat_begge_over.ægtefælles_kapitalskat_kroner == 188
+| par7_stk10_kapitalskat_påhviler_ene_ægtefælle: par7_kapitalskat_kun_egen_over -> par7_kapitalskat_kun_egen_over.kapital_tærskel_status == EnÆgtefælleOverGrundbeløb && par7_kapitalskat_kun_egen_over.egen_kapitalskat_kroner == 750 && par7_kapitalskat_kun_egen_over.ægtefælles_kapitalskat_kroner == 0 && par7_kapitalskat_kun_ægtefælle_over.egen_kapitalskat_kroner == 0 && par7_kapitalskat_kun_ægtefælle_over.ægtefælles_kapitalskat_kroner == 750
+| par7_stk12_lige_beregningsgrundlag_brydes_af_ligningsfradrag: par7_stk12_højeste_beregningsgrundlag_fixture -> par7_stk12_højeste_beregningsgrundlag_fixture == EgenHøjesteBeregningsgrundlag
 | par7_bundfradrag_2015_fra_stk2: par7_bundfradrag_2015_2010_niveau -> par7_bundfradrag_2015_2010_niveau == 444500
 | par7_bundfradrag_2019_fra_stk2: par7_bundfradrag_2019_2010_niveau -> par7_bundfradrag_2019_2010_niveau == 459200
 | par7_bundfradrag_2022_fra_stk2: par7_bundfradrag_2022_2010_niveau -> par7_bundfradrag_2022_2010_niveau == 467000

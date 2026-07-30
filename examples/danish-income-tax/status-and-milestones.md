@@ -15,6 +15,9 @@ implementation first. Audit files remain important as validation gates for
 implemented slices, but deeper exploratory audits should wait until the main law
 model is materially complete.
 
+Latest mainline slice: § 7 spouse positive-net-capital tax now has an executable
+allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break rule.
+
 ## Source Status
 
 Primary prompt source:
@@ -464,6 +467,13 @@ Current decision:
   the spouse's positive net-capital income, the regulated grundbeløb, and
   samliv status together so negative capital is offset before the spouse's
   effective threshold is increased.
+- `Par7KapitalskatFordelingSag` keeps the § 7, stk. 10-11 allocation of
+  spouse positive-net-capital tax together as a result object. It derives
+  whether one or both spouses are over the grundbeløb and assigns the combined
+  capital tax to the single over-threshold spouse or splits it by the statutory
+  ratio. `par7_højeste_beregningsgrundlag` separately models the stk. 8/stk. 12
+  identity rule, including the equal-basis tie-break by largest
+  ligningsmæssige deductions.
 - `Par8cSkatSag` uses product-scoped `|` rules for the § 8 c municipal
   equivalent tax. It keeps tax year, limited-taxpayer posture, taxable ordinary
   income, and the § 10 stk. 5 personfradrag amount together so coverage,
@@ -823,7 +833,9 @@ M2 - State tax computation skeleton
   regulated 2026 threshold, including an executable spouse doubled-threshold
   case and the § 7 stk. 5 rule that negative net capital is offset against the
   spouse's positive net-capital income before the spouse's effective
-  grundbeløb is increased.
+  grundbeløb is increased. It now also exposes the § 7 stk. 10-11 allocation of
+  the combined spouse capital tax and the stk. 12 tie-break for equal stk. 7
+  beregningsgrundlag.
   The historical § 7 a udligningsskat slice now computes the amount-level
   tax from the regulated 2010-level grundbeløb, the stk. 3 corrected-personal-
   income cap, the stk. 6 spouse grundbeløb increase with the 121.000 kr.
@@ -970,6 +982,7 @@ M5 - Audit suite
   covered 2026 state-tax reform layers, covered § 13 deficit mechanics,
   mellemskat positive-net-capital and spouse-threshold activation,
   § 7 stk. 5 spouse negative-capital offset/effective-grundbeløb activation,
+  § 7 stk. 10-11 spouse capital-tax allocation, and § 7 stk. 12 tie-break,
   historical § 7 a udligningsskat amount calculation with stk. 3 and stk. 6
   spouse-threshold cases,
   historical § 8 sundhedsbidrag amount calculation with liability and zero-rate
