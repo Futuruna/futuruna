@@ -10,6 +10,11 @@ Futuruna. The aim is not only to display the law as source code, but to make the
 rules executable enough to calculate ordinary tax cases and strict enough to
 audit tensions, cliffs, missing definitions, and delegated dependencies.
 
+Current project priority: finish the source-backed Personskatteloven
+implementation first. Audit files remain important as validation gates for
+implemented slices, but deeper exploratory audits should wait until the main law
+model is materially complete.
+
 ## Source Status
 
 Primary prompt source:
@@ -65,7 +70,8 @@ Current § 13 amendment/dependency sources:
   - XML status on 2026-07-18: `Valid`
   - § 33 A is the foreign-wage relief exception in § 13, stk. 5.
   - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
-    wage-earner calculator.
+    wage-earner calculator; § 9 L is now modeled for extra pension deductions
+    and § 26 nr. 5 transition-compensation input.
   - SKM rates page used for current basis points and caps:
     `https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven`
 - Sømandsbeskatningsloven:
@@ -331,6 +337,9 @@ as a complete Personskatteloven calculator.
   audits, including source-derived confiscatory restskat search expansion in
   `td-f318b1`, are deferred until the main implementation is substantially
   complete.
+- Completion posture: the next sessions should prefer converting remaining
+  posture/category rules into amount-level legal calculations over adding new
+  exploratory audit search spaces.
 
 ## File Layout
 
@@ -724,7 +733,8 @@ Review candidates to revisit deliberately, not as broad churn:
   Opkrævningsloven § 7 input lookup from Nationalbank data, date-exact B-tax
   remaining-rate selection, date-exact § 62 A issue/payout scheduling, remaining
   AM edge cases, other
-  itemized deductions beyond the ordinary §§ 9 J/9 K wage-earner deductions,
+  itemized deductions beyond the ordinary §§ 9 J/9 K wage-earner deductions and
+  the first § 9 L extra-pension slice,
   and annual rate/threshold adjustments.
 - Keep existing audits running as implementation validation, but defer expanded
   source-drift, delegated-power, confiscatory, household-benefit, and
@@ -848,7 +858,9 @@ M4 - Ordinary taxpayer calculator
   income tax and church tax now import Kommuneskatteloven and Folkekirkens
   økonomi instead of using
   local arithmetic shortcuts. Ordinary Ligningsloven employment/job deductions
-  now import the Ligningsloven dependency slice instead of being manual zeroes.
+  now import the Ligningsloven dependency slice instead of being manual zeroes,
+  and the dependency slice now also models § 9 L extra pension deductions for
+  direct use by Personskatteloven § 26 nr. 5.
   A first fictional household scenario now computes a 2026 Copenhagen married
   renter household with 50.000 kr./month primary wage income and 20.000
   kr./month spouse wage income. A first household benefit-cliff audit covers
@@ -915,7 +927,8 @@ M5 - Audit suite
   mellemskat positive-net-capital and spouse-threshold activation,
   § 7 stk. 5 spouse negative-capital offset/effective-grundbeløb activation,
   ordinary wage and special-case AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
-  wage-earner-deduction coverage, ordinary municipal/church-tax legal coverage,
+  wage-earner-deduction coverage plus § 9 L/§ 26 nr. 5 validation coverage,
+  ordinary municipal/church-tax legal coverage,
   covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture,
   covered BEK 839 forskudskort generation, covered BEK 1094 2026
   indeholdelsesprocent derivation, covered Kildeskatteloven slutopgørelse
@@ -1058,8 +1071,10 @@ M9 - Final provisions and transition compensation
   samlevende-ægtefælle offsets for positive/negative transition differences,
   negative/positive net-capital interaction, and nr. 2 bundfradrag transfer with
   the § 48 F exception, § 26 stk. 9 can now derive source-backed 2012-2019
-  threshold packs from the official § 20 `reguleringstal`, § 27 is encoded as
-  delegated implementation/administration authority, and § 28 excludes the
-  Faroe Islands and Greenland. Remaining § 26 depth is mostly integration work:
-  full LL § 9 J/9 K/9 L baseline derivation and broader historic compensation
-  fixtures.
+  threshold packs from the official § 20 `reguleringstal`, § 26 nr. 5 can derive
+  a 2019 Ligningsloven §§ 9 J/9 K/9 L fradrag and the 4,25 pct. baseline from
+  source-backed inputs, § 27 is encoded as delegated
+  implementation/administration authority, and § 28 excludes the Faroe Islands
+  and Greenland. Remaining § 26 depth is mostly integration work: 2012-2017
+  historic LL § 9 J parameter coverage, broader historic compensation fixtures,
+  and eventual wiring into a full historic tax-settlement calculator.

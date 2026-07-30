@@ -2,6 +2,7 @@
 
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./ligningsloven_fradrag
 
 -- Personskatteloven — fælles bestemmelser, ikrafttræden og afslutning (§§ 21-28).
 --
@@ -139,6 +140,8 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par26Stk6BundfradragResult(egen_manglende_til_bundfradrag_kroner: Heltal, ægtefælle_bundfradragsforhøjelse_kroner: Heltal, ægtefælle_effektivt_bundfradrag_kroner: Heltal)
 # Par26Stk8PositivKapitalInput(status: Par26ÆgtefælleStatus, positiv_nettokapitalindkomst_kroner: Heltal, ægtefælle_negativ_nettokapitalindkomst_kroner: Heltal)
 # Par26Stk8PositivKapitalResult(modregnet_i_ægtefælles_negative_kroner: Heltal, positiv_nettokapitalindkomst_efter_modregning_kroner: Heltal, ægtefælle_negativ_nettokapitalindkomst_efter_modregning_kroner: Heltal)
+# Par26Nr5LigningsfradragInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk, pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus, kommunal_og_kirke_basispoint: Heltal)
+# Par26Nr5LigningsfradragResult(fradrag_efter_ll9j_9k_9l_kroner: Heltal, baseline_fradrag_efter_425pct_grundbeløb_kroner: Heltal, nr5_kroner: Heltal)
 
 | par26_gælder_for_skatteår(skatteår: Heltal) -> skatteår >= 2012 && skatteår <= 2019
 | par26_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
@@ -173,6 +176,26 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | par26_nr3_kroner(topskat_grundlag_kroner: Heltal, par7_bundfradrag_kroner: Heltal) -> par26_nr3_reguleret_kroner(topskat_grundlag_kroner, par7_bundfradrag_kroner, 1000)
 | par26_nr4_kroner(aktieindkomstskat_grundlag_kroner: Heltal) -> penge_beløb_gange_basispoint_kroner(aktieindkomstskat_grundlag_kroner, 100)
 | par26_nr5_kroner(fradrag_efter_ll9j_9k_9l_kroner: Heltal, kommunal_og_kirke_basispoint: Heltal, baseline_fradrag_kroner: Heltal) -> penge_beløb_gange_basispoint_kroner(fradrag_efter_ll9j_9k_9l_kroner, 800 + kommunal_og_kirke_basispoint) - penge_beløb_gange_basispoint_kroner(baseline_fradrag_kroner, 425)
+| par26_nr5_ll_input(input: Par26Nr5LigningsfradragInput) -> Ligningslov9J9K9LInput(
+    skatteår = input.skatteår,
+    arbejdsmarkedsbidragsgrundlag_kroner = input.arbejdsmarkedsbidragsgrundlag_kroner,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver,
+    pensionsalder_status = input.pensionsalder_status,
+    pbl18_fradragsberettiget_indbetaling_kroner = input.pbl18_fradragsberettiget_indbetaling_kroner,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = input.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = input.pbl19_øvrige_indbetalinger_efter_am_kroner,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = input.pbl20_indkomstskattepligtig_udbetaling_kroner,
+    pbl20_udbetaling_status = input.pbl20_udbetaling_status
+)
+| par26_nr5_baseline_grundbeløb_kroner(skatteår: Heltal) -> par26_fradragsgrundbeløb_nr5_reguleret_kroner(par26_reguleringstal_tiendedele_for_skatteår(skatteår)) under par26_gælder_for_skatteår(skatteår)
+| par26_nr5_baseline_beregnet_kroner(input: Par26Nr5LigningsfradragInput) -> penge_beløb_gange_basispoint_kroner(par26_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner), 425)
+| par26_nr5_baseline_fradrag_kroner(input: Par26Nr5LigningsfradragInput) -> 0
+| exception par26_nr5_samme_betingelser_som_ll9j par26_nr5_baseline_fradrag_kroner(input: Par26Nr5LigningsfradragInput) -> penge_mindste_beløb(par26_nr5_baseline_beregnet_kroner(input), par26_nr5_baseline_grundbeløb_kroner(input.skatteår)) under input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
+| par26_nr5_ligningsfradrag_resultat(input: Par26Nr5LigningsfradragInput) -> Par26Nr5LigningsfradragResult(
+    fradrag_efter_ll9j_9k_9l_kroner = ll9j_9k_9l_fradrag_resultat(par26_nr5_ll_input(input)).samlet_fradrag_kroner,
+    baseline_fradrag_efter_425pct_grundbeløb_kroner = par26_nr5_baseline_fradrag_kroner(input),
+    nr5_kroner = par26_nr5_kroner(ll9j_9k_9l_fradrag_resultat(par26_nr5_ll_input(input)).samlet_fradrag_kroner, input.kommunal_og_kirke_basispoint, par26_nr5_baseline_fradrag_kroner(input))
+)
 | par26_nr8_kroner(negativ_kapital_og_ligningsmæssige_fradrag_kroner: Heltal, sundhedsbidrag_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(negativ_kapital_og_ligningsmæssige_fradrag_kroner, 800 - sundhedsbidrag_basispoint)
 | par26_forskelsbeløb_før_nr8(input: Par26ForskelsbeløbInput) -> par26_positivt_beløb(input.nr1_kroner + input.nr2_kroner + input.nr3_kroner + input.nr4_kroner + input.nr5_kroner - input.nr6_kroner - input.nr7_kroner)
 | par26_forskelsbeløb_efter_stk3(input: Par26ForskelsbeløbInput) -> par26_forskelsbeløb_før_nr8(input) - input.nr8_kroner
@@ -331,6 +354,18 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 = par26_regulerede_grænser_1311_fixture = par26_regulerede_beløbsgrænser(1311)
 = par26_reguleringstal_2019_fixture = par26_reguleringstal_tiendedele_for_skatteår(2019)
 = par26_regulerede_grænser_2019_fixture = par26_regulerede_beløbsgrænser_for_skatteår(2019)
+= par26_nr5_ligningsfradrag_2019_fixture = par26_nr5_ligningsfradrag_resultat(Par26Nr5LigningsfradragInput(
+    skatteår = 2019,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt,
+    pensionsalder_status = Ll9lFra15ÅrFørFolkepension,
+    pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling,
+    kommunal_og_kirke_basispoint = 2430
+))
 = par26_beregnet_forskelsbeløb_fixture = par26_forskelsbeløb_beregning(Par26ForskelsbeløbBeregningsInput(
     skatteår = 2015,
     reguleringstal_tiendedele = 1000,
@@ -389,6 +424,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | par26_stk9_regulerer_2010_beløb_efter_par20: par26_regulerede_grænser_1311_fixture -> par26_regulerede_grænser_1311_fixture.bundfradrag_nr1_voksen_kroner == 58800 && par26_regulerede_grænser_1311_fixture.bundfradrag_nr2_og_nr3_kroner == 475700 && par26_regulerede_grænser_1311_fixture.fradragsgrundbeløb_nr5_kroner == 18700 && par26_regulerede_grænser_1311_fixture.personfradrag_nr6_kroner == 2500
 | par26_2019_bruger_officielt_reguleringstal: par26_reguleringstal_2019_fixture -> par26_reguleringstal_2019_fixture == 1118
 | par26_2019_regulerede_grænser_fra_par20: par26_regulerede_grænser_2019_fixture -> par26_regulerede_grænser_2019_fixture.bundfradrag_nr1_voksen_kroner == 50100 && par26_regulerede_grænser_2019_fixture.bundfradrag_nr1_under18_kroner == 37600 && par26_regulerede_grænser_2019_fixture.bundfradrag_nr2_og_nr3_kroner == 405700 && par26_regulerede_grænser_2019_fixture.fradragsgrundbeløb_nr5_kroner == 15900 && par26_regulerede_grænser_2019_fixture.personfradrag_nr6_kroner == 2200
+| par26_nr5_2019_afleder_ligningsfradrag_og_baseline: par26_nr5_ligningsfradrag_2019_fixture -> par26_nr5_ligningsfradrag_2019_fixture.fradrag_efter_ll9j_9k_9l_kroner == 55030 && par26_nr5_ligningsfradrag_2019_fixture.baseline_fradrag_efter_425pct_grundbeløb_kroner == 15900 && par26_nr5_ligningsfradrag_2019_fixture.nr5_kroner == 17099
 | par26_forskelsbeløb_beregnes_fra_stk2_poster: par26_beregnet_forskelsbeløb_fixture -> par26_beregnet_forskelsbeløb_fixture.nr1_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr2_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr3_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr6_kroner == 2500 && par26_beregnet_forskelsbeløb_fixture.nr8_kroner == 1000 && par26_beregnet_forskelsbeløb_fixture.forskelsbeløb_før_nr8_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.kompensation_kroner == 1000
 | par26_stk4_positivt_forskelsbeløb_nedsætter_ægtefælles_negative: par26_stk4_ægtefælle_forskelsbeløb_fixture -> par26_stk4_ægtefælle_forskelsbeløb_fixture.positivt_forskelsbeløb_modregnet_kroner == 3000 && par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_forskelsbeløb_efter_stk4_kroner == -2000 && par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_kompensation_efter_stk4_kroner == 2000
 | par26_stk5_negativ_kapital_modregnes_i_ægtefælles_positive: par26_stk5_negativ_kapital_fixture -> par26_stk5_negativ_kapital_fixture.modregnet_i_ægtefælles_positive_kroner == 25000 && par26_stk5_negativ_kapital_fixture.negativ_nettokapitalindkomst_efter_modregning_kroner == -15000 && par26_stk5_negativ_kapital_fixture.ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner == 0

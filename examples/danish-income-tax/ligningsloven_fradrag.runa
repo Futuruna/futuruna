@@ -1,16 +1,22 @@
 @ sprog da
 
 @ importer ./pengebeloeb
+@ importer ./kapitel - 04 - omregning - skatteloft
 
--- Ligningsloven — almindelige lønmodtagerfradrag efter §§ 9 J og 9 K.
+-- Ligningsloven — almindelige lønmodtagerfradrag efter §§ 9 J, 9 K og 9 L.
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
 -- XML: https://www.retsinformation.dk/eli/lta/2025/1500/dan/xml
+-- Historisk konsolidering for 2018/2019-satser:
+-- Retsinformation, LBK nr. 806 af 08/08/2019.
+-- https://www.retsinformation.dk/eli/lta/2019/806
 --
 -- Satser og regulerede maksimumsbeløb:
 -- Skatteministeriet, "Ligningsloven".
 -- https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven
+-- Skatteministeriet, "Beløbsgrænser ... PSL § 20 - 2018-2019".
+-- https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2018-2019
 -- Skatteministeriet, "Beløbsgrænser ... PSL § 20 - 2024-2025".
 -- https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2024-2025
 
@@ -67,6 +73,8 @@ Grundbeløbene reguleres efter personskattelovens § 20.
 Skatteministeriet, "Ligningsloven", satser og beløbsgrænser:
 
 Beskæftigelsesfradrag, § 9 J, stk. 2
+2018: procent 9,5; maksimalt fradrag 34.300 kr.
+2019: procent 10,1; maksimalt fradrag 37.200 kr.
 2024: procent 10,65; maksimalt fradrag 45.100 kr.
 2025: procent 12,3; maksimalt fradrag 55.600 kr.
 2026: procent 12,75; maksimalt fradrag 63.300 kr.
@@ -79,6 +87,16 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
 
 | ligningslov_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> penge_mindste_beløb(a_kroner, b_kroner)
 
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2018,
+    beskæftigelsesfradrag_basispoint = 950,
+    beskæftigelsesfradrag_maks_kroner = 34300
+) under skatteår == 2018
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2019,
+    beskæftigelsesfradrag_basispoint = 1010,
+    beskæftigelsesfradrag_maks_kroner = 37200
+) under skatteår == 2019
 | ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
     skatteår = 2024,
     beskæftigelsesfradrag_basispoint = 1065,
@@ -149,6 +167,8 @@ Stk. 3. Grundbeløbene i stk. 1 og 2 reguleres efter personskattelovens § 20.
 Skatteministeriet, "Ligningsloven", satser og beløbsgrænser:
 
 Jobfradrag, § 9 K
+2018: procent 2,5; indkomstgrænse 187.500 kr.; maksimalt fradrag 1.400 kr.
+2019: procent 3,75; indkomstgrænse 191.600 kr.; maksimalt fradrag 2.100 kr.
 2024: procent 4,5; indkomstgrænse 216.100 kr.; maksimalt fradrag 2.800 kr.
 2025: procent 4,5; indkomstgrænse 224.500 kr.; maksimalt fradrag 2.900 kr.
 2026: procent 4,5; indkomstgrænse 235.200 kr.; maksimalt fradrag 3.100 kr.
@@ -158,6 +178,18 @@ Jobfradrag, § 9 K
 # Ligningslov9KParametre(skatteår: Heltal, jobfradrag_basispoint: Heltal, jobfradrag_indkomstgrænse_kroner: Heltal, jobfradrag_maks_kroner: Heltal)
 # LigningslovLønmodtagerFradragInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk)
 
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+    skatteår = 2018,
+    jobfradrag_basispoint = 250,
+    jobfradrag_indkomstgrænse_kroner = 187500,
+    jobfradrag_maks_kroner = 1400
+) under skatteår == 2018
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+    skatteår = 2019,
+    jobfradrag_basispoint = 375,
+    jobfradrag_indkomstgrænse_kroner = 191600,
+    jobfradrag_maks_kroner = 2100
+) under skatteår == 2019
 | ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
     skatteår = 2024,
     jobfradrag_basispoint = 450,
@@ -227,3 +259,181 @@ Jobfradrag, § 9 K
 | ll9k_2026_lavere_løn_over_grænse: ll9k_2026_240000_fixture -> ll9k_2026_240000_fixture == 216
 | ll_lønmodtager_2026_standardfradrag_høj_løn: ll_lønmodtager_2026_600000_fixture -> ll_lønmodtager_2026_600000_fixture == 66400
 | ll_lønmodtager_2026_standardfradrag_lavere_løn: ll_lønmodtager_2026_240000_fixture -> ll_lønmodtager_2026_240000_fixture == 30816
+
+----
+§ 9 L. Ved opgørelsen af den skattepligtige indkomst kan personer fradrage
+procenten nævnt i stk. 3 af deres fradragsberettigede pensionsindbetalinger
+omfattet af pensionsbeskatningslovens § 18 og pensionsindbetalinger omfattet af
+pensionsbeskatningslovens § 19, jf. dog 2.-5. pkt. og stk. 2.
+
+Pensionsindbetalinger omfattet af pensionsbeskatningslovens § 18 indgår med
+det beløb, hvormed de i indkomståret fradrages efter pensionsbeskatningslovens
+§ 18.
+
+Indbetalinger til ratepension og ophørende livrente omfattet af
+pensionsbeskatningslovens § 19 indgår med det beløb, for hvilket der er
+bortseelsesret efter pensionsbeskatningslovens § 19, og efter fradrag af
+indeholdt arbejdsmarkedsbidrag.
+
+Øvrige pensionsindbetalinger omfattet af pensionsbeskatningslovens § 19 indgår
+efter fradrag af indeholdt arbejdsmarkedsbidrag.
+
+Der kan højst beregnes fradrag af et grundbeløb på 63.900 kr. (2010-niveau).
+
+Grundbeløbet reguleres efter personskattelovens § 20.
+
+Stk. 2. Indkomstskattepligtige pensionsudbetalinger omfattet af
+pensionsbeskatningslovens § 20, stk. 1, nr. 1-4, fragår i den efter stk. 1
+beregnede sum af fradragsberettigede pensionsindbetalinger omfattet af
+pensionsbeskatningslovens § 18 og bortseelsesberettigede pensionsindbetalinger
+omfattet af pensionsbeskatningslovens § 19, når der i det foregående indkomstår
+er foretaget sådanne udbetalinger.
+
+1. pkt. gælder dog ikke:
+1) Udbetaling af invalidepension indtil opnåelse af folkepensionsalderen, jf.
+§ 1 a i lov om social pension.
+2) Udbetaling af rateforsikring i tilfælde af forsikredes invaliditet.
+3) Udbetaling af rateopsparing i tilfælde af kontohaverens varigt nedsatte
+arbejdsevne, som efter reglerne i lov om social pension berettiger kontohaveren
+til at oppebære førtidspension eller seniorpension.
+4) Udbetaling af ægtefælle- eller samleverpension.
+5) Udbetaling til efterladte.
+6) Udbetaling af pension som nævnt i pensionsbeskatningslovens § 2, stk. 1,
+nr. 1 og 2.
+7) Udbetaling af børnepension.
+
+Stk. 3. Procenten nævnt i stk. 1 udgør 8 for indkomstårene 2018 og 2019 og
+12 for indkomståret 2020 og efterfølgende indkomstår, jf. dog 2. pkt.
+Fra og med det 15. indkomstår før det indkomstår, hvor personen når den
+folkepensionsalder, jf. § 1 a i lov om social pension, der gælder for den
+pågældende ved indkomstårets begyndelse, udgør procenten 20 for indkomståret
+2018, 22 for indkomståret 2019 og 32 for indkomståret 2020 og efterfølgende
+indkomstår.
+----
+
+----
+Skatteministeriet, "Ligningsloven", satser og beløbsgrænser:
+
+Maksimalt grundlag for ekstra pensionsfradrag, § 9 L, stk. 1
+2025: 83.800 kr.
+2026: 87.800 kr.
+
+Ekstra pensionsfradrag indtil 15 år før folkepensionsalderen
+2025: 12,0 pct.
+2026: 12,0 pct.
+
+Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
+2025: 32,0 pct.
+2026: 32,0 pct.
+----
+
+# Ligningslov9LPensionsalderStatus = Ll9lMereEnd15ÅrFørFolkepension | Ll9lFra15ÅrFørFolkepension
+# Ligningslov9LPensionsudbetalingStatus = Ll9lIngenPbl20Udbetaling | Ll9lModregningspligtigPbl20Udbetaling | Ll9lUndtagetPbl20Udbetaling
+# Ligningslov9LInput(skatteår: Heltal, pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
+# Ligningslov9LParametre(skatteår: Heltal, pensionsfradrag_basispoint: Heltal, maksimalt_grundlag_kroner: Heltal)
+# Ligningslov9J9K9LInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk, pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
+# Ligningslov9J9K9LResult(beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, ekstra_pensionsfradrag_kroner: Heltal, samlet_fradrag_kroner: Heltal)
+
+| ll9l_gælder_for_skatteår(skatteår: Heltal) -> skatteår >= 2018
+| ll9l_maksimalt_grundlag_2010_niveau_kroner() -> 63900
+| ll9l_maksimalt_grundlag_kroner(skatteår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = ll9l_maksimalt_grundlag_2010_niveau_kroner(),
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(skatteår)
+)) under ll9l_gælder_for_skatteår(skatteår)
+| ll9l_ordinær_sats_basispoint(skatteår: Heltal) -> 800 under skatteår >= 2018 && skatteår <= 2019
+| ll9l_ordinær_sats_basispoint(skatteår: Heltal) -> 1200 under skatteår >= 2020
+| ll9l_folkepensionsnær_sats_basispoint(skatteår: Heltal) -> 2000 under skatteår == 2018
+| ll9l_folkepensionsnær_sats_basispoint(skatteår: Heltal) -> 2200 under skatteår == 2019
+| ll9l_folkepensionsnær_sats_basispoint(skatteår: Heltal) -> 3200 under skatteår >= 2020
+| ll9l_sats_basispoint(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> ll9l_ordinær_sats_basispoint(skatteår)
+| exception ll9l_fra15år_før_folkepension ll9l_sats_basispoint(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> ll9l_folkepensionsnær_sats_basispoint(skatteår) under status == Ll9lFra15ÅrFørFolkepension
+| ll9l_parametre_for(skatteår: Heltal, status: Ligningslov9LPensionsalderStatus) -> Ligningslov9LParametre(
+    skatteår = skatteår,
+    pensionsfradrag_basispoint = ll9l_sats_basispoint(skatteår, status),
+    maksimalt_grundlag_kroner = ll9l_maksimalt_grundlag_kroner(skatteår)
+) under ll9l_gælder_for_skatteår(skatteår)
+| ll9l_pensionsindbetalinger_før_udbetalinger_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(input.pbl18_fradragsberettiget_indbetaling_kroner) + ligningslov_positivt_beløb(input.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner) + ligningslov_positivt_beløb(input.pbl19_øvrige_indbetalinger_efter_am_kroner)
+| ll9l_modregningspligtig_udbetaling_kroner(input: Ligningslov9LInput) -> 0
+| exception ll9l_modregner_pbl20_udbetaling ll9l_modregningspligtig_udbetaling_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(input.pbl20_indkomstskattepligtig_udbetaling_kroner) under input.pbl20_udbetaling_status == Ll9lModregningspligtigPbl20Udbetaling
+| ll9l_nettopensionsindbetalinger_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(ll9l_pensionsindbetalinger_før_udbetalinger_kroner(input) - ll9l_modregningspligtig_udbetaling_kroner(input))
+| ll9l_fradragsgrundlag_kroner(input: Ligningslov9LInput) -> ligningslov_mindste_beløb(ll9l_nettopensionsindbetalinger_kroner(input), ll9l_parametre_for(input.skatteår, input.pensionsalder_status).maksimalt_grundlag_kroner)
+| ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> penge_beløb_gange_basispoint_kroner(ll9l_fradragsgrundlag_kroner(input), ll9l_parametre_for(input.skatteår, input.pensionsalder_status).pensionsfradrag_basispoint)
+| ll9j_9k_9l_9j_input(input: Ligningslov9J9K9LInput) -> Ligningslov9JInput(
+    skatteår = input.skatteår,
+    arbejdsmarkedsbidragsgrundlag_kroner = input.arbejdsmarkedsbidragsgrundlag_kroner,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver
+)
+| ll9j_9k_9l_9k_input(input: Ligningslov9J9K9LInput) -> Ligningslov9KInput(
+    skatteår = input.skatteår,
+    arbejdsmarkedsbidragsgrundlag_kroner = input.arbejdsmarkedsbidragsgrundlag_kroner,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver
+)
+| ll9j_9k_9l_9l_input(input: Ligningslov9J9K9LInput) -> Ligningslov9LInput(
+    skatteår = input.skatteår,
+    pensionsalder_status = input.pensionsalder_status,
+    pbl18_fradragsberettiget_indbetaling_kroner = input.pbl18_fradragsberettiget_indbetaling_kroner,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = input.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = input.pbl19_øvrige_indbetalinger_efter_am_kroner,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = input.pbl20_indkomstskattepligtig_udbetaling_kroner,
+    pbl20_udbetaling_status = input.pbl20_udbetaling_status
+)
+| ll9j_9k_9l_fradrag_resultat(input: Ligningslov9J9K9LInput) -> Ligningslov9J9K9LResult(
+    beskæftigelsesfradrag_kroner = ll9j_beskæftigelsesfradrag_kroner(ll9j_9k_9l_9j_input(input)),
+    jobfradrag_kroner = ll9k_jobfradrag_kroner(ll9j_9k_9l_9k_input(input)),
+    ekstra_pensionsfradrag_kroner = ll9l_ekstra_pensionsfradrag_kroner(ll9j_9k_9l_9l_input(input)),
+    samlet_fradrag_kroner = ll9j_beskæftigelsesfradrag_kroner(ll9j_9k_9l_9j_input(input)) + ll9k_jobfradrag_kroner(ll9j_9k_9l_9k_input(input)) + ll9l_ekstra_pensionsfradrag_kroner(ll9j_9k_9l_9l_input(input))
+)
+
+= ll9l_2019_folkepensionsnær_maks_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2019,
+    pensionsalder_status = Ll9lFra15ÅrFørFolkepension,
+    pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
+= ll9l_2026_ordinær_maks_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2026,
+    pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+    pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
+= ll9l_2026_modregnet_udbetaling_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2026,
+    pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+    pbl18_fradragsberettiget_indbetaling_kroner = 50000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 10000,
+    pbl20_udbetaling_status = Ll9lModregningspligtigPbl20Udbetaling
+))
+= ll9l_2026_undtaget_udbetaling_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2026,
+    pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+    pbl18_fradragsberettiget_indbetaling_kroner = 50000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 10000,
+    pbl20_udbetaling_status = Ll9lUndtagetPbl20Udbetaling
+))
+= ll9j_9k_9l_2026_fixture = ll9j_9k_9l_fradrag_resultat(Ligningslov9J9K9LInput(
+    skatteår = 2026,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt,
+    pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+    pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
+
+| ll9l_2019_reguleret_maks_og_22pct: ll9l_2019_folkepensionsnær_maks_fixture -> ll9l_2019_folkepensionsnær_maks_fixture == 15730
+| ll9l_2026_reguleret_maks_og_12pct: ll9l_2026_ordinær_maks_fixture -> ll9l_2026_ordinær_maks_fixture == 10536
+| ll9l_pbl20_udbetaling_modregnes: ll9l_2026_modregnet_udbetaling_fixture -> ll9l_2026_modregnet_udbetaling_fixture == 4800
+| ll9l_pbl20_udbetaling_undtages: ll9l_2026_undtaget_udbetaling_fixture -> ll9l_2026_undtaget_udbetaling_fixture == 6000
+| ll9j_9k_9l_samlet_fradrag: ll9j_9k_9l_2026_fixture -> ll9j_9k_9l_2026_fixture.samlet_fradrag_kroner == 76936
