@@ -10,6 +10,10 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2021/1284
 -- XML: https://www.retsinformation.dk/eli/lta/2021/1284/dan/xml
 --
+-- Ændringskilde for § 10:
+-- LOV nr. 1564 af 12/12/2023:
+-- https://www.retsinformation.dk/eli/lta/2023/1564
+--
 -- Afhængige retskilder for § 13, stk. 5:
 -- LOV nr. 482 af 22/05/2024:
 -- https://www.retsinformation.dk/eli/lta/2024/482
@@ -67,6 +71,28 @@ på personer, der ansøger om opholdstilladelse efter udlændingelovens § 7.
 Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 ----
 
+----
+Lov nr. 1564 af 12/12/2023, § 1:
+
+I personskatteloven, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021, som
+ændret ved lov nr. 252 af 25. februar 2022, lov nr. 610 af 31. maj 2023 og
+§ 12 i lov nr. 679 af 3. juni 2023, foretages følgende ændringer:
+
+2. § 10, stk. 1 og 2, ophæves, og i stedet indsættes:
+
+For her i landet fuldt skattepligtige personer udgør personfradragets
+grundbeløb 39.350 kr. (2010-niveau).
+
+Stk. 3-7 bliver herefter stk. 2-6.
+
+3. I § 10, stk. 4, 1. pkt., der bliver stk. 3, 1. pkt., stk. 5, 1. pkt., der
+bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
+»stk. 1 og 2« til: »stk. 1«.
+
+4. I § 10, stk. 4, 2. pkt., der bliver stk. 3, 2. pkt., ændres »stk. 3« til:
+»stk. 2«.
+----
+
 # PersonfradragAlderStatus = Fyldt18EllerGift | Under18Ugift
 # PersonfradragSkattepligt = FuldtSkattepligtigHerILandet | KildeskattelovPar2HelårRelevantIndtægt | KildeskattelovPar2DelårValgtRelevantIndtægt | KildeskattelovPar2DelårIkkeValgt | Kildeskattelov48Eller48FIndkomst | SømandsbeskatningPar9Indkomst | OpholdstilladelseUdl7Ansøger
 # ÆgtefællePersonfradragStatus = IkkeGiftEllerIkkeSamlevende | GiftSamlevendeVedÅretsUdløb
@@ -80,7 +106,8 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 | exception voksen_2020 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 40600 under status == Fyldt18EllerGift && skatteår == 2020
 | exception voksen_2021 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 39900 under status == Fyldt18EllerGift && skatteår == 2021
 | exception voksen_2022_og_frem personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 39350 under status == Fyldt18EllerGift && skatteår >= 2022
-| exception under18_ugift personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 31500 under status == Under18Ugift
+| exception under18_ugift_før_lov1564 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 31500 under status == Under18Ugift && skatteår < 2023
+| exception under18_ugift_efter_lov1564 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 39350 under status == Under18Ugift && skatteår >= 2023
 
 | personfradrag_beløb_for(skatteår: Heltal, status: PersonfradragAlderStatus) -> nationalparametre_for(skatteår).personfradrag_voksen_kroner under status == Fyldt18EllerGift
 | personfradrag_beløb_for(skatteår: Heltal, status: PersonfradragAlderStatus) -> nationalparametre_for(skatteår).personfradrag_under18_kroner under status == Under18Ugift
@@ -160,8 +187,10 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 | par10_stk3_ægtefælle_statsskat_resultat(input: Par10Stk3ÆgtefælleStatsskatInput) -> par10_stk3_ægtefælle_statsskat_sag(input).resultat()
 
 = par10_voksen_2025_2010niveau = personfradrag_grundbeløb_2010_niveau(Fyldt18EllerGift, 2025)
-= par10_under18_2010niveau = personfradrag_grundbeløb_2010_niveau(Under18Ugift, 2025)
+= par10_under18_2022_2010niveau = personfradrag_grundbeløb_2010_niveau(Under18Ugift, 2022)
+= par10_under18_2026_2010niveau = personfradrag_grundbeløb_2010_niveau(Under18Ugift, 2026)
 = par10_voksen_2025 = personfradrag_beløb_for(2025, Fyldt18EllerGift)
+= par10_under18_2026 = personfradrag_beløb_for(2026, Under18Ugift)
 = par10_fuld_skattepligt = personfradrag_anvendes_for(FuldtSkattepligtigHerILandet)
 = par10_forskerordning_afskåret = personfradrag_anvendes_for(Kildeskattelov48Eller48FIndkomst)
 = par10_ægtefælleoverførsel = ubrugt_personfradrag_skatteværdi_overføres_til_ægtefælle(GiftSamlevendeVedÅretsUdløb)
@@ -229,8 +258,10 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 ))
 
 | par10_voksen_2025_grundbeløb: par10_voksen_2025_2010niveau -> par10_voksen_2025_2010niveau == 39350
-| par10_under18_grundbeløb: par10_under18_2010niveau -> par10_under18_2010niveau == 31500
+| par10_under18_historisk_grundbeløb: par10_under18_2022_2010niveau -> par10_under18_2022_2010niveau == 31500
+| par10_under18_efter_lov1564_grundbeløb: par10_under18_2026_2010niveau -> par10_under18_2026_2010niveau == 39350
 | par10_voksen_2025_parameter: par10_voksen_2025 -> par10_voksen_2025 == 51600
+| par10_under18_efter_lov1564_parameter: par10_under18_2026 -> par10_under18_2026 == 54100
 | par10_fuld_skattepligtig_får_fradrag: par10_fuld_skattepligt -> par10_fuld_skattepligt == Sandt
 | par10_forskerordning_afskæres: par10_forskerordning_afskåret -> par10_forskerordning_afskåret == Falskt
 | par10_ubrugt_overføres: par10_ægtefælleoverførsel -> par10_ægtefælleoverførsel == Sandt

@@ -31,6 +31,9 @@ now has amount-level state-personfradrag reduction ordering for the split
 § 8/sundhedsbidrag and § 6/bundskat tax values, wired through the wage-earner
 calculator; § 10, stk. 3 now has amount-level spouse transfer of unused
 personfradrag state-tax value into the receiving spouse's § 9 state-tax basket;
+§ 10 now reflects LOV 1564/2023's removal of the separate under-18 basis from
+income year 2023 onward, and § 4, stk. 1, nr. 6 has a source-backed post-LOV
+615/2026 category fixture for the ejendomsværdiskattelov reference;
 § 26, stk. 7 now composes § 7 spouse capital-threshold and
 capital-tax allocation rules into the transition-compensation nr. 3 amount.
 
@@ -59,8 +62,9 @@ Current working source:
 - XML status on 2026-07-18: `Valid`
 - Signed: `2021-06-14`
 - In force from: `2021-06-16`
-- XML end date observed on 2026-07-18: `2026-06-23`
-- Change references in XML: 7
+- XML end date observed on 2026-07-18: `2026-07-01`
+- Tracked amendment sources now include `2023/1564`, `2024/482`,
+  `2024/1691` and `2026/615`.
 
 Current source-refresh finding:
 
@@ -68,23 +72,42 @@ Current source-refresh finding:
 - The official XML `Status` fields remained unchanged: the working/dependency
   sources still report `Valid`, while `2019/799` reports `Historic`.
 - Every tracked `Valid` source now has an XML `EndDate` horizon before
-  2026-06-26, so `source-status.runa` distinguishes formal legal validity from
+  2026-07-02, so `source-status.runa` distinguishes formal legal validity from
   current-day automation freshness.
 - `AktuelSkatteberegning` still accepts formally valid sources; the new
   `DagsaktuelAutomatiskBeregning` purpose rejects sources whose metadata horizon
-  does not cover `20260626`.
-- `scripts/refresh-danish-tax-source-status.py --today 20260626 --fail-on-drift`
+  does not cover `20260702`.
+- `scripts/refresh-danish-tax-source-status.py --today 20260702 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
   drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 19 records with 0 drift and 0 fetch/parse errors.
+  checked 22 records with 0 drift and 0 fetch/parse errors.
 
-Current § 13 amendment/dependency sources:
+Current Personskatteloven amendment sources:
 
+- Personfradrag under 18:
+  `https://www.retsinformation.dk/eli/lta/2023/1564`
+  - XML status on 2026-07-18: `Valid`
+  - § 1, nr. 2 removes the separate § 10, stk. 2 under-18 basis and inserts a
+    single 39.350 kr. 2010-level basis; the rule model keeps the old basis only
+    for pre-2023 historical queries.
 - Person-tax reform amendment:
   `https://www.retsinformation.dk/eli/lta/2024/482`
   - XML status on 2026-07-18: `Valid`
   - § 1, nr. 14 repeals Personskatteloven § 13, stk. 5, 4. pkt.
   - § 8, stk. 4 gives § 1 effect from income year 2026.
+- Iværksætterpakken amendment:
+  `https://www.retsinformation.dk/eli/lta/2024/1691`
+  - XML status on 2026-07-18: `Valid`
+  - § 4 updates § 8 a share-income thresholds for income years 2025-2027 and
+    later.
+- Property-category amendment:
+  `https://www.retsinformation.dk/eli/lta/2026/615`
+  - XML status on 2026-07-18: `Valid`
+  - § 12 changes § 4, stk. 1, nr. 6's ejendomsværdiskattelov reference to
+    nr. 1-4, 8 and 9.
+
+Current § 13 amendment/dependency sources:
+
 - Pensionsbeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2024/1243`
   - XML status on 2026-07-18: `Valid`

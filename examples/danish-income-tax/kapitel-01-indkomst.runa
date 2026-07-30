@@ -7,6 +7,10 @@
 -- Kilde: Retsinformation, LBK nr. 1284 af 14/06/2021.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2021/1284
 -- XML: https://www.retsinformation.dk/eli/lta/2021/1284/dan/xml
+--
+-- Ændringskilde for § 4, stk. 1, nr. 6:
+-- LOV nr. 615 af 30/06/2026:
+-- https://www.retsinformation.dk/eli/lta/2026/615
 
 ----
 § 1. For personer, der er skattepligtige her til landet, opgøres den
@@ -248,7 +252,18 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 § 8 P, stk. 2 og 3, medregnes ikke ved opgørelsen af antallet af ejere i stk. 1, nr. 9.
 ----
 
+----
+Lov nr. 615 af 30/06/2026, § 12:
+
+I personskatteloven, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021, som ændret
+bl.a. ved § 12 i lov nr. 679 af 3. juni 2023 og senest ved § 4 i lov nr. 1691
+af 30. december 2024, foretages følgende ændring:
+
+1. I § 4, stk. 1, nr. 6, ændres »nr. 1-5, 9 og 10« til: »nr. 1-4, 8 og 9«.
+----
+
 # Kapitalpost = RenterOgLigningslov6 | KursgevinstOgTab | KapitalafkastVsl7 | KapitalafkastVsl22 | AktieudbytteIkkeAktieindkomst | AktieavanceIkkeAktieindkomst | Medlemsbeviser | InvesteringsformidlerBeløb | EjendomsoverskudUnderskud | Provisioner | Rentekorrektion | PassivSelvstændigErhvervsvirksomhed | Ligningslov14AIndbetaling | UdlejningAfDriftsmidlerOgSkibe | Ligningslov5CVederlag | Pensionsbeskatning53AAfkast | Ejendomsavance | Ligningslov12BBeløb | Afskrivningslov40CBeløb | FremlejeOverskud
+# EjendomsværdiskatPar4Kategori = EjerboligNr1 | EjerboligNr2 | EjerboligNr3 | EjerboligNr4 | EjerboligNr5 | EjerboligNr8 | EjerboligNr9 | EjerboligNr10 | EjerboligNr11
 # Næringsstatus = IkkeNæring | FordringsEllerKontraktNæring | FinansieringsNæring
 # AndelsforeningUdlodning = NormalForrentning | IkkeNormalForrentning
 # KapitalTilPersonligUndtagelse = Aktieavance17 | Aktieavance19CHvis17 | Investeringsformidler19CHvis17 | Medarbejderinvesteringsselskab
@@ -263,6 +278,9 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 
 | kapitalindkomst_omfatter(post: Kapitalpost) -> Sandt
 | kapitalomkostning_fradrages_i_kapitalindkomst() -> Sandt
+| par4_nr6_ejendomsværdiskat_kategori_omfattet_efter_lov615(kategori: EjendomsværdiskatPar4Kategori, retsdato_yyyymmdd: Heltal) -> Falskt
+| exception par4_nr6_lov615_nr1_til_4 par4_nr6_ejendomsværdiskat_kategori_omfattet_efter_lov615(kategori: EjendomsværdiskatPar4Kategori, retsdato_yyyymmdd: Heltal) -> Sandt under retsdato_yyyymmdd >= 20260630 && (kategori == EjerboligNr1 || kategori == EjerboligNr2 || kategori == EjerboligNr3 || kategori == EjerboligNr4)
+| exception par4_nr6_lov615_nr8_og_9 par4_nr6_ejendomsværdiskat_kategori_omfattet_efter_lov615(kategori: EjendomsværdiskatPar4Kategori, retsdato_yyyymmdd: Heltal) -> Sandt under retsdato_yyyymmdd >= 20260630 && (kategori == EjerboligNr8 || kategori == EjerboligNr9)
 
 | kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Falskt under status == IkkeNæring
 | exception fordringsnæring kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Sandt under status == FordringsEllerKontraktNæring
@@ -312,6 +330,11 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 = par4_rente = kapitalindkomst_omfatter(RenterOgLigningslov6)
 = par4_kursgevinst = kapitalindkomst_omfatter(KursgevinstOgTab)
 = par4_passiv_erhverv = kapitalindkomst_omfatter(PassivSelvstændigErhvervsvirksomhed)
+= par4_nr6_lov615_nr4 = par4_nr6_ejendomsværdiskat_kategori_omfattet_efter_lov615(EjerboligNr4, 20260630)
+= par4_nr6_lov615_nr5 = par4_nr6_ejendomsværdiskat_kategori_omfattet_efter_lov615(EjerboligNr5, 20260630)
+= par4_nr6_lov615_nr8 = par4_nr6_ejendomsværdiskat_kategori_omfattet_efter_lov615(EjerboligNr8, 20260630)
+= par4_nr6_lov615_nr9 = par4_nr6_ejendomsværdiskat_kategori_omfattet_efter_lov615(EjerboligNr9, 20260630)
+= par4_nr6_lov615_nr10 = par4_nr6_ejendomsværdiskat_kategori_omfattet_efter_lov615(EjerboligNr10, 20260630)
 = par4_næring_personlig = kapitalpost_medregnes_personligt_ved_næring(KursgevinstOgTab, FordringsEllerKontraktNæring)
 = par4_ikke_næring_kapital = kapitalpost_medregnes_personligt_ved_næring(KursgevinstOgTab, IkkeNæring)
 = par4_andel_normal = andelsudlodning_medregnes_personligt(NormalForrentning)
@@ -342,6 +365,11 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 | par4_renter_er_kapital: par4_rente -> par4_rente == Sandt
 | par4_kursgevinst_er_kapital: par4_kursgevinst -> par4_kursgevinst == Sandt
 | par4_passiv_erhverv_er_kapital: par4_passiv_erhverv -> par4_passiv_erhverv == Sandt
+| par4_nr6_lov615_omfatter_nr4: par4_nr6_lov615_nr4 -> par4_nr6_lov615_nr4 == Sandt
+| par4_nr6_lov615_udelukker_nr5: par4_nr6_lov615_nr5 -> par4_nr6_lov615_nr5 == Falskt
+| par4_nr6_lov615_omfatter_nr8: par4_nr6_lov615_nr8 -> par4_nr6_lov615_nr8 == Sandt
+| par4_nr6_lov615_omfatter_nr9: par4_nr6_lov615_nr9 -> par4_nr6_lov615_nr9 == Sandt
+| par4_nr6_lov615_udelukker_nr10: par4_nr6_lov615_nr10 -> par4_nr6_lov615_nr10 == Falskt
 | par4_næring_flytter_til_personlig: par4_næring_personlig -> par4_næring_personlig == Sandt
 | par4_uden_næring_ikke_personlig_undtagelse: par4_ikke_næring_kapital -> par4_ikke_næring_kapital == Falskt
 | par4_normal_andelsforrentning_undtages: par4_andel_normal -> par4_andel_normal == Falskt

@@ -3703,10 +3703,16 @@ fn ResearchPersonskatteloven() -> Element {
                     p { class: "lang-note",
                         "Kildegrundlag: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2021/1284", "Retsinformation, LBK nr. 1284 af 14/06/2021" }
+                        " · ændringer: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2023/1564", "LOV nr. 1564/2023" }
+                        " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2024/482", "LOV nr. 482/2024" }
+                        " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2024/1691", "LOV nr. 1691/2024" }
+                        " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2026/615", "LOV nr. 615/2026" }
                         " · historisk linje: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
-                        " · reform: "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2024/482", "LOV nr. 482 af 22/05/2024" }
                         " · § 13 dependencies: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2024/1243", "Pensionsbeskatningsloven" }
                         " / "
@@ -3754,7 +3760,11 @@ fn ResearchPersonskatteloven() -> Element {
                     div { class: "tax-source-grid",
                         div { class: "tax-source-row",
                             span { "Current working source" }
-                            strong { "2021/1284 — Status Valid; XML EndDate 2026-06-23, fetched 2026-07-18" }
+                            strong { "2021/1284 — Status Valid; XML EndDate 2026-07-01, fetched 2026-07-18" }
+                        }
+                        div { class: "tax-source-row",
+                            span { "Tracked amendments" }
+                            strong { "1564/2023 (§10), 482/2024 (§13), 1691/2024 (§8 a), 615/2026 (§4)" }
                         }
                         div { class: "tax-source-row",
                             span { "Prompt source lineage" }
@@ -3762,7 +3772,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         div { class: "tax-source-row",
                             span { "Live calculation guard" }
-                            strong { "Historic sources are rejected; dagsaktuel automation is rejected when XML metadata horizon predates 2026-06-26" }
+                            strong { "Historic sources are rejected; dagsaktuel automation is rejected when XML metadata horizon predates 2026-07-02" }
                         }
                     }
                 }
