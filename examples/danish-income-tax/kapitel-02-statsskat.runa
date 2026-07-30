@@ -336,6 +336,17 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 | positiv_kapital_topskat_fordeles(status: KapitalTærskelStatus) -> status == BeggeÆgtefællerOverGrundbeløb
 | positiv_kapital_topskat_påhviler_ene(status: KapitalTærskelStatus) -> status == EnÆgtefælleOverGrundbeløb
 | topskat_grundbeløb_reguleres_efter_par20() -> Sandt
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 389900 under skatteår == 2012
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 421000 under skatteår == 2013
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 441100 under skatteår == 2014
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 444500 under skatteår == 2015
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 446300 under skatteår == 2016
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 448200 under skatteår == 2017
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 456000 under skatteår == 2018
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 459200 under skatteår == 2019
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 464500 under skatteår == 2020
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 466000 under skatteår == 2021
+| topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 467000 under skatteår >= 2022
 
 = par7_sats = topskat_sats_basispoint()
 = par7_personligt = topskat_personligt_grundlag(TopskatInput(
@@ -346,6 +357,9 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 = par7_ægtefæller = topskat_ægtefælleregler_gælder(HeleÅretSamlevendeÆgtefæller)
 = par7_fordeling = positiv_kapital_topskat_fordeles(BeggeÆgtefællerOverGrundbeløb)
 = par7_ene = positiv_kapital_topskat_påhviler_ene(EnÆgtefælleOverGrundbeløb)
+= par7_bundfradrag_2015_2010_niveau = topskat_bundfradrag_2010_niveau_kroner(2015)
+= par7_bundfradrag_2019_2010_niveau = topskat_bundfradrag_2010_niveau_kroner(2019)
+= par7_bundfradrag_2022_2010_niveau = topskat_bundfradrag_2010_niveau_kroner(2022)
 
 | par7_sats_15pct: par7_sats -> par7_sats == 1500
 | par7_personligt_grundlag_lægger_til: par7_personligt -> par7_personligt == 620000
@@ -353,6 +367,9 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 | par7_ægtefælleperiode_kræves: par7_ægtefæller -> par7_ægtefæller == Sandt
 | par7_begge_positive_fordeles: par7_fordeling -> par7_fordeling == Sandt
 | par7_en_positiv_påhviler_ene: par7_ene -> par7_ene == Sandt
+| par7_bundfradrag_2015_fra_stk2: par7_bundfradrag_2015_2010_niveau -> par7_bundfradrag_2015_2010_niveau == 444500
+| par7_bundfradrag_2019_fra_stk2: par7_bundfradrag_2019_2010_niveau -> par7_bundfradrag_2019_2010_niveau == 459200
+| par7_bundfradrag_2022_fra_stk2: par7_bundfradrag_2022_2010_niveau -> par7_bundfradrag_2022_2010_niveau == 467000
 
 ----
 LOV nr. 482 af 22/05/2024, § 1, nr. 2, 5 og 6.

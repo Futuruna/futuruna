@@ -73,7 +73,10 @@ Current § 13 amendment/dependency sources:
     wage-earner calculator; § 9 L is now modeled for extra pension deductions
     and § 26 nr. 5 transition-compensation input. The § 26 path now has
     2012-2019 Ligningsloven deduction parameter coverage for the first
-    transition-compensation calculation layer.
+    transition-compensation calculation layer, and § 26 year packs now derive
+    their § 20 regulation number, § 7 top-tax threshold and § 8 health
+    contribution rate instead of taking those legal-year facts as fixture
+    literals.
   - SKM rates page used for current basis points and caps:
     `https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven`
   - SKM `Skatteberegning - hovedtrækkene i personbeskatningen` pages for
@@ -293,7 +296,8 @@ encoded as a temporal rule on top of the consolidation.
   shared money/rounding posture for whole kroner, ten-kroner floors,
   basispoint rounding, and øre-level fractions,
   Ligningsloven ordinary wage-earner deduction
-  dependency slices, 2024/2025/2026 tax-year parameter packs, grouped
+  dependency slices, § 26 historical year-parameter derivation for 2012-2019,
+  2024/2025/2026 tax-year parameter packs, grouped
   wage-earner calculation-domain records, first wage-earner scenarios, a first
   § 14 partial-year wage-earner scenario, a first fictional household scenario,
   a first § 8 a share-income final-settlement scenario with § 67 dividend-tax
@@ -334,8 +338,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 50-60% complete as an executable research corpus,
-  and roughly 35-45% complete as a production-grade calculator for
+- Working estimate: roughly 55-65% complete as an executable research corpus,
+  and roughly 40-50% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
