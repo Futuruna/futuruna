@@ -890,6 +890,8 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 # AktieindkomstNegativSkatInput(skatteår: Heltal, negativ_aktieindkomst_abs_kroner: Heltal, effektivt_grundbeløb_kroner: Heltal)
 # AktieindkomstÆgtefælleNegativInput(skatteår: Heltal, negativ_aktieindkomst_kroner: Heltal, ægtefælle_positiv_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk)
 # AktieindkomstÆgtefælleNegativResultat(modregnet_i_ægtefælles_positive_aktieindkomst_kroner: Heltal, resterende_negativ_aktieindkomst_kroner: Heltal, negativ_skat_kroner: Heltal)
+# AktieindkomstÆgtefællerBeggeNegativeInput(skatteår: Heltal, egen_negativ_aktieindkomst_kroner: Heltal, ægtefælles_negativ_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk)
+# AktieindkomstÆgtefællerBeggeNegativeResultat(grundbeløb_kroner: Heltal, dobbelt_grundbeløb_kroner: Heltal, egen_negativ_aktieindkomst_abs_kroner: Heltal, ægtefælles_negativ_aktieindkomst_abs_kroner: Heltal, egen_effektivt_grundbeløb_kroner: Heltal, ægtefælles_effektivt_grundbeløb_kroner: Heltal, egen_negativ_skat_kroner: Heltal, ægtefælles_negativ_skat_kroner: Heltal, samlet_negativ_skat_kroner: Heltal)
 
 | aktieindkomstskat_sats_basispoint(år: Heltal, lag: AktieSkatteLag) -> 2800 under lag == LavAktieSkat && (år == 2010 || år == 2011)
 | aktieindkomstskat_sats_basispoint(år: Heltal, lag: AktieSkatteLag) -> 2700 under lag == LavAktieSkat && år >= 2012
@@ -954,6 +956,42 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
     resterende_negativ_aktieindkomst_kroner = aktieindkomst_ægtefælle_resterende_negativ_kroner(input),
     negativ_skat_kroner = aktieindkomst_ægtefælle_negativ_skat_kroner(input)
 )
+# AktieindkomstÆgtefællerBeggeNegativeSag(input: AktieindkomstÆgtefællerBeggeNegativeInput) {
+    | grundbeløb_kroner() -> aktieindkomst_grundbeløb_for(input.skatteår)
+    | dobbelt_grundbeløb_kroner() -> grundbeløb_kroner() * 2
+    | egen_negativ_aktieindkomst_abs_kroner() -> aktieindkomst_positivt_beløb(0 - input.egen_negativ_aktieindkomst_kroner)
+    | ægtefælles_negativ_aktieindkomst_abs_kroner() -> aktieindkomst_positivt_beløb(0 - input.ægtefælles_negativ_aktieindkomst_kroner)
+    | samlet_negativ_aktieindkomst_abs_kroner() -> egen_negativ_aktieindkomst_abs_kroner() + ægtefælles_negativ_aktieindkomst_abs_kroner()
+    | begge_ægtefæller_negative() -> input.samlevende_ved_årets_udløb && input.egen_negativ_aktieindkomst_kroner < 0 && input.ægtefælles_negativ_aktieindkomst_kroner < 0
+    | egen_effektivt_grundbeløb_kroner() -> grundbeløb_kroner()
+    | exception par8a_stk6_begge_negative_egen_forholdsmæssigt_grundbeløb egen_effektivt_grundbeløb_kroner() -> dobbelt_grundbeløb_kroner() * egen_negativ_aktieindkomst_abs_kroner() / samlet_negativ_aktieindkomst_abs_kroner() under begge_ægtefæller_negative()
+    | ægtefælles_effektivt_grundbeløb_kroner() -> grundbeløb_kroner()
+    | exception par8a_stk6_begge_negative_ægtefælle_forholdsmæssigt_grundbeløb ægtefælles_effektivt_grundbeløb_kroner() -> dobbelt_grundbeløb_kroner() - egen_effektivt_grundbeløb_kroner() under begge_ægtefæller_negative()
+    | egen_negativ_skat_kroner() -> aktieindkomst_negativ_skat_kroner(AktieindkomstNegativSkatInput(
+        skatteår = input.skatteår,
+        negativ_aktieindkomst_abs_kroner = egen_negativ_aktieindkomst_abs_kroner(),
+        effektivt_grundbeløb_kroner = egen_effektivt_grundbeløb_kroner()
+    ))
+    | ægtefælles_negativ_skat_kroner() -> aktieindkomst_negativ_skat_kroner(AktieindkomstNegativSkatInput(
+        skatteår = input.skatteår,
+        negativ_aktieindkomst_abs_kroner = ægtefælles_negativ_aktieindkomst_abs_kroner(),
+        effektivt_grundbeløb_kroner = ægtefælles_effektivt_grundbeløb_kroner()
+    ))
+    | samlet_negativ_skat_kroner() -> egen_negativ_skat_kroner() + ægtefælles_negativ_skat_kroner()
+    | resultat() -> AktieindkomstÆgtefællerBeggeNegativeResultat(
+        grundbeløb_kroner = grundbeløb_kroner(),
+        dobbelt_grundbeløb_kroner = dobbelt_grundbeløb_kroner(),
+        egen_negativ_aktieindkomst_abs_kroner = egen_negativ_aktieindkomst_abs_kroner(),
+        ægtefælles_negativ_aktieindkomst_abs_kroner = ægtefælles_negativ_aktieindkomst_abs_kroner(),
+        egen_effektivt_grundbeløb_kroner = egen_effektivt_grundbeløb_kroner(),
+        ægtefælles_effektivt_grundbeløb_kroner = ægtefælles_effektivt_grundbeløb_kroner(),
+        egen_negativ_skat_kroner = egen_negativ_skat_kroner(),
+        ægtefælles_negativ_skat_kroner = ægtefælles_negativ_skat_kroner(),
+        samlet_negativ_skat_kroner = samlet_negativ_skat_kroner()
+    )
+}
+| aktieindkomst_ægtefæller_begge_negative_sag(input: AktieindkomstÆgtefællerBeggeNegativeInput) -> AktieindkomstÆgtefællerBeggeNegativeSag(input)
+| aktieindkomst_ægtefæller_begge_negative_resultat(input: AktieindkomstÆgtefællerBeggeNegativeInput) -> aktieindkomst_ægtefæller_begge_negative_sag(input).resultat()
 
 = par8a_lav_2011 = aktieindkomstskat_sats_basispoint(2011, LavAktieSkat)
 = par8a_lav_2012 = aktieindkomstskat_sats_basispoint(2012, LavAktieSkat)
@@ -982,6 +1020,12 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
     ægtefælle_positiv_aktieindkomst_kroner = 50000,
     samlevende_ved_årets_udløb = Sandt
 ))
+= par8a_begge_ægtefæller_negative = aktieindkomst_ægtefæller_begge_negative_resultat(AktieindkomstÆgtefællerBeggeNegativeInput(
+    skatteår = 2026,
+    egen_negativ_aktieindkomst_kroner = -120000,
+    ægtefælles_negativ_aktieindkomst_kroner = -40000,
+    samlevende_ved_årets_udløb = Sandt
+))
 = par8a_stk3_overindeholdt = aktieindkomst_udbytteskat_stk3_resultat(AktieindkomstUdbytteskatStk3Input(
     skatteår = 2026,
     aktieindkomst_kroner = 100000,
@@ -1002,6 +1046,7 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 | par8a_ægtefælle_grundbeløb_forhøjes: par8a_150k_ægtefælle_grundbeløb -> par8a_150k_ægtefælle_grundbeløb == 158800
 | par8a_ægtefælle_forhøjelse_fjerner_høj_skat: par8a_150k_ægtefælle -> par8a_150k_ægtefælle.højt_grundlag_kroner == 0 && par8a_150k_ægtefælle.samlet_skat_kroner == 40500
 | par8a_negativ_ægtefælle_modregner_og_dobler_grundbeløb: par8a_negativ_ægtefælle -> par8a_negativ_ægtefælle.modregnet_i_ægtefælles_positive_aktieindkomst_kroner == 50000 && par8a_negativ_ægtefælle.resterende_negativ_aktieindkomst_kroner == 130000 && par8a_negativ_ægtefælle.negativ_skat_kroner == 35100
+| par8a_begge_negative_fordeler_dobbelt_grundbeløb_forholdsmæssigt: par8a_begge_ægtefæller_negative -> par8a_begge_ægtefæller_negative.grundbeløb_kroner == 79400 && par8a_begge_ægtefæller_negative.dobbelt_grundbeløb_kroner == 158800 && par8a_begge_ægtefæller_negative.egen_effektivt_grundbeløb_kroner == 119100 && par8a_begge_ægtefæller_negative.ægtefælles_effektivt_grundbeløb_kroner == 39700 && par8a_begge_ægtefæller_negative.egen_negativ_skat_kroner == 32535 && par8a_begge_ægtefæller_negative.ægtefælles_negativ_skat_kroner == 10845 && par8a_begge_ægtefæller_negative.samlet_negativ_skat_kroner == 43380
 | par8a_stk3_overindeholdt_modregnes_i_slutskat: par8a_stk3_overindeholdt -> par8a_stk3_overindeholdt.stk1_skat_af_samlet_aktieindkomst_kroner == 27000 && par8a_stk3_overindeholdt.overskydende_udbytteskat_til_slutskat_kroner == 8000 && par8a_stk3_overindeholdt.endelig_udbytteskat_kroner == 27000
 | par8a_stk3_negativ_aktieindkomst_modregner_hele_udbytteskat: par8a_stk3_negativ -> par8a_stk3_negativ.negativ_aktieindkomst_udbytteskat_til_slutskat_kroner == 2700 && par8a_stk3_negativ.samlet_udbytteskat_til_slutskat_kroner == 2700 && par8a_stk3_negativ.endelig_udbytteskat_kroner == 0
 

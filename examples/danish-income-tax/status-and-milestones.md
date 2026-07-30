@@ -15,8 +15,16 @@ implementation first. Audit files remain important as validation gates for
 implemented slices, but deeper exploratory audits should wait until the main law
 model is materially complete.
 
-Latest mainline slice: § 7 spouse positive-net-capital tax now has an executable
-allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break rule.
+Latest mainline slices: § 7 spouse positive-net-capital tax now has an
+executable allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break
+rule; § 8 a, stk. 6 now has a pair-level both-negative spouse share-income
+threshold allocation.
+
+Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
+place, and the ordinary wage-earner/slutopgørelse path is already calculation
+useful. The remaining work is turning posture-only clauses and edge cases into
+amount-level, source-backed rules. Treat this as past the structural phase and
+well into implementation, but not yet close to a complete statutory model.
 
 ## Source Status
 
@@ -535,6 +543,12 @@ Current decision:
   exceptions derive the low-rate comparison amount, any over-withheld amount
   credited in slutskatten, the negative-share-income full credit, and the
   remaining final dividend-tax payment.
+- `AktieindkomstÆgtefællerBeggeNegativeSag` uses product-scoped `|` rules for
+  Personskatteloven § 8 a, stk. 6. It keeps both spouses' negative share income
+  and samliv status together so the double share-income threshold is split
+  proportionally when both spouses are negative, and each spouse's negative tax
+  is calculated from the allocated threshold instead of granting the double
+  threshold twice.
 - `KonfiskatoriskCase` uses product-scoped `|` rules for the effective-rate
   audit. It keeps tax year, municipality, wage, positive net-capital income,
   share income, spouse share-income posture, church-tax membership, and
@@ -954,7 +968,9 @@ M4 - Ordinary taxpayer calculator
   excluding the final low-layer § 8 a tax while including the high-layer
   `Aktieindkomstskat` amount before § 12 personfradrag allocation. The
   source-law module now also covers § 8 a, stk. 3 as a separate scoped rule case
-  for over-withheld dividend tax and negative-share-income full credit.
+  for over-withheld dividend tax and negative-share-income full credit, and
+  § 8 a, stk. 6 for both-negative spouse share-income cases where the double
+  threshold is split proportionally.
   Personskatteloven § 8 c now computes the municipal-equivalent tax for covered
   limited-taxpayer postures, using the Skatteministeriet-published 25 pct.
   2026 rate and the same personfradrag reduction posture as § 10 stk. 5.
@@ -1000,7 +1016,8 @@ M5 - Audit suite
   overskydende skat compensation/dividend-tax credit posture, covered § 8 a
   share-income final-settlement scenarios with § 67 dividend-tax credit
   splitting plus § 8 a, stk. 3 over-withheld/negative-share-income dividend-tax
-  credits, covered § 8 c municipal-equivalent limited-taxpayer tax with
+  credits and § 8 a, stk. 6 both-negative spouse threshold allocation, covered
+  § 8 c municipal-equivalent limited-taxpayer tax with
   personfradrag reduction and non-covered boundary case, covered fictional
   household scenario, covered Børne- og ungeydelse
   benefit-cliff/source-tension audit plus a first boligsikring § 22 threshold
