@@ -1,8 +1,9 @@
 # Personskatteloven as Futuruna
 
-Status: foundation  
+Status: active implementation; first-slice corpus complete
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
+Current focus issue: `td-2d84ec`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -304,6 +305,33 @@ encoded as a temporal rule on top of the consolidation.
   test facts are better expressed as `.scenario.runa` files. Existing local
   smoke fixtures can be migrated as their surrounding legal slices are revised.
 
+## Implementation Completion Snapshot
+
+As of 2026-07-18, the corpus should be treated as a source-backed first-slice
+full-statute implementation plus an ordinary-taxpayer calculator prototype, not
+as a complete Personskatteloven calculator.
+
+- Structural/source coverage is high: §§ 1-28 are represented in chapter files,
+  and the core dependency laws needed for ordinary wage-earner calculation have
+  executable first slices.
+- Ordinary wage-earner calculation coverage is useful but not complete: current
+  scenarios exercise wage income, AM contribution, ordinary wage-earner
+  deductions, municipal/church tax, state-tax components, personfradrag,
+  selected § 13 deficit paths, § 14/§ 19 cases, withholding/card generation, and
+  first final-settlement paths.
+- Full legal calculation coverage is still materially incomplete: some rules are
+  still posture/category coverage rather than amount-level calculations, several
+  dependent statutes are first-slice only, and special regimes or edge cases are
+  represented by selected scenarios rather than comprehensive calculation paths.
+- Working estimate: roughly 50-60% complete as an executable research corpus,
+  and roughly 35-45% complete as a production-grade calculator for
+  Personskatteloven plus its necessary dependencies.
+- Current priority: close source-backed calculation gaps in the law itself.
+  Audits should validate newly implemented slices; deeper exploratory "bomb"
+  audits, including source-derived confiscatory restskat search expansion in
+  `td-f318b1`, are deferred until the main implementation is substantially
+  complete.
+
 ## File Layout
 
 The corpus is intentionally split across multiple `.runa` files. The split is
@@ -565,11 +593,16 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
-- Continue deepening the executable Kildeskatteloven settlement path from the
-  current ordinary-taxpayer slice: restskat supplement/timing, explicit § 62
-  overskydende-skat compensation floor, amended annual statement posture, and
-  § 62 C minimum thresholds are now covered by executable fixtures, with more
-  edge cases to add as source-dependent details are introduced.
+- Close the Personskatteloven implementation gaps before deeper audits. The next
+  work should identify the remaining posture-only/first-slice legal areas and
+  turn the highest-value ones into source-backed calculation rules.
+- Continue deepening dependency laws such as Kildeskatteloven, AM-law,
+  municipal/church tax, Ligningsloven, and Opkrævningsloven only where they
+  unblock Personskatteloven calculation completeness or validate a newly
+  implemented legal slice.
+- Keep validation audits close to the implementation. Exploratory daisy-chain,
+  confiscatory, household-benefit, or loophole searches belong after the main
+  law model is more complete.
 - Keep reviewing domain boundaries as each slice grows. Encapsulate repeated
   legal facts when they are genuine statutory objects, but avoid broad refactors
   that would make source traceability weaker.
@@ -693,21 +726,11 @@ Review candidates to revisit deliberately, not as broad churn:
   AM edge cases, other
   itemized deductions beyond the ordinary §§ 9 J/9 K wage-earner deductions,
   and annual rate/threshold adjustments.
-- Expand audit coverage for source drift, missing dependencies, tax cliffs,
-  delegated powers, category boundary problems, and multi-step daisy-chain
-  effects. The first dedicated bomb-audit file now covers § 6 spouse negative
-  net-capital offset, § 7 stk. 5 spouse capital-threshold/negative-capital
-  offset, § 8 a share-income
-  spouse-threshold/negative-offset interactions, § 8 b CFC tax outside
-  personfradrag/skatteloft, § 13 passive business-loss lock-in, § 14
-  annualisation, and § 19 skatteloft interactions. A separate household benefit
-  audit now covers Børne- og ungeydelse aftrapning plus an official-source
-  mellemskat/topskat wording tension, and a first boligsikring § 22 threshold
-  cliff. The first confiscatory effective-rate audit now distinguishes
-  current-year `årsskat` from broader Kildeskatteloven payment burden and finds
-  the >100 pct. cases only in the payment-burden denominator. Remaining probes
-  should target broader housing-support calculators and cross-law allowance or
-  collection timing chains.
+- Keep existing audits running as implementation validation, but defer expanded
+  source-drift, delegated-power, confiscatory, household-benefit, and
+  daisy-chain searches until the main Personskatteloven calculation model has
+  fewer first-slice gaps. The existing audit files remain useful guardrails; they
+  should not lead the next milestone.
 - Extend the website page as more of the corpus becomes calculation-ready.
 
 ## Later
