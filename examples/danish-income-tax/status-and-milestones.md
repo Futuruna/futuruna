@@ -512,6 +512,15 @@ Current decision:
   tax after § 19 relief. The existing flat
   `LønmodtagerBreakdown` remains as the reporting/API projection so website and
   scenario consumers do not have to learn every internal calculation layer.
+- `LønmodtagerPar13Sag` is the current right-sized § 13 boundary inside the
+  ordinary wage-earner calculator. It keeps the taxpayer input and immediate
+  spouse-transfer facts together while internal `|` rules derive the taxable
+  deficit, tax-value rate, statutory tax-value offset order, deficit amount
+  covered by own tax offset, remaining deficit, spouse deduction, and
+  carry-forward remainder. Scenario fixtures stay as plain taxpayer/spouse facts
+  plus assertions; later-year priority between a spouse's own prior deficits
+  and another spouse's carried deficits should be modeled as a separate
+  carry-forward-year case, not folded into first-year fixture setup.
 - `loenmodtager_beregning.runa` now separates state income tax, municipal/church
   income tax, total income tax, and the final total including AM contribution.
   This keeps Personskatteloven § 14's "helårsskat efter §§ 6-9" from

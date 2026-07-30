@@ -12823,15 +12823,24 @@ impl TypeChecker {
             ExprKind::Var(name) => self.rule_scope_var_type(name).map(str::to_string),
             ExprKind::App(func, _) => match &func.kind {
                 ExprKind::Var(name) if self.type_has_scoped_members(name) => Some(name.clone()),
-                ExprKind::Var(name) => self
-                    .rule_scope_returning_rules
-                    .get(name)
-                    .filter(|scope_name| self.type_has_scoped_members(scope_name))
-                    .cloned(),
+                ExprKind::Var(name) => self.resolved_rule_scope_return_type(name),
                 _ => None,
             },
             _ => None,
         }
+    }
+
+    fn resolved_rule_scope_return_type(&self, rule_name: &str) -> Option<String> {
+        let mut current = rule_name.to_string();
+        let mut seen = BTreeSet::new();
+        while seen.insert(current.clone()) {
+            let candidate = self.rule_scope_returning_rules.get(&current)?;
+            if self.type_has_scoped_members(candidate) {
+                return Some(candidate.clone());
+            }
+            current = candidate.clone();
+        }
+        None
     }
 
     fn is_rule_scope_method_name(&self, method: &str) -> bool {
@@ -15487,6 +15496,28 @@ mod tests {
                 .message
                 .contains("mixes named and positional arguments")),
             "mixed named/positional constructor args should be rejected, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_accepts_delegated_rulescope_return_wrapper() {
+        let source = r#"
+# Output(value: Int)
+
+# Case(x: Int) {
+    | result() -> Output(x)
+}
+
+| make_case(x: Int) -> Case(x)
+| standard_case(x: Int) -> make_case(x)
+| case_result(x: Int) -> standard_case(x).result()
+= answer = case_result(41)
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "delegated RuleScope-returning wrappers should preserve the RuleScope type, got: {:?}",
             diags
         );
     }

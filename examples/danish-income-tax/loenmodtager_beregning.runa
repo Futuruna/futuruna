@@ -30,10 +30,11 @@ omfang som nævnt i ligningslovens § 8 M,
 # LønmodtagerLigningsfradrag(beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal)
 # LønmodtagerSkattekomponenter(bundskat_kroner: Heltal, mellemskat_kroner: Heltal, topskat_kroner: Heltal, toptopskat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal, statslig_indkomstskat_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_kroner: Heltal, samlet_indkomstskat_kroner: Heltal, samlet_inkl_am_kroner: Heltal)
 # LønmodtagerPersonfradragResultat(personfradrag_kroner: Heltal, statslig_skatteværdi_kroner: Heltal, kommunal_skatteværdi_kroner: Heltal, kirkelig_skatteværdi_kroner: Heltal)
-# LønmodtagerPar13UnderskudResult(kræver_behandling: Boolsk, skattepligtigt_underskud_kroner: Heltal, skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, statsskat_efter_par13_kroner: Heltal, ubenyttet_skatteværdi_kroner: Heltal)
+# LønmodtagerPar13Forhold(ægtefælle_skattepligtig_indkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk)
+# LønmodtagerPar13UnderskudResult(kræver_behandling: Boolsk, skattepligtigt_underskud_kroner: Heltal, skatteværdi_sats_basispoint: Heltal, skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, statsskat_efter_par13_kroner: Heltal, ubenyttet_skatteværdi_kroner: Heltal, udnyttet_skatteværdi_kroner: Heltal, stk1_fremførsel: Par13Stk1FremførselResult, ægtefælleoverførsel: Par13ÆgtefælleOverførselResult, fremført_efter_ægtefælle_kroner: Heltal)
 # LønmodtagerSlutskat(personligt_skatteloft: LønmodtagerSkatteloftResult, positiv_kapital_skatteloft: LønmodtagerSkatteloftResult, samlet_skatteloftsnedslag_kroner: Heltal, statslig_indkomstskat_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_kroner: Heltal, samlet_indkomstskat_kroner: Heltal, samlet_inkl_am_kroner: Heltal)
 # LønmodtagerBeregning(input: LønmodtagerInput, indkomstgrundlag: LønmodtagerIndkomstgrundlag, ligningsfradrag: LønmodtagerLigningsfradrag, før_personfradrag: LønmodtagerSkattekomponenter, statsskat_før_personfradrag: Par5StatsskatResultat, par13_underskud: LønmodtagerPar13UnderskudResult, personfradrag: LønmodtagerPersonfradragResultat, efter_personfradrag_før_skatteloft: LønmodtagerSkattekomponenter, slutskat: LønmodtagerSlutskat, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
-# LønmodtagerBreakdown(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal, bundskat_før_personfradrag_kroner: Heltal, mellemskat_før_personfradrag_kroner: Heltal, topskat_før_personfradrag_kroner: Heltal, toptopskat_før_personfradrag_kroner: Heltal, kommuneskat_før_personfradrag_kroner: Heltal, kirkeskat_før_personfradrag_kroner: Heltal, statslig_indkomstskat_før_personfradrag_kroner: Heltal, par13_skattepligtigt_underskud_kroner: Heltal, par13_underskud_skatteværdi_kroner: Heltal, par13_ubenyttet_skatteværdi_kroner: Heltal, statslig_indkomstskat_efter_par13_før_personfradrag_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner: Heltal, samlet_indkomstskat_før_personfradrag_kroner: Heltal, samlet_inkl_am_før_personfradrag_kroner: Heltal, personfradrag_kroner: Heltal, statslig_personfradrag_skatteværdi_kroner: Heltal, kommunal_personfradrag_skatteværdi_kroner: Heltal, kirkelig_personfradrag_skatteværdi_kroner: Heltal, personligt_skatteloft: LønmodtagerSkatteloftResult, positiv_kapital_skatteloft: LønmodtagerSkatteloftResult, statslig_indkomstskat_efter_personfradrag_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner: Heltal, samlet_indkomstskat_efter_personfradrag_kroner: Heltal, samlet_inkl_am_efter_personfradrag_kroner: Heltal, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
+# LønmodtagerBreakdown(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal, bundskat_før_personfradrag_kroner: Heltal, mellemskat_før_personfradrag_kroner: Heltal, topskat_før_personfradrag_kroner: Heltal, toptopskat_før_personfradrag_kroner: Heltal, kommuneskat_før_personfradrag_kroner: Heltal, kirkeskat_før_personfradrag_kroner: Heltal, statslig_indkomstskat_før_personfradrag_kroner: Heltal, par13_skattepligtigt_underskud_kroner: Heltal, par13_underskud_skatteværdi_kroner: Heltal, par13_ubenyttet_skatteværdi_kroner: Heltal, par13_dækket_underskud_ved_skattemodregning_kroner: Heltal, par13_resterende_underskud_efter_skattemodregning_kroner: Heltal, par13_ægtefælle_fradrag_kroner: Heltal, par13_fremført_underskud_kroner: Heltal, statslig_indkomstskat_efter_par13_før_personfradrag_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner: Heltal, samlet_indkomstskat_før_personfradrag_kroner: Heltal, samlet_inkl_am_før_personfradrag_kroner: Heltal, personfradrag_kroner: Heltal, statslig_personfradrag_skatteværdi_kroner: Heltal, kommunal_personfradrag_skatteværdi_kroner: Heltal, kirkelig_personfradrag_skatteværdi_kroner: Heltal, personligt_skatteloft: LønmodtagerSkatteloftResult, positiv_kapital_skatteloft: LønmodtagerSkatteloftResult, statslig_indkomstskat_efter_personfradrag_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner: Heltal, samlet_indkomstskat_efter_personfradrag_kroner: Heltal, samlet_inkl_am_efter_personfradrag_kroner: Heltal, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
 
 | skat_i_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(beløb_kroner, sats_basispoint)
 | positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
@@ -69,6 +70,12 @@ henholdsvis med beskatningsprocenten efter § 8 c. Skatteværdien af underskudde
 modregnes i den nævnte rækkefølge i skatterne efter §§ 6, 7 og 7 a og § 8 a,
 stk. 2. Et herefter resterende underskud fremføres til fradrag i den
 skattepligtige indkomst for de følgende indkomstår.
+
+Stk. 2. Hvis en gift persons skattepligtige indkomst udviser underskud, og
+ægtefællerne er samlevende ved indkomstårets udløb, skal underskud, der ikke er
+modregnet efter stk. 1, 2. pkt., i størst muligt omfang fradrages i den anden
+ægtefælles skattepligtige indkomst. Modregning sker, før ægtefællens egne
+uudnyttede underskud fra tidligere indkomstår fremføres efter 4.-6. pkt.
 
 LOV nr. 482 af 22/05/2024, § 1:
 
@@ -229,33 +236,80 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 )
 | kræver_par13_underskud_fixture(input: LønmodtagerInput) -> par13_kræver_underskudsbehandling(par13_underskud_input_for(input))
 | personfradrag_anvendt_i_slutskat_fixture(input: LønmodtagerInput) -> kræver_par13_underskud_fixture(input) == Falskt
-| lønmodtager_par13_skatteværdi_input(input: LønmodtagerInput) -> Par13UnderskudSkatteværdiInput(
-    underskud_kroner = par13_absolut_underskud(almindelig_skattepligtig_indkomst_fixture(input)),
-    sundhedsbidrag_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint,
-    kommuneskat_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint,
-    kirkeskat_basispoint = kirkeskat_sats_for(input),
-    par8c_basispoint = 0,
-    betaler_par8c = Falskt
+| lønmodtager_par13_standard_forhold() -> LønmodtagerPar13Forhold(
+    ægtefælle_skattepligtig_indkomst_kroner = 0,
+    gift_samlevende_ved_årets_udløb = Falskt,
+    ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
 )
-| lønmodtager_par13_skatteværdi_kroner(input: LønmodtagerInput) -> par13_underskud_skatteværdi_kroner(lønmodtager_par13_skatteværdi_input(input))
-| lønmodtager_par13_modregning_input(input: LønmodtagerInput) -> Par13ModregningInput(
-    skatteværdi_kroner = lønmodtager_par13_skatteværdi_kroner(input),
-    par6_skat_kroner = bundskat_før_personfradrag(input),
-    par7_skat_kroner = lønmodtager_par7_skat_før_personfradrag(input),
-    par7a_skat_kroner = lønmodtager_par7a_skat_før_personfradrag(input),
-    par8_skat_kroner = lønmodtager_par8_skat_før_personfradrag(input),
-    par8a_stk2_skat_kroner = 0
-)
-| lønmodtager_par13_modregning_resultat(input: LønmodtagerInput) -> par13_modregning_resultat(lønmodtager_par13_modregning_input(input))
-| lønmodtager_statsskat_efter_par13_før_personfradrag(input: LønmodtagerInput) -> lønmodtager_par13_modregning_resultat(input).par6_efter_kroner + lønmodtager_par13_modregning_resultat(input).par7_efter_kroner + lønmodtager_par13_modregning_resultat(input).par7a_efter_kroner + lønmodtager_par13_modregning_resultat(input).par8_efter_kroner + lønmodtager_par13_modregning_resultat(input).par8a_stk2_efter_kroner
-| lønmodtager_par13_underskud_resultat(input: LønmodtagerInput) -> LønmodtagerPar13UnderskudResult(
-    kræver_behandling = kræver_par13_underskud_fixture(input),
-    skattepligtigt_underskud_kroner = par13_absolut_underskud(almindelig_skattepligtig_indkomst_fixture(input)),
-    skatteværdi_kroner = lønmodtager_par13_skatteværdi_kroner(input),
-    modregning = lønmodtager_par13_modregning_resultat(input),
-    statsskat_efter_par13_kroner = lønmodtager_statsskat_efter_par13_før_personfradrag(input),
-    ubenyttet_skatteværdi_kroner = lønmodtager_par13_modregning_resultat(input).ubrugt_skatteværdi_kroner
-)
+# LønmodtagerPar13Sag(input: LønmodtagerInput, forhold: LønmodtagerPar13Forhold) {
+    | skattepligtigt_underskud_kroner() -> par13_absolut_underskud(almindelig_skattepligtig_indkomst_fixture(input))
+    | sundhedsbidrag_basispoint() -> kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint
+    | kommuneskat_basispoint() -> kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
+    | kirkeskat_basispoint() -> kirkeskat_sats_for(input)
+    | skatteværdi_input() -> Par13UnderskudSkatteværdiInput(
+        underskud_kroner = skattepligtigt_underskud_kroner(),
+        sundhedsbidrag_basispoint = sundhedsbidrag_basispoint(),
+        kommuneskat_basispoint = kommuneskat_basispoint(),
+        kirkeskat_basispoint = kirkeskat_basispoint(),
+        par8c_basispoint = 0,
+        betaler_par8c = Falskt
+    )
+    | skatteværdi_sats_basispoint() -> par13_skatteværdi_sats_basispoint(skatteværdi_input())
+    | skatteværdi_kroner() -> par13_underskud_skatteværdi_kroner(skatteværdi_input())
+    | par6_skat_før_personfradrag_kroner() -> bundskat_før_personfradrag(input)
+    | par7_skat_før_personfradrag_kroner() -> lønmodtager_par7_skat_før_personfradrag(input)
+    | par7a_skat_før_personfradrag_kroner() -> lønmodtager_par7a_skat_før_personfradrag(input)
+    | par8_skat_før_personfradrag_kroner() -> lønmodtager_par8_skat_før_personfradrag(input)
+    | modregning_input() -> Par13ModregningInput(
+        skatteværdi_kroner = skatteværdi_kroner(),
+        par6_skat_kroner = par6_skat_før_personfradrag_kroner(),
+        par7_skat_kroner = par7_skat_før_personfradrag_kroner(),
+        par7a_skat_kroner = par7a_skat_før_personfradrag_kroner(),
+        par8_skat_kroner = par8_skat_før_personfradrag_kroner(),
+        par8a_stk2_skat_kroner = 0
+    )
+    | modregning() -> par13_modregning_resultat(modregning_input())
+    | statsskat_efter_par13_før_personfradrag() -> modregning().par6_efter_kroner + modregning().par7_efter_kroner + modregning().par7a_efter_kroner + modregning().par8_efter_kroner + modregning().par8a_stk2_efter_kroner
+    | udnyttet_skatteværdi_kroner() -> par13_udnyttet_skatteværdi_kroner(skatteværdi_kroner(), modregning().ubrugt_skatteværdi_kroner)
+    | stk1_fremførsel_input() -> Par13Stk1FremførselInput(
+        underskud_kroner = skattepligtigt_underskud_kroner(),
+        skatteværdi_sats_basispoint = skatteværdi_sats_basispoint(),
+        udnyttet_skatteværdi_kroner = udnyttet_skatteværdi_kroner(),
+        ikke_rummet_i_tidligere_indkomst_eller_skat = forhold.ikke_rummet_i_tidligere_indkomst_eller_skat
+    )
+    | stk1_fremførsel() -> par13_stk1_fremførsel_resultat(stk1_fremførsel_input())
+    | ægtefælle_skattepligtig_indkomst_til_overførsel_kroner() -> par13_positivt_beløb(forhold.ægtefælle_skattepligtig_indkomst_kroner)
+    | ægtefælle_input() -> Par13ÆgtefælleOverførselInput(
+        ubenyttet_underskud_kroner = stk1_fremførsel().resterende_underskud_kroner,
+        ægtefælle_skattepligtig_indkomst_kroner = ægtefælle_skattepligtig_indkomst_til_overførsel_kroner(),
+        gift_samlevende_ved_årets_udløb = forhold.gift_samlevende_ved_årets_udløb
+    )
+    | ægtefælleoverførsel() -> par13_ægtefælleoverførsel_resultat(ægtefælle_input())
+    | fremført_efter_ægtefælle_kroner() -> 0
+    | exception fremfør_rest_efter_ægtefælle fremført_efter_ægtefælle_kroner() -> ægtefælleoverførsel().resterende_underskud_kroner under forhold.ikke_rummet_i_tidligere_indkomst_eller_skat
+    | resultat() -> LønmodtagerPar13UnderskudResult(
+        kræver_behandling = kræver_par13_underskud_fixture(input),
+        skattepligtigt_underskud_kroner = skattepligtigt_underskud_kroner(),
+        skatteværdi_sats_basispoint = skatteværdi_sats_basispoint(),
+        skatteværdi_kroner = skatteværdi_kroner(),
+        modregning = modregning(),
+        statsskat_efter_par13_kroner = statsskat_efter_par13_før_personfradrag(),
+        ubenyttet_skatteværdi_kroner = modregning().ubrugt_skatteværdi_kroner,
+        udnyttet_skatteværdi_kroner = udnyttet_skatteværdi_kroner(),
+        stk1_fremførsel = stk1_fremførsel(),
+        ægtefælleoverførsel = ægtefælleoverførsel(),
+        fremført_efter_ægtefælle_kroner = fremført_efter_ægtefælle_kroner()
+    )
+}
+| lønmodtager_par13_sag(input: LønmodtagerInput, forhold: LønmodtagerPar13Forhold) -> LønmodtagerPar13Sag(input, forhold)
+| lønmodtager_par13_standard_sag(input: LønmodtagerInput) -> lønmodtager_par13_sag(input, lønmodtager_par13_standard_forhold())
+| lønmodtager_par13_skatteværdi_input(input: LønmodtagerInput) -> lønmodtager_par13_standard_sag(input).skatteværdi_input()
+| lønmodtager_par13_skatteværdi_kroner(input: LønmodtagerInput) -> lønmodtager_par13_standard_sag(input).skatteværdi_kroner()
+| lønmodtager_par13_modregning_input(input: LønmodtagerInput) -> lønmodtager_par13_standard_sag(input).modregning_input()
+| lønmodtager_par13_modregning_resultat(input: LønmodtagerInput) -> lønmodtager_par13_standard_sag(input).modregning()
+| lønmodtager_statsskat_efter_par13_før_personfradrag(input: LønmodtagerInput) -> lønmodtager_par13_standard_sag(input).statsskat_efter_par13_før_personfradrag()
+| lønmodtager_par13_underskud_resultat(input: LønmodtagerInput) -> lønmodtager_par13_standard_sag(input).resultat()
+| lønmodtager_par13_underskud_resultat_med_forhold(input: LønmodtagerInput, forhold: LønmodtagerPar13Forhold) -> lønmodtager_par13_sag(input, forhold).resultat()
 | lønmodtager_statsskat_personfradrag_input(input: LønmodtagerInput) -> PersonfradragStatsskatNedsættelseInput(
     par6_skat_kroner = lønmodtager_par13_modregning_resultat(input).par6_efter_kroner,
     par7_skat_kroner = lønmodtager_par13_modregning_resultat(input).par7_efter_kroner,
@@ -386,13 +440,14 @@ nedsat med de overskydende procenter.
     samlet_indkomstskat_kroner = samlet_indkomstskat_efter_personfradrag(input),
     samlet_inkl_am_kroner = samlet_inkl_am_efter_personfradrag(input)
 )
-| beregn_lønmodtager_model(input: LønmodtagerInput) -> LønmodtagerBeregning(
+| beregn_lønmodtager_model(input: LønmodtagerInput) -> beregn_lønmodtager_model_med_par13_forhold(input, lønmodtager_par13_standard_forhold())
+| beregn_lønmodtager_model_med_par13_forhold(input: LønmodtagerInput, forhold: LønmodtagerPar13Forhold) -> LønmodtagerBeregning(
     input = input,
     indkomstgrundlag = lønmodtager_indkomstgrundlag(input),
     ligningsfradrag = lønmodtager_ligningsfradrag(input),
     før_personfradrag = lønmodtager_skat_før_personfradrag(input),
     statsskat_før_personfradrag = lønmodtager_statsskat_før_personfradrag_resultat(input),
-    par13_underskud = lønmodtager_par13_underskud_resultat(input),
+    par13_underskud = lønmodtager_par13_underskud_resultat_med_forhold(input, forhold),
     personfradrag = lønmodtager_personfradrag_resultat(input),
     efter_personfradrag_før_skatteloft = lønmodtager_skat_efter_personfradrag_før_skatteloft(input),
     slutskat = lønmodtager_slutskat(input),
@@ -420,6 +475,10 @@ nedsat med de overskydende procenter.
     par13_skattepligtigt_underskud_kroner = model.par13_underskud.skattepligtigt_underskud_kroner,
     par13_underskud_skatteværdi_kroner = model.par13_underskud.skatteværdi_kroner,
     par13_ubenyttet_skatteværdi_kroner = model.par13_underskud.ubenyttet_skatteværdi_kroner,
+    par13_dækket_underskud_ved_skattemodregning_kroner = model.par13_underskud.stk1_fremførsel.dækket_underskud_ved_skattemodregning_kroner,
+    par13_resterende_underskud_efter_skattemodregning_kroner = model.par13_underskud.stk1_fremførsel.resterende_underskud_kroner,
+    par13_ægtefælle_fradrag_kroner = model.par13_underskud.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner,
+    par13_fremført_underskud_kroner = model.par13_underskud.fremført_efter_ægtefælle_kroner,
     statslig_indkomstskat_efter_par13_før_personfradrag_kroner = model.par13_underskud.statsskat_efter_par13_kroner,
     kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner = model.før_personfradrag.kommunal_og_kirkelig_indkomstskat_kroner,
     samlet_indkomstskat_før_personfradrag_kroner = model.før_personfradrag.samlet_indkomstskat_kroner,
@@ -438,6 +497,7 @@ nedsat med de overskydende procenter.
     kræver_par13_underskud = model.kræver_par13_underskud
 )
 | beregn_lønmodtager(input: LønmodtagerInput) -> lønmodtager_breakdown_fra_model(beregn_lønmodtager_model(input))
+| beregn_lønmodtager_med_par13_forhold(input: LønmodtagerInput, forhold: LønmodtagerPar13Forhold) -> lønmodtager_breakdown_fra_model(beregn_lønmodtager_model_med_par13_forhold(input, forhold))
 
 ----
 § 13. Hvis den skattepligtige indkomst udviser underskud, beregnes

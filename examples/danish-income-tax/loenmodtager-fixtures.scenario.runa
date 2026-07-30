@@ -563,15 +563,25 @@ jf. § 8, og«.
     betaler_kirkeskat = Falskt
 )
 = m4_par13_lønmodtager_underskud = beregn_lønmodtager(m4_par13_lønmodtager_underskud_input)
+= m4_par13_lønmodtager_ægtefælle_forhold = LønmodtagerPar13Forhold(
+    ægtefælle_skattepligtig_indkomst_kroner = 15000,
+    gift_samlevende_ved_årets_udløb = Sandt,
+    ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
+)
+= m4_par13_lønmodtager_ægtefælle = beregn_lønmodtager_med_par13_forhold(m4_par13_lønmodtager_underskud_input, m4_par13_lønmodtager_ægtefælle_forhold)
 
 | m4_par13_lønmodtager_negativ_skattepligtig_indkomst: m4_par13_lønmodtager_underskud -> m4_par13_lønmodtager_underskud.almindelig_skattepligtig_indkomst_kroner == -70300 && m4_par13_lønmodtager_underskud.par13_skattepligtigt_underskud_kroner == 70300
 | m4_par13_lønmodtager_kommuneskat_ikke_negativ: m4_par13_lønmodtager_underskud -> m4_par13_lønmodtager_underskud.kommuneskat_før_personfradrag_kroner == 0 && m4_par13_lønmodtager_underskud.kirkeskat_før_personfradrag_kroner == 0
 | m4_par13_lønmodtager_underskud_modregner_i_statsskat: m4_par13_lønmodtager_underskud -> m4_par13_lønmodtager_underskud.par13_underskud_skatteværdi_kroner == 16520 && m4_par13_lønmodtager_underskud.statslig_indkomstskat_før_personfradrag_kroner == 11049 && m4_par13_lønmodtager_underskud.statslig_indkomstskat_efter_par13_før_personfradrag_kroner == 0 && m4_par13_lønmodtager_underskud.par13_ubenyttet_skatteværdi_kroner == 5471
+| m4_par13_lønmodtager_fremfører_efter_egen_skattemodregning: m4_par13_lønmodtager_underskud -> m4_par13_lønmodtager_underskud.par13_dækket_underskud_ved_skattemodregning_kroner == 47017 && m4_par13_lønmodtager_underskud.par13_resterende_underskud_efter_skattemodregning_kroner == 23283 && m4_par13_lønmodtager_underskud.par13_ægtefælle_fradrag_kroner == 0 && m4_par13_lønmodtager_underskud.par13_fremført_underskud_kroner == 23283
+| m4_par13_lønmodtager_ægtefælle_fradrager_og_fremfører_rest: m4_par13_lønmodtager_ægtefælle -> m4_par13_lønmodtager_ægtefælle.par13_resterende_underskud_efter_skattemodregning_kroner == 23283 && m4_par13_lønmodtager_ægtefælle.par13_ægtefælle_fradrag_kroner == 15000 && m4_par13_lønmodtager_ægtefælle.par13_fremført_underskud_kroner == 8283
 | m4_par13_lønmodtager_personfradrag_ikke_i_slutskat: m4_par13_lønmodtager_underskud -> m4_par13_lønmodtager_underskud.kræver_par13_underskud == Sandt && m4_par13_lønmodtager_underskud.personfradrag_anvendt_i_slutskat == Falskt && m4_par13_lønmodtager_underskud.samlet_inkl_am_efter_personfradrag_kroner == 8000
 
 ? m4_par13_lønmodtager_negativ_skattepligtig_indkomst
 ? m4_par13_lønmodtager_kommuneskat_ikke_negativ
 ? m4_par13_lønmodtager_underskud_modregner_i_statsskat
+? m4_par13_lønmodtager_fremfører_efter_egen_skattemodregning
+? m4_par13_lønmodtager_ægtefælle_fradrager_og_fremfører_rest
 ? m4_par13_lønmodtager_personfradrag_ikke_i_slutskat
 
 @ print("m4 København 2025 samlet inkl. AM efter personfradrag: " + vis(m4_københavn_2025.samlet_inkl_am_efter_personfradrag_kroner))
@@ -583,3 +593,4 @@ jf. § 8, og«.
 @ print("m4 §13 kompleks ægtefælleoverførsel: " + vis(m4_par13_ægtefælle.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner))
 @ print("m4 §13 2026 PBL-afskæring: " + vis(m4_par13_2026_pbl.stk5_overførsel.afskåret_pbl16_kroner))
 @ print("m4 §13 lønmodtager underskud statsskat efter §13: " + vis(m4_par13_lønmodtager_underskud.statslig_indkomstskat_efter_par13_før_personfradrag_kroner))
+@ print("m4 §13 lønmodtager ægtefællefradrag/fremført: " + vis(m4_par13_lønmodtager_ægtefælle.par13_ægtefælle_fradrag_kroner) + "/" + vis(m4_par13_lønmodtager_ægtefælle.par13_fremført_underskud_kroner))
