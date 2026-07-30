@@ -262,7 +262,8 @@ encoded as a temporal rule on top of the consolidation.
   personal-income reclassification, plus amount-level § 4 a share-income
   inclusion, stk. 2 exclusions, stk. 3 personal-income reclassification,
   negative share-income preservation and pension deduction from positive share
-  income, the §§ 5-9 state-tax skeleton including amount-level
+  income, and amount-level § 4 b CFC-income aggregation with positive § 8 b
+  tax base projection, the §§ 5-9 state-tax skeleton including amount-level
   § 6 spouse negative net-capital offset and § 7 stk. 5 spouse
   positive-capital threshold/negative-capital offset, § 12 unused
   personfradrag tax-value allocation across the § 9 state-tax basket, the §§ 10-13
@@ -728,8 +729,8 @@ M1 - Income taxonomy
 - Status: first slice implemented.
 - Output: chapter/foundation `.runa` file for §§ 1-4 b.
 - Done when: ordinary income, personal income, capital income, share income, and
-  CFC income are represented as typed legal categories with original text
-  preserved.
+  CFC income are represented as typed legal categories and amount-level result
+  records with original text preserved.
 
 M2 - State tax computation skeleton
 
@@ -740,6 +741,8 @@ M2 - State tax computation skeleton
   municipal-equivalent state tax is encoded.
 - Current slice: 2026 LOV nr. 482/2024 state-tax structure is represented:
   mellemskat under § 7, topskat under § 7 a, toptopskat under § 8, and
+  CFC tax under § 8 b can now consume the amount-level § 4 b CFC-income
+  result before applying the selskabsskattelovens § 17, stk. 1 rate.
   udligningsskat/sundhedsbidrag are no longer active components from 2026.
   The § 6 slice now computes the amount-level spouse negative net-capital
   offset before bundskat basis calculation.

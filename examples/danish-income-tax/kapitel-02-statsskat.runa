@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./kapitel - 01 - indkomst
 @ importer ./pengebeloeb
 @ importer ./skatteaar - parametre
 
@@ -751,19 +752,34 @@ skattepligtige indkomst og udgør 22 pct.
 | selskabsskattelov_par17_stk1_sats_basispoint(skatteår: Heltal) -> 2200 under skatteår >= 2024
 | cfc_skat_sats_basispoint(skatteår: Heltal) -> selskabsskattelov_par17_stk1_sats_basispoint(skatteår)
 | cfc_skat_kroner(input: CfcSkatInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.cfc_indkomst_kroner), cfc_skat_sats_basispoint(input.skatteår))
+| cfc_skat_input_fra_par4b(skatteår: Heltal, cfc_resultat: Par4bCfcIndkomstResultat) -> CfcSkatInput(
+    skatteår = skatteår,
+    cfc_indkomst_kroner = cfc_resultat.positiv_cfc_indkomst_til_par8b_kroner
+)
 | cfc_skat_resultat(input: CfcSkatInput) -> CfcSkatResultat(
     cfc_indkomst_kroner = penge_positivt_beløb(input.cfc_indkomst_kroner),
     sats_basispoint = cfc_skat_sats_basispoint(input.skatteår),
     skat_kroner = cfc_skat_kroner(input)
 )
+| cfc_skat_resultat_fra_par4b(skatteår: Heltal, cfc_resultat: Par4bCfcIndkomstResultat) -> cfc_skat_resultat(cfc_skat_input_fra_par4b(skatteår = skatteår, cfc_resultat = cfc_resultat))
 
 = par8b_cfc_500k = cfc_skat_resultat(CfcSkatInput(
     skatteår = 2026,
     cfc_indkomst_kroner = 500000
 ))
+= par8b_cfc_fra_par4b_fixture = cfc_skat_resultat_fra_par4b(
+    skatteår = 2026,
+    cfc_resultat = par4b_cfc_indkomst_resultat_fixture
+)
+= par8b_negativ_cfc_fra_par4b_fixture = cfc_skat_resultat_fra_par4b(
+    skatteår = 2026,
+    cfc_resultat = par4b_negativ_cfc_indkomst_fixture
+)
 
 | par8b_cfc_selskabsskat_sats: cfc_skat_sats_basispoint(2026) -> cfc_skat_sats_basispoint(2026) == 2200
 | par8b_cfc_500k_skat: par8b_cfc_500k -> par8b_cfc_500k.skat_kroner == 110000
+| par8b_cfc_skat_fra_par4b_indkomst: par8b_cfc_fra_par4b_fixture -> par8b_cfc_fra_par4b_fixture.cfc_indkomst_kroner == 500000 && par8b_cfc_fra_par4b_fixture.skat_kroner == 110000
+| par8b_negativ_cfc_skat_fra_par4b_indkomst: par8b_negativ_cfc_fra_par4b_fixture -> par8b_negativ_cfc_fra_par4b_fixture.cfc_indkomst_kroner == 0 && par8b_negativ_cfc_fra_par4b_fixture.skat_kroner == 0
 
 ----
 § 8 c. For personer, der omfattes af kildeskattelovens § 2, stk. 1, nr. 1, 2,

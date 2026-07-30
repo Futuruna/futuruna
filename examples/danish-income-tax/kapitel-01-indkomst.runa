@@ -507,14 +507,41 @@ skat efter §§ 6-8 a.
 ----
 
 # CfcPost = Ligningslov16H | Ligningslov16IStk6 | Ligningslov16IStk7
+# Par4bCfcIndkomstPost(kilde: CfcPost, beløb_kroner: Heltal)
+# Par4bCfcIndkomstInput(poster: List(Par4bCfcIndkomstPost))
+# Par4bCfcIndkomstResultat(cfc_indkomst_kroner: Heltal, positiv_cfc_indkomst_til_par8b_kroner: Heltal, indgår_i_skattepligtig_indkomst_ved_par6_til_8a: Boolsk)
 
 | cfc_indkomst_omfatter(post: CfcPost) -> Sandt
 | cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a() -> Falskt
+| par4b_cfc_post_medregnes(post: Par4bCfcIndkomstPost) -> cfc_indkomst_omfatter(post.kilde)
+| par4b_cfc_post_kroner(post: Par4bCfcIndkomstPost) -> 0
+| exception par4b_cfc_post_omfattet par4b_cfc_post_kroner(post: Par4bCfcIndkomstPost) -> post.beløb_kroner under par4b_cfc_post_medregnes(post)
+| par4b_cfc_indkomst_kroner(input: Par4bCfcIndkomstInput) -> foldl(input.poster, 0, |sum, post| sum + par4b_cfc_post_kroner(post))
+| par4b_positiv_cfc_indkomst_til_par8b_kroner(input: Par4bCfcIndkomstInput) -> penge_positivt_beløb(par4b_cfc_indkomst_kroner(input))
+| par4b_cfc_indkomst_resultat(input: Par4bCfcIndkomstInput) -> Par4bCfcIndkomstResultat(
+    cfc_indkomst_kroner = par4b_cfc_indkomst_kroner(input),
+    positiv_cfc_indkomst_til_par8b_kroner = par4b_positiv_cfc_indkomst_til_par8b_kroner(input),
+    indgår_i_skattepligtig_indkomst_ved_par6_til_8a = cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a()
+)
 
 = par4b_16h = cfc_indkomst_omfatter(Ligningslov16H)
 = par4b_16i6 = cfc_indkomst_omfatter(Ligningslov16IStk6)
 = par4b_udenfor_par6_8a = cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a()
+= par4b_cfc_indkomst_resultat_fixture = par4b_cfc_indkomst_resultat(Par4bCfcIndkomstInput(
+    poster = [
+        Par4bCfcIndkomstPost(kilde = Ligningslov16H, beløb_kroner = 300000),
+        Par4bCfcIndkomstPost(kilde = Ligningslov16IStk6, beløb_kroner = 150000),
+        Par4bCfcIndkomstPost(kilde = Ligningslov16IStk7, beløb_kroner = 50000)
+    ]
+))
+= par4b_negativ_cfc_indkomst_fixture = par4b_cfc_indkomst_resultat(Par4bCfcIndkomstInput(
+    poster = [
+        Par4bCfcIndkomstPost(kilde = Ligningslov16H, beløb_kroner = -25000)
+    ]
+))
 
 | par4b_16h_er_cfc: par4b_16h -> par4b_16h == Sandt
 | par4b_16i_stk6_er_cfc: par4b_16i6 -> par4b_16i6 == Sandt
 | par4b_ikke_i_skattepligtig_ved_par6_8a: par4b_udenfor_par6_8a -> par4b_udenfor_par6_8a == Falskt
+| par4b_cfc_indkomst_beregnes_beløb: par4b_cfc_indkomst_resultat_fixture -> par4b_cfc_indkomst_resultat_fixture.cfc_indkomst_kroner == 500000 && par4b_cfc_indkomst_resultat_fixture.positiv_cfc_indkomst_til_par8b_kroner == 500000 && par4b_cfc_indkomst_resultat_fixture.indgår_i_skattepligtig_indkomst_ved_par6_til_8a == Falskt
+| par4b_negativ_cfc_indkomst_giver_intet_positivt_par8b_grundlag: par4b_negativ_cfc_indkomst_fixture -> par4b_negativ_cfc_indkomst_fixture.cfc_indkomst_kroner == -25000 && par4b_negativ_cfc_indkomst_fixture.positiv_cfc_indkomst_til_par8b_kroner == 0 && par4b_negativ_cfc_indkomst_fixture.indgår_i_skattepligtig_indkomst_ved_par6_til_8a == Falskt
