@@ -461,6 +461,8 @@ Ikke aktuel
 | m5_2026_parameterpakke_dækket: m5_2026_københavn_komplet -> m5_2026_københavn_komplet == Sandt
 | m5_2026_langeland_parameterpakke_dækket: m5_2026_langeland_komplet -> m5_2026_langeland_komplet == Sandt
 | m5_2026_statsskat_reformstruktur: m5_2026_statsskat_mellemskat -> m5_2026_statsskat_mellemskat == Sandt && m5_2026_statsskat_toptopskat == Sandt && m5_2026_statsskat_udligning == Falskt
+| m5_par5_statsskat_sum_2026_dækket: par5_2026_statsskat_sum_fixture -> par5_2026_statsskat_sum_fixture.bundskat_kroner == 100000 && par5_2026_statsskat_sum_fixture.mellemskat_kroner == 14010 && par5_2026_statsskat_sum_fixture.topskat_kroner == 3757 && par5_2026_statsskat_sum_fixture.udligningsskat_kroner == 0 && par5_2026_statsskat_sum_fixture.sundhedsbidrag_kroner == 0 && par5_2026_statsskat_sum_fixture.samlet_statsskat_kroner == 325922
+| m5_par5_statsskat_sum_2025_dækket: par5_2025_statsskat_sum_fixture -> par5_2025_statsskat_sum_fixture.topskat_kroner == 20000 && par5_2025_statsskat_sum_fixture.mellemskat_kroner == 0 && par5_2025_statsskat_sum_fixture.toptopskat_kroner == 0 && par5_2025_statsskat_sum_fixture.samlet_statsskat_kroner == 92000
 | m5_2026_mellemskat_fixture: m5_2026_progressiv_fixture -> m5_2026_progressiv_fixture.mellemskat_før_personfradrag_kroner == 14010
 | m5_2026_topskat_fixture: m5_2026_progressiv_fixture -> m5_2026_progressiv_fixture.topskat_før_personfradrag_kroner == 3757
 | m5_2026_toptopskat_fixture: m5_2026_toptop_fixture -> m5_2026_toptop_fixture.toptopskat_før_personfradrag_kroner == 8365
@@ -493,6 +495,8 @@ Ikke aktuel
 ? m5_2026_parameterpakke_dækket
 ? m5_2026_langeland_parameterpakke_dækket
 ? m5_2026_statsskat_reformstruktur
+? m5_par5_statsskat_sum_2026_dækket
+? m5_par5_statsskat_sum_2025_dækket
 ? m5_2026_mellemskat_fixture
 ? m5_2026_topskat_fixture
 ? m5_2026_toptopskat_fixture

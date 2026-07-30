@@ -740,10 +740,14 @@ M2 - State tax computation skeleton
   abolished/zeroed taxes, aktieindkomstskat, CFC tax, and
   municipal-equivalent state tax is encoded.
 - Current slice: 2026 LOV nr. 482/2024 state-tax structure is represented:
-  mellemskat under § 7, topskat under § 7 a, toptopskat under § 8, and
-  CFC tax under § 8 b can now consume the amount-level § 4 b CFC-income
-  result before applying the selskabsskattelovens § 17, stk. 1 rate.
-  udligningsskat/sundhedsbidrag are no longer active components from 2026.
+  § 5 now sums typed state-tax component posts into an amount-level
+  `Par5StatsskatResultat`, filtering inactive components by tax year so
+  udligningsskat/sundhedsbidrag are ignored from 2026 and mellemskat/
+  toptopskat are ignored before the 2026 reform. Mellemskat under § 7,
+  topskat under § 7 a, toptopskat under § 8, and CFC tax under § 8 b can now
+  feed this state-tax component model, with § 8 b consuming the amount-level
+  § 4 b CFC-income result before applying the selskabsskattelovens § 17,
+  stk. 1 rate.
   The § 6 slice now computes the amount-level spouse negative net-capital
   offset before bundskat basis calculation.
   The § 7 mellemskat slice now covers positive net capital income over the

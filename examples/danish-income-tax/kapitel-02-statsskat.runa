@@ -22,6 +22,9 @@
 ----
 
 # StatsskatKomponent = Bundskat | Mellemskat | Topskat | Toptopskat | Udligningsskat | Sundhedsbidrag | Aktieindkomstskat | CfcIndkomstskat | KommunalLignendeStatsskat
+# Par5StatsskatPost(komponent: StatsskatKomponent, beløb_kroner: Heltal)
+# Par5StatsskatInput(skatteår: Heltal, poster: List(Par5StatsskatPost))
+# Par5StatsskatResultat(skatteår: Heltal, bundskat_kroner: Heltal, mellemskat_kroner: Heltal, topskat_kroner: Heltal, toptopskat_kroner: Heltal, udligningsskat_kroner: Heltal, sundhedsbidrag_kroner: Heltal, aktieindkomstskat_kroner: Heltal, cfc_indkomstskat_kroner: Heltal, kommunal_lignende_statsskat_kroner: Heltal, samlet_statsskat_kroner: Heltal)
 
 | statsskat_indeholder(komponent: StatsskatKomponent) -> Falskt
 | exception par5_historisk_bundskat statsskat_indeholder(komponent: StatsskatKomponent) -> Sandt under komponent == Bundskat
@@ -92,6 +95,57 @@ LOV nr. 482 af 22/05/2024, § 8, stk. 4.
 | par5_2026_toptopskat_indgår: par5_2026_toptopskat -> par5_2026_toptopskat == Sandt
 | par5_2026_udligningsskat_udgår: par5_2026_udligning -> par5_2026_udligning == Falskt
 | par5_2026_sundhedsbidrag_udgår: par5_2026_sundhed -> par5_2026_sundhed == Falskt
+| par5_statsskatpost_beløb_i_året_kroner(skatteår: Heltal, post: Par5StatsskatPost) -> 0
+| exception par5_aktiv_komponent_medregnes par5_statsskatpost_beløb_i_året_kroner(skatteår: Heltal, post: Par5StatsskatPost) -> post.beløb_kroner under statsskat_indeholder_i_år(post.komponent, skatteår)
+| par5_statsskatpost_beløb_for_komponent_i_året_kroner(skatteår: Heltal, komponent: StatsskatKomponent, post: Par5StatsskatPost) -> 0
+| exception par5_aktiv_post_for_komponent par5_statsskatpost_beløb_for_komponent_i_året_kroner(skatteår: Heltal, komponent: StatsskatKomponent, post: Par5StatsskatPost) -> par5_statsskatpost_beløb_i_året_kroner(skatteår, post) under post.komponent == komponent
+| par5_statsskat_komponent_sum_kroner(input: Par5StatsskatInput, komponent: StatsskatKomponent) -> foldl(input.poster, 0, |sum, post| sum + par5_statsskatpost_beløb_for_komponent_i_året_kroner(input.skatteår, komponent, post))
+| par5_samlet_statsskat_kroner(input: Par5StatsskatInput) -> foldl(input.poster, 0, |sum, post| sum + par5_statsskatpost_beløb_i_året_kroner(input.skatteår, post))
+| par5_statsskat_resultat(input: Par5StatsskatInput) -> Par5StatsskatResultat(
+    skatteår = input.skatteår,
+    bundskat_kroner = par5_statsskat_komponent_sum_kroner(input, Bundskat),
+    mellemskat_kroner = par5_statsskat_komponent_sum_kroner(input, Mellemskat),
+    topskat_kroner = par5_statsskat_komponent_sum_kroner(input, Topskat),
+    toptopskat_kroner = par5_statsskat_komponent_sum_kroner(input, Toptopskat),
+    udligningsskat_kroner = par5_statsskat_komponent_sum_kroner(input, Udligningsskat),
+    sundhedsbidrag_kroner = par5_statsskat_komponent_sum_kroner(input, Sundhedsbidrag),
+    aktieindkomstskat_kroner = par5_statsskat_komponent_sum_kroner(input, Aktieindkomstskat),
+    cfc_indkomstskat_kroner = par5_statsskat_komponent_sum_kroner(input, CfcIndkomstskat),
+    kommunal_lignende_statsskat_kroner = par5_statsskat_komponent_sum_kroner(input, KommunalLignendeStatsskat),
+    samlet_statsskat_kroner = par5_samlet_statsskat_kroner(input)
+)
+
+= par5_2026_statsskat_sum_fixture = par5_statsskat_resultat(Par5StatsskatInput(
+    skatteår = 2026,
+    poster = [
+        Par5StatsskatPost(komponent = Bundskat, beløb_kroner = 100000),
+        Par5StatsskatPost(komponent = Mellemskat, beløb_kroner = 14010),
+        Par5StatsskatPost(komponent = Topskat, beløb_kroner = 3757),
+        Par5StatsskatPost(komponent = Toptopskat, beløb_kroner = 0),
+        Par5StatsskatPost(komponent = Aktieindkomstskat, beløb_kroner = 23155),
+        Par5StatsskatPost(komponent = CfcIndkomstskat, beløb_kroner = 110000),
+        Par5StatsskatPost(komponent = KommunalLignendeStatsskat, beløb_kroner = 75000),
+        Par5StatsskatPost(komponent = Udligningsskat, beløb_kroner = 999),
+        Par5StatsskatPost(komponent = Sundhedsbidrag, beløb_kroner = 888)
+    ]
+))
+= par5_2025_statsskat_sum_fixture = par5_statsskat_resultat(Par5StatsskatInput(
+    skatteår = 2025,
+    poster = [
+        Par5StatsskatPost(komponent = Bundskat, beløb_kroner = 50000),
+        Par5StatsskatPost(komponent = Topskat, beløb_kroner = 20000),
+        Par5StatsskatPost(komponent = Udligningsskat, beløb_kroner = 0),
+        Par5StatsskatPost(komponent = Sundhedsbidrag, beløb_kroner = 0),
+        Par5StatsskatPost(komponent = Aktieindkomstskat, beløb_kroner = 10000),
+        Par5StatsskatPost(komponent = CfcIndkomstskat, beløb_kroner = 5000),
+        Par5StatsskatPost(komponent = KommunalLignendeStatsskat, beløb_kroner = 7000),
+        Par5StatsskatPost(komponent = Mellemskat, beløb_kroner = 123),
+        Par5StatsskatPost(komponent = Toptopskat, beløb_kroner = 456)
+    ]
+))
+
+| par5_2026_statsskat_summerer_aktive_komponenter: par5_2026_statsskat_sum_fixture -> par5_2026_statsskat_sum_fixture.bundskat_kroner == 100000 && par5_2026_statsskat_sum_fixture.mellemskat_kroner == 14010 && par5_2026_statsskat_sum_fixture.topskat_kroner == 3757 && par5_2026_statsskat_sum_fixture.udligningsskat_kroner == 0 && par5_2026_statsskat_sum_fixture.sundhedsbidrag_kroner == 0 && par5_2026_statsskat_sum_fixture.aktieindkomstskat_kroner == 23155 && par5_2026_statsskat_sum_fixture.cfc_indkomstskat_kroner == 110000 && par5_2026_statsskat_sum_fixture.kommunal_lignende_statsskat_kroner == 75000 && par5_2026_statsskat_sum_fixture.samlet_statsskat_kroner == 325922
+| par5_2025_statsskat_summerer_historiske_komponenter: par5_2025_statsskat_sum_fixture -> par5_2025_statsskat_sum_fixture.topskat_kroner == 20000 && par5_2025_statsskat_sum_fixture.mellemskat_kroner == 0 && par5_2025_statsskat_sum_fixture.toptopskat_kroner == 0 && par5_2025_statsskat_sum_fixture.samlet_statsskat_kroner == 92000
 
 ----
 § 6. Skatten efter § 5, nr. 1, beregnes med den procent, der anføres i stk. 2,
