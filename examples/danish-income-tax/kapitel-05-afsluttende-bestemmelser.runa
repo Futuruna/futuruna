@@ -143,6 +143,8 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par26ÆgtefælleForskelsbeløbParResult(egen_forskelsbeløb_efter_stk4_kroner: Heltal, ægtefælle_forskelsbeløb_efter_stk4_kroner: Heltal, egen_kompensation_efter_stk4_kroner: Heltal, ægtefælle_kompensation_efter_stk4_kroner: Heltal, modregnet_fra_egen_til_ægtefælle_kroner: Heltal, modregnet_fra_ægtefælle_til_egen_kroner: Heltal, samlet_kompensation_efter_stk4_kroner: Heltal)
 # Par26Stk5NegativKapitalInput(status: Par26ÆgtefælleStatus, negativ_nettokapitalindkomst_kroner: Heltal, ægtefælle_positiv_nettokapitalindkomst_kroner: Heltal)
 # Par26Stk5NegativKapitalResult(modregnet_i_ægtefælles_positive_kroner: Heltal, negativ_nettokapitalindkomst_efter_modregning_kroner: Heltal, ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner: Heltal)
+# Par26Stk5KapitalParInput(status: Par26ÆgtefælleStatus, egen_nettokapitalindkomst_kroner: Heltal, ægtefælle_nettokapitalindkomst_kroner: Heltal)
+# Par26Stk5KapitalParResult(egen_nettokapitalindkomst_efter_stk5_kroner: Heltal, ægtefælle_nettokapitalindkomst_efter_stk5_kroner: Heltal, modregnet_fra_egen_til_ægtefælle_kroner: Heltal, modregnet_fra_ægtefælle_til_egen_kroner: Heltal, samlet_modregnet_kroner: Heltal)
 # Par26Stk6BundfradragInput(status: Par26ÆgtefælleStatus, forskerordning_48f_valgt: Boolsk, egen_personlig_plus_positiv_kapital_kroner: Heltal, egen_bundfradrag_nr2_kroner: Heltal, ægtefælle_bundfradrag_nr2_kroner: Heltal)
 # Par26Stk6BundfradragResult(egen_manglende_til_bundfradrag_kroner: Heltal, ægtefælle_bundfradragsforhøjelse_kroner: Heltal, ægtefælle_effektivt_bundfradrag_kroner: Heltal)
 # Par26Stk8PositivKapitalInput(status: Par26ÆgtefælleStatus, positiv_nettokapitalindkomst_kroner: Heltal, ægtefælle_negativ_nettokapitalindkomst_kroner: Heltal)
@@ -461,6 +463,37 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     )
 }
 | par26_stk5_negativ_kapital_resultat(input: Par26Stk5NegativKapitalInput) -> Par26Stk5NegativKapitalSag(input).resultat()
+# Par26Stk5KapitalParSag(input: Par26Stk5KapitalParInput) {
+    | egen_negativ_mod_ægtefælle() -> par26_stk5_negativ_kapital_resultat(Par26Stk5NegativKapitalInput(
+        status = input.status,
+        negativ_nettokapitalindkomst_kroner = input.egen_nettokapitalindkomst_kroner,
+        ægtefælle_positiv_nettokapitalindkomst_kroner = input.ægtefælle_nettokapitalindkomst_kroner
+    ))
+    | ægtefælle_negativ_mod_egen() -> par26_stk5_negativ_kapital_resultat(Par26Stk5NegativKapitalInput(
+        status = input.status,
+        negativ_nettokapitalindkomst_kroner = input.ægtefælle_nettokapitalindkomst_kroner,
+        ægtefælle_positiv_nettokapitalindkomst_kroner = input.egen_nettokapitalindkomst_kroner
+    ))
+    | modregnet_fra_egen_til_ægtefælle() -> 0
+    | exception stk5_egen_negativ_modregnes_i_ægtefælle modregnet_fra_egen_til_ægtefælle() -> egen_negativ_mod_ægtefælle().modregnet_i_ægtefælles_positive_kroner under input.egen_nettokapitalindkomst_kroner < 0 && input.ægtefælle_nettokapitalindkomst_kroner > 0
+    | modregnet_fra_ægtefælle_til_egen() -> 0
+    | exception stk5_ægtefælle_negativ_modregnes_i_egen modregnet_fra_ægtefælle_til_egen() -> ægtefælle_negativ_mod_egen().modregnet_i_ægtefælles_positive_kroner under input.ægtefælle_nettokapitalindkomst_kroner < 0 && input.egen_nettokapitalindkomst_kroner > 0
+    | egen_nettokapitalindkomst_efter_stk5() -> input.egen_nettokapitalindkomst_kroner
+    | exception stk5_egen_negativ_efter_modregning egen_nettokapitalindkomst_efter_stk5() -> egen_negativ_mod_ægtefælle().negativ_nettokapitalindkomst_efter_modregning_kroner under input.egen_nettokapitalindkomst_kroner < 0
+    | exception stk5_egen_positiv_nedsat_af_ægtefælle egen_nettokapitalindkomst_efter_stk5() -> ægtefælle_negativ_mod_egen().ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner under input.egen_nettokapitalindkomst_kroner > 0 && input.ægtefælle_nettokapitalindkomst_kroner < 0
+    | ægtefælle_nettokapitalindkomst_efter_stk5() -> input.ægtefælle_nettokapitalindkomst_kroner
+    | exception stk5_ægtefælle_negativ_efter_modregning ægtefælle_nettokapitalindkomst_efter_stk5() -> ægtefælle_negativ_mod_egen().negativ_nettokapitalindkomst_efter_modregning_kroner under input.ægtefælle_nettokapitalindkomst_kroner < 0
+    | exception stk5_ægtefælle_positiv_nedsat_af_egen ægtefælle_nettokapitalindkomst_efter_stk5() -> egen_negativ_mod_ægtefælle().ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner under input.ægtefælle_nettokapitalindkomst_kroner > 0 && input.egen_nettokapitalindkomst_kroner < 0
+    | resultat() -> Par26Stk5KapitalParResult(
+        egen_nettokapitalindkomst_efter_stk5_kroner = egen_nettokapitalindkomst_efter_stk5(),
+        ægtefælle_nettokapitalindkomst_efter_stk5_kroner = ægtefælle_nettokapitalindkomst_efter_stk5(),
+        modregnet_fra_egen_til_ægtefælle_kroner = modregnet_fra_egen_til_ægtefælle(),
+        modregnet_fra_ægtefælle_til_egen_kroner = modregnet_fra_ægtefælle_til_egen(),
+        samlet_modregnet_kroner = modregnet_fra_egen_til_ægtefælle() + modregnet_fra_ægtefælle_til_egen()
+    )
+}
+| par26_stk5_kapital_par_sag(input: Par26Stk5KapitalParInput) -> Par26Stk5KapitalParSag(input)
+| par26_stk5_kapital_par_resultat(input: Par26Stk5KapitalParInput) -> par26_stk5_kapital_par_sag(input).resultat()
 # Par26Stk6BundfradragSag(input: Par26Stk6BundfradragInput) {
     | egen_manglende_til_bundfradrag() -> par26_positivt_beløb(input.egen_bundfradrag_nr2_kroner - input.egen_personlig_plus_positiv_kapital_kroner)
     | forhøjelse_tilladt() -> par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(input.status) && input.forskerordning_48f_valgt == Falskt
@@ -634,6 +667,16 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     negativ_nettokapitalindkomst_kroner = -40000,
     ægtefælle_positiv_nettokapitalindkomst_kroner = 25000
 ))
+= par26_stk5_kapital_par_fixture = par26_stk5_kapital_par_resultat(Par26Stk5KapitalParInput(
+    status = Par26GiftSamlevendeVedÅretsUdløb,
+    egen_nettokapitalindkomst_kroner = -40000,
+    ægtefælle_nettokapitalindkomst_kroner = 25000
+))
+= par26_stk5_kapital_par_ikke_samlevende_fixture = par26_stk5_kapital_par_resultat(Par26Stk5KapitalParInput(
+    status = Par26IkkeSamlevende,
+    egen_nettokapitalindkomst_kroner = -40000,
+    ægtefælle_nettokapitalindkomst_kroner = 25000
+))
 = par26_stk6_bundfradrag_fixture = par26_stk6_bundfradrag_resultat(Par26Stk6BundfradragInput(
     status = Par26GiftSamlevendeVedÅretsUdløb,
     forskerordning_48f_valgt = Falskt,
@@ -700,6 +743,8 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | par26_stk4_par_resultat_modregner_positiv_ægtefælle: par26_stk4_ægtefælle_forskelsbeløb_par_fixture -> par26_stk4_ægtefælle_forskelsbeløb_par_fixture.modregnet_fra_ægtefælle_til_egen_kroner == 3000 && par26_stk4_ægtefælle_forskelsbeløb_par_fixture.egen_forskelsbeløb_efter_stk4_kroner == -2000 && par26_stk4_ægtefælle_forskelsbeløb_par_fixture.ægtefælle_forskelsbeløb_efter_stk4_kroner == 3000 && par26_stk4_ægtefælle_forskelsbeløb_par_fixture.egen_kompensation_efter_stk4_kroner == 2000 && par26_stk4_ægtefælle_forskelsbeløb_par_fixture.samlet_kompensation_efter_stk4_kroner == 2000
 | par26_stk4_par_kræver_samliv: par26_stk4_ægtefælle_forskelsbeløb_ikke_samlevende_fixture -> par26_stk4_ægtefælle_forskelsbeløb_ikke_samlevende_fixture.modregnet_fra_ægtefælle_til_egen_kroner == 0 && par26_stk4_ægtefælle_forskelsbeløb_ikke_samlevende_fixture.egen_forskelsbeløb_efter_stk4_kroner == -5000 && par26_stk4_ægtefælle_forskelsbeløb_ikke_samlevende_fixture.samlet_kompensation_efter_stk4_kroner == 5000
 | par26_stk5_negativ_kapital_modregnes_i_ægtefælles_positive: par26_stk5_negativ_kapital_fixture -> par26_stk5_negativ_kapital_fixture.modregnet_i_ægtefælles_positive_kroner == 25000 && par26_stk5_negativ_kapital_fixture.negativ_nettokapitalindkomst_efter_modregning_kroner == -15000 && par26_stk5_negativ_kapital_fixture.ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner == 0
+| par26_stk5_kapital_par_resultat_modregner_egen_negative: par26_stk5_kapital_par_fixture -> par26_stk5_kapital_par_fixture.modregnet_fra_egen_til_ægtefælle_kroner == 25000 && par26_stk5_kapital_par_fixture.egen_nettokapitalindkomst_efter_stk5_kroner == -15000 && par26_stk5_kapital_par_fixture.ægtefælle_nettokapitalindkomst_efter_stk5_kroner == 0 && par26_stk5_kapital_par_fixture.samlet_modregnet_kroner == 25000
+| par26_stk5_kapital_par_kræver_samliv: par26_stk5_kapital_par_ikke_samlevende_fixture -> par26_stk5_kapital_par_ikke_samlevende_fixture.modregnet_fra_egen_til_ægtefælle_kroner == 0 && par26_stk5_kapital_par_ikke_samlevende_fixture.egen_nettokapitalindkomst_efter_stk5_kroner == -40000 && par26_stk5_kapital_par_ikke_samlevende_fixture.ægtefælle_nettokapitalindkomst_efter_stk5_kroner == 25000
 | par26_stk6_lav_indkomst_forhøjer_ægtefælles_bundfradrag: par26_stk6_bundfradrag_fixture -> par26_stk6_bundfradrag_fixture.egen_manglende_til_bundfradrag_kroner == 62800 && par26_stk6_bundfradrag_fixture.ægtefælle_effektivt_bundfradrag_kroner == 425600
 | par26_stk6_48f_afskærer_bundfradragsforhøjelse: par26_stk6_forskerordning_fixture -> par26_stk6_forskerordning_fixture.ægtefælle_bundfradragsforhøjelse_kroner == 0 && par26_stk6_forskerordning_fixture.ægtefælle_effektivt_bundfradrag_kroner == 362800
 | par26_stk8_positiv_kapital_modregnes_i_ægtefælles_negative: par26_stk8_positiv_kapital_fixture -> par26_stk8_positiv_kapital_fixture.modregnet_i_ægtefælles_negative_kroner == 20000 && par26_stk8_positiv_kapital_fixture.positiv_nettokapitalindkomst_efter_modregning_kroner == 0 && par26_stk8_positiv_kapital_fixture.ægtefælle_negativ_nettokapitalindkomst_efter_modregning_kroner == -30000
