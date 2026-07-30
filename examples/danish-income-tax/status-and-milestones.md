@@ -38,7 +38,8 @@ income year 2023 onward, and § 4, stk. 1, nr. 6 has a source-backed post-LOV
 § 26, stk. 7 now composes § 7 spouse capital-threshold and
 capital-tax allocation rules into the transition-compensation nr. 3 amount, and
 § 26 now has an annual compensation-settlement result that composes
-source-derived yearly parameters with the statutory tax-offset order.
+source-derived yearly parameters with the statutory tax-offset order plus a
+pair-level stk. 4 spouse difference result.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -561,6 +562,10 @@ Current decision:
   calculation with the § 26, stk. 1 tax-offset order, so fixtures can prove the
   whole compensation-settlement path instead of separately calling
   `par26_forskelsbeløb_beregning_for_skatteår` and `par26_modregning_resultat`.
+- `Par26ÆgtefælleForskelsbeløbParSag` applies the § 26, stk. 4 spouse rule in
+  both directions, so a married couple's positive/negative transition
+  differences produce named post-stk. 4 amounts and compensation for each
+  spouse without caller-side direction selection.
 - `Par11NegativKapitalNedslagSag` uses product-scoped `|` rules for § 11.
   It keeps tax year, the taxpayer's net-capital income, the spouse's
   net-capital income, samliv status, and municipal/§ 8 c tax-liability posture
@@ -1161,8 +1166,8 @@ M5 - Audit suite
   source-backed Langeland 2026 high-municipal-rate personal and positive-capital
   relief fixtures and the published 1,24 pct. SKM `Nedslag pct.` differential,
   covered § 20 regulation/rounding, covered § 26 transition
-  compensation including a composed annual settlement path and stk. 7 spouse
-  top-tax allocation for nr. 3,
+  compensation including a composed annual settlement path, pair-level stk. 4
+  spouse difference offset, and stk. 7 spouse top-tax allocation for nr. 3,
   covered § 28 territorial exclusion, covered AM-law special cases,
   covered shared Pengebeløb rounding and øre-fraction posture,
   covered Opkrævningsloven payment-deadline/remittance posture and § 7
@@ -1289,7 +1294,8 @@ M9 - Final provisions and transition compensation
   compensation and applies it in statutory order, § 26 stk. 9 now regulates the
   2010-level thresholds through the § 20 rounding rule before deriving stk. 2
   line items from statutory bases, § 26 stk. 4-6 and stk. 8 now compute
-  samlevende-ægtefælle offsets for positive/negative transition differences,
+  samlevende-ægtefælle offsets for positive/negative transition differences
+  including pair-level post-stk. 4 compensation amounts,
   negative/positive net-capital interaction, and nr. 2 bundfradrag transfer with
   the § 48 F exception, § 26 stk. 9 can now derive source-backed 2012-2019
   threshold packs from the official § 20 `reguleringstal`, § 26 nr. 5 can derive
