@@ -15,6 +15,14 @@
 -- Satser og regulerede maksimumsbeløb:
 -- Skatteministeriet, "Ligningsloven".
 -- https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven
+-- Skatteministeriet, "Skatteberegning - hovedtrækkene i personbeskatningen 2014".
+-- https://skm.dk/tal-og-metode/satser/skatte-og-afgiftsberegning/skatteberegning-hovedtraekkene-i-personbeskatningen-2014
+-- Skatteministeriet, "Skatteberegning - hovedtrækkene i personbeskatningen 2016".
+-- https://skm.dk/tal-og-metode/satser/skatte-og-afgiftsberegning/skatteberegning-hovedtraekkene-i-personbeskatningen-2016
+-- Skatteministeriet, "Skatteberegning - hovedtrækkene i personbeskatningen 2017".
+-- https://skm.dk/tal-og-metode/satser/skatte-og-afgiftsberegning/skatteberegning-hovedtraekkene-i-personbeskatningen-2017
+-- Skatteministeriet, "Skatteberegning - hovedtrækkene i personbeskatningen 2018".
+-- https://skm.dk/tal-og-metode/satser/skatte-og-afgiftsberegning/skatteberegning-hovedtraekkene-i-personbeskatningen-2018
 -- Skatteministeriet, "Beløbsgrænser ... PSL § 20 - 2018-2019".
 -- https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2018-2019
 -- Skatteministeriet, "Beløbsgrænser ... PSL § 20 - 2024-2025".
@@ -70,9 +78,15 @@ Grundbeløbene reguleres efter personskattelovens § 20.
 ----
 
 ----
-Skatteministeriet, "Ligningsloven", satser og beløbsgrænser:
+Skatteministeriet, historiske og aktuelle satser og beløbsgrænser:
 
 Beskæftigelsesfradrag, § 9 J, stk. 2
+2012: procent 4,40; maksimalt fradrag 14.100 kr.
+2013: procent 6,95; maksimalt fradrag 22.300 kr.
+2014: procent 7,65; maksimalt fradrag 25.000 kr.
+2015: procent 8,05; maksimalt fradrag 26.800 kr.
+2016: procent 8,30; maksimalt fradrag 28.000 kr.
+2017: procent 8,75; maksimalt fradrag 30.000 kr.
 2018: procent 9,5; maksimalt fradrag 34.300 kr.
 2019: procent 10,1; maksimalt fradrag 37.200 kr.
 2024: procent 10,65; maksimalt fradrag 45.100 kr.
@@ -87,6 +101,36 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
 
 | ligningslov_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> penge_mindste_beløb(a_kroner, b_kroner)
 
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2012,
+    beskæftigelsesfradrag_basispoint = 440,
+    beskæftigelsesfradrag_maks_kroner = 14100
+) under skatteår == 2012
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2013,
+    beskæftigelsesfradrag_basispoint = 695,
+    beskæftigelsesfradrag_maks_kroner = 22300
+) under skatteår == 2013
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2014,
+    beskæftigelsesfradrag_basispoint = 765,
+    beskæftigelsesfradrag_maks_kroner = 25000
+) under skatteår == 2014
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2015,
+    beskæftigelsesfradrag_basispoint = 805,
+    beskæftigelsesfradrag_maks_kroner = 26800
+) under skatteår == 2015
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2016,
+    beskæftigelsesfradrag_basispoint = 830,
+    beskæftigelsesfradrag_maks_kroner = 28000
+) under skatteår == 2016
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2017,
+    beskæftigelsesfradrag_basispoint = 875,
+    beskæftigelsesfradrag_maks_kroner = 30000
+) under skatteår == 2017
 | ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
     skatteår = 2018,
     beskæftigelsesfradrag_basispoint = 950,
@@ -137,11 +181,23 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
     arbejdsmarkedsbidragsgrundlag_kroner = 600000,
     udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Sandt
 ))
+= ll9j_2012_600000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(
+    skatteår = 2012,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
+= ll9j_2017_600000_fixture = ll9j_beskæftigelsesfradrag_kroner(Ligningslov9JInput(
+    skatteår = 2017,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
 
 | ll9j_2025_løn_loftes: ll9j_2025_500000_fixture -> ll9j_2025_500000_fixture == 55600
 | ll9j_2026_løn_loftes: ll9j_2026_600000_fixture -> ll9j_2026_600000_fixture == 63300
 | ll9j_2026_lavere_løn_under_loft: ll9j_2026_240000_fixture -> ll9j_2026_240000_fixture == 30600
 | ll9j_udland_undtages: ll9j_udland_fixture -> ll9j_udland_fixture == 0
+| ll9j_2012_historisk_løn_loftes: ll9j_2012_600000_fixture -> ll9j_2012_600000_fixture == 14100
+| ll9j_2017_historisk_løn_loftes: ll9j_2017_600000_fixture -> ll9j_2017_600000_fixture == 30000
 
 ----
 § 9 K. Ved opgørelsen af den skattepligtige indkomst kan lønmodtagere m.fl. og
@@ -164,9 +220,11 @@ Stk. 3. Grundbeløbene i stk. 1 og 2 reguleres efter personskattelovens § 20.
 ----
 
 ----
-Skatteministeriet, "Ligningsloven", satser og beløbsgrænser:
+Skatteministeriet, historiske og aktuelle satser og beløbsgrænser:
 
 Jobfradrag, § 9 K
+2016: ikke gældende.
+2017: ikke gældende.
 2018: procent 2,5; indkomstgrænse 187.500 kr.; maksimalt fradrag 1.400 kr.
 2019: procent 3,75; indkomstgrænse 191.600 kr.; maksimalt fradrag 2.100 kr.
 2024: procent 4,5; indkomstgrænse 216.100 kr.; maksimalt fradrag 2.800 kr.
@@ -178,6 +236,7 @@ Jobfradrag, § 9 K
 # Ligningslov9KParametre(skatteår: Heltal, jobfradrag_basispoint: Heltal, jobfradrag_indkomstgrænse_kroner: Heltal, jobfradrag_maks_kroner: Heltal)
 # LigningslovLønmodtagerFradragInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk)
 
+| ll9k_gælder_for_skatteår(skatteår: Heltal) -> skatteår >= 2018
 | ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
     skatteår = 2018,
     jobfradrag_basispoint = 250,
@@ -208,7 +267,7 @@ Jobfradrag, § 9 K
     jobfradrag_indkomstgrænse_kroner = 235200,
     jobfradrag_maks_kroner = 3100
 ) under skatteår == 2026
-| ll9k_almindeligt_jobfradrag_berettiget(input: Ligningslov9KInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt
+| ll9k_almindeligt_jobfradrag_berettiget(input: Ligningslov9KInput) -> input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver == Falskt && ll9k_gælder_for_skatteår(input.skatteår)
 | ll9k_jobfradrag_grundlag_kroner(input: Ligningslov9KInput) -> ligningslov_positivt_beløb(input.arbejdsmarkedsbidragsgrundlag_kroner - ll9k_parametre_for(input.skatteår).jobfradrag_indkomstgrænse_kroner)
 | ll9k_beregnet_jobfradrag_kroner(input: Ligningslov9KInput) -> penge_beløb_gange_basispoint_kroner(ll9k_jobfradrag_grundlag_kroner(input), ll9k_parametre_for(input.skatteår).jobfradrag_basispoint)
 | ll9k_jobfradrag_kroner(input: Ligningslov9KInput) -> 0
@@ -253,12 +312,18 @@ Jobfradrag, § 9 K
     arbejdsmarkedsbidragsgrundlag_kroner = 240000,
     udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
 ))
+= ll9k_2017_før_indførelse_fixture = ll9k_jobfradrag_kroner(Ligningslov9KInput(
+    skatteår = 2017,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
+))
 
 | ll9k_2025_løn_loftes: ll9k_2025_500000_fixture -> ll9k_2025_500000_fixture == 2900
 | ll9k_2026_løn_loftes: ll9k_2026_600000_fixture -> ll9k_2026_600000_fixture == 3100
 | ll9k_2026_lavere_løn_over_grænse: ll9k_2026_240000_fixture -> ll9k_2026_240000_fixture == 216
 | ll_lønmodtager_2026_standardfradrag_høj_løn: ll_lønmodtager_2026_600000_fixture -> ll_lønmodtager_2026_600000_fixture == 66400
 | ll_lønmodtager_2026_standardfradrag_lavere_løn: ll_lønmodtager_2026_240000_fixture -> ll_lønmodtager_2026_240000_fixture == 30816
+| ll9k_2017_er_ikke_gældende: ll9k_2017_før_indførelse_fixture -> ll9k_2017_før_indførelse_fixture == 0
 
 ----
 § 9 L. Ved opgørelsen af den skattepligtige indkomst kan personer fradrage
@@ -312,7 +377,11 @@ indkomstår.
 ----
 
 ----
-Skatteministeriet, "Ligningsloven", satser og beløbsgrænser:
+Skatteministeriet, historiske og aktuelle satser og beløbsgrænser:
+
+Ekstra pensionsfradrag, § 9 L
+2016: ikke gældende.
+2017: ikke gældende.
 
 Maksimalt grundlag for ekstra pensionsfradrag, § 9 L, stk. 1
 2025: 83.800 kr.
@@ -357,7 +426,8 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
 | exception ll9l_modregner_pbl20_udbetaling ll9l_modregningspligtig_udbetaling_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(input.pbl20_indkomstskattepligtig_udbetaling_kroner) under input.pbl20_udbetaling_status == Ll9lModregningspligtigPbl20Udbetaling
 | ll9l_nettopensionsindbetalinger_kroner(input: Ligningslov9LInput) -> ligningslov_positivt_beløb(ll9l_pensionsindbetalinger_før_udbetalinger_kroner(input) - ll9l_modregningspligtig_udbetaling_kroner(input))
 | ll9l_fradragsgrundlag_kroner(input: Ligningslov9LInput) -> ligningslov_mindste_beløb(ll9l_nettopensionsindbetalinger_kroner(input), ll9l_parametre_for(input.skatteår, input.pensionsalder_status).maksimalt_grundlag_kroner)
-| ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> penge_beløb_gange_basispoint_kroner(ll9l_fradragsgrundlag_kroner(input), ll9l_parametre_for(input.skatteår, input.pensionsalder_status).pensionsfradrag_basispoint)
+| ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> 0
+| exception ll9l_gældende_skatteår ll9l_ekstra_pensionsfradrag_kroner(input: Ligningslov9LInput) -> penge_beløb_gange_basispoint_kroner(ll9l_fradragsgrundlag_kroner(input), ll9l_parametre_for(input.skatteår, input.pensionsalder_status).pensionsfradrag_basispoint) under ll9l_gælder_for_skatteår(input.skatteår)
 | ll9j_9k_9l_9j_input(input: Ligningslov9J9K9LInput) -> Ligningslov9JInput(
     skatteår = input.skatteår,
     arbejdsmarkedsbidragsgrundlag_kroner = input.arbejdsmarkedsbidragsgrundlag_kroner,
@@ -431,9 +501,21 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
     pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
     pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
 ))
+= ll9j_9k_9l_2017_fixture = ll9j_9k_9l_fradrag_resultat(Ligningslov9J9K9LInput(
+    skatteår = 2017,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt,
+    pensionsalder_status = Ll9lFra15ÅrFørFolkepension,
+    pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
 
 | ll9l_2019_reguleret_maks_og_22pct: ll9l_2019_folkepensionsnær_maks_fixture -> ll9l_2019_folkepensionsnær_maks_fixture == 15730
 | ll9l_2026_reguleret_maks_og_12pct: ll9l_2026_ordinær_maks_fixture -> ll9l_2026_ordinær_maks_fixture == 10536
 | ll9l_pbl20_udbetaling_modregnes: ll9l_2026_modregnet_udbetaling_fixture -> ll9l_2026_modregnet_udbetaling_fixture == 4800
 | ll9l_pbl20_udbetaling_undtages: ll9l_2026_undtaget_udbetaling_fixture -> ll9l_2026_undtaget_udbetaling_fixture == 6000
 | ll9j_9k_9l_samlet_fradrag: ll9j_9k_9l_2026_fixture -> ll9j_9k_9l_2026_fixture.samlet_fradrag_kroner == 76936
+| ll9j_9k_9l_2017_kun_9j_fradrag: ll9j_9k_9l_2017_fixture -> ll9j_9k_9l_2017_fixture.beskæftigelsesfradrag_kroner == 30000 && ll9j_9k_9l_2017_fixture.jobfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.ekstra_pensionsfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.samlet_fradrag_kroner == 30000

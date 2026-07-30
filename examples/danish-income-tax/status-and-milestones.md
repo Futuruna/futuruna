@@ -71,9 +71,14 @@ Current § 13 amendment/dependency sources:
   - § 33 A is the foreign-wage relief exception in § 13, stk. 5.
   - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
     wage-earner calculator; § 9 L is now modeled for extra pension deductions
-    and § 26 nr. 5 transition-compensation input.
+    and § 26 nr. 5 transition-compensation input. The § 26 path now has
+    2012-2019 Ligningsloven deduction parameter coverage for the first
+    transition-compensation calculation layer.
   - SKM rates page used for current basis points and caps:
     `https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven`
+  - SKM `Skatteberegning - hovedtrækkene i personbeskatningen` pages for
+    2014, 2016, 2017 and 2018 are used for the historical § 26-relevant
+    Ligningsloven deduction rates and pre-2018 absence of §§ 9 K/9 L.
 - Sømandsbeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2023/1181`
   - XML status on 2026-07-18: `Valid`
@@ -1072,9 +1077,9 @@ M9 - Final provisions and transition compensation
   negative/positive net-capital interaction, and nr. 2 bundfradrag transfer with
   the § 48 F exception, § 26 stk. 9 can now derive source-backed 2012-2019
   threshold packs from the official § 20 `reguleringstal`, § 26 nr. 5 can derive
-  a 2019 Ligningsloven §§ 9 J/9 K/9 L fradrag and the 4,25 pct. baseline from
-  source-backed inputs, § 27 is encoded as delegated
+  2012, 2017 and 2019 Ligningsloven §§ 9 J/9 K/9 L fradrag and the 4,25 pct.
+  baseline from source-backed inputs, § 27 is encoded as delegated
   implementation/administration authority, and § 28 excludes the Faroe Islands
-  and Greenland. Remaining § 26 depth is mostly integration work: 2012-2017
-  historic LL § 9 J parameter coverage, broader historic compensation fixtures,
+  and Greenland. Remaining § 26 depth is mostly integration work: broader
+  historic compensation fixtures, dependent-year settlement parameter wiring,
   and eventual wiring into a full historic tax-settlement calculator.

@@ -1248,6 +1248,8 @@ afgrænsning.
 = m5_par26_regulerede_grænser_fixture = par26_regulerede_beløbsgrænser(1311)
 = m5_par26_reguleringstal_2019_fixture = par26_reguleringstal_tiendedele_for_skatteår(2019)
 = m5_par26_regulerede_grænser_2019_fixture = par26_regulerede_beløbsgrænser_for_skatteår(2019)
+= m5_par26_nr5_ligningsfradrag_2012_fixture = par26_nr5_ligningsfradrag_2012_fixture
+= m5_par26_nr5_ligningsfradrag_2017_fixture = par26_nr5_ligningsfradrag_2017_fixture
 = m5_par26_nr5_ligningsfradrag_2019_fixture = par26_nr5_ligningsfradrag_2019_fixture
 = m5_par26_beregnet_forskelsbeløb_fixture = par26_forskelsbeløb_beregning(Par26ForskelsbeløbBeregningsInput(
     skatteår = 2015,
@@ -1282,6 +1284,8 @@ afgrænsning.
 | m5_par26_stk9_regulerede_grænser: m5_par26_regulerede_grænser_fixture -> m5_par26_regulerede_grænser_fixture.bundfradrag_nr1_voksen_kroner == 58800 && m5_par26_regulerede_grænser_fixture.bundfradrag_nr2_og_nr3_kroner == 475700 && m5_par26_regulerede_grænser_fixture.personfradrag_nr6_kroner == 2500
 | m5_par26_stk9_2019_reguleringstal: m5_par26_reguleringstal_2019_fixture -> m5_par26_reguleringstal_2019_fixture == 1118
 | m5_par26_stk9_2019_grænser: m5_par26_regulerede_grænser_2019_fixture -> m5_par26_regulerede_grænser_2019_fixture.bundfradrag_nr1_voksen_kroner == 50100 && m5_par26_regulerede_grænser_2019_fixture.bundfradrag_nr2_og_nr3_kroner == 405700 && m5_par26_regulerede_grænser_2019_fixture.personfradrag_nr6_kroner == 2200
+| m5_par26_nr5_2012_ligningsfradrag_baseline: m5_par26_nr5_ligningsfradrag_2012_fixture -> m5_par26_nr5_ligningsfradrag_2012_fixture.fradrag_efter_ll9j_9k_9l_kroner == 14100 && m5_par26_nr5_ligningsfradrag_2012_fixture.baseline_fradrag_efter_425pct_grundbeløb_kroner == 14200 && m5_par26_nr5_ligningsfradrag_2012_fixture.nr5_kroner == 3951
+| m5_par26_nr5_2017_ligningsfradrag_baseline: m5_par26_nr5_ligningsfradrag_2017_fixture -> m5_par26_nr5_ligningsfradrag_2017_fixture.fradrag_efter_ll9j_9k_9l_kroner == 30000 && m5_par26_nr5_ligningsfradrag_2017_fixture.baseline_fradrag_efter_425pct_grundbeløb_kroner == 15200 && m5_par26_nr5_ligningsfradrag_2017_fixture.nr5_kroner == 9044
 | m5_par26_nr5_ligningsfradrag_baseline: m5_par26_nr5_ligningsfradrag_2019_fixture -> m5_par26_nr5_ligningsfradrag_2019_fixture.fradrag_efter_ll9j_9k_9l_kroner == 55030 && m5_par26_nr5_ligningsfradrag_2019_fixture.baseline_fradrag_efter_425pct_grundbeløb_kroner == 15900 && m5_par26_nr5_ligningsfradrag_2019_fixture.nr5_kroner == 17099
 | m5_par26_stk2_til_stk3_beregnet_forskelsbeløb: m5_par26_beregnet_forskelsbeløb_fixture -> m5_par26_beregnet_forskelsbeløb_fixture.nr6_kroner == 2500 && m5_par26_beregnet_forskelsbeløb_fixture.nr8_kroner == 1000 && m5_par26_beregnet_forskelsbeløb_fixture.forskelsbeløb_før_nr8_kroner == 0 && m5_par26_beregnet_forskelsbeløb_fixture.kompensation_kroner == 1000
 | m5_par26_stk4_ægtefælle_forskelsbeløb: m5_par26_stk4_ægtefælle_forskelsbeløb_fixture -> m5_par26_stk4_ægtefælle_forskelsbeløb_fixture.positivt_forskelsbeløb_modregnet_kroner == 3000 && m5_par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_kompensation_efter_stk4_kroner == 2000
@@ -1301,6 +1305,8 @@ afgrænsning.
 ? m5_par26_stk9_regulerede_grænser
 ? m5_par26_stk9_2019_reguleringstal
 ? m5_par26_stk9_2019_grænser
+? m5_par26_nr5_2012_ligningsfradrag_baseline
+? m5_par26_nr5_2017_ligningsfradrag_baseline
 ? m5_par26_nr5_ligningsfradrag_baseline
 ? m5_par26_stk2_til_stk3_beregnet_forskelsbeløb
 ? m5_par26_stk4_ægtefælle_forskelsbeløb
