@@ -822,6 +822,10 @@ M2 - State tax computation skeleton
   The ordinary wage-earner domain model now carries § 7 a udligningsskat and
   § 8 sundhedsbidrag as explicit state-tax component slots before and after
   personfradrag allocation, and feeds those slots into the § 5 aggregate.
+  It also exposes ordinary zero-default § 8 a aktieindkomstskat, § 8 b
+  CFC-indkomstskat, and § 8 c kommunal-lignende statsskat slots through the
+  same § 5 aggregate boundary, so later nonzero special-income integration has
+  a stable domain home.
 
 M3 - Tax-year parameter packs
 
@@ -952,8 +956,9 @@ M5 - Audit suite
   spouse-threshold cases,
   historical § 8 sundhedsbidrag amount calculation with liability and zero-rate
   boundary cases,
-  wage-earner domain-model projection of § 7 a/§ 8 state-tax slots through
-  § 5 aggregation and § 9 personfradrag allocation,
+  wage-earner domain-model projection of explicit § 7 a/§ 8 and zero-default
+  § 8 a/§ 8 b/§ 8 c state-tax slots through § 5 aggregation and § 9
+  personfradrag allocation,
   ordinary wage and special-case AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
   wage-earner-deduction coverage plus § 9 L/§ 26 nr. 5 validation coverage,
   ordinary municipal/church-tax legal coverage,
