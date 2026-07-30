@@ -398,6 +398,8 @@ til nedsættelse af de øvrige skatter.
 # PersonfradragStatsskatNedsættelseResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, ubrugt_skatteværdi_kroner: Heltal)
 
 | personfradrag_skatteværdi_med_sats(fradrag_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(fradrag_kroner, sats_basispoint)
+| personfradrag_bundskat_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.bundskat_basispoint)
+| personfradrag_sundhedsbidrag_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.sundhedsbidrag_basispoint)
 | personfradrag_statslig_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.bundskat_basispoint + input.sundhedsbidrag_basispoint)
 | personfradrag_kommunal_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.kommuneskat_basispoint)
 | personfradrag_kirkelig_skatteværdi(input: PersonfradragSkatteværdiInput) -> personfradrag_skatteværdi_med_sats(input.fradrag_kroner, input.kirkeskat_basispoint)

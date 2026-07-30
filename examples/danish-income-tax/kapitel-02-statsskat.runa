@@ -1269,6 +1269,8 @@ kommunen samt kirkeskat nedsættes på tilsvarende måde.
 ----
 
 # PersonfradragKomponent = PersonfradragSundhedsbidrag | PersonfradragBundskat | PersonfradragTopskat | PersonfradragUdligningsskat | PersonfradragHøjAktieSkat | PersonfradragPar8c | PersonfradragKommuneskat | PersonfradragKirkeskat | PersonfradragCfcSkat
+# Par9StatsskatPersonfradragInput(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par6_skatteværdi_kroner: Heltal, par8_skatteværdi_kroner: Heltal)
+# Par9StatsskatPersonfradragResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, ubrugt_par8_skatteværdi_kroner: Heltal, ubrugt_par6_skatteværdi_kroner: Heltal, ubrugt_skatteværdi_kroner: Heltal)
 
 | personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Falskt
 | exception personfradrag_nedsætter_sundhedsbidrag personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt under komponent == PersonfradragSundhedsbidrag
@@ -1282,13 +1284,70 @@ kommunen samt kirkeskat nedsættes på tilsvarende måde.
 | personfradrag_opgøres_efter_par10() -> Sandt
 | personfradrag_skatteværdi_efter_par12() -> Sandt
 | personfradrag_anvendes_efter_par13_regulering() -> Sandt
+| par9_skat_efter_nedsættelse(skat_kroner: Heltal, nedsættelse_kroner: Heltal) -> penge_positivt_beløb(skat_kroner - nedsættelse_kroner)
+| par9_ubrugt_skatteværdi_efter_skat(skat_kroner: Heltal, skatteværdi_kroner: Heltal) -> penge_positivt_beløb(skatteværdi_kroner - skat_kroner)
+
+# Par9StatsskatPersonfradragSag(input: Par9StatsskatPersonfradragInput) {
+    | par8_efter_par8_skatteværdi() -> par9_skat_efter_nedsættelse(input.par8_skat_kroner, input.par8_skatteværdi_kroner)
+    | par8værdi_rest_efter_par8() -> par9_ubrugt_skatteværdi_efter_skat(input.par8_skat_kroner, input.par8_skatteværdi_kroner)
+    | par6_efter_par8_skatteværdi() -> par9_skat_efter_nedsættelse(input.par6_skat_kroner, par8værdi_rest_efter_par8())
+    | par8værdi_rest_efter_par6() -> par9_ubrugt_skatteværdi_efter_skat(input.par6_skat_kroner, par8værdi_rest_efter_par8())
+    | par7_efter_par8_skatteværdi() -> par9_skat_efter_nedsættelse(input.par7_skat_kroner, par8værdi_rest_efter_par6())
+    | par8værdi_rest_efter_par7() -> par9_ubrugt_skatteværdi_efter_skat(input.par7_skat_kroner, par8værdi_rest_efter_par6())
+    | par7a_efter_par8_skatteværdi() -> par9_skat_efter_nedsættelse(input.par7a_skat_kroner, par8værdi_rest_efter_par7())
+    | par8værdi_rest_efter_par7a() -> par9_ubrugt_skatteværdi_efter_skat(input.par7a_skat_kroner, par8værdi_rest_efter_par7())
+    | par8a_stk2_efter_par8_skatteværdi() -> par9_skat_efter_nedsættelse(input.par8a_stk2_skat_kroner, par8værdi_rest_efter_par7a())
+    | ubrugt_par8_skatteværdi() -> par9_ubrugt_skatteværdi_efter_skat(input.par8a_stk2_skat_kroner, par8værdi_rest_efter_par7a())
+    | par6_efter() -> par9_skat_efter_nedsættelse(par6_efter_par8_skatteværdi(), input.par6_skatteværdi_kroner)
+    | par6værdi_rest_efter_par6() -> par9_ubrugt_skatteværdi_efter_skat(par6_efter_par8_skatteværdi(), input.par6_skatteværdi_kroner)
+    | par8_efter() -> par9_skat_efter_nedsættelse(par8_efter_par8_skatteværdi(), par6værdi_rest_efter_par6())
+    | par6værdi_rest_efter_par8() -> par9_ubrugt_skatteværdi_efter_skat(par8_efter_par8_skatteværdi(), par6værdi_rest_efter_par6())
+    | par7_efter() -> par9_skat_efter_nedsættelse(par7_efter_par8_skatteværdi(), par6værdi_rest_efter_par8())
+    | par6værdi_rest_efter_par7() -> par9_ubrugt_skatteværdi_efter_skat(par7_efter_par8_skatteværdi(), par6værdi_rest_efter_par8())
+    | par7a_efter() -> par9_skat_efter_nedsættelse(par7a_efter_par8_skatteværdi(), par6værdi_rest_efter_par7())
+    | par6værdi_rest_efter_par7a() -> par9_ubrugt_skatteværdi_efter_skat(par7a_efter_par8_skatteværdi(), par6værdi_rest_efter_par7())
+    | par8a_stk2_efter() -> par9_skat_efter_nedsættelse(par8a_stk2_efter_par8_skatteværdi(), par6værdi_rest_efter_par7a())
+    | ubrugt_par6_skatteværdi() -> par9_ubrugt_skatteværdi_efter_skat(par8a_stk2_efter_par8_skatteværdi(), par6værdi_rest_efter_par7a())
+    | resultat() -> Par9StatsskatPersonfradragResultat(
+        par6_efter_kroner = par6_efter(),
+        par7_efter_kroner = par7_efter(),
+        par7a_efter_kroner = par7a_efter(),
+        par8_efter_kroner = par8_efter(),
+        par8a_stk2_efter_kroner = par8a_stk2_efter(),
+        ubrugt_par8_skatteværdi_kroner = ubrugt_par8_skatteværdi(),
+        ubrugt_par6_skatteværdi_kroner = ubrugt_par6_skatteværdi(),
+        ubrugt_skatteværdi_kroner = ubrugt_par8_skatteværdi() + ubrugt_par6_skatteværdi()
+    )
+}
+| par9_statsskat_personfradrag_sag(input: Par9StatsskatPersonfradragInput) -> Par9StatsskatPersonfradragSag(input)
+| par9_statsskat_personfradrag_resultat(input: Par9StatsskatPersonfradragInput) -> par9_statsskat_personfradrag_sag(input).resultat()
 
 = par9_bundskat_nedsættes = personfradrag_nedsætter(PersonfradragBundskat)
 = par9_høj_aktie_nedsættes = personfradrag_nedsætter(PersonfradragHøjAktieSkat)
 = par9_par8c_nedsættes = personfradrag_nedsætter(PersonfradragPar8c)
 = par9_cfc_nedsættes_ikke = personfradrag_nedsætter(PersonfradragCfcSkat)
+= par9_par8_skatteværdi_overløb = par9_statsskat_personfradrag_resultat(Par9StatsskatPersonfradragInput(
+    par6_skat_kroner = 100,
+    par7_skat_kroner = 300,
+    par7a_skat_kroner = 400,
+    par8_skat_kroner = 50,
+    par8a_stk2_skat_kroner = 500,
+    par6_skatteværdi_kroner = 0,
+    par8_skatteværdi_kroner = 120
+))
+= par9_par6_skatteværdi_overløb = par9_statsskat_personfradrag_resultat(Par9StatsskatPersonfradragInput(
+    par6_skat_kroner = 50,
+    par7_skat_kroner = 300,
+    par7a_skat_kroner = 400,
+    par8_skat_kroner = 100,
+    par8a_stk2_skat_kroner = 500,
+    par6_skatteværdi_kroner = 120,
+    par8_skatteværdi_kroner = 0
+))
 
 | par9_bundskat_personfradrag: par9_bundskat_nedsættes -> par9_bundskat_nedsættes == Sandt
 | par9_aktie_personfradrag: par9_høj_aktie_nedsættes -> par9_høj_aktie_nedsættes == Sandt
 | par9_par8c_personfradrag: par9_par8c_nedsættes -> par9_par8c_nedsættes == Sandt
 | par9_cfc_uden_personfradrag: par9_cfc_nedsættes_ikke -> par9_cfc_nedsættes_ikke == Falskt
+| par9_par8_skatteværdi_falder_først_i_par8_og_derefter_par6: par9_par8_skatteværdi_overløb -> par9_par8_skatteværdi_overløb.par8_efter_kroner == 0 && par9_par8_skatteværdi_overløb.par6_efter_kroner == 30 && par9_par8_skatteværdi_overløb.par7_efter_kroner == 300
+| par9_par6_skatteværdi_falder_først_i_par6_og_derefter_par8: par9_par6_skatteværdi_overløb -> par9_par6_skatteværdi_overløb.par6_efter_kroner == 0 && par9_par6_skatteværdi_overløb.par8_efter_kroner == 30 && par9_par6_skatteværdi_overløb.par7_efter_kroner == 300

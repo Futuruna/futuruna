@@ -20,7 +20,10 @@ executable allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break
 rule; § 7 a now has post-level amount rules for included and excluded
 pension-like payments; § 13, stk. 4 now has amount-level spouse and
 carry-forward offset ordering for negative personal income; § 8 a, stk. 6 now
-has a pair-level both-negative spouse share-income threshold allocation.
+has a pair-level both-negative spouse share-income threshold allocation; § 9
+now has amount-level state-personfradrag reduction ordering for the split
+§ 8/sundhedsbidrag and § 6/bundskat tax values, wired through the wage-earner
+calculator.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -359,8 +362,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 61-71% complete as an executable research corpus,
-  and roughly 46-56% complete as a production-grade calculator for
+- Working estimate: roughly 62-72% complete as an executable research corpus,
+  and roughly 47-57% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -469,6 +472,11 @@ Current decision:
   chain of loose remainders. The ordinary wage-earner calculator now projects
   its state-tax component fields through this allocator, using tax-year-aware
   mapping because § 7 is topskat before 2026 and mellemskat from 2026 onward.
+- `Par9StatsskatPersonfradragSag` uses product-scoped `|` rules for the
+  amount-level § 9 reduction order. It keeps the state-tax basket, the § 8
+  personfradrag tax value, and the § 6 personfradrag tax value together so
+  each value first reduces its own tax component and then falls through the
+  remaining § 9 taxes in the statutory order.
 - `Par11NegativKapitalNedslagSag` uses product-scoped `|` rules for § 11.
   It keeps tax year, the taxpayer's net-capital income, the spouse's
   net-capital income, samliv status, and municipal/§ 8 c tax-liability posture
@@ -1013,8 +1021,8 @@ M5 - Audit suite
   personfradrag, covered § 10 stk. 5-6 choice/deadline/exclusion posture,
   covered § 11 negative net-capital reduction with spouse threshold pooling,
   spouse positive-capital offset, statutory reduction order, and unused spouse
-  transfer, covered § 12 unused state personfradrag tax-value allocation and
-  wage-earner component projection,
+  transfer, covered § 9/§ 12 split state personfradrag tax-value reduction
+  order and wage-earner component projection,
   covered 2026 state-tax reform layers, covered § 13 deficit mechanics,
   § 13 stk. 4 negative-personal-income spouse and carry-forward offset order,
   mellemskat positive-net-capital and spouse-threshold activation,
@@ -1090,7 +1098,7 @@ M6 - Website integration
   first § 8 a/§ 67 share-income annual-settlement scenario,
   first § 8 c limited-taxpayer municipal-equivalent tax calculation,
   first § 11 negative net-capital reduction order and spouse-transfer audit,
-  first § 12 unused state personfradrag tax-value allocation audit and
+  first § 9/§ 12 split state personfradrag tax-value reduction-order audit and
   wage-earner component projection,
   first § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
   household benefit-cliff/source-tension probe plus a boligsikring § 22
@@ -1120,9 +1128,9 @@ M7 - Personfradrag and deficit layer
   Kildeskatteloven § 2 taxpayers is modeled with choice/reversal deadlines and
   explicit sailor/residence-permit/researcher exclusions, § 11 negative
   net-capital reduction covers spouse threshold pooling, spouse positive-capital
-  offset, statutory tax-order reduction, and unused spouse transfer, § 12
-  unused state personfradrag tax-value allocation across the § 9 state-tax
-  basket now wired into the wage-earner calculator, spouse
+  offset, statutory tax-order reduction, and unused spouse transfer, § 9/§ 12
+  split state personfradrag tax-value reduction across the state-tax basket is
+  now wired into the wage-earner calculator, spouse
   deficit transfer, § 13 stk. 4 negative personal income offsets through spouse
   personal income and both spouses' positive capital income, and carried-forward
   negative personal income ordering are fixture-tested,
