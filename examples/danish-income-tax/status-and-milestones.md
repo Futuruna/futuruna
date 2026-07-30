@@ -39,8 +39,8 @@ income year 2023 onward, and § 4, stk. 1, nr. 6 has a source-backed post-LOV
 capital-tax allocation rules into the transition-compensation nr. 3 amount, and
 § 26 now has an annual compensation-settlement result that composes
 source-derived yearly parameters with the statutory tax-offset order plus a
-pair-level stk. 4 spouse difference result plus pair-level stk. 5 and stk. 8
-net-capital offset results.
+pair-level stk. 4 spouse difference result, pair-level stk. 5 and stk. 8
+net-capital offset results, and pair-level stk. 6 bundfradrag transfer.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -571,6 +571,10 @@ Current decision:
   both directions, so a couple's positive/negative net-capital income produces
   named post-stk. 5 amounts and offset totals before the nr. 2 transition
   amount is calculated.
+- `Par26Stk6BundfradragParSag` applies the § 26, stk. 6 spouse bundfradrag
+  transfer in both directions, so a couple's personal-plus-positive-capital
+  income produces named missing-threshold amounts, threshold increases, and
+  effective nr. 2 thresholds before the transition amount is calculated.
 - `Par26Stk8KapitalParSag` applies the § 26, stk. 8 spouse net-capital rule in
   both directions, so a couple's positive/negative net-capital income produces
   named post-stk. 8 amounts and offset totals before the nr. 8 transition
@@ -1305,8 +1309,8 @@ M9 - Final provisions and transition compensation
   line items from statutory bases, § 26 stk. 4-6 and stk. 8 now compute
   samlevende-ægtefælle offsets for positive/negative transition differences
   including pair-level post-stk. 4 compensation amounts, pair-level post-stk. 5
-  and post-stk. 8 negative/positive net-capital interaction, and nr. 2
-  bundfradrag transfer with the § 48 F exception, § 26 stk. 9 can now derive
+  and post-stk. 8 negative/positive net-capital interaction, and pair-level
+  nr. 2 bundfradrag transfer with the § 48 F exception, § 26 stk. 9 can now derive
   source-backed 2012-2019
   threshold packs from the official § 20 `reguleringstal`, § 26 nr. 5 can derive
   2012, 2017 and 2019 Ligningsloven §§ 9 J/9 K/9 L fradrag and the 4,25 pct.
