@@ -30,9 +30,10 @@ omfang som nævnt i ligningslovens § 8 M,
 # LønmodtagerLigningsfradrag(beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal)
 # LønmodtagerSkattekomponenter(bundskat_kroner: Heltal, mellemskat_kroner: Heltal, topskat_kroner: Heltal, toptopskat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal, statslig_indkomstskat_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_kroner: Heltal, samlet_indkomstskat_kroner: Heltal, samlet_inkl_am_kroner: Heltal)
 # LønmodtagerPersonfradragResultat(personfradrag_kroner: Heltal, statslig_skatteværdi_kroner: Heltal, kommunal_skatteværdi_kroner: Heltal, kirkelig_skatteværdi_kroner: Heltal)
+# LønmodtagerPar13UnderskudResult(kræver_behandling: Boolsk, skattepligtigt_underskud_kroner: Heltal, skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, statsskat_efter_par13_kroner: Heltal, ubenyttet_skatteværdi_kroner: Heltal)
 # LønmodtagerSlutskat(personligt_skatteloft: LønmodtagerSkatteloftResult, positiv_kapital_skatteloft: LønmodtagerSkatteloftResult, samlet_skatteloftsnedslag_kroner: Heltal, statslig_indkomstskat_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_kroner: Heltal, samlet_indkomstskat_kroner: Heltal, samlet_inkl_am_kroner: Heltal)
-# LønmodtagerBeregning(input: LønmodtagerInput, indkomstgrundlag: LønmodtagerIndkomstgrundlag, ligningsfradrag: LønmodtagerLigningsfradrag, før_personfradrag: LønmodtagerSkattekomponenter, statsskat_før_personfradrag: Par5StatsskatResultat, personfradrag: LønmodtagerPersonfradragResultat, efter_personfradrag_før_skatteloft: LønmodtagerSkattekomponenter, slutskat: LønmodtagerSlutskat, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
-# LønmodtagerBreakdown(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal, bundskat_før_personfradrag_kroner: Heltal, mellemskat_før_personfradrag_kroner: Heltal, topskat_før_personfradrag_kroner: Heltal, toptopskat_før_personfradrag_kroner: Heltal, kommuneskat_før_personfradrag_kroner: Heltal, kirkeskat_før_personfradrag_kroner: Heltal, statslig_indkomstskat_før_personfradrag_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner: Heltal, samlet_indkomstskat_før_personfradrag_kroner: Heltal, samlet_inkl_am_før_personfradrag_kroner: Heltal, personfradrag_kroner: Heltal, statslig_personfradrag_skatteværdi_kroner: Heltal, kommunal_personfradrag_skatteværdi_kroner: Heltal, kirkelig_personfradrag_skatteværdi_kroner: Heltal, personligt_skatteloft: LønmodtagerSkatteloftResult, positiv_kapital_skatteloft: LønmodtagerSkatteloftResult, statslig_indkomstskat_efter_personfradrag_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner: Heltal, samlet_indkomstskat_efter_personfradrag_kroner: Heltal, samlet_inkl_am_efter_personfradrag_kroner: Heltal, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
+# LønmodtagerBeregning(input: LønmodtagerInput, indkomstgrundlag: LønmodtagerIndkomstgrundlag, ligningsfradrag: LønmodtagerLigningsfradrag, før_personfradrag: LønmodtagerSkattekomponenter, statsskat_før_personfradrag: Par5StatsskatResultat, par13_underskud: LønmodtagerPar13UnderskudResult, personfradrag: LønmodtagerPersonfradragResultat, efter_personfradrag_før_skatteloft: LønmodtagerSkattekomponenter, slutskat: LønmodtagerSlutskat, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
+# LønmodtagerBreakdown(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal, bundskat_før_personfradrag_kroner: Heltal, mellemskat_før_personfradrag_kroner: Heltal, topskat_før_personfradrag_kroner: Heltal, toptopskat_før_personfradrag_kroner: Heltal, kommuneskat_før_personfradrag_kroner: Heltal, kirkeskat_før_personfradrag_kroner: Heltal, statslig_indkomstskat_før_personfradrag_kroner: Heltal, par13_skattepligtigt_underskud_kroner: Heltal, par13_underskud_skatteværdi_kroner: Heltal, par13_ubenyttet_skatteværdi_kroner: Heltal, statslig_indkomstskat_efter_par13_før_personfradrag_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner: Heltal, samlet_indkomstskat_før_personfradrag_kroner: Heltal, samlet_inkl_am_før_personfradrag_kroner: Heltal, personfradrag_kroner: Heltal, statslig_personfradrag_skatteværdi_kroner: Heltal, kommunal_personfradrag_skatteværdi_kroner: Heltal, kirkelig_personfradrag_skatteværdi_kroner: Heltal, personligt_skatteloft: LønmodtagerSkatteloftResult, positiv_kapital_skatteloft: LønmodtagerSkatteloftResult, statslig_indkomstskat_efter_personfradrag_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner: Heltal, samlet_indkomstskat_efter_personfradrag_kroner: Heltal, samlet_inkl_am_efter_personfradrag_kroner: Heltal, personfradrag_anvendt_i_slutskat: Boolsk, kræver_par13_underskud: Boolsk)
 
 | skat_i_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(beløb_kroner, sats_basispoint)
 | positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
@@ -59,6 +60,30 @@ regler med de ændringer, der følger af denne lov.
 ----
 
 | almindelig_skattepligtig_indkomst_fixture(input: LønmodtagerInput) -> personlig_indkomst_efter_am(input) + input.positiv_nettokapitalindkomst_kroner - samlede_ligningsmæssige_fradrag_for(input)
+
+----
+§ 13. Hvis den skattepligtige indkomst udviser underskud, beregnes
+skatteværdien af underskuddet med beskatningsprocenten for sundhedsbidrag, jf.
+§ 8, og beskatningsprocenterne for kommunal indkomstskat og kirkeskat
+henholdsvis med beskatningsprocenten efter § 8 c. Skatteværdien af underskuddet
+modregnes i den nævnte rækkefølge i skatterne efter §§ 6, 7 og 7 a og § 8 a,
+stk. 2. Et herefter resterende underskud fremføres til fradrag i den
+skattepligtige indkomst for de følgende indkomstår.
+
+LOV nr. 482 af 22/05/2024, § 1:
+
+9. I § 13, stk. 1, 1. pkt., udgår »beskatningsprocenten for sundhedsbidrag,
+jf. § 8, og«.
+
+10. I § 13, stk. 1, 2. og 4. pkt., og i stk. 2, 2. pkt., ændres »§§ 6, 7 og
+7 a og § 8 a, stk. 2« til: »§§ 6, 7, 7 a og 8 og § 8 a, stk. 2«.
+
+LOV nr. 482 af 22/05/2024, § 10, stk. 4:
+
+§ 1, § 2, nr. 2 og 4, og §§ 4-6 har virkning fra og med indkomståret 2026.
+----
+
+| lønmodtager_indkomstskat_grundlag(input: LønmodtagerInput) -> positivt_beløb(almindelig_skattepligtig_indkomst_fixture(input))
 
 ----
 § 5. Indkomstskatten til staten opgøres som summen af
@@ -156,11 +181,11 @@ Bundskat, I alt, Skatteloftsnedslag, Grundskyldspromille (Kommune).
 ----
 
 | kommuneskat_input_for(input: LønmodtagerInput) -> KommunalIndkomstskatInput(
-    skattepligtig_indkomst_kroner = almindelig_skattepligtig_indkomst_fixture(input),
+    skattepligtig_indkomst_kroner = lønmodtager_indkomstskat_grundlag(input),
     udskrivningsprocent_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
 )
 | kirkeskat_input_for(input: LønmodtagerInput) -> KirkeskatInput(
-    skattepligtig_indkomst_kroner = almindelig_skattepligtig_indkomst_fixture(input),
+    skattepligtig_indkomst_kroner = lønmodtager_indkomstskat_grundlag(input),
     kirkelig_ligningsprocent_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kirkeskat_basispoint,
     folkekirkemedlem = input.betaler_kirkeskat
 )
@@ -196,12 +221,47 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | exception reform_par7a_er_topskat lønmodtager_par7a_skat_før_personfradrag(input: LønmodtagerInput) -> topskat_før_personfradrag(input) under input.skatteår >= 2026
 | lønmodtager_par8_skat_før_personfradrag(input: LønmodtagerInput) -> 0 under input.skatteår < 2026
 | exception reform_par8_er_toptopskat lønmodtager_par8_skat_før_personfradrag(input: LønmodtagerInput) -> toptopskat_før_personfradrag(input) under input.skatteår >= 2026
-| lønmodtager_statsskat_personfradrag_input(input: LønmodtagerInput) -> PersonfradragStatsskatNedsættelseInput(
+| par13_underskud_input_for(input: LønmodtagerInput) -> Par13UnderskudInput(
+    skattepligtig_indkomst_kroner = almindelig_skattepligtig_indkomst_fixture(input),
+    personlig_indkomst_kroner = personlig_indkomst_efter_am(input),
+    positiv_kapitalindkomst_kroner = input.positiv_nettokapitalindkomst_kroner,
+    gift_samlevende_ved_årets_udløb = Falskt
+)
+| kræver_par13_underskud_fixture(input: LønmodtagerInput) -> par13_kræver_underskudsbehandling(par13_underskud_input_for(input))
+| personfradrag_anvendt_i_slutskat_fixture(input: LønmodtagerInput) -> kræver_par13_underskud_fixture(input) == Falskt
+| lønmodtager_par13_skatteværdi_input(input: LønmodtagerInput) -> Par13UnderskudSkatteværdiInput(
+    underskud_kroner = par13_absolut_underskud(almindelig_skattepligtig_indkomst_fixture(input)),
+    sundhedsbidrag_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint,
+    kommuneskat_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint,
+    kirkeskat_basispoint = kirkeskat_sats_for(input),
+    par8c_basispoint = 0,
+    betaler_par8c = Falskt
+)
+| lønmodtager_par13_skatteværdi_kroner(input: LønmodtagerInput) -> par13_underskud_skatteværdi_kroner(lønmodtager_par13_skatteværdi_input(input))
+| lønmodtager_par13_modregning_input(input: LønmodtagerInput) -> Par13ModregningInput(
+    skatteværdi_kroner = lønmodtager_par13_skatteværdi_kroner(input),
     par6_skat_kroner = bundskat_før_personfradrag(input),
     par7_skat_kroner = lønmodtager_par7_skat_før_personfradrag(input),
     par7a_skat_kroner = lønmodtager_par7a_skat_før_personfradrag(input),
     par8_skat_kroner = lønmodtager_par8_skat_før_personfradrag(input),
-    par8a_stk2_skat_kroner = 0,
+    par8a_stk2_skat_kroner = 0
+)
+| lønmodtager_par13_modregning_resultat(input: LønmodtagerInput) -> par13_modregning_resultat(lønmodtager_par13_modregning_input(input))
+| lønmodtager_statsskat_efter_par13_før_personfradrag(input: LønmodtagerInput) -> lønmodtager_par13_modregning_resultat(input).par6_efter_kroner + lønmodtager_par13_modregning_resultat(input).par7_efter_kroner + lønmodtager_par13_modregning_resultat(input).par7a_efter_kroner + lønmodtager_par13_modregning_resultat(input).par8_efter_kroner + lønmodtager_par13_modregning_resultat(input).par8a_stk2_efter_kroner
+| lønmodtager_par13_underskud_resultat(input: LønmodtagerInput) -> LønmodtagerPar13UnderskudResult(
+    kræver_behandling = kræver_par13_underskud_fixture(input),
+    skattepligtigt_underskud_kroner = par13_absolut_underskud(almindelig_skattepligtig_indkomst_fixture(input)),
+    skatteværdi_kroner = lønmodtager_par13_skatteværdi_kroner(input),
+    modregning = lønmodtager_par13_modregning_resultat(input),
+    statsskat_efter_par13_kroner = lønmodtager_statsskat_efter_par13_før_personfradrag(input),
+    ubenyttet_skatteværdi_kroner = lønmodtager_par13_modregning_resultat(input).ubrugt_skatteværdi_kroner
+)
+| lønmodtager_statsskat_personfradrag_input(input: LønmodtagerInput) -> PersonfradragStatsskatNedsættelseInput(
+    par6_skat_kroner = lønmodtager_par13_modregning_resultat(input).par6_efter_kroner,
+    par7_skat_kroner = lønmodtager_par13_modregning_resultat(input).par7_efter_kroner,
+    par7a_skat_kroner = lønmodtager_par13_modregning_resultat(input).par7a_efter_kroner,
+    par8_skat_kroner = lønmodtager_par13_modregning_resultat(input).par8_efter_kroner,
+    par8a_stk2_skat_kroner = lønmodtager_par13_modregning_resultat(input).par8a_stk2_efter_kroner,
     statslig_skatteværdi_kroner = statslig_personfradrag_skatteværdi_for(input)
 )
 | lønmodtager_statsskat_personfradrag_nedsættelse(input: LønmodtagerInput) -> personfradrag_statsskat_nedsættelse_resultat(lønmodtager_statsskat_personfradrag_input(input))
@@ -271,14 +331,6 @@ nedsat med de overskydende procenter.
 | statslig_indkomstskat_efter_personfradrag(input: LønmodtagerInput) -> positivt_beløb(statslig_indkomstskat_efter_personfradrag_før_skatteloft(input) - lønmodtager_personligt_skatteloft_nedslag_kroner(input) - lønmodtager_positiv_kapital_skatteloft_nedslag_kroner(input))
 | samlet_indkomstskat_efter_personfradrag(input: LønmodtagerInput) -> statslig_indkomstskat_efter_personfradrag(input) + kommunal_og_kirkelig_indkomstskat_efter_personfradrag(input)
 | samlet_inkl_am_efter_personfradrag(input: LønmodtagerInput) -> arbejdsmarkedsbidrag_for(input) + samlet_indkomstskat_efter_personfradrag(input)
-| par13_underskud_input_for(input: LønmodtagerInput) -> Par13UnderskudInput(
-    skattepligtig_indkomst_kroner = almindelig_skattepligtig_indkomst_fixture(input),
-    personlig_indkomst_kroner = personlig_indkomst_efter_am(input),
-    positiv_kapitalindkomst_kroner = input.positiv_nettokapitalindkomst_kroner,
-    gift_samlevende_ved_årets_udløb = Falskt
-)
-| kræver_par13_underskud_fixture(input: LønmodtagerInput) -> par13_kræver_underskudsbehandling(par13_underskud_input_for(input))
-| personfradrag_anvendt_i_slutskat_fixture(input: LønmodtagerInput) -> kræver_par13_underskud_fixture(input) == Falskt
 | lønmodtager_indkomstgrundlag(input: LønmodtagerInput) -> LønmodtagerIndkomstgrundlag(
     skatteår = input.skatteår,
     kommune = input.kommune,
@@ -340,6 +392,7 @@ nedsat med de overskydende procenter.
     ligningsfradrag = lønmodtager_ligningsfradrag(input),
     før_personfradrag = lønmodtager_skat_før_personfradrag(input),
     statsskat_før_personfradrag = lønmodtager_statsskat_før_personfradrag_resultat(input),
+    par13_underskud = lønmodtager_par13_underskud_resultat(input),
     personfradrag = lønmodtager_personfradrag_resultat(input),
     efter_personfradrag_før_skatteloft = lønmodtager_skat_efter_personfradrag_før_skatteloft(input),
     slutskat = lønmodtager_slutskat(input),
@@ -364,6 +417,10 @@ nedsat med de overskydende procenter.
     kommuneskat_før_personfradrag_kroner = model.før_personfradrag.kommuneskat_kroner,
     kirkeskat_før_personfradrag_kroner = model.før_personfradrag.kirkeskat_kroner,
     statslig_indkomstskat_før_personfradrag_kroner = model.før_personfradrag.statslig_indkomstskat_kroner,
+    par13_skattepligtigt_underskud_kroner = model.par13_underskud.skattepligtigt_underskud_kroner,
+    par13_underskud_skatteværdi_kroner = model.par13_underskud.skatteværdi_kroner,
+    par13_ubenyttet_skatteværdi_kroner = model.par13_underskud.ubenyttet_skatteværdi_kroner,
+    statslig_indkomstskat_efter_par13_før_personfradrag_kroner = model.par13_underskud.statsskat_efter_par13_kroner,
     kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner = model.før_personfradrag.kommunal_og_kirkelig_indkomstskat_kroner,
     samlet_indkomstskat_før_personfradrag_kroner = model.før_personfradrag.samlet_indkomstskat_kroner,
     samlet_inkl_am_før_personfradrag_kroner = model.før_personfradrag.samlet_inkl_am_kroner,
@@ -384,26 +441,116 @@ nedsat med de overskydende procenter.
 
 ----
 § 13. Hvis den skattepligtige indkomst udviser underskud, beregnes
-skatteværdien af underskuddet med beskatningsprocenten for kommunal
-indkomstskat og kirkeskat.
+skatteværdien af underskuddet med beskatningsprocenten for sundhedsbidrag, jf.
+§ 8, og beskatningsprocenterne for kommunal indkomstskat og kirkeskat
+henholdsvis med beskatningsprocenten efter § 8 c. Skatteværdien af underskuddet
+modregnes i den nævnte rækkefølge i skatterne efter §§ 6, 7 og 7 a og § 8 a,
+stk. 2. Et herefter resterende underskud fremføres til fradrag i den
+skattepligtige indkomst for de følgende indkomstår. Fradraget for underskud i
+skattepligtig indkomst kan kun fremføres til et senere indkomstår, hvis det ikke
+kan rummes i skattepligtig indkomst eller modregnes med skatteværdien i skat
+efter §§ 6, 7 og 7 a og § 8 a, stk. 2, for et tidligere indkomstår.
 
-Stk. 4. I det omfang underskuddet ikke kan modregnes efter stk. 2 eller 3,
-fradrages det i den anden ægtefælles skattepligtige indkomst.
+Stk. 2. Hvis en gift persons skattepligtige indkomst udviser underskud, og
+ægtefællerne er samlevende ved indkomstårets udløb, skal underskud, der ikke er
+modregnet efter stk. 1, 2. pkt., i størst muligt omfang fradrages i den anden
+ægtefælles skattepligtige indkomst. Derefter modregnes skatteværdien af
+uudnyttet underskud i ægtefællens beregnede skatter efter §§ 6, 7 og 7 a og
+§ 8 a, stk. 2. Modregning sker, før ægtefællens egne uudnyttede underskud fra
+tidligere indkomstår fremføres efter 4.-6. pkt. Et herefter overskydende beløb
+fremføres til fradrag i følgende indkomstår efter stk. 1, 4. pkt. Hvert år
+fradrages underskud først i den skattepligtiges indkomst og i øvrigt efter samme
+regler, som gælder for underskudsåret. Hvis ægtefællen ligeledes har uudnyttet
+underskud vedrørende tidligere indkomstår, skal ægtefællens egne underskud
+modregnes først.
 
-Stk. 5. Den del af underskuddet, der svarer til en positiv personlig indkomst,
-som beskattes i udlandet og ikke her i landet, kan ikke overføres til
-ægtefællen. Den del af underskuddet, der svarer til udgifter, som den
-skattepligtige får fradrag for i udlandet, kan ikke overføres til ægtefællen.
+Stk. 3. Hvis den personlige indkomst er negativ, modregnes den inden opgørelsen
+af beregningsgrundlaget efter §§ 6 og 7 i indkomstårets positive
+kapitalindkomst. Et resterende negativt beløb fremføres til modregning først i
+kapitalindkomst og derefter i personlig indkomst med tillæg af heri fradragne og
+ikke medregnede beløb omfattet af beløbsgrænsen i pensionsbeskatningslovens
+§ 16, stk. 1, 4. pkt., for de følgende indkomstår inden opgørelsen af
+beregningsgrundlagene efter §§ 6 og 7. Negativ personlig indkomst kan kun
+fremføres, i det omfang den ikke kan modregnes efter 1. eller 2. pkt. for et
+tidligere indkomstår.
+
+Stk. 4. Hvis en gift persons personlige indkomst er negativ og ægtefællerne er
+samlevende ved indkomstårets udløb, skal det negative beløb inden opgørelse af
+beregningsgrundlagene efter §§ 6 og 7 modregnes i den anden ægtefælles
+personlige indkomst med tillæg af heri fradragne og ikke medregnede beløb
+omfattet af beløbsgrænsen i pensionsbeskatningslovens § 16, stk. 1, 4. pkt. Et
+overskydende negativt beløb modregnes i ægtefællernes positive kapitalindkomst
+opgjort under ét. Har begge ægtefæller positiv kapitalindkomst, modregnes det
+negative beløb fortrinsvis i den skattepligtiges kapitalindkomst og derefter i
+ægtefællens kapitalindkomst. Modregning sker, før ægtefællens egne uudnyttede
+underskud fra tidligere indkomstår fremføres efter 5.-8. pkt. Et negativt
+beløb, der herefter ikke er modregnet, fremføres inden for de følgende
+indkomstår, i det omfang beløbet ikke kan modregnes for et tidligere indkomstår,
+til modregning inden opgørelsen af beregningsgrundlagene efter §§ 6 og 7. Hvert
+år modregnes negativ personlig indkomst først i ægtefællernes positive
+kapitalindkomst opgjort under ét, derefter i den skattepligtiges personlige
+indkomst med tillæg af heri fradragne og ikke medregnede beløb omfattet af
+beløbsgrænsen i pensionsbeskatningslovens § 16, stk. 1, 4. pkt., og endelig i
+ægtefællens personlige indkomst med tillæg af heri fradragne og ikke medregnede
+beløb omfattet af beløbsgrænsen i pensionsbeskatningslovens § 16, stk. 1,
+4. pkt. finder tilsvarende anvendelse. Hvis ægtefællen ligeledes har uudnyttet
+underskud vedrørende tidligere indkomstår, skal ægtefællens egne underskud
+modregnes først.
+
+Stk. 5. Ved overførsel efter stk. 2 eller 4 af underskud mellem ægtefæller ses
+der ved opgørelsen af ægtefællernes skattepligtige indkomst og personlige
+indkomst i denne forbindelse bort fra personlig indkomst, der beskattes i
+udlandet og ikke her i landet. Den del af underskuddet, der svarer til udgifter,
+som den skattepligtige får fradrag for i udlandet, kan ikke overføres til
+ægtefællen. Den personlige indkomst reduceres med fradragsberettigede udgifter,
+der vedrører denne indkomst, uanset om disse udgifter er omfattet af § 3,
+stk. 2. Der kan ikke ske overførsel efter stk. 4 af den del af underskuddet, der
+modsvares af fradragne og ikke medregnede beløb omfattet af beløbsgrænsen i
+pensionsbeskatningslovens § 16, stk. 1, 4. pkt. Bestemmelsen finder dog ikke
+anvendelse, hvor skatten er nedsat i henhold til bestemmelsen i ligningslovens
+§ 33 A eller efter sømandsbeskatningslovens §§ 5-8.
 
 Stk. 6. Underskud i skattepligtig almindelig indkomst fra en virksomhed som
 nævnt i § 4, stk. 1, nr. 9 eller 11, kan ikke fratrækkes i den skattepligtiges
 øvrige skattepligtige indkomst, men fremføres til modregning i positiv
-skattepligtig indkomst i et senere indkomstår fra samme virksomhed.
+skattepligtig indkomst i et senere indkomstår fra samme virksomhed. Tilsvarende
+gælder også for forskudsafskrivninger efter afskrivningsloven på aktiver, der
+efter færdiggørelsen benyttes i virksomheden. Bestemmelserne gælder dog ikke
+underskud fra skibsvirksomhed omfattet af § 4, stk. 1, nr. 9 eller 11, når
+erhvervsministeren senest den 31. december 1993 har godkendt skibsprojektet.
+
+Stk. 7. Underskud fra virksomhed, der drives i et efter danske skatteregler
+skattemæssigt transparent selskab m.v., hvis forhold er reguleret af
+selskabslovgivning, en selskabsaftale el.lign., kan ikke fradrages i den
+skattepligtiges øvrige skattepligtige indkomst. Underskuddet fremføres til
+fradrag i positiv skattepligtig indkomst i et senere indkomstår fra samme
+virksomhed. 1. og 2. pkt. gælder dog ikke, hvis den skattepligtige deltager
+eller i mindst 36 måneder af sin ejertid har deltaget i virksomhedens drift i
+væsentligt omfang. 1. og 2. pkt. omfatter ikke underskud omfattet af stk. 6.
+----
+
+----
+LOV nr. 482 af 22/05/2024, § 1:
+
+I personskatteloven, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021, som
+ændret senest ved lov nr. 108 af 31. januar 2024, foretages følgende ændringer:
+
+9. I § 13, stk. 1, 1. pkt., udgår »beskatningsprocenten for sundhedsbidrag,
+jf. § 8, og«.
+
+10. I § 13, stk. 1, 2. og 4. pkt., og i stk. 2, 2. pkt., ændres »§§ 6, 7 og
+7 a og § 8 a, stk. 2« til: »§§ 6, 7, 7 a og 8 og § 8 a, stk. 2«.
+
+14. § 13, stk. 5, 4. pkt., ophæves.
+
+§ 10, stk. 4:
+
+§ 1, § 2, nr. 2 og 4, og §§ 4-6 har virkning fra og med indkomståret 2026.
 ----
 
 # Par13KompleksIndkomstgrundlag(skatteår: Heltal, skattepligtigt_underskud_kroner: Heltal, personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal)
 # Par13KompleksSkatteværdiSatser(sundhedsbidrag_basispoint: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, par8c_basispoint: Heltal, betaler_par8c: Boolsk)
-# Par13KompleksModregningsskatter(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal)
+# Par13KompleksModregningsskatter(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal)
 # Par13KompleksÆgtefælleforhold(ægtefælle_skattepligtig_indkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk, ønsket_ægtefælleoverførsel_kroner: Heltal)
 # Par13KompleksStk5Begrænsning(udenlandsk_beskattet_personlig_indkomst_kroner: Heltal, fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner: Heltal, udgifter_fradraget_i_udlandet_kroner: Heltal, pbl16_beløb_kroner: Heltal, overførsel_efter_stk4: Boolsk, lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
 # Par13KompleksVirksomhedsunderskud(virksomhedsunderskud_kroner: Heltal, positiv_indkomst_samme_virksomhed_kroner: Heltal, virksomhedsstatus: Par13VirksomhedsUnderskudStatus)
@@ -429,6 +576,7 @@ skattepligtig indkomst i et senere indkomstår fra samme virksomhed.
     par6_skat_kroner = input.modregningsskatter.par6_skat_kroner,
     par7_skat_kroner = input.modregningsskatter.par7_skat_kroner,
     par7a_skat_kroner = input.modregningsskatter.par7a_skat_kroner,
+    par8_skat_kroner = input.modregningsskatter.par8_skat_kroner,
     par8a_stk2_skat_kroner = input.modregningsskatter.par8a_stk2_skat_kroner
 )
 | par13_calculator_negativ_personlig_input(input: Par13KompleksBeregningInput) -> Par13NegativPersonligInput(

@@ -196,6 +196,15 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Sandt
 ))
+= m5_par13_lønmodtager_underskud_fixture = beregn_lønmodtager(LønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 100000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 150000,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+))
 = m5_par10_stk5_helår_fixture = personfradrag_par10_resultat(PersonfradragPar10Input(
     skatteår = 2026,
     alder_status = Fyldt18EllerGift,
@@ -294,6 +303,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | m5_ligningsfradrag_normalfixture_dækket: m5_personfradrag_fixture -> m5_personfradrag_fixture.beskæftigelsesfradrag_kroner == 55600 && m5_personfradrag_fixture.jobfradrag_kroner == 2900 && m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner == 401500
 | m5_personfradrag_skatteloft_under_loft: m5_personfradrag_fixture -> m5_personfradrag_fixture.personligt_skatteloft.overskydende_basispoint == 0 && m5_personfradrag_fixture.personligt_skatteloft.nedslag_kroner == 0
 | m5_par13_underskud_afgrænset: m5_personfradrag_fixture -> m5_personfradrag_fixture.kræver_par13_underskud == Falskt
+| m5_par13_reform_par8_modregning_dækket: par13_modregning_toptopskat_fixture -> par13_modregning_toptopskat_fixture.par8_efter_kroner == 2000 && par13_modregning_toptopskat_fixture.par8a_stk2_efter_kroner == 20000
+| m5_par13_lønmodtager_underskud_dækket: m5_par13_lønmodtager_underskud_fixture -> m5_par13_lønmodtager_underskud_fixture.almindelig_skattepligtig_indkomst_kroner == -70300 && m5_par13_lønmodtager_underskud_fixture.kommuneskat_før_personfradrag_kroner == 0 && m5_par13_lønmodtager_underskud_fixture.par13_underskud_skatteværdi_kroner == 16520 && m5_par13_lønmodtager_underskud_fixture.statslig_indkomstskat_efter_par13_før_personfradrag_kroner == 0 && m5_par13_lønmodtager_underskud_fixture.par13_ubenyttet_skatteværdi_kroner == 5471 && m5_par13_lønmodtager_underskud_fixture.samlet_inkl_am_efter_personfradrag_kroner == 8000
 | m5_par10_stk5_helår_ksl2_dækket: m5_par10_stk5_helår_fixture -> m5_par10_stk5_helår_fixture.personfradrag_anvendes == Sandt && m5_par10_stk5_helår_fixture.personfradrag_kroner == 54100
 | m5_par10_stk6_delår_rettidigt_dækket: m5_par10_stk6_delår_rettidigt_fixture -> m5_par10_stk6_delår_rettidigt_fixture.valgfrist_yyyymmdd == 20270701 && m5_par10_stk6_delår_rettidigt_fixture.delårsvalg_rettidigt == Sandt && m5_par10_stk6_delår_rettidigt_fixture.omvalg_rettidigt == Sandt && m5_par10_stk6_delår_rettidigt_fixture.personfradrag_kroner == 54100
 | m5_par10_stk6_delår_for_sen_dækket: m5_par10_stk6_delår_for_sen_fixture -> m5_par10_stk6_delår_for_sen_fixture.delårsvalg_rettidigt == Falskt && m5_par10_stk6_delår_for_sen_fixture.omvalg_rettidigt == Falskt && m5_par10_stk6_delår_for_sen_fixture.personfradrag_anvendes == Falskt
@@ -315,6 +326,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 ? m5_ligningsfradrag_normalfixture_dækket
 ? m5_personfradrag_skatteloft_under_loft
 ? m5_par13_underskud_afgrænset
+? m5_par13_reform_par8_modregning_dækket
+? m5_par13_lønmodtager_underskud_dækket
 ? m5_par10_stk5_helår_ksl2_dækket
 ? m5_par10_stk6_delår_rettidigt_dækket
 ? m5_par10_stk6_delår_for_sen_dækket
@@ -584,6 +597,7 @@ virksomhedsunderskud.
     par6_skat_kroner = 10000,
     par7_skat_kroner = 5000,
     par7a_skat_kroner = 0,
+    par8_skat_kroner = 0,
     par8a_stk2_skat_kroner = 20000
 ))
 = m5_par13_ægtefælle_fixture = par13_ægtefælleoverførsel_resultat(Par13ÆgtefælleOverførselInput(
@@ -651,6 +665,7 @@ virksomhedsunderskud.
     par6_skat_kroner = 0,
     par7_skat_kroner = 0,
     par7a_skat_kroner = 0,
+    par8_skat_kroner = 0,
     par8a_stk2_skat_kroner = 0
 )
 = m5_par13_kompleks_ingen_virksomhedsunderskud = Par13KompleksVirksomhedsunderskud(
@@ -668,6 +683,7 @@ virksomhedsunderskud.
     par6_skat_kroner = 10000,
     par7_skat_kroner = 5000,
     par7a_skat_kroner = 0,
+    par8_skat_kroner = 0,
     par8a_stk2_skat_kroner = 20000
 )
 = m5_par13_calculator_ægtefælle_forhold = Par13KompleksÆgtefælleforhold(
@@ -1243,4 +1259,4 @@ afgrænsning.
 ? m5_audit_par26_signal
 ? m5_audit_par28_signal
 
-@ print("m5 audit: 2026-reform inkl. § 4 nettokapitalindkomst med fradragsberettigede kapitalomkostninger og personlig reklassifikation, § 4 a aktieindkomst efter stk. 1-3 med stk. 2-undtagelser, negativ aktieindkomst og pensionsfradrag, § 4 b CFC-indkomst efter ligningslovens §§ 16 H/16 I stk. 6-7 med positivt § 8 b-grundlag, § 6 ægtefællekapitalmodregning, § 7 stk. 5 ægtefællekapitalgrundbeløb, mellemskat kapitalgren, § 8 a aktieindkomst i slutopgørelse med § 67 udbytteskatmodregning og særskilt stk. 3 overindeholdt/negativ udbytteskat, § 8 b CFC-skat fra § 4 b-indkomst, § 8 c kommunallignende skat for begrænset skattepligt med personfradragsnedsættelse, § 10 stk. 5-6 personfradrag for KSL § 2 med valgfrister og undtagelser, § 11 negativ nettokapital-nedslag med ægtefællegrænse, positiv modregning, modregningsorden og uudnyttet ægtefælleoverførsel, § 12 omfordeling af personfradragets skatteværdi mellem § 9-statsskatter, § 14 delårs-lønmodtager og ekstern DJV-differential, personlig og positiv-kapital § 19 skatteloft i lønmodtagerberegningen inkl. Langeland høj kommuneskat og ekstern SKM-nedslag, grouped lønmodtager domain-model projection, fælles Pengebeløb-afrunding, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Skat.dk ekstern 2026 normalcase-fixture, bomb-audit for § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions, konfiskatorisk effektiv-sats audit for årsskat vs betalingsbelastning, Børne- og ungeydelse benefit-cliff/source-tension audit og boligsikring § 22 threshold-cliff audit, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator og §§ 14-28 har executable audit-fixtures")
+@ print("m5 audit: 2026-reform inkl. § 4 nettokapitalindkomst med fradragsberettigede kapitalomkostninger og personlig reklassifikation, § 4 a aktieindkomst efter stk. 1-3 med stk. 2-undtagelser, negativ aktieindkomst og pensionsfradrag, § 4 b CFC-indkomst efter ligningslovens §§ 16 H/16 I stk. 6-7 med positivt § 8 b-grundlag, § 6 ægtefællekapitalmodregning, § 7 stk. 5 ægtefællekapitalgrundbeløb, mellemskat kapitalgren, § 8 a aktieindkomst i slutopgørelse med § 67 udbytteskatmodregning og særskilt stk. 3 overindeholdt/negativ udbytteskat, § 8 b CFC-skat fra § 4 b-indkomst, § 8 c kommunallignende skat for begrænset skattepligt med personfradragsnedsættelse, § 10 stk. 5-6 personfradrag for KSL § 2 med valgfrister og undtagelser, § 11 negativ nettokapital-nedslag med ægtefællegrænse, positiv modregning, modregningsorden og uudnyttet ægtefælleoverførsel, § 12 omfordeling af personfradragets skatteværdi mellem § 9-statsskatter, § 14 delårs-lønmodtager og ekstern DJV-differential, personlig og positiv-kapital § 19 skatteloft i lønmodtagerberegningen inkl. Langeland høj kommuneskat og ekstern SKM-nedslag, grouped lønmodtager domain-model projection, fælles Pengebeløb-afrunding, AM-lov almindelig løn og særtilfælde, Ligningslov §§ 9 J/9 K lønmodtagerfradrag, kommunal/kirkelig normalberegning, Kildeskattelov A-indkomst/indeholdelse/e-skattekort/slutopgørelse/restskat-timing/B-skat-kalender/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A-renter, BEK 839 forskudskortgenerering, BEK 1094 indeholdelsesprocent, Skat.dk ekstern 2026 normalcase-fixture, bomb-audit for § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 daisy-chain tensions, konfiskatorisk effektiv-sats audit for årsskat vs betalingsbelastning, Børne- og ungeydelse benefit-cliff/source-tension audit og boligsikring § 22 threshold-cliff audit, Opkrævningslov betalingsfrister og § 7 daglig rente inkl. tværårssplit, fiktivt husholdningsscenarie, § 13 calculator med lønmodtagerunderskud og 2026 § 8-modregningsrækkefølge, og §§ 14-28 har executable audit-fixtures")

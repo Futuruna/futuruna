@@ -656,7 +656,9 @@ Review candidates to revisit deliberately, not as broad churn:
   deduction in the encoded 2026 slice.
   § 13's first dependent-source slice now covers
   Pensionsbeskatningsloven § 16, Ligningsloven § 33 A,
-  Sømandsbeskatningsloven §§ 5-8, and the 2026 repeal in LOV nr. 482/2024.
+  Sømandsbeskatningsloven §§ 5-8, the 2026 repeal in LOV nr. 482/2024, and
+  LOV nr. 482/2024's reform insertion of § 8/toptopskat into the § 13
+  modregningsrækkefølge.
   § 4 a's amount-level audit now covers included and excluded share-income
   posts, § 19 B-to-§ 17 personal-income reclassification, negative share-income
   preservation and pensionsfradrag in positive share income: the deduction is
@@ -978,7 +980,11 @@ M7 - Personfradrag and deficit layer
   loss carry-forward amounts are fixture-tested. § 13's first dependent-source validation now
   covers PBL § 16 through 2025, the 2026 repeal, LL § 33 A relief, and seamen
   relief. Complex § 13 calculator breakdown fixtures now cover spouse transfer,
-  LL § 33 A relief, 2026 PBL repeal, and same-business carry-forward. Remaining
+  LL § 33 A relief, 2026 PBL repeal, and same-business carry-forward. The
+  ordinary wage-earner calculator now also exposes a `LønmodtagerPar13UnderskudResult`
+  for negative taxable-income cases, keeps municipal/church tax from becoming
+  negative, applies the § 13 tax-value offset to state tax before § 9/§ 12
+  personfradrag, and carries the unused tax value in the breakdown. Remaining
   work is broader calculator integration with complete 2026 parameters and
   external differential fixtures rather than the first § 13 amount formulas
   themselves.

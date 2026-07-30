@@ -351,6 +351,7 @@ København 2025.
     par6_skat_kroner = 0,
     par7_skat_kroner = 0,
     par7a_skat_kroner = 0,
+    par8_skat_kroner = 0,
     par8a_stk2_skat_kroner = 0
 )
 = m4_par13_ingen_stk5_begrænsning = Par13KompleksStk5Begrænsning(
@@ -381,6 +382,7 @@ København 2025.
     par6_skat_kroner = 10000,
     par7_skat_kroner = 5000,
     par7a_skat_kroner = 0,
+    par8_skat_kroner = 0,
     par8a_stk2_skat_kroner = 20000
 )
 = m4_par13_ægtefælle_forhold = Par13KompleksÆgtefælleforhold(
@@ -533,6 +535,45 @@ Kilder: Personskatteloven § 13, stk. 6-7.
 
 ? m4_par13_virksomhed_fremfører_rest
 
+----
+§ 13. Hvis den skattepligtige indkomst udviser underskud, beregnes
+skatteværdien af underskuddet med beskatningsprocenten for sundhedsbidrag, jf.
+§ 8, og beskatningsprocenterne for kommunal indkomstskat og kirkeskat
+henholdsvis med beskatningsprocenten efter § 8 c. Skatteværdien af underskuddet
+modregnes i den nævnte rækkefølge i skatterne efter §§ 6, 7 og 7 a og § 8 a,
+stk. 2. Et herefter resterende underskud fremføres til fradrag i den
+skattepligtige indkomst for de følgende indkomstår.
+
+LOV nr. 482 af 22/05/2024, § 1:
+
+9. I § 13, stk. 1, 1. pkt., udgår »beskatningsprocenten for sundhedsbidrag,
+jf. § 8, og«.
+
+10. I § 13, stk. 1, 2. og 4. pkt., og i stk. 2, 2. pkt., ændres »§§ 6, 7 og
+7 a og § 8 a, stk. 2« til: »§§ 6, 7, 7 a og 8 og § 8 a, stk. 2«.
+----
+
+= m4_par13_lønmodtager_underskud_input = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 100000,
+    positiv_nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 150000,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= m4_par13_lønmodtager_underskud = beregn_lønmodtager(m4_par13_lønmodtager_underskud_input)
+
+| m4_par13_lønmodtager_negativ_skattepligtig_indkomst: m4_par13_lønmodtager_underskud -> m4_par13_lønmodtager_underskud.almindelig_skattepligtig_indkomst_kroner == -70300 && m4_par13_lønmodtager_underskud.par13_skattepligtigt_underskud_kroner == 70300
+| m4_par13_lønmodtager_kommuneskat_ikke_negativ: m4_par13_lønmodtager_underskud -> m4_par13_lønmodtager_underskud.kommuneskat_før_personfradrag_kroner == 0 && m4_par13_lønmodtager_underskud.kirkeskat_før_personfradrag_kroner == 0
+| m4_par13_lønmodtager_underskud_modregner_i_statsskat: m4_par13_lønmodtager_underskud -> m4_par13_lønmodtager_underskud.par13_underskud_skatteværdi_kroner == 16520 && m4_par13_lønmodtager_underskud.statslig_indkomstskat_før_personfradrag_kroner == 11049 && m4_par13_lønmodtager_underskud.statslig_indkomstskat_efter_par13_før_personfradrag_kroner == 0 && m4_par13_lønmodtager_underskud.par13_ubenyttet_skatteværdi_kroner == 5471
+| m4_par13_lønmodtager_personfradrag_ikke_i_slutskat: m4_par13_lønmodtager_underskud -> m4_par13_lønmodtager_underskud.kræver_par13_underskud == Sandt && m4_par13_lønmodtager_underskud.personfradrag_anvendt_i_slutskat == Falskt && m4_par13_lønmodtager_underskud.samlet_inkl_am_efter_personfradrag_kroner == 8000
+
+? m4_par13_lønmodtager_negativ_skattepligtig_indkomst
+? m4_par13_lønmodtager_kommuneskat_ikke_negativ
+? m4_par13_lønmodtager_underskud_modregner_i_statsskat
+? m4_par13_lønmodtager_personfradrag_ikke_i_slutskat
+
 @ print("m4 København 2025 samlet inkl. AM efter personfradrag: " + vis(m4_københavn_2025.samlet_inkl_am_efter_personfradrag_kroner))
 @ print("m4 Gentofte 2025 samlet inkl. AM efter personfradrag: " + vis(m4_gentofte_2025.samlet_inkl_am_efter_personfradrag_kroner))
 @ print("m4 København 2026 mellemskat/topskat/toptopskat: " + vis(m4_københavn_2026.mellemskat_før_personfradrag_kroner) + "/" + vis(m4_københavn_2026.topskat_før_personfradrag_kroner) + "/" + vis(m4_københavn_2026_toptop.toptopskat_før_personfradrag_kroner))
@@ -541,3 +582,4 @@ Kilder: Personskatteloven § 13, stk. 6-7.
 @ print("m4 Langeland 2026 positiv kapital § 19 nedslag: " + vis(m4_langeland_2026_kapital.positiv_kapital_skatteloft.nedslag_kroner))
 @ print("m4 §13 kompleks ægtefælleoverførsel: " + vis(m4_par13_ægtefælle.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner))
 @ print("m4 §13 2026 PBL-afskæring: " + vis(m4_par13_2026_pbl.stk5_overførsel.afskåret_pbl16_kroner))
+@ print("m4 §13 lønmodtager underskud statsskat efter §13: " + vis(m4_par13_lønmodtager_underskud.statslig_indkomstskat_efter_par13_før_personfradrag_kroner))

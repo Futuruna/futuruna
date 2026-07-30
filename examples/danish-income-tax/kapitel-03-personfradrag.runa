@@ -560,9 +560,15 @@ LOV nr. 482 af 22/05/2024, § 1:
 I personskatteloven, jf. lovbekendtgørelse nr. 1284 af 14. juni 2021, som
 ændret senest ved lov nr. 108 af 31. januar 2024, foretages følgende ændringer:
 
+9. I § 13, stk. 1, 1. pkt., udgår »beskatningsprocenten for sundhedsbidrag,
+jf. § 8, og«.
+
+10. I § 13, stk. 1, 2. og 4. pkt., og i stk. 2, 2. pkt., ændres »§§ 6, 7 og
+7 a og § 8 a, stk. 2« til: »§§ 6, 7, 7 a og 8 og § 8 a, stk. 2«.
+
 14. § 13, stk. 5, 4. pkt., ophæves.
 
-§ 8, stk. 4:
+§ 10, stk. 4:
 
 § 1, § 2, nr. 2 og 4, og §§ 4-6 har virkning fra og med indkomståret 2026.
 
@@ -607,8 +613,8 @@ som nævnt i § 10, stk. 1.
 
 # Par13UnderskudInput(skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par13UnderskudSkatteværdiInput(underskud_kroner: Heltal, sundhedsbidrag_basispoint: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, par8c_basispoint: Heltal, betaler_par8c: Boolsk)
-# Par13ModregningInput(skatteværdi_kroner: Heltal, par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal)
-# Par13ModregningResult(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, ubrugt_skatteværdi_kroner: Heltal)
+# Par13ModregningInput(skatteværdi_kroner: Heltal, par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal)
+# Par13ModregningResult(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, ubrugt_skatteværdi_kroner: Heltal)
 # Par13ÆgtefælleOverførselInput(ubenyttet_underskud_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par13ÆgtefælleOverførselResult(fradrag_i_ægtefælle_indkomst_kroner: Heltal, resterende_underskud_kroner: Heltal, overførsel_tilladt: Boolsk)
 # Par13NegativPersonligInput(personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal)
@@ -642,12 +648,15 @@ som nævnt i § 10, stk. 1.
     | rester_efter_par7() -> par13_ubrugt_nedslag_efter_skat(input.par7_skat_kroner, rester_efter_par6())
     | par7a_efter() -> skat_efter_nedsættelse(input.par7a_skat_kroner, rester_efter_par7())
     | rester_efter_par7a() -> par13_ubrugt_nedslag_efter_skat(input.par7a_skat_kroner, rester_efter_par7())
-    | par8a_stk2_efter() -> skat_efter_nedsættelse(input.par8a_stk2_skat_kroner, rester_efter_par7a())
-    | rester_efter_par8a_stk2() -> par13_ubrugt_nedslag_efter_skat(input.par8a_stk2_skat_kroner, rester_efter_par7a())
+    | par8_efter() -> skat_efter_nedsættelse(input.par8_skat_kroner, rester_efter_par7a())
+    | rester_efter_par8() -> par13_ubrugt_nedslag_efter_skat(input.par8_skat_kroner, rester_efter_par7a())
+    | par8a_stk2_efter() -> skat_efter_nedsættelse(input.par8a_stk2_skat_kroner, rester_efter_par8())
+    | rester_efter_par8a_stk2() -> par13_ubrugt_nedslag_efter_skat(input.par8a_stk2_skat_kroner, rester_efter_par8())
     | resultat() -> Par13ModregningResult(
         par6_efter_kroner = par6_efter(),
         par7_efter_kroner = par7_efter(),
         par7a_efter_kroner = par7a_efter(),
+        par8_efter_kroner = par8_efter(),
         par8a_stk2_efter_kroner = par8a_stk2_efter(),
         ubrugt_skatteværdi_kroner = rester_efter_par8a_stk2()
     )
@@ -656,6 +665,7 @@ som nævnt i § 10, stk. 1.
 | par13_rester_efter_par6(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par6()
 | par13_rester_efter_par7(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par7()
 | par13_rester_efter_par7a(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par7a()
+| par13_rester_efter_par8(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par8()
 | par13_rester_efter_par8a_stk2(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par8a_stk2()
 | par13_modregning_resultat(input: Par13ModregningInput) -> par13_modregning_sag(input).resultat()
 | par13_underskud_fremføres(status: Par13Underskudstype, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk) -> par13_underskud_kan_fremføres(status) && ikke_rummet_i_tidligere_indkomst_eller_skat
@@ -738,6 +748,15 @@ som nævnt i § 10, stk. 1.
     par6_skat_kroner = 10000,
     par7_skat_kroner = 5000,
     par7a_skat_kroner = 0,
+    par8_skat_kroner = 0,
+    par8a_stk2_skat_kroner = 20000
+))
+= par13_modregning_toptopskat_fixture = par13_modregning_resultat(Par13ModregningInput(
+    skatteværdi_kroner = 18000,
+    par6_skat_kroner = 10000,
+    par7_skat_kroner = 5000,
+    par7a_skat_kroner = 1000,
+    par8_skat_kroner = 4000,
     par8a_stk2_skat_kroner = 20000
 ))
 = par13_ægtefælle_resultat_fixture = par13_ægtefælleoverførsel_resultat(Par13ÆgtefælleOverførselInput(
@@ -822,6 +841,7 @@ som nævnt i § 10, stk. 1.
 | par13_ægtefælleoverførsel: par13_ægtefælle -> par13_ægtefælle == Sandt
 | par13_underskud_skatteværdi_fixture: par13_skatteværdi_fixture -> par13_skatteværdi_fixture == 24300
 | par13_modregner_i_lovbestemt_rækkefølge: par13_modregning_fixture -> par13_modregning_fixture.par6_efter_kroner == 0 && par13_modregning_fixture.par7_efter_kroner == 0 && par13_modregning_fixture.par8a_stk2_efter_kroner == 10700 && par13_modregning_fixture.ubrugt_skatteværdi_kroner == 0
+| par13_reform_modregner_i_par8_før_par8a: par13_modregning_toptopskat_fixture -> par13_modregning_toptopskat_fixture.par6_efter_kroner == 0 && par13_modregning_toptopskat_fixture.par7_efter_kroner == 0 && par13_modregning_toptopskat_fixture.par7a_efter_kroner == 0 && par13_modregning_toptopskat_fixture.par8_efter_kroner == 2000 && par13_modregning_toptopskat_fixture.par8a_stk2_efter_kroner == 20000
 | par13_ægtefælle_fradrager_i_størst_muligt_omfang: par13_ægtefælle_resultat_fixture -> par13_ægtefælle_resultat_fixture.fradrag_i_ægtefælle_indkomst_kroner == 45000 && par13_ægtefælle_resultat_fixture.resterende_underskud_kroner == 15000
 | par13_negativ_personlig_rest_fremføres: par13_negativ_personlig_rest_fixture -> par13_negativ_personlig_rest_fixture == 8000
 | par13_skattepligtigt_underskud_fremføres: par13_fremførsel_fixture -> par13_fremførsel_fixture == Sandt
