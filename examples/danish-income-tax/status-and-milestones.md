@@ -351,14 +351,16 @@ as a complete Personskatteloven calculator.
 - Ordinary wage-earner calculation coverage is useful but not complete: current
   scenarios exercise wage income, AM contribution, ordinary wage-earner
   deductions, municipal/church tax, state-tax components, personfradrag,
-  selected § 13 deficit paths, § 14/§ 19 cases, withholding/card generation, and
-  first final-settlement paths.
+  selected § 13 deficit paths including spouse/current-year negative personal
+  income and carried-forward negative personal-income ordering through the
+  reusable § 13 complex calculator, § 14/§ 19 cases, withholding/card
+  generation, and first final-settlement paths.
 - Full legal calculation coverage is still materially incomplete: some rules are
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 60-70% complete as an executable research corpus,
-  and roughly 45-55% complete as a production-grade calculator for
+- Working estimate: roughly 61-71% complete as an executable research corpus,
+  and roughly 46-56% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -433,9 +435,10 @@ Current decision:
   corresponding rules.
 - `Par13KompleksBeregningInput` now composes named subdomains instead of a
   25-field positional record: income basis, tax-value rates, offset-tax pools,
-  spouse-transfer facts, stk. 5 limitation facts, and same-business loss facts.
-  The calculator rules project from those domain objects, and the scenario/audit
-  fixtures name those facts before composing the calculator input.
+  spouse-transfer facts, negative-personal-income facts, stk. 5 limitation
+  facts, and same-business loss facts. The calculator rules project from those
+  domain objects, and the scenario/audit fixtures name those facts before
+  composing the calculator input.
 - `Par13ModregningSag` uses product-scoped `|` rules for the § 13 ordered
   tax-value offset chain, keeping the carried remainder after § 6, § 7, § 7 a,
   and § 8 a, stk. 2 inside the same legal case while preserving public wrapper
@@ -446,6 +449,8 @@ Current decision:
   year spouse personal income first, then own positive capital and spouse
   positive capital, while carried-forward negative personal income starts in
   the spouses' positive capital income before own and spouse personal income.
+  `beregn_par13_kompleks` now returns both result objects instead of only the
+  old single-person rest amount.
 - `Par4aPensionsfradragSag` uses product-scoped `|` rules for the § 4 a,
   stk. 4 amount layer. The scope keeps positive share income, the requested
   pension deduction, notice to the tax administration, no-double-deduction
@@ -673,8 +678,8 @@ Review candidates to revisit deliberately, not as broad churn:
   unblock Personskatteloven calculation completeness or validate a newly
   implemented legal slice.
 - Keep validation audits close to the implementation. Exploratory daisy-chain,
-  confiscatory, household-benefit, or loophole searches belong after the main
-  law model is more complete.
+  confiscatory, household-benefit, minimum-retained-income up to 2 mio. kr., or
+  loophole searches belong after the main law model is more complete.
 - Keep reviewing domain boundaries as each slice grows. Encapsulate repeated
   legal facts when they are genuine statutory objects, but avoid broad refactors
   that would make source traceability weaker.

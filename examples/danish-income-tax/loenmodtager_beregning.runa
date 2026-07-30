@@ -948,10 +948,11 @@ jf. § 8, og«.
 # Par13KompleksSkatteværdiSatser(sundhedsbidrag_basispoint: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, par8c_basispoint: Heltal, betaler_par8c: Boolsk)
 # Par13KompleksModregningsskatter(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal)
 # Par13KompleksÆgtefælleforhold(ægtefælle_skattepligtig_indkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk, ønsket_ægtefælleoverførsel_kroner: Heltal)
+# Par13KompleksNegativPersonlig(egen_personlig_indkomst_med_pbl16_tillæg_kroner: Heltal, ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner: Heltal, ægtefælle_positiv_kapitalindkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal)
 # Par13KompleksStk5Begrænsning(udenlandsk_beskattet_personlig_indkomst_kroner: Heltal, fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner: Heltal, udgifter_fradraget_i_udlandet_kroner: Heltal, pbl16_beløb_kroner: Heltal, overførsel_efter_stk4: Boolsk, lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
 # Par13KompleksVirksomhedsunderskud(virksomhedsunderskud_kroner: Heltal, positiv_indkomst_samme_virksomhed_kroner: Heltal, virksomhedsstatus: Par13VirksomhedsUnderskudStatus)
-# Par13KompleksBeregningInput(indkomstgrundlag: Par13KompleksIndkomstgrundlag, skatteværdi_satser: Par13KompleksSkatteværdiSatser, modregningsskatter: Par13KompleksModregningsskatter, ægtefælleforhold: Par13KompleksÆgtefælleforhold, stk5_begrænsning: Par13KompleksStk5Begrænsning, virksomhedsunderskud: Par13KompleksVirksomhedsunderskud)
-# Par13KompleksBeregningResult(skatteår: Heltal, kræver_underskudsbehandling: Boolsk, underskud_skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, negativ_personlig_rest_kroner: Heltal, ægtefælleoverførsel: Par13ÆgtefælleOverførselResult, stk5_overførsel: Par13Stk5OverførselResult, virksomhedsunderskud: Par13VirksomhedsUnderskudResult)
+# Par13KompleksBeregningInput(indkomstgrundlag: Par13KompleksIndkomstgrundlag, skatteværdi_satser: Par13KompleksSkatteværdiSatser, modregningsskatter: Par13KompleksModregningsskatter, ægtefælleforhold: Par13KompleksÆgtefælleforhold, negativ_personlig: Par13KompleksNegativPersonlig, stk5_begrænsning: Par13KompleksStk5Begrænsning, virksomhedsunderskud: Par13KompleksVirksomhedsunderskud)
+# Par13KompleksBeregningResult(skatteår: Heltal, kræver_underskudsbehandling: Boolsk, underskud_skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, negativ_personlig: Par13NegativPersonligModregningResult, fremført_negativ_personlig: Par13FremførtNegativPersonligModregningResult, negativ_personlig_rest_kroner: Heltal, ægtefælleoverførsel: Par13ÆgtefælleOverførselResult, stk5_overførsel: Par13Stk5OverførselResult, virksomhedsunderskud: Par13VirksomhedsUnderskudResult)
 
 | par13_calculator_underskud_input(input: Par13KompleksBeregningInput) -> Par13UnderskudInput(
     skattepligtig_indkomst_kroner = 0 - par13_positivt_beløb(input.indkomstgrundlag.skattepligtigt_underskud_kroner),
@@ -979,6 +980,21 @@ jf. § 8, og«.
     personlig_indkomst_kroner = input.indkomstgrundlag.personlig_indkomst_kroner,
     positiv_kapitalindkomst_kroner = input.indkomstgrundlag.positiv_kapitalindkomst_kroner
 )
+| par13_calculator_negativ_personlig_modregning_input(input: Par13KompleksBeregningInput) -> Par13NegativPersonligModregningInput(
+    personlig_indkomst_kroner = input.indkomstgrundlag.personlig_indkomst_kroner,
+    egen_positiv_kapitalindkomst_kroner = input.indkomstgrundlag.positiv_kapitalindkomst_kroner,
+    ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner = input.negativ_personlig.ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner,
+    ægtefælle_positiv_kapitalindkomst_kroner = input.negativ_personlig.ægtefælle_positiv_kapitalindkomst_kroner,
+    gift_samlevende_ved_årets_udløb = input.ægtefælleforhold.gift_samlevende_ved_årets_udløb
+)
+| par13_calculator_fremført_negativ_personlig_input(input: Par13KompleksBeregningInput) -> Par13FremførtNegativPersonligModregningInput(
+    fremført_negativ_personlig_indkomst_kroner = input.negativ_personlig.fremført_negativ_personlig_indkomst_kroner,
+    egen_positiv_kapitalindkomst_kroner = input.indkomstgrundlag.positiv_kapitalindkomst_kroner,
+    ægtefælle_positiv_kapitalindkomst_kroner = input.negativ_personlig.ægtefælle_positiv_kapitalindkomst_kroner,
+    egen_personlig_indkomst_med_pbl16_tillæg_kroner = input.negativ_personlig.egen_personlig_indkomst_med_pbl16_tillæg_kroner,
+    ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner = input.negativ_personlig.ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner,
+    gift_samlevende_ved_årets_udløb = input.ægtefælleforhold.gift_samlevende_ved_årets_udløb
+)
 | par13_calculator_ægtefælle_input(input: Par13KompleksBeregningInput) -> Par13ÆgtefælleOverførselInput(
     ubenyttet_underskud_kroner = input.ægtefælleforhold.ønsket_ægtefælleoverførsel_kroner,
     ægtefælle_skattepligtig_indkomst_kroner = input.ægtefælleforhold.ægtefælle_skattepligtig_indkomst_kroner,
@@ -1004,7 +1020,9 @@ jf. § 8, og«.
     kræver_underskudsbehandling = par13_kræver_underskudsbehandling(par13_calculator_underskud_input(input)),
     underskud_skatteværdi_kroner = par13_underskud_skatteværdi_kroner(par13_calculator_skatteværdi_input(input)),
     modregning = par13_modregning_resultat(par13_calculator_modregning_input(input)),
-    negativ_personlig_rest_kroner = par13_negativ_personlig_rest_kroner(par13_calculator_negativ_personlig_input(input)),
+    negativ_personlig = par13_negativ_personlig_modregning_resultat(par13_calculator_negativ_personlig_modregning_input(input)),
+    fremført_negativ_personlig = par13_fremført_negativ_personlig_modregning_resultat(par13_calculator_fremført_negativ_personlig_input(input)),
+    negativ_personlig_rest_kroner = par13_negativ_personlig_modregning_resultat(par13_calculator_negativ_personlig_modregning_input(input)).fremført_negativ_personlig_indkomst_kroner,
     ægtefælleoverførsel = par13_ægtefælleoverførsel_resultat(par13_calculator_ægtefælle_input(input)),
     stk5_overførsel = par13_stk5_overførsel_resultat(par13_calculator_stk5_input(input)),
     virksomhedsunderskud = par13_virksomhedsunderskud_beløbsresultat(par13_calculator_virksomhed_input(input))

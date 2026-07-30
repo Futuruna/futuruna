@@ -372,6 +372,12 @@ København 2025.
     gift_samlevende_ved_årets_udløb = Falskt,
     ønsket_ægtefælleoverførsel_kroner = 0
 )
+= m4_par13_ingen_negativ_personlig = Par13KompleksNegativPersonlig(
+    egen_personlig_indkomst_med_pbl16_tillæg_kroner = 0,
+    ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner = 0,
+    ægtefælle_positiv_kapitalindkomst_kroner = 0,
+    fremført_negativ_personlig_indkomst_kroner = 0
+)
 = m4_par13_ægtefælle_indkomstgrundlag = Par13KompleksIndkomstgrundlag(
     skatteår = 2025,
     skattepligtigt_underskud_kroner = 100000,
@@ -390,6 +396,12 @@ København 2025.
     gift_samlevende_ved_årets_udløb = Sandt,
     ønsket_ægtefælleoverførsel_kroner = 60000
 )
+= m4_par13_ægtefælle_negativ_personlig_fakta = Par13KompleksNegativPersonlig(
+    egen_personlig_indkomst_med_pbl16_tillæg_kroner = 0,
+    ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner = 3000,
+    ægtefælle_positiv_kapitalindkomst_kroner = 4000,
+    fremført_negativ_personlig_indkomst_kroner = 12000
+)
 = m4_par13_ægtefælle_stk5_begrænsning = Par13KompleksStk5Begrænsning(
     udenlandsk_beskattet_personlig_indkomst_kroner = 0,
     fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner = 0,
@@ -403,6 +415,7 @@ København 2025.
     skatteværdi_satser = m4_par13_københavn_satser,
     modregningsskatter = m4_par13_ægtefælle_modregningsskatter,
     ægtefælleforhold = m4_par13_ægtefælle_forhold,
+    negativ_personlig = m4_par13_ægtefælle_negativ_personlig_fakta,
     stk5_begrænsning = m4_par13_ægtefælle_stk5_begrænsning,
     virksomhedsunderskud = m4_par13_ingen_virksomhedsunderskud
 )
@@ -411,13 +424,15 @@ København 2025.
 | m4_par13_ægtefælle_kræver_behandling: m4_par13_ægtefælle -> m4_par13_ægtefælle.kræver_underskudsbehandling == Sandt
 | m4_par13_ægtefælle_skatteværdi: m4_par13_ægtefælle -> m4_par13_ægtefælle.underskud_skatteværdi_kroner == 24300
 | m4_par13_ægtefælle_modregning: m4_par13_ægtefælle -> m4_par13_ægtefælle.modregning.par6_efter_kroner == 0 && m4_par13_ægtefælle.modregning.par7_efter_kroner == 0 && m4_par13_ægtefælle.modregning.par8a_stk2_efter_kroner == 10700
-| m4_par13_ægtefælle_negativ_personlig: m4_par13_ægtefælle -> m4_par13_ægtefælle.negativ_personlig_rest_kroner == 8000
+| m4_par13_ægtefælle_negativ_personlig: m4_par13_ægtefælle -> m4_par13_ægtefælle.negativ_personlig.modregnet_i_ægtefælles_personlige_indkomst_kroner == 3000 && m4_par13_ægtefælle.negativ_personlig.modregnet_i_egen_positiv_kapitalindkomst_kroner == 2000 && m4_par13_ægtefælle.negativ_personlig.modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner == 4000 && m4_par13_ægtefælle.negativ_personlig_rest_kroner == 1000
+| m4_par13_ægtefælle_fremført_negativ_personlig: m4_par13_ægtefælle -> m4_par13_ægtefælle.fremført_negativ_personlig.modregnet_i_egen_positiv_kapitalindkomst_kroner == 2000 && m4_par13_ægtefælle.fremført_negativ_personlig.modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner == 4000 && m4_par13_ægtefælle.fremført_negativ_personlig.modregnet_i_ægtefælles_personlige_indkomst_kroner == 3000 && m4_par13_ægtefælle.fremført_negativ_personlig.resterende_fremført_negativ_personlig_indkomst_kroner == 3000
 | m4_par13_ægtefælle_overfører: m4_par13_ægtefælle -> m4_par13_ægtefælle.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner == 45000 && m4_par13_ægtefælle.ægtefælleoverførsel.resterende_underskud_kroner == 15000
 
 ? m4_par13_ægtefælle_kræver_behandling
 ? m4_par13_ægtefælle_skatteværdi
 ? m4_par13_ægtefælle_modregning
 ? m4_par13_ægtefælle_negativ_personlig
+? m4_par13_ægtefælle_fremført_negativ_personlig
 ? m4_par13_ægtefælle_overfører
 
 ----
@@ -452,6 +467,7 @@ Kilder: Personskatteloven § 13, stk. 5; Ligningsloven § 33 A.
     skatteværdi_satser = m4_par13_københavn_satser,
     modregningsskatter = m4_par13_ingen_modregningsskatter,
     ægtefælleforhold = m4_par13_ll33a_forhold,
+    negativ_personlig = m4_par13_ingen_negativ_personlig,
     stk5_begrænsning = m4_par13_ll33a_stk5_begrænsning,
     virksomhedsunderskud = m4_par13_ingen_virksomhedsunderskud
 )
@@ -493,6 +509,7 @@ Kilder: Personskatteloven § 13, stk. 5; LOV nr. 482 af 22/05/2024.
     skatteværdi_satser = m4_par13_københavn_satser,
     modregningsskatter = m4_par13_ingen_modregningsskatter,
     ægtefælleforhold = m4_par13_2026_pbl_forhold,
+    negativ_personlig = m4_par13_ingen_negativ_personlig,
     stk5_begrænsning = m4_par13_2026_pbl_stk5_begrænsning,
     virksomhedsunderskud = m4_par13_ingen_virksomhedsunderskud
 )
@@ -526,6 +543,7 @@ Kilder: Personskatteloven § 13, stk. 6-7.
     skatteværdi_satser = m4_par13_københavn_satser,
     modregningsskatter = m4_par13_ingen_modregningsskatter,
     ægtefælleforhold = m4_par13_ingen_ægtefælle,
+    negativ_personlig = m4_par13_ingen_negativ_personlig,
     stk5_begrænsning = m4_par13_ingen_stk5_begrænsning,
     virksomhedsunderskud = m4_par13_virksomhed_fakta
 )

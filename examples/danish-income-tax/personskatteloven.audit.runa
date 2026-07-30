@@ -800,6 +800,12 @@ virksomhedsunderskud.
     positiv_indkomst_samme_virksomhed_kroner = 0,
     virksomhedsstatus = SkibsvirksomhedGodkendtSenest1993
 )
+= m5_par13_kompleks_ingen_negativ_personlig = Par13KompleksNegativPersonlig(
+    egen_personlig_indkomst_med_pbl16_tillæg_kroner = 0,
+    ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner = 0,
+    ægtefælle_positiv_kapitalindkomst_kroner = 0,
+    fremført_negativ_personlig_indkomst_kroner = 0
+)
 = m5_par13_calculator_ægtefælle_indkomstgrundlag = Par13KompleksIndkomstgrundlag(
     skatteår = 2025,
     skattepligtigt_underskud_kroner = 100000,
@@ -817,6 +823,12 @@ virksomhedsunderskud.
     ægtefælle_skattepligtig_indkomst_kroner = 45000,
     gift_samlevende_ved_årets_udløb = Sandt,
     ønsket_ægtefælleoverførsel_kroner = 60000
+)
+= m5_par13_calculator_ægtefælle_negativ_personlig = Par13KompleksNegativPersonlig(
+    egen_personlig_indkomst_med_pbl16_tillæg_kroner = 0,
+    ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner = 3000,
+    ægtefælle_positiv_kapitalindkomst_kroner = 4000,
+    fremført_negativ_personlig_indkomst_kroner = 12000
 )
 = m5_par13_calculator_ægtefælle_stk5 = Par13KompleksStk5Begrænsning(
     udenlandsk_beskattet_personlig_indkomst_kroner = 0,
@@ -850,6 +862,7 @@ virksomhedsunderskud.
     skatteværdi_satser = m5_par13_kompleks_satser,
     modregningsskatter = m5_par13_calculator_ægtefælle_modregningsskatter,
     ægtefælleforhold = m5_par13_calculator_ægtefælle_forhold,
+    negativ_personlig = m5_par13_calculator_ægtefælle_negativ_personlig,
     stk5_begrænsning = m5_par13_calculator_ægtefælle_stk5,
     virksomhedsunderskud = m5_par13_kompleks_ingen_virksomhedsunderskud
 ))
@@ -858,6 +871,7 @@ virksomhedsunderskud.
     skatteværdi_satser = m5_par13_kompleks_satser,
     modregningsskatter = m5_par13_kompleks_ingen_modregningsskatter,
     ægtefælleforhold = m5_par13_calculator_2026_forhold,
+    negativ_personlig = m5_par13_kompleks_ingen_negativ_personlig,
     stk5_begrænsning = m5_par13_calculator_2026_stk5,
     virksomhedsunderskud = m5_par13_kompleks_ingen_virksomhedsunderskud
 ))
@@ -1055,7 +1069,7 @@ virksomhedsunderskud.
 | m5_par13_stk5_ll33a_lempelse: m5_par13_stk5_ll33a_fixture -> m5_par13_stk5_ll33a_fixture.overførbart_underskud_kroner == 100000 && m5_par13_stk5_ll33a_fixture.samlet_afskåret_kroner == 0
 | m5_par13_stk5_sømandslempelse: m5_par13_stk5_sømand_fixture -> m5_par13_stk5_sømand_fixture.overførbart_underskud_kroner == 100000 && m5_par13_stk5_sømand_fixture.samlet_afskåret_kroner == 0
 | m5_par13_virksomhedsbeløb_låses: m5_par13_virksomhed_fixture -> m5_par13_virksomhed_fixture.fradrag_i_øvrig_indkomst_kroner == 0 && m5_par13_virksomhed_fixture.modregnet_i_samme_virksomhed_kroner == 30000 && m5_par13_virksomhed_fixture.fremført_til_samme_virksomhed_kroner == 50000
-| m5_par13_calculator_ægtefælleoverførsel: m5_par13_calculator_ægtefælle_fixture -> m5_par13_calculator_ægtefælle_fixture.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner == 45000 && m5_par13_calculator_ægtefælle_fixture.negativ_personlig_rest_kroner == 8000
+| m5_par13_calculator_ægtefælleoverførsel: m5_par13_calculator_ægtefælle_fixture -> m5_par13_calculator_ægtefælle_fixture.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner == 45000 && m5_par13_calculator_ægtefælle_fixture.negativ_personlig.modregnet_i_ægtefælles_personlige_indkomst_kroner == 3000 && m5_par13_calculator_ægtefælle_fixture.negativ_personlig.modregnet_i_egen_positiv_kapitalindkomst_kroner == 2000 && m5_par13_calculator_ægtefælle_fixture.negativ_personlig.modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner == 4000 && m5_par13_calculator_ægtefælle_fixture.negativ_personlig_rest_kroner == 1000 && m5_par13_calculator_ægtefælle_fixture.fremført_negativ_personlig.resterende_fremført_negativ_personlig_indkomst_kroner == 3000
 | m5_par13_calculator_2026_pbl: m5_par13_calculator_2026_fixture -> m5_par13_calculator_2026_fixture.stk5_overførsel.afskåret_pbl16_kroner == 0 && m5_par13_calculator_2026_fixture.stk5_overførsel.overførbart_underskud_kroner == 100000
 | m5_am_lønvederlag_dækket: m5_am_løn_fixture -> m5_am_løn_fixture == 40000
 | m5_am_naturalieværdi_dækket: m5_am_naturalie_fixture -> m5_am_naturalie_fixture == 40800
