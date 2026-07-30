@@ -244,6 +244,10 @@ Current external validation sources:
     annualised, recurring items annualised and rounded to whole kroner, yielding
     444.077 kr. personal income, -38.052 kr. capital income, 60.865 kr.
     ligningsmæssige fradrag, and 345.160 kr. taxable income.
+  - Used in `kapitel-04-omregning-skatteloft.runa` for the § 14 stk. 2
+    election posture that the oplysningsskema election belongs to the year
+    where full tax liability ceases or begins, and that reversal must be stated
+    by 30 June in the second calendar year after the income year.
 - Skatteministeriet, "Oversigt over kommuneskatter":
   `https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter`
   - Used in `omregning-skatteloft-ekstern.scenario.runa` for the
@@ -359,6 +363,10 @@ encoded as a temporal rule on top of the consolidation.
   a first § 8 a share-income final-settlement scenario with § 67 dividend-tax
   credit splitting and § 8 a stk. 2 composition through the § 9/§ 12 state
   personfradrag allocation slot,
+  § 14 stk. 2 election/reversal control flow for full-tax-liability entry or
+  exit, including the 30 June second-calendar-year reversal deadline and the
+  continued mandatory annualisation path for § 10 stk. 6 limited-taxability
+  cases,
   calculator-level nonzero § 8 b CFC tax and § 8 c municipal-equivalent
   limited-taxpayer tax through a grouped `LønmodtagerSkatteforhold` path,
   a source-backed external Skat.dk 2026 wage-earner scenario, complex § 13
@@ -392,8 +400,8 @@ as a complete Personskatteloven calculator.
   deductions, municipal/church tax, state-tax components, personfradrag,
   selected § 13 deficit paths including spouse/current-year negative personal
   income and carried-forward negative personal-income ordering through the
-  reusable § 13 complex calculator, § 14/§ 19 cases, withholding/card
-  generation, and first final-settlement paths.
+  reusable § 13 complex calculator, § 14 annualisation/election cases, § 19
+  cases, withholding/card generation, and first final-settlement paths.
 - Full legal calculation coverage is still materially incomplete: some rules are
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
@@ -1242,7 +1250,11 @@ M8 - Omregning, skatteloft, and regulation
   ordinary wage-earner § 14 integration now annualizes a delårs wage-earner
   input and uses the state income-tax component after §§ 6-9, rather than the
   AM-inclusive total. The official guidance example now proves recurring-vs.
-  one-off amount handling. §§ 15-18 are explicit repealed markers, § 19 computes
+  one-off amount handling, and § 14 stk. 2 now has an executable election result
+  for oplysningsskema election, timely reversal by 30 June in the second
+  calendar year after the income year, late reversal, and the § 10 stk. 6
+  limited-taxability path where the stk. 2 election is not available.
+  §§ 15-18 are explicit repealed markers, § 19 computes
   personal and positive-capital tax ceiling excess and relief, both personal and
   positive-capital § 19 relief now flow into the ordinary wage-earner breakdown
   for supported tax years and municipalities, the 2026 Langeland fixture proves

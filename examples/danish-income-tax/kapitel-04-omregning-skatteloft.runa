@@ -45,6 +45,8 @@ helårsbeløbene.
 Den juridiske vejledning 2026-1, C.F.1.6.2.1:
 Eksemplet om helårsomregning viser, at løbende delårsbeløb omregnes til hele
 året og afrundes til hele kroner, mens engangsbeløb ikke omregnes.
+Samme vejledning beskriver oplysningsskema-valget for året, hvor skattepligten
+ophører eller indtræder.
 https://info.skat.dk/data.aspx?oid=1977388
 ----
 
@@ -54,6 +56,8 @@ https://info.skat.dk/data.aspx?oid=1977388
 # Par14OmregningInput(delårs_skattepligtig_indkomst_kroner: Heltal, delårs_personlig_indkomst_kroner: Heltal, delårs_kapitalindkomst_kroner: Heltal, skattepligtsdage: Heltal)
 # Par14Helårsindkomst(skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par14SkattenedsættelseInput(helårsskat_kroner: Heltal, delårsbeløb_kroner: Heltal, helårsbeløb_kroner: Heltal)
+# Par14ValgInput(skatteår: Heltal, skattepligtsændring: Par14Skattepligtsændring, valg_afgivet_ved_oplysninger: Boolsk, omvalg_dato_yyyymmdd: Heltal)
+# Par14ValgResultat(valg_muligt: Boolsk, valg_afgivet_ved_oplysninger: Boolsk, valg_gældende: Boolsk, omvalgsfrist_yyyymmdd: Heltal, omvalg_rettidigt: Boolsk, omvalg_gennemført: Boolsk, helårsomregning_skal_ske: Boolsk)
 
 | par14_helårsomregning_gælder(status: Par14Skattepligtsændring) -> status == FuldSkattepligtIndtræder || status == FuldSkattepligtOphører || status == BegrænsetSkattepligtPar10Stk6Indtræder || status == BegrænsetSkattepligtPar10Stk6Ophører
 | par14_valg_uden_helårsomregning_muligt(status: Par14Skattepligtsændring) -> status == FuldSkattepligtIndtræder || status == FuldSkattepligtOphører
@@ -69,8 +73,23 @@ https://info.skat.dk/data.aspx?oid=1977388
 )
 | par14_helårsskat_beregnes_efter_par6_til_par9() -> Sandt
 | par14_helårsskat_nedsat_for_delår(input: Par14SkattenedsættelseInput) -> input.helårsskat_kroner * input.delårsbeløb_kroner / input.helårsbeløb_kroner under input.helårsbeløb_kroner > 0
-| par14_valg_træffes_ved_oplysninger_til_forvaltningen() -> Sandt
-| par14_valg_kan_omgøres_senest_30_juni_i_andet_år() -> Sandt
+| par14_valg_muligt(input: Par14ValgInput) -> par14_valg_uden_helårsomregning_muligt(input.skattepligtsændring)
+| par14_valg_gældende(input: Par14ValgInput) -> par14_valg_muligt(input) && input.valg_afgivet_ved_oplysninger
+| par14_omvalgsfrist_yyyymmdd(skatteår: Heltal) -> (skatteår + 2) * 10000 + 630
+| par14_omvalg_rettidigt(input: Par14ValgInput) -> input.omvalg_dato_yyyymmdd > 0 && input.omvalg_dato_yyyymmdd <= par14_omvalgsfrist_yyyymmdd(input.skatteår)
+| par14_omvalg_gennemført(input: Par14ValgInput) -> par14_valg_gældende(input) && par14_omvalg_rettidigt(input)
+| par14_helårsomregning_skal_ske(input: Par14ValgInput) -> par14_helårsomregning_gælder(input.skattepligtsændring)
+| exception par14_stk2_valg_uden_omvalg par14_helårsomregning_skal_ske(input: Par14ValgInput) -> Falskt under par14_valg_gældende(input) && par14_omvalg_gennemført(input) == Falskt
+| exception par14_stk2_rettidigt_omvalg par14_helårsomregning_skal_ske(input: Par14ValgInput) -> Sandt under par14_omvalg_gennemført(input)
+| par14_valg_resultat(input: Par14ValgInput) -> Par14ValgResultat(
+    valg_muligt = par14_valg_muligt(input),
+    valg_afgivet_ved_oplysninger = input.valg_afgivet_ved_oplysninger,
+    valg_gældende = par14_valg_gældende(input),
+    omvalgsfrist_yyyymmdd = par14_omvalgsfrist_yyyymmdd(input.skatteår),
+    omvalg_rettidigt = par14_omvalg_rettidigt(input),
+    omvalg_gennemført = par14_omvalg_gennemført(input),
+    helårsomregning_skal_ske = par14_helårsomregning_skal_ske(input)
+)
 
 = par14_fixture = par14_helårsindkomst(Par14OmregningInput(
     delårs_skattepligtig_indkomst_kroner = 180000,
@@ -85,13 +104,41 @@ https://info.skat.dk/data.aspx?oid=1977388
 ))
 = par14_engangsbeløb_fixture = par14_helårsbeløb_for_post(Par14Beløbspost(168232, Par14EngangsBeløb), 27)
 = par14_fuld_skattepligt_omregnes = par14_helårsomregning_gælder(FuldSkattepligtIndtræder)
-= par14_valg_muligt = par14_valg_uden_helårsomregning_muligt(FuldSkattepligtOphører)
+= par14_valg_muligt_fixture = par14_valg_uden_helårsomregning_muligt(FuldSkattepligtOphører)
+= par14_stk2_valg_fixture = par14_valg_resultat(Par14ValgInput(
+    skatteår = 2026,
+    skattepligtsændring = FuldSkattepligtOphører,
+    valg_afgivet_ved_oplysninger = Sandt,
+    omvalg_dato_yyyymmdd = 0
+))
+= par14_stk2_omvalg_rettidigt_fixture = par14_valg_resultat(Par14ValgInput(
+    skatteår = 2026,
+    skattepligtsændring = FuldSkattepligtOphører,
+    valg_afgivet_ved_oplysninger = Sandt,
+    omvalg_dato_yyyymmdd = 20280630
+))
+= par14_stk2_omvalg_for_sent_fixture = par14_valg_resultat(Par14ValgInput(
+    skatteår = 2026,
+    skattepligtsændring = FuldSkattepligtIndtræder,
+    valg_afgivet_ved_oplysninger = Sandt,
+    omvalg_dato_yyyymmdd = 20280701
+))
+= par14_stk3_begrænset_ingen_valg_fixture = par14_valg_resultat(Par14ValgInput(
+    skatteår = 2026,
+    skattepligtsændring = BegrænsetSkattepligtPar10Stk6Indtræder,
+    valg_afgivet_ved_oplysninger = Sandt,
+    omvalg_dato_yyyymmdd = 20280630
+))
 
 | par14_helårsomregner_indkomster: par14_fixture -> par14_fixture.skattepligtig_indkomst_kroner == 365000 && par14_fixture.personlig_indkomst_kroner == 405556 && par14_fixture.kapitalindkomst_kroner == -40556
 | par14_nedsætter_helårsskat_forholdsmæssigt: par14_skattenedsættelse_fixture -> par14_skattenedsættelse_fixture == 49315
 | par14_engangsbeløb_omregnes_ikke: par14_engangsbeløb_fixture -> par14_engangsbeløb_fixture == 168232
 | par14_fuld_skattepligt_kræver_omregning: par14_fuld_skattepligt_omregnes -> par14_fuld_skattepligt_omregnes == Sandt
-| par14_stk2_valg_findes: par14_valg_muligt -> par14_valg_muligt == Sandt
+| par14_stk2_valg_findes: par14_valg_muligt_fixture -> par14_valg_muligt_fixture == Sandt
+| par14_stk2_valg_afskærer_helårsomregning: par14_stk2_valg_fixture -> par14_stk2_valg_fixture.valg_gældende == Sandt && par14_stk2_valg_fixture.helårsomregning_skal_ske == Falskt && par14_stk2_valg_fixture.omvalgsfrist_yyyymmdd == 20280630
+| par14_stk2_rettidigt_omvalg_genindfører_helårsomregning: par14_stk2_omvalg_rettidigt_fixture -> par14_stk2_omvalg_rettidigt_fixture.omvalg_rettidigt == Sandt && par14_stk2_omvalg_rettidigt_fixture.omvalg_gennemført == Sandt && par14_stk2_omvalg_rettidigt_fixture.helårsomregning_skal_ske == Sandt
+| par14_stk2_for_sent_omvalg_ændrer_ikke_valg: par14_stk2_omvalg_for_sent_fixture -> par14_stk2_omvalg_for_sent_fixture.omvalg_rettidigt == Falskt && par14_stk2_omvalg_for_sent_fixture.omvalg_gennemført == Falskt && par14_stk2_omvalg_for_sent_fixture.helårsomregning_skal_ske == Falskt
+| par14_stk3_begrænset_skattelpligt_har_ikke_stk2_valg: par14_stk3_begrænset_ingen_valg_fixture -> par14_stk3_begrænset_ingen_valg_fixture.valg_muligt == Falskt && par14_stk3_begrænset_ingen_valg_fixture.valg_gældende == Falskt && par14_stk3_begrænset_ingen_valg_fixture.helårsomregning_skal_ske == Sandt
 
 ----
 §§ 15-17. (Ophævet)
