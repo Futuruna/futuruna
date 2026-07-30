@@ -1509,6 +1509,7 @@ afgrænsning.
     betaler_kommunal_eller_par8c = Sandt
 ))
 = m5_par26_beregnet_forskelsbeløb_2015_årsparametre_fixture = par26_beregnet_forskelsbeløb_2015_årsparametre_fixture
+= m5_par26_kompensation_afregning_2015_fixture = par26_kompensation_afregning_2015_fixture
 = m5_par26_stk4_ægtefælle_forskelsbeløb_fixture = par26_stk4_ægtefælle_forskelsbeløb_fixture
 = m5_par26_stk5_negativ_kapital_fixture = par26_stk5_negativ_kapital_fixture
 = m5_par26_stk6_bundfradrag_fixture = par26_stk6_bundfradrag_fixture
@@ -1533,6 +1534,7 @@ afgrænsning.
 | m5_par26_nr5_ligningsfradrag_baseline: m5_par26_nr5_ligningsfradrag_2019_fixture -> m5_par26_nr5_ligningsfradrag_2019_fixture.fradrag_efter_ll9j_9k_9l_kroner == 55030 && m5_par26_nr5_ligningsfradrag_2019_fixture.baseline_fradrag_efter_425pct_grundbeløb_kroner == 15900 && m5_par26_nr5_ligningsfradrag_2019_fixture.nr5_kroner == 17099
 | m5_par26_stk2_til_stk3_beregnet_forskelsbeløb: m5_par26_beregnet_forskelsbeløb_fixture -> m5_par26_beregnet_forskelsbeløb_fixture.nr6_kroner == 2500 && m5_par26_beregnet_forskelsbeløb_fixture.nr8_kroner == 1000 && m5_par26_beregnet_forskelsbeløb_fixture.forskelsbeløb_før_nr8_kroner == 0 && m5_par26_beregnet_forskelsbeløb_fixture.kompensation_kroner == 1000
 | m5_par26_stk2_til_stk3_2015_årsparametre: m5_par26_beregnet_forskelsbeløb_2015_årsparametre_fixture -> m5_par26_beregnet_forskelsbeløb_2015_årsparametre_fixture.regulerede_beløbsgrænser.bundfradrag_nr2_og_nr3_kroner == 374800 && m5_par26_beregnet_forskelsbeløb_2015_årsparametre_fixture.nr8_kroner == 500 && m5_par26_beregnet_forskelsbeløb_2015_årsparametre_fixture.kompensation_kroner == 500
+| m5_par26_kompensation_afregning_2015: m5_par26_kompensation_afregning_2015_fixture -> m5_par26_kompensation_afregning_2015_fixture.kompensation_kroner == 500 && m5_par26_kompensation_afregning_2015_fixture.modregning.par6_efter_kroner == 0 && m5_par26_kompensation_afregning_2015_fixture.modregning.par7_efter_kroner == 0 && m5_par26_kompensation_afregning_2015_fixture.modregning.kommuneskat_efter_kroner == 150 && m5_par26_kompensation_afregning_2015_fixture.samlet_skat_efter_modregning_kroner == 350
 | m5_par26_stk4_ægtefælle_forskelsbeløb: m5_par26_stk4_ægtefælle_forskelsbeløb_fixture -> m5_par26_stk4_ægtefælle_forskelsbeløb_fixture.positivt_forskelsbeløb_modregnet_kroner == 3000 && m5_par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_kompensation_efter_stk4_kroner == 2000
 | m5_par26_stk5_negativ_kapital: m5_par26_stk5_negativ_kapital_fixture -> m5_par26_stk5_negativ_kapital_fixture.modregnet_i_ægtefælles_positive_kroner == 25000 && m5_par26_stk5_negativ_kapital_fixture.negativ_nettokapitalindkomst_efter_modregning_kroner == -15000
 | m5_par26_stk6_bundfradrag: m5_par26_stk6_bundfradrag_fixture -> m5_par26_stk6_bundfradrag_fixture.ægtefælle_bundfradragsforhøjelse_kroner == 62800 && m5_par26_stk6_bundfradrag_fixture.ægtefælle_effektivt_bundfradrag_kroner == 425600
@@ -1560,6 +1562,7 @@ afgrænsning.
 ? m5_par26_nr5_ligningsfradrag_baseline
 ? m5_par26_stk2_til_stk3_beregnet_forskelsbeløb
 ? m5_par26_stk2_til_stk3_2015_årsparametre
+? m5_par26_kompensation_afregning_2015
 ? m5_par26_stk4_ægtefælle_forskelsbeløb
 ? m5_par26_stk5_negativ_kapital
 ? m5_par26_stk6_bundfradrag

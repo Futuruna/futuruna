@@ -134,6 +134,8 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par26ForskelsbeløbBeregning(regulerede_beløbsgrænser: Par26ReguleredeBeløbsgrænser, nr1_kroner: Heltal, nr2_kroner: Heltal, nr3_kroner: Heltal, nr4_kroner: Heltal, nr5_kroner: Heltal, nr6_kroner: Heltal, nr7_kroner: Heltal, nr8_kroner: Heltal, forskelsbeløb_før_nr8_kroner: Heltal, forskelsbeløb_efter_stk3_kroner: Heltal, kompensation_kroner: Heltal)
 # Par26ModregningInput(kompensation_kroner: Heltal, par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par8c_skat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal)
 # Par26ModregningResult(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, par8c_efter_kroner: Heltal, kommuneskat_efter_kroner: Heltal, kirkeskat_efter_kroner: Heltal, ubrugt_kompensation_kroner: Heltal)
+# Par26KompensationAfregningInput(forskelsbeløb_års_input: Par26ForskelsbeløbÅrsInput, par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par8c_skat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal)
+# Par26KompensationAfregningResult(forskelsbeløb: Par26ForskelsbeløbBeregning, modregning: Par26ModregningResult, kompensation_kroner: Heltal, samlet_skat_efter_modregning_kroner: Heltal)
 # Par26ÆgtefælleStatus = Par26IkkeSamlevende | Par26GiftSamlevendeVedÅretsUdløb | Par26Forskerordning48FValgt
 # Par26ÆgtefælleForskelsbeløbInput(status: Par26ÆgtefælleStatus, egen_forskelsbeløb_efter_stk3_kroner: Heltal, ægtefælle_forskelsbeløb_efter_stk3_kroner: Heltal)
 # Par26ÆgtefælleForskelsbeløbResult(positivt_forskelsbeløb_modregnet_kroner: Heltal, ægtefælle_forskelsbeløb_efter_stk4_kroner: Heltal, ægtefælle_kompensation_efter_stk4_kroner: Heltal)
@@ -304,6 +306,30 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     kirkeskat_efter_kroner = par26_skat_efter_kompensation(input.kirkeskat_kroner, par26_rester_efter_kommuneskat(input)),
     ubrugt_kompensation_kroner = par26_rester_efter_kirkeskat(input)
 )
+# Par26KompensationAfregningSag(input: Par26KompensationAfregningInput) {
+    | forskelsbeløb() -> par26_forskelsbeløb_beregning_for_skatteår(input.forskelsbeløb_års_input)
+    | modregning_input() -> Par26ModregningInput(
+        kompensation_kroner = forskelsbeløb().kompensation_kroner,
+        par6_skat_kroner = input.par6_skat_kroner,
+        par7_skat_kroner = input.par7_skat_kroner,
+        par7a_skat_kroner = input.par7a_skat_kroner,
+        par8_skat_kroner = input.par8_skat_kroner,
+        par8a_stk2_skat_kroner = input.par8a_stk2_skat_kroner,
+        par8c_skat_kroner = input.par8c_skat_kroner,
+        kommuneskat_kroner = input.kommuneskat_kroner,
+        kirkeskat_kroner = input.kirkeskat_kroner
+    )
+    | modregning() -> par26_modregning_resultat(modregning_input())
+    | samlet_skat_efter_modregning() -> modregning().par6_efter_kroner + modregning().par7_efter_kroner + modregning().par7a_efter_kroner + modregning().par8_efter_kroner + modregning().par8a_stk2_efter_kroner + modregning().par8c_efter_kroner + modregning().kommuneskat_efter_kroner + modregning().kirkeskat_efter_kroner
+    | resultat() -> Par26KompensationAfregningResult(
+        forskelsbeløb = forskelsbeløb(),
+        modregning = modregning(),
+        kompensation_kroner = forskelsbeløb().kompensation_kroner,
+        samlet_skat_efter_modregning_kroner = samlet_skat_efter_modregning()
+    )
+}
+| par26_kompensation_afregning_sag(input: Par26KompensationAfregningInput) -> Par26KompensationAfregningSag(input)
+| par26_kompensation_afregning_resultat(input: Par26KompensationAfregningInput) -> par26_kompensation_afregning_sag(input).resultat()
 | par26_positivt_forskelsbeløb_nedsætter_ægtefælles_negative(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
 | par26_negativ_kapital_modregnes_i_ægtefælles_positive(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
 | par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
@@ -534,6 +560,31 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     negativ_kapital_over_par11_og_ligningsfradrag_kroner = 12500,
     betaler_kommunal_eller_par8c = Sandt
 ))
+= par26_kompensation_afregning_2015_fixture = par26_kompensation_afregning_resultat(Par26KompensationAfregningInput(
+    forskelsbeløb_års_input = Par26ForskelsbeløbÅrsInput(
+        skatteår = 2015,
+        alder_status = Par26Fyldt18EllerGift,
+        bundskat_grundlag_kroner = 44800,
+        personlig_plus_positiv_kapital_kroner = 362800,
+        topskat_grundlag_kroner = 362800,
+        aktieindkomstskat_grundlag_kroner = 0,
+        fradrag_efter_ll9j_9k_9l_kroner = 0,
+        kommunal_og_kirke_basispoint = 2430,
+        baseline_fradrag_efter_425pct_grundbeløb_kroner = 0,
+        personfradrag_nr6_skatteværdi_kroner = 2500,
+        udligningsskat_kroner = 0,
+        negativ_kapital_over_par11_og_ligningsfradrag_kroner = 12500,
+        betaler_kommunal_eller_par8c = Sandt
+    ),
+    par6_skat_kroner = 200,
+    par7_skat_kroner = 100,
+    par7a_skat_kroner = 0,
+    par8_skat_kroner = 50,
+    par8a_stk2_skat_kroner = 100,
+    par8c_skat_kroner = 0,
+    kommuneskat_kroner = 200,
+    kirkeskat_kroner = 200
+))
 = par26_stk4_ægtefælle_forskelsbeløb_fixture = par26_ægtefælle_forskelsbeløb_resultat(Par26ÆgtefælleForskelsbeløbInput(
     status = Par26GiftSamlevendeVedÅretsUdløb,
     egen_forskelsbeløb_efter_stk3_kroner = 3000,
@@ -605,6 +656,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | par26_nr5_2019_afleder_ligningsfradrag_og_baseline: par26_nr5_ligningsfradrag_2019_fixture -> par26_nr5_ligningsfradrag_2019_fixture.fradrag_efter_ll9j_9k_9l_kroner == 55030 && par26_nr5_ligningsfradrag_2019_fixture.baseline_fradrag_efter_425pct_grundbeløb_kroner == 15900 && par26_nr5_ligningsfradrag_2019_fixture.nr5_kroner == 17099
 | par26_forskelsbeløb_beregnes_fra_stk2_poster: par26_beregnet_forskelsbeløb_fixture -> par26_beregnet_forskelsbeløb_fixture.nr1_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr2_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr3_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr6_kroner == 2500 && par26_beregnet_forskelsbeløb_fixture.nr8_kroner == 1000 && par26_beregnet_forskelsbeløb_fixture.forskelsbeløb_før_nr8_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.kompensation_kroner == 1000
 | par26_forskelsbeløb_2015_deriverer_årsparametre: par26_beregnet_forskelsbeløb_2015_årsparametre_fixture -> par26_beregnet_forskelsbeløb_2015_årsparametre_fixture.regulerede_beløbsgrænser.bundfradrag_nr2_og_nr3_kroner == 374800 && par26_beregnet_forskelsbeløb_2015_årsparametre_fixture.nr8_kroner == 500 && par26_beregnet_forskelsbeløb_2015_årsparametre_fixture.forskelsbeløb_før_nr8_kroner == 0 && par26_beregnet_forskelsbeløb_2015_årsparametre_fixture.kompensation_kroner == 500
+| par26_kompensation_afregning_samler_beregning_og_modregning: par26_kompensation_afregning_2015_fixture -> par26_kompensation_afregning_2015_fixture.kompensation_kroner == 500 && par26_kompensation_afregning_2015_fixture.modregning.par6_efter_kroner == 0 && par26_kompensation_afregning_2015_fixture.modregning.par7_efter_kroner == 0 && par26_kompensation_afregning_2015_fixture.modregning.par8_efter_kroner == 0 && par26_kompensation_afregning_2015_fixture.modregning.par8a_stk2_efter_kroner == 0 && par26_kompensation_afregning_2015_fixture.modregning.kommuneskat_efter_kroner == 150 && par26_kompensation_afregning_2015_fixture.modregning.kirkeskat_efter_kroner == 200 && par26_kompensation_afregning_2015_fixture.samlet_skat_efter_modregning_kroner == 350
 | par26_stk4_positivt_forskelsbeløb_nedsætter_ægtefælles_negative: par26_stk4_ægtefælle_forskelsbeløb_fixture -> par26_stk4_ægtefælle_forskelsbeløb_fixture.positivt_forskelsbeløb_modregnet_kroner == 3000 && par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_forskelsbeløb_efter_stk4_kroner == -2000 && par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_kompensation_efter_stk4_kroner == 2000
 | par26_stk5_negativ_kapital_modregnes_i_ægtefælles_positive: par26_stk5_negativ_kapital_fixture -> par26_stk5_negativ_kapital_fixture.modregnet_i_ægtefælles_positive_kroner == 25000 && par26_stk5_negativ_kapital_fixture.negativ_nettokapitalindkomst_efter_modregning_kroner == -15000 && par26_stk5_negativ_kapital_fixture.ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner == 0
 | par26_stk6_lav_indkomst_forhøjer_ægtefælles_bundfradrag: par26_stk6_bundfradrag_fixture -> par26_stk6_bundfradrag_fixture.egen_manglende_til_bundfradrag_kroner == 62800 && par26_stk6_bundfradrag_fixture.ægtefælle_effektivt_bundfradrag_kroner == 425600

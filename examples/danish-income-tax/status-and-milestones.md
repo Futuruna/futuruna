@@ -36,7 +36,9 @@ personfradrag state-tax value into the receiving spouse's § 9 state-tax basket;
 income year 2023 onward, and § 4, stk. 1, nr. 6 has a source-backed post-LOV
 615/2026 category fixture for the ejendomsværdiskattelov reference;
 § 26, stk. 7 now composes § 7 spouse capital-threshold and
-capital-tax allocation rules into the transition-compensation nr. 3 amount.
+capital-tax allocation rules into the transition-compensation nr. 3 amount, and
+§ 26 now has an annual compensation-settlement result that composes
+source-derived yearly parameters with the statutory tax-offset order.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -555,6 +557,10 @@ Current decision:
   personal/PBL bases, net-capital incomes, regulated § 26 nr. 3 threshold,
   ordinary § 7 threshold, and § 7 capital allocation together so the old-vs-new
   top-tax difference is derived as a named result instead of a loose scalar.
+- `Par26KompensationAfregningSag` composes the annual § 26 line-item
+  calculation with the § 26, stk. 1 tax-offset order, so fixtures can prove the
+  whole compensation-settlement path instead of separately calling
+  `par26_forskelsbeløb_beregning_for_skatteår` and `par26_modregning_resultat`.
 - `Par11NegativKapitalNedslagSag` uses product-scoped `|` rules for § 11.
   It keeps tax year, the taxpayer's net-capital income, the spouse's
   net-capital income, samliv status, and municipal/§ 8 c tax-liability posture
@@ -1155,7 +1161,8 @@ M5 - Audit suite
   source-backed Langeland 2026 high-municipal-rate personal and positive-capital
   relief fixtures and the published 1,24 pct. SKM `Nedslag pct.` differential,
   covered § 20 regulation/rounding, covered § 26 transition
-  compensation including stk. 7 spouse top-tax allocation for nr. 3,
+  compensation including a composed annual settlement path and stk. 7 spouse
+  top-tax allocation for nr. 3,
   covered § 28 territorial exclusion, covered AM-law special cases,
   covered shared Pengebeløb rounding and øre-fraction posture,
   covered Opkrævningsloven payment-deadline/remittance posture and § 7
@@ -1289,7 +1296,8 @@ M9 - Final provisions and transition compensation
   2012, 2017 and 2019 Ligningsloven §§ 9 J/9 K/9 L fradrag and the 4,25 pct.
   baseline from source-backed inputs, § 26 stk. 7 now applies § 7 stk. 5 and
   stk. 10-11 spouse capital rules when deriving nr. 3 for transition
-  compensation, § 27 is encoded as delegated
+  compensation, and `Par26KompensationAfregningResult` now composes an annual
+  compensation calculation with the statutory tax-offset order, § 27 is encoded as delegated
   implementation/administration authority, and § 28 excludes the Faroe Islands
   and Greenland. Remaining § 26 depth is mostly integration work: broader
   historic compensation fixtures, dependent-year settlement parameter wiring,
