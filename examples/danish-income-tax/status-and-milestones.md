@@ -15,7 +15,10 @@ implementation first. Audit files remain important as validation gates for
 implemented slices, but deeper exploratory audits should wait until the main law
 model is materially complete.
 
-Latest mainline slices: the 2026 § 7/§ 7 a/§ 8 reform thresholds for
+Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
+amount-level result from personal income, capital income, excluded share income,
+excluded CFC income and ligningsmæssige fradrag, and the wage-earner calculator
+delegates its taxable-income base to that result; the 2026 § 7/§ 7 a/§ 8 reform thresholds for
 mellemskat, topskat and toptopskat now derive from statutory 2010-level amounts
 through § 20 regulation, with § 7 a topskat and § 8 toptopskat exposed as
 personal-income amount result objects; § 7 spouse positive-net-capital tax now has an
@@ -294,7 +297,8 @@ encoded as a temporal rule on top of the consolidation.
   source status, milestone status, selected audit signals, and the checked
   `.runa` corpus.
 - The current `.runa` slices encode source validity, source lineage, the
-  §§ 1-4 b income taxonomy including amount-level § 3 personal-income inclusion
+  §§ 1-4 b income taxonomy including amount-level § 1 ordinary taxable-income
+  composition across the separate § 2 categories, amount-level § 3 personal-income inclusion
   and deduction totals, amount-level § 4 net capital-income inclusion,
   deductible capital costs, positive/negative net-capital projections and
   personal-income reclassification, plus amount-level § 4 a share-income
@@ -418,6 +422,12 @@ Current decision:
   member calls. Wide legal/domain records and boolean-bearing legal predicates
   should use named calls at fixture and boundary-assembly points when
   positional arguments would hide legal meaning.
+- `Par1AlmindeligSkattepligtigIndkomstSag` uses product-scoped `|` rules for
+  § 1/§ 2 taxable-income composition. It keeps personal income, capital income,
+  share income outside ordinary taxable income, CFC income outside the §§ 6-8 a
+  taxable-income base, and ligningsmæssige fradrag in one result; the ordinary
+  wage-earner calculator now delegates its taxable-income base to that result
+  instead of carrying a local formula.
 - The confiscatory audit work tightened Futuruna's language/runtime support:
   typed `|` rule-head parameters that name a `RuleScope` type now keep that
   receiver type through checking, and named constructors inside nested
@@ -884,6 +894,12 @@ M1 - Income taxonomy
 - Done when: ordinary income, personal income, capital income, share income, and
   CFC income are represented as typed legal categories and amount-level result
   records with original text preserved.
+- Current slice: § 1/§ 2 ordinary taxable-income composition is executable as a
+  named result over personal income, capital income, share income, CFC income,
+  and ligningsmæssige fradrag. The fixture proves § 4 a share income remains
+  outside ordinary taxable income and § 4 b CFC income remains outside the
+  §§ 6-8 a taxable-income base while reclassified § 4/§ 4 a amounts feed
+  personal income.
 
 M2 - State tax computation skeleton
 
@@ -953,7 +969,8 @@ M4 - Ordinary taxpayer calculator
   assumptions.
 - Current slice: 2025 Copenhagen and Gentofte wage-earner fixtures produce
   deterministic AM contribution, personal income after AM, ordinary taxable
-  income after derived Ligningsloven §§ 9 J/9 K wage-earner deductions,
+  income through the § 1/§ 2 `Par1AlmindeligSkattepligtigIndkomstResultat`
+  after derived Ligningsloven §§ 9 J/9 K wage-earner deductions,
   bundskat, topskat, municipal tax, church tax, § 10 personfradrag, § 12
   personfradrag tax values and § 9/§ 12 state-tax allocation,
   after-personfradrag totals, and a § 13 ordinary-positive-income boundary.
@@ -1052,7 +1069,8 @@ M5 - Audit suite
 - Output: audit files that intentionally search for tension, missing inputs,
   discontinuities, and source drift.
 - Done when: audits can fail loudly without blocking legal reformulation work.
-- Current slice: source-status rejection, covered normal-fixture
+- Current slice: source-status rejection, covered § 1/§ 2 taxable-income
+  composition from separate income categories, covered normal-fixture
   personfradrag, covered § 10 stk. 5-6 choice/deadline/exclusion posture,
   covered § 10 stk. 3 spouse transfer of unused personfradrag state-tax value,
   covered § 11 negative net-capital reduction with spouse threshold pooling,
@@ -1131,6 +1149,7 @@ M6 - Website integration
   special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing and system-start rateplan posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
+  first § 1/§ 2 taxable-income composition from the separate income categories,
   first § 4 a pension/share-income audit,
   first § 8 a/§ 67 share-income annual-settlement scenario,
   first § 8 c limited-taxpayer municipal-equivalent tax calculation,

@@ -23,12 +23,41 @@ indkomst, kapitalindkomst, aktieindkomst og CFC-indkomst.
 ----
 
 # Indkomstkategori = AlmindeligSkattepligtigIndkomst | PersonligIndkomst | Kapitalindkomst | Aktieindkomst | CfcIndkomst
+# Par1AlmindeligSkattepligtigIndkomstInput(personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal, cfc_indkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, aktieindkomst_indgår_i_skattepligtig_indkomst: Boolsk, cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a: Boolsk)
+# Par1AlmindeligSkattepligtigIndkomstResultat(personlig_indkomst_til_skattepligtig_indkomst_kroner: Heltal, kapitalindkomst_til_skattepligtig_indkomst_kroner: Heltal, aktieindkomst_medregnet_kroner: Heltal, aktieindkomst_udenfor_skattepligtig_indkomst_kroner: Heltal, cfc_indkomst_medregnet_ved_par6_til_8a_kroner: Heltal, cfc_indkomst_udenfor_par6_til_8a_kroner: Heltal, indkomst_før_ligningsmæssige_fradrag_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, skattepligtig_indkomst_kroner: Heltal)
 
 | opgøres_særskilt(kategori: Indkomstkategori) -> Falskt
 | exception personlig_indkomst opgøres_særskilt(kategori: Indkomstkategori) -> Sandt under kategori == PersonligIndkomst
 | exception kapitalindkomst opgøres_særskilt(kategori: Indkomstkategori) -> Sandt under kategori == Kapitalindkomst
 | exception aktieindkomst opgøres_særskilt(kategori: Indkomstkategori) -> Sandt under kategori == Aktieindkomst
 | exception cfc_indkomst opgøres_særskilt(kategori: Indkomstkategori) -> Sandt under kategori == CfcIndkomst
+
+# Par1AlmindeligSkattepligtigIndkomstSag(input: Par1AlmindeligSkattepligtigIndkomstInput) {
+    | personlig_indkomst_til_skattepligtig_indkomst_kroner() -> input.personlig_indkomst_kroner
+    | kapitalindkomst_til_skattepligtig_indkomst_kroner() -> input.kapitalindkomst_kroner
+    | aktieindkomst_medregnet_kroner() -> 0
+    | exception par4a_aktieindkomst_medregnes_hvis_loven_siger_det aktieindkomst_medregnet_kroner() -> input.aktieindkomst_kroner under input.aktieindkomst_indgår_i_skattepligtig_indkomst
+    | aktieindkomst_udenfor_skattepligtig_indkomst_kroner() -> input.aktieindkomst_kroner - aktieindkomst_medregnet_kroner()
+    | cfc_indkomst_medregnet_ved_par6_til_8a_kroner() -> 0
+    | exception par4b_cfc_medregnes_hvis_loven_siger_det cfc_indkomst_medregnet_ved_par6_til_8a_kroner() -> input.cfc_indkomst_kroner under input.cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a
+    | cfc_indkomst_udenfor_par6_til_8a_kroner() -> input.cfc_indkomst_kroner - cfc_indkomst_medregnet_ved_par6_til_8a_kroner()
+    | indkomst_før_ligningsmæssige_fradrag_kroner() -> personlig_indkomst_til_skattepligtig_indkomst_kroner() + kapitalindkomst_til_skattepligtig_indkomst_kroner() + aktieindkomst_medregnet_kroner() + cfc_indkomst_medregnet_ved_par6_til_8a_kroner()
+    | ligningsmæssige_fradrag_kroner() -> penge_positivt_beløb(input.ligningsmæssige_fradrag_kroner)
+    | skattepligtig_indkomst_kroner() -> indkomst_før_ligningsmæssige_fradrag_kroner() - ligningsmæssige_fradrag_kroner()
+    | resultat() -> Par1AlmindeligSkattepligtigIndkomstResultat(
+        personlig_indkomst_til_skattepligtig_indkomst_kroner = personlig_indkomst_til_skattepligtig_indkomst_kroner(),
+        kapitalindkomst_til_skattepligtig_indkomst_kroner = kapitalindkomst_til_skattepligtig_indkomst_kroner(),
+        aktieindkomst_medregnet_kroner = aktieindkomst_medregnet_kroner(),
+        aktieindkomst_udenfor_skattepligtig_indkomst_kroner = aktieindkomst_udenfor_skattepligtig_indkomst_kroner(),
+        cfc_indkomst_medregnet_ved_par6_til_8a_kroner = cfc_indkomst_medregnet_ved_par6_til_8a_kroner(),
+        cfc_indkomst_udenfor_par6_til_8a_kroner = cfc_indkomst_udenfor_par6_til_8a_kroner(),
+        indkomst_før_ligningsmæssige_fradrag_kroner = indkomst_før_ligningsmæssige_fradrag_kroner(),
+        ligningsmæssige_fradrag_kroner = ligningsmæssige_fradrag_kroner(),
+        skattepligtig_indkomst_kroner = skattepligtig_indkomst_kroner()
+    )
+}
+| par1_almindelig_skattepligtig_indkomst_sag(input: Par1AlmindeligSkattepligtigIndkomstInput) -> Par1AlmindeligSkattepligtigIndkomstSag(input)
+| par1_almindelig_skattepligtig_indkomst_resultat(input: Par1AlmindeligSkattepligtigIndkomstInput) -> par1_almindelig_skattepligtig_indkomst_sag(input).resultat()
 
 = par2_personlig = opgøres_særskilt(PersonligIndkomst)
 = par2_kapital = opgøres_særskilt(Kapitalindkomst)
@@ -523,6 +552,15 @@ skat efter §§ 6-8 a.
     positiv_cfc_indkomst_til_par8b_kroner = par4b_positiv_cfc_indkomst_til_par8b_kroner(input),
     indgår_i_skattepligtig_indkomst_ved_par6_til_8a = cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a()
 )
+| par1_almindelig_skattepligtig_indkomst_fra_indkomstresultater(personlig: Par3PersonligIndkomstResultat, kapital: Par4KapitalindkomstResultat, aktie: Par4aAktieindkomstResultat, cfc: Par4bCfcIndkomstResultat, ligningsmæssige_fradrag_kroner: Heltal) -> par1_almindelig_skattepligtig_indkomst_resultat(Par1AlmindeligSkattepligtigIndkomstInput(
+    personlig_indkomst_kroner = personlig.netto_personlig_indkomst_kroner + kapital.omklassificeret_personlig_indkomst_kroner + aktie.omklassificeret_personlig_indkomst_kroner,
+    kapitalindkomst_kroner = kapital.nettokapitalindkomst_kroner,
+    aktieindkomst_kroner = aktie.aktieindkomst_efter_pensionsfradrag_kroner,
+    cfc_indkomst_kroner = cfc.cfc_indkomst_kroner,
+    ligningsmæssige_fradrag_kroner = ligningsmæssige_fradrag_kroner,
+    aktieindkomst_indgår_i_skattepligtig_indkomst = aktie.aktieindkomst_indgår_i_skattepligtig_indkomst,
+    cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a = cfc.indgår_i_skattepligtig_indkomst_ved_par6_til_8a
+))
 
 = par4b_16h = cfc_indkomst_omfatter(Ligningslov16H)
 = par4b_16i6 = cfc_indkomst_omfatter(Ligningslov16IStk6)
@@ -539,9 +577,17 @@ skat efter §§ 6-8 a.
         Par4bCfcIndkomstPost(kilde = Ligningslov16H, beløb_kroner = -25000)
     ]
 ))
+= par1_almindelig_skattepligtig_indkomst_resultat_fixture = par1_almindelig_skattepligtig_indkomst_fra_indkomstresultater(
+    par3_personlig_indkomst_resultat_fixture,
+    par4_kapitalindkomst_resultat_fixture,
+    par4a_aktieindkomst_resultat_fixture,
+    par4b_cfc_indkomst_resultat_fixture,
+    35000
+)
 
 | par4b_16h_er_cfc: par4b_16h -> par4b_16h == Sandt
 | par4b_16i_stk6_er_cfc: par4b_16i6 -> par4b_16i6 == Sandt
 | par4b_ikke_i_skattepligtig_ved_par6_8a: par4b_udenfor_par6_8a -> par4b_udenfor_par6_8a == Falskt
 | par4b_cfc_indkomst_beregnes_beløb: par4b_cfc_indkomst_resultat_fixture -> par4b_cfc_indkomst_resultat_fixture.cfc_indkomst_kroner == 500000 && par4b_cfc_indkomst_resultat_fixture.positiv_cfc_indkomst_til_par8b_kroner == 500000 && par4b_cfc_indkomst_resultat_fixture.indgår_i_skattepligtig_indkomst_ved_par6_til_8a == Falskt
 | par4b_negativ_cfc_indkomst_giver_intet_positivt_par8b_grundlag: par4b_negativ_cfc_indkomst_fixture -> par4b_negativ_cfc_indkomst_fixture.cfc_indkomst_kroner == -25000 && par4b_negativ_cfc_indkomst_fixture.positiv_cfc_indkomst_til_par8b_kroner == 0 && par4b_negativ_cfc_indkomst_fixture.indgår_i_skattepligtig_indkomst_ved_par6_til_8a == Falskt
+| par1_almindelig_skattepligtig_indkomst_samler_særskilte_indkomster: par1_almindelig_skattepligtig_indkomst_resultat_fixture -> par1_almindelig_skattepligtig_indkomst_resultat_fixture.personlig_indkomst_til_skattepligtig_indkomst_kroner == 518000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.kapitalindkomst_til_skattepligtig_indkomst_kroner == 45000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.aktieindkomst_medregnet_kroner == 0 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.aktieindkomst_udenfor_skattepligtig_indkomst_kroner == 50000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.cfc_indkomst_medregnet_ved_par6_til_8a_kroner == 0 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.cfc_indkomst_udenfor_par6_til_8a_kroner == 500000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.indkomst_før_ligningsmæssige_fradrag_kroner == 563000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.ligningsmæssige_fradrag_kroner == 35000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.skattepligtig_indkomst_kroner == 528000

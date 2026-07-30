@@ -5,6 +5,7 @@
 @ importer ./folkekirkens - oekonomi
 @ importer ./ligningsloven_fradrag
 @ importer ./skatteaar - parametre
+@ importer ./kapitel - 01 - indkomst
 @ importer ./kapitel - 02 - statsskat
 @ importer ./kapitel - 03 - personfradrag
 @ importer ./kapitel - 04 - omregning - skatteloft
@@ -75,7 +76,17 @@ skattepligtige almindelige indkomst efter skattelovgivningens almindelige
 regler med de ændringer, der følger af denne lov.
 ----
 
-| almindelig_skattepligtig_indkomst_fixture(input: LønmodtagerInput) -> personlig_indkomst_efter_am(input) + input.positiv_nettokapitalindkomst_kroner - samlede_ligningsmæssige_fradrag_for(input)
+| lønmodtager_par1_almindelig_indkomst_input(input: LønmodtagerInput) -> Par1AlmindeligSkattepligtigIndkomstInput(
+    personlig_indkomst_kroner = personlig_indkomst_efter_am(input),
+    kapitalindkomst_kroner = input.positiv_nettokapitalindkomst_kroner,
+    aktieindkomst_kroner = 0,
+    cfc_indkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = samlede_ligningsmæssige_fradrag_for(input),
+    aktieindkomst_indgår_i_skattepligtig_indkomst = aktieindkomst_indgår_i_skattepligtig_indkomst(),
+    cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a = cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a()
+)
+| lønmodtager_par1_almindelig_indkomst_resultat(input: LønmodtagerInput) -> par1_almindelig_skattepligtig_indkomst_resultat(lønmodtager_par1_almindelig_indkomst_input(input))
+| almindelig_skattepligtig_indkomst_fixture(input: LønmodtagerInput) -> lønmodtager_par1_almindelig_indkomst_resultat(input).skattepligtig_indkomst_kroner
 
 ----
 § 13. Hvis den skattepligtige indkomst udviser underskud, beregnes
