@@ -1364,6 +1364,8 @@ kommunen samt kirkeskat nedsættes på tilsvarende måde.
 # PersonfradragKomponent = PersonfradragSundhedsbidrag | PersonfradragBundskat | PersonfradragTopskat | PersonfradragUdligningsskat | PersonfradragHøjAktieSkat | PersonfradragPar8c | PersonfradragKommuneskat | PersonfradragKirkeskat | PersonfradragCfcSkat
 # Par9StatsskatPersonfradragInput(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par6_skatteværdi_kroner: Heltal, par8_skatteværdi_kroner: Heltal)
 # Par9StatsskatPersonfradragResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, ubrugt_par8_skatteværdi_kroner: Heltal, ubrugt_par6_skatteværdi_kroner: Heltal, ubrugt_skatteværdi_kroner: Heltal)
+# Par9IkkeStatPersonfradragInput(par8c_skat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal, par8c_skatteværdi_kroner: Heltal, kommunal_skatteværdi_kroner: Heltal, kirkelig_skatteværdi_kroner: Heltal)
+# Par9IkkeStatPersonfradragResultat(par8c_efter_kroner: Heltal, kommuneskat_efter_kroner: Heltal, kirkeskat_efter_kroner: Heltal, ubrugt_par8c_skatteværdi_kroner: Heltal, ubrugt_kommunal_skatteværdi_kroner: Heltal, ubrugt_kirkelig_skatteværdi_kroner: Heltal, samlet_efter_kroner: Heltal)
 
 | personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Falskt
 | exception personfradrag_nedsætter_sundhedsbidrag personfradrag_nedsætter(komponent: PersonfradragKomponent) -> Sandt under komponent == PersonfradragSundhedsbidrag
@@ -1414,6 +1416,15 @@ kommunen samt kirkeskat nedsættes på tilsvarende måde.
 }
 | par9_statsskat_personfradrag_sag(input: Par9StatsskatPersonfradragInput) -> Par9StatsskatPersonfradragSag(input)
 | par9_statsskat_personfradrag_resultat(input: Par9StatsskatPersonfradragInput) -> par9_statsskat_personfradrag_sag(input).resultat()
+| par9_ikke_stat_personfradrag_resultat(input: Par9IkkeStatPersonfradragInput) -> Par9IkkeStatPersonfradragResultat(
+    par8c_efter_kroner = par9_skat_efter_nedsættelse(input.par8c_skat_kroner, input.par8c_skatteværdi_kroner),
+    kommuneskat_efter_kroner = par9_skat_efter_nedsættelse(input.kommuneskat_kroner, input.kommunal_skatteværdi_kroner),
+    kirkeskat_efter_kroner = par9_skat_efter_nedsættelse(input.kirkeskat_kroner, input.kirkelig_skatteværdi_kroner),
+    ubrugt_par8c_skatteværdi_kroner = par9_ubrugt_skatteværdi_efter_skat(input.par8c_skat_kroner, input.par8c_skatteværdi_kroner),
+    ubrugt_kommunal_skatteværdi_kroner = par9_ubrugt_skatteværdi_efter_skat(input.kommuneskat_kroner, input.kommunal_skatteværdi_kroner),
+    ubrugt_kirkelig_skatteværdi_kroner = par9_ubrugt_skatteværdi_efter_skat(input.kirkeskat_kroner, input.kirkelig_skatteværdi_kroner),
+    samlet_efter_kroner = par9_skat_efter_nedsættelse(input.par8c_skat_kroner, input.par8c_skatteværdi_kroner) + par9_skat_efter_nedsættelse(input.kommuneskat_kroner, input.kommunal_skatteværdi_kroner) + par9_skat_efter_nedsættelse(input.kirkeskat_kroner, input.kirkelig_skatteværdi_kroner)
+)
 
 = par9_bundskat_nedsættes = personfradrag_nedsætter(PersonfradragBundskat)
 = par9_høj_aktie_nedsættes = personfradrag_nedsætter(PersonfradragHøjAktieSkat)
@@ -1437,6 +1448,22 @@ kommunen samt kirkeskat nedsættes på tilsvarende måde.
     par6_skatteværdi_kroner = 120,
     par8_skatteværdi_kroner = 0
 ))
+= par9_ikke_stat_personfradrag_fixture = par9_ikke_stat_personfradrag_resultat(Par9IkkeStatPersonfradragInput(
+    par8c_skat_kroner = 75000,
+    kommuneskat_kroner = 94352,
+    kirkeskat_kroner = 3212,
+    par8c_skatteværdi_kroner = 13525,
+    kommunal_skatteværdi_kroner = 12126,
+    kirkelig_skatteværdi_kroner = 412
+))
+= par9_ikke_stat_personfradrag_overløb_fixture = par9_ikke_stat_personfradrag_resultat(Par9IkkeStatPersonfradragInput(
+    par8c_skat_kroner = 100,
+    kommuneskat_kroner = 200,
+    kirkeskat_kroner = 300,
+    par8c_skatteværdi_kroner = 150,
+    kommunal_skatteværdi_kroner = 250,
+    kirkelig_skatteværdi_kroner = 350
+))
 
 | par9_bundskat_personfradrag: par9_bundskat_nedsættes -> par9_bundskat_nedsættes == Sandt
 | par9_aktie_personfradrag: par9_høj_aktie_nedsættes -> par9_høj_aktie_nedsættes == Sandt
@@ -1444,3 +1471,5 @@ kommunen samt kirkeskat nedsættes på tilsvarende måde.
 | par9_cfc_uden_personfradrag: par9_cfc_nedsættes_ikke -> par9_cfc_nedsættes_ikke == Falskt
 | par9_par8_skatteværdi_falder_først_i_par8_og_derefter_par6: par9_par8_skatteværdi_overløb -> par9_par8_skatteværdi_overløb.par8_efter_kroner == 0 && par9_par8_skatteværdi_overløb.par6_efter_kroner == 30 && par9_par8_skatteværdi_overløb.par7_efter_kroner == 300
 | par9_par6_skatteværdi_falder_først_i_par6_og_derefter_par8: par9_par6_skatteværdi_overløb -> par9_par6_skatteværdi_overløb.par6_efter_kroner == 0 && par9_par6_skatteværdi_overløb.par8_efter_kroner == 30 && par9_par6_skatteværdi_overløb.par7_efter_kroner == 300
+| par9_ikke_stat_personfradrag_nedsætter_hver_skat: par9_ikke_stat_personfradrag_fixture -> par9_ikke_stat_personfradrag_fixture.par8c_efter_kroner == 61475 && par9_ikke_stat_personfradrag_fixture.kommuneskat_efter_kroner == 82226 && par9_ikke_stat_personfradrag_fixture.kirkeskat_efter_kroner == 2800 && par9_ikke_stat_personfradrag_fixture.samlet_efter_kroner == 146501
+| par9_ikke_stat_personfradrag_overløb_bæres_ikke_videre: par9_ikke_stat_personfradrag_overløb_fixture -> par9_ikke_stat_personfradrag_overløb_fixture.par8c_efter_kroner == 0 && par9_ikke_stat_personfradrag_overløb_fixture.kommuneskat_efter_kroner == 0 && par9_ikke_stat_personfradrag_overløb_fixture.kirkeskat_efter_kroner == 0 && par9_ikke_stat_personfradrag_overløb_fixture.ubrugt_par8c_skatteværdi_kroner == 50 && par9_ikke_stat_personfradrag_overløb_fixture.ubrugt_kommunal_skatteværdi_kroner == 50 && par9_ikke_stat_personfradrag_overløb_fixture.ubrugt_kirkelig_skatteværdi_kroner == 50

@@ -292,6 +292,7 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | statslig_personfradrag_skatteværdi_for(input: LønmodtagerInput) -> personfradrag_statslig_skatteværdi(personfradrag_skatteværdi_input(input))
 | bundskat_personfradrag_skatteværdi_for(input: LønmodtagerInput) -> personfradrag_bundskat_skatteværdi(personfradrag_skatteværdi_input(input))
 | sundhedsbidrag_personfradrag_skatteværdi_for(input: LønmodtagerInput) -> personfradrag_sundhedsbidrag_skatteværdi(personfradrag_skatteværdi_input(input))
+| par8c_personfradrag_skatteværdi_for(input: LønmodtagerInput) -> personfradrag_par8c_skatteværdi(personfradrag_skatteværdi_input(input))
 | kommunal_personfradrag_skatteværdi_for(input: LønmodtagerInput) -> personfradrag_kommunal_skatteværdi(personfradrag_skatteværdi_input(input))
 | kirkelig_personfradrag_skatteværdi_for(input: LønmodtagerInput) -> personfradrag_kirkelig_skatteværdi(personfradrag_skatteværdi_input(input))
 | kommunal_og_kirkelig_indkomstskat_før_personfradrag(input: LønmodtagerInput) -> kommuneskat_før_personfradrag(input) + kirkeskat_før_personfradrag(input)
@@ -395,6 +396,15 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
     par8_skatteværdi_kroner = sundhedsbidrag_personfradrag_skatteværdi_for(input)
 )
 | lønmodtager_statsskat_personfradrag_nedsættelse(input: LønmodtagerInput) -> par9_statsskat_personfradrag_resultat(lønmodtager_statsskat_personfradrag_input(input))
+| lønmodtager_ikke_stat_personfradrag_input(input: LønmodtagerInput) -> Par9IkkeStatPersonfradragInput(
+    par8c_skat_kroner = kommunal_lignende_statsskat_før_personfradrag(input),
+    kommuneskat_kroner = kommuneskat_før_personfradrag(input),
+    kirkeskat_kroner = kirkeskat_før_personfradrag(input),
+    par8c_skatteværdi_kroner = par8c_personfradrag_skatteværdi_for(input),
+    kommunal_skatteværdi_kroner = kommunal_personfradrag_skatteværdi_for(input),
+    kirkelig_skatteværdi_kroner = kirkelig_personfradrag_skatteværdi_for(input)
+)
+| lønmodtager_ikke_stat_personfradrag_nedsættelse(input: LønmodtagerInput) -> par9_ikke_stat_personfradrag_resultat(lønmodtager_ikke_stat_personfradrag_input(input))
 | bundskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_statsskat_personfradrag_nedsættelse(input).par6_efter_kroner
 | mellemskat_efter_personfradrag(input: LønmodtagerInput) -> 0 under input.skatteår < 2026
 | exception reform_mellemskat_efter_personfradrag mellemskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_statsskat_personfradrag_nedsættelse(input).par7_efter_kroner under input.skatteår >= 2026
@@ -408,9 +418,9 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | exception historisk_sundhedsbidrag_efter_personfradrag sundhedsbidrag_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_statsskat_personfradrag_nedsættelse(input).par8_efter_kroner under input.skatteår < 2026
 | aktieindkomstskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_statsskat_personfradrag_nedsættelse(input).par8a_stk2_efter_kroner
 | cfc_indkomstskat_efter_personfradrag(input: LønmodtagerInput) -> cfc_indkomstskat_før_personfradrag(input)
-| kommunal_lignende_statsskat_efter_personfradrag(input: LønmodtagerInput) -> 0
-| kommuneskat_efter_personfradrag(input: LønmodtagerInput) -> skat_efter_nedsættelse(kommuneskat_før_personfradrag(input), kommunal_personfradrag_skatteværdi_for(input))
-| kirkeskat_efter_personfradrag(input: LønmodtagerInput) -> skat_efter_nedsættelse(kirkeskat_før_personfradrag(input), kirkelig_personfradrag_skatteværdi_for(input))
+| kommunal_lignende_statsskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_ikke_stat_personfradrag_nedsættelse(input).par8c_efter_kroner
+| kommuneskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_ikke_stat_personfradrag_nedsættelse(input).kommuneskat_efter_kroner
+| kirkeskat_efter_personfradrag(input: LønmodtagerInput) -> lønmodtager_ikke_stat_personfradrag_nedsættelse(input).kirkeskat_efter_kroner
 | statslig_indkomstskat_efter_personfradrag_før_skatteloft(input: LønmodtagerInput) -> bundskat_efter_personfradrag(input) + mellemskat_efter_personfradrag(input) + topskat_efter_personfradrag(input) + toptopskat_efter_personfradrag(input) + udligningsskat_efter_personfradrag(input) + sundhedsbidrag_efter_personfradrag(input) + aktieindkomstskat_efter_personfradrag(input) + cfc_indkomstskat_efter_personfradrag(input) + kommunal_lignende_statsskat_efter_personfradrag(input)
 | kommunal_og_kirkelig_indkomstskat_efter_personfradrag(input: LønmodtagerInput) -> kommuneskat_efter_personfradrag(input) + kirkeskat_efter_personfradrag(input)
 | samlet_indkomstskat_efter_personfradrag_før_skatteloft(input: LønmodtagerInput) -> statslig_indkomstskat_efter_personfradrag_før_skatteloft(input) + kommunal_og_kirkelig_indkomstskat_efter_personfradrag(input)
@@ -573,7 +583,7 @@ nedsat med de overskydende procenter.
     | kommunal_lignende_statsskat_efter_personfradrag_resultat() -> par8c_skat_resultat(kommunal_lignende_statsskat_input(personfradrag_kroner()))
     | cfc_indkomstskat_før_personfradrag_kroner() -> cfc_skat().skat_kroner
     | kommunal_lignende_statsskat_før_personfradrag_kroner() -> kommunal_lignende_statsskat_før_personfradrag_resultat().skat_før_personfradrag_kroner
-    | kommunal_lignende_statsskat_efter_personfradrag_kroner() -> kommunal_lignende_statsskat_efter_personfradrag_resultat().skat_efter_personfradrag_kroner
+    | kommunal_lignende_statsskat_efter_personfradrag_kroner() -> ikke_stat_personfradrag_nedsættelse().par8c_efter_kroner
     | kommuneskat_før_personfradrag_kroner() -> kommuneskat_før_personfradrag(input)
     | exception par8c_erstatter_kommuneskat kommuneskat_før_personfradrag_kroner() -> 0 under betaler_par8c()
     | kirkeskat_før_personfradrag_kroner() -> kirkeskat_før_personfradrag(input)
@@ -675,6 +685,7 @@ nedsat med de overskydende procenter.
     | statslig_personfradrag_skatteværdi_kroner() -> personfradrag_statslig_skatteværdi(personfradrag_skatteværdi_input())
     | bundskat_personfradrag_skatteværdi_kroner() -> personfradrag_bundskat_skatteværdi(personfradrag_skatteværdi_input())
     | sundhedsbidrag_personfradrag_skatteværdi_kroner() -> personfradrag_sundhedsbidrag_skatteværdi(personfradrag_skatteværdi_input())
+    | par8c_personfradrag_skatteværdi_kroner() -> personfradrag_par8c_skatteværdi(personfradrag_skatteværdi_input())
     | kommunal_personfradrag_skatteværdi_kroner() -> personfradrag_kommunal_skatteværdi(personfradrag_skatteværdi_input())
     | kirkelig_personfradrag_skatteværdi_kroner() -> personfradrag_kirkelig_skatteværdi(personfradrag_skatteværdi_input())
     | statsskat_personfradrag_input() -> Par9StatsskatPersonfradragInput(
@@ -687,6 +698,15 @@ nedsat med de overskydende procenter.
         par8_skatteværdi_kroner = sundhedsbidrag_personfradrag_skatteværdi_kroner()
     )
     | statsskat_personfradrag_nedsættelse() -> par9_statsskat_personfradrag_resultat(statsskat_personfradrag_input())
+    | ikke_stat_personfradrag_input() -> Par9IkkeStatPersonfradragInput(
+        par8c_skat_kroner = kommunal_lignende_statsskat_før_personfradrag_kroner(),
+        kommuneskat_kroner = kommuneskat_før_personfradrag_kroner(),
+        kirkeskat_kroner = kirkeskat_før_personfradrag_kroner(),
+        par8c_skatteværdi_kroner = par8c_personfradrag_skatteværdi_kroner(),
+        kommunal_skatteværdi_kroner = kommunal_personfradrag_skatteværdi_kroner(),
+        kirkelig_skatteværdi_kroner = kirkelig_personfradrag_skatteværdi_kroner()
+    )
+    | ikke_stat_personfradrag_nedsættelse() -> par9_ikke_stat_personfradrag_resultat(ikke_stat_personfradrag_input())
     | mellemskat_efter_personfradrag_kroner() -> 0 under input.skatteår < 2026
     | exception reform_mellemskat_efter_personfradrag_for_skatteforhold mellemskat_efter_personfradrag_kroner() -> statsskat_personfradrag_nedsættelse().par7_efter_kroner under input.skatteår >= 2026
     | topskat_efter_personfradrag_kroner() -> statsskat_personfradrag_nedsættelse().par7_efter_kroner under input.skatteår < 2026
@@ -698,8 +718,8 @@ nedsat med de overskydende procenter.
     | sundhedsbidrag_efter_personfradrag_kroner() -> 0
     | exception historisk_sundhedsbidrag_efter_personfradrag_for_skatteforhold sundhedsbidrag_efter_personfradrag_kroner() -> statsskat_personfradrag_nedsættelse().par8_efter_kroner under input.skatteår < 2026
     | cfc_indkomstskat_efter_personfradrag_kroner() -> cfc_indkomstskat_før_personfradrag_kroner()
-    | kommuneskat_efter_personfradrag_kroner() -> skat_efter_nedsættelse(kommuneskat_før_personfradrag_kroner(), kommunal_personfradrag_skatteværdi_kroner())
-    | kirkeskat_efter_personfradrag_kroner() -> skat_efter_nedsættelse(kirkeskat_før_personfradrag_kroner(), kirkelig_personfradrag_skatteværdi_kroner())
+    | kommuneskat_efter_personfradrag_kroner() -> ikke_stat_personfradrag_nedsættelse().kommuneskat_efter_kroner
+    | kirkeskat_efter_personfradrag_kroner() -> ikke_stat_personfradrag_nedsættelse().kirkeskat_efter_kroner
     | statslig_indkomstskat_efter_personfradrag_før_skatteloft_kroner() -> statsskat_personfradrag_nedsættelse().par6_efter_kroner + statsskat_personfradrag_nedsættelse().par7_efter_kroner + statsskat_personfradrag_nedsættelse().par7a_efter_kroner + statsskat_personfradrag_nedsættelse().par8_efter_kroner + statsskat_personfradrag_nedsættelse().par8a_stk2_efter_kroner + cfc_indkomstskat_efter_personfradrag_kroner() + kommunal_lignende_statsskat_efter_personfradrag_kroner()
     | kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner() -> kommuneskat_efter_personfradrag_kroner() + kirkeskat_efter_personfradrag_kroner()
     | samlet_indkomstskat_efter_personfradrag_før_skatteloft_kroner() -> statslig_indkomstskat_efter_personfradrag_før_skatteloft_kroner() + kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner()

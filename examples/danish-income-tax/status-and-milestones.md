@@ -28,7 +28,8 @@ pension-like payments; § 13, stk. 4 now has amount-level spouse and
 carry-forward offset ordering for negative personal income; § 8 a, stk. 6 now
 has a pair-level both-negative spouse share-income threshold allocation; § 9
 now has amount-level state-personfradrag reduction ordering for the split
-§ 8/sundhedsbidrag and § 6/bundskat tax values, wired through the wage-earner
+§ 8/sundhedsbidrag and § 6/bundskat tax values plus non-state § 8 c,
+municipal-tax and church-tax personfradrag reductions, wired through the wage-earner
 calculator; § 10, stk. 3 now has amount-level spouse transfer of unused
 personfradrag state-tax value into the receiving spouse's § 9 state-tax basket;
 § 10 now reflects LOV 1564/2023's removal of the separate under-18 basis from
@@ -527,6 +528,10 @@ Current decision:
   personfradrag tax value, and the § 6 personfradrag tax value together so
   each value first reduces its own tax component and then falls through the
   remaining § 9 taxes in the statutory order.
+- `Par9IkkeStatPersonfradragResultat` covers § 9's "tilsvarende måde" sentence
+  for § 8 c tax, municipal income tax, and church tax. The wage-earner
+  calculator now delegates those final reductions to this result instead of
+  subtracting scalar personfradrag values in place.
 - `Par10Stk3ÆgtefælleStatsskatSag` uses product-scoped `|` rules for unused
   personfradrag tax-value transfer to a spouse. It keeps the unused § 8 and
   § 6 tax values, the receiving spouse's § 9 state-tax basket, and the
@@ -1107,7 +1112,8 @@ M5 - Audit suite
   covered § 11 negative net-capital reduction with spouse threshold pooling,
   spouse positive-capital offset, statutory reduction order, and unused spouse
   transfer, covered § 9/§ 12 split state personfradrag tax-value reduction
-  order and wage-earner component projection,
+  order, § 9 non-state personfradrag reduction, and wage-earner component
+  projection,
   covered 2026 state-tax reform layers, covered § 13 deficit mechanics,
   § 13 stk. 4 negative-personal-income spouse and carry-forward offset order,
   mellemskat positive-net-capital and spouse-threshold activation,
@@ -1219,7 +1225,8 @@ M7 - Personfradrag and deficit layer
   the § 9 state-tax basket and year-end cohabitation condition, § 11 negative
   net-capital reduction covers spouse threshold pooling, spouse positive-capital
   offset, statutory tax-order reduction, and unused spouse transfer, § 9/§ 12
-  split state personfradrag tax-value reduction across the state-tax basket is
+  split state personfradrag tax-value reduction across the state-tax basket and
+  § 9 non-state personfradrag reduction for § 8 c/kommunal/kirkelig tax are
   now wired into the wage-earner calculator, spouse
   deficit transfer, § 13 stk. 4 negative personal income offsets through spouse
   personal income and both spouses' positive capital income, and carried-forward
