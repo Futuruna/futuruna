@@ -1246,6 +1246,8 @@ afgrænsning.
     kirkeskat_kroner = 200
 ))
 = m5_par26_regulerede_grænser_fixture = par26_regulerede_beløbsgrænser(1311)
+= m5_par26_reguleringstal_2019_fixture = par26_reguleringstal_tiendedele_for_skatteår(2019)
+= m5_par26_regulerede_grænser_2019_fixture = par26_regulerede_beløbsgrænser_for_skatteår(2019)
 = m5_par26_beregnet_forskelsbeløb_fixture = par26_forskelsbeløb_beregning(Par26ForskelsbeløbBeregningsInput(
     skatteår = 2015,
     reguleringstal_tiendedele = 1000,
@@ -1277,6 +1279,8 @@ afgrænsning.
 | m5_par26_kompensation: m5_par26_kompensation_fixture -> m5_par26_kompensation_fixture == 700
 | m5_par26_modregningsrækkefølge: m5_par26_modregning_fixture -> m5_par26_modregning_fixture.par6_efter_kroner == 0 && m5_par26_modregning_fixture.par7_efter_kroner == 0 && m5_par26_modregning_fixture.kirkeskat_efter_kroner == 150
 | m5_par26_stk9_regulerede_grænser: m5_par26_regulerede_grænser_fixture -> m5_par26_regulerede_grænser_fixture.bundfradrag_nr1_voksen_kroner == 58800 && m5_par26_regulerede_grænser_fixture.bundfradrag_nr2_og_nr3_kroner == 475700 && m5_par26_regulerede_grænser_fixture.personfradrag_nr6_kroner == 2500
+| m5_par26_stk9_2019_reguleringstal: m5_par26_reguleringstal_2019_fixture -> m5_par26_reguleringstal_2019_fixture == 1118
+| m5_par26_stk9_2019_grænser: m5_par26_regulerede_grænser_2019_fixture -> m5_par26_regulerede_grænser_2019_fixture.bundfradrag_nr1_voksen_kroner == 50100 && m5_par26_regulerede_grænser_2019_fixture.bundfradrag_nr2_og_nr3_kroner == 405700 && m5_par26_regulerede_grænser_2019_fixture.personfradrag_nr6_kroner == 2200
 | m5_par26_stk2_til_stk3_beregnet_forskelsbeløb: m5_par26_beregnet_forskelsbeløb_fixture -> m5_par26_beregnet_forskelsbeløb_fixture.nr6_kroner == 2500 && m5_par26_beregnet_forskelsbeløb_fixture.nr8_kroner == 1000 && m5_par26_beregnet_forskelsbeløb_fixture.forskelsbeløb_før_nr8_kroner == 0 && m5_par26_beregnet_forskelsbeløb_fixture.kompensation_kroner == 1000
 | m5_par26_stk4_ægtefælle_forskelsbeløb: m5_par26_stk4_ægtefælle_forskelsbeløb_fixture -> m5_par26_stk4_ægtefælle_forskelsbeløb_fixture.positivt_forskelsbeløb_modregnet_kroner == 3000 && m5_par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_kompensation_efter_stk4_kroner == 2000
 | m5_par26_stk5_negativ_kapital: m5_par26_stk5_negativ_kapital_fixture -> m5_par26_stk5_negativ_kapital_fixture.modregnet_i_ægtefælles_positive_kroner == 25000 && m5_par26_stk5_negativ_kapital_fixture.negativ_nettokapitalindkomst_efter_modregning_kroner == -15000
@@ -1293,6 +1297,8 @@ afgrænsning.
 ? m5_par26_kompensation
 ? m5_par26_modregningsrækkefølge
 ? m5_par26_stk9_regulerede_grænser
+? m5_par26_stk9_2019_reguleringstal
+? m5_par26_stk9_2019_grænser
 ? m5_par26_stk2_til_stk3_beregnet_forskelsbeløb
 ? m5_par26_stk4_ægtefælle_forskelsbeløb
 ? m5_par26_stk5_negativ_kapital

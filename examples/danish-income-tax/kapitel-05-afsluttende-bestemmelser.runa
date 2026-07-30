@@ -162,6 +162,8 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     fradragsgrundbeløb_nr5_kroner = par26_fradragsgrundbeløb_nr5_reguleret_kroner(reguleringstal_tiendedele),
     personfradrag_nr6_kroner = par26_personfradrag_nr6_reguleret_kroner(reguleringstal_tiendedele)
 )
+| par26_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> par20_reguleringstal_tiendedele(skatteår) under par26_gælder_for_skatteår(skatteår)
+| par26_regulerede_beløbsgrænser_for_skatteår(skatteår: Heltal) -> par26_regulerede_beløbsgrænser(par26_reguleringstal_tiendedele_for_skatteår(skatteår)) under par26_gælder_for_skatteår(skatteår)
 | par26_reguleres_efter_par20() -> Sandt
 | par26_nr1_reguleret_kroner(bundskat_grundlag_kroner: Heltal, status: Par26AlderStatus, reguleringstal_tiendedele: Heltal) -> penge_beløb_gange_basispoint_kroner(par26_positivt_beløb(bundskat_grundlag_kroner - par26_bundfradrag_nr1_reguleret_kroner(status, reguleringstal_tiendedele)), 150)
 | par26_nr2_reguleret_kroner(personlig_plus_positiv_kapital_kroner: Heltal, reguleringstal_tiendedele: Heltal) -> penge_beløb_gange_basispoint_kroner(par26_positivt_beløb(personlig_plus_positiv_kapital_kroner - par26_bundfradrag_nr2_og_nr3_reguleret_kroner(reguleringstal_tiendedele)), 600)
@@ -327,6 +329,8 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 = par26_ægtefælle_fixture = par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(Par26GiftSamlevendeVedÅretsUdløb)
 = par26_forsker_fixture = par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(Par26Forskerordning48FValgt)
 = par26_regulerede_grænser_1311_fixture = par26_regulerede_beløbsgrænser(1311)
+= par26_reguleringstal_2019_fixture = par26_reguleringstal_tiendedele_for_skatteår(2019)
+= par26_regulerede_grænser_2019_fixture = par26_regulerede_beløbsgrænser_for_skatteår(2019)
 = par26_beregnet_forskelsbeløb_fixture = par26_forskelsbeløb_beregning(Par26ForskelsbeløbBeregningsInput(
     skatteår = 2015,
     reguleringstal_tiendedele = 1000,
@@ -383,6 +387,8 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | par26_ægtefælle_bundfradrag_forhøjes: par26_ægtefælle_fixture -> par26_ægtefælle_fixture == Sandt
 | par26_forskerordning_afskærer_forhøjelse: par26_forsker_fixture -> par26_forsker_fixture == Falskt
 | par26_stk9_regulerer_2010_beløb_efter_par20: par26_regulerede_grænser_1311_fixture -> par26_regulerede_grænser_1311_fixture.bundfradrag_nr1_voksen_kroner == 58800 && par26_regulerede_grænser_1311_fixture.bundfradrag_nr2_og_nr3_kroner == 475700 && par26_regulerede_grænser_1311_fixture.fradragsgrundbeløb_nr5_kroner == 18700 && par26_regulerede_grænser_1311_fixture.personfradrag_nr6_kroner == 2500
+| par26_2019_bruger_officielt_reguleringstal: par26_reguleringstal_2019_fixture -> par26_reguleringstal_2019_fixture == 1118
+| par26_2019_regulerede_grænser_fra_par20: par26_regulerede_grænser_2019_fixture -> par26_regulerede_grænser_2019_fixture.bundfradrag_nr1_voksen_kroner == 50100 && par26_regulerede_grænser_2019_fixture.bundfradrag_nr1_under18_kroner == 37600 && par26_regulerede_grænser_2019_fixture.bundfradrag_nr2_og_nr3_kroner == 405700 && par26_regulerede_grænser_2019_fixture.fradragsgrundbeløb_nr5_kroner == 15900 && par26_regulerede_grænser_2019_fixture.personfradrag_nr6_kroner == 2200
 | par26_forskelsbeløb_beregnes_fra_stk2_poster: par26_beregnet_forskelsbeløb_fixture -> par26_beregnet_forskelsbeløb_fixture.nr1_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr2_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr3_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr6_kroner == 2500 && par26_beregnet_forskelsbeløb_fixture.nr8_kroner == 1000 && par26_beregnet_forskelsbeløb_fixture.forskelsbeløb_før_nr8_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.kompensation_kroner == 1000
 | par26_stk4_positivt_forskelsbeløb_nedsætter_ægtefælles_negative: par26_stk4_ægtefælle_forskelsbeløb_fixture -> par26_stk4_ægtefælle_forskelsbeløb_fixture.positivt_forskelsbeløb_modregnet_kroner == 3000 && par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_forskelsbeløb_efter_stk4_kroner == -2000 && par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_kompensation_efter_stk4_kroner == 2000
 | par26_stk5_negativ_kapital_modregnes_i_ægtefælles_positive: par26_stk5_negativ_kapital_fixture -> par26_stk5_negativ_kapital_fixture.modregnet_i_ægtefælles_positive_kroner == 25000 && par26_stk5_negativ_kapital_fixture.negativ_nettokapitalindkomst_efter_modregning_kroner == -15000 && par26_stk5_negativ_kapital_fixture.ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner == 0

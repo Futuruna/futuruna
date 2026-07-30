@@ -1057,8 +1057,9 @@ M9 - Final provisions and transition compensation
   line items from statutory bases, § 26 stk. 4-6 and stk. 8 now compute
   samlevende-ægtefælle offsets for positive/negative transition differences,
   negative/positive net-capital interaction, and nr. 2 bundfradrag transfer with
-  the § 48 F exception, § 27 is encoded as delegated
-  implementation/administration authority, and § 28 excludes the Faroe Islands
-  and Greenland. Remaining § 26 data work is to source actual 2012-2019
-  `reguleringstal` parameter packs before treating historic compensation cases
-  as fully production-calculable.
+  the § 48 F exception, § 26 stk. 9 can now derive source-backed 2012-2019
+  threshold packs from the official § 20 `reguleringstal`, § 27 is encoded as
+  delegated implementation/administration authority, and § 28 excludes the
+  Faroe Islands and Greenland. Remaining § 26 depth is mostly integration work:
+  full LL § 9 J/9 K/9 L baseline derivation and broader historic compensation
+  fixtures.
