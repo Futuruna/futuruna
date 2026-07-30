@@ -23,7 +23,8 @@ carry-forward offset ordering for negative personal income; § 8 a, stk. 6 now
 has a pair-level both-negative spouse share-income threshold allocation; § 9
 now has amount-level state-personfradrag reduction ordering for the split
 § 8/sundhedsbidrag and § 6/bundskat tax values, wired through the wage-earner
-calculator.
+calculator; § 26, stk. 7 now composes § 7 spouse capital-threshold and
+capital-tax allocation rules into the transition-compensation nr. 3 amount.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -362,8 +363,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 62-72% complete as an executable research corpus,
-  and roughly 47-57% complete as a production-grade calculator for
+- Working estimate: roughly 63-73% complete as an executable research corpus,
+  and roughly 48-58% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -477,6 +478,11 @@ Current decision:
   personfradrag tax value, and the § 6 personfradrag tax value together so
   each value first reduces its own tax component and then falls through the
   remaining § 9 taxes in the statutory order.
+- `Par26Stk7TopskatÆgtefællerSag` uses product-scoped `|` rules for the
+  § 26, stk. 7 transition-compensation bridge. It keeps both spouses'
+  personal/PBL bases, net-capital incomes, regulated § 26 nr. 3 threshold,
+  ordinary § 7 threshold, and § 7 capital allocation together so the old-vs-new
+  top-tax difference is derived as a named result instead of a loose scalar.
 - `Par11NegativKapitalNedslagSag` uses product-scoped `|` rules for § 11.
   It keeps tax year, the taxpayer's net-capital income, the spouse's
   net-capital income, samliv status, and municipal/§ 8 c tax-liability posture
@@ -1064,7 +1070,8 @@ M5 - Audit suite
   source-backed Langeland 2026 high-municipal-rate personal and positive-capital
   relief fixtures and the published 1,24 pct. SKM `Nedslag pct.` differential,
   covered § 20 regulation/rounding, covered § 26 transition
-  compensation, covered § 28 territorial exclusion, covered AM-law special cases,
+  compensation including stk. 7 spouse top-tax allocation for nr. 3,
+  covered § 28 territorial exclusion, covered AM-law special cases,
   covered shared Pengebeløb rounding and øre-fraction posture,
   covered Opkrævningsloven payment-deadline/remittance posture and § 7
   rate-derivation fixture plus 2026 late-payment supplement source-chain
@@ -1100,6 +1107,7 @@ M6 - Website integration
   first § 11 negative net-capital reduction order and spouse-transfer audit,
   first § 9/§ 12 split state personfradrag tax-value reduction-order audit and
   wage-earner component projection,
+  § 26 transition-compensation audit including stk. 7 spouse top-tax allocation,
   first § 6/§ 7/§ 8 a/§ 8 b/§ 13/§ 14/§ 19 bomb-audit probes, the Børne- og ungeydelse
   household benefit-cliff/source-tension probe plus a boligsikring § 22
   threshold-cliff probe,
@@ -1186,7 +1194,9 @@ M9 - Final provisions and transition compensation
   the § 48 F exception, § 26 stk. 9 can now derive source-backed 2012-2019
   threshold packs from the official § 20 `reguleringstal`, § 26 nr. 5 can derive
   2012, 2017 and 2019 Ligningsloven §§ 9 J/9 K/9 L fradrag and the 4,25 pct.
-  baseline from source-backed inputs, § 27 is encoded as delegated
+  baseline from source-backed inputs, § 26 stk. 7 now applies § 7 stk. 5 and
+  stk. 10-11 spouse capital rules when deriving nr. 3 for transition
+  compensation, § 27 is encoded as delegated
   implementation/administration authority, and § 28 excludes the Faroe Islands
   and Greenland. Remaining § 26 depth is mostly integration work: broader
   historic compensation fixtures, dependent-year settlement parameter wiring,
