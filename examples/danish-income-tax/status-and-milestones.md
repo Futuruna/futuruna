@@ -307,6 +307,8 @@ encoded as a temporal rule on top of the consolidation.
   a first § 8 a share-income final-settlement scenario with § 67 dividend-tax
   credit splitting and § 8 a stk. 2 composition through the § 9/§ 12 state
   personfradrag allocation slot,
+  calculator-level nonzero § 8 b CFC tax and § 8 c municipal-equivalent
+  limited-taxpayer tax through a grouped `LønmodtagerSkatteforhold` path,
   a source-backed external Skat.dk 2026 wage-earner scenario, complex § 13
   calculator fixtures, and first audit signals.
 - The chapter files follow the repeating structure: official legal text in a
@@ -342,8 +344,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 58-68% complete as an executable research corpus,
-  and roughly 43-53% complete as a production-grade calculator for
+- Working estimate: roughly 60-70% complete as an executable research corpus,
+  and roughly 45-55% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -467,6 +469,14 @@ Current decision:
   income, and the § 10 stk. 5 personfradrag amount together so coverage,
   taxable base, published rate, personfradrag tax value, and final § 8 c tax
   are derived from one legal case.
+- `LønmodtagerSkatteforhold` groups non-ordinary taxpayer facts for the
+  wage-earner calculator: CFC income, § 8 c posture, and § 10 personfradrag
+  tax-liability/election facts. `LønmodtagerBeregningSag` uses product-scoped
+  `|` rules to compose that tax position with the ordinary wage-earner base,
+  so nonzero § 8 b CFC tax and § 8 c municipal-equivalent tax now flow through
+  § 5 state-tax aggregation, § 10 personfradrag eligibility, § 13 deficit
+  tax-value posture, and § 19's municipal-or-§ 8 c rate input without adding
+  more scalar fields to `LønmodtagerInput`.
 - `slutopgoerelse.runa` keeps the year-end balance as `KildeskatSlutopgørelseInput`
   plus a statutory `KildeskatPar60Kreditter` credit basket. This is a better
   domain boundary than passing A-skat, AM-bidrag, B-skat, dividend-tax credits,
@@ -936,6 +946,11 @@ M4 - Ordinary taxpayer calculator
   Personskatteloven § 8 c now computes the municipal-equivalent tax for covered
   limited-taxpayer postures, using the Skatteministeriet-published 25 pct.
   2026 rate and the same personfradrag reduction posture as § 10 stk. 5.
+  `LønmodtagerBeregningSag` now exercises a nonzero 2026 CFC/§ 8 c
+  tax-position path: 500.000 kr. CFC income feeds 110.000 kr. § 8 b tax into
+  the § 5 aggregate, § 8 c replaces ordinary municipal income tax for the
+  limited-taxpayer posture, § 10 stk. 5 personfradrag reduces the § 8 c amount,
+  and § 19 uses the 25 pct. § 8 c rate in place of a municipality rate.
   Personskatteloven § 11 now computes negative net-capital-income reduction
   with spouse threshold pooling, spouse positive-net-capital offset before
   threshold increase, statutory tax-order reduction, and unused spouse transfer.

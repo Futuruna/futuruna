@@ -25,6 +25,7 @@ omfang som nævnt i ligningslovens § 8 M,
 ----
 
 # LønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
+# LønmodtagerSkatteforhold(cfc_indkomst_kroner: Heltal, par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # LønmodtagerSkatteloftResult(input: Par19SkatteloftInput, overskydende_basispoint: Heltal, nedslag_kroner: Heltal)
 # LønmodtagerIndkomstgrundlag(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal)
 # LønmodtagerLigningsfradrag(beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal)
@@ -53,6 +54,20 @@ omfang som nævnt i ligningslovens § 8 M,
 | jobfradrag_for(input: LønmodtagerInput) -> ll_lønmodtager_jobfradrag_kroner(ligningslov_fradrag_input_for(input))
 | standard_ligningsmæssige_fradrag_for(input: LønmodtagerInput) -> ll_lønmodtager_standardfradrag_kroner(ligningslov_fradrag_input_for(input))
 | samlede_ligningsmæssige_fradrag_for(input: LønmodtagerInput) -> standard_ligningsmæssige_fradrag_for(input) + input.ligningsmæssige_fradrag_kroner
+| lønmodtager_standard_skatteforhold() -> LønmodtagerSkatteforhold(
+    cfc_indkomst_kroner = 0,
+    par8c_status = IkkePar8cOmfattet,
+    personfradrag_skattepligt = FuldtSkattepligtigHerILandet,
+    personfradrag_valg_dato_yyyymmdd = 0,
+    personfradrag_omvalg_dato_yyyymmdd = 0
+)
+| lønmodtager_betaler_par8c(skatteforhold: LønmodtagerSkatteforhold) -> par8c_omfattet(skatteforhold.par8c_status)
+| lønmodtager_betaler_kommunal_indkomstskat(skatteforhold: LønmodtagerSkatteforhold) -> lønmodtager_betaler_par8c(skatteforhold) == Falskt
+| lønmodtager_par8c_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> 0
+| exception lønmodtager_par8c_sats_for_begrænset_skattepligt lønmodtager_par8c_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> par8c_sats_basispoint(input.skatteår) under lønmodtager_betaler_par8c(skatteforhold)
+| lønmodtager_kommunal_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
+| exception lønmodtager_par8c_erstatter_kommunal_basispoint lønmodtager_kommunal_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> 0 under lønmodtager_betaler_par8c(skatteforhold)
+| lønmodtager_kommunal_eller_par8c_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> lønmodtager_kommunal_basispoint(input, skatteforhold) + lønmodtager_par8c_basispoint(input, skatteforhold)
 
 ----
 § 1. For personer, der er skattepligtige her til landet, opgøres den
@@ -483,6 +498,269 @@ nedsat med de overskydende procenter.
     samlet_indkomstskat_kroner = samlet_indkomstskat_efter_personfradrag_før_skatteloft(input),
     samlet_inkl_am_kroner = samlet_inkl_am_efter_personfradrag_før_skatteloft(input)
 )
+
+# LønmodtagerBeregningSag(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold, par13_forhold: LønmodtagerPar13Forhold) {
+    | betaler_par8c() -> lønmodtager_betaler_par8c(skatteforhold)
+    | betaler_kommunal_indkomstskat() -> lønmodtager_betaler_kommunal_indkomstskat(skatteforhold)
+    | kommunal_basispoint() -> lønmodtager_kommunal_basispoint(input, skatteforhold)
+    | par8c_basispoint() -> lønmodtager_par8c_basispoint(input, skatteforhold)
+    | kommunal_eller_par8c_basispoint() -> lønmodtager_kommunal_eller_par8c_basispoint(input, skatteforhold)
+    | sundhedsbidrag_basispoint() -> kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint
+    | kirkeskat_basispoint() -> kirkeskat_sats_for(input)
+    | personligt_skatteloft_beregningsgrundlag_kroner() -> lønmodtager_personligt_skatteloft_beregningsgrundlag(input)
+    | positiv_kapital_skatteloft_beregningsgrundlag_kroner() -> lønmodtager_positiv_kapital_skatteloft_beregningsgrundlag(input)
+    | kræver_par13_underskud() -> kræver_par13_underskud_fixture(input)
+    | indkomstgrundlag() -> lønmodtager_indkomstgrundlag(input)
+    | ligningsfradrag() -> lønmodtager_ligningsfradrag(input)
+    | bundskat_før_personfradrag_kroner() -> bundskat_før_personfradrag(input)
+    | mellemskat_før_personfradrag_kroner() -> mellemskat_før_personfradrag(input)
+    | topskat_før_personfradrag_kroner() -> topskat_før_personfradrag(input)
+    | toptopskat_før_personfradrag_kroner() -> toptopskat_før_personfradrag(input)
+    | udligningsskat_før_personfradrag_kroner() -> udligningsskat_før_personfradrag(input)
+    | sundhedsbidrag_før_personfradrag_kroner() -> sundhedsbidrag_før_personfradrag(input)
+    | aktieindkomstskat_før_personfradrag_kroner() -> aktieindkomstskat_før_personfradrag(input)
+    | par7_skat_før_personfradrag_kroner() -> topskat_før_personfradrag_kroner() under input.skatteår < 2026
+    | exception reform_par7_er_mellemskat_for_skatteforhold par7_skat_før_personfradrag_kroner() -> mellemskat_før_personfradrag_kroner() under input.skatteår >= 2026
+    | par7a_skat_før_personfradrag_kroner() -> udligningsskat_før_personfradrag_kroner() under input.skatteår < 2026
+    | exception reform_par7a_er_topskat_for_skatteforhold par7a_skat_før_personfradrag_kroner() -> topskat_før_personfradrag_kroner() under input.skatteår >= 2026
+    | par8_skat_før_personfradrag_kroner() -> sundhedsbidrag_før_personfradrag_kroner() under input.skatteår < 2026
+    | exception reform_par8_er_toptopskat_for_skatteforhold par8_skat_før_personfradrag_kroner() -> toptopskat_før_personfradrag_kroner() under input.skatteår >= 2026
+    | cfc_skat() -> cfc_skat_resultat(CfcSkatInput(
+        skatteår = input.skatteår,
+        cfc_indkomst_kroner = skatteforhold.cfc_indkomst_kroner
+    ))
+    | kommunal_lignende_statsskat_input(personfradrag_kroner: Heltal) -> Par8cSkatInput(
+        skatteår = input.skatteår,
+        status = skatteforhold.par8c_status,
+        skattepligtig_almindelig_indkomst_kroner = lønmodtager_indkomstskat_grundlag(input),
+        personfradrag_kroner = personfradrag_kroner
+    )
+    | kommunal_lignende_statsskat_før_personfradrag_resultat() -> par8c_skat_resultat(kommunal_lignende_statsskat_input(0))
+    | personfradrag_par10_input() -> PersonfradragPar10Input(
+        skatteår = input.skatteår,
+        alder_status = input.personfradrag_alder_status,
+        skattepligt = skatteforhold.personfradrag_skattepligt,
+        valg_dato_yyyymmdd = skatteforhold.personfradrag_valg_dato_yyyymmdd,
+        omvalg_dato_yyyymmdd = skatteforhold.personfradrag_omvalg_dato_yyyymmdd
+    )
+    | personfradrag_par10() -> personfradrag_par10_resultat(personfradrag_par10_input())
+    | personfradrag_kroner() -> personfradrag_par10().personfradrag_kroner
+    | kommunal_lignende_statsskat_efter_personfradrag_resultat() -> par8c_skat_resultat(kommunal_lignende_statsskat_input(personfradrag_kroner()))
+    | cfc_indkomstskat_før_personfradrag_kroner() -> cfc_skat().skat_kroner
+    | kommunal_lignende_statsskat_før_personfradrag_kroner() -> kommunal_lignende_statsskat_før_personfradrag_resultat().skat_før_personfradrag_kroner
+    | kommunal_lignende_statsskat_efter_personfradrag_kroner() -> kommunal_lignende_statsskat_efter_personfradrag_resultat().skat_efter_personfradrag_kroner
+    | kommuneskat_før_personfradrag_kroner() -> kommuneskat_før_personfradrag(input)
+    | exception par8c_erstatter_kommuneskat kommuneskat_før_personfradrag_kroner() -> 0 under betaler_par8c()
+    | kirkeskat_før_personfradrag_kroner() -> kirkeskat_før_personfradrag(input)
+    | statsskat_før_personfradrag_input() -> Par5StatsskatInput(
+        skatteår = input.skatteår,
+        poster = [
+            Par5StatsskatPost(komponent = Bundskat, beløb_kroner = bundskat_før_personfradrag_kroner()),
+            Par5StatsskatPost(komponent = Mellemskat, beløb_kroner = mellemskat_før_personfradrag_kroner()),
+            Par5StatsskatPost(komponent = Topskat, beløb_kroner = topskat_før_personfradrag_kroner()),
+            Par5StatsskatPost(komponent = Toptopskat, beløb_kroner = toptopskat_før_personfradrag_kroner()),
+            Par5StatsskatPost(komponent = Udligningsskat, beløb_kroner = udligningsskat_før_personfradrag_kroner()),
+            Par5StatsskatPost(komponent = Sundhedsbidrag, beløb_kroner = sundhedsbidrag_før_personfradrag_kroner()),
+            Par5StatsskatPost(komponent = Aktieindkomstskat, beløb_kroner = aktieindkomstskat_før_personfradrag_kroner()),
+            Par5StatsskatPost(komponent = CfcIndkomstskat, beløb_kroner = cfc_indkomstskat_før_personfradrag_kroner()),
+            Par5StatsskatPost(komponent = KommunalLignendeStatsskat, beløb_kroner = kommunal_lignende_statsskat_før_personfradrag_kroner())
+        ]
+    )
+    | statsskat_før_personfradrag() -> par5_statsskat_resultat(statsskat_før_personfradrag_input())
+    | statslig_indkomstskat_før_personfradrag_kroner() -> statsskat_før_personfradrag().samlet_statsskat_kroner
+    | kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner() -> kommuneskat_før_personfradrag_kroner() + kirkeskat_før_personfradrag_kroner()
+    | samlet_indkomstskat_før_personfradrag_kroner() -> statslig_indkomstskat_før_personfradrag_kroner() + kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner()
+    | samlet_inkl_am_før_personfradrag_kroner() -> arbejdsmarkedsbidrag_for(input) + samlet_indkomstskat_før_personfradrag_kroner()
+    | før_personfradrag() -> LønmodtagerSkattekomponenter(
+        bundskat_kroner = bundskat_før_personfradrag_kroner(),
+        mellemskat_kroner = mellemskat_før_personfradrag_kroner(),
+        topskat_kroner = topskat_før_personfradrag_kroner(),
+        toptopskat_kroner = toptopskat_før_personfradrag_kroner(),
+        udligningsskat_kroner = udligningsskat_før_personfradrag_kroner(),
+        sundhedsbidrag_kroner = sundhedsbidrag_før_personfradrag_kroner(),
+        aktieindkomstskat_kroner = aktieindkomstskat_før_personfradrag_kroner(),
+        cfc_indkomstskat_kroner = cfc_indkomstskat_før_personfradrag_kroner(),
+        kommunal_lignende_statsskat_kroner = kommunal_lignende_statsskat_før_personfradrag_kroner(),
+        kommuneskat_kroner = kommuneskat_før_personfradrag_kroner(),
+        kirkeskat_kroner = kirkeskat_før_personfradrag_kroner(),
+        statslig_indkomstskat_kroner = statslig_indkomstskat_før_personfradrag_kroner(),
+        kommunal_og_kirkelig_indkomstskat_kroner = kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner(),
+        samlet_indkomstskat_kroner = samlet_indkomstskat_før_personfradrag_kroner(),
+        samlet_inkl_am_kroner = samlet_inkl_am_før_personfradrag_kroner()
+    )
+    | par13_skattepligtigt_underskud_kroner() -> par13_absolut_underskud(almindelig_skattepligtig_indkomst_fixture(input))
+    | par13_skatteværdi_input() -> Par13UnderskudSkatteværdiInput(
+        underskud_kroner = par13_skattepligtigt_underskud_kroner(),
+        sundhedsbidrag_basispoint = sundhedsbidrag_basispoint(),
+        kommuneskat_basispoint = kommunal_basispoint(),
+        kirkeskat_basispoint = kirkeskat_basispoint(),
+        par8c_basispoint = par8c_basispoint(),
+        betaler_par8c = betaler_par8c()
+    )
+    | par13_underskudssats_basispoint() -> par13_skatteværdi_sats_basispoint(par13_skatteværdi_input())
+    | par13_skatteværdi_kroner() -> par13_underskud_skatteværdi_kroner(par13_skatteværdi_input())
+    | par13_modregning_input() -> Par13ModregningInput(
+        skatteværdi_kroner = par13_skatteværdi_kroner(),
+        par6_skat_kroner = bundskat_før_personfradrag_kroner(),
+        par7_skat_kroner = par7_skat_før_personfradrag_kroner(),
+        par7a_skat_kroner = par7a_skat_før_personfradrag_kroner(),
+        par8_skat_kroner = par8_skat_før_personfradrag_kroner(),
+        par8a_stk2_skat_kroner = aktieindkomstskat_før_personfradrag_kroner()
+    )
+    | par13_modregning() -> par13_modregning_resultat(par13_modregning_input())
+    | par13_statsskat_efter_før_personfradrag_kroner() -> par13_modregning().par6_efter_kroner + par13_modregning().par7_efter_kroner + par13_modregning().par7a_efter_kroner + par13_modregning().par8_efter_kroner + par13_modregning().par8a_stk2_efter_kroner
+    | par13_udnyttet_skatteværdi_beløb_kroner() -> par13_udnyttet_skatteværdi_kroner(par13_skatteværdi_kroner(), par13_modregning().ubrugt_skatteværdi_kroner)
+    | par13_stk1_fremførsel_input() -> Par13Stk1FremførselInput(
+        underskud_kroner = par13_skattepligtigt_underskud_kroner(),
+        skatteværdi_sats_basispoint = par13_underskudssats_basispoint(),
+        udnyttet_skatteværdi_kroner = par13_udnyttet_skatteværdi_beløb_kroner(),
+        ikke_rummet_i_tidligere_indkomst_eller_skat = par13_forhold.ikke_rummet_i_tidligere_indkomst_eller_skat
+    )
+    | par13_stk1_fremførsel() -> par13_stk1_fremførsel_resultat(par13_stk1_fremførsel_input())
+    | par13_ægtefælle_skattepligtig_indkomst_til_overførsel_kroner() -> par13_positivt_beløb(par13_forhold.ægtefælle_skattepligtig_indkomst_kroner)
+    | par13_ægtefælle_input() -> Par13ÆgtefælleOverførselInput(
+        ubenyttet_underskud_kroner = par13_stk1_fremførsel().resterende_underskud_kroner,
+        ægtefælle_skattepligtig_indkomst_kroner = par13_ægtefælle_skattepligtig_indkomst_til_overførsel_kroner(),
+        gift_samlevende_ved_årets_udløb = par13_forhold.gift_samlevende_ved_årets_udløb
+    )
+    | par13_ægtefælleoverførsel() -> par13_ægtefælleoverførsel_resultat(par13_ægtefælle_input())
+    | par13_fremført_efter_ægtefælle_kroner() -> 0
+    | exception par13_fremfør_rest_efter_ægtefælle par13_fremført_efter_ægtefælle_kroner() -> par13_ægtefælleoverførsel().resterende_underskud_kroner under par13_forhold.ikke_rummet_i_tidligere_indkomst_eller_skat
+    | par13_underskud() -> LønmodtagerPar13UnderskudResult(
+        kræver_behandling = kræver_par13_underskud(),
+        skattepligtigt_underskud_kroner = par13_skattepligtigt_underskud_kroner(),
+        skatteværdi_sats_basispoint = par13_underskudssats_basispoint(),
+        skatteværdi_kroner = par13_skatteværdi_kroner(),
+        modregning = par13_modregning(),
+        statsskat_efter_par13_kroner = par13_statsskat_efter_før_personfradrag_kroner(),
+        ubenyttet_skatteværdi_kroner = par13_modregning().ubrugt_skatteværdi_kroner,
+        udnyttet_skatteværdi_kroner = par13_udnyttet_skatteværdi_beløb_kroner(),
+        stk1_fremførsel = par13_stk1_fremførsel(),
+        ægtefælleoverførsel = par13_ægtefælleoverførsel(),
+        fremført_efter_ægtefælle_kroner = par13_fremført_efter_ægtefælle_kroner()
+    )
+    | personfradrag_skatteværdi_input() -> PersonfradragSkatteværdiInput(
+        fradrag_kroner = personfradrag_kroner(),
+        bundskat_basispoint = nationalparametre_for(input.skatteår).bundskat_basispoint,
+        sundhedsbidrag_basispoint = sundhedsbidrag_basispoint(),
+        kommuneskat_basispoint = kommunal_basispoint(),
+        kirkeskat_basispoint = kirkeskat_basispoint(),
+        par8c_basispoint = par8c_basispoint()
+    )
+    | statslig_personfradrag_skatteværdi_kroner() -> personfradrag_statslig_skatteværdi(personfradrag_skatteværdi_input())
+    | kommunal_personfradrag_skatteværdi_kroner() -> personfradrag_kommunal_skatteværdi(personfradrag_skatteværdi_input())
+    | kirkelig_personfradrag_skatteværdi_kroner() -> personfradrag_kirkelig_skatteværdi(personfradrag_skatteværdi_input())
+    | statsskat_personfradrag_input() -> PersonfradragStatsskatNedsættelseInput(
+        par6_skat_kroner = par13_modregning().par6_efter_kroner,
+        par7_skat_kroner = par13_modregning().par7_efter_kroner,
+        par7a_skat_kroner = par13_modregning().par7a_efter_kroner,
+        par8_skat_kroner = par13_modregning().par8_efter_kroner,
+        par8a_stk2_skat_kroner = par13_modregning().par8a_stk2_efter_kroner,
+        statslig_skatteværdi_kroner = statslig_personfradrag_skatteværdi_kroner()
+    )
+    | statsskat_personfradrag_nedsættelse() -> personfradrag_statsskat_nedsættelse_resultat(statsskat_personfradrag_input())
+    | mellemskat_efter_personfradrag_kroner() -> 0 under input.skatteår < 2026
+    | exception reform_mellemskat_efter_personfradrag_for_skatteforhold mellemskat_efter_personfradrag_kroner() -> statsskat_personfradrag_nedsættelse().par7_efter_kroner under input.skatteår >= 2026
+    | topskat_efter_personfradrag_kroner() -> statsskat_personfradrag_nedsættelse().par7_efter_kroner under input.skatteår < 2026
+    | exception reform_topskat_efter_personfradrag_for_skatteforhold topskat_efter_personfradrag_kroner() -> statsskat_personfradrag_nedsættelse().par7a_efter_kroner under input.skatteår >= 2026
+    | toptopskat_efter_personfradrag_kroner() -> 0 under input.skatteår < 2026
+    | exception reform_toptopskat_efter_personfradrag_for_skatteforhold toptopskat_efter_personfradrag_kroner() -> statsskat_personfradrag_nedsættelse().par8_efter_kroner under input.skatteår >= 2026
+    | udligningsskat_efter_personfradrag_kroner() -> 0
+    | exception historisk_udligningsskat_efter_personfradrag_for_skatteforhold udligningsskat_efter_personfradrag_kroner() -> statsskat_personfradrag_nedsættelse().par7a_efter_kroner under input.skatteår < 2026
+    | sundhedsbidrag_efter_personfradrag_kroner() -> 0
+    | exception historisk_sundhedsbidrag_efter_personfradrag_for_skatteforhold sundhedsbidrag_efter_personfradrag_kroner() -> statsskat_personfradrag_nedsættelse().par8_efter_kroner under input.skatteår < 2026
+    | cfc_indkomstskat_efter_personfradrag_kroner() -> cfc_indkomstskat_før_personfradrag_kroner()
+    | kommuneskat_efter_personfradrag_kroner() -> skat_efter_nedsættelse(kommuneskat_før_personfradrag_kroner(), kommunal_personfradrag_skatteværdi_kroner())
+    | kirkeskat_efter_personfradrag_kroner() -> skat_efter_nedsættelse(kirkeskat_før_personfradrag_kroner(), kirkelig_personfradrag_skatteværdi_kroner())
+    | statslig_indkomstskat_efter_personfradrag_før_skatteloft_kroner() -> statsskat_personfradrag_nedsættelse().par6_efter_kroner + statsskat_personfradrag_nedsættelse().par7_efter_kroner + statsskat_personfradrag_nedsættelse().par7a_efter_kroner + statsskat_personfradrag_nedsættelse().par8_efter_kroner + statsskat_personfradrag_nedsættelse().par8a_stk2_efter_kroner + cfc_indkomstskat_efter_personfradrag_kroner() + kommunal_lignende_statsskat_efter_personfradrag_kroner()
+    | kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner() -> kommuneskat_efter_personfradrag_kroner() + kirkeskat_efter_personfradrag_kroner()
+    | samlet_indkomstskat_efter_personfradrag_før_skatteloft_kroner() -> statslig_indkomstskat_efter_personfradrag_før_skatteloft_kroner() + kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner()
+    | samlet_inkl_am_efter_personfradrag_før_skatteloft_kroner() -> arbejdsmarkedsbidrag_for(input) + samlet_indkomstskat_efter_personfradrag_før_skatteloft_kroner()
+    | efter_personfradrag_før_skatteloft() -> LønmodtagerSkattekomponenter(
+        bundskat_kroner = statsskat_personfradrag_nedsættelse().par6_efter_kroner,
+        mellemskat_kroner = mellemskat_efter_personfradrag_kroner(),
+        topskat_kroner = topskat_efter_personfradrag_kroner(),
+        toptopskat_kroner = toptopskat_efter_personfradrag_kroner(),
+        udligningsskat_kroner = udligningsskat_efter_personfradrag_kroner(),
+        sundhedsbidrag_kroner = sundhedsbidrag_efter_personfradrag_kroner(),
+        aktieindkomstskat_kroner = statsskat_personfradrag_nedsættelse().par8a_stk2_efter_kroner,
+        cfc_indkomstskat_kroner = cfc_indkomstskat_efter_personfradrag_kroner(),
+        kommunal_lignende_statsskat_kroner = kommunal_lignende_statsskat_efter_personfradrag_kroner(),
+        kommuneskat_kroner = kommuneskat_efter_personfradrag_kroner(),
+        kirkeskat_kroner = kirkeskat_efter_personfradrag_kroner(),
+        statslig_indkomstskat_kroner = statslig_indkomstskat_efter_personfradrag_før_skatteloft_kroner(),
+        kommunal_og_kirkelig_indkomstskat_kroner = kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner(),
+        samlet_indkomstskat_kroner = samlet_indkomstskat_efter_personfradrag_før_skatteloft_kroner(),
+        samlet_inkl_am_kroner = samlet_inkl_am_efter_personfradrag_før_skatteloft_kroner()
+    )
+    | personligt_skatteloft_input() -> Par19SkatteloftInput(
+        skatteår = input.skatteår,
+        bundskat_basispoint = nationalparametre_for(input.skatteår).bundskat_basispoint,
+        progressiv_statsskat_basispoint = par19_loftrelevant_progressiv_statsskat_basispoint(input.skatteår),
+        sundhedsbidrag_basispoint = sundhedsbidrag_basispoint(),
+        kommunal_eller_par8c_basispoint = kommunal_eller_par8c_basispoint(),
+        beregningsgrundlag_kroner = personligt_skatteloft_beregningsgrundlag_kroner()
+    )
+    | personligt_skatteloft_overskydende_basispoint() -> par19_personlig_overskydende_basispoint(personligt_skatteloft_input())
+    | personligt_skatteloft_nedslag_kroner() -> par19_skatteloftsnedslag_kroner(personligt_skatteloft_input(), personligt_skatteloft_overskydende_basispoint())
+    | personligt_skatteloft() -> LønmodtagerSkatteloftResult(
+        input = personligt_skatteloft_input(),
+        overskydende_basispoint = personligt_skatteloft_overskydende_basispoint(),
+        nedslag_kroner = personligt_skatteloft_nedslag_kroner()
+    )
+    | positiv_kapital_skatteloft_input() -> Par19SkatteloftInput(
+        skatteår = input.skatteår,
+        bundskat_basispoint = nationalparametre_for(input.skatteår).bundskat_basispoint,
+        progressiv_statsskat_basispoint = par19_loftrelevant_progressiv_statsskat_basispoint(input.skatteår),
+        sundhedsbidrag_basispoint = sundhedsbidrag_basispoint(),
+        kommunal_eller_par8c_basispoint = kommunal_eller_par8c_basispoint(),
+        beregningsgrundlag_kroner = positiv_kapital_skatteloft_beregningsgrundlag_kroner()
+    )
+    | positiv_kapital_skatteloft_overskydende_basispoint() -> par19_positiv_kapital_overskydende_basispoint(positiv_kapital_skatteloft_input())
+    | positiv_kapital_skatteloft_nedslag_kroner() -> par19_skatteloftsnedslag_kroner(positiv_kapital_skatteloft_input(), positiv_kapital_skatteloft_overskydende_basispoint())
+    | positiv_kapital_skatteloft() -> LønmodtagerSkatteloftResult(
+        input = positiv_kapital_skatteloft_input(),
+        overskydende_basispoint = positiv_kapital_skatteloft_overskydende_basispoint(),
+        nedslag_kroner = positiv_kapital_skatteloft_nedslag_kroner()
+    )
+    | skatteloftsnedslag_i_alt_kroner() -> personligt_skatteloft_nedslag_kroner() + positiv_kapital_skatteloft_nedslag_kroner()
+    | statslig_indkomstskat_efter_personfradrag_kroner() -> positivt_beløb(statslig_indkomstskat_efter_personfradrag_før_skatteloft_kroner() - skatteloftsnedslag_i_alt_kroner())
+    | samlet_indkomstskat_efter_personfradrag_kroner() -> statslig_indkomstskat_efter_personfradrag_kroner() + kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner()
+    | samlet_inkl_am_efter_personfradrag_kroner() -> arbejdsmarkedsbidrag_for(input) + samlet_indkomstskat_efter_personfradrag_kroner()
+    | personfradrag_resultat() -> LønmodtagerPersonfradragResultat(
+        personfradrag_kroner = personfradrag_kroner(),
+        statslig_skatteværdi_kroner = statslig_personfradrag_skatteværdi_kroner(),
+        kommunal_skatteværdi_kroner = kommunal_personfradrag_skatteværdi_kroner(),
+        kirkelig_skatteværdi_kroner = kirkelig_personfradrag_skatteværdi_kroner()
+    )
+    | slutskat() -> LønmodtagerSlutskat(
+        personligt_skatteloft = personligt_skatteloft(),
+        positiv_kapital_skatteloft = positiv_kapital_skatteloft(),
+        samlet_skatteloftsnedslag_kroner = skatteloftsnedslag_i_alt_kroner(),
+        statslig_indkomstskat_kroner = statslig_indkomstskat_efter_personfradrag_kroner(),
+        kommunal_og_kirkelig_indkomstskat_kroner = kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner(),
+        samlet_indkomstskat_kroner = samlet_indkomstskat_efter_personfradrag_kroner(),
+        samlet_inkl_am_kroner = samlet_inkl_am_efter_personfradrag_kroner()
+    )
+    | personfradrag_anvendt_i_slutskat() -> personfradrag_par10().personfradrag_anvendes && kræver_par13_underskud() == Falskt
+    | resultat() -> LønmodtagerBeregning(
+        input = input,
+        indkomstgrundlag = indkomstgrundlag(),
+        ligningsfradrag = ligningsfradrag(),
+        før_personfradrag = før_personfradrag(),
+        statsskat_før_personfradrag = statsskat_før_personfradrag(),
+        par13_underskud = par13_underskud(),
+        personfradrag = personfradrag_resultat(),
+        efter_personfradrag_før_skatteloft = efter_personfradrag_før_skatteloft(),
+        slutskat = slutskat(),
+        personfradrag_anvendt_i_slutskat = personfradrag_anvendt_i_slutskat(),
+        kræver_par13_underskud = kræver_par13_underskud()
+    )
+}
+| lønmodtager_beregningssag(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold, par13_forhold: LønmodtagerPar13Forhold) -> LønmodtagerBeregningSag(input, skatteforhold, par13_forhold)
+| beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold, forhold: LønmodtagerPar13Forhold) -> lønmodtager_beregningssag(input, skatteforhold, forhold).resultat()
+| beregn_lønmodtager_model_med_skatteforhold(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(input, skatteforhold, lønmodtager_par13_standard_forhold())
+| beregn_lønmodtager_med_skatteforhold(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> lønmodtager_breakdown_fra_model(beregn_lønmodtager_model_med_skatteforhold(input, skatteforhold))
 | lønmodtager_skatteloftsnedslag_i_alt(input: LønmodtagerInput) -> lønmodtager_personligt_skatteloft_nedslag_kroner(input) + lønmodtager_positiv_kapital_skatteloft_nedslag_kroner(input)
 | lønmodtager_slutskat(input: LønmodtagerInput) -> LønmodtagerSlutskat(
     personligt_skatteloft = lønmodtager_personligt_skatteloft_resultat(input),
