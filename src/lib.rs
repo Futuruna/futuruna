@@ -4818,6 +4818,15 @@ impl Parser {
 
     pub fn parse_binding(&mut self) -> Result<Stmt, String> {
         let pat = self.parse_pattern()?;
+        // A nullary constructor pattern (Pat::Con with no args) in a binding
+        // context is almost certainly a variable name that starts uppercase
+        // (e.g., K2, T1). The tokenizer classifies uppercase-starting names as
+        // Type tokens, which parse_pattern turns into Pat::Con. Without this
+        // fix, = K2 = value silently fails to bind (bind_pattern's _ => {} arm).
+        let pat = match pat {
+            Pat::Con(name, ref args) if args.is_empty() => Pat::Var(name),
+            other => other,
+        };
         let ty = if self.peek_kind() == TokenKind::Colon {
             self.advance();
             Some(self.parse_type()?)
