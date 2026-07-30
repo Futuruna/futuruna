@@ -1245,6 +1245,25 @@ afgrænsning.
     kommuneskat_kroner = 200,
     kirkeskat_kroner = 200
 ))
+= m5_par26_regulerede_grænser_fixture = par26_regulerede_beløbsgrænser(1311)
+= m5_par26_beregnet_forskelsbeløb_fixture = par26_forskelsbeløb_beregning(Par26ForskelsbeløbBeregningsInput(
+    skatteår = 2015,
+    reguleringstal_tiendedele = 1000,
+    alder_status = Par26Fyldt18EllerGift,
+    bundskat_grundlag_kroner = 44800,
+    personlig_plus_positiv_kapital_kroner = 362800,
+    topskat_grundlag_kroner = 362800,
+    par7_bundfradrag_kroner = 467000,
+    aktieindkomstskat_grundlag_kroner = 0,
+    fradrag_efter_ll9j_9k_9l_kroner = 0,
+    kommunal_og_kirke_basispoint = 2430,
+    baseline_fradrag_efter_425pct_grundbeløb_kroner = 0,
+    personfradrag_nr6_skatteværdi_kroner = 2500,
+    udligningsskat_kroner = 0,
+    negativ_kapital_over_par11_og_ligningsfradrag_kroner = 12500,
+    sundhedsbidrag_basispoint = 0,
+    betaler_kommunal_eller_par8c = Sandt
+))
 = m5_par27_delegation_fixture = par27_skatteministeren_fastsætter_gennemførelsesregler()
 = m5_par28_færøerne_fixture = personskatteloven_gælder_i_territorium(PersonskatFærøerne)
 = m5_par28_grønland_fixture = personskatteloven_gælder_i_territorium(PersonskatGrønland)
@@ -1252,6 +1271,8 @@ afgrænsning.
 | m5_par25_virker_fra_1987: m5_par25_virkningsår_fixture -> m5_par25_virkningsår_fixture == 1987
 | m5_par26_kompensation: m5_par26_kompensation_fixture -> m5_par26_kompensation_fixture == 700
 | m5_par26_modregningsrækkefølge: m5_par26_modregning_fixture -> m5_par26_modregning_fixture.par6_efter_kroner == 0 && m5_par26_modregning_fixture.par7_efter_kroner == 0 && m5_par26_modregning_fixture.kirkeskat_efter_kroner == 150
+| m5_par26_stk9_regulerede_grænser: m5_par26_regulerede_grænser_fixture -> m5_par26_regulerede_grænser_fixture.bundfradrag_nr1_voksen_kroner == 58800 && m5_par26_regulerede_grænser_fixture.bundfradrag_nr2_og_nr3_kroner == 475700 && m5_par26_regulerede_grænser_fixture.personfradrag_nr6_kroner == 2500
+| m5_par26_stk2_til_stk3_beregnet_forskelsbeløb: m5_par26_beregnet_forskelsbeløb_fixture -> m5_par26_beregnet_forskelsbeløb_fixture.nr6_kroner == 2500 && m5_par26_beregnet_forskelsbeløb_fixture.nr8_kroner == 1000 && m5_par26_beregnet_forskelsbeløb_fixture.forskelsbeløb_før_nr8_kroner == 0 && m5_par26_beregnet_forskelsbeløb_fixture.kompensation_kroner == 1000
 | m5_par27_ministerdelegation: m5_par27_delegation_fixture -> m5_par27_delegation_fixture == Sandt
 | m5_par28_færøerne_undtaget: m5_par28_færøerne_fixture -> m5_par28_færøerne_fixture == Falskt
 | m5_par28_grønland_undtaget: m5_par28_grønland_fixture -> m5_par28_grønland_fixture == Falskt
@@ -1261,6 +1282,8 @@ afgrænsning.
 ? m5_par25_virker_fra_1987
 ? m5_par26_kompensation
 ? m5_par26_modregningsrækkefølge
+? m5_par26_stk9_regulerede_grænser
+? m5_par26_stk2_til_stk3_beregnet_forskelsbeløb
 ? m5_par27_ministerdelegation
 ? m5_par28_færøerne_undtaget
 ? m5_par28_grønland_undtaget
