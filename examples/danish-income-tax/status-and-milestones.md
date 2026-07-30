@@ -852,9 +852,12 @@ M4 - Ordinary taxpayer calculator
   150.000 kr. share income with the spouse's unused share-income threshold stays
   in the 27 pct. final-tax layer, while the high-tax variant splits 21.438 kr.
   final low-layer tax from 29.652 kr. high-layer tax entering slutskat and
-  leaves 7.900 kr. restskat after 19.062 kr. dividend-tax credit. The source-law
-  module now also covers § 8 a, stk. 3 as a separate scoped rule case for
-  over-withheld dividend tax and negative-share-income full credit.
+  leaves 7.900 kr. restskat after 19.062 kr. dividend-tax credit. The scenario
+  now builds a `Par5StatsskatResultat` for slutskat-bound state-tax components,
+  excluding the final low-layer § 8 a tax while including the high-layer
+  `Aktieindkomstskat` amount before § 12 personfradrag allocation. The
+  source-law module now also covers § 8 a, stk. 3 as a separate scoped rule case
+  for over-withheld dividend tax and negative-share-income full credit.
   Personskatteloven § 8 c now computes the municipal-equivalent tax for covered
   limited-taxpayer postures, using the Skatteministeriet-published 25 pct.
   2026 rate and the same personfradrag reduction posture as § 10 stk. 5.
