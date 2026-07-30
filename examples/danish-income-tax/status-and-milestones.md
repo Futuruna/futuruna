@@ -17,7 +17,8 @@ model is materially complete.
 
 Latest mainline slices: the 2026 § 7/§ 7 a/§ 8 reform thresholds for
 mellemskat, topskat and toptopskat now derive from statutory 2010-level amounts
-through § 20 regulation; § 7 spouse positive-net-capital tax now has an
+through § 20 regulation, with § 7 a topskat and § 8 toptopskat exposed as
+personal-income amount result objects; § 7 spouse positive-net-capital tax now has an
 executable allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break
 rule; § 7 a now has post-level amount rules for included and excluded
 pension-like payments; § 13, stk. 4 now has amount-level spouse and
@@ -488,6 +489,12 @@ Current decision:
   § 20-regulated positive-capital grundbeløb, personal income, net-capital
   income, personal/capital split, and resulting tax together so wage-earner
   calculator rules no longer duplicate reform thresholds as loose parameters.
+- `ReformPersonligStatsskatSag` uses product-scoped `|` rules for the 2026
+  personal-only reform layers. It keeps the § 7 a topskat/§ 8 toptopskat lag,
+  statutory 2010-level threshold, § 20-regulated threshold, personal income,
+  excess personal base, rate, and kroner tax together so the wage-earner
+  calculator and audits can inspect those taxes as named legal results instead
+  of opaque scalar calls.
 - `Par26Stk7TopskatÆgtefællerSag` uses product-scoped `|` rules for the
   § 26, stk. 7 transition-compensation bridge. It keeps both spouses'
   personal/PBL bases, net-capital incomes, regulated § 26 nr. 3 threshold,
@@ -883,7 +890,8 @@ M2 - State tax computation skeleton
   toptopskat are ignored before the 2026 reform. Mellemskat under § 7,
   topskat under § 7 a, and toptopskat under § 8 now derive their 2026
   thresholds from the amendment's 2010-level amounts through § 20 regulation
-  before feeding the calculator; CFC tax under § 8 b can feed this state-tax
+  before feeding the calculator, with § 7 a and § 8 now exposed as named
+  personal-income amount results; CFC tax under § 8 b can feed this state-tax
   component model, with § 8 b consuming the amount-level § 4 b CFC-income
   result before applying the selskabsskattelovens § 17, stk. 1 rate.
   The § 6 slice now computes the amount-level spouse negative net-capital
@@ -944,7 +952,8 @@ M4 - Ordinary taxpayer calculator
   LL § 33 A relief, 2026 post-PBL-repeal
   transfer, and same-business loss carry-forward cases. 2026 Copenhagen
   wage-earner fixtures now exercise mellemskat, topskat, and toptopskat under
-  the LOV nr. 482/2024 reform thresholds, and a 2026 Copenhagen positive
+  the LOV nr. 482/2024 reform thresholds, with topskat and toptopskat routed
+  through named personal reform results, and a 2026 Copenhagen positive
   net-capital fixture exercises the mellemskat capital addition. The wage-earner
   model now routes state income tax before personfradrag through the
   `Par5StatsskatResultat` aggregate, so the ordinary calculator consumes the

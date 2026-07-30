@@ -178,8 +178,9 @@ i det omfang det samlede beløb overstiger bundfradraget anført i stk. 2.
     positiv_nettokapitalindkomst_kroner = input.positiv_nettokapitalindkomst_kroner
 )
 | lønmodtager_par7_topskat_resultat(input: LønmodtagerInput) -> par7_historisk_topskat_resultat(lønmodtager_par7_topskat_input(input)) under input.skatteår < 2026
+| lønmodtager_par7a_reform_topskat_resultat(input: LønmodtagerInput) -> par7a_reform_topskat_resultat(input.skatteår, personlig_indkomst_efter_am(input)) under input.skatteår >= 2026
 | topskat_personligt_overskud_fixture(input: LønmodtagerInput) -> lønmodtager_par7_topskat_resultat(input).personlig_over_bundfradrag_kroner under input.skatteår < 2026
-| exception reform_topskat_personligt_overskud topskat_personligt_overskud_fixture(input: LønmodtagerInput) -> progressiv_personlig_overskud_kroner(reform_statskat_input(TopskatLag, input.skatteår, personlig_indkomst_efter_am(input))) under input.skatteår >= 2026
+| exception reform_topskat_personligt_overskud topskat_personligt_overskud_fixture(input: LønmodtagerInput) -> lønmodtager_par7a_reform_topskat_resultat(input).personlig_over_bundfradrag_kroner under input.skatteår >= 2026
 | progressiv_kapital_over_bundfradrag(input: LønmodtagerInput) -> lønmodtager_par7_topskat_resultat(input).kapital_over_grundbeløb_kroner under input.skatteår < 2026
 | exception reform_progressiv_kapital_over_bundfradrag progressiv_kapital_over_bundfradrag(input: LønmodtagerInput) -> par7_reform_mellemskat_resultat(lønmodtager_par7_reform_mellemskat_input(input)).kapital_over_grundbeløb_kroner under input.skatteår >= 2026
 | topskat_grundlag_med_kapital_fixture(input: LønmodtagerInput) -> lønmodtager_par7_topskat_resultat(input).samlet_grundlag_over_bundfradrag_kroner under input.skatteår < 2026
@@ -187,7 +188,7 @@ i det omfang det samlede beløb overstiger bundfradraget anført i stk. 2.
 | topskat_kapitalgrundlag_fixture(input: LønmodtagerInput) -> lønmodtager_par7_topskat_resultat(input).kapitalgrundlag_kroner under input.skatteår < 2026
 | exception reform_topskat_uden_kapitalgrundlag topskat_kapitalgrundlag_fixture(input: LønmodtagerInput) -> 0 under input.skatteår >= 2026
 | topskat_før_personfradrag(input: LønmodtagerInput) -> lønmodtager_par7_topskat_resultat(input).samlet_skat_kroner under input.skatteår < 2026
-| exception topskat_2026_kun_personlig topskat_før_personfradrag(input: LønmodtagerInput) -> reform_statskat_kroner(TopskatLag, input.skatteår, personlig_indkomst_efter_am(input)) under input.skatteår >= 2026
+| exception topskat_2026_kun_personlig topskat_før_personfradrag(input: LønmodtagerInput) -> lønmodtager_par7a_reform_topskat_resultat(input).skat_kroner under input.skatteår >= 2026
 
 ----
 LOV nr. 482 af 22/05/2024 ændrer fra og med indkomståret 2026 statsskatten til
@@ -216,9 +217,11 @@ nettokapitalindkomst i mellemskattegrundlaget 55.000 kr.
 | exception reform_mellemskat_kapitalgrundlag mellemskat_kapitalgrundlag_for(input: LønmodtagerInput) -> lønmodtager_par7_reform_mellemskat_resultat(input).kapitalgrundlag_kroner under input.skatteår >= 2026
 | mellemskat_før_personfradrag(input: LønmodtagerInput) -> 0
 | exception mellemskat_2026 mellemskat_før_personfradrag(input: LønmodtagerInput) -> lønmodtager_par7_reform_mellemskat_resultat(input).samlet_skat_kroner under input.skatteår >= 2026
+| lønmodtager_par8_reform_toptopskat_resultat(input: LønmodtagerInput) -> par8_reform_toptopskat_resultat(input.skatteår, personlig_indkomst_efter_am(input)) under input.skatteår >= 2026
 | toptopskat_personligt_overskud_fixture(input: LønmodtagerInput) -> 0
-| exception toptopskat_2026 toptopskat_personligt_overskud_fixture(input: LønmodtagerInput) -> progressiv_personlig_overskud_kroner(reform_statskat_input(ToptopskatLag, input.skatteår, personlig_indkomst_efter_am(input))) under input.skatteår >= 2026
-| toptopskat_før_personfradrag(input: LønmodtagerInput) -> reform_statskat_kroner(ToptopskatLag, input.skatteår, personlig_indkomst_efter_am(input))
+| exception toptopskat_2026 toptopskat_personligt_overskud_fixture(input: LønmodtagerInput) -> lønmodtager_par8_reform_toptopskat_resultat(input).personlig_over_bundfradrag_kroner under input.skatteår >= 2026
+| toptopskat_før_personfradrag(input: LønmodtagerInput) -> 0 under input.skatteår < 2026
+| exception toptopskat_2026_beløb toptopskat_før_personfradrag(input: LønmodtagerInput) -> lønmodtager_par8_reform_toptopskat_resultat(input).skat_kroner under input.skatteår >= 2026
 | lønmodtager_par7a_udligningsskat_input(input: LønmodtagerInput) -> Par7aUdligningsskatInput(
     skatteår = input.skatteår,
     stk1_beløb_kroner = 0,
