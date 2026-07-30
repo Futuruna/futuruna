@@ -620,6 +620,10 @@ som nævnt i § 10, stk. 1.
 # Par13ÆgtefælleOverførselInput(ubenyttet_underskud_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par13ÆgtefælleOverførselResult(fradrag_i_ægtefælle_indkomst_kroner: Heltal, resterende_underskud_kroner: Heltal, overførsel_tilladt: Boolsk)
 # Par13NegativPersonligInput(personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal)
+# Par13NegativPersonligModregningInput(personlig_indkomst_kroner: Heltal, egen_positiv_kapitalindkomst_kroner: Heltal, ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner: Heltal, ægtefælle_positiv_kapitalindkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par13NegativPersonligModregningResult(negativ_personlig_indkomst_abs_kroner: Heltal, modregnet_i_ægtefælles_personlige_indkomst_kroner: Heltal, modregnet_i_egen_positiv_kapitalindkomst_kroner: Heltal, modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal)
+# Par13FremførtNegativPersonligModregningInput(fremført_negativ_personlig_indkomst_kroner: Heltal, egen_positiv_kapitalindkomst_kroner: Heltal, ægtefælle_positiv_kapitalindkomst_kroner: Heltal, egen_personlig_indkomst_med_pbl16_tillæg_kroner: Heltal, ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par13FremførtNegativPersonligModregningResult(modregnet_i_egen_positiv_kapitalindkomst_kroner: Heltal, modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner: Heltal, modregnet_i_egen_personlige_indkomst_kroner: Heltal, modregnet_i_ægtefælles_personlige_indkomst_kroner: Heltal, resterende_fremført_negativ_personlig_indkomst_kroner: Heltal)
 # Par13Stk5OverførselInput(skatteår: Heltal, ønsket_overførsel_kroner: Heltal, udenlandsk_beskattet_personlig_indkomst_kroner: Heltal, fradragsberettigede_udgifter_vedrørende_udlandsindkomst_kroner: Heltal, udgifter_fradraget_i_udlandet_kroner: Heltal, pbl16_beløb_kroner: Heltal, overførsel_efter_stk4: Boolsk, lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
 # Par13Stk5OverførselResult(overførbart_underskud_kroner: Heltal, afskåret_udenlandsk_nettoindkomst_kroner: Heltal, afskåret_udlandsfradrag_kroner: Heltal, afskåret_pbl16_kroner: Heltal, samlet_afskåret_kroner: Heltal)
 # Par13VirksomhedsUnderskudInput(underskud_kroner: Heltal, positiv_indkomst_samme_virksomhed_kroner: Heltal, status: Par13VirksomhedsUnderskudStatus)
@@ -701,6 +705,60 @@ som nævnt i § 10, stk. 1.
 | par13_negativ_personlig_modregnet_i_kapital_kroner(input: Par13NegativPersonligInput) -> par13_mindste_beløb(par13_negativ_personlig_beløb(input), input.positiv_kapitalindkomst_kroner)
 | par13_negativ_personlig_rest_kroner(input: Par13NegativPersonligInput) -> par13_negativ_personlig_beløb(input) - par13_negativ_personlig_modregnet_i_kapital_kroner(input)
 | par13_negativ_personlig_fremføres(input: Par13NegativPersonligInput) -> par13_negativ_personlig_rest_kroner(input) > 0
+
+# Par13NegativPersonligModregningSag(input: Par13NegativPersonligModregningInput) {
+    | negativ_personlig_indkomst_abs_kroner() -> par13_absolut_underskud(input.personlig_indkomst_kroner)
+    | ægtefælle_personlig_indkomstgrundlag_kroner() -> par13_positivt_beløb(input.ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner)
+    | egen_positiv_kapitalindkomst_kroner() -> par13_positivt_beløb(input.egen_positiv_kapitalindkomst_kroner)
+    | ægtefælle_positiv_kapitalindkomst_kroner() -> par13_positivt_beløb(input.ægtefælle_positiv_kapitalindkomst_kroner)
+    | modregnet_i_ægtefælles_personlige_indkomst_kroner() -> 0
+    | exception par13_stk4_negativ_personlig_modregnes_i_ægtefælle_personlig modregnet_i_ægtefælles_personlige_indkomst_kroner() -> par13_mindste_beløb(negativ_personlig_indkomst_abs_kroner(), ægtefælle_personlig_indkomstgrundlag_kroner()) under input.gift_samlevende_ved_årets_udløb
+    | rest_efter_ægtefælles_personlige_indkomst_kroner() -> negativ_personlig_indkomst_abs_kroner() - modregnet_i_ægtefælles_personlige_indkomst_kroner()
+    | grundlag_for_egen_kapitalmodregning_kroner() -> negativ_personlig_indkomst_abs_kroner()
+    | exception par13_stk4_egen_kapital_efter_ægtefælle_personlig grundlag_for_egen_kapitalmodregning_kroner() -> rest_efter_ægtefælles_personlige_indkomst_kroner() under input.gift_samlevende_ved_årets_udløb
+    | modregnet_i_egen_positiv_kapitalindkomst_kroner() -> par13_mindste_beløb(grundlag_for_egen_kapitalmodregning_kroner(), egen_positiv_kapitalindkomst_kroner())
+    | rest_efter_egen_positiv_kapitalindkomst_kroner() -> grundlag_for_egen_kapitalmodregning_kroner() - modregnet_i_egen_positiv_kapitalindkomst_kroner()
+    | modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner() -> 0
+    | exception par13_stk4_rest_modregnes_i_ægtefælle_kapital modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner() -> par13_mindste_beløb(rest_efter_egen_positiv_kapitalindkomst_kroner(), ægtefælle_positiv_kapitalindkomst_kroner()) under input.gift_samlevende_ved_årets_udløb
+    | fremført_negativ_personlig_indkomst_kroner() -> rest_efter_egen_positiv_kapitalindkomst_kroner() - modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner()
+    | resultat() -> Par13NegativPersonligModregningResult(
+        negativ_personlig_indkomst_abs_kroner = negativ_personlig_indkomst_abs_kroner(),
+        modregnet_i_ægtefælles_personlige_indkomst_kroner = modregnet_i_ægtefælles_personlige_indkomst_kroner(),
+        modregnet_i_egen_positiv_kapitalindkomst_kroner = modregnet_i_egen_positiv_kapitalindkomst_kroner(),
+        modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner = modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner(),
+        fremført_negativ_personlig_indkomst_kroner = fremført_negativ_personlig_indkomst_kroner()
+    )
+}
+| par13_negativ_personlig_modregning_sag(input: Par13NegativPersonligModregningInput) -> Par13NegativPersonligModregningSag(input)
+| par13_negativ_personlig_modregning_resultat(input: Par13NegativPersonligModregningInput) -> par13_negativ_personlig_modregning_sag(input).resultat()
+
+# Par13FremførtNegativPersonligModregningSag(input: Par13FremførtNegativPersonligModregningInput) {
+    | fremført_negativ_personlig_indkomst_kroner() -> par13_positivt_beløb(input.fremført_negativ_personlig_indkomst_kroner)
+    | egen_positiv_kapitalindkomst_kroner() -> par13_positivt_beløb(input.egen_positiv_kapitalindkomst_kroner)
+    | ægtefælle_positiv_kapitalindkomst_kroner() -> par13_positivt_beløb(input.ægtefælle_positiv_kapitalindkomst_kroner)
+    | egen_personlig_indkomstgrundlag_kroner() -> par13_positivt_beløb(input.egen_personlig_indkomst_med_pbl16_tillæg_kroner)
+    | ægtefælle_personlig_indkomstgrundlag_kroner() -> par13_positivt_beløb(input.ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner)
+    | modregnet_i_egen_positiv_kapitalindkomst_kroner() -> par13_mindste_beløb(fremført_negativ_personlig_indkomst_kroner(), egen_positiv_kapitalindkomst_kroner())
+    | rest_efter_egen_positiv_kapitalindkomst_kroner() -> fremført_negativ_personlig_indkomst_kroner() - modregnet_i_egen_positiv_kapitalindkomst_kroner()
+    | modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner() -> 0
+    | exception par13_stk4_fremført_modregnes_i_ægtefælle_kapital modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner() -> par13_mindste_beløb(rest_efter_egen_positiv_kapitalindkomst_kroner(), ægtefælle_positiv_kapitalindkomst_kroner()) under input.gift_samlevende_ved_årets_udløb
+    | rest_efter_positiv_kapitalindkomst_kroner() -> rest_efter_egen_positiv_kapitalindkomst_kroner() - modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner()
+    | modregnet_i_egen_personlige_indkomst_kroner() -> par13_mindste_beløb(rest_efter_positiv_kapitalindkomst_kroner(), egen_personlig_indkomstgrundlag_kroner())
+    | rest_efter_egen_personlige_indkomst_kroner() -> rest_efter_positiv_kapitalindkomst_kroner() - modregnet_i_egen_personlige_indkomst_kroner()
+    | modregnet_i_ægtefælles_personlige_indkomst_kroner() -> 0
+    | exception par13_stk4_fremført_modregnes_i_ægtefælle_personlig modregnet_i_ægtefælles_personlige_indkomst_kroner() -> par13_mindste_beløb(rest_efter_egen_personlige_indkomst_kroner(), ægtefælle_personlig_indkomstgrundlag_kroner()) under input.gift_samlevende_ved_årets_udløb
+    | resterende_fremført_negativ_personlig_indkomst_kroner() -> rest_efter_egen_personlige_indkomst_kroner() - modregnet_i_ægtefælles_personlige_indkomst_kroner()
+    | resultat() -> Par13FremførtNegativPersonligModregningResult(
+        modregnet_i_egen_positiv_kapitalindkomst_kroner = modregnet_i_egen_positiv_kapitalindkomst_kroner(),
+        modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner = modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner(),
+        modregnet_i_egen_personlige_indkomst_kroner = modregnet_i_egen_personlige_indkomst_kroner(),
+        modregnet_i_ægtefælles_personlige_indkomst_kroner = modregnet_i_ægtefælles_personlige_indkomst_kroner(),
+        resterende_fremført_negativ_personlig_indkomst_kroner = resterende_fremført_negativ_personlig_indkomst_kroner()
+    )
+}
+| par13_fremført_negativ_personlig_modregning_sag(input: Par13FremførtNegativPersonligModregningInput) -> Par13FremførtNegativPersonligModregningSag(input)
+| par13_fremført_negativ_personlig_modregning_resultat(input: Par13FremførtNegativPersonligModregningInput) -> par13_fremført_negativ_personlig_modregning_sag(input).resultat()
+
 | par13_stk5_begrænsning_afskærer_ægtefælleoverførsel(begrænsning: Par13OverførselsBegrænsning) -> begrænsning == UdenlandskBeskattetPersonligIndkomst || begrænsning == UdgiftFradragetIUdlandet || begrænsning == PensionsbeløbPbl16
 | par13_stk5_begrænsning_finder_ikke_anvendelse(begrænsning: Par13OverførselsBegrænsning) -> begrænsning == LempelseEfterLl33AEllerSømandsbeskatning
 | par13_stk5_lempelse_undtager(grundlag: Par13Stk5Lempelsesgrundlag) -> grundlag == LigningslovPar33A || grundlag == SømandsbeskatningslovPar5 || grundlag == SømandsbeskatningslovPar6 || grundlag == SømandsbeskatningslovPar7 || grundlag == SømandsbeskatningslovPar8
@@ -788,6 +846,21 @@ som nævnt i § 10, stk. 1.
     personlig_indkomst_kroner = -10000,
     positiv_kapitalindkomst_kroner = 2000
 ))
+= par13_stk4_negativ_personlig_ægtefælle_fixture = par13_negativ_personlig_modregning_resultat(Par13NegativPersonligModregningInput(
+    personlig_indkomst_kroner = -120000,
+    egen_positiv_kapitalindkomst_kroner = 30000,
+    ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner = 50000,
+    ægtefælle_positiv_kapitalindkomst_kroner = 40000,
+    gift_samlevende_ved_årets_udløb = Sandt
+))
+= par13_stk4_fremført_negativ_personlig_ægtefælle_fixture = par13_fremført_negativ_personlig_modregning_resultat(Par13FremførtNegativPersonligModregningInput(
+    fremført_negativ_personlig_indkomst_kroner = 110000,
+    egen_positiv_kapitalindkomst_kroner = 10000,
+    ægtefælle_positiv_kapitalindkomst_kroner = 20000,
+    egen_personlig_indkomst_med_pbl16_tillæg_kroner = 30000,
+    ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner = 40000,
+    gift_samlevende_ved_årets_udløb = Sandt
+))
 = par13_fremførsel_fixture = par13_underskud_fremføres(
     status = SkattepligtigIndkomstUnderskud,
     ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
@@ -865,6 +938,8 @@ som nævnt i § 10, stk. 1.
 | par13_stk1_fremfører_rest_efter_egen_skattemodregning: par13_stk1_fremførsel_fixture -> par13_stk1_fremførsel_fixture.dækket_underskud_ved_skattemodregning_kroner == 41152 && par13_stk1_fremførsel_fixture.resterende_underskud_kroner == 58848 && par13_stk1_fremførsel_fixture.fremført_underskud_kroner == 58848
 | par13_ægtefælle_fradrager_i_størst_muligt_omfang: par13_ægtefælle_resultat_fixture -> par13_ægtefælle_resultat_fixture.fradrag_i_ægtefælle_indkomst_kroner == 45000 && par13_ægtefælle_resultat_fixture.resterende_underskud_kroner == 15000
 | par13_negativ_personlig_rest_fremføres: par13_negativ_personlig_rest_fixture -> par13_negativ_personlig_rest_fixture == 8000
+| par13_stk4_negativ_personlig_modregnes_i_ægtefælle_og_kapital: par13_stk4_negativ_personlig_ægtefælle_fixture -> par13_stk4_negativ_personlig_ægtefælle_fixture.negativ_personlig_indkomst_abs_kroner == 120000 && par13_stk4_negativ_personlig_ægtefælle_fixture.modregnet_i_ægtefælles_personlige_indkomst_kroner == 50000 && par13_stk4_negativ_personlig_ægtefælle_fixture.modregnet_i_egen_positiv_kapitalindkomst_kroner == 30000 && par13_stk4_negativ_personlig_ægtefælle_fixture.modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner == 40000 && par13_stk4_negativ_personlig_ægtefælle_fixture.fremført_negativ_personlig_indkomst_kroner == 0
+| par13_stk4_fremført_negativ_personlig_modregnes_i_lovbestemt_rækkefølge: par13_stk4_fremført_negativ_personlig_ægtefælle_fixture -> par13_stk4_fremført_negativ_personlig_ægtefælle_fixture.modregnet_i_egen_positiv_kapitalindkomst_kroner == 10000 && par13_stk4_fremført_negativ_personlig_ægtefælle_fixture.modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner == 20000 && par13_stk4_fremført_negativ_personlig_ægtefælle_fixture.modregnet_i_egen_personlige_indkomst_kroner == 30000 && par13_stk4_fremført_negativ_personlig_ægtefælle_fixture.modregnet_i_ægtefælles_personlige_indkomst_kroner == 40000 && par13_stk4_fremført_negativ_personlig_ægtefælle_fixture.resterende_fremført_negativ_personlig_indkomst_kroner == 10000
 | par13_skattepligtigt_underskud_fremføres: par13_fremførsel_fixture -> par13_fremførsel_fixture == Sandt
 | par13_passiv_virksomhed_låses: par13_virksomhed_låst_fixture -> par13_virksomhed_låst_fixture == Sandt
 | par13_væsentlig_deltagelse_undtages: par13_virksomhed_undtagelse_fixture -> par13_virksomhed_undtagelse_fixture == Falskt

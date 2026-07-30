@@ -18,8 +18,9 @@ model is materially complete.
 Latest mainline slices: § 7 spouse positive-net-capital tax now has an
 executable allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break
 rule; § 7 a now has post-level amount rules for included and excluded
-pension-like payments; § 8 a, stk. 6 now has a pair-level both-negative spouse
-share-income threshold allocation.
+pension-like payments; § 13, stk. 4 now has amount-level spouse and
+carry-forward offset ordering for negative personal income; § 8 a, stk. 6 now
+has a pair-level both-negative spouse share-income threshold allocation.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -439,6 +440,12 @@ Current decision:
   tax-value offset chain, keeping the carried remainder after § 6, § 7, § 7 a,
   and § 8 a, stk. 2 inside the same legal case while preserving public wrapper
   rule names for downstream calculator/audit files.
+- `Par13NegativPersonligModregningSag` and
+  `Par13FremførtNegativPersonligModregningSag` keep the § 13, stk. 4
+  negative-personal-income offset order inside explicit legal cases: current
+  year spouse personal income first, then own positive capital and spouse
+  positive capital, while carried-forward negative personal income starts in
+  the spouses' positive capital income before own and spouse personal income.
 - `Par4aPensionsfradragSag` uses product-scoped `|` rules for the § 4 a,
   stk. 4 amount layer. The scope keeps positive share income, the requested
   pension deduction, notice to the tax administration, no-double-deduction
@@ -1004,6 +1011,7 @@ M5 - Audit suite
   transfer, covered § 12 unused state personfradrag tax-value allocation and
   wage-earner component projection,
   covered 2026 state-tax reform layers, covered § 13 deficit mechanics,
+  § 13 stk. 4 negative-personal-income spouse and carry-forward offset order,
   mellemskat positive-net-capital and spouse-threshold activation,
   § 7 stk. 5 spouse negative-capital offset/effective-grundbeløb activation,
   § 7 stk. 10-11 spouse capital-tax allocation, and § 7 stk. 12 tie-break,
@@ -1110,7 +1118,9 @@ M7 - Personfradrag and deficit layer
   offset, statutory tax-order reduction, and unused spouse transfer, § 12
   unused state personfradrag tax-value allocation across the § 9 state-tax
   basket now wired into the wage-earner calculator, spouse
-  deficit transfer and negative personal income carry-forward are fixture-tested,
+  deficit transfer, § 13 stk. 4 negative personal income offsets through spouse
+  personal income and both spouses' positive capital income, and carried-forward
+  negative personal income ordering are fixture-tested,
   foreign/pension spouse transfer limitations are executable, and same-business
   loss carry-forward amounts are fixture-tested. § 13's first dependent-source validation now
   covers PBL § 16 through 2025, the 2026 repeal, LL § 33 A relief, and seamen

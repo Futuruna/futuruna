@@ -86,7 +86,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | PersonfradragNormalfixtureDækket | Par10PersonfradragSkattepligtDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | Par7ÆgtefælleKapitalFordelingDækket | Par7aUdligningsskatDækket | Par8SundhedsbidragDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8aNegativAktieindkomstStk6Dækket | Par8bCfcSkatDækket | Par8cKommunalLignendeSkatDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | PersonfradragNormalfixtureDækket | Par10PersonfradragSkattepligtDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | Skatteår2026ReformDækket | MellemskatKapitalDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | Par7ÆgtefælleKapitalFordelingDækket | Par7aUdligningsskatDækket | Par8SundhedsbidragDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8aNegativAktieindkomstStk6Dækket | Par8bCfcSkatDækket | Par8cKommunalLignendeSkatDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13NegativPersonligStk4Dækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -721,6 +721,21 @@ virksomhedsunderskud.
     personlig_indkomst_kroner = -10000,
     positiv_kapitalindkomst_kroner = 2000
 ))
+= m5_par13_stk4_negativ_personlig_fixture = par13_negativ_personlig_modregning_resultat(Par13NegativPersonligModregningInput(
+    personlig_indkomst_kroner = -120000,
+    egen_positiv_kapitalindkomst_kroner = 30000,
+    ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner = 50000,
+    ægtefælle_positiv_kapitalindkomst_kroner = 40000,
+    gift_samlevende_ved_årets_udløb = Sandt
+))
+= m5_par13_stk4_fremført_negativ_personlig_fixture = par13_fremført_negativ_personlig_modregning_resultat(Par13FremførtNegativPersonligModregningInput(
+    fremført_negativ_personlig_indkomst_kroner = 110000,
+    egen_positiv_kapitalindkomst_kroner = 10000,
+    ægtefælle_positiv_kapitalindkomst_kroner = 20000,
+    egen_personlig_indkomst_med_pbl16_tillæg_kroner = 30000,
+    ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner = 40000,
+    gift_samlevende_ved_årets_udløb = Sandt
+))
 = m5_par13_stk5_2025_fixture = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(
     skatteår = 2025,
     ønsket_overførsel_kroner = 100000,
@@ -1033,6 +1048,8 @@ virksomhedsunderskud.
 | m5_par13_modregningsrækkefølge: m5_par13_modregning_fixture -> m5_par13_modregning_fixture.par6_efter_kroner == 0 && m5_par13_modregning_fixture.par7_efter_kroner == 0 && m5_par13_modregning_fixture.par8a_stk2_efter_kroner == 10700
 | m5_par13_ægtefælleoverførsel: m5_par13_ægtefælle_fixture -> m5_par13_ægtefælle_fixture.fradrag_i_ægtefælle_indkomst_kroner == 45000 && m5_par13_ægtefælle_fixture.resterende_underskud_kroner == 15000
 | m5_par13_negativ_personlig_rest: m5_par13_negativ_personlig_fixture -> m5_par13_negativ_personlig_fixture == 8000
+| m5_par13_stk4_negativ_personlig_ægtefælleorden: m5_par13_stk4_negativ_personlig_fixture -> m5_par13_stk4_negativ_personlig_fixture.negativ_personlig_indkomst_abs_kroner == 120000 && m5_par13_stk4_negativ_personlig_fixture.modregnet_i_ægtefælles_personlige_indkomst_kroner == 50000 && m5_par13_stk4_negativ_personlig_fixture.modregnet_i_egen_positiv_kapitalindkomst_kroner == 30000 && m5_par13_stk4_negativ_personlig_fixture.modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner == 40000 && m5_par13_stk4_negativ_personlig_fixture.fremført_negativ_personlig_indkomst_kroner == 0
+| m5_par13_stk4_fremført_negativ_personlig_ægtefælleorden: m5_par13_stk4_fremført_negativ_personlig_fixture -> m5_par13_stk4_fremført_negativ_personlig_fixture.modregnet_i_egen_positiv_kapitalindkomst_kroner == 10000 && m5_par13_stk4_fremført_negativ_personlig_fixture.modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner == 20000 && m5_par13_stk4_fremført_negativ_personlig_fixture.modregnet_i_egen_personlige_indkomst_kroner == 30000 && m5_par13_stk4_fremført_negativ_personlig_fixture.modregnet_i_ægtefælles_personlige_indkomst_kroner == 40000 && m5_par13_stk4_fremført_negativ_personlig_fixture.resterende_fremført_negativ_personlig_indkomst_kroner == 10000
 | m5_par13_stk5_beløbsbegrænsning_2025: m5_par13_stk5_2025_fixture -> m5_par13_stk5_2025_fixture.overførbart_underskud_kroner == 53000 && m5_par13_stk5_2025_fixture.afskåret_udenlandsk_nettoindkomst_kroner == 25000 && m5_par13_stk5_2025_fixture.afskåret_udlandsfradrag_kroner == 12000 && m5_par13_stk5_2025_fixture.afskåret_pbl16_kroner == 10000
 | m5_par13_stk5_pbl16_ophævet_2026: m5_par13_stk5_2026_fixture -> m5_par13_stk5_2026_fixture.overførbart_underskud_kroner == 100000 && m5_par13_stk5_2026_fixture.afskåret_pbl16_kroner == 0
 | m5_par13_stk5_ll33a_lempelse: m5_par13_stk5_ll33a_fixture -> m5_par13_stk5_ll33a_fixture.overførbart_underskud_kroner == 100000 && m5_par13_stk5_ll33a_fixture.samlet_afskåret_kroner == 0
@@ -1135,6 +1152,7 @@ virksomhedsunderskud.
 | m5_opkrævning_for_sen_dækket: m5_opkrævning_for_sen_fixture -> opkrævning_betalt_rettidigt(m5_opkrævning_for_sen_fixture) == Falskt && opkrævning_for_sen_betaling_udløser_rente(m5_opkrævning_for_sen_fixture) == Sandt
 | m5_opkrævning_stor_indeholdelsespligtig_dækket: m5_opkrævning_stor_indeholdelsespligtig_fixture -> opkrævning_betalingsfrist_måned(m5_opkrævning_stor_indeholdelsespligtig_fixture) == 3 && opkrævning_betalingsfrist_dag(m5_opkrævning_stor_indeholdelsespligtig_fixture) == 31
 | m5_audit_par13_mekanik_signal: audit_signal(Par13UnderskudsmekanikDækket) -> audit_signal(Par13UnderskudsmekanikDækket) == Sandt
+| m5_audit_par13_stk4_negativ_personlig_signal: audit_signal(Par13NegativPersonligStk4Dækket) -> audit_signal(Par13NegativPersonligStk4Dækket) == Sandt
 | m5_audit_par13_beløb_signal: audit_signal(Par13BeløbsbegrænsningerDækket) -> audit_signal(Par13BeløbsbegrænsningerDækket) == Sandt
 | m5_audit_par13_kilder_signal: audit_signal(Par13AfhængigeKilderValideret) -> audit_signal(Par13AfhængigeKilderValideret) == Sandt
 | m5_audit_par13_calculator_signal: audit_signal(Par13KompleksCalculatorDækket) -> audit_signal(Par13KompleksCalculatorDækket) == Sandt
@@ -1165,6 +1183,8 @@ virksomhedsunderskud.
 ? m5_par13_modregningsrækkefølge
 ? m5_par13_ægtefælleoverførsel
 ? m5_par13_negativ_personlig_rest
+? m5_par13_stk4_negativ_personlig_ægtefælleorden
+? m5_par13_stk4_fremført_negativ_personlig_ægtefælleorden
 ? m5_par13_stk5_beløbsbegrænsning_2025
 ? m5_par13_stk5_pbl16_ophævet_2026
 ? m5_par13_stk5_ll33a_lempelse
@@ -1247,6 +1267,7 @@ virksomhedsunderskud.
 ? m5_opkrævning_for_sen_dækket
 ? m5_opkrævning_stor_indeholdelsespligtig_dækket
 ? m5_audit_par13_mekanik_signal
+? m5_audit_par13_stk4_negativ_personlig_signal
 ? m5_audit_par13_beløb_signal
 ? m5_audit_par13_kilder_signal
 ? m5_audit_par13_calculator_signal
