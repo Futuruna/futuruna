@@ -680,11 +680,39 @@ Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
 
 # UdligningsskatPost = Pbl20Udbetaling | Pbl53AUdbetaling | Pbl53BUdbetaling | AfløsningAfPensionstilsagn | DirektørPension | FolkepensionGrundbeløb | AndrePensioner
 # UdligningsskatUndtagelse = Invalidepension | Efterløn | Fleksydelse | Førtidspension | ObligatoriskUdenlandskSikring
+# UdligningsskatPostAfgrænsning = UdligningsskatPostOmfattet | UdligningsskatPostInvalidepension | UdligningsskatPostEfterløn | UdligningsskatPostFleksydelse | UdligningsskatPostFørtidspension | UdligningsskatPostObligatoriskUdenlandskSikring
+# Par7aUdligningsskatPostering(art: UdligningsskatPost, beløb_kroner: Heltal, afgrænsning: UdligningsskatPostAfgrænsning)
+# Par7aUdligningsskatPostOpgørelseInput(poster: List(Par7aUdligningsskatPostering))
+# Par7aUdligningsskatPostOpgørelseResultat(stk1_beløb_kroner: Heltal, undtaget_beløb_kroner: Heltal)
+# Par7aUdligningsskatBeløbsInput(skatteår: Heltal, poster: List(Par7aUdligningsskatPostering), korrigeret_personlig_indkomst_kroner: Heltal, ægtefælle_poster: List(Par7aUdligningsskatPostering), ægtefælle_personlig_indkomst_efter_par13_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par7aUdligningsskatInput(skatteår: Heltal, stk1_beløb_kroner: Heltal, korrigeret_personlig_indkomst_kroner: Heltal, ægtefælle_stk1_beløb_kroner: Heltal, ægtefælle_personlig_indkomst_efter_par13_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par7aUdligningsskatResultat(skatteår: Heltal, grundbeløb_kroner: Heltal, ægtefælle_maks_forhøjelse_kroner: Heltal, ægtefælle_grundbeløbsforhøjelse_kroner: Heltal, effektivt_grundbeløb_kroner: Heltal, beregningsbeløb_før_bundfradrag_kroner: Heltal, udligningsskattegrundlag_kroner: Heltal, sats_basispoint: Heltal, udligningsskat_kroner: Heltal)
 
 | udligningsskat_omfatter(post: UdligningsskatPost) -> Sandt
 | udligningsskat_undtager(undtagelse: UdligningsskatUndtagelse) -> Sandt
+| par7a_post_afgrænsning_undtages(afgrænsning: UdligningsskatPostAfgrænsning) -> Falskt
+| exception par7a_stk2_invalidepension_undtages par7a_post_afgrænsning_undtages(afgrænsning: UdligningsskatPostAfgrænsning) -> Sandt under afgrænsning == UdligningsskatPostInvalidepension
+| exception par7a_nr7_efterløn_undtages par7a_post_afgrænsning_undtages(afgrænsning: UdligningsskatPostAfgrænsning) -> Sandt under afgrænsning == UdligningsskatPostEfterløn
+| exception par7a_nr7_fleksydelse_undtages par7a_post_afgrænsning_undtages(afgrænsning: UdligningsskatPostAfgrænsning) -> Sandt under afgrænsning == UdligningsskatPostFleksydelse
+| exception par7a_nr7_førtidspension_undtages par7a_post_afgrænsning_undtages(afgrænsning: UdligningsskatPostAfgrænsning) -> Sandt under afgrænsning == UdligningsskatPostFørtidspension
+| exception par7a_nr7_obligatorisk_udenlandsk_sikring_undtages par7a_post_afgrænsning_undtages(afgrænsning: UdligningsskatPostAfgrænsning) -> Sandt under afgrænsning == UdligningsskatPostObligatoriskUdenlandskSikring
+| par7a_post_medregnes_i_stk1(post: Par7aUdligningsskatPostering) -> udligningsskat_omfatter(post.art) && par7a_post_afgrænsning_undtages(post.afgrænsning) == Falskt
+| par7a_post_stk1_beløb_kroner(post: Par7aUdligningsskatPostering) -> 0
+| exception par7a_stk1_post_medregnes par7a_post_stk1_beløb_kroner(post: Par7aUdligningsskatPostering) -> penge_positivt_beløb(post.beløb_kroner) under par7a_post_medregnes_i_stk1(post)
+| par7a_post_undtaget_beløb_kroner(post: Par7aUdligningsskatPostering) -> 0
+| exception par7a_stk2_og_nr7_post_undtages par7a_post_undtaget_beløb_kroner(post: Par7aUdligningsskatPostering) -> penge_positivt_beløb(post.beløb_kroner) under par7a_post_afgrænsning_undtages(post.afgrænsning)
+| par7a_postopgørelse_stk1_beløb_kroner(input: Par7aUdligningsskatPostOpgørelseInput) -> foldl(input.poster, 0, |sum, post| sum + par7a_post_stk1_beløb_kroner(post))
+| par7a_postopgørelse_undtaget_beløb_kroner(input: Par7aUdligningsskatPostOpgørelseInput) -> foldl(input.poster, 0, |sum, post| sum + par7a_post_undtaget_beløb_kroner(post))
+# Par7aUdligningsskatPostOpgørelseSag(input: Par7aUdligningsskatPostOpgørelseInput) {
+    | stk1_beløb_kroner() -> par7a_postopgørelse_stk1_beløb_kroner(input)
+    | undtaget_beløb_kroner() -> par7a_postopgørelse_undtaget_beløb_kroner(input)
+    | resultat() -> Par7aUdligningsskatPostOpgørelseResultat(
+        stk1_beløb_kroner = stk1_beløb_kroner(),
+        undtaget_beløb_kroner = undtaget_beløb_kroner()
+    )
+}
+| par7a_udligningsskat_postopgørelse_sag(input: Par7aUdligningsskatPostOpgørelseInput) -> Par7aUdligningsskatPostOpgørelseSag(input)
+| par7a_udligningsskat_postopgørelse_resultat(input: Par7aUdligningsskatPostOpgørelseInput) -> par7a_udligningsskat_postopgørelse_sag(input).resultat()
 | udligningsskat_sats_basispoint(år: Heltal) -> 600 under år >= 2011 && år <= 2014
 | udligningsskat_sats_basispoint(år: Heltal) -> 500 under år == 2015
 | udligningsskat_sats_basispoint(år: Heltal) -> 400 under år == 2016
@@ -727,6 +755,21 @@ Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
 | par7a_udligningsskat_sag(input: Par7aUdligningsskatInput) -> Par7aUdligningsskatSag(input)
 | par7a_udligningsskat_resultat(input: Par7aUdligningsskatInput) -> par7a_udligningsskat_sag(input).resultat()
 | par7a_udligningsskat_kroner(input: Par7aUdligningsskatInput) -> par7a_udligningsskat_sag(input).udligningsskat_kroner()
+# Par7aUdligningsskatBeløbsSag(input: Par7aUdligningsskatBeløbsInput) {
+    | egen_postopgørelse() -> par7a_udligningsskat_postopgørelse_resultat(Par7aUdligningsskatPostOpgørelseInput(poster = input.poster))
+    | ægtefælle_postopgørelse() -> par7a_udligningsskat_postopgørelse_resultat(Par7aUdligningsskatPostOpgørelseInput(poster = input.ægtefælle_poster))
+    | beregningsinput() -> Par7aUdligningsskatInput(
+        skatteår = input.skatteår,
+        stk1_beløb_kroner = egen_postopgørelse().stk1_beløb_kroner,
+        korrigeret_personlig_indkomst_kroner = input.korrigeret_personlig_indkomst_kroner,
+        ægtefælle_stk1_beløb_kroner = ægtefælle_postopgørelse().stk1_beløb_kroner,
+        ægtefælle_personlig_indkomst_efter_par13_kroner = input.ægtefælle_personlig_indkomst_efter_par13_kroner,
+        gift_samlevende_ved_årets_udløb = input.gift_samlevende_ved_årets_udløb
+    )
+    | resultat() -> par7a_udligningsskat_resultat(beregningsinput())
+}
+| par7a_udligningsskat_beløbssag(input: Par7aUdligningsskatBeløbsInput) -> Par7aUdligningsskatBeløbsSag(input)
+| par7a_udligningsskat_resultat_fra_poster(input: Par7aUdligningsskatBeløbsInput) -> par7a_udligningsskat_beløbssag(input).resultat()
 
 = par7a_pension = udligningsskat_omfatter(Pbl20Udbetaling)
 = par7a_invalidepension = udligningsskat_undtager(Invalidepension)
@@ -756,6 +799,27 @@ Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
     ægtefælle_personlig_indkomst_efter_par13_kroner = 0,
     gift_samlevende_ved_årets_udløb = Falskt
 ))
+= par7a_postopgørelse_fixture = par7a_udligningsskat_postopgørelse_resultat(Par7aUdligningsskatPostOpgørelseInput(poster = [
+    Par7aUdligningsskatPostering(art = Pbl20Udbetaling, beløb_kroner = 300000, afgrænsning = UdligningsskatPostOmfattet),
+    Par7aUdligningsskatPostering(art = FolkepensionGrundbeløb, beløb_kroner = 200000, afgrænsning = UdligningsskatPostOmfattet),
+    Par7aUdligningsskatPostering(art = AndrePensioner, beløb_kroner = 60000, afgrænsning = UdligningsskatPostInvalidepension),
+    Par7aUdligningsskatPostering(art = AndrePensioner, beløb_kroner = 50000, afgrænsning = UdligningsskatPostEfterløn)
+]))
+= par7a_udligningsskat_2014_poster_fixture = par7a_udligningsskat_resultat_fra_poster(Par7aUdligningsskatBeløbsInput(
+    skatteår = 2014,
+    poster = [
+        Par7aUdligningsskatPostering(art = Pbl20Udbetaling, beløb_kroner = 300000, afgrænsning = UdligningsskatPostOmfattet),
+        Par7aUdligningsskatPostering(art = FolkepensionGrundbeløb, beløb_kroner = 200000, afgrænsning = UdligningsskatPostOmfattet),
+        Par7aUdligningsskatPostering(art = AndrePensioner, beløb_kroner = 60000, afgrænsning = UdligningsskatPostInvalidepension),
+        Par7aUdligningsskatPostering(art = AndrePensioner, beløb_kroner = 50000, afgrænsning = UdligningsskatPostEfterløn)
+    ],
+    korrigeret_personlig_indkomst_kroner = 450000,
+    ægtefælle_poster = [
+        Par7aUdligningsskatPostering(art = AndrePensioner, beløb_kroner = 40000, afgrænsning = UdligningsskatPostFleksydelse)
+    ],
+    ægtefælle_personlig_indkomst_efter_par13_kroner = 0,
+    gift_samlevende_ved_årets_udløb = Falskt
+))
 
 | par7a_pension_omfattes: par7a_pension -> par7a_pension == Sandt
 | par7a_invalidepension_undtages: par7a_invalidepension -> par7a_invalidepension == Sandt
@@ -764,6 +828,8 @@ Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
 | par7a_udligningsskat_2014_beregner_stk3_og_grundbeløb: par7a_udligningsskat_2014_fixture -> par7a_udligningsskat_2014_fixture.grundbeløb_kroner == 369400 && par7a_udligningsskat_2014_fixture.beregningsbeløb_før_bundfradrag_kroner == 450000 && par7a_udligningsskat_2014_fixture.udligningsskattegrundlag_kroner == 80600 && par7a_udligningsskat_2014_fixture.udligningsskat_kroner == 4836
 | par7a_udligningsskat_2016_ægtefælleforhøjer_grundbeløb: par7a_udligningsskat_2016_ægtefælle_fixture -> par7a_udligningsskat_2016_ægtefælle_fixture.grundbeløb_kroner == 379900 && par7a_udligningsskat_2016_ægtefælle_fixture.ægtefælle_maks_forhøjelse_kroner == 126700 && par7a_udligningsskat_2016_ægtefælle_fixture.ægtefælle_grundbeløbsforhøjelse_kroner == 79900 && par7a_udligningsskat_2016_ægtefælle_fixture.effektivt_grundbeløb_kroner == 459800 && par7a_udligningsskat_2016_ægtefælle_fixture.udligningsskat_kroner == 5608
 | par7a_udligningsskat_2018_sats_nulstiller_skat: par7a_udligningsskat_2018_nul_fixture -> par7a_udligningsskat_2018_nul_fixture.sats_basispoint == 0 && par7a_udligningsskat_2018_nul_fixture.udligningsskat_kroner == 0
+| par7a_postopgørelse_medtager_og_undtager_beløb: par7a_postopgørelse_fixture -> par7a_postopgørelse_fixture.stk1_beløb_kroner == 500000 && par7a_postopgørelse_fixture.undtaget_beløb_kroner == 110000
+| par7a_udligningsskat_fra_poster_beregner_samme_grundlag: par7a_udligningsskat_2014_poster_fixture -> par7a_udligningsskat_2014_poster_fixture.grundbeløb_kroner == 369400 && par7a_udligningsskat_2014_poster_fixture.beregningsbeløb_før_bundfradrag_kroner == 450000 && par7a_udligningsskat_2014_poster_fixture.udligningsskat_kroner == 4836
 
 ----
 § 8. Sundhedsbidrag efter § 5, nr. 4, beregnes af den skattepligtige indkomst

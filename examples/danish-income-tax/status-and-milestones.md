@@ -17,8 +17,9 @@ model is materially complete.
 
 Latest mainline slices: § 7 spouse positive-net-capital tax now has an
 executable allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break
-rule; § 8 a, stk. 6 now has a pair-level both-negative spouse share-income
-threshold allocation.
+rule; § 7 a now has post-level amount rules for included and excluded
+pension-like payments; § 8 a, stk. 6 now has a pair-level both-negative spouse
+share-income threshold allocation.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -543,6 +544,13 @@ Current decision:
   exceptions derive the low-rate comparison amount, any over-withheld amount
   credited in slutskatten, the negative-share-income full credit, and the
   remaining final dividend-tax payment.
+- `Par7aUdligningsskatPostOpgørelseSag` and
+  `Par7aUdligningsskatBeløbsSag` use product-scoped `|` rules for
+  Personskatteloven § 7 a. They keep the enumerated pension and pension-like
+  payments as amount-carrying posts, exclude invalidity pension, efterløn,
+  fleksydelse, førtidspension, and mandatory foreign security schemes before
+  calculating the stk. 1 amount, and feed that source-derived amount into the
+  existing stk. 3, stk. 4-5, and stk. 6 udligningsskat calculation.
 - `AktieindkomstÆgtefællerBeggeNegativeSag` uses product-scoped `|` rules for
   Personskatteloven § 8 a, stk. 6. It keeps both spouses' negative share income
   and samliv status together so the double share-income threshold is split
@@ -999,8 +1007,9 @@ M5 - Audit suite
   mellemskat positive-net-capital and spouse-threshold activation,
   § 7 stk. 5 spouse negative-capital offset/effective-grundbeløb activation,
   § 7 stk. 10-11 spouse capital-tax allocation, and § 7 stk. 12 tie-break,
-  historical § 7 a udligningsskat amount calculation with stk. 3 and stk. 6
-  spouse-threshold cases,
+  historical § 7 a udligningsskat amount calculation with post-level stk. 1
+  included/excluded pension-like payments plus stk. 3 and stk. 6 spouse-threshold
+  cases,
   historical § 8 sundhedsbidrag amount calculation with liability and zero-rate
   boundary cases,
   wage-earner domain-model projection of explicit § 7 a/§ 8 and zero-default
