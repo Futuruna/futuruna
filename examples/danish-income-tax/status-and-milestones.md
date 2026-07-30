@@ -256,6 +256,7 @@ encoded as a temporal rule on top of the consolidation.
 - `husholdning-benefit-cliffs.audit.runa` exists and checks/runs with
   `runa run`.
 - `aktieindkomst-pension.audit.runa` exists and checks/runs with `runa run`.
+- `aktieindkomst-slutopgoerelse.runa` exists and checks with `runa check`.
 - `aktieindkomst-slutopgoerelse.scenario.runa` exists and checks/runs with
   `runa run`.
 - `slutopgoerelse.scenario.runa` exists and checks/runs with `runa run`.
@@ -498,14 +499,15 @@ Current decision:
   stk. 4/stk. 6 three-rate case. The scope keeps the shared derived
   `opkrævning`, system-start dates, installment count, and amount splitting
   together while the public wrapper rules keep the surrounding file stable.
-- `AktieindkomstSlutopgørelseCase` uses product-scoped `|` rules for the
-  § 8 a/§ 67 annual-settlement case. The scope keeps the wage-earner breakdown,
-  monthly A-skat, share income, spouse share-income threshold facts, and
-  withheld dividend tax together while methods derive the effective
-  progression threshold, final low-layer share tax, high-layer tax entering
-  final tax before and after § 12 state personfradrag allocation, § 60 credit
-  basket, and final annual-settlement result. The low-wage/high-share scenario
-  now audits that unused state personfradrag tax value can reduce the
+- `aktieindkomst-slutopgoerelse.runa` now owns `AktieindkomstSlutopgørelseCase`
+  as reusable product-scoped `|` rules for the § 8 a/§ 67 annual-settlement
+  case. The scope keeps the wage-earner breakdown, monthly A-skat, share
+  income, spouse share-income threshold facts, and withheld dividend tax
+  together while methods derive the effective progression threshold, final
+  low-layer share tax, high-layer tax entering final tax before and after § 12
+  state personfradrag allocation, § 60 credit basket, and final annual-settlement
+  result. The low-wage/high-share scenario now audits that unused state
+  personfradrag tax value can reduce the
   § 8 a, stk. 2 amount before Kildeskatteloven final settlement.
 - `AktieindkomstUdbytteskatStk3Sag` uses product-scoped `|` rules for
   Personskatteloven § 8 a, stk. 3. It keeps tax year, total share income, and
@@ -919,8 +921,9 @@ M4 - Ordinary taxpayer calculator
   now runs a 2026 Copenhagen § 14 partial-year wage-earner case, annualizing
   180 days of wage income and applying the reduced §§ 6-9 state-income-tax
   result while keeping AM outside the § 14 helårsskat component.
-  `aktieindkomst-slutopgoerelse.scenario.runa` now composes Personskatteloven
-  § 8 a with Kildeskatteloven § 67 for the fictional primary wage-earner:
+  `aktieindkomst-slutopgoerelse.runa` now composes Personskatteloven § 8 a
+  with Kildeskatteloven § 67 as reusable calculation rules; the corresponding
+  scenario file supplies fictional wage-earner fixtures:
   150.000 kr. share income with the spouse's unused share-income threshold stays
   in the 27 pct. final-tax layer, while the high-tax variant splits 21.438 kr.
   final low-layer tax from 29.652 kr. high-layer tax entering slutskat and

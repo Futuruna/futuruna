@@ -1,7 +1,7 @@
 @ sprog da
 
 @ importer ./loenmodtager_beregning
-@ importer ./aktieindkomst - slutopgoerelse.scenario
+@ importer ./aktieindkomst - slutopgoerelse
 
 -- Personskatteloven -- confiscatory effective-rate audit.
 --
