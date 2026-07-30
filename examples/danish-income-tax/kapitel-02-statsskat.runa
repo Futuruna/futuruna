@@ -721,6 +721,9 @@ der har pligt til at betale indkomstskat efter § 8 c eller kommunal indkomstska
 efter lov om kommunal indkomstskat.
 ----
 
+# Par8SundhedsbidragInput(skatteår: Heltal, skattepligtig_indkomst_kroner: Heltal, skattepligt: KommunalSkattepligt)
+# Par8SundhedsbidragResultat(pligt: Boolsk, skattepligtig_indkomst_kroner: Heltal, skattegrundlag_kroner: Heltal, sats_basispoint: Heltal, sundhedsbidrag_kroner: Heltal)
+
 | sundhedsbidrag_sats_basispoint(år: Heltal) -> 800 under år == 2010 || år == 2011
 | sundhedsbidrag_sats_basispoint(år: Heltal) -> 700 under år == 2012
 | sundhedsbidrag_sats_basispoint(år: Heltal) -> 600 under år == 2013
@@ -732,13 +735,50 @@ efter lov om kommunal indkomstskat.
 | sundhedsbidrag_sats_basispoint(år: Heltal) -> 0 under år >= 2019
 | sundhedsbidrag_pligt(skattepligt: KommunalSkattepligt) -> skattepligt == BetalerKommunalEllerPar8c
 
+# Par8SundhedsbidragSag(input: Par8SundhedsbidragInput) {
+    | pligt() -> sundhedsbidrag_pligt(input.skattepligt)
+    | skattepligtig_indkomst_kroner() -> penge_positivt_beløb(input.skattepligtig_indkomst_kroner)
+    | skattegrundlag_kroner() -> 0
+    | exception par8_sundhedsbidrag_pligtig_skattegrundlag skattegrundlag_kroner() -> skattepligtig_indkomst_kroner() under pligt()
+    | sats_basispoint() -> sundhedsbidrag_sats_basispoint(input.skatteår)
+    | sundhedsbidrag_kroner() -> penge_beløb_gange_basispoint_kroner(skattegrundlag_kroner(), sats_basispoint())
+    | resultat() -> Par8SundhedsbidragResultat(
+        pligt = pligt(),
+        skattepligtig_indkomst_kroner = skattepligtig_indkomst_kroner(),
+        skattegrundlag_kroner = skattegrundlag_kroner(),
+        sats_basispoint = sats_basispoint(),
+        sundhedsbidrag_kroner = sundhedsbidrag_kroner()
+    )
+}
+| par8_sundhedsbidrag_sag(input: Par8SundhedsbidragInput) -> Par8SundhedsbidragSag(input)
+| par8_sundhedsbidrag_resultat(input: Par8SundhedsbidragInput) -> par8_sundhedsbidrag_sag(input).resultat()
+| par8_sundhedsbidrag_kroner(input: Par8SundhedsbidragInput) -> par8_sundhedsbidrag_sag(input).sundhedsbidrag_kroner()
+
 = par8_sats_2011 = sundhedsbidrag_sats_basispoint(2011)
 = par8_sats_2019 = sundhedsbidrag_sats_basispoint(2019)
 = par8_pligt = sundhedsbidrag_pligt(BetalerKommunalEllerPar8c)
+= par8_sundhedsbidrag_2015_fixture = par8_sundhedsbidrag_resultat(Par8SundhedsbidragInput(
+    skatteår = 2015,
+    skattepligtig_indkomst_kroner = 300000,
+    skattepligt = BetalerKommunalEllerPar8c
+))
+= par8_sundhedsbidrag_ikke_pligtig_fixture = par8_sundhedsbidrag_resultat(Par8SundhedsbidragInput(
+    skatteår = 2015,
+    skattepligtig_indkomst_kroner = 300000,
+    skattepligt = BetalerIkkeKommunalEllerPar8c
+))
+= par8_sundhedsbidrag_2019_nul_fixture = par8_sundhedsbidrag_resultat(Par8SundhedsbidragInput(
+    skatteår = 2019,
+    skattepligtig_indkomst_kroner = 300000,
+    skattepligt = BetalerKommunalEllerPar8c
+))
 
 | par8_2011_sats: par8_sats_2011 -> par8_sats_2011 == 800
 | par8_2019_nul: par8_sats_2019 -> par8_sats_2019 == 0
 | par8_pligt_følger_kommunal: par8_pligt -> par8_pligt == Sandt
+| par8_sundhedsbidrag_beregner_skattepligtig_indkomst: par8_sundhedsbidrag_2015_fixture -> par8_sundhedsbidrag_2015_fixture.pligt == Sandt && par8_sundhedsbidrag_2015_fixture.sats_basispoint == 400 && par8_sundhedsbidrag_2015_fixture.skattegrundlag_kroner == 300000 && par8_sundhedsbidrag_2015_fixture.sundhedsbidrag_kroner == 12000
+| par8_sundhedsbidrag_kræver_kommunal_eller_par8c_pligt: par8_sundhedsbidrag_ikke_pligtig_fixture -> par8_sundhedsbidrag_ikke_pligtig_fixture.pligt == Falskt && par8_sundhedsbidrag_ikke_pligtig_fixture.skattegrundlag_kroner == 0 && par8_sundhedsbidrag_ikke_pligtig_fixture.sundhedsbidrag_kroner == 0
+| par8_sundhedsbidrag_2019_sats_nulstiller_skat: par8_sundhedsbidrag_2019_nul_fixture -> par8_sundhedsbidrag_2019_nul_fixture.sats_basispoint == 0 && par8_sundhedsbidrag_2019_nul_fixture.sundhedsbidrag_kroner == 0
 
 ----
 § 8 a. Skat af aktieindkomst, der ikke overstiger et grundbeløb på 48.300 kr.

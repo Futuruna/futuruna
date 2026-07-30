@@ -341,7 +341,7 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 57-67% complete as an executable research corpus,
+- Working estimate: roughly 58-68% complete as an executable research corpus,
   and roughly 42-52% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
@@ -816,6 +816,9 @@ M2 - State tax computation skeleton
   tax from the regulated 2010-level grundbeløb, the stk. 3 corrected-personal-
   income cap, the stk. 6 spouse grundbeløb increase with the 121.000 kr.
   regulated cap, and the 2011-2018 phase-out rates.
+  The historical § 8 sundhedsbidrag slice now computes amount-level tax from
+  skattepligtig indkomst, the 2010-2019 rate phase-out, and the stk. 2
+  municipal/§ 8 c liability condition.
 
 M3 - Tax-year parameter packs
 
@@ -944,6 +947,8 @@ M5 - Audit suite
   § 7 stk. 5 spouse negative-capital offset/effective-grundbeløb activation,
   historical § 7 a udligningsskat amount calculation with stk. 3 and stk. 6
   spouse-threshold cases,
+  historical § 8 sundhedsbidrag amount calculation with liability and zero-rate
+  boundary cases,
   ordinary wage and special-case AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
   wage-earner-deduction coverage plus § 9 L/§ 26 nr. 5 validation coverage,
   ordinary municipal/church-tax legal coverage,
