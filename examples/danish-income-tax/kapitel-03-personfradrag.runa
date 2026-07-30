@@ -2,6 +2,7 @@
 
 @ importer ./pengebeloeb
 @ importer ./skatteaar - parametre
+@ importer ./kapitel - 02 - statsskat
 
 -- Personskatteloven — personfradrag, negativ kapitalindkomst og underskud (§§ 10-13).
 --
@@ -71,6 +72,8 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 # ÆgtefællePersonfradragStatus = IkkeGiftEllerIkkeSamlevende | GiftSamlevendeVedÅretsUdløb
 # PersonfradragPar10Input(skatteår: Heltal, alder_status: PersonfradragAlderStatus, skattepligt: PersonfradragSkattepligt, valg_dato_yyyymmdd: Heltal, omvalg_dato_yyyymmdd: Heltal)
 # PersonfradragPar10Resultat(personfradrag_anvendes: Boolsk, personfradrag_kroner: Heltal, valgfrist_yyyymmdd: Heltal, omvalgsfrist_yyyymmdd: Heltal, delårsvalg_rettidigt: Boolsk, omvalg_rettidigt: Boolsk, afskåret_af_sømandsbeskatning: Boolsk, afskåret_af_opholdstilladelse: Boolsk, afskåret_af_forskerordning: Boolsk)
+# Par10Stk3ÆgtefælleStatsskatInput(ubrugt_par8_skatteværdi_kroner: Heltal, ubrugt_par6_skatteværdi_kroner: Heltal, ægtefælle_par6_skat_kroner: Heltal, ægtefælle_par7_skat_kroner: Heltal, ægtefælle_par7a_skat_kroner: Heltal, ægtefælle_par8_skat_kroner: Heltal, ægtefælle_par8a_stk2_skat_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par10Stk3ÆgtefælleStatsskatResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, overført_par8_skatteværdi_kroner: Heltal, overført_par6_skatteværdi_kroner: Heltal, anvendt_skatteværdi_kroner: Heltal, ubrugt_efter_ægtefælle_kroner: Heltal, afskåret_uden_samliv_kroner: Heltal)
 
 | personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 42000 under status == Fyldt18EllerGift
 | exception voksen_2019 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 41300 under status == Fyldt18EllerGift && skatteår == 2019
@@ -118,6 +121,43 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 }
 | personfradrag_par10_sag(input: PersonfradragPar10Input) -> PersonfradragPar10Sag(input)
 | personfradrag_par10_resultat(input: PersonfradragPar10Input) -> personfradrag_par10_sag(input).resultat()
+
+# Par10Stk3ÆgtefælleStatsskatSag(input: Par10Stk3ÆgtefælleStatsskatInput) {
+    | overførsel_tilladt() -> input.gift_samlevende_ved_årets_udløb
+    | overført_par8_skatteværdi_kroner() -> 0
+    | exception par10_stk3_par8værdi_overføres_til_samlevende_ægtefælle overført_par8_skatteværdi_kroner() -> input.ubrugt_par8_skatteværdi_kroner under overførsel_tilladt()
+    | overført_par6_skatteværdi_kroner() -> 0
+    | exception par10_stk3_par6værdi_overføres_til_samlevende_ægtefælle overført_par6_skatteværdi_kroner() -> input.ubrugt_par6_skatteværdi_kroner under overførsel_tilladt()
+    | par9_input() -> Par9StatsskatPersonfradragInput(
+        par6_skat_kroner = input.ægtefælle_par6_skat_kroner,
+        par7_skat_kroner = input.ægtefælle_par7_skat_kroner,
+        par7a_skat_kroner = input.ægtefælle_par7a_skat_kroner,
+        par8_skat_kroner = input.ægtefælle_par8_skat_kroner,
+        par8a_stk2_skat_kroner = input.ægtefælle_par8a_stk2_skat_kroner,
+        par8_skatteværdi_kroner = overført_par8_skatteværdi_kroner(),
+        par6_skatteværdi_kroner = overført_par6_skatteværdi_kroner()
+    )
+    | par9_resultat() -> par9_statsskat_personfradrag_resultat(par9_input())
+    | samlet_overført_skatteværdi_kroner() -> overført_par8_skatteværdi_kroner() + overført_par6_skatteværdi_kroner()
+    | ubrugt_efter_ægtefælle_kroner() -> par9_resultat().ubrugt_skatteværdi_kroner
+    | anvendt_skatteværdi_kroner() -> samlet_overført_skatteværdi_kroner() - ubrugt_efter_ægtefælle_kroner()
+    | afskåret_uden_samliv_kroner() -> 0
+    | exception par10_stk3_kræver_samliv afskåret_uden_samliv_kroner() -> input.ubrugt_par8_skatteværdi_kroner + input.ubrugt_par6_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb == Falskt
+    | resultat() -> Par10Stk3ÆgtefælleStatsskatResultat(
+        par6_efter_kroner = par9_resultat().par6_efter_kroner,
+        par7_efter_kroner = par9_resultat().par7_efter_kroner,
+        par7a_efter_kroner = par9_resultat().par7a_efter_kroner,
+        par8_efter_kroner = par9_resultat().par8_efter_kroner,
+        par8a_stk2_efter_kroner = par9_resultat().par8a_stk2_efter_kroner,
+        overført_par8_skatteværdi_kroner = overført_par8_skatteværdi_kroner(),
+        overført_par6_skatteværdi_kroner = overført_par6_skatteværdi_kroner(),
+        anvendt_skatteværdi_kroner = anvendt_skatteværdi_kroner(),
+        ubrugt_efter_ægtefælle_kroner = ubrugt_efter_ægtefælle_kroner(),
+        afskåret_uden_samliv_kroner = afskåret_uden_samliv_kroner()
+    )
+}
+| par10_stk3_ægtefælle_statsskat_sag(input: Par10Stk3ÆgtefælleStatsskatInput) -> Par10Stk3ÆgtefælleStatsskatSag(input)
+| par10_stk3_ægtefælle_statsskat_resultat(input: Par10Stk3ÆgtefælleStatsskatInput) -> par10_stk3_ægtefælle_statsskat_sag(input).resultat()
 
 = par10_voksen_2025_2010niveau = personfradrag_grundbeløb_2010_niveau(Fyldt18EllerGift, 2025)
 = par10_under18_2010niveau = personfradrag_grundbeløb_2010_niveau(Under18Ugift, 2025)
@@ -167,6 +207,26 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
     valg_dato_yyyymmdd = 0,
     omvalg_dato_yyyymmdd = 0
 ))
+= par10_stk3_ægtefælle_statsskat = par10_stk3_ægtefælle_statsskat_resultat(Par10Stk3ÆgtefælleStatsskatInput(
+    ubrugt_par8_skatteværdi_kroner = 1000,
+    ubrugt_par6_skatteværdi_kroner = 500,
+    ægtefælle_par6_skat_kroner = 200,
+    ægtefælle_par7_skat_kroner = 600,
+    ægtefælle_par7a_skat_kroner = 100,
+    ægtefælle_par8_skat_kroner = 300,
+    ægtefælle_par8a_stk2_skat_kroner = 1000,
+    gift_samlevende_ved_årets_udløb = Sandt
+))
+= par10_stk3_ikke_samlevende = par10_stk3_ægtefælle_statsskat_resultat(Par10Stk3ÆgtefælleStatsskatInput(
+    ubrugt_par8_skatteværdi_kroner = 1000,
+    ubrugt_par6_skatteværdi_kroner = 500,
+    ægtefælle_par6_skat_kroner = 200,
+    ægtefælle_par7_skat_kroner = 600,
+    ægtefælle_par7a_skat_kroner = 100,
+    ægtefælle_par8_skat_kroner = 300,
+    ægtefælle_par8a_stk2_skat_kroner = 1000,
+    gift_samlevende_ved_årets_udløb = Falskt
+))
 
 | par10_voksen_2025_grundbeløb: par10_voksen_2025_2010niveau -> par10_voksen_2025_2010niveau == 39350
 | par10_under18_grundbeløb: par10_under18_2010niveau -> par10_under18_2010niveau == 31500
@@ -180,6 +240,8 @@ Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 | par10_stk5_sømandsbeskatning_afskærer: par10_stk5_sømandsbeskatning_afskåret -> par10_stk5_sømandsbeskatning_afskåret.afskåret_af_sømandsbeskatning == Sandt && par10_stk5_sømandsbeskatning_afskåret.personfradrag_kroner == 0
 | par10_stk5_opholdstilladelse_afskærer: par10_stk5_opholdstilladelse_afskåret -> par10_stk5_opholdstilladelse_afskåret.afskåret_af_opholdstilladelse == Sandt && par10_stk5_opholdstilladelse_afskåret.personfradrag_anvendes == Falskt
 | par10_stk4_forskerordning_afskærer: par10_stk4_forskerordning_afskåret -> par10_stk4_forskerordning_afskåret.afskåret_af_forskerordning == Sandt && par10_stk4_forskerordning_afskåret.personfradrag_anvendes == Falskt
+| par10_stk3_samlevende_ægtefælle_får_uudnyttet_statsværdi: par10_stk3_ægtefælle_statsskat -> par10_stk3_ægtefælle_statsskat.overført_par8_skatteværdi_kroner == 1000 && par10_stk3_ægtefælle_statsskat.overført_par6_skatteværdi_kroner == 500 && par10_stk3_ægtefælle_statsskat.par6_efter_kroner == 0 && par10_stk3_ægtefælle_statsskat.par7_efter_kroner == 0 && par10_stk3_ægtefælle_statsskat.par7a_efter_kroner == 0 && par10_stk3_ægtefælle_statsskat.par8_efter_kroner == 0 && par10_stk3_ægtefælle_statsskat.par8a_stk2_efter_kroner == 700 && par10_stk3_ægtefælle_statsskat.anvendt_skatteværdi_kroner == 1500
+| par10_stk3_kræver_samliv_ved_årets_udløb: par10_stk3_ikke_samlevende -> par10_stk3_ikke_samlevende.overført_par8_skatteværdi_kroner == 0 && par10_stk3_ikke_samlevende.overført_par6_skatteværdi_kroner == 0 && par10_stk3_ikke_samlevende.par6_efter_kroner == 200 && par10_stk3_ikke_samlevende.par7_efter_kroner == 600 && par10_stk3_ikke_samlevende.par8_efter_kroner == 300 && par10_stk3_ikke_samlevende.afskåret_uden_samliv_kroner == 1500
 
 ----
 § 11. For den del af den skattepligtiges negative nettokapitalindkomst, der ikke

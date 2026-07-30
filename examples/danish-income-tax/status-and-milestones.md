@@ -26,7 +26,9 @@ carry-forward offset ordering for negative personal income; § 8 a, stk. 6 now
 has a pair-level both-negative spouse share-income threshold allocation; § 9
 now has amount-level state-personfradrag reduction ordering for the split
 § 8/sundhedsbidrag and § 6/bundskat tax values, wired through the wage-earner
-calculator; § 26, stk. 7 now composes § 7 spouse capital-threshold and
+calculator; § 10, stk. 3 now has amount-level spouse transfer of unused
+personfradrag state-tax value into the receiving spouse's § 9 state-tax basket;
+§ 26, stk. 7 now composes § 7 spouse capital-threshold and
 capital-tax allocation rules into the transition-compensation nr. 3 amount.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
@@ -484,6 +486,13 @@ Current decision:
   personfradrag tax value, and the § 6 personfradrag tax value together so
   each value first reduces its own tax component and then falls through the
   remaining § 9 taxes in the statutory order.
+- `Par10Stk3ÆgtefælleStatsskatSag` uses product-scoped `|` rules for unused
+  personfradrag tax-value transfer to a spouse. It keeps the unused § 8 and
+  § 6 tax values, the receiving spouse's § 9 state-tax basket, and the
+  year-end cohabitation condition together, then delegates the reduction order
+  to `Par9StatsskatPersonfradragResultat` so the amount actually transferred,
+  used, left unused, or barred by missing cohabitation stays in one domain
+  result without duplicating § 9 mechanics.
 - `Par7ReformMellemskatSag` uses product-scoped `|` rules for the 2026
   mellemskat amount layer. It keeps the § 20-regulated personal threshold, the
   § 20-regulated positive-capital grundbeløb, personal income, net-capital
@@ -1045,6 +1054,7 @@ M5 - Audit suite
 - Done when: audits can fail loudly without blocking legal reformulation work.
 - Current slice: source-status rejection, covered normal-fixture
   personfradrag, covered § 10 stk. 5-6 choice/deadline/exclusion posture,
+  covered § 10 stk. 3 spouse transfer of unused personfradrag state-tax value,
   covered § 11 negative net-capital reduction with spouse threshold pooling,
   spouse positive-capital offset, statutory reduction order, and unused spouse
   transfer, covered § 9/§ 12 split state personfradrag tax-value reduction
@@ -1154,7 +1164,9 @@ M7 - Personfradrag and deficit layer
   Copenhagen and Gentofte fixtures settle after personfradrag, § 13 deficit tax
   value and offset order are executable, § 10 stk. 5-6 eligibility for
   Kildeskatteloven § 2 taxpayers is modeled with choice/reversal deadlines and
-  explicit sailor/residence-permit/researcher exclusions, § 11 negative
+  explicit sailor/residence-permit/researcher exclusions, § 10 stk. 3
+  spouse transfer of unused state-personfradrag tax value is amount-modeled for
+  the § 9 state-tax basket and year-end cohabitation condition, § 11 negative
   net-capital reduction covers spouse threshold pooling, spouse positive-capital
   offset, statutory tax-order reduction, and unused spouse transfer, § 9/§ 12
   split state personfradrag tax-value reduction across the state-tax basket is
