@@ -196,6 +196,18 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Sandt
 ))
+= m5_par7_topskat_kapitel_fixture = par7_topskat_2025_fixture
+= m5_lønmodtager_topskat_par7_input = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 700000,
+    positiv_nettokapitalindkomst_kroner = 80000,
+    ligningsmæssige_fradrag_kroner = 0,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= m5_lønmodtager_topskat_par7_fixture = lønmodtager_par7_topskat_resultat(m5_lønmodtager_topskat_par7_input)
+= m5_lønmodtager_topskat_skat_fixture = topskat_før_personfradrag(m5_lønmodtager_topskat_par7_input)
 = m5_par13_lønmodtager_underskud_input = LønmodtagerInput(
     skatteår = 2025,
     kommune = København,
@@ -309,6 +321,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | m5_ligningsfradrag_normalfixture_dækket: m5_personfradrag_fixture -> m5_personfradrag_fixture.beskæftigelsesfradrag_kroner == 55600 && m5_personfradrag_fixture.jobfradrag_kroner == 2900 && m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner == 401500
 | m5_personfradrag_skatteloft_under_loft: m5_personfradrag_fixture -> m5_personfradrag_fixture.personligt_skatteloft.overskydende_basispoint == 0 && m5_personfradrag_fixture.personligt_skatteloft.nedslag_kroner == 0
 | m5_par13_underskud_afgrænset: m5_personfradrag_fixture -> m5_personfradrag_fixture.kræver_par13_underskud == Falskt
+| m5_par7_topskat_beløb_dækket: m5_par7_topskat_kapitel_fixture -> m5_par7_topskat_kapitel_fixture.bundfradrag_kroner == 611800 && m5_par7_topskat_kapitel_fixture.kapital_grundbeløb_kroner == 52400 && m5_par7_topskat_kapitel_fixture.personligt_beregningsgrundlag_kroner == 620000 && m5_par7_topskat_kapitel_fixture.samlet_skat_kroner == 5370
+| m5_lønmodtager_topskat_bruger_par7_resultat: m5_lønmodtager_topskat_par7_fixture -> m5_lønmodtager_topskat_par7_fixture.personligt_beregningsgrundlag_kroner == 644000 && m5_lønmodtager_topskat_par7_fixture.kapital_over_grundbeløb_kroner == 27600 && m5_lønmodtager_topskat_par7_fixture.samlet_grundlag_over_bundfradrag_kroner == 59800 && m5_lønmodtager_topskat_skat_fixture == 8970
 | m5_par13_reform_par8_modregning_dækket: par13_modregning_toptopskat_fixture -> par13_modregning_toptopskat_fixture.par8_efter_kroner == 2000 && par13_modregning_toptopskat_fixture.par8a_stk2_efter_kroner == 20000
 | m5_par13_lønmodtager_underskud_dækket: m5_par13_lønmodtager_underskud_fixture -> m5_par13_lønmodtager_underskud_fixture.almindelig_skattepligtig_indkomst_kroner == -70300 && m5_par13_lønmodtager_underskud_fixture.kommuneskat_før_personfradrag_kroner == 0 && m5_par13_lønmodtager_underskud_fixture.par13_underskud_skatteværdi_kroner == 16520 && m5_par13_lønmodtager_underskud_fixture.statslig_indkomstskat_efter_par13_før_personfradrag_kroner == 0 && m5_par13_lønmodtager_underskud_fixture.par13_ubenyttet_skatteværdi_kroner == 5471 && m5_par13_lønmodtager_underskud_fixture.par13_dækket_underskud_ved_skattemodregning_kroner == 47017 && m5_par13_lønmodtager_underskud_fixture.par13_fremført_underskud_kroner == 23283 && m5_par13_lønmodtager_underskud_fixture.samlet_inkl_am_efter_personfradrag_kroner == 8000
 | m5_par13_lønmodtager_ægtefælleoverførsel_dækket: m5_par13_lønmodtager_ægtefælle_fixture -> m5_par13_lønmodtager_ægtefælle_fixture.par13_resterende_underskud_efter_skattemodregning_kroner == 23283 && m5_par13_lønmodtager_ægtefælle_fixture.par13_ægtefælle_fradrag_kroner == 15000 && m5_par13_lønmodtager_ægtefælle_fixture.par13_fremført_underskud_kroner == 8283
@@ -333,6 +347,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 ? m5_ligningsfradrag_normalfixture_dækket
 ? m5_personfradrag_skatteloft_under_loft
 ? m5_par13_underskud_afgrænset
+? m5_par7_topskat_beløb_dækket
+? m5_lønmodtager_topskat_bruger_par7_resultat
 ? m5_par13_reform_par8_modregning_dækket
 ? m5_par13_lønmodtager_underskud_dækket
 ? m5_par13_lønmodtager_ægtefælleoverførsel_dækket

@@ -151,11 +151,22 @@ nettokapitalindkomst, der overstiger et grundbeløb på 40.000 kr. (2010-niveau)
 i det omfang det samlede beløb overstiger bundfradraget anført i stk. 2.
 ----
 
-| topskat_personligt_overskud_fixture(input: LønmodtagerInput) -> positivt_beløb(personlig_indkomst_efter_am(input) - nationalparametre_for(input.skatteår).topskattegrænse_efter_am_kroner)
-| progressiv_kapital_over_bundfradrag(input: LønmodtagerInput) -> positivt_beløb(input.positiv_nettokapitalindkomst_kroner - nationalparametre_for(input.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner)
-| topskat_grundlag_med_kapital_fixture(input: LønmodtagerInput) -> positivt_beløb(personlig_indkomst_efter_am(input) + progressiv_kapital_over_bundfradrag(input) - nationalparametre_for(input.skatteår).topskattegrænse_efter_am_kroner)
-| topskat_kapitalgrundlag_fixture(input: LønmodtagerInput) -> positivt_beløb(topskat_grundlag_med_kapital_fixture(input) - topskat_personligt_overskud_fixture(input))
-| topskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(topskat_grundlag_med_kapital_fixture(input), nationalparametre_for(input.skatteår).topskat_basispoint)
+| lønmodtager_par7_topskat_input(input: LønmodtagerInput) -> Par7TopskatInput(
+    skatteår = input.skatteår,
+    personlig_indkomst_kroner = personlig_indkomst_efter_am(input),
+    pbl16_tillæg_kroner = 0,
+    positiv_nettokapitalindkomst_kroner = input.positiv_nettokapitalindkomst_kroner
+)
+| lønmodtager_par7_topskat_resultat(input: LønmodtagerInput) -> par7_historisk_topskat_resultat(lønmodtager_par7_topskat_input(input)) under input.skatteår < 2026
+| topskat_personligt_overskud_fixture(input: LønmodtagerInput) -> lønmodtager_par7_topskat_resultat(input).personlig_over_bundfradrag_kroner under input.skatteår < 2026
+| exception reform_topskat_personligt_overskud topskat_personligt_overskud_fixture(input: LønmodtagerInput) -> positivt_beløb(personlig_indkomst_efter_am(input) - nationalparametre_for(input.skatteår).topskattegrænse_efter_am_kroner) under input.skatteår >= 2026
+| progressiv_kapital_over_bundfradrag(input: LønmodtagerInput) -> lønmodtager_par7_topskat_resultat(input).kapital_over_grundbeløb_kroner under input.skatteår < 2026
+| exception reform_progressiv_kapital_over_bundfradrag progressiv_kapital_over_bundfradrag(input: LønmodtagerInput) -> positivt_beløb(input.positiv_nettokapitalindkomst_kroner - nationalparametre_for(input.skatteår).positiv_nettokapital_progressiv_bundfradrag_kroner) under input.skatteår >= 2026
+| topskat_grundlag_med_kapital_fixture(input: LønmodtagerInput) -> lønmodtager_par7_topskat_resultat(input).samlet_grundlag_over_bundfradrag_kroner under input.skatteår < 2026
+| exception reform_topskat_kun_personligt_grundlag topskat_grundlag_med_kapital_fixture(input: LønmodtagerInput) -> topskat_personligt_overskud_fixture(input) under input.skatteår >= 2026
+| topskat_kapitalgrundlag_fixture(input: LønmodtagerInput) -> lønmodtager_par7_topskat_resultat(input).kapitalgrundlag_kroner under input.skatteår < 2026
+| exception reform_topskat_uden_kapitalgrundlag topskat_kapitalgrundlag_fixture(input: LønmodtagerInput) -> 0 under input.skatteår >= 2026
+| topskat_før_personfradrag(input: LønmodtagerInput) -> lønmodtager_par7_topskat_resultat(input).samlet_skat_kroner under input.skatteår < 2026
 | exception topskat_2026_kun_personlig topskat_før_personfradrag(input: LønmodtagerInput) -> skat_i_kroner(topskat_personligt_overskud_fixture(input), nationalparametre_for(input.skatteår).topskat_basispoint) under input.skatteår >= 2026
 
 ----

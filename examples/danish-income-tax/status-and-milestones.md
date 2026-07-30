@@ -295,6 +295,9 @@ encoded as a temporal rule on top of the consolidation.
   Opkrævningsloven payment deadlines and § 7 late-payment rate posture,
   shared money/rounding posture for whole kroner, ten-kroner floors,
   basispoint rounding, and øre-level fractions,
+  a source-backed pre-2026 § 7 topskat amount result with regulated
+  bundfradrag, regulated positive-capital grundbeløb, PBL § 16 additions,
+  personal/capital split and wage-earner calculator reuse,
   Ligningsloven ordinary wage-earner deduction
   dependency slices, § 26 historical year-parameter derivation for 2012-2019,
   2024/2025/2026 tax-year parameter packs, grouped
@@ -338,8 +341,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 55-65% complete as an executable research corpus,
-  and roughly 40-50% complete as a production-grade calculator for
+- Working estimate: roughly 56-66% complete as an executable research corpus,
+  and roughly 41-51% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"

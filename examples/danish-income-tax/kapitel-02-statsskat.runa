@@ -3,6 +3,7 @@
 @ importer ./kapitel - 01 - indkomst
 @ importer ./pengebeloeb
 @ importer ./skatteaar - parametre
+@ importer ./kapitel - 04 - omregning - skatteloft
 
 -- Personskatteloven — statsskat og skatteværdi (§§ 5-9).
 --
@@ -326,6 +327,8 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 ----
 
 # TopskatInput(personlig_indkomst: Heltal, pbl16_tillæg: Heltal)
+# Par7TopskatInput(skatteår: Heltal, personlig_indkomst_kroner: Heltal, pbl16_tillæg_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal)
+# Par7TopskatResultat(bundfradrag_kroner: Heltal, kapital_grundbeløb_kroner: Heltal, personligt_beregningsgrundlag_kroner: Heltal, personlig_over_bundfradrag_kroner: Heltal, kapital_over_grundbeløb_kroner: Heltal, samlet_grundlag_over_bundfradrag_kroner: Heltal, kapitalgrundlag_kroner: Heltal, personlig_skat_kroner: Heltal, kapital_skat_kroner: Heltal, samlet_skat_kroner: Heltal)
 # ÆgtefælleTopskatStatus = IkkeÆgtefælleRegel | HeleÅretSamlevendeÆgtefæller
 # KapitalTærskelStatus = IngenOverGrundbeløb | EnÆgtefælleOverGrundbeløb | BeggeÆgtefællerOverGrundbeløb
 
@@ -347,6 +350,34 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 | topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 464500 under skatteår == 2020
 | topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 466000 under skatteår == 2021
 | topskat_bundfradrag_2010_niveau_kroner(skatteår: Heltal) -> 467000 under skatteår >= 2022
+| par7_positivt_beløb_kroner(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
+| par7_reguleret_2010_beløb_kroner(grundbeløb_2010_niveau_kroner: Heltal, skatteår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = grundbeløb_2010_niveau_kroner,
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(skatteår)
+))
+| par7_bundfradrag_kroner_for_skatteår(skatteår: Heltal) -> par7_reguleret_2010_beløb_kroner(topskat_bundfradrag_2010_niveau_kroner(skatteår), skatteår)
+| par7_positiv_kapital_grundbeløb_2010_niveau_kroner() -> 40000
+| par7_positiv_kapital_grundbeløb_kroner_for_skatteår(skatteår: Heltal) -> par7_reguleret_2010_beløb_kroner(par7_positiv_kapital_grundbeløb_2010_niveau_kroner(), skatteår)
+| par7_topskat_personligt_beregningsgrundlag_kroner(input: Par7TopskatInput) -> input.personlig_indkomst_kroner + input.pbl16_tillæg_kroner
+| par7_topskat_personlig_over_bundfradrag_kroner(input: Par7TopskatInput) -> par7_positivt_beløb_kroner(par7_topskat_personligt_beregningsgrundlag_kroner(input) - par7_bundfradrag_kroner_for_skatteår(input.skatteår))
+| par7_topskat_kapital_over_grundbeløb_kroner(input: Par7TopskatInput) -> par7_positivt_beløb_kroner(input.positiv_nettokapitalindkomst_kroner - par7_positiv_kapital_grundbeløb_kroner_for_skatteår(input.skatteår))
+| par7_topskat_samlet_grundlag_over_bundfradrag_kroner(input: Par7TopskatInput) -> par7_positivt_beløb_kroner(par7_topskat_personligt_beregningsgrundlag_kroner(input) + par7_topskat_kapital_over_grundbeløb_kroner(input) - par7_bundfradrag_kroner_for_skatteår(input.skatteår))
+| par7_topskat_personlig_skat_kroner(input: Par7TopskatInput) -> penge_beløb_gange_basispoint_kroner(par7_topskat_personlig_over_bundfradrag_kroner(input), topskat_sats_basispoint())
+| par7_topskat_samlet_skat_kroner(input: Par7TopskatInput) -> penge_beløb_gange_basispoint_kroner(par7_topskat_samlet_grundlag_over_bundfradrag_kroner(input), topskat_sats_basispoint())
+| par7_topskat_kapital_skat_kroner(input: Par7TopskatInput) -> par7_topskat_samlet_skat_kroner(input) - par7_topskat_personlig_skat_kroner(input)
+| par7_topskat_kapitalgrundlag_kroner(input: Par7TopskatInput) -> par7_positivt_beløb_kroner(par7_topskat_samlet_grundlag_over_bundfradrag_kroner(input) - par7_topskat_personlig_over_bundfradrag_kroner(input))
+| par7_historisk_topskat_resultat(input: Par7TopskatInput) -> Par7TopskatResultat(
+    bundfradrag_kroner = par7_bundfradrag_kroner_for_skatteår(input.skatteår),
+    kapital_grundbeløb_kroner = par7_positiv_kapital_grundbeløb_kroner_for_skatteår(input.skatteår),
+    personligt_beregningsgrundlag_kroner = par7_topskat_personligt_beregningsgrundlag_kroner(input),
+    personlig_over_bundfradrag_kroner = par7_topskat_personlig_over_bundfradrag_kroner(input),
+    kapital_over_grundbeløb_kroner = par7_topskat_kapital_over_grundbeløb_kroner(input),
+    samlet_grundlag_over_bundfradrag_kroner = par7_topskat_samlet_grundlag_over_bundfradrag_kroner(input),
+    kapitalgrundlag_kroner = par7_topskat_kapitalgrundlag_kroner(input),
+    personlig_skat_kroner = par7_topskat_personlig_skat_kroner(input),
+    kapital_skat_kroner = par7_topskat_kapital_skat_kroner(input),
+    samlet_skat_kroner = par7_topskat_samlet_skat_kroner(input)
+) under input.skatteår < 2026
 
 = par7_sats = topskat_sats_basispoint()
 = par7_personligt = topskat_personligt_grundlag(TopskatInput(
@@ -360,6 +391,12 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 = par7_bundfradrag_2015_2010_niveau = topskat_bundfradrag_2010_niveau_kroner(2015)
 = par7_bundfradrag_2019_2010_niveau = topskat_bundfradrag_2010_niveau_kroner(2019)
 = par7_bundfradrag_2022_2010_niveau = topskat_bundfradrag_2010_niveau_kroner(2022)
+= par7_topskat_2025_fixture = par7_historisk_topskat_resultat(Par7TopskatInput(
+    skatteår = 2025,
+    personlig_indkomst_kroner = 600000,
+    pbl16_tillæg_kroner = 20000,
+    positiv_nettokapitalindkomst_kroner = 80000
+))
 
 | par7_sats_15pct: par7_sats -> par7_sats == 1500
 | par7_personligt_grundlag_lægger_til: par7_personligt -> par7_personligt == 620000
@@ -370,6 +407,7 @@ Stk. 13. Grundbeløb og bundfradrag i stk. 1 og 2 reguleres efter § 20.
 | par7_bundfradrag_2015_fra_stk2: par7_bundfradrag_2015_2010_niveau -> par7_bundfradrag_2015_2010_niveau == 444500
 | par7_bundfradrag_2019_fra_stk2: par7_bundfradrag_2019_2010_niveau -> par7_bundfradrag_2019_2010_niveau == 459200
 | par7_bundfradrag_2022_fra_stk2: par7_bundfradrag_2022_2010_niveau -> par7_bundfradrag_2022_2010_niveau == 467000
+| par7_topskat_beregner_personlig_og_kapital: par7_topskat_2025_fixture -> par7_topskat_2025_fixture.bundfradrag_kroner == 611800 && par7_topskat_2025_fixture.kapital_grundbeløb_kroner == 52400 && par7_topskat_2025_fixture.personligt_beregningsgrundlag_kroner == 620000 && par7_topskat_2025_fixture.personlig_over_bundfradrag_kroner == 8200 && par7_topskat_2025_fixture.kapital_over_grundbeløb_kroner == 27600 && par7_topskat_2025_fixture.samlet_grundlag_over_bundfradrag_kroner == 35800 && par7_topskat_2025_fixture.kapitalgrundlag_kroner == 27600 && par7_topskat_2025_fixture.personlig_skat_kroner == 1230 && par7_topskat_2025_fixture.kapital_skat_kroner == 4140 && par7_topskat_2025_fixture.samlet_skat_kroner == 5370
 
 ----
 LOV nr. 482 af 22/05/2024, § 1, nr. 2, 5 og 6.
