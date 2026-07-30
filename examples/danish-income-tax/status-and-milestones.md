@@ -1054,7 +1054,10 @@ M9 - Final provisions and transition compensation
   § 25 applies from 1987, § 26 computes negative transition difference as
   compensation and applies it in statutory order, § 26 stk. 9 now regulates the
   2010-level thresholds through the § 20 rounding rule before deriving stk. 2
-  line items from statutory bases, § 27 is encoded as delegated
+  line items from statutory bases, § 26 stk. 4-6 and stk. 8 now compute
+  samlevende-ægtefælle offsets for positive/negative transition differences,
+  negative/positive net-capital interaction, and nr. 2 bundfradrag transfer with
+  the § 48 F exception, § 27 is encoded as delegated
   implementation/administration authority, and § 28 excludes the Faroe Islands
   and Greenland. Remaining § 26 data work is to source actual 2012-2019
   `reguleringstal` parameter packs before treating historic compensation cases

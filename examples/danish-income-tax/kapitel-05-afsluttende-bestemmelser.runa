@@ -131,6 +131,14 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par26ModregningInput(kompensation_kroner: Heltal, par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par8c_skat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal)
 # Par26ModregningResult(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, par8c_efter_kroner: Heltal, kommuneskat_efter_kroner: Heltal, kirkeskat_efter_kroner: Heltal, ubrugt_kompensation_kroner: Heltal)
 # Par26ÆgtefælleStatus = Par26IkkeSamlevende | Par26GiftSamlevendeVedÅretsUdløb | Par26Forskerordning48FValgt
+# Par26ÆgtefælleForskelsbeløbInput(status: Par26ÆgtefælleStatus, egen_forskelsbeløb_efter_stk3_kroner: Heltal, ægtefælle_forskelsbeløb_efter_stk3_kroner: Heltal)
+# Par26ÆgtefælleForskelsbeløbResult(positivt_forskelsbeløb_modregnet_kroner: Heltal, ægtefælle_forskelsbeløb_efter_stk4_kroner: Heltal, ægtefælle_kompensation_efter_stk4_kroner: Heltal)
+# Par26Stk5NegativKapitalInput(status: Par26ÆgtefælleStatus, negativ_nettokapitalindkomst_kroner: Heltal, ægtefælle_positiv_nettokapitalindkomst_kroner: Heltal)
+# Par26Stk5NegativKapitalResult(modregnet_i_ægtefælles_positive_kroner: Heltal, negativ_nettokapitalindkomst_efter_modregning_kroner: Heltal, ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner: Heltal)
+# Par26Stk6BundfradragInput(status: Par26ÆgtefælleStatus, forskerordning_48f_valgt: Boolsk, egen_personlig_plus_positiv_kapital_kroner: Heltal, egen_bundfradrag_nr2_kroner: Heltal, ægtefælle_bundfradrag_nr2_kroner: Heltal)
+# Par26Stk6BundfradragResult(egen_manglende_til_bundfradrag_kroner: Heltal, ægtefælle_bundfradragsforhøjelse_kroner: Heltal, ægtefælle_effektivt_bundfradrag_kroner: Heltal)
+# Par26Stk8PositivKapitalInput(status: Par26ÆgtefælleStatus, positiv_nettokapitalindkomst_kroner: Heltal, ægtefælle_negativ_nettokapitalindkomst_kroner: Heltal)
+# Par26Stk8PositivKapitalResult(modregnet_i_ægtefælles_negative_kroner: Heltal, positiv_nettokapitalindkomst_efter_modregning_kroner: Heltal, ægtefælle_negativ_nettokapitalindkomst_efter_modregning_kroner: Heltal)
 
 | par26_gælder_for_skatteår(skatteår: Heltal) -> skatteår >= 2012 && skatteår <= 2019
 | par26_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
@@ -237,6 +245,57 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | par26_par7_ægtefælleregler_anvendes_for_nr3(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
 | par26_positiv_kapital_modregnes_i_ægtefælles_negative(status: Par26ÆgtefælleStatus) -> status == Par26GiftSamlevendeVedÅretsUdløb
 | par26_kompensation_kræver_kommunal_eller_par8c(input: Par26ForskelsbeløbInput) -> input.betaler_kommunal_eller_par8c
+# Par26ÆgtefælleForskelsbeløbSag(input: Par26ÆgtefælleForskelsbeløbInput) {
+    | egen_positive_forskelsbeløb() -> par26_positivt_beløb(input.egen_forskelsbeløb_efter_stk3_kroner)
+    | ægtefælle_negative_forskelsbeløb_abs() -> par26_positivt_beløb(0 - input.ægtefælle_forskelsbeløb_efter_stk3_kroner)
+    | positivt_modregnet_i_ægtefælle() -> 0
+    | exception stk4_samlevende_modregner_positivt_forskelsbeløb positivt_modregnet_i_ægtefælle() -> penge_mindste_beløb(egen_positive_forskelsbeløb(), ægtefælle_negative_forskelsbeløb_abs()) under par26_positivt_forskelsbeløb_nedsætter_ægtefælles_negative(input.status)
+    | ægtefælle_forskelsbeløb_efter_stk4() -> input.ægtefælle_forskelsbeløb_efter_stk3_kroner
+    | exception stk4_negativt_forskelsbeløb_nedsat ægtefælle_forskelsbeløb_efter_stk4() -> 0 - (ægtefælle_negative_forskelsbeløb_abs() - positivt_modregnet_i_ægtefælle()) under input.ægtefælle_forskelsbeløb_efter_stk3_kroner < 0
+    | ægtefælle_kompensation_efter_stk4() -> par26_positivt_beløb(0 - ægtefælle_forskelsbeløb_efter_stk4())
+    | resultat() -> Par26ÆgtefælleForskelsbeløbResult(
+        positivt_forskelsbeløb_modregnet_kroner = positivt_modregnet_i_ægtefælle(),
+        ægtefælle_forskelsbeløb_efter_stk4_kroner = ægtefælle_forskelsbeløb_efter_stk4(),
+        ægtefælle_kompensation_efter_stk4_kroner = ægtefælle_kompensation_efter_stk4()
+    )
+}
+| par26_ægtefælle_forskelsbeløb_resultat(input: Par26ÆgtefælleForskelsbeløbInput) -> Par26ÆgtefælleForskelsbeløbSag(input).resultat()
+# Par26Stk5NegativKapitalSag(input: Par26Stk5NegativKapitalInput) {
+    | egen_negativ_abs() -> par26_positivt_beløb(0 - input.negativ_nettokapitalindkomst_kroner)
+    | ægtefælle_positiv() -> par26_positivt_beløb(input.ægtefælle_positiv_nettokapitalindkomst_kroner)
+    | modregnet_i_ægtefælles_positive() -> 0
+    | exception stk5_samlevende_modregner_negativ_kapital modregnet_i_ægtefælles_positive() -> penge_mindste_beløb(egen_negativ_abs(), ægtefælle_positiv()) under par26_negativ_kapital_modregnes_i_ægtefælles_positive(input.status)
+    | resultat() -> Par26Stk5NegativKapitalResult(
+        modregnet_i_ægtefælles_positive_kroner = modregnet_i_ægtefælles_positive(),
+        negativ_nettokapitalindkomst_efter_modregning_kroner = 0 - (egen_negativ_abs() - modregnet_i_ægtefælles_positive()),
+        ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner = ægtefælle_positiv() - modregnet_i_ægtefælles_positive()
+    )
+}
+| par26_stk5_negativ_kapital_resultat(input: Par26Stk5NegativKapitalInput) -> Par26Stk5NegativKapitalSag(input).resultat()
+# Par26Stk6BundfradragSag(input: Par26Stk6BundfradragInput) {
+    | egen_manglende_til_bundfradrag() -> par26_positivt_beløb(input.egen_bundfradrag_nr2_kroner - input.egen_personlig_plus_positiv_kapital_kroner)
+    | forhøjelse_tilladt() -> par26_lavt_personligt_grundlag_forhøjer_ægtefælles_bundfradrag(input.status) && input.forskerordning_48f_valgt == Falskt
+    | ægtefælle_bundfradragsforhøjelse() -> 0
+    | exception stk6_samlevende_forhøjer_ægtefælles_bundfradrag ægtefælle_bundfradragsforhøjelse() -> egen_manglende_til_bundfradrag() under forhøjelse_tilladt()
+    | resultat() -> Par26Stk6BundfradragResult(
+        egen_manglende_til_bundfradrag_kroner = egen_manglende_til_bundfradrag(),
+        ægtefælle_bundfradragsforhøjelse_kroner = ægtefælle_bundfradragsforhøjelse(),
+        ægtefælle_effektivt_bundfradrag_kroner = input.ægtefælle_bundfradrag_nr2_kroner + ægtefælle_bundfradragsforhøjelse()
+    )
+}
+| par26_stk6_bundfradrag_resultat(input: Par26Stk6BundfradragInput) -> Par26Stk6BundfradragSag(input).resultat()
+# Par26Stk8PositivKapitalSag(input: Par26Stk8PositivKapitalInput) {
+    | egen_positiv() -> par26_positivt_beløb(input.positiv_nettokapitalindkomst_kroner)
+    | ægtefælle_negativ_abs() -> par26_positivt_beløb(0 - input.ægtefælle_negativ_nettokapitalindkomst_kroner)
+    | modregnet_i_ægtefælles_negative() -> 0
+    | exception stk8_samlevende_modregner_positiv_kapital modregnet_i_ægtefælles_negative() -> penge_mindste_beløb(egen_positiv(), ægtefælle_negativ_abs()) under par26_positiv_kapital_modregnes_i_ægtefælles_negative(input.status)
+    | resultat() -> Par26Stk8PositivKapitalResult(
+        modregnet_i_ægtefælles_negative_kroner = modregnet_i_ægtefælles_negative(),
+        positiv_nettokapitalindkomst_efter_modregning_kroner = egen_positiv() - modregnet_i_ægtefælles_negative(),
+        ægtefælle_negativ_nettokapitalindkomst_efter_modregning_kroner = 0 - (ægtefælle_negativ_abs() - modregnet_i_ægtefælles_negative())
+    )
+}
+| par26_stk8_positiv_kapital_resultat(input: Par26Stk8PositivKapitalInput) -> Par26Stk8PositivKapitalSag(input).resultat()
 
 = par26_nr1_fixture = par26_nr1_kroner(100000, Par26Fyldt18EllerGift)
 = par26_nr2_fixture = par26_nr2_kroner(400000)
@@ -286,6 +345,35 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     sundhedsbidrag_basispoint = 0,
     betaler_kommunal_eller_par8c = Sandt
 ))
+= par26_stk4_ægtefælle_forskelsbeløb_fixture = par26_ægtefælle_forskelsbeløb_resultat(Par26ÆgtefælleForskelsbeløbInput(
+    status = Par26GiftSamlevendeVedÅretsUdløb,
+    egen_forskelsbeløb_efter_stk3_kroner = 3000,
+    ægtefælle_forskelsbeløb_efter_stk3_kroner = -5000
+))
+= par26_stk5_negativ_kapital_fixture = par26_stk5_negativ_kapital_resultat(Par26Stk5NegativKapitalInput(
+    status = Par26GiftSamlevendeVedÅretsUdløb,
+    negativ_nettokapitalindkomst_kroner = -40000,
+    ægtefælle_positiv_nettokapitalindkomst_kroner = 25000
+))
+= par26_stk6_bundfradrag_fixture = par26_stk6_bundfradrag_resultat(Par26Stk6BundfradragInput(
+    status = Par26GiftSamlevendeVedÅretsUdløb,
+    forskerordning_48f_valgt = Falskt,
+    egen_personlig_plus_positiv_kapital_kroner = 300000,
+    egen_bundfradrag_nr2_kroner = 362800,
+    ægtefælle_bundfradrag_nr2_kroner = 362800
+))
+= par26_stk6_forskerordning_fixture = par26_stk6_bundfradrag_resultat(Par26Stk6BundfradragInput(
+    status = Par26GiftSamlevendeVedÅretsUdløb,
+    forskerordning_48f_valgt = Sandt,
+    egen_personlig_plus_positiv_kapital_kroner = 300000,
+    egen_bundfradrag_nr2_kroner = 362800,
+    ægtefælle_bundfradrag_nr2_kroner = 362800
+))
+= par26_stk8_positiv_kapital_fixture = par26_stk8_positiv_kapital_resultat(Par26Stk8PositivKapitalInput(
+    status = Par26GiftSamlevendeVedÅretsUdløb,
+    positiv_nettokapitalindkomst_kroner = 20000,
+    ægtefælle_negativ_nettokapitalindkomst_kroner = -50000
+))
 
 | par26_nr1_voksen_bundfradrag: par26_nr1_fixture -> par26_nr1_fixture == 828
 | par26_nr2_6pct_over_bundfradrag: par26_nr2_fixture -> par26_nr2_fixture == 2232
@@ -296,6 +384,11 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | par26_forskerordning_afskærer_forhøjelse: par26_forsker_fixture -> par26_forsker_fixture == Falskt
 | par26_stk9_regulerer_2010_beløb_efter_par20: par26_regulerede_grænser_1311_fixture -> par26_regulerede_grænser_1311_fixture.bundfradrag_nr1_voksen_kroner == 58800 && par26_regulerede_grænser_1311_fixture.bundfradrag_nr2_og_nr3_kroner == 475700 && par26_regulerede_grænser_1311_fixture.fradragsgrundbeløb_nr5_kroner == 18700 && par26_regulerede_grænser_1311_fixture.personfradrag_nr6_kroner == 2500
 | par26_forskelsbeløb_beregnes_fra_stk2_poster: par26_beregnet_forskelsbeløb_fixture -> par26_beregnet_forskelsbeløb_fixture.nr1_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr2_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr3_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.nr6_kroner == 2500 && par26_beregnet_forskelsbeløb_fixture.nr8_kroner == 1000 && par26_beregnet_forskelsbeløb_fixture.forskelsbeløb_før_nr8_kroner == 0 && par26_beregnet_forskelsbeløb_fixture.kompensation_kroner == 1000
+| par26_stk4_positivt_forskelsbeløb_nedsætter_ægtefælles_negative: par26_stk4_ægtefælle_forskelsbeløb_fixture -> par26_stk4_ægtefælle_forskelsbeløb_fixture.positivt_forskelsbeløb_modregnet_kroner == 3000 && par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_forskelsbeløb_efter_stk4_kroner == -2000 && par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_kompensation_efter_stk4_kroner == 2000
+| par26_stk5_negativ_kapital_modregnes_i_ægtefælles_positive: par26_stk5_negativ_kapital_fixture -> par26_stk5_negativ_kapital_fixture.modregnet_i_ægtefælles_positive_kroner == 25000 && par26_stk5_negativ_kapital_fixture.negativ_nettokapitalindkomst_efter_modregning_kroner == -15000 && par26_stk5_negativ_kapital_fixture.ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner == 0
+| par26_stk6_lav_indkomst_forhøjer_ægtefælles_bundfradrag: par26_stk6_bundfradrag_fixture -> par26_stk6_bundfradrag_fixture.egen_manglende_til_bundfradrag_kroner == 62800 && par26_stk6_bundfradrag_fixture.ægtefælle_effektivt_bundfradrag_kroner == 425600
+| par26_stk6_48f_afskærer_bundfradragsforhøjelse: par26_stk6_forskerordning_fixture -> par26_stk6_forskerordning_fixture.ægtefælle_bundfradragsforhøjelse_kroner == 0 && par26_stk6_forskerordning_fixture.ægtefælle_effektivt_bundfradrag_kroner == 362800
+| par26_stk8_positiv_kapital_modregnes_i_ægtefælles_negative: par26_stk8_positiv_kapital_fixture -> par26_stk8_positiv_kapital_fixture.modregnet_i_ægtefælles_negative_kroner == 20000 && par26_stk8_positiv_kapital_fixture.positiv_nettokapitalindkomst_efter_modregning_kroner == 0 && par26_stk8_positiv_kapital_fixture.ægtefælle_negativ_nettokapitalindkomst_efter_modregning_kroner == -30000
 
 ----
 § 27. Skatteministeren fastsætter de nærmere regler, der er nødvendige til

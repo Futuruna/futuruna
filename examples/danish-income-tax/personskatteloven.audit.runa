@@ -1264,6 +1264,11 @@ afgrænsning.
     sundhedsbidrag_basispoint = 0,
     betaler_kommunal_eller_par8c = Sandt
 ))
+= m5_par26_stk4_ægtefælle_forskelsbeløb_fixture = par26_stk4_ægtefælle_forskelsbeløb_fixture
+= m5_par26_stk5_negativ_kapital_fixture = par26_stk5_negativ_kapital_fixture
+= m5_par26_stk6_bundfradrag_fixture = par26_stk6_bundfradrag_fixture
+= m5_par26_stk6_forskerordning_fixture = par26_stk6_forskerordning_fixture
+= m5_par26_stk8_positiv_kapital_fixture = par26_stk8_positiv_kapital_fixture
 = m5_par27_delegation_fixture = par27_skatteministeren_fastsætter_gennemførelsesregler()
 = m5_par28_færøerne_fixture = personskatteloven_gælder_i_territorium(PersonskatFærøerne)
 = m5_par28_grønland_fixture = personskatteloven_gælder_i_territorium(PersonskatGrønland)
@@ -1273,6 +1278,11 @@ afgrænsning.
 | m5_par26_modregningsrækkefølge: m5_par26_modregning_fixture -> m5_par26_modregning_fixture.par6_efter_kroner == 0 && m5_par26_modregning_fixture.par7_efter_kroner == 0 && m5_par26_modregning_fixture.kirkeskat_efter_kroner == 150
 | m5_par26_stk9_regulerede_grænser: m5_par26_regulerede_grænser_fixture -> m5_par26_regulerede_grænser_fixture.bundfradrag_nr1_voksen_kroner == 58800 && m5_par26_regulerede_grænser_fixture.bundfradrag_nr2_og_nr3_kroner == 475700 && m5_par26_regulerede_grænser_fixture.personfradrag_nr6_kroner == 2500
 | m5_par26_stk2_til_stk3_beregnet_forskelsbeløb: m5_par26_beregnet_forskelsbeløb_fixture -> m5_par26_beregnet_forskelsbeløb_fixture.nr6_kroner == 2500 && m5_par26_beregnet_forskelsbeløb_fixture.nr8_kroner == 1000 && m5_par26_beregnet_forskelsbeløb_fixture.forskelsbeløb_før_nr8_kroner == 0 && m5_par26_beregnet_forskelsbeløb_fixture.kompensation_kroner == 1000
+| m5_par26_stk4_ægtefælle_forskelsbeløb: m5_par26_stk4_ægtefælle_forskelsbeløb_fixture -> m5_par26_stk4_ægtefælle_forskelsbeløb_fixture.positivt_forskelsbeløb_modregnet_kroner == 3000 && m5_par26_stk4_ægtefælle_forskelsbeløb_fixture.ægtefælle_kompensation_efter_stk4_kroner == 2000
+| m5_par26_stk5_negativ_kapital: m5_par26_stk5_negativ_kapital_fixture -> m5_par26_stk5_negativ_kapital_fixture.modregnet_i_ægtefælles_positive_kroner == 25000 && m5_par26_stk5_negativ_kapital_fixture.negativ_nettokapitalindkomst_efter_modregning_kroner == -15000
+| m5_par26_stk6_bundfradrag: m5_par26_stk6_bundfradrag_fixture -> m5_par26_stk6_bundfradrag_fixture.ægtefælle_bundfradragsforhøjelse_kroner == 62800 && m5_par26_stk6_bundfradrag_fixture.ægtefælle_effektivt_bundfradrag_kroner == 425600
+| m5_par26_stk6_48f_afskærer: m5_par26_stk6_forskerordning_fixture -> m5_par26_stk6_forskerordning_fixture.ægtefælle_bundfradragsforhøjelse_kroner == 0
+| m5_par26_stk8_positiv_kapital: m5_par26_stk8_positiv_kapital_fixture -> m5_par26_stk8_positiv_kapital_fixture.modregnet_i_ægtefælles_negative_kroner == 20000 && m5_par26_stk8_positiv_kapital_fixture.ægtefælle_negativ_nettokapitalindkomst_efter_modregning_kroner == -30000
 | m5_par27_ministerdelegation: m5_par27_delegation_fixture -> m5_par27_delegation_fixture == Sandt
 | m5_par28_færøerne_undtaget: m5_par28_færøerne_fixture -> m5_par28_færøerne_fixture == Falskt
 | m5_par28_grønland_undtaget: m5_par28_grønland_fixture -> m5_par28_grønland_fixture == Falskt
@@ -1284,6 +1294,11 @@ afgrænsning.
 ? m5_par26_modregningsrækkefølge
 ? m5_par26_stk9_regulerede_grænser
 ? m5_par26_stk2_til_stk3_beregnet_forskelsbeløb
+? m5_par26_stk4_ægtefælle_forskelsbeløb
+? m5_par26_stk5_negativ_kapital
+? m5_par26_stk6_bundfradrag
+? m5_par26_stk6_48f_afskærer
+? m5_par26_stk8_positiv_kapital
 ? m5_par27_ministerdelegation
 ? m5_par28_færøerne_undtaget
 ? m5_par28_grønland_undtaget
