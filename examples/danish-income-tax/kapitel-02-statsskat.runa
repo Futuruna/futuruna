@@ -514,6 +514,8 @@ Bundfradraget reguleres efter § 20.
 # ProgressivStatsskatInput(personlig_indkomst_efter_am_kroner: Heltal, grænse_efter_am_kroner: Heltal, sats_basispoint: Heltal)
 # MellemskatKapitalInput(personlig_indkomst_efter_am_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, kapital_bundfradrag_kroner: Heltal, mellemskattegrænse_efter_am_kroner: Heltal, sats_basispoint: Heltal)
 # MellemskatÆgtefælleKapitalInput(personlig_indkomst_efter_am_kroner: Heltal, ægtefælle_personlig_indkomst_efter_am_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, ægtefælle_positiv_nettokapitalindkomst_kroner: Heltal, ægtefælle_kapital_bundfradrag_kroner: Heltal, mellemskattegrænse_efter_am_kroner: Heltal, sats_basispoint: Heltal)
+# Par7ReformMellemskatInput(skatteår: Heltal, personlig_indkomst_efter_am_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal)
+# Par7ReformMellemskatResultat(skatteår: Heltal, sats_basispoint: Heltal, bundfradrag_2010_niveau_kroner: Heltal, bundfradrag_kroner: Heltal, kapital_grundbeløb_2010_niveau_kroner: Heltal, kapital_grundbeløb_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, personlig_over_bundfradrag_kroner: Heltal, kapital_over_grundbeløb_kroner: Heltal, samlet_grundlag_over_bundfradrag_kroner: Heltal, kapitalgrundlag_kroner: Heltal, personlig_skat_kroner: Heltal, kapital_skat_kroner: Heltal, samlet_skat_kroner: Heltal)
 # Par7ÆgtefælleKapitalStk5Input(nettokapitalindkomst_kroner: Heltal, ægtefælle_positiv_nettokapitalindkomst_kroner: Heltal, grundbeløb_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk)
 # Par7ÆgtefælleKapitalStk5Result(modregnet_i_ægtefælles_positive_nettokapitalindkomst_kroner: Heltal, ægtefælle_positiv_nettokapitalindkomst_efter_modregning_kroner: Heltal, grundbeløbsforhøjelse_kroner: Heltal, ægtefælle_effektivt_grundbeløb_kroner: Heltal, ægtefælle_kapital_over_grundbeløb_kroner: Heltal)
 
@@ -559,31 +561,88 @@ Bundfradraget reguleres efter § 20.
 | par7_ægtefællekapital_stk5_resultat(input: Par7ÆgtefælleKapitalStk5Input) -> par7_ægtefællekapital_stk5_sag(input).resultat()
 | par7_ægtefællekapital_stk5_over_grundbeløb_kroner(input: Par7ÆgtefælleKapitalStk5Input) -> par7_ægtefællekapital_stk5_sag(input).ægtefælle_kapital_over_grundbeløb_kroner()
 | par7_ægtefællekapital_stk5_skat_kroner(input: Par7ÆgtefælleKapitalStk5Input, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(par7_ægtefællekapital_stk5_over_grundbeløb_kroner(input), sats_basispoint)
+| reform_statskat_bundfradrag_2010_niveau_kroner(lag: ProgressivStatsskatLag) -> 0
+| exception mellemskat_bundfradrag_2010 reform_statskat_bundfradrag_2010_niveau_kroner(lag: ProgressivStatsskatLag) -> 467000 under lag == MellemskatLag
+| exception topskat_bundfradrag_2010 reform_statskat_bundfradrag_2010_niveau_kroner(lag: ProgressivStatsskatLag) -> 566500 under lag == TopskatLag
+| exception toptopskat_bundfradrag_2010 reform_statskat_bundfradrag_2010_niveau_kroner(lag: ProgressivStatsskatLag) -> 1888300 under lag == ToptopskatLag
+| reform_statskat_reguleret_bundfradrag_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = reform_statskat_bundfradrag_2010_niveau_kroner(lag),
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(skatteår)
+)) under skatteår >= 2026
+| par7_reform_mellemskat_kapital_grundbeløb_2010_niveau_kroner() -> 40000
+| par7_reform_mellemskat_kapital_grundbeløb_kroner(skatteår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = par7_reform_mellemskat_kapital_grundbeløb_2010_niveau_kroner(),
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(skatteår)
+)) under skatteår >= 2026
 | reform_statskat_sats_basispoint(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 0
 | exception mellemskat_2026 reform_statskat_sats_basispoint(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 750 under skatteår >= 2026 && lag == MellemskatLag
 | exception topskat_2026 reform_statskat_sats_basispoint(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 750 under skatteår >= 2026 && lag == TopskatLag
 | exception toptopskat_2026 reform_statskat_sats_basispoint(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 500 under skatteår >= 2026 && lag == ToptopskatLag
 | reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 0
-| exception mellemskat_grænse_2026 reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 641200 under skatteår == 2026 && lag == MellemskatLag
-| exception topskat_grænse_2026 reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 777900 under skatteår == 2026 && lag == TopskatLag
-| exception toptopskat_grænse_2026 reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> 2592700 under skatteår == 2026 && lag == ToptopskatLag
+| exception reform_grænse_fra_par20 reform_statskat_grænse_efter_am_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal) -> reform_statskat_reguleret_bundfradrag_kroner(lag, skatteår) under skatteår >= 2026
 | reform_statskat_input(lag: ProgressivStatsskatLag, skatteår: Heltal, personlig_indkomst_efter_am_kroner: Heltal) -> ProgressivStatsskatInput(
     personlig_indkomst_efter_am_kroner = personlig_indkomst_efter_am_kroner,
     grænse_efter_am_kroner = reform_statskat_grænse_efter_am_kroner(lag, skatteår),
     sats_basispoint = reform_statskat_sats_basispoint(lag, skatteår)
 )
 | reform_statskat_kroner(lag: ProgressivStatsskatLag, skatteår: Heltal, personlig_indkomst_efter_am_kroner: Heltal) -> progressiv_statsskat_kroner(reform_statskat_input(lag, skatteår, personlig_indkomst_efter_am_kroner))
+# Par7ReformMellemskatSag(input: Par7ReformMellemskatInput) {
+    | sats_basispoint() -> reform_statskat_sats_basispoint(MellemskatLag, input.skatteår)
+    | bundfradrag_2010_niveau_kroner() -> reform_statskat_bundfradrag_2010_niveau_kroner(MellemskatLag)
+    | bundfradrag_kroner() -> reform_statskat_reguleret_bundfradrag_kroner(MellemskatLag, input.skatteår)
+    | kapital_grundbeløb_2010_niveau_kroner() -> par7_reform_mellemskat_kapital_grundbeløb_2010_niveau_kroner()
+    | kapital_grundbeløb_kroner() -> par7_reform_mellemskat_kapital_grundbeløb_kroner(input.skatteår)
+    | kapital_input() -> MellemskatKapitalInput(
+        personlig_indkomst_efter_am_kroner = input.personlig_indkomst_efter_am_kroner,
+        positiv_nettokapitalindkomst_kroner = input.positiv_nettokapitalindkomst_kroner,
+        kapital_bundfradrag_kroner = kapital_grundbeløb_kroner(),
+        mellemskattegrænse_efter_am_kroner = bundfradrag_kroner(),
+        sats_basispoint = sats_basispoint()
+    )
+    | personlig_input() -> reform_statskat_input(MellemskatLag, input.skatteår, input.personlig_indkomst_efter_am_kroner)
+    | personlig_over_bundfradrag_kroner() -> progressiv_personlig_overskud_kroner(personlig_input())
+    | kapital_over_grundbeløb_kroner() -> mellemskat_kapital_over_bundfradrag_kroner(kapital_input())
+    | samlet_grundlag_over_bundfradrag_kroner() -> mellemskat_grundlag_med_kapital_kroner(kapital_input())
+    | kapitalgrundlag_kroner() -> penge_positivt_beløb(samlet_grundlag_over_bundfradrag_kroner() - personlig_over_bundfradrag_kroner())
+    | personlig_skat_kroner() -> penge_beløb_gange_basispoint_kroner(personlig_over_bundfradrag_kroner(), sats_basispoint())
+    | samlet_skat_kroner() -> mellemskat_med_kapital_kroner(kapital_input())
+    | kapital_skat_kroner() -> samlet_skat_kroner() - personlig_skat_kroner()
+    | resultat() -> Par7ReformMellemskatResultat(
+        skatteår = input.skatteår,
+        sats_basispoint = sats_basispoint(),
+        bundfradrag_2010_niveau_kroner = bundfradrag_2010_niveau_kroner(),
+        bundfradrag_kroner = bundfradrag_kroner(),
+        kapital_grundbeløb_2010_niveau_kroner = kapital_grundbeløb_2010_niveau_kroner(),
+        kapital_grundbeløb_kroner = kapital_grundbeløb_kroner(),
+        personlig_indkomst_efter_am_kroner = input.personlig_indkomst_efter_am_kroner,
+        positiv_nettokapitalindkomst_kroner = input.positiv_nettokapitalindkomst_kroner,
+        personlig_over_bundfradrag_kroner = personlig_over_bundfradrag_kroner(),
+        kapital_over_grundbeløb_kroner = kapital_over_grundbeløb_kroner(),
+        samlet_grundlag_over_bundfradrag_kroner = samlet_grundlag_over_bundfradrag_kroner(),
+        kapitalgrundlag_kroner = kapitalgrundlag_kroner(),
+        personlig_skat_kroner = personlig_skat_kroner(),
+        kapital_skat_kroner = kapital_skat_kroner(),
+        samlet_skat_kroner = samlet_skat_kroner()
+    )
+}
+| par7_reform_mellemskat_sag(input: Par7ReformMellemskatInput) -> Par7ReformMellemskatSag(input)
+| par7_reform_mellemskat_resultat(input: Par7ReformMellemskatInput) -> par7_reform_mellemskat_sag(input).resultat()
 
 = par7_2026_mellemskat_under = reform_statskat_kroner(MellemskatLag, 2026, 641200)
 = par7_2026_mellemskat_over = reform_statskat_kroner(MellemskatLag, 2026, 651200)
 = par7a_2026_topskat_over = reform_statskat_kroner(TopskatLag, 2026, 800000)
 = par8_2026_toptopskat_over = reform_statskat_kroner(ToptopskatLag, 2026, 2600000)
+= par7_2026_reform_parametre_fixture = par7_reform_mellemskat_resultat(Par7ReformMellemskatInput(
+    skatteår = 2026,
+    personlig_indkomst_efter_am_kroner = 598000,
+    positiv_nettokapitalindkomst_kroner = 110000
+))
 = par7_2026_mellemskat_kapital_input = MellemskatKapitalInput(
     personlig_indkomst_efter_am_kroner = 598000,
     positiv_nettokapitalindkomst_kroner = 110000,
-    kapital_bundfradrag_kroner = 55000,
-    mellemskattegrænse_efter_am_kroner = 641200,
-    sats_basispoint = 750
+    kapital_bundfradrag_kroner = par7_reform_mellemskat_kapital_grundbeløb_kroner(2026),
+    mellemskattegrænse_efter_am_kroner = reform_statskat_grænse_efter_am_kroner(MellemskatLag, 2026),
+    sats_basispoint = reform_statskat_sats_basispoint(MellemskatLag, 2026)
 )
 = par7_2026_mellemskat_kapital_skat = mellemskat_med_kapital_kroner(par7_2026_mellemskat_kapital_input)
 = par7_2026_mellemskat_ægtefæller_input = MellemskatÆgtefælleKapitalInput(
@@ -591,9 +650,9 @@ Bundfradraget reguleres efter § 20.
     ægtefælle_personlig_indkomst_efter_am_kroner = 500000,
     positiv_nettokapitalindkomst_kroner = 70000,
     ægtefælle_positiv_nettokapitalindkomst_kroner = 50000,
-    ægtefælle_kapital_bundfradrag_kroner = 110000,
-    mellemskattegrænse_efter_am_kroner = 641200,
-    sats_basispoint = 750
+    ægtefælle_kapital_bundfradrag_kroner = par7_reform_mellemskat_kapital_grundbeløb_kroner(2026) * 2,
+    mellemskattegrænse_efter_am_kroner = reform_statskat_grænse_efter_am_kroner(MellemskatLag, 2026),
+    sats_basispoint = reform_statskat_sats_basispoint(MellemskatLag, 2026)
 )
 = par7_2026_mellemskat_ægtefæller_kapital_over = mellemskat_ægtefæller_kapital_over_bundfradrag_kroner(par7_2026_mellemskat_ægtefæller_input)
 = par7_2026_mellemskat_ægtefæller_kapital_skat = mellemskat_ægtefælle_kapital_skat_kroner(par7_2026_mellemskat_ægtefæller_input)
@@ -623,6 +682,8 @@ Bundfradraget reguleres efter § 20.
 | par7_2026_mellemskat_aktiveres: par7_2026_mellemskat_over -> par7_2026_mellemskat_over == 750
 | par7a_2026_topskat_aktiveres: par7a_2026_topskat_over -> par7a_2026_topskat_over == 1657
 | par8_2026_toptopskat_aktiveres: par8_2026_toptopskat_over -> par8_2026_toptopskat_over == 365
+| par7_2026_reform_bundfradrag_fra_par20: par7_2026_reform_parametre_fixture -> par7_2026_reform_parametre_fixture.bundfradrag_2010_niveau_kroner == 467000 && par7_2026_reform_parametre_fixture.bundfradrag_kroner == 641200 && par7_2026_reform_parametre_fixture.kapital_grundbeløb_2010_niveau_kroner == 40000 && par7_2026_reform_parametre_fixture.kapital_grundbeløb_kroner == 55000
+| par7_2026_reform_mellemskat_resultat_beløb: par7_2026_reform_parametre_fixture -> par7_2026_reform_parametre_fixture.personlig_over_bundfradrag_kroner == 0 && par7_2026_reform_parametre_fixture.kapital_over_grundbeløb_kroner == 55000 && par7_2026_reform_parametre_fixture.samlet_grundlag_over_bundfradrag_kroner == 11800 && par7_2026_reform_parametre_fixture.kapitalgrundlag_kroner == 11800 && par7_2026_reform_parametre_fixture.samlet_skat_kroner == 885
 | par7_2026_mellemskat_kapital_aktiveres: par7_2026_mellemskat_kapital_skat -> par7_2026_mellemskat_kapital_skat == 885
 | par7_2026_mellemskat_ægtefæller_bruger_dobbelt_grundbeløb: par7_2026_mellemskat_ægtefæller_kapital_over -> par7_2026_mellemskat_ægtefæller_kapital_over == 10000
 | par7_2026_mellemskat_ægtefæller_kapitalskat: par7_2026_mellemskat_ægtefæller_kapital_skat -> par7_2026_mellemskat_ægtefæller_kapital_skat == 750

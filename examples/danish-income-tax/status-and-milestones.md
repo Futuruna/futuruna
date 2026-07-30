@@ -15,7 +15,9 @@ implementation first. Audit files remain important as validation gates for
 implemented slices, but deeper exploratory audits should wait until the main law
 model is materially complete.
 
-Latest mainline slices: § 7 spouse positive-net-capital tax now has an
+Latest mainline slices: the 2026 § 7/§ 7 a/§ 8 reform thresholds for
+mellemskat, topskat and toptopskat now derive from statutory 2010-level amounts
+through § 20 regulation; § 7 spouse positive-net-capital tax now has an
 executable allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break
 rule; § 7 a now has post-level amount rules for included and excluded
 pension-like payments; § 13, stk. 4 now has amount-level spouse and
@@ -316,6 +318,9 @@ encoded as a temporal rule on top of the consolidation.
   a source-backed pre-2026 § 7 topskat amount result with regulated
   bundfradrag, regulated positive-capital grundbeløb, PBL § 16 additions,
   personal/capital split and wage-earner calculator reuse,
+  a source-backed 2026 reform threshold/result layer deriving mellemskat,
+  topskat, toptopskat, and the mellemskat positive-capital grundbeløb from the
+  amendment's 2010-level amounts through § 20,
   Ligningsloven ordinary wage-earner deduction
   dependency slices, § 26 historical year-parameter derivation for 2012-2019,
   2024/2025/2026 tax-year parameter packs, grouped
@@ -478,6 +483,11 @@ Current decision:
   personfradrag tax value, and the § 6 personfradrag tax value together so
   each value first reduces its own tax component and then falls through the
   remaining § 9 taxes in the statutory order.
+- `Par7ReformMellemskatSag` uses product-scoped `|` rules for the 2026
+  mellemskat amount layer. It keeps the § 20-regulated personal threshold, the
+  § 20-regulated positive-capital grundbeløb, personal income, net-capital
+  income, personal/capital split, and resulting tax together so wage-earner
+  calculator rules no longer duplicate reform thresholds as loose parameters.
 - `Par26Stk7TopskatÆgtefællerSag` uses product-scoped `|` rules for the
   § 26, stk. 7 transition-compensation bridge. It keeps both spouses'
   personal/PBL bases, net-capital incomes, regulated § 26 nr. 3 threshold,
@@ -871,14 +881,15 @@ M2 - State tax computation skeleton
   `Par5StatsskatResultat`, filtering inactive components by tax year so
   udligningsskat/sundhedsbidrag are ignored from 2026 and mellemskat/
   toptopskat are ignored before the 2026 reform. Mellemskat under § 7,
-  topskat under § 7 a, toptopskat under § 8, and CFC tax under § 8 b can now
-  feed this state-tax component model, with § 8 b consuming the amount-level
-  § 4 b CFC-income result before applying the selskabsskattelovens § 17,
-  stk. 1 rate.
+  topskat under § 7 a, and toptopskat under § 8 now derive their 2026
+  thresholds from the amendment's 2010-level amounts through § 20 regulation
+  before feeding the calculator; CFC tax under § 8 b can feed this state-tax
+  component model, with § 8 b consuming the amount-level § 4 b CFC-income
+  result before applying the selskabsskattelovens § 17, stk. 1 rate.
   The § 6 slice now computes the amount-level spouse negative net-capital
   offset before bundskat basis calculation.
   The § 7 mellemskat slice now covers positive net capital income over the
-  regulated 2026 threshold, including an executable spouse doubled-threshold
+  § 20-regulated 2026 threshold, including an executable spouse doubled-threshold
   case and the § 7 stk. 5 rule that negative net capital is offset against the
   spouse's positive net-capital income before the spouse's effective
   grundbeløb is increased. It now also exposes the § 7 stk. 10-11 allocation of
