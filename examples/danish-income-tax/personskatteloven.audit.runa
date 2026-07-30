@@ -480,6 +480,7 @@ Ikke aktuel
 | m5_par8c_afgrænser_ikke_omfattet: m5_par8c_ikke_omfattet_fixture -> m5_par8c_ikke_omfattet_fixture.omfattet == Falskt && m5_par8c_ikke_omfattet_fixture.skat_før_personfradrag_kroner == 0 && m5_par8c_ikke_omfattet_fixture.skat_efter_personfradrag_kroner == 0
 | m5_lønmodtager_model_indkomstgrundlag: m5_2026_progressiv_model -> m5_2026_progressiv_model.indkomstgrundlag.personlig_indkomst_efter_am_kroner == m5_2026_progressiv_fixture.personlig_indkomst_efter_am_kroner && m5_2026_progressiv_model.indkomstgrundlag.almindelig_skattepligtig_indkomst_kroner == m5_2026_progressiv_fixture.almindelig_skattepligtig_indkomst_kroner
 | m5_lønmodtager_model_før_personfradrag: m5_2026_progressiv_model -> m5_2026_progressiv_model.før_personfradrag.mellemskat_kroner == m5_2026_progressiv_fixture.mellemskat_før_personfradrag_kroner && m5_2026_progressiv_model.før_personfradrag.samlet_inkl_am_kroner == m5_2026_progressiv_fixture.samlet_inkl_am_før_personfradrag_kroner
+| m5_lønmodtager_model_par5_statsskat_aggregat: m5_2026_progressiv_model -> m5_2026_progressiv_model.statsskat_før_personfradrag.bundskat_kroner == 99442 && m5_2026_progressiv_model.statsskat_før_personfradrag.mellemskat_kroner == 14010 && m5_2026_progressiv_model.statsskat_før_personfradrag.topskat_kroner == 3757 && m5_2026_progressiv_model.statsskat_før_personfradrag.toptopskat_kroner == 0 && m5_2026_progressiv_model.statsskat_før_personfradrag.udligningsskat_kroner == 0 && m5_2026_progressiv_model.statsskat_før_personfradrag.sundhedsbidrag_kroner == 0 && m5_2026_progressiv_model.statsskat_før_personfradrag.samlet_statsskat_kroner == m5_2026_progressiv_model.før_personfradrag.statslig_indkomstskat_kroner
 | m5_lønmodtager_model_par12_statsskat_allokering: m5_2026_progressiv_model -> m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.bundskat_kroner == 92945 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.mellemskat_kroner == 14010 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.topskat_kroner == 3757 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.toptopskat_kroner == 0 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.statslig_indkomstskat_kroner == 110712
 | m5_lønmodtager_model_slutskat: m5_2026_progressiv_model -> m5_2026_progressiv_model.slutskat.samlet_inkl_am_kroner == m5_2026_progressiv_fixture.samlet_inkl_am_efter_personfradrag_kroner && m5_2026_progressiv_model.slutskat.personligt_skatteloft.nedslag_kroner == m5_2026_progressiv_fixture.personligt_skatteloft.nedslag_kroner
 | m5_audit_lønmodtager_domain_model_signal: audit_signal(LønmodtagerDomainModelDækket) -> audit_signal(LønmodtagerDomainModelDækket) == Sandt
@@ -514,6 +515,7 @@ Ikke aktuel
 ? m5_par8c_afgrænser_ikke_omfattet
 ? m5_lønmodtager_model_indkomstgrundlag
 ? m5_lønmodtager_model_før_personfradrag
+? m5_lønmodtager_model_par5_statsskat_aggregat
 ? m5_lønmodtager_model_par12_statsskat_allokering
 ? m5_lønmodtager_model_slutskat
 ? m5_audit_lønmodtager_domain_model_signal

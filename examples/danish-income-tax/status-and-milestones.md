@@ -507,8 +507,9 @@ Current decision:
   calculator surface.
 - `LønmodtagerBeregning` now composes the ordinary wage-earner calculation from
   named domain records: income basis, Ligningsloven deductions, tax before
-  person allowance, person allowance tax value, tax after person allowance before
-  skatteloft, and final tax after § 19 relief. The existing flat
+  person allowance, § 5 state-tax aggregate before person allowance, person
+  allowance tax value, tax after person allowance before skatteloft, and final
+  tax after § 19 relief. The existing flat
   `LønmodtagerBreakdown` remains as the reporting/API projection so website and
   scenario consumers do not have to learn every internal calculation layer.
 - `loenmodtager_beregning.runa` now separates state income tax, municipal/church
@@ -792,7 +793,11 @@ M4 - Ordinary taxpayer calculator
   wage-earner fixtures now exercise mellemskat, topskat, and toptopskat under
   the LOV nr. 482/2024 reform thresholds, and a 2026 Copenhagen positive
   net-capital fixture exercises the mellemskat capital addition. The wage-earner
-  breakdown now includes `LønmodtagerSkatteloftResult`, so § 19 personal and
+  model now routes state income tax before personfradrag through the
+  `Par5StatsskatResultat` aggregate, so the ordinary calculator consumes the
+  same § 5 active-component filtering as the source-law module instead of a
+  parallel scalar sum. Its breakdown now includes `LønmodtagerSkatteloftResult`,
+  so § 19 personal and
   positive-capital skatteloft input, excess basis points, and kroner relief are
   part of ordinary 2025/2026 calculator output. The 2026 Copenhagen
   positive-net-capital fixture now applies the 42 pct. positive-capital ceiling,
