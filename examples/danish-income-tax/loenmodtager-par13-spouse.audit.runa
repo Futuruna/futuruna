@@ -1,0 +1,68 @@
+@ sprog da
+
+@ importer ./loenmodtager_beregning
+
+-- Focused validation for Personskatteloven § 13, stk. 2 spouse transfer.
+-- Source: Retsinformation, LBK nr. 1284 af 14/06/2021.
+-- https://www.retsinformation.dk/eli/lta/2021/1284
+-- Amendment source for the 2026 insertion of § 8 into the tax-offset basket:
+-- LOV nr. 482 af 22/05/2024, § 1, nr. 10.
+-- https://www.retsinformation.dk/eli/lta/2024/482
+
+----
+§ 13, stk. 2. Hvis en gift persons skattepligtige indkomst udviser underskud,
+og ægtefællerne er samlevende ved indkomstårets udløb, skal underskud, der ikke
+er modregnet efter stk. 1, 2. pkt., i størst muligt omfang fradrages i den
+anden ægtefælles skattepligtige indkomst. Derefter modregnes skatteværdien af
+uudnyttet underskud i ægtefællens beregnede skatter efter §§ 6, 7 og 7 a og
+§ 8 a, stk. 2.
+
+LOV nr. 482 af 22/05/2024, § 1, nr. 10:
+I § 13, stk. 1, 2. og 4. pkt., og i stk. 2, 2. pkt., ændres »§§ 6, 7 og
+7 a og § 8 a, stk. 2« til: »§§ 6, 7, 7 a og 8 og § 8 a, stk. 2«.
+----
+
+= par13_stk2_ægtefælle_skattemodregning_probe = par13_ægtefælle_skattemodregning_resultat(Par13ÆgtefælleSkatModregningInput(
+    ubenyttet_underskud_efter_ægtefælleindkomst_kroner = 15000,
+    skatteværdi_sats_basispoint = 2430,
+    ægtefælle_skatter = Par13ModregningsSkatter(
+        par6_skat_kroner = 6000,
+        par7_skat_kroner = 5000,
+        par7a_skat_kroner = 0,
+        par8_skat_kroner = 0,
+        par8a_stk2_skat_kroner = 2000
+    ),
+    gift_samlevende_ved_årets_udløb = Sandt
+))
+
+= par13_stk2_lønmodtager_underskud_input = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 100000,
+    nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 150000,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= par13_stk2_lønmodtager_ægtefælle_skat_forhold = LønmodtagerPar13Forhold(
+    ægtefælle_skattepligtig_indkomst_kroner = 15000,
+    ægtefælle_modregningsskatter = Par13ModregningsSkatter(
+        par6_skat_kroner = 1000,
+        par7_skat_kroner = 0,
+        par7a_skat_kroner = 0,
+        par8_skat_kroner = 0,
+        par8a_stk2_skat_kroner = 0
+    ),
+    gift_samlevende_ved_årets_udløb = Sandt,
+    ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
+)
+= par13_stk2_lønmodtager_ægtefælle_skat_probe = beregn_lønmodtager_med_par13_forhold(par13_stk2_lønmodtager_underskud_input, par13_stk2_lønmodtager_ægtefælle_skat_forhold)
+
+| par13_stk2_regel_modregner_efter_ægtefælleindkomst: par13_stk2_ægtefælle_skattemodregning_probe -> par13_stk2_ægtefælle_skattemodregning_probe.underskud_til_skattemodregning_kroner == 15000 && par13_stk2_ægtefælle_skattemodregning_probe.skatteværdi_til_modregning_kroner == 3645 && par13_stk2_ægtefælle_skattemodregning_probe.modregning.par6_efter_kroner == 2355 && par13_stk2_ægtefælle_skattemodregning_probe.resterende_underskud_kroner == 0
+| par13_stk2_lønmodtager_sti_bruger_ægtefællens_skat: par13_stk2_lønmodtager_ægtefælle_skat_probe -> par13_stk2_lønmodtager_ægtefælle_skat_probe.par13_resterende_underskud_efter_skattemodregning_kroner == 23283 && par13_stk2_lønmodtager_ægtefælle_skat_probe.par13_ægtefælle_fradrag_kroner == 15000 && par13_stk2_lønmodtager_ægtefælle_skat_probe.par13_ægtefælle_skattemodregning_kroner == 1000 && par13_stk2_lønmodtager_ægtefælle_skat_probe.par13_fremført_underskud_kroner == 4028
+
+? par13_stk2_regel_modregner_efter_ægtefælleindkomst
+? par13_stk2_lønmodtager_sti_bruger_ægtefællens_skat
+
+@ print("§13 stk.2 ægtefælle skatteværdi brugt i lønmodtagersti: " + vis(par13_stk2_lønmodtager_ægtefælle_skat_probe.par13_ægtefælle_skattemodregning_kroner))
+@ print("§13 stk.2 fremført efter ægtefælleindkomst og ægtefælleskat: " + vis(par13_stk2_lønmodtager_ægtefælle_skat_probe.par13_fremført_underskud_kroner))
