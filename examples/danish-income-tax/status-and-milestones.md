@@ -33,7 +33,12 @@ threshold, § 14 stk. 2/§ 15/§ 18 loss blocks, § 17 fordringstab posture,
 posture; § 4, stk. 1, nr. 7 now consumes a typed LL § 8, stk. 3 result for
 running loan provisions/premiums, running guarantee premiums and one-off
 provisions/premiums when the loan/guarantee period is under two years, with the
-deductible amount flowing as negative capital income; § 4, stk. 1, nr. 9 and
+deductible amount flowing as negative capital income; § 4, stk. 1, nr. 8 now
+consumes a typed Virksomhedsskatteloven § 11 result where stk. 1 negative
+indskudskonto correction is capped by negative afkastgrundlag and net
+financing costs, stk. 2 transfers/indskud are capped by the indskud, and the
+same correction is added to personal income while deducted from capital income;
+§ 4, stk. 1, nr. 9 and
 stk. 9 now derive passive
 self-employed business capital-income treatment from owner-count thresholds,
 the LL § 8 K personal-owner branch, substantial-participation exclusion, and
@@ -170,7 +175,7 @@ Current source-refresh finding:
 - `scripts/refresh-danish-tax-source-status.py --today 20260703 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
   drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 28 records with 0 drift and 0 fetch/parse errors.
+  checked 29 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:
 
@@ -234,6 +239,14 @@ Current § 4 and § 13 amendment/dependency sources:
     deductible losses on ordinary personal claims, selected debt cases and basic
     financial contracts, including thresholding, statutory loss blocks, debt
     forgiveness, foreign-currency debt and contract-loss limitation.
+- Virksomhedsskatteloven:
+  `https://www.retsinformation.dk/eli/lta/2021/1836`
+  - XML status on 2026-07-18: `Valid`
+  - § 11, stk. 1-3 is modeled as the Personskatteloven § 4, stk. 1, nr. 8
+    dependency for rentekorrektion, including the negative indskudskonto
+    basis, afkastgrundlag and net-financing caps, the stk. 2
+    transfer/indskud cap and the mirrored personal-income addition plus
+    capital-income deduction under stk. 3.
 - Pensionsbeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2024/1243`
   - XML status on 2026-07-18: `Valid`
@@ -468,6 +481,9 @@ encoded as a temporal rule on top of the consolidation.
   first Kursgevinstloven dependency slice consumed by Personskatteloven § 4,
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
   financial contracts.
+- `virksomhedsskatteloven.runa` exists and checks/runs with `runa run`; it
+  covers the Virksomhedsskatteloven § 11 rentekorrektion dependency consumed by
+  Personskatteloven § 4, stk. 1, nr. 8.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
   the Afskrivningsloven § 40 C dependency consumed by Personskatteloven § 4,
   stk. 1, nr. 16.
@@ -493,6 +509,8 @@ encoded as a temporal rule on top of the consolidation.
   `runa run`.
 - `personskatteloven-par4-ligningslov8stk3.audit.runa` exists and checks/runs
   with `runa run`.
+- `personskatteloven-par4-virksomhedsskattelov11.audit.runa` exists and
+  checks/runs with `runa run`.
 - `personskatteloven-par4-passiv-virksomhed.audit.runa` exists and checks/runs
   with `runa run`.
 - `personskatteloven-par4-udlejning-driftsmidler.audit.runa` exists and
@@ -544,6 +562,8 @@ encoded as a temporal rule on top of the consolidation.
   classification under stk. 1, nr. 1, Kursgevinstloven gain/loss classification
   under stk. 1, nr. 2 with claim thresholding, loss blocks, selected debt
   treatment, contract loss limitation and personal-income reclassification,
+  Virksomhedsskatteloven § 11 rentekorrektion under stk. 1, nr. 8 with a
+  capital-income deduction and separate personal-income addition,
   passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
   under stk. 1, nr. 11 and stk. 8, LL § 5 C compensation classification under
@@ -586,7 +606,8 @@ encoded as a temporal rule on top of the consolidation.
   amendment's 2010-level amounts through § 20 while preserving the LOV nr.
   482/2024 source branch for each layer,
   Ligningsloven ordinary wage-earner deduction, LL §§ 5 C/6/6 A/8/12 B
-  capital-income dependencies, Pensionsbeskatningsloven § 53 A return
+  capital-income dependencies, Virksomhedsskatteloven § 11 rentekorrektion,
+  Pensionsbeskatningsloven § 53 A return
   dependency, Ejendomsavancebeskatningsloven real-property-gain dependency,
   Afskrivningsloven § 40 C saldo dependency, and
   § 15 Q subletting/letting dependency slices,

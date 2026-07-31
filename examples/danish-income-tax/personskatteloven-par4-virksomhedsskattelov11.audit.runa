@@ -1,0 +1,92 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 8.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- virksomhedsskatteloven.runa.
+
+= par4_stk1_nr8_audit_stk1_afkast_loft_input = Virksomhedsskattelov11Input(
+    indkomstår = 2026,
+    rentekorrektionssats_basispoint = 500,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 100000,
+    negativ_indskudskonto_ultimo_abs_kroner = 80000,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 60000,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 40000,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 10000,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 0,
+    indskud_efter_par3_stk1_kroner = 0
+)
+= par4_stk1_nr8_audit_stk1_nettofinansiering_loft_input = Virksomhedsskattelov11Input(
+    indkomstår = 2026,
+    rentekorrektionssats_basispoint = 500,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 100000,
+    negativ_indskudskonto_ultimo_abs_kroner = 80000,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 100000,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 90000,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 2500,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 0,
+    indskud_efter_par3_stk1_kroner = 0
+)
+= par4_stk1_nr8_audit_stk2_indskud_loft_input = Virksomhedsskattelov11Input(
+    indkomstår = 2026,
+    rentekorrektionssats_basispoint = 500,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 0,
+    negativ_indskudskonto_ultimo_abs_kroner = 0,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 0,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 0,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 0,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 80000,
+    indskud_efter_par3_stk1_kroner = 30000
+)
+= par4_stk1_nr8_audit_samlet_input = Virksomhedsskattelov11Input(
+    indkomstår = 2026,
+    rentekorrektionssats_basispoint = 500,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 100000,
+    negativ_indskudskonto_ultimo_abs_kroner = 80000,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 100000,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 90000,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 2500,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 80000,
+    indskud_efter_par3_stk1_kroner = 30000
+)
+= par4_stk1_nr8_audit_uden_betingelser_input = Virksomhedsskattelov11Input(
+    indkomstår = 2026,
+    rentekorrektionssats_basispoint = 500,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 0,
+    negativ_indskudskonto_ultimo_abs_kroner = 0,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 0,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 0,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 0,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 0,
+    indskud_efter_par3_stk1_kroner = 0
+)
+
+= par4_stk1_nr8_audit_stk1_afkast_loft = virksomhedsskattelov11_resultat(par4_stk1_nr8_audit_stk1_afkast_loft_input)
+= par4_stk1_nr8_audit_stk1_nettofinansiering_loft = virksomhedsskattelov11_resultat(par4_stk1_nr8_audit_stk1_nettofinansiering_loft_input)
+= par4_stk1_nr8_audit_stk2_indskud_loft = virksomhedsskattelov11_resultat(par4_stk1_nr8_audit_stk2_indskud_loft_input)
+= par4_stk1_nr8_audit_samlet = par4_stk1_nr8_resultat_fra_virksomhedsskattelov11(par4_stk1_nr8_audit_samlet_input)
+= par4_stk1_nr8_audit_uden_betingelser = par4_stk1_nr8_resultat_fra_virksomhedsskattelov11(par4_stk1_nr8_audit_uden_betingelser_input)
+= par4_stk1_nr8_audit_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr8_kapitalpost_fra_virksomhedsskattelov11(par4_stk1_nr8_audit_samlet_input)
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr8_audit_stk1_afkastgrundlag_lofter: par4_stk1_nr8_audit_stk1_afkast_loft -> par4_stk1_nr8_audit_stk1_afkast_loft.stk1_rentekorrektion_før_loft_kroner == 5000 && par4_stk1_nr8_audit_stk1_afkast_loft.stk1_afkastgrundlag_loft_kroner == 3000 && par4_stk1_nr8_audit_stk1_afkast_loft.stk1_rentekorrektion_kroner == 3000
+| par4_stk1_nr8_audit_stk1_nettofinansiering_lofter: par4_stk1_nr8_audit_stk1_nettofinansiering_loft -> par4_stk1_nr8_audit_stk1_nettofinansiering_loft.stk1_rentekorrektion_før_loft_kroner == 5000 && par4_stk1_nr8_audit_stk1_nettofinansiering_loft.stk1_afkastgrundlag_loft_kroner == 5000 && par4_stk1_nr8_audit_stk1_nettofinansiering_loft.stk1_nettofinansieringsloft_kroner == 2500 && par4_stk1_nr8_audit_stk1_nettofinansiering_loft.stk1_rentekorrektion_kroner == 2500
+| par4_stk1_nr8_audit_stk2_indskud_lofter: par4_stk1_nr8_audit_stk2_indskud_loft -> par4_stk1_nr8_audit_stk2_indskud_loft.stk2_hævning_og_indskud == Sandt && par4_stk1_nr8_audit_stk2_indskud_loft.stk2_rentekorrektion_før_loft_kroner == 4000 && par4_stk1_nr8_audit_stk2_indskud_loft.stk2_indskudsloft_kroner == 1500 && par4_stk1_nr8_audit_stk2_indskud_loft.stk2_rentekorrektion_kroner == 1500
+| par4_stk1_nr8_audit_personlig_og_kapital_spejles: par4_stk1_nr8_audit_samlet -> par4_stk1_nr8_audit_samlet.samlet_rentekorrektion_kroner == 4000 && par4_stk1_nr8_audit_samlet.personlig_indkomst_tillæg_kroner == 4000 && par4_stk1_nr8_audit_samlet.kapitalindkomst_fradrag_kroner == 4000 && par4_stk1_nr8_audit_samlet.kapitalindkomst_kroner == -4000
+| par4_stk1_nr8_audit_uden_betingelser_giver_nul: par4_stk1_nr8_audit_uden_betingelser -> par4_stk1_nr8_audit_uden_betingelser.samlet_rentekorrektion_kroner == 0 && par4_stk1_nr8_audit_uden_betingelser.personlig_indkomst_tillæg_kroner == 0 && par4_stk1_nr8_audit_uden_betingelser.kapitalindkomst_kroner == 0
+| par4_stk1_nr8_audit_aggregat_med_personligt_tillæg: par4_stk1_nr8_audit_kapitalindkomst -> par4_stk1_nr8_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == -4000 && par4_stk1_nr8_audit_kapitalindkomst.nettokapitalindkomst_kroner == -4000 && par4_stk1_nr8_audit_kapitalindkomst.negativ_nettokapitalindkomst_abs_kroner == 4000 && par4_stk1_nr8_audit_kapitalindkomst.omklassificeret_personlig_indkomst_kroner == 0 && par4_stk1_nr8_audit_kapitalindkomst.personlig_indkomst_tillæg_kroner == 4000
+
+? par4_stk1_nr8_audit_stk1_afkastgrundlag_lofter
+? par4_stk1_nr8_audit_stk1_nettofinansiering_lofter
+? par4_stk1_nr8_audit_stk2_indskud_lofter
+? par4_stk1_nr8_audit_personlig_og_kapital_spejles
+? par4_stk1_nr8_audit_uden_betingelser_giver_nul
+? par4_stk1_nr8_audit_aggregat_med_personligt_tillæg
+
+@ print("§4 stk.1 nr.8 VSL §11 rentekorrektion kapitalindkomst: " + vis(par4_stk1_nr8_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner))
+@ print("§4 stk.1 nr.8 VSL §11 rentekorrektion personlig tillæg: " + vis(par4_stk1_nr8_audit_kapitalindkomst.personlig_indkomst_tillæg_kroner))

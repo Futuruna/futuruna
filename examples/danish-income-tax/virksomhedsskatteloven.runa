@@ -1,0 +1,149 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+
+-- Virksomhedsskatteloven -- Personskatteloven § 4-afhængigheder.
+--
+-- Kilde: Retsinformation, LBK nr. 1836 af 16/09/2021.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2021/1836
+-- XML: https://www.retsinformation.dk/eli/lta/2021/1836/dan/xml
+
+----
+§ 11. Er saldoen på indskudskontoen negativ på det tidspunkt, hvor anvendelsen
+af virksomhedsordningen påbegyndes, eller for efterfølgende indkomstår ved
+indkomstårets begyndelse, eller er saldoen på indskudskontoen negativ ved
+indkomstårets udløb, beregnes rentekorrektion. Rentekorrektionen beregnes med
+et beløb, der svarer til rentekorrektionssatsen efter § 9 a ganget med den
+talmæssigt største negative saldo på indskudskontoen på tidspunktet, hvor
+anvendelsen af virksomhedsordningen påbegyndes, eller, for efterfølgende
+indkomstår, ved indkomstårets begyndelse eller ved indkomstårets udløb.
+Beløbet kan dog højst udgøre rentekorrektionssatsen efter § 9 a ganget med det
+talmæssigt største negative afkastgrundlag opgjort efter virksomhedsskattelovens
+§ 8, stk. 1 og 2, på tidspunktet, hvor anvendelsen af virksomhedsordningen
+påbegyndes, eller for efterfølgende indkomstår ved indkomstårets begyndelse
+eller ved indkomstårets udløb. Beløbet kan endvidere højst udgøre virksomhedens
+nettorenteudgifter forhøjet med kurstab og nedsat med kursgevinster, der er
+skattepligtige efter kursgevinstloven.
+
+Stk. 2. Overføres værdier til den skattepligtige efter § 5, og foretages i
+samme indkomstår indskud efter § 3, stk. 1, beregnes rentekorrektion.
+Rentekorrektionen beregnes med et beløb, der svarer til rentekorrektionssatsen
+efter § 9 a ganget med værdier overført efter § 5, stk. 1, nr. 5, og stk. 2.
+Beløbet kan dog højst udgøre rentekorrektionssatsen ganget med indskuddet efter
+§ 3, stk. 1.
+
+Stk. 3. Det samlede rentekorrektionsbeløb efter stk. 1 og 2 medregnes i den
+personlige indkomst og fradrages i kapitalindkomsten for det pågældende
+indkomstår.
+----
+
+# Virksomhedsskattelov11Input(indkomstår: Heltal, rentekorrektionssats_basispoint: Heltal, negativ_indskudskonto_start_eller_primo_abs_kroner: Heltal, negativ_indskudskonto_ultimo_abs_kroner: Heltal, negativt_afkastgrundlag_start_eller_primo_abs_kroner: Heltal, negativt_afkastgrundlag_ultimo_abs_kroner: Heltal, nettofinansieringsudgifter_efter_kursgevinstlov_kroner: Heltal, overført_efter_par5_stk1_nr5_og_stk2_kroner: Heltal, indskud_efter_par3_stk1_kroner: Heltal)
+# Virksomhedsskattelov11Resultat(indkomstår: Heltal, stk1_negativ_indskudskonto: Boolsk, stk1_negativt_afkastgrundlag: Boolsk, stk1_indskudskonto_grundlag_kroner: Heltal, stk1_afkastgrundlag_loftgrundlag_kroner: Heltal, stk1_rentekorrektion_før_loft_kroner: Heltal, stk1_afkastgrundlag_loft_kroner: Heltal, stk1_nettofinansieringsloft_kroner: Heltal, stk1_rentekorrektion_kroner: Heltal, stk2_hævning_og_indskud: Boolsk, stk2_hævningsgrundlag_kroner: Heltal, stk2_indskudsloftgrundlag_kroner: Heltal, stk2_rentekorrektion_før_loft_kroner: Heltal, stk2_indskudsloft_kroner: Heltal, stk2_rentekorrektion_kroner: Heltal, samlet_rentekorrektion_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal, kapitalindkomst_fradrag_kroner: Heltal, kapitalindkomst_kroner: Heltal)
+
+# Virksomhedsskattelov11Sag(input: Virksomhedsskattelov11Input) {
+    | rentekorrektionssats_basispoint() -> penge_positivt_beløb(input.rentekorrektionssats_basispoint)
+    | stk1_indskudskonto_grundlag_kroner() -> penge_største_beløb(penge_positivt_beløb(input.negativ_indskudskonto_start_eller_primo_abs_kroner), penge_positivt_beløb(input.negativ_indskudskonto_ultimo_abs_kroner))
+    | stk1_afkastgrundlag_loftgrundlag_kroner() -> penge_største_beløb(penge_positivt_beløb(input.negativt_afkastgrundlag_start_eller_primo_abs_kroner), penge_positivt_beløb(input.negativt_afkastgrundlag_ultimo_abs_kroner))
+    | stk1_negativ_indskudskonto() -> stk1_indskudskonto_grundlag_kroner() > 0
+    | stk1_negativt_afkastgrundlag() -> stk1_afkastgrundlag_loftgrundlag_kroner() > 0
+    | stk1_rentekorrektion_før_loft_kroner() -> penge_beløb_gange_basispoint_kroner(stk1_indskudskonto_grundlag_kroner(), rentekorrektionssats_basispoint())
+    | stk1_afkastgrundlag_loft_kroner() -> penge_beløb_gange_basispoint_kroner(stk1_afkastgrundlag_loftgrundlag_kroner(), rentekorrektionssats_basispoint())
+    | stk1_nettofinansieringsloft_kroner() -> penge_positivt_beløb(input.nettofinansieringsudgifter_efter_kursgevinstlov_kroner)
+    | stk1_rentekorrektion_før_nettofinansieringsloft_kroner() -> penge_mindste_beløb(stk1_rentekorrektion_før_loft_kroner(), stk1_afkastgrundlag_loft_kroner())
+    | stk1_rentekorrektion_kroner() -> 0
+    | exception vsl11_stk1_negativ_indskudskonto_og_afkastgrundlag stk1_rentekorrektion_kroner() -> penge_mindste_beløb(stk1_rentekorrektion_før_nettofinansieringsloft_kroner(), stk1_nettofinansieringsloft_kroner()) under stk1_negativ_indskudskonto() && stk1_negativt_afkastgrundlag() && stk1_nettofinansieringsloft_kroner() > 0
+    | stk2_hævningsgrundlag_kroner() -> penge_positivt_beløb(input.overført_efter_par5_stk1_nr5_og_stk2_kroner)
+    | stk2_indskudsloftgrundlag_kroner() -> penge_positivt_beløb(input.indskud_efter_par3_stk1_kroner)
+    | stk2_hævning_og_indskud() -> stk2_hævningsgrundlag_kroner() > 0 && stk2_indskudsloftgrundlag_kroner() > 0
+    | stk2_rentekorrektion_før_loft_kroner() -> penge_beløb_gange_basispoint_kroner(stk2_hævningsgrundlag_kroner(), rentekorrektionssats_basispoint())
+    | stk2_indskudsloft_kroner() -> penge_beløb_gange_basispoint_kroner(stk2_indskudsloftgrundlag_kroner(), rentekorrektionssats_basispoint())
+    | stk2_rentekorrektion_kroner() -> 0
+    | exception vsl11_stk2_hævning_og_indskud stk2_rentekorrektion_kroner() -> penge_mindste_beløb(stk2_rentekorrektion_før_loft_kroner(), stk2_indskudsloft_kroner()) under stk2_hævning_og_indskud()
+    | samlet_rentekorrektion_kroner() -> stk1_rentekorrektion_kroner() + stk2_rentekorrektion_kroner()
+    | personlig_indkomst_tillæg_kroner() -> samlet_rentekorrektion_kroner()
+    | kapitalindkomst_fradrag_kroner() -> samlet_rentekorrektion_kroner()
+    | kapitalindkomst_kroner() -> 0 - kapitalindkomst_fradrag_kroner()
+    | resultat() -> Virksomhedsskattelov11Resultat(
+        indkomstår = input.indkomstår,
+        stk1_negativ_indskudskonto = stk1_negativ_indskudskonto(),
+        stk1_negativt_afkastgrundlag = stk1_negativt_afkastgrundlag(),
+        stk1_indskudskonto_grundlag_kroner = stk1_indskudskonto_grundlag_kroner(),
+        stk1_afkastgrundlag_loftgrundlag_kroner = stk1_afkastgrundlag_loftgrundlag_kroner(),
+        stk1_rentekorrektion_før_loft_kroner = stk1_rentekorrektion_før_loft_kroner(),
+        stk1_afkastgrundlag_loft_kroner = stk1_afkastgrundlag_loft_kroner(),
+        stk1_nettofinansieringsloft_kroner = stk1_nettofinansieringsloft_kroner(),
+        stk1_rentekorrektion_kroner = stk1_rentekorrektion_kroner(),
+        stk2_hævning_og_indskud = stk2_hævning_og_indskud(),
+        stk2_hævningsgrundlag_kroner = stk2_hævningsgrundlag_kroner(),
+        stk2_indskudsloftgrundlag_kroner = stk2_indskudsloftgrundlag_kroner(),
+        stk2_rentekorrektion_før_loft_kroner = stk2_rentekorrektion_før_loft_kroner(),
+        stk2_indskudsloft_kroner = stk2_indskudsloft_kroner(),
+        stk2_rentekorrektion_kroner = stk2_rentekorrektion_kroner(),
+        samlet_rentekorrektion_kroner = samlet_rentekorrektion_kroner(),
+        personlig_indkomst_tillæg_kroner = personlig_indkomst_tillæg_kroner(),
+        kapitalindkomst_fradrag_kroner = kapitalindkomst_fradrag_kroner(),
+        kapitalindkomst_kroner = kapitalindkomst_kroner()
+    )
+}
+| virksomhedsskattelov11_sag(input: Virksomhedsskattelov11Input) -> Virksomhedsskattelov11Sag(input)
+| virksomhedsskattelov11_resultat(input: Virksomhedsskattelov11Input) -> virksomhedsskattelov11_sag(input).resultat()
+
+= vsl11_stk1_loftet_input = Virksomhedsskattelov11Input(
+    indkomstår = 2026,
+    rentekorrektionssats_basispoint = 500,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 100000,
+    negativ_indskudskonto_ultimo_abs_kroner = 80000,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 60000,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 40000,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 3000,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 0,
+    indskud_efter_par3_stk1_kroner = 0
+)
+= vsl11_stk2_loftet_input = Virksomhedsskattelov11Input(
+    indkomstår = 2026,
+    rentekorrektionssats_basispoint = 500,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 0,
+    negativ_indskudskonto_ultimo_abs_kroner = 0,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 0,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 0,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 0,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 80000,
+    indskud_efter_par3_stk1_kroner = 30000
+)
+= vsl11_samlet_input = Virksomhedsskattelov11Input(
+    indkomstår = 2026,
+    rentekorrektionssats_basispoint = 500,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 100000,
+    negativ_indskudskonto_ultimo_abs_kroner = 80000,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 60000,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 40000,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 3000,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 80000,
+    indskud_efter_par3_stk1_kroner = 30000
+)
+= vsl11_uden_rentekorrektion_input = Virksomhedsskattelov11Input(
+    indkomstår = 2026,
+    rentekorrektionssats_basispoint = 500,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 0,
+    negativ_indskudskonto_ultimo_abs_kroner = 0,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 0,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 0,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 0,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 0,
+    indskud_efter_par3_stk1_kroner = 0
+)
+
+= vsl11_stk1_loftet_fixture = virksomhedsskattelov11_resultat(vsl11_stk1_loftet_input)
+= vsl11_stk2_loftet_fixture = virksomhedsskattelov11_resultat(vsl11_stk2_loftet_input)
+= vsl11_samlet_fixture = virksomhedsskattelov11_resultat(vsl11_samlet_input)
+= vsl11_uden_rentekorrektion_fixture = virksomhedsskattelov11_resultat(vsl11_uden_rentekorrektion_input)
+
+| vsl11_stk1_afkast_og_nettofinansiering_lofter: vsl11_stk1_loftet_fixture -> vsl11_stk1_loftet_fixture.stk1_indskudskonto_grundlag_kroner == 100000 && vsl11_stk1_loftet_fixture.stk1_rentekorrektion_før_loft_kroner == 5000 && vsl11_stk1_loftet_fixture.stk1_afkastgrundlag_loft_kroner == 3000 && vsl11_stk1_loftet_fixture.stk1_rentekorrektion_kroner == 3000
+| vsl11_stk2_indskud_lofter: vsl11_stk2_loftet_fixture -> vsl11_stk2_loftet_fixture.stk2_hævning_og_indskud == Sandt && vsl11_stk2_loftet_fixture.stk2_rentekorrektion_før_loft_kroner == 4000 && vsl11_stk2_loftet_fixture.stk2_indskudsloft_kroner == 1500 && vsl11_stk2_loftet_fixture.stk2_rentekorrektion_kroner == 1500
+| vsl11_samlet_medregnes_personligt_og_fradrages_i_kapital: vsl11_samlet_fixture -> vsl11_samlet_fixture.samlet_rentekorrektion_kroner == 4500 && vsl11_samlet_fixture.personlig_indkomst_tillæg_kroner == 4500 && vsl11_samlet_fixture.kapitalindkomst_fradrag_kroner == 4500 && vsl11_samlet_fixture.kapitalindkomst_kroner == -4500
+| vsl11_uden_betingelser_giver_nul: vsl11_uden_rentekorrektion_fixture -> vsl11_uden_rentekorrektion_fixture.samlet_rentekorrektion_kroner == 0 && vsl11_uden_rentekorrektion_fixture.kapitalindkomst_kroner == 0
+
+? vsl11_stk1_afkast_og_nettofinansiering_lofter
+? vsl11_stk2_indskud_lofter
+? vsl11_samlet_medregnes_personligt_og_fradrages_i_kapital
+? vsl11_uden_betingelser_giver_nul
