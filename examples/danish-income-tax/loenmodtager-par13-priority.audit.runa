@@ -1,0 +1,78 @@
+@ sprog da
+
+@ importer ./loenmodtager_beregning
+
+-- Focused validation for Personskatteloven § 13, stk. 2 spouse own-deficit
+-- priority before a transferred deficit from the taxpayer.
+-- Source: Retsinformation, LBK nr. 1284 af 14/06/2021.
+-- https://www.retsinformation.dk/eli/lta/2021/1284
+-- Amendment source for the 2026 insertion of § 8 into the tax-offset basket:
+-- LOV nr. 482 af 22/05/2024, § 1, nr. 10.
+-- https://www.retsinformation.dk/eli/lta/2024/482
+
+----
+§ 13, stk. 2. Hvis en gift persons skattepligtige indkomst udviser underskud,
+og ægtefællerne er samlevende ved indkomstårets udløb, skal underskud, der ikke
+er modregnet efter stk. 1, 2. pkt., i størst muligt omfang fradrages i den
+anden ægtefælles skattepligtige indkomst. Derefter modregnes skatteværdien af
+uudnyttet underskud i ægtefællens beregnede skatter efter §§ 6, 7 og 7 a og
+§ 8 a, stk. 2. Modregning sker, før ægtefællens egne uudnyttede underskud fra
+tidligere indkomstår fremføres efter 4.-6. pkt. Et herefter overskydende beløb
+fremføres til fradrag i følgende indkomstår efter stk. 1, 4. pkt. Hvert år
+fradrages underskud først i den skattepligtiges indkomst og i øvrigt efter samme
+regler, som gælder for underskudsåret. Hvis ægtefællen ligeledes har uudnyttet
+underskud vedrørende tidligere indkomstår, skal ægtefællens egne underskud
+modregnes først.
+
+LOV nr. 482 af 22/05/2024, § 1, nr. 10:
+I § 13, stk. 1, 2. og 4. pkt., og i stk. 2, 2. pkt., ændres »§§ 6, 7 og
+7 a og § 8 a, stk. 2« til: »§§ 6, 7, 7 a og 8 og § 8 a, stk. 2«.
+----
+
+= par13_stk2_ægtefælle_egne_underskud_prioritet_probe = par13_ægtefælle_egne_underskud_prioritet_resultat(Par13ÆgtefælleEgneUnderskudPrioritetInput(
+    ægtefælles_egne_tidligere_underskud_kroner = 20000,
+    overført_underskud_fra_skattepligtig_kroner = 15000,
+    ægtefælle_skattepligtig_indkomst_kroner = 10000,
+    skatteværdi_sats_basispoint = 2500,
+    ægtefælle_skatter = Par13ModregningsSkatter(
+        par6_skat_kroner = 5000,
+        par7_skat_kroner = 0,
+        par7a_skat_kroner = 0,
+        par8_skat_kroner = 0,
+        par8a_stk2_skat_kroner = 0
+    ),
+    gift_samlevende_ved_årets_udløb = Sandt
+))
+
+= par13_stk2_prioritet_lønmodtager_input = LønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 100000,
+    nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 150000,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= par13_stk2_prioritet_lønmodtager_forhold = LønmodtagerPar13Forhold(
+    ægtefælle_skattepligtig_indkomst_kroner = 15000,
+    ægtefælles_egne_tidligere_underskud_kroner = 10000,
+    ægtefælle_modregningsskatter = Par13ModregningsSkatter(
+        par6_skat_kroner = 1000,
+        par7_skat_kroner = 0,
+        par7a_skat_kroner = 0,
+        par8_skat_kroner = 0,
+        par8a_stk2_skat_kroner = 0
+    ),
+    gift_samlevende_ved_årets_udløb = Sandt,
+    ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
+)
+= par13_stk2_prioritet_lønmodtager_probe = beregn_lønmodtager_med_par13_forhold(par13_stk2_prioritet_lønmodtager_input, par13_stk2_prioritet_lønmodtager_forhold)
+
+| par13_stk2_ægtefællens_egne_underskud_har_prioritet: par13_stk2_ægtefælle_egne_underskud_prioritet_probe -> par13_stk2_ægtefælle_egne_underskud_prioritet_probe.egne_underskud_indkomstfradrag_kroner == 10000 && par13_stk2_ægtefælle_egne_underskud_prioritet_probe.overført_underskud_indkomstfradrag_kroner == 0 && par13_stk2_ægtefælle_egne_underskud_prioritet_probe.ægtefælle_skatter_efter_egne_underskud.par6_skat_kroner == 2500 && par13_stk2_ægtefælle_egne_underskud_prioritet_probe.overført_underskud_skattemodregning.udnyttet_skatteværdi_kroner == 2500 && par13_stk2_ægtefælle_egne_underskud_prioritet_probe.overført_underskud_fremført_kroner == 5000
+| par13_stk2_lønmodtager_prioritet_reducerer_ægtefællefradrag: par13_stk2_prioritet_lønmodtager_probe -> par13_stk2_prioritet_lønmodtager_probe.par13_resterende_underskud_efter_skattemodregning_kroner == 23283 && par13_stk2_prioritet_lønmodtager_probe.par13_ægtefælle_fradrag_kroner == 5000 && par13_stk2_prioritet_lønmodtager_probe.par13_ægtefælle_skattemodregning_kroner == 1000 && par13_stk2_prioritet_lønmodtager_probe.par13_fremført_underskud_kroner == 14028
+
+? par13_stk2_ægtefællens_egne_underskud_har_prioritet
+? par13_stk2_lønmodtager_prioritet_reducerer_ægtefællefradrag
+
+@ print("§13 stk.2 egne underskud før overført underskud: " + vis(par13_stk2_prioritet_lønmodtager_probe.par13_ægtefælle_fradrag_kroner))
+@ print("§13 stk.2 fremført efter prioritet: " + vis(par13_stk2_prioritet_lønmodtager_probe.par13_fremført_underskud_kroner))

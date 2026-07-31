@@ -280,6 +280,7 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 = m5_par13_lønmodtager_underskud_fixture = beregn_lønmodtager(m5_par13_lønmodtager_underskud_input)
 = m5_par13_lønmodtager_ægtefælle_fixture = beregn_lønmodtager_med_par13_forhold(m5_par13_lønmodtager_underskud_input, LønmodtagerPar13Forhold(
     ægtefælle_skattepligtig_indkomst_kroner = 15000,
+    ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Sandt,
     ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
@@ -1041,6 +1042,7 @@ virksomhedsunderskud.
 )
 = m5_par13_calculator_ægtefælle_forhold = Par13KompleksÆgtefælleforhold(
     ægtefælle_skattepligtig_indkomst_kroner = 45000,
+    ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Sandt,
     ønsket_ægtefælleoverførsel_kroner = 60000
@@ -1067,6 +1069,7 @@ virksomhedsunderskud.
 )
 = m5_par13_calculator_2026_forhold = Par13KompleksÆgtefælleforhold(
     ægtefælle_skattepligtig_indkomst_kroner = 100000,
+    ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Sandt,
     ønsket_ægtefælleoverførsel_kroner = 100000

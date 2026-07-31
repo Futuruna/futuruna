@@ -727,12 +727,16 @@ som nævnt i § 10, stk. 1.
 # Par13ModregningsSkatter(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal)
 # Par13ModregningInput(skatteværdi_kroner: Heltal, par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal)
 # Par13ModregningResult(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, ubrugt_skatteværdi_kroner: Heltal)
+# Par13UnderskudSkatModregningInput(underskud_kroner: Heltal, skatteværdi_sats_basispoint: Heltal, skatter: Par13ModregningsSkatter)
+# Par13UnderskudSkatModregningResult(underskud_til_skattemodregning_kroner: Heltal, skatteværdi_til_modregning_kroner: Heltal, modregning: Par13ModregningResult, udnyttet_skatteværdi_kroner: Heltal, dækket_underskud_ved_skattemodregning_kroner: Heltal, resterende_underskud_kroner: Heltal)
 # Par13Stk1FremførselInput(underskud_kroner: Heltal, skatteværdi_sats_basispoint: Heltal, udnyttet_skatteværdi_kroner: Heltal, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk)
 # Par13Stk1FremførselResult(dækket_underskud_ved_skattemodregning_kroner: Heltal, resterende_underskud_kroner: Heltal, fremført_underskud_kroner: Heltal, fremføres: Boolsk)
 # Par13ÆgtefælleOverførselInput(ubenyttet_underskud_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par13ÆgtefælleOverførselResult(fradrag_i_ægtefælle_indkomst_kroner: Heltal, resterende_underskud_kroner: Heltal, overførsel_tilladt: Boolsk)
 # Par13ÆgtefælleSkatModregningInput(ubenyttet_underskud_efter_ægtefælleindkomst_kroner: Heltal, skatteværdi_sats_basispoint: Heltal, ægtefælle_skatter: Par13ModregningsSkatter, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par13ÆgtefælleSkatModregningResult(overførsel_tilladt: Boolsk, underskud_til_skattemodregning_kroner: Heltal, skatteværdi_til_modregning_kroner: Heltal, modregning: Par13ModregningResult, udnyttet_skatteværdi_kroner: Heltal, dækket_underskud_ved_skattemodregning_kroner: Heltal, resterende_underskud_kroner: Heltal)
+# Par13ÆgtefælleEgneUnderskudPrioritetInput(ægtefælles_egne_tidligere_underskud_kroner: Heltal, overført_underskud_fra_skattepligtig_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, skatteværdi_sats_basispoint: Heltal, ægtefælle_skatter: Par13ModregningsSkatter, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par13ÆgtefælleEgneUnderskudPrioritetResult(overførsel_tilladt: Boolsk, egne_underskud_indkomstfradrag_kroner: Heltal, overført_underskud_indkomstfradrag_kroner: Heltal, egne_underskud_rest_efter_indkomst_kroner: Heltal, overført_underskud_rest_efter_indkomst_kroner: Heltal, egne_underskud_skattemodregning: Par13UnderskudSkatModregningResult, ægtefælle_skatter_efter_egne_underskud: Par13ModregningsSkatter, overført_underskud_skattemodregning: Par13ÆgtefælleSkatModregningResult, egne_underskud_fremført_kroner: Heltal, overført_underskud_fremført_kroner: Heltal)
 # Par13NegativPersonligInput(personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal)
 # Par13NegativPersonligModregningInput(personlig_indkomst_kroner: Heltal, egen_positiv_kapitalindkomst_kroner: Heltal, ægtefælle_personlig_indkomst_med_pbl16_tillæg_kroner: Heltal, ægtefælle_positiv_kapitalindkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par13NegativPersonligModregningResult(negativ_personlig_indkomst_abs_kroner: Heltal, modregnet_i_ægtefælles_personlige_indkomst_kroner: Heltal, modregnet_i_egen_positiv_kapitalindkomst_kroner: Heltal, modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal)
@@ -763,6 +767,13 @@ som nævnt i § 10, stk. 1.
     par7a_skat_kroner = 0,
     par8_skat_kroner = 0,
     par8a_stk2_skat_kroner = 0
+)
+| par13_modregningsskatter_efter_modregning(resultat: Par13ModregningResult) -> Par13ModregningsSkatter(
+    par6_skat_kroner = resultat.par6_efter_kroner,
+    par7_skat_kroner = resultat.par7_efter_kroner,
+    par7a_skat_kroner = resultat.par7a_efter_kroner,
+    par8_skat_kroner = resultat.par8_efter_kroner,
+    par8a_stk2_skat_kroner = resultat.par8a_stk2_efter_kroner
 )
 | par13_skatteværdi_sats_basispoint(input: Par13UnderskudSkatteværdiInput) -> input.sundhedsbidrag_basispoint + input.par8c_basispoint under input.betaler_par8c
 | par13_skatteværdi_sats_basispoint(input: Par13UnderskudSkatteværdiInput) -> input.sundhedsbidrag_basispoint + input.kommuneskat_basispoint + input.kirkeskat_basispoint under input.betaler_par8c == Falskt
@@ -815,6 +826,32 @@ som nævnt i § 10, stk. 1.
 | par13_rester_efter_par8(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par8()
 | par13_rester_efter_par8a_stk2(input: Par13ModregningInput) -> par13_modregning_sag(input).rester_efter_par8a_stk2()
 | par13_modregning_resultat(input: Par13ModregningInput) -> par13_modregning_sag(input).resultat()
+
+# Par13UnderskudSkatModregningSag(input: Par13UnderskudSkatModregningInput) {
+    | underskud_til_skattemodregning_kroner() -> par13_positivt_beløb(input.underskud_kroner)
+    | skatteværdi_til_modregning_kroner() -> penge_beløb_gange_basispoint_kroner(underskud_til_skattemodregning_kroner(), input.skatteværdi_sats_basispoint)
+    | modregning_input() -> par13_modregning_input_fra_skatter(skatteværdi_til_modregning_kroner(), input.skatter)
+    | modregning() -> par13_modregning_resultat(modregning_input())
+    | udnyttet_skatteværdi_kroner() -> par13_udnyttet_skatteværdi_kroner(skatteværdi_til_modregning_kroner(), modregning().ubrugt_skatteværdi_kroner)
+    | dækket_underskud_ved_skattemodregning_kroner() -> par13_dækket_underskud_ved_skattemodregning_kroner(Par13Stk1FremførselInput(
+        underskud_kroner = underskud_til_skattemodregning_kroner(),
+        skatteværdi_sats_basispoint = input.skatteværdi_sats_basispoint,
+        udnyttet_skatteværdi_kroner = udnyttet_skatteværdi_kroner(),
+        ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
+    ))
+    | resterende_underskud_kroner() -> underskud_til_skattemodregning_kroner() - dækket_underskud_ved_skattemodregning_kroner()
+    | resultat() -> Par13UnderskudSkatModregningResult(
+        underskud_til_skattemodregning_kroner = underskud_til_skattemodregning_kroner(),
+        skatteværdi_til_modregning_kroner = skatteværdi_til_modregning_kroner(),
+        modregning = modregning(),
+        udnyttet_skatteværdi_kroner = udnyttet_skatteværdi_kroner(),
+        dækket_underskud_ved_skattemodregning_kroner = dækket_underskud_ved_skattemodregning_kroner(),
+        resterende_underskud_kroner = resterende_underskud_kroner()
+    )
+}
+| par13_underskud_skattemodregning_sag(input: Par13UnderskudSkatModregningInput) -> Par13UnderskudSkatModregningSag(input)
+| par13_underskud_skattemodregning_resultat(input: Par13UnderskudSkatModregningInput) -> par13_underskud_skattemodregning_sag(input).resultat()
+
 | par13_underskud_fremføres(status: Par13Underskudstype, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk) -> par13_underskud_kan_fremføres(status) && ikke_rummet_i_tidligere_indkomst_eller_skat
 | par13_ægtefælleoverførsel_resultat(input: Par13ÆgtefælleOverførselInput) -> hvis input.gift_samlevende_ved_årets_udløb {
     Par13ÆgtefælleOverførselResult(
@@ -829,35 +866,76 @@ som nævnt i § 10, stk. 1.
         overførsel_tilladt = Falskt
     )
 }
-| par13_ægtefællens_egne_underskud_modregnes_først() -> Sandt
-
 # Par13ÆgtefælleSkatModregningSag(input: Par13ÆgtefælleSkatModregningInput) {
     | overførsel_tilladt() -> input.gift_samlevende_ved_årets_udløb
     | underskud_til_skattemodregning_kroner() -> 0
     | exception par13_stk2_resterende_underskud_modregnes_i_ægtefælles_skatter underskud_til_skattemodregning_kroner() -> par13_positivt_beløb(input.ubenyttet_underskud_efter_ægtefælleindkomst_kroner) under overførsel_tilladt()
-    | skatteværdi_til_modregning_kroner() -> penge_beløb_gange_basispoint_kroner(underskud_til_skattemodregning_kroner(), input.skatteværdi_sats_basispoint)
-    | modregning_input() -> par13_modregning_input_fra_skatter(skatteværdi_til_modregning_kroner(), input.ægtefælle_skatter)
-    | modregning() -> par13_modregning_resultat(modregning_input())
-    | udnyttet_skatteværdi_kroner() -> par13_udnyttet_skatteværdi_kroner(skatteværdi_til_modregning_kroner(), modregning().ubrugt_skatteværdi_kroner)
-    | dækket_underskud_ved_skattemodregning_kroner() -> par13_dækket_underskud_ved_skattemodregning_kroner(Par13Stk1FremførselInput(
+    | skattemodregning_input() -> Par13UnderskudSkatModregningInput(
         underskud_kroner = underskud_til_skattemodregning_kroner(),
         skatteværdi_sats_basispoint = input.skatteværdi_sats_basispoint,
-        udnyttet_skatteværdi_kroner = udnyttet_skatteværdi_kroner(),
-        ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
-    ))
-    | resterende_underskud_kroner() -> par13_positivt_beløb(input.ubenyttet_underskud_efter_ægtefælleindkomst_kroner) - dækket_underskud_ved_skattemodregning_kroner()
+        skatter = input.ægtefælle_skatter
+    )
+    | skattemodregning() -> par13_underskud_skattemodregning_resultat(skattemodregning_input())
+    | resterende_underskud_kroner() -> par13_positivt_beløb(input.ubenyttet_underskud_efter_ægtefælleindkomst_kroner)
+    | exception par13_stk2_resterende_underskud_efter_ægtefælleskat resterende_underskud_kroner() -> skattemodregning().resterende_underskud_kroner under overførsel_tilladt()
     | resultat() -> Par13ÆgtefælleSkatModregningResult(
         overførsel_tilladt = overførsel_tilladt(),
         underskud_til_skattemodregning_kroner = underskud_til_skattemodregning_kroner(),
-        skatteværdi_til_modregning_kroner = skatteværdi_til_modregning_kroner(),
-        modregning = modregning(),
-        udnyttet_skatteværdi_kroner = udnyttet_skatteværdi_kroner(),
-        dækket_underskud_ved_skattemodregning_kroner = dækket_underskud_ved_skattemodregning_kroner(),
+        skatteværdi_til_modregning_kroner = skattemodregning().skatteværdi_til_modregning_kroner,
+        modregning = skattemodregning().modregning,
+        udnyttet_skatteværdi_kroner = skattemodregning().udnyttet_skatteværdi_kroner,
+        dækket_underskud_ved_skattemodregning_kroner = skattemodregning().dækket_underskud_ved_skattemodregning_kroner,
         resterende_underskud_kroner = resterende_underskud_kroner()
     )
 }
 | par13_ægtefælle_skattemodregning_sag(input: Par13ÆgtefælleSkatModregningInput) -> Par13ÆgtefælleSkatModregningSag(input)
 | par13_ægtefælle_skattemodregning_resultat(input: Par13ÆgtefælleSkatModregningInput) -> par13_ægtefælle_skattemodregning_sag(input).resultat()
+
+# Par13ÆgtefælleEgneUnderskudPrioritetSag(input: Par13ÆgtefælleEgneUnderskudPrioritetInput) {
+    | overførsel_tilladt() -> input.gift_samlevende_ved_årets_udløb
+    | ægtefælles_egne_tidligere_underskud_kroner() -> par13_positivt_beløb(input.ægtefælles_egne_tidligere_underskud_kroner)
+    | overført_underskud_fra_skattepligtig_kroner() -> par13_positivt_beløb(input.overført_underskud_fra_skattepligtig_kroner)
+    | ægtefælle_skattepligtig_indkomst_kroner() -> par13_positivt_beløb(input.ægtefælle_skattepligtig_indkomst_kroner)
+    | egne_underskud_indkomstfradrag_kroner() -> par13_mindste_beløb(ægtefælles_egne_tidligere_underskud_kroner(), ægtefælle_skattepligtig_indkomst_kroner())
+    | ægtefælle_indkomst_efter_egne_underskud_kroner() -> ægtefælle_skattepligtig_indkomst_kroner() - egne_underskud_indkomstfradrag_kroner()
+    | overført_underskud_indkomstfradrag_kroner() -> 0
+    | exception par13_stk2_overført_underskud_fradrages_i_ægtefælleindkomst overført_underskud_indkomstfradrag_kroner() -> par13_mindste_beløb(overført_underskud_fra_skattepligtig_kroner(), ægtefælle_indkomst_efter_egne_underskud_kroner()) under overførsel_tilladt()
+    | egne_underskud_rest_efter_indkomst_kroner() -> ægtefælles_egne_tidligere_underskud_kroner() - egne_underskud_indkomstfradrag_kroner()
+    | overført_underskud_rest_efter_indkomst_kroner() -> overført_underskud_fra_skattepligtig_kroner() - overført_underskud_indkomstfradrag_kroner()
+    | egne_underskud_skattemodregning() -> par13_underskud_skattemodregning_resultat(Par13UnderskudSkatModregningInput(
+        underskud_kroner = egne_underskud_rest_efter_indkomst_kroner(),
+        skatteværdi_sats_basispoint = input.skatteværdi_sats_basispoint,
+        skatter = input.ægtefælle_skatter
+    ))
+    | ægtefælle_skatter_efter_egne_underskud() -> par13_modregningsskatter_efter_modregning(egne_underskud_skattemodregning().modregning)
+    | overført_underskud_skattemodregning() -> par13_ægtefælle_skattemodregning_resultat(Par13ÆgtefælleSkatModregningInput(
+        ubenyttet_underskud_efter_ægtefælleindkomst_kroner = overført_underskud_rest_efter_indkomst_kroner(),
+        skatteværdi_sats_basispoint = input.skatteværdi_sats_basispoint,
+        ægtefælle_skatter = ægtefælle_skatter_efter_egne_underskud(),
+        gift_samlevende_ved_årets_udløb = overførsel_tilladt()
+    ))
+    | egne_underskud_fremført_kroner() -> egne_underskud_skattemodregning().resterende_underskud_kroner
+    | overført_underskud_fremført_kroner() -> overført_underskud_skattemodregning().resterende_underskud_kroner
+    | resultat() -> Par13ÆgtefælleEgneUnderskudPrioritetResult(
+        overførsel_tilladt = overførsel_tilladt(),
+        egne_underskud_indkomstfradrag_kroner = egne_underskud_indkomstfradrag_kroner(),
+        overført_underskud_indkomstfradrag_kroner = overført_underskud_indkomstfradrag_kroner(),
+        egne_underskud_rest_efter_indkomst_kroner = egne_underskud_rest_efter_indkomst_kroner(),
+        overført_underskud_rest_efter_indkomst_kroner = overført_underskud_rest_efter_indkomst_kroner(),
+        egne_underskud_skattemodregning = egne_underskud_skattemodregning(),
+        ægtefælle_skatter_efter_egne_underskud = ægtefælle_skatter_efter_egne_underskud(),
+        overført_underskud_skattemodregning = overført_underskud_skattemodregning(),
+        egne_underskud_fremført_kroner = egne_underskud_fremført_kroner(),
+        overført_underskud_fremført_kroner = overført_underskud_fremført_kroner()
+    )
+}
+| par13_ægtefælle_egne_underskud_prioritet_sag(input: Par13ÆgtefælleEgneUnderskudPrioritetInput) -> Par13ÆgtefælleEgneUnderskudPrioritetSag(input)
+| par13_ægtefælle_egne_underskud_prioritet_resultat(input: Par13ÆgtefælleEgneUnderskudPrioritetInput) -> par13_ægtefælle_egne_underskud_prioritet_sag(input).resultat()
+| par13_overført_underskud_ægtefælleoverførsel_fra_prioritet(resultat: Par13ÆgtefælleEgneUnderskudPrioritetResult) -> Par13ÆgtefælleOverførselResult(
+    fradrag_i_ægtefælle_indkomst_kroner = resultat.overført_underskud_indkomstfradrag_kroner,
+    resterende_underskud_kroner = resultat.overført_underskud_rest_efter_indkomst_kroner,
+    overførsel_tilladt = resultat.overførsel_tilladt
+)
 
 | par13_negativ_personlig_beløb(input: Par13NegativPersonligInput) -> par13_absolut_underskud(input.personlig_indkomst_kroner)
 | par13_negativ_personlig_modregnet_i_kapital_kroner(input: Par13NegativPersonligInput) -> par13_mindste_beløb(par13_negativ_personlig_beløb(input), input.positiv_kapitalindkomst_kroner)

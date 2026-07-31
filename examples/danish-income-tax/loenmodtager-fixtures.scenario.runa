@@ -369,6 +369,7 @@ København 2025.
 )
 = m4_par13_ingen_ægtefælle = Par13KompleksÆgtefælleforhold(
     ægtefælle_skattepligtig_indkomst_kroner = 0,
+    ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Falskt,
     ønsket_ægtefælleoverførsel_kroner = 0
@@ -394,6 +395,7 @@ København 2025.
 )
 = m4_par13_ægtefælle_forhold = Par13KompleksÆgtefælleforhold(
     ægtefælle_skattepligtig_indkomst_kroner = 45000,
+    ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Sandt,
     ønsket_ægtefælleoverførsel_kroner = 60000
@@ -453,6 +455,7 @@ Kilder: Personskatteloven § 13, stk. 5; Ligningsloven § 33 A.
 )
 = m4_par13_ll33a_forhold = Par13KompleksÆgtefælleforhold(
     ægtefælle_skattepligtig_indkomst_kroner = 100000,
+    ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Sandt,
     ønsket_ægtefælleoverførsel_kroner = 100000
@@ -496,6 +499,7 @@ Kilder: Personskatteloven § 13, stk. 5; LOV nr. 482 af 22/05/2024.
 )
 = m4_par13_2026_pbl_forhold = Par13KompleksÆgtefælleforhold(
     ægtefælle_skattepligtig_indkomst_kroner = 100000,
+    ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Sandt,
     ønsket_ægtefælleoverførsel_kroner = 100000
@@ -587,6 +591,7 @@ jf. § 8, og«.
 = m4_par13_lønmodtager_underskud = beregn_lønmodtager(m4_par13_lønmodtager_underskud_input)
 = m4_par13_lønmodtager_ægtefælle_forhold = LønmodtagerPar13Forhold(
     ægtefælle_skattepligtig_indkomst_kroner = 15000,
+    ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
     gift_samlevende_ved_årets_udløb = Sandt,
     ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt

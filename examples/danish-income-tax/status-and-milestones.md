@@ -30,7 +30,10 @@ rule; § 7 a now has post-level amount rules for included and excluded
 pension-like payments; § 13, stk. 2 now has amount-level spouse transfer where
 remaining deficit is first deducted from the spouse's taxable income and then
 converted to tax value against the spouse's §§ 6, 7, 7 a, § 8 and § 8 a, stk. 2
-tax basket, wired through the wage-earner calculator; § 13, stk. 4 now has
+tax basket, wired through the wage-earner calculator, and the spouse's own
+prior-year deficits now have amount-level priority over the taxpayer's
+transferred deficit in both spouse-income deduction and spouse-tax offset paths;
+§ 13, stk. 4 now has
 amount-level spouse and carry-forward offset ordering for negative personal
 income; § 8 a, stk. 2
 high-layer share-income tax now flows through the wage-earner § 5/§ 9
@@ -364,6 +367,8 @@ encoded as a temporal rule on top of the consolidation.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
 - `loenmodtager-par11.audit.runa` exists and checks/runs with `runa run`.
 - `loenmodtager-par13-spouse.audit.runa` exists and checks/runs with
+  `runa run`.
+- `loenmodtager-par13-priority.audit.runa` exists and checks/runs with
   `runa run`.
 - `skatdk-2026-ekstern.scenario.runa` exists and checks/runs with `runa run`.
 - `delaar-scenarier.scenario.runa` exists and checks/runs with `runa run`.
@@ -826,15 +831,17 @@ Current decision:
   ordinary wage-earner calculator. It keeps the taxpayer input and immediate
   spouse-transfer facts together while internal `|` rules derive the taxable
   deficit, tax-value rate, statutory tax-value offset order, deficit amount
-  covered by own tax offset, remaining deficit, spouse deduction, spouse tax
-  value offset after the income deduction, and carry-forward remainder. The
+  covered by own tax offset, remaining deficit, spouse deduction, spouse's own
+  prior-year deficit priority, spouse tax value offset after the income
+  deduction, and carry-forward remainder. The
   focused `loenmodtager-par13-spouse.audit.runa` case verifies that the
   remaining 8.283 kr. deficit after spouse income deduction is further reduced
-  by 1.000 kr. of spouse tax-value offset to 4.028 kr. carry-forward. Scenario
-  fixtures stay as plain taxpayer/spouse facts plus assertions; later-year
-  priority between a spouse's own prior deficits and another spouse's carried
-  deficits should be modeled as a separate carry-forward-year case, not folded
-  into first-year fixture setup.
+  by 1.000 kr. of spouse tax-value offset to 4.028 kr. carry-forward. The
+  focused `loenmodtager-par13-priority.audit.runa` case verifies that 10.000 kr.
+  of the spouse's own prior deficits consumes spouse income before the
+  taxpayer's transferred deficit, reducing the spouse-income deduction to
+  5.000 kr. and leaving 14.028 kr. to carry forward after spouse tax-value
+  offset. Scenario fixtures stay as plain taxpayer/spouse facts plus assertions.
 - `LønmodtagerPar11NedslagResultat` is the current right-sized § 11 boundary
   inside the ordinary wage-earner calculator. `LønmodtagerInput` now carries
   `nettokapitalindkomst_kroner`; helper rules derive positive net-capital income
