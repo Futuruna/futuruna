@@ -49,7 +49,11 @@ capital-tax allocation rules into the transition-compensation nr. 3 amount, and
 source-derived yearly parameters with the statutory tax-offset order plus
 pair-level stk. 4 spouse difference results, pair-level stk. 5 and stk. 8
 net-capital offset results, and a pair-level annual path where stk. 6
-bundfradrag transfer feeds the nr. 2 line item.
+bundfradrag transfer feeds the nr. 2 line item;
+§ 8 c's 2023-2026 published limited-taxpayer rate now has a
+`Par8cSatsResultat` result that keeps the statutory rounded-down municipal
+average method, the Skatteministeriet source posture, and the applied
+basispoint rate together.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -622,7 +626,10 @@ Current decision:
   equivalent tax. It keeps tax year, limited-taxpayer posture, taxable ordinary
   income, and the § 10 stk. 5 personfradrag amount together so coverage,
   taxable base, published rate, personfradrag tax value, and final § 8 c tax
-  are derived from one legal case.
+  are derived from one legal case. `Par8cSatsResultat` separately keeps the
+  statutory method, published source posture, source rate, and applied
+  basispoint rate together so the calculation does not depend on a bare 25 pct.
+  constant.
 - `LønmodtagerSkatteforhold` groups non-ordinary taxpayer facts for the
   wage-earner calculator: CFC income, § 8 c posture, and § 10 personfradrag
   tax-liability/election facts. `LønmodtagerBeregningSag` uses product-scoped
@@ -1201,7 +1208,8 @@ M5 - Audit suite
   splitting plus § 8 a, stk. 3 over-withheld/negative-share-income dividend-tax
   credits and § 8 a, stk. 6 both-negative spouse threshold allocation, covered
   § 8 c municipal-equivalent limited-taxpayer tax with
-  personfradrag reduction and non-covered boundary case, covered fictional
+  personfradrag reduction, published 2023-2026 rate source/method provenance,
+  and non-covered boundary case, covered fictional
   household scenario, covered Børne- og ungeydelse
   benefit-cliff/source-tension audit plus a first boligsikring § 22 threshold
   cliff, covered external Skat.dk 2026
@@ -1253,7 +1261,8 @@ M6 - Website integration
   first § 4 a pension/share-income audit,
   first § 8 a/§ 67 share-income annual-settlement scenario including negative
   share-income carry-forward,
-  first § 8 c limited-taxpayer municipal-equivalent tax calculation,
+  first § 8 c limited-taxpayer municipal-equivalent tax calculation and
+  published-rate source/method provenance,
   first § 11 negative net-capital reduction order and spouse-transfer audit,
   first § 9/§ 12 split state personfradrag tax-value reduction-order audit and
   wage-earner component projection,
