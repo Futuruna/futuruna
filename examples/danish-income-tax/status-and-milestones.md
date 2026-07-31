@@ -42,7 +42,11 @@ same correction is added to personal income while deducted from capital income;
 stk. 9 now derive passive
 self-employed business capital-income treatment from owner-count thresholds,
 the LL § 8 K personal-owner branch, substantial-participation exclusion, and
-LL § 8 P renewable-energy owner exclusion; § 4, stk. 1, nr. 11 and stk. 8 now
+LL § 8 P renewable-energy owner exclusion; § 4, stk. 1, nr. 10 now consumes a
+typed LL § 14 A result for stk. 1 borrower payments to the named mortgage/farm
+financing institutions, flowing as negative capital income only in the
+payment year while LL § 14 A stk. 2 fund payouts stay outside § 4 nr. 10;
+§ 4, stk. 1, nr. 11 and stk. 8 now
 derive leasing income from depreciable operating assets and ships through the
 substantial-participation condition and Skatterådet's pre-19 May 1993
 permission carve-out; § 4, stk. 1, nr. 17 now derives tenant/shareholder
@@ -476,7 +480,8 @@ encoded as a temporal rule on top of the consolidation.
   it covers the LL § 5 C dependency consumed by Personskatteloven § 4,
   stk. 1, nr. 12, the LL §§ 6/6 A dependencies consumed by § 4, stk. 1,
   nr. 1, the LL § 8, stk. 3 dependency consumed by § 4, stk. 1, nr. 7, and
-  the LL § 12 B dependency consumed by § 4, stk. 1, nr. 15.
+  the LL § 12 B dependency consumed by § 4, stk. 1, nr. 15, plus the LL
+  § 14 A dependency consumed by § 4, stk. 1, nr. 10.
 - `kursgevinstloven.runa` exists and checks with `runa check`; it covers the
   first Kursgevinstloven dependency slice consumed by Personskatteloven § 4,
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
@@ -565,7 +570,9 @@ encoded as a temporal rule on top of the consolidation.
   Virksomhedsskatteloven § 11 rentekorrektion under stk. 1, nr. 8 with a
   capital-income deduction and separate personal-income addition,
   passive self-employed business owner-count
-  classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
+  classification under stk. 1, nr. 9 and stk. 9, LL § 14 A stk. 1 payment
+  classification under stk. 1, nr. 10 with stk. 2 payouts kept outside nr. 10,
+  leasing-income classification
   under stk. 1, nr. 11 and stk. 8, LL § 5 C compensation classification under
   stk. 1, nr. 12, Pensionsbeskatningsloven § 53 A return classification under
   stk. 1, nr. 13, Ejendomsavancebeskatningsloven real-property-gain
@@ -605,7 +612,7 @@ encoded as a temporal rule on top of the consolidation.
   topskat, toptopskat, and the mellemskat positive-capital grundbeløb from the
   amendment's 2010-level amounts through § 20 while preserving the LOV nr.
   482/2024 source branch for each layer,
-  Ligningsloven ordinary wage-earner deduction, LL §§ 5 C/6/6 A/8/12 B
+  Ligningsloven ordinary wage-earner deduction, LL §§ 5 C/6/6 A/8/12 B/14 A
   capital-income dependencies, Virksomhedsskatteloven § 11 rentekorrektion,
   Pensionsbeskatningsloven § 53 A return
   dependency, Ejendomsavancebeskatningsloven real-property-gain dependency,
@@ -786,6 +793,12 @@ Current decision:
   Skatterådet permission, council assessment, substantial-participation
   condition, covered capital-income amount, and noncovered amount together
   before the § 4 capital aggregate consumes the derived capital post.
+- `Ligningslov14ASag` uses product-scoped `|` rules for LL § 14 A. It keeps
+  stk. 1 borrower-payment coverage, payment-year timing, stk. 2
+  restgældsreguleringsfond payouts and payout-year timing together.
+  `Par4Stk1Nr10Sag` consumes only the stk. 1 payment deduction as negative
+  Personskatteloven § 4, stk. 1, nr. 10 capital income, leaving stk. 2 payouts
+  outside that § 4 nr. 10 bridge.
 - `Ligningslov5CSag` uses product-scoped `|` rules for LL § 5 C. It keeps the
   income year, compensation role, covered compensation type, settlement-year
   timing, corresponding-interest due-year timing, § 5, stk. 5 carve-out, and

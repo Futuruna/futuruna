@@ -2,7 +2,7 @@
 
 @ importer ./pengebeloeb
 
--- Ligningsloven — kapitalindkomstrelevante afhængigheder (§§ 5 C, 6, 6 A, 8 og 12 B).
+-- Ligningsloven — kapitalindkomstrelevante afhængigheder (§§ 5 C, 6, 6 A, 8, 12 B og 14 A).
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
@@ -338,6 +338,96 @@ løbetiden er mindre end 2 år.
 | ll8_stk3_litra_b_fradrages: ll8_stk3_kaution_fixture -> ll8_stk3_kaution_fixture.omfattet_af_litra_b == Sandt && ll8_stk3_kaution_fixture.fradrag_kroner == 2500
 | ll8_stk3_litra_c_under_to_år_fradrages: ll8_stk3_engangs_under_to_år_fixture -> ll8_stk3_engangs_under_to_år_fixture.omfattet_af_litra_c == Sandt && ll8_stk3_engangs_under_to_år_fixture.løbetid_under_to_år == Sandt && ll8_stk3_engangs_under_to_år_fixture.fradrag_kroner == 6000
 | ll8_stk3_litra_c_mindst_to_år_afskæres: ll8_stk3_engangs_lang_løbetid_fixture -> ll8_stk3_engangs_lang_løbetid_fixture.omfattet_af_litra_c == Sandt && ll8_stk3_engangs_lang_løbetid_fixture.løbetid_under_to_år == Falskt && ll8_stk3_engangs_lang_løbetid_fixture.fradrag_kroner == 0 && ll8_stk3_engangs_lang_løbetid_fixture.afskåret_kroner == 7000
+
+----
+§ 14 A. Beløb, som låntager betaler til et realkreditinstitut efter § 10 b,
+stk. 3, 4. pkt., i bekendtgørelse nr. 571 af 15. august 1989 af lov om
+realkreditinstitutter og § 4 b i bekendtgørelse nr. 699 af 5. november 1987 af
+lov om et finansieringsinstitut for landbrug mv., som ændret ved lov nr. 373
+af 6. juli 1988, kan fradrages i den skattepligtige indkomst for
+indbetalingsåret.
+
+Stk. 2. Beløb, som udbetales fra en restgældsreguleringsfond som nævnt i § 23 g,
+stk. 1, i bekendtgørelse nr. 571 af 15. august 1989 af lov om
+realkreditinstitutter og § 4 b i bekendtgørelse nr. 699 af 5. november 1987 af
+lov om et finansieringsinstitut for landbrug mv., som ændret ved lov nr. 373
+af 6. juli 1988, medregnes ved opgørelsen af den skattepligtige indkomst.
+----
+
+# Ligningslov14AInput(indkomstår: Heltal, indbetalingsår: Heltal, indbetaling_kroner: Heltal, indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt: Boolsk, indbetaling_efter_landbrugsfinansieringsinstitut4b: Boolsk, udbetalingsår: Heltal, udbetaling_kroner: Heltal, udbetaling_fra_restgældsreguleringsfond: Boolsk)
+# Ligningslov14AResultat(indkomstår: Heltal, indbetaling_omfattet_af_stk1: Boolsk, indbetaling_i_indbetalingsåret: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, udbetaling_omfattet_af_stk2: Boolsk, udbetaling_i_udbetalingsåret: Boolsk, skattepligtig_udbetaling_kroner: Heltal, netto_skattepligtig_indkomst_kroner: Heltal)
+
+# Ligningslov14ASag(input: Ligningslov14AInput) {
+    | positiv_indbetaling_kroner() -> penge_positivt_beløb(input.indbetaling_kroner)
+    | positiv_udbetaling_kroner() -> penge_positivt_beløb(input.udbetaling_kroner)
+    | indbetaling_omfattet_af_stk1() -> input.indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt || input.indbetaling_efter_landbrugsfinansieringsinstitut4b
+    | indbetaling_i_indbetalingsåret() -> input.indkomstår == input.indbetalingsår
+    | fradrag_i_skattepligtig_indkomst_kroner() -> 0
+    | exception ll14a_stk1_indbetalingsår fradrag_i_skattepligtig_indkomst_kroner() -> positiv_indbetaling_kroner() under indbetaling_omfattet_af_stk1() && indbetaling_i_indbetalingsåret()
+    | udbetaling_omfattet_af_stk2() -> input.udbetaling_fra_restgældsreguleringsfond
+    | udbetaling_i_udbetalingsåret() -> input.indkomstår == input.udbetalingsår
+    | skattepligtig_udbetaling_kroner() -> 0
+    | exception ll14a_stk2_udbetalingsår skattepligtig_udbetaling_kroner() -> positiv_udbetaling_kroner() under udbetaling_omfattet_af_stk2() && udbetaling_i_udbetalingsåret()
+    | netto_skattepligtig_indkomst_kroner() -> skattepligtig_udbetaling_kroner() - fradrag_i_skattepligtig_indkomst_kroner()
+    | resultat() -> Ligningslov14AResultat(
+        indkomstår = input.indkomstår,
+        indbetaling_omfattet_af_stk1 = indbetaling_omfattet_af_stk1(),
+        indbetaling_i_indbetalingsåret = indbetaling_i_indbetalingsåret(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner(),
+        udbetaling_omfattet_af_stk2 = udbetaling_omfattet_af_stk2(),
+        udbetaling_i_udbetalingsåret = udbetaling_i_udbetalingsåret(),
+        skattepligtig_udbetaling_kroner = skattepligtig_udbetaling_kroner(),
+        netto_skattepligtig_indkomst_kroner = netto_skattepligtig_indkomst_kroner()
+    )
+}
+| ligningslov14a_sag(input: Ligningslov14AInput) -> Ligningslov14ASag(input)
+| ligningslov14a_resultat(input: Ligningslov14AInput) -> ligningslov14a_sag(input).resultat()
+
+= ll14a_indbetaling_fixture = ligningslov14a_resultat(Ligningslov14AInput(
+    indkomstår = 2026,
+    indbetalingsår = 2026,
+    indbetaling_kroner = 9000,
+    indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt = Sandt,
+    indbetaling_efter_landbrugsfinansieringsinstitut4b = Falskt,
+    udbetalingsår = 0,
+    udbetaling_kroner = 0,
+    udbetaling_fra_restgældsreguleringsfond = Falskt
+))
+= ll14a_udbetaling_fixture = ligningslov14a_resultat(Ligningslov14AInput(
+    indkomstår = 2026,
+    indbetalingsår = 0,
+    indbetaling_kroner = 0,
+    indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt = Falskt,
+    indbetaling_efter_landbrugsfinansieringsinstitut4b = Falskt,
+    udbetalingsår = 2026,
+    udbetaling_kroner = 12000,
+    udbetaling_fra_restgældsreguleringsfond = Sandt
+))
+= ll14a_forkert_år_fixture = ligningslov14a_resultat(Ligningslov14AInput(
+    indkomstår = 2026,
+    indbetalingsår = 2025,
+    indbetaling_kroner = 9000,
+    indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt = Sandt,
+    indbetaling_efter_landbrugsfinansieringsinstitut4b = Falskt,
+    udbetalingsår = 0,
+    udbetaling_kroner = 0,
+    udbetaling_fra_restgældsreguleringsfond = Falskt
+))
+= ll14a_ikke_omfattet_fixture = ligningslov14a_resultat(Ligningslov14AInput(
+    indkomstår = 2026,
+    indbetalingsår = 2026,
+    indbetaling_kroner = 5000,
+    indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt = Falskt,
+    indbetaling_efter_landbrugsfinansieringsinstitut4b = Falskt,
+    udbetalingsår = 0,
+    udbetaling_kroner = 0,
+    udbetaling_fra_restgældsreguleringsfond = Falskt
+))
+
+| ll14a_stk1_indbetaling_fradrages_i_indbetalingsåret: ll14a_indbetaling_fixture -> ll14a_indbetaling_fixture.indbetaling_omfattet_af_stk1 == Sandt && ll14a_indbetaling_fixture.indbetaling_i_indbetalingsåret == Sandt && ll14a_indbetaling_fixture.fradrag_i_skattepligtig_indkomst_kroner == 9000 && ll14a_indbetaling_fixture.netto_skattepligtig_indkomst_kroner == -9000
+| ll14a_stk2_udbetaling_medregnes_i_udbetalingsåret: ll14a_udbetaling_fixture -> ll14a_udbetaling_fixture.udbetaling_omfattet_af_stk2 == Sandt && ll14a_udbetaling_fixture.udbetaling_i_udbetalingsåret == Sandt && ll14a_udbetaling_fixture.skattepligtig_udbetaling_kroner == 12000 && ll14a_udbetaling_fixture.netto_skattepligtig_indkomst_kroner == 12000
+| ll14a_stk1_kun_indbetalingsåret: ll14a_forkert_år_fixture -> ll14a_forkert_år_fixture.indbetaling_omfattet_af_stk1 == Sandt && ll14a_forkert_år_fixture.indbetaling_i_indbetalingsåret == Falskt && ll14a_forkert_år_fixture.fradrag_i_skattepligtig_indkomst_kroner == 0
+| ll14a_ikke_omfattet_giver_intet_fradrag: ll14a_ikke_omfattet_fixture -> ll14a_ikke_omfattet_fixture.indbetaling_omfattet_af_stk1 == Falskt && ll14a_ikke_omfattet_fixture.fradrag_i_skattepligtig_indkomst_kroner == 0
 
 ----
 § 12 B. Udgør en løbende ydelse helt eller delvist vederlag i en gensidigt

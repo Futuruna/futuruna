@@ -1,0 +1,78 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 10.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- ligningsloven_kapitalindkomst.runa.
+
+= par4_stk1_nr10_audit_indbetaling_input = Ligningslov14AInput(
+    indkomstår = 2026,
+    indbetalingsår = 2026,
+    indbetaling_kroner = 11000,
+    indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt = Sandt,
+    indbetaling_efter_landbrugsfinansieringsinstitut4b = Falskt,
+    udbetalingsår = 0,
+    udbetaling_kroner = 0,
+    udbetaling_fra_restgældsreguleringsfond = Falskt
+)
+= par4_stk1_nr10_audit_forkert_år_input = Ligningslov14AInput(
+    indkomstår = 2026,
+    indbetalingsår = 2025,
+    indbetaling_kroner = 11000,
+    indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt = Sandt,
+    indbetaling_efter_landbrugsfinansieringsinstitut4b = Falskt,
+    udbetalingsår = 0,
+    udbetaling_kroner = 0,
+    udbetaling_fra_restgældsreguleringsfond = Falskt
+)
+= par4_stk1_nr10_audit_ikke_omfattet_input = Ligningslov14AInput(
+    indkomstår = 2026,
+    indbetalingsår = 2026,
+    indbetaling_kroner = 8000,
+    indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt = Falskt,
+    indbetaling_efter_landbrugsfinansieringsinstitut4b = Falskt,
+    udbetalingsår = 0,
+    udbetaling_kroner = 0,
+    udbetaling_fra_restgældsreguleringsfond = Falskt
+)
+= par4_stk1_nr10_audit_stk2_udbetaling_input = Ligningslov14AInput(
+    indkomstår = 2026,
+    indbetalingsår = 0,
+    indbetaling_kroner = 0,
+    indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt = Falskt,
+    indbetaling_efter_landbrugsfinansieringsinstitut4b = Falskt,
+    udbetalingsår = 2026,
+    udbetaling_kroner = 13000,
+    udbetaling_fra_restgældsreguleringsfond = Sandt
+)
+
+= par4_stk1_nr10_audit_indbetaling = par4_stk1_nr10_resultat_fra_ligningslov14a(par4_stk1_nr10_audit_indbetaling_input)
+= par4_stk1_nr10_audit_forkert_år = par4_stk1_nr10_resultat_fra_ligningslov14a(par4_stk1_nr10_audit_forkert_år_input)
+= par4_stk1_nr10_audit_ikke_omfattet = par4_stk1_nr10_resultat_fra_ligningslov14a(par4_stk1_nr10_audit_ikke_omfattet_input)
+= par4_stk1_nr10_audit_stk2_ligningslov = ligningslov14a_resultat(par4_stk1_nr10_audit_stk2_udbetaling_input)
+= par4_stk1_nr10_audit_stk2_par4 = par4_stk1_nr10_resultat_fra_ligningslov14a(par4_stk1_nr10_audit_stk2_udbetaling_input)
+
+= par4_stk1_nr10_audit_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr10_kapitalpost_fra_ligningslov14a(par4_stk1_nr10_audit_indbetaling_input),
+        par4_stk1_nr10_kapitalpost_fra_ligningslov14a(par4_stk1_nr10_audit_forkert_år_input),
+        par4_stk1_nr10_kapitalpost_fra_ligningslov14a(par4_stk1_nr10_audit_ikke_omfattet_input),
+        par4_stk1_nr10_kapitalpost_fra_ligningslov14a(par4_stk1_nr10_audit_stk2_udbetaling_input)
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr10_audit_indbetaling_fradrages: par4_stk1_nr10_audit_indbetaling -> par4_stk1_nr10_audit_indbetaling.omfattet_af_ligningslov14a_stk1 == Sandt && par4_stk1_nr10_audit_indbetaling.fradrag_i_skattepligtig_indkomst_kroner == 11000 && par4_stk1_nr10_audit_indbetaling.kapitalindkomst_kroner == -11000
+| par4_stk1_nr10_audit_kun_indbetalingsåret: par4_stk1_nr10_audit_forkert_år -> par4_stk1_nr10_audit_forkert_år.omfattet_af_ligningslov14a_stk1 == Sandt && par4_stk1_nr10_audit_forkert_år.fradrag_i_skattepligtig_indkomst_kroner == 0 && par4_stk1_nr10_audit_forkert_år.kapitalindkomst_kroner == 0
+| par4_stk1_nr10_audit_ikke_omfattet_afskæres: par4_stk1_nr10_audit_ikke_omfattet -> par4_stk1_nr10_audit_ikke_omfattet.omfattet_af_ligningslov14a_stk1 == Falskt && par4_stk1_nr10_audit_ikke_omfattet.fradrag_i_skattepligtig_indkomst_kroner == 0 && par4_stk1_nr10_audit_ikke_omfattet.kapitalindkomst_kroner == 0
+| par4_stk1_nr10_audit_stk2_ikke_nr10: par4_stk1_nr10_audit_stk2_ligningslov -> par4_stk1_nr10_audit_stk2_ligningslov.skattepligtig_udbetaling_kroner == 13000 && par4_stk1_nr10_audit_stk2_par4.omfattet_af_ligningslov14a_stk1 == Falskt && par4_stk1_nr10_audit_stk2_par4.kapitalindkomst_kroner == 0
+| par4_stk1_nr10_audit_kun_stk1_indbetaling_i_kapitalindkomst: par4_stk1_nr10_audit_kapitalindkomst -> par4_stk1_nr10_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == -11000 && par4_stk1_nr10_audit_kapitalindkomst.nettokapitalindkomst_kroner == -11000 && par4_stk1_nr10_audit_kapitalindkomst.negativ_nettokapitalindkomst_abs_kroner == 11000
+
+? par4_stk1_nr10_audit_indbetaling_fradrages
+? par4_stk1_nr10_audit_kun_indbetalingsåret
+? par4_stk1_nr10_audit_ikke_omfattet_afskæres
+? par4_stk1_nr10_audit_stk2_ikke_nr10
+? par4_stk1_nr10_audit_kun_stk1_indbetaling_i_kapitalindkomst
+
+@ print("§4 stk.1 nr.10 kapitalindkomst fra LL §14 A stk.1-indbetalinger: " + vis(par4_stk1_nr10_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner))
