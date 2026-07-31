@@ -33,7 +33,11 @@ capital-income surplus while excluding owners/others and non-LL15Q cases;
 § 4, stk. 1, nr. 12 now consumes a typed LL § 5 C result for compensation
 for accrued/credited interest and § 8, stk. 3 provision/præmie amounts,
 including the § 5, stk. 5 carve-out and stk. 3 double-tax-treaty deduction
-block; and the LL § 15 P dependency now calculates long-term private-home letting
+block; § 4, stk. 1, nr. 15 now consumes a typed LL § 12 B result for running
+payment saldo taxation and deductions under stk. 4-7 and stk. 9, including
+negative-saldo years, later-year payments, termination balances, right
+assignments, obligation transfers, acquisition-cost adjustments and statutory
+application/exclusion posture; and the LL § 15 P dependency now calculates long-term private-home letting
 bundfradrag from 2/3 annual rent/boligafgift or 1 1/3 pct. property value,
 the 24.000 kr. owner minimum, the four-month condition, actual-expense branch
 and later-method lock, while LL § 15 Q now calculates the regulated low/high
@@ -209,6 +213,10 @@ Current § 13 amendment/dependency sources:
     dependency for accrued/credited-interest compensation and equivalent
     § 8, stk. 3 provision/præmie amounts, including the § 5, stk. 5 carve-out
     and stk. 3 deduction block.
+  - § 12 B is modeled as the Personskatteloven § 4, stk. 1, nr. 15
+    dependency for taxable and deductible running-payment saldo amounts under
+    stk. 4-7 and stk. 9, including stk. 10 application posture and stk. 11
+    exclusion posture.
   - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
     wage-earner calculator; § 9 L is modeled for extra pension deductions and
     § 26 nr. 5 transition-compensation input; § 15 P is modeled for
@@ -399,7 +407,8 @@ encoded as a temporal rule on top of the consolidation.
   subletting/letting income deductions.
 - `ligningsloven_kapitalindkomst.runa` exists and checks/runs with `runa run`;
   it covers the LL § 5 C dependency consumed by Personskatteloven § 4,
-  stk. 1, nr. 12.
+  stk. 1, nr. 12, and the LL § 12 B dependency consumed by § 4, stk. 1,
+  nr. 15.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
@@ -415,6 +424,8 @@ encoded as a temporal rule on top of the consolidation.
 - `personskatteloven-par4-udlejning-driftsmidler.audit.runa` exists and
   checks/runs with `runa run`.
 - `personskatteloven-par4-ligningslov5c.audit.runa` exists and checks/runs
+  with `runa run`.
+- `personskatteloven-par4-ligningslov12b.audit.runa` exists and checks/runs
   with `runa run`.
 - `personskatteloven-par4-fremleje.audit.runa` exists and checks/runs with
   `runa run`.
@@ -452,7 +463,8 @@ encoded as a temporal rule on top of the consolidation.
   deductible capital costs, passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
   under stk. 1, nr. 11 and stk. 8, LL § 5 C compensation classification under
-  stk. 1, nr. 12, subletting/letting surplus classification
+  stk. 1, nr. 12, LL § 12 B running-payment saldo classification under
+  stk. 1, nr. 15, subletting/letting surplus classification
   under stk. 1, nr. 17 derived from LL § 15 Q regulated bundfradrag, stk. 4
   § 15 P coordination, rounded 40 pct. excess-rent deduction,
   actual-expense branch, and positive surplus,
@@ -485,8 +497,8 @@ encoded as a temporal rule on top of the consolidation.
   topskat, toptopskat, and the mellemskat positive-capital grundbeløb from the
   amendment's 2010-level amounts through § 20 while preserving the LOV nr.
   482/2024 source branch for each layer,
-  Ligningsloven ordinary wage-earner deduction, LL § 5 C capital-income
-  dependency, and § 15 Q subletting/letting dependency slices,
+  Ligningsloven ordinary wage-earner deduction, LL § 5 C and § 12 B
+  capital-income dependencies, and § 15 Q subletting/letting dependency slices,
   § 26 historical year-parameter derivation for 2012-2019,
   2024/2025/2026 tax-year parameter packs, grouped
   wage-earner calculation-domain records, first wage-earner scenarios, a first
@@ -538,8 +550,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 64-74% complete as an executable research corpus,
-  and roughly 50-60% complete as a production-grade calculator for
+- Working estimate: roughly 65-75% complete as an executable research corpus,
+  and roughly 51-61% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -668,6 +680,13 @@ Current decision:
   stk. 3 deduction block together. `Par4Stk1Nr12Sag` consumes the typed result
   as Personskatteloven § 4, stk. 1, nr. 12 capital income rather than taking a
   bare scalar.
+- `Ligningslov12BSag` uses product-scoped `|` rules for LL § 12 B. It keeps the
+  running-payment role, event, application posture, saldo before and after
+  payments or cash-converted consideration, negative-saldo amount, later-year
+  payments, termination balance, statutory exclusion amounts, acquisition-cost
+  adjustments, and obligation-transfer opening value together.
+  `Par4Stk1Nr15Sag` consumes the typed result as Personskatteloven § 4,
+  stk. 1, nr. 15 capital income rather than taking a bare scalar.
 - `Par4Stk1Nr17Sag` uses product-scoped `|` rules for § 4, stk. 1, nr. 17.
   It keeps the taxpayer's housing role, LL § 15 Q branch, gross rent income,
   LL § 15 Q deduction amount, positive surplus, covered capital-income amount,

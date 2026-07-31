@@ -1,0 +1,62 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 15.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- ligningsloven_kapitalindkomst.runa.
+
+= par4_stk1_nr15_audit_modtager = par4_stk1_nr15_resultat(Par4Stk1Nr15Input(
+    ligningslov12b_resultat = ll12b_modtager_negativ_saldo_fixture
+))
+= par4_stk1_nr15_audit_yder_fradrag = par4_stk1_nr15_resultat(Par4Stk1Nr15Input(
+    ligningslov12b_resultat = ll12b_yder_efterfølgende_fradrag_fixture
+))
+= par4_stk1_nr15_audit_modtager_ophør = par4_stk1_nr15_resultat(Par4Stk1Nr15Input(
+    ligningslov12b_resultat = ll12b_modtager_ophør_fradrag_fixture
+))
+= par4_stk1_nr15_audit_yder_ophør = par4_stk1_nr15_resultat(Par4Stk1Nr15Input(
+    ligningslov12b_resultat = ll12b_yder_ophør_skat_fixture
+))
+= par4_stk1_nr15_audit_stk6 = par4_stk1_nr15_resultat(Par4Stk1Nr15Input(
+    ligningslov12b_resultat = ll12b_stk6_afståelse_fixture
+))
+= par4_stk1_nr15_audit_stk9_overtager = par4_stk1_nr15_resultat(Par4Stk1Nr15Input(
+    ligningslov12b_resultat = ll12b_stk9_overtager_fixture
+))
+= par4_stk1_nr15_audit_anden_lov = par4_stk1_nr15_resultat(Par4Stk1Nr15Input(
+    ligningslov12b_resultat = ll12b_anden_lov_fixture
+))
+
+= par4_stk1_nr15_audit_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr15_kapitalpost(Par4Stk1Nr15Input(ligningslov12b_resultat = ll12b_modtager_negativ_saldo_fixture)),
+        par4_stk1_nr15_kapitalpost(Par4Stk1Nr15Input(ligningslov12b_resultat = ll12b_yder_efterfølgende_fradrag_fixture)),
+        par4_stk1_nr15_kapitalpost(Par4Stk1Nr15Input(ligningslov12b_resultat = ll12b_modtager_ophør_fradrag_fixture)),
+        par4_stk1_nr15_kapitalpost(Par4Stk1Nr15Input(ligningslov12b_resultat = ll12b_yder_ophør_skat_fixture)),
+        par4_stk1_nr15_kapitalpost(Par4Stk1Nr15Input(ligningslov12b_resultat = ll12b_stk6_afståelse_fixture)),
+        par4_stk1_nr15_kapitalpost(Par4Stk1Nr15Input(ligningslov12b_resultat = ll12b_stk9_overtager_fixture)),
+        par4_stk1_nr15_kapitalpost(Par4Stk1Nr15Input(ligningslov12b_resultat = ll12b_anden_lov_fixture))
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr15_audit_modtager_negativ_saldo_indgår: par4_stk1_nr15_audit_modtager -> par4_stk1_nr15_audit_modtager.skattepligtige_beløb_kroner == 8000 && par4_stk1_nr15_audit_modtager.kapitalindkomst_kroner == 8000
+| par4_stk1_nr15_audit_yder_fradrag_indgår: par4_stk1_nr15_audit_yder_fradrag -> par4_stk1_nr15_audit_yder_fradrag.fradragsberettigede_beløb_kroner == 13000 && par4_stk1_nr15_audit_yder_fradrag.kapitalindkomst_kroner == -13000
+| par4_stk1_nr15_audit_modtager_ophørsfradrag_indgår: par4_stk1_nr15_audit_modtager_ophør -> par4_stk1_nr15_audit_modtager_ophør.fradragsberettigede_beløb_kroner == 30000 && par4_stk1_nr15_audit_modtager_ophør.kapitalindkomst_kroner == -30000
+| par4_stk1_nr15_audit_yder_ophørsbeskatning_indgår: par4_stk1_nr15_audit_yder_ophør -> par4_stk1_nr15_audit_yder_ophør.skattepligtige_beløb_kroner == 15000 && par4_stk1_nr15_audit_yder_ophør.kapitalindkomst_kroner == 15000
+| par4_stk1_nr15_audit_stk6_afståelse_indgår: par4_stk1_nr15_audit_stk6 -> par4_stk1_nr15_audit_stk6.skattepligtige_beløb_kroner == 3000 && par4_stk1_nr15_audit_stk6.kapitalindkomst_kroner == 3000
+| par4_stk1_nr15_audit_stk9_overtager_indgår: par4_stk1_nr15_audit_stk9_overtager -> par4_stk1_nr15_audit_stk9_overtager.fradragsberettigede_beløb_kroner == 11000 && par4_stk1_nr15_audit_stk9_overtager.kapitalindkomst_kroner == -11000
+| par4_stk1_nr15_audit_anden_lov_udelukkes: par4_stk1_nr15_audit_anden_lov -> par4_stk1_nr15_audit_anden_lov.omfattet_af_ligningslov12b_stk4_til_7_eller_9 == Falskt && par4_stk1_nr15_audit_anden_lov.kapitalindkomst_kroner == 0
+| par4_stk1_nr15_audit_netto_kapitalindkomst: par4_stk1_nr15_audit_kapitalindkomst -> par4_stk1_nr15_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == -28000 && par4_stk1_nr15_audit_kapitalindkomst.nettokapitalindkomst_kroner == -28000 && par4_stk1_nr15_audit_kapitalindkomst.negativ_nettokapitalindkomst_abs_kroner == 28000
+
+? par4_stk1_nr15_audit_modtager_negativ_saldo_indgår
+? par4_stk1_nr15_audit_yder_fradrag_indgår
+? par4_stk1_nr15_audit_modtager_ophørsfradrag_indgår
+? par4_stk1_nr15_audit_yder_ophørsbeskatning_indgår
+? par4_stk1_nr15_audit_stk6_afståelse_indgår
+? par4_stk1_nr15_audit_stk9_overtager_indgår
+? par4_stk1_nr15_audit_anden_lov_udelukkes
+? par4_stk1_nr15_audit_netto_kapitalindkomst
+
+@ print("§4 stk.1 nr.15 kapitalindkomst fra LL §12B-saldoer: " + vis(par4_stk1_nr15_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner))
