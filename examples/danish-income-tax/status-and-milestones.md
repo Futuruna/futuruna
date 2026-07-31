@@ -1097,15 +1097,18 @@ M3 - Tax-year parameter packs
   municipality-specific inputs.
 - Done when: the same legal rules can run for at least two tax years by swapping
   parameter packs.
-- Current slice: 2024, 2025, and 2026 national parameters from
-  Skattestyrelsen/SKM plus Copenhagen and Gentofte municipal/church-tax inputs
-  from Skatteministeriet, and a 2026-only Langeland municipal row from
-  Skatteministeriet's `kommuneskattesatser_2026.xlsx`. The 2026 pack covers
-  mellemskat, topskat, toptopskat, personfradrag, aktieindkomst, skatteloft,
-  municipal rates, church-tax rates, published skatteloftsnedslag, and
-  grundskyldspromille. Parameter completeness is year+municipality specific, so
-  Langeland is not treated as supported for 2024/2025 until those rows are
-  source-backed.
+- Current slice: 2024, 2025, and 2026 national parameters now return
+  `NationalParametreResultat` values with Skattestyrelsen source branches.
+  Copenhagen and Gentofte municipal/church-tax inputs for 2024-2026, plus the
+  2026-only Langeland municipal row, now return `KommunaleParametreResultat`
+  values with Skatteministeriet source branches. Combined
+  `SkatteårParameterpakkeResultat` values carry both national and municipal
+  source provenance before projecting the existing plain parameter pack. The
+  2026 pack covers mellemskat, topskat, toptopskat, personfradrag,
+  aktieindkomst, skatteloft, municipal rates, church-tax rates, published
+  skatteloftsnedslag, and grundskyldspromille. Parameter completeness is
+  year+municipality specific, so Langeland is not treated as supported for
+  2024/2025 until those rows are source-backed.
 
 M4 - Ordinary taxpayer calculator
 
@@ -1245,6 +1248,7 @@ M5 - Audit suite
   state personfradrag tax-value reduction
   order, § 9 non-state personfradrag reduction, and wage-earner component
   projection,
+  covered source-backed 2024-2026 national/municipal parameter-pack provenance,
   covered 2026 state-tax reform parameter source branches, covered § 19
   personal and positive-capital skatteloft source branches across the LBK text
   and LOV nr. 482/2024 rewrite, covered § 20 regulation-number source branches
