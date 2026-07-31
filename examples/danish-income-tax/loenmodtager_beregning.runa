@@ -1096,7 +1096,7 @@ helårsbeløbene.
 ----
 
 # LønmodtagerPar14Input(skattepligtsændring: Par14Skattepligtsændring, delårs_input: LønmodtagerInput, skattepligtsdage: Heltal)
-# LønmodtagerPar14Result(delår: LønmodtagerBreakdown, helår: LønmodtagerBreakdown, helårsindkomst: Par14Helårsindkomst, helårsskat_efter_par6_til_par9_kroner: Heltal, delårsskat_efter_par6_til_par9_kroner: Heltal)
+# LønmodtagerPar14Result(delår: LønmodtagerBreakdown, helår: LønmodtagerBreakdown, helårsindkomst: Par14Helårsindkomst, par14_skatteberegning: Par14SkatteberegningResultat, helårsskat_efter_par6_til_par9_kroner: Heltal, delårsskat_efter_par6_til_par9_kroner: Heltal)
 
 | lønmodtager_par14_omregning_gælder(input: LønmodtagerPar14Input) -> par14_helårsomregning_gælder(input.skattepligtsændring)
 | lønmodtager_par14_omregningsinput(input: LønmodtagerPar14Input) -> Par14OmregningInput(
@@ -1116,15 +1116,24 @@ helårsbeløbene.
     betaler_kirkeskat = input.delårs_input.betaler_kirkeskat
 ) under lønmodtager_par14_omregning_gælder(input)
 | lønmodtager_par14_helårsskat_efter_par6_til_par9(input: LønmodtagerPar14Input) -> statslig_indkomstskat_efter_personfradrag(lønmodtager_par14_helårs_input(input)) under lønmodtager_par14_omregning_gælder(input)
-| lønmodtager_par14_delårsskat_efter_par6_til_par9(input: LønmodtagerPar14Input) -> par14_helårsskat_nedsat_for_delår(Par14SkattenedsættelseInput(
-    helårsskat_kroner = lønmodtager_par14_helårsskat_efter_par6_til_par9(input),
-    delårsbeløb_kroner = almindelig_skattepligtig_indkomst_fixture(input.delårs_input),
-    helårsbeløb_kroner = lønmodtager_par14_helårsindkomst(input).skattepligtig_indkomst_kroner
+| lønmodtager_par14_valg_resultat(input: LønmodtagerPar14Input) -> par14_valg_resultat(Par14ValgInput(
+    skatteår = input.delårs_input.skatteår,
+    skattepligtsændring = input.skattepligtsændring,
+    valg_afgivet_ved_oplysninger = Falskt,
+    omvalg_dato_yyyymmdd = 0
 )) under lønmodtager_par14_omregning_gælder(input)
+| lønmodtager_par14_skatteberegning(input: LønmodtagerPar14Input) -> par14_skatteberegning_resultat(Par14SkatteberegningInput(
+    omregning = lønmodtager_par14_omregningsinput(input),
+    valg = lønmodtager_par14_valg_resultat(input),
+    helårsskat_efter_par6_til_par9_kroner = lønmodtager_par14_helårsskat_efter_par6_til_par9(input),
+    samlet_indkomstskat_som_helårsskattepligtig_kroner = statslig_indkomstskat_efter_personfradrag(input.delårs_input)
+)) under lønmodtager_par14_omregning_gælder(input)
+| lønmodtager_par14_delårsskat_efter_par6_til_par9(input: LønmodtagerPar14Input) -> lønmodtager_par14_skatteberegning(input).skat_efter_par14_kroner under lønmodtager_par14_omregning_gælder(input)
 | beregn_lønmodtager_par14(input: LønmodtagerPar14Input) -> LønmodtagerPar14Result(
     delår = beregn_lønmodtager(input.delårs_input),
     helår = beregn_lønmodtager(lønmodtager_par14_helårs_input(input)),
     helårsindkomst = lønmodtager_par14_helårsindkomst(input),
+    par14_skatteberegning = lønmodtager_par14_skatteberegning(input),
     helårsskat_efter_par6_til_par9_kroner = lønmodtager_par14_helårsskat_efter_par6_til_par9(input),
     delårsskat_efter_par6_til_par9_kroner = lønmodtager_par14_delårsskat_efter_par6_til_par9(input)
 ) under lønmodtager_par14_omregning_gælder(input)

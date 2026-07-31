@@ -58,6 +58,8 @@ https://info.skat.dk/data.aspx?oid=1977388
 # Par14SkattenedsættelseInput(helårsskat_kroner: Heltal, delårsbeløb_kroner: Heltal, helårsbeløb_kroner: Heltal)
 # Par14ValgInput(skatteår: Heltal, skattepligtsændring: Par14Skattepligtsændring, valg_afgivet_ved_oplysninger: Boolsk, omvalg_dato_yyyymmdd: Heltal)
 # Par14ValgResultat(valg_muligt: Boolsk, valg_afgivet_ved_oplysninger: Boolsk, valg_gældende: Boolsk, omvalgsfrist_yyyymmdd: Heltal, omvalg_rettidigt: Boolsk, omvalg_gennemført: Boolsk, helårsomregning_skal_ske: Boolsk)
+# Par14SkatteberegningInput(omregning: Par14OmregningInput, valg: Par14ValgResultat, helårsskat_efter_par6_til_par9_kroner: Heltal, samlet_indkomstskat_som_helårsskattepligtig_kroner: Heltal)
+# Par14SkatteberegningResultat(helårsindkomst: Par14Helårsindkomst, helårsskat_efter_par6_til_par9_kroner: Heltal, stk1_eller_stk3_delårsskat_kroner: Heltal, stk2_skat_efter_periodenedsættelse_kroner: Heltal, helårsomregning_skal_ske: Boolsk, skat_efter_par14_kroner: Heltal)
 
 | par14_helårsomregning_gælder(status: Par14Skattepligtsændring) -> status == FuldSkattepligtIndtræder || status == FuldSkattepligtOphører || status == BegrænsetSkattepligtPar10Stk6Indtræder || status == BegrænsetSkattepligtPar10Stk6Ophører
 | par14_valg_uden_helårsomregning_muligt(status: Par14Skattepligtsændring) -> status == FuldSkattepligtIndtræder || status == FuldSkattepligtOphører
@@ -71,8 +73,8 @@ https://info.skat.dk/data.aspx?oid=1977388
     personlig_indkomst_kroner = par14_helårsbeløb(input.delårs_personlig_indkomst_kroner, input.skattepligtsdage),
     kapitalindkomst_kroner = par14_helårsbeløb(input.delårs_kapitalindkomst_kroner, input.skattepligtsdage)
 )
-| par14_helårsskat_beregnes_efter_par6_til_par9() -> Sandt
 | par14_helårsskat_nedsat_for_delår(input: Par14SkattenedsættelseInput) -> input.helårsskat_kroner * input.delårsbeløb_kroner / input.helårsbeløb_kroner under input.helårsbeløb_kroner > 0
+| par14_stk2_skat_efter_periodenedsættelse(samlet_indkomstskat_som_helårsskattepligtig_kroner: Heltal, skattepligtsdage: Heltal) -> samlet_indkomstskat_som_helårsskattepligtig_kroner * skattepligtsdage / 365 under skattepligtsdage > 0
 | par14_valg_muligt(input: Par14ValgInput) -> par14_valg_uden_helårsomregning_muligt(input.skattepligtsændring)
 | par14_valg_gældende(input: Par14ValgInput) -> par14_valg_muligt(input) && input.valg_afgivet_ved_oplysninger
 | par14_omvalgsfrist_yyyymmdd(skatteår: Heltal) -> (skatteår + 2) * 10000 + 630
@@ -90,6 +92,31 @@ https://info.skat.dk/data.aspx?oid=1977388
     omvalg_gennemført = par14_omvalg_gennemført(input),
     helårsomregning_skal_ske = par14_helårsomregning_skal_ske(input)
 )
+
+# Par14SkatteberegningSag(input: Par14SkatteberegningInput) {
+    | helårsindkomst() -> par14_helårsindkomst(input.omregning)
+    | stk1_eller_stk3_delårsskat_kroner() -> par14_helårsskat_nedsat_for_delår(Par14SkattenedsættelseInput(
+        helårsskat_kroner = input.helårsskat_efter_par6_til_par9_kroner,
+        delårsbeløb_kroner = input.omregning.delårs_skattepligtig_indkomst_kroner,
+        helårsbeløb_kroner = helårsindkomst().skattepligtig_indkomst_kroner
+    ))
+    | stk2_skat_efter_periodenedsættelse_kroner() -> par14_stk2_skat_efter_periodenedsættelse(
+        input.samlet_indkomstskat_som_helårsskattepligtig_kroner,
+        input.omregning.skattepligtsdage
+    )
+    | skat_efter_par14_kroner() -> stk2_skat_efter_periodenedsættelse_kroner() under input.valg.helårsomregning_skal_ske == Falskt
+    | exception par14_stk1_eller_stk3_helårsomregnet_skat skat_efter_par14_kroner() -> stk1_eller_stk3_delårsskat_kroner() under input.valg.helårsomregning_skal_ske
+    | resultat() -> Par14SkatteberegningResultat(
+        helårsindkomst = helårsindkomst(),
+        helårsskat_efter_par6_til_par9_kroner = input.helårsskat_efter_par6_til_par9_kroner,
+        stk1_eller_stk3_delårsskat_kroner = stk1_eller_stk3_delårsskat_kroner(),
+        stk2_skat_efter_periodenedsættelse_kroner = stk2_skat_efter_periodenedsættelse_kroner(),
+        helårsomregning_skal_ske = input.valg.helårsomregning_skal_ske,
+        skat_efter_par14_kroner = skat_efter_par14_kroner()
+    )
+}
+| par14_skatteberegning_sag(input: Par14SkatteberegningInput) -> Par14SkatteberegningSag(input)
+| par14_skatteberegning_resultat(input: Par14SkatteberegningInput) -> par14_skatteberegning_sag(input).resultat()
 
 = par14_fixture = par14_helårsindkomst(Par14OmregningInput(
     delårs_skattepligtig_indkomst_kroner = 180000,
@@ -129,6 +156,33 @@ https://info.skat.dk/data.aspx?oid=1977388
     valg_afgivet_ved_oplysninger = Sandt,
     omvalg_dato_yyyymmdd = 20280630
 ))
+= par14_stk1_skatteberegning_fixture = par14_skatteberegning_resultat(Par14SkatteberegningInput(
+    omregning = Par14OmregningInput(
+        delårs_skattepligtig_indkomst_kroner = 180000,
+        delårs_personlig_indkomst_kroner = 200000,
+        delårs_kapitalindkomst_kroner = -20000,
+        skattepligtsdage = 180
+    ),
+    valg = par14_valg_resultat(Par14ValgInput(
+        skatteår = 2026,
+        skattepligtsændring = FuldSkattepligtIndtræder,
+        valg_afgivet_ved_oplysninger = Falskt,
+        omvalg_dato_yyyymmdd = 0
+    )),
+    helårsskat_efter_par6_til_par9_kroner = 100000,
+    samlet_indkomstskat_som_helårsskattepligtig_kroner = 90000
+))
+= par14_stk2_skatteberegning_fixture = par14_skatteberegning_resultat(Par14SkatteberegningInput(
+    omregning = Par14OmregningInput(
+        delårs_skattepligtig_indkomst_kroner = 180000,
+        delårs_personlig_indkomst_kroner = 200000,
+        delårs_kapitalindkomst_kroner = -20000,
+        skattepligtsdage = 180
+    ),
+    valg = par14_stk2_valg_fixture,
+    helårsskat_efter_par6_til_par9_kroner = 100000,
+    samlet_indkomstskat_som_helårsskattepligtig_kroner = 90000
+))
 
 | par14_helårsomregner_indkomster: par14_fixture -> par14_fixture.skattepligtig_indkomst_kroner == 365000 && par14_fixture.personlig_indkomst_kroner == 405556 && par14_fixture.kapitalindkomst_kroner == -40556
 | par14_nedsætter_helårsskat_forholdsmæssigt: par14_skattenedsættelse_fixture -> par14_skattenedsættelse_fixture == 49315
@@ -139,6 +193,8 @@ https://info.skat.dk/data.aspx?oid=1977388
 | par14_stk2_rettidigt_omvalg_genindfører_helårsomregning: par14_stk2_omvalg_rettidigt_fixture -> par14_stk2_omvalg_rettidigt_fixture.omvalg_rettidigt == Sandt && par14_stk2_omvalg_rettidigt_fixture.omvalg_gennemført == Sandt && par14_stk2_omvalg_rettidigt_fixture.helårsomregning_skal_ske == Sandt
 | par14_stk2_for_sent_omvalg_ændrer_ikke_valg: par14_stk2_omvalg_for_sent_fixture -> par14_stk2_omvalg_for_sent_fixture.omvalg_rettidigt == Falskt && par14_stk2_omvalg_for_sent_fixture.omvalg_gennemført == Falskt && par14_stk2_omvalg_for_sent_fixture.helårsomregning_skal_ske == Falskt
 | par14_stk3_begrænset_skattelpligt_har_ikke_stk2_valg: par14_stk3_begrænset_ingen_valg_fixture -> par14_stk3_begrænset_ingen_valg_fixture.valg_muligt == Falskt && par14_stk3_begrænset_ingen_valg_fixture.valg_gældende == Falskt && par14_stk3_begrænset_ingen_valg_fixture.helårsomregning_skal_ske == Sandt
+| par14_skatteberegning_stk1_bruger_helårsomregning: par14_stk1_skatteberegning_fixture -> par14_stk1_skatteberegning_fixture.helårsomregning_skal_ske == Sandt && par14_stk1_skatteberegning_fixture.stk1_eller_stk3_delårsskat_kroner == 49315 && par14_stk1_skatteberegning_fixture.skat_efter_par14_kroner == 49315
+| par14_skatteberegning_stk2_bruger_periodenedsættelse: par14_stk2_skatteberegning_fixture -> par14_stk2_skatteberegning_fixture.helårsomregning_skal_ske == Falskt && par14_stk2_skatteberegning_fixture.stk2_skat_efter_periodenedsættelse_kroner == 44383 && par14_stk2_skatteberegning_fixture.skat_efter_par14_kroner == 44383
 
 ----
 §§ 15-17. (Ophævet)

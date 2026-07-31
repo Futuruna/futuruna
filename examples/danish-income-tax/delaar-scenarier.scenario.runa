@@ -43,6 +43,7 @@ without using AM-bidrag as part of the §§ 6-9 helårsskat component.
 | delaar1_helårsskat_par6_til_par9: delaar1_par14 -> delaar1_par14.helårsskat_efter_par6_til_par9_kroner == 60719
 | delaar1_delårsskat_par14: delaar1_par14 -> delaar1_par14.delårsskat_efter_par6_til_par9_kroner == 29943
 | delaar1_par14_bruger_statslig_indkomstskat: delaar1_par14 -> delaar1_par14.helårsskat_efter_par6_til_par9_kroner == delaar1_par14.helår.statslig_indkomstskat_efter_personfradrag_kroner && delaar1_par14.helårsskat_efter_par6_til_par9_kroner < delaar1_par14.helår.samlet_inkl_am_efter_personfradrag_kroner
+| delaar1_par14_bruger_lovens_skatteberegning: delaar1_par14 -> delaar1_par14.par14_skatteberegning.skat_efter_par14_kroner == delaar1_par14.delårsskat_efter_par6_til_par9_kroner && delaar1_par14.par14_skatteberegning.helårsomregning_skal_ske == Sandt
 | delaar1_delårs_am_udenfor_par14_helårsskat: delaar1_par14 -> delaar1_par14.delår.arbejdsmarkedsbidrag_kroner == 24000
 
 ? delaar1_helårs_bruttoløn
@@ -50,6 +51,7 @@ without using AM-bidrag as part of the §§ 6-9 helårsskat component.
 ? delaar1_helårsskat_par6_til_par9
 ? delaar1_delårsskat_par14
 ? delaar1_par14_bruger_statslig_indkomstskat
+? delaar1_par14_bruger_lovens_skatteberegning
 ? delaar1_delårs_am_udenfor_par14_helårsskat
 
 @ print("delår scenarie 1 helårs bruttoløn: " + vis(delaar1_par14.helår.bruttoløn_kroner))

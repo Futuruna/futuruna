@@ -34,6 +34,9 @@ now has amount-level state-personfradrag reduction ordering for the split
 municipal-tax and church-tax personfradrag reductions, wired through the wage-earner
 calculator; § 10, stk. 3 now has amount-level spouse transfer of unused
 personfradrag state-tax value into the receiving spouse's § 9 state-tax basket;
+§ 14 now has a reusable statutory skatteberegning result that chooses between
+stk. 1/stk. 3 helårsomregning and stk. 2 period reduction, and the partial-year
+wage-earner path delegates its final § 14 amount to that object;
 § 10 now reflects LOV 1564/2023's removal of the separate under-18 basis from
 income year 2023 onward, and § 4, stk. 1, nr. 6 has a source-backed post-LOV
 615/2026 category fixture for the ejendomsværdiskattelov reference;
@@ -757,6 +760,10 @@ Current decision:
   wage-earner partial-year cases. It carries tax-liability change status, the
   delårs wage-earner input, and tax-liability days together, instead of passing
   those scalars through every helper rule.
+- `Par14SkatteberegningResultat` is now the reusable statutory § 14 amount
+  boundary. It carries helårsindkomst, helårsskat efter §§ 6-9, the stk. 1/stk. 3
+  proportional delårsskat, the stk. 2 period-reduced tax, the governing election
+  posture, and the final `skat_efter_par14_kroner`.
 - `Par14Beløbspost` now captures whether a § 14 amount is recurring or one-off.
   This keeps the official annualisation example from forcing one-off income
   through the same annualisation path as wage, interest, or A-kasse amounts.

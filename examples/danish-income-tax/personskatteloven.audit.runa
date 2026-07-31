@@ -1418,6 +1418,8 @@ skatteloftsnedslag og regulering/afrunding af grundbeløb.
 = m5_par14_stk2_omvalg_rettidigt_fixture = par14_stk2_omvalg_rettidigt_fixture
 = m5_par14_stk2_omvalg_for_sent_fixture = par14_stk2_omvalg_for_sent_fixture
 = m5_par14_stk3_begrænset_ingen_valg_fixture = par14_stk3_begrænset_ingen_valg_fixture
+= m5_par14_stk1_skatteberegning_fixture = par14_stk1_skatteberegning_fixture
+= m5_par14_stk2_skatteberegning_fixture = par14_stk2_skatteberegning_fixture
 = m5_par19_skatteloft_input = Par19SkatteloftInput(
     skatteår = 2025,
     bundskat_basispoint = 1201,
@@ -1437,10 +1439,13 @@ skatteloftsnedslag og regulering/afrunding af grundbeløb.
 | m5_par14_skattenedsættelse: m5_par14_skattenedsættelse_fixture -> m5_par14_skattenedsættelse_fixture == 49315
 | m5_par14_lønmodtager_helårsomregning: m5_par14_lønmodtager_fixture -> m5_par14_lønmodtager_fixture.helårsindkomst.skattepligtig_indkomst_kroner == 476191 && m5_par14_lønmodtager_fixture.helår.bruttoløn_kroner == 608333
 | m5_par14_lønmodtager_statslig_helårsskat: m5_par14_lønmodtager_fixture -> m5_par14_lønmodtager_fixture.helårsskat_efter_par6_til_par9_kroner == m5_par14_lønmodtager_fixture.helår.statslig_indkomstskat_efter_personfradrag_kroner && m5_par14_lønmodtager_fixture.delårsskat_efter_par6_til_par9_kroner == 29943
+| m5_par14_lønmodtager_bruger_lovens_skatteberegning: m5_par14_lønmodtager_fixture -> m5_par14_lønmodtager_fixture.par14_skatteberegning.skat_efter_par14_kroner == m5_par14_lønmodtager_fixture.delårsskat_efter_par6_til_par9_kroner && m5_par14_lønmodtager_fixture.par14_skatteberegning.helårsomregning_skal_ske == Sandt
 | m5_par14_stk2_valg_afskærer_helårsomregning: m5_par14_stk2_valg_fixture -> m5_par14_stk2_valg_fixture.valg_gældende == Sandt && m5_par14_stk2_valg_fixture.helårsomregning_skal_ske == Falskt
 | m5_par14_stk2_omvalg_senest_30_juni_i_andet_år: m5_par14_stk2_omvalg_rettidigt_fixture -> m5_par14_stk2_omvalg_rettidigt_fixture.omvalgsfrist_yyyymmdd == 20280630 && m5_par14_stk2_omvalg_rettidigt_fixture.omvalg_gennemført == Sandt
 | m5_par14_stk2_for_sent_omvalg_ændrer_ikke_valget: m5_par14_stk2_omvalg_for_sent_fixture -> m5_par14_stk2_omvalg_for_sent_fixture.omvalg_rettidigt == Falskt && m5_par14_stk2_omvalg_for_sent_fixture.helårsomregning_skal_ske == Falskt
 | m5_par14_stk3_begrænset_skattepligt_har_ikke_stk2_valg: m5_par14_stk3_begrænset_ingen_valg_fixture -> m5_par14_stk3_begrænset_ingen_valg_fixture.valg_muligt == Falskt && m5_par14_stk3_begrænset_ingen_valg_fixture.helårsomregning_skal_ske == Sandt
+| m5_par14_stk1_skatteberegning_vælger_helårsomregning: m5_par14_stk1_skatteberegning_fixture -> m5_par14_stk1_skatteberegning_fixture.helårsomregning_skal_ske == Sandt && m5_par14_stk1_skatteberegning_fixture.skat_efter_par14_kroner == 49315
+| m5_par14_stk2_skatteberegning_vælger_periodenedsættelse: m5_par14_stk2_skatteberegning_fixture -> m5_par14_stk2_skatteberegning_fixture.helårsomregning_skal_ske == Falskt && m5_par14_stk2_skatteberegning_fixture.skat_efter_par14_kroner == 44383
 | m5_par19_skatteloftsnedslag: m5_par19_skatteloft_fixture -> m5_par19_skatteloft_fixture == 194
 | m5_par19_nedslag_i_kroner: m5_par19_nedslag_fixture -> m5_par19_nedslag_fixture == 1940
 | m5_par20_regulering_afrunding: m5_par20_regulering_fixture -> m5_par20_regulering_fixture == 51600
@@ -1453,10 +1458,13 @@ skatteloftsnedslag og regulering/afrunding af grundbeløb.
 ? m5_par14_skattenedsættelse
 ? m5_par14_lønmodtager_helårsomregning
 ? m5_par14_lønmodtager_statslig_helårsskat
+? m5_par14_lønmodtager_bruger_lovens_skatteberegning
 ? m5_par14_stk2_valg_afskærer_helårsomregning
 ? m5_par14_stk2_omvalg_senest_30_juni_i_andet_år
 ? m5_par14_stk2_for_sent_omvalg_ændrer_ikke_valget
 ? m5_par14_stk3_begrænset_skattepligt_har_ikke_stk2_valg
+? m5_par14_stk1_skatteberegning_vælger_helårsomregning
+? m5_par14_stk2_skatteberegning_vælger_periodenedsættelse
 ? m5_par19_skatteloftsnedslag
 ? m5_par19_nedslag_i_kroner
 ? m5_par20_regulering_afrunding
