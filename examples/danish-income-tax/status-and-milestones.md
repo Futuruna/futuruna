@@ -1126,7 +1126,12 @@ M4 - Ordinary taxpayer calculator
   threshold is split proportionally. It now also covers negative-share-income
   final settlement: a 120.000 kr. negative-share case is fully absorbed by own
   slutskat, while a 900.000 kr. negative-share case offsets 208.726 kr. in own
-  slutskat, 50.000 kr. in spouse slutskat, and carries 95.454 kr. forward.
+  slutskat, 50.000 kr. in spouse slutskat, and carries 95.454 kr. forward. A
+  paired settlement case now derives the spouse's own annual settlement before
+  applying the § 8 a, stk. 5 negative-tax credit: 150.000 kr. spouse positive
+  share income is first offset against a 900.000 kr. negative-share case, the
+  remaining negative tax offsets 208.726 kr. in own slutskat and 71.005 kr. in
+  spouse slutskat, and 11.449 kr. is carried forward.
   Personskatteloven § 8 c now computes the municipal-equivalent tax for covered
   limited-taxpayer postures, using the Skatteministeriet-published 25 pct.
   2026 rate and the same personfradrag reduction posture as § 10 stk. 5.

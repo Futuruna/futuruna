@@ -88,6 +88,7 @@ LOV nr. 482 af 22/05/2024, § 8, stk. 4.
 
 # AktieindkomstSlutopgørelseResult(effektivt_grundbeløb_kroner: Heltal, aktieskat: AktieindkomstSkatResultat, slutskat_statsskat_før_personfradrag: Par5StatsskatResultat, statsskat_personfradrag_nedsættelse: PersonfradragStatsskatNedsættelseResultat, slutskat_indgående_aktieskat_efter_personfradrag_kroner: Heltal, slutskat_input: KildeskatSlutopgørelseInput, slutopgørelse: KildeskatSlutopgørelseResult, endelig_aktieskat_kroner: Heltal, udbytteskat_endelig_betaling_kroner: Heltal, udbytteskat_modregningsberettiget_kroner: Heltal, udbytteskat_som_overskydende_skat_kroner: Heltal, samlet_skat_inkl_endelig_aktieskat_kroner: Heltal)
 # AktieindkomstNegativSlutopgørelseResult(negativ_aktieindkomst: AktieindkomstÆgtefælleNegativResultat, udbytteskat_stk3: AktieindkomstUdbytteskatStk3Resultat, negativ_skat_kroner: Heltal, negativ_skat_modregnet_i_egen_slutskat_kroner: Heltal, negativ_skat_modregnet_i_ægtefælles_slutskat_kroner: Heltal, negativ_skat_fremført_kroner: Heltal, udbytteskat_modregningsberettiget_kroner: Heltal, slutskat_input: KildeskatSlutopgørelseInput, slutopgørelse: KildeskatSlutopgørelseResult)
+# AktieindkomstNegativParSlutopgørelseResult(egen_negativ: AktieindkomstNegativSlutopgørelseResult, ægtefælle_positiv_før_negativ_skat: AktieindkomstSlutopgørelseResult, ægtefælle_slutskat_input_efter_negativ_skat: KildeskatSlutopgørelseInput, ægtefælle_slutopgørelse_efter_negativ_skat: KildeskatSlutopgørelseResult, ægtefælle_aktieindkomst_efter_modregning_kroner: Heltal, samlet_negativ_skat_fremført_kroner: Heltal)
 
 # AktieindkomstSlutopgørelseCase(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal, aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk, indeholdt_udbytteskat_kroner: Heltal) {
     | årlig_a_skat_kroner() -> a_skat_månedligt_kroner * 12
@@ -139,7 +140,7 @@ LOV nr. 482 af 22/05/2024, § 8, stk. 4.
     | udbytteskat_modregning_input() -> KildeskatUdbytteskatModregningInput(
         indeholdt_udbytteskat_kroner = udbytteskat_efter_endelig_betaling_kroner(),
         skattepligtig_person_par1_eller_par2_stk1_nr4 = Sandt,
-        endelig_betaling_personskatteloven_par8a_stk1 = høj_aktieskat_indgår_i_slutskat() == Falskt,
+        endelig_betaling_personskatteloven_par8a_stk1 = Falskt,
         fuldt_skattepligtig_par1_stk1 = Sandt
     )
     | udbytteskat_modregningsberettiget_kroner() -> kildeskat_udbytteskat_modregningsbeløb_kroner(udbytteskat_modregning_input())
@@ -255,3 +256,65 @@ LOV nr. 482 af 22/05/2024, § 8, stk. 4.
 }
 
 | aktieindkomst_negativ_slutopgørelse_resultat(case: AktieindkomstNegativSlutopgørelseCase) -> case.resultat()
+
+# AktieindkomstNegativParSlutopgørelseCase(egen_person: LønmodtagerBreakdown, ægtefælle_person: LønmodtagerBreakdown, egen_a_skat_månedligt_kroner: Heltal, ægtefælle_a_skat_månedligt_kroner: Heltal, egen_negativ_aktieindkomst_kroner: Heltal, ægtefælle_positiv_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk, egen_indeholdt_udbytteskat_kroner: Heltal, ægtefælle_indeholdt_udbytteskat_kroner: Heltal) {
+    | negativ_aktieindkomst_input() -> AktieindkomstÆgtefælleNegativInput(
+        skatteår = egen_person.skatteår,
+        negativ_aktieindkomst_kroner = egen_negativ_aktieindkomst_kroner,
+        ægtefælle_positiv_aktieindkomst_kroner = ægtefælle_positiv_aktieindkomst_kroner,
+        samlevende_ved_årets_udløb = samlevende_ved_årets_udløb
+    )
+    | negativ_aktieindkomst() -> aktieindkomst_ægtefælle_negativ_resultat(negativ_aktieindkomst_input())
+    | ægtefælle_aktieindkomst_efter_modregning_kroner() -> penge_positivt_beløb(ægtefælle_positiv_aktieindkomst_kroner - negativ_aktieindkomst().modregnet_i_ægtefælles_positive_aktieindkomst_kroner)
+    | ægtefælle_positiv_case() -> AktieindkomstSlutopgørelseCase(
+        person = ægtefælle_person,
+        a_skat_månedligt_kroner = ægtefælle_a_skat_månedligt_kroner,
+        aktieindkomst_kroner = ægtefælle_aktieindkomst_efter_modregning_kroner(),
+        ægtefælle_aktieindkomst_kroner = egen_negativ_aktieindkomst_kroner,
+        samlevende_ved_årets_udløb = samlevende_ved_årets_udløb,
+        indeholdt_udbytteskat_kroner = ægtefælle_indeholdt_udbytteskat_kroner
+    )
+    | ægtefælle_positiv_før_negativ_skat() -> aktieindkomst_slutopgørelse_resultat(ægtefælle_positiv_case())
+    | egen_negativ_case() -> AktieindkomstNegativSlutopgørelseCase(
+        person = egen_person,
+        a_skat_månedligt_kroner = egen_a_skat_månedligt_kroner,
+        negativ_aktieindkomst_kroner = egen_negativ_aktieindkomst_kroner,
+        ægtefælle_positiv_aktieindkomst_kroner = ægtefælle_positiv_aktieindkomst_kroner,
+        ægtefælle_slutskat_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.slutskat_kroner,
+        samlevende_ved_årets_udløb = samlevende_ved_årets_udløb,
+        indeholdt_udbytteskat_kroner = egen_indeholdt_udbytteskat_kroner
+    )
+    | egen_negativ() -> aktieindkomst_negativ_slutopgørelse_resultat(egen_negativ_case())
+    | ægtefælle_kreditter_efter_negativ_skat() -> KildeskatPar60Kreditter(
+        a_skat_og_am_indeholdt_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.a_skat_og_am_indeholdt_kroner,
+        par68_indbetalt_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.par68_indbetalt_kroner,
+        b_skat_betalt_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.b_skat_betalt_kroner,
+        udbytteskat_modregningsberettiget_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.udbytteskat_modregningsberettiget_kroner,
+        frivillig_indbetaling_par59_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.frivillig_indbetaling_par59_kroner,
+        virksomhedsordning_beløb_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.virksomhedsordning_beløb_kroner,
+        personskattelov_par8a_stk5_beløb_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.personskattelov_par8a_stk5_beløb_kroner + egen_negativ().negativ_skat_modregnet_i_ægtefælles_slutskat_kroner,
+        afskrivningslov_acontoskat_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.afskrivningslov_acontoskat_kroner,
+        am_lov_par6_beløb_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.am_lov_par6_beløb_kroner,
+        seniornedslag_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.seniornedslag_kroner,
+        energiafgiftskompensation_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.energiafgiftskompensation_kroner,
+        tilbagebetalt_par55_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.kreditter.tilbagebetalt_par55_kroner
+    )
+    | ægtefælle_slutskat_input_efter_negativ_skat() -> KildeskatSlutopgørelseInput(
+        slutskat_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.slutskat_kroner,
+        overført_restskat_mv_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.overført_restskat_mv_kroner,
+        pensionsbeskatningsafgift_kroner = ægtefælle_positiv_før_negativ_skat().slutskat_input.pensionsbeskatningsafgift_kroner,
+        kreditter = ægtefælle_kreditter_efter_negativ_skat()
+    )
+    | ægtefælle_slutopgørelse_efter_negativ_skat() -> kildeskat_slutopgørelse_resultat(ægtefælle_slutskat_input_efter_negativ_skat())
+    | samlet_negativ_skat_fremført_kroner() -> egen_negativ().negativ_skat_fremført_kroner
+    | resultat() -> AktieindkomstNegativParSlutopgørelseResult(
+        egen_negativ = egen_negativ(),
+        ægtefælle_positiv_før_negativ_skat = ægtefælle_positiv_før_negativ_skat(),
+        ægtefælle_slutskat_input_efter_negativ_skat = ægtefælle_slutskat_input_efter_negativ_skat(),
+        ægtefælle_slutopgørelse_efter_negativ_skat = ægtefælle_slutopgørelse_efter_negativ_skat(),
+        ægtefælle_aktieindkomst_efter_modregning_kroner = ægtefælle_aktieindkomst_efter_modregning_kroner(),
+        samlet_negativ_skat_fremført_kroner = samlet_negativ_skat_fremført_kroner()
+    )
+}
+
+| aktieindkomst_negativ_par_slutopgørelse_resultat(case: AktieindkomstNegativParSlutopgørelseCase) -> case.resultat()
