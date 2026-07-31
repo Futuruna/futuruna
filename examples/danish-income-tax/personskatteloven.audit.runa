@@ -110,7 +110,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PersonskatAendringskilderDækket | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | PersonfradragNormalfixtureDækket | Par9PersonfradragNedsættelseDækket | Par10PersonfradragSkattepligtDækket | Par10Stk3ÆgtefællePersonfradragDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | Skatteår2026ReformDækket | Par7ReformPar20TærskelDækket | ReformStatskatParameterKildeDækket | ReformPersonligStatsskatDækket | MellemskatKapitalDækket | Par6BundskatSatsKildeDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | Par7ÆgtefælleKapitalFordelingDækket | Par7aUdligningsskatDækket | Par8SundhedsbidragDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | AktieindkomstNegativSlutopgørelseDækket | AktieindkomstNegativParSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8aNegativAktieindkomstStk6Dækket | Par8bCfcSkatDækket | Par8cKommunalLignendeSkatDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13NegativPersonligStk4Dækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftKildeDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par26ÅrskomponenterDækket | Par26Stk7ÆgtefælleTopskatDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PersonskatAendringskilderDækket | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | PersonfradragNormalfixtureDækket | Par9PersonfradragNedsættelseDækket | Par10PersonfradragSkattepligtDækket | Par10Stk3ÆgtefællePersonfradragDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | Skatteår2026ReformDækket | Par7ReformPar20TærskelDækket | ReformStatskatParameterKildeDækket | ReformPersonligStatsskatDækket | MellemskatKapitalDækket | Par6BundskatSatsKildeDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | Par7ÆgtefælleKapitalFordelingDækket | Par7aUdligningsskatDækket | Par8SundhedsbidragDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | AktieindkomstNegativSlutopgørelseDækket | AktieindkomstNegativParSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8aNegativAktieindkomstStk6Dækket | Par8bCfcSkatDækket | Par8cKommunalLignendeSkatDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13NegativPersonligStk4Dækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftKildeDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par20ReguleringstalKildeDækket | Par26KompensationDækket | Par26ÅrskomponenterDækket | Par26Stk7ÆgtefælleTopskatDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -1537,6 +1537,10 @@ skatteloftsnedslag og regulering/afrunding af grundbeløb.
     grundbeløb_2010_niveau_kroner = 39350,
     reguleringstal_tiendedele = 1311
 ))
+= m5_par20_reguleringstal_2020_resultat = par20_reguleringstal_2020_resultat
+= m5_par20_reguleringstal_2024_resultat = par20_reguleringstal_2024_resultat
+= m5_par20_reguleringstal_2026_resultat = par20_reguleringstal_2026_resultat
+= m5_par20_personfradrag_2025_resultat = par20_personfradrag_2025_resultat
 
 | m5_par14_helårsomregning: m5_par14_fixture -> m5_par14_fixture.skattepligtig_indkomst_kroner == 365000 && m5_par14_fixture.personlig_indkomst_kroner == 405556
 | m5_par14_skattenedsættelse: m5_par14_skattenedsættelse_fixture -> m5_par14_skattenedsættelse_fixture == 49315
@@ -1556,11 +1560,16 @@ skatteloftsnedslag og regulering/afrunding af grundbeløb.
 | m5_par19_kapital_loft_2013_fra_lbk: m5_par19_kapital_loft_2013_resultat -> m5_par19_kapital_loft_2013_resultat.kilde == PersonskattelovenLbk1284Af2021Par19Stk2 && m5_par19_kapital_loft_2013_resultat.loft_basispoint == 4350
 | m5_par19_kapital_loft_2026_fra_lov482: m5_par19_kapital_loft_2026_resultat -> m5_par19_kapital_loft_2026_resultat.kilde == PersonskattelovenLov482Af2024Par1Nr15Stk2 && m5_par19_kapital_loft_2026_resultat.loft_basispoint == 4200
 | m5_par20_regulering_afrunding: m5_par20_regulering_fixture -> m5_par20_regulering_fixture == 51600
+| m5_par20_2020_reguleringstal_fra_skm: m5_par20_reguleringstal_2020_resultat -> m5_par20_reguleringstal_2020_resultat.kilde == SkatteministerietPar20HistoriskOversigt && m5_par20_reguleringstal_2020_resultat.reguleringstal_tiendedele == 1143
+| m5_par20_2024_reguleringstal_fra_skm: m5_par20_reguleringstal_2024_resultat -> m5_par20_reguleringstal_2024_resultat.kilde == SkatteministerietPar20HistoriskOversigt && m5_par20_reguleringstal_2024_resultat.reguleringstal_tiendedele == 1261
+| m5_par20_2026_reguleringstal_fra_skm: m5_par20_reguleringstal_2026_resultat -> m5_par20_reguleringstal_2026_resultat.kilde == SkatteministerietPar20Beløbsgrænser2025_2026 && m5_par20_reguleringstal_2026_resultat.reguleringstal_tiendedele == 1373
+| m5_par20_regulering_resultat_forklarer_beløb: m5_par20_personfradrag_2025_resultat -> m5_par20_personfradrag_2025_resultat.reguleringstal_tiendedele == 1310 && m5_par20_personfradrag_2025_resultat.reguleret_før_afrunding_kroner == 51548 && m5_par20_personfradrag_2025_resultat.reguleret_og_afrundet_kroner == 51600
 | m5_audit_par14_signal: audit_signal(Par14HelårsomregningDækket) -> audit_signal(Par14HelårsomregningDækket) == Sandt
 | m5_audit_par14_lønmodtager_signal: audit_signal(Par14LønmodtagerHelårsomregningDækket) -> audit_signal(Par14LønmodtagerHelårsomregningDækket) == Sandt
 | m5_audit_par19_signal: audit_signal(Par19SkatteloftDækket) -> audit_signal(Par19SkatteloftDækket) == Sandt
 | m5_audit_par19_kilde_signal: audit_signal(Par19SkatteloftKildeDækket) -> audit_signal(Par19SkatteloftKildeDækket) == Sandt
 | m5_audit_par20_signal: audit_signal(Par20ReguleringDækket) -> audit_signal(Par20ReguleringDækket) == Sandt
+| m5_audit_par20_kilde_signal: audit_signal(Par20ReguleringstalKildeDækket) -> audit_signal(Par20ReguleringstalKildeDækket) == Sandt
 
 ? m5_par14_helårsomregning
 ? m5_par14_skattenedsættelse
@@ -1580,11 +1589,16 @@ skatteloftsnedslag og regulering/afrunding af grundbeløb.
 ? m5_par19_kapital_loft_2013_fra_lbk
 ? m5_par19_kapital_loft_2026_fra_lov482
 ? m5_par20_regulering_afrunding
+? m5_par20_2020_reguleringstal_fra_skm
+? m5_par20_2024_reguleringstal_fra_skm
+? m5_par20_2026_reguleringstal_fra_skm
+? m5_par20_regulering_resultat_forklarer_beløb
 ? m5_audit_par14_signal
 ? m5_audit_par14_lønmodtager_signal
 ? m5_audit_par19_signal
 ? m5_audit_par19_kilde_signal
 ? m5_audit_par20_signal
+? m5_audit_par20_kilde_signal
 
 ----
 §§ 21-28 har nu en første afsluttende slice: ophævede bestemmelser, virkning

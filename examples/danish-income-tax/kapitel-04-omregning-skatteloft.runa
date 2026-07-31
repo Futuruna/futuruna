@@ -378,39 +378,74 @@ Stk. 3. Reguleringstallet udgør 100,0 for indkomstårene 2009-2013.
 ----
 
 # Par20ReguleringInput(grundbeløb_2010_niveau_kroner: Heltal, reguleringstal_tiendedele: Heltal)
+----
+Skatteministeriet, "Reguleringstallet i PSL § 20 - en historisk oversigt",
+28-08-2025:
+https://skm.dk/tal-og-metode/satser/skattehistorik/reguleringstallet-i-psl-20-en-historisk-oversigt
 
--- Kilde for historiske reguleringstal: Skatteministeriet, "Reguleringstallet i PSL § 20 - en historisk oversigt", https://skm.dk/tal-og-metode/satser/skattehistorik/reguleringstallet-i-psl-20-en-historisk-oversigt
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1000 under skatteår >= 2009 && skatteår <= 2013
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1018 under skatteår == 2014
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1033 under skatteår == 2015
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1047 under skatteår == 2016
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1070 under skatteår == 2017
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1094 under skatteår == 2018
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1118 under skatteår == 2019
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1157 under skatteår == 2020
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1184 under skatteår == 2021
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1212 under skatteår == 2022
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1217 under skatteår == 2023
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1242 under skatteår == 2024
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1310 under skatteår == 2025
-| par20_reguleringstal_tiendedele(skatteår: Heltal) -> 1373 under skatteår == 2026
+Skatteministeriet, "Beløbsgrænser i skattelovgivningen der reguleres efter
+personskattelovens § 20 - 2025-2026", 16-01-2026:
+https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2025-2026
+----
+
+# Par20ReguleringstalKilde = PersonskattelovenLbk1284Af2021Par20Stk3 | SkatteministerietPar20HistoriskOversigt | SkatteministerietPar20Beløbsgrænser2025_2026
+# Par20ReguleringstalResultat(skatteår: Heltal, kilde: Par20ReguleringstalKilde, reguleringstal_tiendedele: Heltal)
+# Par20ReguleringResultat(grundbeløb_2010_niveau_kroner: Heltal, reguleringstal_tiendedele: Heltal, reguleret_før_afrunding_kroner: Heltal, reguleret_og_afrundet_kroner: Heltal)
+
+| par20_reguleringstal_kilde(skatteår: Heltal) -> PersonskattelovenLbk1284Af2021Par20Stk3 under skatteår >= 2009 && skatteår <= 2013
+| par20_reguleringstal_kilde(skatteår: Heltal) -> SkatteministerietPar20HistoriskOversigt under skatteår >= 2014 && skatteår <= 2024
+| par20_reguleringstal_kilde(skatteår: Heltal) -> SkatteministerietPar20Beløbsgrænser2025_2026 under skatteår >= 2025 && skatteår <= 2026
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1000 under skatteår >= 2009 && skatteår <= 2013
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1018 under skatteår == 2014
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1033 under skatteår == 2015
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1047 under skatteår == 2016
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1070 under skatteår == 2017
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1094 under skatteår == 2018
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1118 under skatteår == 2019
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1143 under skatteår == 2020
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1169 under skatteår == 2021
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1183 under skatteår == 2022
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1218 under skatteår == 2023
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1261 under skatteår == 2024
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1310 under skatteår == 2025
+| par20_reguleringstal_tiendedele_for_skatteår(skatteår: Heltal) -> 1373 under skatteår == 2026
+| par20_reguleringstal_resultat(skatteår: Heltal) -> Par20ReguleringstalResultat(
+    skatteår = skatteår,
+    kilde = par20_reguleringstal_kilde(skatteår),
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele_for_skatteår(skatteår)
+)
+| par20_reguleringstal_tiendedele(skatteår: Heltal) -> par20_reguleringstal_resultat(skatteår).reguleringstal_tiendedele
 | par20_reguleringstal_2009_til_2013_tiendedele(skatteår: Heltal) -> par20_reguleringstal_tiendedele(skatteår) under skatteår >= 2009 && skatteår <= 2013
 | par20_reguleret_før_afrunding_kroner(input: Par20ReguleringInput) -> input.grundbeløb_2010_niveau_kroner * input.reguleringstal_tiendedele / 1000
 | par20_afrund_op_til_nærmeste_100_kroner(beløb_kroner: Heltal) -> beløb_kroner under beløb_kroner % 100 == 0
 | par20_afrund_op_til_nærmeste_100_kroner(beløb_kroner: Heltal) -> (beløb_kroner / 100 + 1) * 100 under beløb_kroner % 100 != 0
-| par20_reguleret_og_afrundet_kroner(input: Par20ReguleringInput) -> par20_afrund_op_til_nærmeste_100_kroner(par20_reguleret_før_afrunding_kroner(input))
+| par20_regulering_resultat(input: Par20ReguleringInput) -> Par20ReguleringResultat(
+    grundbeløb_2010_niveau_kroner = input.grundbeløb_2010_niveau_kroner,
+    reguleringstal_tiendedele = input.reguleringstal_tiendedele,
+    reguleret_før_afrunding_kroner = par20_reguleret_før_afrunding_kroner(input),
+    reguleret_og_afrundet_kroner = par20_afrund_op_til_nærmeste_100_kroner(par20_reguleret_før_afrunding_kroner(input))
+)
+| par20_reguleret_og_afrundet_kroner(input: Par20ReguleringInput) -> par20_regulering_resultat(input).reguleret_og_afrundet_kroner
 
 = par20_basisår = par20_reguleringstal_tiendedele(2012)
 = par20_reguleringstal_2019_fixture = par20_reguleringstal_tiendedele(2019)
+= par20_reguleringstal_2020_resultat = par20_reguleringstal_resultat(2020)
+= par20_reguleringstal_2024_resultat = par20_reguleringstal_resultat(2024)
 = par20_reguleringstal_2025_fixture = par20_reguleringstal_tiendedele(2025)
-= par20_personfradrag_2025_fixture = par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+= par20_reguleringstal_2026_resultat = par20_reguleringstal_resultat(2026)
+= par20_personfradrag_2025_resultat = par20_regulering_resultat(Par20ReguleringInput(
     grundbeløb_2010_niveau_kroner = 39350,
     reguleringstal_tiendedele = par20_reguleringstal_2025_fixture
 ))
+= par20_personfradrag_2025_fixture = par20_personfradrag_2025_resultat.reguleret_og_afrundet_kroner
 = par20_præcis_hundrede_fixture = par20_afrund_op_til_nærmeste_100_kroner(51600)
 
 | par20_basisår_100_0: par20_basisår -> par20_basisår == 1000
 | par20_2019_reguleringstal_111_8: par20_reguleringstal_2019_fixture -> par20_reguleringstal_2019_fixture == 1118
+| par20_2020_reguleringstal_114_3_fra_skm: par20_reguleringstal_2020_resultat -> par20_reguleringstal_2020_resultat.kilde == SkatteministerietPar20HistoriskOversigt && par20_reguleringstal_2020_resultat.reguleringstal_tiendedele == 1143
+| par20_2024_reguleringstal_126_1_fra_skm: par20_reguleringstal_2024_resultat -> par20_reguleringstal_2024_resultat.kilde == SkatteministerietPar20HistoriskOversigt && par20_reguleringstal_2024_resultat.reguleringstal_tiendedele == 1261
 | par20_2025_reguleringstal_131_0: par20_reguleringstal_2025_fixture -> par20_reguleringstal_2025_fixture == 1310
+| par20_2026_reguleringstal_137_3_fra_skm: par20_reguleringstal_2026_resultat -> par20_reguleringstal_2026_resultat.kilde == SkatteministerietPar20Beløbsgrænser2025_2026 && par20_reguleringstal_2026_resultat.reguleringstal_tiendedele == 1373
 | par20_regulerer_og_afrunder_personfradrag: par20_personfradrag_2025_fixture -> par20_personfradrag_2025_fixture == 51600
+| par20_regulering_resultat_forklarer_personfradrag: par20_personfradrag_2025_resultat -> par20_personfradrag_2025_resultat.reguleringstal_tiendedele == 1310 && par20_personfradrag_2025_resultat.reguleret_før_afrunding_kroner == 51548 && par20_personfradrag_2025_resultat.reguleret_og_afrundet_kroner == 51600
 | par20_lader_præcis_hundrede_stå: par20_præcis_hundrede_fixture -> par20_præcis_hundrede_fixture == 51600

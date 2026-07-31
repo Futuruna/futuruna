@@ -1247,7 +1247,9 @@ M5 - Audit suite
   projection,
   covered 2026 state-tax reform parameter source branches, covered § 19
   personal and positive-capital skatteloft source branches across the LBK text
-  and LOV nr. 482/2024 rewrite, covered § 6 source-backed bundskat-rate
+  and LOV nr. 482/2024 rewrite, covered § 20 regulation-number source branches
+  and corrected 2020-2024 regulation figures against SKM's historical table,
+  covered § 6 source-backed bundskat-rate
   provenance across the 2022/2023/2024 amendment chain,
   covered § 13 deficit mechanics,
   § 13 stk. 4 negative-personal-income spouse and carry-forward offset order,
@@ -1409,8 +1411,11 @@ M8 - Omregning, skatteloft, and regulation
   positive-capital § 19 relief now flow into the ordinary wage-earner breakdown
   for supported tax years and municipalities, the 2026 Langeland fixture proves
   a source-backed high municipal-tax ceiling case and matches the published
-  1,24 pct. `Nedslag pct.`, and § 20 computes 2010-level amount regulation with
-  round-up to the nearest 100 kroner.
+  1,24 pct. `Nedslag pct.`, and § 20 now returns source-backed regulation-number
+  results for statutory 2009-2013 values, SKM historical 2014-2024 values, and
+  SKM 2025-2026 published values. The § 20 table now uses SKM's 2020-2024
+  figures of 114,3, 116,9, 118,3, 121,8 and 126,1 before computing 2010-level
+  amount regulation with round-up to the nearest 100 kroner.
 
 M9 - Final provisions and transition compensation
 
