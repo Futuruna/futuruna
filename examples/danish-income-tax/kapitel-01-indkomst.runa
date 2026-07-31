@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./pengebeloeb
+@ importer ./ligningsloven_fradrag
 
 -- Personskatteloven — indkomsttaxonomi (§§ 1-4 b).
 --
@@ -444,6 +445,28 @@ af 30. december 2024, foretages følgende ændring:
     personlig_reklassifikation = IngenPersonligReklassifikation
 )
 
+| par4_stk1_nr17_rolle_fra_ligningslov15q(rolle: Ligningslov15QBoligrolle) -> EjerEllerAnden
+| exception par4_stk1_nr17_ll15q_lejer par4_stk1_nr17_rolle_fra_ligningslov15q(rolle: Ligningslov15QBoligrolle) -> Lejer under rolle == Ll15QLejer
+| exception par4_stk1_nr17_ll15q_andelshaver par4_stk1_nr17_rolle_fra_ligningslov15q(rolle: Ligningslov15QBoligrolle) -> Andelshaver under rolle == Ll15QAndelshaver
+| par4_stk1_nr17_afgrænsning_fra_ligningslov15q(resultat: Ligningslov15QResultat) -> IkkeLigningslov15Q
+| exception par4_stk1_nr17_ll15q_stk1 par4_stk1_nr17_afgrænsning_fra_ligningslov15q(resultat: Ligningslov15QResultat) -> Ligningslov15QStk1 under resultat.stk1_anvendelig
+| exception par4_stk1_nr17_ll15q_stk3 par4_stk1_nr17_afgrænsning_fra_ligningslov15q(resultat: Ligningslov15QResultat) -> Ligningslov15QStk3 under resultat.stk3_anvendelig
+
+# Par4Stk1Nr17FraLigningslov15QSag(input: Ligningslov15QInput) {
+    | ll15q_resultat() -> ligningslov15q_resultat(input)
+    | par4_input() -> Par4Stk1Nr17Input(
+        rolle = par4_stk1_nr17_rolle_fra_ligningslov15q(input.rolle),
+        afgrænsning = par4_stk1_nr17_afgrænsning_fra_ligningslov15q(ll15q_resultat()),
+        bruttolejeindtægt_kroner = ll15q_resultat().bruttolejeindtægt_kroner,
+        ligningslov15q_fradrag_kroner = ll15q_resultat().fradrag_i_indkomstopgørelse_kroner
+    )
+    | par4_resultat() -> par4_stk1_nr17_resultat(par4_input())
+}
+| par4_stk1_nr17_fra_ligningslov15q_sag(input: Ligningslov15QInput) -> Par4Stk1Nr17FraLigningslov15QSag(input)
+| par4_stk1_nr17_input_fra_ligningslov15q(input: Ligningslov15QInput) -> par4_stk1_nr17_fra_ligningslov15q_sag(input).par4_input()
+| par4_stk1_nr17_resultat_fra_ligningslov15q(input: Ligningslov15QInput) -> par4_stk1_nr17_fra_ligningslov15q_sag(input).par4_resultat()
+| par4_stk1_nr17_kapitalpost_fra_ligningslov15q(input: Ligningslov15QInput) -> par4_stk1_nr17_kapitalpost(par4_stk1_nr17_input_fra_ligningslov15q(input))
+
 | par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Falskt
 | exception par4_stk3_fordrings_eller_kontraktnæring par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == FordringsEllerKontraktNæringReklassifikation
 | exception par4_stk3_finansieringsnæring par4_reklassifikation_til_personlig_indkomst(reklassifikation: KapitalPersonligReklassifikation) -> Sandt under reklassifikation == FinansieringsNæringReklassifikation
@@ -581,11 +604,37 @@ af 30. december 2024, foretages følgende ændring:
     bruttolejeindtægt_kroner = 10000,
     ligningslov15q_fradrag_kroner = 15000
 )
+= par4_stk1_nr17_ll15q_lejer_input = Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QLejer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 60000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = Falskt
+)
+= par4_stk1_nr17_ll15q_ejer_input = Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QEjer,
+    udlejningsform = Ll15QHeleBoligenDelAfÅret,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 60000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Sandt,
+    tidligere_anvendt_par15p_stk3 = Falskt
+)
 = par4_stk1_nr17_lejer_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_lejer_input)
 = par4_stk1_nr17_andelshaver_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_andelshaver_input)
 = par4_stk1_nr17_ejer_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_ejer_input)
 = par4_stk1_nr17_udenfor_ll15q_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_udenfor_ll15q_input)
 = par4_stk1_nr17_underskud_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_underskud_input)
+= par4_stk1_nr17_ll15q_lejer_fixture = par4_stk1_nr17_resultat_fra_ligningslov15q(par4_stk1_nr17_ll15q_lejer_input)
+= par4_stk1_nr17_ll15q_ejer_fixture = par4_stk1_nr17_resultat_fra_ligningslov15q(par4_stk1_nr17_ll15q_ejer_input)
 = par4_kapitalindkomst_resultat_fixture = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
     poster = [
         Par4Kapitalpost(art = RenterOgLigningslov6, beløb_kroner = 12000, personlig_reklassifikation = IngenPersonligReklassifikation),
@@ -635,6 +684,8 @@ af 30. december 2024, foretages følgende ændring:
 | par4_stk1_nr17_ejer_er_ikke_nr17: par4_stk1_nr17_ejer_fixture -> par4_stk1_nr17_ejer_fixture.lejer_eller_andelshaver == Falskt && par4_stk1_nr17_ejer_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr17_ejer_fixture.ikke_omfattet_af_par4_nr17_kroner == 30000
 | par4_stk1_nr17_udenfor_ligningslov15q_afskæres: par4_stk1_nr17_udenfor_ll15q_fixture -> par4_stk1_nr17_udenfor_ll15q_fixture.omfattet_af_ligningslov15q == Falskt && par4_stk1_nr17_udenfor_ll15q_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr17_udenfor_ll15q_fixture.ikke_omfattet_af_par4_nr17_kroner == 35000
 | par4_stk1_nr17_intet_positivt_overskud: par4_stk1_nr17_underskud_fixture -> par4_stk1_nr17_underskud_fixture.overskud_efter_ligningslov15q_kroner == 0 && par4_stk1_nr17_underskud_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr17_underskud_fixture.kapitalindkomst_kroner == 0
+| par4_stk1_nr17_fra_ligningslov15q_lejer_indgår: par4_stk1_nr17_ll15q_lejer_fixture -> par4_stk1_nr17_ll15q_lejer_fixture.lejer_eller_andelshaver == Sandt && par4_stk1_nr17_ll15q_lejer_fixture.omfattet_af_ligningslov15q == Sandt && par4_stk1_nr17_ll15q_lejer_fixture.overskud_efter_ligningslov15q_kroner == 14940 && par4_stk1_nr17_ll15q_lejer_fixture.kapitalindkomst_kroner == 14940
+| par4_stk1_nr17_fra_ligningslov15q_ejer_udelukkes: par4_stk1_nr17_ll15q_ejer_fixture -> par4_stk1_nr17_ll15q_ejer_fixture.lejer_eller_andelshaver == Falskt && par4_stk1_nr17_ll15q_ejer_fixture.omfattet_af_ligningslov15q == Sandt && par4_stk1_nr17_ll15q_ejer_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr17_ll15q_ejer_fixture.ikke_omfattet_af_par4_nr17_kroner == 14940
 | par4_nettokapitalindkomst_beregnes_beløb: par4_kapitalindkomst_resultat_fixture -> par4_kapitalindkomst_resultat_fixture.postbeløb_i_kapitalindkomst_kroner == 102000 && par4_kapitalindkomst_resultat_fixture.fradragsberettigede_omkostninger_kroner == 2000 && par4_kapitalindkomst_resultat_fixture.nettokapitalindkomst_kroner == 100000 && par4_kapitalindkomst_resultat_fixture.positiv_nettokapitalindkomst_kroner == 100000 && par4_kapitalindkomst_resultat_fixture.omklassificeret_personlig_indkomst_kroner == 11000
 | par4_negativ_nettokapitalindkomst_beregnes: par4_negativ_nettokapitalindkomst_fixture -> par4_negativ_nettokapitalindkomst_fixture.nettokapitalindkomst_kroner == -25000 && par4_negativ_nettokapitalindkomst_fixture.positiv_nettokapitalindkomst_kroner == 0 && par4_negativ_nettokapitalindkomst_fixture.negativ_nettokapitalindkomst_abs_kroner == 25000
 

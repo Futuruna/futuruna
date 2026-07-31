@@ -3,7 +3,7 @@
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 
--- Ligningsloven — almindelige lønmodtagerfradrag efter §§ 9 J, 9 K og 9 L.
+-- Ligningsloven — fradrag efter §§ 9 J, 9 K, 9 L og 15 Q.
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
@@ -519,3 +519,213 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
 | ll9l_pbl20_udbetaling_undtages: ll9l_2026_undtaget_udbetaling_fixture -> ll9l_2026_undtaget_udbetaling_fixture == 6000
 | ll9j_9k_9l_samlet_fradrag: ll9j_9k_9l_2026_fixture -> ll9j_9k_9l_2026_fixture.samlet_fradrag_kroner == 76936
 | ll9j_9k_9l_2017_kun_9j_fradrag: ll9j_9k_9l_2017_fixture -> ll9j_9k_9l_2017_fixture.beskæftigelsesfradrag_kroner == 30000 && ll9j_9k_9l_2017_fixture.jobfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.ekstra_pensionsfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.samlet_fradrag_kroner == 30000
+
+----
+§ 15 Q. Ejere, andelshavere og lejere, der udlejer eller fremlejer en del af
+værelserne i en helårsbolig til beboelse, eller som udlejer eller fremlejer hele
+boligen en del af indkomståret til beboelse, kan ved indkomstopgørelsen foretage
+et bundfradrag på 10.000 kr. (2010-niveau) i bruttolejeindtægten pr. helårsbolig.
+Bundfradraget udgør dog 25.550 kr. (2010-niveau), hvis der sker indberetning af
+lejeindtægten efter regler udstedt i medfør af skatteindberetningslovens § 43
+eller oplysninger om lejeindtægten er modtaget af told- og skatteforvaltningen
+ved udveksling af oplysninger efter artikel 8ac, stk. 2, i direktiv 2011/16/EU
+af 15. februar 2011 om administrativt samarbejde på beskatningsområdet og om
+ophævelse af direktiv 77/799/EØF med senere ændringer eller tilsvarende aftale
+om udveksling af oplysninger. Har told- og skatteforvaltningen ikke modtaget
+indberetning eller oplysning om lejeindtægten, kan bundfradraget i 2. pkt. dog
+anvendes for indkomstårene 2023-2025, hvis udlejningen er sket gennem en platform,
+der er indberetningspligtig efter regler udstedt i medfør af
+skatteindberetningslovens § 43 eller efter regler, der implementerer artikel 8ac,
+stk. 1, i direktiv 2011/16/EU af 15. februar 2011 om administrativt samarbejde
+på beskatningsområdet og om ophævelse af direktiv 77/799/EØF med senere
+ændringer eller tilsvarende aftale om udveksling af oplysninger. Ved en
+helårsbolig forstås hele eller en del af en fast ejendom, der tjener til ejerens,
+andelshaverens eller lejerens helårsbolig. Bundfradraget kan ikke overstige
+bruttolejeindtægten pr. helårsbolig. Endvidere kan der af den del af
+lejeindtægten, der overstiger bundfradraget, fradrages 40 pct. Vælger en ejer at
+foretage fradrag efter 1. og 2. pkt., kan der ikke foretages fradrag og
+afskrivninger efter stk. 3. Bundfradragene efter 1. og 2. pkt. reguleres efter
+personskattelovens § 20. Hvis helårsboligen har flere ejere, andelshavere eller
+lejere, fordeles bundfradraget i ejerboliger efter ejerandel, i andelsboliger
+efter den pågældende andelshavers andel af boligafgiften og i lejeboliger efter
+den pågældende lejers andel af lejeudgiften. For ejere er det en betingelse, at
+der er tale om en ejendom, der er omfattet af ejendomsskattelovens § 3.
+Bundfradragene efter 1. og 2. pkt. finder ikke anvendelse på helårsboliger, der
+af den skattepligtige anvendes som fritidsbolig.
+
+Stk. 2. Vælger en ejer at foretage fradrag efter stk. 1, medregnes
+ejendomsværdiskat efter ejendomsskatteloven for hele indkomståret.
+
+Stk. 3. Anvendes reglerne i stk. 1 og 2 ikke, kan ejere, andelshavere og lejere
+fradrage de faktiske udgifter afholdt til vedligeholdelse af indbo og inventar,
+foretage skattemæssige afskrivninger efter reglerne om delvis erhvervsmæssigt
+benyttede driftsmidler som nævnt i afskrivningslovens kapitel 2 og fradrage
+ejendomsskatter efter § 14, stk. 3. Fradrag kan foretages med så stor en del,
+som svarer til enten den udlejede eller fremlejede del af boligen eller til den
+periode, hvor udlejning har fundet sted. Det samlede fradragsbeløb kan ikke
+overstige bruttolejeindtægten. Foretages fradrag efter dette stykke, kan der
+ikke senere overgås til fradrag efter stk. 1. Er § 15 P, stk. 3, tidligere
+blevet anvendt ved udlejningen, kan ejeren, andelshaveren eller lejeren ikke
+vælge opgørelse efter stk. 1 og 2.
+
+Stk. 4. Ønsker ejere, andelshavere og lejere i et indkomstår at anvende både
+stk. 1 og 2 og § 15 P, stk. 1 og 2, på samme bolig, skal der foretages en
+forholdsmæssig opgørelse af bundfradragene i forhold til indkomståret. Det
+samlede bundfradrag opgjort efter 1. pkt. kan ikke overstige det højeste
+bundfradrag opgjort efter enten stk. 1 og 2 eller § 15 P, stk. 1 og 2.
+----
+
+----
+Skatteministeriet, satser og beløbsgrænser for § 15 Q:
+
+Fradrag ved indkomstopgørelsen for indtægt ved udlejning af helårsbolig en del
+af året eller udlejning af en del af en helårsbolig, § 15 Q, stk. 1:
+2010-niveau: 10.000 kr. ved selvangivelse af lejeindtægt og 25.550 kr. ved
+indberetning af lejeindtægt fra tredjepart.
+2025: 13.100 kr. og 33.500 kr.
+2026: 13.800 kr. og 35.100 kr.
+----
+
+# Ligningslov15QBoligrolle = Ll15QEjer | Ll15QAndelshaver | Ll15QLejer
+# Ligningslov15QUdlejningsform = Ll15QVærelserIHelårsbolig | Ll15QHeleBoligenDelAfÅret | Ll15QUdenfor
+# Ligningslov15QBoligstatus = Ll15QHelårsbolig | Ll15QFritidsboligEllerAndenBolig
+# Ligningslov15QIndberetningsstatus = Ll15QIngenIndberetning | Ll15QIndberettetEfterSkatteindberetningslov43 | Ll15QOplysningerModtagetVedUdveksling | Ll15QPlatformIndberetningspligtigUdenModtagelse
+# Ligningslov15QMetode = Ll15QStk1Bundfradrag | Ll15QStk3FaktiskeUdgifter
+# Ligningslov15QInput(skatteår: Heltal, rolle: Ligningslov15QBoligrolle, udlejningsform: Ligningslov15QUdlejningsform, boligstatus: Ligningslov15QBoligstatus, indberetningsstatus: Ligningslov15QIndberetningsstatus, metode: Ligningslov15QMetode, bruttolejeindtægt_kroner: Heltal, faktiske_udgifter_kroner: Heltal, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk, tidligere_anvendt_par15p_stk3: Boolsk)
+# Ligningslov15QResultat(skatteår: Heltal, rolle: Ligningslov15QBoligrolle, metode: Ligningslov15QMetode, grundbetingelser_opfyldt: Boolsk, højt_bundfradrag_berettiget: Boolsk, tidligere_par15p_stk3_afskærer_stk1: Boolsk, stk1_anvendelig: Boolsk, stk3_anvendelig: Boolsk, bruttolejeindtægt_kroner: Heltal, bundfradrag_2010_niveau_kroner: Heltal, reguleret_bundfradrag_kroner: Heltal, bundfradrag_anvendt_kroner: Heltal, fradrag_af_overskydende_leje_kroner: Heltal, faktiske_udgifter_fradrag_kroner: Heltal, fradrag_i_indkomstopgørelse_kroner: Heltal, overskud_efter_ligningslov15q_kroner: Heltal)
+
+| ll15q_udlejningsform_omfattet(form: Ligningslov15QUdlejningsform) -> form == Ll15QVærelserIHelårsbolig || form == Ll15QHeleBoligenDelAfÅret
+| ll15q_helårsbolig_omfattet(status: Ligningslov15QBoligstatus) -> status == Ll15QHelårsbolig
+| ll15q_ejer_ejendom_betingelse_opfyldt(rolle: Ligningslov15QBoligrolle, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk) -> Sandt
+| exception ll15q_ejer_kræver_ejendomsskattelov3 ll15q_ejer_ejendom_betingelse_opfyldt(rolle: Ligningslov15QBoligrolle, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk) -> ejer_ejendom_omfattet_af_ejendomsskattelov3 under rolle == Ll15QEjer
+| ll15q_højt_bundfradrag_berettiget(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> Falskt
+| exception ll15q_indberettet_højt_bundfradrag ll15q_højt_bundfradrag_berettiget(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> Sandt under status == Ll15QIndberettetEfterSkatteindberetningslov43
+| exception ll15q_udvekslet_højt_bundfradrag ll15q_højt_bundfradrag_berettiget(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> Sandt under status == Ll15QOplysningerModtagetVedUdveksling
+| exception ll15q_platform_2023_til_2025_højt_bundfradrag ll15q_højt_bundfradrag_berettiget(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> Sandt under status == Ll15QPlatformIndberetningspligtigUdenModtagelse && skatteår >= 2023 && skatteår <= 2025
+| ll15q_bundfradrag_2010_niveau_kroner(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> 10000
+| exception ll15q_højt_bundfradrag_2010_niveau ll15q_bundfradrag_2010_niveau_kroner(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> 25550 under ll15q_højt_bundfradrag_berettiget(status, skatteår)
+| ll15q_reguleret_bundfradrag_kroner(status: Ligningslov15QIndberetningsstatus, skatteår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = ll15q_bundfradrag_2010_niveau_kroner(status, skatteår),
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(skatteår)
+))
+
+# Ligningslov15QSag(input: Ligningslov15QInput) {
+    | bruttolejeindtægt_kroner() -> ligningslov_positivt_beløb(input.bruttolejeindtægt_kroner)
+    | grundbetingelser_opfyldt() -> ll15q_udlejningsform_omfattet(input.udlejningsform) && ll15q_helårsbolig_omfattet(input.boligstatus) && ll15q_ejer_ejendom_betingelse_opfyldt(input.rolle, input.ejer_ejendom_omfattet_af_ejendomsskattelov3)
+    | højt_bundfradrag_berettiget() -> ll15q_højt_bundfradrag_berettiget(input.indberetningsstatus, input.skatteår)
+    | tidligere_par15p_stk3_afskærer_stk1() -> input.tidligere_anvendt_par15p_stk3
+    | stk1_anvendelig() -> input.metode == Ll15QStk1Bundfradrag && grundbetingelser_opfyldt() && tidligere_par15p_stk3_afskærer_stk1() == Falskt
+    | stk3_anvendelig() -> input.metode == Ll15QStk3FaktiskeUdgifter && grundbetingelser_opfyldt()
+    | bundfradrag_2010_niveau_kroner() -> ll15q_bundfradrag_2010_niveau_kroner(input.indberetningsstatus, input.skatteår)
+    | reguleret_bundfradrag_kroner() -> ll15q_reguleret_bundfradrag_kroner(input.indberetningsstatus, input.skatteår)
+    | bundfradrag_anvendt_kroner() -> 0
+    | exception ll15q_stk1_bundfradrag bundfradrag_anvendt_kroner() -> ligningslov_mindste_beløb(reguleret_bundfradrag_kroner(), bruttolejeindtægt_kroner()) under stk1_anvendelig()
+    | leje_efter_bundfradrag_kroner() -> ligningslov_positivt_beløb(bruttolejeindtægt_kroner() - bundfradrag_anvendt_kroner())
+    | fradrag_af_overskydende_leje_kroner() -> 0
+    | exception ll15q_stk1_40pct_af_overskydende_leje fradrag_af_overskydende_leje_kroner() -> penge_beløb_gange_basispoint_kroner(leje_efter_bundfradrag_kroner(), 4000) under stk1_anvendelig()
+    | faktiske_udgifter_fradrag_kroner() -> 0
+    | exception ll15q_stk3_faktiske_udgifter faktiske_udgifter_fradrag_kroner() -> ligningslov_mindste_beløb(ligningslov_positivt_beløb(input.faktiske_udgifter_kroner), bruttolejeindtægt_kroner()) under stk3_anvendelig()
+    | fradrag_i_indkomstopgørelse_kroner() -> bundfradrag_anvendt_kroner() + fradrag_af_overskydende_leje_kroner() + faktiske_udgifter_fradrag_kroner()
+    | overskud_efter_ligningslov15q_kroner() -> ligningslov_positivt_beløb(bruttolejeindtægt_kroner() - fradrag_i_indkomstopgørelse_kroner())
+    | resultat() -> Ligningslov15QResultat(
+        skatteår = input.skatteår,
+        rolle = input.rolle,
+        metode = input.metode,
+        grundbetingelser_opfyldt = grundbetingelser_opfyldt(),
+        højt_bundfradrag_berettiget = højt_bundfradrag_berettiget(),
+        tidligere_par15p_stk3_afskærer_stk1 = tidligere_par15p_stk3_afskærer_stk1(),
+        stk1_anvendelig = stk1_anvendelig(),
+        stk3_anvendelig = stk3_anvendelig(),
+        bruttolejeindtægt_kroner = bruttolejeindtægt_kroner(),
+        bundfradrag_2010_niveau_kroner = bundfradrag_2010_niveau_kroner(),
+        reguleret_bundfradrag_kroner = reguleret_bundfradrag_kroner(),
+        bundfradrag_anvendt_kroner = bundfradrag_anvendt_kroner(),
+        fradrag_af_overskydende_leje_kroner = fradrag_af_overskydende_leje_kroner(),
+        faktiske_udgifter_fradrag_kroner = faktiske_udgifter_fradrag_kroner(),
+        fradrag_i_indkomstopgørelse_kroner = fradrag_i_indkomstopgørelse_kroner(),
+        overskud_efter_ligningslov15q_kroner = overskud_efter_ligningslov15q_kroner()
+    )
+}
+| ligningslov15q_sag(input: Ligningslov15QInput) -> Ligningslov15QSag(input)
+| ligningslov15q_resultat(input: Ligningslov15QInput) -> ligningslov15q_sag(input).resultat()
+| ligningslov15q_overskud_kroner(input: Ligningslov15QInput) -> ligningslov15q_sag(input).overskud_efter_ligningslov15q_kroner()
+
+= ll15q_2026_lavt_bundfradrag_fixture = ligningslov15q_resultat(Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QLejer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIngenIndberetning,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 60000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = Falskt
+))
+= ll15q_2026_højt_bundfradrag_fixture = ligningslov15q_resultat(Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QAndelshaver,
+    udlejningsform = Ll15QHeleBoligenDelAfÅret,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 60000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = Falskt
+))
+= ll15q_2025_platform_højt_bundfradrag_fixture = ligningslov15q_resultat(Ligningslov15QInput(
+    skatteår = 2025,
+    rolle = Ll15QLejer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QPlatformIndberetningspligtigUdenModtagelse,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 60000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = Falskt
+))
+= ll15q_stk3_faktiske_udgifter_fixture = ligningslov15q_resultat(Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QLejer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIngenIndberetning,
+    metode = Ll15QStk3FaktiskeUdgifter,
+    bruttolejeindtægt_kroner = 60000,
+    faktiske_udgifter_kroner = 20000,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = Falskt
+))
+= ll15q_fritidsbolig_udelukkes_fixture = ligningslov15q_resultat(Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QLejer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QFritidsboligEllerAndenBolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 60000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = Falskt
+))
+= ll15q_par15p_stk3_afskærer_stk1_fixture = ligningslov15q_resultat(Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QAndelshaver,
+    udlejningsform = Ll15QHeleBoligenDelAfÅret,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 60000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = Sandt
+))
+
+| ll15q_2026_lavt_bundfradrag_og_40pct: ll15q_2026_lavt_bundfradrag_fixture -> ll15q_2026_lavt_bundfradrag_fixture.reguleret_bundfradrag_kroner == 13800 && ll15q_2026_lavt_bundfradrag_fixture.fradrag_af_overskydende_leje_kroner == 18480 && ll15q_2026_lavt_bundfradrag_fixture.overskud_efter_ligningslov15q_kroner == 27720
+| ll15q_2026_højt_bundfradrag_og_40pct: ll15q_2026_højt_bundfradrag_fixture -> ll15q_2026_højt_bundfradrag_fixture.højt_bundfradrag_berettiget == Sandt && ll15q_2026_højt_bundfradrag_fixture.reguleret_bundfradrag_kroner == 35100 && ll15q_2026_højt_bundfradrag_fixture.fradrag_i_indkomstopgørelse_kroner == 45060 && ll15q_2026_højt_bundfradrag_fixture.overskud_efter_ligningslov15q_kroner == 14940
+| ll15q_2025_platform_overgang_højt_bundfradrag: ll15q_2025_platform_højt_bundfradrag_fixture -> ll15q_2025_platform_højt_bundfradrag_fixture.højt_bundfradrag_berettiget == Sandt && ll15q_2025_platform_højt_bundfradrag_fixture.reguleret_bundfradrag_kroner == 33500 && ll15q_2025_platform_højt_bundfradrag_fixture.overskud_efter_ligningslov15q_kroner == 15900
+| ll15q_stk3_faktiske_udgifter_loftes_af_brutto: ll15q_stk3_faktiske_udgifter_fixture -> ll15q_stk3_faktiske_udgifter_fixture.stk3_anvendelig == Sandt && ll15q_stk3_faktiske_udgifter_fixture.faktiske_udgifter_fradrag_kroner == 20000 && ll15q_stk3_faktiske_udgifter_fixture.overskud_efter_ligningslov15q_kroner == 40000
+| ll15q_fritidsbolig_udelukkes: ll15q_fritidsbolig_udelukkes_fixture -> ll15q_fritidsbolig_udelukkes_fixture.grundbetingelser_opfyldt == Falskt && ll15q_fritidsbolig_udelukkes_fixture.fradrag_i_indkomstopgørelse_kroner == 0
+| ll15q_par15p_stk3_afskærer_stk1: ll15q_par15p_stk3_afskærer_stk1_fixture -> ll15q_par15p_stk3_afskærer_stk1_fixture.tidligere_par15p_stk3_afskærer_stk1 == Sandt && ll15q_par15p_stk3_afskærer_stk1_fixture.stk1_anvendelig == Falskt && ll15q_par15p_stk3_afskærer_stk1_fixture.fradrag_i_indkomstopgørelse_kroner == 0

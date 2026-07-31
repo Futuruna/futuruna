@@ -29,8 +29,10 @@ derive leasing income from depreciable operating assets and ships through the
 substantial-participation condition and Skatterådet's pre-19 May 1993
 permission carve-out; § 4, stk. 1, nr. 17 now derives tenant/shareholder
 subletting and letting surplus under LL § 15 Q stk. 1/3 as positive
-capital-income surplus while excluding owners/others and non-LL15Q cases; the
-2026 § 7/§ 7 a/§ 8 reform
+capital-income surplus while excluding owners/others and non-LL15Q cases, and
+the LL § 15 Q dependency now calculates the regulated low/high bundfradrag,
+40 pct. deduction on excess rent, actual-expense branch, and resulting surplus
+before § 4 consumes it; the 2026 § 7/§ 7 a/§ 8 reform
 parameters for mellemskat, topskat and toptopskat now carry LOV nr. 482/2024
 source provenance and derive statutory 2010-level thresholds through § 20
 regulation, with § 7 a topskat and § 8 toptopskat exposed as personal-income
@@ -197,8 +199,11 @@ Current § 13 amendment/dependency sources:
   - XML status on 2026-07-18: `Valid`
   - § 33 A is the foreign-wage relief exception in § 13, stk. 5.
   - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
-    wage-earner calculator; § 9 L is now modeled for extra pension deductions
-    and § 26 nr. 5 transition-compensation input. The § 26 path now has
+    wage-earner calculator; § 9 L is modeled for extra pension deductions and
+    § 26 nr. 5 transition-compensation input; § 15 Q is modeled for
+    subletting/letting income with regulated 2025/2026 low/high bundfradrag,
+    40 pct. deduction on excess rent, actual-expense deduction, and the surplus
+    fed into Personskatteloven § 4, stk. 1, nr. 17. The § 26 path now has
     2012-2019 Ligningsloven deduction parameter coverage for the first
     transition-compensation calculation layer, and § 26 year packs now derive
     their § 20 regulation number, § 7 top-tax threshold and § 8 health
@@ -375,7 +380,9 @@ encoded as a temporal rule on top of the consolidation.
 - `forskudsregistrering_2026.runa` exists and checks/runs with `runa run`.
 - `slutopgoerelse.runa` exists and checks/runs with `runa run`.
 - `opkraevningsloven.runa` exists and checks/runs with `runa run`.
-- `ligningsloven_fradrag.runa` exists and checks with `runa check`.
+- `ligningsloven_fradrag.runa` exists and checks with `runa check`; it covers
+  §§ 9 J/9 K/9 L wage-earner and pension deductions plus § 15 Q
+  subletting/letting income deductions.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
@@ -426,7 +433,9 @@ encoded as a temporal rule on top of the consolidation.
   deductible capital costs, passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
   under stk. 1, nr. 11 and stk. 8, subletting/letting surplus classification
-  under stk. 1, nr. 17, positive/negative net-capital projections
+  under stk. 1, nr. 17 derived from LL § 15 Q regulated bundfradrag,
+  40 pct. excess-rent deduction, actual-expense branch, and positive surplus,
+  positive/negative net-capital projections
   and personal-income reclassification, plus amount-level § 4 a share-income
   inclusion, stk. 2 exclusions, stk. 3 personal-income reclassification,
   negative share-income preservation and pension deduction from positive share
@@ -455,7 +464,7 @@ encoded as a temporal rule on top of the consolidation.
   topskat, toptopskat, and the mellemskat positive-capital grundbeløb from the
   amendment's 2010-level amounts through § 20 while preserving the LOV nr.
   482/2024 source branch for each layer,
-  Ligningsloven ordinary wage-earner deduction
+  Ligningsloven ordinary wage-earner deduction and § 15 Q subletting/letting
   dependency slices, § 26 historical year-parameter derivation for 2012-2019,
   2024/2025/2026 tax-year parameter packs, grouped
   wage-earner calculation-domain records, first wage-earner scenarios, a first
@@ -635,7 +644,14 @@ Current decision:
   It keeps the taxpayer's housing role, LL § 15 Q branch, gross rent income,
   LL § 15 Q deduction amount, positive surplus, covered capital-income amount,
   and noncovered amount together before the § 4 capital aggregate consumes the
-  derived capital post.
+  derived capital post. `Par4Stk1Nr17FraLigningslov15QSag` now bridges from
+  the LL § 15 Q amount result into this § 4 classifier, so callers do not need
+  to supply the statutory surplus by hand.
+- `Ligningslov15QSag` uses product-scoped `|` rules for LL § 15 Q. It keeps
+  housing role, letting form, helårsbolig status, reporting branch, deduction
+  method, regulated low/high bundfradrag, 40 pct. excess-rent deduction,
+  actual-expense deduction, and resulting surplus together before
+  Personskatteloven § 4 consumes the result.
 - `PersonfradragPar10Sag` uses product-scoped `|` rules for § 10 eligibility.
   It keeps tax year, age status, tax-liability posture, partial-year election
   date, and reversal date together so the Kildeskatteloven § 2 full-year case,
@@ -1358,8 +1374,10 @@ M5 - Audit suite
   wage-earner domain-model projection of explicit § 7 a/§ 8, positive § 8 a
   high-layer share-income tax, and § 8 b/§ 8 c state-tax slots through § 5
   aggregation and § 9 personfradrag allocation,
-  ordinary wage and special-case AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
-  wage-earner-deduction coverage plus § 9 L/§ 26 nr. 5 validation coverage,
+  ordinary wage and special-case AM-law coverage, ordinary Ligningsloven
+  §§ 9 J/9 K wage-earner-deduction coverage plus § 9 L/§ 26 nr. 5 validation
+  coverage and § 15 Q subletting/letting surplus feeding Personskatteloven
+  § 4, stk. 1, nr. 17,
   ordinary municipal/church-tax legal coverage,
   covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture,
   covered BEK 839 forskudskort generation, covered BEK 1094 2026
@@ -1419,7 +1437,8 @@ M6 - Website integration
   audit suite, marks the shared Pengebeløb rounding posture, the limited
   wage-earner fixture slice, a source-backed external Skat.dk 2026 ordinary
   wage-earner fixture, the § 14/§ 19 external differential scenario, plus ordinary and
-  special-case AM-law coverage, ordinary Ligningsloven deductions, Kildeskatteloven
+  special-case AM-law coverage, ordinary Ligningsloven deductions and § 15 Q
+  subletting/letting surplus derivation, Kildeskatteloven
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing and system-start rateplan posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   first § 1/§ 2 taxable-income composition from the separate income categories,
