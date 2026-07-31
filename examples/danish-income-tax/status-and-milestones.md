@@ -18,10 +18,11 @@ model is materially complete.
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
 excluded CFC income and ligningsmæssige fradrag, and the wage-earner calculator
-delegates its taxable-income base to that result; the 2026 § 7/§ 7 a/§ 8 reform thresholds for
-mellemskat, topskat and toptopskat now derive from statutory 2010-level amounts
-through § 20 regulation, with § 7 a topskat and § 8 toptopskat exposed as
-personal-income amount result objects; § 6 bundskat rates now carry the
+delegates its taxable-income base to that result; the 2026 § 7/§ 7 a/§ 8 reform
+parameters for mellemskat, topskat and toptopskat now carry LOV nr. 482/2024
+source provenance and derive statutory 2010-level thresholds through § 20
+regulation, with § 7 a topskat and § 8 toptopskat exposed as personal-income
+amount result objects; § 6 bundskat rates now carry the
 2021 base text and the 2022/2023/2024 amendment source chain as a typed
 rate result; § 7 spouse positive-net-capital tax now has an
 executable allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break
@@ -404,9 +405,10 @@ encoded as a temporal rule on top of the consolidation.
   a source-backed pre-2026 § 7 topskat amount result with regulated
   bundfradrag, regulated positive-capital grundbeløb, PBL § 16 additions,
   personal/capital split and wage-earner calculator reuse,
-  a source-backed 2026 reform threshold/result layer deriving mellemskat,
+  a source-backed 2026 reform parameter/result layer deriving mellemskat,
   topskat, toptopskat, and the mellemskat positive-capital grundbeløb from the
-  amendment's 2010-level amounts through § 20,
+  amendment's 2010-level amounts through § 20 while preserving the LOV nr.
+  482/2024 source branch for each layer,
   Ligningsloven ordinary wage-earner deduction
   dependency slices, § 26 historical year-parameter derivation for 2012-2019,
   2024/2025/2026 tax-year parameter packs, grouped
@@ -1047,9 +1049,11 @@ M2 - State tax computation skeleton
   udligningsskat/sundhedsbidrag are ignored from 2026 and mellemskat/
   toptopskat are ignored before the 2026 reform. Mellemskat under § 7,
   topskat under § 7 a, and toptopskat under § 8 now derive their 2026
-  thresholds from the amendment's 2010-level amounts through § 20 regulation
-  before feeding the calculator, with § 7 a and § 8 now exposed as named
-  personal-income amount results; CFC tax under § 8 b can feed this state-tax
+  thresholds from typed `ReformStatsskatParameterResultat` values carrying the
+  LOV nr. 482/2024 § 1 nr. 2-4/nr. 5/nr. 6 source branch, then regulate the
+  amendment's 2010-level amounts through § 20 before feeding the calculator,
+  with § 7 a and § 8 now exposed as named personal-income amount results; CFC
+  tax under § 8 b can feed this state-tax
   component model, with § 8 b consuming the amount-level § 4 b CFC-income
   result before applying a structured Selskabsskatteloven § 17, stk. 1 rate
   result.
@@ -1238,7 +1242,7 @@ M5 - Audit suite
   state personfradrag tax-value reduction
   order, § 9 non-state personfradrag reduction, and wage-earner component
   projection,
-  covered 2026 state-tax reform layers, covered § 6 source-backed
+  covered 2026 state-tax reform parameter source branches, covered § 6 source-backed
   bundskat-rate provenance across the 2022/2023/2024 amendment chain,
   covered § 13 deficit mechanics,
   § 13 stk. 4 negative-personal-income spouse and carry-forward offset order,
