@@ -1,0 +1,50 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 13.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- pensionsbeskatningsloven.runa.
+
+= par4_stk1_nr13_audit_pal_afkast = par4_stk1_nr13_resultat(Par4Stk1Nr13Input(
+    pensionsbeskatningslov53a_resultat = pbl53a_pal_afkast_fixture
+))
+= par4_stk1_nr13_audit_alternativt_afkast = par4_stk1_nr13_resultat(Par4Stk1Nr13Input(
+    pensionsbeskatningslov53a_resultat = pbl53a_alternativt_afkast_fixture
+))
+= par4_stk1_nr13_audit_negativt_afkast = par4_stk1_nr13_resultat(Par4Stk1Nr13Input(
+    pensionsbeskatningslov53a_resultat = pbl53a_negativt_afkast_fixture
+))
+= par4_stk1_nr13_audit_stk4_undtaget = par4_stk1_nr13_resultat(Par4Stk1Nr13Input(
+    pensionsbeskatningslov53a_resultat = pbl53a_stk4_undtaget_fixture
+))
+= par4_stk1_nr13_audit_par53b_udelukket = par4_stk1_nr13_resultat(Par4Stk1Nr13Input(
+    pensionsbeskatningslov53a_resultat = pbl53a_par53b_udelukket_fixture
+))
+
+= par4_stk1_nr13_audit_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr13_kapitalpost(Par4Stk1Nr13Input(pensionsbeskatningslov53a_resultat = pbl53a_pal_afkast_fixture)),
+        par4_stk1_nr13_kapitalpost(Par4Stk1Nr13Input(pensionsbeskatningslov53a_resultat = pbl53a_alternativt_afkast_fixture)),
+        par4_stk1_nr13_kapitalpost(Par4Stk1Nr13Input(pensionsbeskatningslov53a_resultat = pbl53a_negativt_afkast_fixture)),
+        par4_stk1_nr13_kapitalpost(Par4Stk1Nr13Input(pensionsbeskatningslov53a_resultat = pbl53a_stk4_undtaget_fixture)),
+        par4_stk1_nr13_kapitalpost(Par4Stk1Nr13Input(pensionsbeskatningslov53a_resultat = pbl53a_par53b_udelukket_fixture))
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr13_audit_pal_afkast_indgår: par4_stk1_nr13_audit_pal_afkast -> par4_stk1_nr13_audit_pal_afkast.skattepligtigt_afkast_kroner == 22000 && par4_stk1_nr13_audit_pal_afkast.kapitalindkomst_kroner == 22000
+| par4_stk1_nr13_audit_alternativt_afkast_indgår: par4_stk1_nr13_audit_alternativt_afkast -> par4_stk1_nr13_audit_alternativt_afkast.skattepligtigt_afkast_kroner == 13500 && par4_stk1_nr13_audit_alternativt_afkast.kapitalindkomst_kroner == 13500
+| par4_stk1_nr13_audit_negativt_afkast_fremføres: par4_stk1_nr13_audit_negativt_afkast -> par4_stk1_nr13_audit_negativt_afkast.fremført_negativt_afkast_ultimo_kroner == 13000 && par4_stk1_nr13_audit_negativt_afkast.kapitalindkomst_kroner == 0
+| par4_stk1_nr13_audit_stk4_undtaget_udelukkes: par4_stk1_nr13_audit_stk4_undtaget -> par4_stk1_nr13_audit_stk4_undtaget.omfattet_af_pensionsbeskatningslov53a_stk3 == Falskt && par4_stk1_nr13_audit_stk4_undtaget.kapitalindkomst_kroner == 0
+| par4_stk1_nr13_audit_par53b_udelukkes: par4_stk1_nr13_audit_par53b_udelukket -> par4_stk1_nr13_audit_par53b_udelukket.omfattet_af_pensionsbeskatningslov53a_stk3 == Falskt && par4_stk1_nr13_audit_par53b_udelukket.kapitalindkomst_kroner == 0
+| par4_stk1_nr13_audit_netto_kapitalindkomst: par4_stk1_nr13_audit_kapitalindkomst -> par4_stk1_nr13_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == 35500 && par4_stk1_nr13_audit_kapitalindkomst.nettokapitalindkomst_kroner == 35500 && par4_stk1_nr13_audit_kapitalindkomst.positiv_nettokapitalindkomst_kroner == 35500
+
+? par4_stk1_nr13_audit_pal_afkast_indgår
+? par4_stk1_nr13_audit_alternativt_afkast_indgår
+? par4_stk1_nr13_audit_negativt_afkast_fremføres
+? par4_stk1_nr13_audit_stk4_undtaget_udelukkes
+? par4_stk1_nr13_audit_par53b_udelukkes
+? par4_stk1_nr13_audit_netto_kapitalindkomst
+
+@ print("§4 stk.1 nr.13 kapitalindkomst fra PBL §53A-afkast: " + vis(par4_stk1_nr13_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner))

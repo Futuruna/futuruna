@@ -33,11 +33,16 @@ capital-income surplus while excluding owners/others and non-LL15Q cases;
 § 4, stk. 1, nr. 12 now consumes a typed LL § 5 C result for compensation
 for accrued/credited interest and § 8, stk. 3 provision/præmie amounts,
 including the § 5, stk. 5 carve-out and stk. 3 double-tax-treaty deduction
-block; § 4, stk. 1, nr. 15 now consumes a typed LL § 12 B result for running
+block; § 4, stk. 1, nr. 13 now consumes a typed
+Pensionsbeskatningsloven § 53 A result for taxable pension-return capital
+income, including PAL-method return, alternative capital-value return, taxable
+share allocation, negative-return carry-forward and stk. 4 exclusion posture;
+§ 4, stk. 1, nr. 15 now consumes a typed LL § 12 B result for running
 payment saldo taxation and deductions under stk. 4-7 and stk. 9, including
 negative-saldo years, later-year payments, termination balances, right
 assignments, obligation transfers, acquisition-cost adjustments and statutory
-application/exclusion posture; § 4, stk. 1, nr. 16 now consumes a typed
+application/exclusion posture;
+§ 4, stk. 1, nr. 16 now consumes a typed
 Afskrivningsloven § 40 C result for payment-right/milk-quota/sugar-beet
 delivery-right saldo treatment, including positive-saldo non-deduction,
 negative-saldo income recognition and final-year gain/loss; and the LL § 15 P dependency now calculates long-term private-home letting
@@ -201,13 +206,16 @@ Current § 8 b dependency source:
     kulbrinte supplement at 3 percentage points; Personskatteloven § 8 b uses
     the ordinary 22 pct. rate for CFC income.
 
-Current § 13 amendment/dependency sources:
+Current § 4 and § 13 amendment/dependency sources:
 
 - Pensionsbeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2024/1243`
   - XML status on 2026-07-18: `Valid`
   - § 16, stk. 1, 4. pkt. is the historic PBL cap reference used by
     Personskatteloven § 13 through income year 2025.
+  - § 53 A, stk. 1-6 is modeled as the Personskatteloven § 4, stk. 1,
+    nr. 13 dependency for taxable pension-return capital income, with stk. 3
+    taxable return, negative-return carry-forward and stk. 4 exclusions.
 - Ligningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1500`
   - XML status on 2026-07-18: `Valid`
@@ -421,6 +429,9 @@ encoded as a temporal rule on top of the consolidation.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
   the Afskrivningsloven § 40 C dependency consumed by Personskatteloven § 4,
   stk. 1, nr. 16.
+- `pensionsbeskatningsloven.runa` exists and checks/runs with `runa run`; it
+  covers the Pensionsbeskatningsloven § 53 A dependency consumed by
+  Personskatteloven § 4, stk. 1, nr. 13.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
@@ -439,6 +450,8 @@ encoded as a temporal rule on top of the consolidation.
   with `runa run`.
 - `personskatteloven-par4-ligningslov12b.audit.runa` exists and checks/runs
   with `runa run`.
+- `personskatteloven-par4-pensionsbeskatningslov53a.audit.runa` exists and
+  checks/runs with `runa run`.
 - `personskatteloven-par4-afskrivningslov40c.audit.runa` exists and
   checks/runs with `runa run`.
 - `personskatteloven-par4-fremleje.audit.runa` exists and checks/runs with
@@ -477,7 +490,8 @@ encoded as a temporal rule on top of the consolidation.
   deductible capital costs, passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
   under stk. 1, nr. 11 and stk. 8, LL § 5 C compensation classification under
-  stk. 1, nr. 12, LL § 12 B running-payment saldo classification under
+  stk. 1, nr. 12, Pensionsbeskatningsloven § 53 A return classification under
+  stk. 1, nr. 13, LL § 12 B running-payment saldo classification under
   stk. 1, nr. 15, Afskrivningsloven § 40 C saldo classification under
   stk. 1, nr. 16, subletting/letting surplus classification
   under stk. 1, nr. 17 derived from LL § 15 Q regulated bundfradrag, stk. 4
@@ -513,7 +527,8 @@ encoded as a temporal rule on top of the consolidation.
   amendment's 2010-level amounts through § 20 while preserving the LOV nr.
   482/2024 source branch for each layer,
   Ligningsloven ordinary wage-earner deduction, LL § 5 C and § 12 B
-  capital-income dependencies, Afskrivningsloven § 40 C saldo dependency, and
+  capital-income dependencies, Pensionsbeskatningsloven § 53 A return
+  dependency, Afskrivningsloven § 40 C saldo dependency, and
   § 15 Q subletting/letting dependency slices,
   § 26 historical year-parameter derivation for 2012-2019,
   2024/2025/2026 tax-year parameter packs, grouped
@@ -566,8 +581,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 66-76% complete as an executable research corpus,
-  and roughly 52-62% complete as a production-grade calculator for
+- Working estimate: roughly 67-77% complete as an executable research corpus,
+  and roughly 53-63% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -696,6 +711,12 @@ Current decision:
   stk. 3 deduction block together. `Par4Stk1Nr12Sag` consumes the typed result
   as Personskatteloven § 4, stk. 1, nr. 12 capital income rather than taking a
   bare scalar.
+- `Pensionsbeskatningslov53ASag` uses product-scoped `|` rules for PBL § 53 A.
+  It keeps the covered ordning, § 53 B exclusion, stk. 4 carve-outs, PAL-method
+  or alternative capital-value return, taxable share allocation, prior
+  negative-return use and carry-forward together. `Par4Stk1Nr13Sag` consumes
+  the typed result as Personskatteloven § 4, stk. 1, nr. 13 capital income
+  rather than passing a loose return amount.
 - `Ligningslov12BSag` uses product-scoped `|` rules for LL § 12 B. It keeps the
   running-payment role, event, application posture, saldo before and after
   payments or cash-converted consideration, negative-saldo amount, later-year
