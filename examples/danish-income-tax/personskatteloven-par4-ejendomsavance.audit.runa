@@ -1,0 +1,123 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 14.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- ejendomsavancebeskatningsloven.runa.
+
+= par4_stk1_nr14_audit_almindelig_input = EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = 1000000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    regulering_efter_par5_og_5a_kroner = 0,
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = 1024000,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+)
+= par4_stk1_nr14_audit_forsikringssum_input = EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelse = EblErstatningsEllerForsikringssum,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = 500000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    regulering_efter_par5_og_5a_kroner = 32000,
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = 550000,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+)
+= par4_stk1_nr14_audit_stk8_udsmykning_input = EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = 100000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    regulering_efter_par5_og_5a_kroner = 0,
+    par4_stk8_anskaffelse_udeladt_kroner = 10000,
+    kontant_afståelsessum_kroner = 140000,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 20000,
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+)
+= par4_stk1_nr14_audit_tab_input = EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = 1000000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    regulering_efter_par5_og_5a_kroner = 0,
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = 960000,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+)
+= par4_stk1_nr14_audit_næring_input = EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Sandt,
+    kontant_anskaffelsessum_kroner = 1000000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    regulering_efter_par5_og_5a_kroner = 0,
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = 1100000,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+)
+= par4_stk1_nr14_audit_ekspropriation_input = EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelse = EblEkspropriationserstatning,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = 1000000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    regulering_efter_par5_og_5a_kroner = 0,
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = 1060000,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    par11_stk2_genanbragt_erhvervsejendom = Falskt
+)
+
+= par4_stk1_nr14_audit_almindelig_fortjeneste = par4_stk1_nr14_resultat_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_almindelig_input)
+= par4_stk1_nr14_audit_forsikringssum = par4_stk1_nr14_resultat_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_forsikringssum_input)
+= par4_stk1_nr14_audit_stk8_udsmykning = par4_stk1_nr14_resultat_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_stk8_udsmykning_input)
+= par4_stk1_nr14_audit_tab = par4_stk1_nr14_resultat_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_tab_input)
+= par4_stk1_nr14_audit_næring = par4_stk1_nr14_resultat_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_næring_input)
+= par4_stk1_nr14_audit_ekspropriation = par4_stk1_nr14_resultat_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_ekspropriation_input)
+
+= par4_stk1_nr14_audit_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr14_kapitalpost_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_almindelig_input),
+        par4_stk1_nr14_kapitalpost_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_forsikringssum_input),
+        par4_stk1_nr14_kapitalpost_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_stk8_udsmykning_input),
+        par4_stk1_nr14_kapitalpost_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_tab_input),
+        par4_stk1_nr14_kapitalpost_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_næring_input),
+        par4_stk1_nr14_kapitalpost_fra_ejendomsavancebeskatningslov(par4_stk1_nr14_audit_ekspropriation_input)
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr14_audit_almindelig_fortjeneste_indgår: par4_stk1_nr14_audit_almindelig_fortjeneste -> par4_stk1_nr14_audit_almindelig_fortjeneste.skattepligtig_fortjeneste_kroner == 24000 && par4_stk1_nr14_audit_almindelig_fortjeneste.kapitalindkomst_kroner == 24000
+| par4_stk1_nr14_audit_forsikringssum_sidestilles: par4_stk1_nr14_audit_forsikringssum -> par4_stk1_nr14_audit_forsikringssum.skattepligtig_fortjeneste_kroner == 18000 && par4_stk1_nr14_audit_forsikringssum.kapitalindkomst_kroner == 18000
+| par4_stk1_nr14_audit_stk8_udelader_udsmykning: par4_stk1_nr14_audit_stk8_udsmykning -> par4_stk1_nr14_audit_stk8_udsmykning.skattepligtig_fortjeneste_kroner == 30000 && par4_stk1_nr14_audit_stk8_udsmykning.kapitalindkomst_kroner == 30000
+| par4_stk1_nr14_audit_tab_ikke_kapitalindkomst: par4_stk1_nr14_audit_tab -> par4_stk1_nr14_audit_tab.tab_kroner == 40000 && par4_stk1_nr14_audit_tab.kapitalindkomst_kroner == 0
+| par4_stk1_nr14_audit_næring_udelukkes: par4_stk1_nr14_audit_næring -> par4_stk1_nr14_audit_næring.skattepligtig_efter_ejendomsavancebeskatningsloven == Falskt && par4_stk1_nr14_audit_næring.kapitalindkomst_kroner == 0
+| par4_stk1_nr14_audit_ekspropriation_udelukkes: par4_stk1_nr14_audit_ekspropriation -> par4_stk1_nr14_audit_ekspropriation.undtaget_efter_ejendomsavancebeskatningslov11 == Sandt && par4_stk1_nr14_audit_ekspropriation.kapitalindkomst_kroner == 0
+| par4_stk1_nr14_audit_netto_kapitalindkomst: par4_stk1_nr14_audit_kapitalindkomst -> par4_stk1_nr14_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == 72000 && par4_stk1_nr14_audit_kapitalindkomst.nettokapitalindkomst_kroner == 72000 && par4_stk1_nr14_audit_kapitalindkomst.positiv_nettokapitalindkomst_kroner == 72000
+
+? par4_stk1_nr14_audit_almindelig_fortjeneste_indgår
+? par4_stk1_nr14_audit_forsikringssum_sidestilles
+? par4_stk1_nr14_audit_stk8_udelader_udsmykning
+? par4_stk1_nr14_audit_tab_ikke_kapitalindkomst
+? par4_stk1_nr14_audit_næring_udelukkes
+? par4_stk1_nr14_audit_ekspropriation_udelukkes
+? par4_stk1_nr14_audit_netto_kapitalindkomst
+
+@ print("§4 stk.1 nr.14 kapitalindkomst fra ejendomsavance: " + vis(par4_stk1_nr14_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner))

@@ -37,6 +37,11 @@ block; § 4, stk. 1, nr. 13 now consumes a typed
 Pensionsbeskatningsloven § 53 A result for taxable pension-return capital
 income, including PAL-method return, alternative capital-value return, taxable
 share allocation, negative-return carry-forward and stk. 4 exclusion posture;
+§ 4, stk. 1, nr. 14 now consumes a typed Ejendomsavancebeskatningsloven result
+for taxable real-property gains, including ordinary disposals, deemed disposals
+for insurance/compensation and gifts/advances, the basic § 4 gain formula,
+§ 4, stk. 8 artistic-decoration exclusions, næring exclusion and § 11
+expropriation-style exemptions;
 § 4, stk. 1, nr. 15 now consumes a typed LL § 12 B result for running
 payment saldo taxation and deductions under stk. 4-7 and stk. 9, including
 negative-saldo years, later-year payments, termination balances, right
@@ -216,6 +221,13 @@ Current § 4 and § 13 amendment/dependency sources:
   - § 53 A, stk. 1-6 is modeled as the Personskatteloven § 4, stk. 1,
     nr. 13 dependency for taxable pension-return capital income, with stk. 3
     taxable return, negative-return carry-forward and stk. 4 exclusions.
+- Ejendomsavancebeskatningsloven:
+  `https://www.retsinformation.dk/eli/lta/2019/132`
+  - XML status on 2026-07-18: `Valid`
+  - §§ 1, 1 A, 2, 4 and 11 are modeled as the Personskatteloven § 4,
+    stk. 1, nr. 14 dependency for taxable real-property gains, with næring
+    exclusion, deemed-disposal treatment, the basic gain formula, § 4, stk. 8
+    artistic-decoration exclusion and § 11 expropriation-style exclusions.
 - Ligningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1500`
   - XML status on 2026-07-18: `Valid`
@@ -432,6 +444,9 @@ encoded as a temporal rule on top of the consolidation.
 - `pensionsbeskatningsloven.runa` exists and checks/runs with `runa run`; it
   covers the Pensionsbeskatningsloven § 53 A dependency consumed by
   Personskatteloven § 4, stk. 1, nr. 13.
+- `ejendomsavancebeskatningsloven.runa` exists and checks/runs with
+  `runa run`; it covers the Ejendomsavancebeskatningsloven gain dependency
+  consumed by Personskatteloven § 4, stk. 1, nr. 14.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
@@ -452,6 +467,8 @@ encoded as a temporal rule on top of the consolidation.
   with `runa run`.
 - `personskatteloven-par4-pensionsbeskatningslov53a.audit.runa` exists and
   checks/runs with `runa run`.
+- `personskatteloven-par4-ejendomsavance.audit.runa` exists and checks/runs
+  with `runa run`.
 - `personskatteloven-par4-afskrivningslov40c.audit.runa` exists and
   checks/runs with `runa run`.
 - `personskatteloven-par4-fremleje.audit.runa` exists and checks/runs with
@@ -491,7 +508,9 @@ encoded as a temporal rule on top of the consolidation.
   classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
   under stk. 1, nr. 11 and stk. 8, LL § 5 C compensation classification under
   stk. 1, nr. 12, Pensionsbeskatningsloven § 53 A return classification under
-  stk. 1, nr. 13, LL § 12 B running-payment saldo classification under
+  stk. 1, nr. 13, Ejendomsavancebeskatningsloven real-property-gain
+  classification under stk. 1, nr. 14, LL § 12 B running-payment saldo
+  classification under
   stk. 1, nr. 15, Afskrivningsloven § 40 C saldo classification under
   stk. 1, nr. 16, subletting/letting surplus classification
   under stk. 1, nr. 17 derived from LL § 15 Q regulated bundfradrag, stk. 4
@@ -528,7 +547,8 @@ encoded as a temporal rule on top of the consolidation.
   482/2024 source branch for each layer,
   Ligningsloven ordinary wage-earner deduction, LL § 5 C and § 12 B
   capital-income dependencies, Pensionsbeskatningsloven § 53 A return
-  dependency, Afskrivningsloven § 40 C saldo dependency, and
+  dependency, Ejendomsavancebeskatningsloven real-property-gain dependency,
+  Afskrivningsloven § 40 C saldo dependency, and
   § 15 Q subletting/letting dependency slices,
   § 26 historical year-parameter derivation for 2012-2019,
   2024/2025/2026 tax-year parameter packs, grouped
@@ -581,8 +601,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 67-77% complete as an executable research corpus,
-  and roughly 53-63% complete as a production-grade calculator for
+- Working estimate: roughly 68-78% complete as an executable research corpus,
+  and roughly 54-64% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -717,6 +737,13 @@ Current decision:
   negative-return use and carry-forward together. `Par4Stk1Nr13Sag` consumes
   the typed result as Personskatteloven § 4, stk. 1, nr. 13 capital income
   rather than passing a loose return amount.
+- `EjendomsavancebeskatningslovSag` uses product-scoped `|` rules for EBL
+  §§ 1, 1 A, 2, 4 and 11. It keeps disposition type, næring exclusion,
+  § 11 expropriation-style exclusion, acquisition cash value, § 5/§ 5 A
+  regulation input, § 4, stk. 8 exclusions, disposal cash value, gain/loss and
+  taxable gain together. `Par4Stk1Nr14Sag` consumes the typed result as
+  Personskatteloven § 4, stk. 1, nr. 14 capital income rather than passing a
+  loose real-property gain amount.
 - `Ligningslov12BSag` uses product-scoped `|` rules for LL § 12 B. It keeps the
   running-payment role, event, application posture, saldo before and after
   payments or cash-converted consideration, negative-saldo amount, later-year
