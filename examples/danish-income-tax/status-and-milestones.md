@@ -28,10 +28,12 @@ rate result; § 7 spouse positive-net-capital tax now has an
 executable allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break
 rule; § 7 a now has post-level amount rules for included and excluded
 pension-like payments; § 13, stk. 4 now has amount-level spouse and
-carry-forward offset ordering for negative personal income; § 8 a, stk. 6 now
-has a pair-level both-negative spouse share-income threshold allocation, and
-§ 8 a negative share-income annual settlement now offsets the taxpayer's
-slutskat, spouse slutskat, and then carries the remainder forward; § 9
+carry-forward offset ordering for negative personal income; § 8 a, stk. 2
+high-layer share-income tax now flows through the wage-earner § 5/§ 9
+state-tax path, § 8 a, stk. 6 now has a pair-level both-negative spouse
+share-income threshold allocation, and § 8 a negative share-income annual
+settlement now offsets the taxpayer's slutskat, spouse slutskat, and then
+carries the remainder forward; § 9
 now has amount-level state-personfradrag reduction ordering for the split
 § 8/sundhedsbidrag and § 6/bundskat tax values plus non-state § 8 c,
 municipal-tax and church-tax personfradrag reductions, wired through the wage-earner
@@ -668,16 +670,17 @@ Current decision:
   basispoint rate together so the calculation does not depend on a bare 25 pct.
   constant.
 - `LønmodtagerSkatteforhold` groups non-ordinary taxpayer facts for the
-  wage-earner calculator: CFC income, § 8 c posture, and § 10 personfradrag
-  tax-liability/election facts. `LønmodtagerBeregningSag` uses product-scoped
-  `|` rules to compose that tax position with the ordinary wage-earner base,
-  so nonzero § 8 b CFC tax and § 8 c municipal-equivalent tax now flow through
-  § 5 state-tax aggregation, § 10 personfradrag eligibility, § 13 deficit
-  tax-value posture, and § 19's municipal-or-§ 8 c rate input without adding
-  more scalar fields to `LønmodtagerInput`. The public `beregn_lønmodtager`
-  path now uses this scoped model with standard tax conditions, so standard
-  fixtures and special tax-condition fixtures no longer diverge through separate
-  model constructors.
+  wage-earner calculator: share income and spouse share-income posture, CFC
+  income, § 8 c posture, and § 10 personfradrag tax-liability/election facts.
+  `LønmodtagerBeregningSag` uses product-scoped `|` rules to compose that tax
+  position with the ordinary wage-earner base, so nonzero § 8 a high-layer
+  share-income tax, § 8 b CFC tax, and § 8 c municipal-equivalent tax now flow
+  through § 5 state-tax aggregation, § 10 personfradrag eligibility, § 13
+  deficit tax-value posture, and § 19's municipal-or-§ 8 c rate input without
+  adding more scalar fields to `LønmodtagerInput`. The public
+  `beregn_lønmodtager` path now uses this scoped model with standard tax
+  conditions, so standard fixtures and special tax-condition fixtures no longer
+  diverge through separate model constructors.
 - `slutopgoerelse.runa` keeps the year-end balance as `KildeskatSlutopgørelseInput`
   plus a statutory `KildeskatPar60Kreditter` credit basket. This is a better
   domain boundary than passing A-skat, AM-bidrag, B-skat, dividend-tax credits,
@@ -1265,9 +1268,9 @@ M5 - Audit suite
   cases and source-backed phase-out rate provenance,
   historical § 8 sundhedsbidrag amount calculation with liability, zero-rate
   boundary cases, and source-backed phase-out rate provenance,
-  wage-earner domain-model projection of explicit § 7 a/§ 8 and zero-default
-  § 8 a/§ 8 b/§ 8 c state-tax slots through § 5 aggregation and § 9
-  personfradrag allocation,
+  wage-earner domain-model projection of explicit § 7 a/§ 8, positive § 8 a
+  high-layer share-income tax, and § 8 b/§ 8 c state-tax slots through § 5
+  aggregation and § 9 personfradrag allocation,
   ordinary wage and special-case AM-law coverage, ordinary Ligningsloven §§ 9 J/9 K
   wage-earner-deduction coverage plus § 9 L/§ 26 nr. 5 validation coverage,
   ordinary municipal/church-tax legal coverage,

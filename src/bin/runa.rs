@@ -22418,11 +22418,67 @@ impl RustCodegen {
 
         let prev_local_bindings = self.local_bindings.clone();
         let prev_copy_vars = self.copy_vars.clone();
+        let prev_var_use_counts = self.var_use_counts.clone();
+        let prev_var_consuming_counts = self.var_consuming_counts.clone();
         let prev_in_self_method = self.in_self_method;
+        let mut method_var_uses = BTreeMap::new();
+        let mut method_consuming_uses = BTreeMap::new();
+        for rule in rules {
+            match rule {
+                Rule::Default {
+                    value, condition, ..
+                }
+                | Rule::Exception {
+                    value, condition, ..
+                } => {
+                    count_var_uses(value, &mut method_var_uses);
+                    count_consuming_uses_borrow_aware_for_ownership(
+                        value,
+                        &mut method_consuming_uses,
+                        &self.borrow_only_params,
+                        None,
+                        &[],
+                    );
+                    if let Some(condition) = condition {
+                        count_var_uses(condition, &mut method_var_uses);
+                        count_consuming_uses_borrow_aware_for_ownership(
+                            condition,
+                            &mut method_consuming_uses,
+                            &self.borrow_only_params,
+                            None,
+                            &[],
+                        );
+                    }
+                }
+                Rule::Clause { body, .. } => {
+                    if let Some(body) = body {
+                        count_var_uses(body, &mut method_var_uses);
+                        count_consuming_uses_borrow_aware_for_ownership(
+                            body,
+                            &mut method_consuming_uses,
+                            &self.borrow_only_params,
+                            None,
+                            &[],
+                        );
+                    }
+                }
+                Rule::ReactiveScope { .. } => {}
+            }
+        }
         for (name, ty) in all_names.iter().zip(all_tys.iter()) {
             self.local_bindings.insert(name.clone());
             if Self::fir_ty_is_copy(ty) {
                 self.copy_vars.insert(name.clone());
+            }
+            if let Some(count) = method_var_uses.get(name).copied() {
+                self.var_use_counts.insert(name.clone(), count);
+            } else {
+                self.var_use_counts.remove(name);
+            }
+            if let Some(count) = method_consuming_uses.get(name).copied() {
+                self.var_consuming_counts.insert(name.clone(), count);
+            } else {
+                self.var_consuming_counts.remove(name);
             }
         }
         self.in_self_method = true;
@@ -22526,6 +22582,8 @@ impl RustCodegen {
 
         self.local_bindings = prev_local_bindings;
         self.copy_vars = prev_copy_vars;
+        self.var_use_counts = prev_var_use_counts;
+        self.var_consuming_counts = prev_var_consuming_counts;
         self.in_self_method = prev_in_self_method;
         body
     }
@@ -42690,6 +42748,30 @@ for x in [1, 2] {
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "42\n42\n42");
+    }
+
+    #[test]
+    fn compiled_rulescope_record_projection_clones_captured_input_fields() {
+        let source = r#"
+# Region = East | West
+# Input(region: Region, amount: Int)
+# Output(region: Region, direct_amount: Int, helper_amount: Int)
+
+| amount_for(input: Input) -> input.amount
+
+# Case(input: Input) {
+    | result() -> Output(
+        region = input.region,
+        direct_amount = input.amount,
+        helper_amount = amount_for(input)
+    )
+}
+
+= case = Case(Input(East, 41))
+@ print(show(case.result().helper_amount))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "41");
     }
 
     #[test]
