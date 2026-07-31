@@ -1,0 +1,50 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 16.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- afskrivningsloven.runa.
+
+= par4_stk1_nr16_audit_negativ_saldo = par4_stk1_nr16_resultat(Par4Stk1Nr16Input(
+    afskrivningslov40c_resultat = al40c_negativ_saldo_fixture
+))
+= par4_stk1_nr16_audit_positiv_saldo = par4_stk1_nr16_resultat(Par4Stk1Nr16Input(
+    afskrivningslov40c_resultat = al40c_positiv_saldo_fixture
+))
+= par4_stk1_nr16_audit_fortjeneste = par4_stk1_nr16_resultat(Par4Stk1Nr16Input(
+    afskrivningslov40c_resultat = al40c_afståelsesår_fortjeneste_fixture
+))
+= par4_stk1_nr16_audit_tab = par4_stk1_nr16_resultat(Par4Stk1Nr16Input(
+    afskrivningslov40c_resultat = al40c_afståelsesår_tab_fixture
+))
+= par4_stk1_nr16_audit_udenfor = par4_stk1_nr16_resultat(Par4Stk1Nr16Input(
+    afskrivningslov40c_resultat = al40c_udenfor_saldo_fixture
+))
+
+= par4_stk1_nr16_audit_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr16_kapitalpost(Par4Stk1Nr16Input(afskrivningslov40c_resultat = al40c_negativ_saldo_fixture)),
+        par4_stk1_nr16_kapitalpost(Par4Stk1Nr16Input(afskrivningslov40c_resultat = al40c_positiv_saldo_fixture)),
+        par4_stk1_nr16_kapitalpost(Par4Stk1Nr16Input(afskrivningslov40c_resultat = al40c_afståelsesår_fortjeneste_fixture)),
+        par4_stk1_nr16_kapitalpost(Par4Stk1Nr16Input(afskrivningslov40c_resultat = al40c_afståelsesår_tab_fixture)),
+        par4_stk1_nr16_kapitalpost(Par4Stk1Nr16Input(afskrivningslov40c_resultat = al40c_udenfor_saldo_fixture))
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr16_audit_negativ_saldo_indgår: par4_stk1_nr16_audit_negativ_saldo -> par4_stk1_nr16_audit_negativ_saldo.skattepligtige_beløb_kroner == 17000 && par4_stk1_nr16_audit_negativ_saldo.kapitalindkomst_kroner == 17000
+| par4_stk1_nr16_audit_positiv_saldo_indgår_ikke: par4_stk1_nr16_audit_positiv_saldo -> par4_stk1_nr16_audit_positiv_saldo.skattepligtige_beløb_kroner == 0 && par4_stk1_nr16_audit_positiv_saldo.fradragsberettigede_beløb_kroner == 0 && par4_stk1_nr16_audit_positiv_saldo.kapitalindkomst_kroner == 0
+| par4_stk1_nr16_audit_afståelsesår_fortjeneste_indgår: par4_stk1_nr16_audit_fortjeneste -> par4_stk1_nr16_audit_fortjeneste.skattepligtige_beløb_kroner == 12000 && par4_stk1_nr16_audit_fortjeneste.kapitalindkomst_kroner == 12000
+| par4_stk1_nr16_audit_afståelsesår_tab_fradrages: par4_stk1_nr16_audit_tab -> par4_stk1_nr16_audit_tab.fradragsberettigede_beløb_kroner == 15000 && par4_stk1_nr16_audit_tab.kapitalindkomst_kroner == -15000
+| par4_stk1_nr16_audit_udenfor_par40c_udelukkes: par4_stk1_nr16_audit_udenfor -> par4_stk1_nr16_audit_udenfor.omfattet_af_afskrivningslov40c == Falskt && par4_stk1_nr16_audit_udenfor.kapitalindkomst_kroner == 0
+| par4_stk1_nr16_audit_netto_kapitalindkomst: par4_stk1_nr16_audit_kapitalindkomst -> par4_stk1_nr16_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == 14000 && par4_stk1_nr16_audit_kapitalindkomst.nettokapitalindkomst_kroner == 14000 && par4_stk1_nr16_audit_kapitalindkomst.positiv_nettokapitalindkomst_kroner == 14000
+
+? par4_stk1_nr16_audit_negativ_saldo_indgår
+? par4_stk1_nr16_audit_positiv_saldo_indgår_ikke
+? par4_stk1_nr16_audit_afståelsesår_fortjeneste_indgår
+? par4_stk1_nr16_audit_afståelsesår_tab_fradrages
+? par4_stk1_nr16_audit_udenfor_par40c_udelukkes
+? par4_stk1_nr16_audit_netto_kapitalindkomst
+
+@ print("§4 stk.1 nr.16 kapitalindkomst fra Afskrivningslov §40C-saldoer: " + vis(par4_stk1_nr16_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner))
