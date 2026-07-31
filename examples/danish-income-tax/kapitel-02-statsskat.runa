@@ -1039,6 +1039,8 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 ----
 
 # AktieSkatteLag = LavAktieSkat | HøjAktieSkat
+# AktieindkomstskatSatsKilde = PersonskattelovenLbk1284Af2021Par8aStk1 | PersonskattelovenLbk1284Af2021Par8aStk2
+# AktieindkomstskatSatsResultat(skatteår: Heltal, lag: AktieSkatteLag, kilde: AktieindkomstskatSatsKilde, procent: Heltal, sats_basispoint: Heltal, endelig_skat: Boolsk, indgår_i_slutskat: Boolsk)
 # AktieSkatStatus = PositivAktieindkomst | NegativAktieindkomst
 # ÆgtefælleAktieStatus = IkkeSamlevende | SamlevendeVedÅretsUdløb
 # AktieindkomstPositivSkatInput(skatteår: Heltal, aktieindkomst_kroner: Heltal, effektivt_grundbeløb_kroner: Heltal)
@@ -1052,9 +1054,23 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 # AktieindkomstÆgtefællerBeggeNegativeInput(skatteår: Heltal, egen_negativ_aktieindkomst_kroner: Heltal, ægtefælles_negativ_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk)
 # AktieindkomstÆgtefællerBeggeNegativeResultat(grundbeløb_kroner: Heltal, dobbelt_grundbeløb_kroner: Heltal, egen_negativ_aktieindkomst_abs_kroner: Heltal, ægtefælles_negativ_aktieindkomst_abs_kroner: Heltal, egen_effektivt_grundbeløb_kroner: Heltal, ægtefælles_effektivt_grundbeløb_kroner: Heltal, egen_negativ_skat_kroner: Heltal, ægtefælles_negativ_skat_kroner: Heltal, samlet_negativ_skat_kroner: Heltal)
 
-| aktieindkomstskat_sats_basispoint(år: Heltal, lag: AktieSkatteLag) -> 2800 under lag == LavAktieSkat && (år == 2010 || år == 2011)
-| aktieindkomstskat_sats_basispoint(år: Heltal, lag: AktieSkatteLag) -> 2700 under lag == LavAktieSkat && år >= 2012
-| aktieindkomstskat_sats_basispoint(år: Heltal, lag: AktieSkatteLag) -> 4200 under lag == HøjAktieSkat
+| aktieindkomstskat_sats_kilde(år: Heltal, lag: AktieSkatteLag) -> PersonskattelovenLbk1284Af2021Par8aStk1 under lag == LavAktieSkat && år >= 2010
+| aktieindkomstskat_sats_kilde(år: Heltal, lag: AktieSkatteLag) -> PersonskattelovenLbk1284Af2021Par8aStk2 under lag == HøjAktieSkat && år >= 2010
+| aktieindkomstskat_procent(år: Heltal, lag: AktieSkatteLag) -> 28 under lag == LavAktieSkat && (år == 2010 || år == 2011)
+| aktieindkomstskat_procent(år: Heltal, lag: AktieSkatteLag) -> 27 under lag == LavAktieSkat && år >= 2012
+| aktieindkomstskat_procent(år: Heltal, lag: AktieSkatteLag) -> 42 under lag == HøjAktieSkat && år >= 2010
+| aktieindkomstskat_endelig_skat(lag: AktieSkatteLag) -> lag == LavAktieSkat
+| aktieindkomstskat_indgår_i_slutskat(lag: AktieSkatteLag) -> lag == HøjAktieSkat
+| aktieindkomstskat_sats_resultat(år: Heltal, lag: AktieSkatteLag) -> AktieindkomstskatSatsResultat(
+    skatteår = år,
+    lag = lag,
+    kilde = aktieindkomstskat_sats_kilde(år, lag),
+    procent = aktieindkomstskat_procent(år, lag),
+    sats_basispoint = aktieindkomstskat_procent(år, lag) * 100,
+    endelig_skat = aktieindkomstskat_endelig_skat(lag),
+    indgår_i_slutskat = aktieindkomstskat_indgår_i_slutskat(lag)
+) under år >= 2010
+| aktieindkomstskat_sats_basispoint(år: Heltal, lag: AktieSkatteLag) -> aktieindkomstskat_sats_resultat(år, lag).sats_basispoint
 | lav_aktieindkomstskat_er_endelig() -> Sandt
 | høj_aktieindkomstskat_indgår_i_slutskat() -> Sandt
 | negativ_aktieindkomst_modregnes(status: AktieSkatStatus) -> status == NegativAktieindkomst
@@ -1155,6 +1171,9 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 = par8a_lav_2011 = aktieindkomstskat_sats_basispoint(2011, LavAktieSkat)
 = par8a_lav_2012 = aktieindkomstskat_sats_basispoint(2012, LavAktieSkat)
 = par8a_høj = aktieindkomstskat_sats_basispoint(2022, HøjAktieSkat)
+= par8a_lav_2011_sats_resultat = aktieindkomstskat_sats_resultat(2011, LavAktieSkat)
+= par8a_lav_2012_sats_resultat = aktieindkomstskat_sats_resultat(2012, LavAktieSkat)
+= par8a_høj_2026_sats_resultat = aktieindkomstskat_sats_resultat(2026, HøjAktieSkat)
 = par8a_negativ = negativ_aktieindkomst_modregnes(NegativAktieindkomst)
 = par8a_grundbeløb_2026 = aktieindkomst_grundbeløb_for(2026)
 = par8a_150k_enlig = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
@@ -1199,6 +1218,9 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 | par8a_lav_2011_sats: par8a_lav_2011 -> par8a_lav_2011 == 2800
 | par8a_lav_2012_sats: par8a_lav_2012 -> par8a_lav_2012 == 2700
 | par8a_høj_sats: par8a_høj -> par8a_høj == 4200
+| par8a_lav_2011_sats_fra_stk1: par8a_lav_2011_sats_resultat -> par8a_lav_2011_sats_resultat.kilde == PersonskattelovenLbk1284Af2021Par8aStk1 && par8a_lav_2011_sats_resultat.procent == 28 && par8a_lav_2011_sats_resultat.sats_basispoint == 2800 && par8a_lav_2011_sats_resultat.endelig_skat == Sandt && par8a_lav_2011_sats_resultat.indgår_i_slutskat == Falskt
+| par8a_lav_2012_sats_fra_stk1: par8a_lav_2012_sats_resultat -> par8a_lav_2012_sats_resultat.kilde == PersonskattelovenLbk1284Af2021Par8aStk1 && par8a_lav_2012_sats_resultat.procent == 27 && par8a_lav_2012_sats_resultat.sats_basispoint == 2700 && par8a_lav_2012_sats_resultat.endelig_skat == Sandt && par8a_lav_2012_sats_resultat.indgår_i_slutskat == Falskt
+| par8a_høj_2026_sats_fra_stk2: par8a_høj_2026_sats_resultat -> par8a_høj_2026_sats_resultat.kilde == PersonskattelovenLbk1284Af2021Par8aStk2 && par8a_høj_2026_sats_resultat.procent == 42 && par8a_høj_2026_sats_resultat.sats_basispoint == 4200 && par8a_høj_2026_sats_resultat.endelig_skat == Falskt && par8a_høj_2026_sats_resultat.indgår_i_slutskat == Sandt
 | par8a_negativ_modregnes: par8a_negativ -> par8a_negativ == Sandt
 | par8a_2026_grundbeløb_fra_parametre: par8a_grundbeløb_2026 -> par8a_grundbeløb_2026 == 79400
 | par8a_positiv_splitter_lav_og_høj_skat: par8a_150k_enlig -> par8a_150k_enlig.lavt_grundlag_kroner == 79400 && par8a_150k_enlig.højt_grundlag_kroner == 70600 && par8a_150k_enlig.samlet_skat_kroner == 51090

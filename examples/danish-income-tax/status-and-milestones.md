@@ -701,6 +701,9 @@ Current decision:
   result. The low-wage/high-share scenario now audits that unused state
   personfradrag tax value can reduce the
   § 8 a, stk. 2 amount before Kildeskatteloven final settlement.
+  The source-law module now keeps § 8 a stk. 1/stk. 2 share-income tax rates,
+  source paragraph, final-tax posture, and slutskat-entry posture in one typed
+  rate result.
 - `AktieindkomstNegativSlutopgørelseCase` keeps § 8 a, stk. 5-6 negative
   share-income settlement separate from the positive-share case. It derives
   spouse positive-share offset, negative tax, whole dividend-tax credit for
@@ -1163,7 +1166,9 @@ M4 - Ordinary taxpayer calculator
   now builds a `Par5StatsskatResultat` for slutskat-bound state-tax components,
   excluding the final low-layer § 8 a tax while including the high-layer
   `Aktieindkomstskat` amount before § 12 personfradrag allocation. The
-  source-law module now also covers § 8 a, stk. 3 as a separate scoped rule case
+  source-law module now keeps source-backed § 8 a stk. 1/stk. 2 rate results
+  for the 28/27/42 pct. rates and also covers § 8 a, stk. 3 as a separate
+  scoped rule case
   for over-withheld dividend tax and negative-share-income full credit, and
   § 8 a, stk. 6 for both-negative spouse share-income cases where the double
   threshold is split proportionally. It now also covers negative-share-income
@@ -1229,7 +1234,8 @@ M5 - Audit suite
   indeholdelsesprocent derivation, covered Kildeskatteloven slutopgørelse
   balance/restskat timing/system-date-driven § 61 stk. 4/stk. 6 rateplans/
   overskydende skat compensation/dividend-tax credit posture, covered § 8 a
-  share-income final-settlement scenarios with § 67 dividend-tax credit
+  source-rate provenance and share-income final-settlement scenarios with § 67
+  dividend-tax credit
   splitting plus § 8 a, stk. 3 over-withheld/negative-share-income dividend-tax
   credits and § 8 a, stk. 6 both-negative spouse threshold allocation, covered
   § 8 b CFC tax source-rate provenance from the historic/current
