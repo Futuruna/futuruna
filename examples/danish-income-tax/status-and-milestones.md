@@ -1318,6 +1318,10 @@ M9 - Final provisions and transition compensation
   nr. 2 bundfradrag transfer with the § 48 F exception. An annual pair-level
   `Par26ForskelsbeløbParÅrsSag` now feeds the stk. 6 effective thresholds into
   the actual nr. 2 line items before the stk. 4 spouse difference offset.
+  `Par26ForskelsbeløbParÅrsKomponentSag` now accepts raw annual personal-income,
+  net-capital-income, and ligningsmæssige-fradrag components for both spouses,
+  applies stk. 5 before the nr. 2 base, stk. 8 before the nr. 8 base using the
+  § 11 threshold, and then delegates to the annual pair calculation.
   § 26 stk. 9 can now derive
   source-backed 2012-2019
   threshold packs from the official § 20 `reguleringstal`, § 26 nr. 5 can derive
