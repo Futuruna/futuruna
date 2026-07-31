@@ -21,7 +21,7 @@ Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for København
     skatteår = 2025,
     kommune = København,
     bruttoløn_kroner = 500000,
-    positiv_nettokapitalindkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Sandt
@@ -83,7 +83,7 @@ Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for Gentofte
     skatteår = 2025,
     kommune = Gentofte,
     bruttoløn_kroner = 750000,
-    positiv_nettokapitalindkomst_kroner = 20000,
+    nettokapitalindkomst_kroner = 20000,
     ligningsmæssige_fradrag_kroner = 10000,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Sandt
@@ -149,7 +149,7 @@ Skatteministeriets kommuneskat for København 2026.
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 900000,
-    positiv_nettokapitalindkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
@@ -196,7 +196,7 @@ Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 3000000,
-    positiv_nettokapitalindkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
@@ -233,7 +233,7 @@ Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 650000,
-    positiv_nettokapitalindkomst_kroner = 110000,
+    nettokapitalindkomst_kroner = 110000,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
@@ -277,7 +277,7 @@ for Langeland.
     skatteår = 2026,
     kommune = Langeland,
     bruttoløn_kroner = 900000,
-    positiv_nettokapitalindkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
@@ -313,7 +313,7 @@ kommuneskattesatser 2026 for Langeland.
     skatteår = 2026,
     kommune = Langeland,
     bruttoløn_kroner = 650000,
-    positiv_nettokapitalindkomst_kroner = 110000,
+    nettokapitalindkomst_kroner = 110000,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
@@ -575,7 +575,7 @@ jf. § 8, og«.
     skatteår = 2025,
     kommune = København,
     bruttoløn_kroner = 100000,
-    positiv_nettokapitalindkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 150000,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt

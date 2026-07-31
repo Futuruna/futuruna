@@ -41,7 +41,10 @@ calculator; § 10, stk. 3 now has amount-level spouse transfer of unused
 personfradrag state-tax value into the receiving spouse's § 9 state-tax basket,
 and the public wage-earner model now delegates to `LønmodtagerBeregningSag` so
 ordinary fixtures and special tax postures both use the same scoped § 10
-eligibility rules;
+eligibility rules; § 11 negative net-capital relief now runs through the
+ordinary wage-earner calculator as a named `LønmodtagerPar11NedslagResultat`,
+with the public input carrying net capital income while the model derives
+positive and negative capital views for the relevant statutory branches;
 § 14 now has a reusable statutory skatteberegning result that chooses between
 stk. 1/stk. 3 helårsomregning and stk. 2 period reduction, and the partial-year
 wage-earner path delegates its final § 14 amount to that object;
@@ -355,6 +358,7 @@ encoded as a temporal rule on top of the consolidation.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
+- `loenmodtager-par11.audit.runa` exists and checks/runs with `runa run`.
 - `skatdk-2026-ekstern.scenario.runa` exists and checks/runs with `runa run`.
 - `delaar-scenarier.scenario.runa` exists and checks/runs with `runa run`.
 - `omregning-skatteloft-ekstern.scenario.runa` exists and checks/runs with
@@ -373,7 +377,9 @@ encoded as a temporal rule on top of the consolidation.
 - `personskatteloven-konfiskatorisk.audit.runa` exists and checks/runs with
   `runa run`; its bounded year/municipality grid is now declared as
   constructor-shaped `|` facts and enumerated with `findall`.
-- `personskatteloven.audit.runa` exists and checks/runs with `runa run`.
+- `personskatteloven.audit.runa` exists and checks with `runa check`; focused
+  `.audit.runa` entrypoints are preferred for per-slice execution while the
+  umbrella audit stays broad.
 - `pengebeloeb.runa` exists and checks/runs with `runa run`.
 - Website research page exists at `/research/personskatteloven` and renders
   source status, milestone status, selected audit signals, and the checked
@@ -813,6 +819,13 @@ Current decision:
   plus assertions; later-year priority between a spouse's own prior deficits
   and another spouse's carried deficits should be modeled as a separate
   carry-forward-year case, not folded into first-year fixture setup.
+- `LønmodtagerPar11NedslagResultat` is the current right-sized § 11 boundary
+  inside the ordinary wage-earner calculator. `LønmodtagerInput` now carries
+  `nettokapitalindkomst_kroner`; helper rules derive positive net-capital income
+  for progressive positive-capital branches and negative net-capital income for
+  § 11. The focused `loenmodtager-par11.audit.runa` case verifies that a 2026
+  København wage-earner with -40.000 kr. net capital receives a 3.200 kr. § 11
+  reduction before final tax.
 - `loenmodtager_beregning.runa` now separates state income tax, municipal/church
   income tax, total income tax, and the final total including AM contribution.
   This keeps Personskatteloven § 14's "helårsskat efter §§ 6-9" from

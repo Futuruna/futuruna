@@ -29,7 +29,7 @@
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 0,
-    positiv_nettokapitalindkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt

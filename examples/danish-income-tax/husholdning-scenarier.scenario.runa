@@ -91,7 +91,7 @@ rules, and payroll settlement are not encoded in this slice.
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 600000,
-    positiv_nettokapitalindkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
@@ -100,7 +100,7 @@ rules, and payroll settlement are not encoded in this slice.
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 240000,
-    positiv_nettokapitalindkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt

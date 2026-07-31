@@ -1119,9 +1119,15 @@ fn compiler_validation_diagnostics(
     source_name: Option<String>,
 ) -> Vec<Diagnostic> {
     let mut cg = RustCodegen::new();
+    cg.source_dir = source_dir.clone();
+    cg.source_name = source_name.clone();
+    let mut diags = cg.collect_scope_lifetime_issues(stmts);
+
+    let mut cg = RustCodegen::new();
     cg.source_dir = source_dir;
     cg.source_name = source_name;
-    cg.collect_scope_lifetime_issues(stmts)
+    diags.extend(cg.collect_named_argument_issues(stmts));
+    diags
 }
 
 /// Run type checking and display any errors as structured diagnostics.
@@ -23736,6 +23742,134 @@ impl RustCodegen {
         diags
     }
 
+    fn collect_named_argument_issues(&mut self, input_stmts: &[Stmt]) -> Vec<Diagnostic> {
+        let all_stmts = self.scan_declarations(input_stmts);
+        let mut diags = Vec::new();
+        for stmt in &all_stmts {
+            walk_ast_stmt(stmt, &mut |child| {
+                if let AstChild::Expr(expr) = child {
+                    self.collect_named_argument_expr_issue(expr, &mut diags);
+                }
+            });
+        }
+        diags
+    }
+
+    fn collect_named_argument_expr_issue(&self, expr: &Expr, diags: &mut Vec<Diagnostic>) {
+        let ExprKind::App(func, args) = &expr.kind else {
+            return;
+        };
+        if !has_named_args(args) {
+            return;
+        }
+        let Some((kind, callable, params)) = self.named_argument_signature(func) else {
+            return;
+        };
+        self.collect_named_argument_signature_issues(kind, &callable, args, &params, diags);
+    }
+
+    fn named_argument_signature(&self, func: &Expr) -> Option<(&'static str, String, Vec<String>)> {
+        match &func.kind {
+            ExprKind::Var(name) => {
+                if let Some(fields) = self.types.variant_fields.get(name) {
+                    return Some(("constructor", name.clone(), fields.clone()));
+                }
+                if let Some(params) = self.types.call_params.get(name) {
+                    return Some(("function/rule", name.clone(), params.clone()));
+                }
+                None
+            }
+            ExprKind::Field(obj, method) => {
+                let obj_ty = self.infer_expr_fir_ty(obj);
+                let params = self.rule_scope_member_param_names_for_type(&obj_ty, method)?;
+                let scope = match obj_ty {
+                    FirTy::Named(name) => name,
+                    _ => "RuleScope".to_string(),
+                };
+                Some(("scoped rule", format!("{}.{}", scope, method), params))
+            }
+            _ => None,
+        }
+    }
+
+    fn collect_named_argument_signature_issues(
+        &self,
+        kind: &str,
+        callable: &str,
+        args: &[Expr],
+        params: &[String],
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        if !all_named_args(args) {
+            diags.push(Diagnostic::error(format!(
+                "{} `{}` call mixes named and positional arguments; use either all named arguments or all positional arguments",
+                kind, callable
+            )));
+            return;
+        }
+
+        let param_set: BTreeSet<&str> = params.iter().map(|param| param.as_str()).collect();
+        let mut seen = BTreeSet::new();
+        for arg in args {
+            let Some((param, _value)) = named_arg_parts(arg) else {
+                continue;
+            };
+            if !param_set.contains(param) {
+                let noun = if kind == "constructor" {
+                    "field"
+                } else {
+                    "parameter"
+                };
+                diags.push(Diagnostic::error(format!(
+                    "{} `{}` has no {} `{}`",
+                    kind, callable, noun, param
+                )));
+            }
+            if !seen.insert(param.to_string()) {
+                let noun = if kind == "constructor" {
+                    "field"
+                } else {
+                    "parameter"
+                };
+                diags.push(Diagnostic::error(format!(
+                    "{} `{}` {} `{}` was provided more than once",
+                    kind, callable, noun, param
+                )));
+            }
+        }
+
+        if args.len() != params.len() {
+            let noun = if kind == "constructor" {
+                "named field"
+            } else {
+                "named argument"
+            };
+            diags.push(Diagnostic::error(format!(
+                "{} `{}` expects {} {}{} but got {}",
+                kind,
+                callable,
+                params.len(),
+                noun,
+                if params.len() == 1 { "" } else { "s" },
+                args.len()
+            )));
+        }
+
+        for param in params {
+            if !seen.contains(param) {
+                let noun = if kind == "constructor" {
+                    "named field"
+                } else {
+                    "named argument"
+                };
+                diags.push(Diagnostic::error(format!(
+                    "{} `{}` is missing {} `{}`",
+                    kind, callable, noun, param
+                )));
+            }
+        }
+    }
+
     fn seed_async_stream_bindings_from_stmt_list(&mut self, stmts: &[Stmt]) {
         for stmt in stmts {
             match stmt {
@@ -43008,6 +43142,28 @@ for x in [1, 2] {
 
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "10\n20\n30");
+    }
+
+    #[test]
+    fn compiler_validation_rejects_unknown_named_constructor_field_in_rulescope_body() {
+        let source = r#"
+# SearchKey(positive: Int)
+# Case(positive: Int) {
+    | key() -> SearchKey(net = positive)
+}
+
+= case = Case(1)
+= key = case.key()
+"#;
+
+        let diags = compiler_validation_diags_for_source(source);
+        assert!(
+            diags.iter().any(|diag| diag
+                .message
+                .contains("constructor `SearchKey` has no field `net`")),
+            "expected unknown named constructor field diagnostic, got {:?}",
+            diags
+        );
     }
 
     fn named_function_rule_and_scoped_rule_source() -> &'static str {

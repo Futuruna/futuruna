@@ -59,7 +59,7 @@ skatteloft basis.
         skatteår = 2026,
         kommune = København,
         bruttoløn_kroner = 300000,
-        positiv_nettokapitalindkomst_kroner = 0,
+        nettokapitalindkomst_kroner = 0,
         ligningsmæssige_fradrag_kroner = 0,
         personfradrag_alder_status = Fyldt18EllerGift,
         betaler_kirkeskat = Falskt
@@ -75,7 +75,7 @@ skatteloft basis.
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 900000,
-    positiv_nettokapitalindkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
@@ -84,7 +84,7 @@ skatteloft basis.
     skatteår = 2026,
     kommune = Langeland,
     bruttoløn_kroner = 900000,
-    positiv_nettokapitalindkomst_kroner = 0,
+    nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
@@ -97,7 +97,7 @@ skatteloft basis.
     skatteår = 2026,
     kommune = København,
     bruttoløn_kroner = 650000,
-    positiv_nettokapitalindkomst_kroner = 110000,
+    nettokapitalindkomst_kroner = 110000,
     ligningsmæssige_fradrag_kroner = 0,
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
