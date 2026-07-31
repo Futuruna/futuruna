@@ -27,7 +27,10 @@ the LL § 8 K personal-owner branch, substantial-participation exclusion, and
 LL § 8 P renewable-energy owner exclusion; § 4, stk. 1, nr. 11 and stk. 8 now
 derive leasing income from depreciable operating assets and ships through the
 substantial-participation condition and Skatterådet's pre-19 May 1993
-permission carve-out; the 2026 § 7/§ 7 a/§ 8 reform
+permission carve-out; § 4, stk. 1, nr. 17 now derives tenant/shareholder
+subletting and letting surplus under LL § 15 Q stk. 1/3 as positive
+capital-income surplus while excluding owners/others and non-LL15Q cases; the
+2026 § 7/§ 7 a/§ 8 reform
 parameters for mellemskat, topskat and toptopskat now carry LOV nr. 482/2024
 source provenance and derive statutory 2010-level thresholds through § 20
 regulation, with § 7 a topskat and § 8 toptopskat exposed as personal-income
@@ -387,6 +390,8 @@ encoded as a temporal rule on top of the consolidation.
   with `runa run`.
 - `personskatteloven-par4-udlejning-driftsmidler.audit.runa` exists and
   checks/runs with `runa run`.
+- `personskatteloven-par4-fremleje.audit.runa` exists and checks/runs with
+  `runa run`.
 - `personskatteloven-par13a-gaeldsordning.audit.runa` exists and checks/runs
   with `runa run`.
 - `skatdk-2026-ekstern.scenario.runa` exists and checks/runs with `runa run`.
@@ -420,7 +425,8 @@ encoded as a temporal rule on top of the consolidation.
   and deduction totals, amount-level § 4 net capital-income inclusion,
   deductible capital costs, passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
-  under stk. 1, nr. 11 and stk. 8, positive/negative net-capital projections
+  under stk. 1, nr. 11 and stk. 8, subletting/letting surplus classification
+  under stk. 1, nr. 17, positive/negative net-capital projections
   and personal-income reclassification, plus amount-level § 4 a share-income
   inclusion, stk. 2 exclusions, stk. 3 personal-income reclassification,
   negative share-income preservation and pension deduction from positive share
@@ -625,6 +631,11 @@ Current decision:
   Skatterådet permission, council assessment, substantial-participation
   condition, covered capital-income amount, and noncovered amount together
   before the § 4 capital aggregate consumes the derived capital post.
+- `Par4Stk1Nr17Sag` uses product-scoped `|` rules for § 4, stk. 1, nr. 17.
+  It keeps the taxpayer's housing role, LL § 15 Q branch, gross rent income,
+  LL § 15 Q deduction amount, positive surplus, covered capital-income amount,
+  and noncovered amount together before the § 4 capital aggregate consumes the
+  derived capital post.
 - `PersonfradragPar10Sag` uses product-scoped `|` rules for § 10 eligibility.
   It keeps tax year, age status, tax-liability posture, partial-year election
   date, and reversal date together so the Kildeskatteloven § 2 full-year case,
@@ -1412,6 +1423,7 @@ M6 - Website integration
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing and system-start rateplan posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   first § 1/§ 2 taxable-income composition from the separate income categories,
+  first § 4 nr. 9/nr. 11/nr. 17 focused capital-income classification audits,
   first § 4 a pension/share-income audit,
   first § 8 a/§ 67 share-income annual-settlement scenario including negative
   share-income carry-forward,

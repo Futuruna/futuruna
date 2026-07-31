@@ -317,6 +317,10 @@ af 30. december 2024, foretages følgende ændring:
 # Par4Stk1Nr11Udlejningsaktiv = AfskrivningsberettigetDriftsmiddel | Skib
 # Par4Stk1Nr11Input(aktiv: Par4Stk1Nr11Udlejningsaktiv, beløb_kroner: Heltal, anskaffelse: Anskaffelsesstatus, skatteråds_tilladelse: SkatterådsTilladelse, rådets_skøn: RådetsSkøn, deltager_væsentligt_i_drift: Boolsk)
 # Par4Stk1Nr11Resultat(aktiv: Par4Stk1Nr11Udlejningsaktiv, stk8_regel_anvendes: Boolsk, stk8_tilladelse_afskærer: Boolsk, væsentlig_deltagelse_afskærer: Boolsk, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, ikke_omfattet_af_par4_nr11_kroner: Heltal)
+# Par4Stk1Nr17Boligrolle = Lejer | Andelshaver | EjerEllerAnden
+# Par4Stk1Nr17Ligningslov15QAfgrænsning = IkkeLigningslov15Q | Ligningslov15QStk1 | Ligningslov15QStk3
+# Par4Stk1Nr17Input(rolle: Par4Stk1Nr17Boligrolle, afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning, bruttolejeindtægt_kroner: Heltal, ligningslov15q_fradrag_kroner: Heltal)
+# Par4Stk1Nr17Resultat(rolle: Par4Stk1Nr17Boligrolle, afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning, lejer_eller_andelshaver: Boolsk, omfattet_af_ligningslov15q: Boolsk, bruttolejeindtægt_kroner: Heltal, ligningslov15q_fradrag_kroner: Heltal, overskud_efter_ligningslov15q_kroner: Heltal, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, ikke_omfattet_af_par4_nr17_kroner: Heltal)
 # Par4Kapitalpost(art: Kapitalpost, beløb_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Kapitalomkostning(beløb_kroner: Heltal)
 # Par4KapitalindkomstInput(poster: List(Par4Kapitalpost), omkostninger: List(Par4Kapitalomkostning))
@@ -399,6 +403,44 @@ af 30. december 2024, foretages følgende ændring:
 | par4_stk1_nr11_kapitalpost(input: Par4Stk1Nr11Input) -> Par4Kapitalpost(
     art = UdlejningAfDriftsmidlerOgSkibe,
     beløb_kroner = par4_stk1_nr11_sag(input).kapitalindkomst_kroner(),
+    personlig_reklassifikation = IngenPersonligReklassifikation
+)
+
+| par4_stk1_nr17_lejer_eller_andelshaver(rolle: Par4Stk1Nr17Boligrolle) -> Falskt
+| exception par4_stk1_nr17_lejer par4_stk1_nr17_lejer_eller_andelshaver(rolle: Par4Stk1Nr17Boligrolle) -> Sandt under rolle == Lejer
+| exception par4_stk1_nr17_andelshaver par4_stk1_nr17_lejer_eller_andelshaver(rolle: Par4Stk1Nr17Boligrolle) -> Sandt under rolle == Andelshaver
+| par4_stk1_nr17_ligningslov15q_omfattet(afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning) -> Falskt
+| exception par4_stk1_nr17_ligningslov15q_stk1 par4_stk1_nr17_ligningslov15q_omfattet(afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning) -> Sandt under afgrænsning == Ligningslov15QStk1
+| exception par4_stk1_nr17_ligningslov15q_stk3 par4_stk1_nr17_ligningslov15q_omfattet(afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning) -> Sandt under afgrænsning == Ligningslov15QStk3
+
+# Par4Stk1Nr17Sag(input: Par4Stk1Nr17Input) {
+    | lejer_eller_andelshaver() -> par4_stk1_nr17_lejer_eller_andelshaver(input.rolle)
+    | omfattet_af_ligningslov15q() -> par4_stk1_nr17_ligningslov15q_omfattet(input.afgrænsning)
+    | bruttolejeindtægt_kroner() -> penge_positivt_beløb(input.bruttolejeindtægt_kroner)
+    | ligningslov15q_fradrag_kroner() -> penge_positivt_beløb(input.ligningslov15q_fradrag_kroner)
+    | overskud_efter_ligningslov15q_kroner() -> penge_positivt_beløb(bruttolejeindtægt_kroner() - ligningslov15q_fradrag_kroner())
+    | omfattet_af_kapitalindkomst() -> lejer_eller_andelshaver() && omfattet_af_ligningslov15q() && overskud_efter_ligningslov15q_kroner() > 0
+    | kapitalindkomst_kroner() -> 0
+    | exception par4_stk1_nr17_fremleje_overskud kapitalindkomst_kroner() -> overskud_efter_ligningslov15q_kroner() under omfattet_af_kapitalindkomst()
+    | ikke_omfattet_af_par4_nr17_kroner() -> overskud_efter_ligningslov15q_kroner() - kapitalindkomst_kroner()
+    | resultat() -> Par4Stk1Nr17Resultat(
+        rolle = input.rolle,
+        afgrænsning = input.afgrænsning,
+        lejer_eller_andelshaver = lejer_eller_andelshaver(),
+        omfattet_af_ligningslov15q = omfattet_af_ligningslov15q(),
+        bruttolejeindtægt_kroner = bruttolejeindtægt_kroner(),
+        ligningslov15q_fradrag_kroner = ligningslov15q_fradrag_kroner(),
+        overskud_efter_ligningslov15q_kroner = overskud_efter_ligningslov15q_kroner(),
+        omfattet_af_kapitalindkomst = omfattet_af_kapitalindkomst(),
+        kapitalindkomst_kroner = kapitalindkomst_kroner(),
+        ikke_omfattet_af_par4_nr17_kroner = ikke_omfattet_af_par4_nr17_kroner()
+    )
+}
+| par4_stk1_nr17_sag(input: Par4Stk1Nr17Input) -> Par4Stk1Nr17Sag(input)
+| par4_stk1_nr17_resultat(input: Par4Stk1Nr17Input) -> par4_stk1_nr17_sag(input).resultat()
+| par4_stk1_nr17_kapitalpost(input: Par4Stk1Nr17Input) -> Par4Kapitalpost(
+    art = FremlejeOverskud,
+    beløb_kroner = par4_stk1_nr17_sag(input).kapitalindkomst_kroner(),
     personlig_reklassifikation = IngenPersonligReklassifikation
 )
 
@@ -509,12 +551,48 @@ af 30. december 2024, foretages følgende ændring:
 = par4_stk1_nr11_passiv_fixture = par4_stk1_nr11_resultat(par4_stk1_nr11_passiv_input)
 = par4_stk1_nr11_aktiv_fixture = par4_stk1_nr11_resultat(par4_stk1_nr11_aktiv_input)
 = par4_stk1_nr11_stk8_tilladt_fixture = par4_stk1_nr11_resultat(par4_stk1_nr11_stk8_tilladt_input)
+= par4_stk1_nr17_lejer_input = Par4Stk1Nr17Input(
+    rolle = Lejer,
+    afgrænsning = Ligningslov15QStk1,
+    bruttolejeindtægt_kroner = 50000,
+    ligningslov15q_fradrag_kroner = 25000
+)
+= par4_stk1_nr17_andelshaver_input = Par4Stk1Nr17Input(
+    rolle = Andelshaver,
+    afgrænsning = Ligningslov15QStk3,
+    bruttolejeindtægt_kroner = 45000,
+    ligningslov15q_fradrag_kroner = 10000
+)
+= par4_stk1_nr17_ejer_input = Par4Stk1Nr17Input(
+    rolle = EjerEllerAnden,
+    afgrænsning = Ligningslov15QStk1,
+    bruttolejeindtægt_kroner = 50000,
+    ligningslov15q_fradrag_kroner = 20000
+)
+= par4_stk1_nr17_udenfor_ll15q_input = Par4Stk1Nr17Input(
+    rolle = Lejer,
+    afgrænsning = IkkeLigningslov15Q,
+    bruttolejeindtægt_kroner = 40000,
+    ligningslov15q_fradrag_kroner = 5000
+)
+= par4_stk1_nr17_underskud_input = Par4Stk1Nr17Input(
+    rolle = Lejer,
+    afgrænsning = Ligningslov15QStk1,
+    bruttolejeindtægt_kroner = 10000,
+    ligningslov15q_fradrag_kroner = 15000
+)
+= par4_stk1_nr17_lejer_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_lejer_input)
+= par4_stk1_nr17_andelshaver_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_andelshaver_input)
+= par4_stk1_nr17_ejer_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_ejer_input)
+= par4_stk1_nr17_udenfor_ll15q_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_udenfor_ll15q_input)
+= par4_stk1_nr17_underskud_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_underskud_input)
 = par4_kapitalindkomst_resultat_fixture = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
     poster = [
         Par4Kapitalpost(art = RenterOgLigningslov6, beløb_kroner = 12000, personlig_reklassifikation = IngenPersonligReklassifikation),
         Par4Kapitalpost(art = KursgevinstOgTab, beløb_kroner = -5000, personlig_reklassifikation = IngenPersonligReklassifikation),
         par4_stk1_nr9_kapitalpost(par4_stk1_nr9_passiv_input),
         par4_stk1_nr11_kapitalpost(par4_stk1_nr11_passiv_input),
+        par4_stk1_nr17_kapitalpost(par4_stk1_nr17_lejer_input),
         Par4Kapitalpost(art = AktieudbytteIkkeAktieindkomst, beløb_kroner = 8000, personlig_reklassifikation = Aktieavance17Aktier),
         Par4Kapitalpost(art = InvesteringsformidlerBeløb, beløb_kroner = 3000, personlig_reklassifikation = Investeringsformidler19CHvis17Aktier)
     ],
@@ -552,7 +630,12 @@ af 30. december 2024, foretages følgende ændring:
 | par4_stk1_nr11_udlejning_indgår: par4_stk1_nr11_passiv_fixture -> par4_stk1_nr11_passiv_fixture.stk8_regel_anvendes == Sandt && par4_stk1_nr11_passiv_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr11_passiv_fixture.kapitalindkomst_kroner == 30000 && par4_stk1_nr11_passiv_fixture.ikke_omfattet_af_par4_nr11_kroner == 0
 | par4_stk1_nr11_væsentlig_drift_afskærer: par4_stk1_nr11_aktiv_fixture -> par4_stk1_nr11_aktiv_fixture.væsentlig_deltagelse_afskærer == Sandt && par4_stk1_nr11_aktiv_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr11_aktiv_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr11_aktiv_fixture.ikke_omfattet_af_par4_nr11_kroner == 30000
 | par4_stk8_skatterådet_afskærer_nr11: par4_stk1_nr11_stk8_tilladt_fixture -> par4_stk1_nr11_stk8_tilladt_fixture.stk8_tilladelse_afskærer == Sandt && par4_stk1_nr11_stk8_tilladt_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr11_stk8_tilladt_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr11_stk8_tilladt_fixture.ikke_omfattet_af_par4_nr11_kroner == 30000
-| par4_nettokapitalindkomst_beregnes_beløb: par4_kapitalindkomst_resultat_fixture -> par4_kapitalindkomst_resultat_fixture.postbeløb_i_kapitalindkomst_kroner == 77000 && par4_kapitalindkomst_resultat_fixture.fradragsberettigede_omkostninger_kroner == 2000 && par4_kapitalindkomst_resultat_fixture.nettokapitalindkomst_kroner == 75000 && par4_kapitalindkomst_resultat_fixture.positiv_nettokapitalindkomst_kroner == 75000 && par4_kapitalindkomst_resultat_fixture.omklassificeret_personlig_indkomst_kroner == 11000
+| par4_stk1_nr17_lejer_fremleje_indgår: par4_stk1_nr17_lejer_fixture -> par4_stk1_nr17_lejer_fixture.lejer_eller_andelshaver == Sandt && par4_stk1_nr17_lejer_fixture.omfattet_af_ligningslov15q == Sandt && par4_stk1_nr17_lejer_fixture.overskud_efter_ligningslov15q_kroner == 25000 && par4_stk1_nr17_lejer_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr17_lejer_fixture.kapitalindkomst_kroner == 25000
+| par4_stk1_nr17_andelshaver_stk3_indgår: par4_stk1_nr17_andelshaver_fixture -> par4_stk1_nr17_andelshaver_fixture.lejer_eller_andelshaver == Sandt && par4_stk1_nr17_andelshaver_fixture.omfattet_af_ligningslov15q == Sandt && par4_stk1_nr17_andelshaver_fixture.overskud_efter_ligningslov15q_kroner == 35000 && par4_stk1_nr17_andelshaver_fixture.kapitalindkomst_kroner == 35000
+| par4_stk1_nr17_ejer_er_ikke_nr17: par4_stk1_nr17_ejer_fixture -> par4_stk1_nr17_ejer_fixture.lejer_eller_andelshaver == Falskt && par4_stk1_nr17_ejer_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr17_ejer_fixture.ikke_omfattet_af_par4_nr17_kroner == 30000
+| par4_stk1_nr17_udenfor_ligningslov15q_afskæres: par4_stk1_nr17_udenfor_ll15q_fixture -> par4_stk1_nr17_udenfor_ll15q_fixture.omfattet_af_ligningslov15q == Falskt && par4_stk1_nr17_udenfor_ll15q_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr17_udenfor_ll15q_fixture.ikke_omfattet_af_par4_nr17_kroner == 35000
+| par4_stk1_nr17_intet_positivt_overskud: par4_stk1_nr17_underskud_fixture -> par4_stk1_nr17_underskud_fixture.overskud_efter_ligningslov15q_kroner == 0 && par4_stk1_nr17_underskud_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr17_underskud_fixture.kapitalindkomst_kroner == 0
+| par4_nettokapitalindkomst_beregnes_beløb: par4_kapitalindkomst_resultat_fixture -> par4_kapitalindkomst_resultat_fixture.postbeløb_i_kapitalindkomst_kroner == 102000 && par4_kapitalindkomst_resultat_fixture.fradragsberettigede_omkostninger_kroner == 2000 && par4_kapitalindkomst_resultat_fixture.nettokapitalindkomst_kroner == 100000 && par4_kapitalindkomst_resultat_fixture.positiv_nettokapitalindkomst_kroner == 100000 && par4_kapitalindkomst_resultat_fixture.omklassificeret_personlig_indkomst_kroner == 11000
 | par4_negativ_nettokapitalindkomst_beregnes: par4_negativ_nettokapitalindkomst_fixture -> par4_negativ_nettokapitalindkomst_fixture.nettokapitalindkomst_kroner == -25000 && par4_negativ_nettokapitalindkomst_fixture.positiv_nettokapitalindkomst_kroner == 0 && par4_negativ_nettokapitalindkomst_fixture.negativ_nettokapitalindkomst_abs_kroner == 25000
 
 ----
