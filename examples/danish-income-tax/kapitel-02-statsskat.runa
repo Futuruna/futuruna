@@ -1219,15 +1219,40 @@ Selskabsskatteloven, LBK nr. 279 af 13/03/2025, § 17, stk. 1:
 
 Indkomstskatten for de i § 1, stk. 1, nr. 1-2 i og 3 a-5 b, og § 3, stk. 7,
 nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes af den
-skattepligtige indkomst og udgør 22 pct.
+skattepligtige indkomst og udgør 22 pct. Indkomst omfattet af
+kulbrinteskattelovens § 4, stk. 1 og 2, beskattes med selskabsskatteprocenten
+efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
 ----
 
+----
+Selskabsskatteloven, LBK nr. 1241 af 22/08/2022, § 17, stk. 1:
+
+Indkomstskatten for de i § 1, stk. 1, nr. 1-2 b, 2 d-2 j og 3 a-5 b, og § 3,
+stk. 7, nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes af den
+skattepligtige indkomst og udgør 22 pct. Indkomst omfattet af
+kulbrinteskattelovens § 4, stk. 1 og 2, beskattes med selskabsskatteprocenten
+efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
+----
+
+# SelskabsskattelovPar17Stk1SatsKilde = SelskabsskattelovenLbk1241Af2022 | SelskabsskattelovenLbk279Af2025
+# SelskabsskattelovPar17Stk1SatsResultat(skatteår: Heltal, kilde: SelskabsskattelovPar17Stk1SatsKilde, selskabsskat_basispoint: Heltal, tillægsselskabsskat_basispoint: Heltal, cfc_sats_basispoint: Heltal)
 # CfcSkatInput(skatteår: Heltal, cfc_indkomst_kroner: Heltal)
 # CfcSkatResultat(cfc_indkomst_kroner: Heltal, sats_basispoint: Heltal, skat_kroner: Heltal)
 
-| cfc_skat_bruger_selskabsskattelovens_par17_stk1() -> Sandt
-| selskabsskattelov_par17_stk1_sats_basispoint(skatteår: Heltal) -> 2200 under skatteår >= 2024
-| cfc_skat_sats_basispoint(skatteår: Heltal) -> selskabsskattelov_par17_stk1_sats_basispoint(skatteår)
+| selskabsskattelov_par17_stk1_sats_kilde(skatteår: Heltal) -> SelskabsskattelovenLbk1241Af2022 under skatteår >= 2024 && skatteår < 2025
+| selskabsskattelov_par17_stk1_sats_kilde(skatteår: Heltal) -> SelskabsskattelovenLbk279Af2025 under skatteår >= 2025
+| selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår: Heltal) -> 2200 under skatteår >= 2024
+| selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint(skatteår: Heltal) -> 300 under skatteår >= 2024
+| selskabsskattelov_par17_stk1_sats_resultat(skatteår: Heltal) -> SelskabsskattelovPar17Stk1SatsResultat(
+    skatteår = skatteår,
+    kilde = selskabsskattelov_par17_stk1_sats_kilde(skatteår),
+    selskabsskat_basispoint = selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår),
+    tillægsselskabsskat_basispoint = selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint(skatteår),
+    cfc_sats_basispoint = selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår)
+) under skatteår >= 2024
+| selskabsskattelov_par17_stk1_sats_basispoint(skatteår: Heltal) -> selskabsskattelov_par17_stk1_sats_resultat(skatteår).selskabsskat_basispoint
+| cfc_skat_sats_resultat(skatteår: Heltal) -> selskabsskattelov_par17_stk1_sats_resultat(skatteår)
+| cfc_skat_sats_basispoint(skatteår: Heltal) -> cfc_skat_sats_resultat(skatteår).cfc_sats_basispoint
 | cfc_skat_kroner(input: CfcSkatInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.cfc_indkomst_kroner), cfc_skat_sats_basispoint(input.skatteår))
 | cfc_skat_input_fra_par4b(skatteår: Heltal, cfc_resultat: Par4bCfcIndkomstResultat) -> CfcSkatInput(
     skatteår = skatteår,
@@ -1240,6 +1265,7 @@ skattepligtige indkomst og udgør 22 pct.
 )
 | cfc_skat_resultat_fra_par4b(skatteår: Heltal, cfc_resultat: Par4bCfcIndkomstResultat) -> cfc_skat_resultat(cfc_skat_input_fra_par4b(skatteår = skatteår, cfc_resultat = cfc_resultat))
 
+= par8b_2026_selskabsskat_sats = selskabsskattelov_par17_stk1_sats_resultat(2026)
 = par8b_cfc_500k = cfc_skat_resultat(CfcSkatInput(
     skatteår = 2026,
     cfc_indkomst_kroner = 500000
@@ -1253,7 +1279,8 @@ skattepligtige indkomst og udgør 22 pct.
     cfc_resultat = par4b_negativ_cfc_indkomst_fixture
 )
 
-| par8b_cfc_selskabsskat_sats: cfc_skat_sats_basispoint(2026) -> cfc_skat_sats_basispoint(2026) == 2200
+| par8b_cfc_selskabsskat_sats: par8b_2026_selskabsskat_sats -> par8b_2026_selskabsskat_sats.kilde == SelskabsskattelovenLbk279Af2025 && par8b_2026_selskabsskat_sats.selskabsskat_basispoint == 2200 && par8b_2026_selskabsskat_sats.tillægsselskabsskat_basispoint == 300 && par8b_2026_selskabsskat_sats.cfc_sats_basispoint == 2200 && cfc_skat_sats_basispoint(2026) == 2200
+| par8b_cfc_selskabsskat_historisk_sats: selskabsskattelov_par17_stk1_sats_resultat(2024) -> selskabsskattelov_par17_stk1_sats_resultat(2024).kilde == SelskabsskattelovenLbk1241Af2022 && cfc_skat_sats_basispoint(2024) == 2200
 | par8b_cfc_500k_skat: par8b_cfc_500k -> par8b_cfc_500k.skat_kroner == 110000
 | par8b_cfc_skat_fra_par4b_indkomst: par8b_cfc_fra_par4b_fixture -> par8b_cfc_fra_par4b_fixture.cfc_indkomst_kroner == 500000 && par8b_cfc_fra_par4b_fixture.skat_kroner == 110000
 | par8b_negativ_cfc_skat_fra_par4b_indkomst: par8b_negativ_cfc_fra_par4b_fixture -> par8b_negativ_cfc_fra_par4b_fixture.cfc_indkomst_kroner == 0 && par8b_negativ_cfc_fra_par4b_fixture.skat_kroner == 0

@@ -27,6 +27,14 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2026/615
 -- XML: https://www.retsinformation.dk/eli/lta/2026/615/dan/xml
 --
+-- Afhængig kilde for § 8 b's CFC-sats:
+-- Retsinformation, LBK nr. 1241 af 22/08/2022.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2022/1241
+-- XML: https://www.retsinformation.dk/eli/lta/2022/1241/dan/xml
+-- Retsinformation, LBK nr. 279 af 13/03/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/279
+-- XML: https://www.retsinformation.dk/eli/lta/2025/279/dan/xml
+--
 -- Afhængige kilder for § 13's pensions- og sømandslempelser:
 -- Retsinformation, LBK nr. 1243 af 24/10/2024.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/1243
@@ -134,6 +142,23 @@ Status: Valid
 DiesSigni: 2026-06-30
 StartDate: 2026-06-30
 EndDate: 2026-07-01
+
+Officiel XML-metadata for 2022/1241, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af selskabsskatteloven
+PopularTitle: Selskabsskatteloven
+Status: Historic
+DiesSigni: 2022-08-22
+StartDate: 2022-09-02
+EndDate: 2026-06-23
+DateOfHistoricMark: 2025-03-17
+
+Officiel XML-metadata for 2025/279, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af selskabsskatteloven
+PopularTitle: Selskabsskatteloven
+Status: Valid
+DiesSigni: 2025-03-13
+StartDate: 2025-03-17
+EndDate: 2026-06-23
 
 Officiel XML-metadata for 2024/1243, hentet 2026-07-18:
 DocumentTitle: Bekendtgørelse af lov om beskatningen af pensionsordninger m.v. (pensionsbeskatningsloven)
@@ -305,6 +330,24 @@ EndDate: 2026-07-01
     metadata_start_yyyymmdd = 20260630,
     metadata_end_yyyymmdd = 20260701
 )
+= selskabsskatteloven_2022_1241 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2022/1241",
+    år = 2022,
+    nummer = 1241,
+    status = Historisk,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20220902,
+    metadata_end_yyyymmdd = 20260623
+)
+= selskabsskatteloven_2025_279 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2025/279",
+    år = 2025,
+    nummer = 279,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20250317,
+    metadata_end_yyyymmdd = 20260623
+)
 = pensionsbeskatningsloven_2024_1243 = Retskilde(
     eli = "https://www.retsinformation.dk/eli/lta/2024/1243",
     år = 2024,
@@ -453,6 +496,7 @@ EndDate: 2026-07-01
 | kilde_er_personskatteloven(kilde: Retskilde) -> kilde.nummer == 799 || kilde.nummer == 1284
 | kilde_er_personskat_reform(kilde: Retskilde) -> kilde.nummer == 482 && kilde.år == 2024
 | kilde_er_personskat_aendring(kilde: Retskilde) -> (kilde.nummer == 1564 && kilde.år == 2023) || (kilde.nummer == 1691 && kilde.år == 2024) || (kilde.nummer == 615 && kilde.år == 2026)
+| kilde_er_selskabsskatteloven(kilde: Retskilde) -> (kilde.nummer == 1241 && kilde.år == 2022) || (kilde.nummer == 279 && kilde.år == 2025)
 | kilde_er_pensionsbeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1243 && kilde.år == 2024
 | kilde_er_sømandsbeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1181 && kilde.år == 2023
 | kilde_er_arbejdsmarkedsbidragsloven(kilde: Retskilde) -> kilde.nummer == 121 && kilde.år == 2020
@@ -484,6 +528,8 @@ EndDate: 2026-07-01
 = personfradrag_aendring_til_aktuel_beregning = kilde_egnet_til_formål(personskat_personfradrag_aendring_2023_1564, AktuelSkatteberegning)
 = ivaerksaetter_aendring_til_aktuel_beregning = kilde_egnet_til_formål(personskat_ivaerksaetter_aendring_2024_1691, AktuelSkatteberegning)
 = ejendom_aendring_til_aktuel_beregning = kilde_egnet_til_formål(personskat_ejendom_aendring_2026_615, AktuelSkatteberegning)
+= selskabsskattelov_til_aktuel_beregning = kilde_egnet_til_formål(selskabsskatteloven_2025_279, AktuelSkatteberegning)
+= selskabsskattelov_historisk_til_audit = kilde_egnet_til_formål(selskabsskatteloven_2022_1241, HistoriskAudit)
 = pensionsbeskatningslov_til_aktuel_beregning = kilde_egnet_til_formål(pensionsbeskatningsloven_2024_1243, AktuelSkatteberegning)
 = sømandsbeskatningslov_til_aktuel_beregning = kilde_egnet_til_formål(sømandsbeskatningsloven_2023_1181, AktuelSkatteberegning)
 = am_lov_til_aktuel_beregning = kilde_egnet_til_formål(arbejdsmarkedsbidragsloven_2020_121, AktuelSkatteberegning)
@@ -502,20 +548,23 @@ EndDate: 2026-07-01
 = personskattelov_dagsaktuel_beregning = kilde_egnet_til_formål(personskatteloven_2021_1284, DagsaktuelAutomatiskBeregning)
 
 = personskat_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(personskatteloven_2021_1284) && kilde_hentet_på_statusdato(personskat_personfradrag_aendring_2023_1564) && kilde_hentet_på_statusdato(personskat_reform_2024_482) && kilde_hentet_på_statusdato(personskat_ivaerksaetter_aendring_2024_1691) && kilde_hentet_på_statusdato(personskat_ejendom_aendring_2026_615)
+= par8b_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(selskabsskatteloven_2025_279)
+= par8b_historisk_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(selskabsskatteloven_2022_1241)
 = par13_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(pensionsbeskatningsloven_2024_1243) && kilde_hentet_på_statusdato(sømandsbeskatningsloven_2023_1181)
 = am_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(arbejdsmarkedsbidragsloven_2020_121) && kilde_hentet_på_statusdato(arbejdsmarkedsbidrag_aendring_2025_96)
 = kommunal_folkekirke_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(kommuneskatteloven_2019_935) && kilde_hentet_på_statusdato(folkekirkens_økonomilov_2023_424) && kilde_hentet_på_statusdato(folkekirke_økonomi_aendring_2025_1772)
 = kildeskat_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(kildeskatteloven_2024_460) && kilde_hentet_på_statusdato(kildeskattebekendtgørelsen_2025_839) && kilde_hentet_på_statusdato(forskudsregistrering_indeholdelsesprocent_2025_1094) && kilde_hentet_på_statusdato(forskudsregistrering_indeholdelsesprocent_aendring_2025_1828)
 = opkrævning_ligning_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(opkrævningsloven_2024_1040) && kilde_hentet_på_statusdato(opkrævningslov_aendring_2024_1694) && kilde_hentet_på_statusdato(opkrævningslov_aendring_2025_1783) && kilde_hentet_på_statusdato(opkrævningslov_ikraft_2025_1793) && kilde_hentet_på_statusdato(ligningsloven_2025_1500)
-= gældende_kilder_hentet_på_statusdato = personskat_kilder_hentet_på_statusdato && par13_dependency_kilder_hentet_på_statusdato && am_kilder_hentet_på_statusdato && kommunal_folkekirke_kilder_hentet_på_statusdato && kildeskat_kilder_hentet_på_statusdato && opkrævning_ligning_kilder_hentet_på_statusdato
+= gældende_kilder_hentet_på_statusdato = personskat_kilder_hentet_på_statusdato && par8b_dependency_kilder_hentet_på_statusdato && par13_dependency_kilder_hentet_på_statusdato && am_kilder_hentet_på_statusdato && kommunal_folkekirke_kilder_hentet_på_statusdato && kildeskat_kilder_hentet_på_statusdato && opkrævning_ligning_kilder_hentet_på_statusdato
 
 = personskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(personskatteloven_2021_1284) && kilde_formelt_gældende_men_metadata_udløbet(personskat_personfradrag_aendring_2023_1564) && kilde_formelt_gældende_men_metadata_udløbet(personskat_reform_2024_482) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ivaerksaetter_aendring_2024_1691) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ejendom_aendring_2026_615)
+= par8b_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(selskabsskatteloven_2025_279)
 = par13_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(pensionsbeskatningsloven_2024_1243) && kilde_formelt_gældende_men_metadata_udløbet(sømandsbeskatningsloven_2023_1181)
 = am_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(arbejdsmarkedsbidragsloven_2020_121) && kilde_formelt_gældende_men_metadata_udløbet(arbejdsmarkedsbidrag_aendring_2025_96)
 = kommunal_folkekirke_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(kommuneskatteloven_2019_935) && kilde_formelt_gældende_men_metadata_udløbet(folkekirkens_økonomilov_2023_424) && kilde_formelt_gældende_men_metadata_udløbet(folkekirke_økonomi_aendring_2025_1772)
 = kildeskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(kildeskatteloven_2024_460) && kilde_formelt_gældende_men_metadata_udløbet(kildeskattebekendtgørelsen_2025_839) && kilde_formelt_gældende_men_metadata_udløbet(forskudsregistrering_indeholdelsesprocent_2025_1094) && kilde_formelt_gældende_men_metadata_udløbet(forskudsregistrering_indeholdelsesprocent_aendring_2025_1828)
 = opkrævning_ligning_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(opkrævningsloven_2024_1040) && kilde_formelt_gældende_men_metadata_udløbet(opkrævningslov_aendring_2024_1694) && kilde_formelt_gældende_men_metadata_udløbet(opkrævningslov_aendring_2025_1783) && kilde_formelt_gældende_men_metadata_udløbet(opkrævningslov_ikraft_2025_1793) && kilde_formelt_gældende_men_metadata_udløbet(ligningsloven_2025_1500)
-= alle_gældende_kilder_metadata_horisont_udløbet = personskat_kilder_metadata_horisont_udløbet && par13_dependency_kilder_metadata_horisont_udløbet && am_kilder_metadata_horisont_udløbet && kommunal_folkekirke_kilder_metadata_horisont_udløbet && kildeskat_kilder_metadata_horisont_udløbet && opkrævning_ligning_kilder_metadata_horisont_udløbet
+= alle_gældende_kilder_metadata_horisont_udløbet = personskat_kilder_metadata_horisont_udløbet && par8b_dependency_kilder_metadata_horisont_udløbet && par13_dependency_kilder_metadata_horisont_udløbet && am_kilder_metadata_horisont_udløbet && kommunal_folkekirke_kilder_metadata_horisont_udløbet && kildeskat_kilder_metadata_horisont_udløbet && opkrævning_ligning_kilder_metadata_horisont_udløbet
 
 | historisk_kilde_afvises_til_aktuel_beregning: historisk_til_aktuel_beregning -> historisk_til_aktuel_beregning == Falskt
 | gældende_kilde_accepteres_til_aktuel_beregning: gældende_til_aktuel_beregning -> gældende_til_aktuel_beregning == Sandt
@@ -523,6 +572,9 @@ EndDate: 2026-07-01
 | personfradrag_aendring_accepteres_til_aktuel_beregning: personfradrag_aendring_til_aktuel_beregning -> personfradrag_aendring_til_aktuel_beregning == Sandt
 | ivaerksaetter_aendring_accepteres_til_aktuel_beregning: ivaerksaetter_aendring_til_aktuel_beregning -> ivaerksaetter_aendring_til_aktuel_beregning == Sandt
 | ejendom_aendring_accepteres_til_aktuel_beregning: ejendom_aendring_til_aktuel_beregning -> ejendom_aendring_til_aktuel_beregning == Sandt
+| selskabsskattelov_accepteres_til_aktuel_beregning: selskabsskattelov_til_aktuel_beregning -> selskabsskattelov_til_aktuel_beregning == Sandt
+| selskabsskattelov_historisk_accepteres_til_audit: selskabsskattelov_historisk_til_audit -> selskabsskattelov_historisk_til_audit == Sandt
+| selskabsskattelov_historisk_hentet_på_statusdato: par8b_historisk_dependency_kilder_hentet_på_statusdato -> par8b_historisk_dependency_kilder_hentet_på_statusdato == Sandt
 | pensionsbeskatningslov_accepteres_til_aktuel_beregning: pensionsbeskatningslov_til_aktuel_beregning -> pensionsbeskatningslov_til_aktuel_beregning == Sandt
 | sømandsbeskatningslov_accepteres_til_aktuel_beregning: sømandsbeskatningslov_til_aktuel_beregning -> sømandsbeskatningslov_til_aktuel_beregning == Sandt
 | arbejdsmarkedsbidragslov_accepteres_til_aktuel_beregning: am_lov_til_aktuel_beregning -> am_lov_til_aktuel_beregning == Sandt

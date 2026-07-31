@@ -49,6 +49,12 @@ Status: Valid
 Officiel XML-metadata for 2026/615, hentet 2026-07-18:
 Status: Valid
 
+Officiel XML-metadata for 2022/1241, hentet 2026-07-18:
+Status: Historic
+
+Officiel XML-metadata for 2025/279, hentet 2026-07-18:
+Status: Valid
+
 Officiel XML-metadata for 2024/1243, hentet 2026-07-18:
 Status: Valid
 
@@ -104,6 +110,8 @@ Status: Valid
 = m5_personfradrag_aendring_til_aktuel = kilde_egnet_til_formål(personskat_personfradrag_aendring_2023_1564, AktuelSkatteberegning)
 = m5_ivaerksaetter_aendring_til_aktuel = kilde_egnet_til_formål(personskat_ivaerksaetter_aendring_2024_1691, AktuelSkatteberegning)
 = m5_ejendom_aendring_til_aktuel = kilde_egnet_til_formål(personskat_ejendom_aendring_2026_615, AktuelSkatteberegning)
+= m5_selskabsskattelov_til_aktuel = kilde_egnet_til_formål(selskabsskatteloven_2025_279, AktuelSkatteberegning)
+= m5_selskabsskattelov_historisk_til_audit = kilde_egnet_til_formål(selskabsskatteloven_2022_1241, HistoriskAudit)
 = m5_pensionsbeskatningslov_til_aktuel = kilde_egnet_til_formål(pensionsbeskatningsloven_2024_1243, AktuelSkatteberegning)
 = m5_sømandsbeskatningslov_til_aktuel = kilde_egnet_til_formål(sømandsbeskatningsloven_2023_1181, AktuelSkatteberegning)
 = m5_am_lov_til_aktuel = kilde_egnet_til_formål(arbejdsmarkedsbidragsloven_2020_121, AktuelSkatteberegning)
@@ -126,6 +134,8 @@ Status: Valid
 | m5_personfradrag_aendring_kilde_accepteres: m5_personfradrag_aendring_til_aktuel -> m5_personfradrag_aendring_til_aktuel == Sandt
 | m5_ivaerksaetter_aendring_kilde_accepteres: m5_ivaerksaetter_aendring_til_aktuel -> m5_ivaerksaetter_aendring_til_aktuel == Sandt
 | m5_ejendom_aendring_kilde_accepteres: m5_ejendom_aendring_til_aktuel -> m5_ejendom_aendring_til_aktuel == Sandt
+| m5_selskabsskattelov_kilde_accepteres: m5_selskabsskattelov_til_aktuel -> m5_selskabsskattelov_til_aktuel == Sandt
+| m5_selskabsskattelov_historisk_kilde_til_audit: m5_selskabsskattelov_historisk_til_audit -> m5_selskabsskattelov_historisk_til_audit == Sandt
 | m5_pensionsbeskatningslov_kilde_accepteres: m5_pensionsbeskatningslov_til_aktuel -> m5_pensionsbeskatningslov_til_aktuel == Sandt
 | m5_sømandsbeskatningslov_kilde_accepteres: m5_sømandsbeskatningslov_til_aktuel -> m5_sømandsbeskatningslov_til_aktuel == Sandt
 | m5_am_lov_kilde_accepteres: m5_am_lov_til_aktuel -> m5_am_lov_til_aktuel == Sandt
@@ -176,6 +186,8 @@ Status: Valid
 ? m5_personfradrag_aendring_kilde_accepteres
 ? m5_ivaerksaetter_aendring_kilde_accepteres
 ? m5_ejendom_aendring_kilde_accepteres
+? m5_selskabsskattelov_kilde_accepteres
+? m5_selskabsskattelov_historisk_kilde_til_audit
 ? m5_pensionsbeskatningslov_kilde_accepteres
 ? m5_sømandsbeskatningslov_kilde_accepteres
 ? m5_am_lov_kilde_accepteres
@@ -1220,6 +1232,8 @@ virksomhedsunderskud.
 | m5_audit_par8a_stk3_signal: audit_signal(Par8aUdbytteskatStk3Dækket) -> audit_signal(Par8aUdbytteskatStk3Dækket) == Sandt
 | m5_par8a_stk6_begge_negative_fordeling_dækket: m5_par8a_begge_negative_fixture -> m5_par8a_begge_negative_fixture.dobbelt_grundbeløb_kroner == 158800 && m5_par8a_begge_negative_fixture.egen_effektivt_grundbeløb_kroner == 119100 && m5_par8a_begge_negative_fixture.ægtefælles_effektivt_grundbeløb_kroner == 39700 && m5_par8a_begge_negative_fixture.egen_negativ_skat_kroner == 32535 && m5_par8a_begge_negative_fixture.ægtefælles_negativ_skat_kroner == 10845 && m5_par8a_begge_negative_fixture.samlet_negativ_skat_kroner == 43380
 | m5_audit_par8a_stk6_negativ_signal: audit_signal(Par8aNegativAktieindkomstStk6Dækket) -> audit_signal(Par8aNegativAktieindkomstStk6Dækket) == Sandt
+| m5_par8b_selskabsskat_satskilde_dækket: par8b_2026_selskabsskat_sats -> par8b_2026_selskabsskat_sats.kilde == SelskabsskattelovenLbk279Af2025 && par8b_2026_selskabsskat_sats.selskabsskat_basispoint == 2200 && par8b_2026_selskabsskat_sats.tillægsselskabsskat_basispoint == 300 && par8b_2026_selskabsskat_sats.cfc_sats_basispoint == 2200
+| m5_par8b_selskabsskat_historisk_satskilde_dækket: selskabsskattelov_par17_stk1_sats_resultat(2024) -> selskabsskattelov_par17_stk1_sats_resultat(2024).kilde == SelskabsskattelovenLbk1241Af2022 && selskabsskattelov_par17_stk1_sats_resultat(2024).selskabsskat_basispoint == 2200
 | m5_par8b_cfc_skat_fra_par4b_dækket: par8b_cfc_fra_par4b_fixture -> par8b_cfc_fra_par4b_fixture.cfc_indkomst_kroner == 500000 && par8b_cfc_fra_par4b_fixture.sats_basispoint == 2200 && par8b_cfc_fra_par4b_fixture.skat_kroner == 110000
 | m5_par8b_negativ_cfc_skat_fra_par4b_dækket: par8b_negativ_cfc_fra_par4b_fixture -> par8b_negativ_cfc_fra_par4b_fixture.cfc_indkomst_kroner == 0 && par8b_negativ_cfc_fra_par4b_fixture.skat_kroner == 0
 | m5_audit_par8b_cfc_signal: audit_signal(Par8bCfcSkatDækket) -> audit_signal(Par8bCfcSkatDækket) == Sandt
@@ -1340,6 +1354,8 @@ virksomhedsunderskud.
 ? m5_par8a_stk3_overindeholdt_dækket
 ? m5_par8a_stk3_negativ_dækket
 ? m5_audit_par8a_stk3_signal
+? m5_par8b_selskabsskat_satskilde_dækket
+? m5_par8b_selskabsskat_historisk_satskilde_dækket
 ? m5_par8b_cfc_skat_fra_par4b_dækket
 ? m5_par8b_negativ_cfc_skat_fra_par4b_dækket
 ? m5_audit_par8b_cfc_signal

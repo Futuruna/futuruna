@@ -53,7 +53,11 @@ bundfradrag transfer feeds the nr. 2 line item;
 § 8 c's 2023-2026 published limited-taxpayer rate now has a
 `Par8cSatsResultat` result that keeps the statutory rounded-down municipal
 average method, the Skatteministeriet source posture, and the applied
-basispoint rate together.
+basispoint rate together; § 8 b's CFC tax rate now delegates through a
+`SelskabsskattelovPar17Stk1SatsResultat` that keeps the tracked
+Selskabsskatteloven source line for 2024 and 2025+, ordinary 22 pct.
+selskabsskat, 3 percentage-point kulbrinte supplement, and applied CFC rate
+together.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -98,7 +102,7 @@ Current source-refresh finding:
 - `scripts/refresh-danish-tax-source-status.py --today 20260702 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
   drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 22 records with 0 drift and 0 fetch/parse errors.
+  checked 24 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:
 
@@ -123,6 +127,19 @@ Current Personskatteloven amendment sources:
   - XML status on 2026-07-18: `Valid`
   - § 12 changes § 4, stk. 1, nr. 6's ejendomsværdiskattelov reference to
     nr. 1-4, 8 and 9.
+
+Current § 8 b dependency source:
+
+- Historic Selskabsskatteloven source:
+  `https://www.retsinformation.dk/eli/lta/2022/1241`
+  - XML status on 2026-07-18: `Historic`
+  - Used for the 2024 § 8 b rate path that predated LBK nr. 279/2025.
+- Current Selskabsskatteloven source:
+  `https://www.retsinformation.dk/eli/lta/2025/279`
+  - XML status on 2026-07-18: `Valid`
+  - § 17, stk. 1 sets the ordinary selskabsskat rate at 22 pct. and the
+    kulbrinte supplement at 3 percentage points; Personskatteloven § 8 b uses
+    the ordinary 22 pct. rate for CFC income.
 
 Current § 13 amendment/dependency sources:
 
@@ -1011,7 +1028,8 @@ M2 - State tax computation skeleton
   before feeding the calculator, with § 7 a and § 8 now exposed as named
   personal-income amount results; CFC tax under § 8 b can feed this state-tax
   component model, with § 8 b consuming the amount-level § 4 b CFC-income
-  result before applying the selskabsskattelovens § 17, stk. 1 rate.
+  result before applying a structured Selskabsskatteloven § 17, stk. 1 rate
+  result.
   The § 6 slice now computes the amount-level spouse negative net-capital
   offset before bundskat basis calculation.
   The § 7 mellemskat slice now covers positive net capital income over the
@@ -1159,6 +1177,10 @@ M4 - Ordinary taxpayer calculator
   Personskatteloven § 8 c now computes the municipal-equivalent tax for covered
   limited-taxpayer postures, using the Skatteministeriet-published 25 pct.
   2026 rate and the same personfradrag reduction posture as § 10 stk. 5.
+  Personskatteloven § 8 b now keeps the Selskabsskatteloven § 17, stk. 1
+  historic/current source line, 22 pct. ordinary selskabsskat rate, 3
+  percentage-point kulbrinte supplement, and applied CFC rate in one result
+  object.
   `LønmodtagerBeregningSag` now exercises a nonzero 2026 CFC/§ 8 c
   tax-position path: 500.000 kr. CFC income feeds 110.000 kr. § 8 b tax into
   the § 5 aggregate, § 8 c replaces ordinary municipal income tax for the
@@ -1207,6 +1229,8 @@ M5 - Audit suite
   share-income final-settlement scenarios with § 67 dividend-tax credit
   splitting plus § 8 a, stk. 3 over-withheld/negative-share-income dividend-tax
   credits and § 8 a, stk. 6 both-negative spouse threshold allocation, covered
+  § 8 b CFC tax source-rate provenance from the historic/current
+  Selskabsskatteloven § 17, stk. 1 source line,
   § 8 c municipal-equivalent limited-taxpayer tax with
   personfradrag reduction, published 2023-2026 rate source/method provenance,
   and non-covered boundary case, covered fictional
