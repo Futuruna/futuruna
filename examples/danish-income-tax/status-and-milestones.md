@@ -26,7 +26,9 @@ executable allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break
 rule; § 7 a now has post-level amount rules for included and excluded
 pension-like payments; § 13, stk. 4 now has amount-level spouse and
 carry-forward offset ordering for negative personal income; § 8 a, stk. 6 now
-has a pair-level both-negative spouse share-income threshold allocation; § 9
+has a pair-level both-negative spouse share-income threshold allocation, and
+§ 8 a negative share-income annual settlement now offsets the taxpayer's
+slutskat, spouse slutskat, and then carries the remainder forward; § 9
 now has amount-level state-personfradrag reduction ordering for the split
 § 8/sundhedsbidrag and § 6/bundskat tax values plus non-state § 8 c,
 municipal-tax and church-tax personfradrag reductions, wired through the wage-earner
@@ -665,6 +667,12 @@ Current decision:
   result. The low-wage/high-share scenario now audits that unused state
   personfradrag tax value can reduce the
   § 8 a, stk. 2 amount before Kildeskatteloven final settlement.
+- `AktieindkomstNegativSlutopgørelseCase` keeps § 8 a, stk. 5-6 negative
+  share-income settlement separate from the positive-share case. It derives
+  spouse positive-share offset, negative tax, whole dividend-tax credit for
+  negative share income, own-slutskat offset, spouse-slutskat offset, and the
+  carried-forward remainder while crediting only the amount actually usable in
+  the taxpayer's current-year § 60 basket.
 - `AktieindkomstUdbytteskatStk3Sag` uses product-scoped `|` rules for
   Personskatteloven § 8 a, stk. 3. It keeps tax year, total share income, and
   dividend tax withheld under Kildeskatteloven § 65 together while defaults and
@@ -1115,7 +1123,10 @@ M4 - Ordinary taxpayer calculator
   source-law module now also covers § 8 a, stk. 3 as a separate scoped rule case
   for over-withheld dividend tax and negative-share-income full credit, and
   § 8 a, stk. 6 for both-negative spouse share-income cases where the double
-  threshold is split proportionally.
+  threshold is split proportionally. It now also covers negative-share-income
+  final settlement: a 120.000 kr. negative-share case is fully absorbed by own
+  slutskat, while a 900.000 kr. negative-share case offsets 208.726 kr. in own
+  slutskat, 50.000 kr. in spouse slutskat, and carries 95.454 kr. forward.
   Personskatteloven § 8 c now computes the municipal-equivalent tax for covered
   limited-taxpayer postures, using the Skatteministeriet-published 25 pct.
   2026 rate and the same personfradrag reduction posture as § 10 stk. 5.
@@ -1218,7 +1229,8 @@ M6 - Website integration
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   first § 1/§ 2 taxable-income composition from the separate income categories,
   first § 4 a pension/share-income audit,
-  first § 8 a/§ 67 share-income annual-settlement scenario,
+  first § 8 a/§ 67 share-income annual-settlement scenario including negative
+  share-income carry-forward,
   first § 8 c limited-taxpayer municipal-equivalent tax calculation,
   first § 11 negative net-capital reduction order and spouse-transfer audit,
   first § 9/§ 12 split state personfradrag tax-value reduction-order audit and
