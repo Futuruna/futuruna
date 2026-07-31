@@ -14,9 +14,18 @@
 -- XML: https://www.retsinformation.dk/eli/lta/2021/1284/dan/xml
 --
 -- Gældende ændringskilder til Personskatteloven:
+-- Retsinformation, LOV nr. 252 af 25/02/2022.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2022/252
+-- XML: https://www.retsinformation.dk/eli/lta/2022/252/dan/xml
+-- Retsinformation, LOV nr. 610 af 31/05/2023.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2023/610
+-- XML: https://www.retsinformation.dk/eli/lta/2023/610/dan/xml
 -- Retsinformation, LOV nr. 1564 af 12/12/2023.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2023/1564
 -- XML: https://www.retsinformation.dk/eli/lta/2023/1564/dan/xml
+-- Retsinformation, LOV nr. 108 af 31/01/2024.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/108
+-- XML: https://www.retsinformation.dk/eli/lta/2024/108/dan/xml
 -- Retsinformation, LOV nr. 482 af 22/05/2024.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/482
 -- XML: https://www.retsinformation.dk/eli/lta/2024/482/dan/xml
@@ -116,12 +125,33 @@ DiesSigni: 2021-06-14
 StartDate: 2021-06-16
 EndDate: 2026-07-01
 
+Officiel XML-metadata for 2022/252, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af personskatteloven (Nedsættelse af bundskatten som følge af kommunale skattestigninger)
+Status: Valid
+DiesSigni: 2022-02-25
+StartDate: 2022-02-25
+EndDate: 2026-06-23
+
+Officiel XML-metadata for 2023/610, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af personskatteloven (Nedsættelse af bundskatten som følge af kommunale skattestigninger)
+Status: Valid
+DiesSigni: 2023-05-31
+StartDate: 2023-05-31
+EndDate: 2026-06-24
+
 Officiel XML-metadata for 2023/1564, hentet 2026-07-18:
 DocumentTitle: Lov om ændring af personskatteloven, pensionsbeskatningsloven og forskellige andre love (Forhøjelse af personfradraget for personer under 18 år og klare regler for bevarelse af lavere pensionsudbetalingsalder m.v.)
 Status: Valid
 DiesSigni: 2023-12-12
 StartDate: 2023-12-12
 EndDate: 2026-06-23
+
+Officiel XML-metadata for 2024/108, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af personskatteloven (Nedsættelse af bundskatten som følge af kommunale skattestigninger)
+Status: Valid
+DiesSigni: 2024-01-31
+StartDate: 2024-01-31
+EndDate: 2026-06-24
 
 Officiel XML-metadata for 2024/482, hentet 2026-07-18:
 DocumentTitle: Lov om ændring af personskatteloven, ligningsloven og forskellige andre love (Udmøntning af dele af aftale om reform af personskat)
@@ -294,6 +324,24 @@ EndDate: 2026-07-01
     metadata_start_yyyymmdd = 20210616,
     metadata_end_yyyymmdd = 20260701
 )
+= personskat_bundskat_aendring_2022_252 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2022/252",
+    år = 2022,
+    nummer = 252,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20220225,
+    metadata_end_yyyymmdd = 20260623
+)
+= personskat_bundskat_aendring_2023_610 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2023/610",
+    år = 2023,
+    nummer = 610,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20230531,
+    metadata_end_yyyymmdd = 20260624
+)
 = personskat_personfradrag_aendring_2023_1564 = Retskilde(
     eli = "https://www.retsinformation.dk/eli/lta/2023/1564",
     år = 2023,
@@ -302,6 +350,15 @@ EndDate: 2026-07-01
     hentet_yyyymmdd = 20260718,
     metadata_start_yyyymmdd = 20231212,
     metadata_end_yyyymmdd = 20260623
+)
+= personskat_bundskat_aendring_2024_108 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2024/108",
+    år = 2024,
+    nummer = 108,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20240131,
+    metadata_end_yyyymmdd = 20260624
 )
 = personskat_reform_2024_482 = Retskilde(
     eli = "https://www.retsinformation.dk/eli/lta/2024/482",
@@ -495,7 +552,7 @@ EndDate: 2026-07-01
 
 | kilde_er_personskatteloven(kilde: Retskilde) -> kilde.nummer == 799 || kilde.nummer == 1284
 | kilde_er_personskat_reform(kilde: Retskilde) -> kilde.nummer == 482 && kilde.år == 2024
-| kilde_er_personskat_aendring(kilde: Retskilde) -> (kilde.nummer == 1564 && kilde.år == 2023) || (kilde.nummer == 1691 && kilde.år == 2024) || (kilde.nummer == 615 && kilde.år == 2026)
+| kilde_er_personskat_aendring(kilde: Retskilde) -> (kilde.nummer == 252 && kilde.år == 2022) || (kilde.nummer == 610 && kilde.år == 2023) || (kilde.nummer == 1564 && kilde.år == 2023) || (kilde.nummer == 108 && kilde.år == 2024) || (kilde.nummer == 1691 && kilde.år == 2024) || (kilde.nummer == 615 && kilde.år == 2026)
 | kilde_er_selskabsskatteloven(kilde: Retskilde) -> (kilde.nummer == 1241 && kilde.år == 2022) || (kilde.nummer == 279 && kilde.år == 2025)
 | kilde_er_pensionsbeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1243 && kilde.år == 2024
 | kilde_er_sømandsbeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1181 && kilde.år == 2023
@@ -524,6 +581,7 @@ EndDate: 2026-07-01
 
 = historisk_til_aktuel_beregning = kilde_egnet_til_formål(personskatteloven_2019_799, AktuelSkatteberegning)
 = gældende_til_aktuel_beregning = kilde_egnet_til_formål(personskatteloven_2021_1284, AktuelSkatteberegning)
+= bundskat_aendringer_til_aktuel_beregning = kilde_egnet_til_formål(personskat_bundskat_aendring_2022_252, AktuelSkatteberegning) && kilde_egnet_til_formål(personskat_bundskat_aendring_2023_610, AktuelSkatteberegning) && kilde_egnet_til_formål(personskat_bundskat_aendring_2024_108, AktuelSkatteberegning)
 = reform_til_aktuel_beregning = kilde_egnet_til_formål(personskat_reform_2024_482, AktuelSkatteberegning)
 = personfradrag_aendring_til_aktuel_beregning = kilde_egnet_til_formål(personskat_personfradrag_aendring_2023_1564, AktuelSkatteberegning)
 = ivaerksaetter_aendring_til_aktuel_beregning = kilde_egnet_til_formål(personskat_ivaerksaetter_aendring_2024_1691, AktuelSkatteberegning)
@@ -547,7 +605,7 @@ EndDate: 2026-07-01
 = historisk_til_audit = kilde_egnet_til_formål(personskatteloven_2019_799, HistoriskAudit)
 = personskattelov_dagsaktuel_beregning = kilde_egnet_til_formål(personskatteloven_2021_1284, DagsaktuelAutomatiskBeregning)
 
-= personskat_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(personskatteloven_2021_1284) && kilde_hentet_på_statusdato(personskat_personfradrag_aendring_2023_1564) && kilde_hentet_på_statusdato(personskat_reform_2024_482) && kilde_hentet_på_statusdato(personskat_ivaerksaetter_aendring_2024_1691) && kilde_hentet_på_statusdato(personskat_ejendom_aendring_2026_615)
+= personskat_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(personskatteloven_2021_1284) && kilde_hentet_på_statusdato(personskat_bundskat_aendring_2022_252) && kilde_hentet_på_statusdato(personskat_bundskat_aendring_2023_610) && kilde_hentet_på_statusdato(personskat_personfradrag_aendring_2023_1564) && kilde_hentet_på_statusdato(personskat_bundskat_aendring_2024_108) && kilde_hentet_på_statusdato(personskat_reform_2024_482) && kilde_hentet_på_statusdato(personskat_ivaerksaetter_aendring_2024_1691) && kilde_hentet_på_statusdato(personskat_ejendom_aendring_2026_615)
 = par8b_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(selskabsskatteloven_2025_279)
 = par8b_historisk_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(selskabsskatteloven_2022_1241)
 = par13_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(pensionsbeskatningsloven_2024_1243) && kilde_hentet_på_statusdato(sømandsbeskatningsloven_2023_1181)
@@ -557,7 +615,7 @@ EndDate: 2026-07-01
 = opkrævning_ligning_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(opkrævningsloven_2024_1040) && kilde_hentet_på_statusdato(opkrævningslov_aendring_2024_1694) && kilde_hentet_på_statusdato(opkrævningslov_aendring_2025_1783) && kilde_hentet_på_statusdato(opkrævningslov_ikraft_2025_1793) && kilde_hentet_på_statusdato(ligningsloven_2025_1500)
 = gældende_kilder_hentet_på_statusdato = personskat_kilder_hentet_på_statusdato && par8b_dependency_kilder_hentet_på_statusdato && par13_dependency_kilder_hentet_på_statusdato && am_kilder_hentet_på_statusdato && kommunal_folkekirke_kilder_hentet_på_statusdato && kildeskat_kilder_hentet_på_statusdato && opkrævning_ligning_kilder_hentet_på_statusdato
 
-= personskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(personskatteloven_2021_1284) && kilde_formelt_gældende_men_metadata_udløbet(personskat_personfradrag_aendring_2023_1564) && kilde_formelt_gældende_men_metadata_udløbet(personskat_reform_2024_482) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ivaerksaetter_aendring_2024_1691) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ejendom_aendring_2026_615)
+= personskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(personskatteloven_2021_1284) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2022_252) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2023_610) && kilde_formelt_gældende_men_metadata_udløbet(personskat_personfradrag_aendring_2023_1564) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2024_108) && kilde_formelt_gældende_men_metadata_udløbet(personskat_reform_2024_482) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ivaerksaetter_aendring_2024_1691) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ejendom_aendring_2026_615)
 = par8b_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(selskabsskatteloven_2025_279)
 = par13_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(pensionsbeskatningsloven_2024_1243) && kilde_formelt_gældende_men_metadata_udløbet(sømandsbeskatningsloven_2023_1181)
 = am_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(arbejdsmarkedsbidragsloven_2020_121) && kilde_formelt_gældende_men_metadata_udløbet(arbejdsmarkedsbidrag_aendring_2025_96)
@@ -568,6 +626,7 @@ EndDate: 2026-07-01
 
 | historisk_kilde_afvises_til_aktuel_beregning: historisk_til_aktuel_beregning -> historisk_til_aktuel_beregning == Falskt
 | gældende_kilde_accepteres_til_aktuel_beregning: gældende_til_aktuel_beregning -> gældende_til_aktuel_beregning == Sandt
+| bundskat_aendringer_accepteres_til_aktuel_beregning: bundskat_aendringer_til_aktuel_beregning -> bundskat_aendringer_til_aktuel_beregning == Sandt
 | reformkilde_accepteres_til_aktuel_beregning: reform_til_aktuel_beregning -> reform_til_aktuel_beregning == Sandt
 | personfradrag_aendring_accepteres_til_aktuel_beregning: personfradrag_aendring_til_aktuel_beregning -> personfradrag_aendring_til_aktuel_beregning == Sandt
 | ivaerksaetter_aendring_accepteres_til_aktuel_beregning: ivaerksaetter_aendring_til_aktuel_beregning -> ivaerksaetter_aendring_til_aktuel_beregning == Sandt

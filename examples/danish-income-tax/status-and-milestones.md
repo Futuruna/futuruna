@@ -21,7 +21,9 @@ excluded CFC income and ligningsmæssige fradrag, and the wage-earner calculator
 delegates its taxable-income base to that result; the 2026 § 7/§ 7 a/§ 8 reform thresholds for
 mellemskat, topskat and toptopskat now derive from statutory 2010-level amounts
 through § 20 regulation, with § 7 a topskat and § 8 toptopskat exposed as
-personal-income amount result objects; § 7 spouse positive-net-capital tax now has an
+personal-income amount result objects; § 6 bundskat rates now carry the
+2021 base text and the 2022/2023/2024 amendment source chain as a typed
+rate result; § 7 spouse positive-net-capital tax now has an
 executable allocation layer for stk. 10-11 and a stk. 12 equal-basis tie-break
 rule; § 7 a now has post-level amount rules for included and excluded
 pension-like payments; § 13, stk. 4 now has amount-level spouse and
@@ -85,8 +87,8 @@ Current working source:
 - Signed: `2021-06-14`
 - In force from: `2021-06-16`
 - XML end date observed on 2026-07-18: `2026-07-01`
-- Tracked amendment sources now include `2023/1564`, `2024/482`,
-  `2024/1691` and `2026/615`.
+- Tracked amendment sources now include `2022/252`, `2023/610`,
+  `2023/1564`, `2024/108`, `2024/482`, `2024/1691` and `2026/615`.
 
 Current source-refresh finding:
 
@@ -106,12 +108,27 @@ Current source-refresh finding:
 
 Current Personskatteloven amendment sources:
 
+- Bundskat 2022 amendment:
+  `https://www.retsinformation.dk/eli/lta/2022/252`
+  - XML status on 2026-07-18: `Valid`
+  - § 1, nr. 1 replaces § 6, stk. 2 with 12,09 pct. and 4,09 pct. for
+    income year 2022 and later.
+- Bundskat 2023 amendment:
+  `https://www.retsinformation.dk/eli/lta/2023/610`
+  - XML status on 2026-07-18: `Valid`
+  - § 1, nr. 1 replaces § 6, stk. 2 with 12,06 pct. and 4,06 pct. for
+    income year 2023 and later.
 - Personfradrag under 18:
   `https://www.retsinformation.dk/eli/lta/2023/1564`
   - XML status on 2026-07-18: `Valid`
   - § 1, nr. 2 removes the separate § 10, stk. 2 under-18 basis and inserts a
     single 39.350 kr. 2010-level basis; the rule model keeps the old basis only
     for pre-2023 historical queries.
+- Bundskat 2024 amendment:
+  `https://www.retsinformation.dk/eli/lta/2024/108`
+  - XML status on 2026-07-18: `Valid`
+  - § 1, nr. 1 replaces § 6, stk. 2 with 12,01 pct. and 4,01 pct. for
+    income year 2024 and later.
 - Person-tax reform amendment:
   `https://www.retsinformation.dk/eli/lta/2024/482`
   - XML status on 2026-07-18: `Valid`
@@ -1037,7 +1054,10 @@ M2 - State tax computation skeleton
   result before applying a structured Selskabsskatteloven § 17, stk. 1 rate
   result.
   The § 6 slice now computes the amount-level spouse negative net-capital
-  offset before bundskat basis calculation.
+  offset before bundskat basis calculation, and its rate accessor now projects
+  a source-backed `BundskatSatsResultat` covering the 2021 LBK rate plus the
+  2022/2023/2024 statutory reductions to 12,09/12,06/12,01 pct. and the
+  corresponding 4,09/4,06/4,01 pct. no-municipal-liability rates.
   The § 7 mellemskat slice now covers positive net capital income over the
   § 20-regulated 2026 threshold, including an executable spouse doubled-threshold
   case and the § 7 stk. 5 rule that negative net capital is offset against the
@@ -1218,7 +1238,9 @@ M5 - Audit suite
   state personfradrag tax-value reduction
   order, § 9 non-state personfradrag reduction, and wage-earner component
   projection,
-  covered 2026 state-tax reform layers, covered § 13 deficit mechanics,
+  covered 2026 state-tax reform layers, covered § 6 source-backed
+  bundskat-rate provenance across the 2022/2023/2024 amendment chain,
+  covered § 13 deficit mechanics,
   § 13 stk. 4 negative-personal-income spouse and carry-forward offset order,
   mellemskat positive-net-capital and spouse-threshold activation,
   § 7 stk. 5 spouse negative-capital offset/effective-grundbeløb activation,

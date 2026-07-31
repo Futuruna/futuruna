@@ -164,7 +164,46 @@ stk. 1 og 2 beregnes. Det er en forudsætning, at ægtefællerne er samlevende v
 indkomstårets udløb.
 ----
 
+----
+LOV nr. 252 af 25/02/2022, § 1, nr. 1.
+
+§ 6, stk. 2, affattes således:
+
+Stk. 2. For indkomståret 2022 og efterfølgende indkomstår udgør procenten
+12,09.
+For personer, der ikke har pligt til at betale indkomstskat efter § 8 c eller
+kommunal indkomstskat efter lov om kommunal indkomstskat, udgør procenten for
+indkomståret 2022 og efterfølgende indkomstår 4,09.
+----
+
+----
+LOV nr. 610 af 31/05/2023, § 1, nr. 1.
+
+§ 6, stk. 2, affattes således:
+
+Stk. 2. For indkomståret 2023 og efterfølgende indkomstår udgør procenten
+12,06.
+For personer, der ikke har pligt til at betale indkomstskat efter § 8 c eller
+kommunal indkomstskat efter lov om kommunal indkomstskat, udgør procenten for
+indkomståret 2023 og efterfølgende indkomstår 4,06.
+----
+
+----
+LOV nr. 108 af 31/01/2024, § 1, nr. 1.
+
+§ 6, stk. 2, affattes således:
+
+Stk. 2. For indkomståret 2024 og efterfølgende indkomstår udgør procenten
+12,01.
+For personer, der ikke har pligt til at betale indkomstskat efter § 8 c eller
+kommunal indkomstskat efter lov om kommunal indkomstskat og statens afregning af
+grundskyld og dækningsafgift til kommunerne, udgør procenten for indkomståret
+2024 og efterfølgende indkomstår 4,01.
+----
+
 # KommunalSkattepligt = BetalerKommunalEllerPar8c | BetalerIkkeKommunalEllerPar8c
+# BundskatSatsKilde = PersonskattelovenLbk1284Af2021Par6Stk2 | PersonskattelovenLov252Af2022Par1Nr1 | PersonskattelovenLov610Af2023Par1Nr1 | PersonskattelovenLov108Af2024Par1Nr1
+# BundskatSatsResultat(skatteår: Heltal, skattepligt: KommunalSkattepligt, kilde: BundskatSatsKilde, sats_basispoint: Heltal)
 # BundskatInput(personlig_indkomst: Heltal, positiv_nettokapitalindkomst: Heltal)
 # ÆgtefælleKapitalModregning(gift: Boolsk, samlevende_ved_årets_udløb: Boolsk, negativ_nettokapitalindkomst: Boolsk)
 # Par6ÆgtefælleKapitalModregningInput(gift: Boolsk, samlevende_ved_årets_udløb: Boolsk, positiv_nettokapitalindkomst_kroner: Heltal, ægtefælle_negativ_nettokapitalindkomst_kroner: Heltal)
@@ -172,10 +211,25 @@ indkomstårets udløb.
 
 | bundskat_grundlag(input: BundskatInput) -> input.personlig_indkomst + input.positiv_nettokapitalindkomst
 
-| bundskatte_sats_basispoint(år: Heltal, skattepligt: KommunalSkattepligt) -> 1209 under år == 2021 && skattepligt == BetalerKommunalEllerPar8c
-| bundskatte_sats_basispoint(år: Heltal, skattepligt: KommunalSkattepligt) -> 1210 under år >= 2022 && skattepligt == BetalerKommunalEllerPar8c
-| bundskatte_sats_basispoint(år: Heltal, skattepligt: KommunalSkattepligt) -> 409 under år == 2021 && skattepligt == BetalerIkkeKommunalEllerPar8c
-| bundskatte_sats_basispoint(år: Heltal, skattepligt: KommunalSkattepligt) -> 410 under år >= 2022 && skattepligt == BetalerIkkeKommunalEllerPar8c
+| bundskat_sats_kilde(skatteår: Heltal) -> PersonskattelovenLbk1284Af2021Par6Stk2 under skatteår == 2021
+| bundskat_sats_kilde(skatteår: Heltal) -> PersonskattelovenLov252Af2022Par1Nr1 under skatteår == 2022
+| bundskat_sats_kilde(skatteår: Heltal) -> PersonskattelovenLov610Af2023Par1Nr1 under skatteår == 2023
+| bundskat_sats_kilde(skatteår: Heltal) -> PersonskattelovenLov108Af2024Par1Nr1 under skatteår >= 2024
+| bundskat_sats_basispoint_for_pligt(skatteår: Heltal, skattepligt: KommunalSkattepligt) -> 1209 under skatteår == 2021 && skattepligt == BetalerKommunalEllerPar8c
+| bundskat_sats_basispoint_for_pligt(skatteår: Heltal, skattepligt: KommunalSkattepligt) -> 1209 under skatteår == 2022 && skattepligt == BetalerKommunalEllerPar8c
+| bundskat_sats_basispoint_for_pligt(skatteår: Heltal, skattepligt: KommunalSkattepligt) -> 1206 under skatteår == 2023 && skattepligt == BetalerKommunalEllerPar8c
+| bundskat_sats_basispoint_for_pligt(skatteår: Heltal, skattepligt: KommunalSkattepligt) -> 1201 under skatteår >= 2024 && skattepligt == BetalerKommunalEllerPar8c
+| bundskat_sats_basispoint_for_pligt(skatteår: Heltal, skattepligt: KommunalSkattepligt) -> 409 under skatteår == 2021 && skattepligt == BetalerIkkeKommunalEllerPar8c
+| bundskat_sats_basispoint_for_pligt(skatteår: Heltal, skattepligt: KommunalSkattepligt) -> 409 under skatteår == 2022 && skattepligt == BetalerIkkeKommunalEllerPar8c
+| bundskat_sats_basispoint_for_pligt(skatteår: Heltal, skattepligt: KommunalSkattepligt) -> 406 under skatteår == 2023 && skattepligt == BetalerIkkeKommunalEllerPar8c
+| bundskat_sats_basispoint_for_pligt(skatteår: Heltal, skattepligt: KommunalSkattepligt) -> 401 under skatteår >= 2024 && skattepligt == BetalerIkkeKommunalEllerPar8c
+| bundskat_sats_resultat(skatteår: Heltal, skattepligt: KommunalSkattepligt) -> BundskatSatsResultat(
+    skatteår = skatteår,
+    skattepligt = skattepligt,
+    kilde = bundskat_sats_kilde(skatteår),
+    sats_basispoint = bundskat_sats_basispoint_for_pligt(skatteår, skattepligt)
+) under skatteår >= 2021
+| bundskatte_sats_basispoint(skatteår: Heltal, skattepligt: KommunalSkattepligt) -> bundskat_sats_resultat(skatteår, skattepligt).sats_basispoint
 
 | ægtefælles_negative_kapital_modregnes(input: ÆgtefælleKapitalModregning) -> input.gift && input.samlevende_ved_årets_udløb && input.negativ_nettokapitalindkomst
 # Par6ÆgtefælleKapitalModregningSag(input: Par6ÆgtefælleKapitalModregningInput) {
@@ -206,7 +260,13 @@ indkomstårets udløb.
 ))
 = par6_sats_2021 = bundskatte_sats_basispoint(2021, BetalerKommunalEllerPar8c)
 = par6_sats_2022 = bundskatte_sats_basispoint(2022, BetalerKommunalEllerPar8c)
-= par6_sats_ikke_kommunal = bundskatte_sats_basispoint(2022, BetalerIkkeKommunalEllerPar8c)
+= par6_sats_2023 = bundskatte_sats_basispoint(2023, BetalerKommunalEllerPar8c)
+= par6_sats_2024 = bundskatte_sats_basispoint(2024, BetalerKommunalEllerPar8c)
+= par6_sats_ikke_kommunal = bundskatte_sats_basispoint(2024, BetalerIkkeKommunalEllerPar8c)
+= par6_sats_2021_resultat = bundskat_sats_resultat(2021, BetalerKommunalEllerPar8c)
+= par6_sats_2022_resultat = bundskat_sats_resultat(2022, BetalerKommunalEllerPar8c)
+= par6_sats_2023_resultat = bundskat_sats_resultat(2023, BetalerKommunalEllerPar8c)
+= par6_sats_2024_ikke_kommunal_resultat = bundskat_sats_resultat(2024, BetalerIkkeKommunalEllerPar8c)
 = par6_modregning = ægtefælles_negative_kapital_modregnes(ÆgtefælleKapitalModregning(
     gift = Sandt,
     samlevende_ved_årets_udløb = Sandt,
@@ -235,8 +295,14 @@ indkomstårets udløb.
 
 | par6_grundlag_lægger_til: par6_grundlag -> par6_grundlag == 510000
 | par6_2021_sats: par6_sats_2021 -> par6_sats_2021 == 1209
-| par6_2022_sats: par6_sats_2022 -> par6_sats_2022 == 1210
-| par6_ikke_kommunal_sats: par6_sats_ikke_kommunal -> par6_sats_ikke_kommunal == 410
+| par6_2022_sats: par6_sats_2022 -> par6_sats_2022 == 1209
+| par6_2023_sats: par6_sats_2023 -> par6_sats_2023 == 1206
+| par6_2024_sats: par6_sats_2024 -> par6_sats_2024 == 1201
+| par6_ikke_kommunal_sats: par6_sats_ikke_kommunal -> par6_sats_ikke_kommunal == 401
+| par6_2021_sats_fra_lbk: par6_sats_2021_resultat -> par6_sats_2021_resultat.kilde == PersonskattelovenLbk1284Af2021Par6Stk2 && par6_sats_2021_resultat.sats_basispoint == 1209
+| par6_2022_sats_fra_lov252: par6_sats_2022_resultat -> par6_sats_2022_resultat.kilde == PersonskattelovenLov252Af2022Par1Nr1 && par6_sats_2022_resultat.sats_basispoint == 1209
+| par6_2023_sats_fra_lov610: par6_sats_2023_resultat -> par6_sats_2023_resultat.kilde == PersonskattelovenLov610Af2023Par1Nr1 && par6_sats_2023_resultat.sats_basispoint == 1206
+| par6_2024_ikke_kommunal_sats_fra_lov108: par6_sats_2024_ikke_kommunal_resultat -> par6_sats_2024_ikke_kommunal_resultat.kilde == PersonskattelovenLov108Af2024Par1Nr1 && par6_sats_2024_ikke_kommunal_resultat.sats_basispoint == 401
 | par6_ægtefælle_modregning: par6_modregning -> par6_modregning == Sandt
 | par6_ægtefællekapital_modregning_beløb: par6_ægtefællekapital_resultat -> par6_ægtefællekapital_resultat.modregnet_i_positiv_nettokapitalindkomst_kroner == 3000 && par6_ægtefællekapital_resultat.positiv_nettokapitalindkomst_efter_modregning_kroner == 7000 && par6_ægtefællekapital_resultat.resterende_negativ_nettokapitalindkomst_kroner == 0
 | par6_ægtefællekapital_reducerer_bundskatgrundlag: par6_grundlag_efter_ægtefællekapitalmodregning -> par6_grundlag_efter_ægtefællekapitalmodregning == 507000

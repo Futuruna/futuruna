@@ -37,7 +37,16 @@ Status: Historic
 Officiel XML-metadata for 2021/1284, hentet 2026-07-18:
 Status: Valid
 
+Officiel XML-metadata for 2022/252, hentet 2026-07-18:
+Status: Valid
+
+Officiel XML-metadata for 2023/610, hentet 2026-07-18:
+Status: Valid
+
 Officiel XML-metadata for 2023/1564, hentet 2026-07-18:
+Status: Valid
+
+Officiel XML-metadata for 2024/108, hentet 2026-07-18:
 Status: Valid
 
 Officiel XML-metadata for 2024/482, hentet 2026-07-18:
@@ -101,11 +110,12 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PersonskatAendringskilderDækket | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | PersonfradragNormalfixtureDækket | Par9PersonfradragNedsættelseDækket | Par10PersonfradragSkattepligtDækket | Par10Stk3ÆgtefællePersonfradragDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | Skatteår2026ReformDækket | Par7ReformPar20TærskelDækket | ReformPersonligStatsskatDækket | MellemskatKapitalDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | Par7ÆgtefælleKapitalFordelingDækket | Par7aUdligningsskatDækket | Par8SundhedsbidragDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | AktieindkomstNegativSlutopgørelseDækket | AktieindkomstNegativParSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8aNegativAktieindkomstStk6Dækket | Par8bCfcSkatDækket | Par8cKommunalLignendeSkatDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13NegativPersonligStk4Dækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par26ÅrskomponenterDækket | Par26Stk7ÆgtefælleTopskatDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PersonskatAendringskilderDækket | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | PersonfradragNormalfixtureDækket | Par9PersonfradragNedsættelseDækket | Par10PersonfradragSkattepligtDækket | Par10Stk3ÆgtefællePersonfradragDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | Skatteår2026ReformDækket | Par7ReformPar20TærskelDækket | ReformPersonligStatsskatDækket | MellemskatKapitalDækket | Par6BundskatSatsKildeDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | Par7ÆgtefælleKapitalFordelingDækket | Par7aUdligningsskatDækket | Par8SundhedsbidragDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | AktieindkomstNegativSlutopgørelseDækket | AktieindkomstNegativParSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8aNegativAktieindkomstStk6Dækket | Par8bCfcSkatDækket | Par8cKommunalLignendeSkatDækket | Par4aPensionsfradragDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13NegativPersonligStk4Dækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par26KompensationDækket | Par26ÅrskomponenterDækket | Par26Stk7ÆgtefælleTopskatDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
 = m5_historisk_til_aktuel = kilde_egnet_til_formål(personskatteloven_2019_799, AktuelSkatteberegning)
+= m5_bundskat_aendringer_til_aktuel = bundskat_aendringer_til_aktuel_beregning
 = m5_reform_til_aktuel = kilde_egnet_til_formål(personskat_reform_2024_482, AktuelSkatteberegning)
 = m5_personfradrag_aendring_til_aktuel = kilde_egnet_til_formål(personskat_personfradrag_aendring_2023_1564, AktuelSkatteberegning)
 = m5_ivaerksaetter_aendring_til_aktuel = kilde_egnet_til_formål(personskat_ivaerksaetter_aendring_2024_1691, AktuelSkatteberegning)
@@ -130,6 +140,7 @@ Status: Valid
 = m5_metadata_horisont_udløbet = alle_gældende_kilder_metadata_horisont_udløbet
 
 | m5_historisk_kilde_afvises: m5_historisk_til_aktuel -> m5_historisk_til_aktuel == Falskt
+| m5_bundskat_aendringer_kilde_accepteres: m5_bundskat_aendringer_til_aktuel -> m5_bundskat_aendringer_til_aktuel == Sandt
 | m5_reform_kilde_accepteres: m5_reform_til_aktuel -> m5_reform_til_aktuel == Sandt
 | m5_personfradrag_aendring_kilde_accepteres: m5_personfradrag_aendring_til_aktuel -> m5_personfradrag_aendring_til_aktuel == Sandt
 | m5_ivaerksaetter_aendring_kilde_accepteres: m5_ivaerksaetter_aendring_til_aktuel -> m5_ivaerksaetter_aendring_til_aktuel == Sandt
@@ -182,6 +193,7 @@ Status: Valid
 | m5_audit_indkomsttaxonomi_signal: audit_signal(IndkomsttaxonomiDækket) -> audit_signal(IndkomsttaxonomiDækket) == Sandt
 
 ? m5_historisk_kilde_afvises
+? m5_bundskat_aendringer_kilde_accepteres
 ? m5_reform_kilde_accepteres
 ? m5_personfradrag_aendring_kilde_accepteres
 ? m5_ivaerksaetter_aendring_kilde_accepteres
@@ -577,6 +589,10 @@ Ikke aktuel
 )
 = m5_par6_ægtefællekapital_resultat = par6_ægtefællekapital_modregning_resultat(m5_par6_ægtefællekapital_input)
 = m5_par6_ægtefællekapital_bundskatgrundlag = bundskat_grundlag_efter_ægtefællekapitalmodregning(500000, m5_par6_ægtefællekapital_input)
+= m5_par6_sats_2022_resultat = bundskat_sats_resultat(2022, BetalerKommunalEllerPar8c)
+= m5_par6_sats_2023_resultat = bundskat_sats_resultat(2023, BetalerKommunalEllerPar8c)
+= m5_par6_sats_2024_resultat = bundskat_sats_resultat(2024, BetalerKommunalEllerPar8c)
+= m5_par6_sats_2024_ikke_kommunal_resultat = bundskat_sats_resultat(2024, BetalerIkkeKommunalEllerPar8c)
 = m5_par7_stk5_negativ_ægtefællekapital = par7_ægtefællekapital_stk5_resultat(Par7ÆgtefælleKapitalStk5Input(
     nettokapitalindkomst_kroner = -20000,
     ægtefælle_positiv_nettokapitalindkomst_kroner = 140000,
@@ -681,6 +697,10 @@ Ikke aktuel
 | m5_2026_mellemskat_ægtefællekapital_fordeles: m5_2026_ægtefællekapital_fordeling -> m5_2026_ægtefællekapital_fordeling.kapital_tærskel_status == BeggeÆgtefællerOverGrundbeløb && m5_2026_ægtefællekapital_fordeling.egen_kapitalskat_kroner == 562 && m5_2026_ægtefællekapital_fordeling.ægtefælles_kapitalskat_kroner == 188
 | m5_2026_mellemskat_ægtefællekapital_påhviler_ene: m5_2026_ægtefællekapital_påhviler_egen -> m5_2026_ægtefællekapital_påhviler_egen.kapital_tærskel_status == EnÆgtefælleOverGrundbeløb && m5_2026_ægtefællekapital_påhviler_egen.egen_kapitalskat_kroner == 750 && m5_2026_ægtefællekapital_påhviler_egen.ægtefælles_kapitalskat_kroner == 0
 | m5_par7_stk12_lige_beregningsgrundlag_brydes_af_ligningsfradrag: m5_par7_stk12_højeste_beregningsgrundlag -> m5_par7_stk12_højeste_beregningsgrundlag == EgenHøjesteBeregningsgrundlag
+| m5_par6_satskilde_2022_dækket: m5_par6_sats_2022_resultat -> m5_par6_sats_2022_resultat.kilde == PersonskattelovenLov252Af2022Par1Nr1 && m5_par6_sats_2022_resultat.sats_basispoint == 1209
+| m5_par6_satskilde_2023_dækket: m5_par6_sats_2023_resultat -> m5_par6_sats_2023_resultat.kilde == PersonskattelovenLov610Af2023Par1Nr1 && m5_par6_sats_2023_resultat.sats_basispoint == 1206
+| m5_par6_satskilde_2024_dækket: m5_par6_sats_2024_resultat -> m5_par6_sats_2024_resultat.kilde == PersonskattelovenLov108Af2024Par1Nr1 && m5_par6_sats_2024_resultat.sats_basispoint == 1201
+| m5_par6_satskilde_2024_uden_kommunal_dækket: m5_par6_sats_2024_ikke_kommunal_resultat -> m5_par6_sats_2024_ikke_kommunal_resultat.kilde == PersonskattelovenLov108Af2024Par1Nr1 && m5_par6_sats_2024_ikke_kommunal_resultat.sats_basispoint == 401
 | m5_par6_ægtefællekapital_modregning_beløb: m5_par6_ægtefællekapital_resultat -> m5_par6_ægtefællekapital_resultat.modregnet_i_positiv_nettokapitalindkomst_kroner == 3000 && m5_par6_ægtefællekapital_resultat.positiv_nettokapitalindkomst_efter_modregning_kroner == 7000 && m5_par6_ægtefællekapital_bundskatgrundlag == 507000
 | m5_par7_stk5_ægtefællekapital_modregning_og_grundbeløb: m5_par7_stk5_negativ_ægtefællekapital -> m5_par7_stk5_negativ_ægtefællekapital.modregnet_i_ægtefælles_positive_nettokapitalindkomst_kroner == 20000 && m5_par7_stk5_negativ_ægtefællekapital.grundbeløbsforhøjelse_kroner == 75000 && m5_par7_stk5_negativ_ægtefællekapital.ægtefælle_effektivt_grundbeløb_kroner == 130000 && m5_par7_stk5_negativ_ægtefællekapital.ægtefælle_kapital_over_grundbeløb_kroner == 0 && m5_par7_stk5_negativ_ægtefællekapital_skat == 0
 | m5_par7a_satskilde_2014_dækket: m5_par7a_sats_2014_resultat -> m5_par7a_sats_2014_resultat.kilde == PersonskattelovenLbk1284Af2021Par7aStk5 && m5_par7a_sats_2014_resultat.procent == 6 && m5_par7a_sats_2014_resultat.sats_basispoint == 600 && m5_par7a_sats_2014_resultat.udfaset == Falskt
@@ -709,6 +729,7 @@ Ikke aktuel
 | m5_audit_par7_reform_par20_tærskel_signal: audit_signal(Par7ReformPar20TærskelDækket) -> audit_signal(Par7ReformPar20TærskelDækket) == Sandt
 | m5_audit_reform_personlig_statsskat_signal: audit_signal(ReformPersonligStatsskatDækket) -> audit_signal(ReformPersonligStatsskatDækket) == Sandt
 | m5_audit_mellemskat_kapital_signal: audit_signal(MellemskatKapitalDækket) -> audit_signal(MellemskatKapitalDækket) == Sandt
+| m5_audit_par6_satskilde_signal: audit_signal(Par6BundskatSatsKildeDækket) -> audit_signal(Par6BundskatSatsKildeDækket) == Sandt
 | m5_audit_par6_ægtefællekapital_signal: audit_signal(Par6ÆgtefælleKapitalModregningDækket) -> audit_signal(Par6ÆgtefælleKapitalModregningDækket) == Sandt
 | m5_audit_par7_stk5_ægtefællekapital_signal: audit_signal(Par7ÆgtefælleKapitalStk5Dækket) -> audit_signal(Par7ÆgtefælleKapitalStk5Dækket) == Sandt
 | m5_audit_par7_ægtefællekapital_fordeling_signal: audit_signal(Par7ÆgtefælleKapitalFordelingDækket) -> audit_signal(Par7ÆgtefælleKapitalFordelingDækket) == Sandt
@@ -738,6 +759,10 @@ Ikke aktuel
 ? m5_2026_mellemskat_ægtefællekapital_fordeles
 ? m5_2026_mellemskat_ægtefællekapital_påhviler_ene
 ? m5_par7_stk12_lige_beregningsgrundlag_brydes_af_ligningsfradrag
+? m5_par6_satskilde_2022_dækket
+? m5_par6_satskilde_2023_dækket
+? m5_par6_satskilde_2024_dækket
+? m5_par6_satskilde_2024_uden_kommunal_dækket
 ? m5_par6_ægtefællekapital_modregning_beløb
 ? m5_par7_stk5_ægtefællekapital_modregning_og_grundbeløb
 ? m5_par7a_satskilde_2014_dækket
@@ -766,6 +791,7 @@ Ikke aktuel
 ? m5_audit_par7_reform_par20_tærskel_signal
 ? m5_audit_reform_personlig_statsskat_signal
 ? m5_audit_mellemskat_kapital_signal
+? m5_audit_par6_satskilde_signal
 ? m5_audit_par6_ægtefællekapital_signal
 ? m5_audit_par7_stk5_ægtefællekapital_signal
 ? m5_audit_par7_ægtefællekapital_fordeling_signal
