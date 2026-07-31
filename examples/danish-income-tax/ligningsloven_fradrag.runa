@@ -3,7 +3,7 @@
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 
--- Ligningsloven — fradrag efter §§ 9 J, 9 K, 9 L og 15 Q.
+-- Ligningsloven — fradrag efter §§ 9 J, 9 K, 9 L, 15 P og 15 Q.
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
@@ -524,6 +524,218 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
 | ll9j_9k_9l_2017_kun_9j_fradrag: ll9j_9k_9l_2017_fixture -> ll9j_9k_9l_2017_fixture.beskæftigelsesfradrag_kroner == 30000 && ll9j_9k_9l_2017_fixture.jobfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.ekstra_pensionsfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.samlet_fradrag_kroner == 30000
 
 ----
+§ 15 P. Lejere, der fremlejer en del af værelserne i egen lejet lejlighed til
+beboelse, kan ved indkomstopgørelsen vælge kun at medregne den del af
+bruttolejeindtægten, der overstiger et bundfradrag på ⅔ af fremlejers egen
+årlige leje for hele lejligheden. Andelshavere i private andelsboligforeninger
+anses i denne forbindelse som lejere, og andelshaveres boligafgift anses som
+leje. Ejere, der udlejer en del af værelserne i en lejlighed i egen ejendom
+omfattet af ejendomsskattelovens § 3, til beboelse, kan ved
+indkomstopgørelsen vælge kun at medregne den del af bruttolejeindtægten, der
+overstiger et bundfradrag på 1⅓ pct. af ejendomsværdien, jf.
+ejendomsskattelovens § 13, stk. 2, dog altid mindst 24.000 kr., jf. dog 5. pkt.
+For ejendomme beliggende i udlandet m.v. udgør bundfradraget 1⅓ pct. af
+udenlandsk ejendomsvurdering, som kan sidestilles med en dansk, jf.
+ejendomsskattelovens § 14, stk. 1, eller i mangel heraf handelsværdien beregnet
+efter ejendomsskattelovens § 14, stk. 2, dog altid mindst 24.000 kr., jf. dog
+5. pkt. For fremlejere, andelshavere og ejere, der kun har lejet eller ejet
+lejligheden en del af indkomståret, beregnes der kun bundfradrag af denne del af
+den årlige leje eller ejendomsværdiskat. Bundfradraget dækker samtlige udgifter
+og afskrivninger, der ellers ville være fradragsberettigede i forbindelse med
+fremlejningen eller udlejningen. For ejere beregnes ejendomsværdiskat efter
+ejendomsskatteloven for den udlejede del af boligen.
+
+Stk. 2. Lejere, der fremlejer lejligheden en del af indkomståret til beboelse,
+kan ved indkomstopgørelsen vælge kun at medregne den del af bruttolejeindtægten,
+der overstiger et bundfradrag på ⅔ af fremlejers egen årlige leje.
+Andelshavere i private andelsboligforeninger anses i denne forbindelse som
+lejere, og andelshaveres boligafgift anses som leje. Ejere af en helårsbolig,
+som er omfattet af ejendomsskattelovens § 3, der udlejer boligen en del af
+indkomståret til beboelse, kan ved indkomstopgørelsen vælge kun at medregne den
+del af bruttolejeindtægten, der overstiger et bundfradrag som nævnt i stk. 1,
+3. pkt. Stk. 1, 4. pkt., finder dog tilsvarende anvendelse. For fremlejere,
+andelshavere og ejere, der kun har lejet eller ejet lejligheden eller
+ejendommen en del af indkomståret, beregnes der kun bundfradrag af denne del af
+den årlige leje eller ejendomsværdiskat. Bundfradraget dækker samtlige udgifter
+og afskrivninger, der ellers ville være fradragsberettigede i forbindelse med
+fremlejningen eller udlejningen. For ejere beregnes ejendomsværdiskat efter
+ejendomsskatteloven i udlejningsperioden.
+
+Stk. 3. Lejere og ejere som nævnt i stk. 1 og 2, der ikke anvender
+bundfradragsreglen i stk. 1 eller 2, kan ved indkomstopgørelsen foretage
+fradrag for udgifter mv. som nævnt i stk. 1, 6. pkt., og stk. 2, 6. pkt. Det
+samlede fradragsbeløb kan dog ikke overstige bruttolejeindtægten. Foretages
+fradraget efter 1. pkt., kan den pågældende lejer eller ejer ikke senere overgå
+til bundfradrag efter stk. 1 eller 2.
+
+Stk. 4. Stk. 1-3 gælder alene for ejere, andelshavere og lejere, hvis
+udlejningen eller fremlejningen sker til den samme person eller de samme
+personer i en sammenhængende periode på mindst 4 måneder.
+----
+
+# Ligningslov15PRolle = Ll15PEjer | Ll15PAndelshaver | Ll15PLejer
+# Ligningslov15PUdlejningsform = Ll15PVærelser | Ll15PHeleBoligen
+# Ligningslov15PMetode = Ll15PSkematiskBundfradrag | Ll15PRegnskabsmæssigeUdgifter
+# Ligningslov15PBundfradragskilde = Ll15PLejeEllerBoligafgift | Ll15PEjendomsværdi
+# Ligningslov15PInput(skatteår: Heltal, rolle: Ligningslov15PRolle, udlejningsform: Ligningslov15PUdlejningsform, metode: Ligningslov15PMetode, bruttolejeindtægt_kroner: Heltal, årlig_leje_eller_boligafgift_kroner: Heltal, ejendomsværdi_kroner: Heltal, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk, samme_personer_mindst_fire_måneder: Boolsk, lejet_eller_ejet_dage: Heltal, udlejningsdage: Heltal, indkomstårets_dage: Heltal, faktiske_udgifter_kroner: Heltal)
+# Ligningslov15PResultat(skatteår: Heltal, rolle: Ligningslov15PRolle, udlejningsform: Ligningslov15PUdlejningsform, metode: Ligningslov15PMetode, grundbetingelser_opfyldt: Boolsk, skematisk_anvendelig: Boolsk, regnskabsmæssig_anvendelig: Boolsk, bundfradragskilde: Ligningslov15PBundfradragskilde, bruttolejeindtægt_kroner: Heltal, fuldt_bundfradrag_kroner: Heltal, lejet_eller_ejet_dage: Heltal, udlejningsdage: Heltal, forholdsmæssigt_bundfradrag_kroner: Heltal, bundfradrag_anvendt_kroner: Heltal, faktiske_udgifter_fradrag_kroner: Heltal, fradrag_i_indkomstopgørelse_kroner: Heltal, skattepligtig_indkomst_kroner: Heltal, regnskabsmæssig_metode_spærrer_senere_bundfradrag: Boolsk)
+
+| ll15p_lejer_lignende(rolle: Ligningslov15PRolle) -> rolle == Ll15PLejer || rolle == Ll15PAndelshaver
+| ll15p_ejer(rolle: Ligningslov15PRolle) -> rolle == Ll15PEjer
+| ll15p_ejer_betingelse_opfyldt(rolle: Ligningslov15PRolle, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk) -> Sandt
+| exception ll15p_ejer_kræver_ejendomsskattelov3 ll15p_ejer_betingelse_opfyldt(rolle: Ligningslov15PRolle, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk) -> ejer_ejendom_omfattet_af_ejendomsskattelov3 under ll15p_ejer(rolle)
+| ll15p_bundfradragskilde(rolle: Ligningslov15PRolle) -> Ll15PLejeEllerBoligafgift
+| exception ll15p_ejer_bundfradrag_fra_ejendomsværdi ll15p_bundfradragskilde(rolle: Ligningslov15PRolle) -> Ll15PEjendomsværdi under ll15p_ejer(rolle)
+| ll15p_lejer_bundfradrag_kroner(årlig_leje_eller_boligafgift_kroner: Heltal) -> ligningslov_positivt_beløb(årlig_leje_eller_boligafgift_kroner) * 2 / 3
+| ll15p_ejer_bundfradrag_kroner(ejendomsværdi_kroner: Heltal) -> ligningslov_største_beløb(ligningslov_positivt_beløb(ejendomsværdi_kroner) / 75, 24000)
+| ll15p_forholdsmæssigt_bundfradrag_kroner(fuldt_bundfradrag_kroner: Heltal, lejet_eller_ejet_dage: Heltal, indkomstårets_dage: Heltal) -> 0
+| exception ll15p_forholdsmæssig_rådighedsperiode ll15p_forholdsmæssigt_bundfradrag_kroner(fuldt_bundfradrag_kroner: Heltal, lejet_eller_ejet_dage: Heltal, indkomstårets_dage: Heltal) -> fuldt_bundfradrag_kroner * ligningslov_mindste_beløb(lejet_eller_ejet_dage, indkomstårets_dage) / indkomstårets_dage under fuldt_bundfradrag_kroner > 0 && lejet_eller_ejet_dage > 0 && indkomstårets_dage > 0
+
+# Ligningslov15PSag(input: Ligningslov15PInput) {
+    | bruttolejeindtægt_kroner() -> ligningslov_positivt_beløb(input.bruttolejeindtægt_kroner)
+    | grundbetingelser_opfyldt() -> input.samme_personer_mindst_fire_måneder && ll15p_ejer_betingelse_opfyldt(input.rolle, input.ejer_ejendom_omfattet_af_ejendomsskattelov3)
+    | skematisk_anvendelig() -> input.metode == Ll15PSkematiskBundfradrag && grundbetingelser_opfyldt()
+    | regnskabsmæssig_anvendelig() -> input.metode == Ll15PRegnskabsmæssigeUdgifter && grundbetingelser_opfyldt()
+    | bundfradragskilde() -> ll15p_bundfradragskilde(input.rolle)
+    | fuldt_bundfradrag_kroner() -> ll15p_lejer_bundfradrag_kroner(input.årlig_leje_eller_boligafgift_kroner)
+    | exception ll15p_ejer_fuldt_bundfradrag fuldt_bundfradrag_kroner() -> ll15p_ejer_bundfradrag_kroner(input.ejendomsværdi_kroner) under ll15p_ejer(input.rolle)
+    | lejet_eller_ejet_dage() -> ligningslov_mindste_beløb(ligningslov_positivt_beløb(input.lejet_eller_ejet_dage), ligningslov_positivt_beløb(input.indkomstårets_dage))
+    | udlejningsdage() -> ligningslov_mindste_beløb(ligningslov_positivt_beløb(input.udlejningsdage), ligningslov_positivt_beløb(input.indkomstårets_dage))
+    | forholdsmæssigt_bundfradrag_kroner() -> ll15p_forholdsmæssigt_bundfradrag_kroner(fuldt_bundfradrag_kroner(), lejet_eller_ejet_dage(), input.indkomstårets_dage)
+    | bundfradrag_anvendt_kroner() -> 0
+    | exception ll15p_skematisk_bundfradrag bundfradrag_anvendt_kroner() -> ligningslov_mindste_beløb(forholdsmæssigt_bundfradrag_kroner(), bruttolejeindtægt_kroner()) under skematisk_anvendelig()
+    | faktiske_udgifter_fradrag_kroner() -> 0
+    | exception ll15p_regnskabsmæssige_udgifter faktiske_udgifter_fradrag_kroner() -> ligningslov_mindste_beløb(ligningslov_positivt_beløb(input.faktiske_udgifter_kroner), bruttolejeindtægt_kroner()) under regnskabsmæssig_anvendelig()
+    | fradrag_i_indkomstopgørelse_kroner() -> bundfradrag_anvendt_kroner() + faktiske_udgifter_fradrag_kroner()
+    | skattepligtig_indkomst_kroner() -> ligningslov_positivt_beløb(bruttolejeindtægt_kroner() - fradrag_i_indkomstopgørelse_kroner())
+    | regnskabsmæssig_metode_spærrer_senere_bundfradrag() -> regnskabsmæssig_anvendelig()
+    | resultat() -> Ligningslov15PResultat(
+        skatteår = input.skatteår,
+        rolle = input.rolle,
+        udlejningsform = input.udlejningsform,
+        metode = input.metode,
+        grundbetingelser_opfyldt = grundbetingelser_opfyldt(),
+        skematisk_anvendelig = skematisk_anvendelig(),
+        regnskabsmæssig_anvendelig = regnskabsmæssig_anvendelig(),
+        bundfradragskilde = bundfradragskilde(),
+        bruttolejeindtægt_kroner = bruttolejeindtægt_kroner(),
+        fuldt_bundfradrag_kroner = fuldt_bundfradrag_kroner(),
+        lejet_eller_ejet_dage = lejet_eller_ejet_dage(),
+        udlejningsdage = udlejningsdage(),
+        forholdsmæssigt_bundfradrag_kroner = forholdsmæssigt_bundfradrag_kroner(),
+        bundfradrag_anvendt_kroner = bundfradrag_anvendt_kroner(),
+        faktiske_udgifter_fradrag_kroner = faktiske_udgifter_fradrag_kroner(),
+        fradrag_i_indkomstopgørelse_kroner = fradrag_i_indkomstopgørelse_kroner(),
+        skattepligtig_indkomst_kroner = skattepligtig_indkomst_kroner(),
+        regnskabsmæssig_metode_spærrer_senere_bundfradrag = regnskabsmæssig_metode_spærrer_senere_bundfradrag()
+    )
+}
+| ligningslov15p_sag(input: Ligningslov15PInput) -> Ligningslov15PSag(input)
+| ligningslov15p_resultat(input: Ligningslov15PInput) -> ligningslov15p_sag(input).resultat()
+| ll15p_ingen_resultat() -> Ligningslov15PResultat(
+    skatteår = 0,
+    rolle = Ll15PLejer,
+    udlejningsform = Ll15PVærelser,
+    metode = Ll15PSkematiskBundfradrag,
+    grundbetingelser_opfyldt = Falskt,
+    skematisk_anvendelig = Falskt,
+    regnskabsmæssig_anvendelig = Falskt,
+    bundfradragskilde = Ll15PLejeEllerBoligafgift,
+    bruttolejeindtægt_kroner = 0,
+    fuldt_bundfradrag_kroner = 0,
+    lejet_eller_ejet_dage = 0,
+    udlejningsdage = 0,
+    forholdsmæssigt_bundfradrag_kroner = 0,
+    bundfradrag_anvendt_kroner = 0,
+    faktiske_udgifter_fradrag_kroner = 0,
+    fradrag_i_indkomstopgørelse_kroner = 0,
+    skattepligtig_indkomst_kroner = 0,
+    regnskabsmæssig_metode_spærrer_senere_bundfradrag = Falskt
+)
+
+= ll15p_ejer_eksempel1_fixture = ligningslov15p_resultat(Ligningslov15PInput(
+    skatteår = 2026,
+    rolle = Ll15PEjer,
+    udlejningsform = Ll15PHeleBoligen,
+    metode = Ll15PSkematiskBundfradrag,
+    bruttolejeindtægt_kroner = 300000,
+    årlig_leje_eller_boligafgift_kroner = 0,
+    ejendomsværdi_kroner = 3000000,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Sandt,
+    samme_personer_mindst_fire_måneder = Sandt,
+    lejet_eller_ejet_dage = 365,
+    udlejningsdage = 300,
+    indkomstårets_dage = 365,
+    faktiske_udgifter_kroner = 0
+))
+= ll15p_ejer_eksempel3_fixture = ligningslov15p_resultat(Ligningslov15PInput(
+    skatteår = 2026,
+    rolle = Ll15PEjer,
+    udlejningsform = Ll15PHeleBoligen,
+    metode = Ll15PSkematiskBundfradrag,
+    bruttolejeindtægt_kroner = 300000,
+    årlig_leje_eller_boligafgift_kroner = 0,
+    ejendomsværdi_kroner = 3000000,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Sandt,
+    samme_personer_mindst_fire_måneder = Sandt,
+    lejet_eller_ejet_dage = 365,
+    udlejningsdage = 365,
+    indkomstårets_dage = 365,
+    faktiske_udgifter_kroner = 0
+))
+= ll15p_lejer_to_tredjedele_fixture = ligningslov15p_resultat(Ligningslov15PInput(
+    skatteår = 2026,
+    rolle = Ll15PLejer,
+    udlejningsform = Ll15PVærelser,
+    metode = Ll15PSkematiskBundfradrag,
+    bruttolejeindtægt_kroner = 80000,
+    årlig_leje_eller_boligafgift_kroner = 120000,
+    ejendomsværdi_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    samme_personer_mindst_fire_måneder = Sandt,
+    lejet_eller_ejet_dage = 365,
+    udlejningsdage = 365,
+    indkomstårets_dage = 365,
+    faktiske_udgifter_kroner = 0
+))
+= ll15p_korttidsudlejning_udelukkes_fixture = ligningslov15p_resultat(Ligningslov15PInput(
+    skatteår = 2026,
+    rolle = Ll15PLejer,
+    udlejningsform = Ll15PVærelser,
+    metode = Ll15PSkematiskBundfradrag,
+    bruttolejeindtægt_kroner = 80000,
+    årlig_leje_eller_boligafgift_kroner = 120000,
+    ejendomsværdi_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    samme_personer_mindst_fire_måneder = Falskt,
+    lejet_eller_ejet_dage = 365,
+    udlejningsdage = 90,
+    indkomstårets_dage = 365,
+    faktiske_udgifter_kroner = 0
+))
+= ll15p_regnskabsmæssig_fixture = ligningslov15p_resultat(Ligningslov15PInput(
+    skatteår = 2026,
+    rolle = Ll15PLejer,
+    udlejningsform = Ll15PVærelser,
+    metode = Ll15PRegnskabsmæssigeUdgifter,
+    bruttolejeindtægt_kroner = 80000,
+    årlig_leje_eller_boligafgift_kroner = 120000,
+    ejendomsværdi_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    samme_personer_mindst_fire_måneder = Sandt,
+    lejet_eller_ejet_dage = 365,
+    udlejningsdage = 365,
+    indkomstårets_dage = 365,
+    faktiske_udgifter_kroner = 30000
+))
+
+| ll15p_ejer_1_og_1_tredjedel_pct: ll15p_ejer_eksempel1_fixture -> ll15p_ejer_eksempel1_fixture.bundfradragskilde == Ll15PEjendomsværdi && ll15p_ejer_eksempel1_fixture.fuldt_bundfradrag_kroner == 40000 && ll15p_ejer_eksempel1_fixture.bundfradrag_anvendt_kroner == 40000
+| ll15p_ejer_helårsudlejning_til_stk4: ll15p_ejer_eksempel3_fixture -> ll15p_ejer_eksempel3_fixture.fuldt_bundfradrag_kroner == 40000 && ll15p_ejer_eksempel3_fixture.udlejningsdage == 365
+| ll15p_lejer_to_tredjedele_leje: ll15p_lejer_to_tredjedele_fixture -> ll15p_lejer_to_tredjedele_fixture.bundfradragskilde == Ll15PLejeEllerBoligafgift && ll15p_lejer_to_tredjedele_fixture.fuldt_bundfradrag_kroner == 80000 && ll15p_lejer_to_tredjedele_fixture.skattepligtig_indkomst_kroner == 0
+| ll15p_stk4_mindst_fire_måneder: ll15p_korttidsudlejning_udelukkes_fixture -> ll15p_korttidsudlejning_udelukkes_fixture.grundbetingelser_opfyldt == Falskt && ll15p_korttidsudlejning_udelukkes_fixture.bundfradrag_anvendt_kroner == 0
+| ll15p_stk3_regnskabsmæssig_spærrer_senere_bundfradrag: ll15p_regnskabsmæssig_fixture -> ll15p_regnskabsmæssig_fixture.regnskabsmæssig_anvendelig == Sandt && ll15p_regnskabsmæssig_fixture.faktiske_udgifter_fradrag_kroner == 30000 && ll15p_regnskabsmæssig_fixture.regnskabsmæssig_metode_spærrer_senere_bundfradrag == Sandt
+
+----
 § 15 Q. Ejere, andelshavere og lejere, der udlejer eller fremlejer en del af
 værelserne i en helårsbolig til beboelse, eller som udlejer eller fremlejer hele
 boligen en del af indkomståret til beboelse, kan ved indkomstopgørelsen foretage
@@ -605,7 +817,7 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
 # Ligningslov15QIndberetningsstatus = Ll15QIngenIndberetning | Ll15QIndberettetEfterSkatteindberetningslov43 | Ll15QOplysningerModtagetVedUdveksling | Ll15QPlatformIndberetningspligtigUdenModtagelse
 # Ligningslov15QMetode = Ll15QStk1Bundfradrag | Ll15QStk3FaktiskeUdgifter
 # Ligningslov15QStk4Loftvalg = Ll15QStk4BevarPar15QAndel | Ll15QStk4PrioriterPar15P
-# Ligningslov15QStk4Samordning(anvender_både_par15q_og_par15p: Boolsk, par15q_udlejningsdage: Heltal, par15p_udlejningsdage: Heltal, indkomstårets_dage: Heltal, par15p_fuldt_bundfradrag_kroner: Heltal, loftvalg: Ligningslov15QStk4Loftvalg)
+# Ligningslov15QStk4Samordning(anvender_både_par15q_og_par15p: Boolsk, par15q_udlejningsdage: Heltal, par15p_resultat: Ligningslov15PResultat, indkomstårets_dage: Heltal, loftvalg: Ligningslov15QStk4Loftvalg)
 # Ligningslov15QStk4Resultat(anvendes: Boolsk, par15q_andel_basispoint: Heltal, par15p_andel_basispoint: Heltal, par15q_forholdsmæssigt_bundfradrag_kroner: Heltal, par15p_forholdsmæssigt_bundfradrag_kroner: Heltal, højeste_fulde_bundfradrag_kroner: Heltal, samlet_forholdsmæssigt_bundfradrag_kroner: Heltal, loft_aktiveret: Boolsk, par15q_bundfradrag_efter_stk4_kroner: Heltal, samlet_bundfradrag_efter_stk4_loft_kroner: Heltal)
 # Ligningslov15QInput(skatteår: Heltal, rolle: Ligningslov15QBoligrolle, udlejningsform: Ligningslov15QUdlejningsform, boligstatus: Ligningslov15QBoligstatus, indberetningsstatus: Ligningslov15QIndberetningsstatus, metode: Ligningslov15QMetode, bruttolejeindtægt_kroner: Heltal, faktiske_udgifter_kroner: Heltal, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk, tidligere_anvendt_par15p_stk3: Boolsk, stk4_samordning: Ligningslov15QStk4Samordning)
 # Ligningslov15QResultat(skatteår: Heltal, rolle: Ligningslov15QBoligrolle, metode: Ligningslov15QMetode, grundbetingelser_opfyldt: Boolsk, højt_bundfradrag_berettiget: Boolsk, tidligere_par15p_stk3_afskærer_stk1: Boolsk, stk1_anvendelig: Boolsk, stk3_anvendelig: Boolsk, bruttolejeindtægt_kroner: Heltal, bundfradrag_2010_niveau_kroner: Heltal, reguleret_bundfradrag_kroner: Heltal, stk4: Ligningslov15QStk4Resultat, bundfradrag_anvendt_kroner: Heltal, fradrag_af_overskydende_leje_kroner: Heltal, faktiske_udgifter_fradrag_kroner: Heltal, fradrag_i_indkomstopgørelse_kroner: Heltal, overskud_efter_ligningslov15q_kroner: Heltal)
@@ -627,9 +839,8 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
 | ll15q_ingen_stk4_samordning() -> Ligningslov15QStk4Samordning(
     anvender_både_par15q_og_par15p = Falskt,
     par15q_udlejningsdage = 0,
-    par15p_udlejningsdage = 0,
+    par15p_resultat = ll15p_ingen_resultat(),
     indkomstårets_dage = 365,
-    par15p_fuldt_bundfradrag_kroner = 0,
     loftvalg = Ll15QStk4BevarPar15QAndel
 )
 | ll15q_forholdsmæssig_hel_procent_basispoint(udlejningsdage: Heltal, indkomstårets_dage: Heltal) -> 0
@@ -640,9 +851,9 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
     | par15q_andel_basispoint() -> 10000
     | exception ll15q_stk4_forholdsmæssig_q_andel par15q_andel_basispoint() -> ll15q_forholdsmæssig_hel_procent_basispoint(samordning.par15q_udlejningsdage, samordning.indkomstårets_dage) under anvendes()
     | par15p_andel_basispoint() -> 0
-    | exception ll15q_stk4_forholdsmæssig_p_andel par15p_andel_basispoint() -> ll15q_forholdsmæssig_hel_procent_basispoint(samordning.par15p_udlejningsdage, samordning.indkomstårets_dage) under anvendes()
+    | exception ll15q_stk4_forholdsmæssig_p_andel par15p_andel_basispoint() -> ll15q_forholdsmæssig_hel_procent_basispoint(samordning.par15p_resultat.udlejningsdage, samordning.indkomstårets_dage) under anvendes()
     | par15q_forholdsmæssigt_bundfradrag_kroner() -> penge_beløb_gange_basispoint_kroner(par15q_fuldt_bundfradrag_kroner, par15q_andel_basispoint())
-    | par15p_fuldt_bundfradrag_kroner() -> ligningslov_positivt_beløb(samordning.par15p_fuldt_bundfradrag_kroner)
+    | par15p_fuldt_bundfradrag_kroner() -> ligningslov_positivt_beløb(samordning.par15p_resultat.fuldt_bundfradrag_kroner)
     | par15p_forholdsmæssigt_bundfradrag_kroner() -> penge_beløb_gange_basispoint_kroner(par15p_fuldt_bundfradrag_kroner(), par15p_andel_basispoint())
     | højeste_fulde_bundfradrag_kroner() -> ligningslov_største_beløb(par15q_fuldt_bundfradrag_kroner, par15p_fuldt_bundfradrag_kroner())
     | samlet_forholdsmæssigt_bundfradrag_kroner() -> par15q_forholdsmæssigt_bundfradrag_kroner() + par15p_forholdsmæssigt_bundfradrag_kroner()
@@ -803,9 +1014,8 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
     stk4_samordning = Ligningslov15QStk4Samordning(
         anvender_både_par15q_og_par15p = Sandt,
         par15q_udlejningsdage = 65,
-        par15p_udlejningsdage = 300,
+        par15p_resultat = ll15p_ejer_eksempel1_fixture,
         indkomstårets_dage = 365,
-        par15p_fuldt_bundfradrag_kroner = 40000,
         loftvalg = Ll15QStk4BevarPar15QAndel
     )
 ))
@@ -823,9 +1033,8 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
     stk4_samordning = Ligningslov15QStk4Samordning(
         anvender_både_par15q_og_par15p = Sandt,
         par15q_udlejningsdage = 20,
-        par15p_udlejningsdage = 365,
+        par15p_resultat = ll15p_ejer_eksempel3_fixture,
         indkomstårets_dage = 365,
-        par15p_fuldt_bundfradrag_kroner = 40000,
         loftvalg = Ll15QStk4BevarPar15QAndel
     )
 ))
@@ -843,9 +1052,8 @@ Kilde: https://info.skat.dk/data.aspx?oid=2285016
     stk4_samordning = Ligningslov15QStk4Samordning(
         anvender_både_par15q_og_par15p = Sandt,
         par15q_udlejningsdage = 20,
-        par15p_udlejningsdage = 365,
+        par15p_resultat = ll15p_ejer_eksempel3_fixture,
         indkomstårets_dage = 365,
-        par15p_fuldt_bundfradrag_kroner = 40000,
         loftvalg = Ll15QStk4PrioriterPar15P
     )
 ))

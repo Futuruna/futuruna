@@ -30,10 +30,13 @@ substantial-participation condition and Skatterådet's pre-19 May 1993
 permission carve-out; § 4, stk. 1, nr. 17 now derives tenant/shareholder
 subletting and letting surplus under LL § 15 Q stk. 1/3 as positive
 capital-income surplus while excluding owners/others and non-LL15Q cases, and
-the LL § 15 Q dependency now calculates the regulated low/high bundfradrag,
-stk. 4 proportional coordination with LL § 15 P, rounded 40 pct. deduction on
-excess rent, actual-expense branch, and resulting surplus before § 4 consumes
-it; the 2026 § 7/§ 7 a/§ 8 reform
+the LL § 15 P dependency now calculates long-term private-home letting
+bundfradrag from 2/3 annual rent/boligafgift or 1 1/3 pct. property value,
+the 24.000 kr. owner minimum, the four-month condition, actual-expense branch
+and later-method lock, while LL § 15 Q now calculates the regulated low/high
+bundfradrag, stk. 4 proportional coordination from a typed LL § 15 P result,
+rounded 40 pct. deduction on excess rent, actual-expense branch, and resulting
+surplus before § 4 consumes it; the 2026 § 7/§ 7 a/§ 8 reform
 parameters for mellemskat, topskat and toptopskat now carry LOV nr. 482/2024
 source provenance and derive statutory 2010-level thresholds through § 20
 regulation, with § 7 a topskat and § 8 toptopskat exposed as personal-income
@@ -201,11 +204,13 @@ Current § 13 amendment/dependency sources:
   - § 33 A is the foreign-wage relief exception in § 13, stk. 5.
   - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
     wage-earner calculator; § 9 L is modeled for extra pension deductions and
-    § 26 nr. 5 transition-compensation input; § 15 Q is modeled for
-    subletting/letting income with regulated 2025/2026 low/high bundfradrag,
-    stk. 4 proportional coordination with LL § 15 P, rounded 40 pct. deduction
-    on excess rent, actual-expense deduction, and the surplus fed into
-    Personskatteloven § 4, stk. 1, nr. 17. The § 26 path now has
+    § 26 nr. 5 transition-compensation input; § 15 P is modeled for
+    long-term private-home letting with skematisk and regnskabsmæssig results;
+    § 15 Q is modeled for subletting/letting income with regulated 2025/2026
+    low/high bundfradrag, stk. 4 proportional coordination from a typed
+    LL § 15 P result, rounded 40 pct. deduction on excess rent, actual-expense
+    deduction, and the surplus fed into Personskatteloven § 4, stk. 1, nr. 17.
+    The § 26 path now has
     2012-2019 Ligningsloven deduction parameter coverage for the first
     transition-compensation calculation layer, and § 26 year packs now derive
     their § 20 regulation number, § 7 top-tax threshold and § 8 health
@@ -520,7 +525,7 @@ as a complete Personskatteloven calculator.
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
 - Working estimate: roughly 63-73% complete as an executable research corpus,
-  and roughly 48-58% complete as a production-grade calculator for
+  and roughly 49-59% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -653,9 +658,18 @@ Current decision:
 - `Ligningslov15QSag` uses product-scoped `|` rules for LL § 15 Q. It keeps
   housing role, letting form, helårsbolig status, reporting branch, deduction
   method, regulated low/high bundfradrag, stk. 4 same-home § 15 P
-  coordination with rounded day percentages and explicit cap choice, rounded
-  40 pct. excess-rent deduction, actual-expense deduction, and resulting
-  surplus together before Personskatteloven § 4 consumes the result.
+  coordination from a typed `Ligningslov15PResultat` with rounded day
+  percentages and explicit cap choice, rounded 40 pct. excess-rent deduction,
+  actual-expense deduction, and resulting surplus together before
+  Personskatteloven § 4 consumes the result.
+- `Ligningslov15PSag` uses product-scoped `|` rules for LL § 15 P. It keeps
+  taxpayer housing role, rooms-vs-whole-home letting form, the skematisk or
+  regnskabsmæssig method, 2/3 annual rent/boligafgift, 1 1/3 pct. property
+  value with the 24.000 kr. owner minimum, the four-month same-tenant
+  condition, ownership/lease-day proportionality, actual-expense deduction,
+  taxable letting result, and the stk. 3 lock against later bundfradrag
+  together. LL § 15 Q stk. 4 now consumes this result object instead of a bare
+  § 15 P deduction scalar.
 - `PersonfradragPar10Sag` uses product-scoped `|` rules for § 10 eligibility.
   It keeps tax year, age status, tax-liability posture, partial-year election
   date, and reversal date together so the Kildeskatteloven § 2 full-year case,

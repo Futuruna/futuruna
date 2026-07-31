@@ -193,9 +193,8 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     stk4_samordning = Ligningslov15QStk4Samordning(
         anvender_både_par15q_og_par15p = Sandt,
         par15q_udlejningsdage = 65,
-        par15p_udlejningsdage = 300,
+        par15p_resultat = ll15p_ejer_eksempel1_fixture,
         indkomstårets_dage = 365,
-        par15p_fuldt_bundfradrag_kroner = 40000,
         loftvalg = Ll15QStk4BevarPar15QAndel
     )
 )
@@ -214,9 +213,8 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     stk4_samordning = Ligningslov15QStk4Samordning(
         anvender_både_par15q_og_par15p = Sandt,
         par15q_udlejningsdage = 20,
-        par15p_udlejningsdage = 365,
+        par15p_resultat = ll15p_ejer_eksempel3_fixture,
         indkomstårets_dage = 365,
-        par15p_fuldt_bundfradrag_kroner = 40000,
         loftvalg = Ll15QStk4BevarPar15QAndel
     )
 )
@@ -235,9 +233,8 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     stk4_samordning = Ligningslov15QStk4Samordning(
         anvender_både_par15q_og_par15p = Sandt,
         par15q_udlejningsdage = 20,
-        par15p_udlejningsdage = 365,
+        par15p_resultat = ll15p_ejer_eksempel3_fixture,
         indkomstårets_dage = 365,
-        par15p_fuldt_bundfradrag_kroner = 40000,
         loftvalg = Ll15QStk4PrioriterPar15P
     )
 )
