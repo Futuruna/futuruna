@@ -790,7 +790,10 @@ Current decision:
   ordinary wage-earner breakdown. It carries the derived `Par19SkatteloftInput`,
   excess basis points, and kroner relief together for both personal and
   positive-capital skatteloft paths instead of adding loose scalar fields to the
-  calculator surface.
+  calculator surface. The § 19 personal and positive-capital ceilings now also
+  project from typed `Par19SkatteloftResultat` values that preserve whether the
+  rate comes from LBK nr. 1284/2021 § 19 stk. 1/stk. 2 or the 2026 LOV nr.
+  482/2024 § 1 nr. 15 rewrite.
 - `LønmodtagerBeregning` now composes the ordinary wage-earner calculation from
   named domain records: income basis, Ligningsloven deductions, tax before
   person allowance, § 5 state-tax aggregate before person allowance, person
@@ -1242,8 +1245,10 @@ M5 - Audit suite
   state personfradrag tax-value reduction
   order, § 9 non-state personfradrag reduction, and wage-earner component
   projection,
-  covered 2026 state-tax reform parameter source branches, covered § 6 source-backed
-  bundskat-rate provenance across the 2022/2023/2024 amendment chain,
+  covered 2026 state-tax reform parameter source branches, covered § 19
+  personal and positive-capital skatteloft source branches across the LBK text
+  and LOV nr. 482/2024 rewrite, covered § 6 source-backed bundskat-rate
+  provenance across the 2022/2023/2024 amendment chain,
   covered § 13 deficit mechanics,
   § 13 stk. 4 negative-personal-income spouse and carry-forward offset order,
   mellemskat positive-net-capital and spouse-threshold activation,
