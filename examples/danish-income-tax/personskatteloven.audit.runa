@@ -372,6 +372,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
     ),
     gift_samlevende_ved_årets_udløb = Sandt
 ))
+= m5_par11_sats_2012_fixture = par11_negativ_kapital_nedslag_sats_resultat(2012)
+= m5_par11_sats_2026_fixture = par11_negativ_kapital_nedslag_sats_resultat(2026)
 
 | m5_personfradrag_normalfixture_dækket: m5_personfradrag_fixture -> m5_personfradrag_fixture.personfradrag_anvendt_i_slutskat == Sandt
 | m5_personfradrag_skatteværdi_beregnet: m5_personfradrag_fixture -> m5_personfradrag_fixture.statslig_personfradrag_skatteværdi_kroner == 6197 && m5_personfradrag_fixture.kommunal_personfradrag_skatteværdi_kroner == 12126
@@ -404,6 +406,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | m5_par9_ikke_stat_personfradrag_overløb_dækket: m5_par9_ikke_stat_personfradrag_overløb_fixture -> m5_par9_ikke_stat_personfradrag_overløb_fixture.par8c_efter_kroner == 0 && m5_par9_ikke_stat_personfradrag_overløb_fixture.kommuneskat_efter_kroner == 0 && m5_par9_ikke_stat_personfradrag_overløb_fixture.kirkeskat_efter_kroner == 0 && m5_par9_ikke_stat_personfradrag_overløb_fixture.ubrugt_kirkelig_skatteværdi_kroner == 50
 | m5_lønmodtager_par9_ikke_stat_personfradrag_delegerer: m5_lønmodtager_ikke_stat_personfradrag_fixture -> m5_lønmodtager_ikke_stat_personfradrag_fixture.kommuneskat_efter_kroner == 82226 && m5_lønmodtager_ikke_stat_personfradrag_fixture.kirkeskat_efter_kroner == 2800 && m5_personfradrag_fixture.kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner == m5_lønmodtager_ikke_stat_personfradrag_fixture.samlet_efter_kroner
 | m5_par12_omfordeler_uudnyttet_skatteværdi: m5_par12_statsskat_omfordeling_fixture -> m5_par12_statsskat_omfordeling_fixture.par6_efter_kroner == 0 && m5_par12_statsskat_omfordeling_fixture.par7_efter_kroner == 0 && m5_par12_statsskat_omfordeling_fixture.par7a_efter_kroner == 200 && m5_par12_statsskat_omfordeling_fixture.ubrugt_skatteværdi_kroner == 0
+| m5_par11_2012_satskilde_dækket: m5_par11_sats_2012_fixture -> m5_par11_sats_2012_fixture.kilde == PersonskattelovenLbk1284Af2021Par11Stk2 && m5_par11_sats_2012_fixture.procent == 1 && m5_par11_sats_2012_fixture.sats_basispoint == 100
+| m5_par11_2026_satskilde_dækket: m5_par11_sats_2026_fixture -> m5_par11_sats_2026_fixture.kilde == PersonskattelovenLbk1284Af2021Par11Stk2 && m5_par11_sats_2026_fixture.procent == 8 && m5_par11_sats_2026_fixture.sats_basispoint == 800
 | m5_par11_ægtefælle_beløbsgrænse_pooles: m5_par11_ægtefælle_pooling_fixture -> m5_par11_ægtefælle_pooling_fixture.effektiv_beløbsgrænse_kroner == 80000 && m5_par11_ægtefælle_pooling_fixture.nedslagsgrundlag_kroner == 80000 && m5_par11_ægtefælle_pooling_fixture.nedslag_kroner == 6400
 | m5_par11_ægtefælle_positiv_modregnes: m5_par11_ægtefælle_positiv_fixture -> m5_par11_ægtefælle_positiv_fixture.ægtefælle_positiv_modregning_kroner == 30000 && m5_par11_ægtefælle_positiv_fixture.negativ_nettokapitalindkomst_efter_ægtefællepositiv_kroner == 90000 && m5_par11_ægtefælle_positiv_fixture.nedslag_kroner == 7200
 | m5_par11_modregningsorden_dækket: m5_par11_modregning_fixture -> m5_par11_modregning_fixture.par6_efter_kroner == 0 && m5_par11_modregning_fixture.par7_efter_kroner == 0 && m5_par11_modregning_fixture.par8c_efter_kroner == 0 && m5_par11_modregning_fixture.kommuneskat_efter_kroner == 1000 && m5_par11_modregning_fixture.kirkeskat_efter_kroner == 500
@@ -450,6 +454,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 ? m5_par10_stk3_ægtefælle_personfradrag_statsværdi_dækket
 ? m5_par10_stk3_kræver_samliv_dækket
 ? m5_par12_omfordeler_uudnyttet_skatteværdi
+? m5_par11_2012_satskilde_dækket
+? m5_par11_2026_satskilde_dækket
 ? m5_par11_ægtefælle_beløbsgrænse_pooles
 ? m5_par11_ægtefælle_positiv_modregnes
 ? m5_par11_modregningsorden_dækket

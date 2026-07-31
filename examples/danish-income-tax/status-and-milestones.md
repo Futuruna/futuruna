@@ -617,8 +617,9 @@ Current decision:
   It keeps tax year, the taxpayer's net-capital income, the spouse's
   net-capital income, samliv status, and municipal/§ 8 c tax-liability posture
   together so the own negative amount, spouse positive offset, spouse unused
-  threshold, effective threshold, reduction base, rate, and final reduction are
-  derived from one legal case. `Par11NedslagModregningSag` separately keeps
+  threshold, effective threshold, reduction base, § 11 stk. 2 rate result, and
+  final reduction are derived from one legal case.
+  `Par11NedslagModregningSag` separately keeps
   the statutory reduction order across §§ 6, 7, 7 a, 8, § 8 a stk. 2, § 8 c,
   municipal tax, and church tax.
 - `Par6ÆgtefælleKapitalModregningSag` uses product-scoped `|` rules for the
@@ -1188,7 +1189,8 @@ M4 - Ordinary taxpayer calculator
   and § 19 uses the 25 pct. § 8 c rate in place of a municipality rate.
   Personskatteloven § 11 now computes negative net-capital-income reduction
   with spouse threshold pooling, spouse positive-net-capital offset before
-  threshold increase, statutory tax-order reduction, and unused spouse transfer.
+  threshold increase, source-backed stk. 2 rate provenance, statutory tax-order
+  reduction, and unused spouse transfer.
 
 M5 - Audit suite
 
@@ -1200,9 +1202,10 @@ M5 - Audit suite
   composition from separate income categories, covered normal-fixture
   personfradrag, covered § 10 stk. 5-6 choice/deadline/exclusion posture,
   covered § 10 stk. 3 spouse transfer of unused personfradrag state-tax value,
-  covered § 11 negative net-capital reduction with spouse threshold pooling,
-  spouse positive-capital offset, statutory reduction order, and unused spouse
-  transfer, covered § 9/§ 12 split state personfradrag tax-value reduction
+  covered § 11 negative net-capital reduction with source-backed stk. 2 rate
+  provenance, spouse threshold pooling, spouse positive-capital offset,
+  statutory reduction order, and unused spouse transfer, covered § 9/§ 12 split
+  state personfradrag tax-value reduction
   order, § 9 non-state personfradrag reduction, and wage-earner component
   projection,
   covered 2026 state-tax reform layers, covered § 13 deficit mechanics,
@@ -1320,8 +1323,9 @@ M7 - Personfradrag and deficit layer
   explicit sailor/residence-permit/researcher exclusions, § 10 stk. 3
   spouse transfer of unused state-personfradrag tax value is amount-modeled for
   the § 9 state-tax basket and year-end cohabitation condition, § 11 negative
-  net-capital reduction covers spouse threshold pooling, spouse positive-capital
-  offset, statutory tax-order reduction, and unused spouse transfer, § 9/§ 12
+  net-capital reduction covers source-backed stk. 2 rate provenance, spouse
+  threshold pooling, spouse positive-capital offset, statutory tax-order
+  reduction, and unused spouse transfer, § 9/§ 12
   split state personfradrag tax-value reduction across the state-tax basket and
   § 9 non-state personfradrag reduction for § 8 c/kommunal/kirkelig tax are
   now wired into the wage-earner calculator, spouse

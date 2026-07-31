@@ -304,19 +304,29 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 
 # NegativKapitalNedslagInput(skatteår: Heltal, negativ_nettokapitalindkomst_kroner: Heltal, betaler_kommunal_eller_par8c: Boolsk)
 # Par11NegativKapitalNedslagInput(skatteår: Heltal, nettokapitalindkomst_kroner: Heltal, ægtefælle_nettokapitalindkomst_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk, betaler_kommunal_eller_par8c: Boolsk)
+# Par11NegativKapitalNedslagSatsKilde = PersonskattelovenLbk1284Af2021Par11Stk2
+# Par11NegativKapitalNedslagSatsResultat(skatteår: Heltal, kilde: Par11NegativKapitalNedslagSatsKilde, procent: Heltal, sats_basispoint: Heltal)
 # Par11NegativKapitalNedslagResultat(negativ_nettokapitalindkomst_kroner: Heltal, ægtefælle_positiv_modregning_kroner: Heltal, negativ_nettokapitalindkomst_efter_ægtefællepositiv_kroner: Heltal, ægtefælle_ubrugt_beløbsgrænse_kroner: Heltal, effektiv_beløbsgrænse_kroner: Heltal, nedslagsgrundlag_kroner: Heltal, sats_basispoint: Heltal, nedslag_kroner: Heltal)
 # Par11NedslagSkatter(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par8c_skat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal)
 # Par11NedslagModregningInput(nedslag_kroner: Heltal, skatter: Par11NedslagSkatter, gift_samlevende_ved_årets_udløb: Boolsk)
 # Par11NedslagModregningResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, par8c_efter_kroner: Heltal, kommuneskat_efter_kroner: Heltal, kirkeskat_efter_kroner: Heltal, ubrugt_efter_egne_skatter_kroner: Heltal, overført_til_ægtefælle_kroner: Heltal)
 
-| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 100 under skatteår == 2012
-| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 200 under skatteår == 2013
-| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 300 under skatteår == 2014
-| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 400 under skatteår == 2015
-| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 500 under skatteår == 2016
-| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 600 under skatteår == 2017
-| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 700 under skatteår == 2018
-| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> 800 under skatteår >= 2019
+| par11_negativ_kapital_nedslag_sats_kilde(skatteår: Heltal) -> PersonskattelovenLbk1284Af2021Par11Stk2 under skatteår >= 2012
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 1 under skatteår == 2012
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 2 under skatteår == 2013
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 3 under skatteår == 2014
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 4 under skatteår == 2015
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 5 under skatteår == 2016
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 6 under skatteår == 2017
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 7 under skatteår == 2018
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 8 under skatteår >= 2019
+| par11_negativ_kapital_nedslag_sats_resultat(skatteår: Heltal) -> Par11NegativKapitalNedslagSatsResultat(
+    skatteår = skatteår,
+    kilde = par11_negativ_kapital_nedslag_sats_kilde(skatteår),
+    procent = par11_negativ_kapital_nedslag_procent(skatteår),
+    sats_basispoint = par11_negativ_kapital_nedslag_procent(skatteår) * 100
+) under skatteår >= 2012
+| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> par11_negativ_kapital_nedslag_sats_resultat(skatteår).sats_basispoint
 
 | par11_beløbsgrænse_kroner() -> 50000
 | par11_negativ_abs_kroner(nettokapitalindkomst_kroner: Heltal) -> penge_positivt_beløb(0 - nettokapitalindkomst_kroner)
@@ -404,6 +414,9 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 | negativ_kapital_ægtefælle_beløbsgrænse_kan_forhøjes(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 | uudnyttet_negativ_kapital_nedslag_overføres_til_ægtefælle(status: ÆgtefællePersonfradragStatus) -> status == GiftSamlevendeVedÅretsUdløb
 
+= par11_sats_2012 = par11_negativ_kapital_nedslag_sats_resultat(2012)
+= par11_sats_2018 = par11_negativ_kapital_nedslag_sats_resultat(2018)
+= par11_sats_2026 = par11_negativ_kapital_nedslag_sats_resultat(2026)
 = par11_nedslag_2025 = negativ_kapital_nedslag_kroner(NegativKapitalNedslagInput(
     skatteår = 2025,
     negativ_nettokapitalindkomst_kroner = 40000,
@@ -464,6 +477,9 @@ til at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     gift_samlevende_ved_årets_udløb = Sandt
 ))
 
+| par11_2012_sats_fra_stk2: par11_sats_2012 -> par11_sats_2012.kilde == PersonskattelovenLbk1284Af2021Par11Stk2 && par11_sats_2012.procent == 1 && par11_sats_2012.sats_basispoint == 100 && negativ_kapital_nedslag_sats_basispoint(2012) == 100
+| par11_2018_sats_fra_stk2: par11_sats_2018 -> par11_sats_2018.kilde == PersonskattelovenLbk1284Af2021Par11Stk2 && par11_sats_2018.procent == 7 && par11_sats_2018.sats_basispoint == 700 && negativ_kapital_nedslag_sats_basispoint(2018) == 700
+| par11_2026_sats_fra_stk2: par11_sats_2026 -> par11_sats_2026.kilde == PersonskattelovenLbk1284Af2021Par11Stk2 && par11_sats_2026.procent == 8 && par11_sats_2026.sats_basispoint == 800 && negativ_kapital_nedslag_sats_basispoint(2026) == 800
 | par11_2025_8pct: par11_nedslag_2025 -> par11_nedslag_2025 == 3200
 | par11_loft_50000: par11_nedslag_loft -> par11_nedslag_loft == 4000
 | par11_ægtefælle_beløbsgrænse_pooles: par11_ægtefælle_pooling -> par11_ægtefælle_pooling.ægtefælle_ubrugt_beløbsgrænse_kroner == 30000 && par11_ægtefælle_pooling.effektiv_beløbsgrænse_kroner == 80000 && par11_ægtefælle_pooling.nedslagsgrundlag_kroner == 80000 && par11_ægtefælle_pooling.nedslag_kroner == 6400
