@@ -1,0 +1,292 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 2.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- kursgevinstloven.runa.
+
+= par4_stk1_nr2_audit_fordring_gevinst_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFordring,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = KursgevinstlovBagatelOpgørelse(
+        årets_netto_fordringer_valutagæld_investbeviser_kroner = 8000
+    ),
+    fordring = KursgevinstlovFordringOpgørelse(
+        tab_status = KglFordringTabAlmindelig,
+        anskaffelsessum_kroner = 10000,
+        afståelsessum_kroner = 18000
+    ),
+    gæld = kgl_tom_gæld(),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+= par4_stk1_nr2_audit_fordring_tab_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFordring,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = KursgevinstlovBagatelOpgørelse(
+        årets_netto_fordringer_valutagæld_investbeviser_kroner = -5000
+    ),
+    fordring = KursgevinstlovFordringOpgørelse(
+        tab_status = KglFordringTabAlmindelig,
+        anskaffelsessum_kroner = 15000,
+        afståelsessum_kroner = 10000
+    ),
+    gæld = kgl_tom_gæld(),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+= par4_stk1_nr2_audit_bagatel_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFordring,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = KursgevinstlovBagatelOpgørelse(
+        årets_netto_fordringer_valutagæld_investbeviser_kroner = -1500
+    ),
+    fordring = KursgevinstlovFordringOpgørelse(
+        tab_status = KglFordringTabAlmindelig,
+        anskaffelsessum_kroner = 10000,
+        afståelsessum_kroner = 8500
+    ),
+    gæld = kgl_tom_gæld(),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+= par4_stk1_nr2_audit_kontroltab_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFordring,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = KursgevinstlovBagatelOpgørelse(
+        årets_netto_fordringer_valutagæld_investbeviser_kroner = -8000
+    ),
+    fordring = KursgevinstlovFordringOpgørelse(
+        tab_status = KglFordringTabKontrolEllerNærtstående,
+        anskaffelsessum_kroner = 15000,
+        afståelsessum_kroner = 7000
+    ),
+    gæld = kgl_tom_gæld(),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+= par4_stk1_nr2_audit_oplysningsmangel_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFordring,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = KursgevinstlovBagatelOpgørelse(
+        årets_netto_fordringer_valutagæld_investbeviser_kroner = -6000
+    ),
+    fordring = KursgevinstlovFordringOpgørelse(
+        tab_status = KglFordringTabReguleretMarkedUdenOplysning,
+        anskaffelsessum_kroner = 10000,
+        afståelsessum_kroner = 4000
+    ),
+    gæld = kgl_tom_gæld(),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+= par4_stk1_nr2_audit_dba_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFordring,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = KursgevinstlovBagatelOpgørelse(
+        årets_netto_fordringer_valutagæld_investbeviser_kroner = -7000
+    ),
+    fordring = KursgevinstlovFordringOpgørelse(
+        tab_status = KglFordringTabDbaAfskåret,
+        anskaffelsessum_kroner = 12000,
+        afståelsessum_kroner = 5000
+    ),
+    gæld = kgl_tom_gæld(),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+= par4_stk1_nr2_audit_par17_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFordring,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = KursgevinstlovBagatelOpgørelse(
+        årets_netto_fordringer_valutagæld_investbeviser_kroner = -8000
+    ),
+    fordring = KursgevinstlovFordringOpgørelse(
+        tab_status = KglFordringTabPar17Statsskattelov6A,
+        anskaffelsessum_kroner = 20000,
+        afståelsessum_kroner = 12000
+    ),
+    gæld = kgl_tom_gæld(),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+= par4_stk1_nr2_audit_valutagæld_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglGæld,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = KursgevinstlovBagatelOpgørelse(
+        årets_netto_fordringer_valutagæld_investbeviser_kroner = 3000
+    ),
+    fordring = kgl_tom_fordring(),
+    gæld = KursgevinstlovGældOpgørelse(
+        gældsart = KglGældFremmedValuta,
+        værdi_ved_påtagelse_kroner = 100000,
+        værdi_ved_frigørelse_eller_indfrielse_kroner = 97000,
+        nedskrevet_til_kroner = 0,
+        fordringens_værdi_for_kreditor_kroner = 0
+    ),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+= par4_stk1_nr2_audit_gældseftergivelse_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglGæld,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = kgl_tom_bagatelgrundlag(),
+    fordring = kgl_tom_fordring(),
+    gæld = KursgevinstlovGældOpgørelse(
+        gældsart = KglGældEftergivelseMv,
+        værdi_ved_påtagelse_kroner = 0,
+        værdi_ved_frigørelse_eller_indfrielse_kroner = 0,
+        nedskrevet_til_kroner = 20000,
+        fordringens_værdi_for_kreditor_kroner = 30000
+    ),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+= par4_stk1_nr2_audit_kontrakt_gevinst_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFinansielKontrakt,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = kgl_tom_bagatelgrundlag(),
+    fordring = kgl_tom_fordring(),
+    gæld = kgl_tom_gæld(),
+    kontrakt = KursgevinstlovKontraktOpgørelse(
+        kontrakt_art = KglKontraktOmfattetPar29,
+        værdi_primo_kroner = 0,
+        værdi_ultimo_kroner = 0,
+        anskaffelsessum_kroner = 10000,
+        afståelsesværdi_kroner = 17000,
+        anskaffet_i_indkomståret = Sandt,
+        realiseret_i_indkomståret = Sandt,
+        kontraktgevinster_til_tabsmodregning_kroner = 0
+    ),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+= par4_stk1_nr2_audit_kontrakt_tab_input = KursgevinstlovInput(
+    indkomstår = 2026,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFinansielKontrakt,
+    par1_afgrænsning = KglPar1Omfattet,
+    bagatelgrundlag = kgl_tom_bagatelgrundlag(),
+    fordring = kgl_tom_fordring(),
+    gæld = kgl_tom_gæld(),
+    kontrakt = KursgevinstlovKontraktOpgørelse(
+        kontrakt_art = KglKontraktOmfattetPar29,
+        værdi_primo_kroner = 0,
+        værdi_ultimo_kroner = 0,
+        anskaffelsessum_kroner = 20000,
+        afståelsesværdi_kroner = 8000,
+        anskaffet_i_indkomståret = Sandt,
+        realiseret_i_indkomståret = Sandt,
+        kontraktgevinster_til_tabsmodregning_kroner = 5000
+    ),
+    udøver_fordrings_eller_kontraktnæring = Falskt,
+    driver_finansieringsnæring = Falskt,
+    fordring_erhvervet_udenfor_næring = Falskt,
+    gæld_vedrører_finansieringsnæring = Falskt,
+    anvender_lagerprincip_efter_par25 = Falskt
+)
+
+= par4_stk1_nr2_audit_fordring_gevinst = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_fordring_gevinst_input)
+= par4_stk1_nr2_audit_fordring_tab = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_fordring_tab_input)
+= par4_stk1_nr2_audit_bagatel = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_bagatel_input)
+= par4_stk1_nr2_audit_kontroltab = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_kontroltab_input)
+= par4_stk1_nr2_audit_oplysningsmangel = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_oplysningsmangel_input)
+= par4_stk1_nr2_audit_dba = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_dba_input)
+= par4_stk1_nr2_audit_par17 = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_par17_input)
+= par4_stk1_nr2_audit_valutagæld = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_valutagæld_input)
+= par4_stk1_nr2_audit_gældseftergivelse = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_gældseftergivelse_input)
+= par4_stk1_nr2_audit_kontrakt_gevinst = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_kontrakt_gevinst_input)
+= par4_stk1_nr2_audit_kontrakt_tab = par4_stk1_nr2_resultat_fra_kursgevinstlov(par4_stk1_nr2_audit_kontrakt_tab_input)
+
+= par4_stk1_nr2_audit_par17_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr2_kapitalpost_fra_kursgevinstlov(par4_stk1_nr2_audit_par17_input)
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr2_audit_fordring_gevinst_indgår: par4_stk1_nr2_audit_fordring_gevinst -> par4_stk1_nr2_audit_fordring_gevinst.skattepligtige_gevinster_kroner == 8000 && par4_stk1_nr2_audit_fordring_gevinst.kapitalindkomst_kroner == 8000
+| par4_stk1_nr2_audit_fordring_tab_fradrages: par4_stk1_nr2_audit_fordring_tab -> par4_stk1_nr2_audit_fordring_tab.fradragsberettigede_tab_kroner == 5000 && par4_stk1_nr2_audit_fordring_tab.kapitalindkomst_kroner == -5000
+| par4_stk1_nr2_audit_bagatel_afskærer: par4_stk1_nr2_audit_bagatel -> par4_stk1_nr2_audit_bagatel.kapitalindkomst_kroner == 0 && par4_stk1_nr2_audit_bagatel.fradragsberettigede_tab_kroner == 0
+| par4_stk1_nr2_audit_kontroltab_afskæres: par4_stk1_nr2_audit_kontroltab -> par4_stk1_nr2_audit_kontroltab.fradragsberettigede_tab_kroner == 0 && par4_stk1_nr2_audit_kontroltab.tab_afskåret_kroner == 8000
+| par4_stk1_nr2_audit_oplysningsmangel_afskæres: par4_stk1_nr2_audit_oplysningsmangel -> par4_stk1_nr2_audit_oplysningsmangel.fradragsberettigede_tab_kroner == 0 && par4_stk1_nr2_audit_oplysningsmangel.tab_afskåret_kroner == 6000
+| par4_stk1_nr2_audit_dba_afskærer_tab: par4_stk1_nr2_audit_dba -> par4_stk1_nr2_audit_dba.fradragsberettigede_tab_kroner == 0 && par4_stk1_nr2_audit_dba.tab_afskåret_kroner == 7000
+| par4_stk1_nr2_audit_par17_reklassificeres: par4_stk1_nr2_audit_par17_kapitalindkomst -> par4_stk1_nr2_audit_par17.personlig_reklassifikation == Kursgevinstlov17Fordringstab && par4_stk1_nr2_audit_par17_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == 0 && par4_stk1_nr2_audit_par17_kapitalindkomst.omklassificeret_personlig_indkomst_kroner == -8000
+| par4_stk1_nr2_audit_valutagæld_indgår: par4_stk1_nr2_audit_valutagæld -> par4_stk1_nr2_audit_valutagæld.skattepligtige_gevinster_kroner == 3000 && par4_stk1_nr2_audit_valutagæld.kapitalindkomst_kroner == 3000
+| par4_stk1_nr2_audit_gældseftergivelse_indgår: par4_stk1_nr2_audit_gældseftergivelse -> par4_stk1_nr2_audit_gældseftergivelse.skattepligtige_gevinster_kroner == 10000 && par4_stk1_nr2_audit_gældseftergivelse.kapitalindkomst_kroner == 10000
+| par4_stk1_nr2_audit_kontrakt_gevinst_indgår: par4_stk1_nr2_audit_kontrakt_gevinst -> par4_stk1_nr2_audit_kontrakt_gevinst.skattepligtige_gevinster_kroner == 7000 && par4_stk1_nr2_audit_kontrakt_gevinst.kapitalindkomst_kroner == 7000
+| par4_stk1_nr2_audit_kontrakt_tab_begrænses: par4_stk1_nr2_audit_kontrakt_tab -> par4_stk1_nr2_audit_kontrakt_tab.fradragsberettigede_tab_kroner == 5000 && par4_stk1_nr2_audit_kontrakt_tab.tab_afskåret_kroner == 7000 && par4_stk1_nr2_audit_kontrakt_tab.kapitalindkomst_kroner == -5000
+
+? par4_stk1_nr2_audit_fordring_gevinst_indgår
+? par4_stk1_nr2_audit_fordring_tab_fradrages
+? par4_stk1_nr2_audit_bagatel_afskærer
+? par4_stk1_nr2_audit_kontroltab_afskæres
+? par4_stk1_nr2_audit_oplysningsmangel_afskæres
+? par4_stk1_nr2_audit_dba_afskærer_tab
+? par4_stk1_nr2_audit_par17_reklassificeres
+? par4_stk1_nr2_audit_valutagæld_indgår
+? par4_stk1_nr2_audit_gældseftergivelse_indgår
+? par4_stk1_nr2_audit_kontrakt_gevinst_indgår
+? par4_stk1_nr2_audit_kontrakt_tab_begrænses
+
+@ print("§4 stk.1 nr.2 Kursgevinstloven first-slice audit: " + vis(par4_stk1_nr2_audit_fordring_gevinst.kapitalindkomst_kroner))

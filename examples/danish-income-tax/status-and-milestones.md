@@ -25,7 +25,12 @@ expenses with the statutory § 4, stk. 1, nr. 1/2/7/8 and Ligningsloven
 § 6 and § 6 A deduction results together with ordinary interest income and
 interest expenses, including the § 6 under-100-kr. lapse, stk. 3 reduction,
 stk. 5 debtor-day split, stk. 6 Kursgevinstloven overlap block and § 4,
-stk. 3 personal-income reclassification posture; § 4, stk. 1, nr. 9 and
+stk. 3 personal-income reclassification posture; § 4, stk. 1, nr. 2 now
+consumes a typed Kursgevinstloven result for ordinary personal claims, selected
+debt cases and basic financial contracts, including the § 14/§ 23 2.000 kr.
+threshold, § 14 stk. 2/§ 15/§ 18 loss blocks, § 17 fordringstab posture,
+§ 32 contract-loss limitation and § 4 stk. 3 personal-income reclassification
+posture; § 4, stk. 1, nr. 9 and
 stk. 9 now derive passive
 self-employed business capital-income treatment from owner-count thresholds,
 the LL § 8 K personal-owner branch, substantial-participation exclusion, and
@@ -154,15 +159,15 @@ Current source-refresh finding:
 - The official XML `Status` fields remained unchanged: the working/dependency
   sources still report `Valid`, while `2019/799` reports `Historic`.
 - Every tracked `Valid` source now has an XML `EndDate` horizon before
-  2026-07-02, so `source-status.runa` distinguishes formal legal validity from
+  2026-07-03, so `source-status.runa` distinguishes formal legal validity from
   current-day automation freshness.
 - `AktuelSkatteberegning` still accepts formally valid sources; the new
   `DagsaktuelAutomatiskBeregning` purpose rejects sources whose metadata horizon
-  does not cover `20260702`.
-- `scripts/refresh-danish-tax-source-status.py --today 20260702 --fail-on-drift`
+  does not cover `20260703`.
+- `scripts/refresh-danish-tax-source-status.py --today 20260703 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
   drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 24 records with 0 drift and 0 fetch/parse errors.
+  checked 28 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:
 
@@ -218,6 +223,14 @@ Current § 8 b dependency source:
 
 Current § 4 and § 13 amendment/dependency sources:
 
+- Kursgevinstloven:
+  `https://www.retsinformation.dk/eli/lta/2025/1176`
+  - XML status on 2026-07-18: `Valid`
+  - §§ 1, 12-15, 17-18, 19-21, 23, 25-26 and 29-33 are modeled as the first
+    Personskatteloven § 4, stk. 1, nr. 2 dependency slice for taxable gains and
+    deductible losses on ordinary personal claims, selected debt cases and basic
+    financial contracts, including thresholding, statutory loss blocks, debt
+    forgiveness, foreign-currency debt and contract-loss limitation.
 - Pensionsbeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2024/1243`
   - XML status on 2026-07-18: `Valid`
@@ -443,6 +456,10 @@ encoded as a temporal rule on top of the consolidation.
   it covers the LL § 5 C dependency consumed by Personskatteloven § 4,
   stk. 1, nr. 12, the LL §§ 6/6 A dependencies consumed by § 4, stk. 1,
   nr. 1, and the LL § 12 B dependency consumed by § 4, stk. 1, nr. 15.
+- `kursgevinstloven.runa` exists and checks with `runa check`; it covers the
+  first Kursgevinstloven dependency slice consumed by Personskatteloven § 4,
+  stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
+  financial contracts.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
   the Afskrivningsloven § 40 C dependency consumed by Personskatteloven § 4,
   stk. 1, nr. 16.
@@ -464,6 +481,8 @@ encoded as a temporal rule on top of the consolidation.
   `runa run`.
 - `personskatteloven-par4-renter-ligningslov6.audit.runa` exists and
   checks/runs with `runa run`.
+- `personskatteloven-par4-kursgevinst.audit.runa` exists and checks/runs with
+  `runa run`.
 - `personskatteloven-par4-passiv-virksomhed.audit.runa` exists and checks/runs
   with `runa run`.
 - `personskatteloven-par4-udlejning-driftsmidler.audit.runa` exists and
@@ -512,7 +531,10 @@ encoded as a temporal rule on top of the consolidation.
   composition across the separate § 2 categories, amount-level § 3 personal-income inclusion
   and deduction totals, amount-level § 4 net capital-income inclusion,
   deductible capital costs, ordinary interest/LL §§ 6/6 A deduction
-  classification under stk. 1, nr. 1, passive self-employed business owner-count
+  classification under stk. 1, nr. 1, Kursgevinstloven gain/loss classification
+  under stk. 1, nr. 2 with claim thresholding, loss blocks, selected debt
+  treatment, contract loss limitation and personal-income reclassification,
+  passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
   under stk. 1, nr. 11 and stk. 8, LL § 5 C compensation classification under
   stk. 1, nr. 12, Pensionsbeskatningsloven § 53 A return classification under
@@ -748,6 +770,12 @@ Current decision:
   `Par4Stk1Nr1Sag` consumes those typed results together with ordinary interest
   income and expense as Personskatteloven § 4, stk. 1, nr. 1 capital income
   rather than taking a bare interest scalar.
+- `KursgevinstlovSag` uses product-scoped `|` rules for the first KGL person
+  slice. It keeps the § 14/§ 23 threshold basis, claim opgørelse, selected debt
+  opgørelse, financial-contract opgørelse, loss blocks and reclassification
+  posture in typed domain objects. `Par4Stk1Nr2Sag` consumes the typed result as
+  Personskatteloven § 4, stk. 1, nr. 2 capital income rather than taking a bare
+  Kursgevinst scalar.
 - `Pensionsbeskatningslov53ASag` uses product-scoped `|` rules for PBL § 53 A.
   It keeps the covered ordning, § 53 B exclusion, stk. 4 carve-outs, PAL-method
   or alternative capital-value return, taxable share allocation, prior

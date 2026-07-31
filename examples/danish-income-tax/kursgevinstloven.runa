@@ -1,0 +1,334 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+
+-- Kursgevinstloven -- Personskatteloven § 4, stk. 1, nr. 2.
+--
+-- Kilde: Retsinformation, LBK nr. 1176 af 19/09/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1176
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1176/dan/xml
+
+----
+Officiel XML-metadata for 2025/1176, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om skattemæssig behandling af gevinst og
+tab på fordringer, gæld og finansielle kontrakter (kursgevinstloven)
+PopularTitle: Kursgevinstloven
+Status: Valid
+DiesSigni: 2025-09-19
+StartDate: 2025-10-03
+EndDate: 2026-06-24
+----
+
+----
+§ 1. Denne lov omfatter
+1) gevinst og tab ved afståelse eller indfrielse af pengefordringer herunder
+obligationer, pantebreve og gældsbreve,
+2) gevinst og tab ved frigørelse for gæld og
+3) gevinst og tab på terminskontrakter og aftaler om køberetter og salgsretter
+uden hensyn til de regler, der gælder for det underliggende aktiv.
+
+Stk. 2. Uanset ligningslovens §§ 16 A og 16 B skal afdrag på og
+afståelsessummer for fordringer på koncernforbundne selskaber, jf.
+ligningslovens § 2, behandles efter reglerne i denne lov.
+
+Stk. 3. Loven omfatter ikke gevinst og tab på fordringer og gæld, der indgår i
+beskatningen af avance ved salg af fast ejendom, der henhører til den
+skattepligtiges næringsvej, jf. statsskattelovens § 4, jf. § 5 a.
+
+Stk. 4. Loven omfatter endvidere ikke gevinst og tab på konvertible obligationer
+og præmieobligationer.
+----
+
+# KursgevinstlovAktiv = KglFordring | KglGæld | KglFinansielKontrakt
+# KursgevinstlovPersonrolle = KglPersonEfterKildeskatteloven | KglDødsboEfterDødsboskatteloven | KglUdenforPersonkapitlet
+# KursgevinstlovPar1Afgrænsning = KglPar1Omfattet | KglFastEjendomNæringUndtaget | KglKonvertibelEllerPræmieobligationUndtaget
+# KursgevinstlovFordringTabStatus = KglFordringTabAlmindelig | KglFordringTabKontrolEllerNærtstående | KglFordringTabReguleretMarkedUdenOplysning | KglFordringTabDbaAfskåret | KglFordringTabPar17Statsskattelov6A
+# KursgevinstlovGældsart = KglAlmindeligGæld | KglGældEftergivelseMv | KglGældFremmedValuta | KglGældFinansieringsnæring
+# KursgevinstlovKontraktArt = KglIkkeFinansielKontrakt | KglKontraktOmfattetPar29 | KglKontraktUndtagetPar30 | KglKontraktUndtagetMenModgåendePar30Stk4 | KglKontraktUndtagetMenNæringPar30Stk5
+# KursgevinstlovOpgørelsesprincip = KglRealisationsprincip | KglLagerprincip
+# KursgevinstlovPersonligReklassifikation = KglIngenPersonligReklassifikation | KglFordringsEllerKontraktNæring | KglFinansieringsNæring | KglPar17Fordringstab
+# KursgevinstlovBagatelOpgørelse(årets_netto_fordringer_valutagæld_investbeviser_kroner: Heltal)
+# KursgevinstlovFordringOpgørelse(tab_status: KursgevinstlovFordringTabStatus, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal)
+# KursgevinstlovGældOpgørelse(gældsart: KursgevinstlovGældsart, værdi_ved_påtagelse_kroner: Heltal, værdi_ved_frigørelse_eller_indfrielse_kroner: Heltal, nedskrevet_til_kroner: Heltal, fordringens_værdi_for_kreditor_kroner: Heltal)
+# KursgevinstlovKontraktOpgørelse(kontrakt_art: KursgevinstlovKontraktArt, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, realiseret_i_indkomståret: Boolsk, kontraktgevinster_til_tabsmodregning_kroner: Heltal)
+# KursgevinstlovInput(indkomstår: Heltal, rolle: KursgevinstlovPersonrolle, aktiv: KursgevinstlovAktiv, par1_afgrænsning: KursgevinstlovPar1Afgrænsning, bagatelgrundlag: KursgevinstlovBagatelOpgørelse, fordring: KursgevinstlovFordringOpgørelse, gæld: KursgevinstlovGældOpgørelse, kontrakt: KursgevinstlovKontraktOpgørelse, udøver_fordrings_eller_kontraktnæring: Boolsk, driver_finansieringsnæring: Boolsk, fordring_erhvervet_udenfor_næring: Boolsk, gæld_vedrører_finansieringsnæring: Boolsk, anvender_lagerprincip_efter_par25: Boolsk)
+# KursgevinstlovResultat(indkomstår: Heltal, aktiv: KursgevinstlovAktiv, omfattet_af_par1: Boolsk, person_eller_dødsbo_efter_par12: Boolsk, opgørelsesprincip: KursgevinstlovOpgørelsesprincip, bagatelgrænse_afskærer: Boolsk, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, netto_efter_kursgevinstloven_kroner: Heltal, fremført_kontrakttab_kroner: Heltal, personlig_reklassifikation: KursgevinstlovPersonligReklassifikation)
+
+| kgl_tom_fordring() -> KursgevinstlovFordringOpgørelse(
+    tab_status = KglFordringTabAlmindelig,
+    anskaffelsessum_kroner = 0,
+    afståelsessum_kroner = 0
+)
+| kgl_tom_bagatelgrundlag() -> KursgevinstlovBagatelOpgørelse(
+    årets_netto_fordringer_valutagæld_investbeviser_kroner = 0
+)
+| kgl_tom_gæld() -> KursgevinstlovGældOpgørelse(
+    gældsart = KglAlmindeligGæld,
+    værdi_ved_påtagelse_kroner = 0,
+    værdi_ved_frigørelse_eller_indfrielse_kroner = 0,
+    nedskrevet_til_kroner = 0,
+    fordringens_værdi_for_kreditor_kroner = 0
+)
+| kgl_tom_kontrakt() -> KursgevinstlovKontraktOpgørelse(
+    kontrakt_art = KglIkkeFinansielKontrakt,
+    værdi_primo_kroner = 0,
+    værdi_ultimo_kroner = 0,
+    anskaffelsessum_kroner = 0,
+    afståelsesværdi_kroner = 0,
+    anskaffet_i_indkomståret = Falskt,
+    realiseret_i_indkomståret = Falskt,
+    kontraktgevinster_til_tabsmodregning_kroner = 0
+)
+
+| kgl_par1_afgrænsning_omfattet(afgrænsning: KursgevinstlovPar1Afgrænsning) -> afgrænsning == KglPar1Omfattet
+
+----
+§ 12. Personer, der er skattepligtige efter kildeskatteloven, og dødsboer, der
+er skattepligtige efter dødsboskatteloven, skal ved opgørelsen af den
+skattepligtige indkomst medregne gevinst og tab på fordringer og gæld, som
+omfattes af § 1, efter de regler, der er angivet i dette kapitel og § 29 samt i
+kapitel 4, 5 og 7.
+
+§ 13. Hvis personen eller dødsboet udøver næring ved køb og salg af fordringer
+eller driver næringsvirksomhed ved finansiering, medregnes gevinst og tab på
+fordringer ved opgørelsen af den skattepligtige indkomst, jf. dog § 18.
+
+Stk. 2. Godtgøres det, at en fordring er erhvervet uden for den skattepligtiges
+næringsvirksomhed og ikke senere er indgået i denne, omfatter stk. 1 ikke
+gevinst og tab på en sådan fordring.
+
+§ 14. Gevinst og tab på fordringer medregnes ved opgørelsen af den
+skattepligtige indkomst, jf. dog stk. 2 og §§ 15, 17 og 18. 1. pkt. finder dog
+alene anvendelse, hvis årets nettogevinst eller nettotab sammenlagt med
+nettogevinster og nettotab omfattet af § 23 og gevinst og tab på
+investeringsbeviser i obligationsbaserede investeringsinstitutter med
+minimumsbeskatning, jf. aktieavancebeskatningslovens § 22, overstiger 2.000 kr.
+
+Stk. 2. Tab på fordringer på selskaber, hvorover den skattepligtige har eller
+har haft en indflydelse som omhandlet i aktieavancebeskatningslovens § 4, eller
+tab på fordringer på den skattepligtiges ægtefælle, forældre og bedsteforældre
+samt børn og børnebørn og disses ægtefæller eller dødsboer efter de nævnte
+personer kan ikke fradrages. Stedbarns- og adoptivforhold sidestilles med
+naturligt slægtskabsforhold. For fordringer i fremmed valuta opgøres det
+ikkefradragsberettigede tab efter 1. og 2. pkt. på grundlag af valutakurserne
+på tidspunktet for fordringens erhvervelse.
+
+§ 15. Fradrag for tab efter § 14, stk. 1, på fordringer, der er optaget til
+handel på et reguleret marked, er betinget af, at told- og skatteforvaltningen
+inden udløbet af oplysningsfristen efter skattekontrollovens §§ 10 og 11,
+jf. § 13, for det indkomstår, hvor erhvervelsen har fundet sted, har modtaget
+oplysninger om erhvervelsen af fordringen med angivelse af fordringens
+identitet, antallet eller pålydende værdi, anskaffelsestidspunktet og
+anskaffelsessummen.
+
+§ 17. For tab på fordringer, der er erhvervet som vederlag i næring og for tab
+på fordringer, der i øvrigt er erhvervet i tilknytning til den erhvervsmæssige
+drift af virksomheden, finder reglerne i statsskattelovens § 6 a anvendelse,
+jf. dog § 18.
+
+§ 18. Uanset §§ 13, 14 og 17 kan tab på en fordring ikke fradrages, såfremt
+renteindtægter af fordringen eller gevinster på fordringen omfattet af denne
+lov som følge af en dobbeltbeskatningsoverenskomst ikke skal medregnes ved
+opgørelse af den skattepligtige indkomst.
+----
+
+| kgl_person_eller_dødsbo_efter_par12(rolle: KursgevinstlovPersonrolle) -> Falskt
+| exception kgl_person_efter_ksl kgl_person_eller_dødsbo_efter_par12(rolle: KursgevinstlovPersonrolle) -> Sandt under rolle == KglPersonEfterKildeskatteloven
+| exception kgl_dødsbo_efter_dbl kgl_person_eller_dødsbo_efter_par12(rolle: KursgevinstlovPersonrolle) -> Sandt under rolle == KglDødsboEfterDødsboskatteloven
+
+| kgl_fordringstab_afskåret_efter_par14_15_18(status: KursgevinstlovFordringTabStatus) -> Falskt
+| exception kgl_par14_stk2_kontrol_eller_nærtstående kgl_fordringstab_afskåret_efter_par14_15_18(status: KursgevinstlovFordringTabStatus) -> Sandt under status == KglFordringTabKontrolEllerNærtstående
+| exception kgl_par15_manglende_oplysning kgl_fordringstab_afskåret_efter_par14_15_18(status: KursgevinstlovFordringTabStatus) -> Sandt under status == KglFordringTabReguleretMarkedUdenOplysning
+| exception kgl_par18_dba_blokerer_tab kgl_fordringstab_afskåret_efter_par14_15_18(status: KursgevinstlovFordringTabStatus) -> Sandt under status == KglFordringTabDbaAfskåret
+
+----
+§ 19. Hvis personen eller dødsboet driver næringsvirksomhed ved finansiering, og
+gælden vedrører denne virksomhed, medregnes gevinst og tab på gæld ved
+opgørelsen af den skattepligtige indkomst, jf. dog § 24 om gevinst som følge af
+gældseftergivelse ved akkord m.v.
+
+§ 20. Gevinst og tab på gæld skal medregnes ved opgørelsen af den
+skattepligtige indkomst efter §§ 21-23.
+
+§ 21. Gevinst ved eftergivelse, forældelse, konfusion eller præklusion af gæld
+medregnes i det omfang, gælden nedskrives til et lavere beløb end fordringens
+værdi for kreditor på tidspunktet for gældseftergivelsen m.v., jf. tillige § 24
+om gevinst som følge af gældseftergivelse ved akkord m.v.
+
+§ 23. Gevinst og tab på gæld i fremmed valuta medregnes i det omfang, gevinsten
+eller tabet ikke er omfattet af § 22 eller § 24 A. 1. pkt. finder dog alene
+anvendelse, hvis årets nettogevinst eller nettotab sammenlagt med nettogevinster
+og nettotab omfattet af § 14 og gevinst og tab på investeringsbeviser i
+obligationsbaserede investeringsinstitutter med minimumsbeskatning, jf.
+aktieavancebeskatningslovens § 22, overstiger 2.000 kr. Gæld i danske kroner
+anses som gæld i fremmed valuta, hvis restgælden reguleres i forhold til en
+eller flere valutakurser. Gæld i fremmed valuta betragtes som gæld i danske
+kroner, hvis restgælden reguleres i forhold til danske kroner.
+----
+
+| kgl_gæld_første_slice_omfattet(art: KursgevinstlovGældsart) -> Falskt
+| exception kgl_gæld_eftergivelse_mv kgl_gæld_første_slice_omfattet(art: KursgevinstlovGældsart) -> Sandt under art == KglGældEftergivelseMv
+| exception kgl_gæld_fremmed_valuta kgl_gæld_første_slice_omfattet(art: KursgevinstlovGældsart) -> Sandt under art == KglGældFremmedValuta
+| exception kgl_gæld_finansieringsnæring kgl_gæld_første_slice_omfattet(art: KursgevinstlovGældsart) -> Sandt under art == KglGældFinansieringsnæring
+
+----
+§ 25. Gevinst og tab på fordringer og gæld, der skal medregnes ved opgørelsen af
+den skattepligtige indkomst, medregnes i det indkomstår, hvori gevinsten eller
+tabet realiseres (realisationsprincippet), jf. dog stk. 2-10, og § 22, stk. 1,
+samt §§ 36 og 37.
+
+Stk. 2. Skattepligtige omfattet af § 12 kan vælge at anvende lagerprincippet,
+jf. § 33, stk. 1, ved opgørelsen af gevinst og tab på obligationer optaget til
+handel på et reguleret marked og på gevinst og tab som følge af
+valutakursændringer på fordringer og gæld i fremmed valuta. Valget træffes
+samlet for henholdsvis obligationer optaget til handel på et reguleret marked
+og valutakursændringer på fordringer og gæld i fremmed valuta. Ved anvendelse
+af lagerprincippet, jf. 1. pkt., opgøres gevinst og tab på obligationer optaget
+til handel på et reguleret marked på grundlag af valutakurserne på tidspunktet
+for obligationens erhvervelse uden hensyn til ændringer i valutakurserne. Når
+lagerprincippet er valgt, kan valget heraf kun ændres efter tilladelse fra
+told- og skatteforvaltningen.
+
+§ 26. Gevinst og tab på fordringer og gæld opgøres efter reglerne i stk. 2-5,
+jf. dog § 25, stk. 2-5, om lagerprincippet og § 25, stk. 7-10.
+
+Stk. 2. Gevinst eller tab på fordringer opgøres som forskellen mellem
+anskaffelsessummen og afståelsessummen. Som anskaffelsessum anvendes kursværdien
+på erhvervelsestidspunktet, medmindre den skattepligtige godtgør at have
+erhvervet fordringen for et højere beløb.
+
+Stk. 3. Gevinst eller tab på gæld opgøres som forskellen mellem gældens værdi
+ved påtagelsen af gælden og værdien ved frigørelsen eller indfrielsen. Sker
+indfrielsen gennem afdrag, medregnes en så stor del, som svarer til forholdet
+mellem på den ene side indfrielsessummen med fradrag af anskaffelsessummen og
+på den anden side indfrielsessummen.
+----
+
+| kgl_absolut_beløb(beløb_kroner: Heltal) -> penge_største_beløb(beløb_kroner, 0 - beløb_kroner)
+| kgl_par14_23_bagatelgrænse_overskredet(netto_kroner: Heltal) -> kgl_absolut_beløb(netto_kroner) > 2000
+
+----
+§ 29. Skattepligtige omfattet af § 2 eller § 12 skal medregne gevinst og tab på
+terminskontrakter og aftaler om køberetter og salgsretter ved opgørelsen af den
+skattepligtige indkomst. Gevinst og tab medregnes efter de regler, der er
+angivet i dette kapitel og i kapitel 7.
+
+§ 30. § 29 anvendes ikke på
+1) aftaler vedrørende fast ejendom, medmindre aftalens løbetid kan overskride
+12 måneder, og aftalens parter er personer som nævnt i boafgiftslovens § 22,
+2) tegningsretter til aktier m.v., der omfattes af aktieavancebeskatningsloven,
+3) kurssikring ved optagelse, refinansiering, rentetilpasning eller indfrielse
+af lån med sikkerhed som nævnt i § 22, stk. 1, 5. pkt., ydet af et selskab
+eller af en person eller et dødsbo, der driver næringsvirksomhed ved
+finansiering,
+4) konverteringsretter knyttet til obligationer, pantebreve, gældsbreve og andre
+pengefordringer,
+5) aftaler om køb og salg af aktier,
+6) valutakontrakter i forbindelse med køb og salg af værdipapirer, når
+valutakontraktens løbetid svarer til sædvanlig afviklingstid for handel med de
+værdipapirer, som valutakontrakten vedrører,
+7) sædvanlige aftaler om levering af varer og andre aktiver samt tjenesteydelser
+til privat brug eller til brug i modtagerens virksomhed eller som produkt af egen
+virksomhed, samt valutakontrakter indgået i forbindelse hermed, når kontrakterne
+ikke er optaget til handel på et reguleret marked, og
+8) aftaler om hel eller delvis afståelse af virksomhed og andele af en virksomhed.
+
+Stk. 4. Uanset reglerne i stk. 1, nr. 5, 6 og 7, finder § 29 dog anvendelse,
+hvis der er indgået modgående kontrakter eller forretninger.
+
+Stk. 5. Uanset reglerne i stk. 1, nr. 7, finder § 29 dog anvendelse for
+skattepligtige, der udøver næring ved køb og salg af fordringer og finansielle
+kontrakter eller driver næringsvirksomhed ved finansiering.
+
+§ 32. Skattepligtige omfattet af § 12 kan fradrage tab på kontrakter, i det
+omfang det angives i stk. 2-5. Uanset 1. pkt. kan tab fradrages, hvis kontrakten
+indeholder ret eller pligt til at afstå eller erhverve aktier og den
+skattepligtige er omfattet af aktieavancebeskatningslovens § 17 eller kontrakten
+har tilknytning til erhvervsmæssig virksomhed. 2. pkt. gælder ikke tab på
+aftaler vedrørende fast ejendom, jf. stk. 5.
+
+Stk. 2. Tab på en kontrakt som nævnt i stk. 1, 1. pkt., kan fradrages i
+indkomstårets gevinst på kontrakter. Yderligere tab kan fradrages, i det omfang
+tabet ikke overstiger forudgående indkomstårs skattepligtige nettogevinster på
+kontrakter, dog ikke et tidligere indkomstår end 2002.
+
+§ 33. Gevinst eller tab på en kontrakt opgøres som forskellen mellem værdien af
+kontrakten ved indkomstårets udløb og værdien ved indkomstårets begyndelse
+(lagerprincippet). Er kontrakten anskaffet i indkomståret, opgøres gevinst eller
+tab som forskellen mellem værdien ved indkomstårets udløb og kontraktens
+anskaffelsessum. Er kontrakten realiseret i indkomståret, opgøres gevinst eller
+tab som forskellen mellem kontraktens afståelsesværdi og kontraktens værdi ved
+indkomstårets begyndelse. Er kontrakten anskaffet og realiseret i samme
+indkomstår, opgøres gevinst eller tab som forskellen mellem afståelsesværdien og
+anskaffelsessummen. Afvikles kontrakten ved levering, anses det overdragne aktiv
+eller passiv for erhvervet henholdsvis afstået på afviklingsdagen og til
+markedsværdien på afviklingsdagen.
+----
+
+| kgl_kontrakt_omfattet_af_par29(art: KursgevinstlovKontraktArt) -> Falskt
+| exception kgl_kontrakt_ordinært_omfattet kgl_kontrakt_omfattet_af_par29(art: KursgevinstlovKontraktArt) -> Sandt under art == KglKontraktOmfattetPar29
+| exception kgl_kontrakt_modgående kgl_kontrakt_omfattet_af_par29(art: KursgevinstlovKontraktArt) -> Sandt under art == KglKontraktUndtagetMenModgåendePar30Stk4
+| exception kgl_kontrakt_næring kgl_kontrakt_omfattet_af_par29(art: KursgevinstlovKontraktArt) -> Sandt under art == KglKontraktUndtagetMenNæringPar30Stk5
+
+# KursgevinstlovSag(input: KursgevinstlovInput) {
+    | person_eller_dødsbo_efter_par12() -> kgl_person_eller_dødsbo_efter_par12(input.rolle)
+    | kontrakt_omfattet_af_par29() -> kgl_kontrakt_omfattet_af_par29(input.kontrakt.kontrakt_art)
+    | omfattet_af_par1() -> kgl_par1_afgrænsning_omfattet(input.par1_afgrænsning) && (input.aktiv != KglFinansielKontrakt || kontrakt_omfattet_af_par29())
+    | grundlag_opfyldt() -> person_eller_dødsbo_efter_par12() && omfattet_af_par1()
+    | fordringsnæring_efter_par13() -> input.aktiv == KglFordring && input.udøver_fordrings_eller_kontraktnæring && input.fordring_erhvervet_udenfor_næring == Falskt
+    | kontraktnæring_efter_par30_stk5() -> input.aktiv == KglFinansielKontrakt && input.udøver_fordrings_eller_kontraktnæring
+    | finansieringsnæring_efter_par19() -> input.aktiv == KglGæld && input.driver_finansieringsnæring && input.gæld_vedrører_finansieringsnæring
+    | opgørelsesprincip() -> KglRealisationsprincip
+    | exception kgl_par25_lagerprincip_valgt opgørelsesprincip() -> KglLagerprincip under input.anvender_lagerprincip_efter_par25
+    | exception kgl_par33_kontrakt_lagerprincip opgørelsesprincip() -> KglLagerprincip under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
+    | fordring_resultat_kroner() -> penge_positivt_beløb(input.fordring.afståelsessum_kroner) - penge_positivt_beløb(input.fordring.anskaffelsessum_kroner)
+    | gæld_resultat_kroner() -> penge_positivt_beløb(input.gæld.værdi_ved_påtagelse_kroner) - penge_positivt_beløb(input.gæld.værdi_ved_frigørelse_eller_indfrielse_kroner)
+    | exception kgl_par21_eftergivelse_resultat gæld_resultat_kroner() -> penge_positivt_beløb(penge_positivt_beløb(input.gæld.fordringens_værdi_for_kreditor_kroner) - penge_positivt_beløb(input.gæld.nedskrevet_til_kroner)) under input.gæld.gældsart == KglGældEftergivelseMv
+    | kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.værdi_ultimo_kroner) - penge_positivt_beløb(input.kontrakt.værdi_primo_kroner)
+    | exception kgl_par33_kontrakt_anskaffet_og_realiseret kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.afståelsesværdi_kroner) - penge_positivt_beløb(input.kontrakt.anskaffelsessum_kroner) under input.kontrakt.anskaffet_i_indkomståret && input.kontrakt.realiseret_i_indkomståret
+    | exception kgl_par33_kontrakt_anskaffet kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.værdi_ultimo_kroner) - penge_positivt_beløb(input.kontrakt.anskaffelsessum_kroner) under input.kontrakt.anskaffet_i_indkomståret && input.kontrakt.realiseret_i_indkomståret == Falskt
+    | exception kgl_par33_kontrakt_realiseret kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.afståelsesværdi_kroner) - penge_positivt_beløb(input.kontrakt.værdi_primo_kroner) under input.kontrakt.anskaffet_i_indkomståret == Falskt && input.kontrakt.realiseret_i_indkomståret
+    | fordring_bagatelgrænse_relevant() -> input.aktiv == KglFordring && fordringsnæring_efter_par13() == Falskt && input.fordring.tab_status != KglFordringTabPar17Statsskattelov6A
+    | gæld_bagatelgrænse_relevant() -> input.aktiv == KglGæld && input.gæld.gældsart == KglGældFremmedValuta
+    | bagatelgrænse_afskærer() -> (fordring_bagatelgrænse_relevant() || gæld_bagatelgrænse_relevant()) && kgl_par14_23_bagatelgrænse_overskredet(input.bagatelgrundlag.årets_netto_fordringer_valutagæld_investbeviser_kroner) == Falskt
+    | aktiv_resultat_kroner() -> 0
+    | exception kgl_fordring_resultat aktiv_resultat_kroner() -> fordring_resultat_kroner() under input.aktiv == KglFordring
+    | exception kgl_gæld_resultat aktiv_resultat_kroner() -> gæld_resultat_kroner() under input.aktiv == KglGæld && kgl_gæld_første_slice_omfattet(input.gæld.gældsart)
+    | exception kgl_kontrakt_resultat aktiv_resultat_kroner() -> kontrakt_resultat_kroner() under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
+    | bruttogevinst_kroner() -> 0
+    | exception kgl_skattepligtig_bruttogevinst bruttogevinst_kroner() -> penge_positivt_beløb(aktiv_resultat_kroner()) under grundlag_opfyldt() && bagatelgrænse_afskærer() == Falskt
+    | bruttotab_kroner() -> 0
+    | exception kgl_bruttotab bruttotab_kroner() -> penge_positivt_beløb(0 - aktiv_resultat_kroner()) under grundlag_opfyldt() && bagatelgrænse_afskærer() == Falskt
+    | kontrakt_tab_fradragsloft_kroner() -> penge_positivt_beløb(input.kontrakt.kontraktgevinster_til_tabsmodregning_kroner)
+    | fradragsberettiget_tab_kroner() -> bruttotab_kroner()
+    | exception kgl_fordring_tab_afskåret fradragsberettiget_tab_kroner() -> 0 under input.aktiv == KglFordring && kgl_fordringstab_afskåret_efter_par14_15_18(input.fordring.tab_status)
+    | exception kgl_kontrakt_tab_begrænset fradragsberettiget_tab_kroner() -> penge_mindste_beløb(bruttotab_kroner(), kontrakt_tab_fradragsloft_kroner()) under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
+    | tab_afskåret_kroner() -> bruttotab_kroner() - fradragsberettiget_tab_kroner()
+    | skattepligtig_gevinst_kroner() -> bruttogevinst_kroner()
+    | netto_efter_kursgevinstloven_kroner() -> skattepligtig_gevinst_kroner() - fradragsberettiget_tab_kroner()
+    | fremført_kontrakttab_kroner() -> 0
+    | exception kgl_kontrakt_tab_fremføres fremført_kontrakttab_kroner() -> tab_afskåret_kroner() under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
+    | personlig_reklassifikation() -> KglIngenPersonligReklassifikation
+    | exception kgl_par4_stk3_fordringsnæring personlig_reklassifikation() -> KglFordringsEllerKontraktNæring under fordringsnæring_efter_par13() && input.fordring.tab_status != KglFordringTabPar17Statsskattelov6A
+    | exception kgl_par4_stk3_kontraktnæring personlig_reklassifikation() -> KglFordringsEllerKontraktNæring under kontraktnæring_efter_par30_stk5()
+    | exception kgl_par4_stk3_finansieringsnæring personlig_reklassifikation() -> KglFinansieringsNæring under finansieringsnæring_efter_par19()
+    | exception kgl_par4_stk3_par17_fordringstab personlig_reklassifikation() -> KglPar17Fordringstab under input.aktiv == KglFordring && input.fordring.tab_status == KglFordringTabPar17Statsskattelov6A && bruttotab_kroner() > 0
+    | resultat() -> KursgevinstlovResultat(
+        indkomstår = input.indkomstår,
+        aktiv = input.aktiv,
+        omfattet_af_par1 = omfattet_af_par1(),
+        person_eller_dødsbo_efter_par12 = person_eller_dødsbo_efter_par12(),
+        opgørelsesprincip = opgørelsesprincip(),
+        bagatelgrænse_afskærer = bagatelgrænse_afskærer(),
+        bruttogevinst_kroner = bruttogevinst_kroner(),
+        bruttotab_kroner = bruttotab_kroner(),
+        tab_afskåret_kroner = tab_afskåret_kroner(),
+        fradragsberettiget_tab_kroner = fradragsberettiget_tab_kroner(),
+        skattepligtig_gevinst_kroner = skattepligtig_gevinst_kroner(),
+        netto_efter_kursgevinstloven_kroner = netto_efter_kursgevinstloven_kroner(),
+        fremført_kontrakttab_kroner = fremført_kontrakttab_kroner(),
+        personlig_reklassifikation = personlig_reklassifikation()
+    )
+}
+| kursgevinstlov_sag(input: KursgevinstlovInput) -> KursgevinstlovSag(input)
+| kursgevinstlov_resultat(input: KursgevinstlovInput) -> kursgevinstlov_sag(input).resultat()
