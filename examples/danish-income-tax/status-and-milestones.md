@@ -18,7 +18,10 @@ model is materially complete.
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
 excluded CFC income and ligningsmæssige fradrag, and the wage-earner calculator
-delegates its taxable-income base to that result; the 2026 § 7/§ 7 a/§ 8 reform
+delegates its taxable-income base to that result; § 3, stk. 2, nr. 1 now has
+amount-level personal-income deduction filtering for self-employed business
+expenses with the statutory § 4, stk. 1, nr. 1/2/7/8 and Ligningsloven
+§§ 9 G/13 carve-outs; the 2026 § 7/§ 7 a/§ 8 reform
 parameters for mellemskat, topskat and toptopskat now carry LOV nr. 482/2024
 source provenance and derive statutory 2010-level thresholds through § 20
 regulation, with § 7 a topskat and § 8 toptopskat exposed as personal-income
@@ -371,6 +374,8 @@ encoded as a temporal rule on top of the consolidation.
 - `loenmodtager-par13-spouse.audit.runa` exists and checks/runs with
   `runa run`.
 - `loenmodtager-par13-priority.audit.runa` exists and checks/runs with
+  `runa run`.
+- `personskatteloven-par3-fradrag.audit.runa` exists and checks/runs with
   `runa run`.
 - `personskatteloven-par13a-gaeldsordning.audit.runa` exists and checks/runs
   with `runa run`.
@@ -1086,7 +1091,10 @@ M1 - Income taxonomy
   and ligningsmæssige fradrag. The fixture proves § 4 a share income remains
   outside ordinary taxable income and § 4 b CFC income remains outside the
   §§ 6-8 a taxable-income base while reclassified § 4/§ 4 a amounts feed
-  personal income.
+  personal income. § 3, stk. 2, nr. 1 now keeps the broad self-employed
+  business-expense deduction separate from the statutory carve-outs for § 4,
+  stk. 1, nr. 1, 2, 7 and 8 and Ligningsloven §§ 9 G and 13, so those carved-out
+  amounts are not deducted as personal-income business expenses.
 
 M2 - State tax computation skeleton
 
