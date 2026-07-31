@@ -2,7 +2,7 @@
 
 @ importer ./pengebeloeb
 
--- Ligningsloven — kapitalindkomstrelevante afhængigheder (§§ 5 C, 6, 6 A og 12 B).
+-- Ligningsloven — kapitalindkomstrelevante afhængigheder (§§ 5 C, 6, 6 A, 8 og 12 B).
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
@@ -264,6 +264,80 @@ statshusmandsbrug m.m. og jordrente, forudsat at beløbet er betalt.
 }
 | ligningslov6a_sag(input: Ligningslov6AInput) -> Ligningslov6ASag(input)
 | ligningslov6a_resultat(input: Ligningslov6AInput) -> ligningslov6a_sag(input).resultat()
+
+----
+§ 8, stk. 3. Ved opgørelsen af den skattepligtige indkomst fradrages:
+a) løbende provisioner eller præmier for lån, som den skattepligtige optager,
+eller for sikring af hans tilgodehavende,
+b) præmier og lignende løbende ydelser for kaution for den skattepligtiges
+gæld, og
+c) stiftelsesprovisioner, engangspræmier og lignende engangsydelser for lån,
+sikring af tilgodehavender eller kaution, som nævnt under a) og b), såfremt
+løbetiden er mindre end 2 år.
+----
+
+# Ligningslov8Stk3Art = Ll8Stk3LøbendeProvisionEllerPræmieForLånEllerSikring | Ll8Stk3LøbendeKautionspræmie | Ll8Stk3StiftelsesprovisionEllerEngangspræmie
+# Ligningslov8Stk3Input(indkomstår: Heltal, art: Ligningslov8Stk3Art, udgift_kroner: Heltal, løbetid_måneder: Heltal)
+# Ligningslov8Stk3Resultat(indkomstår: Heltal, art: Ligningslov8Stk3Art, omfattet_af_litra_a: Boolsk, omfattet_af_litra_b: Boolsk, omfattet_af_litra_c: Boolsk, løbetid_under_to_år: Boolsk, fradragsberettiget_efter_stk3: Boolsk, fradrag_kroner: Heltal, afskåret_kroner: Heltal)
+
+| ligningslov8_stk3_litra_a(art: Ligningslov8Stk3Art) -> art == Ll8Stk3LøbendeProvisionEllerPræmieForLånEllerSikring
+| ligningslov8_stk3_litra_b(art: Ligningslov8Stk3Art) -> art == Ll8Stk3LøbendeKautionspræmie
+| ligningslov8_stk3_litra_c(art: Ligningslov8Stk3Art) -> art == Ll8Stk3StiftelsesprovisionEllerEngangspræmie
+
+# Ligningslov8Stk3Sag(input: Ligningslov8Stk3Input) {
+    | positiv_udgift_kroner() -> penge_positivt_beløb(input.udgift_kroner)
+    | omfattet_af_litra_a() -> ligningslov8_stk3_litra_a(input.art)
+    | omfattet_af_litra_b() -> ligningslov8_stk3_litra_b(input.art)
+    | omfattet_af_litra_c() -> ligningslov8_stk3_litra_c(input.art)
+    | løbetid_under_to_år() -> input.løbetid_måneder > 0 && input.løbetid_måneder < 24
+    | fradragsberettiget_efter_stk3() -> omfattet_af_litra_a() || omfattet_af_litra_b() || (omfattet_af_litra_c() && løbetid_under_to_år())
+    | fradrag_kroner() -> 0
+    | exception ll8_stk3_fradrag fradrag_kroner() -> positiv_udgift_kroner() under fradragsberettiget_efter_stk3()
+    | afskåret_kroner() -> positiv_udgift_kroner() - fradrag_kroner()
+    | resultat() -> Ligningslov8Stk3Resultat(
+        indkomstår = input.indkomstår,
+        art = input.art,
+        omfattet_af_litra_a = omfattet_af_litra_a(),
+        omfattet_af_litra_b = omfattet_af_litra_b(),
+        omfattet_af_litra_c = omfattet_af_litra_c(),
+        løbetid_under_to_år = løbetid_under_to_år(),
+        fradragsberettiget_efter_stk3 = fradragsberettiget_efter_stk3(),
+        fradrag_kroner = fradrag_kroner(),
+        afskåret_kroner = afskåret_kroner()
+    )
+}
+| ligningslov8_stk3_sag(input: Ligningslov8Stk3Input) -> Ligningslov8Stk3Sag(input)
+| ligningslov8_stk3_resultat(input: Ligningslov8Stk3Input) -> ligningslov8_stk3_sag(input).resultat()
+
+= ll8_stk3_løbende_lån_fixture = ligningslov8_stk3_resultat(Ligningslov8Stk3Input(
+    indkomstår = 2026,
+    art = Ll8Stk3LøbendeProvisionEllerPræmieForLånEllerSikring,
+    udgift_kroner = 4000,
+    løbetid_måneder = 60
+))
+= ll8_stk3_kaution_fixture = ligningslov8_stk3_resultat(Ligningslov8Stk3Input(
+    indkomstår = 2026,
+    art = Ll8Stk3LøbendeKautionspræmie,
+    udgift_kroner = 2500,
+    løbetid_måneder = 36
+))
+= ll8_stk3_engangs_under_to_år_fixture = ligningslov8_stk3_resultat(Ligningslov8Stk3Input(
+    indkomstår = 2026,
+    art = Ll8Stk3StiftelsesprovisionEllerEngangspræmie,
+    udgift_kroner = 6000,
+    løbetid_måneder = 18
+))
+= ll8_stk3_engangs_lang_løbetid_fixture = ligningslov8_stk3_resultat(Ligningslov8Stk3Input(
+    indkomstår = 2026,
+    art = Ll8Stk3StiftelsesprovisionEllerEngangspræmie,
+    udgift_kroner = 7000,
+    løbetid_måneder = 24
+))
+
+| ll8_stk3_litra_a_fradrages: ll8_stk3_løbende_lån_fixture -> ll8_stk3_løbende_lån_fixture.omfattet_af_litra_a == Sandt && ll8_stk3_løbende_lån_fixture.fradrag_kroner == 4000
+| ll8_stk3_litra_b_fradrages: ll8_stk3_kaution_fixture -> ll8_stk3_kaution_fixture.omfattet_af_litra_b == Sandt && ll8_stk3_kaution_fixture.fradrag_kroner == 2500
+| ll8_stk3_litra_c_under_to_år_fradrages: ll8_stk3_engangs_under_to_år_fixture -> ll8_stk3_engangs_under_to_år_fixture.omfattet_af_litra_c == Sandt && ll8_stk3_engangs_under_to_år_fixture.løbetid_under_to_år == Sandt && ll8_stk3_engangs_under_to_år_fixture.fradrag_kroner == 6000
+| ll8_stk3_litra_c_mindst_to_år_afskæres: ll8_stk3_engangs_lang_løbetid_fixture -> ll8_stk3_engangs_lang_løbetid_fixture.omfattet_af_litra_c == Sandt && ll8_stk3_engangs_lang_løbetid_fixture.løbetid_under_to_år == Falskt && ll8_stk3_engangs_lang_løbetid_fixture.fradrag_kroner == 0 && ll8_stk3_engangs_lang_løbetid_fixture.afskåret_kroner == 7000
 
 ----
 § 12 B. Udgør en løbende ydelse helt eller delvist vederlag i en gensidigt

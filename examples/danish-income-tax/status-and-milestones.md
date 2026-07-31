@@ -30,7 +30,10 @@ consumes a typed Kursgevinstloven result for ordinary personal claims, selected
 debt cases and basic financial contracts, including the § 14/§ 23 2.000 kr.
 threshold, § 14 stk. 2/§ 15/§ 18 loss blocks, § 17 fordringstab posture,
 § 32 contract-loss limitation and § 4 stk. 3 personal-income reclassification
-posture; § 4, stk. 1, nr. 9 and
+posture; § 4, stk. 1, nr. 7 now consumes a typed LL § 8, stk. 3 result for
+running loan provisions/premiums, running guarantee premiums and one-off
+provisions/premiums when the loan/guarantee period is under two years, with the
+deductible amount flowing as negative capital income; § 4, stk. 1, nr. 9 and
 stk. 9 now derive passive
 self-employed business capital-income treatment from owner-count thresholds,
 the LL § 8 K personal-owner branch, substantial-participation exclusion, and
@@ -254,6 +257,10 @@ Current § 4 and § 13 amendment/dependency sources:
     dependency for accrued/credited-interest compensation and equivalent
     § 8, stk. 3 provision/præmie amounts, including the § 5, stk. 5 carve-out
     and stk. 3 deduction block.
+  - § 8, stk. 3 is modeled as the Personskatteloven § 4, stk. 1, nr. 7
+    dependency for running provision/premium amounts and one-off
+    provision/premium amounts when the loan or guarantee period is under two
+    years.
   - § 12 B is modeled as the Personskatteloven § 4, stk. 1, nr. 15
     dependency for taxable and deductible running-payment saldo amounts under
     stk. 4-7 and stk. 9, including stk. 10 application posture and stk. 11
@@ -455,7 +462,8 @@ encoded as a temporal rule on top of the consolidation.
 - `ligningsloven_kapitalindkomst.runa` exists and checks/runs with `runa run`;
   it covers the LL § 5 C dependency consumed by Personskatteloven § 4,
   stk. 1, nr. 12, the LL §§ 6/6 A dependencies consumed by § 4, stk. 1,
-  nr. 1, and the LL § 12 B dependency consumed by § 4, stk. 1, nr. 15.
+  nr. 1, the LL § 8, stk. 3 dependency consumed by § 4, stk. 1, nr. 7, and
+  the LL § 12 B dependency consumed by § 4, stk. 1, nr. 15.
 - `kursgevinstloven.runa` exists and checks with `runa check`; it covers the
   first Kursgevinstloven dependency slice consumed by Personskatteloven § 4,
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
@@ -483,6 +491,8 @@ encoded as a temporal rule on top of the consolidation.
   checks/runs with `runa run`.
 - `personskatteloven-par4-kursgevinst.audit.runa` exists and checks/runs with
   `runa run`.
+- `personskatteloven-par4-ligningslov8stk3.audit.runa` exists and checks/runs
+  with `runa run`.
 - `personskatteloven-par4-passiv-virksomhed.audit.runa` exists and checks/runs
   with `runa run`.
 - `personskatteloven-par4-udlejning-driftsmidler.audit.runa` exists and
@@ -575,7 +585,7 @@ encoded as a temporal rule on top of the consolidation.
   topskat, toptopskat, and the mellemskat positive-capital grundbeløb from the
   amendment's 2010-level amounts through § 20 while preserving the LOV nr.
   482/2024 source branch for each layer,
-  Ligningsloven ordinary wage-earner deduction, LL §§ 5 C/6/6 A/12 B
+  Ligningsloven ordinary wage-earner deduction, LL §§ 5 C/6/6 A/8/12 B
   capital-income dependencies, Pensionsbeskatningsloven § 53 A return
   dependency, Ejendomsavancebeskatningsloven real-property-gain dependency,
   Afskrivningsloven § 40 C saldo dependency, and
@@ -776,6 +786,12 @@ Current decision:
   posture in typed domain objects. `Par4Stk1Nr2Sag` consumes the typed result as
   Personskatteloven § 4, stk. 1, nr. 2 capital income rather than taking a bare
   Kursgevinst scalar.
+- `Ligningslov8Stk3Sag` uses product-scoped `|` rules for LL § 8, stk. 3. It
+  keeps the provision/premium branch, expense amount and loan/guarantee period
+  together, so litra a/b running amounts are deductible and litra c one-off
+  amounts are deductible only when the period is under two years.
+  `Par4Stk1Nr7Sag` consumes the typed result as negative Personskatteloven
+  § 4, stk. 1, nr. 7 capital income rather than taking a bare provision scalar.
 - `Pensionsbeskatningslov53ASag` uses product-scoped `|` rules for PBL § 53 A.
   It keeps the covered ordning, § 53 B exclusion, stk. 4 carve-outs, PAL-method
   or alternative capital-value return, taxable share allocation, prior

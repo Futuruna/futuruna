@@ -1,0 +1,61 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 7.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- ligningsloven_kapitalindkomst.runa.
+
+= par4_stk1_nr7_audit_løbende_lån_input = Ligningslov8Stk3Input(
+    indkomstår = 2026,
+    art = Ll8Stk3LøbendeProvisionEllerPræmieForLånEllerSikring,
+    udgift_kroner = 5500,
+    løbetid_måneder = 84
+)
+= par4_stk1_nr7_audit_kaution_input = Ligningslov8Stk3Input(
+    indkomstår = 2026,
+    art = Ll8Stk3LøbendeKautionspræmie,
+    udgift_kroner = 3200,
+    løbetid_måneder = 48
+)
+= par4_stk1_nr7_audit_engangs_under_to_år_input = Ligningslov8Stk3Input(
+    indkomstår = 2026,
+    art = Ll8Stk3StiftelsesprovisionEllerEngangspræmie,
+    udgift_kroner = 9000,
+    løbetid_måneder = 23
+)
+= par4_stk1_nr7_audit_engangs_to_år_input = Ligningslov8Stk3Input(
+    indkomstår = 2026,
+    art = Ll8Stk3StiftelsesprovisionEllerEngangspræmie,
+    udgift_kroner = 9000,
+    løbetid_måneder = 24
+)
+
+= par4_stk1_nr7_audit_løbende_lån = par4_stk1_nr7_resultat_fra_ligningslov8_stk3(par4_stk1_nr7_audit_løbende_lån_input)
+= par4_stk1_nr7_audit_kaution = par4_stk1_nr7_resultat_fra_ligningslov8_stk3(par4_stk1_nr7_audit_kaution_input)
+= par4_stk1_nr7_audit_engangs_under_to_år = par4_stk1_nr7_resultat_fra_ligningslov8_stk3(par4_stk1_nr7_audit_engangs_under_to_år_input)
+= par4_stk1_nr7_audit_engangs_to_år = par4_stk1_nr7_resultat_fra_ligningslov8_stk3(par4_stk1_nr7_audit_engangs_to_år_input)
+
+= par4_stk1_nr7_audit_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr7_kapitalpost_fra_ligningslov8_stk3(par4_stk1_nr7_audit_løbende_lån_input),
+        par4_stk1_nr7_kapitalpost_fra_ligningslov8_stk3(par4_stk1_nr7_audit_kaution_input),
+        par4_stk1_nr7_kapitalpost_fra_ligningslov8_stk3(par4_stk1_nr7_audit_engangs_under_to_år_input),
+        par4_stk1_nr7_kapitalpost_fra_ligningslov8_stk3(par4_stk1_nr7_audit_engangs_to_år_input)
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr7_audit_litra_a_løbende_lån_fradrages: par4_stk1_nr7_audit_løbende_lån -> par4_stk1_nr7_audit_løbende_lån.omfattet_af_ligningslov8_stk3 == Sandt && par4_stk1_nr7_audit_løbende_lån.fradragsberettigede_provisioner_mv_kroner == 5500 && par4_stk1_nr7_audit_løbende_lån.kapitalindkomst_kroner == -5500
+| par4_stk1_nr7_audit_litra_b_kaution_fradrages: par4_stk1_nr7_audit_kaution -> par4_stk1_nr7_audit_kaution.omfattet_af_ligningslov8_stk3 == Sandt && par4_stk1_nr7_audit_kaution.fradragsberettigede_provisioner_mv_kroner == 3200 && par4_stk1_nr7_audit_kaution.kapitalindkomst_kroner == -3200
+| par4_stk1_nr7_audit_litra_c_under_to_år_fradrages: par4_stk1_nr7_audit_engangs_under_to_år -> par4_stk1_nr7_audit_engangs_under_to_år.omfattet_af_ligningslov8_stk3 == Sandt && par4_stk1_nr7_audit_engangs_under_to_år.fradragsberettigede_provisioner_mv_kroner == 9000 && par4_stk1_nr7_audit_engangs_under_to_år.kapitalindkomst_kroner == -9000
+| par4_stk1_nr7_audit_litra_c_to_år_afskæres: par4_stk1_nr7_audit_engangs_to_år -> par4_stk1_nr7_audit_engangs_to_år.omfattet_af_ligningslov8_stk3 == Falskt && par4_stk1_nr7_audit_engangs_to_år.fradragsberettigede_provisioner_mv_kroner == 0 && par4_stk1_nr7_audit_engangs_to_år.afskårede_provisioner_mv_kroner == 9000 && par4_stk1_nr7_audit_engangs_to_år.kapitalindkomst_kroner == 0
+| par4_stk1_nr7_audit_kun_fradragsberettigede_i_kapitalindkomst: par4_stk1_nr7_audit_kapitalindkomst -> par4_stk1_nr7_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == -17700 && par4_stk1_nr7_audit_kapitalindkomst.nettokapitalindkomst_kroner == -17700 && par4_stk1_nr7_audit_kapitalindkomst.negativ_nettokapitalindkomst_abs_kroner == 17700
+
+? par4_stk1_nr7_audit_litra_a_løbende_lån_fradrages
+? par4_stk1_nr7_audit_litra_b_kaution_fradrages
+? par4_stk1_nr7_audit_litra_c_under_to_år_fradrages
+? par4_stk1_nr7_audit_litra_c_to_år_afskæres
+? par4_stk1_nr7_audit_kun_fradragsberettigede_i_kapitalindkomst
+
+@ print("§4 stk.1 nr.7 kapitalindkomst fra LL §8 stk.3-provisioner mv.: " + vis(par4_stk1_nr7_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner))
