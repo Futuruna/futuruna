@@ -1200,3 +1200,90 @@ som nævnt i § 10, stk. 1.
 | par13_virksomhedsunderskud_modregnes_kun_i_samme_virksomhed: par13_virksomhedsbeløb_fixture -> par13_virksomhedsbeløb_fixture.fradrag_i_øvrig_indkomst_kroner == 0 && par13_virksomhedsbeløb_fixture.modregnet_i_samme_virksomhed_kroner == 30000 && par13_virksomhedsbeløb_fixture.fremført_til_samme_virksomhed_kroner == 50000
 | par13_væsentlig_deltagelse_frigiver_virksomhedsunderskud: par13_virksomhedsbeløb_undtagelse_fixture -> par13_virksomhedsbeløb_undtagelse_fixture.fradrag_i_øvrig_indkomst_kroner == 80000 && par13_virksomhedsbeløb_undtagelse_fixture.fremført_til_samme_virksomhed_kroner == 0
 | par13_forskudsafskrivning_følger_samme_lås: par13_forskudsafskrivning_fixture -> par13_forskudsafskrivning_fixture == Sandt
+
+----
+§ 13 a. Opnår en person i et indkomstår en tvangsakkord i en rekonstruktion
+eller en gældssanering, nedsættes uudnyttede, fradragsberettigede underskud og
+dernæst uudnyttede, fradragsberettigede tab, der kan fremføres efter reglerne i
+aktieavancebeskatningslovens § 13 A, stk. 2 og 3, kursgevinstlovens § 32,
+stk. 3, og ejendomsavancebeskatningslovens § 6, stk. 3, fra det pågældende og
+tidligere indkomstår med det beløb, hvormed gælden er nedsat.
+Nedsættelsesbeløbet formindskes med den del af skyldnerens indkomst, der
+hidrører fra hans frigørelse for gældsforpligtelser. Nedsættelsen af underskud
+sker med virkning for det indkomstår, hvori rekonstruktionsforslaget med
+tvangsakkorden stadfæstes eller kendelse om gældssanering afsiges, og for
+senere indkomstår.
+
+Stk. 2. I det omfang det beløb, hvormed underskuddet skal nedsættes efter
+stk. 1, ikke er blevet anvendt til nedsættelse af underskud hos skyldneren,
+skal det bruges til at nedsætte underskud efter reglerne i stk. 1 vedrørende
+skyldnerens virksomhed hos den samlevende ægtefælle, hvis denne driver den
+pågældende virksomhed.
+
+Stk. 3. Ved opgørelsen af virksomhedens underskud hos skyldnerens ægtefælle
+nedsættes ægtefællens indtægter, der ikke vedrører virksomheden, med
+ægtefællens udgifter, der ikke vedrører virksomheden.
+
+Stk. 4. Nedsættelsesbeløbet efter stk. 1, 1.-3. pkt., nedsætter uudnyttet
+negativ skat af aktieindkomst fra det indkomstår, hvori tvangsakkord i en
+rekonstruktion eller gældssanering opnås, eller fra tidligere indkomstår. Ved
+nedsættelse af negativ skat af aktieindkomst modregnes nedsættelsesbeløbet med
+en skatteværdi på 40 pct. Nedsættelsen sker med virkning for det indkomstår,
+hvori rekonstruktionsforslaget med tvangsakkorden stadfæstes eller kendelse om
+gældssanering afsiges, og for senere indkomstår. Hvis der er et uudnyttet
+fradragsberettiget underskud og en uudnyttet negativ skat af aktieindkomst,
+bruges nedsættelsesbeløbet til at nedsætte underskuddet før negativ skat af
+aktieindkomst, således at den negative skat af aktieindkomst kun nedsættes, i
+det omfang nedsættelsesbeløbet overstiger underskuddet. Ved anvendelse af
+stk. 2 nedsættes både underskud og negativ skat af aktieindkomst hos
+skyldneren, inden nedsættelsesbeløbet bruges til at nedsætte underskud hos
+ægtefællen.
+
+Stk. 5. Reglerne i stk. 1-4 finder tilsvarende anvendelse på aftaler om en
+samlet ordning mellem en skyldner og dennes kreditorer om bortfald eller
+nedsættelse af skyldnerens gæld (frivillig akkord).
+----
+
+# Par13aAkkordstatus = IngenPar13aAkkord | TvangsakkordIRekonstruktion | Gældssanering | FrivilligAkkord
+# Par13aNedsættelseInput(status: Par13aAkkordstatus, gæld_nedsat_kroner: Heltal, frigørelsesindkomst_kroner: Heltal, skyldner_underskud_kroner: Heltal, skyldner_tab_kroner: Heltal, skyldner_negativ_aktieskat_kroner: Heltal, ægtefælle_samlevende_driver_virksomhed: Boolsk, ægtefælle_virksomhedsunderskud_før_stk3_kroner: Heltal, ægtefælle_ikke_virksomhedsindtægter_kroner: Heltal, ægtefælle_ikke_virksomhedsudgifter_kroner: Heltal)
+# Par13aNedsættelseResultat(ordning_omfattet: Boolsk, nedsættelsesbeløb_kroner: Heltal, skyldner_underskud_nedsat_kroner: Heltal, skyldner_underskud_efter_nedsættelse_kroner: Heltal, skyldner_tab_nedsat_kroner: Heltal, skyldner_tab_efter_nedsættelse_kroner: Heltal, skyldner_negativ_aktieskat_nedsat_kroner: Heltal, skyldner_negativ_aktieskat_efter_nedsættelse_kroner: Heltal, nedsættelsesbeløb_efter_skyldner_kroner: Heltal, ægtefælle_ikke_virksomhedsnettoindtægt_kroner: Heltal, ægtefælle_virksomhedsunderskud_efter_stk3_kroner: Heltal, ægtefælle_virksomhedsunderskud_nedsat_kroner: Heltal, ægtefælle_virksomhedsunderskud_efter_nedsættelse_kroner: Heltal)
+
+| par13a_ordning_omfattet(status: Par13aAkkordstatus) -> status == TvangsakkordIRekonstruktion || status == Gældssanering || status == FrivilligAkkord
+| par13a_negativ_aktieskat_skatteværdi_basispoint() -> 4000
+
+# Par13aNedsættelseSag(input: Par13aNedsættelseInput) {
+    | ordning_omfattet() -> par13a_ordning_omfattet(input.status)
+    | nedsættelsesbeløb_kroner() -> 0
+    | exception par13a_stk1_gældsnedsættelse_efter_frigørelsesindkomst nedsættelsesbeløb_kroner() -> par13_positivt_beløb(input.gæld_nedsat_kroner - input.frigørelsesindkomst_kroner) under ordning_omfattet()
+    | skyldner_underskud_kroner() -> par13_positivt_beløb(input.skyldner_underskud_kroner)
+    | skyldner_tab_kroner() -> par13_positivt_beløb(input.skyldner_tab_kroner)
+    | skyldner_negativ_aktieskat_kroner() -> par13_positivt_beløb(input.skyldner_negativ_aktieskat_kroner)
+    | skyldner_underskud_nedsat_kroner() -> par13_mindste_beløb(nedsættelsesbeløb_kroner(), skyldner_underskud_kroner())
+    | nedsættelsesbeløb_efter_underskud_kroner() -> nedsættelsesbeløb_kroner() - skyldner_underskud_nedsat_kroner()
+    | skyldner_tab_nedsat_kroner() -> par13_mindste_beløb(nedsættelsesbeløb_efter_underskud_kroner(), skyldner_tab_kroner())
+    | nedsættelsesbeløb_efter_tab_kroner() -> nedsættelsesbeløb_efter_underskud_kroner() - skyldner_tab_nedsat_kroner()
+    | skyldner_negativ_aktieskat_nedsat_kroner() -> par13_mindste_beløb(skyldner_negativ_aktieskat_kroner(), penge_beløb_gange_basispoint_kroner(nedsættelsesbeløb_efter_tab_kroner(), par13a_negativ_aktieskat_skatteværdi_basispoint()))
+    | nedsættelsesbeløb_brugt_til_negativ_aktieskat_kroner() -> (skyldner_negativ_aktieskat_nedsat_kroner() * 10000 + par13a_negativ_aktieskat_skatteværdi_basispoint() - 1) / par13a_negativ_aktieskat_skatteværdi_basispoint()
+    | nedsættelsesbeløb_efter_skyldner_kroner() -> nedsættelsesbeløb_efter_tab_kroner() - nedsættelsesbeløb_brugt_til_negativ_aktieskat_kroner()
+    | ægtefælle_ikke_virksomhedsnettoindtægt_kroner() -> par13_positivt_beløb(input.ægtefælle_ikke_virksomhedsindtægter_kroner - input.ægtefælle_ikke_virksomhedsudgifter_kroner)
+    | ægtefælle_virksomhedsunderskud_efter_stk3_kroner() -> par13_positivt_beløb(input.ægtefælle_virksomhedsunderskud_før_stk3_kroner - ægtefælle_ikke_virksomhedsnettoindtægt_kroner())
+    | ægtefælle_virksomhedsunderskud_nedsat_kroner() -> 0
+    | exception par13a_stk2_rest_nedsætter_ægtefælles_virksomhedsunderskud ægtefælle_virksomhedsunderskud_nedsat_kroner() -> par13_mindste_beløb(nedsættelsesbeløb_efter_skyldner_kroner(), ægtefælle_virksomhedsunderskud_efter_stk3_kroner()) under input.ægtefælle_samlevende_driver_virksomhed
+    | resultat() -> Par13aNedsættelseResultat(
+        ordning_omfattet = ordning_omfattet(),
+        nedsættelsesbeløb_kroner = nedsættelsesbeløb_kroner(),
+        skyldner_underskud_nedsat_kroner = skyldner_underskud_nedsat_kroner(),
+        skyldner_underskud_efter_nedsættelse_kroner = skyldner_underskud_kroner() - skyldner_underskud_nedsat_kroner(),
+        skyldner_tab_nedsat_kroner = skyldner_tab_nedsat_kroner(),
+        skyldner_tab_efter_nedsættelse_kroner = skyldner_tab_kroner() - skyldner_tab_nedsat_kroner(),
+        skyldner_negativ_aktieskat_nedsat_kroner = skyldner_negativ_aktieskat_nedsat_kroner(),
+        skyldner_negativ_aktieskat_efter_nedsættelse_kroner = skyldner_negativ_aktieskat_kroner() - skyldner_negativ_aktieskat_nedsat_kroner(),
+        nedsættelsesbeløb_efter_skyldner_kroner = nedsættelsesbeløb_efter_skyldner_kroner(),
+        ægtefælle_ikke_virksomhedsnettoindtægt_kroner = ægtefælle_ikke_virksomhedsnettoindtægt_kroner(),
+        ægtefælle_virksomhedsunderskud_efter_stk3_kroner = ægtefælle_virksomhedsunderskud_efter_stk3_kroner(),
+        ægtefælle_virksomhedsunderskud_nedsat_kroner = ægtefælle_virksomhedsunderskud_nedsat_kroner(),
+        ægtefælle_virksomhedsunderskud_efter_nedsættelse_kroner = ægtefælle_virksomhedsunderskud_efter_stk3_kroner() - ægtefælle_virksomhedsunderskud_nedsat_kroner()
+    )
+}
+| par13a_nedsættelse_sag(input: Par13aNedsættelseInput) -> Par13aNedsættelseSag(input)
+| par13a_nedsættelse_resultat(input: Par13aNedsættelseInput) -> par13a_nedsættelse_sag(input).resultat()

@@ -35,7 +35,9 @@ prior-year deficits now have amount-level priority over the taxpayer's
 transferred deficit in both spouse-income deduction and spouse-tax offset paths;
 § 13, stk. 4 now has
 amount-level spouse and carry-forward offset ordering for negative personal
-income; § 8 a, stk. 2
+income; § 13 a now has amount-level debt-settlement reduction of carried
+deficits, losses, negative share-income tax and a cohabiting spouse's business
+deficit; § 8 a, stk. 2
 high-layer share-income tax now flows through the wage-earner § 5/§ 9
 state-tax path, § 8 a, stk. 6 now has a pair-level both-negative spouse
 share-income threshold allocation, and § 8 a negative share-income annual
@@ -370,6 +372,8 @@ encoded as a temporal rule on top of the consolidation.
   `runa run`.
 - `loenmodtager-par13-priority.audit.runa` exists and checks/runs with
   `runa run`.
+- `personskatteloven-par13a-gaeldsordning.audit.runa` exists and checks/runs
+  with `runa run`.
 - `skatdk-2026-ekstern.scenario.runa` exists and checks/runs with `runa run`.
 - `delaar-scenarier.scenario.runa` exists and checks/runs with `runa run`.
 - `omregning-skatteloft-ekstern.scenario.runa` exists and checks/runs with
@@ -472,9 +476,10 @@ as a complete Personskatteloven calculator.
   scenarios exercise wage income, AM contribution, ordinary wage-earner
   deductions, municipal/church tax, state-tax components, personfradrag,
   selected § 13 deficit paths including spouse/current-year negative personal
-  income and carried-forward negative personal-income ordering through the
-  reusable § 13 complex calculator, § 14 annualisation/election cases, § 19
-  cases, withholding/card generation, and first final-settlement paths.
+  income, carried-forward negative personal-income ordering through the
+  reusable § 13 complex calculator, and § 13 a debt-settlement reduction
+  ordering, § 14 annualisation/election cases, § 19 cases,
+  withholding/card generation, and first final-settlement paths.
 - Full legal calculation coverage is still materially incomplete: some rules are
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
@@ -583,6 +588,11 @@ Current decision:
   the spouses' positive capital income before own and spouse personal income.
   `beregn_par13_kompleks` now returns both result objects instead of only the
   old single-person rest amount.
+- `Par13aNedsættelseSag` keeps § 13 a's debt-settlement reduction chain inside
+  one legal case: covered debt arrangement, debt reduction after release
+  income, debtor deficit, debtor loss, 40 pct. negative share-tax reduction,
+  remaining amount after the debtor, spouse non-business netting under stk. 3,
+  and cohabiting spouse business-deficit reduction under stk. 2.
 - `Par4aPensionsfradragSag` uses product-scoped `|` rules for the § 4 a,
   stk. 4 amount layer. The scope keeps positive share income, the requested
   pension deduction, notice to the tax administration, no-double-deduction
@@ -1419,6 +1429,10 @@ M7 - Personfradrag and deficit layer
   deficit transfer, § 13 stk. 4 negative personal income offsets through spouse
   personal income and both spouses' positive capital income, and carried-forward
   negative personal income ordering are fixture-tested,
+  § 13 a debt-settlement reduction now lowers the debtor's carried deficits,
+  then carried losses, then negative share-income tax at 40 pct., before any
+  remaining reduction lowers a cohabiting spouse's business deficit after
+  stk. 3 non-business netting,
   foreign/pension spouse transfer limitations are executable, and same-business
   loss carry-forward amounts are fixture-tested. § 13's first dependent-source validation now
   covers PBL § 16 through 2025, the 2026 repeal, LL § 33 A relief, and seamen
