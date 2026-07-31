@@ -29,8 +29,11 @@ derive leasing income from depreciable operating assets and ships through the
 substantial-participation condition and Skatterådet's pre-19 May 1993
 permission carve-out; § 4, stk. 1, nr. 17 now derives tenant/shareholder
 subletting and letting surplus under LL § 15 Q stk. 1/3 as positive
-capital-income surplus while excluding owners/others and non-LL15Q cases, and
-the LL § 15 P dependency now calculates long-term private-home letting
+capital-income surplus while excluding owners/others and non-LL15Q cases;
+§ 4, stk. 1, nr. 12 now consumes a typed LL § 5 C result for compensation
+for accrued/credited interest and § 8, stk. 3 provision/præmie amounts,
+including the § 5, stk. 5 carve-out and stk. 3 double-tax-treaty deduction
+block; and the LL § 15 P dependency now calculates long-term private-home letting
 bundfradrag from 2/3 annual rent/boligafgift or 1 1/3 pct. property value,
 the 24.000 kr. owner minimum, the four-month condition, actual-expense branch
 and later-method lock, while LL § 15 Q now calculates the regulated low/high
@@ -202,6 +205,10 @@ Current § 13 amendment/dependency sources:
   `https://www.retsinformation.dk/eli/lta/2025/1500`
   - XML status on 2026-07-18: `Valid`
   - § 33 A is the foreign-wage relief exception in § 13, stk. 5.
+  - § 5 C is modeled as the Personskatteloven § 4, stk. 1, nr. 12
+    dependency for accrued/credited-interest compensation and equivalent
+    § 8, stk. 3 provision/præmie amounts, including the § 5, stk. 5 carve-out
+    and stk. 3 deduction block.
   - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
     wage-earner calculator; § 9 L is modeled for extra pension deductions and
     § 26 nr. 5 transition-compensation input; § 15 P is modeled for
@@ -390,6 +397,9 @@ encoded as a temporal rule on top of the consolidation.
 - `ligningsloven_fradrag.runa` exists and checks with `runa check`; it covers
   §§ 9 J/9 K/9 L wage-earner and pension deductions plus § 15 Q
   subletting/letting income deductions.
+- `ligningsloven_kapitalindkomst.runa` exists and checks/runs with `runa run`;
+  it covers the LL § 5 C dependency consumed by Personskatteloven § 4,
+  stk. 1, nr. 12.
 - `skatteaar-parametre.runa` exists and checks with `runa check`.
 - `loenmodtager_beregning.runa` exists and checks with `runa check`.
 - `loenmodtager-fixtures.scenario.runa` exists and checks/runs with `runa run`.
@@ -404,6 +414,8 @@ encoded as a temporal rule on top of the consolidation.
   with `runa run`.
 - `personskatteloven-par4-udlejning-driftsmidler.audit.runa` exists and
   checks/runs with `runa run`.
+- `personskatteloven-par4-ligningslov5c.audit.runa` exists and checks/runs
+  with `runa run`.
 - `personskatteloven-par4-fremleje.audit.runa` exists and checks/runs with
   `runa run`.
 - `personskatteloven-par13a-gaeldsordning.audit.runa` exists and checks/runs
@@ -439,7 +451,8 @@ encoded as a temporal rule on top of the consolidation.
   and deduction totals, amount-level § 4 net capital-income inclusion,
   deductible capital costs, passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
-  under stk. 1, nr. 11 and stk. 8, subletting/letting surplus classification
+  under stk. 1, nr. 11 and stk. 8, LL § 5 C compensation classification under
+  stk. 1, nr. 12, subletting/letting surplus classification
   under stk. 1, nr. 17 derived from LL § 15 Q regulated bundfradrag, stk. 4
   § 15 P coordination, rounded 40 pct. excess-rent deduction,
   actual-expense branch, and positive surplus,
@@ -472,8 +485,9 @@ encoded as a temporal rule on top of the consolidation.
   topskat, toptopskat, and the mellemskat positive-capital grundbeløb from the
   amendment's 2010-level amounts through § 20 while preserving the LOV nr.
   482/2024 source branch for each layer,
-  Ligningsloven ordinary wage-earner deduction and § 15 Q subletting/letting
-  dependency slices, § 26 historical year-parameter derivation for 2012-2019,
+  Ligningsloven ordinary wage-earner deduction, LL § 5 C capital-income
+  dependency, and § 15 Q subletting/letting dependency slices,
+  § 26 historical year-parameter derivation for 2012-2019,
   2024/2025/2026 tax-year parameter packs, grouped
   wage-earner calculation-domain records, first wage-earner scenarios, a first
   § 14 partial-year wage-earner scenario, a first fictional household scenario,
@@ -524,8 +538,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 63-73% complete as an executable research corpus,
-  and roughly 49-59% complete as a production-grade calculator for
+- Working estimate: roughly 64-74% complete as an executable research corpus,
+  and roughly 50-60% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -648,6 +662,12 @@ Current decision:
   Skatterådet permission, council assessment, substantial-participation
   condition, covered capital-income amount, and noncovered amount together
   before the § 4 capital aggregate consumes the derived capital post.
+- `Ligningslov5CSag` uses product-scoped `|` rules for LL § 5 C. It keeps the
+  income year, compensation role, covered compensation type, settlement-year
+  timing, corresponding-interest due-year timing, § 5, stk. 5 carve-out, and
+  stk. 3 deduction block together. `Par4Stk1Nr12Sag` consumes the typed result
+  as Personskatteloven § 4, stk. 1, nr. 12 capital income rather than taking a
+  bare scalar.
 - `Par4Stk1Nr17Sag` uses product-scoped `|` rules for § 4, stk. 1, nr. 17.
   It keeps the taxpayer's housing role, LL § 15 Q branch, gross rent income,
   LL § 15 Q deduction amount, positive surplus, covered capital-income amount,

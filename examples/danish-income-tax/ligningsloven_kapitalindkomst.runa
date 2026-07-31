@@ -1,0 +1,135 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+
+-- Ligningsloven — kapitalindkomstrelevante afhængigheder (§ 5 C).
+--
+-- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1500/dan/xml
+
+----
+Officiel XML-metadata for 2025/1500, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om påligningen af indkomstskat til staten
+(ligningsloven)
+PopularTitle: Ligningsloven
+Status: Valid
+StartDate: 2025-12-04
+EndDate: 2026-06-24
+----
+
+----
+§ 5 C. Vederlag for vedhængende eller godskrevne renter i forbindelse med
+overdragelse af rentebærende fordringer eller gæld medregnes ved
+indkomstopgørelsen hos den, der har krav på vederlaget. Vederlaget fradrages
+ved indkomstopgørelsen hos den, der er forpligtet til at betale vederlaget.
+Vederlaget medregnes, henholdsvis fradrages, ved opgørelsen af den
+skattepligtiges renteindtægter for det indkomstår, hvori handelen afvikles. De
+til vederlaget svarende vedhængende eller godskrevne renter medregnes
+henholdsvis fradrages ved opgørelsen af den skattepligtiges renteindtægter for
+det indkomstår, hvori de forfalder til betaling. Tilsvarende gælder vederlag for
+provisioner og præmier m.v. omfattet af § 8, stk. 3, litra a og b.
+
+Stk. 2. Stk. 1 gælder ikke for skattepligtige, der fordeler renteudgifter og
+renteindtægter på den måde, der er nævnt i § 5, stk. 5.
+
+Stk. 3. Vederlag for vedhængende renter i forbindelse med erhvervelse af
+rentebærende fordringer eller gæld kan ikke fradrages, såfremt renteindtægter
+eller gevinster omfattet af kursgevinstloven som følge af en
+dobbeltbeskatningsoverenskomst ikke skal medregnes ved opgørelse af den
+skattepligtige indkomst. Tilsvarende gælder vederlag for provisioner og præmier
+m.v. omfattet af § 8, stk. 3, litra a og b.
+----
+
+# Ligningslov5CRolle = Ll5CKravPåVederlag | Ll5CForpligtetTilAtBetaleVederlag
+# Ligningslov5CVederlagsart = Ll5CVedhængendeEllerGodskrevneRenter | Ll5CProvisionerOgPræmierPar8Stk3
+# Ligningslov5CInput(indkomstår: Heltal, rolle: Ligningslov5CRolle, art: Ligningslov5CVederlagsart, vederlag_kroner: Heltal, handelsafviklingsår: Heltal, tilsvarende_renter_forfaldsår: Heltal, tilsvarende_renter_kroner: Heltal, anvender_par5_stk5_fordeling: Boolsk, erhvervelse_af_rentebærende_fordring_eller_gæld: Boolsk, dba_afskærer_rente_eller_kursgevinst: Boolsk)
+# Ligningslov5CResultat(indkomstår: Heltal, rolle: Ligningslov5CRolle, art: Ligningslov5CVederlagsart, omfattet_af_stk1: Boolsk, vederlag_i_afviklingsåret: Boolsk, tilsvarende_renter_i_forfaldsåret: Boolsk, fradrag_afskåret_efter_stk3: Boolsk, vederlag_medregnes_kroner: Heltal, vederlag_fradrages_kroner: Heltal, afskåret_fradrag_kroner: Heltal, netto_vederlag_kroner: Heltal)
+
+| ligningslov5c_vederlag_omfattet(art: Ligningslov5CVederlagsart) -> Sandt
+| ligningslov5c_rolle_har_krav_på_vederlag(rolle: Ligningslov5CRolle) -> rolle == Ll5CKravPåVederlag
+| ligningslov5c_rolle_er_forpligtet_til_betaling(rolle: Ligningslov5CRolle) -> rolle == Ll5CForpligtetTilAtBetaleVederlag
+
+# Ligningslov5CSag(input: Ligningslov5CInput) {
+    | positivt_vederlag_kroner() -> penge_positivt_beløb(input.vederlag_kroner)
+    | omfattet_af_stk1() -> ligningslov5c_vederlag_omfattet(input.art) && input.anvender_par5_stk5_fordeling == Falskt
+    | vederlag_i_afviklingsåret() -> input.indkomstår == input.handelsafviklingsår
+    | tilsvarende_renter_i_forfaldsåret() -> input.indkomstår == input.tilsvarende_renter_forfaldsår && penge_positivt_beløb(input.tilsvarende_renter_kroner) > 0
+    | fradrag_afskåret_efter_stk3() -> ligningslov5c_rolle_er_forpligtet_til_betaling(input.rolle) && input.erhvervelse_af_rentebærende_fordring_eller_gæld && input.dba_afskærer_rente_eller_kursgevinst
+    | vederlag_medregnes_kroner() -> 0
+    | exception ll5c_kravshaver_medregner_vederlag_i_afviklingsår vederlag_medregnes_kroner() -> positivt_vederlag_kroner() under omfattet_af_stk1() && vederlag_i_afviklingsåret() && ligningslov5c_rolle_har_krav_på_vederlag(input.rolle)
+    | vederlag_fradrages_kroner() -> 0
+    | exception ll5c_betaler_fradrager_vederlag_i_afviklingsår vederlag_fradrages_kroner() -> positivt_vederlag_kroner() under omfattet_af_stk1() && vederlag_i_afviklingsåret() && ligningslov5c_rolle_er_forpligtet_til_betaling(input.rolle) && fradrag_afskåret_efter_stk3() == Falskt
+    | afskåret_fradrag_kroner() -> 0
+    | exception ll5c_stk3_afskærer_fradrag afskåret_fradrag_kroner() -> positivt_vederlag_kroner() under omfattet_af_stk1() && vederlag_i_afviklingsåret() && fradrag_afskåret_efter_stk3()
+    | netto_vederlag_kroner() -> vederlag_medregnes_kroner() - vederlag_fradrages_kroner()
+    | resultat() -> Ligningslov5CResultat(
+        indkomstår = input.indkomstår,
+        rolle = input.rolle,
+        art = input.art,
+        omfattet_af_stk1 = omfattet_af_stk1(),
+        vederlag_i_afviklingsåret = vederlag_i_afviklingsåret(),
+        tilsvarende_renter_i_forfaldsåret = tilsvarende_renter_i_forfaldsåret(),
+        fradrag_afskåret_efter_stk3 = fradrag_afskåret_efter_stk3(),
+        vederlag_medregnes_kroner = vederlag_medregnes_kroner(),
+        vederlag_fradrages_kroner = vederlag_fradrages_kroner(),
+        afskåret_fradrag_kroner = afskåret_fradrag_kroner(),
+        netto_vederlag_kroner = netto_vederlag_kroner()
+    )
+}
+| ligningslov5c_sag(input: Ligningslov5CInput) -> Ligningslov5CSag(input)
+| ligningslov5c_resultat(input: Ligningslov5CInput) -> ligningslov5c_sag(input).resultat()
+
+= ll5c_kravshaver_fixture = ligningslov5c_resultat(Ligningslov5CInput(
+    indkomstår = 2026,
+    rolle = Ll5CKravPåVederlag,
+    art = Ll5CVedhængendeEllerGodskrevneRenter,
+    vederlag_kroner = 12000,
+    handelsafviklingsår = 2026,
+    tilsvarende_renter_forfaldsår = 2027,
+    tilsvarende_renter_kroner = 12000,
+    anvender_par5_stk5_fordeling = Falskt,
+    erhvervelse_af_rentebærende_fordring_eller_gæld = Falskt,
+    dba_afskærer_rente_eller_kursgevinst = Falskt
+))
+= ll5c_betaler_fixture = ligningslov5c_resultat(Ligningslov5CInput(
+    indkomstår = 2026,
+    rolle = Ll5CForpligtetTilAtBetaleVederlag,
+    art = Ll5CVedhængendeEllerGodskrevneRenter,
+    vederlag_kroner = 12000,
+    handelsafviklingsår = 2026,
+    tilsvarende_renter_forfaldsår = 2027,
+    tilsvarende_renter_kroner = 12000,
+    anvender_par5_stk5_fordeling = Falskt,
+    erhvervelse_af_rentebærende_fordring_eller_gæld = Sandt,
+    dba_afskærer_rente_eller_kursgevinst = Falskt
+))
+= ll5c_par5_stk5_fixture = ligningslov5c_resultat(Ligningslov5CInput(
+    indkomstår = 2026,
+    rolle = Ll5CKravPåVederlag,
+    art = Ll5CProvisionerOgPræmierPar8Stk3,
+    vederlag_kroner = 9000,
+    handelsafviklingsår = 2026,
+    tilsvarende_renter_forfaldsår = 2026,
+    tilsvarende_renter_kroner = 9000,
+    anvender_par5_stk5_fordeling = Sandt,
+    erhvervelse_af_rentebærende_fordring_eller_gæld = Falskt,
+    dba_afskærer_rente_eller_kursgevinst = Falskt
+))
+= ll5c_stk3_afskåret_fixture = ligningslov5c_resultat(Ligningslov5CInput(
+    indkomstår = 2026,
+    rolle = Ll5CForpligtetTilAtBetaleVederlag,
+    art = Ll5CVedhængendeEllerGodskrevneRenter,
+    vederlag_kroner = 9000,
+    handelsafviklingsår = 2026,
+    tilsvarende_renter_forfaldsår = 2027,
+    tilsvarende_renter_kroner = 9000,
+    anvender_par5_stk5_fordeling = Falskt,
+    erhvervelse_af_rentebærende_fordring_eller_gæld = Sandt,
+    dba_afskærer_rente_eller_kursgevinst = Sandt
+))
+
+| ll5c_kravshaver_medregner_vederlag: ll5c_kravshaver_fixture -> ll5c_kravshaver_fixture.vederlag_medregnes_kroner == 12000 && ll5c_kravshaver_fixture.netto_vederlag_kroner == 12000
+| ll5c_betaler_fradrager_vederlag: ll5c_betaler_fixture -> ll5c_betaler_fixture.vederlag_fradrages_kroner == 12000 && ll5c_betaler_fixture.netto_vederlag_kroner == -12000
+| ll5c_par5_stk5_fordeling_udelukker_stk1: ll5c_par5_stk5_fixture -> ll5c_par5_stk5_fixture.omfattet_af_stk1 == Falskt && ll5c_par5_stk5_fixture.netto_vederlag_kroner == 0
+| ll5c_stk3_afskærer_fradrag: ll5c_stk3_afskåret_fixture -> ll5c_stk3_afskåret_fixture.fradrag_afskåret_efter_stk3 == Sandt && ll5c_stk3_afskåret_fixture.vederlag_fradrages_kroner == 0 && ll5c_stk3_afskåret_fixture.afskåret_fradrag_kroner == 9000

@@ -1,0 +1,85 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 12.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- ligningsloven_kapitalindkomst.runa.
+
+= par4_stk1_nr12_audit_kravshaver_input = Ligningslov5CInput(
+    indkomstår = 2026,
+    rolle = Ll5CKravPåVederlag,
+    art = Ll5CVedhængendeEllerGodskrevneRenter,
+    vederlag_kroner = 15000,
+    handelsafviklingsår = 2026,
+    tilsvarende_renter_forfaldsår = 2027,
+    tilsvarende_renter_kroner = 15000,
+    anvender_par5_stk5_fordeling = Falskt,
+    erhvervelse_af_rentebærende_fordring_eller_gæld = Falskt,
+    dba_afskærer_rente_eller_kursgevinst = Falskt
+)
+= par4_stk1_nr12_audit_betaler_input = Ligningslov5CInput(
+    indkomstår = 2026,
+    rolle = Ll5CForpligtetTilAtBetaleVederlag,
+    art = Ll5CVedhængendeEllerGodskrevneRenter,
+    vederlag_kroner = 6000,
+    handelsafviklingsår = 2026,
+    tilsvarende_renter_forfaldsår = 2027,
+    tilsvarende_renter_kroner = 6000,
+    anvender_par5_stk5_fordeling = Falskt,
+    erhvervelse_af_rentebærende_fordring_eller_gæld = Sandt,
+    dba_afskærer_rente_eller_kursgevinst = Falskt
+)
+= par4_stk1_nr12_audit_par5_stk5_input = Ligningslov5CInput(
+    indkomstår = 2026,
+    rolle = Ll5CKravPåVederlag,
+    art = Ll5CProvisionerOgPræmierPar8Stk3,
+    vederlag_kroner = 7000,
+    handelsafviklingsår = 2026,
+    tilsvarende_renter_forfaldsår = 2026,
+    tilsvarende_renter_kroner = 7000,
+    anvender_par5_stk5_fordeling = Sandt,
+    erhvervelse_af_rentebærende_fordring_eller_gæld = Falskt,
+    dba_afskærer_rente_eller_kursgevinst = Falskt
+)
+= par4_stk1_nr12_audit_stk3_input = Ligningslov5CInput(
+    indkomstår = 2026,
+    rolle = Ll5CForpligtetTilAtBetaleVederlag,
+    art = Ll5CVedhængendeEllerGodskrevneRenter,
+    vederlag_kroner = 9000,
+    handelsafviklingsår = 2026,
+    tilsvarende_renter_forfaldsår = 2027,
+    tilsvarende_renter_kroner = 9000,
+    anvender_par5_stk5_fordeling = Falskt,
+    erhvervelse_af_rentebærende_fordring_eller_gæld = Sandt,
+    dba_afskærer_rente_eller_kursgevinst = Sandt
+)
+
+= par4_stk1_nr12_audit_kravshaver = par4_stk1_nr12_resultat_fra_ligningslov5c(par4_stk1_nr12_audit_kravshaver_input)
+= par4_stk1_nr12_audit_betaler = par4_stk1_nr12_resultat_fra_ligningslov5c(par4_stk1_nr12_audit_betaler_input)
+= par4_stk1_nr12_audit_par5_stk5 = par4_stk1_nr12_resultat_fra_ligningslov5c(par4_stk1_nr12_audit_par5_stk5_input)
+= par4_stk1_nr12_audit_stk3 = par4_stk1_nr12_resultat_fra_ligningslov5c(par4_stk1_nr12_audit_stk3_input)
+
+= par4_stk1_nr12_audit_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr12_kapitalpost_fra_ligningslov5c(par4_stk1_nr12_audit_kravshaver_input),
+        par4_stk1_nr12_kapitalpost_fra_ligningslov5c(par4_stk1_nr12_audit_betaler_input),
+        par4_stk1_nr12_kapitalpost_fra_ligningslov5c(par4_stk1_nr12_audit_par5_stk5_input),
+        par4_stk1_nr12_kapitalpost_fra_ligningslov5c(par4_stk1_nr12_audit_stk3_input)
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr12_audit_kravshaver_medregnes: par4_stk1_nr12_audit_kravshaver -> par4_stk1_nr12_audit_kravshaver.omfattet_af_ligningslov5c == Sandt && par4_stk1_nr12_audit_kravshaver.vederlag_medregnes_kroner == 15000 && par4_stk1_nr12_audit_kravshaver.kapitalindkomst_kroner == 15000
+| par4_stk1_nr12_audit_betaler_fradrages: par4_stk1_nr12_audit_betaler -> par4_stk1_nr12_audit_betaler.vederlag_fradrages_kroner == 6000 && par4_stk1_nr12_audit_betaler.kapitalindkomst_kroner == -6000
+| par4_stk1_nr12_audit_par5_stk5_udelukkes: par4_stk1_nr12_audit_par5_stk5 -> par4_stk1_nr12_audit_par5_stk5.omfattet_af_ligningslov5c == Falskt && par4_stk1_nr12_audit_par5_stk5.kapitalindkomst_kroner == 0
+| par4_stk1_nr12_audit_stk3_afskærer_fradrag: par4_stk1_nr12_audit_stk3 -> par4_stk1_nr12_audit_stk3.afskåret_fradrag_kroner == 9000 && par4_stk1_nr12_audit_stk3.kapitalindkomst_kroner == 0
+| par4_stk1_nr12_audit_kun_omfattede_vederlag_i_kapitalindkomst: par4_stk1_nr12_audit_kapitalindkomst -> par4_stk1_nr12_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == 9000 && par4_stk1_nr12_audit_kapitalindkomst.nettokapitalindkomst_kroner == 9000
+
+? par4_stk1_nr12_audit_kravshaver_medregnes
+? par4_stk1_nr12_audit_betaler_fradrages
+? par4_stk1_nr12_audit_par5_stk5_udelukkes
+? par4_stk1_nr12_audit_stk3_afskærer_fradrag
+? par4_stk1_nr12_audit_kun_omfattede_vederlag_i_kapitalindkomst
+
+@ print("§4 stk.1 nr.12 kapitalindkomst fra LL §5C-vederlag: " + vis(par4_stk1_nr12_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner))
