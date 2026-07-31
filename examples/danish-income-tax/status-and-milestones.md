@@ -24,7 +24,10 @@ expenses with the statutory § 4, stk. 1, nr. 1/2/7/8 and Ligningsloven
 §§ 9 G/13 carve-outs; § 4, stk. 1, nr. 9 and stk. 9 now derive passive
 self-employed business capital-income treatment from owner-count thresholds,
 the LL § 8 K personal-owner branch, substantial-participation exclusion, and
-LL § 8 P renewable-energy owner exclusion; the 2026 § 7/§ 7 a/§ 8 reform
+LL § 8 P renewable-energy owner exclusion; § 4, stk. 1, nr. 11 and stk. 8 now
+derive leasing income from depreciable operating assets and ships through the
+substantial-participation condition and Skatterådet's pre-19 May 1993
+permission carve-out; the 2026 § 7/§ 7 a/§ 8 reform
 parameters for mellemskat, topskat and toptopskat now carry LOV nr. 482/2024
 source provenance and derive statutory 2010-level thresholds through § 20
 regulation, with § 7 a topskat and § 8 toptopskat exposed as personal-income
@@ -382,6 +385,8 @@ encoded as a temporal rule on top of the consolidation.
   `runa run`.
 - `personskatteloven-par4-passiv-virksomhed.audit.runa` exists and checks/runs
   with `runa run`.
+- `personskatteloven-par4-udlejning-driftsmidler.audit.runa` exists and
+  checks/runs with `runa run`.
 - `personskatteloven-par13a-gaeldsordning.audit.runa` exists and checks/runs
   with `runa run`.
 - `skatdk-2026-ekstern.scenario.runa` exists and checks/runs with `runa run`.
@@ -414,8 +419,9 @@ encoded as a temporal rule on top of the consolidation.
   composition across the separate § 2 categories, amount-level § 3 personal-income inclusion
   and deduction totals, amount-level § 4 net capital-income inclusion,
   deductible capital costs, passive self-employed business owner-count
-  classification under stk. 1, nr. 9 and stk. 9, positive/negative net-capital
-  projections and personal-income reclassification, plus amount-level § 4 a share-income
+  classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
+  under stk. 1, nr. 11 and stk. 8, positive/negative net-capital projections
+  and personal-income reclassification, plus amount-level § 4 a share-income
   inclusion, stk. 2 exclusions, stk. 3 personal-income reclassification,
   negative share-income preservation and pension deduction from positive share
   income, and amount-level § 4 b CFC-income aggregation with positive § 8 b
@@ -614,6 +620,11 @@ Current decision:
   LL § 8 P owner exclusion, substantial-participation condition, covered
   capital-income amount, and noncovered amount together before the § 4 capital
   aggregate consumes the derived capital post.
+- `Par4Stk1Nr11Sag` uses product-scoped `|` rules for § 4, stk. 1, nr. 11 and
+  stk. 8. It keeps the depreciable asset/ship category, acquisition timing,
+  Skatterådet permission, council assessment, substantial-participation
+  condition, covered capital-income amount, and noncovered amount together
+  before the § 4 capital aggregate consumes the derived capital post.
 - `PersonfradragPar10Sag` uses product-scoped `|` rules for § 10 eligibility.
   It keeps tax year, age status, tax-liability posture, partial-year election
   date, and reversal date together so the Kildeskatteloven § 2 full-year case,
