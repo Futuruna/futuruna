@@ -21,7 +21,12 @@ excluded CFC income and ligningsmæssige fradrag, and the wage-earner calculator
 delegates its taxable-income base to that result; § 3, stk. 2, nr. 1 now has
 amount-level personal-income deduction filtering for self-employed business
 expenses with the statutory § 4, stk. 1, nr. 1/2/7/8 and Ligningsloven
-§§ 9 G/13 carve-outs; § 4, stk. 1, nr. 9 and stk. 9 now derive passive
+§§ 9 G/13 carve-outs; § 4, stk. 1, nr. 1 now consumes typed Ligningsloven
+§ 6 and § 6 A deduction results together with ordinary interest income and
+interest expenses, including the § 6 under-100-kr. lapse, stk. 3 reduction,
+stk. 5 debtor-day split, stk. 6 Kursgevinstloven overlap block and § 4,
+stk. 3 personal-income reclassification posture; § 4, stk. 1, nr. 9 and
+stk. 9 now derive passive
 self-employed business capital-income treatment from owner-count thresholds,
 the LL § 8 K personal-owner branch, substantial-participation exclusion, and
 LL § 8 P renewable-energy owner exclusion; § 4, stk. 1, nr. 11 and stk. 8 now
@@ -436,8 +441,8 @@ encoded as a temporal rule on top of the consolidation.
   subletting/letting income deductions.
 - `ligningsloven_kapitalindkomst.runa` exists and checks/runs with `runa run`;
   it covers the LL § 5 C dependency consumed by Personskatteloven § 4,
-  stk. 1, nr. 12, and the LL § 12 B dependency consumed by § 4, stk. 1,
-  nr. 15.
+  stk. 1, nr. 12, the LL §§ 6/6 A dependencies consumed by § 4, stk. 1,
+  nr. 1, and the LL § 12 B dependency consumed by § 4, stk. 1, nr. 15.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
   the Afskrivningsloven § 40 C dependency consumed by Personskatteloven § 4,
   stk. 1, nr. 16.
@@ -457,6 +462,8 @@ encoded as a temporal rule on top of the consolidation.
   `runa run`.
 - `personskatteloven-par3-fradrag.audit.runa` exists and checks/runs with
   `runa run`.
+- `personskatteloven-par4-renter-ligningslov6.audit.runa` exists and
+  checks/runs with `runa run`.
 - `personskatteloven-par4-passiv-virksomhed.audit.runa` exists and checks/runs
   with `runa run`.
 - `personskatteloven-par4-udlejning-driftsmidler.audit.runa` exists and
@@ -504,7 +511,8 @@ encoded as a temporal rule on top of the consolidation.
   §§ 1-4 b income taxonomy including amount-level § 1 ordinary taxable-income
   composition across the separate § 2 categories, amount-level § 3 personal-income inclusion
   and deduction totals, amount-level § 4 net capital-income inclusion,
-  deductible capital costs, passive self-employed business owner-count
+  deductible capital costs, ordinary interest/LL §§ 6/6 A deduction
+  classification under stk. 1, nr. 1, passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
   under stk. 1, nr. 11 and stk. 8, LL § 5 C compensation classification under
   stk. 1, nr. 12, Pensionsbeskatningsloven § 53 A return classification under
@@ -545,7 +553,7 @@ encoded as a temporal rule on top of the consolidation.
   topskat, toptopskat, and the mellemskat positive-capital grundbeløb from the
   amendment's 2010-level amounts through § 20 while preserving the LOV nr.
   482/2024 source branch for each layer,
-  Ligningsloven ordinary wage-earner deduction, LL § 5 C and § 12 B
+  Ligningsloven ordinary wage-earner deduction, LL §§ 5 C/6/6 A/12 B
   capital-income dependencies, Pensionsbeskatningsloven § 53 A return
   dependency, Ejendomsavancebeskatningsloven real-property-gain dependency,
   Afskrivningsloven § 40 C saldo dependency, and
@@ -601,8 +609,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 68-78% complete as an executable research corpus,
-  and roughly 54-64% complete as a production-grade calculator for
+- Working estimate: roughly 69-79% complete as an executable research corpus,
+  and roughly 55-65% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -731,6 +739,15 @@ Current decision:
   stk. 3 deduction block together. `Par4Stk1Nr12Sag` consumes the typed result
   as Personskatteloven § 4, stk. 1, nr. 12 capital income rather than taking a
   bare scalar.
+- `Ligningslov6KurstabSag` and `Ligningslov6ASag` use product-scoped `|`
+  rules for LL §§ 6 and 6 A. The § 6 scope keeps the pre-19 May 1993
+  kontantlån conditions, per-term kurstab allocation, the 100 kr. floor,
+  stk. 3/stk. 4 extraordinary-redemption reduction, stk. 5 debtor-day split
+  and stk. 6 Kursgevinstloven block together. The § 6 A scope keeps the paid
+  arbejderboliger and statshusmandsbrug/jordrente amounts together.
+  `Par4Stk1Nr1Sag` consumes those typed results together with ordinary interest
+  income and expense as Personskatteloven § 4, stk. 1, nr. 1 capital income
+  rather than taking a bare interest scalar.
 - `Pensionsbeskatningslov53ASag` uses product-scoped `|` rules for PBL § 53 A.
   It keeps the covered ordning, § 53 B exclusion, stk. 4 carve-outs, PAL-method
   or alternative capital-value return, taxable share allocation, prior

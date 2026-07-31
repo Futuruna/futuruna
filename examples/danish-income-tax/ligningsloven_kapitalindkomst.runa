@@ -2,7 +2,7 @@
 
 @ importer ./pengebeloeb
 
--- Ligningsloven — kapitalindkomstrelevante afhængigheder (§§ 5 C og 12 B).
+-- Ligningsloven — kapitalindkomstrelevante afhængigheder (§§ 5 C, 6, 6 A og 12 B).
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
@@ -15,7 +15,7 @@ DocumentTitle: Bekendtgørelse af lov om påligningen af indkomstskat til staten
 PopularTitle: Ligningsloven
 Status: Valid
 StartDate: 2025-12-04
-EndDate: 2026-06-24
+EndDate: 2026-07-01
 ----
 
 ----
@@ -133,6 +133,137 @@ m.v. omfattet af § 8, stk. 3, litra a og b.
 | ll5c_betaler_fradrager_vederlag: ll5c_betaler_fixture -> ll5c_betaler_fixture.vederlag_fradrages_kroner == 12000 && ll5c_betaler_fixture.netto_vederlag_kroner == -12000
 | ll5c_par5_stk5_fordeling_udelukker_stk1: ll5c_par5_stk5_fixture -> ll5c_par5_stk5_fixture.omfattet_af_stk1 == Falskt && ll5c_par5_stk5_fixture.netto_vederlag_kroner == 0
 | ll5c_stk3_afskærer_fradrag: ll5c_stk3_afskåret_fixture -> ll5c_stk3_afskåret_fixture.fradrag_afskåret_efter_stk3 == Sandt && ll5c_stk3_afskåret_fixture.vederlag_fradrages_kroner == 0 && ll5c_stk3_afskåret_fixture.afskåret_fradrag_kroner == 9000
+
+----
+§ 6. Ved opgørelsen af den skattepligtige indkomst kan kurstab ved indfrielse
+af kontantlån, der er optaget i et realkreditinstitut før 19. maj 1993,
+fradrages efter reglerne i stk. 2. Fradragsretten efter 1. pkt. er betinget af,
+at indfrielsen sker ved optagelse inden 1. januar 1996 af et realkreditlån med
+mindst samme løbetid som restløbetiden på det lån, der indfries. Indfries flere
+kontantlån optaget før 19. maj 1993 ved optagelse af ét realkreditlån, er
+fradragsretten efter 1. pkt. betinget af, at løbetiden på det nye lån mindst
+svarer til et vejet gennemsnit af restløbetiden på de lån, der indfries,
+sammenvejet efter størrelsen af de pågældende låns obligationsrestgæld på
+indfrielsestidspunktet. Endvidere er fradragsretten efter 1. pkt. betinget af,
+at der maksimalt forløber 1 år mellem de to transaktioner - indfrielse og
+optagelse - samt at der, hvor indfrielsen af kontantlånet sker før optagelsen
+af det nye realkreditlån, er afgivet et lånetilbud på det nye realkreditlån
+forinden indfrielsen.
+
+Stk. 2. Kurstabet ved indfrielse af kontantlånet fordeles over det nye låns
+samlede antal terminer med lige store beløb pr. termin. Det årlige fradrag
+udgør summen af kurstabsbeløb pr. forfalden termin. Udgør det til det nye lån
+knyttede årlige fradrag under 100 kr., bortfalder fradraget dog. Ved kurstabet
+ved indfrielse af kontantlånet forstås saldoen på indfrielsestidspunktet på den
+til det indfriede kontantlån knyttede amortisationskonto.
+
+Stk. 3. Foretages der hel eller delvis ekstraordinær indfrielse af det nye lån,
+jf. stk. 1, nedsættes de efter stk. 2 opgjorte årlige fradragsbeløb med en
+forholdsmæssig andel, jf. dog stk. 4. For kontantlån sker nedsættelsen med en
+forholdsmæssig andel, der svarer til forholdet mellem det ekstraordinære afdrag
+og kursværdien af pantebrevsrestgælden på indfrielsestidspunktet. For andre lån
+sker nedsættelsen med en forholdsmæssig andel, der svarer til forholdet mellem
+det til det ekstraordinære afdrag svarende obligationsafdrag og lånets
+obligationsrestgæld på indfrielsestidspunktet. Nedsættelsen sker med virkning
+fra sidste forfaldne termin inden indfrielsestidspunktet.
+
+Stk. 4. Stk. 3 finder ikke anvendelse ved hel eller delvis ekstraordinær
+indfrielse af det nye lån (omlægningslånet), jf. stk. 1, eller ved hel eller
+delvis ekstraordinær indfrielse af lån, der gennem en eller flere lånomlægninger
+fremtræder som erstatning for omlægningslånet, såfremt indfrielsen sker ved
+optagelse af et realkreditlån med mindst samme restløbetid som restløbetiden på
+det lån, der indfries. Hvor flere lån indfries ved optagelse af et
+realkreditlån, er det en betingelse, at løbetiden på det nye lån mindst svarer
+til et vejet gennemsnit af restløbetiden på de lån, der indfries, sammenvejet
+efter størrelsen af kursværdien af pantebrevsrestgælden på indfrielsestidspunktet,
+hvor der er tale om kontantlån, og efter størrelsen af obligationsrestgælden på
+indfrielsestidspunktet, hvor der er tale om andre lån. Anvendelse af reglen i
+1. pkt. er endvidere betinget af, at der maksimalt forløber 1 år mellem de to
+transaktioner - indfrielse og optagelse. Det resterende kurstab på tidspunktet
+for den ekstraordinære indfrielse fordeles over det nye låns samlede antal
+terminer med lige store beløb pr. termin. Ved det resterende kurstab på
+indfrielsestidspunktet forstås saldoen på amortisationskontoen ved den første
+omlægning, jf. stk. 2, sidste pkt., med fradrag af alle de kurstabsbeløb, der
+kan henføres til forfaldne terminer på omlægningslånet eller senere lån, som
+ligger før indfrielsen. Stk. 2, 2. og 3. pkt., finder tilsvarende anvendelse.
+
+Stk. 5. Ved debitorskifte overgår fradragsretten efter stk. 1 til den nye
+debitor. Fradraget i overdragelsesåret fordeles i forhold til antal dage, de
+pågældende har været debitorer, opgjort med udgangspunkt i overtagelsesdagen
+(skæringsdatoen).
+
+Stk. 6. Stk. 1-5 finder ikke anvendelse i det omfang, kurstabet efter stk. 2
+medregnes ved opgørelsen af den skattepligtige indkomst efter kursgevinstloven.
+----
+
+# Ligningslov6KurstabInput(indkomstår: Heltal, kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993: Boolsk, indfrielse_sker_ved_realkreditlån: Boolsk, nyt_lån_optaget_før_1_januar_1996: Boolsk, nyt_lån_mindst_samme_løbetid: Boolsk, transaktioner_inden_for_1_år: Boolsk, lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse: Boolsk, kurstab_kroner: Heltal, samlet_antal_terminer: Heltal, forfaldne_terminer_i_indkomståret: Heltal, ekstraordinær_indfrielse_af_nyt_lån: Boolsk, stk4_omlægning_undtager_stk3: Boolsk, stk3_nedsættelse_basispoint: Heltal, debitorskifte_i_året: Boolsk, debitordage_for_skattepligtig: Heltal, dage_i_overdragelsesår: Heltal, kurstab_medregnes_efter_kursgevinstloven: Boolsk)
+# Ligningslov6KurstabResultat(indkomstår: Heltal, fradragsret_efter_stk1: Boolsk, kurstab_pr_termin_kroner: Heltal, årligt_fradrag_før_stk3_kroner: Heltal, stk3_nedsættelse_anvendes: Boolsk, stk3_nedsættelse_kroner: Heltal, årligt_fradrag_efter_stk3_kroner: Heltal, stk5_debitordagsandel_kroner: Heltal, under_100_kr_bortfalder: Boolsk, afskåret_efter_stk6: Boolsk, fradrag_kroner: Heltal)
+
+| ligningslov6_mindstebeløb_for_fradrag_kroner(indkomstår: Heltal) -> 100
+
+# Ligningslov6KurstabSag(input: Ligningslov6KurstabInput) {
+    | fradragsret_efter_stk1() -> input.kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993 && input.indfrielse_sker_ved_realkreditlån && input.nyt_lån_optaget_før_1_januar_1996 && input.nyt_lån_mindst_samme_løbetid && input.transaktioner_inden_for_1_år && input.lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse
+    | kurstab_pr_termin_kroner() -> 0
+    | exception ll6_kurstab_fordeles_over_terminer kurstab_pr_termin_kroner() -> penge_positivt_beløb(input.kurstab_kroner) / input.samlet_antal_terminer under input.samlet_antal_terminer > 0
+    | årligt_fradrag_før_stk3_kroner() -> kurstab_pr_termin_kroner() * penge_positivt_beløb(input.forfaldne_terminer_i_indkomståret)
+    | stk3_nedsættelse_basispoint() -> penge_mindste_beløb(10000, penge_positivt_beløb(input.stk3_nedsættelse_basispoint))
+    | stk3_nedsættelse_anvendes() -> input.ekstraordinær_indfrielse_af_nyt_lån && input.stk4_omlægning_undtager_stk3 == Falskt
+    | stk3_nedsættelse_kroner() -> 0
+    | exception ll6_stk3_forholdsmæssig_nedsættelse stk3_nedsættelse_kroner() -> penge_beløb_gange_basispoint_kroner(årligt_fradrag_før_stk3_kroner(), stk3_nedsættelse_basispoint()) under stk3_nedsættelse_anvendes()
+    | årligt_fradrag_efter_stk3_kroner() -> årligt_fradrag_før_stk3_kroner() - stk3_nedsættelse_kroner()
+    | dage_i_overdragelsesår() -> penge_positivt_beløb(input.dage_i_overdragelsesår)
+    | debitordage_for_skattepligtig() -> penge_mindste_beløb(penge_positivt_beløb(input.debitordage_for_skattepligtig), dage_i_overdragelsesår())
+    | stk5_debitordagsandel_kroner() -> årligt_fradrag_efter_stk3_kroner()
+    | exception ll6_stk5_debitordage stk5_debitordagsandel_kroner() -> årligt_fradrag_efter_stk3_kroner() * debitordage_for_skattepligtig() / dage_i_overdragelsesår() under input.debitorskifte_i_året && dage_i_overdragelsesår() > 0
+    | under_100_kr_bortfalder() -> årligt_fradrag_efter_stk3_kroner() > 0 && årligt_fradrag_efter_stk3_kroner() < ligningslov6_mindstebeløb_for_fradrag_kroner(input.indkomstår)
+    | afskåret_efter_stk6() -> input.kurstab_medregnes_efter_kursgevinstloven
+    | fradrag_kroner() -> 0
+    | exception ll6_fradrag_efter_stk1_til_5 fradrag_kroner() -> stk5_debitordagsandel_kroner() under fradragsret_efter_stk1() && under_100_kr_bortfalder() == Falskt && afskåret_efter_stk6() == Falskt
+    | resultat() -> Ligningslov6KurstabResultat(
+        indkomstår = input.indkomstår,
+        fradragsret_efter_stk1 = fradragsret_efter_stk1(),
+        kurstab_pr_termin_kroner = kurstab_pr_termin_kroner(),
+        årligt_fradrag_før_stk3_kroner = årligt_fradrag_før_stk3_kroner(),
+        stk3_nedsættelse_anvendes = stk3_nedsættelse_anvendes(),
+        stk3_nedsættelse_kroner = stk3_nedsættelse_kroner(),
+        årligt_fradrag_efter_stk3_kroner = årligt_fradrag_efter_stk3_kroner(),
+        stk5_debitordagsandel_kroner = stk5_debitordagsandel_kroner(),
+        under_100_kr_bortfalder = under_100_kr_bortfalder(),
+        afskåret_efter_stk6 = afskåret_efter_stk6(),
+        fradrag_kroner = fradrag_kroner()
+    )
+}
+| ligningslov6_kurstab_sag(input: Ligningslov6KurstabInput) -> Ligningslov6KurstabSag(input)
+| ligningslov6_kurstab_resultat(input: Ligningslov6KurstabInput) -> ligningslov6_kurstab_sag(input).resultat()
+
+----
+§ 6 A. Ved opgørelsen af den skattepligtige indkomst kan skattepligtige
+personer fradrage
+1) beløb som nævnt i § 19 a, stk. 1, litra b og c, § 46, stk. 1, litra c, og
+§ 46 a, stk. 1, litra b, i lov om arbejderboliger på landet, forudsat at
+beløbet er betalt, og
+2) beløb som nævnt i § 9 i bekendtgørelse nr. 662 af 14. august 1997 om
+statshusmandsbrug m.m. og jordrente, forudsat at beløbet er betalt.
+----
+
+# Ligningslov6AInput(indkomstår: Heltal, skattepligtig_person: Boolsk, arbejderboliger_beløb_kroner: Heltal, arbejderboliger_betalt: Boolsk, statshusmandsbrug_jordrente_beløb_kroner: Heltal, statshusmandsbrug_jordrente_betalt: Boolsk)
+# Ligningslov6AResultat(indkomstår: Heltal, arbejderboliger_fradrag_kroner: Heltal, statshusmandsbrug_jordrente_fradrag_kroner: Heltal, fradrag_kroner: Heltal)
+
+# Ligningslov6ASag(input: Ligningslov6AInput) {
+    | arbejderboliger_fradrag_kroner() -> 0
+    | exception ll6a_arbejderboliger_betalt arbejderboliger_fradrag_kroner() -> penge_positivt_beløb(input.arbejderboliger_beløb_kroner) under input.skattepligtig_person && input.arbejderboliger_betalt
+    | statshusmandsbrug_jordrente_fradrag_kroner() -> 0
+    | exception ll6a_statshusmandsbrug_betalt statshusmandsbrug_jordrente_fradrag_kroner() -> penge_positivt_beløb(input.statshusmandsbrug_jordrente_beløb_kroner) under input.skattepligtig_person && input.statshusmandsbrug_jordrente_betalt
+    | fradrag_kroner() -> arbejderboliger_fradrag_kroner() + statshusmandsbrug_jordrente_fradrag_kroner()
+    | resultat() -> Ligningslov6AResultat(
+        indkomstår = input.indkomstår,
+        arbejderboliger_fradrag_kroner = arbejderboliger_fradrag_kroner(),
+        statshusmandsbrug_jordrente_fradrag_kroner = statshusmandsbrug_jordrente_fradrag_kroner(),
+        fradrag_kroner = fradrag_kroner()
+    )
+}
+| ligningslov6a_sag(input: Ligningslov6AInput) -> Ligningslov6ASag(input)
+| ligningslov6a_resultat(input: Ligningslov6AInput) -> ligningslov6a_sag(input).resultat()
 
 ----
 § 12 B. Udgør en løbende ydelse helt eller delvist vederlag i en gensidigt

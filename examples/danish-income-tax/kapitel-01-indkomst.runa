@@ -316,6 +316,8 @@ af 30. december 2024, foretages følgende ændring:
 # SkatterådsTilladelse = TilladelseGivet | TilladelseIkkeGivet
 # RådetsSkøn = Godtgjort | IkkeGodtgjort
 # KapitalPersonligReklassifikation = IngenPersonligReklassifikation | FordringsEllerKontraktNæringReklassifikation | FinansieringsNæringReklassifikation | Kursgevinstlov17Fordringstab | AndelsUdlodningIkkeNormal | Aktieavance17Aktier | Aktieavance19CHvis17Aktier | Investeringsformidler19CHvis17Aktier | MedarbejderinvesteringsselskabAndel
+# Par4Stk1Nr1Input(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, personlig_reklassifikation: KapitalPersonligReklassifikation)
+# Par4Stk1Nr1Resultat(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, ligningslov6_fradrag_kroner: Heltal, ligningslov6a_fradrag_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr9Virksomhedstype = AlmindeligSelvstændigVirksomhed | Ligningslov8KStk2SelvstændigVirksomhed
 # Par4Stk1Nr9Input(virksomhedstype: Par4Stk1Nr9Virksomhedstype, beløb_kroner: Heltal, samlet_ejerantal: Heltal, personligt_ejerantal: Heltal, ligningslov8p_ejere_der_ikke_medregnes: Heltal, deltager_væsentligt_i_drift: Boolsk)
 # Par4Stk1Nr9Resultat(virksomhedstype: Par4Stk1Nr9Virksomhedstype, effektivt_ejerantal: Heltal, effektivt_personligt_ejerantal: Heltal, ejergrænse_opfyldt: Boolsk, væsentlig_deltagelse_afskærer: Boolsk, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, ikke_omfattet_af_par4_nr9_kroner: Heltal)
@@ -361,6 +363,29 @@ af 30. december 2024, foretages følgende ændring:
 
 | medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p: Boolsk) -> Sandt
 | exception vedvarende_energi medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p: Boolsk) -> Falskt under anvender_ligningslov8p
+
+# Par4Stk1Nr1Sag(input: Par4Stk1Nr1Input) {
+    | renteindtægter_kroner() -> penge_positivt_beløb(input.renteindtægter_kroner)
+    | renteudgifter_kroner() -> penge_positivt_beløb(input.renteudgifter_kroner)
+    | ligningslov6_fradrag_kroner() -> input.ligningslov6_resultat.fradrag_kroner
+    | ligningslov6a_fradrag_kroner() -> input.ligningslov6a_resultat.fradrag_kroner
+    | kapitalindkomst_kroner() -> renteindtægter_kroner() - renteudgifter_kroner() - ligningslov6_fradrag_kroner() - ligningslov6a_fradrag_kroner()
+    | resultat() -> Par4Stk1Nr1Resultat(
+        renteindtægter_kroner = renteindtægter_kroner(),
+        renteudgifter_kroner = renteudgifter_kroner(),
+        ligningslov6_fradrag_kroner = ligningslov6_fradrag_kroner(),
+        ligningslov6a_fradrag_kroner = ligningslov6a_fradrag_kroner(),
+        kapitalindkomst_kroner = kapitalindkomst_kroner(),
+        personlig_reklassifikation = input.personlig_reklassifikation
+    )
+}
+| par4_stk1_nr1_sag(input: Par4Stk1Nr1Input) -> Par4Stk1Nr1Sag(input)
+| par4_stk1_nr1_resultat(input: Par4Stk1Nr1Input) -> par4_stk1_nr1_sag(input).resultat()
+| par4_stk1_nr1_kapitalpost(input: Par4Stk1Nr1Input) -> Par4Kapitalpost(
+    art = RenterOgLigningslov6,
+    beløb_kroner = par4_stk1_nr1_sag(input).kapitalindkomst_kroner(),
+    personlig_reklassifikation = input.personlig_reklassifikation
+)
 
 # Par4Stk1Nr9Sag(input: Par4Stk1Nr9Input) {
     | effektivt_ejerantal() -> penge_positivt_beløb(input.samlet_ejerantal - input.ligningslov8p_ejere_der_ikke_medregnes)
@@ -658,6 +683,76 @@ af 30. december 2024, foretages følgende ændring:
 = par4_andel_ikke_normal = andelsudlodning_medregnes_personligt(IkkeNormalForrentning)
 = par4_skatteråd_undtager = udlejning_af_driftsmidler_regel_anvendes(Før19Maj1993, TilladelseGivet, Godtgjort)
 = par4_ve_ejer_tælles = medregnes_i_ejertal_par4_nr9(anvender_ligningslov8p = Sandt)
+= par4_stk1_nr1_ll6_fradrag_fixture = ligningslov6_kurstab_resultat(Ligningslov6KurstabInput(
+    indkomstår = 2026,
+    kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993 = Sandt,
+    indfrielse_sker_ved_realkreditlån = Sandt,
+    nyt_lån_optaget_før_1_januar_1996 = Sandt,
+    nyt_lån_mindst_samme_løbetid = Sandt,
+    transaktioner_inden_for_1_år = Sandt,
+    lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse = Sandt,
+    kurstab_kroner = 24000,
+    samlet_antal_terminer = 12,
+    forfaldne_terminer_i_indkomståret = 1,
+    ekstraordinær_indfrielse_af_nyt_lån = Falskt,
+    stk4_omlægning_undtager_stk3 = Falskt,
+    stk3_nedsættelse_basispoint = 0,
+    debitorskifte_i_året = Falskt,
+    debitordage_for_skattepligtig = 0,
+    dage_i_overdragelsesår = 0,
+    kurstab_medregnes_efter_kursgevinstloven = Falskt
+))
+= par4_stk1_nr1_ll6a_fradrag_fixture = ligningslov6a_resultat(Ligningslov6AInput(
+    indkomstår = 2026,
+    skattepligtig_person = Sandt,
+    arbejderboliger_beløb_kroner = 1000,
+    arbejderboliger_betalt = Sandt,
+    statshusmandsbrug_jordrente_beløb_kroner = 0,
+    statshusmandsbrug_jordrente_betalt = Falskt
+))
+= par4_stk1_nr1_uden_ll6_fradrag_fixture = ligningslov6_kurstab_resultat(Ligningslov6KurstabInput(
+    indkomstår = 2026,
+    kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993 = Falskt,
+    indfrielse_sker_ved_realkreditlån = Falskt,
+    nyt_lån_optaget_før_1_januar_1996 = Falskt,
+    nyt_lån_mindst_samme_løbetid = Falskt,
+    transaktioner_inden_for_1_år = Falskt,
+    lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse = Falskt,
+    kurstab_kroner = 0,
+    samlet_antal_terminer = 0,
+    forfaldne_terminer_i_indkomståret = 0,
+    ekstraordinær_indfrielse_af_nyt_lån = Falskt,
+    stk4_omlægning_undtager_stk3 = Falskt,
+    stk3_nedsættelse_basispoint = 0,
+    debitorskifte_i_året = Falskt,
+    debitordage_for_skattepligtig = 0,
+    dage_i_overdragelsesår = 0,
+    kurstab_medregnes_efter_kursgevinstloven = Falskt
+))
+= par4_stk1_nr1_uden_ll6a_fradrag_fixture = ligningslov6a_resultat(Ligningslov6AInput(
+    indkomstår = 2026,
+    skattepligtig_person = Sandt,
+    arbejderboliger_beløb_kroner = 0,
+    arbejderboliger_betalt = Falskt,
+    statshusmandsbrug_jordrente_beløb_kroner = 0,
+    statshusmandsbrug_jordrente_betalt = Falskt
+))
+= par4_stk1_nr1_fixture_input = Par4Stk1Nr1Input(
+    renteindtægter_kroner = 20000,
+    renteudgifter_kroner = 5000,
+    ligningslov6_resultat = par4_stk1_nr1_ll6_fradrag_fixture,
+    ligningslov6a_resultat = par4_stk1_nr1_ll6a_fradrag_fixture,
+    personlig_reklassifikation = IngenPersonligReklassifikation
+)
+= par4_stk1_nr1_negativ_fixture_input = Par4Stk1Nr1Input(
+    renteindtægter_kroner = 0,
+    renteudgifter_kroner = 20000,
+    ligningslov6_resultat = par4_stk1_nr1_uden_ll6_fradrag_fixture,
+    ligningslov6a_resultat = par4_stk1_nr1_uden_ll6a_fradrag_fixture,
+    personlig_reklassifikation = IngenPersonligReklassifikation
+)
+= par4_stk1_nr1_fixture = par4_stk1_nr1_resultat(par4_stk1_nr1_fixture_input)
+= par4_stk1_nr1_negativ_fixture = par4_stk1_nr1_resultat(par4_stk1_nr1_negativ_fixture_input)
 = par4_stk1_nr9_passiv_input = Par4Stk1Nr9Input(
     virksomhedstype = AlmindeligSelvstændigVirksomhed,
     beløb_kroner = 40000,
@@ -862,7 +957,7 @@ af 30. december 2024, foretages følgende ændring:
 = par4_stk1_nr17_ll15q_ejer_fixture = par4_stk1_nr17_resultat_fra_ligningslov15q(par4_stk1_nr17_ll15q_ejer_input)
 = par4_kapitalindkomst_resultat_fixture = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
     poster = [
-        Par4Kapitalpost(art = RenterOgLigningslov6, beløb_kroner = 12000, personlig_reklassifikation = IngenPersonligReklassifikation),
+        par4_stk1_nr1_kapitalpost(par4_stk1_nr1_fixture_input),
         Par4Kapitalpost(art = KursgevinstOgTab, beløb_kroner = -5000, personlig_reklassifikation = IngenPersonligReklassifikation),
         par4_stk1_nr9_kapitalpost(par4_stk1_nr9_passiv_input),
         par4_stk1_nr11_kapitalpost(par4_stk1_nr11_passiv_input),
@@ -881,7 +976,7 @@ af 30. december 2024, foretages følgende ændring:
 ))
 = par4_negativ_nettokapitalindkomst_fixture = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
     poster = [
-        Par4Kapitalpost(art = RenterOgLigningslov6, beløb_kroner = -20000, personlig_reklassifikation = IngenPersonligReklassifikation)
+        par4_stk1_nr1_kapitalpost(par4_stk1_nr1_negativ_fixture_input)
     ],
     omkostninger = [
         Par4Kapitalomkostning(beløb_kroner = 5000)
@@ -902,6 +997,8 @@ af 30. december 2024, foretages følgende ændring:
 | par4_ikke_normal_andelsudlodning_personlig: par4_andel_ikke_normal -> par4_andel_ikke_normal == Sandt
 | par4_skatteråd_kan_afskære_nr11: par4_skatteråd_undtager -> par4_skatteråd_undtager == Falskt
 | par4_ve_ejer_tælles_ikke: par4_ve_ejer_tælles -> par4_ve_ejer_tælles == Falskt
+| par4_stk1_nr1_renter_og_ll6_fradrag_indgår: par4_stk1_nr1_fixture -> par4_stk1_nr1_fixture.renteindtægter_kroner == 20000 && par4_stk1_nr1_fixture.renteudgifter_kroner == 5000 && par4_stk1_nr1_fixture.ligningslov6_fradrag_kroner == 2000 && par4_stk1_nr1_fixture.ligningslov6a_fradrag_kroner == 1000 && par4_stk1_nr1_fixture.kapitalindkomst_kroner == 12000
+| par4_stk1_nr1_negativ_netto_indgår: par4_stk1_nr1_negativ_fixture -> par4_stk1_nr1_negativ_fixture.kapitalindkomst_kroner == -20000
 | par4_stk1_nr9_passiv_selvstændig_indgår: par4_stk1_nr9_passiv_fixture -> par4_stk1_nr9_passiv_fixture.effektivt_ejerantal == 12 && par4_stk1_nr9_passiv_fixture.ejergrænse_opfyldt == Sandt && par4_stk1_nr9_passiv_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr9_passiv_fixture.kapitalindkomst_kroner == 40000 && par4_stk1_nr9_passiv_fixture.ikke_omfattet_af_par4_nr9_kroner == 0
 | par4_stk1_nr9_væsentlig_drift_afskærer: par4_stk1_nr9_aktiv_fixture -> par4_stk1_nr9_aktiv_fixture.ejergrænse_opfyldt == Sandt && par4_stk1_nr9_aktiv_fixture.væsentlig_deltagelse_afskærer == Sandt && par4_stk1_nr9_aktiv_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr9_aktiv_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr9_aktiv_fixture.ikke_omfattet_af_par4_nr9_kroner == 40000
 | par4_stk9_vedvarende_energi_ejere_udelades: par4_stk1_nr9_ll8p_fixture -> par4_stk1_nr9_ll8p_fixture.effektivt_ejerantal == 10 && par4_stk1_nr9_ll8p_fixture.ejergrænse_opfyldt == Falskt && par4_stk1_nr9_ll8p_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr9_ll8p_fixture.kapitalindkomst_kroner == 0

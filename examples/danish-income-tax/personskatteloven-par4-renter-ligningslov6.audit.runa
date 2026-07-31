@@ -1,0 +1,147 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 1.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- ligningsloven_kapitalindkomst.runa.
+
+= par4_stk1_nr1_audit_ll6_ordinær = ligningslov6_kurstab_resultat(Ligningslov6KurstabInput(
+    indkomstår = 2026,
+    kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993 = Sandt,
+    indfrielse_sker_ved_realkreditlån = Sandt,
+    nyt_lån_optaget_før_1_januar_1996 = Sandt,
+    nyt_lån_mindst_samme_løbetid = Sandt,
+    transaktioner_inden_for_1_år = Sandt,
+    lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse = Sandt,
+    kurstab_kroner = 24000,
+    samlet_antal_terminer = 12,
+    forfaldne_terminer_i_indkomståret = 1,
+    ekstraordinær_indfrielse_af_nyt_lån = Falskt,
+    stk4_omlægning_undtager_stk3 = Falskt,
+    stk3_nedsættelse_basispoint = 0,
+    debitorskifte_i_året = Falskt,
+    debitordage_for_skattepligtig = 0,
+    dage_i_overdragelsesår = 0,
+    kurstab_medregnes_efter_kursgevinstloven = Falskt
+))
+= par4_stk1_nr1_audit_ll6_under_100 = ligningslov6_kurstab_resultat(Ligningslov6KurstabInput(
+    indkomstår = 2026,
+    kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993 = Sandt,
+    indfrielse_sker_ved_realkreditlån = Sandt,
+    nyt_lån_optaget_før_1_januar_1996 = Sandt,
+    nyt_lån_mindst_samme_løbetid = Sandt,
+    transaktioner_inden_for_1_år = Sandt,
+    lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse = Sandt,
+    kurstab_kroner = 900,
+    samlet_antal_terminer = 10,
+    forfaldne_terminer_i_indkomståret = 1,
+    ekstraordinær_indfrielse_af_nyt_lån = Falskt,
+    stk4_omlægning_undtager_stk3 = Falskt,
+    stk3_nedsættelse_basispoint = 0,
+    debitorskifte_i_året = Falskt,
+    debitordage_for_skattepligtig = 0,
+    dage_i_overdragelsesår = 0,
+    kurstab_medregnes_efter_kursgevinstloven = Falskt
+))
+= par4_stk1_nr1_audit_ll6_kgl_afskåret = ligningslov6_kurstab_resultat(Ligningslov6KurstabInput(
+    indkomstår = 2026,
+    kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993 = Sandt,
+    indfrielse_sker_ved_realkreditlån = Sandt,
+    nyt_lån_optaget_før_1_januar_1996 = Sandt,
+    nyt_lån_mindst_samme_løbetid = Sandt,
+    transaktioner_inden_for_1_år = Sandt,
+    lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse = Sandt,
+    kurstab_kroner = 24000,
+    samlet_antal_terminer = 12,
+    forfaldne_terminer_i_indkomståret = 1,
+    ekstraordinær_indfrielse_af_nyt_lån = Falskt,
+    stk4_omlægning_undtager_stk3 = Falskt,
+    stk3_nedsættelse_basispoint = 0,
+    debitorskifte_i_året = Falskt,
+    debitordage_for_skattepligtig = 0,
+    dage_i_overdragelsesår = 0,
+    kurstab_medregnes_efter_kursgevinstloven = Sandt
+))
+= par4_stk1_nr1_audit_ll6_stk3_stk5 = ligningslov6_kurstab_resultat(Ligningslov6KurstabInput(
+    indkomstår = 2026,
+    kontantlån_optaget_i_realkreditinstitut_før_19_maj_1993 = Sandt,
+    indfrielse_sker_ved_realkreditlån = Sandt,
+    nyt_lån_optaget_før_1_januar_1996 = Sandt,
+    nyt_lån_mindst_samme_løbetid = Sandt,
+    transaktioner_inden_for_1_år = Sandt,
+    lånetilbud_før_indfrielse_hvis_indfrielse_før_optagelse = Sandt,
+    kurstab_kroner = 48000,
+    samlet_antal_terminer = 12,
+    forfaldne_terminer_i_indkomståret = 1,
+    ekstraordinær_indfrielse_af_nyt_lån = Sandt,
+    stk4_omlægning_undtager_stk3 = Falskt,
+    stk3_nedsættelse_basispoint = 2500,
+    debitorskifte_i_året = Sandt,
+    debitordage_for_skattepligtig = 100,
+    dage_i_overdragelsesår = 200,
+    kurstab_medregnes_efter_kursgevinstloven = Falskt
+))
+= par4_stk1_nr1_audit_ll6a = ligningslov6a_resultat(Ligningslov6AInput(
+    indkomstår = 2026,
+    skattepligtig_person = Sandt,
+    arbejderboliger_beløb_kroner = 1000,
+    arbejderboliger_betalt = Sandt,
+    statshusmandsbrug_jordrente_beløb_kroner = 500,
+    statshusmandsbrug_jordrente_betalt = Falskt
+))
+= par4_stk1_nr1_audit_ll6a_unpaid = ligningslov6a_resultat(Ligningslov6AInput(
+    indkomstår = 2026,
+    skattepligtig_person = Sandt,
+    arbejderboliger_beløb_kroner = 700,
+    arbejderboliger_betalt = Falskt,
+    statshusmandsbrug_jordrente_beløb_kroner = 500,
+    statshusmandsbrug_jordrente_betalt = Sandt
+))
+
+= par4_stk1_nr1_audit_ordinær = par4_stk1_nr1_resultat(Par4Stk1Nr1Input(
+    renteindtægter_kroner = 20000,
+    renteudgifter_kroner = 5000,
+    ligningslov6_resultat = par4_stk1_nr1_audit_ll6_ordinær,
+    ligningslov6a_resultat = par4_stk1_nr1_audit_ll6a,
+    personlig_reklassifikation = IngenPersonligReklassifikation
+))
+= par4_stk1_nr1_audit_negativ = par4_stk1_nr1_resultat(Par4Stk1Nr1Input(
+    renteindtægter_kroner = 1000,
+    renteudgifter_kroner = 9000,
+    ligningslov6_resultat = par4_stk1_nr1_audit_ll6_kgl_afskåret,
+    ligningslov6a_resultat = par4_stk1_nr1_audit_ll6a_unpaid,
+    personlig_reklassifikation = IngenPersonligReklassifikation
+))
+= par4_stk1_nr1_audit_finansiering = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr1_kapitalpost(Par4Stk1Nr1Input(
+            renteindtægter_kroner = 12000,
+            renteudgifter_kroner = 2000,
+            ligningslov6_resultat = par4_stk1_nr1_audit_ll6_kgl_afskåret,
+            ligningslov6a_resultat = par4_stk1_nr1_audit_ll6a_unpaid,
+            personlig_reklassifikation = FinansieringsNæringReklassifikation
+        ))
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr1_audit_ll6_ordinært_fradrag: par4_stk1_nr1_audit_ll6_ordinær -> par4_stk1_nr1_audit_ll6_ordinær.fradragsret_efter_stk1 == Sandt && par4_stk1_nr1_audit_ll6_ordinær.kurstab_pr_termin_kroner == 2000 && par4_stk1_nr1_audit_ll6_ordinær.fradrag_kroner == 2000
+| par4_stk1_nr1_audit_ll6_under_100_bortfalder: par4_stk1_nr1_audit_ll6_under_100 -> par4_stk1_nr1_audit_ll6_under_100.årligt_fradrag_efter_stk3_kroner == 90 && par4_stk1_nr1_audit_ll6_under_100.under_100_kr_bortfalder == Sandt && par4_stk1_nr1_audit_ll6_under_100.fradrag_kroner == 0
+| par4_stk1_nr1_audit_ll6_kgl_overlap_afskærer: par4_stk1_nr1_audit_ll6_kgl_afskåret -> par4_stk1_nr1_audit_ll6_kgl_afskåret.afskåret_efter_stk6 == Sandt && par4_stk1_nr1_audit_ll6_kgl_afskåret.fradrag_kroner == 0
+| par4_stk1_nr1_audit_ll6_stk3_og_stk5: par4_stk1_nr1_audit_ll6_stk3_stk5 -> par4_stk1_nr1_audit_ll6_stk3_stk5.årligt_fradrag_før_stk3_kroner == 4000 && par4_stk1_nr1_audit_ll6_stk3_stk5.stk3_nedsættelse_kroner == 1000 && par4_stk1_nr1_audit_ll6_stk3_stk5.stk5_debitordagsandel_kroner == 1500 && par4_stk1_nr1_audit_ll6_stk3_stk5.fradrag_kroner == 1500
+| par4_stk1_nr1_audit_ll6a_betalingskrav: par4_stk1_nr1_audit_ll6a_unpaid -> par4_stk1_nr1_audit_ll6a_unpaid.arbejderboliger_fradrag_kroner == 0 && par4_stk1_nr1_audit_ll6a_unpaid.statshusmandsbrug_jordrente_fradrag_kroner == 500 && par4_stk1_nr1_audit_ll6a_unpaid.fradrag_kroner == 500
+| par4_stk1_nr1_audit_ordinær_kapitalindkomst: par4_stk1_nr1_audit_ordinær -> par4_stk1_nr1_audit_ordinær.renteindtægter_kroner == 20000 && par4_stk1_nr1_audit_ordinær.renteudgifter_kroner == 5000 && par4_stk1_nr1_audit_ordinær.ligningslov6_fradrag_kroner == 2000 && par4_stk1_nr1_audit_ordinær.ligningslov6a_fradrag_kroner == 1000 && par4_stk1_nr1_audit_ordinær.kapitalindkomst_kroner == 12000
+| par4_stk1_nr1_audit_negativ_kapitalindkomst: par4_stk1_nr1_audit_negativ -> par4_stk1_nr1_audit_negativ.ligningslov6_fradrag_kroner == 0 && par4_stk1_nr1_audit_negativ.ligningslov6a_fradrag_kroner == 500 && par4_stk1_nr1_audit_negativ.kapitalindkomst_kroner == -8500
+| par4_stk1_nr1_audit_finansieringsnæring_reklassificeres: par4_stk1_nr1_audit_finansiering -> par4_stk1_nr1_audit_finansiering.postbeløb_i_kapitalindkomst_kroner == 0 && par4_stk1_nr1_audit_finansiering.omklassificeret_personlig_indkomst_kroner == 9500
+
+? par4_stk1_nr1_audit_ll6_ordinært_fradrag
+? par4_stk1_nr1_audit_ll6_under_100_bortfalder
+? par4_stk1_nr1_audit_ll6_kgl_overlap_afskærer
+? par4_stk1_nr1_audit_ll6_stk3_og_stk5
+? par4_stk1_nr1_audit_ll6a_betalingskrav
+? par4_stk1_nr1_audit_ordinær_kapitalindkomst
+? par4_stk1_nr1_audit_negativ_kapitalindkomst
+? par4_stk1_nr1_audit_finansieringsnæring_reklassificeres
+
+@ print("§4 stk.1 nr.1 renter/LL §6/§6A ordinær kapitalindkomst: " + vis(par4_stk1_nr1_audit_ordinær.kapitalindkomst_kroner))
