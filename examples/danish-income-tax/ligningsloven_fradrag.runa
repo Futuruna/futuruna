@@ -100,6 +100,9 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
 | ligningslov_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 
 | ligningslov_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> penge_mindste_beløb(a_kroner, b_kroner)
+| ligningslov_største_beløb(a_kroner: Heltal, b_kroner: Heltal) -> penge_største_beløb(a_kroner, b_kroner)
+| ligningslov_basispoint_afrundet_til_hel_procent(sats_basispoint: Heltal) -> penge_basispoint_afrundet_til_hel_procent(sats_basispoint)
+| ligningslov_beløb_gange_basispoint_afrundet_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> penge_beløb_gange_basispoint_afrundet_kroner(beløb_kroner, sats_basispoint)
 
 | ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
     skatteår = 2012,
@@ -586,13 +589,26 @@ indberetning af lejeindtægt fra tredjepart.
 2026: 13.800 kr. og 35.100 kr.
 ----
 
+----
+Den juridiske vejledning 2026-1, C.H.3.4.1.1.2:
+Eksemplerne til § 15 Q, stk. 4 afrunder udlejningsdage/indkomstårets dage til
+hele procenter før bundfradraget beregnes. Hvis de forholdsmæssige bundfradrag
+efter §§ 15 P og 15 Q overstiger det højeste bundfradrag, beskriver vejledningen
+et valg mellem at bruge hele bundfradraget efter § 15 P eller reducere
+§ 15 P-bundfradraget, så § 15 Q-andelen bevares.
+Kilde: https://info.skat.dk/data.aspx?oid=2285016
+----
+
 # Ligningslov15QBoligrolle = Ll15QEjer | Ll15QAndelshaver | Ll15QLejer
 # Ligningslov15QUdlejningsform = Ll15QVærelserIHelårsbolig | Ll15QHeleBoligenDelAfÅret | Ll15QUdenfor
 # Ligningslov15QBoligstatus = Ll15QHelårsbolig | Ll15QFritidsboligEllerAndenBolig
 # Ligningslov15QIndberetningsstatus = Ll15QIngenIndberetning | Ll15QIndberettetEfterSkatteindberetningslov43 | Ll15QOplysningerModtagetVedUdveksling | Ll15QPlatformIndberetningspligtigUdenModtagelse
 # Ligningslov15QMetode = Ll15QStk1Bundfradrag | Ll15QStk3FaktiskeUdgifter
-# Ligningslov15QInput(skatteår: Heltal, rolle: Ligningslov15QBoligrolle, udlejningsform: Ligningslov15QUdlejningsform, boligstatus: Ligningslov15QBoligstatus, indberetningsstatus: Ligningslov15QIndberetningsstatus, metode: Ligningslov15QMetode, bruttolejeindtægt_kroner: Heltal, faktiske_udgifter_kroner: Heltal, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk, tidligere_anvendt_par15p_stk3: Boolsk)
-# Ligningslov15QResultat(skatteår: Heltal, rolle: Ligningslov15QBoligrolle, metode: Ligningslov15QMetode, grundbetingelser_opfyldt: Boolsk, højt_bundfradrag_berettiget: Boolsk, tidligere_par15p_stk3_afskærer_stk1: Boolsk, stk1_anvendelig: Boolsk, stk3_anvendelig: Boolsk, bruttolejeindtægt_kroner: Heltal, bundfradrag_2010_niveau_kroner: Heltal, reguleret_bundfradrag_kroner: Heltal, bundfradrag_anvendt_kroner: Heltal, fradrag_af_overskydende_leje_kroner: Heltal, faktiske_udgifter_fradrag_kroner: Heltal, fradrag_i_indkomstopgørelse_kroner: Heltal, overskud_efter_ligningslov15q_kroner: Heltal)
+# Ligningslov15QStk4Loftvalg = Ll15QStk4BevarPar15QAndel | Ll15QStk4PrioriterPar15P
+# Ligningslov15QStk4Samordning(anvender_både_par15q_og_par15p: Boolsk, par15q_udlejningsdage: Heltal, par15p_udlejningsdage: Heltal, indkomstårets_dage: Heltal, par15p_fuldt_bundfradrag_kroner: Heltal, loftvalg: Ligningslov15QStk4Loftvalg)
+# Ligningslov15QStk4Resultat(anvendes: Boolsk, par15q_andel_basispoint: Heltal, par15p_andel_basispoint: Heltal, par15q_forholdsmæssigt_bundfradrag_kroner: Heltal, par15p_forholdsmæssigt_bundfradrag_kroner: Heltal, højeste_fulde_bundfradrag_kroner: Heltal, samlet_forholdsmæssigt_bundfradrag_kroner: Heltal, loft_aktiveret: Boolsk, par15q_bundfradrag_efter_stk4_kroner: Heltal, samlet_bundfradrag_efter_stk4_loft_kroner: Heltal)
+# Ligningslov15QInput(skatteår: Heltal, rolle: Ligningslov15QBoligrolle, udlejningsform: Ligningslov15QUdlejningsform, boligstatus: Ligningslov15QBoligstatus, indberetningsstatus: Ligningslov15QIndberetningsstatus, metode: Ligningslov15QMetode, bruttolejeindtægt_kroner: Heltal, faktiske_udgifter_kroner: Heltal, ejer_ejendom_omfattet_af_ejendomsskattelov3: Boolsk, tidligere_anvendt_par15p_stk3: Boolsk, stk4_samordning: Ligningslov15QStk4Samordning)
+# Ligningslov15QResultat(skatteår: Heltal, rolle: Ligningslov15QBoligrolle, metode: Ligningslov15QMetode, grundbetingelser_opfyldt: Boolsk, højt_bundfradrag_berettiget: Boolsk, tidligere_par15p_stk3_afskærer_stk1: Boolsk, stk1_anvendelig: Boolsk, stk3_anvendelig: Boolsk, bruttolejeindtægt_kroner: Heltal, bundfradrag_2010_niveau_kroner: Heltal, reguleret_bundfradrag_kroner: Heltal, stk4: Ligningslov15QStk4Resultat, bundfradrag_anvendt_kroner: Heltal, fradrag_af_overskydende_leje_kroner: Heltal, faktiske_udgifter_fradrag_kroner: Heltal, fradrag_i_indkomstopgørelse_kroner: Heltal, overskud_efter_ligningslov15q_kroner: Heltal)
 
 | ll15q_udlejningsform_omfattet(form: Ligningslov15QUdlejningsform) -> form == Ll15QVærelserIHelårsbolig || form == Ll15QHeleBoligenDelAfÅret
 | ll15q_helårsbolig_omfattet(status: Ligningslov15QBoligstatus) -> status == Ll15QHelårsbolig
@@ -608,6 +624,48 @@ indberetning af lejeindtægt fra tredjepart.
     grundbeløb_2010_niveau_kroner = ll15q_bundfradrag_2010_niveau_kroner(status, skatteår),
     reguleringstal_tiendedele = par20_reguleringstal_tiendedele(skatteår)
 ))
+| ll15q_ingen_stk4_samordning() -> Ligningslov15QStk4Samordning(
+    anvender_både_par15q_og_par15p = Falskt,
+    par15q_udlejningsdage = 0,
+    par15p_udlejningsdage = 0,
+    indkomstårets_dage = 365,
+    par15p_fuldt_bundfradrag_kroner = 0,
+    loftvalg = Ll15QStk4BevarPar15QAndel
+)
+| ll15q_forholdsmæssig_hel_procent_basispoint(udlejningsdage: Heltal, indkomstårets_dage: Heltal) -> 0
+| exception ll15q_dage_forholdsmæssig_procent ll15q_forholdsmæssig_hel_procent_basispoint(udlejningsdage: Heltal, indkomstårets_dage: Heltal) -> ligningslov_mindste_beløb(ligningslov_basispoint_afrundet_til_hel_procent(udlejningsdage * 10000 / indkomstårets_dage), 10000) under udlejningsdage > 0 && indkomstårets_dage > 0
+
+# Ligningslov15QStk4SamordningSag(samordning: Ligningslov15QStk4Samordning, par15q_fuldt_bundfradrag_kroner: Heltal) {
+    | anvendes() -> samordning.anvender_både_par15q_og_par15p
+    | par15q_andel_basispoint() -> 10000
+    | exception ll15q_stk4_forholdsmæssig_q_andel par15q_andel_basispoint() -> ll15q_forholdsmæssig_hel_procent_basispoint(samordning.par15q_udlejningsdage, samordning.indkomstårets_dage) under anvendes()
+    | par15p_andel_basispoint() -> 0
+    | exception ll15q_stk4_forholdsmæssig_p_andel par15p_andel_basispoint() -> ll15q_forholdsmæssig_hel_procent_basispoint(samordning.par15p_udlejningsdage, samordning.indkomstårets_dage) under anvendes()
+    | par15q_forholdsmæssigt_bundfradrag_kroner() -> penge_beløb_gange_basispoint_kroner(par15q_fuldt_bundfradrag_kroner, par15q_andel_basispoint())
+    | par15p_fuldt_bundfradrag_kroner() -> ligningslov_positivt_beløb(samordning.par15p_fuldt_bundfradrag_kroner)
+    | par15p_forholdsmæssigt_bundfradrag_kroner() -> penge_beløb_gange_basispoint_kroner(par15p_fuldt_bundfradrag_kroner(), par15p_andel_basispoint())
+    | højeste_fulde_bundfradrag_kroner() -> ligningslov_største_beløb(par15q_fuldt_bundfradrag_kroner, par15p_fuldt_bundfradrag_kroner())
+    | samlet_forholdsmæssigt_bundfradrag_kroner() -> par15q_forholdsmæssigt_bundfradrag_kroner() + par15p_forholdsmæssigt_bundfradrag_kroner()
+    | loft_aktiveret() -> anvendes() && samlet_forholdsmæssigt_bundfradrag_kroner() > højeste_fulde_bundfradrag_kroner()
+    | par15q_bundfradrag_efter_stk4_kroner() -> par15q_forholdsmæssigt_bundfradrag_kroner()
+    | exception ll15q_stk4_par15p_prioriteres par15q_bundfradrag_efter_stk4_kroner() -> ligningslov_positivt_beløb(højeste_fulde_bundfradrag_kroner() - par15p_forholdsmæssigt_bundfradrag_kroner()) under loft_aktiveret() && samordning.loftvalg == Ll15QStk4PrioriterPar15P
+    | samlet_bundfradrag_efter_stk4_loft_kroner() -> samlet_forholdsmæssigt_bundfradrag_kroner()
+    | exception ll15q_stk4_samlet_loft samlet_bundfradrag_efter_stk4_loft_kroner() -> højeste_fulde_bundfradrag_kroner() under loft_aktiveret()
+    | resultat() -> Ligningslov15QStk4Resultat(
+        anvendes = anvendes(),
+        par15q_andel_basispoint = par15q_andel_basispoint(),
+        par15p_andel_basispoint = par15p_andel_basispoint(),
+        par15q_forholdsmæssigt_bundfradrag_kroner = par15q_forholdsmæssigt_bundfradrag_kroner(),
+        par15p_forholdsmæssigt_bundfradrag_kroner = par15p_forholdsmæssigt_bundfradrag_kroner(),
+        højeste_fulde_bundfradrag_kroner = højeste_fulde_bundfradrag_kroner(),
+        samlet_forholdsmæssigt_bundfradrag_kroner = samlet_forholdsmæssigt_bundfradrag_kroner(),
+        loft_aktiveret = loft_aktiveret(),
+        par15q_bundfradrag_efter_stk4_kroner = par15q_bundfradrag_efter_stk4_kroner(),
+        samlet_bundfradrag_efter_stk4_loft_kroner = samlet_bundfradrag_efter_stk4_loft_kroner()
+    )
+}
+| ligningslov15q_stk4_samordning_sag(samordning: Ligningslov15QStk4Samordning, par15q_fuldt_bundfradrag_kroner: Heltal) -> Ligningslov15QStk4SamordningSag(samordning, par15q_fuldt_bundfradrag_kroner)
+| ligningslov15q_stk4_resultat(samordning: Ligningslov15QStk4Samordning, par15q_fuldt_bundfradrag_kroner: Heltal) -> ligningslov15q_stk4_samordning_sag(samordning, par15q_fuldt_bundfradrag_kroner).resultat()
 
 # Ligningslov15QSag(input: Ligningslov15QInput) {
     | bruttolejeindtægt_kroner() -> ligningslov_positivt_beløb(input.bruttolejeindtægt_kroner)
@@ -618,11 +676,13 @@ indberetning af lejeindtægt fra tredjepart.
     | stk3_anvendelig() -> input.metode == Ll15QStk3FaktiskeUdgifter && grundbetingelser_opfyldt()
     | bundfradrag_2010_niveau_kroner() -> ll15q_bundfradrag_2010_niveau_kroner(input.indberetningsstatus, input.skatteår)
     | reguleret_bundfradrag_kroner() -> ll15q_reguleret_bundfradrag_kroner(input.indberetningsstatus, input.skatteår)
+    | stk4() -> ligningslov15q_stk4_resultat(input.stk4_samordning, reguleret_bundfradrag_kroner())
+    | stk4_bundfradrag_kroner() -> stk4().par15q_bundfradrag_efter_stk4_kroner
     | bundfradrag_anvendt_kroner() -> 0
-    | exception ll15q_stk1_bundfradrag bundfradrag_anvendt_kroner() -> ligningslov_mindste_beløb(reguleret_bundfradrag_kroner(), bruttolejeindtægt_kroner()) under stk1_anvendelig()
+    | exception ll15q_stk1_bundfradrag bundfradrag_anvendt_kroner() -> ligningslov_mindste_beløb(stk4_bundfradrag_kroner(), bruttolejeindtægt_kroner()) under stk1_anvendelig()
     | leje_efter_bundfradrag_kroner() -> ligningslov_positivt_beløb(bruttolejeindtægt_kroner() - bundfradrag_anvendt_kroner())
     | fradrag_af_overskydende_leje_kroner() -> 0
-    | exception ll15q_stk1_40pct_af_overskydende_leje fradrag_af_overskydende_leje_kroner() -> penge_beløb_gange_basispoint_kroner(leje_efter_bundfradrag_kroner(), 4000) under stk1_anvendelig()
+    | exception ll15q_stk1_40pct_af_overskydende_leje fradrag_af_overskydende_leje_kroner() -> ligningslov_beløb_gange_basispoint_afrundet_kroner(leje_efter_bundfradrag_kroner(), 4000) under stk1_anvendelig()
     | faktiske_udgifter_fradrag_kroner() -> 0
     | exception ll15q_stk3_faktiske_udgifter faktiske_udgifter_fradrag_kroner() -> ligningslov_mindste_beløb(ligningslov_positivt_beløb(input.faktiske_udgifter_kroner), bruttolejeindtægt_kroner()) under stk3_anvendelig()
     | fradrag_i_indkomstopgørelse_kroner() -> bundfradrag_anvendt_kroner() + fradrag_af_overskydende_leje_kroner() + faktiske_udgifter_fradrag_kroner()
@@ -639,6 +699,7 @@ indberetning af lejeindtægt fra tredjepart.
         bruttolejeindtægt_kroner = bruttolejeindtægt_kroner(),
         bundfradrag_2010_niveau_kroner = bundfradrag_2010_niveau_kroner(),
         reguleret_bundfradrag_kroner = reguleret_bundfradrag_kroner(),
+        stk4 = stk4(),
         bundfradrag_anvendt_kroner = bundfradrag_anvendt_kroner(),
         fradrag_af_overskydende_leje_kroner = fradrag_af_overskydende_leje_kroner(),
         faktiske_udgifter_fradrag_kroner = faktiske_udgifter_fradrag_kroner(),
@@ -660,7 +721,8 @@ indberetning af lejeindtægt fra tredjepart.
     bruttolejeindtægt_kroner = 60000,
     faktiske_udgifter_kroner = 0,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
-    tidligere_anvendt_par15p_stk3 = Falskt
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
 ))
 = ll15q_2026_højt_bundfradrag_fixture = ligningslov15q_resultat(Ligningslov15QInput(
     skatteår = 2026,
@@ -672,7 +734,8 @@ indberetning af lejeindtægt fra tredjepart.
     bruttolejeindtægt_kroner = 60000,
     faktiske_udgifter_kroner = 0,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
-    tidligere_anvendt_par15p_stk3 = Falskt
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
 ))
 = ll15q_2025_platform_højt_bundfradrag_fixture = ligningslov15q_resultat(Ligningslov15QInput(
     skatteår = 2025,
@@ -684,7 +747,8 @@ indberetning af lejeindtægt fra tredjepart.
     bruttolejeindtægt_kroner = 60000,
     faktiske_udgifter_kroner = 0,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
-    tidligere_anvendt_par15p_stk3 = Falskt
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
 ))
 = ll15q_stk3_faktiske_udgifter_fixture = ligningslov15q_resultat(Ligningslov15QInput(
     skatteår = 2026,
@@ -696,7 +760,8 @@ indberetning af lejeindtægt fra tredjepart.
     bruttolejeindtægt_kroner = 60000,
     faktiske_udgifter_kroner = 20000,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
-    tidligere_anvendt_par15p_stk3 = Falskt
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
 ))
 = ll15q_fritidsbolig_udelukkes_fixture = ligningslov15q_resultat(Ligningslov15QInput(
     skatteår = 2026,
@@ -708,7 +773,8 @@ indberetning af lejeindtægt fra tredjepart.
     bruttolejeindtægt_kroner = 60000,
     faktiske_udgifter_kroner = 0,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
-    tidligere_anvendt_par15p_stk3 = Falskt
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
 ))
 = ll15q_par15p_stk3_afskærer_stk1_fixture = ligningslov15q_resultat(Ligningslov15QInput(
     skatteår = 2026,
@@ -720,7 +786,68 @@ indberetning af lejeindtægt fra tredjepart.
     bruttolejeindtægt_kroner = 60000,
     faktiske_udgifter_kroner = 0,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
-    tidligere_anvendt_par15p_stk3 = Sandt
+    tidligere_anvendt_par15p_stk3 = Sandt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
+))
+= ll15q_stk4_eksempel1_fixture = ligningslov15q_resultat(Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QEjer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 32500,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Sandt,
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = Ligningslov15QStk4Samordning(
+        anvender_både_par15q_og_par15p = Sandt,
+        par15q_udlejningsdage = 65,
+        par15p_udlejningsdage = 300,
+        indkomstårets_dage = 365,
+        par15p_fuldt_bundfradrag_kroner = 40000,
+        loftvalg = Ll15QStk4BevarPar15QAndel
+    )
+))
+= ll15q_stk4_eksempel3_bevar_q_fixture = ligningslov15q_resultat(Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QEjer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 10000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Sandt,
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = Ligningslov15QStk4Samordning(
+        anvender_både_par15q_og_par15p = Sandt,
+        par15q_udlejningsdage = 20,
+        par15p_udlejningsdage = 365,
+        indkomstårets_dage = 365,
+        par15p_fuldt_bundfradrag_kroner = 40000,
+        loftvalg = Ll15QStk4BevarPar15QAndel
+    )
+))
+= ll15q_stk4_eksempel3_prioriter_p_fixture = ligningslov15q_resultat(Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QEjer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 10000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Sandt,
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = Ligningslov15QStk4Samordning(
+        anvender_både_par15q_og_par15p = Sandt,
+        par15q_udlejningsdage = 20,
+        par15p_udlejningsdage = 365,
+        indkomstårets_dage = 365,
+        par15p_fuldt_bundfradrag_kroner = 40000,
+        loftvalg = Ll15QStk4PrioriterPar15P
+    )
 ))
 
 | ll15q_2026_lavt_bundfradrag_og_40pct: ll15q_2026_lavt_bundfradrag_fixture -> ll15q_2026_lavt_bundfradrag_fixture.reguleret_bundfradrag_kroner == 13800 && ll15q_2026_lavt_bundfradrag_fixture.fradrag_af_overskydende_leje_kroner == 18480 && ll15q_2026_lavt_bundfradrag_fixture.overskud_efter_ligningslov15q_kroner == 27720
@@ -729,3 +856,6 @@ indberetning af lejeindtægt fra tredjepart.
 | ll15q_stk3_faktiske_udgifter_loftes_af_brutto: ll15q_stk3_faktiske_udgifter_fixture -> ll15q_stk3_faktiske_udgifter_fixture.stk3_anvendelig == Sandt && ll15q_stk3_faktiske_udgifter_fixture.faktiske_udgifter_fradrag_kroner == 20000 && ll15q_stk3_faktiske_udgifter_fixture.overskud_efter_ligningslov15q_kroner == 40000
 | ll15q_fritidsbolig_udelukkes: ll15q_fritidsbolig_udelukkes_fixture -> ll15q_fritidsbolig_udelukkes_fixture.grundbetingelser_opfyldt == Falskt && ll15q_fritidsbolig_udelukkes_fixture.fradrag_i_indkomstopgørelse_kroner == 0
 | ll15q_par15p_stk3_afskærer_stk1: ll15q_par15p_stk3_afskærer_stk1_fixture -> ll15q_par15p_stk3_afskærer_stk1_fixture.tidligere_par15p_stk3_afskærer_stk1 == Sandt && ll15q_par15p_stk3_afskærer_stk1_fixture.stk1_anvendelig == Falskt && ll15q_par15p_stk3_afskærer_stk1_fixture.fradrag_i_indkomstopgørelse_kroner == 0
+| ll15q_stk4_eksempel1_forholdsmæssig_q: ll15q_stk4_eksempel1_fixture -> ll15q_stk4_eksempel1_fixture.stk4.par15q_andel_basispoint == 1800 && ll15q_stk4_eksempel1_fixture.stk4.par15p_andel_basispoint == 8200 && ll15q_stk4_eksempel1_fixture.stk4.par15q_bundfradrag_efter_stk4_kroner == 6318 && ll15q_stk4_eksempel1_fixture.stk4.loft_aktiveret == Falskt && ll15q_stk4_eksempel1_fixture.overskud_efter_ligningslov15q_kroner == 15709
+| ll15q_stk4_eksempel3_bevarer_q_andel: ll15q_stk4_eksempel3_bevar_q_fixture -> ll15q_stk4_eksempel3_bevar_q_fixture.stk4.par15q_andel_basispoint == 500 && ll15q_stk4_eksempel3_bevar_q_fixture.stk4.par15q_bundfradrag_efter_stk4_kroner == 1755 && ll15q_stk4_eksempel3_bevar_q_fixture.stk4.loft_aktiveret == Sandt && ll15q_stk4_eksempel3_bevar_q_fixture.overskud_efter_ligningslov15q_kroner == 4947
+| ll15q_stk4_eksempel3_prioriterer_par15p: ll15q_stk4_eksempel3_prioriter_p_fixture -> ll15q_stk4_eksempel3_prioriter_p_fixture.stk4.loft_aktiveret == Sandt && ll15q_stk4_eksempel3_prioriter_p_fixture.stk4.par15q_bundfradrag_efter_stk4_kroner == 0 && ll15q_stk4_eksempel3_prioriter_p_fixture.overskud_efter_ligningslov15q_kroner == 6000

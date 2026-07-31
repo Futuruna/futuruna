@@ -147,7 +147,8 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     bruttolejeindtægt_kroner = 60000,
     faktiske_udgifter_kroner = 0,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
-    tidligere_anvendt_par15p_stk3 = Falskt
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
 )
 
 = par4_stk1_nr17_audit_ll15q_stk3_andelshaver_input = Ligningslov15QInput(
@@ -160,7 +161,8 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     bruttolejeindtægt_kroner = 50000,
     faktiske_udgifter_kroner = 12000,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
-    tidligere_anvendt_par15p_stk3 = Falskt
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
 )
 
 = par4_stk1_nr17_audit_ll15q_ejer_input = Ligningslov15QInput(
@@ -173,7 +175,71 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     bruttolejeindtægt_kroner = 60000,
     faktiske_udgifter_kroner = 0,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Sandt,
-    tidligere_anvendt_par15p_stk3 = Falskt
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
+)
+
+= par4_stk1_nr17_audit_ll15q_stk4_lejer_input = Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QLejer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 32500,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = Ligningslov15QStk4Samordning(
+        anvender_både_par15q_og_par15p = Sandt,
+        par15q_udlejningsdage = 65,
+        par15p_udlejningsdage = 300,
+        indkomstårets_dage = 365,
+        par15p_fuldt_bundfradrag_kroner = 40000,
+        loftvalg = Ll15QStk4BevarPar15QAndel
+    )
+)
+
+= par4_stk1_nr17_audit_ll15q_stk4_loft_bevar_q_input = Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QLejer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 10000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = Ligningslov15QStk4Samordning(
+        anvender_både_par15q_og_par15p = Sandt,
+        par15q_udlejningsdage = 20,
+        par15p_udlejningsdage = 365,
+        indkomstårets_dage = 365,
+        par15p_fuldt_bundfradrag_kroner = 40000,
+        loftvalg = Ll15QStk4BevarPar15QAndel
+    )
+)
+
+= par4_stk1_nr17_audit_ll15q_stk4_loft_prioriter_p_input = Ligningslov15QInput(
+    skatteår = 2026,
+    rolle = Ll15QLejer,
+    udlejningsform = Ll15QVærelserIHelårsbolig,
+    boligstatus = Ll15QHelårsbolig,
+    indberetningsstatus = Ll15QIndberettetEfterSkatteindberetningslov43,
+    metode = Ll15QStk1Bundfradrag,
+    bruttolejeindtægt_kroner = 10000,
+    faktiske_udgifter_kroner = 0,
+    ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = Ligningslov15QStk4Samordning(
+        anvender_både_par15q_og_par15p = Sandt,
+        par15q_udlejningsdage = 20,
+        par15p_udlejningsdage = 365,
+        indkomstårets_dage = 365,
+        par15p_fuldt_bundfradrag_kroner = 40000,
+        loftvalg = Ll15QStk4PrioriterPar15P
+    )
 )
 
 = par4_stk1_nr17_audit_lejer = par4_stk1_nr17_resultat(par4_stk1_nr17_audit_lejer_input)
@@ -186,6 +252,12 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 = par4_stk1_nr17_audit_ll15q_stk3_andelshaver = ligningslov15q_resultat(par4_stk1_nr17_audit_ll15q_stk3_andelshaver_input)
 = par4_stk1_nr17_audit_ll15q_stk3_andelshaver_par4 = par4_stk1_nr17_resultat_fra_ligningslov15q(par4_stk1_nr17_audit_ll15q_stk3_andelshaver_input)
 = par4_stk1_nr17_audit_ll15q_ejer_par4 = par4_stk1_nr17_resultat_fra_ligningslov15q(par4_stk1_nr17_audit_ll15q_ejer_input)
+= par4_stk1_nr17_audit_ll15q_stk4_lejer = ligningslov15q_resultat(par4_stk1_nr17_audit_ll15q_stk4_lejer_input)
+= par4_stk1_nr17_audit_ll15q_stk4_lejer_par4 = par4_stk1_nr17_resultat_fra_ligningslov15q(par4_stk1_nr17_audit_ll15q_stk4_lejer_input)
+= par4_stk1_nr17_audit_ll15q_stk4_loft_bevar_q = ligningslov15q_resultat(par4_stk1_nr17_audit_ll15q_stk4_loft_bevar_q_input)
+= par4_stk1_nr17_audit_ll15q_stk4_loft_bevar_q_par4 = par4_stk1_nr17_resultat_fra_ligningslov15q(par4_stk1_nr17_audit_ll15q_stk4_loft_bevar_q_input)
+= par4_stk1_nr17_audit_ll15q_stk4_loft_prioriter_p = ligningslov15q_resultat(par4_stk1_nr17_audit_ll15q_stk4_loft_prioriter_p_input)
+= par4_stk1_nr17_audit_ll15q_stk4_loft_prioriter_p_par4 = par4_stk1_nr17_resultat_fra_ligningslov15q(par4_stk1_nr17_audit_ll15q_stk4_loft_prioriter_p_input)
 
 = par4_stk1_nr17_audit_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
     poster = [
@@ -217,6 +289,9 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 | par4_stk1_nr17_audit_ll15q_stk3_fradrag_føder_par4: par4_stk1_nr17_audit_ll15q_stk3_andelshaver_par4 -> par4_stk1_nr17_audit_ll15q_stk3_andelshaver.stk3_anvendelig == Sandt && par4_stk1_nr17_audit_ll15q_stk3_andelshaver.overskud_efter_ligningslov15q_kroner == 38000 && par4_stk1_nr17_audit_ll15q_stk3_andelshaver_par4.kapitalindkomst_kroner == 38000
 | par4_stk1_nr17_audit_ll15q_ejer_stadig_udelukket_af_par4: par4_stk1_nr17_audit_ll15q_ejer_par4 -> par4_stk1_nr17_audit_ll15q_ejer_par4.omfattet_af_ligningslov15q == Sandt && par4_stk1_nr17_audit_ll15q_ejer_par4.lejer_eller_andelshaver == Falskt && par4_stk1_nr17_audit_ll15q_ejer_par4.kapitalindkomst_kroner == 0 && par4_stk1_nr17_audit_ll15q_ejer_par4.ikke_omfattet_af_par4_nr17_kroner == 14940
 | par4_stk1_nr17_audit_ll15q_kun_lejer_andelshaver_i_kapital: par4_stk1_nr17_audit_kapitalindkomst_fra_ll15q -> par4_stk1_nr17_audit_kapitalindkomst_fra_ll15q.postbeløb_i_kapitalindkomst_kroner == 52940 && par4_stk1_nr17_audit_kapitalindkomst_fra_ll15q.nettokapitalindkomst_kroner == 52940
+| par4_stk1_nr17_audit_ll15q_stk4_forholdsmæssig_føder_par4: par4_stk1_nr17_audit_ll15q_stk4_lejer_par4 -> par4_stk1_nr17_audit_ll15q_stk4_lejer.stk4.par15q_bundfradrag_efter_stk4_kroner == 6318 && par4_stk1_nr17_audit_ll15q_stk4_lejer.fradrag_i_indkomstopgørelse_kroner == 16791 && par4_stk1_nr17_audit_ll15q_stk4_lejer_par4.kapitalindkomst_kroner == 15709
+| par4_stk1_nr17_audit_ll15q_stk4_loft_bevarer_q: par4_stk1_nr17_audit_ll15q_stk4_loft_bevar_q_par4 -> par4_stk1_nr17_audit_ll15q_stk4_loft_bevar_q.stk4.loft_aktiveret == Sandt && par4_stk1_nr17_audit_ll15q_stk4_loft_bevar_q.stk4.par15q_bundfradrag_efter_stk4_kroner == 1755 && par4_stk1_nr17_audit_ll15q_stk4_loft_bevar_q_par4.kapitalindkomst_kroner == 4947
+| par4_stk1_nr17_audit_ll15q_stk4_loft_prioriterer_p: par4_stk1_nr17_audit_ll15q_stk4_loft_prioriter_p_par4 -> par4_stk1_nr17_audit_ll15q_stk4_loft_prioriter_p.stk4.loft_aktiveret == Sandt && par4_stk1_nr17_audit_ll15q_stk4_loft_prioriter_p.stk4.par15q_bundfradrag_efter_stk4_kroner == 0 && par4_stk1_nr17_audit_ll15q_stk4_loft_prioriter_p_par4.kapitalindkomst_kroner == 6000
 
 ? par4_stk1_nr17_audit_lejer_stk1_indgår
 ? par4_stk1_nr17_audit_andelshaver_stk3_indgår
@@ -228,6 +303,9 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 ? par4_stk1_nr17_audit_ll15q_stk3_fradrag_føder_par4
 ? par4_stk1_nr17_audit_ll15q_ejer_stadig_udelukket_af_par4
 ? par4_stk1_nr17_audit_ll15q_kun_lejer_andelshaver_i_kapital
+? par4_stk1_nr17_audit_ll15q_stk4_forholdsmæssig_føder_par4
+? par4_stk1_nr17_audit_ll15q_stk4_loft_bevarer_q
+? par4_stk1_nr17_audit_ll15q_stk4_loft_prioriterer_p
 
 @ print("§4 stk.1 nr.17 kapitalindkomst fra fremleje/udlejning: " + vis(par4_stk1_nr17_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner))
 @ print("§4 stk.1 nr.17 kapitalindkomst fra LL §15Q-beregning: " + vis(par4_stk1_nr17_audit_kapitalindkomst_fra_ll15q.postbeløb_i_kapitalindkomst_kroner))

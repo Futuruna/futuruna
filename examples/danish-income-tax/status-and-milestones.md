@@ -31,8 +31,9 @@ permission carve-out; § 4, stk. 1, nr. 17 now derives tenant/shareholder
 subletting and letting surplus under LL § 15 Q stk. 1/3 as positive
 capital-income surplus while excluding owners/others and non-LL15Q cases, and
 the LL § 15 Q dependency now calculates the regulated low/high bundfradrag,
-40 pct. deduction on excess rent, actual-expense branch, and resulting surplus
-before § 4 consumes it; the 2026 § 7/§ 7 a/§ 8 reform
+stk. 4 proportional coordination with LL § 15 P, rounded 40 pct. deduction on
+excess rent, actual-expense branch, and resulting surplus before § 4 consumes
+it; the 2026 § 7/§ 7 a/§ 8 reform
 parameters for mellemskat, topskat and toptopskat now carry LOV nr. 482/2024
 source provenance and derive statutory 2010-level thresholds through § 20
 regulation, with § 7 a topskat and § 8 toptopskat exposed as personal-income
@@ -202,8 +203,9 @@ Current § 13 amendment/dependency sources:
     wage-earner calculator; § 9 L is modeled for extra pension deductions and
     § 26 nr. 5 transition-compensation input; § 15 Q is modeled for
     subletting/letting income with regulated 2025/2026 low/high bundfradrag,
-    40 pct. deduction on excess rent, actual-expense deduction, and the surplus
-    fed into Personskatteloven § 4, stk. 1, nr. 17. The § 26 path now has
+    stk. 4 proportional coordination with LL § 15 P, rounded 40 pct. deduction
+    on excess rent, actual-expense deduction, and the surplus fed into
+    Personskatteloven § 4, stk. 1, nr. 17. The § 26 path now has
     2012-2019 Ligningsloven deduction parameter coverage for the first
     transition-compensation calculation layer, and § 26 year packs now derive
     their § 20 regulation number, § 7 top-tax threshold and § 8 health
@@ -433,8 +435,9 @@ encoded as a temporal rule on top of the consolidation.
   deductible capital costs, passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, leasing-income classification
   under stk. 1, nr. 11 and stk. 8, subletting/letting surplus classification
-  under stk. 1, nr. 17 derived from LL § 15 Q regulated bundfradrag,
-  40 pct. excess-rent deduction, actual-expense branch, and positive surplus,
+  under stk. 1, nr. 17 derived from LL § 15 Q regulated bundfradrag, stk. 4
+  § 15 P coordination, rounded 40 pct. excess-rent deduction,
+  actual-expense branch, and positive surplus,
   positive/negative net-capital projections
   and personal-income reclassification, plus amount-level § 4 a share-income
   inclusion, stk. 2 exclusions, stk. 3 personal-income reclassification,
@@ -649,9 +652,10 @@ Current decision:
   to supply the statutory surplus by hand.
 - `Ligningslov15QSag` uses product-scoped `|` rules for LL § 15 Q. It keeps
   housing role, letting form, helårsbolig status, reporting branch, deduction
-  method, regulated low/high bundfradrag, 40 pct. excess-rent deduction,
-  actual-expense deduction, and resulting surplus together before
-  Personskatteloven § 4 consumes the result.
+  method, regulated low/high bundfradrag, stk. 4 same-home § 15 P
+  coordination with rounded day percentages and explicit cap choice, rounded
+  40 pct. excess-rent deduction, actual-expense deduction, and resulting
+  surplus together before Personskatteloven § 4 consumes the result.
 - `PersonfradragPar10Sag` uses product-scoped `|` rules for § 10 eligibility.
   It keeps tax year, age status, tax-liability posture, partial-year election
   date, and reversal date together so the Kildeskatteloven § 2 full-year case,
@@ -1376,8 +1380,8 @@ M5 - Audit suite
   aggregation and § 9 personfradrag allocation,
   ordinary wage and special-case AM-law coverage, ordinary Ligningsloven
   §§ 9 J/9 K wage-earner-deduction coverage plus § 9 L/§ 26 nr. 5 validation
-  coverage and § 15 Q subletting/letting surplus feeding Personskatteloven
-  § 4, stk. 1, nr. 17,
+  coverage and § 15 Q subletting/letting surplus, including stk. 4
+  § 15 P coordination, feeding Personskatteloven § 4, stk. 1, nr. 17,
   ordinary municipal/church-tax legal coverage,
   covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture,
   covered BEK 839 forskudskort generation, covered BEK 1094 2026

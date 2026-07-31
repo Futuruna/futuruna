@@ -18,12 +18,15 @@ positivbeløb, procent- eller øreafrunding.
 | penge_positivt_beløb(beløb: Heltal) -> 0
 | exception penge_beløb_over_nul penge_positivt_beløb(beløb: Heltal) -> beløb under beløb > 0
 | penge_mindste_beløb(a: Heltal, b: Heltal) -> hvis a < b { a } ellers { b }
+| penge_største_beløb(a: Heltal, b: Heltal) -> hvis a > b { a } ellers { b }
 | penge_nedrundet_til_ti_kroner(beløb_kroner: Heltal) -> beløb_kroner / 10 * 10
 | penge_basispoint_nedrundet_til_hel_procent(sats_basispoint: Heltal) -> sats_basispoint / 100 * 100
+| penge_basispoint_afrundet_til_hel_procent(sats_basispoint: Heltal) -> hvis sats_basispoint > 0 { (sats_basispoint + 50) / 100 * 100 } ellers { 0 }
 | penge_basispoint_nedrundet_til_en_decimal(sats_basispoint: Heltal) -> sats_basispoint / 10 * 10
 | penge_basispoint_afrundet_til_en_decimal(sats_basispoint: Heltal) -> hvis sats_basispoint > 0 { (sats_basispoint + 5) / 10 * 10 } ellers { 0 }
 | penge_basispoint_afrundet_op_til_hel_procent(sats_basispoint: Heltal) -> (sats_basispoint + 99) / 100 * 100
 | penge_beløb_gange_basispoint_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> beløb_kroner * sats_basispoint / 10000
+| penge_beløb_gange_basispoint_afrundet_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> hvis beløb_kroner > 0 && sats_basispoint > 0 { (beløb_kroner * sats_basispoint + 5000) / 10000 } ellers { 0 }
 | penge_øre_nedrundet(tæller: Heltal, nævner: Heltal) -> 0
 | exception penge_positiv_ørebrøk_nedrundes penge_øre_nedrundet(tæller: Heltal, nævner: Heltal) -> tæller / nævner under tæller > 0 && nævner > 0
 | penge_øre_beregning(tæller: Heltal, nævner: Heltal) -> PengeØreBeregning(
@@ -34,24 +37,29 @@ positivbeløb, procent- eller øreafrunding.
 
 = penge_positivt_fixture = penge_positivt_beløb(-5)
 = penge_mindste_fixture = penge_mindste_beløb(20, 12)
+= penge_største_fixture = penge_største_beløb(20, 12)
 = penge_ti_kroner_fixture = penge_nedrundet_til_ti_kroner(38007)
 = penge_basispoint_hel_procent_fixture = penge_basispoint_nedrundet_til_hel_procent(799)
+= penge_basispoint_af_hel_procent_fixture = penge_basispoint_afrundet_til_hel_procent(547)
 = penge_basispoint_ned_decimal_fixture = penge_basispoint_nedrundet_til_en_decimal(29)
 = penge_basispoint_af_decimal_fixture = penge_basispoint_afrundet_til_en_decimal(155)
 = penge_basispoint_op_hel_procent_fixture = penge_basispoint_afrundet_op_til_hel_procent(3540)
 = penge_skat_i_kroner_fixture = penge_beløb_gange_basispoint_kroner(38000, 3800)
+= penge_afrundet_fradrag_fixture = penge_beløb_gange_basispoint_afrundet_kroner(26182, 4000)
 = penge_øre_beregning_fixture = penge_øre_beregning(57000000000, 3650000)
 
 | penge_positivt_beløb_dækket: penge_positivt_fixture -> penge_positivt_fixture == 0
 | penge_mindste_beløb_dækket: penge_mindste_fixture -> penge_mindste_fixture == 12
+| penge_største_beløb_dækket: penge_største_fixture -> penge_største_fixture == 20
 | penge_ti_kroner_nedrunding_dækket: penge_ti_kroner_fixture -> penge_ti_kroner_fixture == 38000
 | penge_basispoint_nedrunding_dækket: penge_basispoint_hel_procent_fixture -> penge_basispoint_hel_procent_fixture == 700 && penge_basispoint_ned_decimal_fixture == 20
-| penge_basispoint_afrunding_dækket: penge_basispoint_af_decimal_fixture -> penge_basispoint_af_decimal_fixture == 160 && penge_basispoint_op_hel_procent_fixture == 3600
-| penge_basispoint_kroner_dækket: penge_skat_i_kroner_fixture -> penge_skat_i_kroner_fixture == 14440
+| penge_basispoint_afrunding_dækket: penge_basispoint_af_decimal_fixture -> penge_basispoint_af_hel_procent_fixture == 500 && penge_basispoint_af_decimal_fixture == 160 && penge_basispoint_op_hel_procent_fixture == 3600
+| penge_basispoint_kroner_dækket: penge_skat_i_kroner_fixture -> penge_skat_i_kroner_fixture == 14440 && penge_afrundet_fradrag_fixture == 10473
 | penge_øre_beregning_dækket: penge_øre_beregning_fixture -> penge_øre_beregning_fixture.tæller == 57000000000 && penge_øre_beregning_fixture.nævner == 3650000 && penge_øre_beregning_fixture.øre_nedrundet == 15616
 
 ? penge_positivt_beløb_dækket
 ? penge_mindste_beløb_dækket
+? penge_største_beløb_dækket
 ? penge_ti_kroner_nedrunding_dækket
 ? penge_basispoint_nedrunding_dækket
 ? penge_basispoint_afrunding_dækket

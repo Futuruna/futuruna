@@ -614,7 +614,8 @@ af 30. december 2024, foretages følgende ændring:
     bruttolejeindtægt_kroner = 60000,
     faktiske_udgifter_kroner = 0,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Falskt,
-    tidligere_anvendt_par15p_stk3 = Falskt
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
 )
 = par4_stk1_nr17_ll15q_ejer_input = Ligningslov15QInput(
     skatteår = 2026,
@@ -626,7 +627,8 @@ af 30. december 2024, foretages følgende ændring:
     bruttolejeindtægt_kroner = 60000,
     faktiske_udgifter_kroner = 0,
     ejer_ejendom_omfattet_af_ejendomsskattelov3 = Sandt,
-    tidligere_anvendt_par15p_stk3 = Falskt
+    tidligere_anvendt_par15p_stk3 = Falskt,
+    stk4_samordning = ll15q_ingen_stk4_samordning()
 )
 = par4_stk1_nr17_lejer_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_lejer_input)
 = par4_stk1_nr17_andelshaver_fixture = par4_stk1_nr17_resultat(par4_stk1_nr17_andelshaver_input)
