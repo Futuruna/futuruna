@@ -820,19 +820,7 @@ nedsat med de overskydende procenter.
     samlet_inkl_am_kroner = samlet_inkl_am_efter_personfradrag(input)
 )
 | beregn_lønmodtager_model(input: LønmodtagerInput) -> beregn_lønmodtager_model_med_par13_forhold(input, lønmodtager_par13_standard_forhold())
-| beregn_lønmodtager_model_med_par13_forhold(input: LønmodtagerInput, forhold: LønmodtagerPar13Forhold) -> LønmodtagerBeregning(
-    input = input,
-    indkomstgrundlag = lønmodtager_indkomstgrundlag(input),
-    ligningsfradrag = lønmodtager_ligningsfradrag(input),
-    før_personfradrag = lønmodtager_skat_før_personfradrag(input),
-    statsskat_før_personfradrag = lønmodtager_statsskat_før_personfradrag_resultat(input),
-    par13_underskud = lønmodtager_par13_underskud_resultat_med_forhold(input, forhold),
-    personfradrag = lønmodtager_personfradrag_resultat(input),
-    efter_personfradrag_før_skatteloft = lønmodtager_skat_efter_personfradrag_før_skatteloft(input),
-    slutskat = lønmodtager_slutskat(input),
-    personfradrag_anvendt_i_slutskat = personfradrag_anvendt_i_slutskat_fixture(input),
-    kræver_par13_underskud = kræver_par13_underskud_fixture(input)
-)
+| beregn_lønmodtager_model_med_par13_forhold(input: LønmodtagerInput, forhold: LønmodtagerPar13Forhold) -> beregn_lønmodtager_model_med_skatteforhold_og_par13_forhold(input, lønmodtager_standard_skatteforhold(), forhold)
 | lønmodtager_breakdown_fra_model(model: LønmodtagerBeregning) -> LønmodtagerBreakdown(
     skatteår = model.input.skatteår,
     kommune = model.input.kommune,

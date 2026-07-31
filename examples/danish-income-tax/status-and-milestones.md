@@ -33,7 +33,10 @@ now has amount-level state-personfradrag reduction ordering for the split
 § 8/sundhedsbidrag and § 6/bundskat tax values plus non-state § 8 c,
 municipal-tax and church-tax personfradrag reductions, wired through the wage-earner
 calculator; § 10, stk. 3 now has amount-level spouse transfer of unused
-personfradrag state-tax value into the receiving spouse's § 9 state-tax basket;
+personfradrag state-tax value into the receiving spouse's § 9 state-tax basket,
+and the public wage-earner model now delegates to `LønmodtagerBeregningSag` so
+ordinary fixtures and special tax postures both use the same scoped § 10
+eligibility rules;
 § 14 now has a reusable statutory skatteberegning result that chooses between
 stk. 1/stk. 3 helårsomregning and stk. 2 period reduction, and the partial-year
 wage-earner path delegates its final § 14 amount to that object;
@@ -627,7 +630,10 @@ Current decision:
   so nonzero § 8 b CFC tax and § 8 c municipal-equivalent tax now flow through
   § 5 state-tax aggregation, § 10 personfradrag eligibility, § 13 deficit
   tax-value posture, and § 19's municipal-or-§ 8 c rate input without adding
-  more scalar fields to `LønmodtagerInput`.
+  more scalar fields to `LønmodtagerInput`. The public `beregn_lønmodtager`
+  path now uses this scoped model with standard tax conditions, so standard
+  fixtures and special tax-condition fixtures no longer diverge through separate
+  model constructors.
 - `slutopgoerelse.runa` keeps the year-end balance as `KildeskatSlutopgørelseInput`
   plus a statutory `KildeskatPar60Kreditter` credit basket. This is a better
   domain boundary than passing A-skat, AM-bidrag, B-skat, dividend-tax credits,
@@ -1064,7 +1070,11 @@ M4 - Ordinary taxpayer calculator
   model now routes state income tax before personfradrag through the
   `Par5StatsskatResultat` aggregate, so the ordinary calculator consumes the
   same § 5 active-component filtering as the source-law module instead of a
-  parallel scalar sum. Its breakdown now includes `LønmodtagerSkatteloftResult`,
+  parallel scalar sum. The public wage-earner model now delegates through
+  `LønmodtagerBeregningSag` with standard tax conditions, and the audit model
+  verifies that a Kildeskattelov §§ 48 E/48 F researcher-income posture carries
+  § 10's personfradrag exclusion all the way through final tax. Its breakdown
+  now includes `LønmodtagerSkatteloftResult`,
   so § 19 personal and
   positive-capital skatteloft input, excess basis points, and kroner relief are
   part of ordinary 2025/2026 calculator output. The 2026 Copenhagen

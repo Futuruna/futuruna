@@ -624,6 +624,17 @@ Ikke aktuel
     skattepligtig_almindelig_indkomst_kroner = m5_2026_cfc_par8c_model.indkomstgrundlag.almindelig_skattepligtig_indkomst_kroner,
     personfradrag_kroner = m5_2026_cfc_par8c_model.personfradrag.personfradrag_kroner
 ))
+= m5_2026_forskerordning_skatteforhold = LønmodtagerSkatteforhold(
+    cfc_indkomst_kroner = 0,
+    par8c_status = IkkePar8cOmfattet,
+    personfradrag_skattepligt = Kildeskattelov48Eller48FIndkomst,
+    personfradrag_valg_dato_yyyymmdd = 0,
+    personfradrag_omvalg_dato_yyyymmdd = 0
+)
+= m5_2026_forskerordning_model = beregn_lønmodtager_model_med_skatteforhold(
+    m5_2026_progressiv_model.input,
+    m5_2026_forskerordning_skatteforhold
+)
 
 | m5_2026_parameterpakke_dækket: m5_2026_københavn_komplet -> m5_2026_københavn_komplet == Sandt
 | m5_2026_langeland_parameterpakke_dækket: m5_2026_langeland_komplet -> m5_2026_langeland_komplet == Sandt
@@ -660,6 +671,7 @@ Ikke aktuel
 | m5_lønmodtager_model_cfc_indgår_i_par5: m5_2026_cfc_par8c_model -> m5_2026_cfc_par8c_model.før_personfradrag.cfc_indkomstskat_kroner == 110000 && m5_2026_cfc_par8c_model.statsskat_før_personfradrag.cfc_indkomstskat_kroner == 110000 && m5_2026_cfc_par8c_model.efter_personfradrag_før_skatteloft.cfc_indkomstskat_kroner == 110000
 | m5_lønmodtager_model_par8c_erstatter_kommuneskat: m5_2026_cfc_par8c_model -> m5_2026_cfc_par8c_model.før_personfradrag.kommuneskat_kroner == 0 && m5_2026_cfc_par8c_model.efter_personfradrag_før_skatteloft.kommuneskat_kroner == 0 && m5_2026_cfc_par8c_model.slutskat.personligt_skatteloft.input.kommunal_eller_par8c_basispoint == 2500
 | m5_lønmodtager_model_par8c_personfradrag: m5_2026_cfc_par8c_model -> m5_2026_cfc_par8c_model.før_personfradrag.kommunal_lignende_statsskat_kroner == m5_2026_cfc_par8c_forventet_par8c.skat_før_personfradrag_kroner && m5_2026_cfc_par8c_model.efter_personfradrag_før_skatteloft.kommunal_lignende_statsskat_kroner == m5_2026_cfc_par8c_forventet_par8c.skat_efter_personfradrag_kroner && m5_2026_cfc_par8c_model.personfradrag_anvendt_i_slutskat == Sandt
+| m5_lønmodtager_model_par10_forskerordning_afskærer: m5_2026_forskerordning_model -> m5_2026_forskerordning_model.personfradrag.personfradrag_kroner == 0 && m5_2026_forskerordning_model.personfradrag.statslig_skatteværdi_kroner == 0 && m5_2026_forskerordning_model.personfradrag.kommunal_skatteværdi_kroner == 0 && m5_2026_forskerordning_model.personfradrag_anvendt_i_slutskat == Falskt && m5_2026_forskerordning_model.slutskat.samlet_inkl_am_kroner > m5_2026_progressiv_model.slutskat.samlet_inkl_am_kroner
 | m5_lønmodtager_breakdown_historiske_statsskat_slots: m5_personfradrag_fixture -> m5_personfradrag_fixture.udligningsskat_før_personfradrag_kroner == 0 && m5_personfradrag_fixture.sundhedsbidrag_før_personfradrag_kroner == 0 && m5_personfradrag_fixture.aktieindkomstskat_før_personfradrag_kroner == 0 && m5_personfradrag_fixture.cfc_indkomstskat_før_personfradrag_kroner == 0 && m5_personfradrag_fixture.kommunal_lignende_statsskat_før_personfradrag_kroner == 0
 | m5_lønmodtager_model_par12_statsskat_allokering: m5_2026_progressiv_model -> m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.bundskat_kroner == 92945 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.mellemskat_kroner == 14010 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.topskat_kroner == 3757 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.toptopskat_kroner == 0 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.udligningsskat_kroner == 0 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.sundhedsbidrag_kroner == 0 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.aktieindkomstskat_kroner == 0 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.cfc_indkomstskat_kroner == 0 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.kommunal_lignende_statsskat_kroner == 0 && m5_2026_progressiv_model.efter_personfradrag_før_skatteloft.statslig_indkomstskat_kroner == 110712
 | m5_lønmodtager_model_slutskat: m5_2026_progressiv_model -> m5_2026_progressiv_model.slutskat.samlet_inkl_am_kroner == m5_2026_progressiv_fixture.samlet_inkl_am_efter_personfradrag_kroner && m5_2026_progressiv_model.slutskat.personligt_skatteloft.nedslag_kroner == m5_2026_progressiv_fixture.personligt_skatteloft.nedslag_kroner
@@ -711,6 +723,7 @@ Ikke aktuel
 ? m5_lønmodtager_model_cfc_indgår_i_par5
 ? m5_lønmodtager_model_par8c_erstatter_kommuneskat
 ? m5_lønmodtager_model_par8c_personfradrag
+? m5_lønmodtager_model_par10_forskerordning_afskærer
 ? m5_lønmodtager_breakdown_historiske_statsskat_slots
 ? m5_lønmodtager_model_par12_statsskat_allokering
 ? m5_lønmodtager_model_slutskat
