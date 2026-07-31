@@ -722,7 +722,9 @@ Current decision:
   payments as amount-carrying posts, exclude invalidity pension, efterløn,
   fleksydelse, førtidspension, and mandatory foreign security schemes before
   calculating the stk. 1 amount, and feed that source-derived amount into the
-  existing stk. 3, stk. 4-5, and stk. 6 udligningsskat calculation.
+  existing stk. 3, stk. 4-5, and stk. 6 udligningsskat calculation. The
+  historical phase-out rate now carries the § 7 a, stk. 5 source paragraph and
+  phased-out posture in one typed result.
 - `AktieindkomstÆgtefællerBeggeNegativeSag` uses product-scoped `|` rules for
   Personskatteloven § 8 a, stk. 6. It keeps both spouses' negative share income
   and samliv status together so the double share-income threshold is split
@@ -1049,7 +1051,10 @@ M2 - State tax computation skeleton
   regulated cap, and the 2011-2018 phase-out rates.
   The historical § 8 sundhedsbidrag slice now computes amount-level tax from
   skattepligtig indkomst, the 2010-2019 rate phase-out, and the stk. 2
-  municipal/§ 8 c liability condition.
+  municipal/§ 8 c liability condition. Both historical rate ladders now expose
+  source-backed rate results with percentage, basispoints, and phased-out
+  posture while preserving the scalar basispoint accessors used by the
+  calculators.
   The ordinary wage-earner domain model now carries § 7 a udligningsskat and
   § 8 sundhedsbidrag as explicit state-tax component slots before and after
   personfradrag allocation, and feeds those slots into the § 5 aggregate.
@@ -1220,9 +1225,9 @@ M5 - Audit suite
   § 7 stk. 10-11 spouse capital-tax allocation, and § 7 stk. 12 tie-break,
   historical § 7 a udligningsskat amount calculation with post-level stk. 1
   included/excluded pension-like payments plus stk. 3 and stk. 6 spouse-threshold
-  cases,
-  historical § 8 sundhedsbidrag amount calculation with liability and zero-rate
-  boundary cases,
+  cases and source-backed phase-out rate provenance,
+  historical § 8 sundhedsbidrag amount calculation with liability, zero-rate
+  boundary cases, and source-backed phase-out rate provenance,
   wage-earner domain-model projection of explicit § 7 a/§ 8 and zero-default
   § 8 a/§ 8 b/§ 8 c state-tax slots through § 5 aggregation and § 9
   personfradrag allocation,

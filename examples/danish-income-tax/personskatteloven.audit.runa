@@ -589,6 +589,10 @@ Ikke aktuel
     grundbeløb_kroner = 55000,
     samlevende_ved_årets_udløb = Sandt
 ), 750)
+= m5_par7a_sats_2014_resultat = udligningsskat_sats_resultat(2014)
+= m5_par7a_sats_2018_resultat = udligningsskat_sats_resultat(2018)
+= m5_par8_sats_2011_resultat = sundhedsbidrag_sats_resultat(2011)
+= m5_par8_sats_2019_resultat = sundhedsbidrag_sats_resultat(2019)
 = m5_par8c_begrænset_fixture = par8c_skat_resultat(Par8cSkatInput(
     skatteår = 2026,
     status = Ksl2Nr1_2_4_5_7_9Til25EllerStk2,
@@ -679,6 +683,10 @@ Ikke aktuel
 | m5_par7_stk12_lige_beregningsgrundlag_brydes_af_ligningsfradrag: m5_par7_stk12_højeste_beregningsgrundlag -> m5_par7_stk12_højeste_beregningsgrundlag == EgenHøjesteBeregningsgrundlag
 | m5_par6_ægtefællekapital_modregning_beløb: m5_par6_ægtefællekapital_resultat -> m5_par6_ægtefællekapital_resultat.modregnet_i_positiv_nettokapitalindkomst_kroner == 3000 && m5_par6_ægtefællekapital_resultat.positiv_nettokapitalindkomst_efter_modregning_kroner == 7000 && m5_par6_ægtefællekapital_bundskatgrundlag == 507000
 | m5_par7_stk5_ægtefællekapital_modregning_og_grundbeløb: m5_par7_stk5_negativ_ægtefællekapital -> m5_par7_stk5_negativ_ægtefællekapital.modregnet_i_ægtefælles_positive_nettokapitalindkomst_kroner == 20000 && m5_par7_stk5_negativ_ægtefællekapital.grundbeløbsforhøjelse_kroner == 75000 && m5_par7_stk5_negativ_ægtefællekapital.ægtefælle_effektivt_grundbeløb_kroner == 130000 && m5_par7_stk5_negativ_ægtefællekapital.ægtefælle_kapital_over_grundbeløb_kroner == 0 && m5_par7_stk5_negativ_ægtefællekapital_skat == 0
+| m5_par7a_satskilde_2014_dækket: m5_par7a_sats_2014_resultat -> m5_par7a_sats_2014_resultat.kilde == PersonskattelovenLbk1284Af2021Par7aStk5 && m5_par7a_sats_2014_resultat.procent == 6 && m5_par7a_sats_2014_resultat.sats_basispoint == 600 && m5_par7a_sats_2014_resultat.udfaset == Falskt
+| m5_par7a_satskilde_2018_udfaset_dækket: m5_par7a_sats_2018_resultat -> m5_par7a_sats_2018_resultat.kilde == PersonskattelovenLbk1284Af2021Par7aStk5 && m5_par7a_sats_2018_resultat.procent == 0 && m5_par7a_sats_2018_resultat.sats_basispoint == 0 && m5_par7a_sats_2018_resultat.udfaset == Sandt
+| m5_par8_satskilde_2011_dækket: m5_par8_sats_2011_resultat -> m5_par8_sats_2011_resultat.kilde == PersonskattelovenLbk1284Af2021Par8Stk1 && m5_par8_sats_2011_resultat.procent == 8 && m5_par8_sats_2011_resultat.sats_basispoint == 800 && m5_par8_sats_2011_resultat.udfaset == Falskt
+| m5_par8_satskilde_2019_udfaset_dækket: m5_par8_sats_2019_resultat -> m5_par8_sats_2019_resultat.kilde == PersonskattelovenLbk1284Af2021Par8Stk1 && m5_par8_sats_2019_resultat.procent == 0 && m5_par8_sats_2019_resultat.sats_basispoint == 0 && m5_par8_sats_2019_resultat.udfaset == Sandt
 | m5_par8c_sats_og_skat_dækket: m5_par8c_begrænset_fixture -> m5_par8c_begrænset_fixture.omfattet == Sandt && m5_par8c_begrænset_fixture.sats_basispoint == 2500 && m5_par8c_begrænset_fixture.skat_før_personfradrag_kroner == 75000 && m5_par8c_begrænset_fixture.skat_efter_personfradrag_kroner == 75000
 | m5_par8c_sats_kilde_og_metode_dækket: m5_par8c_2026_sats_resultat -> m5_par8c_2026_sats_resultat.metode == KommunaltGennemsnitNedrundetTilHelProcent && m5_par8c_2026_sats_resultat.kilde == SkatteministerietBegrænsetSkattepligtige2023Til2026 && m5_par8c_2026_sats_resultat.offentliggjort_sats_basispoint == 2500 && m5_par8c_2026_sats_resultat.sats_basispoint == m5_par8c_begrænset_fixture.sats_basispoint
 | m5_par8c_personfradrag_dækket: m5_par8c_personfradrag_fixture -> m5_par8c_personfradrag_fixture.personfradrag_skatteværdi_kroner == 13525 && m5_par8c_personfradrag_fixture.skat_efter_personfradrag_kroner == 61475
@@ -732,6 +740,10 @@ Ikke aktuel
 ? m5_par7_stk12_lige_beregningsgrundlag_brydes_af_ligningsfradrag
 ? m5_par6_ægtefællekapital_modregning_beløb
 ? m5_par7_stk5_ægtefællekapital_modregning_og_grundbeløb
+? m5_par7a_satskilde_2014_dækket
+? m5_par7a_satskilde_2018_udfaset_dækket
+? m5_par8_satskilde_2011_dækket
+? m5_par8_satskilde_2019_udfaset_dækket
 ? m5_par8c_sats_og_skat_dækket
 ? m5_par8c_sats_kilde_og_metode_dækket
 ? m5_par8c_personfradrag_dækket

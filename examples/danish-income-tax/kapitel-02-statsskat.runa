@@ -774,6 +774,8 @@ Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
 # UdligningsskatPost = Pbl20Udbetaling | Pbl53AUdbetaling | Pbl53BUdbetaling | AfløsningAfPensionstilsagn | DirektørPension | FolkepensionGrundbeløb | AndrePensioner
 # UdligningsskatUndtagelse = Invalidepension | Efterløn | Fleksydelse | Førtidspension | ObligatoriskUdenlandskSikring
 # UdligningsskatPostAfgrænsning = UdligningsskatPostOmfattet | UdligningsskatPostInvalidepension | UdligningsskatPostEfterløn | UdligningsskatPostFleksydelse | UdligningsskatPostFørtidspension | UdligningsskatPostObligatoriskUdenlandskSikring
+# UdligningsskatSatsKilde = PersonskattelovenLbk1284Af2021Par7aStk5
+# UdligningsskatSatsResultat(skatteår: Heltal, kilde: UdligningsskatSatsKilde, procent: Heltal, sats_basispoint: Heltal, udfaset: Boolsk)
 # Par7aUdligningsskatPostering(art: UdligningsskatPost, beløb_kroner: Heltal, afgrænsning: UdligningsskatPostAfgrænsning)
 # Par7aUdligningsskatPostOpgørelseInput(poster: List(Par7aUdligningsskatPostering))
 # Par7aUdligningsskatPostOpgørelseResultat(stk1_beløb_kroner: Heltal, undtaget_beløb_kroner: Heltal)
@@ -806,11 +808,21 @@ Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
 }
 | par7a_udligningsskat_postopgørelse_sag(input: Par7aUdligningsskatPostOpgørelseInput) -> Par7aUdligningsskatPostOpgørelseSag(input)
 | par7a_udligningsskat_postopgørelse_resultat(input: Par7aUdligningsskatPostOpgørelseInput) -> par7a_udligningsskat_postopgørelse_sag(input).resultat()
-| udligningsskat_sats_basispoint(år: Heltal) -> 600 under år >= 2011 && år <= 2014
-| udligningsskat_sats_basispoint(år: Heltal) -> 500 under år == 2015
-| udligningsskat_sats_basispoint(år: Heltal) -> 400 under år == 2016
-| udligningsskat_sats_basispoint(år: Heltal) -> 300 under år == 2017
-| udligningsskat_sats_basispoint(år: Heltal) -> 0 under år >= 2018
+| udligningsskat_sats_kilde(skatteår: Heltal) -> PersonskattelovenLbk1284Af2021Par7aStk5 under skatteår >= 2011
+| udligningsskat_procent(skatteår: Heltal) -> 6 under skatteår >= 2011 && skatteår <= 2014
+| udligningsskat_procent(skatteår: Heltal) -> 5 under skatteår == 2015
+| udligningsskat_procent(skatteår: Heltal) -> 4 under skatteår == 2016
+| udligningsskat_procent(skatteår: Heltal) -> 3 under skatteår == 2017
+| udligningsskat_procent(skatteår: Heltal) -> 0 under skatteår >= 2018
+| udligningsskat_er_udfaset(skatteår: Heltal) -> udligningsskat_procent(skatteår) == 0
+| udligningsskat_sats_resultat(skatteår: Heltal) -> UdligningsskatSatsResultat(
+    skatteår = skatteår,
+    kilde = udligningsskat_sats_kilde(skatteår),
+    procent = udligningsskat_procent(skatteår),
+    sats_basispoint = udligningsskat_procent(skatteår) * 100,
+    udfaset = udligningsskat_er_udfaset(skatteår)
+) under skatteår >= 2011
+| udligningsskat_sats_basispoint(skatteår: Heltal) -> udligningsskat_sats_resultat(skatteår).sats_basispoint
 | udligningsskat_beløb_reguleres_efter_par20() -> Sandt
 | par7a_udligningsskat_grundbeløb_2010_niveau_kroner() -> 362800
 | par7a_udligningsskat_ægtefælle_maks_forhøjelse_2010_niveau_kroner() -> 121000
@@ -868,6 +880,8 @@ Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
 = par7a_invalidepension = udligningsskat_undtager(Invalidepension)
 = par7a_sats_2014 = udligningsskat_sats_basispoint(2014)
 = par7a_sats_2018 = udligningsskat_sats_basispoint(2018)
+= par7a_sats_2014_resultat = udligningsskat_sats_resultat(2014)
+= par7a_sats_2018_resultat = udligningsskat_sats_resultat(2018)
 = par7a_udligningsskat_2014_fixture = par7a_udligningsskat_resultat(Par7aUdligningsskatInput(
     skatteår = 2014,
     stk1_beløb_kroner = 500000,
@@ -918,6 +932,8 @@ Stk. 7. Beløbene i stk. 4 og 6 reguleres efter § 20.
 | par7a_invalidepension_undtages: par7a_invalidepension -> par7a_invalidepension == Sandt
 | par7a_2014_sats: par7a_sats_2014 -> par7a_sats_2014 == 600
 | par7a_2018_nul: par7a_sats_2018 -> par7a_sats_2018 == 0
+| par7a_2014_sats_fra_stk5: par7a_sats_2014_resultat -> par7a_sats_2014_resultat.kilde == PersonskattelovenLbk1284Af2021Par7aStk5 && par7a_sats_2014_resultat.procent == 6 && par7a_sats_2014_resultat.sats_basispoint == 600 && par7a_sats_2014_resultat.udfaset == Falskt
+| par7a_2018_sats_udfaset_fra_stk5: par7a_sats_2018_resultat -> par7a_sats_2018_resultat.kilde == PersonskattelovenLbk1284Af2021Par7aStk5 && par7a_sats_2018_resultat.procent == 0 && par7a_sats_2018_resultat.sats_basispoint == 0 && par7a_sats_2018_resultat.udfaset == Sandt
 | par7a_udligningsskat_2014_beregner_stk3_og_grundbeløb: par7a_udligningsskat_2014_fixture -> par7a_udligningsskat_2014_fixture.grundbeløb_kroner == 369400 && par7a_udligningsskat_2014_fixture.beregningsbeløb_før_bundfradrag_kroner == 450000 && par7a_udligningsskat_2014_fixture.udligningsskattegrundlag_kroner == 80600 && par7a_udligningsskat_2014_fixture.udligningsskat_kroner == 4836
 | par7a_udligningsskat_2016_ægtefælleforhøjer_grundbeløb: par7a_udligningsskat_2016_ægtefælle_fixture -> par7a_udligningsskat_2016_ægtefælle_fixture.grundbeløb_kroner == 379900 && par7a_udligningsskat_2016_ægtefælle_fixture.ægtefælle_maks_forhøjelse_kroner == 126700 && par7a_udligningsskat_2016_ægtefælle_fixture.ægtefælle_grundbeløbsforhøjelse_kroner == 79900 && par7a_udligningsskat_2016_ægtefælle_fixture.effektivt_grundbeløb_kroner == 459800 && par7a_udligningsskat_2016_ægtefælle_fixture.udligningsskat_kroner == 5608
 | par7a_udligningsskat_2018_sats_nulstiller_skat: par7a_udligningsskat_2018_nul_fixture -> par7a_udligningsskat_2018_nul_fixture.sats_basispoint == 0 && par7a_udligningsskat_2018_nul_fixture.udligningsskat_kroner == 0
@@ -940,17 +956,29 @@ efter lov om kommunal indkomstskat.
 ----
 
 # Par8SundhedsbidragInput(skatteår: Heltal, skattepligtig_indkomst_kroner: Heltal, skattepligt: KommunalSkattepligt)
+# SundhedsbidragSatsKilde = PersonskattelovenLbk1284Af2021Par8Stk1
+# SundhedsbidragSatsResultat(skatteår: Heltal, kilde: SundhedsbidragSatsKilde, procent: Heltal, sats_basispoint: Heltal, udfaset: Boolsk)
 # Par8SundhedsbidragResultat(pligt: Boolsk, skattepligtig_indkomst_kroner: Heltal, skattegrundlag_kroner: Heltal, sats_basispoint: Heltal, sundhedsbidrag_kroner: Heltal)
 
-| sundhedsbidrag_sats_basispoint(år: Heltal) -> 800 under år == 2010 || år == 2011
-| sundhedsbidrag_sats_basispoint(år: Heltal) -> 700 under år == 2012
-| sundhedsbidrag_sats_basispoint(år: Heltal) -> 600 under år == 2013
-| sundhedsbidrag_sats_basispoint(år: Heltal) -> 500 under år == 2014
-| sundhedsbidrag_sats_basispoint(år: Heltal) -> 400 under år == 2015
-| sundhedsbidrag_sats_basispoint(år: Heltal) -> 300 under år == 2016
-| sundhedsbidrag_sats_basispoint(år: Heltal) -> 200 under år == 2017
-| sundhedsbidrag_sats_basispoint(år: Heltal) -> 100 under år == 2018
-| sundhedsbidrag_sats_basispoint(år: Heltal) -> 0 under år >= 2019
+| sundhedsbidrag_sats_kilde(skatteår: Heltal) -> PersonskattelovenLbk1284Af2021Par8Stk1 under skatteår >= 2010
+| sundhedsbidrag_procent(skatteår: Heltal) -> 8 under skatteår == 2010 || skatteår == 2011
+| sundhedsbidrag_procent(skatteår: Heltal) -> 7 under skatteår == 2012
+| sundhedsbidrag_procent(skatteår: Heltal) -> 6 under skatteår == 2013
+| sundhedsbidrag_procent(skatteår: Heltal) -> 5 under skatteår == 2014
+| sundhedsbidrag_procent(skatteår: Heltal) -> 4 under skatteår == 2015
+| sundhedsbidrag_procent(skatteår: Heltal) -> 3 under skatteår == 2016
+| sundhedsbidrag_procent(skatteår: Heltal) -> 2 under skatteår == 2017
+| sundhedsbidrag_procent(skatteår: Heltal) -> 1 under skatteår == 2018
+| sundhedsbidrag_procent(skatteår: Heltal) -> 0 under skatteår >= 2019
+| sundhedsbidrag_er_udfaset(skatteår: Heltal) -> sundhedsbidrag_procent(skatteår) == 0
+| sundhedsbidrag_sats_resultat(skatteår: Heltal) -> SundhedsbidragSatsResultat(
+    skatteår = skatteår,
+    kilde = sundhedsbidrag_sats_kilde(skatteår),
+    procent = sundhedsbidrag_procent(skatteår),
+    sats_basispoint = sundhedsbidrag_procent(skatteår) * 100,
+    udfaset = sundhedsbidrag_er_udfaset(skatteår)
+) under skatteår >= 2010
+| sundhedsbidrag_sats_basispoint(skatteår: Heltal) -> sundhedsbidrag_sats_resultat(skatteår).sats_basispoint
 | sundhedsbidrag_pligt(skattepligt: KommunalSkattepligt) -> skattepligt == BetalerKommunalEllerPar8c
 
 # Par8SundhedsbidragSag(input: Par8SundhedsbidragInput) {
@@ -974,6 +1002,9 @@ efter lov om kommunal indkomstskat.
 
 = par8_sats_2011 = sundhedsbidrag_sats_basispoint(2011)
 = par8_sats_2019 = sundhedsbidrag_sats_basispoint(2019)
+= par8_sats_2011_resultat = sundhedsbidrag_sats_resultat(2011)
+= par8_sats_2018_resultat = sundhedsbidrag_sats_resultat(2018)
+= par8_sats_2019_resultat = sundhedsbidrag_sats_resultat(2019)
 = par8_pligt = sundhedsbidrag_pligt(BetalerKommunalEllerPar8c)
 = par8_sundhedsbidrag_2015_fixture = par8_sundhedsbidrag_resultat(Par8SundhedsbidragInput(
     skatteår = 2015,
@@ -993,6 +1024,9 @@ efter lov om kommunal indkomstskat.
 
 | par8_2011_sats: par8_sats_2011 -> par8_sats_2011 == 800
 | par8_2019_nul: par8_sats_2019 -> par8_sats_2019 == 0
+| par8_2011_sats_fra_stk1: par8_sats_2011_resultat -> par8_sats_2011_resultat.kilde == PersonskattelovenLbk1284Af2021Par8Stk1 && par8_sats_2011_resultat.procent == 8 && par8_sats_2011_resultat.sats_basispoint == 800 && par8_sats_2011_resultat.udfaset == Falskt
+| par8_2018_sats_fra_stk1: par8_sats_2018_resultat -> par8_sats_2018_resultat.kilde == PersonskattelovenLbk1284Af2021Par8Stk1 && par8_sats_2018_resultat.procent == 1 && par8_sats_2018_resultat.sats_basispoint == 100 && par8_sats_2018_resultat.udfaset == Falskt
+| par8_2019_sats_udfaset_fra_stk1: par8_sats_2019_resultat -> par8_sats_2019_resultat.kilde == PersonskattelovenLbk1284Af2021Par8Stk1 && par8_sats_2019_resultat.procent == 0 && par8_sats_2019_resultat.sats_basispoint == 0 && par8_sats_2019_resultat.udfaset == Sandt
 | par8_pligt_følger_kommunal: par8_pligt -> par8_pligt == Sandt
 | par8_sundhedsbidrag_beregner_skattepligtig_indkomst: par8_sundhedsbidrag_2015_fixture -> par8_sundhedsbidrag_2015_fixture.pligt == Sandt && par8_sundhedsbidrag_2015_fixture.sats_basispoint == 400 && par8_sundhedsbidrag_2015_fixture.skattegrundlag_kroner == 300000 && par8_sundhedsbidrag_2015_fixture.sundhedsbidrag_kroner == 12000
 | par8_sundhedsbidrag_kræver_kommunal_eller_par8c_pligt: par8_sundhedsbidrag_ikke_pligtig_fixture -> par8_sundhedsbidrag_ikke_pligtig_fixture.pligt == Falskt && par8_sundhedsbidrag_ikke_pligtig_fixture.skattegrundlag_kroner == 0 && par8_sundhedsbidrag_ikke_pligtig_fixture.sundhedsbidrag_kroner == 0
