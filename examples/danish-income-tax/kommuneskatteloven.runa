@@ -259,11 +259,28 @@ udskrivningsgrundlaget, foretages afregning efter § 15 og § 16, stk. 1-4.
 
 Stk. 3. For kommuner, der har valgt at budgettere med det statsgaranterede
 udskrivningsgrundlag, foretages afregning efter § 15 og § 16, stk. 4.
+
+Stk. 4. Det statsgaranterede udskrivningsgrundlag fastsættes ud fra en
+opgørelse af kommunens udskrivningsgrundlag for året 2 år forud for
+beregningsåret reguleret med en fremskrivningsprocent for udviklingen i det
+kommunale udskrivningsgrundlag.
+
+Social- og indenrigsministeren fastsætter bestemmelser om
+fremskrivningsgrundlaget for kommunernes udskrivningsgrundlag.
+
+Social- og indenrigsministeren giver meddelelse om det statsgaranterede
+udskrivningsgrundlag senest den 1. juli i året forud for det indkomstår, det
+vedrører.
+
+Fremskrivningsprocenten for kommunernes statsgaranterede udskrivningsgrundlag
+fastsættes af finansministeren med tilslutning fra Folketingets Finansudvalg.
 ----
 
 # KommunalBudgetvalg = KommunalEgetSkøn | KommunalStatsgaranteretUdskrivningsgrundlag
 # KommunalAfregningsomfang = AfregningEfterPar15OgPar16Stk1Til4 | AfregningEfterPar15OgPar16Stk4
 # KommunalAfregningsvalgResultat(budgetvalg: KommunalBudgetvalg, omfang: KommunalAfregningsomfang, par15_gælder: Boolsk, efterregulering_stk1_til_4_gælder: Boolsk)
+# KommunalPar7StatsgarantiInput(beregningsår: Heltal, opgjort_udskrivningsgrundlag_to_år_forud_kroner: Heltal, fremskrivningsprocent_basispoint: Heltal, social_indenrigsminister_fremskrivningsgrundlag_fastlagt: Boolsk, meddelt_senest_foerste_juli_året_før: Boolsk, finansminister_med_finansudvalg_tilslutning: Boolsk)
+# KommunalPar7StatsgarantiResultat(beregningsår: Heltal, grundlagsår: Heltal, opgjort_udskrivningsgrundlag_to_år_forud_kroner: Heltal, fremskrivningsprocent_basispoint: Heltal, fremskrevet_tillæg_kroner: Heltal, statsgaranteret_udskrivningsgrundlag_kroner: Heltal, fremskrivningsgrundlag_fastlagt: Boolsk, meddelt_senest_foerste_juli_året_før: Boolsk, procent_fastsat_med_finansudvalg_tilslutning: Boolsk)
 
 | kommunal_par7_afregningsomfang(budgetvalg: KommunalBudgetvalg) -> AfregningEfterPar15OgPar16Stk1Til4 under budgetvalg == KommunalEgetSkøn
 | kommunal_par7_afregningsomfang(budgetvalg: KommunalBudgetvalg) -> AfregningEfterPar15OgPar16Stk4 under budgetvalg == KommunalStatsgaranteretUdskrivningsgrundlag
@@ -273,6 +290,20 @@ udskrivningsgrundlag, foretages afregning efter § 15 og § 16, stk. 4.
     omfang = kommunal_par7_afregningsomfang(budgetvalg),
     par15_gælder = Sandt,
     efterregulering_stk1_til_4_gælder = kommunal_par7_par16_stk1_til_4_gælder(budgetvalg)
+)
+| kommunal_par7_statsgaranti_grundlagsår(input: KommunalPar7StatsgarantiInput) -> input.beregningsår - 2
+| kommunal_par7_statsgaranti_fremskrevet_tillæg_kroner(input: KommunalPar7StatsgarantiInput) -> penge_beløb_gange_basispoint_kroner(input.opgjort_udskrivningsgrundlag_to_år_forud_kroner, input.fremskrivningsprocent_basispoint)
+| kommunal_par7_statsgaranteret_udskrivningsgrundlag_kroner(input: KommunalPar7StatsgarantiInput) -> input.opgjort_udskrivningsgrundlag_to_år_forud_kroner + kommunal_par7_statsgaranti_fremskrevet_tillæg_kroner(input)
+| kommunal_par7_statsgaranti_resultat(input: KommunalPar7StatsgarantiInput) -> KommunalPar7StatsgarantiResultat(
+    beregningsår = input.beregningsår,
+    grundlagsår = kommunal_par7_statsgaranti_grundlagsår(input),
+    opgjort_udskrivningsgrundlag_to_år_forud_kroner = input.opgjort_udskrivningsgrundlag_to_år_forud_kroner,
+    fremskrivningsprocent_basispoint = input.fremskrivningsprocent_basispoint,
+    fremskrevet_tillæg_kroner = kommunal_par7_statsgaranti_fremskrevet_tillæg_kroner(input),
+    statsgaranteret_udskrivningsgrundlag_kroner = kommunal_par7_statsgaranteret_udskrivningsgrundlag_kroner(input),
+    fremskrivningsgrundlag_fastlagt = input.social_indenrigsminister_fremskrivningsgrundlag_fastlagt,
+    meddelt_senest_foerste_juli_året_før = input.meddelt_senest_foerste_juli_året_før,
+    procent_fastsat_med_finansudvalg_tilslutning = input.finansminister_med_finansudvalg_tilslutning
 )
 
 ----

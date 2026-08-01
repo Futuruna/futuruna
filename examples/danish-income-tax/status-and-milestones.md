@@ -43,7 +43,10 @@ indkomstudligning og afskrivningslovens § 40 C-acontoskat med særskilt
 stat-til-kommune, kommune-til-stat og nettoafregning. §§ 2-3 dækker nu også
 skattekommunevalg pr. 5. september, institution-/skibsundtagelser,
 Københavner-beregning ved KSL § 1, nr. 4-udrejse og forholdsmæssig
-tilflytningskommuneandel ved fraflytning fra skattekommunen.
+tilflytningskommuneandel ved fraflytning fra skattekommunen. § 7, stk. 4 har
+nu en statsgaranti-beregning fra udskrivningsgrundlaget to år før
+beregningsåret plus fremskrivningsprocenten og de tilhørende ministerielle
+meddelelses-/tilslutningsposter.
 
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
@@ -501,8 +504,10 @@ Current municipal/church-tax and withholding dependency sources:
     own-estimate versus state-guaranteed budget basis, monthly provisional
     twelfths, own-estimate after-regulation in three instalments, and the
     § 16, stk. 3 3 pct. threshold/supplement formula with supplied Nationalbank
-    discount-rate input. § 16, stk. 4 now covers the municipal share of
-    business tax, conjuncture equalisation tax, income equalisation and
+    discount-rate input. § 7, stk. 4 now calculates the statsguaranteed
+    municipal/church tax basis from the basis two years before the calculation
+    year and the fremskrivningsprocent. § 16, stk. 4 now covers the municipal
+    share of business tax, conjuncture equalisation tax, income equalisation and
     Afskrivningsloven § 40 C acconto-tax repayment bases.
 - Folkekirkens økonomi:
   `https://www.retsinformation.dk/eli/lta/2023/424`
@@ -1491,9 +1496,10 @@ Review candidates to revisit deliberately, not as broad churn:
   slice now covers ordinary municipal tax on Personskatteloven taxable income,
   church tax for Folkekirken members, Kommuneskatteloven §§ 2-3 skattekommune
   selection and move allocation, and Kommuneskatteloven §§ 7/15/16 provisional
-  payment, own-budget after-regulation, and stk. 3 supplement formula plus stk.
-  4 business-tax/conjuncture/income-equalisation/acconto-tax settlement. The
-  first Kildeskatteloven
+  payment, § 7 stk. 4 statsguaranteed-basis calculation, own-budget
+  after-regulation, and stk. 3 supplement formula plus stk. 4
+  business-tax/conjuncture/income-equalisation/acconto-tax settlement. The first
+  Kildeskatteloven
   slice now covers ordinary wage A-income, withholding duty, e-skattekort card
   types, main-card period allowances, bikort without allowance, optional higher
   withholding percentage, base rounding, and the statutory 55 pct. no-card

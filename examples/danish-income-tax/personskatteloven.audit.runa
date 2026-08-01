@@ -1250,6 +1250,7 @@ virksomhedsunderskud.
 = m5_kommunal_par3_april_fixture = kommunal_par3_april_to_fordelingskvartaler_fixture
 = m5_kommunal_par3_første_kvartalsdag_fixture = kommunal_par3_første_kvartalsdag_fixture
 = m5_kommunal_afregning_par7_eget_skøn_fixture = kommunal_afregning_par7_eget_skøn_fixture
+= m5_kommunal_afregning_par7_statsgaranti_grundlag_fixture = kommunal_afregning_par7_statsgaranti_grundlag_fixture
 = m5_kommunal_afregning_par15_fixture = kommunal_afregning_par15_resultat_fixture
 = m5_kommunal_afregning_par16_fixture = kommunal_afregning_par16_resultat_fixture
 = m5_kommunal_afregning_statsgaranti_fixture = kommunal_afregning_statsgaranti_resultat_fixture
@@ -1401,6 +1402,7 @@ virksomhedsunderskud.
 | m5_kommunal_skattekommune_institution_dækket: m5_kommunal_skattekommune_institution_fixture -> m5_kommunal_skattekommune_institution_fixture.skattekommune == Gentofte && m5_kommunal_skattekommune_institution_fixture.grundlag == SkattekommuneAndenBopælVedInstitutionMv
 | m5_kommunal_par3_fraflytningsandel_dækket: m5_kommunal_par3_april_fixture -> m5_kommunal_par3_april_fixture.periode.startkvartal == 3 && m5_kommunal_par3_april_fixture.tilflytningskommune_andel_kroner == 60000 && m5_kommunal_par3_første_kvartalsdag_fixture.periode.startkvartal == 2 && m5_kommunal_par3_første_kvartalsdag_fixture.tilflytningskommune_andel_kroner == 90000
 | m5_kommunal_afregning_par7_dækket: m5_kommunal_afregning_par7_eget_skøn_fixture -> m5_kommunal_afregning_par7_eget_skøn_fixture.omfang == AfregningEfterPar15OgPar16Stk1Til4 && m5_kommunal_afregning_par7_eget_skøn_fixture.efterregulering_stk1_til_4_gælder == Sandt
+| m5_kommunal_afregning_par7_statsgaranti_grundlag_dækket: m5_kommunal_afregning_par7_statsgaranti_grundlag_fixture -> m5_kommunal_afregning_par7_statsgaranti_grundlag_fixture.grundlagsår == 2024 && m5_kommunal_afregning_par7_statsgaranti_grundlag_fixture.fremskrevet_tillæg_kroner == 2100000000 && m5_kommunal_afregning_par7_statsgaranti_grundlag_fixture.statsgaranteret_udskrivningsgrundlag_kroner == 52100000000 && m5_kommunal_afregning_par7_statsgaranti_grundlag_fixture.meddelt_senest_foerste_juli_året_før == Sandt
 | m5_kommunal_afregning_par15_dækket: m5_kommunal_afregning_par15_fixture -> m5_kommunal_afregning_par15_fixture.månedlig_udbetaling_kroner == 100000 && m5_kommunal_afregning_par15_fixture.samlet_årlig_udbetaling_kroner == 1200000
 | m5_kommunal_afregning_par16_dækket: m5_kommunal_afregning_par16_fixture -> m5_kommunal_afregning_par16_fixture.omfattes_af_efterregulering == Sandt && m5_kommunal_afregning_par16_fixture.endelig_skat_inkl_ændringer_kroner == 1209000 && m5_kommunal_afregning_par16_fixture.efterreguleringsbeløb_kroner == 9000 && m5_kommunal_afregning_par16_fixture.afregningsår == 2029 && m5_kommunal_afregning_par16_fixture.januar_kroner == 3000 && m5_kommunal_afregning_par16_fixture.februar_kroner == 3000 && m5_kommunal_afregning_par16_fixture.marts_kroner == 3000
 | m5_kommunal_afregning_statsgaranti_dækket: m5_kommunal_afregning_statsgaranti_fixture -> m5_kommunal_afregning_statsgaranti_fixture.omfattes_af_efterregulering == Falskt && m5_kommunal_afregning_statsgaranti_fixture.efterreguleringsbeløb_kroner == 0
@@ -1568,6 +1570,7 @@ virksomhedsunderskud.
 ? m5_kommunal_skattekommune_institution_dækket
 ? m5_kommunal_par3_fraflytningsandel_dækket
 ? m5_kommunal_afregning_par7_dækket
+? m5_kommunal_afregning_par7_statsgaranti_grundlag_dækket
 ? m5_kommunal_afregning_par15_dækket
 ? m5_kommunal_afregning_par16_dækket
 ? m5_kommunal_afregning_statsgaranti_dækket
