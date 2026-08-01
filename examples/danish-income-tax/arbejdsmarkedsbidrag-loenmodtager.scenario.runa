@@ -25,6 +25,29 @@ stk. 3, mens § 3-poster holdes uden for grundlaget.
 )
 
 = am_lønmodtager_par2_fuld_resultat = arbejdsmarkedsbidrag_lønmodtager_grundlag_resultat(am_lønmodtager_par2_fuld_input)
+= am_lønmodtager_par2_fri_bil = arbejdsmarkedsbidrag_par2_stk2_naturalia_resultat(ArbejdsmarkedsbidragNaturaliaPost(
+    art = AmFriBil,
+    skattepligtig_værdi_kroner = 60000,
+    nævnt_i_par2_stk1 = Sandt
+))
+= am_lønmodtager_par2_ikke_naturalia = arbejdsmarkedsbidrag_par2_stk2_naturalia_resultat(ArbejdsmarkedsbidragNaturaliaPost(
+    art = AmIkkePar2Stk2Naturalia,
+    skattepligtig_værdi_kroner = 60000,
+    nævnt_i_par2_stk1 = Sandt
+))
+= am_lønmodtager_med_fri_bil_resultat = arbejdsmarkedsbidrag_lønmodtager_med_naturalie_resultat(ArbejdsmarkedsbidragLønMedNaturalieInput(
+    lønvederlag_kroner = 500000,
+    naturalie = ArbejdsmarkedsbidragNaturaliaPost(
+        art = AmFriBil,
+        skattepligtig_værdi_kroner = 60000,
+        nævnt_i_par2_stk1 = Sandt
+    )
+))
+= am_lønmodtager_fri_bil_uden_stk1 = arbejdsmarkedsbidrag_par2_stk2_naturalia_resultat(ArbejdsmarkedsbidragNaturaliaPost(
+    art = AmFriBil,
+    skattepligtig_værdi_kroner = 60000,
+    nævnt_i_par2_stk1 = Falskt
+))
 
 | am_lønmodtager_par2_nr1_ansættelse: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.par2_stk1_nr1_ansættelsesvederlag_kroner == 500000
 | am_lønmodtager_par2_nr2_udenfor_ansættelse: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.par2_stk1_nr2_udenfor_ansættelse_kroner == 80000
@@ -35,6 +58,10 @@ stk. 3, mens § 3-poster holdes uden for grundlaget.
 | am_lønmodtager_par2_stk3_fællesordning: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.par2_stk3_fælles_pensionsindbetaling_kroner == 12000
 | am_lønmodtager_par2_brutto_og_udelukket: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.brutto_grundlag_kroner == 702000 && am_lønmodtager_par2_fuld_resultat.udelukket_grundlag_kroner == 21000
 | am_lønmodtager_par2_grundlag_og_bidrag: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.grundlag_kroner == 681000 && am_lønmodtager_par2_fuld_resultat.bidrag_kroner == 54480
+| am_lønmodtager_par2_stk2_fri_bil_art: am_lønmodtager_par2_fri_bil -> am_lønmodtager_par2_fri_bil.par2_stk2_art_omfattet == Sandt && am_lønmodtager_par2_fri_bil.grundlag_kroner == 60000
+| am_lønmodtager_par2_stk2_ikke_naturalia_udelukkes: am_lønmodtager_par2_ikke_naturalia -> am_lønmodtager_par2_ikke_naturalia.par2_stk2_art_omfattet == Falskt && am_lønmodtager_par2_ikke_naturalia.grundlag_kroner == 0
+| am_lønmodtager_par2_stk2_kræver_stk1_vederlag: am_lønmodtager_fri_bil_uden_stk1 -> am_lønmodtager_fri_bil_uden_stk1.par2_stk2_art_omfattet == Sandt && am_lønmodtager_fri_bil_uden_stk1.grundlag_kroner == 0
+| am_lønmodtager_par2_stk2_fri_bil_i_løn: am_lønmodtager_med_fri_bil_resultat -> am_lønmodtager_med_fri_bil_resultat.naturalia.grundlag_kroner == 60000 && am_lønmodtager_med_fri_bil_resultat.grundlag_kroner == 560000 && am_lønmodtager_med_fri_bil_resultat.bidrag_kroner == 44800
 
 ? am_lønmodtager_par2_nr1_ansættelse
 ? am_lønmodtager_par2_nr2_udenfor_ansættelse
@@ -45,3 +72,7 @@ stk. 3, mens § 3-poster holdes uden for grundlaget.
 ? am_lønmodtager_par2_stk3_fællesordning
 ? am_lønmodtager_par2_brutto_og_udelukket
 ? am_lønmodtager_par2_grundlag_og_bidrag
+? am_lønmodtager_par2_stk2_fri_bil_art
+? am_lønmodtager_par2_stk2_ikke_naturalia_udelukkes
+? am_lønmodtager_par2_stk2_kræver_stk1_vederlag
+? am_lønmodtager_par2_stk2_fri_bil_i_løn

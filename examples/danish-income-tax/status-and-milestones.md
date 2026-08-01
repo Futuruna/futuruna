@@ -33,7 +33,12 @@ selvstændig 40 pct. A-skat-regel uden skattekortfradrag for indbetalinger fra
 pensionsinstitutter efter § 46, stk. 6, med konkret `.scenario.runa`-dækning.
 Arbejdsmarkedsbidragsloven § 2-lønmodtagersnittet er også udvidet fra anonym
 felt-sum til kildeformede regelposter for nr. 1-6 samt stk. 3 med et samlet
-grundlagsresultat og scenariedækning. Kommuneskatteloven dækker nu også første
+grundlagsresultat og scenariedækning, og § 2, stk. 2 har nu et typet
+naturalia-resultat for fri kost/logi, fri bil, fri telefon, sommerbolig,
+lystbåd, helårsbolig, aktie-/tegnings-/køberetter og arbejdsgiverbetalt
+sundhedsbehandling. Resultatet kræver både en nævnt naturalia-art og et stk. 1
+vederlag, før den skattepligtige værdi føres ind i AM-grundlaget.
+Kommuneskatteloven dækker nu også første
 afregningsslice for §§ 7, 15 og 16: kommunens valg mellem eget skøn og
 statsgaranteret grundlag, § 15's månedlige tolvtedel og § 16, stk. 2's
 efterreguleringsbeløb med januar/februar/marts-tredjedele tre år senere samt
@@ -489,7 +494,8 @@ Current AM-contribution dependency sources:
   - XML status on 2026-07-18: `Valid`
   - §§ 1-7 cover the first ordinary and special-case AM-contribution slice:
     ordinary wage remuneration/naturalier, § 2 stk. 1 nr. 2-6 wage-earner
-    amount posts, § 2 stk. 3 employer common pension payments, § 3 exclusions,
+    amount posts, § 2 stk. 2 naturalia categories as typed source-backed
+    category routing, § 2 stk. 3 employer common pension payments, § 3 exclusions,
     self-employed bases with and without virksomhedsordning, library-fee
     compensation, and collection-reference posture.
 - AM youth exemption amendment:
@@ -826,7 +832,7 @@ encoded as a temporal rule on top of the consolidation.
   slice, the §§ 21-28 concluding provisions slice, ordinary and special-case
   AM-law,
   Arbejdsmarkedsbidragsloven § 2 nr. 1-6 and stk. 3 wage-earner base
-  composition,
+  composition plus § 2, stk. 2 naturalia-category amount routing,
   municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding,
   Kommuneskatteloven § 5, stk. 3 partial-year municipal income tax through the
   corresponding Personskatteloven § 14 calculation result,
@@ -1475,7 +1481,9 @@ Review candidates to revisit deliberately, not as broad churn:
 - `ArbejdsmarkedsbidragUdvidetLønmodtagerInput` and
   `ArbejdsmarkedsbidragVirksomhedsordningInput` are wide, but they still mirror
   dense statutory enumerations closely enough that premature grouping could hurt
-  source traceability.
+  source traceability. § 2, stk. 2 naturalia now has a smaller domain object
+  because the statute enumerates closed benefit categories separately from the
+  ordinary wage-post list.
 
 ## Now
 

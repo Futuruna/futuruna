@@ -29,6 +29,14 @@ StartDate: 2025-02-04
 EndDate: 2026-06-23
 ----
 
+# ArbejdsmarkedsbidragKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= arbejdsmarkedsbidragsloven_lbk121_par2 = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2020/121",
+    identifier = "Arbejdsmarkedsbidragsloven § 2",
+    hentet_dato = "2026-07-18"
+)
+
 ----
 § 1. Personer, der er skattepligtige her til landet, svarer skat i form af
 arbejdsmarkedsbidrag til staten efter denne lov.
@@ -63,6 +71,7 @@ LOV nr. 96 af 04/02/2025, § 7, stk. 4:
 | exception arbejdsmarkedsbidrag_unge_fritaget_fra_2026 arbejdsmarkedsbidrag_sats_for_person_basispoint(input: ArbejdsmarkedsbidragPersonSatsInput) -> 0 under input.skatteår >= 2026 && input.alder_ved_indkomstårets_udløb <= 17
 | arbejdsmarkedsbidrag_for_person_kroner(grundlag_kroner: Heltal, input: ArbejdsmarkedsbidragPersonSatsInput) -> penge_beløb_gange_basispoint_kroner(grundlag_kroner, arbejdsmarkedsbidrag_sats_for_person_basispoint(input))
 
+--@source::arbejdsmarkedsbidragsloven_par2::meta:arbejdsmarkedsbidragsloven_lbk121_par2--
 ----
 § 2. Grundlaget for arbejdsmarkedsbidrag for lønmodtagere m.v. er følgende
 indkomster, jf. dog stk. 2 og § 3:
@@ -114,12 +123,49 @@ pensionskasse omfattet af lov om firmapensionskasser eller til en hjælpe- og
 understøttelsesfond som nævnt i pensionsbeskatningslovens § 52.
 ----
 
+--@begin::arbejdsmarkedsbidragsloven_par2--
 # ArbejdsmarkedsbidragInput(lønvederlag_kroner: Heltal, naturalieværdi_kroner: Heltal)
 # ArbejdsmarkedsbidragUdvidetLønmodtagerInput(ansættelsesvederlag_skatteværdi_kroner: Heltal, udenfor_ansættelse_skatteværdi_kroner: Heltal, rådighed_danmark_skatteværdi_kroner: Heltal, arbejdsgiver_pension_kroner: Heltal, udenlandsk_pension_kroner: Heltal, pbl14b_udbetaling_kroner: Heltal, fælles_firmapension_kroner: Heltal, sømandsvederlag_kroner: Heltal, biblioteksafgift_kroner: Heltal, ikke_skattepligtigt_vederlag_kroner: Heltal, pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner: Heltal, obligatorisk_atp_pension_kroner: Heltal)
 # ArbejdsmarkedsbidragLønmodtagerGrundlagResultat(par2_stk1_nr1_ansættelsesvederlag_kroner: Heltal, par2_stk1_nr2_udenfor_ansættelse_kroner: Heltal, par2_stk1_nr3_rådighed_danmark_kroner: Heltal, par2_stk1_nr4_arbejdsgiver_pension_kroner: Heltal, par2_stk1_nr5_udenlandsk_pension_kroner: Heltal, par2_stk1_nr6_pbl14b_udbetaling_kroner: Heltal, par2_stk3_fælles_pensionsindbetaling_kroner: Heltal, brutto_grundlag_kroner: Heltal, udelukket_grundlag_kroner: Heltal, grundlag_kroner: Heltal, bidrag_kroner: Heltal)
+# ArbejdsmarkedsbidragNaturaliaArt = AmFriKostOgLogi | AmFriBil | AmFriTelefon | AmFriSommerbolig | AmFriLystbåd | AmFriHelårsbolig | AmAktieTegningsretKøberet | AmArbejdsgiverbetaltSundhedsbehandling | AmIkkePar2Stk2Naturalia
+# ArbejdsmarkedsbidragNaturaliaPost(art: ArbejdsmarkedsbidragNaturaliaArt, skattepligtig_værdi_kroner: Heltal, nævnt_i_par2_stk1: Boolsk)
+# ArbejdsmarkedsbidragNaturaliaResultat(art: ArbejdsmarkedsbidragNaturaliaArt, par2_stk2_art_omfattet: Boolsk, nævnt_i_par2_stk1: Boolsk, skattepligtig_værdi_kroner: Heltal, grundlag_kroner: Heltal)
+# ArbejdsmarkedsbidragLønMedNaturalieInput(lønvederlag_kroner: Heltal, naturalie: ArbejdsmarkedsbidragNaturaliaPost)
+# ArbejdsmarkedsbidragLønMedNaturalieResultat(naturalia: ArbejdsmarkedsbidragNaturaliaResultat, lønvederlag_kroner: Heltal, grundlag_kroner: Heltal, bidrag_kroner: Heltal)
+# ArbejdsmarkedsbidragLønMedNaturalieSag(input: ArbejdsmarkedsbidragLønMedNaturalieInput) {
+    | naturalia() -> arbejdsmarkedsbidrag_par2_stk2_naturalia_resultat(input.naturalie)
+    | løninput() -> ArbejdsmarkedsbidragInput(
+        lønvederlag_kroner = input.lønvederlag_kroner,
+        naturalieværdi_kroner = naturalia().grundlag_kroner
+    )
+    | grundlag_kroner() -> arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(løninput())
+    | bidrag_kroner() -> arbejdsmarkedsbidrag_lønmodtager_kroner(løninput())
+    | resultat() -> ArbejdsmarkedsbidragLønMedNaturalieResultat(
+        naturalia = naturalia(),
+        lønvederlag_kroner = input.lønvederlag_kroner,
+        grundlag_kroner = grundlag_kroner(),
+        bidrag_kroner = bidrag_kroner()
+    )
+}
+# ArbejdsmarkedsbidragNaturaliaSag(input: ArbejdsmarkedsbidragNaturaliaPost) {
+    | art_omfattet() -> Sandt
+    | exception ikke_par2_stk2_naturalia art_omfattet() -> Falskt under input.art == AmIkkePar2Stk2Naturalia
+    | skattepligtig_værdi_kroner() -> arbejdsmarkedsbidrag_positivt_beløb(input.skattepligtig_værdi_kroner)
+    | grundlag_kroner() -> 0
+    | exception naturalie_som_stk1_vederlag grundlag_kroner() -> skattepligtig_værdi_kroner() under art_omfattet() && input.nævnt_i_par2_stk1
+    | resultat() -> ArbejdsmarkedsbidragNaturaliaResultat(
+        art = input.art,
+        par2_stk2_art_omfattet = art_omfattet(),
+        nævnt_i_par2_stk1 = input.nævnt_i_par2_stk1,
+        skattepligtig_værdi_kroner = skattepligtig_værdi_kroner(),
+        grundlag_kroner = grundlag_kroner()
+    )
+}
 
 | arbejdsmarkedsbidrag_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 
+| arbejdsmarkedsbidrag_par2_stk2_naturalia_sag(input: ArbejdsmarkedsbidragNaturaliaPost) -> ArbejdsmarkedsbidragNaturaliaSag(input)
+| arbejdsmarkedsbidrag_par2_stk2_naturalia_resultat(input: ArbejdsmarkedsbidragNaturaliaPost) -> arbejdsmarkedsbidrag_par2_stk2_naturalia_sag(input).resultat()
 | arbejdsmarkedsbidrag_par2_stk1_nr1_ansættelsesvederlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.ansættelsesvederlag_skatteværdi_kroner
 | arbejdsmarkedsbidrag_par2_stk1_nr2_udenfor_ansættelse_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.udenfor_ansættelse_skatteværdi_kroner
 | arbejdsmarkedsbidrag_par2_stk1_nr3_rådighed_danmark_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.rådighed_danmark_skatteværdi_kroner
@@ -160,6 +206,9 @@ understøttelsesfond som nævnt i pensionsbeskatningslovens § 52.
     obligatorisk_atp_pension_kroner = 0
 ))
 | arbejdsmarkedsbidrag_lønmodtager_kroner(input: ArbejdsmarkedsbidragInput) -> penge_beløb_gange_basispoint_kroner(arbejdsmarkedsbidrag_lønmodtager_grundlag_kroner(input), arbejdsmarkedsbidrag_sats_basispoint())
+| arbejdsmarkedsbidrag_lønmodtager_med_naturalie_sag(input: ArbejdsmarkedsbidragLønMedNaturalieInput) -> ArbejdsmarkedsbidragLønMedNaturalieSag(input)
+| arbejdsmarkedsbidrag_lønmodtager_med_naturalie_resultat(input: ArbejdsmarkedsbidragLønMedNaturalieInput) -> arbejdsmarkedsbidrag_lønmodtager_med_naturalie_sag(input).resultat()
+--@end::arbejdsmarkedsbidragsloven_par2--
 
 ----
 § 3. Følgende medregnes ikke i grundlaget for arbejdsmarkedsbidrag:

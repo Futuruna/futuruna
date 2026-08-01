@@ -49,7 +49,9 @@ befordringsfradrag, yderkommuner, lavindkomsttillæg, broer, SU-yderområde og
 § 9 D's særregler for varigt nedsat funktionsevne eller kronisk sygdom, samt
 Kildeskatteloven § 62 A's frist for udbetaling efter ændret årsopgørelse og
 Kommuneskatteloven § 5, stk. 3's delårsregel gennem Personskatteloven § 14's
-tilsvarende beregningsform.
+tilsvarende beregningsform. Arbejdsmarkedsbidragsloven § 2, stk. 2 har nu
+også typede naturalia-kategorier, så f.eks. fri bil kun føres ind i
+AM-grundlaget, når den både er en nævnt naturalia-art og et stk. 1-vederlag.
 
 ## Eksempel
 
