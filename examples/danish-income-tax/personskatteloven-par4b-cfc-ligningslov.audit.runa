@@ -1,0 +1,77 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4 b using the source-backed
+-- Ligningsloven § 16 H and § 16 I, stk. 6-7 dependency results.
+--
+-- Kilder:
+-- - Personskatteloven: https://www.retsinformation.dk/eli/lta/2021/1284
+-- - Ligningsloven: https://www.retsinformation.dk/eli/lta/2025/1500
+
+----
+Personskatteloven § 4 b:
+
+CFC-indkomst (Controlled Foreign Company) omfatter det samlede beløb af indkomst
+som omhandlet i ligningslovens § 16 H og § 16 I, stk. 6 og 7.
+
+Stk. 2. CFC-indkomst indgår ikke i den skattepligtige indkomst ved beregning af
+skat efter §§ 6-8 a.
+----
+
+----
+Ligningsloven § 16 H, stk. 1:
+
+Hvis en skattepligtig omfattet af kildeskattelovens § 1 eller
+dødsboskattelovens § 1, stk. 2, kontrollerer et udenlandsk selskab eller en
+forening m.v. (selskabet), jf. stk. 6, skal den skattepligtige medregne
+selskabets CFC-indkomst opgjort efter stk. 7-10 samt selskabsskattelovens § 32,
+stk. 5, når indkomsten er positiv.
+----
+
+----
+Ligningsloven § 16 I, stk. 6-7:
+
+Skattepligtige omfattet af kildeskattelovens § 1 eller dødsboskattelovens § 1,
+stk. 2, der direkte eller indirekte kontrollerer et dansk eller et udenlandsk
+selskab eller forening m.v. (selskabet), som har en fortrinsstilling, jf. stk.
+1, 2. pkt., i en kapital-, venture- eller infrastrukturfond, skal ved opgørelsen
+af den skattepligtige indkomst medregne selskabets merafkast af investeringer
+foretaget via fonden som CFC-indkomst.
+
+Stk. 7. For skattepligtige omfattet af stk. 6 opgøres merafkastet som det
+afkast, som selskabet har oppebåret af den kapital, som selskabet har investeret
+via kapital-, venture- eller infrastrukturfonden, med fradrag af
+standardafkastet, jf. stk. 2, 2. pkt. Ved opgørelsen af den skattepligtige
+indkomst medregnes den andel af selskabets positive merafkast, som den
+skattepligtige direkte eller indirekte har ret til.
+----
+
+= par4b_ligningslov_cfc_audit_aggregat = par4b_cfc_indkomst_resultat(Par4bCfcIndkomstInput(
+    poster = [
+        par4b_cfc_post_fra_ligningslov16h_resultat(ll16h_positiv_fixture),
+        par4b_cfc_post_fra_ligningslov16i_stk6_og_7_resultat(ll16i_stk6_og_7_fixture)
+    ]
+))
+
+= par1_cfc_udskilt_audit = par1_almindelig_skattepligtig_indkomst_resultat(Par1AlmindeligSkattepligtigIndkomstInput(
+    personlig_indkomst_kroner = 400000,
+    kapitalindkomst_kroner = 20000,
+    aktieindkomst_kroner = 30000,
+    cfc_indkomst_kroner = par4b_ligningslov_cfc_audit_aggregat.cfc_indkomst_kroner,
+    ligningsmæssige_fradrag_kroner = 10000,
+    aktieindkomst_indgår_i_skattepligtig_indkomst = Falskt,
+    cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a = par4b_ligningslov_cfc_audit_aggregat.indgår_i_skattepligtig_indkomst_ved_par6_til_8a
+))
+
+| ll16h_audit_stk1_stk7_til_stk10_beløb: ll16h_positiv_fixture -> ll16h_positiv_fixture.omfattet_af_par16h == Sandt && ll16h_positiv_fixture.medregnet_cfc_indkomst_kroner == 120000
+| ll16h_audit_stk2_fritagelse_nulstiller_beløb: ll16h_eu_eøs_fritaget_fixture -> ll16h_eu_eøs_fritaget_fixture.fritaget_efter_stk2 == Sandt && ll16h_eu_eøs_fritaget_fixture.medregnet_cfc_indkomst_kroner == 0
+| ll16i_audit_stk6_og_stk7_merafkast_til_cfc: ll16i_stk6_og_7_fixture -> ll16i_stk6_og_7_fixture.positivt_merafkast_efter_fremførsel_kroner == 60000 && ll16i_stk6_og_7_fixture.medregnet_som_cfc_indkomst_kroner == 30000
+| par4b_audit_ligningslov_cfc_aggregeres: par4b_ligningslov_cfc_audit_aggregat -> par4b_ligningslov_cfc_audit_aggregat.cfc_indkomst_kroner == 150000 && par4b_ligningslov_cfc_audit_aggregat.positiv_cfc_indkomst_til_par8b_kroner == 150000
+| par4b_audit_cfc_udenfor_par6_til_8a_skattepligtig_indkomst: par1_cfc_udskilt_audit -> par1_cfc_udskilt_audit.cfc_indkomst_medregnet_ved_par6_til_8a_kroner == 0 && par1_cfc_udskilt_audit.cfc_indkomst_udenfor_par6_til_8a_kroner == 150000 && par1_cfc_udskilt_audit.skattepligtig_indkomst_kroner == 410000
+
+? ll16h_audit_stk1_stk7_til_stk10_beløb
+? ll16h_audit_stk2_fritagelse_nulstiller_beløb
+? ll16i_audit_stk6_og_stk7_merafkast_til_cfc
+? par4b_audit_ligningslov_cfc_aggregeres
+? par4b_audit_cfc_udenfor_par6_til_8a_skattepligtig_indkomst

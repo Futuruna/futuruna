@@ -147,7 +147,11 @@ basispoint rate together; § 8 b's CFC tax rate now delegates through a
 `SelskabsskattelovPar17Stk1SatsResultat` that keeps the tracked
 Selskabsskatteloven source line for 2024 and 2025+, ordinary 22 pct.
 selskabsskat, 3 percentage-point kulbrinte supplement, and applied CFC rate
-together.
+together; § 4 b now consumes typed Ligningsloven § 16 H and § 16 I, stk. 6-7
+CFC dependency results, including § 16 H control, low-tax/CFC-share conditions,
+EU/EØS real-establishment exemption, ownership/period share, carried-loss
+proportion and stk. 10 cap, plus § 16 I controlled-company merafkast with
+negative-merafkast carry-forward.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -254,6 +258,14 @@ Current § 8 b dependency source:
   - § 17, stk. 1 sets the ordinary selskabsskat rate at 22 pct. and the
     kulbrinte supplement at 3 percentage points; Personskatteloven § 8 b uses
     the ordinary 22 pct. rate for CFC income.
+
+Current § 4 b dependency source:
+
+- Ligningsloven:
+  `https://www.retsinformation.dk/eli/lta/2025/1500`
+  - XML status on 2026-07-18: `Valid`
+  - §§ 16 H and 16 I, stk. 6-7 are modeled as the Personskatteloven § 4 b
+    dependency for source-derived CFC income amounts.
 
 Current § 4 and § 13 amendment/dependency sources:
 
@@ -535,6 +547,9 @@ encoded as a temporal rule on top of the consolidation.
   the LL § 12 B dependency consumed by § 4, stk. 1, nr. 15, plus the LL
   § 14 A dependency consumed by § 4, stk. 1, nr. 10 and the LL § 16 A
   dividend slice consumed by § 4, stk. 1, nr. 4.
+- `ligningsloven_cfc.runa` exists and checks/runs with `runa run`; it covers
+  the LL § 16 H and § 16 I, stk. 6-7 CFC dependency consumed by
+  Personskatteloven § 4 b.
 - `kursgevinstloven.runa` exists and checks with `runa check`; it covers the
   first Kursgevinstloven dependency slice consumed by Personskatteloven § 4,
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic

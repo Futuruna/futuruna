@@ -3,6 +3,7 @@
 @ importer ./pengebeloeb
 @ importer ./ligningsloven_fradrag
 @ importer ./ligningsloven_kapitalindkomst
+@ importer ./ligningsloven_cfc
 @ importer ./kursgevinstloven
 @ importer ./aktieavancebeskatningsloven
 @ importer ./virksomhedsskatteloven
@@ -1905,8 +1906,10 @@ Stk. 2. CFC-indkomst indgår ikke i den skattepligtige indkomst ved beregning af
 skat efter §§ 6-8 a.
 ----
 
-# CfcPost = Ligningslov16H | Ligningslov16IStk6 | Ligningslov16IStk7
+# CfcPost = Ligningslov16H | Ligningslov16IStk6Og7 | Ligningslov16IStk7
 # Par4bCfcIndkomstPost(kilde: CfcPost, beløb_kroner: Heltal)
+# Par4bLigningslov16HResultat(omfattet_af_ligningslov16h: Boolsk, cfc_indkomst_kroner: Heltal)
+# Par4bLigningslov16IStk6Og7Resultat(omfattet_af_ligningslov16i_stk6_og_7: Boolsk, cfc_indkomst_kroner: Heltal)
 # Par4bCfcIndkomstInput(poster: List(Par4bCfcIndkomstPost))
 # Par4bCfcIndkomstResultat(cfc_indkomst_kroner: Heltal, positiv_cfc_indkomst_til_par8b_kroner: Heltal, indgår_i_skattepligtig_indkomst_ved_par6_til_8a: Boolsk)
 
@@ -1922,6 +1925,37 @@ skat efter §§ 6-8 a.
     positiv_cfc_indkomst_til_par8b_kroner = par4b_positiv_cfc_indkomst_til_par8b_kroner(input),
     indgår_i_skattepligtig_indkomst_ved_par6_til_8a = cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a()
 )
+
+# Par4bLigningslov16HSag(input: Ligningslov16HResultat) {
+    | cfcpost() -> Par4bCfcIndkomstPost(
+        kilde = Ligningslov16H,
+        beløb_kroner = input.medregnet_cfc_indkomst_kroner
+    )
+    | resultat() -> Par4bLigningslov16HResultat(
+        omfattet_af_ligningslov16h = input.omfattet_af_par16h,
+        cfc_indkomst_kroner = input.medregnet_cfc_indkomst_kroner
+    )
+}
+| par4b_ligningslov16h_sag(input: Ligningslov16HResultat) -> Par4bLigningslov16HSag(input)
+| par4b_ligningslov16h_resultat(input: Ligningslov16HInput) -> par4b_ligningslov16h_sag(ligningslov16h_resultat(input)).resultat()
+| par4b_cfc_post_fra_ligningslov16h_resultat(input: Ligningslov16HResultat) -> par4b_ligningslov16h_sag(input).cfcpost()
+| par4b_cfc_post_fra_ligningslov16h(input: Ligningslov16HInput) -> par4b_cfc_post_fra_ligningslov16h_resultat(ligningslov16h_resultat(input))
+
+# Par4bLigningslov16IStk6Og7Sag(input: Ligningslov16IStk6Og7Resultat) {
+    | cfcpost() -> Par4bCfcIndkomstPost(
+        kilde = Ligningslov16IStk6Og7,
+        beløb_kroner = input.medregnet_som_cfc_indkomst_kroner
+    )
+    | resultat() -> Par4bLigningslov16IStk6Og7Resultat(
+        omfattet_af_ligningslov16i_stk6_og_7 = input.omfattet_af_stk6,
+        cfc_indkomst_kroner = input.medregnet_som_cfc_indkomst_kroner
+    )
+}
+| par4b_ligningslov16i_stk6_og_7_sag(input: Ligningslov16IStk6Og7Resultat) -> Par4bLigningslov16IStk6Og7Sag(input)
+| par4b_ligningslov16i_stk6_og_7_resultat(input: Ligningslov16IStk6Og7Input) -> par4b_ligningslov16i_stk6_og_7_sag(ligningslov16i_stk6_og_7_resultat(input)).resultat()
+| par4b_cfc_post_fra_ligningslov16i_stk6_og_7_resultat(input: Ligningslov16IStk6Og7Resultat) -> par4b_ligningslov16i_stk6_og_7_sag(input).cfcpost()
+| par4b_cfc_post_fra_ligningslov16i_stk6_og_7(input: Ligningslov16IStk6Og7Input) -> par4b_cfc_post_fra_ligningslov16i_stk6_og_7_resultat(ligningslov16i_stk6_og_7_resultat(input))
+
 | par1_almindelig_skattepligtig_indkomst_fra_indkomstresultater(personlig: Par3PersonligIndkomstResultat, kapital: Par4KapitalindkomstResultat, aktie: Par4aAktieindkomstResultat, cfc: Par4bCfcIndkomstResultat, ligningsmæssige_fradrag_kroner: Heltal) -> par1_almindelig_skattepligtig_indkomst_resultat(Par1AlmindeligSkattepligtigIndkomstInput(
     personlig_indkomst_kroner = personlig.netto_personlig_indkomst_kroner + kapital.omklassificeret_personlig_indkomst_kroner + kapital.personlig_indkomst_tillæg_kroner + aktie.omklassificeret_personlig_indkomst_kroner,
     kapitalindkomst_kroner = kapital.nettokapitalindkomst_kroner,
@@ -1933,18 +1967,24 @@ skat efter §§ 6-8 a.
 ))
 
 = par4b_16h = cfc_indkomst_omfatter(Ligningslov16H)
-= par4b_16i6 = cfc_indkomst_omfatter(Ligningslov16IStk6)
+= par4b_16i6 = cfc_indkomst_omfatter(Ligningslov16IStk6Og7)
 = par4b_udenfor_par6_8a = cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a()
 = par4b_cfc_indkomst_resultat_fixture = par4b_cfc_indkomst_resultat(Par4bCfcIndkomstInput(
     poster = [
         Par4bCfcIndkomstPost(kilde = Ligningslov16H, beløb_kroner = 300000),
-        Par4bCfcIndkomstPost(kilde = Ligningslov16IStk6, beløb_kroner = 150000),
+        Par4bCfcIndkomstPost(kilde = Ligningslov16IStk6Og7, beløb_kroner = 150000),
         Par4bCfcIndkomstPost(kilde = Ligningslov16IStk7, beløb_kroner = 50000)
     ]
 ))
 = par4b_negativ_cfc_indkomst_fixture = par4b_cfc_indkomst_resultat(Par4bCfcIndkomstInput(
     poster = [
         Par4bCfcIndkomstPost(kilde = Ligningslov16H, beløb_kroner = -25000)
+    ]
+))
+= par4b_ligningslov_cfc_fixture = par4b_cfc_indkomst_resultat(Par4bCfcIndkomstInput(
+    poster = [
+        par4b_cfc_post_fra_ligningslov16h_resultat(ll16h_positiv_fixture),
+        par4b_cfc_post_fra_ligningslov16i_stk6_og_7_resultat(ll16i_stk6_og_7_fixture)
     ]
 ))
 = par1_almindelig_skattepligtig_indkomst_resultat_fixture = par1_almindelig_skattepligtig_indkomst_fra_indkomstresultater(
@@ -1960,4 +2000,5 @@ skat efter §§ 6-8 a.
 | par4b_ikke_i_skattepligtig_ved_par6_8a: par4b_udenfor_par6_8a -> par4b_udenfor_par6_8a == Falskt
 | par4b_cfc_indkomst_beregnes_beløb: par4b_cfc_indkomst_resultat_fixture -> par4b_cfc_indkomst_resultat_fixture.cfc_indkomst_kroner == 500000 && par4b_cfc_indkomst_resultat_fixture.positiv_cfc_indkomst_til_par8b_kroner == 500000 && par4b_cfc_indkomst_resultat_fixture.indgår_i_skattepligtig_indkomst_ved_par6_til_8a == Falskt
 | par4b_negativ_cfc_indkomst_giver_intet_positivt_par8b_grundlag: par4b_negativ_cfc_indkomst_fixture -> par4b_negativ_cfc_indkomst_fixture.cfc_indkomst_kroner == -25000 && par4b_negativ_cfc_indkomst_fixture.positiv_cfc_indkomst_til_par8b_kroner == 0 && par4b_negativ_cfc_indkomst_fixture.indgår_i_skattepligtig_indkomst_ved_par6_til_8a == Falskt
+| par4b_ligningslov16h_og_16i_føder_cfc_indkomst: par4b_ligningslov_cfc_fixture -> par4b_ligningslov_cfc_fixture.cfc_indkomst_kroner == 150000 && par4b_ligningslov_cfc_fixture.positiv_cfc_indkomst_til_par8b_kroner == 150000 && par4b_ligningslov_cfc_fixture.indgår_i_skattepligtig_indkomst_ved_par6_til_8a == Falskt
 | par1_almindelig_skattepligtig_indkomst_samler_særskilte_indkomster: par1_almindelig_skattepligtig_indkomst_resultat_fixture -> par1_almindelig_skattepligtig_indkomst_resultat_fixture.personlig_indkomst_til_skattepligtig_indkomst_kroner == 521000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.kapitalindkomst_til_skattepligtig_indkomst_kroner == 285000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.aktieindkomst_medregnet_kroner == 0 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.aktieindkomst_udenfor_skattepligtig_indkomst_kroner == 50000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.cfc_indkomst_medregnet_ved_par6_til_8a_kroner == 0 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.cfc_indkomst_udenfor_par6_til_8a_kroner == 500000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.indkomst_før_ligningsmæssige_fradrag_kroner == 806000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.ligningsmæssige_fradrag_kroner == 35000 && par1_almindelig_skattepligtig_indkomst_resultat_fixture.skattepligtig_indkomst_kroner == 771000
