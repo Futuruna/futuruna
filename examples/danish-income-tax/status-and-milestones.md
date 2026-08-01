@@ -174,8 +174,11 @@ passages, documented special transport, the 2026 SU outer-area branch and the
 source-backed normal-cost/factual-cost formula, including the 2026
 Skatterådet normalfradrag rate for own transport, the business-driving rate
 path for factual own-car expenses, and Den juridiske vejledning's 6.000 km and
-25.000 km examples. Remaining § 9 D dependency work is broader rate-table
-coverage across years and transport modalities, not the 2026 own-car examples.
+25.000 km examples. The § 9 D workplace route now also preserves documented
+bridge-passage deductions under § 9 C, stk. 9 while keeping the ordinary
+§ 9 C, stk. 1-8 distance deduction displaced. Remaining § 9 D dependency work
+is broader rate-table coverage across years and transport modalities, not the
+2026 own-car examples or workplace bridge carve-out.
 
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
@@ -396,7 +399,9 @@ Current § 4 and § 13 amendment/dependency sources:
     own-transport path derives normal cost from Skatterådets normalfradrag
     kilometre rate, derives factual own-car expenses from the business-driving
     rate tiers, and validates Den juridiske vejledning's 6.000 km and 25.000
-    km examples. The focused validation files are
+    km examples. The workplace path preserves § 9 C, stk. 9 bridge-passage
+    deductions even though § 9 C, stk. 1-8 are displaced. The focused
+    validation files are
     `ligningsloven-par9c-befordring.audit.runa` and
     `loenmodtager-befordring.scenario.runa`; future work should broaden
     § 9 D beyond the current 2026 own-car slice.

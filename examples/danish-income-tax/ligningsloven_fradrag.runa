@@ -240,6 +240,7 @@ befordring, eller hvis offentlig befordring ikke kan anvendes, efter
 Skatterådets kilometertakster for normalfradrag uden reduktion for de første
 24 km. Faktiske udgifter kan dokumenteres eller opgøres efter Skatterådets
 satser for erhvervsmæssig kørsel i egen bil.
+Fradrag efter § 9 D afskærer ikke bropassagefradrag efter § 9 C, stk. 9.
 Eksempel 1: 6.000 km giver normal udgift 13.680 kr., faktisk udgift
 23.640 kr. og samlet § 9 D-fradrag 21.640 kr.
 Eksempel 2: 25.000 km giver normal udgift 57.000 kr., faktisk udgift
@@ -355,6 +356,8 @@ Kilde: https://info.skat.dk/data.aspx?oid=2061747
 | ll9c_arbejdsplads_befordringsfradrag_berettiget(input: Ligningslov9CInput) -> input.befordringsformål == IndtægtsgivendeArbejdsplads && input.modtaget_skattefri_befordringsgodtgørelse_for_strækning == Falskt && input.par9d.afskærer_par9c_stk1_8 == Falskt && input.fradrag_udelukket_folketingshverv_m_v == Falskt
 | ll9c_su_uddannelsessted_befordringsfradrag_berettiget(input: Ligningslov9CInput) -> input.skatteår >= 2026 && input.befordringsformål == SuUddannelsessted && input.bopæl_i_yderkommune_eller_lille_ø == Sandt && input.modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning == Falskt && input.par9d.afskærer_par9c_stk10 == Falskt
 | ll9c_ordinært_befordringsfradrag_berettiget(input: Ligningslov9CInput) -> ll9c_arbejdsplads_befordringsfradrag_berettiget(input) || ll9c_su_uddannelsessted_befordringsfradrag_berettiget(input)
+| ll9c_bropassagefradrag_berettiget(input: Ligningslov9CInput) -> ll9c_ordinært_befordringsfradrag_berettiget(input)
+| exception ll9c_par9d_afskærer_ikke_bropassage ll9c_bropassagefradrag_berettiget(input: Ligningslov9CInput) -> Sandt under input.befordringsformål == IndtægtsgivendeArbejdsplads && input.par9d.afskærer_par9c_stk1_8 == Sandt
 | ll9c_daglige_fradragsberettigede_kilometer(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.daglige_befordringskilometer - 24)
 | ll9c_op_til_120_kilometer_pr_dag(input: Ligningslov9CInput) -> ligningslov_mindste_beløb(ll9c_daglige_fradragsberettigede_kilometer(input), 96)
 | ll9c_over_120_kilometer_pr_dag(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.daglige_befordringskilometer - 120)
@@ -368,14 +371,15 @@ Kilde: https://info.skat.dk/data.aspx?oid=2061747
 | ll9c_særlig_transportfradrag_kroner(input: Ligningslov9CInput) -> 0
 | exception ll9c_færge_fly_lignende_faktisk_udgift ll9c_særlig_transportfradrag_kroner(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.særlig_transport.faktisk_dokumenteret_udgift_kroner) under ll9c_ordinært_befordringsfradrag_berettiget(input) && input.særlig_transport.geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten == Sandt
 | ll9c_brofradrag_kroner(input: Ligningslov9CInput) -> 0
-| exception ll9c_dokumenterede_brofradrag ll9c_brofradrag_kroner(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.broer.storebælt_bil_motorcykel_passager) * 110 + ligningslov_positivt_beløb(input.broer.storebælt_kollektiv_passager) * 15 + ligningslov_positivt_beløb(input.broer.øresund_bil_motorcykel_passager) * 50 + ligningslov_positivt_beløb(input.broer.øresund_kollektiv_passager) * 8 under ll9c_ordinært_befordringsfradrag_berettiget(input) && input.broer.dokumenteret_og_afholdt_af_skattepligtige == Sandt
+| exception ll9c_dokumenterede_brofradrag ll9c_brofradrag_kroner(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.broer.storebælt_bil_motorcykel_passager) * 110 + ligningslov_positivt_beløb(input.broer.storebælt_kollektiv_passager) * 15 + ligningslov_positivt_beløb(input.broer.øresund_bil_motorcykel_passager) * 50 + ligningslov_positivt_beløb(input.broer.øresund_kollektiv_passager) * 8 under ll9c_bropassagefradrag_berettiget(input) && input.broer.dokumenteret_og_afholdt_af_skattepligtige == Sandt
 | ll9c_grundfradrag_før_lavindkomsttillæg_kroner(input: Ligningslov9CInput) -> ll9c_afstandsfradrag_kroner(input) + ll9c_særlig_transportfradrag_kroner(input) + ll9c_brofradrag_kroner(input)
 | ll9c_lavindkomst_overskydende_indkomst_kroner(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(input.aftrapningsindkomst_kroner - ll9c_satser_for(input.skatteår).lavindkomst_indkomstgrænse_kroner)
 | ll9c_lavindkomst_aftrapningstrin_1000(input: Ligningslov9CInput) -> ll9c_lavindkomst_overskydende_indkomst_kroner(input) / 1000
 | ll9c_lavindkomst_tillæg_basispoint_efter_aftrapning(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(ll9c_satser_for(input.skatteår).lavindkomst_tillæg_basispoint - ll9c_lavindkomst_aftrapningstrin_1000(input) * ll9c_satser_for(input.skatteår).lavindkomst_aftrapning_basispoint_pr_1000)
 | ll9c_lavindkomst_maks_basispoint_efter_aftrapning(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(10000 - ll9c_lavindkomst_aftrapningstrin_1000(input) * 200)
 | ll9c_lavindkomst_maks_efter_aftrapning_kroner(input: Ligningslov9CInput) -> penge_beløb_gange_basispoint_kroner(ll9c_satser_for(input.skatteår).lavindkomst_maks_kroner, ll9c_lavindkomst_maks_basispoint_efter_aftrapning(input))
-| ll9c_lavindkomst_tillæg_kroner(input: Ligningslov9CInput) -> ligningslov_mindste_beløb(penge_beløb_gange_basispoint_kroner(ll9c_grundfradrag_før_lavindkomsttillæg_kroner(input), ll9c_lavindkomst_tillæg_basispoint_efter_aftrapning(input)), ll9c_lavindkomst_maks_efter_aftrapning_kroner(input))
+| ll9c_lavindkomst_tillæg_kroner(input: Ligningslov9CInput) -> 0
+| exception ll9c_ordinært_lavindkomsttillæg ll9c_lavindkomst_tillæg_kroner(input: Ligningslov9CInput) -> ligningslov_mindste_beløb(penge_beløb_gange_basispoint_kroner(ll9c_grundfradrag_før_lavindkomsttillæg_kroner(input), ll9c_lavindkomst_tillæg_basispoint_efter_aftrapning(input)), ll9c_lavindkomst_maks_efter_aftrapning_kroner(input)) under ll9c_ordinært_befordringsfradrag_berettiget(input)
 | ll9c_fri_befordring_skattepligtig_værdi_kroner(input: Ligningslov9CInput) -> 0
 | exception ll9c_fri_befordring_medregnes_som_værdi ll9c_fri_befordring_skattepligtig_værdi_kroner(input: Ligningslov9CInput) -> ll9c_afstandsfradrag_kroner(input) under ll9c_arbejdsplads_befordringsfradrag_berettiget(input) && input.fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen == Sandt
 | ll9c_befordringsfradrag_resultat(input: Ligningslov9CInput) -> Ligningslov9CResultat(
@@ -594,6 +598,27 @@ Kilde: https://info.skat.dk/data.aspx?oid=2061747
     broer = ll9c_ingen_bropassager(),
     særlig_transport = ll9c_ingen_særlig_transport()
 ))
+= ll9c_2026_arbejdsplads_par9d_bro_resultat = ll9c_befordringsfradrag_resultat(Ligningslov9CInput(
+    skatteår = 2026,
+    arbejdsdage = 203,
+    daglige_befordringskilometer = 60,
+    bopæl_i_yderkommune_eller_lille_ø = Falskt,
+    aftrapningsindkomst_kroner = 300000,
+    befordringsformål = IndtægtsgivendeArbejdsplads,
+    modtaget_skattefri_befordringsgodtgørelse_for_strækning = Falskt,
+    modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = Falskt,
+    par9d = ll9d_arbejdsplads_funktionsevne_resultat,
+    fradrag_udelukket_folketingshverv_m_v = Falskt,
+    fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen = Falskt,
+    broer = Ligningslov9CBroPassager(
+        storebælt_bil_motorcykel_passager = 10,
+        storebælt_kollektiv_passager = 0,
+        øresund_bil_motorcykel_passager = 0,
+        øresund_kollektiv_passager = 0,
+        dokumenteret_og_afholdt_af_skattepligtige = Sandt
+    ),
+    særlig_transport = ll9c_ingen_særlig_transport()
+))
 = ll9c_2026_su_par9d_afskærer_resultat = ll9c_befordringsfradrag_resultat(Ligningslov9CInput(
     skatteår = 2026,
     arbejdsdage = 203,
@@ -624,6 +649,7 @@ Kilde: https://info.skat.dk/data.aspx?oid=2061747
 | ll9d_su_funktionsevne_fradrag: ll9d_su_funktionsevne_resultat -> ll9d_su_funktionsevne_resultat.omfattet_af_par9d == Sandt && ll9d_su_funktionsevne_resultat.afskærer_par9c_stk10 == Sandt && ll9d_su_funktionsevne_resultat.satskilde == Ll9dSkatteraadetBek1333Af2025Par1Par4 && ll9d_su_funktionsevne_resultat.normal_befordringsudgift_kroner == 13680 && ll9d_su_funktionsevne_resultat.normal_befordringsudgift_over_2000_kroner == 11680 && ll9d_su_funktionsevne_resultat.faktisk_befordringsudgift_kroner == 23640 && ll9d_su_funktionsevne_resultat.faktisk_udgift_over_normal_kroner == 9960 && ll9d_su_funktionsevne_resultat.fradrag_kroner == 21640
 | ll9d_egen_bil_25000km_fradrag: ll9d_egen_bil_25000km_resultat -> ll9d_egen_bil_25000km_resultat.satskilde == Ll9dSkatteraadetBek1333Af2025Par1Par4 && ll9d_egen_bil_25000km_resultat.normal_befordringsudgift_kroner == 57000 && ll9d_egen_bil_25000km_resultat.normal_befordringsudgift_over_2000_kroner == 55000 && ll9d_egen_bil_25000km_resultat.faktisk_befordringsudgift_kroner == 90200 && ll9d_egen_bil_25000km_resultat.faktisk_udgift_over_normal_kroner == 33200 && ll9d_egen_bil_25000km_resultat.fradrag_kroner == 88200
 | ll9c_2026_arbejdsplads_par9d_afskærer_fradrag: ll9c_2026_arbejdsplads_par9d_afskærer_resultat -> ll9c_2026_arbejdsplads_par9d_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_arbejdsplads_par9d_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
+| ll9c_2026_arbejdsplads_par9d_bevarer_brofradrag: ll9c_2026_arbejdsplads_par9d_bro_resultat -> ll9c_2026_arbejdsplads_par9d_bro_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_arbejdsplads_par9d_bro_resultat.afstandsfradrag_kroner == 0 && ll9c_2026_arbejdsplads_par9d_bro_resultat.brofradrag_kroner == 1100 && ll9c_2026_arbejdsplads_par9d_bro_resultat.lavindkomst_tillæg_kroner == 0 && ll9c_2026_arbejdsplads_par9d_bro_resultat.samlet_befordringsfradrag_kroner == 1100
 | ll9c_2026_su_par9d_afskærer_fradrag: ll9c_2026_su_par9d_afskærer_resultat -> ll9c_2026_su_par9d_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_su_par9d_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
 
 ----
