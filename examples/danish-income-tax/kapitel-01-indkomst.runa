@@ -35,6 +35,11 @@
     hentet_dato = "2026-07-18"
 )
 
+= personskatteloven_par3_nr3_par4a_henvisning_advarsel = PersonskattelovKildeAdvarsel(
+    kode = "PSL-PAR3-NR3-PAR4A-STK",
+    besked = "Personskattelovens § 3, stk. 2, nr. 3, henviser fortsat til § 4 a, stk. 3. Den operative regel om, at pensionsfradrag i aktieindkomst ikke også kan fradrages i personlig indkomst, står i den gældende § 4 a, stk. 4. Reglerne anvender stk. 4's udtrykkelige dobbeltfradragsforbud."
+)
+
 = personskatteloven_par3_nr9_dynamisk_henvisning_advarsel = PersonskattelovKildeAdvarsel(
     kode = "PSL-PAR3-NR9-LL8O-2026",
     besked = "Personskattelovens § 3, stk. 2, nr. 9, bruger fortsat ordet kontanthjælp, mens den dynamiske henvisning til ligningslovens § 8 O fra 2026 omfatter en bredere kreds af skattepligtige offentlige ydelser. Reglerne følger henvisningens aktuelle omfang."
@@ -103,7 +108,7 @@ indkomst, kapitalindkomst, aktieindkomst og CFC-indkomst.
 | par2_cfc_særskilt: par2_cfc -> par2_cfc == Sandt
 | par2_almindelig_er_basis: par2_almindelig -> par2_almindelig == Falskt
 
---@label:personskatteloven_par3::source:personskatteloven_lbk1284_par3::warning:personskatteloven_par3_nr9_dynamisk_henvisning_advarsel--
+--@label:personskatteloven_par3::source:personskatteloven_lbk1284_par3::warning:personskatteloven_par3_nr3_par4a_henvisning_advarsel::warning:personskatteloven_par3_nr9_dynamisk_henvisning_advarsel--
 ----
 § 3. Personlig indkomst omfatter alle de indkomster, der indgår i den
 skattepligtige indkomst, og som ikke er kapitalindkomst.
@@ -142,6 +147,10 @@ iværksætterkonto
 # Par3PersonligIndkomstResultat(brutto_personlig_indkomst_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, netto_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr1UdgiftInput(afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning, beløb_kroner: Heltal)
 # Par3Stk2Nr1UdgiftResultat(fradragsberettiget_i_personlig_indkomst: Boolsk, fradrag_kroner: Heltal, afskåret_til_anden_regel_kroner: Heltal)
+# Par3Stk2Nr3Grundlag = Par3Nr3Pbl18(resultat: Pbl18Resultat) | Par3Nr3Pbl52(resultat: Pbl52Resultat)
+# Par3Stk2Nr3Hjemmel = Par3Nr3Pensionsbeskatningslov18 | Par3Nr3Pensionsbeskatningslov52
+# Par3Stk2Nr3Input(grundlag: Par3Stk2Nr3Grundlag, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat)
+# Par3Stk2Nr3Resultat(hjemmel: Par3Stk2Nr3Hjemmel, brutto_fradrag_efter_pensionsbeskatningsloven_kroner: Heltal, fradrag_i_aktieindkomst_kroner: Heltal, dobbeltfradrag_afskåret_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr6Input(ligningslov8m_resultat: Ligningslov8MResultat)
 # Par3Stk2Nr6Resultat(arbejdsmarkedsbidrag_fradrag_kroner: Heltal, udenlandsk_socialt_bidrag_fradrag_kroner: Heltal, udenlandsk_arbejdsgiverbidrag_fradrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr7Hjemmel = Par3Stk2Nr7Virksomhedsskattelov22B | Par3Stk2Nr7Virksomhedsskattelov22D
@@ -175,6 +184,41 @@ iværksætterkonto
 }
 | par3_stk2_nr1_udgift_sag(input: Par3Stk2Nr1UdgiftInput) -> Par3Stk2Nr1UdgiftSag(input)
 | par3_stk2_nr1_udgift_resultat(input: Par3Stk2Nr1UdgiftInput) -> par3_stk2_nr1_udgift_sag(input).resultat()
+
+| par3_stk2_nr3_hjemmel(grundlag: Par3Stk2Nr3Grundlag) -> match grundlag {
+    | Par3Nr3Pbl18(_) -> Par3Nr3Pensionsbeskatningslov18
+    | Par3Nr3Pbl52(_) -> Par3Nr3Pensionsbeskatningslov52
+}
+| par3_stk2_nr3_brutto_fradrag_kroner(grundlag: Par3Stk2Nr3Grundlag) -> match grundlag {
+    | Par3Nr3Pbl18(resultat) -> resultat.fradrag_i_skattepligtig_indkomst_kroner
+    | Par3Nr3Pbl52(resultat) -> resultat.arbejdsgiverfradrag_i_skattepligtig_indkomst_kroner
+}
+| par3_stk2_nr3_par15a_ordning(grundlag: Par3Stk2Nr3Grundlag) -> match grundlag {
+    | Par3Nr3Pbl18(resultat) -> resultat.ordning == Pbl18Par15ALøbendeUdbetaling || resultat.ordning == Pbl18Par15ARateordning
+    | Par3Nr3Pbl52(_) -> Falskt
+}
+| par3_stk2_nr3_fradrag_i_aktieindkomst_kroner(input: Par3Stk2Nr3Input) -> 0
+| exception par4a_stk4_par15a_fradrag par3_stk2_nr3_fradrag_i_aktieindkomst_kroner(input: Par3Stk2Nr3Input) -> penge_positivt_beløb(input.aktiepensionsfradrag_resultat.fradrag_i_aktieindkomst_kroner) under par3_stk2_nr3_par15a_ordning(input.grundlag)
+| par3_stk2_nr3_dobbeltfradrag_afskåret_kroner(input: Par3Stk2Nr3Input) -> penge_mindste_beløb(penge_positivt_beløb(par3_stk2_nr3_brutto_fradrag_kroner(input.grundlag)), par3_stk2_nr3_fradrag_i_aktieindkomst_kroner(input))
+| par3_stk2_nr3_fradrag_i_personlig_indkomst_kroner(input: Par3Stk2Nr3Input) -> penge_positivt_beløb(par3_stk2_nr3_brutto_fradrag_kroner(input.grundlag) - par3_stk2_nr3_dobbeltfradrag_afskåret_kroner(input))
+# Par3Stk2Nr3Sag(input: Par3Stk2Nr3Input) {
+    | brutto_fradrag_kroner() -> par3_stk2_nr3_brutto_fradrag_kroner(input.grundlag)
+    | dobbeltfradrag_afskåret_kroner() -> par3_stk2_nr3_dobbeltfradrag_afskåret_kroner(input)
+    | resultat() -> Par3Stk2Nr3Resultat(
+        hjemmel = par3_stk2_nr3_hjemmel(input.grundlag),
+        brutto_fradrag_efter_pensionsbeskatningsloven_kroner = brutto_fradrag_kroner(),
+        fradrag_i_aktieindkomst_kroner = par3_stk2_nr3_fradrag_i_aktieindkomst_kroner(input),
+        dobbeltfradrag_afskåret_kroner = dobbeltfradrag_afskåret_kroner(),
+        fradrag_i_personlig_indkomst_kroner = par3_stk2_nr3_fradrag_i_personlig_indkomst_kroner(input)
+    )
+}
+| par3_stk2_nr3_sag(input: Par3Stk2Nr3Input) -> Par3Stk2Nr3Sag(input)
+| par3_stk2_nr3_resultat(input: Par3Stk2Nr3Input) -> par3_stk2_nr3_sag(input).resultat()
+| par3_stk2_nr3_fradragspost(input: Par3Stk2Nr3Input) -> Par3Fradragspost(
+    art = PensionsbidragOgPræmier,
+    stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
+    beløb_kroner = par3_stk2_nr3_resultat(input).fradrag_i_personlig_indkomst_kroner
+)
 
 # Par3Stk2Nr6Sag(input: Par3Stk2Nr6Input) {
     | arbejdsmarkedsbidrag_fradrag_kroner() -> input.ligningslov8m_resultat.arbejdsmarkedsbidrag_fradrag_kroner
@@ -1915,17 +1959,18 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 # AktiepostStk1Og2Afgrænsning = AktiepostOmfattetAfStk1 | AktiepostUdenforStk1 | AktiepostUndtagetAktieavance19C | AktiepostUndtagetLigningslov16AStk5 | AktiepostUndtagetMedarbejderinvesteringsselskab
 # AktieTilPersonligUndtagelse = IngenAktieTilPersonligUndtagelse | Aktieavance19BHvis17
 # AktiePensionsFradragPersonligStatus = IkkeFradragetIPersonligIndkomst | FradragetIPersonligIndkomst
+# AktiePensionsFradragPbl15AGrundlag = IntetPbl15AFradragsgrundlag | Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner: Heltal)
 # AktiePensionsFradragValgInput(indkomstår: Heltal, ønsket_fradrag_kroner: Heltal, meddelelse_dato_yyyymmdd: Heltal, omgørelse_dato_yyyymmdd: Heltal, personlig_indkomst_status: AktiePensionsFradragPersonligStatus)
 # AktiePensionsFradragValgResultat(indkomstår: Heltal, ønsket_fradrag_kroner: Heltal, meddelelse_givet: Boolsk, meddelelse_indeholder_fradragsstørrelse: Boolsk, omgørelsesfrist_yyyymmdd: Heltal, rettidig_omgørelse: Boolsk, fradragsvalg_gældende: Boolsk, personlig_indkomst_status: AktiePensionsFradragPersonligStatus, ikke_fradraget_i_personlig_indkomst: Boolsk)
-# AktiePensionsFradragInput(aktieindkomst_efter_stk1_og_2_kroner: Heltal, valg_resultat: AktiePensionsFradragValgResultat)
-# AktiePensionsFradragResultat(fradrag_i_aktieindkomst_kroner: Heltal, aktieindkomst_efter_fradrag_kroner: Heltal, afskåret_fradrag_kroner: Heltal, omgørelsesfrist_yyyymmdd: Heltal, fradragsvalg_gældende: Boolsk, dobbeltfradrag_afskåret: Boolsk)
+# AktiePensionsFradragInput(aktieindkomst_efter_stk1_og_2_kroner: Heltal, pbl15a_grundlag: AktiePensionsFradragPbl15AGrundlag, valg_resultat: AktiePensionsFradragValgResultat)
+# AktiePensionsFradragResultat(pbl15a_fradragsramme_kroner: Heltal, fradrag_i_aktieindkomst_kroner: Heltal, aktieindkomst_efter_fradrag_kroner: Heltal, afskåret_fradrag_kroner: Heltal, omgørelsesfrist_yyyymmdd: Heltal, fradragsvalg_gældende: Boolsk, dobbeltfradrag_afskåret: Boolsk)
 # Par4aAktiepost(art: Aktiepost, beløb_kroner: Heltal, afgrænsning: AktiepostStk1Og2Afgrænsning, personlig_reklassifikation: AktieTilPersonligUndtagelse)
 # Par4aAktiepostResultat(art: Aktiepost, beløb_kroner: Heltal, afgrænsning: AktiepostStk1Og2Afgrænsning, personlig_reklassifikation: AktieTilPersonligUndtagelse, medregnes_i_aktieindkomst: Boolsk, aktieindkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, udenfor_aktieindkomst_kroner: Heltal)
 # Par4aAktieavancebeskatningslovInput(aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 # Par4aAktieavancebeskatningslovResultat(effektiv_aktiv: AktieavancebeskatningslovAktiv, personskattelov_kategori: AktieavancebeskatningslovPslKategori, beløb_kroner: Heltal, afgrænsning: AktiepostStk1Og2Afgrænsning, personlig_reklassifikation: AktieTilPersonligUndtagelse, aktieindkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal)
 # Par4aLigningslov7NInput(ligningslov7n_resultat: Ligningslov7NResultat)
 # Par4aLigningslov7NResultat(postart: Ligningslov7NPostart, beløb_kroner: Heltal, afgrænsning: AktiepostStk1Og2Afgrænsning, aktieindkomst_kroner: Heltal)
-# Par4aAktieindkomstInput(poster: List(Par4aAktiepost), pensionsfradrag_valg_resultat: AktiePensionsFradragValgResultat)
+# Par4aAktieindkomstInput(poster: List(Par4aAktiepost), pbl15a_grundlag: AktiePensionsFradragPbl15AGrundlag, pensionsfradrag_valg_resultat: AktiePensionsFradragValgResultat)
 # Par4aAktieindkomstResultat(aktieindkomst_efter_stk1_og_2_kroner: Heltal, pensionsfradrag_i_aktieindkomst_kroner: Heltal, aktieindkomst_efter_pensionsfradrag_kroner: Heltal, omklassificeret_personlig_indkomst_kroner: Heltal, aktieindkomst_indgår_i_skattepligtig_indkomst: Boolsk)
 
 | aktieindkomst_omfatter(post: Aktiepost) -> Sandt
@@ -1962,6 +2007,7 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 | par4a_omklassificeret_personlig_indkomst_kroner(input: Par4aAktieindkomstInput) -> foldl(input.poster, 0, |sum, post| sum + par4a_aktiepost_i_personlig_indkomst_kroner(post))
 | par4a_pensionsfradrag_input_fra_aktieindkomst(input: Par4aAktieindkomstInput) -> AktiePensionsFradragInput(
     aktieindkomst_efter_stk1_og_2_kroner = par4a_aktieindkomst_efter_stk1_og_2_kroner(input),
+    pbl15a_grundlag = input.pbl15a_grundlag,
     valg_resultat = input.pensionsfradrag_valg_resultat
 )
 | par4a_aktieindkomst_resultat(input: Par4aAktieindkomstInput) -> Par4aAktieindkomstResultat(
@@ -2068,19 +2114,30 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
     personlig_indkomst_status = IkkeFradragetIPersonligIndkomst
 ))
 
+| par4a_pbl15a_grundlag_fra_pbl18(resultat: Pbl18Resultat) -> IntetPbl15AFradragsgrundlag
+| exception pbl18_par15a_ordning par4a_pbl15a_grundlag_fra_pbl18(resultat: Pbl18Resultat) -> Pbl15AFradragsgrundlag(
+    fradragsberettigede_bidrag_kroner = resultat.fradrag_i_skattepligtig_indkomst_kroner
+) under resultat.ordning == Pbl18Par15ALøbendeUdbetaling || resultat.ordning == Pbl18Par15ARateordning
+
 # Par4aPensionsfradragSag(input: AktiePensionsFradragInput) {
     | positiv_aktieindkomst_kroner() -> penge_positivt_beløb(input.aktieindkomst_efter_stk1_og_2_kroner)
     | ønsket_fradrag_kroner() -> input.valg_resultat.ønsket_fradrag_kroner
+    | pbl15a_fradragsramme_kroner() -> match input.pbl15a_grundlag {
+        | IntetPbl15AFradragsgrundlag -> 0
+        | Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner) -> penge_positivt_beløb(fradragsberettigede_bidrag_kroner)
+    }
     | har_positiv_aktieindkomst() -> positiv_aktieindkomst_kroner() > 0
+    | har_pbl15a_fradragsgrundlag() -> pbl15a_fradragsramme_kroner() > 0
     | meddelelse_givet() -> input.valg_resultat.meddelelse_givet
     | ikke_fradraget_personligt() -> input.valg_resultat.ikke_fradraget_i_personlig_indkomst
-    | betingelser_opfyldt() -> har_positiv_aktieindkomst() && input.valg_resultat.fradragsvalg_gældende && ikke_fradraget_personligt()
+    | betingelser_opfyldt() -> har_positiv_aktieindkomst() && har_pbl15a_fradragsgrundlag() && input.valg_resultat.fradragsvalg_gældende && ikke_fradraget_personligt()
     | fradrag_i_aktieindkomst_kroner() -> 0
-    | exception pension_betingelser_opfyldt fradrag_i_aktieindkomst_kroner() -> penge_mindste_beløb(ønsket_fradrag_kroner(), positiv_aktieindkomst_kroner()) under betingelser_opfyldt()
+    | exception pension_betingelser_opfyldt fradrag_i_aktieindkomst_kroner() -> penge_mindste_beløb(penge_mindste_beløb(ønsket_fradrag_kroner(), positiv_aktieindkomst_kroner()), pbl15a_fradragsramme_kroner()) under betingelser_opfyldt()
     | aktieindkomst_efter_fradrag_kroner() -> input.aktieindkomst_efter_stk1_og_2_kroner - fradrag_i_aktieindkomst_kroner()
     | afskåret_fradrag_kroner() -> ønsket_fradrag_kroner() - fradrag_i_aktieindkomst_kroner()
     | dobbeltfradrag_afskåret() -> input.valg_resultat.personlig_indkomst_status == FradragetIPersonligIndkomst && ønsket_fradrag_kroner() > 0
     | resultat() -> AktiePensionsFradragResultat(
+        pbl15a_fradragsramme_kroner = pbl15a_fradragsramme_kroner(),
         fradrag_i_aktieindkomst_kroner = fradrag_i_aktieindkomst_kroner(),
         aktieindkomst_efter_fradrag_kroner = aktieindkomst_efter_fradrag_kroner(),
         afskåret_fradrag_kroner = afskåret_fradrag_kroner(),
@@ -2131,12 +2188,14 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
         par4a_aktiepost_fra_aktieavancebeskatningslov(abl19b_hvis17_input),
         Par4aAktiepost(art = InvesteringsformidlerAktieBeløb, beløb_kroner = 4000, afgrænsning = AktiepostUndtagetAktieavance19C, personlig_reklassifikation = IngenAktieTilPersonligUndtagelse)
     ],
+    pbl15a_grundlag = Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner = 20000),
     pensionsfradrag_valg_resultat = par4a_pension_valg_ok
 ))
 = par4a_negativ_aktieindkomst_fixture = par4a_aktieindkomst_resultat(Par4aAktieindkomstInput(
     poster = [
         Par4aAktiepost(art = AktieFortjenesteTab, beløb_kroner = -12000, afgrænsning = AktiepostOmfattetAfStk1, personlig_reklassifikation = IngenAktieTilPersonligUndtagelse)
     ],
+    pbl15a_grundlag = Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner = 5000),
     pensionsfradrag_valg_resultat = par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
         indkomstår = 2026,
         ønsket_fradrag_kroner = 5000,

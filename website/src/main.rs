@@ -3401,7 +3401,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Status" }
                             strong { "Beregningsegnet, men ikke færdig" }
-                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse er eksekverbare. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
+                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse er eksekverbare. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Form" }
@@ -3507,6 +3507,10 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/198", "LOV nr. 198/2025" }
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/1333", "BEK nr. 1333/2025" }
+                        " · Pensionsbeskatningsloven: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2024/1243", "LBK nr. 1243/2024" }
+                        " / "
+                        a { href: "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/pensionsbeskatningsloven", "Skatteministeriets beløbsgrænser" }
                         " · historisk linje: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
                     }

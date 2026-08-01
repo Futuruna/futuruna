@@ -15,12 +15,13 @@ The source text is copied verbatim in kapitel-01-indkomst.runa. This audit keeps
 the executable amount probes out of the source-law sequence.
 ----
 
-# Par4aPensionAuditSignal = FradragLoftesTilPositivAktieindkomst | MeddelelseKravAfskærerFradrag | DobbeltFradragAfskæres | IkkePositivAktieindkomstAfskærerFradrag | RettidigOmgørelseOphæverFradrag
+# Par4aPensionAuditSignal = FradragLoftesTilPositivAktieindkomst | Pbl15AFradragsrammeBegrænser | MeddelelseKravAfskærerFradrag | DobbeltFradragAfskæres | IkkePositivAktieindkomstAfskærerFradrag | RettidigOmgørelseOphæverFradrag
 
 | par4a_pension_audit_signal(signal: Par4aPensionAuditSignal) -> Sandt
 
 = audit_par4a_pension_loftet_input = AktiePensionsFradragInput(
     aktieindkomst_efter_stk1_og_2_kroner = 80000,
+    pbl15a_grundlag = Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner = 120000),
     valg_resultat = par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
         indkomstår = 2026,
         ønsket_fradrag_kroner = 120000,
@@ -31,8 +32,22 @@ the executable amount probes out of the source-law sequence.
 )
 = audit_par4a_pension_loftet_resultat = par4a_pensionsfradrag_resultat(audit_par4a_pension_loftet_input)
 
+= audit_par4a_pension_pbl15a_loftet_input = AktiePensionsFradragInput(
+    aktieindkomst_efter_stk1_og_2_kroner = 80000,
+    pbl15a_grundlag = Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner = 20000),
+    valg_resultat = par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
+        indkomstår = 2026,
+        ønsket_fradrag_kroner = 50000,
+        meddelelse_dato_yyyymmdd = 20270501,
+        omgørelse_dato_yyyymmdd = 0,
+        personlig_indkomst_status = IkkeFradragetIPersonligIndkomst
+    ))
+)
+= audit_par4a_pension_pbl15a_loftet_resultat = par4a_pensionsfradrag_resultat(audit_par4a_pension_pbl15a_loftet_input)
+
 = audit_par4a_pension_uden_meddelelse_input = AktiePensionsFradragInput(
     aktieindkomst_efter_stk1_og_2_kroner = 80000,
+    pbl15a_grundlag = Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner = 50000),
     valg_resultat = par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
         indkomstår = 2026,
         ønsket_fradrag_kroner = 50000,
@@ -45,6 +60,7 @@ the executable amount probes out of the source-law sequence.
 
 = audit_par4a_pension_dobbeltfradrag_input = AktiePensionsFradragInput(
     aktieindkomst_efter_stk1_og_2_kroner = 80000,
+    pbl15a_grundlag = Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner = 50000),
     valg_resultat = par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
         indkomstår = 2026,
         ønsket_fradrag_kroner = 50000,
@@ -57,6 +73,7 @@ the executable amount probes out of the source-law sequence.
 
 = audit_par4a_pension_negativ_aktieindkomst_input = AktiePensionsFradragInput(
     aktieindkomst_efter_stk1_og_2_kroner = -10000,
+    pbl15a_grundlag = Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner = 50000),
     valg_resultat = par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
         indkomstår = 2026,
         ønsket_fradrag_kroner = 50000,
@@ -69,6 +86,7 @@ the executable amount probes out of the source-law sequence.
 
 = audit_par4a_pension_rettidig_omgørelse_input = AktiePensionsFradragInput(
     aktieindkomst_efter_stk1_og_2_kroner = 80000,
+    pbl15a_grundlag = Pbl15AFradragsgrundlag(fradragsberettigede_bidrag_kroner = 50000),
     valg_resultat = par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
         indkomstår = 2026,
         ønsket_fradrag_kroner = 50000,
@@ -82,6 +100,9 @@ the executable amount probes out of the source-law sequence.
 | audit_par4a_pension_fradrag_loftes_til_aktieindkomst: audit_par4a_pension_loftet_resultat -> audit_par4a_pension_loftet_resultat.fradrag_i_aktieindkomst_kroner == 80000 && audit_par4a_pension_loftet_resultat.aktieindkomst_efter_fradrag_kroner == 0 && audit_par4a_pension_loftet_resultat.afskåret_fradrag_kroner == 40000 && audit_par4a_pension_loftet_resultat.omgørelsesfrist_yyyymmdd == 20280630
 | audit_par4a_pension_loft_signal: par4a_pension_audit_signal(FradragLoftesTilPositivAktieindkomst) -> par4a_pension_audit_signal(FradragLoftesTilPositivAktieindkomst) == Sandt
 
+| audit_par4a_pension_pbl15a_fradragsramme_begrænser: audit_par4a_pension_pbl15a_loftet_resultat -> audit_par4a_pension_pbl15a_loftet_resultat.pbl15a_fradragsramme_kroner == 20000 && audit_par4a_pension_pbl15a_loftet_resultat.fradrag_i_aktieindkomst_kroner == 20000 && audit_par4a_pension_pbl15a_loftet_resultat.aktieindkomst_efter_fradrag_kroner == 60000 && audit_par4a_pension_pbl15a_loftet_resultat.afskåret_fradrag_kroner == 30000
+| audit_par4a_pension_pbl15a_fradragsramme_signal: par4a_pension_audit_signal(Pbl15AFradragsrammeBegrænser) -> par4a_pension_audit_signal(Pbl15AFradragsrammeBegrænser) == Sandt
+
 | audit_par4a_pension_meddelelse_kræves: audit_par4a_pension_uden_meddelelse_resultat -> audit_par4a_pension_uden_meddelelse_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_uden_meddelelse_resultat.afskåret_fradrag_kroner == 50000
 | audit_par4a_pension_meddelelse_signal: par4a_pension_audit_signal(MeddelelseKravAfskærerFradrag) -> par4a_pension_audit_signal(MeddelelseKravAfskærerFradrag) == Sandt
 
@@ -94,10 +115,12 @@ the executable amount probes out of the source-law sequence.
 | audit_par4a_pension_rettidig_omgørelse_ophæver_valg: audit_par4a_pension_rettidig_omgørelse_resultat -> audit_par4a_pension_rettidig_omgørelse_resultat.fradragsvalg_gældende == Falskt && audit_par4a_pension_rettidig_omgørelse_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_rettidig_omgørelse_resultat.afskåret_fradrag_kroner == 50000
 | audit_par4a_pension_rettidig_omgørelse_signal: par4a_pension_audit_signal(RettidigOmgørelseOphæverFradrag) -> par4a_pension_audit_signal(RettidigOmgørelseOphæverFradrag) == Sandt
 
-| audit_par4a_pensionsfradrag_samlet() -> audit_par4a_pension_loftet_resultat.fradrag_i_aktieindkomst_kroner == 80000 && audit_par4a_pension_uden_meddelelse_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_dobbeltfradrag_resultat.dobbeltfradrag_afskåret == Sandt && audit_par4a_pension_negativ_aktieindkomst_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_rettidig_omgørelse_resultat.fradragsvalg_gældende == Falskt
+| audit_par4a_pensionsfradrag_samlet() -> audit_par4a_pension_loftet_resultat.fradrag_i_aktieindkomst_kroner == 80000 && audit_par4a_pension_pbl15a_loftet_resultat.fradrag_i_aktieindkomst_kroner == 20000 && audit_par4a_pension_uden_meddelelse_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_dobbeltfradrag_resultat.dobbeltfradrag_afskåret == Sandt && audit_par4a_pension_negativ_aktieindkomst_resultat.fradrag_i_aktieindkomst_kroner == 0 && audit_par4a_pension_rettidig_omgørelse_resultat.fradragsvalg_gældende == Falskt
 
 ? audit_par4a_pension_fradrag_loftes_til_aktieindkomst
 ? audit_par4a_pension_loft_signal
+? audit_par4a_pension_pbl15a_fradragsramme_begrænser
+? audit_par4a_pension_pbl15a_fradragsramme_signal
 ? audit_par4a_pension_meddelelse_kræves
 ? audit_par4a_pension_meddelelse_signal
 ? audit_par4a_pension_dobbeltfradrag_afskæres
@@ -109,6 +132,7 @@ the executable amount probes out of the source-law sequence.
 ? audit_par4a_pensionsfradrag_samlet
 
 @ print("audit §4a pensionsfradrag loftet til aktieindkomst: " + vis(audit_par4a_pension_loftet_resultat.fradrag_i_aktieindkomst_kroner))
+@ print("audit §4a pensionsfradrag loftet til PBL §15 A-grundlag: " + vis(audit_par4a_pension_pbl15a_loftet_resultat.fradrag_i_aktieindkomst_kroner))
 @ print("audit §4a pensionsfradrag afskåret ved manglende meddelelse: " + vis(audit_par4a_pension_uden_meddelelse_resultat.afskåret_fradrag_kroner))
 @ print("audit §4a dobbeltfradrag afskåret: " + vis(audit_par4a_pension_dobbeltfradrag_resultat.dobbeltfradrag_afskåret))
 @ print("audit §4a rettidig omgørelse ophæver fradragsvalg: " + vis(audit_par4a_pension_rettidig_omgørelse_resultat.fradragsvalg_gældende))

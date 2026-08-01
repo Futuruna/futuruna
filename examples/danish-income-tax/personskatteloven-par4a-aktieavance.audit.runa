@@ -13,6 +13,7 @@
         par4a_aktiepost_fra_aktieavancebeskatningslov(abl19b_hvis17_input),
         par4a_aktiepost_fra_aktieavancebeskatningslov(abl19c_kapital_input)
     ],
+    pbl15a_grundlag = IntetPbl15AFradragsgrundlag,
     pensionsfradrag_valg_resultat = par4a_intet_pensionsfradrag_valg(2026)
 ))
 

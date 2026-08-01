@@ -31,7 +31,19 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Ligningsloven § 9 B er nu en kildebaseret regelkaskade for
+Latest integration: Pensionsbeskatningsloven §§ 16, 18 og 52 er nu ført gennem
+en typet § 3, stk. 2, nr. 3-regelkaskade. § 16 leverer de regulerede brutto-
+lofter, mens § 18 selv anvender arbejdsgiverreduktionen efter stk. 2,
+tiårsfordeling, opfyldningsfradrag, selvstændiges 30 pct.-valg,
+forfalds-/betalingsår, højst seks indekskontrakter og lovens fradragsafskæringer.
+§ 52 kræver tilladt modtagerkreds, rent fondsformål, korrekt placering og
+medarbejdervalgt bestyrelsesmedlem. § 3-bridgen modtager det eksisterende typede
+§ 4 a-pensionsfradragsresultat og afskærer kun dobbeltfradrag for § 15 A-
+ordninger. Den fokuserede scenario-fil validerer 16 betingelser og fører et
+80.000 kr. § 15 A-fradrag til 20.000 kr. aktieindkomst og 60.000 kr. personlig
+indkomst uden overlap.
+
+Previous integration: Ligningsloven § 9 B er nu en kildebaseret regelkaskade for
 60-dages-reglen, ny periode efter 60 sammenhængende arbejdsdage, stk. 3's
 formodning og kørselsregnskabspålæg, kørsel mellem eller inden for
 arbejdspladser, Skatterådets 2026-kilometersatser, kontrol- og bilagskrav,
@@ -47,7 +59,7 @@ Den fokuserede scenario-fil validerer 20 betingelser og en samlet regelkaskade,
 hvor 3.410 kr. § 9 B-fradrag og 30.000 kr. § 8 O-fradrag reducerer 100.000 kr.
 personlig bruttoindkomst til 66.590 kr.
 
-Previous integration: Personskatteloven § 3 modtager nu både typede
+Earlier integration: Personskatteloven § 3 modtager nu både typede
 henlæggelsesresultater og senere indtægtsføringsresultater fra
 Virksomhedsskatteloven §§ 22 b og 22 d. En fælles, ordningsafgrænset
 regelmodel håndterer ældste henlæggelse først, frivillig indtægtsføring,
@@ -1021,8 +1033,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 71-81% complete as an executable research corpus,
-  and roughly 57-67% complete as a production-grade calculator for
+- Working estimate: roughly 72-82% complete as an executable research corpus,
+  and roughly 58-68% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"
@@ -1074,6 +1086,11 @@ Current decision:
   taxable-income base, and ligningsmæssige fradrag in one result; the ordinary
   wage-earner calculator now delegates its taxable-income base to that result
   instead of carrying a local formula.
+- `Pbl18Input` composes payment timing, allocation history, index elections,
+  deduction limits and legal exclusions as named subdomains. The § 3, stk. 2,
+  nr. 3 bridge consumes `Pbl18Resultat` or `Pbl52Resultat` together with the
+  typed § 4 a pension-deduction result, rather than accepting loose pension and
+  share-income amounts that could encode an impossible double deduction.
 - The confiscatory audit work tightened Futuruna's language/runtime support:
   typed `|` rule-head parameters that name a `RuleScope` type now keep that
   receiver type through checking, and named constructors inside nested

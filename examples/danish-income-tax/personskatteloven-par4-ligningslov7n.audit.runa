@@ -59,6 +59,7 @@ vedtægter, og at godkendelsen ikke er tilbagekaldt, jf. stk. 7.
         par4a_aktiepost_fra_ligningslov7n(par4_stk7_ll7n_udbetaling_input),
         par4a_aktiepost_fra_ligningslov7n(par4_stk7_ll7n_tab_input)
     ],
+    pbl15a_grundlag = IntetPbl15AFradragsgrundlag,
     pensionsfradrag_valg_resultat = par4a_intet_pensionsfradrag_valg(2026)
 ))
 

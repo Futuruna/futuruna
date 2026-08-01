@@ -1,0 +1,406 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for Pensionsbeskatningsloven §§ 16, 18 og 52 samt
+-- Personskatteloven § 3, stk. 2, nr. 3. Lovtekst og kildeankre ligger i
+-- pensionsbeskatningsloven.runa og kapitel-01-indkomst.runa.
+
+= pension_intet_selvstændigt_overskud = Pbl18SelvstændigOverskudInput(
+    skattepligtigt_overskud_før_vsl22b_kroner = 0,
+    renteudgifter_kroner = 0,
+    kurstab_kroner = 0,
+    renteindtægter_kroner = 0,
+    udbytteindtægter_kroner = 0,
+    kursgevinster_kroner = 0,
+    udelukkede_afståelsesindkomster_kroner = 0
+)
+
+= pension_selvstændigt_overskud = Pbl18SelvstændigOverskudInput(
+    skattepligtigt_overskud_før_vsl22b_kroner = 300000,
+    renteudgifter_kroner = 20000,
+    kurstab_kroner = 10000,
+    renteindtægter_kroner = 5000,
+    udbytteindtægter_kroner = 15000,
+    kursgevinster_kroner = 10000,
+    udelukkede_afståelsesindkomster_kroner = 0
+)
+
+= pension_ingen_indekskontrakter = Pbl18Indeksvalg(
+    fradragsvalgte_kontraktbidrag_kroner = []
+)
+
+= pension_standardbegrænsninger = Pbl18Begrænsninger(
+    pbl54_personkreds_opfyldt = Sandt,
+    afgiftspligt_for_hele_ordningen_indtrådt = Falskt,
+    udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens = Falskt
+)
+
+= pension_udenlandsk_overførsel = Pbl18Begrænsninger(
+    pbl54_personkreds_opfyldt = Sandt,
+    afgiftspligt_for_hele_ordningen_indtrådt = Falskt,
+    udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens = Sandt
+)
+
+= pension_par16_rate_2026 = pbl16_fradragsloft_resultat(Pbl16FradragsloftInput(
+    indkomstår = 2026,
+    art = Pbl16Rateordning
+))
+
+= pension_par16_kapital_2026 = pbl16_fradragsloft_resultat(Pbl16FradragsloftInput(
+    indkomstår = 2026,
+    art = Pbl16Kapitalordning
+))
+
+= pension_rate_med_arbejdsgiver = pbl18_resultat(Pbl18Input(
+    indkomstår = 2026,
+    ordning = Pbl18Rateopsparing,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Betaling(
+        beløb_kroner = 100000,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsgiverindbetalinger_kroner = 20000,
+        arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 1600
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = pension_ingen_indekskontrakter,
+    fradragsramme = Pbl18Fradragsramme(
+        personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+        forfaldne_ikke_tidligere_fratrukket_kroner = 100000,
+        særligt_ordningsmaksimum_kroner = 0,
+        selvstændig_overskud = pension_intet_selvstændigt_overskud,
+        valg = Pbl18FordeltFradrag
+    ),
+    begrænsninger = pension_standardbegrænsninger
+))
+
+= pension_livrente_opfyldningsfradrag = pbl18_resultat(Pbl18Input(
+    indkomstår = 2026,
+    ordning = Pbl18LivsvarigLivrente,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Betaling(
+        beløb_kroner = 200000,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsgiverindbetalinger_kroner = 0,
+        arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 0
+    ),
+    fordelingsforløb = Pbl18Kapitalindskud(
+        indskudsår = 2026,
+        indskud_kroner = 200000
+    ),
+    indeksvalg = pension_ingen_indekskontrakter,
+    fradragsramme = Pbl18Fradragsramme(
+        personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+        forfaldne_ikke_tidligere_fratrukket_kroner = 200000,
+        særligt_ordningsmaksimum_kroner = 0,
+        selvstændig_overskud = pension_intet_selvstændigt_overskud,
+        valg = Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner = 100000)
+    ),
+    begrænsninger = pension_standardbegrænsninger
+))
+
+= pension_livrente_selvstændig_30_pct = pbl18_resultat(Pbl18Input(
+    indkomstår = 2026,
+    ordning = Pbl18LivsvarigLivrente,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Betaling(
+        beløb_kroner = 200000,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsgiverindbetalinger_kroner = 0,
+        arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 0
+    ),
+    fordelingsforløb = Pbl18Kapitalindskud(
+        indskudsår = 2026,
+        indskud_kroner = 200000
+    ),
+    indeksvalg = pension_ingen_indekskontrakter,
+    fradragsramme = Pbl18Fradragsramme(
+        personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+        forfaldne_ikke_tidligere_fratrukket_kroner = 200000,
+        særligt_ordningsmaksimum_kroner = 0,
+        selvstændig_overskud = pension_selvstændigt_overskud,
+        valg = Pbl18Selvstændig30PctValg
+    ),
+    begrænsninger = pension_standardbegrænsninger
+))
+
+= pension_rettidig_forfaldsbetaling = pbl18_resultat(Pbl18Input(
+    indkomstår = 2025,
+    ordning = Pbl18LivsvarigLivrente,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Betaling(
+        beløb_kroner = 20000,
+        forfaldsår = 2025,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsgiverindbetalinger_kroner = 0,
+        arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = pension_ingen_indekskontrakter,
+    fradragsramme = Pbl18Fradragsramme(
+        personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+        forfaldne_ikke_tidligere_fratrukket_kroner = 20000,
+        særligt_ordningsmaksimum_kroner = 0,
+        selvstændig_overskud = pension_intet_selvstændigt_overskud,
+        valg = Pbl18FordeltFradrag
+    ),
+    begrænsninger = pension_standardbegrænsninger
+))
+
+= pension_sen_betaling = pbl18_resultat(Pbl18Input(
+    indkomstår = 2026,
+    ordning = Pbl18LivsvarigLivrente,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Betaling(
+        beløb_kroner = 20000,
+        forfaldsår = 2025,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Falskt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsgiverindbetalinger_kroner = 0,
+        arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = pension_ingen_indekskontrakter,
+    fradragsramme = Pbl18Fradragsramme(
+        personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+        forfaldne_ikke_tidligere_fratrukket_kroner = 20000,
+        særligt_ordningsmaksimum_kroner = 0,
+        selvstændig_overskud = pension_intet_selvstændigt_overskud,
+        valg = Pbl18FordeltFradrag
+    ),
+    begrænsninger = pension_standardbegrænsninger
+))
+
+= pension_syvende_indekskontrakt_afskåret = pbl18_resultat(Pbl18Input(
+    indkomstår = 2026,
+    ordning = Pbl18Indeksordning,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Betaling(
+        beløb_kroner = 70000,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsgiverindbetalinger_kroner = 0,
+        arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = Pbl18Indeksvalg(
+        fradragsvalgte_kontraktbidrag_kroner = [10000, 10000, 10000, 10000, 10000, 10000, 10000]
+    ),
+    fradragsramme = Pbl18Fradragsramme(
+        personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+        forfaldne_ikke_tidligere_fratrukket_kroner = 70000,
+        særligt_ordningsmaksimum_kroner = 0,
+        selvstændig_overskud = pension_intet_selvstændigt_overskud,
+        valg = Pbl18FordeltFradrag
+    ),
+    begrænsninger = pension_standardbegrænsninger
+))
+
+= pension_aldersopsparing_uden_fradrag = pbl18_resultat(Pbl18Input(
+    indkomstår = 2026,
+    ordning = Pbl18Aldersopsparing,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Betaling(
+        beløb_kroner = 10000,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsgiverindbetalinger_kroner = 0,
+        arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = pension_ingen_indekskontrakter,
+    fradragsramme = Pbl18Fradragsramme(
+        personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+        forfaldne_ikke_tidligere_fratrukket_kroner = 10000,
+        særligt_ordningsmaksimum_kroner = 0,
+        selvstændig_overskud = pension_intet_selvstændigt_overskud,
+        valg = Pbl18FordeltFradrag
+    ),
+    begrænsninger = pension_standardbegrænsninger
+))
+
+= pension_udenlandsk_overførsel_uden_fradrag = pbl18_resultat(Pbl18Input(
+    indkomstår = 2026,
+    ordning = Pbl18LivsvarigLivrente,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Betaling(
+        beløb_kroner = 50000,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsgiverindbetalinger_kroner = 0,
+        arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = pension_ingen_indekskontrakter,
+    fradragsramme = Pbl18Fradragsramme(
+        personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+        forfaldne_ikke_tidligere_fratrukket_kroner = 50000,
+        særligt_ordningsmaksimum_kroner = 0,
+        selvstændig_overskud = pension_intet_selvstændigt_overskud,
+        valg = Pbl18FordeltFradrag
+    ),
+    begrænsninger = pension_udenlandsk_overførsel
+))
+
+= pension_par15a = pbl18_resultat(Pbl18Input(
+    indkomstår = 2026,
+    ordning = Pbl18Par15ARateordning,
+    indbetalingskilde = Pbl18EgenIndbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Betaling(
+        beløb_kroner = 80000,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18Par15AAfståelsesår(
+            fradragsår = 2026,
+            indbetalt_senest_1_juli_efterfølgende = Sandt
+        ),
+        arbejdsgiverindbetalinger_kroner = 0,
+        arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner = 0
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = pension_ingen_indekskontrakter,
+    fradragsramme = Pbl18Fradragsramme(
+        personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+        forfaldne_ikke_tidligere_fratrukket_kroner = 80000,
+        særligt_ordningsmaksimum_kroner = 80000,
+        selvstændig_overskud = pension_intet_selvstændigt_overskud,
+        valg = Pbl18FordeltFradrag
+    ),
+    begrænsninger = pension_standardbegrænsninger
+))
+
+= pension_aktiefradragsvalg = par4a_pensionsfradrag_valg_resultat(AktiePensionsFradragValgInput(
+    indkomstår = 2026,
+    ønsket_fradrag_kroner = 20000,
+    meddelelse_dato_yyyymmdd = 20260630,
+    omgørelse_dato_yyyymmdd = 0,
+    personlig_indkomst_status = IkkeFradragetIPersonligIndkomst
+))
+
+= pension_aktiefradrag = par4a_pensionsfradrag_resultat(AktiePensionsFradragInput(
+    aktieindkomst_efter_stk1_og_2_kroner = 50000,
+    pbl15a_grundlag = par4a_pbl15a_grundlag_fra_pbl18(pension_par15a),
+    valg_resultat = pension_aktiefradragsvalg
+))
+
+= pension_par3_par15a = par3_stk2_nr3_resultat(Par3Stk2Nr3Input(
+    grundlag = Par3Nr3Pbl18(resultat = pension_par15a),
+    aktiepensionsfradrag_resultat = pension_aktiefradrag
+))
+
+= pension_par3_almindelig_rate = par3_stk2_nr3_resultat(Par3Stk2Nr3Input(
+    grundlag = Par3Nr3Pbl18(resultat = pension_rate_med_arbejdsgiver),
+    aktiepensionsfradrag_resultat = pension_aktiefradrag
+))
+
+= pension_fond_godkendt = pbl52_resultat(Pbl52Input(
+    arbejdsgiverbidrag_kroner = 40000,
+    fond = Pbl52FondVilkår(
+        modtagerkreds = [Pbl52TidligereAnsat, Pbl52EfterladtÆgtefælle, Pbl52BarnUnder24],
+        har_andet_formål = Falskt,
+        midler_anbragt_efter_firmapensionskasseregler = Sandt,
+        medarbejdervalgt_bestyrelsesmedlem_opfyldt = Sandt
+    )
+))
+
+= pension_fond_anden_modtager = pbl52_resultat(Pbl52Input(
+    arbejdsgiverbidrag_kroner = 40000,
+    fond = Pbl52FondVilkår(
+        modtagerkreds = [Pbl52TidligereAnsat, Pbl52AndenModtager],
+        har_andet_formål = Falskt,
+        midler_anbragt_efter_firmapensionskasseregler = Sandt,
+        medarbejdervalgt_bestyrelsesmedlem_opfyldt = Sandt
+    )
+))
+
+= pension_par3_fond = par3_stk2_nr3_resultat(Par3Stk2Nr3Input(
+    grundlag = Par3Nr3Pbl52(resultat = pension_fond_godkendt),
+    aktiepensionsfradrag_resultat = pension_aktiefradrag
+))
+
+= pension_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 200000
+        )
+    ],
+    fradragsposter = [
+        par3_stk2_nr3_fradragspost(Par3Stk2Nr3Input(
+            grundlag = Par3Nr3Pbl18(resultat = pension_par15a),
+            aktiepensionsfradrag_resultat = pension_aktiefradrag
+        ))
+    ]
+))
+
+| pension_par16_rate_loft_2026: pension_par16_rate_2026 -> pension_par16_rate_2026.understøttet_indkomstår && pension_par16_rate_2026.grundbeløb_2010_niveau_kroner == 50000 && pension_par16_rate_2026.reguleret_bruttoloft_kroner == 68700
+| pension_par16_kapital_loft_bortfaldet: pension_par16_kapital_2026 -> pension_par16_kapital_2026.grundbeløb_2010_niveau_kroner == 0 && pension_par16_kapital_2026.reguleret_bruttoloft_kroner == 0
+| pension_rate_loft_reduceres_efter_stk2: pension_rate_med_arbejdsgiver -> pension_rate_med_arbejdsgiver.par16_reguleret_bruttoloft_kroner == 68700 && pension_rate_med_arbejdsgiver.reducerende_arbejdsgiverindbetalinger_kroner == 18400 && pension_rate_med_arbejdsgiver.fradragsloft_efter_stk2_kroner == 50300 && pension_rate_med_arbejdsgiver.fradrag_i_skattepligtig_indkomst_kroner == 50300
+| pension_livrente_fordeles_og_opfyldes: pension_livrente_opfyldningsfradrag -> pension_livrente_opfyldningsfradrag.beregnet_årsfradrag_kroner == 20000 && pension_livrente_opfyldningsfradrag.opfyldningsgrundbeløb_kroner == 63200 && pension_livrente_opfyldningsfradrag.valgt_årsfradrag_kroner == 63200 && pension_livrente_opfyldningsfradrag.fradrag_i_skattepligtig_indkomst_kroner == 63200
+| pension_selvstændig_kan_vælge_30_pct: pension_livrente_selvstændig_30_pct -> pension_livrente_selvstændig_30_pct.beregnet_årsfradrag_kroner == 20000 && pension_livrente_selvstændig_30_pct.selvstændig_30_pct_kroner == 90000 && pension_livrente_selvstændig_30_pct.fradrag_i_skattepligtig_indkomst_kroner == 90000
+| pension_rettidig_betaling_følger_forfaldsår: pension_rettidig_forfaldsbetaling -> pension_rettidig_forfaldsbetaling.fradragsår == 2025 && pension_rettidig_forfaldsbetaling.grundlæggende_fradragsret && pension_rettidig_forfaldsbetaling.fradrag_i_skattepligtig_indkomst_kroner == 20000
+| pension_sen_betaling_følger_betalingsår: pension_sen_betaling -> pension_sen_betaling.fradragsår == 2026 && pension_sen_betaling.grundlæggende_fradragsret && pension_sen_betaling.fradrag_i_skattepligtig_indkomst_kroner == 20000
+| pension_indeks_højst_seks_kontrakter: pension_syvende_indekskontrakt_afskåret -> pension_syvende_indekskontrakt_afskåret.indekskontrakter_medregnet == 6 && pension_syvende_indekskontrakt_afskåret.indbetalt_beløb_kroner == 70000 && pension_syvende_indekskontrakt_afskåret.ordningsbeløb_efter_indeksbegrænsning_kroner == 60000 && pension_syvende_indekskontrakt_afskåret.fradrag_i_skattepligtig_indkomst_kroner == 60000 && pension_syvende_indekskontrakt_afskåret.ikke_fratrukket_i_indkomståret_kroner == 10000
+| pension_aldersopsparing_har_ikke_fradrag: pension_aldersopsparing_uden_fradrag -> pension_aldersopsparing_uden_fradrag.grundlæggende_fradragsret == Falskt && pension_aldersopsparing_uden_fradrag.fradrag_i_skattepligtig_indkomst_kroner == 0
+| pension_udenlandsk_overførsel_afskæres: pension_udenlandsk_overførsel_uden_fradrag -> pension_udenlandsk_overførsel_uden_fradrag.grundlæggende_fradragsret == Falskt && pension_udenlandsk_overførsel_uden_fradrag.fradrag_i_skattepligtig_indkomst_kroner == 0
+| pension_fond_betingelser_opfyldt: pension_fond_godkendt -> pension_fond_godkendt.alle_betingelser_opfyldt && pension_fond_godkendt.arbejdsgiverfradrag_i_skattepligtig_indkomst_kroner == 40000
+| pension_fond_anden_modtager_afskæres: pension_fond_anden_modtager -> pension_fond_anden_modtager.modtagerkreds_alene_tilladt == Falskt && pension_fond_anden_modtager.arbejdsgiverfradrag_i_skattepligtig_indkomst_kroner == 0
+| pension_par15a_dobbeltfradrag_afskæres: pension_par3_par15a -> pension_par3_par15a.hjemmel == Par3Nr3Pensionsbeskatningslov18 && pension_par3_par15a.brutto_fradrag_efter_pensionsbeskatningsloven_kroner == 80000 && pension_par3_par15a.fradrag_i_aktieindkomst_kroner == 20000 && pension_par3_par15a.dobbeltfradrag_afskåret_kroner == 20000 && pension_par3_par15a.fradrag_i_personlig_indkomst_kroner == 60000
+| pension_almindelig_rate_er_ikke_par4a_stk4: pension_par3_almindelig_rate -> pension_par3_almindelig_rate.fradrag_i_aktieindkomst_kroner == 0 && pension_par3_almindelig_rate.dobbeltfradrag_afskåret_kroner == 0 && pension_par3_almindelig_rate.fradrag_i_personlig_indkomst_kroner == 50300
+| pension_fond_er_ikke_par4a_stk4: pension_par3_fond -> pension_par3_fond.hjemmel == Par3Nr3Pensionsbeskatningslov52 && pension_par3_fond.fradrag_i_aktieindkomst_kroner == 0 && pension_par3_fond.fradrag_i_personlig_indkomst_kroner == 40000
+| pension_fradrag_føres_i_personlig_indkomst: pension_personlig_indkomst -> pension_personlig_indkomst.brutto_personlig_indkomst_kroner == 200000 && pension_personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 60000 && pension_personlig_indkomst.netto_personlig_indkomst_kroner == 140000
+
+? pension_par16_rate_loft_2026
+? pension_par16_kapital_loft_bortfaldet
+? pension_rate_loft_reduceres_efter_stk2
+? pension_livrente_fordeles_og_opfyldes
+? pension_selvstændig_kan_vælge_30_pct
+? pension_rettidig_betaling_følger_forfaldsår
+? pension_sen_betaling_følger_betalingsår
+? pension_indeks_højst_seks_kontrakter
+? pension_aldersopsparing_har_ikke_fradrag
+? pension_udenlandsk_overførsel_afskæres
+? pension_fond_betingelser_opfyldt
+? pension_fond_anden_modtager_afskæres
+? pension_par15a_dobbeltfradrag_afskæres
+? pension_almindelig_rate_er_ikke_par4a_stk4
+? pension_fond_er_ikke_par4a_stk4
+? pension_fradrag_føres_i_personlig_indkomst

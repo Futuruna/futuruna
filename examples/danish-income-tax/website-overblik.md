@@ -75,10 +75,22 @@ afskærer dobbeltfradrag. Kilderne er [Ligningsloven, LBK nr. 1500/2025](https:/
 [LOV nr. 198/2025](https://www.retsinformation.dk/eli/lta/2025/198) og
 [Skatterådets BEK nr. 1333/2025](https://www.retsinformation.dk/eli/lta/2025/1333).
 
+Personskatteloven § 3, stk. 2, nr. 3 modtager nu også beregnede resultater fra
+Pensionsbeskatningsloven §§ 18 og 52. Reglerne dækker bl.a. det regulerede
+ratepensionsloft, arbejdsgiverindbetalinger, tiårsfordeling,
+opfyldningsfradrag, selvstændiges 30 pct.-valg, betalingsår, indekskontrakter
+og hjælpe- og understøttelsesfonde. Et typet § 4 a-resultat sørger for, at et
+§ 15 A-pensionsbidrag, der allerede er fratrukket i aktieindkomsten, ikke også
+fratrækkes i personlig indkomst. Kilderne er
+[Pensionsbeskatningsloven, LBK nr. 1243/2024](https://www.retsinformation.dk/eli/lta/2024/1243)
+og [Skatteministeriets beløbsgrænser](https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/pensionsbeskatningsloven).
+
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Typede `source`, `guidance` og `warning`-referencer peger
 fra ordret lovtekst til de tilhørende regelspans uden at ændre Futurunas
-programsemantik.
+programsemantik. En hel kildemappe kan gennemsøges rekursivt efter vilkårlig
+referencetype eller rolle, f.eks. `--type PensionsbeskatningslovKildeInfo` eller
+`--role warning`.
 
 ## Eksempel
 

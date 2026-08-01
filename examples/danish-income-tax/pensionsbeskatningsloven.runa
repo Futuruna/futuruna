@@ -1,24 +1,420 @@
 @ sprog da
 
 @ importer ./pengebeloeb
+@ importer ./kapitel - 04 - omregning - skatteloft
 
 -- Pensionsbeskatningsloven -- Personskatteloven-afhængigheder.
 --
--- Kilde: Retsinformation, LBK nr. 1243 af 24/10/2024.
+-- Kilde: Retsinformation, LBK nr. 1243 af 26/11/2024.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/1243
 -- XML: https://www.retsinformation.dk/eli/lta/2024/1243/dan/xml
+-- Senere ændringer gennem LOV nr. 615 af 30/06/2026 er gennemgået.
+-- Ingen af dem ændrer §§ 16, 18, 52 eller 53 A.
 
+# PensionsbeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= pensionsbeskatningsloven_lbk1243_par16 = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 16",
+    hentet_dato = "2026-07-18",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 16 er uændret"
+)
+
+= pensionsbeskatningsloven_lbk1243_par18 = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 18",
+    hentet_dato = "2026-07-18",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 18 er uændret"
+)
+
+= pensionsbeskatningsloven_lbk1243_par52 = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 52",
+    hentet_dato = "2026-07-18",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 52 er uændret"
+)
+
+= pensionsbeskatningsloven_lbk1243_par53a = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 53 A",
+    hentet_dato = "2026-07-18",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 53 A er uændret"
+)
+
+= skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026 = PensionsbeskatningslovKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/pensionsbeskatningsloven",
+    identifier = "Pensionsbeskatningsloven, satser og beløbsgrænser 2025-2026",
+    hentet_dato = "2026-07-18",
+    ændringsstatus = "2026: § 16, stk. 2, 68.700 kr.; § 18, stk. 5, 63.200 kr."
+)
+
+--@label:pensionsbeskatningsloven_par16::source:pensionsbeskatningsloven_lbk1243_par16::source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
 ----
-Officiel XML-metadata for 2024/1243, hentet 2026-07-18:
-DocumentTitle: Bekendtgørelse af lov om beskatningen af pensionsordninger m.v.
-(pensionsbeskatningsloven)
-PopularTitle: Pensionsbeskatningsloven
-Status: Valid
-DiesSigni: 2024-11-26
-StartDate: 2024-11-28
-EndDate: 2026-07-01
+§ 16. Til opsparing i pensionsøjemed uden fradrags- og bortseelsesret
+(aldersopsparing), kapitalforsikring i pensionsøjemed uden fradrags- og
+bortseelsesret (aldersforsikring) og supplerende engangssum kan for et
+indkomstår i alt anvendes et grundbeløb på højst 7.150 kr. (2010-niveau), jf.
+dog 2. pkt. Fra og med det syvende indkomstår før det indkomstår, hvor
+pensionsopspareren når folkepensionsalderen, jf. § 1 a i lov om social pension,
+kan der anvendes et grundbeløb på 46.700 kr. (2010-niveau), jf. dog stk. 4.
+Livsforsikringsselskabet, pensionskassen eller pengeinstituttet skal påse, at der
+i det pågældende livsforsikringsselskab m.v. ikke anvendes et større beløb end
+grundbeløbene i 1. og 2. pkt. Til kapitalforsikring i pensionsøjemed, opsparing
+i pensionsøjemed og til supplerende engangsydelse kan for indkomståret til og
+med 2012 i alt anvendes et grundbeløb på højst 46.000 kr. (2010-niveau) og for
+efterfølgende indkomstår på 0 kr. Grundbeløbene reguleres efter
+personskattelovens § 20. Er der af en arbejdsgiver m.v. foretaget indbetaling til
+en ordning som nævnt i 1. eller 2. pkt. for ejeren, nedsættes de årlige
+grundbeløb i 1. og 2. pkt. med disse indbetalinger. Bidrag og præmier til
+aldersforsikring og supplerende engangssum har skattemæssig virkning på
+forfaldstidspunktet, i det omfang de indbetales senest den 1. april i det
+efterfølgende kalenderår. Forfaldne bidrag eller præmier som nævnt i 7. pkt.,
+der bliver betalt senere end den 1. april i kalenderåret efter det kalenderår,
+hvor præmien eller bidraget er forfaldet, har skattemæssig virkning på
+indbetalingstidspunktet. Hvis den 1. april falder på en banklukkedag, forlænges
+fristen til den førstkommende bankdag. Indbetalinger til aldersopsparing har
+skattemæssig virkning på indbetalingstidspunktet. Indbetales et bidrag eller en
+præmie som nævnt i 7. pkt., der hidrører fra en tilbagebetaling efter § 22 E,
+inden fristen for tilbagebetalingen efter § 22 E, jf. dog 7. pkt., eller
+foretages der en indbetaling som nævnt i 9. pkt., der hidrører fra en
+tilbagebetaling efter § 22 E, inden fristen for tilbagebetalingen efter § 22 E,
+har bidraget, præmien eller indbetalingen skattemæssig virkning på tidspunktet
+for indbetalingen på den pensionsordning, som tilbagebetalingen hidrører fra.
+Bidrag eller præmier til forudlønnede arbejdstageres aldersforsikringer og
+supplerende engangssummer, der er forfaldne til betaling i løbet af måneden, men
+som vedrører den følgende måned, anses ved anvendelsen af 7. pkt. for forfaldne
+i sidstnævnte måned.
+
+Stk. 2. Til rateforsikring i pensionsøjemed, rateopsparing i pensionsøjemed og
+ophørende livrenter kan for et indkomstår i alt anvendes et grundbeløb på højst
+50.000 kr. (2010-niveau) for hver person. 1. pkt. gælder dog ikke for ordninger
+omfattet af §§ 15, 15 A og 15 B. Grundbeløbet reguleres efter personskattelovens
+§ 20.
+
+Stk. 3. Ved opgørelsen af de årlige beløb, der kan anvendes efter stk. 1 og 2,
+bortses fra tilskrivning af bonus og renter m.v., overførsel efter § 49 A, stk.
+4, og § 49 B, stk. 4, samt erlagte arbejdsmarkedsbidrag. Hvor midlerne i en
+opsparing i pensionsøjemed, aldersopsparing eller rateopsparing i pensionsøjemed
+ikke er indsat på indlånskonto i pengeinstitut m.v., gælder det samme med hensyn
+til fortjenester og tab ved indfrielse eller salg af værdipapirer, salg af
+tegningsrettigheder, udlodning af likvidationsprovenu eller lignende.
+
+Stk. 4. I 2018 udgør grundbeløbet som nævnt i stk. 1, 2. pkt., 42.000 kr.
+(2010-niveau). I 2019 udgør grundbeløbet 42.900 kr. (2010-niveau). I 2020 udgør
+grundbeløbet 43.900 kr. (2010-niveau). I 2021 udgør grundbeløbet 44.800 kr.
+(2010-niveau). I 2022 udgør grundbeløbet 45.750 kr. (2010-niveau).
+Grundbeløbene reguleres efter personskattelovens § 20.
 ----
 
+--@begin::pensionsbeskatningsloven_par16--
+# Pbl16FradragsloftArt = Pbl16Kapitalordning | Pbl16Rateordning
+# Pbl16FradragsloftInput(indkomstår: Heltal, art: Pbl16FradragsloftArt)
+# Pbl16FradragsloftResultat(indkomstår: Heltal, art: Pbl16FradragsloftArt, understøttet_indkomstår: Boolsk, grundbeløb_2010_niveau_kroner: Heltal, reguleret_bruttoloft_kroner: Heltal)
+
+| pbl16_understøttet_indkomstår(indkomstår: Heltal) -> indkomstår >= 2009 && indkomstår <= 2026
+| pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(indkomstår: Heltal, art: Pbl16FradragsloftArt) -> 0
+| exception pbl16_kapitalordning_til_og_med_2012 pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(indkomstår: Heltal, art: Pbl16FradragsloftArt) -> 46000 under art == Pbl16Kapitalordning && indkomstår <= 2012
+| exception pbl16_rateordning_grundbeløb pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(indkomstår: Heltal, art: Pbl16FradragsloftArt) -> 50000 under art == Pbl16Rateordning
+| pbl16_reguleret_bruttoloft_kroner(input: Pbl16FradragsloftInput) -> 0
+| exception pbl16_regulerer_positivt_grundbeløb pbl16_reguleret_bruttoloft_kroner(input: Pbl16FradragsloftInput) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(input.indkomstår, input.art),
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(input.indkomstår)
+)) under pbl16_understøttet_indkomstår(input.indkomstår) && pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(input.indkomstår, input.art) > 0
+| pbl16_fradragsloft_resultat(input: Pbl16FradragsloftInput) -> Pbl16FradragsloftResultat(
+    indkomstår = input.indkomstår,
+    art = input.art,
+    understøttet_indkomstår = pbl16_understøttet_indkomstår(input.indkomstår),
+    grundbeløb_2010_niveau_kroner = pbl16_fradragsloft_grundbeløb_2010_niveau_kroner(input.indkomstår, input.art),
+    reguleret_bruttoloft_kroner = pbl16_reguleret_bruttoloft_kroner(input)
+)
+--@end::pensionsbeskatningsloven_par16--
+
+--@label:pensionsbeskatningsloven_par18::source:pensionsbeskatningsloven_lbk1243_par18::source:skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026--
+----
+§ 18. Ved opgørelsen af den skattepligtige indkomst for ejeren af ordningen,
+jf. reglerne i afsnit III, kan med de i stk. 2-8 nævnte begrænsninger fradrages
+de i indkomståret forfaldne bidrag eller præmier til pensionsordninger omfattet
+af kapitel 1, bortset fra præmier og bidrag til aldersopsparing, aldersforsikring
+eller den del af et pensionskassemedlems årlige bidrag, der anvendes til
+finansiering af supplerende engangssummer som nævnt i § 29 A, stk. 1.
+Indbetalinger til de i §§ 11 A, 12, 13 og 15 A nævnte ordninger fradrages i det
+indkomstår, hvori indbetalingerne har fundet sted. Forfaldne bidrag eller
+præmier, der bliver betalt senest den 1. april i kalenderåret efter det
+kalenderår, hvor bidraget eller præmien er forfaldet, fradrages på
+forfaldstidspunktet. Forfaldne bidrag eller præmier, der bliver betalt senere
+end den 1. april i kalenderåret efter det kalenderår, hvor bidraget eller
+præmien er forfaldet, fradrages på indbetalingstidspunktet. Hvis den 1. april
+falder på en banklukkedag, forlænges fristen til den førstkommende bankdag.
+Indbetales et bidrag m.v., der hidrører fra en tilbagebetaling efter § 22 E,
+inden fristen for tilbagebetalingen efter § 22 E, jf. dog 3. pkt., fradrages det
+på tidspunktet for indbetalingen på den pensionsordning, som tilbagebetalingen
+hidrører fra. Tilsvarende gælder indbetalinger til de i § 15 B nævnte
+ordninger, såfremt ordningen er en rateopsparing i pensionsøjemed, jf. § 11 A.
+Det samlede fradrag for indbetalinger til pensionsordninger omfattet af § 15 A
+kan ikke overstige det beløb, som ifølge § 15 A, stk. 6, må indbetales.
+Indbetalinger til de i § 15 A nævnte ordninger kan uanset 2. pkt. fradrages ved
+indkomstopgørelsen for det eller de indkomstår, hvori virksomheden som nævnt i
+§ 15 A, stk. 2, er afstået, hvis indbetalingerne foretages senest den 1. juli i
+det umiddelbart efterfølgende indkomstår. Hvis den skattepligtiges indkomstår
+ikke er sammenfaldende med kalenderåret, er den i 9. pkt. nævnte frist for
+indbetaling dog den 1. juli i kalenderåret efter det kalenderår, som det
+indkomstår, hvori virksomheden er afstået, træder i stedet for. 1. og 2. pkt.
+gælder ikke, hvis bidragene m.v. er indbetalt af arbejdsgiveren. Fradragsretten
+gælder heller ikke indbetalinger fra hjælpe- og understøttelsesfonde som nævnt
+i § 52 eller i lov om beskatningen af renteforsikringer m.v. § 21, til en
+pensionsordning med løbende udbetalinger for den begunstigede. Fradrag for
+indbetalinger til indeksordninger kan højst omfatte 6 kontrakter for hver
+person.
+
+Stk. 2. Bidrag m.v. til kapitalforsikring i pensionsøjemed og opsparing i
+pensionsøjemed kan for et indkomstår i alt højst fratrækkes med det i § 16,
+stk. 1, 4. pkt., nævnte beløb. Bidrag m.v. til rateforsikring i pensionsøjemed,
+rateopsparing i pensionsøjemed og ophørende livrenter kan for et indkomstår i
+alt højst fratrækkes med det i § 16, stk. 2, nævnte beløb. Er der af en
+arbejdsgiver m.v. foretaget indbetalinger til ordninger som nævnt i 1. og 2.
+pkt. for ejeren, jf. § 19, nedsættes det fradragsberettigede beløb efter 1. og
+2. pkt. med disse indbetalinger bortset fra arbejdsmarkedsbidrag. Fradraget for
+bidrag m.v. til kapitalforsikring i pensionsøjemed og til opsparing i
+pensionsøjemed og bidrag som nævnt i § 29 A, stk. 2, kan dog ikke overstige det
+beløb, som ejerens personlige indkomst i det pågældende indkomstår udgør uden
+fradrag for bidragene. Den overskydende del af bidragene kan hverken overføres
+til fradrag ved indkomstopgørelsen for ægtefællen eller fremføres til fradrag
+ved indkomstopgørelsen for et senere indkomstår. Er der sket afgiftsberigtigelse
+af en kapitalforsikring eller en opsparing i pensionsøjemed efter § 25, stk. 1,
+nr. 1, ved udbetaling til ejeren, efter at pensionsudbetalingsalderen er nået,
+er der ikke fradragsret for bidrag til sådanne ordninger, som indbetales i de
+indkomstår, der følger efter indkomståret, hvori den eller de første
+kapitalforsikringer eller opsparinger i pensionsøjemed er afgiftsberigtiget.
+
+Stk. 3. Fradragsretten for kapitalindskud til en pensionsordning med løbende
+udbetalinger skal fordeles over en periode på 10 år, således at indskuddet
+fradrages med 1/10 i indskudsåret og hvert af de følgende 9 år. Dette gælder dog
+ikke for ophørende livrenter og pensionsordninger med løbende udbetalinger
+omfattet af 15 A.
+
+Stk. 4. Hvis præmie- eller bidragsperioden for en pensionsordning med løbende
+udbetalinger er mindre end 10 år, fordeles fradragsretten for det præmie- eller
+bidragsbeløb, der i alt skal betales, med lige store beløb over en periode på 10
+år. Der skal dog ikke ske fordeling af fradraget efter 1. pkt., hvis der i det
+indkomstår, der følger umiddelbart efter det sidste indkomstår, hvori præmie
+(bidrag) er forfaldet til betaling, forfalder præmie (bidrag) til en ny
+pensionsordning med løbende udbetalinger på tilsvarende vilkår med hensyn til
+størrelsen af de årlige indbetalinger som vilkårene for den i det forudgående
+indkomstår ophørte ordning, således at den samlede præmie- eller bidragsperiode
+til de nævnte ordninger er på mindst 10 år. 10-års-perioden begynder i det år,
+hvor den første præmie (bidrag) forfalder til betaling. Hvis præmien eller
+bidraget til en pensionsordning med løbende udbetalinger forhøjes på et
+tidspunkt, hvor den resterende indbetalingsperiode er under 10 år, fordeles
+fradraget for forhøjelsen på tilsvarende måde over en periode på 10 år. Ved
+forlængelse af en pensionsordning med løbende udbetalinger finder 2. pkt. dog
+tilsvarende anvendelse, hvis der oprindelig er aftalt en indbetalingsperiode på
+mindst 10 år. 1.-5. pkt. gælder ikke for ophørende livrenter og for
+pensionsordninger med løbende udbetalinger omfattet af § 15 A.
+
+Stk. 5. Såfremt det samlede årlige fradrag beregnet efter reglerne i stk. 3 og
+4 udgør et beløb mindre end et grundbeløb på 46.000 kr. (2010-niveau), kan
+skatteyderen dog vælge at foretage et årligt fradrag på indtil grundbeløbet,
+indtil samtlige præmier (bidrag) og indskud er bragt til fradrag. Grundbeløbet
+reguleres efter personskattelovens § 20. Hvis det samlede årlige fradrag
+beregnet efter reglerne i stk. 3 og 4 udgør et mindre beløb end 30 pct. af
+overskud fra selvstændig erhvervsvirksomhed, kan skatteyderen dog uanset 1. pkt.
+foretage fradrag svarende til 30 pct. af dette overskud. Ved overskud fra
+selvstændig erhvervsvirksomhed forstås overskud som opgjort efter reglerne for
+opgørelse af skattepligtig indkomst før fradrag for henlæggelse til
+konjunkturudligning efter virksomhedsskattelovens § 22 b med tillæg af
+renteudgifter og kurstab på fordringer og gæld og med fradrag af rente- og
+udbytteindtægter samt kursgevinst på fordringer og gæld, som indgår i opgørelsen
+af dette overskud. I overskuddet som nævnt i 3. pkt. indgår ikke indkomster ved
+afståelse af goodwill og andre immaterielle aktiver såsom særlig
+fremstillingsmåde eller lignende (knowhow), patentret, forfatter- og kunstnerret
+og ret til mønster og varemærke, kvoter og betalingsrettigheder eller
+fortjenester ved afståelse af fast ejendom omfattet af
+ejendomsavancebeskatningsloven. Der kan dog i et indkomstår højst fradrages et
+beløb svarende til forfaldne præmier (bidrag) og indskud, som ikke tidligere er
+fratrukket. Skatteministeren kan give nærmere regler om beregningen af det
+årlige fradrag og om oplysningspligt for forsikringsselskaber m.v. til brug ved
+gennemførelse af reglerne i stk. 3-7.
+
+Stk. 6. Beløb, hvormed præmier eller bidrag som nævnt i stk. 4 forhøjes i
+henhold til en aftale om løbende pristalsregulering af præmier eller bidrag, kan
+uanset reglerne i stk. 4-5 fradrages i det år, hvor beløbet forfalder til
+betaling.
+
+Stk. 7. Dør den pågældende, før afskrivning af kapitalindskud eller præmier
+(bidrag) efter stk. 3-5 er afsluttet, kan den længstlevende ægtefælle, hvis
+denne ved dødsfaldet var samlevende med afdøde, fortsætte afskrivningen.
+Fradragsretten for et resterende beløb bortfalder, når der er indtrådt
+afgiftspligt for hele den pågældende ordning efter reglerne i §§ 29-31.
+
+Stk. 8. Der kan ikke foretages fradrag for indbetalinger, der sker ved
+overførsel fra en pensionsordning, der falder uden for kapitel 1, hvis der har
+været godkendt fradrags- eller bortseelsesret for indbetalingerne til
+pensionsordningen i et andet land og overførslen ikke har skatte- eller
+afgiftsmæssige konsekvenser for den pågældende person i dette land.
+----
+
+--@begin::pensionsbeskatningsloven_par18--
+# Pbl18Ordning = Pbl18LivsvarigLivrente | Pbl18OphørendeLivrente | Pbl18Rateforsikring | Pbl18Rateopsparing | Pbl18Kapitalforsikring | Pbl18OpsparingIPensionsøjemed | Pbl18Aldersopsparing | Pbl18Aldersforsikring | Pbl18SupplerendeEngangssum | Pbl18SupplerendeEngangsydelse | Pbl18Indeksordning | Pbl18Par15Rateordning | Pbl18Par15ALøbendeUdbetaling | Pbl18Par15ARateordning | Pbl18Par15BRateforsikring | Pbl18Par15BRateopsparing | Pbl18UdenForKapitel1
+# Pbl18Indbetalingskilde = Pbl18EgenIndbetaling | Pbl18Arbejdsgiverindbetaling | Pbl18HjælpeEllerUnderstøttelsesfond
+# Pbl18Fradragsretshaver = Pbl18OrdningensEjer | Pbl18SamlevendeLængstlevendeÆgtefælle | Pbl18AndenEfterEjerensDød
+# Pbl18Par15AFradragsplacering = Pbl18IkkePar15APlacering | Pbl18Par15AIndbetalingsår | Pbl18Par15AAfståelsesår(fradragsår: Heltal, indbetalt_senest_1_juli_efterfølgende: Boolsk)
+# Pbl18Betaling(beløb_kroner: Heltal, forfaldsår: Heltal, betalingsår: Heltal, betalt_senest_bankjusteret_1_april_efter_forfald: Boolsk, hidrører_fra_par22e_tilbagebetaling: Boolsk, par15a_fradragsplacering: Pbl18Par15AFradragsplacering, arbejdsgiverindbetalinger_kroner: Heltal, arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner: Heltal)
+# Pbl18Fordelingsforløb = Pbl18IngenTiårsfordeling | Pbl18Kapitalindskud(indskudsår: Heltal, indskud_kroner: Heltal) | Pbl18KortIndbetalingsperiode(første_forfaldsår: Heltal, samlet_aftalt_beløb_kroner: Heltal, efterfølgende_tilsvarende_ordning: Boolsk, samlet_indbetalingsperiode_år: Heltal) | Pbl18ForhøjelseKortRestperiode(første_forhøjelsesår: Heltal, samlet_forhøjelse_kroner: Heltal) | Pbl18PristalsreguleretForhøjelse
+# Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner: List(Heltal))
+# Pbl18SelvstændigOverskudInput(skattepligtigt_overskud_før_vsl22b_kroner: Heltal, renteudgifter_kroner: Heltal, kurstab_kroner: Heltal, renteindtægter_kroner: Heltal, udbytteindtægter_kroner: Heltal, kursgevinster_kroner: Heltal, udelukkede_afståelsesindkomster_kroner: Heltal)
+# Pbl18Fradragsvalg = Pbl18FordeltFradrag | Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner: Heltal) | Pbl18Selvstændig30PctValg
+# Pbl18Fradragsramme(personlig_indkomst_før_pensionsfradrag_kroner: Heltal, forfaldne_ikke_tidligere_fratrukket_kroner: Heltal, særligt_ordningsmaksimum_kroner: Heltal, selvstændig_overskud: Pbl18SelvstændigOverskudInput, valg: Pbl18Fradragsvalg)
+# Pbl18Begrænsninger(pbl54_personkreds_opfyldt: Boolsk, afgiftspligt_for_hele_ordningen_indtrådt: Boolsk, udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens: Boolsk)
+# Pbl18Input(indkomstår: Heltal, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, fradragsretshaver: Pbl18Fradragsretshaver, betaling: Pbl18Betaling, fordelingsforløb: Pbl18Fordelingsforløb, indeksvalg: Pbl18Indeksvalg, fradragsramme: Pbl18Fradragsramme, begrænsninger: Pbl18Begrænsninger)
+# Pbl18Resultat(indkomstår: Heltal, fradragsår: Heltal, ordning: Pbl18Ordning, grundlæggende_fradragsret: Boolsk, indekskontrakter_medregnet: Heltal, indbetalt_beløb_kroner: Heltal, ordningsbeløb_efter_indeksbegrænsning_kroner: Heltal, par16_reguleret_bruttoloft_kroner: Heltal, reducerende_arbejdsgiverindbetalinger_kroner: Heltal, fradragsloft_efter_stk2_kroner: Heltal, beregnet_årsfradrag_kroner: Heltal, opfyldningsgrundbeløb_kroner: Heltal, selvstændig_30_pct_kroner: Heltal, valgt_årsfradrag_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, ikke_fratrukket_i_indkomståret_kroner: Heltal)
+
+| pbl18_ordning_omfattet_af_kapitel1(ordning: Pbl18Ordning) -> ordning != Pbl18UdenForKapitel1
+| pbl18_ordning_udelukket_fra_fradrag(ordning: Pbl18Ordning) -> ordning == Pbl18Aldersopsparing || ordning == Pbl18Aldersforsikring || ordning == Pbl18SupplerendeEngangssum
+| pbl18_ordning_har_indbetalingsprincip(ordning: Pbl18Ordning) -> ordning == Pbl18Rateopsparing || ordning == Pbl18OpsparingIPensionsøjemed || ordning == Pbl18Par15ALøbendeUdbetaling || ordning == Pbl18Par15ARateordning || ordning == Pbl18Par15BRateopsparing
+| pbl18_ordning_er_par15a(ordning: Pbl18Ordning) -> ordning == Pbl18Par15ALøbendeUdbetaling || ordning == Pbl18Par15ARateordning
+| pbl18_ordning_har_særligt_maksimum(ordning: Pbl18Ordning) -> ordning == Pbl18Par15Rateordning || ordning == Pbl18Par15ALøbendeUdbetaling || ordning == Pbl18Par15ARateordning || ordning == Pbl18Par15BRateforsikring || ordning == Pbl18Par15BRateopsparing
+| pbl18_ordning_har_rate_loft(ordning: Pbl18Ordning) -> ordning == Pbl18Rateforsikring || ordning == Pbl18Rateopsparing || ordning == Pbl18OphørendeLivrente
+| pbl18_ordning_har_kapital_loft(ordning: Pbl18Ordning) -> ordning == Pbl18Kapitalforsikring || ordning == Pbl18OpsparingIPensionsøjemed || ordning == Pbl18SupplerendeEngangsydelse
+| pbl18_ordning_har_personlig_indkomst_loft(ordning: Pbl18Ordning) -> pbl18_ordning_har_kapital_loft(ordning)
+| pbl18_fradragsretshaver_opfyldt(fradragsretshaver: Pbl18Fradragsretshaver) -> fradragsretshaver == Pbl18OrdningensEjer || fradragsretshaver == Pbl18SamlevendeLængstlevendeÆgtefælle
+
+| pbl18_almindeligt_fradragsår(ordning: Pbl18Ordning, betaling: Pbl18Betaling) -> betaling.betalingsår
+| exception pbl18_rettidig_forfaldsbetaling pbl18_almindeligt_fradragsår(ordning: Pbl18Ordning, betaling: Pbl18Betaling) -> betaling.forfaldsår under pbl18_ordning_har_indbetalingsprincip(ordning) == Falskt && betaling.hidrører_fra_par22e_tilbagebetaling == Falskt && betaling.betalt_senest_bankjusteret_1_april_efter_forfald
+| pbl18_fradragsår(ordning: Pbl18Ordning, betaling: Pbl18Betaling) -> match betaling.par15a_fradragsplacering {
+    | Pbl18IkkePar15APlacering -> pbl18_almindeligt_fradragsår(ordning, betaling)
+    | Pbl18Par15AIndbetalingsår -> betaling.betalingsår
+    | Pbl18Par15AAfståelsesår(valgt_fradragsår, rettidig) -> hvis pbl18_ordning_er_par15a(ordning) && rettidig { valgt_fradragsår } ellers { betaling.betalingsår }
+}
+
+| pbl18_indeksbidrag_første_seks_kroner(indeksvalg: Pbl18Indeksvalg) -> foldl(take(indeksvalg.fradragsvalgte_kontraktbidrag_kroner, 6), 0, |sum, bidrag| sum + penge_positivt_beløb(bidrag))
+| pbl18_indbetalt_beløb_kroner(input: Pbl18Input) -> penge_positivt_beløb(input.betaling.beløb_kroner)
+| pbl18_ordningsbeløb_kroner(input: Pbl18Input) -> pbl18_indbetalt_beløb_kroner(input)
+| exception pbl18_højst_seks_indekskontrakter pbl18_ordningsbeløb_kroner(input: Pbl18Input) -> penge_mindste_beløb(penge_positivt_beløb(input.betaling.beløb_kroner), pbl18_indeksbidrag_første_seks_kroner(input.indeksvalg)) under input.ordning == Pbl18Indeksordning
+| pbl18_tiårsperiode_omfatter_indkomstår(første_år: Heltal, indkomstår: Heltal) -> indkomstår >= første_år && indkomstår <= første_år + 9
+| pbl18_fordelingsfradrag_kroner(input: Pbl18Input) -> match input.fordelingsforløb {
+    | Pbl18IngenTiårsfordeling -> pbl18_ordningsbeløb_kroner(input)
+    | Pbl18Kapitalindskud(indskudsår, indskud_kroner) -> hvis pbl18_tiårsperiode_omfatter_indkomstår(indskudsår, input.indkomstår) { penge_positivt_beløb(indskud_kroner) / 10 } ellers { 0 }
+    | Pbl18KortIndbetalingsperiode(første_forfaldsår, samlet_beløb_kroner, efterfølgende_tilsvarende, samlet_periode_år) -> hvis efterfølgende_tilsvarende && samlet_periode_år >= 10 { pbl18_ordningsbeløb_kroner(input) } ellers { hvis pbl18_tiårsperiode_omfatter_indkomstår(første_forfaldsår, input.indkomstår) { penge_positivt_beløb(samlet_beløb_kroner) / 10 } ellers { 0 } }
+    | Pbl18ForhøjelseKortRestperiode(første_forhøjelsesår, samlet_forhøjelse_kroner) -> hvis pbl18_tiårsperiode_omfatter_indkomstår(første_forhøjelsesår, input.indkomstår) { penge_positivt_beløb(samlet_forhøjelse_kroner) / 10 } ellers { 0 }
+    | Pbl18PristalsreguleretForhøjelse -> pbl18_ordningsbeløb_kroner(input)
+}
+| pbl18_beregnet_årsfradrag_kroner(input: Pbl18Input) -> pbl18_ordningsbeløb_kroner(input)
+| exception pbl18_livsvarig_livrente_fordeles pbl18_beregnet_årsfradrag_kroner(input: Pbl18Input) -> pbl18_fordelingsfradrag_kroner(input) under input.ordning == Pbl18LivsvarigLivrente
+
+| pbl18_par16_art(ordning: Pbl18Ordning) -> Pbl16Kapitalordning
+| exception pbl18_rateordning_bruger_par16_stk2 pbl18_par16_art(ordning: Pbl18Ordning) -> Pbl16Rateordning under pbl18_ordning_har_rate_loft(ordning)
+| pbl18_par16_resultat(input: Pbl18Input) -> pbl16_fradragsloft_resultat(Pbl16FradragsloftInput(
+    indkomstår = input.indkomstår,
+    art = pbl18_par16_art(input.ordning)
+))
+| pbl18_reducerende_arbejdsgiverindbetalinger_kroner(input: Pbl18Input) -> 0
+| exception pbl18_stk2_arbejdsgiverindbetalinger_reducerer pbl18_reducerende_arbejdsgiverindbetalinger_kroner(input: Pbl18Input) -> penge_positivt_beløb(penge_positivt_beløb(input.betaling.arbejdsgiverindbetalinger_kroner) - penge_positivt_beløb(input.betaling.arbejdsmarkedsbidrag_i_arbejdsgiverindbetalinger_kroner)) under pbl18_ordning_har_rate_loft(input.ordning) || pbl18_ordning_har_kapital_loft(input.ordning)
+| pbl18_fradragsloft_efter_stk2_kroner(input: Pbl18Input) -> penge_positivt_beløb(pbl18_par16_resultat(input).reguleret_bruttoloft_kroner - pbl18_reducerende_arbejdsgiverindbetalinger_kroner(input))
+| pbl18_beløb_efter_par16_loft_kroner(input: Pbl18Input) -> pbl18_beregnet_årsfradrag_kroner(input)
+| exception pbl18_par16_loft_begrænser pbl18_beløb_efter_par16_loft_kroner(input: Pbl18Input) -> penge_mindste_beløb(pbl18_beregnet_årsfradrag_kroner(input), pbl18_fradragsloft_efter_stk2_kroner(input)) under pbl18_ordning_har_rate_loft(input.ordning) || pbl18_ordning_har_kapital_loft(input.ordning)
+
+| pbl18_opfyldningsgrundbeløb_kroner(indkomstår: Heltal) -> 0
+| exception pbl18_opfyldningsgrundbeløb_reguleres pbl18_opfyldningsgrundbeløb_kroner(indkomstår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = 46000,
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
+)) under pbl16_understøttet_indkomstår(indkomstår)
+| pbl18_selvstændige_tillæg_kroner(input: Pbl18SelvstændigOverskudInput) -> penge_positivt_beløb(input.renteudgifter_kroner) + penge_positivt_beløb(input.kurstab_kroner)
+| pbl18_selvstændige_fradrag_fra_overskud_kroner(input: Pbl18SelvstændigOverskudInput) -> penge_positivt_beløb(input.renteindtægter_kroner) + penge_positivt_beløb(input.udbytteindtægter_kroner) + penge_positivt_beløb(input.kursgevinster_kroner) + penge_positivt_beløb(input.udelukkede_afståelsesindkomster_kroner)
+| pbl18_selvstændigt_overskud_kroner(input: Pbl18SelvstændigOverskudInput) -> penge_positivt_beløb(input.skattepligtigt_overskud_før_vsl22b_kroner + pbl18_selvstændige_tillæg_kroner(input) - pbl18_selvstændige_fradrag_fra_overskud_kroner(input))
+| pbl18_selvstændig_30_pct_kroner(input: Pbl18Input) -> pbl18_selvstændigt_overskud_kroner(input.fradragsramme.selvstændig_overskud) * 3000 / 10000
+| pbl18_resterende_fradragsramme_kroner(input: Pbl18Input) -> penge_positivt_beløb(input.fradragsramme.forfaldne_ikke_tidligere_fratrukket_kroner)
+| pbl18_valgt_årsfradrag_kroner(input: Pbl18Input) -> match input.fradragsramme.valg {
+    | Pbl18FordeltFradrag -> pbl18_beløb_efter_par16_loft_kroner(input)
+    | Pbl18Grundbeløbsvalg(ønsket_fradrag_kroner) -> hvis input.ordning == Pbl18LivsvarigLivrente && pbl18_beregnet_årsfradrag_kroner(input) < pbl18_opfyldningsgrundbeløb_kroner(input.indkomstår) { penge_mindste_beløb(penge_mindste_beløb(penge_positivt_beløb(ønsket_fradrag_kroner), pbl18_opfyldningsgrundbeløb_kroner(input.indkomstår)), pbl18_resterende_fradragsramme_kroner(input)) } ellers { pbl18_beløb_efter_par16_loft_kroner(input) }
+    | Pbl18Selvstændig30PctValg -> hvis input.ordning == Pbl18LivsvarigLivrente && pbl18_beregnet_årsfradrag_kroner(input) < pbl18_selvstændig_30_pct_kroner(input) { penge_mindste_beløb(pbl18_selvstændig_30_pct_kroner(input), pbl18_resterende_fradragsramme_kroner(input)) } ellers { pbl18_beløb_efter_par16_loft_kroner(input) }
+}
+| pbl18_beløb_efter_særligt_maksimum_kroner(input: Pbl18Input) -> pbl18_valgt_årsfradrag_kroner(input)
+| exception pbl18_særlige_ordninger_skal_have_kildeloft pbl18_beløb_efter_særligt_maksimum_kroner(input: Pbl18Input) -> penge_mindste_beløb(pbl18_valgt_årsfradrag_kroner(input), penge_positivt_beløb(input.fradragsramme.særligt_ordningsmaksimum_kroner)) under pbl18_ordning_har_særligt_maksimum(input.ordning)
+| pbl18_beløb_efter_personlig_indkomst_loft_kroner(input: Pbl18Input) -> pbl18_beløb_efter_særligt_maksimum_kroner(input)
+| exception pbl18_kapitalordning_begrænses_af_personlig_indkomst pbl18_beløb_efter_personlig_indkomst_loft_kroner(input: Pbl18Input) -> penge_mindste_beløb(pbl18_beløb_efter_særligt_maksimum_kroner(input), penge_positivt_beløb(input.fradragsramme.personlig_indkomst_før_pensionsfradrag_kroner)) under pbl18_ordning_har_personlig_indkomst_loft(input.ordning)
+| pbl18_grundlæggende_fradragsret(input: Pbl18Input) -> pbl18_ordning_omfattet_af_kapitel1(input.ordning) && pbl18_ordning_udelukket_fra_fradrag(input.ordning) == Falskt && input.indbetalingskilde == Pbl18EgenIndbetaling && pbl18_fradragsretshaver_opfyldt(input.fradragsretshaver) && input.begrænsninger.pbl54_personkreds_opfyldt && input.begrænsninger.afgiftspligt_for_hele_ordningen_indtrådt == Falskt && input.begrænsninger.udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens == Falskt && pbl18_fradragsår(input.ordning, input.betaling) == input.indkomstår
+| pbl18_fradrag_i_skattepligtig_indkomst_kroner(input: Pbl18Input) -> 0
+| exception pbl18_fradragsret_opfyldt pbl18_fradrag_i_skattepligtig_indkomst_kroner(input: Pbl18Input) -> pbl18_beløb_efter_personlig_indkomst_loft_kroner(input) under pbl18_grundlæggende_fradragsret(input)
+
+# Pbl18Sag(input: Pbl18Input) {
+    | fradragsår() -> pbl18_fradragsår(input.ordning, input.betaling)
+    | grundlæggende_fradragsret() -> pbl18_grundlæggende_fradragsret(input)
+    | par16_resultat() -> pbl18_par16_resultat(input)
+    | beregnet_årsfradrag_kroner() -> pbl18_beregnet_årsfradrag_kroner(input)
+    | valgt_årsfradrag_kroner() -> pbl18_valgt_årsfradrag_kroner(input)
+    | fradrag_i_skattepligtig_indkomst_kroner() -> pbl18_fradrag_i_skattepligtig_indkomst_kroner(input)
+    | ikke_fratrukket_i_indkomståret_kroner() -> penge_positivt_beløb(pbl18_indbetalt_beløb_kroner(input) - fradrag_i_skattepligtig_indkomst_kroner())
+    | resultat() -> Pbl18Resultat(
+        indkomstår = input.indkomstår,
+        fradragsår = fradragsår(),
+        ordning = input.ordning,
+        grundlæggende_fradragsret = grundlæggende_fradragsret(),
+        indekskontrakter_medregnet = penge_mindste_beløb(length(input.indeksvalg.fradragsvalgte_kontraktbidrag_kroner), 6),
+        indbetalt_beløb_kroner = pbl18_indbetalt_beløb_kroner(input),
+        ordningsbeløb_efter_indeksbegrænsning_kroner = pbl18_ordningsbeløb_kroner(input),
+        par16_reguleret_bruttoloft_kroner = par16_resultat().reguleret_bruttoloft_kroner,
+        reducerende_arbejdsgiverindbetalinger_kroner = pbl18_reducerende_arbejdsgiverindbetalinger_kroner(input),
+        fradragsloft_efter_stk2_kroner = pbl18_fradragsloft_efter_stk2_kroner(input),
+        beregnet_årsfradrag_kroner = beregnet_årsfradrag_kroner(),
+        opfyldningsgrundbeløb_kroner = pbl18_opfyldningsgrundbeløb_kroner(input.indkomstår),
+        selvstændig_30_pct_kroner = pbl18_selvstændig_30_pct_kroner(input),
+        valgt_årsfradrag_kroner = valgt_årsfradrag_kroner(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_i_skattepligtig_indkomst_kroner(),
+        ikke_fratrukket_i_indkomståret_kroner = ikke_fratrukket_i_indkomståret_kroner()
+    )
+}
+| pbl18_sag(input: Pbl18Input) -> Pbl18Sag(input)
+| pbl18_resultat(input: Pbl18Input) -> pbl18_sag(input).resultat()
+--@end::pensionsbeskatningsloven_par18--
+
+--@label:pensionsbeskatningsloven_par52::source:pensionsbeskatningsloven_lbk1243_par52--
+----
+§ 52. Ved opgørelsen af en arbejdsgivers skattepligtige indkomst kan fradrages
+bidrag til en hjælpe- og understøttelsesfond, hvis betingelserne i stk. 2-4 er
+opfyldt.
+
+Stk. 2. Fonden må alene have til formål at yde understøttelse til personer, der
+tidligere har været ansat i arbejdsgiverens virksomhed, eller til sådanne
+arbejdstageres efterladte ægtefælle, fraskilte ægtefælle, samlever, jf. § 2, nr.
+4, litra e, børn eller stedbørn under 24 år.
+
+Stk. 3. Fondens midler skal være anbragt efter de regler, som gælder for
+pensionskasser, der er omfattet af lov om firmapensionskasser.
+
+Stk. 4. Mindst et af fondsbestyrelsens medlemmer skal vælges af og blandt de af
+virksomhedens ansatte, der kan nyde godt af fondens virke.
+----
+
+--@begin::pensionsbeskatningsloven_par52--
+# Pbl52Understøttelsesmodtager = Pbl52TidligereAnsat | Pbl52EfterladtÆgtefælle | Pbl52FraskiltÆgtefælle | Pbl52Samlever | Pbl52BarnUnder24 | Pbl52StedbarnUnder24 | Pbl52AndenModtager
+# Pbl52FondVilkår(modtagerkreds: List(Pbl52Understøttelsesmodtager), har_andet_formål: Boolsk, midler_anbragt_efter_firmapensionskasseregler: Boolsk, medarbejdervalgt_bestyrelsesmedlem_opfyldt: Boolsk)
+# Pbl52Input(arbejdsgiverbidrag_kroner: Heltal, fond: Pbl52FondVilkår)
+# Pbl52Resultat(modtagerkreds_alene_tilladt: Boolsk, formål_opfyldt: Boolsk, anbringelseskrav_opfyldt: Boolsk, bestyrelseskrav_opfyldt: Boolsk, alle_betingelser_opfyldt: Boolsk, arbejdsgiverfradrag_i_skattepligtig_indkomst_kroner: Heltal)
+
+| pbl52_understøttelsesmodtager_tilladt(modtager: Pbl52Understøttelsesmodtager) -> modtager != Pbl52AndenModtager
+| pbl52_modtagerkreds_alene_tilladt(fond: Pbl52FondVilkår) -> length(fond.modtagerkreds) > 0 && all(fond.modtagerkreds, |modtager| pbl52_understøttelsesmodtager_tilladt(modtager))
+| pbl52_formål_opfyldt(fond: Pbl52FondVilkår) -> pbl52_modtagerkreds_alene_tilladt(fond) && fond.har_andet_formål == Falskt
+| pbl52_alle_betingelser_opfyldt(fond: Pbl52FondVilkår) -> pbl52_formål_opfyldt(fond) && fond.midler_anbragt_efter_firmapensionskasseregler && fond.medarbejdervalgt_bestyrelsesmedlem_opfyldt
+| pbl52_arbejdsgiverfradrag_kroner(input: Pbl52Input) -> 0
+| exception pbl52_stk2_til_stk4_opfyldt pbl52_arbejdsgiverfradrag_kroner(input: Pbl52Input) -> penge_positivt_beløb(input.arbejdsgiverbidrag_kroner) under pbl52_alle_betingelser_opfyldt(input.fond)
+# Pbl52Sag(input: Pbl52Input) {
+    | modtagerkreds_alene_tilladt() -> pbl52_modtagerkreds_alene_tilladt(input.fond)
+    | formål_opfyldt() -> pbl52_formål_opfyldt(input.fond)
+    | alle_betingelser_opfyldt() -> pbl52_alle_betingelser_opfyldt(input.fond)
+    | resultat() -> Pbl52Resultat(
+        modtagerkreds_alene_tilladt = modtagerkreds_alene_tilladt(),
+        formål_opfyldt = formål_opfyldt(),
+        anbringelseskrav_opfyldt = input.fond.midler_anbragt_efter_firmapensionskasseregler,
+        bestyrelseskrav_opfyldt = input.fond.medarbejdervalgt_bestyrelsesmedlem_opfyldt,
+        alle_betingelser_opfyldt = alle_betingelser_opfyldt(),
+        arbejdsgiverfradrag_i_skattepligtig_indkomst_kroner = pbl52_arbejdsgiverfradrag_kroner(input)
+    )
+}
+| pbl52_sag(input: Pbl52Input) -> Pbl52Sag(input)
+| pbl52_resultat(input: Pbl52Input) -> pbl52_sag(input).resultat()
+--@end::pensionsbeskatningsloven_par52--
+
+--@label:pensionsbeskatningsloven_par53a::source:pensionsbeskatningsloven_lbk1243_par53a--
 ----
 § 53 A. Reglerne i stk. 2-5 gælder for livsforsikring, der ikke omfattes af
 kapitel 1, livsforsikring, der opfylder betingelserne i kapitel 1, men hvor
@@ -122,6 +518,7 @@ pensionsordning gives afkald på beskatning efter reglerne i afsnit I, hvis
 pensionsordningen modtager statsstøtte.
 ----
 
+--@begin::pensionsbeskatningsloven_par53a--
 # Pensionsbeskatningslov53AOrdning = Pbl53ALivsforsikringUdenKapitel1 | Pbl53ALivsforsikringAfkaldAfsnitI | Pbl53APensionskasseUdenKapitel1 | Pbl53APensionskasseAfkaldAfsnitI | Pbl53ASygeOgUlykkesforsikring | Pbl53ADirektørSikkerhedLivsforsikringEllerPensionskasse | Pbl53ADirektørGarantiforsikring | Pbl53APengeinstitutUdenKapitel1 | Pbl53APengeinstitutAfkaldAfsnitI | Pbl53ATidligerePar15DGodkendt
 # Pensionsbeskatningslov53AAfkastmetode = Pbl53AAfkastEfterPalPar3Til5 | Pbl53AAlternativKapitalværdi
 # Pensionsbeskatningslov53AInput(indkomstår: Heltal, ordning: Pensionsbeskatningslov53AOrdning, omfattes_af_par53b: Boolsk, alene_død_invaliditet_livstruende_sygdom_til_senest_80_år: Boolsk, afkastmetode: Pensionsbeskatningslov53AAfkastmetode, afkast_efter_pal_par3_til_5_kroner: Heltal, kapitalværdi_primo_kroner: Heltal, kapitalværdi_ultimo_kroner: Heltal, udbetalinger_i_året_kroner: Heltal, indbetalinger_i_året_kroner: Heltal, fremført_negativt_afkast_primo_kroner: Heltal, andel_tæller: Heltal, andel_nævner: Heltal, udbetaling_til_afkastskat_kroner: Heltal)
@@ -251,3 +648,4 @@ pensionsordningen modtager statsstøtte.
 | pbl53a_negativt_afkast_fremføres_kun_samme_ordning: pbl53a_negativt_afkast_fixture -> pbl53a_negativt_afkast_fixture.afkast_efter_valgt_metode_kroner == -8000 && pbl53a_negativt_afkast_fixture.skattepligtigt_afkast_kroner == 0 && pbl53a_negativt_afkast_fixture.fremført_negativt_afkast_ultimo_kroner == 13000
 | pbl53a_stk4_undtagelse_afskærer_afkast: pbl53a_stk4_undtaget_fixture -> pbl53a_stk4_undtaget_fixture.undtaget_efter_stk4 == Sandt && pbl53a_stk4_undtaget_fixture.skattepligtigt_afkast_kroner == 0
 | pbl53a_par53b_udelukker_stk1: pbl53a_par53b_udelukket_fixture -> pbl53a_par53b_udelukket_fixture.omfattet_af_stk1 == Falskt && pbl53a_par53b_udelukket_fixture.skattepligtigt_afkast_kroner == 0
+--@end::pensionsbeskatningsloven_par53a--
