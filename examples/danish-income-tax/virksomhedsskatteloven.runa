@@ -9,6 +9,220 @@
 -- XML: https://www.retsinformation.dk/eli/lta/2021/1836/dan/xml
 
 ----
+§ 7. Kapitalafkast beregnes som afkastgrundlaget gange afkastsatsen.
+Kapitalafkastgrundlaget opgøres efter § 8 og kapitalafkastsatsen efter § 9.
+Bliver det beregnede kapitalafkast negativt, ses der bort fra kapitalafkastet.
+Kapitalafkastet kan ikke overstige årets skattepligtige overskud, jf. herved
+§ 12, sidste pkt.
+
+Stk. 2. Omfatter virksomhedens regnskabsperiode kortere eller længere tid end
+12 måneder, beregnes et forholdsmæssigt kapitalafkast svarende til det antal
+hele måneder, regnskabsperioden omfatter.
+----
+
+# Virksomhedsskattelov7Input(indkomstår: Heltal, afkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, skattepligtigt_overskud_kroner: Heltal, regnskabsperiode_hele_måneder: Heltal)
+# Virksomhedsskattelov7Resultat(indkomstår: Heltal, afkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, beregnet_kapitalafkast_før_positivregulering_kroner: Heltal, beregnet_kapitalafkast_positivt_kroner: Heltal, regnskabsperiode_hele_måneder: Heltal, forholdsmæssigt_kapitalafkast_kroner: Heltal, skattepligtigt_overskud_loft_kroner: Heltal, kapitalafkast_kroner: Heltal)
+
+# Virksomhedsskattelov7Sag(input: Virksomhedsskattelov7Input) {
+    | afkastgrundlag_kroner() -> input.afkastgrundlag_kroner
+    | kapitalafkastsats_basispoint() -> penge_positivt_beløb(input.kapitalafkastsats_basispoint)
+    | beregnet_kapitalafkast_før_positivregulering_kroner() -> input.afkastgrundlag_kroner * kapitalafkastsats_basispoint() / 10000
+    | beregnet_kapitalafkast_positivt_kroner() -> penge_positivt_beløb(beregnet_kapitalafkast_før_positivregulering_kroner())
+    | regnskabsperiode_hele_måneder() -> penge_positivt_beløb(input.regnskabsperiode_hele_måneder)
+    | forholdsmæssigt_kapitalafkast_kroner() -> beregnet_kapitalafkast_positivt_kroner() * regnskabsperiode_hele_måneder() / 12
+    | skattepligtigt_overskud_loft_kroner() -> penge_positivt_beløb(input.skattepligtigt_overskud_kroner)
+    | kapitalafkast_kroner() -> penge_mindste_beløb(forholdsmæssigt_kapitalafkast_kroner(), skattepligtigt_overskud_loft_kroner())
+    | resultat() -> Virksomhedsskattelov7Resultat(
+        indkomstår = input.indkomstår,
+        afkastgrundlag_kroner = afkastgrundlag_kroner(),
+        kapitalafkastsats_basispoint = kapitalafkastsats_basispoint(),
+        beregnet_kapitalafkast_før_positivregulering_kroner = beregnet_kapitalafkast_før_positivregulering_kroner(),
+        beregnet_kapitalafkast_positivt_kroner = beregnet_kapitalafkast_positivt_kroner(),
+        regnskabsperiode_hele_måneder = regnskabsperiode_hele_måneder(),
+        forholdsmæssigt_kapitalafkast_kroner = forholdsmæssigt_kapitalafkast_kroner(),
+        skattepligtigt_overskud_loft_kroner = skattepligtigt_overskud_loft_kroner(),
+        kapitalafkast_kroner = kapitalafkast_kroner()
+    )
+}
+| virksomhedsskattelov7_sag(input: Virksomhedsskattelov7Input) -> Virksomhedsskattelov7Sag(input)
+| virksomhedsskattelov7_resultat(input: Virksomhedsskattelov7Input) -> virksomhedsskattelov7_sag(input).resultat()
+
+----
+§ 22 a. Skattepligtige personer, der driver selvstændig erhvervsvirksomhed, kan
+i stedet for at anvende virksomhedsordningen efter afsnit I vælge at beregne et
+kapitalafkast af de erhvervsmæssige aktiver efter reglerne i dette afsnit.
+Kapitalafkastet fragår i den personlige indkomst og lægges til
+kapitalindkomsten. § 2, stk. 2, 1.-3. pkt., og stk. 6, finder tilsvarende
+anvendelse.
+
+Stk. 2. Kapitalafkastet beregnes som afkastgrundlaget efter stk. 5-8 ganget med
+afkastsatsen efter § 9. Er den periode, hvori den skattepligtige driver
+selvstændig erhvervsvirksomhed, kortere eller længere end 12 måneder, beregnes
+et forholdsmæssigt kapitalafkast svarende til det antal hele måneder, perioden
+omfatter.
+
+Stk. 3. Kapitalafkastet kan ikke overstige den største talmæssige værdi af
+følgende beløb:
+1) positiv personlig nettoindkomst fra selvstændig erhvervsvirksomhed, jf.
+personskattelovens § 3, eller
+2) negativ nettokapitalindkomst, jf. personskattelovens § 4.
+Ved opgørelsen af nettokapitalindkomsten ses bort fra kapitalafkast efter denne
+bestemmelse og negativ kapitalindkomst, der er omfattet af reglerne i
+personskattelovens § 4, stk. 1, nr. 9 og 11.
+----
+
+# Virksomhedsskattelov22AInput(indkomstår: Heltal, driver_selvstændig_erhvervsvirksomhed: Boolsk, vælger_kapitalafkastordning: Boolsk, afkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, periode_hele_måneder: Heltal, positiv_personlig_nettoindkomst_selvstændig_kroner: Heltal, negativ_nettokapitalindkomst_abs_kroner: Heltal)
+# Virksomhedsskattelov22AResultat(indkomstår: Heltal, omfattet_af_stk1: Boolsk, afkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, beregnet_kapitalafkast_før_loft_kroner: Heltal, loft_efter_stk3_kroner: Heltal, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
+
+# Virksomhedsskattelov22ASag(input: Virksomhedsskattelov22AInput) {
+    | omfattet_af_stk1() -> input.driver_selvstændig_erhvervsvirksomhed && input.vælger_kapitalafkastordning
+    | afkastgrundlag_kroner() -> penge_positivt_beløb(input.afkastgrundlag_kroner)
+    | kapitalafkastsats_basispoint() -> penge_positivt_beløb(input.kapitalafkastsats_basispoint)
+    | periode_hele_måneder() -> penge_positivt_beløb(input.periode_hele_måneder)
+    | beregnet_kapitalafkast_før_loft_kroner() -> penge_beløb_gange_basispoint_kroner(afkastgrundlag_kroner(), kapitalafkastsats_basispoint()) * periode_hele_måneder() / 12
+    | positiv_personlig_nettoindkomst_selvstændig_kroner() -> penge_positivt_beløb(input.positiv_personlig_nettoindkomst_selvstændig_kroner)
+    | negativ_nettokapitalindkomst_abs_kroner() -> penge_positivt_beløb(input.negativ_nettokapitalindkomst_abs_kroner)
+    | loft_efter_stk3_kroner() -> penge_største_beløb(positiv_personlig_nettoindkomst_selvstændig_kroner(), negativ_nettokapitalindkomst_abs_kroner())
+    | kapitalafkast_kroner() -> 0
+    | exception vsl22a_selvstændig_valgt_og_loftet kapitalafkast_kroner() -> penge_mindste_beløb(beregnet_kapitalafkast_før_loft_kroner(), loft_efter_stk3_kroner()) under omfattet_af_stk1()
+    | personlig_indkomst_fradrag_kroner() -> kapitalafkast_kroner()
+    | kapitalindkomst_tillæg_kroner() -> kapitalafkast_kroner()
+    | resultat() -> Virksomhedsskattelov22AResultat(
+        indkomstår = input.indkomstår,
+        omfattet_af_stk1 = omfattet_af_stk1(),
+        afkastgrundlag_kroner = afkastgrundlag_kroner(),
+        kapitalafkastsats_basispoint = kapitalafkastsats_basispoint(),
+        beregnet_kapitalafkast_før_loft_kroner = beregnet_kapitalafkast_før_loft_kroner(),
+        loft_efter_stk3_kroner = loft_efter_stk3_kroner(),
+        kapitalafkast_kroner = kapitalafkast_kroner(),
+        personlig_indkomst_fradrag_kroner = personlig_indkomst_fradrag_kroner(),
+        kapitalindkomst_tillæg_kroner = kapitalindkomst_tillæg_kroner()
+    )
+}
+| virksomhedsskattelov22a_sag(input: Virksomhedsskattelov22AInput) -> Virksomhedsskattelov22ASag(input)
+| virksomhedsskattelov22a_resultat(input: Virksomhedsskattelov22AInput) -> virksomhedsskattelov22a_sag(input).resultat()
+
+----
+§ 22 c. Skattepligtige personer, der erhverver aktier eller anparter i et
+selskab, kan vælge at beregne et kapitalafkast af de erhvervede aktier eller
+anparter efter reglerne i dette afsnit, såfremt de i stk. 2 fastsatte
+betingelser alle er opfyldt. Kapitalafkastet fragår i den personlige indkomst
+og lægges til kapitalindkomsten.
+
+Stk. 2. For at anvende ordningen i stk. 1 skal følgende betingelser være
+opfyldt:
+1) Den skattepligtige er undergivet fuld skattepligt efter kildeskattelovens
+§ 1 og hjemmehørende her i landet efter reglerne i en dobbeltbeskatningsaftale.
+2) Det kontantomregnede vederlag, som den skattepligtige betaler for aktierne
+eller anparterne, overstiger et grundbeløb på 627.000 kr. (2010-niveau).
+Grundbeløbet reguleres efter personskattelovens § 20.
+3a) Den skattepligtige ejer mindst 25 pct. af aktie- eller anpartskapitalen i
+selskabet eller råder over mere end 50 pct. af stemmeværdien, eller
+3b) den skattepligtige sammen med andre ansatte ejer mindst 25 pct. af aktie-
+eller anpartskapitalen i selskabet eller råder over mere end 50 pct. af
+stemmeværdien, jf. dog stk. 4. Det er en betingelse, at ingen af de ansatte
+aktionærer eller anpartshavere råder over mere end 50 pct. af stemmeværdien i
+selskabet.
+4) Aktierne eller anparterne skal være i et selskab, hvis virksomhed i den
+periode, hvor ordningen anvendes, ikke i overvejende grad består i passiv
+kapitalanbringelse.
+5) Aktierne eller anparterne er ikke omfattet af aktieavancebeskatningslovens
+§§ 19 B eller 19 C.
+6) Aktierne eller anparterne er ikke erhvervet i forbindelse med omdannelsen af
+en personligt ejet virksomhed efter lov om skattefri virksomhedsomdannelse som
+led i en skattefri aktieombytning efter aktieavancebeskatningsloven eller i
+forbindelse med anvendelse af etableringskontoindskud efter lov om indskud på
+etableringskonto.
+7) Den skattepligtige har ejet aktierne eller anparterne i mindre end 11 år.
+
+Stk. 5. Kapitalafkastet beregnes som afkastgrundlaget efter stk. 6 ganget med
+afkastsatsen efter § 9. I det indkomstår, hvori den skattepligtige erhverver
+eller afstår aktierne eller anparterne, beregnes et forholdsmæssigt
+kapitalafkast svarende til det hele antal måneder, den skattepligtige har ejet
+aktierne eller anparterne i. Tilsvarende gælder for det indkomstår, hvor
+betingelserne i stk. 2 ikke længere er opfyldt.
+
+Stk. 6. Kapitalafkastgrundlaget opgøres ved indkomstårets begyndelse som
+anskaffelsessummen for de erhvervede aktier eller anparter. Såfremt en
+erhvervelse af aktier eller anparter i løbet af indkomståret bringer den
+samlede anskaffelsessum op over beløbsgrænsen i stk. 2, nr. 2, opgøres det
+kapitalafkastgrundlag, der anvendes ved beregningen af det forholdsmæssige
+kapitalafkast efter stk. 5, som den samlede anskaffelsessum for aktierne eller
+anparterne efter denne erhvervelse. Uanset om den skattepligtige i medfør af
+aktieavancebeskatningslovens §§ 34 og 35 er indtrådt i overdragerens
+skattemæssige stilling, opgøres kapitalafkastgrundlaget som det kontantomregnede
+vederlag, den skattepligtige betaler for aktierne eller anparterne.
+----
+
+# Virksomhedsskattelov22CInput(indkomstår: Heltal, fuld_skattepligt_og_hjemmehørende: Boolsk, kontantomregnet_vederlag_kroner: Heltal, reguleret_beløbsgrænse_kroner: Heltal, ejerandel_basispoint: Heltal, stemmeværdi_basispoint: Heltal, ansatte_samlet_ejerandel_basispoint: Heltal, ansatte_samlet_stemmeværdi_basispoint: Heltal, ingen_ansat_råder_over_mere_end_50_pct_stemmer: Boolsk, selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering: Boolsk, aktier_ikke_omfattet_af_abl19b_eller_19c: Boolsk, ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto: Boolsk, ejet_i_mindre_end_11_år: Boolsk, kapitalafkastsats_basispoint: Heltal, ejerperiode_hele_måneder: Heltal)
+# Virksomhedsskattelov22CResultat(indkomstår: Heltal, vederlag_over_beløbsgrænse: Boolsk, ejer_eller_stemmebetingelse_opfyldt: Boolsk, ansatte_ejer_eller_stemmebetingelse_opfyldt: Boolsk, betingelser_opfyldt: Boolsk, kapitalafkastgrundlag_kroner: Heltal, kapitalafkastsats_basispoint: Heltal, ejerperiode_hele_måneder: Heltal, kapitalafkast_kroner: Heltal, personlig_indkomst_fradrag_kroner: Heltal, kapitalindkomst_tillæg_kroner: Heltal)
+
+# Virksomhedsskattelov22CSag(input: Virksomhedsskattelov22CInput) {
+    | kontantomregnet_vederlag_kroner() -> penge_positivt_beløb(input.kontantomregnet_vederlag_kroner)
+    | reguleret_beløbsgrænse_kroner() -> penge_positivt_beløb(input.reguleret_beløbsgrænse_kroner)
+    | vederlag_over_beløbsgrænse() -> kontantomregnet_vederlag_kroner() > reguleret_beløbsgrænse_kroner()
+    | ejer_eller_stemmebetingelse_opfyldt() -> input.ejerandel_basispoint >= 2500 || input.stemmeværdi_basispoint > 5000
+    | ansatte_ejer_eller_stemmebetingelse_opfyldt() -> (input.ansatte_samlet_ejerandel_basispoint >= 2500 || input.ansatte_samlet_stemmeværdi_basispoint > 5000) && input.ingen_ansat_råder_over_mere_end_50_pct_stemmer
+    | ejerbetingelse_opfyldt() -> ejer_eller_stemmebetingelse_opfyldt() || ansatte_ejer_eller_stemmebetingelse_opfyldt()
+    | betingelser_opfyldt() -> input.fuld_skattepligt_og_hjemmehørende && vederlag_over_beløbsgrænse() && ejerbetingelse_opfyldt() && input.selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering && input.aktier_ikke_omfattet_af_abl19b_eller_19c && input.ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto && input.ejet_i_mindre_end_11_år
+    | kapitalafkastgrundlag_kroner() -> 0
+    | exception vsl22c_betingelser_opfyldt_kapitalafkastgrundlag kapitalafkastgrundlag_kroner() -> kontantomregnet_vederlag_kroner() under betingelser_opfyldt()
+    | kapitalafkastsats_basispoint() -> penge_positivt_beløb(input.kapitalafkastsats_basispoint)
+    | ejerperiode_hele_måneder() -> penge_positivt_beløb(input.ejerperiode_hele_måneder)
+    | kapitalafkast_kroner() -> penge_beløb_gange_basispoint_kroner(kapitalafkastgrundlag_kroner(), kapitalafkastsats_basispoint()) * ejerperiode_hele_måneder() / 12
+    | personlig_indkomst_fradrag_kroner() -> kapitalafkast_kroner()
+    | kapitalindkomst_tillæg_kroner() -> kapitalafkast_kroner()
+    | resultat() -> Virksomhedsskattelov22CResultat(
+        indkomstår = input.indkomstår,
+        vederlag_over_beløbsgrænse = vederlag_over_beløbsgrænse(),
+        ejer_eller_stemmebetingelse_opfyldt = ejer_eller_stemmebetingelse_opfyldt(),
+        ansatte_ejer_eller_stemmebetingelse_opfyldt = ansatte_ejer_eller_stemmebetingelse_opfyldt(),
+        betingelser_opfyldt = betingelser_opfyldt(),
+        kapitalafkastgrundlag_kroner = kapitalafkastgrundlag_kroner(),
+        kapitalafkastsats_basispoint = kapitalafkastsats_basispoint(),
+        ejerperiode_hele_måneder = ejerperiode_hele_måneder(),
+        kapitalafkast_kroner = kapitalafkast_kroner(),
+        personlig_indkomst_fradrag_kroner = personlig_indkomst_fradrag_kroner(),
+        kapitalindkomst_tillæg_kroner = kapitalindkomst_tillæg_kroner()
+    )
+}
+| virksomhedsskattelov22c_sag(input: Virksomhedsskattelov22CInput) -> Virksomhedsskattelov22CSag(input)
+| virksomhedsskattelov22c_resultat(input: Virksomhedsskattelov22CInput) -> virksomhedsskattelov22c_sag(input).resultat()
+
+----
+§ 23 a. Den skattepligtige kan vælge at medregne højst et grundbeløb på
+46.000 kr. (2010-niveau) af kapitalafkast, som overføres efter § 5, stk. 1,
+nr. 3, litra a, eller som beregnes efter § 22 a, til den personlige indkomst.
+Grundbeløbet reguleres efter personskattelovens § 20.
+
+Stk. 2. Er den skattepligtige gift, og anvender ægtefællerne bestemmelsen i
+kildeskattelovens § 25 A, stk. 8, kan hver af ægtefællerne anvende reglerne i
+stk. 1.
+----
+
+# Virksomhedsskattelov23AInput(indkomstår: Heltal, kapitalafkast_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, ønsket_medregnet_personlig_indkomst_kroner: Heltal)
+# Virksomhedsskattelov23AResultat(indkomstår: Heltal, kapitalafkast_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, ønsket_medregnet_personlig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, resterende_kapitalafkast_kroner: Heltal)
+
+# Virksomhedsskattelov23ASag(input: Virksomhedsskattelov23AInput) {
+    | kapitalafkast_kroner() -> penge_positivt_beløb(input.kapitalafkast_kroner)
+    | reguleret_grundbeløb_kroner() -> penge_positivt_beløb(input.reguleret_grundbeløb_kroner)
+    | ønsket_medregnet_personlig_indkomst_kroner() -> penge_positivt_beløb(input.ønsket_medregnet_personlig_indkomst_kroner)
+    | personlig_indkomst_loft_kroner() -> penge_mindste_beløb(kapitalafkast_kroner(), reguleret_grundbeløb_kroner())
+    | personlig_indkomst_kroner() -> penge_mindste_beløb(personlig_indkomst_loft_kroner(), ønsket_medregnet_personlig_indkomst_kroner())
+    | resterende_kapitalafkast_kroner() -> kapitalafkast_kroner() - personlig_indkomst_kroner()
+    | resultat() -> Virksomhedsskattelov23AResultat(
+        indkomstår = input.indkomstår,
+        kapitalafkast_kroner = kapitalafkast_kroner(),
+        reguleret_grundbeløb_kroner = reguleret_grundbeløb_kroner(),
+        ønsket_medregnet_personlig_indkomst_kroner = ønsket_medregnet_personlig_indkomst_kroner(),
+        personlig_indkomst_kroner = personlig_indkomst_kroner(),
+        resterende_kapitalafkast_kroner = resterende_kapitalafkast_kroner()
+    )
+}
+| virksomhedsskattelov23a_sag(input: Virksomhedsskattelov23AInput) -> Virksomhedsskattelov23ASag(input)
+| virksomhedsskattelov23a_resultat(input: Virksomhedsskattelov23AInput) -> virksomhedsskattelov23a_sag(input).resultat()
+
+----
 § 11. Er saldoen på indskudskontoen negativ på det tidspunkt, hvor anvendelsen
 af virksomhedsordningen påbegyndes, eller for efterfølgende indkomstår ved
 indkomstårets begyndelse, eller er saldoen på indskudskontoen negativ ved
@@ -88,6 +302,104 @@ indkomstår.
 | virksomhedsskattelov11_sag(input: Virksomhedsskattelov11Input) -> Virksomhedsskattelov11Sag(input)
 | virksomhedsskattelov11_resultat(input: Virksomhedsskattelov11Input) -> virksomhedsskattelov11_sag(input).resultat()
 
+= vsl7_overskudsloft_input = Virksomhedsskattelov7Input(
+    indkomstår = 2026,
+    afkastgrundlag_kroner = 400000,
+    kapitalafkastsats_basispoint = 500,
+    skattepligtigt_overskud_kroner = 18000,
+    regnskabsperiode_hele_måneder = 12
+)
+= vsl7_forholdsmæssigt_input = Virksomhedsskattelov7Input(
+    indkomstår = 2026,
+    afkastgrundlag_kroner = 600000,
+    kapitalafkastsats_basispoint = 600,
+    skattepligtigt_overskud_kroner = 50000,
+    regnskabsperiode_hele_måneder = 6
+)
+= vsl7_negativt_afkastgrundlag_input = Virksomhedsskattelov7Input(
+    indkomstår = 2026,
+    afkastgrundlag_kroner = -100000,
+    kapitalafkastsats_basispoint = 500,
+    skattepligtigt_overskud_kroner = 50000,
+    regnskabsperiode_hele_måneder = 12
+)
+= vsl22a_loftet_input = Virksomhedsskattelov22AInput(
+    indkomstår = 2026,
+    driver_selvstændig_erhvervsvirksomhed = Sandt,
+    vælger_kapitalafkastordning = Sandt,
+    afkastgrundlag_kroner = 300000,
+    kapitalafkastsats_basispoint = 500,
+    periode_hele_måneder = 12,
+    positiv_personlig_nettoindkomst_selvstændig_kroner = 12000,
+    negativ_nettokapitalindkomst_abs_kroner = 8000
+)
+= vsl22a_ikke_valgt_input = Virksomhedsskattelov22AInput(
+    indkomstår = 2026,
+    driver_selvstændig_erhvervsvirksomhed = Sandt,
+    vælger_kapitalafkastordning = Falskt,
+    afkastgrundlag_kroner = 300000,
+    kapitalafkastsats_basispoint = 500,
+    periode_hele_måneder = 12,
+    positiv_personlig_nettoindkomst_selvstændig_kroner = 12000,
+    negativ_nettokapitalindkomst_abs_kroner = 8000
+)
+= vsl22c_opfyldt_input = Virksomhedsskattelov22CInput(
+    indkomstår = 2026,
+    fuld_skattepligt_og_hjemmehørende = Sandt,
+    kontantomregnet_vederlag_kroner = 1000000,
+    reguleret_beløbsgrænse_kroner = 800000,
+    ejerandel_basispoint = 2600,
+    stemmeværdi_basispoint = 0,
+    ansatte_samlet_ejerandel_basispoint = 0,
+    ansatte_samlet_stemmeværdi_basispoint = 0,
+    ingen_ansat_råder_over_mere_end_50_pct_stemmer = Sandt,
+    selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering = Sandt,
+    aktier_ikke_omfattet_af_abl19b_eller_19c = Sandt,
+    ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto = Sandt,
+    ejet_i_mindre_end_11_år = Sandt,
+    kapitalafkastsats_basispoint = 500,
+    ejerperiode_hele_måneder = 12
+)
+= vsl22c_under_beløbsgrænse_input = Virksomhedsskattelov22CInput(
+    indkomstår = 2026,
+    fuld_skattepligt_og_hjemmehørende = Sandt,
+    kontantomregnet_vederlag_kroner = 700000,
+    reguleret_beløbsgrænse_kroner = 800000,
+    ejerandel_basispoint = 2600,
+    stemmeværdi_basispoint = 0,
+    ansatte_samlet_ejerandel_basispoint = 0,
+    ansatte_samlet_stemmeværdi_basispoint = 0,
+    ingen_ansat_råder_over_mere_end_50_pct_stemmer = Sandt,
+    selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering = Sandt,
+    aktier_ikke_omfattet_af_abl19b_eller_19c = Sandt,
+    ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto = Sandt,
+    ejet_i_mindre_end_11_år = Sandt,
+    kapitalafkastsats_basispoint = 500,
+    ejerperiode_hele_måneder = 12
+)
+= vsl23a_delvist_personlig_input = Virksomhedsskattelov23AInput(
+    indkomstår = 2026,
+    kapitalafkast_kroner = 18000,
+    reguleret_grundbeløb_kroner = 60000,
+    ønsket_medregnet_personlig_indkomst_kroner = 5000
+)
+= vsl23a_loftet_input = Virksomhedsskattelov23AInput(
+    indkomstår = 2026,
+    kapitalafkast_kroner = 12000,
+    reguleret_grundbeløb_kroner = 6000,
+    ønsket_medregnet_personlig_indkomst_kroner = 20000
+)
+
+= vsl7_overskudsloft_fixture = virksomhedsskattelov7_resultat(vsl7_overskudsloft_input)
+= vsl7_forholdsmæssigt_fixture = virksomhedsskattelov7_resultat(vsl7_forholdsmæssigt_input)
+= vsl7_negativt_afkastgrundlag_fixture = virksomhedsskattelov7_resultat(vsl7_negativt_afkastgrundlag_input)
+= vsl22a_loftet_fixture = virksomhedsskattelov22a_resultat(vsl22a_loftet_input)
+= vsl22a_ikke_valgt_fixture = virksomhedsskattelov22a_resultat(vsl22a_ikke_valgt_input)
+= vsl22c_opfyldt_fixture = virksomhedsskattelov22c_resultat(vsl22c_opfyldt_input)
+= vsl22c_under_beløbsgrænse_fixture = virksomhedsskattelov22c_resultat(vsl22c_under_beløbsgrænse_input)
+= vsl23a_delvist_personlig_fixture = virksomhedsskattelov23a_resultat(vsl23a_delvist_personlig_input)
+= vsl23a_loftet_fixture = virksomhedsskattelov23a_resultat(vsl23a_loftet_input)
+
 = vsl11_stk1_loftet_input = Virksomhedsskattelov11Input(
     indkomstår = 2026,
     rentekorrektionssats_basispoint = 500,
@@ -138,11 +450,29 @@ indkomstår.
 = vsl11_samlet_fixture = virksomhedsskattelov11_resultat(vsl11_samlet_input)
 = vsl11_uden_rentekorrektion_fixture = virksomhedsskattelov11_resultat(vsl11_uden_rentekorrektion_input)
 
+| vsl7_kapitalafkast_loftes_af_overskud: vsl7_overskudsloft_fixture -> vsl7_overskudsloft_fixture.beregnet_kapitalafkast_positivt_kroner == 20000 && vsl7_overskudsloft_fixture.kapitalafkast_kroner == 18000
+| vsl7_forholdsmæssigt_for_regnskabsperiode: vsl7_forholdsmæssigt_fixture -> vsl7_forholdsmæssigt_fixture.beregnet_kapitalafkast_positivt_kroner == 36000 && vsl7_forholdsmæssigt_fixture.forholdsmæssigt_kapitalafkast_kroner == 18000
+| vsl7_negativt_afkastgrundlag_ignoreres: vsl7_negativt_afkastgrundlag_fixture -> vsl7_negativt_afkastgrundlag_fixture.beregnet_kapitalafkast_før_positivregulering_kroner == -5000 && vsl7_negativt_afkastgrundlag_fixture.kapitalafkast_kroner == 0
+| vsl22a_kapitalafkast_loftes_efter_stk3: vsl22a_loftet_fixture -> vsl22a_loftet_fixture.omfattet_af_stk1 == Sandt && vsl22a_loftet_fixture.beregnet_kapitalafkast_før_loft_kroner == 15000 && vsl22a_loftet_fixture.loft_efter_stk3_kroner == 12000 && vsl22a_loftet_fixture.kapitalafkast_kroner == 12000
+| vsl22a_kræver_valg: vsl22a_ikke_valgt_fixture -> vsl22a_ikke_valgt_fixture.omfattet_af_stk1 == Falskt && vsl22a_ikke_valgt_fixture.kapitalafkast_kroner == 0
+| vsl22c_betingelser_giver_kapitalafkast: vsl22c_opfyldt_fixture -> vsl22c_opfyldt_fixture.betingelser_opfyldt == Sandt && vsl22c_opfyldt_fixture.kapitalafkastgrundlag_kroner == 1000000 && vsl22c_opfyldt_fixture.kapitalafkast_kroner == 50000
+| vsl22c_beløbsgrænse_afskærer: vsl22c_under_beløbsgrænse_fixture -> vsl22c_under_beløbsgrænse_fixture.vederlag_over_beløbsgrænse == Falskt && vsl22c_under_beløbsgrænse_fixture.kapitalafkast_kroner == 0
+| vsl23a_delvist_valgt_personlig_indkomst: vsl23a_delvist_personlig_fixture -> vsl23a_delvist_personlig_fixture.personlig_indkomst_kroner == 5000 && vsl23a_delvist_personlig_fixture.resterende_kapitalafkast_kroner == 13000
+| vsl23a_grundbeløb_lofter_personlig_indkomst: vsl23a_loftet_fixture -> vsl23a_loftet_fixture.personlig_indkomst_kroner == 6000 && vsl23a_loftet_fixture.resterende_kapitalafkast_kroner == 6000
 | vsl11_stk1_afkast_og_nettofinansiering_lofter: vsl11_stk1_loftet_fixture -> vsl11_stk1_loftet_fixture.stk1_indskudskonto_grundlag_kroner == 100000 && vsl11_stk1_loftet_fixture.stk1_rentekorrektion_før_loft_kroner == 5000 && vsl11_stk1_loftet_fixture.stk1_afkastgrundlag_loft_kroner == 3000 && vsl11_stk1_loftet_fixture.stk1_rentekorrektion_kroner == 3000
 | vsl11_stk2_indskud_lofter: vsl11_stk2_loftet_fixture -> vsl11_stk2_loftet_fixture.stk2_hævning_og_indskud == Sandt && vsl11_stk2_loftet_fixture.stk2_rentekorrektion_før_loft_kroner == 4000 && vsl11_stk2_loftet_fixture.stk2_indskudsloft_kroner == 1500 && vsl11_stk2_loftet_fixture.stk2_rentekorrektion_kroner == 1500
 | vsl11_samlet_medregnes_personligt_og_fradrages_i_kapital: vsl11_samlet_fixture -> vsl11_samlet_fixture.samlet_rentekorrektion_kroner == 4500 && vsl11_samlet_fixture.personlig_indkomst_tillæg_kroner == 4500 && vsl11_samlet_fixture.kapitalindkomst_fradrag_kroner == 4500 && vsl11_samlet_fixture.kapitalindkomst_kroner == -4500
 | vsl11_uden_betingelser_giver_nul: vsl11_uden_rentekorrektion_fixture -> vsl11_uden_rentekorrektion_fixture.samlet_rentekorrektion_kroner == 0 && vsl11_uden_rentekorrektion_fixture.kapitalindkomst_kroner == 0
 
+? vsl7_kapitalafkast_loftes_af_overskud
+? vsl7_forholdsmæssigt_for_regnskabsperiode
+? vsl7_negativt_afkastgrundlag_ignoreres
+? vsl22a_kapitalafkast_loftes_efter_stk3
+? vsl22a_kræver_valg
+? vsl22c_betingelser_giver_kapitalafkast
+? vsl22c_beløbsgrænse_afskærer
+? vsl23a_delvist_valgt_personlig_indkomst
+? vsl23a_grundbeløb_lofter_personlig_indkomst
 ? vsl11_stk1_afkast_og_nettofinansiering_lofter
 ? vsl11_stk2_indskud_lofter
 ? vsl11_samlet_medregnes_personligt_og_fradrages_i_kapital

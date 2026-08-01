@@ -1,0 +1,123 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 3 og 3 a.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- virksomhedsskatteloven.runa.
+
+= par4_stk1_nr3_audit_vsl7_input = Virksomhedsskattelov7Input(
+    indkomstår = 2026,
+    afkastgrundlag_kroner = 400000,
+    kapitalafkastsats_basispoint = 500,
+    skattepligtigt_overskud_kroner = 18000,
+    regnskabsperiode_hele_måneder = 12
+)
+= par4_stk1_nr3_audit_vsl23a_input = Virksomhedsskattelov23AInput(
+    indkomstår = 2026,
+    kapitalafkast_kroner = 18000,
+    reguleret_grundbeløb_kroner = 60000,
+    ønsket_medregnet_personlig_indkomst_kroner = 5000
+)
+= par4_stk1_nr3a_audit_vsl22a_input = Virksomhedsskattelov22AInput(
+    indkomstår = 2026,
+    driver_selvstændig_erhvervsvirksomhed = Sandt,
+    vælger_kapitalafkastordning = Sandt,
+    afkastgrundlag_kroner = 300000,
+    kapitalafkastsats_basispoint = 500,
+    periode_hele_måneder = 12,
+    positiv_personlig_nettoindkomst_selvstændig_kroner = 12000,
+    negativ_nettokapitalindkomst_abs_kroner = 8000
+)
+= par4_stk1_nr3a_audit_vsl23a_input = Virksomhedsskattelov23AInput(
+    indkomstår = 2026,
+    kapitalafkast_kroner = 12000,
+    reguleret_grundbeløb_kroner = 60000,
+    ønsket_medregnet_personlig_indkomst_kroner = 4000
+)
+= par4_stk1_nr3a_audit_vsl22c_input = Virksomhedsskattelov22CInput(
+    indkomstår = 2026,
+    fuld_skattepligt_og_hjemmehørende = Sandt,
+    kontantomregnet_vederlag_kroner = 1000000,
+    reguleret_beløbsgrænse_kroner = 800000,
+    ejerandel_basispoint = 2600,
+    stemmeværdi_basispoint = 0,
+    ansatte_samlet_ejerandel_basispoint = 0,
+    ansatte_samlet_stemmeværdi_basispoint = 0,
+    ingen_ansat_råder_over_mere_end_50_pct_stemmer = Sandt,
+    selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering = Sandt,
+    aktier_ikke_omfattet_af_abl19b_eller_19c = Sandt,
+    ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto = Sandt,
+    ejet_i_mindre_end_11_år = Sandt,
+    kapitalafkastsats_basispoint = 500,
+    ejerperiode_hele_måneder = 12
+)
+= par4_stk1_nr3a_audit_vsl22a_ikke_valgt_input = Virksomhedsskattelov22AInput(
+    indkomstår = 2026,
+    driver_selvstændig_erhvervsvirksomhed = Sandt,
+    vælger_kapitalafkastordning = Falskt,
+    afkastgrundlag_kroner = 300000,
+    kapitalafkastsats_basispoint = 500,
+    periode_hele_måneder = 12,
+    positiv_personlig_nettoindkomst_selvstændig_kroner = 12000,
+    negativ_nettokapitalindkomst_abs_kroner = 8000
+)
+= par4_stk1_nr3a_audit_vsl22c_under_beløbsgrænse_input = Virksomhedsskattelov22CInput(
+    indkomstår = 2026,
+    fuld_skattepligt_og_hjemmehørende = Sandt,
+    kontantomregnet_vederlag_kroner = 700000,
+    reguleret_beløbsgrænse_kroner = 800000,
+    ejerandel_basispoint = 2600,
+    stemmeværdi_basispoint = 0,
+    ansatte_samlet_ejerandel_basispoint = 0,
+    ansatte_samlet_stemmeværdi_basispoint = 0,
+    ingen_ansat_råder_over_mere_end_50_pct_stemmer = Sandt,
+    selskab_ikke_passiv_kapitalanbringelse_eller_næring_finansiering = Sandt,
+    aktier_ikke_omfattet_af_abl19b_eller_19c = Sandt,
+    ikke_erhvervet_ved_omdannelse_aktieombytning_etableringskonto = Sandt,
+    ejet_i_mindre_end_11_år = Sandt,
+    kapitalafkastsats_basispoint = 500,
+    ejerperiode_hele_måneder = 12
+)
+
+= par4_stk1_nr3_audit_overført = par4_stk1_nr3_resultat_fra_virksomhedsskattelov7(
+    par4_stk1_nr3_audit_vsl7_input,
+    Sandt,
+    par4_stk1_nr3_audit_vsl23a_input
+)
+= par4_stk1_nr3_audit_ikke_overført = par4_stk1_nr3_resultat_fra_virksomhedsskattelov7(
+    par4_stk1_nr3_audit_vsl7_input,
+    Falskt,
+    par4_stk1_nr3_audit_vsl23a_input
+)
+= par4_stk1_nr3a_audit_omfattet = par4_stk1_nr3a_resultat_fra_virksomhedsskattelov22(
+    par4_stk1_nr3a_audit_vsl22a_input,
+    par4_stk1_nr3a_audit_vsl23a_input,
+    par4_stk1_nr3a_audit_vsl22c_input
+)
+= par4_stk1_nr3a_audit_ikke_omfattet = par4_stk1_nr3a_resultat_fra_virksomhedsskattelov22(
+    par4_stk1_nr3a_audit_vsl22a_ikke_valgt_input,
+    Virksomhedsskattelov23AInput(indkomstår = 2026, kapitalafkast_kroner = 0, reguleret_grundbeløb_kroner = 60000, ønsket_medregnet_personlig_indkomst_kroner = 0),
+    par4_stk1_nr3a_audit_vsl22c_under_beløbsgrænse_input
+)
+= par4_stk1_nr3_og_3a_audit_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr3_kapitalpost_fra_virksomhedsskattelov7(par4_stk1_nr3_audit_vsl7_input, Sandt, par4_stk1_nr3_audit_vsl23a_input),
+        par4_stk1_nr3a_kapitalpost_fra_virksomhedsskattelov22(par4_stk1_nr3a_audit_vsl22a_input, par4_stk1_nr3a_audit_vsl23a_input, par4_stk1_nr3a_audit_vsl22c_input)
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr3_audit_overført_efter_par23a: par4_stk1_nr3_audit_overført -> par4_stk1_nr3_audit_overført.brutto_kapitalafkast_kroner == 18000 && par4_stk1_nr3_audit_overført.medregnet_personlig_indkomst_efter_par23a_kroner == 5000 && par4_stk1_nr3_audit_overført.kapitalindkomst_kroner == 13000
+| par4_stk1_nr3_audit_kræver_overførsel: par4_stk1_nr3_audit_ikke_overført -> par4_stk1_nr3_audit_ikke_overført.kapitalafkast_efter_par23a_kroner == 13000 && par4_stk1_nr3_audit_ikke_overført.kapitalindkomst_kroner == 0
+| par4_stk1_nr3a_audit_22a_og_22c_efter_par23a: par4_stk1_nr3a_audit_omfattet -> par4_stk1_nr3a_audit_omfattet.kapitalafkast_22a_efter_par23a_kroner == 8000 && par4_stk1_nr3a_audit_omfattet.kapitalafkast_efter_virksomhedsskattelov22c_kroner == 50000 && par4_stk1_nr3a_audit_omfattet.kapitalindkomst_kroner == 58000
+| par4_stk1_nr3a_audit_betingelser_afskærer: par4_stk1_nr3a_audit_ikke_omfattet -> par4_stk1_nr3a_audit_ikke_omfattet.kapitalindkomst_kroner == 0
+| par4_stk1_nr3_og_3a_audit_aggregat: par4_stk1_nr3_og_3a_audit_kapitalindkomst -> par4_stk1_nr3_og_3a_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner == 71000 && par4_stk1_nr3_og_3a_audit_kapitalindkomst.nettokapitalindkomst_kroner == 71000
+
+? par4_stk1_nr3_audit_overført_efter_par23a
+? par4_stk1_nr3_audit_kræver_overførsel
+? par4_stk1_nr3a_audit_22a_og_22c_efter_par23a
+? par4_stk1_nr3a_audit_betingelser_afskærer
+? par4_stk1_nr3_og_3a_audit_aggregat
+
+@ print("§4 stk.1 nr.3/3a VSL-kapitalafkast i kapitalindkomst: " + vis(par4_stk1_nr3_og_3a_audit_kapitalindkomst.postbeløb_i_kapitalindkomst_kroner))

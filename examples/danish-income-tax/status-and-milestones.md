@@ -30,7 +30,12 @@ consumes a typed Kursgevinstloven result for ordinary personal claims, selected
 debt cases and basic financial contracts, including the § 14/§ 23 2.000 kr.
 threshold, § 14 stk. 2/§ 15/§ 18 loss blocks, § 17 fordringstab posture,
 § 32 contract-loss limitation and § 4 stk. 3 personal-income reclassification
-posture; § 4, stk. 1, nr. 7 now consumes a typed LL § 8, stk. 3 result for
+posture; § 4, stk. 1, nr. 3 and nr. 3 a now consume typed
+Virksomhedsskatteloven § 7, § 22 a, § 22 c and § 23 a results for business
+capital return, including positive/period-proportional § 7 return capped by
+taxable surplus, § 22 a election and stk. 3 ceiling, § 22 c acquisition
+conditions and proportional ownership period, and the § 23 a personal-income
+election reducing the capital-income amount; § 4, stk. 1, nr. 7 now consumes a typed LL § 8, stk. 3 result for
 running loan provisions/premiums, running guarantee premiums and one-off
 provisions/premiums when the loan/guarantee period is under two years, with the
 deductible amount flowing as negative capital income; § 4, stk. 1, nr. 8 now
@@ -487,8 +492,9 @@ encoded as a temporal rule on top of the consolidation.
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
   financial contracts.
 - `virksomhedsskatteloven.runa` exists and checks/runs with `runa run`; it
-  covers the Virksomhedsskatteloven § 11 rentekorrektion dependency consumed by
-  Personskatteloven § 4, stk. 1, nr. 8.
+  covers the Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return
+  dependency consumed by Personskatteloven § 4, stk. 1, nr. 3 and nr. 3 a, and
+  the § 11 rentekorrektion dependency consumed by § 4, stk. 1, nr. 8.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
   the Afskrivningsloven § 40 C dependency consumed by Personskatteloven § 4,
   stk. 1, nr. 16.
@@ -512,6 +518,8 @@ encoded as a temporal rule on top of the consolidation.
   checks/runs with `runa run`.
 - `personskatteloven-par4-kursgevinst.audit.runa` exists and checks/runs with
   `runa run`.
+- `personskatteloven-par4-virksomhedsskattelov-kapitalafkast.audit.runa`
+  exists and checks/runs with `runa run`.
 - `personskatteloven-par4-ligningslov8stk3.audit.runa` exists and checks/runs
   with `runa run`.
 - `personskatteloven-par4-virksomhedsskattelov11.audit.runa` exists and
@@ -567,8 +575,10 @@ encoded as a temporal rule on top of the consolidation.
   classification under stk. 1, nr. 1, Kursgevinstloven gain/loss classification
   under stk. 1, nr. 2 with claim thresholding, loss blocks, selected debt
   treatment, contract loss limitation and personal-income reclassification,
-  Virksomhedsskatteloven § 11 rentekorrektion under stk. 1, nr. 8 with a
-  capital-income deduction and separate personal-income addition,
+  Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return classification
+  under stk. 1, nr. 3 and nr. 3 a, including § 23 a personal-income election
+  reduction, Virksomhedsskatteloven § 11 rentekorrektion under stk. 1, nr. 8
+  with a capital-income deduction and separate personal-income addition,
   passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, LL § 14 A stk. 1 payment
   classification under stk. 1, nr. 10 with stk. 2 payouts kept outside nr. 10,
@@ -613,7 +623,8 @@ encoded as a temporal rule on top of the consolidation.
   amendment's 2010-level amounts through § 20 while preserving the LOV nr.
   482/2024 source branch for each layer,
   Ligningsloven ordinary wage-earner deduction, LL §§ 5 C/6/6 A/8/12 B/14 A
-  capital-income dependencies, Virksomhedsskatteloven § 11 rentekorrektion,
+  capital-income dependencies, Virksomhedsskatteloven §§ 7/22 a/22 c/23 a
+  capital return and § 11 rentekorrektion,
   Pensionsbeskatningsloven § 53 A return
   dependency, Ejendomsavancebeskatningsloven real-property-gain dependency,
   Afskrivningsloven § 40 C saldo dependency, and
@@ -1601,6 +1612,9 @@ M5 - Audit suite
   §§ 9 J/9 K wage-earner-deduction coverage plus § 9 L/§ 26 nr. 5 validation
   coverage and § 15 Q subletting/letting surplus, including stk. 4
   § 15 P coordination, feeding Personskatteloven § 4, stk. 1, nr. 17,
+  Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return validation feeding
+  Personskatteloven § 4, stk. 1, nr. 3 and nr. 3 a, including § 23 a
+  personal-income election reduction,
   ordinary municipal/church-tax legal coverage,
   covered Kildeskatteloven ordinary A-income/withholding/e-skattekort posture,
   covered BEK 839 forskudskort generation, covered BEK 1094 2026
@@ -1665,7 +1679,8 @@ M6 - Website integration
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing and system-start rateplan posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   first § 1/§ 2 taxable-income composition from the separate income categories,
-  first § 4 nr. 9/nr. 11/nr. 17 focused capital-income classification audits,
+  first § 4 nr. 3/nr. 3 a/nr. 9/nr. 11/nr. 17 focused capital-income
+  classification audits,
   first § 4 a pension/share-income audit,
   first § 8 a/§ 67 share-income annual-settlement scenario including negative
   share-income carry-forward,
