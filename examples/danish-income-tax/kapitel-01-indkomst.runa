@@ -358,9 +358,10 @@ fra og med den 1. januar 2027.
 # Par4Stk1Nr5Resultat(effektiv_aktiv: AktieavancebeskatningslovAktiv, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr5aInput(beløb_kroner: Heltal, selskabsskattelov1_stk1_nr6_resultat: Selskabsskattelov1Stk1Nr6Resultat)
 # Par4Stk1Nr5aResultat(selskabsskattelov_hjemmel: Selskabsskattelov1Stk1Nr6Kilde, skattepligtig_efter_selskabsskattelov1_stk1_nr6: Boolsk, investeringsforening: Boolsk, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal)
+# Par4Stk1Nr5bFormidler = Par4Nr5bPengeinstitut | Par4Nr5bRealkreditinstitut | Par4Nr5bFondsmæglerselskab | Par4Nr5bInvesteringsforvaltningsselskab | Par4Nr5bForvalterAfAlternativeInvesteringsfonde | Par4Nr5bFinansielRådgiver | Par4Nr5bInvesteringsrådgiver | Par4Nr5bIkkeNævntFormidler
 # Par4Stk1Nr5bAktiv = Par4Nr5bAktieEllerInvesteringsbevis19C | Par4Nr5bInvesteringsbevis22 | Par4Nr5bAndet
-# Par4Stk1Nr5bInput(beløb_kroner: Heltal, modtaget_fra_finansiel_formidler: Boolsk, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut: Boolsk, aktiv: Par4Stk1Nr5bAktiv, ville_være_aktieavancebeskatningslov17_hvis_ikke_19c: Boolsk)
-# Par4Stk1Nr5bResultat(omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
+# Par4Stk1Nr5bInput(beløb_kroner: Heltal, formidler: Par4Stk1Nr5bFormidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut: Boolsk, aktiv: Par4Stk1Nr5bAktiv, ville_være_aktieavancebeskatningslov17_hvis_ikke_19c: Boolsk)
+# Par4Stk1Nr5bResultat(formidler: Par4Stk1Nr5bFormidler, formidler_nævnt_i_nr5b: Boolsk, aktiv_omfattet_af_nr5b: Boolsk, omfattet_af_par4_nr5b: Boolsk, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk7Ligningslov7NInput(ligningslov7n_resultat: Ligningslov7NResultat)
 # Par4Stk7Ligningslov7NResultat(omfattet_af_ligningslov7n: Boolsk, personlig_indkomst_kroner: Heltal, ikke_omfattet_af_par4_stk7_kroner: Heltal)
 # Par4Stk1Nr6Input(ejendomsskattelov_par3_resultat: EjendomsskattelovPar3Resultat, overskud_eller_underskud_kroner: Heltal)
@@ -632,12 +633,22 @@ fra og med den 1. januar 2027.
     personlig_indkomst_tillæg_kroner = 0
 )
 
+| par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Falskt
+| exception par4_stk1_nr5b_pengeinstitut par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bPengeinstitut
+| exception par4_stk1_nr5b_realkreditinstitut par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bRealkreditinstitut
+| exception par4_stk1_nr5b_fondsmægler par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bFondsmæglerselskab
+| exception par4_stk1_nr5b_investeringsforvaltning par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bInvesteringsforvaltningsselskab
+| exception par4_stk1_nr5b_alternativ_fond_forvalter par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bForvalterAfAlternativeInvesteringsfonde
+| exception par4_stk1_nr5b_finansiel_rådgiver par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bFinansielRådgiver
+| exception par4_stk1_nr5b_investeringsrådgiver par4_stk1_nr5b_formidler_nævnt(formidler: Par4Stk1Nr5bFormidler) -> Sandt under formidler == Par4Nr5bInvesteringsrådgiver
 | par4_stk1_nr5b_aktiv_omfattet(aktiv: Par4Stk1Nr5bAktiv) -> Falskt
 | exception par4_stk1_nr5b_19c_aktiv par4_stk1_nr5b_aktiv_omfattet(aktiv: Par4Stk1Nr5bAktiv) -> Sandt under aktiv == Par4Nr5bAktieEllerInvesteringsbevis19C
 | exception par4_stk1_nr5b_22_bevis par4_stk1_nr5b_aktiv_omfattet(aktiv: Par4Stk1Nr5bAktiv) -> Sandt under aktiv == Par4Nr5bInvesteringsbevis22
 
 # Par4Stk1Nr5bSag(input: Par4Stk1Nr5bInput) {
-    | omfattet_af_par4_nr5b() -> input.modtaget_fra_finansiel_formidler && input.formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut && par4_stk1_nr5b_aktiv_omfattet(input.aktiv)
+    | formidler_nævnt_i_nr5b() -> par4_stk1_nr5b_formidler_nævnt(input.formidler)
+    | aktiv_omfattet_af_nr5b() -> par4_stk1_nr5b_aktiv_omfattet(input.aktiv)
+    | omfattet_af_par4_nr5b() -> formidler_nævnt_i_nr5b() && input.formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut && aktiv_omfattet_af_nr5b()
     | personlig_reklassifikation() -> IngenPersonligReklassifikation
     | exception par4_stk6_formidler_19c_hvis17_til_personlig personlig_reklassifikation() -> Investeringsformidler19CHvis17Aktier under omfattet_af_par4_nr5b() && input.aktiv == Par4Nr5bAktieEllerInvesteringsbevis19C && input.ville_være_aktieavancebeskatningslov17_hvis_ikke_19c
     | omfattet_af_kapitalindkomst() -> omfattet_af_par4_nr5b() && personlig_reklassifikation() == IngenPersonligReklassifikation
@@ -646,6 +657,10 @@ fra og med den 1. januar 2027.
     | postbeløb_kroner() -> 0
     | exception par4_stk1_nr5b_postbeløb postbeløb_kroner() -> penge_positivt_beløb(input.beløb_kroner) under omfattet_af_par4_nr5b()
     | resultat() -> Par4Stk1Nr5bResultat(
+        formidler = input.formidler,
+        formidler_nævnt_i_nr5b = formidler_nævnt_i_nr5b(),
+        aktiv_omfattet_af_nr5b = aktiv_omfattet_af_nr5b(),
+        omfattet_af_par4_nr5b = omfattet_af_par4_nr5b(),
         omfattet_af_kapitalindkomst = omfattet_af_kapitalindkomst(),
         kapitalindkomst_kroner = kapitalindkomst_kroner(),
         personlig_reklassifikation = personlig_reklassifikation()
@@ -1257,20 +1272,28 @@ fra og med den 1. januar 2027.
 = par4_stk1_nr5a_fondsbeskatning_fixture = par4_stk1_nr5a_resultat(par4_stk1_nr5a_fondsbeskatning_input)
 = par4_stk1_nr5b_fixture_input = Par4Stk1Nr5bInput(
     beløb_kroner = 4000,
-    modtaget_fra_finansiel_formidler = Sandt,
+    formidler = Par4Nr5bPengeinstitut,
     formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut = Sandt,
     aktiv = Par4Nr5bInvesteringsbevis22,
     ville_være_aktieavancebeskatningslov17_hvis_ikke_19c = Falskt
 )
 = par4_stk1_nr5b_hvis17_fixture_input = Par4Stk1Nr5bInput(
     beløb_kroner = 3000,
-    modtaget_fra_finansiel_formidler = Sandt,
+    formidler = Par4Nr5bInvesteringsrådgiver,
     formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut = Sandt,
     aktiv = Par4Nr5bAktieEllerInvesteringsbevis19C,
     ville_være_aktieavancebeskatningslov17_hvis_ikke_19c = Sandt
 )
+= par4_stk1_nr5b_ikke_nævnt_formidler_input = Par4Stk1Nr5bInput(
+    beløb_kroner = 4000,
+    formidler = Par4Nr5bIkkeNævntFormidler,
+    formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut = Sandt,
+    aktiv = Par4Nr5bInvesteringsbevis22,
+    ville_være_aktieavancebeskatningslov17_hvis_ikke_19c = Falskt
+)
 = par4_stk1_nr5b_fixture = par4_stk1_nr5b_resultat(par4_stk1_nr5b_fixture_input)
 = par4_stk1_nr5b_hvis17_fixture = par4_stk1_nr5b_resultat(par4_stk1_nr5b_hvis17_fixture_input)
+= par4_stk1_nr5b_ikke_nævnt_formidler_fixture = par4_stk1_nr5b_resultat(par4_stk1_nr5b_ikke_nævnt_formidler_input)
 = par4_stk7_ll7n_udbetaling_input = Ligningslov7NInput(
     indkomstår = 2026,
     selskab = Ll7NMedarbejderinvesteringsselskabStk1,
@@ -1610,8 +1633,9 @@ fra og med den 1. januar 2027.
 | par4_stk1_nr5a_medlemsbevis_indgår: par4_stk1_nr5a_fixture -> par4_stk1_nr5a_fixture.selskabsskattelov_hjemmel == SelskabsskattelovenLbk279Af2025Par1Stk1Nr6 && par4_stk1_nr5a_fixture.skattepligtig_efter_selskabsskattelov1_stk1_nr6 == Sandt && par4_stk1_nr5a_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr5a_fixture.kapitalindkomst_kroner == 5000
 | par4_stk1_nr5a_investeringsforening_udelukkes: par4_stk1_nr5a_investeringsforening_fixture -> par4_stk1_nr5a_investeringsforening_fixture.skattepligtig_efter_selskabsskattelov1_stk1_nr6 == Sandt && par4_stk1_nr5a_investeringsforening_fixture.investeringsforening == Sandt && par4_stk1_nr5a_investeringsforening_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr5a_investeringsforening_fixture.kapitalindkomst_kroner == 0
 | par4_stk1_nr5a_fondsbeskatning_udelukkes: par4_stk1_nr5a_fondsbeskatning_fixture -> par4_stk1_nr5a_fondsbeskatning_fixture.skattepligtig_efter_selskabsskattelov1_stk1_nr6 == Falskt && par4_stk1_nr5a_fondsbeskatning_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr5a_fondsbeskatning_fixture.kapitalindkomst_kroner == 0
-| par4_stk1_nr5b_formidlerbeløb_indgår: par4_stk1_nr5b_fixture -> par4_stk1_nr5b_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr5b_fixture.kapitalindkomst_kroner == 4000
-| par4_stk6_formidler19c_hvis17_personlig: par4_stk1_nr5b_hvis17_fixture -> par4_stk1_nr5b_hvis17_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr5b_hvis17_fixture.personlig_reklassifikation == Investeringsformidler19CHvis17Aktier
+| par4_stk1_nr5b_formidlerbeløb_indgår: par4_stk1_nr5b_fixture -> par4_stk1_nr5b_fixture.formidler == Par4Nr5bPengeinstitut && par4_stk1_nr5b_fixture.formidler_nævnt_i_nr5b == Sandt && par4_stk1_nr5b_fixture.aktiv_omfattet_af_nr5b == Sandt && par4_stk1_nr5b_fixture.omfattet_af_par4_nr5b == Sandt && par4_stk1_nr5b_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr5b_fixture.kapitalindkomst_kroner == 4000
+| par4_stk6_formidler19c_hvis17_personlig: par4_stk1_nr5b_hvis17_fixture -> par4_stk1_nr5b_hvis17_fixture.formidler == Par4Nr5bInvesteringsrådgiver && par4_stk1_nr5b_hvis17_fixture.formidler_nævnt_i_nr5b == Sandt && par4_stk1_nr5b_hvis17_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr5b_hvis17_fixture.personlig_reklassifikation == Investeringsformidler19CHvis17Aktier
+| par4_stk1_nr5b_ikke_nævnt_formidler_udelukkes: par4_stk1_nr5b_ikke_nævnt_formidler_fixture -> par4_stk1_nr5b_ikke_nævnt_formidler_fixture.formidler_nævnt_i_nr5b == Falskt && par4_stk1_nr5b_ikke_nævnt_formidler_fixture.omfattet_af_par4_nr5b == Falskt && par4_stk1_nr5b_ikke_nævnt_formidler_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr5b_ikke_nævnt_formidler_fixture.kapitalindkomst_kroner == 0
 | par4_stk7_ll7n_udbetaling_til_personlig_indkomst: par4_stk7_ll7n_udbetaling_fixture -> par4_stk7_ll7n_udbetaling_fixture.omfattet_af_ligningslov7n == Sandt && par4_stk7_ll7n_udbetaling_fixture.personlig_indkomst_kroner == 12000 && par4_stk7_ll7n_udbetaling_fixture.ikke_omfattet_af_par4_stk7_kroner == 0
 | par4_stk7_ll7n_tab_ikke_personlig_indkomst: par4_stk7_ll7n_tab_fixture -> par4_stk7_ll7n_tab_fixture.omfattet_af_ligningslov7n == Sandt && par4_stk7_ll7n_tab_fixture.personlig_indkomst_kroner == 0 && par4_stk7_ll7n_tab_fixture.ikke_omfattet_af_par4_stk7_kroner == -7000
 | par4_stk1_nr6_ejendomsoverskud_indgår_efter_ejendomsskattelov3: par4_stk1_nr6_2027_landzone_fixture -> par4_stk1_nr6_2027_landzone_fixture.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr8 && par4_stk1_nr6_2027_landzone_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr6_2027_landzone_fixture.kapitalindkomst_kroner == 16000

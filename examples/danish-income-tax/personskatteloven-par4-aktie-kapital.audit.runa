@@ -26,8 +26,9 @@
 | par4_stk1_nr5a_audit_medlemsbevis_til_kapital: par4_stk1_nr5a_fixture -> par4_stk1_nr5a_fixture.selskabsskattelov_hjemmel == SelskabsskattelovenLbk279Af2025Par1Stk1Nr6 && par4_stk1_nr5a_fixture.skattepligtig_efter_selskabsskattelov1_stk1_nr6 == Sandt && par4_stk1_nr5a_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr5a_fixture.kapitalindkomst_kroner == 5000
 | par4_stk1_nr5a_audit_investeringsforening_udelukkes: par4_stk1_nr5a_investeringsforening_fixture -> par4_stk1_nr5a_investeringsforening_fixture.skattepligtig_efter_selskabsskattelov1_stk1_nr6 == Sandt && par4_stk1_nr5a_investeringsforening_fixture.investeringsforening == Sandt && par4_stk1_nr5a_investeringsforening_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr5a_investeringsforening_fixture.kapitalindkomst_kroner == 0
 | par4_stk1_nr5a_audit_fondsbeskatning_udelukkes: par4_stk1_nr5a_fondsbeskatning_fixture -> par4_stk1_nr5a_fondsbeskatning_fixture.skattepligtig_efter_selskabsskattelov1_stk1_nr6 == Falskt && par4_stk1_nr5a_fondsbeskatning_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr5a_fondsbeskatning_fixture.kapitalindkomst_kroner == 0
-| par4_stk1_nr5b_audit_formidlerbeløb_til_kapital: par4_stk1_nr5b_fixture -> par4_stk1_nr5b_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr5b_fixture.kapitalindkomst_kroner == 4000
-| par4_stk6_audit_formidler19c_hvis17_til_personlig: par4_stk1_nr5b_hvis17_fixture -> par4_stk1_nr5b_hvis17_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr5b_hvis17_fixture.personlig_reklassifikation == Investeringsformidler19CHvis17Aktier
+| par4_stk1_nr5b_audit_formidlerbeløb_til_kapital: par4_stk1_nr5b_fixture -> par4_stk1_nr5b_fixture.formidler == Par4Nr5bPengeinstitut && par4_stk1_nr5b_fixture.formidler_nævnt_i_nr5b == Sandt && par4_stk1_nr5b_fixture.omfattet_af_par4_nr5b == Sandt && par4_stk1_nr5b_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr5b_fixture.kapitalindkomst_kroner == 4000
+| par4_stk6_audit_formidler19c_hvis17_til_personlig: par4_stk1_nr5b_hvis17_fixture -> par4_stk1_nr5b_hvis17_fixture.formidler == Par4Nr5bInvesteringsrådgiver && par4_stk1_nr5b_hvis17_fixture.formidler_nævnt_i_nr5b == Sandt && par4_stk1_nr5b_hvis17_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr5b_hvis17_fixture.personlig_reklassifikation == Investeringsformidler19CHvis17Aktier
+| par4_stk1_nr5b_audit_ikke_nævnt_formidler_udelukkes: par4_stk1_nr5b_ikke_nævnt_formidler_fixture -> par4_stk1_nr5b_ikke_nævnt_formidler_fixture.formidler_nævnt_i_nr5b == Falskt && par4_stk1_nr5b_ikke_nævnt_formidler_fixture.omfattet_af_par4_nr5b == Falskt && par4_stk1_nr5b_ikke_nævnt_formidler_fixture.kapitalindkomst_kroner == 0
 | par4_stk1_nr4_5_audit_aggregat: par4_stk1_nr4_5_audit_aggregat -> par4_stk1_nr4_5_audit_aggregat.postbeløb_i_kapitalindkomst_kroner == 31000 && par4_stk1_nr4_5_audit_aggregat.nettokapitalindkomst_kroner == 31000 && par4_stk1_nr4_5_audit_aggregat.omklassificeret_personlig_indkomst_kroner == 11000
 
 ? par4_stk1_nr4_audit_ll16a_udbytte_til_kapital
@@ -40,4 +41,5 @@
 ? par4_stk1_nr5a_audit_fondsbeskatning_udelukkes
 ? par4_stk1_nr5b_audit_formidlerbeløb_til_kapital
 ? par4_stk6_audit_formidler19c_hvis17_til_personlig
+? par4_stk1_nr5b_audit_ikke_nævnt_formidler_udelukkes
 ? par4_stk1_nr4_5_audit_aggregat

@@ -39,7 +39,12 @@ election reducing the capital-income amount; § 4, stk. 1, nr. 5 a now consumes
 a typed Selskabsskatteloven § 1, stk. 1, nr. 6 result for membership
 certificates in taxable associations etc., preserving the LBK 279/2025 source
 line, the investment-association carve-out and the § 3/fondsbeskatningsloven
-exclusions before any amount enters capital income; § 4, stk. 1, nr. 7 now consumes a typed LL § 8, stk. 3 result for
+exclusions before any amount enters capital income; § 4, stk. 1, nr. 5 b now
+uses typed statutory financial-intermediary categories for banks, mortgage
+credit institutions, investment firms, investment-management companies,
+alternative-investment-fund managers, financial advisers and investment
+advisers, while keeping the ABL § 19 C/§ 22 asset boundary and § 4, stk. 6
+personal-income reclassification; § 4, stk. 1, nr. 7 now consumes a typed LL § 8, stk. 3 result for
 running loan provisions/premiums, running guarantee premiums and one-off
 provisions/premiums when the loan/guarantee period is under two years, with the
 deductible amount flowing as negative capital income; § 4, stk. 1, nr. 8 now
@@ -944,7 +949,11 @@ Current decision:
   gets its statutory entity boundary from `Selskabsskattelov1Stk1Nr6Resultat`
   instead of raw booleans, so the § 1, stk. 1, nr. 6 source line, the
   investment-association carve-out and the § 3/fondsbeskatningsloven exclusions
-  remain auditable.
+  remain auditable. `Par4Stk1Nr5bSag` now models the enumerated intermediary
+  list as `Par4Stk1Nr5bFormidler`, so a bank, mortgage-credit institution,
+  investment firm, investment-management company, alternative-investment-fund
+  manager, financial adviser or investment adviser is distinguished from a
+  non-listed intermediary before the amount can enter capital income.
 - `Ligningslov7NSag` uses product-scoped `|` rules for the LL § 7 N
   medarbejderinvesteringsselskab slice. It keeps the statutory employer
   contribution cap, Danish registration branch, EU/EØS approval branch,
