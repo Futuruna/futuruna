@@ -46,7 +46,10 @@ Københavner-beregning ved KSL § 1, nr. 4-udrejse og forholdsmæssig
 tilflytningskommuneandel ved fraflytning fra skattekommunen. § 7, stk. 4 har
 nu en statsgaranti-beregning fra udskrivningsgrundlaget to år før
 beregningsåret plus fremskrivningsprocenten og de tilhørende ministerielle
-meddelelses-/tilslutningsposter.
+meddelelses-/tilslutningsposter. Kildeskatteloven § 62 A har nu et
+datoeksakt udbetalingsfrist-resultat for ændrede årsopgørelser, hvor nedsat
+restskat eller ny/yderligere overskydende skat skal udbetales inden udgangen af
+måneden efter udskrivningsdatoen.
 
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
@@ -813,8 +816,9 @@ encoded as a temporal rule on top of the consolidation.
   Kildeskatteloven §§ 60-62/62 A/62 C/67 slutopgørelse balance,
   restskat timing, date-derived B-skat rate windows, B-skat minimum-rate
   completion plans, system-date-driven § 61 stk. 4/stk. 6 restskat rateplans
-  with exact and mixed large/small installment splits, date-derived § 62 A interest spans, and overskydende-skat
-  compensation posture,
+  with exact and mixed large/small installment splits, date-derived § 62 A
+  interest spans and payout deadlines, and overskydende-skat compensation
+  posture,
   Opkrævningsloven payment deadlines and § 7 late-payment rate posture,
   shared money/rounding posture for whole kroner, ten-kroner floors,
   basispoint rounding, and øre-level fractions,
@@ -1522,7 +1526,8 @@ Review candidates to revisit deliberately, not as broad churn:
   late stk. 4 and stk. 6 three-rate plans, § 62
   overskydende skat plus compensation/refund posture, § 60 spouse offsetting,
   § 58 B-skat calendar projection, § 62 A amended annual statement interest
-  posture with date-derived month counts, § 62 C minimum thresholds, and § 67
+  posture with date-derived month counts and payout deadlines, § 62 C minimum
+  thresholds, and § 67
   dividend-tax credit posture; the
   fictional household's generated-card annual settlement currently yields
   3.541 kr. overskydende skat and 3.541 kr. payout under the source-derived
@@ -1593,7 +1598,7 @@ Review candidates to revisit deliberately, not as broad churn:
 - Gather complementary official sources for:
   remaining municipal and church-tax settlement/allocation, personal allowance, automated
   Opkrævningsloven § 7 input lookup from Nationalbank data, date-exact B-tax
-  remaining-rate selection, date-exact § 62 A issue/payout scheduling, remaining
+  remaining-rate selection, remaining
   AM edge cases, other
   itemized deductions beyond the ordinary §§ 9 J/9 K wage-earner deductions and
   the first § 9 L extra-pension slice,

@@ -16,7 +16,7 @@ PopularTitle: Kildeskatteloven
 Status: Valid
 DiesSigni: 2024-05-03
 StartDate: 2024-05-16
-EndDate: 2026-06-24
+EndDate: 2026-07-01
 ----
 
 ----
@@ -396,6 +396,8 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 # KildeskatPar62ARenteDatoInput(art: KildeskatÆndretÅrsopgørelseArt, beløb_kroner: Heltal, tillæg_eller_godtgørelse_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, udskrivningsdato: KildeskatDato, systemdatoer: KildeskatRestskatSystemdatoer)
 # KildeskatPar62AForsinketUdbetalingInput(forventet_samlet_udbetaling_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, ekstra_påbegyndte_måneder: Heltal, forvaltningen_vælger_samlet_beløb_som_grundlag: Boolsk)
 # KildeskatPar62AForsinketUdbetalingsdatoInput(forventet_samlet_udbetaling_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, forudsat_udbetalingsdato: KildeskatDato, faktisk_udbetalingsdato: KildeskatDato, forvaltningen_vælger_samlet_beløb_som_grundlag: Boolsk)
+# KildeskatPar62AUdbetalingsfristInput(art: KildeskatÆndretÅrsopgørelseArt, udskrivningsdato: KildeskatDato)
+# KildeskatPar62AUdbetalingsfristResultat(art: KildeskatÆndretÅrsopgørelseArt, udskrivningsdato: KildeskatDato, udbetalingsfrist_gælder: Boolsk, seneste_udbetalingsdato: KildeskatDato)
 # KildeskatPar62CMindreRestskatInput(restskat_tillæg_renter_kroner: Heltal, tidligere_ikke_opkrævet_kroner: Heltal, ikke_indregnet_efter_par61_stk3: Boolsk)
 
 | kildeskat_basispoint_afrundet_til_en_decimal(sats_basispoint: Heltal) -> penge_basispoint_afrundet_til_en_decimal(sats_basispoint)
@@ -477,6 +479,19 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
     måned = 1,
     dag = dato.dag
 ) under dato.måned == 12
+| kildeskat_skudår(år: Heltal) -> Falskt
+| exception kildeskat_skudår_delelig_med_400 kildeskat_skudår(år: Heltal) -> Sandt under år % 400 == 0
+| exception kildeskat_skudår_delelig_med_4_ikke_100 kildeskat_skudår(år: Heltal) -> Sandt under år % 4 == 0 && år % 100 != 0
+| kildeskat_måned_sidste_dag(år: Heltal, måned: Heltal) -> 31
+| exception kildeskat_februar_sidste_dag kildeskat_måned_sidste_dag(år: Heltal, måned: Heltal) -> 28 under måned == 2 && kildeskat_skudår(år) == Falskt
+| exception kildeskat_februar_skudår_sidste_dag kildeskat_måned_sidste_dag(år: Heltal, måned: Heltal) -> 29 under måned == 2 && kildeskat_skudår(år)
+| exception kildeskat_tredive_dages_måneder kildeskat_måned_sidste_dag(år: Heltal, måned: Heltal) -> 30 under måned == 4 || måned == 6 || måned == 9 || måned == 11
+| kildeskat_månedens_sidste_dato(dato: KildeskatDato) -> KildeskatDato(
+    år = dato.år,
+    måned = dato.måned,
+    dag = kildeskat_måned_sidste_dag(dato.år, dato.måned)
+)
+| kildeskat_udgangen_af_næste_måned(dato: KildeskatDato) -> kildeskat_månedens_sidste_dato(kildeskat_dato_næste_måned(dato))
 | kildeskat_restskat_minimumsplan_opkrævning(input: KildeskatRestskatOpkrævningDatoInput) -> kildeskat_restskat_opkrævning_input_fra_dato(input)
 | kildeskat_restskat_minimumsplan_sidste_ordinære_forfaldsdato(input: KildeskatRestskatOpkrævningDatoInput) -> KildeskatDato(
     år = input.udskrivningsdato.år,
@@ -628,6 +643,18 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 | kildeskat_ændret_årsopgørelse_tilbagebetaling_efter_par61_stk4(art: KildeskatÆndretÅrsopgørelseArt) -> art == ÆndretOverskydendeSkatSkalTilbagebetales
 | kildeskat_ændret_årsopgørelse_udbetales_senest_næste_måned(art: KildeskatÆndretÅrsopgørelseArt) -> art == ÆndretRestskatNedsatEllerBortfaldet || art == ÆndretOverskydendeSkatFremkommer
 | kildeskat_ændret_årsopgørelse_modregner_restancer_før_udbetaling(art: KildeskatÆndretÅrsopgørelseArt) -> art == ÆndretRestskatNedsatEllerBortfaldet || art == ÆndretOverskydendeSkatFremkommer
+| kildeskat_par62a_udbetalingsfrist_resultat(input: KildeskatPar62AUdbetalingsfristInput) -> KildeskatPar62AUdbetalingsfristResultat(
+    art = input.art,
+    udskrivningsdato = input.udskrivningsdato,
+    udbetalingsfrist_gælder = Falskt,
+    seneste_udbetalingsdato = kildeskat_ingen_dato()
+)
+| exception kildeskat_par62a_nedsat_restskat_eller_overskydende_udbetales_næste_måned kildeskat_par62a_udbetalingsfrist_resultat(input: KildeskatPar62AUdbetalingsfristInput) -> KildeskatPar62AUdbetalingsfristResultat(
+    art = input.art,
+    udskrivningsdato = input.udskrivningsdato,
+    udbetalingsfrist_gælder = Sandt,
+    seneste_udbetalingsdato = kildeskat_udgangen_af_næste_måned(input.udskrivningsdato)
+) under kildeskat_ændret_årsopgørelse_udbetales_senest_næste_måned(input.art)
 | kildeskat_påbegyndte_måneder_fra_1_september(indkomstår: Heltal, dato: KildeskatDato) -> 0
 | exception kildeskat_påbegyndte_måneder_i_året_efter_indkomståret kildeskat_påbegyndte_måneder_fra_1_september(indkomstår: Heltal, dato: KildeskatDato) -> dato.måned - 8 under dato.år == indkomstår + 1 && dato.måned >= 9
 | exception kildeskat_påbegyndte_måneder_efter_året_efter_indkomståret kildeskat_påbegyndte_måneder_fra_1_september(indkomstår: Heltal, dato: KildeskatDato) -> 4 + (dato.år - indkomstår - 2) * 12 + dato.måned under dato.år > indkomstår + 1
@@ -967,6 +994,18 @@ kontant, hvis det udgør 25 kr. eller derover.
 = kildeskat_par62a_restskat_uden_septemberrente_fixture = kildeskat_par62a_rente_kroner(kildeskat_par62a_restskat_uden_septemberrente_input_fixture)
 = kildeskat_par62a_tilbagebetaling_rente_fixture = kildeskat_par62a_rente_kroner(kildeskat_par62a_tilbagebetaling_rente_input_fixture)
 = kildeskat_par62a_forsinket_udbetaling_fixture = kildeskat_par62a_forsinket_udbetalingsrente_kroner(kildeskat_par62a_forsinket_udbetaling_input_fixture)
+= kildeskat_par62a_nedsat_restskat_udbetalingsfrist_fixture = kildeskat_par62a_udbetalingsfrist_resultat(KildeskatPar62AUdbetalingsfristInput(
+    art = ÆndretRestskatNedsatEllerBortfaldet,
+    udskrivningsdato = KildeskatDato(år = 2026, måned = 10, dag = 15)
+))
+= kildeskat_par62a_december_udbetalingsfrist_fixture = kildeskat_par62a_udbetalingsfrist_resultat(KildeskatPar62AUdbetalingsfristInput(
+    art = ÆndretOverskydendeSkatFremkommer,
+    udskrivningsdato = KildeskatDato(år = 2026, måned = 12, dag = 20)
+))
+= kildeskat_par62a_restskat_uden_udbetalingsfrist_fixture = kildeskat_par62a_udbetalingsfrist_resultat(KildeskatPar62AUdbetalingsfristInput(
+    art = ÆndretRestskatEllerYderligereRestskat,
+    udskrivningsdato = KildeskatDato(år = 2026, måned = 10, dag = 15)
+))
 = kildeskat_par62c_lille_restskat_fixture = kildeskat_par62c_restskat_opkræves(KildeskatPar62CMindreRestskatInput(
     restskat_tillæg_renter_kroner = 499,
     tidligere_ikke_opkrævet_kroner = 0,
@@ -1019,6 +1058,7 @@ kontant, hvis det udgør 25 kr. eller derover.
 | kildeskat_par62a_restskat_før_septemberrente_forrentes_ikke: kildeskat_par62a_restskat_uden_septemberrente_fixture -> kildeskat_par62a_restskat_uden_septemberrente_fixture == 0
 | kildeskat_par62a_tilbagebetaling_forrentes: kildeskat_par62a_tilbagebetaling_rente_fixture -> kildeskat_par62a_tilbagebetaling_rente_fixture == 150
 | kildeskat_par62a_forsinket_udbetaling_forrentes: kildeskat_par62a_forsinket_udbetaling_fixture -> kildeskat_par62a_forsinket_udbetaling_fixture == 100
+| kildeskat_par62a_udbetalingsfrist_dato_dækket: kildeskat_par62a_nedsat_restskat_udbetalingsfrist_fixture -> kildeskat_par62a_nedsat_restskat_udbetalingsfrist_fixture.udbetalingsfrist_gælder == Sandt && kildeskat_par62a_nedsat_restskat_udbetalingsfrist_fixture.seneste_udbetalingsdato.år == 2026 && kildeskat_par62a_nedsat_restskat_udbetalingsfrist_fixture.seneste_udbetalingsdato.måned == 11 && kildeskat_par62a_nedsat_restskat_udbetalingsfrist_fixture.seneste_udbetalingsdato.dag == 30 && kildeskat_par62a_december_udbetalingsfrist_fixture.seneste_udbetalingsdato.år == 2027 && kildeskat_par62a_december_udbetalingsfrist_fixture.seneste_udbetalingsdato.måned == 1 && kildeskat_par62a_december_udbetalingsfrist_fixture.seneste_udbetalingsdato.dag == 31 && kildeskat_par62a_restskat_uden_udbetalingsfrist_fixture.udbetalingsfrist_gælder == Falskt
 | kildeskat_par62c_lille_restskat_opkræves_ikke: kildeskat_par62c_lille_restskat_fixture -> kildeskat_par62c_lille_restskat_fixture == Falskt
 | kildeskat_par62c_500_kr_opkræves: kildeskat_par62c_restskat_500_fixture -> kildeskat_par62c_restskat_500_fixture == Sandt
 | kildeskat_par62c_nemkonto_bortfald: kildeskat_par62c_nemkonto_fixture -> kildeskat_par62c_nemkonto_fixture == Sandt
@@ -1060,6 +1100,7 @@ kontant, hvis det udgør 25 kr. eller derover.
 ? kildeskat_par62a_restskat_før_septemberrente_forrentes_ikke
 ? kildeskat_par62a_tilbagebetaling_forrentes
 ? kildeskat_par62a_forsinket_udbetaling_forrentes
+? kildeskat_par62a_udbetalingsfrist_dato_dækket
 ? kildeskat_par62c_lille_restskat_opkræves_ikke
 ? kildeskat_par62c_500_kr_opkræves
 ? kildeskat_par62c_nemkonto_bortfald

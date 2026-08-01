@@ -46,7 +46,8 @@ kildebundne beløbsregler.
 
 Nyere afhængighedsdækning omfatter Ligningsloven § 9 C og § 9 D, herunder
 befordringsfradrag, yderkommuner, lavindkomsttillæg, broer, SU-yderområde og
-§ 9 D's særregler for varigt nedsat funktionsevne eller kronisk sygdom.
+§ 9 D's særregler for varigt nedsat funktionsevne eller kronisk sygdom, samt
+Kildeskatteloven § 62 A's frist for udbetaling efter ændret årsopgørelse.
 
 ## Eksempel
 

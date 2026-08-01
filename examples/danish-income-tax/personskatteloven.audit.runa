@@ -1366,6 +1366,9 @@ virksomhedsunderskud.
 = m5_par62a_restskat_rente_fixture = kildeskat_par62a_restskat_rente_fixture
 = m5_par62a_tilbagebetaling_rente_fixture = kildeskat_par62a_tilbagebetaling_rente_fixture
 = m5_par62a_forsinket_udbetaling_fixture = kildeskat_par62a_forsinket_udbetaling_fixture
+= m5_par62a_udbetalingsfrist_fixture = kildeskat_par62a_nedsat_restskat_udbetalingsfrist_fixture
+= m5_par62a_december_udbetalingsfrist_fixture = kildeskat_par62a_december_udbetalingsfrist_fixture
+= m5_par62a_restskat_uden_udbetalingsfrist_fixture = kildeskat_par62a_restskat_uden_udbetalingsfrist_fixture
 = m5_slutopgørelse_par62c_lille_restskat_fixture = kildeskat_par62c_lille_restskat_fixture
 = m5_opkrævning_rettidig_fixture = afregning_ordinær_rettidig
 = m5_opkrævning_for_sen_fixture = afregning_ordinær_for_sen
@@ -1505,6 +1508,7 @@ virksomhedsunderskud.
 | m5_kildeskat_b_skat_minimumsplan_dækket: m5_b_skat_minimumsplan_fixture -> m5_b_skat_minimumsplan_fixture.manglende_supplerende_rater == 1 && m5_b_skat_minimumsplan_fixture.supplerende_første_forfaldsdato.måned == 12 && m5_b_skat_minimumsplan_november_fixture.manglende_supplerende_rater == 2 && m5_b_skat_minimumsplan_november_fixture.supplerende_anden_forfaldsdato.år == 2028 && m5_b_skat_minimumsplan_november_fixture.supplerende_anden_forfaldsdato.måned == 1
 | m5_kildeskat_restskat_rateplan_dækket: m5_restskat_b_skat_januar_rateplan_fixture -> m5_restskat_stk4_systemdato_rateplan_fixture.første_forfaldsdato.måned == 10 && m5_restskat_stk4_systemdato_rateplan_fixture.sidste_forfaldsdato.måned == 12 && m5_restskat_stk6_systemdato_rateplan_fixture.art == RestskatStk6TreRater && m5_restskat_stk6_systemdato_rateplan_fixture.første_forfaldsdato.måned == 11 && m5_restskat_stk6_systemdato_rateplan_fixture.sidste_forfaldsdato.år == 2027 && m5_restskat_b_skat_hel_kalender_rateplan_fixture.første_forfaldsdato.år == 2027 && m5_restskat_b_skat_hel_kalender_rateplan_fixture.første_forfaldsdato.måned == 1 && m5_restskat_b_skat_hel_kalender_rateplan_fixture.rateantal == 10 && m5_restskat_b_skat_januar_rateplan_fixture.art == RestskatStk5ResterendeBSkat && m5_restskat_b_skat_januar_rateplan_fixture.rateantal == 9 && m5_restskat_b_skat_januar_rateplan_fixture.beløbsdeling.lille_rate_kroner == 2033 && m5_restskat_b_skat_januar_rateplan_fixture.beløbsdeling.lille_rateantal == 6 && m5_restskat_b_skat_januar_rateplan_fixture.beløbsdeling.stor_rate_kroner == 2034 && m5_restskat_b_skat_januar_rateplan_fixture.beløbsdeling.stor_rateantal == 3 && m5_restskat_supplerende_minimum_rateplan_fixture.beløbsdeling.samlet_beløb_kroner == 6100
 | m5_kildeskat_par62a_renter_dækket: m5_par62a_restskat_rente_fixture -> m5_par62a_restskat_rente_fixture == 101 && m5_par62a_tilbagebetaling_rente_fixture == 150 && m5_par62a_forsinket_udbetaling_fixture == 100
+| m5_kildeskat_par62a_udbetalingsfrist_dato_dækket: m5_par62a_udbetalingsfrist_fixture -> m5_par62a_udbetalingsfrist_fixture.udbetalingsfrist_gælder == Sandt && m5_par62a_udbetalingsfrist_fixture.seneste_udbetalingsdato.måned == 11 && m5_par62a_udbetalingsfrist_fixture.seneste_udbetalingsdato.dag == 30 && m5_par62a_december_udbetalingsfrist_fixture.seneste_udbetalingsdato.år == 2027 && m5_par62a_december_udbetalingsfrist_fixture.seneste_udbetalingsdato.måned == 1 && m5_par62a_december_udbetalingsfrist_fixture.seneste_udbetalingsdato.dag == 31 && m5_par62a_restskat_uden_udbetalingsfrist_fixture.udbetalingsfrist_gælder == Falskt
 | m5_kildeskat_par62c_minimum_dækket: m5_slutopgørelse_par62c_lille_restskat_fixture -> m5_slutopgørelse_par62c_lille_restskat_fixture == Falskt
 | m5_opkrævning_ordinær_rettidig_dækket: m5_opkrævning_rettidig_fixture -> opkrævning_betalt_rettidigt(m5_opkrævning_rettidig_fixture) == Sandt && opkrævning_betalingsfrist_dag(m5_opkrævning_rettidig_fixture) == 10
 | m5_opkrævning_for_sen_dækket: m5_opkrævning_for_sen_fixture -> opkrævning_betalt_rettidigt(m5_opkrævning_for_sen_fixture) == Falskt && opkrævning_for_sen_betaling_udløser_rente(m5_opkrævning_for_sen_fixture) == Sandt
@@ -1647,6 +1651,7 @@ virksomhedsunderskud.
 ? m5_kildeskat_b_skat_minimumsplan_dækket
 ? m5_kildeskat_restskat_rateplan_dækket
 ? m5_kildeskat_par62a_renter_dækket
+? m5_kildeskat_par62a_udbetalingsfrist_dato_dækket
 ? m5_kildeskat_par62c_minimum_dækket
 ? m5_opkrævning_ordinær_rettidig_dækket
 ? m5_opkrævning_for_sen_dækket
