@@ -1,0 +1,24 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: AfregningEget
+--
+-- Danish `omfang` is a localized alias for the language `scope` keyword, but
+-- it is also a natural legal field name. Named constructor arguments must treat
+-- keyword-like field names the same way product fields and field projection do.
+
+@ sprog da
+
+# Budgetvalg = EgetSkøn | Statsgaranti
+# Afregningsomfang = AfregningEget | AfregningStats
+# AfregningsResultat(omfang: Afregningsomfang, gælder: Boolsk)
+
+| afregningsomfang(valg: Budgetvalg) -> AfregningEget under valg == EgetSkøn
+| afregningsomfang(valg: Budgetvalg) -> AfregningStats under valg == Statsgaranti
+| afregningsresultat(valg: Budgetvalg) -> AfregningsResultat(
+    omfang = afregningsomfang(valg),
+    gælder = valg == EgetSkøn
+)
+
+= fixture = afregningsresultat(EgetSkøn)
+
+@ print(show(fixture.omfang))

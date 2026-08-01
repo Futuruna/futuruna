@@ -63,6 +63,88 @@ forhøjes den første med 1, og de øvrige bortkastes.
 
 | kommunal_udskrivningsprocent_basispoint(input: KommunalIndkomstskatInput) -> input.udskrivningsprocent_basispoint
 
+----
+§ 7. Kommunalbestyrelsen kan vælge at budgettere enten med deres eget skøn over
+udskrivningsgrundlaget for kommunal indkomstskat og kirkeskat eller med et
+statsgaranteret udskrivningsgrundlag for kommunal indkomstskat og kirkeskat.
+
+Stk. 2. For kommuner, der har valgt at budgettere med deres eget skøn over
+udskrivningsgrundlaget, foretages afregning efter § 15 og § 16, stk. 1-4.
+
+Stk. 3. For kommuner, der har valgt at budgettere med det statsgaranterede
+udskrivningsgrundlag, foretages afregning efter § 15 og § 16, stk. 4.
+----
+
+# KommunalBudgetvalg = KommunalEgetSkøn | KommunalStatsgaranteretUdskrivningsgrundlag
+# KommunalAfregningsomfang = AfregningEfterPar15OgPar16Stk1Til4 | AfregningEfterPar15OgPar16Stk4
+# KommunalAfregningsvalgResultat(budgetvalg: KommunalBudgetvalg, omfang: KommunalAfregningsomfang, par15_gælder: Boolsk, efterregulering_stk1_til_4_gælder: Boolsk)
+
+| kommunal_par7_afregningsomfang(budgetvalg: KommunalBudgetvalg) -> AfregningEfterPar15OgPar16Stk1Til4 under budgetvalg == KommunalEgetSkøn
+| kommunal_par7_afregningsomfang(budgetvalg: KommunalBudgetvalg) -> AfregningEfterPar15OgPar16Stk4 under budgetvalg == KommunalStatsgaranteretUdskrivningsgrundlag
+| kommunal_par7_par16_stk1_til_4_gælder(budgetvalg: KommunalBudgetvalg) -> budgetvalg == KommunalEgetSkøn
+| kommunal_par7_afregningsvalg_resultat(budgetvalg: KommunalBudgetvalg) -> KommunalAfregningsvalgResultat(
+    budgetvalg = budgetvalg,
+    omfang = kommunal_par7_afregningsomfang(budgetvalg),
+    par15_gælder = Sandt,
+    efterregulering_stk1_til_4_gælder = kommunal_par7_par16_stk1_til_4_gælder(budgetvalg)
+)
+
+----
+§ 15. Staten udbetaler til den enkelte kommune ved begyndelsen af hver måned et
+beløb til foreløbig dækning af kommunal indkomstskat og kirkeskat.
+
+Den månedlige udbetaling skal svare til en tolvtedel af det årlige beløb, der
+efter det for kommunen vedtagne årsbudget udgør dens indtægt ved indkomstskat
+og kirkeskat af personer.
+----
+
+# KommunalPar15ForeløbigAfregningInput(årsbudget_indkomstskat_og_kirkeskat_personer_kroner: Heltal)
+# KommunalPar15ForeløbigAfregningResultat(årsbudget_indkomstskat_og_kirkeskat_personer_kroner: Heltal, månedlig_udbetaling_kroner: Heltal, samlet_årlig_udbetaling_kroner: Heltal)
+
+| kommunal_par15_månedlig_foreløbig_udbetaling_kroner(input: KommunalPar15ForeløbigAfregningInput) -> input.årsbudget_indkomstskat_og_kirkeskat_personer_kroner / 12
+| kommunal_par15_foreløbig_afregning_resultat(input: KommunalPar15ForeløbigAfregningInput) -> KommunalPar15ForeløbigAfregningResultat(
+    årsbudget_indkomstskat_og_kirkeskat_personer_kroner = input.årsbudget_indkomstskat_og_kirkeskat_personer_kroner,
+    månedlig_udbetaling_kroner = kommunal_par15_månedlig_foreløbig_udbetaling_kroner(input),
+    samlet_årlig_udbetaling_kroner = kommunal_par15_månedlig_foreløbig_udbetaling_kroner(input) * 12
+)
+
+----
+§ 16. For kommuner, der har valgt at budgettere med deres eget skøn over
+udskrivningsgrundlaget, foretages en opgørelse af henholdsvis de kommunale
+indkomstskatter og kirkeskatten pr. 1. maj i året 2 år efter kalenderåret.
+
+Stk. 2. Efterreguleringsbeløbet for henholdsvis kommunal indkomstskat og
+kirkeskatten opgøres som skatten, der opgøres ved beregningen af slutskat for
+et kalenderår, herunder beløb, der som følge af ændringer i skatteansættelser er
+ført i tilgang eller til afgang, fratrukket summen af de månedlige beløb, der
+efter § 15 er udbetalt til kommunen i det pågældende kalenderår.
+
+Eventuel afregning af efterreguleringsbeløb sker med en tredjedel hver i
+månederne januar, februar og marts i året 3 år efter dette kalenderår.
+----
+
+# KommunalPar16EfterreguleringInput(budgetvalg: KommunalBudgetvalg, kalenderår: Heltal, slutskat_kommunal_indkomstskat_og_kirkeskat_kroner: Heltal, tilgang_ændrede_skatteansættelser_kroner: Heltal, afgang_ændrede_skatteansættelser_kroner: Heltal, udbetalt_efter_par15_kroner: Heltal)
+# KommunalPar16EfterreguleringResultat(budgetvalg: KommunalBudgetvalg, kalenderår: Heltal, omfattes_af_efterregulering: Boolsk, endelig_skat_inkl_ændringer_kroner: Heltal, udbetalt_efter_par15_kroner: Heltal, efterreguleringsbeløb_kroner: Heltal, afregningsår: Heltal, januar_kroner: Heltal, februar_kroner: Heltal, marts_kroner: Heltal)
+
+| kommunal_par16_omfattes_af_efterregulering(input: KommunalPar16EfterreguleringInput) -> kommunal_par7_par16_stk1_til_4_gælder(input.budgetvalg)
+| kommunal_par16_endelig_skat_inkl_ændringer_kroner(input: KommunalPar16EfterreguleringInput) -> input.slutskat_kommunal_indkomstskat_og_kirkeskat_kroner + input.tilgang_ændrede_skatteansættelser_kroner - input.afgang_ændrede_skatteansættelser_kroner
+| kommunal_par16_efterreguleringsbeløb_kroner(input: KommunalPar16EfterreguleringInput) -> 0
+| exception kommunal_par16_eget_skoen_opgør_efterregulering kommunal_par16_efterreguleringsbeløb_kroner(input: KommunalPar16EfterreguleringInput) -> kommunal_par16_endelig_skat_inkl_ændringer_kroner(input) - input.udbetalt_efter_par15_kroner under kommunal_par16_omfattes_af_efterregulering(input)
+| kommunal_par16_afregningsår(input: KommunalPar16EfterreguleringInput) -> input.kalenderår + 3
+| kommunal_par16_tredjedel_kroner(input: KommunalPar16EfterreguleringInput) -> kommunal_par16_efterreguleringsbeløb_kroner(input) / 3
+| kommunal_par16_efterregulering_resultat(input: KommunalPar16EfterreguleringInput) -> KommunalPar16EfterreguleringResultat(
+    budgetvalg = input.budgetvalg,
+    kalenderår = input.kalenderår,
+    omfattes_af_efterregulering = kommunal_par16_omfattes_af_efterregulering(input),
+    endelig_skat_inkl_ændringer_kroner = kommunal_par16_endelig_skat_inkl_ændringer_kroner(input),
+    udbetalt_efter_par15_kroner = input.udbetalt_efter_par15_kroner,
+    efterreguleringsbeløb_kroner = kommunal_par16_efterreguleringsbeløb_kroner(input),
+    afregningsår = kommunal_par16_afregningsår(input),
+    januar_kroner = kommunal_par16_tredjedel_kroner(input),
+    februar_kroner = kommunal_par16_tredjedel_kroner(input),
+    marts_kroner = kommunal_par16_tredjedel_kroner(input)
+)
+
 = kommuneskattelov_skattepligt_fixture = kommunal_indkomstskattepligt(KommunalSkattepligtInput(
     indkomstskattepligtig_til_staten_efter_kildeskatteloven = Sandt
 ))

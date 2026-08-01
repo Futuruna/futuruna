@@ -1,0 +1,49 @@
+@ sprog da
+
+@ importer ./kommuneskatteloven
+
+-- Scenarie for Kommuneskatteloven §§ 7, 15 og 16.
+--
+-- Lovteksten ligger i kommuneskatteloven.runa. Dette scenarie holder beløbene
+-- delelige med 3, så § 16, stk. 2's tredjedelsbetalinger kan valideres i hele
+-- kroner.
+
+= kommunal_afregning_par7_eget_skøn_fixture = kommunal_par7_afregningsvalg_resultat(KommunalEgetSkøn)
+= kommunal_afregning_par7_statsgaranti_fixture = kommunal_par7_afregningsvalg_resultat(KommunalStatsgaranteretUdskrivningsgrundlag)
+
+= kommunal_afregning_par15_input = KommunalPar15ForeløbigAfregningInput(
+    årsbudget_indkomstskat_og_kirkeskat_personer_kroner = 1200000
+)
+= kommunal_afregning_par15_resultat_fixture = kommunal_par15_foreløbig_afregning_resultat(kommunal_afregning_par15_input)
+
+= kommunal_afregning_par16_eget_skøn_input = KommunalPar16EfterreguleringInput(
+    budgetvalg = KommunalEgetSkøn,
+    kalenderår = 2026,
+    slutskat_kommunal_indkomstskat_og_kirkeskat_kroner = 1206000,
+    tilgang_ændrede_skatteansættelser_kroner = 6000,
+    afgang_ændrede_skatteansættelser_kroner = 3000,
+    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner
+)
+= kommunal_afregning_par16_resultat_fixture = kommunal_par16_efterregulering_resultat(kommunal_afregning_par16_eget_skøn_input)
+
+= kommunal_afregning_par16_statsgaranti_input = KommunalPar16EfterreguleringInput(
+    budgetvalg = KommunalStatsgaranteretUdskrivningsgrundlag,
+    kalenderår = 2026,
+    slutskat_kommunal_indkomstskat_og_kirkeskat_kroner = 1206000,
+    tilgang_ændrede_skatteansættelser_kroner = 6000,
+    afgang_ændrede_skatteansættelser_kroner = 3000,
+    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner
+)
+= kommunal_afregning_statsgaranti_resultat_fixture = kommunal_par16_efterregulering_resultat(kommunal_afregning_par16_statsgaranti_input)
+
+| kommunal_afregning_par7_eget_skøn_omfang: kommunal_afregning_par7_eget_skøn_fixture -> kommunal_afregning_par7_eget_skøn_fixture.omfang == AfregningEfterPar15OgPar16Stk1Til4 && kommunal_afregning_par7_eget_skøn_fixture.efterregulering_stk1_til_4_gælder == Sandt
+| kommunal_afregning_par7_statsgaranti_omfang: kommunal_afregning_par7_statsgaranti_fixture -> kommunal_afregning_par7_statsgaranti_fixture.omfang == AfregningEfterPar15OgPar16Stk4 && kommunal_afregning_par7_statsgaranti_fixture.efterregulering_stk1_til_4_gælder == Falskt
+| kommunal_afregning_par15_tolvtedel: kommunal_afregning_par15_resultat_fixture -> kommunal_afregning_par15_resultat_fixture.månedlig_udbetaling_kroner == 100000 && kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner == 1200000
+| kommunal_afregning_par16_eget_skøn_tredjedele: kommunal_afregning_par16_resultat_fixture -> kommunal_afregning_par16_resultat_fixture.omfattes_af_efterregulering == Sandt && kommunal_afregning_par16_resultat_fixture.endelig_skat_inkl_ændringer_kroner == 1209000 && kommunal_afregning_par16_resultat_fixture.efterreguleringsbeløb_kroner == 9000 && kommunal_afregning_par16_resultat_fixture.afregningsår == 2029 && kommunal_afregning_par16_resultat_fixture.januar_kroner == 3000 && kommunal_afregning_par16_resultat_fixture.februar_kroner == 3000 && kommunal_afregning_par16_resultat_fixture.marts_kroner == 3000
+| kommunal_afregning_par16_statsgaranti_uden_stk2: kommunal_afregning_statsgaranti_resultat_fixture -> kommunal_afregning_statsgaranti_resultat_fixture.omfattes_af_efterregulering == Falskt && kommunal_afregning_statsgaranti_resultat_fixture.efterreguleringsbeløb_kroner == 0 && kommunal_afregning_statsgaranti_resultat_fixture.januar_kroner == 0
+
+? kommunal_afregning_par7_eget_skøn_omfang
+? kommunal_afregning_par7_statsgaranti_omfang
+? kommunal_afregning_par15_tolvtedel
+? kommunal_afregning_par16_eget_skøn_tredjedele
+? kommunal_afregning_par16_statsgaranti_uden_stk2

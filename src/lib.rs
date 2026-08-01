@@ -5453,11 +5453,12 @@ impl Parser {
                 self.expect(TokenKind::Comma)?;
                 self.skip_semis();
             }
-            if self.peek_kind() == TokenKind::Ident
-                && self.tokens.get(self.pos + 1).is_some_and(|tok| {
-                    tok.kind == TokenKind::Eq || (tok.kind == TokenKind::Op && tok.text == "=")
-                })
-            {
+            if matches!(
+                self.peek_kind(),
+                TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW
+            ) && self.tokens.get(self.pos + 1).is_some_and(|tok| {
+                tok.kind == TokenKind::Eq || (tok.kind == TokenKind::Op && tok.text == "=")
+            }) {
                 let start_tok = self.peek().clone();
                 let field_name = self.advance().text;
                 if self.peek_kind() == TokenKind::Eq {

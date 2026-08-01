@@ -33,7 +33,10 @@ selvstændig 40 pct. A-skat-regel uden skattekortfradrag for indbetalinger fra
 pensionsinstitutter efter § 46, stk. 6, med konkret `.scenario.runa`-dækning.
 Arbejdsmarkedsbidragsloven § 2-lønmodtagersnittet er også udvidet fra anonym
 felt-sum til kildeformede regelposter for nr. 1-6 samt stk. 3 med et samlet
-grundlagsresultat og scenariedækning.
+grundlagsresultat og scenariedækning. Kommuneskatteloven dækker nu også første
+afregningsslice for §§ 7, 15 og 16: kommunens valg mellem eget skøn og
+statsgaranteret grundlag, § 15's månedlige tolvtedel og § 16, stk. 2's
+efterreguleringsbeløb med januar/februar/marts-tredjedele tre år senere.
 
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
@@ -482,6 +485,9 @@ Current municipal/church-tax and withholding dependency sources:
   - XML status on 2026-07-18: `Valid`
   - §§ 1, 5 and 6 are the first ordinary municipal-income-tax slice used by
     the wage-earner calculator.
+  - §§ 7, 15 and 16 are the first municipal/church settlement slice:
+    own-estimate versus state-guaranteed budget basis, monthly provisional
+    twelfths, and own-estimate after-regulation in three instalments.
 - Folkekirkens økonomi:
   `https://www.retsinformation.dk/eli/lta/2023/424`
   - XML status on 2026-07-18: `Valid`
@@ -618,6 +624,8 @@ encoded as a temporal rule on top of the consolidation.
 - `arbejdsmarkedsbidrag-loenmodtager.scenario.runa` exists and checks/runs
   with `runa run`.
 - `kommuneskatteloven.runa` exists and checks with `runa check`.
+- `kommuneskattelov-afregning.scenario.runa` exists and checks/runs with
+  `runa run`.
 - `folkekirkens-oekonomi.runa` exists and checks with `runa check`.
 - `kildeskatteloven.runa` exists and checks with `runa check`.
 - `kildeskattebekendtgoerelsen.runa` exists and checks/runs with `runa run`.
@@ -1454,8 +1462,9 @@ Review candidates to revisit deliberately, not as broad churn:
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Replace remaining source-dependency placeholders with complementary official
-  statutes and trusted calculation examples, especially for municipal/church
-  settlement edge cases, direct Nationalbank raw-data ingestion beyond the
+  statutes and trusted calculation examples, especially for remaining
+  municipal/church allocation and settlement edges beyond the first § 15/§ 16
+  slice, direct Nationalbank raw-data ingestion beyond the
   Skattestyrelsen-published Opkrævningsloven § 7 annual rate, and remaining AM
   edge cases beyond the first source-explicit special-case slice. The AM-law
   slice now covers ordinary wage remuneration,
@@ -1463,10 +1472,11 @@ Review candidates to revisit deliberately, not as broad churn:
   § 3 exclusions, self-employed bases with and without virksomhedsordning,
   library-fee compensation, the 2026 youth exemption, and collection-reference
   posture. The first municipal/church
-  slice now covers ordinary municipal tax on Personskatteloven taxable income
-  and church tax for Folkekirken members. The first Kildeskatteloven slice now
-  covers ordinary wage A-income, withholding duty, e-skattekort card types,
-  main-card period allowances, bikort without allowance, optional higher
+  slice now covers ordinary municipal tax on Personskatteloven taxable income,
+  church tax for Folkekirken members, and Kommuneskatteloven §§ 7/15/16
+  provisional payment and own-budget after-regulation. The first Kildeskatteloven
+  slice now covers ordinary wage A-income, withholding duty, e-skattekort card
+  types, main-card period allowances, bikort without allowance, optional higher
   withholding percentage, base rounding, and the statutory 55 pct. no-card
   fallback. The first BEK 839 slice now generates skattekort values from
   forskudsskat plus an unrounded withholding percentage. The first BEK 1094
@@ -1556,7 +1566,7 @@ Review candidates to revisit deliberately, not as broad churn:
 - Build calculation fixtures for ordinary wage-earner cases before handling
   complex cases.
 - Gather complementary official sources for:
-  municipal and church-tax settlement/allocation, personal allowance, automated
+  remaining municipal and church-tax settlement/allocation, personal allowance, automated
   Opkrævningsloven § 7 input lookup from Nationalbank data, date-exact B-tax
   remaining-rate selection, date-exact § 62 A issue/payout scheduling, remaining
   AM edge cases, other
