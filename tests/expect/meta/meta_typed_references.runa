@@ -1,12 +1,15 @@
 -- expect-command: meta
 -- expect-status: pass
 -- expect-stdout: anchors: 2
+-- expect-stdout: sources: 2
+-- expect-stdout: source geometry line 24 meta comment_shape text 25-27
+-- expect-stdout: source geometry line 24 meta alternate_shape text 25-27
 -- expect-stdout: references: 4
 -- expect-stdout: reference geometry role source binding comment_shape type Shape value Circle
 -- expect-stdout: reference geometry role source binding alternate_shape type Shape value Triangle
 -- expect-stdout: reference geometry role warning binding audit_warning type AuditWarning value AuditWarning(code = "GEOMETRY", message = "Review this shape")
 -- expect-stdout: reference geometry_assumption role assumption binding comment_shape type Shape value Circle
--- expect-stdout: span geometry lines 29-29 source comment_shape anchors 1
+-- expect-stdout: span geometry lines 32-32 source comment_shape anchors 1
 
 # Shape = Circle | Triangle | Square
 # AuditWarning(code: String, message: String)

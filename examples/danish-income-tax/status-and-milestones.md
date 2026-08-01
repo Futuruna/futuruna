@@ -3,7 +3,7 @@
 Status: active implementation; first-slice corpus complete
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-71113c`
+Current focus issue: `td-e39f01`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -28,17 +28,19 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Personskatteloven § 3, stk. 2, nr. 7 modtager nu typede
-henlæggelsesresultater fra Virksomhedsskatteloven §§ 22 b og 22 d. § 22 b
-beregner det renter- og kursregulerede virksomhedsoverskud, 25 pct.-loftet,
-5.000 kr.-minimum, 22 pct. konjunkturudligningsskat og det bundne nettoindskud
-med kontotype, påtegning og oplysningsfrist. § 22 d beregner den berettigede
-kunstnerindkomst efter Ligningsloven § 7 O, det strenge indkomstgrundbeløb,
-års- og kontoloftet reguleret gennem Personskatteloven § 20 samt
-indkomstudligningsskat og nettoindskud. Indtægtsførings- og
-hævningsmekanikken i de senere stykker er fortsat en særskilt
-implementeringsopgave; denne integration lukker henlæggelses- og
-fradragssiden af § 3, stk. 2, nr. 7.
+Latest integration: Personskatteloven § 3 modtager nu både typede
+henlæggelsesresultater og senere indtægtsføringsresultater fra
+Virksomhedsskatteloven §§ 22 b og 22 d. En fælles, ordningsafgrænset
+regelmodel håndterer ældste henlæggelse først, frivillig indtægtsføring,
+tiårsfristen, § 22 b-underskud, ophør, overgang til virksomhedsordningen,
+skattepligtsophør og § 22 d-konkurs. Den tilsvarende udligningsskat fordeles
+til egen slutskat, eventuelt ægtefællens slutskat og fremførsel efter
+successionsreglen; almindelige overskydende beløb udbetales kontant.
+Personskatteloven § 3, stk. 1 medregner den indtægtsførte bruttohenlæggelse i
+personlig indkomst, mens § 3, stk. 2, nr. 7 fortsat bærer fradraget ved selve
+henlæggelsen. Lovtekst og regler er kildeankret til både Retsinformation og de
+relevante afsnit i Den juridiske vejledning gennem gentagne, typede
+`source`-referencer.
 
 Ligningsloven § 8 M er nu implementeret som en typet,
 kildeindekseret regelkaskade for arbejdsmarkedsbidrag efter AM-bidragslovens
@@ -785,7 +787,13 @@ encoded as a temporal rule on top of the consolidation.
   dependency consumed by Personskatteloven § 4, stk. 1, nr. 3 and nr. 3 a, and
   the § 11 rentekorrektion dependency consumed by § 4, stk. 1, nr. 8. It also
   covers the §§ 22 b/22 d new-reserve calculation consumed by § 3, stk. 2,
-  nr. 7; recognition and withdrawal are still pending.
+  nr. 7 plus FIFO recognition, mandatory recognition events, account release,
+  corresponding-tax settlement and the § 3, stk. 1 gross-income bridge.
+- `personskatteloven-par3-indtaegtsfoering.scenario.runa` exists and
+  checks/runs with `runa run`; it covers voluntary partial FIFO recognition,
+  the ten-year and deficit rules, ordinary cessation, transition to the
+  business tax scheme, § 22 d bankruptcy and permanent-establishment exit,
+  succession settlement, and the resulting personal-income amount.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
   the Afskrivningsloven § 40 C dependency consumed by Personskatteloven § 4,
   stk. 1, nr. 16.
@@ -859,7 +867,9 @@ encoded as a temporal rule on top of the consolidation.
   constructor-shaped `|` facts and enumerated with `findall`.
 - `personskatteloven.audit.runa` exists and checks with `runa check`; focused
   `.audit.runa` entrypoints are preferred for per-slice execution while the
-  umbrella audit stays broad.
+  umbrella audit stays broad. Its compiled `runa run` currently reproduces the
+  tracked idle condition in `td-ff8eef`, so it is a check-only aggregate until
+  that runner issue is resolved; the focused scenarios remain dynamic gates.
 - `pengebeloeb.runa` exists and checks/runs with `runa run`.
 - Website research page exists at `/research/personskatteloven` and renders
   source status, milestone status, selected audit signals, and the checked

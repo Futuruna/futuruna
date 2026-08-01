@@ -1690,26 +1690,26 @@ fn print_meta_index(
         );
     }
 
-    let legacy_sources: Vec<&MetaAnchor> = index
+    let source_references: Vec<(&MetaAnchor, &MetaReference)> = index
         .anchors
         .iter()
-        .filter(|anchor| anchor.kind == "source")
+        .flat_map(|anchor| {
+            anchor
+                .references
+                .iter()
+                .filter(|reference| reference.role == "source")
+                .map(move |reference| (anchor, reference))
+        })
         .collect();
-    println!("sources: {}", legacy_sources.len());
-    for source_block in legacy_sources {
-        let meta = source_block
-            .references
-            .iter()
-            .find(|reference| reference.role == "source")
-            .map(|reference| reference.binding_name.as_str())
-            .unwrap_or("-");
-        let text_range = match (source_block.text_start_line, source_block.text_end_line) {
+    println!("sources: {}", source_references.len());
+    for (anchor, reference) in source_references {
+        let text_range = match (anchor.text_start_line, anchor.text_end_line) {
             (Some(start), Some(end)) => format!("{}-{}", start, end),
             _ => "-".to_string(),
         };
         println!(
             "source {} line {} meta {} text {}",
-            source_block.label, source_block.comment_line, meta, text_range
+            anchor.label, anchor.comment_line, reference.binding_name, text_range
         );
     }
 
@@ -13277,6 +13277,24 @@ impl<'a> LoweringCtx<'a> {
                                 ty,
                             };
                         }
+                    }
+                    if matches!(
+                        fn_name.as_str(),
+                        "sort"
+                            | "sort_by"
+                            | "filter"
+                            | "distinct"
+                            | "take_while"
+                            | "drop_while"
+                            | "shuffle"
+                    ) && !fir_args.is_empty()
+                        && matches!(fir_args[0].ty, FirTy::List(_))
+                    {
+                        return FirExpr {
+                            kind: FirExprKind::App(Box::new(fir_func), fir_args.clone()),
+                            span: expr.span,
+                            ty: fir_args[0].ty.clone(),
+                        };
                     }
                     if fn_name == "foldl" && fir_args.len() >= 2 {
                         return FirExpr {
@@ -30788,6 +30806,24 @@ impl RustCodegen {
         false
     }
 
+    fn callable_return_fir_ty(&self, callable: &Expr, arity: usize) -> FirTy {
+        let mut ty = self.infer_expr_fir_ty(callable);
+        for _ in 0..arity {
+            ty = match ty {
+                FirTy::Arrow(_, ret) => *ret,
+                _ => FirTy::Unknown,
+            };
+        }
+        if matches!(ty, FirTy::Unknown | FirTy::Var(_)) {
+            if let ExprKind::Var(name) = &callable.kind {
+                if let Some(fixed) = builtin_fixed_return_fir_ty(name) {
+                    return fixed;
+                }
+            }
+        }
+        ty
+    }
+
     fn emit_function_value_call(
         &mut self,
         callable: &Expr,
@@ -32266,33 +32302,55 @@ impl RustCodegen {
                             } else {
                                 sanitize_name(&sort_params[0].name)
                             };
-                            let body_a = self.with_lambda_param_scope(
+                            let key_expr = self.with_lambda_param_scope(
                                 sort_params,
                                 &param_tys,
                                 sort_body,
                                 |cg| cg.emit_expr(sort_body),
                             );
-                            let body_b = self.with_lambda_param_scope(
-                                sort_params,
+                            let key_ty = self.with_temporary_named_types(
+                                &sort_params
+                                    .iter()
+                                    .map(|param| param.name.clone())
+                                    .collect::<Vec<_>>(),
                                 &param_tys,
-                                sort_body,
-                                |cg| cg.emit_expr(sort_body),
+                                |cg| cg.infer_expr_fir_ty(sort_body),
                             );
-                            return format!("{{ let mut __v = {}.clone(); __v.sort_by(|__a, __b| {{ let {} = __a.clone(); format!(\"{{}}\", {}) }}.cmp(&{{ let {} = __b.clone(); format!(\"{{}}\", {}) }})); __v }}",
-                                coll, sp, body_a, sp, body_b);
+                            return match key_ty {
+                                FirTy::Int | FirTy::Bool | FirTy::Char | FirTy::String => format!(
+                                    "{{ let mut __v = {}.clone(); __v.sort_by_cached_key(|__item| {{ let {} = __item.clone(); {} }}); __v }}",
+                                    coll, sp, key_expr
+                                ),
+                                FirTy::Float => format!(
+                                    "{{ let mut __keyed = {}.clone().into_iter().map(|__item| {{ let {} = __item.clone(); let __key = {}; (__key, __item) }}).collect::<Vec<_>>(); __keyed.sort_by(|__a, __b| __a.0.partial_cmp(&__b.0).unwrap_or(std::cmp::Ordering::Equal)); __keyed.into_iter().map(|(_, __item)| __item).collect::<Vec<_>>() }}",
+                                    coll, sp, key_expr
+                                ),
+                                _ => format!(
+                                    "{{ let mut __v = {}.clone(); __v.sort_by_cached_key(|__item| {{ let {} = __item.clone(); format!(\"{{}}\", {}) }}); __v }}",
+                                    coll, sp, key_expr
+                                ),
+                            };
                         }
-                        if self.is_builtin_function_value(&args[1], 1) {
+                        if self.is_direct_function_value(&args[1], 1) {
                             let coll = self.emit_expr(&args[0]);
-                            let key_a = self
-                                .emit_function_value_call(&args[1], &[("__a.clone()", "__a")])
+                            let key_expr = self
+                                .emit_function_value_call(&args[1], &[("__item.clone()", "__item")])
                                 .unwrap();
-                            let key_b = self
-                                .emit_function_value_call(&args[1], &[("__b.clone()", "__b")])
-                                .unwrap();
-                            return format!(
-                                "{{ let mut __v = {}.clone(); __v.sort_by(|__a, __b| format!(\"{{}}\", {}).cmp(&format!(\"{{}}\", {}))); __v }}",
-                                coll, key_a, key_b
-                            );
+                            let key_ty = self.callable_return_fir_ty(&args[1], 1);
+                            return match key_ty {
+                                FirTy::Int | FirTy::Bool | FirTy::Char | FirTy::String => format!(
+                                    "{{ let mut __v = {}.clone(); __v.sort_by_cached_key(|__item| {}); __v }}",
+                                    coll, key_expr
+                                ),
+                                FirTy::Float => format!(
+                                    "{{ let mut __keyed = {}.clone().into_iter().map(|__item| {{ let __key = {}; (__key, __item) }}).collect::<Vec<_>>(); __keyed.sort_by(|__a, __b| __a.0.partial_cmp(&__b.0).unwrap_or(std::cmp::Ordering::Equal)); __keyed.into_iter().map(|(_, __item)| __item).collect::<Vec<_>>() }}",
+                                    coll, key_expr
+                                ),
+                                _ => format!(
+                                    "{{ let mut __v = {}.clone(); __v.sort_by_cached_key(|__item| format!(\"{{}}\", {})); __v }}",
+                                    coll, key_expr
+                                ),
+                            };
                         }
                     }
                     if matches!(name.as_str(), "foldl" | "reduce")
@@ -43821,6 +43879,25 @@ for x in [1, 2] {
             vec!["5", "wind,fire,water"],
             "free function used as a callback should observe the latest top-level rebound binding"
         );
+    }
+
+    #[test]
+    fn compiled_rulescope_sort_by_typed_records_preserves_list_type_and_numeric_order() {
+        let output = compile_and_run_test_program(
+            r#"
+# Entry(year: Int)
+| entry_year(entry: Entry) -> entry.year
+
+# Ledger(entries: List(Entry)) {
+    | sorted_entries() -> sort_by(entries, entry_year)
+}
+
+= sorted_entries = Ledger(entries = [Entry(year = 10), Entry(year = 2)]).sorted_entries()
+@ print(show(map(sorted_entries, |entry: Entry| entry.year)))
+"#,
+        );
+
+        assert_eq!(output, "[2, 10]\n");
     }
 
     #[test]

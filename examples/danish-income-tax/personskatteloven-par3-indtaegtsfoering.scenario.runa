@@ -1,0 +1,274 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+| udligningshenlæggelse_22_pct(ordning: VirksomhedsskattelovUdligningsordning, henlæggelsesår: Heltal, oprindelig_henlæggelse_kroner: Heltal, tidligere_indtægtsført_kroner: Heltal) -> VirksomhedsskattelovUdligningshenlæggelse(
+    ordning = ordning,
+    henlæggelsesår = henlæggelsesår,
+    oprindelig_henlæggelse_kroner = oprindelig_henlæggelse_kroner,
+    tidligere_indtægtsført_kroner = tidligere_indtægtsført_kroner,
+    oprindelig_udligningsskat_kroner = oprindelig_henlæggelse_kroner * 2200 / 10000,
+    tidligere_modregnet_udligningsskat_kroner = tidligere_indtægtsført_kroner * 2200 / 10000
+)
+
+| udlignings_oplysningsfrist(indkomstår: Heltal, handling_yyyymmdd: Heltal) -> skattekontrollov_oplysningsfrist_resultat(skattekontrollov_par10_stk2_oplysningsfrist_input(indkomstår, handling_yyyymmdd))
+
+= udlignings_rettidig_2026 = udlignings_oplysningsfrist(2026, 20270630)
+
+= udlignings_fifo_portefølje = [
+    udligningshenlæggelse_22_pct(
+        ordning = VslPar22BKonjunkturudligning,
+        henlæggelsesår = 2019,
+        oprindelig_henlæggelse_kroner = 80000,
+        tidligere_indtægtsført_kroner = 0
+    ),
+    udligningshenlæggelse_22_pct(
+        ordning = VslPar22BKonjunkturudligning,
+        henlæggelsesår = 2018,
+        oprindelig_henlæggelse_kroner = 100000,
+        tidligere_indtægtsført_kroner = 0
+    )
+]
+
+= udlignings_frivillig_hændelser = VirksomhedsskattelovUdligningsIndtægtsføringHændelser(
+    ønsket_frivillig_indtægtsføring_kroner = 120000,
+    frivillig_hævning_oplysningsfrist_resultat = udlignings_rettidig_2026,
+    mindst_tre_måneder_fra_indskud = Sandt,
+    personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner = 200000,
+    ophører_med_kapitalafkastordningen = Falskt,
+    overgår_til_virksomhedsordningen = Falskt,
+    konkursdekret_afsagt = Falskt,
+    ophører_fuld_skattepligt_eller_dbo_hjemsted = Falskt,
+    fortsat_skattepligtig_for_fast_driftssted = Falskt,
+    ophører_skattepligt_for_fast_driftssted = Falskt
+)
+= udlignings_frivillig_fixture = virksomhedsskattelov22b_indtægtsføring_resultat(VirksomhedsskattelovUdligningsIndtægtsføringInput(
+    ordning = VslPar22BKonjunkturudligning,
+    indkomstår = 2026,
+    henlæggelser = udlignings_fifo_portefølje,
+    hændelser = udlignings_frivillig_hændelser,
+    slutskat = VirksomhedsskattelovUdligningsSlutskatInput(
+        slutskat_med_overført_restskat_kroner = 15000,
+        konto_overtaget_ved_succession = Falskt,
+        gift_og_samlevende_ved_årets_udløb = Falskt,
+        ægtefælles_slutskat_kroner = 0,
+        fremført_udligningsskat_fra_tidligere_år_kroner = 0
+    )
+))
+
+= udlignings_tiårsfrist_fixture = virksomhedsskattelov22b_indtægtsføring_resultat(VirksomhedsskattelovUdligningsIndtægtsføringInput(
+    ordning = VslPar22BKonjunkturudligning,
+    indkomstår = 2026,
+    henlæggelser = [udligningshenlæggelse_22_pct(VslPar22BKonjunkturudligning, 2016, 50000, 0)],
+    hændelser = VirksomhedsskattelovUdligningsIndtægtsføringHændelser(
+        ønsket_frivillig_indtægtsføring_kroner = 0,
+        frivillig_hævning_oplysningsfrist_resultat = udlignings_rettidig_2026,
+        mindst_tre_måneder_fra_indskud = Sandt,
+        personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner = 100000,
+        ophører_med_kapitalafkastordningen = Falskt,
+        overgår_til_virksomhedsordningen = Falskt,
+        konkursdekret_afsagt = Falskt,
+        ophører_fuld_skattepligt_eller_dbo_hjemsted = Falskt,
+        fortsat_skattepligtig_for_fast_driftssted = Falskt,
+        ophører_skattepligt_for_fast_driftssted = Falskt
+    ),
+    slutskat = VirksomhedsskattelovUdligningsSlutskatInput(50000, Falskt, Falskt, 0, 0)
+))
+
+= udlignings_underskud_fixture = virksomhedsskattelov22b_indtægtsføring_resultat(VirksomhedsskattelovUdligningsIndtægtsføringInput(
+    ordning = VslPar22BKonjunkturudligning,
+    indkomstår = 2026,
+    henlæggelser = [udligningshenlæggelse_22_pct(VslPar22BKonjunkturudligning, 2020, 100000, 0)],
+    hændelser = VirksomhedsskattelovUdligningsIndtægtsføringHændelser(
+        ønsket_frivillig_indtægtsføring_kroner = 0,
+        frivillig_hævning_oplysningsfrist_resultat = udlignings_rettidig_2026,
+        mindst_tre_måneder_fra_indskud = Sandt,
+        personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner = -60000,
+        ophører_med_kapitalafkastordningen = Falskt,
+        overgår_til_virksomhedsordningen = Falskt,
+        konkursdekret_afsagt = Falskt,
+        ophører_fuld_skattepligt_eller_dbo_hjemsted = Falskt,
+        fortsat_skattepligtig_for_fast_driftssted = Falskt,
+        ophører_skattepligt_for_fast_driftssted = Falskt
+    ),
+    slutskat = VirksomhedsskattelovUdligningsSlutskatInput(50000, Falskt, Falskt, 0, 0)
+))
+
+= udlignings_ophør_fixture = virksomhedsskattelov22b_indtægtsføring_resultat(VirksomhedsskattelovUdligningsIndtægtsføringInput(
+    ordning = VslPar22BKonjunkturudligning,
+    indkomstår = 2026,
+    henlæggelser = udlignings_fifo_portefølje,
+    hændelser = VirksomhedsskattelovUdligningsIndtægtsføringHændelser(
+        ønsket_frivillig_indtægtsføring_kroner = 0,
+        frivillig_hævning_oplysningsfrist_resultat = udlignings_rettidig_2026,
+        mindst_tre_måneder_fra_indskud = Sandt,
+        personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner = 100000,
+        ophører_med_kapitalafkastordningen = Sandt,
+        overgår_til_virksomhedsordningen = Falskt,
+        konkursdekret_afsagt = Falskt,
+        ophører_fuld_skattepligt_eller_dbo_hjemsted = Falskt,
+        fortsat_skattepligtig_for_fast_driftssted = Falskt,
+        ophører_skattepligt_for_fast_driftssted = Falskt
+    ),
+    slutskat = VirksomhedsskattelovUdligningsSlutskatInput(50000, Falskt, Falskt, 0, 0)
+))
+
+= udlignings_overgang_fixture = virksomhedsskattelov22b_indtægtsføring_resultat(VirksomhedsskattelovUdligningsIndtægtsføringInput(
+    ordning = VslPar22BKonjunkturudligning,
+    indkomstår = 2026,
+    henlæggelser = udlignings_fifo_portefølje,
+    hændelser = VirksomhedsskattelovUdligningsIndtægtsføringHændelser(
+        ønsket_frivillig_indtægtsføring_kroner = 40000,
+        frivillig_hævning_oplysningsfrist_resultat = udlignings_rettidig_2026,
+        mindst_tre_måneder_fra_indskud = Sandt,
+        personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner = 100000,
+        ophører_med_kapitalafkastordningen = Sandt,
+        overgår_til_virksomhedsordningen = Sandt,
+        konkursdekret_afsagt = Falskt,
+        ophører_fuld_skattepligt_eller_dbo_hjemsted = Falskt,
+        fortsat_skattepligtig_for_fast_driftssted = Falskt,
+        ophører_skattepligt_for_fast_driftssted = Falskt
+    ),
+    slutskat = VirksomhedsskattelovUdligningsSlutskatInput(50000, Falskt, Falskt, 0, 0)
+))
+
+= udlignings_par22d_portefølje = [udligningshenlæggelse_22_pct(VslPar22DIndkomstudligning, 2024, 70000, 0)]
+= udlignings_par22d_konkurs_fixture = virksomhedsskattelov22d_indtægtsføring_resultat(VirksomhedsskattelovUdligningsIndtægtsføringInput(
+    ordning = VslPar22DIndkomstudligning,
+    indkomstår = 2026,
+    henlæggelser = udlignings_par22d_portefølje,
+    hændelser = VirksomhedsskattelovUdligningsIndtægtsføringHændelser(
+        ønsket_frivillig_indtægtsføring_kroner = 0,
+        frivillig_hævning_oplysningsfrist_resultat = udlignings_rettidig_2026,
+        mindst_tre_måneder_fra_indskud = Sandt,
+        personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner = 0,
+        ophører_med_kapitalafkastordningen = Falskt,
+        overgår_til_virksomhedsordningen = Falskt,
+        konkursdekret_afsagt = Sandt,
+        ophører_fuld_skattepligt_eller_dbo_hjemsted = Falskt,
+        fortsat_skattepligtig_for_fast_driftssted = Falskt,
+        ophører_skattepligt_for_fast_driftssted = Falskt
+    ),
+    slutskat = VirksomhedsskattelovUdligningsSlutskatInput(50000, Falskt, Falskt, 0, 0)
+))
+= udlignings_par22d_ophør_ignoreres_fixture = virksomhedsskattelov22d_indtægtsføring_resultat(VirksomhedsskattelovUdligningsIndtægtsføringInput(
+    ordning = VslPar22DIndkomstudligning,
+    indkomstår = 2026,
+    henlæggelser = udlignings_par22d_portefølje,
+    hændelser = VirksomhedsskattelovUdligningsIndtægtsføringHændelser(
+        ønsket_frivillig_indtægtsføring_kroner = 0,
+        frivillig_hævning_oplysningsfrist_resultat = udlignings_rettidig_2026,
+        mindst_tre_måneder_fra_indskud = Sandt,
+        personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner = 0,
+        ophører_med_kapitalafkastordningen = Sandt,
+        overgår_til_virksomhedsordningen = Falskt,
+        konkursdekret_afsagt = Falskt,
+        ophører_fuld_skattepligt_eller_dbo_hjemsted = Falskt,
+        fortsat_skattepligtig_for_fast_driftssted = Falskt,
+        ophører_skattepligt_for_fast_driftssted = Falskt
+    ),
+    slutskat = VirksomhedsskattelovUdligningsSlutskatInput(50000, Falskt, Falskt, 0, 0)
+))
+
+= udlignings_fast_driftssted_fortsætter_fixture = virksomhedsskattelov22d_indtægtsføring_resultat(VirksomhedsskattelovUdligningsIndtægtsføringInput(
+    ordning = VslPar22DIndkomstudligning,
+    indkomstår = 2026,
+    henlæggelser = udlignings_par22d_portefølje,
+    hændelser = VirksomhedsskattelovUdligningsIndtægtsføringHændelser(
+        ønsket_frivillig_indtægtsføring_kroner = 0,
+        frivillig_hævning_oplysningsfrist_resultat = udlignings_rettidig_2026,
+        mindst_tre_måneder_fra_indskud = Sandt,
+        personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner = 0,
+        ophører_med_kapitalafkastordningen = Falskt,
+        overgår_til_virksomhedsordningen = Falskt,
+        konkursdekret_afsagt = Falskt,
+        ophører_fuld_skattepligt_eller_dbo_hjemsted = Sandt,
+        fortsat_skattepligtig_for_fast_driftssted = Sandt,
+        ophører_skattepligt_for_fast_driftssted = Falskt
+    ),
+    slutskat = VirksomhedsskattelovUdligningsSlutskatInput(50000, Falskt, Falskt, 0, 0)
+))
+= udlignings_fast_driftssted_ophører_fixture = virksomhedsskattelov22d_indtægtsføring_resultat(VirksomhedsskattelovUdligningsIndtægtsføringInput(
+    ordning = VslPar22DIndkomstudligning,
+    indkomstår = 2027,
+    henlæggelser = udlignings_par22d_portefølje,
+    hændelser = VirksomhedsskattelovUdligningsIndtægtsføringHændelser(
+        ønsket_frivillig_indtægtsføring_kroner = 0,
+        frivillig_hævning_oplysningsfrist_resultat = udlignings_oplysningsfrist(2027, 20280630),
+        mindst_tre_måneder_fra_indskud = Sandt,
+        personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner = 0,
+        ophører_med_kapitalafkastordningen = Falskt,
+        overgår_til_virksomhedsordningen = Falskt,
+        konkursdekret_afsagt = Falskt,
+        ophører_fuld_skattepligt_eller_dbo_hjemsted = Falskt,
+        fortsat_skattepligtig_for_fast_driftssted = Falskt,
+        ophører_skattepligt_for_fast_driftssted = Sandt
+    ),
+    slutskat = VirksomhedsskattelovUdligningsSlutskatInput(50000, Falskt, Falskt, 0, 0)
+))
+
+= udlignings_succession_fixture = virksomhedsskattelov22b_indtægtsføring_resultat(VirksomhedsskattelovUdligningsIndtægtsføringInput(
+    ordning = VslPar22BKonjunkturudligning,
+    indkomstår = 2026,
+    henlæggelser = [udligningshenlæggelse_22_pct(VslPar22BKonjunkturudligning, 2016, 100000, 0)],
+    hændelser = VirksomhedsskattelovUdligningsIndtægtsføringHændelser(
+        ønsket_frivillig_indtægtsføring_kroner = 0,
+        frivillig_hævning_oplysningsfrist_resultat = udlignings_rettidig_2026,
+        mindst_tre_måneder_fra_indskud = Sandt,
+        personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner = 100000,
+        ophører_med_kapitalafkastordningen = Falskt,
+        overgår_til_virksomhedsordningen = Falskt,
+        konkursdekret_afsagt = Falskt,
+        ophører_fuld_skattepligt_eller_dbo_hjemsted = Falskt,
+        fortsat_skattepligtig_for_fast_driftssted = Falskt,
+        ophører_skattepligt_for_fast_driftssted = Falskt
+    ),
+    slutskat = VirksomhedsskattelovUdligningsSlutskatInput(
+        slutskat_med_overført_restskat_kroner = 5000,
+        konto_overtaget_ved_succession = Sandt,
+        gift_og_samlevende_ved_årets_udløb = Sandt,
+        ægtefælles_slutskat_kroner = 10000,
+        fremført_udligningsskat_fra_tidligere_år_kroner = 0
+    )
+))
+
+= udlignings_par3_bro_fixture = par3_udlignings_indtægtsføring_resultat(udlignings_frivillig_fixture)
+= udlignings_par3_personlig_indkomst_fixture = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 500000
+        ),
+        par3_udlignings_indtægtsføring_indkomstpost(udlignings_frivillig_fixture)
+    ],
+    fradragsposter = []
+))
+
+| udligning_fifo_ældste_først: udlignings_frivillig_fixture -> head(udlignings_frivillig_fixture.opgørelser).henlæggelsesår == 2018 && head(udlignings_frivillig_fixture.opgørelser).indtægtsført_i_året_kroner == 100000 && nth(udlignings_frivillig_fixture.opgørelser, 1).henlæggelsesår == 2019 && nth(udlignings_frivillig_fixture.opgørelser, 1).indtægtsført_i_året_kroner == 20000
+| udligning_frivillig_brutto_og_kontohævning: udlignings_frivillig_fixture -> udlignings_frivillig_fixture.indtægtsført_henlæggelse_kroner == 120000 && udlignings_frivillig_fixture.personlig_indkomst_tillæg_kroner == 120000 && udlignings_frivillig_fixture.udligningsskat_til_modregning_kroner == 26400 && udlignings_frivillig_fixture.konto_hævet_kroner == 93600 && udlignings_frivillig_fixture.samlet_rest_henlæggelse_efter_kroner == 60000
+| udligning_stk5_modregner_og_udbetaler_rest: udlignings_frivillig_fixture -> udlignings_frivillig_fixture.slutskat_resultat.fradrag_i_egen_slutskat_kroner == 15000 && udlignings_frivillig_fixture.slutskat_resultat.egen_slutskat_efter_kroner == 0 && udlignings_frivillig_fixture.slutskat_resultat.kontant_udbetaling_kroner == 11400 && udlignings_frivillig_fixture.slutskat_resultat.fremført_til_følgende_indkomstår_kroner == 0
+| udligning_tiårsfrist_tvinger_rest: udlignings_tiårsfrist_fixture -> udlignings_tiårsfrist_fixture.tiårsfrist_indtægtsføring_kroner == 50000 && udlignings_tiårsfrist_fixture.indtægtsført_henlæggelse_kroner == 50000 && head(udlignings_tiårsfrist_fixture.opgørelser).tiårsfrist_udløbet
+| par22b_stk7_udligner_underskud: udlignings_underskud_fixture -> udlignings_underskud_fixture.underskud_før_indtægtsføring_kroner == 60000 && udlignings_underskud_fixture.underskud_indtægtsføring_kroner == 60000 && udlignings_underskud_fixture.indtægtsført_henlæggelse_kroner == 60000 && udlignings_underskud_fixture.samlet_rest_henlæggelse_efter_kroner == 40000
+| par22b_stk8_ophør_indtægtsfører_alt: udlignings_ophør_fixture -> udlignings_ophør_fixture.ophør_uden_virksomhedsordning && udlignings_ophør_fixture.fuld_indtægtsføring_påkrævet && udlignings_ophør_fixture.indtægtsført_henlæggelse_kroner == 180000
+| par22b_stk8_overgang_beskatter_valgt_del_og_overfører_rest: udlignings_overgang_fixture -> udlignings_overgang_fixture.overgang_til_virksomhedsordningen && udlignings_overgang_fixture.fuld_indtægtsføring_påkrævet == Falskt && udlignings_overgang_fixture.indtægtsført_henlæggelse_kroner == 40000 && udlignings_overgang_fixture.overført_henlæggelse_til_virksomhedsordningen_kroner == 140000 && udlignings_overgang_fixture.overført_foreløbig_skat_til_virksomhedsordningen_kroner == 30800 && udlignings_overgang_fixture.overført_til_konto_for_opsparet_overskud_kroner == 109200 && udlignings_overgang_fixture.samlet_rest_henlæggelse_efter_kroner == 0
+| par22d_stk3_konkurs_indtægtsfører_uden_konkursindkomst: udlignings_par22d_konkurs_fixture -> udlignings_par22d_konkurs_fixture.konkursindtægtsføring && udlignings_par22d_konkurs_fixture.indtægtsført_henlæggelse_kroner == 70000 && udlignings_par22d_konkurs_fixture.medregnes_ikke_til_konkursindkomsten
+| par22d_arver_ikke_par22b_almindeligt_ophør: udlignings_par22d_ophør_ignoreres_fixture -> udlignings_par22d_ophør_ignoreres_fixture.ophør_uden_virksomhedsordning == Falskt && udlignings_par22d_ophør_ignoreres_fixture.indtægtsført_henlæggelse_kroner == 0 && udlignings_par22d_ophør_ignoreres_fixture.samlet_rest_henlæggelse_efter_kroner == 70000
+| par22d_fast_driftssted_udskyder_exitbeskatning: udlignings_fast_driftssted_fortsætter_fixture -> udlignings_fast_driftssted_fortsætter_fixture.skattepligtsophør_indtægtsføring == Falskt && udlignings_fast_driftssted_fortsætter_fixture.indtægtsført_henlæggelse_kroner == 0
+| par22d_fast_driftssted_ophør_indtægtsfører: udlignings_fast_driftssted_ophører_fixture -> udlignings_fast_driftssted_ophører_fixture.skattepligtsophør_indtægtsføring && udlignings_fast_driftssted_ophører_fixture.indtægtsført_henlæggelse_kroner == 70000
+| par22b_stk6_succession_bruger_ægtefælle_og_fremførsel: udlignings_succession_fixture -> udlignings_succession_fixture.slutskat_resultat.succession_stk6 && udlignings_succession_fixture.slutskat_resultat.fradrag_i_egen_slutskat_kroner == 5000 && udlignings_succession_fixture.slutskat_resultat.fradrag_i_ægtefælles_slutskat_kroner == 10000 && udlignings_succession_fixture.slutskat_resultat.kontant_udbetaling_kroner == 0 && udlignings_succession_fixture.slutskat_resultat.fremført_til_følgende_indkomstår_kroner == 7000
+| par3_bro_medregner_indtægtsføring_i_brutto_personlig_indkomst: udlignings_par3_bro_fixture -> udlignings_par3_bro_fixture.hjemmel == Par3Virksomhedsskattelov22BStk4Stk7Stk8 && udlignings_par3_bro_fixture.personlig_indkomst_tillæg_kroner == 120000 && udlignings_par3_personlig_indkomst_fixture.brutto_personlig_indkomst_kroner == 620000 && udlignings_par3_personlig_indkomst_fixture.fradrag_i_personlig_indkomst_kroner == 0 && udlignings_par3_personlig_indkomst_fixture.netto_personlig_indkomst_kroner == 620000
+
+? udligning_fifo_ældste_først
+? udligning_frivillig_brutto_og_kontohævning
+? udligning_stk5_modregner_og_udbetaler_rest
+? udligning_tiårsfrist_tvinger_rest
+? par22b_stk7_udligner_underskud
+? par22b_stk8_ophør_indtægtsfører_alt
+? par22b_stk8_overgang_beskatter_valgt_del_og_overfører_rest
+? par22d_stk3_konkurs_indtægtsfører_uden_konkursindkomst
+? par22d_arver_ikke_par22b_almindeligt_ophør
+? par22d_fast_driftssted_udskyder_exitbeskatning
+? par22d_fast_driftssted_ophør_indtægtsfører
+? par22b_stk6_succession_bruger_ægtefælle_og_fremførsel
+? par3_bro_medregner_indtægtsføring_i_brutto_personlig_indkomst

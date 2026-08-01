@@ -1,0 +1,13 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: [2, 10]
+
+# Entry(year: Int)
+| entry_year(entry: Entry) -> entry.year
+
+# Ledger(entries: List(Entry)) {
+    | sorted_entries() -> sort_by(entries, entry_year)
+}
+
+= sorted_entries = Ledger(entries = [Entry(year = 10), Entry(year = 2)]).sorted_entries()
+@ print(show(map(sorted_entries, |entry: Entry| entry.year)))

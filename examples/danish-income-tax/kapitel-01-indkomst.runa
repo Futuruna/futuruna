@@ -140,6 +140,8 @@ iværksætterkonto
 # Par3Stk2Nr6Resultat(arbejdsmarkedsbidrag_fradrag_kroner: Heltal, udenlandsk_socialt_bidrag_fradrag_kroner: Heltal, udenlandsk_arbejdsgiverbidrag_fradrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr7Hjemmel = Par3Stk2Nr7Virksomhedsskattelov22B | Par3Stk2Nr7Virksomhedsskattelov22D
 # Par3Stk2Nr7Resultat(indkomstår: Heltal, hjemmel: Par3Stk2Nr7Hjemmel, henlæggelse_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
+# Par3UdligningsIndtægtsføringHjemmel = Par3Virksomhedsskattelov22BStk4Stk7Stk8 | Par3Virksomhedsskattelov22DStk2Stk3
+# Par3UdligningsIndtægtsføringResultat(indkomstår: Heltal, hjemmel: Par3UdligningsIndtægtsføringHjemmel, indtægtsført_henlæggelse_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal, medregnes_ikke_til_konkursindkomsten: Boolsk)
 
 | er_personlig_indkomst(vurdering: IndkomstVurdering) -> vurdering.indgår_i_skattepligtig_indkomst && vurdering.er_kapitalindkomst == Falskt
 | par3_fradragstype_nævnt_i_stk2(fradrag: PersonligFradrag) -> Sandt
@@ -215,6 +217,25 @@ iværksætterkonto
     art = VirksomhedsskatteHenlæggelse,
     stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
     beløb_kroner = resultat.fradrag_i_personlig_indkomst_kroner
+)
+
+# Par3UdligningsIndtægtsføringSag(resultat: VirksomhedsskattelovUdligningsIndtægtsføringResultat) {
+    | hjemmel() -> Par3Virksomhedsskattelov22BStk4Stk7Stk8
+    | exception par3_vsl22d_indtægtsføring hjemmel() -> Par3Virksomhedsskattelov22DStk2Stk3 under resultat.ordning == VslPar22DIndkomstudligning
+    | resultat() -> Par3UdligningsIndtægtsføringResultat(
+        indkomstår = resultat.indkomstår,
+        hjemmel = hjemmel(),
+        indtægtsført_henlæggelse_kroner = resultat.indtægtsført_henlæggelse_kroner,
+        personlig_indkomst_tillæg_kroner = resultat.personlig_indkomst_tillæg_kroner,
+        medregnes_ikke_til_konkursindkomsten = resultat.medregnes_ikke_til_konkursindkomsten
+    )
+}
+| par3_udlignings_indtægtsføring_sag(resultat: VirksomhedsskattelovUdligningsIndtægtsføringResultat) -> Par3UdligningsIndtægtsføringSag(resultat)
+| par3_udlignings_indtægtsføring_resultat(resultat: VirksomhedsskattelovUdligningsIndtægtsføringResultat) -> par3_udlignings_indtægtsføring_sag(resultat).resultat()
+| par3_udlignings_indtægtsføring_indkomstpost(resultat: VirksomhedsskattelovUdligningsIndtægtsføringResultat) -> Par3Indkomstpost(
+    indgår_i_skattepligtig_indkomst = Sandt,
+    er_kapitalindkomst = Falskt,
+    beløb_kroner = par3_udlignings_indtægtsføring_resultat(resultat).personlig_indkomst_tillæg_kroner
 )
 
 | par3_indkomstpost_er_personlig_indkomst(post: Par3Indkomstpost) -> er_personlig_indkomst(IndkomstVurdering(

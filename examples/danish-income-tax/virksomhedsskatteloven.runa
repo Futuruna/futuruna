@@ -23,6 +23,21 @@
     identifier = "Virksomhedsskatteloven § 22 d",
     hentet_dato = "2026-07-18"
 )
+= virksomhedsskatteloven_juridisk_vejledning_par22b_indtægtsføring = VirksomhedsskattelovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948943",
+    identifier = "Den juridiske vejledning C.C.5.3.2.2.3 Indtægtsføring",
+    hentet_dato = "2026-07-18"
+)
+= virksomhedsskatteloven_juridisk_vejledning_par22b_ophør = VirksomhedsskattelovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948945",
+    identifier = "Den juridiske vejledning C.C.5.3.2.3 Ophør, konkurs mv.",
+    hentet_dato = "2026-07-18"
+)
+= virksomhedsskatteloven_juridisk_vejledning_par22d_udligningsskat = VirksomhedsskattelovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948952",
+    identifier = "Den juridiske vejledning C.C.5.5.2 Udligningsskat, ophør af skattepligt og konkurs",
+    hentet_dato = "2026-07-18"
+)
 
 ----
 § 7. Kapitalafkast beregnes som afkastgrundlaget gange afkastsatsen.
@@ -118,7 +133,7 @@ personskattelovens § 4, stk. 1, nr. 9 og 11.
 | virksomhedsskattelov22a_sag(input: Virksomhedsskattelov22AInput) -> Virksomhedsskattelov22ASag(input)
 | virksomhedsskattelov22a_resultat(input: Virksomhedsskattelov22AInput) -> virksomhedsskattelov22a_sag(input).resultat()
 
---@source::virksomhedsskatteloven_par22b::meta:virksomhedsskatteloven_lbk1836_par22b--
+--@label:virksomhedsskatteloven_par22b::source:virksomhedsskatteloven_lbk1836_par22b::source:virksomhedsskatteloven_juridisk_vejledning_par22b_indtægtsføring::source:virksomhedsskatteloven_juridisk_vejledning_par22b_ophør--
 ----
 § 22 b. Skattepligtige personer, der anvender § 22 a, kan foretage henlæggelse
 til konjunkturudligning. Henlæggelsen kan fradrages ved opgørelsen af den
@@ -303,9 +318,183 @@ konjunkturudligningsordningen.
 }
 | virksomhedsskattelov22b_henlæggelse_sag(input: Virksomhedsskattelov22BHenlæggelseInput) -> Virksomhedsskattelov22BHenlæggelseSag(input)
 | virksomhedsskattelov22b_henlæggelse_resultat(input: Virksomhedsskattelov22BHenlæggelseInput) -> virksomhedsskattelov22b_henlæggelse_sag(input).resultat()
+
+# VirksomhedsskattelovUdligningsordning = VslPar22BKonjunkturudligning | VslPar22DIndkomstudligning
+# VirksomhedsskattelovUdligningshenlæggelse(ordning: VirksomhedsskattelovUdligningsordning, henlæggelsesår: Heltal, oprindelig_henlæggelse_kroner: Heltal, tidligere_indtægtsført_kroner: Heltal, oprindelig_udligningsskat_kroner: Heltal, tidligere_modregnet_udligningsskat_kroner: Heltal)
+# VirksomhedsskattelovUdligningsIndtægtsføringHændelser(ønsket_frivillig_indtægtsføring_kroner: Heltal, frivillig_hævning_oplysningsfrist_resultat: SkattekontrollovOplysningsfristResultat, mindst_tre_måneder_fra_indskud: Boolsk, personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner: Heltal, ophører_med_kapitalafkastordningen: Boolsk, overgår_til_virksomhedsordningen: Boolsk, konkursdekret_afsagt: Boolsk, ophører_fuld_skattepligt_eller_dbo_hjemsted: Boolsk, fortsat_skattepligtig_for_fast_driftssted: Boolsk, ophører_skattepligt_for_fast_driftssted: Boolsk)
+# VirksomhedsskattelovUdligningsSlutskatInput(slutskat_med_overført_restskat_kroner: Heltal, konto_overtaget_ved_succession: Boolsk, gift_og_samlevende_ved_årets_udløb: Boolsk, ægtefælles_slutskat_kroner: Heltal, fremført_udligningsskat_fra_tidligere_år_kroner: Heltal)
+# VirksomhedsskattelovUdligningsIndtægtsføringInput(ordning: VirksomhedsskattelovUdligningsordning, indkomstår: Heltal, henlæggelser: List(VirksomhedsskattelovUdligningshenlæggelse), hændelser: VirksomhedsskattelovUdligningsIndtægtsføringHændelser, slutskat: VirksomhedsskattelovUdligningsSlutskatInput)
+# VirksomhedsskattelovUdligningsHenlæggelseOpgørelse(ordning: VirksomhedsskattelovUdligningsordning, henlæggelsesår: Heltal, tiårsfrist_udløbet: Boolsk, rest_henlæggelse_før_kroner: Heltal, indtægtsført_i_året_kroner: Heltal, rest_henlæggelse_efter_indtægtsføring_kroner: Heltal, rest_udligningsskat_før_kroner: Heltal, udligningsskat_til_modregning_kroner: Heltal, rest_udligningsskat_efter_indtægtsføring_kroner: Heltal, konto_hævet_i_året_kroner: Heltal, konto_rest_efter_indtægtsføring_kroner: Heltal)
+# VirksomhedsskattelovUdligningsFifoTilstand(indkomstår: Heltal, resterende_indtægtsføringsmål_kroner: Heltal, samlet_indtægtsført_kroner: Heltal, samlet_udligningsskat_til_modregning_kroner: Heltal, samlet_konto_hævet_kroner: Heltal, opgørelser: List(VirksomhedsskattelovUdligningsHenlæggelseOpgørelse))
+# VirksomhedsskattelovUdligningsSkatResultat(tilgængelig_udligningsskat_kroner: Heltal, egen_slutskat_før_kroner: Heltal, fradrag_i_egen_slutskat_kroner: Heltal, egen_slutskat_efter_kroner: Heltal, succession_stk6: Boolsk, ægtefælles_slutskat_før_kroner: Heltal, fradrag_i_ægtefælles_slutskat_kroner: Heltal, ægtefælles_slutskat_efter_kroner: Heltal, kontant_udbetaling_kroner: Heltal, fremført_til_følgende_indkomstår_kroner: Heltal)
+# VirksomhedsskattelovUdligningsIndtægtsføringResultat(ordning: VirksomhedsskattelovUdligningsordning, indkomstår: Heltal, gyldig_portefølje: Boolsk, samlet_rest_henlæggelse_før_kroner: Heltal, samlet_rest_udligningsskat_før_kroner: Heltal, ældste_rest_henlæggelsesår: Heltal, tiårsfrist_indtægtsføring_kroner: Heltal, underskud_før_indtægtsføring_kroner: Heltal, underskud_indtægtsføring_kroner: Heltal, frivillig_indtægtsføring_tilladt: Boolsk, ønsket_frivillig_indtægtsføring_kroner: Heltal, ophør_uden_virksomhedsordning: Boolsk, overgang_til_virksomhedsordningen: Boolsk, konkursindtægtsføring: Boolsk, skattepligtsophør_indtægtsføring: Boolsk, fuld_indtægtsføring_påkrævet: Boolsk, indtægtsføringsmål_kroner: Heltal, indtægtsført_henlæggelse_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal, medregnes_ikke_til_konkursindkomsten: Boolsk, konto_hævet_kroner: Heltal, udligningsskat_til_modregning_kroner: Heltal, overført_henlæggelse_til_virksomhedsordningen_kroner: Heltal, overført_foreløbig_skat_til_virksomhedsordningen_kroner: Heltal, overført_til_konto_for_opsparet_overskud_kroner: Heltal, samlet_rest_henlæggelse_efter_kroner: Heltal, samlet_rest_udligningsskat_efter_kroner: Heltal, slutskat_resultat: VirksomhedsskattelovUdligningsSkatResultat, opgørelser: List(VirksomhedsskattelovUdligningsHenlæggelseOpgørelse))
+
+| virksomhedsskattelov22b_udligningshenlæggelse_fra_resultat(resultat: Virksomhedsskattelov22BHenlæggelseResultat) -> VirksomhedsskattelovUdligningshenlæggelse(
+    ordning = VslPar22BKonjunkturudligning,
+    henlæggelsesår = resultat.indkomstår,
+    oprindelig_henlæggelse_kroner = resultat.henlæggelse_kroner,
+    tidligere_indtægtsført_kroner = 0,
+    oprindelig_udligningsskat_kroner = resultat.konjunkturudligningsskat_kroner,
+    tidligere_modregnet_udligningsskat_kroner = 0
+)
+| virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse) -> penge_positivt_beløb(henlæggelse.oprindelig_henlæggelse_kroner - penge_positivt_beløb(henlæggelse.tidligere_indtægtsført_kroner))
+| virksomhedsskattelov_udligningsskat_rest_kroner(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse) -> penge_positivt_beløb(henlæggelse.oprindelig_udligningsskat_kroner - penge_positivt_beløb(henlæggelse.tidligere_modregnet_udligningsskat_kroner))
+| virksomhedsskattelov_udligningskonto_rest_kroner(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse) -> penge_positivt_beløb(virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse) - virksomhedsskattelov_udligningsskat_rest_kroner(henlæggelse))
+| virksomhedsskattelov_udligningshenlæggelse_gyldig(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse) -> henlæggelse.oprindelig_henlæggelse_kroner >= 0 && henlæggelse.tidligere_indtægtsført_kroner >= 0 && henlæggelse.tidligere_indtægtsført_kroner <= henlæggelse.oprindelig_henlæggelse_kroner && henlæggelse.oprindelig_udligningsskat_kroner >= 0 && henlæggelse.oprindelig_udligningsskat_kroner <= henlæggelse.oprindelig_henlæggelse_kroner && henlæggelse.tidligere_modregnet_udligningsskat_kroner >= 0 && henlæggelse.tidligere_modregnet_udligningsskat_kroner <= henlæggelse.oprindelig_udligningsskat_kroner
+| virksomhedsskattelov_udligningshenlæggelse_sorteringsnøgle(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse) -> henlæggelse.henlæggelsesår
+| virksomhedsskattelov_udligningshenlæggelse_tiårsfrist_udløbet(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse, indkomstår: Heltal) -> indkomstår >= henlæggelse.henlæggelsesår + 10 && virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse) > 0
+| virksomhedsskattelov_udlignings_konkursregel_gælder(ordning: VirksomhedsskattelovUdligningsordning) -> ordning == VslPar22BKonjunkturudligning
+| virksomhedsskattelov_udlignings_skattepligtsophørsregel_gælder(ordning: VirksomhedsskattelovUdligningsordning) -> ordning == VslPar22BKonjunkturudligning
+| virksomhedsskattelov_udligningsskat_for_indtægtsføring_kroner(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse, indtægtsført_kroner: Heltal) -> 0
+| exception udligning_delvis_indtægtsføring virksomhedsskattelov_udligningsskat_for_indtægtsføring_kroner(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse, indtægtsført_kroner: Heltal) -> penge_mindste_beløb(virksomhedsskattelov_udligningsskat_rest_kroner(henlæggelse), indtægtsført_kroner * henlæggelse.oprindelig_udligningsskat_kroner / henlæggelse.oprindelig_henlæggelse_kroner) under indtægtsført_kroner > 0 && indtægtsført_kroner < virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse) && henlæggelse.oprindelig_henlæggelse_kroner > 0
+| exception udligning_sidste_rest virksomhedsskattelov_udligningsskat_for_indtægtsføring_kroner(henlæggelse: VirksomhedsskattelovUdligningshenlæggelse, indtægtsført_kroner: Heltal) -> virksomhedsskattelov_udligningsskat_rest_kroner(henlæggelse) under indtægtsført_kroner > 0 && indtægtsført_kroner >= virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse)
+
+# VirksomhedsskattelovUdligningsFifoTrinSag(tilstand: VirksomhedsskattelovUdligningsFifoTilstand, henlæggelse: VirksomhedsskattelovUdligningshenlæggelse) {
+    | rest_henlæggelse_før_kroner() -> virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse)
+    | rest_udligningsskat_før_kroner() -> virksomhedsskattelov_udligningsskat_rest_kroner(henlæggelse)
+    | indtægtsført_i_året_kroner() -> penge_mindste_beløb(tilstand.resterende_indtægtsføringsmål_kroner, rest_henlæggelse_før_kroner())
+    | udligningsskat_til_modregning_kroner() -> virksomhedsskattelov_udligningsskat_for_indtægtsføring_kroner(henlæggelse, indtægtsført_i_året_kroner())
+    | rest_henlæggelse_efter_indtægtsføring_kroner() -> rest_henlæggelse_før_kroner() - indtægtsført_i_året_kroner()
+    | rest_udligningsskat_efter_indtægtsføring_kroner() -> rest_udligningsskat_før_kroner() - udligningsskat_til_modregning_kroner()
+    | konto_hævet_i_året_kroner() -> indtægtsført_i_året_kroner() - udligningsskat_til_modregning_kroner()
+    | konto_rest_efter_indtægtsføring_kroner() -> rest_henlæggelse_efter_indtægtsføring_kroner() - rest_udligningsskat_efter_indtægtsføring_kroner()
+    | opgørelse() -> VirksomhedsskattelovUdligningsHenlæggelseOpgørelse(
+        ordning = henlæggelse.ordning,
+        henlæggelsesår = henlæggelse.henlæggelsesår,
+        tiårsfrist_udløbet = virksomhedsskattelov_udligningshenlæggelse_tiårsfrist_udløbet(henlæggelse, tilstand.indkomstår),
+        rest_henlæggelse_før_kroner = rest_henlæggelse_før_kroner(),
+        indtægtsført_i_året_kroner = indtægtsført_i_året_kroner(),
+        rest_henlæggelse_efter_indtægtsføring_kroner = rest_henlæggelse_efter_indtægtsføring_kroner(),
+        rest_udligningsskat_før_kroner = rest_udligningsskat_før_kroner(),
+        udligningsskat_til_modregning_kroner = udligningsskat_til_modregning_kroner(),
+        rest_udligningsskat_efter_indtægtsføring_kroner = rest_udligningsskat_efter_indtægtsføring_kroner(),
+        konto_hævet_i_året_kroner = konto_hævet_i_året_kroner(),
+        konto_rest_efter_indtægtsføring_kroner = konto_rest_efter_indtægtsføring_kroner()
+    )
+    | resultat() -> VirksomhedsskattelovUdligningsFifoTilstand(
+        indkomstår = tilstand.indkomstår,
+        resterende_indtægtsføringsmål_kroner = tilstand.resterende_indtægtsføringsmål_kroner - indtægtsført_i_året_kroner(),
+        samlet_indtægtsført_kroner = tilstand.samlet_indtægtsført_kroner + indtægtsført_i_året_kroner(),
+        samlet_udligningsskat_til_modregning_kroner = tilstand.samlet_udligningsskat_til_modregning_kroner + udligningsskat_til_modregning_kroner(),
+        samlet_konto_hævet_kroner = tilstand.samlet_konto_hævet_kroner + konto_hævet_i_året_kroner(),
+        opgørelser = concat(tilstand.opgørelser, [opgørelse()])
+    )
+}
+| virksomhedsskattelov_udlignings_fifo_trin(tilstand: VirksomhedsskattelovUdligningsFifoTilstand, henlæggelse: VirksomhedsskattelovUdligningshenlæggelse) -> VirksomhedsskattelovUdligningsFifoTrinSag(tilstand, henlæggelse).resultat()
+
+# VirksomhedsskattelovUdligningsSkatSag(ordning: VirksomhedsskattelovUdligningsordning, aktuel_udligningsskat_kroner: Heltal, input: VirksomhedsskattelovUdligningsSlutskatInput) {
+    | tilgængelig_udligningsskat_kroner() -> penge_positivt_beløb(aktuel_udligningsskat_kroner) + penge_positivt_beløb(input.fremført_udligningsskat_fra_tidligere_år_kroner)
+    | egen_slutskat_før_kroner() -> penge_positivt_beløb(input.slutskat_med_overført_restskat_kroner)
+    | fradrag_i_egen_slutskat_kroner() -> penge_mindste_beløb(tilgængelig_udligningsskat_kroner(), egen_slutskat_før_kroner())
+    | egen_slutskat_efter_kroner() -> egen_slutskat_før_kroner() - fradrag_i_egen_slutskat_kroner()
+    | rest_efter_egen_slutskat_kroner() -> tilgængelig_udligningsskat_kroner() - fradrag_i_egen_slutskat_kroner()
+    | succession_stk6() -> ordning == VslPar22BKonjunkturudligning && input.konto_overtaget_ved_succession
+    | ægtefælles_slutskat_før_kroner() -> penge_positivt_beløb(input.ægtefælles_slutskat_kroner)
+    | fradrag_i_ægtefælles_slutskat_kroner() -> 0
+    | exception par22b_stk6_gift_samlevende fradrag_i_ægtefælles_slutskat_kroner() -> penge_mindste_beløb(rest_efter_egen_slutskat_kroner(), ægtefælles_slutskat_før_kroner()) under succession_stk6() && input.gift_og_samlevende_ved_årets_udløb
+    | ægtefælles_slutskat_efter_kroner() -> ægtefælles_slutskat_før_kroner() - fradrag_i_ægtefælles_slutskat_kroner()
+    | kontant_udbetaling_kroner() -> 0
+    | exception par22b_stk5_overskydende_kontant kontant_udbetaling_kroner() -> rest_efter_egen_slutskat_kroner() under succession_stk6() == Falskt
+    | fremført_til_følgende_indkomstår_kroner() -> 0
+    | exception par22b_stk6_resterende_fremføres fremført_til_følgende_indkomstår_kroner() -> rest_efter_egen_slutskat_kroner() - fradrag_i_ægtefælles_slutskat_kroner() under succession_stk6()
+    | resultat() -> VirksomhedsskattelovUdligningsSkatResultat(
+        tilgængelig_udligningsskat_kroner = tilgængelig_udligningsskat_kroner(),
+        egen_slutskat_før_kroner = egen_slutskat_før_kroner(),
+        fradrag_i_egen_slutskat_kroner = fradrag_i_egen_slutskat_kroner(),
+        egen_slutskat_efter_kroner = egen_slutskat_efter_kroner(),
+        succession_stk6 = succession_stk6(),
+        ægtefælles_slutskat_før_kroner = ægtefælles_slutskat_før_kroner(),
+        fradrag_i_ægtefælles_slutskat_kroner = fradrag_i_ægtefælles_slutskat_kroner(),
+        ægtefælles_slutskat_efter_kroner = ægtefælles_slutskat_efter_kroner(),
+        kontant_udbetaling_kroner = kontant_udbetaling_kroner(),
+        fremført_til_følgende_indkomstår_kroner = fremført_til_følgende_indkomstår_kroner()
+    )
+}
+| virksomhedsskattelov_udlignings_skat_resultat(ordning: VirksomhedsskattelovUdligningsordning, aktuel_udligningsskat_kroner: Heltal, input: VirksomhedsskattelovUdligningsSlutskatInput) -> VirksomhedsskattelovUdligningsSkatSag(ordning, aktuel_udligningsskat_kroner, input).resultat()
+
+# VirksomhedsskattelovUdligningsIndtægtsføringSag(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) {
+    | sorterede_henlæggelser() -> sort_by(input.henlæggelser, virksomhedsskattelov_udligningshenlæggelse_sorteringsnøgle)
+    | gyldig_portefølje() -> all(sorterede_henlæggelser(), |henlæggelse: VirksomhedsskattelovUdligningshenlæggelse| henlæggelse.ordning == input.ordning && virksomhedsskattelov_udligningshenlæggelse_gyldig(henlæggelse))
+    | samlet_rest_henlæggelse_før_kroner() -> foldl(sorterede_henlæggelser(), 0, |sum: Heltal, henlæggelse: VirksomhedsskattelovUdligningshenlæggelse| sum + virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse))
+    | samlet_rest_udligningsskat_før_kroner() -> foldl(sorterede_henlæggelser(), 0, |sum: Heltal, henlæggelse: VirksomhedsskattelovUdligningshenlæggelse| sum + virksomhedsskattelov_udligningsskat_rest_kroner(henlæggelse))
+    | ældste_rest_henlæggelsesår() -> foldl(sorterede_henlæggelser(), input.indkomstår, |ældste: Heltal, henlæggelse: VirksomhedsskattelovUdligningshenlæggelse| hvis virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse) > 0 && henlæggelse.henlæggelsesår < ældste { henlæggelse.henlæggelsesår } ellers { ældste })
+    | tiårsfrist_indtægtsføring_kroner() -> foldl(sorterede_henlæggelser(), 0, |sum: Heltal, henlæggelse: VirksomhedsskattelovUdligningshenlæggelse| sum + hvis virksomhedsskattelov_udligningshenlæggelse_tiårsfrist_udløbet(henlæggelse, input.indkomstår) { virksomhedsskattelov_udligningshenlæggelse_rest_kroner(henlæggelse) } ellers { 0 })
+    | underskud_før_indtægtsføring_kroner() -> penge_positivt_beløb(0 - input.hændelser.personlig_indkomst_fra_selvstændig_erhvervsvirksomhed_før_henlæggelsesfradrag_og_efter_kapitalafkast_kroner)
+    | underskud_indtægtsføring_kroner() -> 0
+    | exception par22b_stk7_underskud underskud_indtægtsføring_kroner() -> penge_mindste_beløb(underskud_før_indtægtsføring_kroner(), samlet_rest_henlæggelse_før_kroner()) under input.ordning == VslPar22BKonjunkturudligning
+    | frivillig_indtægtsføring_tilladt() -> input.hændelser.ønsket_frivillig_indtægtsføring_kroner > 0 && input.hændelser.frivillig_hævning_oplysningsfrist_resultat.indkomstår == input.indkomstår && input.hændelser.frivillig_hævning_oplysningsfrist_resultat.rettidigt && input.hændelser.mindst_tre_måneder_fra_indskud && ældste_rest_henlæggelsesår() < input.indkomstår
+    | skattepligtsophør_indtægtsføring() -> virksomhedsskattelov_udlignings_skattepligtsophørsregel_gælder(input.ordning) && (input.hændelser.ophører_skattepligt_for_fast_driftssted || input.hændelser.ophører_fuld_skattepligt_eller_dbo_hjemsted && input.hændelser.fortsat_skattepligtig_for_fast_driftssted == Falskt)
+    | konkursindtægtsføring() -> virksomhedsskattelov_udlignings_konkursregel_gælder(input.ordning) && input.hændelser.konkursdekret_afsagt
+    | overgang_til_virksomhedsordningen() -> input.ordning == VslPar22BKonjunkturudligning && input.hændelser.ophører_med_kapitalafkastordningen && input.hændelser.overgår_til_virksomhedsordningen && konkursindtægtsføring() == Falskt && skattepligtsophør_indtægtsføring() == Falskt
+    | ophør_uden_virksomhedsordning() -> input.ordning == VslPar22BKonjunkturudligning && input.hændelser.ophører_med_kapitalafkastordningen && overgang_til_virksomhedsordningen() == Falskt
+    | fuld_indtægtsføring_påkrævet() -> ophør_uden_virksomhedsordning() || konkursindtægtsføring() || skattepligtsophør_indtægtsføring()
+    | ønsket_frivillig_indtægtsføring_kroner() -> 0
+    | exception lovlig_frivillig_hævning ønsket_frivillig_indtægtsføring_kroner() -> penge_positivt_beløb(input.hændelser.ønsket_frivillig_indtægtsføring_kroner) under frivillig_indtægtsføring_tilladt() || overgang_til_virksomhedsordningen()
+    | obligatorisk_indtægtsføring_kroner() -> penge_største_beløb(tiårsfrist_indtægtsføring_kroner(), underskud_indtægtsføring_kroner())
+    | indtægtsføringsmål_før_portefølje_kroner() -> penge_mindste_beløb(samlet_rest_henlæggelse_før_kroner(), penge_største_beløb(obligatorisk_indtægtsføring_kroner(), ønsket_frivillig_indtægtsføring_kroner()))
+    | exception terminal_fuld_indtægtsføring indtægtsføringsmål_før_portefølje_kroner() -> samlet_rest_henlæggelse_før_kroner() under fuld_indtægtsføring_påkrævet()
+    | exception overgang_flytter_resten indtægtsføringsmål_før_portefølje_kroner() -> penge_mindste_beløb(samlet_rest_henlæggelse_før_kroner(), ønsket_frivillig_indtægtsføring_kroner()) under overgang_til_virksomhedsordningen()
+    | indtægtsføringsmål_kroner() -> 0
+    | exception gyldig_udligningsportefølje indtægtsføringsmål_kroner() -> indtægtsføringsmål_før_portefølje_kroner() under gyldig_portefølje()
+    | fifo_resultat() -> foldl(sorterede_henlæggelser(), VirksomhedsskattelovUdligningsFifoTilstand(
+        indkomstår = input.indkomstår,
+        resterende_indtægtsføringsmål_kroner = indtægtsføringsmål_kroner(),
+        samlet_indtægtsført_kroner = 0,
+        samlet_udligningsskat_til_modregning_kroner = 0,
+        samlet_konto_hævet_kroner = 0,
+        opgørelser = []
+    ), virksomhedsskattelov_udlignings_fifo_trin)
+    | indtægtsført_henlæggelse_kroner() -> fifo_resultat().samlet_indtægtsført_kroner
+    | udligningsskat_til_modregning_kroner() -> fifo_resultat().samlet_udligningsskat_til_modregning_kroner
+    | konto_hævet_kroner() -> fifo_resultat().samlet_konto_hævet_kroner
+    | samlet_rest_henlæggelse_efter_indtægtsføring_kroner() -> samlet_rest_henlæggelse_før_kroner() - indtægtsført_henlæggelse_kroner()
+    | samlet_rest_udligningsskat_efter_indtægtsføring_kroner() -> samlet_rest_udligningsskat_før_kroner() - udligningsskat_til_modregning_kroner()
+    | overført_henlæggelse_til_virksomhedsordningen_kroner() -> 0
+    | exception par22b_stk8_overfører_resthenlæggelse overført_henlæggelse_til_virksomhedsordningen_kroner() -> samlet_rest_henlæggelse_efter_indtægtsføring_kroner() under overgang_til_virksomhedsordningen()
+    | overført_foreløbig_skat_til_virksomhedsordningen_kroner() -> 0
+    | exception par22b_stk8_overfører_restskat overført_foreløbig_skat_til_virksomhedsordningen_kroner() -> samlet_rest_udligningsskat_efter_indtægtsføring_kroner() under overgang_til_virksomhedsordningen()
+    | overført_til_konto_for_opsparet_overskud_kroner() -> overført_henlæggelse_til_virksomhedsordningen_kroner() - overført_foreløbig_skat_til_virksomhedsordningen_kroner()
+    | samlet_rest_henlæggelse_efter_kroner() -> samlet_rest_henlæggelse_efter_indtægtsføring_kroner() - overført_henlæggelse_til_virksomhedsordningen_kroner()
+    | samlet_rest_udligningsskat_efter_kroner() -> samlet_rest_udligningsskat_efter_indtægtsføring_kroner() - overført_foreløbig_skat_til_virksomhedsordningen_kroner()
+    | slutskat_resultat() -> virksomhedsskattelov_udlignings_skat_resultat(input.ordning, udligningsskat_til_modregning_kroner(), input.slutskat)
+    | resultat() -> VirksomhedsskattelovUdligningsIndtægtsføringResultat(
+        ordning = input.ordning,
+        indkomstår = input.indkomstår,
+        gyldig_portefølje = gyldig_portefølje(),
+        samlet_rest_henlæggelse_før_kroner = samlet_rest_henlæggelse_før_kroner(),
+        samlet_rest_udligningsskat_før_kroner = samlet_rest_udligningsskat_før_kroner(),
+        ældste_rest_henlæggelsesår = ældste_rest_henlæggelsesår(),
+        tiårsfrist_indtægtsføring_kroner = tiårsfrist_indtægtsføring_kroner(),
+        underskud_før_indtægtsføring_kroner = underskud_før_indtægtsføring_kroner(),
+        underskud_indtægtsføring_kroner = underskud_indtægtsføring_kroner(),
+        frivillig_indtægtsføring_tilladt = frivillig_indtægtsføring_tilladt(),
+        ønsket_frivillig_indtægtsføring_kroner = ønsket_frivillig_indtægtsføring_kroner(),
+        ophør_uden_virksomhedsordning = ophør_uden_virksomhedsordning(),
+        overgang_til_virksomhedsordningen = overgang_til_virksomhedsordningen(),
+        konkursindtægtsføring = konkursindtægtsføring(),
+        skattepligtsophør_indtægtsføring = skattepligtsophør_indtægtsføring(),
+        fuld_indtægtsføring_påkrævet = fuld_indtægtsføring_påkrævet(),
+        indtægtsføringsmål_kroner = indtægtsføringsmål_kroner(),
+        indtægtsført_henlæggelse_kroner = indtægtsført_henlæggelse_kroner(),
+        personlig_indkomst_tillæg_kroner = indtægtsført_henlæggelse_kroner(),
+        medregnes_ikke_til_konkursindkomsten = konkursindtægtsføring() && indtægtsført_henlæggelse_kroner() > 0,
+        konto_hævet_kroner = konto_hævet_kroner(),
+        udligningsskat_til_modregning_kroner = udligningsskat_til_modregning_kroner(),
+        overført_henlæggelse_til_virksomhedsordningen_kroner = overført_henlæggelse_til_virksomhedsordningen_kroner(),
+        overført_foreløbig_skat_til_virksomhedsordningen_kroner = overført_foreløbig_skat_til_virksomhedsordningen_kroner(),
+        overført_til_konto_for_opsparet_overskud_kroner = overført_til_konto_for_opsparet_overskud_kroner(),
+        samlet_rest_henlæggelse_efter_kroner = samlet_rest_henlæggelse_efter_kroner(),
+        samlet_rest_udligningsskat_efter_kroner = samlet_rest_udligningsskat_efter_kroner(),
+        slutskat_resultat = slutskat_resultat(),
+        opgørelser = fifo_resultat().opgørelser
+    )
+}
+| virksomhedsskattelov_udlignings_indtægtsføring_sag(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) -> VirksomhedsskattelovUdligningsIndtægtsføringSag(input)
+| virksomhedsskattelov_udlignings_indtægtsføring_resultat(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) -> virksomhedsskattelov_udlignings_indtægtsføring_sag(input).resultat()
+| virksomhedsskattelov22b_indtægtsføring_resultat(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) -> virksomhedsskattelov_udlignings_indtægtsføring_resultat(input) under input.ordning == VslPar22BKonjunkturudligning
 --@end::virksomhedsskatteloven_par22b--
 
---@source::virksomhedsskatteloven_par22d::meta:virksomhedsskatteloven_lbk1836_par22d--
+--@label:virksomhedsskatteloven_par22d::source:virksomhedsskatteloven_lbk1836_par22d::source:virksomhedsskatteloven_juridisk_vejledning_par22d_udligningsskat--
 ----
 § 22 d. Skattepligtige personer, der har indkomst fra et af den skattepligtige
 udført arbejde af litterær eller skabende kunstnerisk karakter, og som ikke
@@ -404,6 +593,17 @@ Stk. 4. Grundbeløbene i stk. 1 og 2 reguleres efter personskattelovens § 20.
 }
 | virksomhedsskattelov22d_henlæggelse_sag(input: Virksomhedsskattelov22DHenlæggelseInput) -> Virksomhedsskattelov22DHenlæggelseSag(input)
 | virksomhedsskattelov22d_henlæggelse_resultat(input: Virksomhedsskattelov22DHenlæggelseInput) -> virksomhedsskattelov22d_henlæggelse_sag(input).resultat()
+| virksomhedsskattelov22d_udligningshenlæggelse_fra_resultat(resultat: Virksomhedsskattelov22DHenlæggelseResultat) -> VirksomhedsskattelovUdligningshenlæggelse(
+    ordning = VslPar22DIndkomstudligning,
+    henlæggelsesår = resultat.indkomstår,
+    oprindelig_henlæggelse_kroner = resultat.henlæggelse_kroner,
+    tidligere_indtægtsført_kroner = 0,
+    oprindelig_udligningsskat_kroner = resultat.indkomstudligningsskat_kroner,
+    tidligere_modregnet_udligningsskat_kroner = 0
+)
+| exception par22d_stk2_skattepligtsophør virksomhedsskattelov_udlignings_skattepligtsophørsregel_gælder(ordning: VirksomhedsskattelovUdligningsordning) -> Sandt under ordning == VslPar22DIndkomstudligning
+| exception par22d_stk3_konkurs virksomhedsskattelov_udlignings_konkursregel_gælder(ordning: VirksomhedsskattelovUdligningsordning) -> Sandt under ordning == VslPar22DIndkomstudligning
+| virksomhedsskattelov22d_indtægtsføring_resultat(input: VirksomhedsskattelovUdligningsIndtægtsføringInput) -> virksomhedsskattelov_udlignings_indtægtsføring_resultat(input) under input.ordning == VslPar22DIndkomstudligning
 --@end::virksomhedsskatteloven_par22d--
 
 ----
