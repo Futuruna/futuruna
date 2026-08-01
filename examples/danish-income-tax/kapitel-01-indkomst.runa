@@ -138,6 +138,8 @@ iværksætterkonto
 # Par3Stk2Nr1UdgiftResultat(fradragsberettiget_i_personlig_indkomst: Boolsk, fradrag_kroner: Heltal, afskåret_til_anden_regel_kroner: Heltal)
 # Par3Stk2Nr6Input(ligningslov8m_resultat: Ligningslov8MResultat)
 # Par3Stk2Nr6Resultat(arbejdsmarkedsbidrag_fradrag_kroner: Heltal, udenlandsk_socialt_bidrag_fradrag_kroner: Heltal, udenlandsk_arbejdsgiverbidrag_fradrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
+# Par3Stk2Nr7Hjemmel = Par3Stk2Nr7Virksomhedsskattelov22B | Par3Stk2Nr7Virksomhedsskattelov22D
+# Par3Stk2Nr7Resultat(indkomstår: Heltal, hjemmel: Par3Stk2Nr7Hjemmel, henlæggelse_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
 
 | er_personlig_indkomst(vurdering: IndkomstVurdering) -> vurdering.indgår_i_skattepligtig_indkomst && vurdering.er_kapitalindkomst == Falskt
 | par3_fradragstype_nævnt_i_stk2(fradrag: PersonligFradrag) -> Sandt
@@ -182,6 +184,37 @@ iværksætterkonto
     art = ArbejdsmarkedsbidragOgUdenlandskeSocialeBidrag,
     stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
     beløb_kroner = par3_stk2_nr6_resultat(resultat).fradrag_i_personlig_indkomst_kroner
+)
+
+# Par3Stk2Nr7Par22BSag(resultat: Virksomhedsskattelov22BHenlæggelseResultat) {
+    | henlæggelse_kroner() -> resultat.henlæggelse_kroner
+    | fradrag_i_personlig_indkomst_kroner() -> resultat.personlig_indkomst_fradrag_kroner
+    | resultat() -> Par3Stk2Nr7Resultat(
+        indkomstår = resultat.indkomstår,
+        hjemmel = Par3Stk2Nr7Virksomhedsskattelov22B,
+        henlæggelse_kroner = henlæggelse_kroner(),
+        fradrag_i_personlig_indkomst_kroner = fradrag_i_personlig_indkomst_kroner()
+    )
+}
+| par3_stk2_nr7_par22b_sag(resultat: Virksomhedsskattelov22BHenlæggelseResultat) -> Par3Stk2Nr7Par22BSag(resultat)
+| par3_stk2_nr7_resultat_fra_par22b(resultat: Virksomhedsskattelov22BHenlæggelseResultat) -> par3_stk2_nr7_par22b_sag(resultat).resultat()
+
+# Par3Stk2Nr7Par22DSag(resultat: Virksomhedsskattelov22DHenlæggelseResultat) {
+    | henlæggelse_kroner() -> resultat.henlæggelse_kroner
+    | fradrag_i_personlig_indkomst_kroner() -> resultat.personlig_indkomst_fradrag_kroner
+    | resultat() -> Par3Stk2Nr7Resultat(
+        indkomstår = resultat.indkomstår,
+        hjemmel = Par3Stk2Nr7Virksomhedsskattelov22D,
+        henlæggelse_kroner = henlæggelse_kroner(),
+        fradrag_i_personlig_indkomst_kroner = fradrag_i_personlig_indkomst_kroner()
+    )
+}
+| par3_stk2_nr7_par22d_sag(resultat: Virksomhedsskattelov22DHenlæggelseResultat) -> Par3Stk2Nr7Par22DSag(resultat)
+| par3_stk2_nr7_resultat_fra_par22d(resultat: Virksomhedsskattelov22DHenlæggelseResultat) -> par3_stk2_nr7_par22d_sag(resultat).resultat()
+| par3_stk2_nr7_fradragspost(resultat: Par3Stk2Nr7Resultat) -> Par3Fradragspost(
+    art = VirksomhedsskatteHenlæggelse,
+    stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
+    beløb_kroner = resultat.fradrag_i_personlig_indkomst_kroner
 )
 
 | par3_indkomstpost_er_personlig_indkomst(post: Par3Indkomstpost) -> er_personlig_indkomst(IndkomstVurdering(

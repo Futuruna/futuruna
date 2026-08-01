@@ -116,3 +116,52 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
 | ssl1_stk1_nr6_fondsbeskatning_afskærer: ssl1_stk1_nr6_fondsbeskatning_fixture -> ssl1_stk1_nr6_fondsbeskatning_fixture.enhed_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_fondsbeskatning_fixture.skattepligtig_efter_par1_stk1_nr6 == Falskt
 | ssl1_stk1_nr6_par3_afskærer: ssl1_stk1_nr6_par3_undtagelse_fixture -> ssl1_stk1_nr6_par3_undtagelse_fixture.enhed_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_par3_undtagelse_fixture.skattepligtig_efter_par1_stk1_nr6 == Falskt
 | ssl1_stk1_nr6_erhvervsindkomst_skattepligtig: ssl1_stk1_nr6_erhvervsindkomst_fixture -> ssl1_stk1_nr6_erhvervsindkomst_fixture.indkomst_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_erhvervsindkomst_fixture.skattepligtig_indkomst_kroner == 17000
+
+# SelskabsskattelovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= selskabsskatteloven_lbk279_par17_stk1 = SelskabsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/279",
+    identifier = "Selskabsskatteloven § 17, stk. 1",
+    hentet_dato = "2026-07-18"
+)
+= selskabsskatteloven_lbk1241_par17_stk1 = SelskabsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2022/1241",
+    identifier = "Selskabsskatteloven § 17, stk. 1 (historisk)",
+    hentet_dato = "2026-07-18"
+)
+
+--@source::selskabsskatteloven_par17_stk1_historisk::meta:selskabsskatteloven_lbk1241_par17_stk1--
+----
+§ 17. Indkomstskatten for de i § 1, stk. 1, nr. 1-2 b, 2 d-2 j og 3 a-5 b,
+og § 3, stk. 7, nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes
+af den skattepligtige indkomst og udgør 22 pct. Indkomst omfattet af
+kulbrinteskattelovens § 4, stk. 1 og 2, beskattes med selskabsskatteprocenten
+efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
+----
+
+--@source::selskabsskatteloven_par17_stk1::meta:selskabsskatteloven_lbk279_par17_stk1--
+----
+§ 17. Indkomstskatten for de i § 1, stk. 1, nr. 1-2 i og 3 a-5 b, og § 3,
+stk. 7, nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes af den
+skattepligtige indkomst og udgør 22 pct. Indkomst omfattet af
+kulbrinteskattelovens § 4, stk. 1 og 2, beskattes med selskabsskatteprocenten
+efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
+----
+
+--@begin::selskabsskatteloven_par17_stk1--
+# SelskabsskattelovPar17Stk1SatsKilde = SelskabsskattelovenLbk1241Af2022 | SelskabsskattelovenLbk279Af2025
+# SelskabsskattelovPar17Stk1SatsResultat(skatteår: Heltal, kilde: SelskabsskattelovPar17Stk1SatsKilde, selskabsskat_basispoint: Heltal, tillægsselskabsskat_basispoint: Heltal, cfc_sats_basispoint: Heltal)
+
+| selskabsskattelov_par17_stk1_sats_kilde(skatteår: Heltal) -> SelskabsskattelovenLbk1241Af2022 under skatteår >= 2024 && skatteår < 2025
+| selskabsskattelov_par17_stk1_sats_kilde(skatteår: Heltal) -> SelskabsskattelovenLbk279Af2025 under skatteår >= 2025
+| selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår: Heltal) -> 2200 under skatteår >= 2024
+| selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint(skatteår: Heltal) -> 300 under skatteår >= 2024
+| selskabsskattelov_par17_stk1_sats_resultat(skatteår: Heltal) -> SelskabsskattelovPar17Stk1SatsResultat(
+    skatteår = skatteår,
+    kilde = selskabsskattelov_par17_stk1_sats_kilde(skatteår),
+    selskabsskat_basispoint = selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår),
+    tillægsselskabsskat_basispoint = selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint(skatteår),
+    cfc_sats_basispoint = selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår)
+) under skatteår >= 2024
+| selskabsskattelov_par17_stk1_sats_basispoint(skatteår: Heltal) -> selskabsskattelov_par17_stk1_sats_resultat(skatteår).selskabsskat_basispoint
+--@end::selskabsskatteloven_par17_stk1--

@@ -20,7 +20,19 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Ligningsloven § 8 M er nu implementeret som en typet,
+Latest integration: Personskatteloven § 3, stk. 2, nr. 7 modtager nu typede
+henlæggelsesresultater fra Virksomhedsskatteloven §§ 22 b og 22 d. § 22 b
+beregner det renter- og kursregulerede virksomhedsoverskud, 25 pct.-loftet,
+5.000 kr.-minimum, 22 pct. konjunkturudligningsskat og det bundne nettoindskud
+med kontotype, påtegning og oplysningsfrist. § 22 d beregner den berettigede
+kunstnerindkomst efter Ligningsloven § 7 O, det strenge indkomstgrundbeløb,
+års- og kontoloftet reguleret gennem Personskatteloven § 20 samt
+indkomstudligningsskat og nettoindskud. Indtægtsførings- og
+hævningsmekanikken i de senere stykker er fortsat en særskilt
+implementeringsopgave; denne integration lukker henlæggelses- og
+fradragssiden af § 3, stk. 2, nr. 7.
+
+Ligningsloven § 8 M er nu implementeret som en typet,
 kildeindekseret regelkaskade for arbejdsmarkedsbidrag efter AM-bidragslovens
 § 2, stk. 1, nr. 1-2, og §§ 4-5, obligatoriske udenlandske sociale bidrag for
 fuldt skattepligtige under EU-regler eller mellemfolkelig aftale samt
@@ -100,7 +112,10 @@ amount-level personal-income deduction filtering for self-employed business
 expenses with the statutory § 4, stk. 1, nr. 1/2/7/8 and Ligningsloven
 §§ 9 G/13 carve-outs; § 3, stk. 2, nr. 6 now consumes the complete typed
 Ligningsloven § 8 M result for AM contributions, foreign mandatory social
-contributions and limited-taxpayer foreign employer contributions; § 4,
+contributions and limited-taxpayer foreign employer contributions; § 3,
+stk. 2, nr. 7 now consumes typed Virksomhedsskatteloven § 22 b/§ 22 d new
+reserve results instead of a raw amount, including reserve tax, bound-account
+and § 20-regulated limit calculations; § 4,
 stk. 1, nr. 1 now consumes typed Ligningsloven
 § 6 and § 6 A deduction results together with ordinary interest income and
 interest expenses, including the § 6 under-100-kr. lapse, stk. 3 reduction,
@@ -408,6 +423,12 @@ Current § 4 and § 13 amendment/dependency sources:
     basis, afkastgrundlag and net-financing caps, the stk. 2
     transfer/indskud cap and the mirrored personal-income addition plus
     capital-income deduction under stk. 3.
+  - The new-reserve side of §§ 22 b and 22 d is modeled as the
+    Personskatteloven § 3, stk. 2, nr. 7 dependency: adjusted-profit and
+    creative-income eligibility, percentage/minimum limits, § 20-regulated
+    thresholds, Selskabsskatteloven § 17 reserve tax, bound-account
+    requirements and Skattekontrolloven deadline validation. Withdrawal,
+    forced recognition and corresponding final-tax credit remain to be added.
 - Skattekontrolloven:
   `https://www.retsinformation.dk/eli/lta/2024/12`
   - XML status checked on 2026-07-18: `Valid`
@@ -751,7 +772,9 @@ encoded as a temporal rule on top of the consolidation.
 - `virksomhedsskatteloven.runa` exists and checks/runs with `runa run`; it
   covers the Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return
   dependency consumed by Personskatteloven § 4, stk. 1, nr. 3 and nr. 3 a, and
-  the § 11 rentekorrektion dependency consumed by § 4, stk. 1, nr. 8.
+  the § 11 rentekorrektion dependency consumed by § 4, stk. 1, nr. 8. It also
+  covers the §§ 22 b/22 d new-reserve calculation consumed by § 3, stk. 2,
+  nr. 7; recognition and withdrawal are still pending.
 - `afskrivningsloven.runa` exists and checks/runs with `runa run`; it covers
   the Afskrivningsloven § 40 C dependency consumed by Personskatteloven § 4,
   stk. 1, nr. 16.
@@ -1734,7 +1757,9 @@ M1 - Income taxonomy
   amounts are not deducted as personal-income business expenses. § 3, stk. 2,
   nr. 6 now delegates AM and foreign social-contribution eligibility to a typed
   Ligningsloven § 8 M result before adding the amount to personal-income
-  deductions.
+  deductions. § 3, stk. 2, nr. 7 likewise delegates new-reserve eligibility
+  and amount calculation to typed Virksomhedsskatteloven § 22 b or § 22 d
+  results before constructing the personal-income deduction post.
 
 M2 - State tax computation skeleton
 

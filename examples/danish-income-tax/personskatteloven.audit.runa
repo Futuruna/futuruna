@@ -18,6 +18,7 @@
 @ importer ./ligningsloven - par9c - befordring.audit
 @ importer ./kapitel - 01 - indkomst
 @ importer ./personskatteloven - par3 - sociale - bidrag.scenario
+@ importer ./personskatteloven - par3 - henlaeggelser.scenario
 @ importer ./kapitel - 02 - statsskat
 @ importer ./loenmodtager_beregning
 @ importer ./loenmodtager - befordring.scenario
@@ -191,12 +192,16 @@ Status: Valid
 = m5_par4_nr6_2027_tre_til_seks_fixture = par4_stk1_nr6_2027_tre_til_seks_fixture
 = m5_par3_sociale_ligningslov8m_fixture = par3_sociale_fuldt_skattepligtig_eu_fixture
 = m5_par3_sociale_personlig_indkomst_fixture = par3_sociale_personlig_indkomst_fixture
+= m5_par3_henlæggelse_par22b_fixture = henlæggelse_par22b_loftet_fixture
+= m5_par3_henlæggelse_par22d_fixture = henlæggelse_par22d_kunstner_fixture
+= m5_par3_henlæggelse_personlig_indkomst_fixture = henlæggelse_par3_personlig_indkomst_fixture
 
 | m5_penge_øre_beregning_dækket: m5_penge_øre_fixture -> m5_penge_øre_fixture.tæller == 57000000000 && m5_penge_øre_fixture.nævner == 3650000 && m5_penge_øre_fixture.øre_nedrundet == 15616
 | m5_penge_ti_kroner_nedrunding_dækket: m5_penge_ti_kroner_fixture -> m5_penge_ti_kroner_fixture == 38000
 | m5_penge_basispoint_postur_dækket: m5_penge_basispoint_ned_decimal_fixture -> m5_penge_basispoint_ned_decimal_fixture == 20 && m5_penge_basispoint_op_hel_procent_fixture == 3600
 | m5_indkomsttaxonomi_par3_beløb_dækket: par3_personlig_indkomst_resultat_fixture -> par3_personlig_indkomst_resultat_fixture.brutto_personlig_indkomst_kroner == 600000 && par3_personlig_indkomst_resultat_fixture.fradrag_i_personlig_indkomst_kroner == 100000 && par3_personlig_indkomst_resultat_fixture.netto_personlig_indkomst_kroner == 500000
 | m5_indkomsttaxonomi_par3_sociale_bidrag_dækket: m5_par3_sociale_ligningslov8m_fixture -> m5_par3_sociale_ligningslov8m_fixture.arbejdsmarkedsbidrag_fradrag_kroner == 8000 && m5_par3_sociale_ligningslov8m_fixture.udenlandsk_socialt_bidrag_fradrag_kroner == 12000 && m5_par3_sociale_ligningslov8m_fixture.samlet_fradrag_kroner == 20000 && m5_par3_sociale_personlig_indkomst_fixture.fradrag_i_personlig_indkomst_kroner == 20000 && m5_par3_sociale_personlig_indkomst_fixture.netto_personlig_indkomst_kroner == 80000
+| m5_indkomsttaxonomi_par3_henlæggelser_dækket: m5_par3_henlæggelse_par22b_fixture -> m5_par3_henlæggelse_par22b_fixture.højst_25_pct_kroner == 100000 && m5_par3_henlæggelse_par22b_fixture.personlig_indkomst_fradrag_kroner == 100000 && m5_par3_henlæggelse_par22d_fixture.skattepligtig_indkomst_grundbeløb_reguleret_kroner == 242200 && m5_par3_henlæggelse_par22d_fixture.personlig_indkomst_fradrag_kroner == 200000 && m5_par3_henlæggelse_personlig_indkomst_fixture.netto_personlig_indkomst_kroner == 400000
 | m5_indkomsttaxonomi_par4_nr6_ejendomsskattelov_dækket: m5_par4_nr6_2027_landzone_fixture -> m5_par4_nr6_2027_landzone_fixture.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr8 && m5_par4_nr6_2027_landzone_fixture.kapitalindkomst_kroner == 16000 && m5_par4_nr6_2027_tre_til_seks_fixture.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr5 && m5_par4_nr6_2027_tre_til_seks_fixture.kapitalindkomst_kroner == 0
 | m5_indkomsttaxonomi_par4_nr3_nr3a_vsl_kapitalafkast_dækket: par4_stk1_nr3a_fixture -> par4_stk1_nr3_fixture.kapitalindkomst_kroner == 13000 && par4_stk1_nr3_ikke_overført_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr3a_fixture.kapitalindkomst_kroner == 58000 && par4_stk1_nr3a_ikke_omfattet_fixture.kapitalindkomst_kroner == 0
 | m5_indkomsttaxonomi_par4_nr10_ll14a_dækket: par4_stk1_nr10_fixture -> par4_stk1_nr10_fixture.omfattet_af_ligningslov14a_stk1 == Sandt && par4_stk1_nr10_fixture.fradrag_i_skattepligtig_indkomst_kroner == 9000 && par4_stk1_nr10_fixture.kapitalindkomst_kroner == -9000
@@ -243,6 +248,7 @@ Status: Valid
 ? m5_penge_basispoint_postur_dækket
 ? m5_indkomsttaxonomi_par3_beløb_dækket
 ? m5_indkomsttaxonomi_par3_sociale_bidrag_dækket
+? m5_indkomsttaxonomi_par3_henlæggelser_dækket
 ? m5_indkomsttaxonomi_par4_nr6_ejendomsskattelov_dækket
 ? m5_indkomsttaxonomi_par4_nr3_nr3a_vsl_kapitalafkast_dækket
 ? m5_indkomsttaxonomi_par4_nr10_ll14a_dækket

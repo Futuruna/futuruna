@@ -1,0 +1,220 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for Virksomhedsskatteloven §§ 22 b og 22 d samt
+-- Personskatteloven § 3, stk. 2, nr. 7.
+
+| henlæggelse_oplysningsfrist(indkomstår: Heltal, handling_yyyymmdd: Heltal) -> skattekontrollov_oplysningsfrist_resultat(SkattekontrollovOplysningsfristInput(
+    indkomstår = indkomstår,
+    kilde = SkattekontrollovenLbk12Af2024Par10Stk2,
+    fristdag_dagen_før_eller_på_lørdag_søndag_helligdag = Falskt,
+    førstkommende_hverdag_yyyymmdd = 0,
+    handling_yyyymmdd = handling_yyyymmdd
+))
+
+| henlæggelseskonto(betegnelse: VirksomhedsskattelovUdligningskontoBetegnelse, indsat_beløb_kroner: Heltal, handling_yyyymmdd: Heltal) -> VirksomhedsskattelovUdligningskontoInput(
+    betegnelse = betegnelse,
+    institution = VslDanskTilladtPengeinstitut,
+    kontoform = VslKontantforrentetIndlånskonto,
+    navn_påtegnet = Sandt,
+    adresse_påtegnet = Sandt,
+    personnummer_påtegnet = Sandt,
+    virksomhedens_regnskabsår_påtegnet = Sandt,
+    henlæggelsesår_påtegnet = Sandt,
+    indsat_beløb_kroner = indsat_beløb_kroner,
+    oplysningsfrist_resultat = henlæggelse_oplysningsfrist(2026, handling_yyyymmdd)
+)
+
+= henlæggelse_par22a_valgt = virksomhedsskattelov22a_resultat(Virksomhedsskattelov22AInput(
+    indkomstår = 2026,
+    driver_selvstændig_erhvervsvirksomhed = Sandt,
+    vælger_kapitalafkastordning = Sandt,
+    afkastgrundlag_kroner = 100000,
+    kapitalafkastsats_basispoint = 500,
+    periode_hele_måneder = 12,
+    positiv_personlig_nettoindkomst_selvstændig_kroner = 100000,
+    negativ_nettokapitalindkomst_abs_kroner = 0
+))
+= henlæggelse_par22a_ikke_valgt = virksomhedsskattelov22a_resultat(Virksomhedsskattelov22AInput(
+    indkomstår = 2026,
+    driver_selvstændig_erhvervsvirksomhed = Sandt,
+    vælger_kapitalafkastordning = Falskt,
+    afkastgrundlag_kroner = 100000,
+    kapitalafkastsats_basispoint = 500,
+    periode_hele_måneder = 12,
+    positiv_personlig_nettoindkomst_selvstændig_kroner = 100000,
+    negativ_nettokapitalindkomst_abs_kroner = 0
+))
+= henlæggelse_par22b_grundlag = Virksomhedsskattelov22BHenlæggelsesgrundlag(
+    skattepligtigt_overskud_kroner = 400000,
+    renteudgifter_i_overskud_kroner = 20000,
+    kurstab_på_fordringer_og_gæld_i_overskud_kroner = 10000,
+    renteindtægter_i_overskud_kroner = 5000,
+    udbytteindtægter_i_overskud_kroner = 15000,
+    kursgevinst_på_fordringer_og_gæld_i_overskud_kroner = 10000
+)
+
+= henlæggelse_par22b_loftet_fixture = virksomhedsskattelov22b_henlæggelse_resultat(Virksomhedsskattelov22BHenlæggelseInput(
+    par22a_resultat = henlæggelse_par22a_valgt,
+    grundlag = henlæggelse_par22b_grundlag,
+    ønsket_henlæggelse_kroner = 120000,
+    indtægtsfører_henlæggelser_efter_stk4_7_eller_8 = Falskt,
+    konto = henlæggelseskonto(VslKonjunkturudligningskonto, 78000, 20270701)
+))
+= henlæggelse_par22b_under_minimum_fixture = virksomhedsskattelov22b_henlæggelse_resultat(Virksomhedsskattelov22BHenlæggelseInput(
+    par22a_resultat = henlæggelse_par22a_valgt,
+    grundlag = Virksomhedsskattelov22BHenlæggelsesgrundlag(
+        skattepligtigt_overskud_kroner = 12000,
+        renteudgifter_i_overskud_kroner = 0,
+        kurstab_på_fordringer_og_gæld_i_overskud_kroner = 0,
+        renteindtægter_i_overskud_kroner = 0,
+        udbytteindtægter_i_overskud_kroner = 0,
+        kursgevinst_på_fordringer_og_gæld_i_overskud_kroner = 0
+    ),
+    ønsket_henlæggelse_kroner = 10000,
+    indtægtsfører_henlæggelser_efter_stk4_7_eller_8 = Falskt,
+    konto = henlæggelseskonto(VslKonjunkturudligningskonto, 2340, 20270701)
+))
+= henlæggelse_par22b_indtægtsføring_fixture = virksomhedsskattelov22b_henlæggelse_resultat(Virksomhedsskattelov22BHenlæggelseInput(
+    par22a_resultat = henlæggelse_par22a_valgt,
+    grundlag = henlæggelse_par22b_grundlag,
+    ønsket_henlæggelse_kroner = 100000,
+    indtægtsfører_henlæggelser_efter_stk4_7_eller_8 = Sandt,
+    konto = henlæggelseskonto(VslKonjunkturudligningskonto, 78000, 20270701)
+))
+= henlæggelse_par22b_forkert_konto_fixture = virksomhedsskattelov22b_henlæggelse_resultat(Virksomhedsskattelov22BHenlæggelseInput(
+    par22a_resultat = henlæggelse_par22a_valgt,
+    grundlag = henlæggelse_par22b_grundlag,
+    ønsket_henlæggelse_kroner = 100000,
+    indtægtsfører_henlæggelser_efter_stk4_7_eller_8 = Falskt,
+    konto = henlæggelseskonto(VslIndkomstudligningskonto, 78000, 20270701)
+))
+= henlæggelse_par22b_for_sen_fixture = virksomhedsskattelov22b_henlæggelse_resultat(Virksomhedsskattelov22BHenlæggelseInput(
+    par22a_resultat = henlæggelse_par22a_valgt,
+    grundlag = henlæggelse_par22b_grundlag,
+    ønsket_henlæggelse_kroner = 100000,
+    indtægtsfører_henlæggelser_efter_stk4_7_eller_8 = Falskt,
+    konto = henlæggelseskonto(VslKonjunkturudligningskonto, 78000, 20270702)
+))
+= henlæggelse_par22b_uden_par22a_fixture = virksomhedsskattelov22b_henlæggelse_resultat(Virksomhedsskattelov22BHenlæggelseInput(
+    par22a_resultat = henlæggelse_par22a_ikke_valgt,
+    grundlag = henlæggelse_par22b_grundlag,
+    ønsket_henlæggelse_kroner = 100000,
+    indtægtsfører_henlæggelser_efter_stk4_7_eller_8 = Falskt,
+    konto = henlæggelseskonto(VslKonjunkturudligningskonto, 78000, 20270701)
+))
+
+| kunstnerindkomst(ansættelsesforhold: Boolsk) -> Virksomhedsskattelov22DKunstnerindkomstInput(
+    litterært_eller_skabende_kunstnerisk_arbejde = Sandt,
+    arbejdet_udført_af_skattepligtige = Sandt,
+    udført_i_ansættelsesforhold = ansættelsesforhold,
+    indkomst_fra_legat_stipendium_eller_lignende = Falskt,
+    indkomst_før_ligningslov7o_lempelse_kroner = 300000,
+    ligningslov7o_stk1_nr4_lempelse_kroner = 20000
+)
+
+= henlæggelse_par22d_kunstner_fixture = virksomhedsskattelov22d_henlæggelse_resultat(Virksomhedsskattelov22DHenlæggelseInput(
+    indkomstår = 2026,
+    anvender_virksomhedsordningen_afsnit1 = Falskt,
+    anvender_konjunkturudligningsordningen_par22b = Falskt,
+    kunstnerindkomst = kunstnerindkomst(Falskt),
+    skattepligtig_indkomst_før_henlæggelse_kroner = 500000,
+    ønsket_henlæggelse_kroner = 200000,
+    samlede_tidligere_indskud_på_indkomstudligningskonto_kroner = 100000,
+    konto = henlæggelseskonto(VslIndkomstudligningskonto, 156000, 20270701)
+))
+= henlæggelse_par22d_ansat_fixture = virksomhedsskattelov22d_henlæggelse_resultat(Virksomhedsskattelov22DHenlæggelseInput(
+    indkomstår = 2026,
+    anvender_virksomhedsordningen_afsnit1 = Falskt,
+    anvender_konjunkturudligningsordningen_par22b = Falskt,
+    kunstnerindkomst = kunstnerindkomst(Sandt),
+    skattepligtig_indkomst_før_henlæggelse_kroner = 500000,
+    ønsket_henlæggelse_kroner = 200000,
+    samlede_tidligere_indskud_på_indkomstudligningskonto_kroner = 100000,
+    konto = henlæggelseskonto(VslIndkomstudligningskonto, 156000, 20270701)
+))
+= henlæggelse_par22d_indkomstgrænse_fixture = virksomhedsskattelov22d_henlæggelse_resultat(Virksomhedsskattelov22DHenlæggelseInput(
+    indkomstår = 2026,
+    anvender_virksomhedsordningen_afsnit1 = Falskt,
+    anvender_konjunkturudligningsordningen_par22b = Falskt,
+    kunstnerindkomst = kunstnerindkomst(Falskt),
+    skattepligtig_indkomst_før_henlæggelse_kroner = 250000,
+    ønsket_henlæggelse_kroner = 100000,
+    samlede_tidligere_indskud_på_indkomstudligningskonto_kroner = 0,
+    konto = henlæggelseskonto(VslIndkomstudligningskonto, 6084, 20270701)
+))
+= henlæggelse_par22d_kontoloft_fixture = virksomhedsskattelov22d_henlæggelse_resultat(Virksomhedsskattelov22DHenlæggelseInput(
+    indkomstår = 2026,
+    anvender_virksomhedsordningen_afsnit1 = Falskt,
+    anvender_konjunkturudligningsordningen_par22b = Falskt,
+    kunstnerindkomst = Virksomhedsskattelov22DKunstnerindkomstInput(
+        litterært_eller_skabende_kunstnerisk_arbejde = Sandt,
+        arbejdet_udført_af_skattepligtige = Sandt,
+        udført_i_ansættelsesforhold = Falskt,
+        indkomst_fra_legat_stipendium_eller_lignende = Falskt,
+        indkomst_før_ligningslov7o_lempelse_kroner = 500000,
+        ligningslov7o_stk1_nr4_lempelse_kroner = 0
+    ),
+    skattepligtig_indkomst_før_henlæggelse_kroner = 600000,
+    ønsket_henlæggelse_kroner = 100000,
+    samlede_tidligere_indskud_på_indkomstudligningskonto_kroner = 800000,
+    konto = henlæggelseskonto(VslIndkomstudligningskonto, 7100, 20270701)
+))
+= henlæggelse_par22d_virksomhedsordning_fixture = virksomhedsskattelov22d_henlæggelse_resultat(Virksomhedsskattelov22DHenlæggelseInput(
+    indkomstår = 2026,
+    anvender_virksomhedsordningen_afsnit1 = Sandt,
+    anvender_konjunkturudligningsordningen_par22b = Falskt,
+    kunstnerindkomst = kunstnerindkomst(Falskt),
+    skattepligtig_indkomst_før_henlæggelse_kroner = 500000,
+    ønsket_henlæggelse_kroner = 200000,
+    samlede_tidligere_indskud_på_indkomstudligningskonto_kroner = 0,
+    konto = henlæggelseskonto(VslIndkomstudligningskonto, 156000, 20270701)
+))
+
+= henlæggelse_par3_nr7_par22b_fixture = par3_stk2_nr7_resultat_fra_par22b(henlæggelse_par22b_loftet_fixture)
+= henlæggelse_par3_nr7_par22d_fixture = par3_stk2_nr7_resultat_fra_par22d(henlæggelse_par22d_kunstner_fixture)
+= henlæggelse_par3_personlig_indkomst_fixture = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 500000
+        )
+    ],
+    fradragsposter = [
+        par3_stk2_nr7_fradragspost(henlæggelse_par3_nr7_par22b_fixture)
+    ]
+))
+
+| par22b_regulerer_overskud_og_lofter_25_pct: henlæggelse_par22b_loftet_fixture -> henlæggelse_par22b_loftet_fixture.reguleret_overskud_kroner == 400000 && henlæggelse_par22b_loftet_fixture.højst_25_pct_kroner == 100000 && henlæggelse_par22b_loftet_fixture.henlæggelse_kroner == 100000
+| par22b_beregner_skat_og_bundet_indskud: henlæggelse_par22b_loftet_fixture -> henlæggelse_par22b_loftet_fixture.konjunkturudligningsskat_basispoint == 2200 && henlæggelse_par22b_loftet_fixture.konjunkturudligningsskat_kroner == 22000 && henlæggelse_par22b_loftet_fixture.kontoindskud_kroner == 78000 && henlæggelse_par22b_loftet_fixture.konto_resultat.betingelser_opfyldt == Sandt
+| par22b_minimum_afskærer: henlæggelse_par22b_under_minimum_fixture -> henlæggelse_par22b_under_minimum_fixture.højst_25_pct_kroner == 3000 && henlæggelse_par22b_under_minimum_fixture.mindst_5000_kroner == Falskt && henlæggelse_par22b_under_minimum_fixture.henlæggelse_kroner == 0
+| par22b_indtægtsføring_afskærer_ny_henlæggelse: henlæggelse_par22b_indtægtsføring_fixture -> henlæggelse_par22b_indtægtsføring_fixture.ingen_indtægtsføring_i_henlæggelsesåret == Falskt && henlæggelse_par22b_indtægtsføring_fixture.henlæggelse_kroner == 0
+| par22b_kontobetegnelse_afskærer: henlæggelse_par22b_forkert_konto_fixture -> henlæggelse_par22b_forkert_konto_fixture.konto_resultat.betegnelse_korrekt == Falskt && henlæggelse_par22b_forkert_konto_fixture.henlæggelse_kroner == 0
+| par22b_oplysningsfrist_afskærer: henlæggelse_par22b_for_sen_fixture -> henlæggelse_par22b_for_sen_fixture.konto_resultat.indskud_inden_oplysningsfristen == Falskt && henlæggelse_par22b_for_sen_fixture.henlæggelse_kroner == 0
+| par22b_kræver_kapitalafkastordningen: henlæggelse_par22b_uden_par22a_fixture -> henlæggelse_par22b_uden_par22a_fixture.anvender_par22a == Falskt && henlæggelse_par22b_uden_par22a_fixture.henlæggelse_kroner == 0
+| par22d_kunstner_henlægger_efter_ll7o: henlæggelse_par22d_kunstner_fixture -> henlæggelse_par22d_kunstner_fixture.kunstnerisk_arbejde_berettiget == Sandt && henlæggelse_par22d_kunstner_fixture.kunstnerindkomst_efter_ligningslov7o_kroner == 280000 && henlæggelse_par22d_kunstner_fixture.henlæggelse_kroner == 200000 && henlæggelse_par22d_kunstner_fixture.kontoindskud_kroner == 156000
+| par22d_ansættelse_afskærer: henlæggelse_par22d_ansat_fixture -> henlæggelse_par22d_ansat_fixture.kunstnerisk_arbejde_berettiget == Falskt && henlæggelse_par22d_ansat_fixture.henlæggelse_kroner == 0
+| par22d_skattepligtig_indkomst_skal_overstige_grundbeløb: henlæggelse_par22d_indkomstgrænse_fixture -> henlæggelse_par22d_indkomstgrænse_fixture.skattepligtig_indkomst_grundbeløb_reguleret_kroner == 242200 && henlæggelse_par22d_indkomstgrænse_fixture.maksimum_efter_skattepligtig_indkomst_kroner == 7799 && henlæggelse_par22d_indkomstgrænse_fixture.henlæggelse_kroner == 7799 && henlæggelse_par22d_indkomstgrænse_fixture.skattepligtig_indkomst_efter_henlæggelse_kroner == 242201
+| par22d_samlede_indskud_loftes: henlæggelse_par22d_kontoloft_fixture -> henlæggelse_par22d_kontoloft_fixture.årligt_maksimum_reguleret_kroner == 807100 && henlæggelse_par22d_kontoloft_fixture.resterende_kontoindskudsramme_kroner == 7100 && henlæggelse_par22d_kontoloft_fixture.henlæggelse_kroner == 9102 && henlæggelse_par22d_kontoloft_fixture.kontoindskud_kroner == 7100 && henlæggelse_par22d_kontoloft_fixture.samlede_indskud_efter_nyt_indskud_kroner == 807100
+| par22d_virksomhedsordning_afskærer: henlæggelse_par22d_virksomhedsordning_fixture -> henlæggelse_par22d_virksomhedsordning_fixture.kunstnerisk_arbejde_berettiget == Falskt && henlæggelse_par22d_virksomhedsordning_fixture.henlæggelse_kroner == 0
+| par3_nr7_delegerer_til_par22b: henlæggelse_par3_nr7_par22b_fixture -> henlæggelse_par3_nr7_par22b_fixture.hjemmel == Par3Stk2Nr7Virksomhedsskattelov22B && henlæggelse_par3_nr7_par22b_fixture.fradrag_i_personlig_indkomst_kroner == 100000
+| par3_nr7_delegerer_til_par22d: henlæggelse_par3_nr7_par22d_fixture -> henlæggelse_par3_nr7_par22d_fixture.hjemmel == Par3Stk2Nr7Virksomhedsskattelov22D && henlæggelse_par3_nr7_par22d_fixture.fradrag_i_personlig_indkomst_kroner == 200000
+| par3_nr7_fradrag_føres_i_personlig_indkomst: henlæggelse_par3_personlig_indkomst_fixture -> henlæggelse_par3_personlig_indkomst_fixture.brutto_personlig_indkomst_kroner == 500000 && henlæggelse_par3_personlig_indkomst_fixture.fradrag_i_personlig_indkomst_kroner == 100000 && henlæggelse_par3_personlig_indkomst_fixture.netto_personlig_indkomst_kroner == 400000
+
+? par22b_regulerer_overskud_og_lofter_25_pct
+? par22b_beregner_skat_og_bundet_indskud
+? par22b_minimum_afskærer
+? par22b_indtægtsføring_afskærer_ny_henlæggelse
+? par22b_kontobetegnelse_afskærer
+? par22b_oplysningsfrist_afskærer
+? par22b_kræver_kapitalafkastordningen
+? par22d_kunstner_henlægger_efter_ll7o
+? par22d_ansættelse_afskærer
+? par22d_skattepligtig_indkomst_skal_overstige_grundbeløb
+? par22d_samlede_indskud_loftes
+? par22d_virksomhedsordning_afskærer
+? par3_nr7_delegerer_til_par22b
+? par3_nr7_delegerer_til_par22d
+? par3_nr7_fradrag_føres_i_personlig_indkomst

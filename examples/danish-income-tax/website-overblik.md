@@ -62,6 +62,9 @@ Ligningsloven § 8 M og Personskatteloven § 3, stk. 2, nr. 6 er tilsvarende
 forbundet, så AM-bidrag og obligatoriske udenlandske sociale bidrag kun føres
 til personligt indkomstfradrag, når den relevante skattepligt, social sikring
 og eventuelle arbejdsgiveraftale opfylder lovens betingelser.
+Personskatteloven § 3, stk. 2, nr. 7 er nu også koblet til de beregnede
+henlæggelser efter Virksomhedsskatteloven §§ 22 b og 22 d, herunder procent- og
+beløbslofter, udligningsskat, bundet konto og rettidigt indskud.
 
 ## Eksempel
 
