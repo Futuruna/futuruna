@@ -374,6 +374,13 @@ Current § 4 and § 13 amendment/dependency sources:
     dependency for taxable and deductible running-payment saldo amounts under
     stk. 4-7 and stk. 9, including stk. 10 application posture and stk. 11
     exclusion posture.
+  - § 9 C is modeled as the ordinary befordringsfradrag slice used by
+    wage-earner scenarios, with 24 km daily floor, 120 km split, 2025/2026
+    rates, 2026 LOV 616 uplift, yderkommune/small-island rates,
+    low-income supplement, bridge deductions, reimbursement exclusion and
+    free employer-paid transport value posture. The focused validation files
+    are `ligningsloven-par9c-befordring.audit.runa` and
+    `loenmodtager-befordring.scenario.runa`.
   - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
     wage-earner calculator; § 9 L is modeled for extra pension deductions and
     § 26 nr. 5 transition-compensation input; § 15 P is modeled for
@@ -390,6 +397,10 @@ Current § 4 and § 13 amendment/dependency sources:
     literals.
   - SKM rates page used for current basis points and caps:
     `https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven`
+  - § 9 C 2026 rate sources:
+    `https://www.retsinformation.dk/eli/lta/2025/1333`,
+    `https://www.retsinformation.dk/eli/lta/2026/616`, and
+    `https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag`
 - Afskrivningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1222`
   - XML status on 2026-07-18: `Valid`

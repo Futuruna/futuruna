@@ -1,0 +1,56 @@
+@ sprog da
+
+@ importer ./ligningsloven_fradrag
+@ importer ./loenmodtager_beregning
+
+-- Personskatteloven — lønmodtagerscenarie med Ligningsloven § 9 C.
+
+----
+Scenarie:
+Skatteår: 2026.
+Kommune: København.
+Bruttoløn: 600.000 kr.
+Kørselsfradrag: 60 km pr. arbejdsdag i 203 arbejdsdage.
+Kirkeskat: nej.
+
+Kilder:
+Personskatteloven §§ 1, 3 og 5-9 som ændret ved LOV nr. 482 af 22/05/2024.
+Ligningsloven § 9 C, LBK nr. 1500 af 24/11/2025, BEK nr. 1333 af 20/11/2025
+og LOV nr. 616 af 30/06/2026.
+----
+
+= lønmodtager_2026_befordring_fradrag = ll9c_befordringsfradrag_resultat(Ligningslov9CInput(
+    skatteår = 2026,
+    arbejdsdage = 203,
+    daglige_befordringskilometer = 60,
+    bopæl_i_yderkommune_eller_lille_ø = Falskt,
+    aftrapningsindkomst_kroner = 600000,
+    har_indtægtsgivende_arbejdsplads = Sandt,
+    modtaget_skattefri_befordringsgodtgørelse_for_strækning = Falskt,
+    fradrag_udelukket_folketingshverv_m_v = Falskt,
+    fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen = Falskt,
+    broer = ll9c_ingen_bropassager()
+))
+
+= lønmodtager_2026_med_befordring_input = LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = lønmodtager_2026_befordring_fradrag.samlet_befordringsfradrag_kroner,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= lønmodtager_2026_med_befordring = beregn_lønmodtager(lønmodtager_2026_med_befordring_input)
+
+| scenario_befordringsfradrag_fra_ll9c: lønmodtager_2026_befordring_fradrag -> lønmodtager_2026_befordring_fradrag.samlet_befordringsfradrag_kroner == 23166 && lønmodtager_2026_befordring_fradrag.lavindkomst_tillæg_kroner == 0
+| scenario_befordring_ligningsfradrag_føder_personskat: lønmodtager_2026_med_befordring -> lønmodtager_2026_med_befordring.beskæftigelsesfradrag_kroner == 63300 && lønmodtager_2026_med_befordring.jobfradrag_kroner == 3100 && lønmodtager_2026_med_befordring.øvrige_ligningsmæssige_fradrag_kroner == 23166 && lønmodtager_2026_med_befordring.samlede_ligningsmæssige_fradrag_kroner == 89566
+| scenario_befordring_skattepligtig_indkomst: lønmodtager_2026_med_befordring -> lønmodtager_2026_med_befordring.arbejdsmarkedsbidrag_kroner == 48000 && lønmodtager_2026_med_befordring.personlig_indkomst_efter_am_kroner == 552000 && lønmodtager_2026_med_befordring.almindelig_skattepligtig_indkomst_kroner == 462434
+| scenario_befordring_samlet_skat: lønmodtager_2026_med_befordring -> lønmodtager_2026_med_befordring.statslig_indkomstskat_efter_personfradrag_kroner == 59798 && lønmodtager_2026_med_befordring.kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner == 95510 && lønmodtager_2026_med_befordring.samlet_inkl_am_efter_personfradrag_kroner == 203308
+
+? scenario_befordringsfradrag_fra_ll9c
+? scenario_befordring_ligningsfradrag_føder_personskat
+? scenario_befordring_skattepligtig_indkomst
+? scenario_befordring_samlet_skat
+
+@ print("lønmodtager 2026 med befordring: samlet inkl. AM = " + show(lønmodtager_2026_med_befordring.samlet_inkl_am_efter_personfradrag_kroner) + " kr.")

@@ -1,0 +1,57 @@
+@ sprog da
+
+@ importer ./ligningsloven_fradrag
+
+-- Ligningsloven § 9 C — fokuseret audit af befordringsfradrag.
+
+----
+Kilder:
+Ligningsloven, LBK nr. 1500 af 24/11/2025, § 9 C.
+https://www.retsinformation.dk/eli/lta/2025/1500
+
+Skatterådet, BEK nr. 1333 af 20/11/2025.
+https://www.retsinformation.dk/eli/lta/2025/1333
+
+LOV nr. 616 af 30/06/2026, § 1.
+https://www.retsinformation.dk/eli/lta/2026/616
+
+Skat.dk, Kørselsfradrag (befordringsfradrag) 2026.
+https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag
+----
+
+# Ligningslov9CBefordringsAuditSignal = Befordringssatser2026FraLov616 | Befordringsfradrag24KmBundDækket | YderkommuneForhøjelseDækket | LavindkomsttillægDækket | BrofradragDækket | SkattefriGodtgørelseAfskærerDækket | FriBefordringVærdiDækket
+
+| ll9c_befordrings_audit_signal(signal: Ligningslov9CBefordringsAuditSignal) -> Sandt
+
+| audit_ll9c_2026_satser_fra_lov616: ll9c_2026_60km_resultat -> ll9c_2026_60km_resultat.kilde == Lov616Af2026Par1 && ll9c_2026_60km_resultat.op_til_120_øre_pr_km == 317 && ll9c_2026_60km_resultat.over_120_øre_pr_km == 159
+| audit_ll9c_2026_24km_bund: ll9c_2026_60km_resultat -> ll9c_2026_60km_resultat.daglige_fradragsberettigede_kilometer == 36 && ll9c_2026_60km_resultat.afstandsfradrag_kroner == 23166
+| audit_ll9c_2026_yderkommune: ll9c_2026_yderkommune_60km_resultat -> ll9c_2026_yderkommune_60km_resultat.op_til_120_øre_pr_km == 351 && ll9c_2026_yderkommune_60km_resultat.over_120_øre_pr_km == 351 && ll9c_2026_yderkommune_60km_resultat.samlet_befordringsfradrag_kroner == 25651
+| audit_ll9c_2026_lavindkomst: ll9c_2026_lavindkomst_resultat -> ll9c_2026_lavindkomst_resultat.lavindkomst_tillæg_kroner == 14826 && ll9c_2026_lavindkomst_resultat.samlet_befordringsfradrag_kroner == 37992
+| audit_ll9c_2026_storebælt: ll9c_2026_storebælt_resultat -> ll9c_2026_storebælt_resultat.afstandsfradrag_kroner == 106319 && ll9c_2026_storebælt_resultat.brofradrag_kroner == 44660 && ll9c_2026_storebælt_resultat.samlet_befordringsfradrag_kroner == 150979
+| audit_ll9c_2026_skattefri_godtgørelse_afskærer: ll9c_2026_godtgørelse_afskærer_resultat -> ll9c_2026_godtgørelse_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_godtgørelse_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
+| audit_ll9c_2026_fri_befordring_værdi: ll9c_2026_fri_befordring_resultat -> ll9c_2026_fri_befordring_resultat.afstandsfradrag_kroner == 23166 && ll9c_2026_fri_befordring_resultat.fri_befordring_skattepligtig_værdi_kroner == 23166
+
+| audit_ll9c_signal_satser: ll9c_befordrings_audit_signal(Befordringssatser2026FraLov616) -> ll9c_befordrings_audit_signal(Befordringssatser2026FraLov616) == Sandt
+| audit_ll9c_signal_24km: ll9c_befordrings_audit_signal(Befordringsfradrag24KmBundDækket) -> ll9c_befordrings_audit_signal(Befordringsfradrag24KmBundDækket) == Sandt
+| audit_ll9c_signal_yderkommune: ll9c_befordrings_audit_signal(YderkommuneForhøjelseDækket) -> ll9c_befordrings_audit_signal(YderkommuneForhøjelseDækket) == Sandt
+| audit_ll9c_signal_lavindkomst: ll9c_befordrings_audit_signal(LavindkomsttillægDækket) -> ll9c_befordrings_audit_signal(LavindkomsttillægDækket) == Sandt
+| audit_ll9c_signal_bro: ll9c_befordrings_audit_signal(BrofradragDækket) -> ll9c_befordrings_audit_signal(BrofradragDækket) == Sandt
+| audit_ll9c_signal_godtgørelse: ll9c_befordrings_audit_signal(SkattefriGodtgørelseAfskærerDækket) -> ll9c_befordrings_audit_signal(SkattefriGodtgørelseAfskærerDækket) == Sandt
+| audit_ll9c_signal_fri_befordring: ll9c_befordrings_audit_signal(FriBefordringVærdiDækket) -> ll9c_befordrings_audit_signal(FriBefordringVærdiDækket) == Sandt
+
+? audit_ll9c_2026_satser_fra_lov616
+? audit_ll9c_2026_24km_bund
+? audit_ll9c_2026_yderkommune
+? audit_ll9c_2026_lavindkomst
+? audit_ll9c_2026_storebælt
+? audit_ll9c_2026_skattefri_godtgørelse_afskærer
+? audit_ll9c_2026_fri_befordring_værdi
+? audit_ll9c_signal_satser
+? audit_ll9c_signal_24km
+? audit_ll9c_signal_yderkommune
+? audit_ll9c_signal_lavindkomst
+? audit_ll9c_signal_bro
+? audit_ll9c_signal_godtgørelse
+? audit_ll9c_signal_fri_befordring
+
+@ print("ll9c audit: § 9 C befordringsfradrag dækker 2026-satser, 24 km bund, yderkommune, lavindkomsttillæg, broer, skattefri godtgørelse og fri befordring")
