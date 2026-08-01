@@ -1,8 +1,9 @@
 # Personskatteloven i Futuruna
 
-Dette er den ene webviste projektfil for arbejdet med dansk personskat. Selve
-lovoversættelsen ligger i `examples/danish-income-tax/` som Futuruna-regler,
-scenario-filer og audit-filer.
+Dette er den ene webviste projektfil for arbejdet med dansk personskat, ikke
+en lang forskningsartikel. Selve lovoversættelsen ligger i
+`examples/danish-income-tax/` som Futuruna-regler, scenario-filer og
+audit-filer.
 
 ## Intro: Et samlet sprog til lov og ret
 
@@ -12,7 +13,8 @@ oversætter den, og hvor regelkaskader kan føre de afledte beløb videre gennem
 hele beregningen.
 
 Det samme sprog kan bruges til audit: ikke kun "hvad betaler denne person?",
-men også "hvilke konfigurationer gør systemet hårdt, overraskende eller uklart?"
+men også "hvilke konfigurationer gør systemet hårdt, overraskende eller
+uklart?"
 
 ## Personskatteloven (indkomstskat)
 
@@ -35,11 +37,16 @@ Futuruna-filerne følger samme gentagne form:
 
 Projektet er beregningsegnet for en væsentlig lønmodtagervej: AM-bidrag,
 kommunal skat, kirkeskat, aktieindkomst, kapitalindkomst, personfradrag,
-underskud, delår, skatteloft, indeholdelse og slutopgørelse.
+underskud, delår, skatteloft, indeholdelse, slutopgørelse og dele af
+Ligningslovens fradragsregler.
 
 Det er endnu ikke en fuld implementering af hele Personskatteloven. Det næste
 vigtige arbejde er at gøre de resterende kildepostur- og kategoriregler til
 kildebundne beløbsregler.
+
+Nyere afhængighedsdækning omfatter Ligningsloven § 9 C og § 9 D, herunder
+befordringsfradrag, yderkommuner, lavindkomsttillæg, broer, SU-yderområde og
+§ 9 D's særregler for varigt nedsat funktionsevne eller kronisk sygdom.
 
 ## Eksempel
 

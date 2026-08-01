@@ -233,13 +233,30 @@ Lavindkomsttillæg 2025: indkomstgrænse 325.800 kr.; bortfald ved 375.800 kr.;
 maksimalt tillæg 15.400 kr.
 ----
 
+----
+Den juridiske vejledning 2026-1, C.A.4.3.3.2.4:
+Ved § 9 D beregnes normal befordringsudgift som billigste offentlige
+befordring, eller hvis offentlig befordring ikke kan anvendes, efter
+Skatterådets kilometertakster for normalfradrag uden reduktion for de første
+24 km. Faktiske udgifter kan dokumenteres eller opgøres efter Skatterådets
+satser for erhvervsmæssig kørsel i egen bil.
+Eksempel 1: 6.000 km giver normal udgift 13.680 kr., faktisk udgift
+23.640 kr. og samlet § 9 D-fradrag 21.640 kr.
+Eksempel 2: 25.000 km giver normal udgift 57.000 kr., faktisk udgift
+90.200 kr. og samlet § 9 D-fradrag 88.200 kr.
+Kilde: https://info.skat.dk/data.aspx?oid=2061747
+----
+
 # Ligningslov9CKilde = LigningslovLbk1500Af2025Par9C | SkatteraadetBek1333Af2025Par1Par3 | Lov616Af2026Par1 | SkatDkKoerselsfradrag2026
 # Ligningslov9CBefordringsformål = IndtægtsgivendeArbejdsplads | SuUddannelsessted | AndetBefordringsformål
 # Ligningslov9CBroPassager(storebælt_bil_motorcykel_passager: Heltal, storebælt_kollektiv_passager: Heltal, øresund_bil_motorcykel_passager: Heltal, øresund_kollektiv_passager: Heltal, dokumenteret_og_afholdt_af_skattepligtige: Boolsk)
 # Ligningslov9CSærligTransport(faktisk_dokumenteret_udgift_kroner: Heltal, geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten: Boolsk)
 # Ligningslov9DBefordringsformål = Par9DArbejdsplads | Par9DUddannelsessted | Par9DIkkeOmfattet
-# Ligningslov9DInput(skatteår: Heltal, befordringsformål: Ligningslov9DBefordringsformål, godtgjort_varigt_nedsat_funktionsevne_eller_kronisk_sygdom: Boolsk, særlige_udgifter_til_befordring: Boolsk, offentlig_befordring_kan_anvendes: Boolsk, billigste_offentlige_befordring_kroner: Heltal, normal_egen_befordringsudgift_kroner: Heltal, faktisk_befordringsudgift_kroner: Heltal)
-# Ligningslov9DResultat(omfattet_af_par9d: Boolsk, afskærer_par9c_stk1_8: Boolsk, afskærer_par9c_stk10: Boolsk, normal_befordringsudgift_kroner: Heltal, normal_befordringsudgift_over_2000_kroner: Heltal, faktisk_udgift_over_normal_kroner: Heltal, fradrag_kroner: Heltal)
+# Ligningslov9DKilde = Ll9dLigningslovLbk1500Af2025Par9D | Ll9dSkatteraadetBek1333Af2025Par1Par4 | Ll9dDenJuridiskeVejledning2026_1CA43324
+# Ligningslov9DBefordringsudgifter(årlige_kilometer_egen_befordring: Heltal, dokumenteret_faktisk_udgift_kroner: Heltal, faktisk_udgift_opgøres_efter_erhvervssats: Boolsk)
+# Ligningslov9DSatser(skatteår: Heltal, normalfradrag_øre_pr_km: Heltal, erhverv_høj_øre_pr_km: Heltal, erhverv_lav_øre_pr_km: Heltal, erhverv_høj_kilometerloft: Heltal, kilde: Ligningslov9DKilde)
+# Ligningslov9DInput(skatteår: Heltal, befordringsformål: Ligningslov9DBefordringsformål, godtgjort_varigt_nedsat_funktionsevne_eller_kronisk_sygdom: Boolsk, særlige_udgifter_til_befordring: Boolsk, offentlig_befordring_kan_anvendes: Boolsk, billigste_offentlige_befordring_kroner: Heltal, befordringsudgifter: Ligningslov9DBefordringsudgifter)
+# Ligningslov9DResultat(omfattet_af_par9d: Boolsk, afskærer_par9c_stk1_8: Boolsk, afskærer_par9c_stk10: Boolsk, normal_befordringsudgift_kroner: Heltal, normal_befordringsudgift_over_2000_kroner: Heltal, faktisk_befordringsudgift_kroner: Heltal, faktisk_udgift_over_normal_kroner: Heltal, fradrag_kroner: Heltal, satskilde: Ligningslov9DKilde)
 # Ligningslov9CInput(skatteår: Heltal, arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, aftrapningsindkomst_kroner: Heltal, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, par9d: Ligningslov9DResultat, fradrag_udelukket_folketingshverv_m_v: Boolsk, fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen: Boolsk, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
 # Ligningslov9CSatser(skatteår: Heltal, almindelig_op_til_120_øre_pr_km: Heltal, almindelig_over_120_øre_pr_km: Heltal, yderkommune_op_til_120_øre_pr_km: Heltal, yderkommune_over_120_øre_pr_km: Heltal, lavindkomst_tillæg_basispoint: Heltal, lavindkomst_aftrapning_basispoint_pr_1000: Heltal, lavindkomst_maks_kroner: Heltal, lavindkomst_indkomstgrænse_kroner: Heltal, kilde: Ligningslov9CKilde)
 # Ligningslov9CResultat(berettiget_til_ordinært_fradrag: Boolsk, daglige_fradragsberettigede_kilometer: Heltal, op_til_120_kilometer_pr_dag: Heltal, over_120_kilometer_pr_dag: Heltal, op_til_120_øre_pr_km: Heltal, over_120_øre_pr_km: Heltal, afstandsfradrag_kroner: Heltal, særlig_transportfradrag_kroner: Heltal, brofradrag_kroner: Heltal, grundfradrag_før_lavindkomsttillæg_kroner: Heltal, lavindkomst_tillæg_kroner: Heltal, fri_befordring_skattepligtig_værdi_kroner: Heltal, samlet_befordringsfradrag_kroner: Heltal, kilde: Ligningslov9CKilde)
@@ -255,25 +272,50 @@ maksimalt tillæg 15.400 kr.
     faktisk_dokumenteret_udgift_kroner = 0,
     geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten = Falskt
 )
+| ll9d_ingen_befordringsudgifter() -> Ligningslov9DBefordringsudgifter(
+    årlige_kilometer_egen_befordring = 0,
+    dokumenteret_faktisk_udgift_kroner = 0,
+    faktisk_udgift_opgøres_efter_erhvervssats = Falskt
+)
+| ll9d_satser_for(skatteår: Heltal) -> Ligningslov9DSatser(
+    skatteår = 2026,
+    normalfradrag_øre_pr_km = 228,
+    erhverv_høj_øre_pr_km = 394,
+    erhverv_lav_øre_pr_km = 228,
+    erhverv_høj_kilometerloft = 20000,
+    kilde = Ll9dSkatteraadetBek1333Af2025Par1Par4
+) under skatteår == 2026
+| ll9d_øre_afrundet_til_kroner(øre: Heltal) -> 0
+| exception ll9d_positive_øre_afrundes ll9d_øre_afrundet_til_kroner(øre: Heltal) -> (øre + 50) / 100 under øre > 0
 | ll9d_omfattet(input: Ligningslov9DInput) -> Falskt
 | exception ll9d_arbejdsplads_varigt_nedsat_funktionsevne ll9d_omfattet(input: Ligningslov9DInput) -> Sandt under input.befordringsformål == Par9DArbejdsplads && input.godtgjort_varigt_nedsat_funktionsevne_eller_kronisk_sygdom == Sandt && input.særlige_udgifter_til_befordring == Sandt
 | exception ll9d_su_uddannelsessted_varigt_nedsat_funktionsevne ll9d_omfattet(input: Ligningslov9DInput) -> Sandt under input.skatteår >= 2026 && input.befordringsformål == Par9DUddannelsessted && input.godtgjort_varigt_nedsat_funktionsevne_eller_kronisk_sygdom == Sandt && input.særlige_udgifter_til_befordring == Sandt
-| ll9d_normal_befordringsudgift_kroner(input: Ligningslov9DInput) -> ligningslov_positivt_beløb(input.normal_egen_befordringsudgift_kroner)
+| ll9d_egen_befordringskilometer(input: Ligningslov9DInput) -> ligningslov_positivt_beløb(input.befordringsudgifter.årlige_kilometer_egen_befordring)
+| ll9d_egen_normal_befordringsudgift_kroner(input: Ligningslov9DInput) -> ll9d_øre_afrundet_til_kroner(ll9d_egen_befordringskilometer(input) * ll9d_satser_for(input.skatteår).normalfradrag_øre_pr_km)
+| ll9d_faktisk_erhverv_høj_kilometer(input: Ligningslov9DInput) -> ligningslov_mindste_beløb(ll9d_egen_befordringskilometer(input), ll9d_satser_for(input.skatteår).erhverv_høj_kilometerloft)
+| ll9d_faktisk_erhverv_lav_kilometer(input: Ligningslov9DInput) -> ligningslov_positivt_beløb(ll9d_egen_befordringskilometer(input) - ll9d_satser_for(input.skatteår).erhverv_høj_kilometerloft)
+| ll9d_normal_befordringsudgift_kroner(input: Ligningslov9DInput) -> ll9d_egen_normal_befordringsudgift_kroner(input)
 | exception ll9d_offentlig_befordring_billigste ll9d_normal_befordringsudgift_kroner(input: Ligningslov9DInput) -> ligningslov_positivt_beløb(input.billigste_offentlige_befordring_kroner) under input.offentlig_befordring_kan_anvendes == Sandt
 | ll9d_normal_befordringsudgift_over_2000_kroner(input: Ligningslov9DInput) -> ligningslov_positivt_beløb(ll9d_normal_befordringsudgift_kroner(input) - 2000)
-| ll9d_faktisk_udgift_over_normal_kroner(input: Ligningslov9DInput) -> ligningslov_positivt_beløb(input.faktisk_befordringsudgift_kroner - ll9d_normal_befordringsudgift_kroner(input))
+| ll9d_faktisk_befordringsudgift_kroner(input: Ligningslov9DInput) -> ligningslov_positivt_beløb(input.befordringsudgifter.dokumenteret_faktisk_udgift_kroner)
+| exception ll9d_faktisk_udgift_efter_erhvervssats ll9d_faktisk_befordringsudgift_kroner(input: Ligningslov9DInput) -> ll9d_øre_afrundet_til_kroner(ll9d_faktisk_erhverv_høj_kilometer(input) * ll9d_satser_for(input.skatteår).erhverv_høj_øre_pr_km + ll9d_faktisk_erhverv_lav_kilometer(input) * ll9d_satser_for(input.skatteår).erhverv_lav_øre_pr_km) under input.befordringsudgifter.faktisk_udgift_opgøres_efter_erhvervssats == Sandt
+| ll9d_faktisk_udgift_over_normal_kroner(input: Ligningslov9DInput) -> ligningslov_positivt_beløb(ll9d_faktisk_befordringsudgift_kroner(input) - ll9d_normal_befordringsudgift_kroner(input))
 | ll9d_fradrag_kroner(input: Ligningslov9DInput) -> 0
 | exception ll9d_omfattet_fradrag ll9d_fradrag_kroner(input: Ligningslov9DInput) -> ll9d_normal_befordringsudgift_over_2000_kroner(input) + ll9d_faktisk_udgift_over_normal_kroner(input) under ll9d_omfattet(input)
 | ll9d_afskærer_par9c_stk1_8(input: Ligningslov9DInput) -> ll9d_omfattet(input) && input.befordringsformål == Par9DArbejdsplads
 | ll9d_afskærer_par9c_stk10(input: Ligningslov9DInput) -> ll9d_omfattet(input) && input.befordringsformål == Par9DUddannelsessted
+| ll9d_satskilde(input: Ligningslov9DInput) -> Ll9dLigningslovLbk1500Af2025Par9D
+| exception ll9d_egen_befordring_skateraadssats ll9d_satskilde(input: Ligningslov9DInput) -> ll9d_satser_for(input.skatteår).kilde under input.offentlig_befordring_kan_anvendes == Falskt && ll9d_egen_befordringskilometer(input) > 0
 | ll9d_resultat(input: Ligningslov9DInput) -> Ligningslov9DResultat(
     omfattet_af_par9d = ll9d_omfattet(input),
     afskærer_par9c_stk1_8 = ll9d_afskærer_par9c_stk1_8(input),
     afskærer_par9c_stk10 = ll9d_afskærer_par9c_stk10(input),
     normal_befordringsudgift_kroner = ll9d_normal_befordringsudgift_kroner(input),
     normal_befordringsudgift_over_2000_kroner = ll9d_normal_befordringsudgift_over_2000_kroner(input),
+    faktisk_befordringsudgift_kroner = ll9d_faktisk_befordringsudgift_kroner(input),
     faktisk_udgift_over_normal_kroner = ll9d_faktisk_udgift_over_normal_kroner(input),
-    fradrag_kroner = ll9d_fradrag_kroner(input)
+    fradrag_kroner = ll9d_fradrag_kroner(input),
+    satskilde = ll9d_satskilde(input)
 )
 | ll9d_ikke_omfattet_resultat() -> ll9d_resultat(Ligningslov9DInput(
     skatteår = 2026,
@@ -282,8 +324,7 @@ maksimalt tillæg 15.400 kr.
     særlige_udgifter_til_befordring = Falskt,
     offentlig_befordring_kan_anvendes = Falskt,
     billigste_offentlige_befordring_kroner = 0,
-    normal_egen_befordringsudgift_kroner = 0,
-    faktisk_befordringsudgift_kroner = 0
+    befordringsudgifter = ll9d_ingen_befordringsudgifter()
 ))
 | ll9c_øre_afrundet_til_kroner(øre: Heltal) -> 0
 | exception ll9c_positive_øre_afrundes ll9c_øre_afrundet_til_kroner(øre: Heltal) -> (øre + 50) / 100 under øre > 0
@@ -506,8 +547,11 @@ maksimalt tillæg 15.400 kr.
     særlige_udgifter_til_befordring = Sandt,
     offentlig_befordring_kan_anvendes = Sandt,
     billigste_offentlige_befordring_kroner = 3000,
-    normal_egen_befordringsudgift_kroner = 0,
-    faktisk_befordringsudgift_kroner = 10000
+    befordringsudgifter = Ligningslov9DBefordringsudgifter(
+        årlige_kilometer_egen_befordring = 0,
+        dokumenteret_faktisk_udgift_kroner = 10000,
+        faktisk_udgift_opgøres_efter_erhvervssats = Falskt
+    )
 ))
 = ll9d_su_funktionsevne_resultat = ll9d_resultat(Ligningslov9DInput(
     skatteår = 2026,
@@ -516,8 +560,24 @@ maksimalt tillæg 15.400 kr.
     særlige_udgifter_til_befordring = Sandt,
     offentlig_befordring_kan_anvendes = Falskt,
     billigste_offentlige_befordring_kroner = 0,
-    normal_egen_befordringsudgift_kroner = 3000,
-    faktisk_befordringsudgift_kroner = 10000
+    befordringsudgifter = Ligningslov9DBefordringsudgifter(
+        årlige_kilometer_egen_befordring = 6000,
+        dokumenteret_faktisk_udgift_kroner = 0,
+        faktisk_udgift_opgøres_efter_erhvervssats = Sandt
+    )
+))
+= ll9d_egen_bil_25000km_resultat = ll9d_resultat(Ligningslov9DInput(
+    skatteår = 2026,
+    befordringsformål = Par9DArbejdsplads,
+    godtgjort_varigt_nedsat_funktionsevne_eller_kronisk_sygdom = Sandt,
+    særlige_udgifter_til_befordring = Sandt,
+    offentlig_befordring_kan_anvendes = Falskt,
+    billigste_offentlige_befordring_kroner = 0,
+    befordringsudgifter = Ligningslov9DBefordringsudgifter(
+        årlige_kilometer_egen_befordring = 25000,
+        dokumenteret_faktisk_udgift_kroner = 0,
+        faktisk_udgift_opgøres_efter_erhvervssats = Sandt
+    )
 ))
 = ll9c_2026_arbejdsplads_par9d_afskærer_resultat = ll9c_befordringsfradrag_resultat(Ligningslov9CInput(
     skatteår = 2026,
@@ -560,8 +620,9 @@ maksimalt tillæg 15.400 kr.
 | ll9c_2026_særlig_transport_medregnes: ll9c_2026_særlig_transport_resultat -> ll9c_2026_særlig_transport_resultat.afstandsfradrag_kroner == 23166 && ll9c_2026_særlig_transport_resultat.særlig_transportfradrag_kroner == 5000 && ll9c_2026_særlig_transport_resultat.samlet_befordringsfradrag_kroner == 28166
 | ll9c_2026_su_yderområde_kan_fradrage: ll9c_2026_su_yderområde_resultat -> ll9c_2026_su_yderområde_resultat.berettiget_til_ordinært_fradrag == Sandt && ll9c_2026_su_yderområde_resultat.op_til_120_øre_pr_km == 351 && ll9c_2026_su_yderområde_resultat.samlet_befordringsfradrag_kroner == 25651
 | ll9c_2026_su_rabat_afskærer_fradrag: ll9c_2026_su_rabat_afskærer_resultat -> ll9c_2026_su_rabat_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_su_rabat_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
-| ll9d_arbejdsplads_funktionsevne_fradrag: ll9d_arbejdsplads_funktionsevne_resultat -> ll9d_arbejdsplads_funktionsevne_resultat.omfattet_af_par9d == Sandt && ll9d_arbejdsplads_funktionsevne_resultat.afskærer_par9c_stk1_8 == Sandt && ll9d_arbejdsplads_funktionsevne_resultat.normal_befordringsudgift_kroner == 3000 && ll9d_arbejdsplads_funktionsevne_resultat.normal_befordringsudgift_over_2000_kroner == 1000 && ll9d_arbejdsplads_funktionsevne_resultat.faktisk_udgift_over_normal_kroner == 7000 && ll9d_arbejdsplads_funktionsevne_resultat.fradrag_kroner == 8000
-| ll9d_su_funktionsevne_fradrag: ll9d_su_funktionsevne_resultat -> ll9d_su_funktionsevne_resultat.omfattet_af_par9d == Sandt && ll9d_su_funktionsevne_resultat.afskærer_par9c_stk10 == Sandt && ll9d_su_funktionsevne_resultat.normal_befordringsudgift_kroner == 3000 && ll9d_su_funktionsevne_resultat.fradrag_kroner == 8000
+| ll9d_arbejdsplads_funktionsevne_fradrag: ll9d_arbejdsplads_funktionsevne_resultat -> ll9d_arbejdsplads_funktionsevne_resultat.omfattet_af_par9d == Sandt && ll9d_arbejdsplads_funktionsevne_resultat.afskærer_par9c_stk1_8 == Sandt && ll9d_arbejdsplads_funktionsevne_resultat.normal_befordringsudgift_kroner == 3000 && ll9d_arbejdsplads_funktionsevne_resultat.normal_befordringsudgift_over_2000_kroner == 1000 && ll9d_arbejdsplads_funktionsevne_resultat.faktisk_befordringsudgift_kroner == 10000 && ll9d_arbejdsplads_funktionsevne_resultat.faktisk_udgift_over_normal_kroner == 7000 && ll9d_arbejdsplads_funktionsevne_resultat.fradrag_kroner == 8000
+| ll9d_su_funktionsevne_fradrag: ll9d_su_funktionsevne_resultat -> ll9d_su_funktionsevne_resultat.omfattet_af_par9d == Sandt && ll9d_su_funktionsevne_resultat.afskærer_par9c_stk10 == Sandt && ll9d_su_funktionsevne_resultat.satskilde == Ll9dSkatteraadetBek1333Af2025Par1Par4 && ll9d_su_funktionsevne_resultat.normal_befordringsudgift_kroner == 13680 && ll9d_su_funktionsevne_resultat.normal_befordringsudgift_over_2000_kroner == 11680 && ll9d_su_funktionsevne_resultat.faktisk_befordringsudgift_kroner == 23640 && ll9d_su_funktionsevne_resultat.faktisk_udgift_over_normal_kroner == 9960 && ll9d_su_funktionsevne_resultat.fradrag_kroner == 21640
+| ll9d_egen_bil_25000km_fradrag: ll9d_egen_bil_25000km_resultat -> ll9d_egen_bil_25000km_resultat.satskilde == Ll9dSkatteraadetBek1333Af2025Par1Par4 && ll9d_egen_bil_25000km_resultat.normal_befordringsudgift_kroner == 57000 && ll9d_egen_bil_25000km_resultat.normal_befordringsudgift_over_2000_kroner == 55000 && ll9d_egen_bil_25000km_resultat.faktisk_befordringsudgift_kroner == 90200 && ll9d_egen_bil_25000km_resultat.faktisk_udgift_over_normal_kroner == 33200 && ll9d_egen_bil_25000km_resultat.fradrag_kroner == 88200
 | ll9c_2026_arbejdsplads_par9d_afskærer_fradrag: ll9c_2026_arbejdsplads_par9d_afskærer_resultat -> ll9c_2026_arbejdsplads_par9d_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_arbejdsplads_par9d_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
 | ll9c_2026_su_par9d_afskærer_fradrag: ll9c_2026_su_par9d_afskærer_resultat -> ll9c_2026_su_par9d_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_su_par9d_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
 

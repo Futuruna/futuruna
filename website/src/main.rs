@@ -3586,7 +3586,7 @@ fn ResearchPersonskatteloven() -> Element {
 
                 section { id: "project-file", class: "tax-section",
                     h2 { "Projektfil" }
-                    p { "Websitet gengiver kun denne ene projektfil. De konkrete lovregler, audit-filer og scenarier ligger i Futuruna-repoet og er ikke foldet ud på siden." }
+                    p { "Websitet gengiver kun denne ene danske overbliksfil, ikke et parallelt lovkorpus. De konkrete lovregler, audit-filer og scenarier ligger i Futuruna-projektet og er ikke foldet ud på siden." }
                     div { class: "docs-rendered tax-milestones", dangerous_inner_html: project_file_html }
                 }
 

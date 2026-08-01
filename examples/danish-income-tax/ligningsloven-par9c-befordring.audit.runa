@@ -19,7 +19,7 @@ Skat.dk, Kørselsfradrag (befordringsfradrag) 2026.
 https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag
 ----
 
-# Ligningslov9CBefordringsAuditSignal = Befordringssatser2026FraLov616 | Befordringsfradrag24KmBundDækket | YderkommuneForhøjelseDækket | LavindkomsttillægDækket | BrofradragDækket | SkattefriGodtgørelseAfskærerDækket | FriBefordringVærdiDækket | SærligTransportFaktiskUdgiftDækket | SuYderområdeDækket | SuBefordringsrabatAfskærerDækket | Par9DFradragDækket | Par9DAfskærerPar9CDækket
+# Ligningslov9CBefordringsAuditSignal = Befordringssatser2026FraLov616 | Befordringsfradrag24KmBundDækket | YderkommuneForhøjelseDækket | LavindkomsttillægDækket | BrofradragDækket | SkattefriGodtgørelseAfskærerDækket | FriBefordringVærdiDækket | SærligTransportFaktiskUdgiftDækket | SuYderområdeDækket | SuBefordringsrabatAfskærerDækket | Par9DFradragDækket | Par9DEgenBefordringSatserDækket | Par9DAfskærerPar9CDækket
 
 | ll9c_befordrings_audit_signal(signal: Ligningslov9CBefordringsAuditSignal) -> Sandt
 
@@ -34,7 +34,8 @@ https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradra
 | audit_ll9c_2026_su_yderområde: ll9c_2026_su_yderområde_resultat -> ll9c_2026_su_yderområde_resultat.berettiget_til_ordinært_fradrag == Sandt && ll9c_2026_su_yderområde_resultat.op_til_120_øre_pr_km == 351 && ll9c_2026_su_yderområde_resultat.samlet_befordringsfradrag_kroner == 25651
 | audit_ll9c_2026_su_rabat_afskærer: ll9c_2026_su_rabat_afskærer_resultat -> ll9c_2026_su_rabat_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_su_rabat_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
 | audit_ll9d_2026_arbejdsplads_funktionsevne: ll9d_arbejdsplads_funktionsevne_resultat -> ll9d_arbejdsplads_funktionsevne_resultat.omfattet_af_par9d == Sandt && ll9d_arbejdsplads_funktionsevne_resultat.normal_befordringsudgift_kroner == 3000 && ll9d_arbejdsplads_funktionsevne_resultat.fradrag_kroner == 8000
-| audit_ll9d_2026_su_funktionsevne: ll9d_su_funktionsevne_resultat -> ll9d_su_funktionsevne_resultat.omfattet_af_par9d == Sandt && ll9d_su_funktionsevne_resultat.afskærer_par9c_stk10 == Sandt && ll9d_su_funktionsevne_resultat.fradrag_kroner == 8000
+| audit_ll9d_2026_su_funktionsevne: ll9d_su_funktionsevne_resultat -> ll9d_su_funktionsevne_resultat.omfattet_af_par9d == Sandt && ll9d_su_funktionsevne_resultat.afskærer_par9c_stk10 == Sandt && ll9d_su_funktionsevne_resultat.normal_befordringsudgift_kroner == 13680 && ll9d_su_funktionsevne_resultat.faktisk_befordringsudgift_kroner == 23640 && ll9d_su_funktionsevne_resultat.fradrag_kroner == 21640
+| audit_ll9d_2026_egen_bil_25000km: ll9d_egen_bil_25000km_resultat -> ll9d_egen_bil_25000km_resultat.satskilde == Ll9dSkatteraadetBek1333Af2025Par1Par4 && ll9d_egen_bil_25000km_resultat.normal_befordringsudgift_kroner == 57000 && ll9d_egen_bil_25000km_resultat.faktisk_befordringsudgift_kroner == 90200 && ll9d_egen_bil_25000km_resultat.fradrag_kroner == 88200
 | audit_ll9c_2026_arbejdsplads_par9d_afskærer: ll9c_2026_arbejdsplads_par9d_afskærer_resultat -> ll9c_2026_arbejdsplads_par9d_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_arbejdsplads_par9d_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
 | audit_ll9c_2026_su_par9d_afskærer: ll9c_2026_su_par9d_afskærer_resultat -> ll9c_2026_su_par9d_afskærer_resultat.berettiget_til_ordinært_fradrag == Falskt && ll9c_2026_su_par9d_afskærer_resultat.samlet_befordringsfradrag_kroner == 0
 
@@ -49,6 +50,7 @@ https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradra
 | audit_ll9c_signal_su_yderområde: ll9c_befordrings_audit_signal(SuYderområdeDækket) -> ll9c_befordrings_audit_signal(SuYderområdeDækket) == Sandt
 | audit_ll9c_signal_su_rabat: ll9c_befordrings_audit_signal(SuBefordringsrabatAfskærerDækket) -> ll9c_befordrings_audit_signal(SuBefordringsrabatAfskærerDækket) == Sandt
 | audit_ll9c_signal_par9d_fradrag: ll9c_befordrings_audit_signal(Par9DFradragDækket) -> ll9c_befordrings_audit_signal(Par9DFradragDækket) == Sandt
+| audit_ll9c_signal_par9d_egen_befordring: ll9c_befordrings_audit_signal(Par9DEgenBefordringSatserDækket) -> ll9c_befordrings_audit_signal(Par9DEgenBefordringSatserDækket) == Sandt
 | audit_ll9c_signal_par9d_afskærer: ll9c_befordrings_audit_signal(Par9DAfskærerPar9CDækket) -> ll9c_befordrings_audit_signal(Par9DAfskærerPar9CDækket) == Sandt
 
 ? audit_ll9c_2026_satser_fra_lov616
@@ -63,6 +65,7 @@ https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradra
 ? audit_ll9c_2026_su_rabat_afskærer
 ? audit_ll9d_2026_arbejdsplads_funktionsevne
 ? audit_ll9d_2026_su_funktionsevne
+? audit_ll9d_2026_egen_bil_25000km
 ? audit_ll9c_2026_arbejdsplads_par9d_afskærer
 ? audit_ll9c_2026_su_par9d_afskærer
 ? audit_ll9c_signal_satser
@@ -76,6 +79,7 @@ https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradra
 ? audit_ll9c_signal_su_yderområde
 ? audit_ll9c_signal_su_rabat
 ? audit_ll9c_signal_par9d_fradrag
+? audit_ll9c_signal_par9d_egen_befordring
 ? audit_ll9c_signal_par9d_afskærer
 
-@ print("ll9c audit: § 9 C befordringsfradrag dækker 2026-satser, 24 km bund, yderkommune, lavindkomsttillæg, broer, skattefri godtgørelse, fri befordring, særlig transport, SU-yderområde og § 9 D-afskæring")
+@ print("ll9c audit: § 9 C befordringsfradrag dækker 2026-satser, 24 km bund, yderkommune, lavindkomsttillæg, broer, skattefri godtgørelse, fri befordring, særlig transport, SU-yderområde, § 9 D-satser og § 9 D-afskæring")
