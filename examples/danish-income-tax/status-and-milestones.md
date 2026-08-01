@@ -873,6 +873,12 @@ Current decision:
   facts, and same-business loss facts. The calculator rules project from those
   domain objects, and the scenario/audit fixtures name those facts before
   composing the calculator input.
+- `Par13VirksomhedsUnderskudSag` now models § 13, stk. 6-7 as a legal case
+  with an explicit source home (`Par13VirksomhedsUnderskudHjemmel`), the
+  same-business lock, the same-business offset/carry-forward amounts, and the
+  narrower stk. 6 advance-depreciation lock. This keeps the stk. 7
+  transparent-company deficit lock from silently inheriting the stk. 6
+  advance-depreciation clause.
 - `Par13ModregningSag` uses product-scoped `|` rules for the § 13 ordered
   tax-value offset chain, keeping the carried remainder after § 6, § 7, § 7 a,
   and § 8 a, stk. 2 inside the same legal case while preserving public wrapper

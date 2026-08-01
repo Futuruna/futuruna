@@ -1,0 +1,66 @@
+@ sprog da
+
+@ importer ./kapitel - 03 - personfradrag
+
+-- Focused validation for Personskatteloven § 13, stk. 6-7 business-deficit
+-- locking and the narrower stk. 6 advance-depreciation rule.
+-- Source: Retsinformation, LBK nr. 1284 af 14/06/2021.
+-- https://www.retsinformation.dk/eli/lta/2021/1284
+
+----
+§ 13, stk. 6. Underskud i skattepligtig almindelig indkomst fra en virksomhed
+som nævnt i § 4, stk. 1, nr. 9 eller 11, kan ikke fratrækkes i den
+skattepligtiges øvrige skattepligtige indkomst, men fremføres til modregning i
+positiv skattepligtig indkomst i et senere indkomstår fra samme virksomhed.
+Tilsvarende gælder også for forskudsafskrivninger efter afskrivningsloven på
+aktiver, der efter færdiggørelsen benyttes i virksomheden. Bestemmelserne
+gælder dog ikke underskud fra skibsvirksomhed omfattet af § 4, stk. 1, nr. 9
+eller 11, når erhvervsministeren senest den 31. december 1993 har godkendt
+skibsprojektet.
+
+Stk. 7. Underskud fra virksomhed, der drives i et efter danske skatteregler
+skattemæssigt transparent selskab m.v., hvis forhold er reguleret af
+selskabslovgivning, en selskabsaftale el.lign., kan ikke fradrages i den
+skattepligtiges øvrige skattepligtige indkomst. Underskuddet fremføres til
+fradrag i positiv skattepligtig indkomst i et senere indkomstår fra samme
+virksomhed. 1. og 2. pkt. gælder dog ikke, hvis den skattepligtige deltager
+eller i mindst 36 måneder af sin ejertid har deltaget i virksomhedens drift i
+væsentligt omfang. 1. og 2. pkt. omfatter ikke underskud omfattet af stk. 6.
+----
+
+= par13_stk6_passiv_probe = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(
+    underskud_kroner = 100000,
+    positiv_indkomst_samme_virksomhed_kroner = 30000,
+    status = PassivVirksomhedPar4Nr9Eller11
+))
+
+= par13_stk6_skib_godkendt_probe = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(
+    underskud_kroner = 100000,
+    positiv_indkomst_samme_virksomhed_kroner = 30000,
+    status = SkibsvirksomhedGodkendtSenest1993
+))
+
+= par13_stk7_transparent_probe = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(
+    underskud_kroner = 100000,
+    positiv_indkomst_samme_virksomhed_kroner = 30000,
+    status = TransparentSelskabPassiv
+))
+
+= par13_stk7_væsentlig_deltagelse_probe = par13_virksomhedsunderskud_beløbsresultat(Par13VirksomhedsUnderskudInput(
+    underskud_kroner = 100000,
+    positiv_indkomst_samme_virksomhed_kroner = 30000,
+    status = TransparentSelskabDeltagetVæsentligt36Måneder
+))
+
+| par13_stk6_passiv_virksomhed_låser_underskud_og_forskudsafskrivning: par13_stk6_passiv_probe -> par13_stk6_passiv_probe.hjemmel == Par13Stk6Par4Nr9Eller11 && par13_stk6_passiv_probe.låst_til_samme_virksomhed == Sandt && par13_stk6_passiv_probe.forskudsafskrivning_låst_til_samme_virksomhed == Sandt && par13_stk6_passiv_probe.fradrag_i_øvrig_indkomst_kroner == 0 && par13_stk6_passiv_probe.modregnet_i_samme_virksomhed_kroner == 30000 && par13_stk6_passiv_probe.fremført_til_samme_virksomhed_kroner == 70000
+| par13_stk6_skib_godkendt_frigiver_underskud: par13_stk6_skib_godkendt_probe -> par13_stk6_skib_godkendt_probe.hjemmel == Par13Stk6SkibsvirksomhedGodkendtSenest1993 && par13_stk6_skib_godkendt_probe.låst_til_samme_virksomhed == Falskt && par13_stk6_skib_godkendt_probe.forskudsafskrivning_låst_til_samme_virksomhed == Falskt && par13_stk6_skib_godkendt_probe.fradrag_i_øvrig_indkomst_kroner == 100000 && par13_stk6_skib_godkendt_probe.fremført_til_samme_virksomhed_kroner == 0
+| par13_stk7_transparent_selskab_låser_underskud_uden_forskudsafskrivning: par13_stk7_transparent_probe -> par13_stk7_transparent_probe.hjemmel == Par13Stk7TransparentSelskab && par13_stk7_transparent_probe.låst_til_samme_virksomhed == Sandt && par13_stk7_transparent_probe.forskudsafskrivning_låst_til_samme_virksomhed == Falskt && par13_stk7_transparent_probe.fradrag_i_øvrig_indkomst_kroner == 0 && par13_stk7_transparent_probe.modregnet_i_samme_virksomhed_kroner == 30000 && par13_stk7_transparent_probe.fremført_til_samme_virksomhed_kroner == 70000
+| par13_stk7_væsentlig_deltagelse_frigiver_underskud: par13_stk7_væsentlig_deltagelse_probe -> par13_stk7_væsentlig_deltagelse_probe.hjemmel == Par13Stk7VæsentligDeltagelse36Måneder && par13_stk7_væsentlig_deltagelse_probe.låst_til_samme_virksomhed == Falskt && par13_stk7_væsentlig_deltagelse_probe.fradrag_i_øvrig_indkomst_kroner == 100000 && par13_stk7_væsentlig_deltagelse_probe.fremført_til_samme_virksomhed_kroner == 0
+
+? par13_stk6_passiv_virksomhed_låser_underskud_og_forskudsafskrivning
+? par13_stk6_skib_godkendt_frigiver_underskud
+? par13_stk7_transparent_selskab_låser_underskud_uden_forskudsafskrivning
+? par13_stk7_væsentlig_deltagelse_frigiver_underskud
+
+@ print("§13 stk.6 fremført samme virksomhed: " + vis(par13_stk6_passiv_probe.fremført_til_samme_virksomhed_kroner))
+@ print("§13 stk.7 forskudsafskrivning låst: " + vis(par13_stk7_transparent_probe.forskudsafskrivning_låst_til_samme_virksomhed))
