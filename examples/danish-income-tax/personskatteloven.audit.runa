@@ -5,6 +5,7 @@
 @ importer ./arbejdsmarkedsbidragsloven
 @ importer ./arbejdsmarkedsbidrag - loenmodtager.scenario
 @ importer ./kommuneskatteloven
+@ importer ./kommuneskattelov - skattekommune.scenario
 @ importer ./kommuneskattelov - afregning.scenario
 @ importer ./folkekirkens - oekonomi
 @ importer ./kildeskatteloven
@@ -116,7 +117,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PersonskatAendringskilderDækket | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | PersonfradragNormalfixtureDækket | Par9PersonfradragNedsættelseDækket | Par10PersonfradragSkattepligtDækket | Par10Stk3ÆgtefællePersonfradragDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | SkatteårParameterpakkeKildeDækket | Skatteår2026ReformDækket | Par7ReformPar20TærskelDækket | ReformStatskatParameterKildeDækket | ReformPersonligStatsskatDækket | MellemskatKapitalDækket | Par6BundskatSatsKildeDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | Par7ÆgtefælleKapitalFordelingDækket | Par7aUdligningsskatDækket | Par8SundhedsbidragDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | KommuneskattelovAfregningDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LigningslovPar9DBefordringDækket | LigningslovPar9DAfskæringDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | AktieindkomstNegativSlutopgørelseDækket | AktieindkomstNegativParSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8aNegativAktieindkomstStk6Dækket | Par8bCfcSkatDækket | Par8cKommunalLignendeSkatDækket | Par4EjendomsskattelovDækket | Par4aPensionsfradragDækket | Par4aAktieavancebeskatningslovDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13NegativPersonligStk4Dækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftKildeDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par20ReguleringstalKildeDækket | Par26KompensationDækket | Par26ÅrskomponenterDækket | Par26Stk7ÆgtefælleTopskatDækket | Par27MinisterbemyndigelseDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PersonskatAendringskilderDækket | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | PersonfradragNormalfixtureDækket | Par9PersonfradragNedsættelseDækket | Par10PersonfradragSkattepligtDækket | Par10Stk3ÆgtefællePersonfradragDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | SkatteårParameterpakkeKildeDækket | Skatteår2026ReformDækket | Par7ReformPar20TærskelDækket | ReformStatskatParameterKildeDækket | ReformPersonligStatsskatDækket | MellemskatKapitalDækket | Par6BundskatSatsKildeDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | Par7ÆgtefælleKapitalFordelingDækket | Par7aUdligningsskatDækket | Par8SundhedsbidragDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | KommuneskattelovSkattekommuneFordelingDækket | KommuneskattelovAfregningDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LigningslovPar9DBefordringDækket | LigningslovPar9DAfskæringDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | AktieindkomstNegativSlutopgørelseDækket | AktieindkomstNegativParSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8aNegativAktieindkomstStk6Dækket | Par8bCfcSkatDækket | Par8cKommunalLignendeSkatDækket | Par4EjendomsskattelovDækket | Par4aPensionsfradragDækket | Par4aAktieavancebeskatningslovDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13NegativPersonligStk4Dækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftKildeDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par20ReguleringstalKildeDækket | Par26KompensationDækket | Par26ÅrskomponenterDækket | Par26Stk7ÆgtefælleTopskatDækket | Par27MinisterbemyndigelseDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -1244,6 +1245,10 @@ virksomhedsunderskud.
     kirkelig_ligningsprocent_basispoint = 80,
     folkekirkemedlem = Sandt
 ))
+= m5_kommunal_skattekommune_bopæl_fixture = kommunal_skattekommune_bopæl_fixture
+= m5_kommunal_skattekommune_institution_fixture = kommunal_skattekommune_institution_fixture
+= m5_kommunal_par3_april_fixture = kommunal_par3_april_to_fordelingskvartaler_fixture
+= m5_kommunal_par3_første_kvartalsdag_fixture = kommunal_par3_første_kvartalsdag_fixture
 = m5_kommunal_afregning_par7_eget_skøn_fixture = kommunal_afregning_par7_eget_skøn_fixture
 = m5_kommunal_afregning_par15_fixture = kommunal_afregning_par15_resultat_fixture
 = m5_kommunal_afregning_par16_fixture = kommunal_afregning_par16_resultat_fixture
@@ -1392,6 +1397,9 @@ virksomhedsunderskud.
 | m5_kirkeskat_lov_ikke_medlem_dækket: m5_kirkeskat_ikke_medlem_fixture -> m5_kirkeskat_ikke_medlem_fixture == 0
 | m5_kommuneskat_matcher_lønmodtager_fixture: m5_personfradrag_fixture -> m5_personfradrag_fixture.kommuneskat_før_personfradrag_kroner == m5_kommuneskat_lønmodtager_fixture
 | m5_kirkeskat_matcher_lønmodtager_fixture: m5_personfradrag_fixture -> m5_personfradrag_fixture.kirkeskat_før_personfradrag_kroner == m5_kirkeskat_lønmodtager_fixture
+| m5_kommunal_skattekommune_bopæl_dækket: m5_kommunal_skattekommune_bopæl_fixture -> m5_kommunal_skattekommune_bopæl_fixture.skattekommune == København && m5_kommunal_skattekommune_bopæl_fixture.grundlag == SkattekommuneBopælFemteSeptember
+| m5_kommunal_skattekommune_institution_dækket: m5_kommunal_skattekommune_institution_fixture -> m5_kommunal_skattekommune_institution_fixture.skattekommune == Gentofte && m5_kommunal_skattekommune_institution_fixture.grundlag == SkattekommuneAndenBopælVedInstitutionMv
+| m5_kommunal_par3_fraflytningsandel_dækket: m5_kommunal_par3_april_fixture -> m5_kommunal_par3_april_fixture.periode.startkvartal == 3 && m5_kommunal_par3_april_fixture.tilflytningskommune_andel_kroner == 60000 && m5_kommunal_par3_første_kvartalsdag_fixture.periode.startkvartal == 2 && m5_kommunal_par3_første_kvartalsdag_fixture.tilflytningskommune_andel_kroner == 90000
 | m5_kommunal_afregning_par7_dækket: m5_kommunal_afregning_par7_eget_skøn_fixture -> m5_kommunal_afregning_par7_eget_skøn_fixture.omfang == AfregningEfterPar15OgPar16Stk1Til4 && m5_kommunal_afregning_par7_eget_skøn_fixture.efterregulering_stk1_til_4_gælder == Sandt
 | m5_kommunal_afregning_par15_dækket: m5_kommunal_afregning_par15_fixture -> m5_kommunal_afregning_par15_fixture.månedlig_udbetaling_kroner == 100000 && m5_kommunal_afregning_par15_fixture.samlet_årlig_udbetaling_kroner == 1200000
 | m5_kommunal_afregning_par16_dækket: m5_kommunal_afregning_par16_fixture -> m5_kommunal_afregning_par16_fixture.omfattes_af_efterregulering == Sandt && m5_kommunal_afregning_par16_fixture.endelig_skat_inkl_ændringer_kroner == 1209000 && m5_kommunal_afregning_par16_fixture.efterreguleringsbeløb_kroner == 9000 && m5_kommunal_afregning_par16_fixture.afregningsår == 2029 && m5_kommunal_afregning_par16_fixture.januar_kroner == 3000 && m5_kommunal_afregning_par16_fixture.februar_kroner == 3000 && m5_kommunal_afregning_par16_fixture.marts_kroner == 3000
@@ -1507,6 +1515,7 @@ virksomhedsunderskud.
 | m5_audit_am_lov_signal: audit_signal(ArbejdsmarkedsbidragslovAlmindeligLønDækket) -> audit_signal(ArbejdsmarkedsbidragslovAlmindeligLønDækket) == Sandt
 | m5_audit_am_lov_særtilfælde_signal: audit_signal(ArbejdsmarkedsbidragslovSærtilfældeDækket) -> audit_signal(ArbejdsmarkedsbidragslovSærtilfældeDækket) == Sandt
 | m5_audit_kommuneskattelov_signal: audit_signal(KommuneskattelovAlmindeligIndkomstskatDækket) -> audit_signal(KommuneskattelovAlmindeligIndkomstskatDækket) == Sandt
+| m5_audit_kommuneskattelov_skattekommune_signal: audit_signal(KommuneskattelovSkattekommuneFordelingDækket) -> audit_signal(KommuneskattelovSkattekommuneFordelingDækket) == Sandt
 | m5_audit_kommuneskattelov_afregning_signal: audit_signal(KommuneskattelovAfregningDækket) -> audit_signal(KommuneskattelovAfregningDækket) == Sandt
 | m5_audit_folkekirke_kirkeskat_signal: audit_signal(FolkekirkensØkonomiKirkeskatDækket) -> audit_signal(FolkekirkensØkonomiKirkeskatDækket) == Sandt
 | m5_audit_kildeskattelov_signal: audit_signal(KildeskattelovAIndkomstIndeholdelseDækket) -> audit_signal(KildeskattelovAIndkomstIndeholdelseDækket) == Sandt
@@ -1555,6 +1564,9 @@ virksomhedsunderskud.
 ? m5_kirkeskat_lov_ikke_medlem_dækket
 ? m5_kommuneskat_matcher_lønmodtager_fixture
 ? m5_kirkeskat_matcher_lønmodtager_fixture
+? m5_kommunal_skattekommune_bopæl_dækket
+? m5_kommunal_skattekommune_institution_dækket
+? m5_kommunal_par3_fraflytningsandel_dækket
 ? m5_kommunal_afregning_par7_dækket
 ? m5_kommunal_afregning_par15_dækket
 ? m5_kommunal_afregning_par16_dækket

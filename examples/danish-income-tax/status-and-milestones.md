@@ -40,7 +40,10 @@ efterreguleringsbeløb med januar/februar/marts-tredjedele tre år senere samt
 stk. 3's 3 pct.-tærskel og diskontoafledte tillæg. § 16, stk. 4 dækker nu også
 kommunens andel af virksomhedsskat, konjunkturudligningsskat,
 indkomstudligning og afskrivningslovens § 40 C-acontoskat med særskilt
-stat-til-kommune, kommune-til-stat og nettoafregning.
+stat-til-kommune, kommune-til-stat og nettoafregning. §§ 2-3 dækker nu også
+skattekommunevalg pr. 5. september, institution-/skibsundtagelser,
+Københavner-beregning ved KSL § 1, nr. 4-udrejse og forholdsmæssig
+tilflytningskommuneandel ved fraflytning fra skattekommunen.
 
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
@@ -489,6 +492,11 @@ Current municipal/church-tax and withholding dependency sources:
   - XML status on 2026-07-18: `Valid`
   - §§ 1, 5 and 6 are the first ordinary municipal-income-tax slice used by
     the wage-earner calculator.
+  - §§ 2-3 now cover tax-municipality selection at 5 September, institution and
+    Danish-ship exceptions, expatriate Copenhagen-basis tax under
+    Kildeskatteloven § 1, nr. 4, tax-liability entry after 5 September, and
+    quarter-based move allocation to a new municipality when the residence is
+    kept for at least 3 months.
   - §§ 7, 15 and 16 are the first municipal/church settlement slice:
     own-estimate versus state-guaranteed budget basis, monthly provisional
     twelfths, own-estimate after-regulation in three instalments, and the
@@ -1481,10 +1489,11 @@ Review candidates to revisit deliberately, not as broad churn:
   library-fee compensation, the 2026 youth exemption, and collection-reference
   posture. The first municipal/church
   slice now covers ordinary municipal tax on Personskatteloven taxable income,
-  church tax for Folkekirken members, and Kommuneskatteloven §§ 7/15/16
-  provisional payment, own-budget after-regulation, and stk. 3 supplement
-  formula plus stk. 4 business-tax/conjuncture/income-equalisation/acconto-tax
-  settlement. The first Kildeskatteloven
+  church tax for Folkekirken members, Kommuneskatteloven §§ 2-3 skattekommune
+  selection and move allocation, and Kommuneskatteloven §§ 7/15/16 provisional
+  payment, own-budget after-regulation, and stk. 3 supplement formula plus stk.
+  4 business-tax/conjuncture/income-equalisation/acconto-tax settlement. The
+  first Kildeskatteloven
   slice now covers ordinary wage A-income, withholding duty, e-skattekort card
   types, main-card period allowances, bikort without allowance, optional higher
   withholding percentage, base rounding, and the statutory 55 pct. no-card

@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./pengebeloeb
+@ importer ./skatteaar - parametre
 
 -- Kommuneskatteloven — afhængig lovkilde for kommunal indkomstskat.
 --
@@ -14,7 +15,7 @@ DocumentTitle: Bekendtgørelse af lov om kommunal indkomstskat
 PopularTitle: Kommuneskatteloven
 Status: Valid
 StartDate: 2019-09-13
-EndDate: 2026-06-23
+EndDate: 2026-07-01
 
 Retsinformation metadata viser senere ændringer, herunder LOV nr. 679 af
 03/06/2023 om opkrævning og inddrivelse af grundskyld m.v. og LOV nr. 720 af
@@ -33,6 +34,191 @@ i kildeskatteloven.
 # KommunalSkattepligtInput(indkomstskattepligtig_til_staten_efter_kildeskatteloven: Boolsk)
 
 | kommunal_indkomstskattepligt(input: KommunalSkattepligtInput) -> input.indkomstskattepligtig_til_staten_efter_kildeskatteloven
+
+----
+§ 2. Skattepligtige personer svarer for kalenderåret kommunal indkomstskat til
+den kommune (skattekommunen), hvor de har bopæl eller i mangel af bopæl har
+ophold den 5. september forud for det pågældende kalenderår.
+
+Den, hvis tilstedeværelse i en kommune skyldes indkaldelse til militærtjeneste
+eller anbringelse i et sygehus, i en institution for sindslidende eller
+åndssvage eller i fængsel eller lignende, og som samtidig har bopæl i en anden
+kommune, svarer skat til denne anden kommune som skattekommune.
+
+Har en person i øvrigt samtidig bopæl i to eller flere kommuner, er hans
+skattekommune den af kommunerne, hvor han må anses for at have sin hovedbopæl.
+
+Skatteministeren træffer i tvivlstilfælde den endelige administrative afgørelse
+med hensyn til spørgsmålet om, i hvilken kommune en person må anses for at have
+sin hovedbopæl.
+
+Stk. 2. Skattepligtige personer, der gør tjeneste eller varigt opholder sig om
+bord på skibe med hjemsted her i landet, og som hverken har bopæl eller ophold
+i nogen kommune den 5. september forud for det pågældende kalenderår, svarer
+kommunal indkomstskat til den kommune, der på denne dato nærmest må betragtes
+som deres hjemstedskommune.
+
+I tvivlstilfælde træffer skatteministeren den endelige administrative afgørelse.
+
+Stk. 3. Kommunalbestyrelsen i en kommune, der mener, at den for en skatteyder
+udpegede skattekommune ikke er den rette, jf. stk. 1 og 2, kan, for så vidt
+angår personer, der var skattepligtige den 5. september forud for det
+pågældende kalenderår, inden den 1. marts i kalenderåret rejse indsigelse
+herimod.
+
+Ved indtræden af skattepligt efter stk. 6 kan indsigelse rejses 5 måneder
+efter skattepligtens indtræden.
+
+En skatteyder kan rejse tilsvarende indsigelse indtil 3 måneder efter, at der
+er givet ham underretning om, hvilken kommune der anses for hans skattekommune.
+
+Opnås der ikke enighed mellem kommunerne eller med skatteyderen om, hvilken
+kommune der skal anses for skattekommune, afgøres spørgsmålet af told- og
+skatteforvaltningen.
+
+En skatteyder kan indbringe sagen for domstolene inden for 6 måneder efter, at
+der er givet skatteyderen underretning om den administrative afgørelse.
+
+Stk. 4. En skattepligtig person, der er omfattet af § 1, nr. 4, i
+kildeskatteloven, svarer for det eller de kalenderår, der følger efter
+udrejsen, i stedet for sædvanlig kommunal indkomstskat et skattebeløb, der
+fastsættes på grundlag af de regler, der gælder for beregningen af kommunal
+indkomstskat i Københavns Kommune.
+
+Hvis den pågældende er medlem af folkekirken, indgår også de regler, der gælder
+for beregningen af kirkeskat i Københavns Kommune, i fastsættelsen af
+skattebeløbet, jf. dog stk. 5.
+
+Skattebeløbet tilfalder statskassen, idet der dog for det kalenderår, i hvilket
+tilbageflytning her til landet måtte finde sted, sker fordeling af
+skattebeløbet efter reglerne i nærværende lovs § 3.
+
+Såfremt tilbageflytning finder sted efter den 5. september, svares den
+kommunale indkomstskat for det følgende kalenderår til den kommune, hvor
+skatteyderen på tidspunktet for tilbageflytningen har den i § 2 nævnte
+tilknytning.
+
+Stk. 5. En person fritages for den del af skattebeløbet efter stk. 4, der
+fastsættes på grundlag af de regler, der gælder for beregning af kirkeskat i
+Københavns Kommune, når det dokumenteres, at den pågældende har forpligtet sig
+til at yde bidrag af mindst samme størrelse til en menighed under Dansk Kirke i
+Udlandet eller Dansk Sømandskirke i fremmede Havne.
+
+Kirkeministeren kan fastsætte nærmere regler herom.
+
+Stk. 6. Ved skattepligts indtræden i kalenderåret svarer skatteyderen kommunal
+indkomstskat til den kommune, hvor han på tidspunktet for skattepligtens
+indtræden har den tilknytning, der er nævnt i denne paragraf.
+
+Indtræder skattepligten i tiden fra den 6. september til den 31. december,
+svares også den kommunale indkomstskat for det følgende kalenderår til denne
+kommune.
+
+Stk. 7. Er det ikke muligt efter foranstående bestemmelser at afgøre, til
+hvilken kommune en person skal svare kommunal indkomstskat, svares skatten til
+den kommune, der nærmest må betragtes som den pågældendes hjemstedskommune.
+
+I tvivlstilfælde træffer skatteministeren den endelige administrative afgørelse.
+----
+
+# KommunalSkattekommuneGrundlag = SkattekommuneBopælFemteSeptember | SkattekommuneOpholdFemteSeptember | SkattekommuneAndenBopælVedInstitutionMv | SkattekommuneHovedbopæl | SkattekommuneDanskSkibHjemsted | SkattekommuneHjemstedRestregel
+# KommunalSkattekommuneInput(bopælskommune_femte_september: Kommune, opholdskommune_femte_september: Kommune, anden_bopælskommune: Kommune, hovedbopælskommune: Kommune, hjemstedskommune: Kommune, har_bopæl_femte_september: Boolsk, har_ophold_femte_september: Boolsk, har_anden_bopælskommune: Boolsk, tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv: Boolsk, samtidig_bopæl_i_to_eller_flere_kommuner: Boolsk, tjeneste_eller_varigt_ophold_på_dansk_skib: Boolsk)
+# KommunalSkattekommuneResultat(skattekommune: Kommune, grundlag: KommunalSkattekommuneGrundlag, administrativ_tvivl_afgøres_af_minister: Boolsk)
+# KommunalPar2UdrejseInput(omfattet_af_kildeskattelov_par1_nr4: Boolsk, folkekirkemedlem: Boolsk, dokumenteret_udlandskirkebidrag_mindst_kirkeskat: Boolsk, københavn_kommunal_indkomstskat_kroner: Heltal, københavn_kirkeskat_kroner: Heltal)
+# KommunalPar2UdrejseResultat(tilfalder_statskassen: Boolsk, kirkeskat_medregnes: Boolsk, skattebeløb_kroner: Heltal)
+# KommunalPar2SkattepligtsindtrædenInput(indtrådt_i_kalenderåret: Boolsk, indtræden_efter_femte_september: Boolsk, kommune_ved_indtræden: Kommune)
+# KommunalPar2SkattepligtsindtrædenResultat(kommunal_indkomstskat_til_kommune_ved_indtræden: Boolsk, skattekommune_i_indtrædelsesåret: Kommune, følgende_kalenderår_også_samme_kommune: Boolsk, skattekommune_i_følgende_år: Kommune)
+
+| kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneHjemstedRestregel
+| exception kommunal_par2_bopæl_femte_september kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneBopælFemteSeptember under input.har_bopæl_femte_september && input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv == Falskt && input.samtidig_bopæl_i_to_eller_flere_kommuner == Falskt
+| exception kommunal_par2_ophold_uden_bopæl kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneOpholdFemteSeptember under input.har_bopæl_femte_september == Falskt && input.har_ophold_femte_september && input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv == Falskt
+| exception kommunal_par2_anden_bopæl_ved_institution kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneAndenBopælVedInstitutionMv under input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv && input.har_anden_bopælskommune
+| exception kommunal_par2_hovedbopæl_ved_flere_bopæle kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneHovedbopæl under input.samtidig_bopæl_i_to_eller_flere_kommuner && input.tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv == Falskt
+| exception kommunal_par2_dansk_skib_hjemsted kommunal_par2_skattekommune_grundlag(input: KommunalSkattekommuneInput) -> SkattekommuneDanskSkibHjemsted under input.tjeneste_eller_varigt_ophold_på_dansk_skib && input.har_bopæl_femte_september == Falskt && input.har_ophold_femte_september == Falskt
+| kommunal_par2_skattekommune(input: KommunalSkattekommuneInput) -> input.hjemstedskommune
+| exception kommunal_par2_bopælskommune kommunal_par2_skattekommune(input: KommunalSkattekommuneInput) -> input.bopælskommune_femte_september under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneBopælFemteSeptember
+| exception kommunal_par2_opholdskommune kommunal_par2_skattekommune(input: KommunalSkattekommuneInput) -> input.opholdskommune_femte_september under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneOpholdFemteSeptember
+| exception kommunal_par2_anden_bopælskommune kommunal_par2_skattekommune(input: KommunalSkattekommuneInput) -> input.anden_bopælskommune under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneAndenBopælVedInstitutionMv
+| exception kommunal_par2_hovedbopælskommune kommunal_par2_skattekommune(input: KommunalSkattekommuneInput) -> input.hovedbopælskommune under kommunal_par2_skattekommune_grundlag(input) == SkattekommuneHovedbopæl
+| kommunal_par2_skattekommune_resultat(input: KommunalSkattekommuneInput) -> KommunalSkattekommuneResultat(
+    skattekommune = kommunal_par2_skattekommune(input),
+    grundlag = kommunal_par2_skattekommune_grundlag(input),
+    administrativ_tvivl_afgøres_af_minister = kommunal_par2_skattekommune_grundlag(input) == SkattekommuneHovedbopæl || kommunal_par2_skattekommune_grundlag(input) == SkattekommuneDanskSkibHjemsted || kommunal_par2_skattekommune_grundlag(input) == SkattekommuneHjemstedRestregel
+)
+
+| kommunal_par2_udrejse_kirkeskat_medregnes(input: KommunalPar2UdrejseInput) -> input.omfattet_af_kildeskattelov_par1_nr4 && input.folkekirkemedlem && input.dokumenteret_udlandskirkebidrag_mindst_kirkeskat == Falskt
+| kommunal_par2_udrejse_skattebeløb_kroner(input: KommunalPar2UdrejseInput) -> 0
+| exception kommunal_par2_udrejse_københavn_skat kommunal_par2_udrejse_skattebeløb_kroner(input: KommunalPar2UdrejseInput) -> input.københavn_kommunal_indkomstskat_kroner + hvis kommunal_par2_udrejse_kirkeskat_medregnes(input) { input.københavn_kirkeskat_kroner } ellers { 0 } under input.omfattet_af_kildeskattelov_par1_nr4
+| kommunal_par2_udrejse_resultat(input: KommunalPar2UdrejseInput) -> KommunalPar2UdrejseResultat(
+    tilfalder_statskassen = input.omfattet_af_kildeskattelov_par1_nr4,
+    kirkeskat_medregnes = kommunal_par2_udrejse_kirkeskat_medregnes(input),
+    skattebeløb_kroner = kommunal_par2_udrejse_skattebeløb_kroner(input)
+)
+
+| kommunal_par2_indtræden_følgende_år_samme_kommune(input: KommunalPar2SkattepligtsindtrædenInput) -> input.indtrådt_i_kalenderåret && input.indtræden_efter_femte_september
+| kommunal_par2_skattepligtsindtræden_resultat(input: KommunalPar2SkattepligtsindtrædenInput) -> KommunalPar2SkattepligtsindtrædenResultat(
+    kommunal_indkomstskat_til_kommune_ved_indtræden = input.indtrådt_i_kalenderåret,
+    skattekommune_i_indtrædelsesåret = input.kommune_ved_indtræden,
+    følgende_kalenderår_også_samme_kommune = kommunal_par2_indtræden_følgende_år_samme_kommune(input),
+    skattekommune_i_følgende_år = input.kommune_ved_indtræden
+)
+
+----
+§ 3. Fraflytter en skatteyder skattekommunen, således at bopælen i denne
+kommune opgives, fordeler staten en andel af den kommunale indkomstskat, der
+påhviler skatteyderen, til tilflytningskommunen.
+
+Dette gælder dog kun, hvis bopælen i tilflytningskommunen bevares i mindst 3
+måneder.
+
+Stk. 2. Andelen fastsættes forholdsmæssigt på grundlag af den periode, hvori
+skatteyderen ifølge oplysningerne i det centrale skatteyderregister (CSR) har
+haft bopæl i tilflytningskommunen, idet periodens varighed regnes fra
+begyndelsen af det kvartal, der følger efter fraflytningen og indtil udgangen af
+det kvartal, hvori der eventuelt sker fraflytning.
+
+Varigheden regnes dog fra flyttedagen, hvis flytningen sker den første dag i et
+kvartal.
+
+Stk. 3. Flytter skatteyderen fra tilflytningskommunen til en anden kommune end
+skattekommunen, skal også den nye tilflytningskommune have andel i
+kommuneskatten efter reglerne i stk. 1 og 2.
+
+Stk. 4. Fordelingen efter stk. 1-3 kan undlades, hvis det af administrative
+grunde findes uhensigtsmæssigt at foretage den.
+
+Stk. 5. Skatteministeren kan fastsætte nærmere regler om afregningen af de
+beløb, der tilkommer en andelsberettiget kommune.
+----
+
+# KommunalPar3FlytteperiodeInput(fraflytningsmåned: Heltal, fraflytningsdag: Heltal, tilflytningsbopæl_slutkvartal: Heltal)
+# KommunalPar3FlytteperiodeResultat(flytning_første_dag_i_kvartal: Boolsk, startkvartal: Heltal, slutkvartal: Heltal, fordelingskvartaler: Heltal)
+# KommunalPar3TilflytningsandelInput(skattekommune: Kommune, tilflytningskommune: Kommune, kommunal_indkomstskat_kroner: Heltal, fraflytter_skattekommune: Boolsk, bopæl_i_tilflytningskommune_bevaret_mindst_3_måneder: Boolsk, administrativt_undladt: Boolsk, periode: KommunalPar3FlytteperiodeInput)
+# KommunalPar3TilflytningsandelResultat(skattekommune: Kommune, tilflytningskommune: Kommune, tilflytningskommune_har_andel: Boolsk, periode: KommunalPar3FlytteperiodeResultat, tilflytningskommune_andel_kroner: Heltal, resterende_til_skattekommune_kroner: Heltal)
+
+| kommunal_par3_månedens_kvartal(måned: Heltal) -> hvis måned <= 3 { 1 } ellers { hvis måned <= 6 { 2 } ellers { hvis måned <= 9 { 3 } ellers { 4 } } }
+| kommunal_par3_flyttedag_første_i_kvartal(input: KommunalPar3FlytteperiodeInput) -> input.fraflytningsdag == 1 && (input.fraflytningsmåned == 1 || input.fraflytningsmåned == 4 || input.fraflytningsmåned == 7 || input.fraflytningsmåned == 10)
+| kommunal_par3_startkvartal(input: KommunalPar3FlytteperiodeInput) -> kommunal_par3_månedens_kvartal(input.fraflytningsmåned) + 1
+| exception kommunal_par3_første_kvartalsdag_tæller_fra_flyttedag kommunal_par3_startkvartal(input: KommunalPar3FlytteperiodeInput) -> kommunal_par3_månedens_kvartal(input.fraflytningsmåned) under kommunal_par3_flyttedag_første_i_kvartal(input)
+| kommunal_par3_fordelingskvartaler(input: KommunalPar3FlytteperiodeInput) -> penge_positivt_beløb(input.tilflytningsbopæl_slutkvartal - kommunal_par3_startkvartal(input) + 1)
+| kommunal_par3_flytteperiode_resultat(input: KommunalPar3FlytteperiodeInput) -> KommunalPar3FlytteperiodeResultat(
+    flytning_første_dag_i_kvartal = kommunal_par3_flyttedag_første_i_kvartal(input),
+    startkvartal = kommunal_par3_startkvartal(input),
+    slutkvartal = input.tilflytningsbopæl_slutkvartal,
+    fordelingskvartaler = kommunal_par3_fordelingskvartaler(input)
+)
+
+| kommunal_par3_tilflytningskommune_har_andel(input: KommunalPar3TilflytningsandelInput) -> input.fraflytter_skattekommune && input.bopæl_i_tilflytningskommune_bevaret_mindst_3_måneder && input.administrativt_undladt == Falskt
+| kommunal_par3_tilflytningsandel_kroner(input: KommunalPar3TilflytningsandelInput) -> 0
+| exception kommunal_par3_forholdsmæssig_andel kommunal_par3_tilflytningsandel_kroner(input: KommunalPar3TilflytningsandelInput) -> input.kommunal_indkomstskat_kroner * kommunal_par3_fordelingskvartaler(input.periode) / 4 under kommunal_par3_tilflytningskommune_har_andel(input)
+| kommunal_par3_tilflytningsandel_resultat(input: KommunalPar3TilflytningsandelInput) -> KommunalPar3TilflytningsandelResultat(
+    skattekommune = input.skattekommune,
+    tilflytningskommune = input.tilflytningskommune,
+    tilflytningskommune_har_andel = kommunal_par3_tilflytningskommune_har_andel(input),
+    periode = kommunal_par3_flytteperiode_resultat(input.periode),
+    tilflytningskommune_andel_kroner = kommunal_par3_tilflytningsandel_kroner(input),
+    resterende_til_skattekommune_kroner = input.kommunal_indkomstskat_kroner - kommunal_par3_tilflytningsandel_kroner(input)
+)
 
 ----
 § 5. Kommunal indkomstskat beregnes på grundlag af den i henhold til

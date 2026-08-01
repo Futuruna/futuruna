@@ -1,0 +1,127 @@
+@ sprog da
+
+@ importer ./kommuneskatteloven
+
+-- Scenarie for Kommuneskatteloven §§ 2-3.
+--
+-- Lovteksten ligger i kommuneskatteloven.runa. Scenariet holder kommunevalg og
+-- fraflytningsandel adskilt fra §§ 7/15/16-afregningsscenariet.
+
+= kommunal_skattekommune_bopæl_input = KommunalSkattekommuneInput(
+    bopælskommune_femte_september = København,
+    opholdskommune_femte_september = Gentofte,
+    anden_bopælskommune = Gentofte,
+    hovedbopælskommune = Langeland,
+    hjemstedskommune = København,
+    har_bopæl_femte_september = Sandt,
+    har_ophold_femte_september = Sandt,
+    har_anden_bopælskommune = Falskt,
+    tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv = Falskt,
+    samtidig_bopæl_i_to_eller_flere_kommuner = Falskt,
+    tjeneste_eller_varigt_ophold_på_dansk_skib = Falskt
+)
+= kommunal_skattekommune_bopæl_fixture = kommunal_par2_skattekommune_resultat(kommunal_skattekommune_bopæl_input)
+
+= kommunal_skattekommune_institution_input = KommunalSkattekommuneInput(
+    bopælskommune_femte_september = Langeland,
+    opholdskommune_femte_september = Langeland,
+    anden_bopælskommune = Gentofte,
+    hovedbopælskommune = Langeland,
+    hjemstedskommune = København,
+    har_bopæl_femte_september = Falskt,
+    har_ophold_femte_september = Sandt,
+    har_anden_bopælskommune = Sandt,
+    tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv = Sandt,
+    samtidig_bopæl_i_to_eller_flere_kommuner = Falskt,
+    tjeneste_eller_varigt_ophold_på_dansk_skib = Falskt
+)
+= kommunal_skattekommune_institution_fixture = kommunal_par2_skattekommune_resultat(kommunal_skattekommune_institution_input)
+
+= kommunal_skattekommune_skib_input = KommunalSkattekommuneInput(
+    bopælskommune_femte_september = København,
+    opholdskommune_femte_september = Gentofte,
+    anden_bopælskommune = København,
+    hovedbopælskommune = Gentofte,
+    hjemstedskommune = Langeland,
+    har_bopæl_femte_september = Falskt,
+    har_ophold_femte_september = Falskt,
+    har_anden_bopælskommune = Falskt,
+    tilstedeværelse_skyldes_militær_sygehus_institution_fængsel_mv = Falskt,
+    samtidig_bopæl_i_to_eller_flere_kommuner = Falskt,
+    tjeneste_eller_varigt_ophold_på_dansk_skib = Sandt
+)
+= kommunal_skattekommune_skib_fixture = kommunal_par2_skattekommune_resultat(kommunal_skattekommune_skib_input)
+
+= kommunal_udrejse_kirkebidrag_fixture = kommunal_par2_udrejse_resultat(KommunalPar2UdrejseInput(
+    omfattet_af_kildeskattelov_par1_nr4 = Sandt,
+    folkekirkemedlem = Sandt,
+    dokumenteret_udlandskirkebidrag_mindst_kirkeskat = Sandt,
+    københavn_kommunal_indkomstskat_kroner = 100000,
+    københavn_kirkeskat_kroner = 3000
+))
+
+= kommunal_skattepligt_indtræden_fixture = kommunal_par2_skattepligtsindtræden_resultat(KommunalPar2SkattepligtsindtrædenInput(
+    indtrådt_i_kalenderåret = Sandt,
+    indtræden_efter_femte_september = Sandt,
+    kommune_ved_indtræden = Gentofte
+))
+
+= kommunal_par3_april_to_fordelingskvartaler_fixture = kommunal_par3_tilflytningsandel_resultat(KommunalPar3TilflytningsandelInput(
+    skattekommune = København,
+    tilflytningskommune = Gentofte,
+    kommunal_indkomstskat_kroner = 120000,
+    fraflytter_skattekommune = Sandt,
+    bopæl_i_tilflytningskommune_bevaret_mindst_3_måneder = Sandt,
+    administrativt_undladt = Falskt,
+    periode = KommunalPar3FlytteperiodeInput(
+        fraflytningsmåned = 4,
+        fraflytningsdag = 2,
+        tilflytningsbopæl_slutkvartal = 4
+    )
+))
+
+= kommunal_par3_første_kvartalsdag_fixture = kommunal_par3_tilflytningsandel_resultat(KommunalPar3TilflytningsandelInput(
+    skattekommune = København,
+    tilflytningskommune = Gentofte,
+    kommunal_indkomstskat_kroner = 120000,
+    fraflytter_skattekommune = Sandt,
+    bopæl_i_tilflytningskommune_bevaret_mindst_3_måneder = Sandt,
+    administrativt_undladt = Falskt,
+    periode = KommunalPar3FlytteperiodeInput(
+        fraflytningsmåned = 4,
+        fraflytningsdag = 1,
+        tilflytningsbopæl_slutkvartal = 4
+    )
+))
+
+= kommunal_par3_under_tre_måneder_fixture = kommunal_par3_tilflytningsandel_resultat(KommunalPar3TilflytningsandelInput(
+    skattekommune = København,
+    tilflytningskommune = Langeland,
+    kommunal_indkomstskat_kroner = 120000,
+    fraflytter_skattekommune = Sandt,
+    bopæl_i_tilflytningskommune_bevaret_mindst_3_måneder = Falskt,
+    administrativt_undladt = Falskt,
+    periode = KommunalPar3FlytteperiodeInput(
+        fraflytningsmåned = 7,
+        fraflytningsdag = 1,
+        tilflytningsbopæl_slutkvartal = 3
+    )
+))
+
+| kommunal_par2_bopæl_skattekommune: kommunal_skattekommune_bopæl_fixture -> kommunal_skattekommune_bopæl_fixture.skattekommune == København && kommunal_skattekommune_bopæl_fixture.grundlag == SkattekommuneBopælFemteSeptember
+| kommunal_par2_institution_anden_bopæl: kommunal_skattekommune_institution_fixture -> kommunal_skattekommune_institution_fixture.skattekommune == Gentofte && kommunal_skattekommune_institution_fixture.grundlag == SkattekommuneAndenBopælVedInstitutionMv
+| kommunal_par2_skib_hjemsted: kommunal_skattekommune_skib_fixture -> kommunal_skattekommune_skib_fixture.skattekommune == Langeland && kommunal_skattekommune_skib_fixture.grundlag == SkattekommuneDanskSkibHjemsted && kommunal_skattekommune_skib_fixture.administrativ_tvivl_afgøres_af_minister == Sandt
+| kommunal_par2_udrejse_kirkebidrag_fritager_kirkedel: kommunal_udrejse_kirkebidrag_fixture -> kommunal_udrejse_kirkebidrag_fixture.tilfalder_statskassen == Sandt && kommunal_udrejse_kirkebidrag_fixture.kirkeskat_medregnes == Falskt && kommunal_udrejse_kirkebidrag_fixture.skattebeløb_kroner == 100000
+| kommunal_par2_skattepligt_efter_femte_september_låser_følgende_år: kommunal_skattepligt_indtræden_fixture -> kommunal_skattepligt_indtræden_fixture.kommunal_indkomstskat_til_kommune_ved_indtræden == Sandt && kommunal_skattepligt_indtræden_fixture.følgende_kalenderår_også_samme_kommune == Sandt && kommunal_skattepligt_indtræden_fixture.skattekommune_i_følgende_år == Gentofte
+| kommunal_par3_april_flytning_tæller_fra_næste_kvartal: kommunal_par3_april_to_fordelingskvartaler_fixture -> kommunal_par3_april_to_fordelingskvartaler_fixture.tilflytningskommune_har_andel == Sandt && kommunal_par3_april_to_fordelingskvartaler_fixture.periode.startkvartal == 3 && kommunal_par3_april_to_fordelingskvartaler_fixture.periode.fordelingskvartaler == 2 && kommunal_par3_april_to_fordelingskvartaler_fixture.tilflytningskommune_andel_kroner == 60000 && kommunal_par3_april_to_fordelingskvartaler_fixture.resterende_til_skattekommune_kroner == 60000
+| kommunal_par3_første_kvartalsdag_tæller_fra_flyttedag: kommunal_par3_første_kvartalsdag_fixture -> kommunal_par3_første_kvartalsdag_fixture.periode.flytning_første_dag_i_kvartal == Sandt && kommunal_par3_første_kvartalsdag_fixture.periode.startkvartal == 2 && kommunal_par3_første_kvartalsdag_fixture.periode.fordelingskvartaler == 3 && kommunal_par3_første_kvartalsdag_fixture.tilflytningskommune_andel_kroner == 90000
+| kommunal_par3_under_tre_måneder_ingen_andel: kommunal_par3_under_tre_måneder_fixture -> kommunal_par3_under_tre_måneder_fixture.tilflytningskommune_har_andel == Falskt && kommunal_par3_under_tre_måneder_fixture.tilflytningskommune_andel_kroner == 0 && kommunal_par3_under_tre_måneder_fixture.resterende_til_skattekommune_kroner == 120000
+
+? kommunal_par2_bopæl_skattekommune
+? kommunal_par2_institution_anden_bopæl
+? kommunal_par2_skib_hjemsted
+? kommunal_par2_udrejse_kirkebidrag_fritager_kirkedel
+? kommunal_par2_skattepligt_efter_femte_september_låser_følgende_år
+? kommunal_par3_april_flytning_tæller_fra_næste_kvartal
+? kommunal_par3_første_kvartalsdag_tæller_fra_flyttedag
+? kommunal_par3_under_tre_måneder_ingen_andel
