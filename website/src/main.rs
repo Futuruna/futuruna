@@ -311,8 +311,9 @@ fn Hero() -> Element {
                     span { class: "{fade_class}", "{word}" }
                 }
                 div { class: "hero-actions",
-                    a { class: "btn btn-primary", href: "/playground", "Try it" }
-                    a { class: "btn btn-secondary", href: "/why", "Learn more" }
+                    a { class: "btn btn-primary", href: "#ai-guide", "AI Setup" }
+                    a { class: "btn btn-secondary", href: "/why", "Learn More" }
+                    a { class: "btn btn-tertiary", href: "/playground", "Try it yourself" }
                 }
             }
         }
