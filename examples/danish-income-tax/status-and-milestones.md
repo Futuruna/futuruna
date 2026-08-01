@@ -365,8 +365,8 @@ Current § 4 and § 13 amendment/dependency sources:
     downstream personal-income/share-income routing posture.
   - § 16 A is modeled as the Personskatteloven § 4, stk. 1, nr. 4 dividend
     dependency, with ordinary taxable dividends flowing to capital income when
-    they are outside § 4 a share income and the § 4, stk. 4 personal
-    reclassification branches kept explicit.
+    a typed § 4 a single-post result places them outside share income, and the
+    § 4, stk. 4 personal reclassification branches kept explicit.
   - § 12 B is modeled as the Personskatteloven § 4, stk. 1, nr. 15
     dependency for taxable and deductible running-payment saldo amounts under
     stk. 4-7 and stk. 9, including stk. 10 application posture and stk. 11
@@ -571,7 +571,8 @@ encoded as a temporal rule on top of the consolidation.
   nr. 1, the LL § 8, stk. 3 dependency consumed by § 4, stk. 1, nr. 7, and
   the LL § 12 B dependency consumed by § 4, stk. 1, nr. 15, plus the LL
   § 14 A dependency consumed by § 4, stk. 1, nr. 10 and the LL § 16 A
-  dividend slice consumed by § 4, stk. 1, nr. 4.
+  dividend slice consumed by § 4, stk. 1, nr. 4 through a typed § 4 a
+  share-income classification result.
 - `ligningsloven_cfc.runa` exists and checks/runs with `runa run`; it covers
   the LL § 16 H and § 16 I, stk. 6-7 CFC dependency consumed by
   Personskatteloven § 4 b.
@@ -955,11 +956,14 @@ Current decision:
   surplus/deficit amount for Personskatteloven § 4, stk. 1, nr. 6, avoiding a
   fragile boolean/category scalar at the Personskatteloven boundary.
 - `Ligningslov16ASag` uses product-scoped `|` rules for the LL § 16 A dividend
-  slice consumed by `Par4Stk1Nr4Sag`. `Par4Stk1Nr4Sag`,
-  `Par4Stk1Nr5aSag` and `Par4Stk1Nr5bSag` keep the original amount,
-  capital-income classification and personal-income reclassification together
-  so the § 4 aggregate can move amounts between net capital income and
-  personal income without losing the source reason. `Par4Stk1Nr5aSag` now
+  slice consumed by `Par4Stk1Nr4Sag`. `Par4aAktiepostResultat` gives § 4,
+  stk. 1, nr. 4 a typed answer to whether the same dividend is already § 4 a
+  share income, replacing the former loose `ikke_aktieindkomst_efter_par4a`
+  input flag. `Par4Stk1Nr4Sag`, `Par4Stk1Nr5aSag` and `Par4Stk1Nr5bSag` keep
+  the original amount, capital-income classification and personal-income
+  reclassification together so the § 4 aggregate can move amounts between net
+  capital income and personal income without losing the source reason.
+  `Par4Stk1Nr5aSag` now
   gets its statutory entity boundary from `Selskabsskattelov1Stk1Nr6Resultat`
   instead of raw booleans, so the § 1, stk. 1, nr. 6 source line, the
   investment-association carve-out and the § 3/fondsbeskatningsloven exclusions

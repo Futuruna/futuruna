@@ -8,8 +8,8 @@
 
 = par4_stk1_nr4_5_audit_aggregat = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
     poster = [
-        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_udbytte_input, Sandt, NormalForrentning),
-        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_andelsudlodning_personlig_input, Sandt, IkkeNormalForrentning),
+        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_udbytte_input, AktiepostUdenforStk1, NormalForrentning),
+        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_andelsudlodning_personlig_input, AktiepostUdenforStk1, IkkeNormalForrentning),
         par4_stk1_nr5_kapitalpost_fra_aktieavancebeskatningslov(abl19c_kapital_input),
         par4_stk1_nr5a_kapitalpost(par4_stk1_nr5a_fixture_input),
         par4_stk1_nr5b_kapitalpost(par4_stk1_nr5b_fixture_input),
@@ -18,7 +18,8 @@
     omkostninger = []
 ))
 
-| par4_stk1_nr4_audit_ll16a_udbytte_til_kapital: par4_stk1_nr4_udbytte_fixture -> par4_stk1_nr4_udbytte_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr4_udbytte_fixture.kapitalindkomst_kroner == 10000
+| par4_stk1_nr4_audit_ll16a_udbytte_til_kapital: par4_stk1_nr4_udbytte_fixture -> par4_stk1_nr4_udbytte_fixture.par4a_afgrænsning == AktiepostUdenforStk1 && par4_stk1_nr4_udbytte_fixture.ikke_aktieindkomst_efter_par4a == Sandt && par4_stk1_nr4_udbytte_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr4_udbytte_fixture.kapitalindkomst_kroner == 10000
+| par4_stk1_nr4_audit_par4a_aktieindkomst_blokerer_kapital: par4_stk1_nr4_udbytte_aktieindkomst_fixture -> par4_stk1_nr4_udbytte_aktieindkomst_fixture.aktieindkomst_efter_par4a_kroner == 10000 && par4_stk1_nr4_udbytte_aktieindkomst_fixture.ikke_aktieindkomst_efter_par4a == Falskt && par4_stk1_nr4_udbytte_aktieindkomst_fixture.kapitalindkomst_kroner == 0
 | par4_stk4_audit_andelsudlodning_til_personlig: par4_stk1_nr4_andelsudlodning_personlig_fixture -> par4_stk1_nr4_andelsudlodning_personlig_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr4_andelsudlodning_personlig_fixture.personlig_reklassifikation == AndelsUdlodningIkkeNormal
 | par4_stk1_nr5_audit_abl19c_til_kapital: par4_stk1_nr5_abl19c_fixture -> par4_stk1_nr5_abl19c_fixture.kapitalindkomst_kroner == 12000 && par4_stk1_nr5_abl19c_fixture.personlig_reklassifikation == IngenPersonligReklassifikation
 | par4_stk1_nr5_audit_abl22_tab_til_kapital: par4_stk1_nr5_abl22_tab_fixture -> par4_stk1_nr5_abl22_tab_fixture.kapitalindkomst_kroner == -3000
@@ -32,6 +33,7 @@
 | par4_stk1_nr4_5_audit_aggregat: par4_stk1_nr4_5_audit_aggregat -> par4_stk1_nr4_5_audit_aggregat.postbeløb_i_kapitalindkomst_kroner == 31000 && par4_stk1_nr4_5_audit_aggregat.nettokapitalindkomst_kroner == 31000 && par4_stk1_nr4_5_audit_aggregat.omklassificeret_personlig_indkomst_kroner == 11000
 
 ? par4_stk1_nr4_audit_ll16a_udbytte_til_kapital
+? par4_stk1_nr4_audit_par4a_aktieindkomst_blokerer_kapital
 ? par4_stk4_audit_andelsudlodning_til_personlig
 ? par4_stk1_nr5_audit_abl19c_til_kapital
 ? par4_stk1_nr5_audit_abl22_tab_til_kapital

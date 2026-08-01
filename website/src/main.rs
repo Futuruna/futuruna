@@ -2768,141 +2768,9 @@ const DK_KAP10: &str = include_str!("../../examples/danish-constitution/kapitel-
 const DK_KAP11: &str = include_str!("../../examples/danish-constitution/kapitel-11.runa");
 const DK_AUDIT: &str = include_str!("../../examples/danish-constitution/grundlov.audit.runa");
 
-// Danish personal income tax law .runa files
-const TAX_STATUS_MD: &str =
-    include_str!("../../examples/danish-income-tax/status-and-milestones.md");
-const TAX_SOURCE_STATUS: &str = include_str!("../../examples/danish-income-tax/source-status.runa");
-const TAX_MONEY: &str = include_str!("../../examples/danish-income-tax/pengebeloeb.runa");
-const TAX_SELSKABSSKAT: &str =
-    include_str!("../../examples/danish-income-tax/selskabsskatteloven.runa");
-const TAX_KAP01: &str = include_str!("../../examples/danish-income-tax/kapitel-01-indkomst.runa");
-const TAX_KAP02: &str = include_str!("../../examples/danish-income-tax/kapitel-02-statsskat.runa");
-const TAX_KAP03: &str =
-    include_str!("../../examples/danish-income-tax/kapitel-03-personfradrag.runa");
-const TAX_KAP04: &str =
-    include_str!("../../examples/danish-income-tax/kapitel-04-omregning-skatteloft.runa");
-const TAX_KAP05: &str =
-    include_str!("../../examples/danish-income-tax/kapitel-05-afsluttende-bestemmelser.runa");
-const TAX_AM: &str =
-    include_str!("../../examples/danish-income-tax/arbejdsmarkedsbidragsloven.runa");
-const TAX_KOMMUNE: &str = include_str!("../../examples/danish-income-tax/kommuneskatteloven.runa");
-const TAX_KIRKE: &str = include_str!("../../examples/danish-income-tax/folkekirkens-oekonomi.runa");
-const TAX_KILDESKAT: &str = include_str!("../../examples/danish-income-tax/kildeskatteloven.runa");
-const TAX_KILDESKAT_BEK: &str =
-    include_str!("../../examples/danish-income-tax/kildeskattebekendtgoerelsen.runa");
-const TAX_FORSKUDSREG_2026: &str =
-    include_str!("../../examples/danish-income-tax/forskudsregistrering_2026.runa");
-const TAX_SLUTOPGOERELSE: &str =
-    include_str!("../../examples/danish-income-tax/slutopgoerelse.runa");
-const TAX_OPKRAEVNING: &str =
-    include_str!("../../examples/danish-income-tax/opkraevningsloven.runa");
-const TAX_LIGNINGSFRADRAG: &str =
-    include_str!("../../examples/danish-income-tax/ligningsloven_fradrag.runa");
-const TAX_LIGNINGSKAPITAL: &str =
-    include_str!("../../examples/danish-income-tax/ligningsloven_kapitalindkomst.runa");
-const TAX_LIGNINGSCFC: &str =
-    include_str!("../../examples/danish-income-tax/ligningsloven_cfc.runa");
-const TAX_KURSGEVINST: &str =
-    include_str!("../../examples/danish-income-tax/kursgevinstloven.runa");
-const TAX_AKTIEAVANCE: &str =
-    include_str!("../../examples/danish-income-tax/aktieavancebeskatningsloven.runa");
-const TAX_VIRKSOMHEDSSKAT: &str =
-    include_str!("../../examples/danish-income-tax/virksomhedsskatteloven.runa");
-const TAX_SKATTEKONTROL: &str =
-    include_str!("../../examples/danish-income-tax/skattekontrolloven.runa");
-const TAX_AFSKRIVNING: &str =
-    include_str!("../../examples/danish-income-tax/afskrivningsloven.runa");
-const TAX_PENSIONSBESKATNING: &str =
-    include_str!("../../examples/danish-income-tax/pensionsbeskatningsloven.runa");
-const TAX_EJENDOMSAVANCE: &str =
-    include_str!("../../examples/danish-income-tax/ejendomsavancebeskatningsloven.runa");
-const TAX_EJENDOMSSKAT: &str =
-    include_str!("../../examples/danish-income-tax/ejendomsskatteloven.runa");
-const TAX_PARAMS: &str = include_str!("../../examples/danish-income-tax/skatteaar-parametre.runa");
-const TAX_CALC: &str = include_str!("../../examples/danish-income-tax/loenmodtager_beregning.runa");
-const TAX_FIXTURES: &str =
-    include_str!("../../examples/danish-income-tax/loenmodtager-fixtures.scenario.runa");
-const TAX_PAR3_FRADRAG_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par3-fradrag.audit.runa");
-const TAX_PAR4_RENTER_LIGNINGSLOV6_AUDIT: &str = include_str!(
-    "../../examples/danish-income-tax/personskatteloven-par4-renter-ligningslov6.audit.runa"
-);
-const TAX_PAR4_KURSGEVINST_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par4-kursgevinst.audit.runa");
-const TAX_PAR4_VIRKSOMHEDSSKAT_KAPITALAFKAST_AUDIT: &str = include_str!(
-    "../../examples/danish-income-tax/personskatteloven-par4-virksomhedsskattelov-kapitalafkast.audit.runa"
-);
-const TAX_PAR4_AKTIE_KAPITAL_AUDIT: &str = include_str!(
-    "../../examples/danish-income-tax/personskatteloven-par4-aktie-kapital.audit.runa"
-);
-const TAX_PAR4_LIGNINGSLOV7N_AUDIT: &str = include_str!(
-    "../../examples/danish-income-tax/personskatteloven-par4-ligningslov7n.audit.runa"
-);
-const TAX_PAR4_EJENDOMSSKAT_AUDIT: &str = include_str!(
-    "../../examples/danish-income-tax/personskatteloven-par4-ejendomsskattelov.audit.runa"
-);
-const TAX_PAR4_LIGNINGSLOV8STK3_AUDIT: &str = include_str!(
-    "../../examples/danish-income-tax/personskatteloven-par4-ligningslov8stk3.audit.runa"
-);
-const TAX_PAR4_VIRKSOMHEDSSKAT11_AUDIT: &str = include_str!(
-    "../../examples/danish-income-tax/personskatteloven-par4-virksomhedsskattelov11.audit.runa"
-);
-const TAX_PAR4_PASSIV_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par4-passiv-virksomhed.audit.runa");
-const TAX_PAR4_LIGNINGSLOV14A_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par4-ligningslov14a.audit.runa");
-const TAX_PAR4_UDLEJNING_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par4-udlejning-driftsmidler.audit.runa");
-const TAX_PAR4_LIGNINGSLOV5C_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par4-ligningslov5c.audit.runa");
-const TAX_PAR4_PENSIONSBESKATNINGSLOV53A_AUDIT: &str = include_str!(
-    "../../examples/danish-income-tax/personskatteloven-par4-pensionsbeskatningslov53a.audit.runa"
-);
-const TAX_PAR4_EJENDOMSAVANCE_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par4-ejendomsavance.audit.runa");
-const TAX_PAR4_LIGNINGSLOV12B_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par4-ligningslov12b.audit.runa");
-const TAX_PAR4_AFSKRIVNINGSLOV40C_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par4-afskrivningslov40c.audit.runa");
-const TAX_PAR4_FREMLEJE_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par4-fremleje.audit.runa");
-const TAX_PAR4B_CFC_LIGNINGSLOV_AUDIT: &str = include_str!(
-    "../../examples/danish-income-tax/personskatteloven-par4b-cfc-ligningslov.audit.runa"
-);
-const TAX_LOENMODTAGER_PAR11_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/loenmodtager-par11.audit.runa");
-const TAX_LOENMODTAGER_PAR13_SPOUSE_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/loenmodtager-par13-spouse.audit.runa");
-const TAX_LOENMODTAGER_PAR13_PRIORITY_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/loenmodtager-par13-priority.audit.runa");
-const TAX_PAR13A_GAELDSORDNING_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par13a-gaeldsordning.audit.runa");
-const TAX_SKATDK_EXTERNAL: &str =
-    include_str!("../../examples/danish-income-tax/skatdk-2026-ekstern.scenario.runa");
-const TAX_AKTIE_PENSION_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/aktieindkomst-pension.audit.runa");
-const TAX_PAR4A_AKTIEAVANCE_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-par4a-aktieavance.audit.runa");
-const TAX_AKTIE_SETTLEMENT_SCENARIO: &str =
-    include_str!("../../examples/danish-income-tax/aktieindkomst-slutopgoerelse.scenario.runa");
-const TAX_PARTIAL_YEAR: &str =
-    include_str!("../../examples/danish-income-tax/delaar-scenarier.scenario.runa");
-const TAX_OMREGNING_EXTERNAL: &str =
-    include_str!("../../examples/danish-income-tax/omregning-skatteloft-ekstern.scenario.runa");
-const TAX_HOUSEHOLD: &str =
-    include_str!("../../examples/danish-income-tax/husholdning-scenarier.scenario.runa");
-const TAX_HOUSEHOLD_BENEFIT_CLIFFS: &str =
-    include_str!("../../examples/danish-income-tax/husholdning-benefit-cliffs.audit.runa");
-const TAX_SETTLEMENT_SCENARIO: &str =
-    include_str!("../../examples/danish-income-tax/slutopgoerelse.scenario.runa");
-const TAX_REMITTANCE: &str =
-    include_str!("../../examples/danish-income-tax/indeholdelse-afregning.scenario.runa");
-const TAX_BOMB_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-bomber.audit.runa");
-const TAX_CONFISCATORY_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven-konfiskatorisk.audit.runa");
-const TAX_AUDIT: &str =
-    include_str!("../../examples/danish-income-tax/personskatteloven.audit.runa");
+// Danish personal income tax website overview
+const TAX_WEBSITE_OVERVIEW_MD: &str =
+    include_str!("../../examples/danish-income-tax/website-overblik.md");
 
 // US Constitution .runa files
 const US_CONSTITUTION: &str = include_str!("../../examples/us-constitution/constitution.runa");
@@ -3113,15 +2981,14 @@ fn ResearchIndex() -> Element {
                     div { class: "research-card-rune rune-pipe", "|" }
                     h2 { class: "research-card-title", "Personskatteloven" }
                     p { class: "research-card-desc",
-                        "Danish personal income tax law encoded as Futuruna: source lineage, \
-                         first-pass §§ 1-28 coverage, source-backed tax-year parameter packs and § 20 regulationstal, wage-earner \
-                         calculation fixtures through § 1/§ 2 taxable-income composition and personfradrag, § 13 stk. 4 spouse-offset \
-                         fixtures, complex § 13 calculator fixtures, § 9/§ 12 split \
-                         personfradrag state-tax reduction ordering plus § 9 non-state reductions, § 10 stk. 3 spouse \
-                         personfradrag transfer, § 26 annual settlement plus spouse-pair transition-compensation, component-level stk. 5/stk. 8 net-capital offsets with stk. 6 bundfradrag transfer into the annual line items, and audit signals for \
-                         missing dependencies and legal cliffs."
+                        "Dansk personskatteret kodet i Futuruna: kildepostur, \
+                         første beregningsegnede §§ 1-28-dækning, kildefaste \
+                         skatteårsparametre, lønmodtagerberegning, personfradrag, \
+                         ægtefællemodregning, underskud, aktieindkomst, \
+                         slutopgørelse og audit-signaler for manglende afhængigheder \
+                         og retlige knæk."
                     }
-                    span { class: "research-card-meta", "Skatteret \u{00B7} Dansk \u{00B7} Research slice" }
+                    span { class: "research-card-meta", "Skatteret \u{00B7} Dansk \u{00B7} Projektstatus" }
                 }
                 // US Constitution
                 a { class: "research-card", href: "/research/us-constitution",
@@ -3531,7 +3398,7 @@ fn ResearchDanishConstitutionAudit() -> Element {
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Revision" }
-                a { class: "why-toc-link research-back", href: "/research", "\u{2190} All Research" }
+                a { class: "why-toc-link research-back", href: "/research", "\u{2190} Al forskning" }
                 a { class: "why-toc-link", href: "#article", "Artikel" }
                 a { class: "why-toc-link", href: "#audit-code", "Kildekode" }
             }
@@ -3573,385 +3440,48 @@ fn ResearchDanishConstitutionAudit() -> Element {
 
 #[component]
 fn ResearchPersonskatteloven() -> Element {
-    let sections: Vec<(&str, &str, &str)> = vec![
-        (
-            "source-status.runa — Kildepostur og historisk linje",
-            "source-status-code",
-            TAX_SOURCE_STATUS,
-        ),
-        (
-            "pengebeloeb.runa — fælles pengebeløb og afrunding",
-            "money-code",
-            TAX_MONEY,
-        ),
-        (
-            "selskabsskatteloven.runa — § 1 stk. 1 nr. 6 foreninger mv.",
-            "selskabsskatteloven-code",
-            TAX_SELSKABSSKAT,
-        ),
-        (
-            "kapitel-01-indkomst.runa — §§ 1-4 b indkomsttaxonomi",
-            "kapitel-01-code",
-            TAX_KAP01,
-        ),
-        (
-            "personskatteloven-par3-fradrag.audit.runa — § 3 stk. 2 nr. 1 fradragsundtagelser",
-            "personskatteloven-par3-fradrag-audit-code",
-            TAX_PAR3_FRADRAG_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-renter-ligningslov6.audit.runa — § 4 stk. 1 nr. 1 renter og LL §§ 6/6 A",
-            "personskatteloven-par4-renter-ligningslov6-audit-code",
-            TAX_PAR4_RENTER_LIGNINGSLOV6_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-kursgevinst.audit.runa — § 4 stk. 1 nr. 2 Kursgevinstloven",
-            "personskatteloven-par4-kursgevinst-audit-code",
-            TAX_PAR4_KURSGEVINST_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-virksomhedsskattelov-kapitalafkast.audit.runa — § 4 stk. 1 nr. 3/3 a VSL-kapitalafkast",
-            "personskatteloven-par4-vsl-kapitalafkast-audit-code",
-            TAX_PAR4_VIRKSOMHEDSSKAT_KAPITALAFKAST_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-aktie-kapital.audit.runa — § 4 stk. 1 nr. 4/5/5 a/5 b LL § 16 A, Selskabsskatteloven, formidlerkategorier og Aktieavancebeskatningsloven",
-            "personskatteloven-par4-aktie-kapital-audit-code",
-            TAX_PAR4_AKTIE_KAPITAL_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-ligningslov7n.audit.runa — § 4 stk. 7 og § 4 a stk. 2 LL § 7 N-medarbejderinvestering",
-            "personskatteloven-par4-ligningslov7n-audit-code",
-            TAX_PAR4_LIGNINGSLOV7N_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-ejendomsskattelov.audit.runa — § 4 stk. 1 nr. 6 Ejendomsskatteloven",
-            "personskatteloven-par4-ejendomsskattelov-audit-code",
-            TAX_PAR4_EJENDOMSSKAT_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-ligningslov8stk3.audit.runa — § 4 stk. 1 nr. 7 LL § 8 stk. 3-provisioner",
-            "personskatteloven-par4-ligningslov8stk3-audit-code",
-            TAX_PAR4_LIGNINGSLOV8STK3_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-virksomhedsskattelov11.audit.runa — § 4 stk. 1 nr. 8 VSL § 11-rentekorrektion",
-            "personskatteloven-par4-virksomhedsskattelov11-audit-code",
-            TAX_PAR4_VIRKSOMHEDSSKAT11_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-passiv-virksomhed.audit.runa — § 4 stk. 1 nr. 9 passiv virksomhed",
-            "personskatteloven-par4-passiv-audit-code",
-            TAX_PAR4_PASSIV_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-ligningslov14a.audit.runa — § 4 stk. 1 nr. 10 LL § 14 A-indbetalinger",
-            "personskatteloven-par4-ligningslov14a-audit-code",
-            TAX_PAR4_LIGNINGSLOV14A_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-udlejning-driftsmidler.audit.runa — § 4 stk. 1 nr. 11 udlejning af driftsmidler",
-            "personskatteloven-par4-udlejning-audit-code",
-            TAX_PAR4_UDLEJNING_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-ligningslov5c.audit.runa — § 4 stk. 1 nr. 12 LL § 5 C-vederlag",
-            "personskatteloven-par4-ligningslov5c-audit-code",
-            TAX_PAR4_LIGNINGSLOV5C_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-pensionsbeskatningslov53a.audit.runa — § 4 stk. 1 nr. 13 PBL § 53 A-afkast",
-            "personskatteloven-par4-pensionsbeskatningslov53a-audit-code",
-            TAX_PAR4_PENSIONSBESKATNINGSLOV53A_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-ejendomsavance.audit.runa — § 4 stk. 1 nr. 14 ejendomsavance",
-            "personskatteloven-par4-ejendomsavance-audit-code",
-            TAX_PAR4_EJENDOMSAVANCE_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-ligningslov12b.audit.runa — § 4 stk. 1 nr. 15 LL § 12 B-løbende ydelser",
-            "personskatteloven-par4-ligningslov12b-audit-code",
-            TAX_PAR4_LIGNINGSLOV12B_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-afskrivningslov40c.audit.runa — § 4 stk. 1 nr. 16 Afskrivningsloven § 40 C-saldo",
-            "personskatteloven-par4-afskrivningslov40c-audit-code",
-            TAX_PAR4_AFSKRIVNINGSLOV40C_AUDIT,
-        ),
-        (
-            "personskatteloven-par4-fremleje.audit.runa — § 4 stk. 1 nr. 17 fremleje/udlejning",
-            "personskatteloven-par4-fremleje-audit-code",
-            TAX_PAR4_FREMLEJE_AUDIT,
-        ),
-        (
-            "personskatteloven-par4b-cfc-ligningslov.audit.runa — § 4 b LL §§ 16 H/16 I CFC",
-            "personskatteloven-par4b-cfc-ligningslov-audit-code",
-            TAX_PAR4B_CFC_LIGNINGSLOV_AUDIT,
-        ),
-        (
-            "kapitel-02-statsskat.runa — §§ 5-9 statsskat",
-            "kapitel-02-code",
-            TAX_KAP02,
-        ),
-        (
-            "kapitel-03-personfradrag.runa — §§ 10-13 personfradrag og underskud",
-            "kapitel-03-code",
-            TAX_KAP03,
-        ),
-        (
-            "kapitel-04-omregning-skatteloft.runa — §§ 14-20 omregning og skatteloft",
-            "kapitel-04-code",
-            TAX_KAP04,
-        ),
-        (
-            "kapitel-05-afsluttende-bestemmelser.runa — §§ 21-28 afslutning",
-            "kapitel-05-code",
-            TAX_KAP05,
-        ),
-        (
-            "arbejdsmarkedsbidragsloven.runa — AM-bidrag almindelig løn og særtilfælde",
-            "am-code",
-            TAX_AM,
-        ),
-        (
-            "kommuneskatteloven.runa — kommunal indkomstskat",
-            "kommuneskatteloven-code",
-            TAX_KOMMUNE,
-        ),
-        (
-            "folkekirkens-oekonomi.runa — kirkeskat",
-            "folkekirken-code",
-            TAX_KIRKE,
-        ),
-        (
-            "kildeskatteloven.runa — A-indkomst og A-skat",
-            "kildeskat-code",
-            TAX_KILDESKAT,
-        ),
-        (
-            "kildeskattebekendtgoerelsen.runa — forskudskortgenerering",
-            "kildeskat-bek-code",
-            TAX_KILDESKAT_BEK,
-        ),
-        (
-            "forskudsregistrering_2026.runa — BEK 1094 indeholdelsesprocent",
-            "forskudsreg-2026-code",
-            TAX_FORSKUDSREG_2026,
-        ),
-        (
-            "slutopgoerelse.runa — Kildeskatteloven §§ 60-62/67",
-            "slutopgoerelse-code",
-            TAX_SLUTOPGOERELSE,
-        ),
-        (
-            "opkraevningsloven.runa — betalingsfrister for A-skat og AM-bidrag",
-            "opkraevning-code",
-            TAX_OPKRAEVNING,
-        ),
-        (
-            "ligningsloven_fradrag.runa — §§ 9 J/9 K/9 L/15 P/15 Q fradrag",
-            "ligningsfradrag-code",
-            TAX_LIGNINGSFRADRAG,
-        ),
-        (
-            "ligningsloven_kapitalindkomst.runa — §§ 5 C/6/6 A/7 N/8/12 B/14 A/16 A kapitalindkomstafhængigheder",
-            "ligningskapital-code",
-            TAX_LIGNINGSKAPITAL,
-        ),
-        (
-            "ligningsloven_cfc.runa — §§ 16 H/16 I CFC-afhængigheder",
-            "ligningscfc-code",
-            TAX_LIGNINGSCFC,
-        ),
-        (
-            "kursgevinstloven.runa — § 4 stk. 1 nr. 2 kursgevinster og tab",
-            "kursgevinstloven-code",
-            TAX_KURSGEVINST,
-        ),
-        (
-            "aktieavancebeskatningsloven.runa — § 4 stk. 1 nr. 5 aktieavancer",
-            "aktieavancebeskatningsloven-code",
-            TAX_AKTIEAVANCE,
-        ),
-        (
-            "virksomhedsskatteloven.runa — §§ 7/22 a/22 c/23 a kapitalafkast og § 11 rentekorrektion",
-            "virksomhedsskatteloven-code",
-            TAX_VIRKSOMHEDSSKAT,
-        ),
-        (
-            "skattekontrolloven.runa — §§ 10/11/13 oplysningsfrister",
-            "skattekontrolloven-code",
-            TAX_SKATTEKONTROL,
-        ),
-        (
-            "afskrivningsloven.runa — § 40 C betalingsrettighedssaldo",
-            "afskrivningsloven-code",
-            TAX_AFSKRIVNING,
-        ),
-        (
-            "pensionsbeskatningsloven.runa — § 53 A pensionsafkast",
-            "pensionsbeskatningsloven-code",
-            TAX_PENSIONSBESKATNING,
-        ),
-        (
-            "ejendomsavancebeskatningsloven.runa — §§ 1/1 A/2/4/11 ejendomsavance",
-            "ejendomsavancebeskatningsloven-code",
-            TAX_EJENDOMSAVANCE,
-        ),
-        (
-            "ejendomsskatteloven.runa — § 3 ejendomsværdiskat-kategorier",
-            "ejendomsskatteloven-code",
-            TAX_EJENDOMSSKAT,
-        ),
-        (
-            "skatteaar-parametre.runa — 2024/2025/2026 parameterpakker",
-            "params-code",
-            TAX_PARAMS,
-        ),
-        (
-            "loenmodtager_beregning.runa — første beregningsslice",
-            "calculator-code",
-            TAX_CALC,
-        ),
-        (
-            "loenmodtager-fixtures.scenario.runa — eksekverbare normalperson-scenarier",
-            "fixtures-code",
-            TAX_FIXTURES,
-        ),
-        (
-            "loenmodtager-par11.audit.runa — § 11 negativ nettokapital i lønmodtagerberegning",
-            "loenmodtager-par11-audit-code",
-            TAX_LOENMODTAGER_PAR11_AUDIT,
-        ),
-        (
-            "loenmodtager-par13-spouse.audit.runa — § 13 stk. 2 ægtefælleunderskud i lønmodtagerberegning",
-            "loenmodtager-par13-spouse-audit-code",
-            TAX_LOENMODTAGER_PAR13_SPOUSE_AUDIT,
-        ),
-        (
-            "loenmodtager-par13-priority.audit.runa — § 13 stk. 2 ægtefællens egne underskud først",
-            "loenmodtager-par13-priority-audit-code",
-            TAX_LOENMODTAGER_PAR13_PRIORITY_AUDIT,
-        ),
-        (
-            "personskatteloven-par13a-gaeldsordning.audit.runa — § 13 a gældsordning og underskudsnedsættelse",
-            "personskatteloven-par13a-gaeldsordning-audit-code",
-            TAX_PAR13A_GAELDSORDNING_AUDIT,
-        ),
-        (
-            "skatdk-2026-ekstern.scenario.runa — ekstern Skat.dk 2026 kontrol",
-            "skatdk-external-code",
-            TAX_SKATDK_EXTERNAL,
-        ),
-        (
-            "aktieindkomst-pension.audit.runa — § 4 a pensionsfradrag valg/omgørelse",
-            "aktie-pension-audit-code",
-            TAX_AKTIE_PENSION_AUDIT,
-        ),
-        (
-            "personskatteloven-par4a-aktieavance.audit.runa — § 4 a Aktieavancebeskatningsloven",
-            "personskatteloven-par4a-aktieavance-audit-code",
-            TAX_PAR4A_AKTIEAVANCE_AUDIT,
-        ),
-        (
-            "aktieindkomst-slutopgoerelse.scenario.runa — § 8 a/§ 67 aktieindkomst-årsopgørelse",
-            "aktie-settlement-scenario-code",
-            TAX_AKTIE_SETTLEMENT_SCENARIO,
-        ),
-        (
-            "delaar-scenarier.scenario.runa — § 14 delårsscenarie",
-            "partial-year-code",
-            TAX_PARTIAL_YEAR,
-        ),
-        (
-            "omregning-skatteloft-ekstern.scenario.runa — § 14/§ 19 ekstern differential",
-            "conversion-ceiling-external-code",
-            TAX_OMREGNING_EXTERNAL,
-        ),
-        (
-            "husholdning-scenarier.scenario.runa — fiktivt husholdningsscenarie",
-            "household-code",
-            TAX_HOUSEHOLD,
-        ),
-        (
-            "husholdning-benefit-cliffs.audit.runa — børneydelse/boligsikring",
-            "household-benefit-cliffs-code",
-            TAX_HOUSEHOLD_BENEFIT_CLIFFS,
-        ),
-        (
-            "slutopgoerelse.scenario.runa — årsopgørelse for fiktiv husholdning",
-            "settlement-scenario-code",
-            TAX_SETTLEMENT_SCENARIO,
-        ),
-        (
-            "indeholdelse-afregning.scenario.runa — A-skat/AM betalingsscenarier",
-            "remittance-code",
-            TAX_REMITTANCE,
-        ),
-        (
-            "personskatteloven-bomber.audit.runa — § 8 a/§ 8 b/§ 13/§ 14/§ 19 spændingsprober",
-            "bomb-audit-code",
-            TAX_BOMB_AUDIT,
-        ),
-        (
-            "personskatteloven-konfiskatorisk.audit.runa — årsskat vs betalingsbelastning",
-            "confiscatory-audit-code",
-            TAX_CONFISCATORY_AUDIT,
-        ),
-        (
-            "personskatteloven.audit.runa — audit-signaler",
-            "audit-code",
-            TAX_AUDIT,
-        ),
-    ];
-
-    let body_html: String = sections
-        .iter()
-        .map(|(title, id, src)| constitution_file_section(title, id, src))
-        .collect();
-    let milestone_html = md_to_html_with_ids(TAX_STATUS_MD);
+    let project_file_html = md_to_html_with_ids(TAX_WEBSITE_OVERVIEW_MD);
 
     rsx! {
-        document::Title { "Personskatteloven — Futuruna Research" }
-        document::Meta { name: "description", content: "Danish personal income tax law encoded in Futuruna: source status, milestones, checked code, wage-earner fixtures, and audit signals." }
+        document::Title { "Personskatteloven — Futuruna-forskning" }
+        document::Meta { name: "description", content: "Dansk personskat modelleret i Futuruna: kildestatus, milepæle, beregningsomfang og audit-signaler." }
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Personskat" }
-                a { class: "why-toc-link research-back", href: "/research", "\u{2190} All Research" }
-                a { class: "why-toc-link", href: "#overview", "Status" }
+                a { class: "why-toc-link research-back", href: "/research", "\u{2190} Al forskning" }
+                a { class: "why-toc-link", href: "#overview", "Overblik" }
                 a { class: "why-toc-link", href: "#source-posture", "Kilder" }
-                a { class: "why-toc-link", href: "#milestones", "Milestones" }
+                a { class: "why-toc-link", href: "#project-file", "Projektfil" }
                 a { class: "why-toc-link", href: "#audit-signals", "Audits" }
-                for (title, id, _) in sections.iter() {
-                    a { class: "why-toc-link", href: "#{id}", "{title}" }
-                }
             }
-            article { class: "why-main const-article tax-article",
+            main { class: "why-main const-article tax-article",
                 div { id: "overview", class: "const-intro",
-                    p { class: "lang-note", "This page is in Danish where the law itself is Danish; the implementation notes are intentionally explicit about calculation scope." }
-                    h1 { "Personskatteloven" }
+                    p { class: "lang-note", "Denne side er på dansk, fordi Personskatteloven er dansk. Selve lovteksten bliver i Futuruna-projektfilerne, lige over de regler der oversætter den." }
+                    h1 { "Personskatteloven i Futuruna" }
                     p {
-                        "Danish personal income tax law encoded as Futuruna. The current corpus \
-                         preserves official legal text in multiline source blocks, then translates \
-                         each slice into typed "
+                        "Denne side er et overblik, ikke en genudgivelse af hele korpusset. \
+                         Websitet viser kun én kanonisk projektfil nedenfor; den eksekverbare lov, \
+                         audits og scenarier ligger i "
+                        code { "examples/danish-income-tax/" }
+                        ". I de filer står den originale danske lovtekst i flerlinjeblokke, \
+                         efterfulgt af Futuruna-regler med typede "
                         code { "|" }
-                        " rules, "
+                        " regler, "
                         code { "under" }
-                        " conditions, "
+                        " betingelser, "
                         code { "exception" }
-                        " overrides, parameter packs, executable fixtures, and audit signals."
+                        " undtagelser, parameterpakker, eksekverbare testtilfælde og audit-signaler."
                     }
                     div { class: "tax-status-grid",
                         div { class: "tax-status-item ready",
-                            span { class: "tax-status-label", "Calculation slice" }
-                            strong { "Calculation-ready" }
-                            p { "Limited to checked 2025 Copenhagen/Gentofte wage-earner fixtures with shared Pengebeløb rounding and øre-fraction posture, source-backed ordinary and special-case AM-bidrag, source-backed 2024-2026 tax-year parameter packs, § 1/§ 2 taxable-income composition from separate income categories, § 3 stk. 2 nr. 1 personal-income business-expense filtering with statutory carve-outs, § 4 stk. 1 nr. 1 ordinary interest and LL §§ 6/6 A deduction filtering with the 100 kr. floor, stk. 3 reduction, stk. 5 debtor-day split, stk. 6 KGL block and § 4 stk. 3 reclassification posture, § 4 stk. 1 nr. 2 Kursgevinstloven gain/loss filtering with the 2.000 kr. threshold, claim loss blocks, selected debt treatment, contract loss limitation and § 4 stk. 3 reclassification posture, § 4 stk. 1 nr. 3/3 a Virksomhedsskatteloven capital-return filtering through VSL §§ 7/22 a/22 c and § 23 a personal-income election with the § 4 nr. 3 transfer deadline derived through Skattekontrolloven §§ 10/11/13, § 4 stk. 1 nr. 7 LL § 8 stk. 3 provision/premium filtering with litra a/b running amounts and litra c one-off amounts only when the period is under two years, § 4 stk. 1 nr. 8 Virksomhedsskatteloven § 11 rentekorrektion with stk. 1 caps, stk. 2 indskud cap and mirrored personal-income addition/capital-income deduction, § 4 stk. 1 nr. 9 passive-business owner-count filtering with the LL § 8 K branch and LL § 8 P owner exclusion, § 4 stk. 1 nr. 10 LL § 14 A stk. 1 payments as capital-income deductions with stk. 2 payouts kept out of nr. 10, § 4 stk. 1 nr. 11 leasing-income filtering with the stk. 8 Skatterådet carve-out, § 4 stk. 1 nr. 12 LL § 5 C compensation filtering with the § 5 stk. 5 carve-out and stk. 3 deduction block, § 4 stk. 1 nr. 13 Pensionsbeskatningsloven § 53 A return filtering with PAL-method return, alternative capital-value return, negative-return carry-forward and stk. 4 exclusions, § 4 stk. 1 nr. 14 Ejendomsavancebeskatningsloven gain filtering with ordinary and deemed disposals, næring exclusion, basic § 4 gain formula, § 4 stk. 8 artistic-decoration exclusions and § 11 expropriation-style exemptions, § 4 stk. 1 nr. 15 LL § 12 B running-payment saldo filtering with negative-saldo, later-payment, termination, assignment and obligation-transfer branches, § 4 stk. 1 nr. 16 Afskrivningsloven § 40 C saldo filtering with positive-saldo non-deduction, negative-saldo income recognition and final-year gain/loss, § 4 stk. 1 nr. 17 subletting/letting surplus filtering from LL § 15 Q calculated bundfradrag, typed LL § 15 P long-term letting result, stk. 4 § 15 P coordination, rounded 40 pct. excess-rent deduction, actual-expense branch, and resulting surplus, Ligningsloven §§ 5 C/6/6 A/7 N/8/12 B/14 A plus §§ 16 H/16 I CFC dependency and §§ 9 J/9 K/9 L wage-earner and pension deductions, municipal/church tax, § 9/§ 12 split state-personfradrag reduction order plus § 9 non-state reductions for § 8 c/kommunal/kirkelig tax, § 10 stk. 3 spouse transfer of unused personfradrag state-tax value, § 11 negative net-capital relief through the ordinary wage-earner final-tax path, amount-level § 4 a ABL §19 B/§21 + LL § 7 N + pensionsfradrag election/reversal deadline in aktieindkomst, § 4 stk. 7 LL § 7 N payouts/gains routed to personal income, § 4 b LL §§ 16 H/16 I source-derived CFC income, § 8 a share-income final-settlement scenarios with § 67 dividend-tax credit split, pair-level negative-share spouse settlement, negative-share carry-forward, and § 8 a stk. 2 high-layer share-income tax through the wage-earner § 5/§ 9 state-tax path, § 26 annual compensation settlement and transition-compensation fixtures including pair-level stk. 4 spouse offset, component-level stk. 5 and stk. 8 spouse net-capital offsets, stk. 6 bundfradrag transfer into annual line items, and stk. 7 spouse top-tax allocation, personal and positive-capital § 19 skatteloft as typed nedslag results inside the wage-earner breakdown, source-backed § 20 regulationstal with corrected 2020-2024 SKM figures, § 13 stk. 2 spouse deficit transfer through spouse income, spouse tax-value offset and the spouse's own prior-deficit priority, § 13 stk. 4 negative-personal-income spouse and carry-forward offset ordering wired through the reusable complex calculator, § 13 a debt-settlement reduction of carried deficits/losses/negative share tax and spouse business deficits, § 14 partial-year annualization through the wage-earner model using the state income-tax component after §§ 6-9, the official § 14 guidance example for annualization and one-off income handling, § 14 stk. 2 election/reversal deadline fixtures, Kildeskatteloven A-income/withholding/e-skattekort and §§ 58/60-62/62 A/62 C/67 settlement, B-skat calendar projection, B-skat minimum-rate completion plans, system-date-driven § 61 stk. 4/stk. 6 restskat rateplans with large/small installment splits, restskat timing, § 62 A interest fixtures, and overskydende skat compensation posture, BEK 839 generated card values with BEK 1094-derived 2026 indeholdelsesprocent, Opkrævningsloven payment-deadline, § 7 rate-derivation, same-year daily interest, and cross-year interest-split fixtures, 2026 Copenhagen reform-threshold wage and positive-capital fixtures with structured § 7 a/§ 8 personal tax results, 2026 Langeland high-municipal-rate § 19 personal and positive-capital fixtures checked against the published SKM Nedslag pct., a fictional household scenario, first household benefit-cliff probes for Børne- og ungeydelse plus boligsikring § 22, and synthetic § 13 complex-case breakdown fixtures." }
+                            span { class: "tax-status-label", "Beregning" }
+                            strong { "Beregningsegnet første del" }
+                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, personfradrag, underskud, delår, skatteloft, indeholdelse og slutopgørelse er eksekverbare. Modellen er stadig ufuldstændig som fuld lovimplementering." }
                         }
                         div { class: "tax-status-item research",
-                            span { class: "tax-status-label", "Whole statute" }
-                            strong { "Research/audit-only" }
-                            p { "The full Personskatteloven text now has first-pass §§ 1-28 coverage, but calculation depth is incomplete: automated Nationalbank input lookup for Opkrævningsloven § 7 rates, municipal settlement/allocation, remaining AM edge cases, and broader external differential fixtures beyond the first § 14/§ 19 slice remain explicit gaps." }
+                            span { class: "tax-status-label", "Korpus" }
+                            strong { "Én webvist projektfil" }
+                            p { "Websitet gengiver ikke hele korpusset. Det viser kun projektstatussen nedenfor; lovfiler, audit-filer og scenarier læses og køres fra Futuruna-projektet." }
                         }
                     }
                     p { class: "lang-note",
@@ -4022,57 +3552,55 @@ fn ResearchPersonskatteloven() -> Element {
                         " / "
                         a { href: "https://star.dk/ydelser/boligstoette-boernetilskud-og-hjaelp-i-saerlige-tilfaelde/boligstoette/boligsikring", "STAR boligsikring" }
                     }
-                    p { class: "const-stats",
-                        "67 filer \u{00B7} fælles Pengebeløb-afrunding \u{00B7} §§ 1-28 første slice \u{00B7} § 1/§ 2 skattepligtig indkomst \u{00B7} § 3 stk. 2 nr. 1 fradragsundtagelser \u{00B7} § 4 stk. 1 nr. 1 renter + LL §§ 6/6 A \u{00B7} § 4 stk. 1 nr. 2 Kursgevinstloven \u{00B7} § 4 stk. 1 nr. 3/3 a VSL-kapitalafkast + Skattekontrolloven §§ 10/11/13-frist \u{00B7} § 4 stk. 1 nr. 4/5/5 a/5 b LL § 16 A, Selskabsskatteloven, formidlerkategorier og Aktieavancebeskatningsloven \u{00B7} § 4 stk. 7 LL § 7 N-medarbejderinvestering \u{00B7} § 4 stk. 1 nr. 6 Ejendomsskatteloven § 3 \u{00B7} § 4 stk. 1 nr. 7 LL § 8 stk. 3-provisioner \u{00B7} § 4 stk. 1 nr. 8 VSL § 11-rentekorrektion \u{00B7} § 4 stk. 1 nr. 9 passiv virksomhed \u{00B7} § 4 stk. 1 nr. 10 LL § 14 A-indbetalinger \u{00B7} § 4 stk. 1 nr. 11 udlejning \u{00B7} § 4 stk. 1 nr. 12 LL § 5 C-vederlag \u{00B7} § 4 stk. 1 nr. 13 PBL § 53 A-afkast \u{00B7} § 4 stk. 1 nr. 14 ejendomsavance \u{00B7} § 4 stk. 1 nr. 15 LL § 12 B-løbende ydelser \u{00B7} § 4 stk. 1 nr. 16 Afskrivningsloven § 40 C-saldo \u{00B7} § 4 stk. 1 nr. 17 fremleje fra LL § 15 Q \u{00B7} § 4 a ABL §19 B/§21 + LL § 7 N-undtagelse + pensionsfradrag valg/omgørelse \u{00B7} § 4 b LL §§ 16 H/16 I CFC-indkomst \u{00B7} § 7 a pensionsbeløb og undtagelser \u{00B7} § 8 a/§ 67 aktieindkomst-årsopgørelse + lønmodtager §5-højt lag + negativ parslutopgørelse + fremførsel + stk. 6 negative ægtefæller \u{00B7} § 9 statslig + ikke-statslig personfradragsnedsættelse \u{00B7} § 11 negativ nettokapital i lønmodtager-slutskat \u{00B7} § 13 stk. 2 ægtefælleunderskud + egne underskud først + stk. 4 negativ personlig indkomst + § 13 a gældsordning \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 5 C/6/6 A/7 N/8/12 B/14 A/16 A/16 H/16 I + §§ 9 J/9 K/9 L/15 P/15 Q \u{00B7} Selskabsskatteloven § 1 stk. 1 nr. 6/§ 17 \u{00B7} Kursgevinstloven \u{00B7} Aktieavancebeskatningsloven §§ 17/18/19 B/19 C/21/22 \u{00B7} Virksomhedsskatteloven §§ 7/22 a/22 c/23 a/11 \u{00B7} Skattekontrolloven §§ 10/11/13 \u{00B7} Pensionsbeskatningsloven § 53 A \u{00B7} Ejendomsavancebeskatningsloven §§ 1/1 A/2/4/11 \u{00B7} Ejendomsskatteloven § 3 \u{00B7} Afskrivningsloven § 40 C \u{00B7} § 14 delår/stk. 2 valg + lovniveau skatteberegning + ekstern DJV-differential \u{00B7} personlig og positiv-kapital § 19 skatteloft som typed nedslag inkl. Langeland høj kommuneskat + SKM-nedslag \u{00B7} § 20 kildefast reguleringstal \u{00B7} Kildeskatteloven A-indkomst/A-skat/slutopgørelse/restskat-timing/B-skat/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A \u{00B7} BEK 839 forskudskort \u{00B7} BEK 1094 indeholdelsesprocent \u{00B7} Opkrævningsloven betalingsfrister, § 7-rente og tværårssplit \u{00B7} kildefaste 2024/2025/2026 parameterpakker \u{00B7} wage-earner, delår, ekstern differential, husholdning, boligsikring, slutopgørelse, afregning, kapital og § 13 fixtures \u{00B7} audit-signaler"
-                    }
+                    p { class: "const-stats", "Én webvist projektfil \u{00B7} lovkorpus i repoet \u{00B7} original dansk lovtekst bevares i Futuruna-filerne \u{00B7} audits og scenarier køres fra projektet" }
                 }
 
                 section { id: "source-posture", class: "tax-section",
-                    h2 { "Source Status" }
+                    h2 { "Kilder" }
                     div { class: "tax-source-grid",
                         div { class: "tax-source-row",
-                            span { "Current working source" }
-                            strong { "2021/1284 — Status Valid; XML EndDate 2026-07-01, fetched 2026-07-18" }
+                            span { "Arbejdskilde" }
+                            strong { "2021/1284 — gældende kilde med XML-metadata kontrolleret 2026-07-18" }
                         }
                         div { class: "tax-source-row",
-                            span { "Tracked amendments" }
+                            span { "Sporbare ændringer" }
                             strong { "679/2023 (§4 nr. 6), 1564/2023 (§10), 482/2024 (§13), 1691/2024 (§8 a), 615/2026 (§4)" }
                         }
                         div { class: "tax-source-row",
-                            span { "Prompt source lineage" }
-                            strong { "2019/799 — Historic, preserved for audit and diffing" }
+                            span { "Historisk udgangspunkt" }
+                            strong { "2019/799 — bevaret som historisk kilde og diff-linje" }
                         }
                         div { class: "tax-source-row",
-                            span { "Live calculation guard" }
-                            strong { "Historic sources are rejected; dagsaktuel automation is rejected when XML metadata horizon predates 2026-07-03" }
+                            span { "Beregningværn" }
+                            strong { "Historiske kilder må ikke drive aktuel beregning uden eksplicit kildepostur" }
                         }
                     }
                 }
 
-                section { id: "milestones", class: "tax-section",
-                    h2 { "Status And Milestones" }
-                    div { class: "docs-rendered tax-milestones", dangerous_inner_html: milestone_html }
+                section { id: "project-file", class: "tax-section",
+                    h2 { "Projektfil" }
+                    p { "Websitet gengiver kun denne ene projektfil. De konkrete lovregler, audit-filer og scenarier ligger i Futuruna-repoet og er ikke foldet ud på siden." }
+                    div { class: "docs-rendered tax-milestones", dangerous_inner_html: project_file_html }
                 }
 
                 section { id: "audit-signals", class: "tax-section",
-                    h2 { "Selected Audit Signals" }
+                    h2 { "Udvalgte audit-signaler" }
                     div { class: "const-audit-highlights tax-audit-highlights",
-                        a { href: "#audit-code",
-                            span { "source" }
-                            strong { "Historic law cannot silently drive current calculation, and stale XML metadata cannot silently drive dagsaktuel automation" }
+                        a { href: "#project-file",
+                            span { "kilde" }
+                            strong { "Historisk lov må ikke lydløst drive aktuel beregning" }
                         }
-                        a { href: "#audit-code",
-                            span { "coverage" }
-                            strong { "Shared Pengebeløb rounding, source-backed 2024-2026 parameter packs, § 1/§ 2 taxable-income composition, 2026 reform with §20-derived mellemskat/topskat/toptopskat thresholds, source-backed § 20 regulationstal provenance, structured § 7 a/§ 8 personal tax results, § 8 a high-layer share-income tax through the wage-earner §5/§9 path, negative-share final settlement, pair-level spouse settlement, and carry-forward, mellemskat capital branch, § 9 state and non-state personfradrag reductions, § 10 stk. 3 spouse personfradrag transfer, § 11 negative net-capital relief in the wage-earner final-tax path, § 13 stk. 2 spouse deficit transfer, § 14 external annualization and stk. 2 election fixtures, typed personal and positive-capital § 19 calculator integration with SKM Langeland differential, ordinary and special-case AM law, Ligningsloven §§ 5 C/6/6 A/7 N/8/12 B/14 A capital-income dependencies for interest/deductions, provisions/premiums, employee-investment reclassification, compensation, running-payment saldo and §14A payments plus LL §§ 16 H/16 I CFC dependency plus Kursgevinstloven § 4 nr. 2 gain/loss dependency plus Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return dependency and § 11 rentekorrektion plus Pensionsbeskatningsloven § 53 A return plus Ejendomsavancebeskatningsloven real-property gain plus Afskrivningsloven § 40 C saldo plus §§ 9 J/9 K/9 L wage-earner deductions, § 15 P long-term letting and § 15 Q subletting surplus with stk. 4 coordination, municipal/church tax, Kildeskatteloven A-income/withholding/e-skattekort/slutopgørelse/restskat timing/B-skat calendar/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6 rateplans/§ 62 A interest, BEK 839 generated card values, BEK 1094 withholding percentage derivation, Opkrævningsloven payment deadlines, § 7 rate derivation, and § 7 cross-year interest split, a fictional household, household benefit cliffs, and § 13 complex calculators are executable" }
+                        a { href: "#project-file",
+                            span { "dækning" }
+                            strong { "Beregning, kilder og audits er eksekverbare i projektet, ikke indlejret som én lang webartikel" }
                         }
-                        a { href: "#audit-code",
-                            span { "cliff" }
-                            strong { "Topskat threshold activation, a boligsikring § 22 second-child cliff, and the confiscatory årsskat-vs-payment-burden distinction are executable audit signals" }
+                        a { href: "#project-file",
+                            span { "knæk" }
+                            strong { "Skattelofter, ægtefællemodregning, aktieindkomst og betalingsbelastning kan undersøges som formaliserede audits" }
                         }
                     }
                 }
 
-                div { dangerous_inner_html: body_html }
             }
         }
     }
