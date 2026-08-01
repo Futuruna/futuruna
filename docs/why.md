@@ -53,18 +53,15 @@ of the line you are about to write, which allows you to mix classical
 programming with rule-based programming. I know, who would have thunk it,
 right? Is it just a bad idea, and that's why no one has done it?
 
-Well, my objection is that there is a simple mathematical reason why it is
-actually a good idea. A front rune creates its own grammatical namespace. If
-one comfortable line syntax supports M recognizable forms, N front runes can
-support up to N × M non-conflicting category/form pairs. In Shannon's terms,
-choosing among N runes contributes up to log2(N) bits of immediate semantic
-orientation. With seven runes, that is about 2.81 bits.
-
-This is partitioned optionality: more choices for the author, less uncertainty
-for the reader. This could get gnarly to explain in depth, so I will just say
-that creating semantic categories that allow a logical fly-in for every line
-allows programming domains to mix easily. [The Philosophy of
-Futuruna](/research/philosophy) explores the argument in more depth.
+Well, my objection is that there is a simple reason why it is
+actually a good idea. A front rune gives each kind of statement its own space,
+so its capabilities do not have to compete with those in the language's other
+spaces. This gives the author *more options* for writing a good program while
+giving the reader *less uncertainty* about what they are reading. This can be
+distilled into a fancy name: partitioned optionality, a solid tradeoff where
+putting one character in front makes it easier to mix programming domains in
+the same language. [The Philosophy of Futuruna](/research/philosophy) explores
+the argument in more depth.
 
 The seven runes and what they mean in Futuruna are explored in more depth
 [here](/docs). All I will say is that I also believe Futuruna would work

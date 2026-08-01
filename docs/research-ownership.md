@@ -22,6 +22,33 @@ Both reviewers are right that these patterns are hard. Our claim is not that we 
 
 ---
 
+## The Hylo Influence
+
+Futuruna did not invent the idea of keeping ownership and lifetime syntax out
+of the programmer's way. Its clearest direct influence here is
+[Hylo](https://hylo-lang.org/introduction/), formerly called Val, a systems
+programming language built around mutable value semantics.
+
+The 2022 paper [*Mutable Value
+Semantics*](https://research.google/pubs/mutable-value-semantics/) describes the
+central boundary: references are second-class. They can be created implicitly
+at function boundaries, but they cannot be stored in variables or object
+fields. Hylo applies this boundary so programs can combine value semantics with
+efficient in-place mutation without exposing lifetime annotations.
+
+Futuruna directly adopts that part of the design. Values have value semantics,
+`inout` grants temporary mutable access, and references are not part of the
+source-level data model. A Futuruna program cannot store a reference in a
+structure or return one as a value.
+
+From there, Futuruna takes a different implementation path. Hylo is its own
+language and compiler. Futuruna transpiles to Rust, using branch-aware escape
+analysis and auto-borrow inference to decide when the generated Rust should
+move, borrow, or clone a value. For the remaining low-level cases, Futuruna
+provides the `@ rust {}` escape hatch.
+
+---
+
 ## The Design Philosophy
 
 Rust and Futuruna make different tradeoffs:
@@ -34,8 +61,6 @@ Rust and Futuruna make different tradeoffs:
 | **Self-referential data** | `Pin<Box<T>>` + unsafe, or crates like ouroboros | Indices into flat arrays — integers are Copy |
 | **Lifetimes** | Explicit `'a` annotations when the compiler can't infer | Never visible — the compiler either infers or clones |
 | **When inference fails** | Programmer adds annotations | Programmer uses `@ rust {}` escape hatch |
-
-This is the **Hylo/Val insight** (Racordon et al., 2022): references are second-class. You cannot store a reference in a struct. You cannot return a reference from a function (unless the compiler inserts one automatically via auto-borrow). This eliminates the entire class of lifetime problems at the source.
 
 The question becomes: **does second-class-reference programming actually work for real programs?**
 
@@ -384,7 +409,7 @@ Even after correct counting, `.clone()` on `impl FnMut(i64) -> i64` fails — Ru
 
 ### What we explicitly do not handle
 
-1. **Stored references.** You cannot create `struct { data: String, slice: &str }` in Futuruna. This is by design, not a bug. The Hylo/Val philosophy: if you can't store a reference, you can't create a lifetime problem.
+1. **Stored references.** You cannot create `struct { data: String, slice: &str }` in Futuruna. This is by design, not a bug. Futuruna follows Hylo's mutable-value-semantics boundary: if you cannot store a reference, you cannot create a stored-reference lifetime problem that outlives the current call.
 
 2. **Interior mutability.** No `RefCell<T>`, no `Cell<T>`. Mutation goes through `inout` (local, scoped) or actors (concurrent, message-based). This eliminates the aliasing problem but means some Rust patterns must be restructured.
 
