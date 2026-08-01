@@ -259,6 +259,8 @@ nedsat med de overskydende procenter.
 # Par19SkatteloftType = Par19PersonligtLoft | Par19PositivKapitalLoft
 # Par19SkatteloftKilde = PersonskattelovenLbk1284Af2021Par19Stk1 | PersonskattelovenLbk1284Af2021Par19Stk2 | PersonskattelovenLov482Af2024Par1Nr15Stk1 | PersonskattelovenLov482Af2024Par1Nr15Stk2
 # Par19SkatteloftResultat(skatteår: Heltal, lofttype: Par19SkatteloftType, kilde: Par19SkatteloftKilde, loft_basispoint: Heltal)
+# Par19SkatteloftNedslagInput(lofttype: Par19SkatteloftType, skatteloft_input: Par19SkatteloftInput)
+# Par19SkatteloftNedslagResultat(loft: Par19SkatteloftResultat, skatteloft_input: Par19SkatteloftInput, samlet_skatteprocent_basispoint: Heltal, overskydende_basispoint: Heltal, progressiv_skat_efter_loft_basispoint: Heltal, nedslag_kroner: Heltal)
 # Par19SkatteloftKomponent = Par19Bundskat | Par19ProgressivStatsskat | Par19KommunalSkat | Par19Par8cSkat | Par19CfcSkat
 
 | par19_skatteprocent_omfatter(komponent: Par19SkatteloftKomponent) -> Falskt
@@ -303,6 +305,30 @@ nedsat med de overskydende procenter.
 | par19_personlig_overskydende_basispoint(input: Par19SkatteloftInput) -> par19_overskydende_basispoint(par19_samlet_skatteprocent_basispoint(input), par19_personlig_skatteloft_basispoint(input.skatteår))
 | par19_positiv_kapital_overskydende_basispoint(input: Par19SkatteloftInput) -> par19_overskydende_basispoint(par19_samlet_skatteprocent_basispoint(input), par19_positiv_kapital_skatteloft_basispoint(input.skatteår))
 | par19_skatteloftsnedslag_kroner(input: Par19SkatteloftInput, overskydende_basispoint: Heltal) -> penge_beløb_gange_basispoint_kroner(input.beregningsgrundlag_kroner, overskydende_basispoint)
+# Par19SkatteloftNedslagSag(input: Par19SkatteloftNedslagInput) {
+    | loft() -> par19_skatteloft_resultat(input.lofttype, input.skatteloft_input.skatteår)
+    | samlet_skatteprocent_basispoint() -> par19_samlet_skatteprocent_basispoint(input.skatteloft_input)
+    | overskydende_basispoint() -> par19_overskydende_basispoint(samlet_skatteprocent_basispoint(), loft().loft_basispoint)
+    | progressiv_skat_efter_loft_basispoint() -> par19_progressiv_skat_efter_loft_basispoint(input.skatteloft_input.progressiv_statsskat_basispoint, overskydende_basispoint())
+    | nedslag_kroner() -> par19_skatteloftsnedslag_kroner(input.skatteloft_input, overskydende_basispoint())
+    | resultat() -> Par19SkatteloftNedslagResultat(
+        loft = loft(),
+        skatteloft_input = input.skatteloft_input,
+        samlet_skatteprocent_basispoint = samlet_skatteprocent_basispoint(),
+        overskydende_basispoint = overskydende_basispoint(),
+        progressiv_skat_efter_loft_basispoint = progressiv_skat_efter_loft_basispoint(),
+        nedslag_kroner = nedslag_kroner()
+    )
+}
+| par19_skatteloftsnedslag_resultat(input: Par19SkatteloftNedslagInput) -> Par19SkatteloftNedslagSag(input).resultat()
+| par19_personligt_skatteloftsnedslag_resultat(input: Par19SkatteloftInput) -> par19_skatteloftsnedslag_resultat(Par19SkatteloftNedslagInput(
+    lofttype = Par19PersonligtLoft,
+    skatteloft_input = input
+))
+| par19_positiv_kapital_skatteloftsnedslag_resultat(input: Par19SkatteloftInput) -> par19_skatteloftsnedslag_resultat(Par19SkatteloftNedslagInput(
+    lofttype = Par19PositivKapitalLoft,
+    skatteloft_input = input
+))
 | par19_loftrelevant_progressiv_statsskat_basispoint(skatteår: Heltal) -> nationalparametre_for(skatteår).topskat_basispoint under skatteår < 2026
 | exception reform_mellemskat_loftgrundlag par19_loftrelevant_progressiv_statsskat_basispoint(skatteår: Heltal) -> nationalparametre_for(skatteår).mellemskat_basispoint under skatteår >= 2026
 | par19_skatteloft_input_for(skatteår: Heltal, kommune: Kommune, beregningsgrundlag_kroner: Heltal) -> Par19SkatteloftInput(
@@ -329,13 +355,16 @@ nedsat med de overskydende procenter.
 = par19_høj_kommune_overskydende = par19_personlig_overskydende_basispoint(par19_høj_kommune_input)
 = par19_høj_kommune_topskat_efter_loft = par19_topskat_efter_loft_basispoint(par19_høj_kommune_input.progressiv_statsskat_basispoint, par19_høj_kommune_overskydende)
 = par19_høj_kommune_nedslag = par19_skatteloftsnedslag_kroner(par19_høj_kommune_input, par19_høj_kommune_overskydende)
+= par19_høj_kommune_nedslag_resultat = par19_personligt_skatteloftsnedslag_resultat(par19_høj_kommune_input)
 = par19_kapital_overskydende = par19_positiv_kapital_overskydende_basispoint(par19_2025_københavn_input)
 = par19_2026_københavn_input = par19_personlig_skatteloft_input_for(2026, København, 100000)
 = par19_2026_københavn_overskydende = par19_personlig_overskydende_basispoint(par19_2026_københavn_input)
 = par19_2026_langeland_input = par19_personlig_skatteloft_input_for(2026, Langeland, 100000)
 = par19_2026_langeland_overskydende = par19_personlig_overskydende_basispoint(par19_2026_langeland_input)
 = par19_2026_langeland_nedslag = par19_skatteloftsnedslag_kroner(par19_2026_langeland_input, par19_2026_langeland_overskydende)
+= par19_2026_langeland_nedslag_resultat = par19_personligt_skatteloftsnedslag_resultat(par19_2026_langeland_input)
 = par19_2026_langeland_kapital_overskydende = par19_positiv_kapital_overskydende_basispoint(par19_2026_langeland_input)
+= par19_2026_langeland_kapital_nedslag_resultat = par19_positiv_kapital_skatteloftsnedslag_resultat(par19_2026_langeland_input)
 = par19_cfc_ikke_omfattet = par19_skatteprocent_omfatter(Par19CfcSkat)
 = par19_personligt_loft_2025_resultat = par19_personlig_skatteloft_resultat(2025)
 = par19_personligt_loft_2026_resultat = par19_personlig_skatteloft_resultat(2026)
@@ -351,6 +380,7 @@ nedsat med de overskydende procenter.
 | par19_høj_kommune_udløser_nedslag: par19_høj_kommune_overskydende -> par19_høj_kommune_overskydende == 194
 | par19_topskat_nedsættes_med_overskydende: par19_høj_kommune_topskat_efter_loft -> par19_høj_kommune_topskat_efter_loft == 1306
 | par19_nedslag_beregnes_af_overskydende_procent: par19_høj_kommune_nedslag -> par19_høj_kommune_nedslag == 1940
+| par19_nedslag_resultat_samler_loft_og_beløb: par19_høj_kommune_nedslag_resultat -> par19_høj_kommune_nedslag_resultat.loft.kilde == PersonskattelovenLbk1284Af2021Par19Stk1 && par19_høj_kommune_nedslag_resultat.samlet_skatteprocent_basispoint == 5401 && par19_høj_kommune_nedslag_resultat.overskydende_basispoint == 194 && par19_høj_kommune_nedslag_resultat.progressiv_skat_efter_loft_basispoint == 1306 && par19_høj_kommune_nedslag_resultat.nedslag_kroner == 1940
 | par19_kapital_loft_er_lavere: par19_kapital_overskydende -> par19_kapital_overskydende == 851
 | par19_2026_loft_4457: par19_2026_københavn_input -> par19_personlig_skatteloft_basispoint(2026) == 4457
 | par19_2026_bruger_mellemskat_i_loft: par19_2026_københavn_input -> par19_2026_københavn_input.progressiv_statsskat_basispoint == 750
@@ -358,6 +388,8 @@ nedsat med de overskydende procenter.
 | par19_2026_langeland_udløser_personligt_nedslag: par19_2026_langeland_overskydende -> par19_2026_langeland_overskydende == 124
 | par19_2026_langeland_nedslag_i_kroner: par19_2026_langeland_nedslag -> par19_2026_langeland_nedslag == 1240
 | par19_2026_langeland_kapital_loft_lavere: par19_2026_langeland_kapital_overskydende -> par19_2026_langeland_kapital_overskydende == 381
+| par19_2026_langeland_personligt_resultat_fra_lov482: par19_2026_langeland_nedslag_resultat -> par19_2026_langeland_nedslag_resultat.loft.kilde == PersonskattelovenLov482Af2024Par1Nr15Stk1 && par19_2026_langeland_nedslag_resultat.overskydende_basispoint == 124 && par19_2026_langeland_nedslag_resultat.nedslag_kroner == 1240
+| par19_2026_langeland_kapital_resultat_fra_lov482: par19_2026_langeland_kapital_nedslag_resultat -> par19_2026_langeland_kapital_nedslag_resultat.loft.kilde == PersonskattelovenLov482Af2024Par1Nr15Stk2 && par19_2026_langeland_kapital_nedslag_resultat.overskydende_basispoint == 381 && par19_2026_langeland_kapital_nedslag_resultat.nedslag_kroner == 3810
 | par19_cfc_skat_uden_for_skatteloft: par19_cfc_ikke_omfattet -> par19_cfc_ikke_omfattet == Falskt
 
 ----

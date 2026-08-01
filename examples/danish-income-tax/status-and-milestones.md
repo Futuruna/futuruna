@@ -1220,14 +1220,15 @@ Current decision:
   minimum amounts, ten-kroner floors, basispoint rounding, basispoint-to-kroner
   multiplication, and øre-fraction rounding. Statutory modules retain their
   local legal names but delegate the common arithmetic posture to this file.
-- `LønmodtagerSkatteloftResult` is now the right-sized § 19 boundary inside the
-  ordinary wage-earner breakdown. It carries the derived `Par19SkatteloftInput`,
-  excess basis points, and kroner relief together for both personal and
-  positive-capital skatteloft paths instead of adding loose scalar fields to the
-  calculator surface. The § 19 personal and positive-capital ceilings now also
-  project from typed `Par19SkatteloftResultat` values that preserve whether the
-  rate comes from LBK nr. 1284/2021 § 19 stk. 1/stk. 2 or the 2026 LOV nr.
-  482/2024 § 1 nr. 15 rewrite.
+- `Par19SkatteloftNedslagResultat` is now the source-backed § 19 calculation
+  boundary. It carries the derived `Par19SkatteloftInput`, the typed
+  `Par19SkatteloftResultat` source branch, total tax percentage, excess basis
+  points, progressiv tax rate after ceiling relief, and kroner relief for both
+  personal and positive-capital skatteloft paths. `LønmodtagerSkatteloftResult`
+  wraps that result while preserving the calculator's existing `.input`,
+  `.overskydende_basispoint`, and `.nedslag_kroner` fields. The § 19 personal
+  and positive-capital ceilings preserve whether the rate comes from LBK nr.
+  1284/2021 § 19 stk. 1/stk. 2 or the 2026 LOV nr. 482/2024 § 1 nr. 15 rewrite.
 - `LønmodtagerBeregning` now composes the ordinary wage-earner calculation from
   named domain records: income basis, Ligningsloven deductions, tax before
   person allowance, § 5 state-tax aggregate before person allowance, person
@@ -1873,11 +1874,12 @@ M8 - Omregning, skatteloft, and regulation
   calendar year after the income year, late reversal, and the § 10 stk. 6
   limited-taxability path where the stk. 2 election is not available.
   §§ 15-18 are explicit repealed markers, § 19 computes
-  personal and positive-capital tax ceiling excess and relief, both personal and
-  positive-capital § 19 relief now flow into the ordinary wage-earner breakdown
-  for supported tax years and municipalities, the 2026 Langeland fixture proves
-  a source-backed high municipal-tax ceiling case and matches the published
-  1,24 pct. `Nedslag pct.`, and § 20 now returns source-backed regulation-number
+  personal and positive-capital tax ceiling excess and relief as typed
+  `Par19SkatteloftNedslagResultat` objects, both personal and positive-capital
+  § 19 relief now flow into the ordinary wage-earner breakdown for supported tax
+  years and municipalities, the 2026 Langeland fixture proves a source-backed
+  high municipal-tax ceiling case and matches the published 1,24 pct. `Nedslag
+  pct.`, and § 20 now returns source-backed regulation-number
   results for statutory 2009-2013 values, SKM historical 2014-2024 values, and
   SKM 2025-2026 published values. The § 20 table now uses SKM's 2020-2024
   figures of 114,3, 116,9, 118,3, 121,8 and 126,1 before computing 2010-level

@@ -27,7 +27,7 @@ omfang som nævnt i ligningslovens § 8 M,
 
 # LønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # LønmodtagerSkatteforhold(aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, aktieindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, ægtefælle_nettokapitalindkomst_kroner: Heltal, kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, cfc_indkomst_kroner: Heltal, par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
-# LønmodtagerSkatteloftResult(input: Par19SkatteloftInput, overskydende_basispoint: Heltal, nedslag_kroner: Heltal)
+# LønmodtagerSkatteloftResult(nedslag: Par19SkatteloftNedslagResultat, input: Par19SkatteloftInput, overskydende_basispoint: Heltal, nedslag_kroner: Heltal)
 # LønmodtagerIndkomstgrundlag(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_am_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, almindelig_skattepligtig_indkomst_kroner: Heltal)
 # LønmodtagerLigningsfradrag(beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal)
 # LønmodtagerSkattekomponenter(bundskat_kroner: Heltal, mellemskat_kroner: Heltal, topskat_kroner: Heltal, toptopskat_kroner: Heltal, udligningsskat_kroner: Heltal, sundhedsbidrag_kroner: Heltal, aktieindkomstskat_kroner: Heltal, cfc_indkomstskat_kroner: Heltal, kommunal_lignende_statsskat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal, statslig_indkomstskat_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_kroner: Heltal, samlet_indkomstskat_kroner: Heltal, samlet_inkl_am_kroner: Heltal)
@@ -475,22 +475,26 @@ nedsat med de overskydende procenter.
 | lønmodtager_personligt_skatteloft_beregningsgrundlag(input: LønmodtagerInput) -> topskat_personligt_overskud_fixture(input) under input.skatteår < 2026
 | exception reform_mellemskat_personligt_skatteloftgrundlag lønmodtager_personligt_skatteloft_beregningsgrundlag(input: LønmodtagerInput) -> progressiv_personlig_overskud_kroner(reform_statskat_input(MellemskatLag, input.skatteår, personlig_indkomst_efter_am(input))) under input.skatteår >= 2026
 | lønmodtager_personligt_skatteloft_input_for(input: LønmodtagerInput) -> par19_personlig_skatteloft_input_for(input.skatteår, input.kommune, lønmodtager_personligt_skatteloft_beregningsgrundlag(input))
-| lønmodtager_personligt_skatteloft_overskydende_basispoint(input: LønmodtagerInput) -> par19_personlig_overskydende_basispoint(lønmodtager_personligt_skatteloft_input_for(input))
-| lønmodtager_personligt_skatteloft_nedslag_kroner(input: LønmodtagerInput) -> par19_skatteloftsnedslag_kroner(lønmodtager_personligt_skatteloft_input_for(input), lønmodtager_personligt_skatteloft_overskydende_basispoint(input))
+| lønmodtager_personligt_skatteloft_nedslag_resultat(input: LønmodtagerInput) -> par19_personligt_skatteloftsnedslag_resultat(lønmodtager_personligt_skatteloft_input_for(input))
+| lønmodtager_personligt_skatteloft_overskydende_basispoint(input: LønmodtagerInput) -> lønmodtager_personligt_skatteloft_nedslag_resultat(input).overskydende_basispoint
+| lønmodtager_personligt_skatteloft_nedslag_kroner(input: LønmodtagerInput) -> lønmodtager_personligt_skatteloft_nedslag_resultat(input).nedslag_kroner
 | lønmodtager_personligt_skatteloft_resultat(input: LønmodtagerInput) -> LønmodtagerSkatteloftResult(
-    input = lønmodtager_personligt_skatteloft_input_for(input),
-    overskydende_basispoint = lønmodtager_personligt_skatteloft_overskydende_basispoint(input),
-    nedslag_kroner = lønmodtager_personligt_skatteloft_nedslag_kroner(input)
+    nedslag = lønmodtager_personligt_skatteloft_nedslag_resultat(input),
+    input = lønmodtager_personligt_skatteloft_nedslag_resultat(input).skatteloft_input,
+    overskydende_basispoint = lønmodtager_personligt_skatteloft_nedslag_resultat(input).overskydende_basispoint,
+    nedslag_kroner = lønmodtager_personligt_skatteloft_nedslag_resultat(input).nedslag_kroner
 )
 | lønmodtager_positiv_kapital_skatteloft_beregningsgrundlag(input: LønmodtagerInput) -> topskat_kapitalgrundlag_fixture(input) under input.skatteår < 2026
 | exception reform_mellemskat_positiv_kapital_skatteloftgrundlag lønmodtager_positiv_kapital_skatteloft_beregningsgrundlag(input: LønmodtagerInput) -> mellemskat_kapitalgrundlag_for(input) under input.skatteår >= 2026
 | lønmodtager_positiv_kapital_skatteloft_input_for(input: LønmodtagerInput) -> par19_positiv_kapital_skatteloft_input_for(input.skatteår, input.kommune, lønmodtager_positiv_kapital_skatteloft_beregningsgrundlag(input))
-| lønmodtager_positiv_kapital_skatteloft_overskydende_basispoint(input: LønmodtagerInput) -> par19_positiv_kapital_overskydende_basispoint(lønmodtager_positiv_kapital_skatteloft_input_for(input))
-| lønmodtager_positiv_kapital_skatteloft_nedslag_kroner(input: LønmodtagerInput) -> par19_skatteloftsnedslag_kroner(lønmodtager_positiv_kapital_skatteloft_input_for(input), lønmodtager_positiv_kapital_skatteloft_overskydende_basispoint(input))
+| lønmodtager_positiv_kapital_skatteloft_nedslag_resultat(input: LønmodtagerInput) -> par19_positiv_kapital_skatteloftsnedslag_resultat(lønmodtager_positiv_kapital_skatteloft_input_for(input))
+| lønmodtager_positiv_kapital_skatteloft_overskydende_basispoint(input: LønmodtagerInput) -> lønmodtager_positiv_kapital_skatteloft_nedslag_resultat(input).overskydende_basispoint
+| lønmodtager_positiv_kapital_skatteloft_nedslag_kroner(input: LønmodtagerInput) -> lønmodtager_positiv_kapital_skatteloft_nedslag_resultat(input).nedslag_kroner
 | lønmodtager_positiv_kapital_skatteloft_resultat(input: LønmodtagerInput) -> LønmodtagerSkatteloftResult(
-    input = lønmodtager_positiv_kapital_skatteloft_input_for(input),
-    overskydende_basispoint = lønmodtager_positiv_kapital_skatteloft_overskydende_basispoint(input),
-    nedslag_kroner = lønmodtager_positiv_kapital_skatteloft_nedslag_kroner(input)
+    nedslag = lønmodtager_positiv_kapital_skatteloft_nedslag_resultat(input),
+    input = lønmodtager_positiv_kapital_skatteloft_nedslag_resultat(input).skatteloft_input,
+    overskydende_basispoint = lønmodtager_positiv_kapital_skatteloft_nedslag_resultat(input).overskydende_basispoint,
+    nedslag_kroner = lønmodtager_positiv_kapital_skatteloft_nedslag_resultat(input).nedslag_kroner
 )
 | statslig_indkomstskat_efter_personfradrag(input: LønmodtagerInput) -> positivt_beløb(statslig_indkomstskat_efter_personfradrag_før_skatteloft(input) - lønmodtager_personligt_skatteloft_nedslag_kroner(input) - lønmodtager_positiv_kapital_skatteloft_nedslag_kroner(input))
 | samlet_indkomstskat_efter_personfradrag(input: LønmodtagerInput) -> statslig_indkomstskat_efter_personfradrag(input) + kommunal_og_kirkelig_indkomstskat_efter_personfradrag(input)
@@ -854,12 +858,14 @@ nedsat med de overskydende procenter.
         kommunal_eller_par8c_basispoint = kommunal_eller_par8c_basispoint(),
         beregningsgrundlag_kroner = personligt_skatteloft_beregningsgrundlag_kroner()
     )
-    | personligt_skatteloft_overskydende_basispoint() -> par19_personlig_overskydende_basispoint(personligt_skatteloft_input())
-    | personligt_skatteloft_nedslag_kroner() -> par19_skatteloftsnedslag_kroner(personligt_skatteloft_input(), personligt_skatteloft_overskydende_basispoint())
+    | personligt_skatteloft_nedslag_resultat() -> par19_personligt_skatteloftsnedslag_resultat(personligt_skatteloft_input())
+    | personligt_skatteloft_overskydende_basispoint() -> personligt_skatteloft_nedslag_resultat().overskydende_basispoint
+    | personligt_skatteloft_nedslag_kroner() -> personligt_skatteloft_nedslag_resultat().nedslag_kroner
     | personligt_skatteloft() -> LønmodtagerSkatteloftResult(
-        input = personligt_skatteloft_input(),
-        overskydende_basispoint = personligt_skatteloft_overskydende_basispoint(),
-        nedslag_kroner = personligt_skatteloft_nedslag_kroner()
+        nedslag = personligt_skatteloft_nedslag_resultat(),
+        input = personligt_skatteloft_nedslag_resultat().skatteloft_input,
+        overskydende_basispoint = personligt_skatteloft_nedslag_resultat().overskydende_basispoint,
+        nedslag_kroner = personligt_skatteloft_nedslag_resultat().nedslag_kroner
     )
     | positiv_kapital_skatteloft_input() -> Par19SkatteloftInput(
         skatteår = input.skatteår,
@@ -869,12 +875,14 @@ nedsat med de overskydende procenter.
         kommunal_eller_par8c_basispoint = kommunal_eller_par8c_basispoint(),
         beregningsgrundlag_kroner = positiv_kapital_skatteloft_beregningsgrundlag_kroner()
     )
-    | positiv_kapital_skatteloft_overskydende_basispoint() -> par19_positiv_kapital_overskydende_basispoint(positiv_kapital_skatteloft_input())
-    | positiv_kapital_skatteloft_nedslag_kroner() -> par19_skatteloftsnedslag_kroner(positiv_kapital_skatteloft_input(), positiv_kapital_skatteloft_overskydende_basispoint())
+    | positiv_kapital_skatteloft_nedslag_resultat() -> par19_positiv_kapital_skatteloftsnedslag_resultat(positiv_kapital_skatteloft_input())
+    | positiv_kapital_skatteloft_overskydende_basispoint() -> positiv_kapital_skatteloft_nedslag_resultat().overskydende_basispoint
+    | positiv_kapital_skatteloft_nedslag_kroner() -> positiv_kapital_skatteloft_nedslag_resultat().nedslag_kroner
     | positiv_kapital_skatteloft() -> LønmodtagerSkatteloftResult(
-        input = positiv_kapital_skatteloft_input(),
-        overskydende_basispoint = positiv_kapital_skatteloft_overskydende_basispoint(),
-        nedslag_kroner = positiv_kapital_skatteloft_nedslag_kroner()
+        nedslag = positiv_kapital_skatteloft_nedslag_resultat(),
+        input = positiv_kapital_skatteloft_nedslag_resultat().skatteloft_input,
+        overskydende_basispoint = positiv_kapital_skatteloft_nedslag_resultat().overskydende_basispoint,
+        nedslag_kroner = positiv_kapital_skatteloft_nedslag_resultat().nedslag_kroner
     )
     | skatteloftsnedslag_i_alt_kroner() -> personligt_skatteloft_nedslag_kroner() + positiv_kapital_skatteloft_nedslag_kroner()
     | statslig_indkomstskat_efter_personfradrag_kroner() -> positivt_beløb(statslig_indkomstskat_efter_par11_før_skatteloft_kroner() - skatteloftsnedslag_i_alt_kroner())
