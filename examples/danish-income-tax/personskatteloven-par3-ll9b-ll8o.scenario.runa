@@ -1,0 +1,379 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for den kildebaserede kæde fra ligningslovens §§ 9 B og 8 O
+-- til personskattelovens § 3, stk. 2, nr. 8 og 9.
+
+= ll9b_dag60_forhold = Ligningslov9B60DagesForhold(
+    arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder = 60,
+    sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen = 0,
+    mange_forskellige_arbejdspladser = Falskt,
+    ikke_sandsynligt_over_60_dage = Falskt,
+    skriftligt_kørselsregnskabspålæg_aktivt = Falskt,
+    kørselsregnskab_dokumenterer_erhvervsmæssig_befordring = Falskt
+)
+
+= ll9b_dag61_forhold = Ligningslov9B60DagesForhold(
+    arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder = 61,
+    sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen = 0,
+    mange_forskellige_arbejdspladser = Falskt,
+    ikke_sandsynligt_over_60_dage = Falskt,
+    skriftligt_kørselsregnskabspålæg_aktivt = Falskt,
+    kørselsregnskab_dokumenterer_erhvervsmæssig_befordring = Falskt
+)
+
+= ll9b_ny_periode_forhold = Ligningslov9B60DagesForhold(
+    arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder = 61,
+    sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen = 60,
+    mange_forskellige_arbejdspladser = Falskt,
+    ikke_sandsynligt_over_60_dage = Falskt,
+    skriftligt_kørselsregnskabspålæg_aktivt = Falskt,
+    kørselsregnskab_dokumenterer_erhvervsmæssig_befordring = Falskt
+)
+
+= ll9b_stk3_formodning_forhold = Ligningslov9B60DagesForhold(
+    arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder = 61,
+    sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen = 0,
+    mange_forskellige_arbejdspladser = Sandt,
+    ikke_sandsynligt_over_60_dage = Sandt,
+    skriftligt_kørselsregnskabspålæg_aktivt = Falskt,
+    kørselsregnskab_dokumenterer_erhvervsmæssig_befordring = Falskt
+)
+
+= ll9b_stk3_pålæg_ikke_dokumenteret_forhold = Ligningslov9B60DagesForhold(
+    arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder = 61,
+    sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen = 0,
+    mange_forskellige_arbejdspladser = Sandt,
+    ikke_sandsynligt_over_60_dage = Sandt,
+    skriftligt_kørselsregnskabspålæg_aktivt = Sandt,
+    kørselsregnskab_dokumenterer_erhvervsmæssig_befordring = Falskt
+)
+
+= ll9b_ingen_godtgørelse = Ligningslov9BGodtgørelsesforhold(
+    udbetalt_godtgørelse_kroner = 0,
+    form = Ll9BKilometerafregnet,
+    arbejdsgiver_har_kontrolleret_kilometer = Falskt,
+    bogføringsbilag_opfylder_par6 = Falskt,
+    modregnet_i_forud_aftalt_bruttoløn = Falskt,
+    firmabil_stillet_til_rådighed = Falskt,
+    dokumenteret_kørsel_i_eget_køretøj = Sandt,
+    fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver = Falskt,
+    overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse = Falskt,
+    eventuel_godtgørelse_valgt_medregnet_i_indkomsten = Falskt
+)
+
+| ll9b_scenario_kilometerhistorik(hos_godtgørende_arbejdsgiver: Heltal, til_direkte_fradrag: Heltal) -> Ligningslov9BKilometerhistorik(
+    tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret = hos_godtgørende_arbejdsgiver,
+    tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret = til_direkte_fradrag
+)
+
+| ll9b_scenario_godtgørelse(udbetalt_kroner: Heltal, overskud_som_løn: Boolsk, medregnes_i_indkomsten: Boolsk) -> Ligningslov9BGodtgørelsesforhold(
+    udbetalt_godtgørelse_kroner = udbetalt_kroner,
+    form = Ll9BKilometerafregnet,
+    arbejdsgiver_har_kontrolleret_kilometer = Sandt,
+    bogføringsbilag_opfylder_par6 = Sandt,
+    modregnet_i_forud_aftalt_bruttoløn = Falskt,
+    firmabil_stillet_til_rådighed = Falskt,
+    dokumenteret_kørsel_i_eget_køretøj = Sandt,
+    fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver = Falskt,
+    overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse = overskud_som_løn,
+    eventuel_godtgørelse_valgt_medregnet_i_indkomsten = medregnes_i_indkomsten
+)
+
+= ll9b_selvstændig_dag60 = ligningslov9b_resultat(Ligningslov9BInput(
+    indkomstår = 2026,
+    køretøj = Ll9BEgenBil,
+    befordring = Ligningslov9BBefordring(
+        art = Ll9BHjemOgArbejdsplads,
+        kilometer_i_sagen = 1000,
+        kilometerhistorik = ll9b_scenario_kilometerhistorik(
+            hos_godtgørende_arbejdsgiver = 0,
+            til_direkte_fradrag = 19500
+        ),
+        tres_dages_forhold = ll9b_dag60_forhold
+    ),
+    udgifter = Ligningslov9BUdgifter(
+        har_afholdt_befordringsudgifter = Sandt,
+        dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner = 2800,
+        dokumenterede_bro_tunnel_udgifter_kroner = 300
+    ),
+    fradragsforhold = Ligningslov9BFradragsforhold(
+        personrolle = Ll9BSelvstændig,
+        metode = Ll9BSkatteraadetsKilometersatser,
+        kundeopsøgende_aktivitet = Falskt,
+        antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang = 0
+    ),
+    godtgørelsesforhold = ll9b_ingen_godtgørelse
+))
+
+= ll9b_selvstændig_dag61 = ligningslov9b_resultat(Ligningslov9BInput(
+    indkomstår = 2026,
+    køretøj = Ll9BEgenBil,
+    befordring = Ligningslov9BBefordring(
+        art = Ll9BHjemOgArbejdsplads,
+        kilometer_i_sagen = 100,
+        kilometerhistorik = ll9b_scenario_kilometerhistorik(
+            hos_godtgørende_arbejdsgiver = 0,
+            til_direkte_fradrag = 0
+        ),
+        tres_dages_forhold = ll9b_dag61_forhold
+    ),
+    udgifter = Ligningslov9BUdgifter(
+        har_afholdt_befordringsudgifter = Sandt,
+        dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner = 394,
+        dokumenterede_bro_tunnel_udgifter_kroner = 0
+    ),
+    fradragsforhold = Ligningslov9BFradragsforhold(
+        personrolle = Ll9BSelvstændig,
+        metode = Ll9BSkatteraadetsKilometersatser,
+        kundeopsøgende_aktivitet = Falskt,
+        antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang = 0
+    ),
+    godtgørelsesforhold = ll9b_ingen_godtgørelse
+))
+
+= ll9b_selvstændig_ny_periode = ligningslov9b_resultat(Ligningslov9BInput(
+    indkomstår = 2026,
+    køretøj = Ll9BEgenBil,
+    befordring = Ligningslov9BBefordring(
+        art = Ll9BHjemOgArbejdsplads,
+        kilometer_i_sagen = 100,
+        kilometerhistorik = ll9b_scenario_kilometerhistorik(
+            hos_godtgørende_arbejdsgiver = 0,
+            til_direkte_fradrag = 0
+        ),
+        tres_dages_forhold = ll9b_ny_periode_forhold
+    ),
+    udgifter = Ligningslov9BUdgifter(
+        har_afholdt_befordringsudgifter = Sandt,
+        dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner = 394,
+        dokumenterede_bro_tunnel_udgifter_kroner = 0
+    ),
+    fradragsforhold = Ligningslov9BFradragsforhold(
+        personrolle = Ll9BSelvstændig,
+        metode = Ll9BSkatteraadetsKilometersatser,
+        kundeopsøgende_aktivitet = Falskt,
+        antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang = 0
+    ),
+    godtgørelsesforhold = ll9b_ingen_godtgørelse
+))
+
+| ll9b_scenario_formodning_resultat(tres_dages_forhold: Ligningslov9B60DagesForhold) -> ligningslov9b_resultat(Ligningslov9BInput(
+    indkomstår = 2026,
+    køretøj = Ll9BEgenBil,
+    befordring = Ligningslov9BBefordring(
+        art = Ll9BHjemOgArbejdsplads,
+        kilometer_i_sagen = 50,
+        kilometerhistorik = ll9b_scenario_kilometerhistorik(
+            hos_godtgørende_arbejdsgiver = 0,
+            til_direkte_fradrag = 0
+        ),
+        tres_dages_forhold = tres_dages_forhold
+    ),
+    udgifter = Ligningslov9BUdgifter(
+        har_afholdt_befordringsudgifter = Sandt,
+        dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner = 197,
+        dokumenterede_bro_tunnel_udgifter_kroner = 0
+    ),
+    fradragsforhold = Ligningslov9BFradragsforhold(
+        personrolle = Ll9BSelvstændig,
+        metode = Ll9BSkatteraadetsKilometersatser,
+        kundeopsøgende_aktivitet = Falskt,
+        antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang = 0
+    ),
+    godtgørelsesforhold = ll9b_ingen_godtgørelse
+))
+
+= ll9b_stk3_formodning = ll9b_scenario_formodning_resultat(ll9b_stk3_formodning_forhold)
+= ll9b_stk3_pålæg_ikke_dokumenteret = ll9b_scenario_formodning_resultat(ll9b_stk3_pålæg_ikke_dokumenteret_forhold)
+
+| ll9b_scenario_lønmodtager_resultat(godtgørelsesforhold: Ligningslov9BGodtgørelsesforhold, kundeopsøgende: Boolsk, antal_arbejdsgivere: Heltal) -> ligningslov9b_resultat(Ligningslov9BInput(
+    indkomstår = 2026,
+    køretøj = Ll9BEgenBil,
+    befordring = Ligningslov9BBefordring(
+        art = Ll9BMellemArbejdspladser,
+        kilometer_i_sagen = 1000,
+        kilometerhistorik = ll9b_scenario_kilometerhistorik(
+            hos_godtgørende_arbejdsgiver = 0,
+            til_direkte_fradrag = 0
+        ),
+        tres_dages_forhold = ll9b_dag61_forhold
+    ),
+    udgifter = Ligningslov9BUdgifter(
+        har_afholdt_befordringsudgifter = Sandt,
+        dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner = 4000,
+        dokumenterede_bro_tunnel_udgifter_kroner = 500
+    ),
+    fradragsforhold = Ligningslov9BFradragsforhold(
+        personrolle = Ll9BLønmodtager,
+        metode = Ll9BFaktiskeUdgifter,
+        kundeopsøgende_aktivitet = kundeopsøgende,
+        antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang = antal_arbejdsgivere
+    ),
+    godtgørelsesforhold = godtgørelsesforhold
+))
+
+= ll9b_lønmodtager_delvis_skattefri = ll9b_scenario_lønmodtager_resultat(
+    godtgørelsesforhold = ll9b_scenario_godtgørelse(
+        udbetalt_kroner = 3000,
+        overskud_som_løn = Falskt,
+        medregnes_i_indkomsten = Falskt
+    ),
+    kundeopsøgende = Falskt,
+    antal_arbejdsgivere = 1
+)
+
+= ll9b_lønmodtager_uden_godtgørelse = ll9b_scenario_lønmodtager_resultat(
+    godtgørelsesforhold = ll9b_ingen_godtgørelse,
+    kundeopsøgende = Falskt,
+    antal_arbejdsgivere = 1
+)
+
+= ll9b_kundeopsøgende_uden_godtgørelse = ll9b_scenario_lønmodtager_resultat(
+    godtgørelsesforhold = ll9b_ingen_godtgørelse,
+    kundeopsøgende = Sandt,
+    antal_arbejdsgivere = 2
+)
+
+= ll9b_kundeopsøgende_medregner_godtgørelse = ll9b_scenario_lønmodtager_resultat(
+    godtgørelsesforhold = ll9b_scenario_godtgørelse(
+        udbetalt_kroner = 3000,
+        overskud_som_løn = Falskt,
+        medregnes_i_indkomsten = Sandt
+    ),
+    kundeopsøgende = Sandt,
+    antal_arbejdsgivere = 2
+)
+
+= ll9b_godtgørelse_over_sats_hele_beløbet_personligt = ll9b_scenario_lønmodtager_resultat(
+    godtgørelsesforhold = ll9b_scenario_godtgørelse(
+        udbetalt_kroner = 4500,
+        overskud_som_løn = Falskt,
+        medregnes_i_indkomsten = Falskt
+    ),
+    kundeopsøgende = Falskt,
+    antal_arbejdsgivere = 1
+)
+
+= ll9b_godtgørelse_over_sats_overskud_som_løn = ll9b_scenario_lønmodtager_resultat(
+    godtgørelsesforhold = ll9b_scenario_godtgørelse(
+        udbetalt_kroner = 4500,
+        overskud_som_løn = Sandt,
+        medregnes_i_indkomsten = Falskt
+    ),
+    kundeopsøgende = Falskt,
+    antal_arbejdsgivere = 1
+)
+
+= ll8o_2025_kontanthjælp = ligningslov8o_resultat(Ligningslov8OInput(
+    indkomstår = 2025,
+    ydelsesgrundlag = Ll8OAktivlovenKontanthjælp,
+    ydelsen_var_skattepligtig_ved_udbetaling = Sandt,
+    oprindeligt_skattepligtigt_bruttobeløb_kroner = 100000,
+    tidligere_tilbagebetalt_bruttobeløb_kroner = 10000,
+    tilbagebetalt_bruttobeløb_i_indkomståret_kroner = 20000,
+    samme_beløb_tidligere_fradraget_i_udbetalingsåret = Falskt
+))
+
+= ll8o_2025_anden_aktivlovsydelse = ligningslov8o_resultat(Ligningslov8OInput(
+    indkomstår = 2025,
+    ydelsesgrundlag = Ll8OAndenSkattepligtigYdelseEfterAktivloven,
+    ydelsen_var_skattepligtig_ved_udbetaling = Sandt,
+    oprindeligt_skattepligtigt_bruttobeløb_kroner = 100000,
+    tidligere_tilbagebetalt_bruttobeløb_kroner = 0,
+    tilbagebetalt_bruttobeløb_i_indkomståret_kroner = 30000,
+    samme_beløb_tidligere_fradraget_i_udbetalingsåret = Falskt
+))
+
+= ll8o_2026_lab_par123 = ligningslov8o_resultat(Ligningslov8OInput(
+    indkomstår = 2026,
+    ydelsesgrundlag = Ll8OLabPar123,
+    ydelsen_var_skattepligtig_ved_udbetaling = Sandt,
+    oprindeligt_skattepligtigt_bruttobeløb_kroner = 100000,
+    tidligere_tilbagebetalt_bruttobeløb_kroner = 0,
+    tilbagebetalt_bruttobeløb_i_indkomståret_kroner = 30000,
+    samme_beløb_tidligere_fradraget_i_udbetalingsåret = Falskt
+))
+
+= ll8o_2026_dobbeltfradrag = ligningslov8o_resultat(Ligningslov8OInput(
+    indkomstår = 2026,
+    ydelsesgrundlag = Ll8OAndenSkattepligtigYdelseEfterAktivloven,
+    ydelsen_var_skattepligtig_ved_udbetaling = Sandt,
+    oprindeligt_skattepligtigt_bruttobeløb_kroner = 50000,
+    tidligere_tilbagebetalt_bruttobeløb_kroner = 0,
+    tilbagebetalt_bruttobeløb_i_indkomståret_kroner = 10000,
+    samme_beløb_tidligere_fradraget_i_udbetalingsåret = Sandt
+))
+
+= ll8o_2026_resterende_beskattet_loft = ligningslov8o_resultat(Ligningslov8OInput(
+    indkomstår = 2026,
+    ydelsesgrundlag = Ll8OAktivlovenKontanthjælp,
+    ydelsen_var_skattepligtig_ved_udbetaling = Sandt,
+    oprindeligt_skattepligtigt_bruttobeløb_kroner = 50000,
+    tidligere_tilbagebetalt_bruttobeløb_kroner = 40000,
+    tilbagebetalt_bruttobeløb_i_indkomståret_kroner = 20000,
+    samme_beløb_tidligere_fradraget_i_udbetalingsåret = Falskt
+))
+
+= par3_nr8_selvstændig = par3_stk2_nr8_resultat(ll9b_selvstændig_dag60)
+= par3_nr8_kundeopsøgende = par3_stk2_nr8_resultat(ll9b_kundeopsøgende_uden_godtgørelse)
+= par3_nr9_lab = par3_stk2_nr9_resultat(ll8o_2026_lab_par123)
+
+= par3_nr8_nr9_samlet = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 100000
+        )
+    ],
+    fradragsposter = [
+        par3_stk2_nr8_fradragspost(ll9b_selvstændig_dag60),
+        par3_stk2_nr9_fradragspost(ll8o_2026_lab_par123)
+    ]
+))
+
+| ll9b_dag60_er_erhvervsmæssig: ll9b_selvstændig_dag60 -> ll9b_selvstændig_dag60.erhvervsmæssig_befordring && ll9b_selvstændig_dag60.godtgørelses_høj_sats_kilometer == 1000 && ll9b_selvstændig_dag60.direkte_fradrags_høj_sats_kilometer == 500 && ll9b_selvstændig_dag60.direkte_fradrags_lav_sats_kilometer == 500 && ll9b_selvstændig_dag60.maksimal_skattefri_godtgørelse_kroner == 3940 && ll9b_selvstændig_dag60.satsbaseret_direkte_fradrag_før_bro_tunnel_kroner == 3110 && ll9b_selvstændig_dag60.fradrag_i_personlig_indkomst_kroner == 3410
+| ll9b_dag61_er_ikke_erhvervsmæssig: ll9b_selvstændig_dag61 -> ll9b_selvstændig_dag61.erhvervsmæssig_befordring == Falskt && ll9b_selvstændig_dag61.fradrag_i_personlig_indkomst_kroner == 0
+| ll9b_ny_60_dages_periode: ll9b_selvstændig_ny_periode -> ll9b_selvstændig_ny_periode.ny_60_dages_periode && ll9b_selvstændig_ny_periode.erhvervsmæssig_befordring && ll9b_selvstændig_ny_periode.fradrag_i_personlig_indkomst_kroner == 394
+| ll9b_stk3_formodning_anvendes: ll9b_stk3_formodning -> ll9b_stk3_formodning.stk3_formodning_anvendt && ll9b_stk3_formodning.erhvervsmæssig_befordring && ll9b_stk3_formodning.fradrag_i_personlig_indkomst_kroner == 197
+| ll9b_stk3_pålæg_kræver_dokumentation: ll9b_stk3_pålæg_ikke_dokumenteret -> ll9b_stk3_pålæg_ikke_dokumenteret.stk3_formodning_anvendt == Falskt && ll9b_stk3_pålæg_ikke_dokumenteret.erhvervsmæssig_befordring == Falskt
+| ll9b_delvis_skattefri_afskærer_dobbeltfradrag: ll9b_lønmodtager_delvis_skattefri -> ll9b_lønmodtager_delvis_skattefri.skattefri_godtgørelse_kroner == 3000 && ll9b_lønmodtager_delvis_skattefri.godtgørelse_personlig_indkomst_kroner == 0 && ll9b_lønmodtager_delvis_skattefri.fradrag_i_personlig_indkomst_kroner == 0 && ll9b_lønmodtager_delvis_skattefri.henvises_til_par9c == Falskt
+| ll9b_lønmodtager_uden_godtgørelse_henvises_til_9c: ll9b_lønmodtager_uden_godtgørelse -> ll9b_lønmodtager_uden_godtgørelse.skattefri_godtgørelse_kroner == 0 && ll9b_lønmodtager_uden_godtgørelse.direkte_fradragsberettiget_efter_par9b == Falskt && ll9b_lønmodtager_uden_godtgørelse.henvises_til_par9c
+| ll9b_kundeopsøgende_flere_arbejdsgivere_fradrager: ll9b_kundeopsøgende_uden_godtgørelse -> ll9b_kundeopsøgende_uden_godtgørelse.kundeopsøgende_flere_arbejdsgivere && ll9b_kundeopsøgende_uden_godtgørelse.direkte_fradragsberettiget_efter_par9b && ll9b_kundeopsøgende_uden_godtgørelse.fradrag_i_personlig_indkomst_kroner == 4440 && ll9b_kundeopsøgende_uden_godtgørelse.henvises_til_par9c == Falskt
+| ll9b_kundeopsøgende_medregner_godtgørelse: ll9b_kundeopsøgende_medregner_godtgørelse -> ll9b_kundeopsøgende_medregner_godtgørelse.skattefri_godtgørelse_kroner == 0 && ll9b_kundeopsøgende_medregner_godtgørelse.godtgørelse_personlig_indkomst_kroner == 3000 && ll9b_kundeopsøgende_medregner_godtgørelse.fradrag_i_personlig_indkomst_kroner == 4440
+| ll9b_over_sats_hele_beløbet_personligt: ll9b_godtgørelse_over_sats_hele_beløbet_personligt -> ll9b_godtgørelse_over_sats_hele_beløbet_personligt.skattefri_godtgørelse_kroner == 0 && ll9b_godtgørelse_over_sats_hele_beløbet_personligt.godtgørelse_personlig_indkomst_kroner == 4500
+| ll9b_over_sats_overskud_som_løn: ll9b_godtgørelse_over_sats_overskud_som_løn -> ll9b_godtgørelse_over_sats_overskud_som_løn.skattefri_godtgørelse_kroner == 3940 && ll9b_godtgørelse_over_sats_overskud_som_løn.godtgørelse_personlig_indkomst_kroner == 560
+| ll8o_2025_gammel_kreds_fradrages: ll8o_2025_kontanthjælp -> ll8o_2025_kontanthjælp.kilde == Ll8OLbk1500Før2026 && ll8o_2025_kontanthjælp.ydelse_omfattet && ll8o_2025_kontanthjælp.fradrag_i_personlig_indkomst_kroner == 20000 && ll8o_2025_kontanthjælp.resterende_tidligere_beskattet_bruttobeløb_efter_årets_tilbagebetaling_kroner == 70000
+| ll8o_2025_anden_aktivlovsydelse_ikke_omfattet: ll8o_2025_anden_aktivlovsydelse -> ll8o_2025_anden_aktivlovsydelse.ydelse_omfattet == Falskt && ll8o_2025_anden_aktivlovsydelse.fradrag_i_personlig_indkomst_kroner == 0
+| ll8o_2026_udvidet_kreds_fradrages: ll8o_2026_lab_par123 -> ll8o_2026_lab_par123.kilde == Ll8OLov198Fra2026 && ll8o_2026_lab_par123.ydelse_omfattet && ll8o_2026_lab_par123.fradrag_i_personlig_indkomst_kroner == 30000
+| ll8o_dobbeltfradrag_afskæres: ll8o_2026_dobbeltfradrag -> ll8o_2026_dobbeltfradrag.dobbeltfradrag_afskåret && ll8o_2026_dobbeltfradrag.fradrag_i_personlig_indkomst_kroner == 0
+| ll8o_fradrag_loftes_af_resterende_beskattet_beløb: ll8o_2026_resterende_beskattet_loft -> ll8o_2026_resterende_beskattet_loft.tilbagebetalt_bruttobeløb_i_indkomståret_kroner == 20000 && ll8o_2026_resterende_beskattet_loft.fradragsrelevant_tilbagebetaling_kroner == 10000 && ll8o_2026_resterende_beskattet_loft.fradrag_i_personlig_indkomst_kroner == 10000 && ll8o_2026_resterende_beskattet_loft.resterende_tidligere_beskattet_bruttobeløb_efter_årets_tilbagebetaling_kroner == 0
+| par3_nr8_delegerer_til_ll9b: par3_nr8_selvstændig -> par3_nr8_selvstændig.erhvervsmæssig_befordring && par3_nr8_selvstændig.fradrag_i_personlig_indkomst_kroner == 3410
+| par3_nr8_kundeopsøgende_delegerer_til_ll9b: par3_nr8_kundeopsøgende -> par3_nr8_kundeopsøgende.kundeopsøgende_flere_arbejdsgivere && par3_nr8_kundeopsøgende.fradrag_i_personlig_indkomst_kroner == 4440
+| par3_nr9_delegerer_til_ll8o: par3_nr9_lab -> par3_nr9_lab.ydelse_omfattet_af_ligningslov8o && par3_nr9_lab.fradrag_i_personlig_indkomst_kroner == 30000
+| par3_nr8_nr9_indgår_i_regelkaskaden: par3_nr8_nr9_samlet -> par3_nr8_nr9_samlet.brutto_personlig_indkomst_kroner == 100000 && par3_nr8_nr9_samlet.fradrag_i_personlig_indkomst_kroner == 33410 && par3_nr8_nr9_samlet.netto_personlig_indkomst_kroner == 66590
+
+? ll9b_dag60_er_erhvervsmæssig
+? ll9b_dag61_er_ikke_erhvervsmæssig
+? ll9b_ny_60_dages_periode
+? ll9b_stk3_formodning_anvendes
+? ll9b_stk3_pålæg_kræver_dokumentation
+? ll9b_delvis_skattefri_afskærer_dobbeltfradrag
+? ll9b_lønmodtager_uden_godtgørelse_henvises_til_9c
+? ll9b_kundeopsøgende_flere_arbejdsgivere_fradrager
+? ll9b_kundeopsøgende_medregner_godtgørelse
+? ll9b_over_sats_hele_beløbet_personligt
+? ll9b_over_sats_overskud_som_løn
+? ll8o_2025_gammel_kreds_fradrages
+? ll8o_2025_anden_aktivlovsydelse_ikke_omfattet
+? ll8o_2026_udvidet_kreds_fradrages
+? ll8o_dobbeltfradrag_afskæres
+? ll8o_fradrag_loftes_af_resterende_beskattet_beløb
+? par3_nr8_delegerer_til_ll9b
+? par3_nr8_kundeopsøgende_delegerer_til_ll9b
+? par3_nr9_delegerer_til_ll8o
+? par3_nr8_nr9_indgår_i_regelkaskaden
+
+@ print("§ 3, stk. 2, nr. 8-9 samlet fradrag: " + vis(par3_nr8_nr9_samlet.fradrag_i_personlig_indkomst_kroner))

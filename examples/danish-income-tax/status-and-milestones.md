@@ -1,9 +1,9 @@
 # Personskatteloven as Futuruna
 
-Status: active implementation; first-slice corpus complete
+Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-e39f01`
+Current focus issue: `td-2d84ec`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -19,16 +19,35 @@ Futurunas metadataindeks understøtter nu generiske, typede referencer fra en
 vilkårlig rolle til en almindelig Futuruna-binding. Gentagne roller bevares,
 grundværdier og definitionlinjer kan udstilles, og `runa meta --type` samt
 `--role` kan bruges som målrettede audit-sweeps uden at ændre programmets
-semantik. Selskabsskattelovens historiske og gældende § 17-kilder er den første
-korpusblok, hvor to typede `source`-referencer peger tilbage fra samme regelspan
-til hver sin ordrette lovtekst.
+semantik. `runa meta --json` udstiller desuden det typede indeks som
+`futuruna.meta.v1` med råtekstankre, regelspans, symboler og strukturerede
+diagnostikker. Selskabsskattelovens historiske og gældende § 17-kilder var den
+første korpusblok med gentagne `source`-referencer; Personskattelovens § 3
+udstiller nu også en typet `warning` om ordlydsforskydningen i den dynamiske
+henvisning til Ligningsloven § 8 O fra 2026.
 
 Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Personskatteloven § 3 modtager nu både typede
+Latest integration: Ligningsloven § 9 B er nu en kildebaseret regelkaskade for
+60-dages-reglen, ny periode efter 60 sammenhængende arbejdsdage, stk. 3's
+formodning og kørselsregnskabspålæg, kørsel mellem eller inden for
+arbejdspladser, Skatterådets 2026-kilometersatser, kontrol- og bilagskrav,
+aconto/fast godtgørelse, bruttolønsmodregning, firmabil, godtgørelse over
+satsen, § 9 C-henvisning og kundeopsøgende kørsel for flere arbejdsgivere.
+Selvstændige og andre ikke-lønmodtagere kan vælge faktiske udgifter eller
+kilometersatser; den særlige lønmodtagergren bruger satserne og medregner en
+eventuel godtgørelse i indkomsten. Ligningsloven § 8 O har en tidsafgrænset
+ydelseskreds før og fra 2026, faktisk tilbagebetaling, resterende tidligere
+beskattet bruttobeløb og et eksplicit dobbeltfradragsværn. De to resultater
+føres gennem `Par3Stk2Nr8Sag` og `Par3Stk2Nr9Sag` til Personskatteloven § 3.
+Den fokuserede scenario-fil validerer 20 betingelser og en samlet regelkaskade,
+hvor 3.410 kr. § 9 B-fradrag og 30.000 kr. § 8 O-fradrag reducerer 100.000 kr.
+personlig bruttoindkomst til 66.590 kr.
+
+Previous integration: Personskatteloven § 3 modtager nu både typede
 henlæggelsesresultater og senere indtægtsføringsresultater fra
 Virksomhedsskatteloven §§ 22 b og 22 d. En fælles, ordningsafgrænset
 regelmodel håndterer ældste henlæggelse først, frivillig indtægtsføring,
@@ -1002,8 +1021,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 69-79% complete as an executable research corpus,
-  and roughly 55-65% complete as a production-grade calculator for
+- Working estimate: roughly 71-81% complete as an executable research corpus,
+  and roughly 57-67% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"

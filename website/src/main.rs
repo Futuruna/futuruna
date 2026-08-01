@@ -3501,6 +3501,12 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2024/1691", "LOV nr. 1691/2024" }
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/2026/615", "LOV nr. 615/2026" }
+                        " · Ligningsloven: "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1500", "LBK nr. 1500/2025" }
+                        " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2025/198", "LOV nr. 198/2025" }
+                        " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1333", "BEK nr. 1333/2025" }
                         " · historisk linje: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
                     }

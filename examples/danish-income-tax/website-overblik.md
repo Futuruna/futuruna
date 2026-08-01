@@ -65,6 +65,20 @@ og eventuelle arbejdsgiveraftale opfylder lovens betingelser.
 Personskatteloven § 3, stk. 2, nr. 7 er nu også koblet til de beregnede
 henlæggelser efter Virksomhedsskatteloven §§ 22 b og 22 d, herunder procent- og
 beløbslofter, udligningsskat, bundet konto og rettidigt indskud.
+Personskatteloven § 3, stk. 2, nr. 8 og 9 modtager nu tilsvarende typede
+resultater fra Ligningsloven §§ 9 B og 8 O. § 9 B-reglerne afgør bl.a.
+60-dages-perioder, Skatterådets kilometersatser, skattefri eller personlig
+godtgørelse, § 9 C-henvisning og den kundeopsøgende undtagelse for flere
+arbejdsgivere. § 8 O-reglerne skelner mellem ydelseskredsen før 2026 og den
+udvidede kreds fra 2026, begrænser fradraget til tidligere beskattede beløb og
+afskærer dobbeltfradrag. Kilderne er [Ligningsloven, LBK nr. 1500/2025](https://www.retsinformation.dk/eli/lta/2025/1500),
+[LOV nr. 198/2025](https://www.retsinformation.dk/eli/lta/2025/198) og
+[Skatterådets BEK nr. 1333/2025](https://www.retsinformation.dk/eli/lta/2025/1333).
+
+Korpussets meta-kommentarer kan nu også læses maskinelt med
+`runa meta --json`. Typede `source`, `guidance` og `warning`-referencer peger
+fra ordret lovtekst til de tilhørende regelspans uden at ændre Futurunas
+programsemantik.
 
 ## Eksempel
 

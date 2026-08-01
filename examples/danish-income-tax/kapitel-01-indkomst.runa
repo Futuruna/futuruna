@@ -27,11 +27,17 @@
 -- https://www.retsinformation.dk/eli/lta/2026/615
 
 # PersonskattelovIndkomstKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+# PersonskattelovKildeAdvarsel(kode: Tekst, besked: Tekst)
 
 = personskatteloven_lbk1284_par3 = PersonskattelovIndkomstKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2021/1284",
     identifier = "Personskatteloven § 3",
     hentet_dato = "2026-07-18"
+)
+
+= personskatteloven_par3_nr9_dynamisk_henvisning_advarsel = PersonskattelovKildeAdvarsel(
+    kode = "PSL-PAR3-NR9-LL8O-2026",
+    besked = "Personskattelovens § 3, stk. 2, nr. 9, bruger fortsat ordet kontanthjælp, mens den dynamiske henvisning til ligningslovens § 8 O fra 2026 omfatter en bredere kreds af skattepligtige offentlige ydelser. Reglerne følger henvisningens aktuelle omfang."
 )
 
 ----
@@ -97,7 +103,7 @@ indkomst, kapitalindkomst, aktieindkomst og CFC-indkomst.
 | par2_cfc_særskilt: par2_cfc -> par2_cfc == Sandt
 | par2_almindelig_er_basis: par2_almindelig -> par2_almindelig == Falskt
 
---@source::personskatteloven_par3::meta:personskatteloven_lbk1284_par3--
+--@label:personskatteloven_par3::source:personskatteloven_lbk1284_par3::warning:personskatteloven_par3_nr9_dynamisk_henvisning_advarsel--
 ----
 § 3. Personlig indkomst omfatter alle de indkomster, der indgår i den
 skattepligtige indkomst, og som ikke er kapitalindkomst.
@@ -140,6 +146,8 @@ iværksætterkonto
 # Par3Stk2Nr6Resultat(arbejdsmarkedsbidrag_fradrag_kroner: Heltal, udenlandsk_socialt_bidrag_fradrag_kroner: Heltal, udenlandsk_arbejdsgiverbidrag_fradrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr7Hjemmel = Par3Stk2Nr7Virksomhedsskattelov22B | Par3Stk2Nr7Virksomhedsskattelov22D
 # Par3Stk2Nr7Resultat(indkomstår: Heltal, hjemmel: Par3Stk2Nr7Hjemmel, henlæggelse_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
+# Par3Stk2Nr8Resultat(indkomstår: Heltal, erhvervsmæssig_befordring: Boolsk, kundeopsøgende_flere_arbejdsgivere: Boolsk, henvises_til_ligningslov9c: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal)
+# Par3Stk2Nr9Resultat(indkomstår: Heltal, ydelse_omfattet_af_ligningslov8o: Boolsk, dobbeltfradrag_afskåret: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3UdligningsIndtægtsføringHjemmel = Par3Virksomhedsskattelov22BStk4Stk7Stk8 | Par3Virksomhedsskattelov22DStk2Stk3
 # Par3UdligningsIndtægtsføringResultat(indkomstår: Heltal, hjemmel: Par3UdligningsIndtægtsføringHjemmel, indtægtsført_henlæggelse_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal, medregnes_ikke_til_konkursindkomsten: Boolsk)
 
@@ -217,6 +225,41 @@ iværksætterkonto
     art = VirksomhedsskatteHenlæggelse,
     stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
     beløb_kroner = resultat.fradrag_i_personlig_indkomst_kroner
+)
+
+# Par3Stk2Nr8Sag(ll9b_resultat: Ligningslov9BResultat) {
+    | fradrag_i_personlig_indkomst_kroner() -> ll9b_resultat.fradrag_i_personlig_indkomst_kroner
+    | resultat() -> Par3Stk2Nr8Resultat(
+        indkomstår = ll9b_resultat.indkomstår,
+        erhvervsmæssig_befordring = ll9b_resultat.erhvervsmæssig_befordring,
+        kundeopsøgende_flere_arbejdsgivere = ll9b_resultat.kundeopsøgende_flere_arbejdsgivere,
+        henvises_til_ligningslov9c = ll9b_resultat.henvises_til_par9c,
+        fradrag_i_personlig_indkomst_kroner = fradrag_i_personlig_indkomst_kroner()
+    )
+}
+| par3_stk2_nr8_sag(ll9b_resultat: Ligningslov9BResultat) -> Par3Stk2Nr8Sag(ll9b_resultat)
+| par3_stk2_nr8_resultat(ll9b_resultat: Ligningslov9BResultat) -> par3_stk2_nr8_sag(ll9b_resultat).resultat()
+| par3_stk2_nr8_fradragspost(ll9b_resultat: Ligningslov9BResultat) -> Par3Fradragspost(
+    art = Ligningslov9BUdgift,
+    stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
+    beløb_kroner = par3_stk2_nr8_resultat(ll9b_resultat).fradrag_i_personlig_indkomst_kroner
+)
+
+# Par3Stk2Nr9Sag(ll8o_resultat: Ligningslov8OResultat) {
+    | fradrag_i_personlig_indkomst_kroner() -> ll8o_resultat.fradrag_i_personlig_indkomst_kroner
+    | resultat() -> Par3Stk2Nr9Resultat(
+        indkomstår = ll8o_resultat.indkomstår,
+        ydelse_omfattet_af_ligningslov8o = ll8o_resultat.ydelse_omfattet,
+        dobbeltfradrag_afskåret = ll8o_resultat.dobbeltfradrag_afskåret,
+        fradrag_i_personlig_indkomst_kroner = fradrag_i_personlig_indkomst_kroner()
+    )
+}
+| par3_stk2_nr9_sag(ll8o_resultat: Ligningslov8OResultat) -> Par3Stk2Nr9Sag(ll8o_resultat)
+| par3_stk2_nr9_resultat(ll8o_resultat: Ligningslov8OResultat) -> par3_stk2_nr9_sag(ll8o_resultat).resultat()
+| par3_stk2_nr9_fradragspost(ll8o_resultat: Ligningslov8OResultat) -> Par3Fradragspost(
+    art = TilbagebetaltKontanthjælp,
+    stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
+    beløb_kroner = par3_stk2_nr9_resultat(ll8o_resultat).fradrag_i_personlig_indkomst_kroner
 )
 
 # Par3UdligningsIndtægtsføringSag(resultat: VirksomhedsskattelovUdligningsIndtægtsføringResultat) {
