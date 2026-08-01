@@ -25,6 +25,8 @@ positivbeløb, procent- eller øreafrunding.
 | penge_basispoint_nedrundet_til_en_decimal(sats_basispoint: Heltal) -> sats_basispoint / 10 * 10
 | penge_basispoint_afrundet_til_en_decimal(sats_basispoint: Heltal) -> hvis sats_basispoint > 0 { (sats_basispoint + 5) / 10 * 10 } ellers { 0 }
 | penge_basispoint_afrundet_op_til_hel_procent(sats_basispoint: Heltal) -> (sats_basispoint + 99) / 100 * 100
+| penge_basispoint_fra_milliprocent_afrundet_til_to_decimaler(milliprocent: Heltal) -> 0
+| exception penge_positiv_milliprocent_til_basispoint penge_basispoint_fra_milliprocent_afrundet_til_to_decimaler(milliprocent: Heltal) -> (milliprocent + 5) / 10 under milliprocent > 0
 | penge_beløb_gange_basispoint_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> beløb_kroner * sats_basispoint / 10000
 | penge_beløb_gange_basispoint_afrundet_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> hvis beløb_kroner > 0 && sats_basispoint > 0 { (beløb_kroner * sats_basispoint + 5000) / 10000 } ellers { 0 }
 | penge_øre_nedrundet(tæller: Heltal, nævner: Heltal) -> 0
@@ -44,6 +46,7 @@ positivbeløb, procent- eller øreafrunding.
 = penge_basispoint_ned_decimal_fixture = penge_basispoint_nedrundet_til_en_decimal(29)
 = penge_basispoint_af_decimal_fixture = penge_basispoint_afrundet_til_en_decimal(155)
 = penge_basispoint_op_hel_procent_fixture = penge_basispoint_afrundet_op_til_hel_procent(3540)
+= penge_basispoint_milliprocent_fixture = penge_basispoint_fra_milliprocent_afrundet_til_to_decimaler(5978)
 = penge_skat_i_kroner_fixture = penge_beløb_gange_basispoint_kroner(38000, 3800)
 = penge_afrundet_fradrag_fixture = penge_beløb_gange_basispoint_afrundet_kroner(26182, 4000)
 = penge_øre_beregning_fixture = penge_øre_beregning(57000000000, 3650000)
@@ -54,6 +57,7 @@ positivbeløb, procent- eller øreafrunding.
 | penge_ti_kroner_nedrunding_dækket: penge_ti_kroner_fixture -> penge_ti_kroner_fixture == 38000
 | penge_basispoint_nedrunding_dækket: penge_basispoint_hel_procent_fixture -> penge_basispoint_hel_procent_fixture == 700 && penge_basispoint_ned_decimal_fixture == 20
 | penge_basispoint_afrunding_dækket: penge_basispoint_af_decimal_fixture -> penge_basispoint_af_hel_procent_fixture == 500 && penge_basispoint_af_decimal_fixture == 160 && penge_basispoint_op_hel_procent_fixture == 3600
+| penge_basispoint_fra_milliprocent_dækket: penge_basispoint_milliprocent_fixture -> penge_basispoint_milliprocent_fixture == 598
 | penge_basispoint_kroner_dækket: penge_skat_i_kroner_fixture -> penge_skat_i_kroner_fixture == 14440 && penge_afrundet_fradrag_fixture == 10473
 | penge_øre_beregning_dækket: penge_øre_beregning_fixture -> penge_øre_beregning_fixture.tæller == 57000000000 && penge_øre_beregning_fixture.nævner == 3650000 && penge_øre_beregning_fixture.øre_nedrundet == 15616
 
@@ -63,5 +67,6 @@ positivbeløb, procent- eller øreafrunding.
 ? penge_ti_kroner_nedrunding_dækket
 ? penge_basispoint_nedrunding_dækket
 ? penge_basispoint_afrunding_dækket
+? penge_basispoint_fra_milliprocent_dækket
 ? penge_basispoint_kroner_dækket
 ? penge_øre_beregning_dækket

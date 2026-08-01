@@ -49,7 +49,11 @@ beregningsåret plus fremskrivningsprocenten og de tilhørende ministerielle
 meddelelses-/tilslutningsposter. Kildeskatteloven § 62 A har nu et
 datoeksakt udbetalingsfrist-resultat for ændrede årsopgørelser, hvor nedsat
 restskat eller ny/yderligere overskydende skat skal udbetales inden udgangen af
-måneden efter udskrivningsdatoen.
+måneden efter udskrivningsdatoen. Opkrævningsloven § 7 har nu også en
+source-ankeret Nationalbank/Statbank DNRUUPI-inputvej for 2025 og 2026, hvor
+juli/august/september-kassekreditrenter i milliprocent afrundes til
+basispoint, føres gennem lovens gennemsnit/nedrunding/division, og matches
+mod Skattestyrelsens offentliggjorte SKM-satser.
 
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
@@ -569,6 +573,13 @@ Current municipal/church-tax and withholding dependency sources:
     `SKM2025.720.SKTST` rate sources:
     `https://info.skat.dk/data.aspx?oid=2436822` and
     `https://info.skat.dk/data.aspx?oid=2459995`.
+  - The same 2025 and 2026 rate fixtures now also use Danmarks Nationalbank's
+    `DNRUUPI` Statbank table (`AL20`/`EFFR`/`1100`/`Z01`/`ALLE`/`ALLE`) for
+    July, August and September in the preceding year. The model stores the
+    fetched effective interest rates as thousandths of a percent, rounds them
+    into the law's two-decimal basispoint input, and proves that the derived
+    § 7, stk. 2 rate matches the SKM-published annual rate:
+    `https://api.statbank.dk/v1/tableinfo/DNRUUPI?lang=da`.
   - The § 7, stk. 1 late-payment supplement source drift is resolved through
     LOV 1694/2024, LOV 1783/2025 and BEK 1793/2025: the live supplement is
     0,85 procentpoint from January 1, 2026, so the 2026 late-payment monthly
@@ -1489,9 +1500,10 @@ Review candidates to revisit deliberately, not as broad churn:
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for remaining
   municipal/church allocation and settlement edges beyond the current
-  § 7/§ 15/§ 16 formula slice, direct Nationalbank raw-data ingestion beyond the
-  Skattestyrelsen-published Opkrævningsloven § 7 annual rate, and remaining AM
-  edge cases beyond the first source-explicit special-case slice. The AM-law
+  § 7/§ 15/§ 16 formula slice, broader refresh automation for the current
+  Nationalbank DNRUUPI-backed Opkrævningsloven § 7 annual-rate inputs, and
+  remaining AM edge cases beyond the first source-explicit special-case slice.
+  The AM-law
   slice now covers ordinary wage remuneration,
   taxable benefits, source-shaped § 2 nr. 1-6/stk. 3 wage-earner base posts,
   § 3 exclusions, self-employed bases with and without virksomhedsordning,
@@ -1517,8 +1529,9 @@ Review candidates to revisit deliberately, not as broad churn:
   Opkrævningsloven slice now covers ordinary and large-withholder A-skat/AM
   payment deadlines, late payment posture, provisional assessment posture, and
   the § 7 stk. 2 annual-rate formula from July/August/September Nationalbank
-  kassekreditrente inputs plus the Skattestyrelsen-published 2026 annual rate
-  and the 2026 source-chain amendment to the § 7, stk. 1 late-payment
+  kassekreditrente inputs plus source-backed 2025/2026 DNRUUPI cells that
+  reproduce the Skattestyrelsen-published annual rates, and the 2026
+  source-chain amendment to the § 7, stk. 1 late-payment
   supplement.
   The first Kildeskatteloven slutopgørelse slice now covers § 60 crediting,
   § 61 restskat plus percentage supplement, timing posture, B-skat/restskat
@@ -1596,8 +1609,9 @@ Review candidates to revisit deliberately, not as broad churn:
 - Build calculation fixtures for ordinary wage-earner cases before handling
   complex cases.
 - Gather complementary official sources for:
-  remaining municipal and church-tax settlement/allocation, personal allowance, automated
-  Opkrævningsloven § 7 input lookup from Nationalbank data, date-exact B-tax
+  remaining municipal and church-tax settlement/allocation, personal allowance,
+  broader automated refresh of Opkrævningsloven § 7 Nationalbank input lookup,
+  date-exact B-tax
   remaining-rate selection, remaining
   AM edge cases, other
   itemized deductions beyond the ordinary §§ 9 J/9 K wage-earner deductions and
@@ -1788,9 +1802,10 @@ M4 - Ordinary taxpayer calculator
   withholding percentage inputs, producing a separate generated-card payroll
   view.
   Opkrævningsloven now provides source-backed payment-deadline/remittance rules
-  plus the § 7 annual-rate formula and date-exact daily late-payment interest
-  context, with fixtures separated into `indeholdelse-afregning.scenario.runa`
-  where they are scenario facts. The § 13
+  plus the § 7 annual-rate formula, Nationalbank DNRUUPI raw-rate inputs for
+  2025/2026 and date-exact daily late-payment interest context, with fixtures
+  separated into `indeholdelse-afregning.scenario.runa` where they are
+  scenario facts. The § 13
   complex calculator input now uses domain objects for income basis, tax-value
   rates, offset taxes, spouse transfer, stk. 5 limits, and same-business loss
   facts. `slutopgoerelse.scenario.runa` now also computes the fictional

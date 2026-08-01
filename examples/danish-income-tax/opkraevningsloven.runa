@@ -25,6 +25,8 @@
 -- https://info.skat.dk/data.aspx?oid=2459995
 -- Skatteministeriets satsoversigt:
 -- https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/opkraevningsloven
+-- Danmarks Nationalbank / Statistikbanken, DNRUUPI:
+-- https://api.statbank.dk/v1/tableinfo/DNRUUPI?lang=da
 
 ----
 Officiel XML-metadata for 2024/1040, hentet 2026-07-18:
@@ -227,6 +229,30 @@ eller indberetning, anvendelse.
 | opkrævning_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 | opkrævning_skyldigt_beløb_efter_for_lav_betaling_kroner(input: OpkrævningIndberetningInput) -> opkrævning_positivt_beløb(input.korrekt_tilsvar_kroner - input.skønsmæssigt_fast_sat_tilsvar_kroner)
 
+# OpkrævningKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= opkrævningsloven_lbk1040_par7 = OpkrævningKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1040",
+    identifier = "Opkrævningsloven § 7, stk. 1-2",
+    hentet_dato = "2026-07-18"
+)
+= opkrævning_par7_skm2024_619 = OpkrævningKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2436822",
+    identifier = "SKM2024.619.SKTST",
+    hentet_dato = "2026-07-18"
+)
+= opkrævning_par7_skm2025_720 = OpkrævningKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2459995",
+    identifier = "SKM2025.720.SKTST",
+    hentet_dato = "2026-07-18"
+)
+= opkrævning_par7_nationalbank_statbank_dnruupi = OpkrævningKildeInfo(
+    url = "https://api.statbank.dk/v1/tableinfo/DNRUUPI?lang=da",
+    identifier = "DNRUUPI AL20/EFFR/1100/Z01/ALLE/ALLE juli-september 2024 og 2025",
+    hentet_dato = "2026-07-18"
+)
+
+--@source::opkraevningsloven_par7_stk1_stk2::meta:opkrævningsloven_lbk1040_par7--
 ----
 § 7. Betales et beløb ikke rettidigt, eller er der ydet henstand med
 betalingen, skal der betales en månedlig rente som fastsat efter stk. 2 med
@@ -303,8 +329,53 @@ beregning efter Opkrævningsloven § 7.
 Kilde: https://info.skat.dk/data.aspx?oid=2168585&chk=220619
 ----
 
+--@source::opkraevning_par7_nationalbank_statbank::meta:opkrævning_par7_nationalbank_statbank_dnruupi--
+----
+Danmarks Nationalbank / Statistikbanken DNRUUPI, hentet via api.statbank.dk
+2026-07-06.
+
+Query:
+INSTRNAT = AL20, kassekreditter (revolverende lån) og overtræk.
+DATA = EFFR, effektiv rentesats (pct.).
+INDSEK = 1100, ikke-finansielle selskaber.
+VALUTA = Z01, alle valutaer.
+LØBETID1 = ALLE, alle løbetider.
+FORMÅL = ALLE, alle formål.
+Tid = 2024M07, 2024M08, 2024M09, 2025M07, 2025M08, 2025M09.
+
+INDHOLD:
+2024M07 5,978
+2024M08 5,856
+2024M09 5,664
+2025M07 4,200
+2025M08 4,179
+2025M09 4,135
+----
+
+--@begin::opkraevning_par7_nationalbank_statbank--
 # OpkrævningPar7RenteInput(kalenderår: Heltal, juli_kassekreditrente_basispoint: Heltal, august_kassekreditrente_basispoint: Heltal, september_kassekreditrente_basispoint: Heltal)
 # OpkrævningPar7OffentliggjortSats(kalenderår: Heltal, stk2_rente_basispoint: Heltal, kilde_eli: Tekst)
+# OpkrævningPar7NationalbankMåned = OpkrævningPar7Juli | OpkrævningPar7August | OpkrævningPar7September
+# OpkrævningPar7NationalbankMånedsrente(renteår: Heltal, statistikperiode: Tekst, måned: OpkrævningPar7NationalbankMåned, effektiv_rentesats_milliprocent: Heltal, effektiv_rentesats_basispoint: Heltal)
+# OpkrævningPar7NationalbankRentegrundlag(renteår: Heltal, juli: OpkrævningPar7NationalbankMånedsrente, august: OpkrævningPar7NationalbankMånedsrente, september: OpkrævningPar7NationalbankMånedsrente, renteinput: OpkrævningPar7RenteInput, beregnet_stk2_rente_basispoint: Heltal, offentliggjort_sats: OpkrævningPar7OffentliggjortSats, matcher_offentliggjort_sats: Boolsk)
+# OpkrævningPar7NationalbankRentegrundlagSag(renteår: Heltal) {
+    | juli() -> opkrævning_par7_nationalbank_månedsrente(renteår, OpkrævningPar7Juli)
+    | august() -> opkrævning_par7_nationalbank_månedsrente(renteår, OpkrævningPar7August)
+    | september() -> opkrævning_par7_nationalbank_månedsrente(renteår, OpkrævningPar7September)
+    | renteinput() -> opkrævning_par7_nationalbank_renteinput(renteår)
+    | beregnet_stk2_rente_basispoint() -> opkrævning_par7_stk2_rente_basispoint(renteinput())
+    | matcher_offentliggjort_sats() -> opkrævning_par7_nationalbank_data_dækket(renteår) && beregnet_stk2_rente_basispoint() == opkrævning_par7_offentliggjort_stk2_rente_basispoint(renteår)
+    | resultat() -> OpkrævningPar7NationalbankRentegrundlag(
+        renteår = renteår,
+        juli = juli(),
+        august = august(),
+        september = september(),
+        renteinput = renteinput(),
+        beregnet_stk2_rente_basispoint = beregnet_stk2_rente_basispoint(),
+        offentliggjort_sats = opkrævning_par7_offentliggjort_sats(renteår),
+        matcher_offentliggjort_sats = matcher_offentliggjort_sats()
+    )
+}
 # OpkrævningPar7DagligRenteInput(krav_kroner: Heltal, afregning: OpkrævningASkatAmAfregningInput)
 # OpkrævningPar7DagligRenteKontekst(krav_kroner: Heltal, seneste_rettidige_betalingsdag: OpkrævningDato, betalingsdag: OpkrævningDato, kalenderår: Heltal, offentliggjort_sats: OpkrævningPar7OffentliggjortSats, forsinkelsestillæg_basispoint: Heltal, månedlig_forsinkelsesrente_basispoint: Heltal, renteår_dage: Heltal, rentedage: Heltal)
 # OpkrævningPar7DagligRenteBeregning(kontekst: OpkrævningPar7DagligRenteKontekst, rente: PengeØreBeregning)
@@ -317,6 +388,38 @@ Kilde: https://info.skat.dk/data.aspx?oid=2168585&chk=220619
 | opkrævning_par7_gennemsnit_nedrundet_til_hel_procent_basispoint(input: OpkrævningPar7RenteInput) -> penge_basispoint_nedrundet_til_hel_procent(opkrævning_par7_simpelt_gennemsnit_basispoint(input))
 | opkrævning_par7_stk2_rente_basispoint(input: OpkrævningPar7RenteInput) -> penge_basispoint_nedrundet_til_en_decimal(opkrævning_par7_gennemsnit_nedrundet_til_hel_procent_basispoint(input) / 24)
 | opkrævning_par7_stk2_tredje_pkt_rente_basispoint(input: OpkrævningPar7RenteInput) -> opkrævning_par7_stk2_rente_basispoint(input)
+| opkrævning_par7_nationalbank_statistikår(renteår: Heltal) -> renteår - 1
+| opkrævning_par7_nationalbank_statistikperiode(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> ""
+| exception opkrævning_par7_statbank_2025_juli_periode opkrævning_par7_nationalbank_statistikperiode(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> "2024M07" under renteår == 2025 && måned == OpkrævningPar7Juli
+| exception opkrævning_par7_statbank_2025_august_periode opkrævning_par7_nationalbank_statistikperiode(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> "2024M08" under renteår == 2025 && måned == OpkrævningPar7August
+| exception opkrævning_par7_statbank_2025_september_periode opkrævning_par7_nationalbank_statistikperiode(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> "2024M09" under renteår == 2025 && måned == OpkrævningPar7September
+| exception opkrævning_par7_statbank_2026_juli_periode opkrævning_par7_nationalbank_statistikperiode(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> "2025M07" under renteår == 2026 && måned == OpkrævningPar7Juli
+| exception opkrævning_par7_statbank_2026_august_periode opkrævning_par7_nationalbank_statistikperiode(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> "2025M08" under renteår == 2026 && måned == OpkrævningPar7August
+| exception opkrævning_par7_statbank_2026_september_periode opkrævning_par7_nationalbank_statistikperiode(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> "2025M09" under renteår == 2026 && måned == OpkrævningPar7September
+| opkrævning_par7_nationalbank_effektiv_rentesats_milliprocent(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> 0
+| exception opkrævning_par7_statbank_2025_juli_rente opkrævning_par7_nationalbank_effektiv_rentesats_milliprocent(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> 5978 under renteår == 2025 && måned == OpkrævningPar7Juli
+| exception opkrævning_par7_statbank_2025_august_rente opkrævning_par7_nationalbank_effektiv_rentesats_milliprocent(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> 5856 under renteår == 2025 && måned == OpkrævningPar7August
+| exception opkrævning_par7_statbank_2025_september_rente opkrævning_par7_nationalbank_effektiv_rentesats_milliprocent(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> 5664 under renteår == 2025 && måned == OpkrævningPar7September
+| exception opkrævning_par7_statbank_2026_juli_rente opkrævning_par7_nationalbank_effektiv_rentesats_milliprocent(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> 4200 under renteår == 2026 && måned == OpkrævningPar7Juli
+| exception opkrævning_par7_statbank_2026_august_rente opkrævning_par7_nationalbank_effektiv_rentesats_milliprocent(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> 4179 under renteår == 2026 && måned == OpkrævningPar7August
+| exception opkrævning_par7_statbank_2026_september_rente opkrævning_par7_nationalbank_effektiv_rentesats_milliprocent(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> 4135 under renteår == 2026 && måned == OpkrævningPar7September
+| opkrævning_par7_nationalbank_effektiv_rentesats_basispoint(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> penge_basispoint_fra_milliprocent_afrundet_til_to_decimaler(opkrævning_par7_nationalbank_effektiv_rentesats_milliprocent(renteår, måned))
+| opkrævning_par7_nationalbank_månedsrente(renteår: Heltal, måned: OpkrævningPar7NationalbankMåned) -> OpkrævningPar7NationalbankMånedsrente(
+    renteår = renteår,
+    statistikperiode = opkrævning_par7_nationalbank_statistikperiode(renteår, måned),
+    måned = måned,
+    effektiv_rentesats_milliprocent = opkrævning_par7_nationalbank_effektiv_rentesats_milliprocent(renteår, måned),
+    effektiv_rentesats_basispoint = opkrævning_par7_nationalbank_effektiv_rentesats_basispoint(renteår, måned)
+)
+| opkrævning_par7_nationalbank_renteinput(renteår: Heltal) -> OpkrævningPar7RenteInput(
+    kalenderår = renteår,
+    juli_kassekreditrente_basispoint = opkrævning_par7_nationalbank_månedsrente(renteår, OpkrævningPar7Juli).effektiv_rentesats_basispoint,
+    august_kassekreditrente_basispoint = opkrævning_par7_nationalbank_månedsrente(renteår, OpkrævningPar7August).effektiv_rentesats_basispoint,
+    september_kassekreditrente_basispoint = opkrævning_par7_nationalbank_månedsrente(renteår, OpkrævningPar7September).effektiv_rentesats_basispoint
+)
+| opkrævning_par7_nationalbank_data_dækket(renteår: Heltal) -> opkrævning_par7_nationalbank_månedsrente(renteår, OpkrævningPar7Juli).effektiv_rentesats_milliprocent > 0 && opkrævning_par7_nationalbank_månedsrente(renteår, OpkrævningPar7August).effektiv_rentesats_milliprocent > 0 && opkrævning_par7_nationalbank_månedsrente(renteår, OpkrævningPar7September).effektiv_rentesats_milliprocent > 0
+| opkrævning_par7_nationalbank_rentegrundlag_sag(renteår: Heltal) -> OpkrævningPar7NationalbankRentegrundlagSag(renteår)
+| opkrævning_par7_nationalbank_rentegrundlag(renteår: Heltal) -> opkrævning_par7_nationalbank_rentegrundlag_sag(renteår).resultat()
 | opkrævning_par7_offentliggjort_sats(kalenderår: Heltal) -> OpkrævningPar7OffentliggjortSats(
     kalenderår = kalenderår,
     stk2_rente_basispoint = 0,
@@ -414,6 +517,8 @@ Kilde: https://info.skat.dk/data.aspx?oid=2168585&chk=220619
 = opkrævning_par7_2025_offentliggjort_rente_fixture = opkrævning_par7_offentliggjort_stk2_rente_basispoint(2025)
 = opkrævning_par7_2026_offentliggjort_sats_fixture = opkrævning_par7_offentliggjort_sats(2026)
 = opkrævning_par7_2026_offentliggjort_rente_fixture = opkrævning_par7_offentliggjort_stk2_rente_basispoint(2026)
+= opkrævning_par7_2025_nationalbank_rentegrundlag_fixture = opkrævning_par7_nationalbank_rentegrundlag(2025)
+= opkrævning_par7_2026_nationalbank_rentegrundlag_fixture = opkrævning_par7_nationalbank_rentegrundlag(2026)
 = opkrævning_par7_2026_forsinkelsestillæg_fixture = opkrævning_par7_stk1_forsinkelsestillæg_basispoint(2026)
 = opkrævning_par7_2026_månedlig_forsinkelsesrente_fixture = opkrævning_par7_stk1_månedlig_forsinkelsesrente_basispoint(2026)
 = opkrævning_par7_2026_daglig_påløb_fixture = opkrævning_par7_stk1_daglig_rente_påløber_til_og_med_betalingsdag(2026)
@@ -424,6 +529,8 @@ Kilde: https://info.skat.dk/data.aspx?oid=2168585&chk=220619
 | opkrævning_par7_2025_offentliggjort_rente_dækket: opkrævning_par7_2025_offentliggjort_rente_fixture -> opkrævning_par7_2025_offentliggjort_rente_fixture == 20
 | opkrævning_par7_2026_skm_sats_er_kildebundet: opkrævning_par7_2026_offentliggjort_sats_fixture -> opkrævning_par7_2026_offentliggjort_sats_fixture.stk2_rente_basispoint == 10 && opkrævning_par7_2026_offentliggjort_sats_fixture.kilde_eli == "https://info.skat.dk/data.aspx?oid=2459995"
 | opkrævning_par7_2026_offentliggjort_rente_dækket: opkrævning_par7_2026_offentliggjort_rente_fixture -> opkrævning_par7_2026_offentliggjort_rente_fixture == 10
+| opkrævning_par7_2025_nationalbank_data_giver_skm_sats: opkrævning_par7_2025_nationalbank_rentegrundlag_fixture -> opkrævning_par7_2025_nationalbank_rentegrundlag_fixture.juli.statistikperiode == "2024M07" && opkrævning_par7_2025_nationalbank_rentegrundlag_fixture.juli.effektiv_rentesats_basispoint == 598 && opkrævning_par7_2025_nationalbank_rentegrundlag_fixture.august.effektiv_rentesats_basispoint == 586 && opkrævning_par7_2025_nationalbank_rentegrundlag_fixture.september.effektiv_rentesats_basispoint == 566 && opkrævning_par7_2025_nationalbank_rentegrundlag_fixture.renteinput.juli_kassekreditrente_basispoint == 598 && opkrævning_par7_2025_nationalbank_rentegrundlag_fixture.beregnet_stk2_rente_basispoint == 20 && opkrævning_par7_2025_nationalbank_rentegrundlag_fixture.matcher_offentliggjort_sats == Sandt
+| opkrævning_par7_2026_nationalbank_data_giver_skm_sats: opkrævning_par7_2026_nationalbank_rentegrundlag_fixture -> opkrævning_par7_2026_nationalbank_rentegrundlag_fixture.juli.statistikperiode == "2025M07" && opkrævning_par7_2026_nationalbank_rentegrundlag_fixture.juli.effektiv_rentesats_basispoint == 420 && opkrævning_par7_2026_nationalbank_rentegrundlag_fixture.august.effektiv_rentesats_basispoint == 418 && opkrævning_par7_2026_nationalbank_rentegrundlag_fixture.september.effektiv_rentesats_basispoint == 414 && opkrævning_par7_2026_nationalbank_rentegrundlag_fixture.renteinput.august_kassekreditrente_basispoint == 418 && opkrævning_par7_2026_nationalbank_rentegrundlag_fixture.beregnet_stk2_rente_basispoint == 10 && opkrævning_par7_2026_nationalbank_rentegrundlag_fixture.matcher_offentliggjort_sats == Sandt
 | opkrævning_par7_2026_tillæg_ikraftsat: opkrævning_par7_2026_forsinkelsestillæg_fixture -> opkrævning_par7_2026_forsinkelsestillæg_fixture == 85
 | opkrævning_par7_2026_forsinkelsesrente_samlet: opkrævning_par7_2026_månedlig_forsinkelsesrente_fixture -> opkrævning_par7_2026_månedlig_forsinkelsesrente_fixture == 95
 | opkrævning_par7_2026_dagligt_påløb_dækket: opkrævning_par7_2026_daglig_påløb_fixture -> opkrævning_par7_2026_daglig_påløb_fixture == Sandt
@@ -434,6 +541,9 @@ Kilde: https://info.skat.dk/data.aspx?oid=2168585&chk=220619
 ? opkrævning_par7_2025_offentliggjort_rente_dækket
 ? opkrævning_par7_2026_skm_sats_er_kildebundet
 ? opkrævning_par7_2026_offentliggjort_rente_dækket
+? opkrævning_par7_2025_nationalbank_data_giver_skm_sats
+? opkrævning_par7_2026_nationalbank_data_giver_skm_sats
 ? opkrævning_par7_2026_tillæg_ikraftsat
 ? opkrævning_par7_2026_forsinkelsesrente_samlet
 ? opkrævning_par7_2026_dagligt_påløb_dækket
+--@end::opkraevning_par7_nationalbank_statbank--
