@@ -12833,6 +12833,24 @@ impl<'a> LoweringCtx<'a> {
         FirTy::Unknown
     }
 
+    fn rule_scope_member_ty(&self, obj_ty: &FirTy, member: &str) -> Option<FirTy> {
+        let FirTy::Named(type_name) = obj_ty else {
+            return None;
+        };
+
+        let mut candidate_types = vec![type_name.clone()];
+        if let Some(renamed) = self.types.type_rename.get(type_name) {
+            candidate_types.push(renamed.clone());
+        }
+
+        candidate_types.into_iter().find_map(|candidate| {
+            self.types
+                .rule_scope_member_fn_types
+                .get(&(candidate, member.to_string()))
+                .cloned()
+        })
+    }
+
     fn align_nullary_constructor_ty_to_expected(
         &self,
         source_expr: &Expr,
@@ -13039,7 +13057,17 @@ impl<'a> LoweringCtx<'a> {
             ExprKind::App(func, args) => {
                 let reordered_args = self.reorder_named_app_args(func, args);
                 let args_for_lowering: &[Expr] = reordered_args.as_deref().unwrap_or(args);
-                let fir_func = self.lower_expr(func);
+                let mut fir_func = self.lower_expr(func);
+                if let (ExprKind::Field(_, member), FirExprKind::Field(base, _)) =
+                    (&func.kind, &fir_func.kind)
+                {
+                    if let Some(member_ty) = self.rule_scope_member_ty(&base.ty, member) {
+                        // `scope.member` projects a captured field, while
+                        // `scope.member()` calls a scoped rule or method. Keep
+                        // the distinction when both use the same name.
+                        fir_func.ty = member_ty;
+                    }
+                }
                 let fir_args: Vec<FirExpr> = args_for_lowering
                     .iter()
                     .map(|a| self.lower_expr(a))
@@ -43161,6 +43189,56 @@ for x in [1, 2] {
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "42\n42\n42");
+    }
+
+    #[test]
+    fn legacy_emit_rulescope_call_prefers_member_over_same_named_capture() {
+        let source = r#"
+# Input(value: Int)
+# Output(value: Int)
+
+# Case(resultat: Input) {
+    | resultat() -> Output(resultat.value + 1)
+}
+
+| make_case(resultat: Input) -> Case(resultat)
+| unwrap_resultat(resultat: Input) -> make_case(resultat).resultat()
+= case = make_case(Input(41))
+= captured = case.resultat
+= computed = unwrap_resultat(Input(41))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn unwrap_resultat(resultat: Input) -> Output {"),
+            "a called scoped member must use its return type even when a capture has the same name: {}",
+            rust
+        );
+        assert!(
+            rust.contains("let captured = case.resultat;"),
+            "a non-call field projection must continue to select the captured field: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn compiled_rulescope_call_distinguishes_member_from_same_named_capture() {
+        let source = r#"
+# Input(value: Int)
+# Output(value: Int)
+
+# Case(resultat: Input) {
+    | resultat() -> Output(resultat.value + 1)
+}
+
+| make_case(resultat: Input) -> Case(resultat)
+| unwrap_resultat(resultat: Input) -> make_case(resultat).resultat()
+= case = make_case(Input(41))
+@ print(show(case.resultat.value))
+@ print(show(unwrap_resultat(Input(41)).value))
+"#;
+        let output = compile_and_run_test_program(source);
+        assert_eq!(output.trim(), "41\n42");
     }
 
     #[test]

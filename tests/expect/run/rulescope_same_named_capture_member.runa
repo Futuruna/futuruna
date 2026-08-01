@@ -1,0 +1,22 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 41
+-- expect-stdout: 42
+--
+-- A RuleScope capture and scoped rule may share a legal/domain name. Field
+-- projection selects the capture; call syntax selects the scoped rule.
+
+# Input(value: Int)
+# Output(value: Int)
+
+# Case(resultat: Input) {
+    | resultat() -> Output(resultat.value + 1)
+}
+
+| make_case(resultat: Input) -> Case(resultat)
+| unwrap_resultat(resultat: Input) -> make_case(resultat).resultat()
+
+= case = make_case(Input(41))
+
+@ print(show(case.resultat.value))
+@ print(show(unwrap_resultat(Input(41)).value))
