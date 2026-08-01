@@ -31,6 +31,7 @@
     bruttoløn_kroner = 0,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 ))

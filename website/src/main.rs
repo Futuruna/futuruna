@@ -3559,8 +3559,8 @@ fn ResearchPersonskatteloven() -> Element {
                         "For eksempel kan den aktuelle konfiskatoriske audit søge 8.064 \
                          kombinationer og finde ud af, at der i det afgrænsede søgeområde ikke \
                          er almindelig årsskat over 100 pct. af positivt indkomstgrundlag. Den \
-                         finder derimod over 200 konfigurationer af skatteforhold, hvor den \
-                         samlede betalingsbelastning overstiger 100 pct. af årets indkomstgrundlag."
+                         finder derimod 360 konfigurationer af skatteforhold, hvor den samlede \
+                         betalingsbelastning overstiger 100 pct. af årets indkomstgrundlag."
                     }
                     p {
                         "Før man finder høtyvene frem, er forklaringen vigtig: de fund skyldes \
@@ -3575,7 +3575,7 @@ fn ResearchPersonskatteloven() -> Element {
                         }
                         a { href: "#project-file",
                             span { "betaling" }
-                            strong { "Over 200 betalingsbelastningsfund over 100 pct. med overført restskat" }
+                            strong { "360 betalingsbelastningsfund over 100 pct. med overført restskat" }
                         }
                         a { href: "#project-file",
                             span { "forklaring" }

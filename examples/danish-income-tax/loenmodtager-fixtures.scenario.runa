@@ -23,6 +23,7 @@ Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for København
     bruttoløn_kroner = 500000,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Sandt
 )
@@ -85,6 +86,7 @@ Skattestyrelsens 2025-satser; Skatteministeriets kommuneskat for Gentofte
     bruttoløn_kroner = 750000,
     nettokapitalindkomst_kroner = 20000,
     ligningsmæssige_fradrag_kroner = 10000,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Sandt
 )
@@ -151,6 +153,7 @@ Skatteministeriets kommuneskat for København 2026.
     bruttoløn_kroner = 900000,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
@@ -181,6 +184,50 @@ Skatteministeriets kommuneskat for København 2026.
 ? m4_københavn_2026_samlet_efter
 
 ----
+Fixture 3A
+Skatteår: 2026
+Kommune: København
+Bruttoløn: 600.000 kr.
+Pensionsindbetaling efter pensionsbeskatningslovens § 18: 100.000 kr.
+Kirkeskat: nej
+Kilder: Personskatteloven § 1; Ligningsloven §§ 9 J, 9 K og 9 L;
+Skattestyrelsens 2026-satser.
+----
+
+= m4_københavn_2026_pensionsfradrag_input = LønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    nettokapitalindkomst_kroner = 0,
+    ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = LønmodtagerPensionsfradrag(
+        pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+        pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+        pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+        pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+        pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+        pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+    ),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= m4_københavn_2026_pensionsfradrag = beregn_lønmodtager(m4_københavn_2026_pensionsfradrag_input)
+
+| m4_københavn_2026_pensionsfradrag_9j: m4_københavn_2026_pensionsfradrag -> m4_københavn_2026_pensionsfradrag.beskæftigelsesfradrag_kroner == 63300
+| m4_københavn_2026_pensionsfradrag_9k: m4_københavn_2026_pensionsfradrag -> m4_københavn_2026_pensionsfradrag.jobfradrag_kroner == 3100
+| m4_københavn_2026_pensionsfradrag_9l: m4_københavn_2026_pensionsfradrag -> m4_københavn_2026_pensionsfradrag.ekstra_pensionsfradrag_kroner == 10536
+| m4_københavn_2026_pensionsfradrag_samlet: m4_københavn_2026_pensionsfradrag -> m4_københavn_2026_pensionsfradrag.samlede_ligningsmæssige_fradrag_kroner == 76936
+| m4_københavn_2026_pensionsfradrag_almindelig: m4_københavn_2026_pensionsfradrag -> m4_københavn_2026_pensionsfradrag.almindelig_skattepligtig_indkomst_kroner == 475064
+| m4_københavn_2026_pensionsfradrag_samlet_efter: m4_københavn_2026_pensionsfradrag -> m4_københavn_2026_pensionsfradrag.samlet_inkl_am_efter_personfradrag_kroner == 206262
+
+? m4_københavn_2026_pensionsfradrag_9j
+? m4_københavn_2026_pensionsfradrag_9k
+? m4_københavn_2026_pensionsfradrag_9l
+? m4_københavn_2026_pensionsfradrag_samlet
+? m4_københavn_2026_pensionsfradrag_almindelig
+? m4_københavn_2026_pensionsfradrag_samlet_efter
+
+----
 Fixture 4
 Skatteår: 2026
 Kommune: København
@@ -198,6 +245,7 @@ Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
     bruttoløn_kroner = 3000000,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
@@ -235,6 +283,7 @@ Ligningsloven §§ 9 J og 9 K; Skattestyrelsens 2026-satser.
     bruttoløn_kroner = 650000,
     nettokapitalindkomst_kroner = 110000,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
@@ -279,6 +328,7 @@ for Langeland.
     bruttoløn_kroner = 900000,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
@@ -315,6 +365,7 @@ kommuneskattesatser 2026 for Langeland.
     bruttoløn_kroner = 650000,
     nettokapitalindkomst_kroner = 110000,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
@@ -585,6 +636,7 @@ jf. § 8, og«.
     bruttoløn_kroner = 100000,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 150000,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )

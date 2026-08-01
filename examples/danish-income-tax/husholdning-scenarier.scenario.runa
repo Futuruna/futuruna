@@ -93,6 +93,7 @@ rules, and payroll settlement are not encoded in this slice.
     bruttoløn_kroner = 600000,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
@@ -102,6 +103,7 @@ rules, and payroll settlement are not encoded in this slice.
     bruttoløn_kroner = 240000,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )

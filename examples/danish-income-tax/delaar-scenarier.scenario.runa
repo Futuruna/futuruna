@@ -28,6 +28,7 @@ without using AM-bidrag as part of the §§ 6-9 helårsskat component.
     bruttoløn_kroner = 300000,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )

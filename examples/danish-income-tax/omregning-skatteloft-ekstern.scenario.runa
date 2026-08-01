@@ -107,6 +107,7 @@ https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter
     bruttoløn_kroner = 900000,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 ))
@@ -116,6 +117,7 @@ https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter
     bruttoløn_kroner = 650000,
     nettokapitalindkomst_kroner = 110000,
     ligningsmæssige_fradrag_kroner = 0,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 ))

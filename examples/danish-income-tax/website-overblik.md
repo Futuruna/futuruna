@@ -70,11 +70,11 @@ Den konfiskatoriske audit søger 8.064 konfigurationer. Den finder ingen
 almindelig årsskat over 100 pct. af positivt indkomstgrundlag i det aktuelle
 søgerum.
 
-Den finder derimod over 200 konfigurationer af skatteforhold, hvor den samlede
-betalingsbelastning overstiger 100 pct. af årets indkomstgrundlag. Det skyldes
-i de fund overført restskat m.v.; altså ikke en skjult almindelig skattesats
-over 100 pct., men tidligere års betalingsproblem gjort eksekverbart og
-auditérbart.
+Den finder derimod 360 konfigurationer af skatteforhold, hvor den samlede
+betalingsbelastning overstiger 100 pct. af årets indkomstgrundlag. Før man
+finder høtyvene frem, er forklaringen vigtig: i alle de fund skyldes det
+overført restskat m.v.; altså ikke en skjult almindelig skattesats over 100
+pct., men tidligere års betalingsproblem gjort eksekverbart og auditérbart.
 
 ## Kildeprincip
 

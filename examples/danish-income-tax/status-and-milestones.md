@@ -15,6 +15,21 @@ implementation first. Audit files remain important as validation gates for
 implemented slices, but deeper exploratory audits should wait until the main law
 model is materially complete.
 
+Website posture: den offentlige Personskatteloven-side er bevidst én dansk
+overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
+lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
+og audits bliver i `examples/danish-income-tax/`.
+
+Latest integration: den almindelige lønmodtagerberegner bærer nu et typet
+`LønmodtagerPensionsfradrag`-domæneobjekt og udleder standardfradragene gennem
+det samlede Ligningsloven §§ 9 J/9 K/9 L-resultat. 2026-fixturen for København,
+600.000 kr. løn og 100.000 kr. § 18-pensionsindbetaling udstiller nu
+63.300 kr. beskæftigelsesfradrag, 3.100 kr. jobfradrag, 10.536 kr. ekstra
+pensionsfradrag, 76.936 kr. samlede standardfradrag, 475.064 kr. almindelig
+skattepligtig indkomst og 206.262 kr. samlet skat inkl. AM efter
+personfradrag. Eksisterende lønmodtagerscenarier bruger en eksplicit
+ingen-ekstra-pensionsfradrag-default.
+
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
 excluded CFC income and ligningsmæssige fradrag, and the wage-earner calculator

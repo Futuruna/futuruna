@@ -41,6 +41,7 @@ og LOV nr. 616 af 30/06/2026.
     bruttoløn_kroner = 600000,
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = lønmodtager_2026_befordring_fradrag.samlet_befordringsfradrag_kroner,
+    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
