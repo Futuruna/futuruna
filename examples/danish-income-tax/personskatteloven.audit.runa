@@ -1248,6 +1248,8 @@ virksomhedsunderskud.
 = m5_kommunal_afregning_par15_fixture = kommunal_afregning_par15_resultat_fixture
 = m5_kommunal_afregning_par16_fixture = kommunal_afregning_par16_resultat_fixture
 = m5_kommunal_afregning_statsgaranti_fixture = kommunal_afregning_statsgaranti_resultat_fixture
+= m5_kommunal_afregning_stk3_positiv_fixture = kommunal_afregning_par16_stk3_positiv_fixture
+= m5_kommunal_afregning_stk3_negativ_fixture = kommunal_afregning_par16_stk3_negativ_fixture
 = m5_omregning_skatteloft_ekstern_fixture = omregning_skatteloft_ekstern_audit_samlet()
 = m5_husholdning_scenarie_fixture = scenarie1_husholdning
 = m5_husholdning_indeholdelse_fixture = scenarie1_indeholdelse
@@ -1393,6 +1395,7 @@ virksomhedsunderskud.
 | m5_kommunal_afregning_par15_dækket: m5_kommunal_afregning_par15_fixture -> m5_kommunal_afregning_par15_fixture.månedlig_udbetaling_kroner == 100000 && m5_kommunal_afregning_par15_fixture.samlet_årlig_udbetaling_kroner == 1200000
 | m5_kommunal_afregning_par16_dækket: m5_kommunal_afregning_par16_fixture -> m5_kommunal_afregning_par16_fixture.omfattes_af_efterregulering == Sandt && m5_kommunal_afregning_par16_fixture.endelig_skat_inkl_ændringer_kroner == 1209000 && m5_kommunal_afregning_par16_fixture.efterreguleringsbeløb_kroner == 9000 && m5_kommunal_afregning_par16_fixture.afregningsår == 2029 && m5_kommunal_afregning_par16_fixture.januar_kroner == 3000 && m5_kommunal_afregning_par16_fixture.februar_kroner == 3000 && m5_kommunal_afregning_par16_fixture.marts_kroner == 3000
 | m5_kommunal_afregning_statsgaranti_dækket: m5_kommunal_afregning_statsgaranti_fixture -> m5_kommunal_afregning_statsgaranti_fixture.omfattes_af_efterregulering == Falskt && m5_kommunal_afregning_statsgaranti_fixture.efterreguleringsbeløb_kroner == 0
+| m5_kommunal_afregning_stk3_tillæg_dækket: m5_kommunal_afregning_stk3_positiv_fixture -> m5_kommunal_afregning_stk3_positiv_fixture.tærskel_3pct_kroner == 36000 && m5_kommunal_afregning_stk3_positiv_fixture.overskydende_del_kroner == 44000 && m5_kommunal_afregning_stk3_positiv_fixture.tillægssats_basispoint == 1050 && m5_kommunal_afregning_stk3_positiv_fixture.tillæg_abs_kroner == 4620 && m5_kommunal_afregning_stk3_positiv_fixture.samlet_med_tillæg_kroner == 84620 && m5_kommunal_afregning_stk3_negativ_fixture.samlet_med_tillæg_kroner == -84620
 | m5_omregning_skatteloft_ekstern_differential_dækket: m5_omregning_skatteloft_ekstern_fixture -> m5_omregning_skatteloft_ekstern_fixture == Sandt
 | m5_fiktiv_husholdning_scenarie: m5_husholdning_scenarie_fixture -> m5_husholdning_scenarie_fixture.mand.samlet_inkl_am_efter_personfradrag_kroner == 208726 && m5_husholdning_scenarie_fixture.samlet_netto_månedligt_kroner == 46689 && m5_husholdning_scenarie_fixture.efter_husleje_månedligt_kroner == 36689
 | m5_husholdning_benefit_cliff_audit_dækket: m5_husholdning_benefit_cliff_fixture -> m5_husholdning_benefit_cliff_fixture == Sandt
@@ -1554,6 +1557,7 @@ virksomhedsunderskud.
 ? m5_kommunal_afregning_par15_dækket
 ? m5_kommunal_afregning_par16_dækket
 ? m5_kommunal_afregning_statsgaranti_dækket
+? m5_kommunal_afregning_stk3_tillæg_dækket
 ? m5_omregning_skatteloft_ekstern_differential_dækket
 ? m5_fiktiv_husholdning_scenarie
 ? m5_husholdning_benefit_cliff_audit_dækket

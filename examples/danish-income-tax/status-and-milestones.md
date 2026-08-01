@@ -36,7 +36,8 @@ felt-sum til kildeformede regelposter for nr. 1-6 samt stk. 3 med et samlet
 grundlagsresultat og scenariedækning. Kommuneskatteloven dækker nu også første
 afregningsslice for §§ 7, 15 og 16: kommunens valg mellem eget skøn og
 statsgaranteret grundlag, § 15's månedlige tolvtedel og § 16, stk. 2's
-efterreguleringsbeløb med januar/februar/marts-tredjedele tre år senere.
+efterreguleringsbeløb med januar/februar/marts-tredjedele tre år senere samt
+stk. 3's 3 pct.-tærskel og diskontoafledte tillæg.
 
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
@@ -487,7 +488,9 @@ Current municipal/church-tax and withholding dependency sources:
     the wage-earner calculator.
   - §§ 7, 15 and 16 are the first municipal/church settlement slice:
     own-estimate versus state-guaranteed budget basis, monthly provisional
-    twelfths, and own-estimate after-regulation in three instalments.
+    twelfths, own-estimate after-regulation in three instalments, and the
+    § 16, stk. 3 3 pct. threshold/supplement formula with supplied Nationalbank
+    discount-rate input.
 - Folkekirkens økonomi:
   `https://www.retsinformation.dk/eli/lta/2023/424`
   - XML status on 2026-07-18: `Valid`
@@ -1463,8 +1466,8 @@ Review candidates to revisit deliberately, not as broad churn:
   safe.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for remaining
-  municipal/church allocation and settlement edges beyond the first § 15/§ 16
-  slice, direct Nationalbank raw-data ingestion beyond the
+  municipal/church allocation and settlement edges beyond the current
+  § 7/§ 15/§ 16 formula slice, direct Nationalbank raw-data ingestion beyond the
   Skattestyrelsen-published Opkrævningsloven § 7 annual rate, and remaining AM
   edge cases beyond the first source-explicit special-case slice. The AM-law
   slice now covers ordinary wage remuneration,
@@ -1474,7 +1477,8 @@ Review candidates to revisit deliberately, not as broad churn:
   posture. The first municipal/church
   slice now covers ordinary municipal tax on Personskatteloven taxable income,
   church tax for Folkekirken members, and Kommuneskatteloven §§ 7/15/16
-  provisional payment and own-budget after-regulation. The first Kildeskatteloven
+  provisional payment, own-budget after-regulation, and stk. 3 supplement
+  formula. The first Kildeskatteloven
   slice now covers ordinary wage A-income, withholding duty, e-skattekort card
   types, main-card period allowances, bikort without allowance, optional higher
   withholding percentage, base rounding, and the statutory 55 pct. no-card

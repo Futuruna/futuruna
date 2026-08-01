@@ -121,10 +121,28 @@ efter § 15 er udbetalt til kommunen i det pågældende kalenderår.
 
 Eventuel afregning af efterreguleringsbeløb sker med en tredjedel hver i
 månederne januar, februar og marts i året 3 år efter dette kalenderår.
+
+Stk. 3. Positive og negative efterreguleringsbeløb med tillæg af
+efterreguleringsbeløb i henhold til lov om kommunal udligning og generelle
+tilskud til kommuner, der overstiger 3 pct. af summen af de månedlige beløb,
+der efter § 15 er udbetalt til kommunen for det pågældende kalenderår, forhøjes
+med et tillæg, der beregnes af den overskydende del af efterreguleringsbeløbet
+inklusive efterreguleringsbeløb i henhold til lov om kommunal udligning og
+generelle tilskud til kommuner med en procent, der svarer til 3 gange
+Nationalbankens diskonto den 1. juli året forud for kalenderåret.
+----
+
+----
+Stk. 3-slicen beregner tillæggets størrelse og fører det med samme fortegn som
+det samlede efterreguleringsbeløb. Det holder lovens positive/negative
+efterregulering eksplicit, mens automatisk opslag af Nationalbankens diskonto
+forbliver et særskilt datakildearbejde.
 ----
 
 # KommunalPar16EfterreguleringInput(budgetvalg: KommunalBudgetvalg, kalenderår: Heltal, slutskat_kommunal_indkomstskat_og_kirkeskat_kroner: Heltal, tilgang_ændrede_skatteansættelser_kroner: Heltal, afgang_ændrede_skatteansættelser_kroner: Heltal, udbetalt_efter_par15_kroner: Heltal)
 # KommunalPar16EfterreguleringResultat(budgetvalg: KommunalBudgetvalg, kalenderår: Heltal, omfattes_af_efterregulering: Boolsk, endelig_skat_inkl_ændringer_kroner: Heltal, udbetalt_efter_par15_kroner: Heltal, efterreguleringsbeløb_kroner: Heltal, afregningsår: Heltal, januar_kroner: Heltal, februar_kroner: Heltal, marts_kroner: Heltal)
+# KommunalPar16Stk3TillægInput(efterreguleringsbeløb_kroner: Heltal, udligning_efterreguleringsbeløb_kroner: Heltal, udbetalt_efter_par15_kroner: Heltal, nationalbank_diskonto_basispoint: Heltal)
+# KommunalPar16Stk3TillægResultat(samlet_efterreguleringsbeløb_kroner: Heltal, samlet_efterreguleringsbeløb_abs_kroner: Heltal, tærskel_3pct_kroner: Heltal, overskydende_del_kroner: Heltal, diskonto_basispoint: Heltal, tillægssats_basispoint: Heltal, tillæg_abs_kroner: Heltal, tillæg_med_fortegn_kroner: Heltal, samlet_med_tillæg_kroner: Heltal)
 
 | kommunal_par16_omfattes_af_efterregulering(input: KommunalPar16EfterreguleringInput) -> kommunal_par7_par16_stk1_til_4_gælder(input.budgetvalg)
 | kommunal_par16_endelig_skat_inkl_ændringer_kroner(input: KommunalPar16EfterreguleringInput) -> input.slutskat_kommunal_indkomstskat_og_kirkeskat_kroner + input.tilgang_ændrede_skatteansættelser_kroner - input.afgang_ændrede_skatteansættelser_kroner
@@ -143,6 +161,29 @@ månederne januar, februar og marts i året 3 år efter dette kalenderår.
     januar_kroner = kommunal_par16_tredjedel_kroner(input),
     februar_kroner = kommunal_par16_tredjedel_kroner(input),
     marts_kroner = kommunal_par16_tredjedel_kroner(input)
+)
+
+| kommunal_par16_stk3_absolut_beløb_kroner(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner) + penge_positivt_beløb(0 - beløb_kroner)
+| kommunal_par16_stk3_samlet_efterregulering_kroner(input: KommunalPar16Stk3TillægInput) -> input.efterreguleringsbeløb_kroner + input.udligning_efterreguleringsbeløb_kroner
+| kommunal_par16_stk3_samlet_efterregulering_abs_kroner(input: KommunalPar16Stk3TillægInput) -> kommunal_par16_stk3_absolut_beløb_kroner(kommunal_par16_stk3_samlet_efterregulering_kroner(input))
+| kommunal_par16_stk3_tærskel_3pct_kroner(input: KommunalPar16Stk3TillægInput) -> penge_beløb_gange_basispoint_kroner(input.udbetalt_efter_par15_kroner, 300)
+| kommunal_par16_stk3_overskydende_del_kroner(input: KommunalPar16Stk3TillægInput) -> penge_positivt_beløb(kommunal_par16_stk3_samlet_efterregulering_abs_kroner(input) - kommunal_par16_stk3_tærskel_3pct_kroner(input))
+| kommunal_par16_stk3_tillægssats_basispoint(input: KommunalPar16Stk3TillægInput) -> input.nationalbank_diskonto_basispoint * 3
+| kommunal_par16_stk3_tillæg_abs_kroner(input: KommunalPar16Stk3TillægInput) -> penge_beløb_gange_basispoint_kroner(kommunal_par16_stk3_overskydende_del_kroner(input), kommunal_par16_stk3_tillægssats_basispoint(input))
+| kommunal_par16_stk3_tillæg_med_fortegn_kroner(input: KommunalPar16Stk3TillægInput) -> 0
+| exception kommunal_par16_stk3_positivt_tillæg kommunal_par16_stk3_tillæg_med_fortegn_kroner(input: KommunalPar16Stk3TillægInput) -> kommunal_par16_stk3_tillæg_abs_kroner(input) under kommunal_par16_stk3_samlet_efterregulering_kroner(input) > 0
+| exception kommunal_par16_stk3_negativt_tillæg kommunal_par16_stk3_tillæg_med_fortegn_kroner(input: KommunalPar16Stk3TillægInput) -> 0 - kommunal_par16_stk3_tillæg_abs_kroner(input) under kommunal_par16_stk3_samlet_efterregulering_kroner(input) < 0
+| kommunal_par16_stk3_samlet_med_tillæg_kroner(input: KommunalPar16Stk3TillægInput) -> kommunal_par16_stk3_samlet_efterregulering_kroner(input) + kommunal_par16_stk3_tillæg_med_fortegn_kroner(input)
+| kommunal_par16_stk3_tillæg_resultat(input: KommunalPar16Stk3TillægInput) -> KommunalPar16Stk3TillægResultat(
+    samlet_efterreguleringsbeløb_kroner = kommunal_par16_stk3_samlet_efterregulering_kroner(input),
+    samlet_efterreguleringsbeløb_abs_kroner = kommunal_par16_stk3_samlet_efterregulering_abs_kroner(input),
+    tærskel_3pct_kroner = kommunal_par16_stk3_tærskel_3pct_kroner(input),
+    overskydende_del_kroner = kommunal_par16_stk3_overskydende_del_kroner(input),
+    diskonto_basispoint = input.nationalbank_diskonto_basispoint,
+    tillægssats_basispoint = kommunal_par16_stk3_tillægssats_basispoint(input),
+    tillæg_abs_kroner = kommunal_par16_stk3_tillæg_abs_kroner(input),
+    tillæg_med_fortegn_kroner = kommunal_par16_stk3_tillæg_med_fortegn_kroner(input),
+    samlet_med_tillæg_kroner = kommunal_par16_stk3_samlet_med_tillæg_kroner(input)
 )
 
 = kommuneskattelov_skattepligt_fixture = kommunal_indkomstskattepligt(KommunalSkattepligtInput(

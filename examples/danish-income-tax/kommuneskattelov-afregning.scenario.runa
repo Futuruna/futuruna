@@ -36,14 +36,50 @@
 )
 = kommunal_afregning_statsgaranti_resultat_fixture = kommunal_par16_efterregulering_resultat(kommunal_afregning_par16_statsgaranti_input)
 
+= kommunal_afregning_par16_stor_positiv_input = KommunalPar16EfterreguleringInput(
+    budgetvalg = KommunalEgetSkøn,
+    kalenderår = 2026,
+    slutskat_kommunal_indkomstskat_og_kirkeskat_kroner = 1280000,
+    tilgang_ændrede_skatteansættelser_kroner = 0,
+    afgang_ændrede_skatteansættelser_kroner = 0,
+    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner
+)
+= kommunal_afregning_par16_stor_positiv_resultat = kommunal_par16_efterregulering_resultat(kommunal_afregning_par16_stor_positiv_input)
+= kommunal_afregning_par16_stk3_positiv_fixture = kommunal_par16_stk3_tillæg_resultat(KommunalPar16Stk3TillægInput(
+    efterreguleringsbeløb_kroner = kommunal_afregning_par16_stor_positiv_resultat.efterreguleringsbeløb_kroner,
+    udligning_efterreguleringsbeløb_kroner = 0,
+    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner,
+    nationalbank_diskonto_basispoint = 350
+))
+
+= kommunal_afregning_par16_stor_negativ_input = KommunalPar16EfterreguleringInput(
+    budgetvalg = KommunalEgetSkøn,
+    kalenderår = 2026,
+    slutskat_kommunal_indkomstskat_og_kirkeskat_kroner = 1120000,
+    tilgang_ændrede_skatteansættelser_kroner = 0,
+    afgang_ændrede_skatteansættelser_kroner = 0,
+    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner
+)
+= kommunal_afregning_par16_stor_negativ_resultat = kommunal_par16_efterregulering_resultat(kommunal_afregning_par16_stor_negativ_input)
+= kommunal_afregning_par16_stk3_negativ_fixture = kommunal_par16_stk3_tillæg_resultat(KommunalPar16Stk3TillægInput(
+    efterreguleringsbeløb_kroner = kommunal_afregning_par16_stor_negativ_resultat.efterreguleringsbeløb_kroner,
+    udligning_efterreguleringsbeløb_kroner = 0,
+    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner,
+    nationalbank_diskonto_basispoint = 350
+))
+
 | kommunal_afregning_par7_eget_skøn_omfang: kommunal_afregning_par7_eget_skøn_fixture -> kommunal_afregning_par7_eget_skøn_fixture.omfang == AfregningEfterPar15OgPar16Stk1Til4 && kommunal_afregning_par7_eget_skøn_fixture.efterregulering_stk1_til_4_gælder == Sandt
 | kommunal_afregning_par7_statsgaranti_omfang: kommunal_afregning_par7_statsgaranti_fixture -> kommunal_afregning_par7_statsgaranti_fixture.omfang == AfregningEfterPar15OgPar16Stk4 && kommunal_afregning_par7_statsgaranti_fixture.efterregulering_stk1_til_4_gælder == Falskt
 | kommunal_afregning_par15_tolvtedel: kommunal_afregning_par15_resultat_fixture -> kommunal_afregning_par15_resultat_fixture.månedlig_udbetaling_kroner == 100000 && kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner == 1200000
 | kommunal_afregning_par16_eget_skøn_tredjedele: kommunal_afregning_par16_resultat_fixture -> kommunal_afregning_par16_resultat_fixture.omfattes_af_efterregulering == Sandt && kommunal_afregning_par16_resultat_fixture.endelig_skat_inkl_ændringer_kroner == 1209000 && kommunal_afregning_par16_resultat_fixture.efterreguleringsbeløb_kroner == 9000 && kommunal_afregning_par16_resultat_fixture.afregningsår == 2029 && kommunal_afregning_par16_resultat_fixture.januar_kroner == 3000 && kommunal_afregning_par16_resultat_fixture.februar_kroner == 3000 && kommunal_afregning_par16_resultat_fixture.marts_kroner == 3000
 | kommunal_afregning_par16_statsgaranti_uden_stk2: kommunal_afregning_statsgaranti_resultat_fixture -> kommunal_afregning_statsgaranti_resultat_fixture.omfattes_af_efterregulering == Falskt && kommunal_afregning_statsgaranti_resultat_fixture.efterreguleringsbeløb_kroner == 0 && kommunal_afregning_statsgaranti_resultat_fixture.januar_kroner == 0
+| kommunal_afregning_par16_stk3_positivt_tillæg: kommunal_afregning_par16_stk3_positiv_fixture -> kommunal_afregning_par16_stk3_positiv_fixture.samlet_efterreguleringsbeløb_kroner == 80000 && kommunal_afregning_par16_stk3_positiv_fixture.tærskel_3pct_kroner == 36000 && kommunal_afregning_par16_stk3_positiv_fixture.overskydende_del_kroner == 44000 && kommunal_afregning_par16_stk3_positiv_fixture.tillægssats_basispoint == 1050 && kommunal_afregning_par16_stk3_positiv_fixture.tillæg_abs_kroner == 4620 && kommunal_afregning_par16_stk3_positiv_fixture.samlet_med_tillæg_kroner == 84620
+| kommunal_afregning_par16_stk3_negativt_tillæg: kommunal_afregning_par16_stk3_negativ_fixture -> kommunal_afregning_par16_stk3_negativ_fixture.samlet_efterreguleringsbeløb_kroner == -80000 && kommunal_afregning_par16_stk3_negativ_fixture.samlet_efterreguleringsbeløb_abs_kroner == 80000 && kommunal_afregning_par16_stk3_negativ_fixture.tillæg_abs_kroner == 4620 && kommunal_afregning_par16_stk3_negativ_fixture.tillæg_med_fortegn_kroner == -4620 && kommunal_afregning_par16_stk3_negativ_fixture.samlet_med_tillæg_kroner == -84620
 
 ? kommunal_afregning_par7_eget_skøn_omfang
 ? kommunal_afregning_par7_statsgaranti_omfang
 ? kommunal_afregning_par15_tolvtedel
 ? kommunal_afregning_par16_eget_skøn_tredjedele
 ? kommunal_afregning_par16_statsgaranti_uden_stk2
+? kommunal_afregning_par16_stk3_positivt_tillæg
+? kommunal_afregning_par16_stk3_negativt_tillæg
