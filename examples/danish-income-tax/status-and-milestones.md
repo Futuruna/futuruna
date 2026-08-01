@@ -37,7 +37,10 @@ grundlagsresultat og scenariedækning. Kommuneskatteloven dækker nu også førs
 afregningsslice for §§ 7, 15 og 16: kommunens valg mellem eget skøn og
 statsgaranteret grundlag, § 15's månedlige tolvtedel og § 16, stk. 2's
 efterreguleringsbeløb med januar/februar/marts-tredjedele tre år senere samt
-stk. 3's 3 pct.-tærskel og diskontoafledte tillæg.
+stk. 3's 3 pct.-tærskel og diskontoafledte tillæg. § 16, stk. 4 dækker nu også
+kommunens andel af virksomhedsskat, konjunkturudligningsskat,
+indkomstudligning og afskrivningslovens § 40 C-acontoskat med særskilt
+stat-til-kommune, kommune-til-stat og nettoafregning.
 
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
@@ -490,7 +493,9 @@ Current municipal/church-tax and withholding dependency sources:
     own-estimate versus state-guaranteed budget basis, monthly provisional
     twelfths, own-estimate after-regulation in three instalments, and the
     § 16, stk. 3 3 pct. threshold/supplement formula with supplied Nationalbank
-    discount-rate input.
+    discount-rate input. § 16, stk. 4 now covers the municipal share of
+    business tax, conjuncture equalisation tax, income equalisation and
+    Afskrivningsloven § 40 C acconto-tax repayment bases.
 - Folkekirkens økonomi:
   `https://www.retsinformation.dk/eli/lta/2023/424`
   - XML status on 2026-07-18: `Valid`
@@ -1478,7 +1483,8 @@ Review candidates to revisit deliberately, not as broad churn:
   slice now covers ordinary municipal tax on Personskatteloven taxable income,
   church tax for Folkekirken members, and Kommuneskatteloven §§ 7/15/16
   provisional payment, own-budget after-regulation, and stk. 3 supplement
-  formula. The first Kildeskatteloven
+  formula plus stk. 4 business-tax/conjuncture/income-equalisation/acconto-tax
+  settlement. The first Kildeskatteloven
   slice now covers ordinary wage A-income, withholding duty, e-skattekort card
   types, main-card period allowances, bikort without allowance, optional higher
   withholding percentage, base rounding, and the statutory 55 pct. no-card

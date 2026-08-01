@@ -130,6 +130,26 @@ med et tillæg, der beregnes af den overskydende del af efterreguleringsbeløbet
 inklusive efterreguleringsbeløb i henhold til lov om kommunal udligning og
 generelle tilskud til kommuner med en procent, der svarer til 3 gange
 Nationalbankens diskonto den 1. juli året forud for kalenderåret.
+
+Stk. 4. Staten afregner som led i afregningen efter § 15 og nærværende
+bestemmelse over for kommunen en andel af virksomhedsskatten efter
+virksomhedsskattelovens § 10, stk. 2, der beregnes med udskrivningsprocenten
+for kommunal indkomstskat og kirkeskat af den del af virksomhedernes overskud,
+hvoraf der skal betales virksomhedsskat.
+
+Dette gælder, uanset om virksomhedsskatteprocenten er lavere end
+udskrivningsprocenten for kommunal indkomstskat og kirkeskat.
+
+Ved afregningen af slutskatten skal kommunen betale staten et beløb, der
+beregnes med udskrivningsprocenten for kommunal indkomstskat og kirkeskat af
+beregningsgrundlaget for den virksomhedsskat, der efter virksomhedsskattelovens
+§ 10, stk. 3, og § 13, stk. 1, fradrages i de skattepligtiges slutskatter.
+
+1. og 3. pkt. finder tilsvarende anvendelse på konjunkturudligningsskat efter
+virksomhedsskattelovens § 22 b og indkomstudligning efter
+virksomhedsskattelovens § 22 d. Reglerne i 3. pkt. finder tilsvarende
+anvendelse på beløb, der anses for indbetalt acontoskat efter
+afskrivningslovens § 40 C, stk. 8-10.
 ----
 
 ----
@@ -143,6 +163,8 @@ forbliver et særskilt datakildearbejde.
 # KommunalPar16EfterreguleringResultat(budgetvalg: KommunalBudgetvalg, kalenderår: Heltal, omfattes_af_efterregulering: Boolsk, endelig_skat_inkl_ændringer_kroner: Heltal, udbetalt_efter_par15_kroner: Heltal, efterreguleringsbeløb_kroner: Heltal, afregningsår: Heltal, januar_kroner: Heltal, februar_kroner: Heltal, marts_kroner: Heltal)
 # KommunalPar16Stk3TillægInput(efterreguleringsbeløb_kroner: Heltal, udligning_efterreguleringsbeløb_kroner: Heltal, udbetalt_efter_par15_kroner: Heltal, nationalbank_diskonto_basispoint: Heltal)
 # KommunalPar16Stk3TillægResultat(samlet_efterreguleringsbeløb_kroner: Heltal, samlet_efterreguleringsbeløb_abs_kroner: Heltal, tærskel_3pct_kroner: Heltal, overskydende_del_kroner: Heltal, diskonto_basispoint: Heltal, tillægssats_basispoint: Heltal, tillæg_abs_kroner: Heltal, tillæg_med_fortegn_kroner: Heltal, samlet_med_tillæg_kroner: Heltal)
+# KommunalPar16Stk4VirksomhedsskatInput(kommunal_og_kirke_udskrivningsprocent_basispoint: Heltal, virksomhedsskatteprocent_basispoint: Heltal, vsl10_stk2_overskud_hvoraf_virksomhedsskat_betales_kroner: Heltal, vsl10_stk3_og_par13_fradragsgrundlag_i_slutskat_kroner: Heltal, vsl22b_konjunkturudligningsskat_indbetalingsgrundlag_kroner: Heltal, vsl22d_indkomstudligning_indbetalingsgrundlag_kroner: Heltal, vsl22b_konjunkturudligningsskat_fradragsgrundlag_i_slutskat_kroner: Heltal, vsl22d_indkomstudligning_fradragsgrundlag_i_slutskat_kroner: Heltal, afskrivningslov40c_acontoskat_fradragsgrundlag_kroner: Heltal)
+# KommunalPar16Stk4VirksomhedsskatResultat(kommunal_og_kirke_udskrivningsprocent_basispoint: Heltal, virksomhedsskatteprocent_basispoint: Heltal, virksomhedsskatteprocent_lavere_end_kommunal_og_kirke: Boolsk, grundlag_staten_afregner_til_kommune_kroner: Heltal, grundlag_kommune_betaler_staten_kroner: Heltal, staten_afregner_til_kommune_kroner: Heltal, kommune_betaler_staten_kroner: Heltal, netto_afregning_til_kommune_kroner: Heltal)
 
 | kommunal_par16_omfattes_af_efterregulering(input: KommunalPar16EfterreguleringInput) -> kommunal_par7_par16_stk1_til_4_gælder(input.budgetvalg)
 | kommunal_par16_endelig_skat_inkl_ændringer_kroner(input: KommunalPar16EfterreguleringInput) -> input.slutskat_kommunal_indkomstskat_og_kirkeskat_kroner + input.tilgang_ændrede_skatteansættelser_kroner - input.afgang_ændrede_skatteansættelser_kroner
@@ -184,6 +206,23 @@ forbliver et særskilt datakildearbejde.
     tillæg_abs_kroner = kommunal_par16_stk3_tillæg_abs_kroner(input),
     tillæg_med_fortegn_kroner = kommunal_par16_stk3_tillæg_med_fortegn_kroner(input),
     samlet_med_tillæg_kroner = kommunal_par16_stk3_samlet_med_tillæg_kroner(input)
+)
+
+| kommunal_par16_stk4_virksomhedsskatteprocent_lavere(input: KommunalPar16Stk4VirksomhedsskatInput) -> input.virksomhedsskatteprocent_basispoint < input.kommunal_og_kirke_udskrivningsprocent_basispoint
+| kommunal_par16_stk4_grundlag_til_kommune_kroner(input: KommunalPar16Stk4VirksomhedsskatInput) -> input.vsl10_stk2_overskud_hvoraf_virksomhedsskat_betales_kroner + input.vsl22b_konjunkturudligningsskat_indbetalingsgrundlag_kroner + input.vsl22d_indkomstudligning_indbetalingsgrundlag_kroner
+| kommunal_par16_stk4_grundlag_til_stat_kroner(input: KommunalPar16Stk4VirksomhedsskatInput) -> input.vsl10_stk3_og_par13_fradragsgrundlag_i_slutskat_kroner + input.vsl22b_konjunkturudligningsskat_fradragsgrundlag_i_slutskat_kroner + input.vsl22d_indkomstudligning_fradragsgrundlag_i_slutskat_kroner + input.afskrivningslov40c_acontoskat_fradragsgrundlag_kroner
+| kommunal_par16_stk4_staten_afregner_til_kommune_kroner(input: KommunalPar16Stk4VirksomhedsskatInput) -> penge_beløb_gange_basispoint_kroner(kommunal_par16_stk4_grundlag_til_kommune_kroner(input), input.kommunal_og_kirke_udskrivningsprocent_basispoint)
+| kommunal_par16_stk4_kommune_betaler_staten_kroner(input: KommunalPar16Stk4VirksomhedsskatInput) -> penge_beløb_gange_basispoint_kroner(kommunal_par16_stk4_grundlag_til_stat_kroner(input), input.kommunal_og_kirke_udskrivningsprocent_basispoint)
+| kommunal_par16_stk4_netto_til_kommune_kroner(input: KommunalPar16Stk4VirksomhedsskatInput) -> kommunal_par16_stk4_staten_afregner_til_kommune_kroner(input) - kommunal_par16_stk4_kommune_betaler_staten_kroner(input)
+| kommunal_par16_stk4_virksomhedsskat_resultat(input: KommunalPar16Stk4VirksomhedsskatInput) -> KommunalPar16Stk4VirksomhedsskatResultat(
+    kommunal_og_kirke_udskrivningsprocent_basispoint = input.kommunal_og_kirke_udskrivningsprocent_basispoint,
+    virksomhedsskatteprocent_basispoint = input.virksomhedsskatteprocent_basispoint,
+    virksomhedsskatteprocent_lavere_end_kommunal_og_kirke = kommunal_par16_stk4_virksomhedsskatteprocent_lavere(input),
+    grundlag_staten_afregner_til_kommune_kroner = kommunal_par16_stk4_grundlag_til_kommune_kroner(input),
+    grundlag_kommune_betaler_staten_kroner = kommunal_par16_stk4_grundlag_til_stat_kroner(input),
+    staten_afregner_til_kommune_kroner = kommunal_par16_stk4_staten_afregner_til_kommune_kroner(input),
+    kommune_betaler_staten_kroner = kommunal_par16_stk4_kommune_betaler_staten_kroner(input),
+    netto_afregning_til_kommune_kroner = kommunal_par16_stk4_netto_til_kommune_kroner(input)
 )
 
 = kommuneskattelov_skattepligt_fixture = kommunal_indkomstskattepligt(KommunalSkattepligtInput(

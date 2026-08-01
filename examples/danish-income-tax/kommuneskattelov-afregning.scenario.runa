@@ -68,6 +68,19 @@
     nationalbank_diskonto_basispoint = 350
 ))
 
+= kommunal_afregning_par16_stk4_input = KommunalPar16Stk4VirksomhedsskatInput(
+    kommunal_og_kirke_udskrivningsprocent_basispoint = 2430,
+    virksomhedsskatteprocent_basispoint = 2200,
+    vsl10_stk2_overskud_hvoraf_virksomhedsskat_betales_kroner = 200000,
+    vsl10_stk3_og_par13_fradragsgrundlag_i_slutskat_kroner = 50000,
+    vsl22b_konjunkturudligningsskat_indbetalingsgrundlag_kroner = 12000,
+    vsl22d_indkomstudligning_indbetalingsgrundlag_kroner = 18000,
+    vsl22b_konjunkturudligningsskat_fradragsgrundlag_i_slutskat_kroner = 9000,
+    vsl22d_indkomstudligning_fradragsgrundlag_i_slutskat_kroner = 11000,
+    afskrivningslov40c_acontoskat_fradragsgrundlag_kroner = 10000
+)
+= kommunal_afregning_par16_stk4_fixture = kommunal_par16_stk4_virksomhedsskat_resultat(kommunal_afregning_par16_stk4_input)
+
 | kommunal_afregning_par7_eget_skøn_omfang: kommunal_afregning_par7_eget_skøn_fixture -> kommunal_afregning_par7_eget_skøn_fixture.omfang == AfregningEfterPar15OgPar16Stk1Til4 && kommunal_afregning_par7_eget_skøn_fixture.efterregulering_stk1_til_4_gælder == Sandt
 | kommunal_afregning_par7_statsgaranti_omfang: kommunal_afregning_par7_statsgaranti_fixture -> kommunal_afregning_par7_statsgaranti_fixture.omfang == AfregningEfterPar15OgPar16Stk4 && kommunal_afregning_par7_statsgaranti_fixture.efterregulering_stk1_til_4_gælder == Falskt
 | kommunal_afregning_par15_tolvtedel: kommunal_afregning_par15_resultat_fixture -> kommunal_afregning_par15_resultat_fixture.månedlig_udbetaling_kroner == 100000 && kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner == 1200000
@@ -75,6 +88,7 @@
 | kommunal_afregning_par16_statsgaranti_uden_stk2: kommunal_afregning_statsgaranti_resultat_fixture -> kommunal_afregning_statsgaranti_resultat_fixture.omfattes_af_efterregulering == Falskt && kommunal_afregning_statsgaranti_resultat_fixture.efterreguleringsbeløb_kroner == 0 && kommunal_afregning_statsgaranti_resultat_fixture.januar_kroner == 0
 | kommunal_afregning_par16_stk3_positivt_tillæg: kommunal_afregning_par16_stk3_positiv_fixture -> kommunal_afregning_par16_stk3_positiv_fixture.samlet_efterreguleringsbeløb_kroner == 80000 && kommunal_afregning_par16_stk3_positiv_fixture.tærskel_3pct_kroner == 36000 && kommunal_afregning_par16_stk3_positiv_fixture.overskydende_del_kroner == 44000 && kommunal_afregning_par16_stk3_positiv_fixture.tillægssats_basispoint == 1050 && kommunal_afregning_par16_stk3_positiv_fixture.tillæg_abs_kroner == 4620 && kommunal_afregning_par16_stk3_positiv_fixture.samlet_med_tillæg_kroner == 84620
 | kommunal_afregning_par16_stk3_negativt_tillæg: kommunal_afregning_par16_stk3_negativ_fixture -> kommunal_afregning_par16_stk3_negativ_fixture.samlet_efterreguleringsbeløb_kroner == -80000 && kommunal_afregning_par16_stk3_negativ_fixture.samlet_efterreguleringsbeløb_abs_kroner == 80000 && kommunal_afregning_par16_stk3_negativ_fixture.tillæg_abs_kroner == 4620 && kommunal_afregning_par16_stk3_negativ_fixture.tillæg_med_fortegn_kroner == -4620 && kommunal_afregning_par16_stk3_negativ_fixture.samlet_med_tillæg_kroner == -84620
+| kommunal_afregning_par16_stk4_virksomhedsskat: kommunal_afregning_par16_stk4_fixture -> kommunal_afregning_par16_stk4_fixture.virksomhedsskatteprocent_lavere_end_kommunal_og_kirke == Sandt && kommunal_afregning_par16_stk4_fixture.grundlag_staten_afregner_til_kommune_kroner == 230000 && kommunal_afregning_par16_stk4_fixture.grundlag_kommune_betaler_staten_kroner == 80000 && kommunal_afregning_par16_stk4_fixture.staten_afregner_til_kommune_kroner == 55890 && kommunal_afregning_par16_stk4_fixture.kommune_betaler_staten_kroner == 19440 && kommunal_afregning_par16_stk4_fixture.netto_afregning_til_kommune_kroner == 36450
 
 ? kommunal_afregning_par7_eget_skøn_omfang
 ? kommunal_afregning_par7_statsgaranti_omfang
@@ -83,3 +97,4 @@
 ? kommunal_afregning_par16_statsgaranti_uden_stk2
 ? kommunal_afregning_par16_stk3_positivt_tillæg
 ? kommunal_afregning_par16_stk3_negativt_tillæg
+? kommunal_afregning_par16_stk4_virksomhedsskat
