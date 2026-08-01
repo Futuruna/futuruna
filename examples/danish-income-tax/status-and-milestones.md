@@ -507,7 +507,8 @@ encoded as a temporal rule on top of the consolidation.
 - `aktieavancebeskatningsloven.runa` exists and checks/runs with `runa run`;
   it covers the ABL §§ 17/18/19 B/19 C/21/22 dependency slice consumed by
   Personskatteloven § 4, stk. 1, nr. 5 and the related § 4 a share-income
-  split.
+  split, including § 19 B/§ 21 share-income classification and § 19 B-if-§ 17
+  personal-income reclassification.
 - `virksomhedsskatteloven.runa` exists and checks/runs with `runa run`; it
   covers the Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return
   dependency consumed by Personskatteloven § 4, stk. 1, nr. 3 and nr. 3 a, and
@@ -538,6 +539,8 @@ encoded as a temporal rule on top of the consolidation.
 - `personskatteloven-par4-virksomhedsskattelov-kapitalafkast.audit.runa`
   exists and checks/runs with `runa run`.
 - `personskatteloven-par4-aktie-kapital.audit.runa` exists and checks/runs
+  with `runa run`.
+- `personskatteloven-par4a-aktieavance.audit.runa` exists and checks/runs
   with `runa run`.
 - `personskatteloven-par4-ligningslov8stk3.audit.runa` exists and checks/runs
   with `runa run`.
@@ -620,8 +623,8 @@ encoded as a temporal rule on top of the consolidation.
   positive/negative net-capital projections
   and personal-income reclassification, plus amount-level § 4 a share-income
   inclusion, stk. 2 exclusions, stk. 3 personal-income reclassification,
-  negative share-income preservation and pension deduction from positive share
-  income, and amount-level § 4 b CFC-income aggregation with positive § 8 b
+  ABL § 19 B/§ 21 share-income bridge, negative share-income preservation and
+  pension deduction from positive share income, and amount-level § 4 b CFC-income aggregation with positive § 8 b
   tax base projection, the §§ 5-9 state-tax skeleton including amount-level
   § 6 spouse negative net-capital offset and § 7 stk. 5 spouse
   positive-capital threshold/negative-capital offset, § 12 unused
@@ -861,7 +864,10 @@ Current decision:
   investment-company classification, § 21/§ 22 listed/unlisted treatment,
   taxable gain, deductible loss and Personskatteloven category together.
   `Par4Stk1Nr5Sag` consumes that typed result for § 4, stk. 1, nr. 5 instead
-  of passing a loose share-gain scalar.
+  of passing a loose share-gain scalar. `Par4aAktieavancebeskatningslovSag`
+  consumes the same typed ABL result for § 4 a, routing § 19 B/§ 21 amounts to
+  share income, § 19 C to the stk. 2 exclusion, and § 19 B-if-§ 17 amounts to
+  personal income under stk. 3.
 - `Ligningslov16ASag` uses product-scoped `|` rules for the LL § 16 A dividend
   slice consumed by `Par4Stk1Nr4Sag`. `Par4Stk1Nr4Sag`,
   `Par4Stk1Nr5aSag` and `Par4Stk1Nr5bSag` keep the original amount,
@@ -1718,7 +1724,7 @@ M6 - Website integration
   first § 1/§ 2 taxable-income composition from the separate income categories,
   first § 4 nr. 3/nr. 3 a/nr. 9/nr. 11/nr. 17 focused capital-income
   classification audits,
-  first § 4 a pension/share-income audit,
+  first § 4 a pension/share-income and ABL bridge audits,
   first § 8 a/§ 67 share-income annual-settlement scenario including negative
   share-income carry-forward,
   first § 8 c limited-taxpayer municipal-equivalent tax calculation and

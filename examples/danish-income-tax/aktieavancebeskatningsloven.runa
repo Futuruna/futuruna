@@ -316,13 +316,70 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
     ville_være_par17_uden_investeringsstatus = Falskt,
     årets_netto_med_kgl_par14_23_kroner = 1500
 )
+= abl19b_aktieindkomst_input = AktieavancebeskatningslovInput(
+    indkomstår = 2026,
+    aktiv = AblInvesteringsselskab19B,
+    afståelsessum_kroner = 50000,
+    anskaffelsessum_kroner = 30000,
+    udøver_aktienæring = Falskt,
+    erhvervet_som_led_i_næring = Falskt,
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    meddelt_aktiebaseret_status = Sandt,
+    aktieandel_basispoint = 6000,
+    resterende_aktivmasse_kun_værdipapirer = Sandt,
+    oplysninger_indsendt_rettidigt = Sandt,
+    ville_være_par17_uden_investeringsstatus = Falskt,
+    årets_netto_med_kgl_par14_23_kroner = 0
+)
+= abl19b_hvis17_input = AktieavancebeskatningslovInput(
+    indkomstår = 2026,
+    aktiv = AblInvesteringsselskab19B,
+    afståelsessum_kroner = 37000,
+    anskaffelsessum_kroner = 30000,
+    udøver_aktienæring = Sandt,
+    erhvervet_som_led_i_næring = Sandt,
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    meddelt_aktiebaseret_status = Sandt,
+    aktieandel_basispoint = 6000,
+    resterende_aktivmasse_kun_værdipapirer = Sandt,
+    oplysninger_indsendt_rettidigt = Sandt,
+    ville_være_par17_uden_investeringsstatus = Sandt,
+    årets_netto_med_kgl_par14_23_kroner = 0
+)
+= abl21_aktieindkomst_input = AktieavancebeskatningslovInput(
+    indkomstår = 2026,
+    aktiv = AblMinimumsbevis21,
+    afståelsessum_kroner = 40000,
+    anskaffelsessum_kroner = 30000,
+    udøver_aktienæring = Falskt,
+    erhvervet_som_led_i_næring = Falskt,
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    meddelt_aktiebaseret_status = Falskt,
+    aktieandel_basispoint = 6000,
+    resterende_aktivmasse_kun_værdipapirer = Sandt,
+    oplysninger_indsendt_rettidigt = Sandt,
+    ville_være_par17_uden_investeringsstatus = Falskt,
+    årets_netto_med_kgl_par14_23_kroner = 0
+)
 
 = abl19c_kapital_fixture = aktieavancebeskatningslov_resultat(abl19c_kapital_input)
 = abl19c_hvis17_fixture = aktieavancebeskatningslov_resultat(abl19c_hvis17_input)
 = abl22_tab_fixture = aktieavancebeskatningslov_resultat(abl22_tab_input)
 = abl22_under_bagatel_fixture = aktieavancebeskatningslov_resultat(abl22_under_bagatel_input)
+= abl19b_aktieindkomst_fixture = aktieavancebeskatningslov_resultat(abl19b_aktieindkomst_input)
+= abl19b_hvis17_fixture = aktieavancebeskatningslov_resultat(abl19b_hvis17_input)
+= abl21_aktieindkomst_fixture = aktieavancebeskatningslov_resultat(abl21_aktieindkomst_input)
 
 | abl19c_kapitalindkomstklassifikation: abl19c_kapital_fixture -> abl19c_kapital_fixture.effektiv_aktiv == AblInvesteringsselskab19C && abl19c_kapital_fixture.skattepligtig_gevinst_kroner == 12000 && abl19c_kapital_fixture.personskattelov_kategori == AblKapitalindkomstEfterPslPar4Nr5
 | abl19c_hvis_par17_bliver_personlig: abl19c_hvis17_fixture -> abl19c_hvis17_fixture.skattepligtig_gevinst_kroner == 7000 && abl19c_hvis17_fixture.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse
 | abl22_tab_over_bagatel_fradrages: abl22_tab_fixture -> abl22_tab_fixture.fradragsberettiget_tab_kroner == 3000 && abl22_tab_fixture.netto_efter_aktieavancebeskatningsloven_kroner == -3000 && abl22_tab_fixture.personskattelov_kategori == AblKapitalindkomstEfterPslPar4Nr5
 | abl22_under_bagatel_afskæres: abl22_under_bagatel_fixture -> abl22_under_bagatel_fixture.medregnes_i_skattepligtig_indkomst == Falskt && abl22_under_bagatel_fixture.netto_efter_aktieavancebeskatningsloven_kroner == 0
+| abl19b_aktieindkomstklassifikation: abl19b_aktieindkomst_fixture -> abl19b_aktieindkomst_fixture.effektiv_aktiv == AblInvesteringsselskab19B && abl19b_aktieindkomst_fixture.skattepligtig_gevinst_kroner == 20000 && abl19b_aktieindkomst_fixture.personskattelov_kategori == AblAktieindkomstEfterPslPar4a
+| abl19b_hvis_par17_bliver_personlig: abl19b_hvis17_fixture -> abl19b_hvis17_fixture.skattepligtig_gevinst_kroner == 7000 && abl19b_hvis17_fixture.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse
+| abl21_aktieindkomstklassifikation: abl21_aktieindkomst_fixture -> abl21_aktieindkomst_fixture.effektiv_aktiv == AblMinimumsbevis21 && abl21_aktieindkomst_fixture.skattepligtig_gevinst_kroner == 10000 && abl21_aktieindkomst_fixture.personskattelov_kategori == AblAktieindkomstEfterPslPar4a

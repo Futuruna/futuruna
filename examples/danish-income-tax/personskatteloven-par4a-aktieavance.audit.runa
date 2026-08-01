@@ -1,0 +1,31 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4 a ABL-derived share income.
+-- The original legal texts are copied in kapitel-01-indkomst.runa and
+-- aktieavancebeskatningsloven.runa.
+
+= par4a_abl_audit_aggregat = par4a_aktieindkomst_resultat(Par4aAktieindkomstInput(
+    poster = [
+        par4a_aktiepost_fra_aktieavancebeskatningslov(abl19b_aktieindkomst_input),
+        par4a_aktiepost_fra_aktieavancebeskatningslov(abl21_aktieindkomst_input),
+        par4a_aktiepost_fra_aktieavancebeskatningslov(abl19b_hvis17_input),
+        par4a_aktiepost_fra_aktieavancebeskatningslov(abl19c_kapital_input)
+    ],
+    ønsket_pensionsfradrag_kroner = 0,
+    pensionsfradrag_meddelt_forvaltning = Sandt,
+    pensionsfradrag_fradraget_i_personlig_indkomst = Falskt
+))
+
+| par4a_audit_abl19b_til_aktieindkomst: par4a_abl19b_aktieindkomst_fixture -> par4a_abl19b_aktieindkomst_fixture.afgrænsning == AktiepostOmfattetAfStk1 && par4a_abl19b_aktieindkomst_fixture.aktieindkomst_kroner == 20000
+| par4a_audit_abl21_til_aktieindkomst: par4a_abl21_aktieindkomst_fixture -> par4a_abl21_aktieindkomst_fixture.afgrænsning == AktiepostOmfattetAfStk1 && par4a_abl21_aktieindkomst_fixture.aktieindkomst_kroner == 10000
+| par4a_audit_abl19b_hvis17_til_personlig: par4a_abl19b_hvis17_fixture -> par4a_abl19b_hvis17_fixture.personlig_reklassifikation == Aktieavance19BHvis17 && par4a_abl19b_hvis17_fixture.personlig_indkomst_kroner == 7000
+| par4a_audit_abl19c_undtages_efter_stk2: par4a_abl19c_undtaget_fixture -> par4a_abl19c_undtaget_fixture.afgrænsning == AktiepostUndtagetAktieavance19C && par4a_abl19c_undtaget_fixture.aktieindkomst_kroner == 0
+| par4a_audit_abl_aggregat: par4a_abl_audit_aggregat -> par4a_abl_audit_aggregat.aktieindkomst_efter_stk1_og_2_kroner == 30000 && par4a_abl_audit_aggregat.omklassificeret_personlig_indkomst_kroner == 7000
+
+? par4a_audit_abl19b_til_aktieindkomst
+? par4a_audit_abl21_til_aktieindkomst
+? par4a_audit_abl19b_hvis17_til_personlig
+? par4a_audit_abl19c_undtages_efter_stk2
+? par4a_audit_abl_aggregat
