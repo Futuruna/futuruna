@@ -1,0 +1,12 @@
+# Shape = Circle | Triangle | Square
+
+= circle_source = Circle
+
+--@label:circle_rule::source:circle_source--
+----
+Circle source
+----
+
+--@begin::circle_rule--
+| circle_rule(shape: Shape) -> shape == Circle
+--@end::circle_rule--

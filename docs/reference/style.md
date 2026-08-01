@@ -182,6 +182,20 @@ linked code spans and their symbols, plus metadata diagnostics. `--type` and
 `--role` apply to JSON output as well, so a warning sweep can use
 `runa meta --json --role warning file.runa` without parsing presentation text.
 
+Pass a directory to sweep a complete source tree recursively:
+
+```sh
+runa meta --json --type Shape --role source examples/
+runa meta --json --role warning examples/danish-income-tax/
+```
+
+Directory output uses the separate `futuruna.meta.collection.v1` schema. Its
+`files` array contains filtered `futuruna.meta.v1` documents in stable path
+order, while its top-level counts distinguish files scanned from files returned.
+Corpus diagnostics repeat the source file beside every line and message, so an
+audit can report invalid metadata without losing its location. A collection
+with metadata diagnostics is still emitted as JSON and exits unsuccessfully.
+
 The original source spelling remains compatible and desugars `meta` to the
 `source` role:
 

@@ -226,7 +226,7 @@ fn main_inner() {
             }
             "--help" | "-h" | "help" => {
                 eprintln!("runa — the Futuruna compiler");
-                eprintln!("Usage: runa [COMMAND] [OPTIONS] <file.runa>");
+                eprintln!("Usage: runa [COMMAND] [OPTIONS] <file.runa|directory>");
                 eprintln!();
                 eprintln!("Commands:");
                 eprintln!("  (none)        Interpret directly (default)");
@@ -240,7 +240,9 @@ fn main_inner() {
                 eprintln!("  hashes        Show content hashes for all definitions");
                 eprintln!("  wasm          Compile to WebAssembly (via wasm-pack)");
                 eprintln!("  check         Parse and type-check without running");
-                eprintln!("  meta          Report typed meta references and source/code spans");
+                eprintln!(
+                    "  meta          Report typed meta references across a file or source tree"
+                );
                 eprintln!("  verify        Generate SMT-LIB2 and verify with Z3");
                 eprintln!("  audit         Discover invariant gaps and rule asymmetries");
                 eprintln!("  fmt           Format source file(s)");
@@ -284,6 +286,7 @@ fn main_inner() {
                 eprintln!("  runa meta program.runa      Show typed meta/source/span index");
                 eprintln!("  runa meta --type Warning program.runa  Sweep metadata by type");
                 eprintln!("  runa meta --json --role warning program.runa  Emit audit data");
+                eprintln!("  runa meta --json --role warning examples/  Sweep a source tree");
                 eprintln!("  runa emit program.runa      Show Rust output");
                 eprintln!("  runa emit --imports program.runa  Show public import/export graph");
                 eprintln!("  runa build program.runa     Compile to ./program");
@@ -537,6 +540,15 @@ fn main_inner() {
     }
 
     if let Some(ref path) = filename {
+        if mode == "meta" && std::path::Path::new(path).is_dir() {
+            print_meta_directory(
+                path,
+                meta_type_filter.as_deref(),
+                meta_role_filter.as_deref(),
+                meta_json,
+            );
+            return;
+        }
         match std::fs::read_to_string(path) {
             Ok(source) => match mode {
                 "emit" if emit_imports => {
@@ -1659,20 +1671,38 @@ fn print_meta_index(
     role_filter: Option<&str>,
     json: bool,
 ) {
+    let index = scan_meta_source(source, filename);
+
+    if json {
+        let document = meta_index_json_value(&index, filename, type_filter, role_filter);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&document).expect("metadata index is JSON serializable")
+        );
+    } else {
+        print_meta_index_human(&index, filename, type_filter, role_filter);
+        print_meta_diagnostics(&index, filename);
+    }
+
+    if !index.diagnostics.is_empty() {
+        std::process::exit(1);
+    }
+}
+
+fn scan_meta_source(source: &str, filename: &str) -> MetaIndex {
     let source_dir = std::path::Path::new(filename)
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .map(|parent| parent.to_string_lossy().to_string());
-    let index = scan_meta_comments_with_dir(source, source_dir);
+    scan_meta_comments_with_dir(source, source_dir)
+}
 
-    if json {
-        print_meta_index_json(&index, filename, type_filter, role_filter);
-        if !index.diagnostics.is_empty() {
-            std::process::exit(1);
-        }
-        return;
-    }
-
+fn print_meta_index_human(
+    index: &MetaIndex,
+    filename: &str,
+    type_filter: Option<&str>,
+    role_filter: Option<&str>,
+) {
     println!("meta: {}", filename);
 
     let references = index.references_matching(type_filter, role_filter);
@@ -1686,7 +1716,6 @@ fn print_meta_index(
         for reference in references {
             print_meta_reference(reference);
         }
-        print_meta_diagnostics_or_exit(&index, filename);
         return;
     }
 
@@ -1759,16 +1788,14 @@ fn print_meta_index(
             );
         }
     }
-
-    print_meta_diagnostics_or_exit(&index, filename);
 }
 
-fn print_meta_index_json(
+fn meta_index_json_value(
     index: &MetaIndex,
     filename: &str,
     type_filter: Option<&str>,
     role_filter: Option<&str>,
-) {
+) -> serde_json::Value {
     let references = index.references_matching(type_filter, role_filter);
     let filtered = type_filter.is_some() || role_filter.is_some();
     let selected_comments: BTreeSet<usize> = references
@@ -1849,7 +1876,7 @@ fn print_meta_index_json(
         .iter()
         .map(|reference| meta_reference_json(reference))
         .collect();
-    let document = serde_json::json!({
+    serde_json::json!({
         "schema": "futuruna.meta.v1",
         "file": filename,
         "filter": {
@@ -1866,12 +1893,127 @@ fn print_meta_index_json(
         "anchors": anchors,
         "spans": spans,
         "diagnostics": diagnostics,
-    });
+    })
+}
 
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&document).expect("metadata index is JSON serializable")
-    );
+fn print_meta_directory(
+    directory: &str,
+    type_filter: Option<&str>,
+    role_filter: Option<&str>,
+    json: bool,
+) {
+    let mut files = Vec::new();
+    collect_runa_files(directory, &mut files);
+    files.sort();
+
+    if files.is_empty() {
+        eprintln!("No .runa files found in {}", directory);
+        std::process::exit(1);
+    }
+
+    let filtered = type_filter.is_some() || role_filter.is_some();
+    let mut entries = Vec::new();
+    let mut corpus_diagnostics = Vec::new();
+    let mut total_references = 0usize;
+    let mut total_anchors = 0usize;
+    let mut total_spans = 0usize;
+
+    for filename in &files {
+        let source = match std::fs::read_to_string(filename) {
+            Ok(source) => source,
+            Err(error) => {
+                corpus_diagnostics.push(serde_json::json!({
+                    "file": filename,
+                    "line": null,
+                    "message": format!("cannot read file: {}", error),
+                }));
+                continue;
+            }
+        };
+        let index = scan_meta_source(&source, filename);
+        corpus_diagnostics.extend(index.diagnostics.iter().map(|diagnostic| {
+            serde_json::json!({
+                "file": filename,
+                "line": diagnostic.line,
+                "message": diagnostic.message,
+            })
+        }));
+
+        let references = index.references_matching(type_filter, role_filter);
+        let include = !index.diagnostics.is_empty()
+            || if filtered {
+                !references.is_empty()
+            } else {
+                !index.anchors.is_empty() || !index.spans.is_empty()
+            };
+        if !include {
+            continue;
+        }
+
+        let document = meta_index_json_value(&index, filename, type_filter, role_filter);
+        total_references += document["counts"]["references"].as_u64().unwrap_or(0) as usize;
+        total_anchors += document["counts"]["anchors"].as_u64().unwrap_or(0) as usize;
+        total_spans += document["counts"]["spans"].as_u64().unwrap_or(0) as usize;
+        entries.push((filename.clone(), index, document));
+    }
+
+    if json {
+        let documents: Vec<serde_json::Value> = entries
+            .iter()
+            .map(|(_, _, document)| document.clone())
+            .collect();
+        let collection = serde_json::json!({
+            "schema": "futuruna.meta.collection.v1",
+            "root": directory,
+            "filter": {
+                "type": type_filter,
+                "role": role_filter,
+            },
+            "counts": {
+                "files_scanned": files.len(),
+                "files_returned": documents.len(),
+                "references": total_references,
+                "anchors": total_anchors,
+                "spans": total_spans,
+                "diagnostics": corpus_diagnostics.len(),
+            },
+            "files": documents,
+            "diagnostics": corpus_diagnostics,
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&collection)
+                .expect("metadata collection is JSON serializable")
+        );
+    } else {
+        println!("meta collection: {}", directory);
+        for (filename, index, _) in &entries {
+            print_meta_index_human(index, filename, type_filter, role_filter);
+            print_meta_diagnostics(index, filename);
+        }
+        println!(
+            "summary files scanned {} returned {} references {} anchors {} spans {} diagnostics {}",
+            files.len(),
+            entries.len(),
+            total_references,
+            total_anchors,
+            total_spans,
+            corpus_diagnostics.len()
+        );
+        for diagnostic in &corpus_diagnostics {
+            if diagnostic["line"].is_null() {
+                eprintln!(
+                    "error: {}: {}",
+                    diagnostic["file"].as_str().unwrap_or(directory),
+                    diagnostic["message"].as_str().unwrap_or("metadata error")
+                );
+            }
+        }
+    }
+
+    if !corpus_diagnostics.is_empty() {
+        std::process::exit(1);
+    }
 }
 
 fn meta_reference_json(reference: &MetaReference) -> serde_json::Value {
@@ -1905,15 +2047,12 @@ fn print_meta_reference(reference: &MetaReference) {
     );
 }
 
-fn print_meta_diagnostics_or_exit(index: &MetaIndex, filename: &str) {
-    if !index.diagnostics.is_empty() {
-        for diagnostic in &index.diagnostics {
-            eprintln!(
-                "error: {}:{}: {}",
-                filename, diagnostic.line, diagnostic.message
-            );
-        }
-        std::process::exit(1);
+fn print_meta_diagnostics(index: &MetaIndex, filename: &str) {
+    for diagnostic in &index.diagnostics {
+        eprintln!(
+            "error: {}:{}: {}",
+            filename, diagnostic.line, diagnostic.message
+        );
     }
 }
 
