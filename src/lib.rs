@@ -13698,6 +13698,64 @@ impl TypeChecker {
             .cloned()
     }
 
+    fn constructor_pattern_field_type_name(
+        &self,
+        constructor: &str,
+        index: usize,
+    ) -> Option<String> {
+        let field = self
+            .constructor_fields
+            .get(constructor)
+            .and_then(|fields| fields.get(index))
+            .cloned()
+            .unwrap_or_else(|| format!("_{}", index));
+        self.field_type_name(constructor, &field)
+    }
+
+    fn collect_pattern_type_bindings(
+        &self,
+        pat: &Pat,
+        subject_type: Option<&str>,
+        bindings: &mut BTreeMap<String, String>,
+    ) {
+        match pat {
+            Pat::Var(name) => {
+                if let Some(type_name) = subject_type {
+                    bindings.insert(name.clone(), type_name.to_string());
+                }
+            }
+            Pat::Con(constructor, fields) => {
+                for (index, field_pat) in fields.iter().enumerate() {
+                    let field_type = self.constructor_pattern_field_type_name(constructor, index);
+                    self.collect_pattern_type_bindings(field_pat, field_type.as_deref(), bindings);
+                }
+            }
+            Pat::NamedCon(constructor, fields) => {
+                for (field, field_pat) in fields {
+                    let field_type = self.field_type_name(constructor, field);
+                    self.collect_pattern_type_bindings(field_pat, field_type.as_deref(), bindings);
+                }
+            }
+            Pat::As(inner, name) => {
+                if let Some(type_name) = subject_type {
+                    bindings.insert(name.clone(), type_name.to_string());
+                }
+                self.collect_pattern_type_bindings(inner, subject_type, bindings);
+            }
+            Pat::Wild | Pat::Lit(_) => {}
+        }
+    }
+
+    fn pattern_type_bindings(
+        &self,
+        pat: &Pat,
+        subject_type: Option<&str>,
+    ) -> BTreeMap<String, String> {
+        let mut bindings = BTreeMap::new();
+        self.collect_pattern_type_bindings(pat, subject_type, &mut bindings);
+        bindings
+    }
+
     fn infer_expr_type_name(&self, expr: &Expr) -> Option<String> {
         self.infer_expr_type_name_with_locals(expr, &BTreeMap::new())
     }
@@ -13774,6 +13832,21 @@ impl TypeChecker {
                 } else {
                     None
                 }
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                let subject_type = self.infer_expr_type_name_with_locals(scrutinee, locals);
+                let mut result_type = None;
+                for arm in arms {
+                    let mut arm_locals = locals.clone();
+                    arm_locals
+                        .extend(self.pattern_type_bindings(&arm.pat, subject_type.as_deref()));
+                    let arm_type = self.infer_expr_type_name_with_locals(&arm.body, &arm_locals)?;
+                    if result_type.as_ref().is_some_and(|known| known != &arm_type) {
+                        return None;
+                    }
+                    result_type = Some(arm_type);
+                }
+                result_type
             }
             ExprKind::Block(stmts) => stmts.last().and_then(|stmt| match stmt {
                 Stmt::Expr(expr) => self.infer_expr_type_name_with_locals(expr, locals),
@@ -15714,13 +15787,37 @@ impl TypeChecker {
             ExprKind::Match(scrutinee, arms) => {
                 self.check_expr(scrutinee, _in_fn);
                 self.check_refined_variant_match(scrutinee, arms);
-                for arm in arms {
+                let subject_type = self.infer_expr_type_name(scrutinee);
+                let mut first_arm_type = None;
+                for (index, arm) in arms.iter().enumerate() {
                     self.push_scope();
                     self.define_pat_vars(&arm.pat);
+                    for (name, type_name) in
+                        self.pattern_type_bindings(&arm.pat, subject_type.as_deref())
+                    {
+                        self.define_inferred_var_type_name(&name, &type_name);
+                    }
                     if let Some(g) = &arm.guard {
                         self.check_expr(g, _in_fn);
                     }
                     self.check_expr(&arm.body, _in_fn);
+                    if let Some(arm_type) = self.infer_expr_type_name(&arm.body) {
+                        if let Some(expected) = &first_arm_type {
+                            if expected != &arm_type {
+                                self.error_at_expr(
+                                    &arm.body,
+                                    format!(
+                                        "match arms must have the same type; first arm is `{}` but arm {} is `{}`",
+                                        expected,
+                                        index + 1,
+                                        arm_type
+                                    ),
+                                );
+                            }
+                        } else {
+                            first_arm_type = Some(arm_type);
+                        }
+                    }
                     self.pop_scope();
                 }
                 // Exhaustiveness check

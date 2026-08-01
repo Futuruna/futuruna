@@ -1,0 +1,10 @@
+-- expect-command: check
+-- expect-status: fail
+-- expect-stderr: match arms must have the same type; first arm is `Int` but arm 2 is `String`
+
+# MixedValue = Number(value: Int) | Text(value: String)
+
+= result = match Number(value = 1) {
+    | Number(value) -> value
+    | Text(value) -> value
+}

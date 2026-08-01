@@ -1,0 +1,14 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 42000
+
+# TaxResult(amount: Int)
+# TaxBasis = Calculated(result: TaxResult) | Fixed(amount: Int)
+
+| tax_amount(basis: TaxBasis) -> match basis {
+    | Calculated(result) -> result.amount
+    | Fixed(amount) -> amount
+}
+
+= answer = tax_amount(Calculated(result = TaxResult(amount = 42000)))
+@ print(show(answer))

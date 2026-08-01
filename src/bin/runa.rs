@@ -11966,6 +11966,32 @@ impl TypeRegistry {
             .insert(parent.to_string());
     }
 
+    fn pattern_field_ty(&self, constructor: &str, field: &str) -> FirTy {
+        self.variant_field_types
+            .get(constructor)
+            .and_then(|types| types.get(field))
+            .map(LoweringCtx::ty_to_fir)
+            .unwrap_or(FirTy::Unknown)
+    }
+
+    fn positional_pattern_field_ty(&self, constructor: &str, index: usize) -> FirTy {
+        let field = if self
+            .variant_positional
+            .get(constructor)
+            .copied()
+            .unwrap_or(false)
+        {
+            format!("_{}", index)
+        } else {
+            self.variant_fields
+                .get(constructor)
+                .and_then(|fields| fields.get(index))
+                .cloned()
+                .unwrap_or_else(|| format!("_{}", index))
+        };
+        self.pattern_field_ty(constructor, &field)
+    }
+
     fn named_type_candidates_for_expected(&self, expected_ty: &FirTy) -> Vec<String> {
         let FirTy::Named(type_name) = expected_ty else {
             return Vec::new();
@@ -13166,11 +13192,23 @@ impl<'a> LoweringCtx<'a> {
             Pat::Var(name) => {
                 self.type_env.insert(name.clone(), ty.clone());
             }
+            Pat::Con(constructor, fields) => {
+                for (index, field_pat) in fields.iter().enumerate() {
+                    let field_ty = self.types.positional_pattern_field_ty(constructor, index);
+                    self.bind_pat_ty(field_pat, &field_ty);
+                }
+            }
+            Pat::NamedCon(constructor, fields) => {
+                for (field_name, field_pat) in fields {
+                    let field_ty = self.types.pattern_field_ty(constructor, field_name);
+                    self.bind_pat_ty(field_pat, &field_ty);
+                }
+            }
             Pat::As(inner, name) => {
                 self.type_env.insert(name.clone(), ty.clone());
                 self.bind_pat_ty(inner, ty);
             }
-            _ => {}
+            Pat::Wild | Pat::Lit(_) => {}
         }
     }
 
@@ -13852,18 +13890,32 @@ impl<'a> LoweringCtx<'a> {
             }
             ExprKind::Match(scrutinee, arms) => {
                 let fir_scrutinee = self.lower_expr(scrutinee);
-                let fir_arms: Vec<FirMatchArm> = arms
-                    .iter()
-                    .map(|a| FirMatchArm {
-                        pat: a.pat.clone(),
-                        guard: a.guard.as_ref().map(|g| self.lower_expr(g)),
-                        body: self.lower_expr(&a.body),
-                    })
-                    .collect();
-                let ty = fir_arms
-                    .first()
-                    .map(|a| a.body.ty.clone())
-                    .unwrap_or(FirTy::Unknown);
+                let saved_env = self.type_env.clone();
+                let mut fir_arms = Vec::with_capacity(arms.len());
+                let mut ty = FirTy::Unknown;
+                for arm in arms {
+                    self.type_env = saved_env.clone();
+                    self.bind_pat_ty(&arm.pat, &fir_scrutinee.ty);
+                    let guard = arm.guard.as_ref().map(|guard| self.lower_expr(guard));
+                    let body = self.lower_expr(&arm.body);
+                    if let Some(inference) = self.inference.as_mut() {
+                        if let Some(guard) = &guard {
+                            let _ = inference.unify(&guard.ty, &FirTy::Bool);
+                        }
+                        if ty != FirTy::Unknown {
+                            let _ = inference.unify(&ty, &body.ty);
+                        }
+                    }
+                    if ty == FirTy::Unknown && body.ty != FirTy::Unknown {
+                        ty = body.ty.clone();
+                    }
+                    fir_arms.push(FirMatchArm {
+                        pat: arm.pat.clone(),
+                        guard,
+                        body,
+                    });
+                }
+                self.type_env = saved_env;
                 FirExpr {
                     kind: FirExprKind::Match(Box::new(fir_scrutinee), fir_arms),
                     span: expr.span,
@@ -19633,7 +19685,7 @@ impl RustCodegen {
                         .as_ref()
                         .map(LoweringCtx::ty_to_fir)
                         .unwrap_or_else(|| self.infer_expr_fir_ty_with_env(expr, type_env.clone()));
-                    Self::bind_pat_into_type_env(pat, &inferred, type_env);
+                    self.bind_pat_into_type_env(pat, &inferred, type_env);
                 }
                 Stmt::MonadicBind(pat, ty_ann, expr) => {
                     self.prescan_hof_named_callback_param_types_expr(
@@ -19645,7 +19697,7 @@ impl RustCodegen {
                         .as_ref()
                         .map(LoweringCtx::ty_to_fir)
                         .unwrap_or_else(|| self.infer_expr_fir_ty_with_env(expr, type_env.clone()));
-                    Self::bind_pat_into_type_env(pat, &inferred, type_env);
+                    self.bind_pat_into_type_env(pat, &inferred, type_env);
                 }
                 Stmt::StreamBind(name, expr) => {
                     self.prescan_hof_named_callback_param_types_expr(
@@ -19828,7 +19880,7 @@ impl RustCodegen {
                     let item_ty = self.iter_item_ty_with_env(expr, type_env);
                     for arm in arms {
                         let mut arm_env = type_env.clone();
-                        Self::bind_pat_into_type_env(&arm.pat, &item_ty, &mut arm_env);
+                        self.bind_pat_into_type_env(&arm.pat, &item_ty, &mut arm_env);
                         if let Some(guard) = &arm.guard {
                             self.prescan_hof_named_callback_param_types_expr(
                                 guard,
@@ -20062,7 +20114,7 @@ impl RustCodegen {
                 let scrut_ty = self.infer_expr_fir_ty_with_env(scrutinee, type_env.clone());
                 for arm in arms {
                     let mut arm_env = type_env.clone();
-                    Self::bind_pat_into_type_env(&arm.pat, &scrut_ty, &mut arm_env);
+                    self.bind_pat_into_type_env(&arm.pat, &scrut_ty, &mut arm_env);
                     if let Some(guard) = &arm.guard {
                         self.prescan_hof_named_callback_param_types_expr(
                             guard,
@@ -20208,16 +20260,33 @@ impl RustCodegen {
         }
     }
 
-    fn bind_pat_into_type_env(pat: &Pat, ty: &FirTy, type_env: &mut BTreeMap<String, FirTy>) {
+    fn bind_pat_into_type_env(
+        &self,
+        pat: &Pat,
+        ty: &FirTy,
+        type_env: &mut BTreeMap<String, FirTy>,
+    ) {
         match pat {
             Pat::Var(name) => {
                 type_env.insert(name.clone(), ty.clone());
             }
+            Pat::Con(constructor, fields) => {
+                for (index, field_pat) in fields.iter().enumerate() {
+                    let field_ty = self.types.positional_pattern_field_ty(constructor, index);
+                    self.bind_pat_into_type_env(field_pat, &field_ty, type_env);
+                }
+            }
+            Pat::NamedCon(constructor, fields) => {
+                for (field_name, field_pat) in fields {
+                    let field_ty = self.types.pattern_field_ty(constructor, field_name);
+                    self.bind_pat_into_type_env(field_pat, &field_ty, type_env);
+                }
+            }
             Pat::As(inner, name) => {
                 type_env.insert(name.clone(), ty.clone());
-                Self::bind_pat_into_type_env(inner, ty, type_env);
+                self.bind_pat_into_type_env(inner, ty, type_env);
             }
-            _ => {}
+            Pat::Wild | Pat::Lit(_) => {}
         }
     }
 
@@ -33088,6 +33157,7 @@ impl RustCodegen {
                 format!("if {} {{ {} }} else {{ {} }}", c, t, e)
             }
             ExprKind::Match(scrut, arms) => {
+                let scrutinee_ty = self.infer_expr_fir_ty(scrut);
                 let s = self.emit_expr(scrut);
                 let refined_subject = self.match_uses_refined_variant_subject(scrut, arms);
                 let match_subject = if refined_subject {
@@ -33102,7 +33172,11 @@ impl RustCodegen {
                 let mut out = format!("match {} {{\n", match_subject);
                 for arm in arms {
                     let prev_local_bindings = self.local_bindings.clone();
+                    let prev_var_fir_types = self.var_fir_types.clone();
                     collect_pattern_names(&arm.pat, &mut self.local_bindings);
+                    let mut pattern_types = BTreeMap::new();
+                    self.bind_pat_into_type_env(&arm.pat, &scrutinee_ty, &mut pattern_types);
+                    self.var_fir_types.extend(pattern_types);
                     let pat = self.emit_match_arm_pattern(&arm.pat, refined_subject);
                     // Build guard: combine user guard + boxed pattern guards
                     let user_guard = arm.guard.as_ref().map(|g| self.emit_expr(g));
@@ -33157,6 +33231,7 @@ impl RustCodegen {
                         out.push_str(&format!("{}    }},\n", self.ind()));
                     }
                     self.local_bindings = prev_local_bindings;
+                    self.var_fir_types = prev_var_fir_types;
                 }
                 out.push_str(&format!("{}}}", self.ind()));
                 out
@@ -42453,6 +42528,27 @@ for x in [1, 2] {
     fn interpret_test_file(path: &std::path::Path) -> String {
         let source = std::fs::read_to_string(path).expect("read test file");
         interpret_test_source(&source, Some(path.to_str().expect("utf-8 test path")))
+    }
+
+    #[test]
+    fn match_valued_rule_projects_typed_fields_in_both_backends() {
+        let source = r#"
+# TaxResult(amount: Int)
+# TaxBasis = Calculated(result: TaxResult) | Fixed(amount: Int)
+
+| tax_amount(basis: TaxBasis) -> match basis {
+    | Calculated(result) -> result.amount
+    | Fixed(amount) -> amount
+}
+
+= answer = tax_amount(Calculated(result = TaxResult(amount = 42000)))
+@ print(show(answer))
+"#;
+
+        let compiled = compile_and_run_test_program(source);
+        let interpreted = interpret_test_source(source, None);
+        assert_eq!(compiled.trim(), "42000");
+        assert_eq!(interpreted.trim(), compiled.trim());
     }
 
     fn assert_typed_rule_heads_output(output: &str, lane: &str) {
