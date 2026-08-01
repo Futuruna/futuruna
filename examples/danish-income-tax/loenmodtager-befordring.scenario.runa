@@ -28,7 +28,7 @@ og LOV nr. 616 af 30/06/2026.
     befordringsformål = IndtægtsgivendeArbejdsplads,
     modtaget_skattefri_befordringsgodtgørelse_for_strækning = Falskt,
     modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = Falskt,
-    par9d_stk2_afskærer_su_stk10 = Falskt,
+    par9d = ll9d_ikke_omfattet_resultat(),
     fradrag_udelukket_folketingshverv_m_v = Falskt,
     fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen = Falskt,
     broer = ll9c_ingen_bropassager(),

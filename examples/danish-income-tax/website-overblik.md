@@ -4,6 +4,25 @@ Dette er den ene webviste projektfil for arbejdet med dansk personskat. Selve
 lovoversættelsen ligger i `examples/danish-income-tax/` som Futuruna-regler,
 scenario-filer og audit-filer.
 
+## Intro: Et samlet sprog til lov og ret
+
+Futuruna gør lovtekst til eksekverbare, indkapslede regler. Det giver en
+regelstruktur, hvor lovens originale ordlyd kan stå lige over de regler, der
+oversætter den, og hvor regelkaskader kan føre de afledte beløb videre gennem
+hele beregningen.
+
+Det samme sprog kan bruges til audit: ikke kun "hvad betaler denne person?",
+men også "hvilke konfigurationer gør systemet hårdt, overraskende eller uklart?"
+
+## Personskatteloven (indkomstskat)
+
+Målet er at formulere den samlede danske indkomstskattelovgivning i Futuruna,
+så almindelige skatteforløb kan udregnes i samme sprog som de juridiske regler
+er skrevet i. Personskatteloven er kernen, men en reel beregning kræver også
+afhængigheder som arbejdsmarkedsbidrag, kommunal skat, kirkeskat,
+Kildeskatteloven, Ligningsloven, aktieindkomst, kapitalindkomst,
+ægtefælleregler, underskud og slutopgørelse.
+
 ## Struktur
 
 Futuruna-filerne følger samme gentagne form:
@@ -44,10 +63,11 @@ Den konfiskatoriske audit søger 8.064 konfigurationer. Den finder ingen
 almindelig årsskat over 100 pct. af positivt indkomstgrundlag i det aktuelle
 søgerum.
 
-Den finder derimod over 200 konfigurationer, hvor betalingsbelastningen
-overstiger 100 pct. Det skyldes i de fund overført restskat m.v.; altså ikke en
-skjult almindelig skattesats over 100 pct., men tidligere års betalingsproblem
-gjort eksekverbart og auditérbart.
+Den finder derimod over 200 konfigurationer af skatteforhold, hvor den samlede
+betalingsbelastning overstiger 100 pct. af årets indkomstgrundlag. Det skyldes
+i de fund overført restskat m.v.; altså ikke en skjult almindelig skattesats
+over 100 pct., men tidligere års betalingsproblem gjort eksekverbart og
+auditérbart.
 
 ## Kildeprincip
 

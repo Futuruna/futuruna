@@ -167,6 +167,14 @@ EU/EØS real-establishment exemption, ownership/period share, carried-loss
 proportion and stk. 10 cap, plus § 16 I controlled-company merafkast with
 negative-merafkast carry-forward.
 
+Ligningsloven § 9 C/§ 9 D dependency coverage now includes ordinary
+befordringsfradrag with 2025/2026 rates, low-income supplement, bridge
+passages, documented special transport, the 2026 SU outer-area branch and the
+§ 9 D disability/chronic-illness displacement route. § 9 D currently models
+the source-backed normal-cost/factual-cost formula and represents own-vehicle
+normal cost as an input amount; deeper expansion of the Skatterådet kilometre
+rate mechanics for that branch remains future implementation work.
+
 Distance to full implementation: the first-slice legal corpus for §§ 1-28 is in
 place, and the ordinary wage-earner/slutopgørelse path is already calculation
 useful. The remaining work is turning posture-only clauses and edge cases into
@@ -380,10 +388,13 @@ Current § 4 and § 13 amendment/dependency sources:
     low-income supplement, documented special transport actual-expense
     branch, bridge deductions, reimbursement exclusion, free employer-paid
     transport value posture, and the 2026 SU-student outer-area rule with
-    education-transport rebate/godtgørelse exclusion. The focused validation
-    files are `ligningsloven-par9c-befordring.audit.runa` and
-    `loenmodtager-befordring.scenario.runa`. The deeper § 9 D disability/
-    chronic-illness route remains a future dependency slice.
+    education-transport rebate/godtgørelse exclusion. § 9 D now has the
+    disability/chronic-illness special-transport formula and explicitly
+    displaces § 9 C, stk. 1-8 and § 9 C, stk. 10 where applicable. The
+    focused validation files are `ligningsloven-par9c-befordring.audit.runa`
+    and `loenmodtager-befordring.scenario.runa`; expanding the § 9 D
+    own-vehicle normal-cost mechanics from Skatterådet kilometre rates remains
+    future dependency work.
   - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
     wage-earner calculator; § 9 L is modeled for extra pension deductions and
     § 26 nr. 5 transition-compensation input; § 15 P is modeled for
