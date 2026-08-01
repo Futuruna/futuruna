@@ -190,6 +190,7 @@ fastsat i medfør af stk. 4.
 # KildeskatFradragsperiode = Måned | FjortenDage | Uge | Dag
 # KildeskatSkattekortInput(a_skat_grundlag_kroner: Heltal, fradrag_kroner: Heltal, indeholdelsesprocent_basispoint: Heltal, kort: KildeskatKort)
 # KildeskatESkattekortInput(a_skat_grundlag_kroner: Heltal, månedsfradrag_kroner: Heltal, fjorten_dages_fradrag_kroner: Heltal, ugefradrag_kroner: Heltal, dagsfradrag_kroner: Heltal, indeholdelsesprocent_basispoint: Heltal, ønsket_højere_indeholdelsesprocent_basispoint: Heltal, kort: KildeskatKort, periode: KildeskatFradragsperiode, nedrunding_til_ti_kroner: Boolsk)
+# KildeskatPar46Stk6IndbetalingInput(indbetaling_par46_stk6_kroner: Heltal)
 
 | kildeskat_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
 | kildeskat_nedrundet_til_ti_kroner(beløb_kroner: Heltal) -> penge_nedrundet_til_ti_kroner(beløb_kroner)
@@ -222,6 +223,10 @@ fastsat i medfør af stk. 4.
 | exception kildeskat_nedrunder_a_skat_grundlag_til_ti kildeskat_a_skat_beregningsgrundlag_kroner(input: KildeskatESkattekortInput) -> kildeskat_nedrundet_til_ti_kroner(kildeskat_a_skat_beregningsgrundlag_før_nedrunding_kroner(input)) under input.nedrunding_til_ti_kroner
 
 | kildeskat_a_skat_med_eskattekort_kroner(input: KildeskatESkattekortInput) -> penge_beløb_gange_basispoint_kroner(kildeskat_a_skat_beregningsgrundlag_kroner(input), kildeskat_effektiv_indeholdelsesprocent_basispoint(input))
+| kildeskat_par48_stk11_pensionsinstitut_indeholdelsesprocent_basispoint() -> 4000
+| kildeskat_par48_stk11_pensionsinstitut_fradrag_kroner(input: KildeskatPar46Stk6IndbetalingInput) -> 0
+| kildeskat_par48_stk11_pensionsinstitut_beregningsgrundlag_kroner(input: KildeskatPar46Stk6IndbetalingInput) -> kildeskat_positivt_beløb(input.indbetaling_par46_stk6_kroner - kildeskat_par48_stk11_pensionsinstitut_fradrag_kroner(input))
+| kildeskat_par48_stk11_pensionsinstitut_a_skat_kroner(input: KildeskatPar46Stk6IndbetalingInput) -> penge_beløb_gange_basispoint_kroner(kildeskat_par48_stk11_pensionsinstitut_beregningsgrundlag_kroner(input), kildeskat_par48_stk11_pensionsinstitut_indeholdelsesprocent_basispoint())
 | kildeskat_simpelt_eskattekort_input(input: KildeskatSkattekortInput) -> KildeskatESkattekortInput(
     a_skat_grundlag_kroner = input.a_skat_grundlag_kroner,
     månedsfradrag_kroner = input.fradrag_kroner,

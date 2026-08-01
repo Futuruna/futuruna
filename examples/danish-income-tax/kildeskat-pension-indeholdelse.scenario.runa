@@ -1,0 +1,27 @@
+@ sprog da
+
+@ importer ./kildeskatteloven
+
+-- Scenarie for Kildeskatteloven § 48, stk. 11 pensionsinstitut-indeholdelse.
+
+----
+En pensionsinstitutions indbetaling omfattet af kildeskattelovens § 46, stk. 6
+på 50.000 kr. udløser 40 pct. A-skat uden skattekortfradrag efter § 48,
+stk. 11.
+----
+
+= kildeskat_pensionsinstitut_par46_stk6_input = KildeskatPar46Stk6IndbetalingInput(
+    indbetaling_par46_stk6_kroner = 50000
+)
+
+= kildeskat_pensionsinstitut_par46_stk6_fradrag_fixture = kildeskat_par48_stk11_pensionsinstitut_fradrag_kroner(kildeskat_pensionsinstitut_par46_stk6_input)
+= kildeskat_pensionsinstitut_par46_stk6_grundlag_fixture = kildeskat_par48_stk11_pensionsinstitut_beregningsgrundlag_kroner(kildeskat_pensionsinstitut_par46_stk6_input)
+= kildeskat_pensionsinstitut_par46_stk6_a_skat_fixture = kildeskat_par48_stk11_pensionsinstitut_a_skat_kroner(kildeskat_pensionsinstitut_par46_stk6_input)
+
+| kildeskat_pensionsinstitut_par46_stk6_uden_fradrag: kildeskat_pensionsinstitut_par46_stk6_fradrag_fixture -> kildeskat_pensionsinstitut_par46_stk6_fradrag_fixture == 0
+| kildeskat_pensionsinstitut_par46_stk6_grundlag_er_indbetaling: kildeskat_pensionsinstitut_par46_stk6_grundlag_fixture -> kildeskat_pensionsinstitut_par46_stk6_grundlag_fixture == 50000
+| kildeskat_pensionsinstitut_par46_stk6_indeholdes_40_pct: kildeskat_pensionsinstitut_par46_stk6_a_skat_fixture -> kildeskat_pensionsinstitut_par46_stk6_a_skat_fixture == 20000
+
+? kildeskat_pensionsinstitut_par46_stk6_uden_fradrag
+? kildeskat_pensionsinstitut_par46_stk6_grundlag_er_indbetaling
+? kildeskat_pensionsinstitut_par46_stk6_indeholdes_40_pct

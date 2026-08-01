@@ -28,6 +28,7 @@
 @ importer ./personskatteloven - konfiskatorisk.audit
 @ importer ./slutopgoerelse.scenario
 @ importer ./indeholdelse - afregning.scenario
+@ importer ./kildeskat - pension - indeholdelse.scenario
 @ importer ./kapitel - 04 - omregning - skatteloft
 @ importer ./kapitel - 05 - afsluttende - bestemmelser
 
@@ -1315,6 +1316,7 @@ virksomhedsunderskud.
     periode = Måned,
     nedrunding_til_ti_kroner = Sandt
 ))
+= m5_kildeskat_pensionsinstitut_par46_stk6_fixture = kildeskat_pensionsinstitut_par46_stk6_a_skat_fixture
 = m5_kildeskat_bekendtgørelse_skattekort_fixture = scenarie1_mand_genereret_skattekort
 = m5_kildeskat_bekendtgørelse_a_skat_fixture = scenarie1_mand_genereret_skattekort_a_skat
 = m5_kildeskat_bekendtgørelse_husholdning_fixture = scenarie1_genereret_indeholdelse
@@ -1385,6 +1387,7 @@ virksomhedsunderskud.
 | m5_skatdk_ekstern_fixture_dækket: m5_skatdk_ekstern_fixture -> m5_skatdk_ekstern_fixture.samlet_inkl_am_efter_personfradrag_kroner == 208726
 | m5_skatdk_ekstern_skattekort_dækket: m5_skatdk_ekstern_kort_fixture -> m5_skatdk_ekstern_kort_fixture.indeholdelsesprocent_basispoint == 3600 && m5_skatdk_ekstern_kort_fixture.månedsfradrag_kroner == 8164
 | m5_audit_skatdk_ekstern_signal: audit_signal(SkatDkEksternFixtureDækket) -> audit_signal(SkatDkEksternFixtureDækket) == Sandt
+| m5_kildeskat_pensionsinstitut_par48_stk11_dækket: m5_kildeskat_pensionsinstitut_par46_stk6_fixture -> m5_kildeskat_pensionsinstitut_par46_stk6_fixture == 20000 && kildeskat_par48_stk11_pensionsinstitut_indeholdelsesprocent_basispoint() == 4000
 = m5_aktie_slutopgørelse_lav_fixture = scenarie1_mand_aktie_slutopgørelse
 = m5_aktie_slutopgørelse_høj_fixture = scenarie1_mand_aktie_høj_skat_slutopgørelse
 = m5_aktie_slutopgørelse_lav_løn_personfradrag_fixture = scenarie1_lav_løn_høj_aktie_slutopgørelse
@@ -1539,6 +1542,7 @@ virksomhedsunderskud.
 ? m5_skatdk_ekstern_fixture_dækket
 ? m5_skatdk_ekstern_skattekort_dækket
 ? m5_audit_skatdk_ekstern_signal
+? m5_kildeskat_pensionsinstitut_par48_stk11_dækket
 ? m5_par8a_lav_2011_satskilde_dækket
 ? m5_par8a_lav_2026_satskilde_dækket
 ? m5_par8a_høj_2026_satskilde_dækket

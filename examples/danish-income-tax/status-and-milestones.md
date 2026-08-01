@@ -28,7 +28,9 @@ det samlede Ligningsloven §§ 9 J/9 K/9 L-resultat. 2026-fixturen for Københav
 pensionsfradrag, 76.936 kr. samlede standardfradrag, 475.064 kr. almindelig
 skattepligtig indkomst og 206.262 kr. samlet skat inkl. AM efter
 personfradrag. Eksisterende lønmodtagerscenarier bruger en eksplicit
-ingen-ekstra-pensionsfradrag-default.
+ingen-ekstra-pensionsfradrag-default. Kildeskatteloven § 48, stk. 11 har nu en
+selvstændig 40 pct. A-skat-regel uden skattekortfradrag for indbetalinger fra
+pensionsinstitutter efter § 46, stk. 6, med konkret `.scenario.runa`-dækning.
 
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
@@ -493,7 +495,8 @@ Current municipal/church-tax and withholding dependency sources:
     slice used to distinguish final annual tax from payroll withholding. § 48
     now covers e-skattekort retrieval posture, main-card period allowances,
     bikort with no allowance, frikort/no-card behavior, optional higher
-    withholding percentage, and base rounding to whole 10-kroner amounts.
+    withholding percentage, base rounding to whole 10-kroner amounts, and
+    § 48, stk. 11 pension-institution withholding at 40 pct. without allowance.
     §§ 58, 60-62, 62 A, 62 C and 67 now cover the first final-settlement slice:
     B-skat installment calendar projection, crediting, restskat/overskydende
     skat balance, spouse offsetting, restskat percentage supplement and timing
@@ -707,6 +710,8 @@ encoded as a temporal rule on top of the consolidation.
 - `slutopgoerelse.scenario.runa` exists and checks/runs with `runa run`.
 - `indeholdelse-afregning.scenario.runa` exists and checks/runs with
   `runa run`.
+- `kildeskat-pension-indeholdelse.scenario.runa` exists and checks/runs with
+  `runa run`.
 - `personskatteloven-bomber.audit.runa` exists and checks/runs with `runa run`.
 - `personskatteloven-konfiskatorisk.audit.runa` exists and checks/runs with
   `runa run`; its bounded year/municipality grid is now declared as
@@ -766,6 +771,7 @@ encoded as a temporal rule on top of the consolidation.
   slice, the §§ 21-28 concluding provisions slice, ordinary and special-case
   AM-law,
   municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding,
+  Kildeskatteloven § 48 stk. 11 pension-institution 40 pct. withholding,
   BEK 839 forskudskort generation, BEK 1094 2026 indeholdelsesprocent,
   Kildeskatteloven §§ 60-62/62 A/62 C/67 slutopgørelse balance,
   restskat timing, date-derived B-skat rate windows, B-skat minimum-rate
