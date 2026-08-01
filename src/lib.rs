@@ -1536,6 +1536,7 @@ pub fn scan_meta_comments_with_dir(source: &str, source_dir: Option<String>) -> 
 
 fn scan_meta_comment_structure(source: &str) -> MetaIndex {
     let lines: Vec<&str> = source.lines().collect();
+    let parsed_rule_symbols = parsed_meta_rule_symbols(source);
     let mut comments = Vec::new();
     let mut anchors = Vec::new();
     let mut spans = Vec::new();
@@ -1578,7 +1579,12 @@ fn scan_meta_comment_structure(source: &str) -> MetaIndex {
                 if let Some(pos) = active.iter().rposition(|span| span.label == comment.label) {
                     let opened = active.remove(pos);
                     let code_end_line = line_no.saturating_sub(1);
-                    let symbols = scan_meta_symbols(&lines, opened.code_start_line, code_end_line);
+                    let symbols = scan_meta_symbols(
+                        &lines,
+                        opened.code_start_line,
+                        code_end_line,
+                        parsed_rule_symbols.as_ref(),
+                    );
                     spans.push(MetaCodeSpan {
                         label: opened.label,
                         begin_marker_line: opened.begin_marker_line,
@@ -1959,7 +1965,68 @@ fn render_static_meta_expr(
     }
 }
 
-fn scan_meta_symbols(lines: &[&str], start_line: usize, end_line: usize) -> Vec<MetaSymbol> {
+fn parsed_meta_rule_symbols(source: &str) -> Option<BTreeMap<usize, Vec<String>>> {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let stmts = parser.parse_program().ok()?;
+    let mut symbols = BTreeMap::new();
+    collect_parsed_meta_rule_symbols(&stmts, source, &mut symbols);
+    Some(symbols)
+}
+
+fn collect_parsed_meta_rule_symbols(
+    stmts: &[Stmt],
+    source: &str,
+    symbols: &mut BTreeMap<usize, Vec<String>>,
+) {
+    for stmt in stmts {
+        match stmt {
+            Stmt::Rule(
+                rule @ (Rule::Clause { .. } | Rule::Default { .. } | Rule::Exception { .. }),
+            ) => {
+                let Some((name, _)) = TypeChecker::rule_name_arity(rule) else {
+                    continue;
+                };
+                let head = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    Rule::ReactiveScope { .. } => unreachable!(),
+                };
+                let (line, _) = head.span.start_line_col(source);
+                symbols.entry(line).or_default().push(name);
+            }
+            Stmt::Rule(Rule::ReactiveScope { body, .. })
+            | Stmt::TypeDecl(TypeDecl::RuleScope { body, .. })
+            | Stmt::Defn(Defn::Module { body, .. })
+            | Stmt::For(_, _, body)
+            | Stmt::While(_, body) => {
+                collect_parsed_meta_rule_symbols(body, source, symbols);
+            }
+            Stmt::Prove {
+                pass_block,
+                else_block,
+                ..
+            } => {
+                if let Some(body) = pass_block {
+                    collect_parsed_meta_rule_symbols(body, source, symbols);
+                }
+                if let Some(body) = else_block {
+                    collect_parsed_meta_rule_symbols(body, source, symbols);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn scan_meta_symbols(
+    lines: &[&str],
+    start_line: usize,
+    end_line: usize,
+    parsed_rule_symbols: Option<&BTreeMap<usize, Vec<String>>>,
+) -> Vec<MetaSymbol> {
     let mut symbols = Vec::new();
     let mut in_block_comment = false;
 
@@ -1995,12 +2062,22 @@ fn scan_meta_symbols(lines: &[&str], start_line: usize, end_line: usize) -> Vec<
             });
             continue;
         }
-        if let Some(name) = meta_rule_symbol_name(trimmed) {
-            symbols.push(MetaSymbol {
-                kind: "rule".to_string(),
-                name,
-                line: line_no,
-            });
+        if trimmed.starts_with('|') {
+            if let Some(parsed_rule_symbols) = parsed_rule_symbols {
+                for name in parsed_rule_symbols.get(&line_no).into_iter().flatten() {
+                    symbols.push(MetaSymbol {
+                        kind: "rule".to_string(),
+                        name: name.clone(),
+                        line: line_no,
+                    });
+                }
+            } else if let Some(name) = meta_rule_symbol_name(trimmed) {
+                symbols.push(MetaSymbol {
+                    kind: "rule".to_string(),
+                    name,
+                    line: line_no,
+                });
+            }
             continue;
         }
         if let Some(name) = meta_binding_symbol_name(trimmed) {
@@ -2044,7 +2121,15 @@ fn meta_binding_symbol_name(trimmed: &str) -> Option<String> {
 }
 
 fn meta_fn_symbol_name(trimmed: &str) -> Option<String> {
-    let rest = trimmed.strip_prefix("fn")?.trim_start();
+    let rest = if let Some(rest) = trimmed.strip_prefix('>') {
+        rest.trim_start()
+    } else {
+        trimmed.strip_prefix("fn")?.trim_start()
+    };
+    let rest = match read_meta_ident(rest) {
+        Some(("actor", after_actor)) => after_actor.trim_start(),
+        _ => rest,
+    };
     read_meta_ident(rest).map(|(name, _)| name.to_string())
 }
 
@@ -2175,6 +2260,50 @@ Raw additions
         assert!(warning[0].definition_line.is_some());
         assert_eq!(index.anchors_for_label("geometry").len(), 1);
         assert_eq!(index.spans_for_reference(warning[0]).len(), 1);
+    }
+
+    #[test]
+    fn span_symbols_include_rules_but_not_match_arms() {
+        let source = r#"
+# Shape = Circle | Triangle | Square
+
+--@begin:shape_rules--
+| shape_code(shape: Shape) -> match shape {
+    | Circle -> 1
+    | Triangle -> 2
+    | _ -> 3
+}
+
+> shape_name(shape: Shape) -> String {
+    match shape {
+        | Circle -> "circle"
+        | _ -> "other"
+    }
+}
+
+# ShapeAudit(shape: Shape) {
+    | accepted() -> match shape {
+        | Circle -> True
+        | _ -> False
+    }
+}
+--@end:shape_rules--
+"#;
+
+        let index = scan_meta_comments(source);
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        let rules: Vec<&str> = index.spans[0]
+            .symbols
+            .iter()
+            .filter(|symbol| symbol.kind == "rule")
+            .map(|symbol| symbol.name.as_str())
+            .collect();
+
+        assert_eq!(rules, vec!["shape_code", "accepted"]);
+        assert!(index.spans[0]
+            .symbols
+            .iter()
+            .any(|symbol| { symbol.kind == "function" && symbol.name == "shape_name" }));
     }
 
     #[test]

@@ -181,9 +181,11 @@ the parser still treats every meta marker as a comment.
 
 Audit and indexing tools should use `runa meta --json file.runa`. The versioned
 `futuruna.meta.v1` document contains typed references, quoted source anchors,
-linked code spans and their symbols, plus metadata diagnostics. `--type` and
-`--role` apply to JSON output as well, so a warning sweep can use
-`runa meta --json --role warning file.runa` without parsing presentation text.
+linked code spans and their declared types, rules, bindings, and functions, plus
+metadata diagnostics. Expression-level forms such as `match` arms are not span
+symbols. `--type` and `--role` apply to JSON output as well, so a warning sweep
+can use `runa meta --json --role warning file.runa` without parsing presentation
+text.
 
 Pass a directory to sweep a complete source tree recursively:
 
