@@ -1,0 +1,108 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+
+-- Varelagerloven -- Personskatteloven § 3, stk. 2, nr. 5.
+--
+-- Kilde: Retsinformation, LBK nr. 1088 af 02/09/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1088
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1088/dan/xml
+
+# VarelagerlovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= varelagerloven_lbk1088_par1 = VarelagerlovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1088",
+    identifier = "Varelagerloven § 1",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:varelagerloven_par1::source:varelagerloven_lbk1088_par1--
+----
+§ 1. Ved opgørelsen af den skattepligtige indkomst kan næringsdrivende
+personer, dødsboer samt selskaber og foreninger vælge at opgøre deres varelagre
+på grundlag af:
+1. dagsprisen ved regnskabsårets slutning eller
+2. indkøbsprisen med tillæg af fragt, told og lignende (fakturaprisen) eller
+3. fremstillingsprisen, såfremt varen er fremstillet i egen virksomhed.
+
+Stk. 2. Ved opgørelsen af varelagerets værdi i henhold til stk. 1 kan den
+skattepligtige ikke medregne afgift, der ved opgørelsen af hans afgiftstilsvar
+efter momsloven kan fradrages som indgående afgift.
+
+Stk. 3. Den skattepligtige kan for hver enkelt varegruppe inden for
+varelageret vælge frit mellem de i stk. 1 nævnte opgørelsesmåder.
+
+Stk. 4. I det beløb, der er opgjort efter bestemmelserne i stk. 1-3, kan der i
+de enkelte indkomstår foretages et nedslag, som højst kan udgøre følgende
+procentdel af beløbet:
+
+Indkomstår       pct.
+1993             23
+1994             20
+1995             16
+1996             12
+1997             8
+1998 og derefter 0.
+
+Stk. 5. Nedskrivning efter stk. 4 kan foretages for de lagre af varer,
+råstoffer, hel- eller halvfærdige produkter, emballage samt hjælpevarer i
+produktionsvirksomheder, herunder brændsel, der hører til virksomheden ved
+regnskabsårets slutning.
+----
+
+--@begin:varelagerloven_par1--
+# VarelagerPar1Skatteyder = VarelagerNæringsdrivendePerson | VarelagerDødsbo | VarelagerSelskabEllerForening | VarelagerIkkeOmfattet
+# VarelagerPar1Art = VarelagerVarer | VarelagerRåstoffer | VarelagerHelfærdigeProdukter | VarelagerHalvfærdigeProdukter | VarelagerEmballage | VarelagerHjælpevarer | VarelagerBrændsel | VarelagerIkkeOmfattetArt
+# VarelagerPar1Opgørelsesmåde = VarelagerDagspris(bruttoværdi_kroner: Heltal) | VarelagerFakturapris(indkøbspris_kroner: Heltal, fragt_told_og_lignende_kroner: Heltal) | VarelagerFremstillingspris(fremstillingspris_kroner: Heltal)
+# VarelagerPar1Post(art: VarelagerPar1Art, opgørelsesmåde: VarelagerPar1Opgørelsesmåde, fradragsberettiget_indgående_moms_kroner: Heltal)
+# VarelagerPar1Input(indkomstår: Heltal, skatteyder: VarelagerPar1Skatteyder, varegrupper: List(VarelagerPar1Post), ønsket_nedskrivning_kroner: Heltal)
+# VarelagerPar1Resultat(indkomstår: Heltal, skatteyder: VarelagerPar1Skatteyder, skatteyder_omfattet: Boolsk, omfattede_varegrupper: Heltal, varelagergrundlag_før_nedskrivning_kroner: Heltal, højeste_nedskrivningssats_basispoint: Heltal, højeste_nedskrivning_kroner: Heltal, anvendt_nedskrivning_kroner: Heltal, varelager_værdi_efter_nedskrivning_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal)
+
+| varelager_par1_skatteyder_omfattet(skatteyder: VarelagerPar1Skatteyder) -> skatteyder != VarelagerIkkeOmfattet
+| varelager_par1_art_omfattet(art: VarelagerPar1Art) -> art != VarelagerIkkeOmfattetArt
+| varelager_par1_bruttoværdi_kroner(opgørelsesmåde: VarelagerPar1Opgørelsesmåde) -> match opgørelsesmåde {
+    | VarelagerDagspris(bruttoværdi_kroner) -> penge_positivt_beløb(bruttoværdi_kroner)
+    | VarelagerFakturapris(indkøbspris_kroner, fragt_told_og_lignende_kroner) -> penge_positivt_beløb(indkøbspris_kroner) + penge_positivt_beløb(fragt_told_og_lignende_kroner)
+    | VarelagerFremstillingspris(fremstillingspris_kroner) -> penge_positivt_beløb(fremstillingspris_kroner)
+}
+| varelager_par1_postværdi_efter_moms_kroner(post: VarelagerPar1Post) -> 0
+| exception varelager_par1_omfattet_post varelager_par1_postværdi_efter_moms_kroner(post: VarelagerPar1Post) -> penge_positivt_beløb(
+    varelager_par1_bruttoværdi_kroner(post.opgørelsesmåde) - penge_positivt_beløb(post.fradragsberettiget_indgående_moms_kroner)
+) under varelager_par1_art_omfattet(post.art)
+| varelager_par1_omfattede_varegrupper(varegrupper: List(VarelagerPar1Post)) -> length(filter(varegrupper, |post| varelager_par1_art_omfattet(post.art)))
+| varelager_par1_varelagergrundlag_kroner(varegrupper: List(VarelagerPar1Post)) -> foldl(varegrupper, 0, |sum, post| sum + varelager_par1_postværdi_efter_moms_kroner(post))
+| varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 0
+| exception varelager_par1_indkomstår_1993 varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 2300 under indkomstår == 1993
+| exception varelager_par1_indkomstår_1994 varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 2000 under indkomstår == 1994
+| exception varelager_par1_indkomstår_1995 varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 1600 under indkomstår == 1995
+| exception varelager_par1_indkomstår_1996 varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 1200 under indkomstår == 1996
+| exception varelager_par1_indkomstår_1997 varelager_par1_nedskrivningssats_basispoint(indkomstår: Heltal) -> 800 under indkomstår == 1997
+| varelager_par1_højeste_nedskrivning_kroner(input: VarelagerPar1Input) -> penge_beløb_gange_basispoint_kroner(
+    varelager_par1_varelagergrundlag_kroner(input.varegrupper),
+    varelager_par1_nedskrivningssats_basispoint(input.indkomstår)
+)
+| varelager_par1_anvendt_nedskrivning_kroner(input: VarelagerPar1Input) -> 0
+| exception varelager_par1_omfattet_skatteyder_kan_nedskrive varelager_par1_anvendt_nedskrivning_kroner(input: VarelagerPar1Input) -> penge_mindste_beløb(
+    penge_positivt_beløb(input.ønsket_nedskrivning_kroner),
+    varelager_par1_højeste_nedskrivning_kroner(input)
+) under varelager_par1_skatteyder_omfattet(input.skatteyder)
+
+# VarelagerPar1Sag(input: VarelagerPar1Input) {
+    | varelagergrundlag_kroner() -> varelager_par1_varelagergrundlag_kroner(input.varegrupper)
+    | anvendt_nedskrivning_kroner() -> varelager_par1_anvendt_nedskrivning_kroner(input)
+    | resultat() -> VarelagerPar1Resultat(
+        indkomstår = input.indkomstår,
+        skatteyder = input.skatteyder,
+        skatteyder_omfattet = varelager_par1_skatteyder_omfattet(input.skatteyder),
+        omfattede_varegrupper = varelager_par1_omfattede_varegrupper(input.varegrupper),
+        varelagergrundlag_før_nedskrivning_kroner = varelagergrundlag_kroner(),
+        højeste_nedskrivningssats_basispoint = varelager_par1_nedskrivningssats_basispoint(input.indkomstår),
+        højeste_nedskrivning_kroner = varelager_par1_højeste_nedskrivning_kroner(input),
+        anvendt_nedskrivning_kroner = anvendt_nedskrivning_kroner(),
+        varelager_værdi_efter_nedskrivning_kroner = varelagergrundlag_kroner() - anvendt_nedskrivning_kroner(),
+        fradrag_i_skattepligtig_indkomst_kroner = anvendt_nedskrivning_kroner()
+    )
+}
+| varelager_par1_sag(input: VarelagerPar1Input) -> VarelagerPar1Sag(input)
+| varelager_par1_resultat(input: VarelagerPar1Input) -> varelager_par1_sag(input).resultat()
+--@end:varelagerloven_par1--

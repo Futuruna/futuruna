@@ -11,6 +11,8 @@
 @ importer ./skattekontrolloven
 @ importer ./afskrivningsloven
 @ importer ./pensionsbeskatningsloven
+@ importer ./husdyrbeskatningsloven
+@ importer ./varelagerloven
 @ importer ./ejendomsavancebeskatningsloven
 @ importer ./ejendomsskatteloven
 
@@ -38,6 +40,11 @@
 = personskatteloven_par3_nr3_par4a_henvisning_advarsel = PersonskattelovKildeAdvarsel(
     kode = "PSL-PAR3-NR3-PAR4A-STK",
     besked = "Personskattelovens § 3, stk. 2, nr. 3, henviser fortsat til § 4 a, stk. 3. Den operative regel om, at pensionsfradrag i aktieindkomst ikke også kan fradrages i personlig indkomst, står i den gældende § 4 a, stk. 4. Reglerne anvender stk. 4's udtrykkelige dobbeltfradragsforbud."
+)
+
+= personskatteloven_par3_nr5_varelager_nulprocent_advarsel = PersonskattelovKildeAdvarsel(
+    kode = "PSL-PAR3-NR5-VARELAGER-0-PCT",
+    besked = "Personskattelovens § 3, stk. 2, nr. 5, henviser fortsat til varelagerlovens § 1, stk. 4, men den højeste nedskrivningsprocent har været 0 fra og med indkomståret 1998. Henvisningen giver derfor ikke et positivt aktuelt varelagerfradrag."
 )
 
 = personskatteloven_par3_nr9_dynamisk_henvisning_advarsel = PersonskattelovKildeAdvarsel(
@@ -108,7 +115,7 @@ indkomst, kapitalindkomst, aktieindkomst og CFC-indkomst.
 | par2_cfc_særskilt: par2_cfc -> par2_cfc == Sandt
 | par2_almindelig_er_basis: par2_almindelig -> par2_almindelig == Falskt
 
---@label:personskatteloven_par3::source:personskatteloven_lbk1284_par3::warning:personskatteloven_par3_nr3_par4a_henvisning_advarsel::warning:personskatteloven_par3_nr9_dynamisk_henvisning_advarsel--
+--@label:personskatteloven_par3::source:personskatteloven_lbk1284_par3::warning:personskatteloven_par3_nr3_par4a_henvisning_advarsel::warning:personskatteloven_par3_nr5_varelager_nulprocent_advarsel::warning:personskatteloven_par3_nr9_dynamisk_henvisning_advarsel--
 ----
 § 3. Personlig indkomst omfatter alle de indkomster, der indgår i den
 skattepligtige indkomst, og som ikke er kapitalindkomst.
@@ -151,6 +158,10 @@ iværksætterkonto
 # Par3Stk2Nr3Hjemmel = Par3Nr3Pensionsbeskatningslov18 | Par3Nr3Pensionsbeskatningslov52
 # Par3Stk2Nr3Input(grundlag: Par3Stk2Nr3Grundlag, aktiepensionsfradrag_resultat: AktiePensionsFradragResultat)
 # Par3Stk2Nr3Resultat(hjemmel: Par3Stk2Nr3Hjemmel, brutto_fradrag_efter_pensionsbeskatningsloven_kroner: Heltal, fradrag_i_aktieindkomst_kroner: Heltal, dobbeltfradrag_afskåret_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
+# Par3Stk2Nr4Input(husdyr_par2_resultat: HusdyrPar2Resultat, husdyr_par8_resultat: HusdyrPar8Resultat)
+# Par3Stk2Nr4Resultat(husdyrnedskrivning_par2_kroner: Heltal, forskelsbeløbsfradrag_par8_kroner: Heltal, forskelsbeløbstillæg_par8_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
+# Par3Stk2Nr5Input(varelager_par1_resultat: VarelagerPar1Resultat)
+# Par3Stk2Nr5Resultat(indkomstår: Heltal, nedskrivningssats_basispoint: Heltal, varelagergrundlag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr6Input(ligningslov8m_resultat: Ligningslov8MResultat)
 # Par3Stk2Nr6Resultat(arbejdsmarkedsbidrag_fradrag_kroner: Heltal, udenlandsk_socialt_bidrag_fradrag_kroner: Heltal, udenlandsk_arbejdsgiverbidrag_fradrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal)
 # Par3Stk2Nr7Hjemmel = Par3Stk2Nr7Virksomhedsskattelov22B | Par3Stk2Nr7Virksomhedsskattelov22D
@@ -218,6 +229,56 @@ iværksætterkonto
     art = PensionsbidragOgPræmier,
     stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
     beløb_kroner = par3_stk2_nr3_resultat(input).fradrag_i_personlig_indkomst_kroner
+)
+
+| par3_stk2_nr4_husdyrnedskrivning_kroner(input: Par3Stk2Nr4Input) -> 0
+| exception par3_stk2_nr4_landbrugerperson_par2 par3_stk2_nr4_husdyrnedskrivning_kroner(input: Par3Stk2Nr4Input) -> input.husdyr_par2_resultat.fradrag_i_skattepligtig_indkomst_kroner under input.husdyr_par2_resultat.skatteyder == HusdyrLandbrugerPerson
+| par3_stk2_nr4_forskelsbeløbsfradrag_kroner(input: Par3Stk2Nr4Input) -> 0
+| exception par3_stk2_nr4_landbruger_par8 par3_stk2_nr4_forskelsbeløbsfradrag_kroner(input: Par3Stk2Nr4Input) -> input.husdyr_par8_resultat.fradrag_i_skattepligtig_indkomst_kroner under input.husdyr_par8_resultat.rettighedshaver == HusdyrPar8Landbruger
+| par3_stk2_nr4_forskelsbeløbstillæg_kroner(input: Par3Stk2Nr4Input) -> 0
+| exception par3_stk2_nr4_landbruger_par8_tillæg par3_stk2_nr4_forskelsbeløbstillæg_kroner(input: Par3Stk2Nr4Input) -> input.husdyr_par8_resultat.tillæg_til_skattepligtig_indkomst_kroner under input.husdyr_par8_resultat.rettighedshaver == HusdyrPar8Landbruger
+# Par3Stk2Nr4Sag(input: Par3Stk2Nr4Input) {
+    | husdyrnedskrivning_kroner() -> par3_stk2_nr4_husdyrnedskrivning_kroner(input)
+    | forskelsbeløbsfradrag_kroner() -> par3_stk2_nr4_forskelsbeløbsfradrag_kroner(input)
+    | forskelsbeløbstillæg_kroner() -> par3_stk2_nr4_forskelsbeløbstillæg_kroner(input)
+    | fradrag_i_personlig_indkomst_kroner() -> husdyrnedskrivning_kroner() + forskelsbeløbsfradrag_kroner()
+    | resultat() -> Par3Stk2Nr4Resultat(
+        husdyrnedskrivning_par2_kroner = husdyrnedskrivning_kroner(),
+        forskelsbeløbsfradrag_par8_kroner = forskelsbeløbsfradrag_kroner(),
+        forskelsbeløbstillæg_par8_kroner = forskelsbeløbstillæg_kroner(),
+        fradrag_i_personlig_indkomst_kroner = fradrag_i_personlig_indkomst_kroner()
+    )
+}
+| par3_stk2_nr4_sag(input: Par3Stk2Nr4Input) -> Par3Stk2Nr4Sag(input)
+| par3_stk2_nr4_resultat(input: Par3Stk2Nr4Input) -> par3_stk2_nr4_sag(input).resultat()
+| par3_stk2_nr4_fradragspost(input: Par3Stk2Nr4Input) -> Par3Fradragspost(
+    art = HusdyrbesætningForskelsbeløb,
+    stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
+    beløb_kroner = par3_stk2_nr4_resultat(input).fradrag_i_personlig_indkomst_kroner
+)
+| par3_stk2_nr4_forskelsbeløbstillæg_indkomstpost(input: Par3Stk2Nr4Input) -> Par3Indkomstpost(
+    indgår_i_skattepligtig_indkomst = Sandt,
+    er_kapitalindkomst = Falskt,
+    beløb_kroner = par3_stk2_nr4_resultat(input).forskelsbeløbstillæg_par8_kroner
+)
+
+| par3_stk2_nr5_fradrag_i_personlig_indkomst_kroner(input: Par3Stk2Nr5Input) -> 0
+| exception par3_stk2_nr5_næringsdrivende_person par3_stk2_nr5_fradrag_i_personlig_indkomst_kroner(input: Par3Stk2Nr5Input) -> input.varelager_par1_resultat.fradrag_i_skattepligtig_indkomst_kroner under input.varelager_par1_resultat.skatteyder == VarelagerNæringsdrivendePerson
+# Par3Stk2Nr5Sag(input: Par3Stk2Nr5Input) {
+    | fradrag_i_personlig_indkomst_kroner() -> par3_stk2_nr5_fradrag_i_personlig_indkomst_kroner(input)
+    | resultat() -> Par3Stk2Nr5Resultat(
+        indkomstår = input.varelager_par1_resultat.indkomstår,
+        nedskrivningssats_basispoint = input.varelager_par1_resultat.højeste_nedskrivningssats_basispoint,
+        varelagergrundlag_kroner = input.varelager_par1_resultat.varelagergrundlag_før_nedskrivning_kroner,
+        fradrag_i_personlig_indkomst_kroner = fradrag_i_personlig_indkomst_kroner()
+    )
+}
+| par3_stk2_nr5_sag(input: Par3Stk2Nr5Input) -> Par3Stk2Nr5Sag(input)
+| par3_stk2_nr5_resultat(input: Par3Stk2Nr5Input) -> par3_stk2_nr5_sag(input).resultat()
+| par3_stk2_nr5_fradragspost(input: Par3Stk2Nr5Input) -> Par3Fradragspost(
+    art = VarelagerNedskrivning,
+    stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift,
+    beløb_kroner = par3_stk2_nr5_resultat(input).fradrag_i_personlig_indkomst_kroner
 )
 
 # Par3Stk2Nr6Sag(input: Par3Stk2Nr6Input) {

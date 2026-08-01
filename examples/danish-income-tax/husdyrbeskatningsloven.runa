@@ -1,0 +1,565 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+
+-- Husdyrbeskatningsloven -- Personskatteloven § 3, stk. 2, nr. 4.
+--
+-- Kilde: Retsinformation, LBK nr. 1099 af 01/09/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1099
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1099/dan/xml
+
+# HusdyrbeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= husdyrbeskatningsloven_lbk1099_par2 = HusdyrbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1099",
+    identifier = "Husdyrbeskatningsloven § 2",
+    hentet_dato = "2026-07-18"
+)
+
+= husdyrbeskatningsloven_lbk1099_par8 = HusdyrbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1099",
+    identifier = "Husdyrbeskatningsloven § 8",
+    hentet_dato = "2026-07-18"
+)
+
+= husdyrbeskatningsloven_bek543_par1_par5 = HusdyrbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/1981/543",
+    identifier = "BEK nr. 543 af 16/11/1981 §§ 1-5",
+    hentet_dato = "2026-07-18"
+)
+
+= skattestyrelsen_husdyr_forskelsbeløb_04013 = HusdyrbeskatningslovKildeInfo(
+    url = "https://skat.dk/media/3nbjrsem/04013_dk_-final_16325.pdf",
+    identifier = "Skattestyrelsens blanket 04.013 Husdyrbesætninger, 2025.01",
+    hentet_dato = "2026-07-18"
+)
+
+--@label:husdyrbeskatningsloven_par2::source:husdyrbeskatningsloven_lbk1099_par2--
+----
+§ 2. Ved opgørelsen af den skattepligtige indkomst skal landbrugere opgøre
+værdien af deres besætninger på grundlag af:
+1) normalhandelsværdien eller
+2) handelsværdien, dog ikke et beløb mindre end det under nr. 1) anførte.
+
+Stk. 2. Dersom landbrugeren opgør værdien af besætningen på grundlag af
+handelsværdien, kan denne ikke medregne afgift, der ved opgørelsen af
+afgiftstilsvar efter momsloven kan fradrages som indgående afgift.
+
+Stk. 3. Den i stk. 1 nævnte normalhandelsværdi fastsættes af Skatterådet.
+
+Stk. 4. I det beløb, der er opgjort efter stk. 1, kan der med virkning for
+opgørelsen af den skattepligtige indkomst i de enkelte indkomstår foretages en
+nedskrivning, som højst kan udgøre følgende procentdel af beløbet:
+
+Indkomstår       pct.
+2000             28
+2001             24
+2002             20
+2003 og derefter 15.
+----
+
+--@begin:husdyrbeskatningsloven_par2--
+# HusdyrPar2Skatteyder = HusdyrLandbrugerPerson | HusdyrLandbrugerDødsbo | HusdyrLandbrugerSelskab | HusdyrIkkeLandbruger
+# HusdyrPar2Værdiansættelse = HusdyrNormalhandelsværdi(normalhandelsværdi_kroner: Heltal) | HusdyrHandelsværdi(normalhandelsværdi_kroner: Heltal, handelsværdi_inklusive_eventuel_indgående_moms_kroner: Heltal, fradragsberettiget_indgående_moms_kroner: Heltal)
+# HusdyrPar2Input(indkomstår: Heltal, skatteyder: HusdyrPar2Skatteyder, værdiansættelse: HusdyrPar2Værdiansættelse, ønsket_nedskrivning_kroner: Heltal)
+# HusdyrPar2Resultat(indkomstår: Heltal, skatteyder: HusdyrPar2Skatteyder, skatteyder_omfattet: Boolsk, normalhandelsværdi_kroner: Heltal, handelsværdi_efter_moms_kroner: Heltal, opgjort_besætningsværdi_før_nedskrivning_kroner: Heltal, højeste_nedskrivningssats_basispoint: Heltal, højeste_nedskrivning_kroner: Heltal, anvendt_nedskrivning_kroner: Heltal, skattemæssig_besætningsværdi_efter_nedskrivning_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal)
+
+| husdyr_par2_skatteyder_omfattet(skatteyder: HusdyrPar2Skatteyder) -> skatteyder != HusdyrIkkeLandbruger
+| husdyr_par2_normalhandelsværdi_kroner(værdiansættelse: HusdyrPar2Værdiansættelse) -> match værdiansættelse {
+    | HusdyrNormalhandelsværdi(normalhandelsværdi_kroner) -> penge_positivt_beløb(normalhandelsværdi_kroner)
+    | HusdyrHandelsværdi(normalhandelsværdi_kroner, _, _) -> penge_positivt_beløb(normalhandelsværdi_kroner)
+}
+| husdyr_par2_handelsværdi_efter_moms_kroner(værdiansættelse: HusdyrPar2Værdiansættelse) -> match værdiansættelse {
+    | HusdyrNormalhandelsværdi(_) -> 0
+    | HusdyrHandelsværdi(_, handelsværdi_inklusive_moms_kroner, fradragsberettiget_moms_kroner) -> penge_positivt_beløb(penge_positivt_beløb(handelsværdi_inklusive_moms_kroner) - penge_positivt_beløb(fradragsberettiget_moms_kroner))
+}
+| husdyr_par2_opgjort_besætningsværdi_kroner(værdiansættelse: HusdyrPar2Værdiansættelse) -> match værdiansættelse {
+    | HusdyrNormalhandelsværdi(normalhandelsværdi_kroner) -> penge_positivt_beløb(normalhandelsværdi_kroner)
+    | HusdyrHandelsværdi(_, _, _) -> penge_største_beløb(husdyr_par2_normalhandelsværdi_kroner(værdiansættelse), husdyr_par2_handelsværdi_efter_moms_kroner(værdiansættelse))
+}
+| husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal) -> 0
+| exception husdyr_par2_indkomstår_2000 husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal) -> 2800 under indkomstår == 2000
+| exception husdyr_par2_indkomstår_2001 husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal) -> 2400 under indkomstår == 2001
+| exception husdyr_par2_indkomstår_2002 husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal) -> 2000 under indkomstår == 2002
+| exception husdyr_par2_fra_2003 husdyr_par2_nedskrivningssats_basispoint(indkomstår: Heltal) -> 1500 under indkomstår >= 2003
+| husdyr_par2_højeste_nedskrivning_kroner(input: HusdyrPar2Input) -> penge_beløb_gange_basispoint_kroner(
+    husdyr_par2_opgjort_besætningsværdi_kroner(input.værdiansættelse),
+    husdyr_par2_nedskrivningssats_basispoint(input.indkomstår)
+)
+| husdyr_par2_anvendt_nedskrivning_kroner(input: HusdyrPar2Input) -> 0
+| exception husdyr_par2_landbruger_kan_nedskrive husdyr_par2_anvendt_nedskrivning_kroner(input: HusdyrPar2Input) -> penge_mindste_beløb(
+    penge_positivt_beløb(input.ønsket_nedskrivning_kroner),
+    husdyr_par2_højeste_nedskrivning_kroner(input)
+) under husdyr_par2_skatteyder_omfattet(input.skatteyder)
+
+# HusdyrPar2Sag(input: HusdyrPar2Input) {
+    | opgjort_besætningsværdi_kroner() -> husdyr_par2_opgjort_besætningsværdi_kroner(input.værdiansættelse)
+    | anvendt_nedskrivning_kroner() -> husdyr_par2_anvendt_nedskrivning_kroner(input)
+    | resultat() -> HusdyrPar2Resultat(
+        indkomstår = input.indkomstår,
+        skatteyder = input.skatteyder,
+        skatteyder_omfattet = husdyr_par2_skatteyder_omfattet(input.skatteyder),
+        normalhandelsværdi_kroner = husdyr_par2_normalhandelsværdi_kroner(input.værdiansættelse),
+        handelsværdi_efter_moms_kroner = husdyr_par2_handelsværdi_efter_moms_kroner(input.værdiansættelse),
+        opgjort_besætningsværdi_før_nedskrivning_kroner = opgjort_besætningsværdi_kroner(),
+        højeste_nedskrivningssats_basispoint = husdyr_par2_nedskrivningssats_basispoint(input.indkomstår),
+        højeste_nedskrivning_kroner = husdyr_par2_højeste_nedskrivning_kroner(input),
+        anvendt_nedskrivning_kroner = anvendt_nedskrivning_kroner(),
+        skattemæssig_besætningsværdi_efter_nedskrivning_kroner = opgjort_besætningsværdi_kroner() - anvendt_nedskrivning_kroner(),
+        fradrag_i_skattepligtig_indkomst_kroner = anvendt_nedskrivning_kroner()
+    )
+}
+| husdyr_par2_sag(input: HusdyrPar2Input) -> HusdyrPar2Sag(input)
+| husdyr_par2_resultat(input: HusdyrPar2Input) -> husdyr_par2_sag(input).resultat()
+--@end:husdyrbeskatningsloven_par2--
+
+--@label:husdyrbeskatningsloven_par8::source:husdyrbeskatningsloven_lbk1099_par8--
+----
+§ 8. Loven har virkning fra og med indkomståret 1981. Normalhandelsværdier som
+nævnt i § 2 fastsættes første gang med virkning for opgørelsen af værdien af
+landbrugernes husdyrbesætninger ved udgangen af indkomståret 1980.
+
+Stk. 2. For landbrugere, som ved udgangen af indkomståret 1980 har opgjort
+værdien af deres stambesætning på grundlag af de af Ligningsrådet fastsatte
+normalpriser eller handelsværdier, der er lavere end normalhandelsværdier, jf.
+stk. 3, beregnes et beløb (forskelsbeløbet), som skal fradrages ved opgørelsen
+af den skattepligtige indkomst efter reglerne i stk. 5 og 6.
+
+Stk. 3. Forskelsbeløbet beregnes som forskellen mellem værdien af den
+stambesætning afgrænset efter hidtil gældende praksis, der findes ved udgangen
+af indkomståret 1980, opgjort til henholdsvis de af Skatterådet fastsatte
+normalhandelsværdier og de af Ligningsrådet fastsatte normalpriser.
+Forskelsbeløbet beregnes særskilt for hver af de følgende fire grupper af dyr:
+kvæg, svin, får, og heste. Skatteministeren kan fastsætte andre regler for
+beregning af forskelsbeløbet end de i 1. pkt. nævnte for ganske særlig
+værdifulde dyr eller besætninger.
+
+Stk. 4. Skatteforvaltningslovens regler om ansættelse, klage og revision finder
+anvendelse på et efter reglerne i stk. 3 beregnet forskelsbeløb. Nedsættes et
+forskelsbeløb, modregnes nedsættelsesbeløbet i forskelsbeløbet, der endnu ikke
+er fradraget ved indkomstopgørelsen. Et overskydende nedsættelsesbeløb
+medregnes til den skattepligtige indkomst for det indkomstår, hvori
+nedsættelsen af forskelsbeløbet finder sted. Forhøjes et forskelsbeløb,
+tillægges forhøjelsesbeløbet forskelsbeløbet, der endnu ikke er fradraget ved
+indkomstopgørelsen. Er hele det oprindeligt beregnede forskelsbeløb fradraget
+inden det indkomstår, hvori forskelsbeløbet forhøjes, fradrages
+forhøjelsesbeløbet i den skattepligtige indkomst for det år, hvori forhøjelsen
+af forskelsbeløbet finder sted.
+
+Stk. 5. Ved opgørelsen af den skattepligtige indkomst for indkomståret 1981
+fradrages 10 pct. af det efter reglen i stk. 3 beregnede forskelsbeløb. Det
+beløb, hvormed 66⅔ pct. af værdien af en landbrugers samlede husdyrbesætning
+ved udgangen af indkomståret 1980 opgjort til de af Ligningsrådet fastsatte
+normalhandelsværdier overstiger værdien af besætningen opgjort til de af
+Ligningsrådet fastsatte normalpriser, kan ud over fradraget efter 1. pkt.
+fradrages ved opgørelsen af den skattepligtige indkomst for indkomståret 1981.
+
+Stk. 6. Efter regler, der fastsættes af skatteministeren, foretages helt eller
+delvis fradrag for et forskelsbeløb, der resterer efter anvendelse af reglen i
+stk. 5, ved opgørelsen af den skattepligtige indkomst for indkomstår, hvori
+antallet af dyr i de enkelte grupper af stambesætningen (kvæg, svin og får),
+afgrænset efter henholdsvis § 3, stk. 1, nr. 1) og 2), samt § 3, stk. 1, nr.
+3), og § 3, stk. 1, nr. 4), er formindsket i forhold til antallet af
+stambesætningsdyr ved udgangen af indkomståret 1980 afgrænset på samme måde.
+Det er en betingelse for fradraget efter 1. pkt., at landbrugeren ikke i de
+nærmest følgende to indkomstår forøger den pågældende stambesætning med et
+antal dyr, der fastsættes af skatteministeren, dog mindst svarende til
+formindskelsen. Såfremt en sådan forøgelse finder sted, forhøjes den
+skattepligtige indkomst for det indkomstår, hvori formindskelsen fandt sted,
+med det fradragne forskelsbeløb, og det endnu ikke fradragne forskelsbeløb
+forøges tilsvarende.
+
+Stk. 7. Reglerne i stk. 2-6 gælder for dødsboer, som ved udgangen af
+indkomståret 1980 omfatter en stambesætning afgrænset efter hidtil gældende
+praksis.
+
+Stk. 8. Fradragene efter stk. 2-6 af forskelsbeløbet berøres ikke af, at
+stambesætningen, som nævnt i § 3, stk. 1, nr. 1)-4), overtages til hensidden i
+uskiftet bo eller udlægges til længstlevende ægtefælle efter skiftelovens § 57,
+stk. 1, medmindre der forinden er skiftet med enkelte arvinger. Fradragene
+berøres ikke af, at stambesætningen, som nævnt i § 3, stk. 1, nr. 1)-4),
+udlægges til den længstlevende ægtefælle og denne efter § 14 A i lov om afgift
+af arv og gave får udsættelse med pligten til at svare arveafgift af
+arvebeholdningen.
+
+Stk. 9. Hvis et bo, der omfatter en stambesætning, som nævnt i § 3, stk. 1,
+nr. 1)-4), i umiddelbar forbindelse med den skattepligtiges død i indkomståret
+1981 tages under skiftebehandling, skal et forskelsbeløb efter stk. 5 deles
+forholdsmæssigt og fradrages henholdsvis ved den afsluttende indkomstansættelse
+for afdøde eller længstlevende ægtefælles indkomstansættelse og ved boets
+indkomstansættelse. En lignende forholdsmæssig fordeling af forskelsbeløbet
+skal ske, hvis et uskiftet bo i indkomståret 1981 tages under skiftebehandling
+i længstlevende ægtefælles levende live.
+
+Stk. 10. Hvis en arving, ægtefælle eller legatar i medfør af
+dødsboskattelovens § 36 indtræder i et bos skattemæssige stilling med hensyn
+til en stambesætning, som nævnt i § 3, stk. 1, nr. 1)-4), skal besætningen
+anses for anskaffet af den pågældende til den værdi, som dødsboet senest har
+benyttet, forøget med en til den overtagne del af stambesætningen svarende del
+af et forskelsbeløb, som endnu ikke er bragt til fradrag ved en
+indkomstansættelse. Den således forøgede værdi af stambesætningen lægges også
+til grund ved beregning af passivposten efter boafgiftslovens § 13 a eller
+kildeskattelovens § 33 D. Reglen i 1. pkt. finder tilsvarende anvendelse på de
+i kildeskattelovens § 33 C nævnte overdragelser.
+
+Stk. 11. Landbrugere, som har fået forhøjet den skattepligtige indkomst for
+indkomstårene 1973-1980 i forbindelse med udvidelse af stambesætning, og som
+har fået henstand med den heraf følgende skattebetaling, skal modregne det
+beløb, hvormed den skattepligtige indkomst er blevet forhøjet, i det efter
+reglen i stk. 3 beregnede forskelsbeløb, og den nævnte skattebetaling anses
+herved at have fundet sted. Skatteministeren fastsætter de nærmere regler om
+modregning efter 1. pkt.
+
+Stk. 12. Forskelsbeløb, som endnu ikke er fradraget ved opgørelsen af den
+skattepligtige indkomst, skal for regnskabsførende skattepligtige opføres som
+en særlig aktivpost. Andre skattepligtige skal give oplysninger om beløbet i
+oplysningsskemaet efter skattekontrollovens § 5.
+
+Stk. 13. Skatteministeren eller den, han bemyndiger dertil, kan efter ansøgning
+eftergive den skat, som efter nærværende lov pålignes landbrugeren for
+indkomståret 1981, som følge af en formindskelse af en stambesætning, der er
+sket før den 1. januar 1981. Eftergivelsen af skat efter 1. pkt. forudsætter,
+at den nævnte formindskelse af en stambesætning efter de hidtil gældende regler
+kunne ske, uden at fortjenesten skulle medregnes ved indkomstopgørelsen.
+----
+
+--@label:husdyrbeskatningsloven_par8::source:husdyrbeskatningsloven_bek543_par1_par5--
+----
+§ 1. Ved opgørelsen af den skattepligtige indkomst og formue skal landbrugere
+opgøre værdien af deres besætninger på grundlag af:
+1) den af ligningsrådet fastsatte normalhandelsværdi eller
+2) handelsværdien, dog ikke et beløb mindre end det under nr. 1) anførte.
+
+Stk. 2. For landbrugere, som ved udgangen af indkomståret 1980 har opgjort
+værdien af deres stambesætning på grundlag af de af ligningsrådet fastsatte
+normalpriser eller handelsværdier, der er lavere end normalhandelsværdier,
+beregnes et beløb (forskelsbeløbet), som skal fradrages ved opgørelsen af den
+skattepligtige indkomst efter reglerne i § 3, jfr. dog § 2 og § 4.
+
+Stk. 3. Forskelsbeløb beregnes som forskellen mellem værdien af den
+stambesætning afgrænset efter hidtil gældende praksis, der findes ved udgangen
+af indkomståret 1980, opgjort til henholdsvis de af ligningsrådet fastsatte
+normalhandelsværdier og de af ligningsrådet fastsatte normalpriser eller
+handelsværdier, der er lavere end normalhandelsværdier. Forskelsbeløb beregnes
+særskilt for hver af følgende fire grupper af dyr: Kvæg, svin, får og heste.
+
+Stk. 4. Ved beregning af forskelsbeløb for ganske særligt værdifulde dyr
+anvendes handelsværdien i stedet for den af ligningsrådet fastsatte
+normalhandelsværdi, når det godtgøres, at handelsværdien ved udgangen af
+indkomståret 1980 overstiger normalhandelsværdien med mindst 50 pct. Det samme
+gælder for ganske særligt værdifulde besætninger, når det godtgøres, at
+besætningens handelsværdi ved udgangen af indkomståret 1980 overstiger
+normalhandelsværdien med mindst 20 pct.
+
+§ 2. Landbrugere, som har fået forhøjet den skattepligtige indkomst for
+indkomstårene 1973-1980 i forbindelse med udvidelse af en stambesætning, og som
+har fået henstand med den heraf følgende skattebetaling, skal forlods fradrage
+det beløb (C-fradraget), hvormed den skattepligtige indkomst er blevet
+forhøjet, i det efter reglerne i § 1, stk. 3 og 4, beregnede forskelsbeløb, jfr.
+lovens § 8, stk. 11. C-fradraget fordeles forholdsmæssigt på forskelsbeløbene
+for de enkelte grupper af stambesætningsdyr (kvæg, svin og får).
+Skattebetalingen anses herved at have fundet sted den 31. december 1980. Det
+hermed reducerede forskelsbeløb fradrages efter reglerne i §§ 3 og 4.
+
+Stk. 2. Er det beløb, hvormed de skattepligtige indkomster er blevet forhøjet,
+jfr. stk. 1, større end det efter reglerne i § 1, stk. 3 og 4, beregnede
+forskelsbeløb, skal den overskydende del medføre en dertil svarende
+skattebetaling.
+
+§ 3. Efter lovens § 8, stk. 5, skal der ved opgørelsen af den skattepligtige
+indkomst for indkomståret 1981 fradrages 10 pct. af det efter reglerne i § 1,
+stk. 3 og 4, beregnede forskelsbeløb for de enkelte grupper af dyr: Kvæg, svin
+og får (A-fradraget).
+
+Stk. 2. Ved indkomstopgørelsen for indkomståret 1981 kan der efter anvendelsen
+af reglen i stk. 1 ske fradrag med så stor en del af det i § 1, stk. 3 og 4,
+beregnede forskelsbeløb, som svarer til det beløb, hvormed 66,66 pct. af den
+samlede besætningsværdi opgjort til normalhandelsværdier ved udgangen af
+indkomståret 1980 overstiger værdien opgjort til normalpriser (B-fradraget).
+B-fradraget fordeles forholdsmæssigt på forskelsbeløbene for de enkelte grupper
+af stambesætningsdyr (kvæg, svin og får).
+
+Stk. 3. Hvis det efter reglerne i § 1, stk. 3 og 4, beregnede forskelsbeløb
+nedsat med eventuelt fradrag efter § 2 (C-fradraget) er mindre end A- og
+B-fradraget fradrages det fulde forskelsbeløb ved indkomstopgørelsen for
+indkomståret 1981.
+
+§ 4. Fradrag for et forskelsbeløb, der resterer efter anvendelse af reglerne i
+§ 3, jfr. dog § 2, foretages i den skattepligtige indkomst i takt med reduktion
+af dyr i de enkelte grupper af stambesætningen (kvæg, svin og får).
+
+Stk. 2. Antallet af dyr i de enkelte stambesætningsgrupper (kvæg, svin og får)
+ved udgangen af indkomståret 1980 afgrænset efter henholdsvis lovens § 3, stk.
+1, nr. 1) og 2), § 3, stk. 1, nr. 3), og § 3, stk. 1, nr. 4), (basisantallene)
+nedrundes til nærmeste af følgende trin:
+
+0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 120, 140, 160, 200, 240, 280,
+320, 360 o.s.v. i spring på 40 dyr.
+
+Stk. 3. Et resterende forskelsbeløb for de enkelte grupper af
+stambesætningsdyr (kvæg, svin og får) divideres med det nedrundede basisantal
+af dyr i de enkelte grupper. Er det nedrundede basisantal i en gruppe
+stambesætningsdyr ved udgangen af et indkomstår lavere end det nedrundede
+basisantal ved udgangen af året før og mindre end det nedrundede basisantal ved
+udgangen af indkomståret 1980, nedsættes den skattepligtige indkomst med så
+stor en del af et resterende forskelsbeløb, som svarer til nedgangen i det
+nedrundede basisantal (forskelsbeløb pr. dyr x forskellen mellem de nedrundede
+basisantal).
+
+Stk. 4. Er basisantallet af dyr i de enkelte grupper af stambesætningen (kvæg,
+svin og får) mindre end 5 ved udgangen af indkomståret 1980 eller udgør
+forskelsbeløbet for de enkelte grupper af stambesætningsdyr 5.000 kr. eller
+derunder ved udgangen af indkomståret 1980, skal hele det resterende
+forskelsbeløb for de pågældende grupper fradrages ved indkomstopgørelsen for
+indkomståret 1981.
+
+Stk. 5. Når et forskelsbeløb, der resterer efter anvendelsen af reglerne i § 3,
+jfr. dog § 2, eller stk. 1-3, ved udgangen af et indkomstår udgør 5.000 kr.
+eller derunder for den enkelte gruppe af stambesætningsdyr (kvæg, svin og får),
+skal den skattepligtige indkomst for dette indkomstår nedsættes med hele det
+resterende forskelsbeløb.
+
+§ 5. Forøges antallet af dyr i de enkelte grupper af stambesætningen (kvæg,
+svin og får) i et af de nærmest følgende to indkomstår efter et indkomstår,
+hvor der er opnået helt eller delvis fradrag for en resterende del af et
+forskelbeløb som følge af reduktion af dyr i de enkelte stambesætningrupper
+(reduktionsåret), jfr. § 4, stk. 1 - 3, skal den skattepligtige indkomst for
+reduktionsåret forhøjes efter reglerne i stk. 2 og 3 med hele det fradragne
+forskelsbeløb (tilbageregulering). Et resterende forskelsbeløb forøges
+tilsvarende. Dette gælder selv om forskelsbeløbet er reduceret til 0 kr.
+
+Stk. 2. Antallet af dyr i de enkelte stambesætningsgrupper (kvæg, svin og får)
+ved begyndelsen af reduktionsåret (reguleringstallene) nedrundes til nærmeste
+af følgende trin:
+
+0, 5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 120, 140, 160, 200, 240, 280,
+320, 360 o.s.v. i spring på 40 dyr.
+
+Tilbageregulering skal foretages, når det nedrundede reguleringstal i en gruppe
+stambesætningsdyr i et af de nærmest følgende to indkomstår efter
+reduktionsåret er bragt op på et nedrundet reguleringstal, som er mindst 1 trin
+højere end reguleringstallet ved begyndelsen af reduktionsåret.
+
+Stk. 3. Tilbageregulering af forskelsbeløbet foretages ikke, når der i henhold
+til § 4, stk. 4, er opnået fradrag for hele det resterende forskelsbeløb ved
+indkomstopgørelsen for indkomståret 1981.
+----
+
+--@label:husdyrbeskatningsloven_par8::source:skattestyrelsen_husdyr_forskelsbeløb_04013--
+--@begin:husdyrbeskatningsloven_par8--
+# HusdyrPar8Dyregruppe = HusdyrPar8Kvæg | HusdyrPar8Svin | HusdyrPar8Får | HusdyrPar8Heste
+# HusdyrPar8Rettighedshaver = HusdyrPar8Landbruger | HusdyrPar8DødsboMed1980Stambesætning | HusdyrPar8IkkeOmfattet
+# HusdyrPar8Forskelsgrundlag = HusdyrPar8OrdinærtForskelsgrundlag(normalhandelsværdi_1980_kroner: Heltal, normalpris_eller_lavere_handelsværdi_1980_kroner: Heltal) | HusdyrPar8MinisterfastsatForskelsbeløb(beløb_kroner: Heltal)
+# HusdyrPar8Ansættelsesændring = HusdyrPar8IngenAnsættelsesændring | HusdyrPar8ForskelsbeløbNedsat(beløb_kroner: Heltal) | HusdyrPar8ForskelsbeløbForhøjet(beløb_kroner: Heltal)
+# HusdyrPar8GruppeInput(gruppe: HusdyrPar8Dyregruppe, grundlag: HusdyrPar8Forskelsgrundlag, c_fradrag_fordelt_til_gruppen_kroner: Heltal, allerede_fradraget_før_indkomståret_kroner: Heltal, ansættelsesændring: HusdyrPar8Ansættelsesændring, basisantal_1980: Heltal, basisantal_forrige_indkomstår: Heltal, basisantal_aktuelt_indkomstår: Heltal, reguleringstal_ved_begyndelsen_af_reduktionsåret: Heltal, højeste_antal_i_to_følgende_indkomstår: Heltal)
+# HusdyrPar8Indkomstår1981Forhold = HusdyrPar8IkkeIndkomstår1981 | HusdyrPar8Indkomstår1981(samlet_normalhandelsværdi_1980_kroner: Heltal, samlet_normalpris_1980_kroner: Heltal, ønsket_b_fradrag_kroner: Heltal)
+# HusdyrPar8Input(indkomstår: Heltal, rettighedshaver: HusdyrPar8Rettighedshaver, grupper: List(HusdyrPar8GruppeInput), indkomstår1981_forhold: HusdyrPar8Indkomstår1981Forhold)
+# HusdyrPar8GruppeResultat(gruppe: HusdyrPar8Dyregruppe, oprindeligt_forskelsbeløb_kroner: Heltal, c_fradrag_modregnet_kroner: Heltal, forskelsbeløb_efter_c_fradrag_kroner: Heltal, allerede_fradraget_før_indkomståret_kroner: Heltal, resterende_før_ansættelsesændring_kroner: Heltal, nedsættelse_modregnet_i_resterende_kroner: Heltal, overskydende_nedsættelse_til_skattepligtig_indkomst_kroner: Heltal, forhøjelse_til_resterende_kroner: Heltal, forhøjelse_straksfradrag_kroner: Heltal, a_fradrag_1981_kroner: Heltal, b_fradrag_1981_kroner: Heltal, fuldt_fradrag_efter_bek4_stk4_kroner: Heltal, ordinært_reduktionsfradrag_efter_bek4_stk1_til_stk3_kroner: Heltal, restsaldo_fradrag_efter_bek4_stk5_kroner: Heltal, reduktionsfradrag_før_tilbageregulering_kroner: Heltal, tilbageregulering_til_skattepligtig_indkomst_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, tillæg_til_skattepligtig_indkomst_kroner: Heltal, resterende_forskelsbeløb_kroner: Heltal)
+# HusdyrPar8Resultat(indkomstår: Heltal, rettighedshaver: HusdyrPar8Rettighedshaver, rettighedshaver_omfattet: Boolsk, gruppe_resultater: List(HusdyrPar8GruppeResultat), oprindeligt_forskelsbeløb_kroner: Heltal, c_fradrag_modregnet_kroner: Heltal, overskydende_c_fradrag_til_skattebetaling_kroner: Heltal, resterende_før_ansættelsesændring_kroner: Heltal, nedsættelse_modregnet_i_resterende_kroner: Heltal, overskydende_nedsættelse_til_skattepligtig_indkomst_kroner: Heltal, forhøjelse_til_resterende_kroner: Heltal, forhøjelse_straksfradrag_kroner: Heltal, a_fradrag_1981_kroner: Heltal, b_fradrag_1981_kroner: Heltal, b_fradrag_ufordelt_afrunding_kroner: Heltal, ordinært_reduktionsfradrag_efter_bek4_stk1_til_stk3_kroner: Heltal, øvrige_reduktionsfradrag_uden_tilbageregulering_kroner: Heltal, reduktionsfradrag_før_tilbageregulering_kroner: Heltal, fradrag_før_eventuel_tilbageregulering_kroner: Heltal, tilbageregulering_til_skattepligtig_indkomst_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, tillæg_til_skattepligtig_indkomst_kroner: Heltal, resterende_forskelsbeløb_kroner: Heltal, særlig_aktivpost_påkrævet: Boolsk)
+# HusdyrPar8SuccessionHjemmel = HusdyrPar8IngenSuccession | HusdyrPar8Dødsboskattelov36 | HusdyrPar8Kildeskattelov33C
+# HusdyrPar8SuccessionInput(hjemmel: HusdyrPar8SuccessionHjemmel, dødsboets_senest_benyttede_værdi_kroner: Heltal, resterende_forskelsbeløb_kroner: Heltal, overtaget_andel_basispoint: Heltal)
+# HusdyrPar8SuccessionResultat(hjemmel: HusdyrPar8SuccessionHjemmel, succession_omfattet: Boolsk, andel_af_resterende_forskelsbeløb_kroner: Heltal, skattemæssig_anskaffelsesværdi_kroner: Heltal, passivpostgrundlag_kroner: Heltal)
+
+| husdyr_par8_rettighedshaver_omfattet(rettighedshaver: HusdyrPar8Rettighedshaver) -> rettighedshaver != HusdyrPar8IkkeOmfattet
+| husdyr_par8_reduktionsgruppe_omfattet(gruppe: HusdyrPar8Dyregruppe) -> gruppe != HusdyrPar8Heste
+| husdyr_par8_forskelsbeløb_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> match input.grundlag {
+    | HusdyrPar8OrdinærtForskelsgrundlag(normalhandelsværdi_kroner, normalpris_kroner) -> penge_positivt_beløb(penge_positivt_beløb(normalhandelsværdi_kroner) - penge_positivt_beløb(normalpris_kroner))
+    | HusdyrPar8MinisterfastsatForskelsbeløb(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+}
+| husdyr_par8_c_fradrag_anmodet_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> 0
+| exception husdyr_par8_c_fradrag_kvæg_svin_får husdyr_par8_c_fradrag_anmodet_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> penge_positivt_beløb(input.c_fradrag_fordelt_til_gruppen_kroner) under husdyr_par8_reduktionsgruppe_omfattet(input.gruppe)
+| husdyr_par8_c_fradrag_modregnet_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> penge_mindste_beløb(
+    husdyr_par8_c_fradrag_anmodet_for_gruppe_kroner(input),
+    husdyr_par8_forskelsbeløb_for_gruppe_kroner(input)
+)
+| husdyr_par8_overskydende_c_fradrag_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> penge_positivt_beløb(
+    husdyr_par8_c_fradrag_anmodet_for_gruppe_kroner(input) - husdyr_par8_c_fradrag_modregnet_for_gruppe_kroner(input)
+)
+| husdyr_par8_forskelsbeløb_efter_c_fradrag_kroner(input: HusdyrPar8GruppeInput) -> husdyr_par8_forskelsbeløb_for_gruppe_kroner(input) - husdyr_par8_c_fradrag_modregnet_for_gruppe_kroner(input)
+| husdyr_par8_allerede_fradraget_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> penge_mindste_beløb(
+    penge_positivt_beløb(input.allerede_fradraget_før_indkomståret_kroner),
+    husdyr_par8_forskelsbeløb_efter_c_fradrag_kroner(input)
+)
+| husdyr_par8_resterende_før_ansættelsesændring_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> husdyr_par8_forskelsbeløb_efter_c_fradrag_kroner(input) - husdyr_par8_allerede_fradraget_for_gruppe_kroner(input)
+| husdyr_par8_ansættelsesændringsbeløb_kroner(ændring: HusdyrPar8Ansættelsesændring) -> match ændring {
+    | HusdyrPar8IngenAnsættelsesændring -> 0
+    | HusdyrPar8ForskelsbeløbNedsat(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+    | HusdyrPar8ForskelsbeløbForhøjet(beløb_kroner) -> penge_positivt_beløb(beløb_kroner)
+}
+| husdyr_par8_nedsættelse_modregnet_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> match input.ansættelsesændring {
+    | HusdyrPar8ForskelsbeløbNedsat(_) -> penge_mindste_beløb(husdyr_par8_ansættelsesændringsbeløb_kroner(input.ansættelsesændring), husdyr_par8_resterende_før_ansættelsesændring_for_gruppe_kroner(input))
+    | _ -> 0
+}
+| husdyr_par8_overskydende_nedsættelse_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> match input.ansættelsesændring {
+    | HusdyrPar8ForskelsbeløbNedsat(_) -> penge_positivt_beløb(husdyr_par8_ansættelsesændringsbeløb_kroner(input.ansættelsesændring) - husdyr_par8_resterende_før_ansættelsesændring_for_gruppe_kroner(input))
+    | _ -> 0
+}
+| husdyr_par8_forhøjelse_til_resterende_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> match input.ansættelsesændring {
+    | HusdyrPar8ForskelsbeløbForhøjet(_) -> hvis husdyr_par8_resterende_før_ansættelsesændring_for_gruppe_kroner(input) > 0 { husdyr_par8_ansættelsesændringsbeløb_kroner(input.ansættelsesændring) } ellers { 0 }
+    | _ -> 0
+}
+| husdyr_par8_forhøjelse_straksfradrag_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> match input.ansættelsesændring {
+    | HusdyrPar8ForskelsbeløbForhøjet(_) -> hvis husdyr_par8_resterende_før_ansættelsesændring_for_gruppe_kroner(input) == 0 { husdyr_par8_ansættelsesændringsbeløb_kroner(input.ansættelsesændring) } ellers { 0 }
+    | _ -> 0
+}
+| husdyr_par8_resterende_efter_ansættelsesændring_for_gruppe_kroner(input: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_før_ansættelsesændring_for_gruppe_kroner(input) - husdyr_par8_nedsættelse_modregnet_for_gruppe_kroner(input) + husdyr_par8_forhøjelse_til_resterende_for_gruppe_kroner(input)
+
+| husdyr_par8_a_fradrag_1981_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput) -> 0
+| exception husdyr_par8_a_fradrag_kvæg_svin_får husdyr_par8_a_fradrag_1981_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput) -> penge_mindste_beløb(
+    husdyr_par8_resterende_efter_ansættelsesændring_for_gruppe_kroner(input),
+    husdyr_par8_forskelsbeløb_for_gruppe_kroner(input) / 10
+) under indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(input.gruppe)
+| husdyr_par8_resterende_efter_a_fradrag_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_ansættelsesændring_for_gruppe_kroner(input) - husdyr_par8_a_fradrag_1981_for_gruppe_kroner(indkomstår, input)
+| husdyr_par8_b_fradragsramme_1981_kroner(input: HusdyrPar8Input) -> match input.indkomstår1981_forhold {
+    | HusdyrPar8IkkeIndkomstår1981 -> 0
+    | HusdyrPar8Indkomstår1981(samlet_normalhandelsværdi_kroner, samlet_normalpris_kroner, _) -> hvis input.indkomstår == 1981 { penge_positivt_beløb(penge_positivt_beløb(samlet_normalhandelsværdi_kroner) * 2 / 3 - penge_positivt_beløb(samlet_normalpris_kroner)) } ellers { 0 }
+}
+| husdyr_par8_ønsket_b_fradrag_1981_kroner(input: HusdyrPar8Input) -> match input.indkomstår1981_forhold {
+    | HusdyrPar8IkkeIndkomstår1981 -> 0
+    | HusdyrPar8Indkomstår1981(_, _, ønsket_b_fradrag_kroner) -> hvis input.indkomstår == 1981 { penge_positivt_beløb(ønsket_b_fradrag_kroner) } ellers { 0 }
+}
+| husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput) -> 0
+| exception husdyr_par8_b_fordelingsgruppe_kvæg_svin_får husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(indkomstår: Heltal, input: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_a_fradrag_for_gruppe_kroner(indkomstår, input) under indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(input.gruppe)
+| husdyr_par8_b_fordelingsgrundlag_kroner(input: HusdyrPar8Input) -> foldl(
+    input.grupper,
+    0,
+    |sum, gruppe| sum + husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(input.indkomstår, gruppe)
+)
+| husdyr_par8_b_fradrag_valgt_før_fordeling_kroner(input: HusdyrPar8Input) -> 0
+| exception husdyr_par8_b_fradrag_valgt_1981 husdyr_par8_b_fradrag_valgt_før_fordeling_kroner(input: HusdyrPar8Input) -> penge_mindste_beløb(
+    penge_mindste_beløb(husdyr_par8_ønsket_b_fradrag_1981_kroner(input), husdyr_par8_b_fradragsramme_1981_kroner(input)),
+    husdyr_par8_b_fordelingsgrundlag_kroner(input)
+) under input.indkomstår == 1981 && husdyr_par8_rettighedshaver_omfattet(input.rettighedshaver)
+| husdyr_par8_b_fradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> 0
+| exception husdyr_par8_b_fradrag_forholdsmæssigt husdyr_par8_b_fradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_b_fradrag_valgt_før_fordeling_kroner(input) * husdyr_par8_b_fordelingsgrundlag_for_gruppe_kroner(input.indkomstår, gruppe) / husdyr_par8_b_fordelingsgrundlag_kroner(input) under input.indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_b_fordelingsgrundlag_kroner(input) > 0
+| husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_a_fradrag_for_gruppe_kroner(input.indkomstår, gruppe) - husdyr_par8_b_fradrag_for_gruppe_kroner(input, gruppe)
+
+| husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 0
+| exception husdyr_par8_basisantal_5 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 5 under antal >= 5 && antal < 10
+| exception husdyr_par8_basisantal_10 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 10 under antal >= 10 && antal < 15
+| exception husdyr_par8_basisantal_15 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 15 under antal >= 15 && antal < 20
+| exception husdyr_par8_basisantal_20 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 20 under antal >= 20 && antal < 25
+| exception husdyr_par8_basisantal_25 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 25 under antal >= 25 && antal < 30
+| exception husdyr_par8_basisantal_30 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 30 under antal >= 30 && antal < 40
+| exception husdyr_par8_basisantal_40 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 40 under antal >= 40 && antal < 50
+| exception husdyr_par8_basisantal_50 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 50 under antal >= 50 && antal < 60
+| exception husdyr_par8_basisantal_60 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 60 under antal >= 60 && antal < 80
+| exception husdyr_par8_basisantal_80 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 80 under antal >= 80 && antal < 100
+| exception husdyr_par8_basisantal_100 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 100 under antal >= 100 && antal < 120
+| exception husdyr_par8_basisantal_120 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 120 under antal >= 120 && antal < 140
+| exception husdyr_par8_basisantal_140 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 140 under antal >= 140 && antal < 160
+| exception husdyr_par8_basisantal_160 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 160 under antal >= 160 && antal < 200
+| exception husdyr_par8_basisantal_200 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 200 under antal >= 200 && antal < 240
+| exception husdyr_par8_basisantal_240 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 240 under antal >= 240 && antal < 280
+| exception husdyr_par8_basisantal_280 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 280 under antal >= 280 && antal < 320
+| exception husdyr_par8_basisantal_320 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> 320 under antal >= 320 && antal < 360
+| exception husdyr_par8_basisantal_fra_360 husdyr_par8_basisantal_nedrundet(antal: Heltal) -> antal / 40 * 40 under antal >= 360
+| husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> 0
+| exception husdyr_par8_bek4_stk4_basis_under_5_eller_forskelsbeløb_højst_5000 husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) under input.indkomstår == 1981 && husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) > 0 && (gruppe.basisantal_1980 < 5 || husdyr_par8_forskelsbeløb_efter_c_fradrag_kroner(gruppe) <= 5000)
+| husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> 0
+| exception husdyr_par8_bek4_stk1_til_stk3_nedrundet_basisantal_reduceret husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> penge_mindste_beløb(
+    husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe),
+    husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) / husdyr_par8_basisantal_nedrundet(gruppe.basisantal_1980) * (husdyr_par8_basisantal_nedrundet(gruppe.basisantal_forrige_indkomstår) - husdyr_par8_basisantal_nedrundet(gruppe.basisantal_aktuelt_indkomstår))
+) under husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input, gruppe) == 0 && husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) > 5000 && husdyr_par8_basisantal_nedrundet(gruppe.basisantal_1980) > 0 && husdyr_par8_basisantal_nedrundet(gruppe.basisantal_aktuelt_indkomstår) < husdyr_par8_basisantal_nedrundet(gruppe.basisantal_forrige_indkomstår) && husdyr_par8_basisantal_nedrundet(gruppe.basisantal_aktuelt_indkomstår) < husdyr_par8_basisantal_nedrundet(gruppe.basisantal_1980)
+| husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) - husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input, gruppe) - husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input, gruppe)
+| husdyr_par8_restsaldo_fradrag_bek4_stk5_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> 0
+| exception husdyr_par8_bek4_stk5_restsaldo_højst_5000 husdyr_par8_restsaldo_fradrag_bek4_stk5_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input, gruppe) under husdyr_par8_reduktionsgruppe_omfattet(gruppe.gruppe) && husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input, gruppe) > 0 && husdyr_par8_resterende_efter_bek4_stk4_og_ordinært_fradrag_kroner(input, gruppe) <= 5000
+| husdyr_par8_reduktionsfradrag_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input, gruppe) + husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input, gruppe) + husdyr_par8_restsaldo_fradrag_bek4_stk5_for_gruppe_kroner(input, gruppe)
+| husdyr_par8_tilbageregulering_udløst(gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_basisantal_nedrundet(gruppe.højeste_antal_i_to_følgende_indkomstår) > husdyr_par8_basisantal_nedrundet(gruppe.reguleringstal_ved_begyndelsen_af_reduktionsåret)
+| husdyr_par8_tilbageregulering_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> 0
+| exception husdyr_par8_bek5_genforøgelse_i_to_følgende_år husdyr_par8_tilbageregulering_for_gruppe_kroner(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input, gruppe) under husdyr_par8_tilbageregulering_udløst(gruppe)
+
+| husdyr_par8_gruppe_resultat(input: HusdyrPar8Input, gruppe: HusdyrPar8GruppeInput) -> HusdyrPar8GruppeResultat(
+    gruppe = gruppe.gruppe,
+    oprindeligt_forskelsbeløb_kroner = husdyr_par8_forskelsbeløb_for_gruppe_kroner(gruppe),
+    c_fradrag_modregnet_kroner = husdyr_par8_c_fradrag_modregnet_for_gruppe_kroner(gruppe),
+    forskelsbeløb_efter_c_fradrag_kroner = husdyr_par8_forskelsbeløb_efter_c_fradrag_kroner(gruppe),
+    allerede_fradraget_før_indkomståret_kroner = husdyr_par8_allerede_fradraget_for_gruppe_kroner(gruppe),
+    resterende_før_ansættelsesændring_kroner = husdyr_par8_resterende_før_ansættelsesændring_for_gruppe_kroner(gruppe),
+    nedsættelse_modregnet_i_resterende_kroner = husdyr_par8_nedsættelse_modregnet_for_gruppe_kroner(gruppe),
+    overskydende_nedsættelse_til_skattepligtig_indkomst_kroner = husdyr_par8_overskydende_nedsættelse_for_gruppe_kroner(gruppe),
+    forhøjelse_til_resterende_kroner = husdyr_par8_forhøjelse_til_resterende_for_gruppe_kroner(gruppe),
+    forhøjelse_straksfradrag_kroner = husdyr_par8_forhøjelse_straksfradrag_for_gruppe_kroner(gruppe),
+    a_fradrag_1981_kroner = husdyr_par8_a_fradrag_1981_for_gruppe_kroner(input.indkomstår, gruppe),
+    b_fradrag_1981_kroner = husdyr_par8_b_fradrag_for_gruppe_kroner(input, gruppe),
+    fuldt_fradrag_efter_bek4_stk4_kroner = husdyr_par8_fuldt_fradrag_bek4_stk4_for_gruppe_kroner(input, gruppe),
+    ordinært_reduktionsfradrag_efter_bek4_stk1_til_stk3_kroner = husdyr_par8_ordinært_reduktionsfradrag_for_gruppe_kroner(input, gruppe),
+    restsaldo_fradrag_efter_bek4_stk5_kroner = husdyr_par8_restsaldo_fradrag_bek4_stk5_for_gruppe_kroner(input, gruppe),
+    reduktionsfradrag_før_tilbageregulering_kroner = husdyr_par8_reduktionsfradrag_for_gruppe_kroner(input, gruppe),
+    tilbageregulering_til_skattepligtig_indkomst_kroner = husdyr_par8_tilbageregulering_for_gruppe_kroner(input, gruppe),
+    fradrag_i_skattepligtig_indkomst_kroner = husdyr_par8_forhøjelse_straksfradrag_for_gruppe_kroner(gruppe) + husdyr_par8_a_fradrag_1981_for_gruppe_kroner(input.indkomstår, gruppe) + husdyr_par8_b_fradrag_for_gruppe_kroner(input, gruppe) + husdyr_par8_reduktionsfradrag_for_gruppe_kroner(input, gruppe) - husdyr_par8_tilbageregulering_for_gruppe_kroner(input, gruppe),
+    tillæg_til_skattepligtig_indkomst_kroner = husdyr_par8_overskydende_nedsættelse_for_gruppe_kroner(gruppe) + husdyr_par8_tilbageregulering_for_gruppe_kroner(input, gruppe),
+    resterende_forskelsbeløb_kroner = husdyr_par8_resterende_efter_b_fradrag_for_gruppe_kroner(input, gruppe) - husdyr_par8_reduktionsfradrag_for_gruppe_kroner(input, gruppe) + husdyr_par8_tilbageregulering_for_gruppe_kroner(input, gruppe)
+)
+
+| husdyr_par8_gruppe_resultater(input: HusdyrPar8Input) -> []
+| exception husdyr_par8_omfattet_grupper husdyr_par8_gruppe_resultater(input: HusdyrPar8Input) -> map(input.grupper, |gruppe: HusdyrPar8GruppeInput| husdyr_par8_gruppe_resultat(input, gruppe)) under husdyr_par8_rettighedshaver_omfattet(input.rettighedshaver)
+| husdyr_par8_sum_oprindeligt_forskelsbeløb_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.oprindeligt_forskelsbeløb_kroner)
+| husdyr_par8_sum_c_fradrag_modregnet_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.c_fradrag_modregnet_kroner)
+| husdyr_par8_sum_overskydende_c_fradrag_kroner(grupper: List(HusdyrPar8GruppeInput)) -> foldl(grupper, 0, |sum, gruppe| sum + husdyr_par8_overskydende_c_fradrag_for_gruppe_kroner(gruppe))
+| husdyr_par8_sum_resterende_før_ansættelsesændring_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.resterende_før_ansættelsesændring_kroner)
+| husdyr_par8_sum_nedsættelse_modregnet_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.nedsættelse_modregnet_i_resterende_kroner)
+| husdyr_par8_sum_overskydende_nedsættelse_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.overskydende_nedsættelse_til_skattepligtig_indkomst_kroner)
+| husdyr_par8_sum_forhøjelse_til_resterende_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.forhøjelse_til_resterende_kroner)
+| husdyr_par8_sum_forhøjelse_straksfradrag_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.forhøjelse_straksfradrag_kroner)
+| husdyr_par8_sum_a_fradrag_1981_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.a_fradrag_1981_kroner)
+| husdyr_par8_sum_b_fradrag_1981_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.b_fradrag_1981_kroner)
+| husdyr_par8_sum_fuldt_fradrag_bek4_stk4_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.fuldt_fradrag_efter_bek4_stk4_kroner)
+| husdyr_par8_sum_ordinært_reduktionsfradrag_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.ordinært_reduktionsfradrag_efter_bek4_stk1_til_stk3_kroner)
+| husdyr_par8_sum_restsaldo_fradrag_bek4_stk5_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.restsaldo_fradrag_efter_bek4_stk5_kroner)
+| husdyr_par8_sum_reduktionsfradrag_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.reduktionsfradrag_før_tilbageregulering_kroner)
+| husdyr_par8_sum_tilbageregulering_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.tilbageregulering_til_skattepligtig_indkomst_kroner)
+| husdyr_par8_sum_fradrag_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.fradrag_i_skattepligtig_indkomst_kroner)
+| husdyr_par8_sum_tillæg_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.tillæg_til_skattepligtig_indkomst_kroner)
+| husdyr_par8_sum_resterende_forskelsbeløb_kroner(resultater: List(HusdyrPar8GruppeResultat)) -> foldl(resultater, 0, |sum, resultat| sum + resultat.resterende_forskelsbeløb_kroner)
+
+# HusdyrPar8Sag(input: HusdyrPar8Input) {
+    | gruppe_resultater() -> husdyr_par8_gruppe_resultater(input)
+    | b_fradrag_ufordelt_afrunding_kroner() -> penge_positivt_beløb(husdyr_par8_b_fradrag_valgt_før_fordeling_kroner(input) - husdyr_par8_sum_b_fradrag_1981_kroner(gruppe_resultater()))
+    | øvrige_reduktionsfradrag_uden_tilbageregulering_kroner() -> husdyr_par8_sum_fuldt_fradrag_bek4_stk4_kroner(gruppe_resultater()) + husdyr_par8_sum_restsaldo_fradrag_bek4_stk5_kroner(gruppe_resultater())
+    | fradrag_før_tilbageregulering_kroner() -> husdyr_par8_sum_forhøjelse_straksfradrag_kroner(gruppe_resultater()) + husdyr_par8_sum_a_fradrag_1981_kroner(gruppe_resultater()) + husdyr_par8_sum_b_fradrag_1981_kroner(gruppe_resultater()) + husdyr_par8_sum_reduktionsfradrag_kroner(gruppe_resultater())
+    | resultat() -> HusdyrPar8Resultat(
+        indkomstår = input.indkomstår,
+        rettighedshaver = input.rettighedshaver,
+        rettighedshaver_omfattet = husdyr_par8_rettighedshaver_omfattet(input.rettighedshaver),
+        gruppe_resultater = gruppe_resultater(),
+        oprindeligt_forskelsbeløb_kroner = husdyr_par8_sum_oprindeligt_forskelsbeløb_kroner(gruppe_resultater()),
+        c_fradrag_modregnet_kroner = husdyr_par8_sum_c_fradrag_modregnet_kroner(gruppe_resultater()),
+        overskydende_c_fradrag_til_skattebetaling_kroner = husdyr_par8_sum_overskydende_c_fradrag_kroner(input.grupper),
+        resterende_før_ansættelsesændring_kroner = husdyr_par8_sum_resterende_før_ansættelsesændring_kroner(gruppe_resultater()),
+        nedsættelse_modregnet_i_resterende_kroner = husdyr_par8_sum_nedsættelse_modregnet_kroner(gruppe_resultater()),
+        overskydende_nedsættelse_til_skattepligtig_indkomst_kroner = husdyr_par8_sum_overskydende_nedsættelse_kroner(gruppe_resultater()),
+        forhøjelse_til_resterende_kroner = husdyr_par8_sum_forhøjelse_til_resterende_kroner(gruppe_resultater()),
+        forhøjelse_straksfradrag_kroner = husdyr_par8_sum_forhøjelse_straksfradrag_kroner(gruppe_resultater()),
+        a_fradrag_1981_kroner = husdyr_par8_sum_a_fradrag_1981_kroner(gruppe_resultater()),
+        b_fradrag_1981_kroner = husdyr_par8_sum_b_fradrag_1981_kroner(gruppe_resultater()),
+        b_fradrag_ufordelt_afrunding_kroner = b_fradrag_ufordelt_afrunding_kroner(),
+        ordinært_reduktionsfradrag_efter_bek4_stk1_til_stk3_kroner = husdyr_par8_sum_ordinært_reduktionsfradrag_kroner(gruppe_resultater()),
+        øvrige_reduktionsfradrag_uden_tilbageregulering_kroner = øvrige_reduktionsfradrag_uden_tilbageregulering_kroner(),
+        reduktionsfradrag_før_tilbageregulering_kroner = husdyr_par8_sum_reduktionsfradrag_kroner(gruppe_resultater()),
+        fradrag_før_eventuel_tilbageregulering_kroner = fradrag_før_tilbageregulering_kroner(),
+        tilbageregulering_til_skattepligtig_indkomst_kroner = husdyr_par8_sum_tilbageregulering_kroner(gruppe_resultater()),
+        fradrag_i_skattepligtig_indkomst_kroner = husdyr_par8_sum_fradrag_kroner(gruppe_resultater()),
+        tillæg_til_skattepligtig_indkomst_kroner = husdyr_par8_sum_tillæg_kroner(gruppe_resultater()),
+        resterende_forskelsbeløb_kroner = husdyr_par8_sum_resterende_forskelsbeløb_kroner(gruppe_resultater()),
+        særlig_aktivpost_påkrævet = husdyr_par8_sum_resterende_forskelsbeløb_kroner(gruppe_resultater()) > 0
+    )
+}
+| husdyr_par8_sag(input: HusdyrPar8Input) -> HusdyrPar8Sag(input)
+| husdyr_par8_resultat(input: HusdyrPar8Input) -> husdyr_par8_sag(input).resultat()
+
+| husdyr_par8_succession_omfattet(hjemmel: HusdyrPar8SuccessionHjemmel) -> hjemmel == HusdyrPar8Dødsboskattelov36 || hjemmel == HusdyrPar8Kildeskattelov33C
+| husdyr_par8_succession_andel_basispoint(input: HusdyrPar8SuccessionInput) -> penge_mindste_beløb(penge_positivt_beløb(input.overtaget_andel_basispoint), 10000)
+| husdyr_par8_succession_forskelsbeløb_kroner(input: HusdyrPar8SuccessionInput) -> 0
+| exception husdyr_par8_stk10_succession husdyr_par8_succession_forskelsbeløb_kroner(input: HusdyrPar8SuccessionInput) -> penge_beløb_gange_basispoint_kroner(
+    penge_positivt_beløb(input.resterende_forskelsbeløb_kroner),
+    husdyr_par8_succession_andel_basispoint(input)
+) under husdyr_par8_succession_omfattet(input.hjemmel)
+| husdyr_par8_succession_resultat(input: HusdyrPar8SuccessionInput) -> HusdyrPar8SuccessionResultat(
+    hjemmel = input.hjemmel,
+    succession_omfattet = husdyr_par8_succession_omfattet(input.hjemmel),
+    andel_af_resterende_forskelsbeløb_kroner = husdyr_par8_succession_forskelsbeløb_kroner(input),
+    skattemæssig_anskaffelsesværdi_kroner = penge_positivt_beløb(input.dødsboets_senest_benyttede_værdi_kroner) + husdyr_par8_succession_forskelsbeløb_kroner(input),
+    passivpostgrundlag_kroner = penge_positivt_beløb(input.dødsboets_senest_benyttede_værdi_kroner) + husdyr_par8_succession_forskelsbeløb_kroner(input)
+)
+--@end:husdyrbeskatningsloven_par8--

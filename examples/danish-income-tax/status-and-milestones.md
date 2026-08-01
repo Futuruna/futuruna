@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-2d84ec`
+Current focus issue: `td-3004db`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -21,17 +21,31 @@ grundværdier og definitionlinjer kan udstilles, og `runa meta --type` samt
 `--role` kan bruges som målrettede audit-sweeps uden at ændre programmets
 semantik. `runa meta --json` udstiller desuden det typede indeks som
 `futuruna.meta.v1` med råtekstankre, regelspans, symboler og strukturerede
-diagnostikker. Selskabsskattelovens historiske og gældende § 17-kilder var den
-første korpusblok med gentagne `source`-referencer; Personskattelovens § 3
-udstiller nu også en typet `warning` om ordlydsforskydningen i den dynamiske
-henvisning til Ligningsloven § 8 O fra 2026.
+diagnostikker. Spansymbolerne kommer fra parserens faktiske deklarationer, så
+`match`-grene ikke fejlagtigt optræder som regler, og både `|`-regler og
+`>`-funktioner indekseres. Selskabsskattelovens historiske og gældende §
+17-kilder var den første korpusblok med gentagne `source`-referencer;
+Personskattelovens § 3 udstiller nu også en typet `warning` om
+ordlydsforskydningen i den dynamiske henvisning til Ligningsloven § 8 O fra
+2026.
 
 Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Pensionsbeskatningsloven §§ 16, 18 og 52 er nu ført gennem
+Latest integration: Personskatteloven § 3, stk. 2, nr. 4-5 modtager nu typede
+resultater fra Husdyrbeskatningsloven §§ 2 og 8 og Varelagerloven § 1.
+Husdyrmodellen dækker normalhandelsværdi, handelsværdi efter indgående moms,
+15 pct.-loftet fra 2003, særskilte forskelsbeløb for dyregrupperne, A-, B- og
+C-fradrag, basisantal, restsaldo og den toårige tilbageregulering efter BEK nr.
+543/1981. Ordinære reduktionsfradrag holdes adskilt fra de fulde fradrag, som
+ikke tilbagereguleres. Både fradrag og § 8-tillæg føres videre til personlig
+indkomst. Varelagergrenen dækker de tre opgørelsesmåder, varegrupper, indgående
+moms og satsrækken 1993-1998+, herunder den aktuelle 0 pct.-virkning. Den
+fokuserede scenario-fil validerer 13 betingelser og den fælles § 3-kaskade.
+
+Previous integration: Pensionsbeskatningsloven §§ 16, 18 og 52 er nu ført gennem
 en typet § 3, stk. 2, nr. 3-regelkaskade. § 16 leverer de regulerede brutto-
 lofter, mens § 18 selv anvender arbejdsgiverreduktionen efter stk. 2,
 tiårsfordeling, opfyldningsfradrag, selvstændiges 30 pct.-valg,
@@ -91,7 +105,7 @@ korrektionsbeløb og kommunens forholdsmæssige andel. Andelen føres tilbage ti
 § 16, stk. 2 og fratrækkes efterreguleringen før januar/februar/marts-raterne.
 LOV 720/2025's § 2 og virkningsbestemmelsen fra tilskudsåret 2026 er bevaret
 ordret i en `--@source`-blok, hvis regelsymboler kan aflæses med `runa meta`.
-Den officielle metadata-refresh validerer nu 34 kilder uden drift.
+Den officielle metadata-refresh validerer nu 37 kilder uden drift.
 
 Arbejdsmarkedsbidragsloven § 3 er nu en typet
 `ArbejdsmarkedsbidragPar3UdelukkelseResultat` med særskilte beløb for nr. 1-5.
@@ -351,15 +365,15 @@ Current source-refresh finding:
 - The official XML `Status` fields remained unchanged: the working/dependency
   sources still report `Valid`, while `2019/799` reports `Historic`.
 - Every tracked `Valid` source now has an XML `EndDate` horizon before
-  2026-07-03, so `source-status.runa` distinguishes formal legal validity from
+  2026-07-12, so `source-status.runa` distinguishes formal legal validity from
   current-day automation freshness.
 - `AktuelSkatteberegning` still accepts formally valid sources; the new
   `DagsaktuelAutomatiskBeregning` purpose rejects sources whose metadata horizon
-  does not cover `20260703`.
-- `scripts/refresh-danish-tax-source-status.py --today 20260703 --fail-on-drift`
+  does not cover `20260712`.
+- `scripts/refresh-danish-tax-source-status.py --today 20260712 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
   drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 33 records with 0 drift and 0 fetch/parse errors.
+  checked 37 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:
 
@@ -408,6 +422,25 @@ Current Personskatteloven amendment sources:
   - § 12 changes § 4, stk. 1, nr. 6's Ejendomsskatteloven § 3 reference from
     nr. 1-5, 9 and 10 to nr. 1-4, 8 and 9.
   - § 16, stk. 5 gives the § 12 change effect from income year 2027.
+
+Current § 3, stk. 2, nr. 4-5 dependency sources:
+
+- Husdyrbeskatningsloven:
+  `https://www.retsinformation.dk/eli/lta/2025/1099`
+  - XML status on 2026-07-18: `Valid`.
+  - § 2 supplies the current valuation and 15 pct. write-down rules; § 8
+    supplies the historical difference-amount transition and taxable
+    adjustment consequences.
+- Difference-amount regulation:
+  `https://www.retsinformation.dk/eli/lta/1981/543`
+  - XML status on 2026-07-18: `Valid`.
+  - §§ 1-5 supply the A-, B- and C-deduction ordering, group allocation,
+    basis-count ladder, full close-out and recapture mechanics.
+- Varelagerloven:
+  `https://www.retsinformation.dk/eli/lta/2025/1088`
+  - XML status on 2026-07-18: `Valid`.
+  - § 1 supplies the valuation methods, VAT exclusion, eligible inventory
+    groups and the historical rate schedule ending at 0 pct. from 1998.
 
 Current Selskabsskatteloven dependency source:
 
@@ -1033,8 +1066,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: roughly 72-82% complete as an executable research corpus,
-  and roughly 58-68% complete as a production-grade calculator for
+- Working estimate: roughly 74-84% complete as an executable research corpus,
+  and roughly 60-70% complete as a production-grade calculator for
   Personskatteloven plus its necessary dependencies.
 - Current priority: close source-backed calculation gaps in the law itself.
   Audits should validate newly implemented slices; deeper exploratory "bomb"

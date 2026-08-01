@@ -3,7 +3,7 @@
 -- Personskatteloven — kildegrundlag og første lovstruktur.
 --
 -- Metadata-refresh check:
--- scripts/refresh-danish-tax-source-status.py --today 20260703 --fail-on-drift
+-- scripts/refresh-danish-tax-source-status.py --today 20260712 --fail-on-drift
 -- Replace --today with the refresh date in YYYYMMDD form.
 -- The script fetches official Retsinformation XML for every Retskilde record
 -- below and reports semantic drift; it does not rewrite the legal model.
@@ -54,6 +54,17 @@
 -- Retsinformation, LBK nr. 1181 af 21/09/2023.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2023/1181
 -- XML: https://www.retsinformation.dk/eli/lta/2023/1181/dan/xml
+--
+-- Afhængige kilder for § 3, stk. 2, nr. 4-5:
+-- Retsinformation, LBK nr. 1099 af 01/09/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1099
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1099/dan/xml
+-- Retsinformation, BEK nr. 543 af 16/11/1981.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/1981/543
+-- XML: https://www.retsinformation.dk/eli/lta/1981/543/dan/xml
+-- Retsinformation, LBK nr. 1088 af 02/09/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1088
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1088/dan/xml
 --
 -- Historisk kildelinje fra projektoplægget:
 -- Retsinformation, LBK nr. 799 af 07/08/2019.
@@ -385,6 +396,29 @@ DiesSigni: 2020-11-02
 StartDate: 2020-11-12
 EndDate: 2026-06-23
 DateOfHistoricMark: 2026-01-27
+
+Officiel XML-metadata for 2025/1099, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om den skattemæssige behandling af husdyrbesætninger
+PopularTitle: Husdyrbeskatningsloven
+Status: Valid
+DiesSigni: 2025-09-01
+StartDate: 2025-09-16
+EndDate: 2026-06-23
+
+Officiel XML-metadata for 1981/543, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse om opgørelse og fradrag for forskelsbeløb m.v. vedrørende landbrugets husdyrbesætninger
+Status: Valid
+DiesSigni: 1981-11-16
+StartDate: 1997-09-25
+EndDate: 2026-06-23
+
+Officiel XML-metadata for 2025/1088, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af lov om skattemæssig opgørelse af varelagre m.v.
+PopularTitle: Varelagerloven
+Status: Valid
+DiesSigni: 2025-09-02
+StartDate: 2025-09-09
+EndDate: 2026-06-24
 ----
 
 # Kildestatus = Gældende | Historisk
@@ -517,6 +551,33 @@ DateOfHistoricMark: 2026-01-27
     status = Gældende,
     hentet_yyyymmdd = 20260718,
     metadata_start_yyyymmdd = 20230926,
+    metadata_end_yyyymmdd = 20260624
+)
+= husdyrbeskatningsloven_2025_1099 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2025/1099",
+    år = 2025,
+    nummer = 1099,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20250916,
+    metadata_end_yyyymmdd = 20260623
+)
+= husdyr_forskelsbeløb_bekendtgørelse_1981_543 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/1981/543",
+    år = 1981,
+    nummer = 543,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 19970925,
+    metadata_end_yyyymmdd = 20260623
+)
+= varelagerloven_2025_1088 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2025/1088",
+    år = 2025,
+    nummer = 1088,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20250909,
     metadata_end_yyyymmdd = 20260624
 )
 = arbejdsmarkedsbidragsloven_2020_121 = Retskilde(
@@ -706,6 +767,9 @@ DateOfHistoricMark: 2026-01-27
 | kilde_er_selskabsskatteloven(kilde: Retskilde) -> (kilde.nummer == 1241 && kilde.år == 2022) || (kilde.nummer == 279 && kilde.år == 2025)
 | kilde_er_pensionsbeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1243 && kilde.år == 2024
 | kilde_er_sømandsbeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1181 && kilde.år == 2023
+| kilde_er_husdyrbeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1099 && kilde.år == 2025
+| kilde_er_husdyr_forskelsbeløb_bekendtgørelse(kilde: Retskilde) -> kilde.nummer == 543 && kilde.år == 1981
+| kilde_er_varelagerloven(kilde: Retskilde) -> kilde.nummer == 1088 && kilde.år == 2025
 | kilde_er_arbejdsmarkedsbidragsloven(kilde: Retskilde) -> kilde.nummer == 121 && kilde.år == 2020
 | kilde_er_arbejdsmarkedsbidrag_aendring(kilde: Retskilde) -> kilde.nummer == 96 && kilde.år == 2025
 | kilde_er_kommuneskatteloven(kilde: Retskilde) -> kilde.nummer == 935 && kilde.år == 2019
@@ -746,6 +810,7 @@ DateOfHistoricMark: 2026-01-27
 = selskabsskattelov_historisk_til_audit = kilde_egnet_til_formål(selskabsskatteloven_2022_1241, HistoriskAudit)
 = pensionsbeskatningslov_til_aktuel_beregning = kilde_egnet_til_formål(pensionsbeskatningsloven_2024_1243, AktuelSkatteberegning)
 = sømandsbeskatningslov_til_aktuel_beregning = kilde_egnet_til_formål(sømandsbeskatningsloven_2023_1181, AktuelSkatteberegning)
+= husdyr_varelager_kilder_til_aktuel_beregning = kilde_egnet_til_formål(husdyrbeskatningsloven_2025_1099, AktuelSkatteberegning) && kilde_egnet_til_formål(husdyr_forskelsbeløb_bekendtgørelse_1981_543, AktuelSkatteberegning) && kilde_egnet_til_formål(varelagerloven_2025_1088, AktuelSkatteberegning)
 = am_lov_til_aktuel_beregning = kilde_egnet_til_formål(arbejdsmarkedsbidragsloven_2020_121, AktuelSkatteberegning)
 = am_aendring_til_aktuel_beregning = kilde_egnet_til_formål(arbejdsmarkedsbidrag_aendring_2025_96, AktuelSkatteberegning)
 = kommuneskattelov_til_aktuel_beregning = kilde_egnet_til_formål(kommuneskatteloven_2019_935, AktuelSkatteberegning)
@@ -771,6 +836,7 @@ DateOfHistoricMark: 2026-01-27
 = par8b_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(selskabsskatteloven_2025_279)
 = par8b_historisk_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(selskabsskatteloven_2022_1241)
 = par13_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(pensionsbeskatningsloven_2024_1243) && kilde_hentet_på_statusdato(sømandsbeskatningsloven_2023_1181)
+= par3_nr4_nr5_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(husdyrbeskatningsloven_2025_1099) && kilde_hentet_på_statusdato(husdyr_forskelsbeløb_bekendtgørelse_1981_543) && kilde_hentet_på_statusdato(varelagerloven_2025_1088)
 = am_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(arbejdsmarkedsbidragsloven_2020_121) && kilde_hentet_på_statusdato(arbejdsmarkedsbidrag_aendring_2025_96)
 = kommunal_folkekirke_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(kommuneskatteloven_2019_935) && kilde_hentet_på_statusdato(folkekirkens_økonomilov_2023_424) && kilde_hentet_på_statusdato(folkekirke_økonomi_aendring_2025_1772)
 = kildeskat_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(kildeskatteloven_2024_460) && kilde_hentet_på_statusdato(kildeskattebekendtgørelsen_2025_839) && kilde_hentet_på_statusdato(forskudsregistrering_indeholdelsesprocent_2025_1094) && kilde_hentet_på_statusdato(forskudsregistrering_indeholdelsesprocent_aendring_2025_1828)
@@ -780,11 +846,12 @@ DateOfHistoricMark: 2026-01-27
 = virksomhedsskattelov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(virksomhedsskatteloven_2021_1836)
 = ejendomsskattelov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(ejendomsskatteloven_2023_678)
 = ejendomsværdiskattelov_historisk_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(ejendomsværdiskatteloven_2020_1590)
-= gældende_kilder_hentet_på_statusdato = personskat_kilder_hentet_på_statusdato && par8b_dependency_kilder_hentet_på_statusdato && par13_dependency_kilder_hentet_på_statusdato && am_kilder_hentet_på_statusdato && kommunal_folkekirke_kilder_hentet_på_statusdato && kildeskat_kilder_hentet_på_statusdato && opkrævning_ligning_kilder_hentet_på_statusdato && kursgevinstlov_kilder_hentet_på_statusdato && aktieavancebeskatningslov_kilder_hentet_på_statusdato && virksomhedsskattelov_kilder_hentet_på_statusdato && ejendomsskattelov_kilder_hentet_på_statusdato
+= gældende_kilder_hentet_på_statusdato = personskat_kilder_hentet_på_statusdato && par8b_dependency_kilder_hentet_på_statusdato && par13_dependency_kilder_hentet_på_statusdato && par3_nr4_nr5_dependency_kilder_hentet_på_statusdato && am_kilder_hentet_på_statusdato && kommunal_folkekirke_kilder_hentet_på_statusdato && kildeskat_kilder_hentet_på_statusdato && opkrævning_ligning_kilder_hentet_på_statusdato && kursgevinstlov_kilder_hentet_på_statusdato && aktieavancebeskatningslov_kilder_hentet_på_statusdato && virksomhedsskattelov_kilder_hentet_på_statusdato && ejendomsskattelov_kilder_hentet_på_statusdato
 
 = personskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(personskatteloven_2021_1284) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2022_252) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2023_610) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ejendom_overgang_aendring_2023_679) && kilde_formelt_gældende_men_metadata_udløbet(personskat_personfradrag_aendring_2023_1564) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2024_108) && kilde_formelt_gældende_men_metadata_udløbet(personskat_reform_2024_482) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ivaerksaetter_aendring_2024_1691) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ejendom_aendring_2026_615)
 = par8b_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(selskabsskatteloven_2025_279)
 = par13_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(pensionsbeskatningsloven_2024_1243) && kilde_formelt_gældende_men_metadata_udløbet(sømandsbeskatningsloven_2023_1181)
+= par3_nr4_nr5_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(husdyrbeskatningsloven_2025_1099) && kilde_formelt_gældende_men_metadata_udløbet(husdyr_forskelsbeløb_bekendtgørelse_1981_543) && kilde_formelt_gældende_men_metadata_udløbet(varelagerloven_2025_1088)
 = am_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(arbejdsmarkedsbidragsloven_2020_121) && kilde_formelt_gældende_men_metadata_udløbet(arbejdsmarkedsbidrag_aendring_2025_96)
 = kommunal_folkekirke_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(kommuneskatteloven_2019_935) && kilde_formelt_gældende_men_metadata_udløbet(folkekirkens_økonomilov_2023_424) && kilde_formelt_gældende_men_metadata_udløbet(folkekirke_økonomi_aendring_2025_1772)
 = kildeskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(kildeskatteloven_2024_460) && kilde_formelt_gældende_men_metadata_udløbet(kildeskattebekendtgørelsen_2025_839) && kilde_formelt_gældende_men_metadata_udløbet(forskudsregistrering_indeholdelsesprocent_2025_1094) && kilde_formelt_gældende_men_metadata_udløbet(forskudsregistrering_indeholdelsesprocent_aendring_2025_1828)
@@ -793,7 +860,7 @@ DateOfHistoricMark: 2026-01-27
 = aktieavancebeskatningslov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(aktieavancebeskatningsloven_2025_1098)
 = virksomhedsskattelov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(virksomhedsskatteloven_2021_1836)
 = ejendomsskattelov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(ejendomsskatteloven_2023_678)
-= alle_gældende_kilder_metadata_horisont_udløbet = personskat_kilder_metadata_horisont_udløbet && par8b_dependency_kilder_metadata_horisont_udløbet && par13_dependency_kilder_metadata_horisont_udløbet && am_kilder_metadata_horisont_udløbet && kommunal_folkekirke_kilder_metadata_horisont_udløbet && kildeskat_kilder_metadata_horisont_udløbet && opkrævning_ligning_kilder_metadata_horisont_udløbet && kursgevinstlov_kilder_metadata_horisont_udløbet && aktieavancebeskatningslov_kilder_metadata_horisont_udløbet && virksomhedsskattelov_kilder_metadata_horisont_udløbet && ejendomsskattelov_kilder_metadata_horisont_udløbet
+= alle_gældende_kilder_metadata_horisont_udløbet = personskat_kilder_metadata_horisont_udløbet && par8b_dependency_kilder_metadata_horisont_udløbet && par13_dependency_kilder_metadata_horisont_udløbet && par3_nr4_nr5_dependency_kilder_metadata_horisont_udløbet && am_kilder_metadata_horisont_udløbet && kommunal_folkekirke_kilder_metadata_horisont_udløbet && kildeskat_kilder_metadata_horisont_udløbet && opkrævning_ligning_kilder_metadata_horisont_udløbet && kursgevinstlov_kilder_metadata_horisont_udløbet && aktieavancebeskatningslov_kilder_metadata_horisont_udløbet && virksomhedsskattelov_kilder_metadata_horisont_udløbet && ejendomsskattelov_kilder_metadata_horisont_udløbet
 
 | historisk_kilde_afvises_til_aktuel_beregning: historisk_til_aktuel_beregning -> historisk_til_aktuel_beregning == Falskt
 | gældende_kilde_accepteres_til_aktuel_beregning: gældende_til_aktuel_beregning -> gældende_til_aktuel_beregning == Sandt
@@ -807,6 +874,9 @@ DateOfHistoricMark: 2026-01-27
 | selskabsskattelov_historisk_hentet_på_statusdato: par8b_historisk_dependency_kilder_hentet_på_statusdato -> par8b_historisk_dependency_kilder_hentet_på_statusdato == Sandt
 | pensionsbeskatningslov_accepteres_til_aktuel_beregning: pensionsbeskatningslov_til_aktuel_beregning -> pensionsbeskatningslov_til_aktuel_beregning == Sandt
 | sømandsbeskatningslov_accepteres_til_aktuel_beregning: sømandsbeskatningslov_til_aktuel_beregning -> sømandsbeskatningslov_til_aktuel_beregning == Sandt
+| husdyr_varelager_kilder_accepteres_til_aktuel_beregning: husdyr_varelager_kilder_til_aktuel_beregning -> husdyr_varelager_kilder_til_aktuel_beregning == Sandt
+| husdyr_varelager_kilder_hentet_på_statusdato: par3_nr4_nr5_dependency_kilder_hentet_på_statusdato -> par3_nr4_nr5_dependency_kilder_hentet_på_statusdato == Sandt
+| husdyr_varelager_metadata_horisont_udløbet: par3_nr4_nr5_dependency_kilder_metadata_horisont_udløbet -> par3_nr4_nr5_dependency_kilder_metadata_horisont_udløbet == Sandt
 | arbejdsmarkedsbidragslov_accepteres_til_aktuel_beregning: am_lov_til_aktuel_beregning -> am_lov_til_aktuel_beregning == Sandt
 | arbejdsmarkedsbidrag_aendring_accepteres_til_aktuel_beregning: am_aendring_til_aktuel_beregning -> am_aendring_til_aktuel_beregning == Sandt
 | kommuneskattelov_accepteres_til_aktuel_beregning: kommuneskattelov_til_aktuel_beregning -> kommuneskattelov_til_aktuel_beregning == Sandt

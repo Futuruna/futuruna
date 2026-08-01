@@ -85,12 +85,32 @@ fratrækkes i personlig indkomst. Kilderne er
 [Pensionsbeskatningsloven, LBK nr. 1243/2024](https://www.retsinformation.dk/eli/lta/2024/1243)
 og [Skatteministeriets beløbsgrænser](https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/pensionsbeskatningsloven).
 
+Personskatteloven § 3, stk. 2, nr. 4 er nu forbundet med typede resultater fra
+Husdyrbeskatningsloven §§ 2 og 8. Den aktuelle § 2-vej håndterer
+normalhandelsværdi, handelsværdi uden fradragsberettiget moms og loftet på 15
+pct. § 8-vejens historiske overgangsordning holder kvæg, svin, får og heste
+adskilt og modellerer A-, B- og C-fradrag, basisantal, restsaldo,
+tilbageregulering og de tillæg til personlig indkomst, som en regulering kan
+udløse. Kilderne er
+[Husdyrbeskatningsloven, LBK nr. 1099/2025](https://www.retsinformation.dk/eli/lta/2025/1099),
+[BEK nr. 543/1981](https://www.retsinformation.dk/eli/lta/1981/543) og
+[Skattestyrelsens blanket 04.013](https://skat.dk/media/3nbjrsem/04013_dk_-final_16325.pdf).
+
+Personskatteloven § 3, stk. 2, nr. 5 modtager tilsvarende et typet resultat fra
+Varelagerloven § 1. Reglerne vælger opgørelsesmåde pr. varegruppe, fjerner
+fradragsberettiget indgående moms og anvender den historiske satsrække. Det gør
+også en usædvanlig lovrest synlig: henvisningen står stadig i
+Personskatteloven, men den højeste nedskrivningssats har været 0 pct. siden
+1998. Kilden er
+[Varelagerloven, LBK nr. 1088/2025](https://www.retsinformation.dk/eli/lta/2025/1088).
+
 Korpussets meta-kommentarer kan nu også læses maskinelt med
-`runa meta --json`. Typede `source`, `guidance` og `warning`-referencer peger
-fra ordret lovtekst til de tilhørende regelspans uden at ændre Futurunas
-programsemantik. En hel kildemappe kan gennemsøges rekursivt efter vilkårlig
-referencetype eller rolle, f.eks. `--type PensionsbeskatningslovKildeInfo` eller
-`--role warning`.
+`runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,
+ikke indbyggede særtilfælde: enhver rolle kan pege på en almindelig Futuruna-
+binding, og bindingens domænetype bliver søgbar i indekset. Sådan kan ordret
+lovtekst, supplerende kilder og regelspans kobles uden at ændre programmets
+semantik. En hel kildemappe kan gennemsøges rekursivt efter vilkårlig type eller
+rolle, f.eks. `--type HusdyrbeskatningslovKildeInfo` eller `--role warning`.
 
 ## Eksempel
 

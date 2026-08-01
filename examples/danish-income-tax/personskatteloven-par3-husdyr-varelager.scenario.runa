@@ -1,0 +1,333 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for Husdyrbeskatningsloven §§ 2 og 8,
+-- bekendtgørelse nr. 543 af 16. november 1981 §§ 1-5,
+-- Varelagerloven § 1 og Personskatteloven § 3, stk. 2, nr. 4-5.
+-- Lovtekst og kildeankre ligger i de importerede lovmoduler.
+
+= husdyr_par2_normalværdi_2026 = husdyr_par2_resultat(HusdyrPar2Input(
+    indkomstår = 2026,
+    skatteyder = HusdyrLandbrugerPerson,
+    værdiansættelse = HusdyrNormalhandelsværdi(
+        normalhandelsværdi_kroner = 200000
+    ),
+    ønsket_nedskrivning_kroner = 50000
+))
+
+= husdyr_par2_handelsværdi_efter_moms_2026 = husdyr_par2_resultat(HusdyrPar2Input(
+    indkomstår = 2026,
+    skatteyder = HusdyrLandbrugerPerson,
+    værdiansættelse = HusdyrHandelsværdi(
+        normalhandelsværdi_kroner = 100000,
+        handelsværdi_inklusive_eventuel_indgående_moms_kroner = 150000,
+        fradragsberettiget_indgående_moms_kroner = 30000
+    ),
+    ønsket_nedskrivning_kroner = 20000
+))
+
+= husdyr_par2_selskab_2026 = husdyr_par2_resultat(HusdyrPar2Input(
+    indkomstår = 2026,
+    skatteyder = HusdyrLandbrugerSelskab,
+    værdiansættelse = HusdyrNormalhandelsværdi(
+        normalhandelsværdi_kroner = 200000
+    ),
+    ønsket_nedskrivning_kroner = 50000
+))
+
+= husdyr_par8_tomt_2026 = husdyr_par8_resultat(HusdyrPar8Input(
+    indkomstår = 2026,
+    rettighedshaver = HusdyrPar8Landbruger,
+    grupper = [],
+    indkomstår1981_forhold = HusdyrPar8IkkeIndkomstår1981
+))
+
+= husdyr_par8_gruppevis_reduktion_2026 = husdyr_par8_resultat(HusdyrPar8Input(
+    indkomstår = 2026,
+    rettighedshaver = HusdyrPar8Landbruger,
+    grupper = [
+        HusdyrPar8GruppeInput(
+            gruppe = HusdyrPar8Kvæg,
+            grundlag = HusdyrPar8OrdinærtForskelsgrundlag(
+                normalhandelsværdi_1980_kroner = 200000,
+                normalpris_eller_lavere_handelsværdi_1980_kroner = 100000
+            ),
+            c_fradrag_fordelt_til_gruppen_kroner = 0,
+            allerede_fradraget_før_indkomståret_kroner = 0,
+            ansættelsesændring = HusdyrPar8IngenAnsættelsesændring,
+            basisantal_1980 = 100,
+            basisantal_forrige_indkomstår = 100,
+            basisantal_aktuelt_indkomstår = 80,
+            reguleringstal_ved_begyndelsen_af_reduktionsåret = 0,
+            højeste_antal_i_to_følgende_indkomstår = 0
+        ),
+        HusdyrPar8GruppeInput(
+            gruppe = HusdyrPar8Svin,
+            grundlag = HusdyrPar8MinisterfastsatForskelsbeløb(
+                beløb_kroner = 10000
+            ),
+            c_fradrag_fordelt_til_gruppen_kroner = 0,
+            allerede_fradraget_før_indkomståret_kroner = 0,
+            ansættelsesændring = HusdyrPar8IngenAnsættelsesændring,
+            basisantal_1980 = 50,
+            basisantal_forrige_indkomstår = 50,
+            basisantal_aktuelt_indkomstår = 50,
+            reguleringstal_ved_begyndelsen_af_reduktionsåret = 0,
+            højeste_antal_i_to_følgende_indkomstår = 0
+        ),
+        HusdyrPar8GruppeInput(
+            gruppe = HusdyrPar8Heste,
+            grundlag = HusdyrPar8MinisterfastsatForskelsbeløb(
+                beløb_kroner = 4000
+            ),
+            c_fradrag_fordelt_til_gruppen_kroner = 0,
+            allerede_fradraget_før_indkomståret_kroner = 0,
+            ansættelsesændring = HusdyrPar8IngenAnsættelsesændring,
+            basisantal_1980 = 20,
+            basisantal_forrige_indkomstår = 20,
+            basisantal_aktuelt_indkomstår = 0,
+            reguleringstal_ved_begyndelsen_af_reduktionsåret = 0,
+            højeste_antal_i_to_følgende_indkomstår = 0
+        )
+    ],
+    indkomstår1981_forhold = HusdyrPar8IkkeIndkomstår1981
+))
+
+= husdyr_par8_tilbageregulering_2024 = husdyr_par8_resultat(HusdyrPar8Input(
+    indkomstår = 2024,
+    rettighedshaver = HusdyrPar8Landbruger,
+    grupper = [
+        HusdyrPar8GruppeInput(
+            gruppe = HusdyrPar8Kvæg,
+            grundlag = HusdyrPar8MinisterfastsatForskelsbeløb(
+                beløb_kroner = 50000
+            ),
+            c_fradrag_fordelt_til_gruppen_kroner = 0,
+            allerede_fradraget_før_indkomståret_kroner = 0,
+            ansættelsesændring = HusdyrPar8IngenAnsættelsesændring,
+            basisantal_1980 = 50,
+            basisantal_forrige_indkomstår = 50,
+            basisantal_aktuelt_indkomstår = 40,
+            reguleringstal_ved_begyndelsen_af_reduktionsåret = 50,
+            højeste_antal_i_to_følgende_indkomstår = 60
+        )
+    ],
+    indkomstår1981_forhold = HusdyrPar8IkkeIndkomstår1981
+))
+
+= husdyr_par8_restsaldo_og_tilbageregulering_2024 = husdyr_par8_resultat(HusdyrPar8Input(
+    indkomstår = 2024,
+    rettighedshaver = HusdyrPar8Landbruger,
+    grupper = [
+        HusdyrPar8GruppeInput(
+            gruppe = HusdyrPar8Kvæg,
+            grundlag = HusdyrPar8MinisterfastsatForskelsbeløb(
+                beløb_kroner = 6000
+            ),
+            c_fradrag_fordelt_til_gruppen_kroner = 0,
+            allerede_fradraget_før_indkomståret_kroner = 0,
+            ansættelsesændring = HusdyrPar8IngenAnsættelsesændring,
+            basisantal_1980 = 50,
+            basisantal_forrige_indkomstår = 50,
+            basisantal_aktuelt_indkomstår = 40,
+            reguleringstal_ved_begyndelsen_af_reduktionsåret = 50,
+            højeste_antal_i_to_følgende_indkomstår = 60
+        )
+    ],
+    indkomstår1981_forhold = HusdyrPar8IkkeIndkomstår1981
+))
+
+= husdyr_par8_a_b_fradrag_1981 = husdyr_par8_resultat(HusdyrPar8Input(
+    indkomstår = 1981,
+    rettighedshaver = HusdyrPar8Landbruger,
+    grupper = [
+        HusdyrPar8GruppeInput(
+            gruppe = HusdyrPar8Kvæg,
+            grundlag = HusdyrPar8OrdinærtForskelsgrundlag(
+                normalhandelsværdi_1980_kroner = 200000,
+                normalpris_eller_lavere_handelsværdi_1980_kroner = 100000
+            ),
+            c_fradrag_fordelt_til_gruppen_kroner = 0,
+            allerede_fradraget_før_indkomståret_kroner = 0,
+            ansættelsesændring = HusdyrPar8IngenAnsættelsesændring,
+            basisantal_1980 = 100,
+            basisantal_forrige_indkomstår = 100,
+            basisantal_aktuelt_indkomstår = 100,
+            reguleringstal_ved_begyndelsen_af_reduktionsåret = 0,
+            højeste_antal_i_to_følgende_indkomstår = 0
+        ),
+        HusdyrPar8GruppeInput(
+            gruppe = HusdyrPar8Svin,
+            grundlag = HusdyrPar8OrdinærtForskelsgrundlag(
+                normalhandelsværdi_1980_kroner = 100000,
+                normalpris_eller_lavere_handelsværdi_1980_kroner = 50000
+            ),
+            c_fradrag_fordelt_til_gruppen_kroner = 0,
+            allerede_fradraget_før_indkomståret_kroner = 0,
+            ansættelsesændring = HusdyrPar8IngenAnsættelsesændring,
+            basisantal_1980 = 50,
+            basisantal_forrige_indkomstår = 50,
+            basisantal_aktuelt_indkomstår = 50,
+            reguleringstal_ved_begyndelsen_af_reduktionsåret = 0,
+            højeste_antal_i_to_følgende_indkomstår = 0
+        ),
+        HusdyrPar8GruppeInput(
+            gruppe = HusdyrPar8Heste,
+            grundlag = HusdyrPar8OrdinærtForskelsgrundlag(
+                normalhandelsværdi_1980_kroner = 80000,
+                normalpris_eller_lavere_handelsværdi_1980_kroner = 40000
+            ),
+            c_fradrag_fordelt_til_gruppen_kroner = 0,
+            allerede_fradraget_før_indkomståret_kroner = 0,
+            ansættelsesændring = HusdyrPar8IngenAnsættelsesændring,
+            basisantal_1980 = 20,
+            basisantal_forrige_indkomstår = 20,
+            basisantal_aktuelt_indkomstår = 20,
+            reguleringstal_ved_begyndelsen_af_reduktionsåret = 0,
+            højeste_antal_i_to_følgende_indkomstår = 0
+        )
+    ],
+    indkomstår1981_forhold = HusdyrPar8Indkomstår1981(
+        samlet_normalhandelsværdi_1980_kroner = 380000,
+        samlet_normalpris_1980_kroner = 190000,
+        ønsket_b_fradrag_kroner = 30000
+    )
+))
+
+= husdyr_par3_nr4_gruppevis = par3_stk2_nr4_resultat(Par3Stk2Nr4Input(
+    husdyr_par2_resultat = husdyr_par2_normalværdi_2026,
+    husdyr_par8_resultat = husdyr_par8_gruppevis_reduktion_2026
+))
+
+= husdyr_par3_nr4_selskab = par3_stk2_nr4_resultat(Par3Stk2Nr4Input(
+    husdyr_par2_resultat = husdyr_par2_selskab_2026,
+    husdyr_par8_resultat = husdyr_par8_tomt_2026
+))
+
+= husdyr_par3_nr4_tilbageregulering_input = Par3Stk2Nr4Input(
+    husdyr_par2_resultat = husdyr_par2_resultat(HusdyrPar2Input(
+        indkomstår = 2024,
+        skatteyder = HusdyrLandbrugerPerson,
+        værdiansættelse = HusdyrNormalhandelsværdi(
+            normalhandelsværdi_kroner = 0
+        ),
+        ønsket_nedskrivning_kroner = 0
+    )),
+    husdyr_par8_resultat = husdyr_par8_tilbageregulering_2024
+)
+
+= husdyr_par3_tilbageregulering_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 100000
+        ),
+        par3_stk2_nr4_forskelsbeløbstillæg_indkomstpost(husdyr_par3_nr4_tilbageregulering_input)
+    ],
+    fradragsposter = [
+        par3_stk2_nr4_fradragspost(husdyr_par3_nr4_tilbageregulering_input)
+    ]
+))
+
+= varelager_varegrupper = [
+    VarelagerPar1Post(
+        art = VarelagerVarer,
+        opgørelsesmåde = VarelagerFakturapris(
+            indkøbspris_kroner = 100000,
+            fragt_told_og_lignende_kroner = 10000
+        ),
+        fradragsberettiget_indgående_moms_kroner = 10000
+    ),
+    VarelagerPar1Post(
+        art = VarelagerRåstoffer,
+        opgørelsesmåde = VarelagerDagspris(
+            bruttoværdi_kroner = 50000
+        ),
+        fradragsberettiget_indgående_moms_kroner = 0
+    ),
+    VarelagerPar1Post(
+        art = VarelagerIkkeOmfattetArt,
+        opgørelsesmåde = VarelagerDagspris(
+            bruttoværdi_kroner = 999999
+        ),
+        fradragsberettiget_indgående_moms_kroner = 0
+    )
+]
+
+= varelager_person_1997 = varelager_par1_resultat(VarelagerPar1Input(
+    indkomstår = 1997,
+    skatteyder = VarelagerNæringsdrivendePerson,
+    varegrupper = varelager_varegrupper,
+    ønsket_nedskrivning_kroner = 20000
+))
+
+= varelager_person_2026 = varelager_par1_resultat(VarelagerPar1Input(
+    indkomstår = 2026,
+    skatteyder = VarelagerNæringsdrivendePerson,
+    varegrupper = varelager_varegrupper,
+    ønsket_nedskrivning_kroner = 20000
+))
+
+= varelager_selskab_1997_input = Par3Stk2Nr5Input(
+    varelager_par1_resultat = varelager_par1_resultat(VarelagerPar1Input(
+        indkomstår = 1997,
+        skatteyder = VarelagerSelskabEllerForening,
+        varegrupper = varelager_varegrupper,
+        ønsket_nedskrivning_kroner = 20000
+    ))
+)
+
+= varelager_person_1997_input = Par3Stk2Nr5Input(
+    varelager_par1_resultat = varelager_person_1997
+)
+
+= husdyr_og_varelager_personlig_indkomst = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 200000
+        ),
+        par3_stk2_nr4_forskelsbeløbstillæg_indkomstpost(Par3Stk2Nr4Input(
+            husdyr_par2_resultat = husdyr_par2_normalværdi_2026,
+            husdyr_par8_resultat = husdyr_par8_gruppevis_reduktion_2026
+        ))
+    ],
+    fradragsposter = [
+        par3_stk2_nr4_fradragspost(Par3Stk2Nr4Input(
+            husdyr_par2_resultat = husdyr_par2_normalværdi_2026,
+            husdyr_par8_resultat = husdyr_par8_gruppevis_reduktion_2026
+        )),
+        par3_stk2_nr5_fradragspost(varelager_person_1997_input)
+    ]
+))
+
+| husdyr_par2_normalværdi_begrænses_til_15_pct: husdyr_par2_normalværdi_2026 -> husdyr_par2_normalværdi_2026.opgjort_besætningsværdi_før_nedskrivning_kroner == 200000 && husdyr_par2_normalværdi_2026.højeste_nedskrivning_kroner == 30000 && husdyr_par2_normalværdi_2026.anvendt_nedskrivning_kroner == 30000
+| husdyr_par2_handelsværdi_renses_for_moms: husdyr_par2_handelsværdi_efter_moms_2026 -> husdyr_par2_handelsværdi_efter_moms_2026.handelsværdi_efter_moms_kroner == 120000 && husdyr_par2_handelsværdi_efter_moms_2026.opgjort_besætningsværdi_før_nedskrivning_kroner == 120000 && husdyr_par2_handelsværdi_efter_moms_2026.anvendt_nedskrivning_kroner == 18000
+| husdyr_par8_grupper_reduceres_uafhængigt: husdyr_par8_gruppevis_reduktion_2026 -> length(husdyr_par8_gruppevis_reduktion_2026.gruppe_resultater) == 3 && head(husdyr_par8_gruppevis_reduktion_2026.gruppe_resultater).ordinært_reduktionsfradrag_efter_bek4_stk1_til_stk3_kroner == 20000 && nth(husdyr_par8_gruppevis_reduktion_2026.gruppe_resultater, 1).reduktionsfradrag_før_tilbageregulering_kroner == 0 && nth(husdyr_par8_gruppevis_reduktion_2026.gruppe_resultater, 2).gruppe == HusdyrPar8Heste && nth(husdyr_par8_gruppevis_reduktion_2026.gruppe_resultater, 2).reduktionsfradrag_før_tilbageregulering_kroner == 0 && husdyr_par8_gruppevis_reduktion_2026.fradrag_i_skattepligtig_indkomst_kroner == 20000 && husdyr_par8_gruppevis_reduktion_2026.resterende_forskelsbeløb_kroner == 94000
+| husdyr_par8_bek5_tilbageregulerer_ordinært_fradrag: husdyr_par8_tilbageregulering_2024 -> husdyr_par8_tilbageregulering_2024.ordinært_reduktionsfradrag_efter_bek4_stk1_til_stk3_kroner == 10000 && husdyr_par8_tilbageregulering_2024.tilbageregulering_til_skattepligtig_indkomst_kroner == 10000 && husdyr_par8_tilbageregulering_2024.fradrag_i_skattepligtig_indkomst_kroner == 0 && husdyr_par8_tilbageregulering_2024.tillæg_til_skattepligtig_indkomst_kroner == 10000 && husdyr_par8_tilbageregulering_2024.resterende_forskelsbeløb_kroner == 50000
+| husdyr_par8_bek4_stk5_closeout_tilbagereguleres_ikke: husdyr_par8_restsaldo_og_tilbageregulering_2024 -> husdyr_par8_restsaldo_og_tilbageregulering_2024.ordinært_reduktionsfradrag_efter_bek4_stk1_til_stk3_kroner == 1200 && husdyr_par8_restsaldo_og_tilbageregulering_2024.øvrige_reduktionsfradrag_uden_tilbageregulering_kroner == 4800 && husdyr_par8_restsaldo_og_tilbageregulering_2024.tilbageregulering_til_skattepligtig_indkomst_kroner == 1200 && husdyr_par8_restsaldo_og_tilbageregulering_2024.fradrag_i_skattepligtig_indkomst_kroner == 4800 && husdyr_par8_restsaldo_og_tilbageregulering_2024.tillæg_til_skattepligtig_indkomst_kroner == 1200
+| husdyr_par8_a_og_b_fradrag_fordeles_uden_heste: husdyr_par8_a_b_fradrag_1981 -> husdyr_par8_a_b_fradrag_1981.a_fradrag_1981_kroner == 15000 && husdyr_par8_a_b_fradrag_1981.b_fradrag_1981_kroner == 30000 && husdyr_par8_a_b_fradrag_1981.b_fradrag_ufordelt_afrunding_kroner == 0 && head(husdyr_par8_a_b_fradrag_1981.gruppe_resultater).b_fradrag_1981_kroner == 20000 && nth(husdyr_par8_a_b_fradrag_1981.gruppe_resultater, 1).b_fradrag_1981_kroner == 10000 && nth(husdyr_par8_a_b_fradrag_1981.gruppe_resultater, 2).a_fradrag_1981_kroner == 0 && nth(husdyr_par8_a_b_fradrag_1981.gruppe_resultater, 2).b_fradrag_1981_kroner == 0 && husdyr_par8_a_b_fradrag_1981.fradrag_i_skattepligtig_indkomst_kroner == 45000 && husdyr_par8_a_b_fradrag_1981.resterende_forskelsbeløb_kroner == 145000
+| personskattelov_par3_nr4_samler_husdyrfradrag: husdyr_par3_nr4_gruppevis -> husdyr_par3_nr4_gruppevis.husdyrnedskrivning_par2_kroner == 30000 && husdyr_par3_nr4_gruppevis.forskelsbeløbsfradrag_par8_kroner == 20000 && husdyr_par3_nr4_gruppevis.forskelsbeløbstillæg_par8_kroner == 0 && husdyr_par3_nr4_gruppevis.fradrag_i_personlig_indkomst_kroner == 50000
+| personskattelov_par3_nr4_gælder_ikke_selskab: husdyr_par3_nr4_selskab -> husdyr_par2_selskab_2026.fradrag_i_skattepligtig_indkomst_kroner == 30000 && husdyr_par3_nr4_selskab.husdyrnedskrivning_par2_kroner == 0 && husdyr_par3_nr4_selskab.fradrag_i_personlig_indkomst_kroner == 0
+| personskattelov_par3_nr4_tillæg_føder_personlig_indkomst: husdyr_par3_tilbageregulering_personlig_indkomst -> husdyr_par3_tilbageregulering_personlig_indkomst.brutto_personlig_indkomst_kroner == 110000 && husdyr_par3_tilbageregulering_personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 0 && husdyr_par3_tilbageregulering_personlig_indkomst.netto_personlig_indkomst_kroner == 110000
+| varelager_1997_nedskrives_med_8_pct: varelager_person_1997 -> varelager_person_1997.omfattede_varegrupper == 2 && varelager_person_1997.varelagergrundlag_før_nedskrivning_kroner == 150000 && varelager_person_1997.højeste_nedskrivningssats_basispoint == 800 && varelager_person_1997.fradrag_i_skattepligtig_indkomst_kroner == 12000
+| varelager_2026_har_nulprocent: varelager_person_2026 -> varelager_person_2026.varelagergrundlag_før_nedskrivning_kroner == 150000 && varelager_person_2026.højeste_nedskrivningssats_basispoint == 0 && varelager_person_2026.fradrag_i_skattepligtig_indkomst_kroner == 0
+| personskattelov_par3_nr5_gælder_ikke_selskab: varelager_selskab_1997_input -> varelager_selskab_1997_input.varelager_par1_resultat.fradrag_i_skattepligtig_indkomst_kroner == 12000 && par3_stk2_nr5_resultat(varelager_selskab_1997_input).fradrag_i_personlig_indkomst_kroner == 0
+| husdyr_og_varelager_føder_samme_personlige_indkomst: husdyr_og_varelager_personlig_indkomst -> husdyr_og_varelager_personlig_indkomst.brutto_personlig_indkomst_kroner == 200000 && husdyr_og_varelager_personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 62000 && husdyr_og_varelager_personlig_indkomst.netto_personlig_indkomst_kroner == 138000
+
+? husdyr_par2_normalværdi_begrænses_til_15_pct
+? husdyr_par2_handelsværdi_renses_for_moms
+? husdyr_par8_grupper_reduceres_uafhængigt
+? husdyr_par8_bek5_tilbageregulerer_ordinært_fradrag
+? husdyr_par8_bek4_stk5_closeout_tilbagereguleres_ikke
+? husdyr_par8_a_og_b_fradrag_fordeles_uden_heste
+? personskattelov_par3_nr4_samler_husdyrfradrag
+? personskattelov_par3_nr4_gælder_ikke_selskab
+? personskattelov_par3_nr4_tillæg_føder_personlig_indkomst
+? varelager_1997_nedskrives_med_8_pct
+? varelager_2026_har_nulprocent
+? personskattelov_par3_nr5_gælder_ikke_selskab
+? husdyr_og_varelager_føder_samme_personlige_indkomst
