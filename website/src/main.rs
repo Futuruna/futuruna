@@ -187,8 +187,8 @@ fn NotFound(route: Vec<String>) -> Element {
 #[component]
 fn Home() -> Element {
     rsx! {
-        document::Title { "Futuruna - Phi Out" }
-        document::Meta { name: "description", content: "Futuruna is the first programming language discovered by multi-objective optimization — Pareto-optimal across consciousness, optionality, and information density. Compiles to Rust." }
+        document::Title { "Futuruna - A Programming Language for Law" }
+        document::Meta { name: "description", content: "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space." }
         Hero {}
         Discovery {}
         AiGuide {}
@@ -234,48 +234,8 @@ fn Nav() -> Element {
 // Hero Section
 // ============================================================================
 
-const OPTIMAL_FOR: &[&str] = &[
-    "Humans",
-    "AI's",
-    "Systems Programming",
-    "Law",
-    "Finance",
-    "Defense",
-    "Autonomous Systems",
-    "Smart Contracts",
-    "Cybersecurity",
-    "MedTech",
-    "Quantitative Finance",
-    "Edge Computing",
-    "Aerospace",
-    "RegTech",
-    "Embedded",
-    "IoT",
-];
-
 #[component]
 fn Hero() -> Element {
-    let mut current = use_signal(|| 0usize);
-    let mut fading = use_signal(|| false);
-
-    use_future(move || async move {
-        loop {
-            TimeoutFuture::new(2000).await;
-            fading.set(true);
-            TimeoutFuture::new(250).await;
-            current.set((current() + 1) % OPTIMAL_FOR.len());
-            fading.set(false);
-            TimeoutFuture::new(250).await;
-        }
-    });
-
-    let word = OPTIMAL_FOR[current()];
-    let fade_class = if fading() {
-        "hero-rotating fade-out"
-    } else {
-        "hero-rotating fade-in"
-    };
-
     rsx! {
         section { class: "hero",
             div { class: "hero-inner",
@@ -302,13 +262,10 @@ fn Hero() -> Element {
                     "uturuna"
                 }
                 p { class: "hero-clarifier",
-                    "The first language that was "
-                    em { "discovered" }
-                    ", not invented."
+                    "A programming language for law."
                 }
                 p { class: "hero-optimal",
-                    "Futuruna is optimal for "
-                    span { class: "{fade_class}", "{word}" }
+                    "Write laws, contracts, and policies you can run, test, and audit."
                 }
                 div { class: "hero-actions",
                     a { class: "btn btn-primary", href: "#ai-guide", "AI Setup" }
@@ -330,17 +287,12 @@ fn Discovery() -> Element {
         section { class: "discovery-section",
             div { class: "discovery-text",
                 p {
-                    "Futuruna was "
-                    strong { "discovered" }
-                    " on the Pareto frontier by a computer, simultaneously optimizing for "
-                    span { class: "discovery-term", "Consciousness" }
-                    " (Integrated Information, \u{03A6}), "
-                    span { class: "discovery-term", "Optionality" }
-                    " (Causal Entropic Forces, S\u{1D70F}), and "
-                    span { class: "discovery-term", "Distinctiveness per Character" }
-                    " (Information Theory)."
+                    "Futuruna brings "
+                    strong { "formal rules and ordinary programming" }
+                    " into one execution space. Model definitions, defaults, conditions, "
+                    "exceptions, calculations, and effects, then run and audit them together."
                 }
-                a { class: "discovery-link", href: "/research/optimization", "Read more \u{2192}" }
+                a { class: "discovery-link", href: "/why", "Why Futuruna \u{2192}" }
             }
         }
     }
@@ -446,7 +398,7 @@ const RUNES: [RuneInfo; 7] = [
         symbol: "@",
         name: "Where proofs stop",
         meaning: "Meta/effects: print, use, import",
-        example: "@ print(\"Hello, consciousness\")",
+        example: "@ print(\"Hello, Futuruna\")",
     },
     RuneInfo {
         symbol: "?",
@@ -462,8 +414,8 @@ fn RunesShowcase() -> Element {
         section { id: "runes", class: "runes-section",
             h2 { class: "section-title", "The Seven Runes" }
             p { class: "section-desc",
-                "Each line begins with one of seven runes, placing it on a specific cognitive axis. "
-                "This is what the optimizer found."
+                "Each line begins with a semantic fly-in: a compact signal for types, functions, "
+                "rules, values, flows, effects, or verification."
             }
             div { class: "runes-grid",
                 for rune in RUNES.iter() {
@@ -489,55 +441,52 @@ fn RunesShowcase() -> Element {
 fn Pitch() -> Element {
     rsx! {
         section { class: "pitch-section",
-            h2 { class: "section-title", "Pareto Optimal" }
+            h2 { class: "section-title", "Law You Can Run" }
             p { class: "pitch-intro",
-                "A language for law encoding "
-                em { "and" }
-                " systems programming. Rust\u{2019}s speed. Python\u{2019}s clarity. "
-                "Mathematically, you cannot improve one metric without worsening another."
+                "Encode legal rules without giving up ordinary programming. Keep the model, "
+                "the calculations, and the audit in one language, then compile it through Rust."
             }
             div { class: "pitch-grid",
                 div { class: "pitch-card",
-                    h3 { class: "pitch-title", "Compiles to Rust" }
+                    h3 { class: "pitch-title", "Rules and Programs Together" }
                     p { class: "pitch-text",
-                        "The entire Cargo ecosystem, blazing speed, and world-class memory safety \u{2014} for free. "
-                        "Futuruna transpiles to the same Rust a careful programmer would write."
+                        "Express defaults, conditions, and named exceptions beside types, functions, "
+                        "values, streams, and effects. No separate legal rules engine is required."
                     }
                 }
                 div { class: "pitch-card",
-                    h3 { class: "pitch-title", "Ownership, Dissolved" }
+                    h3 { class: "pitch-title", "Audit the Model" }
                     p { class: "pitch-text",
-                        "No " code { "&T" } ", no lifetimes, no " code { ".clone()" }
-                        ". The compiler infers ownership from how you use values. "
-                        "The Kotlin-to-Java of systems programming."
+                        "Demand checks close to the rules they examine. Surface conflicts, gaps, "
+                        "unexpected outcomes, and the assumptions that produced them."
                     }
                 }
                 div { class: "pitch-card",
-                    h3 { class: "pitch-title", "Four Languages in One" }
+                    h3 { class: "pitch-title", "Source Beside Structure" }
                     p { class: "pitch-text",
-                        "Rust\u{2019}s speed. Prolog\u{2019}s logic. Catala\u{2019}s legal rules. Koka\u{2019}s effects. "
-                        "One rune (" code { "|" } ") bridges all four \u{2014} and is easier than any one alone."
+                        "Keep statutory text, citations, effective dates, and explanatory metadata "
+                        "close to the executable definitions and rules they support."
                     }
                 }
                 div { class: "pitch-card",
-                    h3 { class: "pitch-title", "Clearer Than Python" }
+                    h3 { class: "pitch-title", "Compiles Through Rust" }
                     p { class: "pitch-text",
-                        "Measured signal-to-noise higher than every language tested. "
-                        "Three cognitive dimensions means you read the shape before the words."
+                        "Generate native programs through Rust's compiler and safety checks, with "
+                        "ownership inference for ordinary value-oriented Futuruna code."
                     }
                 }
                 div { class: "pitch-card",
-                    h3 { class: "pitch-title", "From Kernels to Law" }
+                    h3 { class: "pitch-title", "Built for AI Collaboration" }
                     p { class: "pitch-text",
-                        "Write a kernel. Encode a tax code. Same language, same afternoon. "
-                        "A pipedream made real \u{2014} systems speed and legal precision under one syntax."
+                        "Give AI systems explicit forms for rules, exceptions, effects, and audit demands "
+                        "instead of asking them to simulate those concepts through conventions."
                     }
                 }
                 div { class: "pitch-card",
-                    h3 { class: "pitch-title", "Verify, Don\u{2019}t Debug" }
+                    h3 { class: "pitch-title", "Seven Semantic Modes" }
                     p { class: "pitch-text",
-                        "Write an invariant with " code { "|" } ", demand proof with " code { "?" }
-                        ". Same code runs as a test, compiles as an assert, or invokes Z3 for a formal proof."
+                        "A rune at the start of each statement provides a quick entry point into its "
+                        "role while preserving a compact syntax across programming domains."
                     }
                 }
             }
@@ -2904,8 +2853,8 @@ fn WhyPage() -> Element {
     let html_content = md_to_html_with_ids(DOC_WHY);
 
     rsx! {
-        document::Title { "Why This Syntax — Futuruna Programming Language" }
-        document::Meta { name: "description", content: "How NSGA-II multi-objective optimization discovered Futuruna's syntax by maximizing integrated information (Phi), causal entropic forces (S_tau), and Jensen-Shannon divergence." }
+        document::Title { "Why Futuruna — A Programming Language for Law" }
+        document::Meta { name: "description", content: "Why Futuruna brings legal rules, defaults, exceptions, verification, and ordinary programming into one execution space." }
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Contents" }
@@ -2935,26 +2884,24 @@ fn WhyPage() -> Element {
 fn ResearchIndex() -> Element {
     rsx! {
         document::Title { "Research — Futuruna Programming Language" }
-        document::Meta { name: "description", content: "Formal explorations — from information theory optimization to encoding constitutions and Danish personal income tax law as computable Futuruna rules." }
+        document::Meta { name: "description", content: "Futuruna research and working models: executable constitutions, Danish tax law, language design, audits, and Rust ownership inference." }
         div { class: "research-hub",
             div { class: "research-header",
                 h1 { class: "research-title", "Research" }
                 p { class: "research-subtitle",
-                    "Formal explorations — from information theory to law as executable code."
+                    "Law as executable code, with research into syntax, audits, and compilation."
                 }
             }
             div { class: "research-grid",
-                // Optimization Theory
+                // Syntax Design
                 a { class: "research-card", href: "/research/optimization",
                     div { class: "research-card-rune rune-hash", "#" }
-                    h2 { class: "research-card-title", "Why This Syntax Is Optimal" }
+                    h2 { class: "research-card-title", "Exploring the Seven-Runes Syntax" }
                     p { class: "research-card-desc",
-                        "The full experiment: IIT, causal entropic forces, NSGA-II search over 500 candidate syntaxes. \
-                         Why Futuruna is the only language with d",
-                        sub { "eff" }
-                        " = 3."
+                        "How line-initial semantic modes help legal rules and ordinary programming \
+                         share one execution space, and how optimization was used as a design instrument."
                     }
-                    span { class: "research-card-meta", "Optimization Theory" }
+                    span { class: "research-card-meta", "Language Design · Experimental" }
                 }
                 // Danish Constitution
                 a { class: "research-card", href: "/research/danish-constitution",
@@ -3026,11 +2973,11 @@ fn ResearchOptimization() -> Element {
     let html_content = md_to_html_with_ids(DOC_RESEARCH);
 
     rsx! {
-        document::Title { "Why This Syntax Is Optimal — Futuruna Research" }
-        document::Meta { name: "description", content: "Pareto frontier analysis of Futuruna's syntax: NSGA-II optimization across Phi (IIT), S_tau (causal entropic forces), and JSD (information density)." }
+        document::Title { "Exploring Futuruna's Syntax — Futuruna Research" }
+        document::Meta { name: "description", content: "How Futuruna's seven semantic runes support law and ordinary programming, and how NSGA-II was used as an exploratory design tool rather than a proof of optimality." }
         div { class: "why-page",
             nav { class: "why-toc",
-                h3 { class: "why-toc-title", "Optimization" }
+                h3 { class: "why-toc-title", "Syntax Design" }
                 a { class: "why-toc-link research-back", href: "/research", "← All Research" }
                 for (slug, label) in headings.iter() {
                     a { class: "why-toc-link", href: "#{slug}", "{label}" }
@@ -3762,7 +3709,7 @@ fn Footer() -> Element {
                 p { "Andreas Rudolph · Researcher · Copenhagen · X: ",
                     a { href: "https://x.com/OneManMobile", "@OneManMobile" }
                 }
-                p { "Futuruna — designed from consciousness, built in Rust" }
+                p { "Futuruna — a programming language for law, built through Rust" }
                 div { class: "footer-links",
                     a { href: "https://github.com/Futuruna/futuruna", "GitHub" }
                     span { class: "footer-sep", "|" }
