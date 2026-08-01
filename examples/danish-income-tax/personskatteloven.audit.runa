@@ -397,6 +397,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 = m5_par11_sats_2026_fixture = par11_negativ_kapital_nedslag_sats_resultat(2026)
 = m5_ll9c_befordring_fixture = ll9c_2026_60km_resultat
 = m5_ll9c_befordring_storebælt_fixture = ll9c_2026_storebælt_resultat
+= m5_ll9c_særlig_transport_fixture = ll9c_2026_særlig_transport_resultat
+= m5_ll9c_su_yderområde_fixture = ll9c_2026_su_yderområde_resultat
 = m5_lønmodtager_befordring_fixture = lønmodtager_2026_med_befordring
 
 | m5_personfradrag_normalfixture_dækket: m5_personfradrag_fixture -> m5_personfradrag_fixture.personfradrag_anvendt_i_slutskat == Sandt
@@ -404,6 +406,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | m5_ligningsfradrag_normalfixture_dækket: m5_personfradrag_fixture -> m5_personfradrag_fixture.beskæftigelsesfradrag_kroner == 55600 && m5_personfradrag_fixture.jobfradrag_kroner == 2900 && m5_personfradrag_fixture.almindelig_skattepligtig_indkomst_kroner == 401500
 | m5_ll9c_befordringsfradrag_dækket: m5_ll9c_befordring_fixture -> m5_ll9c_befordring_fixture.kilde == Lov616Af2026Par1 && m5_ll9c_befordring_fixture.samlet_befordringsfradrag_kroner == 23166
 | m5_ll9c_brofradrag_dækket: m5_ll9c_befordring_storebælt_fixture -> m5_ll9c_befordring_storebælt_fixture.brofradrag_kroner == 44660 && m5_ll9c_befordring_storebælt_fixture.samlet_befordringsfradrag_kroner == 150979
+| m5_ll9c_særlig_transport_dækket: m5_ll9c_særlig_transport_fixture -> m5_ll9c_særlig_transport_fixture.særlig_transportfradrag_kroner == 5000 && m5_ll9c_særlig_transport_fixture.samlet_befordringsfradrag_kroner == 28166
+| m5_ll9c_su_yderområde_dækket: m5_ll9c_su_yderområde_fixture -> m5_ll9c_su_yderområde_fixture.berettiget_til_ordinært_fradrag == Sandt && m5_ll9c_su_yderområde_fixture.samlet_befordringsfradrag_kroner == 25651
 | m5_lønmodtager_befordring_scenarie: m5_lønmodtager_befordring_fixture -> m5_lønmodtager_befordring_fixture.øvrige_ligningsmæssige_fradrag_kroner == 23166 && m5_lønmodtager_befordring_fixture.samlede_ligningsmæssige_fradrag_kroner == 89566 && m5_lønmodtager_befordring_fixture.samlet_inkl_am_efter_personfradrag_kroner == 203308
 | m5_personfradrag_skatteloft_under_loft: m5_personfradrag_fixture -> m5_personfradrag_fixture.personligt_skatteloft.overskydende_basispoint == 0 && m5_personfradrag_fixture.personligt_skatteloft.nedslag_kroner == 0
 | m5_par13_underskud_afgrænset: m5_personfradrag_fixture -> m5_personfradrag_fixture.kræver_par13_underskud == Falskt
@@ -455,6 +459,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 ? m5_ligningsfradrag_normalfixture_dækket
 ? m5_ll9c_befordringsfradrag_dækket
 ? m5_ll9c_brofradrag_dækket
+? m5_ll9c_særlig_transport_dækket
+? m5_ll9c_su_yderområde_dækket
 ? m5_lønmodtager_befordring_scenarie
 ? m5_personfradrag_skatteloft_under_loft
 ? m5_par13_underskud_afgrænset

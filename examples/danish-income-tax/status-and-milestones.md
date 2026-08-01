@@ -377,10 +377,13 @@ Current § 4 and § 13 amendment/dependency sources:
   - § 9 C is modeled as the ordinary befordringsfradrag slice used by
     wage-earner scenarios, with 24 km daily floor, 120 km split, 2025/2026
     rates, 2026 LOV 616 uplift, yderkommune/small-island rates,
-    low-income supplement, bridge deductions, reimbursement exclusion and
-    free employer-paid transport value posture. The focused validation files
-    are `ligningsloven-par9c-befordring.audit.runa` and
-    `loenmodtager-befordring.scenario.runa`.
+    low-income supplement, documented special transport actual-expense
+    branch, bridge deductions, reimbursement exclusion, free employer-paid
+    transport value posture, and the 2026 SU-student outer-area rule with
+    education-transport rebate/godtgørelse exclusion. The focused validation
+    files are `ligningsloven-par9c-befordring.audit.runa` and
+    `loenmodtager-befordring.scenario.runa`. The deeper § 9 D disability/
+    chronic-illness route remains a future dependency slice.
   - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
     wage-earner calculator; § 9 L is modeled for extra pension deductions and
     § 26 nr. 5 transition-compensation input; § 15 P is modeled for

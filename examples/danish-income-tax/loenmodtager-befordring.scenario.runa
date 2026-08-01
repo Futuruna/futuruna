@@ -25,11 +25,14 @@ og LOV nr. 616 af 30/06/2026.
     daglige_befordringskilometer = 60,
     bopæl_i_yderkommune_eller_lille_ø = Falskt,
     aftrapningsindkomst_kroner = 600000,
-    har_indtægtsgivende_arbejdsplads = Sandt,
+    befordringsformål = IndtægtsgivendeArbejdsplads,
     modtaget_skattefri_befordringsgodtgørelse_for_strækning = Falskt,
+    modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = Falskt,
+    par9d_stk2_afskærer_su_stk10 = Falskt,
     fradrag_udelukket_folketingshverv_m_v = Falskt,
     fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen = Falskt,
-    broer = ll9c_ingen_bropassager()
+    broer = ll9c_ingen_bropassager(),
+    særlig_transport = ll9c_ingen_særlig_transport()
 ))
 
 = lønmodtager_2026_med_befordring_input = LønmodtagerInput(
