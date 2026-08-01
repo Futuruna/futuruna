@@ -4,7 +4,7 @@ default_platform = "web"
 asset_dir = "public"
 
 [web.app]
-title = "Futuruna - A Programming Language for Law"
+title = "Futuruna - Law Programming"
 
 [web.watcher]
 watch_path = ["src", "assets", "public"]

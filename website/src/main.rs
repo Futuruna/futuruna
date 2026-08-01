@@ -189,7 +189,7 @@ fn NotFound(route: Vec<String>) -> Element {
 #[component]
 fn Home() -> Element {
     rsx! {
-        document::Title { "Futuruna - A Programming Language for Law" }
+        document::Title { "Futuruna - Law Programming" }
         document::Meta { name: "description", content: "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space." }
         Hero {}
         Discovery {}
