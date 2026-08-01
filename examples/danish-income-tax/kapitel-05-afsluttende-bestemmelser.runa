@@ -1071,14 +1071,34 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 lovens gennemførelse og administration.
 ----
 
-| par27_skatteministeren_fastsætter_gennemførelsesregler() -> Sandt
-| par27_skatteministeren_fastsætter_administrationsregler() -> Sandt
+# Par27Regelområde = Par27LovensGennemførelse | Par27LovensAdministration
+# Par27Hjemmel = PersonskattelovenPar27
+# Par27BemyndigelseInput(område: Par27Regelområde)
+# Par27BemyndigelseResultat(område: Par27Regelområde, hjemmel: Par27Hjemmel, skatteministeren_bemyndiget: Boolsk)
+
+# Par27BemyndigelseSag(input: Par27BemyndigelseInput) {
+    | hjemmel() -> PersonskattelovenPar27
+    | skatteministeren_bemyndiget() -> Sandt
+    | resultat() -> Par27BemyndigelseResultat(
+        område = input.område,
+        hjemmel = hjemmel(),
+        skatteministeren_bemyndiget = skatteministeren_bemyndiget()
+    )
+}
+| par27_bemyndigelse_sag(input: Par27BemyndigelseInput) -> Par27BemyndigelseSag(input)
+| par27_bemyndigelse_resultat(input: Par27BemyndigelseInput) -> par27_bemyndigelse_sag(input).resultat()
+| par27_skatteministeren_fastsætter_gennemførelsesregler() -> par27_bemyndigelse_resultat(Par27BemyndigelseInput(område = Par27LovensGennemførelse)).skatteministeren_bemyndiget
+| par27_skatteministeren_fastsætter_administrationsregler() -> par27_bemyndigelse_resultat(Par27BemyndigelseInput(område = Par27LovensAdministration)).skatteministeren_bemyndiget
 
 = par27_gennemførelse = par27_skatteministeren_fastsætter_gennemførelsesregler()
 = par27_administration = par27_skatteministeren_fastsætter_administrationsregler()
+= par27_gennemførelse_resultat = par27_bemyndigelse_resultat(Par27BemyndigelseInput(område = Par27LovensGennemførelse))
+= par27_administration_resultat = par27_bemyndigelse_resultat(Par27BemyndigelseInput(område = Par27LovensAdministration))
 
 | par27_delegerer_gennemførelse: par27_gennemførelse -> par27_gennemførelse == Sandt
 | par27_delegerer_administration: par27_administration -> par27_administration == Sandt
+| par27_gennemførelse_har_hjemmel: par27_gennemførelse_resultat -> par27_gennemførelse_resultat.område == Par27LovensGennemførelse && par27_gennemførelse_resultat.hjemmel == PersonskattelovenPar27 && par27_gennemførelse_resultat.skatteministeren_bemyndiget == Sandt
+| par27_administration_har_hjemmel: par27_administration_resultat -> par27_administration_resultat.område == Par27LovensAdministration && par27_administration_resultat.hjemmel == PersonskattelovenPar27 && par27_administration_resultat.skatteministeren_bemyndiget == Sandt
 
 ----
 § 27 a. (Ophævet)
@@ -1093,15 +1113,42 @@ lovens gennemførelse og administration.
 ----
 
 # PersonskattelovTerritorium = PersonskatDanmark | PersonskatFærøerne | PersonskatGrønland
+# PersonskattelovTerritorialHjemmel = IngenPar28Undtagelse | PersonskattelovenPar28FærøerneUndtaget | PersonskattelovenPar28GrønlandUndtaget
+# PersonskattelovTerritorialInput(territorium: PersonskattelovTerritorium)
+# PersonskattelovTerritorialResultat(territorium: PersonskattelovTerritorium, hjemmel: PersonskattelovTerritorialHjemmel, undtaget_af_par28: Boolsk, gælder_i_territorium: Boolsk)
 
-| personskatteloven_gælder_i_territorium(territorium: PersonskattelovTerritorium) -> Sandt
-| exception færøerne personskatteloven_gælder_i_territorium(territorium: PersonskattelovTerritorium) -> Falskt under territorium == PersonskatFærøerne
-| exception grønland personskatteloven_gælder_i_territorium(territorium: PersonskattelovTerritorium) -> Falskt under territorium == PersonskatGrønland
+| personskatteloven_territorium_undtaget_af_par28(territorium: PersonskattelovTerritorium) -> Falskt
+| exception færøerne personskatteloven_territorium_undtaget_af_par28(territorium: PersonskattelovTerritorium) -> Sandt under territorium == PersonskatFærøerne
+| exception grønland personskatteloven_territorium_undtaget_af_par28(territorium: PersonskattelovTerritorium) -> Sandt under territorium == PersonskatGrønland
+| personskatteloven_territorial_hjemmel(territorium: PersonskattelovTerritorium) -> IngenPar28Undtagelse
+| exception par28_færøerne_hjemmel personskatteloven_territorial_hjemmel(territorium: PersonskattelovTerritorium) -> PersonskattelovenPar28FærøerneUndtaget under territorium == PersonskatFærøerne
+| exception par28_grønland_hjemmel personskatteloven_territorial_hjemmel(territorium: PersonskattelovTerritorium) -> PersonskattelovenPar28GrønlandUndtaget under territorium == PersonskatGrønland
+
+# PersonskattelovTerritorialSag(input: PersonskattelovTerritorialInput) {
+    | undtaget_af_par28() -> personskatteloven_territorium_undtaget_af_par28(input.territorium)
+    | gælder_i_territorium() -> undtaget_af_par28() == Falskt
+    | hjemmel() -> personskatteloven_territorial_hjemmel(input.territorium)
+    | resultat() -> PersonskattelovTerritorialResultat(
+        territorium = input.territorium,
+        hjemmel = hjemmel(),
+        undtaget_af_par28 = undtaget_af_par28(),
+        gælder_i_territorium = gælder_i_territorium()
+    )
+}
+| personskattelov_territorial_sag(input: PersonskattelovTerritorialInput) -> PersonskattelovTerritorialSag(input)
+| personskattelov_territorial_resultat(input: PersonskattelovTerritorialInput) -> personskattelov_territorial_sag(input).resultat()
+| personskatteloven_gælder_i_territorium(territorium: PersonskattelovTerritorium) -> personskattelov_territorial_resultat(PersonskattelovTerritorialInput(territorium = territorium)).gælder_i_territorium
 
 = par28_danmark = personskatteloven_gælder_i_territorium(PersonskatDanmark)
 = par28_færøerne = personskatteloven_gælder_i_territorium(PersonskatFærøerne)
 = par28_grønland = personskatteloven_gælder_i_territorium(PersonskatGrønland)
+= par28_danmark_resultat = personskattelov_territorial_resultat(PersonskattelovTerritorialInput(territorium = PersonskatDanmark))
+= par28_færøerne_resultat = personskattelov_territorial_resultat(PersonskattelovTerritorialInput(territorium = PersonskatFærøerne))
+= par28_grønland_resultat = personskattelov_territorial_resultat(PersonskattelovTerritorialInput(territorium = PersonskatGrønland))
 
 | par28_gælder_i_danmark: par28_danmark -> par28_danmark == Sandt
 | par28_gælder_ikke_for_færøerne: par28_færøerne -> par28_færøerne == Falskt
 | par28_gælder_ikke_for_grønland: par28_grønland -> par28_grønland == Falskt
+| par28_danmark_er_ikke_undtaget: par28_danmark_resultat -> par28_danmark_resultat.hjemmel == IngenPar28Undtagelse && par28_danmark_resultat.undtaget_af_par28 == Falskt && par28_danmark_resultat.gælder_i_territorium == Sandt
+| par28_færøerne_hjemmel_undtager: par28_færøerne_resultat -> par28_færøerne_resultat.hjemmel == PersonskattelovenPar28FærøerneUndtaget && par28_færøerne_resultat.undtaget_af_par28 == Sandt && par28_færøerne_resultat.gælder_i_territorium == Falskt
+| par28_grønland_hjemmel_undtager: par28_grønland_resultat -> par28_grønland_resultat.hjemmel == PersonskattelovenPar28GrønlandUndtaget && par28_grønland_resultat.undtaget_af_par28 == Sandt && par28_grønland_resultat.gælder_i_territorium == Falskt

@@ -1,0 +1,50 @@
+@ sprog da
+
+@ importer ./kapitel - 05 - afsluttende - bestemmelser
+
+-- Focused validation for Personskatteloven § 27 ministerial delegation and
+-- § 28 territorial exclusion.
+-- Source: Retsinformation, LBK nr. 1284 af 14/06/2021.
+-- https://www.retsinformation.dk/eli/lta/2021/1284
+
+----
+§ 27. Skatteministeren fastsætter de nærmere regler for lovens gennemførelse
+og administration.
+
+§ 28. Loven gælder ikke for Færøerne og Grønland.
+----
+
+= par27_gennemførelse_probe = par27_bemyndigelse_resultat(Par27BemyndigelseInput(
+    område = Par27LovensGennemførelse
+))
+
+= par27_administration_probe = par27_bemyndigelse_resultat(Par27BemyndigelseInput(
+    område = Par27LovensAdministration
+))
+
+= par28_danmark_probe = personskattelov_territorial_resultat(PersonskattelovTerritorialInput(
+    territorium = PersonskatDanmark
+))
+
+= par28_færøerne_probe = personskattelov_territorial_resultat(PersonskattelovTerritorialInput(
+    territorium = PersonskatFærøerne
+))
+
+= par28_grønland_probe = personskattelov_territorial_resultat(PersonskattelovTerritorialInput(
+    territorium = PersonskatGrønland
+))
+
+| par27_gennemførelse_er_bemyndiget_med_hjemmel: par27_gennemførelse_probe -> par27_gennemførelse_probe.område == Par27LovensGennemførelse && par27_gennemførelse_probe.hjemmel == PersonskattelovenPar27 && par27_gennemførelse_probe.skatteministeren_bemyndiget == Sandt
+| par27_administration_er_bemyndiget_med_hjemmel: par27_administration_probe -> par27_administration_probe.område == Par27LovensAdministration && par27_administration_probe.hjemmel == PersonskattelovenPar27 && par27_administration_probe.skatteministeren_bemyndiget == Sandt
+| par28_danmark_gælder_uden_undtagelseshjemmel: par28_danmark_probe -> par28_danmark_probe.hjemmel == IngenPar28Undtagelse && par28_danmark_probe.undtaget_af_par28 == Falskt && par28_danmark_probe.gælder_i_territorium == Sandt
+| par28_færøerne_er_undtaget_med_hjemmel: par28_færøerne_probe -> par28_færøerne_probe.hjemmel == PersonskattelovenPar28FærøerneUndtaget && par28_færøerne_probe.undtaget_af_par28 == Sandt && par28_færøerne_probe.gælder_i_territorium == Falskt
+| par28_grønland_er_undtaget_med_hjemmel: par28_grønland_probe -> par28_grønland_probe.hjemmel == PersonskattelovenPar28GrønlandUndtaget && par28_grønland_probe.undtaget_af_par28 == Sandt && par28_grønland_probe.gælder_i_territorium == Falskt
+
+? par27_gennemførelse_er_bemyndiget_med_hjemmel
+? par27_administration_er_bemyndiget_med_hjemmel
+? par28_danmark_gælder_uden_undtagelseshjemmel
+? par28_færøerne_er_undtaget_med_hjemmel
+? par28_grønland_er_undtaget_med_hjemmel
+
+@ print("§27 gennemførelse hjemmel: " + vis(par27_gennemførelse_probe.hjemmel))
+@ print("§28 Færøerne gælder: " + vis(par28_færøerne_probe.gælder_i_territorium))

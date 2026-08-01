@@ -150,7 +150,10 @@ capital-tax allocation rules into the transition-compensation nr. 3 amount, and
 source-derived yearly parameters with the statutory tax-offset order plus
 pair-level stk. 4 spouse difference results, pair-level stk. 5 and stk. 8
 net-capital offset results, and a pair-level annual path where stk. 6
-bundfradrag transfer feeds the nr. 2 line item;
+bundfradrag transfer feeds the nr. 2 line item; § 27 now has a typed
+ministerial-delegation result for implementation and administration authority,
+and § 28 now has a typed territorial-scope result with explicit Faroe Islands
+and Greenland exclusion hjemmel;
 § 8 c's 2023-2026 published limited-taxpayer rate now has a
 `Par8cSatsResultat` result that keeps the statutory rounded-down municipal
 average method, the Skatteministeriet source posture, and the applied
@@ -879,6 +882,10 @@ Current decision:
   narrower stk. 6 advance-depreciation lock. This keeps the stk. 7
   transparent-company deficit lock from silently inheriting the stk. 6
   advance-depreciation clause.
+- `Par27BemyndigelseSag` and `PersonskattelovTerritorialSag` keep the closing
+  § 27/§ 28 public booleans backed by typed legal results, so ministerial
+  delegation and territorial exclusion retain their source hjemmel instead of
+  collapsing into isolated truth values.
 - `Par13ModregningSag` uses product-scoped `|` rules for the § 13 ordered
   tax-value offset chain, keeping the carried remainder after § 6, § 7, § 7 a,
   and § 8 a, stk. 2 inside the same legal case while preserving public wrapper
@@ -1966,8 +1973,10 @@ M9 - Final provisions and transition compensation
   baseline from source-backed inputs, § 26 stk. 7 now applies § 7 stk. 5 and
   stk. 10-11 spouse capital rules when deriving nr. 3 for transition
   compensation, and `Par26KompensationAfregningResult` now composes an annual
-  compensation calculation with the statutory tax-offset order, § 27 is encoded as delegated
-  implementation/administration authority, and § 28 excludes the Faroe Islands
-  and Greenland. Remaining § 26 depth is mostly integration work: broader
+  compensation calculation with the statutory tax-offset order. § 27 is encoded
+  as `Par27BemyndigelseResultat` for delegated implementation/administration
+  authority, and § 28 is encoded as `PersonskattelovTerritorialResultat` for
+  Denmark/Faroe Islands/Greenland territorial scope and exclusion hjemmel.
+  Remaining § 26 depth is mostly integration work: broader
   historic compensation fixtures, dependent-year settlement parameter wiring,
   and eventual wiring into a full historic tax-settlement calculator.

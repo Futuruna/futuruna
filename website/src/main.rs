@@ -2981,12 +2981,9 @@ fn ResearchIndex() -> Element {
                     div { class: "research-card-rune rune-pipe", "|" }
                     h2 { class: "research-card-title", "Personskatteloven" }
                     p { class: "research-card-desc",
-                        "Dansk personskatteret kodet i Futuruna: kildepostur, \
-                         første beregningsegnede §§ 1-28-dækning, kildefaste \
-                         skatteårsparametre, lønmodtagerberegning, personfradrag, \
-                         ægtefællemodregning, underskud, aktieindkomst, \
-                         slutopgørelse og audit-signaler for manglende afhængigheder \
-                         og retlige knæk."
+                        "Et dansk overblik over Personskatteloven som eksekverbar \
+                         Futuruna: lovtekst, regelkaskader, beregningseksempel \
+                         og audits der kan finde hårde skatteforhold."
                     }
                     span { class: "research-card-meta", "Skatteret \u{00B7} Dansk \u{00B7} Projektstatus" }
                 }
@@ -3444,46 +3441,148 @@ fn ResearchPersonskatteloven() -> Element {
 
     rsx! {
         document::Title { "Personskatteloven — Futuruna-forskning" }
-        document::Meta { name: "description", content: "Dansk personskat modelleret i Futuruna: kildestatus, milepæle, beregningsomfang og audit-signaler." }
+        document::Meta { name: "description", content: "Dansk personskat modelleret i Futuruna: lov som regler, beregningseksempel og audit af hårde skatteforhold." }
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Personskat" }
                 a { class: "why-toc-link research-back", href: "/research", "\u{2190} Al forskning" }
-                a { class: "why-toc-link", href: "#overview", "Overblik" }
-                a { class: "why-toc-link", href: "#source-posture", "Kilder" }
-                a { class: "why-toc-link", href: "#project-file", "Projektfil" }
+                a { class: "why-toc-link", href: "#intro", "Lov og ret" }
+                a { class: "why-toc-link", href: "#personskatteloven", "Personskatteloven" }
+                a { class: "why-toc-link", href: "#example", "Eksempel" }
                 a { class: "why-toc-link", href: "#audit-signals", "Audits" }
+                a { class: "why-toc-link", href: "#project-file", "Projektfil" }
+                a { class: "why-toc-link", href: "#source-posture", "Kilder" }
             }
             main { class: "why-main const-article tax-article",
-                div { id: "overview", class: "const-intro",
+                div { id: "intro", class: "const-intro",
                     p { class: "lang-note", "Denne side er på dansk, fordi Personskatteloven er dansk. Selve lovteksten bliver i Futuruna-projektfilerne, lige over de regler der oversætter den." }
-                    h1 { "Personskatteloven i Futuruna" }
+                    h1 { "Et samlet sprog til lov og ret" }
                     p {
-                        "Denne side er et overblik, ikke en genudgivelse af hele korpusset. \
-                         Websitet viser kun én kanonisk projektfil nedenfor; den eksekverbare lov, \
-                         audits og scenarier ligger i "
-                        code { "examples/danish-income-tax/" }
-                        ". I de filer står den originale danske lovtekst i flerlinjeblokke, \
-                         efterfulgt af Futuruna-regler med typede "
+                        "Futuruna gør lovtekst til et eksekverbart regelsprog uden at fjerne \
+                         lovtekstens juridiske form. En paragraf kan stå som original dansk tekst, \
+                         derefter som typede regler, betingelser, undtagelser og audit-spørgsmål."
+                    }
+                    p {
+                        "Pointen er ikke at omskrive jura til almindelig software. Pointen er at \
+                         loven selv kan få en form, hvor regelkaskader, indkapslede sager og \
+                         kildehenvisninger stadig ligner lov, men også kan køres, testes og \
+                         undersøges."
+                    }
+                    p {
+                        "Derfor er "
                         code { "|" }
-                        " regler, "
+                        " central: den formulerer, hvad der skal gælde. "
                         code { "under" }
-                        " betingelser, "
+                        " holder betingelser synlige, "
                         code { "exception" }
-                        " undtagelser, parameterpakker, eksekverbare testtilfælde og audit-signaler."
+                        " holder undtagelser synlige, og "
+                        code { "?" }
+                        " gør reglen til noget, der kan spørges til."
+                    }
+                    p { class: "const-stats", "Dansk overblik \u{00B7} én webvist projektfil \u{00B7} lovkorpus i repoet \u{00B7} original dansk lovtekst bevares i Futuruna-filerne" }
+                }
+
+                section { id: "personskatteloven", class: "tax-section",
+                    h2 { "Personskatteloven (indkomstskat)" }
+                    p {
+                        "Personskatteloven er en god prøve, fordi den ikke står alene. En virkelig \
+                         skatteberegning rammer også arbejdsmarkedsbidrag, kommunal skat, kirkeskat, \
+                         kildeskat, forskudsregistrering, slutopgørelse, aktieindkomst, kapitalindkomst, \
+                         ægtefælleregler, underskud og en række afhængige love."
+                    }
+                    p {
+                        "Futuruna giver mulighed for at samle den danske indkomstskattelovgivning \
+                         i ét sprog, så den samme kilde både kan forklare reglen, beregne almindelige \
+                         skatteforløb og danne grundlag for audits af retlige knæk."
                     }
                     div { class: "tax-status-grid",
                         div { class: "tax-status-item ready",
-                            span { class: "tax-status-label", "Beregning" }
-                            strong { "Beregningsegnet første del" }
-                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, personfradrag, underskud, delår, skatteloft, indeholdelse og slutopgørelse er eksekverbare. Modellen er stadig ufuldstændig som fuld lovimplementering." }
+                            span { class: "tax-status-label", "Status" }
+                            strong { "Beregningsegnet, men ikke færdig" }
+                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, personfradrag, underskud, delår, skatteloft, indeholdelse og slutopgørelse er eksekverbare. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
                         }
                         div { class: "tax-status-item research",
-                            span { class: "tax-status-label", "Korpus" }
-                            strong { "Én webvist projektfil" }
-                            p { "Websitet gengiver ikke hele korpusset. Det viser kun projektstatussen nedenfor; lovfiler, audit-filer og scenarier læses og køres fra Futuruna-projektet." }
+                            span { class: "tax-status-label", "Form" }
+                            strong { "Lovtekst først, regler bagefter" }
+                            p { "I repoet gentages strukturen: original dansk lovtekst i flerlinjeblok, kun en note hvis nødvendigt, og derefter egentlige Futuruna-regler. Websitet gengiver ikke hele korpusset." }
                         }
                     }
+                }
+
+                section { id: "example", class: "tax-section",
+                    h2 { "Eksempel" }
+                    p {
+                        "En fiktiv mand tjener 50.000 kr. om måneden før skat. Han bor til leje \
+                         for 10.000 kr. om måneden, er gift, har tre børn på 2, 7 og 10 år, og \
+                         ægtefællen tjener 20.000 kr. om måneden. Den nuværende scenario-fil \
+                         modellerer 2026, København, ingen kirkeskat, ingen positiv nettokapitalindkomst \
+                         og ingen ekstra ligningsmæssige fradrag."
+                    }
+                    div { class: "tax-source-grid",
+                        div { class: "tax-source-row",
+                            span { "Mand" }
+                            strong { "Årlig skat inkl. AM efter personfradrag: 208.726 kr. — ca. 17.393 kr. pr. måned" }
+                        }
+                        div { class: "tax-source-row",
+                            span { "Husholdning" }
+                            strong { "Samlet årlig skat: 279.731 kr. — samlet netto: 46.689 kr. pr. måned" }
+                        }
+                        div { class: "tax-source-row",
+                            span { "Efter husleje" }
+                            strong { "36.689 kr. pr. måned efter 10.000 kr. husleje i den årlige skatteberegningsmodel" }
+                        }
+                        div { class: "tax-source-row",
+                            span { "Afgrænsning" }
+                            strong { "Børneydelser, boligstøtte og anden social ydelsesret ligger uden for denne Personskatteloven/Kildeskatteloven-slice" }
+                        }
+                    }
+                    p { class: "lang-note",
+                        "Scenario: "
+                        code { "examples/danish-income-tax/husholdning-scenarier.scenario.runa" }
+                        " og "
+                        code { "examples/danish-income-tax/slutopgoerelse.scenario.runa" }
+                    }
+                }
+
+                section { id: "audit-signals", class: "tax-section",
+                    h2 { "Audits af hårde skatteforhold" }
+                    p {
+                        "Futuruna kan også bruges den anden vej: ikke kun til at beregne én borger, \
+                         men til at søge i et afgrænset rum af konfigurationer og spørge, hvornår \
+                         regelsystemet giver mærkelige eller hårde resultater."
+                    }
+                    p {
+                        "Den aktuelle konfiskatoriske audit søger 8.064 kombinationer og finder ingen \
+                         tilfælde, hvor den almindelige årsskat overstiger 100 pct. af det positive \
+                         indkomstgrundlag. Den finder derimod over 200 konfigurationer, hvor \
+                         betalingsbelastningen overstiger 100 pct.; i den nuværende audit kræver de \
+                         alle overført restskat m.v. Det er altså ikke en skjult marginalskat over \
+                         100 pct., men et betalingsproblem fra tidligere år, der bliver formaliseret."
+                    }
+                    div { class: "const-audit-highlights tax-audit-highlights",
+                        a { href: "#project-file",
+                            span { "årsskat" }
+                            strong { "0 fund over 100 pct. i det aktuelle bounded search-rum" }
+                        }
+                        a { href: "#project-file",
+                            span { "betaling" }
+                            strong { "Over 200 betalingsbelastningsfund over 100 pct. med overført restskat" }
+                        }
+                        a { href: "#project-file",
+                            span { "forklaring" }
+                            strong { "Restskat adskilles fra ordinær current-year Personskatteloven-skat" }
+                        }
+                    }
+                }
+
+                section { id: "project-file", class: "tax-section",
+                    h2 { "Projektfil" }
+                    p { "Websitet gengiver kun denne ene projektfil. De konkrete lovregler, audit-filer og scenarier ligger i Futuruna-repoet og er ikke foldet ud på siden." }
+                    div { class: "docs-rendered tax-milestones", dangerous_inner_html: project_file_html }
+                }
+
+                section { id: "source-posture", class: "tax-section",
+                    h2 { "Kilder" }
                     p { class: "lang-note",
                         "Kildegrundlag: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2021/1284", "Retsinformation, LBK nr. 1284 af 14/06/2021" }
@@ -3497,106 +3596,23 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://www.retsinformation.dk/eli/lta/2026/615", "LOV nr. 615/2026" }
                         " · historisk linje: "
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/799", "LBK nr. 799 af 07/08/2019" }
-                        " · § 4/§ 13 dependencies: "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2024/1243", "Pensionsbeskatningsloven § 53 A/§ 16" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2019/132", "Ejendomsavancebeskatningsloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2025/279", "Selskabsskatteloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1176", "Kursgevinstloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2021/1836", "Virksomhedsskatteloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2024/12", "Skattekontrolloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2023/1181", "Sømandsbeskatningsloven" }
-                        " · AM: "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2020/121", "Arbejdsmarkedsbidragsloven" }
-                        " + "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2025/96", "LOV nr. 96/2025" }
-                        " · kommunal/kirkelig: "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2019/935", "Kommuneskatteloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2023/424", "Folkekirkens økonomi" }
-                        " + "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1772", "LOV nr. 1772/2025" }
-                        " / "
-                        a { href: "https://skm.dk/tal-og-metode/satser/statistik-i-kommunerne/kommuneskatteprocenter-siden-1977", "SKM kommuneskattesatser" }
-                        " · indeholdelse: "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2024/460", "Kildeskatteloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2025/839", "BEK nr. 839/2025" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1094", "BEK nr. 1094/2025" }
-                        " + "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1828", "BEK nr. 1828/2025" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2024/1040", "Opkrævningsloven" }
-                        " · afhængige lovkilder: "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1500", "Ligningsloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1176", "Kursgevinstloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2021/1836", "Virksomhedsskatteloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2025/1222", "Afskrivningsloven" }
-                        " / "
-                        a { href: "https://www.retsinformation.dk/eli/lta/2023/678", "Ejendomsskatteloven" }
-                        " · ekstern § 14/§ 19: "
-                        a { href: "https://info.skat.dk/data.aspx?oid=1977388", "DJV C.F.1.6.2.1" }
-                        " / "
-                        a { href: "https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter", "SKM kommuneskatter" }
-                        " · husholdningsydelser: "
-                        a { href: "https://bm.dk/satser/satser-for-2026/boligstoette", "BM boligstøtte 2026" }
-                        " / "
-                        a { href: "https://star.dk/ydelser/boligstoette-boernetilskud-og-hjaelp-i-saerlige-tilfaelde/boligstoette/boligsikring", "STAR boligsikring" }
                     }
-                    p { class: "const-stats", "Én webvist projektfil \u{00B7} lovkorpus i repoet \u{00B7} original dansk lovtekst bevares i Futuruna-filerne \u{00B7} audits og scenarier køres fra projektet" }
-                }
-
-                section { id: "source-posture", class: "tax-section",
-                    h2 { "Kilder" }
                     div { class: "tax-source-grid",
                         div { class: "tax-source-row",
                             span { "Arbejdskilde" }
-                            strong { "2021/1284 — gældende kilde med XML-metadata kontrolleret 2026-07-18" }
-                        }
-                        div { class: "tax-source-row",
-                            span { "Sporbare ændringer" }
-                            strong { "679/2023 (§4 nr. 6), 1564/2023 (§10), 482/2024 (§13), 1691/2024 (§8 a), 615/2026 (§4)" }
-                        }
-                        div { class: "tax-source-row",
-                            span { "Historisk udgangspunkt" }
-                            strong { "2019/799 — bevaret som historisk kilde og diff-linje" }
+                            strong { "2021/1284 — gældende konsolideret Personskattelov med sporede ændringslove" }
                         }
                         div { class: "tax-source-row",
                             span { "Beregningværn" }
                             strong { "Historiske kilder må ikke drive aktuel beregning uden eksplicit kildepostur" }
                         }
-                    }
-                }
-
-                section { id: "project-file", class: "tax-section",
-                    h2 { "Projektfil" }
-                    p { "Websitet gengiver kun denne ene projektfil. De konkrete lovregler, audit-filer og scenarier ligger i Futuruna-repoet og er ikke foldet ud på siden." }
-                    div { class: "docs-rendered tax-milestones", dangerous_inner_html: project_file_html }
-                }
-
-                section { id: "audit-signals", class: "tax-section",
-                    h2 { "Udvalgte audit-signaler" }
-                    div { class: "const-audit-highlights tax-audit-highlights",
-                        a { href: "#project-file",
-                            span { "kilde" }
-                            strong { "Historisk lov må ikke lydløst drive aktuel beregning" }
+                        div { class: "tax-source-row",
+                            span { "Afhængigheder" }
+                            strong { "AM-bidrag, kommunal/kirkelig skat, Kildeskatteloven, Ligningsloven, Kursgevinstloven, Virksomhedsskatteloven, Pensionsbeskatningsloven, Selskabsskatteloven og flere andre kilder modelleres ved behov" }
                         }
-                        a { href: "#project-file",
-                            span { "dækning" }
-                            strong { "Beregning, kilder og audits er eksekverbare i projektet, ikke indlejret som én lang webartikel" }
-                        }
-                        a { href: "#project-file",
-                            span { "knæk" }
-                            strong { "Skattelofter, ægtefællemodregning, aktieindkomst og betalingsbelastning kan undersøges som formaliserede audits" }
+                        div { class: "tax-source-row",
+                            span { "Websitegrænse" }
+                            strong { "Denne side er kun overblikket; den fulde lovoversættelse, audits og scenarier bor i Futuruna-projektet" }
                         }
                     }
                 }
