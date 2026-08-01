@@ -2,6 +2,7 @@
 
 @ importer ./pengebeloeb
 @ importer ./skatteaar - parametre
+@ importer ./kapitel - 04 - omregning - skatteloft
 
 -- Kommuneskatteloven — afhængig lovkilde for kommunal indkomstskat.
 --
@@ -21,6 +22,14 @@ Retsinformation metadata viser senere ændringer, herunder LOV nr. 679 af
 03/06/2023 om opkrævning og inddrivelse af grundskyld m.v. og LOV nr. 720 af
 20/06/2025 om ændring af selvbudgetteringsordningen.
 ----
+
+# KommunalKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= kommuneskatteloven_lbk935_par5 = KommunalKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/935",
+    identifier = "Kommuneskatteloven § 5, stk. 1-3",
+    hentet_dato = "2026-07-18"
+)
 
 ----
 § 1. Pligt til at svare kommunal indkomstskat påhviler enhver person, der er
@@ -220,6 +229,7 @@ beløb, der tilkommer en andelsberettiget kommune.
     resterende_til_skattekommune_kroner = input.kommunal_indkomstskat_kroner - kommunal_par3_tilflytningsandel_kroner(input)
 )
 
+--@source::kommuneskatteloven_par5_stk1_stk3::meta:kommuneskatteloven_lbk935_par5--
 ----
 § 5. Kommunal indkomstskat beregnes på grundlag af den i henhold til
 personskatteloven opgjorte skattepligtige indkomst.
@@ -229,12 +239,38 @@ Skatten nedsættes efter personskattelovens §§ 10 og 12, jf. til dels § 9.
 Stk. 2. Den indkomst, hvoraf kommunal indkomstskat beregnes, afrundes efter
 samme regler som gælder for afrunding af den indkomst, hvoraf skatten til
 staten beregnes.
+
+Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et
+år, beregnes og svares indkomstskatten efter tilsvarende regler som fastsat for
+indkomstskatten til staten.
 ----
 
+--@begin::kommuneskatteloven_par5_stk1_stk3--
 # KommunalIndkomstskatInput(skattepligtig_indkomst_kroner: Heltal, udskrivningsprocent_basispoint: Heltal)
+# KommunalPar5DelårInput(omfatter_kortere_periode_end_år: Boolsk, omregning: Par14OmregningInput, valg: Par14ValgResultat, kommunal_helårsskat_kroner: Heltal, kommunal_skat_som_helårsskattepligtig_kroner: Heltal)
+# KommunalPar5DelårResultat(omfatter_kortere_periode_end_år: Boolsk, tilsvarende_par14_skatteberegning: Par14SkatteberegningResultat, kommunal_indkomstskat_efter_delår_kroner: Heltal)
+# KommunalPar5DelårSag(input: KommunalPar5DelårInput) {
+    | tilsvarende_par14_input() -> Par14SkatteberegningInput(
+        omregning = input.omregning,
+        valg = input.valg,
+        helårsskat_efter_par6_til_par9_kroner = input.kommunal_helårsskat_kroner,
+        samlet_indkomstskat_som_helårsskattepligtig_kroner = input.kommunal_skat_som_helårsskattepligtig_kroner
+    )
+    | tilsvarende_par14_skatteberegning() -> par14_skatteberegning_resultat(tilsvarende_par14_input())
+    | kommunal_indkomstskat_efter_delår_kroner() -> input.kommunal_skat_som_helårsskattepligtig_kroner
+    | exception kommunal_par5_stk3_kortere_periode kommunal_indkomstskat_efter_delår_kroner() -> tilsvarende_par14_skatteberegning().skat_efter_par14_kroner under input.omfatter_kortere_periode_end_år
+    | resultat() -> KommunalPar5DelårResultat(
+        omfatter_kortere_periode_end_år = input.omfatter_kortere_periode_end_år,
+        tilsvarende_par14_skatteberegning = tilsvarende_par14_skatteberegning(),
+        kommunal_indkomstskat_efter_delår_kroner = kommunal_indkomstskat_efter_delår_kroner()
+    )
+}
 
 | kommunal_indkomstskat_grundlag_kroner(input: KommunalIndkomstskatInput) -> input.skattepligtig_indkomst_kroner
 | kommunal_indkomstskat_før_personfradrag_kroner(input: KommunalIndkomstskatInput) -> penge_beløb_gange_basispoint_kroner(kommunal_indkomstskat_grundlag_kroner(input), input.udskrivningsprocent_basispoint)
+| kommunal_par5_delår_sag(input: KommunalPar5DelårInput) -> KommunalPar5DelårSag(input)
+| kommunal_par5_delår_resultat(input: KommunalPar5DelårInput) -> kommunal_par5_delår_sag(input).resultat()
+--@end::kommuneskatteloven_par5_stk1_stk3--
 
 ----
 § 6. Kommunal indkomstskat svares med en udskrivningsprocent, der fastsættes af

@@ -53,7 +53,10 @@ måneden efter udskrivningsdatoen. Opkrævningsloven § 7 har nu også en
 source-ankeret Nationalbank/Statbank DNRUUPI-inputvej for 2025 og 2026, hvor
 juli/august/september-kassekreditrenter i milliprocent afrundes til
 basispoint, føres gennem lovens gennemsnit/nedrunding/division, og matches
-mod Skattestyrelsens offentliggjorte SKM-satser.
+mod Skattestyrelsens offentliggjorte SKM-satser. Kommuneskatteloven § 5,
+stk. 3 er nu også en kildeankeret delårsregel, hvor den kommunale
+indkomstskat bruger Personskatteloven § 14's tilsvarende helårsomregnings- og
+stk. 2-valgmekanik i et typed `KommunalPar5DelårResultat`.
 
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
@@ -501,7 +504,10 @@ Current municipal/church-tax and withholding dependency sources:
   `https://www.retsinformation.dk/eli/lta/2019/935`
   - XML status on 2026-07-18: `Valid`
   - §§ 1, 5 and 6 are the first ordinary municipal-income-tax slice used by
-    the wage-earner calculator.
+    the wage-earner calculator. § 5, stk. 3 now also has a typed partial-year
+    municipal-income-tax result that delegates to the corresponding
+    Personskatteloven § 14 calculation form for annualisation and stk. 2
+    no-annualisation election cases.
   - §§ 2-3 now cover tax-municipality selection at 5 September, institution and
     Danish-ship exceptions, expatriate Copenhagen-basis tax under
     Kildeskatteloven § 1, nr. 4, tax-liability entry after 5 September, and
@@ -822,6 +828,8 @@ encoded as a temporal rule on top of the consolidation.
   Arbejdsmarkedsbidragsloven § 2 nr. 1-6 and stk. 3 wage-earner base
   composition,
   municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding,
+  Kommuneskatteloven § 5, stk. 3 partial-year municipal income tax through the
+  corresponding Personskatteloven § 14 calculation result,
   Kildeskatteloven § 48 stk. 11 pension-institution 40 pct. withholding,
   BEK 839 forskudskort generation, BEK 1094 2026 indeholdelsesprocent,
   Kildeskatteloven §§ 60-62/62 A/62 C/67 slutopgørelse balance,
@@ -1820,6 +1828,9 @@ M4 - Ordinary taxpayer calculator
   now runs a 2026 Copenhagen § 14 partial-year wage-earner case, annualizing
   180 days of wage income and applying the reduced §§ 6-9 state-income-tax
   result while keeping AM outside the § 14 helårsskat component.
+  `kommuneskattelov-personskat.scenario.runa` now mirrors that posture for
+  Kommuneskatteloven § 5, stk. 3, validating both helårsomregnet municipal
+  income tax and the Personskatteloven § 14, stk. 2 election branch.
   `aktieindkomst-slutopgoerelse.runa` now composes Personskatteloven § 8 a
   with Kildeskatteloven § 67 as reusable calculation rules; the corresponding
   scenario file supplies fictional wage-earner fixtures:
