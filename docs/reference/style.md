@@ -143,9 +143,9 @@ referenced domain type.
 § 3. Den lovgivende magt er hos kongen og folketinget i forening.
 ----
 
---@begin::grundlov_par3--
+--@begin:grundlov_par3--
 | lovgivende_magt() -> IForening(Kongen, Folketinget)
---@end::grundlov_par3--
+--@end:grundlov_par3--
 ```
 
 The generic form is `--@label:LABEL::ROLE:BINDING--`. The explicit
@@ -164,10 +164,13 @@ References may repeat, including the same role, and their order is preserved:
 = shape_warning = AuditWarning(message = "Kredsen er ikke udtrykkeligt afgrænset")
 
 --@label:shape_rule::source:comment_shape::source:alternate_shape::warning:shape_warning--
---@begin::shape_rule--
+--@begin:shape_rule--
 | circles_rule(shape: Shape) -> shape == Circle
---@end::shape_rule--
+--@end:shape_rule--
 ```
+
+Code spans use the compact `--@begin:LABEL--` and `--@end:LABEL--` forms.
+The earlier `--@begin::LABEL--` and `--@end::LABEL--` spellings remain accepted.
 
 `runa meta --type Shape file.runa` finds all references whose binding has type
 `Shape`. `runa meta --role warning file.runa` finds warning references, and the

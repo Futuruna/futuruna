@@ -15,3 +15,6 @@
 = shape_warning = Warning(message = "Not selected")
 
 --@label:shape_filter::source:primary_shape::source:secondary_shape::warning:shape_warning--
+--@begin:shape_filter--
+| circles_rule(shape: Shape) -> shape == Circle
+--@end:shape_filter--

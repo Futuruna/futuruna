@@ -1392,6 +1392,8 @@ pub fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
 /// --@label:label::role:binding::role:another_binding--
 /// --@meta::label::role:binding--
 /// --@source::label::meta:source_binding--
+/// --@begin:label--
+/// --@end:label--
 /// --@begin::label--
 /// --@end::label--
 /// ```
@@ -1635,6 +1637,8 @@ fn parse_meta_comment_line(
     let (kind, label, attrs_start) =
         if let Some(label) = parts.first().and_then(|part| part.strip_prefix("label:")) {
             ("meta", label.trim(), 1)
+        } else if let Some((kind, label)) = parts.first().and_then(|part| part.split_once(':')) {
+            (kind.trim(), label.trim(), 1)
         } else if parts.len() >= 2 {
             (parts[0], parts[1], 2)
         } else {
@@ -1643,7 +1647,7 @@ fn parse_meta_comment_line(
     if kind.is_empty() || label.is_empty() {
         diagnostics.push(MetaDiagnostic {
             line: line_no,
-            message: "meta comment must use `--@kind::label--` or `--@label:label::role:binding--`"
+            message: "meta comment must use `--@kind:label--`, `--@kind::label--`, or `--@label:label::role:binding--`"
                 .to_string(),
         });
         return None;
@@ -2146,9 +2150,9 @@ Raw additions
 
 --@meta::geometry_assumption::assumption:comment_shape--
 
---@begin::geometry--
+--@begin:geometry--
 = geometry_fixture = Circle
---@end::geometry--
+--@end:geometry--
 "#;
 
         let index = scan_meta_comments(source);
