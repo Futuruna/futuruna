@@ -13621,6 +13621,15 @@ impl<'a> LoweringCtx<'a> {
                             ty: fir_args[1].ty.clone(),
                         };
                     }
+                    if fn_name == "map" && fir_args.len() >= 2 {
+                        if let FirTy::Arrow(_, result_ty) = &fir_args[1].ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args.clone()),
+                                span: expr.span,
+                                ty: FirTy::List(result_ty.clone()),
+                            };
+                        }
+                    }
                     // map_entries(Map(K, V)) -> List(Tuple(K, V))
                     if fn_name == "map_entries" && !fir_args.is_empty() {
                         let kv = if let FirTy::Map(k, v) = &fir_args[0].ty {

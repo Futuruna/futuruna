@@ -1,0 +1,20 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: [MappedEntry(amount: 7), MappedEntry(amount: 11)]
+
+# SourceEntry(amount: Int)
+# MappedEntry(amount: Int)
+# MappingInput(enabled: Bool, entries: List(SourceEntry))
+
+| mapped_entries(input: MappingInput) -> []
+| exception mapping_enabled mapped_entries(input: MappingInput) -> map(
+    input.entries,
+    |entry: SourceEntry| MappedEntry(amount = entry.amount)
+) under input.enabled
+
+= result = mapped_entries(MappingInput(
+    enabled = true,
+    entries = [SourceEntry(amount = 7), SourceEntry(amount = 11)]
+))
+
+@ print(show(result))
