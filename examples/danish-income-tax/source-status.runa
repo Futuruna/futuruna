@@ -23,6 +23,9 @@
 -- Retsinformation, LOV nr. 1564 af 12/12/2023.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2023/1564
 -- XML: https://www.retsinformation.dk/eli/lta/2023/1564/dan/xml
+-- Retsinformation, LOV nr. 679 af 03/06/2023.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2023/679
+-- XML: https://www.retsinformation.dk/eli/lta/2023/679/dan/xml
 -- Retsinformation, LOV nr. 108 af 31/01/2024.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/108
 -- XML: https://www.retsinformation.dk/eli/lta/2024/108/dan/xml
@@ -122,6 +125,15 @@
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2021/1836
 -- XML: https://www.retsinformation.dk/eli/lta/2021/1836/dan/xml
 --
+-- Afhængig kilde for § 4, stk. 1, nr. 6 ejendomsoverskud/-underskud:
+-- Retsinformation, LOV nr. 678 af 03/06/2023.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2023/678
+-- XML: https://www.retsinformation.dk/eli/lta/2023/678/dan/xml
+-- Historisk referencekilde:
+-- Retsinformation, LBK nr. 1590 af 02/11/2020.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2020/1590
+-- XML: https://www.retsinformation.dk/eli/lta/2020/1590/dan/xml
+--
 -- Hver ---- blok er original lovtekst eller officiel metadata fra kilden.
 -- Futuruna-reglerne nedenfor er projektets kildefaste oversættelse.
 
@@ -159,6 +171,13 @@ DocumentTitle: Lov om ændring af personskatteloven, pensionsbeskatningsloven og
 Status: Valid
 DiesSigni: 2023-12-12
 StartDate: 2023-12-12
+EndDate: 2026-06-23
+
+Officiel XML-metadata for 2023/679, hentet 2026-07-18:
+DocumentTitle: Lov om ændring af kildeskatteloven, lov om kommunal indkomstskat, ejendomsvurderingsloven og forskellige andre love  (Opkrævning og inddrivelse af grundskyld og dækningsafgift m.v., statens afregning af grundskyld og dækningsafgift til kommunerne, foreløbige vurderinger som midlertidigt beskatningsgrundlag i 2024 og 2025, forenkling af ejendomsvurderingerne for 2024 og 2025, udvidelse af antallet af dommere i Landsskatteretten m.v.)
+Status: Valid
+DiesSigni: 2023-06-03
+StartDate: 2023-06-03
 EndDate: 2026-06-23
 
 Officiel XML-metadata for 2024/108, hentet 2026-07-18:
@@ -337,6 +356,23 @@ Status: Valid
 DiesSigni: 2021-09-16
 StartDate: 2021-09-24
 EndDate: 2026-07-01
+
+Officiel XML-metadata for 2023/678, hentet 2026-07-18:
+DocumentTitle: Ejendomsskattelov
+PopularTitle: Ejendomsskatteloven
+Status: Valid
+DiesSigni: 2023-06-03
+StartDate: 2023-06-03
+EndDate: 2026-07-01
+
+Officiel XML-metadata for 2020/1590, hentet 2026-07-18:
+DocumentTitle: Bekendtgørelse af ejendomsværdiskatteloven
+PopularTitle: Ejendomsværdiskatteloven
+Status: Historic
+DiesSigni: 2020-11-02
+StartDate: 2020-11-12
+EndDate: 2026-06-23
+DateOfHistoricMark: 2026-01-27
 ----
 
 # Kildestatus = Gældende | Historisk
@@ -388,6 +424,15 @@ EndDate: 2026-07-01
     status = Gældende,
     hentet_yyyymmdd = 20260718,
     metadata_start_yyyymmdd = 20231212,
+    metadata_end_yyyymmdd = 20260623
+)
+= personskat_ejendom_overgang_aendring_2023_679 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2023/679",
+    år = 2023,
+    nummer = 679,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20230603,
     metadata_end_yyyymmdd = 20260623
 )
 = personskat_bundskat_aendring_2024_108 = Retskilde(
@@ -615,10 +660,28 @@ EndDate: 2026-07-01
     metadata_start_yyyymmdd = 20210924,
     metadata_end_yyyymmdd = 20260701
 )
+= ejendomsskatteloven_2023_678 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2023/678",
+    år = 2023,
+    nummer = 678,
+    status = Gældende,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20230603,
+    metadata_end_yyyymmdd = 20260701
+)
+= ejendomsværdiskatteloven_2020_1590 = Retskilde(
+    eli = "https://www.retsinformation.dk/eli/lta/2020/1590",
+    år = 2020,
+    nummer = 1590,
+    status = Historisk,
+    hentet_yyyymmdd = 20260718,
+    metadata_start_yyyymmdd = 20201112,
+    metadata_end_yyyymmdd = 20260623
+)
 
 | kilde_er_personskatteloven(kilde: Retskilde) -> kilde.nummer == 799 || kilde.nummer == 1284
 | kilde_er_personskat_reform(kilde: Retskilde) -> kilde.nummer == 482 && kilde.år == 2024
-| kilde_er_personskat_aendring(kilde: Retskilde) -> (kilde.nummer == 252 && kilde.år == 2022) || (kilde.nummer == 610 && kilde.år == 2023) || (kilde.nummer == 1564 && kilde.år == 2023) || (kilde.nummer == 108 && kilde.år == 2024) || (kilde.nummer == 1691 && kilde.år == 2024) || (kilde.nummer == 615 && kilde.år == 2026)
+| kilde_er_personskat_aendring(kilde: Retskilde) -> (kilde.nummer == 252 && kilde.år == 2022) || (kilde.nummer == 610 && kilde.år == 2023) || (kilde.nummer == 679 && kilde.år == 2023) || (kilde.nummer == 1564 && kilde.år == 2023) || (kilde.nummer == 108 && kilde.år == 2024) || (kilde.nummer == 1691 && kilde.år == 2024) || (kilde.nummer == 615 && kilde.år == 2026)
 | kilde_er_selskabsskatteloven(kilde: Retskilde) -> (kilde.nummer == 1241 && kilde.år == 2022) || (kilde.nummer == 279 && kilde.år == 2025)
 | kilde_er_pensionsbeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1243 && kilde.år == 2024
 | kilde_er_sømandsbeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1181 && kilde.år == 2023
@@ -636,6 +699,8 @@ EndDate: 2026-07-01
 | kilde_er_kursgevinstloven(kilde: Retskilde) -> kilde.nummer == 1176 && kilde.år == 2025
 | kilde_er_aktieavancebeskatningsloven(kilde: Retskilde) -> kilde.nummer == 1098 && kilde.år == 2025
 | kilde_er_virksomhedsskatteloven(kilde: Retskilde) -> kilde.nummer == 1836 && kilde.år == 2021
+| kilde_er_ejendomsskatteloven(kilde: Retskilde) -> kilde.nummer == 678 && kilde.år == 2023
+| kilde_er_ejendomsværdiskatteloven(kilde: Retskilde) -> kilde.nummer == 1590 && kilde.år == 2020
 
 | kilde_metadata_dækker_dato(kilde: Retskilde, dato_yyyymmdd: Heltal) -> kilde.metadata_start_yyyymmdd <= dato_yyyymmdd && dato_yyyymmdd <= kilde.metadata_end_yyyymmdd
 | kilde_metadata_horisont_udløbet(kilde: Retskilde, dato_yyyymmdd: Heltal) -> kilde.metadata_end_yyyymmdd < dato_yyyymmdd
@@ -654,7 +719,7 @@ EndDate: 2026-07-01
 = reform_til_aktuel_beregning = kilde_egnet_til_formål(personskat_reform_2024_482, AktuelSkatteberegning)
 = personfradrag_aendring_til_aktuel_beregning = kilde_egnet_til_formål(personskat_personfradrag_aendring_2023_1564, AktuelSkatteberegning)
 = ivaerksaetter_aendring_til_aktuel_beregning = kilde_egnet_til_formål(personskat_ivaerksaetter_aendring_2024_1691, AktuelSkatteberegning)
-= ejendom_aendring_til_aktuel_beregning = kilde_egnet_til_formål(personskat_ejendom_aendring_2026_615, AktuelSkatteberegning)
+= ejendom_aendring_til_aktuel_beregning = kilde_egnet_til_formål(personskat_ejendom_overgang_aendring_2023_679, AktuelSkatteberegning) && kilde_egnet_til_formål(personskat_ejendom_aendring_2026_615, AktuelSkatteberegning)
 = selskabsskattelov_til_aktuel_beregning = kilde_egnet_til_formål(selskabsskatteloven_2025_279, AktuelSkatteberegning)
 = selskabsskattelov_historisk_til_audit = kilde_egnet_til_formål(selskabsskatteloven_2022_1241, HistoriskAudit)
 = pensionsbeskatningslov_til_aktuel_beregning = kilde_egnet_til_formål(pensionsbeskatningsloven_2024_1243, AktuelSkatteberegning)
@@ -674,10 +739,12 @@ EndDate: 2026-07-01
 = kursgevinstlov_til_aktuel_beregning = kilde_egnet_til_formål(kursgevinstloven_2025_1176, AktuelSkatteberegning)
 = aktieavancebeskatningslov_til_aktuel_beregning = kilde_egnet_til_formål(aktieavancebeskatningsloven_2025_1098, AktuelSkatteberegning)
 = virksomhedsskattelov_til_aktuel_beregning = kilde_egnet_til_formål(virksomhedsskatteloven_2021_1836, AktuelSkatteberegning)
+= ejendomsskattelov_til_aktuel_beregning = kilde_egnet_til_formål(ejendomsskatteloven_2023_678, AktuelSkatteberegning)
+= ejendomsværdiskattelov_historisk_til_audit = kilde_egnet_til_formål(ejendomsværdiskatteloven_2020_1590, HistoriskAudit)
 = historisk_til_audit = kilde_egnet_til_formål(personskatteloven_2019_799, HistoriskAudit)
 = personskattelov_dagsaktuel_beregning = kilde_egnet_til_formål(personskatteloven_2021_1284, DagsaktuelAutomatiskBeregning)
 
-= personskat_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(personskatteloven_2021_1284) && kilde_hentet_på_statusdato(personskat_bundskat_aendring_2022_252) && kilde_hentet_på_statusdato(personskat_bundskat_aendring_2023_610) && kilde_hentet_på_statusdato(personskat_personfradrag_aendring_2023_1564) && kilde_hentet_på_statusdato(personskat_bundskat_aendring_2024_108) && kilde_hentet_på_statusdato(personskat_reform_2024_482) && kilde_hentet_på_statusdato(personskat_ivaerksaetter_aendring_2024_1691) && kilde_hentet_på_statusdato(personskat_ejendom_aendring_2026_615)
+= personskat_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(personskatteloven_2021_1284) && kilde_hentet_på_statusdato(personskat_bundskat_aendring_2022_252) && kilde_hentet_på_statusdato(personskat_bundskat_aendring_2023_610) && kilde_hentet_på_statusdato(personskat_ejendom_overgang_aendring_2023_679) && kilde_hentet_på_statusdato(personskat_personfradrag_aendring_2023_1564) && kilde_hentet_på_statusdato(personskat_bundskat_aendring_2024_108) && kilde_hentet_på_statusdato(personskat_reform_2024_482) && kilde_hentet_på_statusdato(personskat_ivaerksaetter_aendring_2024_1691) && kilde_hentet_på_statusdato(personskat_ejendom_aendring_2026_615)
 = par8b_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(selskabsskatteloven_2025_279)
 = par8b_historisk_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(selskabsskatteloven_2022_1241)
 = par13_dependency_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(pensionsbeskatningsloven_2024_1243) && kilde_hentet_på_statusdato(sømandsbeskatningsloven_2023_1181)
@@ -688,9 +755,11 @@ EndDate: 2026-07-01
 = kursgevinstlov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(kursgevinstloven_2025_1176)
 = aktieavancebeskatningslov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(aktieavancebeskatningsloven_2025_1098)
 = virksomhedsskattelov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(virksomhedsskatteloven_2021_1836)
-= gældende_kilder_hentet_på_statusdato = personskat_kilder_hentet_på_statusdato && par8b_dependency_kilder_hentet_på_statusdato && par13_dependency_kilder_hentet_på_statusdato && am_kilder_hentet_på_statusdato && kommunal_folkekirke_kilder_hentet_på_statusdato && kildeskat_kilder_hentet_på_statusdato && opkrævning_ligning_kilder_hentet_på_statusdato && kursgevinstlov_kilder_hentet_på_statusdato && aktieavancebeskatningslov_kilder_hentet_på_statusdato && virksomhedsskattelov_kilder_hentet_på_statusdato
+= ejendomsskattelov_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(ejendomsskatteloven_2023_678)
+= ejendomsværdiskattelov_historisk_kilder_hentet_på_statusdato = kilde_hentet_på_statusdato(ejendomsværdiskatteloven_2020_1590)
+= gældende_kilder_hentet_på_statusdato = personskat_kilder_hentet_på_statusdato && par8b_dependency_kilder_hentet_på_statusdato && par13_dependency_kilder_hentet_på_statusdato && am_kilder_hentet_på_statusdato && kommunal_folkekirke_kilder_hentet_på_statusdato && kildeskat_kilder_hentet_på_statusdato && opkrævning_ligning_kilder_hentet_på_statusdato && kursgevinstlov_kilder_hentet_på_statusdato && aktieavancebeskatningslov_kilder_hentet_på_statusdato && virksomhedsskattelov_kilder_hentet_på_statusdato && ejendomsskattelov_kilder_hentet_på_statusdato
 
-= personskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(personskatteloven_2021_1284) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2022_252) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2023_610) && kilde_formelt_gældende_men_metadata_udløbet(personskat_personfradrag_aendring_2023_1564) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2024_108) && kilde_formelt_gældende_men_metadata_udløbet(personskat_reform_2024_482) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ivaerksaetter_aendring_2024_1691) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ejendom_aendring_2026_615)
+= personskat_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(personskatteloven_2021_1284) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2022_252) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2023_610) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ejendom_overgang_aendring_2023_679) && kilde_formelt_gældende_men_metadata_udløbet(personskat_personfradrag_aendring_2023_1564) && kilde_formelt_gældende_men_metadata_udløbet(personskat_bundskat_aendring_2024_108) && kilde_formelt_gældende_men_metadata_udløbet(personskat_reform_2024_482) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ivaerksaetter_aendring_2024_1691) && kilde_formelt_gældende_men_metadata_udløbet(personskat_ejendom_aendring_2026_615)
 = par8b_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(selskabsskatteloven_2025_279)
 = par13_dependency_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(pensionsbeskatningsloven_2024_1243) && kilde_formelt_gældende_men_metadata_udløbet(sømandsbeskatningsloven_2023_1181)
 = am_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(arbejdsmarkedsbidragsloven_2020_121) && kilde_formelt_gældende_men_metadata_udløbet(arbejdsmarkedsbidrag_aendring_2025_96)
@@ -700,7 +769,8 @@ EndDate: 2026-07-01
 = kursgevinstlov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(kursgevinstloven_2025_1176)
 = aktieavancebeskatningslov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(aktieavancebeskatningsloven_2025_1098)
 = virksomhedsskattelov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(virksomhedsskatteloven_2021_1836)
-= alle_gældende_kilder_metadata_horisont_udløbet = personskat_kilder_metadata_horisont_udløbet && par8b_dependency_kilder_metadata_horisont_udløbet && par13_dependency_kilder_metadata_horisont_udløbet && am_kilder_metadata_horisont_udløbet && kommunal_folkekirke_kilder_metadata_horisont_udløbet && kildeskat_kilder_metadata_horisont_udløbet && opkrævning_ligning_kilder_metadata_horisont_udløbet && kursgevinstlov_kilder_metadata_horisont_udløbet && aktieavancebeskatningslov_kilder_metadata_horisont_udløbet && virksomhedsskattelov_kilder_metadata_horisont_udløbet
+= ejendomsskattelov_kilder_metadata_horisont_udløbet = kilde_formelt_gældende_men_metadata_udløbet(ejendomsskatteloven_2023_678)
+= alle_gældende_kilder_metadata_horisont_udløbet = personskat_kilder_metadata_horisont_udløbet && par8b_dependency_kilder_metadata_horisont_udløbet && par13_dependency_kilder_metadata_horisont_udløbet && am_kilder_metadata_horisont_udløbet && kommunal_folkekirke_kilder_metadata_horisont_udløbet && kildeskat_kilder_metadata_horisont_udløbet && opkrævning_ligning_kilder_metadata_horisont_udløbet && kursgevinstlov_kilder_metadata_horisont_udløbet && aktieavancebeskatningslov_kilder_metadata_horisont_udløbet && virksomhedsskattelov_kilder_metadata_horisont_udløbet && ejendomsskattelov_kilder_metadata_horisont_udløbet
 
 | historisk_kilde_afvises_til_aktuel_beregning: historisk_til_aktuel_beregning -> historisk_til_aktuel_beregning == Falskt
 | gældende_kilde_accepteres_til_aktuel_beregning: gældende_til_aktuel_beregning -> gældende_til_aktuel_beregning == Sandt
@@ -733,6 +803,11 @@ EndDate: 2026-07-01
 | virksomhedsskattelov_accepteres_til_aktuel_beregning: virksomhedsskattelov_til_aktuel_beregning -> virksomhedsskattelov_til_aktuel_beregning == Sandt
 | virksomhedsskattelov_hentet_på_statusdato: virksomhedsskattelov_kilder_hentet_på_statusdato -> virksomhedsskattelov_kilder_hentet_på_statusdato == Sandt
 | virksomhedsskattelov_metadata_horisont_udløbet: virksomhedsskattelov_kilder_metadata_horisont_udløbet -> virksomhedsskattelov_kilder_metadata_horisont_udløbet == Sandt
+| ejendomsskattelov_accepteres_til_aktuel_beregning: ejendomsskattelov_til_aktuel_beregning -> ejendomsskattelov_til_aktuel_beregning == Sandt
+| ejendomsskattelov_hentet_på_statusdato: ejendomsskattelov_kilder_hentet_på_statusdato -> ejendomsskattelov_kilder_hentet_på_statusdato == Sandt
+| ejendomsskattelov_metadata_horisont_udløbet: ejendomsskattelov_kilder_metadata_horisont_udløbet -> ejendomsskattelov_kilder_metadata_horisont_udløbet == Sandt
+| ejendomsværdiskattelov_historisk_accepteres_til_audit: ejendomsværdiskattelov_historisk_til_audit -> ejendomsværdiskattelov_historisk_til_audit == Sandt
+| ejendomsværdiskattelov_historisk_hentet_på_statusdato: ejendomsværdiskattelov_historisk_kilder_hentet_på_statusdato -> ejendomsværdiskattelov_historisk_kilder_hentet_på_statusdato == Sandt
 | historisk_kilde_accepteres_til_audit: historisk_til_audit -> historisk_til_audit == Sandt
 | kilder_hentet_på_statusdato: gældende_kilder_hentet_på_statusdato -> gældende_kilder_hentet_på_statusdato == Sandt
 | dagsaktuel_beregning_afviser_udløbet_metadata: personskattelov_dagsaktuel_beregning -> personskattelov_dagsaktuel_beregning == Falskt

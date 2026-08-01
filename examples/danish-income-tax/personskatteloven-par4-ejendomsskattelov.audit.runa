@@ -1,0 +1,138 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Personskatteloven § 4, stk. 1, nr. 6 -- Ejendomsskatteloven § 3 audit.
+--
+-- Kilde: Retsinformation, LOV nr. 679 af 03/06/2023.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2023/679
+-- XML: https://www.retsinformation.dk/eli/lta/2023/679/dan/xml
+--
+-- Kilde: Retsinformation, LOV nr. 615 af 30/06/2026.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2026/615
+-- XML: https://www.retsinformation.dk/eli/lta/2026/615/dan/xml
+
+----
+Personskatteloven § 4, stk. 1, nr. 6, som ændret ved lov nr. 679 af 03/06/2023,
+§ 12:
+
+I § 4, stk. 1, nr. 6, ændres »ejendomsværdiskattelovens § 4, nr. 1-5 og
+9-11« til: »ejendomsskattelovens § 3, stk. 1, nr. 1-5, 9 og 10, og stk. 2«.
+
+Lov nr. 679 af 03/06/2023, § 45, stk. 3:
+
+§§ 1 og 2, § 3, nr. 3, 4, 6, 8-18, 20, 21 og 29, §§ 4-8, § 9, nr. 1, 3 og 4,
+§§ 10-13, § 14, nr. 1, 2 og 7, §§ 15-18 og 21-29, § 30, nr. 2 og 4, og
+§§ 32-44 træder i kraft den 1. januar 2024.
+
+Personskatteloven § 4, stk. 1, nr. 6, som ændret ved lov nr. 615 af 30/06/2026,
+§ 12:
+
+I § 4, stk. 1, nr. 6, ændres »nr. 1-5, 9 og 10« til: »nr. 1-4, 8 og 9«.
+----
+
+= par4_nr6_audit_2026_landzone = par4_stk1_nr6_resultat_fra_ejendomsskattelov_par3(
+    EjendomsskattelovPar3Input(
+        indkomstår = 2026,
+        kategori = EjskLandzoneOver5000M2,
+        beliggenhed = EjskDanmark,
+        erhvervsmæssigt_udlejet = Falskt,
+        særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt
+    ),
+    18000
+)
+= par4_nr6_audit_2026_boligsameje = par4_stk1_nr6_resultat_fra_ejendomsskattelov_par3(
+    EjendomsskattelovPar3Input(
+        indkomstår = 2026,
+        kategori = EjskBoligsamejeMv,
+        beliggenhed = EjskDanmark,
+        erhvervsmæssigt_udlejet = Falskt,
+        særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt
+    ),
+    18000
+)
+= par4_nr6_audit_2027_blandet = par4_stk1_nr6_resultat_fra_ejendomsskattelov_par3(
+    EjendomsskattelovPar3Input(
+        indkomstår = 2027,
+        kategori = EjskBlandetBoligErhverv,
+        beliggenhed = EjskDanmark,
+        erhvervsmæssigt_udlejet = Falskt,
+        særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt
+    ),
+    12000
+)
+= par4_nr6_audit_2027_landzone_underskud = par4_stk1_nr6_resultat_fra_ejendomsskattelov_par3(
+    EjendomsskattelovPar3Input(
+        indkomstår = 2027,
+        kategori = EjskLandzoneOver5000M2,
+        beliggenhed = EjskDanmark,
+        erhvervsmæssigt_udlejet = Falskt,
+        særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt
+    ),
+    -7000
+)
+= par4_nr6_audit_2027_tre_til_seks = par4_stk1_nr6_resultat_fra_ejendomsskattelov_par3(
+    EjendomsskattelovPar3Input(
+        indkomstår = 2027,
+        kategori = EjskEjerlejlighedTreTilSeks,
+        beliggenhed = EjskDanmark,
+        erhvervsmæssigt_udlejet = Falskt,
+        særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt
+    ),
+    12000
+)
+= par4_nr6_audit_2027_udland_vindmølle = par4_stk1_nr6_resultat_fra_ejendomsskattelov_par3(
+    EjendomsskattelovPar3Input(
+        indkomstår = 2027,
+        kategori = EjskVindmølleparcel,
+        beliggenhed = EjskUdlandFaeroerneGroenland,
+        erhvervsmæssigt_udlejet = Falskt,
+        særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt
+    ),
+    9000
+)
+= par4_nr6_audit_2027_erhvervsudlejet = par4_stk1_nr6_resultat_fra_ejendomsskattelov_par3(
+    EjendomsskattelovPar3Input(
+        indkomstår = 2027,
+        kategori = EjskEnBoligenhed,
+        beliggenhed = EjskDanmark,
+        erhvervsmæssigt_udlejet = Sandt,
+        særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt
+    ),
+    22000
+)
+= par4_nr6_audit_samlet = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr6_kapitalpost_fra_ejendomsskattelov_par3(
+            EjendomsskattelovPar3Input(indkomstår = 2027, kategori = EjskBlandetBoligErhverv, beliggenhed = EjskDanmark, erhvervsmæssigt_udlejet = Falskt, særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt),
+            12000
+        ),
+        par4_stk1_nr6_kapitalpost_fra_ejendomsskattelov_par3(
+            EjendomsskattelovPar3Input(indkomstår = 2027, kategori = EjskLandzoneOver5000M2, beliggenhed = EjskDanmark, erhvervsmæssigt_udlejet = Falskt, særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt),
+            -7000
+        ),
+        par4_stk1_nr6_kapitalpost_fra_ejendomsskattelov_par3(
+            EjendomsskattelovPar3Input(indkomstår = 2027, kategori = EjskEjerlejlighedTreTilSeks, beliggenhed = EjskDanmark, erhvervsmæssigt_udlejet = Falskt, særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt),
+            12000
+        )
+    ],
+    omkostninger = []
+))
+
+| par4_nr6_audit_2026_landzone_omfattet: par4_nr6_audit_2026_landzone -> par4_nr6_audit_2026_landzone.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr9 && par4_nr6_audit_2026_landzone.kapitalindkomst_kroner == 18000
+| par4_nr6_audit_2026_boligsameje_udelukket: par4_nr6_audit_2026_boligsameje -> par4_nr6_audit_2026_boligsameje.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr8 && par4_nr6_audit_2026_boligsameje.kapitalindkomst_kroner == 0
+| par4_nr6_audit_2027_blandet_omfattet_som_nr4: par4_nr6_audit_2027_blandet -> par4_nr6_audit_2027_blandet.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr4 && par4_nr6_audit_2027_blandet.kapitalindkomst_kroner == 12000
+| par4_nr6_audit_2027_landzone_underskud_fradrages: par4_nr6_audit_2027_landzone_underskud -> par4_nr6_audit_2027_landzone_underskud.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr8 && par4_nr6_audit_2027_landzone_underskud.kapitalindkomst_kroner == -7000
+| par4_nr6_audit_2027_tre_til_seks_udelukket_som_nr5: par4_nr6_audit_2027_tre_til_seks -> par4_nr6_audit_2027_tre_til_seks.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr5 && par4_nr6_audit_2027_tre_til_seks.kapitalindkomst_kroner == 0
+| par4_nr6_audit_2027_udland_stk2_omfattet: par4_nr6_audit_2027_udland_vindmølle -> par4_nr6_audit_2027_udland_vindmølle.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr9 && par4_nr6_audit_2027_udland_vindmølle.omfattet_af_kapitalindkomst == Sandt && par4_nr6_audit_2027_udland_vindmølle.kapitalindkomst_kroner == 9000
+| par4_nr6_audit_2027_erhvervsudlejet_afskåret: par4_nr6_audit_2027_erhvervsudlejet -> par4_nr6_audit_2027_erhvervsudlejet.omfattet_af_ejendomsskattelov_par3 == Falskt && par4_nr6_audit_2027_erhvervsudlejet.kapitalindkomst_kroner == 0
+| par4_nr6_audit_samlet_netto: par4_nr6_audit_samlet -> par4_nr6_audit_samlet.postbeløb_i_kapitalindkomst_kroner == 5000 && par4_nr6_audit_samlet.nettokapitalindkomst_kroner == 5000
+
+? par4_nr6_audit_2026_landzone_omfattet
+? par4_nr6_audit_2026_boligsameje_udelukket
+? par4_nr6_audit_2027_blandet_omfattet_som_nr4
+? par4_nr6_audit_2027_landzone_underskud_fradrages
+? par4_nr6_audit_2027_tre_til_seks_udelukket_som_nr5
+? par4_nr6_audit_2027_udland_stk2_omfattet
+? par4_nr6_audit_2027_erhvervsudlejet_afskåret
+? par4_nr6_audit_samlet_netto

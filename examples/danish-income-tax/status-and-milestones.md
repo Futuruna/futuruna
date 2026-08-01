@@ -123,8 +123,11 @@ positive and negative capital views for the relevant statutory branches;
 stk. 1/stk. 3 helårsomregning and stk. 2 period reduction, and the partial-year
 wage-earner path delegates its final § 14 amount to that object;
 § 10 now reflects LOV 1564/2023's removal of the separate under-18 basis from
-income year 2023 onward, and § 4, stk. 1, nr. 6 has a source-backed post-LOV
-615/2026 category fixture for the ejendomsværdiskattelov reference;
+income year 2023 onward, and § 4, stk. 1, nr. 6 now consumes a typed
+Ejendomsskatteloven § 3 result, preserving the LOV 679/2023 move from
+Ejendomsværdiskatteloven to Ejendomsskatteloven and LOV 615/2026's 2027
+category renumbering, with covered property surplus/deficit flowing into
+capital income and excluded or commercially rented categories staying out;
 § 26, stk. 7 now composes § 7 spouse capital-threshold and
 capital-tax allocation rules into the transition-compensation nr. 3 amount, and
 § 26 now has an annual compensation-settlement result that composes
@@ -219,11 +222,20 @@ Current Personskatteloven amendment sources:
   - XML status on 2026-07-18: `Valid`
   - § 4 updates § 8 a share-income thresholds for income years 2025-2027 and
     later.
+- Property-tax transition amendment:
+  `https://www.retsinformation.dk/eli/lta/2023/679`
+  - XML status on 2026-07-18: `Valid`
+  - § 12 changes § 4, stk. 1, nr. 6 from the historic
+    Ejendomsværdiskatteloven § 4 categories to Ejendomsskatteloven § 3,
+    stk. 1, nr. 1-5, 9 and 10, and stk. 2.
+  - § 45, stk. 3 brings §§ 10-13, including the Personskatteloven § 12
+    amendment, into force on 2024-01-01.
 - Property-category amendment:
   `https://www.retsinformation.dk/eli/lta/2026/615`
   - XML status on 2026-07-18: `Valid`
-  - § 12 changes § 4, stk. 1, nr. 6's ejendomsværdiskattelov reference to
-    nr. 1-4, 8 and 9.
+  - § 12 changes § 4, stk. 1, nr. 6's Ejendomsskatteloven § 3 reference from
+    nr. 1-5, 9 and 10 to nr. 1-4, 8 and 9.
+  - § 16, stk. 5 gives the § 12 change effect from income year 2027.
 
 Current § 8 b dependency source:
 
@@ -279,6 +291,19 @@ Current § 4 and § 13 amendment/dependency sources:
     stk. 1, nr. 14 dependency for taxable real-property gains, with næring
     exclusion, deemed-disposal treatment, the basic gain formula, § 4, stk. 8
     artistic-decoration exclusion and § 11 expropriation-style exclusions.
+- Ejendomsskatteloven:
+  `https://www.retsinformation.dk/eli/lta/2023/678`
+  - XML status on 2026-07-18: `Valid`
+  - § 3 is modeled as the Personskatteloven § 4, stk. 1, nr. 6 dependency for
+    owner-occupied-property surplus and deficit, with year-sensitive category
+    mapping before and after LOV 615/2026, the stk. 2 foreign/Faroe/Greenland
+    extension, and the stk. 3 commercial-rental exclusion.
+- Historic Ejendomsværdiskatteloven:
+  `https://www.retsinformation.dk/eli/lta/2020/1590`
+  - XML status on 2026-07-18: `Historic`
+  - Kept as historical source context for the pre-2024 § 4, stk. 1, nr. 6
+    wording after LOV 679/2023 moved the operative dependency to
+    Ejendomsskatteloven.
 - Ligningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1500`
   - XML status on 2026-07-18: `Valid`
@@ -604,6 +629,10 @@ encoded as a temporal rule on top of the consolidation.
   classification under stk. 1, nr. 5, direct stk. 1, nr. 5 a membership
   certificate classification, and stk. 1, nr. 5 b investment-intermediary
   amount classification with stk. 4-7 personal-income reclassification,
+  Ejendomsskatteloven § 3 owner-occupied-property classification under
+  stk. 1, nr. 6 with LOV 679/2023 transition provenance, LOV 615/2026
+  category renumbering, foreign/Faroe/Greenland inclusion and commercial-rental
+  exclusion,
   Virksomhedsskatteloven § 11 rentekorrektion under stk. 1, nr. 8
   with a capital-income deduction and separate personal-income addition,
   passive self-employed business owner-count
@@ -868,6 +897,11 @@ Current decision:
   consumes the same typed ABL result for § 4 a, routing § 19 B/§ 21 amounts to
   share income, § 19 C to the stk. 2 exclusion, and § 19 B-if-§ 17 amounts to
   personal income under stk. 3.
+- `EjendomsskattelovPar3Resultat` keeps semantic property categories separate
+  from the legal numbering that changes in 2027 under LOV 615/2026.
+  `Par4Stk1Nr6Sag` consumes that typed § 3 result plus the property
+  surplus/deficit amount for Personskatteloven § 4, stk. 1, nr. 6, avoiding a
+  fragile boolean/category scalar at the Personskatteloven boundary.
 - `Ligningslov16ASag` uses product-scoped `|` rules for the LL § 16 A dividend
   slice consumed by `Par4Stk1Nr4Sag`. `Par4Stk1Nr4Sag`,
   `Par4Stk1Nr5aSag` and `Par4Stk1Nr5bSag` keep the original amount,
@@ -1722,7 +1756,7 @@ M6 - Website integration
   A-income/withholding/e-skattekort/slutopgørelse/restskat timing and system-start rateplan posture,
   BEK 839 generated-card path, BEK 1094 2026 indeholdelsesprocent derivation,
   first § 1/§ 2 taxable-income composition from the separate income categories,
-  first § 4 nr. 3/nr. 3 a/nr. 9/nr. 11/nr. 17 focused capital-income
+  first § 4 nr. 3/nr. 3 a/nr. 6/nr. 9/nr. 11/nr. 17 focused capital-income
   classification audits,
   first § 4 a pension/share-income and ABL bridge audits,
   first § 8 a/§ 67 share-income annual-settlement scenario including negative
