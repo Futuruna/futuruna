@@ -1,39 +1,247 @@
-# Exploring Futuruna's Syntax
+# Philosophy of Futuruna
 
-## Start With Law
+Futuruna begins with a practical ambition: one language should be able to
+express law and ordinary programs in the same execution space without becoming
+verbose, fragmented, or cluttered.
 
-Futuruna is a programming language for law. Its purpose is to let definitions,
-rules, defaults, exceptions, calculations, tests, effects, and ordinary program
-logic live in one execution space.
+The seven front runes are the mechanism. The idea behind them is
+**partitioned optionality**.
 
-That purpose comes before the syntax experiment described on this page.
-Futuruna does not need an optimizer to prove that it should exist. It must prove
-itself by making real laws, contracts, policies, and rule-bound systems easier
-to express, execute, inspect, and audit.
+A broad language needs many possible forms. But if every form competes inside
+one shared grammar, adding capabilities also adds keywords, contextual rules,
+special delimiters, and opportunities for collision. Futuruna partitions that
+space before the rest of the line begins.
 
-The optimizer was a design instrument. It helped explore a question:
+The result is a useful duality:
 
-> Can the first character of a statement orient the reader without limiting
-> what the rest of the statement can express?
+> More choices for the author, less uncertainty for the reader.
 
-The answer led toward Futuruna's seven runes. The experiment is an interesting
-part of the language's history, but it is not a claim that Futuruna is the one
-optimal programming language.
+## Partitioned Optionality
 
-## The Design Problem
+Consider a language with several semantic categories of statements: types,
+functions, rules, values, streams, effects, and verification demands.
 
-Rule systems and ordinary programs are usually separated.
+Without a dedicated category channel, those forms share one statement-entry
+grammar. The language can still distinguish them with words such as `struct`,
+`fn`, `rule`, `let`, and `assert`, but the distinction must be encoded as part
+of the ordinary syntax of each line.
 
-A logic language is comfortable describing relationships and asking for
-answers, but less comfortable building an application around those answers. A
-legal language can model defaults and exceptions precisely, but may stop at the
-edge of its legal domain. A general-purpose language can build almost anything,
-but usually represents law through nested conditionals, framework conventions,
-and comments that the compiler cannot understand.
+Futuruna instead reserves the first character as a semantic entry point:
 
-Futuruna tries to keep those capabilities together. A small, illustrative
-model can contain types, layered rules, a normal function, values, an invariant,
-and an effect:
+| Rune | Semantic entry point |
+|------|----------------------|
+| `#` | What exists |
+| `>` | What happens |
+| `\|` | What should hold or apply |
+| `=` | What is |
+| `~` | What flows |
+| `@` | Where effects and boundaries begin |
+| `?` | What needs evidence |
+
+Each rune selects its own local grammar. Let `L_i` be the set of valid
+continuations belonging to rune `r_i`. The complete statement language is:
+
+```text
+L_front = r1 L1 ∪ r2 L2 ∪ ... ∪ rN LN
+```
+
+Because the front runes are distinct, their grammatical namespaces cannot
+collide:
+
+```text
+ri Li ∩ rj Lj = ∅    when i ≠ j
+```
+
+The parser can select the correct namespace after one character. More
+importantly, two namespaces can reuse similar continuation shapes without
+becoming ambiguous. The distinction has already been made.
+
+This is not unrestricted optionality, where every token can follow every other
+token. It is optionality divided into named, non-conflicting regions.
+
+## The Optionality Gain
+
+Assume that, under a fixed readability or complexity budget, one local grammar
+can comfortably support `M` recognizable forms.
+
+Without another discriminator, those `M` surface forms must be shared by all
+semantic categories. With `N` independent front-rune namespaces, every
+namespace can have its own set of forms:
+
+```text
+Unpartitioned capacity = M
+Partitioned capacity   = M1 + M2 + ... + MN
+```
+
+If every namespace supports the same `M` forms:
+
+```text
+Partitioned capacity = N × M
+Capacity gain        = N
+```
+
+For Futuruna's seven runes, the maximum local grammar multiplier is seven. This
+does not make Futuruna seven times more computationally expressive. It means
+that, under the same local syntactic budget, seven semantic categories can
+reuse grammatical space without competing for the same surface forms.
+
+That is the simple mathematical argument behind the front-rune system.
+
+## The Shannon View
+
+The same idea can be expressed through Shannon entropy.
+
+Let `R` be the rune at the start of a statement, and let `p_i` be the
+probability of rune `r_i`. The information carried by observing the rune is:
+
+```text
+H(R) = -Σ p_i log2(p_i)
+```
+
+If all `N` runes are used equally:
+
+```text
+H(R) = log2(N)
+```
+
+With seven equally likely runes:
+
+```text
+log2(7) ≈ 2.81 bits
+```
+
+The first character can therefore provide up to 2.81 bits of immediate
+semantic orientation. Before the rune is chosen, the author has seven
+categories available. After it is read, the reader, parser, editor, or AI no
+longer has to infer which category the line belongs to.
+
+If rune usage is uneven, the effective number of active namespaces is:
+
+```text
+N_effective = 2 ^ H(R)
+```
+
+This is more honest than assuming that all seven runes always contribute
+equally. A codebase dominated by two runes has less effective partitioning than
+one that meaningfully uses the full language.
+
+If `C` represents the continuation selected after a rune, the total choice in a
+statement is:
+
+```text
+H(R, C) = H(R) + H(C | R)
+```
+
+The rune contributes category choice. The continuation contributes choice
+inside that category. Futuruna separates the two channels instead of forcing
+both decisions to emerge from the same undifferentiated syntax.
+
+## More Choice, Less Ambiguity
+
+Optionality usually appears to conflict with clarity. A language with more
+features has more forms to remember, more keywords to recognize, and more
+interactions between constructs.
+
+Partitioning changes that relationship.
+
+For the author, a front rune opens a semantic namespace with its own valid
+continuations. For the reader, that same rune immediately closes six other
+namespaces. The author receives more structured choices while the reader's
+search space becomes smaller.
+
+In parser terminology, the runes give the top-level statement grammars
+disjoint first sets. Top-level dispatch requires one symbol of lookahead. In
+human terms, the first character says what kind of thought follows.
+
+This is why the front-rune system is more than character-level compression. Its
+main value is not that `>` is shorter than `function`. Its main value is that
+`>` reserves an independent grammatical space for things that happen.
+
+## High Paradigm Coverage
+
+Futuruna is intended to cover several programming paradigms without looking
+like several languages bolted together.
+
+The runes provide stable entry points for that coverage:
+
+- `#` contains domain models, algebraic data types, traits, and declared
+  effects.
+- `>` contains ordinary functions, actors, and modules.
+- `|` contains logic rules, legal defaults and exceptions, match alternatives,
+  handlers, and invariants.
+- `=` contains values, bindings, and established facts.
+- `~` contains streams and temporal behavior.
+- `@` contains effects, metadata, imports, and foreign-code boundaries.
+- `?` contains checks and verification demands.
+
+These are not seven isolated mini-languages. They share values, types,
+functions, and execution. A legal rule can call an ordinary function. A
+function can use a modeled type. A stream can carry the result of a rule. A
+verification demand can inspect the same values the program executes.
+
+That shared execution space is what gives Futuruna high paradigm coverage. The
+language can absorb a new capability without necessarily inventing a new
+top-level syntax family. If the capability belongs coherently inside an
+existing semantic territory, it can reuse that rune's grammatical namespace.
+
+This keeps the surface language compact while allowing its capabilities to
+grow.
+
+## Compression Without Collision
+
+Conventional keywords already perform some of the work of runes. `fn`, `let`,
+`struct`, and `assert` are category markers. In that sense, they are verbose
+front runes.
+
+Futuruna's difference is consistency. The category channel is:
+
+- mandatory for most statements;
+- fixed at the beginning of the line;
+- one character wide;
+- drawn from a small semantic alphabet; and
+- independent from the syntax that follows.
+
+At the character level, this compresses a category into one symbol. At the
+grammar level, the larger gain is that syntax can be reused inside separate
+namespaces without collision.
+
+At the language-model token level, one character is not automatically one
+token, and shorter source is not automatically easier source. Those are
+empirical questions. The formal claim is narrower: distinct front runes make
+the statement categories immediately and unambiguously distinguishable.
+
+## The Coherence Constraint
+
+Partitioned optionality works only when each partition remains coherent.
+
+The `|` rune is deliberately broad. Rules, defaults, exceptions, match arms,
+handlers, and invariants are different constructs, but they all qualify a
+proposition or select among alternatives. That common idea gives the rune a
+stable semantic territory.
+
+The design test is:
+
+> Can every use of a rune be explained by one stable sentence?
+
+If the answer is no, the feature has not found a semantic home. Putting it
+under the least inconvenient rune would increase feature count while reducing
+clarity. It should instead be redesigned, explicitly distinguished, or left
+out.
+
+High paradigm coverage is valuable only when it comes from coherent reuse. A
+rune must not become a miscellaneous bucket.
+
+## Law and Ordinary Programming
+
+This philosophy matters particularly for law.
+
+Executable law needs more than rules. It needs types for legal concepts,
+defaults and exceptions, ordinary calculations, dates and flows, effects at
+system boundaries, and demands for tests or evidence. Splitting those needs
+across separate languages creates translation boundaries precisely where an
+audit needs continuity.
+
+Futuruna keeps them together:
 
 ```runa
 # Person(income: Int, age: Int)
@@ -55,171 +263,58 @@ and an effect:
 }
 ```
 
-This is not an attempt to reduce law to arithmetic. Real legal models need
-authority, dates, definitions, dependencies, provenance, and competing
-interpretations. The example shows only the language-design point: the rule
-system and the ordinary program are not foreign to each other.
+The runes do not merely label different lines. They allow rule-based and
+ordinary programming to remain visibly distinct while operating over the same
+types and values.
 
-## Runes as Semantic Modes
+## Humans, Parsers, and AI
 
-Most Futuruna statements begin with one of seven runes:
+Partitioned optionality gives three different consumers the same early signal.
 
-| Rune | Question | Semantic territory |
-|------|----------|--------------------|
-| `#` | What exists? | Types, effects, traits, implementations |
-| `>` | What happens? | Functions, actors, modules |
-| `\|` | What should hold or apply? | Rules, alternatives, invariants, handlers |
-| `=` | What is? | Values, bindings, established facts |
-| `~` | What flows? | Streams and temporal behavior |
-| `@` | Where is the boundary? | Effects, imports, metadata, foreign code |
-| `?` | What needs evidence? | Checks and verification demands |
+**The parser** receives deterministic top-level dispatch after one symbol.
 
-The rune is a semantic fly-in. Before reading the whole line, a person or tool
-knows which part of the language to consider.
+**The human reader** receives the statement category before reading its name,
+arguments, or body.
 
-This does not mean that every rune maps to exactly one parser construct. The
-runes mark semantic territories, not individual nodes in an abstract syntax
-tree. `|`, for example, can introduce a rule, an exception, a match arm, an
-invariant, or an effect handler. Those forms are different, but they all qualify
-a proposition or select among alternatives.
+**An AI system** receives an early category marker that may constrain the
+continuations it should consider. It is plausible that this improves
+generation and repair, but that remains an empirical hypothesis. It should be
+tested against equivalent tasks in keyword-based languages rather than assumed
+from the entropy argument alone.
 
-That compression is useful only while the territory remains coherent. The
-design standard is simple:
+The mathematical result concerns the source grammar. Any cognitive or
+language-model advantage beyond that still requires evidence.
 
-> Every use of a rune should fit one stable sentence that explains what the
-> rune means.
+## What This Does Not Claim
 
-If a construct fits only because the grammar had nowhere else to put it, the
-rune has become a bucket. It should be clarified, moved, or removed. If users
-can predict the family of valid continuations from the rune and local context,
-the shared syntax is doing useful work.
+Partitioned optionality does not make Futuruna more Turing-complete than
+another general-purpose language. It does not prove that seven is the only
+correct number of categories. It does not guarantee that every rune is equally
+useful, or that every feature placed under a rune belongs there.
 
-## The Optimization Experiment
+Keyword-based languages can construct the same kind of partition. They may
+choose multi-character words because those words are more familiar or
+self-describing. Futuruna chooses a compact, fixed-position alphabet because it
+values visual distinction, grammar reuse, and the ability to mix paradigms.
 
-The syntax exploration represented programs as transitions between broad token
-categories: statement starts, identifiers, types, operators, delimiters,
-literals, and similar structural roles. A candidate design could then be viewed
-as a graph describing which categories tended to follow which others.
-
-An NSGA-II evolutionary search explored candidate transition graphs against
-three proxy objectives:
-
-- **Optionality:** how many meaningfully different continuations remain
-  reachable from a position.
-- **Distinguishability:** how different one syntactic context looks from
-  another.
-- **Structural independence:** whether different signals in the syntax carry
-  non-redundant information.
-
-These objectives pull in different directions. Maximum optionality alone
-produces noise: everything can follow everything. Maximum distinction alone
-can produce a rigid language made of isolated forms. The search looked for
-non-dominated trade-offs rather than collapsing the objectives into one score.
-
-In optimization terminology, those trade-offs form a Pareto frontier. Here,
-that phrase has a narrow meaning: within the chosen representation, objectives,
-corpora, and search process, no measured objective can improve without another
-measured objective becoming worse. It does not mean that a language is
-universally optimal.
-
-The recurring result that influenced Futuruna was strong differentiation at
-the beginning of statements. Candidate structures scored well when the opening
-token identified a statement family while later syntax remained available for
-types, expressions, and block structure. That result made line-initial runes
-worth trying.
-
-The optimizer did not emit Futuruna's grammar. It did not decide that law has
-exactly seven concepts. It did not establish that `|` should mean rules or that
-`?` should demand verification. Those were human language-design decisions,
-shaped by the practical goal of combining rule-based and ordinary programming.
-
-## What the Experiment Does Not Establish
-
-The metrics measure properties of a model of syntax. They do not directly
-measure whether programmers understand a legal model, make fewer mistakes, or
-produce better software.
-
-The experiment does not prove that:
-
-- seven runes are the only possible design;
-- Futuruna is clearer than every other language;
-- a Pareto-frontier candidate is optimal outside the measured objectives;
-- the runes improve human comprehension without user studies;
-- the runes improve AI generation without comparative model evaluations; or
-- mathematical language borrowed from another field transfers its authority
-  to programming-language design.
-
-Changing the token categories, source corpus, thresholds, objectives, or search
-space can change the result. That is normal for an exploratory optimization
-experiment. The output is a set of design leads, not a law of nature.
-
-## Why the Front-Rune System Stayed
-
-The runes survived because they are useful in programs, not because they scored
-well in an experiment.
-
-They create a compact visual distinction between a legal rule and the function
-that applies it. They let a default, a guarded condition, and a named exception
-remain close together. They make effects visibly different from pure
-calculations. They allow checks and verification demands to appear beside the
-model they examine.
-
-Most importantly, they let several programming domains share a file without
-making every line look interchangeable. The syntax provides a point of entry:
-when a line starts with `|`, the reader enters the space of rules and qualified
-alternatives; when it starts with `>`, the reader enters the space of
-transformations and processes.
-
-That is the practical hypothesis behind the design.
-
-## The AI Hypothesis
-
-The front-rune system may also help language models. A rune gives the model an
-early, low-cost signal about the kind of statement it is generating. It may
-help separate rule generation from value binding, effects, type construction,
-or verification.
-
-This is plausible, but presently speculative. Transformer attention heads do
-not become correctly oriented merely because a syntax looks structured to a
-human. The claim should be tested by comparing error rates, repair rates,
-context use, and audit quality across equivalent tasks and languages.
-
-The stronger reason Futuruna may help AI is less mysterious: the language gives
-important legal concepts explicit forms. An LLM does not have to simulate a
-default rule through an informal convention if the target language already has
-default and exception semantics. Better representational tools can produce
-better generated artifacts, regardless of whether the runes confer an
-additional model-specific advantage.
-
-## How the Syntax Should Be Judged
-
-The next evidence should come from use:
-
-1. Can legal practitioners trace an output back to the rules and source text
-   that produced it?
-2. Can programmers combine those rules with ordinary computation without
-   building a second integration layer?
-3. Can the auditor expose conflicts, gaps, unreachable rules, circularity, and
-   surprising consequences with minimal counterexamples?
-4. Can unfamiliar readers predict what a rune permits before consulting the
-   grammar?
-5. Do people and AI systems make fewer structural mistakes when translating
-   the same source material?
-
-If the runes fail those tests, an optimization score cannot rescue them. If
-they pass, the optimizer becomes what it should be: an interesting footnote to
-a useful design.
+The `N × M` gain also depends on a fixed local complexity budget. With unlimited
+keywords, arbitrary lookahead, and no concern for human comfort, an
+unpartitioned grammar can continue growing. The relevant constraint is not
+computability. It is how much local syntactic complexity a person or tool can
+comfortably navigate.
 
 ## Conclusion
 
-Futuruna's syntax began with an unusual experiment, but the experiment is not
-the pitch.
+The philosophy of Futuruna is not that punctuation is magical.
 
-The pitch is that law should be expressible as something people and machines
-can run, test, combine with ordinary software, and audit. The seven runes are a
-compact attempt to make that possible without splitting the work across
-separate languages.
+It is that a broad programming language can remain compact and legible when its
+optionality is partitioned before complexity begins.
 
-That is a practical proposition. It can be tested against real statutes,
-contracts, policies, programs, and users. That is where Futuruna should earn
-its claims.
+The front rune gives the author a semantic point of entry. It gives the grammar
+an independent namespace. It gives the reader an immediate category signal.
+With `N` runes and `M` comfortable forms inside each namespace, the local
+grammar can represent up to `N × M` non-conflicting category/form pairs. In
+Shannon's terms, the rune carries up to `log2(N)` bits of category information.
+
+That is partitioned optionality: more choices for the author, less uncertainty
+for everyone who reads what comes next.

@@ -28,6 +28,8 @@ enum Route {
         WhyPage {},
         #[route("/research")]
         ResearchIndex {},
+        #[route("/research/philosophy")]
+        ResearchPhilosophy {},
         #[route("/research/optimization")]
         ResearchOptimization {},
         #[route("/research/danish-constitution")]
@@ -2558,69 +2560,6 @@ fn serde_json_str(s: &str) -> String {
 }
 
 // ============================================================================
-// Philosophy
-// ============================================================================
-
-#[component]
-fn Philosophy() -> Element {
-    rsx! {
-        section { id: "philosophy", class: "philosophy-section",
-            h2 { class: "section-title", "Why Three Dimensions?" }
-            p { class: "section-desc",
-                "Every existing programming language collapses to one or two effective dimensions. "
-                "Futuruna achieves three — and mathematics shows why three is optimal."
-            }
-            div { class: "philosophy-grid",
-                div { class: "philosophy-card",
-                    h3 { "The P\u{00F3}lya Recurrence Theorem" }
-                    p {
-                        "A random walk on a lattice returns to its origin with certainty in "
-                        strong { "d \u{2264} 2" }
-                        " dimensions, but escapes to infinity in "
-                        strong { "d \u{2265} 3" }
-                        ". At d=3, the ratio "
-                        strong { "\u{03B7}(d)/d" }
-                        " — net information harvested per dimension — is maximized. "
-                        "Three is where exploration efficiency peaks: enough dimensions to escape local traps, "
-                        "few enough that each dimension carries maximum signal."
-                    }
-                }
-                div { class: "philosophy-card",
-                    h3 { "NSGA-II Found It Independently" }
-                    p {
-                        "A multi-objective evolutionary search over all possible token transition graphs "
-                        "optimized simultaneously for consciousness (\u{03A6}), optionality (S\u{1D70F}), and distinctiveness (JSD). "
-                        "Of "
-                        strong { "122 Pareto-optimal" }
-                        " syntax designs, "
-                        strong { "85 achieved d_eff \u{2265} 3" }
-                        ". The optimizer discovered what the theorem predicts: three independent axes is the sweet spot."
-                    }
-                }
-                div { class: "philosophy-card",
-                    h3 { "The Cognitive Bottleneck" }
-                    p {
-                        "Human working memory holds "
-                        strong { "3\u{2013}5 independent chunks" }
-                        " (Cowan, 2001). Three cognitive axes — statement kind (which rune), "
-                        "type flow (signatures), and block composition (nesting) — hit the sweet spot. "
-                        "Enough structure to separate concerns; few enough to hold the entire model in your head at once."
-                    }
-                }
-                div { class: "philosophy-card",
-                    h3 { "Transpiles to Rust" }
-                    p {
-                        "Futuruna compiles to Rust, inheriting zero-cost abstractions, "
-                        "memory safety, and the entire Cargo ecosystem. "
-                        "Invisible ownership inference means you write Kotlin-style code and get Rust-level performance."
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ============================================================================
 // Docs page — /docs
 // ============================================================================
 
@@ -2701,7 +2640,7 @@ fn DocsPage() -> Element {
 // ============================================================================
 
 const DOC_WHY: &str = include_str!("../../docs/why.md");
-const DOC_RESEARCH: &str = include_str!("../../docs/research.md");
+const DOC_PHILOSOPHY: &str = include_str!("../../docs/research.md");
 const DOC_OWNERSHIP: &str = include_str!("../../docs/research-ownership.md");
 
 // Danish Constitution .runa files (chapters 1-11 + audit)
@@ -2893,15 +2832,15 @@ fn ResearchIndex() -> Element {
                 }
             }
             div { class: "research-grid",
-                // Syntax Design
-                a { class: "research-card", href: "/research/optimization",
+                // Language Philosophy
+                a { class: "research-card", href: "/research/philosophy",
                     div { class: "research-card-rune rune-hash", "#" }
-                    h2 { class: "research-card-title", "Exploring the Seven-Runes Syntax" }
+                    h2 { class: "research-card-title", "Philosophy of Futuruna" }
                     p { class: "research-card-desc",
-                        "How line-initial semantic modes help legal rules and ordinary programming \
-                         share one execution space, and how optimization was used as a design instrument."
+                        "Partitioned optionality: how seven front runes create independent grammatical \
+                         namespaces and support many paradigms without syntactic clutter."
                     }
-                    span { class: "research-card-meta", "Language Design · Experimental" }
+                    span { class: "research-card-meta", "Language Design · Shannon Entropy" }
                 }
                 // Danish Constitution
                 a { class: "research-card", href: "/research/danish-constitution",
@@ -2964,20 +2903,31 @@ fn ResearchIndex() -> Element {
 }
 
 // ============================================================================
-// Research: Optimization Theory — /research/optimization
+// Research: Language Philosophy — /research/philosophy
 // ============================================================================
 
 #[component]
+fn ResearchPhilosophy() -> Element {
+    philosophy_article()
+}
+
+// Preserve the former public URL for existing links.
+#[component]
 fn ResearchOptimization() -> Element {
-    let headings = extract_h2_headings(DOC_RESEARCH);
-    let html_content = md_to_html_with_ids(DOC_RESEARCH);
+    philosophy_article()
+}
+
+fn philosophy_article() -> Element {
+    let headings = extract_h2_headings(DOC_PHILOSOPHY);
+    let html_content = md_to_html_with_ids(DOC_PHILOSOPHY);
 
     rsx! {
-        document::Title { "Exploring Futuruna's Syntax — Futuruna Research" }
-        document::Meta { name: "description", content: "How Futuruna's seven semantic runes support law and ordinary programming, and how NSGA-II was used as an exploratory design tool rather than a proof of optimality." }
+        document::Title { "Philosophy of Futuruna — Partitioned Optionality" }
+        document::Meta { name: "description", content: "How Futuruna's front runes create partitioned optionality: independent grammatical namespaces, Shannon information, and high paradigm coverage without syntactic clutter." }
+        document::Link { rel: "canonical", href: "https://futuruna.com/research/philosophy" }
         div { class: "why-page",
             nav { class: "why-toc",
-                h3 { class: "why-toc-title", "Syntax Design" }
+                h3 { class: "why-toc-title", "Philosophy" }
                 a { class: "why-toc-link research-back", href: "/research", "← All Research" }
                 for (slug, label) in headings.iter() {
                     a { class: "why-toc-link", href: "#{slug}", "{label}" }

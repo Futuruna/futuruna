@@ -53,12 +53,18 @@ of the line you are about to write, which allows you to mix classical
 programming with rule-based programming. I know, who would have thunk it,
 right? Is it just a bad idea, and that's why no one has done it?
 
-Well, my objection is that physics proves it is actually a good idea. You see,
-the syntax design of this language was actually created through an [NSGA-II
-optimizer](/research/optimization), which chased the Pareto frontier of a
-language with maximum optionality. This could get gnarly to explain in depth,
-so I will just say that creating semantic categories that allow a logical
-fly-in for every line allows programming domains to mix easily.
+Well, my objection is that there is a simple mathematical reason why it is
+actually a good idea. A front rune creates its own grammatical namespace. If
+one comfortable line syntax supports M recognizable forms, N front runes can
+support up to N × M non-conflicting category/form pairs. In Shannon's terms,
+choosing among N runes contributes up to log2(N) bits of immediate semantic
+orientation. With seven runes, that is about 2.81 bits.
+
+This is partitioned optionality: more choices for the author, less uncertainty
+for the reader. This could get gnarly to explain in depth, so I will just say
+that creating semantic categories that allow a logical fly-in for every line
+allows programming domains to mix easily. [The Philosophy of
+Futuruna](/research/philosophy) explores the argument in more depth.
 
 The seven runes and what they mean in Futuruna are explored in more depth
 [here](/docs). All I will say is that I also believe Futuruna would work
