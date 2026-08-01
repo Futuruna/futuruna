@@ -37,6 +37,12 @@ EndDate: 2026-06-23
     hentet_dato = "2026-07-18"
 )
 
+= arbejdsmarkedsbidragsloven_lbk121_par3 = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2020/121",
+    identifier = "Arbejdsmarkedsbidragsloven § 3",
+    hentet_dato = "2026-07-18"
+)
+
 ----
 § 1. Personer, der er skattepligtige her til landet, svarer skat i form af
 arbejdsmarkedsbidrag til staten efter denne lov.
@@ -126,7 +132,7 @@ understøttelsesfond som nævnt i pensionsbeskatningslovens § 52.
 --@begin::arbejdsmarkedsbidragsloven_par2--
 # ArbejdsmarkedsbidragInput(lønvederlag_kroner: Heltal, naturalieværdi_kroner: Heltal)
 # ArbejdsmarkedsbidragUdvidetLønmodtagerInput(ansættelsesvederlag_skatteværdi_kroner: Heltal, udenfor_ansættelse_skatteværdi_kroner: Heltal, rådighed_danmark_skatteværdi_kroner: Heltal, arbejdsgiver_pension_kroner: Heltal, udenlandsk_pension_kroner: Heltal, pbl14b_udbetaling_kroner: Heltal, fælles_firmapension_kroner: Heltal, sømandsvederlag_kroner: Heltal, biblioteksafgift_kroner: Heltal, ikke_skattepligtigt_vederlag_kroner: Heltal, pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner: Heltal, obligatorisk_atp_pension_kroner: Heltal)
-# ArbejdsmarkedsbidragLønmodtagerGrundlagResultat(par2_stk1_nr1_ansættelsesvederlag_kroner: Heltal, par2_stk1_nr2_udenfor_ansættelse_kroner: Heltal, par2_stk1_nr3_rådighed_danmark_kroner: Heltal, par2_stk1_nr4_arbejdsgiver_pension_kroner: Heltal, par2_stk1_nr5_udenlandsk_pension_kroner: Heltal, par2_stk1_nr6_pbl14b_udbetaling_kroner: Heltal, par2_stk3_fælles_pensionsindbetaling_kroner: Heltal, brutto_grundlag_kroner: Heltal, udelukket_grundlag_kroner: Heltal, grundlag_kroner: Heltal, bidrag_kroner: Heltal)
+# ArbejdsmarkedsbidragLønmodtagerGrundlagResultat(par2_stk1_nr1_ansættelsesvederlag_kroner: Heltal, par2_stk1_nr2_udenfor_ansættelse_kroner: Heltal, par2_stk1_nr3_rådighed_danmark_kroner: Heltal, par2_stk1_nr4_arbejdsgiver_pension_kroner: Heltal, par2_stk1_nr5_udenlandsk_pension_kroner: Heltal, par2_stk1_nr6_pbl14b_udbetaling_kroner: Heltal, par2_stk3_fælles_pensionsindbetaling_kroner: Heltal, brutto_grundlag_kroner: Heltal, par3_udelukkelse: ArbejdsmarkedsbidragPar3UdelukkelseResultat, udelukket_grundlag_kroner: Heltal, grundlag_kroner: Heltal, bidrag_kroner: Heltal)
 # ArbejdsmarkedsbidragNaturaliaArt = AmFriKostOgLogi | AmFriBil | AmFriTelefon | AmFriSommerbolig | AmFriLystbåd | AmFriHelårsbolig | AmAktieTegningsretKøberet | AmArbejdsgiverbetaltSundhedsbehandling | AmIkkePar2Stk2Naturalia
 # ArbejdsmarkedsbidragNaturaliaPost(art: ArbejdsmarkedsbidragNaturaliaArt, skattepligtig_værdi_kroner: Heltal, nævnt_i_par2_stk1: Boolsk)
 # ArbejdsmarkedsbidragNaturaliaResultat(art: ArbejdsmarkedsbidragNaturaliaArt, par2_stk2_art_omfattet: Boolsk, nævnt_i_par2_stk1: Boolsk, skattepligtig_værdi_kroner: Heltal, grundlag_kroner: Heltal)
@@ -174,7 +180,7 @@ understøttelsesfond som nævnt i pensionsbeskatningslovens § 52.
 | arbejdsmarkedsbidrag_par2_stk1_nr6_pbl14b_udbetaling_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.pbl14b_udbetaling_kroner
 | arbejdsmarkedsbidrag_par2_stk3_fælles_pensionsindbetaling_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.fælles_firmapension_kroner
 | arbejdsmarkedsbidrag_lønmodtager_brutto_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_par2_stk1_nr1_ansættelsesvederlag_kroner(input) + arbejdsmarkedsbidrag_par2_stk1_nr2_udenfor_ansættelse_kroner(input) + arbejdsmarkedsbidrag_par2_stk1_nr3_rådighed_danmark_kroner(input) + arbejdsmarkedsbidrag_par2_stk1_nr4_arbejdsgiver_pension_kroner(input) + arbejdsmarkedsbidrag_par2_stk1_nr5_udenlandsk_pension_kroner(input) + arbejdsmarkedsbidrag_par2_stk1_nr6_pbl14b_udbetaling_kroner(input) + arbejdsmarkedsbidrag_par2_stk3_fælles_pensionsindbetaling_kroner(input)
-| arbejdsmarkedsbidrag_lønmodtager_udelukket_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.sømandsvederlag_kroner + input.biblioteksafgift_kroner + input.ikke_skattepligtigt_vederlag_kroner + input.pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner + input.obligatorisk_atp_pension_kroner
+| arbejdsmarkedsbidrag_lønmodtager_udelukket_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).samlet_udelukket_grundlag_kroner
 | arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_positivt_beløb(arbejdsmarkedsbidrag_lønmodtager_brutto_grundlag_kroner(input) - arbejdsmarkedsbidrag_lønmodtager_udelukket_grundlag_kroner(input))
 | arbejdsmarkedsbidrag_lønmodtager_udvidet_kroner(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> penge_beløb_gange_basispoint_kroner(arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(input), arbejdsmarkedsbidrag_sats_basispoint())
 | arbejdsmarkedsbidrag_lønmodtager_grundlag_resultat(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> ArbejdsmarkedsbidragLønmodtagerGrundlagResultat(
@@ -186,6 +192,7 @@ understøttelsesfond som nævnt i pensionsbeskatningslovens § 52.
     par2_stk1_nr6_pbl14b_udbetaling_kroner = arbejdsmarkedsbidrag_par2_stk1_nr6_pbl14b_udbetaling_kroner(input),
     par2_stk3_fælles_pensionsindbetaling_kroner = arbejdsmarkedsbidrag_par2_stk3_fælles_pensionsindbetaling_kroner(input),
     brutto_grundlag_kroner = arbejdsmarkedsbidrag_lønmodtager_brutto_grundlag_kroner(input),
+    par3_udelukkelse = arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input),
     udelukket_grundlag_kroner = arbejdsmarkedsbidrag_lønmodtager_udelukket_grundlag_kroner(input),
     grundlag_kroner = arbejdsmarkedsbidrag_lønmodtager_udvidet_grundlag_kroner(input),
     bidrag_kroner = arbejdsmarkedsbidrag_lønmodtager_udvidet_kroner(input)
@@ -210,6 +217,7 @@ understøttelsesfond som nævnt i pensionsbeskatningslovens § 52.
 | arbejdsmarkedsbidrag_lønmodtager_med_naturalie_resultat(input: ArbejdsmarkedsbidragLønMedNaturalieInput) -> arbejdsmarkedsbidrag_lønmodtager_med_naturalie_sag(input).resultat()
 --@end::arbejdsmarkedsbidragsloven_par2--
 
+--@source::arbejdsmarkedsbidragsloven_par3::meta:arbejdsmarkedsbidragsloven_lbk121_par3--
 ----
 § 3. Følgende medregnes ikke i grundlaget for arbejdsmarkedsbidrag:
 1) Vederlag omfattet af sømandsbeskatningslovens §§ 5-8.
@@ -221,9 +229,36 @@ vederlag ikke skal medregnes ved opgørelsen af den skattepligtige indkomst.
 Arbejdsmarkedets Tillægspension.
 ----
 
-| arbejdsmarkedsbidrag_sømandsvederlag_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.sømandsvederlag_kroner > 0
-| arbejdsmarkedsbidrag_biblioteksafgift_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.biblioteksafgift_kroner > 0
-| arbejdsmarkedsbidrag_ikke_skattepligtigt_vederlag_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> input.ikke_skattepligtigt_vederlag_kroner > 0 || input.pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner > 0
+--@begin::arbejdsmarkedsbidragsloven_par3--
+# ArbejdsmarkedsbidragPar3UdelukkelseResultat(nr1_sømandsbeskatningsvederlag_kroner: Heltal, nr2_biblioteksafgift_kroner: Heltal, nr3_ikke_skattepligtigt_vederlag_kroner: Heltal, nr4_pensionsindbetaling_kroner: Heltal, nr5_obligatorisk_atp_pension_kroner: Heltal, samlet_udelukket_grundlag_kroner: Heltal)
+# ArbejdsmarkedsbidragPar3UdelukkelseSag(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) {
+    | nr1_sømandsbeskatningsvederlag_kroner() -> 0
+    | exception arbejdsmarkedsbidrag_par3_nr1_sømandsvederlag nr1_sømandsbeskatningsvederlag_kroner() -> input.sømandsvederlag_kroner under input.sømandsvederlag_kroner > 0
+    | nr2_biblioteksafgift_kroner() -> 0
+    | exception arbejdsmarkedsbidrag_par3_nr2_biblioteksafgift nr2_biblioteksafgift_kroner() -> input.biblioteksafgift_kroner under input.biblioteksafgift_kroner > 0
+    | nr3_ikke_skattepligtigt_vederlag_kroner() -> 0
+    | exception arbejdsmarkedsbidrag_par3_nr3_ikke_skattepligtigt_vederlag nr3_ikke_skattepligtigt_vederlag_kroner() -> input.ikke_skattepligtigt_vederlag_kroner under input.ikke_skattepligtigt_vederlag_kroner > 0
+    | nr4_pensionsindbetaling_kroner() -> 0
+    | exception arbejdsmarkedsbidrag_par3_nr4_pensionsindbetaling nr4_pensionsindbetaling_kroner() -> input.pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner under input.pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner > 0
+    | nr5_obligatorisk_atp_pension_kroner() -> 0
+    | exception arbejdsmarkedsbidrag_par3_nr5_obligatorisk_atp_pension nr5_obligatorisk_atp_pension_kroner() -> input.obligatorisk_atp_pension_kroner under input.obligatorisk_atp_pension_kroner > 0
+    | samlet_udelukket_grundlag_kroner() -> nr1_sømandsbeskatningsvederlag_kroner() + nr2_biblioteksafgift_kroner() + nr3_ikke_skattepligtigt_vederlag_kroner() + nr4_pensionsindbetaling_kroner() + nr5_obligatorisk_atp_pension_kroner()
+    | resultat() -> ArbejdsmarkedsbidragPar3UdelukkelseResultat(
+        nr1_sømandsbeskatningsvederlag_kroner = nr1_sømandsbeskatningsvederlag_kroner(),
+        nr2_biblioteksafgift_kroner = nr2_biblioteksafgift_kroner(),
+        nr3_ikke_skattepligtigt_vederlag_kroner = nr3_ikke_skattepligtigt_vederlag_kroner(),
+        nr4_pensionsindbetaling_kroner = nr4_pensionsindbetaling_kroner(),
+        nr5_obligatorisk_atp_pension_kroner = nr5_obligatorisk_atp_pension_kroner(),
+        samlet_udelukket_grundlag_kroner = samlet_udelukket_grundlag_kroner()
+    )
+}
+
+| arbejdsmarkedsbidrag_par3_udelukkelse_sag(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> ArbejdsmarkedsbidragPar3UdelukkelseSag(input)
+| arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_par3_udelukkelse_sag(input).resultat()
+| arbejdsmarkedsbidrag_sømandsvederlag_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).nr1_sømandsbeskatningsvederlag_kroner > 0
+| arbejdsmarkedsbidrag_biblioteksafgift_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).nr2_biblioteksafgift_kroner > 0
+| arbejdsmarkedsbidrag_ikke_skattepligtigt_vederlag_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).nr3_ikke_skattepligtigt_vederlag_kroner > 0 || arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).nr4_pensionsindbetaling_kroner > 0
+--@end::arbejdsmarkedsbidragsloven_par3--
 
 ----
 § 4. Grundlaget for arbejdsmarkedsbidrag for selvstændigt erhvervsdrivende,

@@ -52,6 +52,8 @@ Kommuneskatteloven § 5, stk. 3's delårsregel gennem Personskatteloven § 14's
 tilsvarende beregningsform. Arbejdsmarkedsbidragsloven § 2, stk. 2 har nu
 også typede naturalia-kategorier, så f.eks. fri bil kun føres ind i
 AM-grundlaget, når den både er en nævnt naturalia-art og et stk. 1-vederlag.
+§ 3 udstiller samtidig hver af lovens fem udelukkelser som et navngivet beløb,
+så et beregnet AM-grundlag kan auditeres tilbage til den konkrete nummerpost.
 
 ## Eksempel
 

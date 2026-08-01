@@ -20,8 +20,12 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: den almindelige lønmodtagerberegner bærer nu et typet
-`LønmodtagerPensionsfradrag`-domæneobjekt og udleder standardfradragene gennem
+Latest integration: Arbejdsmarkedsbidragsloven § 3 er nu en typet
+`ArbejdsmarkedsbidragPar3UdelukkelseResultat` med særskilte beløb for nr. 1-5.
+Det almindelige lønmodtagergrundlag bærer resultatet med sig, og det hidtidige
+samlede udelukkelsesbeløb delegerer til dets kildeformede sum. Den almindelige
+lønmodtagerberegner bærer også et typet `LønmodtagerPensionsfradrag`-domæneobjekt
+og udleder standardfradragene gennem
 det samlede Ligningsloven §§ 9 J/9 K/9 L-resultat. 2026-fixturen for København,
 600.000 kr. løn og 100.000 kr. § 18-pensionsindbetaling udstiller nu
 63.300 kr. beskæftigelsesfradrag, 3.100 kr. jobfradrag, 10.536 kr. ekstra
@@ -37,7 +41,9 @@ grundlagsresultat og scenariedækning, og § 2, stk. 2 har nu et typet
 naturalia-resultat for fri kost/logi, fri bil, fri telefon, sommerbolig,
 lystbåd, helårsbolig, aktie-/tegnings-/køberetter og arbejdsgiverbetalt
 sundhedsbehandling. Resultatet kræver både en nævnt naturalia-art og et stk. 1
-vederlag, før den skattepligtige værdi føres ind i AM-grundlaget.
+vederlag, før den skattepligtige værdi føres ind i AM-grundlaget. § 3's fem
+udelukkelser er tilsvarende eksponeret som navngivne regelposter og samlet i et
+typet resultat, der følger med § 2-grundlagsresultatet.
 Kommuneskatteloven dækker nu også første
 afregningsslice for §§ 7, 15 og 16: kommunens valg mellem eget skøn og
 statsgaranteret grundlag, § 15's månedlige tolvtedel og § 16, stk. 2's
@@ -495,7 +501,8 @@ Current AM-contribution dependency sources:
   - §§ 1-7 cover the first ordinary and special-case AM-contribution slice:
     ordinary wage remuneration/naturalier, § 2 stk. 1 nr. 2-6 wage-earner
     amount posts, § 2 stk. 2 naturalia categories as typed source-backed
-    category routing, § 2 stk. 3 employer common pension payments, § 3 exclusions,
+    category routing, § 2 stk. 3 employer common pension payments, § 3 exclusions
+    as a typed nr. 1-5 result carried by the wage-earner basis,
     self-employed bases with and without virksomhedsordning, library-fee
     compensation, and collection-reference posture.
 - AM youth exemption amendment:
@@ -1483,7 +1490,8 @@ Review candidates to revisit deliberately, not as broad churn:
   dense statutory enumerations closely enough that premature grouping could hurt
   source traceability. § 2, stk. 2 naturalia now has a smaller domain object
   because the statute enumerates closed benefit categories separately from the
-  ordinary wage-post list.
+  ordinary wage-post list. § 3 likewise has a result object, while retaining the
+  five explicit input amounts because they map directly to nr. 1-5.
 
 ## Now
 
@@ -1795,9 +1803,10 @@ M4 - Ordinary taxpayer calculator
   650.000 kr. wage plus 110.000 kr. capital-income case. The ordinary wage-earner
   AM contribution now imports Arbejdsmarkedsbidragsloven instead of
   using a local arithmetic shortcut, and the AM-law module now has
-  source-backed special-case fixtures for § 3 exclusions, self-employed bases,
-  library-fee compensation, and the 2026 youth exemption. Ordinary municipal
-  income tax and church tax now import Kommuneskatteloven and Folkekirkens
+  a source-backed typed § 3 exclusion result for each of nr. 1-5, carried into
+  the ordinary wage-earner result, plus special-case fixtures for self-employed
+  bases, library-fee compensation, and the 2026 youth exemption. Ordinary
+  municipal income tax and church tax now import Kommuneskatteloven and Folkekirkens
   økonomi instead of using
   local arithmetic shortcuts. Ordinary Ligningsloven employment/job deductions
   now import the Ligningsloven dependency slice instead of being manual zeroes,
