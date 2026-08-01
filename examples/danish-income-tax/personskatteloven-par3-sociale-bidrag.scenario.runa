@@ -1,0 +1,191 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for Ligningsloven § 8 M og Personskatteloven § 3, stk. 2, nr. 6.
+-- Den originale lovtekst og de kildeindekserede regler ligger i
+-- ligningsloven_fradrag.runa og kapitel-01-indkomst.runa.
+
+= par3_sociale_ingen_am = Ligningslov8MArbejdsmarkedsbidragInput(
+    hjemmel = Ll8MAmblIkkeOmfattet,
+    bidrag_kroner = 0,
+    bidrag_vedrører_indkomstår = 2026,
+    arbejdsgiver_indeholdelsespligtig = Falskt
+)
+= par3_sociale_intet_udenlandsk_socialt = Ligningslov8MUdenlandskSocialtBidragInput(
+    bidrag_kroner = 0,
+    bidrag_vedrører_indkomstår = 2026,
+    obligatorisk = Falskt,
+    ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo = Falskt,
+    omfattet_af_eu_socialsikringsforordning = Falskt,
+    omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt = Falskt
+)
+= par3_sociale_intet_udenlandsk_arbejdsgiver = Ligningslov8MUdenlandskArbejdsgiverbidragInput(
+    bidrag_kroner = 0,
+    bidrag_vedrører_indkomstår = 2026,
+    obligatorisk = Falskt,
+    omfattet_af_eu_socialsikringsforordning = Falskt,
+    aftale_om_at_bidrag_påhviler_lønmodtageren = Falskt
+)
+
+= par3_sociale_am_nr2_fixture = ligningslov8m_resultat(Ligningslov8MInput(
+    indkomstår = 2026,
+    kildeskattepligt = Ll8MAndenKildeskattepligt,
+    arbejdsmarkedsbidrag = Ligningslov8MArbejdsmarkedsbidragInput(
+        hjemmel = Ll8MAmblPar2Stk1Nr2,
+        bidrag_kroner = 8000,
+        bidrag_vedrører_indkomstår = 2026,
+        arbejdsgiver_indeholdelsespligtig = Falskt
+    ),
+    udenlandsk_socialt_bidrag = par3_sociale_intet_udenlandsk_socialt,
+    udenlandsk_arbejdsgiverbidrag = par3_sociale_intet_udenlandsk_arbejdsgiver
+))
+= par3_sociale_am_nr1_med_indeholdelse_fixture = ligningslov8m_resultat(Ligningslov8MInput(
+    indkomstår = 2026,
+    kildeskattepligt = Ll8MAndenKildeskattepligt,
+    arbejdsmarkedsbidrag = Ligningslov8MArbejdsmarkedsbidragInput(
+        hjemmel = Ll8MAmblPar2Stk1Nr1,
+        bidrag_kroner = 8000,
+        bidrag_vedrører_indkomstår = 2026,
+        arbejdsgiver_indeholdelsespligtig = Sandt
+    ),
+    udenlandsk_socialt_bidrag = par3_sociale_intet_udenlandsk_socialt,
+    udenlandsk_arbejdsgiverbidrag = par3_sociale_intet_udenlandsk_arbejdsgiver
+))
+= par3_sociale_am_nr1_uden_indeholdelse_fixture = ligningslov8m_resultat(Ligningslov8MInput(
+    indkomstår = 2026,
+    kildeskattepligt = Ll8MAndenKildeskattepligt,
+    arbejdsmarkedsbidrag = Ligningslov8MArbejdsmarkedsbidragInput(
+        hjemmel = Ll8MAmblPar2Stk1Nr1,
+        bidrag_kroner = 8000,
+        bidrag_vedrører_indkomstår = 2026,
+        arbejdsgiver_indeholdelsespligtig = Falskt
+    ),
+    udenlandsk_socialt_bidrag = par3_sociale_intet_udenlandsk_socialt,
+    udenlandsk_arbejdsgiverbidrag = par3_sociale_intet_udenlandsk_arbejdsgiver
+))
+= par3_sociale_am_forkert_indkomstår_fixture = ligningslov8m_resultat(Ligningslov8MInput(
+    indkomstår = 2026,
+    kildeskattepligt = Ll8MAndenKildeskattepligt,
+    arbejdsmarkedsbidrag = Ligningslov8MArbejdsmarkedsbidragInput(
+        hjemmel = Ll8MAmblPar2Stk1Nr2,
+        bidrag_kroner = 8000,
+        bidrag_vedrører_indkomstår = 2025,
+        arbejdsgiver_indeholdelsespligtig = Falskt
+    ),
+    udenlandsk_socialt_bidrag = par3_sociale_intet_udenlandsk_socialt,
+    udenlandsk_arbejdsgiverbidrag = par3_sociale_intet_udenlandsk_arbejdsgiver
+))
+
+= par3_sociale_fuldt_skattepligtig_eu_fixture = ligningslov8m_resultat(Ligningslov8MInput(
+    indkomstår = 2026,
+    kildeskattepligt = Ll8MKildeskattelovPar1,
+    arbejdsmarkedsbidrag = Ligningslov8MArbejdsmarkedsbidragInput(
+        hjemmel = Ll8MAmblPar4,
+        bidrag_kroner = 8000,
+        bidrag_vedrører_indkomstår = 2026,
+        arbejdsgiver_indeholdelsespligtig = Falskt
+    ),
+    udenlandsk_socialt_bidrag = Ligningslov8MUdenlandskSocialtBidragInput(
+        bidrag_kroner = 12000,
+        bidrag_vedrører_indkomstår = 2026,
+        obligatorisk = Sandt,
+        ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo = Sandt,
+        omfattet_af_eu_socialsikringsforordning = Sandt,
+        omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt = Falskt
+    ),
+    udenlandsk_arbejdsgiverbidrag = par3_sociale_intet_udenlandsk_arbejdsgiver
+))
+= par3_sociale_fuldt_skattepligtig_udlandshjemmehørende_fixture = ligningslov8m_resultat(Ligningslov8MInput(
+    indkomstår = 2026,
+    kildeskattepligt = Ll8MKildeskattelovPar1,
+    arbejdsmarkedsbidrag = par3_sociale_ingen_am,
+    udenlandsk_socialt_bidrag = Ligningslov8MUdenlandskSocialtBidragInput(
+        bidrag_kroner = 12000,
+        bidrag_vedrører_indkomstår = 2026,
+        obligatorisk = Sandt,
+        ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo = Falskt,
+        omfattet_af_eu_socialsikringsforordning = Sandt,
+        omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt = Falskt
+    ),
+    udenlandsk_arbejdsgiverbidrag = par3_sociale_intet_udenlandsk_arbejdsgiver
+))
+= par3_sociale_mellemfolkelig_aftale_fixture = ligningslov8m_resultat(Ligningslov8MInput(
+    indkomstår = 2026,
+    kildeskattepligt = Ll8MKildeskattelovPar1,
+    arbejdsmarkedsbidrag = par3_sociale_ingen_am,
+    udenlandsk_socialt_bidrag = Ligningslov8MUdenlandskSocialtBidragInput(
+        bidrag_kroner = 5000,
+        bidrag_vedrører_indkomstår = 2026,
+        obligatorisk = Sandt,
+        ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo = Sandt,
+        omfattet_af_eu_socialsikringsforordning = Falskt,
+        omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt = Sandt
+    ),
+    udenlandsk_arbejdsgiverbidrag = par3_sociale_intet_udenlandsk_arbejdsgiver
+))
+
+= par3_sociale_begrænset_arbejdsgiverbidrag_fixture = ligningslov8m_resultat(Ligningslov8MInput(
+    indkomstår = 2026,
+    kildeskattepligt = Ll8MKildeskattelovPar2Stk1Nr1,
+    arbejdsmarkedsbidrag = par3_sociale_ingen_am,
+    udenlandsk_socialt_bidrag = par3_sociale_intet_udenlandsk_socialt,
+    udenlandsk_arbejdsgiverbidrag = Ligningslov8MUdenlandskArbejdsgiverbidragInput(
+        bidrag_kroner = 7000,
+        bidrag_vedrører_indkomstår = 2026,
+        obligatorisk = Sandt,
+        omfattet_af_eu_socialsikringsforordning = Sandt,
+        aftale_om_at_bidrag_påhviler_lønmodtageren = Sandt
+    )
+))
+= par3_sociale_begrænset_uden_aftale_fixture = ligningslov8m_resultat(Ligningslov8MInput(
+    indkomstår = 2026,
+    kildeskattepligt = Ll8MKildeskattelovPar2Stk1Nr3,
+    arbejdsmarkedsbidrag = par3_sociale_ingen_am,
+    udenlandsk_socialt_bidrag = par3_sociale_intet_udenlandsk_socialt,
+    udenlandsk_arbejdsgiverbidrag = Ligningslov8MUdenlandskArbejdsgiverbidragInput(
+        bidrag_kroner = 7000,
+        bidrag_vedrører_indkomstår = 2026,
+        obligatorisk = Sandt,
+        omfattet_af_eu_socialsikringsforordning = Sandt,
+        aftale_om_at_bidrag_påhviler_lønmodtageren = Falskt
+    )
+))
+
+= par3_sociale_par3_nr6_fixture = par3_stk2_nr6_resultat(par3_sociale_fuldt_skattepligtig_eu_fixture)
+= par3_sociale_personlig_indkomst_fixture = par3_personlig_indkomst_resultat(Par3PersonligIndkomstInput(
+    indkomstposter = [
+        Par3Indkomstpost(
+            indgår_i_skattepligtig_indkomst = Sandt,
+            er_kapitalindkomst = Falskt,
+            beløb_kroner = 100000
+        )
+    ],
+    fradragsposter = [
+        par3_stk2_nr6_fradragspost(par3_sociale_fuldt_skattepligtig_eu_fixture)
+    ]
+))
+
+| par3_sociale_am_nr2_fradrages: par3_sociale_am_nr2_fixture -> par3_sociale_am_nr2_fixture.arbejdsmarkedsbidrag_omfattet_af_stk1 == Sandt && par3_sociale_am_nr2_fixture.arbejdsmarkedsbidrag_fradrag_kroner == 8000
+| par3_sociale_am_nr1_med_indeholdelse_afskæres: par3_sociale_am_nr1_med_indeholdelse_fixture -> par3_sociale_am_nr1_med_indeholdelse_fixture.arbejdsmarkedsbidrag_omfattet_af_stk1 == Falskt && par3_sociale_am_nr1_med_indeholdelse_fixture.arbejdsmarkedsbidrag_fradrag_kroner == 0
+| par3_sociale_am_nr1_uden_indeholdelse_fradrages: par3_sociale_am_nr1_uden_indeholdelse_fixture -> par3_sociale_am_nr1_uden_indeholdelse_fixture.arbejdsmarkedsbidrag_omfattet_af_stk1 == Sandt && par3_sociale_am_nr1_uden_indeholdelse_fixture.arbejdsmarkedsbidrag_fradrag_kroner == 8000
+| par3_sociale_am_forkert_indkomstår_afskæres: par3_sociale_am_forkert_indkomstår_fixture -> par3_sociale_am_forkert_indkomstår_fixture.indkomstår == 2026 && par3_sociale_am_forkert_indkomstår_fixture.arbejdsmarkedsbidrag_omfattet_af_stk1 == Falskt && par3_sociale_am_forkert_indkomstår_fixture.arbejdsmarkedsbidrag_fradrag_kroner == 0
+| par3_sociale_fuldt_skattepligtig_eu_fradrager: par3_sociale_fuldt_skattepligtig_eu_fixture -> par3_sociale_fuldt_skattepligtig_eu_fixture.udenlandsk_socialt_bidrag_omfattet_af_stk2 == Sandt && par3_sociale_fuldt_skattepligtig_eu_fixture.udenlandsk_socialt_bidrag_fradrag_kroner == 12000 && par3_sociale_fuldt_skattepligtig_eu_fixture.samlet_fradrag_kroner == 20000
+| par3_sociale_udlandshjemmehørende_afskæres: par3_sociale_fuldt_skattepligtig_udlandshjemmehørende_fixture -> par3_sociale_fuldt_skattepligtig_udlandshjemmehørende_fixture.udenlandsk_socialt_bidrag_omfattet_af_stk2 == Falskt && par3_sociale_fuldt_skattepligtig_udlandshjemmehørende_fixture.udenlandsk_socialt_bidrag_fradrag_kroner == 0
+| par3_sociale_mellemfolkelig_aftale_fradrager: par3_sociale_mellemfolkelig_aftale_fixture -> par3_sociale_mellemfolkelig_aftale_fixture.udenlandsk_socialt_bidrag_omfattet_af_stk3 == Sandt && par3_sociale_mellemfolkelig_aftale_fixture.udenlandsk_socialt_bidrag_fradrag_kroner == 5000
+| par3_sociale_begrænset_arbejdsgiverbidrag_fradrages: par3_sociale_begrænset_arbejdsgiverbidrag_fixture -> par3_sociale_begrænset_arbejdsgiverbidrag_fixture.udenlandsk_arbejdsgiverbidrag_omfattet_af_stk4 == Sandt && par3_sociale_begrænset_arbejdsgiverbidrag_fixture.udenlandsk_arbejdsgiverbidrag_fradrag_kroner == 7000 && par3_sociale_begrænset_arbejdsgiverbidrag_fixture.skatteministeren_bemyndiget_efter_stk5 == Sandt
+| par3_sociale_begrænset_uden_aftale_afskæres: par3_sociale_begrænset_uden_aftale_fixture -> par3_sociale_begrænset_uden_aftale_fixture.udenlandsk_arbejdsgiverbidrag_omfattet_af_stk4 == Falskt && par3_sociale_begrænset_uden_aftale_fixture.udenlandsk_arbejdsgiverbidrag_fradrag_kroner == 0
+| par3_sociale_par3_nr6_delegerer_til_ligningslov8m: par3_sociale_par3_nr6_fixture -> par3_sociale_par3_nr6_fixture.arbejdsmarkedsbidrag_fradrag_kroner == 8000 && par3_sociale_par3_nr6_fixture.udenlandsk_socialt_bidrag_fradrag_kroner == 12000 && par3_sociale_par3_nr6_fixture.fradrag_i_personlig_indkomst_kroner == 20000
+| par3_sociale_fradrag_føres_i_personlig_indkomst: par3_sociale_personlig_indkomst_fixture -> par3_sociale_personlig_indkomst_fixture.brutto_personlig_indkomst_kroner == 100000 && par3_sociale_personlig_indkomst_fixture.fradrag_i_personlig_indkomst_kroner == 20000 && par3_sociale_personlig_indkomst_fixture.netto_personlig_indkomst_kroner == 80000
+
+? par3_sociale_am_nr2_fradrages
+? par3_sociale_am_nr1_med_indeholdelse_afskæres
+? par3_sociale_am_nr1_uden_indeholdelse_fradrages
+? par3_sociale_am_forkert_indkomstår_afskæres
+? par3_sociale_fuldt_skattepligtig_eu_fradrager
+? par3_sociale_udlandshjemmehørende_afskæres
+? par3_sociale_mellemfolkelig_aftale_fradrager
+? par3_sociale_begrænset_arbejdsgiverbidrag_fradrages
+? par3_sociale_begrænset_uden_aftale_afskæres
+? par3_sociale_par3_nr6_delegerer_til_ligningslov8m
+? par3_sociale_fradrag_føres_i_personlig_indkomst

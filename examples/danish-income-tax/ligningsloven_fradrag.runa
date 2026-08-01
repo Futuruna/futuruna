@@ -3,7 +3,7 @@
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 
--- Ligningsloven — fradrag efter §§ 9 C, 9 J, 9 K, 9 L, 15 P og 15 Q.
+-- Ligningsloven — fradrag efter §§ 8 M, 9 C, 9 J, 9 K, 9 L, 15 P og 15 Q.
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
@@ -43,6 +43,99 @@ Status: Valid
 StartDate: 2025-12-04
 EndDate: 2026-07-01
 ----
+
+# LigningslovFradragKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ligningsloven_lbk1500_par8m = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 8 M",
+    hentet_dato = "2026-07-18"
+)
+
+--@source::ligningsloven_par8m::meta:ligningsloven_lbk1500_par8m--
+----
+§ 8 M. Arbejdsmarkedsbidrag af indkomst omfattet af § 2, stk. 1, nr. 2, og §§
+4 og 5 i lov om arbejdsmarkedsbidrag fragår ved opgørelsen af den pågældendes
+skattepligtige indkomst for det indkomstår, bidraget vedrører. Tilsvarende
+gælder indkomst omfattet af § 2, stk. 1, nr. 1, når arbejdsgiveren ikke er
+indeholdelsespligtig af udbetalt løn, vederlag, honorar m.v. til den ansatte.
+
+Stk. 2. For personer omfattet af kildeskattelovens § 1 fragår obligatoriske
+udenlandske sociale bidrag ved opgørelsen af den skattepligtige indkomst for det
+indkomstår, som bidraget vedrører, når den pågældende
+1) i henhold til en eventuel dobbeltbeskatningsoverenskomst ikke er
+hjemmehørende i fremmed stat, Grønland eller Færøerne og
+2) er omfattet af social sikringslovgivning i fremmed stat i medfør af De
+Europæiske Fællesskabers forordninger om social sikring for arbejdstagere,
+selvstændigt erhvervsdrivende og deres familiemedlemmer, der flytter inden for
+Fællesskabet.
+
+Stk. 3. Bestemmelsen i stk. 2 finder tilsvarende anvendelse på personer, som i
+medfør af en mellemfolkelig aftale, som Danmark har tiltrådt, er omfattet af
+udenlandsk social sikringslovgivning.
+
+Stk. 4. Personer, som er omfattet af kildeskattelovens § 2, stk. 1, nr. 1 eller
+3, og som i medfør af De Europæiske Fællesskabers forordninger om social
+sikring for arbejdstagere, selvstændigt erhvervsdrivende og deres familier, der
+flytter inden for Det Europæiske Fællesskab, er undergivet udenlandsk social
+sikringslovgivning, kan fradrage udenlandske obligatoriske sociale
+arbejdsgiverbidrag ved opgørelsen af den skattepligtige indkomst for det
+indkomstår, som bidragene vedrører. Det er en betingelse for fradrag, at der i
+medfør af De Europæiske Fællesskabers forordninger om social sikring er indgået
+aftale om, at de udenlandske arbejdsgiverbidrag påhviler lønmodtageren.
+
+Stk. 5. Skatteministeren kan fastsætte bestemmelser om opkrævning og afregning
+af bidrag efter stk. 4.
+----
+
+--@begin::ligningsloven_par8m--
+# Ligningslov8MArbejdsmarkedsbidragHjemmel = Ll8MAmblPar2Stk1Nr1 | Ll8MAmblPar2Stk1Nr2 | Ll8MAmblPar4 | Ll8MAmblPar5 | Ll8MAmblIkkeOmfattet
+# Ligningslov8MKildeskattepligt = Ll8MKildeskattelovPar1 | Ll8MKildeskattelovPar2Stk1Nr1 | Ll8MKildeskattelovPar2Stk1Nr3 | Ll8MAndenKildeskattepligt
+# Ligningslov8MArbejdsmarkedsbidragInput(hjemmel: Ligningslov8MArbejdsmarkedsbidragHjemmel, bidrag_kroner: Heltal, bidrag_vedrører_indkomstår: Heltal, arbejdsgiver_indeholdelsespligtig: Boolsk)
+# Ligningslov8MUdenlandskSocialtBidragInput(bidrag_kroner: Heltal, bidrag_vedrører_indkomstår: Heltal, obligatorisk: Boolsk, ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo: Boolsk, omfattet_af_eu_socialsikringsforordning: Boolsk, omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt: Boolsk)
+# Ligningslov8MUdenlandskArbejdsgiverbidragInput(bidrag_kroner: Heltal, bidrag_vedrører_indkomstår: Heltal, obligatorisk: Boolsk, omfattet_af_eu_socialsikringsforordning: Boolsk, aftale_om_at_bidrag_påhviler_lønmodtageren: Boolsk)
+# Ligningslov8MInput(indkomstår: Heltal, kildeskattepligt: Ligningslov8MKildeskattepligt, arbejdsmarkedsbidrag: Ligningslov8MArbejdsmarkedsbidragInput, udenlandsk_socialt_bidrag: Ligningslov8MUdenlandskSocialtBidragInput, udenlandsk_arbejdsgiverbidrag: Ligningslov8MUdenlandskArbejdsgiverbidragInput)
+# Ligningslov8MResultat(indkomstår: Heltal, kildeskattepligt: Ligningslov8MKildeskattepligt, arbejdsmarkedsbidrag_omfattet_af_stk1: Boolsk, arbejdsmarkedsbidrag_fradrag_kroner: Heltal, udenlandsk_socialt_bidrag_omfattet_af_stk2: Boolsk, udenlandsk_socialt_bidrag_omfattet_af_stk3: Boolsk, udenlandsk_socialt_bidrag_fradrag_kroner: Heltal, udenlandsk_arbejdsgiverbidrag_omfattet_af_stk4: Boolsk, udenlandsk_arbejdsgiverbidrag_fradrag_kroner: Heltal, samlet_fradrag_kroner: Heltal, skatteministeren_bemyndiget_efter_stk5: Boolsk)
+
+# Ligningslov8MSag(input: Ligningslov8MInput) {
+    | arbejdsmarkedsbidrag_vedrører_indkomståret() -> input.arbejdsmarkedsbidrag.bidrag_vedrører_indkomstår == input.indkomstår
+    | arbejdsmarkedsbidrag_omfattet_af_stk1() -> Falskt
+    | exception ambl_par2_stk1_nr2_og_par4_par5 arbejdsmarkedsbidrag_omfattet_af_stk1() -> Sandt under arbejdsmarkedsbidrag_vedrører_indkomståret() && (input.arbejdsmarkedsbidrag.hjemmel == Ll8MAmblPar2Stk1Nr2 || input.arbejdsmarkedsbidrag.hjemmel == Ll8MAmblPar4 || input.arbejdsmarkedsbidrag.hjemmel == Ll8MAmblPar5)
+    | exception ambl_par2_stk1_nr1_uden_indeholdelsespligt arbejdsmarkedsbidrag_omfattet_af_stk1() -> Sandt under arbejdsmarkedsbidrag_vedrører_indkomståret() && input.arbejdsmarkedsbidrag.hjemmel == Ll8MAmblPar2Stk1Nr1 && input.arbejdsmarkedsbidrag.arbejdsgiver_indeholdelsespligtig == Falskt
+    | arbejdsmarkedsbidrag_fradrag_kroner() -> 0
+    | exception arbejdsmarkedsbidrag_fradrages arbejdsmarkedsbidrag_fradrag_kroner() -> penge_positivt_beløb(input.arbejdsmarkedsbidrag.bidrag_kroner) under arbejdsmarkedsbidrag_omfattet_af_stk1()
+    | udenlandsk_socialt_bidrag_vedrører_indkomståret() -> input.udenlandsk_socialt_bidrag.bidrag_vedrører_indkomstår == input.indkomstår
+    | udenlandsk_socialt_bidrag_fælles_betingelser() -> udenlandsk_socialt_bidrag_vedrører_indkomståret() && input.kildeskattepligt == Ll8MKildeskattelovPar1 && input.udenlandsk_socialt_bidrag.obligatorisk && input.udenlandsk_socialt_bidrag.ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo
+    | udenlandsk_socialt_bidrag_omfattet_af_stk2() -> udenlandsk_socialt_bidrag_fælles_betingelser() && input.udenlandsk_socialt_bidrag.omfattet_af_eu_socialsikringsforordning
+    | udenlandsk_socialt_bidrag_omfattet_af_stk3() -> udenlandsk_socialt_bidrag_fælles_betingelser() && input.udenlandsk_socialt_bidrag.omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt
+    | udenlandsk_socialt_bidrag_omfattet() -> udenlandsk_socialt_bidrag_omfattet_af_stk2() || udenlandsk_socialt_bidrag_omfattet_af_stk3()
+    | udenlandsk_socialt_bidrag_fradrag_kroner() -> 0
+    | exception obligatorisk_udenlandsk_socialt_bidrag_fradrages udenlandsk_socialt_bidrag_fradrag_kroner() -> penge_positivt_beløb(input.udenlandsk_socialt_bidrag.bidrag_kroner) under udenlandsk_socialt_bidrag_omfattet()
+    | udenlandsk_arbejdsgiverbidrag_vedrører_indkomståret() -> input.udenlandsk_arbejdsgiverbidrag.bidrag_vedrører_indkomstår == input.indkomstår
+    | begrænset_skattepligt_omfattet_af_stk4() -> input.kildeskattepligt == Ll8MKildeskattelovPar2Stk1Nr1 || input.kildeskattepligt == Ll8MKildeskattelovPar2Stk1Nr3
+    | udenlandsk_arbejdsgiverbidrag_omfattet_af_stk4() -> udenlandsk_arbejdsgiverbidrag_vedrører_indkomståret() && begrænset_skattepligt_omfattet_af_stk4() && input.udenlandsk_arbejdsgiverbidrag.obligatorisk && input.udenlandsk_arbejdsgiverbidrag.omfattet_af_eu_socialsikringsforordning && input.udenlandsk_arbejdsgiverbidrag.aftale_om_at_bidrag_påhviler_lønmodtageren
+    | udenlandsk_arbejdsgiverbidrag_fradrag_kroner() -> 0
+    | exception udenlandsk_arbejdsgiverbidrag_fradrages udenlandsk_arbejdsgiverbidrag_fradrag_kroner() -> penge_positivt_beløb(input.udenlandsk_arbejdsgiverbidrag.bidrag_kroner) under udenlandsk_arbejdsgiverbidrag_omfattet_af_stk4()
+    | samlet_fradrag_kroner() -> arbejdsmarkedsbidrag_fradrag_kroner() + udenlandsk_socialt_bidrag_fradrag_kroner() + udenlandsk_arbejdsgiverbidrag_fradrag_kroner()
+    | skatteministeren_bemyndiget_efter_stk5() -> Sandt
+    | resultat() -> Ligningslov8MResultat(
+        indkomstår = input.indkomstår,
+        kildeskattepligt = input.kildeskattepligt,
+        arbejdsmarkedsbidrag_omfattet_af_stk1 = arbejdsmarkedsbidrag_omfattet_af_stk1(),
+        arbejdsmarkedsbidrag_fradrag_kroner = arbejdsmarkedsbidrag_fradrag_kroner(),
+        udenlandsk_socialt_bidrag_omfattet_af_stk2 = udenlandsk_socialt_bidrag_omfattet_af_stk2(),
+        udenlandsk_socialt_bidrag_omfattet_af_stk3 = udenlandsk_socialt_bidrag_omfattet_af_stk3(),
+        udenlandsk_socialt_bidrag_fradrag_kroner = udenlandsk_socialt_bidrag_fradrag_kroner(),
+        udenlandsk_arbejdsgiverbidrag_omfattet_af_stk4 = udenlandsk_arbejdsgiverbidrag_omfattet_af_stk4(),
+        udenlandsk_arbejdsgiverbidrag_fradrag_kroner = udenlandsk_arbejdsgiverbidrag_fradrag_kroner(),
+        samlet_fradrag_kroner = samlet_fradrag_kroner(),
+        skatteministeren_bemyndiget_efter_stk5 = skatteministeren_bemyndiget_efter_stk5()
+    )
+}
+
+| ligningslov8m_sag(input: Ligningslov8MInput) -> Ligningslov8MSag(input)
+| ligningslov8m_resultat(input: Ligningslov8MInput) -> ligningslov8m_sag(input).resultat()
+--@end::ligningsloven_par8m--
 
 ----
 § 9 C. Ved opgørelsen af den skattepligtige indkomst kan fradrag for

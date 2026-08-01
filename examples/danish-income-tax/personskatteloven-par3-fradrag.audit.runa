@@ -57,7 +57,7 @@ iværksætterkonto
         Par3Fradragspost(art = ErhverveSikreVedligeholdeSelvstændigIndkomst, stk2_nr1_afgrænsning = SelvstændigErhvervsindkomstUdgift, beløb_kroner = 25000),
         Par3Fradragspost(art = ErhverveSikreVedligeholdeSelvstændigIndkomst, stk2_nr1_afgrænsning = Par4Stk1Nr1RenterOgLl6, beløb_kroner = 5000),
         Par3Fradragspost(art = ErhverveSikreVedligeholdeSelvstændigIndkomst, stk2_nr1_afgrænsning = Ligningslov13Udgift, beløb_kroner = 7000),
-        Par3Fradragspost(art = Arbejdsmarkedsbidrag, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 8000)
+        Par3Fradragspost(art = ArbejdsmarkedsbidragOgUdenlandskeSocialeBidrag, stk2_nr1_afgrænsning = IkkeStk2Nr1Udgift, beløb_kroner = 8000)
     ]
 ))
 

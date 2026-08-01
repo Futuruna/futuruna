@@ -20,7 +20,17 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Kommuneskatteloven § 16 a er nu implementeret fra LOV nr.
+Latest integration: Ligningsloven § 8 M er nu implementeret som en typet,
+kildeindekseret regelkaskade for arbejdsmarkedsbidrag efter AM-bidragslovens
+§ 2, stk. 1, nr. 1-2, og §§ 4-5, obligatoriske udenlandske sociale bidrag for
+fuldt skattepligtige under EU-regler eller mellemfolkelig aftale samt
+udenlandske arbejdsgiverbidrag for begrænset skattepligtige. Resultatet føres
+gennem en `Par3Stk2Nr6Sag` til Personskatteloven § 3's personlige
+indkomstfradrag, så § 3 ikke længere accepterer denne post som et ubetinget råt
+beløb. Scenarierne dækker også indeholdelsespligt, DBO-hjemsted og kravet om en
+aftale, der lægger arbejdsgiverbidraget på lønmodtageren.
+
+Kommuneskatteloven § 16 a er nu implementeret fra LOV nr.
 720 af 20/06/2025 som en scoped regelkaskade. Den opgør den enkelte
 selvbudgetterende kommunes stk. 1-beløb, den nationale ramme på 1,5 mia. kr.,
 den årlige regulering fra 2027 med et loft på 5 pct., det samlede
@@ -88,7 +98,10 @@ excluded CFC income and ligningsmæssige fradrag, and the wage-earner calculator
 delegates its taxable-income base to that result; § 3, stk. 2, nr. 1 now has
 amount-level personal-income deduction filtering for self-employed business
 expenses with the statutory § 4, stk. 1, nr. 1/2/7/8 and Ligningsloven
-§§ 9 G/13 carve-outs; § 4, stk. 1, nr. 1 now consumes typed Ligningsloven
+§§ 9 G/13 carve-outs; § 3, stk. 2, nr. 6 now consumes the complete typed
+Ligningsloven § 8 M result for AM contributions, foreign mandatory social
+contributions and limited-taxpayer foreign employer contributions; § 4,
+stk. 1, nr. 1 now consumes typed Ligningsloven
 § 6 and § 6 A deduction results together with ordinary interest income and
 interest expenses, including the § 6 under-100-kr. lapse, stk. 3 reduction,
 stk. 5 debtor-day split, stk. 6 Kursgevinstloven overlap block and § 4,
@@ -432,6 +445,11 @@ Current § 4 and § 13 amendment/dependency sources:
 - Ligningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1500`
   - XML status on 2026-07-18: `Valid`
+  - § 8 M is modeled as the Personskatteloven § 3, stk. 2, nr. 6 dependency:
+    AM contributions under the enumerated AM-law branches, full-taxpayer
+    foreign mandatory social contributions under EU or international-agreement
+    coverage, and limited-taxpayer foreign employer contributions where an EU
+    agreement places the contribution on the employee.
   - § 33 A is the foreign-wage relief exception in § 13, stk. 5.
   - § 5 C is modeled as the Personskatteloven § 4, stk. 1, nr. 12
     dependency for accrued/credited-interest compensation and equivalent
@@ -1713,7 +1731,10 @@ M1 - Income taxonomy
   personal income. § 3, stk. 2, nr. 1 now keeps the broad self-employed
   business-expense deduction separate from the statutory carve-outs for § 4,
   stk. 1, nr. 1, 2, 7 and 8 and Ligningsloven §§ 9 G and 13, so those carved-out
-  amounts are not deducted as personal-income business expenses.
+  amounts are not deducted as personal-income business expenses. § 3, stk. 2,
+  nr. 6 now delegates AM and foreign social-contribution eligibility to a typed
+  Ligningsloven § 8 M result before adding the amount to personal-income
+  deductions.
 
 M2 - State tax computation skeleton
 

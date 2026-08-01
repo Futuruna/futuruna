@@ -58,6 +58,10 @@ Kommuneskatteloven § 16 a er nu også kildebundet og eksekverbar: modellen
 fordeler selvbudgetteringsordningens nationale korrektionsbeløb mellem
 kommuner med positive efterreguleringsbeløb og fratrækker kommunens andel i
 § 16-opgørelsen.
+Ligningsloven § 8 M og Personskatteloven § 3, stk. 2, nr. 6 er tilsvarende
+forbundet, så AM-bidrag og obligatoriske udenlandske sociale bidrag kun føres
+til personligt indkomstfradrag, når den relevante skattepligt, social sikring
+og eventuelle arbejdsgiveraftale opfylder lovens betingelser.
 
 ## Eksempel
 
