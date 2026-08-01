@@ -1,0 +1,29 @@
+-- expect-command: meta
+-- expect-args: --json --type Shape --role source
+-- expect-status: pass
+-- expect-stdout: "schema": "futuruna.meta.v1"
+-- expect-stdout: "references": 2
+-- expect-stdout: "label": "geometry"
+-- expect-stdout: "role": "source"
+-- expect-stdout: "binding": "primary_shape"
+-- expect-stdout: "binding": "secondary_shape"
+-- expect-stdout: "type": "Shape"
+-- expect-stdout: "text": "Raw additions"
+-- expect-stdout: "name": "geometry_fixture"
+-- expect-stdout-not: "role": "warning"
+
+# Shape = Circle | Triangle | Square
+# AuditWarning(message: String)
+
+= primary_shape = Circle
+= secondary_shape = Triangle
+= shape_warning = AuditWarning(message = "Not selected")
+
+--@label:geometry::source:primary_shape::source:secondary_shape::warning:shape_warning--
+----
+Raw additions
+----
+
+--@begin::geometry--
+= geometry_fixture = Circle
+--@end::geometry--

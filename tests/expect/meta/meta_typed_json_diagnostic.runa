@@ -1,0 +1,12 @@
+-- expect-command: meta
+-- expect-args: --json --role warning
+-- expect-status: fail
+-- expect-stdout: "schema": "futuruna.meta.v1"
+-- expect-stdout: "diagnostics": 1
+-- expect-stdout: "role": "warning"
+-- expect-stdout: "binding": "missing_warning"
+-- expect-stdout: "type": null
+-- expect-stdout: meta role `warning` references unresolved binding `missing_warning`
+-- expect-stderr-not: unresolved binding
+
+--@label:audit_gap::warning:missing_warning--

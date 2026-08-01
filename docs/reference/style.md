@@ -176,6 +176,12 @@ definition line. Dynamic or unresolved bindings produce metadata diagnostics;
 they do not make `runa check`, interpretation, or generated code fail because
 the parser still treats every meta marker as a comment.
 
+Audit and indexing tools should use `runa meta --json file.runa`. The versioned
+`futuruna.meta.v1` document contains typed references, quoted source anchors,
+linked code spans and their symbols, plus metadata diagnostics. `--type` and
+`--role` apply to JSON output as well, so a warning sweep can use
+`runa meta --json --role warning file.runa` without parsing presentation text.
+
 The original source spelling remains compatible and desugars `meta` to the
 `source` role:
 

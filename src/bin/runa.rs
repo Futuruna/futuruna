@@ -71,6 +71,7 @@ fn main_inner() {
     let mut stress_save_failures = None;
     let mut meta_type_filter = None;
     let mut meta_role_filter = None;
+    let mut meta_json = false;
 
     let mut i = 1;
     while i < args.len() {
@@ -120,6 +121,10 @@ fn main_inner() {
                 i += 1;
             }
             "--json" if mode == "feature-stages" => {
+                i += 1;
+            }
+            "--json" if mode == "meta" => {
+                meta_json = true;
                 i += 1;
             }
             "--type" if mode == "meta" => {
@@ -259,6 +264,7 @@ fn main_inner() {
                 eprintln!("  --no-prelude  Don't auto-import standard prelude");
                 eprintln!("  meta --type TYPE   Select meta references by Futuruna type");
                 eprintln!("  meta --role ROLE   Select meta references by role");
+                eprintln!("  meta --json        Emit a structured metadata index");
                 eprintln!("  --seed N      Use a fixed RNG seed with `runa stress-gen`");
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
@@ -277,6 +283,7 @@ fn main_inner() {
                 eprintln!("  runa check program.runa     Type-check without running");
                 eprintln!("  runa meta program.runa      Show typed meta/source/span index");
                 eprintln!("  runa meta --type Warning program.runa  Sweep metadata by type");
+                eprintln!("  runa meta --json --role warning program.runa  Emit audit data");
                 eprintln!("  runa emit program.runa      Show Rust output");
                 eprintln!("  runa emit --imports program.runa  Show public import/export graph");
                 eprintln!("  runa build program.runa     Compile to ./program");
@@ -549,6 +556,7 @@ fn main_inner() {
                     path,
                     meta_type_filter.as_deref(),
                     meta_role_filter.as_deref(),
+                    meta_json,
                 ),
                 "audit" => audit_source(&source, path, use_prelude),
                 "verify" => verify_with_z3(&source, path),
@@ -1649,12 +1657,21 @@ fn print_meta_index(
     filename: &str,
     type_filter: Option<&str>,
     role_filter: Option<&str>,
+    json: bool,
 ) {
     let source_dir = std::path::Path::new(filename)
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
         .map(|parent| parent.to_string_lossy().to_string());
     let index = scan_meta_comments_with_dir(source, source_dir);
+
+    if json {
+        print_meta_index_json(&index, filename, type_filter, role_filter);
+        if !index.diagnostics.is_empty() {
+            std::process::exit(1);
+        }
+        return;
+    }
 
     println!("meta: {}", filename);
 
@@ -1744,6 +1761,129 @@ fn print_meta_index(
     }
 
     print_meta_diagnostics_or_exit(&index, filename);
+}
+
+fn print_meta_index_json(
+    index: &MetaIndex,
+    filename: &str,
+    type_filter: Option<&str>,
+    role_filter: Option<&str>,
+) {
+    let references = index.references_matching(type_filter, role_filter);
+    let filtered = type_filter.is_some() || role_filter.is_some();
+    let selected_comments: BTreeSet<usize> = references
+        .iter()
+        .map(|reference| reference.comment_line)
+        .collect();
+    let selected_labels: BTreeSet<&str> = references
+        .iter()
+        .map(|reference| reference.label.as_str())
+        .collect();
+
+    let anchors: Vec<serde_json::Value> = index
+        .anchors
+        .iter()
+        .filter(|anchor| !filtered || selected_comments.contains(&anchor.comment_line))
+        .map(|anchor| {
+            let anchor_references: Vec<serde_json::Value> = anchor
+                .references
+                .iter()
+                .filter(|reference| {
+                    !filtered
+                        || (type_filter.is_none_or(|expected| {
+                            reference.qualified_type.as_deref() == Some(expected)
+                        }) && role_filter.is_none_or(|expected| reference.role == expected))
+                })
+                .map(meta_reference_json)
+                .collect();
+            serde_json::json!({
+                "kind": anchor.kind,
+                "label": anchor.label,
+                "comment_line": anchor.comment_line,
+                "text_start_line": anchor.text_start_line,
+                "text_end_line": anchor.text_end_line,
+                "text": anchor.text,
+                "references": anchor_references,
+            })
+        })
+        .collect();
+
+    let spans: Vec<serde_json::Value> = index
+        .spans
+        .iter()
+        .filter(|span| !filtered || selected_labels.contains(span.label.as_str()))
+        .map(|span| {
+            let symbols: Vec<serde_json::Value> = span
+                .symbols
+                .iter()
+                .map(|symbol| {
+                    serde_json::json!({
+                        "kind": symbol.kind,
+                        "name": symbol.name,
+                        "line": symbol.line,
+                    })
+                })
+                .collect();
+            serde_json::json!({
+                "label": span.label,
+                "begin_marker_line": span.begin_marker_line,
+                "end_marker_line": span.end_marker_line,
+                "code_start_line": span.code_start_line,
+                "code_end_line": span.code_end_line,
+                "symbols": symbols,
+            })
+        })
+        .collect();
+
+    let diagnostics: Vec<serde_json::Value> = index
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            serde_json::json!({
+                "line": diagnostic.line,
+                "message": diagnostic.message,
+            })
+        })
+        .collect();
+    let reference_values: Vec<serde_json::Value> = references
+        .iter()
+        .map(|reference| meta_reference_json(reference))
+        .collect();
+    let document = serde_json::json!({
+        "schema": "futuruna.meta.v1",
+        "file": filename,
+        "filter": {
+            "type": type_filter,
+            "role": role_filter,
+        },
+        "counts": {
+            "references": reference_values.len(),
+            "anchors": anchors.len(),
+            "spans": spans.len(),
+            "diagnostics": diagnostics.len(),
+        },
+        "references": reference_values,
+        "anchors": anchors,
+        "spans": spans,
+        "diagnostics": diagnostics,
+    });
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&document).expect("metadata index is JSON serializable")
+    );
+}
+
+fn meta_reference_json(reference: &MetaReference) -> serde_json::Value {
+    serde_json::json!({
+        "label": reference.label,
+        "role": reference.role,
+        "binding": reference.binding_name,
+        "type": reference.qualified_type,
+        "value": reference.static_value,
+        "definition_line": reference.definition_line,
+        "comment_line": reference.comment_line,
+    })
 }
 
 fn print_meta_reference(reference: &MetaReference) {
