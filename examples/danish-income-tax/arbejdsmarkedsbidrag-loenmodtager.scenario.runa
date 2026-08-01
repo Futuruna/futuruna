@@ -1,0 +1,47 @@
+@ sprog da
+
+@ importer ./arbejdsmarkedsbidragsloven
+
+-- Scenarie for Arbejdsmarkedsbidragsloven § 2, stk. 1, nr. 1-6 og stk. 3.
+
+----
+§ 2-grundlaget sammensættes af de særskilte lovposter i stk. 1, nr. 1-6 og
+stk. 3, mens § 3-poster holdes uden for grundlaget.
+----
+
+= am_lønmodtager_par2_fuld_input = ArbejdsmarkedsbidragUdvidetLønmodtagerInput(
+    ansættelsesvederlag_skatteværdi_kroner = 500000,
+    udenfor_ansættelse_skatteværdi_kroner = 80000,
+    rådighed_danmark_skatteværdi_kroner = 50000,
+    arbejdsgiver_pension_kroner = 30000,
+    udenlandsk_pension_kroner = 20000,
+    pbl14b_udbetaling_kroner = 10000,
+    fælles_firmapension_kroner = 12000,
+    sømandsvederlag_kroner = 7000,
+    biblioteksafgift_kroner = 5000,
+    ikke_skattepligtigt_vederlag_kroner = 4000,
+    pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner = 3000,
+    obligatorisk_atp_pension_kroner = 2000
+)
+
+= am_lønmodtager_par2_fuld_resultat = arbejdsmarkedsbidrag_lønmodtager_grundlag_resultat(am_lønmodtager_par2_fuld_input)
+
+| am_lønmodtager_par2_nr1_ansættelse: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.par2_stk1_nr1_ansættelsesvederlag_kroner == 500000
+| am_lønmodtager_par2_nr2_udenfor_ansættelse: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.par2_stk1_nr2_udenfor_ansættelse_kroner == 80000
+| am_lønmodtager_par2_nr3_rådighed_danmark: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.par2_stk1_nr3_rådighed_danmark_kroner == 50000
+| am_lønmodtager_par2_nr4_arbejdsgiver_pension: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.par2_stk1_nr4_arbejdsgiver_pension_kroner == 30000
+| am_lønmodtager_par2_nr5_udenlandsk_pension: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.par2_stk1_nr5_udenlandsk_pension_kroner == 20000
+| am_lønmodtager_par2_nr6_pbl14b_udbetaling: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.par2_stk1_nr6_pbl14b_udbetaling_kroner == 10000
+| am_lønmodtager_par2_stk3_fællesordning: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.par2_stk3_fælles_pensionsindbetaling_kroner == 12000
+| am_lønmodtager_par2_brutto_og_udelukket: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.brutto_grundlag_kroner == 702000 && am_lønmodtager_par2_fuld_resultat.udelukket_grundlag_kroner == 21000
+| am_lønmodtager_par2_grundlag_og_bidrag: am_lønmodtager_par2_fuld_resultat -> am_lønmodtager_par2_fuld_resultat.grundlag_kroner == 681000 && am_lønmodtager_par2_fuld_resultat.bidrag_kroner == 54480
+
+? am_lønmodtager_par2_nr1_ansættelse
+? am_lønmodtager_par2_nr2_udenfor_ansættelse
+? am_lønmodtager_par2_nr3_rådighed_danmark
+? am_lønmodtager_par2_nr4_arbejdsgiver_pension
+? am_lønmodtager_par2_nr5_udenlandsk_pension
+? am_lønmodtager_par2_nr6_pbl14b_udbetaling
+? am_lønmodtager_par2_stk3_fællesordning
+? am_lønmodtager_par2_brutto_og_udelukket
+? am_lønmodtager_par2_grundlag_og_bidrag

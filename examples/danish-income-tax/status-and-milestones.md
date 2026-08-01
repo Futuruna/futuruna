@@ -31,6 +31,9 @@ personfradrag. Eksisterende lønmodtagerscenarier bruger en eksplicit
 ingen-ekstra-pensionsfradrag-default. Kildeskatteloven § 48, stk. 11 har nu en
 selvstændig 40 pct. A-skat-regel uden skattekortfradrag for indbetalinger fra
 pensionsinstitutter efter § 46, stk. 6, med konkret `.scenario.runa`-dækning.
+Arbejdsmarkedsbidragsloven § 2-lønmodtagersnittet er også udvidet fra anonym
+felt-sum til kildeformede regelposter for nr. 1-6 samt stk. 3 med et samlet
+grundlagsresultat og scenariedækning.
 
 Latest mainline slices: § 1/§ 2 now compose ordinary taxable income as an
 amount-level result from personal income, capital income, excluded share income,
@@ -462,9 +465,10 @@ Current AM-contribution dependency sources:
   `https://www.retsinformation.dk/eli/lta/2020/121`
   - XML status on 2026-07-18: `Valid`
   - §§ 1-7 cover the first ordinary and special-case AM-contribution slice:
-    ordinary wage remuneration/naturalier, § 3 exclusions, self-employed bases
-    with and without virksomhedsordning, library-fee compensation, and
-    collection-reference posture.
+    ordinary wage remuneration/naturalier, § 2 stk. 1 nr. 2-6 wage-earner
+    amount posts, § 2 stk. 3 employer common pension payments, § 3 exclusions,
+    self-employed bases with and without virksomhedsordning, library-fee
+    compensation, and collection-reference posture.
 - AM youth exemption amendment:
   `https://www.retsinformation.dk/eli/lta/2025/96`
   - XML status on 2026-07-18: `Valid`
@@ -611,6 +615,8 @@ encoded as a temporal rule on top of the consolidation.
 - `kapitel-05-afsluttende-bestemmelser.runa` exists and checks with
   `runa check`.
 - `arbejdsmarkedsbidragsloven.runa` exists and checks with `runa check`.
+- `arbejdsmarkedsbidrag-loenmodtager.scenario.runa` exists and checks/runs
+  with `runa run`.
 - `kommuneskatteloven.runa` exists and checks with `runa check`.
 - `folkekirkens-oekonomi.runa` exists and checks with `runa check`.
 - `kildeskatteloven.runa` exists and checks with `runa check`.
@@ -770,6 +776,8 @@ encoded as a temporal rule on top of the consolidation.
   personfradrag/underskud slice, the §§ 14-20 omregning/skatteloft/regulering
   slice, the §§ 21-28 concluding provisions slice, ordinary and special-case
   AM-law,
+  Arbejdsmarkedsbidragsloven § 2 nr. 1-6 and stk. 3 wage-earner base
+  composition,
   municipal-income-tax, church-tax, Kildeskatteloven A-income/withholding,
   Kildeskatteloven § 48 stk. 11 pension-institution 40 pct. withholding,
   BEK 839 forskudskort generation, BEK 1094 2026 indeholdelsesprocent,
@@ -1451,9 +1459,10 @@ Review candidates to revisit deliberately, not as broad churn:
   Skattestyrelsen-published Opkrævningsloven § 7 annual rate, and remaining AM
   edge cases beyond the first source-explicit special-case slice. The AM-law
   slice now covers ordinary wage remuneration,
-  taxable benefits, § 3 exclusions, self-employed bases with and without
-  virksomhedsordning, library-fee compensation, the 2026 youth exemption, and
-  collection-reference posture. The first municipal/church
+  taxable benefits, source-shaped § 2 nr. 1-6/stk. 3 wage-earner base posts,
+  § 3 exclusions, self-employed bases with and without virksomhedsordning,
+  library-fee compensation, the 2026 youth exemption, and collection-reference
+  posture. The first municipal/church
   slice now covers ordinary municipal tax on Personskatteloven taxable income
   and church tax for Folkekirken members. The first Kildeskatteloven slice now
   covers ordinary wage A-income, withholding duty, e-skattekort card types,

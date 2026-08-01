@@ -3,6 +3,7 @@
 @ importer ./source - status
 @ importer ./pengebeloeb
 @ importer ./arbejdsmarkedsbidragsloven
+@ importer ./arbejdsmarkedsbidrag - loenmodtager.scenario
 @ importer ./kommuneskatteloven
 @ importer ./folkekirkens - oekonomi
 @ importer ./kildeskatteloven
@@ -1175,6 +1176,7 @@ virksomhedsunderskud.
     lønvederlag_kroner = 500000,
     naturalieværdi_kroner = 0
 ))
+= m5_am_lønmodtager_par2_fuld_resultat_fixture = am_lønmodtager_par2_fuld_resultat
 = m5_am_naturalie_fixture = arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(
     lønvederlag_kroner = 500000,
     naturalieværdi_kroner = 10000
@@ -1369,6 +1371,7 @@ virksomhedsunderskud.
 | m5_par13_calculator_ægtefælleoverførsel: m5_par13_calculator_ægtefælle_fixture -> m5_par13_calculator_ægtefælle_fixture.ægtefælleoverførsel.fradrag_i_ægtefælle_indkomst_kroner == 45000 && m5_par13_calculator_ægtefælle_fixture.negativ_personlig.modregnet_i_ægtefælles_personlige_indkomst_kroner == 3000 && m5_par13_calculator_ægtefælle_fixture.negativ_personlig.modregnet_i_egen_positiv_kapitalindkomst_kroner == 2000 && m5_par13_calculator_ægtefælle_fixture.negativ_personlig.modregnet_i_ægtefælles_positiv_kapitalindkomst_kroner == 4000 && m5_par13_calculator_ægtefælle_fixture.negativ_personlig_rest_kroner == 1000 && m5_par13_calculator_ægtefælle_fixture.fremført_negativ_personlig.resterende_fremført_negativ_personlig_indkomst_kroner == 3000
 | m5_par13_calculator_2026_pbl: m5_par13_calculator_2026_fixture -> m5_par13_calculator_2026_fixture.stk5_overførsel.afskåret_pbl16_kroner == 0 && m5_par13_calculator_2026_fixture.stk5_overførsel.overførbart_underskud_kroner == 100000
 | m5_am_lønvederlag_dækket: m5_am_løn_fixture -> m5_am_løn_fixture == 40000
+| m5_am_lønmodtager_par2_fulde_poster_dækket: m5_am_lønmodtager_par2_fuld_resultat_fixture -> m5_am_lønmodtager_par2_fuld_resultat_fixture.par2_stk1_nr2_udenfor_ansættelse_kroner == 80000 && m5_am_lønmodtager_par2_fuld_resultat_fixture.par2_stk1_nr3_rådighed_danmark_kroner == 50000 && m5_am_lønmodtager_par2_fuld_resultat_fixture.par2_stk1_nr4_arbejdsgiver_pension_kroner == 30000 && m5_am_lønmodtager_par2_fuld_resultat_fixture.par2_stk1_nr5_udenlandsk_pension_kroner == 20000 && m5_am_lønmodtager_par2_fuld_resultat_fixture.par2_stk1_nr6_pbl14b_udbetaling_kroner == 10000 && m5_am_lønmodtager_par2_fuld_resultat_fixture.par2_stk3_fælles_pensionsindbetaling_kroner == 12000 && m5_am_lønmodtager_par2_fuld_resultat_fixture.grundlag_kroner == 681000 && m5_am_lønmodtager_par2_fuld_resultat_fixture.bidrag_kroner == 54480
 | m5_am_naturalieværdi_dækket: m5_am_naturalie_fixture -> m5_am_naturalie_fixture == 40800
 | m5_am_sats_matcher_parameterpakke: m5_am_sats_2026_parameter -> m5_am_sats_2026_parameter == arbejdsmarkedsbidrag_sats_basispoint()
 | m5_am_sømandsvederlag_udelukkes: m5_am_sømand_fixture -> m5_am_sømand_fixture == 0
@@ -1524,6 +1527,7 @@ virksomhedsunderskud.
 ? m5_par13_calculator_ægtefælleoverførsel
 ? m5_par13_calculator_2026_pbl
 ? m5_am_lønvederlag_dækket
+? m5_am_lønmodtager_par2_fulde_poster_dækket
 ? m5_am_naturalieværdi_dækket
 ? m5_am_sats_matcher_parameterpakke
 ? m5_am_sømandsvederlag_udelukkes
