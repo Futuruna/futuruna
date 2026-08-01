@@ -3446,10 +3446,10 @@ fn ResearchPersonskatteloven() -> Element {
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Personskat" }
                 a { class: "why-toc-link research-back", href: "/research", "\u{2190} Al forskning" }
-                a { class: "why-toc-link", href: "#intro", "Lov og ret" }
-                a { class: "why-toc-link", href: "#personskatteloven", "Personskatteloven" }
+                a { class: "why-toc-link", href: "#intro", "Intro" }
+                a { class: "why-toc-link", href: "#personskatteloven", "Indkomstskat" }
                 a { class: "why-toc-link", href: "#example", "Eksempel" }
-                a { class: "why-toc-link", href: "#audit-signals", "Audits" }
+                a { class: "why-toc-link", href: "#audit-signals", "Hårde forhold" }
                 a { class: "why-toc-link", href: "#project-file", "Projektfil" }
                 a { class: "why-toc-link", href: "#source-posture", "Kilder" }
             }
@@ -3459,19 +3459,18 @@ fn ResearchPersonskatteloven() -> Element {
                     h1 { "Et samlet sprog til lov og ret" }
                     p {
                         "Futuruna gør lovtekst til et eksekverbart regelsprog uden at fjerne \
-                         lovtekstens juridiske form. En paragraf kan stå som original dansk tekst, \
+                         lovens juridiske form. En paragraf kan stå som original dansk tekst og \
                          derefter som typede regler, betingelser, undtagelser og audit-spørgsmål."
                     }
                     p {
-                        "Pointen er ikke at omskrive jura til almindelig software. Pointen er at \
-                         loven selv kan få en form, hvor regelkaskader, indkapslede sager og \
-                         kildehenvisninger stadig ligner lov, men også kan køres, testes og \
-                         undersøges."
+                        "Det giver et samlet sprog til lov og ret: indkapslede regler for \
+                         juridiske sager, regelkaskader for de afledte beløb og audit-muligheder \
+                         for de steder, hvor regelsystemet gør noget overraskende."
                     }
                     p {
                         "Derfor er "
                         code { "|" }
-                        " central: den formulerer, hvad der skal gælde. "
+                        " central. Den formulerer, hvad der skal gælde. "
                         code { "under" }
                         " holder betingelser synlige, "
                         code { "exception" }
@@ -3485,15 +3484,17 @@ fn ResearchPersonskatteloven() -> Element {
                 section { id: "personskatteloven", class: "tax-section",
                     h2 { "Personskatteloven (indkomstskat)" }
                     p {
-                        "Personskatteloven er en god prøve, fordi den ikke står alene. En virkelig \
-                         skatteberegning rammer også arbejdsmarkedsbidrag, kommunal skat, kirkeskat, \
-                         kildeskat, forskudsregistrering, slutopgørelse, aktieindkomst, kapitalindkomst, \
-                         ægtefælleregler, underskud og en række afhængige love."
+                        "Personskatteloven er den rigtige prøve, fordi dansk indkomstskat ikke \
+                         er én isoleret formel. En virkelig beregning rammer også \
+                         arbejdsmarkedsbidrag, kommunal skat, kirkeskat, kildeskat, \
+                         forskudsregistrering, slutopgørelse, aktieindkomst, kapitalindkomst, \
+                         ægtefælleregler, underskud og afhængige love."
                     }
                     p {
-                        "Futuruna giver mulighed for at samle den danske indkomstskattelovgivning \
-                         i ét sprog, så den samme kilde både kan forklare reglen, beregne almindelige \
-                         skatteforløb og danne grundlag for audits af retlige knæk."
+                        "Futuruna giver mulighed for at tage den samlede danske \
+                         indkomstskattelovgivning og udtrykke den i ét sprog, så den samme kilde \
+                         både kan forklare reglen, beregne almindelige skatteforløb og danne \
+                         grundlag for audits af retlige knæk."
                     }
                     div { class: "tax-status-grid",
                         div { class: "tax-status-item ready",
@@ -3545,19 +3546,24 @@ fn ResearchPersonskatteloven() -> Element {
                 }
 
                 section { id: "audit-signals", class: "tax-section",
-                    h2 { "Audits af hårde skatteforhold" }
+                    h2 { "Hårde skatteforhold" }
                     p {
                         "Futuruna kan også bruges den anden vej: ikke kun til at beregne én borger, \
                          men til at søge i et afgrænset rum af konfigurationer og spørge, hvornår \
                          regelsystemet giver mærkelige eller hårde resultater."
                     }
                     p {
-                        "Den aktuelle konfiskatoriske audit søger 8.064 kombinationer og finder ingen \
-                         tilfælde, hvor den almindelige årsskat overstiger 100 pct. af det positive \
-                         indkomstgrundlag. Den finder derimod over 200 konfigurationer, hvor \
-                         betalingsbelastningen overstiger 100 pct.; i den nuværende audit kræver de \
-                         alle overført restskat m.v. Det er altså ikke en skjult marginalskat over \
-                         100 pct., men et betalingsproblem fra tidligere år, der bliver formaliseret."
+                        "For eksempel kan den aktuelle konfiskatoriske audit søge 8.064 \
+                         kombinationer og finde ud af, at der i det afgrænsede søgeområde ikke \
+                         er almindelig årsskat over 100 pct. af positivt indkomstgrundlag. Den \
+                         finder derimod over 200 konfigurationer, hvor betalingsbelastningen \
+                         overstiger 100 pct."
+                    }
+                    p {
+                        "Før man finder høtyvene frem, er forklaringen vigtig: de fund kræver \
+                         overført restskat m.v. Det er ikke en skjult almindelig skattesats over \
+                         100 pct., men et betalingsproblem fra tidligere år, som Futuruna kan gøre \
+                         præcist, synligt og auditérbart."
                     }
                     div { class: "const-audit-highlights tax-audit-highlights",
                         a { href: "#project-file",
