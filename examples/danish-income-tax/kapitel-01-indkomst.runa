@@ -334,7 +334,7 @@ Lov nr. 615 af 30/06/2026, § 16, stk. 5:
 fra og med den 1. januar 2027.
 ----
 
-# Kapitalpost = RenterOgLigningslov6 | KursgevinstOgTab | KapitalafkastVsl7 | KapitalafkastVsl22 | AktieudbytteIkkeAktieindkomst | AktieavanceIkkeAktieindkomst | Medlemsbeviser | InvesteringsformidlerBeløb | EjendomsoverskudUnderskud | Provisioner | Rentekorrektion | PassivSelvstændigErhvervsvirksomhed | Ligningslov14AIndbetaling | UdlejningAfDriftsmidlerOgSkibe | Ligningslov5CVederlag | Pensionsbeskatning53AAfkast | Ejendomsavance | Ligningslov12BBeløb | Afskrivningslov40CBeløb | FremlejeOverskud
+# Kapitalpost = RenterOgLigningslov6 | KursgevinstOgTab | KapitalafkastVsl7 | KapitalafkastVsl22 | AktieudbytteIkkeAktieindkomst | AktieavanceIkkeAktieindkomst | Medlemsbeviser | InvesteringsformidlerBeløb | MedarbejderinvesteringsselskabBeløb | EjendomsoverskudUnderskud | Provisioner | Rentekorrektion | PassivSelvstændigErhvervsvirksomhed | Ligningslov14AIndbetaling | UdlejningAfDriftsmidlerOgSkibe | Ligningslov5CVederlag | Pensionsbeskatning53AAfkast | Ejendomsavance | Ligningslov12BBeløb | Afskrivningslov40CBeløb | FremlejeOverskud
 # Næringsstatus = IkkeNæring | FordringsEllerKontraktNæring | FinansieringsNæring
 # AndelsforeningUdlodning = NormalForrentning | IkkeNormalForrentning
 # KapitalTilPersonligUndtagelse = Aktieavance17 | Aktieavance19CHvis17 | Investeringsformidler19CHvis17 | Medarbejderinvesteringsselskab
@@ -350,7 +350,7 @@ fra og med den 1. januar 2027.
 # Par4Stk1Nr3Resultat(brutto_kapitalafkast_kroner: Heltal, overført_til_skattepligtig_inden_oplysningsfrist: Boolsk, medregnet_personlig_indkomst_efter_par23a_kroner: Heltal, kapitalafkast_efter_par23a_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr3aInput(virksomhedsskattelov22a_resultat: Virksomhedsskattelov22AResultat, virksomhedsskattelov23a_resultat: Virksomhedsskattelov23AResultat, virksomhedsskattelov22c_resultat: Virksomhedsskattelov22CResultat)
 # Par4Stk1Nr3aResultat(kapitalafkast_efter_virksomhedsskattelov22a_kroner: Heltal, medregnet_personlig_indkomst_efter_par23a_kroner: Heltal, kapitalafkast_22a_efter_par23a_kroner: Heltal, kapitalafkast_efter_virksomhedsskattelov22c_kroner: Heltal, kapitalindkomst_kroner: Heltal)
-# Par4Stk1Nr4Input(ligningslov16a_resultat: Ligningslov16AResultat, ikke_aktieindkomst_efter_par4a: Boolsk, andelsforening_udlodning: AndelsforeningUdlodning, medarbejderinvesteringsselskab: Boolsk)
+# Par4Stk1Nr4Input(ligningslov16a_resultat: Ligningslov16AResultat, ikke_aktieindkomst_efter_par4a: Boolsk, andelsforening_udlodning: AndelsforeningUdlodning)
 # Par4Stk1Nr4Resultat(skattepligtigt_udbytte_kroner: Heltal, ikke_aktieindkomst_efter_par4a: Boolsk, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr5Input(aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 # Par4Stk1Nr5Resultat(effektiv_aktiv: AktieavancebeskatningslovAktiv, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
@@ -359,6 +359,8 @@ fra og med den 1. januar 2027.
 # Par4Stk1Nr5bAktiv = Par4Nr5bAktieEllerInvesteringsbevis19C | Par4Nr5bInvesteringsbevis22 | Par4Nr5bAndet
 # Par4Stk1Nr5bInput(beløb_kroner: Heltal, modtaget_fra_finansiel_formidler: Boolsk, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut: Boolsk, aktiv: Par4Stk1Nr5bAktiv, ville_være_aktieavancebeskatningslov17_hvis_ikke_19c: Boolsk)
 # Par4Stk1Nr5bResultat(omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
+# Par4Stk7Ligningslov7NInput(ligningslov7n_resultat: Ligningslov7NResultat)
+# Par4Stk7Ligningslov7NResultat(omfattet_af_ligningslov7n: Boolsk, personlig_indkomst_kroner: Heltal, ikke_omfattet_af_par4_stk7_kroner: Heltal)
 # Par4Stk1Nr6Input(ejendomsskattelov_par3_resultat: EjendomsskattelovPar3Resultat, overskud_eller_underskud_kroner: Heltal)
 # Par4Stk1Nr6Resultat(ejendomsskattelov_hjemmel: EjendomsskattelovPar3Hjemmel, omfattet_af_ejendomsskattelov_par3: Boolsk, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, ikke_omfattet_af_par4_nr6_kroner: Heltal)
 # Par4Stk1Nr7Input(ligningslov8_stk3_resultat: Ligningslov8Stk3Resultat)
@@ -533,7 +535,6 @@ fra og med den 1. januar 2027.
     | ikke_aktieindkomst_efter_par4a() -> input.ikke_aktieindkomst_efter_par4a
     | personlig_reklassifikation() -> IngenPersonligReklassifikation
     | exception par4_stk4_andelsudlodning_ikke_normal personlig_reklassifikation() -> AndelsUdlodningIkkeNormal under andelsudlodning_medregnes_personligt(input.andelsforening_udlodning)
-    | exception par4_stk7_medarbejderinvesteringsselskab_udlodning personlig_reklassifikation() -> MedarbejderinvesteringsselskabAndel under input.medarbejderinvesteringsselskab
     | omfattet_af_kapitalindkomst() -> input.ligningslov16a_resultat.omfattet_af_par16a_udbytte && ikke_aktieindkomst_efter_par4a() && personlig_reklassifikation() == IngenPersonligReklassifikation
     | kapitalindkomst_kroner() -> 0
     | exception par4_stk1_nr4_udbytte_ikke_aktieindkomst kapitalindkomst_kroner() -> skattepligtigt_udbytte_kroner() under omfattet_af_kapitalindkomst()
@@ -550,20 +551,19 @@ fra og med den 1. januar 2027.
 }
 | par4_stk1_nr4_sag(input: Par4Stk1Nr4Input) -> Par4Stk1Nr4Sag(input)
 | par4_stk1_nr4_resultat(input: Par4Stk1Nr4Input) -> par4_stk1_nr4_sag(input).resultat()
-| par4_stk1_nr4_input_fra_ligningslov16a(input: Ligningslov16AInput, ikke_aktieindkomst_efter_par4a: Boolsk, andelsforening_udlodning: AndelsforeningUdlodning, medarbejderinvesteringsselskab: Boolsk) -> Par4Stk1Nr4Input(
+| par4_stk1_nr4_input_fra_ligningslov16a(input: Ligningslov16AInput, ikke_aktieindkomst_efter_par4a: Boolsk, andelsforening_udlodning: AndelsforeningUdlodning) -> Par4Stk1Nr4Input(
     ligningslov16a_resultat = ligningslov16a_resultat(input),
     ikke_aktieindkomst_efter_par4a = ikke_aktieindkomst_efter_par4a,
-    andelsforening_udlodning = andelsforening_udlodning,
-    medarbejderinvesteringsselskab = medarbejderinvesteringsselskab
+    andelsforening_udlodning = andelsforening_udlodning
 )
-| par4_stk1_nr4_resultat_fra_ligningslov16a(input: Ligningslov16AInput, ikke_aktieindkomst_efter_par4a: Boolsk, andelsforening_udlodning: AndelsforeningUdlodning, medarbejderinvesteringsselskab: Boolsk) -> par4_stk1_nr4_resultat(par4_stk1_nr4_input_fra_ligningslov16a(input, ikke_aktieindkomst_efter_par4a, andelsforening_udlodning, medarbejderinvesteringsselskab))
+| par4_stk1_nr4_resultat_fra_ligningslov16a(input: Ligningslov16AInput, ikke_aktieindkomst_efter_par4a: Boolsk, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_resultat(par4_stk1_nr4_input_fra_ligningslov16a(input, ikke_aktieindkomst_efter_par4a, andelsforening_udlodning))
 | par4_stk1_nr4_kapitalpost(input: Par4Stk1Nr4Input) -> Par4Kapitalpost(
     art = AktieudbytteIkkeAktieindkomst,
     beløb_kroner = par4_stk1_nr4_sag(input).postbeløb_kroner(),
     personlig_reklassifikation = par4_stk1_nr4_sag(input).personlig_reklassifikation(),
     personlig_indkomst_tillæg_kroner = 0
 )
-| par4_stk1_nr4_kapitalpost_fra_ligningslov16a(input: Ligningslov16AInput, ikke_aktieindkomst_efter_par4a: Boolsk, andelsforening_udlodning: AndelsforeningUdlodning, medarbejderinvesteringsselskab: Boolsk) -> par4_stk1_nr4_kapitalpost(par4_stk1_nr4_input_fra_ligningslov16a(input, ikke_aktieindkomst_efter_par4a, andelsforening_udlodning, medarbejderinvesteringsselskab))
+| par4_stk1_nr4_kapitalpost_fra_ligningslov16a(input: Ligningslov16AInput, ikke_aktieindkomst_efter_par4a: Boolsk, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_kapitalpost(par4_stk1_nr4_input_fra_ligningslov16a(input, ikke_aktieindkomst_efter_par4a, andelsforening_udlodning))
 
 | par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> IngenPersonligReklassifikation
 | exception par4_stk1_nr5_par17_til_personlig par4_stk1_nr5_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance17Aktier under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblNæringsaktiePar17
@@ -646,6 +646,30 @@ fra og med den 1. januar 2027.
     personlig_reklassifikation = par4_stk1_nr5b_sag(input).personlig_reklassifikation(),
     personlig_indkomst_tillæg_kroner = 0
 )
+
+# Par4Stk7Ligningslov7NSag(input: Par4Stk7Ligningslov7NInput) {
+    | omfattet_af_ligningslov7n() -> input.ligningslov7n_resultat.andel_omfattet_af_par7n
+    | personlig_indkomst_kroner() -> input.ligningslov7n_resultat.personskattelov_stk7_personlig_indkomst_kroner
+    | ikke_omfattet_af_par4_stk7_kroner() -> input.ligningslov7n_resultat.personskattelov_par4a_beløb_kroner - personlig_indkomst_kroner()
+    | resultat() -> Par4Stk7Ligningslov7NResultat(
+        omfattet_af_ligningslov7n = omfattet_af_ligningslov7n(),
+        personlig_indkomst_kroner = personlig_indkomst_kroner(),
+        ikke_omfattet_af_par4_stk7_kroner = ikke_omfattet_af_par4_stk7_kroner()
+    )
+}
+| par4_stk7_ligningslov7n_sag(input: Par4Stk7Ligningslov7NInput) -> Par4Stk7Ligningslov7NSag(input)
+| par4_stk7_ligningslov7n_resultat(input: Par4Stk7Ligningslov7NInput) -> par4_stk7_ligningslov7n_sag(input).resultat()
+| par4_stk7_ligningslov7n_input_fra_ligningslov7n(input: Ligningslov7NInput) -> Par4Stk7Ligningslov7NInput(
+    ligningslov7n_resultat = ligningslov7n_resultat(input)
+)
+| par4_stk7_ligningslov7n_resultat_fra_ligningslov7n(input: Ligningslov7NInput) -> par4_stk7_ligningslov7n_resultat(par4_stk7_ligningslov7n_input_fra_ligningslov7n(input))
+| par4_stk7_ligningslov7n_kapitalpost(input: Par4Stk7Ligningslov7NInput) -> Par4Kapitalpost(
+    art = MedarbejderinvesteringsselskabBeløb,
+    beløb_kroner = par4_stk7_ligningslov7n_sag(input).personlig_indkomst_kroner(),
+    personlig_reklassifikation = MedarbejderinvesteringsselskabAndel,
+    personlig_indkomst_tillæg_kroner = 0
+)
+| par4_stk7_ligningslov7n_kapitalpost_fra_ligningslov7n(input: Ligningslov7NInput) -> par4_stk7_ligningslov7n_kapitalpost(par4_stk7_ligningslov7n_input_fra_ligningslov7n(input))
 
 # Par4Stk1Nr6Sag(input: Par4Stk1Nr6Input) {
     | ejendomsskattelov_hjemmel() -> input.ejendomsskattelov_par3_resultat.stk1_hjemmel
@@ -1193,14 +1217,12 @@ fra og med den 1. januar 2027.
 = par4_stk1_nr4_udbytte_fixture = par4_stk1_nr4_resultat_fra_ligningslov16a(
     par4_stk1_nr4_udbytte_input,
     Sandt,
-    NormalForrentning,
-    Falskt
+    NormalForrentning
 )
 = par4_stk1_nr4_andelsudlodning_personlig_fixture = par4_stk1_nr4_resultat_fra_ligningslov16a(
     par4_stk1_nr4_andelsudlodning_personlig_input,
     Sandt,
-    IkkeNormalForrentning,
-    Falskt
+    IkkeNormalForrentning
 )
 = par4_stk1_nr5_abl19c_fixture = par4_stk1_nr5_resultat_fra_aktieavancebeskatningslov(abl19c_kapital_input)
 = par4_stk1_nr5_abl22_tab_fixture = par4_stk1_nr5_resultat_fra_aktieavancebeskatningslov(abl22_tab_input)
@@ -1233,6 +1255,30 @@ fra og med den 1. januar 2027.
 )
 = par4_stk1_nr5b_fixture = par4_stk1_nr5b_resultat(par4_stk1_nr5b_fixture_input)
 = par4_stk1_nr5b_hvis17_fixture = par4_stk1_nr5b_resultat(par4_stk1_nr5b_hvis17_fixture_input)
+= par4_stk7_ll7n_udbetaling_input = Ligningslov7NInput(
+    indkomstår = 2026,
+    selskab = Ll7NMedarbejderinvesteringsselskabStk1,
+    postart = Ll7NUdbytteEllerUdbetaling,
+    beløb_kroner = 12000,
+    kontant_løn_minus_amb_fra_arbejdsgiver_kroner = 0,
+    tidligere_bortset_arbejdsgiverindskud_i_året_kroner = 0,
+    registreret_i_erhvervsstyrelsen = Sandt,
+    godkendt_eu_eøs_selskab = Falskt,
+    godkendelse_tilbagekaldt = Falskt
+)
+= par4_stk7_ll7n_tab_input = Ligningslov7NInput(
+    indkomstår = 2026,
+    selskab = Ll7NMedarbejderinvesteringsselskabStk1,
+    postart = Ll7NTab,
+    beløb_kroner = 7000,
+    kontant_løn_minus_amb_fra_arbejdsgiver_kroner = 0,
+    tidligere_bortset_arbejdsgiverindskud_i_året_kroner = 0,
+    registreret_i_erhvervsstyrelsen = Sandt,
+    godkendt_eu_eøs_selskab = Falskt,
+    godkendelse_tilbagekaldt = Falskt
+)
+= par4_stk7_ll7n_udbetaling_fixture = par4_stk7_ligningslov7n_resultat_fra_ligningslov7n(par4_stk7_ll7n_udbetaling_input)
+= par4_stk7_ll7n_tab_fixture = par4_stk7_ligningslov7n_resultat_fra_ligningslov7n(par4_stk7_ll7n_tab_input)
 = par4_stk1_nr6_2027_landzone_input = Par4Stk1Nr6Input(
     ejendomsskattelov_par3_resultat = ejsk_2027_landzone_fixture,
     overskud_eller_underskud_kroner = 16000
@@ -1491,8 +1537,8 @@ fra og med den 1. januar 2027.
         par4_stk1_nr2_kapitalpost_fra_kursgevinstlov(par4_stk1_nr2_tab_kgl_input),
         par4_stk1_nr3_kapitalpost_fra_virksomhedsskattelov7(vsl7_overskudsloft_input, Sandt, par4_stk1_nr3_par23a_input),
         par4_stk1_nr3a_kapitalpost_fra_virksomhedsskattelov22(vsl22a_loftet_input, par4_stk1_nr3a_par23a_input, vsl22c_opfyldt_input),
-        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_udbytte_input, Sandt, NormalForrentning, Falskt),
-        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_andelsudlodning_personlig_input, Sandt, IkkeNormalForrentning, Falskt),
+        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_udbytte_input, Sandt, NormalForrentning),
+        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_andelsudlodning_personlig_input, Sandt, IkkeNormalForrentning),
         par4_stk1_nr5_kapitalpost_fra_aktieavancebeskatningslov(abl19c_kapital_input),
         par4_stk1_nr5a_kapitalpost(par4_stk1_nr5a_fixture_input),
         par4_stk1_nr5b_kapitalpost(par4_stk1_nr5b_fixture_input),
@@ -1549,6 +1595,8 @@ fra og med den 1. januar 2027.
 | par4_stk1_nr5a_investeringsforening_udelukkes: par4_stk1_nr5a_investeringsforening_fixture -> par4_stk1_nr5a_investeringsforening_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr5a_investeringsforening_fixture.kapitalindkomst_kroner == 0
 | par4_stk1_nr5b_formidlerbeløb_indgår: par4_stk1_nr5b_fixture -> par4_stk1_nr5b_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr5b_fixture.kapitalindkomst_kroner == 4000
 | par4_stk6_formidler19c_hvis17_personlig: par4_stk1_nr5b_hvis17_fixture -> par4_stk1_nr5b_hvis17_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr5b_hvis17_fixture.personlig_reklassifikation == Investeringsformidler19CHvis17Aktier
+| par4_stk7_ll7n_udbetaling_til_personlig_indkomst: par4_stk7_ll7n_udbetaling_fixture -> par4_stk7_ll7n_udbetaling_fixture.omfattet_af_ligningslov7n == Sandt && par4_stk7_ll7n_udbetaling_fixture.personlig_indkomst_kroner == 12000 && par4_stk7_ll7n_udbetaling_fixture.ikke_omfattet_af_par4_stk7_kroner == 0
+| par4_stk7_ll7n_tab_ikke_personlig_indkomst: par4_stk7_ll7n_tab_fixture -> par4_stk7_ll7n_tab_fixture.omfattet_af_ligningslov7n == Sandt && par4_stk7_ll7n_tab_fixture.personlig_indkomst_kroner == 0 && par4_stk7_ll7n_tab_fixture.ikke_omfattet_af_par4_stk7_kroner == -7000
 | par4_stk1_nr6_ejendomsoverskud_indgår_efter_ejendomsskattelov3: par4_stk1_nr6_2027_landzone_fixture -> par4_stk1_nr6_2027_landzone_fixture.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr8 && par4_stk1_nr6_2027_landzone_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr6_2027_landzone_fixture.kapitalindkomst_kroner == 16000
 | par4_stk1_nr6_udelukker_ejendomsskattelov3_nr5_fra_2027: par4_stk1_nr6_2027_tre_til_seks_fixture -> par4_stk1_nr6_2027_tre_til_seks_fixture.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr5 && par4_stk1_nr6_2027_tre_til_seks_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr6_2027_tre_til_seks_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr6_2027_tre_til_seks_fixture.ikke_omfattet_af_par4_nr6_kroner == 16000
 | par4_stk1_nr6_underskud_indgår_symmetrisk: par4_stk1_nr6_2027_underskud_fixture -> par4_stk1_nr6_2027_underskud_fixture.ejendomsskattelov_hjemmel == EjskPar3Stk1Nr4 && par4_stk1_nr6_2027_underskud_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr6_2027_underskud_fixture.kapitalindkomst_kroner == -6000
@@ -1648,7 +1696,7 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 ----
 
 # Aktiepost = Ligningslov16AUdbytte | VirksomhedsomdannelsePar4Stk4TredjePunktum | AktieInvesteringsselskabUdbytte | AktieFortjenesteTab | InvesteringsformidlerAktieBeløb
-# AktieUndtagelse = Aktieavance19C | Ligningslov16AStk5 | MedarbejderinvesteringsselskabAndel
+# AktieUndtagelse = Aktieavance19C | Ligningslov16AStk5 | MedarbejderinvesteringsselskabAktie
 # AktiepostStk1Og2Afgrænsning = AktiepostOmfattetAfStk1 | AktiepostUdenforStk1 | AktiepostUndtagetAktieavance19C | AktiepostUndtagetLigningslov16AStk5 | AktiepostUndtagetMedarbejderinvesteringsselskab
 # AktieTilPersonligUndtagelse = IngenAktieTilPersonligUndtagelse | Aktieavance19BHvis17
 # AktiePensionsFradrag(positiv_aktieindkomst: Boolsk, fradrag_højst_aktieindkomst: Boolsk, meddelt_forvaltning: Boolsk, ikke_fradraget_i_personlig_indkomst: Boolsk)
@@ -1657,6 +1705,8 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 # Par4aAktiepost(art: Aktiepost, beløb_kroner: Heltal, afgrænsning: AktiepostStk1Og2Afgrænsning, personlig_reklassifikation: AktieTilPersonligUndtagelse)
 # Par4aAktieavancebeskatningslovInput(aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 # Par4aAktieavancebeskatningslovResultat(effektiv_aktiv: AktieavancebeskatningslovAktiv, personskattelov_kategori: AktieavancebeskatningslovPslKategori, beløb_kroner: Heltal, afgrænsning: AktiepostStk1Og2Afgrænsning, personlig_reklassifikation: AktieTilPersonligUndtagelse, aktieindkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal)
+# Par4aLigningslov7NInput(ligningslov7n_resultat: Ligningslov7NResultat)
+# Par4aLigningslov7NResultat(postart: Ligningslov7NPostart, beløb_kroner: Heltal, afgrænsning: AktiepostStk1Og2Afgrænsning, aktieindkomst_kroner: Heltal)
 # Par4aAktieindkomstInput(poster: List(Par4aAktiepost), ønsket_pensionsfradrag_kroner: Heltal, pensionsfradrag_meddelt_forvaltning: Boolsk, pensionsfradrag_fradraget_i_personlig_indkomst: Boolsk)
 # Par4aAktieindkomstResultat(aktieindkomst_efter_stk1_og_2_kroner: Heltal, pensionsfradrag_i_aktieindkomst_kroner: Heltal, aktieindkomst_efter_pensionsfradrag_kroner: Heltal, omklassificeret_personlig_indkomst_kroner: Heltal, aktieindkomst_indgår_i_skattepligtig_indkomst: Boolsk)
 
@@ -1697,6 +1747,8 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 
 | par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> IngenAktieTilPersonligUndtagelse
 | exception par4a_19b_hvis17_til_personlig par4a_personlig_reklassifikation_fra_aktieavancebeskatningslov(resultat: AktieavancebeskatningslovResultat) -> Aktieavance19BHvis17 under resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse && resultat.effektiv_aktiv == AblInvesteringsselskab19B
+| par4a_aktiepostart_fra_ligningslov7n(postart: Ligningslov7NPostart) -> AktieFortjenesteTab
+| exception par4a_ll7n_udbetaling_som_udbytte par4a_aktiepostart_fra_ligningslov7n(postart: Ligningslov7NPostart) -> Ligningslov16AUdbytte under postart == Ll7NUdbytteEllerUdbetaling
 
 # Par4aAktieavancebeskatningslovSag(input: Par4aAktieavancebeskatningslovInput) {
     | beløb_kroner() -> input.aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner
@@ -1728,6 +1780,32 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 | par4a_aktiepost_fra_aktieavancebeskatningslov(input: AktieavancebeskatningslovInput) -> par4a_aktiepost(par4a_aktieavancebeskatningslov_input_fra_aktieavancebeskatningslov(input))
 | par4a_aktieavancebeskatningslov_resultat(input: Par4aAktieavancebeskatningslovInput) -> par4a_aktieavancebeskatningslov_sag(input).resultat()
 | par4a_aktieavancebeskatningslov_resultat_fra_aktieavancebeskatningslov(input: AktieavancebeskatningslovInput) -> par4a_aktieavancebeskatningslov_resultat(par4a_aktieavancebeskatningslov_input_fra_aktieavancebeskatningslov(input))
+
+# Par4aLigningslov7NSag(input: Par4aLigningslov7NInput) {
+    | afgrænsning() -> AktiepostUdenforStk1
+    | exception par4a_ll7n_tab_omfattet_af_stk1 afgrænsning() -> AktiepostOmfattetAfStk1 under input.ligningslov7n_resultat.andel_omfattet_af_par7n && input.ligningslov7n_resultat.postart == Ll7NTab
+    | exception par4a_stk2_ligningslov7n_undtaget afgrænsning() -> AktiepostUndtagetMedarbejderinvesteringsselskab under input.ligningslov7n_resultat.personskattelov_par4a_stk2_undtagelse
+    | aktiepost() -> Par4aAktiepost(
+        art = par4a_aktiepostart_fra_ligningslov7n(input.ligningslov7n_resultat.postart),
+        beløb_kroner = input.ligningslov7n_resultat.personskattelov_par4a_beløb_kroner,
+        afgrænsning = afgrænsning(),
+        personlig_reklassifikation = IngenAktieTilPersonligUndtagelse
+    )
+    | aktieindkomst_kroner() -> par4a_aktiepost_i_aktieindkomst_kroner(aktiepost())
+    | resultat() -> Par4aLigningslov7NResultat(
+        postart = input.ligningslov7n_resultat.postart,
+        beløb_kroner = input.ligningslov7n_resultat.personskattelov_par4a_beløb_kroner,
+        afgrænsning = afgrænsning(),
+        aktieindkomst_kroner = aktieindkomst_kroner()
+    )
+}
+| par4a_ligningslov7n_sag(input: Par4aLigningslov7NInput) -> Par4aLigningslov7NSag(input)
+| par4a_ligningslov7n_input_fra_ligningslov7n(input: Ligningslov7NInput) -> Par4aLigningslov7NInput(
+    ligningslov7n_resultat = ligningslov7n_resultat(input)
+)
+| par4a_aktiepost_fra_ligningslov7n(input: Ligningslov7NInput) -> par4a_ligningslov7n_sag(par4a_ligningslov7n_input_fra_ligningslov7n(input)).aktiepost()
+| par4a_ligningslov7n_resultat(input: Par4aLigningslov7NInput) -> par4a_ligningslov7n_sag(input).resultat()
+| par4a_ligningslov7n_resultat_fra_ligningslov7n(input: Ligningslov7NInput) -> par4a_ligningslov7n_resultat(par4a_ligningslov7n_input_fra_ligningslov7n(input))
 
 # Par4aPensionsfradragSag(input: AktiePensionsFradragInput) {
     | positiv_aktieindkomst_kroner() -> penge_positivt_beløb(input.aktieindkomst_efter_stk1_og_2_kroner)
@@ -1777,6 +1855,8 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 = par4a_abl21_aktieindkomst_fixture = par4a_aktieavancebeskatningslov_resultat_fra_aktieavancebeskatningslov(abl21_aktieindkomst_input)
 = par4a_abl19b_hvis17_fixture = par4a_aktieavancebeskatningslov_resultat_fra_aktieavancebeskatningslov(abl19b_hvis17_input)
 = par4a_abl19c_undtaget_fixture = par4a_aktieavancebeskatningslov_resultat_fra_aktieavancebeskatningslov(abl19c_kapital_input)
+= par4a_ll7n_udbetaling_fixture = par4a_ligningslov7n_resultat_fra_ligningslov7n(par4_stk7_ll7n_udbetaling_input)
+= par4a_ll7n_tab_fixture = par4a_ligningslov7n_resultat_fra_ligningslov7n(par4_stk7_ll7n_tab_input)
 = par4a_aktieindkomst_resultat_fixture = par4a_aktieindkomst_resultat(Par4aAktieindkomstInput(
     poster = [
         Par4aAktiepost(art = Ligningslov16AUdbytte, beløb_kroner = 50000, afgrænsning = AktiepostOmfattetAfStk1, personlig_reklassifikation = IngenAktieTilPersonligUndtagelse),
@@ -1812,6 +1892,8 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
 | par4a_abl21_til_aktieindkomst: par4a_abl21_aktieindkomst_fixture -> par4a_abl21_aktieindkomst_fixture.effektiv_aktiv == AblMinimumsbevis21 && par4a_abl21_aktieindkomst_fixture.afgrænsning == AktiepostOmfattetAfStk1 && par4a_abl21_aktieindkomst_fixture.aktieindkomst_kroner == 10000
 | par4a_abl19b_hvis17_til_personlig: par4a_abl19b_hvis17_fixture -> par4a_abl19b_hvis17_fixture.aktieindkomst_kroner == 0 && par4a_abl19b_hvis17_fixture.personlig_indkomst_kroner == 7000 && par4a_abl19b_hvis17_fixture.personlig_reklassifikation == Aktieavance19BHvis17
 | par4a_abl19c_undtages_efter_stk2: par4a_abl19c_undtaget_fixture -> par4a_abl19c_undtaget_fixture.afgrænsning == AktiepostUndtagetAktieavance19C && par4a_abl19c_undtaget_fixture.aktieindkomst_kroner == 0
+| par4a_ll7n_udbetaling_undtages_efter_stk2: par4a_ll7n_udbetaling_fixture -> par4a_ll7n_udbetaling_fixture.afgrænsning == AktiepostUndtagetMedarbejderinvesteringsselskab && par4a_ll7n_udbetaling_fixture.beløb_kroner == 12000 && par4a_ll7n_udbetaling_fixture.aktieindkomst_kroner == 0
+| par4a_ll7n_tab_forbliver_negativ_aktieindkomst: par4a_ll7n_tab_fixture -> par4a_ll7n_tab_fixture.afgrænsning == AktiepostOmfattetAfStk1 && par4a_ll7n_tab_fixture.beløb_kroner == -7000 && par4a_ll7n_tab_fixture.aktieindkomst_kroner == -7000
 | par4a_aktieindkomst_beregnes_beløb: par4a_aktieindkomst_resultat_fixture -> par4a_aktieindkomst_resultat_fixture.aktieindkomst_efter_stk1_og_2_kroner == 70000 && par4a_aktieindkomst_resultat_fixture.pensionsfradrag_i_aktieindkomst_kroner == 20000 && par4a_aktieindkomst_resultat_fixture.aktieindkomst_efter_pensionsfradrag_kroner == 50000 && par4a_aktieindkomst_resultat_fixture.omklassificeret_personlig_indkomst_kroner == 7000 && par4a_aktieindkomst_resultat_fixture.aktieindkomst_indgår_i_skattepligtig_indkomst == Falskt
 | par4a_negativ_aktieindkomst_bevares_uden_pension: par4a_negativ_aktieindkomst_fixture -> par4a_negativ_aktieindkomst_fixture.aktieindkomst_efter_stk1_og_2_kroner == -12000 && par4a_negativ_aktieindkomst_fixture.pensionsfradrag_i_aktieindkomst_kroner == 0 && par4a_negativ_aktieindkomst_fixture.aktieindkomst_efter_pensionsfradrag_kroner == -12000
 

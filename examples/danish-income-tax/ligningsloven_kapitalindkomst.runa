@@ -2,7 +2,7 @@
 
 @ importer ./pengebeloeb
 
--- Ligningsloven — kapitalindkomstrelevante afhængigheder (§§ 5 C, 6, 6 A, 8, 12 B og 14 A).
+-- Ligningsloven — kapitalindkomstrelevante afhængigheder (§§ 5 C, 6, 6 A, 7 N, 8, 12 B, 14 A og 16 A).
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
@@ -410,6 +410,172 @@ statshusmandsbrug m.m. og jordrente, forudsat at beløbet er betalt.
 }
 | ligningslov6a_sag(input: Ligningslov6AInput) -> Ligningslov6ASag(input)
 | ligningslov6a_resultat(input: Ligningslov6AInput) -> ligningslov6a_sag(input).resultat()
+
+----
+§ 7 N.
+Ved opgørelsen af den skattepligtige indkomst for en medarbejderdeltager, jf.
+§ 2, stk. 5, i lov om medarbejderinvesteringsselskaber, i et
+medarbejderinvesteringsselskab, jf. § 3 i lov om
+medarbejderinvesteringsselskaber, medregnes ikke beløb, der indskydes af
+arbejdsgiveren i et medarbejderinvesteringsselskab, der er registreret i
+Erhvervsstyrelsen, jf. § 7 i lov om medarbejderinvesteringsselskaber.
+
+Stk. 2. Beløbet som nævnt i stk. 1 kan højst udgøre 7,5 pct. af
+medarbejderdeltagerens kontante løn minus arbejdsmarkedsbidrag fra den
+pågældende arbejdsgiver i indkomståret, dog maksimalt 30.000 kr. årligt. Ved
+deltagelse i flere medarbejderinvesteringsselskaber gælder grænsen for at
+bortse fra arbejdsgivernes indskud på 30.000 kr. årligt for den enkelte person.
+
+Stk. 3. Ved indskud i selskaber med hjemsted i et andet land inden for EU/EØS
+end Danmark er det en betingelse for bortseelse efter stk. 1, at told- og
+skatteforvaltningen har godkendt det pågældende selskab, herunder dets
+vedtægter, og at godkendelsen ikke er tilbagekaldt, jf. stk. 7.
+
+Stk. 4. Godkendelse efter stk. 3 sker, når følgende betingelser er opfyldt:
+1) Selskabet skal være gyldigt stiftet og registreret efter sit hjemlands
+regler.
+2) Selskabet skal kunne sidestilles med et medarbejderinvesteringsselskab med
+hjemsted i Danmark, jf. lov om medarbejderinvesteringsselskaber.
+3) Selskabet skal indvillige i at påtage sig de forpligtelser m.v., der stilles
+til medarbejderinvesteringsselskaber med hjemsted i Danmark.
+4) Det skal være muligt via direktivet om gensidig bistand mellem
+medlemsstaternes kompetente myndigheder inden for området direkte skatter,
+visse punktafgifter og afgiftsbelastning af forsikringspræmier, en
+dobbeltbeskatningsoverenskomst eller anden aftale om udveksling af oplysninger
+at verificere selskabets dokumentation vedrørende selskabet.
+
+Stk. 5. Godkendelse kan kun ske, efter at told- og skatteforvaltningen har
+indhentet udtalelse fra Erhvervsstyrelsen om, hvorvidt det pågældende selskab
+kan sidestilles med et medarbejderinvesteringsselskab med hjemsted i Danmark,
+jf. lov om medarbejderinvesteringsselskaber.
+
+Stk. 6. Ved indskud i selskaber med hjemsted i et andet land inden for EU/EØS
+end Danmark er det endvidere en betingelse for bortseelse efter stk. 1, at
+vedtægtsændringer godkendes af told- og skatteforvaltningen, ligesom selskabet
+kun med told- og skatteforvaltningens godkendelse kan foretage eller medvirke
+til ekstraordinære dispositioner, som kan medføre risiko for, at vedtægten ikke
+kan overholdes, eller at selskabet ikke fortsat vil kunne eksistere.
+Godkendelser kan kun ske, efter at told- og skatteforvaltningen har indhentet
+udtalelse fra Erhvervsstyrelsen om, hvorvidt vedtægtsændringerne og
+dispositionerne ville være blevet godkendt, hvis selskabet havde haft hjemsted
+i Danmark.
+
+Stk. 7. Told- og skatteforvaltningen kan tilbagekalde en godkendelse efter
+stk. 3, hvis betingelserne for godkendelse ikke længere er opfyldt, eller hvis
+der uden told- og skatteforvaltningens godkendelse foretages vedtægtsændringer
+eller dispositioner som nævnt i stk. 6. Tilbagekaldes godkendelsen, medregnes
+værdien af medarbejderdeltagerens investeringsandel ved opgørelsen af den
+skattepligtige indkomst på tidspunktet for tilbagekaldelsen.
+
+Stk. 8. Omregning af fremmed valuta i forbindelse med indeholdelse af
+indkomstskat af udbytter m.v. sker til Nationalbankens middelkurs på
+indeholdelsestidspunktet.
+
+Stk. 9. Skatteministeren kan fastsætte nærmere regler om godkendelse af
+selskaber m.v. efter stk. 3, om efterfølgende godkendelser efter stk. 6 og om
+tilbagekaldelse efter stk. 7.
+----
+
+# Ligningslov7NSelskab = Ll7NIkkeOmfattetSelskab | Ll7NMedarbejderinvesteringsselskabStk1 | Ll7NMedarbejderinvesteringsselskabslignendeStk3
+# Ligningslov7NPostart = Ll7NArbejdsgiverindskud | Ll7NUdbytteEllerUdbetaling | Ll7NFortjeneste | Ll7NTab | Ll7NTilbagekaldelsesværdi | Ll7NAndenPost
+# Ligningslov7NInput(indkomstår: Heltal, selskab: Ligningslov7NSelskab, postart: Ligningslov7NPostart, beløb_kroner: Heltal, kontant_løn_minus_amb_fra_arbejdsgiver_kroner: Heltal, tidligere_bortset_arbejdsgiverindskud_i_året_kroner: Heltal, registreret_i_erhvervsstyrelsen: Boolsk, godkendt_eu_eøs_selskab: Boolsk, godkendelse_tilbagekaldt: Boolsk)
+# Ligningslov7NResultat(indkomstår: Heltal, selskab: Ligningslov7NSelskab, postart: Ligningslov7NPostart, omfattet_af_stk1: Boolsk, omfattet_af_stk3: Boolsk, andel_omfattet_af_par7n: Boolsk, arbejdsgiverindskud_loft_efter_stk2_kroner: Heltal, arbejdsgiverindskud_bortses_kroner: Heltal, arbejdsgiverindskud_skattepligtigt_kroner: Heltal, tilbagekaldelsesværdi_skattepligtig_kroner: Heltal, personskattelov_stk7_personlig_indkomst_kroner: Heltal, personskattelov_par4a_beløb_kroner: Heltal, personskattelov_par4a_stk2_undtagelse: Boolsk)
+
+| ligningslov7n_årlig_maksimumsgrænse_kroner(indkomstår: Heltal) -> 30000
+| ligningslov7n_arbejdsgiverindskud_basispoint(indkomstår: Heltal) -> 750
+| ligningslov7n_post_er_arbejdsgiverindskud(postart: Ligningslov7NPostart) -> postart == Ll7NArbejdsgiverindskud
+| ligningslov7n_post_er_udbetaling_eller_fortjeneste(postart: Ligningslov7NPostart) -> postart == Ll7NFortjeneste
+| exception ll7n_udbytte_eller_udbetaling_til_personlig_indkomst ligningslov7n_post_er_udbetaling_eller_fortjeneste(postart: Ligningslov7NPostart) -> Sandt under postart == Ll7NUdbytteEllerUdbetaling
+| ligningslov7n_post_er_aktieundtagelse_efter_personskatteloven(postart: Ligningslov7NPostart) -> ligningslov7n_post_er_udbetaling_eller_fortjeneste(postart)
+
+# Ligningslov7NSag(input: Ligningslov7NInput) {
+    | positivt_beløb_kroner() -> penge_positivt_beløb(input.beløb_kroner)
+    | omfattet_af_stk1() -> input.selskab == Ll7NMedarbejderinvesteringsselskabStk1 && input.registreret_i_erhvervsstyrelsen
+    | omfattet_af_stk3() -> input.selskab == Ll7NMedarbejderinvesteringsselskabslignendeStk3 && input.godkendt_eu_eøs_selskab && input.godkendelse_tilbagekaldt == Falskt
+    | andel_omfattet_af_par7n() -> omfattet_af_stk1() || omfattet_af_stk3()
+    | arbejdsgiver_lønloft_kroner() -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.kontant_løn_minus_amb_fra_arbejdsgiver_kroner), ligningslov7n_arbejdsgiverindskud_basispoint(input.indkomstår))
+    | resterende_personloft_kroner() -> penge_positivt_beløb(ligningslov7n_årlig_maksimumsgrænse_kroner(input.indkomstår) - penge_positivt_beløb(input.tidligere_bortset_arbejdsgiverindskud_i_året_kroner))
+    | arbejdsgiverindskud_loft_efter_stk2_kroner() -> penge_mindste_beløb(arbejdsgiver_lønloft_kroner(), resterende_personloft_kroner())
+    | arbejdsgiverindskud_bortses_kroner() -> 0
+    | exception ll7n_stk1_og_stk2_indskud_bortses arbejdsgiverindskud_bortses_kroner() -> penge_mindste_beløb(positivt_beløb_kroner(), arbejdsgiverindskud_loft_efter_stk2_kroner()) under andel_omfattet_af_par7n() && ligningslov7n_post_er_arbejdsgiverindskud(input.postart)
+    | arbejdsgiverindskud_skattepligtigt_kroner() -> 0
+    | exception ll7n_indskud_over_stk2_loft_skattepligtigt arbejdsgiverindskud_skattepligtigt_kroner() -> positivt_beløb_kroner() - arbejdsgiverindskud_bortses_kroner() under ligningslov7n_post_er_arbejdsgiverindskud(input.postart)
+    | tilbagekaldelsesværdi_skattepligtig_kroner() -> 0
+    | exception ll7n_stk7_tilbagekaldelse_beskatter_værdi tilbagekaldelsesværdi_skattepligtig_kroner() -> positivt_beløb_kroner() under input.postart == Ll7NTilbagekaldelsesværdi && input.godkendelse_tilbagekaldt
+    | personskattelov_stk7_personlig_indkomst_kroner() -> 0
+    | exception ll7n_psl_stk7_udbetaling_eller_fortjeneste personskattelov_stk7_personlig_indkomst_kroner() -> positivt_beløb_kroner() under andel_omfattet_af_par7n() && ligningslov7n_post_er_udbetaling_eller_fortjeneste(input.postart)
+    | personskattelov_par4a_beløb_kroner() -> 0
+    | exception ll7n_psl_par4a_udbytte_eller_fortjeneste personskattelov_par4a_beløb_kroner() -> positivt_beløb_kroner() under andel_omfattet_af_par7n() && ligningslov7n_post_er_udbetaling_eller_fortjeneste(input.postart)
+    | exception ll7n_psl_par4a_tab personskattelov_par4a_beløb_kroner() -> 0 - positivt_beløb_kroner() under andel_omfattet_af_par7n() && input.postart == Ll7NTab
+    | personskattelov_par4a_stk2_undtagelse() -> andel_omfattet_af_par7n() && ligningslov7n_post_er_aktieundtagelse_efter_personskatteloven(input.postart)
+    | resultat() -> Ligningslov7NResultat(
+        indkomstår = input.indkomstår,
+        selskab = input.selskab,
+        postart = input.postart,
+        omfattet_af_stk1 = omfattet_af_stk1(),
+        omfattet_af_stk3 = omfattet_af_stk3(),
+        andel_omfattet_af_par7n = andel_omfattet_af_par7n(),
+        arbejdsgiverindskud_loft_efter_stk2_kroner = arbejdsgiverindskud_loft_efter_stk2_kroner(),
+        arbejdsgiverindskud_bortses_kroner = arbejdsgiverindskud_bortses_kroner(),
+        arbejdsgiverindskud_skattepligtigt_kroner = arbejdsgiverindskud_skattepligtigt_kroner(),
+        tilbagekaldelsesværdi_skattepligtig_kroner = tilbagekaldelsesværdi_skattepligtig_kroner(),
+        personskattelov_stk7_personlig_indkomst_kroner = personskattelov_stk7_personlig_indkomst_kroner(),
+        personskattelov_par4a_beløb_kroner = personskattelov_par4a_beløb_kroner(),
+        personskattelov_par4a_stk2_undtagelse = personskattelov_par4a_stk2_undtagelse()
+    )
+}
+| ligningslov7n_sag(input: Ligningslov7NInput) -> Ligningslov7NSag(input)
+| ligningslov7n_resultat(input: Ligningslov7NInput) -> ligningslov7n_sag(input).resultat()
+
+= ll7n_dansk_indskud_fixture = ligningslov7n_resultat(Ligningslov7NInput(
+    indkomstår = 2026,
+    selskab = Ll7NMedarbejderinvesteringsselskabStk1,
+    postart = Ll7NArbejdsgiverindskud,
+    beløb_kroner = 35000,
+    kontant_løn_minus_amb_fra_arbejdsgiver_kroner = 400000,
+    tidligere_bortset_arbejdsgiverindskud_i_året_kroner = 0,
+    registreret_i_erhvervsstyrelsen = Sandt,
+    godkendt_eu_eøs_selskab = Falskt,
+    godkendelse_tilbagekaldt = Falskt
+))
+= ll7n_eu_udbetaling_fixture = ligningslov7n_resultat(Ligningslov7NInput(
+    indkomstår = 2026,
+    selskab = Ll7NMedarbejderinvesteringsselskabslignendeStk3,
+    postart = Ll7NUdbytteEllerUdbetaling,
+    beløb_kroner = 12000,
+    kontant_løn_minus_amb_fra_arbejdsgiver_kroner = 0,
+    tidligere_bortset_arbejdsgiverindskud_i_året_kroner = 0,
+    registreret_i_erhvervsstyrelsen = Falskt,
+    godkendt_eu_eøs_selskab = Sandt,
+    godkendelse_tilbagekaldt = Falskt
+))
+= ll7n_tab_fixture = ligningslov7n_resultat(Ligningslov7NInput(
+    indkomstår = 2026,
+    selskab = Ll7NMedarbejderinvesteringsselskabStk1,
+    postart = Ll7NTab,
+    beløb_kroner = 7000,
+    kontant_løn_minus_amb_fra_arbejdsgiver_kroner = 0,
+    tidligere_bortset_arbejdsgiverindskud_i_året_kroner = 0,
+    registreret_i_erhvervsstyrelsen = Sandt,
+    godkendt_eu_eøs_selskab = Falskt,
+    godkendelse_tilbagekaldt = Falskt
+))
+= ll7n_tilbagekaldelse_fixture = ligningslov7n_resultat(Ligningslov7NInput(
+    indkomstår = 2026,
+    selskab = Ll7NMedarbejderinvesteringsselskabslignendeStk3,
+    postart = Ll7NTilbagekaldelsesværdi,
+    beløb_kroner = 45000,
+    kontant_løn_minus_amb_fra_arbejdsgiver_kroner = 0,
+    tidligere_bortset_arbejdsgiverindskud_i_året_kroner = 0,
+    registreret_i_erhvervsstyrelsen = Falskt,
+    godkendt_eu_eøs_selskab = Sandt,
+    godkendelse_tilbagekaldt = Sandt
+))
+
+| ll7n_stk1_og_stk2_indskud_bortses_op_til_loft: ll7n_dansk_indskud_fixture -> ll7n_dansk_indskud_fixture.omfattet_af_stk1 == Sandt && ll7n_dansk_indskud_fixture.arbejdsgiverindskud_loft_efter_stk2_kroner == 30000 && ll7n_dansk_indskud_fixture.arbejdsgiverindskud_bortses_kroner == 30000 && ll7n_dansk_indskud_fixture.arbejdsgiverindskud_skattepligtigt_kroner == 5000
+| ll7n_stk3_udbetaling_peger_til_personskatteloven: ll7n_eu_udbetaling_fixture -> ll7n_eu_udbetaling_fixture.omfattet_af_stk3 == Sandt && ll7n_eu_udbetaling_fixture.personskattelov_stk7_personlig_indkomst_kroner == 12000 && ll7n_eu_udbetaling_fixture.personskattelov_par4a_stk2_undtagelse == Sandt
+| ll7n_tab_bliver_aktiepost_men_ikke_par4_stk7: ll7n_tab_fixture -> ll7n_tab_fixture.personskattelov_par4a_beløb_kroner == -7000 && ll7n_tab_fixture.personskattelov_par4a_stk2_undtagelse == Falskt && ll7n_tab_fixture.personskattelov_stk7_personlig_indkomst_kroner == 0
+| ll7n_stk7_tilbagekaldelse_medregner_værdi: ll7n_tilbagekaldelse_fixture -> ll7n_tilbagekaldelse_fixture.tilbagekaldelsesværdi_skattepligtig_kroner == 45000
 
 ----
 § 8, stk. 3. Ved opgørelsen af den skattepligtige indkomst fradrages:

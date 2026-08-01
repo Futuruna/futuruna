@@ -31270,6 +31270,23 @@ impl RustCodegen {
             .unwrap_or_else(|| self.emit_expr(expr))
     }
 
+    fn expected_constructor_arg_ty(&self, constructor: &str, idx: usize) -> Option<FirTy> {
+        let field = self.types.variant_fields.get(constructor)?.get(idx)?;
+        let field_ty = self
+            .types
+            .variant_field_types
+            .get(constructor)?
+            .get(field)?;
+        Some(LoweringCtx::ty_to_fir(field_ty))
+    }
+
+    fn expected_arg_ty_for_emit(&self, func: &Expr, idx: usize) -> Option<FirTy> {
+        let ExprKind::Var(name) = &func.kind else {
+            return None;
+        };
+        self.expected_constructor_arg_ty(name, idx)
+    }
+
     fn emit_rule_value_expr(&mut self, expr: &Expr, expected_ty: &FirTy) -> String {
         self.emit_expr_with_expected_ty(expr, expected_ty)
     }
@@ -31449,6 +31466,7 @@ impl RustCodegen {
                             return format!("&{}", s);
                         }
 
+                        let expected_arg_ty = self.expected_arg_ty_for_emit(func, idx);
                         let s = if is_method_call || is_prolog_call {
                             if let ExprKind::Lit(Literal::Str(ref str_val)) = &a.kind {
                                 format!("{:?}", str_val) // &str, no .to_string()
@@ -31477,6 +31495,8 @@ impl RustCodegen {
                             } else {
                                 self.emit_expr(a)
                             }
+                        } else if let Some(expected_ty) = expected_arg_ty.as_ref() {
+                            self.emit_expr_with_expected_ty(a, expected_ty)
                         } else {
                             self.emit_expr(a)
                         };
@@ -42892,6 +42912,28 @@ for x in [1, 2] {
         assert!(
             !rust.contains("fn choose() -> Desired {\n    Other::Shared"),
             "function return body must not use the later duplicate constructor parent: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_named_constructor_field_uses_field_parent_for_duplicate_nullary_constructor() {
+        let source = r#"
+# Desired = Shared | DesiredOnly
+# Other = Shared | OtherOnly
+# Wrapped(choice: Desired)
+= wrapped = Wrapped(choice = Shared)
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("Wrapped { choice: Desired::Shared }"),
+            "named constructor field should qualify duplicate constructor with the field enum: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("Wrapped { choice: Other::Shared }"),
+            "named constructor field must not use the later duplicate constructor parent: {}",
             rust
         );
     }

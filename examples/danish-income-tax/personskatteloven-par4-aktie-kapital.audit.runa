@@ -8,8 +8,8 @@
 
 = par4_stk1_nr4_5_audit_aggregat = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
     poster = [
-        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_udbytte_input, Sandt, NormalForrentning, Falskt),
-        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_andelsudlodning_personlig_input, Sandt, IkkeNormalForrentning, Falskt),
+        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_udbytte_input, Sandt, NormalForrentning),
+        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_andelsudlodning_personlig_input, Sandt, IkkeNormalForrentning),
         par4_stk1_nr5_kapitalpost_fra_aktieavancebeskatningslov(abl19c_kapital_input),
         par4_stk1_nr5a_kapitalpost(par4_stk1_nr5a_fixture_input),
         par4_stk1_nr5b_kapitalpost(par4_stk1_nr5b_fixture_input),

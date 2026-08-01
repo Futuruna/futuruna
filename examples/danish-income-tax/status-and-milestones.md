@@ -128,6 +128,11 @@ Ejendomsskatteloven § 3 result, preserving the LOV 679/2023 move from
 Ejendomsværdiskatteloven to Ejendomsskatteloven and LOV 615/2026's 2027
 category renumbering, with covered property surplus/deficit flowing into
 capital income and excluded or commercially rented categories staying out;
+§ 4, stk. 7 and § 4 a, stk. 2 now consume a typed Ligningsloven § 7 N result
+for medarbejderinvesteringsselskab shares, where the LL § 7 N contribution cap
+and company boundary stay in the dependency law while covered payouts/gains are
+reclassified to personal income and kept out of share income, and covered losses
+remain negative share-income posts;
 § 26, stk. 7 now composes § 7 spouse capital-threshold and
 capital-tax allocation rules into the transition-compensation nr. 3 amount, and
 § 26 now has an annual compensation-settlement result that composes
@@ -187,7 +192,7 @@ Current source-refresh finding:
 - `scripts/refresh-danish-tax-source-status.py --today 20260703 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
   drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 30 records with 0 drift and 0 fetch/parse errors.
+  checked 33 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:
 
@@ -316,9 +321,14 @@ Current § 4 and § 13 amendment/dependency sources:
     dependency for running provision/premium amounts and one-off
     provision/premium amounts when the loan or guarantee period is under two
     years.
+  - § 7 N is modeled as the Personskatteloven § 4, stk. 7 and § 4 a, stk. 2
+    dependency for medarbejderinvesteringsselskab shares, including the
+    7.5 pct./30.000 kr. employer-contribution cap, the Danish registered-company
+    branch, the EU/EØS approval branch, the withdrawal-value branch and the
+    downstream personal-income/share-income routing posture.
   - § 16 A is modeled as the Personskatteloven § 4, stk. 1, nr. 4 dividend
     dependency, with ordinary taxable dividends flowing to capital income when
-    they are outside § 4 a share income and the § 4, stk. 4/stk. 7 personal
+    they are outside § 4 a share income and the § 4, stk. 4 personal
     reclassification branches kept explicit.
   - § 12 B is modeled as the Personskatteloven § 4, stk. 1, nr. 15
     dependency for taxable and deductible running-payment saldo amounts under
@@ -678,7 +688,7 @@ encoded as a temporal rule on top of the consolidation.
   topskat, toptopskat, and the mellemskat positive-capital grundbeløb from the
   amendment's 2010-level amounts through § 20 while preserving the LOV nr.
   482/2024 source branch for each layer,
-  Ligningsloven ordinary wage-earner deduction, LL §§ 5 C/6/6 A/8/12 B/14 A
+  Ligningsloven ordinary wage-earner deduction, LL §§ 5 C/6/6 A/7 N/8/12 B/14 A
   capital-income dependencies, Virksomhedsskatteloven §§ 7/22 a/22 c/23 a
   capital return and § 11 rentekorrektion,
   Pensionsbeskatningsloven § 53 A return
@@ -908,6 +918,14 @@ Current decision:
   capital-income classification and personal-income reclassification together
   so the § 4 aggregate can move amounts between net capital income and
   personal income without losing the source reason.
+- `Ligningslov7NSag` uses product-scoped `|` rules for the LL § 7 N
+  medarbejderinvesteringsselskab slice. It keeps the statutory employer
+  contribution cap, Danish registration branch, EU/EØS approval branch,
+  withdrawal-value branch and Personskatteloven-facing share boundary together.
+  `Par4Stk7Ligningslov7NSag` consumes that typed result for the § 4, stk. 7
+  personal-income override, while `Par4aLigningslov7NSag` consumes the same
+  result for the § 4 a, stk. 2 payout/gain share-income exclusion and leaves
+  covered losses as negative share-income posts.
 - `Ligningslov8Stk3Sag` uses product-scoped `|` rules for LL § 8, stk. 3. It
   keeps the provision/premium branch, expense amount and loan/guarantee period
   together, so litra a/b running amounts are deductible and litra c one-off

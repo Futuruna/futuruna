@@ -1,0 +1,75 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 7 and § 4 a, stk. 2,
+-- using Ligningsloven § 7 N as the source-backed company/share boundary.
+
+----
+Personskatteloven § 4, stk. 7:
+
+Uanset stk. 1, nr. 4 og 5, medregnes udbetalinger og fortjenester vedrørende
+andele i medarbejderinvesteringsselskaber, jf. ligningslovens § 7 N, stk. 1, og
+andele i medarbejderinvesteringsselskabslignende selskaber, jf. ligningslovens
+§ 7 N, stk. 3, til den personlige indkomst.
+----
+
+----
+Personskatteloven § 4 a, stk. 2:
+
+Stk. 1 omfatter heller ikke udbytte efter ligningslovens § 16 A, stk. 5, og
+udbetalinger og fortjenester vedrørende andele i
+medarbejderinvesteringsselskaber, jf. ligningslovens § 7 N, stk. 1, og andele i
+medarbejderinvesteringsselskabslignende selskaber, jf. ligningslovens § 7 N,
+stk. 3.
+----
+
+----
+Ligningsloven § 7 N, stk. 1-3:
+
+Ved opgørelsen af den skattepligtige indkomst for en medarbejderdeltager, jf.
+§ 2, stk. 5, i lov om medarbejderinvesteringsselskaber, i et
+medarbejderinvesteringsselskab, jf. § 3 i lov om
+medarbejderinvesteringsselskaber, medregnes ikke beløb, der indskydes af
+arbejdsgiveren i et medarbejderinvesteringsselskab, der er registreret i
+Erhvervsstyrelsen, jf. § 7 i lov om medarbejderinvesteringsselskaber.
+
+Stk. 2. Beløbet som nævnt i stk. 1 kan højst udgøre 7,5 pct. af
+medarbejderdeltagerens kontante løn minus arbejdsmarkedsbidrag fra den
+pågældende arbejdsgiver i indkomståret, dog maksimalt 30.000 kr. årligt. Ved
+deltagelse i flere medarbejderinvesteringsselskaber gælder grænsen for at
+bortse fra arbejdsgivernes indskud på 30.000 kr. årligt for den enkelte person.
+
+Stk. 3. Ved indskud i selskaber med hjemsted i et andet land inden for EU/EØS
+end Danmark er det en betingelse for bortseelse efter stk. 1, at told- og
+skatteforvaltningen har godkendt det pågældende selskab, herunder dets
+vedtægter, og at godkendelsen ikke er tilbagekaldt, jf. stk. 7.
+----
+
+= par4_stk7_ll7n_audit_aggregat = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk7_ligningslov7n_kapitalpost_fra_ligningslov7n(par4_stk7_ll7n_udbetaling_input),
+        par4_stk7_ligningslov7n_kapitalpost_fra_ligningslov7n(par4_stk7_ll7n_tab_input)
+    ],
+    omkostninger = []
+))
+
+= par4a_ll7n_audit_aggregat = par4a_aktieindkomst_resultat(Par4aAktieindkomstInput(
+    poster = [
+        par4a_aktiepost_fra_ligningslov7n(par4_stk7_ll7n_udbetaling_input),
+        par4a_aktiepost_fra_ligningslov7n(par4_stk7_ll7n_tab_input)
+    ],
+    ønsket_pensionsfradrag_kroner = 0,
+    pensionsfradrag_meddelt_forvaltning = Sandt,
+    pensionsfradrag_fradraget_i_personlig_indkomst = Falskt
+))
+
+| ll7n_audit_indskud_loft_kildebundet: ll7n_dansk_indskud_fixture -> ll7n_dansk_indskud_fixture.arbejdsgiverindskud_loft_efter_stk2_kroner == 30000 && ll7n_dansk_indskud_fixture.arbejdsgiverindskud_bortses_kroner == 30000 && ll7n_dansk_indskud_fixture.arbejdsgiverindskud_skattepligtigt_kroner == 5000
+| par4_stk7_audit_udbetaling_til_personlig_ikke_kapital: par4_stk7_ll7n_audit_aggregat -> par4_stk7_ll7n_audit_aggregat.postbeløb_i_kapitalindkomst_kroner == 0 && par4_stk7_ll7n_audit_aggregat.omklassificeret_personlig_indkomst_kroner == 12000
+| par4_stk7_audit_tab_ikke_til_personlig_indkomst: par4_stk7_ll7n_tab_fixture -> par4_stk7_ll7n_tab_fixture.personlig_indkomst_kroner == 0 && par4_stk7_ll7n_tab_fixture.ikke_omfattet_af_par4_stk7_kroner == -7000
+| par4a_audit_ll7n_udbetaling_udelukkes_men_tab_bevares: par4a_ll7n_audit_aggregat -> par4a_ll7n_audit_aggregat.aktieindkomst_efter_stk1_og_2_kroner == -7000 && par4a_ll7n_audit_aggregat.aktieindkomst_efter_pensionsfradrag_kroner == -7000
+
+? ll7n_audit_indskud_loft_kildebundet
+? par4_stk7_audit_udbetaling_til_personlig_ikke_kapital
+? par4_stk7_audit_tab_ikke_til_personlig_indkomst
+? par4a_audit_ll7n_udbetaling_udelukkes_men_tab_bevares
