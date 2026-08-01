@@ -54,6 +54,10 @@ også typede naturalia-kategorier, så f.eks. fri bil kun føres ind i
 AM-grundlaget, når den både er en nævnt naturalia-art og et stk. 1-vederlag.
 § 3 udstiller samtidig hver af lovens fem udelukkelser som et navngivet beløb,
 så et beregnet AM-grundlag kan auditeres tilbage til den konkrete nummerpost.
+Kommuneskatteloven § 16 a er nu også kildebundet og eksekverbar: modellen
+fordeler selvbudgetteringsordningens nationale korrektionsbeløb mellem
+kommuner med positive efterreguleringsbeløb og fratrækker kommunens andel i
+§ 16-opgørelsen.
 
 ## Eksempel
 

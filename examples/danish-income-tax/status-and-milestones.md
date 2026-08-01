@@ -20,7 +20,17 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Arbejdsmarkedsbidragsloven § 3 er nu en typet
+Latest integration: Kommuneskatteloven § 16 a er nu implementeret fra LOV nr.
+720 af 20/06/2025 som en scoped regelkaskade. Den opgør den enkelte
+selvbudgetterende kommunes stk. 1-beløb, den nationale ramme på 1,5 mia. kr.,
+den årlige regulering fra 2027 med et loft på 5 pct., det samlede
+korrektionsbeløb og kommunens forholdsmæssige andel. Andelen føres tilbage til
+§ 16, stk. 2 og fratrækkes efterreguleringen før januar/februar/marts-raterne.
+LOV 720/2025's § 2 og virkningsbestemmelsen fra tilskudsåret 2026 er bevaret
+ordret i en `--@source`-blok, hvis regelsymboler kan aflæses med `runa meta`.
+Den officielle metadata-refresh validerer nu 34 kilder uden drift.
+
+Arbejdsmarkedsbidragsloven § 3 er nu en typet
 `ArbejdsmarkedsbidragPar3UdelukkelseResultat` med særskilte beløb for nr. 1-5.
 Det almindelige lønmodtagergrundlag bærer resultatet med sig, og det hidtidige
 samlede udelukkelsesbeløb delegerer til dets kildeformede sum. Den almindelige
@@ -51,7 +61,10 @@ efterreguleringsbeløb med januar/februar/marts-tredjedele tre år senere samt
 stk. 3's 3 pct.-tærskel og diskontoafledte tillæg. § 16, stk. 4 dækker nu også
 kommunens andel af virksomhedsskat, konjunkturudligningsskat,
 indkomstudligning og afskrivningslovens § 40 C-acontoskat med særskilt
-stat-til-kommune, kommune-til-stat og nettoafregning. §§ 2-3 dækker nu også
+stat-til-kommune, kommune-til-stat og nettoafregning. § 16 a dækker desuden
+selvbudgetteringskorrektionen fra 2026, herunder national ramme, 5 pct.-loft
+fra 2027, positiv forholdsmæssig kommunefordeling og fradrag i § 16, stk. 2's
+efterregulering. §§ 2-3 dækker nu også
 skattekommunevalg pr. 5. september, institution-/skibsundtagelser,
 Københavner-beregning ved KSL § 1, nr. 4-udrejse og forholdsmæssig
 tilflytningskommuneandel ved fraflytning fra skattekommunen. § 7, stk. 4 har
@@ -535,6 +548,14 @@ Current municipal/church-tax and withholding dependency sources:
     year and the fremskrivningsprocent. § 16, stk. 4 now covers the municipal
     share of business tax, conjuncture equalisation tax, income equalisation and
     Afskrivningsloven § 40 C acconto-tax repayment bases.
+- Kommuneskatteloven self-budgeting amendment:
+  `https://www.retsinformation.dk/eli/lta/2025/720`
+  - XML status on 2026-07-18: `Valid`
+  - § 2 amends § 16, stk. 2 and inserts § 16 a. The model calculates each
+    self-budgeting municipality's amount against the state-guaranteed
+    alternative, the national correction frame and its annual regulation, and
+    the municipality's positive proportional share before deducting that share
+    from the § 16 settlement. The amendment applies from grant year 2026.
 - Folkekirkens økonomi:
   `https://www.retsinformation.dk/eli/lta/2023/424`
   - XML status on 2026-07-18: `Valid`
@@ -1524,7 +1545,7 @@ Review candidates to revisit deliberately, not as broad churn:
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for remaining
   municipal/church allocation and settlement edges beyond the current
-  § 7/§ 15/§ 16 formula slice, broader refresh automation for the current
+  §§ 7/15/16/16 a formula slice, broader refresh automation for the current
   Nationalbank DNRUUPI-backed Opkrævningsloven § 7 annual-rate inputs, and
   remaining AM edge cases beyond the first source-explicit special-case slice.
   The AM-law
@@ -1538,7 +1559,10 @@ Review candidates to revisit deliberately, not as broad churn:
   selection and move allocation, and Kommuneskatteloven §§ 7/15/16 provisional
   payment, § 7 stk. 4 statsguaranteed-basis calculation, own-budget
   after-regulation, and stk. 3 supplement formula plus stk. 4
-  business-tax/conjuncture/income-equalisation/acconto-tax settlement. The first
+  business-tax/conjuncture/income-equalisation/acconto-tax settlement. § 16 a
+  now also covers the self-budgeting correction frame, the capped annual frame
+  regulation from 2027, positive proportional municipal allocation and the
+  resulting deduction from § 16, stk. 2. The first
   Kildeskatteloven
   slice now covers ordinary wage A-income, withholding duty, e-skattekort card
   types, main-card period allowances, bikort without allowance, optional higher

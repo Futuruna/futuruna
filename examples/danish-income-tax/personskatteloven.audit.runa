@@ -81,6 +81,9 @@ Status: Valid
 Officiel XML-metadata for 2019/935, hentet 2026-07-18:
 Status: Valid
 
+Officiel XML-metadata for 2025/720, hentet 2026-07-18:
+Status: Valid
+
 Officiel XML-metadata for 2023/424, hentet 2026-07-18:
 Status: Valid
 
@@ -135,6 +138,7 @@ Status: Valid
 = m5_am_lov_til_aktuel = kilde_egnet_til_formål(arbejdsmarkedsbidragsloven_2020_121, AktuelSkatteberegning)
 = m5_am_aendring_til_aktuel = kilde_egnet_til_formål(arbejdsmarkedsbidrag_aendring_2025_96, AktuelSkatteberegning)
 = m5_kommuneskattelov_til_aktuel = kilde_egnet_til_formål(kommuneskatteloven_2019_935, AktuelSkatteberegning)
+= m5_kommuneskattelov_aendring_til_aktuel = kilde_egnet_til_formål(kommuneskattelov_aendring_2025_720, AktuelSkatteberegning)
 = m5_folkekirkens_økonomilov_til_aktuel = kilde_egnet_til_formål(folkekirkens_økonomilov_2023_424, AktuelSkatteberegning)
 = m5_folkekirke_aendring_til_aktuel = kilde_egnet_til_formål(folkekirke_økonomi_aendring_2025_1772, AktuelSkatteberegning)
 = m5_kildeskattelov_til_aktuel = kilde_egnet_til_formål(kildeskatteloven_2024_460, AktuelSkatteberegning)
@@ -161,6 +165,7 @@ Status: Valid
 | m5_am_lov_kilde_accepteres: m5_am_lov_til_aktuel -> m5_am_lov_til_aktuel == Sandt
 | m5_am_aendring_kilde_accepteres: m5_am_aendring_til_aktuel -> m5_am_aendring_til_aktuel == Sandt
 | m5_kommuneskattelov_kilde_accepteres: m5_kommuneskattelov_til_aktuel -> m5_kommuneskattelov_til_aktuel == Sandt
+| m5_kommuneskattelov_aendring_kilde_accepteres: m5_kommuneskattelov_aendring_til_aktuel -> m5_kommuneskattelov_aendring_til_aktuel == Sandt
 | m5_folkekirkens_økonomilov_kilde_accepteres: m5_folkekirkens_økonomilov_til_aktuel -> m5_folkekirkens_økonomilov_til_aktuel == Sandt
 | m5_folkekirke_aendring_kilde_accepteres: m5_folkekirke_aendring_til_aktuel -> m5_folkekirke_aendring_til_aktuel == Sandt
 | m5_kildeskattelov_kilde_accepteres: m5_kildeskattelov_til_aktuel -> m5_kildeskattelov_til_aktuel == Sandt
@@ -214,6 +219,7 @@ Status: Valid
 ? m5_am_lov_kilde_accepteres
 ? m5_am_aendring_kilde_accepteres
 ? m5_kommuneskattelov_kilde_accepteres
+? m5_kommuneskattelov_aendring_kilde_accepteres
 ? m5_folkekirkens_økonomilov_kilde_accepteres
 ? m5_folkekirke_aendring_kilde_accepteres
 ? m5_kildeskattelov_kilde_accepteres
@@ -1284,6 +1290,11 @@ virksomhedsunderskud.
 = m5_kommunal_afregning_stk3_positiv_fixture = kommunal_afregning_par16_stk3_positiv_fixture
 = m5_kommunal_afregning_stk3_negativ_fixture = kommunal_afregning_par16_stk3_negativ_fixture
 = m5_kommunal_afregning_stk4_fixture = kommunal_afregning_par16_stk4_fixture
+= m5_kommunal_par16a_2026_fixture = kommunal_afregning_par16a_2026_resultat_fixture
+= m5_kommunal_par16a_integreret_fixture = kommunal_afregning_par16a_integreret_resultat_fixture
+= m5_kommunal_par16a_2027_fixture = kommunal_afregning_par16a_2027_resultat_fixture
+= m5_kommunal_par16a_statsgaranti_fixture = kommunal_afregning_par16a_statsgaranti_resultat_fixture
+= m5_kommunal_par16a_negativ_kommune_fixture = kommunal_afregning_par16a_negativ_kommune_resultat_fixture
 = m5_omregning_skatteloft_ekstern_fixture = omregning_skatteloft_ekstern_audit_samlet()
 = m5_husholdning_scenarie_fixture = scenarie1_husholdning
 = m5_husholdning_indeholdelse_fixture = scenarie1_indeholdelse
@@ -1442,6 +1453,7 @@ virksomhedsunderskud.
 | m5_kommunal_afregning_statsgaranti_dækket: m5_kommunal_afregning_statsgaranti_fixture -> m5_kommunal_afregning_statsgaranti_fixture.omfattes_af_efterregulering == Falskt && m5_kommunal_afregning_statsgaranti_fixture.efterreguleringsbeløb_kroner == 0
 | m5_kommunal_afregning_stk3_tillæg_dækket: m5_kommunal_afregning_stk3_positiv_fixture -> m5_kommunal_afregning_stk3_positiv_fixture.tærskel_3pct_kroner == 36000 && m5_kommunal_afregning_stk3_positiv_fixture.overskydende_del_kroner == 44000 && m5_kommunal_afregning_stk3_positiv_fixture.tillægssats_basispoint == 1050 && m5_kommunal_afregning_stk3_positiv_fixture.tillæg_abs_kroner == 4620 && m5_kommunal_afregning_stk3_positiv_fixture.samlet_med_tillæg_kroner == 84620 && m5_kommunal_afregning_stk3_negativ_fixture.samlet_med_tillæg_kroner == -84620
 | m5_kommunal_afregning_stk4_virksomhedsskat_dækket: m5_kommunal_afregning_stk4_fixture -> m5_kommunal_afregning_stk4_fixture.virksomhedsskatteprocent_lavere_end_kommunal_og_kirke == Sandt && m5_kommunal_afregning_stk4_fixture.grundlag_staten_afregner_til_kommune_kroner == 230000 && m5_kommunal_afregning_stk4_fixture.grundlag_kommune_betaler_staten_kroner == 80000 && m5_kommunal_afregning_stk4_fixture.staten_afregner_til_kommune_kroner == 55890 && m5_kommunal_afregning_stk4_fixture.kommune_betaler_staten_kroner == 19440 && m5_kommunal_afregning_stk4_fixture.netto_afregning_til_kommune_kroner == 36450
+| m5_kommunal_par16a_korrektion_dækket: m5_kommunal_par16a_2026_fixture -> m5_kommunal_par16a_2026_fixture.stk1_beløb_kroner == 30000000 && m5_kommunal_par16a_2026_fixture.korrektionsramme_kroner == 1500000000 && m5_kommunal_par16a_2026_fixture.samlet_korrektionsbeløb_kroner == 150000000 && m5_kommunal_par16a_2026_fixture.kommunens_korrektionsbeløb_kroner == 1500000 && m5_kommunal_par16a_integreret_fixture.efterreguleringsbeløb_før_par16a_kroner == 21000000 && m5_kommunal_par16a_integreret_fixture.efterreguleringsbeløb_kroner == 19500000 && m5_kommunal_par16a_2027_fixture.ramme_regulering_basispoint == 500 && m5_kommunal_par16a_2027_fixture.korrektionsramme_kroner == 1575000000 && m5_kommunal_par16a_2027_fixture.kommunens_korrektionsbeløb_kroner == 750000 && m5_kommunal_par16a_statsgaranti_fixture.omfattet == Falskt && m5_kommunal_par16a_statsgaranti_fixture.kommunens_korrektionsbeløb_kroner == 0 && m5_kommunal_par16a_negativ_kommune_fixture.stk1_beløb_kroner == -10000000 && m5_kommunal_par16a_negativ_kommune_fixture.kommunens_korrektionsbeløb_kroner == 0
 | m5_omregning_skatteloft_ekstern_differential_dækket: m5_omregning_skatteloft_ekstern_fixture -> m5_omregning_skatteloft_ekstern_fixture == Sandt
 | m5_fiktiv_husholdning_scenarie: m5_husholdning_scenarie_fixture -> m5_husholdning_scenarie_fixture.mand.samlet_inkl_am_efter_personfradrag_kroner == 208726 && m5_husholdning_scenarie_fixture.samlet_netto_månedligt_kroner == 46689 && m5_husholdning_scenarie_fixture.efter_husleje_månedligt_kroner == 36689
 | m5_husholdning_benefit_cliff_audit_dækket: m5_husholdning_benefit_cliff_fixture -> m5_husholdning_benefit_cliff_fixture == Sandt
@@ -1619,6 +1631,7 @@ virksomhedsunderskud.
 ? m5_kommunal_afregning_statsgaranti_dækket
 ? m5_kommunal_afregning_stk3_tillæg_dækket
 ? m5_kommunal_afregning_stk4_virksomhedsskat_dækket
+? m5_kommunal_par16a_korrektion_dækket
 ? m5_omregning_skatteloft_ekstern_differential_dækket
 ? m5_fiktiv_husholdning_scenarie
 ? m5_husholdning_benefit_cliff_audit_dækket

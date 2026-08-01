@@ -2,7 +2,7 @@
 
 @ importer ./kommuneskatteloven
 
--- Scenarie for Kommuneskatteloven §§ 7, 15 og 16.
+-- Scenarie for Kommuneskatteloven §§ 7, 15, 16 og 16 a.
 --
 -- Lovteksten ligger i kommuneskatteloven.runa. Dette scenarie holder beløbene
 -- delelige med 3, så § 16, stk. 2's tredjedelsbetalinger kan valideres i hele
@@ -30,7 +30,8 @@
     slutskat_kommunal_indkomstskat_og_kirkeskat_kroner = 1206000,
     tilgang_ændrede_skatteansættelser_kroner = 6000,
     afgang_ændrede_skatteansættelser_kroner = 3000,
-    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner
+    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner,
+    korrektionsbeløb_efter_par16a_kroner = 0
 )
 = kommunal_afregning_par16_resultat_fixture = kommunal_par16_efterregulering_resultat(kommunal_afregning_par16_eget_skøn_input)
 
@@ -40,7 +41,8 @@
     slutskat_kommunal_indkomstskat_og_kirkeskat_kroner = 1206000,
     tilgang_ændrede_skatteansættelser_kroner = 6000,
     afgang_ændrede_skatteansættelser_kroner = 3000,
-    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner
+    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner,
+    korrektionsbeløb_efter_par16a_kroner = 0
 )
 = kommunal_afregning_statsgaranti_resultat_fixture = kommunal_par16_efterregulering_resultat(kommunal_afregning_par16_statsgaranti_input)
 
@@ -50,7 +52,8 @@
     slutskat_kommunal_indkomstskat_og_kirkeskat_kroner = 1280000,
     tilgang_ændrede_skatteansættelser_kroner = 0,
     afgang_ændrede_skatteansættelser_kroner = 0,
-    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner
+    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner,
+    korrektionsbeløb_efter_par16a_kroner = 0
 )
 = kommunal_afregning_par16_stor_positiv_resultat = kommunal_par16_efterregulering_resultat(kommunal_afregning_par16_stor_positiv_input)
 = kommunal_afregning_par16_stk3_positiv_fixture = kommunal_par16_stk3_tillæg_resultat(KommunalPar16Stk3TillægInput(
@@ -66,7 +69,8 @@
     slutskat_kommunal_indkomstskat_og_kirkeskat_kroner = 1120000,
     tilgang_ændrede_skatteansættelser_kroner = 0,
     afgang_ændrede_skatteansættelser_kroner = 0,
-    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner
+    udbetalt_efter_par15_kroner = kommunal_afregning_par15_resultat_fixture.samlet_årlig_udbetaling_kroner,
+    korrektionsbeløb_efter_par16a_kroner = 0
 )
 = kommunal_afregning_par16_stor_negativ_resultat = kommunal_par16_efterregulering_resultat(kommunal_afregning_par16_stor_negativ_input)
 = kommunal_afregning_par16_stk3_negativ_fixture = kommunal_par16_stk3_tillæg_resultat(KommunalPar16Stk3TillægInput(
@@ -89,6 +93,63 @@
 )
 = kommunal_afregning_par16_stk4_fixture = kommunal_par16_stk4_virksomhedsskat_resultat(kommunal_afregning_par16_stk4_input)
 
+= kommunal_afregning_par16a_kommune_fixture = KommunalPar16aStk1Input(
+    kommunal_indkomstskat_efter_par16_stk1_kroner = 121000000,
+    tilskuds_og_udligningsbeløb_til_efterregulering_kroner = 29000000,
+    indtægt_ved_statsgaranteret_udskrivningsgrundlag_kroner = 100000000,
+    statsgaranterede_tilskuds_og_udligningsbeløb_kroner = 20000000
+)
+= kommunal_afregning_par16a_national_2026_fixture = KommunalPar16aNationalInput(
+    kalenderår = 2026,
+    samlede_stk1_beløb_kroner = 1650000000,
+    samlede_positive_stk1_beløb_kroner = 3000000000,
+    forrige_års_korrektionsramme_kroner = 0,
+    udvikling_i_statsgaranteret_udskrivningsgrundlag_basispoint = 0
+)
+= kommunal_afregning_par16a_2026_resultat_fixture = kommunal_par16a_resultat(KommunalPar16aInput(
+    budgetvalg = KommunalEgetSkøn,
+    kommune = kommunal_afregning_par16a_kommune_fixture,
+    nationalt = kommunal_afregning_par16a_national_2026_fixture
+))
+= kommunal_afregning_par16a_integreret_input = KommunalPar16EfterreguleringInput(
+    budgetvalg = KommunalEgetSkøn,
+    kalenderår = 2026,
+    slutskat_kommunal_indkomstskat_og_kirkeskat_kroner = 121000000,
+    tilgang_ændrede_skatteansættelser_kroner = 0,
+    afgang_ændrede_skatteansættelser_kroner = 0,
+    udbetalt_efter_par15_kroner = 100000000,
+    korrektionsbeløb_efter_par16a_kroner = kommunal_afregning_par16a_2026_resultat_fixture.kommunens_korrektionsbeløb_kroner
+)
+= kommunal_afregning_par16a_integreret_resultat_fixture = kommunal_par16_efterregulering_resultat(kommunal_afregning_par16a_integreret_input)
+
+= kommunal_afregning_par16a_national_2027_fixture = KommunalPar16aNationalInput(
+    kalenderår = 2027,
+    samlede_stk1_beløb_kroner = 1650000000,
+    samlede_positive_stk1_beløb_kroner = 3000000000,
+    forrige_års_korrektionsramme_kroner = 1500000000,
+    udvikling_i_statsgaranteret_udskrivningsgrundlag_basispoint = 800
+)
+= kommunal_afregning_par16a_2027_resultat_fixture = kommunal_par16a_resultat(KommunalPar16aInput(
+    budgetvalg = KommunalEgetSkøn,
+    kommune = kommunal_afregning_par16a_kommune_fixture,
+    nationalt = kommunal_afregning_par16a_national_2027_fixture
+))
+= kommunal_afregning_par16a_statsgaranti_resultat_fixture = kommunal_par16a_resultat(KommunalPar16aInput(
+    budgetvalg = KommunalStatsgaranteretUdskrivningsgrundlag,
+    kommune = kommunal_afregning_par16a_kommune_fixture,
+    nationalt = kommunal_afregning_par16a_national_2026_fixture
+))
+= kommunal_afregning_par16a_negativ_kommune_resultat_fixture = kommunal_par16a_resultat(KommunalPar16aInput(
+    budgetvalg = KommunalEgetSkøn,
+    kommune = KommunalPar16aStk1Input(
+        kommunal_indkomstskat_efter_par16_stk1_kroner = 90000000,
+        tilskuds_og_udligningsbeløb_til_efterregulering_kroner = 20000000,
+        indtægt_ved_statsgaranteret_udskrivningsgrundlag_kroner = 100000000,
+        statsgaranterede_tilskuds_og_udligningsbeløb_kroner = 20000000
+    ),
+    nationalt = kommunal_afregning_par16a_national_2026_fixture
+))
+
 | kommunal_afregning_par7_eget_skøn_omfang: kommunal_afregning_par7_eget_skøn_fixture -> kommunal_afregning_par7_eget_skøn_fixture.omfang == AfregningEfterPar15OgPar16Stk1Til4 && kommunal_afregning_par7_eget_skøn_fixture.efterregulering_stk1_til_4_gælder == Sandt
 | kommunal_afregning_par7_statsgaranti_omfang: kommunal_afregning_par7_statsgaranti_fixture -> kommunal_afregning_par7_statsgaranti_fixture.omfang == AfregningEfterPar15OgPar16Stk4 && kommunal_afregning_par7_statsgaranti_fixture.efterregulering_stk1_til_4_gælder == Falskt
 | kommunal_afregning_par7_statsgaranti_grundlag: kommunal_afregning_par7_statsgaranti_grundlag_fixture -> kommunal_afregning_par7_statsgaranti_grundlag_fixture.grundlagsår == 2024 && kommunal_afregning_par7_statsgaranti_grundlag_fixture.fremskrevet_tillæg_kroner == 2100000000 && kommunal_afregning_par7_statsgaranti_grundlag_fixture.statsgaranteret_udskrivningsgrundlag_kroner == 52100000000 && kommunal_afregning_par7_statsgaranti_grundlag_fixture.fremskrivningsgrundlag_fastlagt == Sandt && kommunal_afregning_par7_statsgaranti_grundlag_fixture.procent_fastsat_med_finansudvalg_tilslutning == Sandt
@@ -98,6 +159,11 @@
 | kommunal_afregning_par16_stk3_positivt_tillæg: kommunal_afregning_par16_stk3_positiv_fixture -> kommunal_afregning_par16_stk3_positiv_fixture.samlet_efterreguleringsbeløb_kroner == 80000 && kommunal_afregning_par16_stk3_positiv_fixture.tærskel_3pct_kroner == 36000 && kommunal_afregning_par16_stk3_positiv_fixture.overskydende_del_kroner == 44000 && kommunal_afregning_par16_stk3_positiv_fixture.tillægssats_basispoint == 1050 && kommunal_afregning_par16_stk3_positiv_fixture.tillæg_abs_kroner == 4620 && kommunal_afregning_par16_stk3_positiv_fixture.samlet_med_tillæg_kroner == 84620
 | kommunal_afregning_par16_stk3_negativt_tillæg: kommunal_afregning_par16_stk3_negativ_fixture -> kommunal_afregning_par16_stk3_negativ_fixture.samlet_efterreguleringsbeløb_kroner == -80000 && kommunal_afregning_par16_stk3_negativ_fixture.samlet_efterreguleringsbeløb_abs_kroner == 80000 && kommunal_afregning_par16_stk3_negativ_fixture.tillæg_abs_kroner == 4620 && kommunal_afregning_par16_stk3_negativ_fixture.tillæg_med_fortegn_kroner == -4620 && kommunal_afregning_par16_stk3_negativ_fixture.samlet_med_tillæg_kroner == -84620
 | kommunal_afregning_par16_stk4_virksomhedsskat: kommunal_afregning_par16_stk4_fixture -> kommunal_afregning_par16_stk4_fixture.virksomhedsskatteprocent_lavere_end_kommunal_og_kirke == Sandt && kommunal_afregning_par16_stk4_fixture.grundlag_staten_afregner_til_kommune_kroner == 230000 && kommunal_afregning_par16_stk4_fixture.grundlag_kommune_betaler_staten_kroner == 80000 && kommunal_afregning_par16_stk4_fixture.staten_afregner_til_kommune_kroner == 55890 && kommunal_afregning_par16_stk4_fixture.kommune_betaler_staten_kroner == 19440 && kommunal_afregning_par16_stk4_fixture.netto_afregning_til_kommune_kroner == 36450
+| kommunal_afregning_par16a_2026_fordeling: kommunal_afregning_par16a_2026_resultat_fixture -> kommunal_afregning_par16a_2026_resultat_fixture.omfattet == Sandt && kommunal_afregning_par16a_2026_resultat_fixture.stk1_beløb_kroner == 30000000 && kommunal_afregning_par16a_2026_resultat_fixture.korrektionsramme_kroner == 1500000000 && kommunal_afregning_par16a_2026_resultat_fixture.samlet_korrektionsbeløb_kroner == 150000000 && kommunal_afregning_par16a_2026_resultat_fixture.kommunens_positive_stk1_beløb_kroner == 30000000 && kommunal_afregning_par16a_2026_resultat_fixture.kommunens_korrektionsbeløb_kroner == 1500000
+| kommunal_afregning_par16a_fratrækkes_efterregulering: kommunal_afregning_par16a_integreret_resultat_fixture -> kommunal_afregning_par16a_integreret_resultat_fixture.efterreguleringsbeløb_før_par16a_kroner == 21000000 && kommunal_afregning_par16a_integreret_resultat_fixture.korrektionsbeløb_efter_par16a_kroner == 1500000 && kommunal_afregning_par16a_integreret_resultat_fixture.efterreguleringsbeløb_kroner == 19500000 && kommunal_afregning_par16a_integreret_resultat_fixture.januar_kroner == 6500000 && kommunal_afregning_par16a_integreret_resultat_fixture.februar_kroner == 6500000 && kommunal_afregning_par16a_integreret_resultat_fixture.marts_kroner == 6500000
+| kommunal_afregning_par16a_2027_rammeloft: kommunal_afregning_par16a_2027_resultat_fixture -> kommunal_afregning_par16a_2027_resultat_fixture.ramme_regulering_basispoint == 500 && kommunal_afregning_par16a_2027_resultat_fixture.korrektionsramme_kroner == 1575000000 && kommunal_afregning_par16a_2027_resultat_fixture.samlet_korrektionsbeløb_kroner == 75000000 && kommunal_afregning_par16a_2027_resultat_fixture.kommunens_korrektionsbeløb_kroner == 750000
+| kommunal_afregning_par16a_statsgaranti_uden_korrektion: kommunal_afregning_par16a_statsgaranti_resultat_fixture -> kommunal_afregning_par16a_statsgaranti_resultat_fixture.omfattet == Falskt && kommunal_afregning_par16a_statsgaranti_resultat_fixture.stk1_beløb_kroner == 0 && kommunal_afregning_par16a_statsgaranti_resultat_fixture.samlet_korrektionsbeløb_kroner == 150000000 && kommunal_afregning_par16a_statsgaranti_resultat_fixture.kommunens_korrektionsbeløb_kroner == 0
+| kommunal_afregning_par16a_negativ_kommune_uden_korrektion: kommunal_afregning_par16a_negativ_kommune_resultat_fixture -> kommunal_afregning_par16a_negativ_kommune_resultat_fixture.omfattet == Sandt && kommunal_afregning_par16a_negativ_kommune_resultat_fixture.stk1_beløb_kroner == -10000000 && kommunal_afregning_par16a_negativ_kommune_resultat_fixture.kommunens_positive_stk1_beløb_kroner == 0 && kommunal_afregning_par16a_negativ_kommune_resultat_fixture.kommunens_korrektionsbeløb_kroner == 0
 
 ? kommunal_afregning_par7_eget_skøn_omfang
 ? kommunal_afregning_par7_statsgaranti_omfang
@@ -108,3 +174,8 @@
 ? kommunal_afregning_par16_stk3_positivt_tillæg
 ? kommunal_afregning_par16_stk3_negativt_tillæg
 ? kommunal_afregning_par16_stk4_virksomhedsskat
+? kommunal_afregning_par16a_2026_fordeling
+? kommunal_afregning_par16a_fratrækkes_efterregulering
+? kommunal_afregning_par16a_2027_rammeloft
+? kommunal_afregning_par16a_statsgaranti_uden_korrektion
+? kommunal_afregning_par16a_negativ_kommune_uden_korrektion
