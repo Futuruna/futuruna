@@ -1376,6 +1376,456 @@ pub fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
     char_offset_to_line_col(source, offset)
 }
 
+// ============================================================================
+// PART 2c: META COMMENTS
+// ============================================================================
+
+/// Machine-readable metadata encoded as comments.
+///
+/// Meta comments are intentionally comments, so they remain backward-compatible
+/// with the language parser. Tooling can scan raw source and build this side
+/// index without changing evaluation semantics.
+///
+/// Supported shape:
+///
+/// ```text
+/// --@source::label::meta:source_binding--
+/// --@begin::label--
+/// --@end::label--
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaComment {
+    pub kind: String,
+    pub label: String,
+    pub attrs: BTreeMap<String, String>,
+    pub line: usize,
+    pub col: usize,
+    pub raw: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaSourceBlock {
+    pub label: String,
+    pub meta_ref: Option<String>,
+    pub comment_line: usize,
+    pub text_start_line: Option<usize>,
+    pub text_end_line: Option<usize>,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaSymbol {
+    pub kind: String,
+    pub name: String,
+    pub line: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaCodeSpan {
+    pub label: String,
+    pub begin_marker_line: usize,
+    pub end_marker_line: usize,
+    pub code_start_line: usize,
+    pub code_end_line: usize,
+    pub source: Option<MetaSourceBlock>,
+    pub symbols: Vec<MetaSymbol>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaDiagnostic {
+    pub line: usize,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaIndex {
+    pub comments: Vec<MetaComment>,
+    pub sources: Vec<MetaSourceBlock>,
+    pub spans: Vec<MetaCodeSpan>,
+    pub diagnostics: Vec<MetaDiagnostic>,
+}
+
+#[derive(Debug, Clone)]
+struct ActiveMetaCodeSpan {
+    label: String,
+    begin_marker_line: usize,
+    code_start_line: usize,
+}
+
+pub fn scan_meta_comments(source: &str) -> MetaIndex {
+    let lines: Vec<&str> = source.lines().collect();
+    let mut comments = Vec::new();
+    let mut sources = Vec::new();
+    let mut spans = Vec::new();
+    let mut diagnostics = Vec::new();
+    let mut active: Vec<ActiveMetaCodeSpan> = Vec::new();
+    let mut in_block_comment = false;
+
+    for (idx, line) in lines.iter().enumerate() {
+        let line_no = idx + 1;
+        let trimmed = line.trim_start();
+        if in_block_comment {
+            if trimmed.starts_with("----") {
+                in_block_comment = false;
+            }
+            continue;
+        }
+        if trimmed.starts_with("----") {
+            if trimmed.matches("----").count() < 2 {
+                in_block_comment = true;
+            }
+            continue;
+        }
+
+        let Some(comment) = parse_meta_comment_line(line, line_no, &mut diagnostics) else {
+            continue;
+        };
+
+        match comment.kind.as_str() {
+            "source" => {
+                sources.push(source_block_for_comment(&comment, &lines, idx + 1));
+            }
+            "begin" => {
+                active.push(ActiveMetaCodeSpan {
+                    label: comment.label.clone(),
+                    begin_marker_line: line_no,
+                    code_start_line: line_no + 1,
+                });
+            }
+            "end" => {
+                if let Some(pos) = active.iter().rposition(|span| span.label == comment.label) {
+                    let opened = active.remove(pos);
+                    let code_end_line = line_no.saturating_sub(1);
+                    let source_block = sources
+                        .iter()
+                        .rev()
+                        .find(|source| source.label == opened.label)
+                        .cloned();
+                    let symbols = scan_meta_symbols(&lines, opened.code_start_line, code_end_line);
+                    spans.push(MetaCodeSpan {
+                        label: opened.label,
+                        begin_marker_line: opened.begin_marker_line,
+                        end_marker_line: line_no,
+                        code_start_line: opened.code_start_line,
+                        code_end_line,
+                        source: source_block,
+                        symbols,
+                    });
+                } else {
+                    diagnostics.push(MetaDiagnostic {
+                        line: line_no,
+                        message: format!(
+                            "meta end marker for `{}` has no matching begin",
+                            comment.label
+                        ),
+                    });
+                }
+            }
+            _ => {}
+        }
+
+        comments.push(comment);
+    }
+
+    for span in active {
+        diagnostics.push(MetaDiagnostic {
+            line: span.begin_marker_line,
+            message: format!("meta begin marker for `{}` has no matching end", span.label),
+        });
+    }
+
+    MetaIndex {
+        comments,
+        sources,
+        spans,
+        diagnostics,
+    }
+}
+
+fn parse_meta_comment_line(
+    line: &str,
+    line_no: usize,
+    diagnostics: &mut Vec<MetaDiagnostic>,
+) -> Option<MetaComment> {
+    let trimmed_start = line.trim_start();
+    let col = line.len() - trimmed_start.len() + 1;
+    let body = trimmed_start.strip_prefix("--@")?;
+    let Some(body) = body.strip_suffix("--") else {
+        diagnostics.push(MetaDiagnostic {
+            line: line_no,
+            message: "meta comment must end with `--`".to_string(),
+        });
+        return None;
+    };
+    let parts: Vec<&str> = body.split("::").map(str::trim).collect();
+    if parts.len() < 2 || parts[0].is_empty() || parts[1].is_empty() {
+        diagnostics.push(MetaDiagnostic {
+            line: line_no,
+            message: "meta comment must use `--@kind::label--`".to_string(),
+        });
+        return None;
+    }
+
+    let mut attrs = BTreeMap::new();
+    for part in parts.iter().skip(2) {
+        if part.is_empty() {
+            continue;
+        }
+        if let Some((key, value)) = part.split_once(':') {
+            attrs.insert(key.trim().to_string(), value.trim().to_string());
+        } else {
+            attrs.insert(part.to_string(), String::new());
+        }
+    }
+
+    Some(MetaComment {
+        kind: parts[0].to_string(),
+        label: parts[1].to_string(),
+        attrs,
+        line: line_no,
+        col,
+        raw: trimmed_start.to_string(),
+    })
+}
+
+fn source_block_for_comment(
+    comment: &MetaComment,
+    lines: &[&str],
+    next_line_idx: usize,
+) -> MetaSourceBlock {
+    let mut text_start_line = None;
+    let mut text_end_line = None;
+    let mut text_lines = Vec::new();
+
+    let mut idx = next_line_idx;
+    while idx < lines.len() && lines[idx].trim().is_empty() {
+        idx += 1;
+    }
+
+    if idx < lines.len() && lines[idx].trim_start().starts_with("----") {
+        text_start_line = Some(idx + 1);
+        idx += 1;
+        while idx < lines.len() {
+            let trimmed = lines[idx].trim_start();
+            if trimmed.starts_with("----") {
+                text_end_line = Some(idx + 1);
+                break;
+            }
+            text_lines.push(lines[idx].to_string());
+            idx += 1;
+        }
+        if text_end_line.is_none() {
+            text_end_line = Some(lines.len());
+        }
+    }
+
+    MetaSourceBlock {
+        label: comment.label.clone(),
+        meta_ref: comment.attrs.get("meta").cloned(),
+        comment_line: comment.line,
+        text_start_line,
+        text_end_line,
+        text: text_lines.join("\n").trim().to_string(),
+    }
+}
+
+fn scan_meta_symbols(lines: &[&str], start_line: usize, end_line: usize) -> Vec<MetaSymbol> {
+    let mut symbols = Vec::new();
+    let mut in_block_comment = false;
+
+    if start_line == 0 || end_line < start_line {
+        return symbols;
+    }
+
+    for line_no in start_line..=end_line.min(lines.len()) {
+        let line = lines[line_no - 1];
+        let trimmed = line.trim_start();
+
+        if in_block_comment {
+            if trimmed.starts_with("----") {
+                in_block_comment = false;
+            }
+            continue;
+        }
+        if trimmed.starts_with("----") {
+            if trimmed.matches("----").count() < 2 {
+                in_block_comment = true;
+            }
+            continue;
+        }
+        if trimmed.starts_with("--") || trimmed.is_empty() {
+            continue;
+        }
+
+        if let Some(name) = meta_type_symbol_name(trimmed) {
+            symbols.push(MetaSymbol {
+                kind: "type".to_string(),
+                name,
+                line: line_no,
+            });
+            continue;
+        }
+        if let Some(name) = meta_rule_symbol_name(trimmed) {
+            symbols.push(MetaSymbol {
+                kind: "rule".to_string(),
+                name,
+                line: line_no,
+            });
+            continue;
+        }
+        if let Some(name) = meta_binding_symbol_name(trimmed) {
+            symbols.push(MetaSymbol {
+                kind: "binding".to_string(),
+                name,
+                line: line_no,
+            });
+            continue;
+        }
+        if let Some(name) = meta_fn_symbol_name(trimmed) {
+            symbols.push(MetaSymbol {
+                kind: "function".to_string(),
+                name,
+                line: line_no,
+            });
+        }
+    }
+
+    symbols
+}
+
+fn meta_type_symbol_name(trimmed: &str) -> Option<String> {
+    let rest = trimmed.strip_prefix('#')?.trim_start();
+    read_meta_ident(rest).map(|(name, _)| name.to_string())
+}
+
+fn meta_rule_symbol_name(trimmed: &str) -> Option<String> {
+    let mut rest = trimmed.strip_prefix('|')?.trim_start();
+    if let Some(after_exception) = rest.strip_prefix("exception") {
+        rest = after_exception.trim_start();
+        let (_, after_label) = read_meta_ident(rest)?;
+        rest = after_label.trim_start();
+    }
+    read_meta_ident(rest).map(|(name, _)| name.to_string())
+}
+
+fn meta_binding_symbol_name(trimmed: &str) -> Option<String> {
+    let rest = trimmed.strip_prefix('=')?.trim_start();
+    read_meta_ident(rest).map(|(name, _)| name.to_string())
+}
+
+fn meta_fn_symbol_name(trimmed: &str) -> Option<String> {
+    let rest = trimmed.strip_prefix("fn")?.trim_start();
+    read_meta_ident(rest).map(|(name, _)| name.to_string())
+}
+
+fn read_meta_ident(input: &str) -> Option<(&str, &str)> {
+    let mut end = 0usize;
+    for (idx, ch) in input.char_indices() {
+        if idx == 0 && !(ch == '_' || ch.is_alphabetic()) {
+            return None;
+        }
+        if ch == '_' || ch.is_alphanumeric() {
+            end = idx + ch.len_utf8();
+        } else {
+            break;
+        }
+    }
+    if end == 0 {
+        None
+    } else {
+        Some((&input[..end], &input[end..]))
+    }
+}
+
+#[cfg(test)]
+mod meta_comment_tests {
+    use super::*;
+
+    #[test]
+    fn source_comment_and_span_link_symbols() {
+        let source = r#"
+@ sprog da
+
+= source1234 = SourceInfo(url = "ret.dk/1234")
+
+--@source::kommunal_par5_stk3::meta:source1234--
+----
+Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et år.
+--@begin::ikke_metadata_i_kildetekst--
+----
+
+--@begin::kommunal_par5_stk3--
+# KommunalPar5DelårsInput(kortere_periode_end_et_år: Boolsk)
+# KommunalPar5DelårsResultat(skat_kroner: Heltal)
+| kommunal_par5_delårsskat(input: KommunalPar5DelårsInput) -> 0
+| exception kommunal_par5_helårsomregnet kommunal_par5_delårsskat(input: KommunalPar5DelårsInput) -> 49315 under input.kortere_periode_end_et_år
+= kommunal_par5_fixture = kommunal_par5_delårsskat(KommunalPar5DelårsInput(Sandt))
+--@end::kommunal_par5_stk3--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty());
+        assert_eq!(index.sources.len(), 1);
+        assert_eq!(index.sources[0].label, "kommunal_par5_stk3");
+        assert_eq!(index.sources[0].meta_ref.as_deref(), Some("source1234"));
+        assert!(index.sources[0]
+            .text
+            .contains("Omfatter indkomstansættelsen"));
+
+        assert_eq!(index.spans.len(), 1);
+        assert_eq!(index.comments.len(), 3);
+        let span = &index.spans[0];
+        assert_eq!(span.label, "kommunal_par5_stk3");
+        assert_eq!(
+            span.source
+                .as_ref()
+                .and_then(|source| source.meta_ref.as_deref()),
+            Some("source1234")
+        );
+        assert!(span
+            .symbols
+            .iter()
+            .any(|symbol| { symbol.kind == "type" && symbol.name == "KommunalPar5DelårsInput" }));
+        assert!(span
+            .symbols
+            .iter()
+            .any(|symbol| { symbol.kind == "rule" && symbol.name == "kommunal_par5_delårsskat" }));
+        assert!(span
+            .symbols
+            .iter()
+            .any(|symbol| { symbol.kind == "binding" && symbol.name == "kommunal_par5_fixture" }));
+    }
+
+    #[test]
+    fn unmatched_markers_are_reported_without_affecting_language_comments() {
+        let source = r#"
+--@begin::open_label--
+= value = 1
+--@end::missing_label--
+--@broken
+"#;
+
+        let index = scan_meta_comments(source);
+        let messages: Vec<&str> = index
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.message.as_str())
+            .collect();
+
+        assert!(messages
+            .iter()
+            .any(|message| message.contains("missing_label")
+                && message.contains("no matching begin")));
+        assert!(messages
+            .iter()
+            .any(|message| message.contains("open_label") && message.contains("no matching end")));
+        assert!(messages
+            .iter()
+            .any(|message| message.contains("must end with `--`")));
+    }
+}
+
 /// Severity level for diagnostics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Severity {

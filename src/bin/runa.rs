@@ -199,6 +199,7 @@ fn main_inner() {
                 eprintln!("  hashes        Show content hashes for all definitions");
                 eprintln!("  wasm          Compile to WebAssembly (via wasm-pack)");
                 eprintln!("  check         Parse and type-check without running");
+                eprintln!("  meta          Report machine-readable meta comment spans");
                 eprintln!("  verify        Generate SMT-LIB2 and verify with Z3");
                 eprintln!("  audit         Discover invariant gaps and rule asymmetries");
                 eprintln!("  fmt           Format source file(s)");
@@ -227,7 +228,7 @@ fn main_inner() {
                 eprintln!("  Stable commands: run, check, emit, build, test, fmt, hashes, lib, init, lint-library, stress-gen, from-rust");
                 eprintln!("  Stable surfaces: core syntax, documented stdlib, pure/core codegen, first-run project initialization,");
                 eprintln!("    reactive/stateful workflows, importable local libraries, Rust interop, FRSS-v0, differential/generative testing");
-                eprintln!("  Preview: add, wasm, lsp, expect, bench, verify");
+                eprintln!("  Preview: add, wasm, lsp, expect, bench, meta, verify");
                 eprintln!("  Experimental: audit");
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
@@ -236,6 +237,7 @@ fn main_inner() {
                 eprintln!("  runa program.runa           Interpret");
                 eprintln!("  runa run program.runa       Compile + execute");
                 eprintln!("  runa check program.runa     Type-check without running");
+                eprintln!("  runa meta program.runa      Show meta comment source/span index");
                 eprintln!("  runa emit program.runa      Show Rust output");
                 eprintln!("  runa emit --imports program.runa  Show public import/export graph");
                 eprintln!("  runa build program.runa     Compile to ./program");
@@ -289,6 +291,10 @@ fn main_inner() {
             }
             "check" => {
                 mode = "check";
+                i += 1;
+            }
+            "meta" => {
+                mode = "meta";
                 i += 1;
             }
             "verify" => {
@@ -499,6 +505,7 @@ fn main_inner() {
                 "registry" => update_registry(&source, path),
                 "wasm" => build_wasm(&source, path, use_prelude),
                 "check" => check_source(&source, path, use_prelude),
+                "meta" => print_meta_index(&source, path),
                 "audit" => audit_source(&source, path, use_prelude),
                 "verify" => verify_with_z3(&source, path),
                 _ => run_source(&source, path, use_prelude),
@@ -1593,6 +1600,55 @@ fn find_tool(name: &str) -> String {
     name.to_string()
 }
 
+fn print_meta_index(source: &str, filename: &str) {
+    let index = scan_meta_comments(source);
+
+    println!("meta: {}", filename);
+    println!("comments: {}", index.comments.len());
+    println!("sources: {}", index.sources.len());
+    for source_block in &index.sources {
+        let meta = source_block.meta_ref.as_deref().unwrap_or("-");
+        let text_range = match (source_block.text_start_line, source_block.text_end_line) {
+            (Some(start), Some(end)) => format!("{}-{}", start, end),
+            _ => "-".to_string(),
+        };
+        println!(
+            "source {} line {} meta {} text {}",
+            source_block.label, source_block.comment_line, meta, text_range
+        );
+    }
+
+    println!("spans: {}", index.spans.len());
+    for span in &index.spans {
+        let source_ref = span
+            .source
+            .as_ref()
+            .and_then(|source| source.meta_ref.as_deref())
+            .or_else(|| span.source.as_ref().map(|source| source.label.as_str()))
+            .unwrap_or("-");
+        println!(
+            "span {} lines {}-{} source {}",
+            span.label, span.code_start_line, span.code_end_line, source_ref
+        );
+        for symbol in &span.symbols {
+            println!(
+                "  symbol {} {} line {}",
+                symbol.kind, symbol.name, symbol.line
+            );
+        }
+    }
+
+    if !index.diagnostics.is_empty() {
+        for diagnostic in &index.diagnostics {
+            eprintln!(
+                "error: {}:{}: {}",
+                filename, diagnostic.line, diagnostic.message
+            );
+        }
+        std::process::exit(1);
+    }
+}
+
 fn run_source(source: &str, filename: &str, use_prelude: bool) {
     // Tokenize
     let mut lexer = Lexer::new(source);
@@ -1673,6 +1729,7 @@ enum ExpectCommand {
     EmitLib,
     EmitFir,
     EmitImports,
+    Meta,
     Verify,
     LintLibrary,
     LintLibraryImports,
@@ -1688,11 +1745,12 @@ impl ExpectCommand {
             "emit-lib" | "lib" => Ok(Self::EmitLib),
             "emit-fir" | "fir" => Ok(Self::EmitFir),
             "emit-imports" | "imports" => Ok(Self::EmitImports),
+            "meta" => Ok(Self::Meta),
             "verify" => Ok(Self::Verify),
             "lint-library" => Ok(Self::LintLibrary),
             "lint-library-imports" => Ok(Self::LintLibraryImports),
             other => Err(format!(
-                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, verify, lint-library, or lint-library-imports",
+                "unknown expect-command `{}`; use check, run, interp, emit-rust, emit-lib, emit-fir, emit-imports, meta, verify, lint-library, or lint-library-imports",
                 other
             )),
         }
@@ -1707,6 +1765,7 @@ impl ExpectCommand {
             Self::EmitLib => "emit-lib",
             Self::EmitFir => "emit-fir",
             Self::EmitImports => "emit-imports",
+            Self::Meta => "meta",
             Self::Verify => "verify",
             Self::LintLibrary => "lint-library",
             Self::LintLibraryImports => "lint-library-imports",
@@ -1735,6 +1794,9 @@ impl ExpectCommand {
             }
             Self::EmitImports => {
                 cmd.arg("emit").arg("--imports").arg(file);
+            }
+            Self::Meta => {
+                cmd.arg("meta").arg(file);
             }
             Self::Verify => {
                 cmd.arg("verify").arg(file);

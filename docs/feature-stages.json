@@ -194,6 +194,18 @@
       ]
     },
     {
+      "id": "source-meta-comment-tooling",
+      "kind": "tooling",
+      "name": "Meta-comment source and code-span indexing",
+      "stage": "preview",
+      "commands": [
+        "meta"
+      ],
+      "docs": [
+        "docs/reference/style.md"
+      ]
+    },
+    {
       "id": "exploratory-audit-tooling",
       "kind": "tooling",
       "name": "Invariant-gap and rule-asymmetry audit tooling",
@@ -325,6 +337,11 @@
       "surface": "differential-and-expectation-tooling"
     },
     {
+      "name": "meta",
+      "stage": "preview",
+      "surface": "source-meta-comment-tooling"
+    },
+    {
       "name": "audit",
       "stage": "experimental",
       "surface": "exploratory-audit-tooling"
@@ -432,6 +449,7 @@
       "stage": "preview",
       "surfaces": [
         "style-and-modeling-guidance",
+        "source-meta-comment-tooling",
         "exploratory-audit-tooling"
       ]
     },

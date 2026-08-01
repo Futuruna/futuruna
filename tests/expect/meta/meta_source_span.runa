@@ -1,0 +1,25 @@
+-- expect-command: meta
+-- expect-status: pass
+-- expect-stdout: comments: 3
+-- expect-stdout: sources: 1
+-- expect-stdout: spans: 1
+-- expect-stdout: source kommunal_par5_stk3 line 15 meta ksl_2019_935_par5_stk3 text 16-18
+-- expect-stdout: span kommunal_par5_stk3 lines 21-24 source ksl_2019_935_par5_stk3
+-- expect-stdout: symbol type KommunalPar5DelårsInput line 21
+-- expect-stdout: symbol rule kommunal_par5_delårsskat line 23
+-- expect-stdout: symbol binding kommunal_par5_fixture line 24
+
+@ sprog da
+# SourceInfo(url: Tekst, identifier: Tekst)
+= ksl_2019_935_par5_stk3 = SourceInfo(url = "https://www.retsinformation.dk/eli/lta/2019/935", identifier = "§ 5, stk. 3")
+--@source::kommunal_par5_stk3::meta:ksl_2019_935_par5_stk3--
+----
+Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et år.
+----
+
+--@begin::kommunal_par5_stk3--
+# KommunalPar5DelårsInput(kortere_periode_end_et_år: Boolsk)
+# KommunalPar5DelårsResultat(skat_kroner: Heltal)
+| kommunal_par5_delårsskat(input: KommunalPar5DelårsInput) -> 0
+= kommunal_par5_fixture = kommunal_par5_delårsskat(KommunalPar5DelårsInput(Sandt))
+--@end::kommunal_par5_stk3--

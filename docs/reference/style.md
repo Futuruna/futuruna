@@ -2,6 +2,7 @@
 feature_stage: preview
 feature_stage_surfaces:
   - style-and-modeling-guidance
+  - source-meta-comment-tooling
   - exploratory-audit-tooling
 ---
 
@@ -125,6 +126,29 @@ Write `|` invariants with captured values and boolean predicates. The `?` rune c
 ```
 
 The `----` block quotes the source. The `--` comment explains the code. Don't mix them.
+
+## Meta comments are source anchors
+
+Use ordinary comments for machine-readable provenance when a model needs
+traceable source spans without changing Futuruna semantics.
+
+```runa
+# SourceInfo(url: Tekst, identifier: Tekst)
+= grundlov_par3 = SourceInfo(url = "https://www.retsinformation.dk/eli/lta/1953/169", identifier = "§ 3")
+
+--@source::grundlov_par3::meta:grundlov_par3--
+----
+§ 3. Den lovgivende magt er hos kongen og folketinget i forening.
+----
+
+--@begin::grundlov_par3--
+| lovgivende_magt() -> IForening(Kongen, Folketinget)
+--@end::grundlov_par3--
+```
+
+The parser still treats these as comments. `runa meta` scans the raw source and
+reports labels, source metadata references, source-text ranges, code ranges, and
+symbols inside each range.
 
 ## Types are the domain vocabulary
 
