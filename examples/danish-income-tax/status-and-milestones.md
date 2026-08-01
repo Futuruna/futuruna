@@ -35,7 +35,11 @@ Virksomhedsskatteloven § 7, § 22 a, § 22 c and § 23 a results for business
 capital return, including positive/period-proportional § 7 return capped by
 taxable surplus, § 22 a election and stk. 3 ceiling, § 22 c acquisition
 conditions and proportional ownership period, and the § 23 a personal-income
-election reducing the capital-income amount; § 4, stk. 1, nr. 7 now consumes a typed LL § 8, stk. 3 result for
+election reducing the capital-income amount; § 4, stk. 1, nr. 5 a now consumes
+a typed Selskabsskatteloven § 1, stk. 1, nr. 6 result for membership
+certificates in taxable associations etc., preserving the LBK 279/2025 source
+line, the investment-association carve-out and the § 3/fondsbeskatningsloven
+exclusions before any amount enters capital income; § 4, stk. 1, nr. 7 now consumes a typed LL § 8, stk. 3 result for
 running loan provisions/premiums, running guarantee premiums and one-off
 provisions/premiums when the loan/guarantee period is under two years, with the
 deductible amount flowing as negative capital income; § 4, stk. 1, nr. 8 now
@@ -246,7 +250,7 @@ Current Personskatteloven amendment sources:
     nr. 1-5, 9 and 10 to nr. 1-4, 8 and 9.
   - § 16, stk. 5 gives the § 12 change effect from income year 2027.
 
-Current § 8 b dependency source:
+Current Selskabsskatteloven dependency source:
 
 - Historic Selskabsskatteloven source:
   `https://www.retsinformation.dk/eli/lta/2022/1241`
@@ -255,6 +259,10 @@ Current § 8 b dependency source:
 - Current Selskabsskatteloven source:
   `https://www.retsinformation.dk/eli/lta/2025/279`
   - XML status on 2026-07-18: `Valid`
+  - § 1, stk. 1, nr. 6 supplies the typed § 4, stk. 1, nr. 5 a dependency for
+    taxable associations etc., including the § 3 and fondsbeskatningsloven
+    exclusions and the investment-association carve-out consumed by
+    Personskatteloven.
   - § 17, stk. 1 sets the ordinary selskabsskat rate at 22 pct. and the
     kulbrinte supplement at 3 percentage points; Personskatteloven § 8 b uses
     the ordinary 22 pct. rate for CFC income.
@@ -932,7 +940,11 @@ Current decision:
   `Par4Stk1Nr5aSag` and `Par4Stk1Nr5bSag` keep the original amount,
   capital-income classification and personal-income reclassification together
   so the § 4 aggregate can move amounts between net capital income and
-  personal income without losing the source reason.
+  personal income without losing the source reason. `Par4Stk1Nr5aSag` now
+  gets its statutory entity boundary from `Selskabsskattelov1Stk1Nr6Resultat`
+  instead of raw booleans, so the § 1, stk. 1, nr. 6 source line, the
+  investment-association carve-out and the § 3/fondsbeskatningsloven exclusions
+  remain auditable.
 - `Ligningslov7NSag` uses product-scoped `|` rules for the LL § 7 N
   medarbejderinvesteringsselskab slice. It keeps the statutory employer
   contribution cap, Danish registration branch, EU/EØS approval branch,

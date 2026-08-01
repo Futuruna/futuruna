@@ -1,0 +1,118 @@
+@ sprog da
+
+@ importer ./pengebeloeb
+
+-- Selskabsskatteloven — selected dependency slice for Personskatteloven.
+--
+-- Kilde: Retsinformation, LBK nr. 279 af 13/03/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/279
+-- XML: https://www.retsinformation.dk/eli/lta/2025/279/dan/xml
+
+----
+§ 1. Skattepligt i henhold til denne lov påhviler følgende selskaber og
+foreninger m.v., der er hjemmehørende her i landet:
+
+6) andre foreninger, korporationer, stiftelser, legater og selvejende
+institutioner, jf. dog § 3, for så vidt foreningen m.v. ikke er omfattet af
+fondsbeskatningsloven.
+
+Skattepligten omfatter indtægt ved erhvervsmæssig virksomhed samt fortjeneste
+eller tab ved afhændelse, afståelse eller opgivelse af formuegoder, der har
+eller har haft tilknytning til den erhvervsmæssige virksomhed.
+
+Skattepligten omfatter endvidere udbytte som nævnt i § 2, stk. 1, litra c, 1.
+og 2. pkt., renter som nævnt i § 2, stk. 1, litra d, 1. pkt., royalty som nævnt
+i § 2, stk. 1, litra g, 1. pkt., og kursgevinster som nævnt i § 2, stk. 1,
+litra h, 1.-3. pkt. Skattepligten af udbytte som nævnt i 3. pkt. gælder dog
+ikke foreninger m.v., hvis midler ifølge vedtægter el.lign. udelukkende kan
+anvendes til almenvelgørende eller på anden måde almennyttige formål.
+----
+
+# Selskabsskattelov1Stk1Nr6Kilde = SelskabsskattelovenLbk279Af2025Par1Stk1Nr6
+# Selskabsskattelov1Stk1Nr6Enhed = Ssl1Stk1Nr6AndenForening | Ssl1Stk1Nr6Korporation | Ssl1Stk1Nr6Stiftelse | Ssl1Stk1Nr6Legat | Ssl1Stk1Nr6SelvejendeInstitution | Ssl1Stk1Nr6Investeringsforening | Ssl1Stk1Nr6AndenEnhed
+# Selskabsskattelov1Stk1Nr6IndkomstArt = Ssl1Stk1Nr6ErhvervsmæssigVirksomhed | Ssl1Stk1Nr6FormuegodeMedErhvervstilknytning | Ssl1Stk1Nr6Par2UdbytteRenteRoyaltyKursgevinst | Ssl1Stk1Nr6AndenIndkomst
+# Selskabsskattelov1Stk1Nr6Input(enhed: Selskabsskattelov1Stk1Nr6Enhed, omfattet_af_par3_undtagelse: Boolsk, omfattet_af_fondsbeskatningsloven: Boolsk)
+# Selskabsskattelov1Stk1Nr6Resultat(kilde: Selskabsskattelov1Stk1Nr6Kilde, enhed: Selskabsskattelov1Stk1Nr6Enhed, enhed_omfattet_af_nr6: Boolsk, investeringsforening: Boolsk, undtaget_efter_par3: Boolsk, omfattet_af_fondsbeskatningsloven: Boolsk, skattepligtig_efter_par1_stk1_nr6: Boolsk)
+# Selskabsskattelov1Stk1Nr6IndkomstInput(nr6_resultat: Selskabsskattelov1Stk1Nr6Resultat, indkomst_art: Selskabsskattelov1Stk1Nr6IndkomstArt, beløb_kroner: Heltal)
+# Selskabsskattelov1Stk1Nr6IndkomstResultat(skattepligtig_efter_par1_stk1_nr6: Boolsk, indkomst_omfattet_af_nr6: Boolsk, skattepligtig_indkomst_kroner: Heltal)
+
+| selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Falskt
+| exception ssl1_stk1_nr6_anden_forening selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6AndenForening
+| exception ssl1_stk1_nr6_korporation selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6Korporation
+| exception ssl1_stk1_nr6_stiftelse selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6Stiftelse
+| exception ssl1_stk1_nr6_legat selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6Legat
+| exception ssl1_stk1_nr6_selvejende_institution selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6SelvejendeInstitution
+| exception ssl1_stk1_nr6_investeringsforening selskabsskattelov1_stk1_nr6_enhed_omfattet(enhed: Selskabsskattelov1Stk1Nr6Enhed) -> Sandt under enhed == Ssl1Stk1Nr6Investeringsforening
+
+# Selskabsskattelov1Stk1Nr6Sag(input: Selskabsskattelov1Stk1Nr6Input) {
+    | kilde() -> SelskabsskattelovenLbk279Af2025Par1Stk1Nr6
+    | enhed_omfattet_af_nr6() -> selskabsskattelov1_stk1_nr6_enhed_omfattet(input.enhed)
+    | investeringsforening() -> input.enhed == Ssl1Stk1Nr6Investeringsforening
+    | undtaget_efter_par3() -> input.omfattet_af_par3_undtagelse
+    | skattepligtig_efter_par1_stk1_nr6() -> enhed_omfattet_af_nr6() && undtaget_efter_par3() == Falskt && input.omfattet_af_fondsbeskatningsloven == Falskt
+    | resultat() -> Selskabsskattelov1Stk1Nr6Resultat(
+        kilde = kilde(),
+        enhed = input.enhed,
+        enhed_omfattet_af_nr6 = enhed_omfattet_af_nr6(),
+        investeringsforening = investeringsforening(),
+        undtaget_efter_par3 = undtaget_efter_par3(),
+        omfattet_af_fondsbeskatningsloven = input.omfattet_af_fondsbeskatningsloven,
+        skattepligtig_efter_par1_stk1_nr6 = skattepligtig_efter_par1_stk1_nr6()
+    )
+}
+| selskabsskattelov1_stk1_nr6_sag(input: Selskabsskattelov1Stk1Nr6Input) -> Selskabsskattelov1Stk1Nr6Sag(input)
+| selskabsskattelov1_stk1_nr6_resultat(input: Selskabsskattelov1Stk1Nr6Input) -> selskabsskattelov1_stk1_nr6_sag(input).resultat()
+
+| selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art: Selskabsskattelov1Stk1Nr6IndkomstArt) -> Falskt
+| exception ssl1_stk1_nr6_erhverv selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art: Selskabsskattelov1Stk1Nr6IndkomstArt) -> Sandt under art == Ssl1Stk1Nr6ErhvervsmæssigVirksomhed
+| exception ssl1_stk1_nr6_formuegode selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art: Selskabsskattelov1Stk1Nr6IndkomstArt) -> Sandt under art == Ssl1Stk1Nr6FormuegodeMedErhvervstilknytning
+| exception ssl1_stk1_nr6_par2_indkomst selskabsskattelov1_stk1_nr6_indkomstart_omfattet(art: Selskabsskattelov1Stk1Nr6IndkomstArt) -> Sandt under art == Ssl1Stk1Nr6Par2UdbytteRenteRoyaltyKursgevinst
+
+# Selskabsskattelov1Stk1Nr6IndkomstSag(input: Selskabsskattelov1Stk1Nr6IndkomstInput) {
+    | indkomst_omfattet_af_nr6() -> selskabsskattelov1_stk1_nr6_indkomstart_omfattet(input.indkomst_art)
+    | skattepligtig_indkomst_kroner() -> 0
+    | exception ssl1_stk1_nr6_skattepligtig_indkomst skattepligtig_indkomst_kroner() -> input.beløb_kroner under input.nr6_resultat.skattepligtig_efter_par1_stk1_nr6 && indkomst_omfattet_af_nr6()
+    | resultat() -> Selskabsskattelov1Stk1Nr6IndkomstResultat(
+        skattepligtig_efter_par1_stk1_nr6 = input.nr6_resultat.skattepligtig_efter_par1_stk1_nr6,
+        indkomst_omfattet_af_nr6 = indkomst_omfattet_af_nr6(),
+        skattepligtig_indkomst_kroner = skattepligtig_indkomst_kroner()
+    )
+}
+| selskabsskattelov1_stk1_nr6_indkomst_sag(input: Selskabsskattelov1Stk1Nr6IndkomstInput) -> Selskabsskattelov1Stk1Nr6IndkomstSag(input)
+| selskabsskattelov1_stk1_nr6_indkomst_resultat(input: Selskabsskattelov1Stk1Nr6IndkomstInput) -> selskabsskattelov1_stk1_nr6_indkomst_sag(input).resultat()
+
+= ssl1_stk1_nr6_forening_input = Selskabsskattelov1Stk1Nr6Input(
+    enhed = Ssl1Stk1Nr6AndenForening,
+    omfattet_af_par3_undtagelse = Falskt,
+    omfattet_af_fondsbeskatningsloven = Falskt
+)
+= ssl1_stk1_nr6_investeringsforening_input = Selskabsskattelov1Stk1Nr6Input(
+    enhed = Ssl1Stk1Nr6Investeringsforening,
+    omfattet_af_par3_undtagelse = Falskt,
+    omfattet_af_fondsbeskatningsloven = Falskt
+)
+= ssl1_stk1_nr6_fondsbeskatning_input = Selskabsskattelov1Stk1Nr6Input(
+    enhed = Ssl1Stk1Nr6Stiftelse,
+    omfattet_af_par3_undtagelse = Falskt,
+    omfattet_af_fondsbeskatningsloven = Sandt
+)
+= ssl1_stk1_nr6_par3_undtagelse_input = Selskabsskattelov1Stk1Nr6Input(
+    enhed = Ssl1Stk1Nr6SelvejendeInstitution,
+    omfattet_af_par3_undtagelse = Sandt,
+    omfattet_af_fondsbeskatningsloven = Falskt
+)
+= ssl1_stk1_nr6_forening_fixture = selskabsskattelov1_stk1_nr6_resultat(ssl1_stk1_nr6_forening_input)
+= ssl1_stk1_nr6_investeringsforening_fixture = selskabsskattelov1_stk1_nr6_resultat(ssl1_stk1_nr6_investeringsforening_input)
+= ssl1_stk1_nr6_fondsbeskatning_fixture = selskabsskattelov1_stk1_nr6_resultat(ssl1_stk1_nr6_fondsbeskatning_input)
+= ssl1_stk1_nr6_par3_undtagelse_fixture = selskabsskattelov1_stk1_nr6_resultat(ssl1_stk1_nr6_par3_undtagelse_input)
+= ssl1_stk1_nr6_erhvervsindkomst_fixture = selskabsskattelov1_stk1_nr6_indkomst_resultat(Selskabsskattelov1Stk1Nr6IndkomstInput(
+    nr6_resultat = ssl1_stk1_nr6_forening_fixture,
+    indkomst_art = Ssl1Stk1Nr6ErhvervsmæssigVirksomhed,
+    beløb_kroner = 17000
+))
+
+| ssl1_stk1_nr6_forening_skattepligtig: ssl1_stk1_nr6_forening_fixture -> ssl1_stk1_nr6_forening_fixture.kilde == SelskabsskattelovenLbk279Af2025Par1Stk1Nr6 && ssl1_stk1_nr6_forening_fixture.enhed_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_forening_fixture.skattepligtig_efter_par1_stk1_nr6 == Sandt
+| ssl1_stk1_nr6_investeringsforening_identificeres: ssl1_stk1_nr6_investeringsforening_fixture -> ssl1_stk1_nr6_investeringsforening_fixture.skattepligtig_efter_par1_stk1_nr6 == Sandt && ssl1_stk1_nr6_investeringsforening_fixture.investeringsforening == Sandt
+| ssl1_stk1_nr6_fondsbeskatning_afskærer: ssl1_stk1_nr6_fondsbeskatning_fixture -> ssl1_stk1_nr6_fondsbeskatning_fixture.enhed_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_fondsbeskatning_fixture.skattepligtig_efter_par1_stk1_nr6 == Falskt
+| ssl1_stk1_nr6_par3_afskærer: ssl1_stk1_nr6_par3_undtagelse_fixture -> ssl1_stk1_nr6_par3_undtagelse_fixture.enhed_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_par3_undtagelse_fixture.skattepligtig_efter_par1_stk1_nr6 == Falskt
+| ssl1_stk1_nr6_erhvervsindkomst_skattepligtig: ssl1_stk1_nr6_erhvervsindkomst_fixture -> ssl1_stk1_nr6_erhvervsindkomst_fixture.indkomst_omfattet_af_nr6 == Sandt && ssl1_stk1_nr6_erhvervsindkomst_fixture.skattepligtig_indkomst_kroner == 17000

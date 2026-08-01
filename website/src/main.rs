@@ -2773,6 +2773,8 @@ const TAX_STATUS_MD: &str =
     include_str!("../../examples/danish-income-tax/status-and-milestones.md");
 const TAX_SOURCE_STATUS: &str = include_str!("../../examples/danish-income-tax/source-status.runa");
 const TAX_MONEY: &str = include_str!("../../examples/danish-income-tax/pengebeloeb.runa");
+const TAX_SELSKABSSKAT: &str =
+    include_str!("../../examples/danish-income-tax/selskabsskatteloven.runa");
 const TAX_KAP01: &str = include_str!("../../examples/danish-income-tax/kapitel-01-indkomst.runa");
 const TAX_KAP02: &str = include_str!("../../examples/danish-income-tax/kapitel-02-statsskat.runa");
 const TAX_KAP03: &str =
@@ -3581,6 +3583,11 @@ fn ResearchPersonskatteloven() -> Element {
             TAX_MONEY,
         ),
         (
+            "selskabsskatteloven.runa — § 1 stk. 1 nr. 6 foreninger mv.",
+            "selskabsskatteloven-code",
+            TAX_SELSKABSSKAT,
+        ),
+        (
             "kapitel-01-indkomst.runa — §§ 1-4 b indkomsttaxonomi",
             "kapitel-01-code",
             TAX_KAP01,
@@ -3606,7 +3613,7 @@ fn ResearchPersonskatteloven() -> Element {
             TAX_PAR4_VIRKSOMHEDSSKAT_KAPITALAFKAST_AUDIT,
         ),
         (
-            "personskatteloven-par4-aktie-kapital.audit.runa — § 4 stk. 1 nr. 4/5/5 a/5 b LL § 16 A og Aktieavancebeskatningsloven",
+            "personskatteloven-par4-aktie-kapital.audit.runa — § 4 stk. 1 nr. 4/5/5 a/5 b LL § 16 A, Selskabsskatteloven og Aktieavancebeskatningsloven",
             "personskatteloven-par4-aktie-kapital-audit-code",
             TAX_PAR4_AKTIE_KAPITAL_AUDIT,
         ),
@@ -3958,6 +3965,8 @@ fn ResearchPersonskatteloven() -> Element {
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/2019/132", "Ejendomsavancebeskatningsloven" }
                         " / "
+                        a { href: "https://www.retsinformation.dk/eli/lta/2025/279", "Selskabsskatteloven" }
+                        " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/2025/1176", "Kursgevinstloven" }
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/2021/1836", "Virksomhedsskatteloven" }
@@ -4005,7 +4014,7 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://star.dk/ydelser/boligstoette-boernetilskud-og-hjaelp-i-saerlige-tilfaelde/boligstoette/boligsikring", "STAR boligsikring" }
                     }
                     p { class: "const-stats",
-                        "65 filer \u{00B7} fælles Pengebeløb-afrunding \u{00B7} §§ 1-28 første slice \u{00B7} § 1/§ 2 skattepligtig indkomst \u{00B7} § 3 stk. 2 nr. 1 fradragsundtagelser \u{00B7} § 4 stk. 1 nr. 1 renter + LL §§ 6/6 A \u{00B7} § 4 stk. 1 nr. 2 Kursgevinstloven \u{00B7} § 4 stk. 1 nr. 3/3 a VSL-kapitalafkast \u{00B7} § 4 stk. 1 nr. 4/5/5 a/5 b LL § 16 A og Aktieavancebeskatningsloven \u{00B7} § 4 stk. 7 LL § 7 N-medarbejderinvestering \u{00B7} § 4 stk. 1 nr. 6 Ejendomsskatteloven § 3 \u{00B7} § 4 stk. 1 nr. 7 LL § 8 stk. 3-provisioner \u{00B7} § 4 stk. 1 nr. 8 VSL § 11-rentekorrektion \u{00B7} § 4 stk. 1 nr. 9 passiv virksomhed \u{00B7} § 4 stk. 1 nr. 10 LL § 14 A-indbetalinger \u{00B7} § 4 stk. 1 nr. 11 udlejning \u{00B7} § 4 stk. 1 nr. 12 LL § 5 C-vederlag \u{00B7} § 4 stk. 1 nr. 13 PBL § 53 A-afkast \u{00B7} § 4 stk. 1 nr. 14 ejendomsavance \u{00B7} § 4 stk. 1 nr. 15 LL § 12 B-løbende ydelser \u{00B7} § 4 stk. 1 nr. 16 Afskrivningsloven § 40 C-saldo \u{00B7} § 4 stk. 1 nr. 17 fremleje fra LL § 15 Q \u{00B7} § 4 a ABL §19 B/§21 + LL § 7 N-undtagelse + pensionsfradrag \u{00B7} § 4 b LL §§ 16 H/16 I CFC-indkomst \u{00B7} § 7 a pensionsbeløb og undtagelser \u{00B7} § 8 a/§ 67 aktieindkomst-årsopgørelse + lønmodtager §5-højt lag + negativ parslutopgørelse + fremførsel + stk. 6 negative ægtefæller \u{00B7} § 9 statslig + ikke-statslig personfradragsnedsættelse \u{00B7} § 11 negativ nettokapital i lønmodtager-slutskat \u{00B7} § 13 stk. 2 ægtefælleunderskud + egne underskud først + stk. 4 negativ personlig indkomst + § 13 a gældsordning \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 5 C/6/6 A/7 N/8/12 B/14 A/16 A/16 H/16 I + §§ 9 J/9 K/9 L/15 P/15 Q \u{00B7} Kursgevinstloven \u{00B7} Aktieavancebeskatningsloven §§ 17/18/19 B/19 C/21/22 \u{00B7} Virksomhedsskatteloven §§ 7/22 a/22 c/23 a/11 \u{00B7} Pensionsbeskatningsloven § 53 A \u{00B7} Ejendomsavancebeskatningsloven §§ 1/1 A/2/4/11 \u{00B7} Ejendomsskatteloven § 3 \u{00B7} Afskrivningsloven § 40 C \u{00B7} § 14 delår/stk. 2 valg + lovniveau skatteberegning + ekstern DJV-differential \u{00B7} personlig og positiv-kapital § 19 skatteloft som typed nedslag inkl. Langeland høj kommuneskat + SKM-nedslag \u{00B7} § 20 kildefast reguleringstal \u{00B7} Kildeskatteloven A-indkomst/A-skat/slutopgørelse/restskat-timing/B-skat/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A \u{00B7} BEK 839 forskudskort \u{00B7} BEK 1094 indeholdelsesprocent \u{00B7} Opkrævningsloven betalingsfrister, § 7-rente og tværårssplit \u{00B7} kildefaste 2024/2025/2026 parameterpakker \u{00B7} wage-earner, delår, ekstern differential, husholdning, boligsikring, slutopgørelse, afregning, kapital og § 13 fixtures \u{00B7} audit-signaler"
+                        "66 filer \u{00B7} fælles Pengebeløb-afrunding \u{00B7} §§ 1-28 første slice \u{00B7} § 1/§ 2 skattepligtig indkomst \u{00B7} § 3 stk. 2 nr. 1 fradragsundtagelser \u{00B7} § 4 stk. 1 nr. 1 renter + LL §§ 6/6 A \u{00B7} § 4 stk. 1 nr. 2 Kursgevinstloven \u{00B7} § 4 stk. 1 nr. 3/3 a VSL-kapitalafkast \u{00B7} § 4 stk. 1 nr. 4/5/5 a/5 b LL § 16 A, Selskabsskatteloven og Aktieavancebeskatningsloven \u{00B7} § 4 stk. 7 LL § 7 N-medarbejderinvestering \u{00B7} § 4 stk. 1 nr. 6 Ejendomsskatteloven § 3 \u{00B7} § 4 stk. 1 nr. 7 LL § 8 stk. 3-provisioner \u{00B7} § 4 stk. 1 nr. 8 VSL § 11-rentekorrektion \u{00B7} § 4 stk. 1 nr. 9 passiv virksomhed \u{00B7} § 4 stk. 1 nr. 10 LL § 14 A-indbetalinger \u{00B7} § 4 stk. 1 nr. 11 udlejning \u{00B7} § 4 stk. 1 nr. 12 LL § 5 C-vederlag \u{00B7} § 4 stk. 1 nr. 13 PBL § 53 A-afkast \u{00B7} § 4 stk. 1 nr. 14 ejendomsavance \u{00B7} § 4 stk. 1 nr. 15 LL § 12 B-løbende ydelser \u{00B7} § 4 stk. 1 nr. 16 Afskrivningsloven § 40 C-saldo \u{00B7} § 4 stk. 1 nr. 17 fremleje fra LL § 15 Q \u{00B7} § 4 a ABL §19 B/§21 + LL § 7 N-undtagelse + pensionsfradrag \u{00B7} § 4 b LL §§ 16 H/16 I CFC-indkomst \u{00B7} § 7 a pensionsbeløb og undtagelser \u{00B7} § 8 a/§ 67 aktieindkomst-årsopgørelse + lønmodtager §5-højt lag + negativ parslutopgørelse + fremførsel + stk. 6 negative ægtefæller \u{00B7} § 9 statslig + ikke-statslig personfradragsnedsættelse \u{00B7} § 11 negativ nettokapital i lønmodtager-slutskat \u{00B7} § 13 stk. 2 ægtefælleunderskud + egne underskud først + stk. 4 negativ personlig indkomst + § 13 a gældsordning \u{00B7} AM normal- og særtilfælde \u{00B7} kommunal/kirkelig normalberegning \u{00B7} Ligningsloven §§ 5 C/6/6 A/7 N/8/12 B/14 A/16 A/16 H/16 I + §§ 9 J/9 K/9 L/15 P/15 Q \u{00B7} Selskabsskatteloven § 1 stk. 1 nr. 6/§ 17 \u{00B7} Kursgevinstloven \u{00B7} Aktieavancebeskatningsloven §§ 17/18/19 B/19 C/21/22 \u{00B7} Virksomhedsskatteloven §§ 7/22 a/22 c/23 a/11 \u{00B7} Pensionsbeskatningsloven § 53 A \u{00B7} Ejendomsavancebeskatningsloven §§ 1/1 A/2/4/11 \u{00B7} Ejendomsskatteloven § 3 \u{00B7} Afskrivningsloven § 40 C \u{00B7} § 14 delår/stk. 2 valg + lovniveau skatteberegning + ekstern DJV-differential \u{00B7} personlig og positiv-kapital § 19 skatteloft som typed nedslag inkl. Langeland høj kommuneskat + SKM-nedslag \u{00B7} § 20 kildefast reguleringstal \u{00B7} Kildeskatteloven A-indkomst/A-skat/slutopgørelse/restskat-timing/B-skat/minimumsplan/systemdato-styrede § 61 stk. 4/stk. 6-rateplaner/§ 62 A \u{00B7} BEK 839 forskudskort \u{00B7} BEK 1094 indeholdelsesprocent \u{00B7} Opkrævningsloven betalingsfrister, § 7-rente og tværårssplit \u{00B7} kildefaste 2024/2025/2026 parameterpakker \u{00B7} wage-earner, delår, ekstern differential, husholdning, boligsikring, slutopgørelse, afregning, kapital og § 13 fixtures \u{00B7} audit-signaler"
                     }
                 }
 
