@@ -1,0 +1,41 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Focused audit for Personskatteloven § 4, stk. 1, nr. 4, 5, 5 a og 5 b.
+-- The original legal texts are copied in kapitel-01-indkomst.runa,
+-- ligningsloven_kapitalindkomst.runa and aktieavancebeskatningsloven.runa.
+
+= par4_stk1_nr4_5_audit_aggregat = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [
+        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_udbytte_input, Sandt, NormalForrentning, Falskt),
+        par4_stk1_nr4_kapitalpost_fra_ligningslov16a(par4_stk1_nr4_andelsudlodning_personlig_input, Sandt, IkkeNormalForrentning, Falskt),
+        par4_stk1_nr5_kapitalpost_fra_aktieavancebeskatningslov(abl19c_kapital_input),
+        par4_stk1_nr5a_kapitalpost(par4_stk1_nr5a_fixture_input),
+        par4_stk1_nr5b_kapitalpost(par4_stk1_nr5b_fixture_input),
+        par4_stk1_nr5b_kapitalpost(par4_stk1_nr5b_hvis17_fixture_input)
+    ],
+    omkostninger = []
+))
+
+| par4_stk1_nr4_audit_ll16a_udbytte_til_kapital: par4_stk1_nr4_udbytte_fixture -> par4_stk1_nr4_udbytte_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr4_udbytte_fixture.kapitalindkomst_kroner == 10000
+| par4_stk4_audit_andelsudlodning_til_personlig: par4_stk1_nr4_andelsudlodning_personlig_fixture -> par4_stk1_nr4_andelsudlodning_personlig_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr4_andelsudlodning_personlig_fixture.personlig_reklassifikation == AndelsUdlodningIkkeNormal
+| par4_stk1_nr5_audit_abl19c_til_kapital: par4_stk1_nr5_abl19c_fixture -> par4_stk1_nr5_abl19c_fixture.kapitalindkomst_kroner == 12000 && par4_stk1_nr5_abl19c_fixture.personlig_reklassifikation == IngenPersonligReklassifikation
+| par4_stk1_nr5_audit_abl22_tab_til_kapital: par4_stk1_nr5_abl22_tab_fixture -> par4_stk1_nr5_abl22_tab_fixture.kapitalindkomst_kroner == -3000
+| par4_stk5_audit_abl19c_hvis17_til_personlig: par4_stk1_nr5_abl19c_hvis17_fixture -> par4_stk1_nr5_abl19c_hvis17_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr5_abl19c_hvis17_fixture.personlig_reklassifikation == Aktieavance19CHvis17Aktier
+| par4_stk1_nr5a_audit_medlemsbevis_til_kapital: par4_stk1_nr5a_fixture -> par4_stk1_nr5a_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr5a_fixture.kapitalindkomst_kroner == 5000
+| par4_stk1_nr5a_audit_investeringsforening_udelukkes: par4_stk1_nr5a_investeringsforening_fixture -> par4_stk1_nr5a_investeringsforening_fixture.omfattet_af_kapitalindkomst == Falskt && par4_stk1_nr5a_investeringsforening_fixture.kapitalindkomst_kroner == 0
+| par4_stk1_nr5b_audit_formidlerbeløb_til_kapital: par4_stk1_nr5b_fixture -> par4_stk1_nr5b_fixture.omfattet_af_kapitalindkomst == Sandt && par4_stk1_nr5b_fixture.kapitalindkomst_kroner == 4000
+| par4_stk6_audit_formidler19c_hvis17_til_personlig: par4_stk1_nr5b_hvis17_fixture -> par4_stk1_nr5b_hvis17_fixture.kapitalindkomst_kroner == 0 && par4_stk1_nr5b_hvis17_fixture.personlig_reklassifikation == Investeringsformidler19CHvis17Aktier
+| par4_stk1_nr4_5_audit_aggregat: par4_stk1_nr4_5_audit_aggregat -> par4_stk1_nr4_5_audit_aggregat.postbeløb_i_kapitalindkomst_kroner == 31000 && par4_stk1_nr4_5_audit_aggregat.nettokapitalindkomst_kroner == 31000 && par4_stk1_nr4_5_audit_aggregat.omklassificeret_personlig_indkomst_kroner == 11000
+
+? par4_stk1_nr4_audit_ll16a_udbytte_til_kapital
+? par4_stk4_audit_andelsudlodning_til_personlig
+? par4_stk1_nr5_audit_abl19c_til_kapital
+? par4_stk1_nr5_audit_abl22_tab_til_kapital
+? par4_stk5_audit_abl19c_hvis17_til_personlig
+? par4_stk1_nr5a_audit_medlemsbevis_til_kapital
+? par4_stk1_nr5a_audit_investeringsforening_udelukkes
+? par4_stk1_nr5b_audit_formidlerbeløb_til_kapital
+? par4_stk6_audit_formidler19c_hvis17_til_personlig
+? par4_stk1_nr4_5_audit_aggregat

@@ -184,7 +184,7 @@ Current source-refresh finding:
 - `scripts/refresh-danish-tax-source-status.py --today 20260703 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
   drift between Retsinformation and the encoded source model. On 2026-07-18 it
-  checked 29 records with 0 drift and 0 fetch/parse errors.
+  checked 30 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:
 
@@ -248,6 +248,14 @@ Current § 4 and § 13 amendment/dependency sources:
     deductible losses on ordinary personal claims, selected debt cases and basic
     financial contracts, including thresholding, statutory loss blocks, debt
     forgiveness, foreign-currency debt and contract-loss limitation.
+- Aktieavancebeskatningsloven:
+  `https://www.retsinformation.dk/eli/lta/2025/1098`
+  - XML status on 2026-07-18: `Valid`
+  - §§ 17, 18, 19 B, 19 C, 21 and 22 are modeled as the first
+    Personskatteloven § 4, stk. 1, nr. 5 dependency slice for share and
+    investment-instrument gain/loss classification, including the § 22
+    2.000 kr. threshold, § 18 pre-22 May 1987 bond-exempt loss branch, and
+    § 17/§ 19 C-if-§ 17 personal-income reclassification.
 - Virksomhedsskatteloven:
   `https://www.retsinformation.dk/eli/lta/2021/1836`
   - XML status on 2026-07-18: `Valid`
@@ -283,6 +291,10 @@ Current § 4 and § 13 amendment/dependency sources:
     dependency for running provision/premium amounts and one-off
     provision/premium amounts when the loan or guarantee period is under two
     years.
+  - § 16 A is modeled as the Personskatteloven § 4, stk. 1, nr. 4 dividend
+    dependency, with ordinary taxable dividends flowing to capital income when
+    they are outside § 4 a share income and the § 4, stk. 4/stk. 7 personal
+    reclassification branches kept explicit.
   - § 12 B is modeled as the Personskatteloven § 4, stk. 1, nr. 15
     dependency for taxable and deductible running-payment saldo amounts under
     stk. 4-7 and stk. 9, including stk. 10 application posture and stk. 11
@@ -486,11 +498,16 @@ encoded as a temporal rule on top of the consolidation.
   stk. 1, nr. 12, the LL §§ 6/6 A dependencies consumed by § 4, stk. 1,
   nr. 1, the LL § 8, stk. 3 dependency consumed by § 4, stk. 1, nr. 7, and
   the LL § 12 B dependency consumed by § 4, stk. 1, nr. 15, plus the LL
-  § 14 A dependency consumed by § 4, stk. 1, nr. 10.
+  § 14 A dependency consumed by § 4, stk. 1, nr. 10 and the LL § 16 A
+  dividend slice consumed by § 4, stk. 1, nr. 4.
 - `kursgevinstloven.runa` exists and checks with `runa check`; it covers the
   first Kursgevinstloven dependency slice consumed by Personskatteloven § 4,
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
   financial contracts.
+- `aktieavancebeskatningsloven.runa` exists and checks/runs with `runa run`;
+  it covers the ABL §§ 17/18/19 B/19 C/21/22 dependency slice consumed by
+  Personskatteloven § 4, stk. 1, nr. 5 and the related § 4 a share-income
+  split.
 - `virksomhedsskatteloven.runa` exists and checks/runs with `runa run`; it
   covers the Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return
   dependency consumed by Personskatteloven § 4, stk. 1, nr. 3 and nr. 3 a, and
@@ -520,6 +537,8 @@ encoded as a temporal rule on top of the consolidation.
   `runa run`.
 - `personskatteloven-par4-virksomhedsskattelov-kapitalafkast.audit.runa`
   exists and checks/runs with `runa run`.
+- `personskatteloven-par4-aktie-kapital.audit.runa` exists and checks/runs
+  with `runa run`.
 - `personskatteloven-par4-ligningslov8stk3.audit.runa` exists and checks/runs
   with `runa run`.
 - `personskatteloven-par4-virksomhedsskattelov11.audit.runa` exists and
@@ -577,7 +596,12 @@ encoded as a temporal rule on top of the consolidation.
   treatment, contract loss limitation and personal-income reclassification,
   Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return classification
   under stk. 1, nr. 3 and nr. 3 a, including § 23 a personal-income election
-  reduction, Virksomhedsskatteloven § 11 rentekorrektion under stk. 1, nr. 8
+  reduction, LL § 16 A dividend classification under stk. 1, nr. 4,
+  Aktieavancebeskatningsloven §§ 17/18/19 B/19 C/21/22 gain/loss
+  classification under stk. 1, nr. 5, direct stk. 1, nr. 5 a membership
+  certificate classification, and stk. 1, nr. 5 b investment-intermediary
+  amount classification with stk. 4-7 personal-income reclassification,
+  Virksomhedsskatteloven § 11 rentekorrektion under stk. 1, nr. 8
   with a capital-income deduction and separate personal-income addition,
   passive self-employed business owner-count
   classification under stk. 1, nr. 9 and stk. 9, LL § 14 A stk. 1 payment
@@ -831,6 +855,19 @@ Current decision:
   posture in typed domain objects. `Par4Stk1Nr2Sag` consumes the typed result as
   Personskatteloven § 4, stk. 1, nr. 2 capital income rather than taking a bare
   Kursgevinst scalar.
+- `AktieavancebeskatningslovSag` uses product-scoped `|` rules for the first
+  ABL person slice. It keeps the source asset type, acquisition/disposal
+  amounts, § 17 næring posture, § 18 old-bond loss branch, § 19 B/§ 19 C
+  investment-company classification, § 21/§ 22 listed/unlisted treatment,
+  taxable gain, deductible loss and Personskatteloven category together.
+  `Par4Stk1Nr5Sag` consumes that typed result for § 4, stk. 1, nr. 5 instead
+  of passing a loose share-gain scalar.
+- `Ligningslov16ASag` uses product-scoped `|` rules for the LL § 16 A dividend
+  slice consumed by `Par4Stk1Nr4Sag`. `Par4Stk1Nr4Sag`,
+  `Par4Stk1Nr5aSag` and `Par4Stk1Nr5bSag` keep the original amount,
+  capital-income classification and personal-income reclassification together
+  so the § 4 aggregate can move amounts between net capital income and
+  personal income without losing the source reason.
 - `Ligningslov8Stk3Sag` uses product-scoped `|` rules for LL § 8, stk. 3. It
   keeps the provision/premium branch, expense amount and loan/guarantee period
   together, so litra a/b running amounts are deductible and litra c one-off

@@ -22514,10 +22514,13 @@ impl RustCodegen {
                         out.push_str(&format!(
                             "        if {} {{ return {}; }}\n",
                             cg.emit_expr(cond),
-                            cg.emit_expr(value)
+                            cg.emit_rule_value_expr(value, ret_ty)
                         ));
                     } else {
-                        out.push_str(&format!("        return {};\n", cg.emit_expr(value)));
+                        out.push_str(&format!(
+                            "        return {};\n",
+                            cg.emit_rule_value_expr(value, ret_ty)
+                        ));
                         out.push_str("    }\n\n");
                         return out;
                     }
@@ -22534,7 +22537,7 @@ impl RustCodegen {
                     out.push_str(&format!(
                         "        if {} {{ return {}; }}\n",
                         cg.emit_expr(cond),
-                        cg.emit_expr(value)
+                        cg.emit_rule_value_expr(value, ret_ty)
                     ));
                 }
             }
@@ -22546,7 +22549,10 @@ impl RustCodegen {
                         condition: None,
                         ..
                     } => {
-                        out.push_str(&format!("        return {};\n", cg.emit_expr(value)));
+                        out.push_str(&format!(
+                            "        return {};\n",
+                            cg.emit_rule_value_expr(value, ret_ty)
+                        ));
                         out.push_str("    }\n\n");
                         return out;
                     }
@@ -22561,7 +22567,10 @@ impl RustCodegen {
                     Rule::Clause {
                         body: Some(body), ..
                     } => {
-                        out.push_str(&format!("        return {};\n", cg.emit_expr(body)));
+                        out.push_str(&format!(
+                            "        return {};\n",
+                            cg.emit_rule_value_expr(body, ret_ty)
+                        ));
                         out.push_str("    }\n\n");
                         return out;
                     }
@@ -22639,6 +22648,7 @@ impl RustCodegen {
             .as_ref()
             .map(|ty| format!(" -> {}", self.emit_type(ty)))
             .unwrap_or_default();
+        let expected_ret_fir_ty = ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
         let (scope_names, scope_tys) = self.rule_scope_input_names_and_tys(scope_params);
         let mut all_names = scope_names.clone();
         all_names.extend(method_param_names.clone());
@@ -22680,7 +22690,9 @@ impl RustCodegen {
             cg.var_consuming_counts = ownership.consuming_uses;
             let saved_indent = cg.indent;
             cg.indent = 2;
-            out.push_str(&cg.emit_expr_as_return(body));
+            out.push_str(
+                &cg.emit_expr_as_return_with_expected_ty(body, expected_ret_fir_ty.as_ref()),
+            );
             cg.indent = saved_indent;
             cg.var_use_counts = prev_counts;
             cg.var_consuming_counts = prev_consuming;
@@ -23081,6 +23093,7 @@ impl RustCodegen {
                                 .as_ref()
                                 .map(|t| format!(" -> {}", self.emit_type(t)))
                                 .unwrap_or_default();
+                            let expected_ret_fir_ty = ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
                             out.push_str(&format!(
                                 "fn {}({}){} {{\n",
                                 sanitize_name(mname),
@@ -23096,7 +23109,10 @@ impl RustCodegen {
                             self.var_consuming_counts = ownership.consuming_uses;
                             let saved_indent = self.indent;
                             self.indent = 1;
-                            out.push_str(&self.emit_expr_as_return(body));
+                            out.push_str(&self.emit_expr_as_return_with_expected_ty(
+                                body,
+                                expected_ret_fir_ty.as_ref(),
+                            ));
                             self.indent = saved_indent;
                             self.var_use_counts = prev_counts;
                             self.var_consuming_counts = prev_consuming;
@@ -23180,6 +23196,7 @@ impl RustCodegen {
                         .as_ref()
                         .map(|t| format!(" -> {}", self.emit_type(t)))
                         .unwrap_or_default();
+                    let expected_ret_fir_ty = m.ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
                     if let Some(body) = &m.default_body {
                         out.push_str(&format!(
                             "    fn {}({}){} {{\n",
@@ -23193,7 +23210,10 @@ impl RustCodegen {
                         let rewritten = Self::rewrite_self_calls(body);
                         let prev_in_self = self.in_self_method;
                         self.in_self_method = true;
-                        out.push_str(&self.emit_expr_as_return(&rewritten));
+                        out.push_str(&self.emit_expr_as_return_with_expected_ty(
+                            &rewritten,
+                            expected_ret_fir_ty.as_ref(),
+                        ));
                         self.in_self_method = prev_in_self;
                         self.indent = saved_indent;
                         out.push_str("    }\n\n");
@@ -23258,6 +23278,7 @@ impl RustCodegen {
                                 .as_ref()
                                 .map(|t| format!(" -> {}", self.emit_type(t)))
                                 .unwrap_or_default();
+                            let expected_ret_fir_ty = ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
                             out.push_str(&format!(
                                 "    fn {}({}){} {{\n",
                                 mname,
@@ -23274,7 +23295,10 @@ impl RustCodegen {
                             self.indent = 2;
                             let prev_in_self = self.in_self_method;
                             self.in_self_method = true;
-                            out.push_str(&self.emit_expr_as_return(body));
+                            out.push_str(&self.emit_expr_as_return_with_expected_ty(
+                                body,
+                                expected_ret_fir_ty.as_ref(),
+                            ));
                             self.in_self_method = prev_in_self;
                             self.indent = saved_indent;
                             self.var_use_counts = prev_counts;
@@ -23350,6 +23374,7 @@ impl RustCodegen {
                             .as_ref()
                             .map(|t| format!(" -> {}", self.emit_type(t)))
                             .unwrap_or_default();
+                        let expected_ret_fir_ty = ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
                         out.push_str(&format!(
                             "fn {}({}){} {{\n",
                             sanitize_name(mname),
@@ -23364,7 +23389,10 @@ impl RustCodegen {
                         self.var_consuming_counts = ownership.consuming_uses;
                         let saved_indent = self.indent;
                         self.indent = 1;
-                        out.push_str(&self.emit_expr_as_return(body));
+                        out.push_str(&self.emit_expr_as_return_with_expected_ty(
+                            body,
+                            expected_ret_fir_ty.as_ref(),
+                        ));
                         self.indent = saved_indent;
                         self.var_use_counts = prev_counts;
                         self.var_consuming_counts = prev_consuming;
@@ -26173,6 +26201,7 @@ impl RustCodegen {
         let ret_type = self
             .infer_rule_return_type(rules, &params, &inferred_param_tys)
             .unwrap_or_else(|| "bool".to_string());
+        let ret_fir_ty = Self::rust_type_to_fir(&ret_type);
 
         // Mark non-Copy rule params for .clone() at each use site
         for (p, ty) in params.iter().zip(inferred_param_tys.iter()) {
@@ -26261,10 +26290,13 @@ impl RustCodegen {
                         out.push_str(&format!(
                             "    if {} {{ return {}; }}\n",
                             cg.emit_expr(cond),
-                            cg.emit_expr(value)
+                            cg.emit_rule_value_expr(value, &ret_fir_ty)
                         ));
                     } else {
-                        out.push_str(&format!("    return {};\n", cg.emit_expr(value)));
+                        out.push_str(&format!(
+                            "    return {};\n",
+                            cg.emit_rule_value_expr(value, &ret_fir_ty)
+                        ));
                         out.push_str("}\n");
                         return out;
                     }
@@ -26282,7 +26314,7 @@ impl RustCodegen {
                     out.push_str(&format!(
                         "    if {} {{ return {}; }}\n",
                         cg.emit_expr(cond),
-                        cg.emit_expr(value)
+                        cg.emit_rule_value_expr(value, &ret_fir_ty)
                     ));
                 }
             }
@@ -26295,7 +26327,10 @@ impl RustCodegen {
                         condition: None,
                         ..
                     } => {
-                        out.push_str(&format!("    {}\n", cg.emit_expr(value)));
+                        out.push_str(&format!(
+                            "    {}\n",
+                            cg.emit_rule_value_expr(value, &ret_fir_ty)
+                        ));
                         out.push_str("}\n");
                         return out;
                     }
@@ -26308,7 +26343,10 @@ impl RustCodegen {
                                 cg.emit_expr(body)
                             ));
                         } else {
-                            out.push_str(&format!("    {}\n", cg.emit_expr(body)));
+                            out.push_str(&format!(
+                                "    {}\n",
+                                cg.emit_rule_value_expr(body, &ret_fir_ty)
+                            ));
                             out.push_str("}\n");
                             return out;
                         }
@@ -26498,6 +26536,7 @@ impl RustCodegen {
                     .as_ref()
                     .map(|t| format!(" -> {}", self.emit_type(t)))
                     .unwrap_or_default();
+                let expected_ret_fir_ty = ret_ty.as_ref().map(LoweringCtx::ty_to_fir);
 
                 // Collect generic type variables from all param types + return type
                 let mut type_vars = Vec::new();
@@ -26678,7 +26717,12 @@ impl RustCodegen {
                 if tce_safe {
                     out.push_str(&self.emit_tce_body(name, params, &borrow_flags, body));
                 } else {
-                    out.push_str(&self.emit_expr_as_return(body));
+                    out.push_str(
+                        &self.emit_expr_as_return_with_expected_ty(
+                            body,
+                            expected_ret_fir_ty.as_ref(),
+                        ),
+                    );
                 }
                 self.allow_global_getter_refs = prev_allow_global_getter_refs;
                 self.binary_global_env_arg_in_scope = prev_binary_global_env_arg_in_scope;
@@ -31221,6 +31265,15 @@ impl RustCodegen {
             })
     }
 
+    fn emit_expr_with_expected_ty(&mut self, expr: &Expr, expected_ty: &FirTy) -> String {
+        self.emit_nullary_constructor_with_expected_ty(expr, expected_ty)
+            .unwrap_or_else(|| self.emit_expr(expr))
+    }
+
+    fn emit_rule_value_expr(&mut self, expr: &Expr, expected_ty: &FirTy) -> String {
+        self.emit_expr_with_expected_ty(expr, expected_ty)
+    }
+
     fn emit_expr(&mut self, expr: &Expr) -> String {
         match &expr.kind {
             ExprKind::Var(name) => {
@@ -34214,7 +34267,11 @@ impl RustCodegen {
             && self.var_use_counts.get(name).copied().unwrap_or(0) > 1
     }
 
-    fn emit_block_body_lines(&mut self, stmts: &[Stmt]) -> String {
+    fn emit_block_body_lines_with_expected_ty(
+        &mut self,
+        stmts: &[Stmt],
+        expected_ty: Option<&FirTy>,
+    ) -> String {
         let mut out = String::new();
         for (i, stmt) in stmts.iter().enumerate() {
             let is_last = i == stmts.len() - 1;
@@ -34224,7 +34281,10 @@ impl RustCodegen {
                     collect_pattern_names(pat, &mut self.local_bindings);
                 }
                 Stmt::Expr(expr) if is_last => {
-                    out.push_str(&format!("{}{}\n", self.ind(), self.emit_expr(expr)));
+                    let rendered = expected_ty
+                        .map(|ty| self.emit_expr_with_expected_ty(expr, ty))
+                        .unwrap_or_else(|| self.emit_expr(expr));
+                    out.push_str(&format!("{}{}\n", self.ind(), rendered));
                 }
                 _ => out.push_str(&self.emit_stmt(stmt)),
             }
@@ -34232,11 +34292,24 @@ impl RustCodegen {
         out
     }
 
-    fn emit_expr_as_return(&mut self, expr: &Expr) -> String {
+    fn emit_block_body_lines(&mut self, stmts: &[Stmt]) -> String {
+        self.emit_block_body_lines_with_expected_ty(stmts, None)
+    }
+
+    fn emit_expr_as_return_with_expected_ty(
+        &mut self,
+        expr: &Expr,
+        expected_ty: Option<&FirTy>,
+    ) -> String {
         match &expr.kind {
-            ExprKind::Block(stmts) => self.emit_block_body_lines(stmts),
+            ExprKind::Block(stmts) => {
+                self.emit_block_body_lines_with_expected_ty(stmts, expected_ty)
+            }
             _ => {
-                format!("{}{}\n", self.ind(), self.emit_expr(expr))
+                let rendered = expected_ty
+                    .map(|ty| self.emit_expr_with_expected_ty(expr, ty))
+                    .unwrap_or_else(|| self.emit_expr(expr));
+                format!("{}{}\n", self.ind(), rendered)
             }
         }
     }
@@ -42717,6 +42790,108 @@ for x in [1, 2] {
         assert!(
             !rust.contains("value.clone() == Other::Shared"),
             "typed comparison must not use the later duplicate constructor parent: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_rule_value_uses_return_parent_for_duplicate_nullary_constructor() {
+        let source = r#"
+# Desired = Shared | DesiredOnly
+# Other = Shared | OtherOnly
+| choose(flag: Bool) -> DesiredOnly
+| exception shared_case choose(flag: Bool) -> Shared under flag
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rules: Vec<&Rule> = stmts
+            .iter()
+            .filter_map(|stmt| {
+                if let Stmt::Rule(rule) = stmt {
+                    Some(rule)
+                } else {
+                    None
+                }
+            })
+            .filter(|rule| {
+                let head = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    Rule::ReactiveScope { .. } => return false,
+                };
+                matches!(&head.kind, ExprKind::App(func, _) if matches!(&func.kind, ExprKind::Var(name) if name == "choose"))
+            })
+            .collect();
+        let rust = cg.emit_rule_function("choose", &rules);
+        assert!(
+            rust.contains("fn choose(flag: bool) -> Desired {"),
+            "rule signature should infer the enum return type: {}",
+            rust
+        );
+        assert!(
+            rust.contains("return Desired::Shared;"),
+            "rule exception value should qualify duplicate constructor with the return enum: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("return Other::Shared;"),
+            "rule exception value must not use the later duplicate constructor parent: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_rulescope_value_uses_return_parent_for_duplicate_nullary_constructor() {
+        let source = r#"
+# Desired = Shared | DesiredOnly
+# Other = Shared | OtherOnly
+# Decision(flag: Bool) {
+    | pick() -> DesiredOnly
+    | exception shared_case pick() -> Shared under flag
+}
+= picked = Decision(Sandt).pick()
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn pick(&self) -> Desired {"),
+            "RuleScope method should infer the enum return type: {}",
+            rust
+        );
+        assert!(
+            rust.contains("return Desired::Shared;"),
+            "RuleScope exception value should qualify duplicate constructor with the return enum: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("return Other::Shared;"),
+            "RuleScope exception value must not use the later duplicate constructor parent: {}",
+            rust
+        );
+    }
+
+    #[test]
+    fn legacy_emit_function_body_uses_annotated_parent_for_duplicate_nullary_constructor() {
+        let source = r#"
+# Desired = Shared | DesiredOnly
+# Other = Shared | OtherOnly
+> choose() -> Desired { Shared }
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn choose() -> Desired {"),
+            "annotated function should keep the declared enum return type: {}",
+            rust
+        );
+        assert!(
+            rust.contains("fn choose() -> Desired {\n    Desired::Shared\n}"),
+            "function return body should qualify duplicate constructor with the annotated return enum: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("fn choose() -> Desired {\n    Other::Shared"),
+            "function return body must not use the later duplicate constructor parent: {}",
             rust
         );
     }
