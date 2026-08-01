@@ -1,0 +1,86 @@
+@ sprog da
+
+-- Skattekontrolloven — selected deadline dependency for Personskatteloven.
+--
+-- Kilde: Retsinformation, LBK nr. 12 af 08/01/2024.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/12
+-- XML: https://www.retsinformation.dk/eli/lta/2024/12/dan/xml
+
+----
+§ 10. Fysiske personer, der modtager en årsopgørelse efter regler udstedt i
+medfør af § 8, stk. 1, skal give told- og skatteforvaltningen oplysninger som
+nævnt i § 2 senest den 1. maj i året efter indkomstårets udløb, jf. dog stk. 2.
+
+Stk. 2. Følgende personer skal senest den 1. juli i året efter indkomstårets
+udløb give told- og skatteforvaltningen oplysninger som nævnt i § 2:
+1) Personer, som modtager en årsopgørelse, men som ifølge lovgivningen
+forudsættes at indgive et oplysningsskema, jf. § 8, stk. 1, nr. 2.
+2) Personer, som modtager en servicemeddelelse, jf. § 8, stk. 2.
+3) Personer, som giver told- og skatteforvaltningen meddelelse som nævnt i § 8,
+stk. 3.
+
+§ 11. Fysiske personer, som er omfattet af § 5, skal give told- og
+skatteforvaltningen oplysninger som nævnt i § 2 senest den 1. juli i året efter
+indkomstårets udløb.
+
+§ 13. Udløber oplysningsfristen i §§ 10-12 dagen før eller på en lørdag, søndag
+eller helligdag, anses oplysningerne for rettidigt givet, hvis den
+skattepligtige giver told- og skatteforvaltningen oplysningerne senest den
+førstkommende hverdag kl. 9.00.
+----
+
+# SkattekontrollovOplysningsfristKilde = SkattekontrollovenLbk12Af2024Par10Stk2 | SkattekontrollovenLbk12Af2024Par11
+# SkattekontrollovOplysningsfristInput(indkomstår: Heltal, kilde: SkattekontrollovOplysningsfristKilde, fristdag_dagen_før_eller_på_lørdag_søndag_helligdag: Boolsk, førstkommende_hverdag_yyyymmdd: Heltal, handling_yyyymmdd: Heltal)
+# SkattekontrollovOplysningsfristResultat(kilde: SkattekontrollovOplysningsfristKilde, indkomstår: Heltal, ordinær_frist_yyyymmdd: Heltal, par13_udskyder_frist: Boolsk, frist_efter_par13_yyyymmdd: Heltal, handling_yyyymmdd: Heltal, rettidigt: Boolsk)
+
+| skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(indkomstår: Heltal, kilde: SkattekontrollovOplysningsfristKilde) -> (indkomstår + 1) * 10000 + 701 under kilde == SkattekontrollovenLbk12Af2024Par10Stk2 || kilde == SkattekontrollovenLbk12Af2024Par11
+
+# SkattekontrollovOplysningsfristSag(input: SkattekontrollovOplysningsfristInput) {
+    | ordinær_frist_yyyymmdd() -> skattekontrollov_oplysningsfrist_ordinær_yyyymmdd(input.indkomstår, input.kilde)
+    | par13_udskyder_frist() -> input.fristdag_dagen_før_eller_på_lørdag_søndag_helligdag
+    | frist_efter_par13_yyyymmdd() -> ordinær_frist_yyyymmdd()
+    | exception par13_førstkommende_hverdag frist_efter_par13_yyyymmdd() -> input.førstkommende_hverdag_yyyymmdd under par13_udskyder_frist() && input.førstkommende_hverdag_yyyymmdd > ordinær_frist_yyyymmdd()
+    | rettidigt() -> input.handling_yyyymmdd > 0 && input.handling_yyyymmdd <= frist_efter_par13_yyyymmdd()
+    | resultat() -> SkattekontrollovOplysningsfristResultat(
+        kilde = input.kilde,
+        indkomstår = input.indkomstår,
+        ordinær_frist_yyyymmdd = ordinær_frist_yyyymmdd(),
+        par13_udskyder_frist = par13_udskyder_frist(),
+        frist_efter_par13_yyyymmdd = frist_efter_par13_yyyymmdd(),
+        handling_yyyymmdd = input.handling_yyyymmdd,
+        rettidigt = rettidigt()
+    )
+}
+| skattekontrollov_oplysningsfrist_sag(input: SkattekontrollovOplysningsfristInput) -> SkattekontrollovOplysningsfristSag(input)
+| skattekontrollov_oplysningsfrist_resultat(input: SkattekontrollovOplysningsfristInput) -> skattekontrollov_oplysningsfrist_sag(input).resultat()
+| skattekontrollov_par10_stk2_oplysningsfrist_input(indkomstår: Heltal, handling_yyyymmdd: Heltal) -> SkattekontrollovOplysningsfristInput(
+    indkomstår = indkomstår,
+    kilde = SkattekontrollovenLbk12Af2024Par10Stk2,
+    fristdag_dagen_før_eller_på_lørdag_søndag_helligdag = Falskt,
+    førstkommende_hverdag_yyyymmdd = 0,
+    handling_yyyymmdd = handling_yyyymmdd
+)
+| skattekontrollov_par11_oplysningsfrist_input(indkomstår: Heltal, handling_yyyymmdd: Heltal) -> SkattekontrollovOplysningsfristInput(
+    indkomstår = indkomstår,
+    kilde = SkattekontrollovenLbk12Af2024Par11,
+    fristdag_dagen_før_eller_på_lørdag_søndag_helligdag = Falskt,
+    førstkommende_hverdag_yyyymmdd = 0,
+    handling_yyyymmdd = handling_yyyymmdd
+)
+
+= skattekontrollov_par10_stk2_rettidig_input = skattekontrollov_par10_stk2_oplysningsfrist_input(2026, 20270701)
+= skattekontrollov_par10_stk2_for_sen_input = skattekontrollov_par10_stk2_oplysningsfrist_input(2026, 20270702)
+= skattekontrollov_par11_par13_udskudt_input = SkattekontrollovOplysningsfristInput(
+    indkomstår = 2026,
+    kilde = SkattekontrollovenLbk12Af2024Par11,
+    fristdag_dagen_før_eller_på_lørdag_søndag_helligdag = Sandt,
+    førstkommende_hverdag_yyyymmdd = 20270702,
+    handling_yyyymmdd = 20270702
+)
+= skattekontrollov_par10_stk2_rettidig_fixture = skattekontrollov_oplysningsfrist_resultat(skattekontrollov_par10_stk2_rettidig_input)
+= skattekontrollov_par10_stk2_for_sen_fixture = skattekontrollov_oplysningsfrist_resultat(skattekontrollov_par10_stk2_for_sen_input)
+= skattekontrollov_par11_par13_udskudt_fixture = skattekontrollov_oplysningsfrist_resultat(skattekontrollov_par11_par13_udskudt_input)
+
+| skattekontrollov_par10_stk2_1_juli_frist: skattekontrollov_par10_stk2_rettidig_fixture -> skattekontrollov_par10_stk2_rettidig_fixture.kilde == SkattekontrollovenLbk12Af2024Par10Stk2 && skattekontrollov_par10_stk2_rettidig_fixture.ordinær_frist_yyyymmdd == 20270701 && skattekontrollov_par10_stk2_rettidig_fixture.rettidigt == Sandt
+| skattekontrollov_par10_stk2_for_sen: skattekontrollov_par10_stk2_for_sen_fixture -> skattekontrollov_par10_stk2_for_sen_fixture.rettidigt == Falskt
+| skattekontrollov_par13_udskyder_til_førstkommende_hverdag: skattekontrollov_par11_par13_udskudt_fixture -> skattekontrollov_par11_par13_udskudt_fixture.kilde == SkattekontrollovenLbk12Af2024Par11 && skattekontrollov_par11_par13_udskudt_fixture.par13_udskyder_frist == Sandt && skattekontrollov_par11_par13_udskudt_fixture.frist_efter_par13_yyyymmdd == 20270702 && skattekontrollov_par11_par13_udskudt_fixture.rettidigt == Sandt

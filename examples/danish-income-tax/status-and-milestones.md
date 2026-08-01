@@ -35,7 +35,9 @@ Virksomhedsskatteloven § 7, § 22 a, § 22 c and § 23 a results for business
 capital return, including positive/period-proportional § 7 return capped by
 taxable surplus, § 22 a election and stk. 3 ceiling, § 22 c acquisition
 conditions and proportional ownership period, and the § 23 a personal-income
-election reducing the capital-income amount; § 4, stk. 1, nr. 5 a now consumes
+election reducing the capital-income amount, while § 4, stk. 1, nr. 3's
+transfer deadline now flows through a typed Skattekontrolloven §§ 10/11/13
+result instead of a raw boolean; § 4, stk. 1, nr. 5 a now consumes
 a typed Selskabsskatteloven § 1, stk. 1, nr. 6 result for membership
 certificates in taxable associations etc., preserving the LBK 279/2025 source
 line, the investment-association carve-out and the § 3/fondsbeskatningsloven
@@ -301,11 +303,21 @@ Current § 4 and § 13 amendment/dependency sources:
 - Virksomhedsskatteloven:
   `https://www.retsinformation.dk/eli/lta/2021/1836`
   - XML status on 2026-07-18: `Valid`
+  - §§ 7, 22 a, 22 c and 23 a are modeled as the Personskatteloven § 4,
+    stk. 1, nr. 3/3 a dependency for business capital return, including the
+    § 23 a personal-income election before the remaining capital return can
+    flow into capital income.
   - § 11, stk. 1-3 is modeled as the Personskatteloven § 4, stk. 1, nr. 8
     dependency for rentekorrektion, including the negative indskudskonto
     basis, afkastgrundlag and net-financing caps, the stk. 2
     transfer/indskud cap and the mirrored personal-income addition plus
     capital-income deduction under stk. 3.
+- Skattekontrolloven:
+  `https://www.retsinformation.dk/eli/lta/2024/12`
+  - XML status checked on 2026-07-18: `Valid`
+  - §§ 10, stk. 2, 11 and 13 are modeled as the Personskatteloven § 4,
+    stk. 1, nr. 3 deadline dependency, so timely transfer is derived from a
+    source-backed oplysningsfrist result rather than passed as a loose boolean.
 - Pensionsbeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2024/1243`
   - XML status on 2026-07-18: `Valid`
@@ -954,6 +966,11 @@ Current decision:
   investment firm, investment-management company, alternative-investment-fund
   manager, financial adviser or investment adviser is distinguished from a
   non-listed intermediary before the amount can enter capital income.
+- `SkattekontrollovOplysningsfristSag` keeps the income year, § 10 stk. 2 or
+  § 11 deadline source, ordinary July 1 deadline, § 13 first-weekday extension
+  and actual transfer date together. `Par4Stk1Nr3Sag` consumes that typed
+  result for the "overført ... inden oplysningsfristen" condition instead of
+  accepting a bare boolean.
 - `Ligningslov7NSag` uses product-scoped `|` rules for the LL § 7 N
   medarbejderinvesteringsselskab slice. It keeps the statutory employer
   contribution cap, Danish registration branch, EU/EØS approval branch,
