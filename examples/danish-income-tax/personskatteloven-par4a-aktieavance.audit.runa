@@ -13,9 +13,7 @@
         par4a_aktiepost_fra_aktieavancebeskatningslov(abl19b_hvis17_input),
         par4a_aktiepost_fra_aktieavancebeskatningslov(abl19c_kapital_input)
     ],
-    ønsket_pensionsfradrag_kroner = 0,
-    pensionsfradrag_meddelt_forvaltning = Sandt,
-    pensionsfradrag_fradraget_i_personlig_indkomst = Falskt
+    pensionsfradrag_valg_resultat = par4a_intet_pensionsfradrag_valg(2026)
 ))
 
 | par4a_audit_abl19b_til_aktieindkomst: par4a_abl19b_aktieindkomst_fixture -> par4a_abl19b_aktieindkomst_fixture.afgrænsning == AktiepostOmfattetAfStk1 && par4a_abl19b_aktieindkomst_fixture.aktieindkomst_kroner == 20000

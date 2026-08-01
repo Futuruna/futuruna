@@ -895,11 +895,13 @@ Current decision:
   income, debtor deficit, debtor loss, 40 pct. negative share-tax reduction,
   remaining amount after the debtor, spouse non-business netting under stk. 3,
   and cohabiting spouse business-deficit reduction under stk. 2.
-- `Par4aPensionsfradragSag` uses product-scoped `|` rules for the § 4 a,
-  stk. 4 amount layer. The scope keeps positive share income, the requested
-  pension deduction, notice to the tax administration, no-double-deduction
-  status, capped deduction, remaining share income, and disallowed amount
-  together while stable wrapper rules expose the calculation to audits.
+- `AktiePensionsFradragValgSag` and `Par4aPensionsfradragSag` use
+  product-scoped `|` rules for the § 4 a, stk. 4 election and amount layer. The
+  election scope keeps income year, requested pension deduction, notice date,
+  statutory reversal deadline, timely reversal, and personal-income deduction
+  status together. The amount scope consumes that typed result with positive
+  share income to derive capped deduction, remaining share income, disallowed
+  amount and double-deduction blocking.
 - `Par4Stk1Nr9Sag` uses product-scoped `|` rules for § 4, stk. 1, nr. 9 and
   stk. 9. It keeps the business type, total owner count, personal owner count,
   LL § 8 P owner exclusion, substantial-participation condition, covered
@@ -1455,9 +1457,10 @@ Review candidates to revisit deliberately, not as broad churn:
   § 4 a's amount-level audit now covers included and excluded share-income
   posts, § 19 B-to-§ 17 personal-income reclassification, negative share-income
   preservation and pensionsfradrag in positive share income: the deduction is
-  capped at positive share income, requires notice to the tax administration,
-  is blocked if already deducted in personal income, and is unavailable without
-  positive share income.
+  capped at positive share income, derives notice and requested amount through a
+  typed election result, is cancelled by timely reversal by 30 June in the
+  second calendar year after the income year, is blocked if already deducted in
+  personal income, and is unavailable without positive share income.
 - Add more trusted external differential fixtures after the first § 14/§ 19
   external slice. The ordinary 2026 Copenhagen wage-earner path now has a
   source-backed Skat.dk calculator fixture for final tax and generated tax-card
