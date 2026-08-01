@@ -1,0 +1,7 @@
+-- expect-skip: dependency-only fixture for imported generic rule annotations
+
+@ export
+# ImportedLedgerEntry(amount: Int)
+
+@ export
+| imported_ledger_total(entries: List(ImportedLedgerEntry)) -> foldl(entries, 0, |total, entry| total + entry.amount)

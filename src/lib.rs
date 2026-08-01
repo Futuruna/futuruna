@@ -6339,15 +6339,13 @@ impl Parser {
                 continue;
             }
             let arg = self.parse_expr()?;
-            // Allow optional type annotation `: Type` on args (used in rule heads)
-            // Store as App(Var("__typed"), [arg, Var(TypeName)]) for runtime constraint
+            // Allow optional type annotation `: Type` on args (used in rule heads).
+            // Keep the canonical Futuruna spelling so generic annotations can be
+            // reconstructed as Ty instead of leaking Rust debug output downstream.
             if self.peek_kind() == TokenKind::Colon {
                 self.advance(); // consume ':'
                 let ty = self.parse_type()?;
-                let type_name = match &ty {
-                    Ty::Name(n) => n.clone(),
-                    _ => format!("{:?}", ty),
-                };
+                let type_name = ty.to_string();
                 // Wrap in a typed annotation that the interpreter can check
                 args.push(
                     ExprKind::App(
@@ -6601,6 +6599,26 @@ impl Parser {
             &start_tok,
         ))
     }
+}
+
+/// Parse the canonical type spelling carried by an internal rule-head
+/// annotation. Rule annotations are represented inside the expression AST for
+/// backward compatibility, while this helper restores the structured `Ty` used
+/// by type checking, interpretation, and code generation.
+pub fn parse_type_annotation(source: &str) -> Result<Ty, String> {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let ty = parser.parse_type()?;
+    parser.skip_semis();
+    if parser.peek_kind() != TokenKind::Eof {
+        let token = parser.peek();
+        return Err(format!(
+            "{}:{}: unexpected `{}` after type annotation",
+            token.line, token.col, token.text
+        ));
+    }
+    Ok(ty)
 }
 
 pub fn op_precedence(op: &str) -> u8 {
@@ -11849,7 +11867,7 @@ impl Interpreter {
         })
     }
 
-    fn value_matches_type(&self, value: &Value, type_name: &str) -> bool {
+    fn value_matches_named_type(&self, value: &Value, type_name: &str) -> bool {
         match type_name {
             "_" | "Any" => true,
             "Unit" => matches!(value, Value::Unit),
@@ -11872,6 +11890,97 @@ impl Interpreter {
                 }
             }
         }
+    }
+
+    fn runtime_constructor_parts(value: &Value) -> Option<(&str, Vec<&Value>)> {
+        match value {
+            Value::Constructor(name, fields) => Some((name, fields.iter().collect())),
+            Value::NamedConstructor(name, fields) => {
+                Some((name, fields.iter().map(|(_, value)| value).collect()))
+            }
+            _ => None,
+        }
+    }
+
+    fn value_matches_ty(&self, value: &Value, ty: &Ty) -> bool {
+        match ty {
+            Ty::Name(type_name) | Ty::Var(type_name) => {
+                self.value_matches_named_type(value, type_name)
+            }
+            Ty::App(base, args) => {
+                let base_name = match base.as_ref() {
+                    Ty::Name(name) | Ty::Var(name) => name.as_str(),
+                    _ => return false,
+                };
+                match (base_name, args.as_slice(), value) {
+                    ("List", [item_ty], value) => {
+                        let is_list = match value {
+                            Value::List(_) => true,
+                            Value::Constructor(name, _) => name == "Cons" || name == "Nil",
+                            _ => false,
+                        };
+                        is_list
+                            && list_to_vec(value)
+                                .iter()
+                                .all(|item| self.value_matches_ty(item, item_ty))
+                    }
+                    ("Option", [item_ty], value) => match Self::runtime_constructor_parts(value) {
+                        Some(("None", fields)) => fields.is_empty(),
+                        Some(("Some", fields)) => matches!(fields.as_slice(), [item]
+                                if self.value_matches_ty(item, item_ty)),
+                        _ => false,
+                    },
+                    ("Result", [ok_ty, err_ty], value) => {
+                        match Self::runtime_constructor_parts(value) {
+                            Some(("Ok", fields)) => matches!(fields.as_slice(), [item]
+                                if self.value_matches_ty(item, ok_ty)),
+                            Some(("Err", fields)) => matches!(fields.as_slice(), [item]
+                                if self.value_matches_ty(item, err_ty)),
+                            _ => false,
+                        }
+                    }
+                    ("Map", [_key_ty, value_ty], Value::Map(entries)) => entries
+                        .values()
+                        .all(|item| self.value_matches_ty(item, value_ty)),
+                    ("Set", [item_ty], Value::Set(items)) => items
+                        .values()
+                        .all(|item| self.value_matches_ty(item, item_ty)),
+                    ("Pair", [left_ty, right_ty], Value::Tuple(items)) => matches!(
+                        items.as_slice(),
+                        [left, right]
+                            if self.value_matches_ty(left, left_ty)
+                                && self.value_matches_ty(right, right_ty)
+                    ),
+                    ("Pair", [left_ty, right_ty], value) => {
+                        match Self::runtime_constructor_parts(value) {
+                            Some(("Pair", fields)) => matches!(fields.as_slice(), [left, right]
+                                if self.value_matches_ty(left, left_ty)
+                                    && self.value_matches_ty(right, right_ty)),
+                            _ => false,
+                        }
+                    }
+                    _ => self.value_matches_named_type(value, base_name),
+                }
+            }
+            Ty::Optional(inner) => match Self::runtime_constructor_parts(value) {
+                Some(("None", fields)) => fields.is_empty(),
+                Some(("Some", fields)) => matches!(fields.as_slice(), [item]
+                    if self.value_matches_ty(item, inner)),
+                _ => false,
+            },
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
+                self.value_matches_ty(value, inner)
+            }
+            Ty::Unit => matches!(value, Value::Unit),
+            Ty::Hole => true,
+            Ty::Arrow(_, _) => matches!(value, Value::Closure { .. } | Value::Builtin(_)),
+        }
+    }
+
+    fn value_matches_type(&self, value: &Value, type_name: &str) -> bool {
+        parse_type_annotation(type_name)
+            .map(|ty| self.value_matches_ty(value, &ty))
+            .unwrap_or_else(|_| self.value_matches_named_type(value, type_name))
     }
 
     fn rule_constructor_pattern_args(&self, ctor_name: &str, args: &[Expr]) -> Option<Vec<Expr>> {
@@ -13390,7 +13499,9 @@ impl TypeChecker {
                     if let (ExprKind::Var(name), ExprKind::Var(type_name)) =
                         (&args[0].kind, &args[1].kind)
                     {
-                        self.define_var_type(name, &Ty::Name(type_name.clone()));
+                        let ty = parse_type_annotation(type_name)
+                            .unwrap_or_else(|_| Ty::Name(type_name.clone()));
+                        self.define_var_type(name, &ty);
                     }
                     self.define_rule_head_var_types(&args[0]);
                 }
@@ -16230,6 +16341,53 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generic_rule_annotation_round_trips_for_runtime_matching() {
+        let source = r#"
+# LedgerEntry(amount: Int)
+| ledger_total(entries: List(LedgerEntry)) -> length(entries)
+= ledger_entries = [LedgerEntry(amount = 42)]
+= ledger_answer = ledger_total(ledger_entries)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse typed rule");
+        let head_arg = stmts
+            .iter()
+            .find_map(|stmt| match stmt {
+                Stmt::Rule(Rule::Clause { head, .. }) => match &head.kind {
+                    ExprKind::App(_, args) => args.first(),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .expect("typed rule head argument");
+        let (_, type_name) =
+            Interpreter::typed_rule_arg_parts(head_arg).expect("internal typed rule annotation");
+        assert_eq!(type_name, "List(LedgerEntry)");
+
+        let mut interpreter = Interpreter::new();
+        interpreter
+            .ctor_to_type
+            .insert("LedgerEntry".into(), "LedgerEntry".into());
+        let entries = Value::List(vec![Value::NamedConstructor(
+            "LedgerEntry".into(),
+            vec![("amount".into(), Value::Int(42))],
+        )]);
+        assert!(interpreter.value_matches_type(&entries, type_name));
+
+        let mut env = interpreter.default_env();
+        let result = interpreter.run_program(&stmts, &mut env);
+        let actual_entries = env.get("ledger_entries").expect("ledger entries").clone();
+        assert!(interpreter.value_matches_type(&actual_entries, type_name));
+        assert_eq!(result.to_string(), "1");
+        assert_eq!(
+            env.get("ledger_answer").map(ToString::to_string),
+            Some("1".into())
+        );
+    }
 
     // ── Span ────────────────────────────────────────────────────────
 

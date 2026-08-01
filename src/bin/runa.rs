@@ -13055,6 +13055,7 @@ impl<'a> LoweringCtx<'a> {
                 "Bool" => FirTy::Bool,
                 "Char" => FirTy::Char,
                 "String" => FirTy::String,
+                "Nat" => FirTy::Int,
                 "Unit" | "()" => FirTy::Unit,
                 other => FirTy::Named(other.to_string()),
             },
@@ -21037,9 +21038,11 @@ impl RustCodegen {
                     if let ExprKind::App(_, args) = &head.kind {
                         for arg in args {
                             if let Some((_, type_name)) = Self::typed_rule_arg_parts(arg) {
-                                self.types
-                                    .typed_rule_types
-                                    .insert(fn_name.clone(), type_name.to_string());
+                                if let Ok(Ty::Name(type_name)) = parse_type_annotation(type_name) {
+                                    self.types
+                                        .typed_rule_types
+                                        .insert(fn_name.clone(), type_name);
+                                }
                             }
                         }
                     }
@@ -21149,9 +21152,11 @@ impl RustCodegen {
                                                         {
                                                             if head_args
                                                                 .get(*hi)
-                                                                .and_then(
-                                                                    Self::typed_rule_arg_rust_type,
-                                                                )
+                                                                .and_then(|arg| {
+                                                                    self.typed_rule_arg_rust_type(
+                                                                        arg,
+                                                                    )
+                                                                })
                                                                 .is_some()
                                                             {
                                                                 continue;
@@ -25070,8 +25075,8 @@ impl RustCodegen {
     }
 
     fn rule_head_arg_rust_type_hint(&self, arg: &Expr) -> Option<String> {
-        if let Some((_, type_name)) = Self::typed_rule_arg_parts(arg) {
-            return Some(Self::rule_type_name_to_rust(type_name));
+        if Self::typed_rule_arg_parts(arg).is_some() {
+            return self.typed_rule_arg_rust_type(arg);
         }
 
         match &arg.kind {
@@ -25315,25 +25320,20 @@ impl RustCodegen {
             .collect()
     }
 
-    fn rule_type_name_to_rust(type_name: &str) -> String {
-        match type_name {
-            "Int" => "i64".to_string(),
-            "Float" => "f64".to_string(),
-            "String" => "String".to_string(),
-            "Char" => "char".to_string(),
-            "Bool" => "bool".to_string(),
-            "Nat" => "u64".to_string(),
-            other => other.to_string(),
-        }
+    fn rule_type_name_to_fir(type_name: &str) -> Option<FirTy> {
+        let ty = parse_type_annotation(type_name).ok()?;
+        Some(LoweringCtx::ty_to_fir(&ty))
     }
 
-    fn typed_rule_arg_rust_type(arg: &Expr) -> Option<String> {
-        Self::typed_rule_arg_parts(arg)
-            .map(|(_, type_name)| Self::rule_type_name_to_rust(type_name))
+    fn typed_rule_arg_rust_type(&self, arg: &Expr) -> Option<String> {
+        let (_, type_name) = Self::typed_rule_arg_parts(arg)?;
+        let ty = parse_type_annotation(type_name).ok()?;
+        Some(self.emit_type(&ty))
     }
 
     fn typed_rule_arg_fir_ty(arg: &Expr) -> Option<FirTy> {
-        Self::typed_rule_arg_rust_type(arg).map(|rust_ty| Self::rust_type_to_fir(&rust_ty))
+        Self::typed_rule_arg_parts(arg)
+            .and_then(|(_, type_name)| Self::rule_type_name_to_fir(type_name))
     }
 
     fn prolog_head_var_type_bindings(
@@ -46693,6 +46693,7 @@ routes <- "b"
     #[test]
     fn ty_to_fir_conversion() {
         assert_eq!(LoweringCtx::ty_to_fir(&Ty::Name("Int".into())), FirTy::Int);
+        assert_eq!(LoweringCtx::ty_to_fir(&Ty::Name("Nat".into())), FirTy::Int);
         assert_eq!(
             LoweringCtx::ty_to_fir(&Ty::Name("String".into())),
             FirTy::String
@@ -46704,6 +46705,31 @@ routes <- "b"
                 vec![Ty::Name("Int".into())]
             )),
             FirTy::List(Box::new(FirTy::Int))
+        );
+    }
+
+    #[test]
+    fn generic_rule_annotation_lowers_to_structured_fir_type() {
+        let stmts = parse_test_program(
+            r#"
+# ImportedEntry(amount: Int)
+| imported_total(entries: List(ImportedEntry)) -> length(entries)
+"#,
+        );
+        let head_arg = stmts
+            .iter()
+            .find_map(|stmt| match stmt {
+                Stmt::Rule(Rule::Clause { head, .. }) => match &head.kind {
+                    ExprKind::App(_, args) => args.first(),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .expect("typed rule head argument");
+
+        assert_eq!(
+            RustCodegen::typed_rule_arg_fir_ty(head_arg),
+            Some(FirTy::List(Box::new(FirTy::Named("ImportedEntry".into()))))
         );
     }
 

@@ -1,0 +1,12 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 42
+
+@ import ./imported_generic_rule_param_lib
+
+= imported_total = imported_ledger_total([
+    ImportedLedgerEntry(amount = 12),
+    ImportedLedgerEntry(amount = 30),
+])
+
+@ print(show(imported_total))

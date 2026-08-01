@@ -1,0 +1,12 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: 42
+
+@ import ./imported_generic_rule_param_lib
+
+= interpreted_imported_total = imported_ledger_total([
+    ImportedLedgerEntry(amount = 17),
+    ImportedLedgerEntry(amount = 25),
+])
+
+@ print(show(interpreted_imported_total))

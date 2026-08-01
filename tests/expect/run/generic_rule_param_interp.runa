@@ -1,0 +1,14 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: 42
+
+# LocalLedgerEntry(amount: Int)
+
+| local_ledger_total(entries: List(LocalLedgerEntry)) -> foldl(entries, 0, |total, entry| total + entry.amount)
+
+= local_total = local_ledger_total([
+    LocalLedgerEntry(amount = 19),
+    LocalLedgerEntry(amount = 23),
+])
+
+@ print(show(local_total))
