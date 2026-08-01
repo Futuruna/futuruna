@@ -130,7 +130,7 @@ anvendes til almenvelgørende eller på anden måde almennyttige formål.
     hentet_dato = "2026-07-18"
 )
 
---@source::selskabsskatteloven_par17_stk1_historisk::meta:selskabsskatteloven_lbk1241_par17_stk1--
+--@label:selskabsskatteloven_par17_stk1::source:selskabsskatteloven_lbk1241_par17_stk1--
 ----
 § 17. Indkomstskatten for de i § 1, stk. 1, nr. 1-2 b, 2 d-2 j og 3 a-5 b,
 og § 3, stk. 7, nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes
@@ -139,7 +139,7 @@ kulbrinteskattelovens § 4, stk. 1 og 2, beskattes med selskabsskatteprocenten
 efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
 ----
 
---@source::selskabsskatteloven_par17_stk1::meta:selskabsskatteloven_lbk279_par17_stk1--
+--@label:selskabsskatteloven_par17_stk1::source:selskabsskatteloven_lbk279_par17_stk1--
 ----
 § 17. Indkomstskatten for de i § 1, stk. 1, nr. 1-2 i og 3 a-5 b, og § 3,
 stk. 7, nævnte selskaber og foreninger m.v. (selskabsskatten) beregnes af den

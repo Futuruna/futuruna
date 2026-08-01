@@ -1,0 +1,17 @@
+-- expect-command: meta
+-- expect-args: --type Shape --role source
+-- expect-status: pass
+-- expect-stdout: filter type Shape role source
+-- expect-stdout: references: 2
+-- expect-stdout: reference shape_filter role source binding primary_shape type Shape value Circle
+-- expect-stdout: reference shape_filter role source binding secondary_shape type Shape value Square
+-- expect-stdout-not: role warning
+
+# Shape = Circle | Triangle | Square
+# Warning(message: String)
+
+= primary_shape = Circle
+= secondary_shape = Square
+= shape_warning = Warning(message = "Not selected")
+
+--@label:shape_filter::source:primary_shape::source:secondary_shape::warning:shape_warning--

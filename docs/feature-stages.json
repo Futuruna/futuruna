@@ -196,7 +196,7 @@
     {
       "id": "source-meta-comment-tooling",
       "kind": "tooling",
-      "name": "Meta-comment source and code-span indexing",
+      "name": "Typed meta-reference and source/code-span indexing",
       "stage": "preview",
       "commands": [
         "meta"

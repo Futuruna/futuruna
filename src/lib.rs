@@ -1386,27 +1386,47 @@ pub fn byte_offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
 /// with the language parser. Tooling can scan raw source and build this side
 /// index without changing evaluation semantics.
 ///
-/// Supported shape:
+/// Supported shapes:
 ///
 /// ```text
+/// --@label:label::role:binding::role:another_binding--
+/// --@meta::label::role:binding--
 /// --@source::label::meta:source_binding--
 /// --@begin::label--
 /// --@end::label--
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaAttribute {
+    pub role: String,
+    pub binding_name: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetaComment {
     pub kind: String,
     pub label: String,
-    pub attrs: BTreeMap<String, String>,
+    pub attrs: Vec<MetaAttribute>,
     pub line: usize,
     pub col: usize,
     pub raw: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MetaSourceBlock {
+pub struct MetaReference {
     pub label: String,
-    pub meta_ref: Option<String>,
+    pub role: String,
+    pub binding_name: String,
+    pub qualified_type: Option<String>,
+    pub static_value: Option<String>,
+    pub definition_line: Option<usize>,
+    pub comment_line: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetaAnchor {
+    pub kind: String,
+    pub label: String,
+    pub references: Vec<MetaReference>,
     pub comment_line: usize,
     pub text_start_line: Option<usize>,
     pub text_end_line: Option<usize>,
@@ -1427,7 +1447,6 @@ pub struct MetaCodeSpan {
     pub end_marker_line: usize,
     pub code_start_line: usize,
     pub code_end_line: usize,
-    pub source: Option<MetaSourceBlock>,
     pub symbols: Vec<MetaSymbol>,
 }
 
@@ -1440,9 +1459,60 @@ pub struct MetaDiagnostic {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MetaIndex {
     pub comments: Vec<MetaComment>,
-    pub sources: Vec<MetaSourceBlock>,
+    pub anchors: Vec<MetaAnchor>,
     pub spans: Vec<MetaCodeSpan>,
     pub diagnostics: Vec<MetaDiagnostic>,
+}
+
+impl MetaIndex {
+    pub fn references(&self) -> Vec<&MetaReference> {
+        self.anchors
+            .iter()
+            .flat_map(|anchor| anchor.references.iter())
+            .collect()
+    }
+
+    pub fn references_by_type(&self, qualified_type: &str) -> Vec<&MetaReference> {
+        self.references_matching(Some(qualified_type), None)
+    }
+
+    pub fn references_by_role(&self, role: &str) -> Vec<&MetaReference> {
+        self.references_matching(None, Some(role))
+    }
+
+    pub fn references_matching(
+        &self,
+        qualified_type: Option<&str>,
+        role: Option<&str>,
+    ) -> Vec<&MetaReference> {
+        self.anchors
+            .iter()
+            .flat_map(|anchor| anchor.references.iter())
+            .filter(|reference| {
+                qualified_type
+                    .is_none_or(|expected| reference.qualified_type.as_deref() == Some(expected))
+                    && role.is_none_or(|expected| reference.role == expected)
+            })
+            .collect()
+    }
+
+    pub fn anchors_for_label(&self, label: &str) -> Vec<&MetaAnchor> {
+        self.anchors
+            .iter()
+            .filter(|anchor| anchor.label == label)
+            .collect()
+    }
+
+    pub fn spans_for_label(&self, label: &str) -> Vec<&MetaCodeSpan> {
+        self.spans
+            .iter()
+            .filter(|span| span.label == label)
+            .collect()
+    }
+
+    pub fn spans_for_reference(&self, reference: &MetaReference) -> Vec<&MetaCodeSpan> {
+        self.spans_for_label(&reference.label)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1453,9 +1523,19 @@ struct ActiveMetaCodeSpan {
 }
 
 pub fn scan_meta_comments(source: &str) -> MetaIndex {
+    scan_meta_comments_with_dir(source, None)
+}
+
+pub fn scan_meta_comments_with_dir(source: &str, source_dir: Option<String>) -> MetaIndex {
+    let mut index = scan_meta_comment_structure(source);
+    resolve_meta_references(source, source_dir, &mut index);
+    index
+}
+
+fn scan_meta_comment_structure(source: &str) -> MetaIndex {
     let lines: Vec<&str> = source.lines().collect();
     let mut comments = Vec::new();
-    let mut sources = Vec::new();
+    let mut anchors = Vec::new();
     let mut spans = Vec::new();
     let mut diagnostics = Vec::new();
     let mut active: Vec<ActiveMetaCodeSpan> = Vec::new();
@@ -1482,8 +1562,8 @@ pub fn scan_meta_comments(source: &str) -> MetaIndex {
         };
 
         match comment.kind.as_str() {
-            "source" => {
-                sources.push(source_block_for_comment(&comment, &lines, idx + 1));
+            "source" | "meta" => {
+                anchors.push(meta_anchor_for_comment(&comment, &lines, idx + 1));
             }
             "begin" => {
                 active.push(ActiveMetaCodeSpan {
@@ -1496,11 +1576,6 @@ pub fn scan_meta_comments(source: &str) -> MetaIndex {
                 if let Some(pos) = active.iter().rposition(|span| span.label == comment.label) {
                     let opened = active.remove(pos);
                     let code_end_line = line_no.saturating_sub(1);
-                    let source_block = sources
-                        .iter()
-                        .rev()
-                        .find(|source| source.label == opened.label)
-                        .cloned();
                     let symbols = scan_meta_symbols(&lines, opened.code_start_line, code_end_line);
                     spans.push(MetaCodeSpan {
                         label: opened.label,
@@ -1508,7 +1583,6 @@ pub fn scan_meta_comments(source: &str) -> MetaIndex {
                         end_marker_line: line_no,
                         code_start_line: opened.code_start_line,
                         code_end_line,
-                        source: source_block,
                         symbols,
                     });
                 } else {
@@ -1536,7 +1610,7 @@ pub fn scan_meta_comments(source: &str) -> MetaIndex {
 
     MetaIndex {
         comments,
-        sources,
+        anchors,
         spans,
         diagnostics,
     }
@@ -1558,29 +1632,44 @@ fn parse_meta_comment_line(
         return None;
     };
     let parts: Vec<&str> = body.split("::").map(str::trim).collect();
-    if parts.len() < 2 || parts[0].is_empty() || parts[1].is_empty() {
+    let (kind, label, attrs_start) =
+        if let Some(label) = parts.first().and_then(|part| part.strip_prefix("label:")) {
+            ("meta", label.trim(), 1)
+        } else if parts.len() >= 2 {
+            (parts[0], parts[1], 2)
+        } else {
+            ("", "", parts.len())
+        };
+    if kind.is_empty() || label.is_empty() {
         diagnostics.push(MetaDiagnostic {
             line: line_no,
-            message: "meta comment must use `--@kind::label--`".to_string(),
+            message: "meta comment must use `--@kind::label--` or `--@label:label::role:binding--`"
+                .to_string(),
         });
         return None;
     }
 
-    let mut attrs = BTreeMap::new();
-    for part in parts.iter().skip(2) {
+    let mut attrs = Vec::new();
+    for part in parts.iter().skip(attrs_start) {
         if part.is_empty() {
             continue;
         }
-        if let Some((key, value)) = part.split_once(':') {
-            attrs.insert(key.trim().to_string(), value.trim().to_string());
+        if let Some((role, binding_name)) = part.split_once(':') {
+            attrs.push(MetaAttribute {
+                role: role.trim().to_string(),
+                binding_name: binding_name.trim().to_string(),
+            });
         } else {
-            attrs.insert(part.to_string(), String::new());
+            attrs.push(MetaAttribute {
+                role: part.to_string(),
+                binding_name: String::new(),
+            });
         }
     }
 
     Some(MetaComment {
-        kind: parts[0].to_string(),
-        label: parts[1].to_string(),
+        kind: kind.to_string(),
+        label: label.to_string(),
         attrs,
         line: line_no,
         col,
@@ -1588,11 +1677,11 @@ fn parse_meta_comment_line(
     })
 }
 
-fn source_block_for_comment(
+fn meta_anchor_for_comment(
     comment: &MetaComment,
     lines: &[&str],
     next_line_idx: usize,
-) -> MetaSourceBlock {
+) -> MetaAnchor {
     let mut text_start_line = None;
     let mut text_end_line = None;
     let mut text_lines = Vec::new();
@@ -1619,13 +1708,250 @@ fn source_block_for_comment(
         }
     }
 
-    MetaSourceBlock {
+    let references = comment
+        .attrs
+        .iter()
+        .map(|attr| MetaReference {
+            label: comment.label.clone(),
+            role: if comment.kind == "source" && attr.role == "meta" {
+                "source".to_string()
+            } else {
+                attr.role.clone()
+            },
+            binding_name: attr.binding_name.clone(),
+            qualified_type: None,
+            static_value: None,
+            definition_line: None,
+            comment_line: comment.line,
+        })
+        .collect();
+
+    MetaAnchor {
+        kind: comment.kind.clone(),
         label: comment.label.clone(),
-        meta_ref: comment.attrs.get("meta").cloned(),
+        references,
         comment_line: comment.line,
         text_start_line,
         text_end_line,
         text: text_lines.join("\n").trim().to_string(),
+    }
+}
+
+fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut MetaIndex) {
+    let mut has_valid_reference = false;
+    for anchor in &index.anchors {
+        for reference in &anchor.references {
+            if reference.role.is_empty() {
+                index.diagnostics.push(MetaDiagnostic {
+                    line: reference.comment_line,
+                    message: format!(
+                        "meta reference `{}` must declare a non-empty role",
+                        reference.binding_name
+                    ),
+                });
+            } else if reference.binding_name.is_empty() {
+                index.diagnostics.push(MetaDiagnostic {
+                    line: reference.comment_line,
+                    message: format!(
+                        "meta role `{}` must reference a Futuruna binding",
+                        reference.role
+                    ),
+                });
+            } else {
+                has_valid_reference = true;
+            }
+        }
+    }
+    if !has_valid_reference {
+        return;
+    }
+
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let stmts = match parser.parse_program() {
+        Ok(stmts) => stmts,
+        Err(message) => {
+            index.diagnostics.push(MetaDiagnostic {
+                line: 1,
+                message: format!("cannot resolve meta references: {}", message),
+            });
+            return;
+        }
+    };
+
+    let mut checker = TypeChecker::new();
+    checker.source_dir = source_dir;
+    checker.source_text = source.to_string();
+    checker.collect_declarations(&stmts);
+    checker.infer_rule_return_types(&stmts);
+    checker.infer_top_level_binding_types(&stmts);
+
+    let mut bindings: BTreeMap<String, (&Expr, Option<String>, usize)> = BTreeMap::new();
+    for stmt in &stmts {
+        if let Stmt::Bind(Pat::Var(name), ty, expr) = stmt {
+            let qualified_type = ty
+                .as_ref()
+                .map(ToString::to_string)
+                .or_else(|| checker.binding_type_name(name).map(str::to_string));
+            let line = meta_binding_definition_line(source, name, expr);
+            bindings.insert(name.clone(), (expr, qualified_type, line));
+        }
+    }
+
+    let value_bindings: BTreeMap<String, &Expr> = bindings
+        .iter()
+        .map(|(name, (expr, _, _))| (name.clone(), *expr))
+        .collect();
+
+    for anchor in &mut index.anchors {
+        for reference in &mut anchor.references {
+            if reference.role.is_empty() || reference.binding_name.is_empty() {
+                continue;
+            }
+            let Some((_, qualified_type, definition_line)) = bindings.get(&reference.binding_name)
+            else {
+                index.diagnostics.push(MetaDiagnostic {
+                    line: reference.comment_line,
+                    message: format!(
+                        "meta role `{}` references unresolved binding `{}`",
+                        reference.role, reference.binding_name
+                    ),
+                });
+                continue;
+            };
+
+            reference.qualified_type = qualified_type.clone();
+            reference.definition_line = Some(*definition_line);
+            if reference.qualified_type.is_none() {
+                index.diagnostics.push(MetaDiagnostic {
+                    line: reference.comment_line,
+                    message: format!(
+                        "meta binding `{}` has no statically known type",
+                        reference.binding_name
+                    ),
+                });
+            }
+
+            let mut visiting = BTreeSet::new();
+            reference.static_value = render_static_meta_binding(
+                &reference.binding_name,
+                &value_bindings,
+                &checker.constructors,
+                &mut visiting,
+            );
+            if reference.static_value.is_none() {
+                index.diagnostics.push(MetaDiagnostic {
+                    line: reference.comment_line,
+                    message: format!(
+                        "meta binding `{}` is not a pure ground value",
+                        reference.binding_name
+                    ),
+                });
+            }
+        }
+    }
+}
+
+fn meta_binding_definition_line(source: &str, name: &str, expr: &Expr) -> usize {
+    let (expr_line, _) = expr.span.start_line_col(source);
+    let lines: Vec<&str> = source.lines().take(expr_line).collect();
+    lines
+        .iter()
+        .enumerate()
+        .rev()
+        .find_map(|(idx, line)| {
+            (meta_binding_symbol_name(line.trim_start()).as_deref() == Some(name))
+                .then_some(idx + 1)
+        })
+        .unwrap_or(expr_line)
+}
+
+fn render_static_meta_binding(
+    name: &str,
+    bindings: &BTreeMap<String, &Expr>,
+    constructors: &BTreeMap<String, (String, usize)>,
+    visiting: &mut BTreeSet<String>,
+) -> Option<String> {
+    if !visiting.insert(name.to_string()) {
+        return None;
+    }
+    let result = bindings
+        .get(name)
+        .and_then(|expr| render_static_meta_expr(expr, bindings, constructors, visiting));
+    visiting.remove(name);
+    result
+}
+
+fn render_static_meta_expr(
+    expr: &Expr,
+    bindings: &BTreeMap<String, &Expr>,
+    constructors: &BTreeMap<String, (String, usize)>,
+    visiting: &mut BTreeSet<String>,
+) -> Option<String> {
+    match &expr.kind {
+        ExprKind::Lit(Literal::Int(value)) => Some(value.to_string()),
+        ExprKind::Lit(Literal::Float(value)) => Some(value.to_string()),
+        ExprKind::Lit(Literal::Str(value)) => Some(format!("{:?}", value)),
+        ExprKind::Lit(Literal::Char(value)) => Some(format!("{:?}", value)),
+        ExprKind::Lit(Literal::Bool(value)) => Some(if *value {
+            "True".to_string()
+        } else {
+            "False".to_string()
+        }),
+        ExprKind::Unit => Some("()".to_string()),
+        ExprKind::Var(name) => {
+            if matches!(constructors.get(name), Some((_, 0))) {
+                Some(name.clone())
+            } else {
+                render_static_meta_binding(name, bindings, constructors, visiting)
+            }
+        }
+        ExprKind::App(func, args) => {
+            let ExprKind::Var(constructor) = &func.kind else {
+                return None;
+            };
+            let (_, arity) = constructors.get(constructor)?;
+            if *arity != args.len() {
+                return None;
+            }
+
+            let mut rendered_args = Vec::with_capacity(args.len());
+            for arg in args {
+                if let Some((field, value)) = named_arg_parts(arg) {
+                    let rendered =
+                        render_static_meta_expr(value, bindings, constructors, visiting)?;
+                    rendered_args.push(format!("{} = {}", field, rendered));
+                } else {
+                    rendered_args.push(render_static_meta_expr(
+                        arg,
+                        bindings,
+                        constructors,
+                        visiting,
+                    )?);
+                }
+            }
+            Some(format!("{}({})", constructor, rendered_args.join(", ")))
+        }
+        ExprKind::List(items) => {
+            let rendered = items
+                .iter()
+                .map(|item| render_static_meta_expr(item, bindings, constructors, visiting))
+                .collect::<Option<Vec<_>>>()?;
+            Some(format!("[{}]", rendered.join(", ")))
+        }
+        ExprKind::Tuple(items) => {
+            let rendered = items
+                .iter()
+                .map(|item| render_static_meta_expr(item, bindings, constructors, visiting))
+                .collect::<Option<Vec<_>>>()?;
+            Some(format!("({})", rendered.join(", ")))
+        }
+        ExprKind::UnOp(operator, inner) if operator == "-" || operator == "+" => {
+            let rendered = render_static_meta_expr(inner, bindings, constructors, visiting)?;
+            Some(format!("{}{}", operator, rendered))
+        }
+        _ => None,
     }
 }
 
@@ -1746,6 +2072,7 @@ mod meta_comment_tests {
         let source = r#"
 @ sprog da
 
+# SourceInfo(url: Tekst)
 = source1234 = SourceInfo(url = "ret.dk/1234")
 
 --@source::kommunal_par5_stk3::meta:source1234--
@@ -1766,10 +2093,20 @@ Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et å
         let index = scan_meta_comments(source);
 
         assert!(index.diagnostics.is_empty());
-        assert_eq!(index.sources.len(), 1);
-        assert_eq!(index.sources[0].label, "kommunal_par5_stk3");
-        assert_eq!(index.sources[0].meta_ref.as_deref(), Some("source1234"));
-        assert!(index.sources[0]
+        assert_eq!(index.anchors.len(), 1);
+        assert_eq!(index.anchors[0].label, "kommunal_par5_stk3");
+        assert_eq!(index.anchors[0].references.len(), 1);
+        assert_eq!(index.anchors[0].references[0].role, "source");
+        assert_eq!(index.anchors[0].references[0].binding_name, "source1234");
+        assert_eq!(
+            index.anchors[0].references[0].qualified_type.as_deref(),
+            Some("SourceInfo")
+        );
+        assert_eq!(
+            index.anchors[0].references[0].static_value.as_deref(),
+            Some("SourceInfo(url = \"ret.dk/1234\")")
+        );
+        assert!(index.anchors[0]
             .text
             .contains("Omfatter indkomstansættelsen"));
 
@@ -1777,12 +2114,7 @@ Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et å
         assert_eq!(index.comments.len(), 3);
         let span = &index.spans[0];
         assert_eq!(span.label, "kommunal_par5_stk3");
-        assert_eq!(
-            span.source
-                .as_ref()
-                .and_then(|source| source.meta_ref.as_deref()),
-            Some("source1234")
-        );
+        assert_eq!(index.anchors_for_label(&span.label).len(), 1);
         assert!(span
             .symbols
             .iter()
@@ -1795,6 +2127,81 @@ Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et å
             .symbols
             .iter()
             .any(|symbol| { symbol.kind == "binding" && symbol.name == "kommunal_par5_fixture" }));
+    }
+
+    #[test]
+    fn generic_meta_references_preserve_roles_and_resolve_typed_ground_values() {
+        let source = r#"
+# Shape = Circle | Triangle | Square
+# AuditWarning(code: String, message: String)
+
+= comment_shape = Circle
+= alternate_shape = Triangle
+= audit_warning = AuditWarning(code = "GEOMETRY", message = "Review this shape")
+
+--@label:geometry::source:comment_shape::source:alternate_shape::warning:audit_warning--
+----
+Raw additions
+----
+
+--@meta::geometry_assumption::assumption:comment_shape--
+
+--@begin::geometry--
+= geometry_fixture = Circle
+--@end::geometry--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        assert_eq!(index.anchors.len(), 2);
+        assert_eq!(index.anchors[0].references.len(), 3);
+        assert_eq!(index.anchors[0].references[0].role, "source");
+        assert_eq!(index.anchors[0].references[1].role, "source");
+        assert_eq!(index.references_by_role("source").len(), 2);
+        assert_eq!(index.references_by_type("Shape").len(), 3);
+
+        let warning = index.references_by_role("warning");
+        assert_eq!(warning.len(), 1);
+        assert_eq!(warning[0].qualified_type.as_deref(), Some("AuditWarning"));
+        assert_eq!(
+            warning[0].static_value.as_deref(),
+            Some("AuditWarning(code = \"GEOMETRY\", message = \"Review this shape\")")
+        );
+        assert!(warning[0].definition_line.is_some());
+        assert_eq!(index.anchors_for_label("geometry").len(), 1);
+        assert_eq!(index.spans_for_reference(warning[0]).len(), 1);
+    }
+
+    #[test]
+    fn unresolved_and_non_ground_references_are_meta_only_diagnostics() {
+        let source = r#"
+# AuditWarning(message: String)
+| warning_message() -> "computed"
+= dynamic_warning = AuditWarning(message = warning_message())
+
+--@meta::audit::warning:dynamic_warning::warning:missing_warning--
+"#;
+
+        let index = scan_meta_comments(source);
+        let messages: Vec<&str> = index
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.message.as_str())
+            .collect();
+
+        assert!(messages.iter().any(|message| {
+            message.contains("dynamic_warning") && message.contains("not a pure ground value")
+        }));
+        assert!(messages.iter().any(|message| {
+            message.contains("missing_warning") && message.contains("unresolved binding")
+        }));
+
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("metadata remains a comment");
+        assert!(TypeChecker::check_with_source(&stmts, None, source).is_empty());
     }
 
     #[test]
@@ -12933,6 +13340,14 @@ impl TypeChecker {
         None
     }
 
+    /// Return the inferred or annotated type name of a visible binding.
+    ///
+    /// Metadata tooling uses this after declaration and top-level inference
+    /// passes so role references follow the same type facts as normal code.
+    pub fn binding_type_name(&self, name: &str) -> Option<&str> {
+        self.var_type_name(name)
+    }
+
     /// Extract and define variable names from a rule head argument,
     /// including __typed(var, Type) wrappers.
     fn define_rule_head_vars(arg: &Expr, scopes: &mut Vec<BTreeSet<String>>) {
@@ -13293,6 +13708,26 @@ impl TypeChecker {
         locals: &BTreeMap<String, String>,
     ) -> Option<String> {
         match &expr.kind {
+            ExprKind::Lit(literal) => Some(Self::obvious_literal_ty(literal).to_string()),
+            ExprKind::Unit => Some("()".to_string()),
+            ExprKind::List(items) => {
+                let mut item_type = None;
+                for item in items {
+                    let inferred = self.infer_expr_type_name_with_locals(item, locals)?;
+                    if item_type.as_ref().is_some_and(|known| known != &inferred) {
+                        return None;
+                    }
+                    item_type = Some(inferred);
+                }
+                item_type.map(|inner| format!("List({})", inner))
+            }
+            ExprKind::Tuple(items) => {
+                let item_types = items
+                    .iter()
+                    .map(|item| self.infer_expr_type_name_with_locals(item, locals))
+                    .collect::<Option<Vec<_>>>()?;
+                Some(format!("Tuple({})", item_types.join(", ")))
+            }
             ExprKind::Var(name) => locals
                 .get(name)
                 .cloned()

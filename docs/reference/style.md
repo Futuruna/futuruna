@@ -127,16 +127,18 @@ Write `|` invariants with captured values and boolean predicates. The `?` rune c
 
 The `----` block quotes the source. The `--` comment explains the code. Don't mix them.
 
-## Meta comments are source anchors
+## Meta comments are typed anchors
 
-Use ordinary comments for machine-readable provenance when a model needs
-traceable source spans without changing Futuruna semantics.
+Meta comments attach arbitrary roles to ordinary Futuruna bindings without
+changing evaluation semantics. The metadata index resolves each binding through
+Futuruna's type information, so tools can query metadata by role or by the
+referenced domain type.
 
 ```runa
 # SourceInfo(url: Tekst, identifier: Tekst)
 = grundlov_par3 = SourceInfo(url = "https://www.retsinformation.dk/eli/lta/1953/169", identifier = "§ 3")
 
---@source::grundlov_par3::meta:grundlov_par3--
+--@label:grundlov_par3::source:grundlov_par3--
 ----
 § 3. Den lovgivende magt er hos kongen og folketinget i forening.
 ----
@@ -146,9 +148,40 @@ traceable source spans without changing Futuruna semantics.
 --@end::grundlov_par3--
 ```
 
-The parser still treats these as comments. `runa meta` scans the raw source and
-reports labels, source metadata references, source-text ranges, code ranges, and
-symbols inside each range.
+The generic form is `--@label:LABEL::ROLE:BINDING--`. The explicit
+`--@meta::LABEL::ROLE:BINDING--` spelling is equivalent. Roles are user-defined;
+`source`, `warning`, and `assumption` are conventions rather than privileged
+types.
+
+References may repeat, including the same role, and their order is preserved:
+
+```runa
+# Shape = Circle | Triangle | Square
+# AuditWarning(message: Tekst)
+
+= comment_shape = Circle
+= alternate_shape = Triangle
+= shape_warning = AuditWarning(message = "Kredsen er ikke udtrykkeligt afgrænset")
+
+--@label:shape_rule::source:comment_shape::source:alternate_shape::warning:shape_warning--
+--@begin::shape_rule--
+| circles_rule(shape: Shape) -> shape == Circle
+--@end::shape_rule--
+```
+
+`runa meta --type Shape file.runa` finds all references whose binding has type
+`Shape`. `runa meta --role warning file.runa` finds warning references, and the
+filters can be combined. Pure ground bindings also expose a static value and
+definition line. Dynamic or unresolved bindings produce metadata diagnostics;
+they do not make `runa check`, interpretation, or generated code fail because
+the parser still treats every meta marker as a comment.
+
+The original source spelling remains compatible and desugars `meta` to the
+`source` role:
+
+```runa
+--@source::grundlov_par3::meta:grundlov_par3--
+```
 
 ## Types are the domain vocabulary
 

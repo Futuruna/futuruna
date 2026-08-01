@@ -3,7 +3,7 @@
 Status: active implementation; first-slice corpus complete
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-2d84ec`
+Current focus issue: `td-71113c`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -14,6 +14,14 @@ Current project priority: finish the source-backed Personskatteloven
 implementation first. Audit files remain important as validation gates for
 implemented slices, but deeper exploratory audits should wait until the main law
 model is materially complete.
+
+Futurunas metadataindeks understøtter nu generiske, typede referencer fra en
+vilkårlig rolle til en almindelig Futuruna-binding. Gentagne roller bevares,
+grundværdier og definitionlinjer kan udstilles, og `runa meta --type` samt
+`--role` kan bruges som målrettede audit-sweeps uden at ændre programmets
+semantik. Selskabsskattelovens historiske og gældende § 17-kilder er den første
+korpusblok, hvor to typede `source`-referencer peger tilbage fra samme regelspan
+til hver sin ordrette lovtekst.
 
 Website posture: den offentlige Personskatteloven-side er bevidst én dansk
 overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
@@ -721,6 +729,9 @@ encoded as a temporal rule on top of the consolidation.
 
 ## Current Implementation Status
 
+- Typed meta anchors support generic `role:binding` references, repeated roles,
+  pure ground values, definition locations, and type/role query filters while
+  preserving the legacy `--@source` syntax.
 - Folder created at `examples/danish-income-tax/`.
 - `source-status.runa` exists and checks/runs with `runa run`; it now models
   Retskilde records with named metadata fields and separates formal legal

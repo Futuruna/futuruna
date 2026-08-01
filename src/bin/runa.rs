@@ -69,6 +69,8 @@ fn main_inner() {
     let mut lint_import_graph = false; // --imports flag for `runa lint-library`
     let mut stress_seed = None;
     let mut stress_save_failures = None;
+    let mut meta_type_filter = None;
+    let mut meta_role_filter = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -118,6 +120,40 @@ fn main_inner() {
                 i += 1;
             }
             "--json" if mode == "feature-stages" => {
+                i += 1;
+            }
+            "--type" if mode == "meta" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --type requires a Futuruna type name");
+                    std::process::exit(1);
+                }
+                meta_type_filter = Some(args[i + 1].clone());
+                i += 2;
+            }
+            arg if mode == "meta" && arg.starts_with("--type=") => {
+                let value = &arg["--type=".len()..];
+                if value.is_empty() {
+                    eprintln!("error: --type requires a Futuruna type name");
+                    std::process::exit(1);
+                }
+                meta_type_filter = Some(value.to_string());
+                i += 1;
+            }
+            "--role" if mode == "meta" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --role requires a metadata role");
+                    std::process::exit(1);
+                }
+                meta_role_filter = Some(args[i + 1].clone());
+                i += 2;
+            }
+            arg if mode == "meta" && arg.starts_with("--role=") => {
+                let value = &arg["--role=".len()..];
+                if value.is_empty() {
+                    eprintln!("error: --role requires a metadata role");
+                    std::process::exit(1);
+                }
+                meta_role_filter = Some(value.to_string());
                 i += 1;
             }
             "--roundtrip" if mode == "test" => {
@@ -199,7 +235,7 @@ fn main_inner() {
                 eprintln!("  hashes        Show content hashes for all definitions");
                 eprintln!("  wasm          Compile to WebAssembly (via wasm-pack)");
                 eprintln!("  check         Parse and type-check without running");
-                eprintln!("  meta          Report machine-readable meta comment spans");
+                eprintln!("  meta          Report typed meta references and source/code spans");
                 eprintln!("  verify        Generate SMT-LIB2 and verify with Z3");
                 eprintln!("  audit         Discover invariant gaps and rule asymmetries");
                 eprintln!("  fmt           Format source file(s)");
@@ -221,6 +257,8 @@ fn main_inner() {
                 eprintln!("Options:");
                 eprintln!("  --version     Show version");
                 eprintln!("  --no-prelude  Don't auto-import standard prelude");
+                eprintln!("  meta --type TYPE   Select meta references by Futuruna type");
+                eprintln!("  meta --role ROLE   Select meta references by role");
                 eprintln!("  --seed N      Use a fixed RNG seed with `runa stress-gen`");
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!();
@@ -237,7 +275,8 @@ fn main_inner() {
                 eprintln!("  runa program.runa           Interpret");
                 eprintln!("  runa run program.runa       Compile + execute");
                 eprintln!("  runa check program.runa     Type-check without running");
-                eprintln!("  runa meta program.runa      Show meta comment source/span index");
+                eprintln!("  runa meta program.runa      Show typed meta/source/span index");
+                eprintln!("  runa meta --type Warning program.runa  Sweep metadata by type");
                 eprintln!("  runa emit program.runa      Show Rust output");
                 eprintln!("  runa emit --imports program.runa  Show public import/export graph");
                 eprintln!("  runa build program.runa     Compile to ./program");
@@ -505,7 +544,12 @@ fn main_inner() {
                 "registry" => update_registry(&source, path),
                 "wasm" => build_wasm(&source, path, use_prelude),
                 "check" => check_source(&source, path, use_prelude),
-                "meta" => print_meta_index(&source, path),
+                "meta" => print_meta_index(
+                    &source,
+                    path,
+                    meta_type_filter.as_deref(),
+                    meta_role_filter.as_deref(),
+                ),
                 "audit" => audit_source(&source, path, use_prelude),
                 "verify" => verify_with_z3(&source, path),
                 _ => run_source(&source, path, use_prelude),
@@ -1600,14 +1644,65 @@ fn find_tool(name: &str) -> String {
     name.to_string()
 }
 
-fn print_meta_index(source: &str, filename: &str) {
-    let index = scan_meta_comments(source);
+fn print_meta_index(
+    source: &str,
+    filename: &str,
+    type_filter: Option<&str>,
+    role_filter: Option<&str>,
+) {
+    let source_dir = std::path::Path::new(filename)
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map(|parent| parent.to_string_lossy().to_string());
+    let index = scan_meta_comments_with_dir(source, source_dir);
 
     println!("meta: {}", filename);
+
+    let references = index.references_matching(type_filter, role_filter);
+    if type_filter.is_some() || role_filter.is_some() {
+        println!(
+            "filter type {} role {}",
+            type_filter.unwrap_or("-"),
+            role_filter.unwrap_or("-")
+        );
+        println!("references: {}", references.len());
+        for reference in references {
+            print_meta_reference(reference);
+        }
+        print_meta_diagnostics_or_exit(&index, filename);
+        return;
+    }
+
     println!("comments: {}", index.comments.len());
-    println!("sources: {}", index.sources.len());
-    for source_block in &index.sources {
-        let meta = source_block.meta_ref.as_deref().unwrap_or("-");
+    println!("anchors: {}", index.anchors.len());
+    for anchor in &index.anchors {
+        let text_range = match (anchor.text_start_line, anchor.text_end_line) {
+            (Some(start), Some(end)) => format!("{}-{}", start, end),
+            _ => "-".to_string(),
+        };
+        println!(
+            "anchor {} {} line {} text {} references {}",
+            anchor.kind,
+            anchor.label,
+            anchor.comment_line,
+            text_range,
+            anchor.references.len()
+        );
+    }
+
+    let legacy_sources: Vec<&MetaAnchor> = index
+        .anchors
+        .iter()
+        .filter(|anchor| anchor.kind == "source")
+        .collect();
+    println!("sources: {}", legacy_sources.len());
+    for source_block in legacy_sources {
+        let meta = source_block
+            .references
+            .iter()
+            .find(|reference| reference.role == "source")
+            .map(|reference| reference.binding_name.as_str())
+            .unwrap_or("-");
         let text_range = match (source_block.text_start_line, source_block.text_end_line) {
             (Some(start), Some(end)) => format!("{}-{}", start, end),
             _ => "-".to_string(),
@@ -1618,17 +1713,27 @@ fn print_meta_index(source: &str, filename: &str) {
         );
     }
 
+    println!("references: {}", references.len());
+    for reference in references {
+        print_meta_reference(reference);
+    }
+
     println!("spans: {}", index.spans.len());
     for span in &index.spans {
-        let source_ref = span
-            .source
-            .as_ref()
-            .and_then(|source| source.meta_ref.as_deref())
-            .or_else(|| span.source.as_ref().map(|source| source.label.as_str()))
+        let anchors = index.anchors_for_label(&span.label);
+        let source_ref = anchors
+            .iter()
+            .flat_map(|anchor| anchor.references.iter())
+            .find(|reference| reference.role == "source")
+            .map(|reference| reference.binding_name.as_str())
             .unwrap_or("-");
         println!(
-            "span {} lines {}-{} source {}",
-            span.label, span.code_start_line, span.code_end_line, source_ref
+            "span {} lines {}-{} source {} anchors {}",
+            span.label,
+            span.code_start_line,
+            span.code_end_line,
+            source_ref,
+            anchors.len()
         );
         for symbol in &span.symbols {
             println!(
@@ -1638,6 +1743,29 @@ fn print_meta_index(source: &str, filename: &str) {
         }
     }
 
+    print_meta_diagnostics_or_exit(&index, filename);
+}
+
+fn print_meta_reference(reference: &MetaReference) {
+    let qualified_type = reference.qualified_type.as_deref().unwrap_or("-");
+    let static_value = reference.static_value.as_deref().unwrap_or("-");
+    let definition_line = reference
+        .definition_line
+        .map(|line| line.to_string())
+        .unwrap_or_else(|| "-".to_string());
+    println!(
+        "reference {} role {} binding {} type {} value {} definition {} comment {}",
+        reference.label,
+        reference.role,
+        reference.binding_name,
+        qualified_type,
+        static_value,
+        definition_line,
+        reference.comment_line
+    );
+}
+
+fn print_meta_diagnostics_or_exit(index: &MetaIndex, filename: &str) {
     if !index.diagnostics.is_empty() {
         for diagnostic in &index.diagnostics {
             eprintln!(
@@ -1840,6 +1968,7 @@ impl ExpectStatus {
 #[derive(Debug)]
 struct ExpectCase {
     command: ExpectCommand,
+    args: Vec<String>,
     status: ExpectStatus,
     stdout: Vec<String>,
     stderr: Vec<String>,
@@ -1886,11 +2015,15 @@ fn parse_expect_case(source: &str, path: &std::path::Path) -> Result<ExpectCase,
         None => ExpectStatus::Pass,
     };
     let skip = single_expectation_marker(source, "-- expect-skip:", path)?;
+    let args = single_expectation_marker(source, "-- expect-args:", path)?
+        .map(|raw| raw.split_whitespace().map(str::to_string).collect())
+        .unwrap_or_default();
     let stdout_file = single_expectation_marker(source, "-- expect-stdout-file:", path)?;
     let stderr_file = single_expectation_marker(source, "-- expect-stderr-file:", path)?;
 
     Ok(ExpectCase {
         command,
+        args,
         status,
         stdout: collect_expectation_markers(source, "-- expect-stdout:"),
         stderr: collect_expectation_markers(source, "-- expect-stderr:"),
@@ -2059,6 +2192,7 @@ fn run_expectation_suite(target: &str, use_prelude: bool) {
         let file_str = file_path.to_string_lossy().to_string();
         let mut cmd = std::process::Command::new(&self_bin);
         case.command.apply_to_command(&mut cmd, &file_str);
+        cmd.args(&case.args);
         if !use_prelude {
             cmd.arg("--no-prelude");
         }

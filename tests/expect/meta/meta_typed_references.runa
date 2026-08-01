@@ -1,0 +1,30 @@
+-- expect-command: meta
+-- expect-status: pass
+-- expect-stdout: anchors: 2
+-- expect-stdout: references: 4
+-- expect-stdout: reference geometry role source binding comment_shape type Shape value Circle
+-- expect-stdout: reference geometry role source binding alternate_shape type Shape value Triangle
+-- expect-stdout: reference geometry role warning binding audit_warning type AuditWarning value AuditWarning(code = "GEOMETRY", message = "Review this shape")
+-- expect-stdout: reference geometry_assumption role assumption binding comment_shape type Shape value Circle
+-- expect-stdout: span geometry lines 29-29 source comment_shape anchors 1
+
+# Shape = Circle | Triangle | Square
+# AuditWarning(code: String, message: String)
+
+= comment_shape = Circle
+= alternate_shape = Triangle
+= audit_warning = AuditWarning(
+    code = "GEOMETRY",
+    message = "Review this shape"
+)
+
+--@label:geometry::source:comment_shape::source:alternate_shape::warning:audit_warning--
+----
+Raw additions
+----
+
+--@meta::geometry_assumption::assumption:comment_shape--
+
+--@begin::geometry--
+= geometry_fixture = Circle
+--@end::geometry--
