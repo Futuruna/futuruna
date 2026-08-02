@@ -107,14 +107,17 @@ Personskatteloven, men den højeste nedskrivningssats har været 0 pct. siden
 Personskatteloven § 3, stk. 2, nr. 10 og 11 har nu også en egentlig
 beløbskaskade. Nr. 10 modtager typede resultater for almindelig
 saldoafskrivning, valgt tabsfradrag, straksafskrivning og den snævre ordinære
-afskrivning efter Statsskatteloven. Afskrivningslovens aktuelle kapitel 2-slice
-omfatter §§ 1-13: anskaffelse og benyttelsesændring,
+afskrivning efter Statsskatteloven. Afskrivningslovens aktuelle beregningsslice
+omfatter §§ 1-20: anskaffelse og benyttelsesændring,
 den almindelige saldo og selskabers udlejningsforløb, særskilt skibssaldo,
 15/7 pct.-infrastruktursaldi, de tidsafgrænsede 116/108 pct.-saldi,
 straksfradrag og salg af straksafskrevne aktiver, selskabers udskudte fradrag
 for udlejningsaktiver, skade og erstatning, negativ saldo, virksomhedsophør og
-senere salg, dok- og beddingsanlæg samt delvist erhvervsmæssigt benyttede
-aktiver. Kun fradrag for en
+senere salg, dok- og beddingsanlæg, delvist erhvervsmæssigt benyttede aktiver,
+bygninger og installationer. Bygningsdelen omfatter afgrænsning og tilknytning,
+anskaffelsestidspunkt, 3/4 pct.- og levetidsafskrivning, 5 pct.-straksfradrag,
+herunder ejerens valg af et lavere straksfradrag, delvise bygninger og stopår.
+Kun fradrag for en
 selvstændig erhvervsdrivende person går videre som nr. 10-fradrag. En
 skattepligtig fortjeneste for en fysisk person går i stedet videre som en
 særskilt personlig indkomstpost. Modellen bruger de offentliggjorte 2026-
@@ -142,7 +145,10 @@ forskudsafskrivning og de kontoformer, loven kræver. Kilderne er
 [Skatteministeriets 2026-satser](https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven),
 [Skattestyrelsens saldovejledning](https://info.skat.dk/data.aspx?oid=2060781),
 [Skattestyrelsens vejledning til § 6](https://info.skat.dk/data.aspx?oid=2060787),
-[Skattestyrelsens vejledning og salgseksempler til §§ 11-13](https://info.skat.dk/data.aspx?oid=2060792)
+[Skattestyrelsens vejledning og salgseksempler til §§ 11-13](https://info.skat.dk/data.aspx?oid=2060792),
+[Skattestyrelsens bygningsafgrænsning til § 14](https://info.skat.dk/data.aspx?oid=2083984),
+[Skattestyrelsens installationsvejledning til § 15](https://info.skat.dk/data.aspx?oid=2083985),
+[Skattestyrelsens afskrivningsmetoder til §§ 16-20](https://info.skat.dk/data.aspx?oid=2083987)
 og [Skattestyrelsens konto-eksempler](https://skat.dk/erhverv/egen-virksomhed/etablerings-og-ivaerksaetterkonto).
 
 Den fokuserede scenario-fil fører 8.000 kr. negativ saldo og 70.000 kr.
@@ -152,16 +158,21 @@ reparationsfradrag og 30.000 kr. endeligt ophørstab. Det giver 78.000 kr.
 indtægtsføring og 96.000 kr. fradrag gennem den samme § 3-regelkaskade.
 
 Denne del er beregningsegnet, men endnu ikke hele Afskrivningsloven. Den
-resterende opgave omfatter bygninger, installationer, forskudsafskrivning,
-immaterielle aktiver og genvundne afskrivninger. De er fortsat udestående
-dependency-arbejde under nr. 10.
+resterende opgave begynder med §§ 21-24 om genvundne afskrivninger, tab,
+nedrivning, skade og genopførelse og fortsætter med forskudsafskrivning,
+immaterielle aktiver og senere ophørsregler. De er fortsat udestående
+dependency-arbejde under nr. 10. Før §§ 21-24 kan afsluttes, skal § 19 desuden
+udvides fra den aktuelle forøgelse eller reduktion til en vedvarende historik
+over alle særskilte arealintervaller og deres egne afskrivningsprocenter.
 
 Korpussets meta-kommentarer kan nu også læses maskinelt med
 `runa meta --json`. Roller som `source`, `guidance` og `warning` er konventioner,
 ikke indbyggede særtilfælde: enhver rolle kan pege på en almindelig Futuruna-
 binding, og bindingens domænetype bliver søgbar i indekset. Sådan kan ordret
 lovtekst, supplerende kilder og regelspans kobles uden at ændre programmets
-semantik. JSON-indekset adskiller desuden `----`-markørernes linjer fra den
+semantik. Ground metadata udstilles både som læsbar Futuruna-værdi og som et
+struktureret `data`-træ, så audits kan læse fx URL- eller advarselsfelter uden
+at parse visningstekst. JSON-indekset adskiller desuden `----`-markørernes linjer fra den
 ordrette råtekst mellem dem. En hel kildemappe kan gennemsøges rekursivt efter
 vilkårlig type eller rolle, f.eks. `--type HusdyrbeskatningslovKildeInfo` eller
 `--role warning`.

@@ -3401,7 +3401,7 @@ fn ResearchPersonskatteloven() -> Element {
                         div { class: "tax-status-item ready",
                             span { class: "tax-status-label", "Status" }
                             strong { "Beregningsegnet, men ikke færdig" }
-                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt beløbskaskaden for afskrivninger, tab og iværksætterkonto efter § 3, stk. 2, nr. 10-11 er eksekverbare. Afskrivningsdelen dækker nu §§ 1-13: bl.a. saldoordninger, straksfradrag, salg af straksafskrevne aktiver, selskabers udlejningsregler, skade, negativ saldo, ophør, senere salg og blandet benyttelse. Det samme gælder personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
+                            p { "Den almindelige lønmodtagervej, flere kapitalindkomstgrene, aktieindkomst, pensionsfradrag efter Pensionsbeskatningsloven §§ 18 og 52, husdyr- og varelagerfradrag samt beløbskaskaden for afskrivninger, tab og iværksætterkonto efter § 3, stk. 2, nr. 10-11 er eksekverbare. Afskrivningsdelen dækker nu en beregningsegnet §§ 1-20-slice: bl.a. saldoordninger, straksfradrag, salg af straksafskrevne aktiver, selskabers udlejningsregler, skade, negativ saldo, ophør, senere salg, blandet benyttelse samt bygninger og installationer med anskaffelsestidspunkt, årlige satser, delvise bygninger og stopår. Gentagne § 19-arealforskydninger og §§ 21-24 er næste grænse. Det samme gælder personfradrag, underskud, delår, kommunal delårsskat, skatteloft, indeholdelse og slutopgørelse. Fuld lovdækning er stadig målet, ikke noget vi påstår er afsluttet." }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Form" }
@@ -3529,6 +3529,12 @@ fn ResearchPersonskatteloven() -> Element {
                         a { href: "https://info.skat.dk/data.aspx?oid=2060787", "Skattestyrelsens vejledning til § 6" }
                         " / "
                         a { href: "https://info.skat.dk/data.aspx?oid=2060792", "Skattestyrelsens vejledning til §§ 11-13" }
+                        " / "
+                        a { href: "https://info.skat.dk/data.aspx?oid=2083984", "Skattestyrelsens bygningsafgrænsning til § 14" }
+                        " / "
+                        a { href: "https://info.skat.dk/data.aspx?oid=2083985", "Skattestyrelsens installationsvejledning til § 15" }
+                        " / "
+                        a { href: "https://info.skat.dk/data.aspx?oid=2083987", "Skattestyrelsens afskrivningsmetoder til §§ 16-20" }
                         " / "
                         a { href: "https://www.retsinformation.dk/eli/lta/1922/149", "Statsskatteloven, LOV nr. 149/1922" }
                         " / "

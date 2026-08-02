@@ -1,0 +1,506 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+-- Scenarier for Afskrivningsloven §§ 14-20.
+-- Lovtekst og kildeankre ligger i det importerede lovmodul.
+
+= al14_hotel = afskrivningslov14_resultat(Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14HotelEllerCampinghytte,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14IkkeTilknyttet,
+    tilknyttet_art = Al14BygningEllerLokale
+))
+
+= al14_kontor = afskrivningslov14_resultat(Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14Kontor,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14IkkeTilknyttet,
+    tilknyttet_art = Al14BygningEllerLokale
+))
+
+= al14_tilknyttet_kontor = afskrivningslov14_resultat(Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14Kontor,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14TilknyttetAfskrivningsberettigetHovedbygning,
+    tilknyttet_art = Al14BygningEllerLokale
+))
+
+= al14_negativt_tilknyttet_lager = afskrivningslov14_resultat(Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14AndenErhvervsanvendelse,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14TilknyttetIkkeAfskrivningsberettigetHovedbygning,
+    tilknyttet_art = Al14BygningEllerLokale
+))
+
+= al14_negativt_tilknyttet_garage = afskrivningslov14_resultat(Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14AndenErhvervsanvendelse,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14TilknyttetIkkeAfskrivningsberettigetHovedbygning,
+    tilknyttet_art = Al14Garage
+))
+
+= al14_tilknyttet_grund = afskrivningslov14_resultat(Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14Kontor,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14TilknyttetAfskrivningsberettigetHovedbygning,
+    tilknyttet_art = Al14Grund
+))
+
+= al14_tilknyttet_gårdsplads = afskrivningslov14_resultat(Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14Kontor,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14TilknyttetAfskrivningsberettigetHovedbygning,
+    tilknyttet_art = Al14UdgravningVejGårdspladsParkeringHegnEllerLignende
+))
+
+= al15_som_bygning = afskrivningslov15_resultat(Afskrivningslov15Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al15TjenerUdelukkendeBygning,
+    bygning_resultat = al14_hotel,
+    har_kunnet_afskrives_efter_stk2_eller_stk3 = Falskt,
+    flere_ved_samme_bygning_anskaffet_samme_indkomstår = Falskt,
+    benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 1, samlet_benyttelse_enheder = 1),
+    i_en_eller_tofamilieshus = Falskt,
+    ejer_af_ejerlejlighed_benyttet_til_beboelse = Falskt
+))
+
+= al15_særskilt_erhverv = afskrivningslov15_resultat(Afskrivningslov15Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al15AndenUdelukkendeErhverv,
+    bygning_resultat = al14_kontor,
+    har_kunnet_afskrives_efter_stk2_eller_stk3 = Falskt,
+    flere_ved_samme_bygning_anskaffet_samme_indkomstår = Sandt,
+    benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 1, samlet_benyttelse_enheder = 1),
+    i_en_eller_tofamilieshus = Falskt,
+    ejer_af_ejerlejlighed_benyttet_til_beboelse = Falskt
+))
+
+= al15_blandet = afskrivningslov15_resultat(Afskrivningslov15Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al15BlandetErhvervOgPrivat,
+    bygning_resultat = al14_kontor,
+    har_kunnet_afskrives_efter_stk2_eller_stk3 = Falskt,
+    flere_ved_samme_bygning_anskaffet_samme_indkomstår = Falskt,
+    benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 60, samlet_benyttelse_enheder = 100),
+    i_en_eller_tofamilieshus = Falskt,
+    ejer_af_ejerlejlighed_benyttet_til_beboelse = Falskt
+))
+
+= al15_enfamilieshus_afskåret = afskrivningslov15_resultat(Afskrivningslov15Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al15AndenUdelukkendeErhverv,
+    bygning_resultat = al14_kontor,
+    har_kunnet_afskrives_efter_stk2_eller_stk3 = Falskt,
+    flere_ved_samme_bygning_anskaffet_samme_indkomstår = Falskt,
+    benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 1, samlet_benyttelse_enheder = 1),
+    i_en_eller_tofamilieshus = Sandt,
+    ejer_af_ejerlejlighed_benyttet_til_beboelse = Falskt
+))
+
+= al15_til_udelukket_bygning_afskrives_særskilt = afskrivningslov15_resultat(Afskrivningslov15Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al15TjenerUdelukkendeBygning,
+    bygning_resultat = al14_kontor,
+    har_kunnet_afskrives_efter_stk2_eller_stk3 = Falskt,
+    flere_ved_samme_bygning_anskaffet_samme_indkomstår = Falskt,
+    benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 1, samlet_benyttelse_enheder = 1),
+    i_en_eller_tofamilieshus = Falskt,
+    ejer_af_ejerlejlighed_benyttet_til_beboelse = Falskt
+))
+
+= al15_ejerlejlighed_afskåret = afskrivningslov15_resultat(Afskrivningslov15Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al15AndenUdelukkendeErhverv,
+    bygning_resultat = al14_kontor,
+    har_kunnet_afskrives_efter_stk2_eller_stk3 = Falskt,
+    flere_ved_samme_bygning_anskaffet_samme_indkomstår = Falskt,
+    benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 1, samlet_benyttelse_enheder = 1),
+    i_en_eller_tofamilieshus = Falskt,
+    ejer_af_ejerlejlighed_benyttet_til_beboelse = Sandt
+))
+
+= al16_hotel_2023 = afskrivningslov16_resultat(Afskrivningslov16Input(
+    aktiv = AlK3Bygning(resultat = al14_hotel),
+    hændelse = Al16Anskaffelse,
+    indkomstår = 2023,
+    erhvervet_eller_opført = Sandt,
+    udgift_afholdt = Falskt,
+    benyttes_erhvervsmæssigt = Sandt
+))
+
+= al16_hotel_2022 = afskrivningslov16_resultat(Afskrivningslov16Input(
+    aktiv = AlK3Bygning(resultat = al14_hotel),
+    hændelse = Al16Anskaffelse,
+    indkomstår = 2022,
+    erhvervet_eller_opført = Sandt,
+    udgift_afholdt = Falskt,
+    benyttes_erhvervsmæssigt = Sandt
+))
+
+= al16_blandet_installation_2023 = afskrivningslov16_resultat(Afskrivningslov16Input(
+    aktiv = AlK3Installation(resultat = al15_blandet),
+    hændelse = Al16Anskaffelse,
+    indkomstår = 2023,
+    erhvervet_eller_opført = Sandt,
+    udgift_afholdt = Falskt,
+    benyttes_erhvervsmæssigt = Sandt
+))
+
+= al16_gårdsplads_2023 = afskrivningslov16_resultat(Afskrivningslov16Input(
+    aktiv = AlK3Bygning(resultat = al14_tilknyttet_gårdsplads),
+    hændelse = Al16Anskaffelse,
+    indkomstår = 2023,
+    erhvervet_eller_opført = Sandt,
+    udgift_afholdt = Falskt,
+    benyttes_erhvervsmæssigt = Sandt
+))
+
+= al20_hotel_fortsat_2026 = afskrivningslov20_resultat(Afskrivningslov20Input(
+    indkomstår = 2026,
+    aktiv = AlK3Bygning(resultat = al14_hotel),
+    begivenhed = Al20FortsatErhvervsmæssigAnvendelse,
+    erhvervsmæssigt_anvendt_i_indkomståret = Sandt
+))
+
+= al20_gårdsplads_fortsat_2026 = afskrivningslov20_resultat(Afskrivningslov20Input(
+    indkomstår = 2026,
+    aktiv = AlK3Bygning(resultat = al14_tilknyttet_gårdsplads),
+    begivenhed = Al20FortsatErhvervsmæssigAnvendelse,
+    erhvervsmæssigt_anvendt_i_indkomståret = Sandt
+))
+
+= al20_hotel_solgt_2026 = afskrivningslov20_resultat(Afskrivningslov20Input(
+    indkomstår = 2026,
+    aktiv = AlK3Bygning(resultat = al14_hotel),
+    begivenhed = Al20BygningSolgt,
+    erhvervsmæssigt_anvendt_i_indkomståret = Sandt
+))
+
+= al20_blandet_installation_fortsat_2026 = afskrivningslov20_resultat(Afskrivningslov20Input(
+    indkomstår = 2026,
+    aktiv = AlK3Installation(resultat = al15_blandet),
+    begivenhed = Al20FortsatErhvervsmæssigAnvendelse,
+    erhvervsmæssigt_anvendt_i_indkomståret = Sandt
+))
+
+= al20_installation_som_bygning_solgt_2026 = afskrivningslov20_resultat(Afskrivningslov20Input(
+    indkomstår = 2026,
+    aktiv = AlK3Installation(resultat = al15_som_bygning),
+    begivenhed = Al20BygningSolgt,
+    erhvervsmæssigt_anvendt_i_indkomståret = Sandt
+))
+
+= al17_hotel_3_pct = afskrivningslov17_resultat(Afskrivningslov17Input(
+    indkomstår = 2026,
+    par16_resultat = al16_hotel_2023,
+    par20_resultat = al20_hotel_fortsat_2026,
+    afskrivningsgrundlag_kroner = 100000,
+    tidligere_årsopgørelser = [],
+    antaget_levetid_år = 0,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner = 3000)
+))
+
+= al17_hotel_4_pct = afskrivningslov17_resultat(Afskrivningslov17Input(
+    indkomstår = 2026,
+    par16_resultat = al16_hotel_2022,
+    par20_resultat = al20_hotel_fortsat_2026,
+    afskrivningsgrundlag_kroner = 100000,
+    tidligere_årsopgørelser = [],
+    antaget_levetid_år = 0,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner = 4000)
+))
+
+= al17_hotel_levetid_16_ny = afskrivningslov17_resultat(Afskrivningslov17Input(
+    indkomstår = 2026,
+    par16_resultat = al16_hotel_2023,
+    par20_resultat = al20_hotel_fortsat_2026,
+    afskrivningsgrundlag_kroner = 100000,
+    tidligere_årsopgørelser = [],
+    antaget_levetid_år = 16,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner = 6250)
+))
+
+= al17_hotel_levetid_20_ny = afskrivningslov17_resultat(Afskrivningslov17Input(
+    indkomstår = 2026,
+    par16_resultat = al16_hotel_2023,
+    par20_resultat = al20_hotel_fortsat_2026,
+    afskrivningsgrundlag_kroner = 100000,
+    tidligere_årsopgørelser = [],
+    antaget_levetid_år = 20,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner = 5000)
+))
+
+= al17_hotel_levetid_16_gammel = afskrivningslov17_resultat(Afskrivningslov17Input(
+    indkomstår = 2026,
+    par16_resultat = al16_hotel_2022,
+    par20_resultat = al20_hotel_fortsat_2026,
+    afskrivningsgrundlag_kroner = 100000,
+    tidligere_årsopgørelser = [],
+    antaget_levetid_år = 16,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner = 9250)
+))
+
+= al17_hotel_levetid_20_gammel = afskrivningslov17_resultat(Afskrivningslov17Input(
+    indkomstår = 2026,
+    par16_resultat = al16_hotel_2022,
+    par20_resultat = al20_hotel_fortsat_2026,
+    afskrivningsgrundlag_kroner = 100000,
+    tidligere_årsopgørelser = [],
+    antaget_levetid_år = 20,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner = 8000)
+))
+
+= al17_blandet_installation = afskrivningslov17_resultat(Afskrivningslov17Input(
+    indkomstår = 2026,
+    par16_resultat = al16_blandet_installation_2023,
+    par20_resultat = al20_blandet_installation_fortsat_2026,
+    afskrivningsgrundlag_kroner = 100000,
+    tidligere_årsopgørelser = [],
+    antaget_levetid_år = 0,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner = 3000)
+))
+
+= al17_historik_begrænser_sidste_år = afskrivningslov17_resultat(Afskrivningslov17Input(
+    indkomstår = 2026,
+    par16_resultat = al16_hotel_2023,
+    par20_resultat = al20_hotel_fortsat_2026,
+    afskrivningsgrundlag_kroner = 100000,
+    tidligere_årsopgørelser = [
+        Afskrivningslov17Årsopgørelse(indkomstår = 2025, beregnet_afskrivning_før_erhvervsandel_kroner = 99000, fradraget_afskrivning_kroner = 99000)
+    ],
+    antaget_levetid_år = 0,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner = 1000)
+))
+
+= al17_salg_afskærer_året = afskrivningslov17_resultat(Afskrivningslov17Input(
+    indkomstår = 2026,
+    par16_resultat = al16_hotel_2023,
+    par20_resultat = al20_hotel_solgt_2026,
+    afskrivningsgrundlag_kroner = 100000,
+    tidligere_årsopgørelser = [],
+    antaget_levetid_år = 0,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner = 3000)
+))
+
+= al17_fremmed_stopstatus_afskæres = afskrivningslov17_resultat(Afskrivningslov17Input(
+    indkomstår = 2026,
+    par16_resultat = al16_hotel_2023,
+    par20_resultat = al20_blandet_installation_fortsat_2026,
+    afskrivningsgrundlag_kroner = 100000,
+    tidligere_årsopgørelser = [],
+    antaget_levetid_år = 0,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner = 3000)
+))
+
+= al18_vedligeholdelse_først = afskrivningslov18_resultat(Afskrivningslov18Input(
+    indkomstår = 2026,
+    aktivets_par16_resultat = al16_hotel_2023,
+    par20_resultat = al20_hotel_fortsat_2026,
+    afskrivningsgrundlag_forrige_indkomstår_kroner = 100000,
+    vedligeholdelsesudgifter_kroner = 2000,
+    ombygnings_og_forbedringsudgifter_kroner = 6000,
+    forsikrings_eller_erstatningssum_kroner = 0,
+    udgiften_er_tilbygning = Falskt,
+    tilbygning_er_naturlig_del = Falskt,
+    fordeling = Al18Fuld,
+    valg = Al18ValgtStraksfradrag(beløb_før_fordeling_kroner = 3000)
+))
+
+= al18_valgt_mindre_end_maksimum = afskrivningslov18_resultat(Afskrivningslov18Input(
+    indkomstår = 2026,
+    aktivets_par16_resultat = al16_hotel_2023,
+    par20_resultat = al20_hotel_fortsat_2026,
+    afskrivningsgrundlag_forrige_indkomstår_kroner = 100000,
+    vedligeholdelsesudgifter_kroner = 2000,
+    ombygnings_og_forbedringsudgifter_kroner = 6000,
+    forsikrings_eller_erstatningssum_kroner = 0,
+    udgiften_er_tilbygning = Falskt,
+    tilbygning_er_naturlig_del = Falskt,
+    fordeling = Al18Fuld,
+    valg = Al18ValgtStraksfradrag(beløb_før_fordeling_kroner = 1000)
+))
+
+= al18_blandet_installation = afskrivningslov18_resultat(Afskrivningslov18Input(
+    indkomstår = 2026,
+    aktivets_par16_resultat = al16_blandet_installation_2023,
+    par20_resultat = al20_blandet_installation_fortsat_2026,
+    afskrivningsgrundlag_forrige_indkomstår_kroner = 100000,
+    vedligeholdelsesudgifter_kroner = 2000,
+    ombygnings_og_forbedringsudgifter_kroner = 6000,
+    forsikrings_eller_erstatningssum_kroner = 0,
+    udgiften_er_tilbygning = Falskt,
+    tilbygning_er_naturlig_del = Falskt,
+    fordeling = Al18BlandetInstallation(benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 60, samlet_benyttelse_enheder = 100)),
+    valg = Al18ValgtStraksfradrag(beløb_før_fordeling_kroner = 3000)
+))
+
+= al18_anskaffelsesår_afskåret = afskrivningslov18_resultat(Afskrivningslov18Input(
+    indkomstår = 2023,
+    aktivets_par16_resultat = al16_hotel_2023,
+    par20_resultat = afskrivningslov20_resultat(Afskrivningslov20Input(
+        indkomstår = 2023,
+        aktiv = AlK3Bygning(resultat = al14_hotel),
+        begivenhed = Al20FortsatErhvervsmæssigAnvendelse,
+        erhvervsmæssigt_anvendt_i_indkomståret = Sandt
+    )),
+    afskrivningsgrundlag_forrige_indkomstår_kroner = 100000,
+    vedligeholdelsesudgifter_kroner = 0,
+    ombygnings_og_forbedringsudgifter_kroner = 5000,
+    forsikrings_eller_erstatningssum_kroner = 0,
+    udgiften_er_tilbygning = Falskt,
+    tilbygning_er_naturlig_del = Falskt,
+    fordeling = Al18Fuld,
+    valg = Al18ValgtStraksfradrag(beløb_før_fordeling_kroner = 5000)
+))
+
+= al18_blandet_må_ikke_bruges_som_fuld = afskrivningslov18_resultat(Afskrivningslov18Input(
+    indkomstår = 2026,
+    aktivets_par16_resultat = al16_blandet_installation_2023,
+    par20_resultat = al20_blandet_installation_fortsat_2026,
+    afskrivningsgrundlag_forrige_indkomstår_kroner = 100000,
+    vedligeholdelsesudgifter_kroner = 0,
+    ombygnings_og_forbedringsudgifter_kroner = 5000,
+    forsikrings_eller_erstatningssum_kroner = 0,
+    udgiften_er_tilbygning = Falskt,
+    tilbygning_er_naturlig_del = Falskt,
+    fordeling = Al18Fuld,
+    valg = Al18ValgtStraksfradrag(beløb_før_fordeling_kroner = 5000)
+))
+
+= al18_unaturlig_tilbygning_er_ikke_forbedringsrest = afskrivningslov18_resultat(Afskrivningslov18Input(
+    indkomstår = 2026,
+    aktivets_par16_resultat = al16_hotel_2023,
+    par20_resultat = al20_hotel_fortsat_2026,
+    afskrivningsgrundlag_forrige_indkomstår_kroner = 100000,
+    vedligeholdelsesudgifter_kroner = 0,
+    ombygnings_og_forbedringsudgifter_kroner = 5000,
+    forsikrings_eller_erstatningssum_kroner = 0,
+    udgiften_er_tilbygning = Sandt,
+    tilbygning_er_naturlig_del = Falskt,
+    fordeling = Al18Fuld,
+    valg = Al18ValgtStraksfradrag(beløb_før_fordeling_kroner = 5000)
+))
+
+= al18_accessorisk_gårdsplads_kan_ikke_straksfradrages = afskrivningslov18_resultat(Afskrivningslov18Input(
+    indkomstår = 2026,
+    aktivets_par16_resultat = al16_gårdsplads_2023,
+    par20_resultat = al20_gårdsplads_fortsat_2026,
+    afskrivningsgrundlag_forrige_indkomstår_kroner = 100000,
+    vedligeholdelsesudgifter_kroner = 0,
+    ombygnings_og_forbedringsudgifter_kroner = 5000,
+    forsikrings_eller_erstatningssum_kroner = 0,
+    udgiften_er_tilbygning = Falskt,
+    tilbygning_er_naturlig_del = Falskt,
+    fordeling = Al18Fuld,
+    valg = Al18ValgtStraksfradrag(beløb_før_fordeling_kroner = 5000)
+))
+
+= al19_under_25_og_under_300 = afskrivningslov19_resultat(Afskrivningslov19Input(
+    bygning_resultat = al14_hotel,
+    samlet_anskaffelsessum_kroner = 1000000,
+    samlet_etageareal_kvadratmeter = 1000,
+    afskrivningsberettiget_etageareal_kvadratmeter = 200,
+    ejerbolig_anskaffelsessum_kroner = 0,
+    ejerbolig_etageareal_kvadratmeter = 0,
+    tidligere_afskrivningsberettiget_grundlag_kroner = 0,
+    tidligere_anvendt_afskrivningsprocent_basispoint = 0
+))
+
+= al19_under_25_men_mindst_300 = afskrivningslov19_resultat(Afskrivningslov19Input(
+    bygning_resultat = al14_hotel,
+    samlet_anskaffelsessum_kroner = 1000000,
+    samlet_etageareal_kvadratmeter = 1500,
+    afskrivningsberettiget_etageareal_kvadratmeter = 300,
+    ejerbolig_anskaffelsessum_kroner = 0,
+    ejerbolig_etageareal_kvadratmeter = 0,
+    tidligere_afskrivningsberettiget_grundlag_kroner = 100000,
+    tidligere_anvendt_afskrivningsprocent_basispoint = 4000
+))
+
+= al19_ejerbolig_udgår = afskrivningslov19_resultat(Afskrivningslov19Input(
+    bygning_resultat = al14_hotel,
+    samlet_anskaffelsessum_kroner = 1000000,
+    samlet_etageareal_kvadratmeter = 1000,
+    afskrivningsberettiget_etageareal_kvadratmeter = 400,
+    ejerbolig_anskaffelsessum_kroner = 200000,
+    ejerbolig_etageareal_kvadratmeter = 200,
+    tidligere_afskrivningsberettiget_grundlag_kroner = 500000,
+    tidligere_anvendt_afskrivningsprocent_basispoint = 9000
+))
+
+= al19_stk2_udelukket_bygning_afskæres = afskrivningslov19_resultat(Afskrivningslov19Input(
+    bygning_resultat = al14_kontor,
+    samlet_anskaffelsessum_kroner = 1000000,
+    samlet_etageareal_kvadratmeter = 1000,
+    afskrivningsberettiget_etageareal_kvadratmeter = 400,
+    ejerbolig_anskaffelsessum_kroner = 0,
+    ejerbolig_etageareal_kvadratmeter = 0,
+    tidligere_afskrivningsberettiget_grundlag_kroner = 0,
+    tidligere_anvendt_afskrivningsprocent_basispoint = 0
+))
+
+= al17_ideel_andel_fifo = afskrivningslov17_ideel_andel_resultat(Sandt, Sandt, Sandt)
+
+= par3_nr10_bygning_og_straksfradrag = par3_stk2_nr10_resultat(Par3Stk2Nr10Input(
+    grundlagsposter = [
+        Par3Nr10Al17(resultat = al17_hotel_levetid_16_ny),
+        Par3Nr10Al18(resultat = al18_vedligeholdelse_først)
+    ]
+))
+
+| scenarie_al14_negativ_afgrænsning_og_tilknytning: al14_hotel -> al14_hotel.omfattet_af_par14 && al14_kontor.omfattet_af_par14 == Falskt && al14_tilknyttet_kontor.afskrivningsberettiget_efter_stk3 && al14_tilknyttet_kontor.omfattet_af_par14 && al14_negativt_tilknyttet_lager.afskåret_ved_tilknytning_til_ikkeafskrivningsberettiget_hovedbygning && al14_negativt_tilknyttet_lager.omfattet_af_par14 == Falskt && al14_negativt_tilknyttet_garage.omfattet_af_par14 && al14_tilknyttet_grund.grund_udelukket && al14_tilknyttet_grund.omfattet_af_par14 == Falskt
+| scenarie_al15_tre_behandlinger_og_stk4: al15_som_bygning -> al15_som_bygning.behandling == Al15SomBygning && al15_særskilt_erhverv.behandling == Al15SærskiltUdelukkendeErhverv && al15_særskilt_erhverv.kan_afskrives_under_et_efter_stk2 && al15_blandet.behandling == Al15SærskiltBlandet && al15_blandet.blandet_benyttet && al15_til_udelukket_bygning_afskrives_særskilt.omfattet_af_stk2 && al15_til_udelukket_bygning_afskrives_særskilt.behandling == Al15SærskiltUdelukkendeErhverv && al15_enfamilieshus_afskåret.udelukket_efter_stk4 && al15_enfamilieshus_afskåret.omfattet_af_par15 == Falskt && al15_ejerlejlighed_afskåret.udelukket_efter_stk4 && al15_ejerlejlighed_afskåret.omfattet_af_par15 == Falskt
+| scenarie_al16_anskaffelsesåret_kræver_brug: al16_hotel_2023 -> al16_hotel_2023.betingelser_opfyldt && al16_hotel_2023.afskrivningsberettiget_fra_indkomstår == 2023
+| scenarie_al17_ordinære_3_og_4_pct: al17_hotel_3_pct -> al17_hotel_3_pct.højeste_sats_basispoint == 300 && al17_hotel_3_pct.fradrag_i_skattepligtig_indkomst_kroner == 3000 && al17_hotel_4_pct.højeste_sats_basispoint == 400 && al17_hotel_4_pct.fradrag_i_skattepligtig_indkomst_kroner == 4000
+| scenarie_al17_nye_kortlevetidssatser: al17_hotel_levetid_16_ny -> al17_hotel_levetid_16_ny.højeste_sats_basispoint == 625 && al17_hotel_levetid_16_ny.højeste_afskrivning_før_erhvervsandel_kroner == 6250 && al17_hotel_levetid_20_ny.højeste_sats_basispoint == 500 && al17_hotel_levetid_20_ny.højeste_afskrivning_før_erhvervsandel_kroner == 5000
+| scenarie_al17_gamle_kortlevetidssatser: al17_hotel_levetid_16_gammel -> al17_hotel_levetid_16_gammel.højeste_sats_basispoint == 925 && al17_hotel_levetid_16_gammel.højeste_afskrivning_før_erhvervsandel_kroner == 9250 && al17_hotel_levetid_20_gammel.højeste_sats_basispoint == 800 && al17_hotel_levetid_20_gammel.højeste_afskrivning_før_erhvervsandel_kroner == 8000
+| scenarie_al17_blandet_installation_beregner_før_andel: al17_blandet_installation -> al17_blandet_installation.beregnet_afskrivning_før_erhvervsandel_kroner == 3000 && al17_blandet_installation.fradrag_i_skattepligtig_indkomst_kroner == 1800
+| scenarie_al17_historik_og_stopår: al17_historik_begrænser_sidste_år -> al17_historik_begrænser_sidste_år.højeste_afskrivning_før_erhvervsandel_kroner == 1000 && al17_historik_begrænser_sidste_år.samlede_beregnede_afskrivninger_kroner == 100000 && al17_historik_begrænser_sidste_år.resterende_afskrivningsgrundlag_kroner == 0 && al17_salg_afskærer_året.kan_afskrives_i_indkomståret == Falskt && al17_salg_afskærer_året.valg_gyldigt == Falskt && al17_salg_afskærer_året.fradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al18_fem_procent_vedligeholdelse_først: al18_vedligeholdelse_først -> al18_vedligeholdelse_først.fem_procent_grænse_kroner == 5000 && al18_vedligeholdelse_først.vedligeholdelse_forbruger_grænse_først_kroner == 2000 && al18_vedligeholdelse_først.højeste_straksfradrag_før_fordeling_kroner == 3000 && al18_vedligeholdelse_først.valg_gyldigt && al18_vedligeholdelse_først.straksfradrag_i_skattepligtig_indkomst_kroner == 3000 && al18_vedligeholdelse_først.rest_til_særskilt_afskrivning_efter_par17_kroner == 3000 && al18_vedligeholdelse_først.straksfradrag_anses_ikke_som_afskrivning && al18_valgt_mindre_end_maksimum.valg_gyldigt && al18_valgt_mindre_end_maksimum.straksfradrag_i_skattepligtig_indkomst_kroner == 1000 && al18_valgt_mindre_end_maksimum.rest_til_særskilt_afskrivning_efter_par17_kroner == 5000
+| scenarie_al18_blandet_andel_og_anskaffelsesår: al18_blandet_installation -> al18_blandet_installation.straksfradrag_før_fordeling_kroner == 3000 && al18_blandet_installation.straksfradrag_i_skattepligtig_indkomst_kroner == 1800 && al18_blandet_installation.rest_til_særskilt_afskrivning_efter_par17_kroner == 3000 && al18_anskaffelsesår_afskåret.kan_straksfradrage == Falskt && al18_anskaffelsesår_afskåret.straksfradrag_i_skattepligtig_indkomst_kroner == 0
+| scenarie_al19_arealgrænse_og_ejerbolig: al19_under_25_og_under_300 -> al19_under_25_og_under_300.under_25_procent && al19_under_25_og_under_300.mindst_300_kvadratmeter_opfyldt == Falskt && al19_under_25_og_under_300.omfattet_af_par19 == Falskt && al19_under_25_men_mindst_300.omfattet_af_par19 && al19_under_25_men_mindst_300.aktuelt_afskrivningsberettiget_grundlag_kroner == 200000 && al19_under_25_men_mindst_300.forøgelse_som_særskilt_grundlag_kroner == 100000 && al19_ejerbolig_udgår.etageareal_efter_ejerbolig_kvadratmeter == 800 && al19_ejerbolig_udgår.anskaffelsessum_efter_ejerbolig_kroner == 800000 && al19_ejerbolig_udgår.aktuelt_afskrivningsberettiget_grundlag_kroner == 400000 && al19_ejerbolig_udgår.reduktion_fra_tidligere_grundlag_kroner == 100000 && al19_ejerbolig_udgår.resterende_afskrivningsprocent_basispoint == 1000
+| scenarie_al20_stopstatus_og_ideel_andel: al20_hotel_solgt_2026 -> al20_hotel_solgt_2026.afskrivning_afskåret_efter_stk1 && al20_hotel_solgt_2026.kan_afskrives_i_indkomståret == Falskt && al17_ideel_andel_fifo.først_erhvervede_andel_anses_først_afstået
+| scenarie_par3_nr10_adskiller_afskrivning_og_straksfradrag: par3_nr10_bygning_og_straksfradrag -> par3_nr10_bygning_og_straksfradrag.brutto_skattemæssige_afskrivninger_kroner == 6250 && par3_nr10_bygning_og_straksfradrag.brutto_andre_fradrag_kroner == 3000 && par3_nr10_bygning_og_straksfradrag.brutto_fradrag_efter_kildelovene_kroner == 9250 && par3_nr10_bygning_og_straksfradrag.fradrag_i_personlig_indkomst_kroner == 9250
+| scenarie_krydsobjekt_invarianter_afskærer_fremmede_statusser: al17_fremmed_stopstatus_afskæres -> al17_fremmed_stopstatus_afskæres.kan_afskrives_i_indkomståret == Falskt && al17_fremmed_stopstatus_afskæres.fradrag_i_skattepligtig_indkomst_kroner == 0 && al18_blandet_må_ikke_bruges_som_fuld.kan_straksfradrage == Falskt && al18_blandet_må_ikke_bruges_som_fuld.straksfradrag_i_skattepligtig_indkomst_kroner == 0 && al18_blandet_må_ikke_bruges_som_fuld.rest_til_særskilt_afskrivning_efter_par17_kroner == 0
+| scenarie_tilbygning_par19_og_stk1_installation_afgrænses: al18_unaturlig_tilbygning_er_ikke_forbedringsrest -> al18_unaturlig_tilbygning_er_ikke_forbedringsrest.kan_straksfradrage == Falskt && al18_unaturlig_tilbygning_er_ikke_forbedringsrest.rest_til_særskilt_afskrivning_efter_par17_kroner == 0 && al18_accessorisk_gårdsplads_kan_ikke_straksfradrages.kan_straksfradrage == Falskt && al18_accessorisk_gårdsplads_kan_ikke_straksfradrages.valg_gyldigt == Falskt && al19_stk2_udelukket_bygning_afskæres.omfattet_af_par19 == Falskt && al20_installation_som_bygning_solgt_2026.begivenhed_matcher_aktiv && al20_installation_som_bygning_solgt_2026.afskrivning_afskåret_efter_stk1
+
+? scenarie_al14_negativ_afgrænsning_og_tilknytning
+? scenarie_al15_tre_behandlinger_og_stk4
+? scenarie_al16_anskaffelsesåret_kræver_brug
+? scenarie_al17_ordinære_3_og_4_pct
+? scenarie_al17_nye_kortlevetidssatser
+? scenarie_al17_gamle_kortlevetidssatser
+? scenarie_al17_blandet_installation_beregner_før_andel
+? scenarie_al17_historik_og_stopår
+? scenarie_al18_fem_procent_vedligeholdelse_først
+? scenarie_al18_blandet_andel_og_anskaffelsesår
+? scenarie_al19_arealgrænse_og_ejerbolig
+? scenarie_al20_stopstatus_og_ideel_andel
+? scenarie_par3_nr10_adskiller_afskrivning_og_straksfradrag
+? scenarie_krydsobjekt_invarianter_afskærer_fremmede_statusser
+? scenarie_tilbygning_par19_og_stk1_installation_afgrænses

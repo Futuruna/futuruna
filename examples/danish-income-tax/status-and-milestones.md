@@ -17,7 +17,8 @@ model is materially complete.
 
 Futurunas metadataindeks understøtter nu generiske, typede referencer fra en
 vilkårlig rolle til en almindelig Futuruna-binding. Gentagne roller bevares,
-grundværdier og definitionlinjer kan udstilles, og `runa meta --type` samt
+grundværdier udstilles både som Futuruna-tekst og strukturerede
+konstruktør-/felttræer, definitionlinjer kan udstilles, og `runa meta --type` samt
 `--role` kan bruges som målrettede audit-sweeps uden at ændre programmets
 semantik. `runa meta --json` udstiller desuden det typede indeks som
 `futuruna.meta.v1` med råtekstankre, regelspans, symboler og strukturerede
@@ -36,8 +37,8 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Afskrivningslovens aktuelle kapitel 2-slice omfatter nu
-§§ 1-13. § 3 kræver leveret, driftsbestemt og
+Latest integration: Afskrivningslovens aktuelle beregningsslice omfatter nu
+§§ 1-20. § 3 kræver leveret, driftsbestemt og
 driftsklart aktiv på en gyldig anskaffelsesdato. § 4 håndterer fiktivt salg og
 køb ved benyttelsesændring, virksomhedsordningsoverførsel og nulværdi for en
 omfattet ladestander. § 5 bærer både den almindelige saldo og selskabers
@@ -50,8 +51,14 @@ selvstændigt fradragsudfald i stedet for at blive skjult i en positiv
 indtægtsføring. §§ 7-10 dækker skade og erstatning, separat eller samlet
 negativ saldo, ophør og senere salg samt 2026-grænsen på 965.800 kr. for dok- og
 beddingsanlæg. §§ 11-13 dækker de blandet benyttede aktiver, salg og skade.
+§§ 14-20 dækker den negative afgrænsning af bygninger, positive og negative
+tilknytningsregler, installationer, anskaffelsestidspunkt, valgfrie 3/4 pct.- og
+levetidsafskrivninger, valgfrit straksfradrag op til 5 pct. med vedligeholdelse
+først, delvise bygninger og stopår ved salg, nedrivning eller ophørt
+erhvervsbrug.
 
-Personskatteloven § 3, stk. 2, nr. 10 modtager de typede kapitel 2-resultater og
+Personskatteloven § 3, stk. 2, nr. 10 modtager de typede kapitel 2-resultater
+samt §§ 17-18-resultaterne og
 holder skattepligtige indtægtsføringer, afskrivninger, tab og andre fradrag
 adskilt, før kun fysiske personers indtægter og selvstændige personers fradrag
 føres til personlig indkomst. Den fokuserede scenario-fil validerer bl.a. et
@@ -82,6 +89,18 @@ og tab.
 reparation og forsikringsoverskud. Fortjenester fødes som særskilte § 3-
 indkomstposter; afskrivninger, tab og andre fradrag fødes fortsat som nr. 10-
 fradragsposter, så indtægt og fradrag ikke skjules i et nettobeløb.
+
+Afskrivningslovens §§ 14-20 bruger særskilte domæner for bygninger,
+installationer og årlige afskrivningshistorikker. § 17 holder den beregnede
+afskrivning før erhvervsandel adskilt fra det faktiske fradrag for blandede
+installationer. § 18 fører straksfradrag som andet fradrag, fordi stk. 4
+udtrykkeligt siger, at beløbet ikke er en afskrivning. Valget kan være lavere
+end 5 pct.-maksimum, hvorefter resten føres til særskilt afskrivningsgrundlag.
+Accessoriske udgravninger, veje, gårdspladser, parkeringspladser og hegn
+afskæres fra straksfradraget uden at miste deres § 14-status. Den fokuserede
+bygningsscenario-fil validerer 15 regelkæder i både interpreter og kompileret
+kode, herunder 6,25/5 pct. for nye 16/20-årige aktiver og 9,25/8 pct. for de
+tilsvarende før-2023-aktiver.
 
 Previous integration: Personskatteloven § 3, stk. 2, nr. 4-5 modtager nu typede
 resultater fra Husdyrbeskatningsloven §§ 2 og 8 og Varelagerloven § 1.
@@ -659,12 +678,18 @@ Current § 4 and § 13 amendment/dependency sources:
   - XML status checked on 2026-07-18: `Valid`; the LBK version window ends on
     2026-07-01, so current source posture also includes LOV 749/2025 § 2,
     effective 2026-01-01. That amendment changes § 40, stk. 7-8, not the
-    modeled §§ 1-13 or § 40 C.
+    modeled §§ 1-20 or § 40 C.
   - The current Personskatteloven § 3, stk. 2, nr. 10 dependency slice covers
-    §§ 1-13 with amount-level chapter 2 outcomes.
+    §§ 1-20 with amount-level chapter 2 outcomes plus § 17 depreciation and
+    § 18 immediate-deduction outcomes for buildings and installations.
   - Current rates and limits come from the Ministry's 2026 rates page; the
     separate-balance, negative-balance, cessation and mixed-use interpretations
     are cross-checked against Den juridiske vejledning.
+  - § 19 beregner den aktuelle forholdsmæssige anskaffelsessum og første
+    forøgelse/reduktion. Gentagne arealforskydninger kræver en vedvarende liste
+    af særskilte intervaller med hver sin anvendte afskrivningsprocent. Den
+    historik er fortsat en udtrykkelig grænse og skal på plads, før §§ 21-24 kan
+    forbruge § 19-resultatet ved salg, tab og genvundne afskrivninger.
   - § 40 C is modeled as the Personskatteloven § 4, stk. 1, nr. 16
     dependency for taxable/deductible saldo amounts from EU agricultural
     payment rights, milk quotas and sugar-beet delivery rights.
@@ -1741,10 +1766,10 @@ Review candidates to revisit deliberately, not as broad churn:
   calculation coverage where official fixtures and dependent statutes make that
   safe.
 - Extend Personskatteloven § 3, stk. 2, nr. 10 beyond the current
-  Afskrivningsloven §§ 1-2/5/5 A/6/11-13 and Statsskatteloven § 6 slice. The
-  remaining Afskrivningsloven saldoordninger, buildings, installations, advance
-  depreciation, intangible assets, recapture and cessation rules must become
-  typed source-law outcomes before nr. 10 can be described as complete.
+  Afskrivningsloven §§ 1-20 and Statsskatteloven § 6 slice. The remaining
+  building recapture/loss/demolition/damage rules from §§ 21-24, advance
+  depreciation, intangible assets and later recapture/cessation rules must
+  become typed source-law outcomes before nr. 10 can be described as complete.
 - Replace remaining source-dependency placeholders with complementary official
   statutes and trusted calculation examples, especially for remaining
   municipal/church allocation and settlement edges beyond the current
