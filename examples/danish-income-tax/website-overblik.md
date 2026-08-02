@@ -48,6 +48,13 @@ inputtype faktisk indeholder lister, maps eller sæt; den nuværende
 lønmodtagerinput har ingen kunstig børneliste, fordi børn ikke indgår i denne
 afgrænsede skatteberegning.
 
+Den ordinære personaktievej er nu også eksekverbar fra anskaffelse og
+gennemsnitlig anskaffelsessum til afståelse, noterede og unoterede tab,
+ægtefælleoverførsel og den endelige aktieindkomstpost efter Personskatteloven
+§ 4 a. Det fokuserede scenarie dækker betingelser og undtagelser i
+Aktieavancebeskatningsloven §§ 12-15 samt de anvendte dele af §§ 23-26. Kilden
+er [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098).
+
 Det er endnu ikke en fuld implementering af hele Personskatteloven. Det næste
 vigtige arbejde er at gøre de resterende kildepostur- og kategoriregler til
 kildebundne beløbsregler.

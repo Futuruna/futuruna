@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-07-18
 TD epic: `td-56cf8d`
-Current focus issue: `td-69e51e`
+Current focus issue: `td-8fe9a8`
 
 This folder is the working home for encoding Danish personal income tax law in
 Futuruna. The aim is not only to display the law as source code, but to make the
@@ -46,7 +46,18 @@ overbliksside. Den forklarer Futuruna, regelkaskader, det almindelige
 lønmodtagereksempel og udvalgte auditsignaler, mens lovtekst, regler, scenarier
 og audits bliver i `examples/danish-income-tax/`.
 
-Latest integration: Afskrivningslovens aktuelle kilde- og regelkorpus omfatter
+Latest integration: Aktieavancebeskatningsloven §§ 12-15, § 23, stk. 1,
+§ 24, stk. 1, og § 26, stk. 1, 2 og 5 har nu en typet beregningsvej for
+ordinære personaktier med pålydende værdi. En vedvarende selskabsposition og
+anskaffelses-/afståelseshændelser beregner gennemsnitlig anskaffelsessum,
+delafståelser og hovedaktionærfordeling. Årsreglerne skelner mellem direkte
+fradrag for unoterede tab, kildebegrænset modregning og fremførsel for noterede
+tab, § 14-oplysningsafskæring, § 15-boligretsfritagelse og § 13 A-overførsel
+til en samlevende ægtefælle. Både eget nettoresultat og ægtefællens overførte
+tab føder typede Personskatteloven § 4 a-poster. Det fokuserede scenarie
+validerer 17 betingelser og undtagelser i både interpreter og kompileret kode.
+
+Afskrivningslovens aktuelle kilde- og regelkorpus omfatter
 nu hele paragrafsekvensen §§ 1-69. § 3 kræver leveret, driftsbestemt og
 driftsklart aktiv på en gyldig anskaffelsesdato. § 4 håndterer fiktivt salg og
 køb ved benyttelsesændring, virksomhedsordningsoverførsel og nulværdi for en
@@ -700,11 +711,20 @@ Current § 4 and § 13 amendment/dependency sources:
 - Aktieavancebeskatningsloven:
   `https://www.retsinformation.dk/eli/lta/2025/1098`
   - XML status on 2026-07-18: `Valid`
+  - §§ 12-15, § 23, stk. 1, § 24, stk. 1, and § 26, stk. 1, 2 and 5
+    supply the ordinary personal-share calculation path for nominal-value
+    shares: realization, average acquisition basis, partial disposals,
+    main-shareholder market-value allocation, listed/unlisted loss treatment,
+    the § 14 information condition, the § 15 housing-right exemption, and
+    § 13 A spouse transfer/carry-forward into Personskatteloven § 4 a.
   - §§ 17, 18, 19 B, 19 C, 21 and 22 are modeled as the first
     Personskatteloven § 4, stk. 1, nr. 5 dependency slice for share and
     investment-instrument gain/loss classification, including the § 22
     2.000 kr. threshold, § 18 pre-22 May 1987 bond-exempt loss branch, and
     § 17/§ 19 C-if-§ 17 personal-income reclassification.
+  - Remaining ABL corpus includes non-nominal shares, § 25's share-by-share
+    rights method, the remaining §§ 23-27 calculation branches, status changes,
+    entry/exit taxation, transitions and employee-ownership provisions.
 - Virksomhedsskatteloven:
   `https://www.retsinformation.dk/eli/lta/2021/1836`
   - XML status on 2026-07-18: `Valid`
@@ -1089,10 +1109,16 @@ encoded as a temporal rule on top of the consolidation.
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
   financial contracts.
 - `aktieavancebeskatningsloven.runa` exists and checks/runs with `runa run`;
-  it covers the ABL §§ 17/18/19 B/19 C/21/22 dependency slice consumed by
-  Personskatteloven § 4, stk. 1, nr. 5 and the related § 4 a share-income
-  split, including § 19 B/§ 21 share-income classification and § 19 B-if-§ 17
-  personal-income reclassification.
+  it covers the ordinary ABL §§ 12-15/23/24/26 nominal-share calculation path
+  consumed by Personskatteloven § 4 a, plus the §§ 17/18/19 B/19 C/21/22
+  dependency slice consumed by § 4, stk. 1, nr. 5. The ordinary path includes
+  persistent average-basis positions, realization events, listed/unlisted loss
+  treatment, spouse transfer/carry-forward and the § 14/§ 15 conditions.
+- `personskatteloven-par4a-ordinaere-aktier.scenario.runa` exists and
+  checks/runs in both backends; 17 focused scenarios cover average basis,
+  partial disposals, main-shareholder allocation, listed/unlisted losses,
+  missing acquisition information, housing rights, invalid disposals, own
+  § 4 a net share income and the spouse's transferred § 4 a loss post.
 - `virksomhedsskatteloven.runa` exists and checks/runs with `runa run`; it
   covers the Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return
   dependency consumed by Personskatteloven § 4, stk. 1, nr. 3 and nr. 3 a, and
@@ -1214,8 +1240,9 @@ encoded as a temporal rule on top of the consolidation.
   Virksomhedsskatteloven §§ 7/22 a/22 c/23 a capital-return classification
   under stk. 1, nr. 3 and nr. 3 a, including § 23 a personal-income election
   reduction, LL § 16 A dividend classification under stk. 1, nr. 4,
-  Aktieavancebeskatningsloven §§ 17/18/19 B/19 C/21/22 gain/loss
-  classification under stk. 1, nr. 5, direct stk. 1, nr. 5 a membership
+  Aktieavancebeskatningsloven §§ 12-15/23/24/26 ordinary nominal-share
+  calculation into § 4 a and §§ 17/18/19 B/19 C/21/22 gain/loss
+  classification under § 4, stk. 1, nr. 5, direct stk. 1, nr. 5 a membership
   certificate classification, and stk. 1, nr. 5 b investment-intermediary
   amount classification with stk. 4-7 personal-income reclassification,
   Ejendomsskatteloven § 3 owner-occupied-property classification under
@@ -1241,8 +1268,9 @@ encoded as a temporal rule on top of the consolidation.
   positive/negative net-capital projections
   and personal-income reclassification, plus amount-level § 4 a share-income
   inclusion, stk. 2 exclusions, stk. 3 personal-income reclassification,
-  ABL § 19 B/§ 21 share-income bridge, negative share-income preservation and
-  pension deduction from positive share income, and amount-level § 4 b CFC-income aggregation with positive § 8 b
+  ABL ordinary-share and § 19 B/§ 21 share-income bridges, § 13 A spouse
+  loss transfer, negative share-income preservation and pension deduction from
+  positive share income, and amount-level § 4 b CFC-income aggregation with positive § 8 b
   tax base projection, the §§ 5-9 state-tax skeleton including amount-level
   § 6 spouse negative net-capital offset and § 7 stk. 5 spouse
   positive-capital threshold/negative-capital offset, § 12 unused
@@ -1389,6 +1417,12 @@ Current decision:
   nr. 3 bridge consumes `Pbl18Resultat` or `Pbl52Resultat` together with the
   typed § 4 a pension-deduction result, rather than accepting loose pension and
   share-income amounts that could encode an impossible double deduction.
+- `AktieavanceOrdinærHændelsesSag` keeps one company's persistent share
+  position together with a typed acquisition or disposal event. The event
+  result carries both the updated average-basis position and the distinct
+  §§ 12-15 tax outcomes, while `AktieavanceOrdinærÅrssag` owns § 13 A's own,
+  spouse and carry-forward allocation. This avoids passing acquisition basis,
+  market status and information-condition booleans down separate call chains.
 - The confiscatory audit work tightened Futuruna's language/runtime support:
   typed `|` rule-head parameters that name a `RuleScope` type now keep that
   receiver type through checking, and named constructors inside nested
@@ -1964,6 +1998,11 @@ Review candidates to revisit deliberately, not as broad churn:
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe.
+- Continue Aktieavancebeskatningsloven beyond the ordinary nominal-share path:
+  model shares without nominal value, § 25 rights under the share-by-share
+  method, the remaining §§ 23-27 realization/lager and basis branches,
+  § 33 A status changes, §§ 37-39 entry/exit taxation, transitions and the
+  employee-ownership provisions before calling the ABL dependency complete.
 - Preserve and deepen Personskatteloven § 3, stk. 2, nr. 10's now-contiguous
   Afskrivningsloven §§ 1-69 and Statsskatteloven § 6 dependencies. Add further
   historical fixtures only where official facts justify them; §§ 50-62 already
