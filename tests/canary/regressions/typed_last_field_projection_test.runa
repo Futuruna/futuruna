@@ -1,0 +1,20 @@
+-- `last(List(Record)).field` must retain the list element type even when an
+-- unrelated union reuses the same field names.
+
+# UnrelatedEvent = Created(year: Int, order: Int) | Closed(year: Int)
+# Record(year: Int, order: Int, value: Int, event: UnrelatedEvent)
+# RecordLedger(records: List(Record))
+
+= ledger = RecordLedger(records = [
+    Record(year = 2024, order = 1, value = 10, event = Created(year = 2024, order = 1)),
+    Record(year = 2025, order = 2, value = 20, event = Closed(year = 2025))
+])
+
+| follows_last(record_ledger: RecordLedger, year: Int, order: Int) -> length(record_ledger.records) == 0 || year > last(record_ledger.records).year || year == last(record_ledger.records).year && order > last(record_ledger.records).order
+| typed_last_projection: ledger -> last(ledger.records).year == 2025 && last(ledger.records).order == 2 && last(ledger.records).value == 20
+| typed_first_projection: ledger -> first(ledger.records).year == 2024 && first(ledger.records).order == 1 && first(ledger.records).value == 10
+| typed_last_projection_in_rule: ledger -> follows_last(ledger, 2025, 3) && follows_last(ledger, 2025, 2) == False
+
+? typed_last_projection
+? typed_first_projection
+? typed_last_projection_in_rule

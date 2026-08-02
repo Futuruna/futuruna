@@ -11109,13 +11109,16 @@ impl Interpreter {
                 }
             }
             "last" => {
-                // last(stream) → Value — last element (or Unit if empty)
+                // last(stream) -> Value -- partial, like head(list).
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
                     Value::Stream(v) | Value::Subject(v) => v,
                     other => list_to_vec(&other),
                 };
-                items.into_iter().last().unwrap_or(Value::Int(0))
+                items
+                    .into_iter()
+                    .last()
+                    .unwrap_or_else(|| panic!("last: empty list"))
             }
             "combine_latest" => {
                 // combine_latest(stream1, stream2) → Stream of Tuple pairs
@@ -11164,13 +11167,16 @@ impl Interpreter {
                 input
             }
             "first" => {
-                // first(stream) → Value — first element (or Unit if empty)
+                // first(stream) -> Value -- partial, like head(list).
                 let stream = args.into_iter().next().unwrap_or(Value::Stream(vec![]));
                 let items = match stream {
                     Value::Stream(v) | Value::Subject(v) => v,
                     other => list_to_vec(&other),
                 };
-                items.into_iter().next().unwrap_or(Value::Int(0))
+                items
+                    .into_iter()
+                    .next()
+                    .unwrap_or_else(|| panic!("first: empty list"))
             }
             "reduce" => {
                 // reduce(stream, init, f) → Value — fold, emitting only the final accumulator

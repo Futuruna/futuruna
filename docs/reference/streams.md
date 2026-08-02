@@ -103,7 +103,7 @@ These consume the stream and return a single value.
 |----------|-----------|-------------|
 | `count` | `Stream(a) -> Int` | Count elements |
 | `sum` | `Stream(Int) -> Int` | Sum all elements |
-| `last` | `Stream(a) -> a` | Last element |
+| `last` | `Stream(a) -> a` | Last element; raises `last: empty list` when empty |
 | `any` | `(Stream(a), a -> Bool) -> Bool` | Any element matches? |
 | `all` | `(Stream(a), a -> Bool) -> Bool` | All elements match? |
 
@@ -161,7 +161,7 @@ These consume the stream and return a single value.
 
 | Operator | Signature | Description |
 |----------|-----------|-------------|
-| `first` | `Stream(a) -> a` | Return the first element of a stream (or Unit if empty) |
+| `first` | `Stream(a) -> a` | First element; raises `first: empty list` when empty |
 | `reduce` | `(Stream(a), b, (b, a) -> b) -> b` | Terminal fold: reduce stream to a single value |
 
 ```runa

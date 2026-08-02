@@ -261,7 +261,7 @@ These operators work on reactive streams (declared with `~`). They complement th
 |----------|-----------|-------------|
 | `tap` | `(Stream(a), a -> ()) -> Stream(a)` | Side-effect observation: calls fn for each element, returns stream unchanged |
 | `catch` | `(Stream(a), Err -> Stream(a)) -> Stream(a)` | Error recovery: in sync mode, pass-through (no errors in Vec) |
-| `first` | `Stream(a) -> a` | Return the first element of a stream (or Unit if empty) |
+| `first` | `Stream(a) -> a` | First element; raises `first: empty list` when empty |
 | `reduce` | `(Stream(a), b, (b, a) -> b) -> b` | Terminal fold: reduce stream to a single value |
 | `start_with` | `(Stream(a), a) -> Stream(a)` | Prepend a value to the front of a stream |
 | `concat` | `(Stream(a), Stream(a)) -> Stream(a)` | Concatenate two streams sequentially |

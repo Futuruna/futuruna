@@ -13756,7 +13756,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         ("skip",         BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().skip(({1}).max(0) as usize).collect::<Vec<_>>()" }),
         ("window",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let src: Vec<_> = {0}.clone().into_iter().collect(); let __n = ({1} as usize).max(1); src.windows(__n).map(|w| w.to_vec()).collect::<Vec<Vec<_>>>() }" }),
         ("sum",          BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().reduce(|a, b| a + b).unwrap_or_default()" }),
-        ("last",         BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().last().unwrap_or_default()" }),
+        ("last",         BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().last().unwrap_or_else(|| panic!(\"last: empty list\"))" }),
         ("combine_latest", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let a: Vec<_> = {0}.clone().into_iter().collect(); let b: Vec<_> = {1}.clone().into_iter().collect(); if a.is_empty() || b.is_empty() {{ vec![] }} else {{ let n = a.len().max(b.len()); (0..n).map(|i| (a.get(i).or(a.last()).cloned().unwrap(), b.get(i).or(b.last()).cloned().unwrap())).collect::<Vec<_>>() }} }" }),
 
         // ---- Stream lifecycle (sync mode) ----
@@ -13768,7 +13768,7 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         // ---- New stream operators (M17b) ----
         ("tap",          BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "{ let __v = {0}.clone(); for __x in __v.iter() {{ let __f = {1}; __f(__x.clone()); }} __v }" }),
         ("catch",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("first",        BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().next().unwrap_or_default()" }),
+        ("first",        BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().next().unwrap_or_else(|| panic!(\"first: empty list\"))" }),
         ("reduce",       BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __acc = {1}; for __x in {0}.clone().into_iter() {{ __acc = ({2})(__acc.clone(), __x); }} __acc }" }),
         ("start_with",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __v = vec![{1}]; __v.extend({0}.clone()); __v }" }),
         ("concat",       BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.extend({1}.clone()); __v }" }),
@@ -15624,11 +15624,15 @@ impl<'a> LoweringCtx<'a> {
                         };
                     }
                     // Polymorphic list builtins: head(List(T)) -> T,
-                    // nth(List(T), Int) -> T. tail(List(T)) -> List(T).
+                    // first(List(T)) -> T, last(List(T)) -> T,
+                    // nth(List(T), Int) -> T.
+                    // tail(List(T)) -> List(T).
                     // Without this, `head(list_of_floats) / x` would treat
                     // the head as Unknown and the safe-division would pick
                     // the integer template.
-                    if matches!(fn_name.as_str(), "head" | "nth") && !fir_args.is_empty() {
+                    if matches!(fn_name.as_str(), "head" | "first" | "last" | "nth")
+                        && !fir_args.is_empty()
+                    {
                         let elem_ty = if let FirTy::List(elem) = &fir_args[0].ty {
                             Some((**elem).clone())
                         } else {
@@ -33221,11 +33225,11 @@ impl RustCodegen {
             )),
             "collect" if args.len() == 1 => Some(snapshot),
             "last" if args.len() == 1 => Some(format!(
-                "{}.into_iter().last().unwrap_or_default()",
+                "{}.into_iter().last().unwrap_or_else(|| panic!(\"last: empty list\"))",
                 snapshot
             )),
             "first" if args.len() == 1 => Some(format!(
-                "{}.into_iter().next().unwrap_or_default()",
+                "{}.into_iter().next().unwrap_or_else(|| panic!(\"first: empty list\"))",
                 snapshot
             )),
             "reduce" if args.len() == 3 => {

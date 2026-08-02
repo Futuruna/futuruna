@@ -1,0 +1,3 @@
+-- expect-runtime-error: first: empty list
+
+@ print(show(first([])))

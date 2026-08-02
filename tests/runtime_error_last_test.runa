@@ -1,0 +1,3 @@
+-- expect-runtime-error: last: empty list
+
+@ print(show(last([])))

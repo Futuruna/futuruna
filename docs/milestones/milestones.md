@@ -767,7 +767,7 @@ Seven new stream operators plus tuple accessors, completing the reactive toolkit
 
 - [x] **`tap(stream, fn)`** — side-effect observation, returns stream unchanged
 - [x] **`catch(stream, fn)`** — error recovery (sync: pass-through, no errors in Vec)
-- [x] **`first(stream)`** — return first element (or Unit if empty)
+- [x] **`first(stream)`** — return first element (runtime error if empty)
 - [x] **`reduce(stream, init, fn)`** — terminal fold to single value
 - [x] **`start_with(stream, value)`** — prepend a value to the front of a stream
 - [x] **`concat(stream1, stream2)`** — concatenate two streams sequentially

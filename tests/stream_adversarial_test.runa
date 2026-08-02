@@ -17,8 +17,7 @@
 @ print("skip empty:     " + show(collect(skip(empty, 5))))
 @ print("distinct empty: " + show(collect(distinct(empty))))
 @ print("pairwise empty: " + show(collect(pairwise(empty))))
-@ print("first empty:    " + show(first(empty)))
-@ print("last empty:     " + show(last(empty)))
+-- Empty first/last are partial operations covered by dedicated runtime-error tests.
 @ print("count empty:    " + show(count(empty)))
 @ print("sum empty:      " + show(sum(empty)))
 @ print("reduce empty:   " + show(reduce(empty, 99, |a, x| a + x)))
